@@ -459,9 +459,8 @@ def _save_mock_sklearn_model(tmpdir) -> str:
     model = SklearnWrapper(
         "sample", ["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], estimator
     )
-    # need to call .fit to avoid error
+    # need to fit before dumping
     model.fit(data)
-
     model.dump(str(tmpdir))
     return str(tmpdir)
 
