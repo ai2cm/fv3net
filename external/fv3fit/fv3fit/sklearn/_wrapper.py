@@ -200,6 +200,9 @@ class SklearnWrapper(BaseXarrayEstimator):
             model = RegressorEnsemble.loads(f.read())
 
         scaler_str = fs.cat(os.path.join(path, TARGET_SCALAR_FILENAME))
+
+        scaler_obj: Optional[scaler.NormalizeTransform]
+
         if scaler_str:
             scaler_obj = scaler.loads(scaler_str)
         else:
