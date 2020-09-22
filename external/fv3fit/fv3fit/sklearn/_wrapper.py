@@ -63,7 +63,9 @@ class RegressorEnsemble:
         return np.mean(predictions, axis=0)
 
     def dumps(self) -> bytes:
-        return joblib.dump(self.regressors)
+        f = io.BytesIO()
+        joblib.dump(self.regressors, f)
+        return f.getvalue()
 
     @classmethod
     def loads(cls, b: bytes):
