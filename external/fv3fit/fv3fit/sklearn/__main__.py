@@ -7,7 +7,6 @@ from . import _train as train
 from .. import _shared as shared
 
 
-MODEL_FILENAME = "sklearn_model.pkl"
 MODEL_CONFIG_FILENAME = "training_config.yml"
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
 
@@ -69,4 +68,4 @@ if __name__ == "__main__":
     logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 
     model = train.train_model(batched_data, train_config)
-    train.save_model(args.output_data_path, model, MODEL_FILENAME)
+    model.dump(args.output_data_path)

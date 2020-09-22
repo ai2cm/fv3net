@@ -1,7 +1,4 @@
-import fsspec
-import joblib
 import logging
-import os
 import xarray as xr
 from .._shared import ModelTrainingConfig
 from typing import Sequence, Union, Mapping, Iterable
@@ -114,12 +111,3 @@ def train_model(
         logger.info(f"Batch {i} done fitting.")
 
     return model_wrapper
-
-
-def save_model(output_url: str, model, model_filename: str):
-    """Save model to {output_url}/{model_filename} using joblib.dump"""
-    fs, _, _ = fsspec.get_fs_token_paths(output_url)
-    fs.makedirs(output_url, exist_ok=True)
-    model_url = os.path.join(output_url, model_filename)
-    with fs.open(model_url, "wb") as f:
-        joblib.dump(model, f)
