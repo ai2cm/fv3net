@@ -10,7 +10,7 @@ import yaml
 from datetime import timedelta, datetime
 from sklearn.dummy import DummyRegressor
 
-from fv3fit.sklearn import SklearnWrapper, RegressorEnsemble
+from fv3fit.sklearn import RegressorEnsemble, SklearnWrapper
 from fv3fit.keras import DummyModel
 import subprocess
 
@@ -443,7 +443,7 @@ def _model_dataset():
     return data
 
 
-def _save_mock_sklearn_model(tmpdir) -> str:
+def _save_mock_sklearn_model(tmpdir):
 
     data = _model_dataset()
 
@@ -452,28 +452,32 @@ def _save_mock_sklearn_model(tmpdir) -> str:
     # include nonzero moistening to test for mass conservation
     moistening_constant_per_s = -np.full(nz, 1e-4 / 86400)
     constant = np.concatenate([heating_constant_K_per_s, moistening_constant_per_s])
+    estimator = RegressorEnsemble(
+        DummyRegressor(strategy="constant", constant=constant)
+    )
 
-    single_regressor = DummyRegressor(strategy="constant", constant=constant)
-
-    estimator = RegressorEnsemble(single_regressor)
     model = SklearnWrapper(
         "sample", ["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], estimator
     )
-    # need to fit before dumping
+
+    # needed to avoid sklearn.exceptions.NotFittedError
     model.fit(data)
-    model.dump(str(tmpdir))
-    return str(tmpdir)
+
+    path = str(tmpdir.join("model.yaml"))
+    model.dump(path)
+    return path
 
 
-def _save_mock_keras_model(path):
+def _save_mock_keras_model(tmpdir):
 
     input_variables = ["air_temperature", "specific_humidity"]
     output_variables = ["dQ1", "dQ2"]
 
     model = DummyModel("sample", input_variables, output_variables)
     model.fit([_model_dataset()])
-    model.dump(path)
-    return path
+    model.dump(str(tmpdir))
+
+    return str(tmpdir)
 
 
 @pytest.fixture(scope="module", params=["keras", "sklearn"])
@@ -485,7 +489,7 @@ def completed_rundir(request, tmpdir_factory):
     tmpdir = tmpdir_factory.mktemp("rundir")
 
     if request.param == "sklearn":
-        model_path = _save_mock_sklearn_model(str(tmpdir.join("model.yaml")))
+        model_path = _save_mock_sklearn_model(tmpdir)
     elif request.param == "keras":
         model_path = _save_mock_keras_model(tmpdir)
 
