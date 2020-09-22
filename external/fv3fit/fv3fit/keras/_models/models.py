@@ -251,7 +251,7 @@ class PackedKerasModel(Model):
         batches: Sequence[xr.Dataset],
         epochs: int = 1,
         batch_size: Optional[int] = None,
-        num_workers: int = None,
+        num_workers: Optional[int] = None,
         max_queue_size: int = 8,
         **fit_kwargs: Any,
     ) -> None:
@@ -282,7 +282,7 @@ class PackedKerasModel(Model):
         if batch_size is not None:
             self._fit_loop(Xy, epochs, batch_size, **fit_kwargs)
         else:
-            self._fit_array(Xy, epochs, **fit_kwargs)
+            self._fit_array(Xy, epochs=epochs, **fit_kwargs)
 
     def _fit_loop(
         self,
@@ -299,9 +299,9 @@ class PackedKerasModel(Model):
                 self.model.fit(X, y, batch_size=batch_size, **fit_kwargs)
 
     def _fit_array(
-        self, X: Sequence[Tuple[np.ndarray, np.ndarray]], epochs: int, **fit_kwargs: Any
+        self, X: Sequence[Tuple[np.ndarray, np.ndarray]], **fit_kwargs: Any
     ) -> None:
-        return self.model.fit(X, epochs=epochs, **fit_kwargs)
+        return self.model.fit(X, **fit_kwargs)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         sample_coord = X[self.sample_dim_name]
