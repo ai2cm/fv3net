@@ -13,6 +13,8 @@ import sklearn.base
 from typing import Optional, Iterable, Sequence
 import yaml
 
+# bump this version for incompatible changes
+SERIALIZATION_VERSION = "v0"
 TARGET_SCALAR_FILENAME = "target_scaler.yaml"
 PICKLE_FILENAME = "sklearn_model.pkl"
 METADATA_FILENAME = "metadata.yaml"
@@ -73,12 +75,11 @@ class RegressorEnsemble:
         return f.getvalue()
 
     @classmethod
-    def loads(cls, b: bytes):
+    def loads(cls, b: bytes) -> "RegressorEnsemble":
         f = io.BytesIO(b)
-        regressors = joblib.load(f)
-        obj = cls(regressors[0])
-        obj.regressors = regressors
-        return regressors
+        regressors: Sequence[sklearn.base.BaseEstimator] = joblib.load(f)
+        obj = cls(regressors=regressors)
+        return obj
 
 
 class BaseXarrayEstimator(Predictor):
@@ -179,14 +180,16 @@ class SklearnWrapper(BaseXarrayEstimator):
             path: a URL pointing to a directory
         """
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-        with fs.open(os.path.join(path, PICKLE_FILENAME), "wb") as f:
+        root = os.path.join(path, SERIALIZATION_VERSION)
+        fs.makedirs(root, exist_ok=True)
+        with fs.open(os.path.join(root, PICKLE_FILENAME), "wb") as f:
             f.write(self.model.dumps())
 
-        with fs.open(os.path.join(path, TARGET_SCALAR_FILENAME), "w") as f:
+        with fs.open(os.path.join(root, TARGET_SCALAR_FILENAME), "w") as f:
             if self.target_scaler is not None:
                 f.write(scaler.dumps(self.target_scaler))
 
-        with fs.open(os.path.join(path, METADATA_FILENAME), "w") as f:
+        with fs.open(os.path.join(root, METADATA_FILENAME), "w") as f:
             yaml.safe_dump(
                 [self.sample_dim_name, self.input_variables, self.output_variables], f
             )
@@ -195,11 +198,12 @@ class SklearnWrapper(BaseXarrayEstimator):
     def load(cls, path: str) -> Predictor:
         """Load a model from a remote path"""
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+        root = os.path.join(path, SERIALIZATION_VERSION)
 
-        with fs.open(os.path.join(path, PICKLE_FILENAME), "rb") as f:
+        with fs.open(os.path.join(root, PICKLE_FILENAME), "rb") as f:
             model = RegressorEnsemble.loads(f.read())
 
-        scaler_str = fs.cat(os.path.join(path, TARGET_SCALAR_FILENAME))
+        scaler_str = fs.cat(os.path.join(root, TARGET_SCALAR_FILENAME))
 
         scaler_obj: Optional[scaler.NormalizeTransform]
 
@@ -208,7 +212,7 @@ class SklearnWrapper(BaseXarrayEstimator):
         else:
             scaler_obj = None
 
-        meta_str = fs.cat(os.path.join(path, METADATA_FILENAME))
+        meta_str = fs.cat(os.path.join(root, METADATA_FILENAME))
         sample_dim_name, input_variables, output_variables = yaml.safe_load(meta_str)
 
         return cls(

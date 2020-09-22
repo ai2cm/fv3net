@@ -138,4 +138,6 @@ token = f.getvalue()
 )
 def test_SklearnWrapper_serialize(tmpdir, wrapper):
     wrapper.dump(tmpdir)
-    wrapper.load(tmpdir)
+    loaded = wrapper.load(tmpdir)
+
+    assert isinstance(loaded.model, RegressorEnsemble)
