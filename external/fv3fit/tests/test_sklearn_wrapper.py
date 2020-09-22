@@ -124,23 +124,31 @@ def test_SklearnWrapper_fit_scaler_not_fitted():
     scaler.fit.assert_not_called()
 
 
-f = io.BytesIO()
-joblib.dump(["some", "list"], f)
-token = f.getvalue()
-
-
 @pytest.mark.parametrize(
-    "wrapper",
-    [
-        _get_sklearn_wrapper(scale_factor=1.0, dumps_returns=token),
-        _get_sklearn_wrapper(scale_factor=None, dumps_returns=token),
-    ],
+    "scale_factor", [2.0, None],
 )
-def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, wrapper):
+def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
+
+    # Setup wrapper
+    if scale_factor:
+        scaler = ManualScaler(np.array([scale_factor]))
+    else:
+        scaler = None
+    model = RegressorEnsemble(base_regressor=LinearRegression())
+    wrapper = SklearnWrapper(
+        sample_dim_name="z",
+        input_variables=["x"],
+        output_variables=["y"],
+        model=model,
+        target_scaler=scaler,
+    )
+
+    # setup input data
     dims = ["sample", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit(data)
 
+    # serialize/deserialize
     wrapper.dump(tmpdir)
     loaded = wrapper.load(tmpdir)
 
