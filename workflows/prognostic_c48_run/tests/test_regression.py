@@ -454,14 +454,13 @@ def _save_mock_sklearn_model(tmpdir) -> str:
     constant = np.concatenate([heating_constant_K_per_s, moistening_constant_per_s])
 
     single_regressor = DummyRegressor(strategy="constant", constant=constant)
-    dummy_X = np.ones((1, 2 * nz))
-    dummy_Y = np.ones((1, 2 * nz))
-    # need to call .fit to avoid error
-    single_regressor.fit(dummy_X, dummy_Y)
+
     estimator = RegressorEnsemble(regressors=[single_regressor])
     model = SklearnWrapper(
         "sample", ["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], estimator
     )
+    # need to call .fit to avoid error
+    model.fit(data)
 
     model.dump(str(tmpdir))
     return str(tmpdir)
