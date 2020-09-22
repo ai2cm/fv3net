@@ -465,16 +465,15 @@ def _save_mock_sklearn_model(tmpdir) -> str:
     return str(tmpdir)
 
 
-def _save_mock_keras_model(tmpdir):
+def _save_mock_keras_model(path):
 
     input_variables = ["air_temperature", "specific_humidity"]
     output_variables = ["dQ1", "dQ2"]
 
     model = DummyModel("sample", input_variables, output_variables)
     model.fit([_model_dataset()])
-    model.dump(str(tmpdir))
-
-    return str(tmpdir)
+    model.dump(path)
+    return path
 
 
 @pytest.fixture(scope="module", params=["keras", "sklearn"])
@@ -486,7 +485,7 @@ def completed_rundir(request, tmpdir_factory):
     tmpdir = tmpdir_factory.mktemp("rundir")
 
     if request.param == "sklearn":
-        model_path = _save_mock_sklearn_model(tmpdir)
+        model_path = _save_mock_sklearn_model(str(tmpdir.join("model.yaml")))
     elif request.param == "keras":
         model_path = _save_mock_keras_model(tmpdir)
 

@@ -7,6 +7,7 @@ from . import _train as train
 from .. import _shared as shared
 
 
+MODEL_FILENAME = "sklearn.yaml"
 MODEL_CONFIG_FILENAME = "training_config.yml"
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
 
@@ -68,4 +69,4 @@ if __name__ == "__main__":
     logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 
     model = train.train_model(batched_data, train_config)
-    model.dump(args.output_data_path)
+    model.dump(os.path.join(args.output_data_path, MODEL_FILENAME))

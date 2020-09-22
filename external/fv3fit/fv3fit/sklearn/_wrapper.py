@@ -15,9 +15,6 @@ import yaml
 
 # bump this version for incompatible changes
 SERIALIZATION_VERSION = "v0"
-TARGET_SCALAR_FILENAME = "target_scaler.yaml"
-PICKLE_FILENAME = "sklearn_model.pkl"
-METADATA_FILENAME = "metadata.yaml"
 
 
 def _multiindex_to_tuple(index: pd.MultiIndex) -> tuple:
