@@ -136,8 +136,13 @@ token = f.getvalue()
         _get_sklearn_wrapper(scale_factor=None, dumps_returns=token),
     ],
 )
-def test_SklearnWrapper_serialize(tmpdir, wrapper):
+def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, wrapper):
+    dims = ["sample", "z"]
+    data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
+    wrapper.fit(data)
+
     wrapper.dump(tmpdir)
     loaded = wrapper.load(tmpdir)
 
-    assert isinstance(loaded.model, RegressorEnsemble)
+    xr.testing.assert_equal(loaded.predict(data), wrapper.predict(data))
+
