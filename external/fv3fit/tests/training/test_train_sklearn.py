@@ -5,7 +5,6 @@ import logging
 from fv3fit._shared import ModelTrainingConfig
 import numpy as np
 import subprocess
-import os
 
 from fv3fit.sklearn._train import (
     train_model,
@@ -68,7 +67,6 @@ def test_training_integration(
 
     fv3fit.sklearn.SklearnWrapper.load(tmp_path)
 
-    
 
 @pytest.mark.parametrize(
     "scaler_type, expected_type", (["standard", StandardScaler], ["mass", ManualScaler])
