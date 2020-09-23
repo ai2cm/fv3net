@@ -15,6 +15,7 @@ from toolz import curry
 import json
 
 _METRICS = []
+GRID_VARS = ["area", "latb", "lonb", "lat", "lon"]
 
 
 def grab_diag(ds, name):
@@ -31,12 +32,7 @@ def grab_diag(ds, name):
 
 
 def to_unit_quantity(val):
-    try:
-        unit_quantity = {"value": val.item(), "units": val.units}
-    except ValueError:
-        # if val is a nan
-        unit_quantity = {}
-    return unit_quantity
+    return {"value": val.item(), "units": val.units}
 
 
 def to_dict(ds: xr.Dataset):
@@ -75,7 +71,7 @@ def compute_all_metrics(diags: xr.Dataset) -> Mapping[str, float]:
 
 @add_to_metrics("rmse_3day")
 def rmse_3day(diags):
-    rms_global = grab_diag(diags, "rms_global").drop("area", errors="ignore")
+    rms_global = grab_diag(diags, "rms_global").drop(GRID_VARS, errors="ignore")
 
     rms_global_daily = rms_global.resample(time="1D").mean()
 
@@ -96,9 +92,7 @@ def rmse_3day(diags):
 
 @add_to_metrics("drift_3day")
 def drift_3day(diags):
-    averages = grab_diag(diags, "global_avg").drop(
-        ["latb", "lonb", "area"], errors="ignore"
-    )
+    averages = grab_diag(diags, "global_avg").drop(GRID_VARS, errors="ignore")
 
     daily = averages.resample(time="1D").mean()
 
