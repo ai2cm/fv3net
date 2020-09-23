@@ -13,7 +13,7 @@ VERIFICATION_CATALOG_ENTRIES = {
         "physics": ("40day_c48_gfsphysics_15min_may2020",),
         "dycore": ("40day_c48_atmos_8xdaily_may2020",),
     },
-    "nudged_fv3gfs_yearlong": {
+    "nudged_c48_fv3gfs_2016": {
         "dycore": ("2016_c48_nudged_fv3gfs_dycore_output",),
         "physics": ("2016_c48_nudged_fv3gfs_physics_output",),
     },
