@@ -119,7 +119,7 @@ def sst_from_reference(
     land_sea_mask: fv3gfs.util.Quantity,
 ) -> np.ndarray:
     return xr.where(
-        land_sea_mask.data_array == 0,
+        land_sea_mask.data_array.round().astype("int") == 0,
         reference_surface_temperature.data_array,
         surface_temperature.data_array,
     ).values
