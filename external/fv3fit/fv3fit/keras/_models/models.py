@@ -106,11 +106,15 @@ class _ThreadedSequencePreLoader(tf.keras.utils.Sequence):
 
     def _produce_loaded_batches(self, src_q, dst_q, event):
         while not event.is_set():
-            while not src_q.empty():
-                item = src_q.get()
-                dst_q.put(self[item])
-                src_q.task_done()
-                logger.debug(f"Loadded batch #{item}")
+
+            try:
+                item = src_q.get(timeout=5)
+            except queue.Empty:
+                continue
+
+            dst_q.put(self[item])
+            src_q.task_done()
+            logger.debug(f"Loadded batch #{item}")
 
 
 class Model(Predictor):
