@@ -3,7 +3,7 @@ import logging
 import warnings
 import os
 import xarray as xr
-from typing import List, Iterable, Mapping, Set
+from typing import List, Iterable, Mapping, Set, Sequence
 
 import fsspec
 import vcm
@@ -149,13 +149,15 @@ def _open_tiles(path):
     return xr.open_mfdataset(path + ".tile?.nc", concat_dim="tile", combine="nested")
 
 
-def load_verification(catalog_keys: List[str], catalog: intake.Catalog,) -> xr.Dataset:
+def load_verification(
+    catalog_entries: List[str], catalog: intake.Catalog,
+) -> xr.Dataset:
 
     """
     Load verification data sources from a catalog and combine for reporting.
 
     Args:
-        catalog_keys: catalog sources to load as verification data
+        catalog_entries: catalog sources to load as verification data
         catalog: Intake catalog of available data sources.
 
     Returns:
@@ -163,7 +165,7 @@ def load_verification(catalog_keys: List[str], catalog: intake.Catalog,) -> xr.D
 
     """
     verif_data = []
-    for dataset_key in catalog_keys:
+    for dataset_key in catalog_entries:
         ds = catalog[dataset_key].to_dask()
         ds = standardize_gfsphysics_diagnostics(ds)
         verif_data.append(ds)
@@ -216,11 +218,14 @@ def _get_coarsening_args(
     return grid_entries[input_res], coarsening_factor
 
 
-def load_dycore(url: str, catalog: intake.Catalog) -> DiagArg:
+def load_dycore(
+    url: str, verification_entries: Sequence[str], catalog: intake.Catalog
+) -> DiagArg:
     """Open data required for dycore plots.
 
     Args:
         url: path to prognostic run directory
+        verification_entries: catalog entries for verification dycore data
         catalog: Intake catalog of available data sources
 
     Returns:
@@ -236,7 +241,7 @@ def load_dycore(url: str, catalog: intake.Catalog) -> DiagArg:
 
     # open verification
     logger.info("Opening verification data")
-    verification_c48 = load_verification(["40day_c48_atmos_8xdaily_may2020"], catalog)
+    verification_c48 = load_verification(verification_entries, catalog)
 
     # open prognostic run data
     path = os.path.join(url, "atmos_dt_atmos.zarr")
@@ -249,18 +254,21 @@ def load_dycore(url: str, catalog: intake.Catalog) -> DiagArg:
     return ds, verification_c48, grid_c48
 
 
-def load_physics(url: str, catalog: intake.Catalog) -> DiagArg:
+def load_physics(
+    url: str, verification_entries: Sequence[str], catalog: intake.Catalog
+) -> DiagArg:
     """Open data required for physics plots.
 
-        Args:
-            url: path to prognostic run directory
-            catalog: Intake catalog of available data sources
+    Args:
+        url: path to prognostic run directory
+        verification_entries: catalog entries for verification physics data
+        catalog: Intake catalog of available data sources
 
-        Returns:
-            tuple of prognostic run data, verification data and grid variables all at
-            coarsened resolution. Prognostic and verification data contain variables
-            output by the physics routines.
-        """
+    Returns:
+        tuple of prognostic run data, verification data and grid variables all at
+        coarsened resolution. Prognostic and verification data contain variables
+        output by the physics routines.
+    """
     logger.info(f"Processing physics data from run directory at {url}")
 
     # open grid
@@ -268,9 +276,7 @@ def load_physics(url: str, catalog: intake.Catalog) -> DiagArg:
     grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
 
     # open verification
-    verification_c48 = load_verification(
-        ["40day_c48_gfsphysics_15min_may2020"], catalog
-    )
+    verification_c48 = load_verification(verification_entries, catalog)
     verification_c48 = add_derived.physics_variables(verification_c48)
 
     # open prognostic run data

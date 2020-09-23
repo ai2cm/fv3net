@@ -29,6 +29,7 @@ from collections import defaultdict
 from typing import Dict, Callable, Mapping
 
 import load_diagnostic_data as load_diags
+import config
 import diurnal_cycle
 import transform
 from constants import (
@@ -37,6 +38,7 @@ from constants import (
     GLOBAL_AVERAGE_DYCORE_VARS,
     GLOBAL_AVERAGE_PHYSICS_VARS,
     DIURNAL_CYCLE_VARS,
+    VERIFICATION_CATALOG_ENTRIES,
 )
 
 import logging
@@ -241,26 +243,35 @@ def _catalog():
     return str(TOP_LEVEL_DIR / "catalog.yml")
 
 
-if __name__ == "__main__":
-
+def _get_parser():
     CATALOG = _catalog()
-
     parser = argparse.ArgumentParser()
     parser.add_argument("url")
     parser.add_argument("output")
     parser.add_argument("--catalog", default=CATALOG)
+    parser.add_argument(
+        "--verification",
+        choices=list(VERIFICATION_CATALOG_ENTRIES.keys()),
+        default="nudged_shield_40day",
+    )
+    return parser
 
+
+if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    args = parser.parse_args()
+    args = _get_parser().parse_args()
 
     attrs = vars(args)
     attrs["history"] = " ".join(sys.argv)
 
+    # get catalog entries for specified verification data
+    verif_entries = config.get_verification_entries(args.verification)
+
     catalog = intake.open_catalog(args.catalog)
     input_data = {
-        "dycore": load_diags.load_dycore(args.url, catalog),
-        "physics": load_diags.load_physics(args.url, catalog),
+        "dycore": load_diags.load_dycore(args.url, verif_entries["dycore"], catalog),
+        "physics": load_diags.load_physics(args.url, verif_entries["physics"], catalog),
     }
 
     # begin constructing diags

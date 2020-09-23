@@ -31,7 +31,12 @@ def grab_diag(ds, name):
 
 
 def to_unit_quantity(val):
-    return {"value": val.item(), "units": val.units}
+    try:
+        unit_quantity = {"value": val.item(), "units": val.units}
+    except ValueError:
+        # if val is a nan
+        unit_quantity = {}
+    return unit_quantity
 
 
 def to_dict(ds: xr.Dataset):
