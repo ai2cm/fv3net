@@ -14,6 +14,7 @@ import diagnostics_utils as utils
 import loaders
 from vcm import safe
 from vcm.cloud import get_fs
+from fv3fit import PRODUCTION_MODEL_TYPES
 from ._metrics import calc_metrics
 from . import _model_loaders as model_loaders
 from ._mapper import PredictionMapper
@@ -40,7 +41,6 @@ DIURNAL_VARS = [
     "column_integrated_Q2",
 ]
 SHIELD_DERIVATION_COORD = "coarsened_SHiELD"
-KERAS_MODELS = ["DenseModel"]
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
 
@@ -172,16 +172,22 @@ def _get_base_mapper(args, config: Mapping):
 
 def _get_model_loader(config: Mapping):
     model_type_str = (
-        config.get("model_type", "sklearn_random_forest")
-        .replace(" ", "")
-        .replace("_", "")
+        config.get("model_type", "random_forest").replace(" ", "").replace("_", "")
     )
     if ("rf" in model_type_str) or ("randomforest" in model_type_str):
         model_routine = "sklearn"
-    elif model_type_str in KERAS_MODELS:
+    elif model_type_str in PRODUCTION_MODEL_TYPES["keras"]:
         model_routine = "keras"
     else:
-        raise (AttributeError(f"Invalid model_type: {model_type_str}"))
+        valid_types = []
+        for types in PRODUCTION_MODEL_TYPES.values():
+            valid_types.extend(types)
+        raise (
+            AttributeError(
+                f"Invalid model_type: {model_type_str}; "
+                f"valid model types are {valid_types}"
+            )
+        )
     model_loader_str = (
         "load_sklearn_model" if model_routine == "sklearn" else "load_keras_model"
     )

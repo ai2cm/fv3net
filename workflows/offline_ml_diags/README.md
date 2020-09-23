@@ -29,6 +29,9 @@ in the configuration. An example is below.
 If the SHiELD diagnostics are loaded via the model mapper, the variables `net_heating` and
 `net_precipitation` should be included in the `variables` list.
 
+`model_type` specifies the type of ML model to be loaded, as defined in the `fv3fit` package;
+see that package for a list of valid model types, e.g., `random_forest`.
+
 Example config:
 ```
 variables:
@@ -43,7 +46,7 @@ variables:
   - surface_geopotential
   - net_precipitation
   - net_heating
-model_type: sklearn_random_forest
+model_type: random_forest
 model_mapper_kwargs:
   cos_z_var: cos_zenith_angle
 mapping_function: open_fine_resolution_nudging_hybrid
