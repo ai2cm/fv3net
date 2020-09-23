@@ -1,4 +1,4 @@
-from fv3fit.keras._models.models import _ThreadedSequencePreLoader
+from fv3fit.keras._models._sequences import _ThreadedSequencePreLoader
 
 
 def test__ThreadedSequencePreLoader():

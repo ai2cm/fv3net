@@ -155,7 +155,7 @@ class PackedKerasModel(Model):
         batches: Sequence[xr.Dataset],
         epochs: int = 1,
         batch_size: Optional[int] = None,
-        workers: Optional[int] = None,
+        workers: int = 1,
         max_queue_size: int = 8,
         **fit_kwargs: Any,
     ) -> None:
@@ -168,7 +168,7 @@ class PackedKerasModel(Model):
                 independent of number of samples in each batch in batches; optional,
                 uses number of samples in each batch if omitted
             workers: number of workers for parallelized loading of batches fed into
-                training, defaults to serial loading
+                training, defaults to serial loading (1 worker)
             max_queue_size: max number of batches to hold in the parallel loading queue
             **fit_kwargs: other keyword arguments to be passed to the underlying
                 tf.keras.Model.fit() method
@@ -205,12 +205,12 @@ class PackedKerasModel(Model):
         Xy: Sequence[Tuple[np.ndarray, np.ndarray]],
         epochs: int,
         batch_size: int,
-        workers: Optional[int] = None,
+        workers: int = 1,
         max_queue_size: int = 8,
         **fit_kwargs: Any,
     ) -> None:
 
-        if workers is not None:
+        if workers > 1:
             Xy = _ThreadedSequencePreLoader(
                 Xy, num_workers=workers, max_queue_size=max_queue_size
             )
