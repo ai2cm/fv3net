@@ -123,8 +123,6 @@ class SklearnWrapper(BaseXarrayEstimator):
 
     """
 
-    _MODEL_FILENAME = "sklearn_model.pkl"
-
     def __init__(
         self,
         sample_dim_name: str,
