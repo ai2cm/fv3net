@@ -97,34 +97,39 @@ def _assert_chunks_match(source_group: zarr.Group, target_group: zarr.Group, dim
     In addition, log a warning if dim length is not a multiple of chunk size for source
     group."""
     for key, source_array in source_group.items():
-        axis = source_array.attrs[XARRAY_DIM_NAMES_ATTR].index(dim)
         if key not in target_group:
             raise KeyError(
                 f"Cannot append {source_array} because there is no corresponding array "
                 f"in {target_group}."
             )
-        target_array = target_group[key]
-        source_chunk_size = source_array.chunks[axis]
-        target_chunk_size = target_array.chunks[axis]
-        if source_chunk_size != target_chunk_size:
-            raise ValueError(
-                "Must have equal chunk size for source and target zarr when appending. "
-                f"Got source chunk size {source_chunk_size} and target chunk size "
-                f"{target_chunk_size} along axis {axis} for {key}."
-            )
-        source_axis_length = source_array.shape[axis]
-        target_axis_length = target_array.shape[axis]
-        if target_axis_length % target_chunk_size != 0:
-            raise ValueError(
-                "Length of append dimension for target array must be a multiple of "
-                f"chunk size. Got length {target_axis_length} and chunk size "
-                f"{target_chunk_size} for axis {axis} of {key}."
-            )
-        if source_axis_length % source_chunk_size != 0:
-            logger.warning(
-                f"Length of append dimension for {key} source array is not a multiple "
-                "of chunk size. Resulting zarr store cannot be further appended to."
-            )
+        if dim in source_array.attrs[XARRAY_DIM_NAMES_ATTR]:
+            axis = source_array.attrs[XARRAY_DIM_NAMES_ATTR].index(dim)
+            target_array = target_group[key]
+            _assert_array_chunks_match(source_array, target_array, axis)
+
+
+def _assert_array_chunks_match(source: zarr.array, target: zarr.array, axis: int):
+    source_chunk_size = source.chunks[axis]
+    target_chunk_size = target.chunks[axis]
+    if source_chunk_size != target_chunk_size:
+        raise ValueError(
+            "Must have equal chunk size for source and target zarr when appending. "
+            f"Got source chunk size {source_chunk_size} and target chunk size "
+            f"{target_chunk_size} along axis {axis}."
+        )
+    source_axis_length = source.shape[axis]
+    target_axis_length = target.shape[axis]
+    if target_axis_length % target_chunk_size != 0:
+        raise ValueError(
+            "Length of append dimension for target array must be a multiple of "
+            f"chunk size. Got length {target_axis_length} and chunk size "
+            f"{target_chunk_size} for axis {axis} of {target}."
+        )
+    if source_axis_length % source_chunk_size != 0:
+        logger.warning(
+            f"Length of append dimension for {source} source array is not a multiple "
+            "of chunk size. Resulting zarr store cannot be further appended to."
+        )
 
 
 def _get_dim_size(group: zarr.Group, dim: str):
