@@ -3,9 +3,8 @@ VARNAMES = {
     "surface_type": "land_sea_mask",
     "time_dim": "time",
 }
-
-SURFACE_TYPE_ENUMERATION = {"sea": 0, "land": 1, "seaice": 2}
-
+# for domain averaging, sea ice (2) is counted as sea
+SURFACE_TYPE_ENUMERATION = {0: "sea", 1: "land", 2: "sea"}
 DOMAINS = (
     "land",
     "sea",
