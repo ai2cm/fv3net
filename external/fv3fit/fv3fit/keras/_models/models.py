@@ -48,14 +48,16 @@ class _ThreadedSequencePreLoader(tf.keras.utils.Sequence):
     items for a generator.
 
     Note: This might not preserve strict sequence ordering
-        ... but its faster
+        ... but its faster.  Beware that it can load up to
+        max_queue_size + num_workers into memory at the
+        same time.
     """
 
     def __init__(
         self,
         seq: tf.keras.utils.Sequence,
         num_workers: int = 4,
-        max_queue_size: int = 8,
+        max_queue_size: int = 6,
     ):
         logger.debug(
             f"Initializing threaded batch loader with {num_workers} workers"
