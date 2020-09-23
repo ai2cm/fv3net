@@ -20,7 +20,7 @@ function downloadZarr() {
     fi
 }
 
-usage="Usage: entrypoint.sh [-l] rundir output"
+usage="Usage: entrypoint.sh [-l] rundir output verification"
 
 while getopts ":l" OPTION; do
     case $OPTION in
@@ -42,6 +42,8 @@ rundir=$1
 # strip trailing slash
 output=${2%/}
 
+verification=$3
+
 cwd=$PWD
 
 # make a local working directory based on input hash
@@ -60,7 +62,7 @@ else
     input=$1
 fi
 
-[[ -f diags.nc ]] || python $cwd/save_prognostic_run_diags.py $input diags.nc
+[[ -f diags.nc ]] || python $cwd/save_prognostic_run_diags.py --verification $verification $input diags.nc 
 python $cwd/metrics.py diags.nc >metrics.json
 
 gsutil cp diags.nc $output/diags.nc

@@ -153,12 +153,12 @@ an appropriate `training-config` string.
 The `prognostic-run-diags` workflow template will generate reports for
 prognostic runs. See this [example][1].
 
-| Parameter    | Description                                            |
-|--------------|--------------------------------------------------------|
-| runs         | A json-encoded list of {"name": ..., "url": ...} items |
-| docker-image | The docker image to use                                |
-
-- `runs`: If `runs` is `""`, then all the timesteps will be processed.
+| Parameter    | Description                                                           |
+|--------------|-----------------------------------------------------------------------|
+| runs         | A json-encoded list of {"name": ..., "url": ...} items                |
+| docker-image | The docker image to use                                               |
+| make-movies  | (optional) whether to generate movies. Defaults to false              |
+| verification | (optional) tag for verifiaction data. Defaults to nudged_shield_40day |
 
 The outputs will be stored at the directory
 `gs://vcm-ml-public/argo/<workflow name>`, where `<workflow name>` is NOT the
