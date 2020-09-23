@@ -46,6 +46,7 @@ STORE_NAMES = [
     "vertical_thickness_of_atmospheric_layer",
     "land_sea_mask",
     "surface_temperature",
+    "ocean_surface_temperature",
     "surface_geopotential",
     "sensible_heat_flux",
     "latent_heat_flux",
