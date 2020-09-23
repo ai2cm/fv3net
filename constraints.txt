@@ -105,7 +105,7 @@ netcdf4==1.5.3            # via -r docker/prognostic_run/requirements.txt
 networkx==2.5             # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, scikit-image
 nose==1.3.7               # via -r external/fv3fit/requirements.txt
 numba==0.50.1             # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt
-numcodecs==0.6.4          # via -r docker/prognostic_run/requirements.txt, zarr
+numcodecs==0.7.2          # via -r docker/prognostic_run/requirements.txt, -r pip-requirements.txt, zarr
 numpy==1.19.1             # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, apache-beam, cftime, h5py, imageio, intake, keras-preprocessing, matplotlib, metpy, nc-time-axis, netcdf4, numba, numcodecs, opt-einsum, pandas, pyarrow, pywavelets, scikit-learn, scipy, tensorboard, tensorflow, xarray, xgcm, zarr
 oauth2client==3.0.0       # via apache-beam, google-apitools
 oauthlib==3.1.0           # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, requests-oauthlib
@@ -119,6 +119,7 @@ pexpect==4.8.0            # via poetry
 pillow==7.2.0             # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, imageio, scikit-image
 pint==0.15                # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, metpy
 pip-tools==5.3.1          # via -r pip-requirements.txt
+pkgconfig==1.5.1          # via -r docker/prognostic_run/requirements.txt
 pkginfo==1.5.0.1          # via poetry
 pluggy==0.13.1            # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, pytest
 poetry==1.0.10            # via -r pip-requirements.txt
