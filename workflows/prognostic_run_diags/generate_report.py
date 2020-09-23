@@ -287,7 +287,7 @@ def main():
     bucket = args.input
 
     # get run information
-    fs = fsspec.filesystem("gs")
+    fs, _, _ = fsspec.get_fs_token_paths(bucket)
     rundirs = detect_rundirs(bucket, fs)
     run_table = pd.DataFrame.from_records(_parse_metadata(run) for run in rundirs)
     run_table_lookup = run_table.set_index("run")
@@ -316,11 +316,18 @@ def main():
 
     # get metadata
     run_urls = {key: ds.attrs["url"] for key, ds in diags.items()}
+    verifaction_datasets = [ds.attrs["verification"] for ds in diags.values()]
+    if any([verifaction_datasets[0] != item for item in verifaction_datasets]):
+        raise ValueError(
+            "Report should not be generated with diagnostics computed against "
+            "different verification datasets."
+        )
+    verification_label = {"verification dataset": verifaction_datasets[0]}
     movie_links = get_movie_links(bucket, rundirs, fs)
 
     html = create_html(
         title="Prognostic run report",
-        metadata={**run_urls, **movie_links},
+        metadata={**verification_label, **run_urls, **movie_links},
         sections=sections,
         html_header=get_html_header(),
     )
