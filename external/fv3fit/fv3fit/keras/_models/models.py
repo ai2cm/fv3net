@@ -253,6 +253,8 @@ class PackedKerasModel(Model):
         batches: Sequence[xr.Dataset],
         epochs: int = 1,
         batch_size: Optional[int] = None,
+        workers: Optional[int] = None,
+        max_queue_size: int = 8,
         **fit_kwargs: Any,
     ) -> None:
         """Fits a model using data in the batches sequence
@@ -263,6 +265,9 @@ class PackedKerasModel(Model):
             batch_size: actual batch_size to apply in gradient descent updates,
                 independent of number of samples in each batch in batches; optional,
                 uses number of samples in each batch if omitted
+            workers: number of workers for parallelized loading of batches fed into
+                training, defaults to serial loading
+            max_queue_size: max number of batches to hold in the parallel loading queue
             **fit_kwargs: other keyword arguments to be passed to the underlying
                 tf.keras.Model.fit() method
         """
@@ -274,10 +279,24 @@ class PackedKerasModel(Model):
             n_features_in, n_features_out = X.shape[-1], y.shape[-1]
             self._fit_normalization(X, y)
             self._model = self.get_model(n_features_in, n_features_out)
+
         if batch_size is not None:
-            self._fit_loop(Xy, epochs, batch_size, **fit_kwargs)
+            self._fit_loop(
+                Xy,
+                epochs,
+                batch_size,
+                workers=workers,
+                max_queue_size=max_queue_size,
+                **fit_kwargs,
+            )
         else:
-            self._fit_array(Xy, epochs=epochs, **fit_kwargs)
+            self._fit_array(
+                Xy,
+                epochs=epochs,
+                workers=workers,
+                max_queue_size=max_queue_size,
+                **fit_kwargs,
+            )
 
     def _fit_loop(
         self,
@@ -302,9 +321,9 @@ class PackedKerasModel(Model):
                 self.model.fit(X, y, batch_size=batch_size, **fit_kwargs)
 
     def _fit_array(
-        self, X: Sequence[Tuple[np.ndarray, np.ndarray]], **fit_kwargs: Any
+        self, Xy: Sequence[Tuple[np.ndarray, np.ndarray]], **fit_kwargs: Any
     ) -> None:
-        return self.model.fit(X, **fit_kwargs)
+        return self.model.fit(Xy, **fit_kwargs)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         sample_coord = X[self.sample_dim_name]
