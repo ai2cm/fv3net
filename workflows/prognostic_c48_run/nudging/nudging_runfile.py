@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 GRAVITY = 9.81
 PRECIP_NAME = "total_precipitation"
-SST_NAME = "surface_temperature"
+SST_NAME = "ocean_surface_temperature"
+TSFC_NAME = "surface_temperature"
 
 RADIATION_NAMES = [
     "total_sky_downward_shortwave_flux_at_surface",
@@ -321,7 +322,7 @@ if __name__ == "__main__":
                 timestep,
             )
         state[SST_NAME].view[:] = sst_from_reference(
-            reference[SST_NAME], state[SST_NAME], state["land_sea_mask"])
+            reference[TSFC_NAME], state[SST_NAME], state["land_sea_mask"])
         updated_state_members = {key: state[key] for key in updated_quantity_names}
         wrapper.set_state(updated_state_members)
     wrapper.cleanup()
