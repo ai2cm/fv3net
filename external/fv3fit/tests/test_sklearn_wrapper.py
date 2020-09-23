@@ -105,7 +105,13 @@ def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
     assert pytest.approx(1 / scale) == output["y"].item()
 
 
-def test_SklearnWrapper_fit_scaler_not_fitted():
+def test_fitting_SklearnWrapper_does_not_fit_scaler():
+    """SklearnWrapper should use pre-computed scaling factors when fitting data
+    
+    In other words, calling the .fit method of wrapper should not call the
+    .fit its scaler attribute.
+    """
+
     model = unittest.mock.Mock()
     scaler = unittest.mock.Mock()
 
