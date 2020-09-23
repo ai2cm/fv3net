@@ -154,6 +154,7 @@ def process_item(
         chunked.to_zarr(dest, mode="w", consolidated=True)
     except ValueError:
         # is an empty xarray, do nothing
+        logger.warning(f"Skipping {item} since it is an empty dataset.")
         pass
     else:
         os.makedirs(os.path.dirname(dest), exist_ok=True)
