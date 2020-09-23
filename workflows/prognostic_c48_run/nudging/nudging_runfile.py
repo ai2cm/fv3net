@@ -120,7 +120,8 @@ def sst_from_reference(
     return xr.where(
         land_sea_mask.data_array == 0,
         reference_surface_temperature.data_array,
-        surface_temperature.data_array).values
+        surface_temperature.data_array,
+    ).values
 
 
 def column_integrated_moistening(
@@ -322,7 +323,8 @@ if __name__ == "__main__":
                 timestep,
             )
         state[SST_NAME].view[:] = sst_from_reference(
-            reference[TSFC_NAME], state[SST_NAME], state["land_sea_mask"])
+            reference[TSFC_NAME], state[SST_NAME], state["land_sea_mask"]
+        )
         updated_state_members = {key: state[key] for key in updated_quantity_names}
         wrapper.set_state(updated_state_members)
     wrapper.cleanup()
