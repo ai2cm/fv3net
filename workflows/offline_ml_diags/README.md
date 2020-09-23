@@ -29,6 +29,9 @@ in the configuration. An example is below.
 If the SHiELD diagnostics are loaded via the model mapper, the variables `net_heating` and
 `net_precipitation` should be included in the `variables` list.
 
+`model_type` specifies the type of ML model to be loaded, as defined in the `fv3fit` package;
+see that package for a list of valid model types, e.g., `random_forest`.
+
 Example config:
 ```
 variables:
@@ -43,7 +46,7 @@ variables:
   - surface_geopotential
   - net_precipitation
   - net_heating
-model_loader: load_sklearn_model
+model_type: random_forest
 model_mapper_kwargs:
   cos_z_var: cos_zenith_angle
 mapping_function: open_fine_resolution_nudging_hybrid
@@ -60,26 +63,11 @@ batch_kwargs:
 data_path: this_isnt_used_for_hybrid_mapper
 ```
 
-For keras models, the model loader config line should be:
-```
-model_loader: load_keras_model
-```
-
-
-Example sklearn usage (from top level of `fv3net`): 
+Example usage (from top level of `fv3net`): 
 ```
 python -m offline_ml_diags.compute_diags \
     workflows/offline_ml_diags/tests/config.yml \
-    gs://vcm-ml-scratch/andrep/test-nudging-workflow/train_sklearn_model/sklearn_model.pkl \
-    gs://vcm-ml-scratch/annak/test-offline-validation-workflow \
-    --timesteps-file workflows/offline_ml_diags/tests/times.json
-```
-
-Example keras usage (from top level of `fv3net`): 
-```
-python -m offline_ml_diags.compute_diags \
-    workflows/offline_ml_diags/tests/config.yml \
-    gs://vcm-ml-scratch/brianh/train-keras-model-testing/fv3fit-unified/model_data \
+    gs://vcm-ml-scratch/andrep/test-nudging-workflow/train_sklearn_model \
     gs://vcm-ml-scratch/annak/test-offline-validation-workflow \
     --timesteps-file workflows/offline_ml_diags/tests/times.json
 ```
