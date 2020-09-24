@@ -502,9 +502,9 @@ namelist:
 patch_files:
 - copy_method: copy
   source_location: gs://ml-model
-  source_name: sklearn_model.pkl
+  source_name: sklearn.yaml
   target_location: ''
-  target_name: sklearn_model.pkl
+  target_name: sklearn_model.yaml
 - copy_method: copy
   source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
   source_name: 20160805_00Z_T85LR.nc
@@ -712,5 +712,5 @@ patch_files:
   target_name: 20160815_00Z_T85LR.nc
 scikit_learn:
   diagnostic_ml: false
-  model: sklearn_model.pkl
+  model: sklearn_model.yaml
 

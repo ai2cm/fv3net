@@ -95,10 +95,8 @@ def ml_settings(model_type, model_url):
             )
 
 
-def sklearn_overlay(model_url, sklearn_filename="sklearn_model.pkl"):
-    model_asset = fv3config.get_asset_dict(
-        model_url, sklearn_filename, target_name=sklearn_filename
-    )
+def sklearn_overlay(model_url, sklearn_filename="sklearn.yaml"):
+    model_asset = fv3config.get_asset_dict(model_url, sklearn_filename)
     return {"patch_files": [model_asset], "scikit_learn": {"model": sklearn_filename}}
 
 

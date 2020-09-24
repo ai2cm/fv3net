@@ -3,7 +3,8 @@ import logging
 import os
 import xarray as xr
 import numpy as np
-from .models import Model, _XyArraySequence
+from .models import Model
+from ._sequences import _XyArraySequence
 from ._filesystem import get_dir, put_dir
 from ..._shared import ArrayPacker
 

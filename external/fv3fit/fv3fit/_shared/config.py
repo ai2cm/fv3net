@@ -18,7 +18,7 @@ class ModelTrainingConfig:
     batch_function: str
     batch_kwargs: dict
     scaler_type: str = "standard"
-    scaler_kwargs: Optional[Mapping] = None
+    scaler_kwargs: Mapping = dataclasses.field(default_factory=dict)
     additional_variables: Optional[Iterable[str]] = None
 
     def __post_init__(self):
