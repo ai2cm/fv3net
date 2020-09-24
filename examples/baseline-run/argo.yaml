@@ -31,14 +31,36 @@ spec:
           - name: config
             value: |
               base_version: v0.5
+              diagnostics:
+                 - name: data.zarr
+                   times:
+                     frequency: 7200
+                     kind: interval
+                   variables:
+                     - tendency_of_air_temperature_due_to_fv3_physics
+                     - tendency_of_specific_humidity_due_to_fv3_physics
+                     - air_temperature
+                     - specific_humidity
+                     - pressure_thickness_of_atmospheric_layer
+                 - name: diags.zarr
+                   times:
+                     frequency: 900
+                     kind: interval
+                   variables:
+                     - net_moistening
+                     - net_moistening_diagnostic
+                     - net_heating
+                     - net_heating_diagnostic
+                     - water_vapor_path
+                     - physics_precip
               forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
               orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
               diag_table: {{workflow.parameters.diag_table}}
               namelist:
                 coupler_nml:
                   calendar: julian
-                  days: 1
-                  hours: 0
+                  days: 0
+                  hours: 4
                   minutes: 0
                   months: 0
                   seconds: 0
@@ -52,6 +74,7 @@ spec:
                 atmos_model_nml:
                   fhout: 2.0
                   fhmax: 10000
+
           - name: output
             value: "{{workflow.parameters.output}}"
           - name: image-tag
@@ -69,7 +92,10 @@ spec:
                 time: 24
               physics_tendency_components.zarr:
                 time: 1
-            value: "{}"
+              data.zarr:
+                time: 1
+              diags.zarr:
+                time: 24
           - name: segment-count
             value: "1"
           # argo details

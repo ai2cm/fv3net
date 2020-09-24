@@ -2,7 +2,7 @@
 
 set -e 
 
-output=gs://vcm-ml-scratch/noah/test-free
+output=gs://vcm-ml-scratch/noah/test-free-1
 gsutil cp diag_table $output/diag_table
 
 kubectl apply -k ../train-evaluate-prognostic-run/fv3net/workflows/argo
