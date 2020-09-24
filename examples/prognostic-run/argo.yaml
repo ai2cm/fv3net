@@ -64,6 +64,11 @@ spec:
           - name: store-true-args
             value: --diagnostic_ml
           - name: chunks
+            value: |
+              physics_output.zarr:
+                time: 24
+              physics_tendency_components.zarr:
+                time: 1
             value: "{}"
           - name: segment-count
             value: "1"
