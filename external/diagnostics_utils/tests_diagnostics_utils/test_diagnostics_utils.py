@@ -74,17 +74,17 @@ def test_weighted_averaged_no_dims():
     xr.testing.assert_allclose(utils.weighted_average(da, weights), expected)
 
 
-enumeration = {"land": 1, "sea": 0}
+enumeration = {1: "land", 0: "sea", 2: "sea"}
 
 
 @pytest.mark.parametrize(
     "float_mask,enumeration,atol,expected",
     [
         pytest.param(
-            xr.DataArray([1.0, 0.0], dims=["x"]),
+            xr.DataArray([1.0, 0.0, 2.0], dims=["x"]),
             enumeration,
             1e-7,
-            xr.DataArray(["land", "sea"], dims=["x"]),
+            xr.DataArray(["land", "sea", "sea"], dims=["x"]),
             id="exact",
         ),
         pytest.param(
