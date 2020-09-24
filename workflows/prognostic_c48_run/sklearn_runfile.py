@@ -22,6 +22,7 @@ import runtime
 
 
 logging.basicConfig(level=logging.DEBUG)
+logging.getLogger("fv3gfs.util").setLevel(logging.WARN)
 logger = logging.getLogger(__name__)
 
 State = MutableMapping[Hashable, xr.DataArray]
