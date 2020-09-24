@@ -4,7 +4,7 @@ import os
 
 
 def load_sklearn_model(
-    model_path: str, sklearn_pkl_filename: str = "sklearn_model.pkl"
+    model_path: str, sklearn_pkl_filename: str = "sklearn.yaml"
 ) -> SklearnWrapper:
     return SklearnWrapper.load(os.path.join(model_path, sklearn_pkl_filename))
 

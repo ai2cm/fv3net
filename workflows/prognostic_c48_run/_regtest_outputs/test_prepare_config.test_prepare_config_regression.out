@@ -460,9 +460,9 @@ namelist:
 patch_files:
 - copy_method: copy
   source_location: gs://ml-model
-  source_name: sklearn_model.pkl
+  source_name: sklearn.yaml
   target_location: ''
-  target_name: sklearn_model.pkl
+  target_name: sklearn.yaml
 - bytes: !!binary |
     MjAxNjA4MDVfMDBaX1Q4NUxSLm5jCjIwMTYwODA1XzA2Wl9UODVMUi5uYwoyMDE2MDgwNV8xMlpf
     VDg1TFIubmMKMjAxNjA4MDVfMThaX1Q4NUxSLm5jCjIwMTYwODA2XzAwWl9UODVMUi5uYwoyMDE2
@@ -689,6 +689,6 @@ patch_files:
   target_name: 20160815_00Z_T85LR.nc
 scikit_learn:
   diagnostic_ml: false
-  model: sklearn_model.pkl
+  model: sklearn.yaml
   zarr_output: diags.zarr
 
