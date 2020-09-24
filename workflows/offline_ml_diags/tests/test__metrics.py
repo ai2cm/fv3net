@@ -21,7 +21,7 @@ delp_weights = xr.DataArray(
 def ds_mock():
     da = xr.DataArray(
         [[[10.0, 20.0], [-10.0, -20.0]], [[-11.0, -21.0], [-11.0, -21.0]]],
-        dims=[DERIVATION_DIM, "x", "z",],
+        dims=[DERIVATION_DIM, "x", "z"],
         coords={
             DERIVATION_DIM: [TARGET_COORD, PREDICT_COORD],
             "x": [0, 1],
