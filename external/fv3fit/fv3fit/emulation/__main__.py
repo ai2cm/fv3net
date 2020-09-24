@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     args = parse_args()
 
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     logging.getLogger("fsspec").setLevel(logging.INFO)
     logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 
@@ -45,7 +45,8 @@ if __name__ == "__main__":
     batches = batches_from_serialized(args.train_data_path)
     train = batches[slice(*train_range)]
 
-    lr = config.hyperparameters.get("learning_rate", 0.0001)
+    fit_kwargs = config.hyperparameters.pop("fit_kwargs", {})
+    lr = fit_kwargs.pop("learning_rate", 0.0001)
     if lr == "exponential":
         lr = tf.keras.optimizers.schedules.ExponentialDecay(0.001, 10_000, 0.96)
     optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
@@ -55,7 +56,6 @@ if __name__ == "__main__":
     input_vars = [var for var in sample if "input" in var]
     output_vars = [var for var in sample if "output" in var]
 
-    fit_kwargs = config.hyperparameters.pop("fit_kwargs", {})
     model = get_model(
         config.model_type,
         "sample",
