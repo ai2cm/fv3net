@@ -9,16 +9,16 @@ for keras the model path is the directory containing the various model files), a
 output path. An optional json file containing a list of timesteps to use can also be
 provided. If not provided, the workflow will use all timesteps present in the data.
 
-If the mapper requires >1 data source, provide these as a sequence to the `--data-path` arg.
-Note that the input(s) args to `--data-path` are actually required.
+If the mapper requires >1 data source, multiple path strings may be provided 
+in the `$DATA_PATH` argument.
 
 ```
 python -m offline_ml_diags.compute_diags \
+    $DATA_PATH  \  # this may be multiple strings 
     $CONFIG_YAML \
     $MODEL \
     $OUTPUT \
     --timesteps-file $TIMESTEP_LIST_JSON \
-    --data-path $TEST_DATA_0 ($TEST_DATA_1)
 ```
 
 The cosine zenith angle feature is a special case of a feature variable that is not
