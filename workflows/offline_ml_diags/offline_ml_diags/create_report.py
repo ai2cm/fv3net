@@ -80,9 +80,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "--commit-sha",
         type=str,
         default=None,
-        help=(
-            "Commit SHA of fv3net used to create report."
-        ),
+        help=("Commit SHA of fv3net used to create report."),
     )
     return parser.parse_args()
 
