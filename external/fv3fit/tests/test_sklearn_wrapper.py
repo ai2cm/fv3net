@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import yaml
 from sklearn.linear_model import LinearRegression
 import unittest.mock
 import pytest
@@ -103,6 +104,15 @@ def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
 
     output = wrapper.predict(data)
     assert pytest.approx(1 / scale) == output["y"].item()
+
+
+def test_loading_wrong_version_fails(tmpdir):
+    path = str(tmpdir.join("sklearn.yaml"))
+    with open(path, "w") as f:
+        yaml.safe_dump({"version": "not-a-version"}, f)
+
+    with pytest.raises(ValueError):
+        SklearnWrapper.load(path)
 
 
 def test_fitting_SklearnWrapper_does_not_fit_scaler():

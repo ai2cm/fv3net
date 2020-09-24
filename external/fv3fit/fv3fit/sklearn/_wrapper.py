@@ -200,10 +200,17 @@ class SklearnWrapper(BaseXarrayEstimator):
             yaml.safe_dump(output, f)
 
     @classmethod
-    def load(cls, path: str) -> Predictor:
+    def load(cls, path: str) -> "SklearnWrapper":
         """Load a model from a remote path"""
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         data = yaml.safe_load(fs.cat(path))
+
+        if data["version"] != SERIALIZATION_VERSION:
+            raise ValueError(
+                f"Artifact has version {data['version']}."
+                f"Only {SERIALIZATION_VERSION} is supported."
+            )
+
         model = RegressorEnsemble.loads(data["model"])
 
         scaler_str = data.get("scaler", "")
