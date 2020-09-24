@@ -66,9 +66,7 @@ def insert_ml_settings(model_config, model_url, diagnostic_ml):
         model_config["scikit_learn"].update(diagnostic_ml=diagnostic_ml)
 
 
-def _update_sklearn_config(
-    model_config, model_url, sklearn_filename="sklearn_model.pkl"
-):
+def _update_sklearn_config(model_config, model_url, sklearn_filename="sklearn.yaml"):
     model_asset = fv3config.get_asset_dict(
         model_url, sklearn_filename, target_name=sklearn_filename
     )
