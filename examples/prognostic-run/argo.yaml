@@ -1,0 +1,70 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: prognostic-run-
+spec:
+  entrypoint: prognostic-run
+  volumeClaimTemplates:
+    - metadata:
+        name: work-volume
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 100Gi
+  volumes:
+    - name: external-volume
+      persistentVolumeClaim:
+        claimName: nudging-read-only
+        readOnly: true
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+    - name: prognostic-run
+      inputs:
+        parameters:
+          - name: config
+            value: |
+              base_version: v0.5
+              forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+              orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
+              diag_table: {{workflow.parameters.diag_table}}
+              namelist:
+                coupler_nml:
+                  calendar: julian
+                  current_date:
+                  - 2016
+                  - 8
+                  - 1
+                  - 0
+                  - 15
+                  - 0
+                  days: 1
+                  hours: 0
+                  minutes: 0
+                  months: 0
+                  seconds: 0
+                gfdl_cloud_microphysics_nml:
+                  fast_sat_adj: false
+                fv_core_nml:
+                  do_sat_adj: false
+                gfs_physics_nml:
+                  ldiag3d: true
+                  fhzero: 2.0
+                atmos_model_nml:
+                  fhout: 2.0
+                  fhmax: 10000
+          - name: output
+            value: {{workflow.parameters.output}}
+          - name: image-tag
+            value: latest
+          - name: initial-condition
+            value: "20160801.000015"
+          - name: reference-restarts
+            value: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
+          - name: work-volume-name
+            value: work-volume
+          - name: external-volume-name
+            value: external-volume
