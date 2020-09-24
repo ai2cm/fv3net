@@ -17,7 +17,7 @@ from ._helpers import (
     units_from_Q_name,
 )
 
-
+VERSION = "v0"
 DERIVATION_DIM = "derivation"
 DOMAIN_DIM = "domain"
 
@@ -76,6 +76,14 @@ def _create_arg_parser() -> argparse.ArgumentParser:
             "If omitted, will not add this to the comparison."
         ),
     )
+    parser.add_argument(
+        "--commit-sha",
+        type=str,
+        default=None,
+        help=(
+            "Commit SHA of fv3net used to create report."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -96,6 +104,8 @@ if __name__ == "__main__":
     )
     timesteps = config["batch_kwargs"].pop("timesteps")
     config.pop("mapping_kwargs", None)  # this item clutters the report
+    if args.commit_sha:
+        config["commit"] = args.commit_sha
     timesteps = [
         vcm.cast_to_datetime(vcm.parse_datetime_from_str(t)) for t in timesteps
     ]
