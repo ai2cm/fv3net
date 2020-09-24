@@ -1,9 +1,9 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  generateName: prognostic-run-
+  generateName: baseline-run-
 spec:
-  entrypoint: prognostic-run
+  entrypoint: baseline-run
   volumeClaimTemplates:
     - metadata:
         name: work-volume
@@ -22,7 +22,10 @@ spec:
         defaultMode: 420
         secretName: gcp-key
   templates:
-    - name: prognostic-run
+    - name: baseline-run
+      templateRef:
+        name: prognostic-run
+        template: prognostic-run
       inputs:
         parameters:
           - name: config
@@ -34,13 +37,6 @@ spec:
               namelist:
                 coupler_nml:
                   calendar: julian
-                  current_date:
-                  - 2016
-                  - 8
-                  - 1
-                  - 0
-                  - 15
-                  - 0
                   days: 1
                   hours: 0
                   minutes: 0
@@ -57,13 +53,27 @@ spec:
                   fhout: 2.0
                   fhmax: 10000
           - name: output
-            value: {{workflow.parameters.output}}
+            value: "{{workflow.parameters.output}}"
           - name: image-tag
             value: latest
           - name: initial-condition
-            value: "20160801.000015"
+            value: "20160801.001500"
+          # dummy value not actually used
+          - name: trained-ml
+            value: gs://vcm-ml-scratch/test-end-to-end-integration/integration-test-3564a8369bbf/trained_model
+          - name: store-true-args
+            value: --diagnostic_ml
+          - name: chunks
+            value: "{}"
+          - name: segment-count
+            value: "1"
+          # argo details
           - name: reference-restarts
             value: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
+          - name: cpu
+            value: "6"
+          - name: memory
+            value: "6Gi"
           - name: work-volume-name
             value: work-volume
           - name: external-volume-name
