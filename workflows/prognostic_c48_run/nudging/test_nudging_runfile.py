@@ -1,4 +1,8 @@
-from nudging_runfile import implied_precipitation, total_precipitation, sst_from_reference
+from nudging_runfile import (
+    implied_precipitation,
+    total_precipitation,
+    sst_from_reference,
+)
 from datetime import timedelta
 from fv3gfs.util import Quantity
 import pytest
@@ -36,13 +40,16 @@ def test_implied_precipitation(quantity, timestep):
 
 
 def test_sst_set_to_reference(quantity):
-    land_sea_mask = Quantity.from_data_array(xr.DataArray(
-        np.array([0., 1., 2.]), dims=["x"], attrs={"units": None}))
-    reference_sfc_temp = Quantity.from_data_array(xr.DataArray(
-        np.array([1., 1., 1.]), dims=["x"], attrs={"units": "degK"}))
-    model_sfc_temp = Quantity.from_data_array(xr.DataArray(
-        np.array([-1., -1., -1.]), dims=["x"], attrs={"units": "degK"}))
+    land_sea_mask = Quantity.from_data_array(
+        xr.DataArray(np.array([0.0, 1.0, 2.0]), dims=["x"], attrs={"units": None})
+    )
+    reference_sfc_temp = Quantity.from_data_array(
+        xr.DataArray(np.array([1.0, 1.0, 1.0]), dims=["x"], attrs={"units": "degK"})
+    )
+    model_sfc_temp = Quantity.from_data_array(
+        xr.DataArray(np.array([-1.0, -1.0, -1.0]), dims=["x"], attrs={"units": "degK"})
+    )
     assert np.allclose(
         sst_from_reference(reference_sfc_temp, model_sfc_temp, land_sea_mask),
-        [1., -1., -1.]
+        [1.0, -1.0, -1.0],
     )
