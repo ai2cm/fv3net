@@ -82,6 +82,9 @@ build_ci_image:
 run_integration_tests:
 	./tests/end_to_end_integration/run_test.sh $(VERSION)
 
+run_nudge_to_obs_integration_tests:
+	./tests/nudge_to_obs_integration/run_test.sh $(VERSION)
+
 test:
 	pytest external tests
 

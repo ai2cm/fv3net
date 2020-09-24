@@ -8,7 +8,6 @@ spec:
       - name: nudging-config
       - name: output-url
       - name: fv3gfs-image
-        value: us.gcr.io/vcm-ml/fv3gfs-wrapper:7dac1b5e032a326239d6fa396aa4880a3781353c
       - name: fv3net-image
       - name: post-process-image
       - {name: segment-count, value: "1"}

@@ -216,6 +216,10 @@ jobs:
           command: |
             make run_integration_tests VERSION=$CIRCLE_SHA1
       - run:
+          name: Submit nudge-to-obs integration tests
+          command: |
+            make run_nudge_to_obs_integration_tests VERSION=$CIRCLE_SHA1
+      - run:
           name: Firewall rule deletion
           when: always
           command: gcloud compute firewall-rules delete $firewall_name
