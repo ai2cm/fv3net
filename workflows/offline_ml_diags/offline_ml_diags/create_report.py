@@ -17,7 +17,6 @@ from ._helpers import (
     units_from_Q_name,
 )
 
-VERSION = "v0"
 DERIVATION_DIM = "derivation"
 DOMAIN_DIM = "domain"
 
