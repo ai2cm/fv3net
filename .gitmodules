@@ -10,6 +10,9 @@
 [submodule "2020-08-13-nudge-to-obs-january-2016/fv3net"]
 	path = 2020-08-13-nudge-to-obs-january-2016/fv3net
 	url = https://github.com/VulcanClimateModeling/fv3net.git
+[submodule "2020-09-15-nudge-to-fine-phys-tend-diags/fv3net"]
+	path = 2020-09-15-nudge-to-fine-phys-tend-diags/fv3net
+	url = git@github.com:VulcanClimateModeling/fv3net.git
 [submodule "examples/train-evaluate-prognostic-run/fv3net"]
 	path = examples/train-evaluate-prognostic-run/fv3net
 	url = git@github.com:VulcanClimateModeling/fv3net.git
