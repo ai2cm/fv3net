@@ -18,7 +18,7 @@ nudging-config: |
       - 0
       - 0
       minutes: 0
-      hours: 3
+      hours: 6
     fv_core_nml:
       do_sat_adj: false
       nudge: true
