@@ -61,6 +61,7 @@ spec:
             python -m offline_ml_diags.create_report \
               {{inputs.parameters.offline-diags-output}} \
               {{inputs.parameters.report-output}} \
+              --commit-sha {{image-tag}}
 
         resources:
           requests:
