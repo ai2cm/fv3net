@@ -113,7 +113,7 @@ spec:
               - name: image-tag
                 value: "{{inputs.parameters.image-tag}}"
               - name: ml-model
-                value: "{{inputs.parameters.root}}/trained_model/sklearn_model.pkl"
+                value: "{{inputs.parameters.root}}/trained_model"
               - name: config
                 value: "{{inputs.parameters.training-config}}"
               - name: times
