@@ -75,6 +75,8 @@ spec:
             value: "{{workflow.parameters.prognostic-run-config}}"
           - name: reference-restarts
             value: "{{workflow.parameters.reference-restarts}}"
+          - name: store-true-args		
+            value: " "
           - name: test-times
             value: "{{workflow.parameters.test-times}}"
           - name: public-report-output
