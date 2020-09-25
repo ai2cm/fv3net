@@ -76,16 +76,59 @@ def _update_zarray_shape(var_path, axis, increment):
         json.dump(zarray, f)
 
 
-def _assert_chunks_valid(array: zarr.array, axis: str, n_shift: int):
-    """Ensure chunk size evenly divides array length along axis and evenly divides
-    n_shift"""
+def _assert_n_shift_valid(array: zarr.array, axis: str, n_shift: int):
+    """Ensure chunk size evenly divides n_shift"""
     chunk_size = array.chunks[axis]
-    if array.shape[axis] % chunk_size != 0:
-        raise ValueError(f"Chunks are not uniform along axis {axis} for {array}")
     if n_shift % chunk_size != 0:
         raise ValueError(
             f"Desired shift must be a multiple of chunk size along {axis}. Got shift "
             f"{n_shift} and chunk size {chunk_size} for {array}."
+        )
+
+
+def _assert_chunks_match(source_group: zarr.Group, target_group: zarr.Group, dim: str):
+    """Ensure chunks for source and target groups are valid for appending.
+    
+    Specifically:
+        1. all arrays in source_group have corresponding arrays in target_group.
+        2. chunk size is same for each array in source and target group.
+        3. dim length is a multiple of chunk size for target group.
+        
+    In addition, log a warning if dim length is not a multiple of chunk size for source
+    group."""
+    for key, source_array in source_group.items():
+        if key not in target_group:
+            raise KeyError(
+                f"Cannot append {source_array} because there is no corresponding array "
+                f"in {target_group}."
+            )
+        if dim in source_array.attrs[XARRAY_DIM_NAMES_ATTR]:
+            axis = source_array.attrs[XARRAY_DIM_NAMES_ATTR].index(dim)
+            target_array = target_group[key]
+            _assert_array_chunks_match(source_array, target_array, axis)
+
+
+def _assert_array_chunks_match(source: zarr.array, target: zarr.array, axis: int):
+    source_chunk_size = source.chunks[axis]
+    target_chunk_size = target.chunks[axis]
+    if source_chunk_size != target_chunk_size:
+        raise ValueError(
+            "Must have equal chunk size for source and target zarr when appending. "
+            f"Got source chunk size {source_chunk_size} and target chunk size "
+            f"{target_chunk_size} along axis {axis}."
+        )
+    source_axis_length = source.shape[axis]
+    target_axis_length = target.shape[axis]
+    if target_axis_length % target_chunk_size != 0:
+        raise ValueError(
+            "Length of append dimension for target array must be a multiple of "
+            f"chunk size. Got length {target_axis_length} and chunk size "
+            f"{target_chunk_size} for axis {axis} of {target}."
+        )
+    if source_axis_length % source_chunk_size != 0:
+        logger.warning(
+            f"Length of append dimension for {source} source array is not a multiple "
+            "of chunk size. Resulting zarr store cannot be further appended to."
         )
 
 
@@ -121,7 +164,7 @@ def _shift_store(group: zarr.Group, dim: str, n_shift: int):
 def _shift_array(array: zarr.Array, axis: int, n_shift: int):
     """Rename files within array backed by DirectoryStore: e.g. 0.0 -> 1.0 if n_shift
     equals chunks[axis] and axis=0"""
-    _assert_chunks_valid(array, axis, n_shift)
+    _assert_n_shift_valid(array, axis, n_shift)
     array_path = os.path.join(array.store.dir_path(), array.path)
     _update_zarray_shape(array_path, axis, n_shift)
     generic_chunk_filename = ".".join("*" * array.ndim)
@@ -170,6 +213,7 @@ def append_zarr_along_time(
         consolidate = True
         source_store = zarr.open(source_path, mode="r+")
         target_store = zarr.open_consolidated(fsspec.get_mapper(target_path))
+        _assert_chunks_match(source_store, target_store, dim)
         _set_time_units_like(source_store, target_store)
         _shift_store(source_store, dim, _get_dim_size(target_store, dim))
     elif fs.protocol == "file":
