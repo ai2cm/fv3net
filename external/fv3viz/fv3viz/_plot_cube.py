@@ -20,7 +20,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 import warnings
 from functools import partial
-from urllib.error import URLError
 import logging
 
 try:
@@ -176,10 +175,7 @@ def plot_cube(
 
     if coastlines:
         coastlines_kwargs = dict() if not coastlines_kwargs else coastlines_kwargs
-        try:
-            [ax.coastlines(**coastlines_kwargs) for ax in axes.flatten()]
-        except URLError as e:
-            logger.info(f"Could not download coastline data due an external error: {e}")
+        [ax.coastlines(**coastlines_kwargs) for ax in axes.flatten()]
 
     if colorbar:
         if row or col:
