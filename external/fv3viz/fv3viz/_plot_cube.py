@@ -20,14 +20,11 @@ import numpy as np
 from matplotlib import pyplot as plt
 import warnings
 from functools import partial
-import logging
 
 try:
     from cartopy import crs as ccrs
 except ImportError:
     pass
-
-logger = logging.getLogger(__name__)
 
 # global
 
