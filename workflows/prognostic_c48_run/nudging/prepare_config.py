@@ -18,7 +18,6 @@ def parse_args():
         type=str,
         help="path to yaml-encoded list of YYYYMMDD.HHMMSS timesteps",
     )
-
     return parser.parse_args()
 
 
