@@ -10,6 +10,7 @@ from pathlib import Path
 from fv3fit.keras import get_model
 from fv3fit._shared import load_model_training_config
 from loaders.batches import batches_from_serialized
+from loaders import shuffle
 
 
 def parse_args():
@@ -43,12 +44,12 @@ if __name__ == "__main__":
 
     train_range = config.batch_kwargs.get("train_range", (None,))
     batches = batches_from_serialized(args.train_data_path)
-    train = batches[slice(*train_range)]
+    train = shuffle(batches[slice(*train_range)])
 
     fit_kwargs = config.hyperparameters.pop("fit_kwargs", {})
     lr = fit_kwargs.pop("learning_rate", 0.0001)
     if lr == "exponential":
-        lr = tf.keras.optimizers.schedules.ExponentialDecay(0.001, 10_000, 0.96)
+        lr = tf.keras.optimizers.schedules.ExponentialDecay(0.0005, 10_000, 0.96)
     optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
     # TODO is var name handling okay?

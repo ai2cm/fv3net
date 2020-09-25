@@ -1,0 +1,66 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: emulation
+spec:
+  entrypoint: emulation
+  volumes:
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  volumeClaimTemplates:
+    - metadata:
+        name: work-volume
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 100Gi
+  serviceAccountName: integration-tests
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: med-sim-pool
+  templates:
+    - name: emulation
+      inputs:
+        parameters:
+          - name: model-output
+          - name: train-data
+          - name: train-config
+      container:
+        image: us.gcr.io/vcm-ml/fv3fit:emulation
+        command: ["bash", "-c", "-x"]
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-key-secret
+          - mountPath: /mnt/data
+            name: work-volume
+        args:
+          - |
+
+            cat <<EOF > /mnt/data/config.yaml
+            {{inputs.parameters.train-config}}
+            EOF
+
+            echo "Configuration:"
+            cat /mnt/data/config.yaml
+    
+            python -m fv3fit.emulation \
+              {{inputs.parameters.train-data}} \
+              /mnt/data/config.yaml \
+              /mnt/data/keras_model
+
+        resources:
+          requests:
+            memory: "14Gi"
+            cpu: "7500m"
+          limits:
+            memory: "25Gi"
+            cpu: "7500m"
