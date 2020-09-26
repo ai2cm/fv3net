@@ -6,11 +6,10 @@ input_variables:
 - air_temperature
 - specific_humidity
 output_variables:
-- pQ1
-- pQ2
+- dQ1
+- dQ2
 batch_function: batches_from_geodata
 batch_kwargs:
   timesteps_per_batch: 10
-  mapping_function: open_merged_nudged_full_tendencies
-  mapping_kwargs:
-    consolidated: true
+  mapping_function: open_baseline_emulator
+  mapping_kwargs: {}
