@@ -18,5 +18,6 @@ def test_generate_nudging(tmpdir):
         "nudging_tendencies.zarr",
         "after_physics.zarr",
         "prognostic_diags.zarr",
+        "physics_tendency_components.zarr",
     ]:
         xarray.open_zarr(os.path.join(tmpdir, path))

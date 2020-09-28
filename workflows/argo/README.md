@@ -64,7 +64,7 @@ template.
 | fv3config            | String representation of an fv3config object                                                          |
 | runfile              | String representation of an fv3gfs runfile                                                            |
 | output-url           | GCS url for outputs                                                                                   |
-| fv3gfs-image         | Docker image used to run model. Must have fv3gfs-wrapper and fv3config installed.                     |
+| fv3gfs-image         | Docker image used to run model. Currently only `us.gcr.io/vcm-ml/prognostic_run` supported.           |
 | post-process-image   | Docker image used to post-process and upload outputs                                                  |
 | chunks               | (optional) String describing desired chunking of diagnostics                                          |
 | cpu                  | (optional) Requested cpu for run-model step                                                           |

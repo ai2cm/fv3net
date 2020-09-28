@@ -255,7 +255,7 @@ def weighted_average(
 
 def snap_mask_to_type(
     float_mask: xr.DataArray,
-    enumeration: Mapping[str, float] = SURFACE_TYPE_ENUMERATION,
+    enumeration: Mapping[float, str] = SURFACE_TYPE_ENUMERATION,
     atol: float = 1e-7,
 ) -> xr.DataArray:
     """Convert float surface type array to categorical surface type array
@@ -271,7 +271,7 @@ def snap_mask_to_type(
     """
 
     types = np.full(float_mask.shape, np.nan)
-    for type_name, type_number in enumeration.items():
+    for type_number, type_name in enumeration.items():
         types = np.where(
             np.isclose(float_mask.values, type_number, atol), type_name, types
         )

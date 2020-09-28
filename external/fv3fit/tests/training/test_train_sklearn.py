@@ -5,17 +5,13 @@ import logging
 from fv3fit._shared import ModelTrainingConfig
 import numpy as np
 import subprocess
-import os
-from vcm import safe
 
 from fv3fit.sklearn._train import (
     train_model,
-    _get_transformed_target_regressor,
     _get_target_scaler,
-    _get_transformed_batch_regressor,
 )
-from fv3fit._shared import ArrayPacker, StandardScaler, ManualScaler
-from sklearn.dummy import DummyRegressor
+import fv3fit.sklearn
+from fv3fit._shared import StandardScaler, ManualScaler
 
 logger = logging.getLogger(__name__)
 
@@ -66,16 +62,10 @@ def test_training_integration(
             data_source_path,
             train_config_filename,
             tmp_path,
-            "--no-train-subdir-append",
         ]
     )
-    required_names = [
-        "sklearn_model.pkl",
-        "training_config.yml",
-    ]
-    existing_names = os.listdir(tmp_path)
-    missing_names = set(required_names).difference(existing_names)
-    assert len(missing_names) == 0, existing_names
+
+    fv3fit.sklearn.SklearnWrapper.load(str(tmp_path / "sklearn.yaml"))
 
 
 @pytest.mark.parametrize(
@@ -98,49 +88,3 @@ norm_data = xr.Dataset(
         ),
     }
 )
-
-
-@pytest.mark.parametrize(
-    "scaler_type, scaler_kwargs",
-    (["standard", None], ["mass", {"variable_scale_factors": {"y0": 200}}],),
-)
-def test__get_transformed_target_regressor(
-    scaler_type, scaler_kwargs,
-):
-    # tests that the func/inverse_func of the sklearn TransformedTargetRegressor
-    # correspond to the scaler's normalization
-    sample_dim = "sample"
-    output_vars = ["y0", "y1"]
-    regressor = DummyRegressor(strategy="mean")
-    transformed_target_regressor = _get_transformed_target_regressor(
-        regressor,
-        output_vars,
-        norm_data,
-        scaler_type=scaler_type,
-        scaler_kwargs=scaler_kwargs,
-    )
-    scaler = _get_target_scaler(scaler_type, scaler_kwargs, norm_data, output_vars)
-    packer = ArrayPacker(sample_dim, output_vars)
-    y = packer.to_array(safe.get_variables(norm_data, output_vars))
-    y_normalized = scaler.normalize(y)
-
-    # normalize
-    np.testing.assert_array_almost_equal(
-        transformed_target_regressor.func(y), y_normalized
-    )
-    # denormalize
-    np.testing.assert_array_almost_equal(
-        transformed_target_regressor.inverse_func(y_normalized), y
-    )
-
-
-def test_same_scaler_after_fitting(training_batches, train_config):
-    batch_0 = training_batches[0]
-    packer = ArrayPacker("sample", train_config.output_variables)
-    y = packer.to_array(safe.get_variables(batch_0, train_config.output_variables))
-    model_wrapper = _get_transformed_batch_regressor(train_config, batch_0)
-    normed_y = model_wrapper.model.base_regressor.func(y)
-    model_wrapper.fit(batch_0)
-    np.testing.assert_array_almost_equal(
-        model_wrapper.model.base_regressor.func(y), normed_y
-    )

@@ -12,6 +12,7 @@ from ._transformations import ValMap, KeyMap
 from ._local import LocalMapper, mapper_to_local
 from ._hybrid import (
     open_fine_resolution_nudging_hybrid,
+    open_fine_resolution_nudging_hybrid_clouds_off,
     open_fine_resolution_nudging_to_obs_hybrid,
 )
 

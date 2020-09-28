@@ -9,7 +9,6 @@ spec:
       - name: nudging-config
       - name: output-url
       - name: fv3gfs-image
-        value: us.gcr.io/vcm-ml/fv3gfs-wrapper:46b1d8742ee220ebeb14942e0a0f43da963cc0cf
       - name: fv3net-image
         value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
       - name: post-process-image
@@ -92,9 +91,10 @@ spec:
               name: run-fv3gfs
               template: run-fv3gfs
             arguments:
+              artifacts:
+                - {name: fv3config, from: "{{steps.prepare-config.outputs.artifacts.fv3config}}"}
+                - {name: runfile, from: "{{steps.prepare-config.outputs.artifacts.runfile}}"}
               parameters:
-                - {name: fv3config, value: "{{steps.prepare-config.outputs.parameters.fv3config}}"}
-                - {name: runfile, value: "{{steps.prepare-config.outputs.parameters.runfile}}"}
                 - {name: chunks, value: "{{steps.prepare-config.outputs.parameters.chunks}}"}
                 - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
                 - {name: output-url, value: "{{inputs.parameters.output-url}}"}
@@ -111,11 +111,12 @@ spec:
           - {name: nudging-config}
           - {name: times}
       outputs:
-        parameters:
-          - {name: fv3config, valueFrom: {path: /tmp/fv3config.yaml}}
+        artifacts:
+          - name: fv3config
+            path: /tmp/fv3config.yaml
           - name: runfile
-            valueFrom:
-              path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_runfile.py
+            path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_runfile.py
+        parameters:
           - name: chunks
             valueFrom:
               path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_chunks.yaml

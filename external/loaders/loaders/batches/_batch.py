@@ -10,6 +10,11 @@ from toolz import partition_all, compose
 from ._sequences import FunctionOutputSequence
 from .._utils import stack_dropnan_shuffle, load_grid, add_cosine_zenith_angle
 from ..constants import TIME_FMT, TIME_NAME
+from ._serialized_phys import (
+    SerializedSequence,
+    FlattenDims,
+    open_serialized_physics_data,
+)
 import loaders
 
 logger = logging.getLogger(__name__)
@@ -224,3 +229,46 @@ def _load_batch(
     # If additional derived variable(s) added, refactor instead of adding if statements
     ds = safe.get_variables(ds, [var for var in data_vars if var != cos_z_var])
     return ds
+
+
+def batches_from_serialized(
+    path: str,
+    zarr_prefix: str = "phys",
+    sample_dims: Sequence[str] = ["savepoint", "rank", "horizontal_dimension"],
+    savepoints_per_batch: int = 1,
+) -> FunctionOutputSequence:
+    """
+    Load a sequence of serialized physics data for use in model fitting procedures.
+    Data variables are reduced to a sample and feature dimension by stacking specified
+    dimensions any remaining feature dims along the last dimension. (An extra last
+    dimensiononly appeared for tracer fields in the serialized turbulence data.)
+
+    Args:
+        path: Path (local or remote) to the input/output zarr files
+        zarr_prefix: Zarr file prefix for input/output files.  Becomes {prefix}_in.
+            zarr and {prefix}_out.zarr
+        sample_dims: Sequence of dimensions to stack as a single sample dimension
+        savepoints_per_batch: Number of serialized savepoints to include in a single
+            batch
+    
+    Returns:
+        A seqence of batched serialized data ready for model testing/training
+    """
+    ds = open_serialized_physics_data(path, zarr_prefix=zarr_prefix)
+    seq = SerializedSequence(ds)
+    seq = FlattenDims(seq, sample_dims)
+
+    if savepoints_per_batch > 1:
+        batch_args = [
+            slice(start, start + savepoints_per_batch)
+            for start in range(0, len(seq), savepoints_per_batch)
+        ]
+    else:
+        batch_args = list(range(len(seq)))
+
+    def _load_item(item: Union[int, slice]):
+        return seq[item]
+
+    func_seq = FunctionOutputSequence(_load_item, batch_args)
+
+    return func_seq

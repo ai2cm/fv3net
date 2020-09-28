@@ -1,13 +1,19 @@
 import abc
 from copy import copy
 import numpy as np
-from typing import Mapping, BinaryIO
+from typing import Mapping, BinaryIO, Type, Sequence
 import xarray as xr
+import io
+import yaml
 
 from .packer import ArrayPacker
 
 
 class NormalizeTransform(abc.ABC):
+    @abc.abstractproperty
+    def kind(self) -> str:
+        pass
+
     @abc.abstractmethod
     def normalize(self, y: np.ndarray):
         pass
@@ -20,6 +26,11 @@ class NormalizeTransform(abc.ABC):
     def dump(self, f: BinaryIO):
         pass
 
+    def dumps(self) -> bytes:
+        f = io.BytesIO()
+        self.dump(f)
+        return f.getvalue()
+
     @classmethod
     @abc.abstractmethod
     def load(cls, f: BinaryIO):
@@ -27,6 +38,9 @@ class NormalizeTransform(abc.ABC):
 
 
 class StandardScaler(NormalizeTransform):
+
+    kind: str = "standard"
+
     def __init__(self, std_threshold: float = 1e-12):
         """Standard scaler normalizer: normalizes via (x-mean)/std
 
@@ -77,6 +91,9 @@ class StandardScaler(NormalizeTransform):
 
 
 class ManualScaler(NormalizeTransform):
+
+    kind: str = "manual"
+
     def __init__(self, scales):
         self.scales = scales
 
@@ -193,3 +210,24 @@ def _create_scaling_array(
     scales_array = packer.to_array(xr.Dataset(scales))  # type: ignore
     scales_array = np.sqrt(scales_array) if sqrt_scales else scales_array
     return scales_array
+
+
+scalers: Sequence[Type[NormalizeTransform]] = [StandardScaler, ManualScaler]
+
+
+def dumps(scaler: NormalizeTransform) -> str:
+    """Dump scaler object to string
+    """
+    return yaml.safe_dump((scaler.kind, scaler.dumps()))
+
+
+def loads(b: str) -> NormalizeTransform:
+    """Load scaler from string
+    """
+    class_name, data = yaml.safe_load(b)
+    f = io.BytesIO(data)
+    for scaler_cls in scalers:
+        if class_name == scaler_cls.kind:
+            return scaler_cls.load(f)
+
+    raise NotImplementedError(f"Cannot load {class_name} scaler")
