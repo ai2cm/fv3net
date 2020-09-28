@@ -46,7 +46,6 @@ dependencies:
   - matplotlib=3.2.2
   - pyquery>=1.4.0
   - holoviews
-  - geoviews
   - bokeh>=2.0
   - docrep=0.2.7
   - backoff
