@@ -1,8 +1,8 @@
 base_version: v0.5
 namelist:
   coupler_nml:
-    days: 1
-    hours: 0
+    days: 0
+    hours: 4
     minutes: 0
     seconds: 0
   diag_manager_nml:
@@ -11,7 +11,3 @@ namelist:
     do_sat_adj: false
   gfdl_cloud_microphysics_nml:
     fast_sat_adj: false
-scikit_learn:
-  output_standard_names:
-    dQ1: pQ1
-    dQ2: pQ2
