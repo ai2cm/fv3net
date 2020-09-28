@@ -409,7 +409,12 @@ def open_fine_res_apparent_sources(
 
     # use default which is valid for real data
     if rename_vars is None:
-        rename_vars = {"grid_xt": "x", "grid_yt": "y", "pfull": "z"}
+        rename_vars = {
+            "grid_xt": "x",
+            "grid_yt": "y",
+            "pfull": "z",
+            "delp": "pressure_thickness_of_atmospheric_layer",
+        }
 
     fine_resolution_sources_mapper = FineResolutionSources(
         open_fine_resolution_budget(fine_res_url),

@@ -14,9 +14,9 @@ batch_kwargs:
   timesteps:
     - "20160801.001500"
     - "20160801.003000"
-  mapping_function: open_merged_nudged
+  mapping_function: open_merged_nudged_full_tendencies
   mapping_kwargs:
-    i_start: 0
-    rename_vars:
-      air_temperature_tendency_due_to_nudging: dQ1
-      specific_humidity_tendency_due_to_nudging: dQ2
+    open_merged_nudged_kwargs:
+      rename_vars:
+        air_temperature_tendency_due_to_nudging: dQ1
+        specific_humidity_tendency_due_to_nudging: dQ2

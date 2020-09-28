@@ -1,0 +1,264 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: run-fv3gfs
+spec:
+  entrypoint: run-fv3gfs
+  templates:
+  - name: run-fv3gfs
+    inputs:
+      artifacts:
+        - name: fv3config
+        - name: runfile
+      parameters:
+        - name: fv3gfs-image
+        - name: output-url
+        - name: post-process-image
+        - {name: chunks, value: "{}"}
+        - {name: cpu, value: "6"}
+        - {name: memory, value: 8Gi}
+        - {name: segment-count, value: "1"}
+        - {name: work-volume-name, value: work-volume}
+        - {name: external-volume-name, value: external-volume}
+    steps:
+      - - name: write-configs
+          template: write-configs
+          arguments:
+            artifacts:
+              - name: fv3config
+                from: "{{inputs.artifacts.fv3config}}"
+              - name: runfile
+                from: "{{inputs.artifacts.runfile}}"
+            parameters:
+            - {name: chunks, value: "{{inputs.parameters.chunks}}"}
+            - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+      # loop over segments implemented through recursion so that a failed segment will
+      # terminate the workflow. Argo loops by default run in parallel and do not fail fast.
+      - - name: run-first-segment  
+          template: run-all-segments
+          arguments:
+            parameters:
+            - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
+            - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
+            - {name: output-url, value: "{{inputs.parameters.output-url}}"}
+            - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+            - {name: memory, value: "{{inputs.parameters.memory}}"}
+            - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
+            - {name: segment, value: 0}
+            - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+            - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
+  - name: write-configs
+    inputs:
+      artifacts:
+        - name: fv3config
+          path: /mnt/data/fv3config.yaml
+        - name: runfile
+          path: /mnt/data/runfile.py
+      parameters:
+        - name: chunks
+        - name: work-volume-name
+    container:
+      image: ubuntu:latest
+      volumeMounts:
+        - name: "{{inputs.parameters.work-volume-name}}"
+          mountPath: /mnt/data
+      command: ["/bin/bash", "-c", "-x", "-e"]
+      args:
+      - |
+        echo "Using runfile:"
+        cat /mnt/data/runfile.py
+        echo "Using fv3config:"
+        cat /mnt/data/fv3config.yaml
+        echo "{{inputs.parameters.chunks}}" > /mnt/data/chunks.yaml
+  - name: run-all-segments
+    inputs:
+      parameters:
+        - name: fv3gfs-image
+        - name: post-process-image
+        - name: output-url
+        - name: cpu
+        - name: memory
+        - name: segment-count
+        - name: segment
+        - name: work-volume-name
+        - name: external-volume-name
+    steps:
+      - - template: run-segment
+          name: run-segment
+          arguments:
+            parameters:
+            - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
+            - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
+            - {name: output-url, value: "{{inputs.parameters.output-url}}"}
+            - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+            - {name: memory, value: "{{inputs.parameters.memory}}"}
+            - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+            - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
+      - - name: increment-segment
+          template: increment-segment
+          arguments:
+            parameters:
+              - {name: segment, value: "{{inputs.parameters.segment}}"}
+      - - name: run-next-segment
+          template: run-all-segments
+          when: "{{steps.increment-segment.outputs.result}} < {{inputs.parameters.segment-count}}"
+          arguments:
+            parameters:
+            - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
+            - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
+            - {name: output-url, value: "{{inputs.parameters.output-url}}"}
+            - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+            - {name: memory, value: "{{inputs.parameters.memory}}"}
+            - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
+            - {name: segment, value: "{{steps.increment-segment.outputs.result}}"}
+            - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+            - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
+  - name: run-segment
+    inputs:
+      parameters:
+        - name: fv3gfs-image
+        - name: post-process-image
+        - name: output-url
+        - name: cpu
+        - name: memory
+        - name: work-volume-name
+        - name: external-volume-name
+    steps:
+      - - name: run-model
+          continueOn:
+            failed: true
+          template: run-model
+          arguments:
+            parameters:
+              - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
+              - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+              - {name: memory, value: "{{inputs.parameters.memory}}"}
+              - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+              - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
+      - - name: upload-outputs
+          template: post-process
+          arguments:
+            parameters:
+              - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
+              - {name: output-url, value: "{{inputs.parameters.output-url}}"}
+              - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+      - - name: exit-if-run-model-failed
+          template: exit
+          when: "{{steps.run-model.exitCode}} != 0"
+      - - name: update-config
+          template: update-config
+          arguments:
+            parameters:
+              - {name: restarts-url, value: "/mnt/data/RESTART"}
+              - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+  - name: exit
+    container:
+      image: alpine:latest
+      command: [sh, -c]
+      args: ["echo Model run crashed. Available outputs have been uploaded to specified output-url.; exit 1"]
+  - name: run-model
+    inputs:
+      parameters:
+        - name: fv3gfs-image
+        - name: cpu
+        - name: memory
+        - name: work-volume-name
+        - name: external-volume-name
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "climate-sim-pool"
+      effect: "NoSchedule"
+    podSpecPatch: |
+      containers:
+        - name: main
+          resources:
+            limits:
+              cpu: "{{inputs.parameters.cpu}}"
+              memory: "{{inputs.parameters.memory}}"
+            requests:
+              cpu: "{{inputs.parameters.cpu}}"
+              memory: "{{inputs.parameters.memory}}"
+    container:
+      image: '{{inputs.parameters.fv3gfs-image}}'
+      command: [runfv3.sh]
+      args: [/mnt/data/fv3config.yaml, /mnt/data/rundir, /mnt/data/runfile.py]
+      env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secret/gcp-credentials/key.json
+        - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+          value: /secret/gcp-credentials/key.json
+      imagePullPolicy: Always
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+        - name: "{{inputs.parameters.work-volume-name}}"
+          mountPath: /mnt/data
+        - name: "{{inputs.parameters.external-volume-name}}"
+          mountPath: /mnt/input
+          readOnly: true
+        - name: gcp-key-secret
+          mountPath: /secret/gcp-credentials
+          readOnly: true
+  - name: post-process
+    inputs:
+      parameters:
+        - name: post-process-image
+        - name: output-url
+        - name: work-volume-name
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "climate-sim-pool"
+      effect: "NoSchedule"
+    container:
+      image: "{{inputs.parameters.post-process-image}}"
+      command: ["/bin/bash", "-c", "-e"]
+      args:
+      - |
+        post_process.py --chunks /mnt/data/chunks.yaml /mnt/data/rundir /tmp/processed_rundir
+        append.py /tmp/processed_rundir {{inputs.parameters.output-url}}
+        rsync -r /mnt/data/rundir/RESTART/ /mnt/data/RESTART/
+        rm -r /mnt/data/rundir
+        rm -r /tmp/processed_rundir
+      volumeMounts:
+        - name: "{{inputs.parameters.work-volume-name}}"
+          mountPath: /mnt/data
+        - name: gcp-key-secret
+          mountPath: /secret/gcp-credentials
+          readOnly: true
+      resources:
+        limits:
+          memory: 8Gi
+        requests:
+          cpu: "6"
+          memory: 8Gi
+  - name: update-config
+    inputs:
+      parameters:
+        - name: restarts-url
+        - name: work-volume-name
+    container:
+      image: gcr.io/vcm-ml/fv3config:0348a71f1cac9babe82cf23ae5a10c4345ebe14f
+      command: ["/bin/bash", "-c"]
+      # set initial conditions to restarts generated by previous segment and set namelist
+      # parameters to be appropriate for a "warm-start" (i.e. initalized from restarts) run.
+      # also update nudging assets for new segment (no effect if nudging not active).
+      args: 
+      - | 
+        enable_restart /mnt/data/fv3config.yaml "{{inputs.parameters.restarts-url}}"
+        update_config_for_nudging /mnt/data/fv3config.yaml
+        echo "fv3config file updated to:"
+        cat /mnt/data/fv3config.yaml
+      volumeMounts:
+        - name: "{{inputs.parameters.work-volume-name}}"
+          mountPath: /mnt/data
+  - name: increment-segment
+    inputs:
+      parameters:
+        - name: segment
+    script:
+      image: python:alpine3.6
+      command: [python]
+      source: |
+        print({{inputs.parameters.segment}} + 1)

@@ -1,7 +1,14 @@
 import os
 import numpy as np
 import xarray as xr
-from post_process import parse_rundir, process_item, open_tiles, get_chunks, cast_time
+from post_process import (
+    parse_rundir,
+    process_item,
+    open_tiles,
+    get_chunks,
+    cast_time,
+    clear_encoding,
+)
 import tempfile
 from datetime import datetime
 
@@ -60,6 +67,13 @@ def test_process_item_dataset(tmpdir):
     with tempfile.TemporaryDirectory() as d_out:
         process_item(ds, d_in, d_out, TEST_CHUNKS)
         xr.open_zarr(d_out + "/diags.zarr")
+
+
+def test_process_item_empty_dataset(tmpdir):
+    d_in = str(tmpdir)
+    ds = xr.Dataset()
+    with tempfile.TemporaryDirectory() as d_out:
+        process_item(ds, d_in, d_out, TEST_CHUNKS)
 
 
 def test_process_item_str(tmpdir):
@@ -129,3 +143,21 @@ def test_cast_time_with_coord():
     )
     output_with_coord = cast_time(ds_with_coord)
     assert isinstance(output_with_coord.time.values[0], np.datetime64)
+
+
+def test_clear_encoding_with_coords():
+    # incoming chunks may not align with data
+    x_coord = xr.Variable(["x"], np.arange(10), encoding={"chunks": 6})
+    time_coord = xr.Variable(
+        ["time"], [datetime(2016, 8, 1)], encoding={"chunks": 1024}
+    )
+    ds_with_coord = xr.Dataset(
+        {"a": (["time", "x"], np.ones((1, 10)))},
+        coords={"time": time_coord, "x": x_coord},
+    )
+    clear_encoding(ds_with_coord)
+    ds_no_encoding = xr.Dataset(
+        {"a": (["time", "x"], np.ones((1, 10)))},
+        coords={"time": [datetime(2016, 8, 1)], "x": np.arange(10)},
+    )
+    xr.testing.assert_identical(ds_with_coord, ds_no_encoding)

@@ -1,6 +1,8 @@
+import cftime
+import json
 import logging
-from datetime import datetime
 from typing import (
+    Any,
     Hashable,
     Iterable,
     Mapping,
@@ -11,16 +13,16 @@ from typing import (
     Sequence,
 )
 
-import fsspec
 import xarray as xr
 from mpi4py import MPI
-from sklearn.externals import joblib
 
-import fv3gfs
+import fv3gfs.wrapper as wrapper
+import fv3gfs.util
 import runtime
-from fv3fit.sklearn import RenamingAdapter, StackingAdapter
+
 
 logging.basicConfig(level=logging.DEBUG)
+logging.getLogger("fv3gfs.util").setLevel(logging.WARN)
 logger = logging.getLogger(__name__)
 
 State = MutableMapping[Hashable, xr.DataArray]
@@ -32,6 +34,7 @@ SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
 PRECIP_RATE = "surface_precipitation_rate"
 TOTAL_PRECIP = "total_precipitation"  # has units of m
+AREA = "area_of_grid_cell"
 REQUIRED_VARIABLES = {TEMP, SPHUM, DELP, PRECIP_RATE, TOTAL_PRECIP}
 
 cp = 1004
@@ -47,6 +50,7 @@ def compute_diagnostics(state, diags):
     return dict(
         air_temperature=state[TEMP],
         specific_humidity=state[SPHUM],
+        pressure_thickness_of_atmospheric_layer=state[DELP],
         net_moistening=(net_moistening)
         .assign_attrs(units="kg/m^2/s")
         .assign_attrs(description="column integrated ML model moisture tendency"),
@@ -98,20 +102,16 @@ def precipitation_sum(
 
 
 def open_model(config):
-    # Load the model
+    model = runtime.get_ml_model(config)
     rename_in = config.get("input_standard_names", {})
     rename_out = config.get("output_standard_names", {})
-    with fsspec.open(config["model"], "rb") as f:
-        model = joblib.load(f)
-
-    stacked_predictor = StackingAdapter(model, sample_dims=["y", "x"])
-    return RenamingAdapter(stacked_predictor, rename_in, rename_out)
+    return runtime.RenamingAdapter(model, rename_in, rename_out)
 
 
-def predict(model: RenamingAdapter, state: State) -> State:
+def predict(model: runtime.RenamingAdapter, state: State) -> State:
     """Given ML model and state, return tendency prediction."""
     ds = xr.Dataset(state)  # type: ignore
-    output = model.predict(ds)
+    output = model.predict_columnwise(ds, feature_dim="z")
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
@@ -126,7 +126,7 @@ def apply(state: State, tendency: State, dt: float) -> State:
     return updated  # type: ignore
 
 
-class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
+class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
     """An iterable defining the master time loop of a prognostic simulation
 
     Yields (time, diagnostics) tuples, which can be saved using diagnostic routines.
@@ -147,7 +147,7 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         diagnostics.
     """
 
-    def __init__(self, comm=None, fv3gfs=fv3gfs):
+    def __init__(self, comm: Any = None, fv3gfs=wrapper) -> None:
 
         if comm is None:
             comm = MPI.COMM_WORLD
@@ -168,16 +168,17 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
             "diagnostic_ml", False
         )
 
-        # download the scikit-learn model
-        self._log_info("Downloading Sklearn Model")
-        if comm.rank == 0:
-            model = open_model(args["scikit_learn"])
-        else:
-            model = None
-        model = comm.bcast(model, root=0)
-        self._model = model
+        # download the model
+        self._log_info("Downloading ML Model")
+        self._model = open_model(args["scikit_learn"])
         self._log_info("Model Downloaded")
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
+
+        self._fv3gfs.initialize()
+
+    @property
+    def time(self) -> cftime.DatetimeJulian:
+        return self._state.time
 
     def _log_debug(self, message: str):
         if self._comm.rank == 0:
@@ -200,6 +201,7 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         return {}
 
     def _step_python(self) -> Diagnostics:
+
         variables: List[Hashable] = list(
             self._model.input_variables | REQUIRED_VARIABLES
         )
@@ -227,7 +229,6 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         return diagnostics
 
     def __iter__(self):
-        self._fv3gfs.initialize()
         for i in range(self._fv3gfs.get_step_count()):
             diagnostics = {}
             diagnostics.update(self._step_dynamics())
@@ -235,6 +236,61 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
             diagnostics.update(self._step_python())
             yield self._state.time, diagnostics
         self._fv3gfs.cleanup()
+
+
+def monitor(name: str, func):
+    """Decorator to add tendency monitoring to an update function
+
+    This will add `tendency_of_{variable}_due_to_{name}` to the
+    diagnostics and print mass conservation diagnostics to the logs.
+
+    Args:
+        name: the name to tag the tendency diagnostics with
+        func: a stepping function, usually a bound method of TimeLoop
+
+    Returns:
+        monitored function. Same as func, but with tendency and mass change
+        diagnostics.
+    """
+
+    def step(self) -> Mapping[str, xr.DataArray]:
+        area = self._state[AREA]
+        before = {key: self._state[key] for key in self._variables + [DELP]}
+        mass_before = comm.reduce((area * before[DELP]).sum().item(), root=0)
+        vapor_mass_before = comm.reduce(
+            (area * before[DELP] * self._state[SPHUM]).sum().item(), root=0
+        )
+        diags = func(self)
+        after = {key: self._state[key] for key in self._variables + [DELP]}
+        mass_after = comm.reduce((area * after[DELP]).sum().item(), root=0)
+        vapor_mass_after = comm.reduce(
+            (area * after[DELP] * self._state[SPHUM]).sum().item(), root=0
+        )
+        area_all = comm.reduce(area.sum().item(), root=0)
+
+        tendency = {
+            f"tendency_of_{key}_due_to_{name}": (after[key] - before[key])
+            / self._timestep
+            for key in self._variables
+        }
+
+        if comm.rank == 0:
+            output = {
+                "total_mass_change": {
+                    "value": (mass_after - mass_before) / area_all,
+                    "units": "Pa",
+                },
+                "vapor_mass_change": {
+                    "value": (vapor_mass_after - vapor_mass_before) / area_all,
+                    "units": "Pa",
+                },
+            }
+
+            logging.info(f"{name}:{json.dumps(output)}")
+
+        return {**diags, **tendency}
+
+    return step
 
 
 class MonitoredPhysicsTimeLoop(TimeLoop):
@@ -247,33 +303,27 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
                 
         """
         super().__init__(*args, **kwargs)
-        self._variables = tendency_variables
+        self._variables = list(tendency_variables)
 
-    def _step_physics(self) -> Mapping[str, xr.DataArray]:
-        before = {key: self._state[key] for key in self._variables}
-        super()._step_physics()
-        after = {key: self._state[key] for key in self._variables}
-
-        tendency = {
-            f"tendency_of_{key}_due_to_fv3_physics": (after[key] - before[key])
-            / self._timestep
-            for key in self._variables
-        }
-        return tendency
+    _step_physics = monitor("fv3_physics", TimeLoop._step_physics)
+    _step_python = monitor("python", TimeLoop._step_python)
 
 
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
     config = runtime.get_config()
-    partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
-    diag_files = runtime.get_diagnostic_files(config, partitioner, comm)
+    partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(config["namelist"])
 
     loop = MonitoredPhysicsTimeLoop(
         tendency_variables=config.get("scikit_learn", {}).get(
             "physics_tendency_vars", []
         ),
         comm=comm,
+    )
+
+    diag_files = runtime.get_diagnostic_files(
+        config, partitioner, comm, initial_time=loop.time
     )
 
     for time, diagnostics in loop:

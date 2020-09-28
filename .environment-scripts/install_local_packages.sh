@@ -7,13 +7,16 @@ source activate $CONDA_ENV
 local_packages_to_install=( 
   external/vcm/external/mappm
   external/fv3fit
+  external/fv3gfs-util
 )
 for package  in "${local_packages_to_install[@]}"
 do
   pip install --no-deps -e "$package"
 done
 
-poetry_packages=( external/runtime external/report external/fv3viz . 
+poetry_packages=( 
+  external/report
+  external/fv3viz
   external/fv3config 
   external/vcm 
   external/synth

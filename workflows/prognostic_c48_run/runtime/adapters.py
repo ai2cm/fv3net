@@ -1,9 +1,8 @@
-from typing import Mapping, Set, Any, Sequence, Hashable
+from typing import Mapping, Set, Hashable
 
-from sklearn.utils import parallel_backend
 import xarray as xr
 
-from ._wrapper import SklearnWrapper
+from fv3fit._shared import Predictor
 
 NameDict = Mapping[Hashable, Hashable]
 
@@ -13,21 +12,18 @@ def _invert_dict(d: Mapping) -> Mapping:
 
 
 class RenamingAdapter:
-    """Adapter object for renaming
+    """Adapter object for renaming model variables
 
     Attributes:
-        model: a sklearn model to wrap
+        model: a model to rename
         rename_in: mapping from standard names to input names of model
         rename_out: mapping from standard names to the output names of model
     
     """
 
-    def __init__(self, model: Any, rename_in: NameDict, rename_out: NameDict = None):
-        # unforunately have to use Any with model to avoid dependency on fv3net
-        # regression. We could also upgraded to python 3.8 to get access to the
-        # Protocol [1] object which allows duck-typed types
-        #
-        # [1]: https://www.python.org/dev/peps/pep-0544/
+    def __init__(
+        self, model: Predictor, rename_in: NameDict, rename_out: NameDict = None
+    ):
         self.model = model
         self.rename_in = rename_in
         self.rename_out = {} if rename_out is None else rename_out
@@ -53,25 +49,7 @@ class RenamingAdapter:
         invert_rename_in = _invert_dict(self.rename_in)
         return {invert_rename_in.get(var, var) for var in self.model.input_variables}
 
-    def predict(self, arg: xr.Dataset) -> xr.Dataset:
+    def predict_columnwise(self, arg: xr.Dataset, **kwargs) -> xr.Dataset:
         input_ = self._rename_inputs(arg)
-        prediction = self.model.predict(input_)
+        prediction = self.model.predict_columnwise(input_, **kwargs)
         return self._rename_outputs(prediction)
-
-
-class StackingAdapter:
-    """Wrap a SklearnWrapper model to work with unstacked inputs
-    """
-
-    def __init__(self, model: SklearnWrapper, sample_dims: Sequence[str]):
-        self.model = model
-        self.sample_dims = sample_dims
-
-    @property
-    def input_variables(self) -> Set[str]:
-        return set(self.model.input_variables)
-
-    def predict(self, ds: xr.Dataset) -> xr.Dataset:
-        with parallel_backend("threading", n_jobs=1):
-            stacked = ds.stack(sample=self.sample_dims)
-            return self.model.predict(stacked).unstack("sample")

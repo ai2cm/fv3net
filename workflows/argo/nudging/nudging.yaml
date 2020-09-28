@@ -6,29 +6,34 @@ metadata:
 spec:
   arguments:
     parameters:
-      - name: restart-pvc
-        value: nudging-read-only
       - name: nudging-config
       - name: output-url
       - name: fv3gfs-image
-        value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
       - name: fv3net-image
         value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
+      - name: post-process-image
       - name: times
         value: ""
+      - {name: segment-count, value: "1"}
+      - {name: cpu, value: "6"}
+      - {name: memory, value: 8Gi}
+      - {name: work-volume-name, value: work-volume}
+      - {name: external-volume-name, value: restart-data}
+      - {name: external-volume-claim, value: nudging-read-only}
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
-        name: output-data
+        name: work-volume
       spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: 1333Gi
+            storage: 100Gi
   volumes:
     - name: restart-data
       persistentVolumeClaim:
-        claimName: '{{workflow.parameters.restart-pvc}}'
+        claimName: nudging-read-only
+        readOnly: true
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -44,71 +49,83 @@ spec:
                 value: "{{workflow.parameters.fv3net-image}}"
               - name: fv3gfs-image
                 value: "{{workflow.parameters.fv3gfs-image}}"
+              - name: post-process-image
+                value: "{{workflow.parameters.post-process-image}}"
               - name: times
                 value: "{{workflow.parameters.times}}"
               - name: output-url
                 value: "{{workflow.parameters.output-url}}"
               - name: nudging-config
                 value: "{{workflow.parameters.nudging-config}}"
-              # do not need templates
-              - name: restart-volume
-                value: restart-data
-              - name: working-volume
-                value: output-data
+              - {name: segment-count, value: "{{workflow.parameters.segment-count}}"}
+              - {name: cpu, value: "{{workflow.parameters.cpu}}"}
+              - {name: memory, value: "{{workflow.parameters.memory}}"}
+              - {name: work-volume-name, value: "{{workflow.parameters.work-volume-name}}"}
+              - {name: external-volume-name, value: "{{workflow.parameters.external-volume-name}}"}
     - name: nudging
       inputs:
         parameters:
-          - name: restart-volume
-            value: restart-data
           - name: nudging-config
           - name: times
-          - name: working-volume
           - name: output-url
           - name: fv3gfs-image
-            value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
+            value: us.gcr.io/vcm-ml/fv3gfs-wrapper:46b1d8742ee220ebeb14942e0a0f43da963cc0cf
           - name: fv3net-image
             value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
+          - name: post-process-image
+          - {name: segment-count, value: "1"}
+          - {name: cpu, value: "6"}
+          - {name: memory, value: 8Gi}
+          - {name: work-volume-name, value: work-volume}
+          - {name: external-volume-name, value: restart-data}
       steps:
         - - template: prepare-config
             name: prepare-config
             arguments:
               parameters:
-                - {name: working-volume, value: "{{inputs.parameters.working-volume}}"}
                 - {name: fv3net-image, value: "{{inputs.parameters.fv3net-image}}"}
                 - {name: nudging-config, value: "{{inputs.parameters.nudging-config}}"}
                 - {name: times, value: "{{inputs.parameters.times}}"}
         - - name: run-model
-            template: fv3gfs
+            templateRef:
+              name: run-fv3gfs
+              template: run-fv3gfs
             arguments:
+              artifacts:
+                - {name: fv3config, from: "{{steps.prepare-config.outputs.artifacts.fv3config}}"}
+                - {name: runfile, from: "{{steps.prepare-config.outputs.artifacts.runfile}}"}
               parameters:
-                - {name: working-volume, value: "{{inputs.parameters.working-volume}}"}
-                - {name: restart-volume, value: "{{inputs.parameters.restart-volume}}"}
+                - {name: chunks, value: "{{steps.prepare-config.outputs.parameters.chunks}}"}
                 - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
-        - - name: upload-outputs
-            template: upload-data
-            arguments:
-              parameters:
-                - {name: working-volume, value: "{{inputs.parameters.working-volume}}"}
                 - {name: output-url, value: "{{inputs.parameters.output-url}}"}
+                - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
+                - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
+                - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+                - {name: memory, value: "{{inputs.parameters.memory}}"}
+                - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+                - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
     - name: prepare-config
       inputs:
         parameters:
-          - {name: working-volume}
           - {name: fv3net-image}
           - {name: nudging-config}
           - {name: times}
+      outputs:
+        artifacts:
+          - name: fv3config
+            path: /tmp/fv3config.yaml
+          - name: runfile
+            path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_runfile.py
+        parameters:
+          - name: chunks
+            valueFrom:
+              path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_chunks.yaml
       container:
-        # need to run as root to read the mounted PVC
-        securityContext:
-          allowPrivilegeEscalation: false
-          runAsUser: 0
         image: "{{inputs.parameters.fv3net-image}}"
         command: ["/bin/bash", "-c"]
         workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging
         args:
         - |
-          cp nudging_runfile.py /mnt/data/runfile.py
-
           cat << EOF > times.json
           {{inputs.parameters.times}}
           EOF
@@ -120,86 +137,4 @@ spec:
           python prepare_config.py \
             --timesteps times.json \
             config.yaml \
-            > /mnt/data/fv3config.yaml
-
-        volumeMounts:
-          - name: "{{inputs.parameters.working-volume}}"
-            mountPath: /mnt/data
-    - name: upload-data
-      inputs:
-        parameters:
-          - {name: working-volume}
-          - {name: output-url}
-      tolerations:
-      - key: "dedicated"
-        operator: "Equal"
-        value: "climate-sim-pool"
-        effect: "NoSchedule"
-      container:
-        image: google/cloud-sdk:latest
-        command: ["/bin/bash"]
-        args:
-          - -c
-          - |
-            gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS && \
-            gsutil -m -q rsync -r -e /mnt/data/rundir '{{inputs.parameters.output-url}}'
-        env:
-          - name: GOOGLE_APPLICATION_CREDENTIALS
-            value: /secret/gcp-credentials/key.json
-        imagePullPolicy: Always
-        resources:
-          limits:
-            memory: 8Gi
-          requests:
-            cpu: "6"
-            memory: 8Gi
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
-        volumeMounts:
-          - name: "{{inputs.parameters.working-volume}}"
-            mountPath: /mnt/data
-          - name: gcp-key-secret
-            mountPath: /secret/gcp-credentials
-            readOnly: true
-    - name: fv3gfs
-      inputs:
-        parameters:
-          - {name: working-volume}
-          - {name: restart-volume}
-          - {name: fv3gfs-image}
-      tolerations:
-      - key: "dedicated"
-        operator: "Equal"
-        value: "climate-sim-pool"
-        effect: "NoSchedule"
-      container:
-        command:
-          - python
-          - -m
-          - fv3config.fv3run._native_main
-          - '[["/mnt/data/fv3config.yaml", "/mnt/data/rundir"],
-            {"runfile": "/mnt/data/runfile.py", "capture_output":
-            false}]'
-        env:
-          - name: GOOGLE_APPLICATION_CREDENTIALS
-            value: /secret/gcp-credentials/key.json
-          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
-            value: /secret/gcp-credentials/key.json
-        image: '{{inputs.parameters.fv3gfs-image}}'
-        imagePullPolicy: Always
-        resources:
-          limits:
-            memory: 8Gi
-          requests:
-            cpu: "6"
-            memory: 8Gi
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
-        volumeMounts:
-          - name: "{{inputs.parameters.restart-volume}}"
-            mountPath: /mnt/input
-          - name: "{{inputs.parameters.working-volume}}"
-            mountPath: /mnt/data
-          - name: gcp-key-secret
-            mountPath: /secret/gcp-credentials
-            readOnly: true
+            > /tmp/fv3config.yaml

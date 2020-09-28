@@ -10,3 +10,5 @@ physics_output.zarr:
   time: 24
 nudging_tendencies.zarr:
   time: 1
+physics_tendency_components.zarr:
+  time: 1

@@ -76,6 +76,9 @@ def train_config(
         output_variables=output_variables,
         batch_function=batch_function,
         batch_kwargs=batch_kwargs,
+        scaler_type="standard",
+        scaler_kwargs={},
+        additional_variables=None,
     )
 
 
@@ -97,6 +100,9 @@ def train_config_filename(
                 "output_variables": output_variables,
                 "batch_function": batch_function,
                 "batch_kwargs": batch_kwargs,
+                "scaler_type": "standard",
+                "scaler_kwargs": {},
+                "additional_variables": None,
             },
             f,
         )

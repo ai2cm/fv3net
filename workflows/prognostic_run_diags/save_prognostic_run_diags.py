@@ -255,14 +255,15 @@ for mask_type in ["global", "land", "sea"]:
     @transform.apply("mask_to_sfc_type", mask_type)
     @transform.apply("resample_time", "1H", time_slice=slice(24, -1))
     @transform.apply("subset_variables", DIURNAL_CYCLE_VARS)
-    def _diurnal_func(resampled, verification, grid, mask_type=mask_type):
+    def _diurnal_func(resampled, verification, grid, mask_type=mask_type) -> xr.Dataset:
         # mask_type is added as a kwarg solely to give the logging access to the info
         logger.info(
             f"Preparing diurnal cycle info for physics variables with mask={mask_type}"
         )
-        diurnal = diurnal_cycle.calc_diagnostics(resampled, verification, grid)
-
-        return diurnal
+        if len(resampled.time) == 0:
+            return xr.Dataset({})
+        else:
+            return diurnal_cycle.calc_diagnostics(resampled, verification, grid)
 
 
 def _catalog():

@@ -11,16 +11,17 @@ spec:
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
-        name: output-data
+        name: work-volume
       spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: 20Gi
+            storage: 5Gi
   volumes:
     - name: restart-data
       persistentVolumeClaim:
-        claimName: '{{workflow.parameters.restart-pvc}}'
+        claimName: nudging-read-only
+        readOnly: true
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -37,49 +38,48 @@ spec:
           parameters:
           - name: fv3net-image
             value: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image-tag}}"
+          - name: fv3gfs-image
+            value: "us.gcr.io/vcm-ml/prognostic_run:{{workflow.parameters.image-tag}}"
+          - name: post-process-image
+            value: "us.gcr.io/vcm-ml/post_process_run:{{workflow.parameters.image-tag}}"
           - name: times
             value: "{{workflow.parameters.nudging-times}}"
-          - name: restart-volume
-            value: restart-data
-          - name: working-volume
-            value: output-data
           - name: output-url
             value: "{{workflow.parameters.root}}/nudging"
           - name: nudging-config
             value: "{{workflow.parameters.nudging-config}}"
-      - name: train-model
+          - name: segment-count
+            value: "{{workflow.parameters.nudging-segment-count}}"
+          - {name: work-volume-name, value: work-volume}
+          - {name: external-volume-name, value: restart-data}
+      - name: train-offline-diags-prognostic
         dependencies: [nudging-run]
         templateRef:
-          name: training-rf
-          template: training-rf
+          name: train-diags-prog
+          template: train-diags-prog
         arguments:
           parameters:
-            - name: image
-              value: "us.gcr.io/vcm-ml/fv3fit:{{workflow.parameters.image-tag}}"
-            - name: input
-              value: "{{workflow.parameters.root}}/nudging"
-            - name: config
-              value: "{{workflow.parameters.training-config}}"
-            - name: times
-              value: "{{workflow.parameters.train-times}}"
-            - name: output
-              value: "{{workflow.parameters.root}}/trained_model"
-      - name: prognostic-run
-        dependencies: [train-model]
-        templateRef:
-          name: prognostic-run
-          template: prognostic-run
-        arguments:
-          parameters:
-              - name: image-tag
-                value: "{{workflow.parameters.image-tag}}"
-              - name: initial-condition
-                value: "{{workflow.parameters.initial-condition}}"
-              - name: config
-                value: "{{workflow.parameters.prognostic-run-config}}"
-              - name: reference-restarts
-                value: "{{workflow.parameters.reference-restarts}}"
-              - name: trained-ml
-                value: "{{workflow.parameters.root}}/trained_model"
-              - name: output
-                value: "{{workflow.parameters.root}}/prognostic_run"
+          - name: image-tag
+            value: "{{workflow.parameters.image-tag}}"
+          - name: root
+            value: "{{workflow.parameters.root}}"
+          - name: train-test-data
+            value: "{{workflow.parameters.root}}/nudging"
+          - name: training-config
+            value: "{{workflow.parameters.training-config}}"
+          - name: train-times
+            value: "{{workflow.parameters.train-times}}"
+          - name: initial-condition
+            value: "{{workflow.parameters.initial-condition}}"
+          - name: prognostic-run-config
+            value: "{{workflow.parameters.prognostic-run-config}}"
+          - name: reference-restarts
+            value: "{{workflow.parameters.reference-restarts}}"
+          - name: store-true-args
+            value: " "
+          - name: test-times
+            value: "{{workflow.parameters.test-times}}"
+          - name: public-report-output
+            value: "{{workflow.parameters.root}}/offline-report"
+          - {name: work-volume-name, value: work-volume}
+          - {name: external-volume-name, value: restart-data}
