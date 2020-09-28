@@ -11,3 +11,6 @@ namelist:
     do_sat_adj: false
   gfdl_cloud_microphysics_nml:
     fast_sat_adj: false
+  gfs_physics_nml:
+    # use large-scale condensation only
+    ncld: 0
