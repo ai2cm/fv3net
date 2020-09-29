@@ -422,6 +422,7 @@ def get_prognostic_config(model_type, model_path):
     # https://github.com/VulcanClimateModeling/fv3gfs-python/pull/78 propagates
     # into the prognostic_run image
 
+
     return config
 
 
@@ -480,8 +481,9 @@ def _save_mock_keras_model(tmpdir):
     return str(tmpdir)
 
 
+
 @pytest.fixture(scope="module", params=["keras", "sklearn"])
-def completed_rundir(request, tmpdir_factory):
+def completed_rundir(request, tmpdir_factory, layout):
 
     if not FV3GFS_INSTALLED:
         pytest.skip("fv3gfs not installed")
@@ -496,6 +498,9 @@ def completed_rundir(request, tmpdir_factory):
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
     fv3_script = Path(__file__).parent.parent.joinpath("runfv3.sh").as_posix()
     config = get_prognostic_config(request.param, model_path)
+
+    layout = (2, 2)
+    config['namelist']['fv_core_nml']['layout'] = layout
 
     config_path = str(tmpdir.join("fv3config.yaml"))
 
