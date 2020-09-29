@@ -73,12 +73,12 @@ def open_baseline_emulator(
     data = open_spencer_rundir(url)
     # data["cos_zenith_angle"] = cos_zenith_angle(data.time, data.lat, data.lon)
     data["dQ1"] = (
-        data.tendency_of_air_temperature_due_to_microphysics
+        # data.tendency_of_air_temperature_due_to_microphysics
         + data.tendency_of_air_temperature_due_to_deep_convection
         + data.tendency_of_air_temperature_due_to_shallow_convection
     )
     data["dQ2"] = (
-        data.tendency_of_specific_humidity_due_to_microphysics
+        # data.tendency_of_specific_humidity_due_to_microphysics
         + data.tendency_of_specific_humidity_due_to_deep_convection
         + data.tendency_of_specific_humidity_due_to_shallow_convection
     )
