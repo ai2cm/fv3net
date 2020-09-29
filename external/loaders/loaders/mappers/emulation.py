@@ -1,5 +1,6 @@
 import intake
 import os
+import fsspec
 import xarray as xr
 import vcm
 import numpy as np
@@ -66,20 +67,33 @@ def open_spencer_rundir(url):
     )
 
 
+def open_phis(url):
+    fs = fsspec.get_fs_token_paths(url)[0]
+    artifacts = fs.listdir(os.path.join(url, "artifacts"))[0]
+    input_ = os.path.join(artifacts["name"], "INPUT")
+    restart = vcm.open_restarts("gs://" + input_)
+    return (
+        restart.phis.squeeze()
+        .rename({"grid_xt": "x", "grid_yt": "y"})
+        .drop(["tile", "y", "x"])
+        .rename("surface_geopotential")
+        .load()
+    )
+
+
 def open_baseline_emulator(
     url="gs://vcm-ml-scratch/prognostic_runs/2020-09-25-physics-on-free",
 ):
     # get mapper
     data = open_spencer_rundir(url)
-    # data["cos_zenith_angle"] = cos_zenith_angle(data.time, data.lat, data.lon)
     data["dQ1"] = (
         # data.tendency_of_air_temperature_due_to_microphysics
-        + data.tendency_of_air_temperature_due_to_deep_convection
+        +data.tendency_of_air_temperature_due_to_deep_convection
         + data.tendency_of_air_temperature_due_to_shallow_convection
     )
     data["dQ2"] = (
         # data.tendency_of_specific_humidity_due_to_microphysics
-        + data.tendency_of_specific_humidity_due_to_deep_convection
+        +data.tendency_of_specific_humidity_due_to_deep_convection
         + data.tendency_of_specific_humidity_due_to_shallow_convection
     )
     return XarrayMapper(data)
