@@ -233,7 +233,7 @@ workflows:
           name: pytest-<<matrix.kind>>
           matrix:
             parameters:
-              kind: ["test_unit", "test_regression"]
+              kind: ["test_unit", "test_regression", "test_prognostic_run_report"]
       - hold:
           type: approval
           filters:
