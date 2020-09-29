@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  name: emulation
+  generateName: emulation-
 spec:
   entrypoint: emulation
   volumes:
@@ -17,26 +17,40 @@ spec:
         resources:
           requests:
             storage: 100Gi
-  serviceAccountName: integration-tests
   tolerations:
     - effect: NoSchedule
       key: dedicated
       value: med-sim-pool
+  arguments:
+    parameters:
+      - name: train-data
+      - name: train-config
+      - name: model-output
   templates:
     - name: emulation
+      steps:
+      - - name: train-model
+          template: train-model
+          arguments:
+            parameters:
+            - name: train-data
+              value: "{{workflow.parameters.train-data}}"
+            - name: train-config
+              value: "{{workflow.parameters.train-config}}"
+      - - name: upload-model
+          template: upload-model
+          arguments:
+            parameters:
+            - name: model-output
+              value: "{{workflow.parameters.model-output}}"
+    - name: train-model
       inputs:
         parameters:
-          - name: model-output
           - name: train-data
           - name: train-config
       container:
         image: us.gcr.io/vcm-ml/fv3fit:emulation
         command: ["bash", "-c", "-x"]
-        env:
-          - name: GOOGLE_APPLICATION_CREDENTIALS
-            value: /secret/gcp-credentials/key.json
-          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
-            value: /secret/gcp-credentials/key.json
         volumeMounts:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret
@@ -60,7 +74,35 @@ spec:
         resources:
           requests:
             memory: "14Gi"
-            cpu: "7500m"
+            cpu: "6"
           limits:
             memory: "25Gi"
             cpu: "7500m"
+    - name: upload-model
+      inputs:
+        parameters:
+        - name: model-output
+      container:
+        image: google/cloud-sdk:latest
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-key-secret
+          - mountPath: /mnt/data
+            name: work-volume
+        command: [bash, "-c", "-x"]
+        args:
+          - |
+            gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+
+            gsutil -m cp -r /mnt/data {{inputs.parameters.model-output}}
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1"
+
+            
