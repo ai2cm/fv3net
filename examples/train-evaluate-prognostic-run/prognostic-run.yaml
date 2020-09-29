@@ -1,8 +1,8 @@
 base_version: v0.5
 namelist:
   coupler_nml:
-    days: 0
-    hours: 4
+    days: 10
+    hours: 0
     minutes: 0
     seconds: 0
   diag_manager_nml:
