@@ -312,17 +312,14 @@ def main():
     nested_metrics = load_metrics(bucket, rundirs)
     metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
     if metric_table.empty:
-        # ensure report can gracefully handle empty metrics JSONs
-        run_table_cols = list(run_table.columns)
-        metrics = pd.DataFrame(columns=run_table_cols + ["metric", "value", "units"])
+        metrics = None
     else:
         metrics = pd.merge(run_table, metric_table, on="run")
 
     # generate all plots
-    sections = {
-        "Diagnostics": list(diag_plot_manager.make_plots(diagnostics)),
-        "Metrics": list(metrics_plot_manager.make_plots(metrics)),
-    }
+    sections = {"Diagnostics": list(diag_plot_manager.make_plots(diagnostics))}
+    if metrics:
+        sections["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
 
     # get metadata
     run_urls = {key: ds.attrs["url"] for key, ds in diags.items()}
