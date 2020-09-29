@@ -158,9 +158,40 @@ def holomap_filter(time_series, varfilter, run_attr_name="run"):
     return hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
 
 
+def holomap_filter_with_region_bar(time_series, varfilter, run_attr_name="run"):
+    p = hv.Cycle("Colorblind")
+    hmap = hv.HoloMap(kdims=["variable", "region", "run"])
+    for ds in time_series:
+        for varname in ds:
+            if varfilter in varname:
+                try:
+                    v = ds[varname]
+                except KeyError:
+                    pass
+                else:
+                    style = "solid" if ds.attrs["baseline"] else "dashed"
+                    run = ds.attrs[run_attr_name]
+                    long_name = ds[varname].long_name
+                    region = varname.split("_")[-1]
+                    hmap[(long_name, region, run)] = hv.Curve(
+                        v, label=varfilter
+                    ).options(line_dash=style, color=p)
+    return hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
+
+
 def time_series_plot(time_series: Iterable[xr.Dataset], varfilter: str) -> HVPlot:
     return HVPlot(
         holomap_filter(time_series, varfilter=varfilter)
+        .overlay("run")
+        .opts(legend_position="right")
+    )
+
+
+def time_series_plot_with_region_bar(
+    time_series: Iterable[xr.Dataset], varfilter: str
+) -> HVPlot:
+    return HVPlot(
+        holomap_filter_with_region_bar(time_series, varfilter=varfilter)
         .overlay("run")
         .opts(legend_position="right")
     )
@@ -214,32 +245,34 @@ metrics_plot_manager = PlotManager()
 # Routines for plotting the "diagnostics"
 @diag_plot_manager.register
 def rms_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot(time_series, varfilter="rms")
+    return time_series_plot(time_series, varfilter="rms_global")
 
 
 @diag_plot_manager.register
-def global_avg_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot(time_series, varfilter="global_avg")
+def global_avg_dycore_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="spatial_mean_dycore_global")
 
 
 @diag_plot_manager.register
 def global_avg_physics_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot(time_series, varfilter="global_phys_avg")
+    return time_series_plot_with_region_bar(
+        time_series, varfilter="spatial_mean_physics"
+    )
 
 
 @diag_plot_manager.register
-def global_avg_bias_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot(time_series, varfilter="global_mean_bias")
+def global_avg_bias_dycore_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="mean_bias_dycore_global")
 
 
 @diag_plot_manager.register
-def diurnal_cycle_land_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot(time_series, varfilter="diurnal_land")
+def global_avg_bias_physics_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
+    return time_series_plot_with_region_bar(time_series, varfilter="mean_bias_physics")
 
 
 @diag_plot_manager.register
-def diurnal_cycle_sea_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot(time_series, varfilter="diurnal_sea")
+def diurnal_cycle_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
+    return time_series_plot_with_region_bar(time_series, varfilter="diurnal")
 
 
 @diag_plot_manager.register

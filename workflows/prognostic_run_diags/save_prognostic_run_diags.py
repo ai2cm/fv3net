@@ -184,7 +184,7 @@ def rms_errors(resampled, verification_c48, grid):
 
 
 @add_to_diags("dycore")
-@diag_finalizer("global_avg")
+@diag_finalizer("spatial_mean_dycore_global")
 @transform.apply("resample_time", "3H")
 @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
 def global_averages_dycore(resampled, verification, grid):
@@ -196,32 +196,38 @@ def global_averages_dycore(resampled, verification, grid):
     return area_averages
 
 
-@add_to_diags("physics")
-@diag_finalizer("global_phys_avg")
-@transform.apply("resample_time", "3H")
-@transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
-def global_averages_physics(resampled, verification, grid):
-    logger.info("Preparing global averages for physics variables")
-    area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
-        HORIZONTAL_DIMS
-    )
+for mask_type in ["global", "land", "sea", "tropics"]:
 
-    return area_averages
+    @add_to_diags("physics")
+    @diag_finalizer(f"spatial_mean_physics_{mask_type}")
+    @transform.apply("mask_area", mask_type)
+    @transform.apply("resample_time", "3H")
+    @transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
+    def global_averages_physics(resampled, verification, grid):
+        logger.info("Preparing global averages for physics variables")
+        area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
+            HORIZONTAL_DIMS
+        )
+
+        return area_averages
 
 
-@add_to_diags("physics")
-@diag_finalizer("global_mean_bias")
-@transform.apply("resample_time", "3H")
-@transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
-def global_biases_physics(resampled, verification, grid):
-    logger.info("Preparing global average biases for physics variables")
-    bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
+for mask_type in ["global", "land", "sea", "tropics"]:
 
-    return bias_errors
+    @add_to_diags("physics")
+    @diag_finalizer(f"mean_bias_physics_{mask_type}")
+    @transform.apply("mask_area", mask_type)
+    @transform.apply("resample_time", "3H")
+    @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
+    def global_biases_physics(resampled, verification, grid):
+        logger.info("Preparing global average biases for physics variables")
+        bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
+
+        return bias_errors
 
 
 @add_to_diags("dycore")
-@diag_finalizer("global_mean_bias")
+@diag_finalizer("mean_bias_dycore_global")
 @transform.apply("resample_time", "3H")
 def global_biases_dycore(resampled, verification, grid):
     logger.info("Preparing global average biases for dynamics variables")

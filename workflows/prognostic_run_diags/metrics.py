@@ -92,7 +92,9 @@ def rmse_3day(diags):
 
 @add_to_metrics("drift_3day")
 def drift_3day(diags):
-    averages = grab_diag(diags, "global_avg").drop(GRID_VARS, errors="ignore")
+    averages = grab_diag(diags, "spatial_mean_dycore_global").drop(
+        GRID_VARS, errors="ignore"
+    )
 
     daily = averages.resample(time="1D").mean()
 
@@ -109,7 +111,7 @@ def drift_3day(diags):
 
 @add_to_metrics("time_and_global_mean_bias")
 def time_mean_bias(diags):
-    global_mean_bias = grab_diag(diags, "global_mean_bias")
+    global_mean_bias = grab_diag(diags, "mean_bias_physics_global")
 
     time_and_global_mean_bias = global_mean_bias.mean("time")
 

@@ -162,16 +162,46 @@ def mask_to_sfc_type(
         prognostic, surface_type, mask_var_name
     )
 
-    # TODO: Make the try/except unnecessary by loading high-res physics verifcation
-    try:
-        masked_verification = _mask_vars_with_horiz_dims(
-            verification, surface_type, mask_var_name
-        )
-    except KeyError:
-        logger.warning("Empty verification dataset provided.")
-        masked_verification = verification
+    masked_verification = _mask_vars_with_horiz_dims(
+        verification, surface_type, mask_var_name
+    )
 
     return masked_prognostic, masked_verification, grid
+
+
+@add_to_input_transform_fns
+def mask_area(
+    region: str, arg: DiagArg, land_sea_mask_name: str = "SLMSKsfc",
+) -> DiagArg:
+    """
+    Set area variable to zero everywhere outside of specified region.
+
+    Args:
+        region: name of region to leave unmasked. Valid options are "global",
+            "land", "sea", "seaice" and "tropics"
+        arg: input arguments to transform prior to the diagnostic calculation
+        surface_type:  Type of grid locations to leave unmasked
+        land_sea_mask_name: Name of the datasets variable holding land-sea mask
+    """
+    prognostic, verification, grid = arg
+
+    if region == "tropics":
+        masked_area = grid.area.where(abs(grid.lat) <= 10.0)
+    elif region == "global":
+        masked_area = grid.area
+    elif region in ("land", "sea", "seaice"):
+        if land_sea_mask_name not in prognostic:
+            raise KeyError("Missing land-sea mask in prognostic run diagnostic data")
+        surface_type_codes = {"sea": 0, "land": 1, "seaice": 2}
+        masked_area = grid.area.where(
+            prognostic[land_sea_mask_name].astype(int) == surface_type_codes[region]
+        )
+    else:
+        raise ValueError(f"Masking procedure for region '{region}' is not defined.")
+
+    grid_copy = grid.copy()
+    grid_copy["area"] = masked_area
+    return prognostic, verification, grid_copy
 
 
 @add_to_input_transform_fns

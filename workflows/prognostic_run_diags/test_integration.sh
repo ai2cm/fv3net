@@ -13,7 +13,7 @@ cd workflows/prognostic_run_diags
 bash entrypoint.sh $RUN $OUTPUT/run1
 
 # generate movies for short sample prognostic run
-bash entrypoint_movie.sh $RUN $OUTPUT/run1 "--n_jobs 1 --n_timesteps 2"
+#bash entrypoint_movie.sh $RUN $OUTPUT/run1 "--n_jobs 1 --n_timesteps 2"
 
 # make a second copy of diags, since generate_report.py needs at least two runs
 gsutil -m cp -r $OUTPUT/run1 $OUTPUT/run2
