@@ -106,7 +106,9 @@ def _save_figure(fig, filepath_relative_to_report: str, output_dir: str = None):
     try:
         fig.savefig(os.path.join(output_dir or "", filepath_relative_to_report))
     except URLError as e:
-        logger.info(f"Could not download coastline data due an external error: {e}")
+        logger.info(
+            f"Could not download cartopy shapefile data due an external error: {e}"
+        )
 
 
 def insert_report_figure(
