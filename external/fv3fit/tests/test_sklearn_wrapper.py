@@ -1,9 +1,13 @@
 import numpy as np
+import os
+import yaml
 from sklearn.linear_model import LinearRegression
+import unittest.mock
 import pytest
 import xarray as xr
 
-from fv3fit.sklearn._wrapper import RegressorEnsemble, pack
+from fv3fit.sklearn._wrapper import RegressorEnsemble, pack, SklearnWrapper
+from fv3fit._shared.scaler import ManualScaler
 
 
 def test_flatten():
@@ -70,3 +74,101 @@ def test_ensemble_fit(test_regressor_ensemble):
     assert regressor_ensemble.n_estimators == 4
     # test that new regressors are actually fit and not empty base regressor
     assert len(regressor_ensemble.regressors[-1].coef_) > 0
+
+
+def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
+    model = unittest.mock.Mock()
+    model.regressors = []
+    model.predict.return_value = np.array([[1.0]])
+    model.dumps.return_value = dumps_returns
+
+    if scale_factor:
+        scaler = ManualScaler(np.array([scale_factor]))
+    else:
+        scaler = None
+
+    return SklearnWrapper(
+        sample_dim_name="sample",
+        input_variables=["x"],
+        output_variables=["y"],
+        model=model,
+        target_scaler=scaler,
+    )
+
+
+def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
+    wrapper = _get_sklearn_wrapper(scale)
+    dims = ["sample", "z"]
+    data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
+    wrapper.fit(data)
+
+    output = wrapper.predict(data)
+    assert pytest.approx(1 / scale) == output["y"].item()
+
+
+def test_loading_wrong_version_fails(tmpdir):
+    path = str(tmpdir.join("sklearn.yaml"))
+    with open(path, "w") as f:
+        yaml.safe_dump({"version": "not-a-version"}, f)
+
+    with pytest.raises(ValueError):
+        SklearnWrapper.load(path)
+
+
+def test_fitting_SklearnWrapper_does_not_fit_scaler():
+    """SklearnWrapper should use pre-computed scaling factors when fitting data
+    
+    In other words, calling the .fit method of wrapper should not call the
+    .fit its scaler attribute.
+    """
+
+    model = unittest.mock.Mock()
+    scaler = unittest.mock.Mock()
+
+    wrapper = SklearnWrapper(
+        sample_dim_name="sample",
+        input_variables=["x"],
+        output_variables=["y"],
+        model=model,
+        target_scaler=scaler,
+    )
+
+    dims = ["sample", "z"]
+    data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
+    wrapper.fit(data)
+    scaler.fit.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "scale_factor", [2.0, None],
+)
+def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
+
+    # Setup wrapper
+    if scale_factor:
+        scaler = ManualScaler(np.array([scale_factor]))
+    else:
+        scaler = None
+    model = RegressorEnsemble(base_regressor=LinearRegression())
+    wrapper = SklearnWrapper(
+        sample_dim_name="sample",
+        input_variables=["x"],
+        output_variables=["y"],
+        model=model,
+        target_scaler=scaler,
+    )
+
+    # setup input data
+    dims = ["sample", "z"]
+    data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
+    wrapper.fit(data)
+
+    # serialize/deserialize
+    path = str(tmpdir.join("file.yaml"))
+    wrapper.dump(path)
+
+    # assert the dumped object is a single file
+    assert os.path.isfile(path)
+
+    loaded = wrapper.load(path)
+    xr.testing.assert_equal(loaded.predict(data), wrapper.predict(data))
