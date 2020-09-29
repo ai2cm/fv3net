@@ -12,69 +12,20 @@ from mpi4py import MPI
 MODEL_OUTPUT_PATH = "model"
 
 
-class MPIModel(tf.keras.Model):
-    def __init__(self, comm, **kwargs):
-        self._comm = comm
-        self._root_rank = 0
-        self._is_root = self._comm.Get_rank() == 0
-        super().__init__(**kwargs)
-
-    def train_step(self, data):
-        # Unpack the data. Its structure depends on your model and
-        # on what you pass to `fit()`.
-        x, y = data
-
-        with tf.GradientTape() as tape:
-            y_pred = self(x, training=True)  # Forward pass
-            # Compute the loss value
-            # (the loss function is configured in `compile()`)
-            loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
-
-        # Compute gradients
-        trainable_vars = self.trainable_variables
-        gradients = tape.gradient(loss, trainable_vars)
-
-        # Apply gradients on root rank only
-        if self._is_root:
-            new_gradients = []
-            for gradient in gradients:
-                # divide by size to get the mean gradient
-                rank_gradient = gradient / self._comm.Get_size()
-                new_gradient = np.empty_like(rank_gradient)
-                self._comm.Reduce(rank_gradient, new_gradient, root=self._root_rank)
-                new_gradients.append(tf.convert_to_tensor(new_gradient))
-            # Update weights
-            self.optimizer.apply_gradients(zip(new_gradients, trainable_vars))
-        else:
-            for gradient in gradients:
-                self._comm.Gather(
-                    gradient / self._comm.Get_size(), root=self._root_rank
-                )
-
-        # Synchronize weights using weights on root rank
-        weights = self.get_weights()
-        for weight in weights:
-            self._comm.scatter(weight, weight, root=self._root_rank)
-        self._comm.scatter(self.get_weights(), root=self._root_rank)
-
-        # Update metrics (includes the metric that tracks the loss)
-        self.compiled_metrics.update_state(y, y_pred)
-        # Return a dict mapping metric names to current value
-        return {m.name: m.result() for m in self.metrics}
-
-
 class DenseMPIModel(fv3fit.keras._models.models.PackedKerasModel):
     def __init__(
         self,
+        comm,
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
-        depth: int = 3,
+        hidden: int = 3,
         width: int = 16,
     ):
-        self._depth = depth
+        self._comm = comm
+        self._hidden = hidden
         self._width = width
         super().__init__(
             sample_dim_name,
@@ -104,7 +55,7 @@ class DenseMPIModel(fv3fit.keras._models.models.PackedKerasModel):
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         inputs = tf.keras.Input(n_features_in)
         x = self.X_scaler.normalize_layer(inputs)
-        for i in range(self._depth - 1):
+        for _ in range(self._hidden):
             x = tf.keras.layers.Dense(
                 self._width, activation=tf.keras.activations.relu
             )(x)
@@ -112,7 +63,7 @@ class DenseMPIModel(fv3fit.keras._models.models.PackedKerasModel):
             x
         )
         outputs = self.y_scaler.denormalize_layer(x)
-        model = tf.keras.Model(inputs=inputs, outputs=outputs)
+        model = tf.keras.Model(self._comm, inputs=inputs, outputs=outputs)
         # Horovod: Specify `experimental_run_tf_function=False` to ensure TensorFlow
         # uses hvd.DistributedOptimizer() to compute gradients.
         model.compile(
@@ -141,21 +92,21 @@ class OnlineModel:
 
     def __init__(
         self,
+        comm,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
-        depth: int = 3,
-        width: int = 16,
+        **kwargs,
     ):
         self.xr = DenseMPIModel(
+            comm,
             self._SAMPLE_DIM_NAME,
             input_variables,
             output_variables,
             weights=weights,
             normalize_loss=normalize_loss,
-            depth=depth,
-            width=width,
+            **kwargs,
         )
 
     def fit(self, state) -> None:
@@ -175,7 +126,9 @@ if __name__ == "__main__":
     hvd.init(comm=MPI.COMM_WORLD)
     assert hvd.mpi_threads_supported()
     model = OnlineModel(
-        input_variables=["air_temperature"], output_variables=["specific_humidity"],
+        MPI.COMM_WORLD,
+        input_variables=["air_temperature"],
+        output_variables=["specific_humidity"],
     )
     fv3gfs.wrapper.initialize()
     for i in range(fv3gfs.wrapper.get_step_count()):

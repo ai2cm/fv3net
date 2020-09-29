@@ -1,7 +1,8 @@
-from typing import Iterable, TextIO, List, Dict, Tuple, cast, Mapping, Sequence
+from typing import Iterable, TextIO, List, Dict, Tuple, cast, Mapping, Sequence, Any
 import numpy as np
 import xarray as xr
 import yaml
+import pandas as pd
 
 
 def _unique_dim_name(data):
@@ -42,6 +43,8 @@ class ArrayPacker:
         self._n_features: Dict[str, int] = {}
         self._sample_dim_name = sample_dim_name
         self._dims: Dict[str, Iterable[str]] = {}
+        self._coords: Dict[str, xr.Coordinate] = {}
+        self._attrs: Dict[str, Dict[str, Any]] = {}
 
     @property
     def pack_names(self) -> List[str]:
@@ -89,6 +92,8 @@ class ArrayPacker:
             )
             for name in self.pack_names:
                 self._dims[name] = cast(Tuple[str], dataset[name].dims)
+                self._attrs[name] = dataset[name].attrs
+            self._coords = dataset.coords
         for var in self.pack_names:
             if dataset[var].dims[0] != self.sample_dim_name:
                 dataset[var] = dataset[var].transpose()
@@ -113,7 +118,14 @@ class ArrayPacker:
                 "must pack at least once before unpacking, "
                 "so dimension lengths are known"
             )
-        return to_dataset(array, self.pack_names, self._dims, self.feature_counts)
+        return to_dataset(
+            array,
+            self.pack_names,
+            self._dims,
+            self.feature_counts,
+            self._attrs,
+            self._coords,
+        )
 
     def dump(self, f: TextIO):
         return yaml.safe_dump(
@@ -122,6 +134,8 @@ class ArrayPacker:
                 "pack_names": self._pack_names,
                 "sample_dim_name": self._sample_dim_name,
                 "dims": self._dims,
+                "attrs": self._attrs,
+                "coords": _serialize_coords(self._coords),
             },
             f,
         )
@@ -132,7 +146,33 @@ class ArrayPacker:
         packer = cls(data["sample_dim_name"], data["pack_names"])
         packer._n_features = data["n_features"]
         packer._dims = data["dims"]
+        packer._attrs = data["attrs"]
+        packer._coords = _deserialize_coords(data["coords"])
         return packer
+
+
+def _serialize_coords(coords):
+    data = {}
+    for name, value in coords.items():
+        if isinstance(value, pd.MultiIndex):
+            data[name] = (value.to_list(), value.names)
+        elif isinstance(value, xr.DataArray):
+            data[name] = value.to_dict()
+        else:
+            data[name] = value
+    return data
+
+
+def _deserialize_coords(data):
+    coords = {}
+    for name, value in data.items():
+        if isinstance(value, tuple):
+            coords[name] = pd.MultiIndex.from_tuples(value[0], names=value[1])
+        elif isinstance(value, dict):
+            coords[name] = xr.DataArray.from_dict(value)
+        else:
+            coords[name] = value
+    return coords
 
 
 def to_array(
@@ -172,6 +212,8 @@ def to_dataset(
     pack_names: Iterable[str],
     dimensions: Mapping[str, Iterable[str]],
     feature_counts: Mapping[str, int],
+    attrs: Mapping[str, Mapping[str, Any]],
+    coords: Mapping[str, xr.Coordinate],
 ):
     """Restore a dataset from a 2D [sample, feature] array.
 
@@ -196,11 +238,12 @@ def to_dataset(
             data_vars[name] = (
                 dimensions[name],
                 array[:, i_start : i_start + n_features],
+                attrs[name],
             )
         else:
-            data_vars[name] = (dimensions[name], array[:, i_start])
+            data_vars[name] = (dimensions[name], array[:, i_start], attrs[name])
         i_start += n_features
-    return xr.Dataset(data_vars)  # type: ignore
+    return xr.Dataset(data_vars, coords=coords)  # type: ignore
 
 
 def count_features(

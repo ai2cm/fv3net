@@ -1,9 +1,9 @@
 data_table: default
 diag_table: default
 experiment_name: default
-forcing: "gs://vcm-fv3config/data/base_forcing/v1.1/"
+forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
-initial_conditions: gs://vcm-fv3config/data/initial_conditions/gfs_c12_example/v1.0 
+initial_conditions: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48/20160801.001500/
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
@@ -55,24 +55,25 @@ namelist:
     - 32
     launch_level: 55
   coupler_nml:
-    atmos_nthreads: 1
     calendar: julian
     current_date:
     - 2016
     - 8
     - 1
     - 0
-    - 0
+    - 15
     - 0
     days: 0
+    hours: 6
+    minutes: 0
+    months: 0
+    seconds: 0
+    atmos_nthreads: 1
     dt_atmos: 900
     dt_ocean: 900
-    hours: 2
     memuse_verbose: true
     minutes: 30
-    months: 0
     ncores_per_node: 32
-    seconds: 0
     use_hyper_thread: true
   diag_manager_nml:
     prepend_date: false
@@ -105,10 +106,10 @@ namelist:
     dddmp: 0.2
     delt_max: 0.002
     dnats: 1
-    do_sat_adj: true
+    do_sat_adj: false
     do_vort_damp: true
     dwind_2d: false
-    external_ic: true
+    external_ic: false
     fill: true
     fv_debug: false
     fv_sg_adj: 900
@@ -131,18 +132,19 @@ namelist:
     layout:
     - 1
     - 1
-    make_nh: true
-    mountain: false
+    make_nh: false
+    mountain: true
     n_split: 6
     n_sponge: 4
-    na_init: 1
+    na_init: 0
     ncep_ic: false
-    nggps_ic: true
+    nggps_ic: false
     no_dycore: false
     nord: 2
-    npx: 13
-    npy: 13
-    npz: 63
+    npx: 49
+    npy: 49
+    npz: 79
+    external_eta: true
     ntiles: 6
     nudge: false
     nudge_qv: true
@@ -157,7 +159,7 @@ namelist:
     tau: 5.0
     use_hydro_pressure: false
     vtdm4: 0.06
-    warm_start: false
+    warm_start: true
     z_tracer: true
   fv_grid_nml: {}
   gfdl_cloud_microphysics_nml:
@@ -176,7 +178,7 @@ namelist:
     do_sedi_heat: false
     dw_land: 0.16
     dw_ocean: 0.1
-    fast_sat_adj: true
+    fast_sat_adj: false
     fix_negative: true
     icloud_f: 1
     mono_prof: true

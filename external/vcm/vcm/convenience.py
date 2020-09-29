@@ -15,9 +15,9 @@ import yaml
 # SpencerC added this function, it is not public API, but we need it
 from xarray.core.resample_cftime import exact_cftime_datetime_difference
 
-from vcm.cloud import gsutil
-from vcm.cloud.remote_data import open_gfdl_data_with_2d
-from vcm.cubedsphere.constants import TIME_FMT
+from .cloud import gsutil
+from .cloud.remote_data import open_gfdl_data_with_2d
+from .cubedsphere.constants import TIME_FMT
 
 TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 

@@ -11,4 +11,11 @@ services:
       - ../../external/vcm:/external/vcm
       - ../../external/loaders:/external/loaders
       - ../../external/synth:/external/synth
+      - ../../external/fv3kube:/external/fv3kube
+      - ../../external/fv3fit:/external/fv3fit
+      - ../../external/fv3gfs-util:/external/fv3gfs-util
       - .:/train_bptt
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:${GOOGLE_APPLICATION_CREDENTIALS}
+      - ${FV3_DATA_DIR}:/mnt/vcm-ml-data/
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS

@@ -7,6 +7,7 @@ tensorflow==2.2.0
 pytest==5.4.3
 pytest-cov==2.10.0
 joblib==0.16.0
+horovod[tensorflow,keras]==0.20.2
 
 # requirements from loaders or synth
 zarr==2.4.0
@@ -112,7 +113,7 @@ keras-preprocessing==1.1.2
 coverage==5.2.1
 asciitree==0.3.3
 fasteners==0.15
-numcodecs==0.6.4
+numcodecs==0.7.2
 future==0.18.2
 docrep==0.2.7
 markdown==3.2.2
