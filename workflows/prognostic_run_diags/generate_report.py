@@ -102,19 +102,13 @@ def _yield_metric_rows(metrics):
 
 def _parse_metadata(run: str):
     baseline_s = "-baseline"
-    rf_s = "-rf"
 
     if run.endswith(baseline_s):
-        baseline = "Baseline"
-        one_step = run[: -len(baseline_s)]
-    elif run.endswith(rf_s):
-        one_step = run[: -len(rf_s)]
-        baseline = "RF"
+        baseline = True
     else:
-        one_step = run
-        baseline = "misc"
+        baseline = False
 
-    return {"run": run, "one_step": one_step, "baseline": baseline}
+    return {"run": run, "baseline": baseline}
 
 
 def load_metrics(bucket, rundirs):
@@ -155,11 +149,7 @@ def holomap_filter(time_series, varfilter, run_attr_name="run"):
                 except KeyError:
                     pass
                 else:
-                    if ds.attrs["baseline"] == "Baseline":
-                        style = "solid"
-                    else:
-                        style = "dashed"
-
+                    style = "solid" if ds.attrs["baseline"] else "dashed"
                     run = ds.attrs[run_attr_name]
                     long_name = ds[varname].long_name
                     hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
@@ -261,26 +251,31 @@ def diurnal_cycle_component_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
 # New plotting routines can be registered here.
 @metrics_plot_manager.register
 def rmse_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
-    hmap = hv.HoloMap(kdims=["metric"])
-    bar_opts = dict(norm=dict(framewise=True), plot=dict(width=600))
-    for metric in metrics.metric.unique():
-        s = metrics[metrics.metric == metric]
-        bars = hv.Bars((s.one_step, s.baseline, s.value), kdims=["one_step", "type"])
-        if metric.startswith("rmse"):
-            hmap[metric] = bars
-    return HVPlot(hmap.opts(**bar_opts))
+    return generic_metric_plot(metrics, "rmse")
 
 
 @metrics_plot_manager.register
-def bias_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+def drift_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+    return generic_metric_plot(metrics, "drift")
+
+
+@metrics_plot_manager.register
+def time_mean_bias_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+    return generic_metric_plot(metrics, "time_and_global_mean_bias")
+
+
+def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
     hmap = hv.HoloMap(kdims=["metric"])
     bar_opts = dict(norm=dict(framewise=True), plot=dict(width=600))
+    metrics_contains_name = False
     for metric in metrics.metric.unique():
-        s = metrics[metrics.metric == metric]
-        bars = hv.Bars((s.one_step, s.baseline, s.value), kdims=["one_step", "type"])
-        if metric.startswith("drift"):
+        if metric.startswith(name):
+            metrics_contains_name = True
+            s = metrics[metrics.metric == metric]
+            bars = hv.Bars((s.run, s.value), hv.Dimension("Run"), s.units.iloc[0])
             hmap[metric] = bars
-    return HVPlot(hmap.opts(**bar_opts))
+    if metrics_contains_name:
+        return HVPlot(hmap.opts(**bar_opts))
 
 
 def main():
@@ -318,7 +313,7 @@ def main():
 
     # generate all plots
     sections = {"Diagnostics": list(diag_plot_manager.make_plots(diagnostics))}
-    if metrics:
+    if metrics is not None:
         sections["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
 
     # get metadata
