@@ -1,8 +1,9 @@
 #!/bin/bash
 
 set -e
+set -x
 
-EXPERIMENT=2020-09-29-physics-on-free-moreInputs
+EXPERIMENT=2020-09-29-physics-on-free-moreInputs-moreData
 
 argo submit \
     --from workflowtemplate/train-diags-prog \

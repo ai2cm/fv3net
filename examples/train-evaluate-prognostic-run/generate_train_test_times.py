@@ -5,8 +5,8 @@ url = "gs://vcm-ml-archive/prognostic_runs/2020-09-25-physics-on-free/"
 data= loaders.mappers.open_baseline_emulator(url)
 times = sorted(data)
 
-train_times = times[::5]
-test_times = times[2::5]
+train_times = times[::2]
+test_times = times[1::2]
 
 # train_times = times[:2]
 # test_times = times[2:4]
