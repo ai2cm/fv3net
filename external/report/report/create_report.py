@@ -108,6 +108,7 @@ def _save_figure(fig, filepath_relative_to_report: str, output_dir: str = None):
     except URLError as e:
         logger.info(
             f"Could not download cartopy shapefile data due an external error: {e}"
+            f". The following was not saved {filepath_relative_to_report}."
         )
 
 
