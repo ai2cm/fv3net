@@ -311,7 +311,12 @@ def main():
     # load metrics
     nested_metrics = load_metrics(bucket, rundirs)
     metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
-    metrics = pd.merge(run_table, metric_table, on="run")
+    if metric_table.empty:
+        # ensure report can gracefully handle empty metrics JSONs
+        run_table_cols = list(run_table.columns)
+        metrics = pd.DataFrame(columns=run_table_cols + ["metric", "value", "units"])
+    else:
+        metrics = pd.merge(run_table, metric_table, on="run")
 
     # generate all plots
     sections = {
