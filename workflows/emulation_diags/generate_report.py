@@ -18,27 +18,10 @@ from fv3fit.keras._models._sequences import _ThreadedSequencePreLoader
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "model_path",
-        type=str,
-        help="Path to emulation model"
-    )
-    parser.add_argument(
-        "test_data",
-        type=str,
-        help="Path to test data"
-    )
-    parser.add_argument(
-        "output_folder",
-        type=str,
-        help="Path to save model figures"
-    )
-    parser.add_argument(
-        "--num-test-batches",
-        required=False,
-        default=None,
-        type=int
-    )
+    parser.add_argument("model_path", type=str, help="Path to emulation model")
+    parser.add_argument("test_data", type=str, help="Path to test data")
+    parser.add_argument("output_folder", type=str, help="Path to save model figures")
+    parser.add_argument("--num-test-batches", required=False, default=None, type=int)
 
     return parser.parse_args()
 
@@ -48,7 +31,12 @@ def plot_targ_pred_scatter(target, prediction, ax, title=""):
     ymin = target.min().values
     plt.hexbin(
         target.values,
-        prediction.values,gridsize=50, cmap="Purples", norm=mpl_colors.LogNorm(), extent=[ymin, ymax, ymin, ymax])
+        prediction.values,
+        gridsize=50,
+        cmap="Purples",
+        norm=mpl_colors.LogNorm(),
+        extent=[ymin, ymax, ymin, ymax],
+    )
     ax.set_xlabel("target")
     ax.set_ylabel("prediction")
     ax.set_title(f"{target.long_name} {title}")
@@ -70,9 +58,9 @@ def get_targ_pred_figs(target_ds, pred_ds):
 def _calc_metrics(target, prediction):
     diff = prediction - target
     bias = diff.mean(dim="sample")
-    mse = (diff**2).mean(dim="sample")
-    ss_tot = ((target - target.mean(dim="sample"))**2).sum(dim="sample")
-    ss_res = ((diff)**2).sum(dim="sample")
+    mse = (diff ** 2).mean(dim="sample")
+    ss_tot = ((target - target.mean(dim="sample")) ** 2).sum(dim="sample")
+    ss_res = ((diff) ** 2).sum(dim="sample")
     r2 = 1 - ss_res / ss_tot
     return {"mse": mse, "r2": r2, "bias": bias}
 
@@ -84,7 +72,7 @@ def get_emulation_metrics(test_data, model):
     for target in test_data:
         prediction = model.predict(target)
         metrics.append(_calc_metrics(target, prediction))
-    
+
     by_metric = {}
     for d in metrics:
         for k, v in d.items():
@@ -128,7 +116,7 @@ if __name__ == "__main__":
             fig,
             f"targ_v_pred_{var}.png",
             "Sample Target vs Prediction",
-            tmpdir.name
+            tmpdir.name,
         )
         plt.close(fig)
 
