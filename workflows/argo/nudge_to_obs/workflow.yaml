@@ -5,33 +5,30 @@ metadata:
 spec:
   arguments:
     parameters:
-      - name: restart-pvc
-        value: nudging-read-only
       - name: nudging-config
       - name: output-url
       - name: fv3gfs-image
-        value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
-      - name: fv3gfs-cpu
-        value: "6"
-      - name: fv3gfs-memory
-        value: 8Gi
       - name: fv3net-image
-        value: us.gcr.io/vcm-ml/fv3net:31e801284164325f6c80079517cd5aaf88081aa8
       - name: post-process-image
-        value: us.gcr.io/vcm-ml/post_process_run:31e801284164325f6c80079517cd5aaf88081aa8
+      - {name: segment-count, value: "1"}
+      - {name: cpu, value: "6"}
+      - {name: memory, value: 8Gi}
+      - {name: work-volume-name, value: work-volume}
+      - {name: external-volume-name, value: gfs-analysis-data}
+      - {name: nudge-url, value: /mnt/input/gfs-analysis-T85/2019-12-02-year-2016-T85-nudging-data}
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
-        name: output-data
+        name: work-volume
       spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: 500Gi
+            storage: 200Gi
   volumes:
-    - name: restart-data
+    - name: gfs-analysis-data
       persistentVolumeClaim:
-        claimName: '{{workflow.parameters.restart-pvc}}'
+        claimName: gfs-analysis-read-only
         readOnly: true
     - name: gcp-key-secret
       secret:
@@ -54,10 +51,12 @@ spec:
                 value: "{{workflow.parameters.output-url}}"
               - name: nudging-config
                 value: "{{workflow.parameters.nudging-config}}"
-              - name: fv3gfs-cpu
-                value: "{{workflow.parameters.fv3gfs-cpu}}"
-              - name: fv3gfs-memory
-                value: "{{workflow.parameters.fv3gfs-memory}}"
+              - {name: segment-count, value: "{{workflow.parameters.segment-count}}"}
+              - {name: cpu, value: "{{workflow.parameters.cpu}}"}
+              - {name: memory, value: "{{workflow.parameters.memory}}"}
+              - {name: work-volume-name, value: "{{workflow.parameters.work-volume-name}}"}
+              - {name: external-volume-name, value: "{{workflow.parameters.external-volume-name}}"}
+              - {name: nudge-url, value: "{{workflow.parameters.nudge-url}}"}
     - name: nudge-to-obs
       inputs:
         parameters:
@@ -66,8 +65,12 @@ spec:
           - name: fv3gfs-image
           - name: fv3net-image
           - name: post-process-image
-          - name: fv3gfs-cpu
-          - name: fv3gfs-memory
+          - {name: segment-count, value: "1"}
+          - {name: cpu, value: "6"}
+          - {name: memory, value: 8Gi}
+          - {name: work-volume-name, value: work-volume}
+          - {name: external-volume-name, value: gfs-analysis-data}
+          - {name: nudge-url, value: /mnt/input/gfs-analysis-T85/2019-12-02-year-2016-T85-nudging-data}
       steps:
         - - template: prepare-config
             name: prepare-config
@@ -75,108 +78,49 @@ spec:
               parameters:
                 - {name: fv3net-image, value: "{{inputs.parameters.fv3net-image}}"}
                 - {name: nudging-config, value: "{{inputs.parameters.nudging-config}}"}
+                - {name: nudge-url, value: "{{inputs.parameters.nudge-url}}"}
+                - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
         - - name: run-model
-            template: fv3gfs
+            templateRef:
+              name: run-fv3gfs
+              template: run-fv3gfs
             arguments:
+              artifacts:
+                - {name: fv3config, from: "{{steps.prepare-config.outputs.artifacts.fv3config}}"}
+                - {name: runfile, from: "{{steps.prepare-config.outputs.artifacts.runfile}}"}
               parameters:
+                - {name: chunks, value: "{{steps.prepare-config.outputs.parameters.chunks}}"}
                 - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
-                - {name: cpu, value: "{{inputs.parameters.fv3gfs-cpu}}"}
-                - {name: memory, value: "{{inputs.parameters.fv3gfs-memory}}"}
-        - - name: upload-outputs
-            template: post-process
-            arguments:
-              parameters:
-                - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
                 - {name: output-url, value: "{{inputs.parameters.output-url}}"}
+                - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
+                - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
+                - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+                - {name: memory, value: "{{inputs.parameters.memory}}"}
+                - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+                - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
     - name: prepare-config
       inputs:
         parameters:
           - {name: fv3net-image}
           - {name: nudging-config}
+          - {name: nudge-url}
+          - name: segment-count
+      outputs:
+        artifacts:
+          - {name: fv3config, path: /tmp/fv3config.yaml}
+          - name: runfile
+            path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudge_to_obs/runfile.py
+        parameters:
+          - name: chunks
+            valueFrom:
+              path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudge_to_obs/chunks.yaml
       container:
-        # need to run as root to read the mounted PVC
-        securityContext:
-          allowPrivilegeEscalation: false
-          runAsUser: 0
         image: "{{inputs.parameters.fv3net-image}}"
-        command: ["/bin/bash", "-c"]
+        command: ["/bin/bash", "-c", "-e"]
         workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudge_to_obs
         args:
         - |
-          cp runfile.py /mnt/data/runfile.py
-          cp diag_table_nudge_to_obs /mnt/data/diag_table
-          cp chunks.yaml /mnt/data/chunks.yaml
           echo "{{inputs.parameters.nudging-config}}" > config.yaml
-          python prepare_config.py config.yaml > /mnt/data/fv3config.yaml
-        volumeMounts:
-          - name: output-data
-            mountPath: /mnt/data
-    - name: post-process
-      inputs:
-        parameters:
-          - {name: post-process-image}
-          - {name: output-url}
-      tolerations:
-      - key: "dedicated"
-        operator: "Equal"
-        value: "climate-sim-pool"
-        effect: "NoSchedule"
-      container:
-        image: "{{inputs.parameters.post-process-image}}"
-        args: ["--chunks", "/mnt/data/chunks.yaml", "/mnt/data/rundir", "{{inputs.parameters.output-url}}"]
-        volumeMounts:
-          - name: output-data
-            mountPath: /mnt/data
-          - name: gcp-key-secret
-            mountPath: /secret/gcp-credentials
-            readOnly: true
-        resources:
-          limits:
-            memory: 8Gi
-          requests:
-            cpu: "6"
-            memory: 8Gi
-    - name: fv3gfs
-      inputs:
-        parameters:
-          - {name: fv3gfs-image}
-          - {name: cpu}
-          - {name: memory}
-      tolerations:
-      - key: "dedicated"
-        operator: "Equal"
-        value: "climate-sim-pool"
-        effect: "NoSchedule"
-      podSpecPatch: |
-        containers:
-          - name: main
-            resources:
-              limits:
-                cpu: "{{inputs.parameters.cpu}}"
-                memory: "{{inputs.parameters.memory}}"
-              requests:
-                cpu: "{{inputs.parameters.cpu}}"
-                memory: "{{inputs.parameters.memory}}"
-      container:
-        command:
-          - python
-          - -m
-          - fv3config.fv3run._native_main
-          - '[["/mnt/data/fv3config.yaml", "/mnt/data/rundir"],
-            {"runfile": "/mnt/data/runfile.py", "capture_output":
-            false}]'
-        env:
-          - name: GOOGLE_APPLICATION_CREDENTIALS
-            value: /secret/gcp-credentials/key.json
-          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
-            value: /secret/gcp-credentials/key.json
-        image: '{{inputs.parameters.fv3gfs-image}}'
-        imagePullPolicy: Always
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
-        volumeMounts:
-          - name: output-data
-            mountPath: /mnt/data
-          - name: gcp-key-secret
-            mountPath: /secret/gcp-credentials
-            readOnly: true
+          python prepare_config.py --nudge-url "{{inputs.parameters.nudge-url}}" \
+              --segment-count "{{inputs.parameters.segment-count}}" \
+              config.yaml > /tmp/fv3config.yaml

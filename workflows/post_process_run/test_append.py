@@ -83,44 +83,51 @@ def test__shift_array(tmpdir, shape, chunks, ax, shift, raises_value_error):
 
 
 @pytest.mark.parametrize(
-    "with_coords, n_time, chunk_time, raises_value_error",
+    "with_coords, lengths, chunk_sizes, raises_value_error",
     [
-        (True, 6, 2, False),
-        (False, 6, 2, False),
-        (True, 6, 1, False),
-        (True, 6, 6, False),
-        (True, 6, 4, True),
+        (False, (6, 6), (2, 2), False),
+        (True, (6, 6), (2, 2), False),
+        (True, (10, 6), (2, 2), False),
+        (True, (6, 5), (2, 2), False),
+        (True, (5, 6), (2, 2), True),
+        (True, (6, 6), (3, 2), True),
+        (True, (6, 6), (4, 2), True),
     ],
 )
 def test_append_zarr_along_time(
-    tmpdir, with_coords, n_time, chunk_time, raises_value_error
+    tmpdir, with_coords, lengths, chunk_sizes, raises_value_error,
 ):
-    da = xr.DataArray(np.arange(5 * n_time).reshape((n_time, 5)), dims=["time", "x"])
-    ds = xr.Dataset({"var1": da.chunk({"time": chunk_time})})
+    fs = fsspec.filesystem("file")
+    # generate test datasets
+    arrays = [
+        xr.DataArray(np.arange(5 * length).reshape((length, 5)), dims=["time", "x"])
+        for length in lengths
+    ]
+    datasets = [
+        xr.Dataset({"var1": da.chunk({"time": chunk_sizes[i]})})
+        for i, da in enumerate(arrays)
+    ]
     if with_coords:
-        coord1 = [cftime.DatetimeJulian(2000, 1, d) for d in range(1, 1 + n_time)]
-        coord2 = [
-            cftime.DatetimeJulian(2000, 1, d) for d in range(1 + n_time, 1 + 2 * n_time)
+        full_coord = [
+            cftime.DatetimeJulian(2000, 1, d) for d in range(1, sum(lengths) + 1)
         ]
-        ds1 = ds.assign_coords(time=coord1)
-        ds2 = ds.assign_coords(time=coord2)
-    else:
-        ds1 = ds.copy()
-        ds2 = ds.copy()
+        for i, ds in enumerate(datasets):
+            ds_coord = full_coord[sum(lengths[:i]) : sum(lengths[: i + 1])]
+            ds = ds.assign_coords(time=ds_coord)
 
-    path0 = str(tmpdir.join("ds0.zarr/"))  # zarr doesn't exist, used as segment=0 case
-    path1 = str(tmpdir.join("ds1.zarr"))
-    path2 = str(tmpdir.join("ds2.zarr"))
-    ds1.to_zarr(path1, consolidated=True)
-    ds2.to_zarr(path2, consolidated=True)
+    # write datasets to zarr. 0th path represents non-existent zarr.
+    paths = [str(tmpdir.join(f"ds{i}.zarr")) for i in range(len(lengths) + 1)]
+    for i in range(len(lengths)):
+        datasets[i].to_zarr(paths[i + 1], consolidated=True)
 
+    # append zarrs using append_zarr_along_time
     if raises_value_error:
         with pytest.raises(ValueError):
-            append.append_zarr_along_time(path1, path0, fsspec.filesystem("file"))
-            append.append_zarr_along_time(path2, path1, fsspec.filesystem("file"))
+            for i in range(1, len(lengths) + 1):
+                append.append_zarr_along_time(paths[i], paths[i - 1], fs)
     else:
-        append.append_zarr_along_time(path1, path0, fsspec.filesystem("file"))
-        append.append_zarr_along_time(path2, path1, fsspec.filesystem("file"))
-        manually_appended_ds = xr.open_zarr(path1, consolidated=True)
-        expected_ds = xr.concat([ds1, ds2], dim="time")
+        for i in range(1, len(lengths) + 1):
+            append.append_zarr_along_time(paths[i], paths[i - 1], fs)
+        manually_appended_ds = xr.open_zarr(paths[1], consolidated=True)
+        expected_ds = xr.concat(datasets, dim="time")
         xr.testing.assert_identical(manually_appended_ds, expected_ds)

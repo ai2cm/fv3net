@@ -7,37 +7,12 @@ from ..._shared import ArrayPacker, Predictor
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
+from ._sequences import _XyArraySequence, _ThreadedSequencePreLoader
 from .normalizer import LayerStandardScaler
 from .loss import get_weighted_mse
 import yaml
 
 logger = logging.getLogger(__file__)
-
-
-class _XyArraySequence(tf.keras.utils.Sequence):
-    """
-    Wrapper object converting a sequence of batch datasets
-    to a sequence of input/output numpy arrays.
-    """
-
-    def __init__(
-        self,
-        X_packer: ArrayPacker,
-        y_packer: ArrayPacker,
-        dataset_sequence: Sequence[xr.Dataset],
-    ):
-        self.X_packer = X_packer
-        self.y_packer = y_packer
-        self.dataset_sequence = dataset_sequence
-
-    def __len__(self) -> int:
-        return len(self.dataset_sequence)
-
-    def __getitem__(self, idx) -> Tuple[np.ndarray, np.ndarray]:
-        ds = self.dataset_sequence[idx]
-        X = self.X_packer.to_array(ds)
-        y = self.y_packer.to_array(ds)
-        return X, y
 
 
 class Model(Predictor):
@@ -192,6 +167,8 @@ class PackedKerasModel(Model):
         batches: Sequence[xr.Dataset],
         epochs: int = 1,
         batch_size: Optional[int] = None,
+        workers: int = 1,
+        max_queue_size: int = 8,
         **fit_kwargs: Any,
     ) -> None:
         """Fits a model using data in the batches sequence
@@ -202,28 +179,54 @@ class PackedKerasModel(Model):
             batch_size: actual batch_size to apply in gradient descent updates,
                 independent of number of samples in each batch in batches; optional,
                 uses number of samples in each batch if omitted
+            workers: number of workers for parallelized loading of batches fed into
+                training, defaults to serial loading (1 worker)
+            max_queue_size: max number of batches to hold in the parallel loading queue
             **fit_kwargs: other keyword arguments to be passed to the underlying
                 tf.keras.Model.fit() method
         """
         epochs = epochs if epochs is not None else 1
         Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
+
         if self._model is None:
             X, y = Xy[0]
             n_features_in, n_features_out = X.shape[-1], y.shape[-1]
             self._fit_normalization(X, y)
             self._model = self.get_model(n_features_in, n_features_out)
+
         if batch_size is not None:
-            self._fit_loop(Xy, epochs, batch_size, **fit_kwargs)
+            self._fit_loop(
+                Xy,
+                epochs,
+                batch_size,
+                workers=workers,
+                max_queue_size=max_queue_size,
+                **fit_kwargs,
+            )
         else:
-            self._fit_array(Xy, epochs, **fit_kwargs)
+            self._fit_array(
+                Xy,
+                epochs=epochs,
+                workers=workers,
+                max_queue_size=max_queue_size,
+                **fit_kwargs,
+            )
 
     def _fit_loop(
         self,
         Xy: Sequence[Tuple[np.ndarray, np.ndarray]],
         epochs: int,
         batch_size: int,
+        workers: int = 1,
+        max_queue_size: int = 8,
         **fit_kwargs: Any,
     ) -> None:
+
+        if workers > 1:
+            Xy = _ThreadedSequencePreLoader(
+                Xy, num_workers=workers, max_queue_size=max_queue_size
+            )
+
         for i_epoch in range(epochs):
             for i_batch, (X, y) in enumerate(Xy):
                 logger.info(
@@ -232,9 +235,9 @@ class PackedKerasModel(Model):
                 self.model.fit(X, y, batch_size=batch_size, **fit_kwargs)
 
     def _fit_array(
-        self, X: Sequence[Tuple[np.ndarray, np.ndarray]], epochs: int, **fit_kwargs: Any
+        self, Xy: Sequence[Tuple[np.ndarray, np.ndarray]], **fit_kwargs: Any
     ) -> None:
-        return self.model.fit(X, epochs=epochs, **fit_kwargs)
+        return self.model.fit(Xy, **fit_kwargs)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         sample_coord = X[self.sample_dim_name]
