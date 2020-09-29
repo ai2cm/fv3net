@@ -1,6 +1,5 @@
 import intake
 import os
-import fsspec
 import xarray as xr
 import vcm
 import numpy as np
@@ -68,6 +67,8 @@ def open_spencer_rundir(url):
 
 
 def open_phis(url):
+    import os, fsspec
+
     fs = fsspec.get_fs_token_paths(url)[0]
     artifacts = fs.listdir(os.path.join(url, "artifacts"))[0]
     input_ = os.path.join(artifacts["name"], "INPUT")
@@ -86,6 +87,8 @@ def open_baseline_emulator(
 ):
     # get mapper
     data = open_spencer_rundir(url)
+    data["cos_zenith_angle"] = cos_zenith_angle(data.time, data.lat, data.lon)
+    data["surface_geopotential"] = open_phis(url)
     data["dQ1"] = (
         # data.tendency_of_air_temperature_due_to_microphysics
         +data.tendency_of_air_temperature_due_to_deep_convection
