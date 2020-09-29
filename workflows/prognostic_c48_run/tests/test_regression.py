@@ -483,7 +483,7 @@ def _save_mock_keras_model(tmpdir):
 
 
 @pytest.fixture(scope="module", params=["keras", "sklearn"])
-def completed_rundir(request, tmpdir_factory, layout):
+def completed_rundir(request, tmpdir_factory):
 
     if not FV3GFS_INSTALLED:
         pytest.skip("fv3gfs not installed")
