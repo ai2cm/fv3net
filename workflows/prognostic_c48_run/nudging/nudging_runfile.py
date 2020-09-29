@@ -300,7 +300,10 @@ if __name__ == "__main__":
         state[SST_NAME].view[:] = sst_from_reference(
             reference[TSFC_NAME], state[SST_NAME], state["land_sea_mask"]
         )
-        wrapper.set_state({SST_NAME: state[SST_NAME]})
+        state[TSFC_NAME].view[:] = sst_from_reference(
+            reference[TSFC_NAME], state[TSFC_NAME], state["land_sea_mask"]
+        )
+        wrapper.set_state({SST_NAME: state[SST_NAME], TSFC_NAME: state[TSFC_NAME]})
 
         # The fortran model labels diagnostics with the time at the end
         # of a step; this ensures this is the case for the wrapper
