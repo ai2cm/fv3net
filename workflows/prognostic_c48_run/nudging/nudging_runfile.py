@@ -292,10 +292,15 @@ if __name__ == "__main__":
     for i in range(wrapper.get_step_count()):
         state = wrapper.get_state(names=store_names)
         start = datetime.utcnow()
-        time = state["store_time"]
+        time = state["time"]
+        
+        # The fortran model labels diagnostics with the time at the end
+        # of a step; this ensures this is the case for the wrapper
+        # diagnostics as well.
+        store_time = time + timestep
 
         reference = get_reference_state(
-            time, reference_dir, communicator, only_names=store_names
+            store_time, reference_dir, communicator, only_names=store_names
         )
         state[SST_NAME].view[:] = sst_from_reference(
             reference[TSFC_NAME], state[SST_NAME], state["land_sea_mask"]
@@ -304,11 +309,6 @@ if __name__ == "__main__":
             reference[TSFC_NAME], state[TSFC_NAME], state["land_sea_mask"]
         )
         wrapper.set_state({SST_NAME: state[SST_NAME], TSFC_NAME: state[TSFC_NAME]})
-        
-        # The fortran model labels diagnostics with the time at the end
-        # of a step; this ensures this is the case for the wrapper
-        # diagnostics as well.
-        store_time = time + timestep
 
         monitor.store(store_time, state, stage="before_dynamics")
         wrapper.step_dynamics()
