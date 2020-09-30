@@ -26,7 +26,7 @@ spec:
             - name: run
               value: "{{item.url}}"
             - name: output
-              value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}/"
+              value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}"
       - name: movie-step
         when: "{{workflow.parameters.make-movies}} == true"
         withParam: "{{workflow.parameters.runs}}"
@@ -38,7 +38,7 @@ spec:
             - name: run
               value: "{{item.url}}"
             - name: output
-              value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}/"
+              value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}"
       - name: generate-report
         template: report
         dependencies: [diagnostics-step, movie-step]
@@ -89,13 +89,13 @@ spec:
       effect: "NoSchedule"
     container:
       image: '{{inputs.parameters.image}}'
-      command: ["bash", "-x", "-e"]
+      command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - | 
-        python save_prognostic_run_diags.py "{{inputs.parameters.run}}" diags.nc
+        python save_prognostic_run_diags.py {{inputs.parameters.run}} diags.nc
         python metrics.py diags.nc > metrics.json
-        gsutil cp diags.nc "{{inputs.parameters.output}}"/diags.nc
-        gsutil cp metrics.json "{{inputs.parameters.output}}"/metrics.json
+        gsutil cp diags.nc {{inputs.parameters.output}}/diags.nc
+        gsutil cp metrics.json {{inputs.parameters.output}}/metrics.json
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -124,13 +124,13 @@ spec:
       effect: "NoSchedule"
     container:
       image: '{{workflow.parameters.docker-image}}'
-      command: ["bash", "-x", "-e"]
+      command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - |
-        rundir="{{inputs.parameters.run}}"
+        rundir={{inputs.parameters.run}}
         hash=$(echo $rundir | md5sum | awk '{print $1}')
         python generate_movie_stills.py $rundir /tmp/movie_stills/$hash
-        bash stitch_movie_stills.sh /tmp/movie_stills/$hash "{{inputs.parameters.output}}"
+        bash stitch_movie_stills.sh /tmp/movie_stills/$hash {{inputs.parameters.output}}
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
