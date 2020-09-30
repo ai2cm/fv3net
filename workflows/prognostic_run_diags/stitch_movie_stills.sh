@@ -2,22 +2,17 @@
 
 set -e
 
-usage="Usage: entrypoint_movie.sh rundir output flags"
+usage="Usage: stitch_movie_stills.sh workDir output"
 
-if [[ $# != 3 ]]; then
+if [[ $# != 2 ]]; then
     echo $usage
     exit 2
 fi
 
-rundir=$1
+workDir=$1
 output=${2%/}  # strip trailing slash
-flags=$3
+
 imageSuffix=_00000.png
-
-hash=$(echo $rundir | md5sum | awk '{print $1}')
-workDir=.cache/$hash
-
-python generate_movie_stills.py $flags $rundir $workDir
 
 moviePaths=$(ls $workDir/*$imageSuffix)
 for movie in $moviePaths; do

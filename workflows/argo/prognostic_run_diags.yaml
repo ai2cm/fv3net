@@ -91,9 +91,11 @@ spec:
       image: '{{inputs.parameters.image}}'
       command: ["bash", "-x", "-e"]
       args:
-      - entrypoint.sh
-      - '{{inputs.parameters.run}}'
-      - '{{inputs.parameters.output}}'
+      - | 
+        python save_prognostic_run_diags.py "{{inputs.parameters.run}}" diags.nc
+        python metrics.py diags.nc > metrics.json
+        gsutil cp diags.nc "{{inputs.parameters.output}}"/diags.nc
+        gsutil cp metrics.json "{{inputs.parameters.output}}"/metrics.json
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -124,9 +126,11 @@ spec:
       image: '{{workflow.parameters.docker-image}}'
       command: ["bash", "-x", "-e"]
       args:
-      - entrypoint_movie.sh
-      - '{{inputs.parameters.run}}'
-      - '{{inputs.parameters.output}}'
+      - |
+        rundir="{{inputs.parameters.run}}"
+        hash=$(echo $rundir | md5sum | awk '{print $1}')
+        python generate_movie_stills.py $rundir /tmp/movie_stills/$hash
+        bash stitch_movie_stills.sh /tmp/movie_stills/$hash "{{inputs.parameters.output}}"
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
