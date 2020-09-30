@@ -292,7 +292,7 @@ if __name__ == "__main__":
     for i in range(wrapper.get_step_count()):
         state = wrapper.get_state(names=store_names)
         start = datetime.utcnow()
-        time = state["time"]
+        time = state["store_time"]
 
         reference = get_reference_state(
             time, reference_dir, communicator, only_names=store_names
@@ -304,7 +304,7 @@ if __name__ == "__main__":
             reference[TSFC_NAME], state[TSFC_NAME], state["land_sea_mask"]
         )
         wrapper.set_state({SST_NAME: state[SST_NAME], TSFC_NAME: state[TSFC_NAME]})
-
+        
         # The fortran model labels diagnostics with the time at the end
         # of a step; this ensures this is the case for the wrapper
         # diagnostics as well.
