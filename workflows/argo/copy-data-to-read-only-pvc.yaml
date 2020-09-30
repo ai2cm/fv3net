@@ -1,6 +1,3 @@
-#  in a workflow. The resource template type accepts any k8s manifest
-# (including CRDs) and can perform any kubectl action against it (e.g. create,
-# apply, delete, patch).
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
@@ -190,9 +187,6 @@ spec:
         image: google/cloud-sdk
         resources:
           requests:
-            memory: "3Gi"
-            cpu: "8"
-          limits:
             memory: "3Gi"
             cpu: "8"
         command: ["bash", "-ec"]
