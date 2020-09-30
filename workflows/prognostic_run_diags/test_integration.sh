@@ -30,3 +30,5 @@ python generate_report.py $OUTPUT $OUTPUT/index.html
 
 # cleanup
 rm -r /tmp/$random
+
+echo "Yay! Prognostic run report integration test passed."
