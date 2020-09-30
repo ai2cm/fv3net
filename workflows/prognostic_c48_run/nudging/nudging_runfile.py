@@ -293,7 +293,7 @@ if __name__ == "__main__":
         state = wrapper.get_state(names=store_names)
         start = datetime.utcnow()
         time = state["time"]
-        
+
         # The fortran model labels diagnostics with the time at the end
         # of a step; this ensures this is the case for the wrapper
         # diagnostics as well.
