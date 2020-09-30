@@ -69,6 +69,13 @@ def test_process_item_dataset(tmpdir):
         xr.open_zarr(d_out + "/diags.zarr")
 
 
+def test_process_item_empty_dataset(tmpdir):
+    d_in = str(tmpdir)
+    ds = xr.Dataset()
+    with tempfile.TemporaryDirectory() as d_out:
+        process_item(ds, d_in, d_out, TEST_CHUNKS)
+
+
 def test_process_item_str(tmpdir):
     txt = "hello"
     d_in = str(tmpdir)

@@ -10,3 +10,6 @@ pip-tools
 
 # This version of gcsfs breaks logging
 gcsfs!=0.7.0
+
+# this version has wheels = faster installs
+numcodecs>=0.7.2

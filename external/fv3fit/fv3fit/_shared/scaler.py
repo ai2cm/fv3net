@@ -1,13 +1,19 @@
 import abc
 from copy import copy
 import numpy as np
-from typing import Mapping, BinaryIO
+from typing import Mapping, BinaryIO, Type, Sequence
 import xarray as xr
+import io
+import yaml
 
 from .packer import ArrayPacker
 
 
 class NormalizeTransform(abc.ABC):
+    @abc.abstractproperty
+    def kind(self) -> str:
+        pass
+
     @abc.abstractmethod
     def normalize(self, y: np.ndarray):
         pass
@@ -20,6 +26,11 @@ class NormalizeTransform(abc.ABC):
     def dump(self, f: BinaryIO):
         pass
 
+    def dumps(self) -> bytes:
+        f = io.BytesIO()
+        self.dump(f)
+        return f.getvalue()
+
     @classmethod
     @abc.abstractmethod
     def load(cls, f: BinaryIO):
@@ -27,22 +38,43 @@ class NormalizeTransform(abc.ABC):
 
 
 class StandardScaler(NormalizeTransform):
-    def __init__(self):
+
+    kind: str = "standard"
+
+    def __init__(self, std_threshold: float = 1e-12):
+        """Standard scaler normalizer: normalizes via (x-mean)/std
+
+        Args:
+            std_threshold: Features with standard deviations below
+                this threshold are treated as constants. Normalize/denormalize
+                will just subtract / add the mean. Defaults to 1e-12.
+        """
         self.mean = None
         self.std = None
+        self.std_threshold = std_threshold
 
     def fit(self, data: np.ndarray):
         self.mean = data.mean(axis=0).astype(np.float32)
         self.std = data.std(axis=0).astype(np.float32)
+        self._fix_constant_features()
+
+    def _fix_constant_features(self):
+        for i, std in enumerate(self.std):
+            if std < self.std_threshold:
+                self.std[i] = 1.0
 
     def normalize(self, data):
+        if self.mean is None or self.std is None:
+            raise RuntimeError("StandardScaler.fit must be called before normalize.")
         return (data - self.mean) / self.std
 
     def denormalize(self, data):
+        if self.mean is None or self.std is None:
+            raise RuntimeError("StandardScaler.fit must be called before denormalize.")
         return data * self.std + self.mean
 
     def dump(self, f: BinaryIO):
-        data = {}
+        data = {}  # type: ignore
         if self.mean is not None:
             data["mean"] = self.mean
         if self.std is not None:
@@ -59,6 +91,9 @@ class StandardScaler(NormalizeTransform):
 
 
 class ManualScaler(NormalizeTransform):
+
+    kind: str = "manual"
+
     def __init__(self, scales):
         self.scales = scales
 
@@ -98,7 +133,7 @@ def get_mass_scaler(
         Args:
             packer: ArrayPacker object that contains information a
             delp: 1D array of pressure thickness used to mass weight model
-                levels. When normalizing, will **DIVIDE** by these values.
+                levels.
             variable_scale_factors: Optional mapping of variable names to scale factors
                 by which their weights will be multiplied when normalizing. This allows
                 the weighted outputs to be scaled to the same order of magnitude.
@@ -111,11 +146,7 @@ def get_mass_scaler(
                 scales in the target transform, the MSE loss function terms will be
                 approximately weighted to the desired weights.
     """
-    # weight by inverse of layer mass
-    vertical_scales = 1.0 / delp
-    scales = _create_scaling_array(
-        packer, vertical_scales, variable_scale_factors, sqrt_scales
-    )
+    scales = _create_scaling_array(packer, delp, variable_scale_factors, sqrt_scales)
     return ManualScaler(scales)
 
 
@@ -137,7 +168,7 @@ def _create_scaling_array(
             packer: ArrayPacker object that contains information a
             vertical_scale: 1D array of scales for each model level.
             variable_scale_factors: Optional mapping of variable names to scale factors
-                by which their scales will be multiplied. This allows
+                by which their loss scales will be multiplied. This allows
                 the scaled outputs to be of the same order of magnitude.
                 Default of None will scale target dQ2 features by a factor of 1e6; this
                 is chosen such that the features values are of the same order as dQ1
@@ -179,3 +210,24 @@ def _create_scaling_array(
     scales_array = packer.to_array(xr.Dataset(scales))  # type: ignore
     scales_array = np.sqrt(scales_array) if sqrt_scales else scales_array
     return scales_array
+
+
+scalers: Sequence[Type[NormalizeTransform]] = [StandardScaler, ManualScaler]
+
+
+def dumps(scaler: NormalizeTransform) -> str:
+    """Dump scaler object to string
+    """
+    return yaml.safe_dump((scaler.kind, scaler.dumps()))
+
+
+def loads(b: str) -> NormalizeTransform:
+    """Load scaler from string
+    """
+    class_name, data = yaml.safe_load(b)
+    f = io.BytesIO(data)
+    for scaler_cls in scalers:
+        if class_name == scaler_cls.kind:
+            return scaler_cls.load(f)
+
+    raise NotImplementedError(f"Cannot load {class_name} scaler")

@@ -9,6 +9,7 @@ cftime
 chardet
 click
 cycler
+Cython
 dask
 decorator
 docrep
@@ -50,6 +51,7 @@ packaging
 pandas
 Pillow
 Pint
+pkgconfig
 pluggy
 pooch
 protobuf
@@ -91,7 +93,3 @@ xarray
 xgcm
 zarr
 zipp
-
-# this version needs to match the one installed in the upstream image
-# to avoid an error when pip uninstalls cython
-Cython==0.29.10

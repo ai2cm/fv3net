@@ -7,18 +7,18 @@ from . import _train as train
 from .. import _shared as shared
 
 
-MODEL_FILENAME = "sklearn_model.pkl"
+MODEL_FILENAME = "sklearn.yaml"
 MODEL_CONFIG_FILENAME = "training_config.yml"
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
 
 
-def _save_config_output(output_url, config):
+def _save_config_output(output_url: str, config: shared.ModelTrainingConfig):
     fs = vcm.cloud.fsspec.get_fs(output_url)
     fs.makedirs(output_url, exist_ok=True)
     config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
 
     with fs.open(config_url, "w") as f:
-        yaml.dump(config, f)
+        config.dump(f)
 
 
 def parse_args():
@@ -47,11 +47,6 @@ def parse_args():
         default=None,
         help="json file containing a list of timesteps in YYYYMMDD.HHMMSS format",
     )
-    parser.add_argument(
-        "--no-train-subdir-append",
-        action="store_true",
-        help="Omit the appending of 'train' to the input training data path",
-    )
     return parser.parse_args()
 
 
@@ -74,4 +69,4 @@ if __name__ == "__main__":
     logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 
     model = train.train_model(batched_data, train_config)
-    train.save_model(args.output_data_path, model, MODEL_FILENAME)
+    model.dump(os.path.join(args.output_data_path, MODEL_FILENAME))

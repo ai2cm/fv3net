@@ -1,18 +1,20 @@
-import fsspec
-import joblib
 import logging
-import os
 import xarray as xr
 from .._shared import ModelTrainingConfig
-from typing import Sequence
+from typing import Sequence, Union, Mapping, Iterable
 
+from .._shared import StandardScaler, ManualScaler, ArrayPacker, get_mass_scaler
 from ._wrapper import SklearnWrapper, RegressorEnsemble
-from sklearn.compose import TransformedTargetRegressor
-from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 
 
 logger = logging.getLogger(__file__)
+
+
+Scaler = Union[StandardScaler, ManualScaler]
+SklearnRegressor = Union[RandomForestRegressor]
+SAMPLE_DIM = "sample"
+DELP = "pressure_thickness_of_atmospheric_layer"
 
 
 def _get_regressor(train_config: ModelTrainingConfig):
@@ -44,16 +46,49 @@ def _get_regressor(train_config: ModelTrainingConfig):
     return regressor
 
 
-def _get_transformed_batch_regressor(train_config):
+def _get_target_scaler(
+    scaler_type: str,
+    scaler_kwargs: Mapping,
+    norm_data: xr.Dataset,
+    output_vars: Iterable[str],
+) -> Scaler:
+    # Defaults to StandardScaler if none specified in config
+    packer = ArrayPacker(SAMPLE_DIM, output_vars)
+    data_array = packer.to_array(norm_data)
+    if "standard" in scaler_type.lower():
+        target_scaler = StandardScaler()
+        target_scaler.fit(data_array)
+    elif "mass" in scaler_type.lower():
+        delp = norm_data[DELP].mean(dim=SAMPLE_DIM).values
+        target_scaler = get_mass_scaler(  # type: ignore
+            packer, delp, scaler_kwargs.get("variable_scale_factors"), sqrt_scales=True
+        )
+    else:
+        raise ValueError(
+            "Config variable scaler_type must be either 'standard' or 'mass' ."
+        )
+    return target_scaler
+
+
+def _get_transformed_batch_regressor(
+    train_config: ModelTrainingConfig, norm_data: xr.Dataset,
+):
+
+    target_scaler = _get_target_scaler(
+        train_config.scaler_type,
+        train_config.scaler_kwargs,
+        norm_data,
+        train_config.output_variables,
+    )
+
     base_regressor = _get_regressor(train_config)
-    target_transformer = StandardScaler()
-    transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
-    batch_regressor = RegressorEnsemble(transform_regressor)
+    batch_regressor = RegressorEnsemble(base_regressor)
     model_wrapper = SklearnWrapper(
-        "sample",
+        SAMPLE_DIM,
         train_config.input_variables,
         train_config.output_variables,
         batch_regressor,
+        target_scaler,
     )
     return model_wrapper
 
@@ -68,19 +103,11 @@ def train_model(
     Returns:
         trained sklearn model wrapper object
     """
-    model_wrapper = _get_transformed_batch_regressor(train_config)
     for i, batch in enumerate(batched_data):
+        if i == 0:
+            model_wrapper = _get_transformed_batch_regressor(train_config, batch)
         logger.info(f"Fitting batch {i}/{len(batched_data)}")
         model_wrapper.fit(data=batch)
         logger.info(f"Batch {i} done fitting.")
 
     return model_wrapper
-
-
-def save_model(output_url: str, model, model_filename: str):
-    """Save model to {output_url}/{model_filename} using joblib.dump"""
-    fs, _, _ = fsspec.get_fs_token_paths(output_url)
-    fs.makedirs(output_url, exist_ok=True)
-    model_url = os.path.join(output_url, model_filename)
-    with fs.open(model_url, "wb") as f:
-        joblib.dump(model, f)

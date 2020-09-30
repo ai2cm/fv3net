@@ -5,9 +5,13 @@ import logging
 from fv3fit._shared import ModelTrainingConfig
 import numpy as np
 import subprocess
-import os
-from fv3fit.sklearn._train import train_model
 
+from fv3fit.sklearn._train import (
+    train_model,
+    _get_target_scaler,
+)
+import fv3fit.sklearn
+from fv3fit._shared import StandardScaler, ManualScaler
 
 logger = logging.getLogger(__name__)
 
@@ -58,13 +62,29 @@ def test_training_integration(
             data_source_path,
             train_config_filename,
             tmp_path,
-            "--no-train-subdir-append",
         ]
     )
-    required_names = [
-        "sklearn_model.pkl",
-        "training_config.yml",
-    ]
-    existing_names = os.listdir(tmp_path)
-    missing_names = set(required_names).difference(existing_names)
-    assert len(missing_names) == 0, existing_names
+
+    fv3fit.sklearn.SklearnWrapper.load(str(tmp_path / "sklearn.yaml"))
+
+
+@pytest.mark.parametrize(
+    "scaler_type, expected_type", (["standard", StandardScaler], ["mass", ManualScaler])
+)
+def test__get_target_scaler_type(scaler_type, expected_type):
+    scaler = _get_target_scaler(
+        scaler_type, scaler_kwargs={}, norm_data=norm_data, output_vars=["y0", "y1"]
+    )
+    assert isinstance(scaler, expected_type)
+
+
+norm_data = xr.Dataset(
+    {
+        "y0": (["sample", "z"], np.array([[1.0, 1.0], [2.0, 2.0]])),
+        "y1": (["sample"], np.array([-1.0, -2.0])),
+        "pressure_thickness_of_atmospheric_layer": (
+            ["sample", "z"],
+            np.array([[1.0, 1.0], [1.0, 1.0]]),
+        ),
+    }
+)

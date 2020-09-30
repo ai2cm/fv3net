@@ -4,6 +4,10 @@ from typing import Mapping, Sequence, Union
 
 from jinja2 import Template
 from pytz import timezone
+from urllib.error import URLError
+import logging
+
+logger = logging.getLogger(__name__)
 
 PACIFIC_TZ = "US/Pacific"
 NOW_FORMAT = "%Y-%m-%d %H:%M:%S %Z"
@@ -98,7 +102,14 @@ def _save_figure(fig, filepath_relative_to_report: str, output_dir: str = None):
     section_dir = os.path.dirname(filepath_relative_to_report.strip("/"))
     if not os.path.exists(os.path.join(output_dir, section_dir)):
         os.makedirs(os.path.join(output_dir, section_dir))
-    fig.savefig(os.path.join(output_dir or "", filepath_relative_to_report))
+
+    try:
+        fig.savefig(os.path.join(output_dir or "", filepath_relative_to_report))
+    except URLError as e:
+        logger.info(
+            f"Could not download cartopy shapefile data due an external error: {e}"
+            f". The following was not saved {filepath_relative_to_report}."
+        )
 
 
 def insert_report_figure(

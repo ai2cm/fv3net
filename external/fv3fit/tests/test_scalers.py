@@ -5,6 +5,8 @@ from typing import Mapping, Sequence
 import xarray as xr
 
 from fv3fit._shared.scaler import (
+    dumps,
+    loads,
     StandardScaler,
     ManualScaler,
     _create_scaling_array,
@@ -14,6 +16,28 @@ from fv3fit._shared.packer import ArrayPacker
 
 SAMPLE_DIM = "sample"
 FEATURE_DIM = "z"
+
+
+def test_standard_scaler_not_fit_before_call():
+    scaler = StandardScaler()
+    with pytest.raises(RuntimeError):
+        scaler.normalize(np.array([0.0, 1.0]))
+    with pytest.raises(RuntimeError):
+        scaler.denormalize(np.array([0.0, 1.0]))
+
+
+def test_standard_scaler_constant_scaling():
+    scaler = StandardScaler()
+    const = 10.0
+    constant_feature = np.array([const for i in range(5)])
+    varying_feature = np.array([i for i in range(5)])
+    y = np.vstack([varying_feature, constant_feature, constant_feature * 2.0]).T
+    scaler.fit(y)
+    normed_sample = scaler.normalize(np.array([3.0, const, const * 2.0]))
+    assert (normed_sample[1:] == 0.0).all()
+    denormed_sample = scaler.denormalize(np.array([3.0, 0.0, 0.0]))
+    assert denormed_sample[1] == const
+    assert denormed_sample[2] == const * 2.0
 
 
 @pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
@@ -165,7 +189,7 @@ def test_get_mass_scaler():
         sample_dim_name=SAMPLE_DIM, pack_names=sorted(list(ds.data_vars))
     )
     y = packer.to_array(ds)
-    delp = np.array([1.0, 4.0])
+    delp = np.array([1.0, 0.25])
     scale_factors = {"y0": 100}
     scaler = get_mass_scaler(packer, delp, scale_factors, True,)
     expected_normalized = [
@@ -173,3 +197,16 @@ def test_get_mass_scaler():
     ]
     normalized = scaler.normalize(y)
     np.testing.assert_almost_equal(normalized, expected_normalized)
+
+
+standard_scaler = StandardScaler()
+standard_scaler.fit(np.ones((10, 1)))
+
+
+@pytest.mark.parametrize("scaler", [ManualScaler(np.array([0.5])), standard_scaler])
+def test_dump_load_manual_scaler(scaler):
+    decoded = loads(dumps(scaler))
+    # ensure data is unchanged by testing behavior
+    in_ = np.array([10.0])
+    np.testing.assert_equal(decoded.normalize(in_), scaler.normalize(in_))
+    np.testing.assert_equal(decoded.denormalize(in_), scaler.denormalize(in_))
