@@ -193,15 +193,12 @@ def mask_area(
         if land_sea_mask_name not in prognostic:
             raise KeyError("Missing land-sea mask in prognostic run diagnostic data")
         surface_type_codes = {"sea": 0, "land": 1, "seaice": 2}
-        masked_area = grid.area.where(
-            prognostic[land_sea_mask_name].astype(int) == surface_type_codes[region]
-        )
+        land_sea_mask = prognostic[land_sea_mask_name].astype(int)
+        masked_area = grid.area.where(land_sea_mask == surface_type_codes[region])
     else:
         raise ValueError(f"Masking procedure for region '{region}' is not defined.")
 
-    grid_copy = grid.copy()
-    grid_copy["area"] = masked_area
-    return prognostic, verification, grid_copy
+    return prognostic, verification, grid.update({"area": masked_area})
 
 
 @add_to_input_transform_fns
