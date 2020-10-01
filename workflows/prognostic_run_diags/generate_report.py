@@ -250,7 +250,9 @@ def rms_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
 
 @diag_plot_manager.register
 def global_avg_dycore_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot(time_series, varfilter="spatial_mean_dycore_global")
+    return time_series_plot_with_region_bar(
+        time_series, varfilter="spatial_mean_dycore"
+    )
 
 
 @diag_plot_manager.register
@@ -262,7 +264,7 @@ def global_avg_physics_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
 
 @diag_plot_manager.register
 def global_avg_bias_dycore_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot(time_series, varfilter="mean_bias_dycore_global")
+    return time_series_plot_with_region_bar(time_series, varfilter="mean_bias_dycore")
 
 
 @diag_plot_manager.register
@@ -283,6 +285,11 @@ def diurnal_cycle_component_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
 # Routines for plotting the "metrics"
 # New plotting routines can be registered here.
 @metrics_plot_manager.register
+def time_mean_bias_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+    return generic_metric_plot(metrics, "time_and_global_mean_bias")
+
+
+@metrics_plot_manager.register
 def rmse_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
     return generic_metric_plot(metrics, "rmse")
 
@@ -290,11 +297,6 @@ def rmse_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
 @metrics_plot_manager.register
 def drift_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
     return generic_metric_plot(metrics, "drift")
-
-
-@metrics_plot_manager.register
-def time_mean_bias_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "time_and_global_mean_bias")
 
 
 def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
