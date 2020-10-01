@@ -157,7 +157,7 @@ def _serialize_coords(coords):
         if isinstance(value, pd.MultiIndex):
             data[name] = (value.to_list(), value.names)
         elif isinstance(value, xr.DataArray):
-            data[name] = value.to_dict()
+            pass  # data[name] = value.to_dict()
         else:
             data[name] = value
     return data

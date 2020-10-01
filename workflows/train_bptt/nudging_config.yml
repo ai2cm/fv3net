@@ -6,11 +6,11 @@ diag_table: no_output
 nudging:
   restarts_path: /mnt/vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48
   timescale_hours:
-    air_temperature: 3
-    specific_humidity: 3
-    x_wind: 3
-    y_wind: 3
-    pressure_thickness_of_atmospheric_layer: 3
+    air_temperature: 24
+    specific_humidity: 24
+    x_wind: 24
+    y_wind: 24
+    pressure_thickness_of_atmospheric_layer: 24
 namelist:
   coupler_nml:
     calendar: julian
@@ -21,8 +21,8 @@ namelist:
     - 0
     - 15
     - 0
-    days: 0
-    hours: 6
+    days: 30
+    hours: 0
     minutes: 0
     months: 0
     seconds: 0

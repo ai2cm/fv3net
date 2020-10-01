@@ -15,7 +15,7 @@ dev:
 $(RUNDIR)/input.nml:
 	python3 $(PREPARE_CONFIG_PY) $(BASE_CONFIG_FILE) > $(TMP_CONFIG_FILE)
 	write_run_directory $(TMP_CONFIG_FILE) $(RUNDIR)
-	#$(RM) $(TMP_CONFIG_FILE)
+	mv $(TMP_CONFIG_FILE) $(RUNDIR)/fv3config.yml
 
 clean:
 	$(RM) -r $(RUNDIR)

@@ -77,6 +77,7 @@ class PackedKerasModel(Model):
     _X_SCALER_FILENAME = "X_scaler.npz"
     _Y_SCALER_FILENAME = "y_scaler.npz"
     _OPTIONS_FILENAME = "options.yml"
+    custom_objects = {}
 
     def __init__(
         self,
@@ -292,8 +293,10 @@ class PackedKerasModel(Model):
             obj.y_scaler = y_scaler
             model_filename = os.path.join(path, cls._MODEL_FILENAME)
             if os.path.exists(model_filename):
+                custom_objects = {"custom_loss": obj.loss}
+                custom_objects.update(PackedKerasModel.custom_objects)
                 obj._model = tf.keras.models.load_model(
-                    model_filename, custom_objects={"custom_loss": obj.loss}
+                    model_filename, custom_objects=custom_objects
                 )
             return obj
 

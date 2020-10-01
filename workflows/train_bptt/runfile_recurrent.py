@@ -1,4 +1,6 @@
 from typing import Iterable, Optional, Mapping, Union
+import functools
+import yaml
 import os
 import logging
 import fv3gfs.wrapper
@@ -11,9 +13,9 @@ import fv3fit
 import numpy as np
 import vcm.safe
 import xarray as xr
+from datetime import timedelta
 import horovod.tensorflow.keras as hvd
 from mpi4py import MPI
-import f90nml
 
 MODEL_OUTPUT_PATH = "model"
 
@@ -23,11 +25,11 @@ logger = logging.getLogger(__name__)
 
 class GCMCell(tf.keras.layers.AbstractRNNCell):
     def __init__(self, units: int, n_output: int, n_hidden_layers: int, **kwargs):
+        super().__init__(**kwargs)
         self.units = units
         self.n_output = n_output
         self.n_hidden_layers = n_hidden_layers
         self.activation = tf.keras.activations.relu
-        super().__init__(**kwargs)
 
     @property
     def state_size(self):
@@ -79,11 +81,27 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
         for kernel, bias in self.dense_weights:
             h = self.activation(K.dot(h, kernel) + bias)
         tendency_output = K.dot(h, self.output_kernel) + self.output_bias
-        gcm_output = gcm_state + tendency_output
+        # tendencies are on a much smaller scale than the variability of the data
+        gcm_update = tf.math.multiply(
+            tf.constant(0.1, dtype=tf.float32), tendency_output
+        )
+        gcm_output = gcm_state + gcm_update
         return gcm_output, [gcm_output]
 
     def get_config(self):
-        return {"units": self.units}
+        config = super().get_config()
+        config.update(
+            {
+                "units": self.units,
+                "n_output": self.n_output,
+                "n_hidden_layers": self.n_hidden_layers,
+            }
+        )
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
 class RecurrentMPIModel(fv3fit.keras._models.models.PackedKerasModel):
@@ -135,6 +153,7 @@ class RecurrentGCMModel(RecurrentMPIModel):
         optimizer=None,
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
+        negative_water_weight: float = 1.0,
     ):
         # X is input, y is prognostic
         self.n_batch = None
@@ -142,10 +161,12 @@ class RecurrentGCMModel(RecurrentMPIModel):
         self.units = units
         self.n_hidden_layers = n_hidden_layers
         self._model = None
-        self.rnn = None
+        self._rnn = None
+        self._last_state = None
+        self.negative_water_weight = negative_water_weight
         if optimizer is None:
             self.optimizer = hvd.DistributedOptimizer(
-                tf.keras.optimizers.Adam(0.001 / hvd.size())
+                tf.keras.optimizers.Adam(0.002 * hvd.size(), amsgrad=True, clipnorm=1.0)
             )
         else:
             self.optimizer = hvd.DistributedOptimizer(optimizer)
@@ -156,6 +177,10 @@ class RecurrentGCMModel(RecurrentMPIModel):
             weights=weights,
             normalize_loss=normalize_loss,
         )
+
+    @property
+    def rnn(self):
+        return self.model.get_layer("rnn")
 
     def adapt(self, state):
         """prepare model dimensions and normalization according to an example state"""
@@ -191,24 +216,24 @@ class RecurrentGCMModel(RecurrentMPIModel):
     def get_model(self, n_features_in, n_features_out):
         n_input = n_features_in
         n_state = n_features_out
-        if self.rnn is None:
-            self.rnn = tf.keras.layers.RNN(
-                [
-                    GCMCell(
-                        units=self.units,
-                        n_output=n_state,
-                        n_hidden_layers=self.n_hidden_layers,
-                    )
-                ],
-                stateful=True,
-                batch_input_shape=[self.n_batch, 1, n_input],
-            )
+        rnn = tf.keras.layers.RNN(
+            [
+                GCMCell(
+                    units=self.units,
+                    n_output=n_state,
+                    n_hidden_layers=self.n_hidden_layers,
+                )
+            ],
+            stateful=True,
+            batch_input_shape=[self.n_batch, 1, n_input],
+            name="rnn",
+        )
         inputs = tf.keras.layers.Input(batch_shape=[self.n_batch, n_input])
         x = self.X_scaler.normalize_layer(inputs)
         x = tf.keras.layers.Reshape([1, n_input], input_shape=[n_input])(
             x
         )  # [timestep, channels]
-        x = self.rnn(x)
+        x = rnn(x)
         x = tf.keras.layers.Flatten()(x)
         outputs = self.y_scaler.denormalize_layer(x)
         # Horovod: Specify `experimental_run_tf_function=False` to ensure TensorFlow
@@ -239,10 +264,47 @@ class RecurrentGCMModel(RecurrentMPIModel):
             fv3gfs.util.to_dataset(minimal_target_state), self._SAMPLE_DIM_NAME
         )
         X_in = self.X_packer.to_array(ds)
+        y_model = self.y_packer.to_array(ds)
+        y_model_norm = self.y_scaler.normalize(y_model)
+        if self._last_state is not None:
+            # add dynamics and physics tendencies
+            base_model_diff = tf.constant(
+                y_model_norm - self._last_state, dtype=tf.float32
+            )
+            self.rnn.states[0].assign_add(base_model_diff)
+        self._last_state = y_model_norm
         y_target = self.y_packer.to_array(target_ds)
         self.model.fit(
             X_in, y_target, epochs=1, batch_size=X_in.shape[0], shuffle=False
         )
+        coarse_loss = self.comm.reduce(
+            self.loss(y_target, y_model) / self.comm.Get_size(), MPI.SUM
+        )
+        if self.comm.Get_rank() == 0:
+            print(f"coarse model loss: {coarse_loss}")
+
+    @property
+    def loss(self):
+        def custom_loss(y_true, y_pred):
+            # we can assume temperature will never be even close to zero
+            # TODO this assumes temperature + humidity are the prognostic outputs,
+            # better would be to get the specific indices corresponding to humidity
+            negative_water = tf.math.multiply(
+                tf.constant(self.negative_water_weight, dtype=tf.float32),
+                tf.math.reduce_mean(
+                    tf.where(
+                        y_pred < tf.constant(0.0, dtype=tf.float32),
+                        tf.math.multiply(tf.constant(-1.0, dtype=tf.float32), y_pred),
+                        tf.constant(0.0, dtype=tf.float32),
+                    )
+                ),
+            )
+            base_loss = tf.cast(
+                super(RecurrentGCMModel, self).loss(y_true, y_pred), tf.float32
+            )
+            return tf.math.add(negative_water, base_loss)
+
+        return custom_loss
 
     def get_state(self) -> dict:
         y = self.y_scaler.denormalize(self.rnn.states[0].numpy()).astype(np.float64)
@@ -251,17 +313,35 @@ class RecurrentGCMModel(RecurrentMPIModel):
             name: fv3gfs.util.Quantity.from_data_array(value)
             for name, value in ds.data_vars.items()
         }
+        for quantity in state.values():  # remove non-negative humidity/temperature
+            quantity.data[quantity.data < 0.0] = 0.0
         return state
 
     def set_state(self, state):
         """Updates the internal RNN state to a target atmospheric state."""
+        self._last_state = None
         minimal_state = {name: state[name] for name in self.output_variables}
         ds = _stack_samples(
             fv3gfs.util.to_dataset(minimal_state), self._SAMPLE_DIM_NAME
         )
         y = self.y_scaler.normalize(self.y_packer.to_array(ds))
-        state_diff = tf.constant(y - self.rnn.states[0].numpy(), dtype=tf.float32)
-        self.rnn.states[0].assign_add(state_diff)
+        self.rnn.reset_states(states=[tf.constant(y, dtype=tf.float32)])
+        # state_diff = tf.constant(y - self.rnn.states[0].numpy(), dtype=tf.float32)
+        # self.rnn.states[0].assign_add(state_diff)
+
+
+def nudge_to_reference(state, reference, timescales, timestep):
+    tendencies = fv3gfs.util.apply_nudging(state, reference, timescales, timestep)
+    tendencies = append_key_label(tendencies, "_tendency_due_to_nudging")
+    tendencies["time"] = state["time"]
+    return tendencies
+
+
+def append_key_label(d, suffix):
+    return_dict = {}
+    for key, value in d.items():
+        return_dict[key + suffix] = value
+    return return_dict
 
 
 def _stack_samples(ds: xr.Dataset, sample_dim_name: str) -> xr.Dataset:
@@ -296,29 +376,76 @@ def get_reference_state(time, reference_dir, communicator, only_names):
     return state
 
 
+fv3fit.keras._models.models.PackedKerasModel.custom_objects["GCMCell"] = GCMCell
+
+
+def bcast_from_root(func):
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        if MPI.COMM_WORLD.Get_rank() == 0:
+            result = func(*args, **kwargs)
+        else:
+            result = None
+        return MPI.COMM_WORLD.bcast(result)
+
+    return wrapped
+
+
+def get_timescales_from_config(config):
+    return_dict = {}
+    for name, hours in config["nudging"]["timescale_hours"].items():
+        return_dict[name] = timedelta(seconds=int(hours * 60 * 60))
+    return return_dict
+
+
+@bcast_from_root
+def load_config(filename):
+    with open("fv3config.yml", "r") as config_file:
+        config = yaml.safe_load(config_file)
+    return config
+
+
+def get_timestep(config):
+    return timedelta(seconds=config["namelist"]["coupler_nml"]["dt_atmos"])
+
+
 if __name__ == "__main__":
+    rank = MPI.COMM_WORLD.Get_rank()
+    logging.basicConfig(level=logging.INFO)
+    config = load_config("fv3config.yml")
+    reference_dir = config["nudging"]["restarts_path"]
+    partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(config["namelist"])
+    communicator = fv3gfs.util.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
+    nudging_timescales = get_timescales_from_config(config)
+    nudging_variables = list(nudging_timescales.keys())
+    timestep = get_timestep(config)
     reference_dir = (
         "gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs"
         "/restarts/C48"
     )
-    namelist = f90nml.read("input.nml")
-    partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(namelist)
-    communicator = fv3gfs.util.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
+    nudge = functools.partial(
+        nudge_to_reference, timescales=nudging_timescales, timestep=timestep,
+    )
     input_variables = [
         "surface_geopotential",
         "surface_pressure",
         "mean_cos_zenith_angle",
         "land_sea_mask",
+        "latent_heat_flux",
+        "sensible_heat_flux",
+        "vertical_wind",
     ]
     prognostic_variables = [
         "air_temperature",
         "specific_humidity",
     ]
-    all_variables = input_variables + prognostic_variables
+    all_variables = list(
+        set(input_variables + prognostic_variables + nudging_variables)
+    )
     hvd.init(comm=MPI.COMM_WORLD)
     assert hvd.mpi_threads_supported()
     fv3gfs.wrapper.initialize()
-    initial_state = fv3gfs.wrapper.get_state(all_variables)
+    initial_state = fv3gfs.wrapper.get_state(["time"] + all_variables)
     if os.path.exists(MODEL_OUTPUT_PATH):
         model = RecurrentGCMModel.load(MODEL_OUTPUT_PATH)
     else:
@@ -330,17 +457,34 @@ if __name__ == "__main__":
         )
         model.adapt(initial_state)
     model.set_state(initial_state)
+    start_time = initial_state["time"]
     for i in range(fv3gfs.wrapper.get_step_count()):
         fv3gfs.wrapper.step_dynamics()
         fv3gfs.wrapper.step_physics()
         fv3gfs.wrapper.save_intermediate_restart_if_enabled()
         state = fv3gfs.wrapper.get_state(["time"] + all_variables)
+        if rank == 0:
+            time_elapsed = state["time"] - start_time
+            print(f"time elapsed: {time_elapsed}")
         reference = get_reference_state(
-            state["time"], reference_dir, communicator, only_names=prognostic_variables
+            state["time"],
+            reference_dir,
+            communicator,
+            only_names=list(set(prognostic_variables + nudging_variables)),
         )
-        model.set_state(state)
+        if i % (4 * 24 * 5) == 0:  # every 5 days
+            if rank == 0:
+                print("resetting ML model state")
+            model.set_state(state)
         model.fit_state(state, reference)
-        # fv3gfs.wrapper.set_state(model.get_state())
+        # apply nudging
+        # if i > 24:  # 6 hours
+        #     if rank == 0:
+        #         print('copying ML model state to Fortran')
+        #     state.update(model.get_state())
+        nudge(state, reference)
+        updated_state_members = {key: state[key] for key in nudging_variables}
+        fv3gfs.wrapper.set_state(updated_state_members)
     if MPI.COMM_WORLD.Get_rank() == 0:
         model.dump(MODEL_OUTPUT_PATH)
     hvd.shutdown()
