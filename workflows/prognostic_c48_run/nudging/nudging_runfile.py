@@ -113,7 +113,7 @@ def append_key_label(d, suffix):
     return return_dict
 
 
-def _sst_from_reference(
+def sst_from_reference(
     reference_surface_temperature: fv3gfs.util.Quantity,
     surface_temperature: fv3gfs.util.Quantity,
     land_sea_mask: fv3gfs.util.Quantity,
@@ -126,10 +126,10 @@ def _sst_from_reference(
 
 
 def set_state_sst_to_reference(state, reference):
-    state[SST_NAME].view[:] = _sst_from_reference(
+    state[SST_NAME].view[:] = sst_from_reference(
         reference[TSFC_NAME], state[SST_NAME], state["land_sea_mask"]
     )
-    state[TSFC_NAME].view[:] = _sst_from_reference(
+    state[TSFC_NAME].view[:] = sst_from_reference(
         reference[TSFC_NAME], state[TSFC_NAME], state["land_sea_mask"]
     )
     wrapper.set_state({SST_NAME: state[SST_NAME], TSFC_NAME: state[TSFC_NAME]})
