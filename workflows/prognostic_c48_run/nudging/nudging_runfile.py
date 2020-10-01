@@ -113,7 +113,7 @@ def append_key_label(d, suffix):
     return return_dict
 
 
-def sst_from_reference(
+def _sst_from_reference(
     reference_surface_temperature: fv3gfs.util.Quantity,
     surface_temperature: fv3gfs.util.Quantity,
     land_sea_mask: fv3gfs.util.Quantity,
@@ -123,6 +123,16 @@ def sst_from_reference(
         reference_surface_temperature.data_array,
         surface_temperature.data_array,
     ).values
+
+
+def set_state_sst_to_reference(state, reference):
+    state[SST_NAME].view[:] = _sst_from_reference(
+        reference[TSFC_NAME], state[SST_NAME], state["land_sea_mask"]
+    )
+    state[TSFC_NAME].view[:] = _sst_from_reference(
+        reference[TSFC_NAME], state[TSFC_NAME], state["land_sea_mask"]
+    )
+    wrapper.set_state({SST_NAME: state[SST_NAME], TSFC_NAME: state[TSFC_NAME]})
 
 
 def column_integrated_moistening(
@@ -302,13 +312,8 @@ if __name__ == "__main__":
         reference = get_reference_state(
             store_time, reference_dir, communicator, only_names=store_names
         )
-        state[SST_NAME].view[:] = sst_from_reference(
-            reference[TSFC_NAME], state[SST_NAME], state["land_sea_mask"]
-        )
-        state[TSFC_NAME].view[:] = sst_from_reference(
-            reference[TSFC_NAME], state[TSFC_NAME], state["land_sea_mask"]
-        )
-        wrapper.set_state({SST_NAME: state[SST_NAME], TSFC_NAME: state[TSFC_NAME]})
+
+        set_state_sst_to_reference(state, reference)
 
         monitor.store(store_time, state, stage="before_dynamics")
         wrapper.step_dynamics()
