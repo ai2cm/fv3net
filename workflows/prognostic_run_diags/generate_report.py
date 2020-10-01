@@ -263,16 +263,6 @@ def global_avg_physics_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
 
 
 @diag_plot_manager.register
-def global_avg_bias_dycore_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot_with_region_bar(time_series, varfilter="mean_bias_dycore")
-
-
-@diag_plot_manager.register
-def global_avg_bias_physics_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot_with_region_bar(time_series, varfilter="mean_bias_physics")
-
-
-@diag_plot_manager.register
 def diurnal_cycle_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
     return time_series_plot_with_region_bar(time_series, varfilter="diurnal")
 
