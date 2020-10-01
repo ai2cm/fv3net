@@ -198,7 +198,8 @@ def mask_area(
     else:
         raise ValueError(f"Masking procedure for region '{region}' is not defined.")
 
-    return prognostic, verification, grid.update({"area": masked_area})
+    grid_copy = grid.copy()
+    return prognostic, verification, grid_copy.update({"area": masked_area})
 
 
 @add_to_input_transform_fns
