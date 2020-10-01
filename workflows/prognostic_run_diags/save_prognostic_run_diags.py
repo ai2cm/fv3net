@@ -183,17 +183,20 @@ def rms_errors(resampled, verification_c48, grid):
     return rms_errors
 
 
-@add_to_diags("dycore")
-@diag_finalizer("spatial_mean_dycore_global")
-@transform.apply("resample_time", "3H")
-@transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
-def global_averages_dycore(resampled, verification, grid):
-    logger.info("Preparing global averages for dycore variables")
-    area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
-        HORIZONTAL_DIMS
-    )
+for mask_type in ["global", "tropics"]:
 
-    return area_averages
+    @add_to_diags("dycore")
+    @diag_finalizer(f"spatial_mean_dycore_{mask_type}")
+    @transform.apply("mask_area", mask_type)
+    @transform.apply("resample_time", "3H")
+    @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
+    def global_averages_dycore(resampled, verification, grid):
+        logger.info("Preparing global averages for dycore variables")
+        area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
+            HORIZONTAL_DIMS
+        )
+
+        return area_averages
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -226,14 +229,16 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         return bias_errors
 
 
-@add_to_diags("dycore")
-@diag_finalizer("mean_bias_dycore_global")
-@transform.apply("resample_time", "3H")
-def global_biases_dycore(resampled, verification, grid):
-    logger.info("Preparing global average biases for dynamics variables")
-    bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
+for mask_type in ["global", "tropics"]:
 
-    return bias_errors
+    @add_to_diags("dycore")
+    @diag_finalizer(f"mean_bias_dycore_{mask_type}")
+    @transform.apply("resample_time", "3H")
+    def global_biases_dycore(resampled, verification, grid):
+        logger.info("Preparing global average biases for dynamics variables")
+        bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
+
+        return bias_errors
 
 
 @add_to_diags("physics")

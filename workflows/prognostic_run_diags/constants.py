@@ -68,6 +68,9 @@ GLOBAL_BIAS_PHYSICS_VARS = [
     "ULWRFtoa",
     "ULWRFsfc",
     "DLWRFsfc",
+    "TMP2m",
+    "TMPsfc",
+    "UGRD10m",
     "MAXWIND10m",
 ]
 
