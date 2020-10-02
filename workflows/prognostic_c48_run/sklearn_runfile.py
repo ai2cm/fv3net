@@ -208,8 +208,19 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
 
-        self._log_debug("Computing RF updated variables")
-        tendency = predict(self._model, state)
+        import fv3gfs.wrapper
+
+        # self._log_debug("Computing RF updated variables")
+        # tendency = predict(self._model, state)
+        self._log_debug("Getting physics tendencies from physics diags")
+        tendency = dict(
+            dQ1=fv3gfs.wrapper.get_diagnostic_by_name(
+                "tendency_of_air_temperature_due_to_deep_convection"
+            ).data_array,
+            dQ2=fv3gfs.wrapper.get_diagnostic_by_name(
+                "tendency_of_specific_humidity_due_to_deep_convection"
+            ).data_array,
+        )
 
         if self._do_only_diagnostic_ml:
             updated_state: State = {}
