@@ -190,8 +190,8 @@ for mask_type in ["global", "tropics"]:
     @transform.apply("mask_area", mask_type)
     @transform.apply("resample_time", "3H")
     @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
-    def global_averages_dycore(resampled, verification, grid):
-        logger.info("Preparing global averages for dycore variables")
+    def global_averages_dycore(resampled, verification, grid, mask_type=mask_type):
+        logger.info(f"Preparing averages for dycore variables ({mask_type})")
         area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
             HORIZONTAL_DIMS
         )
@@ -206,8 +206,8 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply("mask_area", mask_type)
     @transform.apply("resample_time", "3H")
     @transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
-    def global_averages_physics(resampled, verification, grid):
-        logger.info("Preparing global averages for physics variables")
+    def global_averages_physics(resampled, verification, grid, mask_type=mask_type):
+        logger.info(f"Preparing averages for physics variables ({mask_type})")
         area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
             HORIZONTAL_DIMS
         )
@@ -222,8 +222,8 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply("mask_area", mask_type)
     @transform.apply("resample_time", "3H")
     @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
-    def global_biases_physics(resampled, verification, grid):
-        logger.info("Preparing global average biases for physics variables")
+    def global_biases_physics(resampled, verification, grid, mask_type=mask_type):
+        logger.info(f"Preparing average biases for physics variables ({mask_type})")
         bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
 
         return bias_errors
@@ -233,9 +233,10 @@ for mask_type in ["global", "tropics"]:
 
     @add_to_diags("dycore")
     @diag_finalizer(f"mean_bias_dycore_{mask_type}")
+    @transform.apply("mask_area", mask_type)
     @transform.apply("resample_time", "3H")
-    def global_biases_dycore(resampled, verification, grid):
-        logger.info("Preparing global average biases for dynamics variables")
+    def global_biases_dycore(resampled, verification, grid, mask_type=mask_type):
+        logger.info(f"Preparing average biases for dycore variables ({mask_type})")
         bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
 
         return bias_errors

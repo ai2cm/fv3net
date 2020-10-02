@@ -331,14 +331,11 @@ def main():
     # load metrics
     nested_metrics = load_metrics(bucket, rundirs)
     metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
-    if metric_table.empty:
-        metrics = None
-    else:
-        metrics = pd.merge(run_table, metric_table, on="run")
 
     # generate all plots
     sections = {"Diagnostics": list(diag_plot_manager.make_plots(diagnostics))}
-    if metrics is not None:
+    if not metric_table.empty:
+        metrics = pd.merge(run_table, metric_table, on="run")
         sections["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
 
     # get metadata

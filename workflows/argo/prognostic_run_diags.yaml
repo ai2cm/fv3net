@@ -127,10 +127,8 @@ spec:
       command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - |
-        rundir={{inputs.parameters.run}}
-        hash=$(echo $rundir | md5sum | awk '{print $1}')
-        python generate_movie_stills.py $rundir /tmp/movie_stills/$hash
-        bash stitch_movie_stills.sh /tmp/movie_stills/$hash {{inputs.parameters.output}}
+        python generate_movie_stills.py {{inputs.parameters.run}} /tmp/movie_stills
+        bash stitch_movie_stills.sh /tmp/movie_stills {{inputs.parameters.output}}
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
