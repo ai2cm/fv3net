@@ -1,9 +1,13 @@
+import collections
+import logging
 from typing import Any, Sequence, Container, Mapping, List, Union
 import datetime
 import cftime
 import fv3gfs.util
 
 import xarray as xr
+
+logger = logging.getLogger(__name__)
 
 
 class All(Container):
@@ -185,11 +189,16 @@ def get_diagnostic_files(
     """
     diag_configs = config.get("diagnostics", {})
     if len(diag_configs) > 0:
-        return [
-            _config_to_diagnostic_file(
-                name, diag_config, partitioner, comm, initial_time
+        if isinstance(diag_configs, collections.Sequence):
+            diag_configs = {config.pop("name"): config for config in diag_configs}
+            logger.warning(
+                "Deprecation warning: the diagnostics item in fv3config should be "
+                "provided as a mapping with keys equal the output name, not as a "
+                "sequence.""
             )
-            for name, diag_config in diag_configs.items()
+        return [
+            _config_to_diagnostic_file(name, config, partitioner, comm, initial_time)
+            for name, config in diag_configs.items()
         ]
     else:
         # Keep old behavior for backwards compatiblity
