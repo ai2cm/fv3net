@@ -154,7 +154,14 @@ def prepare_config(args):
     ]
 
     if args.nudge_to_observations:
-        overlays.append(fv3kube.enable_nudge_to_observations(duration, current_date))
+        overlays.append(
+            fv3kube.enable_nudge_to_observations(
+                duration,
+                current_date,
+                nudge_url="/mnt/input/gfs-analysis-T85",
+                copy_method="link",
+            )
+        )
 
     config = merge_fv3config_overlays(*overlays)
     print(yaml.dump(config))
