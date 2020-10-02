@@ -233,7 +233,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             diagnostics = {}
             diagnostics.update(self._step_dynamics())
             diagnostics.update(self._step_physics())
-            diagnostics.update(self._step_python())
+            # diagnostics.update(self._step_python())
             yield self._state.time, diagnostics
         self._fv3gfs.cleanup()
 
