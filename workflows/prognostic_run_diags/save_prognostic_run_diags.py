@@ -175,7 +175,7 @@ def dump_nc(ds: xr.Dataset, f):
 
 @add_to_diags("dycore")
 @diag_finalizer("rms_global")
-@transform.apply("resample_time", "3H")
+@transform.apply("resample_time", "3H", inner_join=True)
 def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
@@ -220,7 +220,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @add_to_diags("physics")
     @diag_finalizer(f"mean_bias_physics_{mask_type}")
     @transform.apply("mask_area", mask_type)
-    @transform.apply("resample_time", "3H")
+    @transform.apply("resample_time", "3H", inner_join=True)
     @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
     def global_biases_physics(resampled, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing average biases for physics variables ({mask_type})")
@@ -234,7 +234,7 @@ for mask_type in ["global", "tropics"]:
     @add_to_diags("dycore")
     @diag_finalizer(f"mean_bias_dycore_{mask_type}")
     @transform.apply("mask_area", mask_type)
-    @transform.apply("resample_time", "3H")
+    @transform.apply("resample_time", "3H", inner_join=True)
     def global_biases_dycore(resampled, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing average biases for dycore variables ({mask_type})")
         bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
@@ -244,7 +244,7 @@ for mask_type in ["global", "tropics"]:
 
 @add_to_diags("physics")
 @diag_finalizer("time_mean_value")
-@transform.apply("resample_time", "1H", time_slice=slice(24, -1))
+@transform.apply("resample_time", "1H", time_slice=slice(24, -1), inner_join=True)
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_mean(prognostic, verification, grid):
     logger.info("Preparing time means for physics variables")
@@ -253,7 +253,7 @@ def time_mean(prognostic, verification, grid):
 
 @add_to_diags("physics")
 @diag_finalizer("time_mean_bias")
-@transform.apply("resample_time", "1H", time_slice=slice(24, -1))
+@transform.apply("resample_time", "1H", time_slice=slice(24, -1), inner_join=True)
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_mean_bias(prognostic, verification, grid):
     logger.info("Preparing time mean biases for physics variables")
@@ -265,7 +265,7 @@ for mask_type in ["global", "land", "sea"]:
     @add_to_diags("physics")
     @diag_finalizer(f"diurnal_{mask_type}")
     @transform.apply("mask_to_sfc_type", mask_type)
-    @transform.apply("resample_time", "1H", time_slice=slice(24, -1))
+    @transform.apply("resample_time", "1H", time_slice=slice(24, -1), inner_join=True)
     @transform.apply("subset_variables", DIURNAL_CYCLE_VARS)
     def _diurnal_func(resampled, verification, grid, mask_type=mask_type) -> xr.Dataset:
         # mask_type is added as a kwarg solely to give the logging access to the info
