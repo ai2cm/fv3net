@@ -70,12 +70,14 @@ def test_compute_training_diags(
         training_data_diags_config, "nudging_tendencies"
     )
     nudging_config["mapping_kwargs"]["shield_diags_url"] = C48_SHiELD_diags_dataset_path
+    nudging_config["data_path"] = nudging_dataset_path
     fine_res_config = get_data_source_training_diags_config(
         training_data_diags_config, "fine_res_apparent_sources"
     )
     fine_res_config["mapping_kwargs"][
         "shield_diags_url"
     ] = C48_SHiELD_diags_dataset_path
+    fine_res_config["data_path"] = fine_res_dataset_path
 
     data_config_mapping = {
         "nudging_tendencies": (nudging_dataset_path, nudging_config),
@@ -138,7 +140,7 @@ def _nudging_train_config(datadir_module):
         os.path.join(str(datadir_module), "train_sklearn_model_nudged_source.yml"), "r"
     ) as f:
         config = yaml.safe_load(f)
-    return shared.ModelTrainingConfig(**config)
+    return shared.ModelTrainingConfig("nudging_data_path", **config)
 
 
 @pytest.fixture
@@ -151,8 +153,7 @@ def _fine_res_train_config(datadir_module):
         os.path.join(str(datadir_module), "train_sklearn_model_fineres_source.yml"), "r"
     ) as f:
         config = yaml.safe_load(f)
-    print(shared.ModelTrainingConfig(**config))
-    return shared.ModelTrainingConfig(**config)
+    return shared.ModelTrainingConfig("fine_res_data_path", **config)
 
 
 @pytest.fixture
