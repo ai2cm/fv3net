@@ -1,29 +1,19 @@
 import yaml
 import dataclasses
+import os
 from typing import Iterable, Optional, Mapping
+import vcm
 
 
 DELP = "pressure_thickness_of_atmospheric_layer"
-
-
-
-def save_config_output(
-        output_url: str,
-        config: shared.ModelTrainingConfig,
-):
-    fs = vcm.cloud.fsspec.get_fs(output_url)
-    fs.makedirs(output_url, exist_ok=True)
-    config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
-
-    with fs.open(config_url, "w") as f:
-        config.dump(f)
-
+MODEL_CONFIG_FILENAME = "training_config.yml"
 
 
 @dataclasses.dataclass
 class ModelTrainingConfig:
     """Convenience wrapper for model training parameters and file info
     """
+
     data_path: str
     model_type: str
     hyperparameters: dict
@@ -62,3 +52,14 @@ def load_model_training_config(config_path: str, data_path: str) -> ModelTrainin
         except yaml.YAMLError as exc:
             raise ValueError(f"Bad yaml config: {exc}")
     return ModelTrainingConfig({**config_dict, "data_path": data_path})
+
+
+def save_config_output(
+    output_url: str, config: ModelTrainingConfig,
+):
+    fs = vcm.cloud.fsspec.get_fs(output_url)
+    fs.makedirs(output_url, exist_ok=True)
+    config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
+
+    with fs.open(config_url, "w") as f:
+        config.dump(f)

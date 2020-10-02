@@ -64,7 +64,9 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     data_path = shared.parse_data_path(args)
-    train_config = shared.load_model_training_config(args.train_config_file, args.train_data_path)
+    train_config = shared.load_model_training_config(
+        args.train_config_file, args.train_data_path
+    )
 
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:

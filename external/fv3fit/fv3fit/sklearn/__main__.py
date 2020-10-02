@@ -2,13 +2,11 @@ import argparse
 import os
 import yaml
 import logging
-import vcm
 from . import _train as train
 from .. import _shared as shared
 
 
 MODEL_FILENAME = "sklearn.yaml"
-MODEL_CONFIG_FILENAME = "training_config.yml"
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
 
 
@@ -45,7 +43,9 @@ if __name__ == "__main__":
     args = parse_args()
 
     data_path = shared.parse_data_path(args)
-    train_config = shared.load_model_training_config(args.train_config_file, args.train_data_path)
+    train_config = shared.load_model_training_config(
+        args.train_config_file, args.train_data_path
+    )
 
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
