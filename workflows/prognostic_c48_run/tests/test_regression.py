@@ -268,7 +268,7 @@ namelist:
     isubc_lw: 2
     isubc_sw: 2
     ivegsrc: 1
-    ldiag3d: false
+    ldiag3d: true
     lwhtr: true
     ncld: 5
     nst_anl: true
