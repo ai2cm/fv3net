@@ -153,15 +153,13 @@ def _get_times(
 
 
 def _config_to_diagnostic_file(
-    diag_file_config: Mapping, partitioner, comm, initial_time: cftime.DatetimeJulian,
+    name: str, config: Mapping, partitioner, comm, initial_time: cftime.DatetimeJulian,
 ) -> DiagnosticFile:
-    monitor = fv3gfs.util.ZarrMonitor(
-        diag_file_config["name"], partitioner, mpi_comm=comm
-    )
+    monitor = fv3gfs.util.ZarrMonitor(name, partitioner, mpi_comm=comm)
     return DiagnosticFile(
         monitor=monitor,
-        variables=diag_file_config.get("variables", All()),
-        times=_get_times(diag_file_config.get("times", {}), initial_time),
+        variables=config.get("variables", All()),
+        times=_get_times(config.get("times", {}), initial_time),
     )
 
 
@@ -185,16 +183,20 @@ def get_diagnostic_files(
         initial_time: the initial time of the simulation.
 
     """
-    diag_configs = config.get("diagnostics", [])
+    diag_configs = config.get("diagnostics", {})
     if len(diag_configs) > 0:
         return [
-            _config_to_diagnostic_file(config, partitioner, comm, initial_time)
-            for config in diag_configs
+            _config_to_diagnostic_file(
+                name, diag_config, partitioner, comm, initial_time
+            )
+            for name, diag_config in diag_configs.items()
         ]
     else:
         # Keep old behavior for backwards compatiblity
         output_name = config["scikit_learn"]["zarr_output"]
-        default_config = {"name": output_name, "times": {}, "variables": All()}
+        default_config = {"times": {}, "variables": All()}
         return [
-            _config_to_diagnostic_file(default_config, partitioner, comm, initial_time)
+            _config_to_diagnostic_file(
+                output_name, default_config, partitioner, comm, initial_time
+            )
         ]

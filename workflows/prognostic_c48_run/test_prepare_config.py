@@ -42,13 +42,6 @@ def test_prepare_config_regression(regtest):
             [{"patch_files": ["one"]}, {"patch_files": ["two"]}],
             {"patch_files": ["one", "two"]},
         ],
-        [
-            [
-                {"diagnostics": ["temp"]},
-                {"patch_files": ["one"], "diagnostics": ["sphum"]},
-            ],
-            {"patch_files": ["one"], "diagnostics": ["temp", "sphum"]},
-        ],
     ),
 )
 def test_merge_fv3config_overlays(mappings, expected):

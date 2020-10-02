@@ -25,7 +25,7 @@ def _merge_once(source, update):
         Recursively updated mapping.
     """
     for key in update:
-        if key in ["patch_files", "diagnostics"]:
+        if key == "patch_files":
             source.setdefault(key, []).extend(update[key])
         elif (
             key in source
@@ -109,9 +109,8 @@ def keras_overlay(model_url, keras_dirname="model_data"):
 
 def diagnostics_overlay(diagnostic_ml):
     return {
-        "diagnostics": [
-            {
-                "name": "diags.zarr",
+        "diagnostics": {
+            "diags.zarr": {
                 "variables": [
                     "net_moistening",
                     "net_moistening_diagnostic",
@@ -122,7 +121,7 @@ def diagnostics_overlay(diagnostic_ml):
                 ],
                 "times": {"kind": "interval", "frequency": 900},
             }
-        ],
+        },
         "diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic",
         "scikit_learn": {"diagnostic_ml": diagnostic_ml},
     }
