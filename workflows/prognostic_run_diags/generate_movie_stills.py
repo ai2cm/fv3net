@@ -100,7 +100,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("url", help="Path to rundir")
     parser.add_argument("output", help="Output location for movie stills")
-    parser.add_argument("--n_jobs", default=8, type=int)
+    parser.add_argument("--n_jobs", default=8, type=int, help="Number of workers.")
+    parser.add_argument(
+        "--n_timesteps",
+        default=None,
+        type=int,
+        help="Number of timesteps for which stills are generated.",
+    )
     parser.add_argument("--catalog", default=CATALOG)
     args = parser.parse_args()
 
@@ -116,6 +122,8 @@ if __name__ == "__main__":
         .drop_dims(INTERFACE_DIMS, errors="ignore")
         .merge(grid)
     )
+    if args.n_timesteps:
+        prognostic = prognostic.isel(time=slice(None, args.n_timesteps))
     logger.info("Forcing computation")
     prognostic = prognostic[KEEP_VARS].load()  # force load
     T = prognostic.sizes["time"]
