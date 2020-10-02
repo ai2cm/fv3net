@@ -78,7 +78,7 @@ spec:
           - name: output
             value: "{{workflow.parameters.output}}"
           - name: image-tag
-            value: latest
+            value: 10e9832e55119eec6a3d97dda542e45373d67683
           - name: initial-condition
             value: "20160801.001500"
           # dummy value not actually used
