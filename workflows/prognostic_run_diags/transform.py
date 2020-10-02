@@ -83,7 +83,9 @@ def apply(transform_key: str, *transform_args_partial, **transform_kwargs):
 
 
 @add_to_input_transform_fns
-def resample_time(freq_label: str, arg: DiagArg, time_slice=slice(None, -1)) -> DiagArg:
+def resample_time(
+    freq_label: str, arg: DiagArg, time_slice=slice(None, -1), inner_join: bool = False
+) -> DiagArg:
     """
     Subset times in prognostic and verification data
 
@@ -93,11 +95,13 @@ def resample_time(freq_label: str, arg: DiagArg, time_slice=slice(None, -1)) -> 
             resampling function)
         time_slice: Index slice to reduce times after frequency resampling.  Omits final
             time by default to work with crashed simulations.
+        inner_join: Subset times to the intersection of prognostic and verification
+            data. Defaults to False.
     """
     prognostic, verification, grid = arg
     prognostic = prognostic.resample(time=freq_label, label="right").nearest()
     prognostic = prognostic.isel(time=time_slice)
-    if "time" in verification:  # verification might be an empty dataset
+    if inner_join:
         prognostic, verification = _inner_join_time(prognostic, verification)
     return prognostic, verification, grid
 
@@ -190,10 +194,14 @@ def mask_area(
     elif region == "global":
         masked_area = grid.area
     elif region in ("land", "sea", "seaice"):
-        if land_sea_mask_name not in prognostic:
-            raise KeyError("Missing land-sea mask in prognostic run diagnostic data")
+        if land_sea_mask_name in prognostic:
+            land_sea_mask = prognostic[land_sea_mask_name].astype(int)
+        elif land_sea_mask_name in verification:
+            land_sea_mask = verification[land_sea_mask_name].astype(int)
+        else:
+            raise KeyError("No land-sea mask in prognostic or verification data")
+
         surface_type_codes = {"sea": 0, "land": 1, "seaice": 2}
-        land_sea_mask = prognostic[land_sea_mask_name].astype(int)
         masked_area = grid.area.where(land_sea_mask == surface_type_codes[region])
     else:
         raise ValueError(f"Masking procedure for region '{region}' is not defined.")
