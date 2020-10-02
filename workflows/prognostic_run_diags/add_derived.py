@@ -24,6 +24,7 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _column_dq2,
         _column_q1,
         _column_q2,
+        _total_precip,
     ]:
         try:
             arrays.append(func(ds))
@@ -64,7 +65,11 @@ def _column_pq2(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
-    column_dq1 = ds.net_heating
+    if "net_heating" in ds:
+        column_dq1 = ds.net_heating
+    else:
+        # assume given dataset is for a baseline or verification run
+        column_dq1 = xr.zeros_like(ds.PRATEsfc)
     column_dq1.attrs = {
         "long_name": "<dQ1> column integrated heating from ML",
         "units": "W/m^2",
@@ -73,7 +78,11 @@ def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_dq2(ds: xr.Dataset) -> xr.DataArray:
-    column_dq2 = SECONDS_PER_DAY * ds.net_moistening
+    if "net_moistening" in ds:
+        column_dq2 = SECONDS_PER_DAY * ds.net_moistening
+    else:
+        # assume given dataset is for a baseline or verification run
+        column_dq2 = xr.zeros_like(ds.PRATEsfc)
     column_dq2.attrs = {
         "long_name": "<dQ2> column integrated moistening from ML",
         "units": "mm/day",
@@ -97,3 +106,12 @@ def _column_q2(ds: xr.Dataset) -> xr.DataArray:
         "units": "mm/day",
     }
     return column_q2.rename("column_integrated_Q2")
+
+
+def _total_precip(ds: xr.Dataset) -> xr.DataArray:
+    total_precip = ds.PRATEsfc * SECONDS_PER_DAY - _column_dq2(ds)
+    total_precip.attrs = {
+        "long_name": "P - <dQ2> total precipitation",
+        "units": "mm/day",
+    }
+    return total_precip.rename("total_precip")

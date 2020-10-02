@@ -88,6 +88,9 @@ test:
 test_prognostic_run:
 	docker run prognostic_run pytest
 
+test_prognostic_run_report:
+	bash workflows/prognostic_run_diags/test_integration.sh
+
 test_unit:
 	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
 
