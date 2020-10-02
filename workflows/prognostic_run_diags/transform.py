@@ -18,6 +18,8 @@ _TRANSFORM_FNS = {}
 
 logger = logging.getLogger(__name__)
 
+SURFACE_TYPE_CODES = {"sea": 0, "land": 1, "seaice": 2}
+
 
 def add_to_input_transform_fns(func):
 
@@ -182,32 +184,41 @@ def mask_area(
 
     Args:
         region: name of region to leave unmasked. Valid options are "global",
-            "land", "sea", "seaice" and "tropics"
+            "land", "sea", "seaice" and "tropics".
         arg: input arguments to transform prior to the diagnostic calculation
-        surface_type:  Type of grid locations to leave unmasked
         land_sea_mask_name: Name of the datasets variable holding land-sea mask
     """
     prognostic, verification, grid = arg
 
-    if region == "tropics":
-        masked_area = grid.area.where(abs(grid.lat) <= 10.0)
-    elif region == "global":
-        masked_area = grid.area
-    elif region in ("land", "sea", "seaice"):
+    if region in SURFACE_TYPE_CODES:
         if land_sea_mask_name in prognostic:
             land_sea_mask = prognostic[land_sea_mask_name].astype(int)
         elif land_sea_mask_name in verification:
             land_sea_mask = verification[land_sea_mask_name].astype(int)
         else:
             raise KeyError("No land-sea mask in prognostic or verification data")
-
-        surface_type_codes = {"sea": 0, "land": 1, "seaice": 2}
-        masked_area = grid.area.where(land_sea_mask == surface_type_codes[region])
     else:
-        raise ValueError(f"Masking procedure for region '{region}' is not defined.")
+        land_sea_mask = None
+
+    masked_area = _mask_array(region, grid.area, grid.lat, land_sea_mask)
 
     grid_copy = grid.copy()
     return prognostic, verification, grid_copy.update({"area": masked_area})
+
+
+def _mask_array(
+    region: str, arr: xr.DataArray, latitude: xr.DataArray, land_sea_mask: xr.DataArray,
+) -> xr.DataArray:
+    """Mask given DataArray to a specific region."""
+    if region == "tropics":
+        masked_arr = arr.where(abs(latitude) <= 10.0)
+    elif region == "global":
+        masked_arr = arr.copy()
+    elif region in SURFACE_TYPE_CODES:
+        masked_arr = arr.where(land_sea_mask == SURFACE_TYPE_CODES[region])
+    else:
+        raise ValueError(f"Masking procedure for region '{region}' is not defined.")
+    return masked_arr
 
 
 @add_to_input_transform_fns
