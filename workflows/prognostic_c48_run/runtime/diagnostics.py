@@ -194,7 +194,7 @@ def get_diagnostic_files(
             logger.warning(
                 "Deprecation warning: the diagnostics item in fv3config should be "
                 "provided as a mapping with keys equal the output name, not as a "
-                "sequence.""
+                "sequence."
             )
         return [
             _config_to_diagnostic_file(name, config, partitioner, comm, initial_time)
