@@ -70,6 +70,7 @@ def train_config(
     batch_kwargs: dict,
 ) -> ModelTrainingConfig:
     return ModelTrainingConfig(
+        data_path="train_data_path",
         model_type=model_type,
         hyperparameters=hyperparameters,
         input_variables=input_variables,
