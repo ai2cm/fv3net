@@ -78,14 +78,14 @@ spec:
           - name: output
             value: "{{workflow.parameters.output}}"
           - name: image-tag
-            value: 10e9832e55119eec6a3d97dda542e45373d67683
+            value: 5c5ba771627bb3fac27a275750e34302912d64ed
           - name: initial-condition
             value: "20160801.001500"
           # dummy value not actually used
           - name: trained-ml
             value: gs://vcm-ml-scratch/test-end-to-end-integration/integration-test-3564a8369bbf/trained_model
           - name: store-true-args
-            value: --diagnostic_ml
+            value: ""
           - name: chunks
             value: |
               physics_output.zarr:
@@ -97,7 +97,7 @@ spec:
               diags.zarr:
                 time: 24
           - name: segment-count
-            value: "4"
+            value: "1"
           # argo details
           - name: reference-restarts
             value: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
