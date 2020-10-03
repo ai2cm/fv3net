@@ -1,5 +1,5 @@
 [
   {"url": "gs://vcm-ml-experiments/noah/2020-09-25-physics-on-free-debug/prognostic_run", "name": "2020-09-25-physics-on-free-debug"}
   ,{"url": "gs://vcm-ml-experiments/noah/2020-09-29-physics-on-free-moreInputs/prognostic_run", "name": "2020-09-29-physics-on-free-moreInputs"}
-  ,{"url": "gs://vcm-ml-experiments/2020-07-14-nudge-to-obs/train-model-and-prog-run/long_baseline_run", "name": "physics-on-baseline"}
+  ,{"url": "gs://vcm-ml-archive/prognostic_runs/2020-10-02-getters-for-DeepConv/", "name": "2020-10-02-getters-for-DeepConv"}
 ]
