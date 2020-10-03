@@ -1,5 +1,6 @@
 import cftime
 import json
+import time
 import logging
 from typing import (
     Any,
@@ -17,6 +18,7 @@ import xarray as xr
 from mpi4py import MPI
 
 import fv3gfs.wrapper as wrapper
+wrapper.initialize()
 import fv3gfs.util
 import runtime
 
@@ -172,9 +174,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._log_info("Downloading ML Model")
         # self._model = open_model(args["scikit_learn"])
         self._log_info("Model Downloaded")
-        self._log_info("Initializaing FV3GFS")
-        self._fv3gfs.initialize()
-        self._comm.barrier()
+        #self._log_info("Initializaing FV3GFS")
+        #self._comm.barrier()
 
     @property
     def time(self) -> cftime.DatetimeJulian:
