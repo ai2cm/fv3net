@@ -170,11 +170,11 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
 
         # download the model
         self._log_info("Downloading ML Model")
-        self._model = open_model(args["scikit_learn"])
+        # self._model = open_model(args["scikit_learn"])
         self._log_info("Model Downloaded")
-        MPI.COMM_WORLD.barrier()  # wait for initialization to finish
-
+        self._log_info("Initializaing FV3GFS")
         self._fv3gfs.initialize()
+        self._comm.barrier()
 
     @property
     def time(self) -> cftime.DatetimeJulian:
@@ -293,37 +293,26 @@ def monitor(name: str, func):
     return step
 
 
-class MonitoredPhysicsTimeLoop(TimeLoop):
-    def __init__(self, tendency_variables: Sequence[str], *args, **kwargs):
-        """
+class Subclass(TimeLoop):
+    # I get NaN errors if this has a __init__
+    # It sucesfully runs if there is no __init__
+    def __init__(self):
+        TimeLoop.__init__(self)
 
-        Args:
-            tendency_variables: a list of variables to compute the physics
-                tendencies of.
-                
-        """
-        super().__init__(*args, **kwargs)
-        self._variables = list(tendency_variables)
+    def random_method(self):
+        pass
 
-    _step_physics = monitor("fv3_physics", TimeLoop._step_physics)
-    _step_python = monitor("python", TimeLoop._step_python)
 
 
 if __name__ == "__main__":
-    comm = MPI.COMM_WORLD
 
     config = runtime.get_config()
     partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(config["namelist"])
 
-    loop = MonitoredPhysicsTimeLoop(
-        tendency_variables=config.get("scikit_learn", {}).get(
-            "physics_tendency_vars", []
-        ),
-        comm=comm,
-    )
+    loop = Subclass()
 
     diag_files = runtime.get_diagnostic_files(
-        config, partitioner, comm, initial_time=loop.time
+        config, partitioner, loop._comm, initial_time=loop.time
     )
 
     for time, diagnostics in loop:
