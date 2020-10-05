@@ -83,8 +83,8 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
     logger.info("Calculating metrics mean and stddev over batches...")
     metrics = {
         var: {
-            "mean": str(np.mean(ds_metrics[var].values)),
-            "std": str(np.std(ds_metrics[var].values)),
+            "mean": float(np.mean(ds_metrics[var].values)),
+            "std": float(np.std(ds_metrics[var].values)),
         }
         for var in ds_metrics.data_vars
     }
