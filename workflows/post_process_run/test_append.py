@@ -87,8 +87,11 @@ def test__shift_array(tmpdir, shape, chunks, ax, shift, raises_value_error):
     [
         (False, (6, 6), (2, 2), False),
         (True, (6, 6), (2, 2), False),
-        (True, (10, 6), (2, 2), False),
+        (False, (6, 4), (2, 2), False),
+        (True, (6, 4), (2, 2), False),
+        (False, (6, 5), (2, 2), False),
         (True, (6, 5), (2, 2), False),
+        (True, (6, 3), (6, 3), False),
         (True, (5, 6), (2, 2), True),
         (True, (6, 6), (3, 2), True),
         (True, (6, 6), (4, 2), True),
@@ -113,21 +116,18 @@ def test_append_zarr_along_time(
         ]
         for i, ds in enumerate(datasets):
             ds_coord = full_coord[sum(lengths[:i]) : sum(lengths[: i + 1])]
-            ds = ds.assign_coords(time=ds_coord)
+            datasets[i] = ds.assign_coords(time=ds_coord)
 
-    # write datasets to zarr. 0th path represents non-existent zarr.
-    paths = [str(tmpdir.join(f"ds{i}.zarr")) for i in range(len(lengths) + 1)]
-    for i in range(len(lengths)):
-        datasets[i].to_zarr(paths[i + 1], consolidated=True)
+    paths = [str(tmpdir.join(f"ds{i}.zarr")) for i in range(len(datasets))]
+    for ds, path in zip(datasets, paths):
+        ds.to_zarr(path, consolidated=True)
 
     # append zarrs using append_zarr_along_time
     if raises_value_error:
         with pytest.raises(ValueError):
-            for i in range(1, len(lengths) + 1):
-                append.append_zarr_along_time(paths[i], paths[i - 1], fs)
+            append.append_zarr_along_time(paths[1], paths[0], fs)
     else:
-        for i in range(1, len(lengths) + 1):
-            append.append_zarr_along_time(paths[i], paths[i - 1], fs)
-        manually_appended_ds = xr.open_zarr(paths[1], consolidated=True)
+        append.append_zarr_along_time(paths[1], paths[0], fs)
         expected_ds = xr.concat(datasets, dim="time")
+        manually_appended_ds = xr.open_zarr(paths[0], consolidated=True)
         xr.testing.assert_identical(manually_appended_ds, expected_ds)
