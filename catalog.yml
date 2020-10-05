@@ -363,23 +363,23 @@ sources:
       consolidated: true
 
   2016_c48_nudged_fv3gfs_physics_output:
-    description: 2D physics diagnostics variables from 2016 nudged-to-obs FV3GFS simulation (Sept 23, 2020)
+    description: 2D physics diagnostics variables from 2016 nudged-to-obs FV3GFS simulation (Sept 30, 2020)
     driver: zarr
     args:
       storage_options:
         project: 'vcm-ml'
         access: read_only
-      urlpath: "gs://vcm-ml-scratch/oliwm/nudge-to-obs-year-fewer-outputs/physics_output.zarr"
+      urlpath: "gs://vcm-ml-experiments/2020-09-30-nudge-to-obs-year-long-training-run/physics_output.zarr"
       consolidated: True
 
   2016_c48_nudged_fv3gfs_dycore_output:
-    description: 2D dynamical core diagnostics variables from 2016 nudged-to-obs FV3GFS simulation (Sept 23, 2020)
+    description: 2D dynamical core diagnostics variables from 2016 nudged-to-obs FV3GFS simulation (Sept 30, 2020)
     driver: zarr
     args:
       storage_options:
         project: 'vcm-ml'
         access: read_only
-      urlpath: "gs://vcm-ml-scratch/oliwm/nudge-to-obs-year-fewer-outputs/atmos_output.zarr"
+      urlpath: "gs://vcm-ml-experiments/2020-09-30-nudge-to-obs-year-long-training-run/atmos_output.zarr"
       consolidated: True
     
 
