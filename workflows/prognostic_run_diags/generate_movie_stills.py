@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import fv3viz as viz
 import vcm
+import config
 import load_diagnostic_data as load_diags
 
 dask.config.set(sheduler="single-threaded")
@@ -114,8 +115,9 @@ if __name__ == "__main__":
         os.makedirs(args.output, exist_ok=True)
 
     catalog = intake.open_catalog(CATALOG)
+    verif = config.get_verification_entries("nudged_shield_40day")
 
-    prognostic, _, grid = load_diags.load_physics(args.url, catalog)
+    prognostic, _, grid = load_diags.load_physics(args.url, verif["physics"], catalog)
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead
     prognostic = (
         prognostic.drop_vars(GRID_VARS, errors="ignore")
