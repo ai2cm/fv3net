@@ -98,8 +98,8 @@ spec:
       command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - | 
-        python --verification {{inputs.parameters.verification}} \
-          save_prognostic_run_diags.py {{inputs.parameters.run}} diags.nc
+        python save_prognostic_run_diags.py --verification {{inputs.parameters.verification}} \
+          {{inputs.parameters.run}} diags.nc
         python metrics.py diags.nc > metrics.json
         gsutil cp diags.nc {{inputs.parameters.output}}/diags.nc
         gsutil cp metrics.json {{inputs.parameters.output}}/metrics.json
