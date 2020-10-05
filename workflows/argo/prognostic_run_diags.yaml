@@ -26,7 +26,7 @@ spec:
             - name: run
               value: "{{item.url}}"
             - name: output
-              value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}/"
+              value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}"
       - name: movie-step
         when: "{{workflow.parameters.make-movies}} == true"
         withParam: "{{workflow.parameters.runs}}"
@@ -38,7 +38,7 @@ spec:
             - name: run
               value: "{{item.url}}"
             - name: output
-              value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}/"
+              value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}"
       - name: generate-report
         template: report
         dependencies: [diagnostics-step, movie-step]
@@ -89,11 +89,13 @@ spec:
       effect: "NoSchedule"
     container:
       image: '{{inputs.parameters.image}}'
-      command: ["bash", "-x", "-e"]
+      command: ["/bin/bash", "-x", "-e", "-c"]
       args:
-      - entrypoint.sh
-      - '{{inputs.parameters.run}}'
-      - '{{inputs.parameters.output}}'
+      - | 
+        python save_prognostic_run_diags.py {{inputs.parameters.run}} diags.nc
+        python metrics.py diags.nc > metrics.json
+        gsutil cp diags.nc {{inputs.parameters.output}}/diags.nc
+        gsutil cp metrics.json {{inputs.parameters.output}}/metrics.json
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -105,10 +107,10 @@ spec:
         name: gcp-key-secret
       resources:
         requests:
-            memory: "9Gi"
+            memory: "12Gi"
             cpu: "1000m"
         limits:
-            memory: "9Gi"
+            memory: "12Gi"
             cpu: "1000m"
   - name: movie
     inputs:
@@ -122,11 +124,11 @@ spec:
       effect: "NoSchedule"
     container:
       image: '{{workflow.parameters.docker-image}}'
-      command: ["bash", "-x", "-e"]
+      command: ["/bin/bash", "-x", "-e", "-c"]
       args:
-      - entrypoint_movie.sh
-      - '{{inputs.parameters.run}}'
-      - '{{inputs.parameters.output}}'
+      - |
+        python generate_movie_stills.py {{inputs.parameters.run}} /tmp/movie_stills
+        bash stitch_movie_stills.sh /tmp/movie_stills {{inputs.parameters.output}}
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
