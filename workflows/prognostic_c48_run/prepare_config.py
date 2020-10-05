@@ -1,13 +1,51 @@
 import argparse
 import os
+from typing import Mapping
 import yaml
 import logging
 
 import fv3config
 import fv3kube
+
 import vcm
 
 logger = logging.getLogger(__name__)
+
+
+def _merge_once(source, update):
+    """Recursively update a mapping with new values.
+
+    Args:
+        source: Mapping to be updated.
+        update: Mapping whose key-value pairs will update those in source.
+            Key-value pairs will be inserted for keys in update that do not exist
+            in source.
+
+    Returns:
+        Recursively updated mapping.
+    """
+    for key in update:
+        if key in ["patch_files", "diagnostics"]:
+            source.setdefault(key, []).extend(update[key])
+        elif (
+            key in source
+            and isinstance(source[key], Mapping)
+            and isinstance(update[key], Mapping)
+        ):
+            _merge_once(source[key], update[key])
+        else:
+            source[key] = update[key]
+    return source
+
+
+def merge_fv3config_overlays(*mappings) -> Mapping:
+    """Recursive merge dictionaries updating from left to right.
+
+    For example, the rightmost mapping will override the proceeding ones. """
+    out, rest = mappings[0], mappings[1:]
+    for mapping in rest:
+        out = _merge_once(out, mapping)
+    return out
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -44,70 +82,50 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def insert_ml_settings(model_config, model_url, diagnostic_ml):
-
-    # Add scikit learn ML model config section
-    scikit_learn_config = model_config.get("scikit_learn", {})
-    scikit_learn_config["zarr_output"] = "diags.zarr"
-    model_config.update(scikit_learn=scikit_learn_config)
-
+def ml_settings(model_type, model_url):
     if model_url:
-        # insert the model asset
-        model_type = scikit_learn_config.get("model_type", "scikit_learn")
         if model_type == "scikit_learn":
-            _update_sklearn_config(model_config, model_url)
+            return sklearn_overlay(model_url)
         elif model_type == "keras":
-            _update_keras_config(model_config, model_url)
+            return keras_overlay(model_url)
         else:
             raise ValueError(
                 "Available model types are 'scikit_learn' and 'keras'; received type:"
                 f" {model_type}."
             )
-        model_config["scikit_learn"].update(diagnostic_ml=diagnostic_ml)
 
 
-def _update_sklearn_config(
-    model_config, model_url, sklearn_filename="sklearn_model.pkl"
-):
-    model_asset = fv3config.get_asset_dict(
-        model_url, sklearn_filename, target_name=sklearn_filename
-    )
-    model_config.setdefault("patch_files", []).append(model_asset)
-    model_config["scikit_learn"].update(model=sklearn_filename)
+def sklearn_overlay(model_url, sklearn_filename="sklearn.yaml"):
+    model_asset = fv3config.get_asset_dict(model_url, sklearn_filename)
+    return {"patch_files": [model_asset], "scikit_learn": {"model": sklearn_filename}}
 
 
-def _update_keras_config(model_config, model_url, keras_dirname="model_data"):
+def keras_overlay(model_url, keras_dirname="model_data"):
     model_asset_list = fv3config.asset_list_from_path(
-        os.path.join(args.model_url, keras_dirname), target_location=keras_dirname
+        os.path.join(model_url, keras_dirname), target_location=keras_dirname
     )
-    model_config.setdefault("patch_files", []).extend(model_asset_list)
-    model_config["scikit_learn"].update(model=keras_dirname)
+    return {"patch_files": model_asset_list, "scikit_learn": {"model": keras_dirname}}
 
 
-def insert_default_diagnostics(model_config):
-    """ Inserts default diagnostics save configuration into base config,
-    which is overwritten by user-provided config if diagnostics entry is present.
-    Defaults to of saving original 2d diagnostics on 15 min frequency.
-    If variables in this list does not exist, e.g. *_diagnostic vars only exist
-    if --diagnostic_ml flag is set, they are skipped.
-
-    Args:
-        model_config: Prognostic run configuration dict
-    """
-    model_config["diagnostics"] = [
-        {
-            "name": "diags.zarr",
-            "variables": [
-                "net_moistening",
-                "net_moistening_diagnostic",
-                "net_heating",
-                "net_heating_diagnostic",
-                "water_vapor_path",
-                "physics_precip",
-            ],
-            "times": {"kind": "interval", "frequency": 900},
-        }
-    ]
+def diagnostics_overlay(diagnostic_ml):
+    return {
+        "diagnostics": [
+            {
+                "name": "diags.zarr",
+                "variables": [
+                    "net_moistening",
+                    "net_moistening_diagnostic",
+                    "net_heating",
+                    "net_heating_diagnostic",
+                    "water_vapor_path",
+                    "physics_precip",
+                ],
+                "times": {"kind": "interval", "frequency": 900},
+            }
+        ],
+        "diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic",
+        "scikit_learn": {"diagnostic_ml": diagnostic_ml},
+    }
 
 
 def prepare_config(args):
@@ -115,31 +133,38 @@ def prepare_config(args):
     with open(args.prog_config_yml, "r") as f:
         user_config = yaml.safe_load(f)
 
-    # It should be possible to implement all configurations as overlays
-    # so this could be done as one vcm.update_nested_dict call
-    # updated_nested_dict just needs to know how to merge patch_files fields
-    config = vcm.update_nested_dict(
+    model_type = user_config.get("scikit_learn", {}).get("model_type", "scikit_learn")
+
+    # get timing information
+    duration = fv3config.get_run_duration(user_config)
+    current_date = vcm.parse_current_date_from_str(args.ic_timestep)
+
+    # To simplify the configuration flow, updates should be implemented as
+    # overlays (i.e. diffs) requiring only a small number of inputs. In
+    # particular, overlays should not require access to the full configuration
+    # dictionary.
+    overlays = [
         fv3kube.get_base_fv3config(user_config.get("base_version")),
         fv3kube.c48_initial_conditions_overlay(
             args.initial_condition_url, args.ic_timestep
         ),
-        {"diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"},
-    )
-
-    insert_default_diagnostics(config)
-
-    insert_ml_settings(user_config, args.model_url, args.diagnostic_ml)
-
-    model_config = vcm.update_nested_dict(
-        config,
-        # User settings override previous ones
+        diagnostics_overlay(args.diagnostic_ml),
+        ml_settings(model_type, args.model_url),
         user_config,
-    )
+    ]
 
     if args.nudge_to_observations:
-        model_config = fv3kube.enable_nudge_to_observations(model_config)
+        overlays.append(
+            fv3kube.enable_nudge_to_observations(
+                duration,
+                current_date,
+                nudge_url="/mnt/input/gfs-analysis-T85",
+                copy_method="link",
+            )
+        )
 
-    print(yaml.dump(model_config))
+    config = merge_fv3config_overlays(*overlays)
+    print(yaml.dump(config))
 
 
 if __name__ == "__main__":

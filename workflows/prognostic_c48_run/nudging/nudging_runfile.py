@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 
 GRAVITY = 9.81
 PRECIP_NAME = "total_precipitation"
+SST_NAME = "ocean_surface_temperature"
+TSFC_NAME = "surface_temperature"
 
 RADIATION_NAMES = [
     "total_sky_downward_shortwave_flux_at_surface",
@@ -44,6 +46,7 @@ STORE_NAMES = [
     "vertical_thickness_of_atmospheric_layer",
     "land_sea_mask",
     "surface_temperature",
+    "ocean_surface_temperature",
     "surface_geopotential",
     "sensible_heat_flux",
     "latent_heat_flux",
@@ -108,6 +111,28 @@ def append_key_label(d, suffix):
     for key, value in d.items():
         return_dict[key + suffix] = value
     return return_dict
+
+
+def sst_from_reference(
+    reference_surface_temperature: fv3gfs.util.Quantity,
+    surface_temperature: fv3gfs.util.Quantity,
+    land_sea_mask: fv3gfs.util.Quantity,
+) -> np.ndarray:
+    return xr.where(
+        land_sea_mask.data_array.round().astype("int") == 0,
+        reference_surface_temperature.data_array,
+        surface_temperature.data_array,
+    ).values
+
+
+def set_state_sst_to_reference(state, reference):
+    state[SST_NAME].view[:] = sst_from_reference(
+        reference[TSFC_NAME], state[SST_NAME], state["land_sea_mask"]
+    )
+    state[TSFC_NAME].view[:] = sst_from_reference(
+        reference[TSFC_NAME], state[TSFC_NAME], state["land_sea_mask"]
+    )
+    wrapper.set_state({SST_NAME: state[SST_NAME], TSFC_NAME: state[TSFC_NAME]})
 
 
 def column_integrated_moistening(
@@ -284,6 +309,12 @@ if __name__ == "__main__":
         # diagnostics as well.
         store_time = time + timestep
 
+        reference = get_reference_state(
+            store_time, reference_dir, communicator, only_names=store_names
+        )
+
+        set_state_sst_to_reference(state, reference)
+
         monitor.store(store_time, state, stage="before_dynamics")
         wrapper.step_dynamics()
         monitor.store(
@@ -293,9 +324,6 @@ if __name__ == "__main__":
         state = wrapper.get_state(names=store_names)
         monitor.store(store_time, state, stage="after_physics")
         wrapper.save_intermediate_restart_if_enabled()
-        reference = get_reference_state(
-            time, reference_dir, communicator, only_names=store_names
-        )
         tendencies = nudge(state, reference)
         monitor.store(store_time, reference, stage="reference")
         monitor.store(store_time, tendencies, stage="nudging_tendencies")
