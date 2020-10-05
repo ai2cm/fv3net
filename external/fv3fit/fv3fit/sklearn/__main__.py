@@ -2,23 +2,12 @@ import argparse
 import os
 import yaml
 import logging
-import vcm
 from . import _train as train
 from .. import _shared as shared
 
 
 MODEL_FILENAME = "sklearn.yaml"
-MODEL_CONFIG_FILENAME = "training_config.yml"
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
-
-
-def _save_config_output(output_url: str, config: shared.ModelTrainingConfig):
-    fs = vcm.cloud.fsspec.get_fs(output_url)
-    fs.makedirs(output_url, exist_ok=True)
-    config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
-
-    with fs.open(config_url, "w") as f:
-        config.dump(f)
 
 
 def parse_args():
@@ -54,7 +43,9 @@ if __name__ == "__main__":
     args = parse_args()
 
     data_path = shared.parse_data_path(args)
-    train_config = shared.load_model_training_config(args.train_config_file)
+    train_config = shared.load_model_training_config(
+        args.train_config_file, args.train_data_path
+    )
 
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
@@ -62,7 +53,7 @@ if __name__ == "__main__":
         train_config.batch_kwargs["timesteps"] = timesteps
 
     batched_data = shared.load_data_sequence(data_path, train_config)
-    _save_config_output(args.output_data_path, train_config)
+    shared.save_config_output(args.output_data_path, train_config)
 
     logging.basicConfig(level=logging.DEBUG)
     logging.getLogger("fsspec").setLevel(logging.INFO)
