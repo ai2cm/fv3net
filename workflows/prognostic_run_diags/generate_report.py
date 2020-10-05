@@ -340,13 +340,13 @@ def main():
 
     # get metadata
     run_urls = {key: ds.attrs["url"] for key, ds in diags.items()}
-    verifaction_datasets = [ds.attrs["verification"] for ds in diags.values()]
-    if any([verifaction_datasets[0] != item for item in verifaction_datasets]):
+    verification_datasets = [ds.attrs["verification"] for ds in diags.values()]
+    if any([verification_datasets[0] != item for item in verification_datasets]):
         raise ValueError(
-            "Report should not be generated with diagnostics computed against "
+            "Report cannot be generated with diagnostics computed against "
             "different verification datasets."
         )
-    verification_label = {"verification dataset": verifaction_datasets[0]}
+    verification_label = {"verification dataset": verification_datasets[0]}
     movie_links = get_movie_links(bucket, rundirs, fs)
 
     html = create_html(
