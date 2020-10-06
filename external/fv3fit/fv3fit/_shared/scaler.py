@@ -41,13 +41,13 @@ class StandardScaler(NormalizeTransform):
 
     kind: str = "standard"
 
-    def __init__(self, std_threshold: float = 1e-15):
+    def __init__(self, std_threshold: float = 1e-12):
         """Standard scaler normalizer: normalizes via (x-mean)/std
 
         Args:
             std_threshold: Features with standard deviations below
-                this threshold are treated as constants. Normalize/denormalize
-                will just subtract / add the mean. Defaults to 1e-15.
+                this threshold are have their standard deviations set
+                to this value. Defaults to 1e-12.
         """
         self.mean = None
         self.std = None
@@ -61,7 +61,7 @@ class StandardScaler(NormalizeTransform):
     def _fix_constant_features(self):
         for i, std in enumerate(self.std):
             if std < self.std_threshold:
-                self.std[i] = 1.0
+                self.std[i] = self.std_threshold
 
     def normalize(self, data):
         if self.mean is None or self.std is None:
