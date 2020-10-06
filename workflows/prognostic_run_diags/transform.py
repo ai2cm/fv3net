@@ -102,6 +102,7 @@ def resample_time(
     """
     prognostic, verification, grid = arg
     prognostic = prognostic.resample(time=freq_label, label="right").nearest()
+    verification = verification.resample(time=freq_label, label="right").nearest()
     prognostic = prognostic.isel(time=time_slice)
     if inner_join:
         prognostic, verification = _inner_join_time(prognostic, verification)
