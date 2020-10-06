@@ -162,7 +162,7 @@ def process_item(
         chunks = chunks.get(relpath, CHUNKS_2D)
         clear_encoding(item)
         chunked = rechunk(item, chunks)
-        chunked = encode_chunks(item, chunks)
+        chunked = encode_chunks(chunked, chunks)
         dest = os.path.join(d_out, relpath)
         chunked = cast_time(chunked)
         chunked.to_zarr(dest, mode="w", consolidated=True)
