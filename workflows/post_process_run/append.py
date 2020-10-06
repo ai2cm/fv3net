@@ -76,15 +76,6 @@ def _update_zarray_shape(var_path, axis, increment):
         json.dump(zarray, f)
 
 
-def _update_zarray_chunks(var_path, axis, target_chunk_size):
-    zarray_path = os.path.join(var_path, ".zarray")
-    with open(zarray_path) as f:
-        zarray = json.load(f)
-    zarray["chunks"][axis] = target_chunk_size
-    with open(zarray_path, "w") as f:
-        json.dump(zarray, f)
-
-
 def _assert_n_shift_valid(array: zarr.array, axis: str, n_shift: int):
     """Ensure chunk size evenly divides n_shift"""
     chunk_size = array.chunks[axis]
@@ -117,33 +108,17 @@ def _assert_chunks_match(source_group: zarr.Group, target_group: zarr.Group, dim
             _assert_array_chunks_match(source_array, target_array, axis)
 
 
-def _make_single_chunks_equal_size(
-    source_group: zarr.Group, target_group: zarr.Group, dim: str
-):
-    """If source array has only one chunk, modify this chunk size to equal target array
-    chunk size. Otherwise resulting zarr-store will not have correct chunk sizes."""
-    for key, array in source_group.items():
-        if dim in array.attrs[XARRAY_DIM_NAMES_ATTR]:
-            axis = array.attrs[XARRAY_DIM_NAMES_ATTR].index(dim)
-            target_chunk_size = target_group[key].chunks[axis]
-            num_source_chunks = int(np.ceil(array.shape[axis] / array.chunks[axis]))
-            if num_source_chunks == 1:
-                array_path = os.path.join(array.store.dir_path(), array.path)
-                _update_zarray_chunks(array_path, axis, target_chunk_size)
-
-
 def _assert_array_chunks_match(source: zarr.array, target: zarr.array, axis: int):
     source_chunk_size = source.chunks[axis]
     target_chunk_size = target.chunks[axis]
-    source_axis_length = source.shape[axis]
-    target_axis_length = target.shape[axis]
-    num_source_chunks = int(np.ceil(source_axis_length / source_chunk_size))
-    if source_chunk_size != target_chunk_size and num_source_chunks != 1:
+    if source_chunk_size != target_chunk_size:
         raise ValueError(
             "Must have equal chunk size for source and target zarr when appending. "
             f"Got source chunk size {source_chunk_size} and target chunk size "
             f"{target_chunk_size} along axis {axis}."
         )
+    source_axis_length = source.shape[axis]
+    target_axis_length = target.shape[axis]
     if target_axis_length % target_chunk_size != 0:
         raise ValueError(
             "Length of append dimension for target array must be a multiple of "
@@ -240,7 +215,6 @@ def append_zarr_along_time(
         target_store = zarr.open_consolidated(fsspec.get_mapper(target_path))
         _assert_chunks_match(source_store, target_store, dim)
         _set_time_units_like(source_store, target_store)
-        _make_single_chunks_equal_size(source_store, target_store, dim)
         _shift_store(source_store, dim, _get_dim_size(target_store, dim))
     elif fs.protocol == "file":
         os.makedirs(target_path)
