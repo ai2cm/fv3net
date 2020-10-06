@@ -43,14 +43,27 @@ def download_directory(dir_, dest):
     subprocess.check_call(["gsutil", "-m", "rsync", "-r", dir_, dest])
 
 
-def rechunk(ds, chunks):
+def _get_true_chunks(ds, chunks):
     true_chunks = {}
     true_chunks.update(chunks)
 
     for dim in ds.dims:
         if dim not in chunks:
             true_chunks[dim] = len(ds[dim])
+    return true_chunks
+
+
+def rechunk(ds, chunks):
+    true_chunks = _get_true_chunks(ds, chunks)
     return ds.chunk(true_chunks)
+
+
+def encode_chunks(ds, chunks):
+    true_chunks = _get_true_chunks(ds, chunks)
+    for variable in set(ds.data_vars) | set(ds.coords):
+        variable_chunks = [true_chunks[dim] for dim in ds[variable].dims]
+        ds[variable].encoding["chunks"] = variable_chunks
+    return ds
 
 
 def authenticate():
@@ -149,6 +162,7 @@ def process_item(
         chunks = chunks.get(relpath, CHUNKS_2D)
         clear_encoding(item)
         chunked = rechunk(item, chunks)
+        chunked = encode_chunks(item, chunks)
         dest = os.path.join(d_out, relpath)
         chunked = cast_time(chunked)
         chunked.to_zarr(dest, mode="w", consolidated=True)
