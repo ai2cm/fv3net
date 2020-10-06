@@ -117,8 +117,10 @@ def predict(model: runtime.RenamingAdapter, state: State) -> State:
 
 def sphum_floor(state: State, tendency: State, dt: float, floor: float=0.):
     sphum_updated = state[SPHUM] + tendency["dQ2"] * dt
-    return xr.where(sphum_updated > 0., sphum_updated, floor)
-
+    sphum_updated = xr.where(sphum_updated > 0., sphum_updated, floor)
+    sphum_updated.attrs['units'] = state[SPHUM].attrs['units']
+    return sphum_updated
+    
 
 def apply(state: State, tendency: State, dt: float) -> State:
     """Given state and tendency prediction, return updated state.
