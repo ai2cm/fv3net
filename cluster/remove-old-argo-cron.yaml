@@ -1,0 +1,44 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: argo-job-delete-cron
+spec:
+  schedule: "20 3/8 * * *"
+  successfulJobsHistoryLimit: 8
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: delete-old-argo-job
+            image: google/cloud-sdk
+            command: ["bash", "-c", "-x"]
+            args: 
+              - |
+
+                # install jq
+                apt-get install -y jq
+
+                JOBS=$(kubectl get wf -o name)
+                NAMESPACE=default
+                DAY_THRESHOLD=7
+                for JOB in $JOBS; do
+                    FINISH_TIME=$(kubectl get $JOB -n $NAMESPACE -o json | jq -r .status.finishedAt)
+                    if [ ${FINISH_TIME} != null ]; then
+                        FINISH_TIME_SECONDS=$(date -u -d ${FINISH_TIME} +%s)
+                        CURRENT_TIME_SECONDS=$(date -u +%s)
+                        SECONDS_ELAPSED=$((${CURRENT_TIME_SECONDS} - ${FINISH_TIME_SECONDS}))
+                        DAYS_ELAPSED=$(($SECONDS_ELAPSED / 60 / 60 / 24))
+                        if [ ${DAYS_ELAPSED} -ge ${DAY_THRESHOLD} ]; then
+                            kubectl delete $JOB
+                        fi
+                    fi
+                done
+            resources:
+              requests:
+                cpu: "200m"
+                memory: "500M"
+          restartPolicy: Never
+          serviceAccountName: cron-buddy
+      backoffLimit: 0
