@@ -115,12 +115,19 @@ def predict(model: runtime.RenamingAdapter, state: State) -> State:
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
+def sphum_floor(state: State, tendency: State, dt: float, floor: float=0.):
+    sphum_updated = state[SPHUM] + tendency["dQ2"] * dt
+    return xr.where(sphum_updated > 0., sphum_updated, floor)
+
+
 def apply(state: State, tendency: State, dt: float) -> State:
     """Given state and tendency prediction, return updated state.
+    Specific humidity is limited to be >0 after update.
     Returned state only includes variables updated by ML model."""
+
     with xr.set_options(keep_attrs=True):
         updated = {
-            SPHUM: state[SPHUM] + tendency["dQ2"] * dt,
+            SPHUM: sphum_floor(state, tendency, dt, floor=0.),
             TEMP: state[TEMP] + tendency["dQ1"] * dt,
         }
     return updated  # type: ignore
