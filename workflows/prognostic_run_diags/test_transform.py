@@ -10,6 +10,7 @@ TRANSFORM_PARAMS = {
     "resample_time": (["1H"], {"time_slice": slice(0, -2)}),
     "mask_to_sfc_type": (["sea"], {"mask_var_name": "SLMSKsfc"}),
     "subset_variables": ([("temperature")], {}),
+    "mask_area": (["sea"], {"land_sea_mask_name": "SLMSKsfc"}),
 }
 
 
@@ -40,7 +41,14 @@ def input_args():
         coords={"time": time_coord},
     )
 
-    return (ds, ds.copy(), xr.Dataset())
+    grid = xr.Dataset(
+        data_vars={
+            "lat": (["tile", "x", "y"], mask),
+            "area": (["tile", "x", "y"], mask),
+        }
+    )
+
+    return (ds, ds.copy(), grid)
 
 
 def test_transform_no_input_side_effects(input_args):

@@ -216,6 +216,7 @@ if __name__ == "__main__":
 
     with open(args.config_yml, "r") as f:
         config = yaml.safe_load(f)
+    config["data_path"] = args.data_path
 
     logger.info("Reading grid...")
     cat = intake.open_catalog("catalog.yml")
