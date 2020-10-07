@@ -17,8 +17,8 @@ GCR_IMAGE = us.gcr.io/vcm-ml/fv3net
 GCR_BASE  = us.gcr.io/vcm-ml
 FV3NET_IMAGE = $(GCR_BASE)/fv3net
 PROGNOSTIC_RUN_IMAGE = $(GCR_BASE)/prognostic_run
-FORTRAN_VERSION = $(shell git -C external/fv3gfs-fortran rev-parse HEAD)
-FORTRAN_IMAGE = $(GCR_BASE)/fv3gfs-fortran-fv3net:$(FORTRAN_VERSION)
+
+IMAGES = fv3net fv3fit post_process_run prognostic_run
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -34,26 +34,23 @@ endif
 
 # pattern rule for building docker images
 build_image_%:
-	docker build . -f docker/$*/Dockerfile -t $*
+	DOCKER_BUILDKIT=1 docker build \
+		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		-f docker/$*/Dockerfile -t $* \
+		--cache-from us.gcr.io/vcm-ml/$* \
+		.
 
 build_image_post_process_run:
 	docker build workflows/post_process_run -t post_process_run
 
-
-pull_deps_prognostic_run:
-	docker pull	us.gcr.io/vcm-ml/fms-build@sha256:868e79a8ef4921f655a6f1fdd32c4eaa200d1157b076a4f85587689bb892e64c
-	docker pull	us.gcr.io/vcm-ml/esmf-build@sha256:d3154afc4f4b57f9c253be1d84c405b4a3ac508eebbfe5cd0a8c91f65a8287be
-
-build_image_prognostic_run: pull_deps_prognostic_run
-
 enter_%:
 	docker run -ti -w /fv3net -v $(shell pwd):/fv3net $* bash
 
-build_images: build_image_fv3net build_image_prognostic_run build_image_post_process_run
+build_images: $(addprefix build_image_, $(IMAGES))
 
-push_images: push_image_prognostic_run push_image_fv3net push_image_post_process_run
+push_images: $(addprefix push_image_, $(IMAGES))
 
-push_image_%:
+push_image_%: build_image_%
 	docker tag $* $(GCR_BASE)/$*:$(VERSION)
 	docker push $(GCR_BASE)/$*:$(VERSION)
 

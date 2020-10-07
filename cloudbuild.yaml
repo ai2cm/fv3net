@@ -1,5 +1,6 @@
 steps:
 - name: 'docker'
+  # args: ['find', '.']
   args: ['build', '-t', 'us.gcr.io/vcm-ml/prognostic_run_dev:latest', '.', '-f', 'docker/prognostic_run/Dockerfile', '--cache-from', 'us.gcr.io/vcm-ml/prognostic_run_dev:latest']
 images:
   - us.gcr.io/vcm-ml/prognostic_run_dev:latest
