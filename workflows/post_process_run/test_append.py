@@ -82,6 +82,28 @@ def test__shift_array(tmpdir, shape, chunks, ax, shift, raises_value_error):
                 assert ".".join(chunk_indices) in items_after
 
 
+def _get_datasets_to_append(with_coords, lengths, chunk_sizes):
+    datasets = []
+    for length, chunk_size in zip(lengths, chunk_sizes):
+        array = xr.DataArray(
+            np.arange(5 * length).reshape((length, 5)), dims=["time", "x"]
+        )
+        ds = xr.Dataset({"var1": array.chunk({"time": chunk_size})})
+        ds["var1"].encoding["chunks"] = (chunk_size, 5)
+        datasets.append(ds)
+
+    if with_coords:
+        full_coord = [
+            cftime.DatetimeJulian(2000, 1, d) for d in range(1, sum(lengths) + 1)
+        ]
+        for i, ds in enumerate(datasets):
+            ds_coord = full_coord[sum(lengths[:i]) : sum(lengths[: i + 1])]
+            datasets[i] = ds.assign_coords(time=ds_coord)
+            datasets[i]["time"].encoding["chunks"] = (chunk_sizes[i],)
+
+    return datasets
+
+
 @pytest.mark.parametrize(
     "with_coords, lengths, chunk_sizes, raises_value_error",
     [
@@ -100,24 +122,7 @@ def test_append_zarr_along_time(
     tmpdir, with_coords, lengths, chunk_sizes, raises_value_error,
 ):
     fs = fsspec.filesystem("file")
-    # generate test datasets
-    datasets = []
-    for length, chunk_size in zip(lengths, chunk_sizes):
-        array = xr.DataArray(
-            np.arange(5 * length).reshape((length, 5)), dims=["time", "x"]
-        )
-        ds = xr.Dataset({"var1": array.chunk({"time": chunk_size})})
-        ds["var1"].encoding["chunks"] = (chunk_size, 5)
-        datasets.append(ds)
-
-    if with_coords:
-        full_coord = [
-            cftime.DatetimeJulian(2000, 1, d) for d in range(1, sum(lengths) + 1)
-        ]
-        for i, ds in enumerate(datasets):
-            ds_coord = full_coord[sum(lengths[:i]) : sum(lengths[: i + 1])]
-            datasets[i] = ds.assign_coords(time=ds_coord)
-            datasets[i]["time"].encoding["chunks"] = (chunk_sizes[i],)
+    datasets = _get_datasets_to_append(with_coords, lengths, chunk_sizes)
 
     paths = [str(tmpdir.join(f"ds{i}.zarr")) for i in range(len(datasets))]
     for ds, path in zip(datasets, paths):
