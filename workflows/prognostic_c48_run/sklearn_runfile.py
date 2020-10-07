@@ -15,6 +15,7 @@ from typing import (
 
 import xarray as xr
 from mpi4py import MPI
+import numpy as np
 
 import fv3gfs.wrapper as wrapper
 
@@ -120,11 +121,15 @@ def predict(model: runtime.RenamingAdapter, state: State) -> State:
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
-def positive_sphum(state: State, tendency: State, dt: float):
-    sphum_updated = state[SPHUM] + tendency["dQ2"] * dt
-    sphum_updated = xr.where(sphum_updated > 0.0, sphum_updated, 0.0)
-    sphum_updated.attrs["units"] = state[SPHUM].attrs["units"]
-    return sphum_updated
+def limit_sphum_tendency(state: State, tendency: State, dt: float):
+    delta = tendency["dQ2"] * dt
+    tendency_updated = xr.where(state[SPHUM] + delta > 0, tendency, -state[SPHUM] / dt,)
+    return tendency_updated
+
+
+def count_updated_tendency_columns(tendency: State, updated_tendency: State):
+    updated_values = xr.where(tendency != updated_tendency)
+    return np.count_nonzero(updated_values.sum("z").values)
 
 
 def apply(state: State, tendency: State, dt: float) -> State:
@@ -134,7 +139,7 @@ def apply(state: State, tendency: State, dt: float) -> State:
 
     with xr.set_options(keep_attrs=True):
         updated = {
-            SPHUM: positive_sphum(state, tendency, dt),
+            SPHUM: state[SPHUM] + tendency["dQ2"] * dt,
             TEMP: state[TEMP] + tendency["dQ1"] * dt,
         }
     return updated  # type: ignore
@@ -222,13 +227,17 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
 
         self._log_debug("Computing RF updated variables")
         tendency = predict(self._model, state)
+        tendency_sphum_limit = limit_sphum_tendency(state, tendency, dt=self._timestep)
+        self._log_debug(
+            f"Number of columns corrected for ML update to negative sphum: {count_updated_tendency_columns(tendency, tendency_sphum_limit)}"
+        )
 
         if self._do_only_diagnostic_ml:
             updated_state: State = {}
         else:
-            updated_state = apply(state, tendency, dt=self._timestep)
+            updated_state = apply(state, tendency_sphum_limit, dt=self._timestep)
 
-        diagnostics = compute_diagnostics(state, tendency)
+        diagnostics = compute_diagnostics(state, tendency_sphum_limit)
         if self._do_only_diagnostic_ml:
             rename_diagnostics(diagnostics)
 
