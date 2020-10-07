@@ -1,7 +1,5 @@
 #!/bin/bash
 
-IMAGE="$1"
-
 echo "branch: $CIRCLE_BRANCH"
 echo "tag:    $CIRCLE_TAG"
 
