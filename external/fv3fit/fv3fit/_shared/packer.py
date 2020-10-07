@@ -92,7 +92,6 @@ class ArrayPacker:
             )
             for name in self.pack_names:
                 self._dims[name] = cast(Tuple[str], dataset[name].dims)
-                self._attrs[name] = dataset[name].attrs
             self._coords = dataset.coords
         for var in self.pack_names:
             if dataset[var].dims[0] != self.sample_dim_name:
@@ -119,12 +118,7 @@ class ArrayPacker:
                 "so dimension lengths are known"
             )
         return to_dataset(
-            array,
-            self.pack_names,
-            self._dims,
-            self.feature_counts,
-            self._attrs,
-            self._coords,
+            array, self.pack_names, self._dims, self.feature_counts, self._coords,
         )
 
     def dump(self, f: TextIO):
@@ -134,7 +128,6 @@ class ArrayPacker:
                 "pack_names": self._pack_names,
                 "sample_dim_name": self._sample_dim_name,
                 "dims": self._dims,
-                "attrs": self._attrs,
                 "coords": _serialize_coords(self._coords),
             },
             f,
@@ -146,7 +139,6 @@ class ArrayPacker:
         packer = cls(data["sample_dim_name"], data["pack_names"])
         packer._n_features = data["n_features"]
         packer._dims = data["dims"]
-        packer._attrs = data["attrs"]
         packer._coords = _deserialize_coords(data["coords"])
         return packer
 
@@ -212,7 +204,6 @@ def to_dataset(
     pack_names: Iterable[str],
     dimensions: Mapping[str, Iterable[str]],
     feature_counts: Mapping[str, int],
-    attrs: Mapping[str, Mapping[str, Any]],
     coords: Mapping[str, xr.Coordinate],
 ):
     """Restore a dataset from a 2D [sample, feature] array.
@@ -238,10 +229,9 @@ def to_dataset(
             data_vars[name] = (
                 dimensions[name],
                 array[:, i_start : i_start + n_features],
-                attrs[name],
             )
         else:
-            data_vars[name] = (dimensions[name], array[:, i_start], attrs[name])
+            data_vars[name] = (dimensions[name], array[:, i_start])
         i_start += n_features
     return xr.Dataset(data_vars, coords=coords)  # type: ignore
 
@@ -260,7 +250,6 @@ def count_features(
         sample_dim_name: dimension to treat as the "sample" dimension, any other
             dimensions are treated as a "feature" dimension.
     """
-
     return_dict = {}
     for name in quantity_names:
         value = dataset[name]

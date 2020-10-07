@@ -1,4 +1,4 @@
-from ._shared import Predictor
+from ._shared import Predictor, ArrayPacker
 from . import keras
 from . import sklearn
 

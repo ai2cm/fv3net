@@ -10,7 +10,9 @@ Weight = Union[int, float, np.ndarray]
 
 def _weighted_mse(weights, std):
     def custom_loss(y_true, y_pred):
-        return tf.math.reduce_mean(weights * tf.math.square((y_pred - y_true) / std))
+        return tf.math.reduce_mean(
+            tf.multiply(weights, tf.math.square((y_pred - y_true) / std))
+        )
 
     return custom_loss
 
@@ -84,5 +86,5 @@ def get_weighted_mse(
         weighted_loss
     """
     # convert scalar weights from total variable weight to per-feature weight
-    weights = _pack_weights(y_packer, **weights)
+    weights = _pack_weights(y_packer, **weights).astype(np.float32)
     return _weighted_mse(weights, y_std)

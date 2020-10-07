@@ -89,9 +89,7 @@ def stack_dropnan_shuffle(random_state: RandomState, ds: xr.Dataset,) -> xr.Data
     return shuffled(ds, SAMPLE_DIM_NAME, random_state)
 
 
-def shuffled(
-    dataset: xr.Dataset, dim: str, random: np.random.RandomState
-) -> xr.Dataset:
+def shuffled(dataset: xr.Dataset, dim: str, random: RandomState) -> xr.Dataset:
     """
     Shuffles dataset along a dimension within chunks if chunking is present
 
