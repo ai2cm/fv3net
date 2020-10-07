@@ -34,14 +34,13 @@ endif
 
 # pattern rule for building docker images
 build_image_%:
-	DOCKER_BUILDKIT=1 docker build \
-		--build-arg BUILDKIT_INLINE_CACHE=1 \
-		-f docker/$*/Dockerfile -t $* \
-		--cache-from us.gcr.io/vcm-ml/$* \
-		.
+	tools/docker_build_cached.sh us.gcr.io/vcm-ml/$* \
+		-f docker/$*/Dockerfile -t $* .
+	
 
 build_image_post_process_run:
-	docker build workflows/post_process_run -t post_process_run
+	tools/docker_build_cached.sh us.gcr.io/vcm-ml/post_process_run \
+		workflows/post_process_run -t post_process_run
 
 enter_%:
 	docker run -ti -w /fv3net -v $(shell pwd):/fv3net $* bash
