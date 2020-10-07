@@ -105,12 +105,12 @@ jobs:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
-      GCLOUD_SERVICE_KEY: /tmp/key.json
       IMAGE: <<parameters.image>>
     steps:
       - add_ssh_keys:
           fingerprints:
             - "28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d" # github user key
+      - checkout
       - run:
           name: "gcloud auth"
           command: |
