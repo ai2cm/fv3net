@@ -1,5 +1,10 @@
 #!/bin/bash
 
+IMAGE="$1"
+
+echo "branch: $CIRCLE_BRANCH"
+echo "tag:    $CIRCLE_TAG"
+
 set -e
 set -o pipefail
 
@@ -11,8 +16,6 @@ fi
 apt-get install -y make jq
 make build_image_$IMAGE
 
-echo "branch: $CIRCLE_BRANCH"
-echo "tag:    $CIRCLE_TAG"
 
 if [[ "$CIRCLE_BRANCH" == "master" ]]
 then
