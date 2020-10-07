@@ -105,6 +105,7 @@ jobs:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+      GCLOUD_SERVICE_KEY: /tmp/key.json
       IMAGE: <<parameters.image>>
     steps:
       - add_ssh_keys:
