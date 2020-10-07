@@ -115,12 +115,12 @@ def predict(model: runtime.RenamingAdapter, state: State) -> State:
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
-def sphum_floor(state: State, tendency: State, dt: float, floor: float=0.):
+def positive_sphum(state: State, tendency: State, dt: float):
     sphum_updated = state[SPHUM] + tendency["dQ2"] * dt
-    sphum_updated = xr.where(sphum_updated > 0., sphum_updated, floor)
-    sphum_updated.attrs['units'] = state[SPHUM].attrs['units']
+    sphum_updated = xr.where(sphum_updated > 0.0, sphum_updated, 0.0)
+    sphum_updated.attrs["units"] = state[SPHUM].attrs["units"]
     return sphum_updated
-    
+
 
 def apply(state: State, tendency: State, dt: float) -> State:
     """Given state and tendency prediction, return updated state.
@@ -129,7 +129,7 @@ def apply(state: State, tendency: State, dt: float) -> State:
 
     with xr.set_options(keep_attrs=True):
         updated = {
-            SPHUM: sphum_floor(state, tendency, dt, floor=0.),
+            SPHUM: positive_sphum(state, tendency, dt),
             TEMP: state[TEMP] + tendency["dQ1"] * dt,
         }
     return updated  # type: ignore
