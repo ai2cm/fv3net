@@ -6,7 +6,6 @@ import logging
 import fv3gfs.wrapper
 import fv3gfs.util
 import tensorflow as tf
-import tensorflow.keras.backend as K
 import fv3fit._shared.packer
 import fv3fit.keras._models.models
 import fv3fit
@@ -21,87 +20,6 @@ MODEL_OUTPUT_PATH = "model"
 
 
 logger = logging.getLogger(__name__)
-
-
-class GCMCell(tf.keras.layers.AbstractRNNCell):
-    def __init__(self, units: int, n_output: int, n_hidden_layers: int, **kwargs):
-        super().__init__(**kwargs)
-        self.units = units
-        self.n_output = n_output
-        self.n_hidden_layers = n_hidden_layers
-        self.activation = tf.keras.activations.relu
-
-    @property
-    def state_size(self):
-        return self.n_output
-
-    @property
-    def output_size(self):
-        return self.n_output
-
-    def build(self, input_shape):
-        if len(input_shape) != 2:
-            raise ValueError(
-                "expected to be used in stateful one-batch-at-a-time mode, "
-                f"got input_shape {input_shape}"
-            )
-        n_input = input_shape[1] + self.n_output  # prognostic state also used as input
-        kernel = self.add_weight(
-            shape=(n_input, self.units),
-            initializer="glorot_uniform",
-            name=f"dense_kernel_0",
-        )
-        bias = self.add_weight(
-            shape=(self.units,), initializer="zeros", name="dense_bias_0"
-        )
-        self.dense_weights = [(kernel, bias)]
-        for i in range(1, self.n_hidden_layers):
-            kernel = self.add_weight(
-                shape=(self.units, self.units),
-                initializer="glorot_uniform",
-                name=f"dense_kernel_{i}",
-            )
-            bias = self.add_weight(
-                shape=(self.units,), initializer="zeros", name=f"dense_bias_{i}"
-            )
-            self.dense_weights.append((kernel, bias))
-        self.output_kernel = self.add_weight(
-            shape=(self.units, self.n_output),
-            initializer="glorot_uniform",
-            name=f"output_kernel",
-        )
-        self.output_bias = self.add_weight(
-            shape=(self.n_output,), initializer="zeros", name="output_bias"
-        )
-        self.built = True
-
-    def call(self, inputs, states):
-        gcm_state = states[0]
-        h = K.concatenate([inputs, gcm_state])
-        for kernel, bias in self.dense_weights:
-            h = self.activation(K.dot(h, kernel) + bias)
-        tendency_output = K.dot(h, self.output_kernel) + self.output_bias
-        # tendencies are on a much smaller scale than the variability of the data
-        gcm_update = tf.math.multiply(
-            tf.constant(0.1, dtype=tf.float32), tendency_output
-        )
-        gcm_output = gcm_state + gcm_update
-        return gcm_output, [gcm_output]
-
-    def get_config(self):
-        config = super().get_config()
-        config.update(
-            {
-                "units": self.units,
-                "n_output": self.n_output,
-                "n_hidden_layers": self.n_hidden_layers,
-            }
-        )
-        return config
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
 
 
 class RecurrentMPIModel(fv3fit.keras._models.models.PackedKerasModel):
@@ -218,7 +136,7 @@ class RecurrentGCMModel(RecurrentMPIModel):
         n_state = n_features_out
         rnn = tf.keras.layers.RNN(
             [
-                GCMCell(
+                fv3fit.keras.GCMCell(
                     units=self.units,
                     n_output=n_state,
                     n_hidden_layers=self.n_hidden_layers,
@@ -260,9 +178,11 @@ class RecurrentGCMModel(RecurrentMPIModel):
         ds = _stack_samples(
             fv3gfs.util.to_dataset(minimal_state), self._SAMPLE_DIM_NAME
         )
+        ds.attrs.clear()
         target_ds = _stack_samples(
             fv3gfs.util.to_dataset(minimal_target_state), self._SAMPLE_DIM_NAME
         )
+        target_ds.attrs.clear()
         X_in = self.X_packer.to_array(ds)
         y_model = self.y_packer.to_array(ds)
         y_model_norm = self.y_scaler.normalize(y_model)
@@ -376,7 +296,9 @@ def get_reference_state(time, reference_dir, communicator, only_names):
     return state
 
 
-fv3fit.keras._models.models.PackedKerasModel.custom_objects["GCMCell"] = GCMCell
+fv3fit.keras._models.models.PackedKerasModel.custom_objects[
+    "GCMCell"
+] = fv3fit.keras.GCMCell
 
 
 def bcast_from_root(func):
