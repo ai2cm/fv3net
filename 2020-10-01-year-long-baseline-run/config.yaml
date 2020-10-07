@@ -1,0 +1,58 @@
+image-tag: 9f166553c3498f807c70a93948cc3b4b65d9db7f
+output: gs://vcm-ml-experiments/2020-10-01-year-long-baseline-run
+initial-condition: "20160101.000000"
+reference-restarts: gs://bucket/not/used/since/initializing/from/GFS
+# use ML model trained in latest integration test since doing "diagnostic_ml" anyway
+trained-ml: gs://vcm-ml-scratch/test-end-to-end-integration/integration-test-2a286bd1e189/trained_model
+store-true-args: "--diagnostic_ml --nudge-to-observations"  # only nudging for GFS analysis SSTs
+cpu-prog: "6"
+memory-prog: 8Gi
+segment-count: 12
+config: |
+  base_version: v0.5
+  initial_conditions: gs://vcm-ml-data/2019-12-03-C48-20160101.00Z_IC
+  diag_table: gs://vcm-ml-experiments/diag_tables/year-long-baseline-run/v1.0/diag_table
+  namelist:
+    atmos_model_nml:
+      fhout: 5.0
+      fhmax: 10000
+    coupler_nml:
+      days: 30
+      hours: 0
+      minutes: 0
+    diag_manager_nml:
+      flush_nc_files: true
+    fv_core_nml:
+      layout:
+        - 1
+        - 1
+      do_sat_adj: false
+      warm_start: false
+      external_ic: true
+      external_eta: false
+      nggps_ic: true
+      make_nh: true
+      mountain: false
+      na_init: 1
+    fv_nwp_nudge_nml:
+      nudge_hght: false
+      nudge_ps: false
+      nudge_virt: false
+      nudge_winds: false
+      nudge_q: false 
+    gfdl_cloud_microphysics_nml:
+      fast_sat_adj: false
+    gfs_physics_nml:
+      ldiag3d: true
+      fhzero: 5.0
+chunks: |
+  physics_tendency_components.zarr:
+    time: 1
+  atmos_5hourly.zarr:
+    time: 1
+  atmos_dt_atmos.zarr:
+    time: 24
+  sfc_dt_atmos.zarr:
+    time: 24
+  diags.zarr:
+    time: 24
