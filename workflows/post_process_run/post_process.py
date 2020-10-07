@@ -59,6 +59,7 @@ def rechunk(ds, chunks):
 
 
 def encode_chunks(ds, chunks):
+    """Ensure zarr-stores are saved to disk with desired chunk sizes"""
     true_chunks = _get_true_chunks(ds, chunks)
     for variable in set(ds.data_vars) | set(ds.coords):
         variable_chunks = [true_chunks[dim] for dim in ds[variable].dims]
@@ -81,10 +82,6 @@ def clear_encoding(ds):
     ds.encoding = {}
     for variable in ds:
         ds[variable].encoding = {}
-    for coord in ds.coords:
-        coord_encoding = ds[coord].encoding
-        coord_encoding.pop("chunks", None)
-        ds[coord].encoding = coord_encoding
 
 
 def cast_time(ds):
