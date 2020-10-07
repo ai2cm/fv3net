@@ -101,6 +101,7 @@ jobs:
         enum: ["prognostic_run", "post_process_run", "fv3net", "fv3fit"]
     docker:
       - image: google/cloud-sdk
+    parallelism: 1
     environment:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
@@ -109,47 +110,11 @@ jobs:
     steps:
       - setup_remote_docker:
           docker_layer_caching: true
-      - run:
-          name: Authenticate docker with GCR
-          command: |
-            echo "$ENCODED_GOOGLE_CREDENTIALS" | base64 -d > "$GOOGLE_APPLICATION_CREDENTIALS"
-            gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
-            gcloud auth configure-docker
-      - checkout
       - add_ssh_keys:
           fingerprints:
             - "28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d" # github user key
-      - run: apt-get install -y make jq
-      - run:
-          name: "Pull submodules"
-          command: |
-            git submodule update --init --recursive
-      - run:
-          name: Build fv3net images
-          command: |
-            make build_image_$IMAGE
-      - run:
-          name: Push fv3net images
-          command: |
-            echo $CIRCLE_BRANCH
-            echo $CIRCLE_TAG
-            if [[ "$CIRCLE_BRANCH" == "master" ]]
-            then
-                echo "pushing untagged images as 'latest'"
-                make push_image_$IMAGE VERSION=latest
-            fi
-
-            if [[ ! -z "$CIRCLE_TAG" ]]
-            then
-              make push_image_$IMAGE VERSION=$CIRCLE_TAG
-            fi
-
-            # push all images with sha for testing later on
-            echo "pushing tagged images $CIRCLE_SHA1"
-            make push_image_$IMAGE VERSION=$CIRCLE_SHA1
-      - slack/status:
-          fail_only: true
-          mentions: "channel"
+      - checkout
+      - run: .circle/build_and_push_image.sh
   mypy:
     docker:
       - image: circleci/python:3.7
