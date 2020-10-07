@@ -17,6 +17,11 @@ import xarray as xr
 from mpi4py import MPI
 
 import fv3gfs.wrapper as wrapper
+
+# To avoid very strange NaN errors this needs to happen before runtime import
+# with openmpi
+wrapper.initialize()  # noqa: E402
+
 import fv3gfs.util
 import runtime
 
@@ -182,8 +187,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._model = open_model(args["scikit_learn"])
         self._log_info("Model Downloaded")
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
-
-        self._fv3gfs.initialize()
 
     @property
     def time(self) -> cftime.DatetimeJulian:
