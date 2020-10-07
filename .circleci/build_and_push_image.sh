@@ -8,11 +8,6 @@ then
     CIRCLE_SHA1=$(git rev-parse HEAD)
 fi
 
-# Authenticate docker with GCR
-echo "$ENCODED_GOOGLE_CREDENTIALS" | base64 -d > "$GOOGLE_APPLICATION_CREDENTIALS"
-gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
-gcloud auth configure-docker
-
 apt-get install -y make jq
 git submodule update --init --recursive
 make build_image_$IMAGE
