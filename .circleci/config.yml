@@ -111,6 +111,7 @@ jobs:
       - add_ssh_keys:
           fingerprints:
             - "28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d" # github user key
+      - run: git submodule update --init --recursive
       - run:
           name: "gcloud auth"
           command: |

@@ -9,7 +9,6 @@ then
 fi
 
 apt-get install -y make jq
-git submodule update --init --recursive
 make build_image_$IMAGE
 
 echo "branch: $CIRCLE_BRANCH"
