@@ -1,8 +1,8 @@
 from pathlib import Path
 import warnings
+import json
 
 import fv3config
-import joblib
 import numpy as np
 import pytest
 import xarray as xr
@@ -10,13 +10,14 @@ import yaml
 from datetime import timedelta, datetime
 from sklearn.dummy import DummyRegressor
 
-from fv3fit.sklearn import SklearnWrapper
+from fv3fit.sklearn import RegressorEnsemble, SklearnWrapper
+from fv3fit.keras import DummyModel
 import subprocess
 
 #  Importing fv3gfs causes a call to MPI_Init but not MPI_Finalize. When the
 #  subprocess subsequently calls MPI_Init from a process not managed by MPI,
 #  mpirun throws a fit. Use a subprocess as a workaround.
-FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs"]) == 0
+FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs.wrapper"]) == 0
 
 
 BASE_FV3CONFIG_CACHE = Path(
@@ -27,6 +28,7 @@ IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
 )
 ORO_PATH = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
 FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
+LOG_PATH = "logs.txt"
 
 default_fv3config = rf"""
 data_table: default
@@ -404,12 +406,17 @@ def test_nudge_run(tmp_restart_dir):
 
     tmpdir = tmp_restart_dir.parent.as_posix()
     config = get_nudging_config(default_fv3config, tmp_restart_dir.as_posix())
-    fv3config.run_native(config, tmpdir, capture_output=True, runfile=NUDGE_RUNFILE)
+    fv3config.run_native(config, tmpdir, capture_output=False, runfile=NUDGE_RUNFILE)
 
 
-def get_prognostic_config(model):
+def get_prognostic_config(model_type, model_path):
     config = yaml.safe_load(default_fv3config)
-    config["scikit_learn"] = {"model": model, "zarr_output": "diags.zarr"}
+    sklearn_config = {"model": model_path, "zarr_output": "diags.zarr"}
+    if model_type == "keras":
+        sklearn_config.update(
+            model_type="keras", model_loader_kwargs={"keras_model_type": "DummyModel"},
+        )
+    config["scikit_learn"] = sklearn_config
     # use local paths in prognostic_run image. fv3config
     # downloads data. We should change this once the fixes in
     # https://github.com/VulcanClimateModeling/fv3gfs-python/pull/78 propagates
@@ -418,10 +425,10 @@ def get_prognostic_config(model):
     return config
 
 
-def _save_mock_model(tmpdir):
-    nz = 63
+def _model_dataset():
 
-    arr = np.ones((1, nz))
+    nz = 63
+    arr = np.zeros((1, nz))
     dims = ["sample", "z"]
 
     data = xr.Dataset(
@@ -432,38 +439,86 @@ def _save_mock_model(tmpdir):
             "dQ2": (dims, arr),
         }
     )
-    estimator = DummyRegressor(strategy="constant", constant=np.zeros(2 * nz))
-    model = SklearnWrapper(estimator)
-    model.fit(["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], "sample", data)
 
-    path = str(tmpdir.join("model.pkl"))
-    joblib.dump(model, path)
+    return data
+
+
+def _save_mock_sklearn_model(tmpdir):
+
+    data = _model_dataset()
+
+    nz = data.sizes["z"]
+    heating_constant_K_per_s = np.zeros(nz)
+    # include nonzero moistening to test for mass conservation
+    moistening_constant_per_s = -np.full(nz, 1e-4 / 86400)
+    constant = np.concatenate([heating_constant_K_per_s, moistening_constant_per_s])
+    estimator = RegressorEnsemble(
+        DummyRegressor(strategy="constant", constant=constant)
+    )
+
+    model = SklearnWrapper(
+        "sample", ["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], estimator
+    )
+
+    # needed to avoid sklearn.exceptions.NotFittedError
+    model.fit(data)
+
+    path = str(tmpdir.join("model.yaml"))
+    model.dump(path)
     return path
 
 
-@pytest.fixture(scope="module")
-def completed_rundir(tmpdir_factory):
+def _save_mock_keras_model(tmpdir):
+
+    input_variables = ["air_temperature", "specific_humidity"]
+    output_variables = ["dQ1", "dQ2"]
+
+    model = DummyModel("sample", input_variables, output_variables)
+    model.fit([_model_dataset()])
+    model.dump(str(tmpdir))
+
+    return str(tmpdir)
+
+
+@pytest.fixture(scope="module", params=["keras", "sklearn"])
+def completed_rundir(request, tmpdir_factory):
+
     if not FV3GFS_INSTALLED:
         pytest.skip("fv3gfs not installed")
 
     tmpdir = tmpdir_factory.mktemp("rundir")
-    saved_model = _save_mock_model(tmpdir)
+
+    if request.param == "sklearn":
+        model_path = _save_mock_sklearn_model(tmpdir)
+    elif request.param == "keras":
+        model_path = _save_mock_keras_model(tmpdir)
 
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
-    config = get_prognostic_config(saved_model)
-    fv3config.run_native(config, str(tmpdir), runfile=runfile, capture_output=False)
+    fv3_script = Path(__file__).parent.parent.joinpath("runfv3.sh").as_posix()
+    config = get_prognostic_config(request.param, model_path)
+
+    config_path = str(tmpdir.join("fv3config.yaml"))
+
+    with open(config_path, "w") as f:
+        yaml.safe_dump(config, f)
+
+    subprocess.check_call([fv3_script, config_path, str(tmpdir), runfile])
     return tmpdir
 
 
 def test_fv3run_checksum_restarts(completed_rundir):
+    """Please do not add more test cases here as this test slows image build time.
+    Additional Predictor model types and configurations should be tested against
+    the base class in the fv3fit test suite.
+    """
     # TODO: The checksum currently changes with new commits/updates. Figure out why
     # This checksum can be updated if checksum is expected to change
     # perhaps if an external library is updated.
-    excepted_checksum = "dc024d7e6f4d165878ff2925c25a99df"
+    expected_checksum = "dc024d7e6f4d165878ff2925c25a99df"
     fv_core = completed_rundir.join("RESTART").join("fv_core.res.tile1.nc")
 
     try:
-        assert excepted_checksum == fv_core.computehash()
+        assert expected_checksum == fv_core.computehash()
     except AssertionError as e:
         warnings.warn(
             "Prognostic fv3gfs ran successfully but failed the "
@@ -471,7 +526,15 @@ def test_fv3run_checksum_restarts(completed_rundir):
         )
 
 
+def test_fv3run_logs_present(completed_rundir):
+    assert completed_rundir.join(LOG_PATH).exists()
+
+
 def test_fv3run_diagnostic_outputs(completed_rundir):
+    """Please do not add more test cases here as this test slows image build time.
+    Additional Predictor model types and configurations should be tested against
+    the base class in the fv3fit test suite.
+    """
     diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
     dims = ("time", "tile", "y", "x")
 
@@ -483,3 +546,23 @@ def test_fv3run_diagnostic_outputs(completed_rundir):
     ]:
         assert diagnostics[variable].dims == dims
         assert np.sum(np.isnan(diagnostics[variable].values)) == 0
+
+
+def test_fv3run_python_mass_conserving(completed_rundir):
+    data_lines = []
+
+    path = str(completed_rundir.join(LOG_PATH))
+
+    # read python mass conservation info
+    with open(path) as f:
+        for line in f:
+            start = "INFO:root:python:"
+            if line.startswith(start):
+                data_lines.append(json.loads(line[len(start) :]))
+
+    for metric in data_lines:
+        np.testing.assert_allclose(
+            metric["vapor_mass_change"]["value"],
+            metric["total_mass_change"]["value"],
+            atol=1e-2,
+        )

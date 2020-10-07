@@ -1,0 +1,139 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: train-diags-prog
+spec:
+  serviceAccountName: integration-tests
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: climate-sim-pool
+  entrypoint: train-diags-prog
+  volumeClaimTemplates:
+    - metadata:
+        name: work-volume
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 100Gi
+  volumes:
+    - name: external-volume
+      persistentVolumeClaim:
+        claimName: gfs-analysis-read-only
+        readOnly: true
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+  - name: train-diags-prog
+    inputs:
+      parameters:
+        - name: image-tag
+        - name: root
+        - name: train-routine
+          value: sklearn
+        - name: train-test-data
+        - name: training-config
+        - name: train-times
+        - name: initial-condition
+        - name: prognostic-run-config
+        - name: reference-restarts
+        - name: store-true-args
+          value: " "
+        - name: test-times
+        - name: public-report-output
+        - {name: chunks, value: "{}"}  # by default just use chunks defined in post_process.py
+        - {name: segment-count, value: "1"}
+        - {name: cpu-prog, value: "6"}
+        - {name: memory-prog, value: 6Gi}
+        - {name: work-volume-name, value: work-volume}
+        - {name: external-volume-name, value: external-volume}
+    dag:
+      tasks:
+      - name: train-model
+        templateRef:
+          name: training
+          template: training
+        arguments:
+          parameters:
+            - name: image
+              value: "us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}"
+            - name: routine
+              value: "fv3fit.{{inputs.parameters.train-routine}}"
+            - name: input
+              value: "{{inputs.parameters.train-test-data}}"
+            - name: config
+              value: "{{inputs.parameters.training-config}}"
+            - name: times
+              value: "{{inputs.parameters.train-times}}"
+            - name: output
+              value: "{{inputs.parameters.root}}/trained_model"
+      - name: prognostic-run
+        dependencies: [train-model]
+        templateRef:
+          name: prognostic-run
+          template: prognostic-run
+        arguments:
+          parameters:
+              - name: image-tag
+                value: "{{inputs.parameters.image-tag}}"
+              - name: initial-condition
+                value: "{{inputs.parameters.initial-condition}}"
+              - name: config
+                value: "{{inputs.parameters.prognostic-run-config}}"
+              - name: reference-restarts
+                value: "{{inputs.parameters.reference-restarts}}"
+              - name: trained-ml
+                value: "{{inputs.parameters.root}}/trained_model"
+              - name: output
+                value: "{{inputs.parameters.root}}/prognostic_run"
+              - name: store-true-args
+                value: "{{inputs.parameters.store-true-args}}"
+              - name: chunks
+                value: "{{inputs.parameters.chunks}}"
+              - name: segment-count
+                value: "{{inputs.parameters.segment-count}}"
+              - name: cpu
+                value: "{{inputs.parameters.cpu-prog}}"
+              - name: memory
+                value: "{{inputs.parameters.memory-prog}}"
+              - name: work-volume-name
+                value: "{{inputs.parameters.work-volume-name}}"
+              - name: external-volume-name
+                value: "{{inputs.parameters.external-volume-name}}"
+      - name: offline-diags
+        dependencies: [train-model]
+        templateRef:
+          name: offline-diags
+          template: offline-diags
+        arguments:
+          parameters:
+              - name: image-tag
+                value: "{{inputs.parameters.image-tag}}"
+              - name: ml-model
+                value: "{{inputs.parameters.root}}/trained_model"
+              - name: config
+                value: "{{inputs.parameters.training-config}}"
+              - name: times
+                value: "{{inputs.parameters.test-times}}"
+              - name: offline-diags-output
+                value: "{{inputs.parameters.root}}/offline_diags"
+              - name: report-output
+                value: "{{inputs.parameters.public-report-output}}"
+              - name: data-path
+                value: "{{inputs.parameters.train-test-data}}"
+      - name: online-diags
+        dependencies: [prognostic-run]
+        templateRef:
+          name: prognostic-run-diags
+          template: diagnostics
+        arguments:
+          parameters:
+              - name: image
+                value: "us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}"
+              - name: run
+                value: "{{inputs.parameters.root}}/prognostic_run"
+              - name: output
+                value: "{{inputs.parameters.root}}/prognostic_run_diags"

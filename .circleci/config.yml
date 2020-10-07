@@ -9,7 +9,7 @@ jobs:
         description: "Type of test"
         default: "test_unit"
         type: enum
-        enum: ["test_unit", "test_regression", "typecheck", "test_dataflow"]
+        enum: ["test_unit", "test_regression", "typecheck", "test_dataflow", "test_prognostic_run_report"]
     docker:
       - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest
         auth:
@@ -21,17 +21,26 @@ jobs:
       - checkout
       - add_ssh_keys:
           fingerprints:
-            - "c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39"
-      - run: apt-get update && apt-get install -y uuid
+            - "28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d" # github user key
+      - run: apt-get update && apt-get install -y uuid gnupg
       - run:
-          name: "Save GCS for tests."
+          name: "Setup google-cloud-sdk"
           command: |
+            # Install Google Cloud sdk
+            echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list &&\
+            curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+            apt-get update && apt-get install -y google-cloud-sdk
+            gcloud config set project vcm-ml
+
+            # Setup credentials
             echo $ENCODED_GOOGLE_CREDENTIALS | \
             base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
+
+
       - run: make update_submodules
       - run:
           name: "Concatenate package dependency files"
-          command: cat environment.yml .circleci/environment.lock > combined_deps.txt
+          command: cat conda-linux-64.lock pip-requirements.txt > combined_deps.txt
       - restore_cache:
           keys:
             # change this string to invalidate cache
@@ -40,7 +49,6 @@ jobs:
           name: "Install fv3net dependencies"
           command: |
             make install_deps
-            cat .circleci/environment.lock
       - save_cache:
           key: v2-fv3net-env-{{ checksum "combined_deps.txt" }}
           paths:
@@ -48,9 +56,12 @@ jobs:
       - run:
           name: "Install fv3net packages"
           command: make install_local_packages
-      - run: |
-          source activate fv3net
-          make <<parameters.kind>>
+      - run: 
+          name: "Run test"
+          no_output_timeout: 20m
+          command: |
+            source activate fv3net
+            make <<parameters.kind>>
       - run:
           name: "Coverage Report"
           command: |
@@ -87,23 +98,28 @@ jobs:
       image:
         default: fv3net
         type: enum
-        enum: ["prognostic_run", "post_process_run", "fv3net"]
-    machine:
-      docker_layer_caching: true
-      image: ubuntu-1604:201903-01
+        enum: ["prognostic_run", "post_process_run", "fv3net", "fv3fit"]
+    docker:
+      - image: google/cloud-sdk
     environment:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       IMAGE: <<parameters.image>>
     steps:
-      - gcp-gcr/gcr-auth:
-          gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: Authenticate docker with GCR
+          command: |
+            echo "$ENCODED_GOOGLE_CREDENTIALS" | base64 -d > "$GOOGLE_APPLICATION_CREDENTIALS"
+            gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
+            gcloud auth configure-docker
       - checkout
       - add_ssh_keys:
           fingerprints:
-            - "c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39"
-      - run: sudo apt-get install -y make jq
+            - "28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d" # github user key
+      - run: apt-get install -y make jq
       - run:
           name: "Pull submodules"
           command: |
@@ -151,7 +167,7 @@ jobs:
 
   integration_tests:
     docker:
-      - image: google/cloud-sdk:303.0.0
+      - image: google/cloud-sdk
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       CLUSTER_NAME: ml-cluster-dev
@@ -196,13 +212,7 @@ jobs:
             chmod +x argo-linux-amd64
             mv ./argo-linux-amd64 /usr/local/bin/argo
       - run:
-          name: Submit argo integration tests
-          command: |
-            make run_argo_integration_tests VERSION=$CIRCLE_SHA1
-      - run:
           name: Submit integration tests
-          # Note that 'end_to_end_configuration.yml' in k8s image used for orchestration was
-          # during the build job above
           command: |
             make run_integration_tests VERSION=$CIRCLE_SHA1
       - run:
@@ -223,7 +233,7 @@ workflows:
           name: pytest-<<matrix.kind>>
           matrix:
             parameters:
-              kind: ["test_unit", "test_regression"]
+              kind: ["test_unit", "test_regression", "test_prognostic_run_report"]
       - hold:
           type: approval
           filters:
@@ -237,7 +247,7 @@ workflows:
       - build_default:
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run"]
+              image: ["prognostic_run", "fv3net", "post_process_run", "fv3fit"]
       - integration_tests:
           requires:
             - build_default
@@ -258,7 +268,7 @@ workflows:
       - build_default:
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run"]
+              image: ["prognostic_run", "fv3net", "post_process_run", "fv3fit"]
           filters:
             tags:
               only: /^v.*/

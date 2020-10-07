@@ -27,7 +27,7 @@ ENV PROJECT_NAME=fv3net
 WORKDIR $FV3NET
 
 ADD .environment-scripts $ENVIRONMENT_SCRIPTS
-ADD environment.yml  environment.yml
+COPY constraints.txt pip-requirements.txt conda-linux-64.lock ./
 
 RUN bash $ENVIRONMENT_SCRIPTS/build_environment.sh $PROJECT_NAME && conda clean -tpi
 ENV PATH=/opt/conda/envs/${PROJECT_NAME}/bin:$PATH
@@ -35,13 +35,8 @@ ENV PATH=/opt/conda/envs/${PROJECT_NAME}/bin:$PATH
 
 # Add rest of fv3net directory
 COPY external $FV3NET/external
-COPY fv3net $FV3NET/fv3net
 COPY workflows $FV3NET/workflows
-COPY catalog.yml dataflow.sh $FV3NET/
-
-# pin scipy version to prevent other dependencies from installing 1.4.1 version with regression 
-# https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-pkgs.html#preventing-packages-from-updating-pinning
-RUN echo "scipy >= 1.5.0" > /opt/conda/envs/$PROJECT_NAME/conda-meta/pinned
+COPY catalog.yml $FV3NET/
 
 # setup the local python packages
 RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME

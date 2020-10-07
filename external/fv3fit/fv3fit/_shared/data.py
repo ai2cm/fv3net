@@ -1,3 +1,4 @@
+from typing import List, Union
 import xarray as xr
 
 from loaders import batches, FunctionOutputSequence
@@ -5,7 +6,7 @@ from .config import ModelTrainingConfig
 
 
 def load_data_sequence(
-    data_path: str, train_config: ModelTrainingConfig
+    data_path: Union[List, tuple, str], train_config: ModelTrainingConfig
 ) -> FunctionOutputSequence[xr.Dataset]:
     """
     Args:
@@ -18,7 +19,9 @@ def load_data_sequence(
     batch_function = getattr(batches, train_config.batch_function)
     ds_batches = batch_function(
         data_path,
-        list(train_config.input_variables) + list(train_config.output_variables),
+        list(train_config.input_variables)
+        + list(train_config.output_variables)
+        + list(train_config.additional_variables),  # type: ignore
         **train_config.batch_kwargs,
     )
     return ds_batches

@@ -3,7 +3,7 @@ import xarray as xr
 import numpy as np
 
 import runtime
-import fv3util
+import fv3gfs.util
 
 import pytest
 
@@ -18,8 +18,8 @@ class MockFV3GFS:
 
         nx, ny = 10, 10
 
-        lat = fv3util.Quantity(np.random.rand(ny, nx), dims=["y", "x"], units="deg")
-        lon = fv3util.Quantity(np.random.rand(ny, nx), dims=["y", "x"], units="deg")
+        lat = fv3gfs.util.Quantity(np.random.rand(ny, nx), dims=["y", "x"], units="deg")
+        lon = fv3gfs.util.Quantity(np.random.rand(ny, nx), dims=["y", "x"], units="deg")
 
         state = {
             "time": datetime.now(),
@@ -29,10 +29,10 @@ class MockFV3GFS:
 
         return {name: state[name] for name in names}
 
-    def set_state(self, data):
+    def set_state_mass_conserving(self, data):
         self.set_state_called = True
         for key, value in data.items():
-            assert isinstance(value, fv3util.Quantity)
+            assert isinstance(value, fv3gfs.util.Quantity)
 
 
 def test_DerivedFV3State():

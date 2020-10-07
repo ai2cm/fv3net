@@ -1,9 +1,29 @@
-from dataclasses import dataclass
+import abc
+import io
 from copy import copy
 import numpy as np
 import xarray as xr
-from sklearn.base import BaseEstimator
-from .._shared import pack, unpack
+import pandas as pd
+import fsspec
+import joblib
+from .._shared import pack, unpack, Predictor
+from .._shared import scaler
+import sklearn.base
+
+from typing import Optional, Iterable, Sequence, MutableMapping, Any
+import yaml
+
+# bump this version for incompatible changes
+SERIALIZATION_VERSION = "v0"
+
+
+def _multiindex_to_tuple(index: pd.MultiIndex) -> tuple:
+    return list(index.names), list(index.to_list())
+
+
+def _tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
+    names, list_ = d
+    return pd.MultiIndex.from_tuples(list_, names=names)
 
 
 class RegressorEnsemble:
@@ -11,9 +31,13 @@ class RegressorEnsemble:
 
     """
 
-    def __init__(self, base_regressor):
+    def __init__(
+        self,
+        base_regressor=None,
+        regressors: Sequence[sklearn.base.BaseEstimator] = None,
+    ) -> None:
         self.base_regressor = base_regressor
-        self.regressors = []
+        self.regressors = regressors or []
 
     @property
     def n_estimators(self):
@@ -51,35 +75,45 @@ class RegressorEnsemble:
         )
         return np.mean(predictions, axis=0)
 
+    def dumps(self) -> bytes:
+        f = io.BytesIO()
+        joblib.dump(self.regressors, f)
+        return f.getvalue()
 
-@dataclass
-class BaseXarrayEstimator:
-    def fit(
-        self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
+    @classmethod
+    def loads(cls, b: bytes) -> "RegressorEnsemble":
+        f = io.BytesIO(b)
+        regressors: Sequence[sklearn.base.BaseEstimator] = joblib.load(f)
+        obj = cls(regressors=regressors)
+        return obj
+
+
+class BaseXarrayEstimator(Predictor):
+    """Abstract base class for an estimator wich works with xarray datasets.
+    Subclasses Predictor abstract base class but adds `fit` method taking in
+    xarray dataset.
+    """
+
+    def __init__(
+        self,
+        sample_dim_name: str,
+        input_variables: Iterable[str],
+        output_variables: Iterable[str],
     ):
         """
         Args:
-            input_vars: list of input variables
-            output_vars: list of output_variables
-            sample_dim: dimension over which samples are taken
+            sample_dim_name: dimension over which samples are taken
+            input_variables: list of input variables
+            output_variables: list of output variables
+        """
+        super().__init__(sample_dim_name, input_variables, output_variables)
+
+    @abc.abstractmethod
+    def fit(self, data: xr.Dataset) -> None:
+        """
+        Args:
             data: xarray Dataset with dimensions (sample_dim, *)
 
-        Returns:
-            fitted model
-        """
-        raise NotImplementedError
-
-    def predict(self, data: xr.Dataset, sample_dim: str) -> xr.Dataset:
-        """
-        Make a prediction
-
-        Args:
-            data: xarray Dataset with the same feature dimensions as trained
-              data
-            sample_dim: dimension along which "samples" are defined. This could be
-              inferred, but explicity is not terrible.
-        Returns:
-            prediction:
         """
         raise NotImplementedError
 
@@ -89,30 +123,139 @@ class SklearnWrapper(BaseXarrayEstimator):
 
     """
 
-    def __init__(self, model: BaseEstimator):
+    def __init__(
+        self,
+        sample_dim_name: str,
+        input_variables: Iterable[str],
+        output_variables: Iterable[str],
+        model: RegressorEnsemble,
+        target_scaler: Optional[scaler.NormalizeTransform] = None,
+        parallel_backend: str = "threading",
+        n_jobs: int = 1,
+    ) -> None:
         """
+        Initialize the wrapper
 
         Args:
+            sample_dim_name: dimension over which samples are taken
+            input_variables: list of input variables
+            output_variables: list of output variables
             model: a scikit learn regression model
         """
+        self._sample_dim_name = sample_dim_name
+        self._input_variables = input_variables
+        self._output_variables = output_variables
         self.model = model
+
+        self.n_jobs = n_jobs
+        self.parallel_backend = parallel_backend
+        self.target_scaler = target_scaler
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
-    def fit(
-        self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
-    ):
+    def fit(self, data: xr.Dataset):
         # TODO the sample_dim can change so best to use feature dim to flatten
-        self.input_vars_ = input_vars
-        self.output_vars_ = output_vars
-        x, _ = pack(data[input_vars], sample_dim)
-        y, self.output_features_ = pack(data[output_vars], sample_dim)
-        self.model.fit(x, y)
-        return self
+        x, _ = pack(data[self.input_variables], self.sample_dim_name)
+        y, self.output_features_ = pack(
+            data[self.output_variables], self.sample_dim_name
+        )
 
-    def predict(self, data, sample_dim):
-        x, _ = pack(data[self.input_vars_], sample_dim)
-        y = self.model.predict(x)
-        ds = unpack(y, sample_dim, self.output_features_)
-        return ds.assign_coords({sample_dim: data[sample_dim]})
+        if self.target_scaler is not None:
+            y = self.target_scaler.normalize(y)
+
+        self.model.fit(x, y)
+
+    def predict(self, data):
+        x, _ = pack(data[self.input_variables], self.sample_dim_name)
+        with joblib.parallel_backend(self.parallel_backend, n_jobs=self.n_jobs):
+            y = self.model.predict(x)
+
+            if self.target_scaler is not None:
+                y = self.target_scaler.denormalize(y)
+
+        ds = unpack(y, self.sample_dim_name, self.output_features_)
+        return ds.assign_coords({self.sample_dim_name: data[self.sample_dim_name]})
+
+    def dump(self, path: str) -> None:
+        """Dump data to a directory
+
+        Args:
+            path: a URL pointing to a directory
+        """
+        output: MutableMapping[str, Any] = {}
+        output["version"] = SERIALIZATION_VERSION
+        output["model"] = self.model.dumps()
+        if self.target_scaler is not None:
+            output["scaler"] = scaler.dumps(self.target_scaler)
+
+        output["metadata"] = [
+            self.sample_dim_name,
+            self.input_variables,
+            self.output_variables,
+            _multiindex_to_tuple(self.output_features_),
+        ]
+
+        with fsspec.open(path, "w") as f:
+            yaml.safe_dump(output, f)
+
+    @classmethod
+    def load(cls, path: str) -> "SklearnWrapper":
+        """Load a model from a remote path"""
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+        data = yaml.safe_load(fs.cat(path))
+
+        if data["version"] != SERIALIZATION_VERSION:
+            raise ValueError(
+                f"Artifact has version {data['version']}."
+                f"Only {SERIALIZATION_VERSION} is supported."
+            )
+
+        model = RegressorEnsemble.loads(data["model"])
+
+        scaler_str = data.get("scaler", "")
+        scaler_obj: Optional[scaler.NormalizeTransform]
+        if scaler_str:
+            scaler_obj = scaler.loads(scaler_str)
+        else:
+            scaler_obj = None
+        (
+            sample_dim_name,
+            input_variables,
+            output_variables,
+            output_features_dict_,
+        ) = data["metadata"]
+
+        output_features_ = _tuple_to_multiindex(output_features_dict_)
+
+        obj = cls(
+            sample_dim_name, input_variables, output_variables, model, scaler_obj,
+        )
+        obj.output_features_ = output_features_
+
+        return obj
+
+    # these are here for backward compatibility with pre-unified API attribute names
+    @property
+    def input_variables(self):
+        if hasattr(self, "_input_variables"):
+            return self._input_variables
+        elif hasattr(self, "input_vars_"):
+            return self.input_vars_
+        else:
+            raise ValueError("Wrapped model version without input variables attribute.")
+
+    @property
+    def output_variables(self):
+        if hasattr(self, "_input_variables"):
+            return self._output_variables
+        elif hasattr(self, "input_vars_"):
+            return self.output_vars_
+        else:
+            raise ValueError(
+                "Wrapped model version without output variables attribute."
+            )
+
+    @property
+    def sample_dim_name(self):
+        return getattr(self, "_sample_dim_name", "sample")

@@ -4,58 +4,15 @@ fv3net
 
 Improving the GFDL FV3 model physics with machine learning
 
-Project Organization
-------------
+# The default fv3net environment
 
-    ├── assets              <-- Useful files for restart directory creation? 
-    ├── configurations      <-- Files for ML model configuration and general configuration
-    ├── data                <-- Intermediate data store
-    ├── docker 
-    ├── external            <-- Package dependencies that will be spun off into their own repo
-    │   └── vcm                 <-- General VCM tools package 
-    ├── fv3net              <-- Main package source for ML pipelines and model code
-    │   ├── models
-    │   ├── pipelines           <-- Cloud data pipelines
-    │   ├── visualization
-    ├── tests
-    ├── workflows                     <-- Job submission scripts and description for pieces of data pipeline
-    │   ├── coarsen_c384_diagnostics  <-- Coarsen FV3GFS C384 diagnostic files
-    │   ├── coarsen_restarts          <-- Coarsen FV3GFS restart timesteps to desired resolution
-    │   ├── create_training_data      <-- Create training data batches from Fv3GFS step simulations
-    │   ├── extract_tars              <-- Dig yourself out of a tarpit using Dataflow
-    │   ├── end_to_end                <-- Run end-to-end pre-processing, training, and prognostic run
-    │   ├── one_step_jobs             <-- Submit one-step kubernetes jobs using fv3run
-    │   ├── prognostic_c48_run        <-- Run a prognostic Fv3GFS simulation with an embedded ML model
-    │   ├── single_fv3gfs_run         <-- Submit a one off free or nudged fv3gfs simulation
-    │   ├── fregrid_cube_netcdfs      <-- Regrid cubed-sphere to lat/lon and other grids data with fregrid
-    │   ├── scale-snakemake           <-- Coarsening operation with kubernetes and snakemake (Deprecated)
-    │   └── sklearn_regression        <-- Train an ML model
-    ├── Dockerfile
-    ├── LICENSE
-    ├── Makefile
-    ├── README.md
-    ├── catalog.yml         <-- Intake list of datasets 
-    ├── environment.yml
-    ├── pytest.ini
-    ├── regression_tests.sh
-    ├── requirements.txt
-    └── setup.py
+## Installing
 
---------
-
-# Setting up the environment
-
-This computational environment can be challenging to install because it require
-both external packages as well as tools developed locally at Vulcan. The
-internal Vulcan dependencies are included as submodules in the `external`
-folder, while the external dependencies are managed using anaconda with an
-`environment.yml`. The Vulcan submodules can be download, if they aren't
-already, by running
+This project specifies a default "fv3net" environment containing the
+dependencies of all the non-containerized workflows. This environment uses
+the conda package manager. If that is installed then you can run
 
     make update_submodules
-
-Then, assuming anaconda is installed, the environment can be created by running
-
     make create_environment
 
 This creates an anaconda environment `fv3net` containing both Vulcan and
@@ -66,11 +23,50 @@ succesfully, the fv3net environment can be activated with
 
     conda activate fv3net
 
-The `build_environment.sh` script also outputs a list of all installed dependencies
-with their version under `.circleci/environment.lock`.  This file is used
-along with `environment.yml` as a key for caching the `fv3net` dependencies.  Whenver
-`make create_environment` or the build script is run, this file will be updated
-and committed to keep track of versions over time.
+# Updating dependencies
+
+To maintain deterministic builds, fv3net locks the versions of all pip and
+anaconda packages.
+
+# Pip
+
+Pip dependencies are specified in a variety of places. Mostly `setup.py`
+files and `requirements.txt` files for the dockerfiles. A package called
+`pip-tools` is used to ensure that these files do not conflict with one
+another. If they do not, the `make lock_deps` rule will generate a file
+`constraints.txt` containing a list of versions to use for pip packages.
+These constraints should then be whenenver `pip` is invoked like this:
+
+    pip install -c constraints.txt <other pip args>
+
+## Where to pin dependencies?
+
+Since `constraints.txt` is compiled automatically, it should not be manually
+edited. If you need to constrain or pin a dependency, you should do so in the
+`requirements.txt` used by the build process for the container where the
+problem occurs or in the root level `pip-requirements.txt` file. 
+
+For instance, suppose `fsspec` v0.7.0 breaks some aspect of the prognostic
+run image, then you could add something like the following to the
+`docker/prognostic_run/requirements.txt`:
+
+    fsspec!=0.7.0
+
+Then run `make lock_deps` to update the `constraints.txt` file.
+
+## The "fv3net" environment
+
+The package `conda-lock` is used to ensure deterministic builds anaconda
+builds. Therefore, adding or modifying a dependency involves a few steps:
+1. add any anaconda packages to the `environment.yml`
+1. add any pip packages to `pip-requirements.txt`
+1. run `make lock_deps` to create lock files `conda-<system>.lock` which explicitly list all the conda packages
+1. Commit the lock files and any other changes to git
+
+The `make create_environment` uses these lock files and
+`pip-requirements.txt` to install its dependencies. It does NOT directly
+install the `environment.yml` file since that can lead to non-deterministic
+builds, and difficult to debug errors in CI.
 
 # Deploying cloud data pipelines
 
@@ -89,32 +85,6 @@ The workflows use a pair of common images:
 
 These images can be built and pushed to GCR using `make build_images` and
 `make push_images`, respectively.
-
-## Dataflow
-
-Dataflow jobs run in a "serverless" style where data is piped between workers who
-execute a single function.  This workflow type is good for pure python operations
-that are easily parallelizable.  Dataflow handles resource provision and worker
-scaling making it a somewhat straightforward option.
-
-For a dataflow pipeline, jobs can be tested locally using a DirectRunner, e.g., 
-
-    python -m fv3net.pipelines.extract_tars test_tars test_output_dir --runner DirectRunner
-
-Remote dataflow jobs should be submitted with the `dataflow.sh` script in the
-root directory. Other forms of dataflow submission are not reproducible, and
-are strongly discouraged. This script is tested by CI and handles the
-difficult task of bundling VCM private packages, and specifying all the
-combined dependencies that are not pre-installed in dataflow workers (see
-[this
-webpage](https://cloud.google.com/dataflow/docs/concepts/sdk-worker-dependencies)).
-
-### Troubleshooting
-
-If you get an error `Could not create workflow; user does not have write
-access to project` upon trying to submit the dataflow job, do `gcloud auth
-application-default login` first and then retry.
-
 
 ## Running fv3gfs with Kubernetes
 
@@ -139,8 +109,7 @@ You could create a kubernetes yaml file which runs such a command on a
 `fv3gfs-python` docker image, and submit it manually. However, `fv3config` also
 supplies a `run_kubernetes` function to do this for you. See the
 [`fv3config`](https://github.com/VulcanClimateModeling/fv3config) documentation for
-more complete details, or the `one_step_jobs` workflow for a more complex example of
-using the function to prepare and submit many jobs.
+more complete details.
 
 The basic structure of the command is
 
@@ -159,22 +128,6 @@ cloud platform access key (as a json file called `key.json`). For our VCM group 
 should be set to 'gcp_key'. Additional arguments are
 available for configuring the kubernetes job and documented in the `run_kubernetes`
 docstring.
-
-## Adding new model types
-
-*This interface is a work in progress. It might be better to define a class
-based interface. Let's defer that to when we have more than one model type*
-
-To add a new model type one needs to create two new files
-```
-fv3net.models.{model_type}/train.py
-fv3net.models.{model_type}/test.py
-```
-
-The training script should take in a yaml file of options with this command line interface
-```
-python -m fv3net.models.{model_type}.train --options options.yaml output.pkl
-```
 
 # Code linting checks
 

@@ -28,13 +28,14 @@ def get_chunks(user_chunks: ChunkSpec) -> ChunkSpec:
         "atmos_dt_atmos.zarr": CHUNKS_2D,
         "sfc_dt_atmos.zarr": CHUNKS_2D,
         "atmos_8xdaily.zarr": CHUNKS_3D,
+        "nudging_tendencies.zarr": CHUNKS_3D,
     }
     CHUNKS.update(user_chunks)
     return CHUNKS
 
 
 def upload_dir(d, dest):
-    subprocess.check_call(["gsutil", "-m", "rsync", "-r", d, dest])
+    subprocess.check_call(["gsutil", "-m", "rsync", "-r", "-e", d, dest])
 
 
 def download_directory(dir_, dest):
@@ -67,6 +68,10 @@ def clear_encoding(ds):
     ds.encoding = {}
     for variable in ds:
         ds[variable].encoding = {}
+    for coord in ds.coords:
+        coord_encoding = ds[coord].encoding
+        coord_encoding.pop("chunks", None)
+        ds[coord].encoding = coord_encoding
 
 
 def cast_time(ds):
@@ -147,6 +152,10 @@ def process_item(
         dest = os.path.join(d_out, relpath)
         chunked = cast_time(chunked)
         chunked.to_zarr(dest, mode="w", consolidated=True)
+    except ValueError:
+        # is an empty xarray, do nothing
+        logger.warning(f"Skipping {item} since it is an empty dataset.")
+        pass
     else:
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         try:
@@ -164,7 +173,7 @@ def process_item(
 def post_process(rundir: str, destination: str, chunks: str):
     """Post-process the fv3gfs output located RUNDIR and save to DESTINATION
 
-    Both RUNDIR and DESTINATION are URLs in GCS.
+    RUNDIR and DESTINATION may be local or GCS paths.
 
     This script rechunks the python zarr output and converts the netCDF
     outputs to zarr.
@@ -186,12 +195,16 @@ def post_process(rundir: str, destination: str, chunks: str):
         else:
             d_in = rundir
 
+        if not destination.startswith("gs://"):
+            d_out = destination
+
         tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True))
 
         for item in chain(open_tiles(tiles, d_in, chunks), open_zarrs(zarrs), other):
             process_item(item, d_in, d_out, chunks)
 
-        upload_dir(d_out, destination)
+        if destination.startswith("gs://"):
+            upload_dir(d_out, destination)
 
 
 if __name__ == "__main__":

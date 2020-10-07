@@ -1,8 +1,15 @@
-from generate_report import upload, _parse_metadata, detect_rundirs
+from generate_report import (
+    upload,
+    _parse_metadata,
+    detect_rundirs,
+    _html_link,
+    get_movie_links,
+)
 
 import pytest
 import fsspec
 import uuid
+import os
 from google.cloud.storage.client import Client
 
 
@@ -38,7 +45,7 @@ def test_upload_html_gcs(client: Client):
 def test__parse_metadata():
     run = "blah-blah-baseline"
     out = _parse_metadata(run)
-    assert out == {"run": run, "baseline": "Baseline", "one_step": "blah-blah"}
+    assert out == {"run": run, "baseline": True}
 
 
 def test_detect_rundirs(tmpdir):
@@ -66,3 +73,25 @@ def test_detect_rundirs_fail_less_than_2(tmpdir):
 
     with pytest.raises(ValueError):
         detect_rundirs(tmpdir, fs)
+
+
+def test__html_links():
+    tag = "my-tag"
+    url = "http://www.domain.com"
+    expected = "<a href='http://www.domain.com'>my-tag</a>"
+    assert expected == _html_link(url, tag)
+
+
+def test_get_movie_links(tmpdir):
+    fs = fsspec.filesystem("file")
+    domain = "http://www.domain.com"
+    rdirs = ["rundir1", "rundir2"]
+    for rdir in rdirs:
+        tmpdir.mkdir(rdir).join("movie1.mp4").write("foobar")
+    tmpdir.join(rdirs[0]).join("movie2.mp4").write("foobar")
+
+    result = get_movie_links(tmpdir, rdirs, fs, domain=domain)
+
+    assert "movie1.mp4" in result
+    assert "movie2.mp4" in result
+    assert os.path.join(domain, tmpdir, rdirs[0], "movie2.mp4") in result["movie2.mp4"]

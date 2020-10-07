@@ -5,9 +5,13 @@ import logging
 from fv3fit._shared import ModelTrainingConfig
 import numpy as np
 import subprocess
-import os
-from fv3fit.sklearn._train import train_model
 
+from fv3fit.sklearn._train import (
+    train_model,
+    _get_target_scaler,
+)
+import fv3fit.sklearn
+from fv3fit._shared import StandardScaler, ManualScaler
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +29,6 @@ def hyperparameters(model_type) -> dict:
         raise NotImplementedError(model_type)
 
 
-@pytest.mark.regression
 def test_training(
     training_batches: Sequence[xr.Dataset],
     output_variables: Iterable[str],
@@ -34,7 +37,7 @@ def test_training(
     model = train_model(training_batches, train_config)
     assert model.model.n_estimators == 2
     batch_dataset = training_batches[0]
-    result = model.predict(batch_dataset, "sample")
+    result = model.predict(batch_dataset)
     missing_names = set(output_variables).difference(result.data_vars.keys())
     assert len(missing_names) == 0
     for varname in output_variables:
@@ -42,7 +45,6 @@ def test_training(
         assert np.sum(np.isnan(result[varname].values)) == 0
 
 
-@pytest.mark.regression
 def test_training_integration(
     data_source_path: str,
     train_config_filename: str,
@@ -60,15 +62,29 @@ def test_training_integration(
             data_source_path,
             train_config_filename,
             tmp_path,
-            "--no-train-subdir-append",
         ]
     )
-    required_names = [
-        "ML_model_training_report.html",
-        "count_of_training_times_used.png",
-        "sklearn_model.pkl",
-        "training_config.yml",
-    ]
-    existing_names = os.listdir(tmp_path)
-    missing_names = set(required_names).difference(existing_names)
-    assert len(missing_names) == 0, existing_names
+
+    fv3fit.sklearn.SklearnWrapper.load(str(tmp_path / "sklearn.yaml"))
+
+
+@pytest.mark.parametrize(
+    "scaler_type, expected_type", (["standard", StandardScaler], ["mass", ManualScaler])
+)
+def test__get_target_scaler_type(scaler_type, expected_type):
+    scaler = _get_target_scaler(
+        scaler_type, scaler_kwargs={}, norm_data=norm_data, output_vars=["y0", "y1"]
+    )
+    assert isinstance(scaler, expected_type)
+
+
+norm_data = xr.Dataset(
+    {
+        "y0": (["sample", "z"], np.array([[1.0, 1.0], [2.0, 2.0]])),
+        "y1": (["sample"], np.array([-1.0, -2.0])),
+        "pressure_thickness_of_atmospheric_layer": (
+            ["sample", "z"],
+            np.array([[1.0, 1.0], [1.0, 1.0]]),
+        ),
+    }
+)

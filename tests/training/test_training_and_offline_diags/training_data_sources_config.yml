@@ -1,14 +1,4 @@
 sources:
-  one_step_physics-off: 
-    path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/one-step-physics-off/create_training_data/train
-    mapping_function: open_one_step
-    mapping_kwargs:
-      add_shield_diags: True
-  one_step_clouds-off: 
-    path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/one-step-clouds-off/create_training_data/train
-    mapping_function: open_one_step
-    mapping_kwargs:
-      add_shield_diags: True
   nudging_tendencies:
     path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging/outdir-3h
     mapping_function: open_merged_nudged_full_tendencies

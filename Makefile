@@ -17,7 +17,8 @@ GCR_IMAGE = us.gcr.io/vcm-ml/fv3net
 GCR_BASE  = us.gcr.io/vcm-ml
 FV3NET_IMAGE = $(GCR_BASE)/fv3net
 PROGNOSTIC_RUN_IMAGE = $(GCR_BASE)/prognostic_run
-
+FORTRAN_VERSION = $(shell git -C external/fv3gfs-fortran rev-parse HEAD)
+FORTRAN_IMAGE = $(GCR_BASE)/fv3gfs-fortran-fv3net:$(FORTRAN_VERSION)
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -33,7 +34,20 @@ endif
 
 # pattern rule for building docker images
 build_image_%:
-	docker build . -f docker/$*/Dockerfile  -t $*
+	docker build . -f docker/$*/Dockerfile -t $*
+
+build_image_prognostic_run:
+	if [ -z "$(shell docker images -q $(FORTRAN_IMAGE) 2> /dev/null)" ]; \
+	then \
+		docker pull $(FORTRAN_IMAGE) || ($(MAKE) rebuild_image_fortran && docker push $(FORTRAN_IMAGE)); \
+	fi
+	docker build . -f docker/prognostic_run/Dockerfile -t prognostic_run --build-arg FORTRAN_IMAGE=$(FORTRAN_IMAGE)
+
+rebuild_image_fortran:
+	docker build . -f docker/prognostic_run/fortran.Dockerfile -t $(FORTRAN_IMAGE)
+
+push_image_fortran:
+	docker push $(FORTRAN_IMAGE)
 
 build_image_post_process_run:
 	docker build workflows/post_process_run -t post_process_run
@@ -66,16 +80,16 @@ build_ci_image:
 
 # run integration tests
 run_integration_tests:
-	./tests/end_to_end_integration/run_integration_with_wait.sh $(VERSION)
-
-run_argo_integration_tests:
-	./tests/end_to_end_integration_argo/run_test.sh $(VERSION)
+	./tests/end_to_end_integration/run_test.sh $(VERSION)
 
 test:
 	pytest external tests
 
 test_prognostic_run:
 	docker run prognostic_run pytest
+
+test_prognostic_run_report:
+	bash workflows/prognostic_run_diags/test_integration.sh
 
 test_unit:
 	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
@@ -84,14 +98,14 @@ test_regression:
 	coverage run -m pytest -vv -m regression -s
 
 test_dataflow:
-	coverage run -m pytest -vv tests/dataflow/ -s
+	coverage run -m pytest -vv workflows/dataflow/tests/integration -s
 
 coverage_report:
-	coverage report -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3util/**.py'
+	coverage report -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3gfs-util/**.py','external/fv3gfs-wrapper/**.py','external/fv3gfs-fortran/**.py'
 
 htmlcov:
 	rm -rf $@
-	coverage html -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3util/**.py'
+	coverage html -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3gfs-util/**.py''external/fv3gfs-wrapper/**.py','external/fv3gfs-fortran/**.py'
 
 test_argo:
 	make -C workflows/argo/ test
@@ -116,16 +130,18 @@ update_submodules:
 install_deps:
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
 
+lock_deps:
+	conda-lock -f environment.yml
+	# external directories must be explicitly listed to avoid model requirements files which use locked versions
+	pip-compile pip-requirements.txt external/fv3fit/requirements.txt docker/**/requirements.txt --output-file constraints.txt
+
 install_local_packages:
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
 
 create_environment:
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
-	$(MAKE) .circleci/environment.lock
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
 
-.circleci/environment.lock: 
-	conda list -n $(PROJECT_NAME) > $@
 
 overwrite_baseline_images:
 	pytest tests/test_diagnostics_plots.py --mpl-generate-path tests/baseline_images

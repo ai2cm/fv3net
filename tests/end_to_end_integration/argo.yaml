@@ -1,0 +1,89 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: integration-test-
+spec:
+  serviceAccountName: integration-tests
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: climate-sim-pool
+  entrypoint: main
+  volumeClaimTemplates:
+    - metadata:
+        name: work-volume
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+  volumes:
+    - name: restart-data
+      persistentVolumeClaim:
+        claimName: nudging-read-only
+        readOnly: true
+    - name: gfs-analysis-data
+      persistentVolumeClaim:
+        claimName: gfs-analysis-read-only
+        readOnly: true
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+  - name: main
+    dag:
+      tasks:
+      - name: nudging-run
+        templateRef:
+          name: nudging
+          template: nudging
+        arguments:
+          parameters:
+          - name: fv3net-image
+            value: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image-tag}}"
+          - name: fv3gfs-image
+            value: "us.gcr.io/vcm-ml/prognostic_run:{{workflow.parameters.image-tag}}"
+          - name: post-process-image
+            value: "us.gcr.io/vcm-ml/post_process_run:{{workflow.parameters.image-tag}}"
+          - name: times
+            value: "{{workflow.parameters.nudging-times}}"
+          - name: output-url
+            value: "{{workflow.parameters.root}}/nudging"
+          - name: nudging-config
+            value: "{{workflow.parameters.nudging-config}}"
+          - name: segment-count
+            value: "{{workflow.parameters.nudging-segment-count}}"
+          - {name: work-volume-name, value: work-volume}
+          - {name: external-volume-name, value: restart-data}
+      - name: train-offline-diags-prognostic
+        dependencies: [nudging-run]
+        templateRef:
+          name: train-diags-prog
+          template: train-diags-prog
+        arguments:
+          parameters:
+          - name: image-tag
+            value: "{{workflow.parameters.image-tag}}"
+          - name: root
+            value: "{{workflow.parameters.root}}"
+          - name: train-test-data
+            value: "{{workflow.parameters.root}}/nudging"
+          - name: training-config
+            value: "{{workflow.parameters.training-config}}"
+          - name: train-times
+            value: "{{workflow.parameters.train-times}}"
+          - name: initial-condition
+            value: "{{workflow.parameters.initial-condition}}"
+          - name: prognostic-run-config
+            value: "{{workflow.parameters.prognostic-run-config}}"
+          - name: reference-restarts
+            value: "{{workflow.parameters.reference-restarts}}"
+          - name: store-true-args
+            value: "--nudge-to-observations"
+          - name: test-times
+            value: "{{workflow.parameters.test-times}}"
+          - name: public-report-output
+            value: "{{workflow.parameters.root}}/offline-report"
+          - {name: work-volume-name, value: work-volume}
+          - {name: external-volume-name, value: gfs-analysis-data}

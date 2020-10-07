@@ -5,6 +5,7 @@ import xarray as xr
 
 from vcm import safe
 from vcm.cubedsphere import regrid_to_common_pressure
+import copy
 
 
 logging.getLogger(__name__)
@@ -160,6 +161,7 @@ def _calc_same_dims_metrics(
     """
     weights = weights or [1.0]
     metric_comparison_coords = [(target_coord, predict_coord), (target_coord, "mean")]
+
     ds = _insert_means(
         ds, vars, predict_coord, target_coord, derivation_dim, weights, mean_dim_vars
     )
@@ -302,6 +304,7 @@ def _weighted_average(
     # this does multiple weightings (e.g. area + delp) in one go
     # NOTE: this assumes the variables used in weighting have already
     # been transformed into weights!
+    data_copy = copy.deepcopy(data)
     for weight in weights:
-        data *= weight
-    return data.mean(dim=mean_dims, skipna=True)
+        data_copy *= weight
+    return data_copy.mean(dim=mean_dims, skipna=True)
