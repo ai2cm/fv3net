@@ -43,7 +43,6 @@ build_image_post_process_run:
 pull_deps_prognostic_run:
 	docker pull	us.gcr.io/vcm-ml/fms-build@sha256:868e79a8ef4921f655a6f1fdd32c4eaa200d1157b076a4f85587689bb892e64c
 	docker pull	us.gcr.io/vcm-ml/esmf-build@sha256:d3154afc4f4b57f9c253be1d84c405b4a3ac508eebbfe5cd0a8c91f65a8287be
-	docker pull	us.gcr.io/vcm-ml/prognostic_run:latest
 
 build_image_prognostic_run: pull_deps_prognostic_run
 
