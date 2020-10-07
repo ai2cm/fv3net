@@ -1,7 +1,7 @@
 steps:
 - name: 'docker'
-  args: ['build', '-t', 'us.gcr.io/vcm-ml/prognostic_run', '.', '-f', 'docker/prognostic_run/Dockerfile', '--cache-from', 'us.gcr.io/vcm-ml/prognostic_run:latest']
+  args: ['build', '-t', 'us.gcr.io/vcm-ml/prognostic_run_dev:latest', '.', '-f', 'docker/prognostic_run/Dockerfile', '--cache-from', 'us.gcr.io/vcm-ml/prognostic_run_dev:latest']
 images:
-  - us.gcr.io/vcm-ml/prognostic_run:$COMMIT_SHA
+  - us.gcr.io/vcm-ml/prognostic_run_dev:latest
 options:
   machineType: 'N1_HIGHCPU_8'

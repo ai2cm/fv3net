@@ -36,13 +36,6 @@ endif
 build_image_%:
 	docker build . -f docker/$*/Dockerfile -t $*
 
-build_image_prognostic_run:
-	if [ -z "$(shell docker images -q $(FORTRAN_IMAGE) 2> /dev/null)" ]; \
-	then \
-		docker pull $(FORTRAN_IMAGE) || ($(MAKE) rebuild_image_fortran && docker push $(FORTRAN_IMAGE)); \
-	fi
-	docker build . -f docker/prognostic_run/Dockerfile -t prognostic_run --build-arg FORTRAN_IMAGE=$(FORTRAN_IMAGE)
-
 rebuild_image_fortran:
 	docker build . -f docker/prognostic_run/fortran.Dockerfile -t $(FORTRAN_IMAGE)
 
