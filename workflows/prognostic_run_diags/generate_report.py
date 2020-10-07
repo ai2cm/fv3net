@@ -14,6 +14,7 @@ from report.holoviews import HVPlot, get_html_header
 
 hv.extension("bokeh")
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
+VERIF_ATTRS = {"run": "verification", "baseline": True}
 
 
 def upload(html: str, url: str, content_type: str = "text/html"):
@@ -136,6 +137,14 @@ def get_movie_links(bucket, rundirs, fs, domain=PUBLIC_GCS_DOMAIN):
 
 def _html_link(url, tag):
     return f"<a href='{url}'>{tag}</a>"
+
+
+def _longest_run(diagnostics):
+    max_length = 0
+    for ds in diagnostics:
+        if ds.sizes["time"] > max_length:
+            longest_ds = ds
+    return longest_ds
 
 
 def holomap_filter(time_series, varfilter, run_attr_name="run"):
@@ -327,6 +336,18 @@ def main():
         for key, ds in diags.items()
     ]
     diagnostics = [convert_time_index_to_datetime(ds, "time") for ds in diagnostics]
+
+    # add verification data from longest set of diagnostics as new run
+    ds = _longest_run(diagnostics)
+    verif_diagnostics = {}
+    spatial_mean_vars = [var for var in ds if "spatial_mean" in var]
+    for var in spatial_mean_vars:
+        matching_bias_var = var.replace("spatial_mean", "mean_bias")
+        if matching_bias_var in ds:
+            # verification = prognostic - bias
+            verif_diagnostics[var] = ds[var] - ds[matching_bias_var]
+            verif_diagnostics[var].attrs = ds[var].attrs
+    diagnostics.append(xr.Dataset(verif_diagnostics, attrs=VERIF_ATTRS))
 
     # load metrics
     nested_metrics = load_metrics(bucket, rundirs)
