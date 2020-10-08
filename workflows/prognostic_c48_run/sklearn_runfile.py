@@ -127,22 +127,19 @@ def limit_sphum_tendency(state: State, tendency: State, dt: float):
     tendency_updated["dQ2"] = xr.where(
         state[SPHUM] + delta > 0, tendency["dQ2"], -state[SPHUM] / dt,  # type: ignore
     )
-
-    updated_tendency_levels = count_updated_tendency(tendency, tendency_updated)
-    if comm.rank == 0:
-        output = {
-            "per_levels_number_sphum_limiter_corrections": updated_tendency_levels
-        }
-        logging.info(f"sphum_limiter_update: {json.dumps(output)}")
+    log_updated_tendencies(tendency, tendency_updated)
     return tendency_updated
 
 
-def count_updated_tendency(tendency: State, tendency_updated: State):
-    updated_points = xr.where(tendency["dQ2"] != tendency_updated["dQ2"], 1, 0)
-    level_updates = {
-        i: int(value) for i, value in enumerate(updated_points.sum(["x", "y"]).values)
-    }
-    return level_updates
+def log_updated_tendencies(tendency: State, tendency_updated: State):
+    rank_updated_points = xr.where(tendency["dQ2"] != tendency_updated["dQ2"], 1, 0)
+    updated_points = comm.reduce(rank_updated_points, root=0)
+    if comm.rank == 0:
+        level_updates = {
+            i: int(value)
+            for i, value in enumerate(updated_points.sum(["x", "y"]).values)
+        }
+        logging.info(f"sphum_limiter_updates_per_level: {level_updates}")
 
 
 def apply(state: State, tendency: State, dt: float) -> State:
