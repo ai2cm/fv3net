@@ -34,7 +34,7 @@ endif
 
 # pattern rule for building docker images
 build_image_%:
-	tools/docker_build_cached.sh us.gcr.io/vcm-ml/$*:ac4774ff5fbd450b867fc55a343b1279a91b6c23 \
+	tools/docker_build_cached.sh us.gcr.io/vcm-ml/$*:c1081e2c3a6007a399b9429448f2a1676cfd6ba5 \
 		-f docker/$*/Dockerfile -t $* .
 	
 

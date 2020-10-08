@@ -99,8 +99,8 @@ ENV FV3CONFIG_CACHE_DIR=/inputdata
 COPY --from=fv3config-inputdata /fv3config-cache $FV3CONFIG_CACHE_DIR/fv3config-cache
 RUN chmod -R 777 $FV3CONFIG_CACHE_DIR
 
-RUN ["bash", "-o", "pipefail", "-c", "pytest | tee test-results.txt"]
+RUN ["bash", "-o", "pipefail", "-c", "pytest | tee /tmp/test-results.txt"]
 
 FROM bld
 # Copy results from test stage to ensure docker buildkit executes it
-COPY --from=test test-results.txt .
+COPY --from=test /tmp/test-results.txt .
