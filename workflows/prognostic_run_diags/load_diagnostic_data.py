@@ -231,6 +231,8 @@ def load_dycore(
     # open grid
     logger.info("Opening Grid Spec")
     grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
+    ls_mask = standardize_gfsphysics_diagnostics(catalog["landseamask/c48"].to_dask())
+    grid_c48 = xr.merge([grid_c48, ls_mask])
 
     # open verification
     logger.info("Opening verification data")
@@ -267,6 +269,8 @@ def load_physics(
     # open grid
     logger.info("Opening Grid Spec")
     grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
+    ls_mask = standardize_gfsphysics_diagnostics(catalog["landseamask/c48"].to_dask())
+    grid_c48 = xr.merge([grid_c48, ls_mask])
 
     # open verification
     verification_c48 = load_verification(verification_entries, catalog)
@@ -279,9 +283,5 @@ def load_physics(
     area = catalog[input_grid].to_dask()["area"]
     prognostic_output = _coarsen(prognostic_output, area, coarsening_factor)
     prognostic_output = add_derived.physics_variables(prognostic_output)
-
-    # Add mask information if not present
-    if MASK_VARNAME in prognostic_output and MASK_VARNAME not in verification_c48:
-        verification_c48[MASK_VARNAME] = prognostic_output[MASK_VARNAME].copy()
 
     return prognostic_output, verification_c48, grid_c48
