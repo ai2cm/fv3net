@@ -329,8 +329,8 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
         super().__init__(*args, **kwargs)
         self._variables = list(tendency_variables)
 
-    _step_physics = monitor("fv3_physics", TimeLoop._step_physics)
     _step_python = monitor("python", TimeLoop._step_python)
+    _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
 
 
 if __name__ == "__main__":
