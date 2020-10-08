@@ -54,6 +54,10 @@ spec:
             value: "{{workflow.parameters.nudging-config}}"
           - name: segment-count
             value: "{{workflow.parameters.nudging-segment-count}}"
+          - name: use-default-chunks
+            value: "false"
+          - name: custom-chunks
+            value: "{{workflow.parameters.nudging-chunks}}"
           - {name: work-volume-name, value: work-volume}
           - {name: external-volume-name, value: restart-data}
       - name: train-offline-diags-prognostic
