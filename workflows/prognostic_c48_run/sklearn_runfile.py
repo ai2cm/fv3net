@@ -119,8 +119,6 @@ def predict(model: runtime.RenamingAdapter, state: State, true_tends) -> State:
     output = output.where(active, 0.0)
     percent_active = (active.sum() / active.count()).item()
     logging.info(json.dumps({"percent_active_ml": 100 * percent_active}))
-    assert False
-
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
