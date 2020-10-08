@@ -1,5 +1,5 @@
 import pytest
-import datetime
+from datetime import timedelta
 import cftime
 import xarray as xr
 
@@ -9,14 +9,6 @@ import transform
 # key - transform name, value Tuple(transform_args, transform_kwargs)
 TRANSFORM_PARAMS = {
     "resample_time": (["1H"], {"time_slice": slice(0, -2)}),
-    "resample_time": (
-        ["1H"],
-        {"split_timedelta": datetime.timedelta(hours=2), "second_freq_label": "2H"},
-    ),
-    "resample_time": (
-        ["1H"],
-        {"split_timedelta": datetime.timedelta(hours=10), "second_freq_label": "2H"},
-    ),
     "mask_to_sfc_type": (["sea"], {}),
     "subset_variables": ([("temperature")], {}),
     "mask_area": (["sea"], {}),
@@ -80,3 +72,15 @@ def test_subset_variables(input_args):
     for i in range(2):
         assert "SLMSKsfc" in output[i]
         assert "temperature" not in output[i]
+
+
+def test_subsample_time_split(input_args):
+    transform.resample_time(
+        "1H", input_args, split_timedelta=timedelta(hours=2), second_freq_label="2H"
+    )
+
+
+def test_subsample_time_split_short_input(input_args):
+    transform.resample_time(
+        "1H", input_args, split_timedelta=timedelta(hours=10), second_freq_label="2H"
+    )
