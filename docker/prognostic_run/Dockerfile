@@ -102,5 +102,5 @@ RUN chmod -R 777 $FV3CONFIG_CACHE_DIR
 RUN ["bash", "-o", "pipefail", "-c", "pytest | tee test-results.txt"]
 
 FROM bld
-RUN echo "nothing change delete me"
-# Final empty stage for actual running (doesn't include any outputs from pytest)
+# Copy results from test stage to ensure docker buildkit executes it
+COPY --from=test test-results.txt .
