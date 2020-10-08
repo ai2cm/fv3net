@@ -1,5 +1,6 @@
 import pytest
 import datetime
+import cftime
 import xarray as xr
 
 import transform
@@ -8,6 +9,14 @@ import transform
 # key - transform name, value Tuple(transform_args, transform_kwargs)
 TRANSFORM_PARAMS = {
     "resample_time": (["1H"], {"time_slice": slice(0, -2)}),
+    "resample_time": (
+        ["1H"],
+        {"split_timedelta": datetime.timedelta(hours=2), "second_freq_label": "2H"},
+    ),
+    "resample_time": (
+        ["1H"],
+        {"split_timedelta": datetime.timedelta(hours=10), "second_freq_label": "2H"},
+    ),
     "mask_to_sfc_type": (["sea"], {}),
     "subset_variables": ([("temperature")], {}),
     "mask_area": (["sea"], {}),
@@ -31,7 +40,7 @@ def input_args():
 
     ntimes = 5
     temp = [[[[0.5, 1.5], [2.5, 3.5]]]] * ntimes
-    time_coord = [datetime.datetime(2016, 4, 2, i + 1, 0, 0) for i in range(ntimes)]
+    time_coord = [cftime.DatetimeJulian(2016, 4, 2, i + 1, 0, 0) for i in range(ntimes)]
 
     ds = xr.Dataset(
         data_vars={

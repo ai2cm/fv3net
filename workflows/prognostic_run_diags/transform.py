@@ -11,6 +11,7 @@ import logging
 from typing import Sequence, Tuple
 import numpy as np
 import xarray as xr
+from datetime import timedelta
 
 from constants import HORIZONTAL_DIMS, DiagArg
 
@@ -86,10 +87,16 @@ def apply(transform_key: str, *transform_args_partial, **transform_kwargs):
 
 @add_to_input_transform_fns
 def resample_time(
-    freq_label: str, arg: DiagArg, time_slice=slice(None, -1), inner_join: bool = False
+    freq_label: str,
+    arg: DiagArg,
+    time_slice: slice = slice(None, -1),
+    inner_join: bool = False,
+    split_timedelta: timedelta = None,
+    second_freq_label: str = "1D",
 ) -> DiagArg:
     """
-    Subset times in prognostic and verification data
+    Subset times
+     in prognostic and verification data
 
     Args:
         arg: input arguments to transform prior to the diagnostic calculation
@@ -99,10 +106,26 @@ def resample_time(
             time by default to work with crashed simulations.
         inner_join: Subset times to the intersection of prognostic and verification
             data. Defaults to False.
+        split_timedelta: time since start of prognostic run after which times will be
+            resampled with second_freq_label. Defaults to None, in which case
+            the entire run is resampled at the same frequency.
+        second_freq_label: time resampling frequency label for portion of run
+            after split_timedelta. Defaults to "1D".
     """
     prognostic, verification, grid = arg
-    prognostic = prognostic.resample(time=freq_label, label="right").nearest()
-    verification = verification.resample(time=freq_label, label="right").nearest()
+    if split_timedelta is None:
+        prognostic = prognostic.resample(time=freq_label, label="right").nearest()
+    else:
+        split_time = prognostic.time.values[0] + split_timedelta
+        first_segment = prognostic.sel(time=slice(None, split_time))
+        second_segment = prognostic.sel(time=slice(split_time, None))
+        resampled = [first_segment.resample(time=freq_label, label="right").nearest()]
+        if second_segment.sizes["time"] != 0:
+            resampled.append(
+                second_segment.resample(time=second_freq_label, label="right").nearest()
+            )
+        prognostic = xr.concat(resampled, dim="time")
+
     prognostic = prognostic.isel(time=time_slice)
     if inner_join:
         prognostic, verification = _inner_join_time(prognostic, verification)

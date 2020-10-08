@@ -16,6 +16,7 @@ import argparse
 import os
 import sys
 
+import datetime
 import tempfile
 import intake
 import numpy as np
@@ -51,6 +52,7 @@ logger = logging.getLogger("SaveDiags")
 _DIAG_FNS = defaultdict(list)
 
 DiagDict = Mapping[str, xr.DataArray]
+TEN_DAYS = datetime.timedelta(days=10)
 
 
 def _prepare_diag_dict(
@@ -178,7 +180,13 @@ def dump_nc(ds: xr.Dataset, f):
 
 @add_to_diags("dycore")
 @diag_finalizer("rms_global")
-@transform.apply("resample_time", "3H", inner_join=True)
+@transform.apply(
+    "resample_time",
+    "3H",
+    split_timedelta=TEN_DAYS,
+    second_freq_label="1D",
+    inner_join=True,
+)
 @transform.apply("subset_variables", RMSE_VARS)
 def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
@@ -192,7 +200,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @add_to_diags("dycore")
     @diag_finalizer(f"spatial_mean_dycore_{mask_type}")
     @transform.apply("mask_area", mask_type)
-    @transform.apply("resample_time", "3H")
+    @transform.apply(
+        "resample_time", "3H", split_timedelta=TEN_DAYS, second_freq_label="1D",
+    )
     @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
     def global_averages_dycore(resampled, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing averages for dycore variables ({mask_type})")
@@ -208,7 +218,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @add_to_diags("physics")
     @diag_finalizer(f"spatial_mean_physics_{mask_type}")
     @transform.apply("mask_area", mask_type)
-    @transform.apply("resample_time", "3H")
+    @transform.apply(
+        "resample_time", "3H", split_timedelta=TEN_DAYS, second_freq_label="1D",
+    )
     @transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
     def global_averages_physics(resampled, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing averages for physics variables ({mask_type})")
@@ -224,7 +236,13 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @add_to_diags("physics")
     @diag_finalizer(f"mean_bias_physics_{mask_type}")
     @transform.apply("mask_area", mask_type)
-    @transform.apply("resample_time", "3H", inner_join=True)
+    @transform.apply(
+        "resample_time",
+        "3H",
+        split_timedelta=TEN_DAYS,
+        second_freq_label="1D",
+        inner_join=True,
+    )
     @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
     def global_biases_physics(resampled, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing average biases for physics variables ({mask_type})")
@@ -238,7 +256,13 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @add_to_diags("dycore")
     @diag_finalizer(f"mean_bias_dycore_{mask_type}")
     @transform.apply("mask_area", mask_type)
-    @transform.apply("resample_time", "3H", inner_join=True)
+    @transform.apply(
+        "resample_time",
+        "3H",
+        split_timedelta=TEN_DAYS,
+        second_freq_label="1D",
+        inner_join=True,
+    )
     @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
     def global_biases_dycore(resampled, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing average biases for dycore variables ({mask_type})")
