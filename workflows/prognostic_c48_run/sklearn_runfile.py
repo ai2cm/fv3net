@@ -128,7 +128,7 @@ def limit_sphum_tendency(state: State, tendency: State, dt: float):
 
 
 def count_updated_tendency_columns(tendency: State, updated_tendency: State):
-    updated_values = xr.where(tendency != updated_tendency)
+    updated_values = tendency["dQ2"].where(tendency["dQ2"] != updated_tendency["dQ2"])
     return np.count_nonzero(updated_values.sum("z").values)
 
 
