@@ -40,7 +40,17 @@ DELP = "pressure_thickness_of_atmospheric_layer"
 PRECIP_RATE = "surface_precipitation_rate"
 TOTAL_PRECIP = "total_precipitation"  # has units of m
 AREA = "area_of_grid_cell"
-REQUIRED_VARIABLES = {TEMP, SPHUM, DELP, PRECIP_RATE, TOTAL_PRECIP}
+EAST_WIND = "eastward_wind_after_physics"
+NORTH_WIND = "northward_wind_after_physics"
+REQUIRED_VARIABLES = {
+    TEMP,
+    SPHUM,
+    DELP,
+    PRECIP_RATE,
+    TOTAL_PRECIP,
+    EAST_WIND,
+    NORTH_WIND,
+}
 
 cp = 1004
 gravity = 9.81
@@ -128,6 +138,10 @@ def apply(state: State, tendency: State, dt: float) -> State:
             SPHUM: state[SPHUM] + tendency["dQ2"] * dt,
             TEMP: state[TEMP] + tendency["dQ1"] * dt,
         }
+        if "dQu" in tendency:
+            updated.update({EAST_WIND: state[EAST_WIND] + tendency["dQu"] * dt})
+        if "dQv" in tendency:
+            updated.update({NORTH_WIND: state[NORTH_WIND] + tendency["dQv"] * dt})
     return updated  # type: ignore
 
 
@@ -197,9 +211,15 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         # no diagnostics are computed by default
         return {}
 
-    def _step_physics(self) -> Diagnostics:
-        self._log_debug(f"Physics Step")
-        self._fv3gfs.step_physics()
+    def _compute_physics(self) -> Diagnostics:
+        self._log_debug(f"Physics Step (compute)")
+        self._fv3gfs.compute_physics()
+        # no diagnostics are computed by default
+        return {}
+
+    def _apply_physics(self) -> Diagnostics:
+        self._log_debug(f"Physics Step (apply)")
+        self._fv3gfs.apply_physics()
         # no diagnostics are computed by default
         return {}
 
@@ -235,8 +255,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         for i in range(self._fv3gfs.get_step_count()):
             diagnostics = {}
             diagnostics.update(self._step_dynamics())
-            diagnostics.update(self._step_physics())
+            diagnostics.update(self._compute_physics())
             diagnostics.update(self._step_python())
+            diagnostics.update(self._apply_physics())
             yield self._state.time, diagnostics
         self._fv3gfs.cleanup()
 
