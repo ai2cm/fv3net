@@ -1,6 +1,7 @@
 import cftime
 import json
 import logging
+import copy
 from typing import (
     Any,
     Hashable,
@@ -15,7 +16,6 @@ from typing import (
 
 import xarray as xr
 from mpi4py import MPI
-import numpy as np
 
 import fv3gfs.wrapper as wrapper
 
@@ -123,13 +123,30 @@ def predict(model: runtime.RenamingAdapter, state: State) -> State:
 
 def limit_sphum_tendency(state: State, tendency: State, dt: float):
     delta = tendency["dQ2"] * dt
-    tendency_updated = xr.where(state[SPHUM] + delta > 0, tendency, -state[SPHUM] / dt,)
+    tendency_updated = copy.copy(tendency)
+    tendency_updated["dQ2"] = xr.where(
+        state[SPHUM] + delta > 0, tendency["dQ2"], -state[SPHUM] / dt,  # type: ignore
+    )
+
+    updated_tendency_levels = count_updated_tendency(
+        tendency, tendency_updated, group_size=5
+    )
+    if comm.rank == 0:
+        output = {
+            "per_levels_number_sphum_limiter_corrections": updated_tendency_levels
+        }
+        logging.info(f"sphum_limiter_update: {json.dumps(output)}")
     return tendency_updated
 
 
-def count_updated_tendency_columns(tendency: State, updated_tendency: State):
-    updated_values = tendency["dQ2"].where(tendency["dQ2"] != updated_tendency["dQ2"])
-    return np.count_nonzero(updated_values.sum("z").values)
+def count_updated_tendency(
+    tendency: State, tendency_updated: State, group_size: int = 5
+):
+    updated_points = xr.where(tendency["dQ2"] != tendency_updated["dQ2"], 1, 0)
+    level_updates = {
+        i: int(value) for i, value in enumerate(updated_points.sum(["x", "y"]).values)
+    }
+    return level_updates
 
 
 def apply(state: State, tendency: State, dt: float) -> State:
@@ -227,10 +244,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
 
         self._log_debug("Computing RF updated variables")
         tendency = predict(self._model, state)
+
+        self._log_debug("Correcting columns with negative sphum after ML update")
         tendency_sphum_limit = limit_sphum_tendency(state, tendency, dt=self._timestep)
-        self._log_debug(
-            f"Number of columns corrected for ML update to negative sphum: {count_updated_tendency_columns(tendency, tendency_sphum_limit)}"
-        )
 
         if self._do_only_diagnostic_ml:
             updated_state: State = {}
