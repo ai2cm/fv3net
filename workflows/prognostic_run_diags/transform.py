@@ -12,7 +12,6 @@ from typing import Sequence, Tuple
 import numpy as np
 import xarray as xr
 
-import vcm
 from constants import HORIZONTAL_DIMS, DiagArg
 
 _TRANSFORM_FNS = {}
