@@ -108,10 +108,19 @@ def open_model(config):
     return runtime.RenamingAdapter(model, rename_in, rename_out)
 
 
-def predict(model: runtime.RenamingAdapter, state: State) -> State:
+def predict(model: runtime.RenamingAdapter, state: State, true_tends) -> State:
     """Given ML model and state, return tendency prediction."""
     ds = xr.Dataset(state)  # type: ignore
     output = model.predict_columnwise(ds, feature_dim="z")
+    a = xr.Dataset(true_tends)
+
+    threshold_tendency = .01 / 86400 # K/day
+    active = ((a.dQ1 ** 2 + (2.51e6/1004 * a.dQ2) ** 2)  > threshold_tendency ** 2).any('z')
+    output = output.where(active, 0.0)
+    percent_active = (active.sum() / active.count()).item()
+    logging.info(json.dumps({"percent_active_ml": 100 * percent_active}))
+    assert False
+
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
@@ -211,9 +220,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         import fv3gfs.wrapper
 
         # self._log_debug("Computing RF updated variables")
-        # tendency = predict(self._model, state)
-        self._log_debug("Getting physics tendencies from physics diags")
-        tendency = dict(
+        true_tends = dict(
             dQ1=fv3gfs.wrapper.get_diagnostic_by_name(
                 "tendency_of_air_temperature_due_to_deep_convection"
             ).data_array,
@@ -221,7 +228,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
                 "tendency_of_specific_humidity_due_to_deep_convection"
             ).data_array,
         )
+        tendency = predict(self._model, state, true_tends)
 
+        self._log_debug("Getting physics tendencies from physics diags")
         if self._do_only_diagnostic_ml:
             updated_state: State = {}
         else:

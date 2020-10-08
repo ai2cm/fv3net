@@ -10,6 +10,9 @@ services:
       args:
         # the tag doesn't matter since we bind-mount over these sources anyways
         FORTRAN_IMAGE: us.gcr.io/vcm-ml/fv3gfs-fortran-fv3net:409d6cb28057dc6b700b3b009855710899194e71
+    image: us.gcr.io/vcm-ml/prognostic_run
+    entrypoint: []
+    command: [ls]
     volumes:
       - ../../external:/fv3net/external
       - .:/fv3net/workflows/prognostic_c48_run
