@@ -52,11 +52,11 @@ class StandardScaler(NormalizeTransform):
         """
         self.mean = None
         self.std = None
-        self.std_epsilon = std_epsilon
+        self.std_epsilon: float = std_epsilon
 
     def fit(self, data: np.ndarray):
-        self.mean = data.mean(axis=0).astype(np.float32)
-        self.std = data.std(axis=0).astype(np.float32) + self.std_epsilon
+        self.mean = data.mean(axis=0).astype(float)
+        self.std = data.std(axis=0).astype(float) + self.std_epsilon
 
     def normalize(self, data):
         if self.mean is None or self.std is None:
