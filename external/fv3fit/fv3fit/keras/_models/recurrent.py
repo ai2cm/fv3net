@@ -1,3 +1,4 @@
+from typing import Dict, Any
 import tensorflow as tf
 from .gcm_cell import GCMCell
 from .external import ExternalModel
@@ -6,7 +7,10 @@ import xarray as xr
 
 class RecurrentModel(ExternalModel):
 
-    custom_objects = {"custom_loss": tf.keras.losses.mse, "GCMCell": GCMCell}
+    custom_objects: Dict[str, Any] = {
+        "custom_loss": tf.keras.losses.mse,
+        "GCMCell": GCMCell,
+    }
 
     def __init__(self, *args, **kwargs):
         super(RecurrentModel, self).__init__(*args, **kwargs)

@@ -1,4 +1,4 @@
-from typing import Iterable, Hashable
+from typing import Iterable, Hashable, Dict, Any
 import tensorflow as tf
 import os
 from ..._shared import Predictor, ArrayPacker
@@ -12,7 +12,7 @@ class ExternalModel(Predictor):
     _MODEL_FILENAME = "model.tf"
     _X_PACKER_FILENAME = "X_packer.json"
     _Y_PACKER_FILENAME = "y_packer.json"
-    custom_objects = {}
+    custom_objects: Dict[str, Any] = {}
 
     def __init__(
         self,

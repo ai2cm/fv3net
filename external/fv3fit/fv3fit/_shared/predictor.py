@@ -44,6 +44,7 @@ class Predictor(abc.ABC):
         """Predict an output xarray dataset from an input xarray dataset."""
         pass
 
+    @classmethod
     @abc.abstractmethod
     def load(cls, path: str) -> object:
         """Load a serialized model from a directory."""

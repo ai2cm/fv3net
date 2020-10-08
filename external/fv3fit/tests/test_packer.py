@@ -78,7 +78,7 @@ def test_to_dataset(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray)
     packer.to_array(dataset)  # must pack first to know dimension lengths
     result = packer.to_dataset(array)
     # to_dataset does not preserve coordinates
-    xr.testing.assert_equal(result, dataset.drop(dataset.coords.keys()))
+    xr.testing.assert_equal(result, dataset)
 
 
 def test_unpack_before_pack_raises(packer: ArrayPacker, array: np.ndarray):

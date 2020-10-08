@@ -1,4 +1,13 @@
-from typing import Iterable, TextIO, List, Dict, Tuple, cast, Mapping, Sequence, Any
+from typing import (
+    Iterable,
+    TextIO,
+    List,
+    Dict,
+    Tuple,
+    cast,
+    Mapping,
+    Sequence,
+)
 import numpy as np
 import xarray as xr
 import yaml
@@ -43,8 +52,7 @@ class ArrayPacker:
         self._n_features: Dict[str, int] = {}
         self._sample_dim_name = sample_dim_name
         self._dims: Dict[str, Iterable[str]] = {}
-        self._coords: Dict[str, xr.Coordinate] = {}
-        self._attrs: Dict[str, Dict[str, Any]] = {}
+        self._coords: Mapping[str, xr.IndexVariable] = {}
 
     @property
     def pack_names(self) -> List[str]:
@@ -92,7 +100,7 @@ class ArrayPacker:
             )
             for name in self.pack_names:
                 self._dims[name] = cast(Tuple[str], dataset[name].dims)
-            self._coords = dataset.coords
+            self._coords = cast(Mapping[str, xr.IndexVariable], dataset.coords)
         for var in self.pack_names:
             if dataset[var].dims[0] != self.sample_dim_name:
                 dataset[var] = dataset[var].transpose()
@@ -204,7 +212,7 @@ def to_dataset(
     pack_names: Iterable[str],
     dimensions: Mapping[str, Iterable[str]],
     feature_counts: Mapping[str, int],
-    coords: Mapping[str, xr.Coordinate],
+    coords: Mapping[str, xr.IndexVariable],
 ):
     """Restore a dataset from a 2D [sample, feature] array.
 

@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Any
+from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Dict, Any
 import xarray as xr
 import logging
 import abc
@@ -77,7 +77,7 @@ class PackedKerasModel(Model):
     _X_SCALER_FILENAME = "X_scaler.npz"
     _Y_SCALER_FILENAME = "y_scaler.npz"
     _OPTIONS_FILENAME = "options.yml"
-    custom_objects = {}
+    custom_objects: Dict[str, Any] = {}
 
     def __init__(
         self,

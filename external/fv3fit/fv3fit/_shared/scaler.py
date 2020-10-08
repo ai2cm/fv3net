@@ -1,7 +1,7 @@
 import abc
 from copy import copy
 import numpy as np
-from typing import Mapping, BinaryIO, Type, Sequence
+from typing import Mapping, BinaryIO, Type, Sequence, Optional
 import xarray as xr
 import io
 import yaml
@@ -49,8 +49,8 @@ class StandardScaler(NormalizeTransform):
                 this threshold are treated as constants. Normalize/denormalize
                 will just subtract / add the mean. Defaults to 1e-12.
         """
-        self.mean = None
-        self.std = None
+        self.mean: Optional[np.ndarray] = None
+        self.std: Optional[np.ndarray] = None
         self.std_threshold = std_threshold
 
     def fit(self, data: np.ndarray):
@@ -62,6 +62,7 @@ class StandardScaler(NormalizeTransform):
             self.std = data.std(axis=(0, 1)).astype(np.float32)
         else:
             raise NotImplementedError()
+        self.std[self.std < self.std_threshold] = self.std_threshold
 
     def normalize(self, data):
         if self.mean is None or self.std is None:
