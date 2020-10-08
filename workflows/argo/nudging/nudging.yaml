@@ -17,9 +17,10 @@ spec:
       - {name: segment-count, value: "1"}
       - {name: cpu, value: "6"}
       - {name: memory, value: 8Gi}
+      - {name: use-default-chunks, value: "true"}
+      - {name: custom-chunks, value: "{}"}
       - {name: work-volume-name, value: work-volume}
       - {name: external-volume-name, value: restart-data}
-      - {name: external-volume-claim, value: nudging-read-only}
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
@@ -60,6 +61,8 @@ spec:
               - {name: segment-count, value: "{{workflow.parameters.segment-count}}"}
               - {name: cpu, value: "{{workflow.parameters.cpu}}"}
               - {name: memory, value: "{{workflow.parameters.memory}}"}
+              - {name: use-default-chunks, value: "{{workflow.parameters.use-default-chunks}}"}
+              - {name: custom-chunks, value: "{{workflow.parameters.custom-chunks}}"}
               - {name: work-volume-name, value: "{{workflow.parameters.work-volume-name}}"}
               - {name: external-volume-name, value: "{{workflow.parameters.external-volume-name}}"}
     - name: nudging
@@ -76,6 +79,8 @@ spec:
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 8Gi}
+          - {name: use-default-chunks, value: "true"}
+          - {name: custom-chunks, value: "{}"}
           - {name: work-volume-name, value: work-volume}
           - {name: external-volume-name, value: restart-data}
       steps:
@@ -86,6 +91,8 @@ spec:
                 - {name: fv3net-image, value: "{{inputs.parameters.fv3net-image}}"}
                 - {name: nudging-config, value: "{{inputs.parameters.nudging-config}}"}
                 - {name: times, value: "{{inputs.parameters.times}}"}
+                - {name: use-default-chunks, value: "{{inputs.parameters.use-default-chunks}}"}
+                - {name: custom-chunks, value: "{{inputs.parameters.custom-chunks}}"}
         - - name: run-model
             templateRef:
               name: run-fv3gfs
@@ -110,6 +117,8 @@ spec:
           - {name: fv3net-image}
           - {name: nudging-config}
           - {name: times}
+          - {name: use-default-chunks}
+          - {name: custom-chunks}
       outputs:
         artifacts:
           - name: fv3config
@@ -119,13 +128,19 @@ spec:
         parameters:
           - name: chunks
             valueFrom:
-              path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_chunks.yaml
+              path: /tmp/chunks.yaml
       container:
         image: "{{inputs.parameters.fv3net-image}}"
         command: ["/bin/bash", "-c"]
         workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging
         args:
         - |
+          if [[ "{{inputs.parameters.use-default-chunks}}" == "true" ]]; then
+            cp /home/jovyan/fv3net/workflows/prognostic_c48_run_nudging/nudging_chunks.yaml /tmp/chunks.yaml
+          else
+            echo "{{inputs.parameters.custom-chunks}}" > /tmp/chunks.yaml
+          fi
+
           cat << EOF > times.json
           {{inputs.parameters.times}}
           EOF
