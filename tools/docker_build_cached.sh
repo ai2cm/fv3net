@@ -2,7 +2,7 @@
 
 set -e
 
-cacheImage="us.gcr.io/vcm-ml/$1"
+cacheImage="$1"
 shift 1
 
 export DOCKER_BUILDKIT=1
