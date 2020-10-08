@@ -8,9 +8,9 @@ import transform
 # key - transform name, value Tuple(transform_args, transform_kwargs)
 TRANSFORM_PARAMS = {
     "resample_time": (["1H"], {"time_slice": slice(0, -2)}),
-    "mask_to_sfc_type": (["sea"], {"mask_var_name": "SLMSKsfc"}),
+    "mask_to_sfc_type": (["sea"], {}),
     "subset_variables": ([("temperature")], {}),
-    "mask_area": (["sea"], {"land_sea_mask_name": "SLMSKsfc"}),
+    "mask_area": (["sea"], {}),
 }
 
 
@@ -45,6 +45,7 @@ def input_args():
         data_vars={
             "lat": (["tile", "x", "y"], mask),
             "area": (["tile", "x", "y"], mask),
+            "land_sea_mask": (["tile", "x", "y"], mask),
         }
     )
 
