@@ -216,6 +216,19 @@ def _parse_diurnal_component_fields(varname: str):
     return short_varname, surface_type
 
 
+def _get_verification_diagnostics(ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
+    verif_diagnostics = {}
+    mean_bias_pairs = {"spatial_mean": "mean_bias", "diurn_comp": "diurn_bias"}
+    for mean_filter, bias_filter in mean_bias_pairs.items():
+        mean_vars = [var for var in ds if mean_filter in var]
+        for var in mean_vars:
+            matching_bias_var = var.replace(mean_filter, bias_filter)
+            if matching_bias_var in ds:
+                # verification = prognostic - bias
+                verif_diagnostics[var] = ds[var] - ds[matching_bias_var]
+                verif_diagnostics[var].attrs = ds[var].attrs
+
+
 def diurnal_component_plot(
     time_series: Iterable[xr.Dataset],
     run_attr_name="run",
@@ -258,17 +271,8 @@ def rms_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
 
 
 @diag_plot_manager.register
-def global_avg_dycore_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot_with_region_bar(
-        time_series, varfilter="spatial_mean_dycore"
-    )
-
-
-@diag_plot_manager.register
-def global_avg_physics_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot_with_region_bar(
-        time_series, varfilter="spatial_mean_physics"
-    )
+def spatial_mean_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
+    return time_series_plot_with_region_bar(time_series, varfilter="spatial_mean")
 
 
 @diag_plot_manager.register
@@ -337,16 +341,10 @@ def main():
     ]
     diagnostics = [convert_time_index_to_datetime(ds, "time") for ds in diagnostics]
 
-    # add verification data from longest set of diagnostics as new run
+    # hack to add verification data from longest set of diagnostics as new run
+    # TODO: generate separate diags.nc file for verification data and load that in here
     ds = _longest_run(diagnostics)
-    verif_diagnostics = {}
-    spatial_mean_vars = [var for var in ds if "spatial_mean" in var]
-    for var in spatial_mean_vars:
-        matching_bias_var = var.replace("spatial_mean", "mean_bias")
-        if matching_bias_var in ds:
-            # verification = prognostic - bias
-            verif_diagnostics[var] = ds[var] - ds[matching_bias_var]
-            verif_diagnostics[var].attrs = ds[var].attrs
+    verif_diagnostics = _get_verification_diagnostics(ds)
     diagnostics.append(xr.Dataset(verif_diagnostics, attrs=VERIF_ATTRS))
 
     # load metrics
