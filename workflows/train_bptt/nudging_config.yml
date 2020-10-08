@@ -1,0 +1,32 @@
+
+base_version: v0.5
+forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+diag_table: no_output
+#initial_conditions: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48/20160801.001500/  # provided by "nudging" entry
+nudging:
+  restarts_path: /mnt/vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48
+  timescale_hours:
+    air_temperature: 24
+    specific_humidity: 24
+    x_wind: 24
+    y_wind: 24
+    pressure_thickness_of_atmospheric_layer: 24
+namelist:
+  coupler_nml:
+    calendar: julian
+    current_date:
+    - 2016
+    - 8
+    - 1
+    - 0
+    - 15
+    - 0
+    days: 30
+    hours: 0
+    minutes: 0
+    months: 0
+    seconds: 0
+  fv_core_nml:
+    do_sat_adj: false
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false
