@@ -117,7 +117,17 @@ def predict(model: runtime.RenamingAdapter, state: State) -> State:
 
 def apply(state: State, tendency: State, dt: float) -> State:
     """Given state and tendency prediction, return updated state.
-    Returned state only includes variables updated by ML model."""
+    Returned state only includes variables updated by ML model.
+    
+    Args:
+        state: initial model state
+        tendency: model tendencies, including keys dQ1 for temperature
+            and dQ2 for specific humidity, in units per second
+        dt: timestep in seconds
+    
+    Returns:
+        new_state: updated model state
+    """
     with xr.set_options(keep_attrs=True):
         updated = {
             SPHUM: state[SPHUM] + tendency["dQ2"] * dt,

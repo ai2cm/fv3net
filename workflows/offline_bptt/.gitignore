@@ -1,3 +1,5 @@
 *.npz
 *_packer-*.yml
 cache-*
+models-*
+fv3fit-model-*

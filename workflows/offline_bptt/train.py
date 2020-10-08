@@ -10,6 +10,7 @@ import random
 import vcm
 import fv3gfs.util
 import argparse
+import concurrent.futures
 
 COARSE_DATA_DIR = (
     "gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging/outdir-3h"
@@ -110,6 +111,7 @@ class WindowedDataSequence(tf.keras.utils.Sequence):
         n_blocks_window: int,
         n_blocks_between_window: int,
         batch_size: int,
+        shuffle_across_windows=False,
     ):
         self.block_filenames = block_filenames
         self.n_blocks_window = n_blocks_window
@@ -167,6 +169,100 @@ class WindowedDataSequence(tf.keras.utils.Sequence):
         return len(self._indices)
 
 
+class WindowedDataIterator:
+    def __init__(
+        self,
+        block_filenames: Sequence[str],
+        n_blocks_window: int,
+        n_blocks_between_window: int,
+        batch_size: int,
+    ):
+        """
+        Args:
+            block_filenames: npz files containing blocks of data
+            n_blocks_window: how many blocks in a window
+            n_blocks_between_window: how many blocks between window starts
+            batch_size: how many samples (randomly selected) to include in a window
+        """
+        self.block_filenames = block_filenames
+        self.n_blocks_window = n_blocks_window
+        self.n_blocks_between_window = n_blocks_between_window
+        self.batch_size = batch_size
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        with open(block_filenames[0], "rb") as f:
+            data = np.load(f)
+            X_coarse = data["X_coarse"]
+            if X_coarse.shape[0] < batch_size:
+                raise ValueError(
+                    "cannot have more samples in batch than in a block, "
+                    f"got shape {X_coarse.shape} and batch_size {batch_size}"
+                )
+            self._data_batch_size = X_coarse.shape[0]
+        window_indices = []
+        for i_window in range(self._n_windows):
+            window_indices.append(i_window)
+        random.shuffle(window_indices)
+        self._window_indices = window_indices
+        self._batch_indices = None
+        self._i_window = 0
+
+    def _get_random_indices(self, n: int, i_max: int):
+        batch_indices = np.arange(i_max)
+        np.random.shuffle(batch_indices)
+        return batch_indices[:n]
+
+    @property
+    def _n_windows(self):
+        return int(
+            (len(self.block_filenames) - self.n_blocks_window)
+            / self.n_blocks_between_window
+        )
+
+    def _start_load(self):
+        if self._i_window < self._n_windows:
+            batch_idx = self._get_random_indices(self.batch_size, self._data_batch_size)
+            window_start = self._window_indices[self._i_window]
+            window_filenames = self.block_filenames[
+                window_start : window_start + self.n_blocks_window
+            ]
+            self._load_thread = self._executor.submit(
+                load_window, batch_idx, window_filenames,
+            )
+            self._i_window += 1
+
+    def __next__(self):
+        if self._i_window == self._n_windows:
+            raise StopIteration()
+        else:
+            X_coarse, y_coarse, y_ref = self._load_thread.result()
+            self._start_load()
+            return X_coarse, y_coarse, y_ref
+
+    def __iter__(self):
+        self._i_window = 0
+        self._start_load()
+        return self
+
+    def __len__(self):
+        return self._n_windows
+
+
+def load_window(batch_idx, window_filenames):
+    X_coarse_list = []
+    y_coarse_list = []
+    y_ref_list = []
+    for filename in window_filenames:
+        with open(filename, "rb") as f:
+            data = np.load(f)
+            X_coarse_list.append(data["X_coarse"][batch_idx, :])
+            y_coarse_list.append(data["y_coarse"][batch_idx, :])
+            y_ref_list.append(data["y_ref"][batch_idx, :])
+    X_coarse = np.concatenate(X_coarse_list, axis=1)
+    y_coarse = np.concatenate(y_coarse_list, axis=1)
+    y_ref = np.concatenate(y_ref_list, axis=1)
+    return X_coarse, y_coarse, y_ref
+
+
 def build_model(
     n_batch, n_input, n_state, n_window, units, n_hidden_layers, X_scaler, y_scaler,
 ):
@@ -190,6 +286,27 @@ def build_model(
     return model
 
 
+def penalize_negative_water(loss, negative_water_weight):
+    def custom_loss(y_true, y_pred):
+        # we can assume temperature will never be even close to zero
+        # TODO this assumes temperature + humidity are the prognostic outputs,
+        # better would be to get the specific indices corresponding to humidity
+        negative_water = tf.math.multiply(
+            tf.constant(negative_water_weight, dtype=tf.float32),
+            tf.math.reduce_mean(
+                tf.where(
+                    y_pred < tf.constant(0.0, dtype=tf.float32),
+                    tf.math.multiply(tf.constant(-1.0, dtype=tf.float32), y_pred),
+                    tf.constant(0.0, dtype=tf.float32),
+                )
+            ),
+        )
+        base_loss = tf.cast(loss(y_true, y_pred), tf.float32)
+        return tf.math.add(negative_water, base_loss)
+
+    return custom_loss
+
+
 if __name__ == "__main__":
     np.random.seed(0)
     random.seed(1)
@@ -202,15 +319,16 @@ if __name__ == "__main__":
     cache_filename_y_packer = os.path.join(args.cache_dir, f"y_packer-{args.label}.yml")
     n_timestep_frequency = 4
     n_block = 12  # number of times in a npz file
+    data_fraction = 0.25  # fraction of data to use from a window
     blocks_per_day = 24 // n_block
     n_blocks_train = 30 * blocks_per_day
     n_blocks_window = 5 * blocks_per_day
-    n_blocks_between_window = 1 * blocks_per_day
+    n_blocks_between_window = int(1.5 * blocks_per_day)
     n_timesteps = n_blocks_train * n_block
     n_window = n_blocks_window * n_block
     units = 128
     n_hidden_layers = 3
-    batch_size = 512
+    batch_size = 48
     input_variables = [
         "surface_geopotential",
         "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
@@ -275,28 +393,63 @@ if __name__ == "__main__":
     X_scaler.fit(X_coarse)
     y_scaler = fv3fit.keras._models.normalizer.LayerStandardScaler()
     y_scaler.fit(y_ref)
-    X_train = WindowedDataSequence(
+    X_train = WindowedDataIterator(
         block_filenames,
         n_blocks_window=n_blocks_window,
         n_blocks_between_window=n_blocks_between_window,
-        batch_size=batch_size,
+        batch_size=int(48 * 48 * 6 * data_fraction),
     )
     loss = fv3fit.keras._models.loss.get_weighted_mse(y_packer, y_scaler.std)
+    loss = penalize_negative_water(loss, 1.0)
     optimizer = tf.keras.optimizers.Adam(lr=0.001)
-    model = build_model(
-        batch_size,
-        X_coarse.shape[-1],
-        y_ref.shape[-1],
-        n_window,
-        units,
-        n_hidden_layers,
-        X_scaler,
-        y_scaler,
-    )
+    model_dir = f"models-{args.label}"
+    if not os.path.isdir(model_dir):
+        os.mkdir(model_dir)
+    model_filenames = os.listdir(model_dir)
+    base_epoch = 0
+    if len(model_filenames) > 0:
+        last_model_filename = os.path.join(model_dir, sorted(model_filenames)[-1])
+        model = tf.keras.models.load_model(
+            last_model_filename,
+            custom_objects={
+                "custom_loss": loss,
+                "GCMCell": fv3fit.keras._models.gcm_cell.GCMCell,
+            },
+        )
+        base_epoch = int(last_model_filename[-6:-3]) + 1
+        print(f"loaded model, resuming at epoch {base_epoch}")
+    else:
+        model = build_model(
+            batch_size,
+            X_coarse.shape[-1],
+            y_ref.shape[-1],
+            n_window,
+            units,
+            n_hidden_layers,
+            X_scaler,
+            y_scaler,
+        )
     model.compile(
         optimizer=optimizer, loss=loss,
     )
-    for epochs in range(10):
+
+    for i_epoch in range(0):  # 1):
         for X_coarse, y_coarse, y_ref in X_train:
-            model.fit(x=[X_coarse, y_coarse], y=y_ref, batch_size=batch_size, epochs=1)
+            model.fit(x=[X_coarse, y_coarse], y=y_ref, batch_size=batch_size, epochs=2)
             print(f"coarse loss: {loss(y_ref, y_coarse)}")
+            del X_coarse
+            del y_coarse
+            del y_ref
+        epoch = base_epoch + i_epoch
+        print(f"saving model for epoch {epoch}")
+        model.save(os.path.join(model_dir, f"model-{args.label}-{epoch:03d}.tf"))
+
+    export_model = fv3fit.keras.RecurrentModel(
+        SAMPLE_DIM_NAME,
+        input_variables,
+        prognostic_variables,
+        model=model,
+        X_packer=X_packer,
+        y_packer=y_packer,
+    )
+    export_model.dump(f"fv3fit-model-{args.label}")
