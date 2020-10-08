@@ -20,7 +20,7 @@ spec:
   volumes:
     - name: external-volume
       persistentVolumeClaim:
-        claimName: nudging-read-only
+        claimName: gfs-analysis-read-only
         readOnly: true
     - name: gcp-key-secret
       secret:
