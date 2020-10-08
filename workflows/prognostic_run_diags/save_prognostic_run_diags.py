@@ -41,6 +41,7 @@ from constants import (
     DIURNAL_CYCLE_VARS,
     VERIFICATION_CATALOG_ENTRIES,
     TIME_MEAN_VARS,
+    RMSE_VARS,
 )
 
 import logging
@@ -178,6 +179,7 @@ def dump_nc(ds: xr.Dataset, f):
 @add_to_diags("dycore")
 @diag_finalizer("rms_global")
 @transform.apply("resample_time", "3H", inner_join=True)
+@transform.apply("subset_variables", RMSE_VARS)
 def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
@@ -237,6 +239,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @diag_finalizer(f"mean_bias_dycore_{mask_type}")
     @transform.apply("mask_area", mask_type)
     @transform.apply("resample_time", "3H", inner_join=True)
+    @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
     def global_biases_dycore(resampled, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing average biases for dycore variables ({mask_type})")
         bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
