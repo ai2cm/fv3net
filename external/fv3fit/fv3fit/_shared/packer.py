@@ -147,7 +147,8 @@ class ArrayPacker:
         packer = cls(data["sample_dim_name"], data["pack_names"])
         packer._n_features = data["n_features"]
         packer._dims = data["dims"]
-        packer._coords = _deserialize_coords(data["coords"])
+        # default is empty for backwards compatibility
+        packer._coords = _deserialize_coords(data.get("coords", {}))
         return packer
 
 
@@ -157,7 +158,7 @@ def _serialize_coords(coords):
         if isinstance(value, pd.MultiIndex):
             data[name] = (value.to_list(), value.names)
         elif isinstance(value, xr.DataArray):
-            pass  # data[name] = value.to_dict()
+            pass
         else:
             data[name] = value
     return data
@@ -168,8 +169,6 @@ def _deserialize_coords(data):
     for name, value in data.items():
         if isinstance(value, tuple):
             coords[name] = pd.MultiIndex.from_tuples(value[0], names=value[1])
-        elif isinstance(value, dict):
-            coords[name] = xr.DataArray.from_dict(value)
         else:
             coords[name] = value
     return coords
