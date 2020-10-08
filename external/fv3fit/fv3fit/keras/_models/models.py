@@ -293,7 +293,7 @@ class PackedKerasModel(Model):
             model_filename = os.path.join(path, cls._MODEL_FILENAME)
             if os.path.exists(model_filename):
                 obj._model = tf.keras.models.load_model(
-                    model_filename, custom_objects={"custom_loss": obj.loss}
+                    model_filename, custom_objects={"custom_loss": obj.loss, "tf": tf}
                 )
             return obj
 
@@ -364,4 +364,48 @@ class DenseModel(PackedKerasModel):
         outputs = self.y_scaler.denormalize_layer(x)
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
         model.compile(optimizer=self._optimizer, loss=self.loss)
+        return model
+
+
+def _get_mask(x):
+
+    non_zero = tf.math.greater_equal(x, tf.zeros_like(x))
+    mask = tf.where(non_zero, x=tf.ones_like(x), y=tf.zeros_like(x))
+
+    return mask
+
+
+class DenseWithClassifier(DenseModel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._classifier = None
+
+    def add_classifier(self, classification_model):
+        self._classifier = classification_model
+
+    def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
+        if self._classifier is None:
+            raise ValueError(
+                "Please add_classifier to attach a classification model "
+                "before regression model compilation"
+            )
+
+        inputs = tf.keras.Input(n_features_in)
+        x = self.X_scaler.normalize_layer(inputs)
+        for i in range(self._depth - 1):
+            x = tf.keras.layers.Dense(
+                self._width, activation=tf.keras.activations.relu
+            )(x)
+        x = tf.keras.layers.Dense(n_features_out)(x)
+        regr_outputs = self.y_scaler.denormalize_layer(x)
+
+        classified = self._classifier._model(inputs, training=False)
+        mask = tf.keras.layers.Lambda(_get_mask)(classified)
+        filtered = tf.keras.layers.Multiply()([regr_outputs, mask])
+        model = tf.keras.Model(inputs=inputs, outputs=filtered)
+        model.compile(
+            optimizer=self._optimizer,
+            loss=self.loss,
+            metrics=[tf.keras.metrics.MeanAbsoluteError()],
+        )
         return model
