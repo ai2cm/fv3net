@@ -185,7 +185,7 @@ def rms_errors(resampled, verification_c48, grid):
     return rms_errors
 
 
-for mask_type in ["global", "tropics"]:
+for mask_type in ["global", "land", "sea", "tropics"]:
 
     @add_to_diags("dycore")
     @diag_finalizer(f"spatial_mean_dycore_{mask_type}")
@@ -231,7 +231,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         return bias_errors
 
 
-for mask_type in ["global", "tropics"]:
+for mask_type in ["global", "land", "sea", "tropics"]:
 
     @add_to_diags("dycore")
     @diag_finalizer(f"mean_bias_dycore_{mask_type}")
