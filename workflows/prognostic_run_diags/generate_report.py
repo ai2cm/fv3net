@@ -14,7 +14,6 @@ from report.holoviews import HVPlot, get_html_header
 
 hv.extension("bokeh")
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
-VERIF_ATTRS = {"run": "verification", "baseline": True}
 
 
 def upload(html: str, url: str, content_type: str = "text/html"):
@@ -216,8 +215,9 @@ def _parse_diurnal_component_fields(varname: str):
     return short_varname, surface_type
 
 
-def _get_verification_diagnostics(ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
+def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
     verif_diagnostics = {}
+    verif_attrs = {"run": "verification", "baseline": True}
     mean_bias_pairs = {"spatial_mean": "mean_bias", "diurn_comp": "diurn_bias"}
     for mean_filter, bias_filter in mean_bias_pairs.items():
         mean_vars = [var for var in ds if mean_filter in var]
@@ -227,6 +227,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
                 # verification = prognostic - bias
                 verif_diagnostics[var] = ds[var] - ds[matching_bias_var]
                 verif_diagnostics[var].attrs = ds[var].attrs
+    return xr.Dataset(verif_diagnostics, attrs=verif_attrs)
 
 
 def diurnal_component_plot(
@@ -343,9 +344,8 @@ def main():
 
     # hack to add verification data from longest set of diagnostics as new run
     # TODO: generate separate diags.nc file for verification data and load that in here
-    ds = _longest_run(diagnostics)
-    verif_diagnostics = _get_verification_diagnostics(ds)
-    diagnostics.append(xr.Dataset(verif_diagnostics, attrs=VERIF_ATTRS))
+    longest_run_ds = _longest_run(diagnostics)
+    diagnostics.append(_get_verification_diagnostics(longest_run_ds))
 
     # load metrics
     nested_metrics = load_metrics(bucket, rundirs)
