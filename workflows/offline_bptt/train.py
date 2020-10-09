@@ -40,6 +40,7 @@ def load_blocks(
     y_packer,
     block_dir,
     n_timesteps=None,
+    n_timestep_start=None,
     n_timesteps_per_block=1,
     n_timestep_frequency=None,
     label="default",
@@ -49,8 +50,12 @@ def load_blocks(
     shared_keys = sorted(list(set(nudged_mapper.keys()).union(ref_mapper.keys())))
     if n_timestep_frequency is not None:
         shared_keys = shared_keys[::n_timestep_frequency]
+    if n_timestep_start is not None:
+        shared_keys = shared_keys[n_timestep_start:]
     if n_timesteps is not None:
         shared_keys = shared_keys[:n_timesteps]
+    if n_timestep_start is None:
+        n_timestep_start = 0
 
     def pack(packer, ds):
         drop_names = set(ds.data_vars).union(ds.coords).difference(packer.pack_names)
@@ -66,107 +71,51 @@ def load_blocks(
     X_coarse_list = []
     y_coarse_list = []
     y_ref_list = []
-    for i, timestamp in enumerate(shared_keys):
-        print(f"loading timestep {i + 1} of {len(shared_keys)}")
-        filename = os.path.join(data_cache_dir, f"timestep_{timestamp}.npz")
-        if use_cache and os.path.isfile(filename):
-            with open(filename, "rb") as f:
-                data = np.load(f)
-                X_coarse, y_coarse, y_ref = (data[k] for k in data)
+    for i_add, timestamp in enumerate(shared_keys):
+        i = n_timestep_start + i_add
+        print(f"loading timestep {i + 1} of {n_timestep_start + len(shared_keys)}")
+        block_index = (int(i / n_timesteps_per_block) + 1) * n_timesteps_per_block - 1
+        block_filename = os.path.join(block_dir, f"block-{block_index:05d}.npz")
+        if os.path.exists(block_filename):
+            if len(block_filename_list) > 0 and (
+                block_filename_list[-1] != block_filename
+            ):
+                block_filename_list.append(block_filename)
         else:
-            ref_ds = ref_mapper[timestamp]
-            y_ref = pack(y_packer, ref_ds)
-            nudged_ds = nudged_mapper[timestamp]
-            X_coarse = pack(X_packer, nudged_ds)
-            y_coarse = pack(y_packer, nudged_ds)
-            if use_cache:
-                with open(filename, "wb") as f:
-                    np.savez(f, X_coarse, y_coarse, y_ref)
-        X_coarse_list.append(X_coarse)
-        y_coarse_list.append(y_coarse)
-        y_ref_list.append(y_ref)
-        if len(y_coarse_list) == n_timesteps_per_block:
-            X_coarse = np.concatenate(X_coarse_list, axis=1)
-            X_coarse_list = []
-            y_coarse = np.concatenate(y_coarse_list, axis=1)
-            y_coarse_list = []
-            y_ref = np.concatenate(y_ref_list, axis=1)
-            y_ref_list = []
-            block_filename = os.path.join(block_dir, f"block-{i:05d}.npz")
-            with open(block_filename, "wb") as f:
-                data = {
-                    "X_coarse": X_coarse,
-                    "y_coarse": y_coarse,
-                    "y_ref": y_ref,
-                }
-                np.savez(f, **data)
-            block_filename_list.append(block_filename)
+            filename = os.path.join(data_cache_dir, f"timestep_{timestamp}.npz")
+            if use_cache and os.path.isfile(filename):
+                with open(filename, "rb") as f:
+                    data = np.load(f)
+                    X_coarse, y_coarse, y_ref = (data[k] for k in data)
+            else:
+                ref_ds = ref_mapper[timestamp]
+                y_ref = pack(y_packer, ref_ds)
+                nudged_ds = nudged_mapper[timestamp]
+                X_coarse = pack(X_packer, nudged_ds)
+                y_coarse = pack(y_packer, nudged_ds)
+                if use_cache:
+                    with open(filename, "wb") as f:
+                        np.savez(f, X_coarse, y_coarse, y_ref)
+            X_coarse_list.append(X_coarse)
+            y_coarse_list.append(y_coarse)
+            y_ref_list.append(y_ref)
+            if len(y_coarse_list) == n_timesteps_per_block:
+                X_coarse = np.concatenate(X_coarse_list, axis=1)
+                X_coarse_list = []
+                y_coarse = np.concatenate(y_coarse_list, axis=1)
+                y_coarse_list = []
+                y_ref = np.concatenate(y_ref_list, axis=1)
+                y_ref_list = []
+                block_filename = os.path.join(block_dir, f"block-{i:05d}.npz")
+                with open(block_filename, "wb") as f:
+                    data = {
+                        "X_coarse": X_coarse,
+                        "y_coarse": y_coarse,
+                        "y_ref": y_ref,
+                    }
+                    np.savez(f, **data)
+                block_filename_list.append(block_filename)
     return block_filename_list
-
-
-class WindowedDataSequence(tf.keras.utils.Sequence):
-    def __init__(
-        self,
-        block_filenames: Sequence[str],
-        n_blocks_window: int,
-        n_blocks_between_window: int,
-        batch_size: int,
-        shuffle_across_windows=False,
-    ):
-        self.block_filenames = block_filenames
-        self.n_blocks_window = n_blocks_window
-        self.n_blocks_between_window = n_blocks_between_window
-        with open(block_filenames[0], "rb") as f:
-            data = np.load(f)
-            X_coarse = data["X_coarse"]
-            if X_coarse.shape[0] % batch_size != 0:
-                raise ValueError(
-                    "samples must be evenly divisible by batch_size, "
-                    f"got shape {X_coarse.shape} and batch_size {batch_size}"
-                )
-            self._n_batches = X_coarse.shape[0] // batch_size
-        self.idx_shuffle = np.arange(X_coarse.shape[0])
-        np.random.shuffle(self.idx_shuffle)
-        all_indices = []
-        for i_window in range(self._n_windows):
-            for i_batch in range(self._n_batches):
-                all_indices.append((i_window, i_batch))
-        random.shuffle(all_indices)
-        self._indices = all_indices
-        self.batch_size = batch_size
-
-    @property
-    def _n_windows(self):
-        return int(
-            (len(self.block_filenames) - self.n_blocks_window)
-            / self.n_blocks_between_window
-        )
-
-    def __getitem__(self, key):
-        i_window, i_batch = self._indices[key]
-        window_start = i_window * self.n_blocks_between_window
-        batch_start = i_batch * self.batch_size
-        batch_idx = self.idx_shuffle[batch_start : batch_start + self.batch_size]
-        window_filenames = self.block_filenames[
-            window_start : window_start + self.n_blocks_window
-        ]
-        X_coarse_list = []
-        y_coarse_list = []
-        y_ref_list = []
-        for filename in window_filenames:
-            with open(filename, "rb") as f:
-                data = np.load(f)
-                X_coarse_list.append(data["X_coarse"][batch_idx, :])
-                y_coarse_list.append(data["y_coarse"][batch_idx, :])
-                y_ref_list.append(data["y_ref"][batch_idx, :])
-        return (
-            np.concatenate(X_coarse_list, axis=1),
-            np.concatenate(y_coarse_list, axis=1),
-            np.concatenate(y_ref_list, axis=1),
-        )
-
-    def __len__(self):
-        return len(self._indices)
 
 
 class WindowedDataIterator:
@@ -205,6 +154,8 @@ class WindowedDataIterator:
         self._window_indices = window_indices
         self._batch_indices = None
         self._i_window = 0
+        self._load_thread = None
+        self._start_load()
 
     def _get_random_indices(self, n: int, i_max: int):
         batch_indices = np.arange(i_max)
@@ -213,9 +164,12 @@ class WindowedDataIterator:
 
     @property
     def _n_windows(self):
-        return int(
-            (len(self.block_filenames) - self.n_blocks_window)
-            / self.n_blocks_between_window
+        return (
+            int(
+                (len(self.block_filenames) - self.n_blocks_window)
+                / self.n_blocks_between_window
+            )
+            + 1
         )
 
     def _start_load(self):
@@ -228,19 +182,22 @@ class WindowedDataIterator:
             self._load_thread = self._executor.submit(
                 load_window, batch_idx, window_filenames,
             )
-            self._i_window += 1
 
     def __next__(self):
-        if self._i_window == self._n_windows:
+        if self._i_window >= self._n_windows:
             raise StopIteration()
         else:
             X_coarse, y_coarse, y_ref = self._load_thread.result()
-            self._start_load()
+            self._load_thread = None
+            self._i_window += 1
+            if self._i_window < self._n_windows:
+                self._start_load()
             return X_coarse, y_coarse, y_ref
 
     def __iter__(self):
         self._i_window = 0
-        self._start_load()
+        if self._load_thread is None:
+            self._start_load()
         return self
 
     def __len__(self):
@@ -264,7 +221,15 @@ def load_window(batch_idx, window_filenames):
 
 
 def build_model(
-    n_batch, n_input, n_state, n_window, units, n_hidden_layers, X_scaler, y_scaler,
+    n_batch,
+    n_input,
+    n_state,
+    n_window,
+    units,
+    n_hidden_layers,
+    X_scaler,
+    y_scaler,
+    tendency_ratio,
 ):
     forcing_input = tf.keras.layers.Input(batch_shape=[n_batch, n_window, n_input])
     state_input = tf.keras.layers.Input(batch_shape=[n_batch, n_window, n_state])
@@ -276,6 +241,7 @@ def build_model(
             n_input=n_input,
             n_state=n_state,
             n_hidden_layers=n_hidden_layers,
+            tendency_ratio=tendency_ratio,
         ),
         name="rnn",
         return_sequences=True,
@@ -310,6 +276,7 @@ def penalize_negative_water(loss, negative_water_weight):
 if __name__ == "__main__":
     np.random.seed(0)
     random.seed(1)
+    tf.random.set_seed(2)
     parser = argparse.ArgumentParser()
     parser.add_argument("label", action="store", type=str)
     parser.add_argument("--cache-dir", action="store", type=str, default=".")
@@ -319,15 +286,18 @@ if __name__ == "__main__":
     cache_filename_y_packer = os.path.join(args.cache_dir, f"y_packer-{args.label}.yml")
     n_timestep_frequency = 4
     n_block = 12  # number of times in a npz file
-    data_fraction = 0.25  # fraction of data to use from a window
+    data_fraction = 0.125  # fraction of data to use from a window
     blocks_per_day = 24 // n_block
     n_blocks_train = 30 * blocks_per_day
+    n_blocks_val = 5 * blocks_per_day
     n_blocks_window = 5 * blocks_per_day
     n_blocks_between_window = int(1.5 * blocks_per_day)
     n_timesteps = n_blocks_train * n_block
+    n_timesteps_val = n_blocks_val * n_block
     n_window = n_blocks_window * n_block
     units = 128
     n_hidden_layers = 3
+    tendency_ratio = 1e-3
     batch_size = 48
     input_variables = [
         "surface_geopotential",
@@ -353,9 +323,13 @@ if __name__ == "__main__":
     block_dir = f"block-{args.label}"
     if not os.path.exists(block_dir):
         os.mkdir(block_dir)
-    elif len(os.listdir(block_dir)) >= n_blocks_train:
-        block_filenames = [
+    elif len(os.listdir(block_dir)) >= (n_blocks_train + n_blocks_val):
+        all_filenames = [
             os.path.join(block_dir, filename) for filename in os.listdir(block_dir)
+        ]
+        train_block_filenames = all_filenames[:n_blocks_train]
+        val_block_filenames = all_filenames[
+            n_blocks_train : n_blocks_train + n_blocks_val
         ]
     else:
         nudged_mapper = loaders.mappers.open_merged_nudged(
@@ -363,13 +337,26 @@ if __name__ == "__main__":
             merge_files=("before_dynamics.zarr", "nudging_tendencies.zarr"),
         )
         ref_mapper = loaders.mappers.CoarsenedDataMapper(REF_DATA_DIR)
-        block_filenames = load_blocks(
+        train_block_filenames = load_blocks(
             nudged_mapper,
             ref_mapper,
             X_packer,
             y_packer,
             block_dir,
             n_timesteps=n_timesteps,
+            n_timestep_frequency=n_timestep_frequency,
+            n_timesteps_per_block=n_block,
+            label=args.label,
+            cache_dir=args.cache_dir,
+        )
+        val_block_filenames = load_blocks(
+            nudged_mapper,
+            ref_mapper,
+            X_packer,
+            y_packer,
+            block_dir,
+            n_timesteps=n_timesteps_val,
+            n_timestep_start=n_timesteps,
             n_timestep_frequency=n_timestep_frequency,
             n_timesteps_per_block=n_block,
             label=args.label,
@@ -385,7 +372,7 @@ if __name__ == "__main__":
             X_packer.dump(f)
         with open(cache_filename_y_packer, "w") as f:
             y_packer.dump(f)
-    with open(block_filenames[0], "rb") as f:
+    with open(train_block_filenames[0], "rb") as f:
         data = np.load(f)
         X_coarse = data["X_coarse"]
         y_ref = data["y_ref"]
@@ -394,11 +381,17 @@ if __name__ == "__main__":
     y_scaler = fv3fit.keras._models.normalizer.LayerStandardScaler()
     y_scaler.fit(y_ref)
     X_train = WindowedDataIterator(
-        block_filenames,
+        train_block_filenames,
         n_blocks_window=n_blocks_window,
         n_blocks_between_window=n_blocks_between_window,
         batch_size=int(48 * 48 * 6 * data_fraction),
     )
+    # X_val = WindowedDataIterator(
+    #     val_block_filenames,
+    #     n_blocks_window=n_blocks_window,
+    #     n_blocks_between_window=n_blocks_between_window,
+    #     batch_size=int(48 * 48 * 6 * data_fraction),
+    # )
     loss = fv3fit.keras._models.loss.get_weighted_mse(y_packer, y_scaler.std)
     loss = penalize_negative_water(loss, 1.0)
     optimizer = tf.keras.optimizers.Adam(lr=0.001)
@@ -423,26 +416,55 @@ if __name__ == "__main__":
             batch_size,
             X_coarse.shape[-1],
             y_ref.shape[-1],
-            n_window,
-            units,
-            n_hidden_layers,
-            X_scaler,
-            y_scaler,
+            n_window=n_window,
+            units=units,
+            n_hidden_layers=n_hidden_layers,
+            X_scaler=X_scaler,
+            y_scaler=y_scaler,
+            tendency_ratio=tendency_ratio,
         )
     model.compile(
         optimizer=optimizer, loss=loss,
     )
 
-    for i_epoch in range(0):  # 1):
+    batch_idx = np.random.choice(
+        np.arange(X_coarse.shape[0]), size=int(0.125 * X_coarse.shape[0]), replace=False
+    )
+    X_coarse_val, y_coarse_val, y_ref_val = load_window(batch_idx, val_block_filenames)
+    coarse_loss_val = loss(y_ref_val, y_coarse_val)
+
+    for i_epoch in range(50):
+        print(f"starting epoch {i_epoch}")
         for X_coarse, y_coarse, y_ref in X_train:
-            model.fit(x=[X_coarse, y_coarse], y=y_ref, batch_size=batch_size, epochs=2)
-            print(f"coarse loss: {loss(y_ref, y_coarse)}")
+            model.fit(
+                x=[X_coarse, y_coarse],
+                y=y_ref,
+                batch_size=batch_size,
+                epochs=1,
+                shuffle=True,
+            )
             del X_coarse
             del y_coarse
             del y_ref
+        # coarse_losses = []
+        # val_losses = []
+        # for X_coarse, y_coarse, y_ref in X_val:
+        #     print("doin a block")
+        #     coarse_losses.append(loss(y_ref, y_coarse))
+        #     y_pred = model.predict([X_coarse, y_coarse])
+        #     val_losses.append(loss(y_ref, y_pred))
+
+        print(f"coarse loss: {coarse_loss_val}")
+        val_loss = loss(y_ref_val, model.predict([X_coarse_val, y_coarse_val]))
+        print(f"val loss: {val_loss}")
+
         epoch = base_epoch + i_epoch
         print(f"saving model for epoch {epoch}")
-        model.save(os.path.join(model_dir, f"model-{args.label}-{epoch:03d}.tf"))
+        model.save(
+            os.path.join(
+                model_dir, f"model-{args.label}-{1e5*val_loss:.2f}-{epoch:03d}.tf"
+            )
+        )
 
     export_model = fv3fit.keras.RecurrentModel(
         SAMPLE_DIM_NAME,

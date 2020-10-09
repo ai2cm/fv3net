@@ -4,19 +4,32 @@ import tensorflow.keras.backend as K
 
 class GCMCell(tf.keras.layers.AbstractRNNCell):
     def __init__(
-        self, units: int, n_input: int, n_state: int, n_hidden_layers: int, **kwargs
+        self,
+        units: int,
+        n_input: int,
+        n_state: int,
+        n_hidden_layers: int,
+        # tendency_regularizer=None,
+        # kernel_regularizer=None,
+        tendency_ratio: float = 0.1,
+        **kwargs,
     ):
         self.units = units
         self.n_input = n_input
         self.n_state = n_state
         self.n_hidden_layers = n_hidden_layers
         self.activation = tf.keras.activations.relu
+        self.tendency_ratio = tendency_ratio
         self.lock_to_inputs = False
         """Set to True to set the GCMCell state exactly to the states you provide it.
         
         If False, the difference between consecutive inputs is still used as a forcing,
         but the GCMCell state is allowed to diverge from the input state.
         """
+        # if tendency_regularizer is not None:
+        #     self.tendency_regularizer = tendency_regularizer
+        # else:
+        #     self.tendency_regularizer = tf.keras.regularizers.l2(0.)
         super().__init__(**kwargs)
 
     @property
@@ -75,8 +88,16 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
         for kernel, bias in self.dense_weights:
             h = self.activation(K.dot(h, kernel) + bias)
         tendency_output = K.dot(h, self.output_kernel) + self.output_bias
+        # tendency_loss = self.tendency_regularizer(tendency_output)
+        # # Make tendency regularization strength batch-agnostic
+        # batch_size = math_ops.cast(
+        #     array_ops.shape(tendency_output)[0], tendency_loss.dtype)
+        # mean_tendency_loss = tendency_loss / batch_size
+        # self.add_loss(mean_tendency_loss)
         # tendencies are on a much smaller scale than the variability of the data
-        gcm_update = tf.multiply(tf.constant(0.1, dtype=tf.float32), tendency_output)
+        gcm_update = tf.multiply(
+            tf.constant(self.tendency_ratio, dtype=tf.float32), tendency_output
+        )
         gcm_output = gcm_state + gcm_update
         if self.lock_to_inputs:
             # if this output is going to be applied to the Fortran model
@@ -103,6 +124,7 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
                 "n_input": self.n_input,
                 "n_state": self.n_state,
                 "n_hidden_layers": self.n_hidden_layers,
+                "tendency_ratio": self.tendency_ratio,
                 "lock_to_inputs": self.lock_to_inputs,
             }
         )
