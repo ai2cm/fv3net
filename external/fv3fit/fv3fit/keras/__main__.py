@@ -86,7 +86,7 @@ if __name__ == "__main__":
     shared.save_config_output(args.output_data_path, train_config)
 
     logging.basicConfig(level=logging.INFO)
-
+    _set_random_seed(train_config.random_seed)
     optimizer = _get_optimizer(train_config.hyperparameters)
     fit_kwargs = train_config.hyperparameters.pop("fit_kwargs", {})
     model = get_model(
