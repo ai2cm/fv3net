@@ -4,9 +4,9 @@ import sys
 import yaml
 import argparse
 
+import vcm
 import fv3config
 import fv3kube
-import vcm
 
 
 def parse_args():
@@ -59,7 +59,7 @@ if __name__ == "__main__":
         user_config = yaml.safe_load(f)
 
     config = fv3kube.get_base_fv3config(user_config["base_version"])
-    config = vcm.update_nested_dict(config, user_config)
+    config = fv3kube.merge_fv3config_overlays(config, user_config)
 
     current_date = config["namelist"]["coupler_nml"]["current_date"]
     output_interval = timedelta(hours=config["namelist"]["atmos_model_nml"]["fhout"])
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         current_date, args.segment_count * run_duration, output_interval
     )
 
-    config = vcm.update_nested_dict(
+    config = fv3kube.merge_fv3config_overlays(
         config, {"runfile_output": {"output_times": output_times}},
     )
 
@@ -84,6 +84,6 @@ if __name__ == "__main__":
             nudge_url=args.nudge_url,
             copy_method=copy_method,
         )
-        config = vcm.update_nested_dict(config, nudge_overlay)
+        config = fv3kube.merge_fv3config_overlays(config, nudge_overlay)
 
     print(yaml.dump(config))

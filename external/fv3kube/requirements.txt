@@ -1,0 +1,6 @@
+pytest
+fsspec
+pyyaml
+kubernetes
+../fv3config
+pytest-regtest
