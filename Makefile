@@ -40,7 +40,7 @@ build_image_%:
 	
 
 build_image_post_process_run:
-	tools/docker_build_cached.sh us.gcr.io/vcm-ml/post_process_run \
+	tools/docker_build_cached.sh us.gcr.io/vcm-ml/post_process_run:$(CACHE_TAG) \
 		workflows/post_process_run -t post_process_run
 
 enter_%:
