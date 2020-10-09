@@ -133,9 +133,8 @@ def c48_initial_conditions_overlay(url: str, timestep: str) -> Mapping:
     """An overlay containing initial conditions namelist settings
     """
     TIME_FMT = "%Y%m%d.%H%M%S"
-    time = datetime.strptime(time, TIME_FMT)
+    time = datetime.datetime.strptime(timestep, TIME_FMT)
     time_list = [time.year, time.month, time.day, time.hour, time.minute, time.second]
-
 
     overlay = {}
     overlay["initial_conditions"] = update_tiled_asset_names(

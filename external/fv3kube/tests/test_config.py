@@ -30,3 +30,12 @@ import pytest
 def test_merge_fv3config_overlays(mappings, expected):
     output = fv3kube.merge_fv3config_overlays(*mappings)
     assert output == expected
+
+
+def test_c48_initial_conditions_overlay(regtest):
+    url = "some/url"
+    timestep = "20160801.000000"
+
+    ans = fv3kube.c48_initial_conditions_overlay(url, timestep)
+
+    print(ans, file=regtest)
