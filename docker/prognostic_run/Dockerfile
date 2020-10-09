@@ -1,4 +1,4 @@
-FROM us.gcr.io/vcm-ml/fms-build@sha256:868e79a8ef4921f655a6f1fdd32c4eaa200d1157b076a4f85587689bb892e64c AS bld
+FROM us.gcr.io/vcm-ml/fms-build AS bld
 
 ENV FMS_DIR=/FMS
 ENV ESMF_DIR=/usr/local/esmf
@@ -9,8 +9,8 @@ ENV FMS_LIB=${FMS_DIR}/libFMS/.libs/
 ENV ESMF_LIB=${ESMF_DIR}/lib/libO3/Linux.gfortran.64.mpiuni.default/
 ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}
 
-COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:d3154afc4f4b57f9c253be1d84c405b4a3ac508eebbfe5cd0a8c91f65a8287be /usr/local/esmf ${ESMF_DIR}
-COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:d3154afc4f4b57f9c253be1d84c405b4a3ac508eebbfe5cd0a8c91f65a8287be  /usr/local/esmf/lib/libO3/Linux.gfortran.64.mpiuni.default/*.so* ${ESMF_LIB}/
+COPY --from=us.gcr.io/vcm-ml/esmf-build /usr/local/esmf ${ESMF_DIR}
+COPY --from=us.gcr.io/vcm-ml/esmf-build /usr/local/esmf/lib/libO3/Linux.gfortran.64.mpiuni.default/*.so* ${ESMF_LIB}/
 
 # build/install the fortran model
 COPY external/fv3gfs-fortran/ /tmp/fortran-build
