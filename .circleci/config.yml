@@ -40,7 +40,7 @@ jobs:
       - run: make update_submodules
       - run:
           name: "Concatenate package dependency files"
-          command: cat conda-linux-64.lock pip-requirements.txt > combined_deps.txt
+          command: cat conda-linux-64.lock constraints.txt > combined_deps.txt
       - restore_cache:
           keys:
             # change this string to invalidate cache
