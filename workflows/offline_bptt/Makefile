@@ -1,4 +1,5 @@
 DOCKER_SERVICE = offline_bptt
+SCRATCH ?= 
 
 build:
 	docker-compose build $(DOCKER_SERVICE)

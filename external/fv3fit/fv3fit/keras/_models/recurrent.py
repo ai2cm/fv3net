@@ -17,7 +17,7 @@ class RecurrentModel(ExternalModel):
         required_outputs = ["air_temperature", "specific_humidity"]
         if any(name not in self.output_variables for name in required_outputs):
             raise ValueError(f"output variables must include all of {required_outputs}")
-        self.output_variables = tuple(list(self.output_variables) + ["dQ1", "dQ2"])
+        self.output_variables = tuple(set(list(self.output_variables) + ["dQ1", "dQ2"]))
         self.set_mode(lock_to_inputs=True)
 
     def set_mode(self, *, lock_to_inputs: bool):
