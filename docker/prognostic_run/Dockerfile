@@ -47,7 +47,7 @@ RUN apt-get install -y pkg-config
 COPY /external/fv3gfs-wrapper /fv3gfs-wrapper
 RUN make -C /fv3gfs-wrapper/lib
 
-# copy and install dependency packages
+# copy dependency packages
 COPY /external/fv3config /external/fv3config
 COPY /external/fv3gfs-util /external/fv3gfs-util
 
