@@ -51,7 +51,7 @@ REQUIRED_VARIABLES = {
     EAST_WIND,
     NORTH_WIND,
 }
-TENDENCY_TO_VARIABLE_NAME = {
+TENDENCY_TO_VARIABLE_NAME: Mapping[Hashable, Hashable] = {
     "dQ1": TEMP,
     "dQ2": SPHUM,
     "dQu": EAST_WIND,
