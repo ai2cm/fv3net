@@ -51,6 +51,12 @@ REQUIRED_VARIABLES = {
     EAST_WIND,
     NORTH_WIND,
 }
+TENDENCY_TO_VARIABLE_NAME = {
+    "dQ1": TEMP,
+    "dQ2": SPHUM,
+    "dQu": EAST_WIND,
+    "dQv": NORTH_WIND,
+}
 
 cp = 1004
 gravity = 9.81
@@ -135,13 +141,9 @@ def apply(state: State, tendency: State, dt: float) -> State:
     Returned state only includes variables updated by ML model."""
     with xr.set_options(keep_attrs=True):
         updated = {
-            SPHUM: state[SPHUM] + tendency["dQ2"] * dt,
-            TEMP: state[TEMP] + tendency["dQ1"] * dt,
+            TENDENCY_TO_VARIABLE_NAME[tendency_name]: tendency[tendency_name] * dt
+            for tendency_name in tendency
         }
-        if "dQu" in tendency:
-            updated.update({EAST_WIND: state[EAST_WIND] + tendency["dQu"] * dt})
-        if "dQv" in tendency:
-            updated.update({NORTH_WIND: state[NORTH_WIND] + tendency["dQv"] * dt})
     return updated  # type: ignore
 
 
@@ -223,6 +225,24 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         # no diagnostics are computed by default
         return {}
 
+    def _update_winds(self) -> Diagnostics:
+        self._log_debug(f"Adding ML wind tendencies")
+        variables: List[Hashable] = list(
+            self._model.input_variables | REQUIRED_VARIABLES
+        )
+        self._log_debug(f"Getting state variables: {variables}")
+        state = {name: self._state[name] for name in variables}
+        self._log_debug("Computing RF updated variables")
+        tendency = predict(self._model, state)
+        tendency = {k: v for k, v in tendency.items() if k in ["dQu", "dQv"]}
+        if self._do_only_diagnostic_ml:
+            updated_state: State = {}
+        else:
+            updated_state = apply(state, tendency, dt=self._timestep)
+        self._log_debug("Setting Fortran State")
+        self._state.update(updated_state)
+        return {}
+
     def _step_python(self) -> Diagnostics:
 
         variables: List[Hashable] = list(
@@ -233,7 +253,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
 
         self._log_debug("Computing RF updated variables")
         tendency = predict(self._model, state)
-
+        tendency = {k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]}
         if self._do_only_diagnostic_ml:
             updated_state: State = {}
         else:
@@ -256,8 +276,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             diagnostics = {}
             diagnostics.update(self._step_dynamics())
             diagnostics.update(self._compute_physics())
-            diagnostics.update(self._step_python())
+            diagnostics.update(self._update_winds())
             diagnostics.update(self._apply_physics())
+            diagnostics.update(self._step_python())
             yield self._state.time, diagnostics
         self._fv3gfs.cleanup()
 
