@@ -91,7 +91,11 @@ test_prognostic_run:
 test_prognostic_run_report:
 	bash workflows/prognostic_run_diags/test_integration.sh
 
-test_unit:
+
+test_fv3kube:
+	cd external/fv3kube && tox
+
+test_unit: test_fv3kube
 	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
 
 test_regression:
