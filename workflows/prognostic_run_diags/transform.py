@@ -95,8 +95,7 @@ def resample_time(
     second_freq_label: str = "1D",
 ) -> DiagArg:
     """
-    Subset times
-     in prognostic and verification data
+    Subset times in prognostic and verification data.
 
     Args:
         arg: input arguments to transform prior to the diagnostic calculation
@@ -114,15 +113,15 @@ def resample_time(
     """
     prognostic, verification, grid = arg
     if split_timedelta is None:
-        prognostic = prognostic.resample(time=freq_label, label="right").nearest()
+        prognostic = prognostic.resample(time=freq_label, label="right").mean()
     else:
         split_time = prognostic.time.values[0] + split_timedelta
         first_segment = prognostic.sel(time=slice(None, split_time))
         second_segment = prognostic.sel(time=slice(split_time, None))
-        resampled = [first_segment.resample(time=freq_label, label="right").nearest()]
+        resampled = [first_segment.resample(time=freq_label, label="right").mean()]
         if second_segment.sizes["time"] != 0:
             resampled.append(
-                second_segment.resample(time=second_freq_label, label="right").nearest()
+                second_segment.resample(time=second_freq_label, label="right").mean()
             )
         prognostic = xr.concat(resampled, dim="time")
 
