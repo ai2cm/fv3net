@@ -1,6 +1,5 @@
 import argparse
 import os
-from typing import Mapping
 import yaml
 import logging
 
@@ -10,42 +9,6 @@ import fv3kube
 import vcm
 
 logger = logging.getLogger(__name__)
-
-
-def _merge_once(source, update):
-    """Recursively update a mapping with new values.
-
-    Args:
-        source: Mapping to be updated.
-        update: Mapping whose key-value pairs will update those in source.
-            Key-value pairs will be inserted for keys in update that do not exist
-            in source.
-
-    Returns:
-        Recursively updated mapping.
-    """
-    for key in update:
-        if key in ["patch_files", "diagnostics"]:
-            source.setdefault(key, []).extend(update[key])
-        elif (
-            key in source
-            and isinstance(source[key], Mapping)
-            and isinstance(update[key], Mapping)
-        ):
-            _merge_once(source[key], update[key])
-        else:
-            source[key] = update[key]
-    return source
-
-
-def merge_fv3config_overlays(*mappings) -> Mapping:
-    """Recursive merge dictionaries updating from left to right.
-
-    For example, the rightmost mapping will override the proceeding ones. """
-    out, rest = mappings[0], mappings[1:]
-    for mapping in rest:
-        out = _merge_once(out, mapping)
-    return out
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -163,7 +126,7 @@ def prepare_config(args):
             )
         )
 
-    config = merge_fv3config_overlays(*overlays)
+    config = fv3kube.merge_fv3config_overlays(*overlays)
     print(yaml.dump(config))
 
 
