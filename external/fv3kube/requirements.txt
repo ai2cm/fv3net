@@ -2,5 +2,5 @@ pytest
 fsspec
 pyyaml
 kubernetes
-git+https://github.com/VulcanClimateModeling/fv3config/
+../fv3config
 pytest-regtest
