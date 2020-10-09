@@ -51,7 +51,7 @@ REQUIRED_VARIABLES = {
     EAST_WIND,
     NORTH_WIND,
 }
-TENDENCY_TO_VARIABLE_NAME: Mapping[Hashable, Hashable] = {
+TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
     "dQ1": TEMP,
     "dQ2": SPHUM,
     "dQu": EAST_WIND,
@@ -141,7 +141,7 @@ def apply(state: State, tendency: State, dt: float) -> State:
     Returned state only includes variables updated by ML model."""
     with xr.set_options(keep_attrs=True):
         updated = {
-            TENDENCY_TO_VARIABLE_NAME[tendency_name]: tendency[tendency_name] * dt
+            TENDENCY_TO_STATE_NAME[tendency_name]: tendency[tendency_name] * dt
             for tendency_name in tendency
         }
     return updated  # type: ignore
@@ -259,6 +259,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         else:
             updated_state = apply(state, tendency, dt=self._timestep)
 
+        self._log_debug("updated_state:" + print(updated_state))
         diagnostics = compute_diagnostics(state, tendency)
         if self._do_only_diagnostic_ml:
             rename_diagnostics(diagnostics)
@@ -268,6 +269,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         )
 
         self._log_debug("Setting Fortran State")
+        self._log_debug("updated_state:" + print(updated_state))
         self._state.update(updated_state)
         return diagnostics
 
