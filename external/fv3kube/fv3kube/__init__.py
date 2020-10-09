@@ -1,9 +1,9 @@
 from .config import (
-    transfer_local_to_remote,
     update_tiled_asset_names,
     get_base_fv3config,
     get_full_config,
     c48_initial_conditions_overlay,
+    merge_fv3config_overlays,
 )
 from .utils import (
     wait_for_complete,

@@ -7,6 +7,7 @@ yq
 pytest-regtest
 conda-lock
 pip-tools
+tox
 
 # This version of gcsfs breaks logging
 gcsfs!=0.7.0
