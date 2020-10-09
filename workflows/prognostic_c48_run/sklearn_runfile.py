@@ -140,7 +140,7 @@ def apply(state: State, tendency: State, dt: float) -> State:
     """Given state and tendency prediction, return updated state.
     Returned state only includes variables updated by ML model."""
     with xr.set_options(keep_attrs=True):
-        updated {}
+        updated = {}
         for name in tendency:
             state_name = TENDENCY_TO_STATE_NAME[name]
             updated[state_name] = state[state_name] + tendency[name] * dt
