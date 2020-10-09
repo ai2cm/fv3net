@@ -5,6 +5,8 @@ import logging
 from fv3fit._shared import ModelTrainingConfig
 import numpy as np
 import subprocess
+import copy
+
 
 from fv3fit.sklearn._train import (
     train_model,
@@ -43,6 +45,21 @@ def test_training(
     for varname in output_variables:
         assert result[varname].shape == batch_dataset[varname].shape, varname
         assert np.sum(np.isnan(result[varname].values)) == 0
+
+
+def test_reproducibility(
+    training_batches: Sequence[xr.Dataset],
+    train_config: ModelTrainingConfig,
+):
+    batch_dataset = training_batches[0]
+    train_config.hyperparameters["random_state"] = 0
+    model_0 = train_model(copy.deepcopy(training_batches), train_config)
+    result_0 = model_0.predict(batch_dataset)
+
+    model_1 = train_model(copy.deepcopy(training_batches), train_config)
+    result_1 = model_1.predict(batch_dataset)
+
+    xr.testing.assert_allclose(result_0, result_1)
 
 
 def test_training_integration(
