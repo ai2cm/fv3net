@@ -1,4 +1,4 @@
-FROM ubuntu:19.10 AS fv3gfs-environment
+FROM ubuntu:20.04 AS fv3gfs-environment
 
 RUN apt-get update && apt-get install -y \
     curl \

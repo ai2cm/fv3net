@@ -2,7 +2,7 @@ ARG FORTRAN_IMAGE
 
 FROM ${FORTRAN_IMAGE} AS fv3gfs-fortran-build
 
-FROM ubuntu:19.10 AS fv3gfs-environment
+FROM ubuntu:20.04 AS fv3gfs-environment
 
 RUN apt-get update && apt-get install -y \
     curl \
@@ -36,7 +36,7 @@ FROM us.gcr.io/vcm-ml/fms-build@sha256:868e79a8ef4921f655a6f1fdd32c4eaa200d1157b
 FROM us.gcr.io/vcm-ml/esmf-build@sha256:d3154afc4f4b57f9c253be1d84c405b4a3ac508eebbfe5cd0a8c91f65a8287be AS fv3gfs-esmf
 
 #-----------------------------------------------------------------------------
-FROM ubuntu:19.10 as fv3config-inputdata
+FROM ubuntu:20.04 as fv3config-inputdata
 
 RUN apt-get update && \
     apt-get install -y python3 python3-pip wget && \
