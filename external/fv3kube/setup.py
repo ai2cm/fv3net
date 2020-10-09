@@ -12,11 +12,9 @@ setup(
     package_data={},
     install_requires=[
         "fsspec>=0.7.4",
-        "numpy>=1.18.4",
         "pyyaml>=5.3.0",
         "kubernetes>=11",
-        "vcm",
         "fv3config",
     ],
-    dependency_links=["../vcm", "../fv3config"],
+    dependency_links=["../fv3config"],
 )

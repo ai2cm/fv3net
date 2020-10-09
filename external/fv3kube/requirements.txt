@@ -1,0 +1,5 @@
+pytest
+fsspec
+pyyaml
+kubernetes
+git+https://github.com/VulcanClimateModeling/fv3config/
