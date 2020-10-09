@@ -139,12 +139,11 @@ def log_updated_tendencies(tendency: State, tendency_updated: State):
             i: int(value)
             for i, value in enumerate(updated_points.sum(["x", "y"]).values)
         }
-        logging.info(f"sphum_limiter_updates_per_level: {level_updates}")
+        logging.info(f"specific_humidity_limiter_updates_per_level: {level_updates}")
 
 
 def apply(state: State, tendency: State, dt: float) -> State:
     """Given state and tendency prediction, return updated state.
-    Specific humidity is limited to be >0 after update.
     Returned state only includes variables updated by ML model."""
 
     with xr.set_options(keep_attrs=True):
@@ -238,15 +237,17 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._log_debug("Computing RF updated variables")
         tendency = predict(self._model, state)
 
-        self._log_debug("Correcting columns with negative sphum after ML update")
-        tendency_sphum_limit = limit_sphum_tendency(state, tendency, dt=self._timestep)
+        self._log_debug(
+            "Correcting ML tendencies that would predict negative specific humidity"
+        )
+        tendency = limit_sphum_tendency(state, tendency, dt=self._timestep)
 
         if self._do_only_diagnostic_ml:
             updated_state: State = {}
         else:
-            updated_state = apply(state, tendency_sphum_limit, dt=self._timestep)
+            updated_state = apply(state, tendency, dt=self._timestep)
 
-        diagnostics = compute_diagnostics(state, tendency_sphum_limit)
+        diagnostics = compute_diagnostics(state, tendency)
         if self._do_only_diagnostic_ml:
             rename_diagnostics(diagnostics)
 
