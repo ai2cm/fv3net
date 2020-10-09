@@ -48,8 +48,7 @@ def test_training(
 
 
 def test_reproducibility(
-    training_batches: Sequence[xr.Dataset],
-    train_config: ModelTrainingConfig,
+    training_batches: Sequence[xr.Dataset], train_config: ModelTrainingConfig,
 ):
     batch_dataset = training_batches[0]
     train_config.hyperparameters["random_state"] = 0
