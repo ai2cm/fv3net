@@ -9,6 +9,8 @@ import tempfile
 import subprocess
 import os
 
+from fv3fit.keras.__main__ import _set_random_seed
+
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,39 @@ def model(
         output_variables,
         **hyperparameters,
     )
+
+
+def test_reproducibility(
+    input_variables,
+    hyperparameters,
+    training_batches: Sequence[xr.Dataset],
+    output_variables: Iterable[str],
+):
+    batch_dataset_test = training_batches[0]
+
+    _set_random_seed(0)
+    model_0 = fv3fit.keras.get_model(
+        "DenseModel",
+        loaders.SAMPLE_DIM_NAME,
+        input_variables,
+        output_variables,
+        **hyperparameters,
+    )
+    model_0.fit(training_batches)
+    result_0 = model_0.predict(batch_dataset_test)
+
+    _set_random_seed(0)
+    model_1 = fv3fit.keras.get_model(
+        "DenseModel",
+        loaders.SAMPLE_DIM_NAME,
+        input_variables,
+        output_variables,
+        **hyperparameters,
+    )
+    model_1.fit(training_batches)
+    result_1 = model_1.predict(batch_dataset_test)
+
+    xr.testing.assert_allclose(result_0, result_1)
 
 
 def test_training(

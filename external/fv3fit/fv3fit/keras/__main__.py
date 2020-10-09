@@ -2,7 +2,9 @@ import argparse
 import os
 import yaml
 import logging
+import numpy as np
 import sys
+import random
 from . import get_model
 from .. import _shared as shared
 import loaders
@@ -37,6 +39,14 @@ def _get_optimizer(hyperparameters: dict = None):
     else:
         optimizer = None
     return optimizer
+
+
+def _set_random_seed(seed: int = 0):
+    # https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    tf.random.set_seed(seed)
 
 
 def parse_args():
