@@ -13,7 +13,6 @@ from .loss import get_weighted_mse
 import yaml
 
 logger = logging.getLogger(__file__)
-tf.keras.backend.set_floatx("float64")
 
 
 class Model(Predictor):
