@@ -11,7 +11,7 @@ import logging
 from typing import Sequence, Tuple
 import numpy as np
 import xarray as xr
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from constants import HORIZONTAL_DIMS, DiagArg
 
@@ -112,23 +112,26 @@ def resample_time(
             after split_timedelta. Defaults to "1D".
     """
     prognostic, verification, grid = arg
-    if split_timedelta is None:
-        prognostic = prognostic.resample(time=freq_label, label="right").mean()
-    else:
+    prognostic = prognostic.resample(time=freq_label, label="right").nearest()
+    verification = verification.resample(time=freq_label, label="right").nearest()
+
+    if split_timedelta is not None:
         split_time = prognostic.time.values[0] + split_timedelta
-        first_segment = prognostic.sel(time=slice(None, split_time))
-        second_segment = prognostic.sel(time=slice(split_time, None))
-        resampled = [first_segment.resample(time=freq_label, label="right").mean()]
-        if second_segment.sizes["time"] != 0:
-            resampled.append(
-                second_segment.resample(time=second_freq_label, label="right").mean()
-            )
-        prognostic = xr.concat(resampled, dim="time")
+        prognostic = _resample_end(prognostic, split_time, second_freq_label)
+        verification = _resample_end(verification, split_time, second_freq_label)
 
     prognostic = prognostic.isel(time=time_slice)
     if inner_join:
         prognostic, verification = _inner_join_time(prognostic, verification)
     return prognostic, verification, grid
+
+
+def _resample_end(ds: xr.Dataset, split: datetime, freq_label: str) -> xr.Dataset:
+    start_segment = ds.sel(time=slice(None, split))
+    end_segment = ds.sel(time=slice(split, None))
+    if end_segment.sizes["time"] != 0:
+        end_segment = end_segment.resample(time=freq_label, label="right").mean()
+    return xr.concat([start_segment, end_segment], dim="time")
 
 
 def _inner_join_time(
