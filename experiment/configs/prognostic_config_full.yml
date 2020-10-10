@@ -17,7 +17,7 @@ namelist:
     - 0
     - 0
     - 0
-    days: 1
+    days: 40
     hours: 0
     minutes: 0
     months: 0
