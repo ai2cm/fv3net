@@ -30,28 +30,12 @@ namelist:
   fv_core_nml:
     do_sat_adj: false
   gfs_physics_nml:
-    fhzero: 3.0 # hours - frequency at which precip is set back to zero
     hybedmf: false
     satmedmf: true
   atmos_model_nml:
     fhmax: 10000
     fhout: 3.0 # hours - frequency to save physics outputs
-  gfs_physics_nml:
-    fhout: 3.0 # hours - frequency to save physics outputs
 scikit_learn:
   diagnostic_ml: false
   model: model_data
   model_type: keras
-diagnostics:
-  -
-    name: diags.zarr
-    variables:
-      - net_moistening
-      - net_moistening_diagnostic
-      - net_heating
-      - net_heating_diagnostic
-      - water_vapor_path
-      - physics_precip
-    times:
-      kind: interval
-      frequency: 9000   # for staggering diurnal cycle sampling
