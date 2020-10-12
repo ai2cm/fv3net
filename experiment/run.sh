@@ -16,7 +16,7 @@ do
     -p root=gs://vcm-ml-experiments/$EXPERIMENT/seed-$i \
     -p initial-condition="20160805.000000" \
     -p train-test-data='gs://vcm-ml-experiments/2020-09-24-tke-edmf-nudge-to-fine2' \
-    -p training-config="$(< configs/test_altered_config_seed_$i.yml)" \
+    -p training-config="$(< configs/config_seed_$i.yml)" \
     -p train-routine="keras" \
     -p train-times="$(< train.json)" \
     -p test-times="$(< test.json)" \
