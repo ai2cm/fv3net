@@ -1,4 +1,4 @@
-random_seed: 0
+random_seed: 0   # this gets changed by the run script
 batch_function: batches_from_geodata
 batch_kwargs:
   mapping_function: open_merged_nudged_full_tendencies
