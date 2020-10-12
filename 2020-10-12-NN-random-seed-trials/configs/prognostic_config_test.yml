@@ -1,6 +1,6 @@
 base_version: v0.5
 data_table: default
-diag_table: configs/diag_table_prognostic
+diag_table: gs://vcm-ml-experiments/diag_tables/prognostic-run-3h/diag_table
 field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.0/field_table
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
