@@ -2,9 +2,9 @@ default_experiment
 2016 08 01 00 0 0
 #output files
 "atmos_static",           -1,  "hours",    1, "hours", "time"
-"atmos_dt_atmos",          0,  "hours",    1, "hours",  "time"
+"atmos_dt_atmos",          3,  "hours",    1, "hours",  "time"
 "atmos_8xdaily",           3,  "hours",    1, "hours",  "time"
-"sfc_dt_atmos",            0,  "hours",    1, "hours", "time"
+"sfc_dt_atmos",            3,  "hours",    1, "hours", "time"
 #
 #output variables
 #
