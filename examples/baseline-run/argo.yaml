@@ -42,17 +42,6 @@ spec:
                      - air_temperature
                      - specific_humidity
                      - pressure_thickness_of_atmospheric_layer
-                 - name: diags.zarr
-                   times:
-                     frequency: 900
-                     kind: interval
-                   variables:
-                     - net_moistening
-                     - net_moistening_diagnostic
-                     - net_heating
-                     - net_heating_diagnostic
-                     - water_vapor_path
-                     - physics_precip
               forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
               orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
               diag_table: {{workflow.parameters.diag_table}}
@@ -78,14 +67,14 @@ spec:
           - name: output
             value: "{{workflow.parameters.output}}"
           - name: image-tag
-            value: latest
+            value: 60e372a1769113f6763715fac9f889d864c31ca8
           - name: initial-condition
             value: "20160801.001500"
           # dummy value not actually used
           - name: trained-ml
-            value: gs://vcm-ml-scratch/test-end-to-end-integration/integration-test-3564a8369bbf/trained_model
+            value: gs://vcm-ml-experiments/noah/2020-09-29-physics-on-free-moreInputs-rev2/trained_model
           - name: store-true-args
-            value: --diagnostic_ml
+            value: ""
           - name: chunks
             value: |
               physics_output.zarr:

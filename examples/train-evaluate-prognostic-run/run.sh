@@ -2,11 +2,11 @@
 
 set -e
 
-EXPERIMENT=2020-09-29-physics-on-free-moreInputs
+EXPERIMENT=2020-09-29-physics-on-free-moreInputs-rev2
 
 argo submit \
     --from workflowtemplate/train-diags-prog \
-    -p image-tag=1e3ba79515f1dce4072c57e3af14455e63807500 \
+    -p image-tag=60e372a1769113f6763715fac9f889d864c31ca8 \
     -p root=gs://vcm-ml-experiments/noah/$EXPERIMENT \
     -p train-test-data=gs://vcm-ml-archive/prognostic_runs/2020-09-25-physics-on-free/ \
     -p training-config="$(< training-config.yaml)" \
