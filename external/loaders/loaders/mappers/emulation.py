@@ -92,11 +92,11 @@ def open_baseline_emulator(
     data["dQ1"] = (
         # data.tendency_of_air_temperature_due_to_microphysics
         +data.tendency_of_air_temperature_due_to_deep_convection
-        + data.tendency_of_air_temperature_due_to_shallow_convection
+        # + data.tendency_of_air_temperature_due_to_shallow_convection
     )
     data["dQ2"] = (
         # data.tendency_of_specific_humidity_due_to_microphysics
         +data.tendency_of_specific_humidity_due_to_deep_convection
-        + data.tendency_of_specific_humidity_due_to_shallow_convection
+        # + data.tendency_of_specific_humidity_due_to_shallow_convection
     )
     return XarrayMapper(data)
