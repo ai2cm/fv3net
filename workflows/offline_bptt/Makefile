@@ -1,5 +1,6 @@
 DOCKER_SERVICE = offline_bptt
 SCRATCH ?= 
+LABEL ?= default
 
 build:
 	docker-compose build $(DOCKER_SERVICE)
@@ -7,8 +8,11 @@ build:
 dev:
 	docker-compose run $(DOCKER_SERVICE) bash
 
-run:
-	python train.py default
+train:
+	python train.py $(LABEL)
+
+evaluate:
+	python evaluate.py $(LABEL)
 
 clean:
 	$(RM) *.npz *_packer-*.yml

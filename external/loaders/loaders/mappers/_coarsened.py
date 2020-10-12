@@ -108,7 +108,9 @@ class CoarsenedDataMapper(GeoMapper, collections.abc.Mapping):
 
     def keys(self):
         if self._keys is None:
-            self._keys = sorted(list(self._fs.ls(self._url)))
+            self._keys = sorted(
+                list(os.path.basename(fname) for fname in self._fs.ls(self._url))
+            )
         return self._keys
 
     def __len__(self):

@@ -12,16 +12,17 @@ import fv3gfs.util
 import argparse
 import concurrent.futures
 
-COARSE_DATA_DIR = (
+NUDGE_DATA_DIR = (
     "gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging/outdir-3h"
 )
-REF_DATA_DIR = "gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts"
+# NUDGE_DATA_DIR = "gs://vcm-ml-experiments/2020-10-09-clouds-off-nudge-to-fine/"
+# REF_DATA_DIR = "gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts"
 SAMPLE_DIM_NAME = "sample"
 TIME_NAME = "time"
 
 
 def stack(ds):
-    stack_dims = [dim for dim in ds.dims if dim not in fv3gfs.util.Z_DIMS]
+    stack_dims = [dim for dim in sorted(ds.dims) if dim not in fv3gfs.util.Z_DIMS]
     if len(set(ds.dims).intersection(fv3gfs.util.Z_DIMS)) > 1:
         raise ValueError("Data cannot have >1 feature dimension in {Z_DIM_NAMES}.")
     ds_stacked = vcm.safe.stack_once(
@@ -230,11 +231,13 @@ def build_model(
     X_scaler,
     y_scaler,
     tendency_ratio,
+    kernel_regularizer,
 ):
-    forcing_input = tf.keras.layers.Input(batch_shape=[n_batch, n_window, n_input])
-    state_input = tf.keras.layers.Input(batch_shape=[n_batch, n_window, n_state])
+    forcing_input = tf.keras.layers.Input(shape=[n_window, n_input])
+    state_input = tf.keras.layers.Input(shape=[n_window, n_state])
     x_forcing = X_scaler.normalize_layer(forcing_input)
     x_state = y_scaler.normalize_layer(state_input)
+
     rnn = tf.keras.layers.RNN(
         fv3fit.keras.GCMCell(
             units=units,
@@ -242,6 +245,9 @@ def build_model(
             n_state=n_state,
             n_hidden_layers=n_hidden_layers,
             tendency_ratio=tendency_ratio,
+            dropout=0.25,
+            kernel_regularizer=kernel_regularizer,
+            use_spectral_normalization=True,
         ),
         name="rnn",
         return_sequences=True,
@@ -273,6 +279,62 @@ def penalize_negative_water(loss, negative_water_weight):
     return custom_loss
 
 
+# class WindowedData:
+
+#     def __init__(
+#         self, block_path: str, nudging_path: str,
+#         coarsened_path: str, files_per_step: int,
+#         steps_per_block: int, blocks_per_window: int, blocks_between_windows: int,
+#         n_blocks_train: int, n_blocks_val: int,
+#     ):
+#         self.block_path = block_path
+#         self.nudging_path = nudging_path
+#         self.coarsened_path = coarsened_path
+#         self.files_per_step = files_per_step
+#         self.steps_per_block = steps_per_block
+#         self.blocks_per_window = blocks_per_window
+#         self.blocks_between_windows = blocks_between_windows
+#         self.n_blocks_train = n_blocks_train
+#         self.n_blocks_val = n_blocks_val
+#         self._nudged_mapper = None
+#         self._ref_mapper = None
+#         self._fs = vcm.get_fs(block_path)
+
+#     @property
+#     def nudged_mapper(self):
+#         if self._nudged_mapper is None:
+#             self._nudged_mapper = loaders.mappers.open_merged_nudged(
+#                 COARSE_DATA_DIR,
+#                 merge_files=("before_dynamics.zarr", "nudging_tendencies.zarr"),
+#             )
+#         return self._nudged_mapper
+
+#     @property
+#     def ref_mapper(self):
+#         if self._ref_mapper is None:
+#             self._ref_mapper = loaders.mappers.CoarsenedDataMapper(REF_DATA_DIR)
+#         return self._ref_mapper
+
+#     @property
+#     def train_block_filenames(self):
+#         block_filenames = self._fs.ls(self.block_path)
+#         if len(block_filenames) > self.n_blocks_train:
+#             return block_filenames[:self.n_blocks_train]
+#         else:
+#             train_block_filenames = load_blocks(
+#                 self.nudged_mapper,
+#                 self.ref_mapper,
+#                 X_packer,
+#                 y_packer,
+#                 self.block_path,
+#                 n_timesteps=self.n_blocks_train * self.steps_per_block,
+#                 n_timestep_frequency=self.files_per_step,
+#                 n_timesteps_per_block=n_block,
+#                 label=args.label,
+#                 cache_dir=args.cache_dir,
+#             )
+
+
 if __name__ == "__main__":
     np.random.seed(0)
     random.seed(1)
@@ -281,7 +343,6 @@ if __name__ == "__main__":
     parser.add_argument("label", action="store", type=str)
     parser.add_argument("--cache-dir", action="store", type=str, default=".")
     args = parser.parse_args()
-    cache_filename = os.path.join(args.cache_dir, f"cache-{args.label}.npz")
     cache_filename_X_packer = os.path.join(args.cache_dir, f"X_packer-{args.label}.yml")
     cache_filename_y_packer = os.path.join(args.cache_dir, f"y_packer-{args.label}.yml")
     n_timestep_frequency = 4
@@ -295,10 +356,11 @@ if __name__ == "__main__":
     n_timesteps = n_blocks_train * n_block
     n_timesteps_val = n_blocks_val * n_block
     n_window = n_blocks_window * n_block
-    units = 128
+    units = 64
     n_hidden_layers = 3
-    tendency_ratio = 1e-3
+    tendency_ratio = 0.5  # scaling between values and their tendencies
     batch_size = 48
+    kernel_regularizer = None
     input_variables = [
         "surface_geopotential",
         "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
@@ -323,20 +385,24 @@ if __name__ == "__main__":
     block_dir = f"block-{args.label}"
     if not os.path.exists(block_dir):
         os.mkdir(block_dir)
-    elif len(os.listdir(block_dir)) >= (n_blocks_train + n_blocks_val):
-        all_filenames = [
-            os.path.join(block_dir, filename) for filename in os.listdir(block_dir)
-        ]
+    if len(os.listdir(block_dir)) >= (n_blocks_train + n_blocks_val):
+        all_filenames = sorted(
+            [os.path.join(block_dir, filename) for filename in os.listdir(block_dir)]
+        )
         train_block_filenames = all_filenames[:n_blocks_train]
         val_block_filenames = all_filenames[
             n_blocks_train : n_blocks_train + n_blocks_val
         ]
     else:
         nudged_mapper = loaders.mappers.open_merged_nudged(
-            COARSE_DATA_DIR,
+            NUDGE_DATA_DIR,
             merge_files=("before_dynamics.zarr", "nudging_tendencies.zarr"),
         )
-        ref_mapper = loaders.mappers.CoarsenedDataMapper(REF_DATA_DIR)
+        ref_mapper = loaders.mappers.open_merged_nudged(
+            NUDGE_DATA_DIR, merge_files=("reference.zarr", "nudging_tendencies.zarr"),
+        )
+        # ref_mapper = loaders.mappers.CoarsenedDataMapper(REF_DATA_DIR)
+        # print(ref_mapper.keys())
         train_block_filenames = load_blocks(
             nudged_mapper,
             ref_mapper,
@@ -393,15 +459,17 @@ if __name__ == "__main__":
     #     batch_size=int(48 * 48 * 6 * data_fraction),
     # )
     loss = fv3fit.keras._models.loss.get_weighted_mse(y_packer, y_scaler.std)
-    loss = penalize_negative_water(loss, 1.0)
-    optimizer = tf.keras.optimizers.Adam(lr=0.001)
+    # loss = penalize_negative_water(loss, 1.0)
+    optimizer = tf.keras.optimizers.Adam(lr=0.001, amsgrad=True, clipnorm=1.0)
     model_dir = f"models-{args.label}"
     if not os.path.isdir(model_dir):
         os.mkdir(model_dir)
     model_filenames = os.listdir(model_dir)
     base_epoch = 0
     if len(model_filenames) > 0:
-        last_model_filename = os.path.join(model_dir, sorted(model_filenames)[-1])
+        last_model_filename = os.path.join(
+            model_dir, sorted(model_filenames, key=lambda x: x[-6:-3])[-1]
+        )
         model = tf.keras.models.load_model(
             last_model_filename,
             custom_objects={
@@ -422,6 +490,7 @@ if __name__ == "__main__":
             X_scaler=X_scaler,
             y_scaler=y_scaler,
             tendency_ratio=tendency_ratio,
+            kernel_regularizer=kernel_regularizer,
         )
     model.compile(
         optimizer=optimizer, loss=loss,
@@ -434,7 +503,8 @@ if __name__ == "__main__":
     coarse_loss_val = loss(y_ref_val, y_coarse_val)
 
     for i_epoch in range(50):
-        print(f"starting epoch {i_epoch}")
+        epoch = base_epoch + i_epoch
+        print(f"starting epoch {epoch}")
         for X_coarse, y_coarse, y_ref in X_train:
             model.fit(
                 x=[X_coarse, y_coarse],
@@ -446,19 +516,14 @@ if __name__ == "__main__":
             del X_coarse
             del y_coarse
             del y_ref
-        # coarse_losses = []
-        # val_losses = []
-        # for X_coarse, y_coarse, y_ref in X_val:
-        #     print("doin a block")
-        #     coarse_losses.append(loss(y_ref, y_coarse))
-        #     y_pred = model.predict([X_coarse, y_coarse])
-        #     val_losses.append(loss(y_ref, y_pred))
 
-        print(f"coarse loss: {coarse_loss_val}")
-        val_loss = loss(y_ref_val, model.predict([X_coarse_val, y_coarse_val]))
-        print(f"val loss: {val_loss}")
+        print(f"coarse validation loss: {coarse_loss_val}")
+        val_loss = loss(
+            y_ref_val,
+            model.predict([X_coarse_val, y_coarse_val], batch_size=batch_size),
+        )
+        print(f"model validation loss: {val_loss}")
 
-        epoch = base_epoch + i_epoch
         print(f"saving model for epoch {epoch}")
         model.save(
             os.path.join(
