@@ -10,11 +10,8 @@ from .._shared import pack, unpack, Predictor
 from .._shared import scaler
 import sklearn.base
 
-from typing import Optional, Iterable, Sequence, MutableMapping, Any
+from typing import Optional, Iterable, Sequence
 import yaml
-
-# bump this version for incompatible changes
-SERIALIZATION_VERSION = "v0"
 
 
 def _multiindex_to_tuple(index: pd.MultiIndex) -> tuple:
@@ -123,6 +120,10 @@ class SklearnWrapper(BaseXarrayEstimator):
 
     """
 
+    _PICKLE_NAME = "sklearn.pkl"
+    _SCALER_NAME = "scaler.bin"
+    _METADATA_NAME = "metadata.bin"
+
     def __init__(
         self,
         sample_dim_name: str,
@@ -183,37 +184,32 @@ class SklearnWrapper(BaseXarrayEstimator):
         Args:
             path: a URL pointing to a directory
         """
-        output: MutableMapping[str, Any] = {}
-        output["version"] = SERIALIZATION_VERSION
-        output["model"] = self.model.dumps()
-        if self.target_scaler is not None:
-            output["scaler"] = scaler.dumps(self.target_scaler)
 
-        output["metadata"] = [
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+
+        fs.makedirs(path, exist_ok=True)
+
+        mapper = fs.get_mapper(path)
+        mapper[self._PICKLE_NAME] = self.model.dumps()
+        if self.target_scaler is not None:
+            mapper[self._SCALER_NAME] = scaler.dumps(self.target_scaler).encode("UTF-8")
+
+        metadata = [
             self.sample_dim_name,
             self.input_variables,
             self.output_variables,
             _multiindex_to_tuple(self.output_features_),
         ]
 
-        with fsspec.open(path, "w") as f:
-            yaml.safe_dump(output, f)
+        mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
 
     @classmethod
     def load(cls, path: str) -> "SklearnWrapper":
         """Load a model from a remote path"""
-        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-        data = yaml.safe_load(fs.cat(path))
+        mapper = fsspec.get_mapper(path)
+        model = RegressorEnsemble.loads(mapper[cls._PICKLE_NAME])
 
-        if data["version"] != SERIALIZATION_VERSION:
-            raise ValueError(
-                f"Artifact has version {data['version']}."
-                f"Only {SERIALIZATION_VERSION} is supported."
-            )
-
-        model = RegressorEnsemble.loads(data["model"])
-
-        scaler_str = data.get("scaler", "")
+        scaler_str = mapper.get(cls._SCALER_NAME, b"")
         scaler_obj: Optional[scaler.NormalizeTransform]
         if scaler_str:
             scaler_obj = scaler.loads(scaler_str)
@@ -224,7 +220,7 @@ class SklearnWrapper(BaseXarrayEstimator):
             input_variables,
             output_variables,
             output_features_dict_,
-        ) = data["metadata"]
+        ) = yaml.safe_load(mapper[cls._METADATA_NAME])
 
         output_features_ = _tuple_to_multiindex(output_features_dict_)
 

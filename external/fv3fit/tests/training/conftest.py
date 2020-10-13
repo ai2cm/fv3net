@@ -80,6 +80,7 @@ def train_config(
         scaler_type="standard",
         scaler_kwargs={},
         additional_variables=None,
+        random_seed=0,
     )
 
 
@@ -104,6 +105,7 @@ def train_config_filename(
                 "scaler_type": "standard",
                 "scaler_kwargs": {},
                 "additional_variables": None,
+                "random_seed": 0,
             },
             f,
         )
