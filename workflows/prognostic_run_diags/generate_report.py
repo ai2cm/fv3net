@@ -216,6 +216,7 @@ def _parse_diurnal_component_fields(varname: str):
 
 
 def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
+    """Back out verification timeseries from prognostic run value and bias"""
     verif_diagnostics = {}
     verif_attrs = {"run": "verification", "baseline": True}
     mean_bias_pairs = {"spatial_mean": "mean_bias", "diurn_comp": "diurn_bias"}
