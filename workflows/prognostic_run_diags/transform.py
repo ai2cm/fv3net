@@ -10,6 +10,7 @@ diagnostic function arguments.
 import logging
 from typing import Sequence, Tuple
 import numpy as np
+import pandas as pd
 import xarray as xr
 from datetime import datetime, timedelta
 
@@ -112,8 +113,8 @@ def resample_time(
             after split_timedelta. Defaults to "1D".
     """
     prognostic, verification, grid = arg
-    prognostic = prognostic.resample(time=freq_label, label="right").nearest()
-    verification = verification.resample(time=freq_label, label="right").nearest()
+    prognostic = _downsample_only(prognostic, freq_label)
+    verification = _downsample_only(verification, freq_label)
 
     if split_timedelta is not None:
         split_time = prognostic.time.values[0] + split_timedelta
@@ -124,6 +125,16 @@ def resample_time(
     if inner_join:
         prognostic, verification = _inner_join_time(prognostic, verification)
     return prognostic, verification, grid
+
+
+def _downsample_only(ds: xr.Dataset, freq_label: str) -> xr.Dataset:
+    """Resample in time, only if given freq_label is lower frequency than time
+    sampling of given dataset ds"""
+    ds_freq = ds.time.values[1] - ds.time.values[0]
+    if ds_freq < pd.to_timedelta(freq_label):
+        return ds.resample(time=freq_label, label="right").nearest()
+    else:
+        return ds
 
 
 def _resample_end(ds: xr.Dataset, split: datetime, freq_label: str) -> xr.Dataset:
