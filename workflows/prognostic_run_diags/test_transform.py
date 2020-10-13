@@ -28,7 +28,9 @@ def test_transform_default_params_present_here():
 
 @pytest.fixture
 def input_args():
-    mask = [[[0, 1], [0, 1]]]
+    mask = [[[0, 1], [0, 2]]]
+    area = [[[1, 2], [3, 4]]]
+    latitude = [[[0, 0], [15, 15]]]
 
     ntimes = 5
     temp = [[[[0.5, 1.5], [2.5, 3.5]]]] * ntimes
@@ -44,8 +46,8 @@ def input_args():
 
     grid = xr.Dataset(
         data_vars={
-            "lat": (["tile", "x", "y"], mask),
-            "area": (["tile", "x", "y"], mask),
+            "lat": (["tile", "x", "y"], latitude),
+            "area": (["tile", "x", "y"], area),
             "land_sea_mask": (["tile", "x", "y"], mask),
         }
     )
@@ -84,3 +86,9 @@ def test_subsample_time_split_short_input(input_args):
     transform.resample_time(
         "1H", input_args, split_timedelta=timedelta(hours=10), second_freq_label="2H"
     )
+
+
+@pytest.mark.parametrize("region", [("global"), ("land"), ("sea"), ("tropics")])
+def test__mask_array_global(input_args, region):
+    ds, _, grid = input_args
+    transform._mask_array(region, grid.area, grid.lat, grid.land_sea_mask)

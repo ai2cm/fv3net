@@ -225,11 +225,10 @@ def _mask_array(
         masked_arr = arr.copy()
     elif region in SURFACE_TYPE_CODES:
         masks = [land_sea_mask == code for code in SURFACE_TYPE_CODES[region]]
-        if len(masks) == 2:
-            mask = np.logical_or(masks[0], masks[1])
-        else:
-            mask = masks[0]
-        masked_arr = arr.where(mask)
+        mask_union = masks[0]
+        for mask in masks[1:]:
+            mask_union = np.logical_or(mask_union, mask)
+        masked_arr = arr.where(mask_union)
     else:
         raise ValueError(f"Masking procedure for region '{region}' is not defined.")
     return masked_arr
