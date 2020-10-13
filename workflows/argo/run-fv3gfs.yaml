@@ -21,8 +21,8 @@ spec:
         - {name: work-volume-name, value: work-volume}
         - {name: external-volume-name, value: external-volume}
     steps:
-      - - name: write-configs
-          template: write-configs
+      - - name: write-configs-and-clear-output
+          template: write-configs-and-clear-output
           arguments:
             artifacts:
               - name: fv3config
@@ -32,6 +32,7 @@ spec:
             parameters:
             - {name: chunks, value: "{{inputs.parameters.chunks}}"}
             - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+            - {name: output-url, value: "{{inputs.parameters.output-url}}"}
       # loop over segments implemented through recursion so that a failed segment will
       # terminate the workflow. Argo loops by default run in parallel and do not fail fast.
       - - name: run-first-segment  
@@ -47,7 +48,7 @@ spec:
             - {name: segment, value: 0}
             - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
             - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
-  - name: write-configs
+  - name: write-configs-and-clear-output
     inputs:
       artifacts:
         - name: fv3config
@@ -57,11 +58,19 @@ spec:
       parameters:
         - name: chunks
         - name: work-volume-name
+        - name: output-url
     container:
       image: ubuntu:latest
       volumeMounts:
         - name: "{{inputs.parameters.work-volume-name}}"
           mountPath: /mnt/data
+        - name: gcp-key-secret
+          mountPath: /secret/gcp-credentials
+      env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secret/gcp-credentials/key.json
+        - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+          value: /secret/gcp-credentials/key.json
       command: ["/bin/bash", "-c", "-x", "-e"]
       args:
       - |
@@ -70,6 +79,7 @@ spec:
         echo "Using fv3config:"
         cat /mnt/data/fv3config.yaml
         echo "{{inputs.parameters.chunks}}" > /mnt/data/chunks.yaml
+        gsutil -m rm -r "{{inputs.parameters.output-url}}" || true
   - name: run-all-segments
     inputs:
       parameters:
