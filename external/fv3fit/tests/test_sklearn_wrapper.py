@@ -1,6 +1,4 @@
 import numpy as np
-import os
-import yaml
 from sklearn.linear_model import LinearRegression
 import unittest.mock
 import pytest
@@ -106,15 +104,6 @@ def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
     assert pytest.approx(1 / scale) == output["y"].item()
 
 
-def test_loading_wrong_version_fails(tmpdir):
-    path = str(tmpdir.join("sklearn.yaml"))
-    with open(path, "w") as f:
-        yaml.safe_dump({"version": "not-a-version"}, f)
-
-    with pytest.raises(ValueError):
-        SklearnWrapper.load(path)
-
-
 def test_fitting_SklearnWrapper_does_not_fit_scaler():
     """SklearnWrapper should use pre-computed scaling factors when fitting data
     
@@ -164,11 +153,8 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
     wrapper.fit(data)
 
     # serialize/deserialize
-    path = str(tmpdir.join("file.yaml"))
+    path = str(tmpdir)
     wrapper.dump(path)
-
-    # assert the dumped object is a single file
-    assert os.path.isfile(path)
 
     loaded = wrapper.load(path)
     xr.testing.assert_equal(loaded.predict(data), wrapper.predict(data))
