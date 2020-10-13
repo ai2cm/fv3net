@@ -149,15 +149,13 @@ def _open_tiles(path):
     return xr.open_mfdataset(path + ".tile?.nc", concat_dim="tile", combine="nested")
 
 
-def load_verification(
-    catalog_entries: List[str], catalog: intake.Catalog,
-) -> xr.Dataset:
+def load_verification(catalog_keys: List[str], catalog: intake.Catalog,) -> xr.Dataset:
 
     """
     Load verification data sources from a catalog and combine for reporting.
 
     Args:
-        catalog_entries: catalog sources to load as verification data
+        catalog_keys: catalog sources to load as verification data
         catalog: Intake catalog of available data sources.
 
     Returns:
@@ -165,7 +163,7 @@ def load_verification(
 
     """
     verif_data = []
-    for dataset_key in catalog_entries:
+    for dataset_key in catalog_keys:
         ds = catalog[dataset_key].to_dask()
         ds = standardize_gfsphysics_diagnostics(ds)
         verif_data.append(ds)
