@@ -2,7 +2,7 @@
 
 set -e 
 
-output=gs://vcm-ml-experiments/noah/2020-09-29-physics-on-free-moreInputs-rev2/prognostic_run
+output=gs://vcm-ml-experiments/noah/2020-09-29-physics-on-free-moreInputs-rev3/prognostic_run
 gsutil cp diag_table $output/diag_table
 
 kubectl apply -k ../train-evaluate-prognostic-run/fv3net/workflows/argo

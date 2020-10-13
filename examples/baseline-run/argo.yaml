@@ -48,7 +48,7 @@ spec:
               namelist:
                 coupler_nml:
                   calendar: julian
-                  days: 10
+                  days: 5
                   hours: 0
                   minutes: 0
                   months: 0
@@ -78,15 +78,15 @@ spec:
           - name: chunks
             value: |
               physics_output.zarr:
-                time: 24
+                time: 12
               physics_tendency_components.zarr:
                 time: 1
               data.zarr:
                 time: 1
               diags.zarr:
-                time: 24
+                time: 12
           - name: segment-count
-            value: "4"
+            value: "2"
           # argo details
           - name: reference-restarts
             value: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
