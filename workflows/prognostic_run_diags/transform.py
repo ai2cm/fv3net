@@ -18,6 +18,8 @@ _TRANSFORM_FNS = {}
 
 logger = logging.getLogger(__name__)
 
+SURFACE_TYPE_CODES = {"sea": 0, "land": 1, "seaice": 2}
+
 
 def add_to_input_transform_fns(func):
 
@@ -83,7 +85,9 @@ def apply(transform_key: str, *transform_args_partial, **transform_kwargs):
 
 
 @add_to_input_transform_fns
-def resample_time(freq_label: str, arg: DiagArg, time_slice=slice(None, -1)) -> DiagArg:
+def resample_time(
+    freq_label: str, arg: DiagArg, time_slice=slice(None, -1), inner_join: bool = False
+) -> DiagArg:
     """
     Subset times in prognostic and verification data
 
@@ -93,11 +97,13 @@ def resample_time(freq_label: str, arg: DiagArg, time_slice=slice(None, -1)) -> 
             resampling function)
         time_slice: Index slice to reduce times after frequency resampling.  Omits final
             time by default to work with crashed simulations.
+        inner_join: Subset times to the intersection of prognostic and verification
+            data. Defaults to False.
     """
     prognostic, verification, grid = arg
     prognostic = prognostic.resample(time=freq_label, label="right").nearest()
     prognostic = prognostic.isel(time=time_slice)
-    if "time" in verification:  # verification might be an empty dataset
+    if inner_join:
         prognostic, verification = _inner_join_time(prognostic, verification)
     return prognostic, verification, grid
 
@@ -162,16 +168,57 @@ def mask_to_sfc_type(
         prognostic, surface_type, mask_var_name
     )
 
-    # TODO: Make the try/except unnecessary by loading high-res physics verifcation
-    try:
-        masked_verification = _mask_vars_with_horiz_dims(
-            verification, surface_type, mask_var_name
-        )
-    except KeyError:
-        logger.warning("Empty verification dataset provided.")
-        masked_verification = verification
+    masked_verification = _mask_vars_with_horiz_dims(
+        verification, surface_type, mask_var_name
+    )
 
     return masked_prognostic, masked_verification, grid
+
+
+@add_to_input_transform_fns
+def mask_area(
+    region: str, arg: DiagArg, land_sea_mask_name: str = "SLMSKsfc",
+) -> DiagArg:
+    """
+    Set area variable to zero everywhere outside of specified region.
+
+    Args:
+        region: name of region to leave unmasked. Valid options are "global",
+            "land", "sea", "seaice" and "tropics".
+        arg: input arguments to transform prior to the diagnostic calculation
+        land_sea_mask_name: Name of the datasets variable holding land-sea mask
+    """
+    prognostic, verification, grid = arg
+
+    if region in SURFACE_TYPE_CODES:
+        if land_sea_mask_name in prognostic:
+            land_sea_mask = prognostic[land_sea_mask_name].astype(int)
+        elif land_sea_mask_name in verification:
+            land_sea_mask = verification[land_sea_mask_name].astype(int)
+        else:
+            raise KeyError("No land-sea mask in prognostic or verification data")
+    else:
+        land_sea_mask = None
+
+    masked_area = _mask_array(region, grid.area, grid.lat, land_sea_mask)
+
+    grid_copy = grid.copy()
+    return prognostic, verification, grid_copy.update({"area": masked_area})
+
+
+def _mask_array(
+    region: str, arr: xr.DataArray, latitude: xr.DataArray, land_sea_mask: xr.DataArray,
+) -> xr.DataArray:
+    """Mask given DataArray to a specific region."""
+    if region == "tropics":
+        masked_arr = arr.where(abs(latitude) <= 10.0)
+    elif region == "global":
+        masked_arr = arr.copy()
+    elif region in SURFACE_TYPE_CODES:
+        masked_arr = arr.where(land_sea_mask == SURFACE_TYPE_CODES[region])
+    else:
+        raise ValueError(f"Masking procedure for region '{region}' is not defined.")
+    return masked_arr
 
 
 @add_to_input_transform_fns

@@ -1,6 +1,7 @@
 import cftime
 import json
 import logging
+import copy
 from typing import (
     Any,
     Hashable,
@@ -17,6 +18,11 @@ import xarray as xr
 from mpi4py import MPI
 
 import fv3gfs.wrapper as wrapper
+
+# To avoid very strange NaN errors this needs to happen before runtime import
+# with openmpi
+wrapper.initialize()  # noqa: E402
+
 import fv3gfs.util
 import runtime
 
@@ -122,9 +128,31 @@ def predict(model: runtime.RenamingAdapter, state: State, true_tends) -> State:
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
+def limit_sphum_tendency(state: State, tendency: State, dt: float):
+    delta = tendency["dQ2"] * dt
+    tendency_updated = copy.copy(tendency)
+    tendency_updated["dQ2"] = xr.where(
+        state[SPHUM] + delta > 0, tendency["dQ2"], -state[SPHUM] / dt,  # type: ignore
+    )
+    log_updated_tendencies(tendency, tendency_updated)
+    return tendency_updated
+
+
+def log_updated_tendencies(tendency: State, tendency_updated: State):
+    rank_updated_points = xr.where(tendency["dQ2"] != tendency_updated["dQ2"], 1, 0)
+    updated_points = comm.reduce(rank_updated_points, root=0)
+    if comm.rank == 0:
+        level_updates = {
+            i: int(value)
+            for i, value in enumerate(updated_points.sum(["x", "y"]).values)
+        }
+        logging.info(f"specific_humidity_limiter_updates_per_level: {level_updates}")
+
+
 def apply(state: State, tendency: State, dt: float) -> State:
     """Given state and tendency prediction, return updated state.
     Returned state only includes variables updated by ML model."""
+
     with xr.set_options(keep_attrs=True):
         updated = {
             SPHUM: state[SPHUM] + tendency["dQ2"] * dt,
@@ -180,8 +208,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._model = open_model(args["scikit_learn"])
         self._log_info("Model Downloaded")
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
-
-        self._fv3gfs.initialize()
 
     @property
     def time(self) -> cftime.DatetimeJulian:

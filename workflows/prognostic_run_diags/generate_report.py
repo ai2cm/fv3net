@@ -102,19 +102,13 @@ def _yield_metric_rows(metrics):
 
 def _parse_metadata(run: str):
     baseline_s = "-baseline"
-    rf_s = "-rf"
 
     if run.endswith(baseline_s):
-        baseline = "Baseline"
-        one_step = run[: -len(baseline_s)]
-    elif run.endswith(rf_s):
-        one_step = run[: -len(rf_s)]
-        baseline = "RF"
+        baseline = True
     else:
-        one_step = run
-        baseline = "misc"
+        baseline = False
 
-    return {"run": run, "one_step": one_step, "baseline": baseline}
+    return {"run": run, "baseline": baseline}
 
 
 def load_metrics(bucket, rundirs):
@@ -155,11 +149,7 @@ def holomap_filter(time_series, varfilter, run_attr_name="run"):
                 except KeyError:
                     pass
                 else:
-                    if ds.attrs["baseline"] == "Baseline":
-                        style = "solid"
-                    else:
-                        style = "dashed"
-
+                    style = "solid" if ds.attrs["baseline"] else "dashed"
                     run = ds.attrs[run_attr_name]
                     long_name = ds[varname].long_name
                     hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
@@ -168,9 +158,40 @@ def holomap_filter(time_series, varfilter, run_attr_name="run"):
     return hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
 
 
+def holomap_filter_with_region_bar(time_series, varfilter, run_attr_name="run"):
+    p = hv.Cycle("Colorblind")
+    hmap = hv.HoloMap(kdims=["variable", "region", "run"])
+    for ds in time_series:
+        for varname in ds:
+            if varfilter in varname:
+                try:
+                    v = ds[varname]
+                except KeyError:
+                    pass
+                else:
+                    style = "solid" if ds.attrs["baseline"] else "dashed"
+                    run = ds.attrs[run_attr_name]
+                    long_name = ds[varname].long_name
+                    region = varname.split("_")[-1]
+                    hmap[(long_name, region, run)] = hv.Curve(
+                        v, label=varfilter
+                    ).options(line_dash=style, color=p)
+    return hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
+
+
 def time_series_plot(time_series: Iterable[xr.Dataset], varfilter: str) -> HVPlot:
     return HVPlot(
         holomap_filter(time_series, varfilter=varfilter)
+        .overlay("run")
+        .opts(legend_position="right")
+    )
+
+
+def time_series_plot_with_region_bar(
+    time_series: Iterable[xr.Dataset], varfilter: str
+) -> HVPlot:
+    return HVPlot(
+        holomap_filter_with_region_bar(time_series, varfilter=varfilter)
         .overlay("run")
         .opts(legend_position="right")
     )
@@ -224,27 +245,26 @@ metrics_plot_manager = PlotManager()
 # Routines for plotting the "diagnostics"
 @diag_plot_manager.register
 def rms_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot(time_series, varfilter="rms")
+    return time_series_plot(time_series, varfilter="rms_global")
 
 
 @diag_plot_manager.register
-def global_avg_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot(time_series, varfilter="global_avg")
+def global_avg_dycore_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
+    return time_series_plot_with_region_bar(
+        time_series, varfilter="spatial_mean_dycore"
+    )
 
 
 @diag_plot_manager.register
 def global_avg_physics_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot(time_series, varfilter="global_phys_avg")
+    return time_series_plot_with_region_bar(
+        time_series, varfilter="spatial_mean_physics"
+    )
 
 
 @diag_plot_manager.register
-def diurnal_cycle_land_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot(time_series, varfilter="diurnal_land")
-
-
-@diag_plot_manager.register
-def diurnal_cycle_sea_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot(time_series, varfilter="diurnal_sea")
+def diurnal_cycle_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
+    return time_series_plot_with_region_bar(time_series, varfilter="diurnal")
 
 
 @diag_plot_manager.register
@@ -255,27 +275,32 @@ def diurnal_cycle_component_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
 # Routines for plotting the "metrics"
 # New plotting routines can be registered here.
 @metrics_plot_manager.register
-def rmse_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
-    hmap = hv.HoloMap(kdims=["metric"])
-    bar_opts = dict(norm=dict(framewise=True), plot=dict(width=600))
-    for metric in metrics.metric.unique():
-        s = metrics[metrics.metric == metric]
-        bars = hv.Bars((s.one_step, s.baseline, s.value), kdims=["one_step", "type"])
-        if metric.startswith("rmse"):
-            hmap[metric] = bars
-    return HVPlot(hmap.opts(**bar_opts))
+def time_mean_bias_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+    return generic_metric_plot(metrics, "time_and_global_mean_bias")
 
 
 @metrics_plot_manager.register
-def bias_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+def rmse_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+    return generic_metric_plot(metrics, "rmse")
+
+
+@metrics_plot_manager.register
+def drift_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+    return generic_metric_plot(metrics, "drift")
+
+
+def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
     hmap = hv.HoloMap(kdims=["metric"])
     bar_opts = dict(norm=dict(framewise=True), plot=dict(width=600))
+    metrics_contains_name = False
     for metric in metrics.metric.unique():
-        s = metrics[metrics.metric == metric]
-        bars = hv.Bars((s.one_step, s.baseline, s.value), kdims=["one_step", "type"])
-        if metric.startswith("drift"):
+        if metric.startswith(name):
+            metrics_contains_name = True
+            s = metrics[metrics.metric == metric]
+            bars = hv.Bars((s.run, s.value), hv.Dimension("Run"), s.units.iloc[0])
             hmap[metric] = bars
-    return HVPlot(hmap.opts(**bar_opts))
+    if metrics_contains_name:
+        return HVPlot(hmap.opts(**bar_opts))
 
 
 def main():
@@ -287,7 +312,7 @@ def main():
     bucket = args.input
 
     # get run information
-    fs = fsspec.filesystem("gs")
+    fs, _, _ = fsspec.get_fs_token_paths(bucket)
     rundirs = detect_rundirs(bucket, fs)
     run_table = pd.DataFrame.from_records(_parse_metadata(run) for run in rundirs)
     run_table_lookup = run_table.set_index("run")
@@ -306,13 +331,12 @@ def main():
     # load metrics
     nested_metrics = load_metrics(bucket, rundirs)
     metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
-    metrics = pd.merge(run_table, metric_table, on="run")
 
     # generate all plots
-    sections = {
-        "Diagnostics": list(diag_plot_manager.make_plots(diagnostics)),
-        "Metrics": list(metrics_plot_manager.make_plots(metrics)),
-    }
+    sections = {"Diagnostics": list(diag_plot_manager.make_plots(diagnostics))}
+    if not metric_table.empty:
+        metrics = pd.merge(run_table, metric_table, on="run")
+        sections["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
 
     # get metadata
     run_urls = {key: ds.attrs["url"] for key, ds in diags.items()}

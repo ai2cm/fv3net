@@ -14,12 +14,6 @@ from fv3fit.sklearn import RegressorEnsemble, SklearnWrapper
 from fv3fit.keras import DummyModel
 import subprocess
 
-#  Importing fv3gfs causes a call to MPI_Init but not MPI_Finalize. When the
-#  subprocess subsequently calls MPI_Init from a process not managed by MPI,
-#  mpirun throws a fit. Use a subprocess as a workaround.
-FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs.wrapper"]) == 0
-
-
 BASE_FV3CONFIG_CACHE = Path(
     "/inputdata", "fv3config-cache", "gs", "vcm-fv3config", "data"
 )
@@ -401,8 +395,6 @@ def _symlink_restart_files(timestamp_dir: Path, target_dir: Path, symlink_prefix
 
 
 def test_nudge_run(tmp_restart_dir):
-    if not FV3GFS_INSTALLED:
-        pytest.skip("fv3gfs not installed")
 
     tmpdir = tmp_restart_dir.parent.as_posix()
     config = get_nudging_config(default_fv3config, tmp_restart_dir.as_posix())
@@ -482,9 +474,6 @@ def _save_mock_keras_model(tmpdir):
 
 @pytest.fixture(scope="module", params=["keras", "sklearn"])
 def completed_rundir(request, tmpdir_factory):
-
-    if not FV3GFS_INSTALLED:
-        pytest.skip("fv3gfs not installed")
 
     tmpdir = tmpdir_factory.mktemp("rundir")
 

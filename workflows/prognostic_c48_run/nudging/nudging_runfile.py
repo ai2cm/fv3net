@@ -125,6 +125,16 @@ def sst_from_reference(
     ).values
 
 
+def set_state_sst_to_reference(state, reference):
+    state[SST_NAME].view[:] = sst_from_reference(
+        reference[TSFC_NAME], state[SST_NAME], state["land_sea_mask"]
+    )
+    state[TSFC_NAME].view[:] = sst_from_reference(
+        reference[TSFC_NAME], state[TSFC_NAME], state["land_sea_mask"]
+    )
+    wrapper.set_state({SST_NAME: state[SST_NAME], TSFC_NAME: state[TSFC_NAME]})
+
+
 def column_integrated_moistening(
     humidity_tendency: xr.DataArray,
     pressure_thickness: xr.DataArray,
@@ -273,7 +283,7 @@ if __name__ == "__main__":
     communicator = fv3gfs.util.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
     nudging_timescales = get_timescales_from_config(config)
     nudging_names = list(nudging_timescales.keys())
-    updated_quantity_names = list(set(nudging_names + [PRECIP_NAME, SST_NAME]))
+    updated_quantity_names = list(set(nudging_names + [PRECIP_NAME]))
     store_names = list(set(["time"] + nudging_names + STORE_NAMES))
     timestep = get_timestep(config)
 
@@ -299,6 +309,12 @@ if __name__ == "__main__":
         # diagnostics as well.
         store_time = time + timestep
 
+        reference = get_reference_state(
+            store_time, reference_dir, communicator, only_names=store_names
+        )
+
+        set_state_sst_to_reference(state, reference)
+
         monitor.store(store_time, state, stage="before_dynamics")
         wrapper.step_dynamics()
         monitor.store(
@@ -308,9 +324,6 @@ if __name__ == "__main__":
         state = wrapper.get_state(names=store_names)
         monitor.store(store_time, state, stage="after_physics")
         wrapper.save_intermediate_restart_if_enabled()
-        reference = get_reference_state(
-            time, reference_dir, communicator, only_names=store_names
-        )
         tendencies = nudge(state, reference)
         monitor.store(store_time, reference, stage="reference")
         monitor.store(store_time, tendencies, stage="nudging_tendencies")
@@ -323,9 +336,6 @@ if __name__ == "__main__":
                 tendencies["specific_humidity_tendency_due_to_nudging"],
                 timestep,
             )
-        state[SST_NAME].view[:] = sst_from_reference(
-            reference[TSFC_NAME], state[SST_NAME], state["land_sea_mask"]
-        )
         updated_state_members = {key: state[key] for key in updated_quantity_names}
         wrapper.set_state(updated_state_members)
     wrapper.cleanup()
