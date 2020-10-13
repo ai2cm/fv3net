@@ -1,5 +1,5 @@
 from typing import Iterable
-from fv3fit.keras._models.loss import _pack_weights, _weighted_mse
+from fv3fit.keras._models.loss import _pack_weights, _weighted_mse, weights_as_arrays
 from fv3fit._shared import ArrayPacker
 import numpy as np
 import xarray as xr
@@ -132,3 +132,22 @@ def test_weighted_mse(weights, std, y_true, y_pred, reference):
     loss = _weighted_mse(weights, std)
     result = loss(y_true, y_pred)
     np.testing.assert_almost_equal(result, reference)
+
+
+@pytest.mark.parametrize(
+    ["weights", "reference"],
+    [
+        pytest.param(
+            {"a": [3], "b": [1]},
+            {"a": np.array([3]), "b": np.array([1])},
+            id="two_lists",
+        ),
+        pytest.param({"a": 1.0, "b": 2}, {"a": 1.0, "b": 2}, id="two_non_lists"),
+        pytest.param(
+            {"a": [3], "b": 2}, {"a": np.array([3]), "b": 2}, id="one_list_one_int"
+        ),
+    ],
+)
+def test_weights_as_arrays(weights, reference):
+    output_weights = weights_as_arrays(weights)
+    assert output_weights == reference

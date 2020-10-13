@@ -15,6 +15,15 @@ def _weighted_mse(weights, std):
     return custom_loss
 
 
+def weights_as_arrays(
+    weights: MutableMapping[str, Union[int, float, np.ndarray, list]]
+):
+    for name, weight in weights.items():
+        if type(weight) is list:
+            weights[name] = np.asarray(weight)
+    return weights
+
+
 def _pack_weights(y_packer: ArrayPacker, **weights):
     """Returns a size [1, n_features] array of stacked weights corresponding to a
     stacked array, based on values given in a weights dictionary. Default weight is

@@ -1,4 +1,13 @@
-from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Any
+from typing import (
+    Sequence,
+    Tuple,
+    Iterable,
+    MutableMapping,
+    Mapping,
+    Union,
+    Optional,
+    Any,
+)
 import xarray as xr
 import logging
 import abc
@@ -9,7 +18,7 @@ import os
 from ._filesystem import get_dir, put_dir
 from ._sequences import _XyArraySequence, _ThreadedSequencePreLoader
 from .normalizer import LayerStandardScaler
-from .loss import get_weighted_mse
+from .loss import get_weighted_mse, weights_as_arrays
 import yaml
 
 logger = logging.getLogger(__file__)
@@ -83,7 +92,7 @@ class PackedKerasModel(Model):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
-        weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
+        weights: Optional[MutableMapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
         optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
     ):
@@ -123,7 +132,7 @@ class PackedKerasModel(Model):
         if weights is None:
             self.weights: Mapping[str, Union[int, float, np.ndarray]] = {}
         else:
-            self.weights = weights
+            self.weights = weights_as_arrays(weights)
         self._normalize_loss = normalize_loss
         self._optimizer = optimizer
 
@@ -308,7 +317,7 @@ class DenseModel(PackedKerasModel):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
-        weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
+        weights: Optional[MutableMapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
         optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
         depth: int = 3,
