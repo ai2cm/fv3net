@@ -8,17 +8,6 @@ HORIZONTAL_DIMS = ["x", "y", "tile"]
 # the diagnostic script
 DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
 
-VERIFICATION_CATALOG_ENTRIES = {
-    "nudged_shield_40day": {
-        "physics": ("40day_c48_gfsphysics_15min_may2020",),
-        "dycore": ("40day_c48_atmos_8xdaily_may2020",),
-    },
-    "nudged_c48_fv3gfs_2016": {
-        "dycore": ("2016_c48_nudged_fv3gfs_dycore_output",),
-        "physics": ("2016_c48_nudged_fv3gfs_physics_output",),
-    },
-}
-
 RMSE_VARS = [
     "UGRDlowest",
     "VGRDlowest",

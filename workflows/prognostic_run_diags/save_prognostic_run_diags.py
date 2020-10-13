@@ -40,7 +40,6 @@ from constants import (
     GLOBAL_AVERAGE_PHYSICS_VARS,
     GLOBAL_BIAS_PHYSICS_VARS,
     DIURNAL_CYCLE_VARS,
-    VERIFICATION_CATALOG_ENTRIES,
     TIME_MEAN_VARS,
     RMSE_VARS,
 )
@@ -320,7 +319,7 @@ def _get_parser():
     parser.add_argument("--catalog", default=CATALOG)
     parser.add_argument(
         "--verification",
-        choices=list(VERIFICATION_CATALOG_ENTRIES.keys()),
+        choices=list(config.VERIFICATION_CATALOG_ENTRIES.keys()),
         default="nudged_shield_40day",
     )
     return parser
