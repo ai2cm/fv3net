@@ -14,9 +14,7 @@ from fv3fit.sklearn import RegressorEnsemble, SklearnWrapper
 from fv3fit.keras import DummyModel
 import subprocess
 
-BASE_FV3CONFIG_CACHE = Path(
-    "/inputdata", "fv3config-cache", "gs", "vcm-fv3config", "data"
-)
+BASE_FV3CONFIG_CACHE = Path("vcm-fv3config", "data")
 IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
     "initial_conditions", "c12_restart_initial_conditions", "v1.0"
 )
@@ -28,9 +26,9 @@ default_fv3config = rf"""
 data_table: default
 diag_table: default
 experiment_name: default_experiment
-forcing: {FORCING_PATH.as_posix()}
-initial_conditions: {IC_PATH.as_posix()}
-orographic_forcing: {ORO_PATH.as_posix()}
+forcing: gs://{FORCING_PATH.as_posix()}
+initial_conditions: gs://{IC_PATH.as_posix()}
+orographic_forcing: gs://{ORO_PATH.as_posix()}
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
