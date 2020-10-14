@@ -88,13 +88,10 @@ def apply(transform_key: str, *transform_args_partial, **transform_kwargs):
 
 @add_to_input_transform_fns
 def resample_time(
-    freq_label: str,
-    arg: DiagArg,
-    time_slice: slice = slice(None, -1),
-    inner_join: bool = False,
+    freq_label: str, arg: DiagArg, time_slice=slice(None, -1), inner_join: bool = False
 ) -> DiagArg:
     """
-    Subset times in prognostic and verification data.
+    Subset times in prognostic and verification data
 
     Args:
         arg: input arguments to transform prior to the diagnostic calculation
@@ -132,7 +129,7 @@ def daily_mean(split: timedelta, arg: DiagArg) -> DiagArg:
     Args:
         split: time since start of prognostic run after which resampling occurs
         arg: input arguments to transform prior to the diagnostic calculation
-        """
+    """
     prognostic, verification, grid = arg
     split_time = prognostic.time.values[0] + split
     prognostic = _resample_end(prognostic, split_time, "1D")
