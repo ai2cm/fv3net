@@ -23,7 +23,6 @@ import numpy as np
 import xarray as xr
 import shutil
 from dask.diagnostics import ProgressBar
-from dask.distributed import Client
 
 from pathlib import Path
 from toolz import curry
