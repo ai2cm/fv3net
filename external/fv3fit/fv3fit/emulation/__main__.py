@@ -40,11 +40,12 @@ if __name__ == "__main__":
     logging.getLogger("fsspec").setLevel(logging.INFO)
     logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 
-    config = load_model_training_config(args.train_config_file)
+    config = load_model_training_config(args.train_config_file, args.train_data_path,)
 
     train_range = config.batch_kwargs.get("train_range", (None,))
+    seed = config.batch_kwargs.get("seed", None)
     batches = batches_from_serialized(args.train_data_path)
-    train = shuffle(batches[slice(*train_range)])
+    train = shuffle(batches[slice(*train_range)], seed=seed)
 
     fit_kwargs = config.hyperparameters.pop("fit_kwargs", {})
     lr = fit_kwargs.pop("learning_rate", 0.0001)

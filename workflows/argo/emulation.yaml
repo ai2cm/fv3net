@@ -69,7 +69,7 @@ spec:
             python -m fv3fit.emulation \
               {{inputs.parameters.train-data}} \
               /mnt/data/config.yaml \
-              /mnt/data/keras_model
+              /mnt/data/
 
         resources:
           requests:
