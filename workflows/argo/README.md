@@ -153,16 +153,21 @@ an appropriate `training-config` string.
 The `prognostic-run-diags` workflow template will generate reports for
 prognostic runs. See this [example][1].
 
-| Parameter    | Description                                                                                                     |
-|--------------|-----------------------------------------------------------------------------------------------------------------|
-| runs         | A json-encoded list of {"name": ..., "url": ...} items                                                          |
-| docker-image | The docker image to use                                                                                         |
-| make-movies  | (optional) whether to generate movies. Defaults to false                                                        |
-| verification | (optional) tag for verification data. Defaults to "nudged_shield_40day". Other option "nudged_c48_fv3gfs_2016". |
+| Parameter    | Description                                                  |
+|--------------|--------------------------------------------------------------|
+| runs         | A json-encoded list of {"name": ..., "url": ...} items       |
+| docker-image | The docker image to use                                      |
+| make-movies  | (optional) whether to generate movies. Defaults to false     |
+| flags        | (optional) flags to pass to save_prognostic_diags.py script. |
 
 The outputs will be stored at the directory
 `gs://vcm-ml-public/argo/<workflow name>`, where `<workflow name>` is NOT the
 name of the workflow template, but of the created `workflow` resource.
+
+To specify what verification data use when computing the diagnostics, use the `--verification`
+flag. E.g. specifying the argo parameter `flags="--verification nudged_c48_fv3gfs_2016` will use a
+year-long nudged-to-obs C48 run as verification. By default, the `40day_may2020` simulation
+is used as verification (see fv3net catalog).
 
 #### Command line Usage Example
 

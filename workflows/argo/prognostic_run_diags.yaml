@@ -9,8 +9,8 @@ spec:
     - name: docker-image
     - name: make-movies
       value: "false"
-    - name: verification
-      value: nudged_shield_40day
+    - name: flags
+      value: " "
   entrypoint: all
   volumes:
   - name: gcp-key-secret
@@ -29,8 +29,8 @@ spec:
               value: "{{item.url}}"
             - name: output
               value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}"
-            - name: verification
-              value: "{{workflow.parameters.verification}}"
+            - name: flags
+              value: "{{workflow.parameters.flags}}"
       - name: movie-step
         when: "{{workflow.parameters.make-movies}} == true"
         withParam: "{{workflow.parameters.runs}}"
@@ -86,8 +86,8 @@ spec:
       - name: output
       - name: image
         value: '{{workflow.parameters.docker-image}}'
-      - name: verification
-        value: nudged_shield_40day
+      - name: flags
+        value: " "
     tolerations:
     - key: "dedicated"
       operator: "Equal"
@@ -98,7 +98,7 @@ spec:
       command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - | 
-        python save_prognostic_run_diags.py --verification {{inputs.parameters.verification}} \
+        python save_prognostic_run_diags.py {{inputs.parameters.flags}} \
           {{inputs.parameters.run}} diags.nc
         python metrics.py diags.nc > metrics.json
         gsutil cp diags.nc {{inputs.parameters.output}}/diags.nc
