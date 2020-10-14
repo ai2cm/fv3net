@@ -386,7 +386,7 @@ sources:
       metadata:
         grid: c48
         simulation: nudged_c48_fv3gfs_2016
-        category: physics
+        category: dycore
       storage_options:
         project: 'vcm-ml'
         access: read_only
