@@ -250,7 +250,7 @@ class SubtractNudgingIncrement(GeoMapper):
         return self._nudged_mapper.keys()
 
     def __getitem__(self, time: Time) -> xr.Dataset:
-        return self._derived_ds(time)
+        return self._derived_ds(time).fillna(0.0)
 
     def _derived_ds(self, time: Time):
         before_nudging_state = self._before_nudging_state(time,)
