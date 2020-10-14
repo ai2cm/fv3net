@@ -15,7 +15,7 @@ spec:
       - {name: memory, value: 8Gi}
       - {name: work-volume-name, value: work-volume}
       - {name: external-volume-name, value: gfs-analysis-data}
-      - {name: nudge-url, value: /mnt/input/gfs-analysis-T85/2019-12-02-year-2016-T85-nudging-data}
+      - {name: nudge-url, value: /mnt/input/gfs-analysis-T85}
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
@@ -70,7 +70,7 @@ spec:
           - {name: memory, value: 8Gi}
           - {name: work-volume-name, value: work-volume}
           - {name: external-volume-name, value: gfs-analysis-data}
-          - {name: nudge-url, value: /mnt/input/gfs-analysis-T85/2019-12-02-year-2016-T85-nudging-data}
+          - {name: nudge-url, value: /mnt/input/gfs-analysis-T85}
       steps:
         - - template: prepare-config
             name: prepare-config

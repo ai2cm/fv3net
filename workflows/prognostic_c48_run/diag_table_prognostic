@@ -60,6 +60,12 @@ default_experiment
  "dynamics",  "rh850",        "RH850",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "rh700",        "RH700",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "rh500",        "RH500",       "atmos_dt_atmos", "all", .false.,  "none", 2
+###
+ "dynamics",  "q1000",       "q1000",      "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "q925",        "q925",       "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "q850",        "q850",       "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "q700",        "q700",       "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "q500",        "q500",       "atmos_dt_atmos", "all", .false.,  "none", 2
 ####
  "dynamics",  "slp",         "PRMSL",        "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "ps",          "PRESsfc",      "atmos_dt_atmos", "all", .false., "none", 2

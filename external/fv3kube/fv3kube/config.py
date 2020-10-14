@@ -1,12 +1,10 @@
 import os
+import datetime
 from pathlib import Path
 from typing import Any, Sequence, Mapping, Optional
 import fsspec
 import yaml
-
 import fv3config
-import vcm
-from vcm.cloud import get_protocol, get_fs
 
 
 # Map for different base fv3config dictionaries
@@ -29,6 +27,42 @@ FV_CORE_ASSET = fv3config.get_asset_dict(
 FV3Config = Mapping[str, Any]
 
 
+def _merge_once(source, update):
+    """Recursively update a mapping with new values.
+
+    Args:
+        source: Mapping to be updated.
+        update: Mapping whose key-value pairs will update those in source.
+            Key-value pairs will be inserted for keys in update that do not exist
+            in source.
+
+    Returns:
+        Recursively updated mapping.
+    """
+    for key in update:
+        if key in ["patch_files", "diagnostics"]:
+            source.setdefault(key, []).extend(update[key])
+        elif (
+            key in source
+            and isinstance(source[key], Mapping)
+            and isinstance(update[key], Mapping)
+        ):
+            _merge_once(source[key], update[key])
+        else:
+            source[key] = update[key]
+    return source
+
+
+def merge_fv3config_overlays(*mappings) -> Mapping:
+    """Recursive merge dictionaries updating from left to right.
+
+    For example, the rightmost mapping will override the proceeding ones. """
+    out, rest = mappings[0], mappings[1:]
+    for mapping in rest:
+        out = _merge_once(out, mapping)
+    return out
+
+
 def get_base_fv3config(version_key: Optional[str] = None) -> FV3Config:
     """
     Get base configuration dictionary labeled by version_key.
@@ -39,18 +73,6 @@ def get_base_fv3config(version_key: Optional[str] = None) -> FV3Config:
         base_yaml = yaml.safe_load(f)
 
     return base_yaml
-
-
-def transfer_local_to_remote(path: str, remote_url: str) -> str:
-    """
-    Transfer a local file to a remote path and return that remote path.
-    If path is already remote, this does nothing.
-    """
-    if get_protocol(path) == "file":
-        remote_path = os.path.join(remote_url, os.path.basename(path))
-        get_fs(remote_url).put(path, remote_path)
-        path = remote_path
-    return path
 
 
 def update_tiled_asset_names(
@@ -100,7 +122,7 @@ def get_full_config(
         fv3config Mapping
     """
     base_version = config_update.get("base_version", DEFAULT_BASE_VERSION)
-    return vcm.update_nested_dict(
+    return merge_fv3config_overlays(
         get_base_fv3config(base_version),
         c48_initial_conditions_overlay(ic_url, ic_timestep),
         config_update,
@@ -110,6 +132,10 @@ def get_full_config(
 def c48_initial_conditions_overlay(url: str, timestep: str) -> Mapping:
     """An overlay containing initial conditions namelist settings
     """
+    TIME_FMT = "%Y%m%d.%H%M%S"
+    time = datetime.datetime.strptime(timestep, TIME_FMT)
+    time_list = [time.year, time.month, time.day, time.hour, time.minute, time.second]
+
     overlay = {}
     overlay["initial_conditions"] = update_tiled_asset_names(
         source_url=os.path.join(url, timestep),
@@ -121,7 +147,7 @@ def c48_initial_conditions_overlay(url: str, timestep: str) -> Mapping:
     overlay["initial_conditions"].append(FV_CORE_ASSET)
     overlay["namelist"] = {}
     overlay["namelist"]["coupler_nml"] = {
-        "current_date": vcm.parse_current_date_from_str(timestep),
+        "current_date": time_list,
         "force_date_from_namelist": True,
     }
 

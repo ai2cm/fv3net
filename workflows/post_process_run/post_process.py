@@ -43,14 +43,28 @@ def download_directory(dir_, dest):
     subprocess.check_call(["gsutil", "-m", "rsync", "-r", dir_, dest])
 
 
-def rechunk(ds, chunks):
+def _get_true_chunks(ds, chunks):
     true_chunks = {}
     true_chunks.update(chunks)
 
     for dim in ds.dims:
         if dim not in chunks:
             true_chunks[dim] = len(ds[dim])
+    return true_chunks
+
+
+def rechunk(ds, chunks):
+    true_chunks = _get_true_chunks(ds, chunks)
     return ds.chunk(true_chunks)
+
+
+def encode_chunks(ds, chunks):
+    """Ensure zarr-stores are saved to disk with desired chunk sizes"""
+    true_chunks = _get_true_chunks(ds, chunks)
+    for variable in set(ds.data_vars) | set(ds.coords):
+        variable_chunks = [true_chunks[dim] for dim in ds[variable].dims]
+        ds[variable].encoding["chunks"] = variable_chunks
+    return ds
 
 
 def authenticate():
@@ -68,10 +82,6 @@ def clear_encoding(ds):
     ds.encoding = {}
     for variable in ds:
         ds[variable].encoding = {}
-    for coord in ds.coords:
-        coord_encoding = ds[coord].encoding
-        coord_encoding.pop("chunks", None)
-        ds[coord].encoding = coord_encoding
 
 
 def cast_time(ds):
@@ -149,6 +159,7 @@ def process_item(
         chunks = chunks.get(relpath, CHUNKS_2D)
         clear_encoding(item)
         chunked = rechunk(item, chunks)
+        chunked = encode_chunks(chunked, chunks)
         dest = os.path.join(d_out, relpath)
         chunked = cast_time(chunked)
         chunked.to_zarr(dest, mode="w", consolidated=True)
