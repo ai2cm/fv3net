@@ -335,7 +335,7 @@ RUNTIME = {"days": 0, "months": 0, "hours": 0, "minutes": RUNTIME_MINUTES, "seco
 
 
 def assets_from_initial_condition_dir(dir_: str):
-    start = datetime.datetime(*START_TIME)
+    start = datetime.datetime(*START_TIME)  # type: ignore
     delta_t = datetime.timedelta(minutes=TIMESTEP_MINUTES)
     assets = []
     for i in range(NUM_NUDGING_TIMESTEPS + 1):
