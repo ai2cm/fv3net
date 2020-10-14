@@ -359,44 +359,11 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
     return config
 
 
-@pytest.fixture
-def tmp_restart_dir(tmpdir):
-    """Symlink fake restart directories used for nudging"""
-
-    restart_dir = Path(tmpdir, "restarts")
-    restart_dir.mkdir(exist_ok=True)
-
-    start = datetime(*START_TIME)
-    delta_t = timedelta(minutes=TIMESTEP_MINUTES)
-    for i in range(NUM_NUDGING_TIMESTEPS + 1):
-        timestamp = (start + i * delta_t).strftime(TIME_FMT)
-
-        # Make timestamped restart directory
-        timestamp_dir = restart_dir.joinpath(timestamp)
-        timestamp_dir.mkdir(parents=True, exist_ok=True)
-
-        # Link all restart files from initial conditions folder with prefix
-        _symlink_restart_files(timestamp_dir, IC_PATH, timestamp)
-
-    return restart_dir
-
-
-def _symlink_restart_files(timestamp_dir: Path, target_dir: Path, symlink_prefix: str):
-    fv_glob_patterns = ["fv_core*", "fv_srf_wnd*", "fv_tracer*", "sfc_data*"]
-
-    for file_pattern in fv_glob_patterns:
-
-        for fv_file in target_dir.glob(file_pattern):
-            fname_with_prefix = f"{symlink_prefix}.{fv_file.name}"
-            new_sym_fv_file = timestamp_dir.joinpath(fname_with_prefix)
-            new_sym_fv_file.symlink_to(fv_file)
-
-
-def test_nudge_run(tmp_restart_dir):
-
-    tmpdir = tmp_restart_dir.parent.as_posix()
-    config = get_nudging_config(default_fv3config, tmp_restart_dir.as_posix())
-    fv3config.run_native(config, tmpdir, capture_output=False, runfile=NUDGE_RUNFILE)
+def test_nudge_run(tmpdir):
+    config = get_nudging_config(default_fv3config, "gs://" + IC_PATH.as_posix())
+    fv3config.run_native(
+        config, str(tmpdir), capture_output=False, runfile=NUDGE_RUNFILE
+    )
 
 
 def get_prognostic_config(model_type, model_path):
