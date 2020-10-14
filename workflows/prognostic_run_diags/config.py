@@ -17,14 +17,8 @@ def get_verification_entries(name: str, catalog: intake.Catalog) -> Mapping[str,
                 entries[item_category].append(item)
 
     if len(entries["physics"]) == 0:
-        raise ValueError(
-            f"No c48 physics data found in catalog for simulation {name}. Check "
-            "verification tag."
-        )
+        raise ValueError(f"No c48 physics data found in catalog for simulation {name}.")
     if len(entries["dycore"]) == 0:
-        raise ValueError(
-            f"No c48 dycore data found in catalog for simulation {name}. Check "
-            "verification tag."
-        )
+        raise ValueError(f"No c48 dycore data found in catalog for simulation {name}.")
 
     return entries
