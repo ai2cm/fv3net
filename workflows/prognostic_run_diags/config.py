@@ -1,23 +1,30 @@
-from typing import Mapping, Sequence
-
-VERIFICATION_CATALOG_ENTRIES = {
-    "nudged_shield_40day": {
-        "physics": ("40day_c48_gfsphysics_15min_may2020",),
-        "dycore": ("40day_c48_atmos_8xdaily_may2020",),
-    },
-    "nudged_c48_fv3gfs_2016": {
-        "dycore": ("2016_c48_nudged_fv3gfs_dycore_output",),
-        "physics": ("2016_c48_nudged_fv3gfs_physics_output",),
-    },
-}
+from typing import Mapping
+import intake
 
 
-def get_verification_entries(name: str) -> Mapping[str, Sequence]:
-    """Given name, return fv3net catalog keys for verification dycore and
+def get_verification_entries(name: str, catalog: intake.Catalog) -> Mapping[str, str]:
+    """Given simulation name, return fv3net catalog keys for related c48 dycore and
     physics data."""
-    if name not in VERIFICATION_CATALOG_ENTRIES:
+    entries = {"physics": [], "dycore": []}
+    for item in catalog:
+        metadata = catalog[item].metadata
+        item_simulation = metadata.get("simulation", None)
+        item_grid = metadata.get("grid", None)
+        item_category = metadata.get("category", None)
+
+        if item_simulation == name and item_grid == "c48":
+            if item_category is not None:
+                entries[item_category].append(item)
+
+    if len(entries["physics"]) == 0:
         raise ValueError(
-            f"Invalid verification option. Got {name}, valid options are "
-            f"{set(VERIFICATION_CATALOG_ENTRIES.keys())}."
+            f"No c48 physics data found in catalog for simulation {name}. Check "
+            "verification tag."
         )
-    return VERIFICATION_CATALOG_ENTRIES[name]
+    if len(entries["dycore"]) == 0:
+        raise ValueError(
+            f"No c48 dycore data found in catalog for simulation {name}. Check "
+            "verification tag."
+        )
+
+    return entries

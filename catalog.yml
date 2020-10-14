@@ -186,6 +186,7 @@ sources:
     metadata:
       grid: c384
       simulation: 40day_may2020
+      category: dycore
       variables:
         - PRESctp
         - PRESsfc
@@ -219,6 +220,7 @@ sources:
     metadata:
       grid: c48
       simulation: 40day_may2020
+      category: physics
       variables:
         - CPRATEsfc_coarse
         - DCLWRFsfc_coarse
@@ -267,6 +269,7 @@ sources:
     metadata:
       grid: c48
       simulation: 40day_may2020
+      category: dycore
       variables:
         - PRESctp
         - PRESsfc
@@ -366,6 +369,10 @@ sources:
     description: 2D physics diagnostics variables from 2016 nudged-to-obs FV3GFS simulation (Sept 30, 2020)
     driver: zarr
     args:
+      metadata:
+        grid: c48
+        simulation: nudged_c48_fv3gfs_2016
+        category: physics
       storage_options:
         project: 'vcm-ml'
         access: read_only
@@ -376,6 +383,10 @@ sources:
     description: 2D dynamical core diagnostics variables from 2016 nudged-to-obs FV3GFS simulation (Sept 30, 2020)
     driver: zarr
     args:
+      metadata:
+        grid: c48
+        simulation: nudged_c48_fv3gfs_2016
+        category: physics
       storage_options:
         project: 'vcm-ml'
         access: read_only

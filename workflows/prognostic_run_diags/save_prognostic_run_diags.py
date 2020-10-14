@@ -301,8 +301,9 @@ def _get_parser():
     parser.add_argument("--catalog", default=CATALOG)
     parser.add_argument(
         "--verification",
-        choices=list(config.VERIFICATION_CATALOG_ENTRIES.keys()),
-        default="nudged_shield_40day",
+        help="Tag for simulation to use as verification data. Checks against "
+        "'simulation' metadata from intake catalog.",
+        default="40day_may2020",
     )
     return parser
 
@@ -315,10 +316,11 @@ if __name__ == "__main__":
     attrs = vars(args)
     attrs["history"] = " ".join(sys.argv)
 
-    # get catalog entries for specified verification data
-    verif_entries = config.get_verification_entries(args.verification)
-
     catalog = intake.open_catalog(args.catalog)
+
+    # get catalog entries for specified verification data
+    verif_entries = config.get_verification_entries(args.verification, catalog)
+
     input_data = {
         "dycore": load_diags.load_dycore(args.url, verif_entries["dycore"], catalog),
         "physics": load_diags.load_physics(args.url, verif_entries["physics"], catalog),
