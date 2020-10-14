@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 import xarray as xr
 import yaml
-from datetime import timedelta, datetime
 from sklearn.dummy import DummyRegressor
 
 from fv3fit.sklearn import RegressorEnsemble, SklearnWrapper
@@ -341,7 +340,7 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
     coupler_nml.update(RUNTIME)
 
     config["nudging"] = {
-        "restarts_path": Path(timestamp_dir).as_posix(),
+        "restarts_path": timestamp_dir,
         "timescale_hours": {
             "air_temperature": 3.0,
             "specific_humidity": 3.0,
