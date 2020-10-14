@@ -21,6 +21,12 @@ spec:
         - {name: work-volume-name, value: work-volume}
         - {name: external-volume-name, value: external-volume}
     steps:
+      - - name: verify-output-url-empty
+          template: verify-url-empty
+          arguments:
+            parameters:
+            - {name: image, value: "{{inputs.parameters.post-process-image}}"}
+            - {name: url, value: "{{inputs.parameters.output-url}}"}
       - - name: write-configs
           template: write-configs
           arguments:
@@ -200,6 +206,24 @@ spec:
         - name: gcp-key-secret
           mountPath: /secret/gcp-credentials
           readOnly: true
+  - name: verify-url-empty
+    inputs:
+      parameters:
+        - name: image
+        - name: url
+    container:
+      image: "{{inputs.parameters.image}}"
+      command: ["/bin/bash", "-c"]
+      args:
+      - |
+        gsutil ls {{inputs.parameters.url}} > /dev/null
+        if [[ $? -eq 0 ]]; then
+            echo "The given output url contains an object. Delete everything under output url and resubmit."
+            exit 1
+        fi
+      volumeMounts:
+        - name: gcp-key-secret
+          mountPath: /secret/gcp-credentials
   - name: post-process
     inputs:
       parameters:
