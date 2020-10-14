@@ -47,21 +47,21 @@ def _add_diurnal_moisture_components(diurnal_cycles: xr.Dataset):
     """
     Add individual moisture components for diurnal cycle plots with a long-name
     and attributes.  The naming is used by report generation to determine the
-    component shorthand.  E.g., diurn_comp_<component_name>
+    component shorthand.  E.g., diurn_component_<component_name>
     """
 
     evap = vcm.latent_heat_flux_to_evaporation(diurnal_cycles["LHTFLsfc"])
     evap *= SECONDS_PER_DAY
     evap.attrs = {"long_name": "Evaporation", "units": "mm/day"}
-    diurnal_cycles["diurn_comp_E"] = evap
+    diurnal_cycles["diurn_component_evaporation"] = evap
 
     precip = diurnal_cycles["PRATEsfc"] * SECONDS_PER_DAY
     precip.attrs = {"long_name": "Physics precipitation", "units": "mm/day"}
-    diurnal_cycles["diurn_comp_P"] = precip
+    diurnal_cycles["diurn_component_physics-precipitation"] = precip
 
     dQ2 = diurnal_cycles["column_integrated_dQ2"]
-    diurnal_cycles["diurn_comp_-dQ2"] = -dQ2
-    diurnal_cycles["diurn_comp_-dQ2"].attrs = {
+    diurnal_cycles["diurn_component_<-dQ2>"] = -dQ2
+    diurnal_cycles["diurn_component_<-dQ2>"].attrs = {
         "long_name": "<-dQ2> column integrated drying from ML",
         "units": "mm/day",
     }
@@ -71,7 +71,7 @@ def _add_diurnal_moisture_components(diurnal_cycles: xr.Dataset):
         "long_name": "Total precipitation (P - <dQ2>)",
         "units": "mm/day",
     }
-    diurnal_cycles["diurn_comp_P-dQ2"] = precip_phys_ml
+    diurnal_cycles["diurn_component_total-precipitation"] = precip_phys_ml
 
     return diurnal_cycles
 
@@ -81,20 +81,25 @@ def _add_diurn_bias(prognostic_diurnal, verif_diurnal):
     Add comparisons of diurnal cycle against verification data for plotting
     """
 
-    evap_compare = prognostic_diurnal["diurn_comp_E"] - verif_diurnal["diurn_comp_E"]
+    evap_compare = (
+        prognostic_diurnal["diurn_component_evaporation"]
+        - verif_diurnal["diurn_component_evaporation"]
+    )
     evap_compare.attrs = {
         "long_name": "Evaporation diurnal cycle bias [run - verif]",
         "units": "mm/day",
     }
-    prognostic_diurnal["diurn_bias_E"] = evap_compare
+    prognostic_diurnal["diurn_bias_evaporation"] = evap_compare
 
-    prognostic_precip = prognostic_diurnal["diurn_comp_P-dQ2"]
-    precip_compare = prognostic_precip - verif_diurnal["diurn_comp_P"]
+    precip_compare = (
+        prognostic_diurnal["diurn_component_total-precipitation"]
+        - verif_diurnal["diurn_component_total-precipitation"]
+    )
     precip_compare.attrs = {
         "long_name": ("Precipitation (P-<dQ2>) diurnal cycle bias [run - verif]"),
         "units": "mm/day",
     }
-    prognostic_diurnal["diurn_bias_P-dQ2"] = precip_compare
+    prognostic_diurnal["diurn_bias_total-precipitation"] = precip_compare
 
     net_precip_compare = precip_compare - evap_compare
     net_precip_compare.attrs = {

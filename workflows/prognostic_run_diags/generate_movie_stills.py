@@ -115,9 +115,11 @@ if __name__ == "__main__":
         os.makedirs(args.output, exist_ok=True)
 
     catalog = intake.open_catalog(CATALOG)
-    verif = config.get_verification_entries("nudged_shield_40day")
+    verification = config.get_verification_entries("40day_may2020", catalog)
 
-    prognostic, _, grid = load_diags.load_physics(args.url, verif["physics"], catalog)
+    prognostic, _, grid = load_diags.load_physics(
+        args.url, verification["physics"], catalog
+    )
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead
     prognostic = (
         prognostic.drop_vars(GRID_VARS, errors="ignore")

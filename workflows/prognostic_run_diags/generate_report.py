@@ -138,7 +138,7 @@ def _html_link(url, tag):
     return f"<a href='{url}'>{tag}</a>"
 
 
-def _longest_run(diagnostics):
+def _longest_run(diagnostics: Iterable[xr.Dataset]) -> xr.Dataset:
     max_length = 0
     for ds in diagnostics:
         if ds.sizes["time"] > max_length:
@@ -208,7 +208,7 @@ def time_series_plot_with_region_bar(
 
 def _parse_diurnal_component_fields(varname: str):
 
-    # diags key format: diurn_comp_<varname>_diurnal_<sfc_type>
+    # diags key format: diurn_component_<varname>_diurnal_<sfc_type>
     tokens = varname.split("_")
     short_varname = tokens[2]
     surface_type = tokens[-1]
@@ -220,7 +220,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
     """Back out verification timeseries from prognostic run value and bias"""
     verif_diagnostics = {}
     verif_attrs = {"run": "verification", "baseline": True}
-    mean_bias_pairs = {"spatial_mean": "mean_bias", "diurn_comp": "diurn_bias"}
+    mean_bias_pairs = {"spatial_mean": "mean_bias", "diurn_component": "diurn_bias"}
     for mean_filter, bias_filter in mean_bias_pairs.items():
         mean_vars = [var for var in ds if mean_filter in var]
         for var in mean_vars:
@@ -235,7 +235,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
 def diurnal_component_plot(
     time_series: Iterable[xr.Dataset],
     run_attr_name="run",
-    diurnal_component_name="diurn_comp",
+    diurnal_component_name="diurn_component",
 ) -> HVPlot:
 
     p = hv.Cycle("Colorblind")
