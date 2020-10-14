@@ -6,6 +6,7 @@ import fv3config
 import numpy as np
 import pytest
 import xarray as xr
+import datetime
 import yaml
 from sklearn.dummy import DummyRegressor
 
@@ -333,6 +334,32 @@ TIME_FMT = "%Y%m%d.%H%M%S"
 RUNTIME = {"days": 0, "months": 0, "hours": 0, "minutes": RUNTIME_MINUTES, "seconds": 0}
 
 
+def assets_from_initial_condition_dir(dir_: str):
+    start = datetime.datetime(*START_TIME)
+    delta_t = datetime.timedelta(minutes=TIMESTEP_MINUTES)
+    assets = []
+    for i in range(NUM_NUDGING_TIMESTEPS + 1):
+        timestamp = (start + i * delta_t).strftime(TIME_FMT)
+
+        for tile in range(1, 7):
+            for category in [
+                "fv_core.res",
+                "fv_srf_wnd.res",
+                "fv_tracer.res",
+                "phy_data",
+                "sfc_data",
+            ]:
+                assets.append(
+                    fv3config.get_asset_dict(
+                        dir_,
+                        f"{category}.tile{tile}.nc",
+                        target_location=timestamp,
+                        target_name=f"{timestamp}.{category}.tile{tile}.nc",
+                    )
+                )
+    return assets
+
+
 def get_nudging_config(config_yaml: str, timestamp_dir: str):
     config = yaml.safe_load(config_yaml)
     coupler_nml = config["namelist"]["coupler_nml"]
@@ -340,7 +367,7 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
     coupler_nml.update(RUNTIME)
 
     config["nudging"] = {
-        "restarts_path": timestamp_dir,
+        "restarts_path": ".",
         "timescale_hours": {
             "air_temperature": 3.0,
             "specific_humidity": 3.0,
@@ -349,6 +376,9 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
         },
     }
 
+    config.setdefault("patch_files", []).extend(
+        assets_from_initial_condition_dir(timestamp_dir)
+    )
     if coupler_nml["dt_atmos"] // 60 != TIMESTEP_MINUTES:
         raise ValueError(
             "Model timestep in default_fv3config not aligned"
