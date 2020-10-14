@@ -9,6 +9,7 @@ import transform
 # key - transform name, value Tuple(transform_args, transform_kwargs)
 TRANSFORM_PARAMS = {
     "resample_time": (["1H"], {"time_slice": slice(0, -2)}),
+    "daily_mean": ([timedelta(hours=2)], {}),
     "mask_to_sfc_type": (["sea"], {}),
     "subset_variables": ([("temperature")], {}),
     "mask_area": (["sea"], {}),
@@ -76,16 +77,8 @@ def test_subset_variables(input_args):
         assert "temperature" not in output[i]
 
 
-def test_subsample_time_split(input_args):
-    transform.resample_time(
-        "1H", input_args, split_timedelta=timedelta(hours=2), second_freq_label="2H"
-    )
-
-
-def test_subsample_time_split_short_input(input_args):
-    transform.resample_time(
-        "1H", input_args, split_timedelta=timedelta(hours=10), second_freq_label="2H"
-    )
+def test_daily_mean_split_short_input(input_args):
+    transform.daily_mean(timedelta(hours=10), input_args)
 
 
 @pytest.mark.parametrize("region", [("global"), ("land"), ("sea"), ("tropics")])

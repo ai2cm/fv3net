@@ -92,8 +92,6 @@ def resample_time(
     arg: DiagArg,
     time_slice: slice = slice(None, -1),
     inner_join: bool = False,
-    split_timedelta: timedelta = None,
-    second_freq_label: str = "1D",
 ) -> DiagArg:
     """
     Subset times in prognostic and verification data.
@@ -106,20 +104,10 @@ def resample_time(
             time by default to work with crashed simulations.
         inner_join: Subset times to the intersection of prognostic and verification
             data. Defaults to False.
-        split_timedelta: time since start of prognostic run after which times will be
-            resampled with second_freq_label. Defaults to None, in which case
-            the entire run is resampled at the same frequency.
-        second_freq_label: time resampling frequency label for portion of run
-            after split_timedelta. Defaults to "1D".
     """
     prognostic, verification, grid = arg
     prognostic = _downsample_only(prognostic, freq_label)
     verification = _downsample_only(verification, freq_label)
-
-    if split_timedelta is not None:
-        split_time = prognostic.time.values[0] + split_timedelta
-        prognostic = _resample_end(prognostic, split_time, second_freq_label)
-        verification = _resample_end(verification, split_time, second_freq_label)
 
     prognostic = prognostic.isel(time=time_slice)
     if inner_join:
@@ -135,6 +123,21 @@ def _downsample_only(ds: xr.Dataset, freq_label: str) -> xr.Dataset:
         return ds.resample(time=freq_label, label="right").nearest()
     else:
         return ds
+
+
+@add_to_input_transform_fns
+def daily_mean(split: timedelta, arg: DiagArg) -> DiagArg:
+    """Resample time to daily mean for all times after split.
+    
+    Args:
+        split: time since start of prognostic run after which resampling occurs
+        arg: input arguments to transform prior to the diagnostic calculation
+        """
+    prognostic, verification, grid = arg
+    split_time = prognostic.time.values[0] + split
+    prognostic = _resample_end(prognostic, split_time, "1D")
+    verification = _resample_end(verification, split_time, "1D")
+    return prognostic, verification, grid
 
 
 def _resample_end(ds: xr.Dataset, split: datetime, freq_label: str) -> xr.Dataset:
