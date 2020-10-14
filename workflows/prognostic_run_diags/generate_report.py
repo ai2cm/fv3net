@@ -143,6 +143,7 @@ def _longest_run(diagnostics):
     for ds in diagnostics:
         if ds.sizes["time"] > max_length:
             longest_ds = ds
+            max_length = ds.sizes["time"]
     return longest_ds
 
 
