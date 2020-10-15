@@ -1,3 +1,7 @@
+import os
+import xarray as xr
+import glob
+import joblib
 import collections
 from copy import deepcopy
 from functools import partial
@@ -16,7 +20,58 @@ from typing import (
 T = TypeVar("T")
 
 
-class FunctionOutputSequence(Sequence[T]):
+class BaseSequence(Sequence[T]):
+    def local(self, path, n_jobs=4):
+        os.makedirs(path, exist_ok=True)
+        joblib.Parallel(n_jobs=n_jobs)(
+            joblib.delayed(self._save_item)(path, i)
+            for i in range(len(self))
+        )
+        return Local(os.path.abspath(path))
+
+    def _save_item(self, path, i):
+        item = self[i]
+        cleaned = item.drop('sample')
+        cleaned.to_netcdf(os.path.join(path, "%05d.nc" % i))
+
+    def take(self, n):
+        return Take(self, n)
+
+    def map(self, func):
+        return FunctionOutputSequence(func, self)
+
+
+class Take(BaseSequence[T]):
+
+    def __init__(self, parent_seq, n):
+        self._seq = parent_seq
+        self.n = n
+
+    def __getitem__(self, i):
+        if i < len(self):
+            return self._seq[i]
+        else:
+            raise IndexError()
+    def __len__(self):
+        return self.n
+
+
+class Local(BaseSequence[T]):
+    def __init__(self, path):
+        self.path = path
+
+    @property
+    def files(self):
+        return sorted(glob.glob(os.path.join(self.path, '*.nc')))
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, i):
+        return xr.open_dataset(self.files[i])
+
+
+class FunctionOutputSequence(BaseSequence[T]):
     """A wrapper over a sequence of function arguments passed into a function.
 
     Attributes:
