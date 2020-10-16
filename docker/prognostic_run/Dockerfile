@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:experimental
 FROM us.gcr.io/vcm-ml/fms-build AS bld
 
 ENV FMS_DIR=/FMS
@@ -81,25 +82,11 @@ ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:${PYTHONPATH}
 WORKDIR /fv3net/workflows/prognostic_c48_run
 ENTRYPOINT [ "/entrypoint.sh" ]
 
-FROM google/cloud-sdk:latest as fv3config-inputdata
-
-RUN mkdir -p /fv3config-cache/gs/vcm-fv3config && \
-    gsutil -m cp -r gs://vcm-fv3config/ /fv3config-cache/gs && \
-    rm -rf /fv3config-cache/gs/vcm-fv3config/data/base_forcing/v1.0 \
-        /fv3config-cache/gs/vcm-fv3config/data/orographic_data/v1.0/C384 \
-        /fv3config-cache/gs/vcm-fv3config/data/orographic_data/v1.0/C96 \
-        /fv3config-cache/orographic_data/C384 \
-        /fv3config-cache/base_forcing
-
-
 FROM bld as test
 
-# cache model data
-ENV FV3CONFIG_CACHE_DIR=/inputdata
-COPY --from=fv3config-inputdata /fv3config-cache $FV3CONFIG_CACHE_DIR/fv3config-cache
-RUN chmod -R 777 $FV3CONFIG_CACHE_DIR
-
-RUN ["bash", "-o", "pipefail", "-c", "pytest | tee /tmp/test-results.txt"]
+ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/key.json
+RUN --mount=type=secret,id=gcp,dst=/tmp/key.json \
+    ["bash", "-o", "pipefail", "-c", "pytest | tee /tmp/test-results.txt"]
 
 FROM bld
 # Copy results from test stage to ensure docker buildkit executes it
