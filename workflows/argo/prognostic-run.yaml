@@ -30,7 +30,6 @@ spec:
           - {name: initial-condition}
           - {name: config}
           - {name: reference-restarts}
-          - {name: trained-ml}
           - {name: store-true-args, value: ""}
           - {name: output}
           - {name: chunks, value: "{}"}  # by default just use chunks defined in post_process.py
@@ -48,7 +47,6 @@ spec:
               - {name: initial-condition, value: "{{inputs.parameters.initial-condition}}"}
               - {name: config, value: "{{inputs.parameters.config}}"}
               - {name: reference-restarts, value: "{{inputs.parameters.reference-restarts}}"}
-              - {name: trained-ml, value: "{{inputs.parameters.trained-ml}}"}
               - {name: store-true-args, value: "{{inputs.parameters.store-true-args}}"}
       - - name: run-model
           templateRef:
@@ -77,7 +75,6 @@ spec:
           - name: initial-condition
           - name: config
           - name: reference-restarts
-          - name: trained-ml
           - name: store-true-args
       outputs:
         artifacts:
@@ -95,7 +92,6 @@ spec:
             EOF
 
             python prepare_config.py \
-              --model_url {{inputs.parameters.trained-ml}} \
               --prog_config_yml config.yaml \
               {{inputs.parameters.reference-restarts}} \
               {{inputs.parameters.initial-condition}} \

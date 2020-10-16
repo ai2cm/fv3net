@@ -85,12 +85,10 @@ spec:
                 value: "{{inputs.parameters.prognostic-run-config}}"
               - name: reference-restarts
                 value: "{{inputs.parameters.reference-restarts}}"
-              - name: trained-ml
-                value: "{{inputs.parameters.root}}/trained_model"
               - name: output
                 value: "{{inputs.parameters.root}}/prognostic_run"
               - name: store-true-args
-                value: "{{inputs.parameters.store-true-args}}"
+                value: "{{inputs.parameters.store-true-args}} --model_url {{inputs.parameters.root}}/trained_model"
               - name: chunks
                 value: "{{inputs.parameters.chunks}}"
               - name: segment-count
