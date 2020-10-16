@@ -147,7 +147,6 @@ def _assign_plot_groups(rundirs: Iterable[str]):
                     "within_group_ind": 0,
                 }
             )
-
     return metadata
 
 
@@ -187,6 +186,24 @@ def _longest_run(diagnostics: Iterable[xr.Dataset]) -> xr.Dataset:
     return longest_ds
 
 
+def _dash_and_color(
+    plot_group: str = None,
+    group_ind: int = None,
+    within_group_ind: int = None,
+    **kwargs,
+):
+    if plot_group == "baseline":
+        dash_and_color = ("solid", "gray")
+    elif plot_group == "verification":
+        dash_and_color = ("solid", "black")
+    else:
+        dash_and_color = (
+            LINE_DASH_CYCLE[within_group_ind],
+            COLORBLIND_CYCLE[group_ind],
+        )
+    return dash_and_color
+
+
 def holomap_filter(time_series, varfilter, run_attr_name="run"):
     hmap = hv.HoloMap(kdims=["variable", "run"])
     for ds in time_series:
@@ -197,14 +214,7 @@ def holomap_filter(time_series, varfilter, run_attr_name="run"):
                 except KeyError:
                     pass
                 else:
-                    ld, c = (
-                        ("solid", "black")
-                        if ds.attrs["plot_group"] == "baseline"
-                        else (
-                            LINE_DASH_CYCLE[ds.attrs["within_group_ind"]],
-                            COLORBLIND_CYCLE[ds.attrs["group_ind"]],
-                        )
-                    )
+                    ld, c = _dash_and_color(**ds.attrs)
                     run = ds.attrs[run_attr_name]
                     long_name = ds[varname].long_name
                     hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
@@ -223,14 +233,7 @@ def holomap_filter_with_region_bar(time_series, varfilter, run_attr_name="run"):
                 except KeyError:
                     pass
                 else:
-                    ld, c = (
-                        ("solid", "black")
-                        if ds.attrs["plot_group"] == "baseline"
-                        else (
-                            LINE_DASH_CYCLE[ds.attrs["within_group_ind"]],
-                            COLORBLIND_CYCLE[ds.attrs["group_ind"]],
-                        )
-                    )
+                    ld, c = _dash_and_color(**ds.attrs)
                     run = ds.attrs[run_attr_name]
                     long_name = ds[varname].long_name
                     region = varname.split("_")[-1]
@@ -271,7 +274,12 @@ def _parse_diurnal_component_fields(varname: str):
 def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
     """Back out verification timeseries from prognostic run value and bias"""
     verif_diagnostics = {}
-    verif_attrs = {"run": "verification", "baseline": True}
+    verif_attrs = {
+        "run": "verification",
+        "plot_group": "verification",
+        "group_ind": -2,
+        "within_group_ind": 0,
+    }
     mean_bias_pairs = {"spatial_mean": "mean_bias", "diurn_component": "diurn_bias"}
     for mean_filter, bias_filter in mean_bias_pairs.items():
         mean_vars = [var for var in ds if mean_filter in var]
