@@ -24,14 +24,13 @@ class BaseSequence(Sequence[T]):
     def local(self, path, n_jobs=4):
         os.makedirs(path, exist_ok=True)
         joblib.Parallel(n_jobs=n_jobs)(
-            joblib.delayed(self._save_item)(path, i)
-            for i in range(len(self))
+            joblib.delayed(self._save_item)(path, i) for i in range(len(self))
         )
         return Local(os.path.abspath(path))
 
     def _save_item(self, path, i):
         item = self[i]
-        cleaned = item.drop('sample')
+        cleaned = item.drop("sample")
         cleaned.to_netcdf(os.path.join(path, "%05d.nc" % i))
 
     def take(self, n):
@@ -42,7 +41,6 @@ class BaseSequence(Sequence[T]):
 
 
 class Take(BaseSequence[T]):
-
     def __init__(self, parent_seq, n):
         self._seq = parent_seq
         self.n = n
@@ -52,6 +50,7 @@ class Take(BaseSequence[T]):
             return self._seq[i]
         else:
             raise IndexError()
+
     def __len__(self):
         return self.n
 
@@ -62,7 +61,7 @@ class Local(BaseSequence[T]):
 
     @property
     def files(self):
-        return sorted(glob.glob(os.path.join(self.path, '*.nc')))
+        return sorted(glob.glob(os.path.join(self.path, "*.nc")))
 
     def __len__(self):
         return len(self.files)

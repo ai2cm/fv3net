@@ -2,6 +2,7 @@ import intake
 import os
 import xarray as xr
 import vcm
+import fsspec
 import numpy as np
 
 from ._base import GeoMapper
@@ -67,7 +68,6 @@ def open_spencer_rundir(url):
 
 
 def open_phis(url):
-    import os, fsspec
 
     fs = fsspec.get_fs_token_paths(url)[0]
     artifacts = fs.listdir(os.path.join(url, "artifacts"))[0]
