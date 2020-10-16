@@ -9,16 +9,18 @@ diagnostic function arguments.
 
 import logging
 from typing import Sequence, Tuple
+import numpy as np
+import pandas as pd
 import xarray as xr
+from datetime import datetime, timedelta
 
-import vcm
 from constants import HORIZONTAL_DIMS, DiagArg
 
 _TRANSFORM_FNS = {}
 
 logger = logging.getLogger(__name__)
 
-SURFACE_TYPE_CODES = {"sea": 0, "land": 1, "seaice": 2}
+SURFACE_TYPE_CODES = {"sea": (0, 2), "land": (1,), "seaice": (2,)}
 
 
 def add_to_input_transform_fns(func):
@@ -101,11 +103,46 @@ def resample_time(
             data. Defaults to False.
     """
     prognostic, verification, grid = arg
-    prognostic = prognostic.resample(time=freq_label, label="right").nearest()
+    prognostic = _downsample_only(prognostic, freq_label)
+    verification = _downsample_only(verification, freq_label)
+
     prognostic = prognostic.isel(time=time_slice)
     if inner_join:
         prognostic, verification = _inner_join_time(prognostic, verification)
     return prognostic, verification, grid
+
+
+def _downsample_only(ds: xr.Dataset, freq_label: str) -> xr.Dataset:
+    """Resample in time, only if given freq_label is lower frequency than time
+    sampling of given dataset ds"""
+    ds_freq = ds.time.values[1] - ds.time.values[0]
+    if ds_freq < pd.to_timedelta(freq_label):
+        return ds.resample(time=freq_label, label="right").nearest()
+    else:
+        return ds
+
+
+@add_to_input_transform_fns
+def daily_mean(split: timedelta, arg: DiagArg) -> DiagArg:
+    """Resample time to daily mean for all times after split.
+    
+    Args:
+        split: time since start of prognostic run after which resampling occurs
+        arg: input arguments to transform prior to the diagnostic calculation
+    """
+    prognostic, verification, grid = arg
+    split_time = prognostic.time.values[0] + split
+    prognostic = _resample_end(prognostic, split_time, "1D")
+    verification = _resample_end(verification, split_time, "1D")
+    return prognostic, verification, grid
+
+
+def _resample_end(ds: xr.Dataset, split: datetime, freq_label: str) -> xr.Dataset:
+    start_segment = ds.sel(time=slice(None, split))
+    end_segment = ds.sel(time=slice(split, None))
+    if end_segment.sizes["time"] != 0:
+        end_segment = end_segment.resample(time=freq_label, label="right").mean()
+    return xr.concat([start_segment, end_segment], dim="time")
 
 
 def _inner_join_time(
@@ -129,7 +166,7 @@ def _inner_join_time(
     )
 
 
-def _mask_vars_with_horiz_dims(ds, surface_type, mask_var_name):
+def _mask_vars_with_horiz_dims(ds, surface_type, latitude, land_sea_mask):
     """
     Subset data to variables with specified dimensions before masking
     to prevent odd behavior from variables with non-compliant dims
@@ -141,10 +178,9 @@ def _mask_vars_with_horiz_dims(ds, surface_type, mask_var_name):
         for var_name in ds.data_vars
         if set(HORIZONTAL_DIMS).issubset(set(ds[var_name].dims))
     ]
-    spatial = ds[spatial_ds_varnames + [mask_var_name]]
-    masked = vcm.mask_to_surface_type(
-        spatial, surface_type, surface_type_var=mask_var_name
-    )
+    masked = xr.Dataset()
+    for var in spatial_ds_varnames:
+        masked[var] = _mask_array(surface_type, ds[var], latitude, land_sea_mask)
 
     non_spatial_varnames = list(set(ds.data_vars) - set(spatial_ds_varnames))
 
@@ -152,55 +188,39 @@ def _mask_vars_with_horiz_dims(ds, surface_type, mask_var_name):
 
 
 @add_to_input_transform_fns
-def mask_to_sfc_type(
-    surface_type: str, arg: DiagArg, mask_var_name: str = "SLMSKsfc"
-) -> DiagArg:
+def mask_to_sfc_type(surface_type: str, arg: DiagArg) -> DiagArg:
     """
     Mask prognostic run and verification data to the specified surface type
 
     Args:
         arg: input arguments to transform prior to the diagnostic calculation
         surface_type:  Type of grid locations to leave unmasked
-        mask_var_name: Name of the datasets variable holding surface type info
     """
     prognostic, verification, grid = arg
     masked_prognostic = _mask_vars_with_horiz_dims(
-        prognostic, surface_type, mask_var_name
+        prognostic, surface_type, grid.lat, grid.land_sea_mask
     )
 
     masked_verification = _mask_vars_with_horiz_dims(
-        verification, surface_type, mask_var_name
+        verification, surface_type, grid.lat, grid.land_sea_mask
     )
 
     return masked_prognostic, masked_verification, grid
 
 
 @add_to_input_transform_fns
-def mask_area(
-    region: str, arg: DiagArg, land_sea_mask_name: str = "SLMSKsfc",
-) -> DiagArg:
+def mask_area(region: str, arg: DiagArg) -> DiagArg:
     """
     Set area variable to zero everywhere outside of specified region.
 
     Args:
         region: name of region to leave unmasked. Valid options are "global",
-            "land", "sea", "seaice" and "tropics".
+            "land", "sea", and "tropics".
         arg: input arguments to transform prior to the diagnostic calculation
-        land_sea_mask_name: Name of the datasets variable holding land-sea mask
     """
     prognostic, verification, grid = arg
 
-    if region in SURFACE_TYPE_CODES:
-        if land_sea_mask_name in prognostic:
-            land_sea_mask = prognostic[land_sea_mask_name].astype(int)
-        elif land_sea_mask_name in verification:
-            land_sea_mask = verification[land_sea_mask_name].astype(int)
-        else:
-            raise KeyError("No land-sea mask in prognostic or verification data")
-    else:
-        land_sea_mask = None
-
-    masked_area = _mask_array(region, grid.area, grid.lat, land_sea_mask)
+    masked_area = _mask_array(region, grid.area, grid.lat, grid.land_sea_mask)
 
     grid_copy = grid.copy()
     return prognostic, verification, grid_copy.update({"area": masked_area})
@@ -215,7 +235,11 @@ def _mask_array(
     elif region == "global":
         masked_arr = arr.copy()
     elif region in SURFACE_TYPE_CODES:
-        masked_arr = arr.where(land_sea_mask == SURFACE_TYPE_CODES[region])
+        masks = [land_sea_mask == code for code in SURFACE_TYPE_CODES[region]]
+        mask_union = masks[0]
+        for mask in masks[1:]:
+            mask_union = np.logical_or(mask_union, mask)
+        masked_arr = arr.where(mask_union)
     else:
         raise ValueError(f"Masking procedure for region '{region}' is not defined.")
     return masked_arr

@@ -3,10 +3,8 @@ from fv3fit.keras import get_model_class, Model
 import os
 
 
-def load_sklearn_model(
-    model_path: str, sklearn_pkl_filename: str = "sklearn.yaml"
-) -> SklearnWrapper:
-    return SklearnWrapper.load(os.path.join(model_path, sklearn_pkl_filename))
+def load_sklearn_model(model_path: str,) -> SklearnWrapper:
+    return SklearnWrapper.load(model_path)
 
 
 def load_keras_model(

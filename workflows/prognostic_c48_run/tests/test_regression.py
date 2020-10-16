@@ -6,23 +6,15 @@ import fv3config
 import numpy as np
 import pytest
 import xarray as xr
+import datetime
 import yaml
-from datetime import timedelta, datetime
 from sklearn.dummy import DummyRegressor
 
 from fv3fit.sklearn import RegressorEnsemble, SklearnWrapper
 from fv3fit.keras import DummyModel
 import subprocess
 
-#  Importing fv3gfs causes a call to MPI_Init but not MPI_Finalize. When the
-#  subprocess subsequently calls MPI_Init from a process not managed by MPI,
-#  mpirun throws a fit. Use a subprocess as a workaround.
-FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs.wrapper"]) == 0
-
-
-BASE_FV3CONFIG_CACHE = Path(
-    "/inputdata", "fv3config-cache", "gs", "vcm-fv3config", "data"
-)
+BASE_FV3CONFIG_CACHE = Path("vcm-fv3config", "data")
 IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
     "initial_conditions", "c12_restart_initial_conditions", "v1.0"
 )
@@ -34,9 +26,9 @@ default_fv3config = rf"""
 data_table: default
 diag_table: default
 experiment_name: default_experiment
-forcing: {FORCING_PATH.as_posix()}
-initial_conditions: {IC_PATH.as_posix()}
-orographic_forcing: {ORO_PATH.as_posix()}
+forcing: gs://{FORCING_PATH.as_posix()}
+initial_conditions: gs://{IC_PATH.as_posix()}
+orographic_forcing: gs://{ORO_PATH.as_posix()}
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
@@ -342,6 +334,32 @@ TIME_FMT = "%Y%m%d.%H%M%S"
 RUNTIME = {"days": 0, "months": 0, "hours": 0, "minutes": RUNTIME_MINUTES, "seconds": 0}
 
 
+def assets_from_initial_condition_dir(dir_: str):
+    start = datetime.datetime(*START_TIME)  # type: ignore
+    delta_t = datetime.timedelta(minutes=TIMESTEP_MINUTES)
+    assets = []
+    for i in range(NUM_NUDGING_TIMESTEPS + 1):
+        timestamp = (start + i * delta_t).strftime(TIME_FMT)
+
+        for tile in range(1, 7):
+            for category in [
+                "fv_core.res",
+                "fv_srf_wnd.res",
+                "fv_tracer.res",
+                "phy_data",
+                "sfc_data",
+            ]:
+                assets.append(
+                    fv3config.get_asset_dict(
+                        dir_,
+                        f"{category}.tile{tile}.nc",
+                        target_location=timestamp,
+                        target_name=f"{timestamp}.{category}.tile{tile}.nc",
+                    )
+                )
+    return assets
+
+
 def get_nudging_config(config_yaml: str, timestamp_dir: str):
     config = yaml.safe_load(config_yaml)
     coupler_nml = config["namelist"]["coupler_nml"]
@@ -349,7 +367,7 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
     coupler_nml.update(RUNTIME)
 
     config["nudging"] = {
-        "restarts_path": Path(timestamp_dir).as_posix(),
+        "restarts_path": ".",
         "timescale_hours": {
             "air_temperature": 3.0,
             "specific_humidity": 3.0,
@@ -358,6 +376,9 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
         },
     }
 
+    config.setdefault("patch_files", []).extend(
+        assets_from_initial_condition_dir(timestamp_dir)
+    )
     if coupler_nml["dt_atmos"] // 60 != TIMESTEP_MINUTES:
         raise ValueError(
             "Model timestep in default_fv3config not aligned"
@@ -367,46 +388,11 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
     return config
 
 
-@pytest.fixture
-def tmp_restart_dir(tmpdir):
-    """Symlink fake restart directories used for nudging"""
-
-    restart_dir = Path(tmpdir, "restarts")
-    restart_dir.mkdir(exist_ok=True)
-
-    start = datetime(*START_TIME)
-    delta_t = timedelta(minutes=TIMESTEP_MINUTES)
-    for i in range(NUM_NUDGING_TIMESTEPS + 1):
-        timestamp = (start + i * delta_t).strftime(TIME_FMT)
-
-        # Make timestamped restart directory
-        timestamp_dir = restart_dir.joinpath(timestamp)
-        timestamp_dir.mkdir(parents=True, exist_ok=True)
-
-        # Link all restart files from initial conditions folder with prefix
-        _symlink_restart_files(timestamp_dir, IC_PATH, timestamp)
-
-    return restart_dir
-
-
-def _symlink_restart_files(timestamp_dir: Path, target_dir: Path, symlink_prefix: str):
-    fv_glob_patterns = ["fv_core*", "fv_srf_wnd*", "fv_tracer*", "sfc_data*"]
-
-    for file_pattern in fv_glob_patterns:
-
-        for fv_file in target_dir.glob(file_pattern):
-            fname_with_prefix = f"{symlink_prefix}.{fv_file.name}"
-            new_sym_fv_file = timestamp_dir.joinpath(fname_with_prefix)
-            new_sym_fv_file.symlink_to(fv_file)
-
-
-def test_nudge_run(tmp_restart_dir):
-    if not FV3GFS_INSTALLED:
-        pytest.skip("fv3gfs not installed")
-
-    tmpdir = tmp_restart_dir.parent.as_posix()
-    config = get_nudging_config(default_fv3config, tmp_restart_dir.as_posix())
-    fv3config.run_native(config, tmpdir, capture_output=False, runfile=NUDGE_RUNFILE)
+def test_nudge_run(tmpdir):
+    config = get_nudging_config(default_fv3config, "gs://" + IC_PATH.as_posix())
+    fv3config.run_native(
+        config, str(tmpdir), capture_output=False, runfile=NUDGE_RUNFILE
+    )
 
 
 def get_prognostic_config(model_type, model_path):
@@ -482,9 +468,6 @@ def _save_mock_keras_model(tmpdir):
 
 @pytest.fixture(scope="module", params=["keras", "sklearn"])
 def completed_rundir(request, tmpdir_factory):
-
-    if not FV3GFS_INSTALLED:
-        pytest.skip("fv3gfs not installed")
 
     tmpdir = tmpdir_factory.mktemp("rundir")
 

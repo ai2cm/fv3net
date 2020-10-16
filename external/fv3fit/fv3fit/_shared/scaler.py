@@ -41,27 +41,22 @@ class StandardScaler(NormalizeTransform):
 
     kind: str = "standard"
 
-    def __init__(self, std_threshold: float = 1e-12):
+    def __init__(self, std_epsilon: np.float32 = 1e-12):
         """Standard scaler normalizer: normalizes via (x-mean)/std
 
         Args:
-            std_threshold: Features with standard deviations below
-                this threshold are have their standard deviations set
-                to this value. Defaults to 1e-12.
+            std_epsilon: A small value that is added to the standard deviation
+                of each variable to be scaled, such that no variables (even those
+                that are constant across samples) are unable to be scaled due to
+                having zero standard deviation. Defaults to 1e-12.
         """
         self.mean = None
         self.std = None
-        self.std_threshold = std_threshold
+        self.std_epsilon: np.float32 = std_epsilon
 
     def fit(self, data: np.ndarray):
         self.mean = data.mean(axis=0).astype(np.float32)
-        self.std = data.std(axis=0).astype(np.float32)
-        self._fix_constant_features()
-
-    def _fix_constant_features(self):
-        for i, std in enumerate(self.std):
-            if std < self.std_threshold:
-                self.std[i] = self.std_threshold
+        self.std = data.std(axis=0).astype(np.float32) + self.std_epsilon
 
     def normalize(self, data):
         if self.mean is None or self.std is None:
