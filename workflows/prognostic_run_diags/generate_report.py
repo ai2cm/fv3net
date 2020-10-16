@@ -15,11 +15,6 @@ from report.holoviews import HVPlot, get_html_header
 
 hv.extension("bokeh")
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
-# COLORBLIND_CYCLE = [
-#     '#006BA4', '#FF800E', '#ABABAB', '#595959', '#5F9ED1',
-#     '#C85200', '#898989', '#A2C8EC', '#FFBC79', '#CFCFCF'
-# ]
-
 COLORBLIND_CYCLE = [
     "#0072b2",
     "#e69f00",
@@ -30,8 +25,10 @@ COLORBLIND_CYCLE = [
     "#cc79a7",
     "#000000",
 ]
+# https://github.com/bokeh/bokeh/blob/b56543346bad8cdabe99960e63133619feaafbb7
+# /bokehjs/src/lib/api/palettes.ts
 LINE_DASH_CYCLE = ["solid", "dashed", "dotted", "dotdash", "dashdot"]
-# https://github.com/bokeh/bokeh/blob/b56543346bad8cdabe99960e63133619feaafbb7/bokehjs/src/lib/api/palettes.ts
+# https://docs.bokeh.org/en/latest/docs/user_guide/styling.html
 
 
 def upload(html: str, url: str, content_type: str = "text/html"):
@@ -119,6 +116,10 @@ def _yield_metric_rows(metrics):
 
 
 def _assign_plot_groups(rundirs: Iterable[str]):
+    """Parse run name to obtain distinct groups of runs with random seeds
+    (if they exist), assign indices to the groups, and assign indices within the
+    groups, all for purposes of plotting clarity. Special handling of reserved
+    words `seed` and `baseline`."""
 
     metadata = []
     groups = []

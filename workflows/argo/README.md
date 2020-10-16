@@ -169,6 +169,13 @@ flag. E.g. specifying the argo parameter `flags="--verification nudged_c48_fv3gf
 year-long nudged-to-obs C48 run as verification. By default, the `40day_may2020` simulation
 is used as verification (see fv3net catalog).
 
+Special plot handling of run names specified in rundirs.json occurs for those containing
+`seed` or `baseline`. A `baseline` run (presumably only 1) is line plotted in black.
+Runs containing `-seed*` or `_seed*` are grouped by the string prior to that token,
+and the same color is used for all runs in that group, with line styles differentiating
+among different seed values. This allows for visual distinction of run groups that use
+random seeds.
+
 #### Command line Usage Example
 
 Typically, `runs` will be stored in a json file (e.g. `rundirs.json`).
