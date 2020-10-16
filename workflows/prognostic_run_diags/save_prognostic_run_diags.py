@@ -16,6 +16,7 @@ import argparse
 import os
 import sys
 
+import datetime
 import tempfile
 import intake
 import numpy as np
@@ -29,6 +30,7 @@ from collections import defaultdict
 from typing import Dict, Callable, Mapping
 
 import load_diagnostic_data as load_diags
+import config
 import diurnal_cycle
 import transform
 from constants import (
@@ -39,6 +41,7 @@ from constants import (
     GLOBAL_BIAS_PHYSICS_VARS,
     DIURNAL_CYCLE_VARS,
     TIME_MEAN_VARS,
+    RMSE_VARS,
 )
 
 import logging
@@ -176,6 +179,8 @@ def dump_nc(ds: xr.Dataset, f):
 @add_to_diags("dycore")
 @diag_finalizer("rms_global")
 @transform.apply("resample_time", "3H", inner_join=True)
+@transform.apply("daily_mean", datetime.timedelta(days=10))
+@transform.apply("subset_variables", RMSE_VARS)
 def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
@@ -183,12 +188,13 @@ def rms_errors(resampled, verification_c48, grid):
     return rms_errors
 
 
-for mask_type in ["global", "tropics"]:
+for mask_type in ["global", "land", "sea", "tropics"]:
 
     @add_to_diags("dycore")
     @diag_finalizer(f"spatial_mean_dycore_{mask_type}")
     @transform.apply("mask_area", mask_type)
     @transform.apply("resample_time", "3H")
+    @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
     def global_averages_dycore(resampled, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing averages for dycore variables ({mask_type})")
@@ -205,6 +211,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @diag_finalizer(f"spatial_mean_physics_{mask_type}")
     @transform.apply("mask_area", mask_type)
     @transform.apply("resample_time", "3H")
+    @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
     def global_averages_physics(resampled, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing averages for physics variables ({mask_type})")
@@ -221,6 +228,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @diag_finalizer(f"mean_bias_physics_{mask_type}")
     @transform.apply("mask_area", mask_type)
     @transform.apply("resample_time", "3H", inner_join=True)
+    @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
     def global_biases_physics(resampled, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing average biases for physics variables ({mask_type})")
@@ -229,12 +237,14 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         return bias_errors
 
 
-for mask_type in ["global", "tropics"]:
+for mask_type in ["global", "land", "sea", "tropics"]:
 
     @add_to_diags("dycore")
     @diag_finalizer(f"mean_bias_dycore_{mask_type}")
     @transform.apply("mask_area", mask_type)
     @transform.apply("resample_time", "3H", inner_join=True)
+    @transform.apply("daily_mean", datetime.timedelta(days=10))
+    @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
     def global_biases_dycore(resampled, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing average biases for dycore variables ({mask_type})")
         bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
@@ -283,26 +293,37 @@ def _catalog():
     return str(TOP_LEVEL_DIR / "catalog.yml")
 
 
-if __name__ == "__main__":
-
+def _get_parser():
     CATALOG = _catalog()
-
     parser = argparse.ArgumentParser()
     parser.add_argument("url")
     parser.add_argument("output")
     parser.add_argument("--catalog", default=CATALOG)
+    parser.add_argument(
+        "--verification",
+        help="Tag for simulation to use as verification data. Checks against "
+        "'simulation' metadata from intake catalog.",
+        default="40day_may2020",
+    )
+    return parser
 
+
+if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    args = parser.parse_args()
+    args = _get_parser().parse_args()
 
     attrs = vars(args)
     attrs["history"] = " ".join(sys.argv)
 
     catalog = intake.open_catalog(args.catalog)
+
+    # get catalog entries for specified verification data
+    verif_entries = config.get_verification_entries(args.verification, catalog)
+
     input_data = {
-        "dycore": load_diags.load_dycore(args.url, catalog),
-        "physics": load_diags.load_physics(args.url, catalog),
+        "dycore": load_diags.load_dycore(args.url, verif_entries["dycore"], catalog),
+        "physics": load_diags.load_physics(args.url, verif_entries["physics"], catalog),
     }
 
     # begin constructing diags
