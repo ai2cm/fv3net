@@ -30,7 +30,7 @@ spec:
           - {name: initial-condition}
           - {name: config}
           - {name: reference-restarts}
-          - {name: store-true-args, value: ""}
+          - {name: flags, value: ""}
           - {name: output}
           - {name: chunks, value: "{}"}  # by default just use chunks defined in post_process.py
           - {name: segment-count, value: "1"}
@@ -47,7 +47,7 @@ spec:
               - {name: initial-condition, value: "{{inputs.parameters.initial-condition}}"}
               - {name: config, value: "{{inputs.parameters.config}}"}
               - {name: reference-restarts, value: "{{inputs.parameters.reference-restarts}}"}
-              - {name: store-true-args, value: "{{inputs.parameters.store-true-args}}"}
+              - {name: flags, value: "{{inputs.parameters.flags}}"}
       - - name: run-model
           templateRef:
             name: run-fv3gfs
@@ -75,7 +75,7 @@ spec:
           - name: initial-condition
           - name: config
           - name: reference-restarts
-          - name: store-true-args
+          - name: flags
       outputs:
         artifacts:
           - {name: fv3config, path: /tmp/fv3config.yaml}
@@ -93,7 +93,7 @@ spec:
 
             python prepare_config.py \
               --prog_config_yml config.yaml \
+              {{inputs.parameters.flags}} \
               {{inputs.parameters.reference-restarts}} \
               {{inputs.parameters.initial-condition}} \
-              {{inputs.parameters.store-true-args}} \
               > /tmp/fv3config.yaml
