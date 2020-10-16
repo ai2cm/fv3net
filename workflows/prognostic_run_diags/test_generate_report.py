@@ -1,6 +1,6 @@
 from generate_report import (
     upload,
-    _parse_metadata,
+    _assign_plot_groups,
     detect_rundirs,
     _html_link,
     get_movie_links,
@@ -42,10 +42,103 @@ def test_upload_html_gcs(client: Client):
     blob.content_type == "text/html"
 
 
-def test__parse_metadata():
-    run = "blah-blah-baseline"
-    out = _parse_metadata(run)
-    assert out == {"run": run, "baseline": True}
+@pytest.mark.parametrize(
+    ["rundir_list", "expected"],
+    [
+        pytest.param(
+            ["blah-blah-baseline"],
+            [
+                {
+                    "run": "blah-blah-baseline",
+                    "plot_group": "baseline",
+                    "group_ind": -1,
+                    "within_group_ind": 0,
+                }
+            ],
+            id="baseline",
+        ),
+        pytest.param(
+            ["blah-blah-baseline", "test-config"],
+            [
+                {
+                    "run": "blah-blah-baseline",
+                    "plot_group": "baseline",
+                    "group_ind": -1,
+                    "within_group_ind": 0,
+                },
+                {
+                    "run": "test-config",
+                    "plot_group": "test-config",
+                    "group_ind": 0,
+                    "within_group_ind": 0,
+                },
+            ],
+            id="baseline_plus_one_single",
+        ),
+        pytest.param(
+            ["blah-blah-baseline", "test-config-seed-0", "test-config-seed-1"],
+            [
+                {
+                    "run": "blah-blah-baseline",
+                    "plot_group": "baseline",
+                    "group_ind": -1,
+                    "within_group_ind": 0,
+                },
+                {
+                    "run": "test-config-seed-0",
+                    "plot_group": "test-config",
+                    "group_ind": 0,
+                    "within_group_ind": 0,
+                },
+                {
+                    "run": "test-config-seed-1",
+                    "plot_group": "test-config",
+                    "group_ind": 0,
+                    "within_group_ind": 1,
+                },
+            ],
+            id="baseline_plus_one_group",
+        ),
+        pytest.param(
+            [
+                "blah-blah-baseline",
+                "other-config",
+                "test-config-seed-0",
+                "test-config-seed-1",
+            ],
+            [
+                {
+                    "run": "blah-blah-baseline",
+                    "plot_group": "baseline",
+                    "group_ind": -1,
+                    "within_group_ind": 0,
+                },
+                {
+                    "run": "other-config",
+                    "plot_group": "other-config",
+                    "group_ind": 0,
+                    "within_group_ind": 0,
+                },
+                {
+                    "run": "test-config-seed-0",
+                    "plot_group": "test-config",
+                    "group_ind": 1,
+                    "within_group_ind": 0,
+                },
+                {
+                    "run": "test-config-seed-1",
+                    "plot_group": "test-config",
+                    "group_ind": 1,
+                    "within_group_ind": 1,
+                },
+            ],
+            id="baseline_plus_one_group_plus_another",
+        ),
+    ],
+)
+def test__assign_plot_groups(rundir_list, expected):
+    out = _assign_plot_groups(rundir_list)
+    assert out == expected
 
 
 def test_detect_rundirs(tmpdir):

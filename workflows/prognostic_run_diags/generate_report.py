@@ -3,6 +3,7 @@
 import json
 from typing import Iterable
 import os
+from collections import Counter
 import xarray as xr
 import fsspec
 import pandas as pd
@@ -14,6 +15,23 @@ from report.holoviews import HVPlot, get_html_header
 
 hv.extension("bokeh")
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
+# COLORBLIND_CYCLE = [
+#     '#006BA4', '#FF800E', '#ABABAB', '#595959', '#5F9ED1',
+#     '#C85200', '#898989', '#A2C8EC', '#FFBC79', '#CFCFCF'
+# ]
+
+COLORBLIND_CYCLE = [
+    "#0072b2",
+    "#e69f00",
+    "#f0e442",
+    "#009e73",
+    "#56b4e9",
+    "#d55e00",
+    "#cc79a7",
+    "#000000",
+]
+LINE_DASH_CYCLE = ["solid", "dashed", "dotted", "dotdash", "dashdot"]
+# https://github.com/bokeh/bokeh/blob/b56543346bad8cdabe99960e63133619feaafbb7/bokehjs/src/lib/api/palettes.ts
 
 
 def upload(html: str, url: str, content_type: str = "text/html"):
@@ -100,15 +118,36 @@ def _yield_metric_rows(metrics):
             }
 
 
-def _parse_metadata(run: str):
-    baseline_s = "-baseline"
+def _assign_plot_groups(rundirs: Iterable[str]):
 
-    if run.endswith(baseline_s):
-        baseline = True
-    else:
-        baseline = False
+    metadata = []
+    groups = []
+    c = Counter()
+    for run in sorted(rundirs):
+        run_prefix = run.split("seed")[0].strip("-_")
+        if "baseline" not in run_prefix:
+            if run_prefix not in groups:
+                groups.append(run_prefix)
+            c[run_prefix] += 1
+            metadata.append(
+                {
+                    "run": run,
+                    "plot_group": run_prefix,
+                    "group_ind": groups.index(run_prefix),
+                    "within_group_ind": c[run_prefix] - 1,
+                }
+            )
+        else:
+            metadata.append(
+                {
+                    "run": run,
+                    "plot_group": "baseline",
+                    "group_ind": -1,
+                    "within_group_ind": 0,
+                }
+            )
 
-    return {"run": run, "baseline": baseline}
+    return metadata
 
 
 def load_metrics(bucket, rundirs):
@@ -139,7 +178,6 @@ def _html_link(url, tag):
 
 
 def holomap_filter(time_series, varfilter, run_attr_name="run"):
-    p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "run"])
     for ds in time_series:
         for varname in ds:
@@ -149,17 +187,23 @@ def holomap_filter(time_series, varfilter, run_attr_name="run"):
                 except KeyError:
                     pass
                 else:
-                    style = "solid" if ds.attrs["baseline"] else "dashed"
+                    ld, c = (
+                        ("solid", "black")
+                        if ds.attrs["plot_group"] == "baseline"
+                        else (
+                            LINE_DASH_CYCLE[ds.attrs["within_group_ind"]],
+                            COLORBLIND_CYCLE[ds.attrs["group_ind"]],
+                        )
+                    )
                     run = ds.attrs[run_attr_name]
                     long_name = ds[varname].long_name
                     hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
-                        line_dash=style, color=p
+                        line_dash=ld, color=c
                     )
     return hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
 
 
 def holomap_filter_with_region_bar(time_series, varfilter, run_attr_name="run"):
-    p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
     for ds in time_series:
         for varname in ds:
@@ -169,13 +213,20 @@ def holomap_filter_with_region_bar(time_series, varfilter, run_attr_name="run"):
                 except KeyError:
                     pass
                 else:
-                    style = "solid" if ds.attrs["baseline"] else "dashed"
+                    ld, c = (
+                        ("solid", "black")
+                        if ds.attrs["plot_group"] == "baseline"
+                        else (
+                            LINE_DASH_CYCLE[ds.attrs["within_group_ind"]],
+                            COLORBLIND_CYCLE[ds.attrs["group_ind"]],
+                        )
+                    )
                     run = ds.attrs[run_attr_name]
                     long_name = ds[varname].long_name
                     region = varname.split("_")[-1]
                     hmap[(long_name, region, run)] = hv.Curve(
                         v, label=varfilter
-                    ).options(line_dash=style, color=p)
+                    ).options(line_dash=ld, color=c)
     return hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
 
 
@@ -297,8 +348,12 @@ def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
         if metric.startswith(name):
             metrics_contains_name = True
             s = metrics[metrics.metric == metric]
-            bars = hv.Bars((s.run, s.value), hv.Dimension("Run"), s.units.iloc[0])
-            hmap[metric] = bars
+            bars = hv.Bars(
+                (s.plot_group, s.within_group_ind.astype(str), s.value),
+                [hv.Dimension("Plot group"), hv.Dimension("Seed")],
+                s.units.iloc[0],
+            )
+            hmap[metric] = bars.opts(hv.opts.Bars(color=hv.Cycle("Colorblind")))
     if metrics_contains_name:
         return HVPlot(hmap.opts(**bar_opts))
 
@@ -314,7 +369,7 @@ def main():
     # get run information
     fs, _, _ = fsspec.get_fs_token_paths(bucket)
     rundirs = detect_rundirs(bucket, fs)
-    run_table = pd.DataFrame.from_records(_parse_metadata(run) for run in rundirs)
+    run_table = pd.DataFrame.from_records(_assign_plot_groups(rundirs))
     run_table_lookup = run_table.set_index("run")
 
     # load diagnostics
