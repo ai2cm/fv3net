@@ -177,6 +177,15 @@ def _html_link(url, tag):
     return f"<a href='{url}'>{tag}</a>"
 
 
+def _longest_run(diagnostics: Iterable[xr.Dataset]) -> xr.Dataset:
+    max_length = 0
+    for ds in diagnostics:
+        if ds.sizes["time"] > max_length:
+            longest_ds = ds
+            max_length = ds.sizes["time"]
+    return longest_ds
+
+
 def holomap_filter(time_series, varfilter, run_attr_name="run"):
     hmap = hv.HoloMap(kdims=["variable", "run"])
     for ds in time_series:
@@ -250,7 +259,7 @@ def time_series_plot_with_region_bar(
 
 def _parse_diurnal_component_fields(varname: str):
 
-    # diags key format: diurn_comp_<varname>_diurnal_<sfc_type>
+    # diags key format: diurn_component_<varname>_diurnal_<sfc_type>
     tokens = varname.split("_")
     short_varname = tokens[2]
     surface_type = tokens[-1]
@@ -258,10 +267,26 @@ def _parse_diurnal_component_fields(varname: str):
     return short_varname, surface_type
 
 
+def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
+    """Back out verification timeseries from prognostic run value and bias"""
+    verif_diagnostics = {}
+    verif_attrs = {"run": "verification", "baseline": True}
+    mean_bias_pairs = {"spatial_mean": "mean_bias", "diurn_component": "diurn_bias"}
+    for mean_filter, bias_filter in mean_bias_pairs.items():
+        mean_vars = [var for var in ds if mean_filter in var]
+        for var in mean_vars:
+            matching_bias_var = var.replace(mean_filter, bias_filter)
+            if matching_bias_var in ds:
+                # verification = prognostic - bias
+                verif_diagnostics[var] = ds[var] - ds[matching_bias_var]
+                verif_diagnostics[var].attrs = ds[var].attrs
+    return xr.Dataset(verif_diagnostics, attrs=verif_attrs)
+
+
 def diurnal_component_plot(
     time_series: Iterable[xr.Dataset],
     run_attr_name="run",
-    diurnal_component_name="diurn_comp",
+    diurnal_component_name="diurn_component",
 ) -> HVPlot:
 
     p = hv.Cycle("Colorblind")
@@ -300,17 +325,8 @@ def rms_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
 
 
 @diag_plot_manager.register
-def global_avg_dycore_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot_with_region_bar(
-        time_series, varfilter="spatial_mean_dycore"
-    )
-
-
-@diag_plot_manager.register
-def global_avg_physics_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot_with_region_bar(
-        time_series, varfilter="spatial_mean_physics"
-    )
+def spatial_mean_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
+    return time_series_plot_with_region_bar(time_series, varfilter="spatial_mean")
 
 
 @diag_plot_manager.register
@@ -383,6 +399,11 @@ def main():
     ]
     diagnostics = [convert_time_index_to_datetime(ds, "time") for ds in diagnostics]
 
+    # hack to add verification data from longest set of diagnostics as new run
+    # TODO: generate separate diags.nc file for verification data and load that in here
+    longest_run_ds = _longest_run(diagnostics)
+    diagnostics.append(_get_verification_diagnostics(longest_run_ds))
+
     # load metrics
     nested_metrics = load_metrics(bucket, rundirs)
     metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
@@ -395,11 +416,18 @@ def main():
 
     # get metadata
     run_urls = {key: ds.attrs["url"] for key, ds in diags.items()}
+    verification_datasets = [ds.attrs["verification"] for ds in diags.values()]
+    if any([verification_datasets[0] != item for item in verification_datasets]):
+        raise ValueError(
+            "Report cannot be generated with diagnostics computed against "
+            "different verification datasets."
+        )
+    verification_label = {"verification dataset": verification_datasets[0]}
     movie_links = get_movie_links(bucket, rundirs, fs)
 
     html = create_html(
         title="Prognostic run report",
-        metadata={**run_urls, **movie_links},
+        metadata={**verification_label, **run_urls, **movie_links},
         sections=sections,
         html_header=get_html_header(),
     )

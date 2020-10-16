@@ -3,7 +3,7 @@ import logging
 import warnings
 import os
 import xarray as xr
-from typing import List, Iterable, Mapping, Set
+from typing import List, Iterable, Mapping, Set, Sequence
 
 import fsspec
 import vcm
@@ -209,11 +209,14 @@ def _get_coarsening_args(
     return grid_entries[input_res], coarsening_factor
 
 
-def load_dycore(url: str, catalog: intake.Catalog) -> DiagArg:
+def load_dycore(
+    url: str, verification_entries: Sequence[str], catalog: intake.Catalog
+) -> DiagArg:
     """Open data required for dycore plots.
 
     Args:
         url: path to prognostic run directory
+        verification_entries: catalog entries for verification dycore data
         catalog: Intake catalog of available data sources
 
     Returns:
@@ -226,10 +229,12 @@ def load_dycore(url: str, catalog: intake.Catalog) -> DiagArg:
     # open grid
     logger.info("Opening Grid Spec")
     grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
+    ls_mask = standardize_gfsphysics_diagnostics(catalog["landseamask/c48"].to_dask())
+    grid_c48 = xr.merge([grid_c48, ls_mask])
 
     # open verification
     logger.info("Opening verification data")
-    verification_c48 = load_verification(["40day_c48_atmos_8xdaily_may2020"], catalog)
+    verification_c48 = load_verification(verification_entries, catalog)
 
     # open prognostic run data
     path = os.path.join(url, "atmos_dt_atmos.zarr")
@@ -242,28 +247,31 @@ def load_dycore(url: str, catalog: intake.Catalog) -> DiagArg:
     return ds, verification_c48, grid_c48
 
 
-def load_physics(url: str, catalog: intake.Catalog) -> DiagArg:
+def load_physics(
+    url: str, verification_entries: Sequence[str], catalog: intake.Catalog
+) -> DiagArg:
     """Open data required for physics plots.
 
-        Args:
-            url: path to prognostic run directory
-            catalog: Intake catalog of available data sources
+    Args:
+        url: path to prognostic run directory
+        verification_entries: catalog entries for verification physics data
+        catalog: Intake catalog of available data sources
 
-        Returns:
-            tuple of prognostic run data, verification data and grid variables all at
-            coarsened resolution. Prognostic and verification data contain variables
-            output by the physics routines.
-        """
+    Returns:
+        tuple of prognostic run data, verification data and grid variables all at
+        coarsened resolution. Prognostic and verification data contain variables
+        output by the physics routines.
+    """
     logger.info(f"Processing physics data from run directory at {url}")
 
     # open grid
     logger.info("Opening Grid Spec")
     grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
+    ls_mask = standardize_gfsphysics_diagnostics(catalog["landseamask/c48"].to_dask())
+    grid_c48 = xr.merge([grid_c48, ls_mask])
 
     # open verification
-    verification_c48 = load_verification(
-        ["40day_c48_gfsphysics_15min_may2020"], catalog
-    )
+    verification_c48 = load_verification(verification_entries, catalog)
     verification_c48 = add_derived.physics_variables(verification_c48)
 
     # open prognostic run data
@@ -273,9 +281,5 @@ def load_physics(url: str, catalog: intake.Catalog) -> DiagArg:
     area = catalog[input_grid].to_dask()["area"]
     prognostic_output = _coarsen(prognostic_output, area, coarsening_factor)
     prognostic_output = add_derived.physics_variables(prognostic_output)
-
-    # Add mask information if not present
-    if MASK_VARNAME in prognostic_output and MASK_VARNAME not in verification_c48:
-        verification_c48[MASK_VARNAME] = prognostic_output[MASK_VARNAME].copy()
 
     return prognostic_output, verification_c48, grid_c48
