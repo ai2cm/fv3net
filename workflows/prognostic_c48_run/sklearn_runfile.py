@@ -118,15 +118,14 @@ def predict(model: runtime.RenamingAdapter, state: State, true_tends) -> State:
     """Given ML model and state, return tendency prediction."""
     ds = xr.Dataset(state)  # type: ignore
     output = model.predict_columnwise(ds, feature_dim="z")
-    a = xr.Dataset(true_tends)
-
-    threshold_tendency = 0.01 / 86400  # K/day
-    active = (
-        (a.dQ1 ** 2 + (2.51e6 / 1004 * a.dQ2) ** 2) > threshold_tendency ** 2
-    ).any("z")
-    output = output.where(active, 0.0)
-    percent_active = (active.sum() / active.count()).item()
-    logging.info(json.dumps({"percent_active_ml": 100 * percent_active}))
+    # a = xr.Dataset(true_tends)
+    # threshold_tendency = 0.01 / 86400  # K/day
+    # active = (
+    #     (a.dQ1 ** 2 + (2.51e6 / 1004 * a.dQ2) ** 2) > threshold_tendency ** 2
+    # ).any("z")
+    # output = output.where(active, 0.0)
+    # percent_active = (active.sum() / active.count()).item()
+    # logging.info(json.dumps({"percent_active_ml": 100 * percent_active}))
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
