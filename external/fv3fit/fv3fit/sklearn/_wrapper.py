@@ -29,9 +29,7 @@ class RegressorEnsemble:
     """
 
     def __init__(
-        self,
-        base_regressor=None,
-        regressors: Sequence[sklearn.base.BaseEstimator] = None,
+        self, base_regressor, regressors: Sequence[sklearn.base.BaseEstimator] = None,
     ) -> None:
         self.base_regressor = base_regressor
         self.regressors = regressors or []
@@ -73,15 +71,23 @@ class RegressorEnsemble:
         return np.mean(predictions, axis=0)
 
     def dumps(self) -> bytes:
+        batch_regressor_components = {
+            "regressors": self.regressors,
+            "base_regressor": self.base_regressor,
+        }
         f = io.BytesIO()
-        joblib.dump(self.regressors, f)
+        joblib.dump(batch_regressor_components, f)
         return f.getvalue()
 
     @classmethod
     def loads(cls, b: bytes) -> "RegressorEnsemble":
         f = io.BytesIO(b)
-        regressors: Sequence[sklearn.base.BaseEstimator] = joblib.load(f)
-        obj = cls(regressors=regressors)
+        batch_regressor_components = joblib.load(f)
+        regressors: Sequence[sklearn.base.BaseEstimator] = batch_regressor_components[
+            "regressors"
+        ]
+        base_regressor = batch_regressor_components["base_regressor"]
+        obj = cls(base_regressor=base_regressor, regressors=regressors)
         return obj
 
 
