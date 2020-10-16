@@ -17,7 +17,7 @@ GCR_IMAGE = us.gcr.io/vcm-ml/fv3net
 GCR_BASE  = us.gcr.io/vcm-ml
 FV3NET_IMAGE = $(GCR_BASE)/fv3net
 PROGNOSTIC_RUN_IMAGE = $(GCR_BASE)/prognostic_run
-CACHE_TAG =latest
+CACHE_TAG =1bea47d2563d71f7ca54d46e71e176f2f44e7701
 
 IMAGES = fv3net fv3fit post_process_run prognostic_run
 
