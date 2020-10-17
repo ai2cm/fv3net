@@ -52,10 +52,7 @@ def ml_settings(model_type, model_url):
         elif model_type == "keras":
             return keras_overlay(model_url)
         else:
-            raise ValueError(
-                "Available model types are 'scikit_learn' and 'keras'; received type:"
-                f" {model_type}."
-            )
+            return {}
 
 
 def sklearn_overlay(model_url, sklearn_filename="sklearn.yaml"):
