@@ -1,7 +1,7 @@
 import yaml
 import dataclasses
 import os
-from typing import Iterable, Optional, Mapping
+from typing import Iterable, Optional, Mapping, Union
 import vcm
 
 
@@ -24,6 +24,7 @@ class ModelTrainingConfig:
     scaler_type: str = "standard"
     scaler_kwargs: Mapping = dataclasses.field(default_factory=dict)
     additional_variables: Optional[Iterable[str]] = None
+    random_seed: Union[float, int] = 0
 
     def __post_init__(self):
         self.additional_variables = self.additional_variables or []

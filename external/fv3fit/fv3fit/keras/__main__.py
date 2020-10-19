@@ -2,11 +2,14 @@ import argparse
 import os
 import yaml
 import logging
+import numpy as np
 import sys
+import random
 from . import get_model
 from .. import _shared as shared
 import loaders
 import tensorflow as tf
+from typing import Union
 
 
 handler = logging.StreamHandler(sys.stdout)
@@ -37,6 +40,14 @@ def _get_optimizer(hyperparameters: dict = None):
     else:
         optimizer = None
     return optimizer
+
+
+def _set_random_seed(seed: Union[float, int] = 0):
+    # https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    np.random.seed(seed + 1)
+    random.seed(seed + 2)
+    tf.random.set_seed(seed + 3)
 
 
 def parse_args():
@@ -76,7 +87,7 @@ if __name__ == "__main__":
     shared.save_config_output(args.output_data_path, train_config)
 
     logging.basicConfig(level=logging.INFO)
-
+    _set_random_seed(train_config.random_seed)
     optimizer = _get_optimizer(train_config.hyperparameters)
     fit_kwargs = train_config.hyperparameters.pop("fit_kwargs", {})
     model = get_model(

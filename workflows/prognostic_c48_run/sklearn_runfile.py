@@ -1,6 +1,7 @@
 import cftime
 import json
 import logging
+import copy
 from typing import (
     Any,
     Hashable,
@@ -136,9 +137,31 @@ def predict(model: runtime.RenamingAdapter, state: State) -> State:
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
+def limit_sphum_tendency(state: State, tendency: State, dt: float):
+    delta = tendency["dQ2"] * dt
+    tendency_updated = copy.copy(tendency)
+    tendency_updated["dQ2"] = xr.where(
+        state[SPHUM] + delta > 0, tendency["dQ2"], -state[SPHUM] / dt,  # type: ignore
+    )
+    log_updated_tendencies(tendency, tendency_updated)
+    return tendency_updated
+
+
+def log_updated_tendencies(tendency: State, tendency_updated: State):
+    rank_updated_points = xr.where(tendency["dQ2"] != tendency_updated["dQ2"], 1, 0)
+    updated_points = comm.reduce(rank_updated_points, root=0)
+    if comm.rank == 0:
+        level_updates = {
+            i: int(value)
+            for i, value in enumerate(updated_points.sum(["x", "y"]).values)
+        }
+        logging.info(f"specific_humidity_limiter_updates_per_level: {level_updates}")
+
+
 def apply(state: State, tendency: State, dt: float) -> State:
     """Given state and tendency prediction, return updated state.
     Returned state only includes variables updated by ML model."""
+
     with xr.set_options(keep_attrs=True):
         updated = {}
         for name in tendency:
@@ -254,6 +277,12 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._log_debug("Computing RF updated variables")
         tendency = predict(self._model, state)
         tendency = {k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]}
+
+        self._log_debug(
+            "Correcting ML tendencies that would predict negative specific humidity"
+        )
+        tendency = limit_sphum_tendency(state, tendency, dt=self._timestep)
+
         if self._do_only_diagnostic_ml:
             updated_state: State = {}
         else:
