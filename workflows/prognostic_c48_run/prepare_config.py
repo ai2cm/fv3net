@@ -46,13 +46,14 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
 
 def ml_settings(model_type, model_url):
-    if model_url:
-        if model_type == "scikit_learn":
-            return sklearn_overlay(model_url)
-        elif model_type == "keras":
-            return keras_overlay(model_url)
-        else:
-            return {}
+    if not model_url:
+        return {}
+    elif model_type == "scikit_learn":
+        return sklearn_overlay(model_url)
+    elif model_type == "keras":
+        return keras_overlay(model_url)
+    else:
+        return {}
 
 
 def sklearn_overlay(model_url, sklearn_filename="sklearn.yaml"):
@@ -92,9 +93,9 @@ def prepare_config(
     user_config,
     ic_timestep,
     initial_condition_url,
-    diagnostic_ml,
-    model_url,
-    nudge_to_observations,
+    diagnostic_ml=None,
+    model_url=None,
+    nudge_to_observations=False,
 ) -> dict:
     # Get model config with prognostic run updates
 
