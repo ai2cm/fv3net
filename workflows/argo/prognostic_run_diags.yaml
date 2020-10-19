@@ -27,8 +27,10 @@ spec:
           parameters:
             - name: run
               value: "{{item.url}}"
-            - name: output
-              value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}"
+            - name: output-bucket
+              value: gs://vcm-ml-public
+            - name: output-path
+              value: argo/{{workflow.name}}/{{item.name}}
             - name: flags
               value: "{{workflow.parameters.flags}}"
       - name: movie-step
@@ -57,18 +59,14 @@ spec:
       command:
       - python
       - generate_report.py
-      - $(INPUT)
-      - $(OUTPUT)
+      - gs://vcm-ml-public/argo/{{workflow.name}}
+      - gs://vcm-ml-public/argo/{{workflow.name}}/index.html
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS 
         value: /secret/gcp-credentials/key.json
       - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
         value: /secret/gcp-credentials/key.json
-      - name: OUTPUT
-        value: "gs://vcm-ml-public/argo/{{workflow.name}}/index.html"
-      - name: INPUT
-        value: "gs://vcm-ml-public/argo/{{workflow.name}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
@@ -83,26 +81,45 @@ spec:
     inputs:
       parameters:
       - name: run
-      - name: output
+      - name: output-bucket
+        value: gs://vcm-ml-public
+      - name: output-path
       - name: image
         value: '{{workflow.parameters.docker-image}}'
       - name: flags
         value: " "
+    outputs:
+      artifacts:
+      - name: run-diagnostics
+        path: /tmp/diags.nc
+        gcs:
+          bucket: "{{inputs.parameters.output-bucket}}"
+          key: "{{inputs.parameters.output-path}}/diags.nc"
+          archive: none
+      - name: run-metrics
+        path: /tmp/metrics.json
+        gcs:
+          bucket: "{{inputs.parameters.output-bucket}}"
+          key: "{{inputs.parameters.output-path}}/metrics.json"
+          archive: none
     tolerations:
     - key: "dedicated"
       operator: "Equal"
       value: "climate-sim-pool"
       effect: "NoSchedule"
+    memoize:
+      key: "{{inputs.parameters.run} {{inputs.parameters.image}}"
+      cache:
+        configMap:
+          name: prognostic-diags-cache
     container:
       image: '{{inputs.parameters.image}}'
       command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - | 
         python save_prognostic_run_diags.py {{inputs.parameters.flags}} \
-          {{inputs.parameters.run}} diags.nc
-        python metrics.py diags.nc > metrics.json
-        gsutil cp diags.nc {{inputs.parameters.output}}/diags.nc
-        gsutil cp metrics.json {{inputs.parameters.output}}/metrics.json
+          {{inputs.parameters.run}} /tmp/diags.nc
+        python metrics.py /tmp/diags.nc > /tmp/metrics.json
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
