@@ -7,6 +7,7 @@ spec:
     parameters:
     - name: runs
     - name: docker-image
+      value: us.gcr.io/vcm-ml/fv3net:839e86df984bc8b9d482d3f68e786c4fdc9baca3
     - name: make-movies
       value: "false"
     - name: flags

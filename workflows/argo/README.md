@@ -153,12 +153,12 @@ an appropriate `training-config` string.
 The `prognostic-run-diags` workflow template will generate reports for
 prognostic runs. See this [example][1].
 
-| Parameter    | Description                                                  |
-|--------------|--------------------------------------------------------------|
-| runs         | A json-encoded list of {"name": ..., "url": ...} items       |
-| docker-image | The docker image to use                                      |
-| make-movies  | (optional) whether to generate movies. Defaults to false     |
-| flags        | (optional) flags to pass to save_prognostic_diags.py script. |
+| Parameter    | Description                                                                                                      |
+|--------------|------------------------------------------------------------------------------------------------------------------|
+| runs         | A json-encoded list of {"name": ..., "url": ...} items                                                           |
+| docker-image | (optional) the docker image to use. Defaults to us.gcr.io/vcm-ml/fv3net:839e86df984bc8b9d482d3f68e786c4fdc9baca3 |
+| make-movies  | (optional) whether to generate movies. Defaults to false                                                         |
+| flags        | (optional) flags to pass to save_prognostic_diags.py script.                                                     |
 
 The outputs will be stored at the directory
 `gs://vcm-ml-public/argo/<workflow name>`, where `<workflow name>` is NOT the
