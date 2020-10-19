@@ -24,9 +24,17 @@ nudging:
     x_wind: 3
     y_wind: 3
     pressure_thickness_of_atmospheric_layer: 3
+  initial_time: "20160801.001500"
+  frequency_seconds: 900
 namelist: {}
 ```
 
+This runfile supports nudging towards a dataset with a different sampling
+frequency than the model time step. The available nudging times should start
+with `initial_time` and appear at a regular frequency of `frequency_seconds`
+thereafter. These options are optional, if not provided the nudging data will
+be assumed to contain every time. The reference state will be linearly
+interpolated between the available time samples.
 
 ### Local Development
 
