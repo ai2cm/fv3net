@@ -144,8 +144,8 @@ if __name__ == "__main__":
             prepare_config(
                 user_config,
                 args.ic_timestep,
-                args.diagnostic_ml,
                 args.initial_condition_url,
+                args.diagnostic_ml,
                 args.model_url,
                 args.nudge_to_observations,
             )
