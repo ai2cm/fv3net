@@ -29,7 +29,7 @@ spec:
             - name: run
               value: "{{item.url}}"
             - name: output-bucket
-              value: gs://vcm-ml-public
+              value: vcm-ml-public
             - name: output-path
               value: argo/{{workflow.name}}/{{item.name}}
             - name: flags
@@ -83,7 +83,7 @@ spec:
       parameters:
       - name: run
       - name: output-bucket
-        value: gs://vcm-ml-public
+        value: vcm-ml-public
       - name: output-path
       - name: image
         value: '{{workflow.parameters.docker-image}}'
@@ -96,13 +96,15 @@ spec:
         gcs:
           bucket: "{{inputs.parameters.output-bucket}}"
           key: "{{inputs.parameters.output-path}}/diags.nc"
-          archive: none
+        archive:
+          none: {}
       - name: run-metrics
         path: /tmp/metrics.json
         gcs:
           bucket: "{{inputs.parameters.output-bucket}}"
           key: "{{inputs.parameters.output-path}}/metrics.json"
-          archive: none
+        archive:
+          none: {}
     tolerations:
     - key: "dedicated"
       operator: "Equal"
