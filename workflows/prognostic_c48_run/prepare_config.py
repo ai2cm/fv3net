@@ -88,16 +88,21 @@ def diagnostics_overlay(diagnostic_ml):
     }
 
 
-def prepare_config(args):
+def prepare_config(
+    user_config,
+    ic_timestep,
+    initial_condition_url,
+    diagnostic_ml,
+    model_url,
+    nudge_to_observations,
+) -> dict:
     # Get model config with prognostic run updates
-    with open(args.prog_config_yml, "r") as f:
-        user_config = yaml.safe_load(f)
 
     model_type = user_config.get("scikit_learn", {}).get("model_type", "scikit_learn")
 
     # get timing information
     duration = fv3config.get_run_duration(user_config)
-    current_date = vcm.parse_current_date_from_str(args.ic_timestep)
+    current_date = vcm.parse_current_date_from_str(ic_timestep)
 
     # To simplify the configuration flow, updates should be implemented as
     # overlays (i.e. diffs) requiring only a small number of inputs. In
@@ -105,15 +110,13 @@ def prepare_config(args):
     # dictionary.
     overlays = [
         fv3kube.get_base_fv3config(user_config.get("base_version")),
-        fv3kube.c48_initial_conditions_overlay(
-            args.initial_condition_url, args.ic_timestep
-        ),
-        diagnostics_overlay(args.diagnostic_ml),
-        ml_settings(model_type, args.model_url),
+        fv3kube.c48_initial_conditions_overlay(initial_condition_url, ic_timestep),
+        diagnostics_overlay(diagnostic_ml),
+        ml_settings(model_type, model_url),
         user_config,
     ]
 
-    if args.nudge_to_observations:
+    if nudge_to_observations:
         overlays.append(
             fv3kube.enable_nudge_to_observations(
                 duration,
@@ -123,8 +126,7 @@ def prepare_config(args):
             )
         )
 
-    config = fv3kube.merge_fv3config_overlays(*overlays)
-    print(yaml.dump(config))
+    return fv3kube.merge_fv3config_overlays(*overlays)
 
 
 if __name__ == "__main__":
@@ -132,4 +134,19 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     parser = _create_arg_parser()
     args = parser.parse_args()
-    prepare_config(args)
+
+    with open(args.prog_config_yml, "r") as f:
+        user_config = yaml.safe_load(f)
+
+    print(
+        yaml.safe_dump(
+            prepare_config(
+                user_config,
+                args.ic_timestep,
+                args.diagnostic_ml,
+                args.initial_condition_url,
+                args.model_url,
+                args.nudge_to_observations,
+            )
+        )
+    )
