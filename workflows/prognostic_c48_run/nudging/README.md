@@ -24,8 +24,8 @@ nudging:
     x_wind: 3
     y_wind: 3
     pressure_thickness_of_atmospheric_layer: 3
-  initial_time: "20160801.001500"
-  frequency_seconds: 900
+  reference_initial_time: "20160801.001500"
+  reference_frequency_seconds: 900
 namelist: {}
 ```
 

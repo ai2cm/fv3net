@@ -105,13 +105,13 @@ def _get_reference_state(time, reference_dir, communicator, only_names):
 
 
 def average_states(state_0, state_1, weight: float) -> fv3gfs.util.Quantity:
-    common_keys = set(state_1) & set(state_2)
+    common_keys = set(state_0) & set(state_1)
     out = {}
     for key in common_keys:
         if isinstance(state_1[key], fv3gfs.util.Quantity):
-            array = state_1[key].view[:] * weight + (1 - weight) * state_2[key].view[:]
+            array = state_0[key].view[:] * weight + (1 - weight) * state_1[key].view[:]
             out[key] = fv3gfs.util.Quantity(
-                array, dims=state_1[key].dims, units=state_1[key].units
+                array, dims=state_0[key].dims, units=state_0[key].units
             )
     return out
 
@@ -353,12 +353,14 @@ if __name__ == "__main__":
         only_names=store_names,
     )
 
-    initial_time_label = config["nudging"].get("initial_time")
+    initial_time_label = config["nudging"].get("reference_initial_time")
     if initial_time_label is not None:
         get_reference_state = time_interpolate_func(
             get_reference_state,
             initial_time=label_to_time(initial_time_label),
-            frequency=timedelta(seconds=config["nudging"]["frequency_seconds"]),
+            frequency=timedelta(
+                seconds=config["nudging"]["reference_frequency_seconds"]
+            ),
         )
 
     wrapper.initialize()
