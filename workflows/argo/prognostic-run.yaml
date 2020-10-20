@@ -83,9 +83,9 @@ spec:
         artifacts:
           - {name: fv3config, path: /tmp/fv3config.yaml}
           - name: runfile
-            path: /home/jovyan/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
+            path: /runfiles/sklearn_runfile.py
       container:
-        image: us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}
+        image: us.gcr.io/vcm-ml/fv3kube:{{inputs.parameters.image-tag}}
         command: ["bash", "-c", "-x", "-e"]
         workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run
         args:
@@ -94,7 +94,7 @@ spec:
             {{inputs.parameters.config}}
             EOF
 
-            python prepare_config.py \
+            prepare_config_prognostic_run \
               --model_url {{inputs.parameters.trained-ml}} \
               --prog_config_yml config.yaml \
               {{inputs.parameters.reference-restarts}} \

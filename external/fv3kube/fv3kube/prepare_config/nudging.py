@@ -5,7 +5,18 @@ import yaml
 import argparse
 
 import fv3kube
-import vcm
+
+DEFAULT_CHUNKS = {
+    "before_dynamics.zarr": {"time": 1},
+    "after_dynamics.zarr": {"time": 1},
+    "after_physics.zarr": {"time": 1},
+    "after_nudging.zarr": {"time": 1},
+    "reference.zarr": {"time": 1},
+    "nudging_tendencies.zarr": {"time": 1},
+    "atmos_output.zarr": {"time": 24},
+    "physics_output.zarr": {"time": 24},
+    "physics_tendency_components.zarr": {"time": 1},
+}
 
 
 def parse_args():
@@ -37,6 +48,10 @@ def main():
 
     reference_dir = config["nudging"]["restarts_path"]
     time = datetime(*config["namelist"]["coupler_nml"]["current_date"])
-    label = vcm.encode_time(time)
+    label = fv3kube.time.encode_time(time)
     config = fv3kube.get_full_config(config, reference_dir, label)
     print(yaml.dump(config))
+
+
+def default_chunks():
+    print(yaml.safe_dump(DEFAULT_CHUNKS))

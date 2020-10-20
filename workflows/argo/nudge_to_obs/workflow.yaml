@@ -8,7 +8,7 @@ spec:
       - name: nudging-config
       - name: output-url
       - name: fv3gfs-image
-      - name: fv3net-image
+      - name: fv3kube-image
       - name: post-process-image
       - {name: segment-count, value: "1"}
       - {name: cpu, value: "6"}
@@ -41,8 +41,8 @@ spec:
             template: nudge-to-obs
             arguments:
               parameters:
-              - name: fv3net-image
-                value: "{{workflow.parameters.fv3net-image}}"
+              - name: fv3kube-image
+                value: "{{workflow.parameters.fv3kube-image}}"
               - name: fv3gfs-image
                 value: "{{workflow.parameters.fv3gfs-image}}"
               - name: post-process-image
@@ -63,7 +63,7 @@ spec:
           - name: nudging-config
           - name: output-url
           - name: fv3gfs-image
-          - name: fv3net-image
+          - name: fv3kube-image
           - name: post-process-image
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
@@ -76,7 +76,7 @@ spec:
             name: prepare-config
             arguments:
               parameters:
-                - {name: fv3net-image, value: "{{inputs.parameters.fv3net-image}}"}
+                - {name: fv3kube-image, value: "{{inputs.parameters.fv3kube-image}}"}
                 - {name: nudging-config, value: "{{inputs.parameters.nudging-config}}"}
                 - {name: nudge-url, value: "{{inputs.parameters.nudge-url}}"}
                 - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
@@ -101,7 +101,7 @@ spec:
     - name: prepare-config
       inputs:
         parameters:
-          - {name: fv3net-image}
+          - {name: fv3kube-image}
           - {name: nudging-config}
           - {name: nudge-url}
           - name: segment-count
@@ -109,13 +109,13 @@ spec:
         artifacts:
           - {name: fv3config, path: /tmp/fv3config.yaml}
           - name: runfile
-            path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudge_to_obs/runfile.py
+            path: /runfiles/nudge_to_obs.py
         parameters:
           - name: chunks
             valueFrom:
               path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudge_to_obs/chunks.yaml
       container:
-        image: "{{inputs.parameters.fv3net-image}}"
+        image: "{{inputs.parameters.fv3kube-image}}"
         command: ["/bin/bash", "-c", "-e"]
         workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudge_to_obs
         args:

@@ -9,8 +9,8 @@ spec:
       - name: nudging-config
       - name: output-url
       - name: fv3gfs-image
-      - name: fv3net-image
-        value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
+      - name: fv3kube-image
+        value: us.gcr.io/vcm-ml/fv3kube
       - name: post-process-image
       - name: times
         value: ""
@@ -46,8 +46,8 @@ spec:
             template: nudging
             arguments:
               parameters:
-              - name: fv3net-image
-                value: "{{workflow.parameters.fv3net-image}}"
+              - name: fv3kube-image
+                value: "{{workflow.parameters.fv3kube-image}}"
               - name: fv3gfs-image
                 value: "{{workflow.parameters.fv3gfs-image}}"
               - name: post-process-image
@@ -73,8 +73,8 @@ spec:
           - name: output-url
           - name: fv3gfs-image
             value: us.gcr.io/vcm-ml/fv3gfs-wrapper:46b1d8742ee220ebeb14942e0a0f43da963cc0cf
-          - name: fv3net-image
-            value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
+          - name: fv3kube-image
+            value: us.gcr.io/vcm-ml/fv3kube:latest
           - name: post-process-image
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
@@ -88,7 +88,7 @@ spec:
             name: prepare-config
             arguments:
               parameters:
-                - {name: fv3net-image, value: "{{inputs.parameters.fv3net-image}}"}
+                - {name: image, value: "{{inputs.parameters.fv3kube-image}}"}
                 - {name: nudging-config, value: "{{inputs.parameters.nudging-config}}"}
                 - {name: times, value: "{{inputs.parameters.times}}"}
                 - {name: use-default-chunks, value: "{{inputs.parameters.use-default-chunks}}"}
@@ -114,7 +114,7 @@ spec:
     - name: prepare-config
       inputs:
         parameters:
-          - {name: fv3net-image}
+          - {name: image}
           - {name: nudging-config}
           - {name: times}
           - {name: use-default-chunks}
@@ -124,19 +124,19 @@ spec:
           - name: fv3config
             path: /tmp/fv3config.yaml
           - name: runfile
-            path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_runfile.py
+            path: /runfiles/nudging_runfile.py
         parameters:
           - name: chunks
             valueFrom:
               path: /tmp/chunks.yaml
       container:
-        image: "{{inputs.parameters.fv3net-image}}"
+        image: "{{inputs.parameters.image}}"
         command: ["/bin/bash", "-c"]
         workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging
         args:
         - |
           if [[ "{{inputs.parameters.use-default-chunks}}" == "true" ]]; then
-            cp /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_chunks.yaml /tmp/chunks.yaml
+            echo_nudging_chunks > /tmp/chunks.yaml
           else
             echo "{{inputs.parameters.custom-chunks}}" > /tmp/chunks.yaml
           fi
@@ -149,7 +149,7 @@ spec:
           {{inputs.parameters.nudging-config}}
           EOF
 
-          python prepare_config.py \
+          prepare_config_nudging \
             --timesteps times.json \
             config.yaml \
             > /tmp/fv3config.yaml
