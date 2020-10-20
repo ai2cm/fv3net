@@ -120,8 +120,7 @@ def prepare_config(args):
             fv3kube.enable_nudge_to_observations(
                 duration,
                 current_date,
-                nudge_url="/mnt/input/gfs-analysis-T85",
-                copy_method="link",
+                nudge_url="gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
             )
         )
 
