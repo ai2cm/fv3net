@@ -146,15 +146,15 @@ class TriggeredRegressor(Predictor):
         )
 
     def predict(self, data):
-        X_reg = self.regressor_x_packer(data)
-        X_cl = self.classifier_x_packer(data)
+        X_reg = self.regressor_x_packer.to_array(data)
+        X_cl = self.classifier_x_packer.to_array(data)
 
         labels = self.classifier.predict(X_cl).ravel().astype(bool)
         output = self.regressor.predict(X_reg) * labels.reshape((-1, 1))
         tendencies = np.split(output, len(self.output_variables), axis=1)
         data_vars = {
             key: ([self.sample_dim_name, "z"], tend)
-            for key, tend in zip(self.input_variables, tendencies)
+            for key, tend in zip(self.output_variables, tendencies)
         }
         return xr.Dataset(data_vars, coords=data.coords)
 
