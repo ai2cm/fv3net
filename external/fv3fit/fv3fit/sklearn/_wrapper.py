@@ -168,7 +168,7 @@ class TriggeredRegressor(Predictor):
         return TriggeredRegressor(
             clas["model"],
             reg["model"],
-            sample_dim_name="z",
+            sample_dim_name="sample",
             regressor_input_variables=reg["input_variables"],
             classifier_input_variables=clas["input_variables"],
             output_variables=reg["output_variables"],
