@@ -24,7 +24,7 @@ spec:
         readOnly: true
     - name: gfs-analysis-data
       persistentVolumeClaim:
-        claimName: gfs-analysis-read-only
+        claimName: nudging-only
         readOnly: true
     - name: gcp-key-secret
       secret:
