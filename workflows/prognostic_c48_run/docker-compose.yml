@@ -16,3 +16,15 @@ services:
     volumes:
       - ../../external:/fv3net/external
       - .:/fv3net/workflows/prognostic_c48_run
+
+  fv3net_dev:
+    image: us.gcr.io/vcm-ml/prognostic_run
+    entrypoint: []
+    command: [bash]
+    volumes:
+      - .:/fv3net/workflows/prognostic_c48_run
+      - ../../external/fv3fit:/fv3net/external/fv3fit
+      - ../../external/loaders:/fv3net/external/loaders
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
