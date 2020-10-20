@@ -1,15 +1,16 @@
+import sys
 from datetime import datetime, timedelta
 import os
 import sys
 import yaml
 import argparse
 
-import vcm
 import fv3config
 import fv3kube
+import fv3kube.time
 
 
-def parse_args():
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description="prepare fv3config yaml file for nudge-to-obs run"
     )
@@ -26,7 +27,7 @@ def parse_args():
         help="number of segments for run-fv3gfs. Used for output times.",
         default=1,
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def get_output_times(current_date, duration, interval):
@@ -34,7 +35,7 @@ def get_output_times(current_date, duration, interval):
     output_times = []
     current_time = start_time + interval  # first output is after one interval
     while current_time <= start_time + duration:
-        output_times.append(vcm.encode_time(current_time))
+        output_times.append(fv3kube.time.encode_time(current_time))
         current_time += interval
     return output_times
 
@@ -47,13 +48,9 @@ def test_get_output_times():
     assert get_output_times(current_date, duration, interval) == expected
 
 
-FILE_DIR = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(FILE_DIR)
+def main():
 
-
-if __name__ == "__main__":
-
-    args = parse_args()
+    args = parse_args(sys.argv)
 
     with open(args.config, "r") as f:
         user_config = yaml.safe_load(f)

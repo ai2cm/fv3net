@@ -6,8 +6,6 @@ import logging
 import fv3config
 import fv3kube
 
-import vcm
-
 logger = logging.getLogger(__name__)
 
 
@@ -99,7 +97,8 @@ def prepare_config(args):
 
     # get timing information
     duration = fv3config.get_run_duration(user_config)
-    current_date = vcm.parse_current_date_from_str(args.ic_timestep)
+    time = fv3kube.time.decode_time(args.ic_timestep)
+    current_date = fv3kube.time.time_to_list(time)
 
     # To simplify the configuration flow, updates should be implemented as
     # overlays (i.e. diffs) requiring only a small number of inputs. In
@@ -129,8 +128,7 @@ def prepare_config(args):
     print(yaml.dump(config))
 
 
-if __name__ == "__main__":
-
+def main():
     logging.basicConfig(level=logging.INFO)
     parser = _create_arg_parser()
     args = parser.parse_args()

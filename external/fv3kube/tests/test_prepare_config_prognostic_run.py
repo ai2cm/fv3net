@@ -1,9 +1,13 @@
-import prepare_config
+import os
+import fv3kube.prepare_config.prognostic_run as prepare_config
+
+FILE_DIR = os.path.dirname(os.path.realpath(__file__))
+CONFIG_UPDATE = os.path.join(FILE_DIR, "prognostic_config.yml")
+
 
 MODEL_URL = "gs://ml-model"
 IC_URL = "gs://ic-bucket"
 IC_TIMESTAMP = "20160805.000000"
-CONFIG_UPDATE = "prognostic_config.yml"
 OTHER_FLAGS = ["--nudge-to-observations"]
 
 

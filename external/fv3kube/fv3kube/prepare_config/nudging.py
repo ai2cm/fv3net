@@ -21,11 +21,7 @@ def parse_args():
     return parser.parse_args()
 
 
-FILE_DIR = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(FILE_DIR)
-
-
-if __name__ == "__main__":
+def main():
 
     args = parse_args()
 

@@ -5,6 +5,7 @@ from typing import Any, Sequence, Mapping, Optional
 import fsspec
 import yaml
 import fv3config
+import fv3kube.time
 
 
 # Map for different base fv3config dictionaries
@@ -132,9 +133,8 @@ def get_full_config(
 def c48_initial_conditions_overlay(url: str, timestep: str) -> Mapping:
     """An overlay containing initial conditions namelist settings
     """
-    TIME_FMT = "%Y%m%d.%H%M%S"
-    time = datetime.datetime.strptime(timestep, TIME_FMT)
-    time_list = [time.year, time.month, time.day, time.hour, time.minute, time.second]
+    time = fv3kube.time.decode_time(timestep)
+    time_list = fv3kube.time.time_to_list(time)
 
     overlay = {}
     overlay["initial_conditions"] = update_tiled_asset_names(
