@@ -35,31 +35,3 @@ with `initial_time` and appear at a regular frequency of `frequency_seconds`
 thereafter. These options are optional, if not provided the nudging data will
 be assumed to contain every time. The reference state will be linearly
 interpolated between the available time samples.
-
-### Local Development
-
-Pull the docker image from GCS, if you don't have it already:
-
-    docker pull us.gcr.io/vcm-ml/fv3gfs-python:0.4.1
-
-Run the workflow:
-
-    make run
-
-The output directory should now be present in `output`.
-
-If you want to run the workflow on a different image, you can set `IMG_NAME`
-and `IMG_VERSION` when you call `make`.
-
-
-### Running with argo
-
-
-Argo expects to be passed the contents of nudging configuration as a string.
-This can either be done using `argo submit -f <argo config>` where `<argo
-config>` is similar to `examples/argo_clouds_off.yaml`. Or, you can use the
-`-p` flag of argo submit:
-
-    argo submit -p output-url=gs://path -p nudging-config="$(cat nudging_config.yaml)"
-
-See the `argo.yaml` file for the available workflow parameters.
