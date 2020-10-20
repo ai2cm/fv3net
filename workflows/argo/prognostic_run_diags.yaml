@@ -111,7 +111,7 @@ spec:
       value: "climate-sim-pool"
       effect: "NoSchedule"
     memoize:
-      key: "{{inputs.parameters.run}} {{inputs.parameters.image}}"
+      key: "{{inputs.parameters.run}}-{{inputs.parameters.image}}"
       cache:
         configMap:
           name: prognostic-diags-cache
