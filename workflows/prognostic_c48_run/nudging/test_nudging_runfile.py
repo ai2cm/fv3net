@@ -109,7 +109,8 @@ def test_time_interpolate_func_only_grabs_correct_points():
 
     # will raise error if incorrect times grabbed
     myfunc(initial_time + frequency / 3)
-
+with pytest.raises(AssertionError):
+    myfunc(initial_time + 4 * frequency / 3)
 
 def test_time_to_label():
     time, label = cftime.DatetimeJulian(2015, 1, 20, 6, 30, 0), "20150120.063000"
