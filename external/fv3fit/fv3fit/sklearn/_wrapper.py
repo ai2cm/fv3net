@@ -139,6 +139,12 @@ class TriggeredRegressor(Predictor):
             self.sample_dim_name, self.classifier_input_variables
         )
 
+    @property
+    def input_variables(self):
+        return list(self.regressor_input_variables) + list(
+            self.classifier_input_variables
+        )
+
     def predict(self, data):
         X_reg = self.regressor_x_packer(data)
         X_cl = self.classifier_x_packer(data)
