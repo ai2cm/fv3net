@@ -1,5 +1,5 @@
 import os
-from typing import Sequence, Optional, MutableMapping
+from typing import Sequence, Optional, MutableMapping, Callable
 import functools
 from datetime import datetime, timedelta
 import yaml
@@ -71,24 +71,29 @@ def get_timescales_from_config(config):
     return return_dict
 
 
-def time_to_label(time):
+def time_to_label(time: cftime.DatetimeJulian) -> str:
     return (
         f"{time.year:04d}{time.month:02d}{time.day:02d}."
         f"{time.hour:02d}{time.minute:02d}{time.second:02d}"
     )
 
 
-def test_time_to_label():
-    time, label = cftime.DatetimeJulian(2015, 1, 20, 6, 30, 0), "20150120.063000"
-    result = time_to_label(time)
-    assert result == label
+def label_to_time(time: str) -> cftime.DatetimeJulian:
+    return cftime.DatetimeJulian(
+        int(time[:4]),
+        int(time[4:6]),
+        int(time[6:8]),
+        int(time[9:11]),
+        int(time[11:13]),
+        int(time[13:15]),
+    )
 
 
 def get_restart_directory(reference_dir, label):
     return os.path.join(reference_dir, label)
 
 
-def get_reference_state(time, reference_dir, communicator, only_names):
+def _get_reference_state(time, reference_dir, communicator, only_names):
     label = time_to_label(time)
     dirname = get_restart_directory(reference_dir, label)
     logger.debug(f"Restart dir: {dirname}")
@@ -97,6 +102,49 @@ def get_reference_state(time, reference_dir, communicator, only_names):
     )
     state["time"] = time
     return state
+
+
+def average_states(state_0, state_1, weight: float) -> fv3gfs.util.Quantity:
+    common_keys = set(state_0) & set(state_1)
+    out = {}
+    for key in common_keys:
+        if isinstance(state_1[key], fv3gfs.util.Quantity):
+            array = state_0[key].view[:] * weight + (1 - weight) * state_1[key].view[:]
+            out[key] = fv3gfs.util.Quantity(
+                array, dims=state_0[key].dims, units=state_0[key].units
+            )
+    return out
+
+
+def time_interpolate_func(
+    func: Callable[[cftime.DatetimeJulian], dict],
+    frequency: timedelta,
+    initial_time: cftime.DatetimeJulian,
+) -> Callable[[cftime.DatetimeJulian], dict]:
+    cached_func = functools.lru_cache(maxsize=2)(func)
+
+    @functools.wraps(cached_func)
+    def myfunc(time: cftime.DatetimeJulian) -> dict:
+        quotient = (time - initial_time) // frequency
+        remainder = (time - initial_time) % frequency
+
+        if remainder == timedelta(0):
+            state = cached_func(time)
+        else:
+            begin_time = quotient * frequency + initial_time
+            end_time = begin_time + frequency
+
+            state_0 = cached_func(begin_time)
+            state_1 = cached_func(end_time)
+
+            state = average_states(
+                state_0, state_1, weight=(end_time - time) / frequency
+            )
+
+        state["time"] = time
+        return state
+
+    return myfunc
 
 
 def nudge_to_reference(state, reference, timescales, timestep):
@@ -298,6 +346,23 @@ if __name__ == "__main__":
         times=config["nudging"].get("output_times", None),
     )
 
+    get_reference_state = functools.partial(
+        _get_reference_state,
+        reference_dir=reference_dir,
+        communicator=communicator,
+        only_names=store_names,
+    )
+
+    initial_time_label = config["nudging"].get("reference_initial_time")
+    if initial_time_label is not None:
+        get_reference_state = time_interpolate_func(
+            get_reference_state,
+            initial_time=label_to_time(initial_time_label),
+            frequency=timedelta(
+                seconds=config["nudging"]["reference_frequency_seconds"]
+            ),
+        )
+
     wrapper.initialize()
     for i in range(wrapper.get_step_count()):
         state = wrapper.get_state(names=store_names)
@@ -309,9 +374,7 @@ if __name__ == "__main__":
         # diagnostics as well.
         store_time = time + timestep
 
-        reference = get_reference_state(
-            store_time, reference_dir, communicator, only_names=store_names
-        )
+        reference = get_reference_state(store_time)
 
         set_state_sst_to_reference(state, reference)
 
