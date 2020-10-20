@@ -104,7 +104,7 @@ def _get_reference_state(time, reference_dir, communicator, only_names):
     return state
 
 
-def average_states(state_1, state_2, weight: float) -> fv3gfs.util.Quantity:
+def average_states(state_0, state_1, weight: float) -> fv3gfs.util.Quantity:
     common_keys = set(state_1) & set(state_2)
     out = {}
     for key in common_keys:
