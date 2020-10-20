@@ -1,7 +1,5 @@
 import sys
 from datetime import datetime, timedelta
-import os
-import sys
 import yaml
 import argparse
 

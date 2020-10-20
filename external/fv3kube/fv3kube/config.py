@@ -1,7 +1,6 @@
 import os
-import datetime
 from pathlib import Path
-from typing import Any, Sequence, Mapping, Optional
+from typing import Any, Mapping, Optional, List
 import fsspec
 import yaml
 import fv3config
@@ -82,7 +81,7 @@ def update_tiled_asset_names(
     target_url: str,
     target_filename: str,
     **kwargs,
-) -> Sequence[Mapping[str, str]]:
+) -> List[Mapping[str, str]]:
 
     """
     Update tile-based fv3config assets with new names.  Uses format to update
@@ -145,8 +144,8 @@ def c48_initial_conditions_overlay(url: str, timestep: str) -> Mapping:
         timestep=timestep,
     )
     overlay["initial_conditions"].append(FV_CORE_ASSET)
-    overlay["namelist"] = {}
-    overlay["namelist"]["coupler_nml"] = {
+    overlay["namelist"] = {}  # type: ignore
+    overlay["namelist"]["coupler_nml"] = {  # type: ignore
         "current_date": time_list,
         "force_date_from_namelist": True,
     }

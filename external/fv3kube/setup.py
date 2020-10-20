@@ -10,14 +10,20 @@ setup(
     packages=find_packages(),
     package_dir={"": "."},
     package_data={},
-    install_requires=["fsspec>=0.7.4", "pyyaml>=5.3.0", "kubernetes>=11", "fv3config", "cftime>=1.2.1"],
+    install_requires=[
+        "fsspec>=0.7.4",
+        "pyyaml>=5.3.0",
+        "kubernetes>=11",
+        "fv3config",
+        "cftime>=1.2.1",
+    ],
     dependency_links=["../fv3config"],
     entry_points={
         "console_scripts": [
             "prepare_config_nudging = fv3kube.prepare_config.nudging:main",
             "echo_nudging_chunks = fv3kube.prepare_config.nudging:default_chunks",
             "prepare_config_nudge_to_obs = fv3kube.prepare_config.nudge_to_obs:main",
-            "prepare_config_prognostic_run = fv3kube.prepare_config.prognostic_run:main", # noqa
+            "prepare_config_prognostic_run = fv3kube.prepare_config.prognostic_run:main",  # noqa
         ]
     },
 )
