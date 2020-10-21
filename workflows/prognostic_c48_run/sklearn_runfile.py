@@ -339,7 +339,7 @@ def monitor(name: str, func):
         diagnostics.
     """
 
-    def step(self: MonitoredPhysicsTimeLoop) -> Mapping[str, xr.DataArray]:
+    def step(self) -> Mapping[str, xr.DataArray]:
         area = self._state[AREA]
         before = {key: self._state[key] for key in self._variables + [DELP]}
         mass_before = comm.reduce((area * before[DELP]).sum().item(), root=0)
