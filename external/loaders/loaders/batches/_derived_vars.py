@@ -13,31 +13,59 @@ else:
 
 
 def insert_derived_variables(
+    variables: Sequence[str],
     cos_z_var: str = "cos_zenith_angle",
-    wind_tendency_vars: Sequence[str] = None,
-    catalog_path: str = "catalog.yml"
+    xy_wind_tendency_vars: Sequence[str] = None,
+    latlon_wind_tendency_vars: Sequence[str] = None,
+    catalog_path: str = "catalog.yml",
+    res: str = "c48"
 ):
     """Checks if any of the derived variables are requested in the
     model configuration, and for each derived variable adds partial function
     to inserts them into the final dataset.
 
     Args:
-        cos_z_var ([type], optional): [description]. Defaults to "cos_zenith_angle".
-        wind_tendency_vars ([type], optional): [description]. Defaults to None.
-        catalog_path ([type], optional): [description]. Defaults to "catalog.yml".
+        cos_z_var: Name for the cosine zenith angle derived variable.
+            Defaults to "cos_zenith_angle".
+        xy_wind_tendency_vars: Names of wind tendencies in the x/y basis.
+            Defaults to ["dQu", "dQv"].
+        latlon_wind_tendency_vars: Names to assign to rotated wind tendencies
+            in the lat/lon basis. Defaults to overwriting ["dQu", "dQv"].
+        catalog_path: Path to catalog. Defaults to "catalog.yml"
+            (assumes running from top level of fv3net dir).
 
     Returns:
-        [type]: [description]
+        Composed partial function that inserts the derived variables into the
+        batch dataset.
     """
-    wind_tendency_vars = wind_tendency_vars or ["dQu", "dQv"]
+    xy_wind_tendency_vars = xy_wind_tendency_vars or ["dQu", "dQv"]
+    latlon_wind_tendency_vars = latlon_wind_tendency_vars or ["dQu", "dQv"]
 
     derived_var_partial_funcs = []
-
-
-    grid = _load_grid(catalog_path)
-
-    return functools.partial(_add_cosine_zenith_angle, grid, cos_z_var)
+    
+    if cos_z_var in variables:
+        grid = _load_grid(res, catalog_path)
+        derived_var_partial_funcs.append(
+            functools.partial(_add_cosine_zenith_angle, grid, cos_z_var))
+    if len(set(variables) & set(wind_tendency_vars)) > 0:
+        wind_rotation_matrix = _load_wind_rotation_matrix(res, catalog_path)
+        derived_var_partial_funcs.append(
+            functools.partial(
+                _rotate_wind_tendencies,
+                wind_rotation_matrix,
+                xy_wind_tendency_vars,
+                latlon_wind_tendency_vars)
+        )
     return compose(*derived_var_partial_funcs)
+
+
+def _rotate_wind_tendencies(
+    wind_rotation_matrix: xr.Dataset,
+    xy_wind_tendency_vars: Sequence[str],
+    latlon_wind_tendency_vars: Sequence[str],
+    ds: xr.Dataset
+):
+    
 
 
 def _load_grid(res="c48", catalog_path="catalog.yml"):
