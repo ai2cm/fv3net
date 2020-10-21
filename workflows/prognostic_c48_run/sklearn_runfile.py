@@ -269,9 +269,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             "storage_of_specific_humidity_path_due_to_microphysics": (micro * delp).sum(
                 "z"
             )
-            / 9.81,
-            "evaporation": fv3gfs.wrapper.get_diagnostic_by_name("lhtfl").data_array
-            / 2.51e6,
+            / gravity,
+            "evaporation": self._state["evaporation"],
             "cnvprcp_after_physics": fv3gfs.wrapper.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
@@ -361,8 +360,8 @@ def monitor(name: str, func):
                 after[variable] - before[variable]
             ) / self._timestep
 
-            path_before = (before[variable] * delp_before).sum("z") / 9.81
-            path_after = (after[variable] * delp_after).sum("z") / 9.81
+            path_before = (before[variable] * delp_before).sum("z") / gravity
+            path_after = (after[variable] * delp_after).sum("z") / gravity
 
             diags[f"storage_of_{variable}_path_due_to_{name}"] = (
                 path_before - path_after

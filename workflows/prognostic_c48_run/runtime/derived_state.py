@@ -93,3 +93,14 @@ def total_water(self):
     a = self._getter.get_tracer_metadata()
     water_species = [name for name in a if a[name]["is_water"]]
     return sum(self[name] for name in water_species)
+
+
+@DerivedFV3State.register("latent_heat_flux")
+def latent_heat_flux(self):
+    return self._getter.get_diagnostic_by_name("lhtfl").data_array
+
+
+@DerivedFV3State.register("evaporation")
+def evaporation(self):
+    lhf = self["latent_heat_flux"]
+    return vcm.thermo.latent_heat_flux_to_evaporation(lhf)
