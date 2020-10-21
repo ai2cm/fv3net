@@ -86,3 +86,10 @@ def cos_zenith_angle(self):
         self["latitude"],
         dask="allowed",
     )
+
+
+@DerivedFV3State.register("total_water")
+def total_water(self):
+    a = self._getter.get_tracer_metadata()
+    water_species = [name for name in a if a[name]["is_water"]]
+    return sum(self[name] for name in water_species)

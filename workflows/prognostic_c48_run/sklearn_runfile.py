@@ -37,6 +37,7 @@ Diagnostics = Mapping[str, xr.DataArray]
 
 # following variables are required no matter what feature set is being used
 TEMP = "air_temperature"
+TOTAL_WATER = "total_water"
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
 PRECIP_RATE = "surface_precipitation_rate"
@@ -69,11 +70,11 @@ def log_scalar(time, metrics):
     logging.getLogger("metrics").info(msg)
 
 
-def global_average(comm, array, area):
+def global_average(comm, array: xr.DataArray, area: xr.DataArray) -> float:
     ans = comm.reduce((area * array).sum().item(), root=0)
     area_all = comm.reduce(area.sum().item(), root=0)
     if comm.rank == 0:
-        return ans / area_all
+        return float(ans / area_all)
     else:
         return -1
 
@@ -265,8 +266,12 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         ).data_array
         delp = self._state[DELP]
         return {
-            "micro": (micro * delp).sum("z") / 9.81,
-            "evap": fv3gfs.wrapper.get_diagnostic_by_name("lhtfl").data_array / 2.51e6,
+            "storage_of_specific_humidity_path_due_to_microphysics": (micro * delp).sum(
+                "z"
+            )
+            / 9.81,
+            "evaporation": fv3gfs.wrapper.get_diagnostic_by_name("lhtfl").data_array
+            / 2.51e6,
             "cnvprcp_after_physics": fv3gfs.wrapper.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
@@ -306,7 +311,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._state.update(updated_state)
 
         return {
-            "delp": self._state[DELP],
             "area": self._state[AREA],
             "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
                 "cnvprcp"
@@ -340,61 +344,35 @@ def monitor(name: str, func):
     """
 
     def step(self) -> Mapping[str, xr.DataArray]:
-        area = self._state[AREA]
-        before = {key: self._state[key] for key in self._variables + [DELP]}
-        mass_before = comm.reduce((area * before[DELP]).sum().item(), root=0)
-        water_vapor_path_before = (before[DELP] * self._state[SPHUM]).sum("z")
-        vapor_mass_before = comm.reduce(
-            (area * water_vapor_path_before).sum().item(), root=0
-        )
 
-        def column_integrate(species: str) -> xr.DataArray:
-            return (self._state[DELP] * self._state[species]).sum("z") / 9.81
+        variables = self._variables + [SPHUM, TOTAL_WATER]
 
-        total_water_before = sum(
-            column_integrate(species) for species in self._water_species
-        )
+        delp_before = self._state[DELP]
+        before = {key: self._state[key] for key in variables}
+
         diags = func(self)
 
-        after = {key: self._state[key] for key in self._variables + [DELP]}
-        mass_after = comm.reduce((area * after[DELP]).sum().item(), root=0)
-        water_vapor_path_after = (after[DELP] * self._state[SPHUM]).sum("z")
-        total_water_after = sum(
-            column_integrate(species) for species in self._water_species
-        )
+        delp_after = self._state[DELP]
+        after = {key: self._state[key] for key in variables}
 
-        vapor_mass_after = comm.reduce(
-            (area * water_vapor_path_after).sum().item(), root=0
-        )
-        area_all = comm.reduce(area.sum().item(), root=0)
+        # Compute statistics
+        for variable in self._variables:
+            diags[f"tendency_of_{variable}_due_to_{name}"] = (
+                after[variable] - before[variable]
+            ) / self._timestep
 
-        tendency = {
-            f"tendency_of_{key}_due_to_{name}": (after[key] - before[key])
-            / self._timestep
-            for key in self._variables
-        }
+            path_before = (before[variable] * delp_before).sum("z") / 9.81
+            path_after = (after[variable] * delp_after).sum("z") / 9.81
 
-        if comm.rank == 0:
-            output = {
-                "total_mass_change": {
-                    "value": (mass_after - mass_before) / area_all,
-                    "units": "Pa",
-                },
-                "vapor_mass_change": {
-                    "value": (vapor_mass_after - vapor_mass_before) / area_all,
-                    "units": "Pa",
-                },
-            }
+            diags[f"storage_of_{variable}_path_due_to_{name}"] = (
+                path_before - path_after
+            ) / self._timestep
 
-            logging.info(f"{name}:{json.dumps(output)}")
-        diags[f"water_vapor_tendency_{name}"] = (
-            (water_vapor_path_after - water_vapor_path_before) / 9.81 / self._timestep
-        )
-        diags[f"total_water_tendency_{name}"] = (
-            total_water_after - total_water_before  # type: ignore
-        ) / self._timestep
+        mass_change = (after[DELP] - before[DELP]).sum("z") / self._timestep
+        mass_change.attrs["units"] = "Pa/s"
+        diags[f"storage_of_mass_due_to_{name}"] = mass_change
 
-        return {**diags, **tendency}
+        return diags
 
     return step
 
@@ -413,6 +391,16 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
 
     _step_physics = monitor("fv3_physics", TimeLoop._step_physics)
     _step_python = monitor("python", TimeLoop._step_python)
+
+
+def globally_average_2d_diagnostics(
+    comm, diagnostics: Mapping[str, xr.DataArray]
+) -> Mapping[str, float]:
+    averages = {}
+    for v in diagnostics:
+        if set(diagnostics[v].dims) == {"x", "y"}:
+            averages[v] = global_average(comm, diagnostics[v], diagnostics["area"])
+    return averages
 
 
 if __name__ == "__main__":
@@ -435,23 +423,7 @@ if __name__ == "__main__":
 
     for time, diagnostics in loop:
 
-        averages = {}
-        for v in [
-            "net_moistening",
-            "evap",
-            "micro",
-            "cnvprcp_after_python",
-            "cnvprcp_after_physics",
-            "water_vapor_tendency_fv3_physics",
-            "water_vapor_tendency_python",
-            "total_water_tendency_fv3_physics",
-            "total_water_tendency_python",
-            "total_precip_after_physics",
-        ]:
-            averages[v] = (
-                global_average(comm, diagnostics[v], diagnostics["area"]) * 86400
-            )
-
+        averages = globally_average_2d_diagnostics(comm, diagnostics)
         if comm.rank == 0:
             log_scalar(time, averages)
 
