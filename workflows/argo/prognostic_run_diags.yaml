@@ -28,10 +28,8 @@ spec:
           parameters:
             - name: run
               value: "{{item.url}}"
-            - name: output-bucket
-              value: vcm-ml-public
-            - name: output-path
-              value: argo/{{workflow.name}}/{{item.name}}
+            - name: output
+              value: "gs://vcm-ml-publicargo/{{workflow.name}}/{{item.name}}"
             - name: flags
               value: "{{workflow.parameters.flags}}"
       - name: movie-step
@@ -82,47 +80,99 @@ spec:
     inputs:
       parameters:
       - name: run
-      - name: output-bucket
-        value: vcm-ml-public
-      - name: output-path
+      - name: output
       - name: image
         value: '{{workflow.parameters.docker-image}}'
       - name: flags
         value: " "
+    steps:
+      - - name: check-diags-cache
+          template: check-diags-cache
+          arguments:
+            parameters:
+              - {name: run, value: "{{inputs.parameters.run}}"}
+              - {name: image, value: "{{inputs.parameters.image}}"}
+      - - name: compute-diags
+          template: compute-diags
+          when: "{{steps.check-diags-cache.outputs.parameters.diags-in-cache}} == false"
+          arguments:
+            parameters:
+              - {name: run, value: "{{inputs.parameters.run}}"}
+              - {name: memoize-key, value: "{{steps.check-diags-cache.outputs.parameters.key}}"}
+              - {name: image, value: "{{inputs.parameters.image}}"}
+              - {name: flags, value: "{{inputs.parameters.flags}}"}
+      - - name: copy-diags-to-output
+          template: copy-diags-to-output
+          arguments:
+            parameters:
+              - {name: memoize-key, value: "{{steps.check-diags-cache.outputs.parameters.key}}"}
+              - {name: image, value: "{{inputs.parameters.image}}"}
+              - {name: output, value: "{{inputs.parameters.output}}"}
+  - name: check-diags-cache
+    inputs:
+      parameters:
+        - name: run
+        - name: image
     outputs:
-      artifacts:
-      - name: run-diagnostics
-        path: /tmp/diags.nc
-        gcs:
-          bucket: "{{inputs.parameters.output-bucket}}"
-          key: "{{inputs.parameters.output-path}}/diags.nc"
-        archive:
-          none: {}
-      - name: run-metrics
-        path: /tmp/metrics.json
-        gcs:
-          bucket: "{{inputs.parameters.output-bucket}}"
-          key: "{{inputs.parameters.output-path}}/metrics.json"
-        archive:
-          none: {}
+      parameters:
+        - name: key
+          valueFrom:
+            path: /tmp/memoize-key.txt
+        - name: diags-in-cache
+          valueFrom:
+            path: /tmp/diags-in-cache.txt
+    container:
+      image: "{{inputs.parameters.image}}"
+      command: ["/bin/bash", "-c"]
+      args: 
+      - |
+        echo "{{inputs.parameters.run}}" | cut -c6- | sed 's/\//-/g' > /tmp/memoize-key.txt
+        memoizeKey=$(cat /tmp/memoize-key.txt)
+        gsutil ls gs://vcm-ml-archive/prognostic_run_diags/$memoizeKey > /dev/null
+        if [[ $? -eq 0 ]]; then
+            echo "Prognostic run diagnostics detected in cache for given run."
+            echo "{{inputs.parameters.run}}"
+            echo "true" > /tmp/diags-in-cache.txt
+        else
+            echo "No prognostic run diagnostics detected in cache for given run. Will compute."
+            echo "{{inputs.parameters.run}}"
+            echo "false" > /tmp/diags-in-cache.txt
+        fi
+  - name: copy-diags-to-output
+    inputs:
+      parameters:
+        - name: memoize-key
+        - name: output
+        - name: image
+    container:
+      image: "{{inputs.parameters.image}}"
+      command: ["/bin/bash", "-x", "-e", "-c"]
+      args:
+      - | 
+        gsutil cp gs://vcm-ml-archive/prognostic_run_diags/{{inputs.parameters.memoize-key}}/diags.nc {{inputs.parameters.output}}/diags.nc	
+        gsutil cp gs://vcm-ml-archive/prognostic_run_diags/{{inputs.parameters.memoize-key}}/metrics.json {{inputs.parameters.output}}/metrics.json 
+  - name: compute-diags
+    inputs:
+      parameters:
+        - name: run
+        - name: memoize-key
+        - name: image
+        - name: flags
     tolerations:
     - key: "dedicated"
       operator: "Equal"
       value: "climate-sim-pool"
       effect: "NoSchedule"
-    memoize:
-      key: "{{inputs.parameters.run}}-{{inputs.parameters.image}}"
-      cache:
-        configMap:
-          name: prognostic-diags-cache
     container:
       image: '{{inputs.parameters.image}}'
       command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - | 
         python save_prognostic_run_diags.py {{inputs.parameters.flags}} \
-          {{inputs.parameters.run}} /tmp/diags.nc
-        python metrics.py /tmp/diags.nc > /tmp/metrics.json
+          {{inputs.parameters.run}} diags.nc
+        python metrics.py diags.nc > metrics.json
+        gsutil cp diags.nc gs://vcm-ml-archive/prognostic_run_diags/{{inputs.parameters.memoize-key}}/diags.nc		
+        gsutil cp metrics.json gs://vcm-ml-archive/prognostic_run_diags/{{inputs.parameters.memoize-key}}/metrics.json
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
