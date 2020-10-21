@@ -29,7 +29,7 @@ spec:
             - name: run
               value: "{{item.url}}"
             - name: output
-              value: "gs://vcm-ml-publicargo/{{workflow.name}}/{{item.name}}"
+              value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}"
             - name: flags
               value: "{{workflow.parameters.flags}}"
       - name: movie-step
