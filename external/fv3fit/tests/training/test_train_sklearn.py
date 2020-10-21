@@ -81,7 +81,7 @@ def test_training_integration(
         ]
     )
 
-    fv3fit.sklearn.SklearnWrapper.load(str(tmp_path / "sklearn.yaml"))
+    fv3fit.sklearn.SklearnWrapper.load(str(tmp_path))
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,4 @@
 import numpy as np
-import os
-import yaml
 from sklearn.linear_model import LinearRegression
 import sklearn.dummy
 import unittest.mock
@@ -85,6 +83,7 @@ def test_ensemble_fit(test_regressor_ensemble):
 def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
     model = unittest.mock.Mock()
     model.regressors = []
+    model.base_regressor = unittest.mock.Mock()
     model.predict.return_value = np.array([[1.0]])
     model.dumps.return_value = dumps_returns
 
@@ -110,15 +109,6 @@ def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
 
     output = wrapper.predict(data)
     assert pytest.approx(1 / scale) == output["y"].item()
-
-
-def test_loading_wrong_version_fails(tmpdir):
-    path = str(tmpdir.join("sklearn.yaml"))
-    with open(path, "w") as f:
-        yaml.safe_dump({"version": "not-a-version"}, f)
-
-    with pytest.raises(ValueError):
-        SklearnWrapper.load(path)
 
 
 def test_fitting_SklearnWrapper_does_not_fit_scaler():
@@ -170,14 +160,37 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
     wrapper.fit(data)
 
     # serialize/deserialize
-    path = str(tmpdir.join("file.yaml"))
+    path = str(tmpdir)
     wrapper.dump(path)
-
-    # assert the dumped object is a single file
-    assert os.path.isfile(path)
 
     loaded = wrapper.load(path)
     xr.testing.assert_equal(loaded.predict(data), wrapper.predict(data))
+
+
+def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
+    model = RegressorEnsemble(base_regressor=LinearRegression())
+    wrapper = SklearnWrapper(
+        sample_dim_name="sample",
+        input_variables=["x"],
+        output_variables=["y"],
+        model=model,
+        target_scaler=None,
+    )
+
+    # setup input data
+    dims = ["sample", "z"]
+    data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
+    wrapper.fit(data)
+
+    # serialize/deserialize
+    path = str(tmpdir)
+    wrapper.dump(path)
+
+    # fit loaded model
+    loaded = wrapper.load(path)
+    loaded.fit(data)
+
+    assert len(loaded.model.regressors) == 2
 
 
 def test_TriggeredRegressor_predict():

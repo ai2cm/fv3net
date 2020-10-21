@@ -22,10 +22,6 @@ spec:
       persistentVolumeClaim:
         claimName: nudging-read-only
         readOnly: true
-    - name: gfs-analysis-data
-      persistentVolumeClaim:
-        claimName: gfs-analysis-read-only
-        readOnly: true
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -90,4 +86,4 @@ spec:
           - name: public-report-output
             value: "{{workflow.parameters.root}}/offline-report"
           - {name: work-volume-name, value: work-volume}
-          - {name: external-volume-name, value: gfs-analysis-data}
+          - {name: external-volume-name, value: restart-data}

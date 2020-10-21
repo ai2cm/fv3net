@@ -56,9 +56,8 @@ def ml_settings(model_type, model_url):
         return {}
 
 
-def sklearn_overlay(model_url, sklearn_filename="sklearn.yaml"):
-    model_asset = fv3config.get_asset_dict(model_url, sklearn_filename)
-    return {"patch_files": [model_asset], "scikit_learn": {"model": sklearn_filename}}
+def sklearn_overlay(model_url):
+    return {"scikit_learn": {"model": model_url}}
 
 
 def keras_overlay(model_url, keras_dirname="model_data"):
@@ -122,8 +121,7 @@ def prepare_config(
             fv3kube.enable_nudge_to_observations(
                 duration,
                 current_date,
-                nudge_url="/mnt/input/gfs-analysis-T85",
-                copy_method="link",
+                nudge_url="gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
             )
         )
 
