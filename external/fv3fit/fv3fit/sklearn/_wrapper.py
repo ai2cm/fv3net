@@ -149,7 +149,7 @@ class TriggeredRegressor(Predictor):
         X_reg = self.regressor_x_packer.to_array(data)
         X_cl = self.classifier_x_packer.to_array(data)
 
-        with joblib.parallel_backend('threading', n_jobs=1):
+        with joblib.parallel_backend("threading", n_jobs=1):
             labels = self.classifier.predict(X_cl).ravel().astype(bool)
             output = self.regressor.predict(X_reg) * labels.reshape((-1, 1))
 

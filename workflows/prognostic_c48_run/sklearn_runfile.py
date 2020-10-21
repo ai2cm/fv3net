@@ -1,4 +1,5 @@
 import cftime
+import datetime
 import json
 import logging
 import copy
@@ -46,6 +47,26 @@ REQUIRED_VARIABLES = {TEMP, SPHUM, DELP, PRECIP_RATE, TOTAL_PRECIP}
 cp = 1004
 gravity = 9.81
 m_per_mm = 1 / 1000
+
+
+def setup_metrics_logger():
+    logger = logging.getLogger("metrics")
+    fh = logging.FileHandler("metrics.txt")
+    fh.setLevel(logging.INFO)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    ch.setFormatter(logging.Formatter(fmt="%(levelname)s:%(name)s:%(message)s"))
+
+    logger.addHandler(fh)
+    logger.addHandler(ch)
+
+
+def log_scalar(time, metrics):
+    dt = datetime.datetime(
+        time.year, time.month, time.day, time.hour, time.minute, time.second
+    )
+    msg = json.dumps({"time": dt.isoformat(), **averages})
+    logging.getLogger("metrics").info(msg)
 
 
 def global_average(comm, array, area):
@@ -217,6 +238,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._log_info("Downloading ML Model")
         self._model = open_model(args["scikit_learn"])
         self._log_info("Model Downloaded")
+        self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
     @property
@@ -237,6 +259,11 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         # no diagnostics are computed by default
         return {}
 
+    @property
+    def _water_species(self) -> List[str]:
+        a = self._fv3gfs.get_tracer_metadata()
+        return [name for name in a if a[name]["is_water"]]
+
     def _step_physics(self) -> Diagnostics:
         self._log_debug(f"Physics Step")
         self._fv3gfs.step_physics()
@@ -251,6 +278,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             "cnvprcp_after_physics": fv3gfs.wrapper.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
+            "total_precip_after_physics": self._state[TOTAL_PRECIP],
         }
 
     def _step_python(self) -> Diagnostics:
@@ -325,18 +353,32 @@ def monitor(name: str, func):
         diagnostics.
     """
 
-    def step(self) -> Mapping[str, xr.DataArray]:
+    def step(self: TimeLoop) -> Mapping[str, xr.DataArray]:
         area = self._state[AREA]
         before = {key: self._state[key] for key in self._variables + [DELP]}
         mass_before = comm.reduce((area * before[DELP]).sum().item(), root=0)
+        water_vapor_path_before = (before[DELP] * self._state[SPHUM]).sum("z")
         vapor_mass_before = comm.reduce(
-            (area * before[DELP] * self._state[SPHUM]).sum().item(), root=0
+            (area * water_vapor_path_before).sum().item(), root=0
+        )
+
+        def column_integrate(species: str) -> xr.DataArray:
+            return (self._state[DELP] * self._state[species]).sum("z") / 9.81
+
+        total_water_before = sum(
+            column_integrate(species) for species in self._water_species
         )
         diags = func(self)
+
         after = {key: self._state[key] for key in self._variables + [DELP]}
         mass_after = comm.reduce((area * after[DELP]).sum().item(), root=0)
+        water_vapor_path_after = (after[DELP] * self._state[SPHUM]).sum("z")
+        total_water_after = sum(
+            column_integrate(species) for species in self._water_species
+        )
+
         vapor_mass_after = comm.reduce(
-            (area * after[DELP] * self._state[SPHUM]).sum().item(), root=0
+            (area * water_vapor_path_after).sum().item(), root=0
         )
         area_all = comm.reduce(area.sum().item(), root=0)
 
@@ -359,6 +401,12 @@ def monitor(name: str, func):
             }
 
             logging.info(f"{name}:{json.dumps(output)}")
+        diags[f"water_vapor_tendency_{name}"] = (
+            (water_vapor_path_after - water_vapor_path_before) / 9.81 / self._timestep
+        )
+        diags[f"total_water_tendency_{name}"] = (
+            total_water_after - total_water_before
+        ) / self._timestep
 
         return {**diags, **tendency}
 
@@ -386,6 +434,7 @@ if __name__ == "__main__":
 
     config = runtime.get_config()
     partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(config["namelist"])
+    setup_metrics_logger()
 
     loop = MonitoredPhysicsTimeLoop(
         tendency_variables=config.get("scikit_learn", {}).get(
@@ -407,13 +456,18 @@ if __name__ == "__main__":
             "micro",
             "cnvprcp_after_python",
             "cnvprcp_after_physics",
+            "water_vapor_tendency_fv3_physics",
+            "water_vapor_tendency_python",
+            "total_water_tendency_fv3_physics",
+            "total_water_tendency_python",
+            "total_precip_after_physics",
         ]:
             averages[v] = (
                 global_average(comm, diagnostics[v], diagnostics["area"]) * 86400
             )
 
         if comm.rank == 0:
-            logging.info(json.dumps(averages))
+            log_scalar(time, averages)
 
         for diag_file in diag_files:
             diag_file.observe(time, diagnostics)

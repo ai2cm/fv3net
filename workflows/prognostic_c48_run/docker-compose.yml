@@ -25,6 +25,8 @@ services:
       - .:/fv3net/workflows/prognostic_c48_run
       - ../../external/fv3fit:/fv3net/external/fv3fit
       - ../../external/loaders:/fv3net/external/loaders
+      - ../../external/fv3gfs-fortran:/tmp/fortran-build
+      - ../../external/fv3gfs-wrapper:/fv3net/external/fv3gfs-wrapper
       - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
