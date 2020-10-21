@@ -10,6 +10,23 @@ services:
       args:
         # the tag doesn't matter since we bind-mount over these sources anyways
         FORTRAN_IMAGE: us.gcr.io/vcm-ml/fv3gfs-fortran-fv3net:409d6cb28057dc6b700b3b009855710899194e71
+    image: us.gcr.io/vcm-ml/prognostic_run
+    entrypoint: []
+    command: [ls]
     volumes:
       - ../../external:/fv3net/external
       - .:/fv3net/workflows/prognostic_c48_run
+
+  fv3net_dev:
+    image: us.gcr.io/vcm-ml/prognostic_run:ad102a241fa060338d31ec9b3503b94b82cc16d7
+    entrypoint: []
+    command: [bash]
+    volumes:
+      - .:/fv3net/workflows/prognostic_c48_run
+      - ../../external/fv3fit:/fv3net/external/fv3fit
+      - ../../external/loaders:/fv3net/external/loaders
+      - ../../external/fv3gfs-fortran:/tmp/fortran-build
+      - ../../external/fv3gfs-wrapper:/fv3net/external/fv3gfs-wrapper
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json

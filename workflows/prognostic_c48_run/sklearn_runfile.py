@@ -367,7 +367,7 @@ def monitor(name: str, func):
                 path_before - path_after
             ) / self._timestep
 
-        mass_change = (after[DELP] - before[DELP]).sum("z") / self._timestep
+        mass_change = (delp_after - delp_before).sum("z") / self._timestep
         mass_change.attrs["units"] = "Pa/s"
         diags[f"storage_of_mass_due_to_{name}"] = mass_change
 
