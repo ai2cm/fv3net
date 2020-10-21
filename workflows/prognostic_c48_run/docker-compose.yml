@@ -18,7 +18,7 @@ services:
       - .:/fv3net/workflows/prognostic_c48_run
 
   fv3net_dev:
-    image: us.gcr.io/vcm-ml/prognostic_run
+    image: us.gcr.io/vcm-ml/prognostic_run:ad102a241fa060338d31ec9b3503b94b82cc16d7
     entrypoint: []
     command: [bash]
     volumes:

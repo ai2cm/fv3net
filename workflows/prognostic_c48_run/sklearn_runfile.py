@@ -48,6 +48,15 @@ gravity = 9.81
 m_per_mm = 1 / 1000
 
 
+def global_average(comm, array, area):
+    ans = comm.reduce((area * array).sum().item(), root=0)
+    area_all = comm.reduce(area.sum().item(), root=0)
+    if comm.rank == 0:
+        return ans / area_all
+    else:
+        return -1
+
+
 def compute_diagnostics(state, diags):
 
     net_moistening = (diags["dQ2"] * state[DELP] / gravity).sum("z")
@@ -231,8 +240,18 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
     def _step_physics(self) -> Diagnostics:
         self._log_debug(f"Physics Step")
         self._fv3gfs.step_physics()
-        # no diagnostics are computed by default
-        return {}
+
+        micro = fv3gfs.wrapper.get_diagnostic_by_name(
+            "tendency_of_specific_humidity_due_to_microphysics"
+        ).data_array
+        delp = self._state[DELP]
+        return {
+            "micro": (micro * delp).sum("z") / 9.81,
+            "evap": fv3gfs.wrapper.get_diagnostic_by_name("lhtfl").data_array / 2.51e6,
+            "cnvprcp_after_physics": fv3gfs.wrapper.get_diagnostic_by_name(
+                "cnvprcp"
+            ).data_array,
+        }
 
     def _step_python(self) -> Diagnostics:
 
@@ -271,7 +290,15 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
 
         self._log_debug("Setting Fortran State")
         self._state.update(updated_state)
-        return diagnostics
+
+        return {
+            "delp": self._state[DELP],
+            "area": self._state[AREA],
+            "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
+                "cnvprcp"
+            ).data_array,
+            **diagnostics,
+        }
 
     def __iter__(self):
         for i in range(self._fv3gfs.get_step_count()):
@@ -372,5 +399,21 @@ if __name__ == "__main__":
     )
 
     for time, diagnostics in loop:
+
+        averages = {}
+        for v in [
+            "net_moistening",
+            "evap",
+            "micro",
+            "cnvprcp_after_python",
+            "cnvprcp_after_physics",
+        ]:
+            averages[v] = (
+                global_average(comm, diagnostics[v], diagnostics["area"]) * 86400
+            )
+
+        if comm.rank == 0:
+            logging.info(json.dumps(averages))
+
         for diag_file in diag_files:
             diag_file.observe(time, diagnostics)
