@@ -86,64 +86,52 @@ spec:
       - name: flags
         value: " "
     steps:
-      - - name: check-diags-cache
-          template: check-diags-cache
+      - - name: get-memoize-key
+          template: get-memoize-key
           arguments:
             parameters:
               - {name: run, value: "{{inputs.parameters.run}}"}
-              - {name: image, value: "{{inputs.parameters.image}}"}
       - - name: compute-diags
           template: compute-diags
-          when: "{{steps.check-diags-cache.outputs.parameters.diags-in-cache}} == false"
           arguments:
             parameters:
               - {name: run, value: "{{inputs.parameters.run}}"}
-              - {name: memoize-key, value: "{{steps.check-diags-cache.outputs.parameters.key}}"}
+              - {name: memoize-key, value: "{{steps.get-memoize-key.outputs.parameters.key}}"}
               - {name: image, value: "{{inputs.parameters.image}}"}
               - {name: flags, value: "{{inputs.parameters.flags}}"}
       - - name: copy-diags-to-output
           template: copy-diags-to-output
           arguments:
             parameters:
-              - {name: memoize-key, value: "{{steps.check-diags-cache.outputs.parameters.key}}"}
+              - {name: memoize-key, value: "{{steps.get-memoize-key.outputs.parameters.key}}"}
               - {name: image, value: "{{inputs.parameters.image}}"}
               - {name: output, value: "{{inputs.parameters.output}}"}
-  - name: check-diags-cache
+  - name: get-memoize-key
     inputs:
       parameters:
         - name: run
-        - name: image
     outputs:
       parameters:
         - name: key
           valueFrom:
             path: /tmp/memoize-key.txt
-        - name: diags-in-cache
-          valueFrom:
-            path: /tmp/diags-in-cache.txt
     container:
-      image: "{{inputs.parameters.image}}"
-      command: ["/bin/bash", "-c"]
+      image: alpine:latest
+      command: ["/bin/sh", "-c"]
       args: 
       - |
         echo "{{inputs.parameters.run}}" | cut -c6- | sed 's/\//-/g' > /tmp/memoize-key.txt
-        memoizeKey=$(cat /tmp/memoize-key.txt)
-        gsutil ls gs://vcm-ml-archive/prognostic_run_diags/$memoizeKey > /dev/null
-        if [[ $? -eq 0 ]]; then
-            echo "Prognostic run diagnostics detected in cache for given run."
-            echo "{{inputs.parameters.run}}"
-            echo "true" > /tmp/diags-in-cache.txt
-        else
-            echo "No prognostic run diagnostics detected in cache for given run. Will compute."
-            echo "{{inputs.parameters.run}}"
-            echo "false" > /tmp/diags-in-cache.txt
-        fi
   - name: copy-diags-to-output
     inputs:
       parameters:
         - name: memoize-key
         - name: output
         - name: image
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "climate-sim-pool"
+      effect: "NoSchedule"
     container:
       image: "{{inputs.parameters.image}}"
       command: ["/bin/bash", "-x", "-e", "-c"]
@@ -163,6 +151,11 @@ spec:
       operator: "Equal"
       value: "climate-sim-pool"
       effect: "NoSchedule"
+    memoize:
+      key: "{{inputs.parameters.memoize-key}}"
+      cache:
+        configMap:
+          name: prognostic-diags-cache
     container:
       image: '{{inputs.parameters.image}}'
       command: ["/bin/bash", "-x", "-e", "-c"]
