@@ -339,7 +339,7 @@ def monitor(name: str, func):
         diagnostics.
     """
 
-    def step(self: TimeLoop) -> Mapping[str, xr.DataArray]:
+    def step(self: MonitoredPhysicsTimeLoop) -> Mapping[str, xr.DataArray]:
         area = self._state[AREA]
         before = {key: self._state[key] for key in self._variables + [DELP]}
         mass_before = comm.reduce((area * before[DELP]).sum().item(), root=0)
@@ -391,7 +391,7 @@ def monitor(name: str, func):
             (water_vapor_path_after - water_vapor_path_before) / 9.81 / self._timestep
         )
         diags[f"total_water_tendency_{name}"] = (
-            total_water_after - total_water_before
+            total_water_after - total_water_before  # type: ignore
         ) / self._timestep
 
         return {**diags, **tendency}
