@@ -51,8 +51,8 @@ m_per_mm = 1 / 1000
 
 
 def setup_metrics_logger():
-    logger = logging.getLogger("metrics")
-    fh = logging.FileHandler("metrics.txt")
+    logger = logging.getLogger("statistics")
+    fh = logging.FileHandler("statistics.txt")
     fh.setLevel(logging.INFO)
     ch = logging.StreamHandler()
     ch.setLevel(logging.INFO)
@@ -67,7 +67,7 @@ def log_scalar(time, metrics):
         time.year, time.month, time.day, time.hour, time.minute, time.second
     )
     msg = json.dumps({"time": dt.isoformat(), **averages})
-    logging.getLogger("metrics").info(msg)
+    logging.getLogger("statistics").info(msg)
 
 
 def global_average(comm, array: xr.DataArray, area: xr.DataArray) -> float:
