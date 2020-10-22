@@ -25,3 +25,9 @@
 [submodule "2020-10-12-NN-random-seed-trials/fv3net"]
 	path = 2020-10-12-NN-random-seed-trials/fv3net
 	url = git@github.com:VulcanClimateModeling/fv3net.git
+[submodule "examples/nudge-to-obs-run/fv3net"]
+	path = examples/nudge-to-obs-run/fv3net
+	url = git@github.com:VulcanClimateModeling/fv3net.git
+[submodule "examples/prognostic-run/fv3net"]
+	path = examples/prognostic-run/fv3net
+	
