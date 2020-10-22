@@ -8,6 +8,7 @@ from setuptools import setup, find_packages
 requirements = [
     "fv3fit",
     "vcm",
+    "jsonschema>=3.2"
 ]
 
 test_requirements = ["pytest"]
