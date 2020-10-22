@@ -170,5 +170,5 @@
             "units": "kg/m^2/s"
         }
     },
-    "additionalProperties": true
+    "additionalProperties": false
 }
