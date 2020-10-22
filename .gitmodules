@@ -30,4 +30,4 @@
 	url = git@github.com:VulcanClimateModeling/fv3net.git
 [submodule "examples/prognostic-run/fv3net"]
 	path = examples/prognostic-run/fv3net
-	
+	url = git@github.com:VulcanClimateModeling/fv3net.git
