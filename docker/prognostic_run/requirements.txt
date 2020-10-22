@@ -93,4 +93,3 @@ xgcm
 zarr
 zipp
 jsonschema
-cython
