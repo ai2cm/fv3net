@@ -23,6 +23,6 @@ do
     -p reference-restarts=gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts \
     -p prognostic-run-config="$(< configs/prognostic_config_full.yml)" \
     -p public-report-output=gs://vcm-ml-public/offline_ml_diags/$EXPERIMENT/seed-$i \
-    -p segment-count=9 \
-    --name test-nn-seed-$i
+    -p segment-count=10 \
+    --name nn-seed-$i
 done

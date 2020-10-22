@@ -1,14 +1,14 @@
 [
     {
-        "url": "gs://vcm-ml-scratch/annak/2020-10-09-nn-random-seed/seed-0/prognostic_run",
+        "url": "gs://vcm-ml-experiments/2020-10-09-nn-random-seed/seed-0/prognostic_run",
         "name": "NN-random-seed-0"
     },
     {
-        "url": "gs://vcm-ml-scratch/annak/2020-10-09-nn-random-seed/seed-1/prognostic_run",
+        "url": "gs://vcm-ml-experiments/2020-10-09-nn-random-seed/seed-1/prognostic_run",
         "name": "NN-random-seed-1"
     },
     {
-        "url": "gs://vcm-ml-scratch/annak/2020-10-09-nn-random-seed/seed-2/prognostic_run",
+        "url": "gs://vcm-ml-experiments/2020-10-09-nn-random-seed/seed-2/prognostic_run",
         "name": "NN-random-seed-2"
     },
     {
