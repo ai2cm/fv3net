@@ -41,7 +41,7 @@ spec:
         - name: initial-condition
         - name: prognostic-run-config
         - name: reference-restarts
-        - name: store-true-args
+        - name: flags
           value: " "
         - name: test-times
         - name: public-report-output
@@ -86,12 +86,10 @@ spec:
                 value: "{{inputs.parameters.prognostic-run-config}}"
               - name: reference-restarts
                 value: "{{inputs.parameters.reference-restarts}}"
-              - name: trained-ml
-                value: "{{inputs.parameters.root}}/trained_model"
               - name: output
                 value: "{{inputs.parameters.root}}/prognostic_run"
-              - name: store-true-args
-                value: "{{inputs.parameters.store-true-args}}"
+              - name: flags
+                value: "{{inputs.parameters.flags}} --model_url {{inputs.parameters.root}}/trained_model"
               - name: chunks
                 value: "{{inputs.parameters.chunks}}"
               - name: segment-count
