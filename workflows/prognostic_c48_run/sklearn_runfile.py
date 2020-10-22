@@ -330,8 +330,11 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
 def monitor(name: str, func):
     """Decorator to add tendency monitoring to an update function
 
-    This will add `tendency_of_{variable}_due_to_{name}` to the
-    diagnostics and print mass conservation diagnostics to the logs.
+    This will add the following diagnostics:
+    - `tendency_of_{variable}_due_to_{name}`
+    - `storage_of_{variable}_path_due_to_{name}`. A pressure-integrated version of the
+       above
+    - `storage_of_mass_due_to_{name}`, the total mass tendency in Pa/s.
 
     Args:
         name: the name to tag the tendency diagnostics with
