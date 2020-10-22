@@ -20,6 +20,8 @@ build:
       context: .
       docker: 
         dockerfile: docker/fv3net/Dockerfile
+    - image: us.gcr.io/vcm-ml/post_process_run
+      context: workflows/post_process_run
 deploy:
   kubeContext: docker-desktop
   kubectl:
