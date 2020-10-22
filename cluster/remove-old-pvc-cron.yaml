@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: pvc-delete-cron
 spec:
-  schedule: "27 3/8 * * *"
+  schedule: "27 5/3 * * *"
   successfulJobsHistoryLimit: 8
   startingDeadlineSeconds: 300
   jobTemplate:
@@ -19,7 +19,7 @@ spec:
             args: 
               - |
                 apt-get install -y jq 
-                export HR_THRESHOLD=24
+                export HR_THRESHOLD=1
 
                 # Selects PVCs that have deletion timestamp attribute (i.e., TERMINATING phase)
                 export pvc_to_del=$(kubectl get pvc  -o json | 
