@@ -1,0 +1,32 @@
+apiVersion: skaffold/v2beta8
+kind: Config
+build:
+  local:
+    useBuildkit: true
+    push: false
+  artifacts:
+    - image: us.gcr.io/vcm-ml/prognostic_run
+      context: .
+      docker: 
+        dockerfile: docker/prognostic_run/Dockerfile
+        secret:
+          id: gcp
+          src: /Users/noah/keys/key.json
+    - image: us.gcr.io/vcm-ml/fv3fit
+      context: .
+      docker: 
+        dockerfile: docker/fv3fit/Dockerfile
+    - image: us.gcr.io/vcm-ml/fv3net
+      context: .
+      docker: 
+        dockerfile: docker/fv3net/Dockerfile
+deploy:
+  kubeContext: docker-desktop
+  kubectl:
+    manifests:
+      - job-with-volume.yaml
+# portForward:
+#   - resourceType: deployment
+#     resourceName: leeroy-web
+#     port: 8080
+#     localPort: 9000
