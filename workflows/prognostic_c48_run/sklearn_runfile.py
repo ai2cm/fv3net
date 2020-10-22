@@ -360,11 +360,12 @@ def monitor(name: str, func):
                 after[variable] - before[variable]
             ) / self._timestep
 
+        for variable in variables:
             path_before = (before[variable] * delp_before).sum("z") / gravity
             path_after = (after[variable] * delp_after).sum("z") / gravity
 
             diags[f"storage_of_{variable}_path_due_to_{name}"] = (
-                path_before - path_after
+                path_after - path_before
             ) / self._timestep
 
         mass_change = (delp_after - delp_before).sum("z") / self._timestep
