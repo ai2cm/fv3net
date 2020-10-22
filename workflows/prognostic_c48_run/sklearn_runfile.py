@@ -62,11 +62,11 @@ def setup_metrics_logger():
     logger.addHandler(ch)
 
 
-def log_scalar(time, metrics):
+def log_scalar(time, scalars):
     dt = datetime.datetime(
         time.year, time.month, time.day, time.hour, time.minute, time.second
     )
-    msg = json.dumps({"time": dt.isoformat(), **averages})
+    msg = json.dumps({"time": dt.isoformat(), **scalars})
     logging.getLogger("statistics").info(msg)
 
 
