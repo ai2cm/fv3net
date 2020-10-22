@@ -331,7 +331,7 @@ def open_merged_nudged(
         "air_temperature_tendency_due_to_nudging": "dQ1",
         "specific_humidity_tendency_due_to_nudging": "dQ2",
         "x_wind_tendency_due_to_nudging": "dQx",
-        "y_wind_tendency_due_to_nudging": "dQy"
+        "y_wind_tendency_due_to_nudging": "dQy",
     }
 
     datasets = _get_source_datasets(url, merge_files, consolidated)
@@ -495,7 +495,7 @@ def open_merged_nudge_to_obs(
         "t_dt_nudge": "dQ1",
         "q_dt_nudge": "dQ2",
         "u_dt_nudge": "dQu",
-        "v_dt_nudge": "dQv"
+        "v_dt_nudge": "dQv",
     }
 
     nudging_tendency_variables = nudging_tendency_variables or {

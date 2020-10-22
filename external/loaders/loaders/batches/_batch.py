@@ -34,7 +34,7 @@ def batches_from_geodata(
     xy_wind_tendency_vars: Sequence[str] = None,
     latlon_wind_tendency_vars: Sequence[str] = None,
     catalog_path: str = "catalog.yml",
-    res: str = "c48"
+    res: str = "c48",
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train. The data is assumed to
@@ -68,7 +68,7 @@ def batches_from_geodata(
         xy_wind_tendency_vars,
         latlon_wind_tendency_vars,
         catalog_path,
-        res
+        res,
     )
     return batches
 
@@ -91,8 +91,7 @@ def batches_from_mapper(
     xy_wind_tendency_vars: Sequence[str] = None,
     latlon_wind_tendency_vars: Sequence[str] = None,
     catalog_path: str = "catalog.yml",
-    res: str = "c48"
-    
+    res: str = "c48",
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -132,22 +131,22 @@ def batches_from_mapper(
     )
 
     transform = functools.partial(stack_dropnan_shuffle, random_state)
-    
-    nonderived_vars = nonderived_variable_names(
-        variable_names, cos_z_var, latlon_wind_tendency_vars)
 
-    load_batch = functools.partial(
-        _load_batch, data_mapping, nonderived_vars
+    nonderived_vars = nonderived_variable_names(
+        variable_names, cos_z_var, latlon_wind_tendency_vars
     )
+
+    load_batch = functools.partial(_load_batch, data_mapping, nonderived_vars)
     partial_insert_derived_vars = insert_derived_variables(
         variable_names,
         cos_z_var,
         xy_wind_tendency_vars,
         latlon_wind_tendency_vars,
         catalog_path,
-        res)
+        res,
+    )
     batch_func = compose(transform, partial_insert_derived_vars, load_batch)
-    
+
     seq = FunctionOutputSequence(batch_func, batched_timesteps)
     seq.attrs["times"] = times
 
@@ -166,7 +165,7 @@ def diagnostic_batches_from_geodata(
     xy_wind_tendency_vars: Sequence[str] = None,
     latlon_wind_tendency_vars: Sequence[str] = None,
     catalog_path: str = "catalog.yml",
-    res: str = "c48"
+    res: str = "c48",
 ) -> Sequence[xr.Dataset]:
     """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
     as batches_from_mapper but without transformation and stacking
@@ -202,7 +201,7 @@ def diagnostic_batches_from_geodata(
         xy_wind_tendency_vars,
         latlon_wind_tendency_vars,
         catalog_path,
-        res
+        res,
     )
     return sequence
 
@@ -217,7 +216,7 @@ def diagnostic_batches_from_mapper(
     xy_wind_tendency_vars: Sequence[str] = None,
     latlon_wind_tendency_vars: Sequence[str] = None,
     catalog_path: str = "catalog.yml",
-    res: str = "c48"
+    res: str = "c48",
 ) -> Sequence[xr.Dataset]:
     if timesteps and set(timesteps).issubset(data_mapping.keys()) is False:
         raise ValueError(
@@ -229,20 +228,20 @@ def diagnostic_batches_from_mapper(
     num_times = len(timesteps)
     times = _sample(timesteps, num_times, random_state)
     batched_timesteps = list(partition_all(timesteps_per_batch, times))
-    
-    nonderived_vars = nonderived_variable_names(
-        variable_names, cos_z_var, latlon_wind_tendency_vars)
 
-    load_batch = functools.partial(
-        _load_batch, data_mapping, nonderived_vars
+    nonderived_vars = nonderived_variable_names(
+        variable_names, cos_z_var, latlon_wind_tendency_vars
     )
+
+    load_batch = functools.partial(_load_batch, data_mapping, nonderived_vars)
     partial_insert_derived_vars = insert_derived_variables(
         variable_names,
         cos_z_var,
         xy_wind_tendency_vars,
         latlon_wind_tendency_vars,
         catalog_path,
-        res)
+        res,
+    )
     batch_func = compose(partial_insert_derived_vars, load_batch)
     seq = FunctionOutputSequence(batch_func, batched_timesteps)
     seq.attrs["times"] = times

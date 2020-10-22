@@ -8,7 +8,7 @@ from .coarsen import (
     weighted_block_average,
     xarray_block_reduce,
     block_upsample,
-    shift_edge_var_to_center
+    shift_edge_var_to_center,
 )
 from .io import all_filenames, open_cubed_sphere, save_tiles_separately
 from .regridz import (

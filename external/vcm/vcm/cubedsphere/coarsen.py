@@ -11,7 +11,6 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
-    Sequence
 )
 
 import dask
@@ -39,7 +38,10 @@ def rename_centered_xy_coords(cell_centered_da, edge_to_center_dims: Mapping = N
     Returns:
         same input array with dims renamed to corresponding cell center dims
     """
-    edge_to_center_dims = edge_to_center_dims or {"grid_x": "grid_xt", "grid_y": "grid_yt"}
+    edge_to_center_dims = edge_to_center_dims or {
+        "grid_x": "grid_xt",
+        "grid_y": "grid_yt",
+    }
     for dim in edge_to_center_dims.keys():
         if dim in cell_centered_da.dims:
             cell_centered_da[dim] = cell_centered_da[dim] - 1
@@ -47,7 +49,9 @@ def rename_centered_xy_coords(cell_centered_da, edge_to_center_dims: Mapping = N
     return cell_centered_da
 
 
-def shift_edge_var_to_center(edge_var: xr.DataArray, edge_to_center_dims: Mapping = None):
+def shift_edge_var_to_center(
+    edge_var: xr.DataArray, edge_to_center_dims: Mapping = None
+):
     """
     Args:
         edge_var: variable that is defined on edges of grid, e.g. u, v
@@ -55,14 +59,18 @@ def shift_edge_var_to_center(edge_var: xr.DataArray, edge_to_center_dims: Mappin
     Returns:
         data array with the original variable at cell center
     """
-    edge_to_center_dims = edge_to_center_dims or {"grid_x": "grid_xt", "grid_y": "grid_yt"}
+    edge_to_center_dims = edge_to_center_dims or {
+        "grid_x": "grid_xt",
+        "grid_y": "grid_yt",
+    }
     edge_dims = edge_to_center_dims.keys()
     for staggered_dim in [dim for dim in edge_dims if dim in edge_var.dims]:
         return rename_centered_xy_coords(
             0.5
             * (edge_var + edge_var.shift({staggered_dim: 1})).isel(
                 {staggered_dim: slice(1, None)}
-            ), edge_to_center_dims
+            ),
+            edge_to_center_dims,
         )
     else:
         raise ValueError(
