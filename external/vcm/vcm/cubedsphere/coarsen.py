@@ -11,6 +11,7 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
+    Sequence
 )
 
 import dask
@@ -31,21 +32,22 @@ T_DataArray_or_Dataset = TypeVar("T_DataArray_or_Dataset", xr.DataArray, xr.Data
 CoordFunc = Callable[[Any, Union[int, Tuple[int]]], Any]
 
 
-def rename_centered_xy_coords(cell_centered_da):
+def rename_centered_xy_coords(cell_centered_da, edge_to_center_dims: Mapping = None):
     """
     Args:
         cell_centered_da: data array that got shifted from edges to cell centers
     Returns:
         same input array with dims renamed to corresponding cell center dims
     """
-    for dim in STAGGERED_DIMS:
+    edge_to_center_dims = edge_to_center_dims or {"grid_x": "grid_xt", "grid_y": "grid_yt"}
+    for dim in edge_to_center_dims.keys():
         if dim in cell_centered_da.dims:
             cell_centered_da[dim] = cell_centered_da[dim] - 1
-            cell_centered_da = cell_centered_da.rename({dim: dim + "t"})
+            cell_centered_da = cell_centered_da.rename({dim: edge_to_center_dims[dim]})
     return cell_centered_da
 
 
-def shift_edge_var_to_center(edge_var: xr.DataArray):
+def shift_edge_var_to_center(edge_var: xr.DataArray, edge_to_center_dims: Mapping = None):
     """
     Args:
         edge_var: variable that is defined on edges of grid, e.g. u, v
@@ -53,12 +55,14 @@ def shift_edge_var_to_center(edge_var: xr.DataArray):
     Returns:
         data array with the original variable at cell center
     """
-    for staggered_dim in [dim for dim in STAGGERED_DIMS if dim in edge_var.dims]:
+    edge_to_center_dims = edge_to_center_dims or {"grid_x": "grid_xt", "grid_y": "grid_yt"}
+    edge_dims = edge_to_center_dims.keys()
+    for staggered_dim in [dim for dim in edge_dims if dim in edge_var.dims]:
         return rename_centered_xy_coords(
             0.5
             * (edge_var + edge_var.shift({staggered_dim: 1})).isel(
                 {staggered_dim: slice(1, None)}
-            )
+            ), edge_to_center_dims
         )
     else:
         raise ValueError(
