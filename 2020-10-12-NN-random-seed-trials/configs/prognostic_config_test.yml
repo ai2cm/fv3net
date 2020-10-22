@@ -1,0 +1,41 @@
+base_version: v0.5
+data_table: default
+diag_table: gs://vcm-ml-experiments/diag_tables/prognostic-run-3h/diag_table
+field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.0/field_table
+forcing: gs://vcm-fv3config/data/base_forcing/v1.1
+orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
+experiment_name: default_experiment
+namelist:
+  diag_manager_nml:
+    flush_nc_files: true
+  coupler_nml:
+    calendar: julian
+    current_date:
+    - 2016
+    - 8
+    - 5
+    - 0
+    - 0
+    - 0
+    days: 0
+    hours: 12
+    minutes: 0
+    months: 0
+    seconds: 0
+    restart_secs: 0 # seconds - frequency to save restarts
+    dt_atmos: 900 # seconds
+    dt_ocean: 900
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false
+  fv_core_nml:
+    do_sat_adj: false
+  gfs_physics_nml:
+    hybedmf: false
+    satmedmf: true
+  atmos_model_nml:
+    fhmax: 10000
+    fhout: 3.0 # hours - frequency to save physics outputs
+scikit_learn:
+  diagnostic_ml: false
+  model: model_data
+  model_type: keras
