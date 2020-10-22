@@ -66,7 +66,7 @@ def insert_derived_variables(
         grid = _load_grid(res, catalog_path)
         derived_var_partial_funcs.append(
             functools.partial(_insert_cos_z, grid, cos_z_var))
-    if len(set(variables) & set(latlon_wind_tendency_vars)) > 0:
+    if any(var in variables for var in latlon_wind_tendency_vars):
         wind_rotation_matrix = _load_wind_rotation_matrix(res, catalog_path)
         derived_var_partial_funcs.append(
             functools.partial(
@@ -79,20 +79,41 @@ def insert_derived_variables(
             functools.partial(
                 _center_d_grid_winds,
                 xy_wind_tendency_vars,
+                latlon_wind_tendency_vars,
                 edge_to_center_dims)
         )
     return compose(*derived_var_partial_funcs)
 
 
+def _wind_rotation_needed(
+        available_vars: Sequence[str],
+        xy_wind_tendency_vars: Sequence[str],
+        latlon_wind_tendency_vars: Sequence[str],
+        ):
+    # Returns False if existing wind vars are already in lat/lon components
+    if set(latlon_wind_tendency_vars).issubset(available_vars):
+        return False
+    elif set(xy_wind_tendency_vars).issubset(available_vars):
+        return True
+    else:
+        raise KeyError(
+            "If lat/lon winds are requested, dataset must have either i) "
+            f"{latlon_wind_tendency_vars} or ii) {xy_wind_tendency_vars} "
+            "as data variables."
+        )
+
+
 def _center_d_grid_winds(
     xy_wind_tendency_vars: Sequence[str],
+    latlon_wind_tendency_vars: Sequence[str],
     edge_to_center_dims: Mapping,
     ds: xr.Dataset
 ):
     edge_to_center_dims = edge_to_center_dims or EDGE_TO_CENTER_DIMS
-    for edge_wind in xy_wind_tendency_vars:
-        ds[edge_wind] = vcm.cubedsphere.shift_edge_var_to_center(
-            ds[edge_wind], edge_to_center_dims)
+    if _wind_rotation_needed(ds.data_vars, xy_wind_tendency_vars, latlon_wind_tendency_vars):
+        for edge_wind in xy_wind_tendency_vars:
+            ds[edge_wind] = vcm.cubedsphere.shift_edge_var_to_center(
+                ds[edge_wind], edge_to_center_dims)
     return ds
 
 
@@ -102,17 +123,18 @@ def _insert_latlon_wind_tendencies(
     latlon_wind_tendency_vars: Sequence[str],
     ds: xr.Dataset
 ):
-    x_tendency, y_tendency = xy_wind_tendency_vars
-    lat_tendency, lon_tendency = latlon_wind_tendency_vars
+    if _wind_rotation_needed(ds.data_vars, xy_wind_tendency_vars, latlon_wind_tendency_vars):
+        x_tendency, y_tendency = xy_wind_tendency_vars
+        lat_tendency, lon_tendency = latlon_wind_tendency_vars
 
-    ds[lat_tendency] = (
-        wind_rotation_matrix["eastward_wind_u_coeff"] * ds[x_tendency]
-        + wind_rotation_matrix["eastward_wind_v_coeff"] * ds[y_tendency]
-    )
-    ds[lon_tendency] = (
-        wind_rotation_matrix["northward_wind_u_coeff"] * ds[x_tendency]
-        + wind_rotation_matrix["northward_wind_v_coeff"] * ds[y_tendency]
-    )
+        ds[lat_tendency] = (
+            wind_rotation_matrix["eastward_wind_u_coeff"] * ds[x_tendency]
+            + wind_rotation_matrix["eastward_wind_v_coeff"] * ds[y_tendency]
+        )
+        ds[lon_tendency] = (
+            wind_rotation_matrix["northward_wind_u_coeff"] * ds[x_tendency]
+            + wind_rotation_matrix["northward_wind_v_coeff"] * ds[y_tendency]
+        )
     return ds
 
 
