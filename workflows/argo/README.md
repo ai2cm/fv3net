@@ -139,7 +139,7 @@ an appropriate `training-config` string.
 | initial-condition     | String of initial time at which to begin the prognostic run                |
 | prognostic-run-config | String representation of a prognostic run configuration YAML file          |
 | reference-restarts    | Location of restart data for initializing the prognostic run               |
-| flags       | (optional) String of store-true flags for prognostic run prepare_config.py |
+| flags                 | (optional) extra command line flags for prepare_config.py                  |
 | chunks                | (optional) Custom dimension rechunking mapping for prognostic run outputs  |
 | segment-count         | (optional) Number of prognostic run segments; default 1                    |
 | cpu-prog              | (optional) Number of cpus for prognostic run nodes; default 6              |

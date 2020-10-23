@@ -3,6 +3,7 @@ import warnings
 import json
 
 import fv3config
+import runtime.metrics
 import numpy as np
 import pytest
 import xarray as xr
@@ -20,7 +21,7 @@ IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
 )
 ORO_PATH = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
 FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
-LOG_PATH = "logs.txt"
+LOG_PATH = "statistics.txt"
 
 default_fv3config = rf"""
 data_table: default
@@ -532,20 +533,21 @@ def test_fv3run_diagnostic_outputs(completed_rundir):
 
 
 def test_fv3run_python_mass_conserving(completed_rundir):
-    data_lines = []
 
     path = str(completed_rundir.join(LOG_PATH))
 
     # read python mass conservation info
     with open(path) as f:
-        for line in f:
-            start = "INFO:root:python:"
-            if line.startswith(start):
-                data_lines.append(json.loads(line[len(start) :]))
+        lines = f.readlines()
 
-    for metric in data_lines:
+    assert len(lines) > 0
+    for metric in lines:
+        obj = json.loads(metric)
+        runtime.metrics.validate(obj)
+
         np.testing.assert_allclose(
-            metric["vapor_mass_change"]["value"],
-            metric["total_mass_change"]["value"],
-            atol=1e-2,
+            obj["storage_of_mass_due_to_python"],
+            obj["storage_of_total_water_path_due_to_python"] * 9.81,
+            rtol=0.003,
+            atol=1e-4 / 86400,
         )
