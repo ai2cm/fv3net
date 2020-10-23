@@ -1,7 +1,6 @@
 from functools import partial
 from toolz import identity
 import xarray as xr
-import pandas as pd
 import numpy as np
 
 from loaders.batches._sequences import (
@@ -91,4 +90,3 @@ def test__write_to_netcdf(tmpdir):
 
     ds = xr.open_dataset(path)
     xr.testing.assert_equal(ds, stacked.drop("sample"))
-
