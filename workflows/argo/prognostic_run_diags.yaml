@@ -93,7 +93,7 @@ spec:
       image: '{{inputs.parameters.image}}'
       command:
       - bash
-      - entrypoint_diags.sh
+      - memoized_compute_diagnostics.sh
       - "{{inputs.parameters.run}}"
       - "{{inputs.parameters.output}}"
       - "{{inputs.parameters.flags}}"
