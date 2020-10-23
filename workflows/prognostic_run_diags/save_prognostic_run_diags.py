@@ -166,6 +166,14 @@ def bias(truth, prediction, w, dims):
     return ((prediction - truth) * w).sum(dims) / w.sum(dims)
 
 
+def zonal_mean(
+    ds: xr.Dataset, latitude: xr.DataArray, bins=np.arange(-90, 91, 2)
+) -> xr.Dataset:
+    zm = ds.groupby_bins(latitude, bins=bins).mean().rename(lat_bins="latitude")
+    latitude_midpoints = [x.item().mid for x in zm["latitude"]]
+    return zm.assign_coords(latitude=latitude_midpoints)
+
+
 def dump_nc(ds: xr.Dataset, f):
     # to_netcdf closes file, which will delete the buffer
     # need to use a buffer since seek doesn't work with GCSFS file objects
@@ -186,6 +194,42 @@ def rms_errors(resampled, verification_c48, grid):
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
 
     return rms_errors
+
+
+@add_to_diags("dycore")
+@diag_finalizer("zonal_and_time_mean")
+@transform.apply("resample_time", "1H")
+@transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
+def zonal_means_dycore(prognostic, verification, grid):
+    logger.info("Preparing zonal+time means (dycore)")
+    return zonal_mean(prognostic, grid.lat).mean("time")
+
+
+@add_to_diags("physics")
+@diag_finalizer("zonal_and_time_mean")
+@transform.apply("resample_time", "1H")
+@transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
+def zonal_means_dycore(prognostic, verification, grid):
+    logger.info("Preparing zonal+time means (physics)")
+    return zonal_mean(prognostic, grid.lat).mean("time")
+
+
+@add_to_diags("dycore")
+@diag_finalizer("zonal_bias")
+@transform.apply("resample_time", "1H")
+@transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
+def zonal_means_dycore(prognostic, verification, grid):
+    logger.info("Preparing zonal+time mean biases (dycore)")
+    return zonal_mean(prognostic - verification, grid.lat).mean("time")
+
+
+@add_to_diags("physics")
+@diag_finalizer("zonal_bias")
+@transform.apply("resample_time", "1H")
+@transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
+def zonal_means_dycore(prognostic, verification, grid):
+    logger.info("Preparing zonal+time mean biases (physics)")
+    return zonal_mean(prognostic - verification, grid.lat).mean("time")
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
