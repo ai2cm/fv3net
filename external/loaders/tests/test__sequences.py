@@ -8,7 +8,8 @@ from loaders.batches._sequences import (
     _write_to_netcdf,
 )
 
-from loaders.batches import Local, Map
+from loaders.batches import Local
+from loaders import Map
 
 
 def _load_func(seq, item):
