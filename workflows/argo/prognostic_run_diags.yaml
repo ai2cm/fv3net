@@ -57,18 +57,14 @@ spec:
       command:
       - python
       - generate_report.py
-      - $(INPUT)
-      - $(OUTPUT)
+      - gs://vcm-ml-public/argo/{{workflow.name}}
+      - gs://vcm-ml-public/argo/{{workflow.name}}/index.html
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS 
         value: /secret/gcp-credentials/key.json
       - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
         value: /secret/gcp-credentials/key.json
-      - name: OUTPUT
-        value: "gs://vcm-ml-public/argo/{{workflow.name}}/index.html"
-      - name: INPUT
-        value: "gs://vcm-ml-public/argo/{{workflow.name}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
@@ -95,14 +91,12 @@ spec:
       effect: "NoSchedule"
     container:
       image: '{{inputs.parameters.image}}'
-      command: ["/bin/bash", "-x", "-e", "-c"]
-      args:
-      - | 
-        python save_prognostic_run_diags.py {{inputs.parameters.flags}} \
-          {{inputs.parameters.run}} diags.nc
-        python metrics.py diags.nc > metrics.json
-        gsutil cp diags.nc {{inputs.parameters.output}}/diags.nc
-        gsutil cp metrics.json {{inputs.parameters.output}}/metrics.json
+      command:
+      - bash
+      - memoized_compute_diagnostics.sh
+      - "{{inputs.parameters.run}}"
+      - "{{inputs.parameters.output}}"
+      - "{{inputs.parameters.flags}}"
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
