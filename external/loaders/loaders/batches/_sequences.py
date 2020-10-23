@@ -114,7 +114,7 @@ class Map(BaseSequence[T]):
         self._args = args_sequence
         self.attrs = {}
 
-    def __getitem__(self, item: Union[int, slice]) -> T:
+    def __getitem__(self, item: Union[int, slice]):
 
         if isinstance(item, int):
             return self._func(self._args[item])
@@ -124,7 +124,7 @@ class Map(BaseSequence[T]):
             TypeError(f"Invalid argument type of {type(item)} passed into __getitem__.")
 
     def _slice_selection(self, selection: slice):
-        seq = self.Map(self._func, self._args[selection])
+        seq = Map(self._func, self._args[selection])
         seq.attrs.update(deepcopy(self.attrs))
         return seq
 
@@ -132,7 +132,7 @@ class Map(BaseSequence[T]):
         return len(self._args)
 
 
-def shuffle(sequence: Sequence[Any], seed: Optional[int] = None) -> Map:
+def shuffle(sequence: Sequence[T], seed: Optional[int] = None) -> Map[T]:
     """Lazily shuffle a sequence
 
     Args:
