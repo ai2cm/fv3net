@@ -31,7 +31,7 @@ conda-lock==0.4.1         # via -r pip-requirements.txt
 coverage==5.2.1           # via pytest-cov
 crcmod==1.7               # via apache-beam
 cycler==0.10.0            # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, matplotlib
-cython==0.29.10           # via -r docker/prognostic_run/requirements.txt
+cython==0.29.21           # via -r docker/prognostic_run/requirements.txt
 dask[bag]==2.22.0         # via -r docker/learned_nudging_run/requirements.txt, -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, intake, xgcm
 decorator==4.4.2          # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, gcsfs, networkx, traitlets
 dill==0.3.1.1             # via apache-beam
@@ -85,7 +85,7 @@ intake==0.6.0             # via -r docker/prognostic_run/requirements.txt, -r ex
 ipython-genutils==0.2.0   # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, traitlets
 jinja2==2.11.2            # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, conda-lock, intake, sphinx
 joblib==0.16.0            # via -r docker/prognostic_run/requirements.txt, scikit-learn
-jsonschema==3.2.0         # via poetry
+jsonschema==3.2.0         # via -r docker/prognostic_run/requirements.txt, poetry
 keras-preprocessing==1.1.0  # via tensorflow
 keyring==20.0.1           # via poetry
 kiwisolver==1.2.0         # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, matplotlib
