@@ -6,4 +6,4 @@ from ._batch import (
     diagnostic_batches_from_mapper,
 )
 
-from ._sequences import Local, FunctionOutputSequence
+from ._sequences import Local
