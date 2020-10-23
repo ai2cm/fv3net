@@ -1,6 +1,15 @@
 from functools import partial
+from toolz import identity
+import xarray as xr
+import pandas as pd
+import numpy as np
 
-from loaders.batches._sequences import FunctionOutputSequence, shuffle
+from loaders.batches._sequences import (
+    shuffle,
+    _write_to_netcdf,
+)
+
+from loaders.batches import Local, FunctionOutputSequence
 
 
 def _load_func(seq, item):
@@ -35,3 +44,51 @@ def test_shuffle():
 def test_shuffle_no_load_on_shuffle():
     fos = FunctionOutputSequence(_load_alarm, list(range(10)))
     shuffle(fos)
+
+
+def test__sequence_map():
+    test_seq = FunctionOutputSequence(identity, [0, 1, 2])
+    mul_seq = test_seq.map(lambda x: 2 * x)
+    expected = [0, 2, 4]
+
+    assert len(mul_seq) == len(expected)
+
+    for k, val in enumerate(expected):
+        assert mul_seq[k] == val
+
+
+def test__sequence_take():
+    input_seq = [0, 1, 2]
+    test_seq = FunctionOutputSequence(identity, [0, 1, 2])
+    out_seq = test_seq.take(2)
+    expected = input_seq[:2]
+
+    for k, val in enumerate(expected):
+        assert out_seq[k] == val
+
+
+def test__sequence_local(tmpdir):
+    ds = xr.Dataset({"a": (["x"], np.array([1]))})
+    test_seq = FunctionOutputSequence(identity, [ds, ds])
+    local = test_seq.local(str(tmpdir))
+
+    assert len(local) == len(test_seq)
+    for k in range(len(local)):
+        xr.testing.assert_equal(local[k], test_seq[k])
+
+    local = Local(str(tmpdir))
+    xr.testing.assert_equal(local[0], ds)
+
+
+def test__write_to_netcdf(tmpdir):
+    ds = xr.Dataset(
+        {"a": (["x", "y"], np.ones((10, 10)))},
+        coords={"x": np.arange(10), "y": np.arange(10)},
+    )
+    stacked = ds.stack(sample=["x", "y"])
+    path = str(tmpdir.join("a.nc"))
+    _write_to_netcdf(stacked, path)
+
+    ds = xr.open_dataset(path)
+    xr.testing.assert_equal(ds, stacked.drop("sample"))
+
