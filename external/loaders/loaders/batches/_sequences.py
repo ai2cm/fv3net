@@ -133,11 +133,7 @@ class Map(BaseSequence[T]):
 
 
 def shuffle(sequence: Sequence[Any], seed: Optional[int] = None) -> Map:
-    """
-    Shuffle a sequence by creating a new FunctionOutputSequence
-    with shuffled indices as arguments.  Preserves potentially lazy
-    operations on input sequence __getitem__ calls by shuffling
-    index arguments.
+    """Lazily shuffle a sequence
 
     Args:
         sequence:  Input sequence to have access indices shuffled
