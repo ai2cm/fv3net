@@ -153,18 +153,14 @@ def holomap_filter(time_series, varfilter, run_attr_name="run"):
     for ds in time_series:
         for varname in ds:
             if varfilter in varname:
-                try:
-                    v = ds[varname]
-                except KeyError:
-                    pass
-                else:
-                    style = "solid" if ds.attrs["baseline"] else "dashed"
-                    run = ds.attrs[run_attr_name]
-                    long_name = ds[varname].long_name
-                    hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
-                        line_dash=style, color=p
-                    )
-    return hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
+                v = ds[varname]
+                style = "solid" if ds.attrs["baseline"] else "dashed"
+                run = ds.attrs[run_attr_name]
+                long_name = ds[varname].long_name
+                hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
+                    line_dash=style, color=p
+                )
+    return hmap
 
 
 def holomap_filter_with_region_bar(time_series, varfilter, run_attr_name="run"):
@@ -185,24 +181,26 @@ def holomap_filter_with_region_bar(time_series, varfilter, run_attr_name="run"):
                     hmap[(long_name, region, run)] = hv.Curve(
                         v.rename("value"), label=varfilter,
                     ).options(line_dash=style, color=p)
-    return hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
+    return hmap
+
+
+def _add_hmap_opts(hmap, overlay="run"):
+    return (
+        hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
+        .overlay(overlay)
+        .opts(legend_position="right")
+    )
 
 
 def time_series_plot(time_series: Iterable[xr.Dataset], varfilter: str) -> HVPlot:
-    return HVPlot(
-        holomap_filter(time_series, varfilter=varfilter)
-        .overlay("run")
-        .opts(legend_position="right")
-    )
+    return HVPlot(_add_hmap_opts(holomap_filter(time_series, varfilter)))
 
 
 def time_series_plot_with_region_bar(
     time_series: Iterable[xr.Dataset], varfilter: str
 ) -> HVPlot:
     return HVPlot(
-        holomap_filter_with_region_bar(time_series, varfilter=varfilter)
-        .overlay("run")
-        .opts(legend_position="right")
+        _add_hmap_opts(holomap_filter_with_region_bar(time_series, varfilter))
     )
 
 
@@ -220,7 +218,11 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
     """Back out verification timeseries from prognostic run value and bias"""
     verif_diagnostics = {}
     verif_attrs = {"run": "verification", "baseline": True}
-    mean_bias_pairs = {"spatial_mean": "mean_bias", "diurn_component": "diurn_bias"}
+    mean_bias_pairs = {
+        "spatial_mean": "mean_bias",
+        "diurn_component": "diurn_bias",
+        "zonal_and_time_mean": "zonal_bias",
+    }
     for mean_filter, bias_filter in mean_bias_pairs.items():
         mean_vars = [var for var in ds if mean_filter in var]
         for var in mean_vars:
@@ -251,13 +253,7 @@ def diurnal_component_plot(
                     v, label=diurnal_component_name
                 ).options(color=p)
 
-    hmap = (
-        hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500),)
-        .overlay("short_varname")
-        .opts(legend_position="right")
-    )
-
-    return HVPlot(hmap)
+    return HVPlot(_add_hmap_opts(hmap, overlay="short_varname"))
 
 
 # Initialize diagnostic managers
@@ -276,6 +272,11 @@ def rms_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
 @diag_plot_manager.register
 def spatial_mean_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
     return time_series_plot_with_region_bar(time_series, varfilter="spatial_mean")
+
+
+@diag_plot_manager.register
+def zonal_mean_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="zonal_and_time_mean")
 
 
 @diag_plot_manager.register
@@ -335,7 +336,8 @@ def main():
 
     # load diagnostics
     diags = load_diags(bucket, rundirs)
-    dims = ["time", "local_time"]  # keep all vars that have only these dimensions
+    # keep all vars that have only these dimensions
+    dims = ["time", "local_time", "latitude"]
     diagnostics = [
         xr.merge([get_variables_with_dims(ds, [dim]) for dim in dims]).assign_attrs(
             run=key, **run_table_lookup.loc[key]
