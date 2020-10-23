@@ -92,3 +92,4 @@ xarray
 xgcm
 zarr
 zipp
+jsonschema
