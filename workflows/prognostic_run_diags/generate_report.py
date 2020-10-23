@@ -147,13 +147,13 @@ def _longest_run(diagnostics: Iterable[xr.Dataset]) -> xr.Dataset:
     return longest_ds
 
 
-def holomap_filter(time_series, varfilter, run_attr_name="run"):
+def holomap_filter(diagnostics, varfilter, run_attr_name="run"):
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "run"])
-    for ds in time_series:
+    for ds in diagnostics:
         for varname in ds:
             if varfilter in varname:
-                v = ds[varname]
+                v = ds[varname].rename("value")
                 style = "solid" if ds.attrs["baseline"] else "dashed"
                 run = ds.attrs[run_attr_name]
                 long_name = ds[varname].long_name
@@ -163,28 +163,24 @@ def holomap_filter(time_series, varfilter, run_attr_name="run"):
     return hmap
 
 
-def holomap_filter_with_region_bar(time_series, varfilter, run_attr_name="run"):
+def holomap_filter_with_region_bar(diagnostics, varfilter, run_attr_name="run"):
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
-    for ds in time_series:
+    for ds in diagnostics:
         for varname in ds:
             if varfilter in varname:
-                try:
-                    v = ds[varname]
-                except KeyError:
-                    pass
-                else:
-                    style = "solid" if ds.attrs["baseline"] else "dashed"
-                    run = ds.attrs[run_attr_name]
-                    long_name = ds[varname].long_name
-                    region = varname.split("_")[-1]
-                    hmap[(long_name, region, run)] = hv.Curve(
-                        v.rename("value"), label=varfilter,
-                    ).options(line_dash=style, color=p)
+                v = ds[varname].rename("value")
+                style = "solid" if ds.attrs["baseline"] else "dashed"
+                run = ds.attrs[run_attr_name]
+                long_name = ds[varname].long_name
+                region = varname.split("_")[-1]
+                hmap[(long_name, region, run)] = hv.Curve(v, label=varfilter,).options(
+                    line_dash=style, color=p
+                )
     return hmap
 
 
-def _add_hmap_opts(hmap, overlay="run"):
+def _set_opts_and_overlay(hmap, overlay="run"):
     return (
         hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
         .overlay(overlay)
@@ -192,15 +188,15 @@ def _add_hmap_opts(hmap, overlay="run"):
     )
 
 
-def time_series_plot(time_series: Iterable[xr.Dataset], varfilter: str) -> HVPlot:
-    return HVPlot(_add_hmap_opts(holomap_filter(time_series, varfilter)))
+def plot_1d(diagnostics: Iterable[xr.Dataset], varfilter: str) -> HVPlot:
+    return HVPlot(_set_opts_and_overlay(holomap_filter(diagnostics, varfilter)))
 
 
-def time_series_plot_with_region_bar(
-    time_series: Iterable[xr.Dataset], varfilter: str
+def plot_1d_with_region_bar(
+    diagnostics: Iterable[xr.Dataset], varfilter: str
 ) -> HVPlot:
     return HVPlot(
-        _add_hmap_opts(holomap_filter_with_region_bar(time_series, varfilter))
+        _set_opts_and_overlay(holomap_filter_with_region_bar(diagnostics, varfilter))
     )
 
 
@@ -235,7 +231,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
 
 
 def diurnal_component_plot(
-    time_series: Iterable[xr.Dataset],
+    diagnostics: Iterable[xr.Dataset],
     run_attr_name="run",
     diurnal_component_name="diurn_component",
 ) -> HVPlot:
@@ -243,10 +239,10 @@ def diurnal_component_plot(
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["run", "surface_type", "short_varname"])
 
-    for ds in time_series:
+    for ds in diagnostics:
         for varname in ds:
             if diurnal_component_name in varname:
-                v = ds[varname]
+                v = ds[varname].rename("value")
                 short_vname, surface_type = _parse_diurnal_component_fields(varname)
                 run = ds.attrs[run_attr_name]
                 hmap[(run, surface_type, short_vname)] = hv.Curve(
@@ -257,36 +253,38 @@ def diurnal_component_plot(
 
 
 # Initialize diagnostic managers
-# diag_plot_manager will be passed the data from the diags.nc files
-diag_plot_manager = PlotManager()
+# following plot managers will be passed the data from the diags.nc files
+timeseries_plot_manager = PlotManager()
+zonal_mean_plot_manager = PlotManager()
+diurnal_plot_manager = PlotManager()
 # this will be passed the data from the metrics.json files
 metrics_plot_manager = PlotManager()
 
 
 # Routines for plotting the "diagnostics"
-@diag_plot_manager.register
-def rms_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot(time_series, varfilter="rms_global")
+@timeseries_plot_manager.register
+def rms_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_1d(diagnostics, varfilter="rms_global")
 
 
-@diag_plot_manager.register
-def spatial_mean_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot_with_region_bar(time_series, varfilter="spatial_mean")
+@timeseries_plot_manager.register
+def spatial_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_1d_with_region_bar(diagnostics, varfilter="spatial_mean")
 
 
-@diag_plot_manager.register
-def zonal_mean_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot(time_series, varfilter="zonal_and_time_mean")
+@zonal_mean_plot_manager.register
+def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_1d(diagnostics, varfilter="zonal_and_time_mean")
 
 
-@diag_plot_manager.register
-def diurnal_cycle_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return time_series_plot_with_region_bar(time_series, varfilter="diurnal")
+@diurnal_plot_manager.register
+def diurnal_cycle_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_1d_with_region_bar(diagnostics, varfilter="diurnal")
 
 
-@diag_plot_manager.register
-def diurnal_cycle_component_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
-    return diurnal_component_plot(time_series)
+@diurnal_plot_manager.register
+def diurnal_cycle_component_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return diurnal_component_plot(diagnostics)
 
 
 # Routines for plotting the "metrics"
@@ -356,7 +354,11 @@ def main():
     metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
 
     # generate all plots
-    sections = {"Diagnostics": list(diag_plot_manager.make_plots(diagnostics))}
+    sections = {
+        "Timeseries": list(timeseries_plot_manager.make_plots(diagnostics)),
+        "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
+        "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
+    }
     if not metric_table.empty:
         metrics = pd.merge(run_table, metric_table, on="run")
         sections["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
