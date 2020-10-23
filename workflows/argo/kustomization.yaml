@@ -1,9 +1,28 @@
 resources:
-  - prognostic_run_diags.yaml
-  - nudging/nudging.yaml
-  - prognostic-run.yaml
-  - training.yaml
-  - nudge_to_obs/workflow.yaml
-  - run-fv3gfs.yaml
-  - offline-diags.yaml
-  - train-diags-prog.yaml
+- prognostic_run_diags.yaml
+- nudging/nudging.yaml
+- prognostic-run.yaml
+- training.yaml
+- nudge_to_obs/workflow.yaml
+- run-fv3gfs.yaml
+- offline-diags.yaml
+- train-diags-prog.yaml
+
+# images:
+#   - newTag: local
+#     name: us.gcr.io/vcm-ml/prognostic_run
+#   - newTag: local
+#     name: us.gcr.io/vcm-ml/fv3net
+#   - newTag: local
+#     name: us.gcr.io/vcm-ml/fv3fit
+#   - newTag: local
+#     name: us.gcr.io/vcm-ml/post_process_run
+
+configurations:
+- image-transformerconfig.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: us.gcr.io/vcm-ml/fv3net
+  newName: us.gcr.io/vcm-ml/fv3net
+  newTag: 1bd4ce85e99424437dfd2509c3fb5e24d001c890

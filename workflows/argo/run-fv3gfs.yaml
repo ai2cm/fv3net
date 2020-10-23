@@ -186,7 +186,7 @@ spec:
               cpu: "{{inputs.parameters.cpu}}"
               memory: "{{inputs.parameters.memory}}"
     container:
-      image: '{{inputs.parameters.fv3gfs-image}}'
+      image: us.gcr.io/vcm-ml/prognostic_run
       command: [runfv3.sh]
       args: [/mnt/data/fv3config.yaml, /mnt/data/rundir, /mnt/data/runfile.py]
       env:
@@ -212,7 +212,7 @@ spec:
         - name: image
         - name: url
     container:
-      image: "{{inputs.parameters.image}}"
+      image: us.gcr.io/vcm-ml/post_process_run
       command: ["/bin/bash", "-c"]
       args:
       - |
@@ -237,7 +237,7 @@ spec:
       value: "climate-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "{{inputs.parameters.post-process-image}}"
+      image: us.gcr.io/vcm-ml/post_process_run
       command: ["/bin/bash", "-c", "-e"]
       args:
       - |

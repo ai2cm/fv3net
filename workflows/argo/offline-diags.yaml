@@ -27,7 +27,7 @@ spec:
           - name: report-output
           - name: data-path
       container:
-        image: us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}
+        image: us.gcr.io/vcm-ml/fv3net
         command: ["bash", "-c", "-x"]
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS

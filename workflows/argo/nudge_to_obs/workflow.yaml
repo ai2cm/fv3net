@@ -115,7 +115,7 @@ spec:
             valueFrom:
               path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudge_to_obs/chunks.yaml
       container:
-        image: "{{inputs.parameters.fv3net-image}}"
+        image: us.gcr.io/vcm-ml/fv3net
         command: ["/bin/bash", "-c", "-e"]
         workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudge_to_obs
         args:

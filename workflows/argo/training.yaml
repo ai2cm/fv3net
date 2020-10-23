@@ -15,7 +15,7 @@ spec:
           - name: times
           - name: output
       container:
-        image: "{{inputs.parameters.image}}"
+        image: us.gcr.io/vcm-ml/fv3fit
         command: ["bash", "-c", "-x"]
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS

@@ -53,7 +53,7 @@ spec:
       value: "climate-sim-pool"
       effect: "NoSchedule"
     container:
-      image: '{{workflow.parameters.docker-image}}'
+      image: us.gcr.io/vcm-ml/fv3net
       command:
       - python
       - generate_report.py
@@ -85,7 +85,7 @@ spec:
       - name: run
       - name: output
       - name: image
-        value: '{{workflow.parameters.docker-image}}'
+        value: us.gcr.io/vcm-ml/fv3net
       - name: flags
         value: " "
     tolerations:
@@ -94,7 +94,7 @@ spec:
       value: "climate-sim-pool"
       effect: "NoSchedule"
     container:
-      image: '{{inputs.parameters.image}}'
+      image: us.gcr.io/vcm-ml/fv3net
       command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - | 
@@ -130,7 +130,7 @@ spec:
       value: "climate-sim-pool"
       effect: "NoSchedule"
     container:
-      image: '{{workflow.parameters.docker-image}}'
+      image: us.gcr.io/vcm-ml/fv3net
       command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - |
