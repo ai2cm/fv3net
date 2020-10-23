@@ -249,7 +249,7 @@ def diurnal_component_plot(
                     v, label=diurnal_component_name
                 ).options(color=p)
 
-    return HVPlot(_add_hmap_opts(hmap, overlay="short_varname"))
+    return HVPlot(_set_opts_and_overlay(hmap, overlay="short_varname"))
 
 
 # Initialize diagnostic managers
