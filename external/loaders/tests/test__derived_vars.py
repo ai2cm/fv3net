@@ -13,17 +13,23 @@ from loaders.batches._derived_vars import (
 
 
 @pytest.mark.parametrize(
-    "variables, nonderived_variables",
+    "requested, available, nonderived_variables",
     (
-        [["dQ1", "dQ2"], ["dQ1", "dQ2"]],
+        [["dQ1", "dQ2"], ["dQ1", "dQ2"], ["dQ1", "dQ2"]],
         [
             ["dQ1", "dQ2", "dQu", "dQv", "cos_zenith_angle"],
-            ["dQ1", "dQ2", "dQx", "dQy"],
+            ["dQ1", "dQ2"],
+            ["dQ1", "dQ2", "dQxwind", "dQywind"],
+        ],
+        [
+            ["dQ1", "dQ2", "dQu", "dQv", "cos_zenith_angle"],
+            ["dQ1", "dQ2", "dQu", "dQv"],
+            ["dQ1", "dQ2", "dQu", "dQv"],
         ],
     ),
 )
-def test_nonderived_variable_names(variables, nonderived_variables):
-    assert set(nonderived_variable_names(variables)) == set(nonderived_variables)
+def test_nonderived_variable_names(requested, available, nonderived_variables):
+    assert set(nonderived_variable_names(requested, available)) == set(nonderived_variables)
 
 
 @pytest.mark.parametrize(

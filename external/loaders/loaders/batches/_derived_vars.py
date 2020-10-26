@@ -16,16 +16,15 @@ X_Y_WIND_TENDENCIES = ["dQxwind", "dQywind"]
 
 
 def nonderived_variable_names(
-    variable_names,
+    requested: Sequence[str], available: Sequence[str]
 ):
-    derived_variables = EAST_NORTH_WIND_TENDENCIES + [COS_Z]
-    nonderived_variables = [
-        var for var in variable_names if var not in derived_variables
-    ]
-    # need to load x/y wind tendencies to derive lat/lon components
-    if any(var in variable_names for var in EAST_NORTH_WIND_TENDENCIES):
-        nonderived_variables += X_Y_WIND_TENDENCIES
-    return nonderived_variables
+    derived = [var for var in requested if var not in available]
+    nonderived = [var for var in requested if var in available]
+    # if E/N winds not in underlying datam, need to load x/y wind
+    # tendencies to derive them
+    if any(var in derived for var in EAST_NORTH_WIND_TENDENCIES):
+        nonderived += X_Y_WIND_TENDENCIES
+    return nonderived
 
 
 def insert_derived_variables(

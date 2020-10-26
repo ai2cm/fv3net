@@ -121,9 +121,7 @@ def batches_from_mapper(
 
     transform = functools.partial(stack_dropnan_shuffle, random_state)
 
-    nonderived_vars = nonderived_variable_names(variable_names)
-
-    load_batch = functools.partial(_load_batch, data_mapping, nonderived_vars)
+    load_batch = functools.partial(_load_batch, data_mapping, variable_names)
     partial_insert_derived_vars = insert_derived_variables(
         variable_names,
         catalog_path,
@@ -202,11 +200,7 @@ def diagnostic_batches_from_mapper(
     times = _sample(timesteps, num_times, random_state)
     batched_timesteps = list(partition_all(timesteps_per_batch, times))
 
-    nonderived_vars = nonderived_variable_names(
-        variable_names
-    )
-
-    load_batch = functools.partial(_load_batch, data_mapping, nonderived_vars)
+    load_batch = functools.partial(_load_batch, data_mapping, variable_names)
     partial_insert_derived_vars = insert_derived_variables(
         variable_names,
         catalog_path,
@@ -229,7 +223,8 @@ def _load_batch(
 ) -> xr.Dataset:
     time_coords = [datetime.strptime(key, TIME_FMT) for key in keys]
     ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))
-    ds = safe.get_variables(ds, data_vars)
+    nonderived_vars = nonderived_variable_names(data_vars, ds.data_vars)
+    ds = safe.get_variables(ds, nonderived_vars)
     return ds
 
 
