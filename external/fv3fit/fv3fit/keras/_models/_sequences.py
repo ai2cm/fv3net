@@ -42,10 +42,10 @@ class _TargetToBool(_XyArraySequence):
     """
     Convert y values True where they pass threshold comparison
     """
-    
+
     def set_y_thresh(self, thresh):
         self.y_thresh = thresh
-    
+
     def __getitem__(self, item):
         X, y = super().__getitem__(item)
         return X, (abs(y) >= self.y_thresh)
