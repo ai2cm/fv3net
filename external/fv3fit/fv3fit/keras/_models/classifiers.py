@@ -4,7 +4,7 @@ import numpy as np
 from typing import Sequence, Optional, Any, Union
 
 from .models import DenseModel
-from ._sequences import _XyArraySequence, _TargetToBool
+from ._sequences import _XyArraySequence, _TargetToBool, _BalanceNegativeSkewBinary
 
 
 class DenseClassifierModel(DenseModel):
@@ -36,6 +36,7 @@ class DenseClassifierModel(DenseModel):
         max_queue_size: int = 8,
         loss_weights: Any = None,
         true_threshold: Union[float, int, np.ndarray] = None,
+        balance_samples: bool = False,
         **fit_kwargs: Any,
     ) -> None:
 
@@ -60,6 +61,9 @@ class DenseClassifierModel(DenseModel):
         default_thresh = self.y_scaler.std * 10 ** -4
         thresh = true_threshold if true_threshold is not None else default_thresh
         Xy.set_y_thresh(thresh)
+
+        if balance_samples:
+            Xy = _BalanceNegativeSkewBinary(Xy)
 
         if batch_size is not None:
             self._fit_loop(

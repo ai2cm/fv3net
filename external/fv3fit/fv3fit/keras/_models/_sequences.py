@@ -51,6 +51,42 @@ class _TargetToBool(_XyArraySequence):
         return X, (abs(y) >= self.y_thresh)
 
 
+class _BalanceNegativeSkewBinary(tf.keras.utils.Sequence):
+
+    """
+    Balance negatively skewed samples assumes single y output
+    otherwise we'll need to implement batch adjustments.
+    """
+
+    # TODO: Implement these on batches instead
+
+    def __init__(self, xy_sequence: _TargetToBool, min_sample_size=32):
+        self._xy_seq = xy_sequence
+        self._min_sample_size = min_sample_size
+
+    def __len__(self):
+        return len(self._xy_seq)
+
+    def __getitem__(self, item):
+        return self._balance_negative_skew(*self._xy_seq[item])
+
+    def _balance_negative_skew(self, X, y):
+        y_has_true = y.sum(axis=1) > 0
+        num_positive = y_has_true.sum()
+        num_negative = len(y_has_true) - num_positive
+
+        if num_negative > num_positive:
+            y_all_false = np.logical_not(y_has_true)
+            (false_locs,) = zip(*np.argwhere(y_all_false))
+            idx_to_keep = np.random.choice(false_locs, size=num_positive, replace=False)
+            y_all_false[idx_to_keep] = False
+            samples_to_keep = y_has_true | np.logical_not(y_all_false)
+        else:
+            samples_to_keep = np.ones_like(y_has_true, dtype=np.bool)
+
+        return X[samples_to_keep], y[samples_to_keep]
+
+
 class _ThreadedSequencePreLoader(tf.keras.utils.Sequence):
     """
     Wrapper object for using a threaded pre-load to provide
