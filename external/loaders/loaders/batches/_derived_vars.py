@@ -2,7 +2,7 @@ import functools
 import intake
 import numpy as np
 from toolz import compose
-from typing import Tuple, Sequence, Mapping
+from typing import Sequence
 import xarray as xr
 import vcm
 
@@ -15,9 +15,7 @@ EAST_NORTH_WIND_TENDENCIES = ["dQu", "dQv"]
 X_Y_WIND_TENDENCIES = ["dQxwind", "dQywind"]
 
 
-def nonderived_variable_names(
-    requested: Sequence[str], available: Sequence[str]
-):
+def nonderived_variable_names(requested: Sequence[str], available: Sequence[str]):
     derived = [var for var in requested if var not in available]
     nonderived = [var for var in requested if var in available]
     # if E/N winds not in underlying datam, need to load x/y wind
@@ -28,9 +26,7 @@ def nonderived_variable_names(
 
 
 def insert_derived_variables(
-    variables: Sequence[str],
-    catalog_path: str = "catalog.yml",
-    res: str = "c48",
+    variables: Sequence[str], catalog_path: str = "catalog.yml", res: str = "c48",
 ):
     """Checks if any of the derived variables are requested in the
     model configuration, and for each derived variable adds partial function
@@ -48,16 +44,11 @@ def insert_derived_variables(
 
     if COS_Z in variables:
         grid = _load_grid(res, catalog_path)
-        derived_var_partial_funcs.append(
-            functools.partial(_insert_cos_z, grid)
-        )
+        derived_var_partial_funcs.append(functools.partial(_insert_cos_z, grid))
     if any(var in variables for var in EAST_NORTH_WIND_TENDENCIES):
         wind_rotation_matrix = _load_wind_rotation_matrix(res, catalog_path)
         derived_var_partial_funcs.append(
-            functools.partial(
-                _insert_latlon_wind_tendencies,
-                wind_rotation_matrix,
-            )
+            functools.partial(_insert_latlon_wind_tendencies, wind_rotation_matrix,)
         )
         derived_var_partial_funcs.append(functools.partial(_center_d_grid_winds))
     return compose(*derived_var_partial_funcs)

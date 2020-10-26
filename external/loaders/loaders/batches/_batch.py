@@ -115,17 +115,13 @@ def batches_from_mapper(
     times = _sample(timesteps, num_times, random_state)
     batched_timesteps = list(partition_all(timesteps_per_batch, times))
 
-    load_batch = functools.partial(
-        _load_batch, data_mapping, variable_names, 
-    )
+    load_batch = functools.partial(_load_batch, data_mapping, variable_names,)
 
     transform = functools.partial(stack_dropnan_shuffle, random_state)
 
     load_batch = functools.partial(_load_batch, data_mapping, variable_names)
     partial_insert_derived_vars = insert_derived_variables(
-        variable_names,
-        catalog_path,
-        res,
+        variable_names, catalog_path, res,
     )
     batch_func = compose(transform, partial_insert_derived_vars, load_batch)
 
@@ -202,9 +198,7 @@ def diagnostic_batches_from_mapper(
 
     load_batch = functools.partial(_load_batch, data_mapping, variable_names)
     partial_insert_derived_vars = insert_derived_variables(
-        variable_names,
-        catalog_path,
-        res,
+        variable_names, catalog_path, res,
     )
     batch_func = compose(partial_insert_derived_vars, load_batch)
     seq = FunctionOutputSequence(batch_func, batched_timesteps)

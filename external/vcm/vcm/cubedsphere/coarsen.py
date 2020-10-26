@@ -51,9 +51,7 @@ def rename_centered_xy_coords(cell_centered_da, edge_to_center_dims: Mapping = N
     return cell_centered_da
 
 
-def shift_edge_var_to_center(
-    edge: xr.DataArray, edge_to_center_dims: Mapping = None
-):
+def shift_edge_var_to_center(edge: xr.DataArray, edge_to_center_dims: Mapping = None):
     """
     Args:
         edge_var: variable that is defined on edges of grid, e.g. u, v
