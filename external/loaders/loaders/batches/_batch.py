@@ -30,9 +30,6 @@ def batches_from_geodata(
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
-    cos_z_var: str = "cos_zenith_angle",
-    xy_wind_tendency_vars: Sequence[str] = None,
-    latlon_wind_tendency_vars: Sequence[str] = None,
     catalog_path: str = "catalog.yml",
     res: str = "c48",
 ) -> Sequence[xr.Dataset]:
@@ -49,8 +46,7 @@ def batches_from_geodata(
             passed to the mapping function
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
-        cos_z_var: Name of cosine zenith angle variable to insert.
-            Defaults to "cos_zenith_angle".
+
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -64,9 +60,6 @@ def batches_from_geodata(
         timesteps_per_batch,
         random_seed,
         timesteps,
-        cos_z_var,
-        xy_wind_tendency_vars,
-        latlon_wind_tendency_vars,
         catalog_path,
         res,
     )
@@ -87,9 +80,6 @@ def batches_from_mapper(
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
-    cos_z_var: str = "cos_zenith_angle",
-    xy_wind_tendency_vars: Sequence[str] = None,
-    latlon_wind_tendency_vars: Sequence[str] = None,
     catalog_path: str = "catalog.yml",
     res: str = "c48",
 ) -> Sequence[xr.Dataset]:
@@ -103,8 +93,7 @@ def batches_from_mapper(
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
         timesteps: List of timesteps to use in training.
-        cos_z_var: Name of cosine zenith angle variable to insert.
-            Defaults to "cos_zenith_angle".
+
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -127,21 +116,16 @@ def batches_from_mapper(
     batched_timesteps = list(partition_all(timesteps_per_batch, times))
 
     load_batch = functools.partial(
-        _load_batch, data_mapping, variable_names, cos_z_var,
+        _load_batch, data_mapping, variable_names, 
     )
 
     transform = functools.partial(stack_dropnan_shuffle, random_state)
 
-    nonderived_vars = nonderived_variable_names(
-        variable_names, cos_z_var, latlon_wind_tendency_vars
-    )
+    nonderived_vars = nonderived_variable_names(variable_names)
 
     load_batch = functools.partial(_load_batch, data_mapping, nonderived_vars)
     partial_insert_derived_vars = insert_derived_variables(
         variable_names,
-        cos_z_var,
-        xy_wind_tendency_vars,
-        latlon_wind_tendency_vars,
         catalog_path,
         res,
     )
@@ -161,9 +145,6 @@ def diagnostic_batches_from_geodata(
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
-    cos_z_var: str = "cos_zenith_angle",
-    xy_wind_tendency_vars: Sequence[str] = None,
-    latlon_wind_tendency_vars: Sequence[str] = None,
     catalog_path: str = "catalog.yml",
     res: str = "c48",
 ) -> Sequence[xr.Dataset]:
@@ -180,8 +161,6 @@ def diagnostic_batches_from_geodata(
         num_batches (int, optional): Defaults to None.
         random_seed (int, optional): Defaults to 0.
         timesteps: List of timesteps to use in training.
-        cos_z_var: Name of cosine zenith angle variable to insert.
-            Defaults to "cos_zenith_angle".
 
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
@@ -197,9 +176,6 @@ def diagnostic_batches_from_geodata(
         timesteps_per_batch,
         random_seed,
         timesteps,
-        cos_z_var,
-        xy_wind_tendency_vars,
-        latlon_wind_tendency_vars,
         catalog_path,
         res,
     )
@@ -212,9 +188,6 @@ def diagnostic_batches_from_mapper(
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
     timesteps: Sequence[str] = None,
-    cos_z_var: str = "cos_zenith_angle",
-    xy_wind_tendency_vars: Sequence[str] = None,
-    latlon_wind_tendency_vars: Sequence[str] = None,
     catalog_path: str = "catalog.yml",
     res: str = "c48",
 ) -> Sequence[xr.Dataset]:
@@ -230,15 +203,12 @@ def diagnostic_batches_from_mapper(
     batched_timesteps = list(partition_all(timesteps_per_batch, times))
 
     nonderived_vars = nonderived_variable_names(
-        variable_names, cos_z_var, latlon_wind_tendency_vars
+        variable_names
     )
 
     load_batch = functools.partial(_load_batch, data_mapping, nonderived_vars)
     partial_insert_derived_vars = insert_derived_variables(
         variable_names,
-        cos_z_var,
-        xy_wind_tendency_vars,
-        latlon_wind_tendency_vars,
         catalog_path,
         res,
     )
