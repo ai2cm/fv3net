@@ -49,7 +49,7 @@ spec:
           - name: train-data
           - name: train-config
       container:
-        image: us.gcr.io/vcm-ml/fv3fit:emulation
+        image: us.gcr.io/vcm-ml/fv3fit:emulation-2020-10-25
         command: ["bash", "-c", "-x"]
         volumeMounts:
           - mountPath: /secret/gcp-credentials
