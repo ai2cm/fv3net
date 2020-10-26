@@ -330,8 +330,8 @@ def open_merged_nudged(
     rename_vars = rename_vars or {
         "air_temperature_tendency_due_to_nudging": "dQ1",
         "specific_humidity_tendency_due_to_nudging": "dQ2",
-        "x_wind_tendency_due_to_nudging": "dQx",
-        "y_wind_tendency_due_to_nudging": "dQy",
+        "x_wind_tendency_due_to_nudging": "dQxwind",
+        "y_wind_tendency_due_to_nudging": "dQywind",
     }
 
     datasets = _get_source_datasets(url, merge_files, consolidated)
