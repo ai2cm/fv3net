@@ -193,7 +193,7 @@ def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
 
-    return rms_errors
+    return rms_errors.load()
 
 
 @add_to_diags("dycore")
@@ -202,7 +202,7 @@ def rms_errors(resampled, verification_c48, grid):
 @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
 def zonal_means_dycore(prognostic, verification, grid):
     logger.info("Preparing zonal+time means (dycore)")
-    return zonal_mean(prognostic, grid.lat).mean("time")
+    return zonal_mean(prognostic, grid.lat).mean("time").load()
 
 
 @add_to_diags("physics")
@@ -211,7 +211,7 @@ def zonal_means_dycore(prognostic, verification, grid):
 @transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
 def zonal_means_physics(prognostic, verification, grid):
     logger.info("Preparing zonal+time means (physics)")
-    return zonal_mean(prognostic, grid.lat).mean("time")
+    return zonal_mean(prognostic, grid.lat).mean("time").load()
 
 
 @add_to_diags("dycore")
@@ -220,7 +220,7 @@ def zonal_means_physics(prognostic, verification, grid):
 @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
 def zonal_mean_biases_dycore(prognostic, verification, grid):
     logger.info("Preparing zonal+time mean biases (dycore)")
-    return zonal_mean(prognostic - verification, grid.lat).mean("time")
+    return zonal_mean(prognostic - verification, grid.lat).mean("time").load()
 
 
 @add_to_diags("physics")
@@ -229,7 +229,7 @@ def zonal_mean_biases_dycore(prognostic, verification, grid):
 @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
 def zonal_mean_biases_physics(prognostic, verification, grid):
     logger.info("Preparing zonal+time mean biases (physics)")
-    return zonal_mean(prognostic - verification, grid.lat).mean("time")
+    return zonal_mean(prognostic - verification, grid.lat).mean("time").load()
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -246,7 +246,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
             HORIZONTAL_DIMS
         )
 
-        return area_averages
+        return area_averages.load()
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -263,7 +263,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
             HORIZONTAL_DIMS
         )
 
-        return area_averages
+        return area_averages.load()
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -278,7 +278,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         logger.info(f"Preparing average biases for physics variables ({mask_type})")
         bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
 
-        return bias_errors
+        return bias_errors.load()
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -293,7 +293,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         logger.info(f"Preparing average biases for dycore variables ({mask_type})")
         bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
 
-        return bias_errors
+        return bias_errors.load()
 
 
 @add_to_diags("physics")
@@ -302,7 +302,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_mean(prognostic, verification, grid):
     logger.info("Preparing time means for physics variables")
-    return prognostic.mean("time")
+    return prognostic.mean("time").load()
 
 
 @add_to_diags("physics")
@@ -311,7 +311,7 @@ def time_mean(prognostic, verification, grid):
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_mean_bias(prognostic, verification, grid):
     logger.info("Preparing time mean biases for physics variables")
-    return (prognostic - verification).mean("time")
+    return (prognostic - verification).mean("time").load()
 
 
 for mask_type in ["global", "land", "sea"]:
@@ -329,7 +329,7 @@ for mask_type in ["global", "land", "sea"]:
         if len(resampled.time) == 0:
             return xr.Dataset({})
         else:
-            return diurnal_cycle.calc_diagnostics(resampled, verification, grid)
+            return diurnal_cycle.calc_diagnostics(resampled, verification, grid).load()
 
 
 def _catalog():
