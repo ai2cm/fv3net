@@ -95,9 +95,6 @@ def prepare_config(
     model_url=None,
     nudge_to_observations=False,
 ) -> dict:
-    # Get model config with prognostic run updates
-    with open(args.user_config, "r") as f:
-        user_config = yaml.safe_load(f)
 
     model_type = user_config.get("scikit_learn", {}).get("model_type", "scikit_learn")
 
