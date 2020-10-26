@@ -183,7 +183,7 @@ def holomap_filter_with_region_bar(time_series, varfilter, run_attr_name="run"):
                     long_name = ds[varname].long_name
                     region = varname.split("_")[-1]
                     hmap[(long_name, region, run)] = hv.Curve(
-                        v, label=varfilter
+                        v.rename("value"), label=varfilter,
                     ).options(line_dash=style, color=p)
     return hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
 

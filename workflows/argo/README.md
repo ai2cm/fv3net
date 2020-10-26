@@ -169,6 +169,14 @@ flag. E.g. specifying the argo parameter `flags="--verification nudged_c48_fv3gf
 year-long nudged-to-obs C48 run as verification. By default, the `40day_may2020` simulation
 is used as verification (see fv3net catalog).
 
+The prognostic run report implements some basic caching to speed the generation of multiple
+reports that use the same run. The diagnostics and metrics for each run will be saved
+to `gs://vcm-ml-archive/prognostic_run_diags/{cache-key}` where `cache-key` is the run url
+without the `gs://` part and with forward slashes replaced by dashes. The workflow will only
+compute the diagnostics if they don't already exist in the cache. If you wish to force a
+recomputation of the diagnostics, simply delete everything under the appropriate cached
+subdirectory.
+
 #### Command line Usage Example
 
 Typically, `runs` will be stored in a json file (e.g. `rundirs.json`).
