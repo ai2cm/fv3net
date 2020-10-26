@@ -10,30 +10,26 @@ from ..constants import TIME_NAME
 
 EDGE_TO_CENTER_DIMS = {"x_interface": "x", "y_interface": "y"}
 
+COS_Z = "cos_zenith_angle"
+EAST_NORTH_WIND_TENDENCIES = ["dQu", "dQv"]
+X_Y_WIND_TENDENCIES = ["dQxwind", "dQywind"]
+
 
 def nonderived_variable_names(
     variable_names,
-    cos_z_var: str = "cos_zenith_angle",
-    latlon_wind_tendency_vars: Tuple[str] = None,
-    xy_wind_tendency_vars: Tuple[str] = None,
 ):
-    latlon_wind_tendency_vars = latlon_wind_tendency_vars or ["dQu", "dQv"]
-    xy_wind_tendency_vars = xy_wind_tendency_vars or ["dQx", "dQy"]
-    derived_variables = latlon_wind_tendency_vars + [cos_z_var]
+    derived_variables = EAST_NORTH_WIND_TENDENCIES + [COS_Z]
     nonderived_variables = [
         var for var in variable_names if var not in derived_variables
     ]
     # need to load x/y wind tendencies to derive lat/lon components
-    if any(var in variable_names for var in latlon_wind_tendency_vars):
-        nonderived_variables += xy_wind_tendency_vars
+    if any(var in variable_names for var in EAST_NORTH_WIND_TENDENCIES):
+        nonderived_variables += X_Y_WIND_TENDENCIES
     return nonderived_variables
 
 
 def insert_derived_variables(
     variables: Sequence[str],
-    cos_z_var: str = "cos_zenith_angle",
-    xy_wind_tendency_vars: Sequence[str] = None,
-    latlon_wind_tendency_vars: Sequence[str] = None,
     catalog_path: str = "catalog.yml",
     res: str = "c48",
     edge_to_center_dims: Mapping = None,
@@ -43,12 +39,6 @@ def insert_derived_variables(
     to inserts them into the final dataset.
 
     Args:
-        cos_z_var: Name for the cosine zenith angle derived variable.
-            Defaults to "cos_zenith_angle".
-        xy_wind_tendency_vars: Names of x and y wind tendencies (in that order)
-            in the local grid basis. Defaults to ["dQx", "dQy"].
-        latlon_wind_tendency_vars: Names to assign to rotated wind tendencies
-            in the lat/lon basis. Defaults to ["dQu", "dQv"].
         catalog_path: Path to catalog. Defaults to "catalog.yml"
             (assumes running from top level of fv3net dir).
 
@@ -56,89 +46,63 @@ def insert_derived_variables(
         Composed partial function that inserts the derived variables into the
         batch dataset.
     """
-    xy_wind_tendency_vars = xy_wind_tendency_vars or ["dQx", "dQy"]
-    latlon_wind_tendency_vars = latlon_wind_tendency_vars or ["dQu", "dQv"]
     edge_to_center_dims = edge_to_center_dims or EDGE_TO_CENTER_DIMS
     derived_var_partial_funcs = []
 
-    if cos_z_var in variables:
+    if COS_Z in variables:
         grid = _load_grid(res, catalog_path)
         derived_var_partial_funcs.append(
-            functools.partial(_insert_cos_z, grid, cos_z_var)
+            functools.partial(_insert_cos_z, grid)
         )
-    if any(var in variables for var in latlon_wind_tendency_vars):
+    if any(var in variables for var in EAST_NORTH_WIND_TENDENCIES):
         wind_rotation_matrix = _load_wind_rotation_matrix(res, catalog_path)
         derived_var_partial_funcs.append(
             functools.partial(
                 _insert_latlon_wind_tendencies,
                 wind_rotation_matrix,
-                xy_wind_tendency_vars,
-                latlon_wind_tendency_vars,
             )
         )
         derived_var_partial_funcs.append(
             functools.partial(
                 _center_d_grid_winds,
-                xy_wind_tendency_vars,
-                latlon_wind_tendency_vars,
                 edge_to_center_dims,
             )
         )
     return compose(*derived_var_partial_funcs)
 
 
-def _wind_rotation_needed(
-    available_vars: Sequence[str],
-    xy_wind_tendency_vars: Sequence[str],
-    latlon_wind_tendency_vars: Sequence[str],
-):
+def _wind_rotation_needed(available_vars: Sequence[str]):
     # Returns False if existing wind vars are already in lat/lon components
-    if set(latlon_wind_tendency_vars).issubset(available_vars):
+    if set(EAST_NORTH_WIND_TENDENCIES).issubset(available_vars):
         return False
-    elif set(xy_wind_tendency_vars).issubset(available_vars):
+    elif set(X_Y_WIND_TENDENCIES).issubset(available_vars):
         return True
     else:
         raise KeyError(
             "If lat/lon winds are requested, dataset must have either i) "
-            f"{latlon_wind_tendency_vars} or ii) {xy_wind_tendency_vars} "
+            f"{EAST_NORTH_WIND_TENDENCIES} or ii) {X_Y_WIND_TENDENCIES} "
             "as data variables."
         )
 
 
-def _center_d_grid_winds(
-    xy_wind_tendency_vars: Sequence[str],
-    latlon_wind_tendency_vars: Sequence[str],
-    edge_to_center_dims: Mapping,
-    ds: xr.Dataset,
-):
-    edge_to_center_dims = edge_to_center_dims or EDGE_TO_CENTER_DIMS
-    if _wind_rotation_needed(
-        ds.data_vars, xy_wind_tendency_vars, latlon_wind_tendency_vars
-    ):
-        for edge_wind in xy_wind_tendency_vars:
+def _center_d_grid_winds(ds: xr.Dataset,):
+    if _wind_rotation_needed(ds.data_vars):
+        for edge_wind in X_Y_WIND_TENDENCIES:
             ds[edge_wind] = vcm.cubedsphere.shift_edge_var_to_center(
-                ds[edge_wind], edge_to_center_dims
+                ds[edge_wind], EDGE_TO_CENTER_DIMS
             )
     return ds
 
 
-def _insert_latlon_wind_tendencies(
-    wind_rotation_matrix: xr.Dataset,
-    xy_wind_tendency_vars: Sequence[str],
-    latlon_wind_tendency_vars: Sequence[str],
-    ds: xr.Dataset,
-):
-    if _wind_rotation_needed(
-        ds.data_vars, xy_wind_tendency_vars, latlon_wind_tendency_vars
-    ):
-        x_tendency, y_tendency = xy_wind_tendency_vars
-        lat_tendency, lon_tendency = latlon_wind_tendency_vars
-
-        ds[lat_tendency] = (
+def _insert_latlon_wind_tendencies(wind_rotation_matrix: xr.Dataset, ds: xr.Dataset):
+    if _wind_rotation_needed(ds.data_vars):
+        x_tendency, y_tendency = X_Y_WIND_TENDENCIES
+        eastward_tendency, northward_tendency = EAST_NORTH_WIND_TENDENCIES
+        ds[eastward_tendency] = (
             wind_rotation_matrix["eastward_wind_u_coeff"] * ds[x_tendency]
             + wind_rotation_matrix["eastward_wind_v_coeff"] * ds[y_tendency]
         )
-        ds[lon_tendency] = (
+        ds[northward_tendency] = (
             wind_rotation_matrix["northward_wind_u_coeff"] * ds[x_tendency]
             + wind_rotation_matrix["northward_wind_v_coeff"] * ds[y_tendency]
         )
@@ -159,7 +123,7 @@ def _load_wind_rotation_matrix(res="c48", catalog_path="catalog.yml"):
     return cat[f"wind_rotation/{res}"].to_dask()
 
 
-def _insert_cos_z(grid: xr.Dataset, cos_z_var: str, ds: xr.Dataset) -> xr.Dataset:
+def _insert_cos_z(grid: xr.Dataset, ds: xr.Dataset) -> xr.Dataset:
     times_exploded = np.array(
         [
             np.full(grid["lon"].shape, vcm.cast_to_datetime(t))
@@ -167,4 +131,4 @@ def _insert_cos_z(grid: xr.Dataset, cos_z_var: str, ds: xr.Dataset) -> xr.Datase
         ]
     )
     cos_z = vcm.cos_zenith_angle(times_exploded, grid["lon"], grid["lat"])
-    return ds.assign({cos_z_var: ((TIME_NAME,) + grid["lon"].dims, cos_z)})
+    return ds.assign({COS_Z: ((TIME_NAME,) + grid["lon"].dims, cos_z)})
