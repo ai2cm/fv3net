@@ -9,12 +9,11 @@ OTHER_FLAGS = ["--nudge-to-observations"]
 
 def get_args():
     return [
+        CONFIG_UPDATE,
         IC_URL,
         IC_TIMESTAMP,
         "--model_url",
         MODEL_URL,
-        "--prog_config_yml",
-        CONFIG_UPDATE,
     ] + OTHER_FLAGS
 
 
