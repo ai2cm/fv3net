@@ -32,7 +32,6 @@ def insert_derived_variables(
     variables: Sequence[str],
     catalog_path: str = "catalog.yml",
     res: str = "c48",
-    edge_to_center_dims: Mapping = None,
 ):
     """Checks if any of the derived variables are requested in the
     model configuration, and for each derived variable adds partial function
@@ -46,7 +45,6 @@ def insert_derived_variables(
         Composed partial function that inserts the derived variables into the
         batch dataset.
     """
-    edge_to_center_dims = edge_to_center_dims or EDGE_TO_CENTER_DIMS
     derived_var_partial_funcs = []
 
     if COS_Z in variables:
@@ -62,12 +60,7 @@ def insert_derived_variables(
                 wind_rotation_matrix,
             )
         )
-        derived_var_partial_funcs.append(
-            functools.partial(
-                _center_d_grid_winds,
-                edge_to_center_dims,
-            )
-        )
+        derived_var_partial_funcs.append(functools.partial(_center_d_grid_winds))
     return compose(*derived_var_partial_funcs)
 
 
@@ -85,7 +78,7 @@ def _wind_rotation_needed(available_vars: Sequence[str]):
         )
 
 
-def _center_d_grid_winds(ds: xr.Dataset,):
+def _center_d_grid_winds(ds: xr.Dataset):
     if _wind_rotation_needed(ds.data_vars):
         for edge_wind in X_Y_WIND_TENDENCIES:
             ds[edge_wind] = vcm.cubedsphere.shift_edge_var_to_center(
