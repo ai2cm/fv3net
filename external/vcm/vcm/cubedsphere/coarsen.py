@@ -35,6 +35,8 @@ def rename_centered_xy_coords(cell_centered_da, edge_to_center_dims: Mapping = N
     """
     Args:
         cell_centered_da: data array that got shifted from edges to cell centers
+        edge_to_center_dims: Optional mapping of edge dim names to centered dim names.
+            Defaults to {"grid_x": "grid_xt", "grid_y": "grid_yt"}.
     Returns:
         same input array with dims renamed to corresponding cell center dims
     """
@@ -50,12 +52,13 @@ def rename_centered_xy_coords(cell_centered_da, edge_to_center_dims: Mapping = N
 
 
 def shift_edge_var_to_center(
-    edge_var: xr.DataArray, edge_to_center_dims: Mapping = None
+    edge: xr.DataArray, edge_to_center_dims: Mapping = None
 ):
     """
     Args:
         edge_var: variable that is defined on edges of grid, e.g. u, v
-
+        edge_to_center_dims: Optional mapping of edge dim names to centered dim names.
+            Defaults to {"grid_x": "grid_xt", "grid_y": "grid_yt"}.
     Returns:
         data array with the original variable at cell center
     """
@@ -64,10 +67,10 @@ def shift_edge_var_to_center(
         "grid_y": "grid_yt",
     }
     edge_dims = edge_to_center_dims.keys()
-    for staggered_dim in [dim for dim in edge_dims if dim in edge_var.dims]:
+    for staggered_dim in [dim for dim in edge_dims if dim in edge.dims]:
         return rename_centered_xy_coords(
             0.5
-            * (edge_var + edge_var.shift({staggered_dim: 1})).isel(
+            * (edge + edge.shift({staggered_dim: 1})).isel(
                 {staggered_dim: slice(1, None)}
             ),
             edge_to_center_dims,
