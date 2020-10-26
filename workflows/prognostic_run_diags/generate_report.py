@@ -147,7 +147,11 @@ def _longest_run(diagnostics: Iterable[xr.Dataset]) -> xr.Dataset:
     return longest_ds
 
 
-def holomap_filter(diagnostics, varfilter, run_attr_name="run"):
+def plot_1d(
+    diagnostics: Iterable[xr.Dataset], varfilter: str, run_attr_name: str = "run",
+) -> HVPlot:
+    """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
+    All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "run"])
     for ds in diagnostics:
@@ -160,10 +164,15 @@ def holomap_filter(diagnostics, varfilter, run_attr_name="run"):
                 hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
                     line_dash=style, color=p
                 )
-    return hmap
+    return HVPlot(_set_opts_and_overlay(hmap))
 
 
-def holomap_filter_with_region_bar(diagnostics, varfilter, run_attr_name="run"):
+def plot_1d_with_region_bar(
+    diagnostics: Iterable[xr.Dataset], varfilter: str, run_attr_name: str = "run"
+) -> HVPlot:
+    """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
+    Region will be selectable through a drop-down bar. Region is assumed to be part of
+    variable name after last underscore. All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
     for ds in diagnostics:
@@ -177,7 +186,7 @@ def holomap_filter_with_region_bar(diagnostics, varfilter, run_attr_name="run"):
                 hmap[(long_name, region, run)] = hv.Curve(v, label=varfilter,).options(
                     line_dash=style, color=p
                 )
-    return hmap
+    return HVPlot(_set_opts_and_overlay(hmap))
 
 
 def _set_opts_and_overlay(hmap, overlay="run"):
@@ -185,18 +194,6 @@ def _set_opts_and_overlay(hmap, overlay="run"):
         hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
         .overlay(overlay)
         .opts(legend_position="right")
-    )
-
-
-def plot_1d(diagnostics: Iterable[xr.Dataset], varfilter: str) -> HVPlot:
-    return HVPlot(_set_opts_and_overlay(holomap_filter(diagnostics, varfilter)))
-
-
-def plot_1d_with_region_bar(
-    diagnostics: Iterable[xr.Dataset], varfilter: str
-) -> HVPlot:
-    return HVPlot(
-        _set_opts_and_overlay(holomap_filter_with_region_bar(diagnostics, varfilter))
     )
 
 
