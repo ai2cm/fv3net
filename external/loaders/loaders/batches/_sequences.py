@@ -1,5 +1,6 @@
 import os
 import xarray as xr
+import pandas as pd
 import glob
 import joblib
 import collections
@@ -20,24 +21,44 @@ from typing import (
 T = TypeVar("T")
 
 
+def _write_to_netcdf(ds, path):
+
+    drop_dims = []
+    for dim, index in ds.indexes.items():
+        if isinstance(index, pd.MultiIndex):
+            drop_dims.append(dim)
+
+    ds.drop(drop_dims).to_netcdf(path)
+
+
 class BaseSequence(Sequence[T]):
-    def local(self, path, n_jobs=4):
+    def local(self, path: str, n_jobs: int = 4) -> "Local":
+        """Download a sequence of xarray objects to a local path
+
+        Args:
+            path: local directory, will be created if not existing
+            n_jobs: parallelism
+        """
         os.makedirs(path, exist_ok=True)
         joblib.Parallel(n_jobs=n_jobs)(
             joblib.delayed(self._save_item)(path, i) for i in range(len(self))
         )
         return Local(os.path.abspath(path))
 
-    def _save_item(self, path, i):
+    def _save_item(self, path: str, i: int):
         item = self[i]
-        cleaned = item.drop("sample")
-        cleaned.to_netcdf(os.path.join(path, "%05d.nc" % i))
+        path = os.path.join(path, "%05d.nc" % i)
+        _write_to_netcdf(item, path)
 
-    def take(self, n):
+    def take(self, n: int) -> "Take":
+        """Return a sequence consisting of the first n elements
+        """
         return Take(self, n)
 
-    def map(self, func):
-        return FunctionOutputSequence(func, self)
+    def map(self, func) -> "Map":
+        """Map a function over the elements of this sequence
+        """
+        return Map(func, self)
 
 
 class Take(BaseSequence[T]):
@@ -56,7 +77,7 @@ class Take(BaseSequence[T]):
 
 
 class Local(BaseSequence[T]):
-    def __init__(self, path):
+    def __init__(self, path: str):
         self.path = path
 
     @property
@@ -70,7 +91,7 @@ class Local(BaseSequence[T]):
         return xr.open_dataset(self.files[i])
 
 
-class FunctionOutputSequence(BaseSequence[T]):
+class Map(BaseSequence[T]):
     """A wrapper over a sequence of function arguments passed into a function.
 
     Attributes:
@@ -93,7 +114,7 @@ class FunctionOutputSequence(BaseSequence[T]):
         self._args = args_sequence
         self.attrs = {}
 
-    def __getitem__(self, item: Union[int, slice]) -> T:
+    def __getitem__(self, item: Union[int, slice]):
 
         if isinstance(item, int):
             return self._func(self._args[item])
@@ -103,7 +124,7 @@ class FunctionOutputSequence(BaseSequence[T]):
             TypeError(f"Invalid argument type of {type(item)} passed into __getitem__.")
 
     def _slice_selection(self, selection: slice):
-        seq = self.__class__(self._func, self._args[selection])
+        seq = Map(self._func, self._args[selection])
         seq.attrs.update(deepcopy(self.attrs))
         return seq
 
@@ -111,14 +132,8 @@ class FunctionOutputSequence(BaseSequence[T]):
         return len(self._args)
 
 
-def shuffle(
-    sequence: Sequence[Any], seed: Optional[int] = None
-) -> FunctionOutputSequence:
-    """
-    Shuffle a sequence by creating a new FunctionOutputSequence
-    with shuffled indices as arguments.  Preserves potentially lazy
-    operations on input sequence __getitem__ calls by shuffling
-    index arguments.
+def shuffle(sequence: Sequence[T], seed: Optional[int] = None) -> Map[T]:
+    """Lazily shuffle a sequence
 
     Args:
         sequence:  Input sequence to have access indices shuffled
@@ -130,7 +145,7 @@ def shuffle(
     seq_len = len(sequence)
     shuffled = random.choice(seq_len, size=seq_len, replace=False).tolist()
     func = partial(_simple_getitem, sequence)
-    return FunctionOutputSequence(func, shuffled)
+    return Map(func, shuffled)
 
 
 def _simple_getitem(sequence: Sequence[Any], item: Union[int, slice]):
