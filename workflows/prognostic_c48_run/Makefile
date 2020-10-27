@@ -5,7 +5,7 @@ build:
 	docker-compose build fv3
 
 dev:
-	docker-compose run $(KEY_ARGS) fv3 bash
+	DOCKER_BUILDKIT=1  docker-compose run $(KEY_ARGS) fv3 bash
 
 test:
 	docker-compose run fv3 pytest

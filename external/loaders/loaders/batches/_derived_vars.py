@@ -18,7 +18,7 @@ X_Y_WIND_TENDENCIES = ["dQxwind", "dQywind"]
 def nonderived_variable_names(requested: Sequence[str], available: Sequence[str]):
     derived = [var for var in requested if var not in available]
     nonderived = [var for var in requested if var in available]
-    # if E/N winds not in underlying datam, need to load x/y wind
+    # if E/N winds not in underlying data, need to load x/y wind
     # tendencies to derive them
     if any(var in derived for var in EAST_NORTH_WIND_TENDENCIES):
         nonderived += X_Y_WIND_TENDENCIES
@@ -48,48 +48,10 @@ def insert_derived_variables(
     if any(var in variables for var in EAST_NORTH_WIND_TENDENCIES):
         wind_rotation_matrix = _load_wind_rotation_matrix(res, catalog_path)
         derived_var_partial_funcs.append(
-            functools.partial(_insert_latlon_wind_tendencies, wind_rotation_matrix,)
+            functools.partial(
+                vcm.cubedsphere.insert_eastnorth_wind_tendencies, wind_rotation_matrix,)
         )
-        derived_var_partial_funcs.append(functools.partial(_center_d_grid_winds))
     return compose(*derived_var_partial_funcs)
-
-
-def _wind_rotation_needed(available_vars: Sequence[str]):
-    # Returns False if existing wind vars are already in lat/lon components
-    if set(EAST_NORTH_WIND_TENDENCIES).issubset(available_vars):
-        return False
-    elif set(X_Y_WIND_TENDENCIES).issubset(available_vars):
-        return True
-    else:
-        raise KeyError(
-            "If lat/lon winds are requested, dataset must have either i) "
-            f"{EAST_NORTH_WIND_TENDENCIES} or ii) {X_Y_WIND_TENDENCIES} "
-            "as data variables."
-        )
-
-
-def _center_d_grid_winds(ds: xr.Dataset):
-    if _wind_rotation_needed(ds.data_vars):
-        for edge_wind in X_Y_WIND_TENDENCIES:
-            ds[edge_wind] = vcm.cubedsphere.shift_edge_var_to_center(
-                ds[edge_wind], EDGE_TO_CENTER_DIMS
-            )
-    return ds
-
-
-def _insert_latlon_wind_tendencies(wind_rotation_matrix: xr.Dataset, ds: xr.Dataset):
-    if _wind_rotation_needed(ds.data_vars):
-        x_tendency, y_tendency = X_Y_WIND_TENDENCIES
-        eastward_tendency, northward_tendency = EAST_NORTH_WIND_TENDENCIES
-        ds[eastward_tendency] = (
-            wind_rotation_matrix["eastward_wind_u_coeff"] * ds[x_tendency]
-            + wind_rotation_matrix["eastward_wind_v_coeff"] * ds[y_tendency]
-        )
-        ds[northward_tendency] = (
-            wind_rotation_matrix["northward_wind_u_coeff"] * ds[x_tendency]
-            + wind_rotation_matrix["northward_wind_v_coeff"] * ds[y_tendency]
-        )
-    return ds
 
 
 def _load_grid(res="c48", catalog_path="catalog.yml"):
