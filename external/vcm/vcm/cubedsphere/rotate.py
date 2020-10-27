@@ -18,7 +18,7 @@ def _wind_rotation_needed(available_vars: DataVars):
         return True
     else:
         raise KeyError(
-            "If lat/lon winds are requested, dataset must have either i) "
+            "If east/north winds are requested, dataset must have either i) "
             f"{EAST_NORTH_WIND_TENDENCIES} or ii) {X_Y_WIND_TENDENCIES} "
             "as data variables."
         )

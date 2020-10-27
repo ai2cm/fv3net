@@ -2,7 +2,7 @@ from datetime import datetime
 import pytest
 import xarray as xr
 
-from loaders.batches._derived_vars import (
+from loaders.batches._derived import (
     nonderived_variable_names,
     _insert_cos_z,
 )

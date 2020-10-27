@@ -15,7 +15,7 @@ EAST_NORTH_WIND_TENDENCIES = ["dQu", "dQv"]
 X_Y_WIND_TENDENCIES = ["dQxwind", "dQywind"]
 
 
-def nonderived_variable_names(requested: Sequence[str], available: Sequence[str]):
+def nonderived_variables(requested: Sequence[str], available: Sequence[str]):
     derived = [var for var in requested if var not in available]
     nonderived = [var for var in requested if var in available]
     # if E/N winds not in underlying data, need to load x/y wind
@@ -25,10 +25,10 @@ def nonderived_variable_names(requested: Sequence[str], available: Sequence[str]
     return nonderived
 
 
-def insert_derived_variables(
+def insert_derived_fields(
     variables: Sequence[str], catalog_path: str = "catalog.yml", res: str = "c48",
 ):
-    """Checks if any of the derived variables are requested in the
+    """Checks if any of the derived fields are requested in the
     model configuration, and for each derived variable adds partial function
     to inserts them into the final dataset.
 
@@ -37,22 +37,22 @@ def insert_derived_variables(
             (assumes running from top level of fv3net dir).
 
     Returns:
-        Composed partial function that inserts the derived variables into the
+        Composed partial function that inserts the derived fields into the
         batch dataset.
     """
-    derived_var_partial_funcs = []
+    derived_partial_funcs = []
 
     if COS_Z in variables:
         grid = _load_grid(res, catalog_path)
-        derived_var_partial_funcs.append(functools.partial(_insert_cos_z, grid))
+        derived_partial_funcs.append(functools.partial(_insert_cos_z, grid))
     if any(var in variables for var in EAST_NORTH_WIND_TENDENCIES):
         wind_rotation_matrix = _load_wind_rotation_matrix(res, catalog_path)
-        derived_var_partial_funcs.append(
+        derived_partial_funcs.append(
             functools.partial(
                 vcm.cubedsphere.insert_eastnorth_wind_tendencies, wind_rotation_matrix,
             )
         )
-    return compose(*derived_var_partial_funcs)
+    return compose(*derived_partial_funcs)
 
 
 def _load_grid(res="c48", catalog_path="catalog.yml"):

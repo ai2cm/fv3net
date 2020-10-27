@@ -7,7 +7,7 @@ from typing import Iterable, Sequence, Mapping, Any, Hashable, Optional, Union, 
 import xarray as xr
 from vcm import safe
 from toolz import partition_all, compose
-from ._derived_vars import nonderived_variable_names, insert_derived_variables
+from ._derived import nonderived_variables, insert_derived_fields
 from ._sequences import Map
 from .._utils import stack_dropnan_shuffle
 from ..constants import TIME_FMT, TIME_NAME
@@ -46,7 +46,8 @@ def batches_from_geodata(
             passed to the mapping function
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
-
+        catalog_path: Location of intake catalog, used to load grid and rotation info.
+        res: grid resolution, format as f'c{number cells in tile}'
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -93,7 +94,8 @@ def batches_from_mapper(
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
         timesteps: List of timesteps to use in training.
-
+        catalog_path: Location of intake catalog, used to load grid and rotation info.
+        res: grid resolution, format as f'c{number cells in tile}'
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -120,10 +122,10 @@ def batches_from_mapper(
     transform = functools.partial(stack_dropnan_shuffle, random_state)
 
     load_batch = functools.partial(_load_batch, data_mapping, variable_names)
-    partial_insert_derived_vars = insert_derived_variables(
+    partial_insert_derived = insert_derived_fields(
         variable_names, catalog_path, res,
     )
-    batch_func = compose(transform, partial_insert_derived_vars, load_batch)
+    batch_func = compose(transform, partial_insert_derived, load_batch)
 
     seq = Map(batch_func, batched_timesteps)
     seq.attrs["times"] = times
@@ -155,6 +157,8 @@ def diagnostic_batches_from_geodata(
         num_batches (int, optional): Defaults to None.
         random_seed (int, optional): Defaults to 0.
         timesteps: List of timesteps to use in training.
+        catalog_path: Location of intake catalog, used to load grid and rotation info.
+        res: grid resolution, format as f'c{number cells in tile}'
 
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
@@ -197,10 +201,10 @@ def diagnostic_batches_from_mapper(
     batched_timesteps = list(partition_all(timesteps_per_batch, times))
 
     load_batch = functools.partial(_load_batch, data_mapping, variable_names)
-    partial_insert_derived_vars = insert_derived_variables(
+    partial_insert_derived = insert_derived_fields(
         variable_names, catalog_path, res,
     )
-    batch_func = compose(partial_insert_derived_vars, load_batch)
+    batch_func = compose(partial_insert_derived, load_batch)
     seq = Map(batch_func, batched_timesteps)
     seq.attrs["times"] = times
     return seq
@@ -217,7 +221,7 @@ def _load_batch(
 ) -> xr.Dataset:
     time_coords = [datetime.strptime(key, TIME_FMT) for key in keys]
     ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))
-    nonderived_vars = nonderived_variable_names(data_vars, ds.data_vars)
+    nonderived_vars = nonderived_variables(data_vars, ds.data_vars)
     ds = safe.get_variables(ds, nonderived_vars)
     return ds
 
