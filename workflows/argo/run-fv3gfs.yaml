@@ -238,8 +238,12 @@ spec:
     container:
       image: us.gcr.io/vcm-ml/post_process_run
       command: ["/bin/bash", "-c", "-e"]
+      env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secret/gcp-credentials/key.json
       args:
       - |
+        gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
         post_process.py --chunks /mnt/data/chunks.yaml /mnt/data/rundir /tmp/processed_rundir
         append.py /tmp/processed_rundir {{inputs.parameters.output-url}}
         rsync -r /mnt/data/rundir/RESTART/ /mnt/data/RESTART/
