@@ -30,7 +30,7 @@ def _center_d_grid_winds(ds: xr.Dataset):
     return ds
 
 
-def _eastnorth_wind_tendencies(wind_rotation_matrix: xr.Dataset, ds: xr.Dataset):
+def eastnorth_wind_tendencies(wind_rotation_matrix: xr.Dataset, ds: xr.Dataset):
     x_tendency, y_tendency = X_Y_WIND_TENDENCIES
     eastward_tendency, northward_tendency = EAST_NORTH_WIND_TENDENCIES
     rotated = xr.Dataset()

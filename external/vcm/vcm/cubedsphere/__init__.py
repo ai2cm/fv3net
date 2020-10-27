@@ -17,7 +17,7 @@ from .regridz import (
     regrid_vertical,
     regrid_to_common_pressure,
 )
-from .rotate import insert_eastnorth_wind_tendencies
+from .rotate import insert_eastnorth_wind_tendencies, eastnorth_wind_tendencies
 from .xgcm import create_fv3_grid
 
 __all__ = [item for item in dir() if not item.startswith("_")]

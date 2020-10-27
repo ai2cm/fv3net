@@ -5,7 +5,7 @@ import xarray as xr
 from vcm.cubedsphere.rotate import (
     _wind_rotation_needed,
     _center_d_grid_winds,
-    _eastnorth_wind_tendencies,
+    eastnorth_wind_tendencies,
 )
 
 
@@ -50,7 +50,7 @@ def test__center_d_grid_winds():
     assert centered_winds["dQywind"] == cell_centered_array
 
 
-def test__eastnorth_wind_tendencies():
+def test_eastnorth_wind_tendencies():
     ds = xr.Dataset({"dQxwind": cell_centered_array, "dQywind": cell_centered_array})
     # lat/lon axes 45 deg rotated from x/y
     wind_rotation_matrix = xr.Dataset(
@@ -69,6 +69,6 @@ def test__eastnorth_wind_tendencies():
             ),
         }
     )
-    result = _eastnorth_wind_tendencies(wind_rotation_matrix, ds=ds)
+    result = eastnorth_wind_tendencies(wind_rotation_matrix, ds=ds)
     assert result["dQu"] == [np.sqrt(2.0)]
     assert result["dQv"] == [0.0]
