@@ -10,3 +10,9 @@ subjects:
 - kind: ServiceAccount
   name: integration-tests
   namespace: default
+- kind: ServiceAccount
+  name: argo
+  namespace: argo
+- kind: ServiceAccount
+  name: default
+  namespace: argo
