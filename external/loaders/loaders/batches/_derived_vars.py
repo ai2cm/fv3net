@@ -49,7 +49,8 @@ def insert_derived_variables(
         wind_rotation_matrix = _load_wind_rotation_matrix(res, catalog_path)
         derived_var_partial_funcs.append(
             functools.partial(
-                vcm.cubedsphere.insert_eastnorth_wind_tendencies, wind_rotation_matrix,)
+                vcm.cubedsphere.insert_eastnorth_wind_tendencies, wind_rotation_matrix,
+            )
         )
     return compose(*derived_var_partial_funcs)
 
