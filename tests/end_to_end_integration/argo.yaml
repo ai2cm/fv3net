@@ -56,6 +56,10 @@ spec:
             value: "{{workflow.parameters.nudging-chunks}}"
           - {name: work-volume-name, value: work-volume}
           - {name: external-volume-name, value: restart-data}
+          - name: cpu
+            value: .5
+          - name: memory
+            value: 6Gi
       - name: train-offline-diags-prognostic
         dependencies: [nudging-run]
         templateRef:

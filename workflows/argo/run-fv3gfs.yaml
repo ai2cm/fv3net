@@ -194,7 +194,6 @@ spec:
           value: /secret/gcp-credentials/key.json
         - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
           value: /secret/gcp-credentials/key.json
-      imagePullPolicy: Always
       terminationMessagePath: /dev/termination-log
       terminationMessagePolicy: File
       volumeMounts:
@@ -256,8 +255,8 @@ spec:
         limits:
           memory: 8Gi
         requests:
-          cpu: "6"
-          memory: 8Gi
+          cpu: "1"
+          memory: 6Gi
   - name: update-config
     inputs:
       parameters:

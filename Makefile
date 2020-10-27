@@ -47,7 +47,6 @@ enter_%:
 	docker run -ti -w /fv3net -v $(shell pwd):/fv3net $* bash
 
 build_images: $(addprefix build_image_, $(IMAGES))
-
 push_images: $(addprefix push_image_, $(IMAGES))
 
 push_image_%: build_image_%
@@ -70,6 +69,7 @@ build_ci_image:
 
 # run integration tests
 run_integration_tests:
+	cd workflows/argo && bash install.sh
 	./tests/end_to_end_integration/run_test.sh $(VERSION)
 
 test:

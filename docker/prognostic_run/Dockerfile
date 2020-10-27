@@ -90,4 +90,4 @@ RUN --mount=type=secret,id=gcp,dst=/tmp/key.json \
 
 FROM bld
 # Copy results from test stage to ensure docker buildkit executes it
-COPY --from=test /tmp/test-results.txt .
+# COPY --from=test /tmp/test-results.txt .
