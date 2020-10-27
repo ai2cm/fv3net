@@ -58,7 +58,7 @@ class DenseClassifierModel(DenseModel):
             )
 
         Xy = _TargetToBool(self.X_packer, self.y_packer, batches)
-        default_thresh = self.y_scaler.std * 10 ** -4
+        default_thresh = self.y_scaler.std.max() * 10 ** -4
         thresh = true_threshold if true_threshold is not None else default_thresh
         Xy.set_y_thresh(thresh)
 
