@@ -25,9 +25,7 @@ from loaders.batches._derived import (
     ),
 )
 def test_nonderived_variable_names(requested, available, nonderived):
-    assert set(nonderived_variables(requested, available)) == set(
-        nonderived
-    )
+    assert set(nonderived_variables(requested, available)) == set(nonderived)
 
 
 def test__insert_cos_z():

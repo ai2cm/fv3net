@@ -48,5 +48,5 @@ def eastnorth_wind_tendencies(wind_rotation_matrix: xr.Dataset, ds: xr.Dataset):
 def insert_eastnorth_wind_tendencies(wind_rotation_matrix: xr.Dataset, ds: xr.Dataset):
     if _wind_rotation_needed(ds.data_vars):
         ds = _center_d_grid_winds(ds)
-        ds = ds.merge(_eastnorth_wind_tendencies(wind_rotation_matrix, ds))
+        ds = ds.merge(eastnorth_wind_tendencies(wind_rotation_matrix, ds))
     return ds
