@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nudging-read-only
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: hostpath
+  resources:
+    requests:
+      storage: 50Gi

@@ -1,0 +1,21 @@
+
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: e2e-pdb
+spec:
+  # will prevent voluntary evictions
+  minAvailable: 100%
+  selector:
+    matchLabels:
+      app: end-to-end
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: fv3-simulation
+spec:
+  minAvailable: 100%
+  selector:
+    matchLabels:
+      app: fv3run
