@@ -1,0 +1,22 @@
+[
+  {
+    "url": "gs://vcm-ml-experiments/2020-10-26-n2f-timescale-sensitivity/timescale-1hr/prognostic_run",
+    "name": "nudge-to-fine-1hr-RF"
+  },
+  {
+    "url": "gs://vcm-ml-experiments/2020-10-26-n2f-timescale-sensitivity/timescale-3hr/prognostic_run",
+    "name": "nudge-to-fine-3hr-RF"
+  },
+  {
+    "url": "gs://vcm-ml-experiments/2020-10-26-n2f-timescale-sensitivity/timescale-6hr/prognostic_run",
+    "name": "nudge-to-fine-6hr-RF"
+  },
+  {
+    "url": "gs://vcm-ml-experiments/2020-10-26-n2f-timescale-sensitivity/timescale-12hr/prognostic_run",
+    "name": "nudge-to-fine-12hr-RF"
+  },
+  {
+    "url": "gs://vcm-ml-experiments/2020-07-14-nudge-to-obs/train-model-and-prog-run/long_baseline_run",
+    "name": "physics-on-baseline"
+  }
+]
