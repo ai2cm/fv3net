@@ -3,13 +3,13 @@ import pytest
 import xarray as xr
 
 from loaders.batches._derived import (
-    nonderived_variable_names,
+    nonderived_variables,
     _insert_cos_z,
 )
 
 
 @pytest.mark.parametrize(
-    "requested, available, nonderived_variables",
+    "requested, available, nonderived",
     (
         [["dQ1", "dQ2"], ["dQ1", "dQ2"], ["dQ1", "dQ2"]],
         [
@@ -24,9 +24,9 @@ from loaders.batches._derived import (
         ],
     ),
 )
-def test_nonderived_variable_names(requested, available, nonderived_variables):
-    assert set(nonderived_variable_names(requested, available)) == set(
-        nonderived_variables
+def test_nonderived_variable_names(requested, available, nonderived):
+    assert set(nonderived_variables(requested, available)) == set(
+        nonderived
     )
 
 
