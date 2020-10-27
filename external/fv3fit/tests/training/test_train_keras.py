@@ -74,7 +74,7 @@ def test_reproducibility(
     model_1.fit(training_batches)
     result_1 = model_1.predict(batch_dataset_test)
 
-    xr.testing.assert_allclose(result_0, result_1, rtol=1e-03)
+    xr.testing.assert_allclose(result_0, result_1, rtol=1e-02)
 
 
 def test_training(
