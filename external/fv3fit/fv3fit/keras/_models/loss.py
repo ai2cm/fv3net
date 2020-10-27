@@ -15,6 +15,13 @@ def _weighted_mse(weights, std):
     return custom_loss
 
 
+def _weighted_mae(weights, std):
+    def custom_loss(y_true, y_pred):
+        return tf.math.reduce_mean(weights * tf.math.abs((y_pred - y_true) / std))
+
+    return custom_loss
+
+
 def _pack_weights(y_packer: ArrayPacker, **weights):
     """Returns a size [1, n_features] array of stacked weights corresponding to a
     stacked array, based on values given in a weights dictionary. Default weight is
@@ -53,7 +60,7 @@ def _divide_scalar_weights_by_feature_counts(
             )
 
 
-def get_weighted_mse(
+def get_weighted_mae(
     y_packer: ArrayPacker, y_std: np.ndarray, **weights: Weight,
 ) -> Callable:
     """Retrieve a weighted mean squared error loss function for a given set of weights.
@@ -85,4 +92,4 @@ def get_weighted_mse(
     """
     # convert scalar weights from total variable weight to per-feature weight
     weights = _pack_weights(y_packer, **weights)
-    return _weighted_mse(weights, y_std)
+    return _weighted_mae(weights, y_std)

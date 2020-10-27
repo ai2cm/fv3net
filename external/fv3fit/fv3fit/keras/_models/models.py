@@ -9,7 +9,7 @@ import os
 from ._filesystem import get_dir, put_dir
 from ._sequences import _XyArraySequence, _ThreadedSequencePreLoader
 from .normalizer import LayerStandardScaler
-from .loss import get_weighted_mse
+from .loss import get_weighted_mse, get_weighted_mae
 import yaml
 
 logger = logging.getLogger(__file__)
@@ -265,7 +265,7 @@ class PackedKerasModel(Model):
         std[std == 0] = 1.0
         if not self._normalize_loss:
             std[:] = 1.0
-        return get_weighted_mse(self.y_packer, std, **self.weights)
+        return get_weighted_mae(self.y_packer, std, **self.weights)
 
     @classmethod
     def load(cls, path: str) -> Model:
