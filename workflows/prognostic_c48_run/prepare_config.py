@@ -132,7 +132,7 @@ if __name__ == "__main__":
     parser = _create_arg_parser()
     args = parser.parse_args()
 
-    with open(args.prog_config_yml, "r") as f:
+    with open(args.user_config, "r") as f:
         user_config = yaml.safe_load(f)
 
     print(
