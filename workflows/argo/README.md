@@ -139,7 +139,7 @@ an appropriate `training-config` string.
 | initial-condition     | String of initial time at which to begin the prognostic run                |
 | prognostic-run-config | String representation of a prognostic run configuration YAML file          |
 | reference-restarts    | Location of restart data for initializing the prognostic run               |
-| store-true-args       | (optional) String of store-true flags for prognostic run prepare_config.py |
+| flags                 | (optional) extra command line flags for prepare_config.py                  |
 | chunks                | (optional) Custom dimension rechunking mapping for prognostic run outputs  |
 | segment-count         | (optional) Number of prognostic run segments; default 1                    |
 | cpu-prog              | (optional) Number of cpus for prognostic run nodes; default 6              |
@@ -168,6 +168,14 @@ To specify what verification data use when computing the diagnostics, use the `-
 flag. E.g. specifying the argo parameter `flags="--verification nudged_c48_fv3gfs_2016` will use a
 year-long nudged-to-obs C48 run as verification. By default, the `40day_may2020` simulation
 is used as verification (see fv3net catalog).
+
+The prognostic run report implements some basic caching to speed the generation of multiple
+reports that use the same run. The diagnostics and metrics for each run will be saved
+to `gs://vcm-ml-archive/prognostic_run_diags/{cache-key}` where `cache-key` is the run url
+without the `gs://` part and with forward slashes replaced by dashes. The workflow will only
+compute the diagnostics if they don't already exist in the cache. If you wish to force a
+recomputation of the diagnostics, simply delete everything under the appropriate cached
+subdirectory.
 
 #### Command line Usage Example
 
