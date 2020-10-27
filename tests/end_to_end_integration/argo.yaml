@@ -79,7 +79,7 @@ spec:
             value: "{{workflow.parameters.prognostic-run-config}}"
           - name: reference-restarts
             value: "{{workflow.parameters.reference-restarts}}"
-          - name: store-true-args
+          - name: flags
             value: "--nudge-to-observations"
           - name: test-times
             value: "{{workflow.parameters.test-times}}"

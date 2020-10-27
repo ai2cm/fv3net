@@ -43,6 +43,7 @@ GLOBAL_AVERAGE_DYCORE_VARS = [
     "RH500",
     "q1000",
     "q500",
+    "PRMSL",
     "PRESsfc",
     "PWAT",
     "VIL",
@@ -79,6 +80,7 @@ GLOBAL_BIAS_PHYSICS_VARS = [
     "TMPsfc",
     "UGRD10m",
     "MAXWIND10m",
+    "SOILM",
 ]
 
 DIURNAL_CYCLE_VARS = [

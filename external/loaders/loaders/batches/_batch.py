@@ -7,7 +7,7 @@ from typing import Iterable, Sequence, Mapping, Any, Hashable, Optional, Union, 
 import xarray as xr
 from vcm import safe
 from toolz import partition_all, compose
-from ._sequences import FunctionOutputSequence
+from ._sequences import Map
 from .._utils import stack_dropnan_shuffle, load_grid, add_cosine_zenith_angle
 from ..constants import TIME_FMT, TIME_NAME
 from ._serialized_phys import (
@@ -126,7 +126,7 @@ def batches_from_mapper(
     else:
         batch_func = compose(transform, load_batch)
 
-    seq = FunctionOutputSequence(batch_func, batched_timesteps)
+    seq = Map(batch_func, batched_timesteps)
     seq.attrs["times"] = times
 
     return seq
@@ -207,7 +207,7 @@ def diagnostic_batches_from_mapper(
         batch_func = compose(insert_cos_z, load_batch)
     else:
         batch_func = load_batch
-    seq = FunctionOutputSequence(batch_func, batched_timesteps)
+    seq = Map(batch_func, batched_timesteps)
     seq.attrs["times"] = times
     return seq
 
@@ -236,7 +236,7 @@ def batches_from_serialized(
     zarr_prefix: str = "phys",
     sample_dims: Sequence[str] = ["savepoint", "rank", "horizontal_dimension"],
     savepoints_per_batch: int = 1,
-) -> FunctionOutputSequence:
+) -> Map:
     """
     Load a sequence of serialized physics data for use in model fitting procedures.
     Data variables are reduced to a sample and feature dimension by stacking specified
@@ -269,6 +269,6 @@ def batches_from_serialized(
     def _load_item(item: Union[int, slice]):
         return seq[item]
 
-    func_seq = FunctionOutputSequence(_load_item, batch_args)
+    func_seq = Map(_load_item, batch_args)
 
     return func_seq

@@ -1,13 +1,13 @@
 from typing import List, Union
 import xarray as xr
 
-from loaders import batches, FunctionOutputSequence
+from loaders import batches, Map
 from .config import ModelTrainingConfig
 
 
 def load_data_sequence(
     data_path: Union[List, tuple, str], train_config: ModelTrainingConfig
-) -> FunctionOutputSequence[xr.Dataset]:
+) -> Map[xr.Dataset]:
     """
     Args:
         data_path: data location
