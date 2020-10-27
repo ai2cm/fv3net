@@ -1,52 +1,42 @@
-from typing import Sequence, Union
 import xarray as xr
 
 from .coarsen import shift_edge_var_to_center
 
 EAST_NORTH_WIND_TENDENCIES = ["dQu", "dQv"]
-X_Y_WIND_TENDENCIES = ["dQxwind", "dQywind"]
 EDGE_TO_CENTER_DIMS = {"x_interface": "x", "y_interface": "y"}
 
-DataVars = Union[xr.core.dataset.DataVariables, Sequence[str]]
+
+def center_and_rotate_xy_winds(
+    wind_rotation_matrix: xr.Dataset,
+    x_component: xr.DataArray,
+    y_component: xr.DataArray,
+):
+    """ Transform D grid x/y winds to A grid E/N winds.
+
+    Args:
+        wind_rotation_matrix : Dataset with rotation coefficients for
+        x/y to E/N rotation. Can be found in catalog.
+        x_component : D grid x wind
+        y_component : D grid y wind
+    """
+    x_component = shift_edge_var_to_center(x_component, EDGE_TO_CENTER_DIMS)
+    y_component = shift_edge_var_to_center(y_component, EDGE_TO_CENTER_DIMS)
+    return eastnorth_wind_tendencies(wind_rotation_matrix, x_component, y_component)
 
 
-def _wind_rotation_needed(available_vars: DataVars):
-    # Returns False if existing wind vars are already in lat/lon components
-    if set(EAST_NORTH_WIND_TENDENCIES).issubset(available_vars):
-        return False
-    elif set(X_Y_WIND_TENDENCIES).issubset(available_vars):
-        return True
-    else:
-        raise KeyError(
-            "If east/north winds are requested, dataset must have either i) "
-            f"{EAST_NORTH_WIND_TENDENCIES} or ii) {X_Y_WIND_TENDENCIES} "
-            "as data variables."
-        )
-
-
-def _center_d_grid_winds(ds: xr.Dataset):
-    for edge_wind in X_Y_WIND_TENDENCIES:
-        ds[edge_wind] = shift_edge_var_to_center(ds[edge_wind], EDGE_TO_CENTER_DIMS)
-    return ds
-
-
-def eastnorth_wind_tendencies(wind_rotation_matrix: xr.Dataset, ds: xr.Dataset):
-    x_tendency, y_tendency = X_Y_WIND_TENDENCIES
+def eastnorth_wind_tendencies(
+    wind_rotation_matrix: xr.Dataset,
+    x_component: xr.DataArray,
+    y_component: xr.DataArray,
+):
     eastward_tendency, northward_tendency = EAST_NORTH_WIND_TENDENCIES
     rotated = xr.Dataset()
     rotated[eastward_tendency] = (
-        wind_rotation_matrix["eastward_wind_u_coeff"] * ds[x_tendency]
-        + wind_rotation_matrix["eastward_wind_v_coeff"] * ds[y_tendency]
+        wind_rotation_matrix["eastward_wind_u_coeff"] * x_component
+        + wind_rotation_matrix["eastward_wind_v_coeff"] * y_component
     )
     rotated[northward_tendency] = (
-        wind_rotation_matrix["northward_wind_u_coeff"] * ds[x_tendency]
-        + wind_rotation_matrix["northward_wind_v_coeff"] * ds[y_tendency]
+        wind_rotation_matrix["northward_wind_u_coeff"] * x_component
+        + wind_rotation_matrix["northward_wind_v_coeff"] * y_component
     )
     return rotated
-
-
-def insert_eastnorth_wind_tendencies(wind_rotation_matrix: xr.Dataset, ds: xr.Dataset):
-    if _wind_rotation_needed(ds.data_vars):
-        ds = _center_d_grid_winds(ds)
-        ds = ds.merge(eastnorth_wind_tendencies(wind_rotation_matrix, ds))
-    return ds

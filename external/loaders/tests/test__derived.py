@@ -5,7 +5,24 @@ import xarray as xr
 from loaders.batches._derived import (
     nonderived_variables,
     _insert_cos_z,
+    _wind_rotation_needed,
 )
+
+
+@pytest.mark.parametrize(
+    "available_data_vars, result",
+    (
+        [["dQu", "dQv", "dQxwind", "dQywind"], False],
+        [["dQ1", "dQ2", "dQxwind", "dQywind"], True],
+        [["dQ1", "dQ2"], KeyError],
+    ),
+)
+def test__wind_rotation_needed(available_data_vars, result):
+    if result in [True, False]:
+        assert _wind_rotation_needed(available_data_vars) == result
+    else:
+        with pytest.raises(KeyError):
+            _wind_rotation_needed(available_data_vars)
 
 
 @pytest.mark.parametrize(
