@@ -8,30 +8,20 @@ resources:
 - offline-diags.yaml
 - train-diags-prog.yaml
 
-# images:
-#   - newTag: local
-#     name: us.gcr.io/vcm-ml/prognostic_run
-#   - newTag: local
-#     name: us.gcr.io/vcm-ml/fv3net
-#   - newTag: local
-#     name: us.gcr.io/vcm-ml/fv3fit
-#   - newTag: local
-#     name: us.gcr.io/vcm-ml/post_process_run
-
 configurations:
 - image-transformerconfig.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
-- name: us.gcr.io/vcm-ml/fv3net
-  newName: localhost:32000/fv3net
-  newTag: local
 - name: us.gcr.io/vcm-ml/fv3fit
   newName: localhost:32000/fv3fit
-  newTag: local
-- name: us.gcr.io/vcm-ml/prognostic_run
-  newName: localhost:32000/prognostic_run
-  newTag: local
+  newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
+- name: us.gcr.io/vcm-ml/fv3net
+  newName: localhost:32000/fv3net
+  newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
 - name: us.gcr.io/vcm-ml/post_process_run
   newName: localhost:32000/post_process_run
-  newTag: local
+  newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
+- name: us.gcr.io/vcm-ml/prognostic_run
+  newName: localhost:32000/prognostic_run
+  newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078

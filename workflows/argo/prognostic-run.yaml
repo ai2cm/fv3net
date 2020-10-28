@@ -29,7 +29,6 @@ spec:
     - name: prognostic-run
       inputs:
         parameters:
-          - {name: image-tag}
           - {name: initial-condition}
           - {name: config}
           - {name: reference-restarts}
@@ -46,7 +45,6 @@ spec:
           template: prepare-config
           arguments:
             parameters:
-              - {name: image-tag, value: "{{inputs.parameters.image-tag}}"}
               - {name: initial-condition, value: "{{inputs.parameters.initial-condition}}"}
               - {name: config, value: "{{inputs.parameters.config}}"}
               - {name: reference-restarts, value: "{{inputs.parameters.reference-restarts}}"}
@@ -61,11 +59,7 @@ spec:
               - {name: runfile, from: "{{steps.prepare-config.outputs.artifacts.runfile}}"}
             parameters:
               - {name: chunks, value: "{{inputs.parameters.chunks}}"} 
-              - name: fv3gfs-image
-                value: "us.gcr.io/vcm-ml/prognostic_run:{{inputs.parameters.image-tag}}"
               - {name: output-url, value: "{{inputs.parameters.output}}"}
-              - name: post-process-image
-                value: "us.gcr.io/vcm-ml/post_process_run:{{inputs.parameters.image-tag}}"
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
@@ -74,7 +68,6 @@ spec:
     - name: prepare-config
       inputs:
         parameters:
-          - name: image-tag
           - name: initial-condition
           - name: config
           - name: reference-restarts

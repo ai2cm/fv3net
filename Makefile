@@ -64,10 +64,12 @@ build_ci_image:
 	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
 
 
-# run integration tests
-run_integration_tests:
+deploy:
 	cd workflows/argo && bash install.sh
-	./tests/end_to_end_integration/run_test.sh $(VERSION)
+
+# run integration tests
+run_integration_tests: deploy
+	./tests/end_to_end_integration/run_test.sh $(REGISTRY) $(VERSION)
 
 test:
 	pytest external tests

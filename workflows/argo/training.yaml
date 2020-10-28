@@ -8,7 +8,6 @@ spec:
     - name: training
       inputs:
         parameters:
-          - name: image
           - name: routine
           - name: input
           - name: config

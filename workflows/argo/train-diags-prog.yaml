@@ -31,7 +31,6 @@ spec:
   - name: train-diags-prog
     inputs:
       parameters:
-        - name: image-tag
         - name: root
         - name: train-routine
           value: sklearn
@@ -59,8 +58,6 @@ spec:
           template: training
         arguments:
           parameters:
-            - name: image
-              value: "us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}"
             - name: routine
               value: "fv3fit.{{inputs.parameters.train-routine}}"
             - name: input
@@ -78,8 +75,6 @@ spec:
           template: prognostic-run
         arguments:
           parameters:
-              - name: image-tag
-                value: "{{inputs.parameters.image-tag}}"
               - name: initial-condition
                 value: "{{inputs.parameters.initial-condition}}"
               - name: config
@@ -109,8 +104,6 @@ spec:
           template: offline-diags
         arguments:
           parameters:
-              - name: image-tag
-                value: "{{inputs.parameters.image-tag}}"
               - name: ml-model
                 value: "{{inputs.parameters.root}}/trained_model"
               - name: config
@@ -130,8 +123,6 @@ spec:
           template: diagnostics
         arguments:
           parameters:
-              - name: image
-                value: "us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}"
               - name: run
                 value: "{{inputs.parameters.root}}/prognostic_run"
               - name: output

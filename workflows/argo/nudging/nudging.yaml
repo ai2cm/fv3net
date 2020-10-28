@@ -8,10 +8,6 @@ spec:
     parameters:
       - name: nudging-config
       - name: output-url
-      - name: fv3gfs-image
-      - name: fv3net-image
-        value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
-      - name: post-process-image
       - name: times
         value: ""
       - {name: segment-count, value: "1"}
@@ -49,12 +45,6 @@ spec:
             template: nudging
             arguments:
               parameters:
-              - name: fv3net-image
-                value: "{{workflow.parameters.fv3net-image}}"
-              - name: fv3gfs-image
-                value: "{{workflow.parameters.fv3gfs-image}}"
-              - name: post-process-image
-                value: "{{workflow.parameters.post-process-image}}"
               - name: times
                 value: "{{workflow.parameters.times}}"
               - name: output-url
@@ -74,11 +64,6 @@ spec:
           - name: nudging-config
           - name: times
           - name: output-url
-          - name: fv3gfs-image
-            value: us.gcr.io/vcm-ml/fv3gfs-wrapper:46b1d8742ee220ebeb14942e0a0f43da963cc0cf
-          - name: fv3net-image
-            value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
-          - name: post-process-image
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 8Gi}
@@ -91,7 +76,6 @@ spec:
             name: prepare-config
             arguments:
               parameters:
-                - {name: fv3net-image, value: "{{inputs.parameters.fv3net-image}}"}
                 - {name: nudging-config, value: "{{inputs.parameters.nudging-config}}"}
                 - {name: times, value: "{{inputs.parameters.times}}"}
                 - {name: use-default-chunks, value: "{{inputs.parameters.use-default-chunks}}"}
@@ -106,9 +90,7 @@ spec:
                 - {name: runfile, from: "{{steps.prepare-config.outputs.artifacts.runfile}}"}
               parameters:
                 - {name: chunks, value: "{{steps.prepare-config.outputs.parameters.chunks}}"}
-                - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
                 - {name: output-url, value: "{{inputs.parameters.output-url}}"}
-                - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
                 - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
                 - {name: cpu, value: "{{inputs.parameters.cpu}}"}
                 - {name: memory, value: "{{inputs.parameters.memory}}"}
@@ -117,7 +99,6 @@ spec:
     - name: prepare-config
       inputs:
         parameters:
-          - {name: fv3net-image}
           - {name: nudging-config}
           - {name: times}
           - {name: use-default-chunks}

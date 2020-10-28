@@ -18,7 +18,6 @@ spec:
     - name: offline-diags
       inputs:
         parameters:
-          - name: image-tag
           - name: ml-model
           # argo submit yaml is processed beforehand to have config and times fed in as string parameters
           - name: config  
@@ -63,7 +62,7 @@ spec:
             python -m offline_ml_diags.create_report \
               {{inputs.parameters.offline-diags-output}} \
               {{inputs.parameters.report-output}} \
-              --commit-sha {{inputs.parameters.image-tag}}
+              --commit-sha "$COMMIT_SHA"
 
         resources:
           requests:

@@ -6,7 +6,6 @@ spec:
   arguments:
     parameters:
     - name: runs
-    - name: docker-image
     - name: make-movies
       value: "false"
     - name: flags
@@ -80,8 +79,6 @@ spec:
       parameters:
       - name: run
       - name: output
-      - name: image
-        value: us.gcr.io/vcm-ml/fv3net
       - name: flags
         value: " "
     tolerations:
@@ -90,7 +87,7 @@ spec:
       value: "climate-sim-pool"
       effect: "NoSchedule"
     container:
-      image: '{{inputs.parameters.image}}'
+      image: us.gcr.io/vcm-ml/fv3net
       command:
       - bash
       - memoized_compute_diagnostics.sh

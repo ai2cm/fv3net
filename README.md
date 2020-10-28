@@ -130,6 +130,11 @@ no longer necessary. Also, it avoids cluttering the shared kubernetes cluster
 with development resources. Local development works best on a Linux VM with
 at least 4 cpus and >10 GB of RAM.
 
+Local development has a few dependencies:
+1. a local kubernetes insallation. (see docs below)
+1. [kustomize](https://kubernetes-sigs.github.io/kustomize/installation/binaries/) (>= v3.54). The version bundled with kubectl is not recent enough.
+1. argo (>= v2.11.6)
+
 Local development requires a local installation of kubernetes. On an ubuntu
 system, [microk8s](https://microk8s.io/) is recommended because it is easy to
 install on a Google Cloud Platform VM. To install on an ubuntu system run
@@ -141,13 +146,6 @@ install on a Google Cloud Platform VM. To install on an ubuntu system run
 
     # needed plugins
     microk8s enable dashboard dns registry:size=40GB
-
-These commands will start a docker registry process inside of the cluster
-than can be used by kuberentes pods. By default the network address for this
-registry is `localhost:32000`. To build and push all the docker images to
-this local repository run
-
-    REGISTRY=localhost:32000 VERSION=local make push_images
 
 To configure kubectl and argo use this local cluster, you need to add microk8s
 configurations to the global kubeconfig file. Running `microk8s config` will
@@ -209,11 +207,24 @@ Then you can switch between contexts using
     # switch back the shared cluster
     kubectl config use-context gke_vcm-ml_us-central1-c_ml-cluster-dev
 
+At this point, you should have a running microk8s cluster and your kubectl
+configure to refer to it. You can check this be running `kubectl get node` and
+see if this printout is the same as it was on the GKE cluster. If succesful,
+the commands above will start a docker registry process inside of the cluster
+than can be used by kuberentes pods. By default the network address for this
+registry is `localhost:32000`. To build and push all the docker images to
+this local repository run
+
+    REGISTRY=localhost:32000 make push_images
+
+To install argo in the cluster and other necessary resources, run 
+
+    make deploy
+
 Finally, to run the integration tests (which also deploys argo and all the
 necessary manifests), you can run
 
     make run_integration_tests
-
 
 # Code linting checks
 
