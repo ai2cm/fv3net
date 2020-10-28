@@ -96,11 +96,14 @@ def _insert_cos_z(grid: xr.Dataset, ds: xr.Dataset) -> xr.Dataset:
 
 def _insert_eastnorth_wind_tendencies(wind_rotation_matrix: xr.Dataset, ds: xr.Dataset):
     if _wind_rotation_needed(ds.data_vars):
+        east_wind_tendency, north_wind_tendency = EAST_NORTH_WIND_TENDENCIES
         common_coords = {"x": ds["x"].values, "y": ds["y"].values}
         wind_rotation_matrix = wind_rotation_matrix.assign_coords(common_coords)
         x_wind_tendency, y_wind_tendency = X_Y_WIND_TENDENCIES
         eastnorth_tendencies = vcm.cubedsphere.center_and_rotate_xy_winds(
             wind_rotation_matrix, ds[x_wind_tendency], ds[y_wind_tendency]
         )
-        ds = ds.merge(eastnorth_tendencies).drop(X_Y_WIND_TENDENCIES)
+        ds[east_wind_tendency] = eastnorth_tendencies[0]
+        ds[north_wind_tendency] = eastnorth_tendencies[1]
+        ds = ds.drop(X_Y_WIND_TENDENCIES)
     return ds

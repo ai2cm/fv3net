@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 
-from vcm.cubedsphere.rotate import eastnorth_wind_tendencies
+from vcm.cubedsphere.rotate import rotate_xy_winds
 
 
 def test_eastnorth_wind_tendencies():
@@ -25,8 +25,8 @@ def test_eastnorth_wind_tendencies():
             ),
         }
     )
-    result = eastnorth_wind_tendencies(
+    result = rotate_xy_winds(
         wind_rotation_matrix, cell_centered_array, cell_centered_array
     )
-    assert result["dQu"] == [np.sqrt(2.0)]
-    assert result["dQv"] == [0.0]
+    assert result[0] == [np.sqrt(2.0)]
+    assert result[1] == [0.0]

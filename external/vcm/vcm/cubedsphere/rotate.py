@@ -1,7 +1,6 @@
 import xarray as xr
 from .coarsen import shift_edge_var_to_center
 
-EAST_NORTH_WIND_TENDENCIES = ["dQu", "dQv"]
 EDGE_TO_CENTER_DIMS = {"x_interface": "x", "y_interface": "y"}
 
 
@@ -28,24 +27,22 @@ def center_and_rotate_xy_winds(
     y_component_centered = shift_edge_var_to_center(
         y_component, EDGE_TO_CENTER_DIMS
     ).assign_coords(common_coords)
-    return eastnorth_wind_tendencies(
+    return rotate_xy_winds(
         wind_rotation_matrix, x_component_centered, y_component_centered
     )
 
 
-def eastnorth_wind_tendencies(
+def rotate_xy_winds(
     wind_rotation_matrix: xr.Dataset,
     x_component: xr.DataArray,
     y_component: xr.DataArray,
 ):
-    eastward_tendency, northward_tendency = EAST_NORTH_WIND_TENDENCIES
-    rotated = xr.Dataset()
-    rotated[eastward_tendency] = (
+    eastward = (
         wind_rotation_matrix["eastward_wind_u_coeff"] * x_component
         + wind_rotation_matrix["eastward_wind_v_coeff"] * y_component
     )
-    rotated[northward_tendency] = (
+    northward = (
         wind_rotation_matrix["northward_wind_u_coeff"] * x_component
         + wind_rotation_matrix["northward_wind_v_coeff"] * y_component
     )
-    return rotated
+    return eastward, northward
