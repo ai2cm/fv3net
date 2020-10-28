@@ -3,24 +3,24 @@ kind: Config
 build:
   local:
     useBuildkit: true
-    push: false
+    push: true
   artifacts:
-    - image: us.gcr.io/vcm-ml/prognostic_run
+    - image: prognostic_run
       context: .
       docker: 
         dockerfile: docker/prognostic_run/Dockerfile
         secret:
           id: gcp
-          src: /Users/noah/keys/key.json
-    - image: us.gcr.io/vcm-ml/fv3fit
+          src: /home/noahb/keys/key.json
+    - image: fv3fit
       context: .
       docker: 
         dockerfile: docker/fv3fit/Dockerfile
-    - image: us.gcr.io/vcm-ml/fv3net
+    - image: fv3net
       context: .
       docker: 
         dockerfile: docker/fv3net/Dockerfile
-    - image: us.gcr.io/vcm-ml/post_process_run
+    - image: post_process_run
       context: workflows/post_process_run
 deploy:
   kubeContext: docker-desktop

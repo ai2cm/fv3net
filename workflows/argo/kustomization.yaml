@@ -24,10 +24,14 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: us.gcr.io/vcm-ml/fv3net
+  newName: localhost:32000/fv3net
   newTag: local
 - name: us.gcr.io/vcm-ml/fv3fit
+  newName: localhost:32000/fv3fit
   newTag: local
 - name: us.gcr.io/vcm-ml/prognostic_run
+  newName: localhost:32000/prognostic_run
   newTag: local
 - name: us.gcr.io/vcm-ml/post_process_run
+  newName: localhost:32000/post_process_run
   newTag: local

@@ -57,7 +57,7 @@ spec:
           - {name: work-volume-name, value: work-volume}
           - {name: external-volume-name, value: restart-data}
           - name: cpu
-            value: .5
+            value: 6000m
           - name: memory
             value: 6Gi
       - name: train-offline-diags-prognostic
