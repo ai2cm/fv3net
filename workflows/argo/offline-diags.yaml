@@ -40,6 +40,8 @@ spec:
         args:
           - |
 
+            gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
+
             cat <<EOF >config.yaml
             {{inputs.parameters.config}}
             EOF
