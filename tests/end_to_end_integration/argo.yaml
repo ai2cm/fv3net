@@ -18,6 +18,8 @@ spec:
           requests:
             storage: 5Gi
   volumes:
+    - name: workdir
+      emptyDir: {}
     - name: restart-data
       persistentVolumeClaim:
         claimName: nudging-read-only

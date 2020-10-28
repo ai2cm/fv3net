@@ -32,6 +32,8 @@ spec:
           requests:
             storage: 100Gi
   volumes:
+    - name: workdir
+      emptyDir: {}
     - name: restart-data
       persistentVolumeClaim:
         claimName: nudging-read-only
@@ -125,7 +127,7 @@ spec:
           - name: fv3config
             path: /tmp/fv3config.yaml
           - name: runfile
-            path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_runfile.py
+            path: /tmp/runfile.py
         parameters:
           - name: chunks
             valueFrom:
@@ -134,6 +136,9 @@ spec:
         image: us.gcr.io/vcm-ml/fv3net
         command: ["/bin/bash", "-c"]
         workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging
+        volumeMounts:
+          - name: workdir
+            mountPath: /tmp
         args:
         - |
           if [[ "{{inputs.parameters.use-default-chunks}}" == "true" ]]; then
@@ -149,6 +154,8 @@ spec:
           cat << EOF > config.yaml
           {{inputs.parameters.nudging-config}}
           EOF
+          
+          cp /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_runfile.py /tmp/runfile.py
 
           python prepare_config.py \
             --timesteps times.json \

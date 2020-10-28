@@ -15,6 +15,8 @@ spec:
           requests:
             storage: 100Gi
   volumes:
+    - name: workdir
+      emptyVol: {}
     - name: external-volume
       persistentVolumeClaim:
         claimName: nudging-read-only
@@ -81,16 +83,21 @@ spec:
         artifacts:
           - {name: fv3config, path: /tmp/fv3config.yaml}
           - name: runfile
-            path: /home/jovyan/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
+            path: /tmp/runfile.py
       container:
         image: us.gcr.io/vcm-ml/fv3net
         command: ["bash", "-c", "-x", "-e"]
         workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run
+        volumeMounts:
+          - name: workdir 
+            mountPath: /tmp
         args:
           - |
             cat << EOF > config.yaml
             {{inputs.parameters.config}}
             EOF
+
+            cp /home/jovyan/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py  /tmp/runfile.py
 
             python prepare_config.py \
               {{inputs.parameters.flags}} \
