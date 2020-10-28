@@ -324,12 +324,12 @@ for mask_type in ["global", "land", "sea"]:
     def _diurnal_func(resampled, verification, grid, mask_type=mask_type) -> xr.Dataset:
         # mask_type is added as a kwarg solely to give the logging access to the info
         logger.info(
-            f"Preparing diurnal cycle info for physics variables with mask={mask_type}"
+            f"Computing diurnal cycle info for physics variables with mask={mask_type}"
         )
         if len(resampled.time) == 0:
             return xr.Dataset({})
         else:
-            return diurnal_cycle.calc_diagnostics(resampled, verification, grid)
+            return diurnal_cycle.calc_diagnostics(resampled, verification, grid).load()
 
 
 def _catalog():
