@@ -24,3 +24,6 @@ RUN pytest \
         --cov-report term \
         --cov-report html:htmlcov \
         /fv3fit/tests
+
+ARG COMMIT_SHA_ARG
+ENV COMMIT_SHA=$COMMIT_SHA_ARG
