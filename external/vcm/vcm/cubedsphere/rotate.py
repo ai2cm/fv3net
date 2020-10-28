@@ -1,5 +1,4 @@
 import xarray as xr
-
 from .coarsen import shift_edge_var_to_center
 
 EAST_NORTH_WIND_TENDENCIES = ["dQu", "dQv"]
@@ -19,9 +18,19 @@ def center_and_rotate_xy_winds(
         x_component : D grid x wind
         y_component : D grid y wind
     """
-    x_component = shift_edge_var_to_center(x_component, EDGE_TO_CENTER_DIMS)
-    y_component = shift_edge_var_to_center(y_component, EDGE_TO_CENTER_DIMS)
-    return eastnorth_wind_tendencies(wind_rotation_matrix, x_component, y_component)
+    common_coords = {
+        "x": wind_rotation_matrix["x"].values,
+        "y": wind_rotation_matrix["y"].values,
+    }
+    x_component_centered = shift_edge_var_to_center(
+        x_component, EDGE_TO_CENTER_DIMS
+    ).assign_coords(common_coords)
+    y_component_centered = shift_edge_var_to_center(
+        y_component, EDGE_TO_CENTER_DIMS
+    ).assign_coords(common_coords)
+    return eastnorth_wind_tendencies(
+        wind_rotation_matrix, x_component_centered, y_component_centered
+    )
 
 
 def eastnorth_wind_tendencies(
