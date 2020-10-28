@@ -4,6 +4,7 @@ k8s entrypoint for emulation
 
 import argparse
 import logging
+from fv3fit.keras._models.classifiers import DenseClassifierModel
 import tensorflow as tf
 from pathlib import Path
 
@@ -50,6 +51,7 @@ if __name__ == "__main__":
     hyper_params = config.hyperparameters
     fit_kwargs = config.hyperparameters.pop("fit_kwargs", {})
 
+    # Handle optimizer
     optimizer_name = hyper_params.pop("optimizer", "Adam")
     optimizer_class = getattr(tf.keras.optimizers, optimizer_name)
     optimizer_kwargs = {}
@@ -59,6 +61,15 @@ if __name__ == "__main__":
     optimizer_kwargs["learning_rate"] = lr
     optimizer = optimizer_class(**optimizer_kwargs)
     hyper_params["optimizer"] = optimizer
+
+    # Handle classifiers
+    classifier_paths = hyper_params.pop("classifiers", None)
+    if classifier_paths is not None:
+        classifiers = {
+            varname: DenseClassifierModel.load(path)
+            for varname, path in classifier_paths.items()
+        }
+        hyper_params["classifiers"] = classifiers
 
     # TODO is var name handling okay?
     sample = train[0]

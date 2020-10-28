@@ -99,14 +99,6 @@ def get_feature_slices(packer):
     return slices
 
 
-def _get_mask(x):
-
-    non_zero = tf.math.greater_equal(x, tf.zeros_like(x))
-    mask = tf.where(non_zero, x=tf.ones_like(x), y=tf.zeros_like(x))
-
-    return mask
-
-
 def separate_tensor_by_var(tensor, feature_dim_slices):
 
     # assumes sample dim leading
@@ -118,9 +110,26 @@ def separate_tensor_by_var(tensor, feature_dim_slices):
     return sep
 
 
+def _mask_less_than_zero(x, to_mask=None):
+
+    non_zero = tf.math.greater_equal(x, tf.zeros_like(x))
+    mask = tf.where(non_zero, x=tf.ones_like(x), y=tf.zeros_like(x))
+    if to_mask is None:
+        to_mask = x
+
+    masked = tf.keras.layers.Multiply()([to_mask, mask])
+
+    return masked
+
+
 class DenseWithClassifier(DenseModel):
     def __init__(
-        self, *args, classifiers: Mapping[str, DenseClassifierModel] = None, **kwargs
+        self,
+        *args,
+        classifiers: Mapping[str, DenseClassifierModel] = None,
+        limit_zero: Sequence[str] = None,
+        convert_int: Sequence[str] = None,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
 
@@ -129,6 +138,9 @@ class DenseWithClassifier(DenseModel):
             logger.warning("DenseWithClassifier initiwalized without any classiefiers")
         else:
             self._classifiers = classifiers
+
+        self._limit_zero = limit_zero
+        self._convert_int = convert_int
 
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
 
@@ -149,11 +161,17 @@ class DenseWithClassifier(DenseModel):
         for var, out_tensor in regr_outputs_by_var.items():
             if var in self._classifiers:
                 classified = self._classifiers[var]._model(inputs)
-                mask = tf.keras.layers.Lambda(_get_mask)(classified)
-                filtered = tf.keras.layers.Multiply()([out_tensor, mask])
-                to_combine.append(filtered)
-            else:
-                to_combine.append(out_tensor)
+                out_tensor = tf.keras.layers.Lambda(_mask_less_than_zero)(
+                    classified, to_mask=out_tensor
+                )
+
+            if var in self._limit_zero:
+                out_tensor = _mask_less_than_zero(out_tensor)
+
+            if var in self._convert_int:
+                out_tensor = tf.math.round(out_tensor)
+
+            to_combine.append(out_tensor)
 
         output = tf.concat(to_combine, 1)
 
