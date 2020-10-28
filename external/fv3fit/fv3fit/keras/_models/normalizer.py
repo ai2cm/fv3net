@@ -1,5 +1,6 @@
 import tensorflow.keras.layers as layers
 import tensorflow as tf
+import numpy as np
 from ..._shared import StandardScaler
 
 
@@ -55,6 +56,15 @@ class LayerStandardScaler(StandardScaler):
     def normalize_layer(self) -> layers.Layer:
         if self._normalize_layer is None:
             self._normalize_layer = StandardNormalize(mean=self.mean, std=self.std)
+        return self._normalize_layer
+
+    @property
+    def scale_layer(self) -> layers.Layer:
+        """Scale by standard deviation, but do not subtract the mean"""
+        if self._normalize_layer is None:
+            self._normalize_layer = StandardNormalize(
+                mean=np.zeros_like(self.mean), std=self.std
+            )
         return self._normalize_layer
 
     @property

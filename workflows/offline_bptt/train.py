@@ -1,4 +1,4 @@
-from typing import Iterable, Sequence
+from typing import Iterable, Sequence, BinaryIO
 import os
 import fv3fit
 import fv3fit.keras._models.loss
@@ -15,6 +15,9 @@ import concurrent.futures
 NUDGE_DATA_DIR = (
     "gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging/outdir-3h"
 )
+# NUDGE_DATA_DIR = (
+#     "gs://vcm-ml-experiments/2020-10-09-physics-on-nudge-to-fine"
+# )
 # NUDGE_DATA_DIR = "gs://vcm-ml-experiments/2020-10-09-clouds-off-nudge-to-fine/"
 # REF_DATA_DIR = "gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts"
 SAMPLE_DIM_NAME = "sample"
@@ -34,8 +37,103 @@ def stack(ds):
     return ds_stacked.transpose()
 
 
+def pack(packer, ds):
+    """Handle packing boilerplate to create time dimension and
+    tolerate extra variables in ds.
+    """
+    drop_names = set(ds.data_vars).union(ds.coords).difference(packer.pack_names)
+    ds = ds.drop_vars(drop_names)
+    return_value = packer.to_array(stack(ds))[:, None, :].astype(np.float32)
+    return return_value
+
+
+class Block:
+    def __init__(
+        self,
+        timestamps,
+        before_physics_mapper,
+        after_physics_mapper,
+        ref_mapper,
+        X_packer,
+        y_packer,
+    ):
+        self._timestamps = timestamps
+        self._before_physics_mapper = before_physics_mapper
+        self._after_physics_mapper = after_physics_mapper
+        self._ref_mapper = ref_mapper
+        self._X_packer = X_packer
+        self._y_packer = y_packer
+        self._y_ref = None
+        self._X_coarse = None
+        self._y_coarse = None
+        self._y_coarse_delta = None
+
+    def cache_to(self, filename: str):
+        if not os.path.isfile(filename):
+            pass
+
+    @property
+    def X_coarse(self) -> np.ndarray:
+        if self._X_coarse is None:
+            self._initialize_coarse_arrays()
+        return self._X_coarse
+
+    @property
+    def y_coarse(self) -> np.ndarray:
+        if self._y_coarse is None:
+            self._initialize_coarse_arrays()
+        return self._y_coarse
+
+    def _initialize_coarse_arrays(self):
+        X_list = []
+        y_list = []
+        for timestamp in self._timestamps:
+            ds = self._after_physics_mapper[timestamp]
+            X_list.append(pack(self._X_packer, ds))
+            y_list.append(pack(self._y_packer, ds))
+        self._X_coarse = np.concatenate(X_list, axis=1)
+        self._y_coarse = np.concatenate(y_list, axis=1)
+
+    @property
+    def y_coarse_delta(self) -> np.ndarray:
+        if self._y_coarse_delta is None:
+            y_before_dynamics = self._get_packed_array(
+                self._y_packer, self._before_physics_mapper
+            )
+            y_after_physics = self.y_coarse
+            self._y_coarse_delta = y_after_physics - y_before_dynamics
+        return self._y_coarse_delta
+
+    @property
+    def y_ref(self) -> np.ndarray:
+        if self._y_ref is None:
+            self._y_ref = self._get_packed_array(self._y_packer, self._ref_mapper)
+        return self._y_ref
+
+    def _get_packed_array(self, packer, mapper):
+        array_list = []
+        for timestamp in self._timestamps:
+            array_list.append(pack(packer, mapper[timestamp]))
+        return np.concatenate(array_list, axis=1)
+
+    def dump(self, file: BinaryIO):
+        pass
+
+    @classmethod
+    def load(cls, file: BinaryIO):
+        obj = cls(None, None, None, None, None, None)
+        data = np.load(file)
+        X_coarse, y_coarse, y_coarse_delta, y_ref = (data[k] for k in data)
+        obj._X_coarse = X_coarse
+        obj._y_coarse = y_coarse
+        obj._y_coarse_delta = y_coarse_delta
+        obj._y_ref = y_ref
+        return obj
+
+
 def load_blocks(
-    nudged_mapper,
+    nudged_mapper_before_dynamics,
+    nudged_mapper_after_physics,
     ref_mapper,
     X_packer,
     y_packer,
@@ -48,7 +146,17 @@ def load_blocks(
     cache_dir=None,
 ) -> Iterable[str]:
     use_cache = cache_dir is not None
-    shared_keys = sorted(list(set(nudged_mapper.keys()).union(ref_mapper.keys())))
+    # Determine which timesteps are present in both mappers. If we assume the
+    # mappers contain only sequential periods, this will give the overlapping
+    # window at the highest available shared time frequency (the lower frequency
+    # of the two data sources, e.g. hourly and 15min -> hourly)
+    shared_keys = sorted(
+        list(
+            set(nudged_mapper_before_dynamics.keys()).union(
+                ref_mapper.keys().union(nudged_mapper_after_physics.keys())
+            )
+        )
+    )
     if n_timestep_frequency is not None:
         shared_keys = shared_keys[::n_timestep_frequency]
     if n_timestep_start is not None:
@@ -58,12 +166,6 @@ def load_blocks(
     if n_timestep_start is None:
         n_timestep_start = 0
 
-    def pack(packer, ds):
-        drop_names = set(ds.data_vars).union(ds.coords).difference(packer.pack_names)
-        ds = ds.drop_vars(drop_names)
-        return_value = packer.to_array(stack(ds))[:, None, :].astype(np.float32)
-        return return_value
-
     if use_cache:
         data_cache_dir = os.path.join(cache_dir, f"cache-load-{label}")
         if not os.path.exists(data_cache_dir):
@@ -71,6 +173,7 @@ def load_blocks(
     block_filename_list = []
     X_coarse_list = []
     y_coarse_list = []
+    y_coarse_delta_list = []
     y_ref_list = []
     for i_add, timestamp in enumerate(shared_keys):
         i = n_timestep_start + i_add
@@ -87,24 +190,31 @@ def load_blocks(
             if use_cache and os.path.isfile(filename):
                 with open(filename, "rb") as f:
                     data = np.load(f)
-                    X_coarse, y_coarse, y_ref = (data[k] for k in data)
+                    X_coarse, y_coarse, y_coarse_delta, y_ref = (data[k] for k in data)
             else:
                 ref_ds = ref_mapper[timestamp]
                 y_ref = pack(y_packer, ref_ds)
-                nudged_ds = nudged_mapper[timestamp]
-                X_coarse = pack(X_packer, nudged_ds)
-                y_coarse = pack(y_packer, nudged_ds)
+                nudged_ds_before_dynamics = nudged_mapper_before_dynamics[timestamp]
+                nudged_ds_after_physics = nudged_mapper_after_physics[timestamp]
+                X_coarse = pack(X_packer, nudged_ds_after_physics)
+                y_coarse_before_dynamics = pack(y_packer, nudged_ds_before_dynamics)
+                y_coarse_after_physics = pack(y_packer, nudged_ds_after_physics)
+                y_coarse_delta = y_coarse_after_physics - y_coarse_before_dynamics
+                y_coarse = y_coarse_after_physics
                 if use_cache:
                     with open(filename, "wb") as f:
-                        np.savez(f, X_coarse, y_coarse, y_ref)
+                        np.savez(f, X_coarse, y_coarse, y_coarse_delta, y_ref)
             X_coarse_list.append(X_coarse)
             y_coarse_list.append(y_coarse)
+            y_coarse_delta_list.append(y_coarse_delta)
             y_ref_list.append(y_ref)
             if len(y_coarse_list) == n_timesteps_per_block:
                 X_coarse = np.concatenate(X_coarse_list, axis=1)
                 X_coarse_list = []
                 y_coarse = np.concatenate(y_coarse_list, axis=1)
                 y_coarse_list = []
+                y_coarse_delta = np.concatenate(y_coarse_delta_list, axis=1)
+                y_coarse_delta_list = []
                 y_ref = np.concatenate(y_ref_list, axis=1)
                 y_ref_list = []
                 block_filename = os.path.join(block_dir, f"block-{i:05d}.npz")
@@ -112,6 +222,7 @@ def load_blocks(
                     data = {
                         "X_coarse": X_coarse,
                         "y_coarse": y_coarse,
+                        "y_coarse_delta": y_coarse_delta,
                         "y_ref": y_ref,
                     }
                     np.savez(f, **data)
@@ -188,12 +299,12 @@ class WindowedDataIterator:
         if self._i_window >= self._n_windows:
             raise StopIteration()
         else:
-            X_coarse, y_coarse, y_ref = self._load_thread.result()
+            X_coarse, y_coarse, y_coarse_delta, y_ref = self._load_thread.result()
             self._load_thread = None
             self._i_window += 1
             if self._i_window < self._n_windows:
                 self._start_load()
-            return X_coarse, y_coarse, y_ref
+            return X_coarse, y_coarse, y_coarse_delta, y_ref
 
     def __iter__(self):
         self._i_window = 0
@@ -208,17 +319,20 @@ class WindowedDataIterator:
 def load_window(batch_idx, window_filenames):
     X_coarse_list = []
     y_coarse_list = []
+    y_coarse_delta_list = []
     y_ref_list = []
     for filename in window_filenames:
         with open(filename, "rb") as f:
             data = np.load(f)
             X_coarse_list.append(data["X_coarse"][batch_idx, :])
             y_coarse_list.append(data["y_coarse"][batch_idx, :])
+            y_coarse_delta_list.append(data["y_coarse_delta"][batch_idx, :])
             y_ref_list.append(data["y_ref"][batch_idx, :])
     X_coarse = np.concatenate(X_coarse_list, axis=1)
     y_coarse = np.concatenate(y_coarse_list, axis=1)
+    y_coarse_delta = np.concatenate(y_coarse_delta_list, axis=1)
     y_ref = np.concatenate(y_ref_list, axis=1)
-    return X_coarse, y_coarse, y_ref
+    return X_coarse, y_coarse, y_coarse_delta, y_ref
 
 
 def build_model(
@@ -234,9 +348,9 @@ def build_model(
     kernel_regularizer,
 ):
     forcing_input = tf.keras.layers.Input(shape=[n_window, n_input])
-    state_input = tf.keras.layers.Input(shape=[n_window, n_state])
+    state_delta_input = tf.keras.layers.Input(shape=[n_window, n_state])
     x_forcing = X_scaler.normalize_layer(forcing_input)
-    x_state = y_scaler.normalize_layer(state_input)
+    x_state_delta = y_scaler.scale_layer(state_delta_input)
 
     rnn = tf.keras.layers.RNN(
         fv3fit.keras.GCMCell(
@@ -252,9 +366,9 @@ def build_model(
         name="rnn",
         return_sequences=True,
     )
-    x = rnn(inputs=(x_forcing, x_state))
+    x = rnn(inputs=(x_forcing, x_state_delta))
     outputs = y_scaler.denormalize_layer(x)
-    model = tf.keras.Model(inputs=[forcing_input, state_input], outputs=outputs)
+    model = tf.keras.Model(inputs=[forcing_input, state_delta_input], outputs=outputs)
     return model
 
 
@@ -279,62 +393,6 @@ def penalize_negative_water(loss, negative_water_weight):
     return custom_loss
 
 
-# class WindowedData:
-
-#     def __init__(
-#         self, block_path: str, nudging_path: str,
-#         coarsened_path: str, files_per_step: int,
-#         steps_per_block: int, blocks_per_window: int, blocks_between_windows: int,
-#         n_blocks_train: int, n_blocks_val: int,
-#     ):
-#         self.block_path = block_path
-#         self.nudging_path = nudging_path
-#         self.coarsened_path = coarsened_path
-#         self.files_per_step = files_per_step
-#         self.steps_per_block = steps_per_block
-#         self.blocks_per_window = blocks_per_window
-#         self.blocks_between_windows = blocks_between_windows
-#         self.n_blocks_train = n_blocks_train
-#         self.n_blocks_val = n_blocks_val
-#         self._nudged_mapper = None
-#         self._ref_mapper = None
-#         self._fs = vcm.get_fs(block_path)
-
-#     @property
-#     def nudged_mapper(self):
-#         if self._nudged_mapper is None:
-#             self._nudged_mapper = loaders.mappers.open_merged_nudged(
-#                 COARSE_DATA_DIR,
-#                 merge_files=("before_dynamics.zarr", "nudging_tendencies.zarr"),
-#             )
-#         return self._nudged_mapper
-
-#     @property
-#     def ref_mapper(self):
-#         if self._ref_mapper is None:
-#             self._ref_mapper = loaders.mappers.CoarsenedDataMapper(REF_DATA_DIR)
-#         return self._ref_mapper
-
-#     @property
-#     def train_block_filenames(self):
-#         block_filenames = self._fs.ls(self.block_path)
-#         if len(block_filenames) > self.n_blocks_train:
-#             return block_filenames[:self.n_blocks_train]
-#         else:
-#             train_block_filenames = load_blocks(
-#                 self.nudged_mapper,
-#                 self.ref_mapper,
-#                 X_packer,
-#                 y_packer,
-#                 self.block_path,
-#                 n_timesteps=self.n_blocks_train * self.steps_per_block,
-#                 n_timestep_frequency=self.files_per_step,
-#                 n_timesteps_per_block=n_block,
-#                 label=args.label,
-#                 cache_dir=args.cache_dir,
-#             )
-
-
 if __name__ == "__main__":
     np.random.seed(0)
     random.seed(1)
@@ -350,8 +408,8 @@ if __name__ == "__main__":
     data_fraction = 0.125  # fraction of data to use from a window
     blocks_per_day = 24 // n_block
     n_blocks_train = 30 * blocks_per_day
-    n_blocks_val = 5 * blocks_per_day
     n_blocks_window = 5 * blocks_per_day
+    n_blocks_val = n_blocks_window
     n_blocks_between_window = int(1.5 * blocks_per_day)
     n_timesteps = n_blocks_train * n_block
     n_timesteps_val = n_blocks_val * n_block
@@ -394,9 +452,13 @@ if __name__ == "__main__":
             n_blocks_train : n_blocks_train + n_blocks_val
         ]
     else:
-        nudged_mapper = loaders.mappers.open_merged_nudged(
+        nudged_mapper_before_dynamics = loaders.mappers.open_merged_nudged(
             NUDGE_DATA_DIR,
             merge_files=("before_dynamics.zarr", "nudging_tendencies.zarr"),
+        )
+        nudged_mapper_after_physics = loaders.mappers.open_merged_nudged(
+            NUDGE_DATA_DIR,
+            merge_files=("after_physics.zarr", "nudging_tendencies.zarr"),
         )
         ref_mapper = loaders.mappers.open_merged_nudged(
             NUDGE_DATA_DIR, merge_files=("reference.zarr", "nudging_tendencies.zarr"),
@@ -404,7 +466,8 @@ if __name__ == "__main__":
         # ref_mapper = loaders.mappers.CoarsenedDataMapper(REF_DATA_DIR)
         # print(ref_mapper.keys())
         train_block_filenames = load_blocks(
-            nudged_mapper,
+            nudged_mapper_before_dynamics,
+            nudged_mapper_after_physics,
             ref_mapper,
             X_packer,
             y_packer,
@@ -416,7 +479,8 @@ if __name__ == "__main__":
             cache_dir=args.cache_dir,
         )
         val_block_filenames = load_blocks(
-            nudged_mapper,
+            nudged_mapper_before_dynamics,
+            nudged_mapper_after_physics,
             ref_mapper,
             X_packer,
             y_packer,
@@ -499,22 +563,25 @@ if __name__ == "__main__":
     batch_idx = np.random.choice(
         np.arange(X_coarse.shape[0]), size=int(0.125 * X_coarse.shape[0]), replace=False
     )
-    X_coarse_val, y_coarse_val, y_ref_val = load_window(batch_idx, val_block_filenames)
+    X_coarse_val, y_coarse_val, _, y_ref_val = load_window(
+        batch_idx, val_block_filenames
+    )
     coarse_loss_val = loss(y_ref_val, y_coarse_val)
 
     for i_epoch in range(50):
         epoch = base_epoch + i_epoch
         print(f"starting epoch {epoch}")
-        for X_coarse, y_coarse, y_ref in X_train:
+        for X_coarse, y_coarse, y_coarse_delta, y_ref in X_train:
+            y_coarse_delta[:, 0, :] += y_coarse[:, 0, :]  # initialize the initial state
             model.fit(
-                x=[X_coarse, y_coarse],
+                x=[X_coarse, y_coarse_delta],
                 y=y_ref,
                 batch_size=batch_size,
                 epochs=1,
                 shuffle=True,
             )
             del X_coarse
-            del y_coarse
+            del y_coarse_delta
             del y_ref
 
         print(f"coarse validation loss: {coarse_loss_val}")

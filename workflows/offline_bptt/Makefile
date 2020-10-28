@@ -1,6 +1,5 @@
 DOCKER_SERVICE = offline_bptt
-SCRATCH ?= 
-LABEL ?= default
+LABEL ?= nudge_3h
 
 build:
 	docker-compose build $(DOCKER_SERVICE)

@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     n_block = 12  # number of times in a npz file
     blocks_per_day = 24 // n_block
-    n_blocks_train = 30 * blocks_per_day
+    n_blocks_train = 10 * blocks_per_day
     n_blocks_val = 5 * blocks_per_day
 
     all_filenames = sorted(
@@ -53,12 +53,12 @@ if __name__ == "__main__":
     for i in range(n_plots):
 
         z_max = 79
-        # coarse = y_coarse_val[i, :, 79+z_max-1:79-1:-1].T
-        # ref = y_ref_val[i, :, 79+z_max-1:79-1:-1].T
-        # pred = y_pred_val[i, :, 79+z_max-1:79-1:-1].T
-        coarse = y_coarse_val[i, :, z_max - 1 :: -1].T
-        ref = y_ref_val[i, :, z_max - 1 :: -1].T
-        pred = y_pred_val[i, :, z_max - 1 :: -1].T
+        coarse = y_coarse_val[i, :, 79 + z_max - 1 : 79 - 1 : -1].T
+        ref = y_ref_val[i, :, 79 + z_max - 1 : 79 - 1 : -1].T
+        pred = y_pred_val[i, :, 79 + z_max - 1 : 79 - 1 : -1].T
+        # coarse = y_coarse_val[i, :, z_max - 1 :: -1].T
+        # ref = y_ref_val[i, :, z_max - 1 :: -1].T
+        # pred = y_pred_val[i, :, z_max - 1 :: -1].T
         print("coarse mse: ", np.std(coarse - ref))
         print("pred mse: ", np.std(pred - ref))
 

@@ -40,7 +40,7 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
 
     @property
     def state_size(self):
-        return [self.n_state, self.n_state]
+        return self.n_state
 
     @property
     def output_size(self):
@@ -114,12 +114,11 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
         self.built = True
 
     def call(self, inputs, states, training=None):
-        gcm_state, last_input_state = states
-        input_forcing, input_state = inputs
+        gcm_state = states[0]
+        input_forcing, input_state_delta = inputs
         # add tendencies from the host model
-        input_state_diff = tf.subtract(input_state, last_input_state)
-        gcm_state = tf.add(gcm_state, input_state_diff)
-        h = K.concatenate([input_forcing, gcm_state])
+        gcm_state = tf.add(gcm_state, input_state_delta)
+        h = K.concatenate([input_forcing, gcm_state], axis=-1)
         for kernel, bias in self.dense_weights:
             if self.use_spectral_normalization:
                 kernel = self.spectral_normalize(kernel, training=training)
@@ -132,33 +131,12 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
         else:
             output_kernel = self.output_kernel
         tendency_output = K.dot(h, output_kernel) + self.output_bias
-        # tendency_loss = self.tendency_regularizer(tendency_output)
-        # # Make tendency regularization strength batch-agnostic
-        # batch_size = math_ops.cast(
-        #     array_ops.shape(tendency_output)[0], tendency_loss.dtype)
-        # mean_tendency_loss = tendency_loss / batch_size
-        # self.add_loss(mean_tendency_loss)
         # tendencies are on a much smaller scale than the variability of the data
         gcm_update = tf.multiply(
             tf.constant(self.tendency_ratio, dtype=tf.float32), tendency_output
         )
         gcm_output = gcm_state + gcm_update
-        if self.lock_to_inputs:
-            # if this output is going to be applied to the Fortran model
-            # with set_state, then the next time we calculate input_state_diff
-            # we want input_state - (this gcm_output) to see what the
-            # Fortran model has done.
-            # This locks the GCMCell internal state to the input state,
-            # regardless of whether you are truly updating
-            # the inputs using this GCMCell
-            reference_state = gcm_output
-        else:
-            # if the inputs are independent of this cell's output,
-            # then input_state_diff is input_state - last_input_state
-            # This allows the GCMCell internal state to evolve independently
-            # of the inputs
-            reference_state = input_state
-        return gcm_output, [gcm_output, reference_state]
+        return gcm_output, [gcm_output]
 
     def get_config(self):
         config = super().get_config()

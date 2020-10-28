@@ -333,8 +333,6 @@ def open_merged_nudged(
     }
 
     datasets = _get_source_datasets(url, merge_files, consolidated)
-    for ds in datasets:
-        print(ds["time"])
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
     if (i_start != 0) or (n_times is not None):
         nudged_mapper = SubsetTimes(i_start, n_times, nudged_mapper)
