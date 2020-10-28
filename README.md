@@ -76,13 +76,6 @@ along with information can be found under the `workflows` directory.
 
 ## Building the fv3net docker images
 
-The workflows use a pair of common images:
-
-|Image| Description| 
-|-----|------------|
-| `us.gcr.io/vcm-ml/prognostic_run` | fv3gfs-python with minimal fv3net and vcm installed |
-| `us.gcr.io/vcm-ml/fv3net` | fv3net image with all dependencies including plotting |
-
 These images can be built and pushed to GCR using `make build_images` and
 `make push_images`, respectively.
 
@@ -128,6 +121,99 @@ cloud platform access key (as a json file called `key.json`). For our VCM group 
 should be set to 'gcp_key'. Additional arguments are
 available for configuring the kubernetes job and documented in the `run_kubernetes`
 docstring.
+
+# Local development of argo workflows
+
+The workflows in this repository can be developed locally. Local development
+can have a faster iteration cycle because pushing/pulling images from GCR is
+no longer necessary. Also, it avoids cluttering the shared kubernetes cluster
+with development resources. Local development works best on a Linux VM with
+at least 4 cpus and >10 GB of RAM.
+
+Local development requires a local installation of kubernetes. On an ubuntu
+system, [microk8s](https://microk8s.io/) is recommended because it is easy to
+install on a Google Cloud Platform VM. To install on an ubuntu system run
+
+    # basic installation
+    sudo snap install microk8s --classic
+
+    microk8s status --wait-ready
+
+    # needed plugins
+    microk8s enable dashboard dns registry:size=40GB
+
+These commands will start a docker registry process inside of the cluster
+than can be used by kuberentes pods. By default the network address for this
+registry is `localhost:32000`. To build and push all the docker images to
+this local repository run
+
+    REGISTRY=localhost:32000 VERSION=local make push_images
+
+To configure kubectl and argo use this local cluster, you need to add microk8s
+configurations to the global kubeconfig file. Running `microk8s config` will
+display the contents of this file. It is simplest to overwrite any existing k8s configurations by running:
+
+    microk8s config > ~/.kube/config
+
+If however, you want to submit jobs to both microk8s and the shared cluster,
+you can manually merge the `clusters` and `users` sections printed by
+microk8s config into the the global `~/.kube/config`. Once finished, the file
+should something like this (except for the certificate, tokens, and IP
+addresses).
+
+```
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority: /home/noahb/workspace/VulcanClimateModeling/long-lived-infrastructure/proxy.crt
+    server: https://35.225.51.240
+  name: gke_vcm-ml_us-central1-c_ml-cluster-dev
+- cluster:
+    certificate-authority-data: SECRETXXXXXXXXXXXXXXXXXXXXX
+    server: https://10.128.0.2:16443
+  name: microk8s-cluster
+contexts:
+- context:
+    cluster: gke_vcm-ml_us-central1-c_ml-cluster-dev
+    user: gke_vcm-ml_us-central1-c_ml-cluster-dev
+  name: gke_vcm-ml_us-central1-c_ml-cluster-dev
+- context:
+    cluster: microk8s-cluster
+    user: admin
+  name: microk8s
+current-context: microk8s
+kind: Config
+preferences: {}
+users:
+- name: admin
+  user:
+    token: SECRETXXXXXXX
+- name: gke_vcm-ml_us-central1-c_ml-cluster-dev
+  user:
+    auth-provider:
+      config:
+        access-token: SECRETXXXXX
+        cmd-args: config config-helper --format=json
+        cmd-path: /snap/google-cloud-sdk/156/bin/gcloud
+        expiry: "2020-10-28T00:49:43Z"
+        expiry-key: '{.credential.token_expiry}'
+        token-key: '{.credential.access_token}'
+      name: gcp
+```
+
+Then you can switch between contexts using 
+
+    # switch to local microk8s
+    kubectl config use-context microk8s
+
+    # switch back the shared cluster
+    kubectl config use-context gke_vcm-ml_us-central1-c_ml-cluster-dev
+
+Finally, to run the integration tests (which also deploys argo and all the
+necessary manifests), you can run
+
+    make run_integration_tests
+
 
 # Code linting checks
 

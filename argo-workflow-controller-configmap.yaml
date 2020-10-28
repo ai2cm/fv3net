@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workflow-controller-configmap
+data:
+  # needed for microk8s
+  containerRuntimeExecutor: pns
+  artifactRepository: |
+    gcs:
+      # archiveLogs will archive the main container logs as an artifact
+      archiveLogs: true 
+      bucket: vcm-ml-argo
+      serviceAccountKeySecret:
+        name: gcp-key
+        key: key.json
+
+

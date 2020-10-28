@@ -4,6 +4,7 @@
 # GLOBALS                                                                       #
 #################################################################################
 VERSION ?= $(shell git rev-parse HEAD)
+REGISTRY ?= us.gcr.io/vcm-ml/fv3net
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
@@ -12,11 +13,7 @@ PROJECT_NAME = fv3net
 PYTHON_INTERPRETER = python3
 DATA = data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr.dvc
 IMAGE = fv3net
-REGISTRY = us.gcr.io/vcm-ml/fv3net
 
-GCR_BASE  = us.gcr.io/vcm-ml
-FV3NET_IMAGE = $(GCR_BASE)/fv3net
-PROGNOSTIC_RUN_IMAGE = $(GCR_BASE)/prognostic_run
 CACHE_TAG =latest
 
 IMAGES = fv3net fv3fit post_process_run prognostic_run
@@ -41,7 +38,7 @@ build_image_%:
 
 build_image_post_process_run:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/post_process_run:$(CACHE_TAG) \
-		workflows/post_process_run -t $(REGISTRY)/post_process_run
+		workflows/post_process_run -t $(REGISTRY)/post_process_run:$(VERSION)
 
 enter_%:
 	docker run -ti -w /fv3net -v $(shell pwd):/fv3net $* bash
@@ -50,10 +47,10 @@ build_images: $(addprefix build_image_, $(IMAGES))
 push_images: $(addprefix push_image_, $(IMAGES))
 
 push_image_%: build_image_%
-	docker push $(GCR_BASE)/$*:$(VERSION)
+	docker push $(REGISTRY)/$*:$(VERSION)
 
 pull_image_%:
-	docker pull $(GCR_BASE)/$*:$(VERSION)
+	docker pull $(REGISTRY)/$*:$(VERSION)
 
 enter: build_image
 	docker run -it -v $(shell pwd):/code \
