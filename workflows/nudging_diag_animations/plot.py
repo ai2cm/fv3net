@@ -22,6 +22,7 @@ MAPPABLE_VAR_KWARGS = {
 def plot_comparison_frame(
     time, ds, var, axes, plot_cube_kwargs_abs, plot_cube_kwargs_diff
 ):
+    time_str = time.item().strftime("%Y%m%d.%H%M%S")
     for ax, derivation in zip(axes[:2], ds.derivation[:2]):
         ax.clear()
         colorbar = True if derivation.item().startswith("nudged") else False
@@ -35,7 +36,7 @@ def plot_comparison_frame(
             colorbar=colorbar,
             **plot_cube_kwargs_abs,
         )
-        ax.set_title(derivation.item())
+        ax.set_title(f"{time_str}: {derivation.item()}")
     axes[2].clear()
     viz.plot_cube(
         viz.mappable_var(
@@ -44,8 +45,7 @@ def plot_comparison_frame(
         ax=axes[2],
         **plot_cube_kwargs_diff,
     )
-    axes[2].set_title("reference minus C48")
-    plt.suptitle(time.item())
+    axes[2].set_title(f"{time_str}: reference minus C48")
 
 
 def make_comparison_animation(
@@ -92,14 +92,14 @@ def make_comparison_animation(
 
 
 def plot_nudging_frame(time, ds, var, ax, plot_cube_kwargs):
+    time_str = time.item().strftime("%Y%m%d.%H%M%S")
     ax.clear()
     viz.plot_cube(
         viz.mappable_var(ds.sel(time=time).isel(z=-1), var, **MAPPABLE_VAR_KWARGS),
         ax=ax,
         **plot_cube_kwargs,
     )
-    ax.set_title(f"lowest level {var}")
-    ax.set_xlabel(time.item())
+    ax.set_title(f"{time_str}: lowest level {var}")
 
 
 def make_nudging_animation(
