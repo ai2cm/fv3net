@@ -68,7 +68,7 @@ deploy:
 	cd workflows/argo && bash install.sh
 
 # run integration tests
-run_integration_tests: deploy
+run_integration_tests:
 	./tests/end_to_end_integration/run_test.sh $(REGISTRY) $(VERSION)
 
 test:
