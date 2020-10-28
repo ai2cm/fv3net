@@ -26,6 +26,10 @@ spec:
       - name: train-data
       - name: train-config
       - name: model-output
+      - name: num-test-batches
+        value: 96
+      - name: is-classifier
+        value: false
   templates:
     - name: emulation
       steps:
@@ -37,6 +41,24 @@ spec:
               value: "{{workflow.parameters.train-data}}"
             - name: train-config
               value: "{{workflow.parameters.train-config}}"
+      - - name: regression-report
+          template: regression-model-diags
+          when: "{{workflow.parameters.is-classifier}} == false"
+          arguments:
+            parameters:
+            - name: train-data
+              value: "{{workflow.parameters.train-data}}"
+            - name: num-test-batches
+              value: "{{workflow.parameters.num-test-batches}}"
+      - - name: classifier-report
+          template: classifier-model-diags
+          when: "{{workflow.parameters.is-classifier}} == true"
+          arguments:
+            parameters:
+            - name: train-data
+              value: "{{workflow.parameters.train-data}}"
+            - name: num-test-batches
+              value: "{{workflow.parameters.num-test-batches}}"
       - - name: upload-model
           template: upload-model
           arguments:
@@ -49,7 +71,7 @@ spec:
           - name: train-data
           - name: train-config
       container:
-        image: us.gcr.io/vcm-ml/fv3fit:emulation-2020-10-25
+        image: us.gcr.io/vcm-ml/fv3fit:emulation-2020-10-27
         command: ["bash", "-c", "-x"]
         volumeMounts:
           - mountPath: /secret/gcp-credentials
@@ -78,6 +100,57 @@ spec:
           limits:
             memory: "25Gi"
             cpu: "7500m"
+    - name: regression-model-diags
+      inputs:
+        parameters:
+          - name: train-data
+          - name: num-test-batches
+      container:
+        image: us.gcr.io/vcm-ml/emulation_report:build-2020-10-27
+        command: ["bash", "-c", "-x"]
+        volumeMounts:
+          - mountPath: /mnt/data
+            name: work-volume
+        args:
+          - |
+            python /fv3fit/emulation_diags/generate_report.py \
+              /mnt/data/keras_model \
+              {{inputs.parameters.train-data}} \
+              /mnt/data/report/ \
+              --num-test-batches {{inputs.parameters.num-test-batches}}
+        resources:
+          requests:
+            memory: "14Gi"
+            cpu: "6"
+          limits:
+            memory: "25Gi"
+            cpu: "7500m"
+    - name: classifier-model-diags
+      inputs:
+        parameters:
+          - name: train-data
+          - name: num-test-batches
+            value: 96
+      container:
+        image: us.gcr.io/vcm-ml/emulation_report:build-2020-10-27
+        command: ["bash", "-c", "-x"]
+        volumeMounts:
+          - mountPath: /mnt/data
+            name: work-volume
+        args:
+          - |
+            python /fv3fit/emulation_diags/classifier_report.py \
+              /mnt/data/keras_model \
+              {{inputs.parameters.train-data}} \
+              /mnt/data/report/ \
+              --num-test-batches {{inputs.parameters.num-test-batches}}
+        resources:
+          requests:
+            memory: "14Gi"
+            cpu: "6"
+          limits:
+            memory: "25Gi"
+            cpu: "7500m"
     - name: upload-model
       inputs:
         parameters:
@@ -99,7 +172,9 @@ spec:
           - |
             gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
 
-            gsutil -m cp -r /mnt/data {{inputs.parameters.model-output}}
+            gsutil -m cp -r /mnt/data/keras_model {{inputs.parameters.model-output}}
+            gsutil -m cp -r /mnt/data/report {{inputs.parameters.model-output}}
+            gsutil -m cp -r /mnt/data/config.yaml {{inputs.parameters.model-output}}
         resources:
           requests:
             memory: "2Gi"
