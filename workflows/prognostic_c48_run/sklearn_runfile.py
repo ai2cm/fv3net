@@ -19,6 +19,7 @@ import xarray as xr
 from mpi4py import MPI
 
 import fv3gfs.wrapper as wrapper
+from derived import DerivedFV3State
 
 # To avoid very strange NaN errors this needs to happen before runtime import
 # with openmpi
@@ -212,7 +213,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             comm = MPI.COMM_WORLD
 
         self._fv3gfs = fv3gfs
-        self._state: runtime.DerivedFV3State = runtime.DerivedFV3State(self._fv3gfs)
+        self._state: DerivedFV3State = DerivedFV3State(self._fv3gfs)
         self._comm = comm
 
         args = runtime.get_config()
