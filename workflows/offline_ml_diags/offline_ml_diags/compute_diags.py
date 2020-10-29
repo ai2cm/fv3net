@@ -1,4 +1,5 @@
 import argparse
+import fsspec
 import intake
 import logging
 import json
@@ -43,6 +44,11 @@ DIURNAL_VARS = [
 SHIELD_DERIVATION_COORD = "coarsened_SHiELD"
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
+
+# Base set of variables for which to compute column integrals and composite means
+# Additional output variables are also computed.
+DIAGNOSTIC_VARS = ("dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2")
+METRIC_VARS = ("dQ1", "dQ2", "Q1", "Q2")
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -92,21 +98,28 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
 
 
 def _compute_diags_over_batches(
-    ds_batches: Sequence[xr.Dataset], grid: xr.Dataset,
+        ds_batches: Sequence[xr.Dataset],
+        grid: xr.Dataset,
+        predicted_vars: Sequence[str]
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
     """Return a set of diagnostic datasets from a sequence of batched data"""
 
     batches_summary, batches_diurnal, batches_metrics = [], [], []
+    diagnostic_vars = list(set(predicted_vars + ["pQ1", "pQ2", "Q1", "Q2"]))
+    metric_vars = list(set(predicted_vars + ["Q1", "Q2"]))
+
     # for each batch...
     for i, ds in enumerate(ds_batches):
+        
         logger.info(f"Working on batch {i} diagnostics ...")
         # ...insert additional variables
         ds = (
             ds.pipe(utils.insert_total_apparent_sources)
-            .pipe(utils.insert_column_integrated_vars)
+            .pipe(utils.insert_column_integrated_vars, diagnostic_vars)
             .pipe(utils.insert_net_terms_as_Qs)
             .load()
         )
+
         # ...reduce to diagnostic variables
         if SHIELD_DERIVATION_COORD in ds["derivation"].values:
             net_precip_domain_coord = SHIELD_DERIVATION_COORD
@@ -119,6 +132,7 @@ def _compute_diags_over_batches(
             net_precipitation=-ds["column_integrated_Q2"].sel(
                 derivation=net_precip_domain_coord
             ),
+            primary_vars=diagnostic_vars
         )
         add_net_precip_domain_info(ds_summary, net_precip_domain_coord)
 
@@ -127,7 +141,7 @@ def _compute_diags_over_batches(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
         )
         # ...compute metrics
-        ds_metrics = calc_metrics(xr.merge([ds, grid["area"]]))
+        ds_metrics = calc_metrics(xr.merge([ds, grid["area"]]), predicted=metric_vars)
 
         batches_summary.append(ds_summary.load())
         batches_diurnal.append(ds_diurnal.load())
@@ -207,20 +221,21 @@ def _get_prediction_mapper(args, config: Mapping):
     if "cos_zenith_angle" in config["input_variables"]:
         model_mapper_kwargs["cos_z_var"] = "cos_zenith_angle"
     logger.info("Creating prediction mapper")
-    return PredictionMapper(base_mapper, model, grid=grid, **model_mapper_kwargs)
+    return PredictionMapper(base_mapper, model, grid=grid, wind_rotation=wind_rotation, **model_mapper_kwargs)
 
 
 if __name__ == "__main__":
     logger.info("Starting diagnostics routine.")
     args = _create_arg_parser()
 
-    with open(args.config_yml, "r") as f:
+    with fsspec.open(args.config_yml, "r") as f:
         config = yaml.safe_load(f)
     config["data_path"] = args.data_path
 
     logger.info("Reading grid...")
     cat = intake.open_catalog("catalog.yml")
     grid = cat["grid/c48"].read()
+    wind_rotation = cat["wind_rotation/c48"].read()
     land_sea_mask = cat["landseamask/c48"].read()
     grid = grid.assign({utils.VARNAMES["surface_type"]: land_sea_mask["land_sea_mask"]})
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
@@ -251,7 +266,7 @@ if __name__ == "__main__":
 
     # compute diags
     ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diags_over_batches(
-        ds_batches, grid
+        ds_batches, grid, predicted_vars=config["output_variables"]
     )
 
     # write diags and diurnal datasets

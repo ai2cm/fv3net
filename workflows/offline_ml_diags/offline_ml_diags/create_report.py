@@ -15,28 +15,11 @@ from ._helpers import (
     copy_outputs,
     tidy_title,
     units_from_Q_name,
+    column_integrated_metric_names
 )
 
 DERIVATION_DIM = "derivation"
 DOMAIN_DIM = "domain"
-
-PRESSURE_LEVEL_METRICS_VARS = [
-    "pressure_level-bias-dQ1-predict_vs_target",
-    "pressure_level-bias-Q1-predict_vs_target",
-    "pressure_level-bias-dQ2-predict_vs_target",
-    "pressure_level-bias-Q2-predict_vs_target",
-    "pressure_level-r2-dQ1-predict_vs_target",
-    "pressure_level-r2-dQ2-predict_vs_target",
-    "pressure_level-r2-Q1-predict_vs_target",
-    "pressure_level-r2-Q2-predict_vs_target",
-]
-PROFILE_VARS = ["dQ1", "Q1", "dQ2", "Q2"]
-COLUMN_INTEGRATED_VARS = [
-    "column_integrated_dQ1",
-    "column_integrated_Q1",
-    "column_integrated_dQ2",
-    "column_integrated_Q2",
-]
 
 NC_FILE_DIAGS = "offline_diagnostics.nc"
 NC_FILE_DIURNAL = "diurnal_cycle.nc"
@@ -121,7 +104,12 @@ if __name__ == "__main__":
     )
 
     # vertical profiles of bias and R2
-    for var in PRESSURE_LEVEL_METRICS_VARS:
+    pressure_level_metrics = [
+        var for var in ds_diags.data_vars
+        if var.startswith("pressure_level")
+        and var.endswith("predict_vs_target")
+    ]
+    for var in pressure_level_metrics:
         ylim = (0, 1) if "r2" in var.lower() else None
         fig = diagplot._plot_generic_data_array(
             ds_diags[var], xlabel="pressure [Pa]", ylim=ylim, title=tidy_title(var)
@@ -135,7 +123,11 @@ if __name__ == "__main__":
         )
 
     # time averaged quantity vertical profiles over land/sea, pos/neg net precip
-    for var in PROFILE_VARS:
+    profiles = [
+        var for var in ds_diags.data_vars 
+        if "dQ" in var and "z" in ds_diags[var].dims] \
+         + ["Q1", "Q2"]
+    for var in profiles:
         fig = diagplot.plot_profile_var(
             ds_diags, var, derivation_dim=DERIVATION_DIM, domain_dim=DOMAIN_DIM,
         )
@@ -147,8 +139,10 @@ if __name__ == "__main__":
             output_dir=temp_output_dir.name,
         )
 
+    column_integrated_metrics = column_integrated_metric_names(metrics)
+
     # time averaged column integrated quantity maps
-    for var in COLUMN_INTEGRATED_VARS:
+    for var in column_integrated_metrics:
         fig = diagplot.plot_column_integrated_var(
             ds_diags, var, derivation_plot_coords=ds_diags[DERIVATION_DIM].values,
         )
@@ -180,7 +174,8 @@ if __name__ == "__main__":
 
     # scalar metrics for RMSE and bias
     metrics_formatted = {}
-    for var in COLUMN_INTEGRATED_VARS:
+    for var in column_integrated_metrics:
+        print(var)
         metrics_formatted[var.replace("_", " ")] = {
             "r2": get_metric_string(metrics, "r2", var),
             "bias": " ".join(
@@ -203,3 +198,5 @@ if __name__ == "__main__":
     # described in https://github.com/shoyer/h5netcdf/issues/50
     ds_diags.close()
     ds_diurnal.close()
+
+

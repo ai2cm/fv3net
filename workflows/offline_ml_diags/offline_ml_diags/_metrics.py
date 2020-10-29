@@ -10,17 +10,6 @@ import copy
 
 logging.getLogger(__name__)
 
-# Variables predicted by model
-ML_VARS = ["dQ1", "dQ2"]
-# Variables to calculate RMSE and bias of
-PRESSURE_LEVEL_METRIC_VARS = ["dQ1", "dQ2", "Q1", "Q2"]
-COLUMN_INTEGRATED_METRIC_VARS = [
-    "column_integrated_dQ1",
-    "column_integrated_dQ2",
-    "column_integrated_Q1",
-    "column_integrated_Q2",
-]
-
 # Dimension/ coord/ variable parameter defaults
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
@@ -35,6 +24,7 @@ VERTICAL_PROFILE_MEAN_DIMS = ("time", "x", "y", "tile")
 
 def calc_metrics(
     ds: xr.Dataset,
+    predicted: Sequence[str],
     predict_coord: str = PREDICT_COORD,
     target_coord: str = TARGET_COORD,
     derivation_dim: str = DERIVATION_DIM,
@@ -49,6 +39,9 @@ def calc_metrics(
     variables, assumed to include variables in
     {SCALAR_METRIC_VARS, VERTICAL_METRIC_VARS} as well as area and delp
     """
+    pressure_level_names = predicted
+    column_integrated_names = [
+        f"column_integrated_{name}" for name in pressure_level_names]
     derivation_kwargs = {
         "predict_coord": predict_coord,
         "target_coord": target_coord,
@@ -63,7 +56,7 @@ def calc_metrics(
     scalar_metrics_column_integrated_vars = _calc_same_dims_metrics(
         ds,
         dim_tag="scalar",
-        vars=COLUMN_INTEGRATED_METRIC_VARS,
+        vars=column_integrated_names,
         weights=[area_weights],
         mean_dim_vars=None,
         **derivation_kwargs,
@@ -74,7 +67,7 @@ def calc_metrics(
     scalar_column_integrated_metrics = _calc_same_dims_metrics(
         ds,
         dim_tag="scalar",
-        vars=PRESSURE_LEVEL_METRIC_VARS,
+        vars=pressure_level_names,
         weights=[area_weights, delp_weights],
         mean_dim_vars=None,
         **derivation_kwargs,
@@ -87,7 +80,7 @@ def calc_metrics(
     pressure_level_metrics = _calc_same_dims_metrics(
         ds_regrid_z,
         dim_tag="pressure_level",
-        vars=PRESSURE_LEVEL_METRIC_VARS,
+        vars=pressure_level_names,
         weights=[area_weights],
         mean_dim_vars=vertical_profile_mean_dims,
         **derivation_kwargs,
@@ -278,6 +271,7 @@ def _calc_metric(
     da_target = ds[var].sel({derivation_dim: target_coord})
     da_predict = ds[var].sel({derivation_dim: predict_coord})
     metric = metric_func(da_target, da_predict)
+
     metric_weighted_average = _weighted_average(metric, weights, mean_dims)
     metric_name = (
         f"{metric_func.__name__.strip('_')}/{var}/{predict_coord}_vs_{target_coord}"

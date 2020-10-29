@@ -4,7 +4,7 @@ from .config import (
     DOMAINS,
     PRIMARY_VARS,
 )
-from vcm import thermo, safe
+from vcm import thermo, safe, mass_integrate
 import xarray as xr
 import numpy as np
 import logging
@@ -95,6 +95,8 @@ def insert_column_integrated_vars(
             da = da.assign_attrs(
                 {"long_name": "column integrated moistening", "units": "mm/day"}
             )
+        else:
+            da = mass_integrate(ds[var], ds[VARNAMES["delp"]], dim="z")
         ds = ds.assign({column_integrated_name: da})
 
     return ds
