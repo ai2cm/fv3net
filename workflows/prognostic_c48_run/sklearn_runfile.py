@@ -318,8 +318,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             "total_precip_after_physics": self._state[TOTAL_PRECIP],
         }
 
-    def _update_winds(self) -> Diagnostics:
-        self._log_debug(f"Adding ML wind tendencies from previous timestep")
+    def _apply_dQu_dQv(self) -> Diagnostics:
+        self._log_debug(f"Add ML wind tendencies from previous timestep (if predicted)")
         state = {name: self._state[name] for name in [EAST_WIND, NORTH_WIND]}
         if self._do_only_diagnostic_ml:
             updated_state: State = {}
@@ -377,7 +377,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             diagnostics = {}
             diagnostics.update(self._step_dynamics())
             diagnostics.update(self._compute_physics())
-            diagnostics.update(self._update_winds())
+            diagnostics.update(self._apply_dQu_dQv())
             diagnostics.update(self._apply_physics())
             diagnostics.update(self._step_python())
             yield self._state.time, diagnostics
@@ -449,8 +449,8 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
         super().__init__(*args, **kwargs)
         self._variables = list(tendency_variables)
 
-    _step_python = monitor("python", TimeLoop._step_python)
     _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
+    _step_python = monitor("python", TimeLoop._step_python)
 
 
 def globally_average_2d_diagnostics(
