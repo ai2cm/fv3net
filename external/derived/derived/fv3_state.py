@@ -5,9 +5,10 @@ import vcm
 import xarray as xr
 
 import fv3gfs.util
+from ._base import DerivedState
 
 
-class DerivedFV3State:
+class DerivedFV3State(DerivedState):
     """A uniform mapping-like interface to the FV3GFS model state
     
     This class provides two features
@@ -29,22 +30,6 @@ class DerivedFV3State:
         """
         self._getter = getter
 
-    @classmethod
-    def register(cls, name: str):
-        """Register a function as a derived variable
-
-        See the cos_zenith_angle function below
-
-        Args:
-            name: the name the derived variable will be available under
-        """
-
-        def decorator(func):
-            cls._VARIABLES[name] = func
-            return func
-
-        return decorator
-
     @property
     def time(self) -> cftime.DatetimeJulian:
         return self._getter.get_state(["time"])["time"]
@@ -52,7 +37,6 @@ class DerivedFV3State:
     def __getitem__(self, key: Hashable) -> xr.DataArray:
         if key == "time":
             raise KeyError("To access time use the `time` property of this object.")
-
         if key in self._VARIABLES:
             return self._VARIABLES[key](self)
         else:
