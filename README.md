@@ -145,7 +145,7 @@ install on a Google Cloud Platform VM. To install on an ubuntu system run
     microk8s status --wait-ready
 
     # needed plugins
-    microk8s enable dashboard dns registry:size=40GB
+    microk8s enable dashboard dns registry:size=40Gi
 
 To configure kubectl and argo use this local cluster, you need to add microk8s
 configurations to the global kubeconfig file. Running `microk8s config` will
