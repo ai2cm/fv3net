@@ -260,7 +260,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._do_only_diagnostic_ml: bool = args["scikit_learn"].get(
             "diagnostic_ml", False
         )
-        self._dQu_dQv_tendency = {}
+        self._dQu_dQv_tendency: State = {}
 
         # download the model
         self._log_info("Downloading ML Model")
@@ -320,7 +320,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
 
     def _apply_dQu_dQv(self) -> Diagnostics:
         self._log_debug(f"Add ML wind tendencies from previous timestep (if predicted)")
-        state = {name: self._state[name] for name in [EAST_WIND, NORTH_WIND]}
+        variables: List[Hashable] = [EAST_WIND, NORTH_WIND]
+        state = {name: self._state[name] for name in variables}
         if self._do_only_diagnostic_ml:
             updated_state: State = {}
         else:
