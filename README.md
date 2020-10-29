@@ -154,7 +154,7 @@ display the contents of this file. It is simplest to overwrite any existing k8s 
     microk8s config > ~/.kube/config
 
 If however, you want to submit jobs to both microk8s and the shared cluster,
-you can manually merge the `clusters` and `users` sections printed by
+you can manually merge the `clusters`, `contexts`, and `users` sections printed by
 microk8s config into the the global `~/.kube/config`. Once finished, the file
 should something like this (except for the certificate, tokens, and IP
 addresses).
