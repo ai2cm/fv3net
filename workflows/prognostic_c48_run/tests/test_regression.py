@@ -540,6 +540,8 @@ def test_fv3run_diagnostic_outputs(completed_rundir):
         "net_moistening",
         "physics_precip",
         "water_vapor_path",
+        "column_integrated_dQu",
+        "column_integrated_dQv",
     ]:
         assert diagnostics[variable].dims == dims
         assert np.sum(np.isnan(diagnostics[variable].values)) == 0
