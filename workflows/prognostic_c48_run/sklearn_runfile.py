@@ -99,6 +99,10 @@ def compute_diagnostics(state, diags):
 
     net_moistening = (diags["dQ2"] * state[DELP] / gravity).sum("z")
     physics_precip = state[PRECIP_RATE]
+    diags["dQu"] = xr.zeros_like(diags["dQ1"]) if "dQu" not in diags else diags["dQu"]
+    diags["dQv"] = xr.zeros_like(diags["dQ1"]) if "dQv" not in diags else diags["dQv"]
+    column_integrated_dQu = (diags["dQu"] * state[DELP]).sum("z") / state[DELP].sum("z")
+    column_integrated_dQv = (diags["dQv"] * state[DELP]).sum("z") / state[DELP].sum("z")
 
     return dict(
         air_temperature=state[TEMP],
@@ -111,6 +115,14 @@ def compute_diagnostics(state, diags):
         .sum("z")
         .assign_attrs(units="W/m^2")
         .assign_attrs(description="column integrated ML model heating"),
+        column_integrated_dQu=column_integrated_dQu.assign_attrs(
+            units="m/s/s"
+        ).assign_attrs(description="column integrated ML model zonal wind tendency"),
+        column_integrated_dQv=column_integrated_dQv.assign_attrs(
+            units="m/s/s"
+        ).assign_attrs(
+            description="column integrated ML model meridional wind tendency"
+        ),
         water_vapor_path=(state[SPHUM] * state[DELP] / gravity)
         .sum("z")
         .assign_attrs(units="mm")
@@ -126,7 +138,13 @@ def compute_diagnostics(state, diags):
 def rename_diagnostics(diags):
     """Postfix ML output names with _diagnostic and create zero-valued outputs in
     their stead. Function operates in place."""
-    for variable in ["net_moistening", "net_heating"]:
+    ml_tendencies = [
+        "net_moistening",
+        "net_heating",
+        "column_integrated_dQu",
+        "column_integrated_dQv",
+    ]
+    for variable in ml_tendencies:
         attrs = diags[variable].attrs
         diags[f"{variable}_diagnostic"] = diags[variable].assign_attrs(
             description=attrs["description"] + " (diagnostic only)"
@@ -242,6 +260,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._do_only_diagnostic_ml: bool = args["scikit_learn"].get(
             "diagnostic_ml", False
         )
+        self._dQu_dQv_tendency = {}
 
         # download the model
         self._log_info("Downloading ML Model")
@@ -300,20 +319,12 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         }
 
     def _update_winds(self) -> Diagnostics:
-        self._log_debug(f"Adding ML wind tendencies")
-        variables: List[Hashable] = list(
-            self._model.input_variables | REQUIRED_VARIABLES
-        )
-        self._log_debug(f"Getting state variables: {variables}")
-        state = {name: self._state[name] for name in variables}
-        self._log_debug("Computing RF updated variables")
-        tendency = predict(self._model, state)
-        tendency = {k: v for k, v in tendency.items() if k in ["dQu", "dQv"]}
+        self._log_debug(f"Adding ML wind tendencies from previous timestep")
+        state = {name: self._state[name] for name in [EAST_WIND, NORTH_WIND]}
         if self._do_only_diagnostic_ml:
             updated_state: State = {}
         else:
-            updated_state = apply(state, tendency, dt=self._timestep)
-        self._log_debug("Setting Fortran State")
+            updated_state = apply(state, self._dQu_dQv_tendency, dt=self._timestep)
         self._state.update(updated_state)
         return {}
 
@@ -327,17 +338,20 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
 
         self._log_debug("Computing RF updated variables")
         tendency = predict(self._model, state)
-        tendency = {k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]}
 
         self._log_debug(
             "Correcting ML tendencies that would predict negative specific humidity"
         )
         tendency = limit_sphum_tendency(state, tendency, dt=self._timestep)
 
+        dQ1_dQ2_tendency = {k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]}
+        dQu_dQv_tendency = {k: v for k, v in tendency.items() if k in ["dQu", "dQv"]}
+        self._dQu_dQv_tendency = dQu_dQv_tendency
+
         if self._do_only_diagnostic_ml:
             updated_state: State = {}
         else:
-            updated_state = apply(state, tendency, dt=self._timestep)
+            updated_state = apply(state, dQ1_dQ2_tendency, dt=self._timestep)
 
         diagnostics = compute_diagnostics(state, tendency)
         if self._do_only_diagnostic_ml:
