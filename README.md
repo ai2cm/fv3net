@@ -219,12 +219,12 @@ this local repository run
 
 To install argo in the cluster and other necessary resources, run 
 
-    make deploy
+    REGISTRY=localhost:32000 make deploy
 
 Finally, to run the integration tests (which also deploys argo and all the
 necessary manifests), you can run
 
-    make run_integration_tests
+    REGISTRY=localhost:32000 make run_integration_tests
 
 # Code linting checks
 
