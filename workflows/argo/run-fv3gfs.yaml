@@ -17,7 +17,6 @@ spec:
         - {name: memory, value: 8Gi}
         - {name: segment-count, value: "1"}
         - {name: work-volume-name, value: work-volume}
-        - {name: external-volume-name, value: external-volume}
     steps:
       - - name: verify-output-url-empty
           template: verify-url-empty
@@ -47,7 +46,6 @@ spec:
             - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
             - {name: segment, value: 0}
             - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
-            - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
   - name: write-configs
     inputs:
       artifacts:
@@ -80,7 +78,6 @@ spec:
         - name: segment-count
         - name: segment
         - name: work-volume-name
-        - name: external-volume-name
     steps:
       - - template: run-segment
           name: run-segment
@@ -90,7 +87,6 @@ spec:
             - {name: cpu, value: "{{inputs.parameters.cpu}}"}
             - {name: memory, value: "{{inputs.parameters.memory}}"}
             - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
-            - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
       - - name: increment-segment
           template: increment-segment
           arguments:
@@ -107,7 +103,6 @@ spec:
             - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
             - {name: segment, value: "{{steps.increment-segment.outputs.result}}"}
             - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
-            - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
   - name: run-segment
     inputs:
       parameters:
@@ -115,7 +110,6 @@ spec:
         - name: cpu
         - name: memory
         - name: work-volume-name
-        - name: external-volume-name
     steps:
       - - name: run-model
           continueOn:
@@ -126,7 +120,6 @@ spec:
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
               - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
-              - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
       - - name: upload-outputs
           template: post-process
           arguments:
@@ -153,7 +146,6 @@ spec:
         - name: cpu
         - name: memory
         - name: work-volume-name
-        - name: external-volume-name
     tolerations:
     - key: "dedicated"
       operator: "Equal"
@@ -183,9 +175,6 @@ spec:
       volumeMounts:
         - name: "{{inputs.parameters.work-volume-name}}"
           mountPath: /mnt/data
-        - name: "{{inputs.parameters.external-volume-name}}"
-          mountPath: /mnt/input
-          readOnly: true
         - name: gcp-key-secret
           mountPath: /secret/gcp-credentials
           readOnly: true

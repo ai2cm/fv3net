@@ -11,7 +11,6 @@ spec:
       - {name: cpu, value: "6"}
       - {name: memory, value: 8Gi}
       - {name: work-volume-name, value: work-volume}
-      - {name: external-volume-name, value: gfs-analysis-data}
       - {name: nudge-url, value: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data}
   entrypoint: main
   volumeClaimTemplates:
@@ -47,7 +46,6 @@ spec:
               - {name: cpu, value: "{{workflow.parameters.cpu}}"}
               - {name: memory, value: "{{workflow.parameters.memory}}"}
               - {name: work-volume-name, value: "{{workflow.parameters.work-volume-name}}"}
-              - {name: external-volume-name, value: "{{workflow.parameters.external-volume-name}}"}
               - {name: nudge-url, value: "{{workflow.parameters.nudge-url}}"}
     - name: nudge-to-obs
       inputs:
@@ -58,7 +56,6 @@ spec:
           - {name: cpu, value: "6"}
           - {name: memory, value: 8Gi}
           - {name: work-volume-name, value: work-volume}
-          - {name: external-volume-name, value: gfs-analysis-data}
           - {name: nudge-url, value: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data}
       steps:
         - - template: prepare-config
@@ -83,7 +80,6 @@ spec:
                 - {name: cpu, value: "{{inputs.parameters.cpu}}"}
                 - {name: memory, value: "{{inputs.parameters.memory}}"}
                 - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
-                - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
     - name: prepare-config
       inputs:
         parameters:

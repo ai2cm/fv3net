@@ -98,7 +98,6 @@ template.
 | memory               | (optional) Requested memory for run-model step                                                        |
 | segment-count        | (optional) Number of segments to run                                                                  |
 | working-volume-name  | (optional) Name of volume for temporary work. Volume claim must be made prior to run-fv3gfs workflow. |
-| external-volume-name | (optional) Name of volume with external data. E.g. for restart data in a nudged run.                  |
 
 Defaults for optional parameters can be found in the workflow.
 
@@ -171,7 +170,6 @@ an appropriate `training-config` string.
 | cpu-prog              | (optional) Number of cpus for prognostic run nodes; default 6              |
 | memory-prog           | (optional) Memory for prognostic run nodes; default 6Gi                    |
 | work-volume-name      | (optional) Working volume name, prognostic run; default 'work-volume'      |
-| external-volume-name  | (optional) External volume name, prognostic run; default 'external-volume' |
 
 
 ### Prognostic run report

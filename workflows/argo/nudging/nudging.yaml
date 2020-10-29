@@ -16,7 +16,6 @@ spec:
       - {name: use-default-chunks, value: "true"}
       - {name: custom-chunks, value: "{}"}
       - {name: work-volume-name, value: work-volume}
-      - {name: external-volume-name, value: restart-data}
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
@@ -57,7 +56,6 @@ spec:
               - {name: use-default-chunks, value: "{{workflow.parameters.use-default-chunks}}"}
               - {name: custom-chunks, value: "{{workflow.parameters.custom-chunks}}"}
               - {name: work-volume-name, value: "{{workflow.parameters.work-volume-name}}"}
-              - {name: external-volume-name, value: "{{workflow.parameters.external-volume-name}}"}
     - name: nudging
       inputs:
         parameters:
@@ -70,7 +68,6 @@ spec:
           - {name: use-default-chunks, value: "true"}
           - {name: custom-chunks, value: "{}"}
           - {name: work-volume-name, value: work-volume}
-          - {name: external-volume-name, value: restart-data}
       steps:
         - - template: prepare-config
             name: prepare-config
@@ -95,7 +92,6 @@ spec:
                 - {name: cpu, value: "{{inputs.parameters.cpu}}"}
                 - {name: memory, value: "{{inputs.parameters.memory}}"}
                 - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
-                - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
     - name: prepare-config
       inputs:
         parameters:

@@ -19,10 +19,6 @@ spec:
           requests:
             storage: 100Gi
   volumes:
-    - name: external-volume
-      persistentVolumeClaim:
-        claimName: nudging-read-only
-        readOnly: true
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -49,7 +45,6 @@ spec:
         - {name: cpu-prog, value: "6"}
         - {name: memory-prog, value: 6Gi}
         - {name: work-volume-name, value: work-volume}
-        - {name: external-volume-name, value: external-volume}
     dag:
       tasks:
       - name: train-model
@@ -95,8 +90,6 @@ spec:
                 value: "{{inputs.parameters.memory-prog}}"
               - name: work-volume-name
                 value: "{{inputs.parameters.work-volume-name}}"
-              - name: external-volume-name
-                value: "{{inputs.parameters.external-volume-name}}"
       - name: offline-diags
         dependencies: [train-model]
         templateRef:
