@@ -1,3 +1,3 @@
-from .models import DenseModel, DenseWithClassifier
-from .classifiers import DenseClassifierModel
+from .models import DenseModel
+from .classifiers import DenseWithClassifier, DenseClassifierModel
 from .testing import DummyModel

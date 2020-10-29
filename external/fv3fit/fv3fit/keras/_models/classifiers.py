@@ -110,16 +110,12 @@ def separate_tensor_by_var(tensor, feature_dim_slices):
     return sep
 
 
-def _mask_less_than_zero(x, to_mask=None):
+def _less_than_zero_mask(x, to_mask=None):
 
     non_zero = tf.math.greater_equal(x, tf.zeros_like(x))
     mask = tf.where(non_zero, x=tf.ones_like(x), y=tf.zeros_like(x))
-    if to_mask is None:
-        to_mask = x
 
-    masked = tf.keras.layers.Multiply()([to_mask, mask])
-
-    return masked
+    return mask
 
 
 class DenseWithClassifier(DenseModel):
@@ -161,15 +157,17 @@ class DenseWithClassifier(DenseModel):
         for var, out_tensor in regr_outputs_by_var.items():
             if var in self._classifiers:
                 classified = self._classifiers[var]._model(inputs)
-                out_tensor = tf.keras.layers.Lambda(_mask_less_than_zero)(
-                    classified, to_mask=out_tensor
-                )
+                mask = tf.keras.layers.Lambda(_less_than_zero_mask)(classified)
+                out_tensor = tf.keras.layers.Multiply()([mask, out_tensor])
 
             if var in self._limit_zero:
-                out_tensor = _mask_less_than_zero(out_tensor)
+                mask = tf.keras.layers.Lambda(_less_than_zero_mask)(out_tensor)
+                out_tensor = tf.keras.layers.Multiply()([mask, out_tensor])
 
             if var in self._convert_int:
-                out_tensor = tf.math.round(out_tensor)
+                out_tensor = tf.keras.layers.Lambda(lambda x: tf.math.round(x))(
+                    out_tensor
+                )
 
             to_combine.append(out_tensor)
 
