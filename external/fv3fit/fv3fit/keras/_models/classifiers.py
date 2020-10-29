@@ -135,8 +135,8 @@ class DenseWithClassifier(DenseModel):
         else:
             self._classifiers = classifiers
 
-        self._limit_zero = limit_zero
-        self._convert_int = convert_int
+        self._limit_zero = limit_zero if limit_zero is not None else []
+        self._convert_int = convert_int if convert_int is not None else []
 
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
 
