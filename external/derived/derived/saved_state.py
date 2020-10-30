@@ -6,7 +6,7 @@ import vcm
 from ._base import DerivedState
 
 
-class DerivedSavedState(DerivedState):
+class DerivedDatasetState(DerivedState):
     _VARIABLES: Mapping[Hashable, Callable[..., xr.DataArray]] = {}
 
     def __init__(self, ds: xr.Dataset):
