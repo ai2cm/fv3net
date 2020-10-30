@@ -37,15 +37,7 @@ class DerivedDatasetState(DerivedState):
 
 @DerivedDatasetState.register("cos_zenith_angle")
 def cos_zenith_angle(self):
-    times_exploded = np.array(
-        [
-            np.full(self["lon"].shape, vcm.cast_to_datetime(t))
-            for t in self["time"].values
-        ]
-    )
-    cos_z = vcm.cos_zenith_angle(times_exploded, self["lon"], self["lat"])
-    cos_z_dims = ("time",) + self["lon"].dims
-    return xr.DataArray(cos_z, dims=cos_z_dims)
+    pass
 
 
 @DerivedDatasetState.register("eastward_wind_tendency")
