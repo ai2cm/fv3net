@@ -219,7 +219,7 @@ this local repository run
 
 To install argo in the cluster and other necessary resources, you first need
 to have a GCP service account key file pointed to by the
-`GOOGLE_APPLICATION_CREDENTIALS` environmental variable (see [these instructions](#GCP_Service_Acount_Authentication)).
+`GOOGLE_APPLICATION_CREDENTIALS` environmental variable (see [these instructions](#gcp-service-acount-authentication)).
 
     REGISTRY=localhost:32000 make deploy_local
 
