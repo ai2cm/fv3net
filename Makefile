@@ -57,15 +57,15 @@ enter: build_image
 		-e GOOGLE_CLOUD_PROJECT=vcm-ml \
 		-w /code $(IMAGE)  bash
 
-#		-e GOOGLE_APPLICATION_CREDENTIALS=/google_creds.json \
-#		-v $(HOME)/.config/gcloud/application_default_credentials.json:/google_creds.json \
-
 build_ci_image:
 	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
 
-
-deploy:
-	cd workflows/argo && bash install.sh
+## Install K8s and cluster manifests for local development
+## Do not run for the GKE cluster
+deploy_local:
+	kubectl apply -f https://raw.githubusercontent.com/argoproj/argo/v2.11.6/manifests/install.yaml
+	kubectl create secret generic gcp-key --from-file="${GOOGLE_APPLICATION_CREDENTIALS}"
+	kubectl apply -f cluster
 
 # run integration tests
 run_integration_tests:
