@@ -45,15 +45,6 @@ TOTAL_PRECIP = "total_precipitation"  # has units of m
 AREA = "area_of_grid_cell"
 EAST_WIND = "eastward_wind_after_physics"
 NORTH_WIND = "northward_wind_after_physics"
-REQUIRED_VARIABLES = {
-    TEMP,
-    SPHUM,
-    DELP,
-    PRECIP_RATE,
-    TOTAL_PRECIP,
-    EAST_WIND,
-    NORTH_WIND,
-}
 TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
     "dQ1": TEMP,
     "dQ2": SPHUM,
@@ -99,10 +90,6 @@ def compute_diagnostics(state, diags):
 
     net_moistening = (diags["dQ2"] * state[DELP] / gravity).sum("z")
     physics_precip = state[PRECIP_RATE]
-    diags["dQu"] = xr.zeros_like(diags["dQ1"]) if "dQu" not in diags else diags["dQu"]
-    diags["dQv"] = xr.zeros_like(diags["dQ1"]) if "dQv" not in diags else diags["dQv"]
-    column_integrated_dQu = (diags["dQu"] * state[DELP]).sum("z") / state[DELP].sum("z")
-    column_integrated_dQv = (diags["dQv"] * state[DELP]).sum("z") / state[DELP].sum("z")
 
     return dict(
         air_temperature=state[TEMP],
@@ -115,14 +102,6 @@ def compute_diagnostics(state, diags):
         .sum("z")
         .assign_attrs(units="W/m^2")
         .assign_attrs(description="column integrated ML model heating"),
-        column_integrated_dQu=column_integrated_dQu.assign_attrs(
-            units="m/s/s"
-        ).assign_attrs(description="column integrated ML model zonal wind tendency"),
-        column_integrated_dQv=column_integrated_dQv.assign_attrs(
-            units="m/s/s"
-        ).assign_attrs(
-            description="column integrated ML model meridional wind tendency"
-        ),
         water_vapor_path=(state[SPHUM] * state[DELP] / gravity)
         .sum("z")
         .assign_attrs(units="mm")
@@ -135,16 +114,35 @@ def compute_diagnostics(state, diags):
     )
 
 
+def compute_momentum_diagnostics(state, tendency):
+    delp = state[DELP]
+    total_thickness = delp.sum("z")
+    dQu = tendency.get("dQu", xr.zeros_like(delp))
+    dQv = tendency.get("dQv", xr.zeros_like(delp))
+    column_integrated_dQu = (dQu * delp).sum("z") / total_thickness
+    column_integrated_dQv = (dQv * delp).sum("z") / total_thickness
+    return dict(
+        column_integrated_dQu=column_integrated_dQu.assign_attrs(
+            units="m/s/s", description="column integrated zonal wind tendency due to ML"
+        ),
+        column_integrated_dQv=column_integrated_dQv.assign_attrs(
+            units="m/s/s",
+            description="column integrated meridional wind tendency due to ML",
+        ),
+    )
+
+
 def rename_diagnostics(diags):
     """Postfix ML output names with _diagnostic and create zero-valued outputs in
     their stead. Function operates in place."""
-    ml_tendencies = [
+    ml_tendencies = {
         "net_moistening",
         "net_heating",
         "column_integrated_dQu",
         "column_integrated_dQv",
-    ]
-    for variable in ml_tendencies:
+    }
+    ml_tendencies_in_diags = ml_tendencies & set(diags)
+    for variable in ml_tendencies_in_diags:
         attrs = diags[variable].attrs
         diags[f"{variable}_diagnostic"] = diags[variable].assign_attrs(
             description=attrs["description"] + " (diagnostic only)"
@@ -260,7 +258,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._do_only_diagnostic_ml: bool = args["scikit_learn"].get(
             "diagnostic_ml", False
         )
-        self._dQu_dQv_tendency: State = {}
+        self._tendencies_to_apply_to_dycore_state: State = {}
+        self._tendencies_to_apply_to_physics_state: State = {}
 
         # download the model
         self._log_info("Downloading ML Model")
@@ -318,24 +317,29 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             "total_precip_after_physics": self._state[TOTAL_PRECIP],
         }
 
-    def _apply_wind_tendencies(self) -> Diagnostics:
-        self._log_debug(f"Add ML wind tendencies from previous timestep (if predicted)")
-        if not self._do_only_diagnostic_ml:
-            variables: List[Hashable] = [EAST_WIND, NORTH_WIND]
-            state = {name: self._state[name] for name in variables}
-            updated_state = apply(state, self._dQu_dQv_tendency, dt=self._timestep)
+    def _apply_python_to_physics_state(self) -> Diagnostics:
+        self._log_debug(f"Apply python tendencies to physics state")
+        variables: List[Hashable] = [
+            TENDENCY_TO_STATE_NAME["dQu"],
+            TENDENCY_TO_STATE_NAME["dQv"],
+            DELP,
+        ]
+        state = {name: self._state[name] for name in variables}
+        tendency = self._tendencies_to_apply_to_physics_state
+        updated_state = apply(state, tendency, dt=self._timestep)
+        diagnostics = compute_momentum_diagnostics(state, tendency)
+        if self._do_only_diagnostic_ml:
+            rename_diagnostics(diagnostics)
+        else:
             self._state.update(updated_state)
-        return {}
+        return diagnostics
 
-    def _step_python(self) -> Diagnostics:
-
-        variables: List[Hashable] = list(
-            self._model.input_variables | REQUIRED_VARIABLES
-        )
+    def _compute_python_tendency(self) -> Diagnostics:
+        variables: List[Hashable] = list(self._model.input_variables | {SPHUM})
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
 
-        self._log_debug("Computing RF updated variables")
+        self._log_debug("Computing ML-predicted tendencies")
         tendency = predict(self._model, state)
 
         self._log_debug(
@@ -343,14 +347,30 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         )
         tendency = limit_sphum_tendency(state, tendency, dt=self._timestep)
 
-        dQ1_dQ2_tendency = {k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]}
-        dQu_dQv_tendency = {k: v for k, v in tendency.items() if k in ["dQu", "dQv"]}
-        self._dQu_dQv_tendency = dQu_dQv_tendency
+        self._tendencies_to_apply_to_dycore_state = {
+            k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]
+        }
+        self._tendencies_to_apply_to_physics_state = {
+            k: v for k, v in tendency.items() if k in ["dQu", "dQv"]
+        }
+        return {}
+
+    def _apply_python_to_dycore_state(self) -> Diagnostics:
+        variables: List[Hashable] = [
+            TENDENCY_TO_STATE_NAME["dQ1"],
+            TENDENCY_TO_STATE_NAME["dQ2"],
+            DELP,
+            PRECIP_RATE,
+            TOTAL_PRECIP,
+        ]
+        self._log_debug(f"Getting state variables: {variables}")
+        state = {name: self._state[name] for name in variables}
+        tendency = self._tendencies_to_apply_to_dycore_state
 
         if self._do_only_diagnostic_ml:
             updated_state: State = {}
         else:
-            updated_state = apply(state, dQ1_dQ2_tendency, dt=self._timestep)
+            updated_state = apply(state, tendency, dt=self._timestep)
 
         diagnostics = compute_diagnostics(state, tendency)
         if self._do_only_diagnostic_ml:
@@ -376,9 +396,10 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             diagnostics = {}
             diagnostics.update(self._step_dynamics())
             diagnostics.update(self._compute_physics())
-            diagnostics.update(self._apply_dQu_dQv())
+            diagnostics.update(self._apply_python_to_physics_state())
             diagnostics.update(self._apply_physics())
-            diagnostics.update(self._step_python())
+            diagnostics.update(self._compute_python_tendency())
+            diagnostics.update(self._apply_python_to_dycore_state())
             yield self._state.time, diagnostics
         self._fv3gfs.cleanup()
 
@@ -449,7 +470,9 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
         self._variables = list(tendency_variables)
 
     _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
-    _step_python = monitor("python", TimeLoop._step_python)
+    _apply_python_to_dycore_state = monitor(
+        "python", TimeLoop._apply_python_to_dycore_state
+    )
 
 
 def globally_average_2d_diagnostics(
