@@ -4,7 +4,7 @@
 # GLOBALS                                                                       #
 #################################################################################
 VERSION ?= $(shell git rev-parse HEAD)
-REGISTRY ?= us.gcr.io/vcm-ml/fv3net
+REGISTRY ?= us.gcr.io/vcm-ml
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
