@@ -165,7 +165,6 @@ spec:
           - name: custom-chunks
             value: "{{workflow.parameters.nudging-chunks}}"
           - {name: work-volume-name, value: work-volume}
-          - {name: external-volume-name, value: restart-data}
           - name: cpu
             value: 6000m
           - name: memory
@@ -198,4 +197,3 @@ spec:
           - name: public-report-output
             value: "{{workflow.parameters.root}}/offline-report"
           - {name: work-volume-name, value: work-volume}
-          - {name: external-volume-name, value: restart-data}
