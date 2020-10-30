@@ -347,6 +347,28 @@ sources:
       urlpath: "gs://vcm-ml-data/latLonArea/c48/land_sea_mask.zarr/"
       consolidated: true
 
+  wind_rotation/c48:
+    description: Rotation matrix components transforming x/y components to lat/lon 
+    driver: zarr
+    metadata:
+      grid: c48
+      variables:
+        - eastward_wind_u_coeff
+        - eastward_wind_v_coeff
+        - northward_wind_u_coeff
+        - northward_wind_v_coeff
+        - x_unit_vector
+        - y_unit_vector
+        - lat_unit_vector
+        - lon_unit_vector
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-data/latLonArea/c48/wind_rotation_matrix.zarr/"
+      consolidated: true
+
+
   grid/c96:
     description: C96 grid spec (area, lat, lon, latb, lonb)
     driver: zarr
