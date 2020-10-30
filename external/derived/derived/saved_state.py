@@ -31,7 +31,7 @@ class DerivedDatasetState(DerivedState):
         return xr.merge([ds_nonderived, ds_derived])
 
 
-@DerivedSavedState.register("cos_zenith_angle")
+@DerivedDatasetState.register("cos_zenith_angle")
 def cos_zenith_angle(self):
     times_exploded = np.array(
         [
@@ -44,10 +44,10 @@ def cos_zenith_angle(self):
     return xr.DataArray(cos_z, dims=cos_z_dims)
 
 
-@DerivedSavedState.register("eastward_wind_tendency")
+@DerivedDatasetState.register("eastward_wind_tendency")
 def eastward_wind_tendency(self):
     pass
 
-@DerivedSavedState.register("northward_wind_tendency")
+@DerivedDatasetState.register("northward_wind_tendency")
 def northward_wind_tendency(self):
     pass
