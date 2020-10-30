@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import fv3viz as viz
 import vcm
+import config
 import load_diagnostic_data as load_diags
 
 dask.config.set(sheduler="single-threaded")
@@ -100,7 +101,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("url", help="Path to rundir")
     parser.add_argument("output", help="Output location for movie stills")
-    parser.add_argument("--n_jobs", default=8, type=int)
+    parser.add_argument("--n_jobs", default=8, type=int, help="Number of workers.")
+    parser.add_argument(
+        "--n_timesteps",
+        default=None,
+        type=int,
+        help="Number of timesteps for which stills are generated.",
+    )
     parser.add_argument("--catalog", default=CATALOG)
     args = parser.parse_args()
 
@@ -108,14 +115,19 @@ if __name__ == "__main__":
         os.makedirs(args.output, exist_ok=True)
 
     catalog = intake.open_catalog(CATALOG)
+    verification = config.get_verification_entries("40day_may2020", catalog)
 
-    prognostic, _, grid = load_diags.load_physics(args.url, catalog)
+    prognostic, _, grid = load_diags.load_physics(
+        args.url, verification["physics"], catalog
+    )
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead
     prognostic = (
         prognostic.drop_vars(GRID_VARS, errors="ignore")
         .drop_dims(INTERFACE_DIMS, errors="ignore")
         .merge(grid)
     )
+    if args.n_timesteps:
+        prognostic = prognostic.isel(time=slice(None, args.n_timesteps))
     logger.info("Forcing computation")
     prognostic = prognostic[KEEP_VARS].load()  # force load
     T = prognostic.sizes["time"]

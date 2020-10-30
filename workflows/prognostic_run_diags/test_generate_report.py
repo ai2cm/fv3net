@@ -45,7 +45,7 @@ def test_upload_html_gcs(client: Client):
 def test__parse_metadata():
     run = "blah-blah-baseline"
     out = _parse_metadata(run)
-    assert out == {"run": run, "baseline": "Baseline", "one_step": "blah-blah"}
+    assert out == {"run": run, "baseline": True}
 
 
 def test_detect_rundirs(tmpdir):

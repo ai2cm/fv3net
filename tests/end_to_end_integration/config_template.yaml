@@ -20,7 +20,6 @@ test-times: |
 nudging-config: | 
   base_version: v0.5
   forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
-  diag_table: gs://vcm-fv3config/config/diag_table/nudge_to_fine_dt/v1.0/diag_table
   nudging:
     restarts_path: /mnt/input/coarsen_restarts/
     timescale_hours:
@@ -44,9 +43,26 @@ nudging-config: |
       do_sat_adj: false
     gfdl_cloud_microphysics_nml:
       fast_sat_adj: false
-    gfs_physics_nml:
-      ldiag3d: true
-nudging-segment-count: 2
+nudging-segment-count: "2"
+nudging-chunks: |
+  before_dynamics.zarr:
+    time: 1
+  after_dynamics.zarr:
+    time: 1
+  after_physics.zarr:
+    time: 1
+  after_nudging.zarr:
+    time: 1
+  reference.zarr:
+    time: 1
+  nudging_tendencies.zarr:
+    time: 1
+  atmos_8xdaily.zarr:
+    time: 1
+  atmos_dt_atmos.zarr:
+    time: 2
+  sfc_dt_atmos.zarr:
+    time: 4
 training-config: | 
   model_type: sklearn_random_forest
   hyperparameters:
@@ -80,3 +96,9 @@ prognostic-run-config: |
       do_sat_adj: false
     gfdl_cloud_microphysics_nml:
       fast_sat_adj: false
+    fv_nwp_nudge_nml:
+      nudge_hght: false
+      nudge_ps: false
+      nudge_virt: false
+      nudge_winds: false
+      nudge_q: false

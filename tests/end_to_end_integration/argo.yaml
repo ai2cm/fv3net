@@ -50,6 +50,10 @@ spec:
             value: "{{workflow.parameters.nudging-config}}"
           - name: segment-count
             value: "{{workflow.parameters.nudging-segment-count}}"
+          - name: use-default-chunks
+            value: "false"
+          - name: custom-chunks
+            value: "{{workflow.parameters.nudging-chunks}}"
           - {name: work-volume-name, value: work-volume}
           - {name: external-volume-name, value: restart-data}
       - name: train-offline-diags-prognostic
@@ -75,8 +79,8 @@ spec:
             value: "{{workflow.parameters.prognostic-run-config}}"
           - name: reference-restarts
             value: "{{workflow.parameters.reference-restarts}}"
-          - name: store-true-args
-            value: " "
+          - name: flags
+            value: "--nudge-to-observations"
           - name: test-times
             value: "{{workflow.parameters.test-times}}"
           - name: public-report-output

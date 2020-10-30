@@ -330,6 +330,8 @@ def open_merged_nudged(
     rename_vars = rename_vars or {
         "air_temperature_tendency_due_to_nudging": "dQ1",
         "specific_humidity_tendency_due_to_nudging": "dQ2",
+        "x_wind_tendency_due_to_nudging": "dQxwind",
+        "y_wind_tendency_due_to_nudging": "dQywind",
     }
 
     datasets = _get_source_datasets(url, merge_files, consolidated)
@@ -492,6 +494,8 @@ def open_merged_nudge_to_obs(
     rename_vars = rename_vars or {
         "t_dt_nudge": "dQ1",
         "q_dt_nudge": "dQ2",
+        "u_dt_nudge": "dQu",
+        "v_dt_nudge": "dQv",
     }
 
     nudging_tendency_variables = nudging_tendency_variables or {
@@ -607,6 +611,8 @@ def open_nudged_to_obs_prognostic(
             "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
             "t_dt_nudge": "dQ1",
             "q_dt_nudge": "dQ2",
+            "u_dt_nudge": "dQu",
+            "v_dt_nudge": "dQv",
             "grid_xt": "x",
             "grid_yt": "y",
             "pfull": "z"}
@@ -622,6 +628,8 @@ def open_nudged_to_obs_prognostic(
         "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
         "t_dt_nudge": "dQ1",
         "q_dt_nudge": "dQ2",
+        "u_dt_nudge": "dQu",
+        "v_dt_nudge": "dQv",
         "grid_xt": "x",
         "grid_yt": "y",
         "pfull": "z",

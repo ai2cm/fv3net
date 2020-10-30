@@ -2,10 +2,10 @@
 
 ### Metrics
 
-| metric |  description| |
-|-|-|-|
-|rmse_3day/{variable} | average RMSE. (average of 3 hourly RMSE)| z500 |
-|drift3day/{variable} |  Day 3 average - Day 1 average | tmplowest |
+| metric               | description                              |           |
+|----------------------|------------------------------------------|-----------|
+| rmse_3day/{variable} | average RMSE. (average of 3 hourly RMSE) | z500      |
+| drift3day/{variable} | Day 3 average - Day 1 average            | tmplowest |
 
 ### Data Requirements
 
@@ -64,3 +64,9 @@ and decorate it with the `metrics_plot_manager.register` if its metric or
 return an object that is valid input to the `sections` argument of
 report.create_report`, currently just a path to an image, or an object of
 type `report.Plot`.
+
+#### Testing
+
+An integration test of the various steps required to generate a prognostic run report 
+can be launched by calling `make test_prognostic_run_report` from the root of the 
+fv3net repository.

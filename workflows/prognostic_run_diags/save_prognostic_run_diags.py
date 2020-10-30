@@ -16,6 +16,7 @@ import argparse
 import os
 import sys
 
+import datetime
 import tempfile
 import intake
 import numpy as np
@@ -29,6 +30,7 @@ from collections import defaultdict
 from typing import Dict, Callable, Mapping
 
 import load_diagnostic_data as load_diags
+import config
 import diurnal_cycle
 import transform
 from constants import (
@@ -36,7 +38,10 @@ from constants import (
     DiagArg,
     GLOBAL_AVERAGE_DYCORE_VARS,
     GLOBAL_AVERAGE_PHYSICS_VARS,
+    GLOBAL_BIAS_PHYSICS_VARS,
     DIURNAL_CYCLE_VARS,
+    TIME_MEAN_VARS,
+    RMSE_VARS,
 )
 
 import logging
@@ -161,6 +166,14 @@ def bias(truth, prediction, w, dims):
     return ((prediction - truth) * w).sum(dims) / w.sum(dims)
 
 
+def zonal_mean(
+    ds: xr.Dataset, latitude: xr.DataArray, bins=np.arange(-90, 91, 2)
+) -> xr.Dataset:
+    zm = ds.groupby_bins(latitude, bins=bins).mean().rename(lat_bins="latitude")
+    latitude_midpoints = [x.item().mid for x in zm["latitude"]]
+    return zm.assign_coords(latitude=latitude_midpoints)
+
+
 def dump_nc(ds: xr.Dataset, f):
     # to_netcdf closes file, which will delete the buffer
     # need to use a buffer since seek doesn't work with GCSFS file objects
@@ -173,7 +186,9 @@ def dump_nc(ds: xr.Dataset, f):
 
 @add_to_diags("dycore")
 @diag_finalizer("rms_global")
-@transform.apply("resample_time", "3H")
+@transform.apply("resample_time", "3H", inner_join=True)
+@transform.apply("daily_mean", datetime.timedelta(days=10))
+@transform.apply("subset_variables", RMSE_VARS)
 def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
@@ -182,40 +197,121 @@ def rms_errors(resampled, verification_c48, grid):
 
 
 @add_to_diags("dycore")
-@diag_finalizer("global_avg")
-@transform.apply("resample_time", "3H")
+@diag_finalizer("zonal_and_time_mean")
+@transform.apply("resample_time", "1H")
 @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
-def global_averages_dycore(resampled, verification, grid):
-    logger.info("Preparing global averages for dycore variables")
-    area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
-        HORIZONTAL_DIMS
-    )
-
-    return area_averages
+def zonal_means_dycore(prognostic, verification, grid):
+    logger.info("Preparing zonal+time means (dycore)")
+    return zonal_mean(prognostic, grid.lat).mean("time")
 
 
 @add_to_diags("physics")
-@diag_finalizer("global_phys_avg")
-@transform.apply("resample_time", "3H")
+@diag_finalizer("zonal_and_time_mean")
+@transform.apply("resample_time", "1H")
 @transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
-def global_averages_physics(resampled, verification, grid):
-    logger.info("Preparing global averages for physics variables")
-    area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
-        HORIZONTAL_DIMS
-    )
+def zonal_means_physics(prognostic, verification, grid):
+    logger.info("Preparing zonal+time means (physics)")
+    return zonal_mean(prognostic, grid.lat).mean("time")
 
-    return area_averages
+
+@add_to_diags("dycore")
+@diag_finalizer("zonal_bias")
+@transform.apply("resample_time", "1H")
+@transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
+def zonal_mean_biases_dycore(prognostic, verification, grid):
+    logger.info("Preparing zonal+time mean biases (dycore)")
+    return zonal_mean(prognostic - verification, grid.lat).mean("time")
 
 
 @add_to_diags("physics")
-@diag_finalizer("bias_global_physics")
-@transform.apply("resample_time", "3H")
-@transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
-def global_biases_physics(resampled, verification, grid):
-    logger.info("Preparing global average biases for physics variables")
-    bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
+@diag_finalizer("zonal_bias")
+@transform.apply("resample_time", "1H")
+@transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
+def zonal_mean_biases_physics(prognostic, verification, grid):
+    logger.info("Preparing zonal+time mean biases (physics)")
+    return zonal_mean(prognostic - verification, grid.lat).mean("time")
 
-    return bias_errors
+
+for mask_type in ["global", "land", "sea", "tropics"]:
+
+    @add_to_diags("dycore")
+    @diag_finalizer(f"spatial_mean_dycore_{mask_type}")
+    @transform.apply("mask_area", mask_type)
+    @transform.apply("resample_time", "3H")
+    @transform.apply("daily_mean", datetime.timedelta(days=10))
+    @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
+    def global_averages_dycore(resampled, verification, grid, mask_type=mask_type):
+        logger.info(f"Preparing averages for dycore variables ({mask_type})")
+        area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
+            HORIZONTAL_DIMS
+        )
+
+        return area_averages
+
+
+for mask_type in ["global", "land", "sea", "tropics"]:
+
+    @add_to_diags("physics")
+    @diag_finalizer(f"spatial_mean_physics_{mask_type}")
+    @transform.apply("mask_area", mask_type)
+    @transform.apply("resample_time", "3H")
+    @transform.apply("daily_mean", datetime.timedelta(days=10))
+    @transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
+    def global_averages_physics(resampled, verification, grid, mask_type=mask_type):
+        logger.info(f"Preparing averages for physics variables ({mask_type})")
+        area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
+            HORIZONTAL_DIMS
+        )
+
+        return area_averages
+
+
+for mask_type in ["global", "land", "sea", "tropics"]:
+
+    @add_to_diags("physics")
+    @diag_finalizer(f"mean_bias_physics_{mask_type}")
+    @transform.apply("mask_area", mask_type)
+    @transform.apply("resample_time", "3H", inner_join=True)
+    @transform.apply("daily_mean", datetime.timedelta(days=10))
+    @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
+    def global_biases_physics(resampled, verification, grid, mask_type=mask_type):
+        logger.info(f"Preparing average biases for physics variables ({mask_type})")
+        bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
+
+        return bias_errors
+
+
+for mask_type in ["global", "land", "sea", "tropics"]:
+
+    @add_to_diags("dycore")
+    @diag_finalizer(f"mean_bias_dycore_{mask_type}")
+    @transform.apply("mask_area", mask_type)
+    @transform.apply("resample_time", "3H", inner_join=True)
+    @transform.apply("daily_mean", datetime.timedelta(days=10))
+    @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
+    def global_biases_dycore(resampled, verification, grid, mask_type=mask_type):
+        logger.info(f"Preparing average biases for dycore variables ({mask_type})")
+        bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
+
+        return bias_errors
+
+
+@add_to_diags("physics")
+@diag_finalizer("time_mean_value")
+@transform.apply("resample_time", "1H", time_slice=slice(24, -1), inner_join=True)
+@transform.apply("subset_variables", TIME_MEAN_VARS)
+def time_mean(prognostic, verification, grid):
+    logger.info("Preparing time means for physics variables")
+    return prognostic.mean("time")
+
+
+@add_to_diags("physics")
+@diag_finalizer("time_mean_bias")
+@transform.apply("resample_time", "1H", time_slice=slice(24, -1), inner_join=True)
+@transform.apply("subset_variables", TIME_MEAN_VARS)
+def time_mean_bias(prognostic, verification, grid):
+    logger.info("Preparing time mean biases for physics variables")
+    return (prognostic - verification).mean("time")
 
 
 for mask_type in ["global", "land", "sea"]:
@@ -223,17 +319,17 @@ for mask_type in ["global", "land", "sea"]:
     @add_to_diags("physics")
     @diag_finalizer(f"diurnal_{mask_type}")
     @transform.apply("mask_to_sfc_type", mask_type)
-    @transform.apply("resample_time", "1H", time_slice=slice(24, -1))
+    @transform.apply("resample_time", "1H", time_slice=slice(24, -1), inner_join=True)
     @transform.apply("subset_variables", DIURNAL_CYCLE_VARS)
     def _diurnal_func(resampled, verification, grid, mask_type=mask_type) -> xr.Dataset:
         # mask_type is added as a kwarg solely to give the logging access to the info
         logger.info(
-            f"Preparing diurnal cycle info for physics variables with mask={mask_type}"
+            f"Computing diurnal cycle info for physics variables with mask={mask_type}"
         )
         if len(resampled.time) == 0:
             return xr.Dataset({})
         else:
-            return diurnal_cycle.calc_diagnostics(resampled, verification, grid)
+            return diurnal_cycle.calc_diagnostics(resampled, verification, grid).load()
 
 
 def _catalog():
@@ -241,26 +337,37 @@ def _catalog():
     return str(TOP_LEVEL_DIR / "catalog.yml")
 
 
-if __name__ == "__main__":
-
+def _get_parser():
     CATALOG = _catalog()
-
     parser = argparse.ArgumentParser()
     parser.add_argument("url")
     parser.add_argument("output")
     parser.add_argument("--catalog", default=CATALOG)
+    parser.add_argument(
+        "--verification",
+        help="Tag for simulation to use as verification data. Checks against "
+        "'simulation' metadata from intake catalog.",
+        default="40day_may2020",
+    )
+    return parser
 
+
+if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    args = parser.parse_args()
+    args = _get_parser().parse_args()
 
     attrs = vars(args)
     attrs["history"] = " ".join(sys.argv)
 
     catalog = intake.open_catalog(args.catalog)
+
+    # get catalog entries for specified verification data
+    verif_entries = config.get_verification_entries(args.verification, catalog)
+
     input_data = {
-        "dycore": load_diags.load_dycore(args.url, catalog),
-        "physics": load_diags.load_physics(args.url, catalog),
+        "dycore": load_diags.load_dycore(args.url, verif_entries["dycore"], catalog),
+        "physics": load_diags.load_physics(args.url, verif_entries["physics"], catalog),
     }
 
     # begin constructing diags

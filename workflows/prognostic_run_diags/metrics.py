@@ -15,6 +15,7 @@ from toolz import curry
 import json
 
 _METRICS = []
+GRID_VARS = ["lon", "lat", "lonb", "latb", "area"]
 
 
 def grab_diag(ds, name):
@@ -70,7 +71,7 @@ def compute_all_metrics(diags: xr.Dataset) -> Mapping[str, float]:
 
 @add_to_metrics("rmse_3day")
 def rmse_3day(diags):
-    rms_global = grab_diag(diags, "rms_global").drop("area", errors="ignore")
+    rms_global = grab_diag(diags, "rms_global").drop(GRID_VARS, errors="ignore")
 
     rms_global_daily = rms_global.resample(time="1D").mean()
 
@@ -91,8 +92,8 @@ def rmse_3day(diags):
 
 @add_to_metrics("drift_3day")
 def drift_3day(diags):
-    averages = grab_diag(diags, "global_avg").drop(
-        ["latb", "lonb", "area"], errors="ignore"
+    averages = grab_diag(diags, "spatial_mean_dycore_global").drop(
+        GRID_VARS, errors="ignore"
     )
 
     daily = averages.resample(time="1D").mean()
@@ -106,6 +107,18 @@ def drift_3day(diags):
         orig_unit = averages[variable].attrs["units"]
         drift[variable].attrs["units"] = orig_unit + "/day"
     return drift
+
+
+@add_to_metrics("time_and_global_mean_bias")
+def time_mean_bias(diags):
+    global_mean_bias = grab_diag(diags, "mean_bias_physics_global")
+
+    time_and_global_mean_bias = global_mean_bias.mean("time")
+
+    for variable in global_mean_bias:
+        orig_unit = global_mean_bias[variable].attrs["units"]
+        time_and_global_mean_bias[variable].attrs["units"] = orig_unit
+    return time_and_global_mean_bias
 
 
 if __name__ == "__main__":

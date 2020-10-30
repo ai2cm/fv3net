@@ -9,7 +9,7 @@ jobs:
         description: "Type of test"
         default: "test_unit"
         type: enum
-        enum: ["test_unit", "test_regression", "typecheck", "test_dataflow"]
+        enum: ["test_unit", "test_regression", "typecheck", "test_dataflow", "test_prognostic_run_report"]
     docker:
       - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest
         auth:
@@ -40,7 +40,7 @@ jobs:
       - run: make update_submodules
       - run:
           name: "Concatenate package dependency files"
-          command: cat conda-linux-64.lock pip-requirements.txt > combined_deps.txt
+          command: cat conda-linux-64.lock constraints.txt > combined_deps.txt
       - restore_cache:
           keys:
             # change this string to invalidate cache
@@ -99,57 +99,26 @@ jobs:
         default: fv3net
         type: enum
         enum: ["prognostic_run", "post_process_run", "fv3net", "fv3fit"]
-    docker:
-      - image: google/cloud-sdk
+    machine: 
+      image: ubuntu-1604:202007-01
     environment:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       IMAGE: <<parameters.image>>
     steps:
-      - setup_remote_docker:
-          docker_layer_caching: true
-      - run:
-          name: Authenticate docker with GCR
-          command: |
-            echo "$ENCODED_GOOGLE_CREDENTIALS" | base64 -d > "$GOOGLE_APPLICATION_CREDENTIALS"
-            gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
-            gcloud auth configure-docker
       - checkout
       - add_ssh_keys:
           fingerprints:
             - "28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d" # github user key
-      - run: apt-get install -y make jq
+      - run: git submodule update --init --recursive
       - run:
-          name: "Pull submodules"
+          name: "gcloud auth"
           command: |
-            git submodule update --init --recursive
-      - run:
-          name: Build fv3net images
-          command: |
-            make build_image_$IMAGE
-      - run:
-          name: Push fv3net images
-          command: |
-            echo $CIRCLE_BRANCH
-            echo $CIRCLE_TAG
-            if [[ "$CIRCLE_BRANCH" == "master" ]]
-            then
-                echo "pushing untagged images as 'latest'"
-                make push_image_$IMAGE VERSION=latest
-            fi
-
-            if [[ ! -z "$CIRCLE_TAG" ]]
-            then
-              make push_image_$IMAGE VERSION=$CIRCLE_TAG
-            fi
-
-            # push all images with sha for testing later on
-            echo "pushing tagged images $CIRCLE_SHA1"
-            make push_image_$IMAGE VERSION=$CIRCLE_SHA1
-      - slack/status:
-          fail_only: true
-          mentions: "channel"
+            echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
+            echo "export GCLOUD_SERVICE_KEY=\$(echo \$ENCODED_GOOGLE_CREDENTIALS | base64 --decode)" >> $BASH_ENV
+      - gcp-gcr/gcr-auth
+      - run: sudo -E .circleci/build_and_push_image.sh
   mypy:
     docker:
       - image: circleci/python:3.7
@@ -207,7 +176,7 @@ jobs:
       - run:
           name: Install argo
           command: |
-            curl -sLO https://github.com/argoproj/argo/releases/download/v2.10.0-rc5/argo-linux-amd64.gz
+            curl -sLO https://github.com/argoproj/argo/releases/download/v2.11.6/argo-linux-amd64.gz
             gunzip argo-linux-amd64.gz
             chmod +x argo-linux-amd64
             mv ./argo-linux-amd64 /usr/local/bin/argo
@@ -233,7 +202,7 @@ workflows:
           name: pytest-<<matrix.kind>>
           matrix:
             parameters:
-              kind: ["test_unit", "test_regression"]
+              kind: ["test_unit", "test_regression", "test_prognostic_run_report"]
       - hold:
           type: approval
           filters:

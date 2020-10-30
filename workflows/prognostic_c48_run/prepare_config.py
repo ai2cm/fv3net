@@ -1,6 +1,5 @@
 import argparse
 import os
-from typing import Mapping
 import yaml
 import logging
 
@@ -12,45 +11,15 @@ import vcm
 logger = logging.getLogger(__name__)
 
 
-def _merge_once(source, update):
-    """Recursively update a mapping with new values.
-
-    Args:
-        source: Mapping to be updated.
-        update: Mapping whose key-value pairs will update those in source.
-            Key-value pairs will be inserted for keys in update that do not exist
-            in source.
-
-    Returns:
-        Recursively updated mapping.
-    """
-    for key in update:
-        if key in ["patch_files", "diagnostics"]:
-            source.setdefault(key, []).extend(update[key])
-        elif (
-            key in source
-            and isinstance(source[key], Mapping)
-            and isinstance(update[key], Mapping)
-        ):
-            _merge_once(source[key], update[key])
-        else:
-            source[key] = update[key]
-    return source
-
-
-def merge_fv3config_overlays(*mappings) -> Mapping:
-    """Recursive merge dictionaries updating from left to right.
-
-    For example, the rightmost mapping will override the proceeding ones. """
-    out, rest = mappings[0], mappings[1:]
-    for mapping in rest:
-        out = _merge_once(out, mapping)
-    return out
-
-
 def _create_arg_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "user_config",
+        type=str,
+        help="Path to a config update YAML file specifying the changes from the base"
+        "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
+    )
     parser.add_argument(
         "initial_condition_url",
         type=str,
@@ -66,13 +35,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--nudge-to-observations", action="store_true", help="Nudge to observations",
-    )
-    parser.add_argument(
-        "--prog_config_yml",
-        type=str,
-        default="prognostic_config.yml",
-        help="Path to a config update YAML file specifying the changes from the base"
-        "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
     )
     parser.add_argument(
         "--diagnostic_ml",
@@ -95,9 +57,8 @@ def ml_settings(model_type, model_url):
             )
 
 
-def sklearn_overlay(model_url, sklearn_filename="sklearn.yaml"):
-    model_asset = fv3config.get_asset_dict(model_url, sklearn_filename)
-    return {"patch_files": [model_asset], "scikit_learn": {"model": sklearn_filename}}
+def sklearn_overlay(model_url):
+    return {"scikit_learn": {"model": model_url}}
 
 
 def keras_overlay(model_url, keras_dirname="model_data"):
@@ -130,7 +91,7 @@ def diagnostics_overlay(diagnostic_ml):
 
 def prepare_config(args):
     # Get model config with prognostic run updates
-    with open(args.prog_config_yml, "r") as f:
+    with open(args.user_config, "r") as f:
         user_config = yaml.safe_load(f)
 
     model_type = user_config.get("scikit_learn", {}).get("model_type", "scikit_learn")
@@ -154,9 +115,15 @@ def prepare_config(args):
     ]
 
     if args.nudge_to_observations:
-        overlays.append(fv3kube.enable_nudge_to_observations(duration, current_date))
+        overlays.append(
+            fv3kube.enable_nudge_to_observations(
+                duration,
+                current_date,
+                nudge_url="gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
+            )
+        )
 
-    config = merge_fv3config_overlays(*overlays)
+    config = fv3kube.merge_fv3config_overlays(*overlays)
     print(yaml.dump(config))
 
 
