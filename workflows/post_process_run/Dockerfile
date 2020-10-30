@@ -22,3 +22,6 @@ RUN chmod +x /usr/local/bin/post_process.py
 RUN chmod +x /usr/local/bin/append.py
 
 ENTRYPOINT ["post_process.py"]
+
+ARG COMMIT_SHA_ARG
+ENV COMMIT_SHA=$COMMIT_SHA_ARG
