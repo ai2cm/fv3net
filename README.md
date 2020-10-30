@@ -211,7 +211,7 @@ At this point, you should have a running microk8s cluster and your kubectl
 configure to refer to it. You can check this be running `kubectl get node` and
 see if this printout is the same as it was on the GKE cluster. If succesful,
 the commands above will start a docker registry process inside of the cluster
-than can be used by kuberentes pods. By default the network address for this
+than can be used by kubernetes pods. By default the network address for this
 registry is `localhost:32000`. To build and push all the docker images to
 this local repository run
 
