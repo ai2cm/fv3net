@@ -6,6 +6,11 @@ import vcm
 from ._base import DerivedState
 
 
+# TODO: this class is not yet complete. 
+# For the initial PR just want to move DerivedState out of prognostic runtime.
+# Subsequent PR will change the batches and offline diags code to use this class
+# and fill out the missing functionality.
+
 class DerivedDatasetState(DerivedState):
     _VARIABLES: Mapping[Hashable, Callable[..., xr.DataArray]] = {}
 
@@ -47,6 +52,7 @@ def cos_zenith_angle(self):
 @DerivedDatasetState.register("eastward_wind_tendency")
 def eastward_wind_tendency(self):
     pass
+
 
 @DerivedDatasetState.register("northward_wind_tendency")
 def northward_wind_tendency(self):

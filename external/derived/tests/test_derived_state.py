@@ -2,7 +2,7 @@ from datetime import datetime
 import xarray as xr
 import numpy as np
 
-import runtime
+from derived import DerivedFV3State
 import fv3gfs.util
 
 import pytest
@@ -37,26 +37,26 @@ class MockFV3GFS:
 
 def test_DerivedFV3State():
     fv3gfs = MockFV3GFS()
-    getter = runtime.DerivedFV3State(fv3gfs)
+    getter = DerivedFV3State(fv3gfs)
     assert isinstance(getter["longitude"], xr.DataArray)
 
 
 def test_DerivedFV3State_cos_zenith():
     fv3gfs = MockFV3GFS()
-    getter = runtime.DerivedFV3State(fv3gfs)
+    getter = DerivedFV3State(fv3gfs)
     output = getter["cos_zenith_angle"]
     assert isinstance(output, xr.DataArray)
 
 
 def test_DerivedFV3State_time():
     fv3gfs = MockFV3GFS()
-    getter = runtime.DerivedFV3State(fv3gfs)
+    getter = DerivedFV3State(fv3gfs)
     assert isinstance(getter.time, datetime)
 
 
 def test_DerivedFV3State_setitem():
     fv3gfs = MockFV3GFS()
-    getter = runtime.DerivedFV3State(fv3gfs)
+    getter = DerivedFV3State(fv3gfs)
     item = xr.DataArray([1.0], dims=["x"], attrs={"units": "m"})
     # Check that data is passed to `MockFV3GFS.set_state` correctly
     getter["a"] = item
@@ -65,7 +65,7 @@ def test_DerivedFV3State_setitem():
 
 def test_DerivedFV3State_getitem_time_raises():
     fv3gfs = MockFV3GFS()
-    getter = runtime.DerivedFV3State(fv3gfs)
+    getter = DerivedFV3State(fv3gfs)
     with pytest.raises(KeyError):
         getter["time"]
 
@@ -76,11 +76,11 @@ def test_DerivedFV3State_register():
     def xarray_func(arr):
         return arr * 1.25
 
-    @runtime.DerivedFV3State.register("mock")
+    @DerivedFV3State.register("mock")
     def mock(self):
         return xarray_func(self["latitude"])
 
-    getter = runtime.DerivedFV3State(fv3gfs)
+    getter = DerivedFV3State(fv3gfs)
 
     latitude = getter["latitude"]
     expected = xarray_func(latitude)
