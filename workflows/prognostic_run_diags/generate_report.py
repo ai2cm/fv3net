@@ -209,7 +209,6 @@ def plot_1d(
 ) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 1D."""
-    p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "run"])
     for ds in diagnostics:
         for varname in ds:
@@ -234,7 +233,6 @@ def plot_1d_with_region_bar(
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     Region will be selectable through a drop-down bar. Region is assumed to be part of
     variable name after last underscore. All matching diagnostics must be 1D."""
-    p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
     for ds in diagnostics:
         for varname in ds:
