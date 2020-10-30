@@ -25,7 +25,7 @@ def plot_comparison_frame(
     time_str = time.item().strftime("%Y%m%d.%H%M%S")
     for ax, derivation in zip(axes[:2], ds.derivation[:2]):
         ax.clear()
-        colorbar = True if derivation.item().startswith("nudged") else False
+        colorbar = True if derivation.item().startswith("C48") else False
         viz.plot_cube(
             viz.mappable_var(
                 ds.sel(time=time, derivation=derivation.item()),

@@ -19,6 +19,7 @@ logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("nudging_diag_animations")
 
 C48_PHYSICS_VARS = [
+    "PRATEsfc",
     "SOILM",
     "LHTFLsfc",
     "SHTFLsfc",
@@ -38,7 +39,6 @@ REFERENCE_PHYSICS_VARS = [
 ]
 GRID_VARS = ["area", "lat", "lon", "latb", "lonb"]
 CATALOG = "../../catalog.yml"
-STRIDE = 3
 RENAME_DIMS = {"grid_xt": "x", "grid_yt": "y"}
 GRID_RENAME_DIMS = {
     "grid_xt": "x",
@@ -96,6 +96,20 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "output_path", type=str, help="Path to which output animations will be copied."
     )
+    parser.add_argument(
+        "-timestep_stride",
+        type=int,
+        default=3,
+        help="Stride in C48 run data for makinganimations and analysis.",
+    )
+    parser.add_argument(
+        "--baseline",
+        action="store_true",
+        help=(
+            "Boolean flag to handle a baseline run, i.e., don't replace PRATE "
+            "with total_preciptiation"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -107,8 +121,12 @@ if __name__ == "__main__":
 
     catalog = intake.open_catalog(CATALOG)
 
+    (surface_zarr_name, nudging_plots) = (
+        ("sfc_dt_atmos.zarr", False) if args.baseline else ("physics_output.zarr", True)
+    )
+
     # first, figure out what timesteps are available in the nudging run
-    nudging_physics_path = os.path.join(args.nudging_root_path, "physics_output.zarr")
+    nudging_physics_path = os.path.join(args.nudging_root_path, surface_zarr_name)
     nudged_C48_physics_ds = utils.drop_uninformative_coords(
         utils.remove_suffixes(
             xr.open_zarr(fsspec.get_mapper(nudging_physics_path))[
@@ -119,7 +137,7 @@ if __name__ == "__main__":
 
     # decide what frequency to sample -- most frequent is 2 hrs
     nudging_subset_times = nudged_C48_physics_ds.time.isel(
-        time=slice(None, None, STRIDE)
+        time=slice(None, None, args.timestep_stride)
     )
     timestamps = [
         time.item().strftime("%Y%m%d.%H%M%S") for time in nudging_subset_times
@@ -133,37 +151,41 @@ if __name__ == "__main__":
         time=nudging_subset_times
     ).drop_vars(names=GRID_VARS + ["SLMSK"])
 
-    # open nudging tendencies as well
-    nudging_tendencies_path = os.path.join(
-        args.nudging_root_path, "nudging_tendencies.zarr"
-    )
-    nudged_C48_tendencies_ds = (
-        xr.open_zarr(fsspec.get_mapper(nudging_tendencies_path))
-    ).sel(time=nudging_subset_times)
+    if not args.baseline:
 
-    # also open wrapper diagnostics to get 'total_precipitation'
-    # and insert it as 'PRATE'
-    nudging_states_before_dynamics_path = os.path.join(
-        args.nudging_root_path, "after_dynamics.zarr"
-    )
-    nudging_C48_after_dynamics_ds = (
-        (
-            xr.open_zarr(fsspec.get_mapper(nudging_states_before_dynamics_path))[
-                C48_WRAPPER_DIAGS_VARS
-            ]
+        # open nudging tendencies as well
+        nudging_tendencies_path = os.path.join(
+            args.nudging_root_path, "nudging_tendencies.zarr"
         )
-        .sel(time=nudging_subset_times)
-        .rename({"total_precipitation": "PRATE"})
-    )
+        nudged_C48_tendencies_ds = (
+            xr.open_zarr(fsspec.get_mapper(nudging_tendencies_path))
+        ).sel(time=nudging_subset_times)
 
-    # merge nudging data
-    nudged_C48_ds = xr.merge(
-        [
+        # open wrapper diagnostics to get 'total_precipitation'
+        # and insert it as 'PRATE'
+        nudging_states_before_dynamics_path = os.path.join(
+            args.nudging_root_path, "after_dynamics.zarr"
+        )
+        nudging_C48_after_dynamics_ds = (
+            (
+                xr.open_zarr(fsspec.get_mapper(nudging_states_before_dynamics_path))[
+                    C48_WRAPPER_DIAGS_VARS
+                ]
+            )
+            .sel(time=nudging_subset_times)
+            .rename({"total_precipitation": "PRATE"})
+        )
+        nudged_C48_physics_ds = nudged_C48_physics_ds.drop_vars(names=["PRATE"])
+
+        # merge nudging data
+        nudging_ds_list = [
             nudged_C48_physics_ds.rename(RENAME_DIMS),
             nudged_C48_tendencies_ds,
             nudging_C48_after_dynamics_ds,
         ]
-    )
+        nudged_C48_ds = xr.merge(nudging_ds_list)
+    else:
+        nudged_C48_ds = nudged_C48_physics_ds.rename(RENAME_DIMS)
 
     # then, open coarsened reference restart files matching these times
     coarsened_reference_restart_ds = (
@@ -222,9 +244,7 @@ if __name__ == "__main__":
     # put the nudged and reference datasets together and compute differences
     ds = (
         utils.concat_and_differences(coarsened_reference_ds, nudged_C48_ds)
-        .assign_coords(
-            {"derivation": ["coarsened_reference", "nudged_C48", "difference"]}
-        )
+        .assign_coords({"derivation": ["coarsened_reference", "C48", "difference"]})
         .merge(grid_ds)
         .pipe(utils.precip_units)
     ).load()
@@ -232,12 +252,13 @@ if __name__ == "__main__":
     logger.info("Finished preprocessing routine.")
 
     # make animations
-    for variable, scale in NUDGING_PLOTS.items():
-        logger.info(f"Making animation for {variable}.")
-        anim = plot.make_nudging_animation(
-            ds, variable, interval=INTERVAL, plot_cube_kwargs=scale
-        )
-        anim.save(os.path.join(args.output_path, f"{variable}.mp4"))
+    if not args.baseline:
+        for variable, scale in NUDGING_PLOTS.items():
+            logger.info(f"Making animation for {variable}.")
+            anim = plot.make_nudging_animation(
+                ds, variable, interval=INTERVAL, plot_cube_kwargs=scale
+            )
+            anim.save(os.path.join(args.output_path, f"{variable}.mp4"))
     for variable, scales in COMPARISON_PLOTS.items():
         logger.info(f"Making animation for {variable}.")
         anim = plot.make_comparison_animation(
