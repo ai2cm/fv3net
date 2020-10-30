@@ -10,11 +10,6 @@ setup(
     packages=find_packages(),
     package_dir={"": "."},
     package_data={},
-    install_requires=[
-        "fsspec>=0.7.4",
-        "xarray>=0.15.1",
-        "vcm",
-        "fv3gfs.util"
-    ],
+    install_requires=["fsspec>=0.7.4", "xarray>=0.15.1", "vcm", "fv3gfs.util"],
     dependency_links=["../vcm", "../fv3gfs-util"],
 )

@@ -6,10 +6,11 @@ import vcm
 from ._base import DerivedState
 
 
-# TODO: this class is not yet complete. 
+# TODO: this class is not yet complete.
 # For the initial PR just want to move DerivedState out of prognostic runtime.
 # Subsequent PR will change the batches and offline diags code to use this class
 # and fill out the missing functionality.
+
 
 class DerivedDatasetState(DerivedState):
     _VARIABLES: Mapping[Hashable, Callable[..., xr.DataArray]] = {}
@@ -30,9 +31,7 @@ class DerivedDatasetState(DerivedState):
         nonderived = [var for var in keys if var not in self._VARIABLES]
 
         ds_nonderived = vcm.safe.get_variables(self.ds, nonderived)
-        ds_derived = xr.Dataset(
-            {var: self._VARIABLES[var](self) for var in derived}
-        )
+        ds_derived = xr.Dataset({var: self._VARIABLES[var](self) for var in derived})
         return xr.merge([ds_nonderived, ds_derived])
 
 
@@ -45,7 +44,7 @@ def cos_zenith_angle(self):
         ]
     )
     cos_z = vcm.cos_zenith_angle(times_exploded, self["lon"], self["lat"])
-    cos_z_dims = (("time",) + self["lon"].dims)
+    cos_z_dims = ("time",) + self["lon"].dims
     return xr.DataArray(cos_z, dims=cos_z_dims)
 
 
