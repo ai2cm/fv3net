@@ -1,4 +1,3 @@
-import numpy as np
 from typing import Mapping, Hashable, Callable, Union, List
 
 import xarray as xr
