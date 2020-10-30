@@ -27,6 +27,7 @@ spec:
         name: work-volume
       spec:
         accessModes: ["ReadWriteOnce"]
+        storageClassName: fast
         resources:
           requests:
             storage: 100Gi
@@ -136,7 +137,7 @@ spec:
         args:
         - |
           if [[ "{{inputs.parameters.use-default-chunks}}" == "true" ]]; then
-            cp /home/jovyan/fv3net/workflows/prognostic_c48_run_nudging/nudging_chunks.yaml /tmp/chunks.yaml
+            cp /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_chunks.yaml /tmp/chunks.yaml
           else
             echo "{{inputs.parameters.custom-chunks}}" > /tmp/chunks.yaml
           fi
