@@ -4,6 +4,7 @@
 # GLOBALS                                                                       #
 #################################################################################
 VERSION ?= $(shell git rev-parse HEAD)
+REGISTRY ?= us.gcr.io/vcm-ml
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
@@ -12,12 +13,8 @@ PROJECT_NAME = fv3net
 PYTHON_INTERPRETER = python3
 DATA = data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr.dvc
 IMAGE = fv3net
-GCR_IMAGE = us.gcr.io/vcm-ml/fv3net
 
-REGISTRY  = us.gcr.io/vcm-ml
-FV3NET_IMAGE = $(REGISTRY)/fv3net
-PROGNOSTIC_RUN_IMAGE = $(REGISTRY)/prognostic_run
-CACHE_TAG =1bea47d2563d71f7ca54d46e71e176f2f44e7701
+CACHE_TAG =latest
 
 IMAGES = fv3net fv3fit post_process_run prognostic_run
 
@@ -36,22 +33,20 @@ endif
 # pattern rule for building docker images
 build_image_%:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/$*:$(CACHE_TAG) \
-		-f docker/$*/Dockerfile -t $* .
+		-f docker/$*/Dockerfile -t $(REGISTRY)/$*:$(VERSION) .
 	
 
 build_image_post_process_run:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/post_process_run:$(CACHE_TAG) \
-		workflows/post_process_run -t post_process_run
+		workflows/post_process_run -t $(REGISTRY)/post_process_run:$(VERSION)
 
 enter_%:
 	docker run -ti -w /fv3net -v $(shell pwd):/fv3net $* bash
 
 build_images: $(addprefix build_image_, $(IMAGES))
-
 push_images: $(addprefix push_image_, $(IMAGES))
 
 push_image_%: build_image_%
-	docker tag $* $(REGISTRY)/$*:$(VERSION)
 	docker push $(REGISTRY)/$*:$(VERSION)
 
 pull_image_%:
@@ -62,16 +57,19 @@ enter: build_image
 		-e GOOGLE_CLOUD_PROJECT=vcm-ml \
 		-w /code $(IMAGE)  bash
 
-#		-e GOOGLE_APPLICATION_CREDENTIALS=/google_creds.json \
-#		-v $(HOME)/.config/gcloud/application_default_credentials.json:/google_creds.json \
-
 build_ci_image:
 	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
 
+## Install K8s and cluster manifests for local development
+## Do not run for the GKE cluster
+deploy_local:
+	kubectl apply -f https://raw.githubusercontent.com/argoproj/argo/v2.11.6/manifests/install.yaml
+	kubectl create secret generic gcp-key --from-file="${GOOGLE_APPLICATION_CREDENTIALS}"
+	kubectl apply -f cluster
 
 # run integration tests
 run_integration_tests:
-	./tests/end_to_end_integration/run_test.sh $(VERSION)
+	./tests/end_to_end_integration/run_test.sh $(REGISTRY) $(VERSION)
 
 test:
 	pytest external tests

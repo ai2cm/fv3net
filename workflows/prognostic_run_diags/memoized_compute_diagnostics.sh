@@ -1,6 +1,12 @@
 #!/bin/bash
-
 set -x
+
+
+if ! [[ -z "$GOOGLE_APPLICATION_CREDENTIALS" ]]
+then
+    gcloud auth activate-service-account \
+        --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
+fi
 
 run=$1
 output=$2

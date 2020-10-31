@@ -54,3 +54,6 @@ RUN pytest -vv /tmp/test_environment.py
 
 # empty stage for final output
 FROM build
+
+ARG COMMIT_SHA_ARG
+ENV COMMIT_SHA=$COMMIT_SHA_ARG
