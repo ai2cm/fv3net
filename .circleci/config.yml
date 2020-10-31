@@ -148,6 +148,17 @@ jobs:
             apt-get install -y wget jq make gettext gzip
             wget -qO /bin/yq https://github.com/mikefarah/yq/releases/download/3.2.1/yq_linux_386
             chmod +x /bin/yq
+
+            # install kustomize
+            curl -s "https://raw.githubusercontent.com/\
+            kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
+            mv kustomize /usr/local/bin/
+
+            # Install argo
+            curl -sLO https://github.com/argoproj/argo/releases/download/v2.11.6/argo-linux-amd64.gz
+            gunzip argo-linux-amd64.gz
+            chmod +x argo-linux-amd64
+            mv ./argo-linux-amd64 /usr/local/bin/argo
       - run:
           name: Setup firewall rule
           command: |
@@ -173,13 +184,6 @@ jobs:
             kubectl config set-cluster $kube_cluster_name --server="https://"$proxy_ip
             echo $K8S_PROXY_ENCODED_CA_CRT | base64 -d > proxy.crt
             kubectl config set-cluster $kube_cluster_name --certificate-authority="./proxy.crt"
-      - run:
-          name: Install argo
-          command: |
-            curl -sLO https://github.com/argoproj/argo/releases/download/v2.11.6/argo-linux-amd64.gz
-            gunzip argo-linux-amd64.gz
-            chmod +x argo-linux-amd64
-            mv ./argo-linux-amd64 /usr/local/bin/argo
       - run:
           name: Submit integration tests
           command: |
