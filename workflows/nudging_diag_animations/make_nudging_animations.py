@@ -135,6 +135,10 @@ if __name__ == "__main__":
         )
     )
 
+    nudged_C48_physics_ds = nudged_C48_physics_ds.assign_coords(
+        {"time": [round_time(time.item()) for time in nudged_C48_physics_ds.time]}
+    )
+
     # decide what frequency to sample -- most frequent is 2 hrs
     nudging_subset_times = nudged_C48_physics_ds.time.isel(
         time=slice(None, None, args.timestep_stride)
