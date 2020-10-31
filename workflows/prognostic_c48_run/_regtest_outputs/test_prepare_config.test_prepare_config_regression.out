@@ -13,6 +13,10 @@ diagnostics:
   - net_heating_diagnostic
   - water_vapor_path
   - physics_precip
+  - column_integrated_dQu
+  - column_integrated_dQu_diagnostic
+  - column_integrated_dQv
+  - column_integrated_dQv_diagnostic
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 gfs_analysis_data:
