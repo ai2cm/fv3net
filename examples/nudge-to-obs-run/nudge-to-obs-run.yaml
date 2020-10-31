@@ -1,6 +1,6 @@
 base_version: v0.5
-diag_table: gs://vcm-ml-experiments/diag_tables/nudge_to_obs_5h/v1.0/diag_table
-initial_conditions: gs://vcm-ml-data/2019-12-03-C48-20160101.00Z_IC
+diag_table: gs://vcm-ml-experiments/diag_tables/nudge_to_obs_5h/v1.2/diag_table
+initial_conditions: gs://vcm-ml-data/2020-02-10-C48-20150101.00Z_IC
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 namelist:
   atmos_model_nml:
@@ -8,13 +8,13 @@ namelist:
     fhmax: 10000
   coupler_nml:
     current_date:
-    - 2016
+    - 2015
     - 1
     - 1
     - 0
     - 0
     - 0
-    days: 5
+    days: 20
     minutes: 0
     hours: 0
     seconds: 0

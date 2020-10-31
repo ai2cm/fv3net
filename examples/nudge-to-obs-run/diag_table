@@ -3,8 +3,7 @@ default_experiment
 #output files
 "atmos_static",                                 -1,  "hours",    1, "hours",  "time"
 "atmos_output",                                  5,  "hours",    1, "hours",  "time"
-"physics_output",                                0,  "hours",    1, "hours",  "time"  # frequency set by fhout namelist parameter
-"physics_tendency_components",                   0,  "hours",    1, "hours",  "time"  # frequency set by fhout namelist parameter
+"physics_output",                                5,  "hours",    1, "hours",  "time"  # frequency set by fhout namelist parameter
 "nudging_tendencies",                            5,  "hours",    1, "hours",  "time"
 #
 #output variables
@@ -28,7 +27,7 @@ default_experiment
  "dynamics",  "us",          "UGRDlowest",    "atmos_output", "all", .false.,  "none", 2
  "dynamics",  "u850",        "UGRD850",       "atmos_output", "all", .false.,  "none", 2
  "dynamics",  "u500",        "UGRD500",       "atmos_output", "all", .false.,  "none", 2
- "dynamics",  "u250",        "UGRD200",       "atmos_output", "all", .false.,  "none", 2
+ "dynamics",  "u200",        "UGRD200",       "atmos_output", "all", .false.,  "none", 2
  "dynamics",  "u50",         "UGRD50",        "atmos_output", "all", .false.,  "none", 2
 ###
  "dynamics",  "vs",          "VGRDlowest",    "atmos_output", "all", .false.,  "none", 2
@@ -84,34 +83,6 @@ default_experiment
  "dynamics",  "ctz" ,        "HGTctp",       "atmos_output", "all", .false., "none", 2
 
 ###
-# physics_tendency_components
-###
- "dynamics",  "grid_lont",     "lon",       "physics_tendency_components",         "all",  .false.,  "none", 2,
- "dynamics",  "grid_latt",     "lat",       "physics_tendency_components",         "all",  .false.,  "none", 2,
- "dynamics",  "grid_lon",      "lonb",      "physics_tendency_components",         "all", .false.,  "none", 2,
- "dynamics",  "grid_lat",      "latb",      "physics_tendency_components",         "all", .false.,  "none", 2,
- "dynamics",  "area",          "area",      "physics_tendency_components",         "all",  .false.,  "none", 2,
- 
- # Per-physics-component temperature tendency diagnostics
- "gfs_phys",  "tendency_of_air_temperature_due_to_longwave_heating"                      "tendency_of_air_temperature_due_to_longwave_heating"                      "physics_tendency_components",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_shortwave_heating"                     "tendency_of_air_temperature_due_to_shortwave_heating"                     "physics_tendency_components",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_turbulence"                            "tendency_of_air_temperature_due_to_turbulence"                            "physics_tendency_components",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_deep_convection"                       "tendency_of_air_temperature_due_to_deep_convection"                       "physics_tendency_components",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_shallow_convection"                    "tendency_of_air_temperature_due_to_shallow_convection"                    "physics_tendency_components",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_microphysics"                          "tendency_of_air_temperature_due_to_microphysics"                          "physics_tendency_components",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_dissipation_of_gravity_waves"          "tendency_of_air_temperature_due_to_dissipation_of_gravity_waves"          "physics_tendency_components",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky"   "tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky"   "physics_tendency_components",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky"  "tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky"  "physics_tendency_components",  "all",  .false.,  "none", 2,
- 
-# Per-physics-component specific humidity tendency diagnostics
- "gfs_phys", "tendency_of_specific_humidity_due_to_turbulence"                 "tendency_of_specific_humidity_due_to_turbulence"                 "physics_tendency_components",  "all",  .false.,  "none", 2,
- "gfs_phys", "tendency_of_specific_humidity_due_to_deep_convection"            "tendency_of_specific_humidity_due_to_deep_convection"            "physics_tendency_components",  "all",  .false.,  "none", 2,
- "gfs_phys", "tendency_of_specific_humidity_due_to_shallow_convection"         "tendency_of_specific_humidity_due_to_shallow_convection"         "physics_tendency_components",  "all",  .false.,  "none", 2,
- "gfs_phys", "tendency_of_specific_humidity_due_to_microphysics"               "tendency_of_specific_humidity_due_to_microphysics"               "physics_tendency_components",  "all",  .false.,  "none", 2,
- "gfs_phys", "tendency_of_specific_humidity_due_to_change_in_atmosphere_mass"  "tendency_of_specific_humidity_due_to_change_in_atmosphere_mass"  "physics_tendency_components",  "all",  .false.,  "none", 2,
-
-
-###
 # physics_output
 ###
  "dynamics",  "grid_lont",     "lon",       "physics_output",         "all",  .false.,  "none", 2,
@@ -152,6 +123,7 @@ default_experiment
  "gfs_sfc",   "SOILT2",         "SOILT2",     "physics_output",         "all",  .false.,  "none",  2
  "gfs_sfc",   "SOILT3",         "SOILT3",     "physics_output",         "all",  .false.,  "none",  2
  "gfs_sfc",   "SOILT4",         "SOILT4",     "physics_output",         "all",  .false.,  "none",  2
+ "dynamics", "column_moistening_nudge", "column_moistening_nudge", "physics_output",  "all",  .false.,  "none",  2
 
 ###
 # nudging_tendencies
