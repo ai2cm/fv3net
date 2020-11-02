@@ -17,6 +17,8 @@ CLOUDS_OFF_TEMP_TENDENCIES = [
 ]
 CLOUDS_OFF_SPHUM_TENDENCIES = ["tendency_of_specific_humidity_due_to_turbulence"]
 Z_DIM_NAMES = ["z", "pfull"]
+DATASET_DIM = "dataset"
+
 
 Time = str
 Tile = int
@@ -55,7 +57,7 @@ def stack_dropnan_shuffle(random_state: RandomState, ds: xr.Dataset,) -> xr.Data
         ds,
         SAMPLE_DIM_NAME,
         stack_dims,
-        allowed_broadcast_dims=Z_DIM_NAMES + [TIME_NAME],
+        allowed_broadcast_dims=Z_DIM_NAMES + [TIME_NAME, DATASET_DIM],
     )
     ds_no_nan = ds_stacked.dropna(SAMPLE_DIM_NAME)
     if len(ds_no_nan[SAMPLE_DIM_NAME]) == 0:

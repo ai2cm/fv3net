@@ -94,7 +94,7 @@ def _get_transformed_batch_regressor(
 
 
 def train_model(
-    batched_data: Sequence[xr.Dataset], train_config: ModelTrainingConfig
+    batched_data: Sequence[xr.Dataset], train_config: ModelTrainingConfig, subsampling_rate: int = None
 ) -> SklearnWrapper:
     """
     Args:
@@ -104,6 +104,8 @@ def train_model(
         trained sklearn model wrapper object
     """
     for i, batch in enumerate(batched_data):
+        if subsampling_rate is not None:
+            batch = batch.isel(sample=slice(None, None, subsampling_rate))
         if i == 0:
             model_wrapper = _get_transformed_batch_regressor(train_config, batch)
         logger.info(f"Fitting batch {i}/{len(batched_data)}")
