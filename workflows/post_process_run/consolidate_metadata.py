@@ -9,14 +9,12 @@ Usage:
 
 """
 
-import zarr
 import fsspec
 import sys
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
 
-from zarr.creation import normalize_store_arg
 from zarr.meta import json_dumps, json_loads
 
 logger = logging.getLogger(__file__)
@@ -36,7 +34,7 @@ def _get_metadata_fs(fs, root):
     def maybe_get(url):
         try:
             return json_loads(fs.cat(url))
-        except:
+        except FileNotFoundError:
             pass
 
     with ThreadPoolExecutor(max_workers=12) as pool:
