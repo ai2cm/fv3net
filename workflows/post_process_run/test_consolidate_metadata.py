@@ -1,5 +1,3 @@
-import os
-
 import fsspec
 import numpy as np
 import xarray as xr
