@@ -67,9 +67,7 @@ def make_comparison_animation(
     axes = axes[:3]
     axll = fig.add_subplot(2, 2, 4)
     axes.append(axll)
-    h = global_average(ds[var], ds["area"], ds["SLMSK"], "land").plot(
-        ax=axll, hue="derivation", add_legend=False
-    )
+    h = ds[f"{var}_land_average"].plot(ax=axll, hue="derivation", add_legend=False)
     axll.legend(h, ds.derivation.values)
     axll.yaxis.set_label_position("right")
     axll.yaxis.tick_right()

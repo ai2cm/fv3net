@@ -253,6 +253,18 @@ if __name__ == "__main__":
         .pipe(utils.precip_units)
     ).load()
 
+    # add land averages
+    for var in COMPARISON_PLOTS:
+        ds = ds.assign(
+            {
+                f"{var}_land_average": utils.global_average(
+                    ds[var], ds["area"], ds["SLMSK"], "land"
+                )
+            }
+        )
+
+    ds.to_netcdf(os.path.join(args.output_path, "biases.nc"))
+
     logger.info("Finished preprocessing routine.")
 
     # make animations
