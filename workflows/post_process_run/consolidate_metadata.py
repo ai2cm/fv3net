@@ -26,8 +26,10 @@ def _get_metadata_fs(fs, root):
 
     arrays = fs.ls(root)
     for var in arrays:
-        for key in [".zarray", ".zgroup", ".zattrs"]:
-            keys_to_get.append(os.path.join(os.path.relpath(var, start=root), key))
+        relpath = os.path.relpath(var, start=root)
+        if relpath not in [".zgroup", ".zmetadata", ".zattrs"]:
+            for key in [".zarray", ".zgroup", ".zattrs"]:
+                keys_to_get.append(os.path.join(relpath, key))
 
     urls = [os.path.join(root, key) for key in keys_to_get]
 
