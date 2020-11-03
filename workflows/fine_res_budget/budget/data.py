@@ -56,6 +56,55 @@ def open_restart_data(RESTART_ZARR):
     return standardize_restart_metadata(restarts)
 
 
+def standardize_atmos_avg(dataset):
+    rename_dict = {
+        "grid_x_coarse": "grid_x",
+        "grid_xt_coarse": "grid_xt",
+        "grid_y_coarse": "grid_y",
+        "grid_yt_coarse": "grid_yt",
+    }
+    return dataset.rename(rename_dict)
+
+
+def open_atmos_avg(
+    url="gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr",  # noqa
+):
+    variables = [
+        "delp_dt_nudge_coarse",
+        "ice_wat_dt_gfdlmp_coarse",
+        "ice_wat_dt_phys_coarse",
+        "liq_wat_dt_gfdlmp_coarse",
+        "liq_wat_dt_phys_coarse",
+        "ps_dt_nudge_coarse",
+        "qg_dt_gfdlmp_coarse",
+        "qg_dt_phys_coarse",
+        "qi_dt_gfdlmp_coarse",
+        "qi_dt_phys_coarse",
+        "ql_dt_gfdlmp_coarse",
+        "ql_dt_phys_coarse",
+        "qr_dt_gfdlmp_coarse",
+        "qr_dt_phys_coarse",
+        "qs_dt_gfdlmp_coarse",
+        "qs_dt_phys_coarse",
+        "qv_dt_gfdlmp_coarse",
+        "qv_dt_phys_coarse",
+        "t_dt_gfdlmp_coarse",
+        "t_dt_nudge_coarse",
+        "t_dt_phys_coarse",
+        "u_dt_gfdlmp_coarse",
+        "u_dt_nudge_coarse",
+        "u_dt_phys_coarse",
+        "v_dt_gfdlmp_coarse",
+        "v_dt_nudge_coarse",
+        "v_dt_phys_coarse",
+    ]
+    store = fsspec.get_mapper(url)
+    data = xr.open_zarr(store, consolidated=True)
+    return data
+    standardized = standardize_atmos_avg(data)
+    return safe.get_variables(standardized, variables)
+
+
 def open_merged(restart_url: str, physics_url: str) -> xr.Dataset:
     PHYSICS_VARIABLES = [
         # from ShiELD diagnostics

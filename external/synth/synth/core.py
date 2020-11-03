@@ -21,6 +21,8 @@ import dask.array as da
 import xarray as xr
 import logging
 import io
+import cftime
+import datetime
 from functools import singledispatch
 
 logger = logging.getLogger(__file__)
@@ -32,6 +34,12 @@ class _Encoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, np.ndarray):
             return o.tolist()
+        if isinstance(o, cftime.DatetimeJulian):
+            return datetime.datetime(
+                o.year, o.month, o.day, o.hour, o.minute, o.second, o.microsecond
+            )
+        if isinstance(o, datetime.datetime):
+            return
         try:
             return o.str
         except AttributeError:
@@ -174,7 +182,7 @@ def read_schema_from_dataset(dataset: xr.Dataset) -> DatasetSchema:
 
     for variable in dataset:
         logger.info(f"Reading {variable}")
-        arr = dataset[variable].values
+        arr = dataset[variable].data
         chunks = dataset[variable].chunks
         if chunks is None:
             chunks = dataset[variable].values.shape

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-whiteList="external/vcm/tests/test_data/test_data.tar workflows/prognostic_run_diags/poetry.lock"
+whiteList="external/vcm/tests/test_data/test_data.tar workflows/prognostic_run_diags/poetry.lock workflows/fine_res_budget/tests/atmos_avg.json"
 
 thresholdKb=250
 

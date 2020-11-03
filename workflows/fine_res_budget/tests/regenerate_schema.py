@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 
 diagurl = "gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr"  # noqa
 restart_url = "gs://vcm-ml-experiments/2020-06-02-fine-res/2020-05-27-40-day-X-SHiELD-simulation-C384-restart-files.zarr"  # noqa
-
+atmos_avg_url = "gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr"  # noqa
 lo_res_coords = ("time", "tile", "grid_xt", "grid_yt", "pfull")
 
 hires_coords = [
@@ -28,7 +28,7 @@ hires_coords = [
 def get_schema(url, coords):
 
     mapper = fsspec.get_mapper(url)
-    group = zarr.open_group(mapper)
+    group = zarr.open_consolidated(mapper)
     schema = synth.read_schema_from_zarr(group, coords)
 
     return schema
@@ -42,3 +42,20 @@ with open("diag.json", "w") as f:
 
 with open("restart.json", "w") as f:
     synth.dump(rschema, f)
+
+
+schema = get_schema(
+    atmos_avg_url,
+    coords=[
+        "grid_x_coarse",
+        "grid_xt_coarse",
+        "grid_y_coarse",
+        "grid_yt_coarse",
+        "nv",
+        "pfull",
+        "tile",
+        "time",
+    ],
+)
+with open("atmos_avg.json", "w") as f:
+    synth.dump(schema, f)
