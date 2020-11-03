@@ -118,30 +118,87 @@ def _less_than_zero_mask(x, to_mask=None):
     return mask
 
 
+# class DenseWithClassifier(DenseModel):
+#     def __init__(
+#         self,
+#         *args,
+#         classifiers: Mapping[str, DenseClassifierModel] = None,
+#         limit_zero: Sequence[str] = None,
+#         convert_int: Sequence[str] = None,
+#         **kwargs,
+#     ):
+#         super().__init__(*args, **kwargs)
+
+#         if classifiers is None:
+#             self._classifiers = {}
+#             logger.warning("DenseWithClassifier initiwalized without any classiefiers")
+#         else:
+#             self._classifiers = classifiers
+
+#         self._limit_zero = limit_zero if limit_zero is not None else []
+#         self._convert_int = convert_int if convert_int is not None else []
+
+#     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
+
+#         out_tensor_slices = get_feature_slices(self.y_packer)
+
+#         inputs = tf.keras.Input(n_features_in)
+#         x = self.X_scaler.normalize_layer(inputs)
+#         for i in range(self._depth - 1):
+#             x = tf.keras.layers.Dense(
+#                 self._width, activation=tf.keras.activations.relu
+#             )(x)
+#         x = tf.keras.layers.Dense(n_features_out)(x)
+#         regr_outputs = self.y_scaler.denormalize_layer(x)
+
+#         regr_outputs_by_var = separate_tensor_by_var(regr_outputs, out_tensor_slices)
+
+#         to_combine = []
+#         for var, out_tensor in regr_outputs_by_var.items():
+#             if var in self._classifiers:
+#                 classified = self._classifiers[var]._model(inputs)
+#                 mask = tf.keras.layers.Lambda(_less_than_zero_mask)(classified)
+#                 out_tensor = tf.keras.layers.Multiply()([mask, out_tensor])
+
+#             if var in self._limit_zero:
+#                 mask = tf.keras.layers.Lambda(_less_than_zero_mask)(out_tensor)
+#                 out_tensor = tf.keras.layers.Multiply()([mask, out_tensor])
+
+#             if var in self._convert_int:
+#                 out_tensor = tf.keras.layers.Lambda(lambda x: tf.math.round(x))(
+#                     out_tensor
+#                 )
+
+#             to_combine.append(out_tensor)
+
+#         output = tf.concat(to_combine, 1)
+
+#         model = tf.keras.Model(
+#             inputs=inputs, outputs=output, name=self.__class__.__name__
+#         )
+#         model.compile(
+#             optimizer=self._optimizer,
+#             loss=self.loss,
+#             metrics=[tf.keras.metrics.MeanAbsoluteError()],
+#         )
+#         return model
+
 class DenseWithClassifier(DenseModel):
-    def __init__(
-        self,
-        *args,
-        classifiers: Mapping[str, DenseClassifierModel] = None,
-        limit_zero: Sequence[str] = None,
-        convert_int: Sequence[str] = None,
-        **kwargs,
-    ):
+    
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        if classifiers is None:
-            self._classifiers = {}
-            logger.warning("DenseWithClassifier initiwalized without any classiefiers")
-        else:
-            self._classifiers = classifiers
-
-        self._limit_zero = limit_zero if limit_zero is not None else []
-        self._convert_int = convert_int if convert_int is not None else []
-
+        self._classifiers = None
+    
+    def add_classifier(self, classifiers):
+        # [(model, [vars to use trigger for])]
+        self._classifiers = classifiers
+        
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
-
+        if self._classifiers is None:
+            raise ValueError("Please add_classifier to attach a classification model before regression model compilation")
+            
         out_tensor_slices = get_feature_slices(self.y_packer)
-
+        
         inputs = tf.keras.Input(n_features_in)
         x = self.X_scaler.normalize_layer(inputs)
         for i in range(self._depth - 1):
@@ -150,35 +207,28 @@ class DenseWithClassifier(DenseModel):
             )(x)
         x = tf.keras.layers.Dense(n_features_out)(x)
         regr_outputs = self.y_scaler.denormalize_layer(x)
-
+        
         regr_outputs_by_var = separate_tensor_by_var(regr_outputs, out_tensor_slices)
-
+        
+        var_to_classifier = {}
+        for classifier, attach_vars in self._classifiers:
+            classified = classifier._model(inputs)
+            for var in attach_vars:
+                if var in var_to_classifier:
+                    raise ValueError(f"{var} is attached to multiple classifiers. Not supported.")
+                var_to_classifier[var] = classified
+        
         to_combine = []
         for var, out_tensor in regr_outputs_by_var.items():
-            if var in self._classifiers:
-                classified = self._classifiers[var]._model(inputs)
-                mask = tf.keras.layers.Lambda(_less_than_zero_mask)(classified)
-                out_tensor = tf.keras.layers.Multiply()([mask, out_tensor])
-
-            if var in self._limit_zero:
-                mask = tf.keras.layers.Lambda(_less_than_zero_mask)(out_tensor)
-                out_tensor = tf.keras.layers.Multiply()([mask, out_tensor])
-
-            if var in self._convert_int:
-                out_tensor = tf.keras.layers.Lambda(lambda x: tf.math.round(x))(
-                    out_tensor
-                )
-
-            to_combine.append(out_tensor)
-
+            if var in var_to_classifier:
+                mask = tf.keras.layers.Lambda(_less_than_zero_mask)(var_to_classifier[var])
+                filtered = tf.keras.layers.Multiply()([out_tensor, mask])
+                to_combine.append(filtered)
+            else:
+                to_combine.append(out_tensor)
+                
         output = tf.concat(to_combine, 1)
-
-        model = tf.keras.Model(
-            inputs=inputs, outputs=output, name=self.__class__.__name__
-        )
-        model.compile(
-            optimizer=self._optimizer,
-            loss=self.loss,
-            metrics=[tf.keras.metrics.MeanAbsoluteError()],
-        )
+        
+        model = tf.keras.Model(inputs=inputs, outputs=output)
+        model.compile(optimizer=self._optimizer, loss=self.loss, metrics=[tf.keras.metrics.MeanAbsoluteError()])
         return model
