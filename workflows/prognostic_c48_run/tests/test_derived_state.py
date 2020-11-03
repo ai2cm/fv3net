@@ -1,4 +1,3 @@
-from datetime import datetime
 import cftime
 import xarray as xr
 import numpy as np

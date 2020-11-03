@@ -17,7 +17,6 @@ class DerivedMapping:
     def __init__(self, mapper: Mapping[str, xr.DataArray]):
         self._mapper = mapper
 
-
     @classmethod
     def register(cls, name: str):
         """Register a function as a derived variable
@@ -32,7 +31,7 @@ class DerivedMapping:
 
         return decorator
 
-    def __getitem__(self, key: Hashable) -> xr.DataArray:
+    def __getitem__(self, key: str) -> xr.DataArray:
         if key in self._VARIABLES:
             return self._VARIABLES[key](self)
         else:

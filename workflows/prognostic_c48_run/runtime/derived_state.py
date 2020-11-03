@@ -3,7 +3,7 @@ from typing import Mapping, Hashable
 import xarray as xr
 
 import fv3gfs.util
-from vcm import DerivedMapping, cast_to_datetime
+from vcm import DerivedMapping
 
 
 class FV3StateMapper:
@@ -19,7 +19,7 @@ class FV3StateMapper:
         self._getter = getter
         self._alternate_keys = alternate_keys or {"lon": "longitude", "lat": "latitude"}
 
-    def __getitem__(self, key: Hashable) -> xr.DataArray:
+    def __getitem__(self, key: str) -> xr.DataArray:
         if key == "time":
             time = self._getter.get_state(["time"])["time"]
             return xr.DataArray(time, dims=["time"], coords={"time": [time]})
