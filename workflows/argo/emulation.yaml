@@ -58,7 +58,7 @@ spec:
             - name: num-test-batches
               value: "{{workflow.parameters.num-test-batches}}"
             - name: model-input
-              value: "{{workflow.parameters.model-output}}"
+              value: "{{workflow.parameters.model-output}}keras_model"
       - - name: classifier-report
           template: classifier-model-diags
           when: "{{workflow.parameters.is-classifier}} == true"
@@ -69,7 +69,7 @@ spec:
             - name: num-test-batches
               value: "{{workflow.parameters.num-test-batches}}"
             - name: model-input
-              value: "{{workflow.parameters.model-output}}"
+              value: "{{workflow.parameters.model-output}}keras_model"
       - - name: upload-report
           template: upload-report
           arguments:
@@ -82,7 +82,7 @@ spec:
           - name: train-data
           - name: train-config
       container:
-        image: us.gcr.io/vcm-ml/fv3fit:emulation-2020-10-28
+        image: us.gcr.io/vcm-ml/fv3fit:emulation-2020-10-30
         command: ["bash", "-c", "-x"]
         volumeMounts:
           - mountPath: /secret/gcp-credentials
@@ -133,7 +133,7 @@ spec:
         args:
           - |
             python /fv3fit/emulation_diags/generate_report.py \
-              "{{inputs.parameters.model-input}}"/keras_model \
+              "{{inputs.parameters.model-input}}" \
               {{inputs.parameters.train-data}} \
               /mnt/data/report/ \
               --num-test-batches {{inputs.parameters.num-test-batches}}
@@ -199,8 +199,8 @@ spec:
           - |
             gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
 
-            gsutil -m cp -r /mnt/data/keras_model {{inputs.parameters.model-output}}
-            gsutil -m cp -r /mnt/data/config.yaml {{inputs.parameters.model-output}}
+            gsutil -m cp -r /mnt/data/keras_model "{{inputs.parameters.model-output}}"
+            gsutil -m cp -r /mnt/data/config.yaml "{{inputs.parameters.model-output}}"
         resources:
           requests:
             memory: "2Gi"
@@ -225,10 +225,8 @@ spec:
         args:
           - |
             gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
-            gsutil -m cp -r /mnt/data/report/ {{inputs.parameters.report-output}}
+            gsutil -m cp -r /mnt/data/report/* "{{inputs.parameters.report-output}}"/
         resources:
           requests:
             memory: "2Gi"
             cpu: "1"
-
-            
