@@ -22,7 +22,7 @@ class DerivedState:
     @property
     def time(self) -> Union[datetime, cftime.DatetimeJulian]:
         return self["time"]
-    
+
     @classmethod
     def register(cls, name: str):
         """Register a function as a derived variable
@@ -45,7 +45,7 @@ class DerivedState:
 
     def map(self, keys: Sequence[str]):
         return {key: self[key] for key in keys}
-    
+
     def dataset(self, keys: Sequence[str]):
         return xr.Dataset(self.map(keys))
 

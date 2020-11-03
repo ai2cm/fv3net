@@ -5,8 +5,6 @@ import numpy as np
 from derived.fv3_state import DerivedFV3State, FV3StateMapper
 import fv3gfs.util
 
-import pytest
-
 
 class MockFV3GFS:
     def __init__(self):
