@@ -66,19 +66,20 @@ def data_dirs(tmpdir):
         tile=[0], time=[0, 1, 2], grid_xt=slice(0, n), grid_yt=slice(0, n)
     )
 
-    diag_schema = safe.get_variables(open_schema("diag.json"), variables).isel(
+    diags = safe.get_variables(open_schema("diag.json"), variables).isel(
         diag_selectors
     )
     restart = open_schema("restart.json").isel(restart_selectors)
+    atmos_avg = open_schema("atmos_avg.json").isel(diag_selectors)
 
     diag_path = str(tmpdir.join("diag.zarr"))
     restart_path = str(tmpdir.join("restart.zarr"))
+    atmos_avg_path = str(tmpdir.join("atmos_avg.zarr"))
 
-    diag_path = str(tmpdir.join("diag.zarr"))
-    restart_path = str(tmpdir.join("restart.zarr"))
 
-    diag_schema.to_zarr(diag_path, mode="w")
+    diags.to_zarr(diag_path, mode="w")
     restart.to_zarr(restart_path, mode="w")
+    atmos_avg.to_zarr(atmos_avg_path, mode="w")
 
-    return diag_path, restart_path, expected_variables
+    return diag_path, restart_path, atmos_avg_path, expected_variables
 
