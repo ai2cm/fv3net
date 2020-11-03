@@ -19,10 +19,8 @@ spec:
           requests:
             storage: 100Gi
   volumes:
-    - name: external-volume
-      persistentVolumeClaim:
-        claimName: nudging-read-only
-        readOnly: true
+    - name: workdir
+      emptyVol: {}
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -31,7 +29,6 @@ spec:
   - name: train-diags-prog
     inputs:
       parameters:
-        - name: image-tag
         - name: root
         - name: train-routine
           value: sklearn
@@ -50,7 +47,6 @@ spec:
         - {name: cpu-prog, value: "6"}
         - {name: memory-prog, value: 6Gi}
         - {name: work-volume-name, value: work-volume}
-        - {name: external-volume-name, value: external-volume}
     dag:
       tasks:
       - name: train-model
@@ -59,8 +55,6 @@ spec:
           template: training
         arguments:
           parameters:
-            - name: image
-              value: "us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}"
             - name: routine
               value: "fv3fit.{{inputs.parameters.train-routine}}"
             - name: input
@@ -78,8 +72,6 @@ spec:
           template: prognostic-run
         arguments:
           parameters:
-              - name: image-tag
-                value: "{{inputs.parameters.image-tag}}"
               - name: initial-condition
                 value: "{{inputs.parameters.initial-condition}}"
               - name: config
@@ -100,8 +92,6 @@ spec:
                 value: "{{inputs.parameters.memory-prog}}"
               - name: work-volume-name
                 value: "{{inputs.parameters.work-volume-name}}"
-              - name: external-volume-name
-                value: "{{inputs.parameters.external-volume-name}}"
       - name: offline-diags
         dependencies: [train-model]
         templateRef:
@@ -109,8 +99,6 @@ spec:
           template: offline-diags
         arguments:
           parameters:
-              - name: image-tag
-                value: "{{inputs.parameters.image-tag}}"
               - name: ml-model
                 value: "{{inputs.parameters.root}}/trained_model"
               - name: config
@@ -130,8 +118,6 @@ spec:
           template: diagnostics
         arguments:
           parameters:
-              - name: image
-                value: "us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}"
               - name: run
                 value: "{{inputs.parameters.root}}/prognostic_run"
               - name: output

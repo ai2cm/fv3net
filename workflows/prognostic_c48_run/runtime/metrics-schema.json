@@ -22,6 +22,8 @@
             "cnvprcp_after_python": 8.388836350374921e-06,
             "net_moistening": 0.0,
             "net_heating": 0.0,
+            "column_integrated_dQu": 0.0,
+            "column_integrated_dQv": 0.0,
             "water_vapor_path": 23.721312922082713,
             "physics_precip": 1.3542121849959635e-05,
             "storage_of_specific_humidity_path_due_to_python": 9.4789371892713e-19,
@@ -117,6 +119,24 @@
             "$id": "#/properties/net_heating",
             "type": "number",
             "units": "kg/m^2/s",
+            "default": 0.0,
+            "examples": [
+                0.0
+            ]
+        },
+        "column_integrated_dQu": {
+            "$id": "#/properties/column_integrated_dQu",
+            "type": "number",
+            "units": "m/s/s",
+            "default": 0.0,
+            "examples": [
+                0.0
+            ]
+        },
+        "column_integrated_dQv": {
+            "$id": "#/properties/column_integrated_dQu",
+            "type": "number",
+            "units": "m/s/s",
             "default": 0.0,
             "examples": [
                 0.0

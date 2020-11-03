@@ -44,7 +44,14 @@ DELP = "pressure_thickness_of_atmospheric_layer"
 PRECIP_RATE = "surface_precipitation_rate"
 TOTAL_PRECIP = "total_precipitation"  # has units of m
 AREA = "area_of_grid_cell"
-REQUIRED_VARIABLES = {TEMP, SPHUM, DELP, PRECIP_RATE, TOTAL_PRECIP}
+EAST_WIND = "eastward_wind_after_physics"
+NORTH_WIND = "northward_wind_after_physics"
+TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
+    "dQ1": TEMP,
+    "dQ2": SPHUM,
+    "dQu": EAST_WIND,
+    "dQv": NORTH_WIND,
+}
 
 cp = 1004
 gravity = 9.81
@@ -108,10 +115,35 @@ def compute_diagnostics(state, diags):
     )
 
 
+def compute_momentum_diagnostics(state, tendency):
+    delp = state[DELP]
+    total_thickness = delp.sum("z")
+    dQu = tendency.get("dQu", xr.zeros_like(delp))
+    dQv = tendency.get("dQv", xr.zeros_like(delp))
+    column_integrated_dQu = (dQu * delp).sum("z") / total_thickness
+    column_integrated_dQv = (dQv * delp).sum("z") / total_thickness
+    return dict(
+        column_integrated_dQu=column_integrated_dQu.assign_attrs(
+            units="m/s/s", description="column integrated zonal wind tendency due to ML"
+        ),
+        column_integrated_dQv=column_integrated_dQv.assign_attrs(
+            units="m/s/s",
+            description="column integrated meridional wind tendency due to ML",
+        ),
+    )
+
+
 def rename_diagnostics(diags):
     """Postfix ML output names with _diagnostic and create zero-valued outputs in
     their stead. Function operates in place."""
-    for variable in ["net_moistening", "net_heating"]:
+    ml_tendencies = {
+        "net_moistening",
+        "net_heating",
+        "column_integrated_dQu",
+        "column_integrated_dQv",
+    }
+    ml_tendencies_in_diags = ml_tendencies & set(diags)
+    for variable in ml_tendencies_in_diags:
         attrs = diags[variable].attrs
         diags[f"{variable}_diagnostic"] = diags[variable].assign_attrs(
             description=attrs["description"] + " (diagnostic only)"
@@ -179,10 +211,10 @@ def apply(state: State, tendency: State, dt: float) -> State:
     Returned state only includes variables updated by ML model."""
 
     with xr.set_options(keep_attrs=True):
-        updated = {
-            SPHUM: state[SPHUM] + tendency["dQ2"] * dt,
-            TEMP: state[TEMP] + tendency["dQ1"] * dt,
-        }
+        updated = {}
+        for name in tendency:
+            state_name = TENDENCY_TO_STATE_NAME[name]
+            updated[state_name] = state[state_name] + tendency[name] * dt
     return updated  # type: ignore
 
 
@@ -227,6 +259,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._do_only_diagnostic_ml: bool = args["scikit_learn"].get(
             "diagnostic_ml", False
         )
+        self._tendencies_to_apply_to_dycore_state: State = {}
+        self._tendencies_to_apply_to_physics_state: State = {}
 
         # download the model
         self._log_info("Downloading ML Model")
@@ -253,14 +287,20 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         # no diagnostics are computed by default
         return {}
 
+    def _compute_physics(self) -> Diagnostics:
+        self._log_debug(f"Physics Step (compute)")
+        self._fv3gfs.compute_physics()
+        # no diagnostics are computed by default
+        return {}
+
     @property
     def _water_species(self) -> List[str]:
         a = self._fv3gfs.get_tracer_metadata()
         return [name for name in a if a[name]["is_water"]]
 
-    def _step_physics(self) -> Diagnostics:
-        self._log_debug(f"Physics Step")
-        self._fv3gfs.step_physics()
+    def _apply_physics(self) -> Diagnostics:
+        self._log_debug(f"Physics Step (apply)")
+        self._fv3gfs.apply_physics()
 
         micro = fv3gfs.wrapper.get_diagnostic_by_name(
             "tendency_of_specific_humidity_due_to_microphysics"
@@ -278,21 +318,55 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             "total_precip_after_physics": self._state[TOTAL_PRECIP],
         }
 
-    def _step_python(self) -> Diagnostics:
+    def _apply_python_to_physics_state(self) -> Diagnostics:
+        self._log_debug(f"Apply python tendencies to physics state")
+        variables: List[Hashable] = [
+            TENDENCY_TO_STATE_NAME["dQu"],
+            TENDENCY_TO_STATE_NAME["dQv"],
+            DELP,
+        ]
+        state = {name: self._state[name] for name in variables}
+        tendency = self._tendencies_to_apply_to_physics_state
+        updated_state = apply(state, tendency, dt=self._timestep)
+        diagnostics = compute_momentum_diagnostics(state, tendency)
+        if self._do_only_diagnostic_ml:
+            rename_diagnostics(diagnostics)
+        else:
+            self._state.update(updated_state)
+        return diagnostics
 
-        variables: List[Hashable] = list(
-            self._model.input_variables | REQUIRED_VARIABLES
-        )
+    def _compute_python_tendency(self) -> Diagnostics:
+        variables: List[Hashable] = list(self._model.input_variables | {SPHUM})
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
 
-        self._log_debug("Computing RF updated variables")
+        self._log_debug("Computing ML-predicted tendencies")
         tendency = predict(self._model, state)
 
         self._log_debug(
             "Correcting ML tendencies that would predict negative specific humidity"
         )
         tendency = limit_sphum_tendency(state, tendency, dt=self._timestep)
+
+        self._tendencies_to_apply_to_dycore_state = {
+            k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]
+        }
+        self._tendencies_to_apply_to_physics_state = {
+            k: v for k, v in tendency.items() if k in ["dQu", "dQv"]
+        }
+        return {}
+
+    def _apply_python_to_dycore_state(self) -> Diagnostics:
+        variables: List[Hashable] = [
+            TENDENCY_TO_STATE_NAME["dQ1"],
+            TENDENCY_TO_STATE_NAME["dQ2"],
+            DELP,
+            PRECIP_RATE,
+            TOTAL_PRECIP,
+        ]
+        self._log_debug(f"Getting state variables: {variables}")
+        state = {name: self._state[name] for name in variables}
+        tendency = self._tendencies_to_apply_to_dycore_state
 
         if self._do_only_diagnostic_ml:
             updated_state: State = {}
@@ -322,8 +396,11 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         for i in range(self._fv3gfs.get_step_count()):
             diagnostics = {}
             diagnostics.update(self._step_dynamics())
-            diagnostics.update(self._step_physics())
-            diagnostics.update(self._step_python())
+            diagnostics.update(self._compute_physics())
+            diagnostics.update(self._apply_python_to_physics_state())
+            diagnostics.update(self._apply_physics())
+            diagnostics.update(self._compute_python_tendency())
+            diagnostics.update(self._apply_python_to_dycore_state())
             yield self._state.time, diagnostics
         self._fv3gfs.cleanup()
 
@@ -393,8 +470,10 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
         super().__init__(*args, **kwargs)
         self._variables = list(tendency_variables)
 
-    _step_physics = monitor("fv3_physics", TimeLoop._step_physics)
-    _step_python = monitor("python", TimeLoop._step_python)
+    _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
+    _apply_python_to_dycore_state = monitor(
+        "python", TimeLoop._apply_python_to_dycore_state
+    )
 
 
 def globally_average_2d_diagnostics(
