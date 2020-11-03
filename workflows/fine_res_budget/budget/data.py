@@ -14,6 +14,7 @@ import numpy as np
 import xarray as xr
 
 import vcm
+from vcm import safe
 from vcm.convenience import round_time
 
 logger = logging.getLogger(__file__)
@@ -53,6 +54,31 @@ def open_restart_data(RESTART_ZARR):
     store = fsspec.get_mapper(RESTART_ZARR)
     restarts = xr.open_zarr(store)
     return standardize_restart_metadata(restarts)
+
+
+def open_merged(restart_url: str, physics_url: str) -> xr.Dataset:
+    PHYSICS_VARIABLES = [
+        # from ShiELD diagnostics
+        "t_dt_fv_sat_adj_coarse",
+        "t_dt_nudge_coarse",
+        "t_dt_phys_coarse",
+        "qv_dt_fv_sat_adj_coarse",
+        "qv_dt_phys_coarse",
+        "eddy_flux_vulcan_omega_sphum",
+        "eddy_flux_vulcan_omega_temp",
+        "vulcan_omega_coarse",
+        "area_coarse",
+        # from restarts
+        "delp",
+        "sphum",
+        "T",
+    ]
+    restarts = open_restart_data(restart_url)
+    diag = open_diagnostic_output(physics_url)
+    data = safe.get_variables(merge(restarts, diag), PHYSICS_VARIABLES)
+    num_tiles = len(data.tile)
+    tiles = range(1, num_tiles + 1)
+    return data.assign_coords(tile=tiles)
 
 
 def standardize_restart_metadata(restarts):

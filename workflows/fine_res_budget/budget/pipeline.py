@@ -14,33 +14,15 @@ from apache_beam.utils import retry
 from fv3net.pipelines.common import FunctionSource
 
 import vcm
-from vcm import safe
 
 from . import budgets
-from .data import merge, open_diagnostic_output, open_restart_data
+from .data import open_merged
 
 dask.config.set(scheduler="single-threaded")
 
 
 logger = logging.getLogger(__file__)
 
-
-PHYSICS_VARIABLES = [
-    # from ShiELD diagnostics
-    "t_dt_fv_sat_adj_coarse",
-    "t_dt_nudge_coarse",
-    "t_dt_phys_coarse",
-    "qv_dt_fv_sat_adj_coarse",
-    "qv_dt_phys_coarse",
-    "eddy_flux_vulcan_omega_sphum",
-    "eddy_flux_vulcan_omega_temp",
-    "vulcan_omega_coarse",
-    "area_coarse",
-    # from restarts
-    "delp",
-    "sphum",
-    "T",
-]
 
 Dims = Sequence[Hashable]
 
@@ -51,15 +33,6 @@ def chunks_1d_to_slices(chunks: Iterable[int]) -> Iterable[slice]:
         end = start + chunk
         yield slice(start, end)
         start = end
-
-
-def open_merged(restart_url: str, physics_url: str) -> xr.Dataset:
-    restarts = open_restart_data(restart_url)
-    diag = open_diagnostic_output(physics_url)
-    data = safe.get_variables(merge(restarts, diag), PHYSICS_VARIABLES)
-    num_tiles = len(data.tile)
-    tiles = range(1, num_tiles + 1)
-    return data.assign_coords(tile=tiles)
 
 
 def yield_indices(merged: xr.Dataset, dims: Dims) -> Iterable[Mapping[Hashable, slice]]:
