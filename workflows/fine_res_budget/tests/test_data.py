@@ -1,4 +1,5 @@
-from budget.data import open_atmos_avg
+import xarray as xr
+from budget.data import open_atmos_avg, open_merged
 
 
 def test_open_atmos_avg():
@@ -13,3 +14,9 @@ def test_open_atmos_avg():
         "grid_x",
         "pfull",
     }
+
+
+def test_open_merged(data_dirs):
+    diags_url, restarts_url = data_dirs[:2]
+    dataset = open_merged(restarts_url, diags_url)
+    assert isinstance(dataset, xr.Dataset)
