@@ -6,7 +6,6 @@ from derived.fv3_state import DerivedFV3State, FV3StateMapper
 import fv3gfs.util
 
 
-
 class MockFV3GFS:
     def __init__(self):
         self.set_state_called = False
@@ -19,13 +18,15 @@ class MockFV3GFS:
 
         lat = fv3gfs.util.Quantity(np.random.rand(ny, nx), dims=["y", "x"], units="deg")
         lon = fv3gfs.util.Quantity(np.random.rand(ny, nx), dims=["y", "x"], units="deg")
-        lhtfl = fv3gfs.util.Quantity(np.random.rand(ny, nx), dims=["y", "x"], units="deg")
+        lhtfl = fv3gfs.util.Quantity(
+            np.random.rand(ny, nx), dims=["y", "x"], units="deg"
+        )
 
         state = {
             "time": datetime.now(),
             "latitude": lat,
             "longitude": lon,
-            "lhtfl": lhtfl
+            "lhtfl": lhtfl,
         }
 
         return {name: state[name] for name in names}
