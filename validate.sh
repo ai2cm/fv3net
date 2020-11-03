@@ -1,8 +1,12 @@
+#!/bin/bash
 set -e
 set -x
-kustomizations=$(find . -name 'kustomization.yaml')
+
+[[ -f ./kustomize ]] || \
+    ./examples/train-evaluate-prognostic-run/install_kustomize.sh 3.8.6
+
+kustomizations="examples/train-evaluate-prognostic-run/"
 
 for k in $kustomizations; do
-	echo "Validating $k"
-	kubectl kustomize $(dirname $k)
+    ./kustomize build $k
 done
