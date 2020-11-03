@@ -3,14 +3,13 @@ from typing import Mapping, Hashable
 import xarray as xr
 
 import fv3gfs.util
-from vcm import DerivedMapping
+from vcm import DerivedMapping, cast_to_datetime
 
 
 class FV3StateMapper:
     """ A mapping interface for the FV3GFS getter.
     
-    Allows the DerivedFV3State to work with the base
-    DerivedMapping's __getitem__.
+    Allows the DerivedFV3State to work with the vcm DerivedMapping's __getitem__.
     
     Maps variables to the common names used in shared functions.
     By default adds mapping {"lon": "longitude", "lat": "latitude"}
@@ -22,7 +21,8 @@ class FV3StateMapper:
 
     def __getitem__(self, key: Hashable) -> xr.DataArray:
         if key == "time":
-            raise KeyError("")
+            time = self._getter.get_state(["time"])["time"]
+            return xr.DataArray(time, dims=["time"], coords={"time": [time]})
         elif key == "latent_heat_flux":
             return self._getter.get_diagnostic_by_name("lhtfl").data_array
         elif key == "total_water":
@@ -50,6 +50,7 @@ class DerivedFV3State(DerivedMapping):
     2. Register and computing derived variables transparently
 
     """
+
     def __init__(self, getter):
         """
         Args:

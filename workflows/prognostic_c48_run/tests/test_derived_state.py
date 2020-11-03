@@ -1,4 +1,5 @@
 from datetime import datetime
+import cftime
 import xarray as xr
 import numpy as np
 
@@ -23,7 +24,7 @@ class MockFV3GFS:
         )
 
         state = {
-            "time": datetime.now(),
+            "time": cftime.DatetimeJulian(2016, 1, 1),
             "latitude": lat,
             "longitude": lon,
             "lhtfl": lhtfl,
@@ -54,7 +55,6 @@ def test_DerivedFV3State_cos_zenith():
     assert isinstance(output, xr.DataArray)
 
 
-# test that function registered under FV3DerivedState works
 def test_DerivedFV3State_latent_heat_flux():
     fv3gfs = MockFV3GFS()
     getter = DerivedFV3State(fv3gfs)
@@ -62,10 +62,16 @@ def test_DerivedFV3State_latent_heat_flux():
     assert isinstance(output, xr.DataArray)
 
 
-def test_DerivedFV3State_time():
+def test_DerivedFV3State_time_property():
     fv3gfs = MockFV3GFS()
     getter = DerivedFV3State(fv3gfs)
-    assert isinstance(getter.time, datetime)
+    assert isinstance(getter.time, cftime.DatetimeJulian)
+
+
+def test_DerivedFV3State_time_dataarray():
+    fv3gfs = MockFV3GFS()
+    getter = DerivedFV3State(fv3gfs)
+    assert isinstance(getter["time"], xr.DataArray)
 
 
 def test_DerivedFV3State_setitem():
