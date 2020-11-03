@@ -5,8 +5,25 @@ import vcm
 import xarray as xr
 
 import fv3gfs.util
-from ._base import DerivedState
+from .base import DerivedState
 
+
+class FV3StateMapper:
+    def __init__(self, getter, alternate_keys: Mapping[str, str] = None):
+        self._getter = getter
+        self._alternate_keys = alternate_keys or {
+            "lon": "longitude",
+            "lat": "latitude"
+        }
+
+    def __getitem__(self, key: Hashable) -> xr.DataArray:
+        if key == "time":
+            return self._getter.get_state(["time"])["time"]
+        else:
+            if key in self._alternate_keys:
+                key = self._alternate_keys[key]
+            return self._getter.get_state([key])[key].data_array
+       
 
 class DerivedFV3State(DerivedState):
     """A uniform mapping-like interface to the FV3GFS model state
@@ -21,26 +38,14 @@ class DerivedFV3State(DerivedState):
 
     """
 
-    _VARIABLES: Mapping[Hashable, Callable[..., xr.DataArray]] = {}
-
     def __init__(self, getter):
+        # can be refactored so this doesn't take a getter but an object that wraps the getter as a mapping
         """
         Args:
             getter: the fv3gfs object or a mock of it.
         """
         self._getter = getter
-
-    @property
-    def time(self) -> cftime.DatetimeJulian:
-        return self._getter.get_state(["time"])["time"]
-
-    def __getitem__(self, key: Hashable) -> xr.DataArray:
-        if key == "time":
-            raise KeyError("To access time use the `time` property of this object.")
-        if key in self._VARIABLES:
-            return self._VARIABLES[key](self)
-        else:
-            return self._getter.get_state([key])[key].data_array
+        self._mapper = FV3StateMapper(getter, alternate_keys=None)
 
     def __setitem__(self, key: str, value: xr.DataArray):
         self._getter.set_state_mass_conserving(
@@ -62,14 +67,9 @@ class DerivedFV3State(DerivedState):
         )
 
 
-@DerivedFV3State.register("cos_zenith_angle")
-def cos_zenith_angle(self):
-    return xr.apply_ufunc(
-        lambda lon, lat: vcm.cos_zenith_angle(self.time, lon, lat),
-        self["longitude"],
-        self["latitude"],
-        dask="allowed",
-    )
+@DerivedFV3State.register("latent_heat_flux")
+def latent_heat_flux(self):
+    return self._getter.get_diagnostic_by_name("lhtfl").data_array
 
 
 @DerivedFV3State.register("total_water")
@@ -77,14 +77,3 @@ def total_water(self):
     a = self._getter.get_tracer_metadata()
     water_species = [name for name in a if a[name]["is_water"]]
     return sum(self[name] for name in water_species)
-
-
-@DerivedFV3State.register("latent_heat_flux")
-def latent_heat_flux(self):
-    return self._getter.get_diagnostic_by_name("lhtfl").data_array
-
-
-@DerivedFV3State.register("evaporation")
-def evaporation(self):
-    lhf = self["latent_heat_flux"]
-    return vcm.thermo.latent_heat_flux_to_evaporation(lhf)
