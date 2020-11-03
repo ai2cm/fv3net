@@ -1,7 +1,9 @@
-from typing import Mapping
-import numpy as np
 import cftime
+import numpy as np
+import pytest
+from typing import Mapping
 import xarray as xr
+
 from derived import DerivedMapping
 
 nt, nx, ny = 3, 2, 1
@@ -51,3 +53,9 @@ def test_DerivedMapping_dataset():
         np.testing.assert_array_almost_equal(
             ds_derived_state[existing_var], ds[existing_var]
         )
+
+
+def test_DerivedMapping_unregistered():
+    derived_state = DerivedMapping(ds)
+    with pytest.raises(KeyError):
+        derived_state["latent_heat_flux"]

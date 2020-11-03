@@ -1,4 +1,5 @@
-from typing import Mapping, Hashable
+import copy
+from typing import Mapping, Hashable, Callable
 import xarray as xr
 
 import fv3gfs.util
@@ -40,6 +41,10 @@ class DerivedFV3State(DerivedMapping):
     2. Register and computing derived variables transparently
 
     """
+
+    _VARIABLES: Mapping[Hashable, Callable[..., xr.DataArray]] = copy.copy(
+        DerivedMapping._VARIABLES
+    )
 
     def __init__(self, getter):
         """

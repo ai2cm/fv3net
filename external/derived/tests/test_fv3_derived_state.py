@@ -6,6 +6,7 @@ from derived.fv3_state import DerivedFV3State, FV3StateMapper
 import fv3gfs.util
 
 
+
 class MockFV3GFS:
     def __init__(self):
         self.set_state_called = False
@@ -18,11 +19,13 @@ class MockFV3GFS:
 
         lat = fv3gfs.util.Quantity(np.random.rand(ny, nx), dims=["y", "x"], units="deg")
         lon = fv3gfs.util.Quantity(np.random.rand(ny, nx), dims=["y", "x"], units="deg")
+        lhtfl = fv3gfs.util.Quantity(np.random.rand(ny, nx), dims=["y", "x"], units="deg")
 
         state = {
             "time": datetime.now(),
             "latitude": lat,
             "longitude": lon,
+            "lhtfl": lhtfl
         }
 
         return {name: state[name] for name in names}
@@ -32,6 +35,9 @@ class MockFV3GFS:
         for key, value in data.items():
             assert isinstance(value, fv3gfs.util.Quantity)
 
+    def get_diagnostic_by_name(self, diagnostic):
+        return self.get_state([diagnostic])[diagnostic]
+
 
 def test_DerivedFV3State():
     fv3gfs = MockFV3GFS()
@@ -39,10 +45,19 @@ def test_DerivedFV3State():
     assert isinstance(getter["longitude"], xr.DataArray)
 
 
+# test that function registered under DerivedMapping works
 def test_DerivedFV3State_cos_zenith():
     fv3gfs = MockFV3GFS()
     getter = DerivedFV3State(fv3gfs)
     output = getter["cos_zenith_angle"]
+    assert isinstance(output, xr.DataArray)
+
+
+# test that function registered under FV3DerivedState works
+def test_DerivedFV3State_latent_heat_flux():
+    fv3gfs = MockFV3GFS()
+    getter = DerivedFV3State(fv3gfs)
+    output = getter["latent_heat_flux"]
     assert isinstance(output, xr.DataArray)
 
 
