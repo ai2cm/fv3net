@@ -2,14 +2,14 @@ from typing import Mapping, Hashable
 import xarray as xr
 
 import fv3gfs.util
-from .base import DerivedState
+from .base import DerivedMapping
 
 
 class FV3StateMapper:
     """ A mapping interface for the FV3GFS getter.
     
     Allows the DerivedFV3State to work with the base
-    DerivedState's __getitem__.
+    DerivedMapping's __getitem__.
     
     Maps variables to the common names used in shared functions.
     By default adds mapping {"lon": "longitude", "lat": "latitude"}
@@ -28,7 +28,7 @@ class FV3StateMapper:
             return self._getter.get_state([key])[key].data_array
 
 
-class DerivedFV3State(DerivedState):
+class DerivedFV3State(DerivedMapping):
     """A uniform mapping-like interface to the FV3GFS model state
     
     This class provides two features
