@@ -50,7 +50,7 @@ Moreover, the templates within this workflows can be used by other workflows.
 
 ### Pinning the image tags
 
-These workflows currently hardcode references to the following images:
+These workflows currently refers to following images without using any tags:
 1. us.gcr.io/vcm-ml/fv3net
 1. us.gcr.io/vcm-ml/fv3fit
 1. us.gcr.io/vcm-ml/prognostic_run
