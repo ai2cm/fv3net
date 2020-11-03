@@ -4,6 +4,7 @@ k8s entrypoint for emulation
 
 import argparse
 import logging
+from logging import Logger
 from fv3fit.keras._models.classifiers import DenseClassifierModel
 import tensorflow as tf
 from pathlib import Path
@@ -12,6 +13,8 @@ from fv3fit.keras import get_model
 from fv3fit._shared import load_model_training_config
 from loaders.batches import batches_from_serialized
 from loaders import shuffle
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args():
@@ -59,6 +62,8 @@ if __name__ == "__main__":
     if lr == "exponential":
         lr = tf.keras.optimizers.schedules.ExponentialDecay(0.0005, 10_000, 0.96)
     optimizer_kwargs["learning_rate"] = lr
+    clipnorm = hyper_params.pop("clipnorm", None)
+    optimizer_kwargs["clipnorm"] = clipnorm
     optimizer = optimizer_class(**optimizer_kwargs)
     hyper_params["optimizer"] = optimizer
 
@@ -70,6 +75,7 @@ if __name__ == "__main__":
             model = DenseClassifierModel.load(path)
             model._model.trainable = False
             model._model._name = f"DenseClassifier_{varname}"
+            logger.info(f"{model._model.summary()}")
             classifiers[varname] = model
         hyper_params["classifiers"] = classifiers
 
@@ -86,6 +92,7 @@ if __name__ == "__main__":
         **hyper_params,
     )
     model.fit(train, **fit_kwargs)
+    logger.info(model._model.summary())
 
     model_output_path = Path(args.output_data_path, "keras_model")
     model.dump(str(model_output_path.resolve()))
