@@ -1,6 +1,4 @@
-import cftime
-from datetime import datetime
-from typing import Mapping, Hashable, Callable, Sequence, Union
+from typing import Mapping, Hashable, Callable, Sequence
 import xarray as xr
 
 import vcm
@@ -19,9 +17,6 @@ class DerivedMapping:
     def __init__(self, mapper: Mapping[str, xr.DataArray]):
         self._mapper = mapper
 
-    @property
-    def time(self) -> Union[datetime, cftime.DatetimeJulian]:
-        return self["time"]
 
     @classmethod
     def register(cls, name: str):
@@ -43,18 +38,18 @@ class DerivedMapping:
         else:
             return self._mapper[key]
 
-    def map(self, keys: Sequence[str]):
+    def _data_arrays(self, keys: Sequence[str]):
         return {key: self[key] for key in keys}
 
-    def dataset(self, keys: Sequence[str]):
-        return xr.Dataset(self.map(keys))
+    def dataset(self, keys: Sequence[str]) -> xr.Dataset:
+        return xr.Dataset(self._data_arrays(keys))
 
 
 @DerivedMapping.register("cos_zenith_angle")
 def cos_zenith_angle(self):
     return xr.apply_ufunc(
         lambda time, lon, lat: vcm.cos_zenith_angle(time, lon, lat),
-        self.time,
+        self["time"],
         self["lon"],
         self["lat"],
         dask="allowed",

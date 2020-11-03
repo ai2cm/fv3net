@@ -1,9 +1,9 @@
-import copy
-from typing import Mapping, Hashable, Callable
+import cftime
+from typing import Mapping, Hashable
 import xarray as xr
 
 import fv3gfs.util
-from .base import DerivedMapping
+from vcm import DerivedMapping
 
 
 class FV3StateMapper:
@@ -22,11 +22,20 @@ class FV3StateMapper:
 
     def __getitem__(self, key: Hashable) -> xr.DataArray:
         if key == "time":
-            return self._getter.get_state(["time"])["time"]
+            raise KeyError("")
+        elif key == "latent_heat_flux":
+            return self._getter.get_diagnostic_by_name("lhtfl").data_array
+        elif key == "total_water":
+            return self._total_water()
         else:
             if key in self._alternate_keys:
                 key = self._alternate_keys[key]
             return self._getter.get_state([key])[key].data_array
+
+    def _total_water(self):
+        a = self._getter.get_tracer_metadata()
+        water_species = [name for name in a if a[name]["is_water"]]
+        return sum(self[name] for name in water_species)
 
 
 class DerivedFV3State(DerivedMapping):
@@ -41,11 +50,6 @@ class DerivedFV3State(DerivedMapping):
     2. Register and computing derived variables transparently
 
     """
-
-    _VARIABLES: Mapping[Hashable, Callable[..., xr.DataArray]] = copy.copy(
-        DerivedMapping._VARIABLES
-    )
-
     def __init__(self, getter):
         """
         Args:
@@ -53,6 +57,10 @@ class DerivedFV3State(DerivedMapping):
         """
         self._getter = getter
         self._mapper = FV3StateMapper(getter, alternate_keys=None)
+
+    @property
+    def time(self) -> cftime.DatetimeJulian:
+        return self._getter.get_state(["time"])["time"]
 
     def __setitem__(self, key: str, value: xr.DataArray):
         self._getter.set_state_mass_conserving(
@@ -72,15 +80,3 @@ class DerivedFV3State(DerivedMapping):
                 for key, value in items.items()
             }
         )
-
-
-@DerivedFV3State.register("latent_heat_flux")
-def latent_heat_flux(self):
-    return self._getter.get_diagnostic_by_name("lhtfl").data_array
-
-
-@DerivedFV3State.register("total_water")
-def total_water(self):
-    a = self._getter.get_tracer_metadata()
-    water_species = [name for name in a if a[name]["is_water"]]
-    return sum(self[name] for name in water_species)

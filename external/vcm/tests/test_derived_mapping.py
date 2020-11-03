@@ -4,7 +4,7 @@ import pytest
 from typing import Mapping
 import xarray as xr
 
-from derived import DerivedMapping
+from vcm import DerivedMapping
 
 nt, nx, ny = 3, 2, 1
 ds = xr.Dataset(
@@ -36,12 +36,12 @@ def test_DerivedMapping_cos_zenith():
     assert isinstance(output, xr.DataArray)
 
 
-def test_DerivedMapping_map():
+def test_DerivedMapping__data_arrays():
     derived_state = DerivedMapping(ds)
     keys = ["T", "q"]
-    map = derived_state.map(keys)
-    assert isinstance(derived_state.map(keys), Mapping)
-    assert set(keys) == set(map.keys())
+    data_arrays = derived_state._data_arrays(keys)
+    assert isinstance(data_arrays, Mapping)
+    assert set(keys) == set(data_arrays.keys())
 
 
 def test_DerivedMapping_dataset():
