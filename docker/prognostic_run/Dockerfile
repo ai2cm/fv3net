@@ -65,7 +65,6 @@ COPY external/fv3fit /fv3net/external/fv3fit
 COPY external/fv3kube /fv3net/external/fv3kube
 COPY external/vcm /fv3net/external/vcm
 COPY external/loaders /fv3net/external/loaders
-COPY external/derived /fv3net/external/derived
 
 COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
 

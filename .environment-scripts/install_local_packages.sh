@@ -23,7 +23,6 @@ poetry_packages=(
   external/fv3kube
   external/loaders
   external/diagnostics_utils
-  external/derived
   workflows/fine_res_budget
   workflows/offline_ml_diags
   workflows/dataflow
