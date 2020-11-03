@@ -82,26 +82,6 @@ def test_DerivedFV3State_setitem():
     assert fv3gfs.set_state_called
 
 
-def test_DerivedFV3State_register():
-    fv3gfs = MockFV3GFS()
-
-    def xarray_func(arr):
-        return arr * 1.25
-
-    @DerivedFV3State.register("mock")
-    def mock(self):
-        return xarray_func(self["latitude"])
-
-    getter = DerivedFV3State(fv3gfs)
-
-    latitude = getter["latitude"]
-    expected = xarray_func(latitude)
-
-    output = getter["mock"]
-    assert isinstance(output, xr.DataArray)
-    xr.testing.assert_equal(output, expected)
-
-
 def test_FV3StateMapper():
     fv3gfs = MockFV3GFS()
     mapper = FV3StateMapper(fv3gfs)

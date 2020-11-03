@@ -8,9 +8,7 @@ from vcm import DerivedMapping
 
 class FV3StateMapper:
     """ A mapping interface for the FV3GFS getter.
-    
-    Allows the DerivedFV3State to work with the vcm DerivedMapping's __getitem__.
-    
+        
     Maps variables to the common names used in shared functions.
     By default adds mapping {"lon": "longitude", "lat": "latitude"}
     """
@@ -38,17 +36,14 @@ class FV3StateMapper:
         return sum(self[name] for name in water_species)
 
 
-class DerivedFV3State(DerivedMapping):
+class DerivedFV3State:
     """A uniform mapping-like interface to the FV3GFS model state
     
-    This class provides two features
-
-    1. wraps the fv3gfs getters with the FV3StateMapper, that always returns
-       DataArray and has time as an attribute (since this isn't a DataArray).
-       This insulates runfiles from the details of Quantity
-       
-    2. Register and computing derived variables transparently
-
+    This class wraps the fv3gfs getters with the FV3StateMapper, that always returns
+    DataArray and has time as an attribute (since this isn't a DataArray).
+    
+    This insulates runfiles from the details of Quantity
+    
     """
 
     def __init__(self, getter):
@@ -57,11 +52,14 @@ class DerivedFV3State(DerivedMapping):
             getter: the fv3gfs object or a mock of it.
         """
         self._getter = getter
-        self._mapper = FV3StateMapper(getter, alternate_keys=None)
+        self._mapper = DerivedMapping(FV3StateMapper(getter, alternate_keys=None))
 
     @property
     def time(self) -> cftime.DatetimeJulian:
         return self._getter.get_state(["time"])["time"]
+
+    def __getitem__(self, key: Hashable) -> xr.DataArray:
+        return self._mapper[key]
 
     def __setitem__(self, key: str, value: xr.DataArray):
         self._getter.set_state_mass_conserving(

@@ -19,7 +19,7 @@ import xarray as xr
 from mpi4py import MPI
 
 import fv3gfs.wrapper as wrapper
-from derived import DerivedFV3State
+from runtime import DerivedFV3State
 
 # To avoid very strange NaN errors this needs to happen before runtime import
 # with openmpi

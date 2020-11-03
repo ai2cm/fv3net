@@ -37,7 +37,7 @@ class DerivedMapping:
         else:
             return self._mapper[key]
 
-    def _data_arrays(self, keys: Sequence[str]) -> Mapping[str, xr.DataArray]:
+    def _data_arrays(self, keys: Sequence[str]):
         return {key: self[key] for key in keys}
 
     def dataset(self, keys: Sequence[str]) -> xr.Dataset:
