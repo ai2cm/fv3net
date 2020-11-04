@@ -22,7 +22,7 @@ ranges = {
 }
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def data_dirs(tmpdir_factory):
 
     tmpdir = tmpdir_factory.mktemp("input_data")
@@ -59,4 +59,3 @@ def data_dirs(tmpdir_factory):
     atmos_avg.to_zarr(atmos_avg_path, mode="w", consolidated=True)
 
     return diag_path, restart_path, atmos_avg_path
-

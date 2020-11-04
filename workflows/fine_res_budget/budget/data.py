@@ -69,9 +69,7 @@ def standardize_atmos_avg(ds: xr.Dataset) -> xr.Dataset:
     return ds.rename(rename_dict).assign_coords(time=times)
 
 
-def open_atmos_avg(
-    url="gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr",  # noqa
-):
+def open_atmos_avg(url):
     store = fsspec.get_mapper(url)
     data = xr.open_zarr(store, consolidated=True)
     standardized = standardize_atmos_avg(data)

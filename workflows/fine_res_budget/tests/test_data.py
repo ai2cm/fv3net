@@ -1,5 +1,5 @@
 import xarray as xr
-from budget.data import open_atmos_avg, open_merged
+from budget.data import open_merged
 import budget.config
 
 
@@ -16,4 +16,3 @@ def test_open_merged(data_dirs):
         assert name in dataset
 
     assert len(dataset["time"]) > 0
-
