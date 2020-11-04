@@ -47,14 +47,14 @@ def rename_latlon(ds):
 def open_diagnostic_output(url):
     logger.info(f"Opening Diagnostic data at {url}")
     # open diagnostic output
-    ds = xr.open_zarr(fsspec.get_mapper(url))
+    ds = xr.open_zarr(fsspec.get_mapper(url), consolidated=True)
     return standardize_diagnostic_metadata(ds)
 
 
 def open_restart_data(RESTART_ZARR):
     logger.info(f"Opening restart data at {RESTART_ZARR}")
     store = fsspec.get_mapper(RESTART_ZARR)
-    restarts = xr.open_zarr(store)
+    restarts = xr.open_zarr(store, consolidated=True)
     return standardize_restart_metadata(restarts)
 
 
