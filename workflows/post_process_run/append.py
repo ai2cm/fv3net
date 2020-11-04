@@ -104,7 +104,7 @@ def _assert_chunks_match(source_group: zarr.Group, target_group: zarr.Group, dim
                 f"Cannot append {source_array} because there is no corresponding array "
                 f"in {target_group}."
             )
-        if dim in source_array.attrs[XARRAY_DIM_NAMES_ATTR]:
+        if dim != key and dim in source_array.attrs[XARRAY_DIM_NAMES_ATTR]:
             axis = source_array.attrs[XARRAY_DIM_NAMES_ATTR].index(dim)
             target_array = target_group[key]
             _assert_array_chunks_match(source_array, target_array, axis)
