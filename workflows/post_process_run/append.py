@@ -15,6 +15,7 @@ import numpy as np
 import zarr
 
 from post_process import authenticate, upload_dir
+from consolidate_metadata import consolidate_metadata
 
 logger = logging.getLogger(__file__)
 logging.basicConfig(level=logging.INFO)
@@ -208,9 +209,7 @@ def append_zarr_along_time(
         The zarr store as source_path will be modified in place.
     """
 
-    consolidate = False
     if fs.exists(target_path):
-        consolidate = True
         source_store = zarr.open(source_path, mode="r+")
         target_store = zarr.open_consolidated(fsspec.get_mapper(target_path))
         _assert_chunks_match(source_store, target_store, dim)
@@ -221,8 +220,8 @@ def append_zarr_along_time(
 
     upload_dir(source_path, target_path)
 
-    if consolidate:
-        zarr.consolidate_metadata(fsspec.get_mapper(target_path))
+    _, _, absolute_target_paths = fsspec.get_fs_token_paths(target_path)
+    consolidate_metadata(fs, absolute_target_paths[0])
 
 
 @click.command()
