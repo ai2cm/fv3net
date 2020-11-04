@@ -41,7 +41,7 @@ class StandardScaler(NormalizeTransform):
 
     kind: str = "standard"
 
-    def __init__(self, std_epsilon: np.float32 = 1e-12):
+    def __init__(self, std_epsilon: np.float32 = 1e-7):
         """Standard scaler normalizer: normalizes via (x-mean)/std
 
         Args:
