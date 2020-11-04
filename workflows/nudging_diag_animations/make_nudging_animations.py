@@ -27,7 +27,6 @@ C48_PHYSICS_VARS = [
     "TMP2m",
     "TMPsfc",
     "SPFH2m",
-    "SLMSKsfc",
 ]
 C48_WRAPPER_DIAGS_VARS = ["total_precipitation"]
 REFERENCE_RESTART_VARS = ["stc", "smc", "t2m", "q2m"]
@@ -37,7 +36,6 @@ REFERENCE_PHYSICS_VARS = [
     "SHTFLsfc_coarse",
     "tsfc_coarse",
 ]
-GRID_VARS = ["area", "lat", "lon", "latb", "lonb"]
 CATALOG = "../../catalog.yml"
 RENAME_DIMS = {"grid_xt": "x", "grid_yt": "y"}
 GRID_RENAME_DIMS = {
@@ -129,31 +127,32 @@ if __name__ == "__main__":
     nudging_physics_path = os.path.join(args.nudging_root_path, surface_zarr_name)
     nudged_C48_physics_ds = utils.drop_uninformative_coords(
         utils.remove_suffixes(
-            xr.open_zarr(fsspec.get_mapper(nudging_physics_path))[
-                C48_PHYSICS_VARS + GRID_VARS
-            ]
+            xr.open_zarr(fsspec.get_mapper(nudging_physics_path))[C48_PHYSICS_VARS]
         )
     )
 
     nudged_C48_physics_ds = nudged_C48_physics_ds.assign_coords(
-        {"time": [round_time(time.item()) for time in nudged_C48_physics_ds.time]}
+        {
+            "time": [
+                round_time(time.item()).replace(year=2016)
+                for time in nudged_C48_physics_ds.time
+            ]
+        }
     )
 
     # decide what frequency to sample -- most frequent is 2 hrs
     nudging_subset_times = nudged_C48_physics_ds.time.isel(
         time=slice(None, None, args.timestep_stride)
     )
+    nudged_C48_physics_ds = nudged_C48_physics_ds.sel(time=nudging_subset_times)
     timestamps = [
         time.item().strftime("%Y%m%d.%H%M%S") for time in nudging_subset_times
     ]
 
-    # extract grid and data variables as separate datasets
-    grid_ds = nudged_C48_physics_ds.sel(time=nudging_subset_times)[
-        GRID_VARS + ["SLMSK"]
-    ].rename(GRID_RENAME_DIMS)
-    nudged_C48_physics_ds = nudged_C48_physics_ds.sel(
-        time=nudging_subset_times
-    ).drop_vars(names=GRID_VARS + ["SLMSK"])
+    # get grid and land-sea mask from catalog
+    grid_ds = catalog["grid/c48"].to_dask()
+    slmsk = catalog["landseamask/c48"].to_dask()
+    grid_ds = xr.merge([grid_ds, slmsk]).load()
 
     if not args.baseline:
 
@@ -251,18 +250,19 @@ if __name__ == "__main__":
         .assign_coords({"derivation": ["coarsened_reference", "C48", "difference"]})
         .merge(grid_ds)
         .pipe(utils.precip_units)
-    ).load()
+    )
 
     # add land averages
     for var in COMPARISON_PLOTS:
         ds = ds.assign(
             {
                 f"{var}_land_average": utils.global_average(
-                    ds[var], ds["area"], ds["SLMSK"], "land"
+                    ds[var], ds["area"], ds["land_sea_mask"], "land"
                 )
             }
         )
 
+    ds = ds.load()
     ds.to_netcdf(os.path.join(args.output_path, "biases.nc"))
 
     logger.info("Finished preprocessing routine.")

@@ -30,7 +30,7 @@ def sum_soil_moisture(ds, thicknesses=SOIL_THICKNESS):
 
 def mask_soilm_to_land(ds, grid):
     ds_copy = ds.copy().merge(grid)
-    mask_ds = mask_to_surface_type(ds_copy, "land", surface_type_var="SLMSK")
+    mask_ds = mask_to_surface_type(ds_copy, "land", surface_type_var="land_sea_mask")
     return ds.assign({"SOILM": mask_ds["SOILM"]})
 
 
