@@ -93,3 +93,4 @@ xgcm
 zarr
 zipp
 jsonschema
+typing_extensions
