@@ -23,7 +23,7 @@ def model_type(request) -> str:
 @pytest.fixture
 def hyperparameters(model_type) -> dict:
     if model_type == "DenseModel":
-        return {"width": 4, "depth": 3}
+        return {"width": 4, "depth": 3, "loss_function": "mse"}
     else:
         raise NotImplementedError(model_type)
 

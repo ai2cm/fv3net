@@ -326,6 +326,7 @@ class DenseModel(PackedKerasModel):
         optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
         depth: int = 3,
         width: int = 16,
+        loss_function: str = "mse",
     ):
         """Initialize the DenseModel.
 
@@ -364,6 +365,7 @@ class DenseModel(PackedKerasModel):
             weights=weights,
             normalize_loss=normalize_loss,
             optimizer=optimizer,
+            loss_function=loss_function,
         )
 
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
