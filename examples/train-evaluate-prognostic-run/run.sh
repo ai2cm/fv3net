@@ -2,12 +2,11 @@
 
 set -e
 
-EXPERIMENT=2020-09-03-ignore-physics
+EXPERIMENT=2020-test
 
 argo submit \
     --from workflowtemplate/train-diags-prog \
-    -p image-tag=bdafdfb3ee3c4a7e15849b01aefc28185c69defc \
-    -p root=gs://vcm-ml-experiments/$EXPERIMENT \
+    -p root=gs://vcm-ml-scratch/$EXPERIMENT \
     -p train-test-data=gs://vcm-ml-experiments/2020-07-30-fine-res \
     -p training-config="$(< training-config.yaml)" \
     -p reference-restarts=gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts \
