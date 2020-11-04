@@ -20,10 +20,18 @@ def model_type(request) -> str:
     return request.param
 
 
+@pytest.fixture(params=["mse"])
+def loss(request) -> str:
+    return request.param
+
+
 @pytest.fixture
-def hyperparameters(model_type) -> dict:
+def hyperparameters(model_type, loss) -> dict:
     if model_type == "DenseModel":
-        return {"width": 4, "depth": 3}
+        hyperparameters = {"width": 4, "depth": 3}
+        if loss:
+            hyperparameters["loss"] = loss
+        return hyperparameters
     else:
         raise NotImplementedError(model_type)
 
@@ -155,3 +163,18 @@ def test_training_integration(
     required_names = ["model_data", "training_config.yml"]
     missing_names = set(required_names).difference(os.listdir(tmp_path))
     assert len(missing_names) == 0
+
+
+@pytest.mark.parametrize(
+    "loss, expected_loss",
+    (
+        pytest.param("mae", "mae", id="specified_loss"),
+        pytest.param(None, "mse", id="default_loss"),
+    ),
+    indirect=["loss"],
+)
+def test_dump_and_load_loss_info(loss, expected_loss, model):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        model.dump(tmpdir)
+        model_loaded = model.__class__.load(tmpdir)
+    assert model_loaded._loss == expected_loss
