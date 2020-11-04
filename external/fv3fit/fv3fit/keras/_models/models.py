@@ -112,7 +112,7 @@ class PackedKerasModel(Model):
                 deviation before computing the loss function
             optimizer: algorithm to be used in gradient descent, must subclass
                 tf.keras.optimizers.Optimizer; defaults to tf.keras.optimizers.Adam
-            loss: loss function to use. Defaults to "mse".
+            loss: loss function to use. Defaults to mean squared error.
         """
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
@@ -130,7 +130,7 @@ class PackedKerasModel(Model):
             self.weights = weights
         self._normalize_loss = normalize_loss
         self._optimizer = optimizer
-        self._loss = loss.lower()
+        self._loss = loss
 
     @property
     def model(self) -> tf.keras.Model:
@@ -355,7 +355,7 @@ class DenseModel(PackedKerasModel):
                 The number of hidden layers will be (depth - 1). Default is 3.
             width: number of neurons to use on layers between the input and output
                 layer. Default is 16.
-            loss: loss function to use. Defaults to "mse".
+            loss: loss function to use. Defaults to mean squared error.
         """
         self._depth = depth
         self._width = width
