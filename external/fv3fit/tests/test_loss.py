@@ -133,6 +133,7 @@ def test_weighted_mse(weights, std, y_true, y_pred, reference):
     result = loss(y_true, y_pred)
     np.testing.assert_almost_equal(result, reference)
 
+
 @pytest.mark.parametrize(
     "weights, std, y_true, y_pred, reference",
     [
@@ -157,7 +158,7 @@ def test_weighted_mse(weights, std, y_true, y_pred, reference):
             np.array([1.0, 1.0, 1.0]),
             np.array([0.0, 0, 0]),
             np.array([1.0, 10, 100]),
-            (0.5 + 10 + 200.) / 3,
+            (0.5 + 10 + 200.0) / 3,
             id="varying_weight_loss",
         ),
         pytest.param(
@@ -165,7 +166,7 @@ def test_weighted_mse(weights, std, y_true, y_pred, reference):
             np.array([0.5, 1.0, 2.0]),
             np.array([0.0, 0, 0]),
             np.array([1.0, 10, 100]),
-            (2. + 10 + 50.) / 3,
+            (2.0 + 10 + 50.0) / 3,
             id="varying_std_loss",
         ),
     ],

@@ -86,7 +86,7 @@ class PackedKerasModel(Model):
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
         optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
-        loss_function: str = "mse"
+        loss_function: str = "mse",
     ):
         """Initialize the model.
         
@@ -278,7 +278,6 @@ class PackedKerasModel(Model):
                 f"Invalid loss_function {self._loss_function} provided. "
                 "Allowed loss functions are {'mse', 'mae'}."
             )
-
 
     @classmethod
     def load(cls, path: str) -> Model:
