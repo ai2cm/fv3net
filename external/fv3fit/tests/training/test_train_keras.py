@@ -20,10 +20,18 @@ def model_type(request) -> str:
     return request.param
 
 
+@pytest.fixture(params=["mse"])
+def loss(request) -> str:
+    return request.param
+
+
 @pytest.fixture
-def hyperparameters(model_type) -> dict:
+def hyperparameters(model_type, loss) -> dict:
     if model_type == "DenseModel":
-        return {"width": 4, "depth": 3, "loss": "mse"}
+        hyperparameters = {"width": 4, "depth": 3}
+        if loss:
+            hyperparameters["loss"] = loss
+        return hyperparameters
     else:
         raise NotImplementedError(model_type)
 
@@ -158,23 +166,16 @@ def test_training_integration(
 
 
 @pytest.mark.parametrize(
-    "hyperparams, loss",
+    "loss, expected_loss",
     (
-        pytest.param(
-            {"width": 4, "depth": 3, "loss": "mae"}, "mae", id="specified_loss"
-        ),
-        pytest.param({"width": 4, "depth": 3}, "mse", id="default_loss"),
+        pytest.param("mae", "mae", id="specified_loss"),
+        pytest.param(None, "mse", id="default_loss"),
     ),
+    indirect=["loss"]
 )
-def test_dump_and_load_loss_info(input_variables, output_variables, hyperparams, loss):
-    model = fv3fit.keras.get_model(
-        "DenseModel",
-        loaders.SAMPLE_DIM_NAME,
-        input_variables,
-        output_variables,
-        **hyperparams,
-    )
+def test_dump_and_load_loss_info_use_fixture(loss, expected_loss, model):
     with tempfile.TemporaryDirectory() as tmpdir:
         model.dump(tmpdir)
         model_loaded = model.__class__.load(tmpdir)
-    assert model_loaded._loss == loss
+    assert model_loaded._loss == expected_loss
+    
