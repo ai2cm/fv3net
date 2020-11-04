@@ -1,5 +1,5 @@
 from typing import Iterable
-from fv3fit.keras._models.loss import _pack_weights, _weighted_mse
+from fv3fit.keras._models.loss import _pack_weights, _weighted_mse, _weighted_mae
 from fv3fit._shared import ArrayPacker
 import numpy as np
 import xarray as xr
@@ -130,5 +130,48 @@ def test_pack_weights(packer, weights, reference):
 )
 def test_weighted_mse(weights, std, y_true, y_pred, reference):
     loss = _weighted_mse(weights, std)
+    result = loss(y_true, y_pred)
+    np.testing.assert_almost_equal(result, reference)
+
+
+@pytest.mark.parametrize(
+    "weights, std, y_true, y_pred, reference",
+    [
+        pytest.param(
+            np.array([2.0]),
+            np.array([1.0]),
+            np.array([0.0]),
+            np.array([4.0]),
+            8.0,
+            id="double_single_feature_loss",
+        ),
+        pytest.param(
+            np.array([2.0]),
+            np.array([0.5]),
+            np.array([0.0]),
+            np.array([2.0]),
+            8.0,
+            id="double_single_feature_loss_low_std",
+        ),
+        pytest.param(
+            np.array([0.5, 1.0, 2.0]),
+            np.array([1.0, 1.0, 1.0]),
+            np.array([0.0, 0, 0]),
+            np.array([1.0, 10, 100]),
+            (0.5 + 10 + 200.0) / 3,
+            id="varying_weight_loss",
+        ),
+        pytest.param(
+            np.array([1.0, 1.0, 1.0]),
+            np.array([0.5, 1.0, 2.0]),
+            np.array([0.0, 0, 0]),
+            np.array([1.0, 10, 100]),
+            (2.0 + 10 + 50.0) / 3,
+            id="varying_std_loss",
+        ),
+    ],
+)
+def test_weighted_mae(weights, std, y_true, y_pred, reference):
+    loss = _weighted_mae(weights, std)
     result = loss(y_true, y_pred)
     np.testing.assert_almost_equal(result, reference)
