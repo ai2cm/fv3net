@@ -274,7 +274,10 @@ class PackedKerasModel(Model):
         elif self._loss_function == "mae":
             return get_weighted_mae(self.y_packer, std, **self.weights)
         else:
-            raise ValueError("Allowed ")
+            raise ValueError(
+                f"Invalid loss_function {self._loss_function} provided. "
+                "Allowed loss functions are {'mse', 'mae'}."
+            )
 
 
     @classmethod
