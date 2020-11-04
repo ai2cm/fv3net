@@ -12,6 +12,7 @@ import cftime
 import click
 import fsspec
 import numpy as np
+import xarray as xr
 import zarr
 
 from post_process import authenticate, upload_dir
@@ -103,7 +104,7 @@ def _assert_chunks_match(source_group: zarr.Group, target_group: zarr.Group, dim
                 f"Cannot append {source_array} because there is no corresponding array "
                 f"in {target_group}."
             )
-        if dim in source_array.attrs[XARRAY_DIM_NAMES_ATTR]:
+        if dim != key and dim in source_array.attrs[XARRAY_DIM_NAMES_ATTR]:
             axis = source_array.attrs[XARRAY_DIM_NAMES_ATTR].index(dim)
             target_array = target_group[key]
             _assert_array_chunks_match(source_array, target_array, axis)
@@ -190,6 +191,27 @@ def _get_initial_timestamp(rundir: str) -> str:
     return start_date.strftime(TIMESTAMP_FORMAT)
 
 
+def _get_merged_time_coordinate(
+    source: str, target: str, dim: str, fs: fsspec.AbstractFileSystem
+) -> xr.DataArray:
+    source_ds = xr.open_zarr(source, consolidated=True)
+    if dim in source_ds.coords:
+        if fs.exists(target):
+            target_ds = xr.open_zarr(fs.get_mapper(target), consolidated=True)
+            time = xr.concat([target_ds[dim], source_ds[dim]], dim=dim)
+        else:
+            time = source_ds[dim]
+        return time
+
+
+def _overwrite_time_array_with_single_chunk(target: str, time: xr.DataArray, dim: str):
+    if time is not None:
+        del zarr.open_group(fsspec.get_mapper(target))[dim]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            xr.Dataset({dim: time}).to_zarr(tmpdir)
+            upload_dir(tmpdir, target)
+
+
 def append_zarr_along_time(
     source_path: str, target_path: str, fs: fsspec.AbstractFileSystem, dim: str = "time"
 ):
@@ -209,6 +231,7 @@ def append_zarr_along_time(
         The zarr store as source_path will be modified in place.
     """
 
+    merged_time = _get_merged_time_coordinate(source_path, target_path, dim, fs)
     if fs.exists(target_path):
         source_store = zarr.open(source_path, mode="r+")
         target_store = zarr.open_consolidated(fsspec.get_mapper(target_path))
@@ -219,6 +242,7 @@ def append_zarr_along_time(
         os.makedirs(target_path)
 
     upload_dir(source_path, target_path)
+    _overwrite_time_array_with_single_chunk(target_path, merged_time, dim)
 
     _, _, absolute_target_paths = fsspec.get_fs_token_paths(target_path)
     consolidate_metadata(fs, absolute_target_paths[0])
