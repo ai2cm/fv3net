@@ -7,7 +7,7 @@ tensorflow
 pytest
 pytest-cov
 intake
-intake-xarray
+intake-xarray==0.3.1
 
 # requirements from loaders or synth
 zarr
