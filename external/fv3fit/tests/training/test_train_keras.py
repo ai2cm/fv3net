@@ -173,7 +173,7 @@ def test_training_integration(
     ),
     indirect=["loss"],
 )
-def test_dump_and_load_loss_info_use_fixture(loss, expected_loss, model):
+def test_dump_and_load_loss_info(loss, expected_loss, model):
     with tempfile.TemporaryDirectory() as tmpdir:
         model.dump(tmpdir)
         model_loaded = model.__class__.load(tmpdir)
