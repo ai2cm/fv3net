@@ -14,6 +14,7 @@ import yaml
 
 logger = logging.getLogger(__file__)
 
+LOSS = {"mse": get_weighted_mse, "mae": get_weighted_mae}
 
 class Model(Predictor):
     """
@@ -269,14 +270,13 @@ class PackedKerasModel(Model):
         std[std == 0] = 1.0
         if not self._normalize_loss:
             std[:] = 1.0
-        if self._loss_function == "mse":
-            return get_weighted_mse(self.y_packer, std, **self.weights)
-        elif self._loss_function == "mae":
-            return get_weighted_mae(self.y_packer, std, **self.weights)
+        if self._loss_function in LOSS:
+            loss_function_getter = LOSS[self._loss_function]
+            return loss_function_getter(self.y_packer, std, **self.weights)
         else:
             raise ValueError(
                 f"Invalid loss_function {self._loss_function} provided. "
-                "Allowed loss functions are {'mse', 'mae'}."
+                f"Allowed loss functions are {list(LOSS.keys())}."
             )
 
     @classmethod
