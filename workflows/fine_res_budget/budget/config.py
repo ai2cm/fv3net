@@ -19,17 +19,17 @@ RESTART_VARIABLES = [
 ]
 
 ATMOS_AVG_VARIABLES = [
-  "dq3dt_deep_conv_coarse",
-  "dq3dt_mp_coarse",
-  "dq3dt_pbl_coarse",
-  "dq3dt_shal_conv_coarse",
-  "dt3dt_deep_conv_coarse",
-  "dt3dt_lw_coarse",
-  "dt3dt_mp_coarse",
-  "dt3dt_ogwd_coarse",
-  "dt3dt_pbl_coarse",
-  "dt3dt_shal_conv_coarse",
-  "dt3dt_sw_coarse",
+    "dq3dt_deep_conv_coarse",
+    "dq3dt_mp_coarse",
+    "dq3dt_pbl_coarse",
+    "dq3dt_shal_conv_coarse",
+    "dt3dt_deep_conv_coarse",
+    "dt3dt_lw_coarse",
+    "dt3dt_mp_coarse",
+    "dt3dt_ogwd_coarse",
+    "dt3dt_pbl_coarse",
+    "dt3dt_shal_conv_coarse",
+    "dt3dt_sw_coarse",
 ]
 
 # Output configurations
