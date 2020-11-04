@@ -1,10 +1,13 @@
 import synth
+import xarray as xr
 from vcm import safe
 from pathlib import Path
 import pytest
 
+import budget.config
 
-def open_schema(path_relative_to_file):
+
+def open_schema(path_relative_to_file: str) -> xr.Dataset:
     path = Path(__file__)
     abspath = path.parent / path_relative_to_file
     with open(abspath) as f:
@@ -23,38 +26,11 @@ ranges = {
 def data_dirs(tmpdir):
 
     variables = [
-        "t_dt_fv_sat_adj_coarse",
-        "t_dt_nudge_coarse",
-        "t_dt_phys_coarse",
-        "qv_dt_fv_sat_adj_coarse",
-        "qv_dt_phys_coarse",
-        "eddy_flux_vulcan_omega_sphum",
-        "eddy_flux_vulcan_omega_temp",
         "grid_lat_coarse",
         "grid_latt_coarse",
         "grid_lon_coarse",
         "grid_lont_coarse",
-        "vulcan_omega_coarse",
-        "area_coarse",
     ]
-    expected_variables = [
-        "T",
-        "t_dt_fv_sat_adj_coarse",
-        "t_dt_nudge_coarse",
-        "t_dt_phys_coarse",
-        "delp",
-        "vulcan_omega_coarse",
-        "sphum",
-        "qv_dt_fv_sat_adj_coarse",
-        "qv_dt_phys_coarse",
-        "sphum_vulcan_omega_coarse",
-        "T_vulcan_omega_coarse",
-        "eddy_flux_vulcan_omega_temp",
-        "eddy_flux_vulcan_omega_sphum",
-        "T_storage",
-        "sphum_storage",
-    ]
-
     # use a small tile for much faster testing
     n = 48
 
@@ -66,9 +42,9 @@ def data_dirs(tmpdir):
         tile=[0], time=[0, 1, 2], grid_xt=slice(0, n), grid_yt=slice(0, n)
     )
 
-    diags = safe.get_variables(open_schema("diag.json"), variables).isel(
-        diag_selectors
-    )
+    diags = safe.get_variables(
+        open_schema("diag.json"), budget.config.PHYSICS_VARIABLES + variables
+    ).isel(diag_selectors)
     restart = open_schema("restart.json").isel(restart_selectors)
     atmos_avg = open_schema("atmos_avg.json").isel(diag_selectors)
 
@@ -76,10 +52,9 @@ def data_dirs(tmpdir):
     restart_path = str(tmpdir.join("restart.zarr"))
     atmos_avg_path = str(tmpdir.join("atmos_avg.zarr"))
 
+    diags.to_zarr(diag_path, mode="w", consolidated=True)
+    restart.to_zarr(restart_path, mode="w", consolidated=True)
+    atmos_avg.to_zarr(atmos_avg_path, mode="w", consolidated=True)
 
-    diags.to_zarr(diag_path, mode="w")
-    restart.to_zarr(restart_path, mode="w")
-    atmos_avg.to_zarr(atmos_avg_path, mode="w")
-
-    return diag_path, restart_path, atmos_avg_path, expected_variables
+    return diag_path, restart_path, atmos_avg_path
 

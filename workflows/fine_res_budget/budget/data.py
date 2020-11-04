@@ -17,6 +17,8 @@ import vcm
 from vcm import safe
 from vcm.convenience import round_time
 
+from . import config
+
 logger = logging.getLogger(__file__)
 
 GRID_VARIABLES = ["grid_x", "grid_y", "grid_xt", "grid_yt", "pfull", "tile"]
@@ -69,62 +71,31 @@ def standardize_atmos_avg(dataset):
 def open_atmos_avg(
     url="gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr",  # noqa
 ):
-    variables = [
-        "delp_dt_nudge_coarse",
-        "ice_wat_dt_gfdlmp_coarse",
-        "ice_wat_dt_phys_coarse",
-        "liq_wat_dt_gfdlmp_coarse",
-        "liq_wat_dt_phys_coarse",
-        "ps_dt_nudge_coarse",
-        "qg_dt_gfdlmp_coarse",
-        "qg_dt_phys_coarse",
-        "qi_dt_gfdlmp_coarse",
-        "qi_dt_phys_coarse",
-        "ql_dt_gfdlmp_coarse",
-        "ql_dt_phys_coarse",
-        "qr_dt_gfdlmp_coarse",
-        "qr_dt_phys_coarse",
-        "qs_dt_gfdlmp_coarse",
-        "qs_dt_phys_coarse",
-        "qv_dt_gfdlmp_coarse",
-        "qv_dt_phys_coarse",
-        "t_dt_gfdlmp_coarse",
-        "t_dt_nudge_coarse",
-        "t_dt_phys_coarse",
-        "u_dt_gfdlmp_coarse",
-        "u_dt_nudge_coarse",
-        "u_dt_phys_coarse",
-        "v_dt_gfdlmp_coarse",
-        "v_dt_nudge_coarse",
-        "v_dt_phys_coarse",
-    ]
     store = fsspec.get_mapper(url)
     data = xr.open_zarr(store, consolidated=True)
-    return data
     standardized = standardize_atmos_avg(data)
-    return safe.get_variables(standardized, variables)
+    return safe.get_variables(standardized, config.ATMOS_AVG_VARIABLES)
 
 
-def open_merged(restart_url: str, physics_url: str) -> xr.Dataset:
-    PHYSICS_VARIABLES = [
-        # from ShiELD diagnostics
-        "t_dt_fv_sat_adj_coarse",
-        "t_dt_nudge_coarse",
-        "t_dt_phys_coarse",
-        "qv_dt_fv_sat_adj_coarse",
-        "qv_dt_phys_coarse",
-        "eddy_flux_vulcan_omega_sphum",
-        "eddy_flux_vulcan_omega_temp",
-        "vulcan_omega_coarse",
-        "area_coarse",
-        # from restarts
-        "delp",
-        "sphum",
-        "T",
-    ]
+def open_merged(restart_url: str, physics_url: str, atmos_avg_url: str) -> xr.Dataset:
     restarts = open_restart_data(restart_url)
     diag = open_diagnostic_output(physics_url)
-    data = safe.get_variables(merge(restarts, diag), PHYSICS_VARIABLES)
+    atmos_avg = open_atmos_avg(atmos_avg_url)
+
+    shifted_restarts = shift(restarts)
+
+    merged = xr.merge(
+        [shifted_restarts, diag, atmos_avg.drop("tile")],
+        join="inner",
+        compat="override",
+    ).drop_vars(GRID_VARIABLES, errors="ignore")
+
+    data = safe.get_variables(
+        merged,
+        config.ATMOS_AVG_VARIABLES
+        + config.PHYSICS_VARIABLES
+        + config.RESTART_VARIABLES,
+    )
     num_tiles = len(data.tile)
     tiles = range(1, num_tiles + 1)
     return data.assign_coords(tile=tiles)
@@ -167,11 +138,4 @@ def shift(restarts, dt=datetime.timedelta(seconds=30, minutes=7)):
         [begin, (begin + end) / 2, end],
         dim=xr.IndexVariable("step", ["begin", "middle", "end"]),
         join="inner",
-    )
-
-
-def merge(restarts, diag):
-    restarts = shift(restarts)
-    return xr.merge([restarts, diag], join="inner", compat="override").drop_vars(
-        GRID_VARIABLES, errors="ignore"
     )
