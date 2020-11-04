@@ -60,7 +60,7 @@ if __name__ == "__main__":
     optimizer_kwargs = {}
     lr = hyper_params.pop("learning_rate", None)
     if lr == "exponential":
-        lr = tf.keras.optimizers.schedules.ExponentialDecay(0.0005, 10_000, 0.96)
+        lr = tf.keras.optimizers.schedules.ExponentialDecay(0.001, 10_000, 0.96)
     optimizer_kwargs["learning_rate"] = lr
     clipnorm = hyper_params.pop("clipnorm", None)
     optimizer_kwargs["clipnorm"] = clipnorm
