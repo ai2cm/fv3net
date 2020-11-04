@@ -9,7 +9,7 @@ import os
 from ._filesystem import get_dir, put_dir
 from ._sequences import _XyArraySequence, _ThreadedSequencePreLoader
 from .normalizer import LayerStandardScaler
-from .loss import get_weighted_mse
+from .loss import get_weighted_mse, get_weighted_mae
 import yaml
 
 logger = logging.getLogger(__file__)
@@ -86,6 +86,7 @@ class PackedKerasModel(Model):
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
         optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
+        loss_function: str = "mse"
     ):
         """Initialize the model.
         
@@ -109,6 +110,8 @@ class PackedKerasModel(Model):
                 deviation before computing the loss function
             optimizer: algorithm to be used in gradient descent, must subclass
                 tf.keras.optimizers.Optimizer; defaults to tf.keras.optimizers.Adam
+            loss_function: loss function to use. Defaults to "mse".
+                Current options are {"mse", "mae"}
         """
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
@@ -126,6 +129,7 @@ class PackedKerasModel(Model):
             self.weights = weights
         self._normalize_loss = normalize_loss
         self._optimizer = optimizer
+        self._loss_function = loss_function.lower()
 
     @property
     def model(self) -> tf.keras.Model:
@@ -265,7 +269,13 @@ class PackedKerasModel(Model):
         std[std == 0] = 1.0
         if not self._normalize_loss:
             std[:] = 1.0
-        return get_weighted_mse(self.y_packer, std, **self.weights)
+        if self._loss_function == "mse":
+            return get_weighted_mse(self.y_packer, std, **self.weights)
+        elif self._loss_function == "mae":
+            return get_weighted_mae(self.y_packer, std, **self.weights)
+        else:
+            raise ValueError("Allowed ")
+
 
     @classmethod
     def load(cls, path: str) -> Model:
