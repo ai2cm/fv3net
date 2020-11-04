@@ -11,34 +11,6 @@ PHYSICS_VARIABLES = [
     "area_coarse",
 ]
 
-ATMOS_AVG_VARIABLES = [
-    "delp_dt_nudge_coarse",
-    "ice_wat_dt_gfdlmp_coarse",
-    "ice_wat_dt_phys_coarse",
-    "liq_wat_dt_gfdlmp_coarse",
-    "liq_wat_dt_phys_coarse",
-    "qg_dt_gfdlmp_coarse",
-    "qg_dt_phys_coarse",
-    "qi_dt_gfdlmp_coarse",
-    "qi_dt_phys_coarse",
-    "ql_dt_gfdlmp_coarse",
-    "ql_dt_phys_coarse",
-    "qr_dt_gfdlmp_coarse",
-    "qr_dt_phys_coarse",
-    "qs_dt_gfdlmp_coarse",
-    "qs_dt_phys_coarse",
-    "qv_dt_gfdlmp_coarse",
-    "qv_dt_phys_coarse",
-    "t_dt_gfdlmp_coarse",
-    "t_dt_nudge_coarse",
-    "t_dt_phys_coarse",
-    "u_dt_gfdlmp_coarse",
-    "u_dt_nudge_coarse",
-    "u_dt_phys_coarse",
-    "v_dt_gfdlmp_coarse",
-    "v_dt_nudge_coarse",
-    "v_dt_phys_coarse",
-]
 
 RESTART_VARIABLES = [
     "delp",
@@ -46,6 +18,19 @@ RESTART_VARIABLES = [
     "T",
 ]
 
+ATMOS_AVG_VARIABLES = [
+  "dq3dt_deep_conv_coarse",
+  "dq3dt_mp_coarse",
+  "dq3dt_pbl_coarse",
+  "dq3dt_shal_conv_coarse",
+  "dt3dt_deep_conv_coarse",
+  "dt3dt_lw_coarse",
+  "dt3dt_mp_coarse",
+  "dt3dt_ogwd_coarse",
+  "dt3dt_pbl_coarse",
+  "dt3dt_shal_conv_coarse",
+  "dt3dt_sw_coarse",
+]
 
 # Output configurations
 VARIABLES_TO_AVERAGE = set(

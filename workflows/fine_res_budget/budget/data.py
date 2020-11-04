@@ -82,9 +82,10 @@ def open_merged(restart_url: str, physics_url: str, atmos_avg_url: str) -> xr.Da
     atmos_avg = open_atmos_avg(atmos_avg_url)
 
     shifted_restarts = shift(restarts)
+    shift_gfs = shift(atmos_avg)
 
     merged = xr.merge(
-        [shifted_restarts, diag, atmos_avg.drop("tile")],
+        [shifted_restarts, diag, shift_gfs.drop("tile")],
         join="inner",
         compat="override",
     ).drop_vars(GRID_VARIABLES, errors="ignore")
