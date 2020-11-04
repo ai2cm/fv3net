@@ -16,6 +16,7 @@ logger = logging.getLogger(__file__)
 
 LOSS = {"mse": get_weighted_mse, "mae": get_weighted_mae}
 
+
 class Model(Predictor):
     """
     Abstract base class for a machine learning model which operates on xarray
