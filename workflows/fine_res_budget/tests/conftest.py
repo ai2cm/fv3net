@@ -22,8 +22,10 @@ ranges = {
 }
 
 
-@pytest.fixture()
-def data_dirs(tmpdir):
+@pytest.fixture(scope='session')
+def data_dirs(tmpdir_factory):
+
+    tmpdir = tmpdir_factory.mktemp("input_data")
 
     variables = [
         "grid_lat_coarse",

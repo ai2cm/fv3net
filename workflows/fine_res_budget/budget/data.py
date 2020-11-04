@@ -58,14 +58,15 @@ def open_restart_data(RESTART_ZARR):
     return standardize_restart_metadata(restarts)
 
 
-def standardize_atmos_avg(dataset):
+def standardize_atmos_avg(ds: xr.Dataset) -> xr.Dataset:
+    times = np.vectorize(round_time)(ds.time)
     rename_dict = {
         "grid_x_coarse": "grid_x",
         "grid_xt_coarse": "grid_xt",
         "grid_y_coarse": "grid_y",
         "grid_yt_coarse": "grid_yt",
     }
-    return dataset.rename(rename_dict)
+    return ds.rename(rename_dict).assign_coords(time=times)
 
 
 def open_atmos_avg(

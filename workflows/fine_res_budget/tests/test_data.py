@@ -15,3 +15,5 @@ def test_open_merged(data_dirs):
     ):
         assert name in dataset
 
+    assert len(dataset["time"]) > 0
+

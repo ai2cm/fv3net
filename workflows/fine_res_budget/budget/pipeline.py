@@ -15,6 +15,7 @@ from fv3net.pipelines.common import FunctionSource
 
 import vcm
 
+from . import config
 from . import budgets
 from .data import open_merged
 
@@ -122,17 +123,21 @@ class OpenTimeChunks(beam.PTransform):
         )
 
 
-def run(restart_url, physics_url, output_dir, extra_args=()):
+def run(restart_url, physics_url, atmos_avg_url, output_dir, extra_args=()):
 
     options = PipelineOptions(extra_args)
     with beam.Pipeline(options=options) as p:
 
         (
             p
-            | FunctionSource(open_merged, restart_url, physics_url)
+            | FunctionSource(open_merged, restart_url, physics_url, atmos_avg_url)
             | OpenTimeChunks()
             | "Compute Budget"
-            >> beam.Map(budgets.compute_recoarsened_budget_inputs, factor=8)
+            >> beam.Map(
+                budgets.compute_recoarsened_budget_inputs,
+                factor=config.factor,
+                first_moments=config.VARIABLES_TO_AVERAGE,
+            )
             | "Load" >> beam.Map(load)
             | "Save" >> beam.Map(save, base=output_dir)
         )

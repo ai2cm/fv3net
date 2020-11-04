@@ -11,6 +11,7 @@ import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from budget.data import shift
 from budget.pipeline import run, OpenTimeChunks
+import budget.config
 from budget.budgets import _compute_second_moment, storage
 
 
@@ -46,13 +47,13 @@ def test_OpenTimeChunks():
 
 @pytest.mark.regression
 def test_run(data_dirs, tmpdir):
-    diag_path, restart_path, expected_variables = data_dirs
+    diag_path, restart_path, atmos_avg_url = data_dirs[:3]
 
     output_path = str(tmpdir.join("out"))
-    run(restart_path, diag_path, output_path)
+    run(restart_path, diag_path, atmos_avg_url, output_path)
     ds = xr.open_mfdataset(f"{output_path}/*.nc", combine="by_coords")
 
-    for variable in expected_variables:
+    for variable in budget.config.VARIABLES_TO_AVERAGE:
         assert variable in ds
         assert "long_name" in ds[variable].attrs
         assert "units" in ds[variable].attrs
