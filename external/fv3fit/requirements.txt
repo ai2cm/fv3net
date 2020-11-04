@@ -6,6 +6,8 @@ pyyaml
 tensorflow
 pytest
 pytest-cov
+intake
+intake-xarray
 
 # requirements from loaders or synth
 zarr
