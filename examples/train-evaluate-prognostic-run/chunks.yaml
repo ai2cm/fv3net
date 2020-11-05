@@ -1,0 +1,8 @@
+atmos_daily.zarr:
+  time: 1
+sfc_dt_atmos.zarr:
+  time: 48
+atmos_dt_atmos.zarr:
+  time: 48
+diags.zarr:
+  time: 48 

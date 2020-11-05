@@ -3,19 +3,34 @@ hyperparameters:
   max_depth: 13
   n_estimators: 1
 input_variables:
-- air_temperature
-- specific_humidity
+  - air_temperature
+  - specific_humidity
+  - land_sea_mask
+  - surface_geopotential
+  - cos_zenith_angle
+  - eastward_wind
+  - northward_wind
 output_variables:
-- dQ1
-- dQ2
+  - dQ1
+  - dQ2
+  - dQu
+  - dQv
 batch_function: batches_from_geodata
 batch_kwargs:
   timesteps_per_batch: 10
-  mapping_function: open_fine_res_apparent_sources
+  mapping_function: open_merged_nudge_to_obs_full_tendencies
   mapping_kwargs:
-    offset_seconds: 450
-    rename_vars:
-      delp: pressure_thickness_of_atmospheric_layer
-      grid_xt: x
-      grid_yt: y
-      pfull: z
+    consolidated: true
+    open_checkpoints_kwargs:
+      checkpoint_files:
+        - after_dynamics.zarr
+        - after_physics.zarr
+    open_merged_nudge_to_obs_kwargs:
+      rename_vars:
+        t_dt_nudge: dQ1
+        q_dt_nudge: dQ2
+        u_dt_nudge: dQu
+        v_dt_nudge: dQv
+        grid_xt: x
+        grid_yt: y
+        pfull: z
