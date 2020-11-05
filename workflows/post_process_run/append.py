@@ -55,7 +55,7 @@ def _assert_calendars_same(source_array: zarr.Array, target_array: zarr.Array):
         raise AttributeError(
             f"Target array {target_array} missing calendar. Cannot rebase times."
         )
-    if source_array.attrs["calendar"] != target_array.attrs["calendar"]:
+    if source_array.attrs["calendar"].lower() != target_array.attrs["calendar"].lower():
         raise ValueError(
             "Calendars must be the same between source and target arrays to set "
             "time units to be the same."
