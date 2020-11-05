@@ -179,7 +179,7 @@ tomlkit==0.5.11           # via poetry
 toolz==0.10.0             # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, dask, partd
 tox==3.20.0               # via -r pip-requirements.txt
 traitlets==4.3.3          # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, metpy
-typing-extensions==3.7.4.3  # via apache-beam
+typing-extensions==3.7.4.3  # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, apache-beam
 urllib3==1.25.10          # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, kubernetes, requests
 virtualenv==20.0.33       # via tox
 wcwidth==0.2.5            # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt
