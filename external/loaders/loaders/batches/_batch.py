@@ -7,9 +7,8 @@ from typing import Iterable, Sequence, Mapping, Any, Hashable, Optional, Union, 
 import xarray as xr
 from vcm import safe
 from toolz import partition_all, compose
-from ._derived import nonderived_variables, insert_derived_fields
 from ._sequences import Map
-from .._utils import stack_dropnan_shuffle
+from .._utils import stack_dropnan_shuffle, create_derived_mapping, nonderived_variables
 from ..constants import TIME_FMT, TIME_NAME
 from ._serialized_phys import (
     SerializedSequence,
@@ -120,10 +119,9 @@ def batches_from_mapper(
     load_batch = functools.partial(_load_batch, data_mapping, variable_names,)
 
     transform = functools.partial(stack_dropnan_shuffle, random_state)
-
     load_batch = functools.partial(_load_batch, data_mapping, variable_names)
-    partial_insert_derived = insert_derived_fields(variable_names, catalog_path, res,)
-    batch_func = compose(transform, partial_insert_derived, load_batch)
+    derived_mapping = create_derived_mapping(res, catalog_path)
+    batch_func = compose(transform, derived_mapping, load_batch)
 
     seq = Map(batch_func, batched_timesteps)
     seq.attrs["times"] = times
@@ -199,8 +197,8 @@ def diagnostic_batches_from_mapper(
     batched_timesteps = list(partition_all(timesteps_per_batch, times))
 
     load_batch = functools.partial(_load_batch, data_mapping, variable_names)
-    partial_insert_derived = insert_derived_fields(variable_names, catalog_path, res,)
-    batch_func = compose(partial_insert_derived, load_batch)
+    derived_mapping = create_derived_mapping(res, catalog_path)
+    batch_func = compose(derived_mapping, load_batch)
     seq = Map(batch_func, batched_timesteps)
     seq.attrs["times"] = times
     return seq

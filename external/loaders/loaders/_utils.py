@@ -1,9 +1,10 @@
+import intake
 import numpy as np
 from numpy.random import RandomState
-from typing import Tuple
+from typing import Tuple, Sequence
 import xarray as xr
 import vcm
-from vcm import safe, net_heating, net_precipitation
+from vcm import safe, net_heating, net_precipitation, DerivedMapping
 from vcm.convenience import round_time
 
 from .constants import SAMPLE_DIM_NAME, TIME_NAME
@@ -17,10 +18,48 @@ CLOUDS_OFF_TEMP_TENDENCIES = [
 ]
 CLOUDS_OFF_SPHUM_TENDENCIES = ["tendency_of_specific_humidity_due_to_turbulence"]
 Z_DIM_NAMES = ["z", "pfull"]
+EAST_NORTH_WIND_TENDENCIES = ["dQu", "dQv"]
+X_Y_WIND_TENDENCIES = ["dQxwind", "dQywind"]
 
 Time = str
 Tile = int
 K = Tuple[Time, Tile]
+
+
+def nonderived_variables(requested: Sequence[str], available: Sequence[str]):
+    derived = [var for var in requested if var not in available]
+    nonderived = [var for var in requested if var in available]
+    # if E/N winds not in underlying data, need to load x/y wind
+    # tendencies to derive them
+    if any(var in derived for var in EAST_NORTH_WIND_TENDENCIES):
+        nonderived += X_Y_WIND_TENDENCIES
+    return nonderived
+def create_derived_mapping(res: str, catalog_path: str, ds: xr.Dataset) -> DerivedMapping:
+    ds = _add_grid_rotation(res, catalog_path, ds)
+    return DerivedMapping(ds)
+
+
+def _add_grid_rotation(res: str, catalog_path: str, ds: xr.Dataset) -> xr.Dataset:
+    grid = _load_grid(res, catalog_path)
+    rotation = _load_wind_rotation_matrix(res, catalog_path)
+    common_coords = {"x": ds["x"].values, "y": ds["y"].values}
+    rotation = rotation.assign_coords(common_coords)
+    grid = grid.assign_coords(common_coords)
+    return xr.merge([ds, grid, rotation])
+
+
+def _load_grid(res: str, catalog_path: str) -> xr.Dataset:
+    cat = intake.open_catalog(catalog_path)
+    grid = cat[f"grid/{res}"].to_dask()
+    land_sea_mask = cat[f"landseamask/{res}"].to_dask()
+    grid = grid.assign({"land_sea_mask": land_sea_mask["land_sea_mask"]})
+    grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
+    return grid
+
+
+def _load_wind_rotation_matrix(res: str, catalog_path: str) -> xr.Dataset:
+    cat = intake.open_catalog(catalog_path)
+    return cat[f"wind_rotation/{res}"].to_dask()
 
 
 def get_sample_dataset(mapper):
