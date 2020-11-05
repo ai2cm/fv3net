@@ -10,6 +10,7 @@ import sklearn.metrics as skmetrics
 
 from fv3fit.keras import get_model_class
 from loaders.batches import batches_from_serialized
+from loaders import shuffle
 from report import insert_report_figure, create_html
 
 # TODO move into public usage api
@@ -130,9 +131,10 @@ if __name__ == "__main__":
     model = model.load(args.model_path)
 
     test_data = batches_from_serialized(args.test_data)
+    # TODO add test range, currently 5 days
+    test_data = shuffle(test_data[(len(test_data) - 96 * 5):], seed=105)
     if args.num_test_batches is not None:
-        test_range = len(test_data) - args.num_test_batches
-        test_data = test_data[test_range:]
+        test_data = test_data[:args.num_test_batches]
 
     # Metadata
     metadata = {
