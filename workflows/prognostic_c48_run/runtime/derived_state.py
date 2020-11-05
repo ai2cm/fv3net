@@ -20,7 +20,7 @@ class FV3StateMapper:
     def __getitem__(self, key: str) -> xr.DataArray:
         if key == "time":
             time = self._getter.get_state(["time"])["time"]
-            return xr.DataArray(time, dims=["time"], coords={"time": [time]})
+            return xr.DataArray(time, name="time")
         elif key == "latent_heat_flux":
             return self._getter.get_diagnostic_by_name("lhtfl").data_array
         elif key == "total_water":

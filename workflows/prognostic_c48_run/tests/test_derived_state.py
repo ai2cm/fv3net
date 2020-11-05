@@ -52,6 +52,7 @@ def test_DerivedFV3State_cos_zenith():
     getter = DerivedFV3State(fv3gfs)
     output = getter["cos_zenith_angle"]
     assert isinstance(output, xr.DataArray)
+    assert "time" not in output.dims
 
 
 def test_DerivedFV3State_latent_heat_flux():
