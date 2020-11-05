@@ -85,19 +85,22 @@ spec:
           input_variables:
             - air_temperature
             - specific_humidity
+            - cos_zenith_angle
+            - land_sea_mask
+            - surface_geopotential
+            - eastward_wind
+            - northward_wind
           output_variables:
             - dQ1
             - dQ2
+            - dQu
+            - dQv
           batch_function: batches_from_geodata
           batch_kwargs:
             timesteps_per_batch: 1
             mapping_function: open_merged_nudged_full_tendencies
             mapping_kwargs:
               consolidated: True
-              open_merged_nudged_kwargs:
-                rename_vars:
-                  air_temperature_tendency_due_to_nudging: dQ1
-                  specific_humidity_tendency_due_to_nudging: dQ2
       - name: prognostic-run-config
         value: |
           base_version: v0.5
