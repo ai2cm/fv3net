@@ -2,9 +2,9 @@ default_experiment
 2016 08 01 00 0 0
 #output files
 "atmos_static",                                 -1,  "hours",    1, "hours",  "time"
-"atmos_output",                                  5,  "hours",    1, "hours",  "time"
-"physics_output",                                0,  "hours",    1, "hours",  "time"  # frequency set by fhout namelist parameter
-"physics_tendency_components",                   0,  "hours",    1, "hours",  "time"  # frequency set by fhout namelist parameter
+"atmos_output",                                  3,  "hours",    1, "hours",  "time"
+"physics_output",                                3,  "hours",    1, "hours",  "time"  # frequency set by fhout namelist parameter
+"physics_tendency_components",                   5,  "hours",    1, "hours",  "time"  # frequency set by fhout namelist parameter
 "nudging_tendencies",                            5,  "hours",    1, "hours",  "time"
 #
 #output variables
@@ -28,7 +28,7 @@ default_experiment
  "dynamics",  "us",          "UGRDlowest",    "atmos_output", "all", .false.,  "none", 2
  "dynamics",  "u850",        "UGRD850",       "atmos_output", "all", .false.,  "none", 2
  "dynamics",  "u500",        "UGRD500",       "atmos_output", "all", .false.,  "none", 2
- "dynamics",  "u250",        "UGRD200",       "atmos_output", "all", .false.,  "none", 2
+ "dynamics",  "u200",        "UGRD200",       "atmos_output", "all", .false.,  "none", 2
  "dynamics",  "u50",         "UGRD50",        "atmos_output", "all", .false.,  "none", 2
 ###
  "dynamics",  "vs",          "VGRDlowest",    "atmos_output", "all", .false.,  "none", 2
@@ -152,6 +152,7 @@ default_experiment
  "gfs_sfc",   "SOILT2",         "SOILT2",     "physics_output",         "all",  .false.,  "none",  2
  "gfs_sfc",   "SOILT3",         "SOILT3",     "physics_output",         "all",  .false.,  "none",  2
  "gfs_sfc",   "SOILT4",         "SOILT4",     "physics_output",         "all",  .false.,  "none",  2
+ "dynamics", "column_moistening_nudge", "column_moistening_nudge", "physics_output", "all", .false., "none", 2
 
 ###
 # nudging_tendencies
