@@ -1,6 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 resources:
-- fv3net/workflows/argo
+- ../fv3net/workflows/argo
 kind: Kustomization
 images:
 - name: us.gcr.io/vcm-ml/fv3fit

@@ -1,11 +1,10 @@
 base_version: v0.5
-diag_table: gs://vcm-ml-experiments/diag_tables/nudge_to_obs_5h/v1.2/diag_table
+diag_table: gs://vcm-ml-experiments/diag_tables/nudge_to_obs_3h/v1.21/diag_table
 initial_conditions: gs://vcm-ml-data/2020-02-10-C48-20150101.00Z_IC
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 namelist:
   atmos_model_nml:
-    fhout: 5.0
-    fhmax: 10000
+    fhout: 3.0
   coupler_nml:
     current_date:
     - 2015
@@ -32,8 +31,7 @@ namelist:
     mountain: false
     na_init: 1
   gfs_physics_nml:
-    fhzero: 5.0
-    ldiag3d: true
+    fhzero: 3.0
   gfdl_cloud_microphysics_nml:
     fast_sat_adj: false
   fv_nwp_nudge_nml:

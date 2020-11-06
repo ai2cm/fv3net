@@ -2,8 +2,8 @@ default_experiment
 2016 08 01 00 0 0
 #output files
 "atmos_static",                                 -1,  "hours",    1, "hours",  "time"
-"atmos_output",                                  5,  "hours",    1, "hours",  "time"
-"physics_output",                                5,  "hours",    1, "hours",  "time"  # frequency set by fhout namelist parameter
+"atmos_output",                                  3,  "hours",    1, "hours",  "time"
+"physics_output",                                3,  "hours",    1, "hours",  "time"  # frequency set by fhout namelist parameter
 "nudging_tendencies",                            5,  "hours",    1, "hours",  "time"
 #
 #output variables
@@ -123,7 +123,7 @@ default_experiment
  "gfs_sfc",   "SOILT2",         "SOILT2",     "physics_output",         "all",  .false.,  "none",  2
  "gfs_sfc",   "SOILT3",         "SOILT3",     "physics_output",         "all",  .false.,  "none",  2
  "gfs_sfc",   "SOILT4",         "SOILT4",     "physics_output",         "all",  .false.,  "none",  2
- "dynamics", "column_moistening_nudge", "column_moistening_nudge", "physics_output",  "all",  .false.,  "none",  2
+ "dynamics", "column_moistening_nudge", "column_moistening_nudge", "physics_output", "all", .false., "none", 2
 
 ###
 # nudging_tendencies
