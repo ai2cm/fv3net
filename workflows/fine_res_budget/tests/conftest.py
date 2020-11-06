@@ -48,14 +48,14 @@ def data_dirs(tmpdir_factory):
         open_schema("diag.json"), budget.config.PHYSICS_VARIABLES + variables
     ).isel(diag_selectors)
     restart = open_schema("restart.json").isel(restart_selectors)
-    atmos_avg = open_schema("atmos_avg.json").isel(diag_selectors)
+    gfsphysics = open_schema("gfsphysics.json").isel(diag_selectors)
 
     diag_path = str(tmpdir.join("diag.zarr"))
     restart_path = str(tmpdir.join("restart.zarr"))
-    atmos_avg_path = str(tmpdir.join("atmos_avg.zarr"))
+    gfsphysics_path = str(tmpdir.join("gfsphysics.zarr"))
 
     diags.to_zarr(diag_path, mode="w", consolidated=True)
     restart.to_zarr(restart_path, mode="w", consolidated=True)
-    atmos_avg.to_zarr(atmos_avg_path, mode="w", consolidated=True)
+    gfsphysics.to_zarr(gfsphysics_path, mode="w", consolidated=True)
 
-    return diag_path, restart_path, atmos_avg_path
+    return diag_path, restart_path, gfsphysics_path

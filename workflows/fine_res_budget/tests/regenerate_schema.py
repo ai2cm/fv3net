@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 
 diagurl = "gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr"  # noqa
 restart_url = "gs://vcm-ml-experiments/2020-06-02-fine-res/2020-05-27-40-day-X-SHiELD-simulation-C384-restart-files.zarr"  # noqa
-atmos_avg_url = "gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/gfsphysics_15min_coarse.zarr/"  # noqa
+gfsphysics_url = "gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/gfsphysics_15min_coarse.zarr/"  # noqa
 lo_res_coords = ("time", "tile", "grid_xt", "grid_yt", "pfull")
 
 hires_coords = [
@@ -45,7 +45,7 @@ with open("restart.json", "w") as f:
 
 
 schema = get_schema(
-    atmos_avg_url,
+    gfsphysics_url,
     coords=[
         "grid_x_coarse",
         "grid_xt_coarse",
@@ -57,5 +57,5 @@ schema = get_schema(
         "time",
     ],
 )
-with open("atmos_avg.json", "w") as f:
+with open("gfsphysics.json", "w") as f:
     synth.dump(schema, f)

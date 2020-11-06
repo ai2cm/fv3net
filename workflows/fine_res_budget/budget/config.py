@@ -18,7 +18,7 @@ RESTART_VARIABLES = [
     "T",
 ]
 
-ATMOS_AVG_VARIABLES = [
+GFSPHYSICS_VARIABLES = [
     "dq3dt_deep_conv_coarse",
     "dq3dt_mp_coarse",
     "dq3dt_pbl_coarse",
@@ -34,7 +34,7 @@ ATMOS_AVG_VARIABLES = [
 
 # Output configurations
 VARIABLES_TO_AVERAGE = set(
-    ATMOS_AVG_VARIABLES + PHYSICS_VARIABLES + RESTART_VARIABLES
+    GFSPHYSICS_VARIABLES + PHYSICS_VARIABLES + RESTART_VARIABLES
 ) - {"area_coarse", "delp"}
 # coarsening factor. C384 to C48 is a factor of 8
 factor = 8

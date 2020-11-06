@@ -1,7 +1,6 @@
 import logging
 from typing import Iterable, Sequence, Hashable, Mapping
 from itertools import product
-import tempfile
 import os
 import xarray as xr
 
@@ -62,14 +61,14 @@ class OpenTimeChunks(beam.PTransform):
         )
 
 
-def run(restart_url, physics_url, atmos_avg_url, output_dir, extra_args=()):
+def run(restart_url, physics_url, gfsphysics_url, output_dir, extra_args=()):
 
     options = PipelineOptions(extra_args)
     with beam.Pipeline(options=options) as p:
 
         (
             p
-            | FunctionSource(open_merged, restart_url, physics_url, atmos_avg_url)
+            | FunctionSource(open_merged, restart_url, physics_url, gfsphysics_url)
             | OpenTimeChunks()
             | "Compute Budget"
             >> beam.Map(

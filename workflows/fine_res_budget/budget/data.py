@@ -58,7 +58,7 @@ def open_restart_data(RESTART_ZARR):
     return standardize_restart_metadata(restarts)
 
 
-def standardize_atmos_avg(ds: xr.Dataset) -> xr.Dataset:
+def standardize_gfsphysics(ds: xr.Dataset) -> xr.Dataset:
     times = np.vectorize(round_time)(ds.time)
     rename_dict = {
         "grid_x_coarse": "grid_x",
@@ -69,20 +69,20 @@ def standardize_atmos_avg(ds: xr.Dataset) -> xr.Dataset:
     return ds.rename(rename_dict).assign_coords(time=times)
 
 
-def open_atmos_avg(url):
+def open_gfsphysics(url):
     store = fsspec.get_mapper(url)
     data = xr.open_zarr(store, consolidated=True)
-    standardized = standardize_atmos_avg(data)
-    return safe.get_variables(standardized, config.ATMOS_AVG_VARIABLES)
+    standardized = standardize_gfsphysics(data)
+    return safe.get_variables(standardized, config.GFSPHYSICS_VARIABLES)
 
 
-def open_merged(restart_url: str, physics_url: str, atmos_avg_url: str) -> xr.Dataset:
+def open_merged(restart_url: str, physics_url: str, gfsphysics_url: str) -> xr.Dataset:
     restarts = open_restart_data(restart_url)
     diag = open_diagnostic_output(physics_url)
-    atmos_avg = open_atmos_avg(atmos_avg_url)
+    gfsphysics = open_gfsphysics(gfsphysics_url)
 
     shifted_restarts = shift(restarts)
-    shift_gfs = shift(atmos_avg)
+    shift_gfs = shift(gfsphysics)
 
     merged = xr.merge(
         [shifted_restarts, diag, shift_gfs.drop("tile")],
@@ -92,7 +92,7 @@ def open_merged(restart_url: str, physics_url: str, atmos_avg_url: str) -> xr.Da
 
     data = safe.get_variables(
         merged,
-        config.ATMOS_AVG_VARIABLES
+        config.GFSPHYSICS_VARIABLES
         + config.PHYSICS_VARIABLES
         + config.RESTART_VARIABLES,
     )
