@@ -20,6 +20,12 @@ CLOUDS_OFF_SPHUM_TENDENCIES = ["tendency_of_specific_humidity_due_to_turbulence"
 Z_DIM_NAMES = ["z", "pfull"]
 EAST_NORTH_WIND_TENDENCIES = ["dQu", "dQv"]
 X_Y_WIND_TENDENCIES = ["dQxwind", "dQywind"]
+WIND_ROTATION_COEFFICIENTS = [
+    "eastward_wind_u_coeff",
+    "eastward_wind_v_coeff",
+    "northward_wind_u_coeff",
+    "northward_wind_v_coeff",
+]
 
 Time = str
 Tile = int
@@ -34,9 +40,12 @@ def nonderived_variables(requested: Sequence[str], available: Sequence[str]):
     if any(var in derived for var in EAST_NORTH_WIND_TENDENCIES):
         nonderived += X_Y_WIND_TENDENCIES
     return nonderived
-def create_derived_mapping(res: str, catalog_path: str, ds: xr.Dataset) -> DerivedMapping:
+
+
+def get_derived_dataset(variables: Sequence[str], res: str, catalog_path: str, ds: xr.Dataset) -> xr.Dataset:
     ds = _add_grid_rotation(res, catalog_path, ds)
-    return DerivedMapping(ds)
+    derived_mapping = DerivedMapping(ds)
+    return derived_mapping.dataset(variables)
 
 
 def _add_grid_rotation(res: str, catalog_path: str, ds: xr.Dataset) -> xr.Dataset:
@@ -53,13 +62,13 @@ def _load_grid(res: str, catalog_path: str) -> xr.Dataset:
     grid = cat[f"grid/{res}"].to_dask()
     land_sea_mask = cat[f"landseamask/{res}"].to_dask()
     grid = grid.assign({"land_sea_mask": land_sea_mask["land_sea_mask"]})
-    grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
-    return grid
+    return safe.get_variables(grid, ["lat", "lon", "land_sea_mask"])
 
 
 def _load_wind_rotation_matrix(res: str, catalog_path: str) -> xr.Dataset:
     cat = intake.open_catalog(catalog_path)
-    return cat[f"wind_rotation/{res}"].to_dask()
+    rotation = cat[f"wind_rotation/{res}"].to_dask()
+    return safe.get_variables(rotation, WIND_ROTATION_COEFFICIENTS)
 
 
 def get_sample_dataset(mapper):
