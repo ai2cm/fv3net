@@ -14,6 +14,8 @@ COPY docker/fv3fit/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh && \
     /entrypoint.sh
 
+ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/key.json
+
 WORKDIR /fv3fit
 ENTRYPOINT [ "/entrypoint.sh" ]
 
