@@ -1,3 +1,3 @@
 all:
-	kubectl apply -k fv3net/workflows/argo
+	./kustomize build . | kubectl apply -f -
 	./run.sh

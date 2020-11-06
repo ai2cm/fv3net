@@ -4,7 +4,6 @@ set -e
 
 argo submit \
     --from workflowtemplate/prognostic-run \
-    -p image-tag=dcee99f1378997d652995a3a653c01b3c638f0e7 \
     -p output=gs://vcm-ml-experiments/noah/prognostic_runs/2020-10-26-triggered-regressor \
     -p trained-ml=gs://vcm-ml-archive/noah/emulator/2020-10-16-triggered-regressor \
     -p reference-restarts=gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts \
