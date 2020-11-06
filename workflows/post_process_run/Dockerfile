@@ -18,6 +18,7 @@ RUN gcloud config set project vcm-ml
 
 COPY post_process.py /usr/local/bin/
 COPY append.py /usr/local/bin/
+COPY consolidate_metadata.py /usr/local/bin/
 RUN chmod +x /usr/local/bin/post_process.py
 RUN chmod +x /usr/local/bin/append.py
 

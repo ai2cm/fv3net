@@ -8,4 +8,5 @@ mypy --follow-imports silent \
     workflows/prognostic_c48_run/tests/ \
     external/fv3fit/fv3fit \
     external/loaders/loaders/mappers/_local.py \
-    external/loaders/loaders/batches/_sequences.py
+    external/loaders/loaders/batches/_sequences.py \
+    external/vcm/vcm/derived_mapping.py
