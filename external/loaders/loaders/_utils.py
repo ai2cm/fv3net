@@ -17,6 +17,7 @@ CLOUDS_OFF_TEMP_TENDENCIES = [
 ]
 CLOUDS_OFF_SPHUM_TENDENCIES = ["tendency_of_specific_humidity_due_to_turbulence"]
 Z_DIM_NAMES = ["z", "pfull"]
+DATASET_DIM_NAME = "dataset"
 
 Time = str
 Tile = int
@@ -55,15 +56,21 @@ def stack_dropnan_shuffle(random_state: RandomState, ds: xr.Dataset,) -> xr.Data
         ds,
         SAMPLE_DIM_NAME,
         stack_dims,
-        allowed_broadcast_dims=Z_DIM_NAMES + [TIME_NAME],
+        allowed_broadcast_dims=Z_DIM_NAMES + [TIME_NAME, DATASET_DIM_NAME],
     )
     ds_no_nan = ds_stacked.dropna(SAMPLE_DIM_NAME)
     if len(ds_no_nan[SAMPLE_DIM_NAME]) == 0:
         raise ValueError(
             "No Valid samples detected. Check for errors in the training data."
         )
-    ds = ds_no_nan.transpose()
-    return shuffled(ds, SAMPLE_DIM_NAME, random_state)
+    ds_no_nan = ds_no_nan.transpose()
+    result = shuffled(ds_no_nan, SAMPLE_DIM_NAME, random_state)
+    if DATASET_DIM_NAME in ds.dims:
+        # In the multi-dataset case, preserve the same number of samples per
+        # batch as the single dataset case.
+        return result.thin({SAMPLE_DIM_NAME: ds.sizes[DATASET_DIM_NAME]})
+    else:
+        return result
 
 
 def shuffled(

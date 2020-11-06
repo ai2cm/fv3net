@@ -656,3 +656,38 @@ def _get_source_datasets(
         )
         datasets.append(ds)
     return datasets
+
+
+class MultiDatasetMapper(GeoMapper):
+    def __init__(self, mappers: Sequence[GeoMapper]):
+        self.mappers = mappers
+
+    def keys(self):
+        return set.intersection(*[set(mapper.keys()) for mapper in self.mappers])
+
+    def __getitem__(self, time):
+        if time not in self.keys():
+            raise KeyError(f"Time {time} could not be found in all datasets.")
+        else:
+            return xr.concat([mapper[time] for mapper in self.mappers], dim="dataset")
+
+
+def open_merged_nudged_multiple_datasets(
+    urls: Sequence[str],
+    open_merged_nudged_kwargs: Mapping[str, Any] = None
+):
+    """
+    Load sequence of mappers to nudged datasets containing dQ tendency terms.
+
+    Args:
+        urls: paths to directories with nudging output
+        open_merged_nudged_kwargs (optional): kwargs mapping to be passed to
+            open_merged_nudged
+
+    Returns
+        mapper of timestamps to dataset containing tendency terms with a dataset
+        dimension
+    """
+    open_merged_nudged_kwargs = open_merged_nudged_kwargs or {}
+    mappers = [open_merged_nudged(url, **open_merged_nudged_kwargs) for url in urls]
+    return MultiDatasetMapper(mappers)
