@@ -39,7 +39,7 @@ class _Encoder(json.JSONEncoder):
                 o.year, o.month, o.day, o.hour, o.minute, o.second, o.microsecond
             )
         if isinstance(o, datetime.datetime):
-            return
+            return o.isoformat()
         try:
             return o.str
         except AttributeError:
