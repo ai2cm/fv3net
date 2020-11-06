@@ -21,12 +21,11 @@ FROM bld AS test
 
 ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/key.json
 RUN --mount=type=secret,id=gcp,dst=/tmp/key.json \
-       ["bash", "pytest \
-        --cov-config=.coveragerc \
-        --cov=fv3fit \
-        --cov-report term \
-        --cov-report html:htmlcov \
-        /fv3fit/tests"]
+    pytest \
+    --cov-config=.coveragerc \
+    --cov=fv3fit \
+    --cov-report term \
+    --cov-report html:htmlcov
 
 ARG COMMIT_SHA_ARG
 ENV COMMIT_SHA=$COMMIT_SHA_ARG
