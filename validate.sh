@@ -3,9 +3,9 @@ set -e
 set -x
 
 [[ -f ./kustomize ]] || \
-    ./examples/train-evaluate-prognostic-run/install_kustomize.sh 3.8.6
+    ./install_kustomize.sh 3.8.6
 
-kustomizations="examples/train-evaluate-prognostic-run/"
+kustomizations=("examples/train-evaluate-prognostic-run/" "examples/nudge-to-fine-run/")
 
 for k in $kustomizations; do
     ./kustomize build $k
