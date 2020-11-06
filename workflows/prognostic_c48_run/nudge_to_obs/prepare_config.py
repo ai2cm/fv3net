@@ -26,6 +26,13 @@ def parse_args():
         help="number of segments for run-fv3gfs. Used for output times.",
         default=1,
     )
+    parser.add_argument(
+        "--python-output-interval",
+        type=float,
+        help="Time between python outputs in hours. If not supplied, will use "
+        "atmos_model_nml.fhout from namelist.",
+        default=None,
+    )
     return parser.parse_args()
 
 
@@ -62,7 +69,11 @@ if __name__ == "__main__":
     config = fv3kube.merge_fv3config_overlays(config, user_config)
 
     current_date = config["namelist"]["coupler_nml"]["current_date"]
-    output_interval = timedelta(hours=config["namelist"]["atmos_model_nml"]["fhout"])
+    if args.python_output_interval is None:
+        fhout = config["namelist"]["atmos_model_nml"]["fhout"]
+        output_interval = timedelta(hours=fhout)
+    else:
+        output_interval = timedelta(hours=args.python_output_interval)
     run_duration = fv3config.get_run_duration(config)
     output_times = get_output_times(
         current_date, args.segment_count * run_duration, output_interval
