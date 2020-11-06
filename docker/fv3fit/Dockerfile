@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:experimental
 FROM python:3.7.8-stretch AS bld
 
 COPY constraints.txt /tmp/constraints.txt
