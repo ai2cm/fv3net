@@ -42,7 +42,9 @@ def nonderived_variables(requested: Sequence[str], available: Sequence[str]):
     return nonderived
 
 
-def get_derived_dataset(variables: Sequence[str], res: str, catalog_path: str, ds: xr.Dataset) -> xr.Dataset:
+def get_derived_dataset(
+    variables: Sequence[str], res: str, catalog_path: str, ds: xr.Dataset
+) -> xr.Dataset:
     ds = _add_grid_rotation(res, catalog_path, ds)
     derived_mapping = DerivedMapping(ds)
     return derived_mapping.dataset(variables)

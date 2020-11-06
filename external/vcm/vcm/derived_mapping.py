@@ -68,7 +68,7 @@ def dQu(self):
     # wrapper needs a function to get available field names.
     try:
         return self["dQu"]
-    except(KeyError):
+    except (KeyError):
         wind_rotation_matrix = self.dataset(
             [
                 "eastward_wind_u_coeff",
@@ -89,7 +89,7 @@ def dQv(self):
     # wrapper needs a function to get available field names.
     try:
         return self["dQv"]
-    except(KeyError):
+    except (KeyError):
         wind_rotation_matrix = self.dataset(
             [
                 "eastward_wind_u_coeff",
