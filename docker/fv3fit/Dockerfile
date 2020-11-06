@@ -10,13 +10,14 @@ COPY external/synth /external/synth
 COPY external/fv3fit/ /fv3fit/
 COPY catalog.yml /fv3fit/catalog.yml
 
+# install gcloud sdk
+RUN apt-get update && apt-get install -y google-cloud-sdk
+RUN gcloud config set project vcm-ml
+ENV GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
+
 COPY docker/fv3fit/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh && \
     /entrypoint.sh
-    
-# install gcloud sdk
-RUN gcloud config set project vcm-ml
-ENV GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
 
 WORKDIR /fv3fit
 ENTRYPOINT [ "/entrypoint.sh" ]
