@@ -1,6 +1,6 @@
-from typing import Mapping, Union
+from typing import Mapping, Union, Sequence
 
-from vcm import safe, DerivedMapping
+from vcm import safe, DerivedMapping, parse_datetime_from_str
 import xarray as xr
 
 from fv3fit.sklearn import SklearnWrapper
@@ -19,6 +19,7 @@ class PredictionMapper(GeoMapper):
         self,
         base_mapper: GeoMapper,
         wrapped_model: Predictor,
+        variables: Sequence[str],
         z_dim: str = "z",
         rename_vars: Mapping[str, str] = None,
         grid: xr.Dataset = None,
@@ -27,9 +28,8 @@ class PredictionMapper(GeoMapper):
         self._model = wrapped_model
         self._z_dim = z_dim
         self._grid = grid
+        self._variables = variables
         self.rename_vars = rename_vars or {}
-        self._input_variables = self._model.input_variables
-        self._output_variables = self._model.output_variables
 
     def _predict(self, ds: xr.Dataset) -> xr.Dataset:
         output = self._model.predict_columnwise(ds, feature_dim=self._z_dim)
@@ -52,10 +52,10 @@ class PredictionMapper(GeoMapper):
 
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = self._base_mapper[key]
-        ds = ds.merge(self._grid)
+        ds = ds.merge(self._grid) \
+            .assign_coords({"time": parse_datetime_from_str(key)})
         derived_mapping = DerivedMapping(ds)
-        ds_derived = derived_mapping.dataset(
-            self._input_variables + self._output_variables)
+        ds_derived = derived_mapping.dataset(self._variables)
         ds_prediction = self._predict(ds_derived)
         return self._insert_prediction(ds_derived, ds_prediction)
 
