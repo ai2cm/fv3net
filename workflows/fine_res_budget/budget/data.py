@@ -58,21 +58,10 @@ def open_restart_data(RESTART_ZARR):
     return standardize_restart_metadata(restarts)
 
 
-def standardize_gfsphysics(ds: xr.Dataset) -> xr.Dataset:
-    times = np.vectorize(round_time)(ds.time)
-    rename_dict = {
-        "grid_x_coarse": "grid_x",
-        "grid_xt_coarse": "grid_xt",
-        "grid_y_coarse": "grid_y",
-        "grid_yt_coarse": "grid_yt",
-    }
-    return ds.rename(rename_dict).assign_coords(time=times)
-
-
 def open_gfsphysics(url):
     store = fsspec.get_mapper(url)
     data = xr.open_zarr(store, consolidated=True)
-    standardized = standardize_gfsphysics(data)
+    standardized = standardize_diagnostic_metadata(data)
     return safe.get_variables(standardized, config.GFSPHYSICS_VARIABLES)
 
 
