@@ -4,7 +4,7 @@ import budget.config
 
 
 def test_open_merged(data_dirs):
-    diags_url, restarts_url, gfsphysics_url = data_dirs[:3]
+    diags_url, restarts_url, gfsphysics_url = data_dirs
     dataset = open_merged(restarts_url, diags_url, gfsphysics_url)
     assert isinstance(dataset, xr.Dataset)
 

@@ -47,7 +47,7 @@ def test_OpenTimeChunks():
 
 @pytest.mark.regression
 def test_run(data_dirs, tmpdir):
-    diag_path, restart_path, gfsphysics_url = data_dirs[:3]
+    diag_path, restart_path, gfsphysics_url = data_dirs
 
     output_path = str(tmpdir.join("out"))
     run(restart_path, diag_path, gfsphysics_url, output_path)

@@ -58,17 +58,12 @@ def open_restart_data(RESTART_ZARR):
     return standardize_restart_metadata(restarts)
 
 
-def open_gfsphysics(url):
-    store = fsspec.get_mapper(url)
-    data = xr.open_zarr(store, consolidated=True)
-    standardized = standardize_diagnostic_metadata(data)
-    return safe.get_variables(standardized, config.GFSPHYSICS_VARIABLES)
-
-
 def open_merged(restart_url: str, physics_url: str, gfsphysics_url: str) -> xr.Dataset:
     restarts = open_restart_data(restart_url)
     diag = open_diagnostic_output(physics_url)
-    gfsphysics = open_gfsphysics(gfsphysics_url)
+    gfsphysics = safe.get_variables(
+        open_diagnostic_output(gfsphysics_url), config.GFSPHYSICS_VARIABLES
+    )
 
     shifted_restarts = shift(restarts)
     shift_gfs = shift(gfsphysics)
