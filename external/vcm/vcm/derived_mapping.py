@@ -63,11 +63,12 @@ def evaporation(self):
 
 @DerivedMapping.register("dQu")
 def dQu(self):
-    # try/except is a placeholder for future PR to add keys to
-    # DerivedMapping. This is currently blocked because the FV3
-    # wrapper needs a function to get available field names.
+    # try/except is a placeholder for a future PR to add keys to
+    # DerivedMapping so that the class will return this key if it already
+    # exists, and derive it if not. This is currently blocked because the
+    # FV3 wrapper needs a function to get available field names.
     try:
-        return self["dQu"]
+        return self._mapper["dQu"]
     except (KeyError):
         wind_rotation_matrix = self.dataset(
             [
@@ -84,11 +85,12 @@ def dQu(self):
 
 @DerivedMapping.register("dQv")
 def dQv(self):
-    # try/except is a placeholder for future PR to add keys to
-    # DerivedMapping. This is currently blocked because the FV3
-    # wrapper needs a function to get available field names.
+    # try/except is a placeholder for a future PR to add keys to
+    # DerivedMapping so that the class will return this key if it already
+    # exists, and derive it if not. This is currently blocked because the
+    # FV3 wrapper needs a function to get available field names.
     try:
-        return self["dQv"]
+        return self._mapper["dQv"]
     except (KeyError):
         wind_rotation_matrix = self.dataset(
             [
