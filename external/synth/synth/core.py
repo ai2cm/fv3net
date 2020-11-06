@@ -34,11 +34,7 @@ class _Encoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, np.ndarray):
             return o.tolist()
-        if isinstance(o, cftime.DatetimeJulian):
-            return datetime.datetime(
-                o.year, o.month, o.day, o.hour, o.minute, o.second, o.microsecond
-            )
-        if isinstance(o, datetime.datetime):
+        if isinstance(o, (cftime.DatetimeJulian, datetime.datetime)):
             return o.isoformat()
         try:
             return o.str
