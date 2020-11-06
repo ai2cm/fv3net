@@ -1,4 +1,3 @@
-from datetime import datetime
 import functools
 import logging
 from numpy.random import RandomState
@@ -9,7 +8,7 @@ from vcm import safe, parse_datetime_from_str
 from toolz import partition_all, compose
 from ._sequences import Map
 from .._utils import stack_dropnan_shuffle, get_derived_dataset, nonderived_variables
-from ..constants import TIME_FMT, TIME_NAME
+from ..constants import TIME_NAME
 from ._serialized_phys import (
     SerializedSequence,
     FlattenDims,
@@ -217,7 +216,7 @@ def _load_batch(
     data_vars: Iterable[str],
     keys: Iterable[Hashable],
 ) -> xr.Dataset:
-    
+
     time_coords = [parse_datetime_from_str(key) for key in keys]
     ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))
     nonderived_vars = nonderived_variables(data_vars, ds.data_vars)
