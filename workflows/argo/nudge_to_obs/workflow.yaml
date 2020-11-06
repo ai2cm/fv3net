@@ -44,7 +44,7 @@ spec:
               - {name: memory, value: "{{workflow.parameters.memory}}"}
               - {name: work-volume-name, value: "{{workflow.parameters.work-volume-name}}"}
               - {name: nudge-url, value: "{{workflow.parameters.nudge-url}}"}
-              - {name: flags, values: "{{workflow.parameters.flags}}"}
+              - {name: flags, value: "{{workflow.parameters.flags}}"}
     - name: nudge-to-obs
       inputs:
         parameters:
