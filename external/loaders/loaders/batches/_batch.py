@@ -5,7 +5,7 @@ from numpy.random import RandomState
 import pandas as pd
 from typing import Iterable, Sequence, Mapping, Any, Hashable, Optional, Union, List
 import xarray as xr
-from vcm import safe
+from vcm import safe, parse_datetime_from_str
 from toolz import partition_all, compose
 from ._sequences import Map
 from .._utils import stack_dropnan_shuffle, get_derived_dataset, nonderived_variables
@@ -217,7 +217,8 @@ def _load_batch(
     data_vars: Iterable[str],
     keys: Iterable[Hashable],
 ) -> xr.Dataset:
-    time_coords = [datetime.strptime(key, TIME_FMT) for key in keys]
+    
+    time_coords = [parse_datetime_from_str(key) for key in keys]
     ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))
     nonderived_vars = nonderived_variables(data_vars, ds.data_vars)
     ds = safe.get_variables(ds, nonderived_vars)
