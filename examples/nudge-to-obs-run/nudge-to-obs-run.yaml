@@ -1,5 +1,5 @@
 base_version: v0.5
-diag_table: gs://vcm-ml-experiments/diag_tables/nudge_to_obs_3h/v1.21/diag_table
+diag_table: gs://vcm-ml-experiments/diag_tables/nudge_to_obs_3h/v1.1/diag_table
 initial_conditions: gs://vcm-ml-data/2020-02-10-C48-20150101.00Z_IC
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 namelist:
