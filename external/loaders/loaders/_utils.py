@@ -56,7 +56,8 @@ def _add_grid_rotation(res: str, catalog_path: str, ds: xr.Dataset) -> xr.Datase
     common_coords = {"x": ds["x"].values, "y": ds["y"].values}
     rotation = rotation.assign_coords(common_coords)
     grid = grid.assign_coords(common_coords)
-    return xr.merge([ds, grid, rotation])
+    # override with dataset's land sea mask if available
+    return xr.merge([ds, grid, rotation], compat="override")
 
 
 def _load_grid(res: str, catalog_path: str) -> xr.Dataset:
