@@ -13,6 +13,8 @@ from fv3fit import _shared as shared
 import fv3fit
 from fv3fit.sklearn._train import train_model
 from offline_ml_diags._mapper import PredictionMapper
+from offline_ml_diags._helpers import load_grid_info
+
 from loaders import SAMPLE_DIM_NAME, batches, mappers
 from offline_ml_diags.compute_diags import (
     _average_metrics_dict,
@@ -252,7 +254,7 @@ def data_source_offline_config(
 
 @pytest.fixture
 def prediction_mapper(
-    mock_model, data_source_name, data_source_path, data_source_offline_config
+    mock_model, data_source_name, data_source_path, data_source_offline_config,
 ):
 
     base_mapping_function = getattr(
@@ -262,8 +264,8 @@ def prediction_mapper(
         data_source_path,
         **data_source_offline_config["batch_kwargs"].get("mapping_kwargs", {}),
     )
-
-    prediction_mapper = PredictionMapper(base_mapper, mock_model)
+    grid = load_grid_info(catalog_path="catalog.yml", res="c8_random_values")
+    prediction_mapper = PredictionMapper(base_mapper, mock_model, variables, grid=grid)
 
     return prediction_mapper
 
@@ -272,6 +274,7 @@ timesteps = ["20160801.001500", "20160801.003000"]
 variables = [
     "air_temperature",
     "specific_humidity",
+    "cos_zenith_angle",
     "dQ1",
     "dQ2",
     "pQ1",
@@ -279,6 +282,8 @@ variables = [
     "pressure_thickness_of_atmospheric_layer",
     "net_heating",
     "net_precipitation",
+    "area",
+    "land_sea_mask",
 ]
 
 
@@ -294,7 +299,6 @@ def diagnostic_batches(prediction_mapper, data_source_offline_config):
         data_source_offline_config["variables"],
         **data_source_offline_config["batch_kwargs"],
     )
-
     return diagnostic_batches
 
 
@@ -323,6 +327,9 @@ def test_compute_offline_diags(
         synth.dumps(offline_diags_output_schema_raw)
     )
     for var in set(offline_diags_output_schema.variables):
+        if var == "lat":
+            print(offline_diags_output_schema.variables[var])
+            print(offline_diags_reference_schema.variables[var])
         assert (
             offline_diags_output_schema.variables[var]
             == offline_diags_reference_schema.variables[var]
