@@ -1,4 +1,3 @@
-import os
 import save_prognostic_run_diags as savediags
 import xarray as xr
 import fsspec
