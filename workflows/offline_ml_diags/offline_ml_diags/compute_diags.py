@@ -92,8 +92,7 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
 
 
 def _compute_diags_over_batches(
-        ds_batches: Sequence[xr.Dataset],
-        grid: xr.Dataset,
+    ds_batches: Sequence[xr.Dataset], grid: xr.Dataset,
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
     """Return a set of diagnostic datasets from a sequence of batched data"""
 
@@ -101,7 +100,7 @@ def _compute_diags_over_batches(
 
     # for each batch...
     for i, ds in enumerate(ds_batches):
-        
+
         logger.info(f"Working on batch {i} diagnostics ...")
         # ...insert additional variables
         ds = (
@@ -208,7 +207,9 @@ def _get_prediction_mapper(args, config: Mapping, variables: Sequence[str]):
     model = model_loader(args.model_path, **loader_kwargs)
     model_mapper_kwargs = config.get("model_mapper_kwargs", {})
     logger.info("Creating prediction mapper")
-    return PredictionMapper(base_mapper, model, grid=grid, variables=variables, **model_mapper_kwargs)
+    return PredictionMapper(
+        base_mapper, model, grid=grid, variables=variables, **model_mapper_kwargs
+    )
 
 
 if __name__ == "__main__":

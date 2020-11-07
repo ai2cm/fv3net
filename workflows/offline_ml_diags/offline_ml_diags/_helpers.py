@@ -16,7 +16,10 @@ GRID_INFO_VARS = [
     "eastward_wind_v_coeff",
     "northward_wind_u_coeff",
     "northward_wind_v_coeff",
-    "lat", "lon", "land_sea_mask", "area"
+    "lat",
+    "lon",
+    "land_sea_mask",
+    "area",
 ]
 
 
@@ -102,8 +105,7 @@ def get_metric_string(
 
 
 def column_integrated_metric_names(metrics):
-    names = set([
-        key.split("/")[2] for key in metrics.keys()])
+    names = set([key.split("/")[2] for key in metrics.keys()])
     return [name for name in names if "column_integrated" in name]
 
 
