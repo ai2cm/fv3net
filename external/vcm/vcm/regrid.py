@@ -8,7 +8,6 @@ from scipy.interpolate import interp1d
 from scipy.spatial import KDTree
 
 from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
-from vcm.convenience import open_dataset, replace_esmf_coords_reg_latlon
 
 
 def regrid_to_shared_coords(
@@ -279,46 +278,3 @@ def interpolate_unstructured(
     output = stacked.isel({dim_name: indices})
     output = output.drop(dim_name)
     return output.assign_coords(coords)
-
-
-def main():
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("dataset_tag")
-    parser.add_argument("output_zarr")
-    parser.add_argument("-f", "--force_regrid", action="store_true")
-    parser.add_argument("--data-3d", default=None)
-    args = parser.parse_args()
-
-    print("Opening data")
-    if args.data_3d:
-        data_3d = xr.open_zarr(args.data_3d)
-    else:
-        data_3d = open_dataset(args.dataset_tag)
-
-    if args.force_regrid:
-        print("Regridding all variables from target dataset.")
-        partial_zarr_output = None
-        open_mode = "w"
-    else:
-        open_mode = "a"
-        try:
-            partial_zarr_output = zr.open(args.output_zarr, mode="a")
-            print(f"Regridding variables not already present in: {args.output_zarr}")
-        except ValueError:
-            # TODO: debug statement about not finding previous partial regrid output
-            partial_zarr_output = None
-
-    data_out = regrid_horizontal(data_3d, prev_regrid_dataset=partial_zarr_output)
-
-    # TODO: Probably should put the coordinate change somewhere in regrid_horizontal
-    data_out = replace_esmf_coords_reg_latlon(data_out)
-
-    print("Output data:")
-    print(data_out)
-    data_out.to_zarr(args.output_zarr, mode=open_mode)
-
-
-if __name__ == "__main__":
-    main()

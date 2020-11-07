@@ -3,7 +3,6 @@ import numpy as np
 import xarray as xr
 from numba import jit
 from scipy.ndimage import map_coordinates
-from vcm.convenience import open_dataset
 
 
 @jit
@@ -239,29 +238,3 @@ def storage_and_advection(data_3d, tracers, time_step):
         data_vars["storage_" + key] = storage
 
     return xr.Dataset(data_vars)
-
-
-def main():
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("input_key")
-    parser.add_argument("output_zarr")
-    parser.add_argument("--time-step", type=float, default=3 * 3600)
-
-    advect_variables = ["qv", "temp"]
-
-    args = parser.parse_args()
-
-    data_3d = open_dataset(args.input_key)
-    print("Processing this 3D dataset:")
-    print()
-    print(data_3d)
-    sources = storage_and_advection(
-        data_3d, tracers=advect_variables, time_step=args.time_step
-    )
-    sources.to_zarr(args.output_zarr, mode="a")
-
-
-if __name__ == "__main__":
-    main()
