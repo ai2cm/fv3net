@@ -58,7 +58,3 @@ def test_dump_nc_no_seek():
 @pytest.mark.parametrize("func", savediags._DIAG_FNS)
 def test_compute_diags_succeeds(func, resampled, verification, grid):
     func(resampled, verification, grid)
-
-
-def test__catalog():
-    assert os.path.isfile(savediags._catalog())
