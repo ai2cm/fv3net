@@ -132,9 +132,9 @@ if __name__ == "__main__":
 
     test_data = batches_from_serialized(args.test_data)
     # TODO add test range, currently 5 days
-    test_data = shuffle(test_data[(len(test_data) - 96 * 5):], seed=105)
+    test_data = shuffle(test_data[(len(test_data) - 96 * 5) :], seed=105)
     if args.num_test_batches is not None:
-        test_data = test_data[:args.num_test_batches]
+        test_data = test_data[: args.num_test_batches]
 
     # Metadata
     metadata = {
