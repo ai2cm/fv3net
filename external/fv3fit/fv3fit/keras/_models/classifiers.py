@@ -60,10 +60,13 @@ class DenseClassifierModel(DenseModel):
                 n_features_in, n_features_out, weights=self._loss_weights
             )
 
+            default_thresh = self.y_scaler.std.max() * 10 ** -4
+            self._threshold = (
+                true_threshold if true_threshold is not None else default_thresh
+            )
+
         Xy = _TargetToBool(self.X_packer, self.y_packer, batches)
-        default_thresh = self.y_scaler.std.max() * 10 ** -4
-        thresh = true_threshold if true_threshold is not None else default_thresh
-        Xy.set_y_thresh(thresh)
+        Xy.set_y_thresh(self._threshold)
 
         if balance_samples:
             Xy = _BalanceNegativeSkewBinary(Xy)
