@@ -4,17 +4,14 @@ k8s entrypoint for emulation
 
 import argparse
 import logging
-import xarray as xr
 import tensorflow as tf
-from functools import partial
 from pathlib import Path
-from typing import Sequence
 
 from fv3fit.keras import get_model
 from fv3fit.keras._models.classifiers import DenseClassifierModel
 from fv3fit._shared import load_model_training_config
 from loaders.batches import batches_from_serialized
-from loaders import shuffle, FunctionOutputSequence
+from loaders import shuffle
 
 logger = logging.getLogger(__name__)
 
@@ -38,14 +35,6 @@ def parse_args():
     return parser.parse_args()
 
 
-def add_tdt_update(seq: Sequence, item: int) -> xr.Dataset:
-    ds = seq[item]
-    update = ds.tdt_output - ds.tdt_input
-    update.attrs.update(ds.tdt_input.attrs)
-    ds["tdt_update"] = update
-    return ds
-
-
 if __name__ == "__main__":
 
     args = parse_args()
@@ -60,9 +49,6 @@ if __name__ == "__main__":
     seed = config.batch_kwargs.get("seed", None)
     batches = batches_from_serialized(args.train_data_path)
     train = shuffle(batches[slice(*train_range)], seed=seed)
-    adjusted_train = FunctionOutputSequence(
-        partial(add_tdt_update, train), list(range(len(train)))
-    )
 
     hyper_params = config.hyperparameters
     fit_kwargs = config.hyperparameters.pop("fit_kwargs", {})
@@ -93,7 +79,7 @@ if __name__ == "__main__":
         hyper_params["classifiers"] = classifiers
 
     # TODO is var name handling okay?
-    sample = adjusted_train[0]
+    sample = train[0]
     input_vars = [var for var in sample if "input" in var]
     output_vars = [var for var in sample if "output" in var]
 
@@ -104,7 +90,7 @@ if __name__ == "__main__":
         output_vars if config.output_variables is None else config.output_variables,
         **hyper_params,
     )
-    model.fit(adjusted_train, **fit_kwargs)
+    model.fit(train, **fit_kwargs)
     logger.info(model._model.summary())
 
     model_output_path = Path(args.output_data_path, "keras_model")

@@ -178,6 +178,8 @@ def open_serialized_physics_data(
     if drop_const:
         ds_phys = _drop_const_vars(ds_phys)
 
+    ds_phys = _add_tdt_update(ds_phys)
+
     return ds_phys
 
 
@@ -194,6 +196,13 @@ def _add_var_suffix(ds: xr.Dataset, suffix: str) -> xr.Dataset:
 
     rename_map = {var: f"{var}_{suffix}" for var in ds.data_vars}
     return ds.rename(rename_map)
+
+
+def _add_tdt_update(ds: xr.Dataset) -> xr.Dataset:
+    update = ds.tdt_output - ds.tdt_input
+    update.attrs.update(ds.tdt_input.attrs)
+    ds["tdt_update"] = update
+    return ds
 
 
 def _drop_const_vars(ds: xr.Dataset) -> xr.Dataset:
