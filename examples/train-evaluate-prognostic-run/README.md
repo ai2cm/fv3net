@@ -14,7 +14,7 @@ The configurations are contained in three places:
 1. `prognostic-run.yaml` contains the prognostic run configurations
 1. `training-config.yaml` contains the ML model settings
 1. `run.sh` contains other configurations, such as the output location,
-   timestep selection, fv3net commit SHA, etc.
+   timestep selection, etc.
 
 
 ## Recommended workflow
@@ -26,17 +26,12 @@ currently points to shortend lists of training/testing times in these lines:
     -p test-times="$(<  ../../test_short.json)" \
 
 
-Once your configurations are ready, submit a testing run by running `make`. If
+Once your configurations are ready, submit a testing run by running 
+`make submit_train_evaluate_prognostic_run` from the `examples` directory. If
 that completes successfully, adjust the lines to point to the full list of
 timesteps:
 
     -p train-times="$(<  ../../train.json)" \
     -p test-times="$(<  ../../test.json)" \
 
-Delete any existing GCS outputs (or rename the output directory) and rerun
-with `make`.
-
-## Updating the fv3net submodule
-
-To take advantage of upstream changes to the argo workflows you can update
-the `fv3net` submodules in this folder.
+Delete any existing GCS outputs (or rename the output directory) and rerun.
