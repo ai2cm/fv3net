@@ -9,7 +9,6 @@ COPY external/vcm/ /external/vcm/
 COPY external/loaders/ /external/loaders/
 COPY external/synth /external/synth
 COPY external/fv3fit/ /fv3fit/
-COPY catalog.yml /fv3fit/catalog.yml
 
 COPY docker/fv3fit/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh && \

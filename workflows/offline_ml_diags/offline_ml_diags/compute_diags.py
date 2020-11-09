@@ -1,5 +1,4 @@
 import argparse
-import intake
 import logging
 import json
 import numpy as np
@@ -14,6 +13,8 @@ import diagnostics_utils as utils
 import loaders
 from vcm import safe
 from vcm.cloud import get_fs
+import vcm.catalog
+
 from fv3fit import PRODUCTION_MODEL_TYPES
 from ._metrics import calc_metrics
 from . import _model_loaders as model_loaders
@@ -219,9 +220,8 @@ if __name__ == "__main__":
     config["data_path"] = args.data_path
 
     logger.info("Reading grid...")
-    cat = intake.open_catalog("catalog.yml")
-    grid = cat["grid/c48"].read()
-    land_sea_mask = cat["landseamask/c48"].read()
+    grid = vcm.catalog.catalog["grid/c48"].read()
+    land_sea_mask = vcm.catalog.catalog["landseamask/c48"].read()
     grid = grid.assign({utils.VARNAMES["surface_type"]: land_sea_mask["land_sea_mask"]})
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
 
