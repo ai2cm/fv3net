@@ -162,6 +162,7 @@ def plot_classify_over_time(da, seed=38):
         col_wrap=2,
         add_colorbar=False,
     )
+    fig = plt.gcf()
     return fig
 
 
