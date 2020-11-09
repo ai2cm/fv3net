@@ -13,6 +13,38 @@ ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}
 COPY --from=us.gcr.io/vcm-ml/esmf-build /usr/local/esmf ${ESMF_DIR}
 COPY --from=us.gcr.io/vcm-ml/esmf-build /usr/local/esmf/lib/libO3/Linux.gfortran.64.mpiuni.default/*.so* ${ESMF_LIB}/
 
+RUN apt-get update && \
+    DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
+    apt-get install -y  --no-install-recommends \
+    cmake \
+    python3 \
+    libpython3-dev \
+    python3-dev \
+    python3-setuptools \
+    python3-pip \
+    python3-cffi \
+    cython3
+
+
+# install pfunit
+RUN cd /tmp && curl -L https://github.com/Goddard-Fortran-Ecosystem/pFUnit/archive/3.2.9.tar.gz | tar xz
+ENV F90=gfortran
+ENV F90_VENDOR=GNU
+ENV PFUNIT=/usr/local
+RUN ls /tmp/pFUnit-3.2.9
+RUN cd /tmp/pFUnit-3.2.9 && \
+    cmake . && \
+    make &&\
+    make install INSTALL_DIR=${PFUNIT}
+
+# install call-py-fort
+COPY external/fv3gfs-fortran/FV3/call_py_fort/ /opt/call_py_fort
+ENV PYTHONPATH=/opt/call_py_fort/src/:/opt/call_py_fort/test:$PYTHONPATH
+ENV CALLPY=/opt/call_py_fort
+RUN cd /opt/call_py_fort/ && make && make install
+
+FROM bld
+
 # build/install the fortran model
 COPY external/fv3gfs-fortran/ /tmp/fortran-build
 RUN cd /tmp/fortran-build/FV3 && \
@@ -22,16 +54,6 @@ RUN cd /tmp/fortran-build/FV3 && \
 #
 # Python Stuff Here
 #
-
-RUN apt-get update && \
-    DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
-    apt-get install -y  --no-install-recommends \
-    python3 \
-    libpython3-dev \
-    python3-dev \
-    python3-setuptools \
-    python3-pip \
-    cython3
 
 # Python components here
 COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
