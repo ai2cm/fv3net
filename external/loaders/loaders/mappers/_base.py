@@ -2,10 +2,10 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 import vcm
-from typing import Mapping
+from typing import Mapping, Sequence
 
 
-from ..constants import TIME_NAME, TIME_FMT
+from ..constants import DATASET_DIM_NAME, TIME_NAME, TIME_FMT
 from .._utils import standardize_zarr_time_coord
 
 
@@ -43,3 +43,19 @@ class LongRunMapper(GeoMapper):
                 for time in pd.to_datetime(self.ds[TIME_NAME].values)
             ]
         )
+
+
+class MultiDatasetMapper(GeoMapper):
+    def __init__(self, mappers: Sequence[LongRunMapper]):
+        self.mappers = mappers
+
+    def keys(self):
+        return set.intersection(*[set(mapper.keys()) for mapper in self.mappers])
+
+    def __getitem__(self, time):
+        if time not in self.keys():
+            raise KeyError(f"Time {time} could not be found in all datasets.")
+        else:
+            return xr.concat(
+                [mapper[time] for mapper in self.mappers], dim=DATASET_DIM_NAME
+            )

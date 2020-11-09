@@ -12,7 +12,7 @@ from pathlib import Path
 import vcm
 
 from ._transformations import KeyMap
-from ._base import GeoMapper, LongRunMapper
+from ._base import GeoMapper, LongRunMapper, MultiDatasetMapper
 from ._merged import MergeOverlappingData
 from ._high_res_diags import open_high_res_diags
 from .._utils import standardize_zarr_time_coord, assign_net_physics_terms
@@ -656,20 +656,6 @@ def _get_source_datasets(
         )
         datasets.append(ds)
     return datasets
-
-
-class MultiDatasetMapper(GeoMapper):
-    def __init__(self, mappers: Sequence[GeoMapper]):
-        self.mappers = mappers
-
-    def keys(self):
-        return set.intersection(*[set(mapper.keys()) for mapper in self.mappers])
-
-    def __getitem__(self, time):
-        if time not in self.keys():
-            raise KeyError(f"Time {time} could not be found in all datasets.")
-        else:
-            return xr.concat([mapper[time] for mapper in self.mappers], dim="dataset")
 
 
 def open_merged_nudged_multiple_datasets(
