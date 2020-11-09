@@ -68,23 +68,41 @@ class _BalanceNegativeSkewBinary(tf.keras.utils.Sequence):
         return len(self._xy_seq)
 
     def __getitem__(self, item):
-        return self._balance_negative_skew(*self._xy_seq[item])
+        return self._balance_skew(*self._xy_seq[item])
 
-    def _balance_negative_skew(self, X, y):
-        y_has_true = y.sum(axis=1) > 0
+    def _balance_skew(self, X, y):
+        y_has_true = y.sum(axis=1) > 5  # More than true values in column
+        y_no_true = np.logical_not(y_has_true)
         num_positive = y_has_true.sum()
         num_negative = len(y_has_true) - num_positive
+        num_keep = min(num_positive, num_negative)
+        skew_ratio = num_negative / num_positive
+        logger.info(f"Skew ratio (neg/pos) of {skew_ratio:1.3f}")
 
         if num_negative > num_positive:
-            y_all_false = np.logical_not(y_has_true)
-            (false_locs,) = zip(*np.argwhere(y_all_false))
-            idx_to_keep = np.random.choice(false_locs, size=num_positive, replace=False)
-            y_all_false[idx_to_keep] = False
-            samples_to_keep = y_has_true | np.logical_not(y_all_false)
+            logger.debug(f"Reducing True sample columns to {num_keep}")
+            false_subsampled = _subsample_true_values(y_no_true, num_keep)
+            samples_to_keep = false_subsampled | y_has_true
+        elif num_negative < num_positive:
+            logger.debug(f"Reducing False sample columns to {num_keep}")
+            true_subsampled = _subsample_true_values(y_has_true, num_keep)
+            samples_to_keep = true_subsampled | y_no_true
         else:
             samples_to_keep = np.ones_like(y_has_true, dtype=np.bool)
 
+        logger.info(f"Num samples after balancing: {samples_to_keep.sum()}")
+
         return X[samples_to_keep], y[samples_to_keep]
+
+
+def _subsample_true_values(condition_arr: np.ndarray, num_keep) -> np.ndarray:
+    if condition_arr.ndim != 1:
+        raise ValueError("Subsampling function expects 1D condition array")
+    (true_locs,) = zip(*np.argwhere(condition_arr))
+    idx_to_keep = np.random.choice(true_locs, size=num_keep, replace=False)
+    condition_out = np.zeros_like(condition_arr, dtype=np.bool)
+    condition_out[idx_to_keep] = True
+    return condition_out
 
 
 class _ThreadedSequencePreLoader(tf.keras.utils.Sequence):
