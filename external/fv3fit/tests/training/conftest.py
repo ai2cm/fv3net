@@ -16,7 +16,7 @@ import yaml
 
 @pytest.fixture
 def input_variables() -> Iterable[str]:
-    return ["air_temperature", "specific_humidity"]
+    return ["air_temperature", "specific_humidity", "cos_zenith_angle"]
 
 
 @pytest.fixture
