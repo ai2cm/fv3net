@@ -103,11 +103,6 @@ def get_metric_string(
     return f"{value:.{precision}f} +/- {std:.{precision}f}"
 
 
-def column_integrated_metric_names(metrics):
-    names = set([key.split("/")[2] for key in metrics.keys()])
-    return [name for name in names if "column_integrated" in name]
-
-
 def units_from_Q_name(var):
     if "q1" in var.lower():
         if "column_integrated" in var:
