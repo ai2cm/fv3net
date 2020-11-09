@@ -673,8 +673,7 @@ class MultiDatasetMapper(GeoMapper):
 
 
 def open_merged_nudged_multiple_datasets(
-    urls: Sequence[str],
-    open_merged_nudged_kwargs: Mapping[str, Any] = None
+    urls: Sequence[str], open_merged_nudged_kwargs: Mapping[str, Any] = None
 ):
     """
     Load sequence of mappers to nudged datasets containing dQ tendency terms.
