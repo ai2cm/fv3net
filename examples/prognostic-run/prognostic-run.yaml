@@ -1,4 +1,5 @@
 base_version: v0.5
+initial_conditions: $IC_URL
 namelist:
   coupler_nml:
     days: 10
@@ -11,9 +12,10 @@ namelist:
     do_sat_adj: false
   gfdl_cloud_microphysics_nml:
     fast_sat_adj: false
-  gfs_physics_nml:
-    do_deep: false
-scikit_learn:
-  model_type: triggered_sklearn
-  model: gs://vcm-ml-archive/noah/emulator/2020-10-16-triggered-regressor
+  fv_nwp_nudge_nml:
+    nudge_hght: false
+    nudge_ps: false
+    nudge_virt: false
+    nudge_winds: false
+    nudge_q: false
 
