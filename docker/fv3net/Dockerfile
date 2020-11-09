@@ -36,7 +36,6 @@ ENV PATH=/opt/conda/envs/${PROJECT_NAME}/bin:$PATH
 # Add rest of fv3net directory
 COPY external $FV3NET/external
 COPY workflows $FV3NET/workflows
-COPY catalog.yml $FV3NET/
 
 # setup the local python packages
 RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME

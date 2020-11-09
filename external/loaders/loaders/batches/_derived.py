@@ -1,10 +1,10 @@
 import functools
-import intake
 import numpy as np
 from toolz import compose
-from typing import Sequence, Union
+from typing import Sequence, Union, Callable
 import xarray as xr
 import vcm
+import vcm.catalog
 
 from ..constants import TIME_NAME
 
@@ -28,27 +28,19 @@ def nonderived_variables(requested: Sequence[str], available: Sequence[str]):
 
 
 def insert_derived_fields(
-    variables: Sequence[str], catalog_path: str = "catalog.yml", res: str = "c48",
-):
+    variables: Sequence[str], res: str = "c48",
+) -> Callable[..., xr.Dataset]:
     """Checks if any of the derived fields are requested in the
     model configuration, and for each derived variable adds partial function
     to inserts them into the final dataset.
-
-    Args:
-        catalog_path: Path to catalog. Defaults to "catalog.yml"
-            (assumes running from top level of fv3net dir).
-
-    Returns:
-        Composed partial function that inserts the derived fields into the
-        batch dataset.
     """
     derived_partial_funcs = []
 
     if COS_Z in variables:
-        grid = _load_grid(res, catalog_path)
+        grid = _load_grid(res)
         derived_partial_funcs.append(functools.partial(_insert_cos_z, grid))
     if any(var in variables for var in EAST_NORTH_WIND_TENDENCIES):
-        wind_rotation_matrix = _load_wind_rotation_matrix(res, catalog_path)
+        wind_rotation_matrix = _load_wind_rotation_matrix(res)
         derived_partial_funcs.append(
             functools.partial(_insert_eastnorth_wind_tendencies, wind_rotation_matrix,)
         )
@@ -69,18 +61,16 @@ def _wind_rotation_needed(available_vars: DataVars):
         )
 
 
-def _load_grid(res="c48", catalog_path="catalog.yml"):
-    cat = intake.open_catalog(catalog_path)
-    grid = cat[f"grid/{res}"].to_dask()
-    land_sea_mask = cat[f"landseamask/{res}"].to_dask()
+def _load_grid(res="c48"):
+    grid = vcm.catalog.catalog[f"grid/{res}"].to_dask()
+    land_sea_mask = vcm.catalog.catalog[f"landseamask/{res}"].to_dask()
     grid = grid.assign({"land_sea_mask": land_sea_mask["land_sea_mask"]})
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
     return grid
 
 
-def _load_wind_rotation_matrix(res="c48", catalog_path="catalog.yml"):
-    cat = intake.open_catalog(catalog_path)
-    return cat[f"wind_rotation/{res}"].to_dask()
+def _load_wind_rotation_matrix(res="c48"):
+    return vcm.catalog.catalog[f"wind_rotation/{res}"].to_dask()
 
 
 def _insert_cos_z(grid: xr.Dataset, ds: xr.Dataset) -> xr.Dataset:
