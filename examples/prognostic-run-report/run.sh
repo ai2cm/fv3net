@@ -1,7 +1,7 @@
 #!/bin/bash
-name=$(date +%Ft%H%M%S)-$(openssl rand -hex 6)
+name=2020-11-09-compare-year-long-prog-runs
 argo submit --from=workflowtemplate/prognostic-run-diags \
     --name $name \
-    -p docker-image=us.gcr.io/vcm-ml/fv3net:9ca9d9bd4bf37b2b4ffcdc195dcae63580f8694e \
+    -p docker-image=us.gcr.io/vcm-ml/fv3net:257d6a6319047f6bd78db14e64d42a06e59b310e \
     -p runs="$(< rundirs.json)" \
-    -p make-movies=true
+    -p flags="--verification nudged_c48_fv3gfs_2016"
