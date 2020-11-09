@@ -31,6 +31,8 @@ spec:
         value: 96
       - name: is-classifier
         value: false
+      - name: emulation-image
+      - name: report-image
   templates:
     - name: emulation
       steps:
@@ -42,6 +44,8 @@ spec:
               value: "{{workflow.parameters.train-data}}"
             - name: train-config
               value: "{{workflow.parameters.train-config}}"
+            - name: emulation-image
+              value: "{{workflow.parameters.emulation-image}}"
       - - name: upload-model
           template: upload-model
           arguments:
@@ -59,6 +63,8 @@ spec:
               value: "{{workflow.parameters.num-test-batches}}"
             - name: model-input
               value: "{{workflow.parameters.model-output}}keras_model"
+            - name: report-image
+              value: "{{workflow.parameters.report-image}}"
       - - name: classifier-report
           template: classifier-model-diags
           when: "{{workflow.parameters.is-classifier}} == true"
@@ -70,6 +76,8 @@ spec:
               value: "{{workflow.parameters.num-test-batches}}"
             - name: model-input
               value: "{{workflow.parameters.model-output}}keras_model"
+            - name: report-image
+              value: "{{workflow.parameters.report-image}}"
       - - name: upload-report
           template: upload-report
           arguments:
@@ -81,8 +89,9 @@ spec:
         parameters:
           - name: train-data
           - name: train-config
+          - name: emulation-image
       container:
-        image: us.gcr.io/vcm-ml/fv3fit:emulation-2020-10-30
+        image: {{inputs.parameters.emulation-image}}
         command: ["bash", "-c", "-x"]
         volumeMounts:
           - mountPath: /secret/gcp-credentials
@@ -117,8 +126,9 @@ spec:
           - name: train-data
           - name: model-input
           - name: num-test-batches
+          - name: report-image
       container:
-        image: us.gcr.io/vcm-ml/emulation_report:build-2020-10-28
+        image: {{inputs.parameters.report-image}}
         command: ["bash", "-c", "-x"]
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -151,8 +161,9 @@ spec:
           - name: model-input
           - name: num-test-batches
             value: 96
+          - name: report-image
       container:
-        image: us.gcr.io/vcm-ml/emulation_report:build-2020-10-28
+        image: {{inputs.parameters.report-image}}
         command: ["bash", "-c", "-x"]
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -167,7 +178,7 @@ spec:
         args:
           - |
             python /fv3fit/emulation_diags/classifier_report.py \
-              "{{inputs.parameters.model-input}}"/keras_model \
+              "{{inputs.parameters.model-input}}" \
               {{inputs.parameters.train-data}} \
               /mnt/data/report/ \
               --num-test-batches {{inputs.parameters.num-test-batches}}
