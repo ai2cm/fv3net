@@ -1,5 +1,4 @@
 import fsspec
-import intake
 import json
 import os
 import shutil
@@ -9,6 +8,7 @@ import xarray as xr
 import report
 from vcm import safe
 from vcm.cloud import gsutil
+from vcm.catalog import catalog
 
 
 GRID_INFO_VARS = [
@@ -23,11 +23,10 @@ GRID_INFO_VARS = [
 ]
 
 
-def load_grid_info(catalog_path: str = "catalog.yml", res: str = "c48"):
-    cat = intake.open_catalog(catalog_path)
-    grid = cat[f"grid/{res}"].read()
-    wind_rotation = cat[f"wind_rotation/{res}"].read()
-    land_sea_mask = cat[f"landseamask/{res}"].read()
+def load_grid_info(res: str = "c48"):
+    grid = catalog[f"grid/{res}"].read()
+    wind_rotation = catalog[f"wind_rotation/{res}"].read()
+    land_sea_mask = catalog[f"landseamask/{res}"].read()
     grid_info = xr.merge([grid, wind_rotation, land_sea_mask])
     return safe.get_variables(grid_info, GRID_INFO_VARS)
 

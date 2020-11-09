@@ -221,9 +221,8 @@ if __name__ == "__main__":
     config["data_path"] = args.data_path
 
     logger.info("Reading grid...")
-    catalog_path = config["batch_kwargs"].get("catalog_path", "catalog.yml")
     res = config["batch_kwargs"].get("res", "c48")
-    grid = load_grid_info(catalog_path, res)
+    grid = load_grid_info(res)
 
     if args.timesteps_file:
         logger.info("Reading timesteps file")

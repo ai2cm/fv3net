@@ -264,7 +264,7 @@ def prediction_mapper(
         data_source_path,
         **data_source_offline_config["batch_kwargs"].get("mapping_kwargs", {}),
     )
-    grid = load_grid_info(catalog_path="catalog.yml", res="c8_random_values")
+    grid = load_grid_info(res="c8_random_values")
     prediction_mapper = PredictionMapper(base_mapper, mock_model, variables, grid=grid)
 
     return prediction_mapper
@@ -327,9 +327,6 @@ def test_compute_offline_diags(
         synth.dumps(offline_diags_output_schema_raw)
     )
     for var in set(offline_diags_output_schema.variables):
-        if var == "lat":
-            print(offline_diags_output_schema.variables[var])
-            print(offline_diags_reference_schema.variables[var])
         assert (
             offline_diags_output_schema.variables[var]
             == offline_diags_reference_schema.variables[var]
