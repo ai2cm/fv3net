@@ -6,7 +6,7 @@ import vcm
 from vcm import safe, net_heating, net_precipitation
 from vcm.convenience import round_time
 
-from .constants import SAMPLE_DIM_NAME, TIME_NAME
+from .constants import DATASET_DIM_NAME, SAMPLE_DIM_NAME, TIME_NAME
 
 
 CLOUDS_OFF_TEMP_TENDENCIES = [
@@ -17,7 +17,6 @@ CLOUDS_OFF_TEMP_TENDENCIES = [
 ]
 CLOUDS_OFF_SPHUM_TENDENCIES = ["tendency_of_specific_humidity_due_to_turbulence"]
 Z_DIM_NAMES = ["z", "pfull"]
-DATASET_DIM_NAME = "dataset"
 
 Time = str
 Tile = int
