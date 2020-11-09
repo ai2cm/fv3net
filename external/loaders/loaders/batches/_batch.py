@@ -30,7 +30,6 @@ def batches_from_geodata(
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
-    catalog_path: str = "catalog.yml",
     res: str = "c48",
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
@@ -46,7 +45,6 @@ def batches_from_geodata(
             passed to the mapping function
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
-        catalog_path: Location of intake catalog, used to load grid and rotation info.
         res: grid resolution, format as f'c{number cells in tile}'
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
@@ -56,13 +54,7 @@ def batches_from_geodata(
     """
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     batches = batches_from_mapper(
-        data_mapping,
-        variable_names,
-        timesteps_per_batch,
-        random_seed,
-        timesteps,
-        catalog_path,
-        res,
+        data_mapping, variable_names, timesteps_per_batch, random_seed, timesteps, res,
     )
     return batches
 
@@ -81,7 +73,6 @@ def batches_from_mapper(
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
-    catalog_path: str = "catalog.yml",
     res: str = "c48",
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
@@ -94,7 +85,6 @@ def batches_from_mapper(
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
         timesteps: List of timesteps to use in training.
-        catalog_path: Location of intake catalog, used to load grid and rotation info.
         res: grid resolution, format as f'c{number cells in tile}'
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
@@ -122,7 +112,7 @@ def batches_from_mapper(
     transform = functools.partial(stack_dropnan_shuffle, random_state)
 
     load_batch = functools.partial(_load_batch, data_mapping, variable_names)
-    partial_insert_derived = insert_derived_fields(variable_names, catalog_path, res,)
+    partial_insert_derived = insert_derived_fields(variable_names, res)
     batch_func = compose(transform, partial_insert_derived, load_batch)
 
     seq = Map(batch_func, batched_timesteps)
@@ -139,7 +129,6 @@ def diagnostic_batches_from_geodata(
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
-    catalog_path: str = "catalog.yml",
     res: str = "c48",
 ) -> Sequence[xr.Dataset]:
     """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
@@ -155,7 +144,6 @@ def diagnostic_batches_from_geodata(
         num_batches (int, optional): Defaults to None.
         random_seed (int, optional): Defaults to 0.
         timesteps: List of timesteps to use in training.
-        catalog_path: Location of intake catalog, used to load grid and rotation info.
         res: grid resolution, format as f'c{number cells in tile}'
 
     Raises:
@@ -167,13 +155,7 @@ def diagnostic_batches_from_geodata(
 
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     sequence = diagnostic_batches_from_mapper(
-        data_mapping,
-        variable_names,
-        timesteps_per_batch,
-        random_seed,
-        timesteps,
-        catalog_path,
-        res,
+        data_mapping, variable_names, timesteps_per_batch, random_seed, timesteps, res,
     )
     return sequence
 
@@ -184,7 +166,6 @@ def diagnostic_batches_from_mapper(
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
     timesteps: Sequence[str] = None,
-    catalog_path: str = "catalog.yml",
     res: str = "c48",
 ) -> Sequence[xr.Dataset]:
     if timesteps and set(timesteps).issubset(data_mapping.keys()) is False:
@@ -199,7 +180,7 @@ def diagnostic_batches_from_mapper(
     batched_timesteps = list(partition_all(timesteps_per_batch, times))
 
     load_batch = functools.partial(_load_batch, data_mapping, variable_names)
-    partial_insert_derived = insert_derived_fields(variable_names, catalog_path, res,)
+    partial_insert_derived = insert_derived_fields(variable_names, res)
     batch_func = compose(partial_insert_derived, load_batch)
     seq = Map(batch_func, batched_timesteps)
     seq.attrs["times"] = times
