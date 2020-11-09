@@ -1,4 +1,5 @@
 import argparse
+import fsspec
 import logging
 import json
 import numpy as np
@@ -13,13 +14,11 @@ import diagnostics_utils as utils
 import loaders
 from vcm import safe
 from vcm.cloud import get_fs
-import vcm.catalog
-
 from fv3fit import PRODUCTION_MODEL_TYPES
 from ._metrics import calc_metrics
 from . import _model_loaders as model_loaders
 from ._mapper import PredictionMapper
-from ._helpers import add_net_precip_domain_info
+from ._helpers import add_net_precip_domain_info, load_grid_info
 
 
 handler = logging.StreamHandler(sys.stdout)
@@ -98,8 +97,10 @@ def _compute_diags_over_batches(
     """Return a set of diagnostic datasets from a sequence of batched data"""
 
     batches_summary, batches_diurnal, batches_metrics = [], [], []
+
     # for each batch...
     for i, ds in enumerate(ds_batches):
+
         logger.info(f"Working on batch {i} diagnostics ...")
         # ...insert additional variables
         ds = (
@@ -108,6 +109,7 @@ def _compute_diags_over_batches(
             .pipe(utils.insert_net_terms_as_Qs)
             .load()
         )
+
         # ...reduce to diagnostic variables
         if SHIELD_DERIVATION_COORD in ds["derivation"].values:
             net_precip_domain_coord = SHIELD_DERIVATION_COORD
@@ -128,8 +130,7 @@ def _compute_diags_over_batches(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
         )
         # ...compute metrics
-        ds_metrics = calc_metrics(xr.merge([ds, grid["area"]]))
-
+        ds_metrics = calc_metrics(ds)
         batches_summary.append(ds_summary.load())
         batches_diurnal.append(ds_diurnal.load())
         batches_metrics.append(ds_metrics.load())
@@ -199,31 +200,30 @@ def _get_model_loader(config: Mapping):
     return model_loader, loader_kwargs
 
 
-def _get_prediction_mapper(args, config: Mapping):
+def _get_prediction_mapper(args, config: Mapping, variables: Sequence[str]):
     base_mapper = _get_base_mapper(args, config)
     logger.info("Opening ML model")
     model_loader, loader_kwargs = _get_model_loader(config)
     model = model_loader(args.model_path, **loader_kwargs)
     model_mapper_kwargs = config.get("model_mapper_kwargs", {})
-    if "cos_zenith_angle" in config["input_variables"]:
-        model_mapper_kwargs["cos_z_var"] = "cos_zenith_angle"
     logger.info("Creating prediction mapper")
-    return PredictionMapper(base_mapper, model, grid=grid, **model_mapper_kwargs)
+    return PredictionMapper(
+        base_mapper, model, grid=grid, variables=variables, **model_mapper_kwargs
+    )
 
 
 if __name__ == "__main__":
     logger.info("Starting diagnostics routine.")
     args = _create_arg_parser()
 
-    with open(args.config_yml, "r") as f:
+    with fsspec.open(args.config_yml, "r") as f:
         config = yaml.safe_load(f)
     config["data_path"] = args.data_path
 
     logger.info("Reading grid...")
-    grid = vcm.catalog.catalog["grid/c48"].read()
-    land_sea_mask = vcm.catalog.catalog["landseamask/c48"].read()
-    grid = grid.assign({utils.VARNAMES["surface_type"]: land_sea_mask["land_sea_mask"]})
-    grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
+    catalog_path = config["batch_kwargs"].get("catalog_path", "catalog.yml")
+    res = config["batch_kwargs"].get("res", "c48")
+    grid = load_grid_info(catalog_path, res)
 
     if args.timesteps_file:
         logger.info("Reading timesteps file")
@@ -237,11 +237,11 @@ if __name__ == "__main__":
     with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
         yaml.safe_dump(config, f)
 
-    pred_mapper = _get_prediction_mapper(args, config)
-
     variables = list(
         set(config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS)
     )
+    pred_mapper = _get_prediction_mapper(args, config, variables)
+
     del config["batch_kwargs"]["mapping_function"]
     del config["batch_kwargs"]["mapping_kwargs"]
 
