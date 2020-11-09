@@ -1,4 +1,3 @@
-from datetime import datetime
 import pandas as pd
 import pytest
 import xarray as xr
@@ -9,7 +8,7 @@ from loaders.mappers import LongRunMapper, MultiDatasetMapper
 def construct_dataset(num_tsteps):
     xdim = 10
     coords = {
-        TIME_NAME: pd.date_range("2000-01-01", periods=num_tsteps, freq="D"),
+        TIME_NAME: pd.date_range("2000-01-01", periods=num_tsteps),
         "x": range(xdim),
     }
     # unique values for ease of set comparison in test
@@ -47,9 +46,7 @@ def test_MultiDatasetMapper(sizes):
     mapper = MultiDatasetMapper(mappers)
     expected_length = min(sizes)
     expected_keys = set(
-        pd.date_range("2000-01-01", periods=expected_length, freq="D").strftime(
-            TIME_FMT
-        )
+        pd.date_range("2000-01-01", periods=expected_length).strftime(TIME_FMT)
     )
 
     assert len(mapper) == expected_length
