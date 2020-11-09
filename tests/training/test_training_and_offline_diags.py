@@ -105,6 +105,7 @@ def test_compute_training_diags(
             mapping_function=data_source_config["mapping_function"],
             mapping_kwargs=data_source_config["mapping_kwargs"],
             timesteps_per_batch=1,
+            res="c8_random_values",
         )
         ds = xr.concat(ds_batches, dim="time")
         ds = ds.pipe(utils.insert_total_apparent_sources).pipe(

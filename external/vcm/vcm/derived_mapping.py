@@ -59,3 +59,47 @@ def cos_zenith_angle(self):
 def evaporation(self):
     lhf = self["latent_heat_flux"]
     return vcm.thermo.latent_heat_flux_to_evaporation(lhf)
+
+
+@DerivedMapping.register("dQu")
+def dQu(self):
+    # try/except is a placeholder for a future PR to add keys to
+    # DerivedMapping so that the class will return this key if it already
+    # exists, and derive it if not. This is currently blocked because the
+    # FV3 wrapper needs a function to get available field names.
+    try:
+        return self._mapper["dQu"]
+    except (KeyError):
+        wind_rotation_matrix = self.dataset(
+            [
+                "eastward_wind_u_coeff",
+                "eastward_wind_v_coeff",
+                "northward_wind_u_coeff",
+                "northward_wind_v_coeff",
+            ]
+        )
+        return vcm.cubedsphere.center_and_rotate_xy_winds(
+            wind_rotation_matrix, self["dQxwind"], self["dQywind"]
+        )[0]
+
+
+@DerivedMapping.register("dQv")
+def dQv(self):
+    # try/except is a placeholder for a future PR to add keys to
+    # DerivedMapping so that the class will return this key if it already
+    # exists, and derive it if not. This is currently blocked because the
+    # FV3 wrapper needs a function to get available field names.
+    try:
+        return self._mapper["dQv"]
+    except (KeyError):
+        wind_rotation_matrix = self.dataset(
+            [
+                "eastward_wind_u_coeff",
+                "eastward_wind_v_coeff",
+                "northward_wind_u_coeff",
+                "northward_wind_v_coeff",
+            ]
+        )
+        return vcm.cubedsphere.center_and_rotate_xy_winds(
+            wind_rotation_matrix, self["dQxwind"], self["dQywind"]
+        )[1]
