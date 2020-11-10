@@ -56,6 +56,5 @@ class MultiDatasetMapper(GeoMapper):
         if time not in self.keys():
             raise KeyError(f"Time {time} could not be found in all datasets.")
         else:
-            return xr.concat(
-                [mapper[time] for mapper in self.mappers], dim=DATASET_DIM_NAME
-            )
+            datasets = [mapper[time] for mapper in self.mappers]
+            return xr.concat(datasets, dim=DATASET_DIM_NAME)
