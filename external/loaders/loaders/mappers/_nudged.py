@@ -659,7 +659,7 @@ def _get_source_datasets(
 
 
 def open_merged_nudged_multiple_datasets(
-    urls: Sequence[str], **open_merged_nudged_kwargs
+    urls: Sequence[str], **kwargs
 ):
     """
     Load sequence of mappers to nudged datasets containing dQ tendency terms.
@@ -672,5 +672,23 @@ def open_merged_nudged_multiple_datasets(
         mapper of timestamps to dataset containing tendency terms with a dataset
         dimension
     """
-    mappers = [open_merged_nudged(url, **open_merged_nudged_kwargs) for url in urls]
+    mappers = [open_merged_nudged(url, **kwargs) for url in urls]
+    return MultiDatasetMapper(mappers)
+
+
+def open_merged_nudged_full_tendencies_multiple_datasets(
+    urls: Sequence[str], **kwargs
+):
+    """
+    Load sequence of mappers to nudged datasets containing dQ tendency terms.
+
+    Args:
+        urls: paths to directories with nudging output
+        **kwargs: keyword arguments passed to open_merged_nudged_full_tendencies
+
+    Returns
+        mapper of timestamps to dataset containing tendency terms with a dataset
+        dimension
+    """
+    mappers = [open_merged_nudged_full_tendencies(url, **kwargs) for url in urls]
     return MultiDatasetMapper(mappers)
