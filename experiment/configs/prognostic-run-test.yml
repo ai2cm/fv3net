@@ -20,9 +20,6 @@ namelist:
     make_nh: true
     mountain: false
     na_init: 1
-    layout:
-      - 2
-      - 2
   gfdl_cloud_microphysics_nml:
     fast_sat_adj: false
   fv_nwp_nudge_nml:
@@ -33,3 +30,7 @@ namelist:
     nudge_q: false
   gfs_physics_nml:
     fhzero: 5.0
+scikit_learn:
+  diagnostic_ml: false
+  model: model_data
+  model_type: keras
