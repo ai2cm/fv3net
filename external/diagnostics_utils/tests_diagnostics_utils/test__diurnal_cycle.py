@@ -53,6 +53,27 @@ def ds(request):
     return xr.Dataset({"test_var": da, "test_var_additional_dim": da_additional_dim})
 
 
+@pytest.fixture
+def ds_with_dataset_dim(request):
+    values, times_of_day = request.param
+    time_coords = list(map(_generate_time_coords, times_of_day))
+    da = xr.DataArray(
+        [values for time in time_coords],
+        dims=["time", "x", "dataset"],
+        coords={"x": [0, 1], "time": time_coords},
+    ).rename("test_var")
+    da_additional_dim = xr.DataArray(
+        [
+            [i * np.array(values) for time in time_coords]
+            for i in range(len(ADDITIONAL_COORDS))
+        ],
+        dims=[ADDITIONAL_DIM, "time", "x", "dataset"],
+        coords={"x": [0, 1], "time": time_coords, ADDITIONAL_DIM: ADDITIONAL_COORDS},
+    ).rename("test_var_additional_dim")
+
+    return xr.Dataset({"test_var": da, "test_var_additional_dim": da_additional_dim})
+
+
 @pytest.mark.parametrize(
     "time_gmt, expected",
     (
@@ -80,6 +101,22 @@ def test__local_time(time_gmt, expected):
 )
 def test_bin_diurnal_cycle(ds, diurnal_bin_means, da_lon):
     da_var = ds["test_var"]
+    assert np.allclose(
+        bin_diurnal_cycle(da_var, da_lon, n_bins=4), diurnal_bin_means, equal_nan=True
+    )
+
+
+@pytest.mark.parametrize(
+    "ds_with_dataset_dim, diurnal_bin_means",
+    (
+        [[[[1.0, 1.0], [2.0, 2.0]], [(0, 30, 0), (6, 30, 0)]], [1, 1, 2, 2]],
+        [[[[1.0, 1.0], [2.0, 2.0]], [(0, 30, 0), (0, 30, 0)]], [1.0, np.nan, 2.0, np.nan]],
+        [[[[1.0, 1.0], [2.0, 2.0]], [(0, 30, 0), (12, 30, 0)]], [1.5, np.nan, 1.5, np.nan]],
+    ),
+    indirect=["ds_with_dataset_dim"],
+)
+def test_bin_diurnal_cycle(ds_with_dataset_dim, diurnal_bin_means, da_lon):
+    da_var = ds_with_dataset_dim["test_var"]
     assert np.allclose(
         bin_diurnal_cycle(da_var, da_lon, n_bins=4), diurnal_bin_means, equal_nan=True
     )
