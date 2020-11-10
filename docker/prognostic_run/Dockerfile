@@ -38,12 +38,12 @@ RUN cd /tmp/pFUnit-3.2.9 && \
     make install INSTALL_DIR=${PFUNIT}
 
 # install call-py-fort
-COPY external/fv3gfs-fortran/FV3/call_py_fort/ /opt/call_py_fort
+RUN ln -s /usr/bin/python3 /usr/bin/python
+COPY external/fv3gfs-fortran/FV3/call_py_fort /opt/call_py_fort
 ENV PYTHONPATH=/opt/call_py_fort/src/:/opt/call_py_fort/test:$PYTHONPATH
 ENV CALLPY=/opt/call_py_fort
 RUN cd /opt/call_py_fort/ && make && make install
 
-FROM bld
 
 # build/install the fortran model
 COPY external/fv3gfs-fortran/ /tmp/fortran-build
