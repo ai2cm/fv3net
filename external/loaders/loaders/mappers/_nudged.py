@@ -658,9 +658,7 @@ def _get_source_datasets(
     return datasets
 
 
-def open_merged_nudged_multiple_datasets(
-    urls: Sequence[str], **kwargs
-):
+def open_merged_nudged_multiple_datasets(urls: Sequence[str], **kwargs):
     """
     Load sequence of mappers to nudged datasets containing dQ tendency terms.
 
@@ -676,9 +674,7 @@ def open_merged_nudged_multiple_datasets(
     return MultiDatasetMapper(mappers)
 
 
-def open_merged_nudged_full_tendencies_multiple_datasets(
-    urls: Sequence[str], **kwargs
-):
+def open_merged_nudged_full_tendencies_multiple_datasets(urls: Sequence[str], **kwargs):
     """
     Load sequence of mappers to nudged datasets containing dQ tendency terms.
 

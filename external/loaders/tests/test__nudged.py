@@ -23,6 +23,7 @@ from loaders.mappers._nudged import (
     open_merged_nudge_to_obs_full_tendencies,
     open_nudged_to_obs_prognostic,
     open_merged_nudged_multiple_datasets,
+    open_merged_nudged_full_tendencies_multiple_datasets,
 )
 
 NTIMES = 12
@@ -706,6 +707,21 @@ def test_open_merged_nudged_multiple_datasets(nudged_data_dir):
     datasets = [nudged_data_dir, nudged_data_dir, nudged_data_dir]
     kwargs = {"merge_files": merge_files, "i_start": 4, "n_times": 6}
     mapper = open_merged_nudged_multiple_datasets(datasets, **kwargs)
+
+    assert len(mapper) == 6
+    for time, ds in mapper.items():
+        assert DATASET_DIM_NAME in ds.dims
+        assert ds.sizes[DATASET_DIM_NAME] == len(datasets)
+
+
+@pytest.mark.regression
+def test_open_merged_nudged_full_tendencies_multiple_datasets(nudged_data_dir):
+    merge_files = ("after_dynamics.zarr", "nudging_tendencies.zarr")
+    datasets = [nudged_data_dir, nudged_data_dir, nudged_data_dir]
+    kwargs = {"merge_files": merge_files, "i_start": 4, "n_times": 6}
+    mapper = open_merged_nudged_full_tendencies_multiple_datasets(
+        datasets, open_merged_nudged_kwargs=kwargs
+    )
 
     assert len(mapper) == 6
     for time, ds in mapper.items():

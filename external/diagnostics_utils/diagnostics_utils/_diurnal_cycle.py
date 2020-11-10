@@ -12,6 +12,7 @@ FLATTEN_DIMS = [
     "x",
     "y",
     "tile",
+    "dataset"
 ]
 DIURNAL_CYCLE_DIM = "local_time_hr"
 SURFACE_TYPE_DIM = "surface_type"
