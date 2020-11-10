@@ -41,7 +41,7 @@ def _calc_rms(da: xr.DataArray, sample_dim_name="sample") -> np.ndarray:
 
     mean_square = (da**2).mean(dim=sample_dim_name)
     rms = xr.ufuncs.sqrt(mean_square).values
-    return rms
+    return rms / rms.sum()
 
 
 if __name__ == "__main__":
