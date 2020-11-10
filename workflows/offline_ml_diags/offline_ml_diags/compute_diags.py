@@ -130,7 +130,7 @@ def _compute_diags_over_batches(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
         )
         # ...compute metrics
-        ds_metrics = calc_metrics(ds)
+        ds_metrics = calc_metrics(xr.merge([ds, grid["area"]]))
         batches_summary.append(ds_summary.load())
         batches_diurnal.append(ds_diurnal.load())
         batches_metrics.append(ds_metrics.load())
