@@ -121,11 +121,20 @@ def _less_than_zero_mask(x, to_mask=None):
     return mask
 
 
+def _less_than_equal_zero_mask(x, to_mask=None):
+
+    non_zero = tf.math.greater(x, tf.zeros_like(x))
+    mask = tf.where(non_zero, x=tf.ones_like(x), y=tf.zeros_like(x))
+
+    return mask
+
+
 class DenseWithClassifier(DenseModel):
     def __init__(
         self,
         *args,
         classifiers: Mapping[str, DenseClassifierModel] = None,
+        mask_with_classifier: Sequence[str] = None,
         limit_zero: Sequence[str] = None,
         convert_int: Sequence[str] = None,
         **kwargs,
@@ -133,10 +142,13 @@ class DenseWithClassifier(DenseModel):
         super().__init__(*args, **kwargs)
 
         if classifiers is None:
-            self._classifiers = {}
+            classifiers = {}
             logger.warning("DenseWithClassifier initiwalized without any classiefiers")
-        else:
-            self._classifiers = classifiers
+        self._classifiers = classifiers
+
+        if mask_with_classifier is None:
+            mask_with_classifier = []
+        self._mask_with_classifier = mask_with_classifier
 
         self._limit_zero = limit_zero if limit_zero is not None else []
         self._convert_int = convert_int if convert_int is not None else []
@@ -155,13 +167,19 @@ class DenseWithClassifier(DenseModel):
         regr_outputs = self.y_scaler.denormalize_layer(x)
 
         regr_outputs_by_var = separate_tensor_by_var(regr_outputs, out_tensor_slices)
+        
+        classifier_ens = []
+        for classifier in self._classifiers:
+            classified = classifier._model(inputs)
+            masked = tf.keras.layers.Lambda(_less_than_zero_mask)(classified)
+            classifier_ens.append(masked)
+        classified_combo = tf.keras.layers.Add()(classifier_ens)
+        classified_mask = tf.keras.layers.Lambda(_less_than_equal_zero_mask)(classified_combo)
 
         to_combine = []
         for var, out_tensor in regr_outputs_by_var.items():
-            if var in self._classifiers:
-                classified = self._classifiers[var]._model(inputs)
-                mask = tf.keras.layers.Lambda(_less_than_zero_mask)(classified)
-                out_tensor = tf.keras.layers.Multiply()([mask, out_tensor])
+            if var in self._mask_with_classifier:
+                out_tensor = tf.keras.layers.Multiply()([classified_mask, out_tensor])
 
             if var in self._limit_zero:
                 mask = tf.keras.layers.Lambda(_less_than_zero_mask)(out_tensor)

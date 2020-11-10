@@ -78,13 +78,13 @@ if __name__ == "__main__":
     # Handle classifiers
     classifier_paths = hyper_params.pop("classifiers", None)
     if classifier_paths is not None:
-        classifiers = {}
+        classifiers = []
         for varname, path in classifier_paths.items():
             model = DenseClassifierModel.load(path)
             model._model.trainable = False
             model._model._name = f"DenseClassifier_{varname}"
             logger.info(f"{model._model.summary()}")
-            classifiers[varname] = model
+            classifiers.append(model)
         hyper_params["classifiers"] = classifiers
 
     # TODO is var name handling okay?
