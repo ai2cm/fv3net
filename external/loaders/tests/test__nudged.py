@@ -705,7 +705,7 @@ def test_open_merged_nudged_multiple_datasets(nudged_data_dir):
     merge_files = ("after_dynamics.zarr", "nudging_tendencies.zarr")
     datasets = [nudged_data_dir, nudged_data_dir, nudged_data_dir]
     kwargs = {"merge_files": merge_files, "i_start": 4, "n_times": 6}
-    mapper = open_merged_nudged_multiple_datasets(datasets, kwargs,)
+    mapper = open_merged_nudged_multiple_datasets(datasets, **kwargs)
 
     assert len(mapper) == 6
     for time, ds in mapper.items():
