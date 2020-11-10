@@ -10,7 +10,7 @@ set -e
 
 mkdir -p configs
 
-for i in {0..1}
+for i in {0..0}
 do
     sed '/random_seed/d' configs/base-training-config.yml > configs/training-config-seed-$i-test.yml
     echo "random_seed: $i" >> configs/training-config-seed-$i-test.yml
@@ -28,8 +28,8 @@ do
         -p test-times="$(<  ../test_short.json)" \
         -p public-report-output=gs://vcm-ml-public/offline_ml_diags/$EXPERIMENT/seed-$i \
         -p segment-count=2 \
-        -p cpu-prog=6 \
-        -p memory-prog="10Gi" \
+        -p cpu-prog=24 \
+        -p memory-prog="25Gi" \
         -p flags="--nudge-to-observations" \
         -p chunks="$(< chunks.yaml)" \
         --name nudge-to-obs-nn-trials-seed-$i-test
