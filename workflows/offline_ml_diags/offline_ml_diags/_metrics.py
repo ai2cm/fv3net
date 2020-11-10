@@ -41,7 +41,8 @@ def calc_metrics(
     """
     pressure_level_names = predicted
     column_integrated_names = [
-        f"column_integrated_{name}" for name in pressure_level_names]
+        f"column_integrated_{name}" for name in pressure_level_names
+    ]
     derivation_kwargs = {
         "predict_coord": predict_coord,
         "target_coord": target_coord,

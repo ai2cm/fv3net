@@ -97,9 +97,7 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
 
 
 def _compute_diags_over_batches(
-        ds_batches: Sequence[xr.Dataset],
-        grid: xr.Dataset,
-        predicted_vars: Sequence[str]
+    ds_batches: Sequence[xr.Dataset], grid: xr.Dataset, predicted_vars: Sequence[str]
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
     """Return a set of diagnostic datasets from a sequence of batched data"""
 
@@ -109,7 +107,7 @@ def _compute_diags_over_batches(
 
     # for each batch...
     for i, ds in enumerate(ds_batches):
-        
+
         logger.info(f"Working on batch {i} diagnostics ...")
         # ...insert additional variables
         ds = (
@@ -131,7 +129,7 @@ def _compute_diags_over_batches(
             net_precipitation=-ds["column_integrated_Q2"].sel(
                 derivation=net_precip_domain_coord
             ),
-            primary_vars=diagnostic_vars
+            primary_vars=diagnostic_vars,
         )
         add_net_precip_domain_info(ds_summary, net_precip_domain_coord)
 
@@ -140,7 +138,9 @@ def _compute_diags_over_batches(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
         )
         # ...compute metrics
-        ds_metrics = calc_metrics(xr.merge([ds, grid["area"]], compat="override"), predicted=metric_vars)
+        ds_metrics = calc_metrics(
+            xr.merge([ds, grid["area"]], compat="override"), predicted=metric_vars
+        )
 
         batches_summary.append(ds_summary.load())
         batches_diurnal.append(ds_diurnal.load())

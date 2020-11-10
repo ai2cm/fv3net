@@ -106,8 +106,7 @@ def get_metric_string(
 
 
 def column_integrated_metric_names(metrics):
-    names = set([
-        key.split("/")[2] for key in metrics.keys()])
+    names = set([key.split("/")[2] for key in metrics.keys()])
     return [name for name in names if "column_integrated" in name]
 
 

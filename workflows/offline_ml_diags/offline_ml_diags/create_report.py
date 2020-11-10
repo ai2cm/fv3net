@@ -15,7 +15,7 @@ from ._helpers import (
     copy_outputs,
     tidy_title,
     units_from_Q_name,
-    column_integrated_metric_names
+    column_integrated_metric_names,
 )
 
 DERIVATION_DIM = "derivation"
@@ -105,9 +105,9 @@ if __name__ == "__main__":
 
     # vertical profiles of bias and R2
     pressure_level_metrics = [
-        var for var in ds_diags.data_vars
-        if var.startswith("pressure_level")
-        and var.endswith("predict_vs_target")
+        var
+        for var in ds_diags.data_vars
+        if var.startswith("pressure_level") and var.endswith("predict_vs_target")
     ]
     for var in pressure_level_metrics:
         ylim = (0, 1) if "r2" in var.lower() else None
@@ -124,9 +124,8 @@ if __name__ == "__main__":
 
     # time averaged quantity vertical profiles over land/sea, pos/neg net precip
     profiles = [
-        var for var in ds_diags.data_vars 
-        if "dQ" in var and "z" in ds_diags[var].dims] \
-         + ["Q1", "Q2"]
+        var for var in ds_diags.data_vars if "dQ" in var and "z" in ds_diags[var].dims
+    ] + ["Q1", "Q2"]
     for var in profiles:
         fig = diagplot.plot_profile_var(
             ds_diags, var, derivation_dim=DERIVATION_DIM, domain_dim=DOMAIN_DIM,
@@ -198,5 +197,3 @@ if __name__ == "__main__":
     # described in https://github.com/shoyer/h5netcdf/issues/50
     ds_diags.close()
     ds_diurnal.close()
-
-
