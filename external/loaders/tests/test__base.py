@@ -65,7 +65,7 @@ def multi_dataset_mapper(datasets):
     return MultiDatasetMapper(mappers)
 
 
-def test_MultiDatasetMapper_length(multi_dataset_mapper, expected_length):
+def test_MultiDatasetMapper_len(multi_dataset_mapper, expected_length):
     assert len(multi_dataset_mapper) == expected_length
 
 
@@ -84,3 +84,8 @@ def test_MultiDatasetMapper_value(multi_dataset_mapper, datasets):
         dim=DATASET_DIM_NAME,
     )
     xr.testing.assert_identical(multi_dataset_mapper[time_key], expected_dataset)
+
+
+def test_MultiDatasetMapper_key_error(multi_dataset_mapper):
+    with pytest.raises(KeyError, match="all datasets"):
+        multi_dataset_mapper["20000103.000000"]
