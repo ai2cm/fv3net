@@ -1,0 +1,33 @@
+base_version: v0.5
+initial_conditions: gs://vcm-ml-data/2019-12-03-C48-20160101.00Z_IC
+diag_table: gs://vcm-ml-experiments/diag_tables/prognostic-run-5h/v1.1/diag_table
+namelist:
+  atmos_model_nml:
+    fhout: 5.0
+  coupler_nml:
+    days: 30
+    hours: 0
+    minutes: 0
+    seconds: 0
+  diag_manager_nml:
+    flush_nc_files: true
+  fv_core_nml:
+    do_sat_adj: false
+    warm_start: false
+    external_ic: true
+    external_eta: false
+    nggps_ic: true
+    make_nh: true
+    mountain: false
+    na_init: 1
+    layout: 2,2
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false
+  fv_nwp_nudge_nml:
+    nudge_hght: false
+    nudge_ps: false
+    nudge_virt: false
+    nudge_winds: false
+    nudge_q: false
+  gfs_physics_nml:
+    fhzero: 5.0

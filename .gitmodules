@@ -25,3 +25,6 @@
 [submodule "examples/fv3net"]
 	path = examples/fv3net
 	url = git@github.com:VulcanClimateModeling/fv3net.git
+[submodule "experiment/fv3net"]
+	path = experiment/fv3net
+	url = git@github.com:VulcanClimateModeling/fv3net.git
