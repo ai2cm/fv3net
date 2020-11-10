@@ -1,9 +1,9 @@
 import diagnostics_utils as utils
 from loaders import batches
 from vcm.cloud import get_fs
+import vcm.catalog
 import xarray as xr
 from tempfile import NamedTemporaryFile
-import intake
 import yaml
 import argparse
 from typing import Mapping
@@ -87,10 +87,9 @@ if __name__ == "__main__":
 
     datasets_config = _open_config(args.datasets_config_yml)
 
-    cat = intake.open_catalog("catalog.yml")
-    grid = cat["grid/c48"].to_dask()
+    grid = vcm.catalog.catalog["grid/c48"].to_dask()
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
-    surface_type = cat["landseamask/c48"].to_dask()
+    surface_type = vcm.catalog.catalog["landseamask/c48"].to_dask()
     surface_type = surface_type.drop(labels=["y", "x"])
     grid = grid.merge(surface_type)
 

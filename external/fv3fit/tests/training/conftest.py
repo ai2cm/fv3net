@@ -16,7 +16,7 @@ import yaml
 
 @pytest.fixture
 def input_variables() -> Iterable[str]:
-    return ["air_temperature", "specific_humidity"]
+    return ["air_temperature", "specific_humidity", "cos_zenith_angle"]
 
 
 @pytest.fixture
@@ -33,6 +33,7 @@ def batch_function(model_type: str) -> str:
 def batch_kwargs(data_source_name: str) -> dict:  # noqa: F811
     if data_source_name == "nudging_tendencies":
         return {
+            "res": "c8_random_values",
             "timesteps_per_batch": 1,
             "mapping_function": "open_merged_nudged",
             "timesteps": ["20160801.001500", "20160801.003000"],
@@ -46,6 +47,7 @@ def batch_kwargs(data_source_name: str) -> dict:  # noqa: F811
         }
     elif data_source_name == "fine_res_apparent_sources":
         return {
+            "res": "c8_random_values",
             "timesteps_per_batch": 1,
             "mapping_function": "open_fine_res_apparent_sources",
             "timesteps": ["20160801.001500", "20160801.003000"],

@@ -20,3 +20,4 @@ batch_kwargs:
       rename_vars:
         air_temperature_tendency_due_to_nudging: dQ1
         specific_humidity_tendency_due_to_nudging: dQ2
+  res: c8_random_values
