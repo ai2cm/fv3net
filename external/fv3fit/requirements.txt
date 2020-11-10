@@ -1,3 +1,5 @@
+intake
+intake-xarray==0.3.1
 xarray
 numpy
 scikit-learn
