@@ -7,13 +7,7 @@ import xarray as xr
 from .config import VARNAMES
 from .utils import snap_mask_to_type
 
-FLATTEN_DIMS = [
-    "time",
-    "x",
-    "y",
-    "tile",
-    "dataset"
-]
+FLATTEN_DIMS = ["time", "x", "y", "tile", "dataset"]
 DIURNAL_CYCLE_DIM = "local_time_hr"
 SURFACE_TYPE_DIM = "surface_type"
 
@@ -153,6 +147,7 @@ def bin_diurnal_cycle(
     bin_width_hrs = 24.0 / n_bins
     bin_centers = [i * bin_width_hrs for i in range(n_bins)]
     local_time = _local_time(longitude, da[time_dim])
+    _, local_time = xr.broadcast(da, local_time)
     bin_means = _bin_diurnal_cycle(da, local_time, n_bins)
     da_diurnal_cycle = xr.DataArray(
         bin_means, dims=[DIURNAL_CYCLE_DIM], coords={DIURNAL_CYCLE_DIM: bin_centers}
