@@ -10,7 +10,6 @@ from .constants import DATASET_DIM_NAME, SAMPLE_DIM_NAME, TIME_NAME
 from vcm.catalog import catalog
 
 
-
 CLOUDS_OFF_TEMP_TENDENCIES = [
     "tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky",
     "tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky",
