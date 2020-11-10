@@ -121,7 +121,7 @@ def test_bin_diurnal_cycle(ds, diurnal_bin_means, da_lon):
     ),
     indirect=["ds_with_dataset_dim"],
 )
-def test_bin_diurnal_cycle(ds_with_dataset_dim, diurnal_bin_means, da_lon):
+def test_bin_diurnal_cycle_with_dataset_dim(ds_with_dataset_dim, diurnal_bin_means, da_lon):
     da_var = ds_with_dataset_dim["test_var"]
     assert np.allclose(
         bin_diurnal_cycle(da_var, da_lon, n_bins=4), diurnal_bin_means, equal_nan=True
