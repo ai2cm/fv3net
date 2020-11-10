@@ -65,6 +65,7 @@ COPY external/fv3fit /fv3net/external/fv3fit
 COPY external/fv3kube /fv3net/external/fv3kube
 COPY external/vcm /fv3net/external/vcm
 COPY external/loaders /fv3net/external/loaders
+
 COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
 
 COPY docker/prognostic_run/entrypoint.sh /entrypoint.sh
@@ -91,3 +92,6 @@ RUN --mount=type=secret,id=gcp,dst=/tmp/key.json \
 FROM bld
 # Copy results from test stage to ensure docker buildkit executes it
 COPY --from=test /tmp/test-results.txt .
+
+ARG COMMIT_SHA_ARG
+ENV COMMIT_SHA=$COMMIT_SHA_ARG

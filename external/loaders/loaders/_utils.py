@@ -6,7 +6,7 @@ import xarray as xr
 import vcm
 from vcm import safe, net_heating, net_precipitation, DerivedMapping
 from vcm.convenience import round_time
-
+from vcm.catalog import catalog
 from .constants import SAMPLE_DIM_NAME, TIME_NAME
 
 
@@ -43,33 +43,32 @@ def nonderived_variables(requested: Sequence[str], available: Sequence[str]):
 
 
 def get_derived_dataset(
-    variables: Sequence[str], res: str, catalog_path: str, ds: xr.Dataset
+    variables: Sequence[str], res: str, ds: xr.Dataset
 ) -> xr.Dataset:
-    ds = _add_grid_rotation(res, catalog_path, ds)
+    ds = _add_grid_rotation(res, ds)
     derived_mapping = DerivedMapping(ds)
     return derived_mapping.dataset(variables)
 
 
-def _add_grid_rotation(res: str, catalog_path: str, ds: xr.Dataset) -> xr.Dataset:
-    grid = _load_grid(res, catalog_path)
-    rotation = _load_wind_rotation_matrix(res, catalog_path)
+def _add_grid_rotation(res: str, ds: xr.Dataset) -> xr.Dataset:
+    grid = _load_grid(res)
+    rotation = _load_wind_rotation_matrix(res)
     common_coords = {"x": ds["x"].values, "y": ds["y"].values}
     rotation = rotation.assign_coords(common_coords)
     grid = grid.assign_coords(common_coords)
-    return xr.merge([ds, grid, rotation])
+    # Prioritize dataset's land_sea_mask if it differs from grid
+    return xr.merge([ds, grid, rotation], compat="override")
 
 
-def _load_grid(res: str, catalog_path: str) -> xr.Dataset:
-    cat = intake.open_catalog(catalog_path)
-    grid = cat[f"grid/{res}"].to_dask()
-    land_sea_mask = cat[f"landseamask/{res}"].to_dask()
+def _load_grid(res: str) -> xr.Dataset:
+    grid = catalog[f"grid/{res}"].to_dask()
+    land_sea_mask = catalog[f"landseamask/{res}"].to_dask()
     grid = grid.assign({"land_sea_mask": land_sea_mask["land_sea_mask"]})
     return safe.get_variables(grid, ["lat", "lon", "land_sea_mask"])
 
 
-def _load_wind_rotation_matrix(res: str, catalog_path: str) -> xr.Dataset:
-    cat = intake.open_catalog(catalog_path)
-    rotation = cat[f"wind_rotation/{res}"].to_dask()
+def _load_wind_rotation_matrix(res: str) -> xr.Dataset:
+    rotation = catalog[f"wind_rotation/{res}"].to_dask()
     return safe.get_variables(rotation, WIND_ROTATION_COEFFICIENTS)
 
 

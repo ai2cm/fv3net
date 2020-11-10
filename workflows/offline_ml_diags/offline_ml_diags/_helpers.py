@@ -9,6 +9,29 @@ import xarray as xr
 import report
 from vcm import safe
 from vcm.cloud import gsutil
+from vcm.catalog import catalog
+
+
+GRID_INFO_VARS = [
+    "eastward_wind_u_coeff",
+    "eastward_wind_v_coeff",
+    "northward_wind_u_coeff",
+    "northward_wind_v_coeff",
+    "lat",
+    "lon",
+    "latb",
+    "lonb",
+    "land_sea_mask",
+    "area",
+]
+
+
+def load_grid_info(res: str = "c48"):
+    grid = catalog[f"grid/{res}"].read()
+    wind_rotation = catalog[f"wind_rotation/{res}"].read()
+    land_sea_mask = catalog[f"landseamask/{res}"].read()
+    grid_info = xr.merge([grid, wind_rotation, land_sea_mask])
+    return safe.get_variables(grid_info, GRID_INFO_VARS)
 
 
 GRID_INFO_VARS = [

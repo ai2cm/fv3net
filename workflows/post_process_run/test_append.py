@@ -137,3 +137,14 @@ def test_append_zarr_along_time(
         expected_ds = xr.concat(datasets, dim="time")
         manually_appended_ds = xr.open_zarr(paths[0], consolidated=True)
         xr.testing.assert_identical(manually_appended_ds, expected_ds)
+
+
+def test_appended_zarr_has_single_time_chunk(tmpdir):
+    fs = fsspec.filesystem("file")
+    datasets = _get_datasets_to_append(True, (6, 6), (2, 2))
+    paths = [str(tmpdir.join(f"ds{i}.zarr")) for i in range(len(datasets))]
+    for ds, path in zip(datasets, paths):
+        ds.to_zarr(path, consolidated=True)
+    append.append_zarr_along_time(paths[1], paths[0], fs)
+    appended_zarr = zarr.open_group(paths[0])
+    assert appended_zarr["time"].chunks == appended_zarr["time"].shape

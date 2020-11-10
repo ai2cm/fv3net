@@ -18,7 +18,6 @@ spec:
     - name: offline-diags
       inputs:
         parameters:
-          - name: image-tag
           - name: ml-model
           # argo submit yaml is processed beforehand to have config and times fed in as string parameters
           - name: config  
@@ -27,7 +26,7 @@ spec:
           - name: report-output
           - name: data-path
       container:
-        image: us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}
+        image: us.gcr.io/vcm-ml/fv3net
         command: ["bash", "-c", "-x"]
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -39,6 +38,8 @@ spec:
             name: gcp-key-secret
         args:
           - |
+
+            gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
 
             cat <<EOF >config.yaml
             {{inputs.parameters.config}}
@@ -61,7 +62,7 @@ spec:
             python -m offline_ml_diags.create_report \
               {{inputs.parameters.offline-diags-output}} \
               {{inputs.parameters.report-output}} \
-              --commit-sha {{inputs.parameters.image-tag}}
+              --commit-sha "$COMMIT_SHA"
 
         resources:
           requests:

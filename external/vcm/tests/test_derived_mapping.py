@@ -21,8 +21,46 @@ ds = xr.Dataset(
             dims=["y", "x", "time"],
             coords={"time": [cftime.DatetimeJulian(2016, 1, 1) for n in range(nt)]},
         ),
+        "dQu": xr.DataArray(
+            np.ones((ny, nx, nt)),
+            dims=["y", "x", "time"],
+            coords={"time": [cftime.DatetimeJulian(2016, 1, 1) for n in range(nt)]},
+        ),
     }
 )
+
+
+def test_wind_tendency_derived():
+    # dQu/dQv must be calculated from dQxwind, dQywind
+    rotation = {
+        var: xr.DataArray(np.zeros((ny, nx)), dims=["y", "x"])
+        for var in [
+            "eastward_wind_u_coeff",
+            "eastward_wind_v_coeff",
+            "northward_wind_u_coeff",
+            "northward_wind_v_coeff",
+        ]
+    }
+    data = xr.Dataset(
+        {
+            "dQxwind": xr.DataArray(np.ones((ny + 1, nx)), dims=["y_interface", "x"]),
+            "dQywind": xr.DataArray(np.ones((ny, nx + 1)), dims=["y", "x_interface"]),
+            **rotation,
+        }
+    )
+
+    derived_mapping = DerivedMapping(data)
+    dQu = derived_mapping["dQu"]
+    dQv = derived_mapping["dQv"]
+    np.testing.assert_array_almost_equal(dQu, 0.0)
+    np.testing.assert_array_almost_equal(dQv, 0.0)
+
+
+def test_wind_tendency_nonderived():
+    # dQu/dQv already exist in data
+    derived_mapping = DerivedMapping(ds)
+    dQu = derived_mapping["dQu"]
+    np.testing.assert_array_almost_equal(dQu, 1.0)
 
 
 def test_DerivedMapping():

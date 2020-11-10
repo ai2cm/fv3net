@@ -140,7 +140,7 @@ def _compute_diags_over_batches(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
         )
         # ...compute metrics
-        ds_metrics = calc_metrics(xr.merge([ds, grid["area"]]), predicted=metric_vars)
+        ds_metrics = calc_metrics(xr.merge([ds, grid["area"]], compat="override"), predicted=metric_vars)
 
         batches_summary.append(ds_summary.load())
         batches_diurnal.append(ds_diurnal.load())
@@ -218,7 +218,9 @@ def _get_prediction_mapper(args, config: Mapping, variables: Sequence[str]):
     model = model_loader(args.model_path, **loader_kwargs)
     model_mapper_kwargs = config.get("model_mapper_kwargs", {})
     logger.info("Creating prediction mapper")
-    return PredictionMapper(base_mapper, model, grid=grid, variables=variables, **model_mapper_kwargs)
+    return PredictionMapper(
+        base_mapper, model, grid=grid, variables=variables, **model_mapper_kwargs
+    )
 
 
 if __name__ == "__main__":
@@ -230,9 +232,8 @@ if __name__ == "__main__":
     config["data_path"] = args.data_path
 
     logger.info("Reading grid...")
-    catalog_path = config["batch_kwargs"].get("catalog_path", "catalog.yml")
     res = config["batch_kwargs"].get("res", "c48")
-    grid = load_grid_info(catalog_path, res)
+    grid = load_grid_info(res)
 
     if args.timesteps_file:
         logger.info("Reading timesteps file")

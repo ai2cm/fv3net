@@ -2,6 +2,7 @@
 include HISTORY.rst
 include LICENSE
 include README.rst
+include vcm/catalog.yaml
 
 recursive-include tests *
 recursive-exclude * __pycache__

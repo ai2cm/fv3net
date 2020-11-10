@@ -24,11 +24,11 @@ import xarray as xr
 import shutil
 from dask.diagnostics import ProgressBar
 
-from pathlib import Path
 from toolz import curry
 from collections import defaultdict
 from typing import Dict, Callable, Mapping
 
+import vcm.catalog
 import load_diagnostic_data as load_diags
 import config
 import diurnal_cycle
@@ -332,17 +332,11 @@ for mask_type in ["global", "land", "sea"]:
             return diurnal_cycle.calc_diagnostics(resampled, verification, grid).load()
 
 
-def _catalog():
-    TOP_LEVEL_DIR = Path(os.path.abspath(__file__)).parent.parent.parent
-    return str(TOP_LEVEL_DIR / "catalog.yml")
-
-
 def _get_parser():
-    CATALOG = _catalog()
     parser = argparse.ArgumentParser()
     parser.add_argument("url")
     parser.add_argument("output")
-    parser.add_argument("--catalog", default=CATALOG)
+    parser.add_argument("--catalog", default=vcm.catalog.catalog_path)
     parser.add_argument(
         "--verification",
         help="Tag for simulation to use as verification data. Checks against "

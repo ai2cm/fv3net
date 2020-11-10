@@ -3,6 +3,121 @@ kind: Workflow
 metadata:
   generateName: integration-test-
 spec:
+  arguments:
+    parameters:
+      - name: initial-condition
+        value: "20160801.003000"
+      - name: reference-restarts
+        value: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
+      - name: nudging-times
+        value: |
+          [
+            "20160801.003000",
+            "20160801.020000",
+          ]
+      - name: train-times
+        value: |
+          [
+            "20160801.003000",
+            "20160801.020000"
+          ]
+      - name: test-times
+        value: |
+          [
+            "20160801.003000",
+            "20160801.020000"
+          ]
+      - name: nudging-config
+        value: | 
+          base_version: v0.5
+          forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+          nudging:
+            restarts_path: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
+            timescale_hours:
+              air_temperature: 3
+              specific_humidity: 3
+              x_wind: 3
+              y_wind: 3
+              pressure_thickness_of_atmospheric_layer: 3
+          namelist:
+            coupler_nml:
+              current_date:
+                - 2016
+                - 8
+                - 1
+                - 0
+                - 15
+                - 0
+              hours: 1
+              minutes: 0
+            fv_core_nml:
+              do_sat_adj: false
+            gfdl_cloud_microphysics_nml:
+              fast_sat_adj: false
+      - name: nudging-segment-count
+        value:  "2"
+      - name: nudging-chunks
+        value: |
+          before_dynamics.zarr:
+            time: 1
+          after_dynamics.zarr:
+            time: 1
+          after_physics.zarr:
+            time: 1
+          after_nudging.zarr:
+            time: 1
+          reference.zarr:
+            time: 1
+          nudging_tendencies.zarr:
+            time: 1
+          atmos_8xdaily.zarr:
+            time: 1
+          atmos_dt_atmos.zarr:
+            time: 2
+          sfc_dt_atmos.zarr:
+            time: 4
+      - name: training-config
+        value: | 
+          model_type: sklearn_random_forest
+          hyperparameters:
+            max_depth: 13
+            n_estimators: 1
+          input_variables:
+            - air_temperature
+            - specific_humidity
+            - cos_zenith_angle
+          output_variables:
+            - dQ1
+            - dQ2
+          batch_function: batches_from_geodata
+          batch_kwargs:
+            timesteps_per_batch: 1
+            mapping_function: open_merged_nudged_full_tendencies
+            mapping_kwargs:
+              consolidated: True
+              open_merged_nudged_kwargs:
+                rename_vars:
+                  air_temperature_tendency_due_to_nudging: dQ1
+                  specific_humidity_tendency_due_to_nudging: dQ2
+      - name: prognostic-run-config
+        value: |
+          base_version: v0.5
+          namelist:
+            coupler_nml:
+              hours: 4
+              minutes: 0
+            diag_manager_nml:
+              flush_nc_files: true
+            fv_core_nml:
+              do_sat_adj: false
+            gfdl_cloud_microphysics_nml:
+              fast_sat_adj: false
+            fv_nwp_nudge_nml:
+              nudge_hght: false
+              nudge_ps: false
+              nudge_virt: false
+              nudge_winds: false
+              nudge_q: false
   serviceAccountName: integration-tests
   tolerations:
     - effect: NoSchedule
@@ -18,6 +133,8 @@ spec:
           requests:
             storage: 5Gi
   volumes:
+    - name: workdir
+      emptyDir: {}
     - name: restart-data
       persistentVolumeClaim:
         claimName: nudging-read-only
@@ -36,12 +153,6 @@ spec:
           template: nudging
         arguments:
           parameters:
-          - name: fv3net-image
-            value: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image-tag}}"
-          - name: fv3gfs-image
-            value: "us.gcr.io/vcm-ml/prognostic_run:{{workflow.parameters.image-tag}}"
-          - name: post-process-image
-            value: "us.gcr.io/vcm-ml/post_process_run:{{workflow.parameters.image-tag}}"
           - name: times
             value: "{{workflow.parameters.nudging-times}}"
           - name: output-url
@@ -55,7 +166,10 @@ spec:
           - name: custom-chunks
             value: "{{workflow.parameters.nudging-chunks}}"
           - {name: work-volume-name, value: work-volume}
-          - {name: external-volume-name, value: restart-data}
+          - name: cpu
+            value: 6000m
+          - name: memory
+            value: 6Gi
       - name: train-offline-diags-prognostic
         dependencies: [nudging-run]
         templateRef:
@@ -63,8 +177,6 @@ spec:
           template: train-diags-prog
         arguments:
           parameters:
-          - name: image-tag
-            value: "{{workflow.parameters.image-tag}}"
           - name: root
             value: "{{workflow.parameters.root}}"
           - name: train-test-data
@@ -86,4 +198,3 @@ spec:
           - name: public-report-output
             value: "{{workflow.parameters.root}}/offline-report"
           - {name: work-volume-name, value: work-volume}
-          - {name: external-volume-name, value: restart-data}
