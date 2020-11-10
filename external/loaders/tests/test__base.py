@@ -37,28 +37,50 @@ def test_LongRunMapper(ds):
     xr.testing.assert_equal(item, mapper[time_key])
 
 
-@pytest.mark.parametrize(
-    "sizes", [(1, 1), (1, 2), (3, 2), (2, 3, 5), (1, 1, 3)], ids=lambda x: f"sizes={x}"
+@pytest.fixture(
+    params=[(1, 1), (1, 2), (3, 2), (2, 3, 5), (1, 1, 3)], ids=lambda x: f"sizes={x}"
 )
-def test_MultiDatasetMapper(sizes):
-    datasets = [construct_dataset(size) for size in sizes]
+def sizes(request):
+    return request.param
+
+
+@pytest.fixture
+def expected_length(sizes):
+    return min(sizes)
+
+
+@pytest.fixture
+def expected_keys(expected_length):
+    return set(pd.date_range("2000-01-01", periods=expected_length).strftime(TIME_FMT))
+
+
+@pytest.fixture
+def datasets(sizes):
+    return [construct_dataset(size) for size in sizes]
+
+
+@pytest.fixture
+def multi_dataset_mapper(datasets):
     mappers = [LongRunMapper(ds) for ds in datasets]
-    mapper = MultiDatasetMapper(mappers)
-    expected_length = min(sizes)
-    expected_keys = set(
-        pd.date_range("2000-01-01", periods=expected_length).strftime(TIME_FMT)
-    )
+    return MultiDatasetMapper(mappers)
 
-    assert len(mapper) == expected_length
-    assert mapper.keys() == expected_keys
 
+def test_MultiDatasetMapper_length(multi_dataset_mapper, expected_length):
+    assert len(multi_dataset_mapper) == expected_length
+
+
+def test_MultiDatasetMapper_keys(multi_dataset_mapper, expected_keys):
+    assert multi_dataset_mapper.keys() == expected_keys
+
+
+def test_MultiDatasetMapper_value(multi_dataset_mapper, datasets):
     single_time = datasets[0][TIME_NAME].isel({TIME_NAME: 0}).item()
     time_key = pd.to_datetime(single_time).strftime(TIME_FMT)
-    expected_ds = xr.concat(
+    expected_dataset = xr.concat(
         [
             ds.sel({TIME_NAME: single_time}).drop_vars(names=TIME_NAME)
             for ds in datasets
         ],
         dim=DATASET_DIM_NAME,
     )
-    xr.testing.assert_identical(expected_ds, mapper[time_key])
+    xr.testing.assert_identical(multi_dataset_mapper[time_key], expected_dataset)
