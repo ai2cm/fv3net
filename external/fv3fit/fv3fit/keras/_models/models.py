@@ -1,4 +1,5 @@
 from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Any
+from typing_extensions import Literal
 import xarray as xr
 import logging
 import abc
@@ -9,7 +10,7 @@ import os
 from ._filesystem import get_dir, put_dir
 from ._sequences import _XyArraySequence, _ThreadedSequencePreLoader
 from .normalizer import LayerStandardScaler
-from .loss import get_weighted_mse
+from .loss import get_weighted_mse, get_weighted_mae
 import yaml
 
 logger = logging.getLogger(__file__)
@@ -77,6 +78,7 @@ class PackedKerasModel(Model):
     _X_SCALER_FILENAME = "X_scaler.npz"
     _Y_SCALER_FILENAME = "y_scaler.npz"
     _OPTIONS_FILENAME = "options.yml"
+    _LOSS_OPTIONS = {"mse": get_weighted_mse, "mae": get_weighted_mae}
 
     def __init__(
         self,
@@ -86,6 +88,7 @@ class PackedKerasModel(Model):
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
         optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
+        loss: Literal["mse", "mae"] = "mse",
     ):
         """Initialize the model.
         
@@ -109,6 +112,7 @@ class PackedKerasModel(Model):
                 deviation before computing the loss function
             optimizer: algorithm to be used in gradient descent, must subclass
                 tf.keras.optimizers.Optimizer; defaults to tf.keras.optimizers.Adam
+            loss: loss function to use. Defaults to mean squared error.
         """
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
@@ -126,6 +130,7 @@ class PackedKerasModel(Model):
             self.weights = weights
         self._normalize_loss = normalize_loss
         self._optimizer = optimizer
+        self._loss = loss
 
     @property
     def model(self) -> tf.keras.Model:
@@ -251,7 +256,9 @@ class PackedKerasModel(Model):
             with open(os.path.join(path, self._Y_SCALER_FILENAME), "wb") as f_binary:
                 self.y_scaler.dump(f_binary)
             with open(os.path.join(path, self._OPTIONS_FILENAME), "w") as f:
-                yaml.safe_dump({"normalize_loss": self._normalize_loss}, f)
+                yaml.safe_dump(
+                    {"normalize_loss": self._normalize_loss, "loss": self._loss}, f
+                )
 
     @property
     def loss(self):
@@ -265,7 +272,14 @@ class PackedKerasModel(Model):
         std[std == 0] = 1.0
         if not self._normalize_loss:
             std[:] = 1.0
-        return get_weighted_mse(self.y_packer, std, **self.weights)
+        if self._loss in self._LOSS_OPTIONS:
+            loss_getter = self._LOSS_OPTIONS[self._loss]
+            return loss_getter(self.y_packer, std, **self.weights)
+        else:
+            raise ValueError(
+                f"Invalid loss {self._loss} provided. "
+                f"Allowed loss functions are {list(self._LOSS_OPTIONS.keys())}."
+            )
 
     @classmethod
     def load(cls, path: str) -> Model:
@@ -284,7 +298,7 @@ class PackedKerasModel(Model):
                 X_packer.sample_dim_name,
                 X_packer.pack_names,
                 y_packer.pack_names,
-                normalize_loss=options["normalize_loss"],
+                **options,
             )
             obj.X_packer = X_packer
             obj.y_packer = y_packer
@@ -313,6 +327,7 @@ class DenseModel(PackedKerasModel):
         optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
         depth: int = 3,
         width: int = 16,
+        loss: Literal["mse", "mae"] = "mse",
     ):
         """Initialize the DenseModel.
 
@@ -340,6 +355,7 @@ class DenseModel(PackedKerasModel):
                 The number of hidden layers will be (depth - 1). Default is 3.
             width: number of neurons to use on layers between the input and output
                 layer. Default is 16.
+            loss: loss function to use. Defaults to mean squared error.
         """
         self._depth = depth
         self._width = width
@@ -351,6 +367,7 @@ class DenseModel(PackedKerasModel):
             weights=weights,
             normalize_loss=normalize_loss,
             optimizer=optimizer,
+            loss=loss,
         )
 
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:

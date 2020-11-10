@@ -1,26 +1,50 @@
 import cftime
-from typing import Mapping, Hashable, Callable
-
-import vcm
+from typing import Mapping, Hashable
 import xarray as xr
 
 import fv3gfs.util
+from vcm import DerivedMapping
+
+
+class FV3StateMapper:
+    """ A mapping interface for the FV3GFS getter.
+        
+    Maps variables to the common names used in shared functions.
+    By default adds mapping {"lon": "longitude", "lat": "latitude"}
+    """
+
+    def __init__(self, getter, alternate_keys: Mapping[str, str] = None):
+        self._getter = getter
+        self._alternate_keys = alternate_keys or {"lon": "longitude", "lat": "latitude"}
+
+    def __getitem__(self, key: str) -> xr.DataArray:
+        if key == "time":
+            time = self._getter.get_state(["time"])["time"]
+            return xr.DataArray(time, name="time")
+        elif key == "latent_heat_flux":
+            return self._getter.get_diagnostic_by_name("lhtfl").data_array
+        elif key == "total_water":
+            return self._total_water()
+        else:
+            if key in self._alternate_keys:
+                key = self._alternate_keys[key]
+            return self._getter.get_state([key])[key].data_array
+
+    def _total_water(self):
+        a = self._getter.get_tracer_metadata()
+        water_species = [name for name in a if a[name]["is_water"]]
+        return sum(self[name] for name in water_species)
 
 
 class DerivedFV3State:
     """A uniform mapping-like interface to the FV3GFS model state
     
-    This class provides two features
-
-    1. wraps the fv3gfs getters with a Mapping interface, that always returns
-       DataArray and has time as an attribute (since this isn't a DataArray).
-       This insulates runfiles from the details of Quantity
-       
-    2. Register and computing derived variables transparently
-
+    This class wraps the fv3gfs getters with the FV3StateMapper, that always returns
+    DataArray and has time as an attribute (since this isn't a DataArray).
+    
+    This insulates runfiles from the details of Quantity
+    
     """
-
-    _VARIABLES: Mapping[Hashable, Callable[..., xr.DataArray]] = {}
 
     def __init__(self, getter):
         """
@@ -28,35 +52,14 @@ class DerivedFV3State:
             getter: the fv3gfs object or a mock of it.
         """
         self._getter = getter
-
-    @classmethod
-    def register(cls, name: str):
-        """Register a function as a derived variable
-
-        See the cos_zenith_angle function below
-
-        Args:
-            name: the name the derived variable will be available under
-        """
-
-        def decorator(func):
-            cls._VARIABLES[name] = func
-            return func
-
-        return decorator
+        self._mapper = DerivedMapping(FV3StateMapper(getter, alternate_keys=None))
 
     @property
     def time(self) -> cftime.DatetimeJulian:
         return self._getter.get_state(["time"])["time"]
 
     def __getitem__(self, key: Hashable) -> xr.DataArray:
-        if key == "time":
-            raise KeyError("To access time use the `time` property of this object.")
-
-        if key in self._VARIABLES:
-            return self._VARIABLES[key](self)
-        else:
-            return self._getter.get_state([key])[key].data_array
+        return self._mapper[key]
 
     def __setitem__(self, key: str, value: xr.DataArray):
         self._getter.set_state_mass_conserving(
@@ -76,13 +79,3 @@ class DerivedFV3State:
                 for key, value in items.items()
             }
         )
-
-
-@DerivedFV3State.register("cos_zenith_angle")
-def cos_zenith_angle(self):
-    return xr.apply_ufunc(
-        lambda lon, lat: vcm.cos_zenith_angle(self.time, lon, lat),
-        self["longitude"],
-        self["latitude"],
-        dask="allowed",
-    )

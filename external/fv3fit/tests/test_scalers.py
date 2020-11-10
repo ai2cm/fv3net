@@ -16,6 +16,7 @@ from fv3fit._shared.packer import ArrayPacker
 
 SAMPLE_DIM = "sample"
 FEATURE_DIM = "z"
+SEED = 1
 
 
 def test_standard_scaler_not_fit_before_call():
@@ -46,6 +47,7 @@ def test_standard_scaler_constant_scaling(std_epsilon):
 @pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
 def test_standard_scaler_normalize_then_denormalize(n_samples, n_features):
     scaler = StandardScaler()
+    np.random.seed(SEED)
     X = np.random.uniform(0, 10, size=[n_samples, n_features])
     scaler.fit(X)
     result = scaler.denormalize(scaler.normalize(X))
@@ -54,6 +56,7 @@ def test_standard_scaler_normalize_then_denormalize(n_samples, n_features):
 
 @pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
 def test_standard_scaler_normalize(n_samples, n_features):
+    np.random.seed(SEED)
     scaler = StandardScaler()
     X = np.random.uniform(0, 10, size=[n_samples, n_features])
     scaler.fit(X)
@@ -64,6 +67,7 @@ def test_standard_scaler_normalize(n_samples, n_features):
 
 @pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
 def test_normalize_then_denormalize_on_reloaded_scaler(n_samples, n_features):
+    np.random.seed(SEED)
     scaler = StandardScaler()
     X = np.random.uniform(0, 10, size=[n_samples, n_features])
     scaler.fit(X)
@@ -165,6 +169,7 @@ def test_weight_scaler_normalize():
 
 
 def test_weight_scaler_normalize_then_denormalize_on_reloaded_scaler():
+    np.random.seed(SEED)
     y = np.random.uniform(0, 10, 10)
     weights = np.random.uniform(0, 100, 10)
     scaler = ManualScaler(weights)

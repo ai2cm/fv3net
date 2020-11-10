@@ -15,6 +15,12 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "user_config",
+        type=str,
+        help="Path to a config update YAML file specifying the changes from the base"
+        "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
+    )
+    parser.add_argument(
         "initial_condition_url",
         type=str,
         help="Remote url to directory holding timesteps with model initial conditions.",
@@ -29,13 +35,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--nudge-to-observations", action="store_true", help="Nudge to observations",
-    )
-    parser.add_argument(
-        "--prog_config_yml",
-        type=str,
-        default="prognostic_config.yml",
-        help="Path to a config update YAML file specifying the changes from the base"
-        "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
     )
     parser.add_argument(
         "--diagnostic_ml",
@@ -81,6 +80,10 @@ def diagnostics_overlay(diagnostic_ml):
                     "net_heating_diagnostic",
                     "water_vapor_path",
                     "physics_precip",
+                    "column_integrated_dQu",
+                    "column_integrated_dQu_diagnostic",
+                    "column_integrated_dQv",
+                    "column_integrated_dQv_diagnostic",
                 ],
                 "times": {"kind": "interval", "frequency": 900},
             }
@@ -92,7 +95,7 @@ def diagnostics_overlay(diagnostic_ml):
 
 def prepare_config(args):
     # Get model config with prognostic run updates
-    with open(args.prog_config_yml, "r") as f:
+    with open(args.user_config, "r") as f:
         user_config = yaml.safe_load(f)
 
     model_type = user_config.get("scikit_learn", {}).get("model_type", "scikit_learn")
@@ -120,8 +123,7 @@ def prepare_config(args):
             fv3kube.enable_nudge_to_observations(
                 duration,
                 current_date,
-                nudge_url="/mnt/input/gfs-analysis-T85",
-                copy_method="link",
+                nudge_url="gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
             )
         )
 

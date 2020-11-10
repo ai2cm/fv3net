@@ -14,14 +14,13 @@ spec:
         name: work-volume
       spec:
         accessModes: ["ReadWriteOnce"]
+        storageClassName: fast
         resources:
           requests:
             storage: 100Gi
   volumes:
-    - name: external-volume
-      persistentVolumeClaim:
-        claimName: gfs-analysis-read-only
-        readOnly: true
+    - name: workdir
+      emptyVol: {}
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -30,7 +29,6 @@ spec:
   - name: train-diags-prog
     inputs:
       parameters:
-        - name: image-tag
         - name: root
         - name: train-routine
           value: sklearn
@@ -40,7 +38,7 @@ spec:
         - name: initial-condition
         - name: prognostic-run-config
         - name: reference-restarts
-        - name: store-true-args
+        - name: flags
           value: " "
         - name: test-times
         - name: public-report-output
@@ -49,7 +47,6 @@ spec:
         - {name: cpu-prog, value: "6"}
         - {name: memory-prog, value: 6Gi}
         - {name: work-volume-name, value: work-volume}
-        - {name: external-volume-name, value: external-volume}
     dag:
       tasks:
       - name: train-model
@@ -58,8 +55,6 @@ spec:
           template: training
         arguments:
           parameters:
-            - name: image
-              value: "us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}"
             - name: routine
               value: "fv3fit.{{inputs.parameters.train-routine}}"
             - name: input
@@ -77,20 +72,16 @@ spec:
           template: prognostic-run
         arguments:
           parameters:
-              - name: image-tag
-                value: "{{inputs.parameters.image-tag}}"
               - name: initial-condition
                 value: "{{inputs.parameters.initial-condition}}"
               - name: config
                 value: "{{inputs.parameters.prognostic-run-config}}"
               - name: reference-restarts
                 value: "{{inputs.parameters.reference-restarts}}"
-              - name: trained-ml
-                value: "{{inputs.parameters.root}}/trained_model"
               - name: output
                 value: "{{inputs.parameters.root}}/prognostic_run"
-              - name: store-true-args
-                value: "{{inputs.parameters.store-true-args}}"
+              - name: flags
+                value: "{{inputs.parameters.flags}} --model_url {{inputs.parameters.root}}/trained_model"
               - name: chunks
                 value: "{{inputs.parameters.chunks}}"
               - name: segment-count
@@ -101,8 +92,6 @@ spec:
                 value: "{{inputs.parameters.memory-prog}}"
               - name: work-volume-name
                 value: "{{inputs.parameters.work-volume-name}}"
-              - name: external-volume-name
-                value: "{{inputs.parameters.external-volume-name}}"
       - name: offline-diags
         dependencies: [train-model]
         templateRef:
@@ -110,8 +99,6 @@ spec:
           template: offline-diags
         arguments:
           parameters:
-              - name: image-tag
-                value: "{{inputs.parameters.image-tag}}"
               - name: ml-model
                 value: "{{inputs.parameters.root}}/trained_model"
               - name: config
@@ -131,8 +118,6 @@ spec:
           template: diagnostics
         arguments:
           parameters:
-              - name: image
-                value: "us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}"
               - name: run
                 value: "{{inputs.parameters.root}}/prognostic_run"
               - name: output

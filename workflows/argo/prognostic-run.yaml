@@ -10,14 +10,13 @@ spec:
         name: work-volume
       spec:
         accessModes: ["ReadWriteOnce"]
+        storageClassName: fast
         resources:
           requests:
             storage: 100Gi
   volumes:
-    - name: external-volume
-      persistentVolumeClaim:
-        claimName: gfs-analysis-read-only
-        readOnly: true
+    - name: workdir
+      emptyVol: {}
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -26,30 +25,25 @@ spec:
     - name: prognostic-run
       inputs:
         parameters:
-          - {name: image-tag}
           - {name: initial-condition}
           - {name: config}
           - {name: reference-restarts}
-          - {name: trained-ml}
-          - {name: store-true-args, value: ""}
+          - {name: flags, value: ""}
           - {name: output}
           - {name: chunks, value: "{}"}  # by default just use chunks defined in post_process.py
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 6Gi}
           - {name: work-volume-name, value: work-volume}
-          - {name: external-volume-name, value: external-volume}
       steps:
       - - name: prepare-config
           template: prepare-config
           arguments:
             parameters:
-              - {name: image-tag, value: "{{inputs.parameters.image-tag}}"}
               - {name: initial-condition, value: "{{inputs.parameters.initial-condition}}"}
               - {name: config, value: "{{inputs.parameters.config}}"}
               - {name: reference-restarts, value: "{{inputs.parameters.reference-restarts}}"}
-              - {name: trained-ml, value: "{{inputs.parameters.trained-ml}}"}
-              - {name: store-true-args, value: "{{inputs.parameters.store-true-args}}"}
+              - {name: flags, value: "{{inputs.parameters.flags}}"}
       - - name: run-model
           templateRef:
             name: run-fv3gfs
@@ -60,44 +54,41 @@ spec:
               - {name: runfile, from: "{{steps.prepare-config.outputs.artifacts.runfile}}"}
             parameters:
               - {name: chunks, value: "{{inputs.parameters.chunks}}"} 
-              - name: fv3gfs-image
-                value: "us.gcr.io/vcm-ml/prognostic_run:{{inputs.parameters.image-tag}}"
               - {name: output-url, value: "{{inputs.parameters.output}}"}
-              - name: post-process-image
-                value: "us.gcr.io/vcm-ml/post_process_run:{{inputs.parameters.image-tag}}"
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
               - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
-              - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
     - name: prepare-config
       inputs:
         parameters:
-          - name: image-tag
           - name: initial-condition
           - name: config
           - name: reference-restarts
-          - name: trained-ml
-          - name: store-true-args
+          - name: flags
       outputs:
         artifacts:
           - {name: fv3config, path: /tmp/fv3config.yaml}
           - name: runfile
-            path: /home/jovyan/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
+            path: /tmp/runfile.py
       container:
-        image: us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}
+        image: us.gcr.io/vcm-ml/fv3net
         command: ["bash", "-c", "-x", "-e"]
         workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run
+        volumeMounts:
+          - name: workdir 
+            mountPath: /tmp
         args:
           - |
             cat << EOF > config.yaml
             {{inputs.parameters.config}}
             EOF
 
+            cp /home/jovyan/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py  /tmp/runfile.py
+
             python prepare_config.py \
-              --model_url {{inputs.parameters.trained-ml}} \
-              --prog_config_yml config.yaml \
+              {{inputs.parameters.flags}} \
+              config.yaml \
               {{inputs.parameters.reference-restarts}} \
               {{inputs.parameters.initial-condition}} \
-              {{inputs.parameters.store-true-args}} \
               > /tmp/fv3config.yaml

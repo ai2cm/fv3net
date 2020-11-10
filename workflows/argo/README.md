@@ -25,7 +25,6 @@ Workflow parameters can be passed via the command line, e.g.
 ```
 argo submit --from workflowtemplate/prognostic-run-diags \
     -p runs="$(< rundirs.json)" \
-    -p docker-image=<dockerimage> \
     --name <name>
 ```
 
@@ -49,6 +48,36 @@ This job can be monitored by running
 
 Moreover, the templates within this workflows can be used by other workflows.
 
+### Pinning the image tags
+
+These workflows currently refer to following images without using any tags:
+1. us.gcr.io/vcm-ml/fv3net
+1. us.gcr.io/vcm-ml/fv3fit
+1. us.gcr.io/vcm-ml/prognostic_run
+1. us.gcr.io/vcm-ml/post_process_run
+
+However, you can and should pin this images using kustomize (>=v3). For
+example, consuming configurations (e.g. in vcm-workflow-control) could use
+the following kustomization.yaml to pin these versions:
+
+```
+apiVersion: kustomize.config.k8s.io/v1beta1
+resources:
+- <path/to/fv3net/workflows/argo>
+kind: Kustomization
+images:
+- name: us.gcr.io/vcm-ml/fv3fit
+  newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
+- name: us.gcr.io/vcm-ml/fv3net
+  newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
+- name: us.gcr.io/vcm-ml/post_process_run
+  newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
+- name: us.gcr.io/vcm-ml/prognostic_run
+  newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
+```
+
+It is also possible to do this programmatically, using `kustomize edit set image`.
+See the [end-to-end intergration tests](/tests/end_to_end_integration) for an example.
 
 ### Running fv3gfs with argo
 
@@ -64,14 +93,11 @@ template.
 | fv3config            | String representation of an fv3config object                                                          |
 | runfile              | String representation of an fv3gfs runfile                                                            |
 | output-url           | GCS url for outputs                                                                                   |
-| fv3gfs-image         | Docker image used to run model. Currently only `us.gcr.io/vcm-ml/prognostic_run` supported.           |
-| post-process-image   | Docker image used to post-process and upload outputs                                                  |
 | chunks               | (optional) String describing desired chunking of diagnostics                                          |
 | cpu                  | (optional) Requested cpu for run-model step                                                           |
 | memory               | (optional) Requested memory for run-model step                                                        |
 | segment-count        | (optional) Number of segments to run                                                                  |
 | working-volume-name  | (optional) Name of volume for temporary work. Volume claim must be made prior to run-fv3gfs workflow. |
-| external-volume-name | (optional) Name of volume with external data. E.g. for restart data in a nudged run.                  |
 
 Defaults for optional parameters can be found in the workflow.
 
@@ -128,7 +154,6 @@ an appropriate `training-config` string.
 
 | Parameter             | Description                                                                |
 |-----------------------|----------------------------------------------------------------------------|
-| image-tag             | Tag for fv3net, prognostic-run, and post_process_run images                |
 | root                  | Local or remote root directory for the outputs from this workflow          |
 | train-routine         | Training routine to use: e.g., "sklearn" (default) or "keras"              |
 | train-test-data       | Location of data to be used in training and testing the model              |
@@ -139,13 +164,12 @@ an appropriate `training-config` string.
 | initial-condition     | String of initial time at which to begin the prognostic run                |
 | prognostic-run-config | String representation of a prognostic run configuration YAML file          |
 | reference-restarts    | Location of restart data for initializing the prognostic run               |
-| store-true-args       | (optional) String of store-true flags for prognostic run prepare_config.py |
+| flags                 | (optional) extra command line flags for prepare_config.py                  |
 | chunks                | (optional) Custom dimension rechunking mapping for prognostic run outputs  |
 | segment-count         | (optional) Number of prognostic run segments; default 1                    |
 | cpu-prog              | (optional) Number of cpus for prognostic run nodes; default 6              |
 | memory-prog           | (optional) Memory for prognostic run nodes; default 6Gi                    |
 | work-volume-name      | (optional) Working volume name, prognostic run; default 'work-volume'      |
-| external-volume-name  | (optional) External volume name, prognostic run; default 'external-volume' |
 
 
 ### Prognostic run report
@@ -153,16 +177,28 @@ an appropriate `training-config` string.
 The `prognostic-run-diags` workflow template will generate reports for
 prognostic runs. See this [example][1].
 
-| Parameter    | Description                                            |
-|--------------|--------------------------------------------------------|
-| runs         | A json-encoded list of {"name": ..., "url": ...} items |
-| docker-image | The docker image to use                                |
-
-- `runs`: If `runs` is `""`, then all the timesteps will be processed.
+| Parameter    | Description                                                  |
+|--------------|--------------------------------------------------------------|
+| runs         | A json-encoded list of {"name": ..., "url": ...} items       |
+| make-movies  | (optional) whether to generate movies. Defaults to false     |
+| flags        | (optional) flags to pass to save_prognostic_diags.py script. |
 
 The outputs will be stored at the directory
 `gs://vcm-ml-public/argo/<workflow name>`, where `<workflow name>` is NOT the
 name of the workflow template, but of the created `workflow` resource.
+
+To specify what verification data use when computing the diagnostics, use the `--verification`
+flag. E.g. specifying the argo parameter `flags="--verification nudged_c48_fv3gfs_2016` will use a
+year-long nudged-to-obs C48 run as verification. By default, the `40day_may2020` simulation
+is used as verification (see fv3net catalog).
+
+The prognostic run report implements some basic caching to speed the generation of multiple
+reports that use the same run. The diagnostics and metrics for each run will be saved
+to `gs://vcm-ml-archive/prognostic_run_diags/{cache-key}` where `cache-key` is the run url
+without the `gs://` part and with forward slashes replaced by dashes. The workflow will only
+compute the diagnostics if they don't already exist in the cache. If you wish to force a
+recomputation of the diagnostics, simply delete everything under the appropriate cached
+subdirectory.
 
 #### Command line Usage Example
 
@@ -184,7 +220,6 @@ You can create a report from this json file using the following command from a b
 ```
 argo submit --from workflowtemplate/prognostic-run-diags \
     -p runs="$(< rundirs.json)" \
-    -p docker-image=<dockerimage> \
     --name <name>
 ```
 

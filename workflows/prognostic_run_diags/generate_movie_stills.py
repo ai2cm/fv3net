@@ -1,7 +1,6 @@
 import argparse
 import logging
 import os
-from pathlib import Path
 from multiprocessing import get_context
 from typing import Tuple
 
@@ -15,6 +14,8 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import fv3viz as viz
 import vcm
+import vcm.catalog
+import config
 import load_diagnostic_data as load_diags
 
 dask.config.set(sheduler="single-threaded")
@@ -50,11 +51,6 @@ HEATING_MOISTENING_PLOT_KWARGS = {
 }
 
 KEEP_VARS = GRID_VARS + list(HEATING_MOISTENING_PLOT_KWARGS.keys())
-
-
-def _catalog():
-    TOP_LEVEL_DIR = Path(os.path.abspath(__file__)).parent.parent.parent
-    return str(TOP_LEVEL_DIR / "catalog.yml")
 
 
 def _six_panel_heating_moistening(ds, axes):
@@ -95,7 +91,6 @@ def _movie_funcs():
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logging.basicConfig(level=logging.INFO)
-    CATALOG = _catalog()
 
     parser = argparse.ArgumentParser()
     parser.add_argument("url", help="Path to rundir")
@@ -107,15 +102,18 @@ if __name__ == "__main__":
         type=int,
         help="Number of timesteps for which stills are generated.",
     )
-    parser.add_argument("--catalog", default=CATALOG)
+    parser.add_argument("--catalog", default=vcm.catalog.catalog_path)
     args = parser.parse_args()
 
     if vcm.cloud.get_protocol(args.output) == "file":
         os.makedirs(args.output, exist_ok=True)
 
-    catalog = intake.open_catalog(CATALOG)
+    catalog = intake.open_catalog(args.catalog)
+    verification = config.get_verification_entries("40day_may2020", catalog)
 
-    prognostic, _, grid = load_diags.load_physics(args.url, catalog)
+    prognostic, _, grid = load_diags.load_physics(
+        args.url, verification["physics"], catalog
+    )
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead
     prognostic = (
         prognostic.drop_vars(GRID_VARS, errors="ignore")
