@@ -80,8 +80,12 @@ def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
 def _column_dq2(ds: xr.Dataset) -> xr.DataArray:
     if "net_moistening" in ds:
         column_dq2 = SECONDS_PER_DAY * ds.net_moistening
+    elif "column_moistening_nudge" in ds:
+        # name for column integrated humidity nudging in nudge-to-obs runs
+        column_dq2 = SECONDS_PER_DAY * ds.column_moistening_nudge
     else:
-        # assume given dataset is for a baseline or verification run
+        # assume given dataset is for a baseline run or a verification run
+        # without humidity nudging
         column_dq2 = xr.zeros_like(ds.PRATEsfc)
     column_dq2.attrs = {
         "long_name": "<dQ2> column integrated moistening from ML",
