@@ -91,7 +91,7 @@ spec:
           - name: train-config
           - name: emulation-image
       container:
-        image: {{inputs.parameters.emulation-image}}
+        image: "{{inputs.parameters.emulation-image}}"
         command: ["bash", "-c", "-x"]
         volumeMounts:
           - mountPath: /secret/gcp-credentials
@@ -128,7 +128,7 @@ spec:
           - name: num-test-batches
           - name: report-image
       container:
-        image: {{inputs.parameters.report-image}}
+        image: "{{inputs.parameters.report-image}}"
         command: ["bash", "-c", "-x"]
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -163,7 +163,7 @@ spec:
             value: 96
           - name: report-image
       container:
-        image: {{inputs.parameters.report-image}}
+        image: "{{inputs.parameters.report-image}}"
         command: ["bash", "-c", "-x"]
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
