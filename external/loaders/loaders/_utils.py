@@ -1,4 +1,3 @@
-import intake
 import numpy as np
 from numpy.random import RandomState
 from typing import Tuple, Sequence

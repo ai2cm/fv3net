@@ -1,5 +1,4 @@
 import fsspec
-import intake
 import json
 import os
 import shutil
@@ -30,24 +29,6 @@ def load_grid_info(res: str = "c48"):
     grid = catalog[f"grid/{res}"].read()
     wind_rotation = catalog[f"wind_rotation/{res}"].read()
     land_sea_mask = catalog[f"landseamask/{res}"].read()
-    grid_info = xr.merge([grid, wind_rotation, land_sea_mask])
-    return safe.get_variables(grid_info, GRID_INFO_VARS)
-
-
-GRID_INFO_VARS = [
-    "eastward_wind_u_coeff",
-    "eastward_wind_v_coeff",
-    "northward_wind_u_coeff",
-    "northward_wind_v_coeff",
-    "lat", "lon", "land_sea_mask", "area"
-]
-
-
-def load_grid_info(catalog_path: str = "catalog.yml", res: str = "c48"):
-    cat = intake.open_catalog(catalog_path)
-    grid = cat[f"grid/{res}"].read()
-    wind_rotation = cat[f"wind_rotation/{res}"].read()
-    land_sea_mask = cat[f"landseamask/{res}"].read()
     grid_info = xr.merge([grid, wind_rotation, land_sea_mask])
     return safe.get_variables(grid_info, GRID_INFO_VARS)
 
