@@ -18,36 +18,49 @@ spec:
               - "-c"
             args: 
               - |
-                apt-get install -y jq 
-                export HR_THRESHOLD=1
+                apt-get install -y jq
+                
+                tmpdir=$(mktemp -d)
+                kubectl get pvc -o json | \
+                    jq -r '.items[] | {name: .metadata.name, wf_name: .metadata.labels."workflows.argoproj.io/workflow"}' | \
+                    jq -r -c . > $tmpdir/pvc-list.txt
 
-                # Selects PVCs that have deletion timestamp attribute (i.e., TERMINATING phase)
-                export pvc_to_del=$(kubectl get pvc  -o json | 
-                      jq --raw-output '.items[] | 
-                      select(.metadata.deletionTimestamp != null) | 
-                      "\(.metadata.name) \(.metadata.deletionTimestamp)"'
-                )
+                HR_THRESHOLD=2
 
-                echo "Found terminating PVCs:"
-                echo $pvc_to_del
-
-                while read -r name_time; do
-                    read -ra args <<< $name_time
-                    name=${args[0]} # Name of PVC
-                    del_time=${args[1]} # Time pvc marked for deletion
+                beyond_age_threshold () {
+                    finishedAt=$1
 
                     # Calculate time elapsed since PVC marked for deletion
-                    del_time_s=$(date -u -d ${del_time} +%s)
+                    del_time_s=$(date -u -d ${finishedAt} +%s)
                     curr_time_s=$(date -u +%s)
                     seconds=$((${curr_time_s} - ${del_time_s}))
                     hrs=$(($seconds / 60 / 60))
 
                     if [ ${hrs} -ge ${HR_THRESHOLD} ]; then
-                        kubectl  patch pvc ${name} -p '{"metadata":{"finalizers":null}}'
+                        return 0
                     else
-                        echo "${name} did not meet age threshold (${hrs}hr)"
+                        return 1
                     fi
-                done <<< $pvc_to_del
+                }
+
+                for item in $(cat $tmpdir/pvc-list.txt); do
+                    wf_name=$(echo $item | jq -r .wf_name)
+                    pvc_name=$(echo $item | jq -r .name)
+
+                    if [[ "$wf_name" != "null" ]]; then
+                        
+                        job_phase=$(kubectl get wf $wf_name -o json | jq -r .status.phase)
+                        finishedAt=$(kubectl get wf $wf_name -o json | jq -r .status.finishedAt)
+
+                        if [[ "$job_phase" == "Failed" || "$job_phase" == "Error" || "$job_phase" == "Succeeded" ]]; then
+                            if `beyond_age_threshold $finishedAt`; then
+                                echo Deleting $pvc_name [$wf_name $job_phase]
+                                kubectl delete pvc $pvc_name --wait=false
+                                kubectl patch pvc $pvc_name -p '{"metadata":{"finalizers":null}}'
+                            fi
+                        fi
+                    fi
+                done
             resources:
               requests:
                 cpu: "200m"
