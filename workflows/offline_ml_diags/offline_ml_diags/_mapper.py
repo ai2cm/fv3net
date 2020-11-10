@@ -52,7 +52,8 @@ class PredictionMapper(GeoMapper):
 
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = self._base_mapper[key]
-        ds = ds.merge(self._grid, compat="override").assign_coords(
+        # Prioritize dataset's land_sea_mask if grid values disagree
+        ds = xr.merge([ds, self._grid], compat="override").assign_coords(
             {"time": parse_datetime_from_str(key)}
         )
         derived_mapping = DerivedMapping(ds)
