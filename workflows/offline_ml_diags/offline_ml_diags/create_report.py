@@ -174,7 +174,6 @@ if __name__ == "__main__":
     # scalar metrics for RMSE and bias
     metrics_formatted = {}
     for var in column_integrated_metrics:
-        print(var)
         metrics_formatted[var.replace("_", " ")] = {
             "r2": get_metric_string(metrics, "r2", var),
             "bias": " ".join(
