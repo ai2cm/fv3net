@@ -236,7 +236,7 @@ if __name__ == "__main__":
         "Emulation Report",
         metrics=metric_stats,
         metadata=metadata,
-        html_header="lol",
+        html_header="",
     )
     with open(os.path.join(tmpdir.name, "emulation_report.html"), "w") as f:
         f.write(report)
