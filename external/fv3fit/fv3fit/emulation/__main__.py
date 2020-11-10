@@ -4,6 +4,8 @@ k8s entrypoint for emulation
 
 import argparse
 import logging
+import xarray as xr
+import numpy as np
 import tensorflow as tf
 from pathlib import Path
 
@@ -33,6 +35,13 @@ def parse_args():
     )
 
     return parser.parse_args()
+
+
+def _calc_rms(da: xr.DataArray, sample_dim_name="sample") -> np.ndarray:
+
+    mean_square = (da**2).mean(dim=sample_dim_name)
+    rms = xr.ufuncs.sqrt(mean_square).values
+    return rms
 
 
 if __name__ == "__main__":
@@ -82,6 +91,14 @@ if __name__ == "__main__":
     sample = train[0]
     input_vars = [var for var in sample if "input" in var]
     output_vars = [var for var in sample if "output" in var]
+
+    # handle rms weights
+    weights = hyper_params.pop("weights", None)
+    if weights is not None:
+        for var, wgt in weights.items():
+            if wgt == "rms":
+                weights[var] = _calc_rms(sample[var])
+    hyper_params["weights"] = weights
 
     model = get_model(
         config.model_type,
