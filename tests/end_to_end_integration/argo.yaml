@@ -6,26 +6,26 @@ spec:
   arguments:
     parameters:
       - name: initial-condition
-        value: "20160801.003000"
+        value: "20160801.001500"
       - name: reference-restarts
         value: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
       - name: nudging-times
         value: |
           [
             "20160801.003000",
-            "20160801.020000",
+            "20160801.011500",
           ]
       - name: train-times
         value: |
           [
             "20160801.003000",
-            "20160801.020000"
+            "20160801.011500"
           ]
       - name: test-times
         value: |
           [
             "20160801.003000",
-            "20160801.020000"
+            "20160801.011500"
           ]
       - name: nudging-config
         value: | 
@@ -47,8 +47,8 @@ spec:
                 - 0
                 - 15
                 - 0
-              hours: 1
-              minutes: 0
+              hours: 0
+              minutes: 30
             fv_core_nml:
               do_sat_adj: false
             gfdl_cloud_microphysics_nml:
@@ -74,7 +74,7 @@ spec:
           atmos_dt_atmos.zarr:
             time: 2
           sfc_dt_atmos.zarr:
-            time: 4
+            time: 2
       - name: training-config
         value: | 
           model_type: sklearn_random_forest
