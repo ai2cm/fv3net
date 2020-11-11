@@ -434,3 +434,55 @@ sources:
     driver: zarr
     args:
       urlpath: '{{ CATALOG_DIR }}/data/interim/2019-09-24_GFDL-SHiELD-15-minute-2-days_regrid_1degree.zarr'
+
+
+  # Regression testing data. Do not use for analysis, values are randomized.
+  grid/c8_random_values:
+    description: FOR REGRESSION TESTING ONLY. Lat, lon, and area of C48 data
+    driver: zarr
+    metadata:
+      grid: c8
+      variables:
+        - area
+        - lat
+        - latb
+        - lon
+        - lonb
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/grid.zarr/"
+      consolidated: true
+
+  wind_rotation/c8_random_values:
+    description: FOR REGRESSION TESTING ONLY. 
+      Rotation matrix components transforming x/y components to lat/lon 
+    driver: zarr
+    metadata:
+      grid: c8
+      variables:
+        - eastward_wind_u_coeff
+        - eastward_wind_v_coeff
+        - northward_wind_u_coeff
+        - northward_wind_v_coeff
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/wind_rotation.zarr/"
+      consolidated: true
+
+  landseamask/c8_random_values:
+    description: FOR REGRESSION TESTING ONLY. land_sea_mask of C8 data
+    driver: zarr
+    metadata:
+      grid: c8
+      variables:
+        - land_sea_mask
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/landseamask.zarr/"
+      consolidated: true

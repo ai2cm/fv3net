@@ -7,6 +7,7 @@ sources:
         checkpoint_files: 
           - after_dynamics.zarr
           - after_physics.zarr
+    res: c8_random_values
   fine_res_apparent_sources: 
     path: gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget
     mapping_function: open_fine_res_apparent_sources
@@ -16,3 +17,4 @@ sources:
         pfull: z
         grid_xt: x
         grid_yt: y 
+    res: c8_random_values

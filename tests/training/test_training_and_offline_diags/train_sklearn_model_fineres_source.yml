@@ -21,3 +21,4 @@ batch_kwargs:
         grid_yt: y
         delp: pressure_thickness_of_atmospheric_layer
         pfull: z
+  res: c8_random_values
