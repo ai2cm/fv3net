@@ -132,8 +132,13 @@ def _compute_diags_over_batches(
         # ...compute metrics
         vertical_profile_mean_dims = VERTICAL_PROFILE_MEAN_DIMS
         if loaders.DATASET_DIM_NAME in ds.dims:
-            vertical_profile_mean_dims = vertical_profile_mean_dims + (loaders.DATASET_DIM_NAME,)
-        ds_metrics = calc_metrics(xr.merge([ds, grid["area"]], compat="override"), vertical_profile_mean_dims=vertical_profile_mean_dims)
+            vertical_profile_mean_dims = vertical_profile_mean_dims + (
+                loaders.DATASET_DIM_NAME,
+            )
+        ds_metrics = calc_metrics(
+            xr.merge([ds, grid["area"]], compat="override"),
+            vertical_profile_mean_dims=vertical_profile_mean_dims,
+        )
         batches_summary.append(ds_summary.load())
         batches_diurnal.append(ds_diurnal.load())
         batches_metrics.append(ds_metrics.load())
