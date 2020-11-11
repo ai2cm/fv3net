@@ -1,4 +1,6 @@
 import save_prognostic_run_diags as savediags
+import cftime
+import numpy as np
 import xarray as xr
 import fsspec
 from unittest.mock import Mock
@@ -57,3 +59,21 @@ def test_dump_nc_no_seek():
 @pytest.mark.parametrize("func", savediags._DIAG_FNS)
 def test_compute_diags_succeeds(func, resampled, verification, grid):
     func(resampled, verification, grid)
+
+
+def test__get_time_attrs():
+    ntimes = 5
+    time_coord = [cftime.DatetimeJulian(2016, 4, 2, i + 1) for i in range(ntimes)]
+    ds = xr.Dataset(
+        data_vars={"temperature": (["time", "x"], np.zeros((ntimes, 10)))},
+        coords={"time": time_coord},
+    )
+    attrs = savediags._get_time_attrs(ds)
+    assert attrs["diagnostic_start_time"] == str(time_coord[0])
+    assert attrs["diagnostic_end_time"] == str(time_coord[-1])
+
+
+def test__get_time_attrs_no_time_coord():
+    ds = xr.Dataset({"temperature": (["time", "x"], np.zeros((5, 10)))})
+    attrs = savediags._get_time_attrs(ds)
+    assert attrs is None
