@@ -318,7 +318,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 
 @add_to_diags("physics")
 @diag_finalizer("time_mean_value")
-@transform.apply("resample_time", "1H", time_slice=slice(24, -1), inner_join=True)
+@transform.apply("resample_time", "1H", inner_join=True)
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_mean(prognostic, verification, grid):
     logger.info("Preparing time means for physics variables")
@@ -328,7 +328,27 @@ def time_mean(prognostic, verification, grid):
 
 @add_to_diags("physics")
 @diag_finalizer("time_mean_bias")
-@transform.apply("resample_time", "1H", time_slice=slice(24, -1), inner_join=True)
+@transform.apply("resample_time", "1H", inner_join=True)
+@transform.apply("subset_variables", TIME_MEAN_VARS)
+def time_mean_bias(prognostic, verification, grid):
+    logger.info("Preparing time mean biases for physics variables")
+    time_mean_bias = (prognostic - verification).mean("time")
+    return _add_diagnostic_time_attrs(time_mean_bias, prognostic - verification)
+
+
+@add_to_diags("dycore")
+@diag_finalizer("time_mean_value")
+@transform.apply("resample_time", "1H", inner_join=True)
+@transform.apply("subset_variables", TIME_MEAN_VARS)
+def time_mean(prognostic, verification, grid):
+    logger.info("Preparing time means for physics variables")
+    time_mean = prognostic.mean("time")
+    return _add_diagnostic_time_attrs(time_mean, prognostic)
+
+
+@add_to_diags("dycore")
+@diag_finalizer("time_mean_bias")
+@transform.apply("resample_time", "1H", inner_join=True)
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_mean_bias(prognostic, verification, grid):
     logger.info("Preparing time mean biases for physics variables")
