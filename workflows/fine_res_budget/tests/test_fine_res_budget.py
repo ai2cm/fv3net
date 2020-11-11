@@ -53,10 +53,15 @@ def test_run(data_dirs, tmpdir):
     run(restart_path, diag_path, gfsphysics_url, output_path)
     ds = xr.open_mfdataset(f"{output_path}/*.nc", combine="by_coords")
 
-    for variable in budget.config.VARIABLES_TO_AVERAGE:
+    for variable in budget.config.VARIABLES_TO_AVERAGE | {
+        "exposed_area",
+        "area",
+    }:
         assert variable in ds
         assert "long_name" in ds[variable].attrs
         assert "units" in ds[variable].attrs
+
+    assert "history" in ds.attrs
 
 
 def test_shift():

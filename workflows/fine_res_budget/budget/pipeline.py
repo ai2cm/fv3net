@@ -1,3 +1,6 @@
+import socket
+import datetime
+import sys
 import logging
 from typing import Iterable, Sequence, Hashable, Mapping
 from itertools import product
@@ -75,6 +78,17 @@ def run(restart_url, physics_url, gfsphysics_url, output_dir, extra_args=()):
                 budgets.compute_recoarsened_budget_inputs,
                 factor=config.factor,
                 first_moments=config.VARIABLES_TO_AVERAGE,
+            )
+            | "Insert metadata"
+            >> beam.Map(
+                lambda x: x.assign_attrs(
+                    history=" ".join(sys.argv),
+                    restart_url=restart_url,
+                    physics_url=physics_url,
+                    gfsphysics_url=gfsphysics_url,
+                    launching_host=socket.gethostname(),
+                    date_computed=datetime.datetime.now().isoformat(),
+                )
             )
             | "Save" >> beam.Map(save, base=output_dir)
         )
