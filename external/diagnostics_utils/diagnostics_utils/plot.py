@@ -69,10 +69,10 @@ def plot_column_integrated_var(
         row=data_source_dim,
         vmax=vmax,
     )
-    facet_grid.set_titles(template="{value}", maxchar=40)
+    facet_grid.set_titles(template="{value} ", maxchar=40)
     f.set_size_inches([14, 3.5])
     f.set_dpi(dpi)
-    f.suptitle(var.replace("_", " "))
+    f.suptitle(f'{var.replace("_", " ")} {_units_from_Q_name(var)}')
     return f
 
 

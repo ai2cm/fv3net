@@ -296,6 +296,11 @@ def _units_from_Q_name(var):
             return "[mm/day]"
         else:
             return "[kg/kg/s]"
+    elif "qu" in var.lower() or "qv" in var.lower():
+        if "column_integrated" in var:
+            return "[Pa]"
+        else:
+            return "[m/s^2]"
     else:
         return None
 
