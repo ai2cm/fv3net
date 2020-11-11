@@ -64,14 +64,16 @@ class OpenTimeChunks(beam.PTransform):
         )
 
 
-def run(restart_url, physics_url, gfsphysics_url, output_dir, extra_args=()):
+def run(restart_url, physics_url, gfsphysics_url, area_url, output_dir, extra_args=()):
 
     options = PipelineOptions(extra_args)
     with beam.Pipeline(options=options) as p:
 
         (
             p
-            | FunctionSource(open_merged, restart_url, physics_url, gfsphysics_url)
+            | FunctionSource(
+                open_merged, restart_url, physics_url, gfsphysics_url, area_url
+            )
             | OpenTimeChunks()
             | "Compute Budget"
             >> beam.Map(
@@ -85,6 +87,7 @@ def run(restart_url, physics_url, gfsphysics_url, output_dir, extra_args=()):
                     history=" ".join(sys.argv),
                     restart_url=restart_url,
                     physics_url=physics_url,
+                    area_url=area_url,
                     gfsphysics_url=gfsphysics_url,
                     launching_host=socket.gethostname(),
                     date_computed=datetime.datetime.now().isoformat(),

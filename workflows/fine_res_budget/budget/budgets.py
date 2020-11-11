@@ -263,6 +263,9 @@ def compute_recoarsened_budget_inputs(
     """  # noqa
     logger.info("Re-coarse-graining the fields needed for the fine-resolution budgets")
 
+    # rechunk to be contiguous in x and y
+    merged = merged.chunk({"grid_xt": -1, "grid_yt": -1, "pfull": -1})
+
     middle = merged.sel(step="middle")
     area = middle.area_coarse
     delp_fine = middle.delp
@@ -274,11 +277,7 @@ def compute_recoarsened_budget_inputs(
     raw_fields = raw_first_moments + raw_second_moments + raw_storage_terms
     coarsened = coarsen_variables(raw_fields, delp_fine, delp_coarse, area, factor)
 
-    try:
-        exposed_area_c384 = middle["exposed_area_coarse"]
-    except KeyError:
-        exposed_area_c384 = middle["area_coarse"]
-
+    exposed_area_c384 = middle["exposed_area_coarse"]
     exposed_area = GRID.area_above_fine_surface(
         delp_fine, delp_coarse, exposed_area_c384
     )
