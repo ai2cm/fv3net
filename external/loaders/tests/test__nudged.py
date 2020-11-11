@@ -22,7 +22,6 @@ from loaders.mappers._nudged import (
     open_merged_nudged_full_tendencies,
     open_merged_nudge_to_obs_full_tendencies,
     open_nudged_to_obs_prognostic,
-    open_merged_nudged_multiple_datasets,
     open_merged_nudged_full_tendencies_multiple_datasets,
 )
 
@@ -699,19 +698,6 @@ def test_SubsetTime_fail_on_non_subset_key(nudged_tstep_mapper):
 
     with pytest.raises(KeyError):
         subset[out_of_bounds]
-
-
-@pytest.mark.regression
-def test_open_merged_nudged_multiple_datasets(nudged_data_dir):
-    merge_files = ("after_dynamics.zarr", "nudging_tendencies.zarr")
-    datasets = [nudged_data_dir, nudged_data_dir, nudged_data_dir]
-    kwargs = {"merge_files": merge_files, "i_start": 4, "n_times": 6}
-    mapper = open_merged_nudged_multiple_datasets(datasets, **kwargs)
-
-    assert len(mapper) == 6
-    for time, ds in mapper.items():
-        assert DATASET_DIM_NAME in ds.dims
-        assert ds.sizes[DATASET_DIM_NAME] == len(datasets)
 
 
 @pytest.mark.regression
