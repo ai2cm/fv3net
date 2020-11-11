@@ -30,7 +30,7 @@ VERTICAL_DIM = "z"
 AREA_VAR = "area"
 DELP_VAR = "pressure_thickness_of_atmospheric_layer"
 TOA_PRESSURE = 300.0  # Pa
-VERTICAL_PROFILE_MEAN_DIMS = ("time", "x", "y", "tile")
+VERTICAL_PROFILE_MEAN_DIMS = ("time", "x", "y", "tile", "dataset")
 
 
 def calc_metrics(
