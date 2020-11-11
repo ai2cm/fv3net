@@ -105,6 +105,7 @@ bilinear*
 # MISC
 *.nc
 scratch/*
+rundir/*
 \#*#
 
 # snakemake
