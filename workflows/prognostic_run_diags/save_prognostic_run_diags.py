@@ -205,9 +205,9 @@ def dump_nc(ds: xr.Dataset, f):
 @transform.apply("resample_time", "3H", inner_join=True)
 @transform.apply("daily_mean", datetime.timedelta(days=10))
 @transform.apply("subset_variables", RMSE_VARS)
-def rms_errors(resampled, verification_c48, grid):
+def rms_errors(prognostic, verification_c48, grid):
     logger.info("Preparing rms errors")
-    rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
+    rms_errors = rms(prognostic, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
 
     return rms_errors
 
@@ -260,9 +260,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply("resample_time", "3H")
     @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
-    def global_averages_dycore(resampled, verification, grid, mask_type=mask_type):
+    def global_averages_dycore(prognostic, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing averages for dycore variables ({mask_type})")
-        area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
+        area_averages = (prognostic * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
             HORIZONTAL_DIMS
         )
 
@@ -277,9 +277,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply("resample_time", "3H")
     @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
-    def global_averages_physics(resampled, verification, grid, mask_type=mask_type):
+    def global_averages_physics(prognostic, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing averages for physics variables ({mask_type})")
-        area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
+        area_averages = (prognostic * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
             HORIZONTAL_DIMS
         )
 
@@ -294,9 +294,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply("resample_time", "3H", inner_join=True)
     @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
-    def global_biases_physics(resampled, verification, grid, mask_type=mask_type):
+    def global_biases_physics(prognostic, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing average biases for physics variables ({mask_type})")
-        bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
+        bias_errors = bias(verification, prognostic, grid.area, HORIZONTAL_DIMS)
 
         return bias_errors
 
@@ -309,9 +309,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply("resample_time", "3H", inner_join=True)
     @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
-    def global_biases_dycore(resampled, verification, grid, mask_type=mask_type):
+    def global_biases_dycore(prognostic, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing average biases for dycore variables ({mask_type})")
-        bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
+        bias_errors = bias(verification, prognostic, grid.area, HORIZONTAL_DIMS)
 
         return bias_errors
 
@@ -343,16 +343,18 @@ for mask_type in ["global", "land", "sea"]:
     @transform.apply("mask_to_sfc_type", mask_type)
     @transform.apply("resample_time", "1H", time_slice=slice(24, -1), inner_join=True)
     @transform.apply("subset_variables", DIURNAL_CYCLE_VARS)
-    def _diurnal_func(resampled, verification, grid, mask_type=mask_type) -> xr.Dataset:
+    def _diurnal_func(
+        prognostic, verification, grid, mask_type=mask_type
+    ) -> xr.Dataset:
         # mask_type is added as a kwarg solely to give the logging access to the info
         logger.info(
             f"Computing diurnal cycle info for physics variables with mask={mask_type}"
         )
-        if len(resampled.time) == 0:
+        if len(prognostic.time) == 0:
             return xr.Dataset({})
         else:
-            diag = diurnal_cycle.calc_diagnostics(resampled, verification, grid).load()
-            return _add_diagnostic_time_attrs(diag, resampled)
+            diag = diurnal_cycle.calc_diagnostics(prognostic, verification, grid).load()
+            return _add_diagnostic_time_attrs(diag, prognostic)
 
 
 def _get_parser():
