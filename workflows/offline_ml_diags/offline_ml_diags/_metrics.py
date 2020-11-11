@@ -37,7 +37,7 @@ def calc_metrics(
 ) -> xr.Dataset:
     """Routine for computing ML prediction metrics (_bias, _mse]) on a dataset of
     variables, assumed to include variables in
-    {SCALAR_METRIC_VARS, VERTICAL_METRIC_VARS} as well as area and delp
+    list arg predicted as well as area and delp
     """
     pressure_level_names = predicted
     column_integrated_names = [
