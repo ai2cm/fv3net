@@ -8,16 +8,13 @@ consolidate workflows performing different flavours of fv3gfs running.
 ### Configuration
 
 As with the prognostic run, the nudging run is configured
-by specifying an update to the base configurations in `fv3kube`. The runfile
+by specifying an update to the base configurations in `fv3kube`. Nudging
 requires a `nudging` section within the fv3config object. This section
 contains the location of the nudging dataset as well as the nudging
 time-scales. Here is an example:
 ```
-base_version: v0.4
-forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
-initial_conditions: /mnt/input/coarsen_restarts/20160801.001500/
+base_version: v0.5
 nudging:
-  restarts_path: /mnt/input/coarsen_restarts/
   timescale_hours:
     air_temperature: 3
     specific_humidity: 3
@@ -36,30 +33,16 @@ thereafter. These options are optional, if not provided the nudging data will
 be assumed to contain every time. The reference state will be linearly
 interpolated between the available time samples.
 
-### Local Development
 
-Pull the docker image from GCS, if you don't have it already:
+### Running locally
 
-    docker pull us.gcr.io/vcm-ml/fv3gfs-python:0.4.1
-
-Run the workflow:
-
-    make run
-
-The output directory should now be present in `output`.
-
-If you want to run the workflow on a different image, you can set `IMG_NAME`
-and `IMG_VERSION` when you call `make`.
+A nudged run may be run locally within the prognostic_run image, which can be
+entered following the instructions in `workflows/prognostic_c48_run/README.md`.
+Once in the container, run `make` from this directory to launch an example run using
+`./nudging_config.yaml`.
 
 
 ### Running with argo
 
-
-Argo expects to be passed the contents of nudging configuration as a string.
-This can either be done using `argo submit -f <argo config>` where `<argo
-config>` is similar to `examples/argo_clouds_off.yaml`. Or, you can use the
-`-p` flag of argo submit:
-
-    argo submit -p output-url=gs://path -p nudging-config="$(cat nudging_config.yaml)"
-
-See the `argo.yaml` file for the available workflow parameters.
+An argo workflow template is provided to launch a nudging run. See the README in
+`workflows/argo` for more information.
