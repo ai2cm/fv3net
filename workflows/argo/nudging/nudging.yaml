@@ -123,7 +123,7 @@ spec:
               path: /tmp/chunks.yaml
       container:
         image: us.gcr.io/vcm-ml/fv3net
-        command: ["/bin/bash", "-c"]
+        command: ["/bin/bash", "-c", "-e", "-x"]
         workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run
         volumeMounts:
           - name: workdir
@@ -147,8 +147,8 @@ spec:
           cp /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_runfile.py /tmp/runfile.py
 
           python prepare_config.py \
-            --timesteps times.json \
+            --nudging-output-timesteps times.json \
             config.yaml \
             "{{inputs.parameters.reference-restarts}}" \
-            "{{inputs.parameters.initial-condition}}"
+            "{{inputs.parameters.initial-condition}}" \
             > /tmp/fv3config.yaml
