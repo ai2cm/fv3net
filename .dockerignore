@@ -34,3 +34,9 @@ dataflow/*/env
 external/vcm/venv
 Dockerfile
 outdir/
+workflows/offline_bptt/*.npz
+workflows/offline_bptt/*_packer-*.yml
+workflows/offline_bptt/cache-*
+workflows/offline_bptt/models-*
+workflows/offline_bptt/block-*
+workflows/offline_bptt/fv3fit-model-*

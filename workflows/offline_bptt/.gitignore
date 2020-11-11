@@ -2,4 +2,5 @@
 *_packer-*.yml
 cache-*
 models-*
+block-*
 fv3fit-model-*

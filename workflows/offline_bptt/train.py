@@ -11,14 +11,28 @@ import vcm
 import fv3gfs.util
 import argparse
 import concurrent.futures
-
-NUDGE_DATA_DIR = (
-    "gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging/outdir-3h"
+from datetime import datetime, timedelta
+from loaders.constants import TIME_FMT
+from block_config import (
+    n_timestep_frequency,
+    n_block,
+    blocks_per_day,
+    n_blocks_train,
+    n_blocks_window,
+    n_blocks_val,
 )
+
+
 # NUDGE_DATA_DIR = (
-#     "gs://vcm-ml-experiments/2020-10-09-physics-on-nudge-to-fine"
+#     "gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging/outdir-3h"
 # )
-# NUDGE_DATA_DIR = "gs://vcm-ml-experiments/2020-10-09-clouds-off-nudge-to-fine/"
+# NUDGE_DATA_DIR = (
+#     "gs://vcm-ml-experiments/2020-09-16-physics-on-nudge-to-fine"  # 3h timescale
+# )
+# NUDGE_DATA_DIR = (
+#     "gs://vcm-ml-experiments/2020-10-09-physics-on-nudge-to-fine"  # 1d timescale
+# )
+NUDGE_DATA_DIR = "gs://vcm-ml-experiments/2020-10-09-clouds-off-nudge-to-fine/"
 # REF_DATA_DIR = "gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts"
 SAMPLE_DIM_NAME = "sample"
 TIME_NAME = "time"
@@ -51,14 +65,14 @@ class Block:
     def __init__(
         self,
         timestamps,
-        before_physics_mapper,
+        before_dynamics_mapper,
         after_physics_mapper,
         ref_mapper,
         X_packer,
         y_packer,
     ):
         self._timestamps = timestamps
-        self._before_physics_mapper = before_physics_mapper
+        self._before_dynamics_mapper = before_dynamics_mapper
         self._after_physics_mapper = after_physics_mapper
         self._ref_mapper = ref_mapper
         self._X_packer = X_packer
@@ -98,10 +112,11 @@ class Block:
     def y_coarse_delta(self) -> np.ndarray:
         if self._y_coarse_delta is None:
             y_before_dynamics = self._get_packed_array(
-                self._y_packer, self._before_physics_mapper
+                self._y_packer, self._before_dynamics_mapper
             )
             y_after_physics = self.y_coarse
             self._y_coarse_delta = y_after_physics - y_before_dynamics
+            assert not np.all(self._y_coarse_delta == 0)
         return self._y_coarse_delta
 
     @property
@@ -117,7 +132,13 @@ class Block:
         return np.concatenate(array_list, axis=1)
 
     def dump(self, file: BinaryIO):
-        pass
+        data = {
+            "X_coarse": self.X_coarse,
+            "y_coarse": self.y_coarse,
+            "y_coarse_delta": self.y_coarse_delta,
+            "y_ref": self.y_ref,
+        }
+        np.savez(file, **data)
 
     @classmethod
     def load(cls, file: BinaryIO):
@@ -145,89 +166,139 @@ def load_blocks(
     label="default",
     cache_dir=None,
 ) -> Iterable[str]:
-    use_cache = cache_dir is not None
-    # Determine which timesteps are present in both mappers. If we assume the
-    # mappers contain only sequential periods, this will give the overlapping
-    # window at the highest available shared time frequency (the lower frequency
-    # of the two data sources, e.g. hourly and 15min -> hourly)
-    shared_keys = sorted(
-        list(
-            set(nudged_mapper_before_dynamics.keys()).union(
-                ref_mapper.keys().union(nudged_mapper_after_physics.keys())
-            )
-        )
-    )
+    shared_keys = sorted(list(nudged_mapper_after_physics.keys()))[
+        1:
+    ]  # assume all mappers have the same keys
     if n_timestep_frequency is not None:
         shared_keys = shared_keys[::n_timestep_frequency]
     if n_timestep_start is not None:
         shared_keys = shared_keys[n_timestep_start:]
+        offset = n_timestep_start
+    else:
+        offset = 0
     if n_timesteps is not None:
         shared_keys = shared_keys[:n_timesteps]
     if n_timestep_start is None:
         n_timestep_start = 0
-
-    if use_cache:
-        data_cache_dir = os.path.join(cache_dir, f"cache-load-{label}")
-        if not os.path.exists(data_cache_dir):
-            os.mkdir(data_cache_dir)
     block_filename_list = []
-    X_coarse_list = []
-    y_coarse_list = []
-    y_coarse_delta_list = []
-    y_ref_list = []
-    for i_add, timestamp in enumerate(shared_keys):
-        i = n_timestep_start + i_add
-        print(f"loading timestep {i + 1} of {n_timestep_start + len(shared_keys)}")
-        block_index = (int(i / n_timesteps_per_block) + 1) * n_timesteps_per_block - 1
-        block_filename = os.path.join(block_dir, f"block-{block_index:05d}.npz")
-        if os.path.exists(block_filename):
-            if len(block_filename_list) > 0 and (
-                block_filename_list[-1] != block_filename
-            ):
-                block_filename_list.append(block_filename)
-        else:
-            filename = os.path.join(data_cache_dir, f"timestep_{timestamp}.npz")
-            if use_cache and os.path.isfile(filename):
-                with open(filename, "rb") as f:
-                    data = np.load(f)
-                    X_coarse, y_coarse, y_coarse_delta, y_ref = (data[k] for k in data)
-            else:
-                ref_ds = ref_mapper[timestamp]
-                y_ref = pack(y_packer, ref_ds)
-                nudged_ds_before_dynamics = nudged_mapper_before_dynamics[timestamp]
-                nudged_ds_after_physics = nudged_mapper_after_physics[timestamp]
-                X_coarse = pack(X_packer, nudged_ds_after_physics)
-                y_coarse_before_dynamics = pack(y_packer, nudged_ds_before_dynamics)
-                y_coarse_after_physics = pack(y_packer, nudged_ds_after_physics)
-                y_coarse_delta = y_coarse_after_physics - y_coarse_before_dynamics
-                y_coarse = y_coarse_after_physics
-                if use_cache:
-                    with open(filename, "wb") as f:
-                        np.savez(f, X_coarse, y_coarse, y_coarse_delta, y_ref)
-            X_coarse_list.append(X_coarse)
-            y_coarse_list.append(y_coarse)
-            y_coarse_delta_list.append(y_coarse_delta)
-            y_ref_list.append(y_ref)
-            if len(y_coarse_list) == n_timesteps_per_block:
-                X_coarse = np.concatenate(X_coarse_list, axis=1)
-                X_coarse_list = []
-                y_coarse = np.concatenate(y_coarse_list, axis=1)
-                y_coarse_list = []
-                y_coarse_delta = np.concatenate(y_coarse_delta_list, axis=1)
-                y_coarse_delta_list = []
-                y_ref = np.concatenate(y_ref_list, axis=1)
-                y_ref_list = []
-                block_filename = os.path.join(block_dir, f"block-{i:05d}.npz")
-                with open(block_filename, "wb") as f:
-                    data = {
-                        "X_coarse": X_coarse,
-                        "y_coarse": y_coarse,
-                        "y_coarse_delta": y_coarse_delta,
-                        "y_ref": y_ref,
-                    }
-                    np.savez(f, **data)
-                block_filename_list.append(block_filename)
+    for i_start in range(0, len(shared_keys), n_timesteps_per_block):
+        print(f"loading block at {i_start} of {len(shared_keys)}")
+        timestamps = shared_keys[i_start : i_start + n_timesteps_per_block]
+        block_filename = os.path.join(block_dir, f"block-{offset + i_start:05d}.npz")
+        if not os.path.exists(block_filename):
+            block = Block(
+                timestamps,
+                nudged_mapper_before_dynamics,
+                nudged_mapper_after_physics,
+                ref_mapper,
+                X_packer,
+                y_packer,
+            )
+            with open(block_filename, "wb") as f:
+                block.dump(f)
+        block_filename_list.append(block_filename)
     return block_filename_list
+
+
+# def load_blocks(
+#     nudged_mapper_before_dynamics,
+#     nudged_mapper_after_physics,
+#     ref_mapper,
+#     X_packer,
+#     y_packer,
+#     block_dir,
+#     n_timesteps=None,
+#     n_timestep_start=None,
+#     n_timesteps_per_block=1,
+#     n_timestep_frequency=None,
+#     label="default",
+#     cache_dir=None,
+# ) -> Iterable[str]:
+#     use_cache = cache_dir is not None
+#     # Determine which timesteps are present in both mappers. If we assume the
+#     # mappers contain only sequential periods, this will give the overlapping
+#     # window at the highest available shared time frequency (the lower frequency
+#     # of the two data sources, e.g. hourly and 15min -> hourly)
+#     shared_keys = sorted(
+#         list(
+#             set(nudged_mapper_before_dynamics.keys()).union(
+#                 ref_mapper.keys().union(nudged_mapper_after_physics.keys())
+#             )
+#         )
+#     )
+#     if n_timestep_frequency is not None:
+#         shared_keys = shared_keys[::n_timestep_frequency]
+#     if n_timestep_start is not None:
+#         shared_keys = shared_keys[n_timestep_start:]
+#     if n_timesteps is not None:
+#         shared_keys = shared_keys[:n_timesteps]
+#     if n_timestep_start is None:
+#         n_timestep_start = 0
+
+#     if use_cache:
+#         data_cache_dir = os.path.join(cache_dir, f"cache-load-{label}")
+#         if not os.path.exists(data_cache_dir):
+#             os.mkdir(data_cache_dir)
+#     block_filename_list = []
+#     X_coarse_list = []
+#     y_coarse_list = []
+#     y_coarse_delta_list = []
+#     y_ref_list = []
+#     for i_add, timestamp in enumerate(shared_keys):
+#         i = n_timestep_start + i_add
+#         print(f"loading timestep {i + 1} of {n_timestep_start + len(shared_keys)}")
+#         block_index = (int(i / n_timesteps_per_block) + 1)*n_timesteps_per_block - 1
+#         block_filename = os.path.join(block_dir, f"block-{block_index:05d}.npz")
+#         if os.path.exists(block_filename):
+#             if len(block_filename_list) > 0 and (
+#                 block_filename_list[-1] != block_filename
+#             ):
+#                 block_filename_list.append(block_filename)
+#         else:
+#             filename = os.path.join(data_cache_dir, f"timestep_{timestamp}.npz")
+#             if use_cache and os.path.isfile(filename):
+#                 with open(filename, "rb") as f:
+#                     data = np.load(f)
+#                     X_coarse, y_coarse, y_coarse_delta, y_ref = (
+#                        data[k] for k in data
+#                     )
+#             else:
+#                 ref_ds = ref_mapper[timestamp]
+#                 y_ref = pack(y_packer, ref_ds)
+#                 nudged_ds_before_dynamics = nudged_mapper_before_dynamics[timestamp]
+#                 nudged_ds_after_physics = nudged_mapper_after_physics[timestamp]
+#                 X_coarse = pack(X_packer, nudged_ds_after_physics)
+#                 y_coarse_before_dynamics = pack(y_packer, nudged_ds_before_dynamics)
+#                 y_coarse_after_physics = pack(y_packer, nudged_ds_after_physics)
+#                 y_coarse_delta = y_coarse_after_physics - y_coarse_before_dynamics
+#                 y_coarse = y_coarse_after_physics
+#                 if use_cache:
+#                     with open(filename, "wb") as f:
+#                         np.savez(f, X_coarse, y_coarse, y_coarse_delta, y_ref)
+#             X_coarse_list.append(X_coarse)
+#             y_coarse_list.append(y_coarse)
+#             y_coarse_delta_list.append(y_coarse_delta)
+#             y_ref_list.append(y_ref)
+#             if len(y_coarse_list) == n_timesteps_per_block:
+#                 X_coarse = np.concatenate(X_coarse_list, axis=1)
+#                 X_coarse_list = []
+#                 y_coarse = np.concatenate(y_coarse_list, axis=1)
+#                 y_coarse_list = []
+#                 y_coarse_delta = np.concatenate(y_coarse_delta_list, axis=1)
+#                 y_coarse_delta_list = []
+#                 y_ref = np.concatenate(y_ref_list, axis=1)
+#                 y_ref_list = []
+#                 block_filename = os.path.join(block_dir, f"block-{i:05d}.npz")
+#                 with open(block_filename, "wb") as f:
+#                     data = {
+#                         "X_coarse": X_coarse,
+#                         "y_coarse": y_coarse,
+#                         "y_coarse_delta": y_coarse_delta,
+#                         "y_ref": y_ref,
+#                     }
+#                     np.savez(f, **data)
+#                 block_filename_list.append(block_filename)
+#     return block_filename_list
 
 
 class WindowedDataIterator:
@@ -316,6 +387,25 @@ class WindowedDataIterator:
         return self._n_windows
 
 
+class ShiftTimeMapper:
+    def __init__(self, mapper, dt):
+        self.mapper = mapper
+        self.dt = dt
+
+    def __getitem__(self, key):
+        old_time = datetime.strptime(key, TIME_FMT)
+        new_time = old_time - self.dt
+        new_key = new_time.strftime(TIME_FMT)
+        return self.mapper[new_key]
+
+    def keys(self):
+        old_keys = self.mapper.keys()
+        return [
+            (datetime.strptime(key, TIME_FMT) + self.dt).strftime(TIME_FMT)
+            for key in old_keys
+        ]
+
+
 def load_window(batch_idx, window_filenames):
     X_coarse_list = []
     y_coarse_list = []
@@ -359,9 +449,9 @@ def build_model(
             n_state=n_state,
             n_hidden_layers=n_hidden_layers,
             tendency_ratio=tendency_ratio,
-            dropout=0.25,
+            dropout=0.0,
             kernel_regularizer=kernel_regularizer,
-            use_spectral_normalization=True,
+            use_spectral_normalization=False,
         ),
         name="rnn",
         return_sequences=True,
@@ -403,18 +493,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     cache_filename_X_packer = os.path.join(args.cache_dir, f"X_packer-{args.label}.yml")
     cache_filename_y_packer = os.path.join(args.cache_dir, f"y_packer-{args.label}.yml")
-    n_timestep_frequency = 4
-    n_block = 12  # number of times in a npz file
     data_fraction = 0.125  # fraction of data to use from a window
-    blocks_per_day = 24 // n_block
-    n_blocks_train = 30 * blocks_per_day
-    n_blocks_window = 5 * blocks_per_day
-    n_blocks_val = n_blocks_window
     n_blocks_between_window = int(1.5 * blocks_per_day)
     n_timesteps = n_blocks_train * n_block
     n_timesteps_val = n_blocks_val * n_block
     n_window = n_blocks_window * n_block
-    units = 64
+    units = 16
     n_hidden_layers = 3
     tendency_ratio = 0.5  # scaling between values and their tendencies
     batch_size = 48
@@ -443,7 +527,7 @@ if __name__ == "__main__":
     block_dir = f"block-{args.label}"
     if not os.path.exists(block_dir):
         os.mkdir(block_dir)
-    if len(os.listdir(block_dir)) >= (n_blocks_train + n_blocks_val):
+    if False:  # len(os.listdir(block_dir)) >= (n_blocks_train + n_blocks_val):
         all_filenames = sorted(
             [os.path.join(block_dir, filename) for filename in os.listdir(block_dir)]
         )
@@ -456,6 +540,9 @@ if __name__ == "__main__":
             NUDGE_DATA_DIR,
             merge_files=("before_dynamics.zarr", "nudging_tendencies.zarr"),
         )
+        nudged_mapper_before_dynamics = ShiftTimeMapper(
+            nudged_mapper_before_dynamics, timedelta(minutes=15)
+        )
         nudged_mapper_after_physics = loaders.mappers.open_merged_nudged(
             NUDGE_DATA_DIR,
             merge_files=("after_physics.zarr", "nudging_tendencies.zarr"),
@@ -463,8 +550,6 @@ if __name__ == "__main__":
         ref_mapper = loaders.mappers.open_merged_nudged(
             NUDGE_DATA_DIR, merge_files=("reference.zarr", "nudging_tendencies.zarr"),
         )
-        # ref_mapper = loaders.mappers.CoarsenedDataMapper(REF_DATA_DIR)
-        # print(ref_mapper.keys())
         train_block_filenames = load_blocks(
             nudged_mapper_before_dynamics,
             nudged_mapper_after_physics,
@@ -522,7 +607,9 @@ if __name__ == "__main__":
     #     n_blocks_between_window=n_blocks_between_window,
     #     batch_size=int(48 * 48 * 6 * data_fraction),
     # )
-    loss = fv3fit.keras._models.loss.get_weighted_mse(y_packer, y_scaler.std)
+    loss = fv3fit.keras._models.loss.get_weighted_mse(
+        y_packer, y_scaler.std, air_temperature=79, specific_humidity=79,
+    )
     # loss = penalize_negative_water(loss, 1.0)
     optimizer = tf.keras.optimizers.Adam(lr=0.001, amsgrad=True, clipnorm=1.0)
     model_dir = f"models-{args.label}"
@@ -563,10 +650,18 @@ if __name__ == "__main__":
     batch_idx = np.random.choice(
         np.arange(X_coarse.shape[0]), size=int(0.125 * X_coarse.shape[0]), replace=False
     )
-    X_coarse_val, y_coarse_val, _, y_ref_val = load_window(
+    X_coarse_val, y_coarse_val, y_coarse_delta_val, y_ref_val = load_window(
         batch_idx, val_block_filenames
     )
+    y_coarse_delta_val[:] *= n_timestep_frequency
+    y_coarse_delta_val[:, 0, :] += y_coarse_val[:, 0, :]
     coarse_loss_val = loss(y_ref_val, y_coarse_val)
+    y_coarse_no_nudge_val = np.cumsum(y_coarse_delta_val, axis=1)
+    coarse_no_nudge_loss_val = loss(y_ref_val, y_coarse_no_nudge_val)
+    del y_coarse_val
+    del y_coarse_no_nudge_val
+    print(f"coarse validation loss: {coarse_loss_val}")
+    print(f"coarse validation loss (nudging removed): {coarse_no_nudge_loss_val}")
 
     for i_epoch in range(50):
         epoch = base_epoch + i_epoch
@@ -585,9 +680,10 @@ if __name__ == "__main__":
             del y_ref
 
         print(f"coarse validation loss: {coarse_loss_val}")
+        print(f"coarse validation loss (nudging removed): {coarse_no_nudge_loss_val}")
         val_loss = loss(
             y_ref_val,
-            model.predict([X_coarse_val, y_coarse_val], batch_size=batch_size),
+            model.predict([X_coarse_val, y_coarse_delta_val], batch_size=batch_size),
         )
         print(f"model validation loss: {val_loss}")
 
