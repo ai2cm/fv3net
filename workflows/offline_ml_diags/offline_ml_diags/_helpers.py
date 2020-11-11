@@ -18,6 +18,8 @@ GRID_INFO_VARS = [
     "northward_wind_v_coeff",
     "lat",
     "lon",
+    "latb",
+    "lonb",
     "land_sea_mask",
     "area",
 ]
