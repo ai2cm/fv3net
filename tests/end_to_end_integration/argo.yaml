@@ -32,7 +32,6 @@ spec:
           base_version: v0.5
           forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
           nudging:
-            restarts_path: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
             timescale_hours:
               air_temperature: 3
               specific_humidity: 3
@@ -153,6 +152,10 @@ spec:
           template: nudging
         arguments:
           parameters:
+          - name: reference-restarts
+            value: "{{workflow.parameters.reference-restarts}}"
+          - name: initial-condition
+            value: "{{workflow.parameters.initial-condition}}"
           - name: times
             value: "{{workflow.parameters.nudging-times}}"
           - name: output-url

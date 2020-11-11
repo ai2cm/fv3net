@@ -7,6 +7,8 @@ spec:
   arguments:
     parameters:
       - name: nudging-config
+      - name: reference-restarts
+      - name: initial-condition
       - name: output-url
       - name: times
         value: ""
@@ -44,6 +46,10 @@ spec:
             template: nudging
             arguments:
               parameters:
+              - name: reference-restarts
+                value: "{{workflow.parameters.reference-restarts}}"
+              - name: initial-condition
+                value: "{{workflow.parameters.initial-condition}}"
               - name: times
                 value: "{{workflow.parameters.times}}"
               - name: output-url
@@ -59,6 +65,8 @@ spec:
     - name: nudging
       inputs:
         parameters:
+          - name: reference-restarts
+          - name: initial-condition
           - name: nudging-config
           - name: times
           - name: output-url
@@ -73,6 +81,8 @@ spec:
             name: prepare-config
             arguments:
               parameters:
+                - {name: reference-restarts, value: "{{inputs.parameters.reference-restarts}}"}
+                - {name: initial-condition, value: "{{inputs.parameters.initial-condition}}"}
                 - {name: nudging-config, value: "{{inputs.parameters.nudging-config}}"}
                 - {name: times, value: "{{inputs.parameters.times}}"}
                 - {name: use-default-chunks, value: "{{inputs.parameters.use-default-chunks}}"}
@@ -95,6 +105,8 @@ spec:
     - name: prepare-config
       inputs:
         parameters:
+          - {name: reference-restarts}
+          - {name: initial-condition}
           - {name: nudging-config}
           - {name: times}
           - {name: use-default-chunks}
@@ -112,7 +124,7 @@ spec:
       container:
         image: us.gcr.io/vcm-ml/fv3net
         command: ["/bin/bash", "-c"]
-        workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging
+        workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run
         volumeMounts:
           - name: workdir
             mountPath: /tmp
@@ -137,4 +149,6 @@ spec:
           python prepare_config.py \
             --timesteps times.json \
             config.yaml \
+            "{{inputs.parameters.reference-restarts}}" \
+            "{{inputs.parameters.initial-condition}}"
             > /tmp/fv3config.yaml
