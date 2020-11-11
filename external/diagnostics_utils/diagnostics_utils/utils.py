@@ -76,7 +76,11 @@ def reduce_to_diagnostic(
 
     ds = xr.merge([domain_ds, ds.drop(labels=primary_vars)])
 
-    return ds.mean(dim=[time_dim, dataset_dim], keep_attrs=True)
+    if dataset_dim in ds.dims:
+        mean_dims = [time_dim, dataset_dim]
+    else:
+        mean_dims = [time_dim]
+    return ds.mean(dim=mean_dims, keep_attrs=True)
 
 
 def insert_column_integrated_vars(
