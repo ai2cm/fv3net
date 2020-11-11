@@ -304,10 +304,15 @@ def diagnostic_batches(prediction_mapper, data_source_offline_config):
 
 @pytest.mark.regression
 def test_compute_offline_diags(
-    offline_diags_reference_schema, diagnostic_batches, grid_dataset
+    offline_diags_reference_schema,
+    diagnostic_batches,
+    grid_dataset,
+    data_source_offline_config,
 ):
     ds_diagnostics, ds_diurnal, ds_metrics = _compute_diags_over_batches(
-        diagnostic_batches, grid_dataset
+        diagnostic_batches,
+        grid_dataset,
+        predicted_vars=data_source_offline_config["output_variables"],
     )
 
     # convert metrics to dict

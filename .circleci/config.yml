@@ -150,8 +150,10 @@ jobs:
             chmod +x /bin/yq
 
             # install kustomize
-            curl -s "https://raw.githubusercontent.com/\
-            kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
+            wget "https://raw.githubusercontent.com/\
+            kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
+            chmod +x install_kustomize.sh
+            ./install_kustomize.sh  3.8.6
             mv kustomize /usr/local/bin/
 
             # Install argo
