@@ -15,7 +15,7 @@ import loaders
 from vcm import safe
 from vcm.cloud import get_fs
 from fv3fit import PRODUCTION_MODEL_TYPES
-from ._metrics import calc_metrics
+from ._metrics import calc_metrics, VERTICAL_PROFILE_MEAN_DIMS
 from . import _model_loaders as model_loaders
 from ._mapper import PredictionMapper
 from ._helpers import add_net_precip_domain_info, load_grid_info
@@ -130,7 +130,10 @@ def _compute_diags_over_batches(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
         )
         # ...compute metrics
-        ds_metrics = calc_metrics(xr.merge([ds, grid["area"]], compat="override"))
+        vertical_profile_mean_dims = VERTICAL_PROFILE_MEAN_DIMS
+        if loaders.DATASET_DIM_NAME in ds.dims:
+            vertical_profile_mean_dims = vertical_profile_mean_dims + (loaders.DATASET_DIM_NAME,)
+        ds_metrics = calc_metrics(xr.merge([ds, grid["area"]], compat="override"), vertical_profile_mean_dims=vertical_profile_mean_dims)
         batches_summary.append(ds_summary.load())
         batches_diurnal.append(ds_diurnal.load())
         batches_metrics.append(ds_metrics.load())
