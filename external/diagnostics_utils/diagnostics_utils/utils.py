@@ -20,6 +20,7 @@ def reduce_to_diagnostic(
     primary_vars: Sequence[str] = PRIMARY_VARS,
     net_precipitation: xr.DataArray = None,
     time_dim: str = "time",
+    dataset_dim: str = "dataset",
     derivation_dim: str = "derivation",
     uninformative_coords: Sequence[str] = ["tile", "z", "y", "x"],
 ) -> xr.Dataset:
@@ -75,7 +76,7 @@ def reduce_to_diagnostic(
 
     ds = xr.merge([domain_ds, ds.drop(labels=primary_vars)])
 
-    return ds.mean(dim=time_dim, keep_attrs=True)
+    return ds.mean(dim=[time_dim, dataset_dim], keep_attrs=True)
 
 
 def insert_column_integrated_vars(
