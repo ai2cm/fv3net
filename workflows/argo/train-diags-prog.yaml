@@ -47,6 +47,8 @@ spec:
         - {name: cpu-prog, value: "6"}
         - {name: memory-prog, value: 6Gi}
         - {name: work-volume-name, value: work-volume}
+        - {name: memory-train, value: 6Gi}
+        - {name: memory-offline-diags, value: 6Gi}
     dag:
       tasks:
       - name: train-model
@@ -65,6 +67,8 @@ spec:
               value: "{{inputs.parameters.train-times}}"
             - name: output
               value: "{{inputs.parameters.root}}/trained_model"
+            - name: memory
+              value: "{{inputs.parameters.memory-train}}"
       - name: prognostic-run
         dependencies: [train-model]
         templateRef:
@@ -111,6 +115,8 @@ spec:
                 value: "{{inputs.parameters.public-report-output}}"
               - name: data-path
                 value: "{{inputs.parameters.train-test-data}}"
+              - name: memory
+                value: "{{inputs.parameters.memory-offline-diags}}"
       - name: online-diags
         dependencies: [prognostic-run]
         templateRef:

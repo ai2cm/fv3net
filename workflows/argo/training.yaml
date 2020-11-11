@@ -13,6 +13,7 @@ spec:
           - name: config
           - name: times
           - name: output
+          - {name: memory, value: 6Gi}
       container:
         image: us.gcr.io/vcm-ml/fv3fit
         command: ["bash", "-c", "-x"]
@@ -47,8 +48,8 @@ spec:
               --timesteps-file times.json
         resources:
           requests:
-            memory: "6Gi"
+            memory: "{{inputs.parameters.memory}}"
             cpu: "1000m"
           limits:
-            memory: "6Gi"
+            memory: "{{inputs.parameters.memory}}"
             cpu: "1000m"

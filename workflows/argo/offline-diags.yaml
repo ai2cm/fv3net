@@ -25,6 +25,7 @@ spec:
           - name: offline-diags-output
           - name: report-output
           - name: data-path
+          - {name: memory, value: 6Gi}
       container:
         image: us.gcr.io/vcm-ml/fv3net
         command: ["bash", "-c", "-x"]
@@ -66,8 +67,8 @@ spec:
 
         resources:
           requests:
-            memory: "6Gi"
+            memory: "{{inputs.parameters.memory}}"
             cpu: "1000m"
           limits:
-            memory: "10Gi"
+            memory: "{{inputs.parameters.memory}}"
             cpu: "1000m"
