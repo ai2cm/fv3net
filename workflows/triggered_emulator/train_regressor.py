@@ -35,7 +35,7 @@ output = args.output
 
 data = Local(input_)
 ds = xr.concat(data, dim="sample")
-ds["active"] = trigger.is_active(ds)
+assert "active" in ds
 
 x_packer = fv3fit._shared.ArrayPacker("sample", config.input_variables)
 y_packer = fv3fit._shared.ArrayPacker("sample", config.output_variables)

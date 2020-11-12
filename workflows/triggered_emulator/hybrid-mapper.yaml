@@ -1,0 +1,30 @@
+mapping_function: open_fine_resolution_nudging_hybrid_clouds_off
+mapping_kwargs:
+  fine_res:
+    fine_res_url: gs://vcm-ml-experiments/2020-07-30-fine-res
+    offset_seconds: 450
+    rename_vars:
+      grid_xt: x
+      grid_yt: y
+      delp: pressure_thickness_of_atmospheric_layer
+      pfull: z
+  nudging:
+    url: gs://vcm-ml-experiments/2020-09-16-physics-on-nudge-to-fine
+    consolidated: true
+    open_merged_nudged_kwargs:
+      merge_files:
+        - after_physics.zarr
+        - nudging_tendencies.zarr
+        - physics_tendency_components.zarr
+      rename_vars:
+        # The coarse-to-fine nudging tendencies -- labeled dQ1 and dQ2
+        # in this case -- are completely ignored here.  They
+        # are eventually overwritten in the hybrid mapper with
+        # dQ = Q_fine - pQ_clouds_off.
+        air_temperature_tendency_due_to_nudging: dQ1
+        specific_humidity_tendency_due_to_nudging: dQ2
+        grid_xt: x
+        grid_yt: y
+        pfull: z
+  add_nudge_to_fine_tendency: false
+  add_xshield_nudging_tendency: false

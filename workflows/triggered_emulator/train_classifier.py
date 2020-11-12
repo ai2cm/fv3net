@@ -51,7 +51,6 @@ ds = xr.concat(data, dim="sample")
 x_packer = fv3fit._shared.ArrayPacker("sample", config.input_variables)
 y_packer = fv3fit._shared.ArrayPacker("sample", ["active"])
 
-ds["active"] = trigger.is_active(ds)
 X_train, y_train = x_packer.to_array(ds), y_packer.to_array(ds)
 
 test = get_test_data()
