@@ -88,11 +88,11 @@ def _save_wind_tendency_fig(arg: MovieArg):
     ds, fig_filename = arg
     print(f"Saving to {fig_filename}")
     fig, axes = plt.subplots(
-        1, 2, figsize=(10, 3), subplot_kw={"projection": ccrs.Robinson()}
+        1, 2, figsize=(10.2, 3), subplot_kw={"projection": ccrs.Robinson()}
     )
     _plot_maps(ds, axes, WIND_TENDENCY_PLOT_KWARGS)
     fig.suptitle(ds.time.values.item())
-    plt.subplots_adjust(left=0.01, right=0.91, bottom=0.05, wspace=0.32)
+    plt.subplots_adjust(left=0.01, right=0.89, bottom=0.05, wspace=0.32)
     with fsspec.open(fig_filename, "wb") as fig_file:
         fig.savefig(fig_file, dpi=100)
     plt.close(fig)
