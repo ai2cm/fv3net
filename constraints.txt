@@ -21,6 +21,7 @@ cachecontrol[filecache]==0.12.6  # via poetry
 cachetools==3.1.1         # via -r external/fv3fit/requirements.txt, apache-beam, google-auth
 cachy==0.3.0              # via poetry
 certifi==2019.11.28       # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, kubernetes, requests
+cffi==1.14.3              # via cryptography
 cftime==1.2.1             # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, nc-time-axis, netcdf4
 chardet==3.0.4            # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, requests
 cleo==0.7.6               # via poetry
@@ -30,9 +31,9 @@ cloudpickle==1.6.0        # via -r external/fv3fit/requirements.txt, dask
 conda-lock==0.4.1         # via -r pip-requirements.txt
 coverage==5.2.1           # via pytest-cov
 crcmod==1.7               # via apache-beam
+cryptography==3.2.1       # via secretstorage
 cycler==0.10.0            # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, matplotlib
-cython==0.29.21           # via -r docker/prognostic_run/requirements.txt
-dask[bag]==2.22.0         # via -r docker/learned_nudging_run/requirements.txt, -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, intake, xgcm
+dask[bag]==2.22.0         # via -r docker/learned_nudging_run/requirements.txt, -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, intake, intake-xarray, xgcm
 decorator==4.4.2          # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, gcsfs, networkx, traitlets
 dill==0.3.1.1             # via apache-beam
 distlib==0.3.1            # via virtualenv
@@ -70,7 +71,7 @@ google-resumable-media==0.5.1  # via google-cloud-bigquery
 googleapis-common-protos[grpc]==1.51.0  # via google-api-core, grpc-google-iam-v1
 grpc-google-iam-v1==0.12.3  # via google-cloud-bigtable, google-cloud-pubsub, google-cloud-spanner
 grpcio-gcp==0.2.2         # via apache-beam, google-api-core
-grpcio==1.31.0            # via apache-beam, google-api-core, grpc-google-iam-v1, grpcio-gcp, tensorboard, tensorflow
+grpcio==1.31.0            # via apache-beam, google-api-core, googleapis-common-protos, grpc-google-iam-v1, grpcio-gcp, tensorboard, tensorflow
 h5netcdf==0.8.1           # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt
 h5py==2.10.0              # via -r docker/prognostic_run/requirements.txt, h5netcdf, tensorflow
 hdfs==2.5.8               # via apache-beam
@@ -81,8 +82,10 @@ imageio==2.9.0            # via -r docker/prognostic_run/requirements.txt, -r ex
 imagesize==1.2.0          # via -r docker/prognostic_run/requirements.txt, sphinx
 importlib-metadata==1.1.3  # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, argcomplete, jsonschema, keyring, pint, pluggy, poetry, pytest, tox, virtualenv
 iniconfig==1.0.1          # via pytest
-intake==0.6.0             # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt
+intake-xarray==0.3.1      # via -r external/fv3fit/requirements.txt
+intake==0.6.0             # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, intake-xarray
 ipython-genutils==0.2.0   # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, traitlets
+jeepney==0.4.3            # via secretstorage
 jinja2==2.11.2            # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, conda-lock, intake, sphinx
 joblib==0.16.0            # via -r docker/prognostic_run/requirements.txt, scikit-learn
 jsonschema==3.2.0         # via -r docker/prognostic_run/requirements.txt, poetry
@@ -103,7 +106,7 @@ more-itertools==8.4.0     # via -r docker/prognostic_run/requirements.txt, -r ex
 mpi4py==3.0.3             # via -r docker/prognostic_run/requirements.txt
 msgpack==1.0.0            # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, cachecontrol, intake
 nc-time-axis==1.2.0       # via -r pip-requirements.txt
-netcdf4==1.5.3            # via -r docker/prognostic_run/requirements.txt
+netcdf4==1.5.3            # via -r docker/prognostic_run/requirements.txt, intake-xarray
 networkx==2.5             # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, scikit-image
 nose==1.3.7               # via -r external/fv3fit/requirements.txt
 numba==0.50.1             # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt
@@ -132,6 +135,7 @@ py==1.9.0                 # via -r docker/prognostic_run/requirements.txt, -r ex
 pyarrow==0.17.1           # via -r external/fv3fit/requirements.txt, apache-beam
 pyasn1-modules==0.2.7     # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, google-auth, oauth2client
 pyasn1==0.4.8             # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, oauth2client, pyasn1-modules, rsa
+pycparser==2.20           # via cffi
 pydot==1.4.1              # via apache-beam
 pygments==2.6.1           # via -r docker/prognostic_run/requirements.txt, sphinx
 pylev==1.3.0              # via clikit
@@ -152,8 +156,9 @@ rsa==4.6                  # via -r docker/prognostic_run/requirements.txt, -r ex
 scikit-image==0.16.2      # via -r docker/learned_nudging_run/requirements.txt, -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt
 scikit-learn==0.22.1      # via -r docker/learned_nudging_run/requirements.txt, -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt
 scipy==1.4.1              # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, metpy, scikit-image, scikit-learn, tensorflow
+secretstorage==3.1.2      # via keyring
 shellingham==1.3.2        # via poetry
-six==1.15.0               # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, absl-py, astunparse, cycler, docrep, fasteners, google-api-core, google-apitools, google-auth, google-cloud-bigquery, google-pasta, google-resumable-media, grpcio, h5py, hdfs, html5lib, jsonschema, keras-preprocessing, kubernetes, mock, nc-time-axis, oauth2client, packaging, pip-tools, protobuf, pyrsistent, python-dateutil, tensorboard, tensorflow, tox, traitlets, virtualenv, websocket-client
+six==1.15.0               # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, absl-py, astunparse, cryptography, cycler, docrep, fasteners, google-api-core, google-apitools, google-auth, google-cloud-bigquery, google-pasta, google-resumable-media, grpcio, h5py, hdfs, html5lib, jsonschema, keras-preprocessing, kubernetes, mock, nc-time-axis, oauth2client, packaging, pip-tools, protobuf, pyrsistent, python-dateutil, tensorboard, tensorflow, tox, traitlets, virtualenv, websocket-client
 smmap==3.0.4              # via -r docker/prognostic_run/requirements.txt, gitdb
 snowballstemmer==2.0.0    # via -r docker/prognostic_run/requirements.txt, sphinx
 sphinx-rtd-theme==0.5.0   # via -r docker/prognostic_run/requirements.txt
@@ -174,7 +179,7 @@ tomlkit==0.5.11           # via poetry
 toolz==0.10.0             # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, dask, partd
 tox==3.20.0               # via -r pip-requirements.txt
 traitlets==4.3.3          # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, metpy
-typing-extensions==3.7.4.3  # via apache-beam
+typing-extensions==3.7.4.3  # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, apache-beam
 urllib3==1.25.10          # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, kubernetes, requests
 virtualenv==20.0.33       # via tox
 wcwidth==0.2.5            # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt
@@ -183,11 +188,11 @@ websocket-client==0.57.0  # via -r docker/prognostic_run/requirements.txt, kuber
 werkzeug==1.0.1           # via tensorboard
 wheel==0.35.1             # via astunparse, tensorboard, tensorflow
 wrapt==1.12.1             # via tensorflow
-xarray==0.16.0            # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, metpy, xgcm
+xarray==0.16.0            # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, intake-xarray, metpy, xgcm
 xgcm==0.3.0               # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt
 xmltodict==0.12.0         # via yq
 yq==2.11.0                # via -r pip-requirements.txt
-zarr==2.4.0               # via -r docker/learned_nudging_run/requirements.txt, -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, -r pip-requirements.txt
+zarr==2.4.0               # via -r docker/learned_nudging_run/requirements.txt, -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, -r pip-requirements.txt, intake-xarray
 zipp==3.1.0               # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:

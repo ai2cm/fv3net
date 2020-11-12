@@ -424,6 +424,8 @@ def _model_dataset():
             "air_temperature": (dims, arr),
             "dQ1": (dims, arr),
             "dQ2": (dims, arr),
+            "dQu": (dims, arr),
+            "dQv": (dims, arr),
         }
     )
 
@@ -438,13 +440,24 @@ def _save_mock_sklearn_model(tmpdir):
     heating_constant_K_per_s = np.zeros(nz)
     # include nonzero moistening to test for mass conservation
     moistening_constant_per_s = -np.full(nz, 1e-4 / 86400)
-    constant = np.concatenate([heating_constant_K_per_s, moistening_constant_per_s])
+    wind_tendency_constant_m_per_s_per_s = np.zeros(nz)
+    constant = np.concatenate(
+        [
+            heating_constant_K_per_s,
+            moistening_constant_per_s,
+            wind_tendency_constant_m_per_s_per_s,
+            wind_tendency_constant_m_per_s_per_s,
+        ]
+    )
     estimator = RegressorEnsemble(
         DummyRegressor(strategy="constant", constant=constant)
     )
 
     model = SklearnWrapper(
-        "sample", ["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], estimator
+        "sample",
+        ["specific_humidity", "air_temperature"],
+        ["dQ1", "dQ2", "dQu", "dQv"],
+        estimator,
     )
 
     # needed to avoid sklearn.exceptions.NotFittedError
@@ -527,6 +540,8 @@ def test_fv3run_diagnostic_outputs(completed_rundir):
         "net_moistening",
         "physics_precip",
         "water_vapor_path",
+        "column_integrated_dQu",
+        "column_integrated_dQv",
     ]:
         assert diagnostics[variable].dims == dims
         assert np.sum(np.isnan(diagnostics[variable].values)) == 0

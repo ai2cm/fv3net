@@ -19,4 +19,4 @@ def generate_fine_res(datadir: str, times: Sequence[str]):
     for tile in range(1, 7):
         for time in times:
             path = os.path.join(datadir, f"{time}.tile{tile}.nc")
-            dataset.isel(tile=tile - 1).to_netcdf(path)
+            dataset.isel(tile=tile - 1).to_netcdf(path, engine="h5netcdf")

@@ -80,6 +80,10 @@ def diagnostics_overlay(diagnostic_ml):
                     "net_heating_diagnostic",
                     "water_vapor_path",
                     "physics_precip",
+                    "column_integrated_dQu",
+                    "column_integrated_dQu_diagnostic",
+                    "column_integrated_dQv",
+                    "column_integrated_dQv_diagnostic",
                 ],
                 "times": {"kind": "interval", "frequency": 900},
             }

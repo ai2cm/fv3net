@@ -18,4 +18,5 @@ fi
 docker build \
     --secret id=gcp,src="$GOOGLE_APPLICATION_CREDENTIALS" \
     --build-arg BUILDKIT_INLINE_CACHE=1 \
+    --build-arg COMMIT_SHA_ARG="$(git rev-parse HEAD)" \
     --cache-from "$cacheImage" $@

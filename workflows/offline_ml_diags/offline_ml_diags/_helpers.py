@@ -5,9 +5,32 @@ import shutil
 from typing import Mapping, Sequence
 import yaml
 import xarray as xr
-
 import report
+from vcm import safe
 from vcm.cloud import gsutil
+from vcm.catalog import catalog
+
+
+GRID_INFO_VARS = [
+    "eastward_wind_u_coeff",
+    "eastward_wind_v_coeff",
+    "northward_wind_u_coeff",
+    "northward_wind_v_coeff",
+    "lat",
+    "lon",
+    "latb",
+    "lonb",
+    "land_sea_mask",
+    "area",
+]
+
+
+def load_grid_info(res: str = "c48"):
+    grid = catalog[f"grid/{res}"].read()
+    wind_rotation = catalog[f"wind_rotation/{res}"].read()
+    land_sea_mask = catalog[f"landseamask/{res}"].read()
+    grid_info = xr.merge([grid, wind_rotation, land_sea_mask])
+    return safe.get_variables(grid_info, GRID_INFO_VARS)
 
 
 def write_report(
@@ -82,6 +105,11 @@ def get_metric_string(
     return f"{value:.{precision}f} +/- {std:.{precision}f}"
 
 
+def column_integrated_metric_names(metrics):
+    names = set([key.split("/")[2] for key in metrics.keys()])
+    return [name for name in names if "column_integrated" in name]
+
+
 def units_from_Q_name(var):
     if "q1" in var.lower():
         if "column_integrated" in var:
@@ -93,6 +121,11 @@ def units_from_Q_name(var):
             return "[mm/day]"
         else:
             return "[kg/kg/s]"
+    elif "qu" in var.lower() or "qv" in var.lower():
+        if "column_integrated" in var:
+            return "[Pa]"
+        else:
+            return "[m/s^2]"
     else:
         return None
 
