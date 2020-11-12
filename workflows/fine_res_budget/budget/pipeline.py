@@ -1,3 +1,6 @@
+import socket
+import datetime
+import sys
 import logging
 from typing import Iterable, Sequence, Hashable, Mapping
 from itertools import product
@@ -61,20 +64,34 @@ class OpenTimeChunks(beam.PTransform):
         )
 
 
-def run(restart_url, physics_url, gfsphysics_url, output_dir, extra_args=()):
+def run(restart_url, physics_url, gfsphysics_url, area_url, output_dir, extra_args=()):
 
     options = PipelineOptions(extra_args)
     with beam.Pipeline(options=options) as p:
 
         (
             p
-            | FunctionSource(open_merged, restart_url, physics_url, gfsphysics_url)
+            | FunctionSource(
+                open_merged, restart_url, physics_url, gfsphysics_url, area_url
+            )
             | OpenTimeChunks()
             | "Compute Budget"
             >> beam.Map(
                 budgets.compute_recoarsened_budget_inputs,
                 factor=config.factor,
                 first_moments=config.VARIABLES_TO_AVERAGE,
+            )
+            | "Insert metadata"
+            >> beam.Map(
+                lambda x: x.assign_attrs(
+                    history=" ".join(sys.argv),
+                    restart_url=restart_url,
+                    physics_url=physics_url,
+                    area_url=area_url,
+                    gfsphysics_url=gfsphysics_url,
+                    launching_host=socket.gethostname(),
+                    date_computed=datetime.datetime.now().isoformat(),
+                )
             )
             | "Save" >> beam.Map(save, base=output_dir)
         )
