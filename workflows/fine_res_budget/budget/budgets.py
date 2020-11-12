@@ -3,7 +3,7 @@ from typing import Dict, Iterable, List, Sequence, Tuple
 
 import xarray as xr
 
-from vcm import pressure_at_interface
+import vcm
 from vcm.cubedsphere import block_upsample, weighted_block_average, regrid_vertical
 
 import logging
@@ -28,7 +28,7 @@ class Grid:
     zi: str
 
     def pressure_at_interface(self, p):
-        return pressure_at_interface(p, dim_center=self.z, dim_outer=self.zi)
+        return vcm.pressure_at_interface(p, dim_center=self.z, dim_outer=self.zi)
 
     def weighted_block_average(self, delp, weight, factor):
         return weighted_block_average(delp, weight, factor, x_dim=self.x, y_dim=self.y)
@@ -55,6 +55,26 @@ class Grid:
         avg = self.weighted_block_average(fg, area, factor)
         return avg.drop_vars([self.x, self.y, self.z], errors="ignore").rename(
             field.name
+        )
+
+    def block_sum(self, array, factor):
+        return array.coarsen({self.x: factor, self.y: factor}).sum()
+
+    def area_above_fine_surface(self, delp_fine, delp_coarse, area):
+        nx = delp_fine.sizes[self.x]
+        nc = delp_coarse.sizes[self.x]
+
+        factor = nx // nc
+
+        pressure_c = vcm.pressure_at_midpoint_log(delp_coarse, dim=self.z)
+        pressure_c_up = self.block_upsample(pressure_c, factor)
+        ps = vcm.surface_pressure_from_delp(delp_fine, vertical_dim=self.z)
+        exposed_area = self.block_sum(area.where(pressure_c_up <= ps, 0.0), factor)
+        return exposed_area.rename("exposed_area").assign_attrs(
+            units="m^2",
+            description="area where the fine resolution surface is below "
+            "the coarse-resolution pressure midpoint",
+            long_name="exposed_area",
         )
 
 
@@ -243,13 +263,29 @@ def compute_recoarsened_budget_inputs(
     """  # noqa
     logger.info("Re-coarse-graining the fields needed for the fine-resolution budgets")
 
+    # rechunk to be contiguous in x and y
+    merged = merged.chunk({GRID.x: -1, GRID.y: -1, GRID.z: -1})
+
     middle = merged.sel(step="middle")
     area = middle.area_coarse
     delp_fine = middle.delp
     delp_coarse = GRID.weighted_block_average(delp_fine, area, factor=factor)
+
     raw_first_moments = [middle[v] for v in first_moments]
     raw_second_moments = compute_second_moments(middle, second_moments)
     raw_storage_terms = compute_storage_terms(merged, storage_terms, dt)
     raw_fields = raw_first_moments + raw_second_moments + raw_storage_terms
     coarsened = coarsen_variables(raw_fields, delp_fine, delp_coarse, area, factor)
-    return xr.merge([coarsened, delp_coarse])
+
+    exposed_area_c384 = middle["exposed_area_coarse"]
+    exposed_area = GRID.area_above_fine_surface(
+        delp_fine, delp_coarse, exposed_area_c384
+    )
+
+    area = (
+        GRID.block_sum(area, factor)
+        .rename("area")
+        .assign_attrs(units="m^2", long_name="area_of_grid_cell")
+    )
+
+    return xr.merge([coarsened, delp_coarse, exposed_area, area])

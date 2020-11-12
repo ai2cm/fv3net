@@ -24,6 +24,7 @@ from .calc.thermo import (
     pressure_at_midpoint_log,
     potential_temperature,
     pressure_at_interface,
+    surface_pressure_from_delp,
 )
 from ._zarr_mapping import ZarrMapping
 from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
