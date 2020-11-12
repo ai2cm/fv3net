@@ -80,12 +80,8 @@ def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
 def _column_dq2(ds: xr.Dataset) -> xr.DataArray:
     if "net_moistening" in ds:
         column_dq2 = SECONDS_PER_DAY * ds.net_moistening
-    elif "column_moistening_nudge" in ds:
-        # name for column integrated humidity nudging in nudge-to-obs runs
-        column_dq2 = SECONDS_PER_DAY * ds.column_moistening_nudge
     else:
-        # assume given dataset is for a baseline run or a verification run
-        # without humidity nudging
+        # assume given dataset is for a baseline or verification run
         column_dq2 = xr.zeros_like(ds.PRATEsfc)
     column_dq2.attrs = {
         "long_name": "<dQ2> column integrated moistening from ML",
@@ -112,8 +108,26 @@ def _column_q2(ds: xr.Dataset) -> xr.DataArray:
     return column_q2.rename("column_integrated_Q2")
 
 
+def _column_moistening_from_nudging(ds: xr.Dataset) -> xr.DataArray:
+    if "column_moistening_nudge" in ds:
+        # name for column integrated humidity nudging in nudge-to-obs runs
+        column_moistening_from_nudging = SECONDS_PER_DAY * ds.column_moistening_nudge
+    else:
+        # assume given dataset is for a run without humidity nudging
+        column_moistening_from_nudging = xr.zeros_like(ds.PRATEsfc)
+    column_moistening_from_nudging.attrs = {
+        "long_name": "column integrated moistening from nudging",
+        "units": "mm/day",
+    }
+    return column_moistening_from_nudging.rename("column_moistening_from_nudging")
+
+
 def _total_precip(ds: xr.Dataset) -> xr.DataArray:
-    total_precip = ds.PRATEsfc * SECONDS_PER_DAY - _column_dq2(ds)
+    total_precip = (
+        ds.PRATEsfc * SECONDS_PER_DAY
+        - _column_dq2(ds)
+        - _column_moistening_from_nudging(ds)
+    )
     total_precip.attrs = {
         "long_name": "P - <dQ2> total precipitation",
         "units": "mm/day",
