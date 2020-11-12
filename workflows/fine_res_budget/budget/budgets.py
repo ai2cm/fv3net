@@ -264,7 +264,7 @@ def compute_recoarsened_budget_inputs(
     logger.info("Re-coarse-graining the fields needed for the fine-resolution budgets")
 
     # rechunk to be contiguous in x and y
-    merged = merged.chunk({"grid_xt": -1, "grid_yt": -1, "pfull": -1})
+    merged = merged.chunk({GRID.x: -1, GRID.y: -1, GRID.z: -1})
 
     middle = merged.sel(step="middle")
     area = middle.area_coarse
