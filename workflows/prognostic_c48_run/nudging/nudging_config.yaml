@@ -1,9 +1,5 @@
-
-base_version: v0.4
-forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
-initial_conditions: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48/20160801.001500/
+base_version: v0.5
 nudging:
-  restarts_path: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48
   timescale_hours:
     air_temperature: 12
     specific_humidity: 12
@@ -13,7 +9,6 @@ nudging:
     - "20160801.003000"
 namelist:
   coupler_nml:
-    calendar: julian
     current_date:
     - 2016
     - 8
@@ -22,7 +17,7 @@ namelist:
     - 15
     - 0
     days: 0
-    hours: 6
+    hours: 1
     minutes: 0
     months: 0
     seconds: 0
