@@ -4,6 +4,8 @@ import numpy as np
 
 import pytest
 
+import loaders
+
 
 class IdentityPredictor2D(Predictor):
     def predict(self, X):
@@ -85,12 +87,12 @@ def test__Predictor_predict_columnwise_coordinates_same(coords,):
 
 def test__Predictor_predict_columnwise_broadcast_dataset_dim_in_input():
     model = IdentityPredictor2D("sample", ["a", "b"], ["a"])
-    sample_dims = ("x", "y", "dataset")
+    sample_dims = ("x", "y", loaders.DATASET_DIM_NAME)
     X = xr.Dataset(
         {
-            "a": (["x", "y", "dataset", "z"], np.ones((2, 3, 4, 5))),
+            "a": (["x", "y", loaders.DATASET_DIM_NAME, "z"], np.ones((2, 3, 4, 5))),
             "b": (["x", "y", "z"], np.ones((2, 3, 5))),
         }
     )
     ans = model.predict_columnwise(X, sample_dims=sample_dims)
-    assert ans.a.dims == ("x", "y", "dataset", "z")
+    assert ans.a.dims == ("x", "y", loaders.DATASET_DIM_NAME, "z")

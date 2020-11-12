@@ -4,10 +4,11 @@ from scipy.stats import binned_statistic
 from typing import Sequence
 import xarray as xr
 
+import loaders
 from .config import VARNAMES
 from .utils import snap_mask_to_type
 
-FLATTEN_DIMS = ["time", "x", "y", "tile", "dataset"]
+FLATTEN_DIMS = ["time", "x", "y", "tile", loaders.DATASET_DIM_NAME]
 DIURNAL_CYCLE_DIM = "local_time_hr"
 SURFACE_TYPE_DIM = "surface_type"
 

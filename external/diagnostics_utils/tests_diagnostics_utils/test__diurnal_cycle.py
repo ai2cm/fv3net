@@ -3,6 +3,7 @@ from datetime import datetime
 import pytest
 import xarray as xr
 
+import loaders
 from diagnostics_utils._diurnal_cycle import (
     _local_time,
     bin_diurnal_cycle,
@@ -59,7 +60,7 @@ def ds_with_dataset_dim(request):
     time_coords = list(map(_generate_time_coords, times_of_day))
     da = xr.DataArray(
         [values for time in time_coords],
-        dims=["time", "x", "dataset"],
+        dims=["time", "x", loaders.DATASET_DIM_NAME],
         coords={"x": [0, 1], "time": time_coords},
     ).rename("test_var")
     da_additional_dim = xr.DataArray(
@@ -67,7 +68,7 @@ def ds_with_dataset_dim(request):
             [i * np.array(values) for time in time_coords]
             for i in range(len(ADDITIONAL_COORDS))
         ],
-        dims=[ADDITIONAL_DIM, "time", "x", "dataset"],
+        dims=[ADDITIONAL_DIM, "time", "x", loaders.DATASET_DIM_NAME],
         coords={"x": [0, 1], "time": time_coords, ADDITIONAL_DIM: ADDITIONAL_COORDS},
     ).rename("test_var_additional_dim")
 
