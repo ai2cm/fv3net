@@ -134,19 +134,18 @@ def _compute_diags_over_batches(
         add_net_precip_domain_info(ds_summary, net_precip_domain_coord)
 
         # ...compute diurnal cycles
+        if loaders.DATASET_DIM_NAME in ds.dims:
+            time_dataset_dims = ("time", loaders.DATASET_DIM_NAME)
+        else:
+            time_dataset_dims = ("time", )
+        ds = ds.stack(time_dataset_dim=time_dataset_dims)
         ds_diurnal = utils.create_diurnal_cycle_dataset(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
         )
         # ...compute metrics
-        vertical_profile_mean_dims = VERTICAL_PROFILE_MEAN_DIMS
-        if loaders.DATASET_DIM_NAME in ds.dims:
-            vertical_profile_mean_dims = vertical_profile_mean_dims + (
-                loaders.DATASET_DIM_NAME,
-            )
         ds_metrics = calc_metrics(
             xr.merge([ds, grid["area"]], compat="override"),
-            predicted=metric_vars,
-            vertical_profile_mean_dims=vertical_profile_mean_dims,
+            predicted=metric_vars
         )
 
         batches_summary.append(ds_summary.load())

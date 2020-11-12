@@ -148,7 +148,6 @@ def bin_diurnal_cycle(
     bin_width_hrs = 24.0 / n_bins
     bin_centers = [i * bin_width_hrs for i in range(n_bins)]
     local_time = _local_time(longitude, da[time_dim])
-    _, local_time = xr.broadcast(da, local_time)
     bin_means = _bin_diurnal_cycle(da, local_time, n_bins)
     da_diurnal_cycle = xr.DataArray(
         bin_means, dims=[DIURNAL_CYCLE_DIM], coords={DIURNAL_CYCLE_DIM: bin_centers}
@@ -168,6 +167,9 @@ def _local_time(da_lon: xr.DataArray, da_time: xr.DataArray) -> xr.DataArray:
 def _bin_diurnal_cycle(
     da_var: xr.DataArray, local_time: xr.DataArray, n_bins,
 ):
+    # Ensure the labeled dimension order matches between da_var
+    # and local_time before converting to NumPy.
+    local_time = local_time.transpose(*da_var.dims)
     bins = np.linspace(0, 24, n_bins + 1)
     bin_means = binned_statistic(
         local_time.values.flatten(),

@@ -83,16 +83,3 @@ def test__Predictor_predict_columnwise_coordinates_same(coords,):
     ans = model.predict_columnwise(X, sample_dims=["x", "y"])
     for coord in ans.coords:
         xr.testing.assert_equal(ans.coords[coord], X.coords[coord])
-
-
-def test__Predictor_predict_columnwise_broadcast_dataset_dim_in_input():
-    model = IdentityPredictor2D("sample", ["a", "b"], ["a"])
-    sample_dims = ("x", "y", loaders.DATASET_DIM_NAME)
-    X = xr.Dataset(
-        {
-            "a": (["x", "y", loaders.DATASET_DIM_NAME, "z"], np.ones((2, 3, 4, 5))),
-            "b": (["x", "y", "z"], np.ones((2, 3, 5))),
-        }
-    )
-    ans = model.predict_columnwise(X, sample_dims=sample_dims)
-    assert ans.a.dims == ("x", "y", loaders.DATASET_DIM_NAME, "z")
