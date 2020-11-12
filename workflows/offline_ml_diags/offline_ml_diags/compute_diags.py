@@ -44,6 +44,11 @@ SHIELD_DERIVATION_COORD = "coarsened_SHiELD"
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
 
+# Base set of variables for which to compute column integrals and composite means
+# Additional output variables are also computed.
+DIAGNOSTIC_VARS = ("dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2")
+METRIC_VARS = ("dQ1", "dQ2", "Q1", "Q2")
+
 
 def _create_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
@@ -92,11 +97,13 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
 
 
 def _compute_diags_over_batches(
-    ds_batches: Sequence[xr.Dataset], grid: xr.Dataset,
+    ds_batches: Sequence[xr.Dataset], grid: xr.Dataset, predicted_vars: Sequence[str]
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
     """Return a set of diagnostic datasets from a sequence of batched data"""
 
     batches_summary, batches_diurnal, batches_metrics = [], [], []
+    diagnostic_vars = list(set(predicted_vars + ["pQ1", "pQ2", "Q1", "Q2"]))
+    metric_vars = list(set(predicted_vars + ["Q1", "Q2"]))
 
     # for each batch...
     for i, ds in enumerate(ds_batches):
@@ -105,7 +112,7 @@ def _compute_diags_over_batches(
         # ...insert additional variables
         ds = (
             ds.pipe(utils.insert_total_apparent_sources)
-            .pipe(utils.insert_column_integrated_vars)
+            .pipe(utils.insert_column_integrated_vars, diagnostic_vars)
             .pipe(utils.insert_net_terms_as_Qs)
             .load()
         )
@@ -122,6 +129,7 @@ def _compute_diags_over_batches(
             net_precipitation=-ds["column_integrated_Q2"].sel(
                 derivation=net_precip_domain_coord
             ),
+            primary_vars=diagnostic_vars,
         )
         add_net_precip_domain_info(ds_summary, net_precip_domain_coord)
 
@@ -137,8 +145,10 @@ def _compute_diags_over_batches(
             )
         ds_metrics = calc_metrics(
             xr.merge([ds, grid["area"]], compat="override"),
+            predicted=metric_vars,
             vertical_profile_mean_dims=vertical_profile_mean_dims,
         )
+
         batches_summary.append(ds_summary.load())
         batches_diurnal.append(ds_diurnal.load())
         batches_metrics.append(ds_metrics.load())
@@ -258,7 +268,7 @@ if __name__ == "__main__":
 
     # compute diags
     ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diags_over_batches(
-        ds_batches, grid
+        ds_batches, grid, predicted_vars=config["output_variables"]
     )
 
     # write diags and diurnal datasets
