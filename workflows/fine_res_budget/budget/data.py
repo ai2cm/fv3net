@@ -58,31 +58,36 @@ def open_restart_data(RESTART_ZARR):
     return standardize_restart_metadata(restarts)
 
 
-def open_merged(restart_url: str, physics_url: str, gfsphysics_url: str) -> xr.Dataset:
+def open_merged(
+    restart_url: str = config.restart_url,
+    physics_url: str = config.physics_url,
+    gfsphysics_url: str = config.gfsphysics_url,
+    area_url: str = config.area_url,
+) -> xr.Dataset:
     restarts = open_restart_data(restart_url)
     diag = open_diagnostic_output(physics_url)
     gfsphysics = safe.get_variables(
         open_diagnostic_output(gfsphysics_url), config.GFSPHYSICS_VARIABLES
     )
+    area_diags = open_diagnostic_output(area_url)
 
     shifted_restarts = shift(restarts)
     shift_gfs = shift(gfsphysics)
 
     merged = xr.merge(
-        [shifted_restarts, diag, shift_gfs.drop("tile")],
+        [
+            safe.get_variables(shifted_restarts, config.RESTART_VARIABLES),
+            safe.get_variables(shift_gfs, config.GFSPHYSICS_VARIABLES).drop("tile"),
+            safe.get_variables(diag, config.PHYSICS_VARIABLES),
+            area_diags["exposed_area_coarse"],
+        ],
         join="inner",
         compat="override",
     ).drop_vars(GRID_VARIABLES, errors="ignore")
 
-    data = safe.get_variables(
-        merged,
-        config.GFSPHYSICS_VARIABLES
-        + config.PHYSICS_VARIABLES
-        + config.RESTART_VARIABLES,
-    )
-    num_tiles = len(data.tile)
+    num_tiles = len(merged.tile)
     tiles = range(1, num_tiles + 1)
-    return data.assign_coords(tile=tiles)
+    return merged.assign_coords(tile=tiles)
 
 
 def standardize_restart_metadata(restarts):
