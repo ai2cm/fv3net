@@ -61,8 +61,8 @@ class Grid:
         return array.coarsen({self.x: factor, self.y: factor}).sum()
 
     def area_above_fine_surface(self, delp_fine, delp_coarse, area):
-        nx = len(delp_fine[self.x])
-        nc = len(delp_coarse[self.x])
+        nx = delp_fine.sizes[self.x]
+        nc = delp_coarse.sizes[self.x]
 
         factor = nx // nc
 
