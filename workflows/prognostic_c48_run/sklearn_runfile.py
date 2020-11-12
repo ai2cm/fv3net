@@ -256,16 +256,26 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._timestep = timestep
         self._log_info(f"Timestep: {timestep}")
 
-        self._do_only_diagnostic_ml: bool = args["scikit_learn"].get(
-            "diagnostic_ml", False
-        )
         self._tendencies_to_apply_to_dycore_state: State = {}
         self._tendencies_to_apply_to_physics_state: State = {}
+            
+        # get nudging info if nudging
+        if 'nudging' in args:
+            self._nudging_timescales = args['nudging']['timescale_hours']
+        else:
+            self._nudging_timescales = {}
 
-        # download the model
-        self._log_info("Downloading ML Model")
-        self._model = open_model(args["scikit_learn"])
-        self._log_info("Model Downloaded")
+        # download the model if doing ML
+        if 'scikit_learn' in args:
+            self._log_info("Downloading ML Model")
+            self._model = open_model(args["scikit_learn"])
+            self._log_info("Model Downloaded")
+            self._do_only_diagnostic_ml: bool = args["scikit_learn"].get(
+                "diagnostic_ml", False
+            )
+        else:
+            self._model = None
+            
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -397,10 +407,12 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             diagnostics = {}
             diagnostics.update(self._step_dynamics())
             diagnostics.update(self._compute_physics())
-            diagnostics.update(self._apply_python_to_physics_state())
+            if self._model:
+                diagnostics.update(self._apply_python_to_physics_state())
             diagnostics.update(self._apply_physics())
-            diagnostics.update(self._compute_python_tendency())
-            diagnostics.update(self._apply_python_to_dycore_state())
+            if self._model:
+                diagnostics.update(self._compute_python_tendency())
+                diagnostics.update(self._apply_python_to_dycore_state())
             yield self._state.time, diagnostics
         self._fv3gfs.cleanup()
 
@@ -505,6 +517,8 @@ if __name__ == "__main__":
     )
 
     for time, diagnostics in loop:
+        
+        print(diagnostics)
 
         averages = globally_average_2d_diagnostics(comm, diagnostics)
         if comm.rank == 0:
