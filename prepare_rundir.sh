@@ -1,4 +1,4 @@
-write_run_directory external/fv3gfs-fortran/tests/pytest/config/default.yml rundir
+write_run_directory /home/andrep/repos/fv3net/scratch/fv3config_files/c48_run.yaml rundir
 
 # write a runscript for convenience
 cat << EOF > rundir/run.sh
