@@ -13,5 +13,5 @@ REGRESSOR=hybrid_regressor.pkl
 
 # upload model
 gsutil cp "$REGRESSOR" "$OUTPUT/regressor.pkl"
-gsutil cp "$CLASSIFIER" "$OUTPUT/classifier.pkl"
+gsutil cp "$CLASSIFIER" "$OUTPUT/nn.pkl"
 gsutil cp hybrid-mapper.yaml "$OUTPUT/hybrid-mapper.yaml"
