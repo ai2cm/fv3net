@@ -55,6 +55,5 @@ COPY external/fv3config /tmp/fv3config
 RUN pip3 install wheel
 RUN pip3 install /tmp/fv3config numpy
 
-
 ARG COMMIT_SHA_ARG
 ENV COMMIT_SHA=$COMMIT_SHA_ARG
