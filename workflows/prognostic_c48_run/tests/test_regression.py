@@ -156,8 +156,8 @@ namelist:
     kord_tr: 10
     kord_wz: 10
     layout:
-    - 1
-    - 1
+    - 2
+    - 2
     make_nh: false
     mountain: true
     n_split: 6
