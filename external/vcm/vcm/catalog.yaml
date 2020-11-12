@@ -415,6 +415,34 @@ sources:
       urlpath: "gs://vcm-ml-experiments/2020-09-30-nudge-to-obs-year-long-training-run/atmos_output.zarr"
       consolidated: True
 
+  2015_2016_c48_nudged_fv3gfs_physics_output:
+    description: 2D physics diagnostics variables from 2015-2016 nudged-to-obs FV3GFS simulation (Nov 10, 2020)
+    driver: zarr
+    args:
+      metadata:
+        grid: c48
+        simulation: nudged_c48_fv3gfs_2015_2016
+        category: physics
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-experiments/2020-10-30-nudge-to-obs-GRL-paper/nudge-to-obs-run-3hr-diags/physics_output.zarr"
+      consolidated: True
+
+  2015_2016_c48_nudged_fv3gfs_dycore_output:
+    description: 2D dynamical core diagnostics variables from 2016 nudged-to-obs FV3GFS simulation (Nov 10, 2020)
+    driver: zarr
+    args:
+      metadata:
+        grid: c48
+        simulation: nudged_c48_fv3gfs_2015_2016
+        category: dycore
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-experiments/2020-10-30-nudge-to-obs-GRL-paper/nudge-to-obs-run-3hr-diags/atmos_output.zarr"
+      consolidated: True
+
   2020-11-10-C3072-to-C384-exposed-area:
     description: "grid file with exposed_area variable. From a one-off run performed by Spencer Clark."
     driver: zarr
