@@ -25,6 +25,8 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _column_q1,
         _column_q2,
         _total_precip,
+        _column_dqu,
+        _column_dqv,
     ]:
         try:
             arrays.append(func(ds))
@@ -88,6 +90,32 @@ def _column_dq2(ds: xr.Dataset) -> xr.DataArray:
         "units": "mm/day",
     }
     return column_dq2.rename("column_integrated_dQ2")
+
+
+def _column_dqu(ds: xr.Dataset) -> xr.DataArray:
+    if "column_integrated_dQu" in ds:
+        column_dqu = SECONDS_PER_DAY * ds.column_integrated_dQu
+    else:
+        # assume given dataset has no ML prediction of momentum tendencies
+        column_dqu = xr.zeros_like(ds.PRATEsfc)
+    column_dqu.attrs = {
+        "long_name": "<dQu> vertical mean eastward wind tendency from ML",
+        "units": "m/s/day",
+    }
+    return column_dqu.rename("vertical_mean_dQu")
+
+
+def _column_dqv(ds: xr.Dataset) -> xr.DataArray:
+    if "column_integrated_dQv" in ds:
+        column_dqv = SECONDS_PER_DAY * ds.column_integrated_dQv
+    else:
+        # assume given dataset has no ML prediction of momentum tendencies
+        column_dqv = xr.zeros_like(ds.PRATEsfc)
+    column_dqv.attrs = {
+        "long_name": "<dQu> vertical mean northward wind tendency from ML",
+        "units": "m/s/day",
+    }
+    return column_dqv.rename("vertical_mean_dQv")
 
 
 def _column_q1(ds: xr.Dataset) -> xr.DataArray:

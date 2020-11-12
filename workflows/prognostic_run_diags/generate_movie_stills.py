@@ -50,15 +50,24 @@ HEATING_MOISTENING_PLOT_KWARGS = {
     "column_integrated_Q2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
 }
 
-KEEP_VARS = GRID_VARS + list(HEATING_MOISTENING_PLOT_KWARGS.keys())
+WIND_TENDENCY_PLOT_KWARGS = {
+    "vertical_mean_dQu": {"vmin": -5, "vmax": 5, "cmap": "RdBu_r"},
+    "vertical_mean_dQv": {"vmin": -5, "vmax": 5, "cmap": "RdBu_r"},
+}
+
+KEEP_VARS = (
+    GRID_VARS
+    + list(HEATING_MOISTENING_PLOT_KWARGS.keys())
+    + list(WIND_TENDENCY_PLOT_KWARGS.keys())
+)
 
 
-def _six_panel_heating_moistening(ds, axes):
-    for i, (var, plot_kwargs) in enumerate(HEATING_MOISTENING_PLOT_KWARGS.items()):
+def _plot_maps(ds, axes, plot_kwargs):
+    for i, (variable, variable_plot_kwargs) in enumerate(plot_kwargs.items()):
         ax = axes.flatten()[i]
-        mv = viz.mappable_var(ds, var, coord_vars=_COORD_VARS, **COORD_NAMES)
-        viz.plot_cube(mv, ax=ax, **plot_kwargs)
-        ax.set_title(var.replace("_", " "))
+        mv = viz.mappable_var(ds, variable, coord_vars=_COORD_VARS, **COORD_NAMES)
+        viz.plot_cube(mv, ax=ax, **variable_plot_kwargs)
+        ax.set_title(variable.replace("_", " "))
 
 
 def _save_heating_moistening_fig(arg: MovieArg):
@@ -67,7 +76,21 @@ def _save_heating_moistening_fig(arg: MovieArg):
     fig, axes = plt.subplots(
         2, 3, figsize=(15, 5.3), subplot_kw={"projection": ccrs.Robinson()}
     )
-    _six_panel_heating_moistening(ds, axes)
+    _plot_maps(ds, axes, HEATING_MOISTENING_PLOT_KWARGS)
+    fig.suptitle(ds.time.values.item())
+    plt.subplots_adjust(left=0.01, right=0.91, bottom=0.05, wspace=0.32)
+    with fsspec.open(fig_filename, "wb") as fig_file:
+        fig.savefig(fig_file, dpi=100)
+    plt.close(fig)
+
+
+def _save_wind_tendency_fig(arg: MovieArg):
+    ds, fig_filename = arg
+    print(f"Saving to {fig_filename}")
+    fig, axes = plt.subplots(
+        1, 2, figsize=(10, 3), subplot_kw={"projection": ccrs.Robinson()}
+    )
+    _plot_maps(ds, axes, WIND_TENDENCY_PLOT_KWARGS)
     fig.suptitle(ds.time.values.item())
     plt.subplots_adjust(left=0.01, right=0.91, bottom=0.05, wspace=0.32)
     with fsspec.open(fig_filename, "wb") as fig_file:
@@ -85,7 +108,10 @@ def _movie_funcs():
         where arg is a tuple of an xr.Dataset containing the data to be plotted
         and a path for where func should save the figure it generates.
     """
-    return {"column_heating_moistening": _save_heating_moistening_fig}
+    return {
+        "column_ML_wind_tendencies": _save_wind_tendency_fig,
+        "column_heating_moistening": _save_heating_moistening_fig,
+    }
 
 
 if __name__ == "__main__":

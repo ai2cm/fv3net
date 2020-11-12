@@ -57,6 +57,8 @@ GLOBAL_AVERAGE_PHYSICS_VARS = [
     "column_integrated_pQ2",
     "column_integrated_dQ2",
     "column_integrated_Q2",
+    "vertical_mean_dQu",
+    "vertical_mean_dQv",
     "total_precip",
     "PRATEsfc",
     "LHTFLsfc",
