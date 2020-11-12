@@ -11,3 +11,6 @@ test: kustomize
 kustomize:
 	../install_kustomize.sh 3.8.6
     
+prog_diags: kustomize
+	./kustomize build . | kubectl apply -f -
+	./prog_diags.sh

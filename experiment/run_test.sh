@@ -3,14 +3,9 @@
 set -e
 
 EXPERIMENT=2020-11-09-nudge-to-obs-NN-trials-test
-
-#!/bin/bash
-set -e
-
-
 mkdir -p configs
 
-for i in {0..0}
+for i in {2..2}
 do
 
     sed '/random_seed/d' configs/base-training-config.yml > configs/training-config-seed-$i-test.yml
@@ -28,8 +23,8 @@ do
         -p train-times="$(<  ../train_short.json)" \
         -p test-times="$(<  ../test_short.json)" \
         -p public-report-output=gs://vcm-ml-public/offline_ml_diags/$EXPERIMENT/seed-$i \
-        -p cpu-prog=6 \
-        -p memory-prog="12Gi" \
+        -p cpu-prog=24 \
+        -p memory-prog="25Gi" \
         -p flags="--nudge-to-observations" \
         -p chunks="$(< chunks.yaml)" \
         --name nudge-to-obs-nn-trials-seed-$i-test

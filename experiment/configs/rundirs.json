@@ -1,0 +1,34 @@
+[
+    {
+        "url": "gs://vcm-ml-experiments/2020-11-09-nudge-to-obs-NN-trials/seed-2/prognostic_run",
+        "name": "NN-random-seed-2"
+    },
+    {
+        "url": "gs://vcm-ml-experiments/2020-11-09-nudge-to-obs-NN-trials/seed-3/prognostic_run",
+        "name": "NN-random-seed-3"
+    },
+    {
+        "url": "gs://vcm-ml-experiments/2020-11-09-nudge-to-obs-NN-trials/seed-4/prognostic_run",
+        "name": "NN-random-seed-4"
+    },
+    {
+        "url": "gs://vcm-ml-experiments/2020-11-09-nudge-to-obs-NN-trials/seed-7/prognostic_run",
+        "name": "NN-random-seed-7"
+    },
+    {
+        "url": "gs://vcm-ml-experiments/2020-11-09-nudge-to-obs-NN-trials/seed-10/prognostic_run",
+        "name": "NN-random-seed-10"
+    },
+    {
+        "url": "gs://vcm-ml-experiments/2020-11-09-nudge-to-obs-NN-trials-no-winds/seed-0/prognostic_run",
+        "name": "NN-random-seed-0-no-winds"
+    },
+    {
+        "url": "gs://vcm-ml-experiments/2020-11-09-nudge-to-obs-NN-trials-no-winds/seed-1/prognostic_run",
+        "name": "NN-random-seed-1-no-winds"
+    },
+    {
+        "url": "gs://vcm-ml-experiments/2020-10-01-year-long-baseline-run",
+        "name": "physics-on-baseline"
+    }
+]

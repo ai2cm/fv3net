@@ -20,6 +20,9 @@ namelist:
     make_nh: true
     mountain: false
     na_init: 1
+    layout:
+      - 2
+      - 2
   gfdl_cloud_microphysics_nml:
     fast_sat_adj: false
   fv_nwp_nudge_nml:
