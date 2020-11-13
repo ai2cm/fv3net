@@ -96,15 +96,18 @@ def _non_zero(ds: xr.Dataset, variables: Sequence, tol=1e-12) -> bool:
     """Check whether any of variables are non-zero. Useful to ensure that
     movies of all zero-valued fields are not generated."""
     for variable in variables:
-        if abs(ds[variable]).max() > tol:
+        if variable in ds and abs(ds[variable]).max() > tol:
             return True
     return False
 
 
-def _movie_funcs():
-    """Return mapping of movie name to movie-still creation function.
+def _movie_specs():
+    """Return mapping of movie name to movie specification.
+
+    Movie specification is a mapping with a "plotting_function" key and
+    a "required_variables" key.
     
-    Each function must have following signature:
+    Each plotting function must have following signature:
 
         func(arg: MovieArg)
 
@@ -160,7 +163,7 @@ if __name__ == "__main__":
         prognostic = prognostic.isel(time=slice(None, args.n_timesteps))
     T = prognostic.sizes["time"]
 
-    for name, movie_spec in _movie_funcs().items():
+    for name, movie_spec in _movie_specs().items():
         func = movie_spec["plotting_function"]
         required_variables = movie_spec["required_variables"]
         logger.info(f"Forcing load for required variables for {name} movie")
