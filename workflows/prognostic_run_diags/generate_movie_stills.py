@@ -2,7 +2,7 @@ import argparse
 import logging
 import os
 from multiprocessing import get_context
-from typing import Tuple
+from typing import Sequence, Tuple
 
 import dask
 
@@ -50,15 +50,18 @@ HEATING_MOISTENING_PLOT_KWARGS = {
     "column_integrated_Q2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
 }
 
-KEEP_VARS = GRID_VARS + list(HEATING_MOISTENING_PLOT_KWARGS.keys())
+WIND_TENDENCY_PLOT_KWARGS = {
+    "vertical_mean_dQu": {"vmin": -5, "vmax": 5, "cmap": "RdBu_r"},
+    "vertical_mean_dQv": {"vmin": -5, "vmax": 5, "cmap": "RdBu_r"},
+}
 
 
-def _six_panel_heating_moistening(ds, axes):
-    for i, (var, plot_kwargs) in enumerate(HEATING_MOISTENING_PLOT_KWARGS.items()):
+def _plot_maps(ds, axes, plot_kwargs):
+    for i, (variable, variable_plot_kwargs) in enumerate(plot_kwargs.items()):
         ax = axes.flatten()[i]
-        mv = viz.mappable_var(ds, var, coord_vars=_COORD_VARS, **COORD_NAMES)
-        viz.plot_cube(mv, ax=ax, **plot_kwargs)
-        ax.set_title(var.replace("_", " "))
+        mv = viz.mappable_var(ds, variable, coord_vars=_COORD_VARS, **COORD_NAMES)
+        viz.plot_cube(mv, ax=ax, **variable_plot_kwargs)
+        ax.set_title(variable.replace("_", " "))
 
 
 def _save_heating_moistening_fig(arg: MovieArg):
@@ -67,7 +70,7 @@ def _save_heating_moistening_fig(arg: MovieArg):
     fig, axes = plt.subplots(
         2, 3, figsize=(15, 5.3), subplot_kw={"projection": ccrs.Robinson()}
     )
-    _six_panel_heating_moistening(ds, axes)
+    _plot_maps(ds, axes, HEATING_MOISTENING_PLOT_KWARGS)
     fig.suptitle(ds.time.values.item())
     plt.subplots_adjust(left=0.01, right=0.91, bottom=0.05, wspace=0.32)
     with fsspec.open(fig_filename, "wb") as fig_file:
@@ -75,17 +78,52 @@ def _save_heating_moistening_fig(arg: MovieArg):
     plt.close(fig)
 
 
-def _movie_funcs():
-    """Return mapping of movie name to movie-still creation function.
+def _save_wind_tendency_fig(arg: MovieArg):
+    ds, fig_filename = arg
+    print(f"Saving to {fig_filename}")
+    fig, axes = plt.subplots(
+        1, 2, figsize=(10.2, 3), subplot_kw={"projection": ccrs.Robinson()}
+    )
+    _plot_maps(ds, axes, WIND_TENDENCY_PLOT_KWARGS)
+    fig.suptitle(ds.time.values.item())
+    plt.subplots_adjust(left=0.01, right=0.89, bottom=0.05, wspace=0.32)
+    with fsspec.open(fig_filename, "wb") as fig_file:
+        fig.savefig(fig_file, dpi=100)
+    plt.close(fig)
+
+
+def _non_zero(ds: xr.Dataset, variables: Sequence, tol=1e-12) -> bool:
+    """Check whether any of variables are non-zero. Useful to ensure that
+    movies of all zero-valued fields are not generated."""
+    for variable in variables:
+        if variable in ds and abs(ds[variable]).max() > tol:
+            return True
+    return False
+
+
+def _movie_specs():
+    """Return mapping of movie name to movie specification.
+
+    Movie specification is a mapping with a "plotting_function" key and
+    a "required_variables" key.
     
-    Each function must have following signature:
+    Each plotting function must have following signature:
 
         func(arg: MovieArg)
 
         where arg is a tuple of an xr.Dataset containing the data to be plotted
         and a path for where func should save the figure it generates.
     """
-    return {"column_heating_moistening": _save_heating_moistening_fig}
+    return {
+        "column_ML_wind_tendencies": {
+            "plotting_function": _save_wind_tendency_fig,
+            "required_variables": list(WIND_TENDENCY_PLOT_KWARGS.keys()),
+        },
+        "column_heating_moistening": {
+            "plotting_function": _save_heating_moistening_fig,
+            "required_variables": list(HEATING_MOISTENING_PLOT_KWARGS.keys()),
+        },
+    }
 
 
 if __name__ == "__main__":
@@ -120,14 +158,21 @@ if __name__ == "__main__":
         .drop_dims(INTERFACE_DIMS, errors="ignore")
         .merge(grid)
     )
+
     if args.n_timesteps:
         prognostic = prognostic.isel(time=slice(None, args.n_timesteps))
-    logger.info("Forcing computation")
-    prognostic = prognostic[KEEP_VARS].load()  # force load
     T = prognostic.sizes["time"]
-    for name, func in _movie_funcs().items():
-        logger.info(f"Saving {T} still images for {name} movie to {args.output}")
+
+    for name, movie_spec in _movie_specs().items():
+        func = movie_spec["plotting_function"]
+        required_variables = movie_spec["required_variables"]
+        logger.info(f"Forcing load for required variables for {name} movie")
+        movie_data = prognostic[GRID_VARS + required_variables].load()
         filename = os.path.join(args.output, name + FIG_SUFFIX)
-        func_args = [(prognostic.isel(time=t), filename.format(t=t)) for t in range(T)]
-        with get_context("spawn").Pool(args.n_jobs) as p:
-            p.map(func, func_args)
+        func_args = [(movie_data.isel(time=t), filename.format(t=t)) for t in range(T)]
+        if _non_zero(movie_data, required_variables):
+            logger.info(f"Saving {T} still images for {name} movie to {args.output}")
+            with get_context("spawn").Pool(args.n_jobs) as p:
+                p.map(func, func_args)
+        else:
+            logger.info(f"Skipping {name} movie since all plotted variables are zero")
