@@ -104,7 +104,7 @@ spec:
     tolerations:
     - key: "dedicated"
       operator: "Equal"
-      value: "climate-sim-pool"
+      value: "med-sim-pool"
       effect: "NoSchedule"
     container:
       image: us.gcr.io/vcm-ml/fv3net
@@ -134,12 +134,29 @@ spec:
     inputs:
       parameters:
       - name: output
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "med-sim-pool"
+      effect: "NoSchedule"
     container:
       image: us.gcr.io/vcm-ml/regrid_c3072_diag
       command:
       - /usr/bin/regrid_prognostic_run_diags.sh
       - "{{inputs.parameters.output}}/diags.nc"
       - "{{inputs.parameters.output}}/diags_latlon.nc"
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/gcp-credentials/key.json
+      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+        value: /secret/gcp-credentials/key.json
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-key-secret
+      resources:
+        requests:
+          memory: "3Gi"
+          cpu: "1000m"
   - name: movie
     inputs:
       parameters:
