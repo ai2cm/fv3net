@@ -33,7 +33,7 @@ class MockDatasetMapper:
         return len(self.keys())
 
 
-@pytest.fixture
+@pytest.fixture(params=["MockDatasetMapper", "MultiDatasetMapper"])
 def mapper(request, datadir):
     one_step_zarr_schema = "one_step_zarr_schema.json"
     # uses the one step schema but final mapper
@@ -54,9 +54,6 @@ def random_state():
     return np.random.RandomState(0)
 
 
-@pytest.mark.parametrize(
-    "mapper", ["MockDatasetMapper", "MultiDatasetMapper"], indirect=True
-)
 def test__load_batch(mapper):
     ds = _load_batch(
         mapper=mapper,
@@ -66,9 +63,6 @@ def test__load_batch(mapper):
     assert len(ds["time"]) == 4
 
 
-@pytest.mark.parametrize(
-    "mapper", ["MockDatasetMapper", "MultiDatasetMapper"], indirect=True
-)
 def test_batches_from_mapper(mapper):
     batched_data_sequence = batches_from_mapper(
         mapper, DATA_VARS, timesteps_per_batch=2
@@ -83,9 +77,6 @@ def test_batches_from_mapper(mapper):
             assert batch[name].sizes[loaders.SAMPLE_DIM_NAME] == expected_num_samples
 
 
-@pytest.mark.parametrize(
-    "mapper", ["MockDatasetMapper", "MultiDatasetMapper"], indirect=True
-)
 @pytest.mark.parametrize(
     "total_times,times_per_batch,valid_num_batches", [(3, 1, 3), (3, 2, 2), (3, 4, 1)]
 )
@@ -102,9 +93,6 @@ def test_batches_from_mapper_timestep_list(
     assert set(timesteps_used).issubset(timestep_list)
 
 
-@pytest.mark.parametrize(
-    "mapper", ["MockDatasetMapper", "MultiDatasetMapper"], indirect=True
-)
 def test__batches_from_mapper_invalid_times(mapper):
     invalid_times = list(mapper.keys())[:2] + ["20000101.000000", "20000102.000000"]
     with pytest.raises(ValueError):
@@ -113,9 +101,6 @@ def test__batches_from_mapper_invalid_times(mapper):
         )
 
 
-@pytest.mark.parametrize(
-    "mapper", ["MockDatasetMapper", "MultiDatasetMapper"], indirect=True
-)
 def test_diagnostic_batches_from_mapper(mapper):
     batched_data_sequence = diagnostic_batches_from_mapper(
         mapper, DATA_VARS, timesteps_per_batch=2,
