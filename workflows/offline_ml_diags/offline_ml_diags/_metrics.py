@@ -4,7 +4,7 @@ from typing import Sequence, Callable, Union
 import xarray as xr
 
 from vcm import safe
-from vcm.cubedsphere import regrid_to_common_pressure
+from vcm import interpolate_to_pressure_levels
 import copy
 
 
@@ -28,11 +28,9 @@ def calc_metrics(
     predict_coord: str = PREDICT_COORD,
     target_coord: str = TARGET_COORD,
     derivation_dim: str = DERIVATION_DIM,
-    pressure_dim: str = PRESSURE_DIM,
     vertical_dim: str = VERTICAL_DIM,
     area_var: str = AREA_VAR,
     delp_var: str = DELP_VAR,
-    toa_pressure: float = TOA_PRESSURE,
     vertical_profile_mean_dims: Sequence[str] = VERTICAL_PROFILE_MEAN_DIMS,
 ) -> xr.Dataset:
     """Routine for computing ML prediction metrics (_bias, _mse]) on a dataset of
@@ -74,9 +72,7 @@ def calc_metrics(
         **derivation_kwargs,
     )
 
-    ds_regrid_z = _regrid_dataset_zdim(
-        ds, vertical_dim, pressure_dim, delp_var, toa_pressure, **derivation_kwargs
-    )
+    ds_regrid_z = _regrid_dataset_zdim(ds, vertical_dim, delp_var, **derivation_kwargs)
 
     pressure_level_metrics = _calc_same_dims_metrics(
         ds_regrid_z,
@@ -99,9 +95,7 @@ def calc_metrics(
 def _regrid_dataset_zdim(
     ds: xr.Dataset,
     vertical_dim: str = VERTICAL_DIM,
-    pressure_dim: str = PRESSURE_DIM,
     delp_var: str = DELP_VAR,
-    toa_pressure: float = TOA_PRESSURE,
     predict_coord: str = PREDICT_COORD,
     target_coord: str = TARGET_COORD,
     derivation_dim: str = DERIVATION_DIM,
@@ -116,11 +110,8 @@ def _regrid_dataset_zdim(
     for derivation_coord in [target_coord, predict_coord]:
         ds_regrid = ds_3d.sel({derivation_dim: derivation_coord})
         for var in vertical_dim_vars:
-            ds_regrid[var] = regrid_to_common_pressure(
-                field=ds_regrid[var],
-                delp=ds[delp_var],
-                coord_z_center=vertical_dim,
-                new_vertical_dim=pressure_dim,
+            ds_regrid[var] = interpolate_to_pressure_levels(
+                delp=ds[delp_var], field=ds_regrid[var], dim=vertical_dim,
             )
         regridded_datasets.append(ds_regrid)
     return xr.merge([ds_2d, xr.concat(regridded_datasets, dim=derivation_dim)])

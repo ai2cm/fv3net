@@ -1,38 +1,6 @@
-import logging
-from os.path import join
-
-import numpy as np
 import xarray as xr
 
 from vcm.cubedsphere.coarsen import NUM_TILES, SUBTILE_FILE_PATTERN
-
-
-# TODO: this expects prefix as a path prefix to the coarsened tiles
-def open_cubed_sphere(prefix: str, **kwargs):
-    """Open cubed-sphere data
-
-    Args:
-         prefix: the beginning part of the filename before the `.tile1.nc.0001`
-           part
-
-    Returns:
-        a dataset with tiles combined. The tile coordinate starts with 0.
-
-     """
-    tiles = []
-    for tile in range(1, NUM_TILES + 1):
-        files = subtile_filenames(prefix, tile, **kwargs)
-        subtiles = [xr.open_dataset(file, chunks={}) for file in files]
-        combined = combine_subtiles(subtiles).assign_coords(tile=tile - 1)
-        tiles.append(remove_duplicate_coords(combined))
-    return xr.concat(tiles, dim="tile")
-
-
-def save_tiles_separately(sfc_data, prefix, output_directory):
-    for i in range(6):
-        output_path = join(output_directory, f"{prefix}.tile{i+1}.nc")
-        logging.info(f"saving data to {output_path}")
-        sfc_data.isel(tile=i).to_netcdf(output_path)
 
 
 def combine_subtiles(subtiles):
@@ -59,7 +27,7 @@ def combine_subtiles(subtiles):
     return xr.merge(output_vars)
 
 
-def subtile_filenames(prefix, tile, pattern=SUBTILE_FILE_PATTERN, num_subtiles=16):
+def _subtile_filenames(prefix, tile, pattern=SUBTILE_FILE_PATTERN, num_subtiles=16):
     for subtile in range(num_subtiles):
         yield pattern.format(prefix=prefix, tile=tile, subtile=subtile)
 
@@ -67,13 +35,5 @@ def subtile_filenames(prefix, tile, pattern=SUBTILE_FILE_PATTERN, num_subtiles=1
 def all_filenames(prefix, pattern=SUBTILE_FILE_PATTERN, num_subtiles=16):
     filenames = []
     for tile in range(1, NUM_TILES + 1):
-        filenames.extend(subtile_filenames(prefix, tile, pattern, num_subtiles))
+        filenames.extend(_subtile_filenames(prefix, tile, pattern, num_subtiles))
     return filenames
-
-
-def remove_duplicate_coords(ds):
-    deduped_indices = {}
-    for dim in ds.dims:
-        _, i = np.unique(ds[dim], return_index=True)
-        deduped_indices[dim] = i
-    return ds.isel(deduped_indices)
