@@ -4,7 +4,6 @@ from scipy.stats import binned_statistic
 from typing import Sequence
 import xarray as xr
 
-import loaders
 from .config import VARNAMES
 from .utils import snap_mask_to_type
 

@@ -60,7 +60,7 @@ def ds_with_dataset_dim(request):
     time_coords = list(map(_generate_time_coords, times_of_day))
     da = xr.DataArray(
         [values for time in time_coords],
-        dims=["time", "x", loaders.DATASET_DIM_NAME],
+        dims=["time", "x", "dataset"],
         coords={"x": [0, 1], "time": time_coords},
     ).rename("test_var")
     da_additional_dim = xr.DataArray(
@@ -68,13 +68,13 @@ def ds_with_dataset_dim(request):
             [i * np.array(values) for time in time_coords]
             for i in range(len(ADDITIONAL_COORDS))
         ],
-        dims=[ADDITIONAL_DIM, "time", "x", loaders.DATASET_DIM_NAME],
+        dims=[ADDITIONAL_DIM, "time", "x", "dataset"],
         coords={"x": [0, 1], "time": time_coords, ADDITIONAL_DIM: ADDITIONAL_COORDS},
     ).rename("test_var_additional_dim")
 
     return xr.Dataset(
         {"test_var": da, "test_var_additional_dim": da_additional_dim}
-    ).stack(time_dataset_dim=["time", loaders.DATASET_DIM_NAME])
+    ).stack(time_dataset_dim=["time", "dataset"])
 
 
 @pytest.mark.parametrize(
