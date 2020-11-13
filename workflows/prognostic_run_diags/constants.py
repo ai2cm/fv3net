@@ -100,4 +100,10 @@ TIME_MEAN_VARS = [
     "column_integrated_Q1",
     "column_integrated_Q2",
     "total_precip",
+    "UGRD850",
+    "UGRD200",
+    "TMPsfc",
+    "TMP850",
+    "TMP200",
+    "h500",
 ]

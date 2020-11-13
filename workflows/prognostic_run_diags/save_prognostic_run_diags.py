@@ -26,7 +26,7 @@ from dask.diagnostics import ProgressBar
 
 from toolz import curry
 from collections import defaultdict
-from typing import Dict, Callable, Mapping
+from typing import Dict, Callable, Mapping, Union
 
 import vcm.catalog
 import load_diagnostic_data as load_diags
@@ -66,17 +66,16 @@ def _prepare_diag_dict(
     for variable in new_diags:
         lower = variable.lower()
         da = new_diags[variable]
-        attrs = da.attrs
-        if not attrs and variable in src_ds:
+        if variable in src_ds:
             logger.debug(
-                "Transferring missing diagnostic attributes from source for "
+                "Transferring available diagnostic attributes from source for "
                 f"{variable}."
             )
             src_attrs = src_ds[variable].attrs
             da = da.assign_attrs(src_attrs)
         else:
             logger.debug(
-                f"Diagnostic variable ({variable}) missing attributes. This "
+                f"Not transferring attributes from source dataset for {variable}. This "
                 "may cause issues with automated report generation."
             )
 
@@ -174,6 +173,28 @@ def zonal_mean(
     return zm.assign_coords(latitude=latitude_midpoints)
 
 
+def time_mean(ds: xr.Dataset, dim: str = "time") -> xr.Dataset:
+    result = ds.mean(dim)
+    return _assign_diagnostic_time_attrs(result, ds)
+
+
+def _get_time_attrs(ds: Union[xr.Dataset, xr.DataArray]) -> Mapping[str, str]:
+    if "time" in ds.coords:
+        start_time = str(ds.time.values[0])
+        end_time = str(ds.time.values[-1])
+        return {"diagnostic_start_time": start_time, "diagnostic_end_time": end_time}
+
+
+def _assign_diagnostic_time_attrs(
+    diagnostics_ds: xr.Dataset, source_ds: xr.Dataset
+) -> xr.Dataset:
+    for variable in diagnostics_ds:
+        if variable in source_ds:
+            attrs = _get_time_attrs(source_ds[variable])
+            diagnostics_ds[variable] = diagnostics_ds[variable].assign_attrs(attrs)
+    return diagnostics_ds
+
+
 def dump_nc(ds: xr.Dataset, f):
     # to_netcdf closes file, which will delete the buffer
     # need to use a buffer since seek doesn't work with GCSFS file objects
@@ -189,9 +210,9 @@ def dump_nc(ds: xr.Dataset, f):
 @transform.apply("resample_time", "3H", inner_join=True)
 @transform.apply("daily_mean", datetime.timedelta(days=10))
 @transform.apply("subset_variables", RMSE_VARS)
-def rms_errors(resampled, verification_c48, grid):
+def rms_errors(prognostic, verification_c48, grid):
     logger.info("Preparing rms errors")
-    rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
+    rms_errors = rms(prognostic, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
 
     return rms_errors
 
@@ -202,7 +223,8 @@ def rms_errors(resampled, verification_c48, grid):
 @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
 def zonal_means_dycore(prognostic, verification, grid):
     logger.info("Preparing zonal+time means (dycore)")
-    return zonal_mean(prognostic, grid.lat).mean("time")
+    zonal_means = zonal_mean(prognostic, grid.lat)
+    return time_mean(zonal_means)
 
 
 @add_to_diags("physics")
@@ -211,7 +233,8 @@ def zonal_means_dycore(prognostic, verification, grid):
 @transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
 def zonal_means_physics(prognostic, verification, grid):
     logger.info("Preparing zonal+time means (physics)")
-    return zonal_mean(prognostic, grid.lat).mean("time")
+    zonal_means = zonal_mean(prognostic, grid.lat)
+    return time_mean(zonal_means)
 
 
 @add_to_diags("dycore")
@@ -220,7 +243,8 @@ def zonal_means_physics(prognostic, verification, grid):
 @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
 def zonal_mean_biases_dycore(prognostic, verification, grid):
     logger.info("Preparing zonal+time mean biases (dycore)")
-    return zonal_mean(prognostic - verification, grid.lat).mean("time")
+    zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
+    return time_mean(zonal_mean_bias)
 
 
 @add_to_diags("physics")
@@ -229,7 +253,8 @@ def zonal_mean_biases_dycore(prognostic, verification, grid):
 @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
 def zonal_mean_biases_physics(prognostic, verification, grid):
     logger.info("Preparing zonal+time mean biases (physics)")
-    return zonal_mean(prognostic - verification, grid.lat).mean("time")
+    zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
+    return time_mean(zonal_mean_bias)
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -240,9 +265,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply("resample_time", "3H")
     @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
-    def global_averages_dycore(resampled, verification, grid, mask_type=mask_type):
+    def global_averages_dycore(prognostic, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing averages for dycore variables ({mask_type})")
-        area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
+        area_averages = (prognostic * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
             HORIZONTAL_DIMS
         )
 
@@ -257,9 +282,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply("resample_time", "3H")
     @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
-    def global_averages_physics(resampled, verification, grid, mask_type=mask_type):
+    def global_averages_physics(prognostic, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing averages for physics variables ({mask_type})")
-        area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
+        area_averages = (prognostic * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
             HORIZONTAL_DIMS
         )
 
@@ -274,9 +299,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply("resample_time", "3H", inner_join=True)
     @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
-    def global_biases_physics(resampled, verification, grid, mask_type=mask_type):
+    def global_biases_physics(prognostic, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing average biases for physics variables ({mask_type})")
-        bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
+        bias_errors = bias(verification, prognostic, grid.area, HORIZONTAL_DIMS)
 
         return bias_errors
 
@@ -289,29 +314,47 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply("resample_time", "3H", inner_join=True)
     @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
-    def global_biases_dycore(resampled, verification, grid, mask_type=mask_type):
+    def global_biases_dycore(prognostic, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing average biases for dycore variables ({mask_type})")
-        bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
+        bias_errors = bias(verification, prognostic, grid.area, HORIZONTAL_DIMS)
 
         return bias_errors
 
 
 @add_to_diags("physics")
 @diag_finalizer("time_mean_value")
-@transform.apply("resample_time", "1H", time_slice=slice(24, -1), inner_join=True)
+@transform.apply("resample_time", "1H", inner_join=True)
 @transform.apply("subset_variables", TIME_MEAN_VARS)
-def time_mean(prognostic, verification, grid):
+def time_means_physics(prognostic, verification, grid):
     logger.info("Preparing time means for physics variables")
-    return prognostic.mean("time")
+    return time_mean(prognostic)
 
 
 @add_to_diags("physics")
 @diag_finalizer("time_mean_bias")
-@transform.apply("resample_time", "1H", time_slice=slice(24, -1), inner_join=True)
+@transform.apply("resample_time", "1H", inner_join=True)
 @transform.apply("subset_variables", TIME_MEAN_VARS)
-def time_mean_bias(prognostic, verification, grid):
+def time_mean_biases_physics(prognostic, verification, grid):
     logger.info("Preparing time mean biases for physics variables")
-    return (prognostic - verification).mean("time")
+    return time_mean(prognostic - verification)
+
+
+@add_to_diags("dycore")
+@diag_finalizer("time_mean_value")
+@transform.apply("resample_time", "1H", inner_join=True)
+@transform.apply("subset_variables", TIME_MEAN_VARS)
+def time_means_dycore(prognostic, verification, grid):
+    logger.info("Preparing time means for physics variables")
+    return time_mean(prognostic)
+
+
+@add_to_diags("dycore")
+@diag_finalizer("time_mean_bias")
+@transform.apply("resample_time", "1H", inner_join=True)
+@transform.apply("subset_variables", TIME_MEAN_VARS)
+def time_mean_biases_dycore(prognostic, verification, grid):
+    logger.info("Preparing time mean biases for physics variables")
+    return time_mean(prognostic - verification)
 
 
 for mask_type in ["global", "land", "sea"]:
@@ -321,15 +364,18 @@ for mask_type in ["global", "land", "sea"]:
     @transform.apply("mask_to_sfc_type", mask_type)
     @transform.apply("resample_time", "1H", time_slice=slice(24, -1), inner_join=True)
     @transform.apply("subset_variables", DIURNAL_CYCLE_VARS)
-    def _diurnal_func(resampled, verification, grid, mask_type=mask_type) -> xr.Dataset:
+    def _diurnal_func(
+        prognostic, verification, grid, mask_type=mask_type
+    ) -> xr.Dataset:
         # mask_type is added as a kwarg solely to give the logging access to the info
         logger.info(
             f"Computing diurnal cycle info for physics variables with mask={mask_type}"
         )
-        if len(resampled.time) == 0:
+        if len(prognostic.time) == 0:
             return xr.Dataset({})
         else:
-            return diurnal_cycle.calc_diagnostics(resampled, verification, grid).load()
+            diag = diurnal_cycle.calc_diagnostics(prognostic, verification, grid).load()
+            return _assign_diagnostic_time_attrs(diag, prognostic)
 
 
 def _get_parser():
