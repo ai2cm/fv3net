@@ -81,6 +81,26 @@ spec:
       - name: output
       - name: flags
         value: " "
+    steps:
+    - - name: compute-reduced-diagnostics
+        template: compute-reduced-diagnostics
+        arguments:
+          parameters:
+            - {name: run, value: "{{inputs.parameters.run}}"}
+            - {name: output, value: "{{inputs.parameters.output}}"}
+            - {name: flags, value: "{{inputs.parameters.flags}}"}
+    - - name: regrid-reduced-diagnostics
+        template: regrid-reduced-diagnostics
+        arguments:
+          parameters:
+            - {name: output, value: "{{inputs.parameters.output}}"}
+  - name: compute-reduced-diagnostics
+    inputs:
+      parameters:
+      - name: run
+      - name: output
+      - name: flags
+        value: " "
     tolerations:
     - key: "dedicated"
       operator: "Equal"
@@ -110,6 +130,16 @@ spec:
         limits:
             memory: "12Gi"
             cpu: "1000m"
+  - name: regrid-reduced-diagnostics
+    inputs:
+      parameters:
+      - name: output
+    container:
+      image: us.gcr.io/vcm-ml/regrid_c3072_diags
+      command:
+      - /usr/bin/regrid_prognostic_run_diags.sh
+      - "{{inputs.parameters.output}}"/diags.nc
+      - "{{inputs.parameters.output}}"/diags_latlon.nc
   - name: movie
     inputs:
       parameters:
