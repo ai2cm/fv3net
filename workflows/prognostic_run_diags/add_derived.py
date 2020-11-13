@@ -112,7 +112,7 @@ def _column_dqv(ds: xr.Dataset) -> xr.DataArray:
         # assume given dataset has no ML prediction of momentum tendencies
         column_dqv = xr.zeros_like(ds.PRATEsfc)
     column_dqv.attrs = {
-        "long_name": "<dQu> vertical mean northward wind tendency from ML",
+        "long_name": "<dQv> vertical mean northward wind tendency from ML",
         "units": "m/s/day",
     }
     return column_dqv.rename("vertical_mean_dQv")
