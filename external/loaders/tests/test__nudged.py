@@ -701,15 +701,26 @@ def test_SubsetTime_fail_on_non_subset_key(nudged_tstep_mapper):
 
 
 @pytest.mark.regression
-def test_open_merged_nudged_full_tendencies_multiple_datasets(nudged_data_dir):
+@pytest.mark.parametrize("with_names", [False, True])
+def test_open_merged_nudged_full_tendencies_multiple_datasets(
+    nudged_data_dir, with_names
+):
     merge_files = ("after_dynamics.zarr", "nudging_tendencies.zarr")
     datasets = [nudged_data_dir, nudged_data_dir, nudged_data_dir]
     kwargs = {"merge_files": merge_files, "i_start": 4, "n_times": 6}
-    mapper = open_merged_nudged_full_tendencies_multiple_datasets(
-        datasets, open_merged_nudged_kwargs=kwargs
-    )
+
+    if with_names:
+        mapper = open_merged_nudged_full_tendencies_multiple_datasets(
+            datasets, names=["a", "b", "c"], open_merged_nudged_kwargs=kwargs
+        )
+    else:
+        mapper = open_merged_nudged_full_tendencies_multiple_datasets(
+            datasets, open_merged_nudged_kwargs=kwargs
+        )
 
     assert len(mapper) == 6
     for time, ds in mapper.items():
         assert DATASET_DIM_NAME in ds.dims
         assert ds.sizes[DATASET_DIM_NAME] == len(datasets)
+        if with_names:
+            assert "a" in ds[DATASET_DIM_NAME]
