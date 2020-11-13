@@ -561,8 +561,8 @@ def test_fv3run_python_mass_conserving(completed_rundir):
         runtime.metrics.validate(obj)
 
         np.testing.assert_allclose(
-            obj["storage_of_mass_due_to_python"],
-            obj["storage_of_total_water_path_due_to_python"] * 9.81,
+            obj["storage_of_mass_due_to_ml"],
+            obj["storage_of_total_water_path_due_to_ml"] * 9.81,
             rtol=0.003,
             atol=1e-4 / 86400,
         )
