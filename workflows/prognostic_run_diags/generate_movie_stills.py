@@ -2,7 +2,7 @@ import argparse
 import logging
 import os
 from multiprocessing import get_context
-from typing import Tuple
+from typing import Sequence, Tuple
 
 import dask
 
@@ -98,6 +98,15 @@ def _save_wind_tendency_fig(arg: MovieArg):
     plt.close(fig)
 
 
+def _non_zero(ds: xr.Dataset, variables: Sequence, tol=1e-12) -> bool:
+    """Check whether any of variables are non-zero. Useful to ensure that
+    movies of all zero-valued fields are not generated."""
+    for variable in variables:
+        if abs(ds[variable]).max() > tol:
+            return True
+    return False
+
+
 def _movie_funcs():
     """Return mapping of movie name to movie-still creation function.
     
@@ -109,8 +118,14 @@ def _movie_funcs():
         and a path for where func should save the figure it generates.
     """
     return {
-        "column_ML_wind_tendencies": _save_wind_tendency_fig,
-        "column_heating_moistening": _save_heating_moistening_fig,
+        "column_ML_wind_tendencies": {
+            "plotting_function": _save_wind_tendency_fig,
+            "required_variables": list(WIND_TENDENCY_PLOT_KWARGS.keys()),
+        },
+        "column_heating_moistening": {
+            "plotting_function": _save_heating_moistening_fig,
+            "required_variables": list(HEATING_MOISTENING_PLOT_KWARGS.keys()),
+        },
     }
 
 
@@ -146,14 +161,21 @@ if __name__ == "__main__":
         .drop_dims(INTERFACE_DIMS, errors="ignore")
         .merge(grid)
     )
+
     if args.n_timesteps:
         prognostic = prognostic.isel(time=slice(None, args.n_timesteps))
-    logger.info("Forcing computation")
-    prognostic = prognostic[KEEP_VARS].load()  # force load
     T = prognostic.sizes["time"]
-    for name, func in _movie_funcs().items():
-        logger.info(f"Saving {T} still images for {name} movie to {args.output}")
+
+    for name, movie_spec in _movie_funcs().items():
+        func = movie_spec["plotting_function"]
+        required_variables = movie_spec["required_variables"]
+        logger.info(f"Forcing load for required variables for {name} movie")
+        movie_data = prognostic[KEEP_VARS + required_variables].load()
         filename = os.path.join(args.output, name + FIG_SUFFIX)
-        func_args = [(prognostic.isel(time=t), filename.format(t=t)) for t in range(T)]
-        with get_context("spawn").Pool(args.n_jobs) as p:
-            p.map(func, func_args)
+        func_args = [(movie_data.isel(time=t), filename.format(t=t)) for t in range(T)]
+        if _non_zero(movie_data, required_variables):
+            logger.info(f"Saving {T} still images for {name} movie to {args.output}")
+            with get_context("spawn").Pool(args.n_jobs) as p:
+                p.map(func, func_args)
+        else:
+            logger.info(f"Skipping {name} movie since all plotted variables are zero")
