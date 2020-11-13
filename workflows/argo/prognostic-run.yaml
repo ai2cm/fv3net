@@ -29,6 +29,7 @@ spec:
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 6Gi}
+          - {name: online-diags-flags, value: " "}
       steps:
       - - name: resolve-output-url
           templateRef:
@@ -48,6 +49,8 @@ spec:
               - {name: reference-restarts, value: "{{inputs.parameters.reference-restarts}}"}
               - {name: flags, value: "{{inputs.parameters.flags}}"}
       - - name: run-model
+          continueOn:
+            failed: true
           templateRef:
             name: run-fv3gfs
             template: run-fv3gfs
@@ -60,6 +63,18 @@ spec:
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
+      - - name: online-diags
+          templateRef:
+            name: prognostic-run-diags
+            template: diagnostics
+          arguments:
+            parameters:
+                - name: run
+                  value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run"
+                - name: output
+                  value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run_diagnostics"
+                - name: flags
+                  value: "{{inputs.parameters.online-diags-flags}}"
     - name: prepare-config
       inputs:
         parameters:
