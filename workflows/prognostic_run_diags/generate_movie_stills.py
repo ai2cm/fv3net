@@ -55,12 +55,6 @@ WIND_TENDENCY_PLOT_KWARGS = {
     "vertical_mean_dQv": {"vmin": -5, "vmax": 5, "cmap": "RdBu_r"},
 }
 
-KEEP_VARS = (
-    GRID_VARS
-    + list(HEATING_MOISTENING_PLOT_KWARGS.keys())
-    + list(WIND_TENDENCY_PLOT_KWARGS.keys())
-)
-
 
 def _plot_maps(ds, axes, plot_kwargs):
     for i, (variable, variable_plot_kwargs) in enumerate(plot_kwargs.items()):
@@ -170,7 +164,7 @@ if __name__ == "__main__":
         func = movie_spec["plotting_function"]
         required_variables = movie_spec["required_variables"]
         logger.info(f"Forcing load for required variables for {name} movie")
-        movie_data = prognostic[KEEP_VARS + required_variables].load()
+        movie_data = prognostic[GRID_VARS + required_variables].load()
         filename = os.path.join(args.output, name + FIG_SUFFIX)
         func_args = [(movie_data.isel(time=t), filename.format(t=t)) for t in range(T)]
         if _non_zero(movie_data, required_variables):
