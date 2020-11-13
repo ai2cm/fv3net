@@ -74,6 +74,7 @@ def reduce_to_diagnostic(
     ).assign_coords({"domain": (["domain"], [*domain_datasets.keys()])})
 
     ds = xr.merge([domain_ds, ds.drop(labels=primary_vars)])
+
     return ds.mean(dim=time_dim, keep_attrs=True)
 
 
