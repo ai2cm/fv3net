@@ -1,10 +1,12 @@
 import fsspec
 import json
+import numpy as np
 import os
 import shutil
-from typing import Mapping, Sequence
+from typing import Mapping, Sequence, Union
 import yaml
 import xarray as xr
+
 import report
 from vcm import safe
 from vcm.cloud import gsutil
@@ -57,6 +59,7 @@ def open_diagnostics_outputs(
     data_dir,
     diagnostics_nc_name: str,
     diurnal_nc_name: str,
+    transect_nc_name: str,
     metrics_json_name: str,
     config_name: str,
 ):
@@ -64,11 +67,13 @@ def open_diagnostics_outputs(
         ds_diags = xr.open_dataset(f).load()
     with fsspec.open(os.path.join(data_dir, diurnal_nc_name), "rb") as f:
         ds_diurnal = xr.open_dataset(f).load()
+    with fsspec.open(os.path.join(data_dir, transect_nc_name), "rb") as f:
+        ds_transect = xr.open_dataset(f).load()
     with fsspec.open(os.path.join(data_dir, metrics_json_name), "r") as f:
         metrics = json.load(f)
     with fsspec.open(os.path.join(data_dir, config_name), "r") as f:
         config = yaml.safe_load(f)
-    return ds_diags, ds_diurnal, metrics, config
+    return ds_diags, ds_diurnal, ds_transect, metrics, config
 
 
 def copy_outputs(temp_dir, output_dir):
@@ -81,6 +86,7 @@ def copy_outputs(temp_dir, output_dir):
 def tidy_title(var: str):
     title = (
         var.strip("pressure_level")
+        .strip("zonal_avg_pressure_level")
         .strip("predict_vs_target")
         .strip("-")
         .replace("-", " ")
