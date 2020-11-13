@@ -1,9 +1,8 @@
 import fsspec
 import json
-import numpy as np
 import os
 import shutil
-from typing import Mapping, Sequence, Union
+from typing import Mapping, Sequence
 import yaml
 import xarray as xr
 

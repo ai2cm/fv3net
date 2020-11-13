@@ -1,11 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 from typing import Sequence, Union, Tuple, Mapping
 import xarray as xr
 
 import fv3viz as visualize
-import vcm
 from .utils import _units_from_Q_name
 
 # grid info for the plot_cube function
