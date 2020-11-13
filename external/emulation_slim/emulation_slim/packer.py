@@ -62,7 +62,9 @@ def _detect_tracer_field_names(state):
     return tracer_info
 
 
-def consolidate_tracers(state, tracer_field_info):
+def consolidate_tracers(state):
+
+    tracer_field_info = _detect_tracer_field_names(state)
 
     for var_name, tracer_names in tracer_field_info.items():
         arrs = [state.pop(tname) for tname in tracer_names]
@@ -81,14 +83,24 @@ def _check_required_vars(state, pack_names):
             )
 
 
+def _convert_1d_to_2d(n_samples, arr):
+
+    if arr.shape[0] != n_samples:
+        raise ValueError("1d variable is not aligned with sampling dimension")
+    elif arr.ndim != 1:
+        raise ValueError("Conversion should only be called on 1D arrays")
+
+    return arr[None]
+
+
 class EmuArrayPacker:
     def __init__(
-        self, pack_names: Sequence[str], feature_sizes: Mapping[str, int], dims=None
+        self, pack_names: Sequence[str], n_features: Mapping[str, int], **kwargs
     ):
 
-        ordered_features = {name: feature_sizes[name] for name in pack_names}
+        ordered_features = {name: n_features[name] for name in pack_names}
         self._pack_names = pack_names
-        self._total_feature_size = np.sum([size for size in feature_sizes.values()])
+        self._total_feature_size = np.sum([size for size in n_features.values()])
         self._slices = feature_size_to_slices(ordered_features)
         self._tracer_fields = None
 
@@ -108,6 +120,8 @@ class EmuArrayPacker:
         arr = np.empty((n_samples, self._total_feature_size))
         for name in self._pack_names:
             var_arr = state[name]
+            if var_arr.ndim == 1:
+                var_arr = _convert_1d_to_2d(n_samples, var_arr)
             var_slice = self._slices[name]
             arr[:, var_slice] = var_arr.T  # switch to sample leading
 

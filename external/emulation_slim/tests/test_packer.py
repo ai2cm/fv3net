@@ -30,6 +30,7 @@ def test_feature_size_to_slices():
 def arr_2d():
     return np.ones((3, 5))
 
+
 @pytest.fixture
 def arr_3d():
     return np.arange(30).reshape(2, 3, 5)
@@ -58,6 +59,7 @@ def test_split_tracer_fields(arr_2d, arr_3d):
     assert "var_3d" not in state
     for varname in ["var_3d_0", "var_3d_1"]:
         assert varname in state
+
 
 def test_split_tracer_fields_no_tracers():
 
@@ -121,23 +123,37 @@ def test_consolidate_tracers(arr_2d, arr_3d):
         "var3_output_1": arr_3d[1],
     }
 
-    tracer_info = {
-        "var2_input": ["var2_input_0", "var2_input_1"],
-        "var3_output": ["var3_output_0", "var3_output_1"]
-    }
-
-    packer.consolidate_tracers(state, tracer_info)
+    packer.consolidate_tracers(state)
 
     np.testing.assert_equal(state["var2_input"], arr_3d)
     np.testing.assert_equal(state["var3_output"], arr_3d)
+
+
+def test__convert_1d_to_2d():
+
+    n_samples = 10
+    arr = np.ones((n_samples))
+
+    converted = packer._convert_1d_to_2d(n_samples, arr)
+
+    assert converted.shape == (1, 10)
+
+
+@pytest.mark.parametrize("arr_shape", [(5), (5, 5)])
+def test__convert_1d_to_2d_failure(arr_shape):
+
+    n_samples = 10
+    arr = np.ones(arr_shape)
+
+    with pytest.raises(ValueError):
+        packer._convert_1d_to_2d(n_samples, arr)
 
 
 def test_EmuArrayPacker(arr_2d, arr_3d):
 
     arr_packer = packer.EmuArrayPacker(
         ["var0_input", "var1_input"],
-        {"var0_input": arr_2d.shape[0], "var1_input": arr_2d.shape[0]},
-        {}
+        {"var0_input": arr_2d.shape[0], "var1_input": arr_2d.shape[0]}
     )
 
     state = {
