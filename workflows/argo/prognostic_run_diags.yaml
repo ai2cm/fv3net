@@ -135,7 +135,7 @@ spec:
       parameters:
       - name: output
     container:
-      image: us.gcr.io/vcm-ml/regrid_c3072_diags
+      image: us.gcr.io/vcm-ml/regrid_c3072_diag
       command:
       - /usr/bin/regrid_prognostic_run_diags.sh
       - "{{inputs.parameters.output}}/diags.nc"
