@@ -12,10 +12,16 @@ parser = argparse.ArgumentParser()
 parser.add_argument("physics_url")
 parser.add_argument("restart_url")
 parser.add_argument("gfsphysics_url")
+parser.add_argument("area_url")
 parser.add_argument("output_dir")
 
 args, extra_args = parser.parse_known_args()
 
 run(
-    args.restart_url, args.physics_url, args.gfsphysics_url, args.output_dir, extra_args
+    args.restart_url,
+    args.physics_url,
+    args.gfsphysics_url,
+    args.area_url,
+    args.output_dir,
+    extra_args,
 )

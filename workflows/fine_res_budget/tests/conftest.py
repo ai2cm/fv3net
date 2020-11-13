@@ -49,13 +49,20 @@ def data_dirs(tmpdir_factory):
     ).isel(diag_selectors)
     restart = open_schema("restart.json").isel(restart_selectors)
     gfsphysics = open_schema("gfsphysics.json").isel(diag_selectors)
+    area = (
+        open_schema("area.json")
+        .isel(tile=[0], grid_xt_coarse=slice(0, n), grid_yt_coarse=slice(0, n))
+        .load()
+    )
 
     diag_path = str(tmpdir.join("diag.zarr"))
     restart_path = str(tmpdir.join("restart.zarr"))
     gfsphysics_path = str(tmpdir.join("gfsphysics.zarr"))
+    area_path = str(tmpdir.join("area.zarr"))
 
     diags.to_zarr(diag_path, mode="w", consolidated=True)
     restart.to_zarr(restart_path, mode="w", consolidated=True)
     gfsphysics.to_zarr(gfsphysics_path, mode="w", consolidated=True)
+    area.to_zarr(area_path, consolidated=True, mode="w")
 
-    return diag_path, restart_path, gfsphysics_path
+    return diag_path, restart_path, gfsphysics_path, area_path
