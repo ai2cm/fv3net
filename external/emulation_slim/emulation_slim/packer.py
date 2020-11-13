@@ -1,7 +1,7 @@
 import yaml
 import numpy as np
 from collections import Counter
-from typing import Mapping, Sequence
+from typing import MutableMapping, Mapping, Sequence
 
 
 def feature_size_to_slices(feature_sizes: Mapping[str, int]):
@@ -127,7 +127,7 @@ class EmuArrayPacker:
 
         return arr
 
-    def to_dict(self, arr: np.ndarray) -> Mapping[str, np.ndarray]:
+    def to_dict(self, arr: np.ndarray) -> MutableMapping[str, np.ndarray]:
 
         separated = {}
         for name, var_slice in self._slices.items():
