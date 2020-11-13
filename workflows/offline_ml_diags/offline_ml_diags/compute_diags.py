@@ -13,6 +13,7 @@ from typing import Mapping, Sequence, Tuple
 import diagnostics_utils as utils
 import loaders
 from vcm import safe
+from vcm.cubedsphere import regrid_to_common_pressure
 from vcm.cloud import get_fs
 from fv3fit import PRODUCTION_MODEL_TYPES
 from ._metrics import calc_metrics
@@ -43,6 +44,7 @@ DIURNAL_VARS = [
 ]
 SHIELD_DERIVATION_COORD = "coarsened_SHiELD"
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
+TRANSECT_NC_NAME = "transect_lon0.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
 
 # Base set of variables for which to compute column integrals and composite means
@@ -146,7 +148,9 @@ def _compute_diags_over_batches(
         )
         # ...compute metrics
         ds_metrics = calc_metrics(
-            xr.merge([ds, grid["area"]], compat="override"), predicted=metric_vars
+            xr.merge([ds, grid["area"]], compat="override"),
+            grid["lat"],
+            predicted=metric_vars,
         )
 
         batches_summary.append(ds_summary.load())
@@ -230,6 +234,27 @@ def _get_prediction_mapper(args, config: Mapping, variables: Sequence[str]):
     )
 
 
+def _get_transect(ds_batches: Sequence[xr.Dataset], variables: Sequence[str], random_seed: int):
+    ds_snapshot = select.snapshot(ds_batches, random_seed)
+    ds_snapshot_regrid_pressure = xr.Dataset()
+    for var in variables:
+        transect_var = [
+            regrid_to_common_pressure(
+                field=ds_snapshot[var].sel(derivation=deriv),
+                delp=ds_snapshot["pressure_thickness_of_atmospheric_layer"],
+                coord_z_center="z",
+            )
+            for deriv in ["target", "predict"]
+        ]
+        ds_snapshot_regrid_pressure[var] = xr.concat(transect_var, dim="derivation")
+    ds_transect = select.meridional_transect(
+        safe.get_variables(ds_snapshot_regrid_pressure, variables),
+        grid["lat"],
+        grid["lon"],
+    )
+    return ds_transect
+
+
 if __name__ == "__main__":
     logger.info("Starting diagnostics routine.")
     args = _create_arg_parser()
@@ -270,12 +295,12 @@ if __name__ == "__main__":
     ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diags_over_batches(
         ds_batches, grid, predicted_vars=config["output_variables"]
     )
-
+    
     # compute transected and zonal diags
-    ds_snapshot = select.snapshot(ds_batches, args.random_seed)
-    ds_transect = select.meridional_transect(ds_snapshot)
+    ds_transect = _get_transect(ds_batches, config["output_variables"], args.random_seed)
 
     # write diags and diurnal datasets
+    _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
     _write_nc(
         xr.merge([grid.drop("land_sea_mask"), ds_diagnostics]),
         args.output_path,
