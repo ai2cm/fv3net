@@ -1,0 +1,227 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: k8s-jobs-
+spec:
+  serviceAccountName: integration-tests
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: climate-sim-pool
+  arguments:
+    parameters:
+      - name: size
+        value: 10Mi
+      - name: pvc-name
+        value: temp
+      - name: source
+        value: gs://vcm-ml-scratch/noah/hello.txt
+      - name: destination
+        value: ""
+  entrypoint: main
+  templates:
+    - name: main
+      steps:
+        - - name: create-read-write-pvc
+            template: create-read-write-pvc
+        - - name: copy-data-in
+            template: copy-data-in
+            arguments:
+              parameters:
+                - name: pvc-name
+                  value: "{{steps.create-read-write-pvc.outputs.parameters.pvc-name}}"
+        - - name: get-pvc
+            template: get-pvc
+            arguments:
+              parameters:
+                - name: pvc-name
+                  value: "{{steps.create-read-write-pvc.outputs.parameters.pvc-name}}"
+        - - name: get-gce-disk
+            template: get-gce-disk
+            arguments:
+              parameters:
+                - name: volumeName
+                  value: "{{steps.get-pvc.outputs.parameters.volumeName}}"
+        - - name: create-read-only-pv
+            template: create-read-only-pv
+            arguments:
+              parameters:
+                - name: pvc-name
+                  value: "{{workflow.parameters.pvc-name}}"
+                - name: pdName
+                  value: "{{steps.get-gce-disk.outputs.parameters.pdName}}"
+                - name: fsType
+                  value: "{{steps.get-gce-disk.outputs.parameters.fsType}}"
+                - name: capacity
+                  value: "{{steps.get-gce-disk.outputs.parameters.capacity}}"
+        - - name: create-read-only-pvc
+            template: create-read-only-pvc
+            arguments:
+              parameters:
+                - name: pvc-name
+                  value: "{{workflow.parameters.pvc-name}}"
+                - name: size
+                  value: "{{steps.get-gce-disk.outputs.parameters.capacity}}"
+    - name: create-read-write-pvc
+      outputs:
+        parameters:
+          - name: pvc-name
+            valueFrom:
+              jsonPath: '{.metadata.name}'
+          - name: volume-name
+            valueFrom:
+              jsonPath: '{.spec.volumeName}'
+      resource: # indicates that this is a resource template
+        action: create # can be any kubectl action (e.g. create, delete, apply, patch)
+        # The successCondition and failureCondition are optional expressions.
+        # If failureCondition is true, the step is considered failed.
+        # If successCondition is true, the step is considered successful.
+        # They use kubernetes label selection syntax and can be applied against any field
+        # of the resource (not just labels). Multiple AND conditions can be represented by comma
+        # delimited expressions.
+        # For more details: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+        manifest: | #put your kubernetes spec here
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            generateName: temp-claim-
+            ownerReferences:
+              - apiVersion: argoproj.io/v1alpha1
+                blockOwnerDeletion: true
+                kind: Workflow
+                name: "{{workflow.name}}"
+                uid: "{{workflow.uid}}"
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            volumeMode: Filesystem
+            resources:
+              requests:
+                storage: {{workflow.parameters.size}}
+    - name: get-gce-disk
+      inputs:
+        parameters:
+          - name: volumeName
+      outputs:
+        parameters:
+          - name: fsType
+            valueFrom:
+              jsonPath: '{.spec.gcePersistentDisk.fsType}'
+          - name: pdName
+            valueFrom:
+              jsonPath: '{.spec.gcePersistentDisk.pdName}'
+          - name: capacity
+            valueFrom:
+              jsonPath: '{.spec.capacity.storage}'
+      resource:
+        action: get
+        manifest: |
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: "{{inputs.parameters.volumeName}}"
+    - name: create-read-only-pv
+      inputs:
+        parameters:
+          - name: pvc-name
+          - name: fsType
+          - name: pdName
+          - name: capacity
+      resource: # indicates that this is a resource template
+        action: create # can be any kubectl action (e.g. create, delete, apply, patch)
+        # The successCondition and failureCondition are optional expressions.
+        # If failureCondition is true, the step is considered failed.
+        # If successCondition is true, the step is considered successful.
+        # They use kubernetes label selection syntax and can be applied against any field
+        # of the resource (not just labels). Multiple AND conditions can be represented by comma
+        # delimited expressions.
+        # For more details: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+        manifest: | #put your kubernetes spec here
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            generateName: pv-readmany-
+          spec:
+            storageClassName: ""
+            capacity:
+              storage: {{inputs.parameters.capacity}}
+            accessModes:
+              - ReadOnlyMany
+            claimRef:
+              namespace: default
+              name: {{inputs.parameters.pvc-name}}
+            gcePersistentDisk:
+              pdName: {{inputs.parameters.pdName}}
+              fsType: {{inputs.parameters.fsType}}
+              readOnly: true
+    - name: create-read-only-pvc
+      inputs:
+        parameters:
+          - name: pvc-name
+          - name: size
+      resource: # indicates that this is a resource template
+        action: create # can be any kubectl action (e.g. create, delete, apply, patch)
+        # The successCondition and failureCondition are optional expressions.
+        # If failureCondition is true, the step is considered failed.
+        # If successCondition is true, the step is considered successful.
+        # They use kubernetes label selection syntax and can be applied against any field
+        # of the resource (not just labels). Multiple AND conditions can be represented by comma
+        # delimited expressions.
+        # For more details: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+        manifest: | #put your kubernetes spec here
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: {{inputs.parameters.pvc-name}}
+          spec:
+            accessModes:
+              - ReadOnlyMany
+            resources:
+              requests:
+                storage: {{inputs.parameters.size}}
+    - name: copy-data-in
+      inputs:
+        parameters:
+          - name: pvc-name
+      container:
+        image: google/cloud-sdk
+        resources:
+          requests:
+            memory: "3Gi"
+            cpu: "8"
+        command: ["bash", "-ec"]
+        args:
+          - |
+            gcloud auth activate-service-account --key-file /secrets/key.json
+            mkdir -p /mnt/data/{{workflow.parameters.destination}}
+            gsutil -m cp -r {{workflow.parameters.source}} /mnt/data/{{workflow.parameters.destination}}
+        volumeMounts:
+          - name: gcp-key-secret
+            mountPath: /secrets
+            readOnly: true
+          - name: data-volume
+            mountPath: /mnt/data
+      volumes:
+        - name: gcp-key-secret
+          secret:
+            defaultMode: 444
+            secretName: gcp-key
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: "{{inputs.parameters.pvc-name}}"
+    - name: get-pvc
+      inputs:
+        parameters:
+          - name: pvc-name
+      outputs:
+        parameters:
+          - name: volumeName
+            valueFrom:
+              jsonPath: '{.spec.volumeName}'
+      resource:
+        action: get
+        manifest: |
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: {{inputs.parameters.pvc-name}}

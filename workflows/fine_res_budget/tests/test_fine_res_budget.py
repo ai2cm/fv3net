@@ -47,16 +47,21 @@ def test_OpenTimeChunks():
 
 @pytest.mark.regression
 def test_run(data_dirs, tmpdir):
-    diag_path, restart_path, gfsphysics_url = data_dirs
+    diag_path, restart_path, gfsphysics_url, area_url = data_dirs
 
     output_path = str(tmpdir.join("out"))
-    run(restart_path, diag_path, gfsphysics_url, output_path)
+    run(restart_path, diag_path, gfsphysics_url, area_url, output_path)
     ds = xr.open_mfdataset(f"{output_path}/*.nc", combine="by_coords")
 
-    for variable in budget.config.VARIABLES_TO_AVERAGE:
+    for variable in budget.config.VARIABLES_TO_AVERAGE | {
+        "exposed_area",
+        "area",
+    }:
         assert variable in ds
         assert "long_name" in ds[variable].attrs
         assert "units" in ds[variable].attrs
+
+    assert "history" in ds.attrs
 
 
 def test_shift():
