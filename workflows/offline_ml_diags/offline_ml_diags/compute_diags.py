@@ -137,15 +137,14 @@ def _compute_diags_over_batches(
         if loaders.DATASET_DIM_NAME in ds.dims:
             time_dataset_dims = ("time", loaders.DATASET_DIM_NAME)
         else:
-            time_dataset_dims = ("time", )
+            time_dataset_dims = ("time",)
         ds = ds.stack(time_dataset_dim=time_dataset_dims)
         ds_diurnal = utils.create_diurnal_cycle_dataset(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
         )
         # ...compute metrics
         ds_metrics = calc_metrics(
-            xr.merge([ds, grid["area"]], compat="override"),
-            predicted=metric_vars
+            xr.merge([ds, grid["area"]], compat="override"), predicted=metric_vars
         )
 
         batches_summary.append(ds_summary.load())

@@ -80,7 +80,7 @@ class Predictor(abc.ABC):
             inputs_,
             "sample",
             dims=sample_dims,
-            allowed_broadcast_dims=[DATASET_DIM_NAME]
+            allowed_broadcast_dims=[DATASET_DIM_NAME],
         )
         transposed = stacked.transpose("sample", ...)
         output = self.predict(transposed).unstack("sample")
