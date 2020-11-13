@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 import vcm
-from typing import Mapping, Sequence
+from typing import Hashable, Mapping, Optional, Sequence
 
 
 from ..constants import DATASET_DIM_NAME, TIME_NAME, TIME_FMT
@@ -46,8 +46,19 @@ class LongRunMapper(GeoMapper):
 
 
 class MultiDatasetMapper(GeoMapper):
-    def __init__(self, mappers: Sequence[LongRunMapper]):
+    def __init__(
+        self,
+        mappers: Sequence[LongRunMapper],
+        names: Optional[Sequence[Hashable]] = None,
+    ):
+        """Create a new MultiDatasetMapper.
+        
+        Args:
+            mappers: sequence of LongRunMapper objects
+            names: sequence of names to assign to the dataset coordinate (optional)
+        """
         self.mappers = mappers
+        self.names = names
 
     def keys(self):
         return set.intersection(*[set(mapper.keys()) for mapper in self.mappers])
@@ -57,4 +68,8 @@ class MultiDatasetMapper(GeoMapper):
             raise KeyError(f"Time {time} could not be found in all datasets.")
         else:
             datasets = [mapper[time] for mapper in self.mappers]
-            return xr.concat(datasets, dim=DATASET_DIM_NAME)
+            if self.names is not None:
+                dim = pd.Index(self.names, name=DATASET_DIM_NAME)
+            else:
+                dim = DATASET_DIM_NAME
+            return xr.concat(datasets, dim=dim)

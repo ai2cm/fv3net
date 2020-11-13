@@ -3,7 +3,6 @@ from datetime import datetime
 import pytest
 import xarray as xr
 
-import loaders
 from diagnostics_utils._diurnal_cycle import (
     _local_time,
     bin_diurnal_cycle,

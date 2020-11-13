@@ -1,3 +1,5 @@
+import string
+
 import pandas as pd
 import pytest
 import xarray as xr
@@ -89,3 +91,16 @@ def test_MultiDatasetMapper_value(multi_dataset_mapper, datasets):
 def test_MultiDatasetMapper_key_error(multi_dataset_mapper):
     with pytest.raises(KeyError, match="all datasets"):
         multi_dataset_mapper["20000103.000000"]
+
+
+@pytest.fixture
+def multi_dataset_mapper_with_names(datasets):
+    mappers = [LongRunMapper(ds) for ds in datasets]
+    names = [i for i, _ in zip(string.ascii_lowercase, datasets)]
+    return MultiDatasetMapper(mappers, names=names)
+
+
+def test_multidataset_mapper_with_names(datasets, multi_dataset_mapper_with_names):
+    single_time = datasets[0][TIME_NAME].isel({TIME_NAME: 0}).item()
+    time_key = pd.to_datetime(single_time).strftime(TIME_FMT)
+    assert "a" in multi_dataset_mapper_with_names[time_key][DATASET_DIM_NAME]

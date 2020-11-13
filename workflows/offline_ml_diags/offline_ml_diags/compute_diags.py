@@ -15,7 +15,7 @@ import loaders
 from vcm import safe
 from vcm.cloud import get_fs
 from fv3fit import PRODUCTION_MODEL_TYPES
-from ._metrics import calc_metrics, VERTICAL_PROFILE_MEAN_DIMS
+from ._metrics import calc_metrics
 from . import _model_loaders as model_loaders
 from ._mapper import PredictionMapper
 from ._helpers import add_net_precip_domain_info, load_grid_info
