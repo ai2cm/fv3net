@@ -234,7 +234,9 @@ def _get_prediction_mapper(args, config: Mapping, variables: Sequence[str]):
     )
 
 
-def _get_transect(ds_batches: Sequence[xr.Dataset], variables: Sequence[str], random_seed: int):
+def _get_transect(
+    ds_batches: Sequence[xr.Dataset], variables: Sequence[str], random_seed: int
+):
     ds_snapshot = select.snapshot(ds_batches, random_seed)
     ds_snapshot_regrid_pressure = xr.Dataset()
     for var in variables:
@@ -295,9 +297,11 @@ if __name__ == "__main__":
     ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diags_over_batches(
         ds_batches, grid, predicted_vars=config["output_variables"]
     )
-    
+
     # compute transected and zonal diags
-    ds_transect = _get_transect(ds_batches, config["output_variables"], args.random_seed)
+    ds_transect = _get_transect(
+        ds_batches, config["output_variables"], args.random_seed
+    )
 
     # write diags and diurnal datasets
     _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)

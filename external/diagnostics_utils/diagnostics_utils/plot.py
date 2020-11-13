@@ -132,14 +132,15 @@ def _plot_generic_data_array(
 
 
 def plot_transect(
-        data: xr.DataArray,
-        xaxis: str = "lat",
-        yaxis: str = "pressure",
-        column_dim="derivation",
-        figsize: Tuple[int] = (10, 4)
+    data: xr.DataArray,
+    xaxis: str = "lat",
+    yaxis: str = "pressure",
+    column_dim="derivation",
+    figsize: Tuple[int] = (10, 4),
 ):
-    facetgrid = (
-        data.plot(y=f"{yaxis} [Pa]", x=xaxis, yincrease=False, col=column_dim, figsize=figsize))
+    facetgrid = data.plot(
+        y=f"{yaxis} [Pa]", x=xaxis, yincrease=False, col=column_dim, figsize=figsize
+    )
     f = facetgrid.fig
     return f
 
@@ -154,9 +155,10 @@ def plot_zonal_avg(
     units = _units_from_Q_name(data.name) or ""
     title = f"{title or data.name} {units}"
     plot_kwargs = plot_kwargs or {}
-    rename_axes = rename_axes or {"lat_interp": "Latitude [deg]", "pressure": "Pressure [Pa]"}
+    rename_axes = rename_axes or {
+        "lat_interp": "Latitude [deg]",
+        "pressure": "Pressure [Pa]",
+    }
     data = data.rename(rename_axes).rename(title)
-    data.plot(
-        yincrease=False, x="Latitude [deg]", **plot_kwargs
-    )
+    data.plot(yincrease=False, x="Latitude [deg]", **plot_kwargs)
     return fig

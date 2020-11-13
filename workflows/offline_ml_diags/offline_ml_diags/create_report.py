@@ -109,7 +109,7 @@ if __name__ == "__main__":
     zonal_avg_pressure_level_metrics = [
         var
         for var in ds_diags.data_vars
-        if var.startswith("zonal_avg_pressure") 
+        if var.startswith("zonal_avg_pressure")
         and var.endswith("predict_vs_target")
         and ("r2" in var or "bias" in var)
     ]
@@ -118,7 +118,7 @@ if __name__ == "__main__":
         fig = diagplot.plot_zonal_avg(
             data=ds_diags[var],
             title=tidy_title(var),
-            plot_kwargs={"vmin": vmin, "vmax": vmax}
+            plot_kwargs={"vmin": vmin, "vmax": vmax},
         )
         insert_report_figure(
             report_sections,
@@ -127,7 +127,7 @@ if __name__ == "__main__":
             section_name="Zonal averaged pressure level metrics",
             output_dir=temp_output_dir.name,
         )
-        
+
     # vertical profiles of bias and R2
     pressure_level_metrics = [
         var
