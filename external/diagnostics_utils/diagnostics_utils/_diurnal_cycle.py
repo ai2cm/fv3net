@@ -7,7 +7,7 @@ import xarray as xr
 from .config import VARNAMES
 from .utils import snap_mask_to_type
 
-FLATTEN_DIMS = ["time", "x", "y", "tile", "time_dataset_dim"]
+FLATTEN_DIMS = ["time", "x", "y", "tile", "sample"]
 DIURNAL_CYCLE_DIM = "local_time_hr"
 SURFACE_TYPE_DIM = "surface_type"
 

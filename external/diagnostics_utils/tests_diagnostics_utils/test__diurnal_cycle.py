@@ -73,7 +73,7 @@ def ds_with_dataset_dim(request):
 
     return xr.Dataset(
         {"test_var": da, "test_var_additional_dim": da_additional_dim}
-    ).stack(time_dataset_dim=["time", "dataset"])
+    ).stack(sample=["time", "dataset"])
 
 
 @pytest.mark.parametrize(
