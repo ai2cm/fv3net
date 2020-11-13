@@ -87,7 +87,7 @@ def global_average(comm, array: xr.DataArray, area: xr.DataArray) -> float:
         return -1
 
 
-def compute_diagnostics(state, diags):
+def compute_ml_diagnostics(state, diags):
 
     net_moistening = (diags["dQ2"] * state[DELP] / gravity).sum("z")
     physics_precip = state[PRECIP_RATE]
@@ -113,6 +113,10 @@ def compute_diagnostics(state, diags):
             description="surface precipitation rate due to parameterized physics"
         ),
     )
+
+
+def compute_nudging_diagnostics(state, tendencies):
+    pass
 
 
 def compute_momentum_diagnostics(state, tendency):
@@ -185,6 +189,16 @@ def predict(model: runtime.RenamingAdapter, state: State) -> State:
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
+
+def add_tendencies(ml_tendencies: State, nudging_tendencies: State) -> State:
+    both = set(ml_tendencies) & set(nudging_tendencies)
+    nudging_only = set(nudging_tendencies) - set(ml_tendencies)
+    tendencies = ml_tendencies.copy() 
+    tendencies.update({k: nudging_tendencies[k] for k in nudging_only})
+    tendencies.update({k: ml_tendencies[k] + nudging_tendencies[k] for k in both})
+    return tendencies
+
+
 def limit_sphum_tendency(state: State, tendency: State, dt: float):
     delta = tendency["dQ2"] * dt
     tendency_updated = copy.copy(tendency)
@@ -216,6 +230,28 @@ def apply(state: State, tendency: State, dt: float) -> State:
             state_name = TENDENCY_TO_STATE_NAME[name]
             updated[state_name] = state[state_name] + tendency[name] * dt
     return updated  # type: ignore
+
+
+
+def setup_reference_state():
+    pass
+
+#     get_reference_state = functools.partial(
+#         _get_reference_state,
+#         reference_dir=reference_dir,
+#         communicator=communicator,
+#         only_names=store_names,
+#     )
+
+#     initial_time_label = config["nudging"].get("reference_initial_time")
+#     if initial_time_label is not None:
+#         get_reference_state = time_interpolate_func(
+#             get_reference_state,
+#             initial_time=label_to_time(initial_time_label),
+#             frequency=timedelta(
+#                 seconds=config["nudging"]["reference_frequency_seconds"]
+#             ),
+#         )
 
 
 class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
@@ -262,6 +298,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         # get nudging info if nudging
         if 'nudging' in args:
             self._nudging_timescales = args['nudging']['timescale_hours']
+            self._get_reference_state = setup_reference_state()
         else:
             self._nudging_timescales = {}
 
@@ -282,6 +319,40 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
     @property
     def time(self) -> cftime.DatetimeJulian:
         return self._state.time
+    
+    @property
+    def nudging_variables(self) -> Sequence[str]:
+        return list(self._nudging_timescales)
+    
+    def _input_variables(self) -> List[str]:
+        if self._model:
+            variables: List[Hashable] = list(self._model.input_variables | {SPHUM})
+            if self.nudging_variables:
+                variables: List[Hashable] = list(set(variables + self.nudging_variables))
+        else:
+            if self.nudging_variables:
+                variables: List[Hashable] = self.nudging_variables
+            else:
+                variables: List[Hashable] = []
+        return variables
+    
+    def _output_variables(self) -> List[str]:
+        if self._model:
+            variables: List[Hashable] = [
+                TENDENCY_TO_STATE_NAME["dQ1"],
+                TENDENCY_TO_STATE_NAME["dQ2"],
+                DELP,
+                PRECIP_RATE,
+                TOTAL_PRECIP,
+            ]
+        if self.nudging_variables:
+            variables: List[Hashable] = list(set(variables + self.nudging_variables))
+        else:
+            if self.nudging_variables:
+                variables: List[Hashable] = self.nudging_variables
+            else:
+                variables: List[Hashable] = []
+        return variables
 
     def _log_debug(self, message: str):
         if self._comm.rank == 0:
@@ -339,27 +410,38 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         tendency = self._tendencies_to_apply_to_physics_state
         updated_state = apply(state, tendency, dt=self._timestep)
         diagnostics = compute_momentum_diagnostics(state, tendency)
-        if self._do_only_diagnostic_ml:
+        if self._model and self._do_only_diagnostic_ml:
             rename_diagnostics(diagnostics)
         else:
             self._state.update(updated_state)
         return diagnostics
 
     def _compute_python_tendency(self) -> Diagnostics:
-        variables: List[Hashable] = list(self._model.input_variables | {SPHUM})
+        variables = self._input_variables()
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
-
-        self._log_debug("Computing ML-predicted tendencies")
-        tendency = predict(self._model, state)
-
-        self._log_debug(
-            "Correcting ML tendencies that would predict negative specific humidity"
-        )
-        tendency = limit_sphum_tendency(state, tendency, dt=self._timestep)
+    
+        if self._model:
+            self._log_debug("Computing ML-predicted tendencies")
+            ml_tendency = predict(self._model, state)
+            self._log_debug(
+                "Correcting tendencies that would predict negative specific humidity"
+            )
+            ml_tendency = limit_sphum_tendency(state, ml_tendency, dt=self._timestep)
+        else:
+            ml_tendency = {}
+        if self.nudging_variables:
+            pass
+#             self._log_debug('Computing nudging tendencies')
+#             reference = get_reference_state(store_time)
+#             nudging_tendency = nudge(state, reference)
+        else:
+            nudging_tendency = {}
+            
+        tendency = add_tendencies(ml_tendency, nudging_tendency)
 
         self._tendencies_to_apply_to_dycore_state = {
-            k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]
+            k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"] + list(self.nudging_variables)
         }
         self._tendencies_to_apply_to_physics_state = {
             k: v for k, v in tendency.items() if k in ["dQu", "dQv"]
@@ -367,29 +449,31 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         return {}
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
-        variables: List[Hashable] = [
-            TENDENCY_TO_STATE_NAME["dQ1"],
-            TENDENCY_TO_STATE_NAME["dQ2"],
-            DELP,
-            PRECIP_RATE,
-            TOTAL_PRECIP,
-        ]
+        variables = self._output_variables()
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
         tendency = self._tendencies_to_apply_to_dycore_state
+        self._log_debug(f"tendency: {list(tendency)}")
 
-        if self._do_only_diagnostic_ml:
+        ml_diagnostics = {}
+        nudging_diagnostics = {}
+        if not self._model and not self.nudging_variables:
             updated_state: State = {}
         else:
             updated_state = apply(state, tendency, dt=self._timestep)
-
-        diagnostics = compute_diagnostics(state, tendency)
-        if self._do_only_diagnostic_ml:
-            rename_diagnostics(diagnostics)
-
-        updated_state[TOTAL_PRECIP] = precipitation_sum(
-            state[TOTAL_PRECIP], diagnostics["net_moistening"], self._timestep
-        )
+            if self._model:
+                ml_diagnostics.update(compute_ml_diagnostics(state, tendency))
+                if self._do_only_diagnostic_ml:
+                    updated_state: State = {}
+                    rename_diagnostics(ml_diagnostics)
+                updated_state[TOTAL_PRECIP] = precipitation_sum(
+                    state[TOTAL_PRECIP], ml_diagnostics["net_moistening"], self._timestep
+                )
+            if self.nudging_variables:
+                nudging_diagnostics.update(compute_nudging_diagnostics(state, tendency))
+                updated_state[TOTAL_PRECIP] = precipitation_sum(
+                    state[TOTAL_PRECIP], nudging_diagnostics["net_moistening"], self._timestep
+                )
 
         self._log_debug("Setting Fortran State")
         self._state.update(updated_state)
@@ -399,7 +483,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
-            **diagnostics,
+            **ml_diagnostics,
+            **nudging_diagnostics
         }
 
     def __iter__(self):
@@ -407,12 +492,10 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             diagnostics = {}
             diagnostics.update(self._step_dynamics())
             diagnostics.update(self._compute_physics())
-            if self._model:
-                diagnostics.update(self._apply_python_to_physics_state())
+            diagnostics.update(self._apply_python_to_physics_state())
             diagnostics.update(self._apply_physics())
-            if self._model:
-                diagnostics.update(self._compute_python_tendency())
-                diagnostics.update(self._apply_python_to_dycore_state())
+            diagnostics.update(self._compute_python_tendency())
+            diagnostics.update(self._apply_python_to_dycore_state())
             yield self._state.time, diagnostics
         self._fv3gfs.cleanup()
 
