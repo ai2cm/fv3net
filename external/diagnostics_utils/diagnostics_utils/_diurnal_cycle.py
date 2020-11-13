@@ -8,7 +8,7 @@ import loaders
 from .config import VARNAMES
 from .utils import snap_mask_to_type
 
-FLATTEN_DIMS = ["time", "x", "y", "tile", loaders.DATASET_DIM_NAME]
+FLATTEN_DIMS = ["time", "x", "y", "tile", "time_dataset_dim"]
 DIURNAL_CYCLE_DIM = "local_time_hr"
 SURFACE_TYPE_DIM = "surface_type"
 
