@@ -17,7 +17,7 @@ RUN apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
     apt-get install -y  --no-install-recommends \
     cmake \
-    python3 \
+    python3.8 \
     libpython3-dev \
     python3-dev \
     python3-setuptools \
@@ -52,8 +52,10 @@ RUN cd /tmp/fortran-build/FV3 && \
     PREFIX=/usr/local make install
 
 COPY external/fv3config /tmp/fv3config
+COPY external/emulation_slim /tmp/emulation_slim
+RUN pip3 install --upgrade pip
 RUN pip3 install wheel
-RUN pip3 install /tmp/fv3config numpy
+RUN pip3 install /tmp/fv3config /tmp/emulation_slim
 
 ARG COMMIT_SHA_ARG
 ENV COMMIT_SHA=$COMMIT_SHA_ARG
