@@ -37,6 +37,15 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "--nudge-to-observations", action="store_true", help="Nudge to observations",
     )
     parser.add_argument(
+        "--nudging-output-timesteps",
+        default=None,
+        help=(
+            "path to yaml-encoded list of YYYYMMDD.HHMMSS timesteps, which define "
+            "a subset of run's timesteps that will be written to disk. If ommitted "
+            "all timesteps will be written. Only for nudged runs."
+        ),
+    )
+    parser.add_argument(
         "--diagnostic_ml",
         action="store_true",
         help="Compute and save ML predictions but do not apply them to model state.",
@@ -44,17 +53,21 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def ml_settings(model_type, model_url):
+def ml_overlay(model_type, model_url, diagnostic_ml):
     if model_url:
         if model_type == "scikit_learn":
-            return sklearn_overlay(model_url)
+            overlay = sklearn_overlay(model_url)
         elif model_type == "keras":
-            return keras_overlay(model_url)
+            overlay = keras_overlay(model_url)
         else:
             raise ValueError(
                 "Available model types are 'scikit_learn' and 'keras'; received type:"
                 f" {model_type}."
             )
+        overlay["scikit_learn"].update({"diagnostic_ml": diagnostic_ml}),
+    else:
+        overlay = {}
+    return overlay
 
 
 def sklearn_overlay(model_url):
@@ -68,7 +81,18 @@ def keras_overlay(model_url, keras_dirname="model_data"):
     return {"patch_files": model_asset_list, "scikit_learn": {"model": keras_dirname}}
 
 
-def diagnostics_overlay(diagnostic_ml):
+def nudging_overlay(nudging_config, initial_condition_url, timesteps):
+    if "timescale_hours" in nudging_config:
+        nudging_config.update({"restarts_path": initial_condition_url})
+        if timesteps is not None:
+            nudging_config.update({"output_times": timesteps})
+        overlay = {"nudging": nudging_config}
+    else:
+        overlay = {}
+    return overlay
+
+
+def diagnostics_overlay():
     return {
         "diagnostics": [
             {
@@ -89,7 +113,6 @@ def diagnostics_overlay(diagnostic_ml):
             }
         ],
         "diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic",
-        "scikit_learn": {"diagnostic_ml": diagnostic_ml},
     }
 
 
@@ -99,6 +122,13 @@ def prepare_config(args):
         user_config = yaml.safe_load(f)
 
     model_type = user_config.get("scikit_learn", {}).get("model_type", "scikit_learn")
+    nudging_config = user_config.get("nudging", {})
+
+    if args.nudging_output_timesteps:
+        with open(args.nudging_output_timesteps) as f:
+            timesteps = yaml.safe_load(f)
+    else:
+        timesteps = None
 
     # get timing information
     duration = fv3config.get_run_duration(user_config)
@@ -113,8 +143,9 @@ def prepare_config(args):
         fv3kube.c48_initial_conditions_overlay(
             args.initial_condition_url, args.ic_timestep
         ),
-        diagnostics_overlay(args.diagnostic_ml),
-        ml_settings(model_type, args.model_url),
+        diagnostics_overlay(),
+        ml_overlay(model_type, args.model_url, args.diagnostic_ml),
+        nudging_overlay(nudging_config, args.initial_condition_url, timesteps),
         user_config,
     ]
 
