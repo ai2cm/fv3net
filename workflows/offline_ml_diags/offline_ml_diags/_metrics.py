@@ -1,14 +1,23 @@
 import logging
 import numpy as np
 from typing import Sequence, Callable, Union
+import warnings
 import xarray as xr
+
 
 from vcm import safe
 from vcm.cubedsphere import regrid_to_common_pressure
+from vcm.select import zonal_average_approximate
+
 import copy
 
 
 logging.getLogger(__name__)
+
+# ignore warning from interpolating pressures when lowest level > sea level
+warnings.filterwarnings(
+    "ignore", message="Interpolation point out of data bounds encountered"
+)
 
 # Dimension/ coord/ variable parameter defaults
 PREDICT_COORD = "predict"
@@ -24,6 +33,7 @@ VERTICAL_PROFILE_MEAN_DIMS = ("time", "x", "y", "tile")
 
 def calc_metrics(
     ds: xr.Dataset,
+    lat: xr.DataArray,
     predicted: Sequence[str],
     predict_coord: str = PREDICT_COORD,
     target_coord: str = TARGET_COORD,
@@ -86,11 +96,25 @@ def calc_metrics(
         mean_dim_vars=vertical_profile_mean_dims,
         **derivation_kwargs,
     )
+
+    gridded_pressure_level_metrics = _calc_same_dims_metrics(
+        ds_regrid_z,
+        dim_tag="zonal_avg_pressure_level",
+        vars=pressure_level_names,
+        weights=[area_weights],
+        mean_dim_vars=["time"],
+        **derivation_kwargs,
+    )
+    zonal_avg_pressure_level_metrics = zonal_average_approximate(
+        lat, gridded_pressure_level_metrics
+    ).rename({"lat": "lat_interp"})
+
     ds = xr.merge(
         [
             scalar_metrics_column_integrated_vars,
             scalar_column_integrated_metrics,
             pressure_level_metrics,
+            zonal_avg_pressure_level_metrics,
         ]
     )
     return ds.pipe(_insert_r2).pipe(_mse_to_rmse)
