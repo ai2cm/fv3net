@@ -3,7 +3,6 @@ import numpy as np
 import pytest
 import xarray as xr
 from vcm.cubedsphere.regridz import (
-    regrid_vertical_legacy,
     _mask_weights,
     regrid_vertical,
 )
@@ -26,34 +25,6 @@ def input_dataarray(shape, chunks=None, z_dim_name="z"):
     if chunks is not None:
         da = da.chunk({dim: i for dim, i in zip(dims, chunks)})
     return da
-
-
-@pytest.mark.skipif(not has_mappm, reason="test requires mappm")
-@pytest.mark.parametrize(
-    "p_in_shape, f_in_shape, p_out_shape, expected",
-    [
-        ((4, 6), (4, 5), (4, 6), (4, 5)),
-        ((4, 4, 6), (4, 4, 5), (4, 4, 6), (4, 4, 5)),
-        ((6, 4, 4, 6), (6, 4, 4, 5), (6, 4, 4, 6), (6, 4, 4, 5)),
-        ((4, 4, 6), (4, 4, 5), (4, 4, 3), (4, 4, 2)),
-    ],
-)
-def test_regrid_vertical_against_regrid_vertical_legacy(
-    p_in_shape, f_in_shape, p_out_shape, expected
-):
-    p_in = input_dataarray(p_in_shape, z_dim_name="z_outer")
-    f_in = input_dataarray(f_in_shape, z_dim_name="z_center")
-    p_out = input_dataarray(p_out_shape, z_dim_name="z_outer")
-    f_out_legacy = regrid_vertical_legacy(
-        p_in, f_in, p_out, z_dim_center="z_center", z_dim_outer="z_outer"
-    )
-    f_out_current = regrid_vertical(
-        p_in, f_in, p_out, z_dim_center="z_center", z_dim_outer="z_outer"
-    )
-
-    # The legacy version of regrid_vertical adds coordinates where they don't
-    # exist; therefore we'll only check for equality of the arrays themselves here.
-    np.testing.assert_array_equal(f_out_legacy, f_out_current)
 
 
 @pytest.mark.skipif(not has_mappm, reason="test requires mappm")

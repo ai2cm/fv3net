@@ -15,7 +15,6 @@ from .regridz import (
     regrid_to_area_weighted_pressure,
     regrid_to_edge_weighted_pressure,
     regrid_vertical,
-    regrid_to_common_pressure,
 )
 from .rotate import center_and_rotate_xy_winds, rotate_xy_winds
 from .xgcm import create_fv3_grid
