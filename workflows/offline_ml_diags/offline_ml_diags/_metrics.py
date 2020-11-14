@@ -123,7 +123,7 @@ def calc_metrics(
             scalar_column_integrated_metrics,
             pressure_level_metrics,
             zonal_avg_pressure_level_bias,
-            zonal_avg_pressure_level_r2
+            zonal_avg_pressure_level_r2,
         ]
     )
     return ds.pipe(_insert_r2).pipe(_mse_to_rmse)
@@ -361,9 +361,9 @@ def _zonal_avg_r2(
         sse = (predict - target) ** 2
         sse_zonal = zonal_average_approximate(lat, sse)
         ss_mean = (
-            zonal_average_approximate(lat, target ** 2) 
+            zonal_average_approximate(lat, target ** 2)
             - zonal_average_approximate(lat, target) ** 2
         )
         name = f"{dim_tag}/r2/{var}/{predict_coord}_vs_{target_coord}"
-        r2[name] = 1 - (sse_zonal / ss_mean)   
+        r2[name] = 1 - (sse_zonal / ss_mean)
     return r2.mean(mean_dims)
