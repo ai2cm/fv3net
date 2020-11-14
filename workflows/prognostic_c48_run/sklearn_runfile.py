@@ -3,6 +3,7 @@ import datetime
 import json
 import logging
 import copy
+import functools
 from typing import (
     Any,
     Hashable,
@@ -52,8 +53,10 @@ TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
     "dQu": EAST_WIND,
     "dQv": NORTH_WIND,
 }
+SST_NAME = "ocean_surface_temperature"
+TSFC_NAME = "surface_temperature"
+MASK_NAME = "land_sea_mask"
 
-cp = 1004
 gravity = 9.81
 m_per_mm = 1 / 1000
 
@@ -85,74 +88,6 @@ def global_average(comm, array: xr.DataArray, area: xr.DataArray) -> float:
         return float(ans / area_all)
     else:
         return -1
-
-
-def compute_ml_diagnostics(state, diags):
-
-    net_moistening = (diags["dQ2"] * state[DELP] / gravity).sum("z")
-    physics_precip = state[PRECIP_RATE]
-
-    return dict(
-        air_temperature=state[TEMP],
-        specific_humidity=state[SPHUM],
-        pressure_thickness_of_atmospheric_layer=state[DELP],
-        net_moistening=(net_moistening)
-        .assign_attrs(units="kg/m^2/s")
-        .assign_attrs(description="column integrated ML model moisture tendency"),
-        net_heating=(diags["dQ1"] * state[DELP] / gravity * cp)
-        .sum("z")
-        .assign_attrs(units="W/m^2")
-        .assign_attrs(description="column integrated ML model heating"),
-        water_vapor_path=(state[SPHUM] * state[DELP] / gravity)
-        .sum("z")
-        .assign_attrs(units="mm")
-        .assign_attrs(description="column integrated water vapor"),
-        physics_precip=(physics_precip)
-        .assign_attrs(units="kg/m^2/s")
-        .assign_attrs(
-            description="surface precipitation rate due to parameterized physics"
-        ),
-    )
-
-
-def compute_nudging_diagnostics(state, tendencies):
-    return {}
-
-
-def compute_ml_momentum_diagnostics(state, tendency):
-    delp = state[DELP]
-    total_thickness = delp.sum("z")
-    dQu = tendency.get("dQu", xr.zeros_like(delp))
-    dQv = tendency.get("dQv", xr.zeros_like(delp))
-    column_integrated_dQu = (dQu * delp).sum("z") / total_thickness
-    column_integrated_dQv = (dQv * delp).sum("z") / total_thickness
-    return dict(
-        column_integrated_dQu=column_integrated_dQu.assign_attrs(
-            units="m/s/s", description="column integrated zonal wind tendency due to ML"
-        ),
-        column_integrated_dQv=column_integrated_dQv.assign_attrs(
-            units="m/s/s",
-            description="column integrated meridional wind tendency due to ML",
-        ),
-    )
-
-
-def rename_diagnostics(diags):
-    """Postfix ML output names with _diagnostic and create zero-valued outputs in
-    their stead. Function operates in place."""
-    ml_tendencies = {
-        "net_moistening",
-        "net_heating",
-        "column_integrated_dQu",
-        "column_integrated_dQv",
-    }
-    ml_tendencies_in_diags = ml_tendencies & set(diags)
-    for variable in ml_tendencies_in_diags:
-        attrs = diags[variable].attrs
-        diags[f"{variable}_diagnostic"] = diags[variable].assign_attrs(
-            description=attrs["description"] + " (diagnostic only)"
-        )
-        diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
 
 
 def precipitation_sum(
@@ -222,28 +157,6 @@ def apply(state: State, tendency: State, dt: float) -> State:
     return updated  # type: ignore
 
 
-
-def setup_reference_state():
-    pass
-
-#     get_reference_state = functools.partial(
-#         _get_reference_state,
-#         reference_dir=reference_dir,
-#         communicator=communicator,
-#         only_names=store_names,
-#     )
-
-#     initial_time_label = config["nudging"].get("reference_initial_time")
-#     if initial_time_label is not None:
-#         get_reference_state = time_interpolate_func(
-#             get_reference_state,
-#             initial_time=label_to_time(initial_time_label),
-#             frequency=timedelta(
-#                 seconds=config["nudging"]["reference_frequency_seconds"]
-#             ),
-#         )
-
-
 class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
     """An iterable defining the master time loop of a prognostic simulation
 
@@ -284,16 +197,23 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
 
         self._tendencies_to_apply_to_dycore_state: State = {}
         self._tendencies_to_apply_to_physics_state: State = {}
-            
+
         # get nudging info if nudging
-        if 'nudging' in args:
-            self._nudging_timescales = args['nudging']['timescale_hours']
-            self._get_reference_state = setup_reference_state()
+        if "nudging" in args:
+            self._nudging_timescales = runtime.nudging_timescales_from_dict(
+                args["nudging"]["timescale_hours"]
+            )
+            self._get_reference_state = runtime.setup_get_reference_state(
+                args, self.nudging_variables + [SST_NAME, TSFC_NAME], self._comm
+            )
+            self._get_nudging_tendency = functools.partial(
+                runtime.nudging_tendency, timescales=self._nudging_timescales
+            )
         else:
             self._nudging_timescales = {}
 
         # download the model if doing ML
-        if 'scikit_learn' in args:
+        if "scikit_learn" in args:
             self._log_info("Downloading ML Model")
             self._model = open_model(args["scikit_learn"])
             self._log_info("Model Downloaded")
@@ -302,16 +222,16 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             )
         else:
             self._model = None
-            
+
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
     @property
     def time(self) -> cftime.DatetimeJulian:
         return self._state.time
-    
+
     @property
-    def nudging_variables(self) -> Sequence[str]:
+    def nudging_variables(self) -> List[str]:
         return list(self._nudging_timescales)
 
     def _log_debug(self, message: str):
@@ -368,15 +288,17 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         ]
         state = {name: self._state[name] for name in variables}
         tendency = self._tendencies_to_apply_to_physics_state
-        updated_state = apply(state, tendency, dt=self._timestep)
+        updated_state: State = apply(state, tendency, dt=self._timestep)
         ml_momentum_diagnostics = {}
         if self._model:
-            ml_momentum_diagnostics.update(compute_ml_momentum_diagnostics(state, tendency))
+            ml_momentum_diagnostics.update(
+                runtime.compute_ml_momentum_diagnostics(state, tendency)
+            )
             if self._do_only_diagnostic_ml:
-                rename_diagnostics(ml_momentum_diagnostics)
+                runtime.rename_diagnostics(ml_momentum_diagnostics)
             else:
                 self._state.update(updated_state)
-            
+
         return ml_momentum_diagnostics
 
     def _compute_ml_tendency(self) -> Diagnostics:
@@ -400,33 +322,41 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             k: v for k, v in tendency.items() if k in ["dQu", "dQv"]
         }
         return {}
-    
+
     def _nudge(self) -> Diagnostics:
-    
+
         nudging_diagnostics = {}
         if self.nudging_variables:
-            pass
-#             self._log_debug('Computing nudging tendencies')
-#             reference = get_reference_state(store_time)
-#             nudging_tendency = nudge(state, reference)
-#             nudging_diagnostics.update(compute_nudging_diagnostics(state, nudging_tendency))
-#             updated_state[TOTAL_PRECIP] = precipitation_sum(
-#                 state[TOTAL_PRECIP], nudging_diagnostics["net_moistening"], self._timestep
-#             )
 
-        
+            self._log_debug("Computing nudging tendencies")
+            variables = self.nudging_variables + [SST_NAME, TSFC_NAME, MASK_NAME]
+            state: State = {name: self._state[name] for name in variables}
+            reference = self._get_reference_state(self.time)
+            for var in reference:
+                self._log_debug(f"{var}: {reference[var]}")
+            runtime.set_state_sst_to_reference(state, reference)
+            tendency = self._get_nudging_tendency(state, reference)
+            nudging_diagnostics.update(
+                runtime.compute_nudging_diagnostics(state, tendency)
+            )
+            updated_state: State = apply(state, tendency, dt=self._timestep)
+            updated_state[TOTAL_PRECIP] = precipitation_sum(
+                state[TOTAL_PRECIP],
+                nudging_diagnostics["net_moistening"],
+                self._timestep,
+            )
+
         return nudging_diagnostics
 
     def _apply_ml_to_dycore_state(self) -> Diagnostics:
-        
+
         tendency = self._tendencies_to_apply_to_dycore_state
         self._log_debug(f"tendency: {list(tendency)}")
 
         ml_diagnostics = {}
+        updated_state: State = {}
 
-        if not self._model:
-            updated_state: State = {}
-        else:
+        if self._model:
             variables: List[Hashable] = [
                 TENDENCY_TO_STATE_NAME["dQ1"],
                 TENDENCY_TO_STATE_NAME["dQ2"],
@@ -436,11 +366,11 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             ]
             self._log_debug(f"Getting state variables: {variables}")
             state = {name: self._state[name] for name in variables}
-            updated_state = apply(state, tendency, dt=self._timestep)
-            ml_diagnostics.update(compute_ml_diagnostics(state, tendency))
+            ml_diagnostics.update(runtime.compute_ml_diagnostics(state, tendency))
             if self._do_only_diagnostic_ml:
-                updated_state: State = {}
-                rename_diagnostics(ml_diagnostics)
+                runtime.rename_diagnostics(ml_diagnostics)
+            else:
+                updated_state.update(apply(state, tendency, dt=self._timestep))
             updated_state[TOTAL_PRECIP] = precipitation_sum(
                 state[TOTAL_PRECIP], ml_diagnostics["net_moistening"], self._timestep
             )
@@ -536,10 +466,8 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
         self._variables = list(tendency_variables)
 
     _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
-    _apply_ml_to_dycore_state = monitor(
-        "ml", TimeLoop._apply_ml_to_dycore_state
-    )
-    _nudge = monitor('nudging', TimeLoop._nudge)
+    _apply_ml_to_dycore_state = monitor("ml", TimeLoop._apply_ml_to_dycore_state)
+    _nudge = monitor("nudging", TimeLoop._nudge)
 
 
 def globally_average_2d_diagnostics(

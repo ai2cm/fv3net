@@ -5,6 +5,13 @@ import fv3gfs.util
 
 import xarray as xr
 
+TEMP = "air_temperature"
+SPHUM = "specific_humidity"
+DELP = "pressure_thickness_of_atmospheric_layer"
+PRECIP_RATE = "surface_precipitation_rate"
+cp = 1004
+gravity = 9.81
+
 
 class All(Container):
     """A container that contains every thing
@@ -198,3 +205,114 @@ def get_diagnostic_files(
         return [
             _config_to_diagnostic_file(default_config, partitioner, comm, initial_time)
         ]
+
+
+def compute_ml_diagnostics(state, ml_tendency):
+
+    net_moistening = (ml_tendency["dQ2"] * state[DELP] / gravity).sum("z")
+    physics_precip = state[PRECIP_RATE]
+
+    return dict(
+        air_temperature=state[TEMP],
+        specific_humidity=state[SPHUM],
+        pressure_thickness_of_atmospheric_layer=state[DELP],
+        net_moistening=(net_moistening)
+        .assign_attrs(units="kg/m^2/s")
+        .assign_attrs(description="column integrated ML model moisture tendency"),
+        net_heating=(ml_tendency["dQ1"] * state[DELP] / gravity * cp)
+        .sum("z")
+        .assign_attrs(units="W/m^2")
+        .assign_attrs(description="column integrated ML model heating"),
+        water_vapor_path=(state[SPHUM] * state[DELP] / gravity)
+        .sum("z")
+        .assign_attrs(units="mm")
+        .assign_attrs(description="column integrated water vapor"),
+        physics_precip=(physics_precip)
+        .assign_attrs(units="kg/m^2/s")
+        .assign_attrs(
+            description="surface precipitation rate due to parameterized physics"
+        ),
+    )
+
+
+def compute_nudging_diagnostics(state, nudging_tendency):
+
+    net_moistening = (
+        (
+            (nudging_tendency[SPHUM] * state[DELP] / gravity)
+            .sum("z")
+            .assign_attrs(units="kg/m^2/s")
+            .assign_attrs(description="column integrated moistening due to nudging")
+        ),
+    )
+    net_heating = (
+        (nudging_tendency[TEMP] * state[DELP] / gravity * cp)
+        .sum("z")
+        .assign_attrs(units="W/m^2")
+        .assign_attrs(description="column integrated heating due to nudging")
+    )
+    diags = dict(
+        net_moistening_due_to_nudging=net_moistening,
+        net_heating_due_to_nudging=net_heating,
+    )
+    for var, tendency in nudging_tendency.items():
+        if any(wind in var for wind in ["x_wind", "y_wind"]):
+            diags[f"column_integrated_{var}"] = _mass_average(
+                tendency, state[DELP], "z"
+            )
+    if DELP in nudging_tendency:
+        net_mass_tendency = (
+            (nudging_tendency[DELP] / gravity)
+            .sum("z")
+            .assign_attrs(
+                units="kg/m^2/s",
+                description="column_integrated mass tendency due to nudging",
+            )
+        )
+        diags["net_mass_tendency_due_to_nudging"] = net_mass_tendency
+    diags.update(nudging_tendency)
+
+    return diags
+
+
+def compute_ml_momentum_diagnostics(state, tendency):
+    delp = state[DELP]
+
+    dQu = tendency.get("dQu", xr.zeros_like(delp))
+    dQv = tendency.get("dQv", xr.zeros_like(delp))
+    column_integrated_dQu = _mass_average(dQu, delp, "z")
+    column_integrated_dQv = _mass_average(dQv, delp, "z")
+    return dict(
+        column_integrated_dQu=column_integrated_dQu.assign_attrs(
+            units="m/s/s", description="column integrated zonal wind tendency due to ML"
+        ),
+        column_integrated_dQv=column_integrated_dQv.assign_attrs(
+            units="m/s/s",
+            description="column integrated meridional wind tendency due to ML",
+        ),
+    )
+
+
+def _mass_average(da: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"):
+    total_thickness = delp.sum(vertical_dim)
+    mass_average = (da * delp).sum(vertical_dim) / total_thickness
+    mass_average.assign_attrs(**da.attrs)
+    return mass_average
+
+
+def rename_diagnostics(diags):
+    """Postfix ML output names with _diagnostic and create zero-valued outputs in
+    their stead. Function operates in place."""
+    ml_tendencies = {
+        "net_moistening",
+        "net_heating",
+        "column_integrated_dQu",
+        "column_integrated_dQv",
+    }
+    ml_tendencies_in_diags = ml_tendencies & set(diags)
+    for variable in ml_tendencies_in_diags:
+        attrs = diags[variable].attrs
+        diags[f"{variable}_diagnostic"] = diags[variable].assign_attrs(
+            description=attrs["description"] + " (diagnostic only)"
+        )
+        diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
