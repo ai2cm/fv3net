@@ -2,7 +2,7 @@
 Utilities for coarse-graining restart data and directories
 """
 import logging
-from typing import Dict, Mapping
+from typing import Dict, Hashable, Mapping, Callable
 
 import dask
 import numpy as np
@@ -727,10 +727,7 @@ def _compute_arguments_for_complex_sfc_coarsening(
 
 
 def _area_weighted_mean(
-    data_var: xr.DataArray = None,
-    coarsening_factor: int = None,
-    area: xr.DataArray = None,
-    **unused_kwargs,
+    data_var: xr.DataArray, coarsening_factor: int, area: xr.DataArray, **unused_kwargs,
 ) -> xr.DataArray:
     return weighted_block_average(
         data_var, area, coarsening_factor, x_dim=X_DIM, y_dim=Y_DIM
@@ -738,10 +735,10 @@ def _area_weighted_mean(
 
 
 def _area_weighted_mean_over_dominant_sfc_type(
-    data_var: xr.DataArray = None,
-    coarsening_factor: int = None,
-    area: xr.DataArray = None,
-    is_dominant_surface_type: xr.DataArray = None,
+    data_var: xr.DataArray,
+    coarsening_factor: int,
+    area: xr.DataArray,
+    is_dominant_surface_type: xr.DataArray,
     **unused_kwargs,
 ) -> xr.DataArray:
     return weighted_block_average(
@@ -754,12 +751,12 @@ def _area_weighted_mean_over_dominant_sfc_type(
 
 
 def _area_and_vfrac_weighted_mean_over_dominant_sfc_and_vtype(
-    data_var: xr.DataArray = None,
-    coarsening_factor: int = None,
-    area: xr.DataArray = None,
-    is_dominant_surface_type: xr.DataArray = None,
-    is_dominant_vtype: xr.DataArray = None,
-    vfrac: xr.DataArray = None,
+    data_var: xr.DataArray,
+    coarsening_factor: int,
+    area: xr.DataArray,
+    is_dominant_surface_type: xr.DataArray,
+    is_dominant_vtype: xr.DataArray,
+    vfrac: xr.DataArray,
     **unused_kwargs,
 ) -> xr.DataArray:
     mask = is_dominant_surface_type & is_dominant_vtype
@@ -792,11 +789,11 @@ def _area_and_vfrac_weighted_mean_over_dominant_sfc_and_vtype(
 
 
 def _area_weighted_mean_over_dominant_sfc_and_stype(
-    data_var: xr.DataArray = None,
-    coarsening_factor: int = None,
-    area: xr.DataArray = None,
-    is_dominant_surface_type: xr.DataArray = None,
-    is_dominant_stype: xr.DataArray = None,
+    data_var: xr.DataArray,
+    coarsening_factor: int,
+    area: xr.DataArray,
+    is_dominant_surface_type: xr.DataArray,
+    is_dominant_stype: xr.DataArray,
     **unused_kwargs,
 ) -> xr.DataArray:
     mask = is_dominant_surface_type & is_dominant_stype
@@ -810,7 +807,7 @@ def _area_weighted_mean_over_dominant_sfc_and_stype(
 
 
 def _mode(
-    data_var: xr.DataArray = None, coarsening_factor: int = None, **unused_kwargs,
+    data_var: xr.DataArray, coarsening_factor: int, **unused_kwargs,
 ) -> xr.DataArray:
     return block_coarsen(
         data_var,
@@ -823,10 +820,10 @@ def _mode(
 
 
 def _mode_over_dominant_sfc_type(
-    data_var: xr.DataArray = None,
-    coarsening_factor: int = None,
-    area: xr.DataArray = None,
-    is_dominant_surface_type: xr.DataArray = None,
+    data_var: xr.DataArray,
+    coarsening_factor: int,
+    area: xr.DataArray,
+    is_dominant_surface_type: xr.DataArray,
     **unused_kwargs,
 ) -> xr.DataArray:
     return block_coarsen(
@@ -840,10 +837,10 @@ def _mode_over_dominant_sfc_type(
 
 
 def _area_and_sncovr_weighted_mean(
-    data_var: xr.DataArray = None,
-    coarsening_factor: int = None,
-    area: xr.DataArray = None,
-    sncovr: xr.DataArray = None,
+    data_var: xr.DataArray,
+    coarsening_factor: int,
+    area: xr.DataArray,
+    sncovr: xr.DataArray,
     **unused_kwargs,
 ) -> xr.DataArray:
     return weighted_block_average(
@@ -852,10 +849,10 @@ def _area_and_sncovr_weighted_mean(
 
 
 def _area_and_fice_weighted_mean(
-    data_var: xr.DataArray = None,
-    coarsening_factor: int = None,
-    area: xr.DataArray = None,
-    fice: xr.DataArray = None,
+    data_var: xr.DataArray,
+    coarsening_factor: int,
+    area: xr.DataArray,
+    fice: xr.DataArray,
     **unused_kwargs,
 ) -> xr.DataArray:
     return weighted_block_average(
@@ -864,9 +861,9 @@ def _area_and_fice_weighted_mean(
 
 
 def _minimum_over_dominant_sfc_type(
-    data_var: xr.DataArray = None,
-    coarsening_factor: int = None,
-    is_dominant_surface_type: xr.DataArray = None,
+    data_var: xr.DataArray,
+    coarsening_factor: int,
+    is_dominant_surface_type: xr.DataArray,
     **unused_kwargs,
 ) -> xr.DataArray:
     return block_coarsen(
@@ -879,9 +876,9 @@ def _minimum_over_dominant_sfc_type(
 
 
 def _maximum_over_dominant_sfc_type(
-    data_var: xr.DataArray = None,
-    coarsening_factor: int = None,
-    is_dominant_surface_type: xr.DataArray = None,
+    data_var: xr.DataArray,
+    coarsening_factor: int,
+    is_dominant_surface_type: xr.DataArray,
     **unused_kwargs,
 ) -> xr.DataArray:
     return block_coarsen(
@@ -894,12 +891,12 @@ def _maximum_over_dominant_sfc_type(
 
 
 def _area_or_area_and_fice_weighted_mean(
-    data_var: xr.DataArray = None,
-    coarsening_factor: int = None,
-    area: xr.DataArray = None,
-    is_dominant_surface_type: xr.DataArray = None,
-    fice: xr.DataArray = None,
-    coarsened_slmsk: xr.DataArray = None,
+    data_var: xr.DataArray,
+    coarsening_factor: int,
+    area: xr.DataArray,
+    is_dominant_surface_type: xr.DataArray,
+    fice: xr.DataArray,
+    coarsened_slmsk: xr.DataArray,
     **unused_kwargs,
 ) -> xr.DataArray:
     """Special function for handling tisfc.
@@ -925,7 +922,7 @@ def _area_or_area_and_fice_weighted_mean(
 
 # Note that slmsk, vtype, and stype are handled separately (they need to be
 # coarsened ahead of coarsening these other variables).
-SFC_DATA_COARSENING_METHOD = {
+SFC_DATA_COARSENING_METHOD: Mapping[Hashable, Callable] = {
     "tsea": _area_weighted_mean,
     "alvsf": _area_weighted_mean,
     "alvwf": _area_weighted_mean,
