@@ -137,8 +137,11 @@ def plot_transect(
     figsize: Tuple[int] = (10, 4),
 ):
     facetgrid = data.plot(
-        y=f"{yaxis} [Pa]", x=xaxis, yincrease=False, col=column_dim, figsize=figsize
+        y=yaxis, x=xaxis, yincrease=False, col=column_dim, figsize=figsize
     )
+    facetgrid.set_ylabels("Pressure [Pa]")
+    facetgrid.set_xlabels("Latitude [deg]")
+
     f = facetgrid.fig
     return f
 

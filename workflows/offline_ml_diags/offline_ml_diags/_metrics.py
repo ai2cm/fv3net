@@ -97,16 +97,24 @@ def calc_metrics(
         **derivation_kwargs,
     )
 
-    gridded_pressure_level_metrics = _calc_same_dims_metrics(
+    gridded_pressure_level_bias = _calc_same_dims_metrics(
         ds_regrid_z,
         dim_tag="zonal_avg_pressure_level",
         vars=pressure_level_names,
-        weights=[area_weights],
+        weights=[],
         mean_dim_vars=["time"],
+        metric_funcs=(_bias,),
         **derivation_kwargs,
     )
-    zonal_avg_pressure_level_metrics = zonal_average_approximate(
-        lat, gridded_pressure_level_metrics
+    zonal_avg_pressure_level_bias = zonal_average_approximate(
+        lat, gridded_pressure_level_bias
+    ).rename({"lat": "lat_interp"})
+
+    zonal_avg_pressure_level_r2 = _zonal_avg_r2(
+        safe.get_variables(ds_regrid_z, pressure_level_names),
+        lat,
+        mean_dims=["time"],
+        dim_tag="zonal_avg_pressure_level",
     ).rename({"lat": "lat_interp"})
 
     ds = xr.merge(
@@ -114,7 +122,8 @@ def calc_metrics(
             scalar_metrics_column_integrated_vars,
             scalar_column_integrated_metrics,
             pressure_level_metrics,
-            zonal_avg_pressure_level_metrics,
+            zonal_avg_pressure_level_bias,
+            zonal_avg_pressure_level_r2
         ]
     )
     return ds.pipe(_insert_r2).pipe(_mse_to_rmse)
@@ -159,6 +168,7 @@ def _calc_same_dims_metrics(
     predict_coord: str = PREDICT_COORD,
     target_coord: str = TARGET_COORD,
     derivation_dim: str = DERIVATION_DIM,
+    metric_funcs: Sequence[Callable] = None,
 ) -> xr.Dataset:
     """Computes a set of metrics that all have the same dimension,
     ex. mean vertical error profile on pressure levels, or global mean scalar error
@@ -184,8 +194,9 @@ def _calc_same_dims_metrics(
         ds, vars, predict_coord, target_coord, derivation_dim, weights, mean_dim_vars
     )
     metrics = xr.Dataset()
+    metric_funcs = metric_funcs or (_bias, _mse)
     for var in vars:
-        for metric_func in (_bias, _mse):
+        for metric_func in metric_funcs:
             for comparison in metric_comparison_coords:
                 metric = _calc_metric(
                     ds,
@@ -327,3 +338,32 @@ def _weighted_average(
     for weight in weights:
         data_copy *= weight
     return data_copy.mean(dim=mean_dims, skipna=True)
+
+
+def _zonal_avg_r2(
+    ds,
+    lat,
+    dim_tag,
+    mean_dims: Sequence[str] = None,
+    predict_coord: str = PREDICT_COORD,
+    target_coord: str = TARGET_COORD,
+    derivation_dim: str = DERIVATION_DIM,
+):
+    """
+    Compute the percent of variance explained of the anomaly from the zonal mean
+    This is done separately from the _calc_metrics func because it uses the
+    zonal_average_approximate function.
+    """
+    r2 = xr.Dataset()
+    for var in ds.data_vars:
+        target = ds[var].sel({derivation_dim: target_coord})
+        predict = ds[var].sel({derivation_dim: predict_coord})
+        sse = (predict - target) ** 2
+        sse_zonal = zonal_average_approximate(lat, sse)
+        ss_mean = (
+            zonal_average_approximate(lat, target ** 2) 
+            - zonal_average_approximate(lat, target) ** 2
+        )
+        name = f"{dim_tag}/r2/{var}/{predict_coord}_vs_{target_coord}"
+        r2[name] = 1 - (sse_zonal / ss_mean)   
+    return r2.mean(mean_dims)
