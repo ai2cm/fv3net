@@ -379,7 +379,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
                 MASK_NAME,
                 TOTAL_PRECIP,
                 PRECIP_RATE,
-                DELP
+                DELP,
             ]
             state: State = {name: self._state[name] for name in variables}
             reference = self._get_reference_state(self.time)

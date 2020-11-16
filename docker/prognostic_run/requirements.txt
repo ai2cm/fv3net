@@ -28,6 +28,7 @@ imageio
 imagesize
 importlib-metadata
 intake
+intake-xarray
 ipython-genutils
 Jinja2
 joblib

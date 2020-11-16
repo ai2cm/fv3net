@@ -10,9 +10,14 @@ from typing import (
 )
 import datetime
 import cftime
+import logging
+from vcm.catalog import catalog
+from vcm.cubedsphere import center_and_rotate_xy_winds
 import fv3gfs.util
 
 import xarray as xr
+
+logger = logging.getLogger(__name__)
 
 TEMP = "air_temperature"
 SPHUM = "specific_humidity"
@@ -284,11 +289,28 @@ def compute_nudging_diagnostics(
         water_vapor_path=water_vapor_path,
         physics_precip=physics_precip,
     )
-    for var, tendency in nudging_tendency.items():
-        if any(wind in str(var) for wind in ["x_wind", "y_wind"]):
-            diags[f"column_integrated_{var}_tendency_due_to_nudging"] = _mass_average(
-                tendency, state[DELP], "z"
+
+    if ("x_wind" in nudging_tendency.keys()) and ("y_wind" in nudging_tendency.keys()):
+        wind_rotation_matrix = catalog["wind_rotation/c48"].to_dask()
+        u_tendency, v_tendency = center_and_rotate_xy_winds(
+            wind_rotation_matrix, nudging_tendency["x_wind"], nudging_tendency["y_wind"]
+        )
+        rotation_mapping = {
+            ("u-wind", "x_wind"): u_tendency,
+            ("v-wind", "y_wind"): v_tendency,
+        }
+        for names, tendency in rotation_mapping.items():
+            a_name, d_name = names
+            integrated_wind_tendency = _mass_average(tendency, state[DELP], "z")
+            diags[
+                f"column_integrated_{a_name}_tendency_due_to_nudging"
+            ] = integrated_wind_tendency.assign_attrs(
+                units="m s^-2",
+                description=(
+                    f"column mass-averaged {a_name} wind tendency due to nudging"
+                ),
             )
+
     if DELP in nudging_tendency:
         net_mass_tendency = (
             (nudging_tendency[DELP] / gravity)
@@ -302,6 +324,10 @@ def compute_nudging_diagnostics(
     diags.update(_append_key_label(nudging_tendency, label))
 
     return diags
+
+
+def _wind_rotation_matrix():
+    return
 
 
 def _append_key_label(d, suffix):
@@ -320,10 +346,11 @@ def compute_ml_momentum_diagnostics(state, tendency):
     column_integrated_dQv = _mass_average(dQv, delp, "z")
     return dict(
         column_integrated_dQu=column_integrated_dQu.assign_attrs(
-            units="m/s/s", description="column integrated zonal wind tendency due to ML"
+            units="m s^-2",
+            description="column integrated zonal wind tendency due to ML",
         ),
         column_integrated_dQv=column_integrated_dQv.assign_attrs(
-            units="m/s/s",
+            units="m s^-2",
             description="column integrated meridional wind tendency due to ML",
         ),
     )
