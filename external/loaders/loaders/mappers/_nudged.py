@@ -4,7 +4,7 @@ from functools import partial
 import xarray as xr
 import fsspec
 import zarr.storage as zstore
-from typing import Sequence, Mapping, Union, Tuple, Any
+from typing import Hashable, Sequence, Mapping, Optional, Union, Tuple, Any
 from itertools import product
 from toolz import groupby
 from pathlib import Path
@@ -12,7 +12,7 @@ from pathlib import Path
 import vcm
 
 from ._transformations import KeyMap
-from ._base import GeoMapper, LongRunMapper
+from ._base import GeoMapper, LongRunMapper, MultiDatasetMapper
 from ._merged import MergeOverlappingData
 from ._high_res_diags import open_high_res_diags
 from .._utils import standardize_zarr_time_coord, assign_net_physics_terms
@@ -656,3 +656,22 @@ def _get_source_datasets(
         )
         datasets.append(ds)
     return datasets
+
+
+def open_merged_nudged_full_tendencies_multiple_datasets(
+    urls: Sequence[str], names: Optional[Sequence[Hashable]] = None, **kwargs
+):
+    """
+    Load sequence of mappers to nudged datasets containing dQ tendency terms.
+
+    Args:
+        urls: paths to directories with nudging output
+        names: sequence of names to assign to the dataset coordinate (optional)
+        **kwargs: keyword arguments passed to open_merged_nudged_full_tendencies
+
+    Returns
+        mapper of timestamps to dataset containing tendency terms with a dataset
+        dimension
+    """
+    mappers = [open_merged_nudged_full_tendencies(url, **kwargs) for url in urls]
+    return MultiDatasetMapper(mappers, names=names)

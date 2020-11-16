@@ -33,15 +33,20 @@ class MockDatasetMapper:
         return len(self.keys())
 
 
-@pytest.fixture
-def mapper(datadir):
+@pytest.fixture(params=["MockDatasetMapper", "MultiDatasetMapper"])
+def mapper(request, datadir):
     one_step_zarr_schema = "one_step_zarr_schema.json"
     # uses the one step schema but final mapper
     # functions the same for all data sources
     with open(os.path.join(datadir, one_step_zarr_schema)) as f:
         schema = synth.load(f)
     mapper = MockDatasetMapper(schema)
-    return mapper
+    if request.param == "MockDatasetMapper":
+        return mapper
+    elif request.param == "MultiDatasetMapper":
+        return loaders.mappers.MultiDatasetMapper([mapper, mapper, mapper])
+    else:
+        raise ValueError("Invalid mapper type provided.")
 
 
 @pytest.fixture
@@ -63,11 +68,13 @@ def test_batches_from_mapper(mapper):
         mapper, DATA_VARS, timesteps_per_batch=2
     )
     assert len(batched_data_sequence) == 2
+    expected_num_samples = 6 * 48 * 48 * 2
     for i, batch in enumerate(batched_data_sequence):
         assert len(batch["z"]) == Z_DIM_SIZE
         assert set(batch.data_vars) == set(DATA_VARS)
         for name in batch.data_vars.keys():
             assert batch[name].dims[0] == loaders.SAMPLE_DIM_NAME
+            assert batch[name].sizes[loaders.SAMPLE_DIM_NAME] == expected_num_samples
 
 
 @pytest.mark.parametrize(

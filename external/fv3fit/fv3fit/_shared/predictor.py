@@ -5,6 +5,7 @@ from typing import Iterable, Sequence, Hashable, Tuple
 import logging
 
 
+DATASET_DIM_NAME = "dataset"
 logger = logging.getLogger(__file__)
 
 
@@ -75,7 +76,12 @@ class Predictor(abc.ABC):
         if feature_dim is not None:
             sample_dims = _infer_sample_dims(inputs_, feature_dim)
 
-        stacked = safe.stack_once(inputs_, "sample", dims=sample_dims)
+        stacked = safe.stack_once(
+            inputs_,
+            "sample",
+            dims=sample_dims,
+            allowed_broadcast_dims=[DATASET_DIM_NAME],
+        )
         transposed = stacked.transpose("sample", ...)
         output = self.predict(transposed).unstack("sample")
 
