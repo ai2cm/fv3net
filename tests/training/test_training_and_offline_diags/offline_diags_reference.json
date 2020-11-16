@@ -17,16 +17,260 @@
                 ],
                 "attrs": {}
             },
+            "x": {
+                "name": "x",
+                "dims": [
+                    "x"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0,
+                    5.0,
+                    6.0,
+                    7.0,
+                    8.0,
+                    9.0,
+                    10.0,
+                    11.0,
+                    12.0,
+                    13.0,
+                    14.0,
+                    15.0,
+                    16.0,
+                    17.0,
+                    18.0,
+                    19.0,
+                    20.0,
+                    21.0,
+                    22.0,
+                    23.0,
+                    24.0,
+                    25.0,
+                    26.0,
+                    27.0,
+                    28.0,
+                    29.0,
+                    30.0,
+                    31.0,
+                    32.0,
+                    33.0,
+                    34.0,
+                    35.0,
+                    36.0,
+                    37.0,
+                    38.0,
+                    39.0,
+                    40.0,
+                    41.0,
+                    42.0,
+                    43.0,
+                    44.0,
+                    45.0,
+                    46.0,
+                    47.0,
+                    48.0
+                ],
+                "attrs": {
+                    "cartesian_axis": "X",
+                    "long_name": "T-cell longitude",
+                    "units": "degrees_E"
+                }
+            },
+            "y": {
+                "name": "y",
+                "dims": [
+                    "y"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0,
+                    5.0,
+                    6.0,
+                    7.0,
+                    8.0,
+                    9.0,
+                    10.0,
+                    11.0,
+                    12.0,
+                    13.0,
+                    14.0,
+                    15.0,
+                    16.0,
+                    17.0,
+                    18.0,
+                    19.0,
+                    20.0,
+                    21.0,
+                    22.0,
+                    23.0,
+                    24.0,
+                    25.0,
+                    26.0,
+                    27.0,
+                    28.0,
+                    29.0,
+                    30.0,
+                    31.0,
+                    32.0,
+                    33.0,
+                    34.0,
+                    35.0,
+                    36.0,
+                    37.0,
+                    38.0,
+                    39.0,
+                    40.0,
+                    41.0,
+                    42.0,
+                    43.0,
+                    44.0,
+                    45.0,
+                    46.0,
+                    47.0,
+                    48.0
+                ],
+                "attrs": {
+                    "cartesian_axis": "Y",
+                    "long_name": "T-cell latitude",
+                    "units": "degrees_N"
+                }
+            },
+            "y_interface": {
+                "name": "y_interface",
+                "dims": [
+                    "y_interface"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0,
+                    5.0,
+                    6.0,
+                    7.0,
+                    8.0,
+                    9.0,
+                    10.0,
+                    11.0,
+                    12.0,
+                    13.0,
+                    14.0,
+                    15.0,
+                    16.0,
+                    17.0,
+                    18.0,
+                    19.0,
+                    20.0,
+                    21.0,
+                    22.0,
+                    23.0,
+                    24.0,
+                    25.0,
+                    26.0,
+                    27.0,
+                    28.0,
+                    29.0,
+                    30.0,
+                    31.0,
+                    32.0,
+                    33.0,
+                    34.0,
+                    35.0,
+                    36.0,
+                    37.0,
+                    38.0,
+                    39.0,
+                    40.0,
+                    41.0,
+                    42.0,
+                    43.0,
+                    44.0,
+                    45.0,
+                    46.0,
+                    47.0,
+                    48.0,
+                    49.0
+                ],
+                "attrs": {
+                    "cartesian_axis": "Y",
+                    "long_name": "cell corner latitude",
+                    "units": "degrees_N"
+                }
+            },
+            "x_interface": {
+                "name": "x_interface",
+                "dims": [
+                    "x_interface"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0,
+                    5.0,
+                    6.0,
+                    7.0,
+                    8.0,
+                    9.0,
+                    10.0,
+                    11.0,
+                    12.0,
+                    13.0,
+                    14.0,
+                    15.0,
+                    16.0,
+                    17.0,
+                    18.0,
+                    19.0,
+                    20.0,
+                    21.0,
+                    22.0,
+                    23.0,
+                    24.0,
+                    25.0,
+                    26.0,
+                    27.0,
+                    28.0,
+                    29.0,
+                    30.0,
+                    31.0,
+                    32.0,
+                    33.0,
+                    34.0,
+                    35.0,
+                    36.0,
+                    37.0,
+                    38.0,
+                    39.0,
+                    40.0,
+                    41.0,
+                    42.0,
+                    43.0,
+                    44.0,
+                    45.0,
+                    46.0,
+                    47.0,
+                    48.0,
+                    49.0
+                ],
+                "attrs": {
+                    "cartesian_axis": "X",
+                    "long_name": "cell corner longitude",
+                    "units": "degrees_E"
+                }
+            },
             "derivation": {
                 "name": "derivation",
                 "dims": [
                     "derivation"
                 ],
                 "value": [
-                    "coarse_FV3GFS",
-                    "coarsened_SHiELD",
-                    "predict",
-                    "target"
+                    "target",
+                    "predict"
                 ],
                 "attrs": {}
             },
@@ -36,9 +280,109 @@
                     "domain"
                 ],
                 "value": [
-                    "land_average",
-                    "sea_average",
-                    "global_average"
+                    "land avg",
+                    "sea avg",
+                    "global avg",
+                    "> 0 net precip avg (target)",
+                    "< 0 net precip avg (target)"
+                ],
+                "attrs": {}
+            },
+            "lat_interp": {
+                "name": "lat_interp",
+                "dims": [
+                    "lat_interp"
+                ],
+                "value": [
+                    -89.0,
+                    -87.0,
+                    -85.0,
+                    -83.0,
+                    -81.0,
+                    -79.0,
+                    -77.0,
+                    -75.0,
+                    -73.0,
+                    -71.0,
+                    -69.0,
+                    -67.0,
+                    -65.0,
+                    -63.0,
+                    -61.0,
+                    -59.0,
+                    -57.0,
+                    -55.0,
+                    -53.0,
+                    -51.0,
+                    -49.0,
+                    -47.0,
+                    -45.0,
+                    -43.0,
+                    -41.0,
+                    -39.0,
+                    -37.0,
+                    -35.0,
+                    -33.0,
+                    -31.0,
+                    -29.0,
+                    -27.0,
+                    -25.0,
+                    -23.0,
+                    -21.0,
+                    -19.0,
+                    -17.0,
+                    -15.0,
+                    -13.0,
+                    -11.0,
+                    -9.0,
+                    -7.0,
+                    -5.0,
+                    -3.0,
+                    -1.0,
+                    1.0,
+                    3.0,
+                    5.0,
+                    7.0,
+                    9.0,
+                    11.0,
+                    13.0,
+                    15.0,
+                    17.0,
+                    19.0,
+                    21.0,
+                    23.0,
+                    25.0,
+                    27.0,
+                    29.0,
+                    31.0,
+                    33.0,
+                    35.0,
+                    37.0,
+                    39.0,
+                    41.0,
+                    43.0,
+                    45.0,
+                    47.0,
+                    49.0,
+                    51.0,
+                    53.0,
+                    55.0,
+                    57.0,
+                    59.0,
+                    61.0,
+                    63.0,
+                    65.0,
+                    67.0,
+                    69.0,
+                    71.0,
+                    73.0,
+                    75.0,
+                    77.0,
+                    79.0,
+                    81.0,
+                    83.0,
+                    85.0,
+                    87.0
                 ],
                 "attrs": {}
             },
@@ -88,8 +432,8 @@
             }
         },
         "variables": {
-            "area": {
-                "name": "area",
+            "eastward_wind_u_coeff": {
+                "name": "eastward_wind_u_coeff",
                 "dims": [
                     "tile",
                     "y",
@@ -108,11 +452,73 @@
                         48
                     ]
                 },
-                "attrs": {
-                    "cell_methods": "time: point",
-                    "long_name": "cell area",
-                    "units": "m**2"
-                }
+                "attrs": {}
+            },
+            "eastward_wind_v_coeff": {
+                "name": "eastward_wind_v_coeff",
+                "dims": [
+                    "tile",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {}
+            },
+            "northward_wind_u_coeff": {
+                "name": "northward_wind_u_coeff",
+                "dims": [
+                    "tile",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {}
+            },
+            "northward_wind_v_coeff": {
+                "name": "northward_wind_v_coeff",
+                "dims": [
+                    "tile",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {}
             },
             "lat": {
                 "name": "lat",
@@ -132,32 +538,6 @@
                         6,
                         48,
                         48
-                    ]
-                },
-                "attrs": {
-                    "cell_methods": "time: point",
-                    "long_name": "latitude",
-                    "units": "degrees_N"
-                }
-            },
-            "latb": {
-                "name": "latb",
-                "dims": [
-                    "tile",
-                    "y_interface",
-                    "x_interface"
-                ],
-                "array": {
-                    "shape": [
-                        6,
-                        49,
-                        49
-                    ],
-                    "dtype": "<f4",
-                    "chunks": [
-                        6,
-                        49,
-                        49
                     ]
                 },
                 "attrs": {
@@ -192,6 +572,32 @@
                     "units": "degrees_E"
                 }
             },
+            "latb": {
+                "name": "latb",
+                "dims": [
+                    "tile",
+                    "y_interface",
+                    "x_interface"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        49,
+                        49
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        49,
+                        49
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "latitude",
+                    "units": "degrees_N"
+                }
+            },
             "lonb": {
                 "name": "lonb",
                 "dims": [
@@ -218,8 +624,8 @@
                     "units": "degrees_E"
                 }
             },
-            "land_sea_mask": {
-                "name": "land_sea_mask",
+            "area": {
+                "name": "area",
                 "dims": [
                     "tile",
                     "y",
@@ -231,7 +637,7 @@
                         48,
                         48
                     ],
-                    "dtype": "<f8",
+                    "dtype": "<f4",
                     "chunks": [
                         6,
                         48,
@@ -239,46 +645,29 @@
                     ]
                 },
                 "attrs": {
-                    "units": ""
+                    "cell_methods": "time: point",
+                    "long_name": "cell area",
+                    "units": "m**2"
                 }
             },
-            "dQ1": {
-                "name": "dQ1",
+            "Q2": {
+                "name": "Q2",
                 "dims": [
                     "domain",
-                    "derivation",
-                    "z"
+                    "z",
+                    "derivation"
                 ],
                 "array": {
                     "shape": [
-                        3,
-                        4,
-                        79
+                        5,
+                        79,
+                        2
                     ],
                     "dtype": "<f8",
                     "chunks": [
-                        3,
-                        4,
-                        79
-                    ]
-                },
-                "attrs": {}
-            },
-            "pQ1": {
-                "name": "pQ1",
-                "dims": [
-                    "domain",
-                    "z"
-                ],
-                "array": {
-                    "shape": [
-                        3,
-                        79
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        3,
-                        79
+                        5,
+                        79,
+                        2
                     ]
                 },
                 "attrs": {}
@@ -292,33 +681,77 @@
                 ],
                 "array": {
                     "shape": [
-                        3,
-                        4,
+                        5,
+                        2,
                         79
                     ],
                     "dtype": "<f8",
                     "chunks": [
-                        3,
-                        4,
+                        5,
+                        2,
                         79
                     ]
                 },
                 "attrs": {}
             },
-            "pQ2": {
-                "name": "pQ2",
+            "pQ1": {
+                "name": "pQ1",
                 "dims": [
                     "domain",
                     "z"
                 ],
                 "array": {
                     "shape": [
-                        3,
+                        5,
                         79
                     ],
                     "dtype": "<f8",
                     "chunks": [
-                        3,
+                        5,
+                        79
+                    ]
+                },
+                "attrs": {}
+            },
+            "dQu": {
+                "name": "dQu",
+                "dims": [
+                    "domain",
+                    "derivation",
+                    "z"
+                ],
+                "array": {
+                    "shape": [
+                        5,
+                        2,
+                        79
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        5,
+                        2,
+                        79
+                    ]
+                },
+                "attrs": {}
+            },
+            "dQ1": {
+                "name": "dQ1",
+                "dims": [
+                    "domain",
+                    "derivation",
+                    "z"
+                ],
+                "array": {
+                    "shape": [
+                        5,
+                        2,
+                        79
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        5,
+                        2,
                         79
                     ]
                 },
@@ -333,37 +766,56 @@
                 ],
                 "array": {
                     "shape": [
-                        3,
+                        5,
                         79,
-                        4
+                        2
                     ],
                     "dtype": "<f8",
                     "chunks": [
-                        3,
+                        5,
                         79,
-                        4
+                        2
                     ]
                 },
                 "attrs": {}
             },
-            "Q2": {
-                "name": "Q2",
+            "dQv": {
+                "name": "dQv",
                 "dims": [
                     "domain",
-                    "z",
-                    "derivation"
+                    "derivation",
+                    "z"
                 ],
                 "array": {
                     "shape": [
-                        3,
-                        79,
-                        4
+                        5,
+                        2,
+                        79
                     ],
                     "dtype": "<f8",
                     "chunks": [
-                        3,
-                        79,
-                        4
+                        5,
+                        2,
+                        79
+                    ]
+                },
+                "attrs": {}
+            },
+            "pQ2": {
+                "name": "pQ2",
+                "dims": [
+                    "domain",
+                    "z"
+                ],
+                "array": {
+                    "shape": [
+                        5,
+                        79
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        5,
+                        79
                     ]
                 },
                 "attrs": {}
@@ -393,25 +845,22 @@
                 },
                 "attrs": {}
             },
-            "specific_humidity": {
-                "name": "specific_humidity",
+            "cos_zenith_angle": {
+                "name": "cos_zenith_angle",
                 "dims": [
                     "tile",
-                    "z",
                     "y",
                     "x"
                 ],
                 "array": {
                     "shape": [
                         6,
-                        79,
                         48,
                         48
                     ],
                     "dtype": "<f8",
                     "chunks": [
                         6,
-                        79,
                         48,
                         48
                     ]
@@ -465,8 +914,130 @@
                 },
                 "attrs": {}
             },
-            "column_integrated_dQ1": {
-                "name": "column_integrated_dQ1",
+            "northward_wind": {
+                "name": "northward_wind",
+                "dims": [
+                    "tile",
+                    "z",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        79,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {}
+            },
+            "specific_humidity": {
+                "name": "specific_humidity",
+                "dims": [
+                    "tile",
+                    "z",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        79,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {}
+            },
+            "land_sea_mask": {
+                "name": "land_sea_mask",
+                "dims": [
+                    "tile",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {}
+            },
+            "eastward_wind": {
+                "name": "eastward_wind",
+                "dims": [
+                    "tile",
+                    "z",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        79,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {}
+            },
+            "column_integrated_Q2": {
+                "name": "column_integrated_Q2",
+                "dims": [
+                    "tile",
+                    "y",
+                    "x",
+                    "derivation"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        48,
+                        48,
+                        2
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        48,
+                        48,
+                        2
+                    ]
+                },
+                "attrs": {}
+            },
+            "column_integrated_dQ2": {
+                "name": "column_integrated_dQ2",
                 "dims": [
                     "derivation",
                     "tile",
@@ -475,14 +1046,14 @@
                 ],
                 "array": {
                     "shape": [
-                        4,
+                        2,
                         6,
                         48,
                         48
                     ],
                     "dtype": "<f8",
                     "chunks": [
-                        4,
+                        2,
                         6,
                         48,
                         48
@@ -512,8 +1083,8 @@
                 },
                 "attrs": {}
             },
-            "column_integrated_dQ2": {
-                "name": "column_integrated_dQ2",
+            "column_integrated_dQu": {
+                "name": "column_integrated_dQu",
                 "dims": [
                     "derivation",
                     "tile",
@@ -522,14 +1093,89 @@
                 ],
                 "array": {
                     "shape": [
-                        4,
+                        2,
                         6,
                         48,
                         48
                     ],
                     "dtype": "<f8",
                     "chunks": [
-                        4,
+                        2,
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {}
+            },
+            "column_integrated_dQ1": {
+                "name": "column_integrated_dQ1",
+                "dims": [
+                    "derivation",
+                    "tile",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        2,
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {}
+            },
+            "column_integrated_Q1": {
+                "name": "column_integrated_Q1",
+                "dims": [
+                    "tile",
+                    "y",
+                    "x",
+                    "derivation"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        48,
+                        48,
+                        2
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        48,
+                        48,
+                        2
+                    ]
+                },
+                "attrs": {}
+            },
+            "column_integrated_dQv": {
+                "name": "column_integrated_dQv",
+                "dims": [
+                    "derivation",
+                    "tile",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        2,
                         6,
                         48,
                         48
@@ -559,58 +1205,8 @@
                 },
                 "attrs": {}
             },
-            "column_integrated_Q1": {
-                "name": "column_integrated_Q1",
-                "dims": [
-                    "tile",
-                    "y",
-                    "x",
-                    "derivation"
-                ],
-                "array": {
-                    "shape": [
-                        6,
-                        48,
-                        48,
-                        4
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        6,
-                        48,
-                        48,
-                        4
-                    ]
-                },
-                "attrs": {}
-            },
-            "column_integrated_Q2": {
-                "name": "column_integrated_Q2",
-                "dims": [
-                    "tile",
-                    "y",
-                    "x",
-                    "derivation"
-                ],
-                "array": {
-                    "shape": [
-                        6,
-                        48,
-                        48,
-                        4
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        6,
-                        48,
-                        48,
-                        4
-                    ]
-                },
-                "attrs": {}
-            },
-            "pressure_level-bias-dQ1-predict_vs_target": {
-                "name": "pressure_level-bias-dQ1-predict_vs_target",
+            "pressure_level-bias-Q2-predict_vs_target": {
+                "name": "pressure_level-bias-Q2-predict_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -625,40 +1221,8 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-bias-dQ1-mean_vs_target": {
-                "name": "pressure_level-bias-dQ1-mean_vs_target",
-                "dims": [
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "pressure_level-rmse-dQ1-predict_vs_target": {
-                "name": "pressure_level-rmse-dQ1-predict_vs_target",
-                "dims": [
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "pressure_level-rmse-dQ1-mean_vs_target": {
-                "name": "pressure_level-rmse-dQ1-mean_vs_target",
+            "pressure_level-bias-Q2-mean_vs_target": {
+                "name": "pressure_level-bias-Q2-mean_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -705,8 +1269,8 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-rmse-dQ2-predict_vs_target": {
-                "name": "pressure_level-rmse-dQ2-predict_vs_target",
+            "pressure_level-bias-dQu-predict_vs_target": {
+                "name": "pressure_level-bias-dQu-predict_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -721,8 +1285,40 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-rmse-dQ2-mean_vs_target": {
-                "name": "pressure_level-rmse-dQ2-mean_vs_target",
+            "pressure_level-bias-dQu-mean_vs_target": {
+                "name": "pressure_level-bias-dQu-mean_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-bias-dQ1-predict_vs_target": {
+                "name": "pressure_level-bias-dQ1-predict_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-bias-dQ1-mean_vs_target": {
+                "name": "pressure_level-bias-dQ1-mean_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -769,8 +1365,8 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-rmse-Q1-predict_vs_target": {
-                "name": "pressure_level-rmse-Q1-predict_vs_target",
+            "pressure_level-bias-dQv-predict_vs_target": {
+                "name": "pressure_level-bias-dQv-predict_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -785,8 +1381,8 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-rmse-Q1-mean_vs_target": {
-                "name": "pressure_level-rmse-Q1-mean_vs_target",
+            "pressure_level-bias-dQv-mean_vs_target": {
+                "name": "pressure_level-bias-dQv-mean_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -801,8 +1397,350 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-bias-Q2-predict_vs_target": {
-                "name": "pressure_level-bias-Q2-predict_vs_target",
+            "zonal_avg_pressure_level-bias-Q2-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-Q2-predict_vs_target",
+                "dims": [
+                    "lat_interp",
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        89,
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        89,
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-bias-Q2-mean_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-Q2-mean_vs_target",
+                "dims": [
+                    "lat_interp",
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        89,
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        89,
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-bias-dQ2-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-dQ2-predict_vs_target",
+                "dims": [
+                    "lat_interp",
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        89,
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        89,
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-bias-dQ2-mean_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-dQ2-mean_vs_target",
+                "dims": [
+                    "lat_interp",
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        89,
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        89,
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-bias-dQu-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-dQu-predict_vs_target",
+                "dims": [
+                    "lat_interp",
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        89,
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        89,
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-bias-dQu-mean_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-dQu-mean_vs_target",
+                "dims": [
+                    "lat_interp",
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        89,
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        89,
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-bias-dQ1-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-dQ1-predict_vs_target",
+                "dims": [
+                    "lat_interp",
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        89,
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        89,
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-bias-dQ1-mean_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-dQ1-mean_vs_target",
+                "dims": [
+                    "lat_interp",
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        89,
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        89,
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-bias-Q1-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-Q1-predict_vs_target",
+                "dims": [
+                    "lat_interp",
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        89,
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        89,
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-bias-Q1-mean_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-Q1-mean_vs_target",
+                "dims": [
+                    "lat_interp",
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        89,
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        89,
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-bias-dQv-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-dQv-predict_vs_target",
+                "dims": [
+                    "lat_interp",
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        89,
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        89,
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-bias-dQv-mean_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-dQv-mean_vs_target",
+                "dims": [
+                    "lat_interp",
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        89,
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        89,
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-r2-Q2-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-r2-Q2-predict_vs_target",
+                "dims": [
+                    "pressure",
+                    "lat_interp"
+                ],
+                "array": {
+                    "shape": [
+                        35,
+                        89
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35,
+                        89
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-r2-dQ2-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-r2-dQ2-predict_vs_target",
+                "dims": [
+                    "pressure",
+                    "lat_interp"
+                ],
+                "array": {
+                    "shape": [
+                        35,
+                        89
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35,
+                        89
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-r2-dQu-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-r2-dQu-predict_vs_target",
+                "dims": [
+                    "pressure",
+                    "lat_interp"
+                ],
+                "array": {
+                    "shape": [
+                        35,
+                        89
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35,
+                        89
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-r2-dQ1-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-r2-dQ1-predict_vs_target",
+                "dims": [
+                    "pressure",
+                    "lat_interp"
+                ],
+                "array": {
+                    "shape": [
+                        35,
+                        89
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35,
+                        89
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-r2-Q1-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-r2-Q1-predict_vs_target",
+                "dims": [
+                    "pressure",
+                    "lat_interp"
+                ],
+                "array": {
+                    "shape": [
+                        35,
+                        89
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35,
+                        89
+                    ]
+                },
+                "attrs": {}
+            },
+            "zonal_avg_pressure_level-r2-dQv-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-r2-dQv-predict_vs_target",
+                "dims": [
+                    "pressure",
+                    "lat_interp"
+                ],
+                "array": {
+                    "shape": [
+                        35,
+                        89
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35,
+                        89
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-r2-Q2-predict_vs_target": {
+                "name": "pressure_level-r2-Q2-predict_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -817,8 +1755,72 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-bias-Q2-mean_vs_target": {
-                "name": "pressure_level-bias-Q2-mean_vs_target",
+            "pressure_level-r2-dQ2-predict_vs_target": {
+                "name": "pressure_level-r2-dQ2-predict_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-r2-dQu-predict_vs_target": {
+                "name": "pressure_level-r2-dQu-predict_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-r2-dQ1-predict_vs_target": {
+                "name": "pressure_level-r2-dQ1-predict_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-r2-Q1-predict_vs_target": {
+                "name": "pressure_level-r2-Q1-predict_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-r2-dQv-predict_vs_target": {
+                "name": "pressure_level-r2-dQv-predict_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -865,8 +1867,8 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-r2-dQ1-predict_vs_target": {
-                "name": "pressure_level-r2-dQ1-predict_vs_target",
+            "pressure_level-rmse-dQ2-predict_vs_target": {
+                "name": "pressure_level-rmse-dQ2-predict_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -881,8 +1883,8 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-r2-dQ2-predict_vs_target": {
-                "name": "pressure_level-r2-dQ2-predict_vs_target",
+            "pressure_level-rmse-dQ2-mean_vs_target": {
+                "name": "pressure_level-rmse-dQ2-mean_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -897,8 +1899,8 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-r2-Q1-predict_vs_target": {
-                "name": "pressure_level-r2-Q1-predict_vs_target",
+            "pressure_level-rmse-dQu-predict_vs_target": {
+                "name": "pressure_level-rmse-dQu-predict_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -913,8 +1915,8 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-r2-Q2-predict_vs_target": {
-                "name": "pressure_level-r2-Q2-predict_vs_target",
+            "pressure_level-rmse-dQu-mean_vs_target": {
+                "name": "pressure_level-rmse-dQu-mean_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -929,31 +1931,101 @@
                 },
                 "attrs": {}
             },
-            "cos_zenith_angle": {
-                "name": "cos_zenith_angle",
+            "pressure_level-rmse-dQ1-predict_vs_target": {
+                "name": "pressure_level-rmse-dQ1-predict_vs_target",
                 "dims": [
-                    "tile",
-                    "y",
-                    "x"
+                    "pressure"
                 ],
                 "array": {
                     "shape": [
-                        6,
-                        48,
-                        48
+                        35
                     ],
-                    "dtype": "<f4",
+                    "dtype": "<f8",
                     "chunks": [
-                        6,
-                        48,
-                        48
+                        35
                     ]
                 },
-                "attrs": {
-                    "cell_methods": "time: point",
-                    "long_name": "cosine_zenith_angle",
-                    "units": null
-                }
+                "attrs": {}
+            },
+            "pressure_level-rmse-dQ1-mean_vs_target": {
+                "name": "pressure_level-rmse-dQ1-mean_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-rmse-Q1-predict_vs_target": {
+                "name": "pressure_level-rmse-Q1-predict_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-rmse-Q1-mean_vs_target": {
+                "name": "pressure_level-rmse-Q1-mean_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-rmse-dQv-predict_vs_target": {
+                "name": "pressure_level-rmse-dQv-predict_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-rmse-dQv-mean_vs_target": {
+                "name": "pressure_level-rmse-dQv-mean_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
             }
         }
     }
