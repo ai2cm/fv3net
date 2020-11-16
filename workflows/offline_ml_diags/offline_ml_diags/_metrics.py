@@ -49,10 +49,8 @@ def calc_metrics(
     variables, assumed to include variables in
     list arg predicted as well as area and delp
     """
-    pressure_level_names = predicted
-    column_integrated_names = [
-        f"column_integrated_{name}" for name in pressure_level_names
-    ]
+    predicted_vars = predicted
+    column_integrated_names = [f"column_integrated_{name}" for name in predicted_vars]
     derivation_kwargs = {
         "predict_coord": predict_coord,
         "target_coord": target_coord,
@@ -78,7 +76,7 @@ def calc_metrics(
     scalar_column_integrated_metrics = _calc_same_dims_metrics(
         ds,
         dim_tag="scalar",
-        vars=pressure_level_names,
+        vars=predicted_vars,
         weights=[area_weights, delp_weights],
         mean_dim_vars=None,
         **derivation_kwargs,
@@ -91,16 +89,17 @@ def calc_metrics(
     pressure_level_metrics = _calc_same_dims_metrics(
         ds_regrid_z,
         dim_tag="pressure_level",
-        vars=pressure_level_names,
+        vars=predicted_vars,
         weights=[area_weights],
         mean_dim_vars=vertical_profile_mean_dims,
         **derivation_kwargs,
     )
 
+    vertical_bias_vars = [var for var in predicted_vars if var not in ["Q1", "Q2"]]
     gridded_pressure_level_bias = _calc_same_dims_metrics(
         ds_regrid_z,
         dim_tag="zonal_avg_pressure_level",
-        vars=pressure_level_names,
+        vars=vertical_bias_vars,
         weights=[],
         mean_dim_vars=["time"],
         metric_funcs=(_bias,),
@@ -111,7 +110,7 @@ def calc_metrics(
     ).rename({"lat": "lat_interp"})
 
     zonal_avg_pressure_level_r2 = _zonal_avg_r2(
-        safe.get_variables(ds_regrid_z, pressure_level_names),
+        safe.get_variables(ds_regrid_z, predicted_vars),
         lat,
         mean_dims=["time"],
         dim_tag="zonal_avg_pressure_level",
