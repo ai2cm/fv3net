@@ -13,7 +13,7 @@ all: run
 run: $(CONFIG_FILE)
 	$(RUN_FV3) $(CONFIG_FILE) $(OUTDIR) $(RUNFILE)
 
-$(CONFIG_FILE): $(BASE_CONFIG_FILE)
+$(CONFIG_FILE): $(BASE_CONFIG_FILE) clean_outdir
 	python3 $(PREPARE_CONFIG_PY) \
     $(BASE_CONFIG_FILE) \
     $(RESTARTS_PATH) \
@@ -24,4 +24,4 @@ $(CONFIG_FILE): $(BASE_CONFIG_FILE)
 clean_outdir:
 	cd outdir && rm -rf *
 
-.PHONY: run
+.PHONY: run, clean_outdir

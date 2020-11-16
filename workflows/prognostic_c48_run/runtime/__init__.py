@@ -12,7 +12,7 @@ from .derived_state import DerivedFV3State
 from .nudging import (
     nudging_timescales_from_dict,
     setup_get_reference_state,
-    nudging_tendency,
+    get_nudging_tendency,
     set_state_sst_to_reference,
 )
 

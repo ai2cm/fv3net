@@ -35,10 +35,12 @@ DEFAULT_NUDGING_DIAGNOSTICS = {
         "net_moistening_due_to_nudging",
         "net_heating_due_to_nudging",
         "net_mass_tendency_due_to_nudging",
-        "column_integrated_x_wind_due_to_nudging",
-        "column_integrated_y_wind_due_to_nudging",
+        "column_integrated_x_wind_tendency_due_to_nudging",
+        "column_integrated_y_wind_tendency_due_to_nudging",
         "water_vapor_path",
         "physics_precip",
+        "tendency_of_air_temperature_due_to_fv3_physics",
+        "tendency_of_specific_humidity_due_to_fv3_physics",
     ],
     "times": {"kind": "interval", "frequency": 900},
 }
@@ -135,7 +137,9 @@ def diagnostics_overlay(config, model_url, timestamps):
     if "nudging" in config:
         nudging_variables = list(config["nudging"]["timescale_hours"])
         nudging_diagnostics = DEFAULT_NUDGING_DIAGNOSTICS
-        nudging_diagnostics["variables"].extend(nudging_variables)
+        nudging_diagnostics["variables"].extend(
+            [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
+        )
         diagnostic_files.append(nudging_diagnostics)
     return {
         "diagnostics": diagnostic_files,

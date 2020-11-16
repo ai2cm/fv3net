@@ -103,6 +103,7 @@ def precipitation_sum(
 
     Returns:
         total precipitation [m]"""
+
     ml_precip = -column_dq2 * dt * m_per_mm  # type: ignore
     total_precip = physics_precip + ml_precip
     total_precip = total_precip.where(total_precip >= 0, 0)
@@ -152,7 +153,7 @@ def apply(state: State, tendency: State, dt: float) -> State:
     with xr.set_options(keep_attrs=True):
         updated = {}
         for name in tendency:
-            state_name = TENDENCY_TO_STATE_NAME[name]
+            state_name = TENDENCY_TO_STATE_NAME.get(name, name)
             updated[state_name] = state[state_name] + tendency[name] * dt
     return updated  # type: ignore
 
@@ -203,11 +204,16 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             self._nudging_timescales = runtime.nudging_timescales_from_dict(
                 args["nudging"]["timescale_hours"]
             )
+            logger.debug(self.nudging_variables)
             self._get_reference_state = runtime.setup_get_reference_state(
-                args, self.nudging_variables + [SST_NAME, TSFC_NAME], self._comm
+                args,
+                self.nudging_variables + [SST_NAME, TSFC_NAME],
+                self._comm,
+                self._fv3gfs.get_tracer_metadata(),
             )
             self._get_nudging_tendency = functools.partial(
-                runtime.nudging_tendency, timescales=self._nudging_timescales
+                runtime.get_nudging_tendency,
+                nudging_timescales=self._nudging_timescales,
             )
         else:
             self._nudging_timescales = {}
@@ -323,31 +329,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         }
         return {}
 
-    def _nudge(self) -> Diagnostics:
-
-        nudging_diagnostics = {}
-        if self.nudging_variables:
-
-            self._log_debug("Computing nudging tendencies")
-            variables = self.nudging_variables + [SST_NAME, TSFC_NAME, MASK_NAME]
-            state: State = {name: self._state[name] for name in variables}
-            reference = self._get_reference_state(self.time)
-            for var in reference:
-                self._log_debug(f"{var}: {reference[var]}")
-            runtime.set_state_sst_to_reference(state, reference)
-            tendency = self._get_nudging_tendency(state, reference)
-            nudging_diagnostics.update(
-                runtime.compute_nudging_diagnostics(state, tendency)
-            )
-            updated_state: State = apply(state, tendency, dt=self._timestep)
-            updated_state[TOTAL_PRECIP] = precipitation_sum(
-                state[TOTAL_PRECIP],
-                nudging_diagnostics["net_moistening"],
-                self._timestep,
-            )
-
-        return nudging_diagnostics
-
     def _apply_ml_to_dycore_state(self) -> Diagnostics:
 
         tendency = self._tendencies_to_apply_to_dycore_state
@@ -385,6 +366,39 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             ).data_array,
             **ml_diagnostics,
         }
+
+    def _nudge(self) -> Diagnostics:
+
+        nudging_diagnostics = {}
+        if self.nudging_variables:
+
+            self._log_debug("Computing nudging tendencies")
+            variables = self.nudging_variables + [
+                SST_NAME,
+                TSFC_NAME,
+                MASK_NAME,
+                TOTAL_PRECIP,
+                PRECIP_RATE,
+                DELP
+            ]
+            state: State = {name: self._state[name] for name in variables}
+            reference = self._get_reference_state(self.time)
+            runtime.set_state_sst_to_reference(state, reference)
+            tendency = self._get_nudging_tendency(state, reference)
+            nudging_diagnostics.update(
+                runtime.compute_nudging_diagnostics(state, tendency)
+            )
+            updated_state: State = apply(state, tendency, dt=self._timestep)
+            updated_state[TOTAL_PRECIP] = precipitation_sum(
+                state[TOTAL_PRECIP],
+                nudging_diagnostics["net_moistening_due_to_nudging"],
+                self._timestep,
+            )
+
+            self._log_debug("Setting Fortran State")
+            self._state.update(updated_state)
+
+        return nudging_diagnostics
 
     def __iter__(self):
         for i in range(self._fv3gfs.get_step_count()):

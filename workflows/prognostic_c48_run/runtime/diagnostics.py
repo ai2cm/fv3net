@@ -1,4 +1,13 @@
-from typing import Any, Sequence, Container, Mapping, List, Union
+from typing import (
+    Any,
+    Sequence,
+    Container,
+    Mapping,
+    List,
+    Union,
+    MutableMapping,
+    Hashable,
+)
 import datetime
 import cftime
 import fv3gfs.util
@@ -11,6 +20,8 @@ DELP = "pressure_thickness_of_atmospheric_layer"
 PRECIP_RATE = "surface_precipitation_rate"
 cp = 1004
 gravity = 9.81
+
+State = MutableMapping[Hashable, xr.DataArray]
 
 
 class All(Container):
@@ -235,15 +246,17 @@ def compute_ml_diagnostics(state, ml_tendency):
     )
 
 
-def compute_nudging_diagnostics(state, nudging_tendency):
+def compute_nudging_diagnostics(
+    state: State, nudging_tendency: State, label: str = "_tendency_due_to_nudging"
+):
+    """
+    Compute diagnostic variables for nudging"""
 
     net_moistening = (
-        (
-            (nudging_tendency[SPHUM] * state[DELP] / gravity)
-            .sum("z")
-            .assign_attrs(units="kg/m^2/s")
-            .assign_attrs(description="column integrated moistening due to nudging")
-        ),
+        (nudging_tendency[SPHUM] * state[DELP] / gravity)
+        .sum("z")
+        .assign_attrs(units="kg/m^2/s")
+        .assign_attrs(description="column integrated moistening due to nudging")
     )
     net_heating = (
         (nudging_tendency[TEMP] * state[DELP] / gravity * cp)
@@ -251,13 +264,29 @@ def compute_nudging_diagnostics(state, nudging_tendency):
         .assign_attrs(units="W/m^2")
         .assign_attrs(description="column integrated heating due to nudging")
     )
+    water_vapor_path = (
+        (state[SPHUM] * state[DELP] / gravity)
+        .sum("z")
+        .assign_attrs(units="mm")
+        .assign_attrs(description="column integrated water vapor")
+    )
+    physics_precip = (
+        state[PRECIP_RATE]
+        .assign_attrs(units="kg/m^2/s")
+        .assign_attrs(
+            description="surface precipitation rate due to parameterized physics"
+        )
+    )
+
     diags = dict(
         net_moistening_due_to_nudging=net_moistening,
         net_heating_due_to_nudging=net_heating,
+        water_vapor_path=water_vapor_path,
+        physics_precip=physics_precip,
     )
     for var, tendency in nudging_tendency.items():
-        if any(wind in var for wind in ["x_wind", "y_wind"]):
-            diags[f"column_integrated_{var}"] = _mass_average(
+        if any(wind in str(var) for wind in ["x_wind", "y_wind"]):
+            diags[f"column_integrated_{var}_tendency_due_to_nudging"] = _mass_average(
                 tendency, state[DELP], "z"
             )
     if DELP in nudging_tendency:
@@ -270,9 +299,16 @@ def compute_nudging_diagnostics(state, nudging_tendency):
             )
         )
         diags["net_mass_tendency_due_to_nudging"] = net_mass_tendency
-    diags.update(nudging_tendency)
+    diags.update(_append_key_label(nudging_tendency, label))
 
     return diags
+
+
+def _append_key_label(d, suffix):
+    return_dict = {}
+    for key, value in d.items():
+        return_dict[key + suffix] = value
+    return return_dict
 
 
 def compute_ml_momentum_diagnostics(state, tendency):
