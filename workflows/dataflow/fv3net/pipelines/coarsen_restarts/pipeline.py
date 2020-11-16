@@ -7,7 +7,7 @@ import apache_beam as beam
 import xarray as xr
 from apache_beam.options.pipeline_options import PipelineOptions
 
-import vcm
+import vcm.cubedsphere
 from fv3net.pipelines.common import FunctionSource, WriteToNetCDFs, list_timesteps
 
 logger = logging.getLogger("CoarsenPipeline")
@@ -47,7 +47,7 @@ def coarsen_timestep(
 ) -> Iterable[Tuple[Tuple[str, str], Mapping[str, xr.Dataset]]]:
 
     time, source = arg
-    for category, data in vcm.coarsen_restarts_on_pressure(
+    for category, data in vcm.cubedsphere.coarsen_restarts_on_pressure(
         coarsen_factor, grid_spec, source, coarsen_agrid_winds
     ).items():
         yield (time, category), data

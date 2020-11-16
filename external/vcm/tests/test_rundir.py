@@ -5,7 +5,7 @@ import fsspec
 
 from vcm import open_restarts
 
-from vcm._rundir import (
+from vcm.fv3_restarts._rundir import (
     _get_tile,
     _get_file_prefix,
     _is_restart_file,

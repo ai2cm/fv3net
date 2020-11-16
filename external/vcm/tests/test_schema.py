@@ -1,4 +1,4 @@
-from vcm import schema
+from vcm.fv3_restarts import schema_registry as schema
 import numpy as np
 import xarray as xr
 
