@@ -1,0 +1,10 @@
+cftime
+click
+dask
+fsspec
+netCDF4
+numpy
+pyyaml
+toolz
+xarray
+zarr

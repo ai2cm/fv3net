@@ -1,7 +1,7 @@
 import fsspec
 import numpy as np
 import xarray as xr
-import append
+import fv3post.append as append
 import os
 import zarr
 import cftime

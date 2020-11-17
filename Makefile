@@ -34,11 +34,6 @@ endif
 build_image_%:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/$*:$(CACHE_TAG) \
 		-f docker/$*/Dockerfile -t $(REGISTRY)/$*:$(VERSION) .
-	
-
-build_image_post_process_run:
-	tools/docker_build_cached.sh us.gcr.io/vcm-ml/post_process_run:$(CACHE_TAG) \
-		workflows/post_process_run -t $(REGISTRY)/post_process_run:$(VERSION)
 
 enter_%:
 	docker run -ti -w /fv3net -v $(shell pwd):/fv3net $* bash
