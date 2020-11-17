@@ -321,6 +321,12 @@ namelist:
     fvmnl: 99999
     fvmxl: 99999
     ldebug: false
+tendency_variables:
+  - specific_humidity
+  - air_temperature
+storage_variables:
+  - specific_humidity
+  - total_water
 """
 
 NUDGE_RUNFILE = (
