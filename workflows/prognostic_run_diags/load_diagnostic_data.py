@@ -182,7 +182,7 @@ def _load_prognostic_run_physics_output(url):
     """Load, standardize and merge prognostic run physics outputs"""
     # values euqal to zero in diags.zarr get interpreted as nans by xarray, so fix here
     diagnostic_data = [
-        _load_standardized(os.path.join(url, "ml_diags.zarr")).fillna(0.0),
+        _load_standardized(os.path.join(url, "diags.zarr")).fillna(0.0),
         _load_standardized(os.path.join(url, "sfc_dt_atmos.zarr")),
     ]
 
