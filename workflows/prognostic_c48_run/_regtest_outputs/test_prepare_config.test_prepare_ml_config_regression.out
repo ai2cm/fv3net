@@ -712,10 +712,10 @@ patch_files:
 scikit_learn:
   diagnostic_ml: false
   model: gs://ml-model
-storage_variables:
+step_storage_variables:
 - specific_humidity
 - total_water
-tendency_variables:
+step_tendency_variables:
 - specific_humidity
 - air_temperature
 

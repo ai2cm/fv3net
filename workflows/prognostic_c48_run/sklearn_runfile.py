@@ -509,8 +509,8 @@ if __name__ == "__main__":
     setup_metrics_logger()
 
     loop = MonitoredPhysicsTimeLoop(
-        tendency_variables=config.get("tendency_variables", []),
-        storage_variables=config.get("storage_variables", []),
+        tendency_variables=config.get("step_tendency_variables", []),
+        storage_variables=config.get("step_storage_variables", []),
         comm=comm,
     )
 

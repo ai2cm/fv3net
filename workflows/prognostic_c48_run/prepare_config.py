@@ -147,13 +147,19 @@ def diagnostics_overlay(config, model_url, timestamps):
     }
 
 
-def tendency_overlay(config):
-    tendency_overlay = {}
-    if "tendency_variables" in config:
-        tendency_overlay.update({"tendency_variables": config["tendency_variables"]})
-    if "storage_variables" in config:
-        tendency_overlay.update({"storage_variables": config["storage_variables"]})
-    return tendency_overlay
+def step_tendency_overlay(
+    config,
+    default_step_tendency_variables=("specific_humidity", "air_temperature"),
+    default_step_storage_variables=("specific_humidity", "total_water"),
+):
+    step_tendency_overlay = {}
+    step_tendency_overlay["step_tendency_variables"] = config.get(
+        "step_tendency_variables", list(default_step_tendency_variables)
+    )
+    step_tendency_overlay["step_storage_variables"] = config.get(
+        "step_storage_variables", list(default_step_storage_variables)
+    )
+    return step_tendency_overlay
 
 
 def prepare_config(args):
@@ -180,7 +186,7 @@ def prepare_config(args):
             args.initial_condition_url, args.ic_timestep
         ),
         diagnostics_overlay(user_config, args.model_url, timestamps),
-        tendency_overlay(user_config),
+        step_tendency_overlay(user_config),
         ml_overlay(model_type, args.model_url, args.diagnostic_ml),
         nudging_overlay(nudging_config, args.initial_condition_url),
         user_config,

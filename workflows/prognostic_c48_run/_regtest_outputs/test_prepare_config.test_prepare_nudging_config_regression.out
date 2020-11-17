@@ -448,10 +448,10 @@ nudging:
     x_wind: 12
     y_wind: 12
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
-storage_variables:
+step_storage_variables:
 - specific_humidity
 - total_water
-tendency_variables:
+step_tendency_variables:
 - specific_humidity
 - air_temperature
 
