@@ -251,6 +251,43 @@ def compute_ml_diagnostics(state, ml_tendency):
     )
 
 
+def compute_ml_momentum_diagnostics(state, tendency):
+    delp = state[DELP]
+
+    dQu = tendency.get("dQu", xr.zeros_like(delp))
+    dQv = tendency.get("dQv", xr.zeros_like(delp))
+    column_integrated_dQu = _mass_average(dQu, delp, "z")
+    column_integrated_dQv = _mass_average(dQv, delp, "z")
+    return dict(
+        column_integrated_dQu=column_integrated_dQu.assign_attrs(
+            units="m s^-2",
+            description="column integrated zonal wind tendency due to ML",
+        ),
+        column_integrated_dQv=column_integrated_dQv.assign_attrs(
+            units="m s^-2",
+            description="column integrated meridional wind tendency due to ML",
+        ),
+    )
+
+
+def rename_diagnostics(diags):
+    """Postfix ML output names with _diagnostic and create zero-valued outputs in
+    their stead. Function operates in place."""
+    ml_tendencies = {
+        "net_moistening",
+        "net_heating",
+        "column_integrated_dQu",
+        "column_integrated_dQv",
+    }
+    ml_tendencies_in_diags = ml_tendencies & set(diags)
+    for variable in ml_tendencies_in_diags:
+        attrs = diags[variable].attrs
+        diags[f"{variable}_diagnostic"] = diags[variable].assign_attrs(
+            description=attrs["description"] + " (diagnostic only)"
+        )
+        diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
+
+
 def compute_nudging_diagnostics(
     state: State, nudging_tendency: State, label: str = "_tendency_due_to_nudging"
 ):
@@ -326,10 +363,6 @@ def compute_nudging_diagnostics(
     return diags
 
 
-def _wind_rotation_matrix():
-    return
-
-
 def _append_key_label(d, suffix):
     return_dict = {}
     for key, value in d.items():
@@ -337,45 +370,8 @@ def _append_key_label(d, suffix):
     return return_dict
 
 
-def compute_ml_momentum_diagnostics(state, tendency):
-    delp = state[DELP]
-
-    dQu = tendency.get("dQu", xr.zeros_like(delp))
-    dQv = tendency.get("dQv", xr.zeros_like(delp))
-    column_integrated_dQu = _mass_average(dQu, delp, "z")
-    column_integrated_dQv = _mass_average(dQv, delp, "z")
-    return dict(
-        column_integrated_dQu=column_integrated_dQu.assign_attrs(
-            units="m s^-2",
-            description="column integrated zonal wind tendency due to ML",
-        ),
-        column_integrated_dQv=column_integrated_dQv.assign_attrs(
-            units="m s^-2",
-            description="column integrated meridional wind tendency due to ML",
-        ),
-    )
-
-
 def _mass_average(da: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"):
     total_thickness = delp.sum(vertical_dim)
     mass_average = (da * delp).sum(vertical_dim) / total_thickness
     mass_average.assign_attrs(**da.attrs)
     return mass_average
-
-
-def rename_diagnostics(diags):
-    """Postfix ML output names with _diagnostic and create zero-valued outputs in
-    their stead. Function operates in place."""
-    ml_tendencies = {
-        "net_moistening",
-        "net_heating",
-        "column_integrated_dQu",
-        "column_integrated_dQv",
-    }
-    ml_tendencies_in_diags = ml_tendencies & set(diags)
-    for variable in ml_tendencies_in_diags:
-        attrs = diags[variable].attrs
-        diags[f"{variable}_diagnostic"] = diags[variable].assign_attrs(
-            description=attrs["description"] + " (diagnostic only)"
-        )
-        diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)

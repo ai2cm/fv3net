@@ -170,7 +170,7 @@ def get_nudging_tendency(
     return return_dict
 
 
-def set_state_sst_to_reference(state, reference):
+def set_state_sst_to_reference(state: State, reference: State) -> State:
     """
     Set the sea surface and surface temperatures in a model state to values in
     a reference state. Useful for maintaining consistency between a nudged run
