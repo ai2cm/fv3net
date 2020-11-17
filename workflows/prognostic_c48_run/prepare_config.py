@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 DEFAULT_ML_DIAGNOSTICS = {
-    "name": "ML_diags.zarr",
+    "name": "ml_diags.zarr",
     "output_variables": [
         "net_moistening",
         "net_moistening_diagnostic",
