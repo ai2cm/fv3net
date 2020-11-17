@@ -23,3 +23,9 @@ namelist:
     do_sat_adj: false
   gfdl_cloud_microphysics_nml:
     fast_sat_adj: false
+tendency_variables:
+  - specific_humidity
+  - air_temperature
+storage_variables:
+  - specific_humidity
+  - total_water

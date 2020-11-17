@@ -183,7 +183,7 @@ def _config_to_diagnostic_file(
     )
     return DiagnosticFile(
         monitor=monitor,
-        variables=diag_file_config.get("variables", All()),
+        variables=diag_file_config.get("output_variables", All()),
         times=_get_times(diag_file_config.get("times", {}), initial_time),
     )
 

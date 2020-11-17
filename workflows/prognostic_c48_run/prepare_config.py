@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_ML_DIAGNOSTICS = {
     "name": "ML_diags.zarr",
-    "variables": [
+    "output_variables": [
         "net_moistening",
         "net_moistening_diagnostic",
         "net_heating",
@@ -31,7 +31,7 @@ DEFAULT_ML_DIAGNOSTICS = {
 
 DEFAULT_NUDGING_DIAGNOSTICS = {
     "name": "nudging_diags.zarr",
-    "variables": [
+    "output_variables": [
         "net_moistening_due_to_nudging",
         "net_heating_due_to_nudging",
         "net_mass_tendency_due_to_nudging",
@@ -137,7 +137,7 @@ def diagnostics_overlay(config, model_url, timestamps):
     if "nudging" in config:
         nudging_variables = list(config["nudging"]["timescale_hours"])
         nudging_diagnostics = DEFAULT_NUDGING_DIAGNOSTICS
-        nudging_diagnostics["variables"].extend(
+        nudging_diagnostics["output_variables"].extend(
             [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
         )
         diagnostic_files.append(nudging_diagnostics)
@@ -145,6 +145,15 @@ def diagnostics_overlay(config, model_url, timestamps):
         "diagnostics": diagnostic_files,
         "diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic",
     }
+
+
+def tendency_overlay(config):
+    tendency_overlay = {}
+    if "tendency_variables" in config:
+        tendency_overlay.update({"tendency_variables": config["tendency_variables"]})
+    if "storage_variables" in config:
+        tendency_overlay.update({"storage_variables": config["storage_variables"]})
+    return tendency_overlay
 
 
 def prepare_config(args):
@@ -171,6 +180,7 @@ def prepare_config(args):
             args.initial_condition_url, args.ic_timestep
         ),
         diagnostics_overlay(user_config, args.model_url, timestamps),
+        tendency_overlay(user_config),
         ml_overlay(model_type, args.model_url, args.diagnostic_ml),
         nudging_overlay(nudging_config, args.initial_condition_url),
         user_config,

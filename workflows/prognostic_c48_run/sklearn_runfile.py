@@ -204,7 +204,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             self._nudging_timescales = runtime.nudging_timescales_from_dict(
                 args["nudging"]["timescale_hours"]
             )
-            logger.debug(self.nudging_variables)
             self._get_reference_state = runtime.setup_get_reference_state(
                 args,
                 self.nudging_variables + [SST_NAME, TSFC_NAME],
@@ -274,6 +273,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         ).data_array
         delp = self._state[DELP]
         return {
+            TEMP: self._state[TEMP],
+            SPHUM: self._state[SPHUM],
             "storage_of_specific_humidity_path_due_to_microphysics": (micro * delp).sum(
                 "z"
             )
@@ -434,23 +435,22 @@ def monitor(name: str, func):
 
     def step(self) -> Mapping[str, xr.DataArray]:
 
-        variables = self._variables + [SPHUM, TOTAL_WATER]
-
+        vars_ = list(set(self._tendency_variables) | set(self._storage_variables))
         delp_before = self._state[DELP]
-        before = {key: self._state[key] for key in variables}
+        before = {key: self._state[key] for key in vars_}
 
         diags = func(self)
 
         delp_after = self._state[DELP]
-        after = {key: self._state[key] for key in variables}
+        after = {key: self._state[key] for key in vars_}
 
         # Compute statistics
-        for variable in self._variables:
+        for variable in self._tendency_variables:
             diags[f"tendency_of_{variable}_due_to_{name}"] = (
                 after[variable] - before[variable]
             ) / self._timestep
 
-        for variable in variables:
+        for variable in self._storage_variables:
             path_before = (before[variable] * delp_before).sum("z") / gravity
             path_after = (after[variable] * delp_after).sum("z") / gravity
 
@@ -468,7 +468,13 @@ def monitor(name: str, func):
 
 
 class MonitoredPhysicsTimeLoop(TimeLoop):
-    def __init__(self, tendency_variables: Sequence[str], *args, **kwargs):
+    def __init__(
+        self,
+        tendency_variables: Sequence[str],
+        storage_variables: Sequence[str],
+        *args,
+        **kwargs,
+    ):
         """
 
         Args:
@@ -477,7 +483,8 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
                 
         """
         super().__init__(*args, **kwargs)
-        self._variables = list(tendency_variables)
+        self._tendency_variables = list(tendency_variables)
+        self._storage_variables = list(storage_variables)
 
     _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
     _apply_ml_to_dycore_state = monitor("ml", TimeLoop._apply_ml_to_dycore_state)
@@ -502,9 +509,8 @@ if __name__ == "__main__":
     setup_metrics_logger()
 
     loop = MonitoredPhysicsTimeLoop(
-        tendency_variables=config.get("scikit_learn", {}).get(
-            "physics_tendency_vars", []
-        ),
+        tendency_variables=config.get("tendency_variables", []),
+        storage_variables=config.get("storage_variables", []),
         comm=comm,
     )
 
