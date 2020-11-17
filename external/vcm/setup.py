@@ -18,7 +18,6 @@ install_requirements = [
     "scikit-image",
     "metpy",
     "pooch==1.1.1",
-    "numba",
     "intake",
     "gcsfs",
     "zarr",
