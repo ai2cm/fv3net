@@ -1,4 +1,5 @@
-from typing import Union
+from typing import Callable, Union
+import functools
 import metpy.interpolate
 import numpy as np
 import xarray as xr
@@ -119,21 +120,72 @@ def interpolate_1d(
     return output.transpose(*dim_order).assign_coords({out_dim: output_grid})
 
 
-def interpolate_nd(xp: xr.DataArray, x: xr.DataArray, field: xr.DataArray) -> xr.DataArray:
+def _interpolate_2d(
+    xp: np.ndarray, x: np.ndarray, y: np.ndarray, axis: int = 0
+) -> np.ndarray:
+    import scipy.interpolate
+
+    output = np.zeros_like(xp, dtype=np.float64)
+    for i in range(xp.shape[0]):
+        output[i] = scipy.interpolate.interp1d(x[i], y[i], bounds_error=False)(xp[i])
+    return output
+
+
+def _apply_2d(
+    func: Callable[[np.ndarray, np.ndarray, np.ndarray, int], np.ndarray],
+    xp: np.ndarray,
+    x: np.ndarray,
+    y: np.ndarray,
+    axis=0,
+) -> np.ndarray:
+
+    axis = axis % xp.ndim
+
+    assert x.shape == y.shape
+
+    sample_shape = tuple(size for n, size in enumerate(xp.shape) if n != axis)
+
+    def flatten(x):
+        swapped = x.swapaxes(axis, -1)
+        return swapped.reshape((-1, swapped.shape[-1]))
+
+    x_flat = flatten(x)
+    y_flat = flatten(y)
+    xp_flat = flatten(xp)
+    output = func(xp_flat, x_flat, y_flat)
+    reshaped = output.reshape((sample_shape + (-1,)))
+    out = reshaped.swapaxes(-1, axis)
+    return out
+
+
+def interpolate_nd(xp: xr.DataArray, x: xr.DataArray, y: xr.DataArray) -> xr.DataArray:
     """Interpolate data along a single dimension
 
     Args:
         xp: the desired output coordinates
         x: the collocation points of the input data. must share all
             dimensions except 1 of the xp.
-        field: the field to be interpolated. Must share dimensions with x.
+        y: the field to be interpolated. Must share dimensions with x.
 
     Returns:
         interpolated: field interpolated along the single dimension NOT
             shared by x and xp.
 
     """
-    return xp
+    old_dim = (set(x.dims) - set(xp.dims)).pop()
+    new_dim = (set(xp.dims) - set(x.dims)).pop()
+
+    return xr.apply_ufunc(
+        functools.partial(_apply_2d, _interpolate_2d, axis=-1),
+        xp,
+        x,
+        y,
+        input_core_dims=[[new_dim], [old_dim], [old_dim]],
+        output_core_dims=[[new_dim]],
+        output_sizes={new_dim: len(xp[new_dim])},
+        dask="parallelized",
+        output_dtypes=[y.dtype],
+    )
 
 
 def _coords_to_points(coords, order):
