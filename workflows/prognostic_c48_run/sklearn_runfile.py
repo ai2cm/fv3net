@@ -362,7 +362,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
 
         return {
             "area": self._state[AREA],
-            "cnvprcp_after_ml": fv3gfs.wrapper.get_diagnostic_by_name(
+            "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
             **ml_diagnostics,
@@ -487,7 +487,7 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
         self._storage_variables = list(storage_variables)
 
     _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
-    _apply_ml_to_dycore_state = monitor("ml", TimeLoop._apply_ml_to_dycore_state)
+    _apply_ml_to_dycore_state = monitor("python", TimeLoop._apply_ml_to_dycore_state)
     _nudge = monitor("nudging", TimeLoop._nudge)
 
 
