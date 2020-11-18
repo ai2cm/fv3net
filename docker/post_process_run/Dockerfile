@@ -40,7 +40,7 @@ RUN pip3 install -r /tmp/requirements.txt && rm -f /tmp/requirements.txt
 
 # install fv3post
 COPY external/fv3post /fv3post
-RUN cd /fv3post && pip3 install . --no-deps --no-cache-dir
+RUN pip3 install /fv3post --no-deps --no-cache-dir
 
 # run fv3post tests
 RUN cd /fv3post && pytest && rm -rf /fv3post
