@@ -4,6 +4,7 @@
 """The setup script."""
 
 from setuptools import find_packages
+from glob import glob
 from numpy.distutils.core import Extension, setup
 
 install_requirements = [
@@ -54,5 +55,5 @@ setup(
     packages=find_packages(),
     version="0.1.0",
     zip_safe=False,
-    ext_modules=[Extension(name="vcm.mappm", sources=["vcm/mappm.f90", "vcm/interpolate_2d.f90"])],
+    ext_modules=[Extension(name="vcm.mappm", sources=glob("vcm/*.f90"))],
 )
