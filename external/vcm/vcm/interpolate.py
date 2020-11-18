@@ -91,8 +91,12 @@ def interpolate_1d(
         dim: the dimension to interpolate over, only needed if xp is 1D.
 
     Returns:
-        the quantity interpolated at the levels in ``output_grid``
-        
+        the quantity interpolated at the levels in ``xp``. When xp is
+        n-dimensional, the dimension to interpolate along is the one that
+        differs from the dims of x and field. For example, if xp.dims is
+        ["x", "y_new"] and x.dims is ["x", "y"], then this function
+        interpolates from "y" to "y_new".
+
     See Also:
         https://unidata.github.io/MetPy/latest/api/generated/metpy.interpolate.interpolate_1d.html
 
