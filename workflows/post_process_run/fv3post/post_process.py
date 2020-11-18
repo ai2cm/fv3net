@@ -7,7 +7,6 @@ from typing import Sequence, Iterable, Union, Mapping
 import numpy as np
 import xarray as xr
 import tempfile
-import subprocess
 import logging
 import click
 from toolz import groupby
