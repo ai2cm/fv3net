@@ -33,17 +33,19 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.
 RUN apt-get update && apt-get install -y google-cloud-sdk
 RUN gcloud config set project vcm-ml
 
-# install fv3post dependencies
+# install python dependencies
 RUN pip3 install pytest
-COPY external/fv3post/requirements.txt /tmp/requirements.txt
-RUN pip3 install -r /tmp/requirements.txt && rm -f /tmp/requirements.txt
+COPY workflows/post_process_run/requirements.txt /tmp/requirements.txt
+COPY constraints.txt /tmp/constraints.txt
+RUN pip3 install -c /tmp/constraints.txt -r /tmp/requirements.txt && \
+    rm -f /tmp/requirements.txt /tmp/constraints.txt
 
-# install fv3post
-COPY external/fv3post /fv3post
-RUN pip3 install /fv3post --no-deps --no-cache-dir
+# install python package
+COPY workflows/post_process_run /post_process_run
+RUN pip3 install /post_process_run --no-deps --no-cache-dir
 
-# run fv3post tests
-RUN cd /fv3post && pytest && rm -rf /fv3post
+# run tests
+RUN cd /post_process_run && pytest && rm -rf /post_process_run
 
 ARG COMMIT_SHA_ARG
 ENV COMMIT_SHA=$COMMIT_SHA_ARG
