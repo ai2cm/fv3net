@@ -35,7 +35,7 @@ logging.getLogger("fv3gfs.util").setLevel(logging.WARN)
 logger = logging.getLogger(__name__)
 
 State = MutableMapping[Hashable, xr.DataArray]
-Diagnostics = Mapping[str, xr.DataArray]
+Diagnostics = MutableMapping[Hashable, xr.DataArray]
 
 # following variables are required no matter what feature set is being used
 TEMP = "air_temperature"
@@ -296,7 +296,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         state = {name: self._state[name] for name in variables}
         tendency = self._tendencies_to_apply_to_physics_state
         updated_state: State = apply(state, tendency, dt=self._timestep)
-        ml_momentum_diagnostics = {}
+        ml_momentum_diagnostics: Diagnostics = {}
         if self._model:
             ml_momentum_diagnostics.update(
                 runtime.compute_ml_momentum_diagnostics(state, tendency)
@@ -335,7 +335,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         tendency = self._tendencies_to_apply_to_dycore_state
         self._log_debug(f"tendency: {list(tendency)}")
 
-        ml_diagnostics = {}
+        ml_diagnostics: Diagnostics = {}
         updated_state: State = {}
 
         if self._model:
@@ -370,7 +370,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
 
     def _nudge(self) -> Diagnostics:
 
-        nudging_diagnostics = {}
+        nudging_diagnostics: Diagnostics = {}
         if self.nudging_variables:
 
             self._log_debug("Computing nudging tendencies")
