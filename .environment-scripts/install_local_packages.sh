@@ -7,6 +7,7 @@ source activate $CONDA_ENV
 local_packages_to_install=( 
   external/fv3fit
   external/fv3gfs-util
+  external/vcm
 )
 for package  in "${local_packages_to_install[@]}"
 do
@@ -17,7 +18,6 @@ poetry_packages=(
   external/report
   external/fv3viz
   external/fv3config 
-  external/vcm 
   external/synth
   external/fv3kube
   external/loaders
