@@ -4,6 +4,7 @@ import metpy.interpolate
 import numpy as np
 import xarray as xr
 from scipy.spatial import KDTree
+import vcm.mappm
 
 import vcm.calc.thermo
 
@@ -120,15 +121,8 @@ def interpolate_1d(
     return output.transpose(*dim_order).assign_coords({out_dim: output_grid})
 
 
-def _interpolate_2d(
-    xp: np.ndarray, x: np.ndarray, y: np.ndarray, axis: int = 0
-) -> np.ndarray:
-    import scipy.interpolate
-
-    output = np.zeros_like(xp, dtype=np.float64)
-    for i in range(xp.shape[0]):
-        output[i] = scipy.interpolate.interp1d(x[i], y[i], bounds_error=False)(xp[i])
-    return output
+def _interpolate_2d(xp: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    return vcm.mappm.interpolate_2d(xp, x, y, fill_value=np.nan)
 
 
 def _apply_2d(
