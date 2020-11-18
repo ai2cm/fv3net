@@ -88,16 +88,16 @@ the post-processing step. See the nudging workflow at
 `workflows/argo/nudging/nudging.yaml` for an example usage of the `run-fv3gfs`
 template.
 
-| Parameter            | Description                                                                                           |
-|----------------------|-------------------------------------------------------------------------------------------------------|
-| fv3config            | String representation of an fv3config object                                                          |
-| runfile              | String representation of an fv3gfs runfile                                                            |
-| output-url           | GCS url for outputs                                                                                   |
-| chunks               | (optional) String describing desired chunking of diagnostics                                          |
-| cpu                  | (optional) Requested cpu for run-model step                                                           |
-| memory               | (optional) Requested memory for run-model step                                                        |
-| segment-count        | (optional) Number of segments to run                                                                  |
-| working-volume-name  | (optional) Name of volume for temporary work. Volume claim must be made prior to run-fv3gfs workflow. |
+| Parameter           | Description                                                                                           |
+|---------------------|-------------------------------------------------------------------------------------------------------|
+| fv3config           | String representation of an fv3config object                                                          |
+| runfile             | String representation of an fv3gfs runfile                                                            |
+| output-url          | GCS url for outputs                                                                                   |
+| chunks              | (optional) String describing desired chunking of diagnostics                                          |
+| cpu                 | (optional) Requested cpu for run-model step                                                           |
+| memory              | (optional) Requested memory for run-model step                                                        |
+| segment-count       | (optional) Number of segments to run                                                                  |
+| working-volume-name | (optional) Name of volume for temporary work. Volume claim must be made prior to run-fv3gfs workflow. |
 
 Defaults for optional parameters can be found in the workflow.
 
@@ -152,24 +152,24 @@ and online diagnostics steps, using the following workflow templates: `training`
 or `keras` training routines using the `train-routine` input parameter and passing
 an appropriate `training-config` string.
 
-| Parameter             | Description                                                                |
-|-----------------------|----------------------------------------------------------------------------|
-| root                  | Local or remote root directory for the outputs from this workflow          |
-| train-routine         | Training routine to use: e.g., "sklearn" (default) or "keras"              |
-| train-test-data       | Location of data to be used in training and testing the model              |
-| training-config       | String representation of a training configuration YAML file                |
-| train-times           | List strings of timesteps to be used in model training                     |
-| test-times            | List strings of timesteps to be used in offline model testing              |
-| public-report-output  | Location to write HTML report of model's offline diagnostic performance    |
-| initial-condition     | String of initial time at which to begin the prognostic run                |
-| prognostic-run-config | String representation of a prognostic run configuration YAML file          |
-| reference-restarts    | Location of restart data for initializing the prognostic run               |
-| flags                 | (optional) extra command line flags for prepare_config.py                  |
-| chunks                | (optional) Custom dimension rechunking mapping for prognostic run outputs  |
-| segment-count         | (optional) Number of prognostic run segments; default 1                    |
-| cpu-prog              | (optional) Number of cpus for prognostic run nodes; default 6              |
-| memory-prog           | (optional) Memory for prognostic run nodes; default 6Gi                    |
-| work-volume-name      | (optional) Working volume name, prognostic run; default 'work-volume'      |
+| Parameter             | Description                                                               |
+|-----------------------|---------------------------------------------------------------------------|
+| root                  | Local or remote root directory for the outputs from this workflow         |
+| train-routine         | Training routine to use: e.g., "sklearn" (default) or "keras"             |
+| train-test-data       | Location of data to be used in training and testing the model             |
+| training-config       | String representation of a training configuration YAML file               |
+| train-times           | List strings of timesteps to be used in model training                    |
+| test-times            | List strings of timesteps to be used in offline model testing             |
+| public-report-output  | Location to write HTML report of model's offline diagnostic performance   |
+| initial-condition     | String of initial time at which to begin the prognostic run               |
+| prognostic-run-config | String representation of a prognostic run configuration YAML file         |
+| reference-restarts    | Location of restart data for initializing the prognostic run              |
+| flags                 | (optional) extra command line flags for prepare_config.py                 |
+| chunks                | (optional) Custom dimension rechunking mapping for prognostic run outputs |
+| segment-count         | (optional) Number of prognostic run segments; default 1                   |
+| cpu-prog              | (optional) Number of cpus for prognostic run nodes; default 6             |
+| memory-prog           | (optional) Memory for prognostic run nodes; default 6Gi                   |
+| work-volume-name      | (optional) Working volume name, prognostic run; default 'work-volume'     |
 
 
 ### Prognostic run report
@@ -177,11 +177,11 @@ an appropriate `training-config` string.
 The `prognostic-run-diags` workflow template will generate reports for
 prognostic runs. See this [example][1].
 
-| Parameter    | Description                                                  |
-|--------------|--------------------------------------------------------------|
-| runs         | A json-encoded list of {"name": ..., "url": ...} items       |
-| make-movies  | (optional) whether to generate movies. Defaults to false     |
-| flags        | (optional) flags to pass to save_prognostic_diags.py script. |
+| Parameter   | Description                                                  |
+|-------------|--------------------------------------------------------------|
+| runs        | A json-encoded list of {"name": ..., "url": ...} items       |
+| make-movies | (optional) whether to generate movies. Defaults to false     |
+| flags       | (optional) flags to pass to save_prognostic_diags.py script. |
 
 The outputs will be stored at the directory
 `gs://vcm-ml-public/argo/<workflow name>`, where `<workflow name>` is NOT the
@@ -246,3 +246,17 @@ and `output-url`, e.g., using the example config in `./nudging/examples/argo_clo
         -p reference-restarts="gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts" \
         -p initial-condition="20160801.001500" \
         -p output-url="gs://vcm-ml-scratch/brianh/nudge-to-fine-test" 
+
+
+### Cubed-sphere to lat-lon interpolation workflow
+
+The `cubed-to-latlon` workflow can be used to regrid cubed sphere FV3 data using GFDL's `fregrid` utility.
+In this workflow, you specify the input data (the prefix before `.tile?.nc`), the destination
+for the regridded outputs, and a comma separated list of variables to regrid from the source file.
+
+| Parameter       | Description                                                              | Example                         |
+|-----------------|--------------------------------------------------------------------------|---------------------------------|
+| `source_prefix` | Prefix of the source data in GCS (everything but .tile1.nc)              | gs://path/to/sfc_data (no tile) |
+| `output-bucket` | URL to output file in GCS                                                | gs://vcm-ml-data/output.nc      |
+| `resolution`    | Resolution of input data                                                 | one of 'C48', 'C96', or 'C384'  |
+| `--extra_args`  | Extra arguments to pass to fregrid. Typically used for target resolution | --nlat 180 --nlon 360           |

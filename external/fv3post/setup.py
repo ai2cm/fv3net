@@ -14,6 +14,7 @@ setup(
     package_dir={"": "."},
     package_data={},
     install_requires=requirements,
+    scripts=["fv3post/scripts/regrid.sh"],
     test_suite="tests",
     tests_require=["pytest"],
     entry_points={
