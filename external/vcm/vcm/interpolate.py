@@ -1,4 +1,4 @@
-from typing import Callable, Union
+from typing import Callable, Union, Optional
 import functools
 import metpy.interpolate
 import numpy as np
@@ -75,19 +75,20 @@ def interpolate_to_pressure_levels(
 
 
 def interpolate_1d(
-    xp: xr.DataArray, x: xr.DataArray, field: xr.DataArray, dim: str,
+    xp: xr.DataArray, x: xr.DataArray, field: xr.DataArray, dim: Optional[str] = None,
 ) -> xr.DataArray:
     """Interpolates data with any shape over a specified axis.
 
     Wraps metpy.interpolate.interplolate_1d
 
     Args:
-        xp: 1-D Dataarray of desired output levels.
+        xp: desired output levels. Either is 1D or must share all
+            dimensions except 1 of the xp.
         x: the original coordinate of ``field``. Must have the
             same dims of ``field``, and increasing along the ``original_dim``
             dimension.
         field: the quantity to be regridded
-        dim: the dimension to interpolate over
+        dim: the dimension to interpolate over, only needed if xp is 1D.
 
     Returns:
         the quantity interpolated at the levels in ``output_grid``
@@ -96,6 +97,15 @@ def interpolate_1d(
         https://unidata.github.io/MetPy/latest/api/generated/metpy.interpolate.interpolate_1d.html
 
     """
+    if xp.ndim == 1:
+        return _interpolate_1d_constant_output_levels(xp, x, field, dim)
+    else:
+        return _interpolate_1d_variable_output_levels(xp, x, field)
+
+
+def _interpolate_1d_constant_output_levels(
+    xp: xr.DataArray, x: xr.DataArray, field: xr.DataArray, dim: str
+):
 
     output_grid = np.asarray(xp)
     out_dim = list(xp.dims)[0]
@@ -152,7 +162,9 @@ def _apply_2d(
     return out
 
 
-def interpolate_nd(xp: xr.DataArray, x: xr.DataArray, y: xr.DataArray) -> xr.DataArray:
+def _interpolate_1d_variable_output_levels(
+    xp: xr.DataArray, x: xr.DataArray, y: xr.DataArray
+) -> xr.DataArray:
     """Interpolate data along a single dimension
 
     Args:
