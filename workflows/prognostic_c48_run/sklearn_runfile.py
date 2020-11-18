@@ -286,8 +286,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             "total_precip_after_physics": self._state[TOTAL_PRECIP],
         }
 
-    def _apply_ml_to_physics_state(self) -> Diagnostics:
-        self._log_debug(f"Apply python ML tendencies to physics state")
+    def _apply_python_to_physics_state(self) -> Diagnostics:
+        self._log_debug(f"Apply python tendencies to physics state")
         variables: List[Hashable] = [
             TENDENCY_TO_STATE_NAME["dQu"],
             TENDENCY_TO_STATE_NAME["dQv"],
@@ -296,31 +296,26 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         state = {name: self._state[name] for name in variables}
         tendency = self._tendencies_to_apply_to_physics_state
         updated_state: State = apply(state, tendency, dt=self._timestep)
-        ml_momentum_diagnostics: Diagnostics = {}
-        if self._model:
-            ml_momentum_diagnostics.update(
-                runtime.compute_ml_momentum_diagnostics(state, tendency)
-            )
-            if self._do_only_diagnostic_ml:
-                runtime.rename_diagnostics(ml_momentum_diagnostics)
-            else:
-                self._state.update(updated_state)
-
-        return ml_momentum_diagnostics
-
-    def _compute_ml_tendency(self) -> Diagnostics:
-        if self._model:
-            variables = list(self._model.input_variables | {SPHUM})
-            self._log_debug(f"Getting state variables: {variables}")
-            state = {name: self._state[name] for name in variables}
-            self._log_debug("Computing ML-predicted tendencies")
-            tendency = predict(self._model, state)
-            self._log_debug(
-                "Correcting tendencies that would predict negative specific humidity"
-            )
-            tendency = limit_sphum_tendency(state, tendency, dt=self._timestep)
+        diagnostics: Diagnostics = runtime.compute_ml_momentum_diagnostics(
+            state, tendency
+        )
+        if self._do_only_diagnostic_ml:
+            runtime.rename_diagnostics(diagnostics)
         else:
-            tendency = {}
+            self._state.update(updated_state)
+
+        return diagnostics
+
+    def _compute_python_tendency(self) -> Diagnostics:
+        variables = list(self._model.input_variables | {SPHUM})
+        self._log_debug(f"Getting state variables: {variables}")
+        state = {name: self._state[name] for name in variables}
+        self._log_debug("Computing ML-predicted tendencies")
+        tendency = predict(self._model, state)
+        self._log_debug(
+            "Correcting tendencies that would predict negative specific humidity"
+        )
+        tendency = limit_sphum_tendency(state, tendency, dt=self._timestep)
 
         self._tendencies_to_apply_to_dycore_state = {
             k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]
@@ -330,32 +325,31 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         }
         return {}
 
-    def _apply_ml_to_dycore_state(self) -> Diagnostics:
+    def _apply_python_to_dycore_state(self) -> Diagnostics:
 
         tendency = self._tendencies_to_apply_to_dycore_state
         self._log_debug(f"tendency: {list(tendency)}")
 
-        ml_diagnostics: Diagnostics = {}
+        diagnostics: Diagnostics = {}
         updated_state: State = {}
 
-        if self._model:
-            variables: List[Hashable] = [
-                TENDENCY_TO_STATE_NAME["dQ1"],
-                TENDENCY_TO_STATE_NAME["dQ2"],
-                DELP,
-                PRECIP_RATE,
-                TOTAL_PRECIP,
-            ]
-            self._log_debug(f"Getting state variables: {variables}")
-            state = {name: self._state[name] for name in variables}
-            ml_diagnostics.update(runtime.compute_ml_diagnostics(state, tendency))
-            if self._do_only_diagnostic_ml:
-                runtime.rename_diagnostics(ml_diagnostics)
-            else:
-                updated_state.update(apply(state, tendency, dt=self._timestep))
-            updated_state[TOTAL_PRECIP] = precipitation_sum(
-                state[TOTAL_PRECIP], ml_diagnostics["net_moistening"], self._timestep
-            )
+        variables: List[Hashable] = [
+            TENDENCY_TO_STATE_NAME["dQ1"],
+            TENDENCY_TO_STATE_NAME["dQ2"],
+            DELP,
+            PRECIP_RATE,
+            TOTAL_PRECIP,
+        ]
+        self._log_debug(f"Getting state variables: {variables}")
+        state = {name: self._state[name] for name in variables}
+        diagnostics.update(runtime.compute_ml_diagnostics(state, tendency))
+        if self._do_only_diagnostic_ml:
+            runtime.rename_diagnostics(diagnostics)
+        else:
+            updated_state.update(apply(state, tendency, dt=self._timestep))
+        updated_state[TOTAL_PRECIP] = precipitation_sum(
+            state[TOTAL_PRECIP], diagnostics["net_moistening"], self._timestep
+        )
 
         self._log_debug("Setting Fortran State")
         self._state.update(updated_state)
@@ -365,7 +359,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
-            **ml_diagnostics,
+            **diagnostics,
         }
 
     def _nudge(self) -> Diagnostics:
@@ -406,10 +400,10 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             diagnostics = {}
             diagnostics.update(self._step_dynamics())
             diagnostics.update(self._compute_physics())
-            diagnostics.update(self._apply_ml_to_physics_state())
+            diagnostics.update(self._apply_python_to_physics_state())
             diagnostics.update(self._apply_physics())
-            diagnostics.update(self._compute_ml_tendency())
-            diagnostics.update(self._apply_ml_to_dycore_state())
+            diagnostics.update(self._compute_python_tendency())
+            diagnostics.update(self._apply_python_to_dycore_state())
             diagnostics.update(self._nudge())
             yield self._state.time, diagnostics
         self._fv3gfs.cleanup()
@@ -487,7 +481,9 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
         self._storage_variables = list(storage_variables)
 
     _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
-    _apply_ml_to_dycore_state = monitor("python", TimeLoop._apply_ml_to_dycore_state)
+    _apply_python_to_dycore_state = monitor(
+        "python", TimeLoop._apply_python_to_dycore_state
+    )
     _nudge = monitor("nudging", TimeLoop._nudge)
 
 
