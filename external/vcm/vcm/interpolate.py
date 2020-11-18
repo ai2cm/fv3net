@@ -119,6 +119,23 @@ def interpolate_1d(
     return output.transpose(*dim_order).assign_coords({out_dim: output_grid})
 
 
+def interpolate_nd(xp: xr.DataArray, x: xr.DataArray, field: xr.DataArray) -> xr.DataArray:
+    """Interpolate data along a single dimension
+
+    Args:
+        xp: the desired output coordinates
+        x: the collocation points of the input data. must share all
+            dimensions except 1 of the xp.
+        field: the field to be interpolated. Must share dimensions with x.
+
+    Returns:
+        interpolated: field interpolated along the single dimension NOT
+            shared by x and xp.
+
+    """
+    return xp
+
+
 def _coords_to_points(coords, order):
     return np.stack([coords[key] for key in order], axis=-1)
 

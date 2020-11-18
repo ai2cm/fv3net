@@ -2,9 +2,10 @@ import xarray as xr
 import numpy as np
 import pytest
 
-from vcm import (
+from vcm.interpolate import (
     interpolate_unstructured,
     interpolate_1d,
+    interpolate_nd
 )
 
 
@@ -92,3 +93,13 @@ def test_interpolate_1d_values_coords_correct():
     expected = xr.DataArray([[1.5, 3.0], [-1.25, -2.0]], dims=["x", "pressure_uniform"])
     xr.testing.assert_allclose(test_da.variable, expected.variable)
     xr.testing.assert_allclose(test_da[output_dim].drop(output_dim), output_pressure)
+
+
+def test_interpolate_nd_levels():
+
+    xp = xr.DataArray([[0.25, 0.5, 1.0], [0.25, 0.5, 1.0]], dims=['x', 'y_new'])
+    input_ = xr.DataArray([[0, 1], [2, 3]], dims=['x', 'y'])
+    x_ = input_.x
+    expected = xr.DataArray([[.25, 0.5, 1.0], [2.25, 2.50, 3.0]], dims=['x', 'y_new'])
+    ans = interpolate_nd(xp, input_, x_)
+    xr.testing.assert_allclose(ans, expected)
