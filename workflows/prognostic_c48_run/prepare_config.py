@@ -45,6 +45,12 @@ DEFAULT_NUDGING_DIAGNOSTICS = {
     "times": {"kind": "interval", "frequency": 900},
 }
 
+BASELINE_DIAGNOSTICS = {
+    "name": "diags.zarr",
+    "output_variables": ["water_vapor_path", "physics_precip"],
+    "times": {"kind": "interval", "frequency": 900},
+}
+
 
 def _create_arg_parser() -> argparse.ArgumentParser:
 
@@ -129,18 +135,24 @@ def nudging_overlay(nudging_config, initial_condition_url):
 def diagnostics_overlay(config, model_url, timestamps):
     diagnostic_files = []
     if timestamps:
-        for diagnostics in [DEFAULT_ML_DIAGNOSTICS, DEFAULT_NUDGING_DIAGNOSTICS]:
+        for diagnostics in [
+            DEFAULT_ML_DIAGNOSTICS,
+            DEFAULT_NUDGING_DIAGNOSTICS,
+            BASELINE_DIAGNOSTICS,
+        ]:
             diagnostics["times"]["kind"] = "selected"
             diagnostics["times"]["times"] = timestamps
     if ("scikit_learn" in config) or model_url:
         diagnostic_files.append(DEFAULT_ML_DIAGNOSTICS)
-    if "nudging" in config:
+    elif "nudging" in config:
         nudging_variables = list(config["nudging"]["timescale_hours"])
         nudging_diagnostics = DEFAULT_NUDGING_DIAGNOSTICS
         nudging_diagnostics["output_variables"].extend(
             [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
         )
         diagnostic_files.append(nudging_diagnostics)
+    else:
+        diagnostic_files.append(BASELINE_DIAGNOSTICS)
     return {
         "diagnostics": diagnostic_files,
         "diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic",

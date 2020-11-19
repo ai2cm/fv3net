@@ -14,6 +14,7 @@ from typing import (
     cast,
     List,
     Sequence,
+    Optional,
 )
 
 import xarray as xr
@@ -179,7 +180,11 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         diagnostics.
     """
 
-    def __init__(self, comm: Any = None, fv3gfs=wrapper) -> None:
+    def __init__(
+        self, config: Optional[Mapping], comm: Any = None, fv3gfs=wrapper
+    ) -> None:
+
+        config = config or {}
 
         if comm is None:
             comm = MPI.COMM_WORLD
@@ -188,7 +193,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._state: DerivedFV3State = DerivedFV3State(self._fv3gfs)
         self._comm = comm
 
-        args = runtime.get_config()
         namelist = runtime.get_namelist()
 
         # get timestep
@@ -199,34 +203,17 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._tendencies_to_apply_to_dycore_state: State = {}
         self._tendencies_to_apply_to_physics_state: State = {}
 
-        # get nudging info if nudging
-        if "nudging" in args:
-            self._nudging_timescales = runtime.nudging_timescales_from_dict(
-                args["nudging"]["timescale_hours"]
-            )
-            self._get_reference_state = runtime.setup_get_reference_state(
-                args,
-                self.nudging_variables + [SST_NAME, TSFC_NAME],
-                self._comm,
-                self._fv3gfs.get_tracer_metadata(),
-            )
-            self._get_nudging_tendency = functools.partial(
-                runtime.get_nudging_tendency,
-                nudging_timescales=self._nudging_timescales,
-            )
-        else:
-            self._nudging_timescales = {}
-
-        # download the model if doing ML
-        if "scikit_learn" in args:
+        if "scikit_learn" in config:
+            # download the model
             self._log_info("Downloading ML Model")
-            self._model = open_model(args["scikit_learn"])
+            self._model = open_model(config["scikit_learn"])
             self._log_info("Model Downloaded")
-            self._do_only_diagnostic_ml: bool = args["scikit_learn"].get(
+            self._do_only_diagnostic_ml: bool = config["scikit_learn"].get(
                 "diagnostic_ml", False
             )
         else:
             self._model = None
+            self._do_only_diagnostic_ml = False
 
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
@@ -234,10 +221,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
     @property
     def time(self) -> cftime.DatetimeJulian:
         return self._state.time
-
-    @property
-    def nudging_variables(self) -> List[str]:
-        return list(self._nudging_timescales)
 
     def _log_debug(self, message: str):
         if self._comm.rank == 0:
@@ -327,9 +310,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 
-        tendency = self._tendencies_to_apply_to_dycore_state
-        self._log_debug(f"tendency: {list(tendency)}")
-
         diagnostics: Diagnostics = {}
         updated_state: State = {}
 
@@ -342,6 +322,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         ]
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
+        tendency = self._tendencies_to_apply_to_dycore_state
         diagnostics.update(runtime.compute_ml_diagnostics(state, tendency))
         if self._do_only_diagnostic_ml:
             runtime.rename_diagnostics(diagnostics)
@@ -362,39 +343,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             **diagnostics,
         }
 
-    def _nudge(self) -> Diagnostics:
-
-        nudging_diagnostics: Diagnostics = {}
-        if self.nudging_variables:
-
-            self._log_debug("Computing nudging tendencies")
-            variables = self.nudging_variables + [
-                SST_NAME,
-                TSFC_NAME,
-                MASK_NAME,
-                TOTAL_PRECIP,
-                PRECIP_RATE,
-                DELP,
-            ]
-            state: State = {name: self._state[name] for name in variables}
-            reference = self._get_reference_state(self.time)
-            runtime.set_state_sst_to_reference(state, reference)
-            tendency = self._get_nudging_tendency(state, reference)
-            nudging_diagnostics.update(
-                runtime.compute_nudging_diagnostics(state, tendency)
-            )
-            updated_state: State = apply(state, tendency, dt=self._timestep)
-            updated_state[TOTAL_PRECIP] = precipitation_sum(
-                state[TOTAL_PRECIP],
-                nudging_diagnostics["net_moistening_due_to_nudging"],
-                self._timestep,
-            )
-
-            self._log_debug("Setting Fortran State")
-            self._state.update(updated_state)
-
-        return nudging_diagnostics
-
     def __iter__(self):
         for i in range(self._fv3gfs.get_step_count()):
             diagnostics = {}
@@ -404,9 +352,99 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             diagnostics.update(self._apply_physics())
             diagnostics.update(self._compute_python_tendency())
             diagnostics.update(self._apply_python_to_dycore_state())
-            diagnostics.update(self._nudge())
             yield self._state.time, diagnostics
         self._fv3gfs.cleanup()
+
+
+class NudgingTimeLoop(TimeLoop):
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+
+        config = kwargs["config"]
+
+        self._nudging_timescales = runtime.nudging_timescales_from_dict(
+            config["nudging"]["timescale_hours"]
+        )
+        self._get_reference_state = runtime.setup_get_reference_state(
+            config,
+            self.nudging_variables + [SST_NAME, TSFC_NAME],
+            self._comm,
+            self._fv3gfs.get_tracer_metadata(),
+        )
+        self._get_nudging_tendency = functools.partial(
+            runtime.get_nudging_tendency, nudging_timescales=self._nudging_timescales,
+        )
+
+    @property
+    def nudging_variables(self) -> List[str]:
+        return list(self._nudging_timescales)
+
+    def _compute_python_tendency(self) -> Diagnostics:
+
+        self._log_debug("Computing nudging tendencies")
+        variables: List[str] = self.nudging_variables + [
+            SST_NAME,
+            TSFC_NAME,
+            MASK_NAME,
+        ]
+        state: State = {name: self._state[name] for name in variables}
+        reference = self._get_reference_state(self.time)
+        runtime.set_state_sst_to_reference(state, reference)
+        self._tendencies_to_apply_to_dycore_state = self._get_nudging_tendency(
+            state, reference
+        )
+
+        return {}
+
+    def _apply_python_to_dycore_state(self) -> Diagnostics:
+
+        diagnostics: Diagnostics = {}
+
+        variables: List[str] = self.nudging_variables + [
+            TOTAL_PRECIP,
+            PRECIP_RATE,
+            DELP,
+        ]
+        self._log_debug(f"Getting state variables: {variables}")
+        state: State = {name: self._state[name] for name in variables}
+        tendency: State = self._tendencies_to_apply_to_dycore_state
+
+        diagnostics.update(runtime.compute_nudging_diagnostics(state, tendency))
+        updated_state: State = apply(state, tendency, dt=self._timestep)
+        updated_state[TOTAL_PRECIP] = precipitation_sum(
+            state[TOTAL_PRECIP],
+            diagnostics["net_moistening_due_to_nudging"],
+            self._timestep,
+        )
+
+        self._log_debug("Setting Fortran State")
+        self._state.update(updated_state)
+
+        return {
+            "area": self._state[AREA],
+            "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
+                "cnvprcp"
+            ).data_array,
+            **diagnostics,
+        }
+
+
+class BaselineTimeLoop(TimeLoop):
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+
+    def _compute_python_tendency(self) -> Diagnostics:
+        return {}
+
+    def _apply_python_to_dycore_state(self) -> Diagnostics:
+        return {
+            "area": self._state[AREA],
+            "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
+                "cnvprcp"
+            ).data_array,
+        }
 
 
 def monitor(name: str, func):
@@ -461,30 +499,32 @@ def monitor(name: str, func):
     return step
 
 
-class MonitoredPhysicsTimeLoop(TimeLoop):
-    def __init__(
-        self,
-        tendency_variables: Sequence[str],
-        storage_variables: Sequence[str],
-        *args,
-        **kwargs,
-    ):
-        """
+def monitored_physics_time_loop_class(base):
+    class MonitoredPhysicsTimeLoop(base):
+        def __init__(
+            self,
+            tendency_variables: Sequence[str],
+            storage_variables: Sequence[str],
+            *args,
+            **kwargs,
+        ):
+            """
 
-        Args:
-            tendency_variables: a list of variables to compute the physics
-                tendencies of.
-                
-        """
-        super().__init__(*args, **kwargs)
-        self._tendency_variables = list(tendency_variables)
-        self._storage_variables = list(storage_variables)
+            Args:
+                tendency_variables: a list of variables to compute the physics
+                    tendencies of.
 
-    _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
-    _apply_python_to_dycore_state = monitor(
-        "python", TimeLoop._apply_python_to_dycore_state
-    )
-    _nudge = monitor("nudging", TimeLoop._nudge)
+            """
+            super().__init__(*args, **kwargs)
+            self._tendency_variables = list(tendency_variables)
+            self._storage_variables = list(storage_variables)
+
+        _apply_physics = monitor("fv3_physics", base._apply_physics)
+        _apply_python_to_dycore_state = monitor(
+            "python", base._apply_python_to_dycore_state
+        )
+
+    return MonitoredPhysicsTimeLoop
 
 
 def globally_average_2d_diagnostics(
@@ -497,6 +537,16 @@ def globally_average_2d_diagnostics(
     return averages
 
 
+def run_class(config: Mapping):
+    if "scikit_learn" in config:
+        run_class = TimeLoop
+    elif "nudging" in config:
+        run_class = NudgingTimeLoop
+    else:
+        run_class = BaselineTimeLoop
+    return run_class
+
+
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
@@ -504,10 +554,11 @@ if __name__ == "__main__":
     partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(config["namelist"])
     setup_metrics_logger()
 
-    loop = MonitoredPhysicsTimeLoop(
+    loop = monitored_physics_time_loop_class(run_class(config))(
+        config=config,
+        comm=comm,
         tendency_variables=config.get("step_tendency_variables", []),
         storage_variables=config.get("step_storage_variables", []),
-        comm=comm,
     )
 
     diag_files = runtime.get_diagnostic_files(
