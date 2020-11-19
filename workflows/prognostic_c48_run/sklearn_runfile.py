@@ -104,7 +104,6 @@ def precipitation_sum(
 
     Returns:
         total precipitation [m]"""
-
     ml_precip = -column_dq2 * dt * m_per_mm  # type: ignore
     total_precip = physics_precip + ml_precip
     total_precip = total_precip.where(total_precip >= 0, 0)
@@ -256,8 +255,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         ).data_array
         delp = self._state[DELP]
         return {
-            TEMP: self._state[TEMP],
-            SPHUM: self._state[SPHUM],
             "storage_of_specific_humidity_path_due_to_microphysics": (micro * delp).sum(
                 "z"
             )
@@ -290,13 +287,15 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         return diagnostics
 
     def _compute_python_tendency(self) -> Diagnostics:
-        variables = list(self._model.input_variables | {SPHUM})
+        variables: List[Hashable] = list(self._model.input_variables | {SPHUM})
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
+
         self._log_debug("Computing ML-predicted tendencies")
         tendency = predict(self._model, state)
+
         self._log_debug(
-            "Correcting tendencies that would predict negative specific humidity"
+            "Correcting ML tendencies that would predict negative specific humidity"
         )
         tendency = limit_sphum_tendency(state, tendency, dt=self._timestep)
 
@@ -310,7 +309,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 
-        diagnostics: Diagnostics = {}
         updated_state: State = {}
 
         variables: List[Hashable] = [
@@ -323,11 +321,13 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
         tendency = self._tendencies_to_apply_to_dycore_state
-        diagnostics.update(runtime.compute_ml_diagnostics(state, tendency))
+        diagnostics = runtime.compute_ml_diagnostics(state, tendency)
+
         if self._do_only_diagnostic_ml:
             runtime.rename_diagnostics(diagnostics)
         else:
             updated_state.update(apply(state, tendency, dt=self._timestep))
+
         updated_state[TOTAL_PRECIP] = precipitation_sum(
             state[TOTAL_PRECIP], diagnostics["net_moistening"], self._timestep
         )
