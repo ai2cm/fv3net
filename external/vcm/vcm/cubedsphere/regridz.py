@@ -4,6 +4,7 @@ import xarray as xr
 
 from typing import Tuple, Union
 
+import vcm.mappm
 from ..calc.thermo import pressure_at_interface
 from ..cubedsphere import edge_weighted_block_average, weighted_block_average
 from ..cubedsphere.coarsen import block_upsample_like
@@ -16,13 +17,6 @@ from ..cubedsphere.constants import (
     FV_CORE_Y_OUTER,
 )
 from .xgcm import create_fv3_grid
-
-try:
-    import mappm
-except ImportError:
-    _mappm_installed = False
-else:
-    _mappm_installed = True
 
 
 def regrid_to_area_weighted_pressure(
@@ -190,7 +184,6 @@ def regrid_vertical(
         f_in regridded to p_out pressure levels
 
     Raises:
-        ImportError: if mappm is not installed. Try `pip install vcm/external/mappm`.
         ValueError: if the vertical dimensions for cell centers and cell edges have
             the same name.
         ValueError: if the number of columns in each input array does not
@@ -199,11 +192,6 @@ def regrid_vertical(
             not one less than the length of the dimension of the input pressure
             field.
     """
-    if not _mappm_installed:
-        raise ImportError(
-            "mappm must be installed to use regrid_vertical. "
-            "Try `pip install vcm/external/mappm`. Requires a Fortran compiler."
-        )
 
     if z_dim_center == z_dim_outer:
         raise ValueError("'z_dim_center' and 'z_dim_outer' must not be equal.")
@@ -274,7 +262,7 @@ def _columnwise_mappm(
         p_in, f_in, p_out = _reshape_for_mappm(p_in, f_in, p_out)
         dummy_ptop = 0.0  # Not used by mappm, but required as an argument
         n_columns = p_in.shape[0]
-        return mappm.mappm(
+        return vcm.mappm.mappm(
             p_in, f_in, p_out, 1, n_columns, iv, kord, dummy_ptop
         ).reshape(output_shape)
 
