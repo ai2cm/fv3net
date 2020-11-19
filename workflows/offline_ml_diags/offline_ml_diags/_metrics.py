@@ -364,5 +364,5 @@ def _zonal_avg_r2(
             - zonal_average_approximate(lat, target) ** 2
         )
         name = f"{dim_tag}/r2/{var}/{predict_coord}_vs_{target_coord}"
-        r2[name] = 1 - (sse_zonal / ss_mean)
-    return r2.mean(mean_dims)
+        r2[name] = 1 - (sse_zonal.mean(mean_dims) / ss_mean.mean(mean_dims))
+    return r2
