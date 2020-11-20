@@ -23,9 +23,7 @@ def zonal_average_approximate(
     data = data.assign_coords(lat=lat)
     grouped = data.groupby_bins("lat", bins=bins)
     output = (
-        grouped.mean()
-        .drop_vars("lat", errors="ignore")
-        .rename({"lat_bins": "lat"})
+        grouped.mean().drop_vars("lat", errors="ignore").rename({"lat_bins": "lat"})
     )
     lats_mid = [lat.item().mid for lat in output["lat"]]
     return output.assign_coords({"lat": lats_mid})

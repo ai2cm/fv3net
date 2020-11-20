@@ -16,7 +16,9 @@ from ._helpers import (
     tidy_title,
     units_from_Q_name,
     column_integrated_metric_names,
-    insert_dataset_r2, insert_scalar_metrics_r2, mse_to_rmse
+    insert_dataset_r2,
+    insert_scalar_metrics_r2,
+    mse_to_rmse,
 )
 from ._select import plot_transect
 
@@ -96,9 +98,7 @@ if __name__ == "__main__":
         vcm.cast_to_datetime(vcm.parse_datetime_from_str(t)) for t in timesteps
     ]
     report_sections = {}
-    
-    
-    
+
     # histogram of timesteps used for testing
     fig = fv3viz.plot_daily_and_hourly_hist(timesteps)
     fig.set_size_inches(10, 3)

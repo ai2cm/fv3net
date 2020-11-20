@@ -43,8 +43,8 @@ def insert_scalar_metrics_r2(
         # std is across batches
         mse_std = metrics[f"scalar/mse/{var}/predict_vs_target"]["std"]
         variance_std = metrics[f"scalar/mse/{var}/mean_vs_target"]["std"]
-        r2 = 1. - (mse / variance)
-        r2_std = r2 * np.sqrt((mse_std/mse)**2 + (variance_std/variance)**2)
+        r2 = 1.0 - (mse / variance)
+        r2_std = r2 * np.sqrt((mse_std / mse) ** 2 + (variance_std / variance) ** 2)
         metrics[r2_name] = {"mean": r2, "std": r2_std}
     return metrics
 
@@ -76,7 +76,6 @@ def mse_to_rmse(ds: xr.Dataset):
         rmse_var = mse_var.replace("mse", "rmse")
         ds[rmse_var] = np.sqrt(ds[mse_var])
     return ds.drop(mse_vars)
-
 
 
 def load_grid_info(res: str = "c48"):

@@ -30,13 +30,7 @@ DELP_VAR = "pressure_thickness_of_atmospheric_layer"
 TOA_PRESSURE = 300.0  # Pa
 VERTICAL_PROFILE_MEAN_DIMS = ("time", "x", "y", "tile")
 
-metric_sets = {
-    "scalar_metrics_column_integrated_vars": {
-        "dim_tag": "scalar",
-
-        
-    }
-}
+metric_sets = {"scalar_metrics_column_integrated_vars": {"dim_tag": "scalar",}}
 
 
 def calc_metrics(
@@ -80,15 +74,15 @@ def calc_metrics(
             "dim_tag": "scalar",
             "vars": column_integrated_vars,
             "weights": [area_weights],
-            "mean_dim_vars": None,        
+            "mean_dim_vars": None,
         },
         "scalar_column_integrated_metrics": {
             "ds": ds,
             "dim_tag": "scalar",
             "vars": predicted_vars,
             "weights": [area_weights, delp_weights],
-            "mean_dim_vars": None,        
-        },        
+            "mean_dim_vars": None,
+        },
         "pressure_level_metrics": {
             "ds": ds_regrid_z,
             "dim_tag": "pressure_level",
@@ -102,15 +96,17 @@ def calc_metrics(
             "vars": vertical_bias_vars,
             "weights": [],
             "mean_dim_vars": ["time"],
-            "metric_funcs": (_bias,)
-        }
+            "metric_funcs": (_bias,),
+        },
     }
 
     metrics = []
     for group, kwargs in metric_sets.items():
         metrics_ = _calc_same_dims_metrics(**kwargs)
         if "zonal_avg" in group:
-            metrics_ = zonal_average_approximate(lat, metrics_).rename({"lat": "lat_interp"})
+            metrics_ = zonal_average_approximate(lat, metrics_).rename(
+                {"lat": "lat_interp"}
+            )
         metrics.append(metrics_)
     """
     zonal_avg_pressure_level_r2 = _zonal_avg_r2(
@@ -122,19 +118,19 @@ def calc_metrics(
     """
     zonal_error = []
     for var in predicted_vars:
-        mse_zonal , variance_zonal = _zonal_avg_mse_variance(
+        mse_zonal, variance_zonal = _zonal_avg_mse_variance(
             target=ds_regrid_z[var].sel({derivation_dim: target_coord}),
             predict=ds_regrid_z[var].sel({derivation_dim: predict_coord}),
             lat=lat,
             mean_dims=["time"],
             dim_tag="zonal_avg_pressure_level",
-            )
+        )
         zonal_error += [
             mse_zonal.rename({"lat": "lat_interp"}),
-            variance_zonal.rename({"lat": "lat_interp"})
+            variance_zonal.rename({"lat": "lat_interp"}),
         ]
     ds = xr.merge(metrics + zonal_error)
-    return ds #.pipe(_insert_r2).pipe(_mse_to_rmse)
+    return ds  # .pipe(_insert_r2).pipe(_mse_to_rmse)
 
 
 def _regrid_dataset_zdim(
@@ -217,8 +213,6 @@ def _calc_same_dims_metrics(
                 )
                 metrics[f"{dim_tag}/{metric.name}"] = metric
     return metrics
-
-
 
 
 def _insert_means(
@@ -324,13 +318,19 @@ def _zonal_avg_mse_variance(
     """
     var = predict.name
     sse = (predict - target) ** 2
-    mse_zonal = zonal_average_approximate(lat, sse).mean(mean_dims) \
+    mse_zonal = (
+        zonal_average_approximate(lat, sse)
+        .mean(mean_dims)
         .rename(f"{dim_tag}/mse/{var}/predict_vs_target")
+    )
 
     variance_zonal = (
-        zonal_average_approximate(lat, target ** 2)
-        - zonal_average_approximate(lat, target) ** 2
-    ).mean(mean_dims) \
+        (
+            zonal_average_approximate(lat, target ** 2)
+            - zonal_average_approximate(lat, target) ** 2
+        )
+        .mean(mean_dims)
         .rename(f"{dim_tag}/mse/{var}/mean_vs_target")
-    
-    return mse_zonal , variance_zonal
+    )
+
+    return mse_zonal, variance_zonal
