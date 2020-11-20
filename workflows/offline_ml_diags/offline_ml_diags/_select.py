@@ -13,12 +13,9 @@ def nearest_time(select_time: str, times: Sequence[str]):
     return vcm.encode_time(closest_datetime)
 
 
-def meridional_transect(
-    ds: xr.Dataset, lat: xr.DataArray, lon: xr.DataArray,
-):
+def meridional_transect(ds: xr.Dataset):
     transect_coords = meridional_ring()
-    outputs = xr.merge([ds, lat, lon])
-    return vcm.regrid.interpolate_unstructured(outputs, transect_coords)
+    return vcm.regrid.interpolate_unstructured(ds, transect_coords)
 
 
 def plot_transect(

@@ -76,12 +76,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Json file that defines train timestep set.",
     )
     parser.add_argument(
-        "--random-seed",
-        type=int,
-        default=0,
-        help="Seed that determines which time to use in snapshots.",
-    )
-    parser.add_argument(
         "--snapshot-time",
         type=str,
         default=None,
@@ -245,10 +239,7 @@ def _get_prediction_mapper(args, config: Mapping, variables: Sequence[str]):
     )
 
 
-def _get_transect(
-    ds_snapshot: xr.Dataset, variables: Sequence[str], random_seed: int
-):
-    
+def _get_transect(ds_snapshot: xr.Dataset, variables: Sequence[str]):
     ds_snapshot_regrid_pressure = xr.Dataset()
     for var in variables:
         transect_var = [
@@ -260,11 +251,7 @@ def _get_transect(
             for deriv in ["target", "predict"]
         ]
         ds_snapshot_regrid_pressure[var] = xr.concat(transect_var, dim="derivation")
-    ds_transect = meridional_transect(
-        safe.get_variables(ds_snapshot_regrid_pressure, variables),
-        grid["lat"],
-        grid["lon"],
-    )
+    ds_transect = meridional_transect(safe.get_variables(ds_snapshot_regrid_pressure, variables))
     return ds_transect
 
 
@@ -314,7 +301,8 @@ if __name__ == "__main__":
     snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
     ds_snapshot = pred_mapper[snapshot_key]
     ds_transect = _get_transect(
-        ds_snapshot, config["output_variables"], args.random_seed
+        xr.merge([ds_snapshot, grid["lat"], grid["lon"]]),
+        config["output_variables"]
     )
 
     # write diags and diurnal datasets
