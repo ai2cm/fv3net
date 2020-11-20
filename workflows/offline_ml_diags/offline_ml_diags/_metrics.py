@@ -219,33 +219,6 @@ def _calc_same_dims_metrics(
     return metrics
 
 
-def insert_r2(
-    ds: xr.Dataset,
-    mse_coord: str = "mse",
-    r2_coord: str = "r2",
-    predict_coord: str = "predict",
-    target_coord: str = "target",
-):
-    mse_vars = [
-        var
-        for var in ds.data_vars
-        if (var.endswith(f"{predict_coord}_vs_{target_coord}") and mse_coord in var)
-    ]
-    for mse_var in mse_vars:
-        name_pieces = mse_var.split("-")
-        variance = "-".join(name_pieces[:-1] + [f"mean_vs_{target_coord}"])
-        r2_var = "-".join([s if s != mse_coord else r2_coord for s in name_pieces])
-        ds[r2_var] = 1.0 - ds[mse_var] / ds[variance]
-    return ds
-
-
-def mse_to_rmse(ds: xr.Dataset):
-    # replaces MSE variables with RMSE after the weighted avg is calculated
-    mse_vars = [var for var in ds.data_vars if "mse" in var]
-    for mse_var in mse_vars:
-        rmse_var = mse_var.replace("mse", "rmse")
-        ds[rmse_var] = np.sqrt(ds[mse_var])
-    return ds.drop(mse_vars)
 
 
 def _insert_means(
