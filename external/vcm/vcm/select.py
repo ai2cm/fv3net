@@ -19,7 +19,8 @@ def zonal_average_approximate(
     data: Union[xr.DataArray, xr.Dataset],
     bins: Sequence[float] = None,
 ):
-    bins = bins or np.arange(-90, 90, 2)
+    if bins is None:
+        bins = np.arange(-90, 90, 2)
     data = data.assign_coords(lat=lat)
     grouped = data.groupby_bins("lat", bins=bins)
     output = (
