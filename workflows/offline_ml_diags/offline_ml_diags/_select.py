@@ -1,19 +1,16 @@
 import numpy as np
-from typing import Sequence
+from typing import Sequence, Tuple
 import xarray as xr
 
 from vcm.select import meridional_ring
 import vcm
 
 
-def snapshot(batches: Sequence[xr.Dataset], random_seed: int = 0):
-    batch_index = np.random.randint(len(batches))
-    batch = batches[batch_index]
-
-    time_index = np.random.randint(len(batch.time))
-    snapshot = batch.isel({"time": time_index})
-
-    return snapshot
+def nearest_time(select_time: str, times: Sequence[str]):
+    select_datetime = vcm.parse_datetime_from_str(select_time)
+    datetimes = np.vectorize(vcm.parse_datetime_from_str)(times)
+    closest_datetime = min(datetimes, key=lambda d: abs(d - select_datetime))
+    return vcm.encode_time(closest_datetime)
 
 
 def meridional_transect(
@@ -22,3 +19,20 @@ def meridional_transect(
     transect_coords = meridional_ring()
     outputs = xr.merge([ds, lat, lon])
     return vcm.regrid.interpolate_unstructured(outputs, transect_coords)
+
+
+def plot_transect(
+    data: xr.DataArray,
+    xaxis: str = "lat",
+    yaxis: str = "pressure",
+    column_dim="derivation",
+    figsize: Tuple[int] = (10, 4),
+):
+    facetgrid = data.plot(
+        y=yaxis, x=xaxis, yincrease=False, col=column_dim, figsize=figsize
+    )
+    facetgrid.set_ylabels("Pressure [Pa]")
+    facetgrid.set_xlabels("Latitude [deg]")
+
+    f = facetgrid.fig
+    return f

@@ -20,7 +20,7 @@ from ._metrics import calc_metrics
 from . import _model_loaders as model_loaders
 from ._mapper import PredictionMapper
 from ._helpers import add_net_precip_domain_info, load_grid_info
-from . import _select as select
+from ._select import meridional_transect, nearest_time
 
 
 handler = logging.StreamHandler(sys.stdout)
@@ -80,6 +80,14 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         type=int,
         default=0,
         help="Seed that determines which time to use in snapshots.",
+    )
+    parser.add_argument(
+        "--snapshot-time",
+        type=str,
+        default=None,
+        help=("Timestep to use for snapshot. Provide a string 'YYYYMMDD.HHMMSS'. "
+        "If provided, will use the closest timestep in the test set. If not, will "
+        "default to use the first timestep available."),
     )
     return parser.parse_args()
 
@@ -148,9 +156,12 @@ def _compute_diags_over_batches(
         )
         # ...compute metrics
         ds_metrics = calc_metrics(
-            xr.merge([ds, grid["area"]], compat="override"),
+            ds,
             grid["lat"],
-            predicted=metric_vars,
+            grid["area"],
+            ds["pressure_thickness_of_atmospheric_layer"],
+            predicted_vars=metric_vars,
+
         )
 
         batches_summary.append(ds_summary.load())
@@ -235,9 +246,9 @@ def _get_prediction_mapper(args, config: Mapping, variables: Sequence[str]):
 
 
 def _get_transect(
-    ds_batches: Sequence[xr.Dataset], variables: Sequence[str], random_seed: int
+    ds_snapshot: xr.Dataset, variables: Sequence[str], random_seed: int
 ):
-    ds_snapshot = select.snapshot(ds_batches, random_seed)
+    
     ds_snapshot_regrid_pressure = xr.Dataset()
     for var in variables:
         transect_var = [
@@ -249,7 +260,7 @@ def _get_transect(
             for deriv in ["target", "predict"]
         ]
         ds_snapshot_regrid_pressure[var] = xr.concat(transect_var, dim="derivation")
-    ds_transect = select.meridional_transect(
+    ds_transect = meridional_transect(
         safe.get_variables(ds_snapshot_regrid_pressure, variables),
         grid["lat"],
         grid["lon"],
@@ -299,8 +310,11 @@ if __name__ == "__main__":
     )
 
     # compute transected and zonal diags
+    snapshot_time = args.snapshot_time or sorted(list(pred_mapper.keys()))[0]
+    snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
+    ds_snapshot = pred_mapper[snapshot_key]
     ds_transect = _get_transect(
-        ds_batches, config["output_variables"], args.random_seed
+        ds_snapshot, config["output_variables"], args.random_seed
     )
 
     # write diags and diurnal datasets
