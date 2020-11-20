@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from typing import Sequence, Union, Tuple, Mapping
+from typing import Sequence, Union, Mapping
 import xarray as xr
 
 import fv3viz as visualize

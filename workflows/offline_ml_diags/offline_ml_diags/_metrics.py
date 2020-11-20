@@ -27,7 +27,7 @@ DELP_VAR = "pressure_thickness_of_atmospheric_layer"
 TOA_PRESSURE = 300.0  # Pa
 VERTICAL_PROFILE_MEAN_DIMS = ("sample", "x", "y", "tile")
 
-metric_sets = {"scalar_metrics_column_integrated_vars": {"dim_tag": "scalar",}}
+metric_sets = {"scalar_metrics_column_integrated_vars": {"dim_tag": "scalar"}}
 
 
 def calc_metrics(
