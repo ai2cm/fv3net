@@ -17,18 +17,18 @@ from vcm.cubedsphere.constants import (
 def zonal_average_approximate(
     lat: xr.DataArray,
     data: Union[xr.DataArray, xr.Dataset],
-    bins: Sequence[float] = np.arange(-90, 90, 2),
-    lat_dim_name: str = "lat",
+    bins: Sequence[float] = None,
 ):
+    bins = bins or np.arange(-90, 90, 2)
     data = data.assign_coords(lat=lat)
     grouped = data.groupby_bins("lat", bins=bins)
     output = (
         grouped.mean()
-        .drop_vars(lat.name, errors="ignore")
-        .rename({lat_dim_name + "_bins": lat_dim_name})
+        .drop_vars("lat", errors="ignore")
+        .rename({"lat_bins": "lat"})
     )
-    lats_mid = [lat.item().mid for lat in output[lat_dim_name]]
-    return output.assign_coords({lat_dim_name: lats_mid})
+    lats_mid = [lat.item().mid for lat in output["lat"]]
+    return output.assign_coords({"lat": lats_mid})
 
 
 def meridional_ring(lon=0, n=180):
