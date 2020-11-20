@@ -2,7 +2,12 @@ import xarray as xr
 import numpy as np
 import pytest
 
-from vcm.interpolate import interpolate_unstructured, interpolate_1d, _interpolate_2d
+from vcm.interpolate import (
+    interpolate_unstructured,
+    interpolate_1d,
+    _interpolate_2d,
+    interpolate_to_pressure_levels,
+)
 
 
 def test_interpolate_unstructured_same_as_sel_if_1d():
@@ -67,9 +72,7 @@ def _test_dataset():
 def test_interpolate_1d_dim_order_unchanged():
 
     ds = _test_dataset()
-
     output_pressure = xr.DataArray([0.5, 2], dims=["pressure_uniform"])
-
     test_da = interpolate_1d(
         output_pressure, ds["pressure"], ds["interp_var"], dim="pfull",
     )
@@ -125,3 +128,18 @@ def test__interpolate_2d():
 
     ans = _interpolate_2d(xp, x, y)
     np.testing.assert_allclose(expected, ans)
+
+
+def test_interpolate_to_pressure_levels_no_nans():
+
+    ds = xr.Dataset(
+        {
+            # model top is at 300 pa
+            "pressure": (["pressure"], [350]),
+            "delp": (["z"], [100, 100]),
+            "y": (["z"], [2, 1]),
+        }
+    )
+
+    out = interpolate_to_pressure_levels(ds.y, ds.delp, levels=ds.pressure, dim="z")
+    assert not out.isnull().any().item()
