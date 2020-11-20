@@ -12,8 +12,7 @@ from typing import Mapping, Sequence, Tuple
 
 import diagnostics_utils as utils
 import loaders
-from vcm import safe
-from vcm.cubedsphere import regrid_to_common_pressure
+from vcm import safe, interpolate_to_pressure_levels
 from vcm.cloud import get_fs
 from fv3fit import PRODUCTION_MODEL_TYPES
 from ._metrics import calc_metrics
@@ -250,10 +249,10 @@ def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence
     ds_snapshot_regrid_pressure = xr.Dataset()
     for var in variables:
         transect_var = [
-            regrid_to_common_pressure(
+            interpolate_to_pressure_levels(
                 field=ds_snapshot[var].sel(derivation=deriv),
                 delp=ds_snapshot["pressure_thickness_of_atmospheric_layer"],
-                coord_z_center="z",
+                dim="z",
             )
             for deriv in ["target", "predict"]
         ]

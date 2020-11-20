@@ -88,7 +88,7 @@ def calc_metrics(
             "dim_tag": "zonal_avg_pressure_level",
             "vars": vertical_bias_vars,
             "weights": [],
-            "mean_dim_vars": ["time"],
+            "mean_dim_vars": ["sample"],
             "metric_funcs": (_bias,),
         },
     }
@@ -108,7 +108,7 @@ def calc_metrics(
             target=ds_regrid_z[var].sel({derivation_dim: target_coord}),
             predict=ds_regrid_z[var].sel({derivation_dim: predict_coord}),
             lat=lat,
-            mean_dims=["time"],
+            mean_dims=["sample"],
             dim_tag="zonal_avg_pressure_level",
         )
         zonal_error += [
@@ -133,6 +133,7 @@ def _regrid_dataset_zdim(
     vertical_dim_vars = [var for var in ds.data_vars if vertical_dim in ds[var].dims]
     ds_2d = ds.drop(vertical_dim_vars)
     ds_3d = safe.get_variables(ds, vertical_dim_vars)
+,
 
     for derivation_coord in [target_coord, predict_coord]:
         ds_regrid = ds_3d.sel({derivation_dim: derivation_coord})
