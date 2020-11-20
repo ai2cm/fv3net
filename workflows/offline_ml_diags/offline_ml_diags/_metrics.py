@@ -133,7 +133,6 @@ def _regrid_dataset_zdim(
     vertical_dim_vars = [var for var in ds.data_vars if vertical_dim in ds[var].dims]
     ds_2d = ds.drop(vertical_dim_vars)
     ds_3d = safe.get_variables(ds, vertical_dim_vars)
-,
 
     for derivation_coord in [target_coord, predict_coord]:
         ds_regrid = ds_3d.sel({derivation_dim: derivation_coord})
