@@ -2,10 +2,7 @@ import xarray as xr
 import numpy as np
 import pytest
 
-from vcm import (
-    interpolate_unstructured,
-    interpolate_1d,
-)
+from vcm.interpolate import interpolate_unstructured, interpolate_1d, _interpolate_2d
 
 
 def test_interpolate_unstructured_same_as_sel_if_1d():
@@ -92,3 +89,39 @@ def test_interpolate_1d_values_coords_correct():
     expected = xr.DataArray([[1.5, 3.0], [-1.25, -2.0]], dims=["x", "pressure_uniform"])
     xr.testing.assert_allclose(test_da.variable, expected.variable)
     xr.testing.assert_allclose(test_da[output_dim].drop(output_dim), output_pressure)
+
+
+def test_interpolate_1d_spatially_varying_levels():
+
+    xp = xr.DataArray([[0.25, 0.5, 1.0], [0.25, 0.5, 1.0]], dims=["x", "y_new"])
+    input_ = xr.DataArray([[0, 1], [2, 3]], dims=["x", "y"])
+    x = xr.DataArray([[0, 1], [0, 1]], dims=["x", "y"])
+    expected = xr.DataArray([[0.25, 0.5, 1.0], [2.25, 2.50, 3.0]], dims=["x", "y_new"])
+    ans = interpolate_1d(xp, x, input_)
+    xr.testing.assert_allclose(ans, expected)
+
+
+def _interpolate_2d_reference(
+    xp: np.ndarray, x: np.ndarray, y: np.ndarray, axis: int = 0
+) -> np.ndarray:
+    import scipy.interpolate
+
+    output = np.zeros_like(xp, dtype=np.float64)
+    for i in range(xp.shape[0]):
+        output[i] = scipy.interpolate.interp1d(x[i], y[i], bounds_error=False)(xp[i])
+    return output
+
+
+def test__interpolate_2d():
+    shape = (1, 10)
+    new_shape = (1, 12)
+
+    x = np.arange(10).reshape(shape)
+    y = (x ** 2).reshape(shape)
+    xp = np.arange(12).reshape(new_shape)
+
+    expected = _interpolate_2d_reference(xp, x, y)
+    assert np.isnan(expected[:, -2:]).all()
+
+    ans = _interpolate_2d(xp, x, y)
+    np.testing.assert_allclose(expected, ans)
