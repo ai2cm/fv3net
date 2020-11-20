@@ -1,14 +1,11 @@
 import logging
-import numpy as np
 from typing import Sequence, Callable, Union
 import warnings
 import xarray as xr
 
 
-from vcm import safe
-from vcm.cubedsphere import regrid_to_common_pressure
+from vcm import safe, interpolate_to_pressure_levels
 from vcm.select import zonal_average_approximate
-
 import copy
 
 
@@ -28,7 +25,7 @@ VERTICAL_DIM = "z"
 AREA_VAR = "area"
 DELP_VAR = "pressure_thickness_of_atmospheric_layer"
 TOA_PRESSURE = 300.0  # Pa
-VERTICAL_PROFILE_MEAN_DIMS = ("time", "x", "y", "tile")
+VERTICAL_PROFILE_MEAN_DIMS = ("sample", "x", "y", "tile")
 
 metric_sets = {"scalar_metrics_column_integrated_vars": {"dim_tag": "scalar",}}
 
@@ -42,11 +39,9 @@ def calc_metrics(
     predict_coord: str = PREDICT_COORD,
     target_coord: str = TARGET_COORD,
     derivation_dim: str = DERIVATION_DIM,
-    pressure_dim: str = PRESSURE_DIM,
     vertical_dim: str = VERTICAL_DIM,
     area_var: str = AREA_VAR,
     delp_var: str = DELP_VAR,
-    toa_pressure: float = TOA_PRESSURE,
     vertical_profile_mean_dims: Sequence[str] = VERTICAL_PROFILE_MEAN_DIMS,
 ) -> xr.Dataset:
     """Routine for computing ML prediction metrics (_bias, _mse]) on a dataset of
@@ -64,9 +59,7 @@ def calc_metrics(
 
     area_weights = area / (area.mean())
     delp_weights = delp / delp.mean(vertical_dim)
-    ds_regrid_z = _regrid_dataset_zdim(
-        ds, vertical_dim, pressure_dim, delp_var, toa_pressure, **derivation_kwargs
-    )
+    ds_regrid_z = _regrid_dataset_zdim(ds, vertical_dim, **derivation_kwargs)
 
     metric_sets = {
         "scalar_metrics_column_integrated_vars": {
@@ -108,14 +101,7 @@ def calc_metrics(
                 {"lat": "lat_interp"}
             )
         metrics.append(metrics_)
-    """
-    zonal_avg_pressure_level_r2 = _zonal_avg_r2(
-        safe.get_variables(ds_regrid_z, predicted_vars),
-        lat,
-        mean_dims=["time"],
-        dim_tag="zonal_avg_pressure_level",
-    ).rename({"lat": "lat_interp"})
-    """
+
     zonal_error = []
     for var in predicted_vars:
         mse_zonal, variance_zonal = _zonal_avg_mse_variance(
@@ -130,15 +116,13 @@ def calc_metrics(
             variance_zonal.rename({"lat": "lat_interp"}),
         ]
     ds = xr.merge(metrics + zonal_error)
-    return ds  # .pipe(_insert_r2).pipe(_mse_to_rmse)
+    return ds
 
 
 def _regrid_dataset_zdim(
     ds: xr.Dataset,
     vertical_dim: str = VERTICAL_DIM,
-    pressure_dim: str = PRESSURE_DIM,
     delp_var: str = DELP_VAR,
-    toa_pressure: float = TOA_PRESSURE,
     predict_coord: str = PREDICT_COORD,
     target_coord: str = TARGET_COORD,
     derivation_dim: str = DERIVATION_DIM,
@@ -153,11 +137,8 @@ def _regrid_dataset_zdim(
     for derivation_coord in [target_coord, predict_coord]:
         ds_regrid = ds_3d.sel({derivation_dim: derivation_coord})
         for var in vertical_dim_vars:
-            ds_regrid[var] = regrid_to_common_pressure(
-                field=ds_regrid[var],
-                delp=ds[delp_var],
-                coord_z_center=vertical_dim,
-                new_vertical_dim=pressure_dim,
+            ds_regrid[var] = interpolate_to_pressure_levels(
+                delp=ds[delp_var], field=ds_regrid[var], dim=vertical_dim,
             )
         regridded_datasets.append(ds_regrid)
     return xr.merge([ds_2d, xr.concat(regridded_datasets, dim=derivation_dim)])

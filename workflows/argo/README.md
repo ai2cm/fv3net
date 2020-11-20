@@ -233,3 +233,16 @@ If you wish to generate movies of column-integrated heating and moistening along
 add the parameter `-p make-movies="true"`. By default, the movies will not be created.
 
 [1]: http://storage.googleapis.com/vcm-ml-public/experiments-2020-03/prognostic_run_diags/combined.html
+
+
+### Nudging workflow
+
+A nudging (nudge to fine) workflow template is available and can be run with the
+following minimum arguments: `nudging-config`, `reference-restarts`, `initial-condition`,
+and `output-url`, e.g., using the example config in `./nudging/examples/argo_clouds_off.yaml`:
+
+    argo submit --from workflowtemplate/nudging \
+        -p nudging-config="$(< ./nudging/examples/argo_clouds_off.yaml)" \
+        -p reference-restarts="gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts" \
+        -p initial-condition="20160801.001500" \
+        -p output-url="gs://vcm-ml-scratch/brianh/nudge-to-fine-test" 

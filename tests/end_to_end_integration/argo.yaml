@@ -6,33 +6,32 @@ spec:
   arguments:
     parameters:
       - name: initial-condition
-        value: "20160801.003000"
+        value: "20160801.001500"
       - name: reference-restarts
         value: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
       - name: nudging-times
         value: |
           [
             "20160801.003000",
-            "20160801.020000",
+            "20160801.011500",
           ]
       - name: train-times
         value: |
           [
             "20160801.003000",
-            "20160801.020000"
+            "20160801.011500"
           ]
       - name: test-times
         value: |
           [
             "20160801.003000",
-            "20160801.020000"
+            "20160801.011500"
           ]
       - name: nudging-config
         value: | 
           base_version: v0.5
           forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
           nudging:
-            restarts_path: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
             timescale_hours:
               air_temperature: 3
               specific_humidity: 3
@@ -48,8 +47,8 @@ spec:
                 - 0
                 - 15
                 - 0
-              hours: 1
-              minutes: 0
+              hours: 0
+              minutes: 30
             fv_core_nml:
               do_sat_adj: false
             gfdl_cloud_microphysics_nml:
@@ -75,7 +74,7 @@ spec:
           atmos_dt_atmos.zarr:
             time: 2
           sfc_dt_atmos.zarr:
-            time: 4
+            time: 2
       - name: training-config
         value: | 
           model_type: sklearn_random_forest
@@ -153,6 +152,10 @@ spec:
           template: nudging
         arguments:
           parameters:
+          - name: reference-restarts
+            value: "{{workflow.parameters.reference-restarts}}"
+          - name: initial-condition
+            value: "{{workflow.parameters.initial-condition}}"
           - name: times
             value: "{{workflow.parameters.nudging-times}}"
           - name: output-url

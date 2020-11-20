@@ -26,8 +26,14 @@ from .calc.thermo import (
     pressure_at_interface,
     surface_pressure_from_delp,
 )
+
+from .interpolate import (
+    interpolate_to_pressure_levels,
+    interpolate_1d,
+    interpolate_unstructured,
+)
+
 from ._zarr_mapping import ZarrMapping
-from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
 from .select import mask_to_surface_type, RegionOfInterest
 from .xarray_loaders import open_tiles, open_delayed, open_remote_nc, dump_nc
 from .sampling import train_test_split_sample

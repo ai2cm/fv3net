@@ -46,6 +46,7 @@ SHIELD_DERIVATION_COORD = "coarsened_SHiELD"
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
 TRANSECT_NC_NAME = "transect_lon0.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
+DATASET_DIM_NAME = "dataset"
 
 # Base set of variables for which to compute column integrals and composite means
 # Additional output variables are also computed.
@@ -147,6 +148,11 @@ def _compute_diags_over_batches(
         add_net_precip_domain_info(ds_summary, net_precip_domain_coord)
 
         # ...compute diurnal cycles
+        if DATASET_DIM_NAME in ds.dims:
+            sample_dims = ("time", DATASET_DIM_NAME)
+        else:
+            sample_dims = ("time",)
+        ds = ds.stack(sample=sample_dims)
         ds_diurnal = utils.create_diurnal_cycle_dataset(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
         )
