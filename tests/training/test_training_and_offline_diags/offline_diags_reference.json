@@ -650,30 +650,8 @@
                     "units": "m**2"
                 }
             },
-            "Q2": {
-                "name": "Q2",
-                "dims": [
-                    "domain",
-                    "z",
-                    "derivation"
-                ],
-                "array": {
-                    "shape": [
-                        5,
-                        79,
-                        2
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        5,
-                        79,
-                        2
-                    ]
-                },
-                "attrs": {}
-            },
-            "dQ2": {
-                "name": "dQ2",
+            "dQv": {
+                "name": "dQv",
                 "dims": [
                     "domain",
                     "derivation",
@@ -709,6 +687,47 @@
                     "chunks": [
                         5,
                         79
+                    ]
+                },
+                "attrs": {}
+            },
+            "pQ2": {
+                "name": "pQ2",
+                "dims": [
+                    "domain",
+                    "z"
+                ],
+                "array": {
+                    "shape": [
+                        5,
+                        79
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        5,
+                        79
+                    ]
+                },
+                "attrs": {}
+            },
+            "Q2": {
+                "name": "Q2",
+                "dims": [
+                    "domain",
+                    "z",
+                    "derivation"
+                ],
+                "array": {
+                    "shape": [
+                        5,
+                        79,
+                        2
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        5,
+                        79,
+                        2
                     ]
                 },
                 "attrs": {}
@@ -757,6 +776,28 @@
                 },
                 "attrs": {}
             },
+            "dQ2": {
+                "name": "dQ2",
+                "dims": [
+                    "domain",
+                    "derivation",
+                    "z"
+                ],
+                "array": {
+                    "shape": [
+                        5,
+                        2,
+                        79
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        5,
+                        2,
+                        79
+                    ]
+                },
+                "attrs": {}
+            },
             "Q1": {
                 "name": "Q1",
                 "dims": [
@@ -779,66 +820,22 @@
                 },
                 "attrs": {}
             },
-            "dQv": {
-                "name": "dQv",
-                "dims": [
-                    "domain",
-                    "derivation",
-                    "z"
-                ],
-                "array": {
-                    "shape": [
-                        5,
-                        2,
-                        79
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        5,
-                        2,
-                        79
-                    ]
-                },
-                "attrs": {}
-            },
-            "pQ2": {
-                "name": "pQ2",
-                "dims": [
-                    "domain",
-                    "z"
-                ],
-                "array": {
-                    "shape": [
-                        5,
-                        79
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        5,
-                        79
-                    ]
-                },
-                "attrs": {}
-            },
-            "air_temperature": {
-                "name": "air_temperature",
+            "surface_geopotential": {
+                "name": "surface_geopotential",
                 "dims": [
                     "tile",
-                    "z",
                     "y",
                     "x"
                 ],
                 "array": {
                     "shape": [
                         6,
-                        79,
                         48,
                         48
                     ],
                     "dtype": "<f8",
                     "chunks": [
                         6,
-                        79,
                         48,
                         48
                     ]
@@ -861,6 +858,31 @@
                     "dtype": "<f8",
                     "chunks": [
                         6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {}
+            },
+            "specific_humidity": {
+                "name": "specific_humidity",
+                "dims": [
+                    "tile",
+                    "z",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        79,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        79,
                         48,
                         48
                     ]
@@ -892,55 +914,8 @@
                 },
                 "attrs": {}
             },
-            "surface_geopotential": {
-                "name": "surface_geopotential",
-                "dims": [
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        6,
-                        48,
-                        48
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        6,
-                        48,
-                        48
-                    ]
-                },
-                "attrs": {}
-            },
-            "northward_wind": {
-                "name": "northward_wind",
-                "dims": [
-                    "tile",
-                    "z",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        6,
-                        79,
-                        48,
-                        48
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        6,
-                        79,
-                        48,
-                        48
-                    ]
-                },
-                "attrs": {}
-            },
-            "specific_humidity": {
-                "name": "specific_humidity",
+            "eastward_wind": {
+                "name": "eastward_wind",
                 "dims": [
                     "tile",
                     "z",
@@ -986,8 +961,8 @@
                 },
                 "attrs": {}
             },
-            "eastward_wind": {
-                "name": "eastward_wind",
+            "northward_wind": {
+                "name": "northward_wind",
                 "dims": [
                     "tile",
                     "z",
@@ -1011,33 +986,33 @@
                 },
                 "attrs": {}
             },
-            "column_integrated_Q2": {
-                "name": "column_integrated_Q2",
+            "air_temperature": {
+                "name": "air_temperature",
                 "dims": [
                     "tile",
+                    "z",
                     "y",
-                    "x",
-                    "derivation"
+                    "x"
                 ],
                 "array": {
                     "shape": [
                         6,
+                        79,
                         48,
-                        48,
-                        2
+                        48
                     ],
                     "dtype": "<f8",
                     "chunks": [
                         6,
+                        79,
                         48,
-                        48,
-                        2
+                        48
                     ]
                 },
                 "attrs": {}
             },
-            "column_integrated_dQ2": {
-                "name": "column_integrated_dQ2",
+            "column_integrated_dQv": {
+                "name": "column_integrated_dQv",
                 "dims": [
                     "derivation",
                     "tile",
@@ -1079,6 +1054,53 @@
                         6,
                         48,
                         48
+                    ]
+                },
+                "attrs": {}
+            },
+            "column_integrated_pQ2": {
+                "name": "column_integrated_pQ2",
+                "dims": [
+                    "tile",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {}
+            },
+            "column_integrated_Q2": {
+                "name": "column_integrated_Q2",
+                "dims": [
+                    "tile",
+                    "y",
+                    "x",
+                    "derivation"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        48,
+                        48,
+                        2
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        48,
+                        48,
+                        2
                     ]
                 },
                 "attrs": {}
@@ -1133,6 +1155,31 @@
                 },
                 "attrs": {}
             },
+            "column_integrated_dQ2": {
+                "name": "column_integrated_dQ2",
+                "dims": [
+                    "derivation",
+                    "tile",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        2,
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {}
+            },
             "column_integrated_Q1": {
                 "name": "column_integrated_Q1",
                 "dims": [
@@ -1158,49 +1205,66 @@
                 },
                 "attrs": {}
             },
-            "column_integrated_dQv": {
-                "name": "column_integrated_dQv",
+            "pressure_level-bias-dQv-predict_vs_target": {
+                "name": "pressure_level-bias-dQv-predict_vs_target",
                 "dims": [
-                    "derivation",
-                    "tile",
-                    "y",
-                    "x"
+                    "pressure"
                 ],
                 "array": {
                     "shape": [
-                        2,
-                        6,
-                        48,
-                        48
+                        35
                     ],
                     "dtype": "<f8",
                     "chunks": [
-                        2,
-                        6,
-                        48,
-                        48
+                        35
                     ]
                 },
                 "attrs": {}
             },
-            "column_integrated_pQ2": {
-                "name": "column_integrated_pQ2",
+            "pressure_level-bias-dQv-mean_vs_target": {
+                "name": "pressure_level-bias-dQv-mean_vs_target",
                 "dims": [
-                    "tile",
-                    "y",
-                    "x"
+                    "pressure"
                 ],
                 "array": {
                     "shape": [
-                        6,
-                        48,
-                        48
+                        35
                     ],
                     "dtype": "<f8",
                     "chunks": [
-                        6,
-                        48,
-                        48
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-mse-dQv-predict_vs_target": {
+                "name": "pressure_level-mse-dQv-predict_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-mse-dQv-mean_vs_target": {
+                "name": "pressure_level-mse-dQv-mean_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
                     ]
                 },
                 "attrs": {}
@@ -1237,8 +1301,8 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-bias-dQ2-predict_vs_target": {
-                "name": "pressure_level-bias-dQ2-predict_vs_target",
+            "pressure_level-mse-Q2-predict_vs_target": {
+                "name": "pressure_level-mse-Q2-predict_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -1253,8 +1317,8 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-bias-dQ2-mean_vs_target": {
-                "name": "pressure_level-bias-dQ2-mean_vs_target",
+            "pressure_level-mse-Q2-mean_vs_target": {
+                "name": "pressure_level-mse-Q2-mean_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -1301,6 +1365,38 @@
                 },
                 "attrs": {}
             },
+            "pressure_level-mse-dQu-predict_vs_target": {
+                "name": "pressure_level-mse-dQu-predict_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-mse-dQu-mean_vs_target": {
+                "name": "pressure_level-mse-dQu-mean_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
             "pressure_level-bias-dQ1-predict_vs_target": {
                 "name": "pressure_level-bias-dQ1-predict_vs_target",
                 "dims": [
@@ -1319,6 +1415,102 @@
             },
             "pressure_level-bias-dQ1-mean_vs_target": {
                 "name": "pressure_level-bias-dQ1-mean_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-mse-dQ1-predict_vs_target": {
+                "name": "pressure_level-mse-dQ1-predict_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-mse-dQ1-mean_vs_target": {
+                "name": "pressure_level-mse-dQ1-mean_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-bias-dQ2-predict_vs_target": {
+                "name": "pressure_level-bias-dQ2-predict_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-bias-dQ2-mean_vs_target": {
+                "name": "pressure_level-bias-dQ2-mean_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-mse-dQ2-predict_vs_target": {
+                "name": "pressure_level-mse-dQ2-predict_vs_target",
+                "dims": [
+                    "pressure"
+                ],
+                "array": {
+                    "shape": [
+                        35
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        35
+                    ]
+                },
+                "attrs": {}
+            },
+            "pressure_level-mse-dQ2-mean_vs_target": {
+                "name": "pressure_level-mse-dQ2-mean_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -1365,8 +1557,8 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-bias-dQv-predict_vs_target": {
-                "name": "pressure_level-bias-dQv-predict_vs_target",
+            "pressure_level-mse-Q1-predict_vs_target": {
+                "name": "pressure_level-mse-Q1-predict_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -1381,8 +1573,8 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-bias-dQv-mean_vs_target": {
-                "name": "pressure_level-bias-dQv-mean_vs_target",
+            "pressure_level-mse-Q1-mean_vs_target": {
+                "name": "pressure_level-mse-Q1-mean_vs_target",
                 "dims": [
                     "pressure"
                 ],
@@ -1397,27 +1589,8 @@
                 },
                 "attrs": {}
             },
-            "zonal_avg_pressure_level-bias-Q2-predict_vs_target": {
-                "name": "zonal_avg_pressure_level-bias-Q2-predict_vs_target",
-                "dims": [
-                    "lat_interp",
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        89,
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        89,
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "zonal_avg_pressure_level-bias-Q2-mean_vs_target": {
-                "name": "zonal_avg_pressure_level-bias-Q2-mean_vs_target",
+            "zonal_avg_pressure_level-bias-dQv-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-dQv-predict_vs_target",
                 "dims": [
                     "lat_interp",
                     "pressure"
@@ -1435,27 +1608,8 @@
                 },
                 "attrs": {}
             },
-            "zonal_avg_pressure_level-bias-dQ2-predict_vs_target": {
-                "name": "zonal_avg_pressure_level-bias-dQ2-predict_vs_target",
-                "dims": [
-                    "lat_interp",
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        89,
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        89,
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "zonal_avg_pressure_level-bias-dQ2-mean_vs_target": {
-                "name": "zonal_avg_pressure_level-bias-dQ2-mean_vs_target",
+            "zonal_avg_pressure_level-bias-dQv-mean_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-dQv-mean_vs_target",
                 "dims": [
                     "lat_interp",
                     "pressure"
@@ -1549,8 +1703,8 @@
                 },
                 "attrs": {}
             },
-            "zonal_avg_pressure_level-bias-Q1-predict_vs_target": {
-                "name": "zonal_avg_pressure_level-bias-Q1-predict_vs_target",
+            "zonal_avg_pressure_level-bias-dQ2-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-dQ2-predict_vs_target",
                 "dims": [
                     "lat_interp",
                     "pressure"
@@ -1568,8 +1722,8 @@
                 },
                 "attrs": {}
             },
-            "zonal_avg_pressure_level-bias-Q1-mean_vs_target": {
-                "name": "zonal_avg_pressure_level-bias-Q1-mean_vs_target",
+            "zonal_avg_pressure_level-bias-dQ2-mean_vs_target": {
+                "name": "zonal_avg_pressure_level-bias-dQ2-mean_vs_target",
                 "dims": [
                     "lat_interp",
                     "pressure"
@@ -1587,46 +1741,8 @@
                 },
                 "attrs": {}
             },
-            "zonal_avg_pressure_level-bias-dQv-predict_vs_target": {
-                "name": "zonal_avg_pressure_level-bias-dQv-predict_vs_target",
-                "dims": [
-                    "lat_interp",
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        89,
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        89,
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "zonal_avg_pressure_level-bias-dQv-mean_vs_target": {
-                "name": "zonal_avg_pressure_level-bias-dQv-mean_vs_target",
-                "dims": [
-                    "lat_interp",
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        89,
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        89,
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "zonal_avg_pressure_level-r2-Q2-predict_vs_target": {
-                "name": "zonal_avg_pressure_level-r2-Q2-predict_vs_target",
+            "zonal_avg_pressure_level-mse-dQv-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-mse-dQv-predict_vs_target",
                 "dims": [
                     "pressure",
                     "lat_interp"
@@ -1644,8 +1760,8 @@
                 },
                 "attrs": {}
             },
-            "zonal_avg_pressure_level-r2-dQ2-predict_vs_target": {
-                "name": "zonal_avg_pressure_level-r2-dQ2-predict_vs_target",
+            "zonal_avg_pressure_level-mse-dQv-mean_vs_target": {
+                "name": "zonal_avg_pressure_level-mse-dQv-mean_vs_target",
                 "dims": [
                     "pressure",
                     "lat_interp"
@@ -1663,8 +1779,8 @@
                 },
                 "attrs": {}
             },
-            "zonal_avg_pressure_level-r2-dQu-predict_vs_target": {
-                "name": "zonal_avg_pressure_level-r2-dQu-predict_vs_target",
+            "zonal_avg_pressure_level-mse-Q2-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-mse-Q2-predict_vs_target",
                 "dims": [
                     "pressure",
                     "lat_interp"
@@ -1682,8 +1798,8 @@
                 },
                 "attrs": {}
             },
-            "zonal_avg_pressure_level-r2-dQ1-predict_vs_target": {
-                "name": "zonal_avg_pressure_level-r2-dQ1-predict_vs_target",
+            "zonal_avg_pressure_level-mse-Q2-mean_vs_target": {
+                "name": "zonal_avg_pressure_level-mse-Q2-mean_vs_target",
                 "dims": [
                     "pressure",
                     "lat_interp"
@@ -1701,8 +1817,8 @@
                 },
                 "attrs": {}
             },
-            "zonal_avg_pressure_level-r2-Q1-predict_vs_target": {
-                "name": "zonal_avg_pressure_level-r2-Q1-predict_vs_target",
+            "zonal_avg_pressure_level-mse-dQu-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-mse-dQu-predict_vs_target",
                 "dims": [
                     "pressure",
                     "lat_interp"
@@ -1720,8 +1836,8 @@
                 },
                 "attrs": {}
             },
-            "zonal_avg_pressure_level-r2-dQv-predict_vs_target": {
-                "name": "zonal_avg_pressure_level-r2-dQv-predict_vs_target",
+            "zonal_avg_pressure_level-mse-dQu-mean_vs_target": {
+                "name": "zonal_avg_pressure_level-mse-dQu-mean_vs_target",
                 "dims": [
                     "pressure",
                     "lat_interp"
@@ -1739,290 +1855,116 @@
                 },
                 "attrs": {}
             },
-            "pressure_level-r2-Q2-predict_vs_target": {
-                "name": "pressure_level-r2-Q2-predict_vs_target",
+            "zonal_avg_pressure_level-mse-dQ1-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-mse-dQ1-predict_vs_target",
                 "dims": [
-                    "pressure"
+                    "pressure",
+                    "lat_interp"
                 ],
                 "array": {
                     "shape": [
-                        35
+                        35,
+                        89
                     ],
                     "dtype": "<f8",
                     "chunks": [
-                        35
+                        35,
+                        89
                     ]
                 },
                 "attrs": {}
             },
-            "pressure_level-r2-dQ2-predict_vs_target": {
-                "name": "pressure_level-r2-dQ2-predict_vs_target",
+            "zonal_avg_pressure_level-mse-dQ1-mean_vs_target": {
+                "name": "zonal_avg_pressure_level-mse-dQ1-mean_vs_target",
                 "dims": [
-                    "pressure"
+                    "pressure",
+                    "lat_interp"
                 ],
                 "array": {
                     "shape": [
-                        35
+                        35,
+                        89
                     ],
                     "dtype": "<f8",
                     "chunks": [
-                        35
+                        35,
+                        89
                     ]
                 },
                 "attrs": {}
             },
-            "pressure_level-r2-dQu-predict_vs_target": {
-                "name": "pressure_level-r2-dQu-predict_vs_target",
+            "zonal_avg_pressure_level-mse-dQ2-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-mse-dQ2-predict_vs_target",
                 "dims": [
-                    "pressure"
+                    "pressure",
+                    "lat_interp"
                 ],
                 "array": {
                     "shape": [
-                        35
+                        35,
+                        89
                     ],
                     "dtype": "<f8",
                     "chunks": [
-                        35
+                        35,
+                        89
                     ]
                 },
                 "attrs": {}
             },
-            "pressure_level-r2-dQ1-predict_vs_target": {
-                "name": "pressure_level-r2-dQ1-predict_vs_target",
+            "zonal_avg_pressure_level-mse-dQ2-mean_vs_target": {
+                "name": "zonal_avg_pressure_level-mse-dQ2-mean_vs_target",
                 "dims": [
-                    "pressure"
+                    "pressure",
+                    "lat_interp"
                 ],
                 "array": {
                     "shape": [
-                        35
+                        35,
+                        89
                     ],
                     "dtype": "<f8",
                     "chunks": [
-                        35
+                        35,
+                        89
                     ]
                 },
                 "attrs": {}
             },
-            "pressure_level-r2-Q1-predict_vs_target": {
-                "name": "pressure_level-r2-Q1-predict_vs_target",
+            "zonal_avg_pressure_level-mse-Q1-predict_vs_target": {
+                "name": "zonal_avg_pressure_level-mse-Q1-predict_vs_target",
                 "dims": [
-                    "pressure"
+                    "pressure",
+                    "lat_interp"
                 ],
                 "array": {
                     "shape": [
-                        35
+                        35,
+                        89
                     ],
                     "dtype": "<f8",
                     "chunks": [
-                        35
+                        35,
+                        89
                     ]
                 },
                 "attrs": {}
             },
-            "pressure_level-r2-dQv-predict_vs_target": {
-                "name": "pressure_level-r2-dQv-predict_vs_target",
+            "zonal_avg_pressure_level-mse-Q1-mean_vs_target": {
+                "name": "zonal_avg_pressure_level-mse-Q1-mean_vs_target",
                 "dims": [
-                    "pressure"
+                    "pressure",
+                    "lat_interp"
                 ],
                 "array": {
                     "shape": [
-                        35
+                        35,
+                        89
                     ],
                     "dtype": "<f8",
                     "chunks": [
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "pressure_level-rmse-Q2-predict_vs_target": {
-                "name": "pressure_level-rmse-Q2-predict_vs_target",
-                "dims": [
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "pressure_level-rmse-Q2-mean_vs_target": {
-                "name": "pressure_level-rmse-Q2-mean_vs_target",
-                "dims": [
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "pressure_level-rmse-dQ2-predict_vs_target": {
-                "name": "pressure_level-rmse-dQ2-predict_vs_target",
-                "dims": [
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "pressure_level-rmse-dQ2-mean_vs_target": {
-                "name": "pressure_level-rmse-dQ2-mean_vs_target",
-                "dims": [
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "pressure_level-rmse-dQu-predict_vs_target": {
-                "name": "pressure_level-rmse-dQu-predict_vs_target",
-                "dims": [
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "pressure_level-rmse-dQu-mean_vs_target": {
-                "name": "pressure_level-rmse-dQu-mean_vs_target",
-                "dims": [
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "pressure_level-rmse-dQ1-predict_vs_target": {
-                "name": "pressure_level-rmse-dQ1-predict_vs_target",
-                "dims": [
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "pressure_level-rmse-dQ1-mean_vs_target": {
-                "name": "pressure_level-rmse-dQ1-mean_vs_target",
-                "dims": [
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "pressure_level-rmse-Q1-predict_vs_target": {
-                "name": "pressure_level-rmse-Q1-predict_vs_target",
-                "dims": [
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "pressure_level-rmse-Q1-mean_vs_target": {
-                "name": "pressure_level-rmse-Q1-mean_vs_target",
-                "dims": [
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "pressure_level-rmse-dQv-predict_vs_target": {
-                "name": "pressure_level-rmse-dQv-predict_vs_target",
-                "dims": [
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        35
-                    ]
-                },
-                "attrs": {}
-            },
-            "pressure_level-rmse-dQv-mean_vs_target": {
-                "name": "pressure_level-rmse-dQv-mean_vs_target",
-                "dims": [
-                    "pressure"
-                ],
-                "array": {
-                    "shape": [
-                        35
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        35
+                        35,
+                        89
                     ]
                 },
                 "attrs": {}
