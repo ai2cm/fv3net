@@ -3,7 +3,10 @@ data_table: default
 diag_table: /fv3net/workflows/prognostic_c48_run/diag_table_prognostic
 diagnostics:
 - name: diags.zarr
-  output_variables:
+  times:
+    frequency: 900
+    kind: interval
+  variables:
   - net_moistening
   - net_moistening_diagnostic
   - net_heating
@@ -14,9 +17,6 @@ diagnostics:
   - column_integrated_dQu_diagnostic
   - column_integrated_dQv
   - column_integrated_dQv_diagnostic
-  times:
-    frequency: 900
-    kind: interval
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 gfs_analysis_data:

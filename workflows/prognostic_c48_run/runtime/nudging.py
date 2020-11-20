@@ -165,7 +165,9 @@ def get_nudging_tendency(
         var_state = state[name]
         var_reference = reference_state[name]
         return_data = (var_reference - var_state) / timescale.total_seconds()
-        return_data.assign_attrs({"units": f'{var_state.attrs.get("units", "")} s^-1'})
+        return_data = return_data.assign_attrs(
+            {"units": f'{var_state.attrs.get("units", "")} s^-1'}
+        )
         return_dict[name] = return_data
     return return_dict
 

@@ -131,8 +131,8 @@ def compute_nudging_diagnostics(
             wind_rotation_matrix, nudging_tendency["x_wind"], nudging_tendency["y_wind"]
         )
         rotation_mapping = {
-            ("u-wind", "x_wind"): u_tendency,
-            ("v-wind", "y_wind"): v_tendency,
+            ("eastward_wind", "x_wind"): u_tendency,
+            ("northward_wind", "y_wind"): v_tendency,
         }
         for names, tendency in rotation_mapping.items():
             a_name, d_name = names
@@ -173,5 +173,5 @@ def _mass_average(
 ) -> xr.DataArray:
     total_thickness = delp.sum(vertical_dim)
     mass_average = (da * delp).sum(vertical_dim) / total_thickness
-    mass_average.assign_attrs(**da.attrs)
+    mass_average = mass_average.assign_attrs(**da.attrs)
     return mass_average
