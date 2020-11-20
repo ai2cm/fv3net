@@ -144,5 +144,5 @@ def plot_zonal_avg(
         "pressure": "Pressure [Pa]",
     }
     data = data.rename(rename_axes).rename(title)
-    data.plot(yincrease=False, x="Latitude [deg]", **plot_kwargs)
+    data.plot(yincrease=False, x="Latitude [deg]", robust=True, **plot_kwargs)
     return fig
