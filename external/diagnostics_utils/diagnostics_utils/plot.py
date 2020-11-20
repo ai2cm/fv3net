@@ -129,23 +129,6 @@ def _plot_generic_data_array(
     return fig
 
 
-def plot_transect(
-    data: xr.DataArray,
-    xaxis: str = "lat",
-    yaxis: str = "pressure",
-    column_dim="derivation",
-    figsize: Tuple[int] = (10, 4),
-):
-    facetgrid = data.plot(
-        y=yaxis, x=xaxis, yincrease=False, col=column_dim, figsize=figsize
-    )
-    facetgrid.set_ylabels("Pressure [Pa]")
-    facetgrid.set_xlabels("Latitude [deg]")
-
-    f = facetgrid.fig
-    return f
-
-
 def plot_zonal_avg(
     data: xr.DataArray,
     rename_axes: Mapping = None,
