@@ -1,5 +1,6 @@
 import fsspec
 import json
+import numpy as np
 import os
 import shutil
 from typing import Mapping, Sequence
@@ -24,6 +25,58 @@ GRID_INFO_VARS = [
     "land_sea_mask",
     "area",
 ]
+ScalarMetrics = Mapping[str, Mapping[str, float]]
+
+
+def insert_scalar_metrics_r2(
+    metrics: ScalarMetrics,
+    predicted: Sequence[str],
+    mse_coord: str = "mse",
+    r2_coord: str = "r2",
+    predict_coord: str = "predict",
+    target_coord: str = "target",
+):
+    for var in predicted:
+        r2_name = f"scalar/r2/{var}/predict_vs_target"
+        mse = metrics[f"scalar/mse/{var}/predict_vs_target"]["mean"]
+        variance = metrics[f"scalar/mse/{var}/mean_vs_target"]["mean"]
+        # std is across batches
+        mse_std = metrics[f"scalar/mse/{var}/predict_vs_target"]["std"]
+        variance_std = metrics[f"scalar/mse/{var}/mean_vs_target"]["std"]
+        r2 = 1. - (mse / variance)
+        r2_std = r2 * np.sqrt((mse_std/mse)**2 + (variance_std/variance)**2)
+        metrics[r2_name] = {"mean": r2, "std": r2_std}
+    return metrics
+
+
+def insert_dataset_r2(
+    ds: xr.Dataset,
+    mse_coord: str = "mse",
+    r2_coord: str = "r2",
+    predict_coord: str = "predict",
+    target_coord: str = "target",
+):
+    mse_vars = [
+        var
+        for var in ds.data_vars
+        if (var.endswith(f"{predict_coord}_vs_{target_coord}") and mse_coord in var)
+    ]
+    for mse_var in mse_vars:
+        name_pieces = mse_var.split("-")
+        variance = "-".join(name_pieces[:-1] + [f"mean_vs_{target_coord}"])
+        r2_var = "-".join([s if s != mse_coord else r2_coord for s in name_pieces])
+        ds[r2_var] = 1.0 - ds[mse_var] / ds[variance]
+    return ds
+
+
+def mse_to_rmse(ds: xr.Dataset):
+    # replaces MSE variables with RMSE after the weighted avg is calculated
+    mse_vars = [var for var in ds.data_vars if "mse" in var]
+    for mse_var in mse_vars:
+        rmse_var = mse_var.replace("mse", "rmse")
+        ds[rmse_var] = np.sqrt(ds[mse_var])
+    return ds.drop(mse_vars)
+
 
 
 def load_grid_info(res: str = "c48"):

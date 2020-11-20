@@ -30,11 +30,21 @@ DELP_VAR = "pressure_thickness_of_atmospheric_layer"
 TOA_PRESSURE = 300.0  # Pa
 VERTICAL_PROFILE_MEAN_DIMS = ("time", "x", "y", "tile")
 
+metric_sets = {
+    "scalar_metrics_column_integrated_vars": {
+        "dim_tag": "scalar",
+
+        
+    }
+}
+
 
 def calc_metrics(
     ds: xr.Dataset,
     lat: xr.DataArray,
-    predicted: Sequence[str],
+    area: xr.DataArray,
+    delp: xr.DataArray,
+    predicted_vars: Sequence[str],
     predict_coord: str = PREDICT_COORD,
     target_coord: str = TARGET_COORD,
     derivation_dim: str = DERIVATION_DIM,
@@ -49,83 +59,82 @@ def calc_metrics(
     variables, assumed to include variables in
     list arg predicted as well as area and delp
     """
-    predicted_vars = predicted
-    column_integrated_names = [f"column_integrated_{name}" for name in predicted_vars]
+    column_integrated_vars = [f"column_integrated_{name}" for name in predicted_vars]
+    vertical_bias_vars = [var for var in predicted_vars if var not in ["Q1", "Q2"]]
+
     derivation_kwargs = {
         "predict_coord": predict_coord,
         "target_coord": target_coord,
         "derivation_dim": derivation_dim,
     }
 
-    ds = _insert_weights(ds, vertical_dim, area_var, delp_var)
-    area_weights = ds[area_var] / (ds[area_var].mean())
-    delp_weights = ds[delp_var] / ds[delp_var].mean(vertical_dim)
-
-    # scalar quantity metrics calculated for 2d column integrated vars
-    scalar_metrics_column_integrated_vars = _calc_same_dims_metrics(
-        ds,
-        dim_tag="scalar",
-        vars=column_integrated_names,
-        weights=[area_weights],
-        mean_dim_vars=None,
-        **derivation_kwargs,
-    )
-
-    # scalar quantity metrics are calculated at vertical levels first,
-    # then weighted by pressure level and then integrated
-    scalar_column_integrated_metrics = _calc_same_dims_metrics(
-        ds,
-        dim_tag="scalar",
-        vars=predicted_vars,
-        weights=[area_weights, delp_weights],
-        mean_dim_vars=None,
-        **derivation_kwargs,
-    )
-
+    area_weights = area / (area.mean())
+    delp_weights = delp / delp.mean(vertical_dim)
     ds_regrid_z = _regrid_dataset_zdim(
         ds, vertical_dim, pressure_dim, delp_var, toa_pressure, **derivation_kwargs
     )
 
-    pressure_level_metrics = _calc_same_dims_metrics(
-        ds_regrid_z,
-        dim_tag="pressure_level",
-        vars=predicted_vars,
-        weights=[area_weights],
-        mean_dim_vars=vertical_profile_mean_dims,
-        **derivation_kwargs,
-    )
+    metric_sets = {
+        "scalar_metrics_column_integrated_vars": {
+            "ds": ds,
+            "dim_tag": "scalar",
+            "vars": column_integrated_vars,
+            "weights": [area_weights],
+            "mean_dim_vars": None,        
+        },
+        "scalar_column_integrated_metrics": {
+            "ds": ds,
+            "dim_tag": "scalar",
+            "vars": predicted_vars,
+            "weights": [area_weights, delp_weights],
+            "mean_dim_vars": None,        
+        },        
+        "pressure_level_metrics": {
+            "ds": ds_regrid_z,
+            "dim_tag": "pressure_level",
+            "vars": predicted_vars,
+            "weights": [area_weights],
+            "mean_dim_vars": vertical_profile_mean_dims,
+        },
+        "zonal_avg_pressure_level": {
+            "ds": ds_regrid_z,
+            "dim_tag": "zonal_avg_pressure_level",
+            "vars": vertical_bias_vars,
+            "weights": [],
+            "mean_dim_vars": ["time"],
+            "metric_funcs": (_bias,)
+        }
+    }
 
-    vertical_bias_vars = [var for var in predicted_vars if var not in ["Q1", "Q2"]]
-    gridded_pressure_level_bias = _calc_same_dims_metrics(
-        ds_regrid_z,
-        dim_tag="zonal_avg_pressure_level",
-        vars=vertical_bias_vars,
-        weights=[],
-        mean_dim_vars=["time"],
-        metric_funcs=(_bias,),
-        **derivation_kwargs,
-    )
-    zonal_avg_pressure_level_bias = zonal_average_approximate(
-        lat, gridded_pressure_level_bias
-    ).rename({"lat": "lat_interp"})
-
+    metrics = []
+    for group, kwargs in metric_sets.items():
+        metrics_ = _calc_same_dims_metrics(**kwargs)
+        if "zonal_avg" in group:
+            metrics_ = zonal_average_approximate(lat, metrics_).rename({"lat": "lat_interp"})
+        metrics.append(metrics_)
+    """
     zonal_avg_pressure_level_r2 = _zonal_avg_r2(
         safe.get_variables(ds_regrid_z, predicted_vars),
         lat,
         mean_dims=["time"],
         dim_tag="zonal_avg_pressure_level",
     ).rename({"lat": "lat_interp"})
-
-    ds = xr.merge(
-        [
-            scalar_metrics_column_integrated_vars,
-            scalar_column_integrated_metrics,
-            pressure_level_metrics,
-            zonal_avg_pressure_level_bias,
-            zonal_avg_pressure_level_r2,
+    """
+    zonal_error = []
+    for var in predicted_vars:
+        mse_zonal , variance_zonal = _zonal_avg_mse_variance(
+            target=ds_regrid_z[var].sel({derivation_dim: target_coord}),
+            predict=ds_regrid_z[var].sel({derivation_dim: predict_coord}),
+            lat=lat,
+            mean_dims=["time"],
+            dim_tag="zonal_avg_pressure_level",
+            )
+        zonal_error += [
+            mse_zonal.rename({"lat": "lat_interp"}),
+            variance_zonal.rename({"lat": "lat_interp"})
         ]
-    )
-    return ds.pipe(_insert_r2).pipe(_mse_to_rmse)
+    ds = xr.merge(metrics + zonal_error)
+    return ds #.pipe(_insert_r2).pipe(_mse_to_rmse)
 
 
 def _regrid_dataset_zdim(
@@ -210,7 +219,7 @@ def _calc_same_dims_metrics(
     return metrics
 
 
-def _insert_r2(
+def insert_r2(
     ds: xr.Dataset,
     mse_coord: str = "mse",
     r2_coord: str = "r2",
@@ -223,31 +232,20 @@ def _insert_r2(
         if (var.endswith(f"{predict_coord}_vs_{target_coord}") and mse_coord in var)
     ]
     for mse_var in mse_vars:
-        name_pieces = mse_var.split("/")
-        variance = "/".join(name_pieces[:-1] + [f"mean_vs_{target_coord}"])
-        r2_var = "/".join([s if s != mse_coord else r2_coord for s in name_pieces])
+        name_pieces = mse_var.split("-")
+        variance = "-".join(name_pieces[:-1] + [f"mean_vs_{target_coord}"])
+        r2_var = "-".join([s if s != mse_coord else r2_coord for s in name_pieces])
         ds[r2_var] = 1.0 - ds[mse_var] / ds[variance]
     return ds
 
 
-def _mse_to_rmse(ds: xr.Dataset):
+def mse_to_rmse(ds: xr.Dataset):
     # replaces MSE variables with RMSE after the weighted avg is calculated
     mse_vars = [var for var in ds.data_vars if "mse" in var]
     for mse_var in mse_vars:
         rmse_var = mse_var.replace("mse", "rmse")
         ds[rmse_var] = np.sqrt(ds[mse_var])
     return ds.drop(mse_vars)
-
-
-def _insert_weights(
-    ds,
-    vertical_dim: str = VERTICAL_DIM,
-    area_var: str = AREA_VAR,
-    delp_var: str = DELP_VAR,
-):
-    ds[f"{area_var}_weights"] = ds[area_var] / (ds[area_var].mean())
-    ds[f"{delp_var}_weights"] = ds[delp_var] / ds[delp_var].mean(vertical_dim)
-    return ds
 
 
 def _insert_means(
@@ -339,30 +337,27 @@ def _weighted_average(
     return data_copy.mean(dim=mean_dims, skipna=True)
 
 
-def _zonal_avg_r2(
-    ds,
+def _zonal_avg_mse_variance(
+    target: xr.DataArray,
+    predict: xr.DataArray,
     lat,
     dim_tag,
     mean_dims: Sequence[str] = None,
-    predict_coord: str = PREDICT_COORD,
-    target_coord: str = TARGET_COORD,
-    derivation_dim: str = DERIVATION_DIM,
 ):
     """
     Compute the percent of variance explained of the anomaly from the zonal mean
     This is done separately from the _calc_metrics func because it uses the
     zonal_average_approximate function.
     """
-    r2 = xr.Dataset()
-    for var in ds.data_vars:
-        target = ds[var].sel({derivation_dim: target_coord})
-        predict = ds[var].sel({derivation_dim: predict_coord})
-        sse = (predict - target) ** 2
-        sse_zonal = zonal_average_approximate(lat, sse)
-        ss_mean = (
-            zonal_average_approximate(lat, target ** 2)
-            - zonal_average_approximate(lat, target) ** 2
-        )
-        name = f"{dim_tag}/r2/{var}/{predict_coord}_vs_{target_coord}"
-        r2[name] = 1 - (sse_zonal.mean(mean_dims) / ss_mean.mean(mean_dims))
-    return r2
+    var = predict.name
+    sse = (predict - target) ** 2
+    mse_zonal = zonal_average_approximate(lat, sse).mean(mean_dims) \
+        .rename(f"{dim_tag}/mse/{var}/predict_vs_target")
+
+    variance_zonal = (
+        zonal_average_approximate(lat, target ** 2)
+        - zonal_average_approximate(lat, target) ** 2
+    ).mean(mean_dims) \
+        .rename(f"{dim_tag}/mse/{var}/mean_vs_target")
+    
+    return mse_zonal , variance_zonal

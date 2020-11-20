@@ -16,7 +16,10 @@ from ._helpers import (
     tidy_title,
     units_from_Q_name,
     column_integrated_metric_names,
+    insert_dataset_r2, insert_scalar_metrics_r2, mse_to_rmse
 )
+from ._select import plot_transect
+
 
 DERIVATION_DIM = "derivation"
 DOMAIN_DIM = "domain"
@@ -84,6 +87,7 @@ if __name__ == "__main__":
         metrics_json_name=JSON_FILE_METRICS,
         config_name="config.yaml",
     )
+    ds_diags = ds_diags.pipe(insert_dataset_r2).pipe(mse_to_rmse)
     timesteps = config["batch_kwargs"].pop("timesteps")
     config.pop("mapping_kwargs", None)  # this item clutters the report
     if args.commit_sha:
@@ -91,9 +95,10 @@ if __name__ == "__main__":
     timesteps = [
         vcm.cast_to_datetime(vcm.parse_datetime_from_str(t)) for t in timesteps
     ]
-
     report_sections = {}
-
+    
+    
+    
     # histogram of timesteps used for testing
     fig = fv3viz.plot_daily_and_hourly_hist(timesteps)
     fig.set_size_inches(10, 3)
@@ -199,7 +204,7 @@ if __name__ == "__main__":
     # transect of predicted fields at lon=0
     transect_time = ds_transect.time.item()
     for var in ds_transect:
-        fig = diagplot.plot_transect(ds_transect[var])
+        fig = plot_transect(ds_transect[var])
         insert_report_figure(
             report_sections,
             fig,
@@ -210,6 +215,7 @@ if __name__ == "__main__":
 
     # scalar metrics for RMSE and bias
     metrics_formatted = {}
+    metrics = insert_scalar_metrics_r2(metrics, column_integrated_metrics)
     for var in column_integrated_metrics:
         metrics_formatted[var.replace("_", " ")] = {
             "r2": get_metric_string(metrics, "r2", var),
