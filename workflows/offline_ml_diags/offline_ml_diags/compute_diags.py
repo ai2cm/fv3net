@@ -79,9 +79,11 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "--snapshot-time",
         type=str,
         default=None,
-        help=("Timestep to use for snapshot. Provide a string 'YYYYMMDD.HHMMSS'. "
-        "If provided, will use the closest timestep in the test set. If not, will "
-        "default to use the first timestep available."),
+        help=(
+            "Timestep to use for snapshot. Provide a string 'YYYYMMDD.HHMMSS'. "
+            "If provided, will use the closest timestep in the test set. If not, will "
+            "default to use the first timestep available."
+        ),
     )
     return parser.parse_args()
 
@@ -155,7 +157,6 @@ def _compute_diags_over_batches(
             grid["area"],
             ds["pressure_thickness_of_atmospheric_layer"],
             predicted_vars=metric_vars,
-
         )
 
         batches_summary.append(ds_summary.load())
@@ -239,7 +240,7 @@ def _get_prediction_mapper(args, config: Mapping, variables: Sequence[str]):
     )
 
 
-def _get_transect(ds_snapshot: xr.Dataset, variables: Sequence[str]):
+def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence[str]):
     ds_snapshot_regrid_pressure = xr.Dataset()
     for var in variables:
         transect_var = [
@@ -251,7 +252,10 @@ def _get_transect(ds_snapshot: xr.Dataset, variables: Sequence[str]):
             for deriv in ["target", "predict"]
         ]
         ds_snapshot_regrid_pressure[var] = xr.concat(transect_var, dim="derivation")
-    ds_transect = meridional_transect(safe.get_variables(ds_snapshot_regrid_pressure, variables))
+    ds_snapshot_regrid_pressure = xr.merge([ds_snapshot_regrid_pressure, grid])
+    ds_transect = meridional_transect(
+        safe.get_variables(ds_snapshot_regrid_pressure, variables + ["lat", "lon"])
+    )
     return ds_transect
 
 
@@ -300,10 +304,7 @@ if __name__ == "__main__":
     snapshot_time = args.snapshot_time or sorted(list(pred_mapper.keys()))[0]
     snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
     ds_snapshot = pred_mapper[snapshot_key]
-    ds_transect = _get_transect(
-        xr.merge([ds_snapshot, grid["lat"], grid["lon"]]),
-        config["output_variables"]
-    )
+    ds_transect = _get_transect(ds_snapshot, grid, config["output_variables"])
 
     # write diags and diurnal datasets
     _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
