@@ -5,6 +5,7 @@ import pytest
 import xarray as xr
 
 from fv3fit.sklearn._wrapper import RegressorEnsemble, pack, SklearnWrapper
+from sklearn.ensemble import RandomForestRegressor
 from fv3fit._shared.scaler import ManualScaler
 
 
@@ -50,9 +51,16 @@ def test_flatten_same_order():
     np.testing.assert_allclose(a, b)
 
 
+@pytest.fixture(params=["LinearRegression"])
+def base_regressor(request):
+    if request.param == "LinearRegression":
+        return LinearRegression()
+    elif request.param == "RandomForestRegressor":
+        return RandomForestRegressor(n_estimators=2, max_depth=2, random_state=0)
+
+
 @pytest.fixture
-def test_regressor_ensemble():
-    base_regressor = LinearRegression()
+def test_regressor_ensemble(base_regressor):
     ensemble_regressor = RegressorEnsemble(base_regressor)
     num_batches = 3
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
@@ -60,6 +68,22 @@ def test_regressor_ensemble():
     for i in range(num_batches):
         ensemble_regressor.fit(X, y)
     return ensemble_regressor
+
+
+@pytest.mark.parametrize("base_regressor", ["RandomForestRegressor"], indirect=True)
+def test_consolidate_ensemble(test_regressor_ensemble):
+    regressor_ensemble = test_regressor_ensemble
+
+    X_test = np.array([[0, 1], [0, 2], [1, 3], [2, 3]])
+    before_consolidate = regressor_ensemble.predict(X_test)
+    assert len(regressor_ensemble.regressors) == 3
+
+    regressor_ensemble._consolidate()
+    after_consolidate = regressor_ensemble.predict(X_test)
+    assert len(regressor_ensemble.regressors) == 1
+    # 3 random forests in original ensemble, each with 2 trees
+    assert len(regressor_ensemble.regressors[0].estimators_) == 6
+    np.testing.assert_array_almost_equal(before_consolidate, after_consolidate)
 
 
 def test_ensemble_fit(test_regressor_ensemble):

@@ -1,6 +1,6 @@
 import abc
 import io
-from copy import copy
+from copy import copy, deepcopy
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -33,6 +33,22 @@ class RegressorEnsemble:
     ) -> None:
         self.base_regressor = base_regressor
         self.regressors = regressors or []
+
+    def _consolidate(self):
+        if not hasattr(self.base_regressor, "n_estimators"):
+            raise AttributeError(
+                "Base regressor class must be an ensemble of estimators in order to "
+                "consolidate ensemble into single regressor.")
+        if len(self.regressors) == 0:
+            raise RuntimeError(
+                "RegressorEnsemble must be fit before consolidating ensemble into "
+                "single regressor.")
+        consolidated_regressor = deepcopy(self.regressors[0])
+        consolidated_regressor.estimators_ = []
+        for regressor in self.regressors:
+            consolidated_regressor.estimators_ += regressor.estimators_
+        consolidated_regressor.n_estimators = len(consolidated_regressor.estimators_)
+        self.regressors = [consolidated_regressor]
 
     @property
     def n_estimators(self):
@@ -71,6 +87,8 @@ class RegressorEnsemble:
         return np.mean(predictions, axis=0)
 
     def dumps(self) -> bytes:
+        if hasattr(self.base_regressor, "n_estimators"):
+            self._consolidate()
         batch_regressor_components = {
             "regressors": self.regressors,
             "base_regressor": self.base_regressor,
