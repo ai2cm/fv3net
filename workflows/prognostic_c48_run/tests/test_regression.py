@@ -22,6 +22,20 @@ IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
 ORO_PATH = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
 FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
 LOG_PATH = "statistics.txt"
+DIAGNOSTICS = [
+    {
+        "name": "diags.zarr",
+        "output_variables": [
+            "net_moistening",
+            "net_heating",
+            "water_vapor_path",
+            "physics_precip",
+            "column_integrated_dQu",
+            "column_integrated_dQv",
+        ],
+        "times": {"kind": "interval", "frequency": 900},
+    },
+]
 
 default_fv3config = rf"""
 data_table: default
@@ -30,6 +44,7 @@ experiment_name: default_experiment
 forcing: gs://{FORCING_PATH.as_posix()}
 initial_conditions: gs://{IC_PATH.as_posix()}
 orographic_forcing: gs://{ORO_PATH.as_posix()}
+diagnostics: {DIAGNOSTICS}
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
@@ -323,9 +338,7 @@ namelist:
     ldebug: false
 """
 
-NUDGE_RUNFILE = (
-    Path(__file__).parent.parent.joinpath("nudging/nudging_runfile.py").as_posix()
-)
+NUDGE_RUNFILE = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
 # Necessary to know the number of restart timestamp folders to generate in fixture
 START_TIME = [2016, 8, 1, 0, 0, 0]
 TIMESTEP_MINUTES = 15
@@ -369,12 +382,7 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
 
     config["nudging"] = {
         "restarts_path": ".",
-        "timescale_hours": {
-            "air_temperature": 3.0,
-            "specific_humidity": 3.0,
-            "x_wind": 3.0,
-            "y_wind": 3.0,
-        },
+        "timescale_hours": {"air_temperature": 3.0, "specific_humidity": 3.0},
     }
 
     config.setdefault("patch_files", []).extend(
@@ -404,6 +412,7 @@ def get_prognostic_config(model_type, model_path):
             model_type="keras", model_loader_kwargs={"keras_model_type": "DummyModel"},
         )
     config["scikit_learn"] = sklearn_config
+    config["step_storage_variables"] = ["specific_humidity", "total_water"]
     # use local paths in prognostic_run image. fv3config
     # downloads data. We should change this once the fixes in
     # https://github.com/VulcanClimateModeling/fv3gfs-python/pull/78 propagates
