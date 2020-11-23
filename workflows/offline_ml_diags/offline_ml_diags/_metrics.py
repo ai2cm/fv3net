@@ -1,5 +1,5 @@
 import logging
-from typing import Sequence, Callable, Union
+from typing import Sequence, Callable, Union, Optional
 import warnings
 import xarray as xr
 
@@ -95,7 +95,7 @@ def calc_metrics(
 
     metrics = []
     for group, kwargs in metric_sets.items():
-        metrics_ = _calc_same_dims_metrics(**kwargs)
+        metrics_ = _calc_same_dims_metrics(**kwargs)  # type: ignore
         if "zonal_avg" in group:
             metrics_ = zonal_average_approximate(lat, metrics_).rename(
                 {"lat": "lat_interp"}
@@ -148,7 +148,7 @@ def _calc_same_dims_metrics(
     ds: xr.Dataset,
     dim_tag: str,
     vars: Sequence[str],
-    weights: Sequence[xr.DataArray] = None,
+    weights: Sequence[Union[float, xr.DataArray]] = None,
     mean_dim_vars: Sequence[str] = None,
     predict_coord: str = PREDICT_COORD,
     target_coord: str = TARGET_COORD,
@@ -202,7 +202,7 @@ def _insert_means(
     predict_coord: str = PREDICT_COORD,
     target_coord: str = TARGET_COORD,
     derivation_dim: str = DERIVATION_DIM,
-    weights: Sequence[xr.DataArray] = None,
+    weights: Sequence[Union[float, xr.DataArray]] = None,
     mean_dims: Sequence[str] = None,
 ) -> xr.Dataset:
     weights = weights or [1.0]
@@ -226,7 +226,7 @@ def _calc_metric(
     derivation_dim: str,
     target_coord: str,
     predict_coord: str,
-    weights: Sequence[xr.DataArray] = None,
+    weights: Sequence[Union[float, xr.DataArray]] = None,
     mean_dims: Sequence[str] = None,
 ) -> xr.DataArray:
     """helper function to calculate arbitrary metrics given the variable, target, and
@@ -251,9 +251,9 @@ def _calc_metric(
     """
     da_target = ds[var].sel({derivation_dim: target_coord})
     da_predict = ds[var].sel({derivation_dim: predict_coord})
-    metric = metric_func(da_target, da_predict)
+    metric = metric_func(da_target, da_predict)   # type: ignore
 
-    metric_weighted_average = _weighted_average(metric, weights, mean_dims)
+    metric_weighted_average = _weighted_average(metric, weights, mean_dims)  # type: ignore
     metric_name = (
         f"{metric_func.__name__.strip('_')}/{var}/{predict_coord}_vs_{target_coord}"
     )
@@ -272,7 +272,7 @@ def _mse(
 
 def _weighted_average(
     data: Union[xr.DataArray, xr.Dataset],
-    weights: Sequence[xr.DataArray],
+    weights: Sequence[Union[float, xr.DataArray]],
     mean_dims: Sequence[str] = None,
 ):
     # Differs from diagnostics_utils.weighted_average in that

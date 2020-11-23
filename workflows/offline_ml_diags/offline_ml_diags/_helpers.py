@@ -3,7 +3,7 @@ import json
 import numpy as np
 import os
 import shutil
-from typing import Mapping, Sequence
+from typing import Mapping, Sequence, Dict
 import yaml
 import xarray as xr
 
@@ -25,7 +25,7 @@ GRID_INFO_VARS = [
     "land_sea_mask",
     "area",
 ]
-ScalarMetrics = Mapping[str, Mapping[str, float]]
+ScalarMetrics = Dict[str, Mapping[str, float]]
 
 
 def insert_scalar_metrics_r2(
@@ -59,10 +59,10 @@ def insert_dataset_r2(
     mse_vars = [
         var
         for var in ds.data_vars
-        if (var.endswith(f"{predict_coord}_vs_{target_coord}") and mse_coord in var)
+        if (str(var).endswith(f"{predict_coord}_vs_{target_coord}") and mse_coord in str(var))
     ]
     for mse_var in mse_vars:
-        name_pieces = mse_var.split("-")
+        name_pieces = str(mse_var).split("-")
         variance = "-".join(name_pieces[:-1] + [f"mean_vs_{target_coord}"])
         r2_var = "-".join([s if s != mse_coord else r2_coord for s in name_pieces])
         ds[r2_var] = 1.0 - ds[mse_var] / ds[variance]
@@ -71,9 +71,9 @@ def insert_dataset_r2(
 
 def mse_to_rmse(ds: xr.Dataset):
     # replaces MSE variables with RMSE after the weighted avg is calculated
-    mse_vars = [var for var in ds.data_vars if "mse" in var]
+    mse_vars = [var for var in ds.data_vars if "mse" in str(var)]
     for mse_var in mse_vars:
-        rmse_var = mse_var.replace("mse", "rmse")
+        rmse_var = str(mse_var).replace("mse", "rmse")
         ds[rmse_var] = np.sqrt(ds[mse_var])
     return ds.drop(mse_vars)
 

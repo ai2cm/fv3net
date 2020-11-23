@@ -23,7 +23,7 @@ def plot_transect(
     xaxis: str = "lat",
     yaxis: str = "pressure",
     column_dim="derivation",
-    figsize: Tuple[int] = (10, 4),
+    figsize: Tuple[int, int] = (10, 4),
 ):
     facetgrid = data.plot(
         y=yaxis, x=xaxis, yincrease=False, col=column_dim, figsize=figsize, robust=True

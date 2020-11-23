@@ -6,6 +6,7 @@ import tempfile
 
 import fv3viz
 from report import insert_report_figure
+from typing import Mapping, Sequence
 import vcm
 import diagnostics_utils.plot as diagplot
 from ._helpers import (
@@ -45,7 +46,7 @@ def _cleanup_temp_dir(temp_dir):
     temp_dir.cleanup()
 
 
-def _create_arg_parser() -> argparse.ArgumentParser:
+def _create_arg_parser() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "input_path", type=str, help=("Location of diagnostics and metrics data."),
@@ -97,7 +98,7 @@ if __name__ == "__main__":
     timesteps = [
         vcm.cast_to_datetime(vcm.parse_datetime_from_str(t)) for t in timesteps
     ]
-    report_sections = {}
+    report_sections = {}   # type: Mapping[str, Sequence[str]]
 
     # histogram of timesteps used for testing
     fig = fv3viz.plot_daily_and_hourly_hist(timesteps)

@@ -53,7 +53,7 @@ DIAGNOSTIC_VARS = ("dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2")
 METRIC_VARS = ("dQ1", "dQ2", "Q1", "Q2")
 
 
-def _create_arg_parser() -> argparse.ArgumentParser:
+def _create_arg_parser() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("data_path", nargs="*", type=str, help="Location of test data")
     parser.add_argument(
@@ -115,8 +115,8 @@ def _compute_diags_over_batches(
     """Return a set of diagnostic datasets from a sequence of batched data"""
 
     batches_summary, batches_diurnal, batches_metrics = [], [], []
-    diagnostic_vars = list(set(predicted_vars + ["pQ1", "pQ2", "Q1", "Q2"]))
-    metric_vars = list(set(predicted_vars + ["Q1", "Q2"]))
+    diagnostic_vars = list(set(list(predicted_vars) + ["pQ1", "pQ2", "Q1", "Q2"]))
+    metric_vars = list(set(list(predicted_vars) + ["Q1", "Q2"]))
 
     # for each batch...
     for i, ds in enumerate(ds_batches):
@@ -139,9 +139,7 @@ def _compute_diags_over_batches(
         ds_summary = utils.reduce_to_diagnostic(
             ds,
             grid,
-            net_precipitation=-ds["column_integrated_Q2"].sel(
-                derivation=net_precip_domain_coord
-            ),
+            net_precipitation=-ds["column_integrated_Q2"].sel(derivation=net_precip_domain_coord),  # type: ignore
             primary_vars=diagnostic_vars,
         )
         add_net_precip_domain_info(ds_summary, net_precip_domain_coord)
@@ -150,8 +148,8 @@ def _compute_diags_over_batches(
         if DATASET_DIM_NAME in ds.dims:
             sample_dims = ("time", DATASET_DIM_NAME)
         else:
-            sample_dims = ("time",)
-        ds = ds.stack(sample=sample_dims)
+            sample_dims = ("time",)   # type: ignore
+        ds = ds.stack(sample=sample_dims) 
         ds_diurnal = utils.create_diurnal_cycle_dataset(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
         )
@@ -259,7 +257,7 @@ def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence
         ds_snapshot_regrid_pressure[var] = xr.concat(transect_var, dim="derivation")
     ds_snapshot_regrid_pressure = xr.merge([ds_snapshot_regrid_pressure, grid])
     ds_transect = meridional_transect(
-        safe.get_variables(ds_snapshot_regrid_pressure, variables + ["lat", "lon"])
+        safe.get_variables(ds_snapshot_regrid_pressure, list(variables) + ["lat", "lon"])
     )
     return ds_transect
 

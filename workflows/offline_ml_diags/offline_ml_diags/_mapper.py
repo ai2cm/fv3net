@@ -27,13 +27,13 @@ class PredictionMapper(GeoMapper):
         self._base_mapper = base_mapper
         self._model = wrapped_model
         self._z_dim = z_dim
-        self._grid = grid
+        self._grid = grid or xr.Dataset()
         self._variables = variables
         self.rename_vars = rename_vars or {}
 
     def _predict(self, ds: xr.Dataset) -> xr.Dataset:
         output = self._model.predict_columnwise(ds, feature_dim=self._z_dim)
-        return output.rename(self.rename_vars)
+        return output.rename(self.rename_vars)  # type: ignore
 
     def _insert_prediction(self, ds: xr.Dataset, ds_pred: xr.Dataset) -> xr.Dataset:
         predicted_vars = ds_pred.data_vars
@@ -53,7 +53,7 @@ class PredictionMapper(GeoMapper):
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = self._base_mapper[key]
         # Prioritize dataset's land_sea_mask if grid values disagree
-        ds = xr.merge([ds, self._grid], compat="override").assign_coords(
+        ds = xr.merge([ds, self._grid], compat="override").assign_coords(   # type: ignore
             {"time": parse_datetime_from_str(key)}
         )
         derived_mapping = DerivedMapping(ds)
