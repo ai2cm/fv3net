@@ -2,7 +2,7 @@ import fsspec
 import numpy as np
 import xarray as xr
 
-from consolidate_metadata import consolidate_metadata
+from fv3post.consolidate_metadata import consolidate_metadata
 
 
 def test_consolidate_metadata(tmpdir):
