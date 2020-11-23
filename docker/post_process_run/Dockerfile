@@ -1,4 +1,4 @@
-FROM ubuntu:19.10
+FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND="noninteractive"
 
@@ -21,8 +21,8 @@ RUN apt-get update && apt-get install -y \
 
 # install FRE-NCtools including fregrid
 COPY external/FRE-NCtools /FRE-NCtools
-RUN cd FRE-NCtools && export CFLAGS=-Wno-traditional && \autoreconf -i && \
-    ./configure && make && make install
+RUN cd FRE-NCtools && export CFLAGS=-Wno-traditional NETCDF_LDFLAGS=-lm && \
+    \autoreconf -i && ./configure && make && make install
 
 # install gcloud
 RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext
