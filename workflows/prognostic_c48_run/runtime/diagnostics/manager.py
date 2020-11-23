@@ -1,9 +1,18 @@
-from typing import Any, Sequence, Container, Mapping, List, Union
+from typing import (
+    Any,
+    Sequence,
+    Container,
+    Mapping,
+    List,
+    Union,
+)
 import datetime
 import cftime
+import logging
 import fv3gfs.util
-
 import xarray as xr
+
+logger = logging.getLogger(__name__)
 
 
 class All(Container):

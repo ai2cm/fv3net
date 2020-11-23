@@ -2,21 +2,25 @@ base_version: v0.5
 data_table: default
 diag_table: /fv3net/workflows/prognostic_c48_run/diag_table_prognostic
 diagnostics:
-- name: diags.zarr
-  times:
+- name: nudging_tendencies.zarr
+  times: &id001
     frequency: 900
     kind: interval
   variables:
-  - net_moistening
-  - net_moistening_diagnostic
-  - net_heating
-  - net_heating_diagnostic
+  - air_temperature_tendency_due_to_nudging
+  - specific_humidity_tendency_due_to_nudging
+  - x_wind_tendency_due_to_nudging
+  - y_wind_tendency_due_to_nudging
+- name: diags.zarr
+  times: *id001
+  variables:
+  - net_moistening_due_to_nudging
+  - net_heating_due_to_nudging
+  - net_mass_tendency_due_to_nudging
+  - column_integrated_eastward_wind_tendency_due_to_nudging
+  - column_integrated_northward_wind_tendency_due_to_nudging
   - water_vapor_path
   - physics_precip
-  - column_integrated_dQu
-  - column_integrated_dQu_diagnostic
-  - column_integrated_dQv
-  - column_integrated_dQv_diagnostic
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 initial_conditions:
@@ -209,7 +213,7 @@ namelist:
     dt_atmos: 900
     dt_ocean: 900
     force_date_from_namelist: true
-    hours: 1
+    hours: 4
     memuse_verbose: true
     minutes: 0
     months: 0
@@ -438,8 +442,6 @@ namelist:
     fvmxl: 99999
     ldebug: false
 nudging:
-  output_times:
-  - '20160801.003000'
   restarts_path: gs://ic-bucket
   timescale_hours:
     air_temperature: 12
@@ -447,4 +449,10 @@ nudging:
     x_wind: 12
     y_wind: 12
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
+step_storage_variables:
+- specific_humidity
+- total_water
+step_tendency_variables:
+- specific_humidity
+- air_temperature
 
