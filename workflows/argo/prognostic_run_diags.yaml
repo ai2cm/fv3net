@@ -140,9 +140,9 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: us.gcr.io/vcm-ml/regrid_c3072_diag
+      image: us.gcr.io/vcm-ml/post_process_run
       command:
-      - /usr/bin/regrid_prognostic_run_diags.sh
+      - fregrid_cubed_to_latlon_single_netcdf_input.sh
       - "{{inputs.parameters.output}}/diags.nc"
       - "{{inputs.parameters.output}}/diags_latlon.nc"
       env:

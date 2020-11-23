@@ -14,7 +14,10 @@ setup(
     package_dir={"": "."},
     package_data={},
     install_requires=requirements,
-    scripts=["fv3post/scripts/fregrid_cubed_to_latlon.sh"],
+    scripts=[
+        "fv3post/scripts/fregrid_cubed_to_latlon.sh",
+        "fv3post/scripts/fregrid_cubed_to_latlon_single_netcdf_input.sh",
+    ],
     test_suite="tests",
     tests_require=["pytest"],
     entry_points={
