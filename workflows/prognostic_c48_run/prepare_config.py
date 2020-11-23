@@ -66,7 +66,15 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="YYYYMMDD.HHMMSS timestamp to grab from the initial conditions url.",
     )
     parser.add_argument(
-        "--model_url", type=str, default=None, help="Remote url to a trained ML model.",
+        "--model_url",
+        type=str,
+        default=None,
+        help=(
+            "Remote url to a trained ML model. If a model is omitted (and not "
+            "specified in `user_config`'s `scikit-learn` `model` field either), then "
+            "no ML updating will be done. Also, if an ML model is provided, no "
+            "nudging will be done."
+        ),
     )
     parser.add_argument(
         "--nudge-to-observations", action="store_true", help="Nudge to observations",
