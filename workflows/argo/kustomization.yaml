@@ -7,6 +7,7 @@ resources:
 - run-fv3gfs.yaml
 - offline-diags.yaml
 - train-diags-prog.yaml
+- cubed-to-latlon.yaml
 
 configurations:
 - image-transformerconfig.yaml

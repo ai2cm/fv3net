@@ -1,4 +1,4 @@
-base_version: v0.4
+base_version: v0.5
 data_table: default
 diag_table: /fv3net/workflows/prognostic_c48_run/diag_table_prognostic
 diagnostics:
@@ -442,7 +442,7 @@ namelist:
     isubc_lw: 2
     isubc_sw: 2
     ivegsrc: 1
-    ldiag3d: false
+    ldiag3d: true
     lwhtr: true
     ncld: 5
     nst_anl: true
@@ -503,6 +503,7 @@ namelist:
     fvmnl: 99999
     fvmxl: 99999
     ldebug: false
+orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 patch_files:
 - copy_method: copy
   source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
@@ -712,4 +713,10 @@ patch_files:
 scikit_learn:
   diagnostic_ml: false
   model: gs://ml-model
+step_storage_variables:
+- specific_humidity
+- total_water
+step_tendency_variables:
+- specific_humidity
+- air_temperature
 

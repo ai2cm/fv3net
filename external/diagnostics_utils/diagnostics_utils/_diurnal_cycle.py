@@ -7,12 +7,7 @@ import xarray as xr
 from .config import VARNAMES
 from .utils import snap_mask_to_type
 
-FLATTEN_DIMS = [
-    "time",
-    "x",
-    "y",
-    "tile",
-]
+FLATTEN_DIMS = ["time", "x", "y", "tile", "sample"]
 DIURNAL_CYCLE_DIM = "local_time_hr"
 SURFACE_TYPE_DIM = "surface_type"
 
@@ -171,6 +166,9 @@ def _local_time(da_lon: xr.DataArray, da_time: xr.DataArray) -> xr.DataArray:
 def _bin_diurnal_cycle(
     da_var: xr.DataArray, local_time: xr.DataArray, n_bins,
 ):
+    # Ensure the labeled dimension order matches between da_var
+    # and local_time before converting to NumPy.
+    local_time = local_time.transpose(*da_var.dims)
     bins = np.linspace(0, 24, n_bins + 1)
     bin_means = binned_statistic(
         local_time.values.flatten(),

@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from typing import Sequence, Union
+from typing import Sequence, Union, Mapping
 import xarray as xr
 
 import fv3viz as visualize
@@ -126,4 +126,23 @@ def _plot_generic_data_array(
     plt.ylabel(ylabel)
     plt.title(title)
     plt.tight_layout()
+    return fig
+
+
+def plot_zonal_average(
+    data: xr.DataArray,
+    rename_axes: Mapping = None,
+    title: str = None,
+    plot_kwargs: Mapping = None,
+):
+    fig = plt.figure()
+    units = _units_from_Q_name(data.name) or ""
+    title = f"{title or data.name} {units}"
+    plot_kwargs = plot_kwargs or {}
+    rename_axes = rename_axes or {
+        "lat_interp": "Latitude [deg]",
+        "pressure": "Pressure [Pa]",
+    }
+    data = data.rename(rename_axes).rename(title)
+    data.plot(yincrease=False, x="Latitude [deg]", robust=True, **plot_kwargs)
     return fig

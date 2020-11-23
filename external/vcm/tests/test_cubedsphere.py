@@ -27,9 +27,17 @@ from vcm.cubedsphere.constants import (
     COORD_X_OUTER,
     COORD_Y_OUTER,
 )
-from vcm.cubedsphere.io import all_filenames, remove_duplicate_coords, subtile_filenames
+from vcm.cubedsphere.io import all_filenames
 from vcm.cubedsphere import create_fv3_grid
 from vcm.xarray_utils import assert_identical_including_dtype
+
+
+def remove_duplicate_coords(ds):
+    deduped_indices = {}
+    for dim in ds.dims:
+        _, i = np.unique(ds[dim], return_index=True)
+        deduped_indices[dim] = i
+    return ds.isel(deduped_indices)
 
 
 @pytest.fixture()
@@ -82,12 +90,6 @@ def test_shift_edge_var_to_center(
 
     with pytest.raises(ValueError):
         shift_edge_var_to_center(test_centered_vector)
-
-
-def test_subtile_filenames():
-    paths = subtile_filenames(prefix="test", tile=1, num_subtiles=2)
-    expected = ["test.tile1.nc.0000", "test.tile1.nc.0001"]
-    assert list(paths) == expected
 
 
 @pytest.mark.parametrize("n", [2, 4, 5, 16])

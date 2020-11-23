@@ -6,6 +6,7 @@ import tempfile
 
 import fv3viz
 from report import insert_report_figure
+from typing import Mapping, Sequence
 import vcm
 import diagnostics_utils.plot as diagplot
 from ._helpers import (
@@ -16,13 +17,19 @@ from ._helpers import (
     tidy_title,
     units_from_Q_name,
     column_integrated_metric_names,
+    insert_dataset_r2,
+    insert_scalar_metrics_r2,
+    mse_to_rmse,
 )
+from ._select import plot_transect
+
 
 DERIVATION_DIM = "derivation"
 DOMAIN_DIM = "domain"
 
 NC_FILE_DIAGS = "offline_diagnostics.nc"
 NC_FILE_DIURNAL = "diurnal_cycle.nc"
+NC_FILE_TRANSECT = "transect_lon0.nc"
 JSON_FILE_METRICS = "scalar_metrics.json"
 
 handler = logging.StreamHandler(sys.stdout)
@@ -39,7 +46,7 @@ def _cleanup_temp_dir(temp_dir):
     temp_dir.cleanup()
 
 
-def _create_arg_parser() -> argparse.ArgumentParser:
+def _create_arg_parser() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "input_path", type=str, help=("Location of diagnostics and metrics data."),
@@ -75,13 +82,15 @@ if __name__ == "__main__":
     temp_output_dir = tempfile.TemporaryDirectory()
     atexit.register(_cleanup_temp_dir, temp_output_dir)
 
-    ds_diags, ds_diurnal, metrics, config = open_diagnostics_outputs(
+    ds_diags, ds_diurnal, ds_transect, metrics, config = open_diagnostics_outputs(
         args.input_path,
         diagnostics_nc_name=NC_FILE_DIAGS,
         diurnal_nc_name=NC_FILE_DIURNAL,
+        transect_nc_name=NC_FILE_TRANSECT,
         metrics_json_name=JSON_FILE_METRICS,
         config_name="config.yaml",
     )
+    ds_diags = ds_diags.pipe(insert_dataset_r2).pipe(mse_to_rmse)
     timesteps = config["batch_kwargs"].pop("timesteps")
     config.pop("mapping_kwargs", None)  # this item clutters the report
     if args.commit_sha:
@@ -89,8 +98,7 @@ if __name__ == "__main__":
     timesteps = [
         vcm.cast_to_datetime(vcm.parse_datetime_from_str(t)) for t in timesteps
     ]
-
-    report_sections = {}
+    report_sections = {}  # type: Mapping[str, Sequence[str]]
 
     # histogram of timesteps used for testing
     fig = fv3viz.plot_daily_and_hourly_hist(timesteps)
@@ -102,6 +110,29 @@ if __name__ == "__main__":
         section_name="Timesteps used for testing",
         output_dir=temp_output_dir.name,
     )
+
+    # Zonal average of vertical profiles for bias and R2
+    zonal_avg_pressure_level_metrics = [
+        var
+        for var in ds_diags.data_vars
+        if var.startswith("zonal_avg_pressure")
+        and var.endswith("predict_vs_target")
+        and ("r2" in var or "bias" in var)
+    ]
+    for var in zonal_avg_pressure_level_metrics:
+        vmin, vmax = (0, 1) if "r2" in var.lower() else (None, None)
+        fig = diagplot.plot_zonal_average(
+            data=ds_diags[var],
+            title=tidy_title(var),
+            plot_kwargs={"vmin": vmin, "vmax": vmax},
+        )
+        insert_report_figure(
+            report_sections,
+            fig,
+            filename=f"zonal_avg_pressure_{var}.png",
+            section_name="Zonal averaged pressure level metrics",
+            output_dir=temp_output_dir.name,
+        )
 
     # vertical profiles of bias and R2
     pressure_level_metrics = [
@@ -171,8 +202,21 @@ if __name__ == "__main__":
             output_dir=temp_output_dir.name,
         )
 
+    # transect of predicted fields at lon=0
+    transect_time = ds_transect.time.item()
+    for var in ds_transect:
+        fig = plot_transect(ds_transect[var])
+        insert_report_figure(
+            report_sections,
+            fig,
+            filename=f"transect_lon0_{var}.png",
+            section_name=f"Transect snapshot at lon=0 deg, {transect_time}",
+            output_dir=temp_output_dir.name,
+        )
+
     # scalar metrics for RMSE and bias
     metrics_formatted = {}
+    metrics = insert_scalar_metrics_r2(metrics, column_integrated_metrics)
     for var in column_integrated_metrics:
         metrics_formatted[var.replace("_", " ")] = {
             "r2": get_metric_string(metrics, "r2", var),
@@ -196,3 +240,4 @@ if __name__ == "__main__":
     # described in https://github.com/shoyer/h5netcdf/issues/50
     ds_diags.close()
     ds_diurnal.close()
+    ds_transect.close()

@@ -3,7 +3,9 @@
 
 """The setup script."""
 
-from setuptools import find_packages, setup
+from setuptools import find_packages
+from glob import glob
+from numpy.distutils.core import Extension, setup
 
 install_requirements = [
     "Click>=7.0",
@@ -18,7 +20,6 @@ install_requirements = [
     "scikit-image",
     "metpy",
     "pooch==1.1.1",
-    "numba",
     "intake",
     "gcsfs",
     "zarr",
@@ -28,7 +29,7 @@ install_requirements = [
     "pytest-regtest",
     "h5netcdf>=0.8",
     "docrep<0.3.0,>=0.2.0",
-    "intake-xarray==0.3.1",
+    "intake-xarray>=0.3.1",
 ]
 
 
@@ -54,4 +55,5 @@ setup(
     packages=find_packages(),
     version="0.1.0",
     zip_safe=False,
+    ext_modules=[Extension(name="vcm.mappm", sources=glob("vcm/*.f90"))],
 )

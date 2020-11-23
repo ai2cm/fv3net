@@ -215,8 +215,8 @@ spec:
       args:
       - |
         gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
-        post_process.py --chunks /mnt/data/chunks.yaml /mnt/data/rundir /tmp/processed_rundir
-        append.py /tmp/processed_rundir {{inputs.parameters.output-url}}
+        post_process_run --chunks /mnt/data/chunks.yaml /mnt/data/rundir /tmp/processed_rundir
+        append_run /tmp/processed_rundir {{inputs.parameters.output-url}}
         rsync -r /mnt/data/rundir/RESTART/ /mnt/data/RESTART/
         rm -r /mnt/data/rundir
         rm -r /tmp/processed_rundir
