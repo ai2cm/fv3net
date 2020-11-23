@@ -59,7 +59,10 @@ def insert_dataset_r2(
     mse_vars = [
         var
         for var in ds.data_vars
-        if (str(var).endswith(f"{predict_coord}_vs_{target_coord}") and mse_coord in str(var))
+        if (
+            str(var).endswith(f"{predict_coord}_vs_{target_coord}")
+            and mse_coord in str(var)
+        )
     ]
     for mse_var in mse_vars:
         name_pieces = str(mse_var).split("-")

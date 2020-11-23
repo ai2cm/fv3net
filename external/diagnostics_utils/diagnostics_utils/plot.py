@@ -129,7 +129,7 @@ def _plot_generic_data_array(
     return fig
 
 
-def plot_zonal_avg(
+def plot_zonal_average(
     data: xr.DataArray,
     rename_axes: Mapping = None,
     title: str = None,

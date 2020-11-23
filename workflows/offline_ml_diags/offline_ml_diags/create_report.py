@@ -98,7 +98,7 @@ if __name__ == "__main__":
     timesteps = [
         vcm.cast_to_datetime(vcm.parse_datetime_from_str(t)) for t in timesteps
     ]
-    report_sections = {}   # type: Mapping[str, Sequence[str]]
+    report_sections = {}  # type: Mapping[str, Sequence[str]]
 
     # histogram of timesteps used for testing
     fig = fv3viz.plot_daily_and_hourly_hist(timesteps)
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     ]
     for var in zonal_avg_pressure_level_metrics:
         vmin, vmax = (0, 1) if "r2" in var.lower() else (None, None)
-        fig = diagplot.plot_zonal_avg(
+        fig = diagplot.plot_zonal_average(
             data=ds_diags[var],
             title=tidy_title(var),
             plot_kwargs={"vmin": vmin, "vmax": vmax},

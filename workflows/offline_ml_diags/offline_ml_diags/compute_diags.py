@@ -139,7 +139,9 @@ def _compute_diags_over_batches(
         ds_summary = utils.reduce_to_diagnostic(
             ds,
             grid,
-            net_precipitation=-ds["column_integrated_Q2"].sel(derivation=net_precip_domain_coord),  # type: ignore
+            net_precipitation=-ds["column_integrated_Q2"].sel(  # type: ignore
+                derivation=net_precip_domain_coord
+            ),
             primary_vars=diagnostic_vars,
         )
         add_net_precip_domain_info(ds_summary, net_precip_domain_coord)
@@ -148,8 +150,8 @@ def _compute_diags_over_batches(
         if DATASET_DIM_NAME in ds.dims:
             sample_dims = ("time", DATASET_DIM_NAME)
         else:
-            sample_dims = ("time",)   # type: ignore
-        ds = ds.stack(sample=sample_dims) 
+            sample_dims = ("time",)  # type: ignore
+        ds = ds.stack(sample=sample_dims)
         ds_diurnal = utils.create_diurnal_cycle_dataset(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
         )
@@ -257,7 +259,9 @@ def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence
         ds_snapshot_regrid_pressure[var] = xr.concat(transect_var, dim="derivation")
     ds_snapshot_regrid_pressure = xr.merge([ds_snapshot_regrid_pressure, grid])
     ds_transect = meridional_transect(
-        safe.get_variables(ds_snapshot_regrid_pressure, list(variables) + ["lat", "lon"])
+        safe.get_variables(
+            ds_snapshot_regrid_pressure, list(variables) + ["lat", "lon"]
+        )
     )
     return ds_transect
 

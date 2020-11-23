@@ -1,5 +1,5 @@
 import logging
-from typing import Sequence, Callable, Union, Optional
+from typing import Sequence, Callable, Union
 import warnings
 import xarray as xr
 
@@ -28,6 +28,8 @@ TOA_PRESSURE = 300.0  # Pa
 VERTICAL_PROFILE_MEAN_DIMS = ("sample", "x", "y", "tile")
 
 metric_sets = {"scalar_metrics_column_integrated_vars": {"dim_tag": "scalar"}}
+
+MetricFunctionInputs = Union[xr.DataArray, xr.DataArray, xr.DataArray, Sequence[str]]
 
 
 def calc_metrics(
@@ -108,8 +110,13 @@ def calc_metrics(
             target=ds_regrid_z[var].sel({derivation_dim: target_coord}),
             predict=ds_regrid_z[var].sel({derivation_dim: predict_coord}),
             lat=lat,
-            mean_dims=["sample"],
-            dim_tag="zonal_avg_pressure_level",
+            dims=["sample"],
+        )
+        mse_zonal = mse_zonal.rename(
+            f"zonal_avg_pressure_level/mse/{var}/predict_vs_target"
+        )
+        variance_zonal = variance_zonal.rename(
+            f"zonal_avg_pressure_level/mse/{var}/mean_vs_target"
         )
         zonal_error += [
             mse_zonal.rename({"lat": "lat_interp"}),
@@ -153,7 +160,7 @@ def _calc_same_dims_metrics(
     predict_coord: str = PREDICT_COORD,
     target_coord: str = TARGET_COORD,
     derivation_dim: str = DERIVATION_DIM,
-    metric_funcs: Sequence[Callable] = None,
+    metric_funcs: Sequence[Callable] = (),
 ) -> xr.Dataset:
     """Computes a set of metrics that all have the same dimension,
     ex. mean vertical error profile on pressure levels, or global mean scalar error
@@ -219,9 +226,7 @@ def _insert_means(
 
 def _calc_metric(
     ds: xr.Dataset,
-    metric_func: Callable[
-        [xr.DataArray, xr.DataArray, xr.DataArray, Sequence[str]], xr.DataArray
-    ],
+    metric_func: Callable[[MetricFunctionInputs, MetricFunctionInputs], xr.DataArray],
     var: str,
     derivation_dim: str,
     target_coord: str,
@@ -251,9 +256,11 @@ def _calc_metric(
     """
     da_target = ds[var].sel({derivation_dim: target_coord})
     da_predict = ds[var].sel({derivation_dim: predict_coord})
-    metric = metric_func(da_target, da_predict)   # type: ignore
+    metric = metric_func(da_target, da_predict)
 
-    metric_weighted_average = _weighted_average(metric, weights, mean_dims)  # type: ignore
+    metric_weighted_average = _weighted_average(
+        metric, weights, mean_dims  # type: ignore
+    )
     metric_name = (
         f"{metric_func.__name__.strip('_')}/{var}/{predict_coord}_vs_{target_coord}"
     )
@@ -286,32 +293,19 @@ def _weighted_average(
 
 
 def _zonal_avg_mse_variance(
-    target: xr.DataArray,
-    predict: xr.DataArray,
-    lat,
-    dim_tag,
-    mean_dims: Sequence[str] = None,
+    target: xr.DataArray, predict: xr.DataArray, lat, dims: Sequence[str] = None,
 ):
     """
     Compute the percent of variance explained of the anomaly from the zonal mean
     This is done separately from the _calc_metrics func because it uses the
     zonal_average_approximate function.
     """
-    var = predict.name
     sse = (predict - target) ** 2
-    mse_zonal = (
-        zonal_average_approximate(lat, sse)
-        .mean(mean_dims)
-        .rename(f"{dim_tag}/mse/{var}/predict_vs_target")
-    )
+    mse_zonal = zonal_average_approximate(lat, sse).mean(dims)
 
     variance_zonal = (
-        (
-            zonal_average_approximate(lat, target ** 2)
-            - zonal_average_approximate(lat, target) ** 2
-        )
-        .mean(mean_dims)
-        .rename(f"{dim_tag}/mse/{var}/mean_vs_target")
-    )
+        zonal_average_approximate(lat, target ** 2)
+        - zonal_average_approximate(lat, target) ** 2
+    ).mean(dims)
 
     return mse_zonal, variance_zonal

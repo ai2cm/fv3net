@@ -22,7 +22,7 @@ def plot_transect(
     data: xr.DataArray,
     xaxis: str = "lat",
     yaxis: str = "pressure",
-    column_dim="derivation",
+    column_dim: str = "derivation",
     figsize: Tuple[int, int] = (10, 4),
 ):
     facetgrid = data.plot(
