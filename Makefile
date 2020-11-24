@@ -64,6 +64,13 @@ enter: build_image
 build_ci_image:
 	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
 
+prog_dev:
+	docker run -ti --entrypoint bash \
+		-v $(pwd):/workdir \
+		-v /mnt/disks/scratch/rundir:/rundir \
+		-w /rundir  \
+		us.gcr.io/vcm-ml/prognostic_run:latest
+
 ## Install K8s and cluster manifests for local development
 ## Do not run for the GKE cluster
 deploy_local:
