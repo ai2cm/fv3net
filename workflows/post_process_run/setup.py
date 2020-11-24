@@ -17,6 +17,8 @@ setup(
     scripts=[
         "fv3post/scripts/fregrid_cubed_to_latlon.sh",
         "fv3post/scripts/fregrid_cubed_to_latlon_single_netcdf_input.sh",
+        "fv3post/scripts/print_fields.py",
+        "fv3post/scripts/single_netcdf_to_tiled.py",
     ],
     test_suite="tests",
     tests_require=["pytest"],

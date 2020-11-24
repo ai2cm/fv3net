@@ -12,8 +12,8 @@ then
 fi
 
 gsutil cp $input /tmp/data.nc
-python3 -m fv3post.scripts.single_netcdf_to_tiled /tmp/data.nc /tmp/tiled_data
-fields="$(python3 -m fv3post.scripts.print_fields /tmp/tiled_data.tile1.nc)"
+single_netcdf_to_tiled.py /tmp/data.nc /tmp/tiled_data
+fields="$(print_fields.py /tmp/tiled_data.tile1.nc)"
 
 fregrid_cubed_to_latlon.sh /tmp/tiled_data $output C48 $fields --nlon 360 --nlat 180
 
