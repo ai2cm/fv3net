@@ -118,10 +118,14 @@ update_submodules:
 install_deps:
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
 
-lock_deps:
+lock_conda:
 	conda-lock -f environment.yml
+
+lock_pip:
 	# external directories must be explicitly listed to avoid model requirements files which use locked versions
 	pip-compile pip-requirements.txt external/fv3fit/requirements.txt workflows/post_process_run/requirements.txt docker/**/requirements.txt --output-file constraints.txt
+
+.PHONY: lock_conda lock_pip
 
 install_local_packages:
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)

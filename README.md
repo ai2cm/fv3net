@@ -52,7 +52,10 @@ run image, then you could add something like the following to the
 
     fsspec!=0.7.0
 
-Then run `make lock_deps` to update the `constraints.txt` file.
+Then run `make lock_pip` to update the `constraints.txt` file.
+
+To pin anaconda dependencies specified in the `environment.yml` run `make
+lock_conda`.
 
 ## The "fv3net" environment
 

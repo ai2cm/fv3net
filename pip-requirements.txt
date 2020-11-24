@@ -1,5 +1,5 @@
 apache-beam[gcp]
-zarr
+zarr>=2.5.0
 poetry
 nc-time-axis
 bump2version
