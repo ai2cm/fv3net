@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -xe
+
 input=$1
 output=$2
 
@@ -10,9 +12,9 @@ then
 fi
 
 gsutil cp $input /tmp/data.nc
-python -m fv3post.scripts.single_netcdf_to_tiled /tmp/data.nc /tmp/tiled_data
-fields="$(python -m fv3post.scripts.print_fields /tmp/tiled_data.tile1.nc)"
+python3 -m fv3post.scripts.single_netcdf_to_tiled /tmp/data.nc /tmp/tiled_data
+fields="$(python3 -m fv3post.scripts.print_fields /tmp/tiled_data.tile1.nc)"
 
-/usr/bin/regrid.sh /tmp/tiled_data $output C48 $fields --nlon 360 --nlat 180
+fregrid_cubed_to_latlon.sh /tmp/tiled_data $output C48 $fields --nlon 360 --nlat 180
 
 rm /tmp/data.nc /tmp/tiled_data.tile?.nc
