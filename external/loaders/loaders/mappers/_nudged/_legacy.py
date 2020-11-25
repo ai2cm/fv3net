@@ -1,90 +1,30 @@
 import os
-import logging
 from functools import partial
-import xarray as xr
-import fsspec
-import zarr.storage as zstore
-from typing import Hashable, Sequence, Mapping, Optional, Union, Tuple, Any
+from typing import Mapping, Sequence, Tuple, Union, Any, Optional, Hashable
 from itertools import product
-from toolz import groupby
 from pathlib import Path
+import fsspec
+import xarray as xr
+import zarr.storage as zstore
+
+from ..._utils import assign_net_physics_terms
+from ...constants import DERIVATION_SHIELD_COORD, DERIVATION_FV3GFS_COORD
+from .._high_res_diags import open_high_res_diags
+from .._merged import MergeOverlappingData
+from .._transformations import KeyMap
+from .._base import GeoMapper, LongRunMapper, MultiDatasetMapper
+from ._common import (
+    MergeNudged,
+    SubsetTimes,
+    SubtractNudgingTendency,
+    _get_source_datasets,
+)
 
 import vcm
 
-from ._transformations import KeyMap
-from ._base import GeoMapper, LongRunMapper, MultiDatasetMapper
-from ._merged import MergeOverlappingData
-from ._high_res_diags import open_high_res_diags
-from .._utils import standardize_zarr_time_coord, assign_net_physics_terms
-from ..constants import DERIVATION_SHIELD_COORD, DERIVATION_FV3GFS_COORD
-
-logger = logging.getLogger(__name__)
-
-Z_DIM_NAME = "z"
-
-
-class MergeNudged(LongRunMapper):
-    """
-    Mapper for merging data sources available from a nudged run.
-    
-    Currently used to merge the nudging tendencies with the after
-    physics checkpointed state information. Could be useful for
-    merging prognostic run output by time in the future.
-    """
-
-    def __init__(
-        self,
-        *nudged_sources: Sequence[Union[LongRunMapper, xr.Dataset]],
-        rename_vars: Mapping[str, str] = None,
-    ):
-        rename_vars = rename_vars or {}
-        if len(nudged_sources) < 2:
-            raise TypeError(
-                "MergeNudged should be instantiated with two or more data sources."
-            )
-        nudged_sources = self._mapper_to_datasets(nudged_sources)
-        nudged_sources = self._rename_vars(nudged_sources, rename_vars)
-        self._check_dvar_overlap(*nudged_sources)
-        self.ds = xr.merge(nudged_sources, join="inner")
-
-    @staticmethod
-    def _rename_vars(
-        datasets: Sequence[xr.Dataset], rename_vars: Mapping[str, str]
-    ) -> Sequence[xr.Dataset]:
-        renamed_datasets = []
-        for ds in datasets:
-            ds_rename_vars = {k: v for k, v in rename_vars.items() if k in ds}
-            renamed_datasets.append(ds.rename(ds_rename_vars))
-        return renamed_datasets
-
-    @staticmethod
-    def _mapper_to_datasets(
-        data_sources: Sequence[Union[LongRunMapper, xr.Dataset]]
-    ) -> Sequence[xr.Dataset]:
-
-        datasets = []
-        for source in data_sources:
-            if isinstance(source, LongRunMapper):
-                source = source.ds
-            datasets.append(standardize_zarr_time_coord(source))
-
-        return datasets
-
-    @staticmethod
-    def _check_dvar_overlap(*ds_to_combine):
-        ds_var_sets = [set(ds.data_vars.keys()) for ds in ds_to_combine]
-
-        overlap = set()
-        checked = set()
-        for data_var in ds_var_sets:
-            overlap |= data_var & checked
-            checked |= data_var
-
-        if overlap:
-            raise ValueError(
-                "Could not combine requested nudged data sources due to "
-                f"overlapping variables {overlap}"
-            )
+Time = str
+Source = str
+Checkpoint = Tuple[Source, Time]
 
 
 class NudgedStateCheckpoints(GeoMapper):
@@ -107,64 +47,6 @@ class NudgedStateCheckpoints(GeoMapper):
             timestep_keys = mapper.keys()
             keys.extend(product((key,), timestep_keys))
         return set(keys)
-
-
-Source = str
-Time = str
-Checkpoint = Tuple[Source, Time]
-
-
-class GroupByTime:
-    # TODO: Could be generalized in if useful, nearly identical
-    # function in _transform for tiles
-
-    def __init__(self, checkpoint_data: Mapping[Checkpoint, xr.Dataset]):
-        def keyfn(key):
-            checkpoint, time = key
-            return time
-
-        self._checkpoint_data = checkpoint_data
-        self._time_lookup = groupby(keyfn, self._checkpoint_data.keys())
-
-    def keys(self):
-        return self._time_lookup.keys()
-
-    def __len__(self):
-        return len(self.keys())
-
-    def __getitem__(self, time: Time) -> xr.Dataset:
-        checkpoints = [self._checkpoint_data[key] for key in self._time_lookup[time]]
-        checkpoint_names = [key[0] for key in self._time_lookup[time]]
-        ds = xr.concat(checkpoints, dim="checkpoint")
-        return ds.assign_coords(checkpoint=checkpoint_names)
-
-
-class SubsetTimes(GeoMapper):
-    """
-    Sort and subset a timestep-based mapping to skip spin-up and limit
-    the number of available times.
-    """
-
-    def __init__(
-        self,
-        i_start: int,
-        n_times: Union[int, None],
-        nudged_data: Mapping[str, xr.Dataset],
-    ):
-        timestep_keys = list(nudged_data.keys())
-        timestep_keys.sort()
-
-        i_end = None if n_times is None else i_start + n_times
-        self._keys = timestep_keys[slice(i_start, i_end)]
-        self._nudged_data = nudged_data
-
-    def keys(self):
-        return set(self._keys)
-
-    def __getitem__(self, time: Time):
-        if time not in self._keys:
-            raise KeyError("Time {time} not found in SubsetTimes mapper.")
-        return self._nudged_data[time]
 
 
 class NudgedFullTendencies(GeoMapper):
@@ -267,38 +149,7 @@ class SubtractNudgingIncrement(GeoMapper):
         return before_nudging_state
 
 
-class SubtractNudgingTendency(GeoMapper):
-    """Subtract nudging tendency from physics tendency. Necessary for nudge-to-obs."""
-
-    def __init__(
-        self,
-        nudged_mapper: Mapping[Time, xr.Dataset],
-        nudging_to_physics_tendency: Mapping[str, str],
-    ):
-        self._nudged_mapper = nudged_mapper
-        self._nudging_to_physics_tendency = nudging_to_physics_tendency
-
-    def keys(self):
-        return self._nudged_mapper.keys()
-
-    def __getitem__(self, time: Time) -> xr.Dataset:
-        return self._derived_ds(time)
-
-    def _derived_ds(self, time: Time):
-        differenced_physics_tendency = self._subtract_nudging_tendency(time)
-        return self._nudged_mapper[time].assign(differenced_physics_tendency)
-
-    def _subtract_nudging_tendency(self, time: Time) -> Mapping[str, xr.DataArray]:
-        differenced_physics_tendency = {}
-        for nudging_name, physics_name in self._nudging_to_physics_tendency.items():
-            differenced_physics_tendency[physics_name] = (
-                self._nudged_mapper[time][physics_name]
-                - self._nudged_mapper[time][nudging_name]
-            )
-        return differenced_physics_tendency
-
-
-def open_merged_nudged(
+def open_merged_nudged_legacy(
     url: str,
     merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
     i_start: int = 0,
@@ -378,7 +229,7 @@ def _open_nudging_checkpoints(
     return NudgedStateCheckpoints(datasets)
 
 
-def open_merged_nudged_full_tendencies(
+def open_merged_nudged_full_tendencies_legacy(
     url: str,
     shield_diags_url: str = None,
     open_merged_nudged_kwargs: Mapping[str, Any] = None,
@@ -424,7 +275,7 @@ def open_merged_nudged_full_tendencies(
     open_merged_nudged_kwargs = open_merged_nudged_kwargs or {}
     open_checkpoints_kwargs = open_checkpoints_kwargs or {}
 
-    nudged_mapper = open_merged_nudged(
+    nudged_mapper = open_merged_nudged_legacy(
         url, consolidated=consolidated, **open_merged_nudged_kwargs
     )
     checkpoint_mapper = _open_nudging_checkpoints(
@@ -455,7 +306,7 @@ def open_merged_nudged_full_tendencies(
     return full_tendencies_mapper
 
 
-def open_merged_nudge_to_obs(
+def open_merged_nudge_to_obs_legacy(
     url: str,
     merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
     i_start: int = 0,
@@ -512,7 +363,7 @@ def open_merged_nudge_to_obs(
     return nudged_mapper
 
 
-def open_merged_nudge_to_obs_full_tendencies(
+def open_merged_nudge_to_obs_full_tendencies_legacy(
     url: str,
     open_merged_nudge_to_obs_kwargs: Mapping[str, Any] = {},
     open_checkpoints_kwargs: Mapping[str, Any] = {},
@@ -559,7 +410,7 @@ def open_merged_nudge_to_obs_full_tendencies(
         "dQ2": "pQ2",
     }
 
-    nudged_mapper = open_merged_nudge_to_obs(
+    nudged_mapper = open_merged_nudge_to_obs_legacy(
         url, consolidated=consolidated, **open_merged_nudge_to_obs_kwargs
     )
     checkpoint_mapper = _open_nudging_checkpoints(
@@ -581,84 +432,7 @@ def open_merged_nudge_to_obs_full_tendencies(
     return full_tendencies_mapper
 
 
-def open_nudged_to_obs_prognostic(
-    url: str,
-    merge_files: Tuple[str] = ("data.zarr", "nudging_tendencies.zarr"),
-    nudging_to_physics_tendency: Mapping[str, str] = None,
-    rename_vars: Mapping[str, str] = None,
-    consolidated: bool = False,
-) -> Mapping[str, xr.Dataset]:
-    """Load nudging data mapper for use with training. Merges the
-    data variables saved in the diagnostics files (fv3config[diagnostics][variables])
-    and nudging_tendencies. Since the nudge-to-obs run does
-    nudging within the physics routines, the nudging tendencies are subtracted from
-    the tendencies across the physics step to obtain the tendencies from
-    model physics.
-
-    Note the difference between this function and open_merged_nudge_to_obs:
-    in the prognostic nudge to obs data, the tendency across the physics step
-    is already calculated.
-
-    Args:
-        url: Path to directory containing merge_files. Defaults to str.
-        merge_files: zarrs to merge. Expecting one to contain nudging tendencies
-            and the other to contain the tendencies across the physics step.
-            Defaults to ("data.zarr", "nudging_tendencies.zarr").
-        nudging_to_physics_tendency: Mapping of renamed nudging tendency
-            names to physics tendency names; defaults to {'dQ1': 'pQ1, 'dQ2': 'pQ2'}
-        rename_vars: Mapping of variables to be renamed. Defaults to {
-            "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
-            "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
-            "t_dt_nudge": "dQ1",
-            "q_dt_nudge": "dQ2",
-            "u_dt_nudge": "dQu",
-            "v_dt_nudge": "dQv",
-            "grid_xt": "x",
-            "grid_yt": "y",
-            "pfull": "z"}
-        consolidated: if true, open the underlying zarr stores with the consolidated
-            flag to xr.open_zarr. Defaults to False.
-
-    Returns:
-        Mapper that has the pQ's from only model physics.
-    """
-
-    rename_vars = rename_vars or {
-        "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
-        "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
-        "t_dt_nudge": "dQ1",
-        "q_dt_nudge": "dQ2",
-        "u_dt_nudge": "dQu",
-        "v_dt_nudge": "dQv",
-        "grid_xt": "x",
-        "grid_yt": "y",
-        "pfull": "z",
-    }
-    nudging_to_physics_tendency = nudging_to_physics_tendency or {
-        "dQ1": "pQ1",
-        "dQ2": "pQ2",
-    }
-    datasets = _get_source_datasets(url, merge_files, consolidated)
-    nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
-    return SubtractNudgingTendency(nudged_mapper, nudging_to_physics_tendency)
-
-
-def _get_source_datasets(
-    url: str, sources: Sequence[str], consolidated: bool = False
-) -> Sequence[xr.Dataset]:
-    datasets = []
-    for source in sources:
-        mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
-        ds = xr.open_zarr(
-            zstore.LRUStoreCache(mapper, 1024),
-            consolidated=consolidated,
-            mask_and_scale=False,
-        )
-        datasets.append(ds)
-    return datasets
-
-
-def open_merged_nudged_full_tendencies_multiple_datasets(
+def open_merged_nudged_full_tendencies_multiple_datasets_legacy(
     urls: Sequence[str], names: Optional[Sequence[Hashable]] = None, **kwargs
 ):
     """
@@ -673,5 +447,5 @@ def open_merged_nudged_full_tendencies_multiple_datasets(
         mapper of timestamps to dataset containing tendency terms with a dataset
         dimension
     """
-    mappers = [open_merged_nudged_full_tendencies(url, **kwargs) for url in urls]
+    mappers = [open_merged_nudged_full_tendencies_legacy(url, **kwargs) for url in urls]
     return MultiDatasetMapper(mappers, names=names)

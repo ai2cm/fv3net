@@ -32,9 +32,9 @@ def training_mapper(
     path = training_mapper_data_source_path
 
     if training_mapper_name == "SubsetTimes":
-        return mappers.open_merged_nudged(path)
+        return mappers.open_merged_nudged_legacy(path)
     elif training_mapper_name == "NudgedFullTendencies":
-        return mappers.open_merged_nudged_full_tendencies(
+        return mappers.open_merged_nudged_full_tendencies_legacy(
             path,
             open_checkpoints_kwargs={
                 "checkpoint_files": ("after_dynamics.zarr", "after_physics.zarr")

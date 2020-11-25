@@ -2,12 +2,9 @@
 # model training configuration
 from ._fine_resolution_budget import open_fine_res_apparent_sources
 from ._nudged import (
-    open_merged_nudged,
-    open_merged_nudged_full_tendencies,
-    open_merged_nudge_to_obs,
-    open_merged_nudge_to_obs_full_tendencies,
-    open_nudged_to_obs_prognostic,
-    open_merged_nudged_full_tendencies_multiple_datasets,
+    open_nudge_to_obs,
+    open_nudge_to_fine,
+    open_nudge_to_fine_multiple_datasets,
 )
 from ._transformations import ValMap, KeyMap
 from ._local import LocalMapper, mapper_to_local
@@ -19,6 +16,15 @@ from ._hybrid import (
 
 # additional open mapper functions
 from ._high_res_diags import open_high_res_diags
+
+# legacy mappers of nudged runs for compatibility
+from ._nudged import (
+    open_merged_nudged_legacy,
+    open_merged_nudged_full_tendencies_legacy,
+    open_merged_nudge_to_obs_legacy,
+    open_merged_nudge_to_obs_full_tendencies_legacy,
+    open_merged_nudged_full_tendencies_multiple_datasets_legacy,
+)
 
 # mapper classes used externally
 from ._base import GeoMapper, LongRunMapper, MultiDatasetMapper

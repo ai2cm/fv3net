@@ -17,7 +17,7 @@ def diagnostic_mapper(
 ):
     path = diagnostic_mapper_data_source_path
     if diagnostic_mapper_name == "NudgedFullTendencies":
-        return mappers.open_merged_nudged_full_tendencies(
+        return mappers.open_merged_nudged_full_tendencies_legacy(
             path,
             shield_diags_url=C48_SHiELD_diags_dataset_path,
             open_checkpoints_kwargs=dict(
