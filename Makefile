@@ -66,7 +66,7 @@ build_ci_image:
 
 prog_dev:
 	docker run -ti --entrypoint bash \
-		-v $(pwd):/workdir \
+		-v $(shell pwd):/workdir \
 		-v /mnt/disks/scratch/rundir:/rundir \
 		-w /rundir  \
 		us.gcr.io/vcm-ml/prognostic_run:latest
