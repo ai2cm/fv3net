@@ -84,22 +84,20 @@ def interpolate_1d(
     Wraps metpy.interpolate.interplolate_1d
 
     Args:
-        xp: desired output levels. Either is 1D or must share all
-            dimensions except 1 of the xp.
-        x: the original coordinate of ``field``. Must have the
-            same dims of ``field``, and increasing along the ``original_dim``
-            dimension.
+        xp: desired output levels.
+        x: the original coordinate of ``field``. Must be increasing along the
+            interpolating dimension.
         field: the quantity to be regridded. If a dataset, then all variables
-            sharing dimensions with "x" will be interpolated, and other variables
-            remain unchanged.
-        dim: the dimension to interpolate over, only needed if xp is 1D.
+            sharing dimensions with "x" will be interpolated, and other
+            variables remain unchanged.
+        dim: the dimension to interpolate over, only needed if xp is 1D. When
+            ``xp`` is n-dimensional, the dimension to interpolate along is
+            the one that differs with ``x``. For example, if xp.dims is ["x",
+            "y_new"] and x.dims is ["x", "y"], then this function
+            interpolates from "y" to "y_new".
 
     Returns:
-        the quantity interpolated at the levels in ``xp``. When xp is
-        n-dimensional, the dimension to interpolate along is the one that
-        differs from the dims of x and field. For example, if xp.dims is
-        ["x", "y_new"] and x.dims is ["x", "y"], then this function
-        interpolates from "y" to "y_new".
+        the quantity interpolated at the levels in ``xp``.
 
     See Also:
         https://unidata.github.io/MetPy/latest/api/generated/metpy.interpolate.interpolate_1d.html
