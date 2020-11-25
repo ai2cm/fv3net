@@ -46,6 +46,11 @@ spec:
               config.yaml \
               {{inputs.parameters.output}} \
               --timesteps-file times.json
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "climate-sim-pool"
+        effect: "NoSchedule"      
       podSpecPatch: |
         containers:
           - name: main
