@@ -8,7 +8,6 @@ import synth
 from vcm import safe
 from loaders import DATASET_DIM_NAME, TIME_NAME, TIME_FMT
 from loaders.mappers import LongRunMapper
-from loaders.mappers._nudged._nudged import open_nudge_to_obs
 from loaders.mappers._nudged._common import (
     MergeNudged,
     SubsetTimes,
@@ -18,13 +17,14 @@ from loaders.mappers._nudged._legacy import (
     NudgedStateCheckpoints,
     NudgedFullTendencies,
     SubtractNudgingIncrement,
-    open_merged_nudged_legacy,
-    open_merged_nudge_to_obs_legacy,
+    open_merged_nudged,
+    open_merged_nudge_to_obs,
     _open_nudging_checkpoints,
-    open_merged_nudged_full_tendencies_legacy,
-    open_merged_nudge_to_obs_full_tendencies_legacy,
-    open_merged_nudged_full_tendencies_multiple_datasets_legacy,
+    open_merged_nudged_full_tendencies,
+    open_merged_nudge_to_obs_full_tendencies,
+    open_merged_nudged_full_tendencies_multiple_datasets,
 )
+from loaders.mappers._nudged._nudged import open_nudge_to_fine, open_nudge_to_obs
 
 NTIMES = 12
 
@@ -525,10 +525,10 @@ def test_SubtractNudgingTendency(full_tendency_mapper):
 
 
 @pytest.mark.regression
-def test_open_merged_nudged_legacy(nudged_data_dir):
+def test_open_merged_nudged(nudged_data_dir):
 
     merge_files = ("after_dynamics.zarr", "nudging_tendencies.zarr")
-    mapper = open_merged_nudged_legacy(
+    mapper = open_merged_nudged(
         nudged_data_dir, merge_files=merge_files, i_start=4, n_times=6,
     )
 
@@ -536,14 +536,14 @@ def test_open_merged_nudged_legacy(nudged_data_dir):
 
 
 @pytest.mark.regression
-def test_open_merged_nudge_to_obs_legacy(nudged_data_dir):
+def test_open_merged_nudge_to_obs(nudged_data_dir):
 
     merge_files = ("after_physics.zarr", "nudging_tendencies.zarr")
     rename_vars = {
         "air_temperature_tendency_due_to_nudging": "dQ1",
         "specific_humidity_tendency_due_to_nudging": "dQ2",
     }
-    mapper = open_merged_nudge_to_obs_legacy(
+    mapper = open_merged_nudge_to_obs(
         nudged_data_dir,
         merge_files=merge_files,
         i_start=4,
@@ -560,39 +560,6 @@ def test_open_merged_nudge_to_obs_legacy(nudged_data_dir):
 
 
 @pytest.mark.regression
-def test_open_nudge_to_obs(nudged_data_dir):
-
-    merge_files = ("prognostic_diags.zarr", "nudging_tendencies.zarr")
-    rename_vars = {
-        "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
-        "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
-        "air_temperature_tendency_due_to_nudging": "dQ1",
-        "specific_humidity_tendency_due_to_nudging": "dQ2",
-        "grid_xt": "x",
-        "grid_yt": "y",
-        "pfull": "z",
-    }
-    nudging_to_physics_tendency = {
-        "dQ1": "pQ1",
-        "dQ2": "pQ2",
-    }
-    mapper = open_nudge_to_obs(
-        nudged_data_dir,
-        merge_files=merge_files,
-        rename_vars=rename_vars,
-        nudging_to_physics_tendency=nudging_to_physics_tendency,
-    )
-
-    key = list(mapper.keys())[0]
-    mapper[key]["air_temperature"]
-    mapper[key]["specific_humidity"]
-    mapper[key]["dQ1"]
-    mapper[key]["dQ2"]
-    mapper[key]["pQ1"]
-    mapper[key]["pQ2"]
-
-
-@pytest.mark.regression
 def test__open_nudging_checkpoints(nudged_data_dir):
 
     checkpoint_files = ("before_dynamics.zarr", "after_nudging.zarr")
@@ -603,10 +570,10 @@ def test__open_nudging_checkpoints(nudged_data_dir):
 
 
 @pytest.mark.regression
-def test_open_merged_nudged_full_tendencies_legacy(nudged_data_dir):
+def test_open_merged_nudged_full_tendencies(nudged_data_dir):
 
     open_merged_nudged_kwargs = {"n_times": 6}
-    mapper = open_merged_nudged_full_tendencies_legacy(
+    mapper = open_merged_nudged_full_tendencies(
         nudged_data_dir, open_merged_nudged_kwargs=open_merged_nudged_kwargs,
     )
 
@@ -614,7 +581,7 @@ def test_open_merged_nudged_full_tendencies_legacy(nudged_data_dir):
 
 
 @pytest.mark.regression
-def test_open_merged_nudge_to_obs_full_tendencies_legacy(nudged_data_dir):
+def test_open_merged_nudge_to_obs_full_tendencies(nudged_data_dir):
 
     open_kwargs = {
         "n_times": 6,
@@ -624,7 +591,7 @@ def test_open_merged_nudge_to_obs_full_tendencies_legacy(nudged_data_dir):
         },
     }
 
-    mapper = open_merged_nudge_to_obs_full_tendencies_legacy(
+    mapper = open_merged_nudge_to_obs_full_tendencies(
         nudged_data_dir, open_merged_nudge_to_obs_kwargs=open_kwargs,
     )
 
@@ -671,7 +638,7 @@ def test_SubsetTime_fail_on_non_subset_key(nudged_tstep_mapper):
 
 @pytest.mark.regression
 @pytest.mark.parametrize("with_names", [False, True])
-def test_open_merged_nudged_full_tendencies_multiple_datasets_legacy(
+def test_open_merged_nudged_full_tendencies_multiple_datasets(
     nudged_data_dir, with_names
 ):
     merge_files = ("after_dynamics.zarr", "nudging_tendencies.zarr")
@@ -679,11 +646,11 @@ def test_open_merged_nudged_full_tendencies_multiple_datasets_legacy(
     kwargs = {"merge_files": merge_files, "i_start": 4, "n_times": 6}
 
     if with_names:
-        mapper = open_merged_nudged_full_tendencies_multiple_datasets_legacy(
+        mapper = open_merged_nudged_full_tendencies_multiple_datasets(
             datasets, names=["a", "b", "c"], open_merged_nudged_kwargs=kwargs
         )
     else:
-        mapper = open_merged_nudged_full_tendencies_multiple_datasets_legacy(
+        mapper = open_merged_nudged_full_tendencies_multiple_datasets(
             datasets, open_merged_nudged_kwargs=kwargs
         )
 
@@ -693,3 +660,53 @@ def test_open_merged_nudged_full_tendencies_multiple_datasets_legacy(
         assert ds.sizes[DATASET_DIM_NAME] == len(datasets)
         if with_names:
             assert "a" in ds[DATASET_DIM_NAME]
+
+
+# should probably make current synth nudge-to-x datasets instead of patching the
+# legacy synth ones here to test the current mappers, but avoiding over-engineering
+# until the data format is settled and the old formats are deprecated
+
+# TODO: when legacy mappers are deprecated make appropriate new nudging synth datasets
+
+
+@pytest.mark.regression
+def test_open_nudge_to_fine(nudged_data_dir):
+
+    merge_files = ("prognostic_diags.zarr", "nudging_tendencies.zarr")
+    mapper = open_nudge_to_fine(nudged_data_dir, merge_files=merge_files)
+
+    key = list(mapper.keys())[0]
+    mapper[key]["air_temperature"]
+    mapper[key]["specific_humidity"]
+    mapper[key]["dQ1"]
+    mapper[key]["dQ2"]
+    mapper[key]["dQxwind"]
+    mapper[key]["dQywind"]
+    mapper[key]["pQ1"]
+    mapper[key]["pQ2"]
+
+
+@pytest.mark.regression
+def test_open_nudge_to_obs(nudged_data_dir):
+
+    merge_files = ("prognostic_diags.zarr", "nudging_tendencies.zarr")
+    rename_vars = {
+        "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
+        "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
+        "air_temperature_tendency_due_to_nudging": "dQ1",
+        "specific_humidity_tendency_due_to_nudging": "dQ2",
+        "x_wind_tendency_due_to_nudging": "dQxwind",
+        "y_wind_tendency_due_to_nudging": "dQywind",
+    }
+    mapper = open_nudge_to_obs(
+        nudged_data_dir, merge_files=merge_files, rename_vars=rename_vars
+    )
+    key = list(mapper.keys())[0]
+    mapper[key]["air_temperature"]
+    mapper[key]["specific_humidity"]
+    mapper[key]["dQ1"]
+    mapper[key]["dQ2"]
+    mapper[key]["dQxwind"]
+    mapper[key]["dQywind"]
+    mapper[key]["pQ1"]
+    mapper[key]["pQ2"]

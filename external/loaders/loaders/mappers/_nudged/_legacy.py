@@ -1,8 +1,9 @@
 import os
-from functools import partial
+from functools import partial, wraps
 from typing import Mapping, Sequence, Tuple, Union, Any, Optional, Hashable
 from itertools import product
 from pathlib import Path
+import warnings
 import fsspec
 import xarray as xr
 import zarr.storage as zstore
@@ -25,6 +26,40 @@ import vcm
 Time = str
 Source = str
 Checkpoint = Tuple[Source, Time]
+
+
+DEPRECATION_MESSAGE = (
+    "This function opens a deprecated nudged dataset mapper. Please transition "
+    "to using data and mappers which work with the current runfile, using opening "
+    "functions `open_nudge_to_fine` and `open_nudge_to_obs`. "
+)
+
+# adapted from https://gist.github.com/kgriffs/8202106
+
+
+class DeprecatedWarning(UserWarning):
+    pass
+
+
+def deprecated(instructions):
+    def decorator(func):
+        """This is a decorator which can be used to mark functions
+        as deprecated. It will result in a warning being emitted
+        when the function is used."""
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            message = "Call to deprecated function {}. {}".format(
+                func.__name__, instructions
+            )
+
+            warnings.warn(message, category=DeprecatedWarning)
+
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 class NudgedStateCheckpoints(GeoMapper):
@@ -149,7 +184,8 @@ class SubtractNudgingIncrement(GeoMapper):
         return before_nudging_state
 
 
-def open_merged_nudged_legacy(
+@deprecated(DEPRECATION_MESSAGE)
+def open_merged_nudged(
     url: str,
     merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
     i_start: int = 0,
@@ -229,7 +265,7 @@ def _open_nudging_checkpoints(
     return NudgedStateCheckpoints(datasets)
 
 
-def open_merged_nudged_full_tendencies_legacy(
+def open_merged_nudged_full_tendencies(
     url: str,
     shield_diags_url: str = None,
     open_merged_nudged_kwargs: Mapping[str, Any] = None,
@@ -275,7 +311,7 @@ def open_merged_nudged_full_tendencies_legacy(
     open_merged_nudged_kwargs = open_merged_nudged_kwargs or {}
     open_checkpoints_kwargs = open_checkpoints_kwargs or {}
 
-    nudged_mapper = open_merged_nudged_legacy(
+    nudged_mapper = open_merged_nudged(
         url, consolidated=consolidated, **open_merged_nudged_kwargs
     )
     checkpoint_mapper = _open_nudging_checkpoints(
@@ -306,7 +342,8 @@ def open_merged_nudged_full_tendencies_legacy(
     return full_tendencies_mapper
 
 
-def open_merged_nudge_to_obs_legacy(
+@deprecated(DEPRECATION_MESSAGE)
+def open_merged_nudge_to_obs(
     url: str,
     merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
     i_start: int = 0,
@@ -363,7 +400,7 @@ def open_merged_nudge_to_obs_legacy(
     return nudged_mapper
 
 
-def open_merged_nudge_to_obs_full_tendencies_legacy(
+def open_merged_nudge_to_obs_full_tendencies(
     url: str,
     open_merged_nudge_to_obs_kwargs: Mapping[str, Any] = {},
     open_checkpoints_kwargs: Mapping[str, Any] = {},
@@ -410,7 +447,7 @@ def open_merged_nudge_to_obs_full_tendencies_legacy(
         "dQ2": "pQ2",
     }
 
-    nudged_mapper = open_merged_nudge_to_obs_legacy(
+    nudged_mapper = open_merged_nudge_to_obs(
         url, consolidated=consolidated, **open_merged_nudge_to_obs_kwargs
     )
     checkpoint_mapper = _open_nudging_checkpoints(
@@ -432,7 +469,7 @@ def open_merged_nudge_to_obs_full_tendencies_legacy(
     return full_tendencies_mapper
 
 
-def open_merged_nudged_full_tendencies_multiple_datasets_legacy(
+def open_merged_nudged_full_tendencies_multiple_datasets(
     urls: Sequence[str], names: Optional[Sequence[Hashable]] = None, **kwargs
 ):
     """
@@ -447,5 +484,5 @@ def open_merged_nudged_full_tendencies_multiple_datasets_legacy(
         mapper of timestamps to dataset containing tendency terms with a dataset
         dimension
     """
-    mappers = [open_merged_nudged_full_tendencies_legacy(url, **kwargs) for url in urls]
+    mappers = [open_merged_nudged_full_tendencies(url, **kwargs) for url in urls]
     return MultiDatasetMapper(mappers, names=names)

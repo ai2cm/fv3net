@@ -121,6 +121,8 @@ def open_nudge_to_fine(
             "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
             "air_temperature_tendency_due_to_nudging": "dQ1",
             "specific_humidity_tendency_due_to_nudging": "dQ2",
+            "x_wind_tendency_due_to_nudging": "dQxwind",
+            "y_wind_tendency_due_to_nudging": "dQywind"
             }
         consolidated: if true, open the underlying zarr stores with the consolidated
             flag to xr.open_zarr. Defaults to False.
@@ -134,6 +136,8 @@ def open_nudge_to_fine(
         "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
         "air_temperature_tendency_due_to_nudging": "dQ1",
         "specific_humidity_tendency_due_to_nudging": "dQ2",
+        "x_wind_tendency_due_to_nudging": "dQxwind",
+        "y_wind_tendency_due_to_nudging": "dQywind",
     }
     datasets = _get_source_datasets(url, merge_files, consolidated)
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)

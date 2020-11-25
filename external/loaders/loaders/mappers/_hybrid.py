@@ -2,7 +2,7 @@ from typing import Mapping, List, TypeVar
 import xarray as xr
 
 from ._base import GeoMapper
-from ._nudged import open_nudge_to_fine, open_nudge_to_obs
+from ._nudged import open_merged_nudged_full_tendencies, open_nudge_to_obs
 from ._fine_resolution_budget import (
     FineResolutionSources,
     open_fine_res_apparent_sources,
@@ -115,7 +115,7 @@ def _open_fine_resolution_nudging_hybrid(
             be provided in each mapper's kwargs.
         mapper: Hybrid mapper to use in opening the data
         nudging: keyword arguments passed to
-            :py:func:`open_nudge_to_fine`
+            :py:func:`open_merged_nudging_full_tendencies`
         fine_res: keyword arguments passed to :py:func:`open_fine_res_apparent_sources`
         **kwargs: additional keyword arguments to be passed to the mapper constructor
 
@@ -137,7 +137,7 @@ def _open_fine_resolution_nudging_hybrid(
                 "fine res kwargs."
             )
 
-    nudged = open_nudge_to_fine(**nudging)
+    nudged = open_merged_nudged_full_tendencies(**nudging)
     fine_res = open_fine_res_apparent_sources(offset_seconds=offset_seconds, **fine_res)
     return mapper(nudged, fine_res, **kwargs)
 
@@ -215,7 +215,7 @@ def open_fine_resolution_nudging_to_obs_hybrid(
             data url and second is used as fine res. If string or None, the paths must
             be provided in each mapper's kwargs.
         nudge_kwargs: keyword arguments passed to
-            :py:func:`open_nudged_to_obs`
+            :py:func:`open_nudge_to_obs`
         fine_res_kwargs: keyword arguments passed to :py:func:
             `open_fine_res_apparent_sources`
 
