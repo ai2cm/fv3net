@@ -10,4 +10,5 @@ mypy --follow-imports silent \
     external/loaders/loaders/mappers/_local.py \
     external/loaders/loaders/batches/_sequences.py \
     external/vcm/vcm/derived_mapping.py \
+    external/vcm/vcm/interpolate.py \
     workflows/offline_ml_diags/offline_ml_diags

@@ -69,15 +69,16 @@ def _test_dataset():
     return ds
 
 
-def test_interpolate_1d_dim_order_unchanged():
+def test_interpolate_1d_dataset():
 
     ds = _test_dataset()
     output_pressure = xr.DataArray([0.5, 2], dims=["pressure_uniform"])
-    test_da = interpolate_1d(
+    expected = interpolate_1d(
         output_pressure, ds["pressure"], ds["interp_var"], dim="pfull",
     )
+    ans = interpolate_1d(output_pressure, ds["pressure"], ds, dim="pfull",)
 
-    assert list(test_da.dims) == ["x", "pressure_uniform"]
+    xr.testing.assert_allclose(ans["interp_var"], expected)
 
 
 def test_interpolate_1d_values_coords_correct():
