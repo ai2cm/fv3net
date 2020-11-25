@@ -8,6 +8,8 @@ import fv3kube
 
 import vcm
 
+from store import STORE_NAMES
+
 logger = logging.getLogger(__name__)
 
 
@@ -40,9 +42,21 @@ NUDGING_DIAGNOSTICS_2D = {
     ],
 }
 NUDGING_TENDENCIES = {"name": "nudging_tendencies.zarr", "variables": []}
+PHYSICS_TENDENCIES = {
+    "name": "physics_tendencies.zarr",
+    "variables": [
+        "tendency_of_air_temperature_due_to_fv3_physics",
+        "tendency_of_specific_humidity_due_to_fv3_physics",
+    ],
+}
 BASELINE_DIAGNOSTICS = {
     "name": "diags.zarr",
     "variables": ["water_vapor_path", "physics_precip"],
+}
+
+FEATURE_DATA = {
+    "name": "data.zarr",
+    "variables": STORE_NAMES,
 }
 
 
@@ -148,7 +162,7 @@ def nudging_overlay(nudging_config, initial_condition_url):
 
 def diagnostics_overlay(config, model_url, timestamps, frequency_minutes):
 
-    diagnostic_files = []
+    diagnostic_files = [PHYSICS_TENDENCIES]
 
     if ("scikit_learn" in config) or model_url:
         diagnostic_files.append(ML_DIAGNOSTICS)
@@ -158,8 +172,10 @@ def diagnostics_overlay(config, model_url, timestamps, frequency_minutes):
         nudging_tendencies["variables"].extend(
             [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
         )
+
         diagnostic_files.append(nudging_tendencies)
         diagnostic_files.append(NUDGING_DIAGNOSTICS_2D)
+        diagnostic_files.append(FEATURE_DATA)
     else:
         diagnostic_files.append(BASELINE_DIAGNOSTICS)
 
@@ -218,7 +234,7 @@ def prepare_config(args):
             args.initial_condition_url, args.ic_timestep
         ),
         diagnostics_overlay(
-            user_config, args.model_url, timestamps, args.output_frequency
+            user_config, args.model_url, timestamps, args.output_frequency,
         ),
         step_tendency_overlay(user_config),
         ml_overlay(model_type, args.model_url, args.diagnostic_ml),

@@ -2,10 +2,15 @@ base_version: v0.5
 data_table: default
 diag_table: /fv3net/workflows/prognostic_c48_run/diag_table_prognostic
 diagnostics:
-- name: diags.zarr
-  times:
+- name: physics_tendencies.zarr
+  times: &id001
     frequency: 900
     kind: interval
+  variables:
+  - tendency_of_air_temperature_due_to_fv3_physics
+  - tendency_of_specific_humidity_due_to_fv3_physics
+- name: diags.zarr
+  times: *id001
   variables:
   - net_moistening
   - net_moistening_diagnostic

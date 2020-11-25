@@ -29,6 +29,7 @@ wrapper.initialize()  # noqa: E402
 from runtime import DerivedFV3State
 import fv3gfs.util
 import runtime
+from store import STORE_NAMES
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -395,7 +396,9 @@ class NudgingTimeLoop(TimeLoop):
             state, reference
         )
 
-        return {}
+        store_state: Diagnostics = {name: self._state[name] for name in STORE_NAMES}
+
+        return store_state
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 
