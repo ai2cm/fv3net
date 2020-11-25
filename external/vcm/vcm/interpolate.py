@@ -89,7 +89,9 @@ def interpolate_1d(
         x: the original coordinate of ``field``. Must have the
             same dims of ``field``, and increasing along the ``original_dim``
             dimension.
-        field: the quantity to be regridded
+        field: the quantity to be regridded. If a dataset, then all variables
+            sharing dimensions with "x" will be interpolated, and other variables
+            remain unchanged.
         dim: the dimension to interpolate over, only needed if xp is 1D.
 
     Returns:
