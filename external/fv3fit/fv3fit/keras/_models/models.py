@@ -382,3 +382,76 @@ class DenseModel(PackedKerasModel):
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
         model.compile(optimizer=self._optimizer, loss=self.loss)
         return model
+
+
+class SpectralNormalizedDenseModel(PackedKerasModel):
+    """
+    A simple feedforward neural network model with dense layers,
+    each wrapped with SpectralNormalization layer.
+    """
+
+    def __init__(
+        self,
+        sample_dim_name: str,
+        input_variables: Iterable[str],
+        output_variables: Iterable[str],
+        weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
+        normalize_loss: bool = True,
+        optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
+        depth: int = 3,
+        width: int = 16,
+        loss: Literal["mse", "mae"] = "mse",
+    ):
+        """Initialize the DenseModel.
+
+        Loss is computed on normalized outputs only if `normalized_loss` is True
+        (default). This allows you to provide weights that will be proportional
+        to the importance of that feature within the loss. If `normalized_loss`
+        is False, you should consider scaling your weights to decrease the importance
+        of features that are orders of magnitude larger than other features.
+
+        Args:
+            sample_dim_name: name of the sample dimension in datasets used as
+                inputs and outputs.
+            input_variables: names of input variables
+            output_variables: names of output variables
+            weights: loss function weights, defined as a dict whose keys are
+                variable names and values are either a scalar referring to the total
+                weight of the variable, or a vector referring to the weight for each
+                feature of the variable. Default is a total weight of 1
+                for each variable.
+            normalize_loss: if True (default), normalize outputs by their standard
+                deviation before computing the loss function
+            optimizer: algorithm to be used in gradient descent, must subclass
+                tf.keras.optimizers.Optimizer; defaults to tf.keras.optimizers.Adam
+            depth: number of dense layers to use between the input and output layer.
+                The number of hidden layers will be (depth - 1). Default is 3.
+            width: number of neurons to use on layers between the input and output
+                layer. Default is 16.
+            loss: loss function to use. Defaults to mean squared error.
+        """
+        self._depth = depth
+        self._width = width
+        optimizer = optimizer or tf.keras.optimizers.Adam()
+        super().__init__(
+            sample_dim_name,
+            input_variables,
+            output_variables,
+            weights=weights,
+            normalize_loss=normalize_loss,
+            optimizer=optimizer,
+            loss=loss,
+        )
+
+    def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
+        inputs = tf.keras.Input(n_features_in)
+        x = self.X_scaler.normalize_layer(inputs)
+        for i in range(self._depth - 1):
+            x = tf.keras.layers.SpectralNormalization(
+                tf.keras.layers.Dense(self._width, activation=tf.keras.activations.relu)
+            )(x)
+        x = tf.keras.layers.Dense(n_features_out)(x)
+        outputs = self.y_scaler.denormalize_layer(x)
+        model = tf.keras.Model(inputs=inputs, outputs=outputs)
+        model.compile(optimizer=self._optimizer, loss=self.loss)
+        return model
