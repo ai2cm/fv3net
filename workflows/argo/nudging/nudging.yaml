@@ -131,7 +131,7 @@ spec:
         args:
         - |
           if [[ "{{inputs.parameters.use-default-chunks}}" == "true" ]]; then
-            cp /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_chunks.yaml /tmp/chunks.yaml
+            cp /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging_chunks.yaml /tmp/chunks.yaml
           else
             echo "{{inputs.parameters.custom-chunks}}" > /tmp/chunks.yaml
           fi
@@ -144,7 +144,7 @@ spec:
           {{inputs.parameters.nudging-config}}
           EOF
           
-          cp /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_runfile.py /tmp/runfile.py
+          cp /home/jovyan/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py /tmp/runfile.py
 
           python prepare_config.py \
             --output-timestamps times.json \

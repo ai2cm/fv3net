@@ -1,0 +1,14 @@
+nudging_tendencies.zarr:
+  time: 4
+physics_tendencies.zarr:
+  time: 4
+data.zarr:
+  time: 4
+diags.zarr:
+  time: 96
+atmos_8xdaily.zarr:
+  time: 8
+atmos_dt_atmos.zarr:
+  time: 4
+sfc_dt_atmos.zarr:
+  time: 96

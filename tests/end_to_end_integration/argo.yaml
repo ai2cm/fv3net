@@ -37,7 +37,6 @@ spec:
               specific_humidity: 3
               x_wind: 3
               y_wind: 3
-              pressure_thickness_of_atmospheric_layer: 3
           namelist:
             coupler_nml:
               current_date:
@@ -57,18 +56,14 @@ spec:
         value:  "2"
       - name: nudging-chunks
         value: |
-          before_dynamics.zarr:
-            time: 1
-          after_dynamics.zarr:
-            time: 1
-          after_physics.zarr:
-            time: 1
-          after_nudging.zarr:
-            time: 1
-          reference.zarr:
-            time: 1
           nudging_tendencies.zarr:
-            time: 1
+            time: 2
+          physics_tendencies.zarr:
+            time: 2
+          data.zarr:
+            time: 2
+          diags.zarr:
+            time: 2
           atmos_8xdaily.zarr:
             time: 1
           atmos_dt_atmos.zarr:
@@ -91,13 +86,9 @@ spec:
           batch_function: batches_from_geodata
           batch_kwargs:
             timesteps_per_batch: 1
-            mapping_function: open_merged_nudged_full_tendencies
+            mapping_function: open_nudge_to_fine
             mapping_kwargs:
               consolidated: True
-              open_merged_nudged_kwargs:
-                rename_vars:
-                  air_temperature_tendency_due_to_nudging: dQ1
-                  specific_humidity_tendency_due_to_nudging: dQ2
       - name: prognostic-run-config
         value: |
           base_version: v0.5
