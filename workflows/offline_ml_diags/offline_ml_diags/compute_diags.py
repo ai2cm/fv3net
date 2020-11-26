@@ -31,7 +31,7 @@ logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
 
 # variables that are needed in addition to the model features
-ADDITIONAL_VARS = ["pressure_thickness_of_atmospheric_layer", "pQ1", "pQ2"]
+ADDITIONAL_VARS = ["pressure_thickness_of_atmospheric_layer", "pQ1", "pQ2", "dQ1", "dQ2"]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
 DIURNAL_VARS = [
     "column_integrated_dQ1",
@@ -115,8 +115,8 @@ def _compute_diags_over_batches(
     """Return a set of diagnostic datasets from a sequence of batched data"""
 
     batches_summary, batches_diurnal, batches_metrics = [], [], []
-    diagnostic_vars = list(set(list(predicted_vars) + ["pQ1", "pQ2", "Q1", "Q2"]))
-    metric_vars = list(set(list(predicted_vars) + ["Q1", "Q2"]))
+    diagnostic_vars = list(set(list(predicted_vars) + ["pQ1", "pQ2", "Q1", "Q2"] + ["dQ1", "dQ2"]))
+    metric_vars = list(set(list(predicted_vars) + ["Q1", "Q2"] + ["dQ1", "dQ2"]))
 
     # for each batch...
     for i, ds in enumerate(ds_batches):

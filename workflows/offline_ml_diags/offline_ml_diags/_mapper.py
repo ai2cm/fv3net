@@ -48,6 +48,9 @@ class PredictionMapper(GeoMapper):
         ds_pred = ds_pred.expand_dims(DERIVATION_DIM).assign_coords(
             {DERIVATION_DIM: [PREDICT_COORD]}
         )
+        if "dQ1" not in self._variables:
+            ds_pred["dQ1"] = xr.zeros_like(ds_pred["dQu"])
+            ds_pred["dQ2"] = xr.zeros_like(ds_pred["dQu"])
         return xr.merge([safe.get_variables(ds, nonpredicted_vars), ds_target, ds_pred])
 
     def __getitem__(self, key: str) -> xr.Dataset:
@@ -56,6 +59,9 @@ class PredictionMapper(GeoMapper):
         ds = xr.merge(
             [ds, self._grid], compat="override"  # type: ignore
         ).assign_coords({"time": parse_datetime_from_str(key)})
+        if "dQ1" not in self._variables:
+            ds["dQ1"] = xr.zeros_like(ds["dQu"])
+            ds["dQ2"] = xr.zeros_like(ds["dQu"])
         derived_mapping = DerivedMapping(ds)
         ds_derived = derived_mapping.dataset(self._variables)
         ds_prediction = self._predict(ds_derived)
