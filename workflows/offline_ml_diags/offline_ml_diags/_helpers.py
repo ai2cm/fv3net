@@ -43,8 +43,11 @@ def insert_scalar_metrics_r2(
         # std is across batches
         mse_std = metrics[f"scalar/mse/{var}/predict_vs_target"]["std"]
         variance_std = metrics[f"scalar/mse/{var}/mean_vs_target"]["std"]
-        r2 = 1.0 - (mse / variance)
-        r2_std = r2 * np.sqrt((mse_std / mse) ** 2 + (variance_std / variance) ** 2)
+        try:
+            r2 = 1.0 - (mse / variance)
+            r2_std = r2 * np.sqrt((mse_std / mse) ** 2 + (variance_std / variance) ** 2)
+        except(ZeroDivisionError):
+            r2, r2_std = 0., 0.
         metrics[r2_name] = {"mean": r2, "std": r2_std}
     return metrics
 
