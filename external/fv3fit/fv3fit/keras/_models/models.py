@@ -448,7 +448,7 @@ class SpectralNormalizedDenseModel(PackedKerasModel):
         inputs = tf.keras.Input(n_features_in)
         x = self.X_scaler.normalize_layer(inputs)
         for i in range(self._depth - 1):
-            x = tfa.keras.layers.SpectralNormalization(
+            x = tfa.layers.SpectralNormalization(
                 tf.keras.layers.Dense(self._width, activation=tf.keras.activations.relu)
             )(x)
         x = tf.keras.layers.Dense(n_features_out)(x)
