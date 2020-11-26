@@ -20,7 +20,7 @@ requirements = [
     "pyyaml>=5.1.2",
     "vcm",
     "tensorflow>=2.2.0",
-    "tensorflow_addons>=0.11.2",
+    "tensorflow-addons>=0.11.2",
     "typing_extensions>=3.7.4.3",
 ]
 
