@@ -14,18 +14,14 @@ setup(
     package_dir={"": "."},
     package_data={},
     install_requires=requirements,
-    scripts=[
-        "fv3post/scripts/fregrid_cubed_to_latlon.sh",
-        "fv3post/scripts/fregrid_cubed_to_latlon_single_netcdf_input.sh",
-        "fv3post/scripts/print_fields.py",
-        "fv3post/scripts/single_netcdf_to_tiled.py",
-    ],
+    scripts=["fv3post/scripts/fregrid_cubed_to_latlon.sh"],
     test_suite="tests",
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
             "post_process_run=fv3post.post_process:post_process",
             "append_run=fv3post.append:append_segment",
+            "fregrid_single_input=fv3post.fregrid:fregrid_single_input",
         ]
     },
 )
