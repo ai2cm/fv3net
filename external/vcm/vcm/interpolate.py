@@ -1,4 +1,4 @@
-from typing import Callable, Union, Optional
+from typing import Callable, Union, Optional, TypeVar
 import functools
 import metpy.interpolate
 import numpy as np
@@ -50,13 +50,15 @@ PRESSURE_GRID = xr.DataArray(
     dims="pressure",
 )
 
+T = TypeVar("T", xr.DataArray, xr.Dataset)
+
 
 def interpolate_to_pressure_levels(
-    field: xr.DataArray,
+    field: T,
     delp: xr.DataArray,
     levels: xr.DataArray = PRESSURE_GRID,
     dim: str = "pfull",
-) -> xr.DataArray:
+) -> T:
     """Regrid an atmospheric field to a fixed set of pressure levels
 
     Args:
@@ -75,36 +77,48 @@ def interpolate_to_pressure_levels(
 
 
 def interpolate_1d(
-    xp: xr.DataArray, x: xr.DataArray, field: xr.DataArray, dim: Optional[str] = None,
-) -> xr.DataArray:
+    xp: xr.DataArray, x: xr.DataArray, field: T, dim: Optional[str] = None,
+) -> T:
     """Interpolates data with any shape over a specified axis.
 
     Wraps metpy.interpolate.interplolate_1d
 
     Args:
-        xp: desired output levels. Either is 1D or must share all
-            dimensions except 1 of the xp.
-        x: the original coordinate of ``field``. Must have the
-            same dims of ``field``, and increasing along the ``original_dim``
-            dimension.
-        field: the quantity to be regridded
-        dim: the dimension to interpolate over, only needed if xp is 1D.
+        xp: desired output levels.
+        x: the original coordinate of ``field``. Must be increasing along the
+            interpolating dimension.
+        field: the quantity to be regridded. If a dataset, then all variables
+            sharing dimensions with "x" will be interpolated, and other
+            variables remain unchanged.
+        dim: the dimension to interpolate over, only needed if xp is 1D. When
+            ``xp`` is n-dimensional, the dimension to interpolate along is
+            the one that differs with ``x``. For example, if xp.dims is ["x",
+            "y_new"] and x.dims is ["x", "y"], then this function
+            interpolates from "y" to "y_new".
 
     Returns:
-        the quantity interpolated at the levels in ``xp``. When xp is
-        n-dimensional, the dimension to interpolate along is the one that
-        differs from the dims of x and field. For example, if xp.dims is
-        ["x", "y_new"] and x.dims is ["x", "y"], then this function
-        interpolates from "y" to "y_new".
+        the quantity interpolated at the levels in ``xp``.
 
     See Also:
         https://unidata.github.io/MetPy/latest/api/generated/metpy.interpolate.interpolate_1d.html
 
     """
-    if xp.ndim == 1:
-        return _interpolate_1d_constant_output_levels(xp, x, field, dim)
-    else:
-        return _interpolate_1d_variable_output_levels(xp, x, field)
+    if isinstance(field, xr.Dataset):
+        data_vars = {}
+        for v in field:
+            if set(field[v].dims) >= set(x.dims):
+                data_vars[v] = interpolate_1d(xp, x, field[v], dim=dim)
+            else:
+                data_vars[v] = field[v]
+        return xr.Dataset(data_vars)
+    elif isinstance(field, xr.DataArray):
+        if xp.ndim == 1:
+            if dim is None:
+                raise ValueError(f"dim argument needed for 1D xp")
+            else:
+                return _interpolate_1d_constant_output_levels(xp, x, field, dim)
+        else:
+            return _interpolate_1d_variable_output_levels(xp, x, field)
 
 
 def _interpolate_1d_constant_output_levels(
@@ -140,7 +154,7 @@ def _interpolate_2d(xp: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
 
 
 def _apply_2d(
-    func: Callable[[np.ndarray, np.ndarray, np.ndarray, int], np.ndarray],
+    func: Callable[[np.ndarray, np.ndarray, np.ndarray], np.ndarray],
     xp: np.ndarray,
     x: np.ndarray,
     y: np.ndarray,
@@ -239,9 +253,8 @@ def interpolate_unstructured(
     for key in coords:
         for dim in data[key].dims:
             spatial_dims.add(dim)
-    spatial_dims = list(spatial_dims)
 
-    stacked = data.stack({dim_name: spatial_dims})
+    stacked = data.stack({dim_name: list(spatial_dims)})
     order = list(coords)
     input_points = _coords_to_points(stacked, order)
     output_points = _coords_to_points(coords, order)
