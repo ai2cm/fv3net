@@ -6,26 +6,22 @@ import click
 import fsspec
 import numpy as np
 import xarray as xr
-from .gsutil import download_directory, upload_dir
+from .gsutil import download_directory, cp
 
 MOSAIC_FILES = "gs://vcm-ml-raw/2020-11-12-gridspec-orography-and-mosaic-data"
 
 
-def _standardize_dataset_for_fregrid(
-    ds, x_dim, y_dim, x_interface_dim, y_interface_dim
-):
+def _standardize_dataset_for_fregrid(ds, x_dim, y_dim):
     required_attrs = {
         x_dim: {"cartesian_axis": "X"},
         y_dim: {"cartesian_axis": "Y"},
-        x_interface_dim: {"cartesian_axis": "X"},
-        y_interface_dim: {"cartesian_axis": "Y"},
     }
     for dim, attrs in required_attrs.items():
         if dim in ds.dims:
-            ds[dim] = ds[dim].assign_attrs(attrs)
             ds = ds.assign_coords({dim: np.arange(1.0, ds.sizes[dim] + 1)})
-    if "time" in ds:
-        ds["time"] = ds["time"].astype(float)
+            ds[dim] = ds[dim].assign_attrs(attrs)
+    if "time" in ds.coords:
+        ds["time"].encoding["dtype"] = float
     return ds
 
 
@@ -56,8 +52,6 @@ def fregrid(
     ds: xr.Dataset,
     x_dim: str = "x",
     y_dim: str = "y",
-    x_interface_dim: str = "x_interface",
-    y_interface_dim: str = "y_interface",
     scalar_fields: Sequence = None,
     extra_args=("--nlat", "180", "--nlon", "360"),
 ) -> xr.Dataset:
@@ -84,10 +78,9 @@ def fregrid(
             extra_args,
         )
 
-        download_directory(mosaic_to_download, tmp_mosaic)
-        horizontal_dims = [x_dim, y_dim, x_interface_dim, y_interface_dim]
-        ds = _standardize_dataset_for_fregrid(ds, *horizontal_dims)
+        ds = _standardize_dataset_for_fregrid(ds, x_dim, y_dim)
         _write_dataset_to_tiles(ds, tmp_input)
+        download_directory(mosaic_to_download, tmp_mosaic)
         subprocess.check_call(["fregrid"] + fregrid_args)
         ds_latlon = xr.open_dataset(tmp_output)
         return ds_latlon.rename({x_dim: "longitude", y_dim: "latitude"})
@@ -98,12 +91,12 @@ def fregrid(
 @click.argument("output")
 def fregrid_single_input(url: str, output: str):
     """Interpolate cubed sphere dataset at URL to lat-lon and save to OUTPUT"""
-    with fsspec.open(url) as f:
-        ds = xr.open_dataset(f)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cp(url, os.path.join(tmpdir, "input.nc"))
+        ds = xr.open_dataset(os.path.join(tmpdir, "input.nc"))
         ds_latlon = fregrid(ds)
-        with tempfile.TemporaryDirectory() as tmpdir:
-            ds_latlon.to_netcdf(os.path.join(tmpdir, "data.nc"))
-            upload_dir(os.path.join(tmpdir, "data.nc"), output)
+        ds_latlon.to_netcdf(os.path.join(tmpdir, "data.nc"))
+        cp(os.path.join(tmpdir, "data.nc"), output)
 
 
 if __name__ == "__main__":
