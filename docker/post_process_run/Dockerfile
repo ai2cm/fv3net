@@ -45,7 +45,7 @@ COPY workflows/post_process_run /post_process_run
 RUN pip3 install /post_process_run --no-deps --no-cache-dir
 
 # run tests
-RUN cd /post_process_run && pytest -vv tests/test_fregrid.py && rm -rf /post_process_run
+RUN cd /post_process_run && pytest -vv && rm -rf /post_process_run
 
 ARG COMMIT_SHA_ARG
 ENV COMMIT_SHA=$COMMIT_SHA_ARG
