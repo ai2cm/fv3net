@@ -2,7 +2,6 @@ cftime
 click
 dask
 gcsfs
-h5netcdf
 fsspec
 netCDF4
 numpy

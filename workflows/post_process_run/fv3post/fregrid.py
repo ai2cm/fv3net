@@ -3,7 +3,6 @@ import subprocess
 import tempfile
 from typing import Sequence
 import click
-import fsspec
 import numpy as np
 import xarray as xr
 from .gsutil import download_directory, cp
