@@ -160,7 +160,7 @@ def nudging_overlay(nudging_config, initial_condition_url):
     return overlay
 
 
-def diagnostics_overlay(config, model_url, timestamps, frequency_minutes):
+def diagnostics_overlay(config, model_url, nudge_to_obs, timestamps, frequency_minutes):
 
     diagnostic_files = [PHYSICS_TENDENCIES]
 
@@ -175,6 +175,8 @@ def diagnostics_overlay(config, model_url, timestamps, frequency_minutes):
 
         diagnostic_files.append(nudging_tendencies)
         diagnostic_files.append(NUDGING_DIAGNOSTICS_2D)
+        diagnostic_files.append(FEATURE_DATA)
+    elif nudge_to_obs:
         diagnostic_files.append(FEATURE_DATA)
     else:
         diagnostic_files.append(BASELINE_DIAGNOSTICS)
@@ -234,7 +236,11 @@ def prepare_config(args):
             args.initial_condition_url, args.ic_timestep
         ),
         diagnostics_overlay(
-            user_config, args.model_url, timestamps, args.output_frequency,
+            user_config,
+            args.model_url,
+            args.nudge_to_observations,
+            timestamps,
+            args.output_frequency,
         ),
         step_tendency_overlay(user_config),
         ml_overlay(model_type, args.model_url, args.diagnostic_ml),

@@ -58,6 +58,6 @@ TIMESTAMPS = ["20160801.021500", "20160801.041500"]
 )
 def test_diagnostics_overlay_times(timestamps, frequency_minutes, expected):
     diags_overlay_times = prepare_config.diagnostics_overlay(
-        {}, None, timestamps, frequency_minutes
+        {}, None, None, timestamps, frequency_minutes
     )["diagnostics"][0]["times"]
     assert diags_overlay_times == expected

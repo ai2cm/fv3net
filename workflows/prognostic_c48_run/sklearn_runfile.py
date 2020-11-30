@@ -255,7 +255,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             "tendency_of_specific_humidity_due_to_microphysics"
         ).data_array
         delp = self._state[DELP]
-        return {
+
+        diagnostics: Diagnostics = {
             "storage_of_specific_humidity_path_due_to_microphysics": (micro * delp).sum(
                 "z"
             )
@@ -266,6 +267,10 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             ).data_array,
             "total_precip_after_physics": self._state[TOTAL_PRECIP],
         }
+
+        diagnostics.update({name: self._state[name] for name in STORE_NAMES})
+
+        return diagnostics
 
     def _apply_python_to_physics_state(self) -> Diagnostics:
         self._log_debug(f"Apply python tendencies to physics state")
@@ -396,9 +401,10 @@ class NudgingTimeLoop(TimeLoop):
             state, reference
         )
 
-        store_state: Diagnostics = {name: self._state[name] for name in STORE_NAMES}
-
-        return store_state
+        return {
+            f"{key}_reference": reference_state
+            for key, reference_state in reference.items()
+        }
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 
