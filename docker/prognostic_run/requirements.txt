@@ -86,6 +86,7 @@ sphinxcontrib-serializinghtml
 toolz
 traitlets
 tensorflow
+tensorflow-addons
 urllib3
 wcwidth
 websocket-client
