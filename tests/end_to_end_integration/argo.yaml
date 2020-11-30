@@ -57,19 +57,19 @@ spec:
       - name: nudging-chunks
         value: |
           nudging_tendencies.zarr:
-            time: 2
+            time: 1
           physics_tendencies.zarr:
-            time: 2
+            time: 1
           data.zarr:
-            time: 2
+            time: 1
           diags.zarr:
-            time: 2
+            time: 1
           atmos_8xdaily.zarr:
             time: 1
           atmos_dt_atmos.zarr:
-            time: 2
+            time: 1
           sfc_dt_atmos.zarr:
-            time: 2
+            time: 1
       - name: training-config
         value: | 
           model_type: sklearn_random_forest
