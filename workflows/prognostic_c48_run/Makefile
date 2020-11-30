@@ -12,15 +12,10 @@ RUN_FV3=runfv3.sh
 
 NUDGING_BASE_CONFIG_FILE=nudging_config.yaml
 NUDGING_CONFIG_FILE=nudging_config_temp.yaml
-
 PROGNOSTIC_BASE_CONFIG_FILE=prognostic_config.yaml
 PROGNOSTIC_CONFIG_FILE=prognostic_config_temp.yaml
 MODEL=gs://vcm-ml-scratch/test-end-to-end-integration/integration-test-2c1ba84b1350/trained_model
-
-NUDGE_TO_OBS_BASE_CONFIG_FILE=nudge_to_obs_config.yaml
 NUDGE_TO_OBS_CONFIG_FILE=nudge_to_obs_config_temp.yaml
-
-BASELINE_BASE_CONFIG_FILE=baseline_config.yaml
 BASELINE_CONFIG_FILE=baseline_config_temp.yaml
 
 
@@ -60,7 +55,7 @@ $(PROGNOSTIC_CONFIG_FILE): $(PROGNOSTIC_BASE_CONFIG_FILE)
 $(NUDGE_TO_OBS_CONFIG_FILE): $(NUDGE_TO_OBS_BASE_CONFIG_FILE)
 	python $(PREPARE_CONFIG_PY) \
     --nudge-to-observations \
-    $(NUDGE_TO_OBS_BASE_CONFIG_FILE) \
+    $(PROGNOSTIC_BASE_CONFIG_FILE) \
     $(RESTARTS_PATH) \
     $(INITIAL_CONDITION) \
     --output-timestamps $(OUTPUT_ARGS) \
@@ -68,7 +63,7 @@ $(NUDGE_TO_OBS_CONFIG_FILE): $(NUDGE_TO_OBS_BASE_CONFIG_FILE)
     
 $(BASELINE_CONFIG_FILE): $(BASELINE_BASE_CONFIG_FILE)
 	python prepare_config.py \
-    $(BASELINE_BASE_CONFIG_FILE) \
+    $(PROGNOSTIC_BASE_CONFIG_FILE) \
     $(RESTARTS_PATH) \
     $(INITIAL_CONDITION) \
     --output-timestamps $(OUTPUT_ARGS) \
