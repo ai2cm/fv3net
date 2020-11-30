@@ -257,6 +257,26 @@ def zonal_mean_biases_physics(prognostic, verification, grid):
     return time_mean(zonal_mean_bias)
 
 
+@add_to_diags("dycore")
+@diag_finalizer("zonal_mean_bias")
+@transform.apply("resample_time", "3H")
+@transform.apply("daily_mean", datetime.timedelta(days=10))
+@transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
+def zonal_mean_biases_dycore(prognostic, verification, grid):
+    logger.info("Preparing zonal mean biases (dycore)")
+    return zonal_mean(prognostic - verification, grid.lat)
+
+
+@add_to_diags("physics")
+@diag_finalizer("zonal_mean_bias")
+@transform.apply("resample_time", "3H")
+@transform.apply("daily_mean", datetime.timedelta(days=10))
+@transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
+def zonal_mean_biases_physics(prognostic, verification, grid):
+    logger.info("Preparing zonal mean biases (physics)")
+    return zonal_mean(prognostic - verification, grid.lat)
+
+
 for mask_type in ["global", "land", "sea", "tropics"]:
 
     @add_to_diags("dycore")
