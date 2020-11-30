@@ -13,5 +13,6 @@ def load_keras_model(
     keras_model_type: str = "DenseModel",
 ) -> Model:
     model_class = get_model_class(keras_model_type)
-    model = model_class.load(os.path.join(model_path, model_data_dir))
-    return model
+    # type checking thinks this needs > 1 arg
+    model = model_class.load(os.path.join(model_path, model_data_dir))  # type: ignore
+    return model  # type: ignore

@@ -15,8 +15,8 @@ import numpy as np
 import xarray as xr
 import zarr
 
-from post_process import authenticate, upload_dir
-from consolidate_metadata import consolidate_metadata
+from .gsutil import authenticate, upload_dir
+from .consolidate_metadata import consolidate_metadata
 
 logger = logging.getLogger(__file__)
 logging.basicConfig(level=logging.INFO)
