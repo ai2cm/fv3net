@@ -5,7 +5,7 @@ from typing import Sequence
 import click
 import numpy as np
 import xarray as xr
-from .gsutil import download_directory, cp
+import gsutil
 
 MOSAIC_FILES = "gs://vcm-ml-raw/2020-11-12-gridspec-orography-and-mosaic-data"
 
@@ -55,6 +55,7 @@ def fregrid(
     extra_args=("--nlat", "180", "--nlon", "360"),
 ) -> xr.Dataset:
     """docstring"""
+    gsutil.authenticate()
     resolution = f"C{ds.sizes[x_dim]}"
     mosaic_to_download = os.path.join(MOSAIC_FILES, resolution)
 
@@ -79,7 +80,7 @@ def fregrid(
 
         ds = _standardize_dataset_for_fregrid(ds, x_dim, y_dim)
         _write_dataset_to_tiles(ds, tmp_input)
-        download_directory(mosaic_to_download, tmp_mosaic)
+        gsutil.download_directory(mosaic_to_download, tmp_mosaic)
         subprocess.check_call(["fregrid"] + fregrid_args)
         ds_latlon = xr.open_dataset(tmp_output)
         return ds_latlon.rename({x_dim: "longitude", y_dim: "latitude"})
@@ -91,11 +92,11 @@ def fregrid(
 def fregrid_single_input(url: str, output: str):
     """Interpolate cubed sphere dataset at URL to lat-lon and save to OUTPUT"""
     with tempfile.TemporaryDirectory() as tmpdir:
-        cp(url, os.path.join(tmpdir, "input.nc"))
+        gsutil.cp(url, os.path.join(tmpdir, "input.nc"))
         ds = xr.open_dataset(os.path.join(tmpdir, "input.nc"))
         ds_latlon = fregrid(ds)
         ds_latlon.to_netcdf(os.path.join(tmpdir, "data.nc"))
-        cp(os.path.join(tmpdir, "data.nc"), output)
+        gsutil.cp(os.path.join(tmpdir, "data.nc"), output)
 
 
 if __name__ == "__main__":
