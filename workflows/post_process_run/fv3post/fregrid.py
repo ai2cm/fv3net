@@ -5,7 +5,7 @@ from typing import Sequence
 import click
 import numpy as np
 import xarray as xr
-import gsutil
+from .gsutil import authenticate, download_directory, cp
 
 MOSAIC_FILES = "gs://vcm-ml-raw/2020-11-12-gridspec-orography-and-mosaic-data"
 
@@ -54,8 +54,20 @@ def fregrid(
     scalar_fields: Sequence = None,
     extra_args=("--nlat", "180", "--nlon", "360"),
 ) -> xr.Dataset:
-    """docstring"""
-    gsutil.authenticate()
+    """Interpolate dataset from cubed-sphere grid to lat-lon grid.
+    
+    Note:
+        Saves dataset to disk and uses command-line fregrid tool to do interpolation.
+
+    Args:
+        ds: dataset to be interpolated. Must have 'tile' dimension.
+        x_dim (optional): name of x-dimension. Defaults to 'x'.
+        y_dim (optional): name of y-dimension. Defaults to 'y'.
+        scalar_fields (optional): sequence of variable names to regrid. Defaults to all
+            variables in ds whose dimensions include x_dim, y_dim and 'tile'.
+        extra_args (optional): sequence of arguments to pass to command-line fregrid.
+            Defaults to ("--nlat", "180", "--nlon", "360")."""
+    authenticate()
     resolution = f"C{ds.sizes[x_dim]}"
     mosaic_to_download = os.path.join(MOSAIC_FILES, resolution)
 
@@ -80,7 +92,7 @@ def fregrid(
 
         ds = _standardize_dataset_for_fregrid(ds, x_dim, y_dim)
         _write_dataset_to_tiles(ds, tmp_input)
-        gsutil.download_directory(mosaic_to_download, tmp_mosaic)
+        download_directory(mosaic_to_download, tmp_mosaic)
         subprocess.check_call(["fregrid"] + fregrid_args)
         ds_latlon = xr.open_dataset(tmp_output)
         return ds_latlon.rename({x_dim: "longitude", y_dim: "latitude"})
@@ -92,11 +104,11 @@ def fregrid(
 def fregrid_single_input(url: str, output: str):
     """Interpolate cubed sphere dataset at URL to lat-lon and save to OUTPUT"""
     with tempfile.TemporaryDirectory() as tmpdir:
-        gsutil.cp(url, os.path.join(tmpdir, "input.nc"))
+        cp(url, os.path.join(tmpdir, "input.nc"))
         ds = xr.open_dataset(os.path.join(tmpdir, "input.nc"))
         ds_latlon = fregrid(ds)
         ds_latlon.to_netcdf(os.path.join(tmpdir, "data.nc"))
-        gsutil.cp(os.path.join(tmpdir, "data.nc"), output)
+        cp(os.path.join(tmpdir, "data.nc"), output)
 
 
 if __name__ == "__main__":
