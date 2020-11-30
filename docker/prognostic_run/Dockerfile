@@ -38,6 +38,7 @@ COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
 COPY constraints.txt /tmp/constraints.txt
 
 RUN pip3 install wheel && \
+    pip3 install --upgrade pip==20.2.4 && \
     pip3 install --no-cache-dir -c /tmp/constraints.txt -r /tmp/requirements.txt && \
     ln -s /bin/python3 /bin/python && \
     ln -s /bin/pip3 /bin/pip
