@@ -4,7 +4,7 @@ import pytest
 MODEL_URL = "gs://ml-model"
 IC_URL = "gs://ic-bucket"
 IC_TIMESTAMP = "20160805.000000"
-ML_CONFIG_UPDATE = "prognostic_config.yml"
+ML_CONFIG_UPDATE = "prognostic_config.yaml"
 NUDGING_CONFIG_UPDATE = "nudging_config.yaml"
 OTHER_FLAGS = ["--nudge-to-observations"]
 
