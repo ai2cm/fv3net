@@ -95,7 +95,14 @@ def fregrid(
         download_directory(mosaic_to_download, tmp_mosaic)
         subprocess.check_call(["fregrid"] + fregrid_args)
         ds_latlon = xr.open_dataset(tmp_output)
-        return ds_latlon.rename({x_dim: "longitude", y_dim: "latitude"})
+        return ds_latlon.rename(
+            {
+                x_dim: "longitude",
+                y_dim: "latitude",
+                f"{x_dim}_bnds": "longitude_bnds",
+                f"{y_dim}_bnds": "latitude_bnds",
+            }
+        )
 
 
 @click.command()
