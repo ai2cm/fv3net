@@ -541,7 +541,7 @@ def globally_average_2d_diagnostics(
 ) -> Mapping[str, float]:
     averages = {}
     for v in diagnostics:
-        if set(diagnostics[v].dims) == {"x", "y"}:
+        if set(diagnostics[v].dims) == {"x", "y"} and v not in STORE_NAMES:
             averages[v] = global_average(comm, diagnostics[v], diagnostics["area"])
     return averages
 

@@ -10,8 +10,8 @@ RUNFILE=sklearn_runfile.py
 PREPARE_CONFIG_PY=prepare_config.py
 RUN_FV3=runfv3.sh
 
-NUDGING_BASE_CONFIG_FILE=nudging_config.yaml
-NUDGING_CONFIG_FILE=nudging_config_temp.yaml
+NUDGE_TO_FINE_BASE_CONFIG_FILE=nudge_to_fine_config.yaml
+NUDGE_TO_FINE_CONFIG_FILE=nudge_to_fine_config_temp.yaml
 PROGNOSTIC_BASE_CONFIG_FILE=prognostic_config.yaml
 PROGNOSTIC_CONFIG_FILE=prognostic_config_temp.yaml
 MODEL=gs://vcm-ml-scratch/test-end-to-end-integration/integration-test-2c1ba84b1350/trained_model
@@ -35,13 +35,13 @@ run_%: %_config_temp.yaml clean_rundir
 	mv $*_config_temp.yaml $(CONFIG_FILE)
 	$(RUN_FV3) $(CONFIG_FILE) $(RUNDIR) $(RUNFILE)
 
-$(NUDGING_CONFIG_FILE): $(NUDGING_BASE_CONFIG_FILE)
+$(NUDGE_TO_FINE_CONFIG_FILE): $(NUDGE_TO_FINE_BASE_CONFIG_FILE)
 	python3 $(PREPARE_CONFIG_PY) \
-    $(NUDGING_BASE_CONFIG_FILE) \
+    $(NUDGE_TO_FINE_BASE_CONFIG_FILE) \
     $(RESTARTS_PATH) \
     $(INITIAL_CONDITION) \
     --output-timestamps $(OUTPUT_ARGS) \
-    > $(NUDGING_CONFIG_FILE)
+    > $(NUDGE_TO_FINE_CONFIG_FILE)
     
 $(PROGNOSTIC_CONFIG_FILE): $(PROGNOSTIC_BASE_CONFIG_FILE)
 	python3 $(PREPARE_CONFIG_PY) \
