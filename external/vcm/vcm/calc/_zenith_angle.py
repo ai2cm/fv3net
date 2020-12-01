@@ -35,25 +35,33 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 import cftime
 import datetime
 import numpy as np
-from typing import Union
+from typing import Union, TypeVar
 import xarray as xr
 
 RAD_PER_DEG = np.pi / 180.0
 
+T = TypeVar("T", xr.DataArray, np.ndarray, float)
+
 
 def cos_zenith_angle(
-    model_time: Union[np.ndarray, datetime.datetime, cftime.DatetimeJulian],
-    lon: Union[float, xr.DataArray, np.ndarray],
-    lat: Union[float, xr.DataArray, np.ndarray],
-) -> np.ndarray:
+    time: Union[T, datetime.datetime, cftime.DatetimeJulian], lon: T, lat: T,
+) -> T:
     """
-    Cosine of sun-zenith angle for lon, lat at model_time (UTC).
+    Cosine of sun-zenith angle for lon, lat at time (UTC).
     lon is in degrees (E/W)
     lat is in degrees (N/S)
     """
-    lon_rad, lat_rad = lon * RAD_PER_DEG, lat * RAD_PER_DEG
     vectorized_cos_zenith = np.vectorize(_star_cos_zenith)
-    return vectorized_cos_zenith(model_time, lon_rad, lat_rad)
+
+    if isinstance(lon, xr.DataArray):
+        return (
+            xr.apply_ufunc(cos_zenith_angle, time, lon, lat, dask="allowed")
+            .rename("cos_zenith_angle")
+            .assign_attrs(units="")
+        )
+    else:
+        lon_rad, lat_rad = lon * RAD_PER_DEG, lat * RAD_PER_DEG
+        return vectorized_cos_zenith(time, lon_rad, lat_rad)
 
 
 def _days_from_2000(model_time):
