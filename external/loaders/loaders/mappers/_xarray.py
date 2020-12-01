@@ -8,7 +8,10 @@ class XarrayMapper(GeoMapper):
 
     Example:
         >>> import cftime
-        >>> data = xr.Dataset({"a": (["time", "x"], [[0, 0]])}, coords={"time": [cftime.DatetimeJulian(2016, 1, 1)]})
+        >>> data = xr.Dataset(
+        ...         {"a": (["time", "x"], [[0, 0]])},
+        ...         coords={"time": [cftime.DatetimeJulian(2016, 1, 1)]}
+        ...        )
         >>> mapper = XarrayMapper(data, time="time")
         >>> list(mapper)
         ['20160101.000000']
@@ -21,6 +24,7 @@ class XarrayMapper(GeoMapper):
         Data variables:
             a        (x) int64 0 0
     """
+
     def __init__(self, data: xr.Dataset, time: str = "time"):
         """
 
