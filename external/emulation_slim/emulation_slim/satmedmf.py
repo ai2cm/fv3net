@@ -1,13 +1,14 @@
+from inspect import trace
 import tensorflow as tf
 import numpy as np
 import os
 import cftime
 import logging
-from copy import copy
 
 from .classifiers import _less_than_zero_mask, _less_than_equal_zero_mask
 from .packer import EmuArrayPacker, consolidate_tracers, split_tracer_fields
 from .monitor import output_monitor
+from .debug import print_errors
 from ._filesystem import get_dir
 
 
@@ -47,7 +48,7 @@ def get_state_stats(state):
     for varname, arr in state.items():
         vmin = np.min(arr)
         vmax = np.max(arr)
-        stats += f"\t[{varname}] \tmin: {vmin:04.8f} \tmax: {vmax:04.8f}\n"
+        stats += f"\t[{varname}] \tmin: {vmin:04.8f} \tmax: {vmax:04.8f}\tshape: {arr.shape}\n"
 
     return stats
 
@@ -73,34 +74,16 @@ def add_tdt_increment(state):
     tdt_orig = state["tdt_input"]
     tdt_increment = state["tdt_update"]
 
-    logger.info(f"tdt_orig type: {tdt_orig.dtype}")
-    logger.info(f"tdt_update type: {tdt_increment.dtype}")
+    logger.debug(f"tdt_orig type: {tdt_orig.dtype}")
+    logger.debug(f"tdt_update type: {tdt_increment.dtype}")
     tdt_updated = tdt_orig + tdt_increment
     # Prevent IEEE_DENORMAL
     # tdt_updated[abs(tdt_updated) < 1e-28] = 0.0
     state["tdt_output"] = tdt_updated
 
 
-def translate_time(time):
-    year = time[0]
-    month = time[1]
-    day = time[2]
-    hour = time[4]
-    min = time[5]
-    datetime = cftime.DatetimeJulian(year, month, day, hour, min)
-    logger.info(f"Translated time: {datetime}")
-
-    return datetime
-
-
-def store_state(state, current_time):
-    state["time"] = current_time
-    output_monitor.store(state)
-    del state["time"]
-
-
+@print_errors
 def emulator(state):
-    current_time = translate_time(state.pop("model_time"))
     split_tracer_fields(state)
     stress_fix_temporary(state)
     logger.debug(get_state_stats(state))
@@ -110,10 +93,9 @@ def emulator(state):
     out_state = y_packer.to_dict(y)
     consolidate_tracers(out_state)
     if "kpbl_output" in out_state:
-        logger.info("PBL index height detected in output... rounding field")
+        logger.debug("PBL index height detected in output... rounding field")
         kpbl = out_state["kpbl_output"]
         out_state["kpbl_output"] = np.round(kpbl)
     logger.info(get_state_stats(out_state))
     state.update(out_state)
     add_tdt_increment(state)
-    store_state(state, current_time)

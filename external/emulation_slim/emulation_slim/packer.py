@@ -115,7 +115,7 @@ class EmuArrayPacker:
         _check_required_vars(state, self._pack_names)
 
         # sample is always trailing from fortran
-        n_samples = state[list(state.keys())[0]].shape[-1]
+        n_samples = state[self._pack_names[0]].shape[-1]
 
         arr = np.empty((n_samples, self._total_feature_size))
         for name in self._pack_names:

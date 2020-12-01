@@ -3,8 +3,22 @@ A module for testing/debugging call routines
 """
 import logging
 import os
+import traceback
 import numpy as np
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+
+def print_errors(func):
+    def new_func(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            logger.error(traceback.print_exc())
+            raise e
+
+    return new_func
 
 
 def print_arr_info(state):
