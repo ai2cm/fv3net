@@ -96,7 +96,7 @@ def standardize_restart_metadata(restarts):
 
 
 def standardize_diagnostic_metadata(ds):
-    times = np.vectorize(round_time)(ds.time)
+    times = round_time(ds.time)
     return ds.assign(time=times).pipe(rename_dims).pipe(rename_latlon)
 
 
