@@ -54,6 +54,9 @@ run image, then you could add something like the following to the
 
 Then run `make lock_deps` to update the `constraints.txt` file.
 
+This currently requires `pip` version < 20.3. The latest version 20.3 does not work with 
+the automatically generated `constraints.txt` because it contains extras.
+
 ## The "fv3net" environment
 
 The package `conda-lock` is used to ensure deterministic builds anaconda
