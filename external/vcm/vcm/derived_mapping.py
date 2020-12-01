@@ -46,13 +46,7 @@ class DerivedMapping:
 
 @DerivedMapping.register("cos_zenith_angle")
 def cos_zenith_angle(self):
-    return xr.apply_ufunc(
-        lambda time, lon, lat: vcm.cos_zenith_angle(time, lon, lat),
-        self["time"],
-        self["lon"],
-        self["lat"],
-        dask="allowed",
-    )
+    return vcm.cos_zenith_angle(self["time"], self["lon"], self["lat"])
 
 
 @DerivedMapping.register("evaporation")
