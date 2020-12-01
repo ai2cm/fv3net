@@ -1,21 +1,27 @@
-from budget.data import open_merged
-import budget.budgets
-from budget import config
-import numpy as np
 import logging
+
+import budget.budgets
+import joblib
+import loaders.mappers
+import numpy as np
+import vcm
+from budget import config
+from budget.data import open_merged
 
 logging.basicConfig(level=logging.INFO)
 
-output = "~/dev/data/2020-11-25-fine-res.zarr"
 
-data = open_merged(
-    config.restart_url, config.physics_url, config.gfsphysics_url, config.area_url
-)
-train = np.random.choice(data.time, 130, replace=False)
+def fine_res_to_zarr(url, output, seed=0):
+    np.random.seed(seed)
+    mapper = loaders.mappers.open_fine_resolution_budget(url=url)
+    train = list(np.random.choice(list(mapper), 130, replace=False))
+    template = mapper[train[0]].drop("time")
+    output_mapper = vcm.ZarrMapping.from_schema(
+        store=output, schema=template, dims=["time"], coords={"time": train}
+    )
 
-coarse = budget.budgets.compute_recoarsened_budget_inputs(
-    data.sel(time=train), factor=config.factor, first_moments=config.VARIABLES_TO_AVERAGE
-)
-coarse.chunk({"time": 1, "grid_xt": -1, "grid_yt": -1, "tile": 1}).to_zarr(output, mode='w')
+    def process(time):
+        logging.info(f"Processing {time}")
+        output_mapper[[time]] = mapper[time]
 
-
+    joblib.Parallel(6)(joblib.delayed(process)(time) for time in train)
