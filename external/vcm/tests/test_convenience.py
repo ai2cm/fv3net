@@ -136,3 +136,21 @@ minute = timedelta(minutes=1)
 )
 def test_round_time(input_, expected, tol):
     assert round_time(input_, to=tol) == expected
+
+
+def test_round_time_datetime_julian():
+    assert isinstance(
+        round_time(cftime.DatetimeJulian(2016, 1, 1)), cftime.DatetimeJulian
+    )
+
+
+def test_round_time_data_array():
+    time = xr.DataArray([cftime.DatetimeJulian(2016, 1, 1)], dims=["time"])
+    xr.testing.assert_equal(time, round_time(time))
+    assert isinstance(round_time(time), xr.DataArray)
+
+
+def test_round_time_numpy():
+    time = np.array([cftime.DatetimeJulian(2016, 1, 1)])
+    ans = round_time(time)
+    assert isinstance(ans, np.ndarray)

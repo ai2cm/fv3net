@@ -16,6 +16,7 @@ from vcm.cubedsphere.constants import TIME_FMT
 TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 
+@singledispatch
 def round_time(t, to=timedelta(seconds=1)):
     """ cftime will introduces noise when decoding values into date objects.
     This rounds time in the date object to the nearest second, assuming the init time
@@ -43,6 +44,16 @@ def round_time(t, to=timedelta(seconds=1)):
     rounded_time_since_midnight = closest_multiple_of_to * to
 
     return midnight + rounded_time_since_midnight
+
+
+@round_time.register
+def _round_time_numpy(time: np.ndarray) -> np.ndarray:
+    return np.vectorize(round_time)(time)
+
+
+@round_time.register
+def _round_time_xarray(time: xr.DataArray) -> xr.DataArray:
+    return xr.apply_ufunc(np.vectorize(round_time), time)
 
 
 def encode_time(time: cftime.DatetimeJulian) -> str:
