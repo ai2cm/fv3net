@@ -1,5 +1,7 @@
 import logging
 import xarray as xr
+import intake
+import os
 from typing import Hashable, Sequence, Mapping, Optional, Tuple
 
 from ._common import (
@@ -161,3 +163,50 @@ def open_nudge_to_fine_multiple_datasets(
     """
     mappers = [open_nudge_to_fine(url, **kwargs) for url in urls]
     return MultiDatasetMapper(mappers, names=names)
+
+
+def open_nudge_to_fine_rundir(
+    url: str, rename_vars: Optional[Mapping[str, str]] = None
+) -> xr.Dataset:
+    """
+    Opens a nudge-to-fine rundir as a merged xarray dataset, rather than as a mapper
+    
+    Args:
+        url (str):  path to nudge-to-fine rundir, remote or local
+        rename_vars (mapping): Optional mapping of variables to rename. Defaults to
+            {
+                'air_temperature_tendency_due_to_nudging': 'dQ1',
+                'specific_humidity_tendency_due_to_nudging': 'dQ2',
+                "x_wind_tendency_due_to_nudging": "dQxwind",
+                "y_wind_tendency_due_to_nudging": "dQywind",
+                'tendency_of_air_temperature_due_to_fv3_physics': 'pQ1',
+                'tendency_of_specific_humidity_due_to_fv3_physics': 'pQ2'
+            }
+        
+    Returns:
+        xarray dataset of combined nudging tendencies, physics tendencies,
+            and model state data
+    """
+
+    rename_vars = rename_vars or {
+        "air_temperature_tendency_due_to_nudging": "dQ1",
+        "specific_humidity_tendency_due_to_nudging": "dQ2",
+        "x_wind_tendency_due_to_nudging": "dQxwind",
+        "y_wind_tendency_due_to_nudging": "dQywind",
+        "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
+        "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
+    }
+
+    physics_tendencies_zarr = os.path.join(url, "physics_tendencies.zarr")
+    nudging_tendencies_zarr = os.path.join(url, "nudging_tendencies.zarr")
+    data_zarr = os.path.join(url, "data.zarr")
+
+    physics_tendencies = intake.open_zarr(
+        physics_tendencies_zarr, consolidated=True
+    ).to_dask()
+    nudging_tendencies = intake.open_zarr(
+        nudging_tendencies_zarr, consolidated=True
+    ).to_dask()
+    data = intake.open_zarr(data_zarr, consolidated=True).to_dask()
+
+    return xr.merge([data, physics_tendencies, nudging_tendencies]).rename(rename_vars)
