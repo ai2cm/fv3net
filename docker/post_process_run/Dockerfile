@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:experimental
 FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND="noninteractive"
@@ -45,7 +46,11 @@ COPY workflows/post_process_run /post_process_run
 RUN pip3 install /post_process_run --no-deps --no-cache-dir
 
 # run tests
-RUN cd /post_process_run && pytest -vv && rm -rf /post_process_run
+WORKDIR /post_process_run
+ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/key.json
+RUN --mount=type=secret,id=gcp,dst=/tmp/key.json \
+    pytest -vv && \
+    rm -rf /post_process_run
 
 ARG COMMIT_SHA_ARG
 ENV COMMIT_SHA=$COMMIT_SHA_ARG
