@@ -51,6 +51,8 @@ class PredictionMapper(GeoMapper):
         if "dQ1" not in self._variables:
             ds_pred["dQ1"] = xr.zeros_like(ds_pred["dQu"])
             ds_pred["dQ2"] = xr.zeros_like(ds_pred["dQu"])
+            ds_target["dQ1"] = xr.zeros_like(ds_target["dQu"])
+            ds_target["dQ2"] = xr.zeros_like(ds_target["dQu"])
         return xr.merge([safe.get_variables(ds, nonpredicted_vars), ds_target, ds_pred])
 
     def __getitem__(self, key: str) -> xr.Dataset:
@@ -63,7 +65,7 @@ class PredictionMapper(GeoMapper):
             ds["dQ1"] = xr.zeros_like(ds["dQu"])
             ds["dQ2"] = xr.zeros_like(ds["dQu"])
         derived_mapping = DerivedMapping(ds)
-        ds_derived = derived_mapping.dataset(self._variables)
+        ds_derived = derived_mapping.dataset(list(set(self._variables + ["dQ1", "dQ2"])))
         ds_prediction = self._predict(ds_derived)
         return self._insert_prediction(ds_derived, ds_prediction)
 

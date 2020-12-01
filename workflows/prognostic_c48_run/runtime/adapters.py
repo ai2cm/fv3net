@@ -52,7 +52,7 @@ class RenamingAdapter:
     def predict_columnwise(self, arg: xr.Dataset, **kwargs) -> xr.Dataset:
         input_ = self._rename_inputs(arg)
         prediction = self.model.predict_columnwise(input_, **kwargs)
-        if "dQ1" not in prediction.data_vars:
+        if "dQ1" not in prediction.data_vars and "dQu" in prediction.data_vars:
             prediction["dQ1"] = xr.zeros_like(prediction["dQu"])
             prediction["dQ2"] = xr.zeros_like(prediction["dQu"])
         return self._rename_outputs(prediction)

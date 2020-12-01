@@ -31,7 +31,7 @@ logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
 
 # variables that are needed in addition to the model features
-ADDITIONAL_VARS = ["pressure_thickness_of_atmospheric_layer", "pQ1", "pQ2", "dQ1", "dQ2"]
+ADDITIONAL_VARS = ["pressure_thickness_of_atmospheric_layer", "pQ1", "pQ2"]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
 DIURNAL_VARS = [
     "column_integrated_dQ1",
@@ -299,7 +299,7 @@ if __name__ == "__main__":
     del config["batch_kwargs"]["mapping_kwargs"]
 
     ds_batches = loaders.batches.diagnostic_batches_from_mapper(
-        pred_mapper, variables, **config["batch_kwargs"],
+        pred_mapper, set(variables + ["dQ1", "dQ2"]), **config["batch_kwargs"],
     )
 
     # compute diags
