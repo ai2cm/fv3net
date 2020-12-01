@@ -90,7 +90,7 @@ def standardize_zarr_time_coord(ds: xr.Dataset) -> xr.Dataset:
     """
     # Vectorize doesn't work on type-dispatched function overloading
     times = np.array(list(map(vcm.cast_to_datetime, ds[TIME_NAME].values)))
-    times = np.vectorize(round_time)(times)
+    times = round_time(times)
     ds = ds.assign_coords({TIME_NAME: times})
     return ds
 

@@ -46,7 +46,7 @@ def test_cos_zenith_angle_dataarray():
     lat = 0
     lon = 0
     dataset = xr.Dataset(
-        {"time": ([], time), "lat": (["x"], [lat]), "lon": (["x"], [lon]),}
+        {"time": ([], time), "lat": (["x"], [lat]), "lon": (["x"], [lon])}
     )
     expected = cos_zenith_angle(time, lon, lat)
     ans = cos_zenith_angle(dataset.time, dataset.lon, dataset.lat)
