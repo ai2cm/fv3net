@@ -13,6 +13,8 @@ Predictor = Union[SklearnWrapper, Model]
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
 
+DELP = "pressure_thickness_of_atmospheric_layer"
+
 
 class PredictionMapper(GeoMapper):
     def __init__(
@@ -57,7 +59,18 @@ class PredictionMapper(GeoMapper):
             [ds, self._grid], compat="override"  # type: ignore
         ).assign_coords({"time": parse_datetime_from_str(key)})
         derived_mapping = DerivedMapping(ds)
-        ds_derived = derived_mapping.dataset(self._variables)
+        data_vars_derived = {}
+
+        for key in self._variables:
+            try:
+                data_vars_derived[key] = derived_mapping[key]
+            except KeyError as e:
+                if key == DELP:
+                    raise e
+                elif key in ["pQ1", "pQ2"]:
+                    data_vars_derived[key] = xr.zeros_like(derived_mapping["dQ1"])
+
+        ds_derived = xr.Dataset(data_vars_derived)
         ds_prediction = self._predict(ds_derived)
         return self._insert_prediction(ds_derived, ds_prediction)
 
