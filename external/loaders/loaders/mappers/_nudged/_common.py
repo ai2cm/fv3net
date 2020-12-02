@@ -1,6 +1,6 @@
 import os
 import fsspec
-import zarr.storage as zstore
+import zarr
 import xarray as xr
 from typing import Sequence, Mapping, Union
 
@@ -8,34 +8,6 @@ from .._base import LongRunMapper, GeoMapper
 from ..._utils import standardize_zarr_time_coord
 
 Time = str
-
-
-class SubsetTimes(GeoMapper):
-    """
-    Sort and subset a timestep-based mapping to skip spin-up and limit
-    the number of available times.
-    """
-
-    def __init__(
-        self,
-        i_start: int,
-        n_times: Union[int, None],
-        nudged_data: Mapping[str, xr.Dataset],
-    ):
-        timestep_keys = list(nudged_data.keys())
-        timestep_keys.sort()
-
-        i_end = None if n_times is None else i_start + n_times
-        self._keys = timestep_keys[slice(i_start, i_end)]
-        self._nudged_data = nudged_data
-
-    def keys(self):
-        return set(self._keys)
-
-    def __getitem__(self, time: Time):
-        if time not in self._keys:
-            raise KeyError("Time {time} not found in SubsetTimes mapper.")
-        return self._nudged_data[time]
 
 
 class MergeNudged(LongRunMapper):
@@ -140,7 +112,7 @@ def _get_source_datasets(
     for source in sources:
         mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
         ds = xr.open_zarr(
-            zstore.LRUStoreCache(mapper, 1024),
+            zarr.storage.LRUStoreCache(mapper, 1024),
             consolidated=consolidated,
             mask_and_scale=False,
         )

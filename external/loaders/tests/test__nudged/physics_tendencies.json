@@ -1,0 +1,87 @@
+{
+    "version": "v3",
+    "schema": {
+        "coords": {},
+        "variables": {
+            "tendency_of_air_temperature_due_to_fv3_physics": {
+                "name": "tendency_of_air_temperature_due_to_fv3_physics",
+                "dims": [
+                    "time",
+                    "tile",
+                    "z",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        1,
+                        6,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "units": "unknown"
+                }
+            },
+            "tendency_of_specific_humidity_due_to_fv3_physics": {
+                "name": "tendency_of_specific_humidity_due_to_fv3_physics",
+                "dims": [
+                    "time",
+                    "tile",
+                    "z",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        1,
+                        6,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "units": "unknown"
+                }
+            },
+            "time": {
+                "name": "time",
+                "dims": [
+                    "time"
+                ],
+                "array": {
+                    "shape": [
+                        2
+                    ],
+                    "dtype": "<i8",
+                    "chunks": [
+                        2
+                    ]
+                },
+                "attrs": {
+                    "calendar": "julian",
+                    "units": "minutes since 2016-08-01 00:30:00.000000"
+                }
+            }
+        }
+    }
+}

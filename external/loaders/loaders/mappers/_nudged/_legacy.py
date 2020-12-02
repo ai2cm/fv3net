@@ -6,17 +6,16 @@ from pathlib import Path
 import warnings
 import fsspec
 import xarray as xr
-import zarr.storage as zstore
+import zarr
 
 from ..._utils import assign_net_physics_terms
 from ...constants import DERIVATION_SHIELD_COORD, DERIVATION_FV3GFS_COORD
 from .._high_res_diags import open_high_res_diags
 from .._merged import MergeOverlappingData
-from .._transformations import KeyMap
+from .._transformations import KeyMap, SubsetTimes
 from .._base import GeoMapper, LongRunMapper, MultiDatasetMapper
 from ._common import (
     MergeNudged,
-    SubsetTimes,
     SubtractNudgingTendency,
     _get_source_datasets,
 )
@@ -254,7 +253,7 @@ def _open_nudging_checkpoints(
         full_path = os.path.join(url, f"{filename}")
         mapper = fsspec.get_mapper(full_path)
         ds = xr.open_zarr(
-            zstore.LRUStoreCache(mapper, 1024),
+            zarr.storage.LRUStoreCache(mapper, 1024),
             consolidated=consolidated,
             mask_and_scale=False,
         )
