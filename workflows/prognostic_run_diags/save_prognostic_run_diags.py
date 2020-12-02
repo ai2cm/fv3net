@@ -241,7 +241,7 @@ def zonal_means_physics(prognostic, verification, grid):
 @diag_finalizer("zonal_bias")
 @transform.apply("resample_time", "1H")
 @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
-def zonal_mean_biases_dycore(prognostic, verification, grid):
+def zonal_and_time_mean_biases_dycore(prognostic, verification, grid):
     logger.info("Preparing zonal+time mean biases (dycore)")
     zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
     return time_mean(zonal_mean_bias)
@@ -251,7 +251,7 @@ def zonal_mean_biases_dycore(prognostic, verification, grid):
 @diag_finalizer("zonal_bias")
 @transform.apply("resample_time", "1H")
 @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
-def zonal_mean_biases_physics(prognostic, verification, grid):
+def zonal_and_time_mean_biases_physics(prognostic, verification, grid):
     logger.info("Preparing zonal+time mean biases (physics)")
     zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
     return time_mean(zonal_mean_bias)

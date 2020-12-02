@@ -194,7 +194,6 @@ def plot_2d(
 ) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 2D and have the same dimensions."""
-    p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "run"])
     for ds in diagnostics:
         run = ds.attrs["run"]
