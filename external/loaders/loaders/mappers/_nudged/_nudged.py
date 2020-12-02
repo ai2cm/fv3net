@@ -4,14 +4,10 @@ import intake
 import os
 from typing import Hashable, Sequence, Mapping, Optional, Tuple
 
-from ._common import (
-    _get_source_datasets,
-    MergeNudged,
-    SubtractNudgingTendency,
-)
-from .._transformations import SubsetTimes
 from .._base import MultiDatasetMapper
 from .._xarray import XarrayMapper
+from ._legacy import _get_source_datasets, MergeNudged, SubtractNudgingTendency
+from .._transformations import SubsetTimes
 
 logger = logging.getLogger(__name__)
 
@@ -90,23 +86,20 @@ def open_nudge_to_obs(
     return SubsetTimes(i_start, n_times, nudged_mapper)
 
 
-def open_nudge_to_fine_multiple_datasets(
-    urls: Sequence[str], names: Optional[Sequence[Hashable]] = None, **kwargs
-):
-    """
-    Load sequence of mappers to nudged datasets containing dQ tendency terms.
-
-    Args:
-        urls: paths to directories with nudging output
-        names: sequence of names to assign to the dataset coordinate (optional)
-        **kwargs: keyword arguments passed to open_nudge_to_fine
-
-    Returns
-        mapper of timestamps to dataset containing tendency terms with a dataset
-        dimension
-    """
-    mappers = [open_nudge_to_fine(url, **kwargs) for url in urls]
-    return MultiDatasetMapper(mappers, names=names)
+# def open_nudge_to_obs(
+#     url: str,
+#     merge_files: Tuple[str] = (
+#         "data.zarr",
+#         "physics_tendencies.zarr",
+#         "nudging_tendencies.zarr",
+#     ),
+#     nudging_to_physics_tendency: Mapping[str, str] = None,
+#     rename_vars: Mapping[str, str] = None,
+#     consolidated: bool = True,
+#     i_start: int = 0,
+#     n_times: int = None,
+# ):
+#     pass
 
 
 def open_nudge_to_fine(url: str, consolidated=True) -> xr.Dataset:
@@ -118,7 +111,7 @@ def open_nudge_to_fine(url: str, consolidated=True) -> xr.Dataset:
         consolidated (bool): whether zarrs to open have consolidated metadata
         
     Returns:
-        xarray dataset of combined nudging tendencies, physics tendencies,
+        mapper to dataset containing nudging tendencies, physics tendencies,
             and model state data
     """
 
@@ -150,3 +143,22 @@ def open_nudge_to_fine(url: str, consolidated=True) -> xr.Dataset:
             rename_vars
         )
     )
+
+
+def open_nudge_to_fine_multiple_datasets(
+    urls: Sequence[str], names: Optional[Sequence[Hashable]] = None, **kwargs
+):
+    """
+    Load sequence of mappers to nudged datasets containing dQ tendency terms.
+
+    Args:
+        urls: paths to directories with nudging output
+        names: sequence of names to assign to the dataset coordinate (optional)
+        **kwargs: keyword arguments passed to open_nudge_to_fine
+
+    Returns
+        mapper of timestamps to dataset containing tendency terms with a dataset
+        dimension
+    """
+    mappers = [open_nudge_to_fine(url, **kwargs) for url in urls]
+    return MultiDatasetMapper(mappers, names=names)

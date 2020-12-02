@@ -6,8 +6,8 @@ from loaders.mappers._fine_resolution_budget import (
     FineResolutionSources,
 )
 from loaders.mappers._transformations import SubsetTimes
-from loaders.mappers._nudged._common import MergeNudged
 from loaders.mappers._nudged._legacy import (
+    MergeNudged,
     NudgedStateCheckpoints,
     NudgedFullTendencies,
 )

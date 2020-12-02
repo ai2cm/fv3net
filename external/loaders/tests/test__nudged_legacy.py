@@ -8,13 +8,11 @@ import synth
 from vcm import safe
 from loaders import DATASET_DIM_NAME, TIME_NAME, TIME_FMT
 from loaders.mappers import LongRunMapper, SubsetTimes
-from loaders.mappers._nudged._common import (
-    MergeNudged,
-    SubtractNudgingTendency,
-)
 from loaders.mappers._nudged._legacy import (
+    MergeNudged,
     NudgedStateCheckpoints,
     NudgedFullTendencies,
+    SubtractNudgingTendency,
     SubtractNudgingIncrement,
     open_merged_nudged,
     open_merged_nudge_to_obs,
