@@ -9,6 +9,7 @@ from tempfile import NamedTemporaryFile
 import xarray as xr
 import yaml
 from typing import Mapping, Sequence, Tuple
+from toolz import dissoc
 
 import diagnostics_utils as utils
 import loaders
@@ -294,12 +295,10 @@ if __name__ == "__main__":
         set(config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS)
     )
     pred_mapper = _get_prediction_mapper(args, config, variables)
-
-    del config["batch_kwargs"]["mapping_function"]
-    del config["batch_kwargs"]["mapping_kwargs"]
+    batch_kwargs = dissoc(config["batch_kwargs"], "mapping_function", "mapping_kwargs")
 
     ds_batches = loaders.batches.diagnostic_batches_from_mapper(
-        pred_mapper, variables, **config["batch_kwargs"],
+        pred_mapper, variables, **batch_kwargs
     )
 
     # compute diags
