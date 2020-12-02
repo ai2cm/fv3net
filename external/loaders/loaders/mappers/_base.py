@@ -73,3 +73,24 @@ class MultiDatasetMapper(GeoMapper):
             else:
                 dim = DATASET_DIM_NAME
             return xr.concat(datasets, dim=dim)
+
+
+class XarrayMapper(GeoMapper):
+    def __init__(self, data):
+        """Create a mapper directly from an xarray dataset
+        
+        Args:
+            data: xarray dataset with 'time' as a coordinate
+        """
+        self.data = data
+
+        times = self.data.time.values.tolist()
+        time_strings = [vcm.encode_time(time) for time in times]
+        self.time_lookup = dict(zip(time_strings, times))
+        self.time_string_lookup = dict(zip(times, time_strings))
+
+    def __getitem__(self, time_string):
+        return self.data.sel(time=self.time_lookup[time_string])
+
+    def keys(self):
+        return self.time_lookup.keys()
