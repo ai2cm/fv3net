@@ -203,7 +203,7 @@ def plot_2d(
             if plot_dims is None:
                 plot_dims = list(v.dims)
             long_name_and_units = f"{v.long_name} [{v.units}]"
-            hmap[(long_name_and_units, run)] = hv.Image(
+            hmap[(long_name_and_units, run)] = hv.QuadMesh(
                 v, plot_dims, varname, label=varfilter
             )
     return HVPlot(
