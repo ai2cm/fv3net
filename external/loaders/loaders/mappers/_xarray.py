@@ -51,4 +51,3 @@ class XarrayMapper(GeoMapper):
 
 def open_zarr(url):
     return XarrayMapper(intake.open_zarr(url).to_dask())
-    

@@ -5,7 +5,6 @@ import loaders.mappers
 import numpy as np
 import vcm
 import xarray
-from budget.data import open_merged
 from loaders.mappers._fine_resolution_budget import convergence
 from vcm import metadata
 
@@ -60,6 +59,7 @@ def _compute_inputs(dataset):
     output = {}
     output["air_temperature"] = dataset["T"]
     output["specific_humidity"] = dataset["sphum"]
+    output["pressure_thickness_of_atmospheric_layer"] = dataset["delp"]
     return xarray.Dataset(output)
 
 
@@ -73,4 +73,4 @@ def save_fine_res_to_zarr(url, output):
     ml_data = ml_data.assign_coords(
         time=np.vectorize(vcm.parse_datetime_from_str)(ml_data.time)
     )
-    ml_data.to_zarr(output, mode='w')
+    ml_data.to_zarr(output, mode="w")
