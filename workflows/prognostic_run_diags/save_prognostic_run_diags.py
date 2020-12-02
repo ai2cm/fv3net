@@ -173,6 +173,22 @@ def zonal_mean(
     return zm.assign_coords(latitude=latitude_midpoints)
 
 
+def zonal_min(
+    ds: xr.Dataset, latitude: xr.DataArray, bins=np.arange(-90, 91, 2)
+) -> xr.Dataset:
+    zm = ds.groupby_bins(latitude, bins=bins).min().rename(lat_bins="latitude")
+    latitude_midpoints = [x.item().mid for x in zm["latitude"]]
+    return zm.assign_coords(latitude=latitude_midpoints)
+
+
+def zonal_max(
+    ds: xr.Dataset, latitude: xr.DataArray, bins=np.arange(-90, 91, 2)
+) -> xr.Dataset:
+    zm = ds.groupby_bins(latitude, bins=bins).max().rename(lat_bins="latitude")
+    latitude_midpoints = [x.item().mid for x in zm["latitude"]]
+    return zm.assign_coords(latitude=latitude_midpoints)
+
+
 def time_mean(ds: xr.Dataset, dim: str = "time") -> xr.Dataset:
     result = ds.mean(dim)
     return _assign_diagnostic_time_attrs(result, ds)
@@ -235,6 +251,45 @@ def zonal_means_physics(prognostic, verification, grid):
     logger.info("Preparing zonal+time means (physics)")
     zonal_means = zonal_mean(prognostic, grid.lat)
     return time_mean(zonal_means)
+
+
+@add_to_diags("dycore")
+@diag_finalizer("zonal_and_time_min")
+@transform.apply("resample_time", "1H")
+@transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
+def zonal_mins_dycore(prognostic, verification, grid):
+    logger.info("Preparing zonal+time mins (dycore)")
+    zonal_mins = zonal_min(prognostic, grid.lat)
+    return time_mean(zonal_mins)
+
+
+@add_to_diags("physics")
+@diag_finalizer("zonal_and_time_min")
+@transform.apply("resample_time", "1H")
+@transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
+def zonal_mins_physics(prognostic, verification, grid):
+    logger.info("Preparing zonal+time mins (physics)")
+    zonal_mins = zonal_min(prognostic, grid.lat)
+    return time_mean(zonal_mins)
+
+@add_to_diags("dycore")
+@diag_finalizer("zonal_and_time_max")
+@transform.apply("resample_time", "1H")
+@transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
+def zonal_maxs_dycore(prognostic, verification, grid):
+    logger.info("Preparing zonal+time maxs (dycore)")
+    zonal_maxs = zonal_max(prognostic, grid.lat)
+    return time_mean(zonal_maxs)
+
+
+@add_to_diags("physics")
+@diag_finalizer("zonal_and_time_max")
+@transform.apply("resample_time", "1H")
+@transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
+def zonal_maxs_physics(prognostic, verification, grid):
+    logger.info("Preparing zonal+time maxs (physics)")
+    zonal_maxs = zonal_max(prognostic, grid.lat)
+    return time_mean(zonal_maxs)
 
 
 @add_to_diags("dycore")
