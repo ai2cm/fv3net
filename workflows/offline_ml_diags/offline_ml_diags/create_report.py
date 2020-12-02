@@ -91,25 +91,30 @@ if __name__ == "__main__":
         config_name="config.yaml",
     )
     ds_diags = ds_diags.pipe(insert_dataset_r2).pipe(mse_to_rmse)
-    timesteps = config["batch_kwargs"].pop("timesteps")
     config.pop("mapping_kwargs", None)  # this item clutters the report
     if args.commit_sha:
         config["commit"] = args.commit_sha
-    timesteps = [
-        vcm.cast_to_datetime(vcm.parse_datetime_from_str(t)) for t in timesteps
-    ]
+
     report_sections = {}  # type: Mapping[str, Sequence[str]]
 
     # histogram of timesteps used for testing
-    fig = fv3viz.plot_daily_and_hourly_hist(timesteps)
-    fig.set_size_inches(10, 3)
-    insert_report_figure(
-        report_sections,
-        fig,
-        filename="timesteps_used.png",
-        section_name="Timesteps used for testing",
-        output_dir=temp_output_dir.name,
-    )
+    try:
+        timesteps = config["batch_kwargs"].pop("timesteps")
+    except KeyError:
+        pass
+    else:
+        timesteps = [
+            vcm.cast_to_datetime(vcm.parse_datetime_from_str(t)) for t in timesteps
+        ]
+        fig = fv3viz.plot_daily_and_hourly_hist(timesteps)
+        fig.set_size_inches(10, 3)
+        insert_report_figure(
+            report_sections,
+            fig,
+            filename="timesteps_used.png",
+            section_name="Timesteps used for testing",
+            output_dir=temp_output_dir.name,
+        )
 
     # Zonal average of vertical profiles for bias and R2
     zonal_avg_pressure_level_metrics = [
