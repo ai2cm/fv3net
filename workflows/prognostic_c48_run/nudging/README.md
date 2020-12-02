@@ -10,8 +10,7 @@ consolidate workflows performing different flavours of fv3gfs running.
 As with the prognostic run, the nudging run is configured
 by specifying an update to the base configurations in `fv3kube`. Nudging
 requires a `nudging` section within the fv3config object. This section
-contains the location of the nudging dataset as well as the nudging
-time-scales. Here is an example:
+contains the nudging time-scales. Here is an example:
 ```
 base_version: v0.5
 nudging:

@@ -10,3 +10,6 @@
 [submodule "external/fv3gfs-util"]
 	path = external/fv3gfs-util
 	url = git@github.com:VulcanClimateModeling/fv3gfs-util.git
+[submodule "external/FRE-NCtools"]
+	path = external/FRE-NCtools
+	url = git@github.com:VulcanClimateModeling/FRE-NCtools.git

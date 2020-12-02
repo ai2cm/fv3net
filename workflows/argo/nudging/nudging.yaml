@@ -147,7 +147,7 @@ spec:
           cp /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_runfile.py /tmp/runfile.py
 
           python prepare_config.py \
-            --nudging-output-timesteps times.json \
+            --output-timestamps times.json \
             config.yaml \
             "{{inputs.parameters.reference-restarts}}" \
             "{{inputs.parameters.initial-condition}}" \

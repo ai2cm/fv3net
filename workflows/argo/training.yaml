@@ -46,13 +46,18 @@ spec:
               config.yaml \
               {{inputs.parameters.output}} \
               --timesteps-file times.json
-        podSpecPatch: |
-          containers:
-            - name: main
-              resources:
-                limits:
-                  cpu: "1000m"
-                  memory: "{{inputs.parameters.memory}}"
-                requests:
-                  cpu: "1000m"
-                  memory: "{{inputs.parameters.memory}}"
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "climate-sim-pool"
+        effect: "NoSchedule"      
+      podSpecPatch: |
+        containers:
+          - name: main
+            resources:
+              limits:
+                cpu: "1000m"
+                memory: "{{inputs.parameters.memory}}"
+              requests:
+                cpu: "1000m"
+                memory: "{{inputs.parameters.memory}}"

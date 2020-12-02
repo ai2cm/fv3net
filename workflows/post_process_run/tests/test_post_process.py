@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import xarray as xr
-from post_process import (
+from fv3post.post_process import (
     parse_rundir,
     process_item,
     open_tiles,

@@ -7,11 +7,11 @@ from typing import Sequence, Iterable, Union, Mapping
 import numpy as np
 import xarray as xr
 import tempfile
-import subprocess
 import logging
 import click
 from toolz import groupby
 from itertools import chain
+from .gsutil import authenticate, upload_dir, download_directory
 
 logger = logging.getLogger(__file__)
 logging.basicConfig(level=logging.INFO)
@@ -32,15 +32,6 @@ def get_chunks(user_chunks: ChunkSpec) -> ChunkSpec:
     }
     CHUNKS.update(user_chunks)
     return CHUNKS
-
-
-def upload_dir(d, dest):
-    subprocess.check_call(["gsutil", "-m", "rsync", "-r", "-e", d, dest])
-
-
-def download_directory(dir_, dest):
-    os.makedirs(dest, exist_ok=True)
-    subprocess.check_call(["gsutil", "-m", "rsync", "-r", dir_, dest])
 
 
 def _get_true_chunks(ds, chunks):
@@ -65,17 +56,6 @@ def encode_chunks(ds, chunks):
         variable_chunks = [true_chunks[dim] for dim in ds[variable].dims]
         ds[variable].encoding["chunks"] = variable_chunks
     return ds
-
-
-def authenticate():
-    try:
-        credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-    except KeyError:
-        pass
-    else:
-        subprocess.check_call(
-            ["gcloud", "auth", "activate-service-account", "--key-file", credentials]
-        )
 
 
 def clear_encoding(ds):

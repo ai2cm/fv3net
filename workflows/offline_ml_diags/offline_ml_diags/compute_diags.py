@@ -12,13 +12,14 @@ from typing import Mapping, Sequence, Tuple
 
 import diagnostics_utils as utils
 import loaders
-from vcm import safe
+from vcm import safe, interpolate_to_pressure_levels
 from vcm.cloud import get_fs
 from fv3fit import PRODUCTION_MODEL_TYPES
 from ._metrics import calc_metrics
 from . import _model_loaders as model_loaders
 from ._mapper import PredictionMapper
 from ._helpers import add_net_precip_domain_info, load_grid_info
+from ._select import meridional_transect, nearest_time
 
 
 handler = logging.StreamHandler(sys.stdout)
@@ -42,6 +43,7 @@ DIURNAL_VARS = [
 ]
 SHIELD_DERIVATION_COORD = "coarsened_SHiELD"
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
+TRANSECT_NC_NAME = "transect_lon0.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
 DATASET_DIM_NAME = "dataset"
 
@@ -51,7 +53,7 @@ DIAGNOSTIC_VARS = ("dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2")
 METRIC_VARS = ("dQ1", "dQ2", "Q1", "Q2")
 
 
-def _create_arg_parser() -> argparse.ArgumentParser:
+def _create_arg_parser() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("data_path", nargs="*", type=str, help="Location of test data")
     parser.add_argument(
@@ -72,6 +74,16 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         help="Json file that defines train timestep set.",
+    )
+    parser.add_argument(
+        "--snapshot-time",
+        type=str,
+        default=None,
+        help=(
+            "Timestep to use for snapshot. Provide a string 'YYYYMMDD.HHMMSS'. "
+            "If provided, will use the closest timestep in the test set. If not, will "
+            "default to use the first timestep available."
+        ),
     )
     return parser.parse_args()
 
@@ -103,8 +115,8 @@ def _compute_diags_over_batches(
     """Return a set of diagnostic datasets from a sequence of batched data"""
 
     batches_summary, batches_diurnal, batches_metrics = [], [], []
-    diagnostic_vars = list(set(predicted_vars + ["pQ1", "pQ2", "Q1", "Q2"]))
-    metric_vars = list(set(predicted_vars + ["Q1", "Q2"]))
+    diagnostic_vars = list(set(list(predicted_vars) + ["pQ1", "pQ2", "Q1", "Q2"]))
+    metric_vars = list(set(list(predicted_vars) + ["Q1", "Q2"]))
 
     # for each batch...
     for i, ds in enumerate(ds_batches):
@@ -127,7 +139,7 @@ def _compute_diags_over_batches(
         ds_summary = utils.reduce_to_diagnostic(
             ds,
             grid,
-            net_precipitation=-ds["column_integrated_Q2"].sel(
+            net_precipitation=-ds["column_integrated_Q2"].sel(  # type: ignore
                 derivation=net_precip_domain_coord
             ),
             primary_vars=diagnostic_vars,
@@ -138,14 +150,18 @@ def _compute_diags_over_batches(
         if DATASET_DIM_NAME in ds.dims:
             sample_dims = ("time", DATASET_DIM_NAME)
         else:
-            sample_dims = ("time",)
+            sample_dims = ("time",)  # type: ignore
         ds = ds.stack(sample=sample_dims)
         ds_diurnal = utils.create_diurnal_cycle_dataset(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
         )
         # ...compute metrics
         ds_metrics = calc_metrics(
-            xr.merge([ds, grid["area"]], compat="override"), predicted=metric_vars
+            ds,
+            grid["lat"],
+            grid["area"],
+            ds["pressure_thickness_of_atmospheric_layer"],
+            predicted_vars=metric_vars,
         )
 
         batches_summary.append(ds_summary.load())
@@ -229,6 +245,27 @@ def _get_prediction_mapper(args, config: Mapping, variables: Sequence[str]):
     )
 
 
+def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence[str]):
+    ds_snapshot_regrid_pressure = xr.Dataset()
+    for var in variables:
+        transect_var = [
+            interpolate_to_pressure_levels(
+                field=ds_snapshot[var].sel(derivation=deriv),
+                delp=ds_snapshot["pressure_thickness_of_atmospheric_layer"],
+                dim="z",
+            )
+            for deriv in ["target", "predict"]
+        ]
+        ds_snapshot_regrid_pressure[var] = xr.concat(transect_var, dim="derivation")
+    ds_snapshot_regrid_pressure = xr.merge([ds_snapshot_regrid_pressure, grid])
+    ds_transect = meridional_transect(
+        safe.get_variables(
+            ds_snapshot_regrid_pressure, list(variables) + ["lat", "lon"]
+        )
+    )
+    return ds_transect
+
+
 if __name__ == "__main__":
     logger.info("Starting diagnostics routine.")
     args = _create_arg_parser()
@@ -270,7 +307,14 @@ if __name__ == "__main__":
         ds_batches, grid, predicted_vars=config["output_variables"]
     )
 
+    # compute transected and zonal diags
+    snapshot_time = args.snapshot_time or sorted(list(pred_mapper.keys()))[0]
+    snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
+    ds_snapshot = pred_mapper[snapshot_key]
+    ds_transect = _get_transect(ds_snapshot, grid, config["output_variables"])
+
     # write diags and diurnal datasets
+    _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
     _write_nc(
         xr.merge([grid.drop("land_sea_mask"), ds_diagnostics]),
         args.output_path,

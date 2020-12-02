@@ -246,3 +246,18 @@ and `output-url`, e.g., using the example config in `./nudging/examples/argo_clo
         -p reference-restarts="gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts" \
         -p initial-condition="20160801.001500" \
         -p output-url="gs://vcm-ml-scratch/brianh/nudge-to-fine-test" 
+
+
+### Cubed-sphere to lat-lon interpolation workflow
+
+The `cubed-to-latlon` workflow can be used to regrid cubed sphere FV3 data using GFDL's `fregrid` utility.
+In this workflow, you specify the input data (the prefix before `.tile?.nc`), the destination
+for the regridded outputs, and a comma separated list of variables to regrid from the source file.
+
+| Parameter       | Description                                                              | Example                         |
+|-----------------|--------------------------------------------------------------------------|---------------------------------|
+| `source_prefix` | Prefix of the source data in GCS (everything but .tile1.nc)              | gs://path/to/sfc_data (no tile) |
+| `output-bucket` | URL to output file in GCS                                                | gs://vcm-ml-data/output.nc      |
+| `resolution`    | Resolution of input data (defaults to C48)                               | one of 'C48', 'C96', or 'C384'  |
+| `fields`        | Comma-separated list of variables to regrid                              | PRATEsfc,LHTFLsfc,SHTFLsfc      |
+| `extra_args`    | Extra arguments to pass to fregrid. Typically used for target resolution | --nlat 180 --nlon 360           |

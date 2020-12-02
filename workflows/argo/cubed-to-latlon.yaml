@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
-kind: Workflow
+kind: WorkflowTemplate
 metadata:
-  generateName: regrid-the-input-data-
+  name: cubed-to-latlon
 spec:
   arguments:
     parameters:
@@ -23,9 +23,9 @@ spec:
   templates:
    - name: regrid
      container:
-      image: us.gcr.io/vcm-ml/regrid_c3072_diag
+      image: us.gcr.io/vcm-ml/post_process_run
       command:
-      - /usr/bin/regrid.sh
+      - fregrid_cubed_to_latlon.sh
       - '{{workflow.parameters.source_prefix}}'
       - '{{workflow.parameters.output_bucket}}'
       - '{{workflow.parameters.resolution}}'
