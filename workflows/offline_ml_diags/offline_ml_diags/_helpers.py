@@ -1,4 +1,3 @@
-from dask.array.core import asarray
 import fsspec
 import json
 import numpy as np
