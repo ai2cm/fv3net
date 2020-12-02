@@ -59,18 +59,17 @@ class PredictionMapper(GeoMapper):
             [ds, self._grid], compat="override"  # type: ignore
         ).assign_coords({"time": parse_datetime_from_str(key)})
         derived_mapping = DerivedMapping(ds)
-        data_vars_derived = {}
 
+        ds_derived = xr.Dataset({})
         for key in self._variables:
             try:
-                data_vars_derived[key] = derived_mapping[key]
+                ds_derived[key] = derived_mapping[key]
             except KeyError as e:
                 if key == DELP:
                     raise e
                 elif key in ["pQ1", "pQ2"]:
-                    data_vars_derived[key] = xr.zeros_like(derived_mapping["dQ1"])
+                    ds_derived[key] = xr.zeros_like(derived_mapping["dQ1"])
 
-        ds_derived = xr.Dataset(data_vars_derived)
         ds_prediction = self._predict(ds_derived)
         return self._insert_prediction(ds_derived, ds_prediction)
 
