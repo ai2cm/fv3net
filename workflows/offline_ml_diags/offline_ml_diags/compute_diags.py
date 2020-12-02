@@ -156,9 +156,9 @@ def _compute_diagnostics(
             ds.pipe(utils.insert_total_apparent_sources)
             .pipe(utils.insert_column_integrated_vars, diagnostic_vars)
             .pipe(utils.insert_net_terms_as_Qs)
-            .merge(grid)
             .load()
         )
+        ds.update(grid)
 
         ds_summary = _compute_summary(ds, diagnostic_vars)
 
