@@ -259,7 +259,7 @@ def zonal_and_time_mean_biases_physics(prognostic, verification, grid):
 
 @add_to_diags("dycore")
 @diag_finalizer("zonal_mean_bias")
-@transform.apply("resample_time", "3H")
+@transform.apply("resample_time", "3H", inner_join=True)
 @transform.apply("daily_mean", datetime.timedelta(days=10))
 @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
 def zonal_mean_biases_dycore(prognostic, verification, grid):
@@ -269,7 +269,7 @@ def zonal_mean_biases_dycore(prognostic, verification, grid):
 
 @add_to_diags("physics")
 @diag_finalizer("zonal_mean_bias")
-@transform.apply("resample_time", "3H")
+@transform.apply("resample_time", "3H", inner_join=True)
 @transform.apply("daily_mean", datetime.timedelta(days=10))
 @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
 def zonal_mean_biases_physics(prognostic, verification, grid):
