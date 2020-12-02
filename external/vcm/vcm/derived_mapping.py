@@ -1,3 +1,4 @@
+import numpy as np
 from typing import Mapping, Hashable, Callable, Sequence
 import xarray as xr
 
@@ -97,3 +98,15 @@ def dQv(self):
         return vcm.cubedsphere.center_and_rotate_xy_winds(
             wind_rotation_matrix, self["dQxwind"], self["dQywind"]
         )[1]
+
+
+@DerivedMapping.register("dQu_parallel_to_to_eastward_wind_direction")
+def dQu_parallel_to_eastward_wind_direction(self):
+    sign = np.sign(self["eastward_wind"] / self["dQu"])
+    return sign * abs(self["dQu"])
+
+
+@DerivedMapping.register("dQv_parallel_to_northward_wind_direction")
+def dQv_parallel_to_northward_wind_direction(self):
+    sign = np.sign(self["northward_wind"] / self["dQv"])
+    return sign * abs(self["dQv"])
