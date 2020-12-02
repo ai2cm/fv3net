@@ -190,7 +190,7 @@ def plot_1d_with_region_bar(
 
 
 def plot_2d(
-    diagnostics: Iterable[xr.Dataset], varfilter: str, plot_dims: Sequence = None
+    diagnostics: Iterable[xr.Dataset], varfilter: str, dims: Sequence = None
 ) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 2D and have the same dimensions."""
@@ -199,12 +199,12 @@ def plot_2d(
         run = ds.attrs["run"]
         variables_to_plot = [varname for varname in ds if varfilter in varname]
         for varname in variables_to_plot:
-            v = ds[varname]
-            if plot_dims is None:
-                plot_dims = list(v.dims)
+            v = ds[varname].rename("value")
+            if dims is None:
+                dims = list(v.dims)
             long_name_and_units = f"{v.long_name} [{v.units}]"
             hmap[(long_name_and_units, run)] = hv.QuadMesh(
-                v, plot_dims, varname, label=varfilter
+                v, dims, varname, label=varfilter
             )
     return HVPlot(
         hmap.opts(cmap="RdBu_r", colorbar=True, symmetric=True, width=850, height=300)
@@ -298,7 +298,7 @@ def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 @zonal_mean_plot_manager.register
 def zonal_mean_versus_time_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d(diagnostics, "zonal_mean_bias", plot_dims=["time", "latitude"])
+    return plot_2d(diagnostics, "zonal_mean_bias", dims=["time", "latitude"])
 
 
 @diurnal_plot_manager.register
