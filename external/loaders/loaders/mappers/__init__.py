@@ -23,4 +23,4 @@ from ._high_res_diags import open_high_res_diags
 # mapper classes used externally
 from ._base import GeoMapper, LongRunMapper, MultiDatasetMapper
 from ._merged import MergeOverlappingData
-from ._xarray import XarrayMapper
+from ._xarray import XarrayMapper, open_zarr
