@@ -10,12 +10,12 @@ spec:
         defaultMode: 420
         secretName: gcp-key
   serviceAccountName: integration-tests
-  tolerations:
-    - effect: NoSchedule
-      key: dedicated
-      value: climate-sim-pool
   templates:
     - name: offline-diags
+      tolerations:
+        - effect: NoSchedule
+          key: dedicated
+          value: climate-sim-pool
       inputs:
         parameters:
           - name: ml-model
