@@ -16,10 +16,7 @@ from offline_ml_diags._mapper import PredictionMapper
 from offline_ml_diags._helpers import load_grid_info
 
 from loaders import SAMPLE_DIM_NAME, batches, mappers
-from offline_ml_diags.compute_diags import (
-    _average_metrics_dict,
-    _compute_diags_over_batches,
-)
+from offline_ml_diags.compute_diags import _average_metrics_dict, _compute_diagnostics
 
 logger = logging.getLogger(__name__)
 
@@ -309,7 +306,7 @@ def test_compute_offline_diags(
     grid_dataset,
     data_source_offline_config,
 ):
-    ds_diagnostics, ds_diurnal, ds_metrics = _compute_diags_over_batches(
+    ds_diagnostics, ds_diurnal, ds_metrics = _compute_diagnostics(
         diagnostic_batches,
         grid_dataset,
         predicted_vars=data_source_offline_config["output_variables"],
