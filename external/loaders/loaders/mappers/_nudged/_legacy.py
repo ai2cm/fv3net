@@ -61,8 +61,7 @@ class MergeNudged(LongRunMapper):
     Mapper for merging data sources available from a nudged run.
     
     Currently used to merge the nudging tendencies with the after
-    physics checkpointed state information. Could be useful for
-    merging prognostic run output by time in the future.
+    physics checkpointed state information.
     """
 
     def __init__(

@@ -2,12 +2,10 @@ import logging
 import xarray as xr
 import intake
 import os
-from typing import Hashable, Sequence, Mapping, Optional, Tuple
+from typing import Hashable, Sequence, Mapping, Optional
 
 from .._base import MultiDatasetMapper
 from .._xarray import XarrayMapper
-from ._legacy import _get_source_datasets, MergeNudged, SubtractNudgingTendency
-from .._transformations import SubsetTimes
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +16,7 @@ Time = str
 
 def open_nudge_to_obs(
     url: str,
-    nudging_variables: Sequence[str],
+    nudging_tendency_variables: Optional[Mapping[str, str]] = None,
     nudging_dt_seconds: float = 900.0,
     consolidated: bool = True,
 ):
@@ -35,6 +33,11 @@ def open_nudge_to_obs(
     
     Args:
         url (str): path to a nudge-to-obs output directory, remote or local
+        nudging_tendency_variables: (optional): mapping of variables to their renamed
+            nudging tendencies. Defaults to
+            {"air_temperature": "dQ1", "specific_humidity": "dQ2"}
+        nudging_dt_seconds (float): timestep of nudging, i.e., dt_atmos; defaults
+            to 900.0
         consolidated (bool): whether zarrs to open have consolidated metadata
         
     Returns:
@@ -48,39 +51,47 @@ def open_nudge_to_obs(
             url,
             [
                 "physics_tendencies.zarr",
-                "nudging_tendencies.zarr",
+                "nudge_to_obs_tendencies.zarr",
                 "state_after_timestep.zarr",
             ],
             consolidated=consolidated,
         ),
     )
-    
-    ds = ds.rename({
-        "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
-        "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
-        "t_dt_nudge": "dQ1",
-        "q_dt_nudge": "dQ2",
-        "u_dt_nudge": "dQu",
-        "v_dt_nudge": "dQv"
-    })
-    
-    nudging_tendency_variables = {
+
+    ds = ds.rename(
+        {
+            "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
+            "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
+            "t_dt_nudge": "dQ1",
+            "q_dt_nudge": "dQ2",
+            "u_dt_nudge": "dQu",
+            "v_dt_nudge": "dQv",
+            "grid_xt": "x",
+            "grid_yt": "y",
+            "pfull": "z",
+        }
+    )
+
+    nudging_tendency_variables = nudging_tendency_variables or {
         "air_temperature": "dQ1",
         "specific_humidity": "dQ2",
     }
-    
+
     differenced_state = {}
-    for nudging_variable_name, nudging_tendency_name in nudging_tendency_variables.items():
-        differenced_state[nudging_variable_name] = ds[nudging_variable_name] - ds[nudging_tendency_name] * nudging_dt_seconds
-    ds = ds.assign(differenced_state)
-        
-    differenced_physics_tendency = {}
-    for nudging_name, physics_name in zip(['dQ1', 'dQ2'], ['pQ1', 'pQ2'])
-        differenced_physics_tendency[physics_name] = (
-            ds[physics_name] - ds[nudging_name]
+    for (
+        nudging_variable_name,
+        nudging_tendency_name,
+    ) in nudging_tendency_variables.items():
+        differenced_state[nudging_variable_name] = (
+            ds[nudging_variable_name] - ds[nudging_tendency_name] * nudging_dt_seconds
         )
+    ds = ds.assign(differenced_state)
+
+    differenced_physics_tendency = {}
+    for nudging_name, physics_name in zip(["dQ1", "dQ2"], ["pQ1", "pQ2"]):
+        differenced_physics_tendency[physics_name] = ds[physics_name] - ds[nudging_name]
     ds = ds.assign(differenced_physics_tendency)
-        
+
     return XarrayMapper(ds)
 
 
@@ -125,9 +136,11 @@ def open_nudge_to_fine(
     differenced_state = {}
     for nudging_variable in nudging_variables:
         nudging_tendency = ds[f"{nudging_variable}_tendency_due_to_nudging"]
-        differenced_state[nudging_variable] = ds[nudging_variable] - nudging_tendency * nudging_dt_seconds
+        differenced_state[nudging_variable] = (
+            ds[nudging_variable] - nudging_tendency * nudging_dt_seconds
+        )
     ds.assign(differenced_state)
-        
+
     rename_vars = {
         "air_temperature_tendency_due_to_nudging": "dQ1",
         "specific_humidity_tendency_due_to_nudging": "dQ2",
