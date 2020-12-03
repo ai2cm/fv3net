@@ -139,7 +139,7 @@ def open_nudge_to_fine(
         differenced_state[nudging_variable] = (
             ds[nudging_variable] - nudging_tendency * nudging_dt_seconds
         )
-    ds.assign(differenced_state)
+    ds = ds.assign(differenced_state)
 
     rename_vars = {
         "air_temperature_tendency_due_to_nudging": "dQ1",

@@ -9,7 +9,7 @@ NTIMES = 2
 
 
 @pytest.fixture(scope="module")
-def state_after_timestep_schema(datadir_module):
+def state_after_timestep(datadir_module):
     nudge_data_schema = datadir_module.join(f"state_after_timestep.json")
     with open(nudge_data_schema) as f:
         schema = synth.load(f)
@@ -58,41 +58,39 @@ def physics_tendencies(datadir_module):
 
 @pytest.fixture(scope="module")
 def nudge_to_fine_data_dir(
-    datadir_module,
-    state_after_timestep_schema,
-    physics_tendencies,
-    nudge_to_fine_tendencies,
+    datadir_module, state_after_timestep, physics_tendencies, nudge_to_fine_tendencies,
 ):
     all_data = {"physics_tendencies": physics_tendencies}
     all_data.update({"nudge_to_fine_tendencies": nudge_to_fine_tendencies})
-    all_data.update({"state_after_timestep": state_after_timestep_schema})
+    all_data.update({"state_after_timestep": state_after_timestep})
+
+    nudge_to_fine_path = os.path.join(datadir_module, "nudge_to_fine")
 
     for filestem, ds in all_data.items():
-        filepath = os.path.join(datadir_module, f"{filestem}.zarr")
+        filepath = os.path.join(nudge_to_fine_path, f"{filestem}.zarr")
         ds.to_zarr(filepath)
 
-    return str(datadir_module)
+    return str(nudge_to_fine_path)
 
 
 @pytest.fixture(scope="module")
 def nudge_to_obs_data_dir(
-    datadir_module,
-    state_after_timestep_schema,
-    physics_tendencies,
-    nudge_to_obs_tendencies,
+    datadir_module, state_after_timestep, physics_tendencies, nudge_to_obs_tendencies,
 ):
     nudge_to_obs_tendencies = nudge_to_obs_tendencies.assign_coords(
-        {"time": state_after_timestep_schema.time}
+        {"time": state_after_timestep.time}
     )
     all_data = {"physics_tendencies": physics_tendencies}
     all_data.update({"nudge_to_obs_tendencies": nudge_to_obs_tendencies})
-    all_data.update({"state_after_timestep": state_after_timestep_schema})
+    all_data.update({"state_after_timestep": state_after_timestep})
+
+    nudge_to_obs_path = os.path.join(datadir_module, "nudge_to_obs")
 
     for filestem, ds in all_data.items():
-        filepath = os.path.join(datadir_module, f"{filestem}.zarr")
+        filepath = os.path.join(nudge_to_obs_path, f"{filestem}.zarr")
         ds.to_zarr(filepath)
 
-    return str(datadir_module)
+    return str(nudge_to_obs_path)
 
 
 NUDGE_TO_FINE_VARIABLES = [
