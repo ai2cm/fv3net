@@ -9,7 +9,7 @@ mypy --follow-imports silent \
     external/fv3fit/fv3fit \
     external/loaders/loaders/mappers/_local.py \
     external/loaders/loaders/batches/_sequences.py \
-    external/loaders/loaders/mappers/_nudged/_nudged.py
+    external/loaders/loaders/mappers/_nudged/_nudged.py \
     external/vcm/vcm/derived_mapping.py \
     external/vcm/vcm/interpolate.py \
     workflows/offline_ml_diags/offline_ml_diags
