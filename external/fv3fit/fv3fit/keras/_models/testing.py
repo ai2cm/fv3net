@@ -7,10 +7,12 @@ from .models import Model
 from ._sequences import _XyArraySequence
 from ._filesystem import get_dir, put_dir
 from ..._shared import ArrayPacker
+from ... import _shared
 
 logger = logging.getLogger(__file__)
 
 
+@_shared.io.register("dummy")
 class DummyModel(Model):
     """
     A dummy keras model for testing, whose `fit` method learns only the input and

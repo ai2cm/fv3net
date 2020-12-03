@@ -11,6 +11,7 @@ import datetime
 import yaml
 from sklearn.dummy import DummyRegressor
 
+import fv3fit
 from fv3fit.sklearn import RegressorEnsemble, SklearnWrapper
 from fv3fit.keras import DummyModel
 import subprocess
@@ -473,7 +474,7 @@ def _save_mock_sklearn_model(tmpdir):
     model.fit(data)
 
     path = str(tmpdir.join("model.yaml"))
-    model.dump(path)
+    fv3fit.dump(model, path)
     return path
 
 
@@ -484,8 +485,7 @@ def _save_mock_keras_model(tmpdir):
 
     model = DummyModel("sample", input_variables, output_variables)
     model.fit([_model_dataset()])
-    model.dump(str(tmpdir))
-
+    fv3fit.dump(model, tmpdir)
     return str(tmpdir)
 
 
