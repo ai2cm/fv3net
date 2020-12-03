@@ -256,8 +256,10 @@ def zonal_mean_biases_physics(prognostic, verification, grid):
     zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
     return time_mean(zonal_mean_bias)
 
+
 ###
 for mask_type in ["global", "land", "sea", "tropics"]:
+
     @add_to_diags("dycore")
     @diag_finalizer(f"spatial_min_dycore_{mask_type}")
     @transform.apply("mask_area", mask_type)
@@ -270,6 +272,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
+
     @add_to_diags("dycore")
     @diag_finalizer(f"spatial_max_dycore_{mask_type}")
     @transform.apply("mask_area", mask_type)
@@ -282,6 +285,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
+
     @add_to_diags("physics")
     @diag_finalizer(f"spatial_min_physics_{mask_type}")
     @transform.apply("mask_area", mask_type)
@@ -292,8 +296,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         logger.info(f"Preparing minimums for physics variables ({mask_type})")
         return prognostic.min(dim=HORIZONTAL_DIMS)
 
-        
+
 for mask_type in ["global", "land", "sea", "tropics"]:
+
     @add_to_diags("physics")
     @diag_finalizer(f"spatial_max_physics_{mask_type}")
     @transform.apply("mask_area", mask_type)
@@ -303,6 +308,8 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     def region_min_dycore(prognostic, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing maximums for physics variables ({mask_type})")
         return prognostic.max(dim=HORIZONTAL_DIMS)
+
+
 ###
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -388,7 +395,7 @@ def time_mean_biases_physics(prognostic, verification, grid):
 
 
 @add_to_diags("dycore")
-@diag_finalizer("time_mean_value" c)
+@diag_finalizer("time_mean_value")
 @transform.apply("resample_time", "1H", inner_join=True)
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_means_dycore(prognostic, verification, grid):
