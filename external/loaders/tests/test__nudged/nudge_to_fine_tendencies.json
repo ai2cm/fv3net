@@ -141,6 +141,36 @@
                 "attrs": {
                     "units": "m/s s^-1"
                 }
+            },
+            "pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging": {
+                "name": "pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging",
+                "dims": [
+                    "time",
+                    "tile",
+                    "z",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        1,
+                        6,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "units": "m/s s^-1"
+                }
             }
         }
     }

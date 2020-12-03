@@ -18,96 +18,91 @@ Time = str
 
 def open_nudge_to_obs(
     url: str,
-    merge_files: Tuple[str] = (
-        "data.zarr",
-        "physics_tendencies.zarr",
-        "nudging_tendencies.zarr",
-    ),
-    nudging_to_physics_tendency: Mapping[str, str] = None,
-    rename_vars: Mapping[str, str] = None,
+    nudging_variables: Sequence[str],
+    nudging_dt_seconds: float = 900.0,
     consolidated: bool = True,
-    i_start: int = 0,
-    n_times: int = None,
-) -> Mapping[str, xr.Dataset]:
-    """Load nudging data mapper for use with training. Merges the
-    data variables saved in the diagnostics files (fv3config[diagnostics][variables])
-    and nudging_tendencies. Since the nudge-to-obs run does
-    nudging within the physics routines, the nudging tendencies are subtracted from
-    the tendencies across the physics step to obtain the tendencies from
-    model physics.
-
-    Note the difference between this function and open_merged_nudge_to_obs:
-    in the prognostic nudge to obs data, the tendency across the physics step
-    is already calculated.
-
+):
+    """
+    Load nudge-to-obs data mapper for use with training. Merges
+    variables saved in the physics tendencies, nudging tendencies (Fortran
+    diagnostics), and model state zarrs.
+    
+    Because the nudge-to-obs routine conducts nudging within the physics step,
+    the returned physics tendency is computed as the output physics_tendency minus
+    the nudging tendency. Similarly, because model states are output at the end
+    of the timestep, the nudging increment is subtracted to return the
+    ``before nudging`` state for training.
+    
     Args:
-        url: Path to directory containing merge_files. Defaults to str.
-        merge_files: zarrs to merge. Expecting one to contain feature variables,
-            one to contain nudging tendencies, and one to contain the tendencies
-            across the physics step. Defaults to ("data.zarr",
-            "physics_tendencies.zarr", "nudging_tendencies.zarr").
-        nudging_to_physics_tendency: Mapping of renamed nudging tendency
-            names to physics tendency names; defaults to {'dQ1': 'pQ1, 'dQ2': 'pQ2'}
-        rename_vars: Mapping of variables to be renamed. Defaults to {
-            "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
-            "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
-            "t_dt_nudge": "dQ1",
-            "q_dt_nudge": "dQ2",
-            "u_dt_nudge": "dQu",
-            "v_dt_nudge": "dQv",
-            "grid_xt": "x",
-            "grid_yt": "y",
-            "pfull": "z"}
-        consolidated: if true, open the underlying zarr stores with the consolidated
-            flag to xr.open_zarr. Defaults to False.
-
+        url (str): path to a nudge-to-obs output directory, remote or local
+        consolidated (bool): whether zarrs to open have consolidated metadata
+        
     Returns:
-        Mapper that has the pQ's from only model physics.
+        mapper to dataset containing nudging tendencies, physics tendencies,
+            and model state data
+        
     """
 
-    rename_vars = rename_vars or {
+    ds = xr.merge(
+        _get_datasets(
+            url,
+            [
+                "physics_tendencies.zarr",
+                "nudging_tendencies.zarr",
+                "state_after_timestep.zarr",
+            ],
+            consolidated=consolidated,
+        ),
+    )
+    
+    ds = ds.rename({
         "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
         "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
         "t_dt_nudge": "dQ1",
         "q_dt_nudge": "dQ2",
         "u_dt_nudge": "dQu",
-        "v_dt_nudge": "dQv",
-        "grid_xt": "x",
-        "grid_yt": "y",
-        "pfull": "z",
+        "v_dt_nudge": "dQv"
+    })
+    
+    nudging_tendency_variables = {
+        "air_temperature": "dQ1",
+        "specific_humidity": "dQ2",
     }
-    nudging_to_physics_tendency = nudging_to_physics_tendency or {
-        "dQ1": "pQ1",
-        "dQ2": "pQ2",
-    }
-    datasets = _get_source_datasets(url, merge_files, consolidated)
-    nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
-    nudged_mapper = SubtractNudgingTendency(nudged_mapper, nudging_to_physics_tendency)
-    return SubsetTimes(i_start, n_times, nudged_mapper)
+    
+    differenced_state = {}
+    for nudging_variable_name, nudging_tendency_name in nudging_tendency_variables.items():
+        differenced_state[nudging_variable_name] = ds[nudging_variable_name] - ds[nudging_tendency_name] * nudging_dt_seconds
+    ds = ds.assign(differenced_state)
+        
+    differenced_physics_tendency = {}
+    for nudging_name, physics_name in zip(['dQ1', 'dQ2'], ['pQ1', 'pQ2'])
+        differenced_physics_tendency[physics_name] = (
+            ds[physics_name] - ds[nudging_name]
+        )
+    ds = ds.assign(differenced_physics_tendency)
+        
+    return XarrayMapper(ds)
 
 
-# def open_nudge_to_obs(
-#     url: str,
-#     merge_files: Tuple[str] = (
-#         "data.zarr",
-#         "physics_tendencies.zarr",
-#         "nudging_tendencies.zarr",
-#     ),
-#     nudging_to_physics_tendency: Mapping[str, str] = None,
-#     rename_vars: Mapping[str, str] = None,
-#     consolidated: bool = True,
-#     i_start: int = 0,
-#     n_times: int = None,
-# ):
-#     pass
-
-
-def open_nudge_to_fine(url: str, consolidated=True) -> xr.Dataset:
+def open_nudge_to_fine(
+    url: str,
+    nudging_variables: Sequence[str],
+    nudging_dt_seconds: float = 900.0,
+    consolidated: bool = True,
+) -> xr.Dataset:
     """
-    Opens a nudge-to-fine rundir as a merged xarray dataset, rather than as a mapper
+    Load nudge-to-fine data mapper for use with training. Merges
+    variables saved in the physics tendencies, nudging tendencies, and
+    model state zarrs.
+    
+    Because model states are output at the end of the timestep, the nudging
+    increment is subtracted to return the ``before nudging`` state for training.
     
     Args:
-        url (str):  path to nudge-to-fine rundir, remote or local
+        url (str):  path to nudge-to-fine output directory, remote or local
+        nudging_variables (Sequence[str]): Names of nudged variables
+        nudging_dt_seconds (float): timestep of nudging, i.e., dt_atmos; defaults
+            to 900.0
         consolidated (bool): whether zarrs to open have consolidated metadata
         
     Returns:
@@ -115,6 +110,24 @@ def open_nudge_to_fine(url: str, consolidated=True) -> xr.Dataset:
             and model state data
     """
 
+    ds = xr.merge(
+        _get_datasets(
+            url,
+            [
+                "physics_tendencies.zarr",
+                "nudge_to_fine_tendencies.zarr",
+                "state_after_timestep.zarr",
+            ],
+            consolidated=consolidated,
+        ),
+    )
+
+    differenced_state = {}
+    for nudging_variable in nudging_variables:
+        nudging_tendency = ds[f"{nudging_variable}_tendency_due_to_nudging"]
+        differenced_state[nudging_variable] = ds[nudging_variable] - nudging_tendency * nudging_dt_seconds
+    ds.assign(differenced_state)
+        
     rename_vars = {
         "air_temperature_tendency_due_to_nudging": "dQ1",
         "specific_humidity_tendency_due_to_nudging": "dQ2",
@@ -124,25 +137,7 @@ def open_nudge_to_fine(url: str, consolidated=True) -> xr.Dataset:
         "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
     }
 
-    physics_tendencies_zarr = os.path.join(url, "physics_tendencies.zarr")
-    nudging_tendencies_zarr = os.path.join(url, "nudge_to_fine_tendencies.zarr")
-    state_before_nudging_zarr = os.path.join(url, "state_before_nudging.zarr")
-
-    physics_tendencies = intake.open_zarr(
-        physics_tendencies_zarr, consolidated=consolidated
-    ).to_dask()
-    nudging_tendencies = intake.open_zarr(
-        nudging_tendencies_zarr, consolidated=consolidated
-    ).to_dask()
-    state_before_nudging = intake.open_zarr(
-        state_before_nudging_zarr, consolidated=consolidated
-    ).to_dask()
-
-    return XarrayMapper(
-        xr.merge([state_before_nudging, physics_tendencies, nudging_tendencies]).rename(
-            rename_vars
-        )
-    )
+    return XarrayMapper(ds.rename(rename_vars))
 
 
 def open_nudge_to_fine_multiple_datasets(
@@ -162,3 +157,15 @@ def open_nudge_to_fine_multiple_datasets(
     """
     mappers = [open_nudge_to_fine(url, **kwargs) for url in urls]
     return MultiDatasetMapper(mappers, names=names)
+
+
+def _get_datasets(
+    url: str, sources: Sequence[str], consolidated: bool = True
+) -> Sequence[xr.Dataset]:
+    datasets = []
+    for source in sources:
+        ds = intake.open_zarr(
+            os.path.join(url, f"{source}"), consolidated=consolidated
+        ).to_dask()
+        datasets.append(ds)
+    return datasets
