@@ -16,6 +16,8 @@ import yaml
 
 logger = logging.getLogger(__file__)
 
+MODEL_DIRECTORY = "model_data"
+
 
 class Model(Predictor):
     """
@@ -245,7 +247,8 @@ class PackedKerasModel(Model):
         return self.model.predict(X)
 
     def dump(self, path: str) -> None:
-        with put_dir(path) as path:
+        dir_ = os.path.join(path, MODEL_DIRECTORY)
+        with put_dir(dir_) as path:
             if self._model is not None:
                 model_filename = os.path.join(path, self._MODEL_FILENAME)
                 self.model.save(model_filename)
@@ -285,7 +288,8 @@ class PackedKerasModel(Model):
 
     @classmethod
     def load(cls, path: str) -> Model:
-        with get_dir(path) as path:
+        dir_ = os.path.join(path, MODEL_DIRECTORY)
+        with get_dir(dir_) as path:
             with open(os.path.join(path, cls._X_PACKER_FILENAME), "r") as f:
                 X_packer = ArrayPacker.load(f)
             with open(os.path.join(path, cls._Y_PACKER_FILENAME), "r") as f:

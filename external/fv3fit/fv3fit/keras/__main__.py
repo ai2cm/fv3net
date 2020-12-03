@@ -22,9 +22,6 @@ logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger(__file__)
 
 
-MODEL_FILENAME = "model_data"
-
-
 def _get_optimizer(hyperparameters: dict = None):
     hyperparameters = hyperparameters or {}
     optimizer_config = hyperparameters.pop("optimizer", {})
