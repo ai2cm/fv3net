@@ -5,6 +5,7 @@ import sys
 import tempfile
 
 import fv3viz
+import numpy as np
 from report import insert_report_figure
 from typing import Mapping, Sequence
 import vcm
@@ -99,13 +100,11 @@ if __name__ == "__main__":
 
     # histogram of timesteps used for testing
     try:
-        timesteps = config["batch_kwargs"].pop("timesteps")
+        timesteps = ds_diurnal["time"]
     except KeyError:
         pass
     else:
-        timesteps = [
-            vcm.cast_to_datetime(vcm.parse_datetime_from_str(t)) for t in timesteps
-        ]
+        timesteps = np.vectorize(vcm.cast_to_datetime)(timesteps)
         fig = fv3viz.plot_daily_and_hourly_hist(timesteps)
         fig.set_size_inches(10, 3)
         insert_report_figure(
