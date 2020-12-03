@@ -186,10 +186,11 @@ def plot_1d_min_max_with_region_bar(
                 run = ds.attrs[run_attr_name]
                 long_name = ds[varname].long_name
                 region = varname.split("_")[-1]
-               
+                # Area plot doesn't automatically add correct y label
+                ylabel = f'{vmin.attrs["long_name"]} {vmin.attrs["units"]}'
                 hmap[(long_name, region, run)] = hv.Area(
-                    (vmin.time, vmin, vmax), vdims=["y", "y2"], label="Min/max",
-                ).options(line_dash=style, color=p, alpha=0.6, axiswise=True)
+                    (vmin.time, vmin, vmax), label="Min/max", vdims=["y", "y2"]
+                ).options(line_dash=style, color=p, alpha=0.6, ylabel=ylabel)
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
