@@ -3,7 +3,7 @@ import yaml
 import logging
 from . import _train as train
 from .. import _shared as shared
-
+import fv3fit._shared.io
 
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
 
@@ -58,4 +58,4 @@ if __name__ == "__main__":
     logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 
     model = train.train_model(batched_data, train_config)
-    model.dump(args.output_data_path)
+    fv3fit._shared.io.dump(model, args.output_data_path)

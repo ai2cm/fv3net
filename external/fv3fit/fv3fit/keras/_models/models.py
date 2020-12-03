@@ -5,6 +5,7 @@ import logging
 import abc
 import tensorflow as tf
 from ..._shared import ArrayPacker, Predictor
+from fv3fit._shared import io
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
@@ -61,6 +62,7 @@ class Model(Predictor):
         pass
 
 
+@io.register("packed-keras")
 class PackedKerasModel(Model):
     """
     Abstract base class for a keras-based model which operates on xarray

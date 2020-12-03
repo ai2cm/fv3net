@@ -7,6 +7,7 @@ import pandas as pd
 import fsspec
 import joblib
 from .._shared import pack, unpack, Predictor
+from .. import _shared
 from .._shared import scaler
 import sklearn.base
 
@@ -121,6 +122,7 @@ class BaseXarrayEstimator(Predictor):
         raise NotImplementedError
 
 
+@_shared.io.register("sklearn")
 class SklearnWrapper(BaseXarrayEstimator):
     """Wrap a SkLearn model for use with xarray
 
