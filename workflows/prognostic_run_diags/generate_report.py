@@ -186,9 +186,10 @@ def plot_1d_min_max_with_region_bar(
                 run = ds.attrs[run_attr_name]
                 long_name = ds[varname].long_name
                 region = varname.split("_")[-1]
+               
                 hmap[(long_name, region, run)] = hv.Area(
-                    (vmin, vmax), label="Min/max",
-                ).options(line_dash=style, color=p, alpha=0.6)
+                    (vmin.time, vmin, vmax), vdims=["y", "y2"], label="Min/max",
+                ).options(line_dash=style, color=p, alpha=0.6, axiswise=True)
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
@@ -295,7 +296,7 @@ def spatial_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 
 @timeseries_plot_manager.register
-def zonal_minmax_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+def spatial_minmax_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     return plot_1d_min_max_with_region_bar(
         diagnostics, varfilter_min="spatial_min", varfilter_max="spatial_max"
     )
