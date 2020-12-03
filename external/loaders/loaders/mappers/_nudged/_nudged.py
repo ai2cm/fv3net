@@ -2,7 +2,7 @@ import logging
 import xarray as xr
 import intake
 import os
-from typing import Hashable, Sequence, Mapping, Optional
+from typing import Hashable, Sequence, Mapping, Optional, Any, MutableMapping
 
 from .._base import MultiDatasetMapper
 from .._xarray import XarrayMapper
@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 Z_DIM_NAME = "z"
 
 Time = str
+Dataset = MutableMapping[Hashable, Any]
 
 
 def open_nudge_to_obs(
@@ -77,7 +78,7 @@ def open_nudge_to_obs(
         "specific_humidity": "dQ2",
     }
 
-    differenced_state = {}
+    differenced_state: Dataset = {}
     for (
         nudging_variable_name,
         nudging_tendency_name,
@@ -87,7 +88,7 @@ def open_nudge_to_obs(
         )
     ds = ds.assign(differenced_state)
 
-    differenced_physics_tendency = {}
+    differenced_physics_tendency: Dataset = {}
     for nudging_name, physics_name in zip(["dQ1", "dQ2"], ["pQ1", "pQ2"]):
         differenced_physics_tendency[physics_name] = ds[physics_name] - ds[nudging_name]
     ds = ds.assign(differenced_physics_tendency)
@@ -100,7 +101,7 @@ def open_nudge_to_fine(
     nudging_variables: Sequence[str],
     nudging_dt_seconds: float = 900.0,
     consolidated: bool = True,
-) -> xr.Dataset:
+) -> XarrayMapper:
     """
     Load nudge-to-fine data mapper for use with training. Merges
     variables saved in the physics tendencies, nudging tendencies, and
@@ -133,7 +134,7 @@ def open_nudge_to_fine(
         ),
     )
 
-    differenced_state = {}
+    differenced_state: Dataset = {}
     for nudging_variable in nudging_variables:
         nudging_tendency = ds[f"{nudging_variable}_tendency_due_to_nudging"]
         differenced_state[nudging_variable] = (
@@ -141,7 +142,7 @@ def open_nudge_to_fine(
         )
     ds = ds.assign(differenced_state)
 
-    rename_vars = {
+    rename_vars: Optional[Mapping[Hashable, Hashable]] = {
         "air_temperature_tendency_due_to_nudging": "dQ1",
         "specific_humidity_tendency_due_to_nudging": "dQ2",
         "x_wind_tendency_due_to_nudging": "dQxwind",
