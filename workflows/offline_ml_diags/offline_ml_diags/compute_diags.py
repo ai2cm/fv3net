@@ -159,6 +159,7 @@ def _compute_diagnostics(
             .merge(grid)
             .load()
         )
+        ds.update(grid)
 
         ds_summary = _compute_summary(ds, diagnostic_vars)
 

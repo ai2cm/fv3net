@@ -1,4 +1,3 @@
-import intake
 import xarray as xr
 import vcm
 from ._base import GeoMapper
@@ -47,7 +46,3 @@ class XarrayMapper(GeoMapper):
 
     def keys(self):
         return self.time_lookup.keys()
-
-
-def open_zarr(url):
-    return XarrayMapper(intake.open_zarr(url).to_dask())
