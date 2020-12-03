@@ -142,7 +142,7 @@ def open_nudge_to_fine(
         )
     ds = ds.assign(differenced_state)
 
-    rename_vars: Optional[Mapping[Hashable, Hashable]] = {
+    rename_vars: Mapping[Hashable, Hashable] = {
         "air_temperature_tendency_due_to_nudging": "dQ1",
         "specific_humidity_tendency_due_to_nudging": "dQ2",
         "x_wind_tendency_due_to_nudging": "dQxwind",
