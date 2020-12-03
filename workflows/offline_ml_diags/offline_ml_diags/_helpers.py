@@ -202,14 +202,16 @@ def _shorten_coordinate_label(coord: str):
     )
 
 
-def add_net_precip_domain_info(ds: xr.Dataset, domain_source: str):
+def net_precipitation_provenance_information(
+    domain: xr.DataArray, derivation: str
+) -> xr.Variable:
     # adds information about which data was used to determine pos/neg precip
     new_domain_coords = []
-    for coord in ds["domain"].values:
+    for coord in np.asarray(domain):
         if "net_precip" in coord:
             new_domain_coords.append(
-                _shorten_coordinate_label(coord) + f" ({domain_source})"
+                _shorten_coordinate_label(coord) + f" ({derivation})"
             )
         else:
             new_domain_coords.append(_shorten_coordinate_label(coord))
-    ds.coords["domain"] = new_domain_coords
+    return xr.Variable(domain.dims, new_domain_coords)
