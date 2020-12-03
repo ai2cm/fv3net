@@ -1,5 +1,7 @@
 from typing import Mapping, Callable
+import os
 import fsspec
+import warnings
 
 from .predictor import Predictor
 from functools import partial
@@ -43,11 +45,27 @@ class _Register:
         mapper = fsspec.get_mapper(path)
         name = self._get_name(obj)
         mapper[_NAME_PATH] = name.encode(_NAME_ENCODING)
-
+        
     def load(self, path: str) -> object:
         """Load a serialized model from `path`."""
-        name = self._get_mapper_name(path)
-        return self._get_class(name).load(path)
+        try:
+            name = self._get_mapper_name(path)
+        except KeyError as e:
+            # backwards compatibility
+            warnings.warn(
+                "Model type is not located at "
+                f"{os.path.join(path, _NAME_PATH)}. "
+                "Trying all known models one-by-one.",
+                UserWarning,
+            )
+            for cls in self._model_types.values():
+                try:
+                    return cls.load(path)
+                except: # noqa
+                    pass
+            raise e
+        else:
+            return self._get_class(name).load(path)
 
     def dump(self, obj: Predictor, path: str):
         """Dump a predictor to a path"""
