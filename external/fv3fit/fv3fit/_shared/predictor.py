@@ -50,6 +50,11 @@ class Predictor(abc.ABC):
         """Load a serialized model from a directory."""
         pass
 
+    @abc.abstractmethod
+    def dump(self, path: str) -> object:
+        """Dump a model to a path."""
+        pass
+
     def predict_columnwise(
         self,
         X: xr.Dataset,

@@ -1,4 +1,4 @@
-from typing import Mapping, Callable
+from typing import MutableMapping, Callable
 import os
 import fsspec
 import warnings
@@ -15,7 +15,7 @@ class _Register:
     """
 
     def __init__(self) -> None:
-        self._model_types: Mapping[str, Predictor] = {}
+        self._model_types: MutableMapping[str, type] = {}
 
     def __call__(self, name: str) -> Callable[[type], type]:
         if name in self._model_types:
@@ -29,13 +29,17 @@ class _Register:
         self._model_types[name] = cls
         return cls
 
-    def _get_class(self, name: str) -> Predictor:
-        return self._model_types[name]
+    def _load_by_name(self, name: str, path: str) -> Predictor:
+        return self._model_types[name].load(path)  # type: ignore
 
     def _get_name(self, obj: Predictor) -> str:
         for name, cls in self._model_types.items():
             if isinstance(obj, cls):
                 return name
+        raise ValueError(
+            f"{type(obj)} is not registered. "
+            'Consider decorating with @fv3fit._shared.io.register("name")'
+        )
 
     @staticmethod
     def _get_mapper_name(path: str) -> str:
@@ -46,7 +50,7 @@ class _Register:
         name = self._get_name(obj)
         mapper[_NAME_PATH] = name.encode(_NAME_ENCODING)
 
-    def load(self, path: str) -> object:
+    def load(self, path: str) -> Predictor:
         """Load a serialized model from `path`."""
         try:
             name = self._get_mapper_name(path)
@@ -58,14 +62,14 @@ class _Register:
                 "Trying all known models one-by-one.",
                 UserWarning,
             )
-            for cls in self._model_types.values():
+            for name in self._model_types:
                 try:
-                    return cls.load(path)
+                    return self._load_by_name(name, path)
                 except:  # noqa
                     pass
             raise e
         else:
-            return self._get_class(name).load(path)
+            return self._load_by_name(name, path)
 
     def dump(self, obj: Predictor, path: str):
         """Dump a predictor to a path"""

@@ -15,16 +15,6 @@ def test_Register_get_name():
     assert register._get_name(mock) == "mock"
 
 
-def test_Register_get_class():
-    register = _Register()
-
-    @register("mock")
-    class Mock:
-        pass
-
-    assert register._get_class("mock") == Mock
-
-
 def test_registering_twice_fails():
     register = _Register()
 
