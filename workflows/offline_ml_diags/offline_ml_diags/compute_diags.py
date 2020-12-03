@@ -326,9 +326,7 @@ if __name__ == "__main__":
     # write diags and diurnal datasets
     _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
     _write_nc(
-        xr.merge([grid.drop("land_sea_mask"), ds_diagnostics]),
-        args.output_path,
-        DIAGS_NC_NAME,
+        ds_diagnostics, args.output_path, DIAGS_NC_NAME,
     )
     _write_nc(ds_diurnal, args.output_path, DIURNAL_NC_NAME)
 

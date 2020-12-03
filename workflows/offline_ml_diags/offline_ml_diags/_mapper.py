@@ -7,6 +7,7 @@ from fv3fit.sklearn import SklearnWrapper
 from fv3fit.keras import Model
 from loaders.mappers import GeoMapper
 from loaders import DERIVATION_DIM
+import warnings
 
 Predictor = Union[SklearnWrapper, Model]
 
@@ -69,6 +70,11 @@ class PredictionMapper(GeoMapper):
                     raise e
                 elif key in ["pQ1", "pQ2"]:
                     ds_derived[key] = xr.zeros_like(derived_mapping["dQ1"])
+                    warnings.warn(
+                        f"{key} not present in data. Filling with zeros.", UserWarning
+                    )
+                else:
+                    raise e
 
         ds_prediction = self._predict(ds_derived)
         return self._insert_prediction(ds_derived, ds_prediction)
