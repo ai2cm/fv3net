@@ -227,3 +227,50 @@ def test_open_nudge_to_obs_subtract_nudging_increment(
         xr.testing.assert_allclose(
             mapper[key][nudged_variable_name], before_nudging_variable_state
         )
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize(
+    ["nudge_to_obs_variables"],
+    [(NUDGE_TO_OBS_VARIABLES,), ({"air_temperature": "dQ1"},)],
+)
+def test_open_nudge_to_obs_subtract_nudging_tendency(
+    nudge_to_obs_data_dir, nudge_to_obs_variables
+):
+
+    physics_tendencies = xr.open_zarr(
+        os.path.join(nudge_to_obs_data_dir, "physics_tendencies.zarr"),
+        consolidated=False,
+    ).rename(
+        {
+            "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
+            "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
+        }
+    )
+
+    nudge_to_obs_tendencies = xr.open_zarr(
+        os.path.join(nudge_to_obs_data_dir, "nudge_to_obs_tendencies.zarr"),
+        consolidated=False,
+    ).rename(
+        {
+            "t_dt_nudge": "dQ1",
+            "q_dt_nudge": "dQ2",
+            "grid_xt": "x",
+            "grid_yt": "y",
+            "pfull": "z",
+        }
+    )
+
+    mapper = open_nudge_to_obs(
+        nudge_to_obs_data_dir, nudge_to_obs_variables, consolidated=False,
+    )
+
+    physics_nudging_mapping = {"dQ1": "pQ1", "dQ2": "pQ2"}
+
+    for nudging_tendency_name, physics_tendency_name in physics_nudging_mapping.items():
+        physics_tendency = (
+            physics_tendencies[physics_tendency_name]
+            - nudge_to_obs_tendencies[nudging_tendency_name]
+        ).isel(time=0)
+        key = sorted(list(mapper.keys()))[0]
+        xr.testing.assert_allclose(mapper[key][physics_tendency_name], physics_tendency)
