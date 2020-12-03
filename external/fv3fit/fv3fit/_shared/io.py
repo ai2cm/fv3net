@@ -45,7 +45,7 @@ class _Register:
         mapper = fsspec.get_mapper(path)
         name = self._get_name(obj)
         mapper[_NAME_PATH] = name.encode(_NAME_ENCODING)
-        
+
     def load(self, path: str) -> object:
         """Load a serialized model from `path`."""
         try:
@@ -61,7 +61,7 @@ class _Register:
             for cls in self._model_types.values():
                 try:
                     return cls.load(path)
-                except: # noqa
+                except:  # noqa
                     pass
             raise e
         else:

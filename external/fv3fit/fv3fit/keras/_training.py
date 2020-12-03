@@ -5,7 +5,7 @@ from ._models.models import Model
 
 logger = logging.getLogger(__file__)
 
-__all__ = ["get_model", "get_model_class"]
+__all__ = ["get_model"]
 
 
 def get_model(
