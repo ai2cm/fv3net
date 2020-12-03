@@ -45,9 +45,9 @@ local_fine_res = "/home/noahb/data/dev/2020-11-25-fine-res.zarr"
 # local_ml_final = "/home/noahb/data/dev/2020-11-25-fine-res/ml.zarr"
 local_ml_final = "/home/noahb/data/dev/2020-11-25-fine-res/ml-masked.zarr"
 trained = "gs://vcm-ml-scratch/noah/trained-ml/2020-11-25-fine-res-thresholded"
-offline_metrics = "gs://vcm-ml-scratch/noah/offline_diagnostics/2020-11-25-fine-res"
+offline_metrics = "gs://vcm-ml-scratch/noah/offline_diagnostics/2020-11-25-fine-res-tresholded"
 offline_report_uri = (
-    "gs://vcm-ml-public/noah/offline_diagnostics_report/2020-11-25-fine-thresholded"
+    "gs://vcm-ml-public/noah/offline_diagnostics_report/2020-11-25-fine-thresholded-redo"
 )
 config = "workflows/fine_res_ml/training.yaml"
 

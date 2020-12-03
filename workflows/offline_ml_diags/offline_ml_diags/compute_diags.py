@@ -307,10 +307,8 @@ if __name__ == "__main__":
         set(config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS)
     )
     pred_mapper = _get_prediction_mapper(args, config, variables)
-    batch_kwargs = dissoc(config["batch_kwargs"], "mapping_function", "mapping_kwargs")
-
     batches = loaders.batches.diagnostic_batches_from_mapper(
-        pred_mapper, variables, **batch_kwargs
+        pred_mapper, variables, timesteps_per_batch=2
     )
 
     # compute diags
@@ -326,8 +324,7 @@ if __name__ == "__main__":
 
     # write diags and diurnal datasets
     _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
-    _write_nc(
-        xr.merge([grid.drop("land_sea_mask"), ds_diagnostics]),
+    _write_nc(ds_diagnostics,
         args.output_path,
         DIAGS_NC_NAME,
     )
