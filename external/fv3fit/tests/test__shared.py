@@ -35,6 +35,9 @@ class InOutPredictor(Predictor):
     def load(self, *args, **kwargs):
         pass
 
+    def dump(self, path):
+        pass
+
 
 @pytest.mark.parametrize("sample_dims", [("x", "y"), ("y", "x")])
 def test__Predictor_predict_columnwise_dims_same_order(sample_dims,):
