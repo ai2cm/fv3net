@@ -100,13 +100,21 @@ def dQv(self):
         )[1]
 
 
-@DerivedMapping.register("dQu_parallel_to_to_eastward_wind_direction")
+@DerivedMapping.register("dQu_parallel_to_to_eastward_wind")
 def dQu_parallel_to_eastward_wind_direction(self):
     sign = np.sign(self["eastward_wind"] / self["dQu"])
     return sign * abs(self["dQu"])
 
 
-@DerivedMapping.register("dQv_parallel_to_northward_wind_direction")
+@DerivedMapping.register("dQv_parallel_to_northward_wind")
 def dQv_parallel_to_northward_wind_direction(self):
     sign = np.sign(self["northward_wind"] / self["dQv"])
     return sign * abs(self["dQv"])
+
+
+@DerivedMapping.register("horizontal_wind_tendency_parallel_to_horizontal_wind")
+def horizontal_wind_tendency_parallel_to_horizontal_wind(self):
+    tendency_projection_onto_wind = (
+        self["eastward_wind"] * self["dQu"] + self["northward_wind"] * self["dQv"]
+    ) / np.linalg.norm((self["eastward_wind"], self["northward_wind"]))
+    return tendency_projection_onto_wind
