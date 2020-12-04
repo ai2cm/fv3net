@@ -211,6 +211,9 @@ class MockSklearnWrappedModel(fv3fit.Predictor):
     def load(self, *args, **kwargs):
         pass
 
+    def dump(self, path):
+        pass
+
 
 input_vars = ("air_temperature", "specific_humidity")
 output_vars = ("dQ1", "dQ2")
