@@ -117,6 +117,8 @@ def test_open_nudge_to_fine(nudge_to_fine_data_dir):
     mapper[key]["dQywind"]
     mapper[key]["pQ1"]
     mapper[key]["pQ2"]
+    mapper[key]["pQu"]
+    mapper[key]["pQv"]
 
 
 @pytest.mark.parametrize(
@@ -159,7 +161,12 @@ def test_open_nudge_to_fine_subtract_nudging_increment(
         )
 
 
-NUDGE_TO_OBS_VARIABLES = {"air_temperature": "dQ1", "specific_humidity": "dQ2"}
+NUDGE_TO_OBS_VARIABLES = {
+    "air_temperature": "dQ1",
+    "specific_humidity": "dQ2",
+    "eastward_wind": "dQu",
+    "northward_wind": "dQv",
+}
 
 
 def test_open_nudge_to_obs(nudge_to_obs_data_dir):
@@ -174,8 +181,12 @@ def test_open_nudge_to_obs(nudge_to_obs_data_dir):
     mapper[key]["specific_humidity"]
     mapper[key]["dQ1"]
     mapper[key]["dQ2"]
+    mapper[key]["dQu"]
+    mapper[key]["dQv"]
     mapper[key]["pQ1"]
     mapper[key]["pQ2"]
+    mapper[key]["pQu"]
+    mapper[key]["pQv"]
 
 
 @pytest.mark.parametrize(
@@ -201,6 +212,8 @@ def test_open_nudge_to_obs_subtract_nudging_increment(
         {
             "t_dt_nudge": "dQ1",
             "q_dt_nudge": "dQ2",
+            "u_dt_nudge": "dQu",
+            "v_dt_nudge": "dQv",
             "grid_xt": "x",
             "grid_yt": "y",
             "pfull": "z",
@@ -240,6 +253,8 @@ def test_open_nudge_to_obs_subtract_nudging_tendency(
         {
             "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
             "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
+            "tendency_of_eastward_wind_due_to_fv3_physics": "pQu",
+            "tendency_of_northward_wind_due_to_fv3_physics": "pQv",
         }
     )
 
@@ -250,6 +265,8 @@ def test_open_nudge_to_obs_subtract_nudging_tendency(
         {
             "t_dt_nudge": "dQ1",
             "q_dt_nudge": "dQ2",
+            "u_dt_nudge": "dQu",
+            "v_dt_nudge": "dQv",
             "grid_xt": "x",
             "grid_yt": "y",
             "pfull": "z",
@@ -260,7 +277,7 @@ def test_open_nudge_to_obs_subtract_nudging_tendency(
         nudge_to_obs_data_dir, nudge_to_obs_variables, consolidated=False,
     )
 
-    physics_nudging_mapping = {"dQ1": "pQ1", "dQ2": "pQ2"}
+    physics_nudging_mapping = {"dQ1": "pQ1", "dQ2": "pQ2", "dQu": "pQu", "dQv": "pQv"}
 
     for nudging_tendency_name, physics_tendency_name in physics_nudging_mapping.items():
         physics_tendency = (

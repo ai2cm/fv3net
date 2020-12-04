@@ -101,7 +101,9 @@ def open_nudge_to_obs(
     ds = ds.assign(differenced_state)
 
     differenced_physics_tendency: Dataset = {}
-    for nudging_name, physics_name in zip(["dQ1", "dQ2"], ["pQ1", "pQ2"]):
+    for nudging_name, physics_name in zip(
+        ["dQ1", "dQ2", "dQu", "dQv"], ["pQ1", "pQ2", "pQu", "pQv"]
+    ):
         differenced_physics_tendency[physics_name] = ds[physics_name] - ds[nudging_name]
     ds = ds.assign(differenced_physics_tendency)
 
