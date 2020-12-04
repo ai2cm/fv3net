@@ -333,7 +333,7 @@ if __name__ == "__main__":
     ds_diurnal["time"] = times_used
 
     # compute transected and zonal diags
-    snapshot_time = args.snapshot_time or sorted(list(pred_mapper.keys()))[0]
+    snapshot_time = args.snapshot_time or sorted(timesteps)[0]
     snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
     ds_snapshot = pred_mapper[snapshot_key]
     ds_transect = _get_transect(ds_snapshot, grid, config["output_variables"])
