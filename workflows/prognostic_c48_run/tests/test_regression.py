@@ -495,9 +495,9 @@ def completed_rundir(request, tmpdir_factory):
     tmpdir = tmpdir_factory.mktemp("rundir")
 
     if request.param == "sklearn":
-        model_path = _save_mock_sklearn_model(tmpdir)
+        model_path = _save_mock_sklearn_model(str(tmpdir))
     elif request.param == "keras":
-        model_path = _save_mock_keras_model(tmpdir)
+        model_path = _save_mock_keras_model(str(tmpdir))
 
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
     fv3_script = Path(__file__).parent.parent.joinpath("runfv3.sh").as_posix()
