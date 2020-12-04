@@ -16,6 +16,9 @@ class IdentityPredictor2D(Predictor):
     def load(self, *args, **kwargs):
         pass
 
+    def dump(self, path):
+        pass
+
 
 class InOutPredictor(Predictor):
     input_variables = ["in"]
