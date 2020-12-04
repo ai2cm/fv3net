@@ -405,20 +405,14 @@ def test_nudge_run(tmpdir):
     )
 
 
-def get_prognostic_config(model_type, model_path):
+def get_prognostic_config(model_path):
     config = yaml.safe_load(default_fv3config)
-    sklearn_config = {"model": model_path, "zarr_output": "diags.zarr"}
-    if model_type == "keras":
-        sklearn_config.update(
-            model_type="keras", model_loader_kwargs={"keras_model_type": "DummyModel"},
-        )
-    config["scikit_learn"] = sklearn_config
+    config["scikit_learn"] = {"model": model_path, "zarr_output": "diags.zarr"}
     config["step_storage_variables"] = ["specific_humidity", "total_water"]
     # use local paths in prognostic_run image. fv3config
     # downloads data. We should change this once the fixes in
     # https://github.com/VulcanClimateModeling/fv3gfs-python/pull/78 propagates
     # into the prognostic_run image
-
     return config
 
 
@@ -442,7 +436,7 @@ def _model_dataset():
     return data
 
 
-def _save_mock_sklearn_model(tmpdir):
+def _save_mock_sklearn_model(path):
 
     data = _model_dataset()
 
@@ -472,8 +466,6 @@ def _save_mock_sklearn_model(tmpdir):
 
     # needed to avoid sklearn.exceptions.NotFittedError
     model.fit(data)
-
-    path = str(tmpdir.join("model.yaml"))
     fv3fit.dump(model, path)
     return path
 
@@ -492,24 +484,25 @@ def _save_mock_keras_model(tmpdir):
 @pytest.fixture(scope="module", params=["keras", "sklearn"])
 def completed_rundir(request, tmpdir_factory):
 
-    tmpdir = tmpdir_factory.mktemp("rundir")
+    model_path = str(tmpdir_factory.mktemp("model"))
 
     if request.param == "sklearn":
-        model_path = _save_mock_sklearn_model(str(tmpdir))
+        _save_mock_sklearn_model(model_path)
     elif request.param == "keras":
-        model_path = _save_mock_keras_model(str(tmpdir))
+        _save_mock_keras_model(model_path)
+    config = get_prognostic_config(model_path)
 
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
     fv3_script = Path(__file__).parent.parent.joinpath("runfv3.sh").as_posix()
-    config = get_prognostic_config(request.param, model_path)
 
-    config_path = str(tmpdir.join("fv3config.yaml"))
+    rundir = tmpdir_factory.mktemp("rundir")
+    config_path = str(rundir.join("fv3config.yaml"))
 
     with open(config_path, "w") as f:
         yaml.safe_dump(config, f)
 
-    subprocess.check_call([fv3_script, config_path, str(tmpdir), runfile])
-    return tmpdir
+    subprocess.check_call([fv3_script, config_path, str(rundir), runfile])
+    return rundir
 
 
 def test_fv3run_checksum_restarts(completed_rundir):
