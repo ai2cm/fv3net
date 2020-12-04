@@ -284,11 +284,9 @@ if __name__ == "__main__":
         except KeyError:
             timesteps = list(pred_mapper)
 
-    batch_kwargs = dissoc(
-        config["batch_kwargs"],
-        "mapping_function",
-        "mapping_kwargs",
-        "timesteps_per_batch",
+    batch_kwargs = dissoc(config["batch_kwargs"], "mapping_function", "mapping_kwargs",)
+    batches = loaders.batches.diagnostic_batches_from_mapper(
+        pred_mapper, variables, timesteps=timesteps, **batch_kwargs,
     )
     batches = loaders.batches.diagnostic_batches_from_mapper(
         pred_mapper,
