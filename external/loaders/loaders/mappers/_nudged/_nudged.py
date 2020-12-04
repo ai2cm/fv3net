@@ -189,8 +189,8 @@ def open_nudge_to_fine_multiple_datasets(
 
 def _get_datasets(
     url: str, sources: Sequence[str], consolidated: bool = True
-) -> Sequence[xr.Dataset]:
-    datasets = {}
+) -> MutableMapping[Hashable, xr.Dataset]:
+    datasets: MutableMapping[Hashable, xr.Dataset] = {}
     for source in sources:
         ds = intake.open_zarr(
             os.path.join(url, f"{source}"), consolidated=consolidated
