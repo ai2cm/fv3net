@@ -329,6 +329,7 @@ class DenseModel(PackedKerasModel):
         depth: int = 3,
         width: int = 16,
         loss: Literal["mse", "mae"] = "mse",
+        spectral_normalization: bool = False,
     ):
         """Initialize the DenseModel.
 
@@ -360,6 +361,7 @@ class DenseModel(PackedKerasModel):
         """
         self._depth = depth
         self._width = width
+        self._spectral_normalization = spectral_normalization
         optimizer = optimizer or tf.keras.optimizers.Adam()
         super().__init__(
             sample_dim_name,
@@ -375,9 +377,11 @@ class DenseModel(PackedKerasModel):
         inputs = tf.keras.Input(n_features_in)
         x = self.X_scaler.normalize_layer(inputs)
         for i in range(self._depth - 1):
-            x = tf.keras.layers.Dense(
-                self._width, activation=tf.keras.activations.relu
-            )(x)
+            hidden_layer = tf.keras.layers.Dense(
+                self._width, activation=tf.keras.activations.relu)
+            if self._spectral_normalization:
+                hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
+            x = hidden_layer(x)
         x = tf.keras.layers.Dense(n_features_out)(x)
         outputs = self.y_scaler.denormalize_layer(x)
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
