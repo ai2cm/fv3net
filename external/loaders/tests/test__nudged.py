@@ -102,7 +102,6 @@ NUDGE_TO_FINE_VARIABLES = [
 ]
 
 
-@pytest.mark.regression
 def test_open_nudge_to_fine(nudge_to_fine_data_dir):
 
     mapper = open_nudge_to_fine(
@@ -120,9 +119,8 @@ def test_open_nudge_to_fine(nudge_to_fine_data_dir):
     mapper[key]["pQ2"]
 
 
-@pytest.mark.regression
 @pytest.mark.parametrize(
-    ["nudging_timestep_seconds", "nudge_to_fine_variables"],
+    ["physics_timestep_seconds", "nudge_to_fine_variables"],
     [
         (900.0, NUDGE_TO_FINE_VARIABLES),
         (60.0, NUDGE_TO_FINE_VARIABLES),
@@ -130,7 +128,7 @@ def test_open_nudge_to_fine(nudge_to_fine_data_dir):
     ],
 )
 def test_open_nudge_to_fine_subtract_nudging_increment(
-    nudge_to_fine_data_dir, nudging_timestep_seconds, nudge_to_fine_variables
+    nudge_to_fine_data_dir, physics_timestep_seconds, nudge_to_fine_variables
 ):
 
     nudging_variable_state = xr.open_zarr(
@@ -145,7 +143,7 @@ def test_open_nudge_to_fine_subtract_nudging_increment(
     mapper = open_nudge_to_fine(
         nudge_to_fine_data_dir,
         nudge_to_fine_variables,
-        nudging_dt_seconds=nudging_timestep_seconds,
+        physics_timestep_seconds=physics_timestep_seconds,
         consolidated=False,
     )
 
@@ -153,7 +151,7 @@ def test_open_nudge_to_fine_subtract_nudging_increment(
         before_nudging_variable_state = (
             nudging_variable_state[nudging_variable]
             - nudge_to_fine_tendencies[f"{nudging_variable}_tendency_due_to_nudging"]
-            * nudging_timestep_seconds
+            * physics_timestep_seconds
         ).isel(time=0)
         key = sorted(list(mapper.keys()))[0]
         xr.testing.assert_allclose(
@@ -164,7 +162,6 @@ def test_open_nudge_to_fine_subtract_nudging_increment(
 NUDGE_TO_OBS_VARIABLES = {"air_temperature": "dQ1", "specific_humidity": "dQ2"}
 
 
-@pytest.mark.regression
 def test_open_nudge_to_obs(nudge_to_obs_data_dir):
 
     mapper = open_nudge_to_obs(
@@ -181,9 +178,8 @@ def test_open_nudge_to_obs(nudge_to_obs_data_dir):
     mapper[key]["pQ2"]
 
 
-@pytest.mark.regression
 @pytest.mark.parametrize(
-    ["nudging_timestep_seconds", "nudge_to_obs_variables"],
+    ["physics_timestep_seconds", "nudge_to_obs_variables"],
     [
         (900.0, NUDGE_TO_OBS_VARIABLES),
         (60.0, NUDGE_TO_OBS_VARIABLES),
@@ -191,7 +187,7 @@ def test_open_nudge_to_obs(nudge_to_obs_data_dir):
     ],
 )
 def test_open_nudge_to_obs_subtract_nudging_increment(
-    nudge_to_obs_data_dir, nudging_timestep_seconds, nudge_to_obs_variables
+    nudge_to_obs_data_dir, physics_timestep_seconds, nudge_to_obs_variables
 ):
 
     nudging_variable_state = xr.open_zarr(
@@ -214,14 +210,14 @@ def test_open_nudge_to_obs_subtract_nudging_increment(
     mapper = open_nudge_to_obs(
         nudge_to_obs_data_dir,
         nudge_to_obs_variables,
-        nudging_dt_seconds=nudging_timestep_seconds,
+        physics_timestep_seconds=physics_timestep_seconds,
         consolidated=False,
     )
 
     for nudged_variable_name, nudging_tendency_name in nudge_to_obs_variables.items():
         before_nudging_variable_state = (
             nudging_variable_state[nudged_variable_name]
-            - nudge_to_obs_tendencies[nudging_tendency_name] * nudging_timestep_seconds
+            - nudge_to_obs_tendencies[nudging_tendency_name] * physics_timestep_seconds
         ).isel(time=0)
         key = sorted(list(mapper.keys()))[0]
         xr.testing.assert_allclose(
@@ -229,7 +225,6 @@ def test_open_nudge_to_obs_subtract_nudging_increment(
         )
 
 
-@pytest.mark.regression
 @pytest.mark.parametrize(
     ["nudge_to_obs_variables"],
     [(NUDGE_TO_OBS_VARIABLES,), ({"air_temperature": "dQ1"},)],

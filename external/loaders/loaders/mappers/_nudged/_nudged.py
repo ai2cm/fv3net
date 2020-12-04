@@ -18,7 +18,7 @@ Dataset = MutableMapping[Hashable, Any]
 def open_nudge_to_obs(
     url: str,
     nudging_tendency_variables: Optional[Mapping[str, str]] = None,
-    nudging_dt_seconds: float = 900.0,
+    physics_timestep_seconds: float = 900.0,
     consolidated: bool = True,
 ):
     """
@@ -37,7 +37,7 @@ def open_nudge_to_obs(
         nudging_tendency_variables: (optional): mapping of variables to their renamed
             nudging tendencies. Defaults to
             {"air_temperature": "dQ1", "specific_humidity": "dQ2"}
-        nudging_dt_seconds (float): timestep of nudging, i.e., dt_atmos; defaults
+        physics_timestep_seconds (float): physics timestep, i.e., dt_atmos; defaults
             to 900.0
         consolidated (bool): whether zarrs to open have consolidated metadata
         
@@ -47,35 +47,46 @@ def open_nudge_to_obs(
         
     """
 
-    ds = xr.merge(
-        _get_datasets(
-            url,
-            [
-                "physics_tendencies.zarr",
-                "nudge_to_obs_tendencies.zarr",
-                "state_after_timestep.zarr",
-            ],
-            consolidated=consolidated,
-        ),
+    datasets = _get_datasets(
+        url,
+        [
+            "physics_tendencies.zarr",
+            "nudge_to_obs_tendencies.zarr",
+            "state_after_timestep.zarr",
+        ],
+        consolidated=consolidated,
     )
 
-    ds = ds.rename(
-        {
-            "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
-            "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
-            "t_dt_nudge": "dQ1",
-            "q_dt_nudge": "dQ2",
-            "u_dt_nudge": "dQu",
-            "v_dt_nudge": "dQv",
-            "grid_xt": "x",
-            "grid_yt": "y",
-            "pfull": "z",
-        }
+    ds = xr.merge(
+        [
+            datasets["physics_tendencies.zarr"].rename(
+                {
+                    "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
+                    "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
+                    "tendency_of_eastward_wind_due_to_fv3_physics": "pQu",
+                    "tendency_of_northward_wind_due_to_fv3_physics": "pQv",
+                }
+            ),
+            datasets["nudge_to_obs_tendencies.zarr"].rename(
+                {
+                    "t_dt_nudge": "dQ1",
+                    "q_dt_nudge": "dQ2",
+                    "u_dt_nudge": "dQu",
+                    "v_dt_nudge": "dQv",
+                    "grid_xt": "x",
+                    "grid_yt": "y",
+                    "pfull": "z",
+                }
+            ),
+            datasets["state_after_timestep.zarr"],
+        ]
     )
 
     nudging_tendency_variables = nudging_tendency_variables or {
         "air_temperature": "dQ1",
         "specific_humidity": "dQ2",
+        "eastward_wind": "dQu",
+        "northward_wind": "dQv",
     }
 
     differenced_state: Dataset = {}
@@ -84,7 +95,8 @@ def open_nudge_to_obs(
         nudging_tendency_name,
     ) in nudging_tendency_variables.items():
         differenced_state[nudging_variable_name] = (
-            ds[nudging_variable_name] - ds[nudging_tendency_name] * nudging_dt_seconds
+            ds[nudging_variable_name]
+            - ds[nudging_tendency_name] * physics_timestep_seconds
         )
     ds = ds.assign(differenced_state)
 
@@ -99,7 +111,7 @@ def open_nudge_to_obs(
 def open_nudge_to_fine(
     url: str,
     nudging_variables: Sequence[str],
-    nudging_dt_seconds: float = 900.0,
+    physics_timestep_seconds: float = 900.0,
     consolidated: bool = True,
 ) -> XarrayMapper:
     """
@@ -113,7 +125,7 @@ def open_nudge_to_fine(
     Args:
         url (str):  path to nudge-to-fine output directory, remote or local
         nudging_variables (Sequence[str]): Names of nudged variables
-        nudging_dt_seconds (float): timestep of nudging, i.e., dt_atmos; defaults
+        physics_timestep_seconds (float): physics timestep, i.e., dt_atmos; defaults
             to 900.0
         consolidated (bool): whether zarrs to open have consolidated metadata
         
@@ -131,14 +143,14 @@ def open_nudge_to_fine(
                 "state_after_timestep.zarr",
             ],
             consolidated=consolidated,
-        ),
+        ).values()
     )
 
     differenced_state: Dataset = {}
     for nudging_variable in nudging_variables:
         nudging_tendency = ds[f"{nudging_variable}_tendency_due_to_nudging"]
         differenced_state[nudging_variable] = (
-            ds[nudging_variable] - nudging_tendency * nudging_dt_seconds
+            ds[nudging_variable] - nudging_tendency * physics_timestep_seconds
         )
     ds = ds.assign(differenced_state)
 
@@ -149,6 +161,8 @@ def open_nudge_to_fine(
         "y_wind_tendency_due_to_nudging": "dQywind",
         "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
         "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
+        "tendency_of_eastward_wind_due_to_fv3_physics": "pQu",
+        "tendency_of_northward_wind_due_to_fv3_physics": "pQv",
     }
 
     return XarrayMapper(ds.rename(rename_vars))
@@ -176,10 +190,10 @@ def open_nudge_to_fine_multiple_datasets(
 def _get_datasets(
     url: str, sources: Sequence[str], consolidated: bool = True
 ) -> Sequence[xr.Dataset]:
-    datasets = []
+    datasets = {}
     for source in sources:
         ds = intake.open_zarr(
             os.path.join(url, f"{source}"), consolidated=consolidated
         ).to_dask()
-        datasets.append(ds)
+        datasets[source] = ds
     return datasets
