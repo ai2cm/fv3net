@@ -100,7 +100,7 @@ def dQv(self):
         )[1]
 
 
-@DerivedMapping.register("dQu_parallel_to_to_eastward_wind")
+@DerivedMapping.register("dQu_parallel_to_eastward_wind")
 def dQu_parallel_to_eastward_wind_direction(self):
     sign = np.sign(self["eastward_wind"] / self["dQu"])
     return sign * abs(self["dQu"])
