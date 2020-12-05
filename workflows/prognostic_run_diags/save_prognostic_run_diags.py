@@ -282,7 +282,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     def spatial_max_dycore(prognostic, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing maximums for dycore variables ({mask_type})")
         masked = prognostic.where(~grid["area"].isnull())
-        return masked.min(dim=HORIZONTAL_DIMS)
+        return masked.max(dim=HORIZONTAL_DIMS)
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -310,7 +310,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     def spatial_max_physics(prognostic, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing maximums for physics variables ({mask_type})")
         masked = prognostic.where(~grid["area"].isnull())
-        return masked.min(dim=HORIZONTAL_DIMS)
+        return masked.max(dim=HORIZONTAL_DIMS)
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
