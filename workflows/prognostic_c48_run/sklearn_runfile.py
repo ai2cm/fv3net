@@ -27,6 +27,7 @@ import fv3gfs.wrapper as wrapper
 wrapper.initialize()  # noqa: E402
 
 from runtime import DerivedFV3State
+import fv3fit
 import fv3gfs.util
 import runtime
 
@@ -112,7 +113,7 @@ def precipitation_sum(
 
 
 def open_model(config):
-    model = runtime.get_ml_model(config)
+    model = fv3fit.load(config["scikit_learn"]["model"])
     rename_in = config.get("input_standard_names", {})
     rename_out = config.get("output_standard_names", {})
     return runtime.RenamingAdapter(model, rename_in, rename_out)

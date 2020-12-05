@@ -3,17 +3,16 @@ import logging
 import os
 import xarray as xr
 import numpy as np
-from .models import Model
 from ._sequences import _XyArraySequence
 from ._filesystem import get_dir, put_dir
-from ..._shared import ArrayPacker
+from ..._shared import ArrayPacker, Estimator
 from ... import _shared
 
 logger = logging.getLogger(__file__)
 
 
 @_shared.io.register("dummy")
-class DummyModel(Model):
+class DummyModel(Estimator):
     """
     A dummy keras model for testing, whose `fit` method learns only the input and
     output variable array dimensions in an xarray dataset and ignores their contents,
@@ -75,7 +74,7 @@ class DummyModel(Model):
                 self.y_packer.dump(f)
 
     @classmethod
-    def load(cls, path: str) -> Model:
+    def load(cls, path: str) -> Estimator:
         with get_dir(path) as path:
             with open(os.path.join(path, cls._X_PACKER_FILENAME), "r") as f:
                 X_packer = ArrayPacker.load(f)

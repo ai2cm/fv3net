@@ -1,4 +1,5 @@
-import abc
+from typing import Mapping
+import logging
 import io
 from copy import copy
 import numpy as np
@@ -6,7 +7,7 @@ import xarray as xr
 import pandas as pd
 import fsspec
 import joblib
-from .._shared import pack, unpack, Predictor
+from .._shared import pack, unpack, Estimator, get_scaler
 from .. import _shared
 from .._shared import scaler
 import sklearn.base
@@ -92,38 +93,8 @@ class RegressorEnsemble:
         return obj
 
 
-class BaseXarrayEstimator(Predictor):
-    """Abstract base class for an estimator wich works with xarray datasets.
-    Subclasses Predictor abstract base class but adds `fit` method taking in
-    xarray dataset.
-    """
-
-    def __init__(
-        self,
-        sample_dim_name: str,
-        input_variables: Iterable[str],
-        output_variables: Iterable[str],
-    ):
-        """
-        Args:
-            sample_dim_name: dimension over which samples are taken
-            input_variables: list of input variables
-            output_variables: list of output variables
-        """
-        super().__init__(sample_dim_name, input_variables, output_variables)
-
-    @abc.abstractmethod
-    def fit(self, data: xr.Dataset) -> None:
-        """
-        Args:
-            data: xarray Dataset with dimensions (sample_dim, *)
-
-        """
-        raise NotImplementedError
-
-
 @_shared.io.register("sklearn")
-class SklearnWrapper(BaseXarrayEstimator):
+class SklearnWrapper(Estimator):
     """Wrap a SkLearn model for use with xarray
 
     """
@@ -138,8 +109,10 @@ class SklearnWrapper(BaseXarrayEstimator):
         input_variables: Iterable[str],
         output_variables: Iterable[str],
         model: RegressorEnsemble,
-        target_scaler: Optional[scaler.NormalizeTransform] = None,
         parallel_backend: str = "threading",
+        scaler_type: str = "standard",
+        scaler_kwargs: Optional[Mapping] = None,
+        target_scaler: Optional[scaler.NormalizeTransform] = None,
         n_jobs: int = 1,
     ) -> None:
         """
@@ -158,12 +131,14 @@ class SklearnWrapper(BaseXarrayEstimator):
 
         self.n_jobs = n_jobs
         self.parallel_backend = parallel_backend
+        self.scaler_type = scaler_type
+        self.scaler_kwargs = scaler_kwargs or {}
         self.target_scaler = target_scaler
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
-    def fit(self, data: xr.Dataset):
+    def _fit_batch(self, data: xr.Dataset):
         # TODO the sample_dim can change so best to use feature dim to flatten
         x, _ = pack(data[self.input_variables], self.sample_dim_name)
         y, self.output_features_ = pack(
@@ -174,6 +149,24 @@ class SklearnWrapper(BaseXarrayEstimator):
             y = self.target_scaler.normalize(y)
 
         self.model.fit(x, y)
+
+    def _init_target_scaler(self, batch):
+        return get_scaler(
+            self.scaler_type,
+            self.scaler_kwargs,
+            batch,
+            self._output_variables,
+            self._sample_dim_name,
+        )
+
+    def fit(self, batches: Sequence[xr.Dataset]):
+        logger = logging.getLogger("SklearnWrapper")
+        for i, batch in enumerate(batches):
+            if i == 0:
+                self._init_target_scaler(batch)
+            logger.info(f"Fitting batch {i}/{len(batches)}")
+            self._fit_batch(batch)
+            logger.info(f"Batch {i} done fitting.")
 
     def predict(self, data):
         x, _ = pack(data[self.input_variables], self.sample_dim_name)
@@ -233,7 +226,11 @@ class SklearnWrapper(BaseXarrayEstimator):
         output_features_ = _tuple_to_multiindex(output_features_dict_)
 
         obj = cls(
-            sample_dim_name, input_variables, output_variables, model, scaler_obj,
+            sample_dim_name,
+            input_variables,
+            output_variables,
+            model,
+            target_scaler=scaler_obj,
         )
         obj.output_features_ = output_features_
 

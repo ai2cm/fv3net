@@ -3,7 +3,7 @@ import os
 import fsspec
 import warnings
 
-from .predictor import Predictor
+from .predictor import Predictor, Estimator
 from functools import partial
 
 _NAME_PATH = "name"
@@ -71,8 +71,8 @@ class _Register:
         else:
             return self._load_by_name(name, path)
 
-    def dump(self, obj: Predictor, path: str):
-        """Dump a predictor to a path"""
+    def dump(self, obj: Estimator, path: str):
+        """Dump an Estimator to a path"""
         self._set_mapper_name(obj, path)
         obj.dump(path)
 

@@ -1,7 +1,7 @@
 from typing import Iterable, Type
 import logging
 from . import _models
-from ._models.models import Model
+from .._shared import Estimator
 
 logger = logging.getLogger(__file__)
 
@@ -14,8 +14,8 @@ def get_model(
     input_variables: Iterable[str],
     output_variables: Iterable[str],
     **hyperparameters
-) -> Model:
-    """Initialize and return a Model instance.
+) -> Estimator:
+    """Initialize and return a Estimator instance.
 
     Args:
         model_type: the type of model to return
@@ -26,18 +26,18 @@ def get_model(
     Returns:
         model
     """
-    return get_model_class(model_type)(
+    return get_model_class(model_type)(  # type: ignore
         sample_dim_name, input_variables, output_variables, **hyperparameters
     )
 
 
-def get_model_class(model_type: str) -> Type[Model]:
-    """Returns a class implementing the Model interface corresponding to the model type.
+def get_model_class(model_type: str) -> Type[Estimator]:
+    """Returns a class implementing the Estimator interface corresponding to the model type.
     
     Args:
         model_type: the type of model
 
     Returns:
-        model_class: a subclass of Model corresponding to the model type
+        model_class: a subclass of Estimator corresponding to the model type
     """
     return getattr(_models, model_type)
