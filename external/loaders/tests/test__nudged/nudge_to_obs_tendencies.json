@@ -1,0 +1,472 @@
+{
+    "version": "v3",
+    "schema": {
+        "coords": {},
+        "variables": {
+            "area": {
+                "name": "area",
+                "dims": [
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "cell area",
+                    "units": "m**2"
+                }
+            },
+            "delp_dt_nudge": {
+                "name": "delp_dt_nudge",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        3456,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        1,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "pressure thickness tendency from nudging",
+                    "units": "Pa/s"
+                }
+            },
+            "grid_x": {
+                "name": "grid_x",
+                "dims": [
+                    "grid_x"
+                ],
+                "array": {
+                    "shape": [
+                        9
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        9
+                    ]
+                },
+                "attrs": {
+                    "cartesian_axis": "X",
+                    "long_name": "cell corner longitude",
+                    "units": "degrees_E"
+                }
+            },
+            "grid_xt": {
+                "name": "grid_xt",
+                "dims": [
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        8
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cartesian_axis": "X",
+                    "long_name": "T-cell longitude",
+                    "units": "degrees_E"
+                }
+            },
+            "grid_y": {
+                "name": "grid_y",
+                "dims": [
+                    "grid_y"
+                ],
+                "array": {
+                    "shape": [
+                        9
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        9
+                    ]
+                },
+                "attrs": {
+                    "cartesian_axis": "Y",
+                    "long_name": "cell corner latitude",
+                    "units": "degrees_N"
+                }
+            },
+            "grid_yt": {
+                "name": "grid_yt",
+                "dims": [
+                    "grid_yt"
+                ],
+                "array": {
+                    "shape": [
+                        8
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cartesian_axis": "Y",
+                    "long_name": "T-cell latitude",
+                    "units": "degrees_N"
+                }
+            },
+            "lat": {
+                "name": "lat",
+                "dims": [
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "latitude",
+                    "units": "degrees_N"
+                }
+            },
+            "latb": {
+                "name": "latb",
+                "dims": [
+                    "tile",
+                    "grid_y",
+                    "grid_x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        9,
+                        9
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        9,
+                        9
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "latitude",
+                    "units": "degrees_N"
+                }
+            },
+            "lon": {
+                "name": "lon",
+                "dims": [
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "longitude",
+                    "units": "degrees_E"
+                }
+            },
+            "lonb": {
+                "name": "lonb",
+                "dims": [
+                    "tile",
+                    "grid_y",
+                    "grid_x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        9,
+                        9
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        9,
+                        9
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "longitude",
+                    "units": "degrees_E"
+                }
+            },
+            "pfull": {
+                "name": "pfull",
+                "dims": [
+                    "pfull"
+                ],
+                "array": {
+                    "shape": [
+                        19
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        19
+                    ]
+                },
+                "attrs": {
+                    "cartesian_axis": "Z",
+                    "edges": "phalf",
+                    "long_name": "ref full pressure level",
+                    "positive": "down",
+                    "units": "mb"
+                }
+            },
+            "phalf": {
+                "name": "phalf",
+                "dims": [
+                    "phalf"
+                ],
+                "array": {
+                    "shape": [
+                        80
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        80
+                    ]
+                },
+                "attrs": {
+                    "cartesian_axis": "Z",
+                    "long_name": "ref half pressure level",
+                    "positive": "down",
+                    "units": "mb"
+                }
+            },
+            "ps_dt_nudge": {
+                "name": "ps_dt_nudge",
+                "dims": [
+                    "tile",
+                    "time",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        3456,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        1,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "surface pressure tendency from nudging",
+                    "units": "Pa/s"
+                }
+            },
+            "q_dt_nudge": {
+                "name": "q_dt_nudge",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        3456,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        1,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "specific humidity tendency from nudging",
+                    "units": "kg/kg/s"
+                }
+            },
+            "t_dt_nudge": {
+                "name": "t_dt_nudge",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        3456,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        1,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "temperature tendency from nudging",
+                    "units": "K/s"
+                }
+            },
+            "time": {
+                "name": "time",
+                "dims": [
+                    "time"
+                ],
+                "array": {
+                    "shape": [
+                        3456
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        3456
+                    ]
+                },
+                "attrs": {
+                    "calendar": "julian",
+                    "calendar_type": "JULIAN",
+                    "cartesian_axis": "T",
+                    "long_name": "time",
+                    "units": "seconds since 2015-01-01 05:00:00.000000"
+                }
+            },
+            "u_dt_nudge": {
+                "name": "u_dt_nudge",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        3456,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        1,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "zonal wind tendency from nudging",
+                    "units": "m/s/s"
+                }
+            },
+            "v_dt_nudge": {
+                "name": "v_dt_nudge",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        3456,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        1,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "meridional wind tendency from nudging",
+                    "units": "m/s/s"
+                }
+            }
+        }
+    }
+}

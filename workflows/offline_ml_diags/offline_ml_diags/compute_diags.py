@@ -14,6 +14,7 @@ from toolz import dissoc
 import diagnostics_utils as utils
 import loaders
 from vcm import safe, interpolate_to_pressure_levels
+import vcm
 from vcm.cloud import get_fs
 from fv3fit import PRODUCTION_MODEL_TYPES
 from ._metrics import compute_metrics
@@ -290,15 +291,10 @@ if __name__ == "__main__":
     res = config["batch_kwargs"].get("res", "c48")
     grid = load_grid_info(res)
 
-    if args.timesteps_file:
-        logger.info("Reading timesteps file")
-        with open(args.timesteps_file, "r") as f:
-            timesteps = yaml.safe_load(f)
-        config["batch_kwargs"]["timesteps"] = timesteps
-
     # write out config used to generate diagnostics, including model path
     config["model_path"] = args.model_path
     fs = get_fs(args.output_path)
+    fs.makedirs(args.output_path, exist_ok=True)
     with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
         yaml.safe_dump(config, f)
 
@@ -306,10 +302,21 @@ if __name__ == "__main__":
         set(config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS)
     )
     pred_mapper = _get_prediction_mapper(args, config, variables)
-    batch_kwargs = dissoc(config["batch_kwargs"], "mapping_function", "mapping_kwargs")
 
+    # get list of timesteps
+    if args.timesteps_file:
+        logger.info("Reading timesteps file")
+        with open(args.timesteps_file, "r") as f:
+            timesteps = yaml.safe_load(f)
+    else:
+        try:
+            timesteps = config["batch_kwargs"].pop("timesteps")
+        except KeyError:
+            timesteps = list(pred_mapper)
+
+    batch_kwargs = dissoc(config["batch_kwargs"], "mapping_function", "mapping_kwargs",)
     batches = loaders.batches.diagnostic_batches_from_mapper(
-        pred_mapper, variables, **batch_kwargs
+        pred_mapper, variables, timesteps=timesteps, **batch_kwargs,
     )
 
     # compute diags
@@ -317,8 +324,16 @@ if __name__ == "__main__":
         batches, grid, predicted_vars=config["output_variables"]
     )
 
+    # Save metadata
+    cftimes = [vcm.parse_datetime_from_str(time) for time in timesteps]
+    times_used = xr.DataArray(
+        cftimes, dims=["time"], attrs=dict(description="times used for anaysis")
+    )
+    ds_diagnostics["time"] = times_used
+    ds_diurnal["time"] = times_used
+
     # compute transected and zonal diags
-    snapshot_time = args.snapshot_time or sorted(list(pred_mapper.keys()))[0]
+    snapshot_time = args.snapshot_time or sorted(timesteps)[0]
     snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
     ds_snapshot = pred_mapper[snapshot_key]
     ds_transect = _get_transect(ds_snapshot, grid, config["output_variables"])
