@@ -5,10 +5,10 @@ from loaders.mappers._fine_resolution_budget import (
     GroupByTime,
     FineResolutionSources,
 )
-from loaders.mappers._nudged import (
+from loaders.mappers._transformations import SubsetTimes
+from loaders.mappers._nudged._legacy import (
     MergeNudged,
     NudgedStateCheckpoints,
-    SubsetTimes,
     NudgedFullTendencies,
 )
 from loaders.mappers._merged import MergeOverlappingData

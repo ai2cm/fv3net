@@ -107,14 +107,14 @@ def test_open_fine_resolution_nudging_to_obs_hybrid(nudging_url, fine_url):
         "grid_yt": "y",
         "pfull": "z",
     }
-    prog_nudge_kwargs = {
+    nudge_kwargs = {
         "url": nudging_url,
         "merge_files": ("prognostic_diags.zarr", "nudging_tendencies.zarr"),
         "rename_vars": rename_prog_nudge,
     }
     # test opener with paths provided through kwargs
     data = open_fine_resolution_nudging_to_obs_hybrid(
-        None, prog_nudge_kwargs, {"fine_res_url": fine_url}
+        None, nudge_kwargs, {"fine_res_url": fine_url}
     )
     data[timestep1_end]
 
@@ -130,13 +130,13 @@ def test_open_fine_resolution_nudging_to_obs_hybrid_data_path(nudging_url, fine_
         "grid_yt": "y",
         "pfull": "z",
     }
-    prog_nudge_kwargs = {
+    nudge_kwargs = {
         "merge_files": ("prognostic_diags.zarr", "nudging_tendencies.zarr"),
         "rename_vars": rename_prog_nudge,
     }
     # test opener with paths provided through data_path
     data = open_fine_resolution_nudging_to_obs_hybrid(
-        [nudging_url, fine_url], prog_nudge_kwargs, {}
+        [nudging_url, fine_url], nudge_kwargs, {}
     )
     data[timestep1_end]
 
@@ -151,11 +151,11 @@ def test_open_fine_resolution_nudging_to_obs_hybrid_no_urls(nudging_url, fine_ur
         "grid_yt": "y",
         "pfull": "z",
     }
-    prog_nudge_kwargs = {
+    nudge_kwargs = {
         "merge_files": ("prognostic_diags.zarr", "nudging_tendencies.zarr"),
         "rename_vars": rename_prog_nudge,
     }
     with pytest.raises(ValueError):
-        open_fine_resolution_nudging_to_obs_hybrid(None, prog_nudge_kwargs, {})
+        open_fine_resolution_nudging_to_obs_hybrid(None, nudge_kwargs, {})
     with pytest.raises(ValueError):
-        open_fine_resolution_nudging_to_obs_hybrid([nudging_url], prog_nudge_kwargs, {})
+        open_fine_resolution_nudging_to_obs_hybrid([nudging_url], nudge_kwargs, {})
