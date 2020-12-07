@@ -9,16 +9,18 @@ from tempfile import NamedTemporaryFile
 import xarray as xr
 import yaml
 from typing import Mapping, Sequence, Tuple
+from toolz import dissoc
 
 import diagnostics_utils as utils
 import loaders
 from vcm import safe, interpolate_to_pressure_levels
+import vcm
 from vcm.cloud import get_fs
 from fv3fit import PRODUCTION_MODEL_TYPES
-from ._metrics import calc_metrics
+from ._metrics import compute_metrics
 from . import _model_loaders as model_loaders
 from ._mapper import PredictionMapper
-from ._helpers import add_net_precip_domain_info, load_grid_info
+from ._helpers import net_precipitation_provenance_information, load_grid_info
 from ._select import meridional_transect, nearest_time
 
 
@@ -109,19 +111,47 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
     return metrics
 
 
-def _compute_diags_over_batches(
-    ds_batches: Sequence[xr.Dataset], grid: xr.Dataset, predicted_vars: Sequence[str]
-) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
-    """Return a set of diagnostic datasets from a sequence of batched data"""
+def _compute_diurnal_cycle(ds: xr.Dataset) -> xr.Dataset:
+    return utils.create_diurnal_cycle_dataset(
+        ds, ds["lon"], ds["land_sea_mask"], DIURNAL_VARS,
+    )
 
+
+def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
+    # ...reduce to diagnostic variables
+    if SHIELD_DERIVATION_COORD in ds["derivation"].values:
+        net_precip_domain_coord = SHIELD_DERIVATION_COORD
+    else:
+        net_precip_domain_coord = "target"
+
+    summary = utils.reduce_to_diagnostic(
+        ds,
+        ds,
+        net_precipitation=-ds["column_integrated_Q2"].sel(  # type: ignore
+            derivation=net_precip_domain_coord
+        ),
+        primary_vars=variables,
+    )
+    summary = summary.assign_coords(
+        domain=net_precipitation_provenance_information(
+            summary["domain"], net_precip_domain_coord
+        )
+    )
+
+    return summary
+
+
+def _compute_diagnostics(
+    batches: Sequence[xr.Dataset], grid: xr.Dataset, predicted_vars: Sequence[str]
+) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
     batches_summary, batches_diurnal, batches_metrics = [], [], []
     diagnostic_vars = list(set(list(predicted_vars) + ["pQ1", "pQ2", "Q1", "Q2"]))
     metric_vars = list(set(list(predicted_vars) + ["Q1", "Q2"]))
 
     # for each batch...
-    for i, ds in enumerate(ds_batches):
+    for i, ds in enumerate(batches):
 
-        logger.info(f"Working on batch {i} diagnostics ...")
+        logger.info(f"Processing batch {i+1}/{len(batches)}")
         # ...insert additional variables
         ds = (
             ds.pipe(utils.insert_total_apparent_sources)
@@ -129,38 +159,22 @@ def _compute_diags_over_batches(
             .pipe(utils.insert_net_terms_as_Qs)
             .load()
         )
+        ds.update(grid)
 
-        # ...reduce to diagnostic variables
-        if SHIELD_DERIVATION_COORD in ds["derivation"].values:
-            net_precip_domain_coord = SHIELD_DERIVATION_COORD
-        else:
-            net_precip_domain_coord = "target"
+        ds_summary = _compute_summary(ds, diagnostic_vars)
 
-        ds_summary = utils.reduce_to_diagnostic(
-            ds,
-            grid,
-            net_precipitation=-ds["column_integrated_Q2"].sel(  # type: ignore
-                derivation=net_precip_domain_coord
-            ),
-            primary_vars=diagnostic_vars,
-        )
-        add_net_precip_domain_info(ds_summary, net_precip_domain_coord)
-
-        # ...compute diurnal cycles
         if DATASET_DIM_NAME in ds.dims:
             sample_dims = ("time", DATASET_DIM_NAME)
         else:
             sample_dims = ("time",)  # type: ignore
-        ds = ds.stack(sample=sample_dims)
-        ds_diurnal = utils.create_diurnal_cycle_dataset(
-            ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
-        )
-        # ...compute metrics
-        ds_metrics = calc_metrics(
-            ds,
-            grid["lat"],
-            grid["area"],
-            ds["pressure_thickness_of_atmospheric_layer"],
+        stacked = ds.stack(sample=sample_dims)
+
+        ds_diurnal = _compute_diurnal_cycle(stacked)
+        ds_metrics = compute_metrics(
+            stacked,
+            stacked["lat"],
+            stacked["area"],
+            stacked["pressure_thickness_of_atmospheric_layer"],
             predicted_vars=metric_vars,
         )
 
@@ -168,7 +182,6 @@ def _compute_diags_over_batches(
         batches_diurnal.append(ds_diurnal.load())
         batches_metrics.append(ds_metrics.load())
         del ds
-        logger.info(f"Processed batch {i} diagnostics netcdf output.")
 
     # then average over the batches for each output
     ds_summary = xr.concat(batches_summary, dim="batch")
@@ -278,15 +291,10 @@ if __name__ == "__main__":
     res = config["batch_kwargs"].get("res", "c48")
     grid = load_grid_info(res)
 
-    if args.timesteps_file:
-        logger.info("Reading timesteps file")
-        with open(args.timesteps_file, "r") as f:
-            timesteps = yaml.safe_load(f)
-        config["batch_kwargs"]["timesteps"] = timesteps
-
     # write out config used to generate diagnostics, including model path
     config["model_path"] = args.model_path
     fs = get_fs(args.output_path)
+    fs.makedirs(args.output_path, exist_ok=True)
     with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
         yaml.safe_dump(config, f)
 
@@ -295,20 +303,37 @@ if __name__ == "__main__":
     )
     pred_mapper = _get_prediction_mapper(args, config, variables)
 
-    del config["batch_kwargs"]["mapping_function"]
-    del config["batch_kwargs"]["mapping_kwargs"]
+    # get list of timesteps
+    if args.timesteps_file:
+        logger.info("Reading timesteps file")
+        with open(args.timesteps_file, "r") as f:
+            timesteps = yaml.safe_load(f)
+    else:
+        try:
+            timesteps = config["batch_kwargs"].pop("timesteps")
+        except KeyError:
+            timesteps = list(pred_mapper)
 
-    ds_batches = loaders.batches.diagnostic_batches_from_mapper(
-        pred_mapper, variables, **config["batch_kwargs"],
+    batch_kwargs = dissoc(config["batch_kwargs"], "mapping_function", "mapping_kwargs",)
+    batches = loaders.batches.diagnostic_batches_from_mapper(
+        pred_mapper, variables, timesteps=timesteps, **batch_kwargs,
     )
 
     # compute diags
-    ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diags_over_batches(
-        ds_batches, grid, predicted_vars=config["output_variables"]
+    ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diagnostics(
+        batches, grid, predicted_vars=config["output_variables"]
     )
 
+    # Save metadata
+    cftimes = [vcm.parse_datetime_from_str(time) for time in timesteps]
+    times_used = xr.DataArray(
+        cftimes, dims=["time"], attrs=dict(description="times used for anaysis")
+    )
+    ds_diagnostics["time"] = times_used
+    ds_diurnal["time"] = times_used
+
     # compute transected and zonal diags
-    snapshot_time = args.snapshot_time or sorted(list(pred_mapper.keys()))[0]
+    snapshot_time = args.snapshot_time or sorted(timesteps)[0]
     snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
     ds_snapshot = pred_mapper[snapshot_key]
     ds_transect = _get_transect(ds_snapshot, grid, config["output_variables"])
@@ -316,9 +341,7 @@ if __name__ == "__main__":
     # write diags and diurnal datasets
     _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
     _write_nc(
-        xr.merge([grid.drop("land_sea_mask"), ds_diagnostics]),
-        args.output_path,
-        DIAGS_NC_NAME,
+        ds_diagnostics, args.output_path, DIAGS_NC_NAME,
     )
     _write_nc(ds_diurnal, args.output_path, DIURNAL_NC_NAME)
 
