@@ -1,14 +1,5 @@
-from typing import (
-    Any,
-    Sequence,
-    Container,
-    Mapping,
-    List,
-    Union,
-    Optional,
-)
+from typing import Any, Sequence, Container, Mapping, List, Union, Optional, Dict
 
-# import json
 import datetime
 import cftime
 import logging
@@ -183,12 +174,8 @@ class DiagnosticFile:
         else:
             raise NotImplementedError(f"Time {kind} not implemented.")
 
-    def dumps(self, indent: int = 4) -> str:
-        #         return json.dumps(
-        #  {"name": self._name, "variables": self.variables, "times": self.times},
-        #             indent=indent,
-        #         )
-        pass
+    def to_dict(self) -> Dict:
+        return {"name": self._name, "variables": self.variables, "times": self.times}
 
 
 def get_diagnostic_files(

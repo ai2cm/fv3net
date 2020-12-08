@@ -2,48 +2,16 @@ import argparse
 import os
 import yaml
 import logging
+from typing import Sequence, Dict
 
 import fv3config
 import fv3kube
 
 import vcm
 
+import default_diagnostic_files
+
 logger = logging.getLogger(__name__)
-
-
-TIMES = {"kind": "interval", "frequency": 900}
-ML_DIAGNOSTICS = {
-    "name": "diags.zarr",
-    "variables": [
-        "net_moistening",
-        "net_moistening_diagnostic",
-        "net_heating",
-        "net_heating_diagnostic",
-        "water_vapor_path",
-        "physics_precip",
-        "column_integrated_dQu",
-        "column_integrated_dQu_diagnostic",
-        "column_integrated_dQv",
-        "column_integrated_dQv_diagnostic",
-    ],
-}
-NUDGING_DIAGNOSTICS_2D = {
-    "name": "diags.zarr",
-    "variables": [
-        "net_moistening_due_to_nudging",
-        "net_heating_due_to_nudging",
-        "net_mass_tendency_due_to_nudging",
-        "column_integrated_eastward_wind_tendency_due_to_nudging",
-        "column_integrated_northward_wind_tendency_due_to_nudging",
-        "water_vapor_path",
-        "physics_precip",
-    ],
-}
-NUDGING_TENDENCIES = {"name": "nudging_tendencies.zarr", "variables": []}
-BASELINE_DIAGNOSTICS = {
-    "name": "diags.zarr",
-    "variables": ["water_vapor_path", "physics_precip"],
-}
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -151,18 +119,31 @@ def diagnostics_overlay(config, model_url, timestamps, frequency_minutes):
     diagnostic_files = []
 
     if ("scikit_learn" in config) or model_url:
-        diagnostic_files.append(ML_DIAGNOSTICS)
+        diagnostic_files.append(default_diagnostic_files.ml_diagnostics.to_dict())
     elif "nudging" in config:
-        nudging_tendencies = NUDGING_TENDENCIES
+        nudging_tendencies = default_diagnostic_files.nudging_tendencies.to_dict()
         nudging_variables = list(config["nudging"]["timescale_hours"])
         nudging_tendencies["variables"].extend(
             [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
         )
         diagnostic_files.append(nudging_tendencies)
-        diagnostic_files.append(NUDGING_DIAGNOSTICS_2D)
+        diagnostic_files.append(
+            default_diagnostic_files.nudge_to_fine_diagnostics_2d.to_dict()
+        )
     else:
-        diagnostic_files.append(BASELINE_DIAGNOSTICS)
+        diagnostic_files.append(default_diagnostic_files.baseline_diagnostics.to_dict())
 
+    diagnostic_files = _update_times(diagnostic_files, timestamps, frequency_minutes)
+
+    return {
+        "diagnostics": diagnostic_files,
+        "diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic",
+    }
+
+
+def _update_times(
+    diagnostic_files: Sequence[Dict], timestamps: Sequence[str], frequency_minutes: int
+) -> Sequence[Dict]:
     for diagnostic in diagnostic_files:
         if timestamps:
             diagnostic.update({"times": {"kind": "selected", "times": timestamps}})
@@ -170,13 +151,7 @@ def diagnostics_overlay(config, model_url, timestamps, frequency_minutes):
             diagnostic.update(
                 {"times": {"kind": "interval", "frequency": 60 * frequency_minutes}}
             )
-        else:
-            diagnostic.update({"times": TIMES})
-
-    return {
-        "diagnostics": diagnostic_files,
-        "diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic",
-    }
+    return diagnostic_files
 
 
 def step_tendency_overlay(
