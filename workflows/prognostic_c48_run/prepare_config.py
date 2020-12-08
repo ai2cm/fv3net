@@ -44,6 +44,7 @@ BASELINE_DIAGNOSTICS = {
     "name": "diags.zarr",
     "variables": ["water_vapor_path", "physics_precip"],
 }
+SUPPRESS_RANGE_WARNINGS = {"namelist": {"fv_core_nml": {"range_warn": False}}}
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -223,6 +224,7 @@ def prepare_config(args):
         step_tendency_overlay(user_config),
         ml_overlay(model_type, args.model_url, args.diagnostic_ml),
         nudging_overlay(nudging_config, args.initial_condition_url),
+        SUPPRESS_RANGE_WARNINGS,
         user_config,
     ]
 

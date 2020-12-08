@@ -34,6 +34,8 @@ import runtime
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("fv3gfs.util").setLevel(logging.WARN)
 logger = logging.getLogger(__name__)
+# Fortran logs are output as python DEBUG level
+runtime.capture_fv3gfs_funcs()
 
 State = MutableMapping[Hashable, xr.DataArray]
 Diagnostics = MutableMapping[Hashable, xr.DataArray]
