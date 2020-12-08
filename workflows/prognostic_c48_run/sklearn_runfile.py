@@ -214,6 +214,13 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             self._model = None
             self._do_only_diagnostic_ml = False
 
+        self._states_to_output = []
+        for diagnostic in config.get("diagnostics", []):
+            if diagnostic["name"] == "state_after_timestep.zarr":
+                self._states_to_output = diagnostic["variables"]
+
+        self._log_debug(f"States to output: {self._states_to_output}")
+
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -335,6 +342,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._log_debug("Setting Fortran State")
         self._state.update(updated_state)
 
+        diagnostics.update({name: self._state[name] for name in self._states_to_output})
+
         return {
             "area": self._state[AREA],
             "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
@@ -421,6 +430,8 @@ class NudgingTimeLoop(TimeLoop):
         self._log_debug("Setting Fortran State")
         self._state.update(updated_state)
 
+        diagnostics.update({name: self._state[name] for name in self._states_to_output})
+
         return {
             "area": self._state[AREA],
             "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
@@ -439,11 +450,15 @@ class BaselineTimeLoop(TimeLoop):
         return {}
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
+
+        diagnostics = {name: self._state[name] for name in self._states_to_output}
+
         return {
             "area": self._state[AREA],
             "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
+            **diagnostics,
         }
 
 
@@ -566,6 +581,9 @@ if __name__ == "__main__":
     )
 
     for time, diagnostics in loop:
+
+        if comm.rank == 0:
+            logger.info(f"diags: {list(diagnostics.keys())}")
 
         averages = globally_average_2d_diagnostics(comm, diagnostics)
         if comm.rank == 0:

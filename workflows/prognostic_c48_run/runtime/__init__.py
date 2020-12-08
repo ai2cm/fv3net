@@ -7,6 +7,7 @@ from .diagnostics import (
     compute_ml_momentum_diagnostics,
     compute_nudging_diagnostics,
     rename_diagnostics,
+    default_diagnostics,
 )
 from .adapters import RenamingAdapter
 from .derived_state import DerivedFV3State

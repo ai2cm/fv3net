@@ -9,7 +9,7 @@ import fv3kube
 
 import vcm
 
-import default_diagnostic_files
+from runtime import default_diagnostics
 
 logger = logging.getLogger(__name__)
 
@@ -114,24 +114,22 @@ def nudging_overlay(nudging_config, initial_condition_url):
     return overlay
 
 
-def diagnostics_overlay(config, model_url, timestamps, frequency_minutes):
+def diagnostics_overlay(config, model_url, nudge_to_obs, timestamps, frequency_minutes):
 
     diagnostic_files = []
 
     if ("scikit_learn" in config) or model_url:
-        diagnostic_files.append(default_diagnostic_files.ml_diagnostics.to_dict())
-    elif "nudging" in config:
-        nudging_tendencies = default_diagnostic_files.nudging_tendencies.to_dict()
-        nudging_variables = list(config["nudging"]["timescale_hours"])
-        nudging_tendencies["variables"].extend(
-            [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
-        )
-        diagnostic_files.append(nudging_tendencies)
-        diagnostic_files.append(
-            default_diagnostic_files.nudge_to_fine_diagnostics_2d.to_dict()
-        )
+        diagnostic_files.append(default_diagnostics.ml_diagnostics.to_dict())
+    elif "nudging" in config or nudge_to_obs:
+        diagnostic_files.append(default_diagnostics.state_after_timestep.to_dict())
+        diagnostic_files.append(default_diagnostics.physics_tendencies.to_dict())
+        if "nudging" in config:
+            diagnostic_files.append(_nudging_tendencies(config))
+            diagnostic_files.append(
+                default_diagnostics.nudging_diagnostics_2d.to_dict()
+            )
     else:
-        diagnostic_files.append(default_diagnostic_files.baseline_diagnostics.to_dict())
+        diagnostic_files.append(default_diagnostics.baseline_diagnostics.to_dict())
 
     diagnostic_files = _update_times(diagnostic_files, timestamps, frequency_minutes)
 
@@ -139,6 +137,16 @@ def diagnostics_overlay(config, model_url, timestamps, frequency_minutes):
         "diagnostics": diagnostic_files,
         "diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic",
     }
+
+
+def _nudging_tendencies(config):
+
+    nudging_tendencies = default_diagnostics.nudging_tendencies.to_dict()
+    nudging_variables = list(config["nudging"]["timescale_hours"])
+    nudging_tendencies["variables"].extend(
+        [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
+    )
+    return nudging_tendencies
 
 
 def _update_times(
@@ -156,7 +164,12 @@ def _update_times(
 
 def step_tendency_overlay(
     config,
-    default_step_tendency_variables=("specific_humidity", "air_temperature"),
+    default_step_tendency_variables=(
+        "specific_humidity",
+        "air_temperature",
+        "eastward_wind",
+        "northward_wind",
+    ),
     default_step_storage_variables=("specific_humidity", "total_water"),
 ):
     step_tendency_overlay = {}
@@ -193,7 +206,11 @@ def prepare_config(args):
             args.initial_condition_url, args.ic_timestep
         ),
         diagnostics_overlay(
-            user_config, args.model_url, timestamps, args.output_frequency
+            user_config,
+            args.model_url,
+            args.nudge_to_observations,
+            timestamps,
+            args.output_frequency,
         ),
         step_tendency_overlay(user_config),
         ml_overlay(model_type, args.model_url, args.diagnostic_ml),
