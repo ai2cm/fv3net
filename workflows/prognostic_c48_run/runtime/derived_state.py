@@ -1,9 +1,11 @@
 import cftime
-from typing import Mapping, Hashable
+from typing import Mapping, MutableMapping, Hashable
 import xarray as xr
 
 import fv3gfs.util
 from vcm import DerivedMapping
+
+PRESSURE = "pressure_thickness_of_atmospheric_layer"
 
 
 class FV3StateMapper:
@@ -66,13 +68,22 @@ class DerivedFV3State:
             {key: fv3gfs.util.Quantity.from_data_array(value)}
         )
 
-    def update(self, items: Mapping[Hashable, xr.DataArray]):
+    def update(
+        self,
+        items: MutableMapping[Hashable, xr.DataArray],
+        pressure: str = "pressure_thickness_of_atmospheric_layer",
+    ):
         """Update state from another mapping
 
-        This may be faster than setting each item individually.
+        This may be faster than setting each item individually. Same as dict.update.
         
-        Same as dict.update.
+        All states except for pressure thicknesses are set in a mass-conserving fashion.
         """
+        if pressure in items:
+            self._getter.set_state(
+                {pressure: fv3gfs.util.Quantity.from_data_array(items.pop(pressure))}
+            )
+
         self._getter.set_state_mass_conserving(
             {
                 key: fv3gfs.util.Quantity.from_data_array(value)
