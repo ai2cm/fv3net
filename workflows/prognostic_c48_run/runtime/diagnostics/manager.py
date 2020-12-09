@@ -152,12 +152,10 @@ class DiagnosticFile:
             times=cls._get_times(diag_file_config.get("times", {}), initial_time),
         )
 
-    def set_monitor(
-        self, partitioner: fv3gfs.util.CubedSpherePartitioner, comm
-    ) -> "DiagnosticFile":
+    def set_monitor(self, monitor: fv3gfs.util.ZarrMonitor) -> "DiagnosticFile":
         if self._monitor is not None:
             raise ValueError(f"zarr monitor already initialized at {self._name}")
-        self._monitor = fv3gfs.util.ZarrMonitor(self._name, partitioner, mpi_comm=comm)
+        self._monitor = monitor
         return self
 
     @staticmethod
@@ -202,7 +200,7 @@ def get_diagnostic_files(
     if len(diag_configs) > 0:
         return [
             DiagnosticFile.from_config(config, initial_time).set_monitor(
-                partitioner, comm
+                fv3gfs.util.ZarrMonitor(config["name"], partitioner, mpi_comm=comm)
             )
             for config in diag_configs
         ]
@@ -212,6 +210,8 @@ def get_diagnostic_files(
         default_config = {"name": output_name, "times": {}, "variables": All()}
         return [
             DiagnosticFile.from_config(default_config, initial_time).set_monitor(
-                partitioner, comm
+                fv3gfs.util.ZarrMonitor(
+                    default_config["name"], partitioner, mpi_comm=comm
+                )
             )
         ]
