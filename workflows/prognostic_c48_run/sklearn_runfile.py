@@ -543,11 +543,14 @@ def monitored_physics_time_loop_class(base):
 
 
 def globally_average_2d_diagnostics(
-    comm, diagnostics: Mapping[str, xr.DataArray]
+    comm,
+    diagnostics: Mapping[str, xr.DataArray],
+    exclude: Optional[Sequence[str]] = None,
 ) -> Mapping[str, float]:
     averages = {}
+    exclude = exclude or []
     for v in diagnostics:
-        if set(diagnostics[v].dims) == {"x", "y"}:
+        if (set(diagnostics[v].dims) == {"x", "y"}) and (v not in exclude):
             averages[v] = global_average(comm, diagnostics[v], diagnostics["area"])
     return averages
 
@@ -585,7 +588,9 @@ if __name__ == "__main__":
         if comm.rank == 0:
             logger.info(f"diags: {list(diagnostics.keys())}")
 
-        averages = globally_average_2d_diagnostics(comm, diagnostics)
+        averages = globally_average_2d_diagnostics(
+            comm, diagnostics, exclude=loop._states_to_output
+        )
         if comm.rank == 0:
             log_scalar(time, averages)
 
