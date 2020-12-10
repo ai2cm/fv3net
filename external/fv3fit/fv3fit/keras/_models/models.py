@@ -171,6 +171,16 @@ class PackedKerasModel(Model):
         **fit_kwargs: Any,
     ) -> History:
         """Fits a model using data in the batches sequence
+
+        Returns a History of training loss (and validation loss if applicable).
+        Loss values are saved as a list of values for each epoch.
+        
+        If batch_size is provided as a kwarg, the list of values is for each batch fit.
+        e.g. {"loss":
+            [[epoch0_batch0_loss, epoch0_batch1_loss],
+            [epoch1_batch0_loss, epoch1_batch1_loss]]}
+        If not batch_size is not provided, a single loss per epoch is recorded.
+        e.g. {"loss": [[epoch0_loss], [epoch1_loss]]}
         
         Args:
             batches: sequence of stacked datasets of predictor variables
