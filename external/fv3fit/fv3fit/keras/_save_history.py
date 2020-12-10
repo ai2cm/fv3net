@@ -4,14 +4,15 @@ import numpy as np
 import os
 import shutil
 import tempfile
-from typing import Mapping
+from typing import Sequence
 
+from . import History
 from vcm.cloud import gsutil
 
 TRAINING_LOG_FILENAME = "training_history.json"
 
 
-def _plot_loss(loss_history, val_loss_history=None, xlabel="epoch") -> plt.Figure:
+def _plot_loss(loss_history: Sequence[float], val_loss_history=None, xlabel="epoch") -> plt.Figure:
     x = range(len(loss_history))
     fig = plt.figure()
     plt.plot(x, loss_history, "-", label="loss")
@@ -24,7 +25,7 @@ def _plot_loss(loss_history, val_loss_history=None, xlabel="epoch") -> plt.Figur
     return fig
 
 
-def _plot_loss_per_batch(history) -> plt.Figure:
+def _plot_loss_per_batch(history: History) -> plt.Figure:
     if isinstance(history["loss"][0], list):
         n_epochs = len(history["loss"])
     else:
@@ -67,20 +68,23 @@ def _copy_outputs(temp_dir, output_dir) -> None:
         shutil.copytree(temp_dir, output_dir)
 
 
-def save_history(history: Mapping, output_dir: str) -> None:
+def _get_end_of_epoch_losses(history: History, key: str):
+    if key not in history:
+        return None
     # if fit with batch_size fit kwarg, will save the loss within each epoch
     # as .fit is called on each batch in the sequence
-    loss_saved_per_batch = True if isinstance(history["loss"][0], list) else False
-    if loss_saved_per_batch:
-        loss_at_epoch_end = [
-            epoch_batch_losses[-1] for epoch_batch_losses in history["loss"]
-        ]
-        val_loss_at_epoch_end = [
-            epoch_batch_losses[-1] for epoch_batch_losses in history["val_loss"]
+    if isinstance(history[key][0], list):
+        return [
+            epoch_batch_losses[-1] for epoch_batch_losses in history[key]
         ]
     else:
-        loss_at_epoch_end = history["loss"]
-        val_loss_at_epoch_end = history["val_loss"]
+        return history[key]
+      
+
+def save_history(history: History, output_dir: str) -> None:
+    loss_at_epoch_end = _get_end_of_epoch_losses(history, "loss")
+    val_loss_at_epoch_end = _get_end_of_epoch_losses(history, "val_loss")
+    loss_saved_per_batch = True if isinstance(history["loss"][0], list) else False
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, TRAINING_LOG_FILENAME), "w") as f:
             json.dump(history, f)
