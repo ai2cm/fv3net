@@ -1,26 +1,59 @@
 import os
-import logging
-from functools import partial
-import xarray as xr
-import fsspec
-import zarr.storage as zstore
-from typing import Hashable, Sequence, Mapping, Optional, Union, Tuple, Any
+from functools import partial, wraps
+from typing import Mapping, Sequence, Tuple, Union, Any, Optional, Hashable
 from itertools import product
-from toolz import groupby
 from pathlib import Path
+import warnings
+import fsspec
+import xarray as xr
+import zarr
+
+from ..._utils import assign_net_physics_terms, standardize_zarr_time_coord
+from ...constants import DERIVATION_SHIELD_COORD, DERIVATION_FV3GFS_COORD
+from .._high_res_diags import open_high_res_diags
+from .._merged import MergeOverlappingData
+from .._transformations import KeyMap, SubsetTimes
+from .._base import GeoMapper, LongRunMapper, MultiDatasetMapper
 
 import vcm
 
-from ._transformations import KeyMap
-from ._base import GeoMapper, LongRunMapper, MultiDatasetMapper
-from ._merged import MergeOverlappingData
-from ._high_res_diags import open_high_res_diags
-from .._utils import standardize_zarr_time_coord, assign_net_physics_terms
-from ..constants import DERIVATION_SHIELD_COORD, DERIVATION_FV3GFS_COORD
+Time = str
+Source = str
+Checkpoint = Tuple[Source, Time]
 
-logger = logging.getLogger(__name__)
 
-Z_DIM_NAME = "z"
+DEPRECATION_MESSAGE = (
+    "This function opens a deprecated nudged dataset mapper. Please transition "
+    "to using data and mappers which work with the current runfile, using opening "
+    "functions `open_nudge_to_fine` and `open_nudge_to_obs`. "
+)
+
+# adapted from https://gist.github.com/kgriffs/8202106
+
+
+class DeprecatedWarning(UserWarning):
+    pass
+
+
+def deprecated(instructions):
+    def decorator(func):
+        """This is a decorator which can be used to mark functions
+        as deprecated. It will result in a warning being emitted
+        when the function is used."""
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            message = "Call to deprecated function {}. {}".format(
+                func.__name__, instructions
+            )
+
+            warnings.warn(message, category=DeprecatedWarning)
+
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 class MergeNudged(LongRunMapper):
@@ -28,8 +61,7 @@ class MergeNudged(LongRunMapper):
     Mapper for merging data sources available from a nudged run.
     
     Currently used to merge the nudging tendencies with the after
-    physics checkpointed state information. Could be useful for
-    merging prognostic run output by time in the future.
+    physics checkpointed state information.
     """
 
     def __init__(
@@ -109,64 +141,6 @@ class NudgedStateCheckpoints(GeoMapper):
         return set(keys)
 
 
-Source = str
-Time = str
-Checkpoint = Tuple[Source, Time]
-
-
-class GroupByTime:
-    # TODO: Could be generalized in if useful, nearly identical
-    # function in _transform for tiles
-
-    def __init__(self, checkpoint_data: Mapping[Checkpoint, xr.Dataset]):
-        def keyfn(key):
-            checkpoint, time = key
-            return time
-
-        self._checkpoint_data = checkpoint_data
-        self._time_lookup = groupby(keyfn, self._checkpoint_data.keys())
-
-    def keys(self):
-        return self._time_lookup.keys()
-
-    def __len__(self):
-        return len(self.keys())
-
-    def __getitem__(self, time: Time) -> xr.Dataset:
-        checkpoints = [self._checkpoint_data[key] for key in self._time_lookup[time]]
-        checkpoint_names = [key[0] for key in self._time_lookup[time]]
-        ds = xr.concat(checkpoints, dim="checkpoint")
-        return ds.assign_coords(checkpoint=checkpoint_names)
-
-
-class SubsetTimes(GeoMapper):
-    """
-    Sort and subset a timestep-based mapping to skip spin-up and limit
-    the number of available times.
-    """
-
-    def __init__(
-        self,
-        i_start: int,
-        n_times: Union[int, None],
-        nudged_data: Mapping[str, xr.Dataset],
-    ):
-        timestep_keys = list(nudged_data.keys())
-        timestep_keys.sort()
-
-        i_end = None if n_times is None else i_start + n_times
-        self._keys = timestep_keys[slice(i_start, i_end)]
-        self._nudged_data = nudged_data
-
-    def keys(self):
-        return set(self._keys)
-
-    def __getitem__(self, time: Time):
-        if time not in self._keys:
-            raise KeyError("Time {time} not found in SubsetTimes mapper.")
-        return self._nudged_data[time]
-
-
 class NudgedFullTendencies(GeoMapper):
     def __init__(
         self,
@@ -232,6 +206,37 @@ class NudgedFullTendencies(GeoMapper):
         return physics_tendencies
 
 
+class SubtractNudgingTendency(GeoMapper):
+    """Subtract nudging tendency from physics tendency. Necessary for nudge-to-obs."""
+
+    def __init__(
+        self,
+        nudged_mapper: Mapping[Time, xr.Dataset],
+        nudging_to_physics_tendency: Mapping[str, str],
+    ):
+        self._nudged_mapper = nudged_mapper
+        self._nudging_to_physics_tendency = nudging_to_physics_tendency
+
+    def keys(self):
+        return self._nudged_mapper.keys()
+
+    def __getitem__(self, time: Time) -> xr.Dataset:
+        return self._derived_ds(time)
+
+    def _derived_ds(self, time: Time):
+        differenced_physics_tendency = self._subtract_nudging_tendency(time)
+        return self._nudged_mapper[time].assign(differenced_physics_tendency)
+
+    def _subtract_nudging_tendency(self, time: Time) -> Mapping[str, xr.DataArray]:
+        differenced_physics_tendency = {}
+        for nudging_name, physics_name in self._nudging_to_physics_tendency.items():
+            differenced_physics_tendency[physics_name] = (
+                self._nudged_mapper[time][physics_name]
+                - self._nudged_mapper[time][nudging_name]
+            )
+        return differenced_physics_tendency
+
+
 class SubtractNudgingIncrement(GeoMapper):
     """Subtract nudging increment (i.e. nudging tendency times physics timestep) from
     given state."""
@@ -267,37 +272,22 @@ class SubtractNudgingIncrement(GeoMapper):
         return before_nudging_state
 
 
-class SubtractNudgingTendency(GeoMapper):
-    """Subtract nudging tendency from physics tendency. Necessary for nudge-to-obs."""
-
-    def __init__(
-        self,
-        nudged_mapper: Mapping[Time, xr.Dataset],
-        nudging_to_physics_tendency: Mapping[str, str],
-    ):
-        self._nudged_mapper = nudged_mapper
-        self._nudging_to_physics_tendency = nudging_to_physics_tendency
-
-    def keys(self):
-        return self._nudged_mapper.keys()
-
-    def __getitem__(self, time: Time) -> xr.Dataset:
-        return self._derived_ds(time)
-
-    def _derived_ds(self, time: Time):
-        differenced_physics_tendency = self._subtract_nudging_tendency(time)
-        return self._nudged_mapper[time].assign(differenced_physics_tendency)
-
-    def _subtract_nudging_tendency(self, time: Time) -> Mapping[str, xr.DataArray]:
-        differenced_physics_tendency = {}
-        for nudging_name, physics_name in self._nudging_to_physics_tendency.items():
-            differenced_physics_tendency[physics_name] = (
-                self._nudged_mapper[time][physics_name]
-                - self._nudged_mapper[time][nudging_name]
-            )
-        return differenced_physics_tendency
+def _get_source_datasets(
+    url: str, sources: Sequence[str], consolidated: bool = False
+) -> Sequence[xr.Dataset]:
+    datasets = []
+    for source in sources:
+        mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
+        ds = xr.open_zarr(
+            zarr.storage.LRUStoreCache(mapper, 1024),
+            consolidated=consolidated,
+            mask_and_scale=False,
+        )
+        datasets.append(ds)
+    return datasets
 
 
+@deprecated(DEPRECATION_MESSAGE)
 def open_merged_nudged(
     url: str,
     merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
@@ -367,7 +357,7 @@ def _open_nudging_checkpoints(
         full_path = os.path.join(url, f"{filename}")
         mapper = fsspec.get_mapper(full_path)
         ds = xr.open_zarr(
-            zstore.LRUStoreCache(mapper, 1024),
+            zarr.storage.LRUStoreCache(mapper, 1024),
             consolidated=consolidated,
             mask_and_scale=False,
         )
@@ -455,6 +445,7 @@ def open_merged_nudged_full_tendencies(
     return full_tendencies_mapper
 
 
+@deprecated(DEPRECATION_MESSAGE)
 def open_merged_nudge_to_obs(
     url: str,
     merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
@@ -594,11 +585,9 @@ def open_nudged_to_obs_prognostic(
     nudging within the physics routines, the nudging tendencies are subtracted from
     the tendencies across the physics step to obtain the tendencies from
     model physics.
-
     Note the difference between this function and open_merged_nudge_to_obs:
     in the prognostic nudge to obs data, the tendency across the physics step
     is already calculated.
-
     Args:
         url: Path to directory containing merge_files. Defaults to str.
         merge_files: zarrs to merge. Expecting one to contain nudging tendencies
@@ -618,7 +607,6 @@ def open_nudged_to_obs_prognostic(
             "pfull": "z"}
         consolidated: if true, open the underlying zarr stores with the consolidated
             flag to xr.open_zarr. Defaults to False.
-
     Returns:
         Mapper that has the pQ's from only model physics.
     """
@@ -641,21 +629,6 @@ def open_nudged_to_obs_prognostic(
     datasets = _get_source_datasets(url, merge_files, consolidated)
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
     return SubtractNudgingTendency(nudged_mapper, nudging_to_physics_tendency)
-
-
-def _get_source_datasets(
-    url: str, sources: Sequence[str], consolidated: bool = False
-) -> Sequence[xr.Dataset]:
-    datasets = []
-    for source in sources:
-        mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
-        ds = xr.open_zarr(
-            zstore.LRUStoreCache(mapper, 1024),
-            consolidated=consolidated,
-            mask_and_scale=False,
-        )
-        datasets.append(ds)
-    return datasets
 
 
 def open_merged_nudged_full_tendencies_multiple_datasets(

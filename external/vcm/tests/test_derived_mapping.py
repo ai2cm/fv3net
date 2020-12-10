@@ -30,6 +30,36 @@ ds = xr.Dataset(
 )
 
 
+@pytest.mark.parametrize(
+    "dQu, dQv, eastward, northward, projection",
+    [
+        pytest.param(1.0, 0.0, 1.0, 0.0, 1.0, id="parallel, east wind"),
+        pytest.param(1.0, 0.0, -1.0, 0.0, -1.0, id="antiparallel, east wind"),
+        pytest.param(1.0, 1.0, 1.0, 1.0, 1, id="parallel, 45 deg NE wind"),
+        pytest.param(1.0, 0.0, 1.0, 1.0, np.sqrt(2), id="45 deg CCW"),
+        pytest.param(-1.0, 0.0, 1.0, 1.0, -np.sqrt(2), id="135 deg CCW"),
+    ],
+)
+def test_horizontal_wind_tendency_parallel_to_horizontal_wind(
+    dQu, dQv, eastward, northward, projection
+):
+    data = xr.Dataset(
+        {
+            "dQu": xr.DataArray([dQu], dims=["x"]),
+            "dQv": xr.DataArray([dQv], dims=["x"]),
+            "eastward_wind": xr.DataArray([eastward], dims=["x"]),
+            "northward_wind": xr.DataArray([northward], dims=["x"]),
+        }
+    )
+    derived_mapping = DerivedMapping(data)
+    assert pytest.approx(
+        derived_mapping[
+            "horizontal_wind_tendency_parallel_to_horizontal_wind"
+        ].values.item(),
+        projection,
+    )
+
+
 def test_wind_tendency_derived():
     # dQu/dQv must be calculated from dQxwind, dQywind
     rotation = {
