@@ -206,7 +206,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         if "scikit_learn" in config:
             # download the model
             self._log_info("Downloading ML Model")
-            self._model = open_model(config["scikit_learn"])
+            self._model = open_model(config)
             self._log_info("Model Downloaded")
             self._do_only_diagnostic_ml: bool = config["scikit_learn"].get(
                 "diagnostic_ml", False
