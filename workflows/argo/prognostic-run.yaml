@@ -29,6 +29,8 @@ spec:
           - {name: config}
           - {name: reference-restarts}
           - {name: flags, value: ""}
+          - {name: output-timestamps, value: ""}
+          - {name: output-frequency, value: ""}
           - {name: output}
           - {name: chunks, value: "{}"}  # by default just use chunks defined in post_process.py
           - {name: segment-count, value: "1"}
@@ -44,6 +46,8 @@ spec:
               - {name: config, value: "{{inputs.parameters.config}}"}
               - {name: reference-restarts, value: "{{inputs.parameters.reference-restarts}}"}
               - {name: flags, value: "{{inputs.parameters.flags}}"}
+              - {name: output-timestamps, value: "{{inputs.parameters.output-timestamps}}"}
+              - {name: output-frequency, value: "{{inputs.parameters.output-frequency}}"}
       - - name: run-model
           templateRef:
             name: run-fv3gfs
@@ -66,6 +70,8 @@ spec:
           - name: config
           - name: reference-restarts
           - name: flags
+          - name: output-timestamps
+          - name: output-frequency
       outputs:
         artifacts:
           - {name: fv3config, path: /tmp/fv3config.yaml}
@@ -83,11 +89,16 @@ spec:
             cat << EOF > config.yaml
             {{inputs.parameters.config}}
             EOF
+            
+            cat << EOF > times.json
+            {{inputs.parameters.output-timestamps}}
+            EOF
 
             cp /home/jovyan/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py  /tmp/runfile.py
 
             python prepare_config.py \
               {{inputs.parameters.flags}} \
+              --output-timestamps times.json \
               config.yaml \
               {{inputs.parameters.reference-restarts}} \
               {{inputs.parameters.initial-condition}} \

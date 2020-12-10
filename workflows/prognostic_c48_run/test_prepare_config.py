@@ -48,11 +48,14 @@ TIMESTAMPS = ["20160801.021500", "20160801.041500"]
     ["timestamps", "frequency_minutes", "expected"],
     [
         pytest.param(
-            TIMESTAMPS, None, {"kind": "selected", "times": TIMESTAMPS}, id="timestamps"
+            TIMESTAMPS,
+            15,
+            {"kind": "selected", "times": TIMESTAMPS},
+            id="both_provided_defaults_to_timestamps",
         ),
         pytest.param(None, 120, {"kind": "interval", "frequency": 7200}, id="2-hourly"),
         pytest.param(
-            None, None, {"kind": "interval", "frequency": 900}, id="default_15-minute"
+            None, 15, {"kind": "interval", "frequency": 900}, id="default_15-minute"
         ),
     ],
 )
