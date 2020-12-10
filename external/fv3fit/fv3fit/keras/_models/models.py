@@ -17,9 +17,7 @@ logger = logging.getLogger(__file__)
 
 # Description of the training loss progression over epochs
 # Outer array indexes epoch, inner array indexes batch (if applicable)
-EpochLossHistory = Union[
-    Sequence[Union[float, int]], Sequence[Sequence[Union[float, int]]]
-]
+EpochLossHistory = Sequence[Sequence[Union[float, int]]]
 History = Mapping[str, EpochLossHistory]
 
 
@@ -247,7 +245,11 @@ class PackedKerasModel(Model):
         self, Xy: Sequence[Tuple[np.ndarray, np.ndarray]], **fit_kwargs: Any
     ) -> History:
         history = self.model.fit(x=Xy, **fit_kwargs)
-        return history.history
+        reformat_history = {
+            key: [[val] for val in epoch_values]
+            for key, epoch_values in history.history.items()
+        }
+        return reformat_history
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         sample_coord = X[self.sample_dim_name]

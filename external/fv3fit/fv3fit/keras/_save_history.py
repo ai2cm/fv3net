@@ -12,6 +12,10 @@ from vcm.cloud import gsutil
 TRAINING_LOG_FILENAME = "training_history.json"
 
 
+def _flatten(nested_list):
+    return [item for sublist in nested_list for item in sublist]
+
+
 def _plot_loss(
     loss_history: Sequence[float], val_loss_history=None, xlabel="epoch"
 ) -> plt.Figure:
@@ -28,23 +32,18 @@ def _plot_loss(
 
 
 def _plot_loss_per_batch(history: History) -> plt.Figure:
-    if isinstance(history["loss"][0], list):
-        n_epochs = len(history["loss"])
-    else:
-        raise ValueError(
-            "Can only plot loss over batches if num_batches supplied as a fit kwarg."
-        )
+    n_epochs = len(history["loss"])
     loss = history["loss"]
     val_loss = history.get("val_loss", [])
 
     fig = plt.figure(figsize=(8, 3 * n_epochs))
     fig.subplots_adjust(hspace=0)
     y_range = (
-        0.95 * np.min([loss, val_loss]),
-        1.05 * np.max([loss, val_loss]),
+        0.95 * np.min(_flatten(loss) + _flatten(val_loss)),
+        1.05 * np.max(_flatten(loss) + _flatten(val_loss)),
     )
     for i_epoch in range(n_epochs):
-        x = range(len(history["loss"][i_epoch]))  # type: ignore
+        x = range(len(history["loss"][i_epoch]))
         ax = fig.add_subplot(n_epochs, 1, i_epoch + 1)
         ax.plot(x, history["loss"][i_epoch], "-", label="loss")
         if "val_loss" in history:
@@ -73,24 +72,19 @@ def _copy_outputs(temp_dir, output_dir) -> None:
         shutil.copytree(temp_dir, output_dir)
 
 
-def _get_end_of_epoch_losses(history: History, key: str):
+def _get_epoch_losses(history: History, key: str):
     if key not in history:
         return None
-    # if fit with batch_size fit kwarg, will save the loss within each epoch
-    # as .fit is called on each batch in the sequence
-    if isinstance(history[key][0], list):
-        return [
-            epoch_batch_losses[-1]  # type: ignore
-            for epoch_batch_losses in history[key]
-        ]
+    if key == "val_loss":
+        return [epoch_batch_losses[-1] for epoch_batch_losses in history[key]]
     else:
-        return history[key]
+        return [np.mean(epoch_batch_losses) for epoch_batch_losses in history[key]]
 
 
 def save_history(history: History, output_dir: str) -> None:
-    loss_at_epoch_end = _get_end_of_epoch_losses(history, "loss")
-    val_loss_at_epoch_end = _get_end_of_epoch_losses(history, "val_loss")
-    loss_saved_per_batch = True if isinstance(history["loss"][0], list) else False
+    loss_at_epoch_end = _get_epoch_losses(history, "loss")
+    val_loss_at_epoch_end = _get_epoch_losses(history, "val_loss")
+    loss_saved_per_batch = True if len(history["loss"][0]) > 1 else False
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, TRAINING_LOG_FILENAME), "w") as f:
             json.dump(history, f)
