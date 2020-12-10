@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Any
+from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Any, List
 from typing_extensions import Literal
 import xarray as xr
 import logging
@@ -57,7 +57,7 @@ class Model(Predictor):
         epochs: int = 1,
         batch_size: Optional[int] = None,
         **fit_kwargs: Any,
-    ) -> None:
+    ) -> History:
         pass
 
     @abc.abstractmethod
@@ -224,7 +224,9 @@ class PackedKerasModel(Model):
             Xy = _ThreadedSequencePreLoader(
                 Xy, num_workers=workers, max_queue_size=max_queue_size
             )
-        train_history = {key: [] for key in ["loss", "val_loss"]}
+        train_history = {
+            key: [] for key in ["loss", "val_loss"]
+        }  # type: Mapping[str, List]
         for i_epoch in range(epochs):
             loss_over_batches, val_loss_over_batches = [], []
             for i_batch, (X, y) in enumerate(Xy):

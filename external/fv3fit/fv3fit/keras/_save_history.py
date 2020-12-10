@@ -62,7 +62,9 @@ def _copy_outputs(temp_dir, output_dir) -> None:
     if output_dir.startswith("gs://"):
         gsutil.copy_directory_contents(temp_dir, output_dir)
     else:
-        shutil.copytree(temp_dir, output_dir, dirs_exist_ok=True)
+        if os.path.exists(output_dir):
+            shutil.rmtree(output_dir)
+        shutil.copytree(temp_dir, output_dir)
 
 
 def save_history(history: Mapping, output_dir: str) -> None:
