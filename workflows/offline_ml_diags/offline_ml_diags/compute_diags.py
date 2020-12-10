@@ -289,12 +289,8 @@ if __name__ == "__main__":
         pred_mapper, variables, timesteps=timesteps, **batch_kwargs,
     )
     batches = loaders.batches.diagnostic_batches_from_mapper(
-        pred_mapper,
-        variables,
-        timesteps=timesteps,
-        timesteps_per_batch=2,
-        **batch_kwargs,
-    )[:1]
+        pred_mapper, variables, timesteps=timesteps, **batch_kwargs,
+    )
 
     # compute diags
     ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diagnostics(
