@@ -15,6 +15,10 @@ import yaml
 
 logger = logging.getLogger(__file__)
 
+# Description of the training loss progression over epochs
+# Outer array indexes epoch, inner array indexes batch (if applicable)
+History = Mapping[str, Sequence[Sequence[Union[float, int]]]]
+
 
 class Model(Predictor):
     """
@@ -79,6 +83,7 @@ class PackedKerasModel(Model):
     _Y_SCALER_FILENAME = "y_scaler.npz"
     _OPTIONS_FILENAME = "options.yml"
     _LOSS_OPTIONS = {"mse": get_weighted_mse, "mae": get_weighted_mae}
+    _HISTORY_FILENAME = "train_history.log"
 
     def __init__(
         self,
@@ -163,7 +168,7 @@ class PackedKerasModel(Model):
         workers: int = 1,
         max_queue_size: int = 8,
         **fit_kwargs: Any,
-    ) -> None:
+    ) -> History:
         """Fits a model using data in the batches sequence
         
         Args:
@@ -188,7 +193,7 @@ class PackedKerasModel(Model):
             self._model = self.get_model(n_features_in, n_features_out)
 
         if batch_size is not None:
-            self._fit_loop(
+            return self._fit_loop(
                 Xy,
                 epochs,
                 batch_size,
@@ -197,7 +202,7 @@ class PackedKerasModel(Model):
                 **fit_kwargs,
             )
         else:
-            self._fit_array(
+            return self._fit_array(
                 Xy,
                 epochs=epochs,
                 workers=workers,
@@ -213,24 +218,31 @@ class PackedKerasModel(Model):
         workers: int = 1,
         max_queue_size: int = 8,
         **fit_kwargs: Any,
-    ) -> None:
+    ) -> History:
 
         if workers > 1:
             Xy = _ThreadedSequencePreLoader(
                 Xy, num_workers=workers, max_queue_size=max_queue_size
             )
-
+        train_history = {key: [] for key in ["loss", "val_loss"]}
         for i_epoch in range(epochs):
+            loss_over_batches, val_loss_over_batches = [], []
             for i_batch, (X, y) in enumerate(Xy):
                 logger.info(
                     f"Fitting on timestep {i_batch} of {len(Xy)}, of epoch {i_epoch}..."
                 )
-                self.model.fit(X, y, batch_size=batch_size, **fit_kwargs)
+                history = self.model.fit(X, y, batch_size=batch_size, **fit_kwargs)
+                loss_over_batches += history.history["loss"]
+                val_loss_over_batches += history.history["val_loss"]
+            train_history["loss"].append(loss_over_batches)
+            train_history["val_loss"].append(val_loss_over_batches)
+        return train_history
 
     def _fit_array(
         self, Xy: Sequence[Tuple[np.ndarray, np.ndarray]], **fit_kwargs: Any
-    ) -> None:
-        return self.model.fit(Xy, **fit_kwargs)
+    ) -> History:
+        history = self.model.fit(x=Xy, **fit_kwargs)
+        return history.history
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         sample_coord = X[self.sample_dim_name]
