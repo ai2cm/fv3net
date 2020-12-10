@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 PROGNOSTIC_DIAG_TABLE = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
 NUDGE_TO_OBS_DIAG_TABLE = (
-    "/fv3net/workflows/prognostic_c48_run/nudge_to_obs/diag_table_nudge_to_obs"
+    "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic_nudge_to_obs"
 )
 
 
