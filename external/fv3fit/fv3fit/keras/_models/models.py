@@ -18,7 +18,8 @@ logger = logging.getLogger(__file__)
 # Description of the training loss progression over epochs
 # Outer array indexes epoch, inner array indexes batch (if applicable)
 EpochLossHistory = Union[
-    Sequence[Union[float, int]], Sequence[Sequence[Union[float, int]]]]
+    Sequence[Union[float, int]], Sequence[Sequence[Union[float, int]]]
+]
 History = Mapping[str, EpochLossHistory]
 
 

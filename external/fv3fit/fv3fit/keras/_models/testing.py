@@ -52,7 +52,7 @@ class DummyModel(Model):
     ) -> History:
         # this is all we need to do to learn n output feature
         _, _ = _XyArraySequence(self.X_packer, self.y_packer, batches)[0]
-        return {"loss": [1.]}
+        return {"loss": [1.0]}
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         if not self.y_packer._n_features:

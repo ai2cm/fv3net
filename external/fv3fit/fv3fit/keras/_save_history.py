@@ -12,7 +12,9 @@ from vcm.cloud import gsutil
 TRAINING_LOG_FILENAME = "training_history.json"
 
 
-def _plot_loss(loss_history: Sequence[float], val_loss_history=None, xlabel="epoch") -> plt.Figure:
+def _plot_loss(
+    loss_history: Sequence[float], val_loss_history=None, xlabel="epoch"
+) -> plt.Figure:
     x = range(len(loss_history))
     fig = plt.figure()
     plt.plot(x, loss_history, "-", label="loss")
@@ -74,12 +76,10 @@ def _get_end_of_epoch_losses(history: History, key: str):
     # if fit with batch_size fit kwarg, will save the loss within each epoch
     # as .fit is called on each batch in the sequence
     if isinstance(history[key][0], list):
-        return [
-            epoch_batch_losses[-1] for epoch_batch_losses in history[key]
-        ]
+        return [epoch_batch_losses[-1] for epoch_batch_losses in history[key]]
     else:
         return history[key]
-      
+
 
 def save_history(history: History, output_dir: str) -> None:
     loss_at_epoch_end = _get_end_of_epoch_losses(history, "loss")
