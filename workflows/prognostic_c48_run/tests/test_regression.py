@@ -416,7 +416,7 @@ def get_prognostic_config(model_path):
     return config
 
 
-def _model_dataset():
+def _model_dataset() -> xr.Dataset:
 
     nz = 63
     arr = np.zeros((1, nz))
@@ -436,7 +436,7 @@ def _model_dataset():
     return data
 
 
-def _save_mock_sklearn_model(path):
+def _save_mock_sklearn_model(path: str) -> str:
 
     data = _model_dataset()
 
@@ -465,7 +465,7 @@ def _save_mock_sklearn_model(path):
     )
 
     # needed to avoid sklearn.exceptions.NotFittedError
-    model.fit(data)
+    model.fit([data])
     fv3fit.dump(model, path)
     return path
 
