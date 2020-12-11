@@ -59,6 +59,91 @@ SST_NAME = "ocean_surface_temperature"
 TSFC_NAME = "surface_temperature"
 MASK_NAME = "land_sea_mask"
 
+MASK = xr.DataArray(
+    [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.05561854,
+        0.12093174,
+        0.19131994,
+        0.2668982,
+        0.34776031,
+        0.43397798,
+        0.52560038,
+        0.62265272,
+        0.72513866,
+        0.83303824,
+        0.94630677,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+    ],
+    dims="z",
+)
+
 gravity = 9.81
 m_per_mm = 1 / 1000
 
@@ -124,6 +209,11 @@ def predict(model: runtime.RenamingAdapter, state: State) -> State:
     ds = xr.Dataset(state)  # type: ignore
     output = model.predict_columnwise(ds, feature_dim="z")
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
+
+
+def apply_vertical_mask(tendency: State, vertical_mask=MASK) -> State:
+    """Apply vertical mask to tendencies."""
+    return {key: tendency[key] * vertical_mask for key in tendency}
 
 
 def limit_sphum_tendency(state: State, tendency: State, dt: float):
@@ -293,7 +383,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         state = {name: self._state[name] for name in variables}
 
         self._log_debug("Computing ML-predicted tendencies")
-        tendency = predict(self._model, state)
+        tendency = apply_vertical_mask(predict(self._model, state))
 
         self._log_debug(
             "Correcting ML tendencies that would predict negative specific humidity"
