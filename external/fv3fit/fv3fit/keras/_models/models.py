@@ -378,7 +378,8 @@ class DenseModel(PackedKerasModel):
         x = self.X_scaler.normalize_layer(inputs)
         for i in range(self._depth - 1):
             hidden_layer = tf.keras.layers.Dense(
-                self._width, activation=tf.keras.activations.relu)
+                self._width, activation=tf.keras.activations.relu
+            )
             if self._spectral_normalization:
                 hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
             x = hidden_layer(x)
