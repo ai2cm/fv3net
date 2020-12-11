@@ -4,7 +4,7 @@ import xarray as xr
 import logging
 import abc
 import tensorflow as tf
-from ..._shared import ArrayPacker, Predictor
+from ..._shared import ArrayPacker, Estimator, io
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
@@ -15,53 +15,11 @@ import yaml
 
 logger = logging.getLogger(__file__)
 
-
-class Model(Predictor):
-    """
-    Abstract base class for a machine learning model which operates on xarray
-    datasets, and is trained on sequences of such datasets. Extends the predictor
-    base class by defining `fit` and `dump` methods
-    """
-
-    @abc.abstractmethod
-    def __init__(
-        self,
-        sample_dim_name: str,
-        input_variables: Iterable[str],
-        output_variables: Iterable[str],
-        **hyperparameters,
-    ):
-        """Initialize the model.
-        Args:
-            sample_dim_name: name of the sample dimension in datasets used as
-                inputs and outputs.
-            input_variables: names of input variables
-            output_variables: names of output variables
-            hyperparameters: options for subclasses
-        """
-        if len(hyperparameters) > 0:
-            raise TypeError(
-                "Model base class received unexpected keyword arguments: "
-                f"{list(hyperparameters.keys())}"
-            )
-        super().__init__(sample_dim_name, input_variables, output_variables)
-
-    @abc.abstractmethod
-    def fit(
-        self,
-        batches: Sequence[xr.Dataset],
-        epochs: int = 1,
-        batch_size: Optional[int] = None,
-        **fit_kwargs: Any,
-    ) -> None:
-        pass
-
-    @abc.abstractmethod
-    def dump(self, path: str) -> None:
-        pass
+MODEL_DIRECTORY = "model_data"
 
 
-class PackedKerasModel(Model):
+@io.register("packed-keras")
+class PackedKerasModel(Estimator):
     """
     Abstract base class for a keras-based model which operates on xarray
     datasets containing a "sample" dimension (as defined by loaders.SAMPLE_DIM_NAME),
@@ -153,7 +111,6 @@ class PackedKerasModel(Model):
             model: a Keras model whose input shape is [n_samples, n_features_in] and
                 output shape is [n_samples, features_out]
         """
-        pass
 
     def fit(
         self,
@@ -243,7 +200,8 @@ class PackedKerasModel(Model):
         return self.model.predict(X)
 
     def dump(self, path: str) -> None:
-        with put_dir(path) as path:
+        dir_ = os.path.join(path, MODEL_DIRECTORY)
+        with put_dir(dir_) as path:
             if self._model is not None:
                 model_filename = os.path.join(path, self._MODEL_FILENAME)
                 self.model.save(model_filename)
@@ -282,8 +240,9 @@ class PackedKerasModel(Model):
             )
 
     @classmethod
-    def load(cls, path: str) -> Model:
-        with get_dir(path) as path:
+    def load(cls, path: str) -> "PackedKerasModel":
+        dir_ = os.path.join(path, MODEL_DIRECTORY)
+        with get_dir(dir_) as path:
             with open(os.path.join(path, cls._X_PACKER_FILENAME), "r") as f:
                 X_packer = ArrayPacker.load(f)
             with open(os.path.join(path, cls._Y_PACKER_FILENAME), "r") as f:

@@ -7,6 +7,7 @@ import sys
 import random
 from . import get_model
 from .. import _shared as shared
+import fv3fit._shared.io
 import loaders
 import tensorflow as tf
 from typing import Union
@@ -19,9 +20,6 @@ handler.setFormatter(
 handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger(__file__)
-
-
-MODEL_FILENAME = "model_data"
 
 
 def _get_optimizer(hyperparameters: dict = None):
@@ -99,7 +97,5 @@ if __name__ == "__main__":
         **train_config.hyperparameters
     )
     batches = shared.load_data_sequence(data_path, train_config)
-    model.fit(batches, **fit_kwargs)
-
-    model_output_path = os.path.join(args.output_data_path, MODEL_FILENAME)
-    model.dump(model_output_path)
+    model.fit(batches, **fit_kwargs)  # type: ignore
+    fv3fit._shared.io.dump(model, args.output_data_path)
