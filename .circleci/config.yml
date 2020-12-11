@@ -51,7 +51,7 @@ jobs:
           command: |
             make install_deps
       - save_cache:
-          key: v2-fv3net-env-{{ checksum "combined_deps.txt" }}
+          key: v2-fv3net-env-{{ checksum "combined_deps.txt" }}-invalidate
           paths:
             - /opt/conda/envs/fv3net
       - run:
