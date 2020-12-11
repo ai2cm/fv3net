@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:experimental
-FROM us.gcr.io/vcm-ml/fms-build AS bld
+FROM us.gcr.io/vcm-ml/fms-build@sha256:6ac3fee7bbea8213804abd70c15d100b2b81c81c8247990b368d1047aa40289b AS bld
 
 ENV FMS_DIR=/FMS
 ENV ESMF_DIR=/usr/local/esmf
