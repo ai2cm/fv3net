@@ -10,8 +10,8 @@ ENV FMS_LIB=${FMS_DIR}/libFMS/.libs/
 ENV ESMF_LIB=${ESMF_DIR}/lib/libO3/Linux.gfortran.64.mpiuni.default/
 ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}
 
-COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4fd9efd898ad7b9fa3b391e5ede63cf5 /usr/local/esmf ${ESMF_DIR}
-COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4fd9efd898ad7b9fa3b391e5ede63cf5 /usr/local/esmf/lib/libO3/Linux.gfortran.64.mpiuni.default/*.so* ${ESMF_LIB}/
+COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4fd9efd898ad7b9fa3b391e5ede63cf5 /esmf ${ESMF_DIR}
+COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4fd9efd898ad7b9fa3b391e5ede63cf5 /esmf/lib/libO3/Linux.gfortran.64.mpiuni.default/*.so* ${ESMF_LIB}/
 
 # build/install the fortran model
 COPY external/fv3gfs-fortran/ /tmp/fortran-build
@@ -50,38 +50,47 @@ RUN make -C /fv3gfs-wrapper/lib
 
 # copy dependency packages
 COPY /external/fv3config /external/fv3config
+RUN pip3 install /external/fv3config
 COPY /external/fv3gfs-util /external/fv3gfs-util
+RUN pip3 install /external/fv3gfs-util 
 
-RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
-    mkdir /outdir && \
-    chmod -R 777 /outdir
 
 # cache external package installation
 RUN mkdir -p /fv3net/external /fv3net/workflows && \
     mv /external/* /fv3net/external/ && \
     mv /fv3gfs-wrapper /fv3net/external/fv3gfs-wrapper
+ENV MPI=mpich
+RUN pip3 install /fv3net/external/fv3gfs-wrapper
+
+COPY external/vcm /fv3net/external/vcm
+RUN pip3 install /fv3net/external/vcm
+
+COPY external/loaders /fv3net/external/loaders
+RUN pip3 install /fv3net/external/loaders
 
 COPY external/fv3fit /fv3net/external/fv3fit
+RUN pip3 install /fv3net/external/fv3fit
+
 COPY external/fv3kube /fv3net/external/fv3kube
-COPY external/vcm /fv3net/external/vcm
-COPY external/loaders /fv3net/external/loaders
+RUN pip3 install /fv3net/external/fv3kube
 
 COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
 
 COPY docker/prognostic_run/entrypoint.sh /entrypoint.sh
+
+RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
+    mkdir /outdir && \
+    chmod -R 777 /outdir
+
 RUN chmod +x /entrypoint.sh
 
 # Install fv3gfs run script
 COPY workflows/prognostic_c48_run/runfv3.sh /usr/local/bin/
 RUN chmod 755 /usr/local/bin/runfv3.sh
 
-# install the packages
-RUN /entrypoint.sh
-CMD ["bash"]
-
 ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:${PYTHONPATH}
 WORKDIR /fv3net/workflows/prognostic_c48_run
-ENTRYPOINT [ "/entrypoint.sh" ]
+CMD ["bash"]
 
 FROM bld as test
 

@@ -4,6 +4,7 @@ import json
 
 import fv3config
 import runtime.metrics
+import tempfile
 import numpy as np
 import pytest
 import xarray as xr
@@ -349,6 +350,13 @@ TIME_FMT = "%Y%m%d.%H%M%S"
 RUNTIME = {"days": 0, "months": 0, "hours": 0, "minutes": RUNTIME_MINUTES, "seconds": 0}
 
 
+def run_native(config, rundir, runfile):
+    with tempfile.NamedTemporaryFile("w") as f:
+        yaml.safe_dump(config, f)
+        fv3_script = Path(__file__).parent.parent.joinpath("runfv3.sh").as_posix()
+        subprocess.check_call([fv3_script, f.name, str(rundir), runfile])
+
+
 def assets_from_initial_condition_dir(dir_: str):
     start = datetime.datetime(*START_TIME)  # type: ignore
     delta_t = datetime.timedelta(minutes=TIMESTEP_MINUTES)
@@ -400,9 +408,7 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
 
 def test_nudge_run(tmpdir):
     config = get_nudging_config(default_fv3config, "gs://" + IC_PATH.as_posix())
-    fv3config.run_native(
-        config, str(tmpdir), capture_output=False, runfile=NUDGE_RUNFILE
-    )
+    run_native(config, str(tmpdir), runfile=NUDGE_RUNFILE)
 
 
 def get_prognostic_config(model_path):
@@ -493,15 +499,8 @@ def completed_rundir(request, tmpdir_factory):
     config = get_prognostic_config(model_path)
 
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
-    fv3_script = Path(__file__).parent.parent.joinpath("runfv3.sh").as_posix()
-
     rundir = tmpdir_factory.mktemp("rundir")
-    config_path = str(rundir.join("fv3config.yaml"))
-
-    with open(config_path, "w") as f:
-        yaml.safe_dump(config, f)
-
-    subprocess.check_call([fv3_script, config_path, str(rundir), runfile])
+    run_native(config, str(rundir), runfile)
     return rundir
 
 
