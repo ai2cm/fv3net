@@ -10,6 +10,8 @@ RUNFILE="$3"
 # directory writing stage finishes
 mkdir -p "$RUNDIR"
 
+
 write_run_directory "$CONFIG" "$RUNDIR"
 cd "$RUNDIR"
-mpirun -n 6 python3 "$RUNFILE" |& tee -a "$RUNDIR/logs.txt"
+NUM_PROC=$(yq '.namelist.fv_core_nml.layout | .[0] *.[1] * 6' "$CONFIG")
+mpirun -n "$NUM_PROC" python3 "$RUNFILE" |& tee -a "$RUNDIR/logs.txt"

@@ -76,15 +76,13 @@ RUN pip3 install /fv3net/external/fv3kube
 
 COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
 
-COPY docker/prognostic_run/entrypoint.sh /entrypoint.sh
-
 RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     mkdir /outdir && \
     chmod -R 777 /outdir
 
-RUN chmod +x /entrypoint.sh
-
 # Install fv3gfs run script
+RUN apt-get install -y jq
+RUN pip3 install yq==2.11.1
 COPY workflows/prognostic_c48_run/runfv3.sh /usr/local/bin/
 RUN chmod 755 /usr/local/bin/runfv3.sh
 
