@@ -9,7 +9,7 @@ tensorflow
 pytest
 pytest-cov
 typing_extensions
-
+tensorflow-addons
 
 # requirements from loaders or synth
 zarr
