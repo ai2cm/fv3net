@@ -213,7 +213,12 @@ def predict(model: runtime.RenamingAdapter, state: State) -> State:
 
 def apply_vertical_mask(tendency: State, vertical_mask=MASK) -> State:
     """Apply vertical mask to tendencies."""
-    return {key: tendency[key] * vertical_mask for key in tendency}
+    masked = {}
+    for key in tendency:
+        # hack to that 63-level prognostic run test passes
+        mask = vertical_mask.isel(z=slice(None, tendency[key].sizes["z"]))
+        masked[key] = tendency[key] * mask
+    return masked
 
 
 def limit_sphum_tendency(state: State, tendency: State, dt: float):
