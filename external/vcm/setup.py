@@ -53,6 +53,7 @@ setup(
     keywords="vcm",
     name="vcm",
     packages=find_packages(),
+    package_data={"vcm": ["catalog.yaml"]},
     version="0.1.0",
     zip_safe=False,
     ext_modules=[Extension(name="vcm.mappm", sources=glob("vcm/*.f90"))],
