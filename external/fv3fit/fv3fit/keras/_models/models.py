@@ -100,7 +100,6 @@ class PackedKerasModel(Estimator):
         self.X_scaler.fit(X)
         self.y_scaler.fit(y)
 
-    @abc.abstractmethod
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         """Returns a Keras model to use as the underlying predictive model.
         
