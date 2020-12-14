@@ -6,6 +6,7 @@ import loaders
 import fv3fit
 import numpy as np
 import tempfile
+import tensorflow.keras.backend as K
 import subprocess
 import os
 
@@ -25,12 +26,19 @@ def loss(request) -> str:
     return request.param
 
 
+@pytest.fixture(params=[0.001])
+def learning_rate(request) -> float:
+    return request.param
+
+
 @pytest.fixture
-def hyperparameters(model_type, loss) -> dict:
+def hyperparameters(model_type, loss, learning_rate) -> dict:
     if model_type == "DenseModel":
         hyperparameters = {"width": 4, "depth": 3}
         if loss:
             hyperparameters["loss"] = loss
+        if learning_rate:
+            hyperparameters["learning_rate"] = learning_rate
         return hyperparameters
     else:
         raise NotImplementedError(model_type)
@@ -178,3 +186,15 @@ def test_dump_and_load_loss_info(loss, expected_loss, model):
         model.dump(tmpdir)
         model_loaded = model.__class__.load(tmpdir)
     assert model_loaded._loss == expected_loss
+
+
+@pytest.mark.parametrize(
+    "learning_rate, expected_learning_rate",
+    (
+        pytest.param(0.1, 0.1, id="specified_lr"),
+        pytest.param(None, 1e-3, id="default_lr"),
+    ),
+    indirect=["learning_rate"],
+)
+def test_set_learning_rate(learning_rate, expected_learning_rate, model):
+    assert pytest.approx((K.eval(model._optimizer.lr)), expected_learning_rate)

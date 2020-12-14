@@ -45,8 +45,9 @@ class PackedKerasModel(Estimator):
         output_variables: Iterable[str],
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
-        optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
+        optimizer: tf.keras.optimizers.Optimizer = None,
         loss: Literal["mse", "mae"] = "mse",
+        learning_rate: float = 1e-3,
     ):
         """Initialize the model.
         
@@ -87,8 +88,9 @@ class PackedKerasModel(Estimator):
         else:
             self.weights = weights
         self._normalize_loss = normalize_loss
-        self._optimizer = optimizer
+        self._optimizer = optimizer or tf.keras.optimizers.Adam(lr=learning_rate)
         self._loss = loss
+
 
     @property
     def model(self) -> tf.keras.Model:
@@ -287,6 +289,7 @@ class DenseModel(PackedKerasModel):
         depth: int = 3,
         width: int = 16,
         loss: Literal["mse", "mae"] = "mse",
+        learning_rate: float = 1e-3,
     ):
         """Initialize the DenseModel.
 
@@ -318,7 +321,7 @@ class DenseModel(PackedKerasModel):
         """
         self._depth = depth
         self._width = width
-        optimizer = optimizer or tf.keras.optimizers.Adam()
+        optimizer = optimizer or tf.keras.optimizers.Adam(lr=learning_rate)
         super().__init__(
             sample_dim_name,
             input_variables,
