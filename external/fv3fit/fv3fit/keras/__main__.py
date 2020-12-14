@@ -8,6 +8,7 @@ import random
 from . import get_model
 from ._save_history import save_history
 from .. import _shared as shared
+import fv3fit._shared.io
 import loaders
 import tensorflow as tf
 from typing import Union
@@ -103,6 +104,5 @@ if __name__ == "__main__":
     )
     batches = shared.load_data_sequence(data_path, train_config)
     history = model.fit(batches, **fit_kwargs)
-    model_output_path = os.path.join(args.output_data_path, MODEL_FILENAME)
-    model.dump(model_output_path)
+    fv3fit._shared.io.dump(model, args.output_data_path)
     save_history(history, os.path.join(args.output_data_path, HISTORY_OUTPUT_DIR))

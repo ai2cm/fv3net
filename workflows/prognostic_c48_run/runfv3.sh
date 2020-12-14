@@ -10,6 +10,8 @@ RUNFILE="$3"
 # directory writing stage finishes
 mkdir -p "$RUNDIR"
 
-python -m fv3config.fv3run._native_main \
-    "[[\"$CONFIG\", \"$RUNDIR\"], {\"runfile\": \"$RUNFILE\", \"capture_output\": false}]" \
-    |& tee -a  "$RUNDIR/logs.txt"
+
+write_run_directory "$CONFIG" "$RUNDIR"
+cd "$RUNDIR"
+NUM_PROC=$(yq '.namelist.fv_core_nml.layout | .[0] *.[1] * 6' "$CONFIG")
+mpirun -n "$NUM_PROC" python3 "$RUNFILE" |& tee -a "$RUNDIR/logs.txt"
