@@ -104,6 +104,7 @@ class Estimator(Predictor):
     datasets, and is trained on sequences of such datasets. Extends the predictor
     base class by defining `dump` method
     """
+
     @abc.abstractmethod
     def dump(self, path: str) -> None:
         pass
