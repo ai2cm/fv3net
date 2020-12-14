@@ -29,9 +29,9 @@ spec:
           - {name: config}
           - {name: reference-restarts}
           - {name: flags, value: ""}
+          - {name: output}
           - {name: output-timestamps, value: ""}
           - {name: output-frequency, value: ""}
-          - {name: output}
           - {name: chunks, value: "{}"}  # by default just use chunks defined in post_process.py
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
@@ -90,15 +90,22 @@ spec:
             {{inputs.parameters.config}}
             EOF
             
-            cat << EOF > times.json
-            {{inputs.parameters.output-timestamps}}
-            EOF
+            if [[ "{{inputs.parameters.output-timestamps}}" != "" ]]; then
+                cat <<- EOF > times.json
+                {{inputs.parameters.output-timestamps}}
+            	EOF
+                OUTPUT_FLAG="--output-timestamps times.json"
+            elif [[ "{{inputs.parameters.output-frequency}}" != "" ]]; then
+              OUTPUT_FLAG="--output-frequency {{inputs.parameters.output-frequency}}"
+            else
+              OUTPUT_FLAG=""
+            fi
 
             cp /home/jovyan/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py  /tmp/runfile.py
 
             python prepare_config.py \
               {{inputs.parameters.flags}} \
-              --output-timestamps times.json \
+              ${OUTPUT_FLAG} \
               config.yaml \
               {{inputs.parameters.reference-restarts}} \
               {{inputs.parameters.initial-condition}} \

@@ -9,7 +9,7 @@ spec:
         value: "20160801.001500"
       - name: reference-restarts
         value: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
-      - name: nudging-times
+      - name: nudge-to-fine-times
         value: |
           [
             "20160801.003000",
@@ -27,7 +27,7 @@ spec:
             "20160801.003000",
             "20160801.011500"
           ]
-      - name: nudging-config
+      - name: nudge-to-fine-config
         value: | 
           base_version: v0.5
           forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
@@ -53,21 +53,17 @@ spec:
               do_sat_adj: false
             gfdl_cloud_microphysics_nml:
               fast_sat_adj: false
-      - name: nudging-segment-count
+      - name: nudge-to-fine-segment-count
         value:  "2"
-      - name: nudging-chunks
+      - name: nudge-to-fine-chunks
         value: |
-          before_dynamics.zarr:
-            time: 1
-          after_dynamics.zarr:
-            time: 1
-          after_physics.zarr:
-            time: 1
-          after_nudging.zarr:
-            time: 1
-          reference.zarr:
+          physics_tendencies.zarr:
             time: 1
           nudging_tendencies.zarr:
+            time: 1
+          state_after_timestep.zarr:
+            time: 1
+          diags.zarr:
             time: 1
           atmos_8xdaily.zarr:
             time: 1
@@ -91,13 +87,14 @@ spec:
           batch_function: batches_from_geodata
           batch_kwargs:
             timesteps_per_batch: 1
-            mapping_function: open_merged_nudged_full_tendencies
+            mapping_function: open_nudge_to_fine
             mapping_kwargs:
-              consolidated: True
-              open_merged_nudged_kwargs:
-                rename_vars:
-                  air_temperature_tendency_due_to_nudging: dQ1
-                  specific_humidity_tendency_due_to_nudging: dQ2
+              nudging_variables: 
+                - air_temperature
+                - specific_humidity
+                - x_wind
+                - y_wind
+                - pressure_thickness_of_atmospheric_layer
       - name: prognostic-run-config
         value: |
           base_version: v0.5
@@ -134,10 +131,6 @@ spec:
   volumes:
     - name: workdir
       emptyDir: {}
-    - name: restart-data
-      persistentVolumeClaim:
-        claimName: nudging-read-only
-        readOnly: true
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -157,22 +150,22 @@ spec:
           - name: initial-condition
             value: "{{workflow.parameters.initial-condition}}"
           - name: output-timestamps
-            value: "{{workflow.parameters.nudging-times}}"
+            value: "{{workflow.parameters.nudge-to-fine-times}}"
           - name: output
             value: "{{workflow.parameters.root}}/nudge_to_fine_run"
           - name: config
-            value: "{{workflow.parameters.nudging-config}}"
+            value: "{{workflow.parameters.nudge-to-fine-config}}"
           - name: segment-count
-            value: "{{workflow.parameters.nudging-segment-count}}"
+            value: "{{workflow.parameters.nudge-to-fine-segment-count}}"
           - name: chunks
-            value: "{{workflow.parameters.nudging-chunks}}"
+            value: "{{workflow.parameters.nudge-to-fine-chunks}}"
           - {name: work-volume-name, value: work-volume}
           - name: cpu
             value: 6000m
           - name: memory
             value: 6Gi
       - name: train-offline-diags-prognostic
-        dependencies: [nudging-run]
+        dependencies: [nudge-to-fine-run]
         templateRef:
           name: train-diags-prog
           template: train-diags-prog
