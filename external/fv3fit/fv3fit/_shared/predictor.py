@@ -1,9 +1,8 @@
 import xarray as xr
 from vcm import safe
 import abc
-from typing import Hashable, Iterable, Sequence, Tuple, Optional
+from typing import Hashable, Iterable, Sequence, Tuple
 import logging
-from ..keras.models import History
 
 
 DATASET_DIM_NAME = "dataset"
