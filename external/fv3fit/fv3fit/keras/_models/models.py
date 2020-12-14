@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Any
+from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Any, List
 from typing_extensions import Literal
 import xarray as xr
 import logging
@@ -16,6 +16,11 @@ import yaml
 logger = logging.getLogger(__file__)
 
 MODEL_DIRECTORY = "model_data"
+
+# Description of the training loss progression over epochs
+# Outer array indexes epoch, inner array indexes batch (if applicable)
+EpochLossHistory = Sequence[Sequence[Union[float, int]]]
+History = Mapping[str, EpochLossHistory]
 
 
 @io.register("packed-keras")
@@ -37,6 +42,7 @@ class PackedKerasModel(Estimator):
     _Y_SCALER_FILENAME = "y_scaler.npz"
     _OPTIONS_FILENAME = "options.yml"
     _LOSS_OPTIONS = {"mse": get_weighted_mse, "mae": get_weighted_mae}
+    _HISTORY_FILENAME = "train_history.log"
 
     def __init__(
         self,
@@ -120,8 +126,18 @@ class PackedKerasModel(Estimator):
         workers: int = 1,
         max_queue_size: int = 8,
         **fit_kwargs: Any,
-    ) -> None:
+    ) -> History:
         """Fits a model using data in the batches sequence
+
+        Returns a History of training loss (and validation loss if applicable).
+        Loss values are saved as a list of values for each epoch.
+        
+        If batch_size is provided as a kwarg, the list of values is for each batch fit.
+        e.g. {"loss":
+            [[epoch0_batch0_loss, epoch0_batch1_loss],
+            [epoch1_batch0_loss, epoch1_batch1_loss]]}
+        If not batch_size is not provided, a single loss per epoch is recorded.
+        e.g. {"loss": [[epoch0_loss], [epoch1_loss]]}
         
         Args:
             batches: sequence of stacked datasets of predictor variables
@@ -145,7 +161,7 @@ class PackedKerasModel(Estimator):
             self._model = self.get_model(n_features_in, n_features_out)
 
         if batch_size is not None:
-            self._fit_loop(
+            return self._fit_loop(
                 Xy,
                 epochs,
                 batch_size,
@@ -154,7 +170,7 @@ class PackedKerasModel(Estimator):
                 **fit_kwargs,
             )
         else:
-            self._fit_array(
+            return self._fit_array(
                 Xy,
                 epochs=epochs,
                 workers=workers,
@@ -170,24 +186,37 @@ class PackedKerasModel(Estimator):
         workers: int = 1,
         max_queue_size: int = 8,
         **fit_kwargs: Any,
-    ) -> None:
+    ) -> History:
 
         if workers > 1:
             Xy = _ThreadedSequencePreLoader(
                 Xy, num_workers=workers, max_queue_size=max_queue_size
             )
-
+        train_history = {
+            key: [] for key in ["loss", "val_loss"]
+        }  # type: Mapping[str, List]
         for i_epoch in range(epochs):
+            loss_over_batches, val_loss_over_batches = [], []
             for i_batch, (X, y) in enumerate(Xy):
                 logger.info(
                     f"Fitting on timestep {i_batch} of {len(Xy)}, of epoch {i_epoch}..."
                 )
-                self.model.fit(X, y, batch_size=batch_size, **fit_kwargs)
+                history = self.model.fit(X, y, batch_size=batch_size, **fit_kwargs)
+                loss_over_batches += history.history["loss"]
+                val_loss_over_batches += history.history["val_loss"]
+            train_history["loss"].append(loss_over_batches)
+            train_history["val_loss"].append(val_loss_over_batches)
+        return train_history
 
     def _fit_array(
         self, Xy: Sequence[Tuple[np.ndarray, np.ndarray]], **fit_kwargs: Any
-    ) -> None:
-        return self.model.fit(Xy, **fit_kwargs)
+    ) -> History:
+        history = self.model.fit(x=Xy, **fit_kwargs)
+        reformat_history = {
+            key: [[val] for val in epoch_values]
+            for key, epoch_values in history.history.items()
+        }
+        return reformat_history
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         sample_coord = X[self.sample_dim_name]
