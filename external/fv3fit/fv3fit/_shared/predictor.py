@@ -103,13 +103,8 @@ class Estimator(Predictor):
     """
     Abstract base class for a machine learning model which operates on xarray
     datasets, and is trained on sequences of such datasets. Extends the predictor
-    base class by defining `fit` and `dump` methods
+    base class by defining `dump` method
     """
-
-    @abc.abstractmethod
-    def fit(self, batches: Sequence[xr.Dataset],) -> Optional[History]:
-        pass
-
     @abc.abstractmethod
     def dump(self, path: str) -> None:
         pass

@@ -105,9 +105,6 @@ if __name__ == "__main__":
     batches = shared.load_data_sequence(data_path, train_config)
     history = model.fit(batches, **fit_kwargs)  # type: ignore
     fv3fit._shared.io.dump(model, args.output_data_path)
-    if history:
-        save_history(
-            history, os.path.join(args.output_data_path, HISTORY_OUTPUT_DIR),
-        )
-    else:
-        raise RuntimeError("No training history returned after fitting model.")
+    save_history(
+        history, os.path.join(args.output_data_path, HISTORY_OUTPUT_DIR),
+    )
