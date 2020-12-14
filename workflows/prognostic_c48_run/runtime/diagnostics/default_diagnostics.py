@@ -87,3 +87,6 @@ state_after_timestep = DiagnosticFile(
     ],
     times=DEFAULT_TIMES,
 )
+reference_state = DiagnosticFile(
+    name="reference_state.zarr", variables=[], times=DEFAULT_TIMES
+)

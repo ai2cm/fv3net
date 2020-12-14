@@ -404,7 +404,10 @@ class NudgingTimeLoop(TimeLoop):
             state, reference
         )
 
-        return {}
+        return {
+            f"{key}_reference": reference_state
+            for key, reference_state in reference.items()
+        }
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 

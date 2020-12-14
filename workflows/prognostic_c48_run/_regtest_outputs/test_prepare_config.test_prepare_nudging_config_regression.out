@@ -64,6 +64,13 @@ diagnostics:
   - column_integrated_northward_wind_tendency_due_to_nudging
   - water_vapor_path
   - physics_precip
+- name: reference_state.zarr
+  times: *id001
+  variables:
+  - air_temperature_reference
+  - specific_humidity_reference
+  - x_wind_reference
+  - y_wind_reference
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 initial_conditions:
