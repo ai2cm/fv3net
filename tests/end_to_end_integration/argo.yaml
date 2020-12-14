@@ -63,6 +63,8 @@ spec:
             time: 1
           state_after_timestep.zarr:
             time: 1
+          reference_state.zarr:
+            time: 1
           diags.zarr:
             time: 1
           atmos_8xdaily.zarr:
