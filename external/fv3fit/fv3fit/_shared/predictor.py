@@ -1,8 +1,9 @@
 import xarray as xr
 from vcm import safe
 import abc
-from typing import Hashable, Iterable, Sequence, Tuple
+from typing import Hashable, Iterable, Sequence, Tuple, Optional
 import logging
+from ..keras.models import History
 
 
 DATASET_DIM_NAME = "dataset"
@@ -106,7 +107,7 @@ class Estimator(Predictor):
     """
 
     @abc.abstractmethod
-    def fit(self, batches: Sequence[xr.Dataset],) -> None:
+    def fit(self, batches: Sequence[xr.Dataset],) -> Optional[History]:
         pass
 
     @abc.abstractmethod
