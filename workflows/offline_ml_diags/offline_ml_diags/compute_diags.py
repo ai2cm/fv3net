@@ -16,9 +16,8 @@ import loaders
 from vcm import safe, interpolate_to_pressure_levels
 import vcm
 from vcm.cloud import get_fs
-from fv3fit import PRODUCTION_MODEL_TYPES
+import fv3fit
 from ._metrics import compute_metrics
-from . import _model_loaders as model_loaders
 from ._mapper import PredictionMapper
 from ._helpers import net_precipitation_provenance_information, load_grid_info
 from ._select import meridional_transect, nearest_time
@@ -218,39 +217,10 @@ def _get_base_mapper(args, config: Mapping):
     )
 
 
-def _get_model_loader(config: Mapping):
-    model_type_str = (
-        config.get("model_type", "random_forest").replace(" ", "").replace("_", "")
-    )
-    if ("rf" in model_type_str) or ("randomforest" in model_type_str):
-        model_routine = "sklearn"
-    elif model_type_str in PRODUCTION_MODEL_TYPES["keras"]:
-        model_routine = "keras"
-    else:
-        valid_types = []
-        for types in PRODUCTION_MODEL_TYPES.values():
-            valid_types.extend(types)
-        raise (
-            AttributeError(
-                f"Invalid model_type: {model_type_str}; "
-                f"valid model types are {valid_types}"
-            )
-        )
-    model_loader_str = (
-        "load_sklearn_model" if model_routine == "sklearn" else "load_keras_model"
-    )
-    model_loader = getattr(model_loaders, model_loader_str)
-    loader_kwargs = (
-        {"keras_model_type": model_type_str} if model_routine == "keras" else {}
-    )
-    return model_loader, loader_kwargs
-
-
 def _get_prediction_mapper(args, config: Mapping, variables: Sequence[str]):
     base_mapper = _get_base_mapper(args, config)
     logger.info("Opening ML model")
-    model_loader, loader_kwargs = _get_model_loader(config)
-    model = model_loader(args.model_path, **loader_kwargs)
+    model = fv3fit.load(args.model_path)
     model_mapper_kwargs = config.get("model_mapper_kwargs", {})
     logger.info("Creating prediction mapper")
     return PredictionMapper(
@@ -315,6 +285,9 @@ if __name__ == "__main__":
             timesteps = list(pred_mapper)
 
     batch_kwargs = dissoc(config["batch_kwargs"], "mapping_function", "mapping_kwargs",)
+    batches = loaders.batches.diagnostic_batches_from_mapper(
+        pred_mapper, variables, timesteps=timesteps, **batch_kwargs,
+    )
     batches = loaders.batches.diagnostic_batches_from_mapper(
         pred_mapper, variables, timesteps=timesteps, **batch_kwargs,
     )

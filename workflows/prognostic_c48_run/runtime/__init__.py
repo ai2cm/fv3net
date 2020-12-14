@@ -1,4 +1,4 @@
-from .config import get_namelist, get_config, get_ml_model
+from .config import get_namelist, get_config
 from .capture import capture_stream, capture_stream_mpi, capture_fv3gfs_funcs
 from .diagnostics import (
     get_diagnostic_files,

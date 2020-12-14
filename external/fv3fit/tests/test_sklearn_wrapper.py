@@ -99,7 +99,7 @@ def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
     wrapper = _get_sklearn_wrapper(scale)
     dims = ["sample", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
-    wrapper.fit(data)
+    wrapper.fit([data])
 
     output = wrapper.predict(data)
     assert pytest.approx(1 / scale) == output["y"].item()
@@ -125,7 +125,7 @@ def test_fitting_SklearnWrapper_does_not_fit_scaler():
 
     dims = ["sample", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
-    wrapper.fit(data)
+    wrapper.fit([data])
     scaler.fit.assert_not_called()
 
 
@@ -151,7 +151,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
     # setup input data
     dims = ["sample", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
-    wrapper.fit(data)
+    wrapper.fit([data])
 
     # serialize/deserialize
     path = str(tmpdir)
@@ -174,7 +174,7 @@ def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
     # setup input data
     dims = ["sample", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
-    wrapper.fit(data)
+    wrapper.fit([data])
 
     # serialize/deserialize
     path = str(tmpdir)
@@ -182,6 +182,6 @@ def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
 
     # fit loaded model
     loaded = wrapper.load(path)
-    loaded.fit(data)
+    loaded.fit([data])
 
     assert len(loaded.model.regressors) == 2

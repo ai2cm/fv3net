@@ -6,15 +6,13 @@ FV3Fit is a library for machine learning workflows used by the Vulcan Climate Mo
 * Free software: BSD license
 
 
-# fv3fit contribution guide - Predictor base class
+# fv3fit contribution guide - Base classes
 
-All model training routines defined in fv3fit should produce a subclass of the Predictor
-type defined in `.external/fv3fit/_shared/predictor.py`, which requires definition
-of the `input_variables`, `output_variables`, and `sample_dim_name` attributes as well
-as the `load` and `predict` methods. This provides a unified public API for users
-of this package to make predictions in a diagnostic or prognostic setting. Internally,
-the `fit` and `dump` methods, among others, will presumably be defined as part of
-training routines, but that is not enforced by the Predictor class. 
+fv3fit models should be subclassed from either ``fv3fit.Predictor`` or ``fv3fit.Estimator``. The former defines the interface required by the prognostic run and offline reports to load and predict with a model. The latter defines the methods needed to train and save a model. See the implementations of these classes for more details.
+
+Moreover, to be saved and loaded via the generic `fv3fit.dump` and
+`fv3fit.load` functions, a new `Estimator` will need to be decorated with
+`fv3fit._shared.io.register`.
 
 
 ### Configuration
