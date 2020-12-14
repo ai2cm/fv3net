@@ -53,7 +53,7 @@ def plot_jacobian(model_url):
     for i, in_name in enumerate(variables_3d):
         for j, out_name in enumerate(model.y_packer.pack_names):
             pane = jacobian_dict[(in_name, out_name)]
-            im = axs[i, j].imshow(pane)
+            im = axs[i, j].imshow(pane.T)
             axs[i, j].set_ylabel(f'in ({in_name})')
             axs[i, j].set_xlabel(f'out ({out_name})')
             axs[i, j].xaxis.tick_top()
