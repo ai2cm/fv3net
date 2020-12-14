@@ -15,7 +15,7 @@ def unpack_matrix(x_packer, y_packer, J):
             size_in = x_packer.feature_counts[in_name]
             size_out = y_packer.feature_counts[out_name]
             
-            jacobian_dict[(in_name, out_name)] = J[i:i+size_out, j:j+size_in].numpy()
+            jacobian_dict[(in_name, out_name)] = xr.DataArray(J[i:i+size_out, j:j+size_in].numpy(), dims=[out_name, in_name])
             i += size_out
         j += size_in
 
@@ -53,7 +53,7 @@ def plot_jacobian(model_url):
     for i, in_name in enumerate(variables_3d):
         for j, out_name in enumerate(model.y_packer.pack_names):
             pane = jacobian_dict[(in_name, out_name)]
-            im = axs[i, j].imshow(pane.T)
+            im = pane.plot.imshow(x=out_name, y=in_name, ax=axs[i, j], yincrease=False, xincrease=False)
             axs[i, j].set_ylabel(f'in ({in_name})')
             axs[i, j].set_xlabel(f'out ({out_name})')
             axs[i, j].xaxis.tick_top()
@@ -65,7 +65,7 @@ def plot_jacobian(model_url):
     fig, axs = plt.subplots(len(variables_2d), len(model.output_variables), figsize=(12,12), constrained_layout=True)
     for i, in_name in enumerate(variables_2d):
         for j, out_name in enumerate(model.y_packer.pack_names):
-            pane = jacobian_dict[(in_name, out_name)]
+            pane = np.asarray(jacobian_dict[(in_name, out_name)])
             axs[i, j].plot(pane.ravel(), np.arange(pane.size))
             axs[i, j].set_xlabel(out_name)
             axs[i, j].set_title(f'change in {in_name}')
@@ -73,3 +73,7 @@ def plot_jacobian(model_url):
 
     fig.suptitle(url)
     plt.show()
+
+
+if __name__ == "__main__":
+    plot_jacobian(url)
