@@ -54,6 +54,7 @@ diagnostics:
   - specific_humidity_tendency_due_to_nudging
   - x_wind_tendency_due_to_nudging
   - y_wind_tendency_due_to_nudging
+  - pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging
 - name: diags.zarr
   times: *id001
   variables:
@@ -71,6 +72,7 @@ diagnostics:
   - specific_humidity_reference
   - x_wind_reference
   - y_wind_reference
+  - pressure_thickness_of_atmospheric_layer_reference
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 initial_conditions:
@@ -495,6 +497,7 @@ nudging:
   restarts_path: gs://ic-bucket
   timescale_hours:
     air_temperature: 12
+    pressure_thickness_of_atmospheric_layer: 12
     specific_humidity: 12
     x_wind: 12
     y_wind: 12
