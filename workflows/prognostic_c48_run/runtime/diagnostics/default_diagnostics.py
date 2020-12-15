@@ -1,6 +1,5 @@
 from .manager import DiagnosticFile
 
-DEFAULT_TIMES = {"kind": "interval", "frequency": 900}
 ml_diagnostics = DiagnosticFile(
     name="diags.zarr",
     variables=[
@@ -15,7 +14,6 @@ ml_diagnostics = DiagnosticFile(
         "column_integrated_dQv",
         "column_integrated_dQv_diagnostic",
     ],
-    times=DEFAULT_TIMES,
 )
 nudging_diagnostics_2d = DiagnosticFile(
     name="diags.zarr",
@@ -28,11 +26,8 @@ nudging_diagnostics_2d = DiagnosticFile(
         "water_vapor_path",
         "physics_precip",
     ],
-    times=DEFAULT_TIMES,
 )
-nudging_tendencies = DiagnosticFile(
-    name="nudging_tendencies.zarr", variables=[], times=DEFAULT_TIMES
-)
+nudging_tendencies = DiagnosticFile(name="nudging_tendencies.zarr", variables=[])
 physics_tendencies = DiagnosticFile(
     name="physics_tendencies.zarr",
     variables=[
@@ -41,12 +36,9 @@ physics_tendencies = DiagnosticFile(
         "tendency_of_eastward_wind_due_to_fv3_physics",
         "tendency_of_northward_wind_due_to_fv3_physics",
     ],
-    times=DEFAULT_TIMES,
 )
 baseline_diagnostics = DiagnosticFile(
-    name="diags.zarr",
-    variables=["water_vapor_path", "physics_precip"],
-    times=DEFAULT_TIMES,
+    name="diags.zarr", variables=["water_vapor_path", "physics_precip"],
 )
 state_after_timestep = DiagnosticFile(
     name="state_after_timestep.zarr",
@@ -85,8 +77,5 @@ state_after_timestep = DiagnosticFile(
         "latitude",
         "longitude",
     ],
-    times=DEFAULT_TIMES,
 )
-reference_state = DiagnosticFile(
-    name="reference_state.zarr", variables=[], times=DEFAULT_TIMES
-)
+reference_state = DiagnosticFile(name="reference_state.zarr", variables=[])

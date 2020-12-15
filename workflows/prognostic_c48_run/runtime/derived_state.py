@@ -5,8 +5,6 @@ import xarray as xr
 import fv3gfs.util
 from vcm import DerivedMapping
 
-PRESSURE = "pressure_thickness_of_atmospheric_layer"
-
 
 class FV3StateMapper:
     """ A mapping interface for the FV3GFS getter.

@@ -1,6 +1,6 @@
 base_version: v0.5
 data_table: default
-diag_table: /fv3net/workflows/prognostic_c48_run/diag_table_prognostic_nudge_to_obs
+diag_table: /fv3net/workflows/prognostic_c48_run/diag_table_prognostic
 diagnostics:
 - name: diags.zarr
   times:

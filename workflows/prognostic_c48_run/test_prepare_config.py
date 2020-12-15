@@ -41,26 +41,17 @@ def test_prepare_nudging_config_regression(regtest):
         prepare_config.prepare_config(args)
 
 
-TIMESTAMPS = ["20160801.021500", "20160801.041500"]
-
-
 @pytest.mark.parametrize(
-    ["timestamps", "frequency_minutes", "expected"],
+    ["frequency_minutes", "expected"],
     [
+        pytest.param(120, {"kind": "interval", "frequency": 7200}, id="2-hourly"),
         pytest.param(
-            TIMESTAMPS,
-            15,
-            {"kind": "selected", "times": TIMESTAMPS},
-            id="both_provided_defaults_to_timestamps",
-        ),
-        pytest.param(None, 120, {"kind": "interval", "frequency": 7200}, id="2-hourly"),
-        pytest.param(
-            None, 15, {"kind": "interval", "frequency": 900}, id="default_15-minute"
+            15, {"kind": "interval", "frequency": 900}, id="default_15-minute"
         ),
     ],
 )
-def test_diagnostics_overlay_times(timestamps, frequency_minutes, expected):
+def test_diagnostics_overlay_times(frequency_minutes, expected):
     diags_overlay_times = prepare_config.diagnostics_overlay(
-        {}, None, None, timestamps, frequency_minutes
+        {}, None, None, frequency_minutes
     )["diagnostics"][0]["times"]
     assert diags_overlay_times == expected

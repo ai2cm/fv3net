@@ -14,9 +14,6 @@ from runtime import default_diagnostics
 logger = logging.getLogger(__name__)
 
 PROGNOSTIC_DIAG_TABLE = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
-NUDGE_TO_OBS_DIAG_TABLE = (
-    "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic_nudge_to_obs"
-)
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -52,26 +49,13 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--nudge-to-observations", action="store_true", help="Nudge to observations",
     )
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "--output-timestamps",
-        type=str,
-        default=None,
-        help=(
-            "Path to yaml-encoded list of YYYYMMDD.HHMMSS timestamps, which define "
-            "a subset of run's timestamps that will be written to disk. Mutually "
-            "exclusive with `output-frequency`. If both are omitted, timestamps will "
-            "be written every 15 minutes from the initial time."
-        ),
-    )
-    group.add_argument(
+    parser.add_argument(
         "--output-frequency",
         type=int,
-        default=None,
+        default=15,
         help=(
-            "Output frequency (in minutes) of ML/nudging diagnostics. Mutually "
-            "exclusive with `output-timestamps`. If both are omitted, timestamps "
-            "will be written every 15 minutes from the initial time."
+            "Output frequency (in minutes) of ML/nudging diagnostics. If omitted, "
+            "output will be written every 15 minutes from the initial time."
         ),
     )
     parser.add_argument(
@@ -119,7 +103,7 @@ def nudging_overlay(nudging_config, initial_condition_url):
     return overlay
 
 
-def diagnostics_overlay(config, model_url, nudge_to_obs, timestamps, frequency_minutes):
+def diagnostics_overlay(config, model_url, nudge_to_obs, frequency_minutes):
 
     diagnostic_files = []
 
@@ -137,11 +121,9 @@ def diagnostics_overlay(config, model_url, nudge_to_obs, timestamps, frequency_m
     else:
         diagnostic_files.append(default_diagnostics.baseline_diagnostics.to_dict())
 
-    diagnostic_files = _update_times(diagnostic_files, timestamps, frequency_minutes)
+    diagnostic_files = _update_times(diagnostic_files, frequency_minutes)
 
-    diag_table = NUDGE_TO_OBS_DIAG_TABLE if nudge_to_obs else PROGNOSTIC_DIAG_TABLE
-
-    return {"diagnostics": diagnostic_files, "diag_table": diag_table}
+    return {"diagnostics": diagnostic_files, "diag_table": PROGNOSTIC_DIAG_TABLE}
 
 
 def _nudging_tendencies(config):
@@ -164,15 +146,12 @@ def _reference_state(config):
 
 
 def _update_times(
-    diagnostic_files: Sequence[Dict], timestamps: Sequence[str], frequency_minutes: int
+    diagnostic_files: Sequence[Dict], frequency_minutes: int
 ) -> Sequence[Dict]:
     for diagnostic in diagnostic_files:
-        if timestamps:
-            diagnostic.update({"times": {"kind": "selected", "times": timestamps}})
-        elif frequency_minutes:
-            diagnostic.update(
-                {"times": {"kind": "interval", "frequency": 60 * frequency_minutes}}
-            )
+        diagnostic.update(
+            {"times": {"kind": "interval", "frequency": 60 * frequency_minutes}}
+        )
     return diagnostic_files
 
 
@@ -204,12 +183,6 @@ def prepare_config(args):
     model_type = user_config.get("scikit_learn", {}).get("model_type", "scikit_learn")
     nudging_config = user_config.get("nudging", {})
 
-    if args.output_timestamps:
-        with open(args.output_timestamps) as f:
-            timestamps = yaml.safe_load(f)
-    else:
-        timestamps = None
-
     # To simplify the configuration flow, updates should be implemented as
     # overlays (i.e. diffs) requiring only a small number of inputs. In
     # particular, overlays should not require access to the full configuration
@@ -223,7 +196,6 @@ def prepare_config(args):
             user_config,
             args.model_url,
             args.nudge_to_observations,
-            timestamps,
             args.output_frequency,
         ),
         step_tendency_overlay(user_config),

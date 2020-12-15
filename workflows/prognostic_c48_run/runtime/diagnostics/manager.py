@@ -92,13 +92,16 @@ class DiagnosticFile:
     """
 
     def __init__(
-        self, name: str, times: Container[cftime.DatetimeJulian], variables: Container,
+        self,
+        name: str,
+        variables: Container,
+        times: Optional[Container[cftime.DatetimeJulian]] = None,
     ):
         """
         Args:
-            monitor: an underlying monitor to store the data in
-            times: the set of times (potentially infinite) to save the data at
+            name: file name of a zarr to store the data in, e.g., 'diags.zarr'
             variables: a container of variables to save
+            times (optional): a container for times to output
 
         Note:
 
@@ -114,19 +117,20 @@ class DiagnosticFile:
             Universe!
         """
         self._name = name
-        self._monitor: Optional[fv3gfs.util.ZarrMonitor] = None
-        self.times = times
         self.variables = variables
+        self.times = times
+        self._monitor: Optional[fv3gfs.util.ZarrMonitor] = None
 
     def observe(
         self, time: cftime.DatetimeJulian, diagnostics: Mapping[str, xr.DataArray]
     ):
         """Possibly store the data into the monitor
         """
-        if self._monitor is None:
+        if self._monitor is None or self.times is None:
             raise ValueError(
                 f"zarr monitor not yet established for {self._name}. Call set_monitor."
             )
+
         if time in self.times:
             quantities = {
                 # need units for from_data_array to work
