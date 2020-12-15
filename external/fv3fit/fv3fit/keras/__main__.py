@@ -6,7 +6,6 @@ import numpy as np
 import sys
 import random
 from . import get_model
-from ._save_history import save_history
 from .. import _shared as shared
 import fv3fit._shared.io
 import loaders
@@ -105,6 +104,3 @@ if __name__ == "__main__":
     batches = shared.load_data_sequence(data_path, train_config)
     history = model.fit(batches, **fit_kwargs)  # type: ignore
     fv3fit._shared.io.dump(model, args.output_data_path)
-    save_history(
-        history, os.path.join(args.output_data_path, HISTORY_OUTPUT_DIR),
-    )
