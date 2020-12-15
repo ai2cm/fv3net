@@ -65,7 +65,7 @@ def _plot_loss_per_batch(history: History) -> plt.Figure:
 
 def _copy_outputs(temp_dir, output_dir) -> None:
     if output_dir.startswith("gs://"):
-        gsutil.copy_directory_contents(temp_dir, output_dir)
+        gsutil.copy(temp_dir, output_dir)
     else:
         if os.path.exists(output_dir):
             shutil.rmtree(output_dir)
