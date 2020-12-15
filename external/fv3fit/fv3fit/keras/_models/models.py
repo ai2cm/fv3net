@@ -42,7 +42,6 @@ class PackedKerasModel(Estimator):
     _Y_SCALER_FILENAME = "y_scaler.npz"
     _OPTIONS_FILENAME = "options.yml"
     _LOSS_OPTIONS = {"mse": get_weighted_mse, "mae": get_weighted_mae}
-    _HISTORY_FILENAME = "train_history.log"
 
     def __init__(
         self,
