@@ -1,13 +1,11 @@
-from inspect import trace
 import tensorflow as tf
 import numpy as np
 import os
-import cftime
 import logging
 
 from .classifiers import _less_than_zero_mask, _less_than_equal_zero_mask
 from .packer import EmuArrayPacker, consolidate_tracers, split_tracer_fields
-from .monitor import output_monitor
+from .monitor import output_monitor, MPI
 from .debug import print_errors
 from ._filesystem import get_dir
 
@@ -20,6 +18,9 @@ X_PACKER_FILENAME = "X_packer.json"
 Y_PACKER_FILENAME = "y_packer.json"
 
 model_path = os.environ.get("TKE_EMU_MODEL")
+
+# data for fixing del and prsi input of emulation
+fix_fields = np.load("/rundir/prsi_del_fix.npz")
 
 with get_dir(model_path) as path:
     
@@ -45,10 +46,15 @@ with get_dir(model_path) as path:
 def get_state_stats(state):
 
     stats = "SATMEDMF Emulation Stats\n"
+    extra_info_vars = ["dv_output", "du_output", "tdt_update"]
     for varname, arr in state.items():
         vmin = np.min(arr)
         vmax = np.max(arr)
-        stats += f"\t[{varname}] \tmin: {vmin:04.8f} \tmax: {vmax:04.8f}\tshape: {arr.shape}\n"
+        if varname not in extra_info_vars:
+            stats += f"\t[{varname}] \tmin: {vmin:04.8f} \tmax: {vmax:04.8f}\n"
+        else:
+            abs_min = np.min(abs(arr[abs(arr) > 0]))            
+            stats += f"\t[{varname}] \tmin: {vmin:04.8f} \tmax: {vmax:04.8f} \tabs_min: {abs_min}\n"
 
     return stats
 
@@ -65,6 +71,18 @@ def stress_fix_temporary(state):
         logger.info(f"Found negative stress at {mask.sum()} points... fixing")
         stress[stress < 0] = 0
         state["stress_input"] = stress
+
+
+def upper_level_delp_prsi_fix_temporary(state):
+    logger.info("Fixing upper level prsi and delp fields.")
+    prsi = state["prsi_input"]
+    delp = state["del_input"]
+    upper_slice = slice(-17, None)
+    rank = MPI.COMM_WORLD.Get_rank()
+    prsi_diff = fix_fields["prsi_input"][rank].T - prsi[upper_slice]
+    delp_diff = fix_fields["del_input"][rank].T - delp[upper_slice]
+    prsi[upper_slice] += prsi_diff
+    delp[upper_slice] += delp_diff
 
 
 def add_tdt_increment(state):
@@ -86,6 +104,7 @@ def add_tdt_increment(state):
 def emulator(state):
     split_tracer_fields(state)
     stress_fix_temporary(state)
+    upper_level_delp_prsi_fix_temporary(state)
     logger.debug(get_state_stats(state))
     X = X_packer.to_array(state)
     logger.info("Predicting satmedmf update...")
