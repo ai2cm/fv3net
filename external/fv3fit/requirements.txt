@@ -33,7 +33,6 @@ entrypoints
 gcsfs
 google-auth
 google-auth-oauthlib
-gsutil
 idna
 imageio
 importlib-metadata
