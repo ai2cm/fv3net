@@ -5,7 +5,7 @@ numpy
 scikit-learn
 fsspec
 pyyaml
-tensorflow
+tensorflow>=2.2.0
 pytest
 pytest-cov
 typing_extensions

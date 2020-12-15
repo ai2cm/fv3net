@@ -2,7 +2,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - tensorflow=2
+  - tensorflow>=2
   - tensorflow-addons
   - python=3.7
   - backoff

@@ -42,7 +42,7 @@ def model(
     input_variables: Iterable[str],
     output_variables: Iterable[str],
     hyperparameters: dict,
-) -> fv3fit.keras.Model:
+) -> fv3fit.Estimator:
     return fv3fit.keras.get_model(
         model_type,
         loaders.SAMPLE_DIM_NAME,
@@ -86,7 +86,7 @@ def test_reproducibility(
 
 
 def test_training(
-    model: fv3fit.keras.Model,
+    model: fv3fit.Estimator,
     training_batches: Sequence[xr.Dataset],
     output_variables: Iterable[str],
 ):
@@ -97,7 +97,7 @@ def test_training(
 
 
 def test_dump_and_load_before_training(
-    model: fv3fit.keras.Model,
+    model: fv3fit.Estimator,
     training_batches: Sequence[xr.Dataset],
     output_variables: Iterable[str],
 ):
@@ -126,7 +126,7 @@ def validate_dataset_result(
 
 
 def test_dump_and_load_maintains_prediction(
-    model: fv3fit.keras.Model,
+    model: fv3fit.Estimator,
     training_batches: Sequence[xr.Dataset],
     output_variables: Iterable[str],
 ):

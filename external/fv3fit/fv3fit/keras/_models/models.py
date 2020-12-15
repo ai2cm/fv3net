@@ -1,11 +1,11 @@
-from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Any
+from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Any, List
 from typing_extensions import Literal
 import xarray as xr
 import logging
 import abc
 import tensorflow as tf
 import tensorflow_addons as tfa
-from ..._shared import ArrayPacker, Predictor
+from ..._shared import ArrayPacker, Estimator, io
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
@@ -16,53 +16,15 @@ import yaml
 
 logger = logging.getLogger(__file__)
 
+MODEL_DIRECTORY = "model_data"
 
-class Model(Predictor):
-    """
-    Abstract base class for a machine learning model which operates on xarray
-    datasets, and is trained on sequences of such datasets. Extends the predictor
-    base class by defining `fit` and `dump` methods
-    """
-
-    @abc.abstractmethod
-    def __init__(
-        self,
-        sample_dim_name: str,
-        input_variables: Iterable[str],
-        output_variables: Iterable[str],
-        **hyperparameters,
-    ):
-        """Initialize the model.
-        Args:
-            sample_dim_name: name of the sample dimension in datasets used as
-                inputs and outputs.
-            input_variables: names of input variables
-            output_variables: names of output variables
-            hyperparameters: options for subclasses
-        """
-        if len(hyperparameters) > 0:
-            raise TypeError(
-                "Model base class received unexpected keyword arguments: "
-                f"{list(hyperparameters.keys())}"
-            )
-        super().__init__(sample_dim_name, input_variables, output_variables)
-
-    @abc.abstractmethod
-    def fit(
-        self,
-        batches: Sequence[xr.Dataset],
-        epochs: int = 1,
-        batch_size: Optional[int] = None,
-        **fit_kwargs: Any,
-    ) -> None:
-        pass
-
-    @abc.abstractmethod
-    def dump(self, path: str) -> None:
-        pass
+# Description of the training loss progression over epochs
+# Outer array indexes epoch, inner array indexes batch (if applicable)
+EpochLossHistory = Sequence[Sequence[Union[float, int]]]
+History = Mapping[str, EpochLossHistory]
 
 
-class PackedKerasModel(Model):
+class PackedKerasModel(Estimator):
     """
     Abstract base class for a keras-based model which operates on xarray
     datasets containing a "sample" dimension (as defined by loaders.SAMPLE_DIM_NAME),
@@ -154,7 +116,6 @@ class PackedKerasModel(Model):
             model: a Keras model whose input shape is [n_samples, n_features_in] and
                 output shape is [n_samples, features_out]
         """
-        pass
 
     def fit(
         self,
@@ -164,8 +125,18 @@ class PackedKerasModel(Model):
         workers: int = 1,
         max_queue_size: int = 8,
         **fit_kwargs: Any,
-    ) -> None:
+    ) -> History:
         """Fits a model using data in the batches sequence
+
+        Returns a History of training loss (and validation loss if applicable).
+        Loss values are saved as a list of values for each epoch.
+        
+        If batch_size is provided as a kwarg, the list of values is for each batch fit.
+        e.g. {"loss":
+            [[epoch0_batch0_loss, epoch0_batch1_loss],
+            [epoch1_batch0_loss, epoch1_batch1_loss]]}
+        If not batch_size is not provided, a single loss per epoch is recorded.
+        e.g. {"loss": [[epoch0_loss], [epoch1_loss]]}
         
         Args:
             batches: sequence of stacked datasets of predictor variables
@@ -189,7 +160,7 @@ class PackedKerasModel(Model):
             self._model = self.get_model(n_features_in, n_features_out)
 
         if batch_size is not None:
-            self._fit_loop(
+            return self._fit_loop(
                 Xy,
                 epochs,
                 batch_size,
@@ -198,7 +169,7 @@ class PackedKerasModel(Model):
                 **fit_kwargs,
             )
         else:
-            self._fit_array(
+            return self._fit_array(
                 Xy,
                 epochs=epochs,
                 workers=workers,
@@ -214,24 +185,37 @@ class PackedKerasModel(Model):
         workers: int = 1,
         max_queue_size: int = 8,
         **fit_kwargs: Any,
-    ) -> None:
+    ) -> History:
 
         if workers > 1:
             Xy = _ThreadedSequencePreLoader(
                 Xy, num_workers=workers, max_queue_size=max_queue_size
             )
-
+        train_history = {
+            key: [] for key in ["loss", "val_loss"]
+        }  # type: Mapping[str, List]
         for i_epoch in range(epochs):
+            loss_over_batches, val_loss_over_batches = [], []
             for i_batch, (X, y) in enumerate(Xy):
                 logger.info(
                     f"Fitting on timestep {i_batch} of {len(Xy)}, of epoch {i_epoch}..."
                 )
-                self.model.fit(X, y, batch_size=batch_size, **fit_kwargs)
+                history = self.model.fit(X, y, batch_size=batch_size, **fit_kwargs)
+                loss_over_batches += history.history["loss"]
+                val_loss_over_batches += history.history["val_loss"]
+            train_history["loss"].append(loss_over_batches)
+            train_history["val_loss"].append(val_loss_over_batches)
+        return train_history
 
     def _fit_array(
         self, Xy: Sequence[Tuple[np.ndarray, np.ndarray]], **fit_kwargs: Any
-    ) -> None:
-        return self.model.fit(Xy, **fit_kwargs)
+    ) -> History:
+        history = self.model.fit(x=Xy, **fit_kwargs)
+        reformat_history = {
+            key: [[val] for val in epoch_values]
+            for key, epoch_values in history.history.items()
+        }
+        return reformat_history
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         sample_coord = X[self.sample_dim_name]
@@ -244,7 +228,8 @@ class PackedKerasModel(Model):
         return self.model.predict(X)
 
     def dump(self, path: str) -> None:
-        with put_dir(path) as path:
+        dir_ = os.path.join(path, MODEL_DIRECTORY)
+        with put_dir(dir_) as path:
             if self._model is not None:
                 model_filename = os.path.join(path, self._MODEL_FILENAME)
                 self.model.save(model_filename)
@@ -283,8 +268,9 @@ class PackedKerasModel(Model):
             )
 
     @classmethod
-    def load(cls, path: str) -> Model:
-        with get_dir(path) as path:
+    def load(cls, path: str) -> "PackedKerasModel":
+        dir_ = os.path.join(path, MODEL_DIRECTORY)
+        with get_dir(dir_) as path:
             with open(os.path.join(path, cls._X_PACKER_FILENAME), "r") as f:
                 X_packer = ArrayPacker.load(f)
             with open(os.path.join(path, cls._Y_PACKER_FILENAME), "r") as f:
@@ -313,6 +299,7 @@ class PackedKerasModel(Model):
             return obj
 
 
+@io.register("packed-keras")
 class DenseModel(PackedKerasModel):
     """
     A simple feedforward neural network model with dense layers.

@@ -1,7 +1,7 @@
 import abc
 from copy import copy
 import numpy as np
-from typing import Mapping, BinaryIO, Type, Sequence
+from typing import Mapping, BinaryIO, Type, Sequence, Iterable
 import xarray as xr
 import io
 import yaml
@@ -226,3 +226,29 @@ def loads(b: str) -> NormalizeTransform:
             return scaler_cls.load(f)
 
     raise NotImplementedError(f"Cannot load {class_name} scaler")
+
+
+def get_scaler(
+    scaler_type: str,
+    scaler_kwargs: Mapping,
+    norm_data: xr.Dataset,
+    output_vars: Iterable[str],
+    sample_dim: str,
+) -> NormalizeTransform:
+    DELP = "pressure_thickness_of_atmospheric_layer"
+    # Defaults to StandardScaler if none specified in config
+    packer = ArrayPacker(sample_dim, output_vars)
+    data_array = packer.to_array(norm_data)
+    if "standard" in scaler_type.lower():
+        target_scaler = StandardScaler()
+        target_scaler.fit(data_array)
+    elif "mass" in scaler_type.lower():
+        delp = norm_data[DELP].mean(dim=sample_dim).values
+        target_scaler = get_mass_scaler(  # type: ignore
+            packer, delp, scaler_kwargs.get("variable_scale_factors"), sqrt_scales=True
+        )
+    else:
+        raise ValueError(
+            "Config variable scaler_type must be either 'standard' or 'mass' ."
+        )
+    return target_scaler
