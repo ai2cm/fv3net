@@ -23,7 +23,6 @@ EpochLossHistory = Sequence[Sequence[Union[float, int]]]
 History = Mapping[str, EpochLossHistory]
 
 
-@io.register("packed-keras")
 class PackedKerasModel(Estimator):
     """
     Abstract base class for a keras-based model which operates on xarray
@@ -300,6 +299,7 @@ class PackedKerasModel(Estimator):
             return obj
 
 
+@io.register("packed-keras")
 class DenseModel(PackedKerasModel):
     """
     A simple feedforward neural network model with dense layers.
