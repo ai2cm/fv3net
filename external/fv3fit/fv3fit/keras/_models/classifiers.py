@@ -168,7 +168,7 @@ class DenseWithClassifier(DenseModel):
         out_tensor_slices = get_feature_slices(self.y_packer)
 
         inputs = tf.keras.Input(n_features_in)
-        inputs_by_var = separate_tensor_by_var(inputs, out_tensor_slices)
+        inputs_by_var = separate_tensor_by_var(inputs, in_tensor_slices)
         x = self.X_scaler.normalize_layer(inputs)
         for i in range(self._depth - 1):
             x = tf.keras.layers.Dense(
@@ -207,6 +207,7 @@ class DenseWithClassifier(DenseModel):
                 tracer_num = var.split("_")[-1]
                 q1_name = f"q1_input_{tracer_num}"
                 if q1_name in inputs_by_var:
+                    logger.debug(f"Found matching rtg input to use for mask: {q1_name}")
                     mask = tf.keras.layers.Lambda(_empty_column_sample_mask)(inputs_by_var[q1_name])
                     out_tensor = tf.keras.layers.Multiply()([mask, out_tensor])
 
