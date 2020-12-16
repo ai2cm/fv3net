@@ -2,8 +2,55 @@ base_version: v0.5
 data_table: default
 diag_table: /fv3net/workflows/prognostic_c48_run/diag_table_prognostic
 diagnostics:
+- name: state_after_timestep.zarr
+  times:
+    frequency: 900
+    kind: interval
+  variables:
+  - x_wind
+  - y_wind
+  - eastward_wind
+  - northward_wind
+  - vertical_wind
+  - air_temperature
+  - specific_humidity
+  - time
+  - pressure_thickness_of_atmospheric_layer
+  - vertical_thickness_of_atmospheric_layer
+  - land_sea_mask
+  - surface_temperature
+  - surface_geopotential
+  - sensible_heat_flux
+  - latent_heat_flux
+  - total_precipitation
+  - surface_precipitation_rate
+  - total_soil_moisture
+  - total_sky_downward_shortwave_flux_at_surface
+  - total_sky_upward_shortwave_flux_at_surface
+  - total_sky_downward_longwave_flux_at_surface
+  - total_sky_upward_longwave_flux_at_surface
+  - total_sky_downward_shortwave_flux_at_top_of_atmosphere
+  - total_sky_upward_shortwave_flux_at_top_of_atmosphere
+  - total_sky_upward_longwave_flux_at_top_of_atmosphere
+  - clear_sky_downward_shortwave_flux_at_surface
+  - clear_sky_upward_shortwave_flux_at_surface
+  - clear_sky_downward_longwave_flux_at_surface
+  - clear_sky_upward_longwave_flux_at_surface
+  - clear_sky_upward_shortwave_flux_at_top_of_atmosphere
+  - clear_sky_upward_longwave_flux_at_top_of_atmosphere
+  - latitude
+  - longitude
+- name: physics_tendencies.zarr
+  times:
+    frequency: 900
+    kind: interval
+  variables:
+  - tendency_of_air_temperature_due_to_fv3_physics
+  - tendency_of_specific_humidity_due_to_fv3_physics
+  - tendency_of_eastward_wind_due_to_fv3_physics
+  - tendency_of_northward_wind_due_to_fv3_physics
 - name: nudging_tendencies.zarr
-  times: &id001
+  times:
     frequency: 900
     kind: interval
   variables:
@@ -11,8 +58,11 @@ diagnostics:
   - specific_humidity_tendency_due_to_nudging
   - x_wind_tendency_due_to_nudging
   - y_wind_tendency_due_to_nudging
+  - pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging
 - name: diags.zarr
-  times: *id001
+  times:
+    frequency: 900
+    kind: interval
   variables:
   - net_moistening_due_to_nudging
   - net_heating_due_to_nudging
@@ -21,6 +71,16 @@ diagnostics:
   - column_integrated_northward_wind_tendency_due_to_nudging
   - water_vapor_path
   - physics_precip
+- name: reference_state.zarr
+  times:
+    frequency: 900
+    kind: interval
+  variables:
+  - air_temperature_reference
+  - specific_humidity_reference
+  - x_wind_reference
+  - y_wind_reference
+  - pressure_thickness_of_atmospheric_layer_reference
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 initial_conditions:
@@ -445,6 +505,7 @@ nudging:
   restarts_path: gs://ic-bucket
   timescale_hours:
     air_temperature: 12
+    pressure_thickness_of_atmospheric_layer: 12
     specific_humidity: 12
     x_wind: 12
     y_wind: 12
@@ -455,4 +516,6 @@ step_storage_variables:
 step_tendency_variables:
 - specific_humidity
 - air_temperature
+- eastward_wind
+- northward_wind
 
