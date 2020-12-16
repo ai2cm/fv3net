@@ -9,22 +9,18 @@ spec:
         value: "20160801.001500"
       - name: reference-restarts
         value: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
-      - name: nudge-to-fine-times
-        value: |
-          [
-            "20160801.003000",
-            "20160801.011500",
-          ]
+      - name: nudge-to-fine-output-frequency
+        value: 30
       - name: train-times
         value: |
           [
-            "20160801.003000",
+            "20160801.004500",
             "20160801.011500"
           ]
       - name: test-times
         value: |
           [
-            "20160801.003000",
+            "20160801.004500",
             "20160801.011500"
           ]
       - name: nudge-to-fine-config
@@ -151,8 +147,8 @@ spec:
             value: "{{workflow.parameters.reference-restarts}}"
           - name: initial-condition
             value: "{{workflow.parameters.initial-condition}}"
-          - name: output-timestamps
-            value: "{{workflow.parameters.nudge-to-fine-times}}"
+          - name: flags
+            value: "--output-frequency {{workflow.parameters.nudge-to-fine-output-frequency}}"
           - name: output
             value: "{{workflow.parameters.root}}/nudge_to_fine_run"
           - name: config
