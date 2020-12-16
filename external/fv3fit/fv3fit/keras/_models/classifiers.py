@@ -113,7 +113,7 @@ def separate_tensor_by_var(tensor, feature_dim_slices):
     return sep
 
 
-def _less_than_zero_mask(x, to_mask=None):
+def _less_than_zero_mask(x):
 
     non_zero = tf.math.greater_equal(x, tf.zeros_like(x))
     mask = tf.where(non_zero, x=tf.ones_like(x), y=tf.zeros_like(x))
@@ -121,9 +121,18 @@ def _less_than_zero_mask(x, to_mask=None):
     return mask
 
 
-def _less_than_equal_zero_mask(x, to_mask=None):
+def _less_than_equal_zero_mask(x):
 
     non_zero = tf.math.greater(x, tf.zeros_like(x))
+    mask = tf.where(non_zero, x=tf.ones_like(x), y=tf.zeros_like(x))
+
+    return mask
+
+
+def _empty_column_sample_mask(x):
+
+    tracer_column_integral = tf.math.reduce_sum(x, axis=1, keepdims=True)
+    non_zero = tf.math.greater(tracer_column_integral, tf.zeros_like(tracer_column_integral))
     mask = tf.where(non_zero, x=tf.ones_like(x), y=tf.zeros_like(x))
 
     return mask
@@ -155,9 +164,11 @@ class DenseWithClassifier(DenseModel):
 
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
 
+        in_tensor_slices = get_feature_slices(self.X_packer)
         out_tensor_slices = get_feature_slices(self.y_packer)
 
         inputs = tf.keras.Input(n_features_in)
+        inputs_by_var = separate_tensor_by_var(inputs, out_tensor_slices)
         x = self.X_scaler.normalize_layer(inputs)
         for i in range(self._depth - 1):
             x = tf.keras.layers.Dense(
@@ -189,6 +200,15 @@ class DenseWithClassifier(DenseModel):
                 out_tensor = tf.keras.layers.Lambda(lambda x: tf.math.round(x))(
                     out_tensor
                 )
+
+            # Zero out samples without anything in the column
+            if "rtg_output" in var:
+                # look for other tracer fields
+                tracer_num = var.split("_")[-1]
+                q1_name = f"q1_input_{tracer_num}"
+                if q1_name in inputs_by_var:
+                    mask = tf.keras.layers.Lambda(_empty_column_sample_mask)(inputs_by_var[q1_name])
+                    out_tensor = tf.keras.layers.Multiply()([mask, out_tensor])
 
             to_combine.append(out_tensor)
 
