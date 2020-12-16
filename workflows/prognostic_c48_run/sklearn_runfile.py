@@ -126,17 +126,41 @@ def predict(model: runtime.RenamingAdapter, state: State) -> State:
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
-def limit_sphum_tendency(state: State, tendency: State, dt: float):
+def limit_sphum_tendency_for_non_negativity(
+    state: State, tendency: State, dt: float
+) -> State:
+    """Reduce ML-derived sphum tendencies that would otherwise produce negative
+    specific humidity"""
+
     delta = tendency["dQ2"] * dt
     tendency_updated = copy.copy(tendency)
     tendency_updated["dQ2"] = xr.where(
         state[SPHUM] + delta > 0, tendency["dQ2"], -state[SPHUM] / dt,  # type: ignore
     )
-    log_updated_tendencies(tendency, tendency_updated)
+    log_updated_tendencies(tendency, tendency_updated, "non_negativity")
     return tendency_updated
 
 
-def log_updated_tendencies(tendency: State, tendency_updated: State):
+def limit_sphum_tendency_for_moisture_conservation(
+    state: State, tendency: State, dt: float
+) -> State:
+    """Set to zero columns of ML- or nudging-derived sphum tendencies that would
+    otherwise produce an atmospheric moisture source without corresponding surface
+    evaporation, i.e., PRATE-<dQ2> < 0"""
+    column_dq2 = (tendency["dQ2"] * state[DELP] / gravity).sum("z")
+    python_precip = -column_dq2 * dt * m_per_mm
+    total_precip = state[TOTAL_PRECIP] + python_precip
+    tendency_updated = copy.copy(tendency)
+    tendency_updated["dQ2"] = xr.where(
+        total_precip > 0,  # type: ignore
+        tendency["dQ2"],
+        xr.zeros_like(tendency["dQ2"]),
+    )
+    log_updated_tendencies(tendency, tendency_updated, "moisture_conservation")
+    return tendency_updated
+
+
+def log_updated_tendencies(tendency: State, tendency_updated: State, process: str):
     rank_updated_points = xr.where(tendency["dQ2"] != tendency_updated["dQ2"], 1, 0)
     updated_points = comm.reduce(rank_updated_points, root=0)
     if comm.rank == 0:
@@ -144,7 +168,9 @@ def log_updated_tendencies(tendency: State, tendency_updated: State):
             i: int(value)
             for i, value in enumerate(updated_points.sum(["x", "y"]).values)
         }
-        logging.info(f"specific_humidity_limiter_updates_per_level: {level_updates}")
+        logging.info(
+            f"specific_humidity_{process}_limiter_updates_per_level: {level_updates}"
+        )
 
 
 def apply(state: State, tendency: State, dt: float) -> State:
@@ -302,11 +328,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._log_debug("Computing ML-predicted tendencies")
         tendency = predict(self._model, state)
 
-        self._log_debug(
-            "Correcting ML tendencies that would predict negative specific humidity"
-        )
-        tendency = limit_sphum_tendency(state, tendency, dt=self._timestep)
-
         self._tendencies_to_apply_to_dycore_state = {
             k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]
         }
@@ -329,6 +350,18 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
         tendency = self._tendencies_to_apply_to_dycore_state
+
+        self._log_debug(
+            "Correcting ML tendencies that would produce negative specific humidity"
+            "and/or a moisture source"
+        )
+        tendency = limit_sphum_tendency_for_non_negativity(
+            state, tendency, dt=self._timestep
+        )
+        tendency = limit_sphum_tendency_for_moisture_conservation(
+            state, tendency, dt=self._timestep
+        )
+
         diagnostics = runtime.compute_ml_diagnostics(state, tendency)
 
         if self._do_only_diagnostic_ml:
@@ -422,6 +455,13 @@ class NudgingTimeLoop(TimeLoop):
         self._log_debug(f"Getting state variables: {variables}")
         state: State = {name: self._state[name] for name in variables}
         tendency: State = self._tendencies_to_apply_to_dycore_state
+
+        self._log_debug(
+            "Correcting nudging tendencies that would produce a moisture source"
+        )
+        tendency = limit_sphum_tendency_for_moisture_conservation(
+            state, tendency, dt=self._timestep
+        )
 
         diagnostics.update(runtime.compute_nudging_diagnostics(state, tendency))
         updated_state: State = apply(state, tendency, dt=self._timestep)
