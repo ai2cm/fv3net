@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import datetime
 import os
 from typing import Mapping, Sequence, Union
@@ -134,6 +135,7 @@ def insert_report_figure(
     filepath_relative_to_report = os.path.join(section_dir, filename)
     _save_figure(fig, filepath_relative_to_report, output_dir)
     sections.setdefault(section_name, []).append(filepath_relative_to_report)
+    plt.close(fig)
 
 
 def create_html(

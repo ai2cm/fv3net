@@ -1,15 +1,16 @@
 import argparse
+import shutil
 import os
 import glob
 import atexit
 import logging
 import sys
 import tempfile
+from typing import MutableMapping, Sequence, List
 
 import fv3viz
 import numpy as np
 from report import insert_report_figure
-from typing import Mapping, MutableMapping, Sequence
 import vcm
 import diagnostics_utils.plot as diagplot
 from ._helpers import (
@@ -42,6 +43,17 @@ handler.setFormatter(
 handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags_report")
+
+
+def copy_pngs_to_report(input: str, output: str) -> List[str]:
+    pngs = glob.glob(os.path.join(input, "*.png"))
+    output_pngs = []
+    if len(pngs) > 0:
+        for png in pngs:
+            relative_path = os.path.basename(png)
+            shutil.copy(png, os.path.join(output, relative_path))
+            output_pngs.append(relative_path)
+    return output_pngs
 
 
 def _cleanup_temp_dir(temp_dir):
@@ -231,11 +243,9 @@ if __name__ == "__main__":
             ),
         }
 
-    # load other figures
-    pngs = glob.glob(os.path.join(args.input_path, '*.png'))
-    if len(pngs) > 0:
-        report_sections['Other Figures'] = pngs
-
+    report_sections["Other Figures"] = copy_pngs_to_report(
+        args.input_path, temp_output_dir.name
+    )
 
     write_report(
         temp_output_dir.name,

@@ -104,6 +104,7 @@ class PackedKerasModel(Estimator):
         self.X_scaler.fit(X)
         self.y_scaler.fit(y)
 
+    @abc.abstractmethod
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         """Returns a Keras model to use as the underlying predictive model.
         
@@ -309,7 +310,9 @@ class PackedKerasModel(Estimator):
         """
         if base_state is None:
             if self.X_scaler.mean is not None:
-                mean_expanded = self.X_packer.to_dataset(self.X_scaler.mean[np.newaxis, :])
+                mean_expanded = self.X_packer.to_dataset(
+                    self.X_scaler.mean[np.newaxis, :]
+                )
             else:
                 raise ValueError("X_scaler needs to be fit first.")
         else:
