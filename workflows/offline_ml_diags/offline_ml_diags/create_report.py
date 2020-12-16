@@ -1,4 +1,5 @@
 import argparse
+import glob
 import atexit
 import logging
 import sys
@@ -228,6 +229,12 @@ if __name__ == "__main__":
                 [get_metric_string(metrics, "bias", var), units_from_Q_name(var)]
             ),
         }
+
+    # load other figures
+    pngs = glob.glob(os.path.join(args.input_path, '*.png'))
+    if len(pngs) > 0:
+        report_sections['Other Figures'] = pngs
+
 
     write_report(
         temp_output_dir.name,
