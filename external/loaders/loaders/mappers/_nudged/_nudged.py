@@ -51,7 +51,7 @@ def open_nudge_to_obs(
         url,
         [
             "physics_tendencies.zarr",
-            "nudge_to_obs_tendencies.zarr",
+            "nudging_tendencies.zarr",
             "state_after_timestep.zarr",
         ],
         consolidated=consolidated,
@@ -67,7 +67,7 @@ def open_nudge_to_obs(
                     "tendency_of_northward_wind_due_to_fv3_physics": "pQv",
                 }
             ),
-            datasets["nudge_to_obs_tendencies.zarr"].rename(
+            datasets["nudging_tendencies.zarr"].rename(
                 {
                     "t_dt_nudge": "dQ1",
                     "q_dt_nudge": "dQ2",
@@ -141,7 +141,7 @@ def open_nudge_to_fine(
             url,
             [
                 "physics_tendencies.zarr",
-                "nudge_to_fine_tendencies.zarr",
+                "nudging_tendencies.zarr",
                 "state_after_timestep.zarr",
             ],
             consolidated=consolidated,

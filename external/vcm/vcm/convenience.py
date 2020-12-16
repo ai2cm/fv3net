@@ -113,12 +113,12 @@ def cast_to_datetime(
 
 
 @cast_to_datetime.register
-def _(time: datetime) -> datetime:
+def _cast_datetime_to_datetime(time: datetime) -> datetime:
     return time
 
 
 @cast_to_datetime.register
-def _(time: np.datetime64):
+def _cast_numpytime_to_datetime(time: np.datetime64):  # type: ignore
     # https://stackoverflow.com/questions/13703720/converting-between-datetime-timestamp-and-datetime64
     unix_epoch = np.datetime64(0, "s")
     one_second = np.timedelta64(1, "s")

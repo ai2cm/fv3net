@@ -1,11 +1,5 @@
-from typing import (
-    Any,
-    Sequence,
-    Container,
-    Mapping,
-    List,
-    Union,
-)
+from typing import Any, Sequence, Container, Mapping, List, Union, Optional, Dict
+
 import datetime
 import cftime
 import logging
@@ -99,15 +93,15 @@ class DiagnosticFile:
 
     def __init__(
         self,
-        monitor: fv3gfs.util.ZarrMonitor,
-        times: Container[cftime.DatetimeJulian],
+        name: str,
         variables: Container,
+        times: Optional[Container[cftime.DatetimeJulian]] = None,
     ):
         """
         Args:
-            monitor: an underlying monitor to store the data in
-            times: the set of times (potentially infinite) to save the data at
+            name: file name of a zarr to store the data in, e.g., 'diags.zarr'
             variables: a container of variables to save
+            times (optional): a container for times to output
 
         Note:
 
@@ -122,15 +116,21 @@ class DiagnosticFile:
             as well as the generic ``All`` container that contains the entire
             Universe!
         """
-        self._monitor = monitor
-        self.times = times
+        self._name = name
         self.variables = variables
+        self.times = times
+        self._monitor: Optional[fv3gfs.util.ZarrMonitor] = None
 
     def observe(
         self, time: cftime.DatetimeJulian, diagnostics: Mapping[str, xr.DataArray]
     ):
         """Possibly store the data into the monitor
         """
+        if self._monitor is None or self.times is None:
+            raise ValueError(
+                f"zarr monitor not yet established for {self._name}. Call set_monitor."
+            )
+
         if time in self.times:
             quantities = {
                 # need units for from_data_array to work
@@ -146,32 +146,38 @@ class DiagnosticFile:
             quantities["time"] = time
             self._monitor.store(quantities)
 
+    @classmethod
+    def from_config(
+        cls, diag_file_config: Mapping, initial_time: cftime.DatetimeJulian
+    ) -> "DiagnosticFile":
+        return DiagnosticFile(
+            name=diag_file_config["name"],
+            variables=diag_file_config.get("variables", All()),
+            times=cls._get_times(diag_file_config.get("times", {}), initial_time),
+        )
 
-def _get_times(
-    d, initial_time: cftime.DatetimeJulian
-) -> Container[cftime.DatetimeJulian]:
-    kind = d.get("kind", "every")
-    if kind == "interval":
-        return IntervalTimes(d["frequency"], initial_time)
-    elif kind == "selected":
-        return SelectedTimes(d["times"])
-    elif kind == "every":
-        return All()
-    else:
-        raise NotImplementedError(f"Time {kind} not implemented.")
+    def set_monitor(self, monitor: fv3gfs.util.ZarrMonitor) -> "DiagnosticFile":
+        if self._monitor is not None:
+            raise ValueError(f"zarr monitor already initialized at {self._name}")
+        self._monitor = monitor
+        return self
 
+    @staticmethod
+    def _get_times(
+        d, initial_time: cftime.DatetimeJulian
+    ) -> Container[cftime.DatetimeJulian]:
+        kind = d.get("kind", "every")
+        if kind == "interval":
+            return IntervalTimes(d["frequency"], initial_time)
+        elif kind == "selected":
+            return SelectedTimes(d["times"])
+        elif kind == "every":
+            return All()
+        else:
+            raise NotImplementedError(f"Time {kind} not implemented.")
 
-def _config_to_diagnostic_file(
-    diag_file_config: Mapping, partitioner, comm, initial_time: cftime.DatetimeJulian,
-) -> DiagnosticFile:
-    monitor = fv3gfs.util.ZarrMonitor(
-        diag_file_config["name"], partitioner, mpi_comm=comm
-    )
-    return DiagnosticFile(
-        monitor=monitor,
-        variables=diag_file_config.get("variables", All()),
-        times=_get_times(diag_file_config.get("times", {}), initial_time),
-    )
+    def to_dict(self) -> Dict:
+        return {"name": self._name, "variables": self.variables, "times": self.times}
 
 
 def get_diagnostic_files(
@@ -197,7 +203,9 @@ def get_diagnostic_files(
     diag_configs = config.get("diagnostics", [])
     if len(diag_configs) > 0:
         return [
-            _config_to_diagnostic_file(config, partitioner, comm, initial_time)
+            DiagnosticFile.from_config(config, initial_time).set_monitor(
+                fv3gfs.util.ZarrMonitor(config["name"], partitioner, mpi_comm=comm)
+            )
             for config in diag_configs
         ]
     else:
@@ -205,5 +213,9 @@ def get_diagnostic_files(
         output_name = config["scikit_learn"]["zarr_output"]
         default_config = {"name": output_name, "times": {}, "variables": All()}
         return [
-            _config_to_diagnostic_file(default_config, partitioner, comm, initial_time)
+            DiagnosticFile.from_config(default_config, initial_time).set_monitor(
+                fv3gfs.util.ZarrMonitor(
+                    default_config["name"], partitioner, mpi_comm=comm
+                )
+            )
         ]
