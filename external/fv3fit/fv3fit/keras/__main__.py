@@ -84,8 +84,16 @@ if __name__ == "__main__":
 
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
-            timesteps = yaml.safe_load(f)
+            timesteps = yaml.safe_load(f)    
         train_config.batch_kwargs["timesteps"] = timesteps
+    timesteps_per_validation_batch = train_config.batch_kwargs["timesteps_per_validation_batch"] or 1
+    train_times, val_times = shared.data.train_validation_split_batches(
+        train_config.batch_kwargs["timesteps"],
+        train_config.batch_kwargs["timesteps_per_batch"],
+        timesteps_per_validation_batch 
+    )
+    train_config["timesteps"] = train_times
+    train_config["validation_timesteps"] = val_times
 
     shared.save_config_output(args.output_data_path, train_config)
 
@@ -103,6 +111,7 @@ if __name__ == "__main__":
         **train_config.hyperparameters
     )
     batches = shared.load_data_sequence(data_path, train_config)
+
     history = model.fit(batches, **fit_kwargs)  # type: ignore
     fv3fit._shared.io.dump(model, args.output_data_path)
     save_history(
