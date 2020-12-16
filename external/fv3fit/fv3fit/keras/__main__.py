@@ -6,7 +6,9 @@ import numpy as np
 import sys
 import random
 from . import get_model
+from ._save_history import save_history
 from .. import _shared as shared
+import fv3fit._shared.io
 import loaders
 import tensorflow as tf
 from typing import Union
@@ -22,6 +24,7 @@ logger = logging.getLogger(__file__)
 
 
 MODEL_FILENAME = "model_data"
+HISTORY_OUTPUT_DIR = "training_history"
 
 
 def _get_optimizer(hyperparameters: dict = None):
@@ -89,6 +92,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     _set_random_seed(train_config.random_seed)
     optimizer = _get_optimizer(train_config.hyperparameters)
+
     fit_kwargs = train_config.hyperparameters.pop("fit_kwargs", {})
     model = get_model(
         train_config.model_type,
@@ -99,7 +103,8 @@ if __name__ == "__main__":
         **train_config.hyperparameters
     )
     batches = shared.load_data_sequence(data_path, train_config)
-    model.fit(batches, **fit_kwargs)
-
-    model_output_path = os.path.join(args.output_data_path, MODEL_FILENAME)
-    model.dump(model_output_path)
+    history = model.fit(batches, **fit_kwargs)  # type: ignore
+    fv3fit._shared.io.dump(model, args.output_data_path)
+    save_history(
+        history, os.path.join(args.output_data_path, HISTORY_OUTPUT_DIR),
+    )

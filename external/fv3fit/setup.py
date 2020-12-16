@@ -30,7 +30,7 @@ test_requirements = ["pytest"]
 setup(
     author="Vulcan Technologies LLC",
     author_email="jeremym@vulcan.com",
-    python_requires=">=3.7",
+    python_requires=">=3.6.9",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",

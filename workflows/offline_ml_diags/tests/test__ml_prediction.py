@@ -75,7 +75,7 @@ def get_mock_sklearn_model(input_variables, output_variables, ds):
     ds_stacked = safe.stack_once(
         ds, "sample", [dim for dim in ds.dims if dim != "z"]
     ).transpose("sample", "z")
-    model_wrapper.fit(ds_stacked * 0)
+    model_wrapper.fit([ds_stacked * 0])
     return model_wrapper
 
 
