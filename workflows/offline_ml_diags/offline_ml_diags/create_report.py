@@ -1,4 +1,5 @@
 import argparse
+import os
 import glob
 import atexit
 import logging
@@ -8,7 +9,7 @@ import tempfile
 import fv3viz
 import numpy as np
 from report import insert_report_figure
-from typing import Mapping, Sequence
+from typing import Mapping, MutableMapping, Sequence
 import vcm
 import diagnostics_utils.plot as diagplot
 from ._helpers import (
@@ -97,7 +98,7 @@ if __name__ == "__main__":
     if args.commit_sha:
         config["commit"] = args.commit_sha
 
-    report_sections = {}  # type: Mapping[str, Sequence[str]]
+    report_sections: MutableMapping[str, Sequence[str]] = {}
 
     # histogram of timesteps used for testing
     try:

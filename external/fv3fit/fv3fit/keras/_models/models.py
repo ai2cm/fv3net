@@ -281,7 +281,10 @@ class PackedKerasModel(Estimator):
 
         """
         if base_state is None:
-            mean_expanded = self.X_packer.to_dataset(self.X_scaler.mean[np.newaxis, :])
+            if self.X_scaler.mean is not None:
+                mean_expanded = self.X_packer.to_dataset(self.X_scaler.mean[np.newaxis, :])
+            else:
+                raise ValueError("X_scaler needs to be fit first.")
         else:
             mean_expanded = base_state.expand_dims(self.sample_dim_name)
 

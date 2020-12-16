@@ -315,21 +315,21 @@ if __name__ == "__main__":
         pass
 
     # compute transected and zonal diags
-    snapshot_time = args.snapshot_time or sorted(timesteps)[0]
-    snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
-    ds_snapshot = pred_mapper[snapshot_key]
-    ds_transect = _get_transect(ds_snapshot, grid, config["output_variables"])
+    # snapshot_time = args.snapshot_time or sorted(timesteps)[0]
+    # snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
+    # ds_snapshot = pred_mapper[snapshot_key]
+    # ds_transect = _get_transect(ds_snapshot, grid, config["output_variables"])
 
-    # write diags and diurnal datasets
-    _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
-    _write_nc(
-        ds_diagnostics, args.output_path, DIAGS_NC_NAME,
-    )
-    _write_nc(ds_diurnal, args.output_path, DIURNAL_NC_NAME)
+    # # write diags and diurnal datasets
+    # _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
+    # _write_nc(
+    #     ds_diagnostics, args.output_path, DIAGS_NC_NAME,
+    # )
+    # _write_nc(ds_diurnal, args.output_path, DIURNAL_NC_NAME)
 
-    # convert and output metrics json
-    metrics = _average_metrics_dict(ds_scalar_metrics)
-    with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
-        json.dump(metrics, f, indent=4)
+    # # convert and output metrics json
+    # metrics = _average_metrics_dict(ds_scalar_metrics)
+    # with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
+    #     json.dump(metrics, f, indent=4)
 
     logger.info(f"Finished processing dataset diagnostics and metrics.")

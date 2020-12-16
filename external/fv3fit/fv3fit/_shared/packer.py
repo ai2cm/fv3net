@@ -265,4 +265,4 @@ def unpack_matrix(
             i += size_out
         j += size_in
 
-    return xr.Dataset(jacobian_dict)
+    return xr.Dataset(jacobian_dict) # type: ignore
