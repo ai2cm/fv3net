@@ -8,7 +8,7 @@ import random
 from . import get_model
 from ._save_history import save_history
 from .. import _shared as shared
-from _models.models import PackedKerasModel
+from ._models.models import PackedKerasModel
 import fv3fit._shared.io
 import loaders
 import tensorflow as tf
