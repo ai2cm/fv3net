@@ -1,7 +1,7 @@
 import yaml
 import dataclasses
 import os
-from typing import Iterable, Optional, Mapping, Union
+from typing import Iterable, Optional, Mapping, Union, Sequence
 import vcm
 
 
@@ -25,9 +25,11 @@ class ModelTrainingConfig:
     scaler_kwargs: Mapping = dataclasses.field(default_factory=dict)
     additional_variables: Optional[Iterable[str]] = None
     random_seed: Union[float, int] = 0
+    validation_timesteps: Sequence[str] = None
 
     def __post_init__(self):
         self.additional_variables = self.additional_variables or []
+        self.validation_timesteps = self.validation_timesteps or []
         self.scaler_kwargs = self.scaler_kwargs or {}
         if self.scaler_type == "mass":
             if DELP not in self.additional_variables:

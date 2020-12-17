@@ -72,6 +72,12 @@ def parse_args():
         default=None,
         help="json file containing a list of timesteps in YYYYMMDD.HHMMSS format",
     )
+    parser.add_argument(
+        "--validation-timesteps-file",
+        type=str,
+        default=None,
+        help="json file containing a list of validation timesteps in YYYYMMDD.HHMMSS format",
+    )
     return parser.parse_args()
 
 
@@ -84,17 +90,12 @@ if __name__ == "__main__":
 
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
-            timesteps = yaml.safe_load(f)    
+            timesteps = yaml.safe_load(f)
         train_config.batch_kwargs["timesteps"] = timesteps
-    timesteps_per_validation_batch = train_config.batch_kwargs["timesteps_per_validation_batch"] or 1
-    train_times, val_times = shared.data.train_validation_split_batches(
-        train_config.batch_kwargs["timesteps"],
-        train_config.batch_kwargs["timesteps_per_batch"],
-        timesteps_per_validation_batch 
-    )
-    train_config["timesteps"] = train_times
-    train_config["validation_timesteps"] = val_times
-
+    if args.validation_timesteps_file:
+        with open(args.validation_timesteps_file, "r") as f:
+            val_timesteps = yaml.safe_load(f)
+        train_config.validation_timesteps = val_timesteps
     shared.save_config_output(args.output_data_path, train_config)
 
     logging.basicConfig(level=logging.INFO)
@@ -111,8 +112,16 @@ if __name__ == "__main__":
         **train_config.hyperparameters
     )
     batches = shared.load_data_sequence(data_path, train_config)
+    if len(train_config.validation_timesteps) > 0:
+        shared.check_validation_train_overlap(
+            train_config.batch_kwargs["timesteps"], train_config.validation_timesteps
+        )
+        validation_config = shared.validation_timesteps_config(train_config)
+        validation_dataset = shared.load_data_sequence(data_path, validation_config)[0]
+    else:
+        validation_dataset = None
 
-    history = model.fit(batches, **fit_kwargs)  # type: ignore
+    history = model.fit(batches, validation_dataset=validation_dataset, **fit_kwargs)  # type: ignore
     fv3fit._shared.io.dump(model, args.output_data_path)
     save_history(
         history, os.path.join(args.output_data_path, HISTORY_OUTPUT_DIR),

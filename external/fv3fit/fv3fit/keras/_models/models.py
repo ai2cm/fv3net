@@ -119,10 +119,12 @@ class PackedKerasModel(Estimator):
     def fit(
         self,
         batches: Sequence[xr.Dataset],
+        validation_dataset: xr.Dataset = None,
         epochs: int = 1,
         batch_size: Optional[int] = None,
         workers: int = 1,
         max_queue_size: int = 8,
+        validation_samples: int = 13824,
         **fit_kwargs: Any,
     ) -> History:
         """Fits a model using data in the batches sequence
@@ -139,6 +141,7 @@ class PackedKerasModel(Estimator):
         
         Args:
             batches: sequence of stacked datasets of predictor variables
+            validation_dataset: optional validation dataset
             epochs: optional number of times through the batches to run when training
             batch_size: actual batch_size to apply in gradient descent updates,
                 independent of number of samples in each batch in batches; optional,
@@ -146,6 +149,10 @@ class PackedKerasModel(Estimator):
             workers: number of workers for parallelized loading of batches fed into
                 training, defaults to serial loading (1 worker)
             max_queue_size: max number of batches to hold in the parallel loading queue
+            validation_samples: Option to specify number of samples to randomly draw
+                from the validation dataset, so that we can use multiple timesteps for
+                validation without having to load all the times into memory.
+                Defaults to the equivalent of a single C48 timestep.
             **fit_kwargs: other keyword arguments to be passed to the underlying
                 tf.keras.Model.fit() method
         """
@@ -158,9 +165,20 @@ class PackedKerasModel(Estimator):
             self._fit_normalization(X, y)
             self._model = self.get_model(n_features_in, n_features_out)
 
+        if validation_dataset is not None:
+            X_val = self.X_packer.to_array(validation_dataset)
+            y_val = self.y_packer.to_array(validation_dataset)
+            val_sample = np.random.choice(
+                np.arange(len(y_val)), validation_samples, replace=False
+            )
+            validation_data = X_val[val_sample], y_val[val_sample]
+        else:
+            validation_data = None
+
         if batch_size is not None:
             return self._fit_loop(
                 Xy,
+                validation_data,
                 epochs,
                 batch_size,
                 workers=workers,
@@ -179,6 +197,7 @@ class PackedKerasModel(Estimator):
     def _fit_loop(
         self,
         Xy: Sequence[Tuple[np.ndarray, np.ndarray]],
+        validation_data: Tuple[np.ndarray, np.ndarray],
         epochs: int,
         batch_size: int,
         workers: int = 1,
@@ -199,9 +218,15 @@ class PackedKerasModel(Estimator):
                 logger.info(
                     f"Fitting on timestep {i_batch} of {len(Xy)}, of epoch {i_epoch}..."
                 )
-                history = self.model.fit(X, y, batch_size=batch_size, **fit_kwargs)
+                history = self.model.fit(
+                    X,
+                    y,
+                    validation_data=validation_data,
+                    batch_size=batch_size,
+                    **fit_kwargs,
+                )
                 loss_over_batches += history.history["loss"]
-                val_loss_over_batches += history.history["val_loss"]
+                val_loss_over_batches += history.history.get("val_loss", [np.nan])
             train_history["loss"].append(loss_over_batches)
             train_history["val_loss"].append(val_loss_over_batches)
         return train_history
