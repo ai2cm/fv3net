@@ -299,20 +299,24 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
 
         self._log_debug(
             "Correcting ML tendencies that would produce negative specific humidity"
-            "and/or a moisture source"
+            "and/or a moisture source, and coupling to surface precipitation"
         )
-        sphum_tendency_updated = runtime.limit_sphum_tendency_for_non_negativity(
+        limited_sphum_tendency = runtime.limit_sphum_tendency_for_non_negativity(
             state[SPHUM], tendency["dQ2"], dt=self._timestep
         )
         log_updated_tendencies(
-            tendency["dQ2"], sphum_tendency_updated, "moisture_conservation"
+            tendency["dQ2"], limited_sphum_tendency, "non_negativity"
         )
-        sphum_tendency = sphum_tendency_updated
-        sphum_tendency_updated = runtime.limit_sphum_tendency_for_moisture_conservation(
-            state[TOTAL_PRECIP], sphum_tendency, state[DELP], dt=self._timestep
+        (
+            updated_state[TOTAL_PRECIP],
+            conserving_sphum_tendency,
+        ) = runtime.couple_sphum_tendency_and_surface_precip(
+            state[TOTAL_PRECIP], limited_sphum_tendency, state[DELP], self._timestep
         )
-        log_updated_tendencies(sphum_tendency, sphum_tendency_updated, "non_negativity")
-        tendency["dQ2"] = sphum_tendency_updated
+        log_updated_tendencies(
+            limited_sphum_tendency, conserving_sphum_tendency, "moisture_conservation"
+        )
+        tendency["dQ2"] = conserving_sphum_tendency
 
         diagnostics = runtime.compute_ml_diagnostics(state, tendency)
 
@@ -320,10 +324,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             runtime.rename_diagnostics(diagnostics)
         else:
             updated_state.update(apply(state, tendency, dt=self._timestep))
-
-        updated_state[TOTAL_PRECIP] = runtime.precipitation_sum(
-            state[TOTAL_PRECIP], diagnostics["net_moistening"], self._timestep
-        )
 
         self._log_debug("Setting Fortran State")
         self._state.update(updated_state)
@@ -398,6 +398,7 @@ class NudgingTimeLoop(TimeLoop):
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 
         diagnostics: Diagnostics = {}
+        updated_state: State = {}
 
         variables: List[str] = self.nudging_variables + [
             TOTAL_PRECIP,
@@ -409,23 +410,23 @@ class NudgingTimeLoop(TimeLoop):
         tendency: State = self._tendencies_to_apply_to_dycore_state
 
         self._log_debug(
-            "Correcting nudging tendencies that would produce a moisture source"
+            "Correcting nudging tendencies that would produce a moisture source "
+            "and coupling to surface precipitation"
         )
-        sphum_tendency_updated = runtime.limit_sphum_tendency_for_moisture_conservation(
+        (
+            updated_state[TOTAL_PRECIP],
+            conserving_sphum_tendency,
+        ) = runtime.couple_sphum_tendency_and_surface_precip(
             state[TOTAL_PRECIP], tendency[SPHUM], state[DELP], dt=self._timestep,
         )
         log_updated_tendencies(
-            tendency[SPHUM], sphum_tendency_updated, "non_negativity"
+            tendency[SPHUM], conserving_sphum_tendency, "moisture_conservation"
         )
-        tendency[SPHUM] = sphum_tendency_updated
+        tendency[SPHUM] = conserving_sphum_tendency
 
         diagnostics.update(runtime.compute_nudging_diagnostics(state, tendency))
-        updated_state: State = apply(state, tendency, dt=self._timestep)
-        updated_state[TOTAL_PRECIP] = runtime.precipitation_sum(
-            state[TOTAL_PRECIP],
-            diagnostics["net_moistening_due_to_nudging"],
-            self._timestep,
-        )
+
+        updated_state.update(apply(state, tendency, dt=self._timestep))
 
         self._log_debug("Setting Fortran State")
         self._state.update(updated_state)

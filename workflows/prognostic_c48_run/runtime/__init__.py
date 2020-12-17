@@ -18,9 +18,8 @@ from .nudging import (
     set_state_sst_to_reference,
 )
 from .limiters import (
-    precipitation_sum,
+    couple_sphum_tendency_and_surface_precip,
     limit_sphum_tendency_for_non_negativity,
-    limit_sphum_tendency_for_moisture_conservation,
 )
 
 __version__ = "0.1.0"
