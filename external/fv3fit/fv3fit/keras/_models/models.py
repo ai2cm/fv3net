@@ -231,16 +231,6 @@ class PackedKerasModel(Estimator):
             train_history["val_loss"].append(val_loss_over_batches)
         return train_history
 
-    def _fit_array(
-        self, Xy: Sequence[Tuple[np.ndarray, np.ndarray]], **fit_kwargs: Any
-    ) -> History:
-        history = self.model.fit(x=Xy, **fit_kwargs)
-        reformat_history = {
-            key: [[val] for val in epoch_values]
-            for key, epoch_values in history.history.items()
-        }
-        return reformat_history
-
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         sample_coord = X[self.sample_dim_name]
         ds_pred = self.y_packer.to_dataset(
