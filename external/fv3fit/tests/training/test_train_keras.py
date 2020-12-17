@@ -141,21 +141,22 @@ def test_dump_and_load_maintains_prediction(
     xr.testing.assert_equal(loaded_result, original_result)
 
 
+hyperparams_with_fit_kwargs =  {
+    "width": 4,
+    "depth": 3,
+    "fit_kwargs": {"batch_size": 100, "validation_samples": 384},
+}
 @pytest.mark.parametrize(
-    "hyperparameters",
+    "hyperparameters, validation_timesteps",
     [
-        (
-            {
-                "width": 4,
-                "depth": 3,
-                "fit_kwargs": {"batch_size": 100, "validation_samples": 384},
-            }
-        )
+        (hyperparams_with_fit_kwargs, ["20160801.003000"]),
+        (hyperparams_with_fit_kwargs, None)
     ],
-    indirect=["hyperparameters"],
+    indirect=["hyperparameters", "validation_timesteps"],
 )
 def test_training_integration(
     hyperparameters,
+    validation_timesteps,
     data_source_path: str,
     train_config_filename: str,
     tmp_path: str,
