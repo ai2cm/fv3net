@@ -8,6 +8,7 @@ import random
 from . import get_model
 from ._save_history import save_history
 from .. import _shared as shared
+from _models.models import PackedKerasModel
 import fv3fit._shared.io
 import loaders
 import tensorflow as tf
@@ -132,7 +133,7 @@ if __name__ == "__main__":
         train_config.output_variables,
         optimizer=optimizer,
         **train_config.hyperparameters
-    )
+    )  # type: PackedKerasModel
     batches = shared.load_data_sequence(data_path, train_config)
     validation_dataset = _validation_dataset(train_config)
 
