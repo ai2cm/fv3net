@@ -1,5 +1,5 @@
 import pytest
-from fv3fit._shared.data import check_validation_train_overlap
+from fv3fit.keras._validation_data import check_validation_train_overlap
 
 
 def test_check_validation_train_overlap():
