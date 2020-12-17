@@ -25,7 +25,7 @@ class ModelTrainingConfig:
     scaler_kwargs: Mapping = dataclasses.field(default_factory=dict)
     additional_variables: Optional[Iterable[str]] = None
     random_seed: Union[float, int] = 0
-    validation_timesteps: Sequence[str] = None
+    validation_timesteps: Optional[Sequence[str]] = None
 
     def __post_init__(self):
         self.additional_variables = self.additional_variables or []

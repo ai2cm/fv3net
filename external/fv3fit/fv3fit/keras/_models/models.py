@@ -119,7 +119,7 @@ class PackedKerasModel(Estimator):
     def fit(
         self,
         batches: Sequence[xr.Dataset],
-        validation_dataset: xr.Dataset = None,
+        validation_dataset: Optional[xr.Dataset] = None,
         epochs: int = 1,
         batch_size: Optional[int] = None,
         workers: int = 1,
@@ -165,6 +165,7 @@ class PackedKerasModel(Estimator):
             self._fit_normalization(X, y)
             self._model = self.get_model(n_features_in, n_features_out)
 
+        validation_data: Optional[Tuple[np.ndarray, np.ndarray]]
         if validation_dataset is not None:
             X_val = self.X_packer.to_array(validation_dataset)
             y_val = self.y_packer.to_array(validation_dataset)
@@ -175,31 +176,22 @@ class PackedKerasModel(Estimator):
         else:
             validation_data = None
 
-        if batch_size is not None:
-            return self._fit_loop(
-                Xy,
-                validation_data,
-                epochs,
-                batch_size,
-                workers=workers,
-                max_queue_size=max_queue_size,
-                **fit_kwargs,
-            )
-        else:
-            return self._fit_array(
-                Xy,
-                epochs=epochs,
-                workers=workers,
-                max_queue_size=max_queue_size,
-                **fit_kwargs,
-            )
+        return self._fit_loop(
+            Xy,
+            validation_data,
+            epochs,
+            batch_size,
+            workers=workers,
+            max_queue_size=max_queue_size,
+            **fit_kwargs,
+        )
 
     def _fit_loop(
         self,
         Xy: Sequence[Tuple[np.ndarray, np.ndarray]],
-        validation_data: Tuple[np.ndarray, np.ndarray],
+        validation_data: Optional[Tuple[np.ndarray, np.ndarray]],
         epochs: int,
-        batch_size: int,
+        batch_size: Optional[int] = None,
         workers: int = 1,
         max_queue_size: int = 8,
         **fit_kwargs: Any,

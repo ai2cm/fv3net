@@ -1,5 +1,5 @@
 from copy import copy
-from typing import List, Union, Sequence, Tuple
+from typing import List, Union, Sequence
 import xarray as xr
 
 from loaders import batches, Map
@@ -42,6 +42,6 @@ def validation_timesteps_config(train_config: ModelTrainingConfig):
     val_config = copy(train_config)
     val_config.batch_kwargs["timesteps"] = train_config.validation_timesteps
     val_config.batch_kwargs["timesteps_per_batch"] = len(
-        train_config.validation_timesteps
+        train_config.validation_timesteps  # type: ignore
     )
     return val_config
