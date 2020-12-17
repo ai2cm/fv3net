@@ -12,6 +12,7 @@ MODEL_CONFIG_FILENAME = "training_config.yml"
 class ModelTrainingConfig:
     """Convenience wrapper for model training parameters and file info
     """
+
     def __init__(
         self,
         data_path: str,
@@ -41,12 +42,13 @@ class ModelTrainingConfig:
         if self.scaler_type == "mass":
             if DELP not in self.additional_variables:
                 self.additional_variables.append(DELP)
-        
+
     def dump(self, f):
-        attributes = inspect.getmembers(self, lambda a: not(inspect.isroutine(a)))
+        attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
         dict_ = {
-            key: value for key, value in attributes
-            if not(key.startswith('__') and key.endswith('__'))
+            key: value
+            for key, value in attributes
+            if not (key.startswith("__") and key.endswith("__"))
         }
         yaml.safe_dump(dict_, f)
 

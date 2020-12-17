@@ -14,7 +14,6 @@ import tempfile
 import yaml
 
 
-
 @pytest.fixture(params=[None])
 def validation_timesteps(request) -> Optional[Sequence[str]]:
     return request.param
@@ -76,7 +75,7 @@ def train_config(
     output_variables: Iterable[str],
     batch_function: str,
     batch_kwargs: dict,
-    validation_timesteps: Optional[Sequence[str]]
+    validation_timesteps: Optional[Sequence[str]],
 ) -> ModelTrainingConfig:
     return ModelTrainingConfig(
         data_path="train_data_path",
@@ -102,7 +101,7 @@ def train_config_filename(
     output_variables: Iterable[str],
     batch_function: str,
     batch_kwargs: dict,
-    validation_timesteps: Optional[Sequence[str]]
+    validation_timesteps: Optional[Sequence[str]],
 ) -> str:
     with tempfile.NamedTemporaryFile(mode="w") as f:
         yaml.dump(

@@ -6,12 +6,16 @@ import numpy as np
 import sys
 import random
 from . import get_model
+from ._validation_data import (
+    check_validation_train_overlap,
+    validation_timesteps_config,
+)
 from ._save_history import save_history
 from .. import _shared as shared
 import fv3fit._shared.io
 import loaders
 import tensorflow as tf
-from typing import Union, Optional, Sequence
+from typing import Union, Optional
 import xarray as xr
 
 
@@ -58,14 +62,21 @@ def _validation_dataset(
     train_config: shared.ModelTrainingConfig,
 ) -> Optional[xr.Dataset]:
     if len(train_config.validation_timesteps) > 0:
-        shared.check_validation_train_overlap(
-            train_config.batch_kwargs["timesteps"],
-            train_config.validation_timesteps,
+        check_validation_train_overlap(
+            train_config.batch_kwargs["timesteps"], train_config.validation_timesteps,
         )
-        validation_config = shared.validation_timesteps_config(train_config)
-        validation_dataset = shared.load_data_sequence(
+        validation_config = validation_timesteps_config(train_config)
+        # validation config puts all data in one batch
+        validation_dataset_sequence = shared.load_data_sequence(
             data_path, validation_config
-        )[0]
+        )
+        if len(validation_dataset_sequence) > 1:
+            raise ValueError(
+                "Something went wrong! "
+                "All validation data should be concatenated into a single batch. There "
+                f"are {len(validation_dataset_sequence)} batches in the sequence."
+            )
+        return validation_dataset_sequence[0]
     else:
         validation_dataset = None
     return validation_dataset
@@ -128,7 +139,7 @@ if __name__ == "__main__":
         train_config.input_variables,
         train_config.output_variables,
         optimizer=optimizer,
-        **train_config.hyperparameters
+        **train_config.hyperparameters,
     )
     batches = shared.load_data_sequence(data_path, train_config)
     validation_dataset = _validation_dataset(train_config)
