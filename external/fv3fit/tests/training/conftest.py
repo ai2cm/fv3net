@@ -36,7 +36,7 @@ def batch_kwargs(data_source_name: str) -> dict:  # noqa: F811
             "res": "c8_random_values",
             "timesteps_per_batch": 1,
             "mapping_function": "open_merged_nudged",
-            "timesteps": ["20160801.001500", "20160801.003000"],
+            "timesteps": ["20160801.001500"],
             "mapping_kwargs": {
                 "i_start": 0,
                 "rename_vars": {
@@ -50,7 +50,7 @@ def batch_kwargs(data_source_name: str) -> dict:  # noqa: F811
             "res": "c8_random_values",
             "timesteps_per_batch": 1,
             "mapping_function": "open_fine_res_apparent_sources",
-            "timesteps": ["20160801.001500", "20160801.003000"],
+            "timesteps": ["20160801.001500"],
             "mapping_kwargs": {
                 "rename_vars": {
                     "delp": "pressure_thickness_of_atmospheric_layer",
@@ -83,6 +83,7 @@ def train_config(
         scaler_kwargs={},
         additional_variables=None,
         random_seed=0,
+        validation_timesteps=["20160801.003000"],
     )
 
 
@@ -108,6 +109,7 @@ def train_config_filename(
                 "scaler_kwargs": {},
                 "additional_variables": None,
                 "random_seed": 0,
+                "validation_timesteps": ["20160801.003000"],
             },
             f,
         )

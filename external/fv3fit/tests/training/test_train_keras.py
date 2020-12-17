@@ -28,7 +28,11 @@ def loss(request) -> str:
 @pytest.fixture
 def hyperparameters(model_type, loss) -> dict:
     if model_type == "DenseModel":
-        hyperparameters = {"width": 4, "depth": 3}
+        hyperparameters = {
+            "width": 4,
+            "depth": 3,
+            "fit_kwargs": {"batch_size": 100, "validation_samples": 384},
+        }
         if loss:
             hyperparameters["loss"] = loss
         return hyperparameters
