@@ -12,7 +12,7 @@ from pathlib import Path
 from fv3fit.keras import get_model
 from fv3fit.keras._models.classifiers import DenseClassifierModel
 from fv3fit._shared import load_model_training_config
-from loaders.batches import batches_from_serialized
+from loaders.batches import batches_from_serialized_callpyfort
 from loaders import shuffle
 
 logger = logging.getLogger(__name__)
@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     train_range = config.batch_kwargs.get("train_range", (None,))
     seed = config.batch_kwargs.get("seed", None)
-    batches = batches_from_serialized(args.train_data_path)
+    batches = batches_from_serialized_callpyfort(args.train_data_path)
     train = shuffle(batches[slice(*train_range)], seed=seed)
 
     hyper_params = config.hyperparameters
