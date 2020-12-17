@@ -19,7 +19,7 @@ def extract_tarball_to_path(
     extract_to_dir.mkdir(parents=True, exist_ok=True)
 
     logger.debug(f"Destination directory for tar extraction: {extract_to_dir}")
-    tar_commands = ["tar", "-xf", source_tar_path, "-C", extract_to_dir]
+    tar_commands = ["tar", "-xf", str(source_tar_path), "-C", str(extract_to_dir)]
     subprocess.check_call(tar_commands)
 
     return extract_to_dir

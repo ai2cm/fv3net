@@ -61,7 +61,7 @@ def nudge_to_fine_data_dir(
     datadir_module, state_after_timestep, physics_tendencies, nudge_to_fine_tendencies,
 ):
     all_data = {"physics_tendencies": physics_tendencies}
-    all_data.update({"nudge_to_fine_tendencies": nudge_to_fine_tendencies})
+    all_data.update({"nudging_tendencies": nudge_to_fine_tendencies})
     all_data.update({"state_after_timestep": state_after_timestep})
 
     nudge_to_fine_path = os.path.join(datadir_module, "nudge_to_fine")
@@ -81,7 +81,7 @@ def nudge_to_obs_data_dir(
         {"time": state_after_timestep.time}
     )
     all_data = {"physics_tendencies": physics_tendencies}
-    all_data.update({"nudge_to_obs_tendencies": nudge_to_obs_tendencies})
+    all_data.update({"nudging_tendencies": nudge_to_obs_tendencies})
     all_data.update({"state_after_timestep": state_after_timestep})
 
     nudge_to_obs_path = os.path.join(datadir_module, "nudge_to_obs")
@@ -138,7 +138,7 @@ def test_open_nudge_to_fine_subtract_nudging_increment(
         consolidated=False,
     )
     nudge_to_fine_tendencies = xr.open_zarr(
-        os.path.join(nudge_to_fine_data_dir, "nudge_to_fine_tendencies.zarr"),
+        os.path.join(nudge_to_fine_data_dir, "nudging_tendencies.zarr"),
         consolidated=False,
     )
 
@@ -206,7 +206,7 @@ def test_open_nudge_to_obs_subtract_nudging_increment(
         consolidated=False,
     )
     nudge_to_obs_tendencies = xr.open_zarr(
-        os.path.join(nudge_to_obs_data_dir, "nudge_to_obs_tendencies.zarr"),
+        os.path.join(nudge_to_obs_data_dir, "nudging_tendencies.zarr"),
         consolidated=False,
     ).rename(
         {
@@ -259,7 +259,7 @@ def test_open_nudge_to_obs_subtract_nudging_tendency(
     )
 
     nudge_to_obs_tendencies = xr.open_zarr(
-        os.path.join(nudge_to_obs_data_dir, "nudge_to_obs_tendencies.zarr"),
+        os.path.join(nudge_to_obs_data_dir, "nudging_tendencies.zarr"),
         consolidated=False,
     ).rename(
         {

@@ -34,7 +34,9 @@ def test_training(
 ):
     model = get_transformed_batch_regressor(train_config)
     model.fit(training_batches)
-    assert model.model.n_estimators == 2
+    # This is the number of random forests in the ensemble, not the
+    # number of total trees across the ensemble
+    assert model.model.n_estimators == 1
     batch_dataset = training_batches[0]
     result = model.predict(batch_dataset)
     missing_names = set(output_variables).difference(result.data_vars.keys())
