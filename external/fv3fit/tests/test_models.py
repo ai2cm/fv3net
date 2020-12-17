@@ -5,6 +5,7 @@ import pytest
 
 from fv3fit.keras._models._sequences import _ThreadedSequencePreLoader
 from fv3fit.keras._models.models import PackedKerasModel
+import tensorflow.keras
 
 
 def test__ThreadedSequencePreLoader():
@@ -19,16 +20,12 @@ def test__ThreadedSequencePreLoader():
 
 @pytest.mark.parametrize("base_state", ["manual", "default"])
 def test_PackedKerasModel_jacobian(base_state):
-    class IdentityMock:
-        def __call__(self, x):
-            return x
-
-        def fit(self, *args, **kwargs):
-            pass
-
     class IdentityModel(PackedKerasModel):
         def get_model(self, n, m):
-            return IdentityMock()
+            x = tensorflow.keras.Input(shape=[n])
+            model = tensorflow.keras.Model(inputs=[x], outputs=[x])
+            model.compile()
+            return model
 
     batch = xr.Dataset(
         {
