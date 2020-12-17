@@ -57,21 +57,18 @@ def _set_random_seed(seed: Union[float, int] = 0):
 def _validation_dataset(
     train_config: shared.ModelTrainingConfig,
 ) -> Optional[xr.Dataset]:
-    if isinstance(train_config.validation_timesteps, Sequence):
-        if len(train_config.validation_timesteps) > 0:
-            shared.check_validation_train_overlap(
-                train_config.batch_kwargs["timesteps"],
-                train_config.validation_timesteps,
-            )
-            validation_config = shared.validation_timesteps_config(train_config)
-            validation_dataset = shared.load_data_sequence(
-                data_path, validation_config
-            )[0]
-        else:
-            validation_dataset = None
-        return validation_dataset
+    if len(train_config.validation_timesteps) > 0:
+        shared.check_validation_train_overlap(
+            train_config.batch_kwargs["timesteps"],
+            train_config.validation_timesteps,
+        )
+        validation_config = shared.validation_timesteps_config(train_config)
+        validation_dataset = shared.load_data_sequence(
+            data_path, validation_config
+        )[0]
     else:
-        raise AttributeError("Attribute validation_timesteps not defined in config.")
+        validation_dataset = None
+    return validation_dataset
 
 
 def parse_args():
