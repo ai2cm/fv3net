@@ -50,6 +50,21 @@ def _get_optimizer(hyperparameters: dict = None):
     return optimizer
 
 
+def _get_regularizer(
+        hyperparameters: dict = None) -> Optional[tf.keras.regularizers.Regularizer]:
+    hyperparameters = hyperparameters or {}
+    regularizer_config = hyperparameters.pop("regularizer", {})
+    if regularizer_config:
+        regularizer_class = getattr(
+            tf.keras.regularizers, regularizer_config.get("name", "L2")
+        )
+        regularizer_kwargs = regularizer_config.get("kwargs", {})
+        regularizer = regularizer_class(**regularizer_kwargs)
+    else:
+        regularizer = None
+    return regularizer
+
+
 def _set_random_seed(seed: Union[float, int] = 0):
     # https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras
     os.environ["PYTHONHASHSEED"] = str(seed)
