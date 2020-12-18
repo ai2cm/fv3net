@@ -8,8 +8,8 @@ nudging:
     pressure_thickness_of_atmospheric_layer: 3
 namelist:
   coupler_nml:
-    days: 0
-    hours: 4
+    days: 2
+    hours: 0
     minutes: 0
     months: 0
     seconds: 0
