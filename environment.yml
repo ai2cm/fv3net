@@ -52,4 +52,5 @@ dependencies:
   - mypy=0.770
   - coverage>=5
   - six=1.12
-  - pip
+  # newer pip version 20.3 does not work when constraints have extras
+  - pip==20.2.4
