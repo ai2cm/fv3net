@@ -88,7 +88,7 @@ def _add_coords_to_interface_variable(
 ):
     """Assign all coords except vertical from da_center to dv_outer """
     if dim_center in da_center.coords:
-        return xr.DataArray(dv_outer, coords=da_center.drop(dim_center).coords)
+        return xr.DataArray(dv_outer, coords=da_center.drop_vars(dim_center).coords)
     else:
         return xr.DataArray(dv_outer, coords=da_center.coords)
 
@@ -459,7 +459,7 @@ def minus_column_integrated_moistening(
     """
 
     minus_col_int_moistening = _KG_M2S_TO_MM_DAY * mass_integrate(
-        -dsphum_dt, delp, dim=vertical_dim
+        dsphum_dt * -1, delp, dim=vertical_dim
     )
     minus_col_int_moistening = minus_col_int_moistening.assign_attrs(
         {"long_name": "negative of column integrated moistening", "units": "mm/day"}
