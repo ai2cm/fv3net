@@ -9,7 +9,7 @@ requirements = [
     "numpy>=1.11",
     "fsspec>=0.6.2",
     "pyyaml>=5.1.2",
-    "tensorflow>=2.2.0",
+    "tensorflow==2.3.0",
     "mpi4py>=3.0.3",
     "fv3gfs-util @ git+https://github.com/VulcanClimateModeling/fv3gfs-util@14f6520c56504672dc9f14d4503d52734d0e4e20#egg=fv3gfs-util"
 ]

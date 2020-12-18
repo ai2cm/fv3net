@@ -3,9 +3,7 @@ import numpy as np
 import os
 import logging
 
-from .classifiers import _less_than_zero_mask, _less_than_equal_zero_mask
 from .packer import EmuArrayPacker, consolidate_tracers, split_tracer_fields
-from .monitor import output_monitor, MPI
 from .debug import print_errors
 from ._filesystem import get_dir
 
@@ -22,25 +20,32 @@ model_path = os.environ.get("TKE_EMU_MODEL")
 # data for fixing del and prsi input of emulation
 fix_fields = np.load("/rundir/prsi_del_fix.npz")
 
-with get_dir(model_path) as path:
-    
-    tf_model_path = os.path.join(path, MODEL_FILENAME)
-    X_packer_path = os.path.join(path, X_PACKER_FILENAME)
-    y_packer_path = os.path.join(path, Y_PACKER_FILENAME)
 
-    model = tf.keras.models.load_model(
-        tf_model_path,
-        custom_objects={
-            "tf": tf,
-            "custom_loss": None,
-            "_less_than_zero_mask": _less_than_zero_mask,
-            "_less_than_equal_zero_mask": _less_than_equal_zero_mask,
-        }
-    )
+@print_errors
+def load_model_packers(model_dir):
 
-    X_packer = EmuArrayPacker.from_packer_json(X_packer_path)
-    y_packer = EmuArrayPacker.from_packer_json(y_packer_path)
-    logger.info(f"Loaded model and packer info from: {model_path}")
+    with get_dir(model_dir) as path:
+        
+        tf_model_path = os.path.join(path, MODEL_FILENAME)
+        X_packer_path = os.path.join(path, X_PACKER_FILENAME)
+        y_packer_path = os.path.join(path, Y_PACKER_FILENAME)
+
+        model = tf.keras.models.load_model(
+            tf_model_path,
+            custom_objects={
+                "tf": tf,
+                "custom_loss": None,
+            }
+        )
+
+        X_packer = EmuArrayPacker.from_packer_json(X_packer_path)
+        y_packer = EmuArrayPacker.from_packer_json(y_packer_path)
+        logger.info(f"Loaded model and packer info from: {model_path}")
+
+    return model, X_packer, y_packer
+
+
+model, X_packer, y_packer = load_model_packers(model_path)
 
 
 def get_state_stats(state):
@@ -73,16 +78,16 @@ def stress_fix_temporary(state):
         state["stress_input"] = stress
 
 
-def upper_level_delp_prsi_fix_temporary(state):
-    logger.info("Fixing upper level prsi and delp fields.")
-    prsi = state["prsi_input"]
-    delp = state["del_input"]
-    upper_slice = slice(-17, None)
-    rank = MPI.COMM_WORLD.Get_rank()
-    prsi_diff = fix_fields["prsi_input"][rank].T - prsi[upper_slice]
-    delp_diff = fix_fields["del_input"][rank].T - delp[upper_slice]
-    prsi[upper_slice] += prsi_diff
-    delp[upper_slice] += delp_diff
+# def upper_level_delp_prsi_fix_temporary(state):
+#     logger.info("Fixing upper level prsi and delp fields.")
+#     prsi = state["prsi_input"]
+#     delp = state["del_input"]
+#     upper_slice = slice(-17, None)
+#     rank = MPI.COMM_WORLD.Get_rank()
+#     prsi_diff = fix_fields["prsi_input"][rank].T - prsi[upper_slice]
+#     delp_diff = fix_fields["del_input"][rank].T - delp[upper_slice]
+#     prsi[upper_slice] += prsi_diff
+#     delp[upper_slice] += delp_diff
 
 
 def add_tdt_increment(state):
@@ -104,7 +109,6 @@ def add_tdt_increment(state):
 def emulator(state):
     split_tracer_fields(state)
     stress_fix_temporary(state)
-    upper_level_delp_prsi_fix_temporary(state)
     logger.debug(get_state_stats(state))
     X = X_packer.to_array(state)
     logger.info("Predicting satmedmf update...")
