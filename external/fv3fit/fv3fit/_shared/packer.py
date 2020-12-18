@@ -236,3 +236,33 @@ def count_features(
         else:
             return_dict[name] = value.shape[1]
     return return_dict
+
+
+def unpack_matrix(
+    x_packer: ArrayPacker, y_packer: ArrayPacker, matrix: np.ndarray
+) -> xr.Dataset:
+    """Unpack a matrix
+
+    Args:
+        x_packer: packer for the rows of the matrix
+        y_packer: packer for the columns of the matrix
+        matrix: the matrix to be unpacked
+    Returns:
+        a Dataset
+
+    """
+    jacobian_dict = {}
+    j = 0
+    for in_name in x_packer.pack_names:
+        i = 0
+        for out_name in y_packer.pack_names:
+            size_in = x_packer.feature_counts[in_name]
+            size_out = y_packer.feature_counts[out_name]
+
+            jacobian_dict[(in_name, out_name)] = xr.DataArray(
+                matrix[i : i + size_out, j : j + size_in], dims=[out_name, in_name],
+            )
+            i += size_out
+        j += size_in
+
+    return xr.Dataset(jacobian_dict)  # type: ignore
