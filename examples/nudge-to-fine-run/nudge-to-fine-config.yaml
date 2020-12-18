@@ -1,0 +1,19 @@
+base_version: v0.5
+nudging:
+  timescale_hours:
+    air_temperature: 3
+    specific_humidity: 3
+    x_wind: 3
+    y_wind: 3
+    pressure_thickness_of_atmospheric_layer: 3
+namelist:
+  coupler_nml:
+    days: 0
+    hours: 4
+    minutes: 0
+    months: 0
+    seconds: 0
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false
+  fv_core_nml:
+    do_sat_adj: false
