@@ -114,26 +114,17 @@ def separate_tensor_by_var(tensor, feature_dim_slices):
 
 
 def _less_than_zero_mask(x):
-
-    non_zero = tf.math.greater_equal(x, tf.zeros_like(x))
-    mask = tf.where(non_zero, x=tf.ones_like(x), y=tf.zeros_like(x))
-
-    return mask
+    return tf.math.greater_equal(x, tf.constant(0, dtype=x.dtype))
 
 
 def _less_than_equal_zero_mask(x):
-
-    non_zero = tf.math.greater(x, tf.zeros_like(x))
-    mask = tf.where(non_zero, x=tf.ones_like(x), y=tf.zeros_like(x))
-
-    return mask
+    return tf.math.greater(x, tf.constant(0, dtype=x.dtype))
 
 
 def _empty_column_sample_mask(x):
 
     tracer_column_integral = tf.math.reduce_sum(x, axis=1, keepdims=True)
-    non_zero = tf.math.greater(tracer_column_integral, tf.zeros_like(tracer_column_integral))
-    mask = tf.where(non_zero, x=tf.ones_like(x), y=tf.zeros_like(x))
+    mask = tf.math.greater(tracer_column_integral, tf.constant(0, dtype=x.dtype))
 
     return mask
 
@@ -152,11 +143,12 @@ class DenseWithClassifier(DenseModel):
 
         if classifiers is None:
             classifiers = {}
-            logger.warning("DenseWithClassifier initiwalized without any classiefiers")
+            logger.warning("DenseWithClassifier initialized without any classiefiers")
         self._classifiers = classifiers
 
         if mask_with_classifier is None:
             mask_with_classifier = []
+            logger.warning("DenseWithClassifier not applying mask to any vars.")
         self._mask_with_classifier = mask_with_classifier
 
         self._limit_zero = limit_zero if limit_zero is not None else []
@@ -179,22 +171,29 @@ class DenseWithClassifier(DenseModel):
 
         regr_outputs_by_var = separate_tensor_by_var(regr_outputs, out_tensor_slices)
         
+        dtype = regr_outputs.dtype
+        zero = tf.constant(0, dtype=dtype)
+        # Create a mask from combining all classifiers
         classifier_ens = []
         for classifier in self._classifiers:
             classified = classifier._model(inputs)
-            masked = tf.keras.layers.Lambda(_less_than_zero_mask)(classified)
-            classifier_ens.append(masked)
-        classified_combo = tf.keras.layers.Add()(classifier_ens)
-        classified_mask = tf.keras.layers.Lambda(_less_than_equal_zero_mask)(classified_combo)
+            mask = tf.math.greater_equal(classified, zero)
+            classifier_ens.append(mask)
+        
+        combo_mask = classifier_ens[0]
+        for mask in classifier_ens[1:]:
+            combo_mask = tf.logical_or(combo_mask, mask)
 
         to_combine = []
         for var, out_tensor in regr_outputs_by_var.items():
+            dtype = out_tensor.dtype
+
             if var in self._mask_with_classifier:
-                out_tensor = tf.keras.layers.Multiply()([classified_mask, out_tensor])
+                out_tensor = tf.where(combo_mask, x=out_tensor, y=zero)
 
             if var in self._limit_zero:
-                mask = tf.keras.layers.Lambda(_less_than_zero_mask)(out_tensor)
-                out_tensor = tf.keras.layers.Multiply()([mask, out_tensor])
+                mask = tf.math.greater_equal(out_tensor, zero)
+                out_tensor = tf.where(mask, x=out_tensor, y=zero)
 
             if var in self._convert_int:
                 out_tensor = tf.keras.layers.Lambda(lambda x: tf.math.round(x))(
@@ -208,8 +207,10 @@ class DenseWithClassifier(DenseModel):
                 q1_name = f"q1_input_{tracer_num}"
                 if q1_name in inputs_by_var:
                     logger.debug(f"Found matching rtg input to use for mask: {q1_name}")
-                    mask = tf.keras.layers.Lambda(_empty_column_sample_mask)(inputs_by_var[q1_name])
-                    out_tensor = tf.keras.layers.Multiply()([mask, out_tensor])
+                    q1 = inputs_by_var[q1_name]
+                    tracer_column_integral = tf.math.reduce_sum(q1, axis=1, keepdims=True)
+                    mask = tf.math.greater(tracer_column_integral, zero)
+                    out_tensor = tf.where(mask, x=out_tensor, y=zero)
 
             to_combine.append(out_tensor)
 
