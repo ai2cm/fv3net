@@ -243,9 +243,8 @@ if __name__ == "__main__":
             ),
         }
 
-    report_sections["Other Figures"] = copy_pngs_to_report(
-        args.input_path, temp_output_dir.name
-    )
+    for png in copy_pngs_to_report(args.input_path, temp_output_dir.name):
+        report_sections[png] = png
 
     write_report(
         temp_output_dir.name,

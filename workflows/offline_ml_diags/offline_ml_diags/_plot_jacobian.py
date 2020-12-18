@@ -25,7 +25,7 @@ def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
         for j, out_name in enumerate(outputs):
             logging.debug(f"{in_name}_{out_name}")
             pane = jacobian_dict[(in_name, out_name)]
-            im = pane.rename(f"{in_name}_from_{out_name}").plot.imshow(
+            im = pane.rename(f"{out_name}_from_{in_name}").plot.imshow(
                 x=out_name,
                 y=in_name,
                 ax=axs[i, j],
