@@ -156,8 +156,8 @@ def plot_classify_over_time(da, seed=38):
     num_samples = da.sizes["sample"]
     idx = random.choice(range(num_samples), 20, replace=False)
     da.isel(sample=idx).plot.pcolormesh(
-        x="savepoint",
-        y="vertical_dimension",
+        x="time",
+        y="lev",
         col="sample",
         col_wrap=2,
         add_colorbar=False,
