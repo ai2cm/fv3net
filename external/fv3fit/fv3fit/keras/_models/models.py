@@ -5,7 +5,7 @@ import logging
 import abc
 import tensorflow as tf
 import tensorflow_addons as tfa
-from ..._shared import ArrayPacker, Estimator, io
+from ..._shared import ArrayPacker, Estimator, io, unpack_matrix
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
@@ -304,6 +304,35 @@ class PackedKerasModel(Estimator):
                     model_filename, custom_objects={"custom_loss": obj.loss}
                 )
             return obj
+
+    def jacobian(self, base_state: Optional[xr.Dataset] = None) -> xr.Dataset:
+        """Compute the jacobian of the NN around a base state
+
+        Args:
+            base_state: a single sample of input data. If not passed, then
+                the mean of the input data stored in the X_scaler will be used.
+
+        Returns:
+            The jacobian matrix as a Dataset
+
+        """
+        if base_state is None:
+            if self.X_scaler.mean is not None:
+                mean_expanded = self.X_packer.to_dataset(
+                    self.X_scaler.mean[np.newaxis, :]
+                )
+            else:
+                raise ValueError("X_scaler needs to be fit first.")
+        else:
+            mean_expanded = base_state.expand_dims(self.sample_dim_name)
+
+        mean_tf = tf.convert_to_tensor(self.X_packer.to_array(mean_expanded))
+        with tf.GradientTape() as g:
+            g.watch(mean_tf)
+            y = self.model(mean_tf)
+
+        J = g.jacobian(y, mean_tf)[0, :, 0, :].numpy()
+        return unpack_matrix(self.X_packer, self.y_packer, J)
 
 
 @io.register("packed-keras")
