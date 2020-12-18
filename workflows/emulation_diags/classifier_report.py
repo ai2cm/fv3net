@@ -168,9 +168,9 @@ def plot_classify_over_time(da, seed=38):
 
 def save_metrics(all_metrics, path):
     for metric_key, metrics in all_metrics.items():
-        out_filename = f"{metric_key}.nc"
+        out_filename = f"{metric_key}.zarr"
         out_path = os.path.join(path, out_filename)
-        metrics.to_netcdf(out_path)
+        metrics.to_zarr(out_path)
 
 
 def _cleanup(tempdir: tempfile.TemporaryDirectory):
