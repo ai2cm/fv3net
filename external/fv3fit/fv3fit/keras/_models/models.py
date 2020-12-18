@@ -361,6 +361,8 @@ class DenseModel(PackedKerasModel):
         width: int = 16,
         loss: Literal["mse", "mae"] = "mse",
         learning_rate: float = 1e-3,
+        checkpoint_path: Optional[str] = None,
+
     ):
         """Initialize the DenseModel.
 
@@ -401,6 +403,8 @@ class DenseModel(PackedKerasModel):
             normalize_loss=normalize_loss,
             optimizer=optimizer,
             loss=loss,
+            checkpoint_path=checkpoint_path
+
         )
 
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
