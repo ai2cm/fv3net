@@ -30,6 +30,7 @@ logger = logging.getLogger(__file__)
 
 MODEL_FILENAME = "model_data"
 HISTORY_OUTPUT_DIR = "training_history"
+MODEL_CHECKPOINT_DIR = "model_checkpoints"
 
 
 def _get_optimizer(hyperparameters: dict = None):
@@ -139,6 +140,7 @@ if __name__ == "__main__":
         train_config.input_variables,
         train_config.output_variables,
         optimizer=optimizer,
+        checkpoint_path=os.path.join(args.output_data_path, MODEL_CHECKPOINT_DIR),
         **train_config.hyperparameters,
     )
     batches = shared.load_data_sequence(data_path, train_config)
