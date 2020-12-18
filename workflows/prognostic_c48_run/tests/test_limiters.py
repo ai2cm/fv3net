@@ -1,7 +1,10 @@
 import pytest
 import xarray as xr
 
-from runtime.limiters import couple_sphum_tendency_and_surface_precip
+from runtime.limiters import (
+    couple_sphum_tendency_and_surface_precip,
+    limit_sphum_tendency_for_non_negativity,
+)
 
 M_PER_MM = 1 / 1000
 # total_precip in m per timestep
@@ -92,4 +95,39 @@ def test_couple_sphum_tendency_and_surface_precip(
         updated_sphum_tendency,
     ) = couple_sphum_tendency_and_surface_precip(total_precip, sphum_tendency, DELP, dt)
     xr.testing.assert_allclose(updated_total_precip, expected_total_precip)
+    xr.testing.assert_allclose(updated_sphum_tendency, expected_sphum_tendency)
+
+
+sphum_state = xr.DataArray(data=[[2.0, 1.0], [8.0, 4.0], [6.0, 3.0]], dims=["x", "z"])
+
+
+@pytest.mark.parametrize(
+    ["sphum_tendency", "sphum_state", "dt", "expected_sphum_tendency"],
+    [
+        pytest.param(
+            sphum_tendency_all_columns_negative,
+            sphum_state,
+            DT,
+            xr.DataArray(
+                data=[[-0.1, -0.1], [-0.2, -0.2], [-0.2, -0.2]], dims=["x", "z"]
+            ),
+            id="no_excess_tendencies",
+        ),
+        pytest.param(
+            sphum_tendency_all_columns_negative,
+            sphum_state,
+            20.0,
+            xr.DataArray(
+                data=[[-0.1, -0.05], [-0.2, -0.2], [-0.2, -0.15]], dims=["x", "z"]
+            ),
+            id="some_excess_tendencies",
+        ),
+    ],
+)
+def test_limit_sphum_tendency_for_non_negativity(
+    sphum_tendency, sphum_state, dt, expected_sphum_tendency
+):
+    updated_sphum_tendency = limit_sphum_tendency_for_non_negativity(
+        sphum_state, sphum_tendency, dt
+    )
     xr.testing.assert_allclose(updated_sphum_tendency, expected_sphum_tendency)
