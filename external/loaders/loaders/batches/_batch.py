@@ -15,6 +15,7 @@ from ._serialized_phys import (
     SerializedSequence,
     FlattenDims,
     open_serialized_physics_data,
+    open_callpyfort_physics_data
 )
 import loaders
 
@@ -203,6 +204,27 @@ def _load_batch(
     return ds
 
 
+def _ds_to_batches(ds, ds_item_dim, items_per_batch, sample_dims) -> Map:
+
+    seq = SerializedSequence(ds, item_dim=ds_item_dim)
+    seq = FlattenDims(seq, sample_dims)
+
+    if items_per_batch > 1:
+        batch_args = [
+            slice(start, start + items_per_batch)
+            for start in range(0, len(seq), items_per_batch)
+        ]
+    else:
+        batch_args = list(range(len(seq)))
+
+    def _load_item(item: Union[int, slice]):
+        return seq[item]
+
+    func_seq = Map(_load_item, batch_args)
+
+    return func_seq
+
+
 def batches_from_serialized(
     path: str,
     zarr_prefix: str = "phys",
@@ -226,21 +248,34 @@ def batches_from_serialized(
     Returns:
         A seqence of batched serialized data ready for model testing/training
     """
+
     ds = open_serialized_physics_data(path, zarr_prefix=zarr_prefix)
-    seq = SerializedSequence(ds)
-    seq = FlattenDims(seq, sample_dims)
 
-    if savepoints_per_batch > 1:
-        batch_args = [
-            slice(start, start + savepoints_per_batch)
-            for start in range(0, len(seq), savepoints_per_batch)
-        ]
-    else:
-        batch_args = list(range(len(seq)))
+    return _ds_to_batches(ds, "savepoint", savepoints_per_batch, sample_dims)
 
-    def _load_item(item: Union[int, slice]):
-        return seq[item]
 
-    func_seq = Map(_load_item, batch_args)
+def batches_from_serialized_callpyfort(
+    path: str,
+    sample_dims: Sequence[str] = ["time", "tile", "horizontal_dimension"],
+    timesteps_per_batch: int = 1,
+    consolidated: bool = True,
+) -> Map:
+    """
+    Load a sequence of serialized physics data for use in model fitting procedures.
+    Data variables are reduced to a sample and feature dimension by stacking specified
+    dimensions any remaining feature dims along the last dimension. (An extra last
+    dimensiononly appeared for tracer fields in the serialized turbulence data.)
 
-    return func_seq
+    Args:
+        path: Path (local or remote) to the input/output zarr files
+        sample_dims: Sequence of dimensions to stack as a single sample dimension
+        timesteps_per_batch: Number of timesteps to include in a single
+            batch
+    
+    Returns:
+        A seqence of batched serialized data ready for model testing/training
+    """
+
+    ds = open_callpyfort_physics_data(path, consolidated=consolidated)
+
+    return _ds_to_batches(ds, "time", timesteps_per_batch, sample_dims)

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mpl_colors
 
 from fv3fit.keras import get_model_class
-from loaders.batches import batches_from_serialized
+from loaders.batches import batches_from_serialized_callpyfort
 from loaders import shuffle
 from report import insert_report_figure, create_html
 
@@ -126,9 +126,9 @@ def plot_ens_spread_vert_field(da, ax=None, metric_name=None, title=None, xlim=N
 
 def save_metrics(all_metrics, path):
     for metric_key, metrics in all_metrics.items():
-        out_filename = f"{metric_key}.nc"
+        out_filename = f"{metric_key}.zarr"
         out_path = os.path.join(path, out_filename)
-        metrics.to_netcdf(out_path)
+        metrics.to_zarr(out_path)
 
 
 def parse_metrics_for_table(all_metrics):
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     model = get_model_class("DenseModel")
     model = model.load(args.model_path)
 
-    test_data = batches_from_serialized(args.test_data)
+    test_data = batches_from_serialized_callpyfort(args.test_data)
     # TODO add test range, currently 5 days
     test_data = shuffle(test_data[(len(test_data) - 96 * 5) :], seed=105)
     if args.num_test_batches is not None:

@@ -183,6 +183,26 @@ def open_serialized_physics_data(
     return ds_phys
 
 
+def open_callpyfort_physics_data(path: str, consolidated: bool = True):
+
+    """
+    Open xarray dataset of serialized physics component inputs and outputs 
+    from a zarr file created from call_py_fort instead of SerialBox. This
+    datastore has curated fields so no constant checks or merging are necessary.
+
+    Args:
+    -----
+        path: Directory (remote or local) where zarr files are located
+        consolidated: Flag for opening store with pre-consolidated metadata.
+                      Speeds up loading for larger datasets!
+    """
+
+    ds_phys = xr.open_zarr(fsspec.get_mapper(path), consolidated=consolidated)
+    ds_phys = _add_tdt_update(ds_phys)
+
+    return ds_phys
+
+
 def _merge_phys_ds(in_ds: xr.Dataset, out_ds: xr.Dataset) -> xr.Dataset:
 
     in_ds = _add_var_suffix(in_ds, "input")
