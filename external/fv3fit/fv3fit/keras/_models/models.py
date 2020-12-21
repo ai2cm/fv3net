@@ -51,6 +51,7 @@ class PackedKerasModel(Estimator):
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
         optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
+        kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         loss: Literal["mse", "mae"] = "mse",
     ):
         """Initialize the model.
@@ -94,6 +95,7 @@ class PackedKerasModel(Estimator):
         self._normalize_loss = normalize_loss
         self._optimizer = optimizer
         self._loss = loss
+        self._kernel_regularizer = kernel_regularizer
 
     @property
     def model(self) -> tf.keras.Model:
@@ -349,6 +351,7 @@ class DenseModel(PackedKerasModel):
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
         optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
+        kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         depth: int = 3,
         width: int = 16,
         loss: Literal["mse", "mae"] = "mse",
@@ -393,15 +396,19 @@ class DenseModel(PackedKerasModel):
             weights=weights,
             normalize_loss=normalize_loss,
             optimizer=optimizer,
+            kernel_regularizer=kernel_regularizer,
             loss=loss,
         )
 
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         inputs = tf.keras.Input(n_features_in)
         x = self.X_scaler.normalize_layer(inputs)
+        print(self._kernel_regularizer.__dict__)
         for i in range(self._depth - 1):
             hidden_layer = tf.keras.layers.Dense(
-                self._width, activation=tf.keras.activations.relu
+                self._width,
+                activation=tf.keras.activations.relu, 
+                kernel_regularizer=self._kernel_regularizer
             )
             if self._spectral_normalization:
                 hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
