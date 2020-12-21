@@ -18,11 +18,11 @@ ml_diagnostics = DiagnosticFile(
 nudging_diagnostics_2d = DiagnosticFile(
     name="diags.zarr",
     variables=[
-        "net_moistening_due_to_nudging",
-        "net_heating_due_to_nudging",
-        "net_mass_tendency_due_to_nudging",
-        "column_integrated_eastward_wind_tendency_due_to_nudging",
-        "column_integrated_northward_wind_tendency_due_to_nudging",
+        "net_moistening",
+        "net_heating",
+        "net_mass_tendency",
+        "column_integrated_eastward_wind_tendency",
+        "column_integrated_northward_wind_tendency",
         "water_vapor_path",
         "physics_precip",
     ],
