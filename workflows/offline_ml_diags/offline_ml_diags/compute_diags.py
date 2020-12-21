@@ -17,6 +17,7 @@ from vcm import safe, interpolate_to_pressure_levels
 import vcm
 from vcm.cloud import get_fs
 import fv3fit
+from ._plot_jacobian import plot_jacobian
 from ._metrics import compute_metrics
 from ._mapper import PredictionMapper
 from ._helpers import net_precipitation_provenance_information, load_grid_info
@@ -217,10 +218,10 @@ def _get_base_mapper(args, config: Mapping):
     )
 
 
-def _get_prediction_mapper(args, config: Mapping, variables: Sequence[str]):
+def _get_prediction_mapper(
+    args, config: Mapping, variables: Sequence[str], model: fv3fit.Predictor
+):
     base_mapper = _get_base_mapper(args, config)
-    logger.info("Opening ML model")
-    model = fv3fit.load(args.model_path)
     model_mapper_kwargs = config.get("model_mapper_kwargs", {})
     logger.info("Creating prediction mapper")
     return PredictionMapper(
@@ -271,7 +272,10 @@ if __name__ == "__main__":
     variables = list(
         set(config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS)
     )
-    pred_mapper = _get_prediction_mapper(args, config, variables)
+
+    logger.info("Opening ML model")
+    model = fv3fit.load(config["model_path"])
+    pred_mapper = _get_prediction_mapper(args, config, variables, model)
 
     # get list of timesteps
     if args.timesteps_file:
@@ -304,6 +308,12 @@ if __name__ == "__main__":
     )
     ds_diagnostics["time"] = times_used
     ds_diurnal["time"] = times_used
+
+    # save jacobian
+    try:
+        plot_jacobian(model, args.output_path)  # type: ignore
+    except AttributeError:
+        pass
 
     # compute transected and zonal diags
     snapshot_time = args.snapshot_time or sorted(timesteps)[0]

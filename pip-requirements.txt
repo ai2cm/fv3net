@@ -8,6 +8,7 @@ pytest-regtest
 conda-lock
 pip-tools
 tox
+tensorflow>=2.3
 
 # This version of gcsfs breaks logging
 gcsfs!=0.7.0
