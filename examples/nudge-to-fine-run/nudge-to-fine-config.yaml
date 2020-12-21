@@ -6,6 +6,8 @@ nudging:
     x_wind: 3
     y_wind: 3
     pressure_thickness_of_atmospheric_layer: 3
+    total_soil_moisture: 24
+    soil_temperature: 24
 namelist:
   coupler_nml:
     days: 2
