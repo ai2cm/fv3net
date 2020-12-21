@@ -40,14 +40,15 @@ def _get_optimizer(hyperparameters: dict = None):
             tf.keras.optimizers, optimizer_config.get("name", "Adam")
         )
         optimizer_kwargs = optimizer_config.get("kwargs", {})
-        optimizer = (optimizer_class(**optimizer_kwargs))
+        optimizer = optimizer_class(**optimizer_kwargs)
     else:
         optimizer = None
     return optimizer
 
 
 def _get_regularizer(
-        hyperparameters: dict = None) -> Optional[tf.keras.regularizers.Regularizer]:
+    hyperparameters: dict = None,
+) -> Optional[tf.keras.regularizers.Regularizer]:
     # Will be assumed to be a kernel regularizer when used in the model
     hyperparameters = hyperparameters or {}
     regularizer_config = hyperparameters.pop("regularizer", {})
