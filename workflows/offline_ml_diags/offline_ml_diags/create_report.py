@@ -1,12 +1,16 @@
 import argparse
+import shutil
+import os
+import glob
 import atexit
 import logging
 import sys
 import tempfile
+from typing import MutableMapping, Sequence, List
 
 import fv3viz
+import numpy as np
 from report import insert_report_figure
-from typing import Mapping, Sequence
 import vcm
 import diagnostics_utils.plot as diagplot
 from ._helpers import (
@@ -39,6 +43,17 @@ handler.setFormatter(
 handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags_report")
+
+
+def copy_pngs_to_report(input: str, output: str) -> List[str]:
+    pngs = glob.glob(os.path.join(input, "*.png"))
+    output_pngs = []
+    if len(pngs) > 0:
+        for png in pngs:
+            relative_path = os.path.basename(png)
+            shutil.copy(png, os.path.join(output, relative_path))
+            output_pngs.append(relative_path)
+    return output_pngs
 
 
 def _cleanup_temp_dir(temp_dir):
@@ -91,25 +106,28 @@ if __name__ == "__main__":
         config_name="config.yaml",
     )
     ds_diags = ds_diags.pipe(insert_dataset_r2).pipe(mse_to_rmse)
-    timesteps = config["batch_kwargs"].pop("timesteps")
     config.pop("mapping_kwargs", None)  # this item clutters the report
     if args.commit_sha:
         config["commit"] = args.commit_sha
-    timesteps = [
-        vcm.cast_to_datetime(vcm.parse_datetime_from_str(t)) for t in timesteps
-    ]
-    report_sections = {}  # type: Mapping[str, Sequence[str]]
+
+    report_sections: MutableMapping[str, Sequence[str]] = {}
 
     # histogram of timesteps used for testing
-    fig = fv3viz.plot_daily_and_hourly_hist(timesteps)
-    fig.set_size_inches(10, 3)
-    insert_report_figure(
-        report_sections,
-        fig,
-        filename="timesteps_used.png",
-        section_name="Timesteps used for testing",
-        output_dir=temp_output_dir.name,
-    )
+    try:
+        timesteps = ds_diurnal["time"]
+    except KeyError:
+        pass
+    else:
+        timesteps = np.vectorize(vcm.cast_to_datetime)(timesteps)
+        fig = fv3viz.plot_daily_and_hourly_hist(timesteps)
+        fig.set_size_inches(10, 3)
+        insert_report_figure(
+            report_sections,
+            fig,
+            filename="timesteps_used.png",
+            section_name="Timesteps used for testing",
+            output_dir=temp_output_dir.name,
+        )
 
     # Zonal average of vertical profiles for bias and R2
     zonal_avg_pressure_level_metrics = [
@@ -224,6 +242,9 @@ if __name__ == "__main__":
                 [get_metric_string(metrics, "bias", var), units_from_Q_name(var)]
             ),
         }
+
+    for png in copy_pngs_to_report(args.input_path, temp_output_dir.name):
+        report_sections[png] = png
 
     write_report(
         temp_output_dir.name,

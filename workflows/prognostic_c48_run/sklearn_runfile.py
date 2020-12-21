@@ -27,6 +27,7 @@ import fv3gfs.wrapper as wrapper
 wrapper.initialize()  # noqa: E402
 
 from runtime import DerivedFV3State
+import fv3fit
 import fv3gfs.util
 import runtime
 
@@ -112,7 +113,7 @@ def precipitation_sum(
 
 
 def open_model(config):
-    model = runtime.get_ml_model(config)
+    model = fv3fit.load(config["scikit_learn"]["model"])
     rename_in = config.get("input_standard_names", {})
     rename_out = config.get("output_standard_names", {})
     return runtime.RenamingAdapter(model, rename_in, rename_out)
@@ -205,7 +206,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         if "scikit_learn" in config:
             # download the model
             self._log_info("Downloading ML Model")
-            self._model = open_model(config["scikit_learn"])
+            self._model = open_model(config)
             self._log_info("Model Downloaded")
             self._do_only_diagnostic_ml: bool = config["scikit_learn"].get(
                 "diagnostic_ml", False
@@ -213,6 +214,13 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         else:
             self._model = None
             self._do_only_diagnostic_ml = False
+
+        self._states_to_output = []
+        for diagnostic in config.get("diagnostics", []):
+            if diagnostic["name"] == "state_after_timestep.zarr":
+                self._states_to_output = diagnostic["variables"]
+
+        self._log_debug(f"States to output: {self._states_to_output}")
 
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
@@ -335,6 +343,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._log_debug("Setting Fortran State")
         self._state.update(updated_state)
 
+        diagnostics.update({name: self._state[name] for name in self._states_to_output})
+
         return {
             "area": self._state[AREA],
             "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
@@ -395,7 +405,10 @@ class NudgingTimeLoop(TimeLoop):
             state, reference
         )
 
-        return {}
+        return {
+            f"{key}_reference": reference_state
+            for key, reference_state in reference.items()
+        }
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 
@@ -421,6 +434,8 @@ class NudgingTimeLoop(TimeLoop):
         self._log_debug("Setting Fortran State")
         self._state.update(updated_state)
 
+        diagnostics.update({name: self._state[name] for name in self._states_to_output})
+
         return {
             "area": self._state[AREA],
             "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
@@ -439,11 +454,15 @@ class BaselineTimeLoop(TimeLoop):
         return {}
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
+
+        diagnostics = {name: self._state[name] for name in self._states_to_output}
+
         return {
             "area": self._state[AREA],
             "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
+            **diagnostics,
         }
 
 
@@ -528,11 +547,14 @@ def monitored_physics_time_loop_class(base):
 
 
 def globally_average_2d_diagnostics(
-    comm, diagnostics: Mapping[str, xr.DataArray]
+    comm,
+    diagnostics: Mapping[str, xr.DataArray],
+    exclude: Optional[Sequence[str]] = None,
 ) -> Mapping[str, float]:
     averages = {}
+    exclude = exclude or []
     for v in diagnostics:
-        if set(diagnostics[v].dims) == {"x", "y"}:
+        if (set(diagnostics[v].dims) == {"x", "y"}) and (v not in exclude):
             averages[v] = global_average(comm, diagnostics[v], diagnostics["area"])
     return averages
 
@@ -567,7 +589,12 @@ if __name__ == "__main__":
 
     for time, diagnostics in loop:
 
-        averages = globally_average_2d_diagnostics(comm, diagnostics)
+        if comm.rank == 0:
+            logger.info(f"diags: {list(diagnostics.keys())}")
+
+        averages = globally_average_2d_diagnostics(
+            comm, diagnostics, exclude=loop._states_to_output
+        )
         if comm.rank == 0:
             log_scalar(time, averages)
 

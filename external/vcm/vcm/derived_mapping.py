@@ -1,3 +1,4 @@
+import numpy as np
 from typing import Mapping, Hashable, Callable, Sequence
 import xarray as xr
 
@@ -46,13 +47,7 @@ class DerivedMapping:
 
 @DerivedMapping.register("cos_zenith_angle")
 def cos_zenith_angle(self):
-    return xr.apply_ufunc(
-        lambda time, lon, lat: vcm.cos_zenith_angle(time, lon, lat),
-        self["time"],
-        self["lon"],
-        self["lat"],
-        dask="allowed",
-    )
+    return vcm.cos_zenith_angle(self["time"], self["lon"], self["lat"])
 
 
 @DerivedMapping.register("evaporation")
@@ -103,3 +98,23 @@ def dQv(self):
         return vcm.cubedsphere.center_and_rotate_xy_winds(
             wind_rotation_matrix, self["dQxwind"], self["dQywind"]
         )[1]
+
+
+@DerivedMapping.register("dQu_parallel_to_eastward_wind")
+def dQu_parallel_to_eastward_wind_direction(self):
+    sign = np.sign(self["eastward_wind"] / self["dQu"])
+    return sign * abs(self["dQu"])
+
+
+@DerivedMapping.register("dQv_parallel_to_northward_wind")
+def dQv_parallel_to_northward_wind_direction(self):
+    sign = np.sign(self["northward_wind"] / self["dQv"])
+    return sign * abs(self["dQv"])
+
+
+@DerivedMapping.register("horizontal_wind_tendency_parallel_to_horizontal_wind")
+def horizontal_wind_tendency_parallel_to_horizontal_wind(self):
+    tendency_projection_onto_wind = (
+        self["eastward_wind"] * self["dQu"] + self["northward_wind"] * self["dQv"]
+    ) / np.linalg.norm((self["eastward_wind"], self["northward_wind"]))
+    return tendency_projection_onto_wind

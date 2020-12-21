@@ -2,6 +2,7 @@ from cftime import DatetimeJulian, DatetimeNoLeap
 from datetime import datetime
 import numpy as np
 import pytest
+import xarray as xr
 
 from vcm import cos_zenith_angle
 
@@ -38,3 +39,17 @@ def test__sun_zenith_angle(time, lon, lat, expected):
 def test__sun_zenith_angle_invalid_time(invalid_time):
     with pytest.raises(ValueError, match="model_time has an invalid date type"):
         cos_zenith_angle(invalid_time, 0.0, 0.0)
+
+
+def test_cos_zenith_angle_dataarray():
+    time = DatetimeJulian(2020, 3, 21, 12, 0, 0)
+    lat = 0
+    lon = 0
+    dataset = xr.Dataset(
+        {"time": ([], time), "lat": (["x"], [lat]), "lon": (["x"], [lon])}
+    )
+    expected = cos_zenith_angle(time, lon, lat)
+    ans = cos_zenith_angle(dataset.time, dataset.lon, dataset.lat)
+    assert isinstance(ans, xr.DataArray)
+    assert ans.item() == pytest.approx(expected)
+    assert ans.name == "cos_zenith_angle"

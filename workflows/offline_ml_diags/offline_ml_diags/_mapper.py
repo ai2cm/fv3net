@@ -1,24 +1,24 @@
-from typing import Mapping, Union, Sequence
+from typing import Mapping, Sequence
 
 from vcm import safe, DerivedMapping, parse_datetime_from_str
 import xarray as xr
 
-from fv3fit.sklearn import SklearnWrapper
-from fv3fit.keras import Model
+import fv3fit
 from loaders.mappers import GeoMapper
 from loaders import DERIVATION_DIM
-
-Predictor = Union[SklearnWrapper, Model]
+import warnings
 
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
+
+DELP = "pressure_thickness_of_atmospheric_layer"
 
 
 class PredictionMapper(GeoMapper):
     def __init__(
         self,
         base_mapper: GeoMapper,
-        wrapped_model: Predictor,
+        wrapped_model: fv3fit.Predictor,
         variables: Sequence[str],
         z_dim: str = "z",
         rename_vars: Mapping[str, str] = None,
@@ -57,7 +57,22 @@ class PredictionMapper(GeoMapper):
             [ds, self._grid], compat="override"  # type: ignore
         ).assign_coords({"time": parse_datetime_from_str(key)})
         derived_mapping = DerivedMapping(ds)
-        ds_derived = derived_mapping.dataset(self._variables)
+
+        ds_derived = xr.Dataset({})
+        for key in self._variables:
+            try:
+                ds_derived[key] = derived_mapping[key]
+            except KeyError as e:
+                if key == DELP:
+                    raise e
+                elif key in ["pQ1", "pQ2"]:
+                    ds_derived[key] = xr.zeros_like(derived_mapping["dQ1"])
+                    warnings.warn(
+                        f"{key} not present in data. Filling with zeros.", UserWarning
+                    )
+                else:
+                    raise e
+
         ds_prediction = self._predict(ds_derived)
         return self._insert_prediction(ds_derived, ds_prediction)
 
