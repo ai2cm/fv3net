@@ -11,7 +11,7 @@ argo submit --from workflowtemplate/prognostic-run \
     -p config="$(< nudge-to-fine-config.yaml)" \
     -p reference-restarts="gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts" \
     -p flags="--output-frequency 120" \
-    -p output="gs://vcm-ml-experiments/${EXPERIMENT}/soil-nudging/nudge-to-fine-run" \
+    -p output="gs://vcm-ml-experiments/${EXPERIMENT}/moisture-conserving/nudge-to-fine-run" \
     -p segment-count="${NSEGMENTS}" \
     -p chunks="$(< chunks.yaml)" \
     --name "${EXPERIMENT}-nudge-to-fine-${RANDOM}"
