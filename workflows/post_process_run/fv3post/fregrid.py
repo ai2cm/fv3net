@@ -23,6 +23,7 @@ class Fregrid:
             nlat: length of target latitude dimension.
             nlon: length of target longitude dimension.
         """
+        authenticate()
         self.resolution = resolution
         self.nlat = nlat
         self.nlon = nlon
