@@ -63,9 +63,9 @@ class RegionOfInterest:
 
 def _roi_average(
     dataset: xr.Dataset,
-    lat_bounds: Tuple[float],
-    lon_bounds: Tuple[float],
-    dims: Tuple[Hashable] = None,
+    lat_bounds: Tuple[float, float],
+    lon_bounds: Tuple[float, float],
+    dims: Sequence[Hashable] = (),
 ):
     """Average a dataset over a region of interest
     Args:
@@ -74,7 +74,7 @@ def _roi_average(
         dims: the spacial dimensions to average over.
     """
 
-    if dims is None:
+    if not dims:
         dims = dataset["lat"].dims
 
     stacked = dataset.stack(space=dims)

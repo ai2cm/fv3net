@@ -1,4 +1,4 @@
-from typing import Sequence, Hashable, Tuple, Mapping
+from typing import Sequence, Hashable, Mapping
 import zarr
 import xarray as xr
 import numpy as np
@@ -13,7 +13,7 @@ def _set_dims(array: zarr.Array, dims: Sequence[Hashable]):
 
 def _create_zarr(
     dims: Sequence[str],
-    coords: Mapping[str, Sequence],
+    coords: Mapping[str, xr.DataArray],
     group: zarr.Group,
     template: xr.Dataset,
 ):
@@ -36,7 +36,11 @@ def _create_zarr(
 
 
 def _init_data_var(
-    group: zarr.Group, array: xr.DataArray, start_shape: Tuple[int], start_chunks, dims
+    group: zarr.Group,
+    array: xr.DataArray,
+    start_shape: Sequence[int],
+    start_chunks,
+    dims,
 ):
     shape = tuple(start_shape) + array.data.shape
     chunks = tuple(start_chunks) + array.data.shape
@@ -144,7 +148,7 @@ class ZarrMapping:
         store: zarr.ABSStore,
         schema: xr.Dataset,
         dims: Sequence[str],
-        coords: Mapping[str, Sequence],
+        coords: Mapping[str, xr.DataArray],
     ) -> "ZarrMapping":
         """Initialize a ZarrMapping using an xarray dataset as a template
 

@@ -11,15 +11,12 @@ import diagnostics_utils as utils
 import synth
 from fv3fit import _shared as shared
 import fv3fit
-from fv3fit.sklearn._train import train_model
+from fv3fit.sklearn._train import get_transformed_batch_regressor
 from offline_ml_diags._mapper import PredictionMapper
 from offline_ml_diags._helpers import load_grid_info
 
 from loaders import SAMPLE_DIM_NAME, batches, mappers
-from offline_ml_diags.compute_diags import (
-    _average_metrics_dict,
-    _compute_diags_over_batches,
-)
+from offline_ml_diags.compute_diags import _average_metrics_dict, _compute_diagnostics
 
 logger = logging.getLogger(__name__)
 
@@ -184,7 +181,8 @@ def training_batches(data_source_name, data_source_path, data_source_train_confi
 def test_sklearn_regression(training_batches, data_source_train_config):
 
     assert len(training_batches) == 2
-    wrapper = train_model(training_batches, data_source_train_config)
+    wrapper = get_transformed_batch_regressor(data_source_train_config)
+    wrapper.fit(training_batches)
     assert wrapper.model.n_estimators == 2
 
 
@@ -212,6 +210,9 @@ class MockSklearnWrappedModel(fv3fit.Predictor):
         return ds_pred
 
     def load(self, *args, **kwargs):
+        pass
+
+    def dump(self, path):
         pass
 
 
@@ -309,7 +310,7 @@ def test_compute_offline_diags(
     grid_dataset,
     data_source_offline_config,
 ):
-    ds_diagnostics, ds_diurnal, ds_metrics = _compute_diags_over_batches(
+    ds_diagnostics, ds_diurnal, ds_metrics = _compute_diagnostics(
         diagnostic_batches,
         grid_dataset,
         predicted_vars=data_source_offline_config["output_variables"],

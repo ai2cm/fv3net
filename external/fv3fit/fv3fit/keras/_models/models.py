@@ -1,10 +1,10 @@
-from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Any
+from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Any, List
 from typing_extensions import Literal
 import xarray as xr
 import logging
 import abc
 import tensorflow as tf
-from ..._shared import ArrayPacker, Predictor
+from ..._shared import ArrayPacker, Estimator, io, unpack_matrix
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
@@ -15,53 +15,15 @@ import yaml
 
 logger = logging.getLogger(__file__)
 
+MODEL_DIRECTORY = "model_data"
 
-class Model(Predictor):
-    """
-    Abstract base class for a machine learning model which operates on xarray
-    datasets, and is trained on sequences of such datasets. Extends the predictor
-    base class by defining `fit` and `dump` methods
-    """
-
-    @abc.abstractmethod
-    def __init__(
-        self,
-        sample_dim_name: str,
-        input_variables: Iterable[str],
-        output_variables: Iterable[str],
-        **hyperparameters,
-    ):
-        """Initialize the model.
-        Args:
-            sample_dim_name: name of the sample dimension in datasets used as
-                inputs and outputs.
-            input_variables: names of input variables
-            output_variables: names of output variables
-            hyperparameters: options for subclasses
-        """
-        if len(hyperparameters) > 0:
-            raise TypeError(
-                "Model base class received unexpected keyword arguments: "
-                f"{list(hyperparameters.keys())}"
-            )
-        super().__init__(sample_dim_name, input_variables, output_variables)
-
-    @abc.abstractmethod
-    def fit(
-        self,
-        batches: Sequence[xr.Dataset],
-        epochs: int = 1,
-        batch_size: Optional[int] = None,
-        **fit_kwargs: Any,
-    ) -> None:
-        pass
-
-    @abc.abstractmethod
-    def dump(self, path: str) -> None:
-        pass
+# Description of the training loss progression over epochs
+# Outer array indexes epoch, inner array indexes batch (if applicable)
+EpochLossHistory = Sequence[Sequence[Union[float, int]]]
+History = Mapping[str, EpochLossHistory]
 
 
-class PackedKerasModel(Model):
+class PackedKerasModel(Estimator):
     """
     Abstract base class for a keras-based model which operates on xarray
     datasets containing a "sample" dimension (as defined by loaders.SAMPLE_DIM_NAME),
@@ -153,21 +115,33 @@ class PackedKerasModel(Model):
             model: a Keras model whose input shape is [n_samples, n_features_in] and
                 output shape is [n_samples, features_out]
         """
-        pass
 
     def fit(
         self,
         batches: Sequence[xr.Dataset],
+        validation_dataset: Optional[xr.Dataset] = None,
         epochs: int = 1,
         batch_size: Optional[int] = None,
         workers: int = 1,
         max_queue_size: int = 8,
+        validation_samples: int = 13824,
         **fit_kwargs: Any,
-    ) -> None:
+    ) -> History:
         """Fits a model using data in the batches sequence
+
+        Returns a History of training loss (and validation loss if applicable).
+        Loss values are saved as a list of values for each epoch.
+        
+        If batch_size is provided as a kwarg, the list of values is for each batch fit.
+        e.g. {"loss":
+            [[epoch0_batch0_loss, epoch0_batch1_loss],
+            [epoch1_batch0_loss, epoch1_batch1_loss]]}
+        If not batch_size is not provided, a single loss per epoch is recorded.
+        e.g. {"loss": [[epoch0_loss], [epoch1_loss]]}
         
         Args:
             batches: sequence of stacked datasets of predictor variables
+            validation_dataset: optional validation dataset
             epochs: optional number of times through the batches to run when training
             batch_size: actual batch_size to apply in gradient descent updates,
                 independent of number of samples in each batch in batches; optional,
@@ -175,6 +149,10 @@ class PackedKerasModel(Model):
             workers: number of workers for parallelized loading of batches fed into
                 training, defaults to serial loading (1 worker)
             max_queue_size: max number of batches to hold in the parallel loading queue
+            validation_samples: Option to specify number of samples to randomly draw
+                from the validation dataset, so that we can use multiple timesteps for
+                validation without having to load all the times into memory.
+                Defaults to the equivalent of a single C48 timestep.
             **fit_kwargs: other keyword arguments to be passed to the underlying
                 tf.keras.Model.fit() method
         """
@@ -187,50 +165,63 @@ class PackedKerasModel(Model):
             self._fit_normalization(X, y)
             self._model = self.get_model(n_features_in, n_features_out)
 
-        if batch_size is not None:
-            self._fit_loop(
-                Xy,
-                epochs,
-                batch_size,
-                workers=workers,
-                max_queue_size=max_queue_size,
-                **fit_kwargs,
+        validation_data: Optional[Tuple[np.ndarray, np.ndarray]]
+        if validation_dataset is not None:
+            X_val = self.X_packer.to_array(validation_dataset)
+            y_val = self.y_packer.to_array(validation_dataset)
+            val_sample = np.random.choice(
+                np.arange(len(y_val)), validation_samples, replace=False
             )
+            validation_data = X_val[val_sample], y_val[val_sample]
         else:
-            self._fit_array(
-                Xy,
-                epochs=epochs,
-                workers=workers,
-                max_queue_size=max_queue_size,
-                **fit_kwargs,
-            )
+            validation_data = None
+
+        return self._fit_loop(
+            Xy,
+            validation_data,
+            epochs,
+            batch_size,
+            workers=workers,
+            max_queue_size=max_queue_size,
+            **fit_kwargs,
+        )
 
     def _fit_loop(
         self,
         Xy: Sequence[Tuple[np.ndarray, np.ndarray]],
+        validation_data: Optional[Tuple[np.ndarray, np.ndarray]],
         epochs: int,
-        batch_size: int,
+        batch_size: Optional[int] = None,
         workers: int = 1,
         max_queue_size: int = 8,
         **fit_kwargs: Any,
-    ) -> None:
+    ) -> History:
 
         if workers > 1:
             Xy = _ThreadedSequencePreLoader(
                 Xy, num_workers=workers, max_queue_size=max_queue_size
             )
-
+        train_history = {
+            key: [] for key in ["loss", "val_loss"]
+        }  # type: Mapping[str, List]
         for i_epoch in range(epochs):
+            loss_over_batches, val_loss_over_batches = [], []
             for i_batch, (X, y) in enumerate(Xy):
                 logger.info(
                     f"Fitting on timestep {i_batch} of {len(Xy)}, of epoch {i_epoch}..."
                 )
-                self.model.fit(X, y, batch_size=batch_size, **fit_kwargs)
-
-    def _fit_array(
-        self, Xy: Sequence[Tuple[np.ndarray, np.ndarray]], **fit_kwargs: Any
-    ) -> None:
-        return self.model.fit(Xy, **fit_kwargs)
+                history = self.model.fit(
+                    X,
+                    y,
+                    validation_data=validation_data,
+                    batch_size=batch_size,
+                    **fit_kwargs,
+                )
+                loss_over_batches += history.history["loss"]
+                val_loss_over_batches += history.history.get("val_loss", [np.nan])
+            train_history["loss"].append(loss_over_batches)
+            train_history["val_loss"].append(val_loss_over_batches)
+        return train_history
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         sample_coord = X[self.sample_dim_name]
@@ -243,7 +234,8 @@ class PackedKerasModel(Model):
         return self.model.predict(X)
 
     def dump(self, path: str) -> None:
-        with put_dir(path) as path:
+        dir_ = os.path.join(path, MODEL_DIRECTORY)
+        with put_dir(dir_) as path:
             if self._model is not None:
                 model_filename = os.path.join(path, self._MODEL_FILENAME)
                 self.model.save(model_filename)
@@ -282,8 +274,9 @@ class PackedKerasModel(Model):
             )
 
     @classmethod
-    def load(cls, path: str) -> Model:
-        with get_dir(path) as path:
+    def load(cls, path: str) -> "PackedKerasModel":
+        dir_ = os.path.join(path, MODEL_DIRECTORY)
+        with get_dir(dir_) as path:
             with open(os.path.join(path, cls._X_PACKER_FILENAME), "r") as f:
                 X_packer = ArrayPacker.load(f)
             with open(os.path.join(path, cls._Y_PACKER_FILENAME), "r") as f:
@@ -311,7 +304,37 @@ class PackedKerasModel(Model):
                 )
             return obj
 
+    def jacobian(self, base_state: Optional[xr.Dataset] = None) -> xr.Dataset:
+        """Compute the jacobian of the NN around a base state
 
+        Args:
+            base_state: a single sample of input data. If not passed, then
+                the mean of the input data stored in the X_scaler will be used.
+
+        Returns:
+            The jacobian matrix as a Dataset
+
+        """
+        if base_state is None:
+            if self.X_scaler.mean is not None:
+                mean_expanded = self.X_packer.to_dataset(
+                    self.X_scaler.mean[np.newaxis, :]
+                )
+            else:
+                raise ValueError("X_scaler needs to be fit first.")
+        else:
+            mean_expanded = base_state.expand_dims(self.sample_dim_name)
+
+        mean_tf = tf.convert_to_tensor(self.X_packer.to_array(mean_expanded))
+        with tf.GradientTape() as g:
+            g.watch(mean_tf)
+            y = self.model(mean_tf)
+
+        J = g.jacobian(y, mean_tf)[0, :, 0, :].numpy()
+        return unpack_matrix(self.X_packer, self.y_packer, J)
+
+
+@io.register("packed-keras")
 class DenseModel(PackedKerasModel):
     """
     A simple feedforward neural network model with dense layers.

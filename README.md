@@ -57,6 +57,9 @@ Then run `make lock_pip` to update the `constraints.txt` file.
 To pin anaconda dependencies specified in the `environment.yml` run `make
 lock_conda`.
 
+This currently requires `pip` version < 20.3. The latest version 20.3 does not work with 
+the automatically generated `constraints.txt` because it contains extras.
+
 ## The "fv3net" environment
 
 The package `conda-lock` is used to ensure deterministic builds anaconda
