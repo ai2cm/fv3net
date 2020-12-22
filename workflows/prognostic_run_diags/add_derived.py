@@ -27,6 +27,10 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _total_precip,
         _column_dqu,
         _column_dqv,
+        _column_heating_nudge,
+        _column_moistening_nudge,
+        _column_u_tendency_nudge,
+        _column_v_tendency_nudge,
     ]:
         try:
             arrays.append(func(ds))
@@ -119,26 +123,40 @@ def _column_dqv(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_q1(ds: xr.Dataset) -> xr.DataArray:
-    column_q1 = _column_pq1(ds) + _column_dq1(ds)
+    column_q1 = _column_pq1(ds) + _column_dq1(ds) + _column_heating_nudge(ds)
     column_q1.attrs = {
-        "long_name": "<Q1> column integrated heating from physics+ML",
+        "long_name": "<Q1> column integrated heating from physics+ML+nudging",
         "units": "W/m^2",
     }
     return column_q1.rename("column_integrated_Q1")
 
 
 def _column_q2(ds: xr.Dataset) -> xr.DataArray:
-    column_q2 = _column_pq2(ds) + _column_dq2(ds)
+    column_q2 = _column_pq2(ds) + _column_dq2(ds) + _column_moistening_nudge(ds)
     column_q2.attrs = {
-        "long_name": "<Q2> column integrated moistening from physics+ML",
+        "long_name": "<Q2> column integrated moistening from physics+ML+nudging",
         "units": "mm/day",
     }
     return column_q2.rename("column_integrated_Q2")
 
 
-def _column_moistening_from_nudging(ds: xr.Dataset) -> xr.DataArray:
+def _column_heating_nudge(ds: xr.Dataset) -> xr.DataArray:
+    if "column_heating_nudge" in ds:
+        # name for column integrated temperature nudging in nudge-to-x runs
+        column_heating_from_nudging = ds.column_heating_nudge
+    else:
+        # assume given dataset is for a run without temperature nudging
+        column_heating_from_nudging = xr.zeros_like(ds.PRATEsfc)
+    column_heating_from_nudging.attrs = {
+        "long_name": "column integrated heating from nudging",
+        "units": "W/m^2",
+    }
+    return column_heating_from_nudging.rename("column_heating_from_nudging")
+
+
+def _column_moistening_nudge(ds: xr.Dataset) -> xr.DataArray:
     if "column_moistening_nudge" in ds:
-        # name for column integrated humidity nudging in nudge-to-obs runs
+        # name for column integrated humidity nudging in nudge-to-x runs
         column_moistening_from_nudging = SECONDS_PER_DAY * ds.column_moistening_nudge
     else:
         # assume given dataset is for a run without humidity nudging
@@ -150,11 +168,37 @@ def _column_moistening_from_nudging(ds: xr.Dataset) -> xr.DataArray:
     return column_moistening_from_nudging.rename("column_moistening_from_nudging")
 
 
+def _column_u_tendency_nudge(ds: xr.Dataset) -> xr.DataArray:
+    if "column_eastward_wind_tendency_nudge" in ds:
+        # name for column integrated eastward wind nudging in nudge-to-x runs
+        column_u_tendency_nudge = ds.column_eastward_wind_tendency_nudge
+    else:
+        # assume given dataset is for a run without wind nudging
+        column_u_tendency_nudge = xr.zeros_like(ds.PRATEsfc)
+    column_u_tendency_nudge.attrs = {
+        "long_name": "column-averaged eastward wind tendency from nudging",
+        "units": "m/s**2",
+    }
+    return column_u_tendency_nudge.rename("column_u_tendency_nudge")
+
+
+def _column_v_tendency_nudge(ds: xr.Dataset) -> xr.DataArray:
+    if "column_northward_wind_tendency_nudge" in ds:
+        # name for column integrated eastward wind nudging in nudge-to-x runs
+        column_v_tendency_nudge = ds.column_northward_wind_tendency_nudge
+    else:
+        # assume given dataset is for a run without wind nudging
+        column_v_tendency_nudge = xr.zeros_like(ds.PRATEsfc)
+    column_v_tendency_nudge.attrs = {
+        "long_name": "column-averaged northward wind tendency from nudging",
+        "units": "m/s**2",
+    }
+    return column_v_tendency_nudge.rename("column_v_tendency_nudge")
+
+
 def _total_precip(ds: xr.Dataset) -> xr.DataArray:
     total_precip = (
-        ds.PRATEsfc * SECONDS_PER_DAY
-        - _column_dq2(ds)
-        - _column_moistening_from_nudging(ds)
+        ds.PRATEsfc * SECONDS_PER_DAY - _column_dq2(ds) - _column_moistening_nudge(ds)
     )
     total_precip.attrs = {
         "long_name": "P - <dQ2> total precipitation",

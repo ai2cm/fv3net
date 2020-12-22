@@ -118,8 +118,8 @@ def compute_nudging_diagnostics(
 
     diags.update(
         {
-            "net_moistening_due_to_nudging": net_moistening,
-            "net_heating_due_to_nudging": net_heating,
+            "column_moistening_nudge": net_moistening,
+            "column_heating_nudge": net_heating,
             "water_vapor_path": water_vapor_path,
             "physics_precip": physics_precip,
         }
@@ -131,14 +131,13 @@ def compute_nudging_diagnostics(
             wind_rotation_matrix, nudging_tendency["x_wind"], nudging_tendency["y_wind"]
         )
         rotation_mapping = {
-            ("eastward_wind", "x_wind"): u_tendency,
-            ("northward_wind", "y_wind"): v_tendency,
+            "eastward_wind": u_tendency,
+            "northward_wind": v_tendency,
         }
-        for names, tendency in rotation_mapping.items():
-            a_name, d_name = names
+        for a_name, tendency in rotation_mapping.items():
             integrated_wind_tendency = _mass_average(tendency, state[DELP], "z")
             diags[
-                f"column_integrated_{a_name}_tendency_due_to_nudging"
+                f"column_{a_name}_tendency_nudge"
             ] = integrated_wind_tendency.assign_attrs(
                 units="m s^-2",
                 description=(
@@ -152,10 +151,10 @@ def compute_nudging_diagnostics(
             .sum("z")
             .assign_attrs(
                 units="kg/m^2/s",
-                description="column_integrated mass tendency due to nudging",
+                description="column-integrated mass tendency due to nudging",
             )
         )
-        diags["net_mass_tendency_due_to_nudging"] = net_mass_tendency
+        diags["column_mass_tendency_nudge"] = net_mass_tendency
     diags.update(_append_key_label(nudging_tendency, label))
 
     return diags
