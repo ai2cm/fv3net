@@ -21,8 +21,8 @@ spec:
     secret:
       secretName: gcp-key
   templates:
-   - name: regrid
-     container:
+  - name: regrid
+    container:
       image: us.gcr.io/vcm-ml/post_process_run
       command:
       - fregrid_cubed_to_latlon.sh
