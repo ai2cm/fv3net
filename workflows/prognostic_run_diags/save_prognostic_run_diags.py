@@ -257,6 +257,46 @@ def zonal_mean_biases_physics(prognostic, verification, grid):
     return time_mean(zonal_mean_bias)
 
 
+for var_set in ["dycore", "physics"]:
+    for mask_type in ["global", "land", "sea", "tropics"]:
+        subset_variables = (
+            GLOBAL_AVERAGE_DYCORE_VARS
+            if var_set == "dycore"
+            else GLOBAL_AVERAGE_PHYSICS_VARS
+        )
+
+        @add_to_diags(var_set)
+        @diag_finalizer(f"spatial_min_{var_set}_{mask_type}")
+        @transform.apply("mask_area", mask_type)
+        @transform.apply("resample_time", "3H")
+        @transform.apply("daily_mean", datetime.timedelta(days=10))
+        @transform.apply("subset_variables", subset_variables)
+        def spatial_min(prognostic, verification, grid, mask_type=mask_type):
+            logger.info(f"Preparing minimum for variables ({mask_type})")
+            masked = prognostic.where(~grid["area"].isnull())
+            return masked.min(dim=HORIZONTAL_DIMS)
+
+
+for var_set in ["dycore", "physics"]:
+    for mask_type in ["global", "land", "sea", "tropics"]:
+        subset_variables = (
+            GLOBAL_AVERAGE_DYCORE_VARS
+            if var_set == "dycore"
+            else GLOBAL_AVERAGE_PHYSICS_VARS
+        )
+
+        @add_to_diags(var_set)
+        @diag_finalizer(f"spatial_max_{var_set}_{mask_type}")
+        @transform.apply("mask_area", mask_type)
+        @transform.apply("resample_time", "3H")
+        @transform.apply("daily_mean", datetime.timedelta(days=10))
+        @transform.apply("subset_variables", subset_variables)
+        def spatial_max(prognostic, verification, grid, mask_type=mask_type):
+            logger.info(f"Preparing maximum for variables ({mask_type})")
+            masked = prognostic.where(~grid["area"].isnull())
+            return masked.max(dim=HORIZONTAL_DIMS)
+
+
 for mask_type in ["global", "land", "sea", "tropics"]:
 
     @add_to_diags("dycore")

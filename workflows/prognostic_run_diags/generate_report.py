@@ -167,6 +167,33 @@ def plot_1d(
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
+def plot_1d_min_max_with_region_bar(
+    diagnostics: Iterable[xr.Dataset],
+    varfilter_min: str,
+    varfilter_max: str,
+    run_attr_name: str = "run",
+) -> HVPlot:
+    """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
+    All matching diagnostics must be 1D."""
+    p = hv.Cycle("Colorblind")
+    hmap = hv.HoloMap(kdims=["variable", "region", "run"])
+    for ds in diagnostics:
+        for varname in ds:
+            if varfilter_min in varname:
+                vmin = ds[varname].rename("min")
+                vmax = ds[varname.replace(varfilter_min, varfilter_max)].rename("max")
+                style = "solid" if ds.attrs["baseline"] else "dashed"
+                run = ds.attrs[run_attr_name]
+                long_name = ds[varname].long_name
+                region = varname.split("_")[-1]
+                # Area plot doesn't automatically add correct y label
+                ylabel = f'{vmin.attrs["long_name"]} {vmin.attrs["units"]}'
+                hmap[(long_name, region, run)] = hv.Area(
+                    (vmin.time, vmin, vmax), label="Min/max", vdims=["y", "y2"]
+                ).options(line_dash=style, color=p, alpha=0.6, ylabel=ylabel)
+    return HVPlot(_set_opts_and_overlay(hmap))
+
+
 def plot_1d_with_region_bar(
     diagnostics: Iterable[xr.Dataset], varfilter: str, run_attr_name: str = "run"
 ) -> HVPlot:
@@ -267,6 +294,13 @@ def rms_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 @timeseries_plot_manager.register
 def spatial_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     return plot_1d_with_region_bar(diagnostics, varfilter="spatial_mean")
+
+
+@timeseries_plot_manager.register
+def spatial_minmax_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_1d_min_max_with_region_bar(
+        diagnostics, varfilter_min="spatial_min", varfilter_max="spatial_max"
+    )
 
 
 @zonal_mean_plot_manager.register

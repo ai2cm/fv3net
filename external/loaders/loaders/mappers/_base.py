@@ -47,9 +47,7 @@ class LongRunMapper(GeoMapper):
 
 class MultiDatasetMapper(GeoMapper):
     def __init__(
-        self,
-        mappers: Sequence[LongRunMapper],
-        names: Optional[Sequence[Hashable]] = None,
+        self, mappers: Sequence[GeoMapper], names: Optional[Sequence[Hashable]] = None,
     ):
         """Create a new MultiDatasetMapper.
         

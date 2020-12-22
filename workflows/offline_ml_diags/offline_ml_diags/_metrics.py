@@ -32,7 +32,7 @@ metric_sets = {"scalar_metrics_column_integrated_vars": {"dim_tag": "scalar"}}
 MetricFunctionInputs = Union[xr.DataArray, xr.DataArray, xr.DataArray, Sequence[str]]
 
 
-def calc_metrics(
+def compute_metrics(
     ds: xr.Dataset,
     lat: xr.DataArray,
     area: xr.DataArray,

@@ -5,7 +5,7 @@ MODEL_URL = "gs://ml-model"
 IC_URL = "gs://ic-bucket"
 IC_TIMESTAMP = "20160805.000000"
 ML_CONFIG_UPDATE = "prognostic_config.yml"
-NUDGING_CONFIG_UPDATE = "nudging/nudging_config.yaml"
+NUDGE_TO_FINE_CONFIG_UPDATE = "nudge_to_fine_config.yml"
 OTHER_FLAGS = ["--nudge-to-observations"]
 
 
@@ -19,9 +19,9 @@ def get_ml_args():
     ] + OTHER_FLAGS
 
 
-def get_nudging_args():
+def get_nudge_to_fine_args():
     return [
-        NUDGING_CONFIG_UPDATE,
+        NUDGE_TO_FINE_CONFIG_UPDATE,
         IC_URL,
         IC_TIMESTAMP,
     ]
@@ -36,28 +36,22 @@ def test_prepare_ml_config_regression(regtest):
 
 def test_prepare_nudging_config_regression(regtest):
     parser = prepare_config._create_arg_parser()
-    args = parser.parse_args(get_nudging_args())
+    args = parser.parse_args(get_nudge_to_fine_args())
     with regtest:
         prepare_config.prepare_config(args)
 
 
-TIMESTAMPS = ["20160801.021500", "20160801.041500"]
-
-
 @pytest.mark.parametrize(
-    ["timestamps", "frequency_minutes", "expected"],
+    ["frequency_minutes", "expected"],
     [
+        pytest.param(120, {"kind": "interval", "frequency": 7200}, id="2-hourly"),
         pytest.param(
-            TIMESTAMPS, None, {"kind": "selected", "times": TIMESTAMPS}, id="timestamps"
-        ),
-        pytest.param(None, 120, {"kind": "interval", "frequency": 7200}, id="2-hourly"),
-        pytest.param(
-            None, None, {"kind": "interval", "frequency": 900}, id="default_15-minute"
+            15, {"kind": "interval", "frequency": 900}, id="default_15-minute"
         ),
     ],
 )
-def test_diagnostics_overlay_times(timestamps, frequency_minutes, expected):
+def test_diagnostics_overlay_times(frequency_minutes, expected):
     diags_overlay_times = prepare_config.diagnostics_overlay(
-        {}, None, timestamps, frequency_minutes
+        {}, None, None, frequency_minutes
     )["diagnostics"][0]["times"]
     assert diags_overlay_times == expected
