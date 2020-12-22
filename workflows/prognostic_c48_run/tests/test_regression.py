@@ -24,6 +24,7 @@ IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
 ORO_PATH = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
 FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
 LOG_PATH = "statistics.txt"
+RUNFILE_PATH = "runfile.py"
 DIAGNOSTICS = [
     {
         "name": "diags.zarr",
@@ -526,6 +527,10 @@ def test_fv3run_checksum_restarts(completed_rundir):
 
 def test_fv3run_logs_present(completed_rundir):
     assert completed_rundir.join(LOG_PATH).exists()
+
+
+def test_runfile_script_present(completed_rundir):
+    assert completed_rundir.join(RUNFILE_PATH).exists()
 
 
 def test_fv3run_diagnostic_outputs(completed_rundir):
