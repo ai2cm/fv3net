@@ -89,11 +89,14 @@ spec:
             - {name: run, value: "{{inputs.parameters.run}}"}
             - {name: output, value: "{{inputs.parameters.output}}"}
             - {name: flags, value: "{{inputs.parameters.flags}}"}
-    - - name: regrid-reduced-diagnostics
-        template: regrid-reduced-diagnostics
+    - - name: regrid-reduced-diagnostics-to-latlon
+        templateRef:
+          name: cubed-to-latlon
+          template: regrid-single-input
         arguments:
           parameters:
-            - {name: output, value: "{{inputs.parameters.output}}"}
+            - {name: input, value: "{{inputs.parameters.output}}/diags.nc"}
+            - {name: output, value: "{{inputs.parameters.output}}/diags_latlon.nc"}
   - name: compute-reduced-diagnostics
     inputs:
       parameters:
@@ -130,33 +133,6 @@ spec:
         limits:
             memory: "12Gi"
             cpu: "1000m"
-  - name: regrid-reduced-diagnostics
-    inputs:
-      parameters:
-      - name: output
-    tolerations:
-    - key: "dedicated"
-      operator: "Equal"
-      value: "med-sim-pool"
-      effect: "NoSchedule"
-    container:
-      image: us.gcr.io/vcm-ml/post_process_run
-      command:
-      - fregrid_single_input
-      - "{{inputs.parameters.output}}/diags.nc"
-      - "{{inputs.parameters.output}}/diags_latlon.nc"
-      env:
-      - name: GOOGLE_APPLICATION_CREDENTIALS
-        value: /secret/gcp-credentials/key.json
-      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
-        value: /secret/gcp-credentials/key.json
-      volumeMounts:
-      - mountPath: /secret/gcp-credentials
-        name: gcp-key-secret
-      resources:
-        requests:
-          memory: "3Gi"
-          cpu: "1000m"
   - name: movie
     inputs:
       parameters:
