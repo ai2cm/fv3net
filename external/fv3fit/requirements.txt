@@ -5,7 +5,7 @@ numpy
 scikit-learn
 fsspec
 pyyaml
-tensorflow
+tensorflow>=2.3.0
 pytest
 pytest-cov
 typing_extensions
@@ -70,9 +70,8 @@ requests
 requests-oauthlib
 rsa
 scikit-image
-scipy
+scipy >= 1.5.0
 six
-tensorflow-addons
 traitlets
 urllib3
 wcwidth

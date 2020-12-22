@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from fv3fit._shared.predictor import DATASET_DIM_NAME
+from fv3fit._shared import get_scaler, StandardScaler, ManualScaler
 
 
 class IdentityPredictor2D(Predictor):
@@ -96,3 +97,28 @@ def test__Predictor_predict_columnwise_broadcast_dataset_dim_in_input():
     )
     ans = model.predict_columnwise(X, sample_dims=sample_dims)
     assert ans.a.dims == ("x", "y", DATASET_DIM_NAME, "z")
+
+
+@pytest.mark.parametrize(
+    "scaler_type, expected_type", (["standard", StandardScaler], ["mass", ManualScaler])
+)
+def test_get_scaler_type(scaler_type, expected_type):
+    norm_data = xr.Dataset(
+        {
+            "y0": (["sample", "z"], np.array([[1.0, 1.0], [2.0, 2.0]])),
+            "y1": (["sample"], np.array([-1.0, -2.0])),
+            "pressure_thickness_of_atmospheric_layer": (
+                ["sample", "z"],
+                np.array([[1.0, 1.0], [1.0, 1.0]]),
+            ),
+        }
+    )
+
+    scaler = get_scaler(
+        scaler_type,
+        scaler_kwargs={},
+        norm_data=norm_data,
+        output_vars=["y0", "y1"],
+        sample_dim="sample",
+    )
+    assert isinstance(scaler, expected_type)

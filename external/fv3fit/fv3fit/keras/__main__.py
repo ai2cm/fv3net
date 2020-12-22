@@ -6,10 +6,17 @@ import numpy as np
 import sys
 import random
 from . import get_model
+from ._validation_data import (
+    check_validation_train_overlap,
+    validation_timesteps_config,
+)
+from ._save_history import save_history
 from .. import _shared as shared
+import fv3fit._shared.io
 import loaders
 import tensorflow as tf
-from typing import Union
+from typing import Union, Optional
+import xarray as xr
 
 
 handler = logging.StreamHandler(sys.stdout)
@@ -22,6 +29,7 @@ logger = logging.getLogger(__file__)
 
 
 MODEL_FILENAME = "model_data"
+HISTORY_OUTPUT_DIR = "training_history"
 
 
 def _get_optimizer(hyperparameters: dict = None):
@@ -50,6 +58,30 @@ def _set_random_seed(seed: Union[float, int] = 0):
     tf.random.set_seed(seed + 3)
 
 
+def _validation_dataset(
+    train_config: shared.ModelTrainingConfig,
+) -> Optional[xr.Dataset]:
+    if len(train_config.validation_timesteps) > 0:
+        check_validation_train_overlap(
+            train_config.batch_kwargs["timesteps"], train_config.validation_timesteps,
+        )
+        validation_config = validation_timesteps_config(train_config)
+        # validation config puts all data in one batch
+        validation_dataset_sequence = shared.load_data_sequence(
+            data_path, validation_config
+        )
+        if len(validation_dataset_sequence) > 1:
+            raise ValueError(
+                "Something went wrong! "
+                "All validation data should be concatenated into a single batch. There "
+                f"are {len(validation_dataset_sequence)} batches in the sequence."
+            )
+        return validation_dataset_sequence[0]
+    else:
+        validation_dataset = None
+    return validation_dataset
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -69,6 +101,13 @@ def parse_args():
         default=None,
         help="json file containing a list of timesteps in YYYYMMDD.HHMMSS format",
     )
+    parser.add_argument(
+        "--validation-timesteps-file",
+        type=str,
+        default=None,
+        help="json file containing a list of validation timesteps in "
+        "YYYYMMDD.HHMMSS format",
+    )
     return parser.parse_args()
 
 
@@ -83,12 +122,16 @@ if __name__ == "__main__":
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
         train_config.batch_kwargs["timesteps"] = timesteps
-
+    if args.validation_timesteps_file:
+        with open(args.validation_timesteps_file, "r") as f:
+            val_timesteps = yaml.safe_load(f)
+        train_config.validation_timesteps = val_timesteps
     shared.save_config_output(args.output_data_path, train_config)
 
     logging.basicConfig(level=logging.INFO)
     _set_random_seed(train_config.random_seed)
     optimizer = _get_optimizer(train_config.hyperparameters)
+
     fit_kwargs = train_config.hyperparameters.pop("fit_kwargs", {})
     model = get_model(
         train_config.model_type,
@@ -96,10 +139,13 @@ if __name__ == "__main__":
         train_config.input_variables,
         train_config.output_variables,
         optimizer=optimizer,
-        **train_config.hyperparameters
+        **train_config.hyperparameters,
     )
     batches = shared.load_data_sequence(data_path, train_config)
-    model.fit(batches, **fit_kwargs)
+    validation_dataset = _validation_dataset(train_config)
 
-    model_output_path = os.path.join(args.output_data_path, MODEL_FILENAME)
-    model.dump(model_output_path)
+    history = model.fit(batches, validation_dataset, **fit_kwargs)  # type: ignore
+    fv3fit._shared.io.dump(model, args.output_data_path)
+    save_history(
+        history, os.path.join(args.output_data_path, HISTORY_OUTPUT_DIR),
+    )
