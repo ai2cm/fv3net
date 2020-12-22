@@ -5,7 +5,7 @@ import xarray as xr
 from fv3post import FregridLatLon
 
 # necessary test data downloaded here in post_process_run Dockerfile
-TEST_DATA_PATH = "/tmp/test_data"
+TEST_DATA_PATH = "/tmp/mosaic_data"
 
 
 def test_FregridLatLon():
