@@ -6,7 +6,6 @@ import xarray as xr
 import fv3fit
 from loaders.mappers import GeoMapper
 from loaders import DERIVATION_DIM
-import warnings
 
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
@@ -53,6 +52,7 @@ class PredictionMapper(GeoMapper):
             ds_pred["dQ2"] = xr.zeros_like(ds_pred["dQu"])
             ds_target["dQ1"] = xr.zeros_like(ds_target["dQu"])
             ds_target["dQ2"] = xr.zeros_like(ds_target["dQu"])
+        
         return xr.merge([safe.get_variables(ds, nonpredicted_vars), ds_target, ds_pred])
 
     def __getitem__(self, key: str) -> xr.Dataset:

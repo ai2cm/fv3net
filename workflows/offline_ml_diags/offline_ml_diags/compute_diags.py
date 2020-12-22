@@ -278,7 +278,7 @@ if __name__ == "__main__":
     logger.info("Opening ML model")
     model = fv3fit.load(config["model_path"])
     pred_mapper = _get_prediction_mapper(
-        args, config, set(variables + ["dQ1", "dQ2"]), model
+        args, config, variables, model
     )
 
     # get list of timesteps
@@ -286,6 +286,7 @@ if __name__ == "__main__":
         logger.info("Reading timesteps file")
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
+        config["batch_kwargs"].pop("timesteps")
     else:
         try:
             timesteps = config["batch_kwargs"].pop("timesteps")
