@@ -78,16 +78,19 @@ def stress_fix_temporary(state):
         state["stress_input"] = stress
 
 
-# def upper_level_delp_prsi_fix_temporary(state):
-#     logger.info("Fixing upper level prsi and delp fields.")
-#     prsi = state["prsi_input"]
-#     delp = state["del_input"]
-#     upper_slice = slice(-17, None)
-#     rank = MPI.COMM_WORLD.Get_rank()
-#     prsi_diff = fix_fields["prsi_input"][rank].T - prsi[upper_slice]
-#     delp_diff = fix_fields["del_input"][rank].T - delp[upper_slice]
-#     prsi[upper_slice] += prsi_diff
-#     delp[upper_slice] += delp_diff
+def cutoff_toplevel_tendencies(state):
+
+    adjust_vars = ["du_output", "dv_output", "tdt_update"]
+    n_levels = 5
+    for varname in adjust_vars:
+        if varname in state:
+            logger.info(
+                f"Zeroing upper-level tendencies ({n_levels} levels) for {varname}"
+            )
+            data = state[varname]
+            if data.ndim != 2:
+                raise ValueError("Expected 2D field for tendency adjustment")
+            data[-n_levels:] = 0
 
 
 def add_tdt_increment(state):
@@ -114,6 +117,7 @@ def emulator(state):
     logger.info("Predicting satmedmf update...")
     y = model.predict(X)
     out_state = y_packer.to_dict(y)
+    cutoff_toplevel_tendencies(state)
     consolidate_tracers(out_state)
     if "kpbl_output" in out_state:
         logger.debug("PBL index height detected in output... rounding field")
