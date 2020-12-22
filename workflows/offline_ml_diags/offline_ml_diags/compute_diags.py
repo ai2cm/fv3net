@@ -286,7 +286,7 @@ if __name__ == "__main__":
         logger.info("Reading timesteps file")
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
-        config["batch_kwargs"].pop("timesteps")
+        config["batch_kwargs"].pop("timesteps", None)
     else:
         try:
             timesteps = config["batch_kwargs"].pop("timesteps")
