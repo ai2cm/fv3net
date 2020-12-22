@@ -1,7 +1,7 @@
 import os
 import subprocess
 import tempfile
-from typing import Sequence
+from typing import Hashable, Sequence
 import click
 import numpy as np
 import xarray as xr
@@ -54,14 +54,16 @@ class FregridLatLon:
             }
             self.remap = xr.open_dataset(remap_file_path).load()
 
-    def regrid(
+    def regrid_scalar(
         self,
         ds: xr.Dataset,
         x_dim: str = "x",
         y_dim: str = "y",
-        scalar_fields: Sequence = None,
+        lon_dim: str = "longitude",
+        lat_dim: str = "latitude",
+        fields: Sequence[Hashable] = (),
     ) -> xr.Dataset:
-        """Regrid dataset from cubed-sphere grid to lat-lon grid.
+        """Regrid scalar variables in dataset from cubed-sphere grid to lat-lon grid.
 
         Note:
             Saves dataset to disk and uses command-line fregrid to do regridding.
@@ -70,15 +72,16 @@ class FregridLatLon:
             ds: dataset to be regridded. Must have 'tile' dimension.
             x_dim (optional): name of x-dimension. Defaults to 'x'.
             y_dim (optional): name of y-dimension. Defaults to 'y'.
-            scalar_fields (optional): sequence of variable names to regrid. Defaults to
+            lon_dim (optional): name of output longitude dim. Defaults to 'longitude'.
+            lat_dim (optional): name of output latitude dim. Defaults to 'latitude'.
+            fields (optional): sequence of variable names to regrid. Defaults to
                 all variables in ds whose dimensions include x_dim, y_dim and 'tile'
-                
+
         Returns:
-            Dataset on a lat-lon grid. Horizontal dimension names are 'longitude' and
-            'latitude'.
+            Dataset on a lat-lon grid. Dimension names are 'longitude' and 'latitude'.
         """
-        if scalar_fields is None:
-            scalar_fields = [
+        if not fields:
+            fields = [
                 v for v in ds.data_vars if {x_dim, y_dim, "tile"} <= set(ds[v].dims)
             ]
 
@@ -93,7 +96,7 @@ class FregridLatLon:
                 remap_file_path,
                 input_prefix,
                 output_file_path,
-                scalar_fields,
+                fields,
             )
 
             ds = self._standardize_dataset_for_fregrid(ds, x_dim, y_dim)
@@ -106,10 +109,10 @@ class FregridLatLon:
             ds_latlon = xr.open_dataset(output_file_path)
             return ds_latlon.rename(
                 {
-                    x_dim: "longitude",
-                    y_dim: "latitude",
-                    f"{x_dim}_bnds": "longitude_bnds",
-                    f"{y_dim}_bnds": "latitude_bnds",
+                    x_dim: lon_dim,
+                    y_dim: lat_dim,
+                    f"{x_dim}_bnds": f"{lon_dim}_bnds",
+                    f"{y_dim}_bnds": f"{lat_dim}_bnds",
                 }
             )
 
@@ -138,7 +141,7 @@ class FregridLatLon:
         return [os.path.join(directory, filename) for filename in mosaic_filenames]
 
     def _get_regrid_args(
-        self, mosaic_file, remap_file, input_file, output_file, scalar_fields
+        self, mosaic_file, remap_file, input_file, output_file, fields
     ):
         args = [
             "--input_mosaic",
@@ -150,7 +153,7 @@ class FregridLatLon:
             "--output_file",
             output_file,
             "--scalar_field",
-            ",".join(scalar_fields),
+            ",".join(fields),
             "--nlat",
             str(self.nlat),
             "--nlon",
@@ -187,7 +190,7 @@ def fregrid_single_input(input_url: str, output_url: str):
         ds = xr.open_dataset(os.path.join(tmpdir, "input.nc"))
         resolution = f"C{ds.sizes['x']}"
         fregridder = FregridLatLon(resolution, 180, 360)
-        ds_latlon = fregridder.regrid(ds)
+        ds_latlon = fregridder.regrid_scalar(ds)
         ds_latlon.to_netcdf(os.path.join(tmpdir, "data.nc"))
         cp(os.path.join(tmpdir, "data.nc"), output_url)
 
