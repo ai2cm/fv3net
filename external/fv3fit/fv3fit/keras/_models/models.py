@@ -4,6 +4,7 @@ import xarray as xr
 import logging
 import abc
 import tensorflow as tf
+import tensorflow_addons as tfa
 from ..._shared import ArrayPacker, Estimator, io, unpack_matrix
 import numpy as np
 import os
@@ -402,7 +403,6 @@ class DenseModel(PackedKerasModel):
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         inputs = tf.keras.Input(n_features_in)
         x = self.X_scaler.normalize_layer(inputs)
-        print(self._kernel_regularizer.__dict__)
         for i in range(self._depth - 1):
             hidden_layer = tf.keras.layers.Dense(
                 self._width,

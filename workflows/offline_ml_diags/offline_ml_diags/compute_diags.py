@@ -145,7 +145,9 @@ def _compute_diagnostics(
     batches: Sequence[xr.Dataset], grid: xr.Dataset, predicted_vars: Sequence[str]
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
     batches_summary, batches_diurnal, batches_metrics = [], [], []
-    diagnostic_vars = list(set(list(predicted_vars) + ["pQ1", "pQ2", "Q1", "Q2"] + ["dQ1", "dQ2"]))
+    diagnostic_vars = list(
+        set(list(predicted_vars) + ["pQ1", "pQ2", "Q1", "Q2"] + ["dQ1", "dQ2"])
+    )
     metric_vars = list(set(list(predicted_vars) + ["Q1", "Q2"] + ["dQ1", "dQ2"]))
 
     # for each batch...
@@ -275,7 +277,9 @@ if __name__ == "__main__":
 
     logger.info("Opening ML model")
     model = fv3fit.load(config["model_path"])
-    pred_mapper = _get_prediction_mapper(args, config, variables, model)
+    pred_mapper = _get_prediction_mapper(
+        args, config, set(variables + ["dQ1", "dQ2"]), model
+    )
 
     # get list of timesteps
     if args.timesteps_file:
@@ -290,7 +294,10 @@ if __name__ == "__main__":
 
     batch_kwargs = dissoc(config["batch_kwargs"], "mapping_function", "mapping_kwargs",)
     batches = loaders.batches.diagnostic_batches_from_mapper(
-        pred_mapper, set(variables + ["dQ1", "dQ2"]), timesteps=timesteps, **batch_kwargs,
+        pred_mapper,
+        set(variables + ["dQ1", "dQ2"]),
+        timesteps=timesteps,
+        **batch_kwargs,
     )
 
     # compute diags
