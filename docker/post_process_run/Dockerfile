@@ -52,8 +52,8 @@ WORKDIR /post_process_run
 ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/key.json
 RUN --mount=type=secret,id=gcp,dst=/tmp/key.json \
     gcloud auth activate-service-account --key-file /tmp/key.json && \
-    mkdir -p /tmp/test_data && \
-    gsutil -m cp -r gs://vcm-ml-raw/2020-11-12-gridspec-orography-and-mosaic-data/C48 /tmp/test_data
+    mkdir -p /tmp/mosaic_data && \
+    gsutil -m cp -r gs://vcm-ml-raw/2020-11-12-gridspec-orography-and-mosaic-data/C48 /tmp/mosaic_data
 RUN ["bash", "-o", "pipefail", "-c", "pytest -vv | tee /tmp/test-results.txt"]
 
 FROM bld
