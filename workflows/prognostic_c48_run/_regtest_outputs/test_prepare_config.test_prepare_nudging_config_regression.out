@@ -64,11 +64,11 @@ diagnostics:
     frequency: 900
     kind: interval
   variables:
-  - net_moistening_due_to_nudging
-  - net_heating_due_to_nudging
-  - net_mass_tendency_due_to_nudging
-  - column_integrated_eastward_wind_tendency_due_to_nudging
-  - column_integrated_northward_wind_tendency_due_to_nudging
+  - column_moistening_nudge
+  - column_heating_nudge
+  - column_mass_tendency_nudge
+  - column_eastward_wind_tendency_nudge
+  - column_northward_wind_tendency_nudge
   - water_vapor_path
   - physics_precip
 - name: reference_state.zarr

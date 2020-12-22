@@ -143,29 +143,29 @@ def _column_q2(ds: xr.Dataset) -> xr.DataArray:
 def _column_heating_nudge(ds: xr.Dataset) -> xr.DataArray:
     if "column_heating_nudge" in ds:
         # name for column integrated temperature nudging in nudge-to-x runs
-        column_heating_from_nudging = ds.column_heating_nudge
+        column_heating_nudge = ds.column_heating_nudge
     else:
         # assume given dataset is for a run without temperature nudging
-        column_heating_from_nudging = xr.zeros_like(ds.PRATEsfc)
-    column_heating_from_nudging.attrs = {
+        column_heating_nudge = xr.zeros_like(ds.PRATEsfc)
+    column_heating_nudge.attrs = {
         "long_name": "column integrated heating from nudging",
         "units": "W/m^2",
     }
-    return column_heating_from_nudging.rename("column_heating_from_nudging")
+    return column_heating_nudge.rename("column_heating_nudge")
 
 
 def _column_moistening_nudge(ds: xr.Dataset) -> xr.DataArray:
     if "column_moistening_nudge" in ds:
         # name for column integrated humidity nudging in nudge-to-x runs
-        column_moistening_from_nudging = SECONDS_PER_DAY * ds.column_moistening_nudge
+        column_moistening_nudge = SECONDS_PER_DAY * ds.column_moistening_nudge
     else:
         # assume given dataset is for a run without humidity nudging
-        column_moistening_from_nudging = xr.zeros_like(ds.PRATEsfc)
-    column_moistening_from_nudging.attrs = {
+        column_moistening_nudge = xr.zeros_like(ds.PRATEsfc)
+    column_moistening_nudge.attrs = {
         "long_name": "column integrated moistening from nudging",
         "units": "mm/day",
     }
-    return column_moistening_from_nudging.rename("column_moistening_from_nudging")
+    return column_moistening_nudge.rename("column_moistening_nudge")
 
 
 def _column_u_tendency_nudge(ds: xr.Dataset) -> xr.DataArray:
