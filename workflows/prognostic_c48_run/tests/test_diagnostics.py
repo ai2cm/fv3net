@@ -65,10 +65,11 @@ def test_DiagnosticFile_time_selection():
     t1 = datetime(year=2016, month=8, day=1, hour=0, minute=15)
     t2 = datetime(year=2016, month=8, day=1, hour=0, minute=16)
 
+    path = "diag.zarr"
     monitor = Mock()
 
     # observe a few times
-    diag_file = DiagnosticFile(monitor, times=[t1], variables=All())
+    diag_file = DiagnosticFile(path, times=[t1], variables=All()).set_monitor(monitor)
     diag_file.observe(t1, {})
     diag_file.observe(t2, {})
     monitor.store.assert_called_once()
@@ -89,7 +90,9 @@ def test_DiagnosticFile_variable_selection():
     monitor = VariableCheckingMonitor()
 
     # observe a few times
-    diag_file = DiagnosticFile(monitor, times=All(), variables=["a"])
+    diag_file = DiagnosticFile("diags.zarr", times=All(), variables=["a"]).set_monitor(
+        monitor
+    )
     diag_file.observe(None, diagnostics)
 
 
@@ -108,5 +111,7 @@ def test_DiagnosticFile_variable_units(attrs, expected_units):
     monitor = UnitCheckingMonitor()
 
     # observe a few times
-    diag_file = DiagnosticFile(monitor, times=All(), variables=All())
+    diag_file = DiagnosticFile("diags.zarr", times=All(), variables=All()).set_monitor(
+        monitor
+    )
     diag_file.observe(None, diagnostics)

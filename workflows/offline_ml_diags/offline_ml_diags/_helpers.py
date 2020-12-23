@@ -97,7 +97,7 @@ def write_report(
     report_metrics: report.Metrics = None,
     html_header: str = None,
 ):
-    filename = title.replace(" ", "_") + ".html"
+    filename = "index.html"
     html_report = report.create_html(
         sections,
         title,

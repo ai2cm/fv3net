@@ -1,4 +1,5 @@
-FROM ubuntu:20.04
+# syntax=docker/dockerfile:experimental
+FROM ubuntu:20.04 as bld
 
 ENV DEBIAN_FRONTEND="noninteractive"
 
@@ -44,8 +45,20 @@ RUN pip3 install -c /tmp/constraints.txt -r /tmp/requirements.txt && \
 COPY workflows/post_process_run /post_process_run
 RUN pip3 install /post_process_run --no-deps --no-cache-dir
 
+FROM bld as test
+
 # run tests
-RUN cd /post_process_run && pytest && rm -rf /post_process_run
+WORKDIR /post_process_run
+ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/key.json
+RUN --mount=type=secret,id=gcp,dst=/tmp/key.json \
+    gcloud auth activate-service-account --key-file /tmp/key.json && \
+    mkdir -p /tmp/mosaic_data && \
+    gsutil -m cp -r gs://vcm-ml-raw/2020-11-12-gridspec-orography-and-mosaic-data/C48 /tmp/mosaic_data
+RUN ["bash", "-o", "pipefail", "-c", "pytest -vv | tee /tmp/test-results.txt"]
+
+FROM bld
+# Copy results from test stage to ensure docker buildkit executes it
+COPY --from=test /tmp/test-results.txt .
 
 ARG COMMIT_SHA_ARG
 ENV COMMIT_SHA=$COMMIT_SHA_ARG

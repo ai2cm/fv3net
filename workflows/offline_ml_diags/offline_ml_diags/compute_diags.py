@@ -16,9 +16,9 @@ import loaders
 from vcm import safe, interpolate_to_pressure_levels
 import vcm
 from vcm.cloud import get_fs
-from fv3fit import PRODUCTION_MODEL_TYPES
+import fv3fit
+from ._plot_jacobian import plot_jacobian
 from ._metrics import compute_metrics
-from . import _model_loaders as model_loaders
 from ._mapper import PredictionMapper
 from ._helpers import net_precipitation_provenance_information, load_grid_info
 from ._select import meridional_transect, nearest_time
@@ -218,39 +218,10 @@ def _get_base_mapper(args, config: Mapping):
     )
 
 
-def _get_model_loader(config: Mapping):
-    model_type_str = (
-        config.get("model_type", "random_forest").replace(" ", "").replace("_", "")
-    )
-    if ("rf" in model_type_str) or ("randomforest" in model_type_str):
-        model_routine = "sklearn"
-    elif model_type_str in PRODUCTION_MODEL_TYPES["keras"]:
-        model_routine = "keras"
-    else:
-        valid_types = []
-        for types in PRODUCTION_MODEL_TYPES.values():
-            valid_types.extend(types)
-        raise (
-            AttributeError(
-                f"Invalid model_type: {model_type_str}; "
-                f"valid model types are {valid_types}"
-            )
-        )
-    model_loader_str = (
-        "load_sklearn_model" if model_routine == "sklearn" else "load_keras_model"
-    )
-    model_loader = getattr(model_loaders, model_loader_str)
-    loader_kwargs = (
-        {"keras_model_type": model_type_str} if model_routine == "keras" else {}
-    )
-    return model_loader, loader_kwargs
-
-
-def _get_prediction_mapper(args, config: Mapping, variables: Sequence[str]):
+def _get_prediction_mapper(
+    args, config: Mapping, variables: Sequence[str], model: fv3fit.Predictor
+):
     base_mapper = _get_base_mapper(args, config)
-    logger.info("Opening ML model")
-    model_loader, loader_kwargs = _get_model_loader(config)
-    model = model_loader(args.model_path, **loader_kwargs)
     model_mapper_kwargs = config.get("model_mapper_kwargs", {})
     logger.info("Creating prediction mapper")
     return PredictionMapper(
@@ -301,7 +272,10 @@ if __name__ == "__main__":
     variables = list(
         set(config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS)
     )
-    pred_mapper = _get_prediction_mapper(args, config, variables)
+
+    logger.info("Opening ML model")
+    model = fv3fit.load(config["model_path"])
+    pred_mapper = _get_prediction_mapper(args, config, variables, model)
 
     # get list of timesteps
     if args.timesteps_file:
@@ -318,6 +292,9 @@ if __name__ == "__main__":
     batches = loaders.batches.diagnostic_batches_from_mapper(
         pred_mapper, variables, timesteps=timesteps, **batch_kwargs,
     )
+    batches = loaders.batches.diagnostic_batches_from_mapper(
+        pred_mapper, variables, timesteps=timesteps, **batch_kwargs,
+    )
 
     # compute diags
     ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diagnostics(
@@ -331,6 +308,12 @@ if __name__ == "__main__":
     )
     ds_diagnostics["time"] = times_used
     ds_diurnal["time"] = times_used
+
+    # save jacobian
+    try:
+        plot_jacobian(model, args.output_path)  # type: ignore
+    except AttributeError:
+        pass
 
     # compute transected and zonal diags
     snapshot_time = args.snapshot_time or sorted(timesteps)[0]

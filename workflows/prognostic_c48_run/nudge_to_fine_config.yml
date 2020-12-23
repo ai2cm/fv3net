@@ -5,6 +5,7 @@ nudging:
     specific_humidity: 12
     x_wind: 12
     y_wind: 12
+    pressure_thickness_of_atmospheric_layer: 12
 namelist:
   coupler_nml:
     current_date:

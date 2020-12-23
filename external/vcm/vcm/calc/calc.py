@@ -43,7 +43,7 @@ def apparent_source(
 
     t = q[t_dim]
     s = q[s_dim]
-    q = q.drop([t_dim, s_dim])
+    q = q.drop_vars([t_dim, s_dim])
     dq = q.diff(t_dim)
     dq_c48 = q.diff(s_dim)
     dt = timedelta_to_seconds(t.diff(t_dim))

@@ -2,48 +2,18 @@ import argparse
 import os
 import yaml
 import logging
+from typing import Sequence, Dict
 
 import fv3config
 import fv3kube
 
 import vcm
 
+from runtime import default_diagnostics
+
 logger = logging.getLogger(__name__)
 
-
-TIMES = {"kind": "interval", "frequency": 900}
-ML_DIAGNOSTICS = {
-    "name": "diags.zarr",
-    "variables": [
-        "net_moistening",
-        "net_moistening_diagnostic",
-        "net_heating",
-        "net_heating_diagnostic",
-        "water_vapor_path",
-        "physics_precip",
-        "column_integrated_dQu",
-        "column_integrated_dQu_diagnostic",
-        "column_integrated_dQv",
-        "column_integrated_dQv_diagnostic",
-    ],
-}
-NUDGING_DIAGNOSTICS_2D = {
-    "name": "diags.zarr",
-    "variables": [
-        "net_moistening_due_to_nudging",
-        "net_heating_due_to_nudging",
-        "net_mass_tendency_due_to_nudging",
-        "column_integrated_eastward_wind_tendency_due_to_nudging",
-        "column_integrated_northward_wind_tendency_due_to_nudging",
-        "water_vapor_path",
-        "physics_precip",
-    ],
-}
-NUDGING_TENDENCIES = {"name": "nudging_tendencies.zarr", "variables": []}
-BASELINE_DIAGNOSTICS = {
-    "name": "diags.zarr",
-    "variables": ["water_vapor_path", "physics_precip"],
-}
+PROGNOSTIC_DIAG_TABLE = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -79,26 +49,13 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--nudge-to-observations", action="store_true", help="Nudge to observations",
     )
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "--output-timestamps",
-        type=str,
-        default=None,
-        help=(
-            "Path to yaml-encoded list of YYYYMMDD.HHMMSS timestamps, which define "
-            "a subset of run's timestamps that will be written to disk. Mutually "
-            "exclusive with `output-frequency`. If both are omitted, timestamps will "
-            "be written every 15 minutes from the initial time."
-        ),
-    )
-    group.add_argument(
+    parser.add_argument(
         "--output-frequency",
         type=int,
-        default=None,
+        default=15,
         help=(
-            "Output frequency (in minutes) of ML/nudging diagnostics. Mutually "
-            "exclusive with `output-timestamps`. If both are omitted, timestamps "
-            "will be written every 15 minutes from the initial time."
+            "Output frequency (in minutes) of ML/nudging diagnostics. If omitted, "
+            "output will be written every 15 minutes from the initial time."
         ),
     )
     parser.add_argument(
@@ -146,42 +103,66 @@ def nudging_overlay(nudging_config, initial_condition_url):
     return overlay
 
 
-def diagnostics_overlay(config, model_url, timestamps, frequency_minutes):
+def diagnostics_overlay(config, model_url, nudge_to_obs, frequency_minutes):
 
     diagnostic_files = []
 
     if ("scikit_learn" in config) or model_url:
-        diagnostic_files.append(ML_DIAGNOSTICS)
-    elif "nudging" in config:
-        nudging_tendencies = NUDGING_TENDENCIES
-        nudging_variables = list(config["nudging"]["timescale_hours"])
-        nudging_tendencies["variables"].extend(
-            [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
-        )
-        diagnostic_files.append(nudging_tendencies)
-        diagnostic_files.append(NUDGING_DIAGNOSTICS_2D)
-    else:
-        diagnostic_files.append(BASELINE_DIAGNOSTICS)
-
-    for diagnostic in diagnostic_files:
-        if timestamps:
-            diagnostic.update({"times": {"kind": "selected", "times": timestamps}})
-        elif frequency_minutes:
-            diagnostic.update(
-                {"times": {"kind": "interval", "frequency": 60 * frequency_minutes}}
+        diagnostic_files.append(default_diagnostics.ml_diagnostics.to_dict())
+    elif "nudging" in config or nudge_to_obs:
+        diagnostic_files.append(default_diagnostics.state_after_timestep.to_dict())
+        diagnostic_files.append(default_diagnostics.physics_tendencies.to_dict())
+        if "nudging" in config:
+            diagnostic_files.append(_nudging_tendencies(config))
+            diagnostic_files.append(
+                default_diagnostics.nudging_diagnostics_2d.to_dict()
             )
-        else:
-            diagnostic.update({"times": TIMES})
+            diagnostic_files.append(_reference_state(config))
+    else:
+        diagnostic_files.append(default_diagnostics.baseline_diagnostics.to_dict())
 
-    return {
-        "diagnostics": diagnostic_files,
-        "diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic",
-    }
+    diagnostic_files = _update_times(diagnostic_files, frequency_minutes)
+
+    return {"diagnostics": diagnostic_files, "diag_table": PROGNOSTIC_DIAG_TABLE}
+
+
+def _nudging_tendencies(config):
+
+    nudging_tendencies = default_diagnostics.nudging_tendencies.to_dict()
+    nudging_variables = list(config["nudging"]["timescale_hours"])
+    nudging_tendencies["variables"].extend(
+        [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
+    )
+    return nudging_tendencies
+
+
+def _reference_state(config):
+    reference_states = default_diagnostics.reference_state.to_dict()
+    nudging_variables = list(config["nudging"]["timescale_hours"])
+    reference_states["variables"].extend(
+        [f"{var}_reference" for var in nudging_variables]
+    )
+    return reference_states
+
+
+def _update_times(
+    diagnostic_files: Sequence[Dict], frequency_minutes: int
+) -> Sequence[Dict]:
+    for diagnostic in diagnostic_files:
+        diagnostic.update(
+            {"times": {"kind": "interval", "frequency": 60 * frequency_minutes}}
+        )
+    return diagnostic_files
 
 
 def step_tendency_overlay(
     config,
-    default_step_tendency_variables=("specific_humidity", "air_temperature"),
+    default_step_tendency_variables=(
+        "specific_humidity",
+        "air_temperature",
+        "eastward_wind",
+        "northward_wind",
+    ),
     default_step_storage_variables=("specific_humidity", "total_water"),
 ):
     step_tendency_overlay = {}
@@ -202,12 +183,6 @@ def prepare_config(args):
     model_type = user_config.get("scikit_learn", {}).get("model_type", "scikit_learn")
     nudging_config = user_config.get("nudging", {})
 
-    if args.output_timestamps:
-        with open(args.output_timestamps) as f:
-            timestamps = yaml.safe_load(f)
-    else:
-        timestamps = None
-
     # To simplify the configuration flow, updates should be implemented as
     # overlays (i.e. diffs) requiring only a small number of inputs. In
     # particular, overlays should not require access to the full configuration
@@ -218,7 +193,10 @@ def prepare_config(args):
             args.initial_condition_url, args.ic_timestep
         ),
         diagnostics_overlay(
-            user_config, args.model_url, timestamps, args.output_frequency
+            user_config,
+            args.model_url,
+            args.nudge_to_observations,
+            args.output_frequency,
         ),
         step_tendency_overlay(user_config),
         ml_overlay(model_type, args.model_url, args.diagnostic_ml),

@@ -1,4 +1,5 @@
-from typing import Any, Generator, Tuple
+from typing import Any, Generator, Tuple, MutableMapping
+import fsspec
 import xarray as xr
 from dask.delayed import delayed
 
@@ -9,7 +10,7 @@ from vcm.cloud.fsspec import get_fs
 
 from . import _rundir
 
-SCHEMA_CACHE = {}
+SCHEMA_CACHE: MutableMapping[str, xr.Dataset] = {}
 FILE_PREFIX_DIM = "file_prefix"
 
 
@@ -84,17 +85,19 @@ def _replace_1d_coord_by_mapping(ds, mapping, old_dim, new_dim="time"):
     return ds.assign_coords({new_dim: times}).swap_dims({old_dim: new_dim})
 
 
-def _load_restart(fs, path):
+def _load_restart(fs: fsspec.AbstractFileSystem, path: str) -> xr.Dataset:
     with fs.open(path) as f:
         return xr.open_dataset(f).compute()
 
 
-def _load_restart_with_schema(fs, path, schema):
+def _load_restart_with_schema(fs, path, schema) -> xr.Dataset:
     promise = delayed(_load_restart)(fs, path)
     return open_delayed(promise, schema)
 
 
-def _load_restart_lazily(fs, path, restart_category):
+def _load_restart_lazily(
+    fs: fsspec.AbstractFileSystem, path: str, restart_category: str
+) -> xr.Dataset:
     # only actively load the initial data
     if restart_category in SCHEMA_CACHE:
         schema = SCHEMA_CACHE[restart_category]

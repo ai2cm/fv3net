@@ -25,10 +25,10 @@ def loss(request) -> str:
     return request.param
 
 
-@pytest.fixture
-def hyperparameters(model_type, loss) -> dict:
+@pytest.fixture(params=[{"width": 4, "depth": 3}])
+def hyperparameters(request, model_type, loss) -> dict:
     if model_type == "DenseModel":
-        hyperparameters = {"width": 4, "depth": 3}
+        hyperparameters = request.param
         if loss:
             hyperparameters["loss"] = loss
         return hyperparameters
@@ -42,7 +42,7 @@ def model(
     input_variables: Iterable[str],
     output_variables: Iterable[str],
     hyperparameters: dict,
-) -> fv3fit.keras.Model:
+) -> fv3fit.Estimator:
     return fv3fit.keras.get_model(
         model_type,
         loaders.SAMPLE_DIM_NAME,
@@ -59,7 +59,7 @@ def test_reproducibility(
     output_variables: Iterable[str],
 ):
     batch_dataset_test = training_batches[0]
-
+    fit_kwargs = {"batch_size": 384, "validation_samples": 384}
     _set_random_seed(0)
     model_0 = fv3fit.keras.get_model(
         "DenseModel",
@@ -68,7 +68,7 @@ def test_reproducibility(
         output_variables,
         **hyperparameters,
     )
-    model_0.fit(training_batches)
+    model_0.fit(training_batches, **fit_kwargs)
     result_0 = model_0.predict(batch_dataset_test)
 
     _set_random_seed(0)
@@ -79,14 +79,14 @@ def test_reproducibility(
         output_variables,
         **hyperparameters,
     )
-    model_1.fit(training_batches)
+    model_1.fit(training_batches, **fit_kwargs)
     result_1 = model_1.predict(batch_dataset_test)
 
     xr.testing.assert_allclose(result_0, result_1, rtol=1e-03)
 
 
 def test_training(
-    model: fv3fit.keras.Model,
+    model: fv3fit.Estimator,
     training_batches: Sequence[xr.Dataset],
     output_variables: Iterable[str],
 ):
@@ -97,7 +97,7 @@ def test_training(
 
 
 def test_dump_and_load_before_training(
-    model: fv3fit.keras.Model,
+    model: fv3fit.Estimator,
     training_batches: Sequence[xr.Dataset],
     output_variables: Iterable[str],
 ):
@@ -126,7 +126,7 @@ def validate_dataset_result(
 
 
 def test_dump_and_load_maintains_prediction(
-    model: fv3fit.keras.Model,
+    model: fv3fit.Estimator,
     training_batches: Sequence[xr.Dataset],
     output_variables: Iterable[str],
 ):
@@ -141,7 +141,24 @@ def test_dump_and_load_maintains_prediction(
     xr.testing.assert_equal(loaded_result, original_result)
 
 
+hyperparams_with_fit_kwargs = {
+    "width": 4,
+    "depth": 3,
+    "fit_kwargs": {"batch_size": 100, "validation_samples": 384},
+}
+
+
+@pytest.mark.parametrize(
+    "hyperparameters, validation_timesteps",
+    [
+        (hyperparams_with_fit_kwargs, ["20160801.003000"]),
+        (hyperparams_with_fit_kwargs, None),
+    ],
+    indirect=["hyperparameters", "validation_timesteps"],
+)
 def test_training_integration(
+    hyperparameters,
+    validation_timesteps,
     data_source_path: str,
     train_config_filename: str,
     tmp_path: str,
@@ -166,14 +183,14 @@ def test_training_integration(
 
 
 @pytest.mark.parametrize(
-    "loss, expected_loss",
+    "loss, hyperparameters, expected_loss",
     (
-        pytest.param("mae", "mae", id="specified_loss"),
-        pytest.param(None, "mse", id="default_loss"),
+        pytest.param("mae", {}, "mae", id="specified_loss"),
+        pytest.param(None, {}, "mse", id="default_loss"),
     ),
-    indirect=["loss"],
+    indirect=["loss", "hyperparameters"],
 )
-def test_dump_and_load_loss_info(loss, expected_loss, model):
+def test_dump_and_load_loss_info(loss, hyperparameters, expected_loss, model):
     with tempfile.TemporaryDirectory() as tmpdir:
         model.dump(tmpdir)
         model_loaded = model.__class__.load(tmpdir)

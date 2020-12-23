@@ -11,7 +11,7 @@ import diagnostics_utils as utils
 import synth
 from fv3fit import _shared as shared
 import fv3fit
-from fv3fit.sklearn._train import train_model
+from fv3fit.sklearn._train import get_transformed_batch_regressor
 from offline_ml_diags._mapper import PredictionMapper
 from offline_ml_diags._helpers import load_grid_info
 
@@ -181,7 +181,8 @@ def training_batches(data_source_name, data_source_path, data_source_train_confi
 def test_sklearn_regression(training_batches, data_source_train_config):
 
     assert len(training_batches) == 2
-    wrapper = train_model(training_batches, data_source_train_config)
+    wrapper = get_transformed_batch_regressor(data_source_train_config)
+    wrapper.fit(training_batches)
     assert wrapper.model.n_estimators == 2
 
 
@@ -209,6 +210,9 @@ class MockSklearnWrappedModel(fv3fit.Predictor):
         return ds_pred
 
     def load(self, *args, **kwargs):
+        pass
+
+    def dump(self, path):
         pass
 
 

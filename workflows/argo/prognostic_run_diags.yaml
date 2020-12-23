@@ -81,10 +81,33 @@ spec:
       - name: output
       - name: flags
         value: " "
+    steps:
+    - - name: compute-reduced-diagnostics
+        template: compute-reduced-diagnostics
+        arguments:
+          parameters:
+            - {name: run, value: "{{inputs.parameters.run}}"}
+            - {name: output, value: "{{inputs.parameters.output}}"}
+            - {name: flags, value: "{{inputs.parameters.flags}}"}
+    - - name: regrid-reduced-diagnostics-to-latlon
+        templateRef:
+          name: cubed-to-latlon
+          template: regrid-single-input
+        arguments:
+          parameters:
+            - {name: input, value: "{{inputs.parameters.output}}/diags.nc"}
+            - {name: output, value: "{{inputs.parameters.output}}/diags_latlon.nc"}
+  - name: compute-reduced-diagnostics
+    inputs:
+      parameters:
+      - name: run
+      - name: output
+      - name: flags
+        value: " "
     tolerations:
     - key: "dedicated"
       operator: "Equal"
-      value: "climate-sim-pool"
+      value: "med-sim-pool"
       effect: "NoSchedule"
     container:
       image: us.gcr.io/vcm-ml/fv3net
