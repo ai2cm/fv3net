@@ -24,7 +24,7 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _column_dq2,
         _column_q1,
         _column_q2,
-        _total_precip,
+        _total_precip_to_lsm,
         _column_dqu,
         _column_dqv,
         _column_nq1,
@@ -166,15 +166,15 @@ def _column_nq2(ds: xr.Dataset) -> xr.DataArray:
     return column_nq2.rename("column_integrated_nQ2")
 
 
-def _total_precip(ds: xr.Dataset) -> xr.DataArray:
+def _total_precip_to_lsm(ds: xr.Dataset) -> xr.DataArray:
     if "total_precip" in ds:
-        # total precip is calculated in the prognostic and nudge-to-x runs
-        total_precip = ds.total_precip * SECONDS_PER_DAY
+        # total precip is calculated in the prognostic and nudge-to-fine runs
+        total_precip_to_lsm = ds.total_precip * SECONDS_PER_DAY
     else:
         # in the baseline case total_precip and physics precip are the same
-        total_precip = ds.PRATEsfc * SECONDS_PER_DAY
-    total_precip.attrs = {
+        total_precip_to_lsm = ds.PRATEsfc * SECONDS_PER_DAY
+    total_precip_to_lsm.attrs = {
         "long_name": "total (land surface) precip, max(P - <dQ2 or nQ2>, 0)",
         "units": "mm/day",
     }
-    return total_precip.rename("total_precip")
+    return total_precip_to_lsm.rename("total_precip_to_lsm")
