@@ -21,8 +21,8 @@ spec:
     secret:
       secretName: gcp-key
   templates:
-   - name: regrid
-     container:
+  - name: regrid
+    container:
       image: us.gcr.io/vcm-ml/post_process_run
       command:
       - fregrid_cubed_to_latlon.sh
@@ -39,3 +39,31 @@ spec:
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-credentials-user-gcp-sa
+  - name: regrid-single-input
+    inputs:
+      parameters:
+      - name: input
+      - name: output
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "med-sim-pool"
+      effect: "NoSchedule"
+    container:
+      image: us.gcr.io/vcm-ml/post_process_run
+      command:
+      - fregrid_single_input
+      - "{{inputs.parameters.input}}"
+      - "{{inputs.parameters.output}}"
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/gcp-credentials/key.json
+      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+        value: /secret/gcp-credentials/key.json
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-key-secret
+      resources:
+        requests:
+          memory: "3Gi"
+          cpu: "1000m"
