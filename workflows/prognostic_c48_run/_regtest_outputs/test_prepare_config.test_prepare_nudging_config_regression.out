@@ -67,8 +67,7 @@ diagnostics:
   - column_moistening_nudge
   - column_heating_nudge
   - column_mass_tendency_nudge
-  - column_eastward_wind_tendency_nudge
-  - column_northward_wind_tendency_nudge
+  - total_precip
   - water_vapor_path
   - physics_precip
 - name: reference_state.zarr
