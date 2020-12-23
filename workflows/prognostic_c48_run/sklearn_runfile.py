@@ -335,6 +335,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
+            "total_precip": updated_state[TOTAL_PRECIP],
             **diagnostics,
         }
 
@@ -438,6 +439,7 @@ class NudgingTimeLoop(TimeLoop):
             "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
+            "total_precip": updated_state[TOTAL_PRECIP],
             **diagnostics,
         }
 
