@@ -117,7 +117,7 @@ def emulator(state):
     logger.info("Predicting satmedmf update...")
     y = model.predict(X)
     out_state = y_packer.to_dict(y)
-    cutoff_toplevel_tendencies(state)
+    # cutoff_toplevel_tendencies(state)
     consolidate_tracers(out_state)
     if "kpbl_output" in out_state:
         logger.debug("PBL index height detected in output... rounding field")
