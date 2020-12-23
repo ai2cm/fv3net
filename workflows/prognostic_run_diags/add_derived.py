@@ -16,7 +16,6 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
     Args:
         ds: Dataset to calculated derived values from and merge to
     """
-    print(ds)
     arrays = []
     for func in [
         _column_pq1,
@@ -35,7 +34,6 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
             arrays.append(func(ds))
         except (KeyError, AttributeError):  # account for ds[var] and ds.var notations
             logger.warning(f"Missing variable for calculation in {func.__name__}")
-    print(xr.merge(arrays))
     return ds.merge(xr.merge(arrays))
 
 
@@ -125,7 +123,7 @@ def _column_dqv(ds: xr.Dataset) -> xr.DataArray:
 def _column_q1(ds: xr.Dataset) -> xr.DataArray:
     column_q1 = _column_pq1(ds) + _column_dq1(ds) + _column_nq1(ds)
     column_q1.attrs = {
-        "long_name": "<Q1> column integrated heating from physics+ML+nudging",
+        "long_name": "<Q1> column integrated heating from physics + ML + nudging",
         "units": "W/m^2",
     }
     return column_q1.rename("column_integrated_Q1")
@@ -134,7 +132,7 @@ def _column_q1(ds: xr.Dataset) -> xr.DataArray:
 def _column_q2(ds: xr.Dataset) -> xr.DataArray:
     column_q2 = _column_pq2(ds) + _column_dq2(ds) + _column_nq2(ds)
     column_q2.attrs = {
-        "long_name": "<Q2> column integrated moistening from physics+ML+nudging",
+        "long_name": "<Q2> column integrated moistening from physics + ML + nudging",
         "units": "mm/day",
     }
     return column_q2.rename("column_integrated_Q2")
@@ -148,7 +146,7 @@ def _column_nq1(ds: xr.Dataset) -> xr.DataArray:
         # assume given dataset is for a run without temperature nudging
         column_nq1 = xr.zeros_like(ds.PRATEsfc)
     column_nq1.attrs = {
-        "long_name": "column integrated heating from nudging",
+        "long_name": "<nQ1> column integrated heating from nudging",
         "units": "W/m^2",
     }
     return column_nq1.rename("column_integrated_nQ1")
@@ -162,7 +160,7 @@ def _column_nq2(ds: xr.Dataset) -> xr.DataArray:
         # assume given dataset is for a run without humidity nudging
         column_nq2 = xr.zeros_like(ds.PRATEsfc)
     column_nq2.attrs = {
-        "long_name": "column integrated moistening from nudging",
+        "long_name": "<nQ2> column integrated moistening from nudging",
         "units": "mm/day",
     }
     return column_nq2.rename("column_integrated_nQ2")
@@ -171,12 +169,12 @@ def _column_nq2(ds: xr.Dataset) -> xr.DataArray:
 def _total_precip(ds: xr.Dataset) -> xr.DataArray:
     if "total_precip" in ds:
         # total precip is calculated in the prognostic and nudge-to-x runs
-        total_precip = ds.total_precip
+        total_precip = ds.total_precip * SECONDS_PER_DAY
     else:
         # in the baseline case total_precip and physics precip are the same
         total_precip = ds.PRATEsfc * SECONDS_PER_DAY
     total_precip.attrs = {
-        "long_name": "P - <dQ2> total precipitation",
+        "long_name": "total (land surface) precip, max(P - <dQ2 or nQ2>, 0)",
         "units": "mm/day",
     }
     return total_precip.rename("total_precip")
