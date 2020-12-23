@@ -455,7 +455,9 @@ class BaselineTimeLoop(TimeLoop):
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 
-        diagnostics = {name: self._state[name] for name in self._states_to_output}
+        state: State = {name: self._state[name] for name in [PRECIP_RATE, SPHUM, DELP]}
+        diagnostics: Diagnostics = runtime.compute_baseline_diagnostics(state)
+        diagnostics.update({name: self._state[name] for name in self._states_to_output})
 
         return {
             "area": self._state[AREA],

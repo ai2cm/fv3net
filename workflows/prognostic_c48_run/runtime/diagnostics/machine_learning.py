@@ -153,3 +153,18 @@ def _mass_average(
     mass_average = (da * delp).sum(vertical_dim) / total_thickness
     mass_average = mass_average.assign_attrs(**da.attrs)
     return mass_average
+
+
+def compute_baseline_diagnostics(state: State) -> Diagnostics:
+
+    return dict(
+        water_vapor_path=(state[SPHUM] * state[DELP] / gravity)
+        .sum("z")
+        .assign_attrs(units="mm")
+        .assign_attrs(description="column integrated water vapor"),
+        physics_precip=(state[PRECIP_RATE])
+        .assign_attrs(units="kg/m^2/s")
+        .assign_attrs(
+            description="surface precipitation rate due to parameterized physics"
+        ),
+    )
