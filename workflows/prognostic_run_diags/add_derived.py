@@ -29,8 +29,6 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _column_dqv,
         _column_heating_nudge,
         _column_moistening_nudge,
-        _column_u_tendency_nudge,
-        _column_v_tendency_nudge,
     ]:
         try:
             arrays.append(func(ds))
@@ -168,38 +166,13 @@ def _column_moistening_nudge(ds: xr.Dataset) -> xr.DataArray:
     return column_moistening_nudge.rename("column_moistening_nudge")
 
 
-def _column_u_tendency_nudge(ds: xr.Dataset) -> xr.DataArray:
-    if "column_eastward_wind_tendency_nudge" in ds:
-        # name for column integrated eastward wind nudging in nudge-to-x runs
-        column_u_tendency_nudge = ds.column_eastward_wind_tendency_nudge
-    else:
-        # assume given dataset is for a run without wind nudging
-        column_u_tendency_nudge = xr.zeros_like(ds.PRATEsfc)
-    column_u_tendency_nudge.attrs = {
-        "long_name": "column-averaged eastward wind tendency from nudging",
-        "units": "m/s**2",
-    }
-    return column_u_tendency_nudge.rename("column_u_tendency_nudge")
-
-
-def _column_v_tendency_nudge(ds: xr.Dataset) -> xr.DataArray:
-    if "column_northward_wind_tendency_nudge" in ds:
-        # name for column integrated eastward wind nudging in nudge-to-x runs
-        column_v_tendency_nudge = ds.column_northward_wind_tendency_nudge
-    else:
-        # assume given dataset is for a run without wind nudging
-        column_v_tendency_nudge = xr.zeros_like(ds.PRATEsfc)
-    column_v_tendency_nudge.attrs = {
-        "long_name": "column-averaged northward wind tendency from nudging",
-        "units": "m/s**2",
-    }
-    return column_v_tendency_nudge.rename("column_v_tendency_nudge")
-
-
 def _total_precip(ds: xr.Dataset) -> xr.DataArray:
-    total_precip = (
-        ds.PRATEsfc * SECONDS_PER_DAY - _column_dq2(ds) - _column_moistening_nudge(ds)
-    )
+    if "total_precip" in ds:
+        # total precip is calculated in the prognostic and nudge-to-x runs
+        total_precip = ds.total_precip
+    else:
+        # in the baseline case total_precip and physics precip are the same
+        total_precip = ds.PRATEsfc * SECONDS_PER_DAY
     total_precip.attrs = {
         "long_name": "P - <dQ2> total precipitation",
         "units": "mm/day",
