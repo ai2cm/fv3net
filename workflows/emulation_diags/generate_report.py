@@ -16,6 +16,7 @@ from report import insert_report_figure, create_html
 # TODO move into public usage api
 from fv3fit.keras._models._sequences import _ThreadedSequencePreLoader
 
+SAMPLE_DIM="sample"
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -57,15 +58,22 @@ def get_targ_pred_figs(target_ds, pred_ds):
     return figs
 
 
-def _calc_metrics(target, prediction):
+def _calc_metrics(target, prediction, sample_dim=SAMPLE_DIM):
     diff = prediction - target
-    bias = diff.mean(dim="sample")
-    mse = (diff ** 2).mean(dim="sample")
+    bias = diff.mean(dim=sample_dim)
+    mse = (diff ** 2).mean(dim=sample_dim)
     rmse = xr.ufuncs.sqrt(mse)
-    ss_tot = ((target - target.mean(dim="sample")) ** 2).sum(dim="sample")
-    ss_res = ((diff) ** 2).sum(dim="sample")
-    r2 = 1 - ss_res / ss_tot
-    return {"rmse": rmse, "r2": r2, "bias": bias}
+    ss_tot = ((target - target.mean(dim=sample_dim)) ** 2)
+    ss_res = ((diff) ** 2)
+    r2 = 1 - ss_res.sum(dim=sample_dim) / ss_tot.sum(dim=sample_dim)
+    return {
+        "rmse": rmse,
+        "r2": r2,
+        "bias": bias,
+        "error": diff,
+        "ss_tot": ss_tot,
+        "ss_res": ss_res,
+    }
 
 
 def get_emulation_metrics(test_data, model):
@@ -81,11 +89,11 @@ def get_emulation_metrics(test_data, model):
         for k, v in d.items():
             by_metric.setdefault(k, []).append(v)
 
-    rmse = xr.concat(by_metric["rmse"], dim="batch")
-    r2 = xr.concat(by_metric["r2"], dim="batch")
-    bias = xr.concat(by_metric["bias"], dim="batch")
-
-    return {"rmse": rmse, "r2": r2, "bias": bias}
+    metric_datasets = {
+        key: xr.concat(data, dim="batch")
+        for key, data in by_metric.items()
+    }
+    return metric_datasets
 
 
 def group_fields_by_type(ds):
@@ -128,6 +136,8 @@ def save_metrics(all_metrics, path):
     for metric_key, metrics in all_metrics.items():
         out_filename = f"{metric_key}.zarr"
         out_path = os.path.join(path, out_filename)
+        if SAMPLE_DIM in metrics.dims:
+            metrics = metrics.reset_index(SAMPLE_DIM)
         metrics.to_zarr(out_path)
 
 
@@ -189,8 +199,8 @@ if __name__ == "__main__":
     batches_for_targ_v_pred = 5
     loaded = [test_data[i] for i in range(batches_for_targ_v_pred)]
     predictions = [model.predict(test_batch) for test_batch in loaded]
-    predictions = xr.concat(predictions, "sample")
-    targets = xr.concat(loaded, "sample")
+    predictions = xr.concat(predictions, SAMPLE_DIM)
+    targets = xr.concat(loaded, SAMPLE_DIM)
 
     targ_pred_figs = get_targ_pred_figs(targets, predictions)
 
@@ -210,6 +220,11 @@ if __name__ == "__main__":
 
     metrics = get_emulation_metrics(test_data, model)
     save_metrics(metrics, tmpdir.name)
+
+    # remove base metrics I don't want to plot
+    del metrics["error"]
+    del metrics["ss_tot"]
+    del metrics["ss_res"]
 
     for mkey, metric_data in metrics.items():
         scalars, verticals = group_fields_by_type(metric_data)
