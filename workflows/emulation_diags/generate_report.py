@@ -78,21 +78,21 @@ def _calc_metrics(target, prediction, sample_dim=SAMPLE_DIM):
 
 def get_emulation_metrics(test_data, model):
 
-    test_data = _ThreadedSequencePreLoader(test_data)
-    metrics = []
+    test_data = _ThreadedSequencePreLoader(test_data, num_workers=2, max_queue_size=2)
+    by_metric = {}
     for target in test_data:
         prediction = model.predict(target)
-        metrics.append(_calc_metrics(target, prediction))
-
-    by_metric = {}
-    for d in metrics:
-        for k, v in d.items():
+        curr_metric = _calc_metrics(target, prediction)
+        # Append to individual metric lists for later concat op
+        for k, v in curr_metric.items():
             by_metric.setdefault(k, []).append(v)
 
-    metric_datasets = {
-        key: xr.concat(data, dim="batch")
-        for key, data in by_metric.items()
-    }
+    # combine metric lists into single ds
+    metric_datasets = {}
+    for mkey in list(by_metric.keys()):
+        data = by_metric.pop(mkey)
+        metric_datasets[mkey] = xr.concat(data, dim="batch")
+
     return metric_datasets
 
 
