@@ -1,14 +1,18 @@
 [
   {
-    "url": "gs://vcm-ml-experiments/noah/2020-09-25-physics-on-free-debug/prognostic_run",
-    "name": "2020-09-25-physics-on-free-debug-baseline"
+    "url": "gs://vcm-ml-experiments/2020-12-17-n2f-moisture-conservation/control/nudge-to-fine-run",
+    "name": "control"
   },
   {
-    "url": "gs://vcm-ml-experiments/noah/prognostic_runs/2020-10-26-triggered-regressor",
-    "name": "2020-10-26-triggered-regressor"
+    "url": "gs://vcm-ml-experiments/2020-12-17-n2f-moisture-conservation/moisture-conserving/nudge-to-fine-run",
+    "name": "moisture-conserving-limiter"
   },
   {
-    "url": "gs://vcm-ml-experiments/2020-07-14-nudge-to-obs/train-model-and-prog-run/long_baseline_run",
-    "name": "2020-07-14-nudge-to-obs-baseline"
+    "url": "gs://vcm-ml-experiments/2020-12-17-n2f-moisture-conservation/soil-nudging/nudge-to-fine-run",
+    "name": "soil-nudging"
+  },
+  {
+    "url": "gs://vcm-ml-experiments/2020-12-17-n2f-moisture-conservation/baseline/prognostic-run",
+    "name": "baseline"
   }
 ]
