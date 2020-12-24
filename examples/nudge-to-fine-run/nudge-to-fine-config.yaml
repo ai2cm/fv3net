@@ -1,4 +1,5 @@
 base_version: v0.5
+field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.0/field_table
 nudging:
   timescale_hours:
     air_temperature: 3
@@ -7,6 +8,9 @@ nudging:
     y_wind: 3
     pressure_thickness_of_atmospheric_layer: 3
 namelist:
+  gfs_physics_nml:
+    satmedmf: true
+    hybedmf: false
   coupler_nml:
     days: 2
     hours: 0
