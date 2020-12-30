@@ -79,19 +79,20 @@ def get_classification_scores(test_data, model, prob_thresh=0):
 
 def get_target_predict_ds(sequential_batches, model, output_var):
 
-    y_thresh = model.y_scaler.std.max() * 10**-4
+    # y_thresh = model.y_scaler.std.max() * 10**-4
+    y_thresh = model.threshold
 
     targets = xr.concat(
         [
             abs(batch[output_var]) >= y_thresh
-            for batch in seq_batches
+            for batch in sequential_batches
         ],
         dim="savepoint"
     )
     preds = xr.concat(
         [
             model.predict(batch)[output_var] >= 0
-            for batch in seq_batches
+            for batch in sequential_batches
         ],
         dim="savepoint"
     )

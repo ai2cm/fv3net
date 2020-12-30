@@ -11,6 +11,11 @@ logger = logging.getLogger(__name__)
 
 
 class DenseClassifierModel(DenseModel):
+
+    def __init__(self,*args, true_threshold=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.threshold = true_threshold
+
     def get_model(
         self, n_features_in: int, n_features_out: int, weights=None
     ) -> tf.keras.Model:
@@ -29,6 +34,11 @@ class DenseClassifierModel(DenseModel):
             loss_weights=weights,
         )
         return model
+
+    def _get_options(self):
+        options = super()._get_options()
+        options["true_threshold"] = self.threshold
+        return options
 
     def fit(
         self,
@@ -61,12 +71,12 @@ class DenseClassifierModel(DenseModel):
             )
 
             default_thresh = self.y_scaler.std.max() * 10 ** -4
-            self._threshold = (
+            self.threshold = (
                 true_threshold if true_threshold is not None else default_thresh
             )
 
         Xy = _TargetToBool(self.X_packer, self.y_packer, batches)
-        Xy.set_y_thresh(self._threshold)
+        Xy.set_y_thresh(self.threshold)
 
         if balance_samples:
             Xy = _BalanceNegativeSkewBinary(Xy)

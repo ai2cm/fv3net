@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Any
+from typing import MutableMapping, Sequence, Tuple, Iterable, Mapping, Union, Optional, Any
 from typing_extensions import Literal
 import xarray as xr
 import logging
@@ -242,6 +242,12 @@ class PackedKerasModel(Model):
     def predict_array(self, X: np.ndarray) -> np.ndarray:
         return self.model.predict(X)
 
+    def _get_options(self) -> MutableMapping:
+        return {
+            "normalize_loss": self._normalize_loss,
+            "loss": self._loss,
+        }
+
     def dump(self, path: str) -> None:
         with put_dir(path) as path:
             if self._model is not None:
@@ -257,7 +263,7 @@ class PackedKerasModel(Model):
                 self.y_scaler.dump(f_binary)
             with open(os.path.join(path, self._OPTIONS_FILENAME), "w") as f:
                 yaml.safe_dump(
-                    {"normalize_loss": self._normalize_loss, "loss": self._loss}, f
+                    self._get_options(), f
                 )
 
     @property
