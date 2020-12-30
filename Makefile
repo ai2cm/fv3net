@@ -65,15 +65,22 @@ enter: build_image
 build_ci_image:
 	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
 
+## EMULATION CONVENIENCE ##
 build_emu_train: VERSION=emulation-$(EMU_DATESTR)
 build_emu_train: build_image_fv3fit
 	docker tag $(REGISTRY)/fv3fit:$(VERSION) fv3fit:latest
+	docker
 
 build_emu_report: VERSION=build-$(EMU_DATESTR)
 build_emu_report: build_image_emulation_report
 	docker tag $(REGISTRY)/emulation_report:$(VERSION) emulation_report:latest
 
 build_emu_images: build_emu_train build_emu_report
+
+.PHONY: push_emu
+push_emu:
+	docker push $(REGISTRY)/fv3fit:emulation-$(EMU_DATESTR)
+	docker push $(REGISTRY)/emulation_report:build-$(EMU_DATESTR)
 
 prog_dev:
 	docker run -ti --entrypoint bash \
