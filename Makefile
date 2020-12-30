@@ -4,6 +4,7 @@
 # GLOBALS                                                                       #
 #################################################################################
 VERSION ?= $(shell git rev-parse HEAD)
+EMU_DATESTR ?= $(shell date "+%Y-%m-%d")
 REGISTRY ?= us.gcr.io/vcm-ml
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
@@ -63,6 +64,16 @@ enter: build_image
 
 build_ci_image:
 	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
+
+build_emu_train: VERSION=emulation-$(EMU_DATESTR)
+build_emu_train: build_image_fv3fit
+	docker tag $(REGISTRY)/fv3fit:$(VERSION) fv3fit:latest
+
+build_emu_report: VERSION=build-$(EMU_DATESTR)
+build_emu_report: build_image_emulation_report
+	docker tag $(REGISTRY)/emulation_report:$(VERSION) emulation_report:latest
+
+build_emu_images: build_emu_train build_emu_report
 
 prog_dev:
 	docker run -ti --entrypoint bash \
