@@ -194,6 +194,11 @@ class DenseWithClassifier(DenseModel):
         for mask in classifier_ens[1:]:
             combo_mask = tf.logical_or(combo_mask, mask)
 
+        top_zero = np.ones((combo_mask.shape[-1]), dtype=np.bool)
+        top_zero[-10:] = 0
+        top_zero = tf.convert_to_tensor(top_zero)
+        combo_mask = tf.logical_and(combo_mask, top_zero)
+
         to_combine = []
         for var, out_tensor in regr_outputs_by_var.items():
             dtype = out_tensor.dtype
