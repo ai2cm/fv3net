@@ -187,7 +187,7 @@ spec:
             memory: "14Gi"
             cpu: "6"
           limits:
-            memory: "25Gi"
+            memory: "30Gi"
             cpu: "7500m"
     - name: upload-model
       inputs:
