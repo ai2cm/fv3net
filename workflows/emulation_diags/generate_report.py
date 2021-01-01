@@ -70,9 +70,9 @@ def _calc_metrics(target, prediction, sample_dim=SAMPLE_DIM):
         "rmse": rmse,
         "r2": r2,
         "bias": bias,
-        "error": diff,
-        "ss_tot": ss_tot,
-        "ss_res": ss_res,
+        # "error": diff,
+        # "ss_tot": ss_tot,
+        # "ss_res": ss_res,
     }
 
 
