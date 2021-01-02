@@ -222,9 +222,9 @@ if __name__ == "__main__":
     save_metrics(metrics, tmpdir.name)
 
     # remove base metrics I don't want to plot
-    del metrics["error"]
-    del metrics["ss_tot"]
-    del metrics["ss_res"]
+    # del metrics["error"]
+    # del metrics["ss_tot"]
+    # del metrics["ss_res"]
 
     for mkey, metric_data in metrics.items():
         scalars, verticals = group_fields_by_type(metric_data)
