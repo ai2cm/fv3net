@@ -92,6 +92,7 @@ spec:
           - name: emulation-image
       container:
         image: "{{inputs.parameters.emulation-image}}"
+        imagePullPolicy: Always
         command: ["bash", "-c", "-x"]
         volumeMounts:
           - mountPath: /secret/gcp-credentials
@@ -129,6 +130,7 @@ spec:
           - name: report-image
       container:
         image: "{{inputs.parameters.report-image}}"
+        imagePullPolicy: Always
         command: ["bash", "-c", "-x"]
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -164,6 +166,7 @@ spec:
           - name: report-image
       container:
         image: "{{inputs.parameters.report-image}}"
+        imagePullPolicy: Always
         command: ["bash", "-c", "-x"]
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
