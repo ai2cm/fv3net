@@ -58,9 +58,7 @@ def get_classification_scores(test_data, model, prob_thresh=0):
     for batch in test_data:
         y_pred = model.predict(batch)
         y = batch[[var for var in y_pred]]
-        # TODO: better way to tie this to user
-        y_thresh = model.y_scaler.std.max() * 10 ** -4
-        y_true = abs(y) > y_thresh
+        y_true = abs(y) > model.threshold
         y_pred = y_pred >= prob_thresh
 
         metrics = classification_metrics(y_true, y_pred)
