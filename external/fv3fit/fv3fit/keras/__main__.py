@@ -58,6 +58,18 @@ def _set_random_seed(seed: Union[float, int] = 0):
     tf.random.set_seed(seed + 3)
 
 
+def _batches_from_download(
+        batches: loaders.Map[xr.Dataset],
+        local_download_path: str,
+):
+    logger.info(
+        f"Downloading training data to {local_download_path}. "
+        "This might take a while.")
+    batches.local(args.local_download_path)
+    logger.info("Done downloading training data.")
+    return loaders.batches.batches_from_local(local_download_path)
+
+
 def _validation_dataset(
     train_config: shared.ModelTrainingConfig,
 ) -> Optional[xr.Dataset]:
@@ -108,6 +120,12 @@ def parse_args():
         help="json file containing a list of validation timesteps in "
         "YYYYMMDD.HHMMSS format",
     )
+    parser.add_argument(
+        "--local-download-path",
+        type=str,
+        help="Optional path for downloading data before training. If not provided, "
+        "will read from remote every epoch. Local download greatly speeds NN training."
+    )
     return parser.parse_args()
 
 
@@ -142,6 +160,9 @@ if __name__ == "__main__":
         **train_config.hyperparameters,
     )
     batches = shared.load_data_sequence(data_path, train_config)
+    if args.local_download_path:
+        batches = _batches_from_download(batches, args.local_download_path)
+
     validation_dataset = _validation_dataset(train_config)
 
     history = model.fit(batches, validation_dataset, **fit_kwargs)  # type: ignore
