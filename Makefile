@@ -60,7 +60,7 @@ build_ci_image:
 deploy_local:
 	kubectl apply -f https://raw.githubusercontent.com/argoproj/argo/v2.11.6/manifests/install.yaml
 	kubectl create secret generic gcp-key --from-file="${GOOGLE_APPLICATION_CREDENTIALS}"
-	kubectl apply -f cluster
+	kubectl apply -f workflows/argo/cluster
 
 # run integration tests
 run_integration_tests:
