@@ -35,7 +35,7 @@ class BaseSequence(Sequence[T]):
 
     def _save_item(self, path: str, i: int):
         item = self[i]
-        path = os.path.join(path, "%05d.nc" % i)
+        path = os.path.join(path, "%05d.pkl" % i)
         Local.dump(item, path)
 
     def take(self, n: int) -> "Take":

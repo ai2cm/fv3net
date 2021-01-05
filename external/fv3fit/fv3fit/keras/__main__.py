@@ -59,7 +59,7 @@ def _set_random_seed(seed: Union[float, int] = 0):
 
 
 def _validation_dataset(
-    train_config: shared.ModelTrainingConfig,
+    data_path: str, train_config: shared.ModelTrainingConfig,
 ) -> Optional[xr.Dataset]:
     if len(train_config.validation_timesteps) > 0:
         check_validation_train_overlap(
@@ -111,7 +111,7 @@ def parse_args():
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+def main():
     args = parse_args()
     data_path = shared.parse_data_path(args)
     train_config = shared.load_model_training_config(
@@ -142,10 +142,14 @@ if __name__ == "__main__":
         **train_config.hyperparameters,
     )
     batches = shared.load_data_sequence(data_path, train_config)
-    validation_dataset = _validation_dataset(train_config)
+    validation_dataset = _validation_dataset(data_path, train_config)
 
     history = model.fit(batches, validation_dataset, **fit_kwargs)  # type: ignore
     fv3fit._shared.io.dump(model, args.output_data_path)
     save_history(
         history, os.path.join(args.output_data_path, HISTORY_OUTPUT_DIR),
     )
+
+
+if __name__ == "__main__":
+    main()
