@@ -1,3 +1,21 @@
+## Offline ML Diagnostics
+
+### Generating diagnostics
+
+#### Required variables
+
+This workflow works with GeoMapper objects. This report requires the
+following variables
+- dQ1
+- dQ2
+- pressure_thickness_of_atmospheric_layer
+
+Optional variables include:
+- pQ1
+- pQ2
+
+#### Usage
+
 This workflow generates diagnostic outputs for variables predicted by 
 a trained ML model. Currently, the workflow only accepts models wrapped 
 for usage with xarray dataset inputs and outputs (the `SklearnWrapper` class 
@@ -72,7 +90,8 @@ python -m offline_ml_diags.compute_diags \
     --timesteps-file workflows/offline_ml_diags/tests/times.json
 ```
 
-#### Creating reports
+
+### Creating reports
 Report HTMLs may be created using `offline_ml_diags.create_report`, where the input data path should be
 the output path of the `offline_ml_diags.compute_diags` script. The output location can be either a local
 or remote GCS directory.

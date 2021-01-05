@@ -20,6 +20,7 @@ requirements = [
     "pyyaml>=5.1.2",
     "vcm",
     "tensorflow>=2.2.0",
+    "tensorflow-addons>=0.11.2",
     "typing_extensions>=3.7.4.3",
 ]
 
@@ -30,7 +31,7 @@ test_requirements = ["pytest"]
 setup(
     author="Vulcan Technologies LLC",
     author_email="jeremym@vulcan.com",
-    python_requires=">=3.7",
+    python_requires=">=3.6.9",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
