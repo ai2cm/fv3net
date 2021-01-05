@@ -39,15 +39,28 @@ def _get_optimizer(hyperparameters: dict = None):
         optimizer_class = getattr(
             tf.keras.optimizers, optimizer_config.get("name", "Adam")
         )
-        learning_rate = optimizer_config.get("learning_rate", None)
-        optimizer = (
-            optimizer_class(learning_rate=learning_rate)
-            if learning_rate is not None
-            else optimizer_class()
-        )
+        optimizer_kwargs = optimizer_config.get("kwargs", {})
+        optimizer = optimizer_class(**optimizer_kwargs)
     else:
         optimizer = None
     return optimizer
+
+
+def _get_regularizer(
+    hyperparameters: dict = None,
+) -> Optional[tf.keras.regularizers.Regularizer]:
+    # Will be assumed to be a kernel regularizer when used in the model
+    hyperparameters = hyperparameters or {}
+    regularizer_config = hyperparameters.pop("regularizer", {})
+    if regularizer_config:
+        regularizer_class = getattr(
+            tf.keras.regularizers, regularizer_config.get("name", "L2")
+        )
+        regularizer_kwargs = regularizer_config.get("kwargs", {})
+        regularizer = regularizer_class(**regularizer_kwargs)
+    else:
+        regularizer = None
+    return regularizer
 
 
 def _set_random_seed(seed: Union[float, int] = 0):
@@ -149,6 +162,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     _set_random_seed(train_config.random_seed)
     optimizer = _get_optimizer(train_config.hyperparameters)
+    regularizer = _get_regularizer(train_config.hyperparameters)
 
     fit_kwargs = train_config.hyperparameters.pop("fit_kwargs", {})
     model = get_model(
@@ -157,6 +171,7 @@ if __name__ == "__main__":
         train_config.input_variables,
         train_config.output_variables,
         optimizer=optimizer,
+        kernel_regularizer=regularizer,
         **train_config.hyperparameters,
     )
     batches = shared.load_data_sequence(data_path, train_config)
