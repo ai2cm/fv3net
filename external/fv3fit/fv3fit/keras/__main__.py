@@ -59,12 +59,12 @@ def _set_random_seed(seed: Union[float, int] = 0):
 
 
 def _batches_from_download(
-        batches: loaders.Map[xr.Dataset],
-        local_download_path: str,
+    batches: loaders.Map[xr.Dataset], local_download_path: str,
 ):
     logger.info(
         f"Downloading training data to {local_download_path}. "
-        "This might take a while.")
+        "This might take a while."
+    )
     batches.local(args.local_download_path)
     logger.info("Done downloading training data.")
     return loaders.batches.batches_from_local(local_download_path)
@@ -124,7 +124,7 @@ def parse_args():
         "--local-download-path",
         type=str,
         help="Optional path for downloading data before training. If not provided, "
-        "will read from remote every epoch. Local download greatly speeds NN training."
+        "will read from remote every epoch. Local download greatly speeds NN training.",
     )
     return parser.parse_args()
 
