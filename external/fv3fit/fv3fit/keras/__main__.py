@@ -5,6 +5,7 @@ import logging
 import numpy as np
 import sys
 import random
+import joblib
 from . import get_model
 from ._validation_data import (
     check_validation_train_overlap,
@@ -56,18 +57,6 @@ def _set_random_seed(seed: Union[float, int] = 0):
     np.random.seed(seed + 1)
     random.seed(seed + 2)
     tf.random.set_seed(seed + 3)
-
-
-def _batches_from_download(
-    batches: loaders.Map[xr.Dataset], local_download_path: str,
-):
-    logger.info(
-        f"Downloading training data to {local_download_path}. "
-        "This might take a while."
-    )
-    batches.local(args.local_download_path)
-    logger.info("Done downloading training data.")
-    return loaders.batches.batches_from_local(local_download_path)
 
 
 def _validation_dataset(
@@ -161,7 +150,10 @@ if __name__ == "__main__":
     )
     batches = shared.load_data_sequence(data_path, train_config)
     if args.local_download_path:
-        batches = _batches_from_download(batches, args.local_download_path)
+        batches = batches.local(args.local_download_path)
+        # joblib.Memory uses joblib to cache data to disk
+        memory = joblib.Memory(args.local_download_path)
+        batches.__getitem__ = memory.cache(batches.__getitem__)
 
     validation_dataset = _validation_dataset(train_config)
 

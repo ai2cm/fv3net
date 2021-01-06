@@ -6,7 +6,7 @@ from typing import Iterable, Sequence, Mapping, Any, Hashable, Optional, Union, 
 import xarray as xr
 from vcm import safe, parse_datetime_from_str
 from toolz import partition_all, compose
-from ._sequences import Map, Local
+from ._sequences import Map, Local as batches_from_local  # noqa
 from .._utils import stack_dropnan_shuffle, get_derived_dataset, nonderived_variables
 from ..constants import TIME_NAME
 from ._serialized_phys import (
@@ -18,12 +18,6 @@ import loaders
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-
-def batches_from_local(
-    data_path: str, keep_in_memory: bool = False,
-) -> Sequence[xr.Dataset]:
-    return Local(data_path, keep_in_memory=keep_in_memory)
 
 
 def batches_from_geodata(
