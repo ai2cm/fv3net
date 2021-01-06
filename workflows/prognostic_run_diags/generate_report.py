@@ -217,7 +217,7 @@ def plot_1d_with_region_bar(
 
 
 def plot_2d(
-    diagnostics: Iterable[xr.Dataset], varfilter: str, dims: Sequence = None
+    diagnostics: Iterable[xr.Dataset], varfilter: str, dims: Sequence = None, **opts
 ) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 2D and have the same dimensions."""
@@ -233,9 +233,7 @@ def plot_2d(
             hmap[(long_name_and_units, run)] = hv.QuadMesh(
                 v, dims, varname, label=varfilter
             )
-    return HVPlot(
-        hmap.opts(cmap="RdBu_r", colorbar=True, symmetric=True, width=850, height=300)
-    )
+    return HVPlot(hmap.opts(colorbar=True, width=850, height=300, **opts))
 
 
 def _set_opts_and_overlay(hmap, overlay="run"):
@@ -264,6 +262,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
         "spatial_mean": "mean_bias",
         "diurn_component": "diurn_bias",
         "zonal_and_time_mean": "zonal_bias",
+        "zonal_mean_value": "zonal_mean_bias",
     }
     for mean_filter, bias_filter in mean_bias_pairs.items():
         mean_vars = [var for var in ds if mean_filter in var]
@@ -333,12 +332,20 @@ def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 @hovmoller_plot_manager.register
 def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d(diagnostics, "zonal_mean_value", dims=["time", "latitude"])
+    return plot_2d(
+        diagnostics, "zonal_mean_value", dims=["time", "latitude"], cmap="viridis"
+    )
 
 
 @hovmoller_plot_manager.register
 def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d(diagnostics, "zonal_mean_bias", dims=["time", "latitude"])
+    return plot_2d(
+        diagnostics,
+        "zonal_mean_bias",
+        dims=["time", "latitude"],
+        symmetric=True,
+        cmap="RdBu_r",
+    )
 
 
 @diurnal_plot_manager.register
