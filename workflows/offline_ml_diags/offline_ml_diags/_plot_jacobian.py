@@ -1,9 +1,11 @@
+import fsspec
 import matplotlib.pyplot as plt
 from typing import Tuple
 import numpy as np
 import os
 import fv3fit.keras._models
 import logging
+
 
 MATRIX_NAME = "jacobian_matrices.png"
 LINE_NAME = "jacobian_lines.png"
@@ -39,8 +41,8 @@ def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
             axs[i, j].xaxis.set_label_position("top")
             plt.colorbar(im, ax=axs[i, j])
     plt.tight_layout()
-
-    fig.savefig(os.path.join(output_dir, MATRIX_NAME))
+    with fsspec.open(os.path.join(output_dir, MATRIX_NAME), "wb") as f:
+        fig.savefig(f)
     fig, axs = plt.subplots(len(variables_2d), len(outputs), figsize=(12, 12),)
     for i, in_name in enumerate(variables_2d):
         for j, out_name in enumerate(outputs):
@@ -50,4 +52,5 @@ def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
             axs[i, j].set_title(f"change in {in_name}")
             axs[i, j].set_ylabel("vertical level")
     plt.tight_layout()
-    fig.savefig(os.path.join(output_dir, LINE_NAME))
+    with fsspec.open(os.path.join(output_dir, LINE_NAME), "wb") as f:
+        fig.savefig(f)
