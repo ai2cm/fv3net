@@ -8,16 +8,36 @@ import tensorflow as tf
 Weight = Union[int, float, np.ndarray]
 
 
-def _weighted_mse(weights, std):
+def _weighted_mse(weights, std, dtype=tf.float32):
+    weights = tf.constant(weights, dtype=dtype)
+    std = tf.constant(std, dtype=dtype)
+
     def custom_loss(y_true, y_pred):
-        return tf.math.reduce_mean(weights * tf.math.square((y_pred - y_true) / std))
+        return tf.math.divide_no_nan(
+            tf.math.reduce_sum(
+                tf.math.reduce_mean(
+                    weights * tf.math.square((y_pred - y_true) / std), axis=0
+                )
+            ),
+            tf.math.reduce_sum(weights),
+        )
 
     return custom_loss
 
 
-def _weighted_mae(weights, std):
+def _weighted_mae(weights, std, dtype=tf.float32):
+    weights = tf.constant(weights, dtype=dtype)
+    std = tf.constant(std, dtype=dtype)
+
     def custom_loss(y_true, y_pred):
-        return tf.math.reduce_mean(weights * tf.math.abs((y_pred - y_true) / std))
+        return tf.math.divide_no_nan(
+            tf.math.reduce_sum(
+                tf.math.reduce_mean(
+                    weights * tf.math.abs((y_pred - y_true) / std), axis=0
+                )
+            ),
+            tf.math.reduce_sum(weights),
+        )
 
     return custom_loss
 
