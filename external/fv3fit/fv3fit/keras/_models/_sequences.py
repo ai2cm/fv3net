@@ -5,6 +5,7 @@ import xarray as xr
 import numpy as np
 import tensorflow as tf
 from typing import Sequence, Tuple, List, Any
+import random
 
 from ..._shared import ArrayPacker
 
@@ -71,7 +72,9 @@ class _ThreadedSequencePreLoader(tf.keras.utils.Sequence):
     def __iter__(self):
 
         init_q = queue.Queue()
-        for idx in list(range(len(self))):
+        batch_indices = list(range(len(self)))
+        random.shuffle(batch_indices)
+        for idx in batch_indices:
             init_q.put(idx)
 
         event = threading.Event()
