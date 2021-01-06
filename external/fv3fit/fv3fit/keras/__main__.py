@@ -124,8 +124,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
-    args = parse_args()
+def main(args):
     data_path = shared.parse_data_path(args)
     train_config = shared.load_model_training_config(
         args.train_config_file, args.train_data_path
@@ -167,4 +166,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args)
