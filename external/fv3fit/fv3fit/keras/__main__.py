@@ -164,7 +164,7 @@ if __name__ == "__main__":
     )
     batches = shared.load_data_sequence(data_path, train_config)
     if args.local_download_path:
-        batches = batches.local(args.local_download_path)  # typecheck
+        batches = batches.local(args.local_download_path)  # type: ignore
 
     validation_dataset = _validation_dataset(train_config)
 
