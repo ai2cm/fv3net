@@ -257,24 +257,30 @@ def zonal_and_time_mean_biases_physics(prognostic, verification, grid):
     return time_mean(zonal_mean_bias)
 
 
-@add_to_diags("dycore")
-@diag_finalizer("zonal_mean_bias")
-@transform.apply("resample_time", "3H", inner_join=True)
-@transform.apply("daily_mean", datetime.timedelta(days=10))
-@transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
-def zonal_mean_biases_dycore(prognostic, verification, grid):
-    logger.info("Preparing zonal mean biases (dycore)")
-    return zonal_mean(prognostic - verification, grid.lat)
+for variable_set in ["dycore", "physics"]:
+    subset_variables = (
+        GLOBAL_AVERAGE_DYCORE_VARS
+        if variable_set == "dycore"
+        else GLOBAL_AVERAGE_PHYSICS_VARS
+    )
 
+    @add_to_diags(variable_set)
+    @diag_finalizer("zonal_mean_value")
+    @transform.apply("resample_time", "3H", inner_join=True)
+    @transform.apply("daily_mean", datetime.timedelta(days=10))
+    @transform.apply("subset_variables", subset_variables)
+    def zonal_mean_hovmoller(prognostic, verification, grid):
+        logger.info(f"Preparing zonal mean values ({variable_set})")
+        return zonal_mean(prognostic, grid.lat)
 
-@add_to_diags("physics")
-@diag_finalizer("zonal_mean_bias")
-@transform.apply("resample_time", "3H", inner_join=True)
-@transform.apply("daily_mean", datetime.timedelta(days=10))
-@transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
-def zonal_mean_biases_physics(prognostic, verification, grid):
-    logger.info("Preparing zonal mean biases (physics)")
-    return zonal_mean(prognostic - verification, grid.lat)
+    @add_to_diags(variable_set)
+    @diag_finalizer("zonal_mean_bias")
+    @transform.apply("resample_time", "3H", inner_join=True)
+    @transform.apply("daily_mean", datetime.timedelta(days=10))
+    @transform.apply("subset_variables", subset_variables)
+    def zonal_mean_bias_hovmoller(prognostic, verification, grid):
+        logger.info(f"Preparing zonal mean biases ({variable_set})")
+        return zonal_mean(prognostic - verification, grid.lat)
 
 
 for var_set in ["dycore", "physics"]:

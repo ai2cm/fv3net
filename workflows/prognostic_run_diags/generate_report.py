@@ -9,7 +9,7 @@ import pandas as pd
 from pathlib import Path
 import argparse
 import holoviews as hv
-from report import create_html
+from report import create_html, Link
 from report.holoviews import HVPlot, get_html_header
 
 hv.extension("bokeh")
@@ -302,6 +302,7 @@ def diurnal_component_plot(
 # following plot managers will be passed the data from the diags.nc files
 timeseries_plot_manager = PlotManager()
 zonal_mean_plot_manager = PlotManager()
+hovmoller_plot_manager = PlotManager()
 diurnal_plot_manager = PlotManager()
 # this will be passed the data from the metrics.json files
 metrics_plot_manager = PlotManager()
@@ -330,8 +331,13 @@ def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     return plot_1d(diagnostics, varfilter="zonal_and_time_mean")
 
 
-@zonal_mean_plot_manager.register
-def zonal_mean_versus_time_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+@hovmoller_plot_manager.register
+def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_2d(diagnostics, "zonal_mean_value", dims=["time", "latitude"])
+
+
+@hovmoller_plot_manager.register
+def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     return plot_2d(diagnostics, "zonal_mean_bias", dims=["time", "latitude"])
 
 
@@ -412,14 +418,21 @@ def main():
     metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
 
     # generate all plots
-    sections = {
+    zonal_mean_section = list(zonal_mean_plot_manager.make_plots(diagnostics))
+    zonal_mean_section.append(Link("Latitude versus time hovmoller", "hovmoller.html"))
+    sections_index = {
         "Timeseries": list(timeseries_plot_manager.make_plots(diagnostics)),
-        "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
+        "Zonal mean": zonal_mean_section,
         "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
+    }
+    sections_hovmoller = {
+        "Zonal mean values and biases": list(
+            hovmoller_plot_manager.make_plots(diagnostics)
+        ),
     }
     if not metric_table.empty:
         metrics = pd.merge(run_table, metric_table, on="run")
-        sections["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
+        sections_index["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
 
     # get metadata
     run_urls = {key: ds.attrs["url"] for key, ds in diags.items()}
@@ -432,13 +445,20 @@ def main():
     verification_label = {"verification dataset": verification_datasets[0]}
     movie_links = get_movie_links(bucket, rundirs, fs)
 
-    html = create_html(
+    html_index = create_html(
         title="Prognostic run report",
         metadata={**verification_label, **run_urls, **movie_links},
-        sections=sections,
+        sections=sections_index,
         html_header=get_html_header(),
     )
-    upload(html, args.output, content_type="text/html")
+    html_hovmoller = create_html(
+        title="Latitude versus time hovmoller plots",
+        metadata={**verification_label, **run_urls},
+        sections=sections_hovmoller,
+        html_header=get_html_header(),
+    )
+    upload(html_index, os.path.join(args.output, "index.html"))
+    upload(html_hovmoller, os.path.join(args.output, "hovmoller.html"))
 
 
 if __name__ == "__main__":

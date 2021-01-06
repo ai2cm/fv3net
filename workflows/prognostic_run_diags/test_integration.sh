@@ -26,9 +26,10 @@ bash stitch_movie_stills.sh /tmp/$random $OUTPUT/run1
 gsutil -m cp -r $OUTPUT/run1 $OUTPUT/run2
 
 # generate report based on diagnostics computed above
-python generate_report.py $OUTPUT $OUTPUT/index.html
+python generate_report.py $OUTPUT $OUTPUT
 
 # cleanup
 rm -r /tmp/$random
 
-echo "Yay! Prognostic run report integration test passed."
+echo "Yay! Prognostic run report integration test passed. You can view the generated report at:"
+echo "https://storage.cloud.google.com/vcm-ml-scratch/test-prognostic-report/${random}/index.html"
