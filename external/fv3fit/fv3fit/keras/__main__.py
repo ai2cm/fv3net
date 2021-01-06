@@ -5,7 +5,6 @@ import logging
 import numpy as np
 import sys
 import random
-import joblib
 from . import get_model
 from ._validation_data import (
     check_validation_train_overlap,
@@ -165,10 +164,7 @@ if __name__ == "__main__":
     )
     batches = shared.load_data_sequence(data_path, train_config)
     if args.local_download_path:
-        batches = batches.local(args.local_download_path)
-        # joblib.Memory uses joblib to cache data to disk
-        memory = joblib.Memory(args.local_download_path)
-        batches.__getitem__ = memory.cache(batches.__getitem__)
+        batches = batches.local(args.local_download_path)  # typecheck
 
     validation_dataset = _validation_dataset(train_config)
 
