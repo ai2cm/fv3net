@@ -70,7 +70,7 @@ class Local(BaseSequence[T]):
 
     @property
     def files(self):
-        return sorted(glob.glob(os.path.join(self.path, "*.nc")))
+        return sorted(glob.glob(os.path.join(self.path, "*.pkl")))
 
     @classmethod
     def dump(cls, dataset, path):
