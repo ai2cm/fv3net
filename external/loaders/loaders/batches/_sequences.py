@@ -67,7 +67,6 @@ class Take(BaseSequence[T]):
 class Local(BaseSequence[T]):
     def __init__(self, path: str):
         self.path = path
-        self._loaded = [None for _ in self.files]
 
     @property
     def files(self):
