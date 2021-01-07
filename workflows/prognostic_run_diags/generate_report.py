@@ -406,9 +406,9 @@ def main():
     # load diagnostics
     diags = load_diags(bucket, rundirs)
     # keep all vars that have only these dimensions
-    dims = [{"time"}, {"local_time"}, {"latitude"}, {"time", "latitude"}]
+    dim_sets = [{"time"}, {"local_time"}, {"latitude"}, {"time", "latitude"}]
     diagnostics = [
-        xr.merge([get_variables_with_dims(ds, dim) for dim in dims]).assign_attrs(
+        xr.merge([get_variables_with_dims(ds, dim) for dim in dim_sets]).assign_attrs(
             run=key, **run_table_lookup.loc[key]
         )
         for key, ds in diags.items()
@@ -454,7 +454,7 @@ def main():
     verification_label = {"verification dataset": verification_datasets[0]}
     movie_links = get_movie_links(bucket, rundirs, fs)
 
-    page_sources = {
+    pages = {
         "index.html": create_html(
             title="Prognostic run report",
             metadata={**verification_label, **run_urls, **movie_links},
@@ -468,7 +468,7 @@ def main():
             html_header=get_html_header(),
         ),
     }
-    for filename, html in page_sources.items():
+    for filename, html in pages.items():
         upload(html, os.path.join(args.output, filename))
 
 
