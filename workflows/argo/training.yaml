@@ -4,6 +4,23 @@ kind: WorkflowTemplate
 metadata:
   name: training
 spec:
+  entrypoint: training
+  volumeClaimTemplates:
+    - metadata:
+        name: work-volume
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: fast
+        resources:
+          requests:
+            storage: 100Gi
+  volumes:
+    - name: workdir
+      emptyVol: {}
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
   templates:
     - name: training
       inputs:
@@ -14,6 +31,7 @@ spec:
           - name: times
           - name: output
           - {name: memory, value: 6Gi}
+          - {name: flags, value: " "}
       container:
         image: us.gcr.io/vcm-ml/fv3fit
         command: ["bash", "-c", "-x"]
@@ -45,7 +63,8 @@ spec:
               {{inputs.parameters.input}} \
               config.yaml \
               {{inputs.parameters.output}} \
-              --timesteps-file times.json
+              --timesteps-file times.json \
+              {{inputs.parameters.flags}}
       tolerations:
       - key: "dedicated"
         operator: "Equal"
