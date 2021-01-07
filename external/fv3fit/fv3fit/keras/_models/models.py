@@ -12,6 +12,7 @@ from ._filesystem import get_dir, put_dir
 from ._sequences import _XyArraySequence, _ThreadedSequencePreLoader
 from .normalizer import LayerStandardScaler
 from .loss import get_weighted_mse, get_weighted_mae
+from loaders.batches import Take
 import yaml
 
 logger = logging.getLogger(__file__)
@@ -130,6 +131,7 @@ class PackedKerasModel(Estimator):
         workers: int = 1,
         max_queue_size: int = 8,
         validation_samples: int = 13824,
+        use_last_batch_to_validate: bool = False,
         **fit_kwargs: Any,
     ) -> History:
         """Fits a model using data in the batches sequence
@@ -158,6 +160,8 @@ class PackedKerasModel(Estimator):
                 from the validation dataset, so that we can use multiple timesteps for
                 validation without having to load all the times into memory.
                 Defaults to the equivalent of a single C48 timestep.
+            use_last_batch_to_validate: if True, use the last batch as a validation
+                dataset, cannot be used with a non-None value for validation_dataset
             **fit_kwargs: other keyword arguments to be passed to the underlying
                 tf.keras.Model.fit() method
         """
@@ -178,6 +182,21 @@ class PackedKerasModel(Estimator):
                 np.arange(len(y_val)), validation_samples, replace=False
             )
             validation_data = X_val[val_sample], y_val[val_sample]
+
+        if use_last_batch_to_validate:
+            if validation_dataset is not None:
+                raise ValueError(
+                    "cannot provide validation_dataset when "
+                    "use_first_batch_to_validate is True"
+                )
+            X_val, y_val = Xy[len(Xy) - 1]
+            val_sample = np.random.choice(
+                np.arange(X_val.shape[0]), validation_samples, replace=False
+            )
+            X_val = X_val[val_sample, :]
+            y_val = y_val[val_sample, :]
+            validation_data = (X_val, y_val)
+            Xy = Take(Xy, len(Xy) - 1)
         else:
             validation_data = None
 
@@ -188,6 +207,7 @@ class PackedKerasModel(Estimator):
             batch_size,
             workers=workers,
             max_queue_size=max_queue_size,
+            use_last_batch_to_validate=use_last_batch_to_validate,
             **fit_kwargs,
         )
 
@@ -199,21 +219,24 @@ class PackedKerasModel(Estimator):
         batch_size: Optional[int] = None,
         workers: int = 1,
         max_queue_size: int = 8,
+        use_last_batch_to_validate: bool = False,
+        last_batch_validation_fraction: float = 1.0,
         **fit_kwargs: Any,
     ) -> History:
+        train_history = {
+            key: [] for key in ["loss", "val_loss"]
+        }  # type: Mapping[str, List]
 
         if workers > 1:
             Xy = _ThreadedSequencePreLoader(
                 Xy, num_workers=workers, max_queue_size=max_queue_size
             )
-        train_history = {
-            key: [] for key in ["loss", "val_loss"]
-        }  # type: Mapping[str, List]
         for i_epoch in range(epochs):
             loss_over_batches, val_loss_over_batches = [], []
             for i_batch, (X, y) in enumerate(Xy):
                 logger.info(
-                    f"Fitting on timestep {i_batch} of {len(Xy)}, of epoch {i_epoch}..."
+                    f"Fitting on batch {i_batch + 1} of {len(Xy)}, "
+                    f"of epoch {i_epoch}..."
                 )
                 history = self.model.fit(
                     X,
