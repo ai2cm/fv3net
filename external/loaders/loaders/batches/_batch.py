@@ -21,7 +21,10 @@ logger.setLevel(logging.INFO)
 
 
 def batches_from_local(
-    data_path: str, variable_names: Iterable[str], keep_in_memory: bool = False,
+    data_path: str,
+    variable_names: Iterable[str],
+    keep_in_memory: bool = False,
+    timesteps=None,
 ) -> Sequence[xr.Dataset]:
     return Local(data_path, keep_in_memory=keep_in_memory)
 
