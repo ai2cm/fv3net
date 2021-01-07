@@ -434,24 +434,18 @@ class DenseModel(PackedKerasModel):
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         inputs = tf.keras.Input(n_features_in)
         x = self.X_scaler.normalize_layer(inputs)
-        ensemble_outputs = []
-        for _ in range(self._ensemble_members):
-            for i in range(self._depth - 1):
-                hidden_layer = tf.keras.layers.Dense(
-                    self._width,
-                    activation=tf.keras.activations.relu,
-                    kernel_regularizer=self._kernel_regularizer,
-                )
-                if self._spectral_normalization:
-                    hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
-                x = hidden_layer(x)
-            x = tf.keras.layers.Dense(n_features_out)(x)
-            ensemble_outputs.append(self.y_scaler.denormalize_layer(x))
+        for i in range(self._depth - 1):
+            hidden_layer = tf.keras.layers.Dense(
+                self._width,
+                activation=tf.keras.activations.relu,
+                kernel_regularizer=self._kernel_regularizer,
+            )
+            if self._spectral_normalization:
+                hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
+            x = hidden_layer(x)
+        x = tf.keras.layers.Dense(n_features_out)(x)
+        outputs = self.y_scaler.denormalize_layer(x)
 
-        if self._ensemble_members == 1:
-            outputs = ensemble_outputs[0]
-        else:
-            outputs = tf.keras.layers.Average()(ensemble_outputs)
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
         model.compile(optimizer=self._optimizer, loss=self.loss)
         return model
@@ -469,6 +463,7 @@ class DenseEnsembleModel(PackedKerasModel):
         kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         depth: int = 3,
         width: int = 16,
+        gaussian_noise: float = 0.05,
         ensemble_members: int = 1,
         loss: Literal["mse", "mae"] = "mse",
         spectral_normalization: bool = False,
@@ -507,6 +502,7 @@ class DenseEnsembleModel(PackedKerasModel):
         self._width = width
         self._spectral_normalization = spectral_normalization
         self._ensemble_members = ensemble_members
+        self._gaussian_noise = gaussian_noise
         optimizer = optimizer or tf.keras.optimizers.Adam()
         super().__init__(
             sample_dim_name,
@@ -540,9 +536,10 @@ class DenseEnsembleModel(PackedKerasModel):
                 [n_samples, features_out]
         """
         inputs = tf.keras.Input(n_features_in)
-        x = self.X_scaler.normalize_layer(inputs)
+        inputs_normalized = self.X_scaler.normalize_layer(inputs)
         ensemble_outputs = []
         for _ in range(self._ensemble_members):
+            x = inputs_normalized
             for i in range(self._depth - 1):
                 hidden_layer = tf.keras.layers.Dense(
                     self._width,
@@ -551,6 +548,7 @@ class DenseEnsembleModel(PackedKerasModel):
                 )
                 if self._spectral_normalization:
                     hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
+                x = tf.keras.layers.GaussianNoise(self._gaussian_noise)(x)
                 x = hidden_layer(x)
             x = tf.keras.layers.Dense(n_features_out)(x)
             ensemble_outputs.append(self.y_scaler.denormalize_layer(x))
