@@ -172,7 +172,24 @@ class PackedKerasModel(Estimator):
             self._fit_normalization(X, y)
             self._model = self.get_model(n_features_in, n_features_out)
 
-        validation_data: Optional[Tuple[np.ndarray, np.ndarray]]
+        Xy, validation_data = self._prepare_validation_data(
+            Xy, use_last_batch_to_validate, validation_dataset, validation_samples
+        )
+
+        return self._fit_loop(
+            Xy,
+            validation_data,
+            epochs,
+            batch_size,
+            workers=workers,
+            max_queue_size=max_queue_size,
+            use_last_batch_to_validate=use_last_batch_to_validate,
+            **fit_kwargs,
+        )
+
+    def _prepare_validation_data(
+        self, Xy, use_last_batch_to_validate, validation_dataset, validation_samples
+    ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
         if validation_dataset is not None:
             X_val = self.X_packer.to_array(validation_dataset)
             y_val = self.y_packer.to_array(validation_dataset)
@@ -197,17 +214,7 @@ class PackedKerasModel(Estimator):
             Xy = Take(Xy, len(Xy) - 1)
         else:
             validation_data = None
-
-        return self._fit_loop(
-            Xy,
-            validation_data,
-            epochs,
-            batch_size,
-            workers=workers,
-            max_queue_size=max_queue_size,
-            use_last_batch_to_validate=use_last_batch_to_validate,
-            **fit_kwargs,
-        )
+        return Xy, validation_data
 
     def _fit_loop(
         self,
@@ -236,18 +243,19 @@ class PackedKerasModel(Estimator):
                     f"Fitting on batch {i_batch + 1} of {len(Xy)}, "
                     f"of epoch {i_epoch}..."
                 )
-                history = self.model.fit(
-                    X,
-                    y,
-                    validation_data=validation_data,
-                    batch_size=batch_size,
-                    **fit_kwargs,
+                history = self.fit_array(
+                    X, y, validation_data, batch_size, **fit_kwargs
                 )
                 loss_over_batches += history.history["loss"]
                 val_loss_over_batches += history.history.get("val_loss", [np.nan])
             train_history["loss"].append(loss_over_batches)
             train_history["val_loss"].append(val_loss_over_batches)
         return train_history
+
+    def fit_array(self, X, y, validation_data, batch_size, **fit_kwargs):
+        return self.model.fit(
+            X, y, validation_data=validation_data, batch_size=batch_size, **fit_kwargs
+        )
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         sample_coord = X[self.sample_dim_name]
@@ -426,17 +434,252 @@ class DenseModel(PackedKerasModel):
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         inputs = tf.keras.Input(n_features_in)
         x = self.X_scaler.normalize_layer(inputs)
-        for i in range(self._depth - 1):
-            hidden_layer = tf.keras.layers.Dense(
-                self._width,
-                activation=tf.keras.activations.relu,
-                kernel_regularizer=self._kernel_regularizer,
-            )
-            if self._spectral_normalization:
-                hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
-            x = hidden_layer(x)
-        x = tf.keras.layers.Dense(n_features_out)(x)
-        outputs = self.y_scaler.denormalize_layer(x)
+        ensemble_outputs = []
+        for _ in range(self._ensemble_members):
+            for i in range(self._depth - 1):
+                hidden_layer = tf.keras.layers.Dense(
+                    self._width,
+                    activation=tf.keras.activations.relu,
+                    kernel_regularizer=self._kernel_regularizer,
+                )
+                if self._spectral_normalization:
+                    hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
+                x = hidden_layer(x)
+            x = tf.keras.layers.Dense(n_features_out)(x)
+            ensemble_outputs.append(self.y_scaler.denormalize_layer(x))
+
+        if self._ensemble_members == 1:
+            outputs = ensemble_outputs[0]
+        else:
+            outputs = tf.keras.layers.Average()(ensemble_outputs)
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
         model.compile(optimizer=self._optimizer, loss=self.loss)
         return model
+
+
+class DenseEnsembleModel(PackedKerasModel):
+    def __init__(
+        self,
+        sample_dim_name: str,
+        input_variables: Iterable[str],
+        output_variables: Iterable[str],
+        weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
+        normalize_loss: bool = True,
+        optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
+        kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
+        depth: int = 3,
+        width: int = 16,
+        ensemble_members: int = 1,
+        loss: Literal["mse", "mae"] = "mse",
+        spectral_normalization: bool = False,
+    ):
+        """Initialize the DenseModel.
+
+        Loss is computed on normalized outputs only if `normalized_loss` is True
+        (default). This allows you to provide weights that will be proportional
+        to the importance of that feature within the loss. If `normalized_loss`
+        is False, you should consider scaling your weights to decrease the importance
+        of features that are orders of magnitude larger than other features.
+
+        Args:
+            sample_dim_name: name of the sample dimension in datasets used as
+                inputs and outputs.
+            input_variables: names of input variables
+            output_variables: names of output variables
+            weights: loss function weights, defined as a dict whose keys are
+                variable names and values are either a scalar referring to the total
+                weight of the variable, or a vector referring to the weight for each
+                feature of the variable. Default is a total weight of 1
+                for each variable.
+            normalize_loss: if True (default), normalize outputs by their standard
+                deviation before computing the loss function
+            optimizer: algorithm to be used in gradient descent, must subclass
+                tf.keras.optimizers.Optimizer; defaults to tf.keras.optimizers.Adam
+            depth: number of dense layers to use between the input and output layer.
+                The number of hidden layers will be (depth - 1). Default is 3.
+            width: number of neurons to use on layers between the input and output
+                layer. Default is 16.
+            ensemble_members: number of sub-networks to use in an ensemble of neural
+                networks, using the mean prediction as output.
+            loss: loss function to use. Defaults to mean squared error.
+        """
+        self._depth = depth
+        self._width = width
+        self._spectral_normalization = spectral_normalization
+        self._ensemble_members = ensemble_members
+        optimizer = optimizer or tf.keras.optimizers.Adam()
+        super().__init__(
+            sample_dim_name,
+            input_variables,
+            output_variables,
+            weights=weights,
+            normalize_loss=normalize_loss,
+            optimizer=optimizer,
+            kernel_regularizer=kernel_regularizer,
+            loss=loss,
+        )
+
+    def get_model(self, n_features_in: int, n_features_out: int):
+        raise NotImplementedError(
+            "DenseEnsembleModel should re-implement all "
+            "PackedKerasModel methods which require get_model, use get_models instead"
+        )
+
+    def get_models(
+        self, n_features_in: int, n_features_out: int
+    ) -> Tuple[tf.keras.Model, tf.keras.Model]:
+        """Returns Keras models for training and prediction, which share layers.
+        
+        Args:
+            n_features_in: the number of input features
+            n_features_out: the number of output features
+        Returns:
+            train_model: a Keras model with one output per ensemble member
+            predict_model: a Keras model with one output, whose input shape
+                is [n_samples, n_features_in] and output shape is
+                [n_samples, features_out]
+        """
+        inputs = tf.keras.Input(n_features_in)
+        x = self.X_scaler.normalize_layer(inputs)
+        ensemble_outputs = []
+        for _ in range(self._ensemble_members):
+            for i in range(self._depth - 1):
+                hidden_layer = tf.keras.layers.Dense(
+                    self._width,
+                    activation=tf.keras.activations.relu,
+                    kernel_regularizer=self._kernel_regularizer,
+                )
+                if self._spectral_normalization:
+                    hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
+                x = hidden_layer(x)
+            x = tf.keras.layers.Dense(n_features_out)(x)
+            ensemble_outputs.append(self.y_scaler.denormalize_layer(x))
+
+        if self._ensemble_members == 1:
+            outputs = ensemble_outputs[0]
+        else:
+            outputs = tf.keras.layers.Average()(ensemble_outputs)
+        model = tf.keras.Model(inputs=inputs, outputs=outputs)
+        model.compile(optimizer=self._optimizer, loss=self.loss)
+        train_model = tf.keras.Model(inputs=inputs, outputs=ensemble_outputs)
+        train_model.compile(optimizer=self._optimizer, loss=self.loss)
+        return train_model, model
+
+    def fit(
+        self,
+        batches: Sequence[xr.Dataset],
+        validation_dataset: Optional[xr.Dataset] = None,
+        epochs: int = 1,
+        batch_size: Optional[int] = None,
+        workers: int = 1,
+        max_queue_size: int = 8,
+        validation_samples: int = 13824,
+        use_last_batch_to_validate: bool = False,
+        **fit_kwargs: Any,
+    ) -> History:
+        """Fits a model using data in the batches sequence
+
+        Returns a History of training loss (and validation loss if applicable).
+        Loss values are saved as a list of values for each epoch.
+        
+        If batch_size is provided as a kwarg, the list of values is for each batch fit.
+        e.g. {"loss":
+            [[epoch0_batch0_loss, epoch0_batch1_loss],
+            [epoch1_batch0_loss, epoch1_batch1_loss]]}
+        If not batch_size is not provided, a single loss per epoch is recorded.
+        e.g. {"loss": [[epoch0_loss], [epoch1_loss]]}
+        
+        Args:
+            batches: sequence of stacked datasets of predictor variables
+            validation_dataset: optional validation dataset
+            epochs: optional number of times through the batches to run when training
+            batch_size: actual batch_size to apply in gradient descent updates,
+                independent of number of samples in each batch in batches; optional,
+                uses number of samples in each batch if omitted
+            workers: number of workers for parallelized loading of batches fed into
+                training, defaults to serial loading (1 worker)
+            max_queue_size: max number of batches to hold in the parallel loading queue
+            validation_samples: Option to specify number of samples to randomly draw
+                from the validation dataset, so that we can use multiple timesteps for
+                validation without having to load all the times into memory.
+                Defaults to the equivalent of a single C48 timestep.
+            use_last_batch_to_validate: if True, use the last batch as a validation
+                dataset, cannot be used with a non-None value for validation_dataset
+            **fit_kwargs: other keyword arguments to be passed to the underlying
+                tf.keras.Model.fit() method
+        """
+        epochs = epochs if epochs is not None else 1
+        Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
+
+        X, y = Xy[0]
+        n_features_in, n_features_out = X.shape[-1], y.shape[-1]
+        self._fit_normalization(X, y)
+        train_model, predict_model = self.get_models(n_features_in, n_features_out)
+
+        Xy, validation_data = self._prepare_validation_data(
+            Xy, use_last_batch_to_validate, validation_dataset, validation_samples
+        )
+
+        history = self._fit_loop(
+            train_model,
+            predict_model,
+            Xy,
+            validation_data,
+            epochs,
+            batch_size,
+            workers=workers,
+            max_queue_size=max_queue_size,
+            **fit_kwargs,
+        )
+        self._model = predict_model
+        return history
+
+    def _fit_loop(
+        self,
+        train_model,
+        predict_model,
+        Xy: Sequence[Tuple[np.ndarray, np.ndarray]],
+        validation_data: Optional[Tuple[np.ndarray, np.ndarray]],
+        epochs: int,
+        batch_size: Optional[int] = None,
+        workers: int = 1,
+        max_queue_size: int = 8,
+        **fit_kwargs: Any,
+    ) -> History:
+
+        if workers > 1:
+            Xy = _ThreadedSequencePreLoader(
+                Xy, num_workers=workers, max_queue_size=max_queue_size
+            )
+        train_history = {
+            key: [] for key in ["loss", "val_loss"]
+        }  # type: Mapping[str, List]
+        for i_epoch in range(epochs):
+            loss_over_batches, val_loss_over_batches = [], []
+            for i_batch, (X, y) in enumerate(Xy):
+                logger.info(
+                    f"Fitting on timestep {i_batch} of {len(Xy)}, of epoch {i_epoch}..."
+                )
+                ensemble_y = [y for _ in range(self._ensemble_members)]
+                history = train_model.fit(
+                    X,
+                    ensemble_y,
+                    validation_data=validation_data,
+                    batch_size=batch_size,
+                    **fit_kwargs,
+                )
+                if validation_data is not None:
+                    X_val, y_val = validation_data
+                    y_pred = predict_model.predict(X_val)
+                    val_loss = self.loss(y_val, y_pred)
+                    val_loss_over_batches += [val_loss]
+                    print(f"val_loss: {val_loss}")
+                else:
+                    val_loss_over_batches += history.history.get("val_loss", [np.nan])
+                # need to compute an average loss across ensemble members, not the sum
+                loss_over_batches += [
+                    history.history["loss"][0] / self._ensemble_members
+                ]
+            train_history["loss"].append(loss_over_batches)
+            train_history["val_loss"].append(val_loss_over_batches)
+        return train_history
