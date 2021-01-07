@@ -425,15 +425,17 @@ def main():
     metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
 
     # generate all plots
-    zonal_mean_section = list(zonal_mean_plot_manager.make_plots(diagnostics))
-    zonal_mean_section.append(Link("Latitude versus time hovmoller", "hovmoller.html"))
     sections_index = {
+        "2D plots": [
+            Link("Latitude versus time hovmoller", "hovmoller.html"),
+            Link("Time-mean maps (not implemented yet)", "maps.html"),
+        ],
         "Timeseries": list(timeseries_plot_manager.make_plots(diagnostics)),
-        "Zonal mean": zonal_mean_section,
+        "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
         "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
     }
     sections_hovmoller = {
-        "Zonal mean values and biases": list(
+        "Zonal mean value and bias": list(
             hovmoller_plot_manager.make_plots(diagnostics)
         ),
     }
@@ -452,20 +454,22 @@ def main():
     verification_label = {"verification dataset": verification_datasets[0]}
     movie_links = get_movie_links(bucket, rundirs, fs)
 
-    html_index = create_html(
-        title="Prognostic run report",
-        metadata={**verification_label, **run_urls, **movie_links},
-        sections=sections_index,
-        html_header=get_html_header(),
-    )
-    html_hovmoller = create_html(
-        title="Latitude versus time hovmoller plots",
-        metadata={**verification_label, **run_urls},
-        sections=sections_hovmoller,
-        html_header=get_html_header(),
-    )
-    upload(html_index, os.path.join(args.output, "index.html"))
-    upload(html_hovmoller, os.path.join(args.output, "hovmoller.html"))
+    page_sources = {
+        "index.html": create_html(
+            title="Prognostic run report",
+            metadata={**verification_label, **run_urls, **movie_links},
+            sections=sections_index,
+            html_header=get_html_header(),
+        ),
+        "hovmoller.html": create_html(
+            title="Latitude versus time hovmoller plots",
+            metadata={**verification_label, **run_urls},
+            sections=sections_hovmoller,
+            html_header=get_html_header(),
+        ),
+    }
+    for filename, html in page_sources.items():
+        upload(html_index, os.path.join(args.output, filename))
 
 
 if __name__ == "__main__":
