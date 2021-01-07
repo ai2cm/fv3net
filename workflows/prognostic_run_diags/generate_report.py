@@ -469,7 +469,7 @@ def main():
         ),
     }
     for filename, html in page_sources.items():
-        upload(html_index, os.path.join(args.output, filename))
+        upload(html, os.path.join(args.output, filename))
 
 
 if __name__ == "__main__":
