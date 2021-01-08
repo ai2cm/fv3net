@@ -1,4 +1,4 @@
-from typing import Mapping, Set, Hashable
+from typing import Mapping, Set, Hashable, Iterable
 
 import xarray as xr
 
@@ -9,6 +9,7 @@ NameDict = Mapping[Hashable, Hashable]
 
 def _invert_dict(d: Mapping) -> Mapping:
     return dict(zip(d.values(), d.keys()))
+
 
 
 class RenamingAdapter:
@@ -53,3 +54,14 @@ class RenamingAdapter:
         input_ = self._rename_inputs(arg)
         prediction = self.model.predict_columnwise(input_, **kwargs)
         return self._rename_outputs(prediction)
+
+
+class MultiModelAdapter:
+    def __init__(self, models: Iterable[RenamingAdapter]):
+        self.models = models
+    
+    def predict_columnwise(self, arg: xr.Dataset, **kwargs) -> xr.Dataset:
+        predictions = []
+        for model in self.models:
+            predictions.append(model.predict_columnwise(arg, **kwargs))
+        return xr.merge(predictions)
