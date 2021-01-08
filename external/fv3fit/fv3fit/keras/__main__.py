@@ -121,6 +121,12 @@ def parse_args():
         help="json file containing a list of validation timesteps in "
         "YYYYMMDD.HHMMSS format",
     )
+    parser.add_argument(
+        "--local-download-path",
+        type=str,
+        help="Optional path for downloading data before training. If not provided, "
+        "will read from remote every epoch. Local download greatly speeds NN training.",
+    )
     return parser.parse_args()
 
 
@@ -157,6 +163,9 @@ if __name__ == "__main__":
         **train_config.hyperparameters,
     )
     batches = shared.load_data_sequence(data_path, train_config)
+    if args.local_download_path:
+        batches = batches.local(args.local_download_path)  # type: ignore
+
     validation_dataset = _validation_dataset(train_config)
 
     history = model.fit(batches, validation_dataset, **fit_kwargs)  # type: ignore

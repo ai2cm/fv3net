@@ -49,6 +49,7 @@ spec:
         - {name: work-volume-name, value: work-volume}
         - {name: memory-training, value: 6Gi}
         - {name: memory-offline-diags, value: 6Gi}
+        - {name: training-flags, value: " "}
     dag:
       tasks:
       - name: train-model
@@ -69,6 +70,8 @@ spec:
               value: "{{inputs.parameters.root}}/trained_model"
             - name: memory
               value: "{{inputs.parameters.memory-training}}"
+            - name: flags
+              value: "{{inputs.parameters.training-flags}}"
       - name: prognostic-run
         dependencies: [train-model]
         templateRef:
