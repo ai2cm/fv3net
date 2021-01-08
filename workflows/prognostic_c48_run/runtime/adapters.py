@@ -59,6 +59,11 @@ class MultiModelAdapter:
     def __init__(self, models: Iterable[RenamingAdapter]):
         self.models = models
 
+    @property
+    def input_variables(self) -> Set[str]:
+        vars = [model.input_variables for model in self.models]
+        return {var for model_vars in vars for var in model_vars}
+
     def predict_columnwise(self, arg: xr.Dataset, **kwargs) -> xr.Dataset:
         predictions = []
         for model in self.models:
