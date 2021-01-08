@@ -44,8 +44,8 @@ def _create_arg_parser() -> argparse.ArgumentParser:
             "Remote url to a trained ML model. If a model is omitted (and not "
             "specified in `user_config`'s `scikit-learn` `model` field either), then "
             "no ML updating will be done. Also, if an ML model is provided, no "
-            "nudging will be done. If multiple urls are given, they will be combined into "
-            "a single model at runtime, providing their outputs are non overlapping."
+            "nudging will be done. If multiple urls are given, they will be combined "
+            "into a single model at runtime, providing the outputs are nonoverlapping."
         ),
     )
     parser.add_argument(
@@ -196,10 +196,7 @@ def prepare_config(args):
             args.initial_condition_url, args.ic_timestep
         ),
         diagnostics_overlay(
-            user_config,
-            model_url,
-            args.nudge_to_observations,
-            args.output_frequency,
+            user_config, model_url, args.nudge_to_observations, args.output_frequency,
         ),
         step_tendency_overlay(user_config),
         ml_overlay(model_type, model_url, args.diagnostic_ml),

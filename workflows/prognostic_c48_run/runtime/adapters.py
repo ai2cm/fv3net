@@ -11,7 +11,6 @@ def _invert_dict(d: Mapping) -> Mapping:
     return dict(zip(d.values(), d.keys()))
 
 
-
 class RenamingAdapter:
     """Adapter object for renaming model variables
 
@@ -59,7 +58,7 @@ class RenamingAdapter:
 class MultiModelAdapter:
     def __init__(self, models: Iterable[RenamingAdapter]):
         self.models = models
-    
+
     def predict_columnwise(self, arg: xr.Dataset, **kwargs) -> xr.Dataset:
         predictions = []
         for model in self.models:
