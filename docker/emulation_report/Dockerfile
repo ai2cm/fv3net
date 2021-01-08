@@ -3,7 +3,7 @@ FROM fv3fit:latest as bld
 RUN pip install -c /tmp/constraints.txt poetry
 
 COPY external/report /poetry/report
-COPY workflows/emulation_diags /fv3fit/emulation_diags
+COPY workflows/emulation /fv3fit/emulation
 
 RUN cd /poetry/report && \
     poetry build && \

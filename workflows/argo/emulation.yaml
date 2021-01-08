@@ -144,7 +144,7 @@ spec:
             name: work-volume
         args:
           - |
-            python /fv3fit/emulation_diags/generate_report.py \
+            python /fv3fit/emulation/diagnostics/emulation_report.py \
               "{{inputs.parameters.model-input}}" \
               {{inputs.parameters.train-data}} \
               /mnt/data/report/ \
@@ -180,7 +180,7 @@ spec:
             name: work-volume
         args:
           - |
-            python /fv3fit/emulation_diags/classifier_report.py \
+            python /fv3fit/emulation/diagnostics/classifier_report.py \
               "{{inputs.parameters.model-input}}" \
               {{inputs.parameters.train-data}} \
               /mnt/data/report/ \
