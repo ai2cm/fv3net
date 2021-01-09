@@ -377,6 +377,7 @@ class DenseModel(PackedKerasModel):
         kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         depth: int = 3,
         width: int = 16,
+        gaussian_noise: float = 0.0,
         loss: Literal["mse", "mae"] = "mse",
         spectral_normalization: bool = False,
     ):
@@ -406,11 +407,14 @@ class DenseModel(PackedKerasModel):
                 The number of hidden layers will be (depth - 1). Default is 3.
             width: number of neurons to use on layers between the input and output
                 layer. Default is 16.
+            gaussian_noise: how much gaussian noise to add before each Dense layer,
+                apart from the output layer
             loss: loss function to use. Defaults to mean squared error.
         """
         self._depth = depth
         self._width = width
         self._spectral_normalization = spectral_normalization
+        self._gaussian_noise = gaussian_noise
         optimizer = optimizer or tf.keras.optimizers.Adam()
         super().__init__(
             sample_dim_name,
@@ -434,6 +438,8 @@ class DenseModel(PackedKerasModel):
             )
             if self._spectral_normalization:
                 hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
+            if self._gaussian_noise > 0.0:
+                x = tf.keras.layers.GaussianNoise(self._gaussian_noise)(x)
             x = hidden_layer(x)
         x = tf.keras.layers.Dense(n_features_out)(x)
         outputs = self.y_scaler.denormalize_layer(x)
