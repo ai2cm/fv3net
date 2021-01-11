@@ -19,9 +19,9 @@ ml_diagnostics = DiagnosticFile(
 nudging_diagnostics_2d = DiagnosticFile(
     name="diags.zarr",
     variables=[
-        "column_moistening_nudge",
-        "column_heating_nudge",
-        "column_mass_tendency_nudge",
+        "net_moistening_due_to_nudging",
+        "net_heating_due_to_nudging",
+        "net_mass_tendency_due_to_nudging",
         "total_precip",
         "water_vapor_path",
         "physics_precip",

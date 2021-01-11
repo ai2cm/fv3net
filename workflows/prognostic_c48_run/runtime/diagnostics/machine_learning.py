@@ -116,8 +116,8 @@ def compute_nudging_diagnostics(
 
     diags.update(
         {
-            "column_moistening_nudge": net_moistening,
-            "column_heating_nudge": net_heating,
+            "net_moistening_due_to_nudging": net_moistening,
+            "net_heating_due_to_nudging": net_heating,
             "water_vapor_path": water_vapor_path,
             "physics_precip": physics_precip,
         }
@@ -132,7 +132,7 @@ def compute_nudging_diagnostics(
                 description="column-integrated mass tendency due to nudging",
             )
         )
-        diags["column_mass_tendency_nudge"] = net_mass_tendency
+        diags["net_mass_tendency_due_to_nudging"] = net_mass_tendency
 
     diags.update(_append_key_label(nudging_tendency, label))
 

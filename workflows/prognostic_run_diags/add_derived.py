@@ -24,7 +24,7 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _column_dq2,
         _column_q1,
         _column_q2,
-        _total_precip_to_lsm,
+        _total_precip_to_surface,
         _column_dqu,
         _column_dqv,
         _column_nq1,
@@ -141,7 +141,7 @@ def _column_q2(ds: xr.Dataset) -> xr.DataArray:
 def _column_nq1(ds: xr.Dataset) -> xr.DataArray:
     if "column_heating_nudge" in ds:
         # name for column integrated temperature nudging in nudge-to-x runs
-        column_nq1 = ds.column_heating_nudge
+        column_nq1 = ds.net_heating_due_to_nudging
     else:
         # assume given dataset is for a run without temperature nudging
         column_nq1 = xr.zeros_like(ds.PRATEsfc)
@@ -155,7 +155,7 @@ def _column_nq1(ds: xr.Dataset) -> xr.DataArray:
 def _column_nq2(ds: xr.Dataset) -> xr.DataArray:
     if "column_moistening_nudge" in ds:
         # name for column integrated humidity nudging in nudge-to-x runs
-        column_nq2 = SECONDS_PER_DAY * ds.column_moistening_nudge
+        column_nq2 = SECONDS_PER_DAY * ds.net_moistening_due_to_nudging
     else:
         # assume given dataset is for a run without humidity nudging
         column_nq2 = xr.zeros_like(ds.PRATEsfc)
@@ -166,15 +166,15 @@ def _column_nq2(ds: xr.Dataset) -> xr.DataArray:
     return column_nq2.rename("column_integrated_nQ2")
 
 
-def _total_precip_to_lsm(ds: xr.Dataset) -> xr.DataArray:
+def _total_precip_to_surface(ds: xr.Dataset) -> xr.DataArray:
     if "total_precip" in ds:
-        # total precip is calculated in the prognostic and nudge-to-fine runs
-        total_precip_to_lsm = ds.total_precip * SECONDS_PER_DAY
+        # total precip to surface is calculated in the prognostic and nudge-to-fine runs
+        total_precip_to_surface = ds.total_precip * SECONDS_PER_DAY
     else:
         # in the baseline case total_precip and physics precip are the same
-        total_precip_to_lsm = ds.PRATEsfc * SECONDS_PER_DAY
-    total_precip_to_lsm.attrs = {
-        "long_name": "total (land surface) precip, max(P - <dQ2 or nQ2>, 0)",
+        total_precip_to_surface = ds.PRATEsfc * SECONDS_PER_DAY
+    total_precip_to_surface.attrs = {
+        "long_name": "total precip to surface, max(P - <dQ2 or nQ2>, 0)",
         "units": "mm/day",
     }
-    return total_precip_to_lsm.rename("total_precip_to_lsm")
+    return total_precip_to_surface.rename("total_precip_to_surface")
