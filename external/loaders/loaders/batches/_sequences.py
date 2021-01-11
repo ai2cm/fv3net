@@ -82,13 +82,7 @@ class Local(BaseSequence[T]):
         return len(self.files)
 
     def __getitem__(self, i):
-        if self.keep_in_memory and self._loaded[i] is not None:
-            item = self._loaded[i]
-        else:
-            item = joblib.load(self.files[i])
-            if self.keep_in_memory:
-                self._loaded[i] = item
-        return item
+        return joblib.load(self.files[i])
 
 
 class Map(BaseSequence[T]):

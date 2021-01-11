@@ -26,6 +26,8 @@ def batches_from_local(
     keep_in_memory: bool = False,
     timesteps=None,
 ) -> Sequence[xr.Dataset]:
+    # this wrapper function is needed to transform from a call signature
+    # with variable_names to one without.
     return Local(data_path, keep_in_memory=keep_in_memory)
 
 
