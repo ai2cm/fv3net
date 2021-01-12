@@ -1,7 +1,7 @@
 import argparse
 import yaml
 import logging
-from typing import Sequence, Dict, Iterable
+from typing import Sequence, Dict, List
 
 import fv3config
 import fv3kube
@@ -69,10 +69,10 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def ml_overlay(model_urls: Iterable[str], diagnostic_ml: bool):
+def ml_overlay(model_urls: List[str], diagnostic_ml: bool) -> dict:
     if len(model_urls) > 0:
         overlay = {"scikit_learn": {"model": model_urls}}
-        overlay["scikit_learn"].update({"diagnostic_ml": diagnostic_ml}),
+        overlay["scikit_learn"].update({"diagnostic_ml": diagnostic_ml})  # type: ignore
     else:
         overlay = {}
     return overlay
@@ -87,9 +87,11 @@ def nudging_overlay(nudging_config, initial_condition_url):
     return overlay
 
 
-def diagnostics_overlay(config: dict, model_urls: Iterable[str], nudge_to_obs: bool, frequency_minutes: int):
+def diagnostics_overlay(
+    config: dict, model_urls: List[str], nudge_to_obs: bool, frequency_minutes: int
+):
 
-    diagnostic_files = []
+    diagnostic_files = []  # type: List[Dict]
 
     if ("scikit_learn" in config) or len(model_urls) > 0:
         diagnostic_files.append(default_diagnostics.ml_diagnostics.to_dict())
@@ -129,9 +131,7 @@ def _reference_state(config):
     return reference_states
 
 
-def _update_times(
-    diagnostic_files: Sequence[Dict], frequency_minutes: int
-) -> Sequence[Dict]:
+def _update_times(diagnostic_files: List[Dict], frequency_minutes: int) -> List[Dict]:
     for diagnostic in diagnostic_files:
         diagnostic.update(
             {"times": {"kind": "interval", "frequency": 60 * frequency_minutes}}
