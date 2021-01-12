@@ -5,13 +5,14 @@ import cftime
 import logging
 import fv3gfs.util
 import xarray as xr
+import dataclasses
 
 logger = logging.getLogger(__name__)
 
 
 class All(Container):
     """A container that contains every thing
-    
+
     This is useful for cases where we want an ``in`` check to always return True.
 
     Example:
@@ -52,13 +53,15 @@ class SelectedTimes(Container[cftime.DatetimeJulian]):
 
 class IntervalTimes(Container[cftime.DatetimeJulian]):
     def __init__(
-        self, frequency_seconds: Union[float, int], initial_time: cftime.DatetimeJulian,
+        self,
+        frequency_seconds: Union[float, int],
+        initial_time: cftime.DatetimeJulian,
     ):
         """
         Args:
             frequency_seconds: the output frequency from the initial time
             initial_time: the initial time to start the period
-            
+
         """
         self._frequency_seconds = frequency_seconds
         self.initial_time = initial_time
@@ -81,86 +84,31 @@ def _assign_units_if_none_present(array: xr.DataArray, units=None):
     return array.assign_attrs(units=array.attrs.get("units", units))
 
 
-class DiagnosticFile:
-    """A object representing a diagnostics file
-
-    Provides a similar interface as the "diag_table"
-
-    Replicates the abilities of the fortran models's diag_table by allowing
-    the user to specify different output times for distinct sets of
-    variables.
+@dataclasses.dataclass
+class DiagnosticFileConfig:
+    """
+    Attrs:
+        name: file name of a zarr to store the data in, e.g., 'diags.zarr'
+        variables: a container of variables to save
+        times (optional): a container for times to output
     """
 
-    def __init__(
-        self,
-        name: str,
-        variables: Container,
-        times: Optional[Container[cftime.DatetimeJulian]] = None,
-    ):
-        """
-        Args:
-            name: file name of a zarr to store the data in, e.g., 'diags.zarr'
-            variables: a container of variables to save
-            times (optional): a container for times to output
-
-        Note:
-
-            The containers used for times and variables do not need to be
-            concrete lists or python sequences. They only need to satisfy the
-            abstract ``Container`` interface. Please see the special
-            containers for outputing times above:
-
-            - ``IntervalTimes``
-            - ``SelectedTimes``
-
-            as well as the generic ``All`` container that contains the entire
-            Universe!
-        """
-        self._name = name
-        self.variables = variables
-        self.times = times
-        self._monitor: Optional[fv3gfs.util.ZarrMonitor] = None
-
-    def observe(
-        self, time: cftime.DatetimeJulian, diagnostics: Mapping[str, xr.DataArray]
-    ):
-        """Possibly store the data into the monitor
-        """
-        if self._monitor is None or self.times is None:
-            raise ValueError(
-                f"zarr monitor not yet established for {self._name}. Call set_monitor."
-            )
-
-        if time in self.times:
-            quantities = {
-                # need units for from_data_array to work
-                key: fv3gfs.util.Quantity.from_data_array(
-                    _assign_units_if_none_present(diagnostics[key], "unknown")
-                )
-                for key in diagnostics
-                if key in self.variables
-            }
-
-            # patch this in manually. the ZarrMonitor needs it.
-            # We should probably modify this behavior.
-            quantities["time"] = time
-            self._monitor.store(quantities)
+    name: str
+    variables: Container
+    times: Container[cftime.DatetimeJulian] = All()
 
     @classmethod
-    def from_config(
-        cls, diag_file_config: Mapping, initial_time: cftime.DatetimeJulian
-    ) -> "DiagnosticFile":
-        return DiagnosticFile(
-            name=diag_file_config["name"],
-            variables=diag_file_config.get("variables", All()),
-            times=cls._get_times(diag_file_config.get("times", {}), initial_time),
+    def from_dict(
+        cls, dict_: Mapping, initial_time: cftime.DatetimeJulian
+    ) -> "DiagnosticFileConfig":
+        return DiagnosticFileConfig(
+            name=dict_["name"],
+            variables=dict_.get("variables", All()),
+            times=cls._get_times(dict_.get("times", {}), initial_time),
         )
 
-    def set_monitor(self, monitor: fv3gfs.util.ZarrMonitor) -> "DiagnosticFile":
-        if self._monitor is not None:
-            raise ValueError(f"zarr monitor already initialized at {self._name}")
-        self._monitor = monitor
-        return self
+    def to_dict(self) -> Dict:
+        return {"name": self.name, "variables": self.variables, "times": self.times}
 
     @staticmethod
     def _get_times(
@@ -176,8 +124,61 @@ class DiagnosticFile:
         else:
             raise NotImplementedError(f"Time {kind} not implemented.")
 
-    def to_dict(self) -> Dict:
-        return {"name": self._name, "variables": self.variables, "times": self.times}
+
+class DiagnosticFile:
+    """A object representing a diagnostics file
+
+    Provides a similar interface as the "diag_table"
+
+    Replicates the abilities of the fortran models's diag_table by allowing
+    the user to specify different output times for distinct sets of
+    variables.
+    """
+
+    def __init__(
+        self,
+        variables: Container,
+        monitor: fv3gfs.util.ZarrMonitor,
+        times: Container[cftime.DatetimeJulian],
+    ):
+        """
+
+        Note:
+
+            The containers used for times and variables do not need to be
+            concrete lists or python sequences. They only need to satisfy the
+            abstract ``Container`` interface. Please see the special
+            containers for outputing times above:
+
+            - ``IntervalTimes``
+            - ``SelectedTimes``
+
+            as well as the generic ``All`` container that contains the entire
+            Universe!
+        """
+        self.variables = variables
+        self.times = times
+        self._monitor = monitor
+
+    def observe(
+        self, time: cftime.DatetimeJulian, diagnostics: Mapping[str, xr.DataArray]
+    ):
+        """store the data into the monitor"""
+
+        if time in self.times:
+            quantities = {
+                # need units for from_data_array to work
+                key: fv3gfs.util.Quantity.from_data_array(
+                    _assign_units_if_none_present(diagnostics[key], "unknown")
+                )
+                for key in diagnostics
+                if key in self.variables
+            }
+
+            # patch this in manually. the ZarrMonitor needs it.
+            # We should probably modify this behavior.
+            quantities["time"] = time
+            self._monitor.store(quantities)
 
 
 def get_diagnostic_files(
@@ -200,22 +201,29 @@ def get_diagnostic_files(
         initial_time: the initial time of the simulation.
 
     """
-    diag_configs = config.get("diagnostics", [])
-    if len(diag_configs) > 0:
-        return [
-            DiagnosticFile.from_config(config, initial_time).set_monitor(
-                fv3gfs.util.ZarrMonitor(config["name"], partitioner, mpi_comm=comm)
+    diag_dicts = config.get("diagnostics", [])
+    configs: List[DiagnosticFileConfig] = []
+
+    if len(diag_dicts) > 0:
+        for diag_dict in diag_dicts:
+            config = DiagnosticFileConfig.from_dict(
+                diag_dict, initial_time=initial_time
             )
-            for config in diag_configs
-        ]
+            configs.append(config)
     else:
-        # Keep old behavior for backwards compatiblity
-        output_name = config["scikit_learn"]["zarr_output"]
-        default_config = {"name": output_name, "times": {}, "variables": All()}
-        return [
-            DiagnosticFile.from_config(default_config, initial_time).set_monitor(
-                fv3gfs.util.ZarrMonitor(
-                    default_config["name"], partitioner, mpi_comm=comm
-                )
-            )
-        ]
+        # TODO Can we delete this clause? It seems like we have a more
+        # sophisticated defaults mechanism now (which is bundled in
+        # `prepare_config`).
+        default_config = DiagnosticFileConfig(
+            name=config["scikit_learn"]["zarr_output"], times=All(), variables=All()
+        )
+        configs.append(default_config)
+
+    return [
+        DiagnosticFile(
+            variables=config.variables,
+            times=config.times,
+            monitor=fv3gfs.util.ZarrMonitor(config.name, partitioner, mpi_comm=comm),
+        )
+        for config in configs
+    ]

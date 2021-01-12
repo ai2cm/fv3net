@@ -104,6 +104,10 @@ def nudging_overlay(nudging_config, initial_condition_url):
 
 
 def diagnostics_overlay(config, model_url, nudge_to_obs, frequency_minutes):
+    # TODO this overlay does a lot, should it be moved into the runtime code?
+    # The defaults are defined in a python datastructure, serialized to a yaml,
+    # and then de-serialized and turned into the python datastructure. This
+    # seems complicated.
 
     diagnostic_files = []
 
