@@ -66,12 +66,12 @@ def _add_diurnal_moisture_components(diurnal_cycles: xr.Dataset):
         "units": "mm/day",
     }
 
-    precip_phys_ml = precip - dQ2
-    precip_phys_ml.attrs = {
-        "long_name": "Total precipitation (P - <dQ2>)",
+    precip_phys_ml_nudging = diurnal_cycles["total_precip_to_surface"]
+    precip_phys_ml_nudging.attrs = {
+        "long_name": "total precip to surface, max(PRATE - <dQ2 or nQ2>, 0)",
         "units": "mm/day",
     }
-    diurnal_cycles["diurn_component_total-precipitation"] = precip_phys_ml
+    diurnal_cycles["diurn_component_total-precipitation"] = precip_phys_ml_nudging
 
     return diurnal_cycles
 

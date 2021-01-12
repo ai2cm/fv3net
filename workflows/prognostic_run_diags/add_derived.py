@@ -24,9 +24,11 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _column_dq2,
         _column_q1,
         _column_q2,
-        _total_precip,
+        _total_precip_to_surface,
         _column_dqu,
         _column_dqv,
+        _column_nq1,
+        _column_nq2,
     ]:
         try:
             arrays.append(func(ds))
@@ -119,45 +121,73 @@ def _column_dqv(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_q1(ds: xr.Dataset) -> xr.DataArray:
-    column_q1 = _column_pq1(ds) + _column_dq1(ds)
+    column_q1 = _column_pq1(ds) + _column_dq1(ds) + _column_nq1(ds)
     column_q1.attrs = {
-        "long_name": "<Q1> column integrated heating from physics+ML",
+        "long_name": "<Q1> column integrated heating from physics + ML + nudging",
         "units": "W/m^2",
     }
     return column_q1.rename("column_integrated_Q1")
 
 
 def _column_q2(ds: xr.Dataset) -> xr.DataArray:
-    column_q2 = _column_pq2(ds) + _column_dq2(ds)
+    column_q2 = _column_pq2(ds) + _column_dq2(ds) + _column_nq2(ds)
     column_q2.attrs = {
-        "long_name": "<Q2> column integrated moistening from physics+ML",
+        "long_name": "<Q2> column integrated moistening from physics + ML + nudging",
         "units": "mm/day",
     }
     return column_q2.rename("column_integrated_Q2")
 
 
-def _column_moistening_from_nudging(ds: xr.Dataset) -> xr.DataArray:
+def _column_nq1(ds: xr.Dataset) -> xr.DataArray:
+    if "column_heating_nudge" in ds:
+        # name for column integrated temperature nudging in nudge-to-obs
+        column_nq1 = ds.net_heating_due_to_nudging
+    elif "net_heating_due_to_nudging" in ds:
+        # name for column integrated temperature nudging in nudge-to-fine
+        column_nq1 = ds.net_heating_due_to_nudging
+    else:
+        # assume given dataset is for a run without temperature nudging
+        column_nq1 = xr.zeros_like(ds.PRATEsfc)
+    column_nq1.attrs = {
+        "long_name": "<nQ1> column integrated heating from nudging",
+        "units": "W/m^2",
+    }
+    return column_nq1.rename("column_integrated_nQ1")
+
+
+def _column_nq2(ds: xr.Dataset) -> xr.DataArray:
     if "column_moistening_nudge" in ds:
-        # name for column integrated humidity nudging in nudge-to-obs runs
-        column_moistening_from_nudging = SECONDS_PER_DAY * ds.column_moistening_nudge
+        # name for column integrated humidity nudging in nudge-to-obs
+        column_nq2 = SECONDS_PER_DAY * ds.column_moistening_nudge
+    elif "net_moistening_due_to_nudging" in ds:
+        # name for column integrated humidity nudging in nudge-to-fine
+        column_nq2 = SECONDS_PER_DAY * ds.net_moistening_due_to_nudging
     else:
         # assume given dataset is for a run without humidity nudging
-        column_moistening_from_nudging = xr.zeros_like(ds.PRATEsfc)
-    column_moistening_from_nudging.attrs = {
-        "long_name": "column integrated moistening from nudging",
+        column_nq2 = xr.zeros_like(ds.PRATEsfc)
+    column_nq2.attrs = {
+        "long_name": "<nQ2> column integrated moistening from nudging",
         "units": "mm/day",
     }
-    return column_moistening_from_nudging.rename("column_moistening_from_nudging")
+    return column_nq2.rename("column_integrated_nQ2")
 
 
-def _total_precip(ds: xr.Dataset) -> xr.DataArray:
-    total_precip = (
-        ds.PRATEsfc * SECONDS_PER_DAY
-        - _column_dq2(ds)
-        - _column_moistening_from_nudging(ds)
-    )
-    total_precip.attrs = {
-        "long_name": "P - <dQ2> total precipitation",
+def _total_precip_to_surface(ds: xr.Dataset) -> xr.DataArray:
+    if "total_precip" in ds:
+        # total precip to surface is calculated in the prognostic and nudge-to-fine runs
+        total_precip_to_surface = ds.total_precip * SECONDS_PER_DAY
+    else:
+        # in the baseline case total_precip and physics precip are the same because
+        # _column_nq2 and _column_dq2 are zero; in the N2O case total_precip needs
+        # to be computed here, limited to positive values
+        total_precip_to_surface = (
+            ds.PRATEsfc * SECONDS_PER_DAY - _column_dq2(ds) - _column_nq2(ds)
+        )
+        total_precip_to_surface = total_precip_to_surface.where(
+            total_precip_to_surface >= 0, 0
+        )
+    total_precip_to_surface.attrs = {
+        "long_name": "total precip to surface, max(PRATE - <dQ2 or nQ2>, 0)",
         "units": "mm/day",
     }
-    return total_precip.rename("total_precip")
+    return total_precip_to_surface.rename("total_precip_to_surface")
