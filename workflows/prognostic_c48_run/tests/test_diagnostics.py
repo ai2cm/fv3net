@@ -1,3 +1,4 @@
+from datetime import timedelta
 from cftime import DatetimeJulian as datetime
 from unittest.mock import Mock
 
@@ -5,7 +6,13 @@ import pytest
 import xarray as xr
 
 from runtime.diagnostics import manager
-from runtime.diagnostics.manager import DiagnosticFile, All
+from runtime.diagnostics.manager import (
+    DiagnosticFile,
+    DiagnosticFileConfig,
+    All,
+    TimeContainer,
+    IntervalAveragedTimes,
+)
 
 
 @pytest.mark.parametrize(
@@ -68,9 +75,14 @@ def test_DiagnosticFile_time_selection():
     monitor = Mock()
 
     # observe a few times
-    diag_file = DiagnosticFile(times=[t1], variables=All(), monitor=monitor)
+    diag_file = DiagnosticFile(
+        times=TimeContainer([t1]), variables=All(), monitor=monitor
+    )
     diag_file.observe(t1, {})
     diag_file.observe(t2, {})
+
+    # force flush to disk
+    diag_file.flush()
     monitor.store.assert_called_once()
 
 
@@ -89,8 +101,12 @@ def test_DiagnosticFile_variable_selection():
     monitor = VariableCheckingMonitor()
 
     # observe a few times
-    diag_file = DiagnosticFile(times=All(), variables=["a"], monitor=monitor)
-    diag_file.observe(None, diagnostics)
+    diag_file = DiagnosticFile(
+        times=TimeContainer(All()), variables=["a"], monitor=monitor
+    )
+    diag_file.observe(datetime(2020, 1, 1), diagnostics)
+    # force flush to disk
+    diag_file.flush()
 
 
 @pytest.mark.parametrize(
@@ -108,5 +124,93 @@ def test_DiagnosticFile_variable_units(attrs, expected_units):
     monitor = UnitCheckingMonitor()
 
     # observe a few times
-    diag_file = DiagnosticFile(times=All(), variables=All(), monitor=monitor)
-    diag_file.observe(None, diagnostics)
+    diag_file = DiagnosticFile(
+        times=TimeContainer(All()), variables=All(), monitor=monitor
+    )
+    diag_file.observe(datetime(2020, 1, 1), diagnostics)
+    # force flush to disk
+    diag_file.flush()
+
+
+def test_TimeContainer_indicator():
+    t = datetime(2020, 1, 1)
+    time_coord = TimeContainer([t])
+    assert time_coord.indicator(t) == t
+
+
+def test_TimeContainer_indicator_not_present():
+    t = datetime(2020, 1, 1)
+    t1 = datetime(2020, 1, 1) + timedelta(minutes=1)
+    time_coord = TimeContainer([t])
+    assert time_coord.indicator(t1) is None
+
+
+@pytest.mark.parametrize(
+    "time, expected",
+    [
+        # points in interval centered at 1:30AM
+        (datetime(2020, 1, 1, 0), datetime(2020, 1, 1, 1, 30)),
+        (datetime(2020, 1, 1, 2, 30), datetime(2020, 1, 1, 1, 30)),
+        # points in interval centered at 4:30AM
+        (datetime(2020, 1, 1, 3), datetime(2020, 1, 1, 4, 30)),
+    ],
+)
+def test_IntervalAveragedTimes_indicator(time, expected):
+    times = IntervalAveragedTimes(
+        frequency=timedelta(hours=3), initial_time=datetime(2000, 1, 1)
+    )
+    assert times.indicator(time) == expected
+
+
+def test_DiagnosticFile_with_non_snapshot_time():
+
+    t = datetime(2000, 1, 1)
+    one = {"a": xr.DataArray(1.0)}
+    two = {"a": xr.DataArray(2.0)}
+
+    class Hours(TimeContainer):
+        def __init__(self):
+            pass
+
+        def indicator(self, time):
+            return t + timedelta(hours=time.hour)
+
+    class MockMonitor:
+        data = {}
+
+        def store(self, x):
+            assert isinstance(x["time"], datetime), x
+            self.data[x["time"]] = x
+
+    monitor = MockMonitor()
+    diag_file = DiagnosticFile(times=Hours(), variables=["a"], monitor=monitor)
+
+    for time, x in [
+        (t, one),
+        (t + timedelta(minutes=30), one),
+        (t + timedelta(minutes=45), one),
+        (t + timedelta(hours=1, minutes=25), one),
+        (t + timedelta(hours=1, minutes=35), two),
+    ]:
+        diag_file.observe(time, x)
+
+    diag_file.flush()
+    print(one)
+
+    assert monitor.data[datetime(2000, 1, 1, 0)]["a"].data.item() == pytest.approx(1.0)
+    assert monitor.data[datetime(2000, 1, 1, 1)]["a"].data.item() == pytest.approx(1.5)
+
+
+def test_DiagnosticFileConfig_interval_average_from_dict():
+    config = DiagnosticFileConfig.from_dict(
+        {
+            "name": "data.zarr",
+            "variables": ["a"],
+            "times": {"kind": "interval-average", "frequency": 3600},
+        },
+        initial_time=datetime(2020, 1, 1),
+    )
+
+    assert config.times == IntervalAveragedTimes(
+        timedelta(seconds=3600), datetime(2020, 1, 1)
+    )
