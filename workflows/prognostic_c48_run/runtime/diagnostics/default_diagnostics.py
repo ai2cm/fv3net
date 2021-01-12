@@ -1,4 +1,3 @@
-# TODO this code belongs to prepare config not the diagnostics code.
 from .manager import DiagnosticFileConfig
 
 ml_diagnostics = DiagnosticFileConfig(

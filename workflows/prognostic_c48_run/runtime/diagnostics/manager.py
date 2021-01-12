@@ -208,9 +208,6 @@ def get_diagnostic_files(
                 DiagnosticFileConfig.from_dict(diag_dict, initial_time=initial_time)
             )
     else:
-        # TODO Can we delete this clause? It seems like we have a more
-        # sophisticated defaults mechanism now (which is bundled in
-        # `prepare_config`).
         default_config = DiagnosticFileConfig(
             name=config["scikit_learn"]["zarr_output"], times=All(), variables=All()
         )
