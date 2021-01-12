@@ -6,7 +6,7 @@ from typing import Iterable, Sequence, Mapping, Any, Hashable, Optional, Union, 
 import xarray as xr
 from vcm import safe, parse_datetime_from_str
 from toolz import partition_all, compose
-from ._sequences import Map
+from ._sequences import Map, Local as batches_from_local  # noqa
 from .._utils import stack_dropnan_shuffle, get_derived_dataset, nonderived_variables
 from ..constants import TIME_NAME
 from ._serialized_phys import (
