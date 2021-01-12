@@ -1,4 +1,4 @@
-from typing import Any, Sequence, Container, Mapping, List, Union, Optional, Dict
+from typing import Any, Sequence, Container, Mapping, List, Union, Dict
 
 import datetime
 import cftime
@@ -53,9 +53,7 @@ class SelectedTimes(Container[cftime.DatetimeJulian]):
 
 class IntervalTimes(Container[cftime.DatetimeJulian]):
     def __init__(
-        self,
-        frequency_seconds: Union[float, int],
-        initial_time: cftime.DatetimeJulian,
+        self, frequency_seconds: Union[float, int], initial_time: cftime.DatetimeJulian,
     ):
         """
         Args:
@@ -206,10 +204,9 @@ def get_diagnostic_files(
 
     if len(diag_dicts) > 0:
         for diag_dict in diag_dicts:
-            config = DiagnosticFileConfig.from_dict(
-                diag_dict, initial_time=initial_time
+            configs.append(
+                DiagnosticFileConfig.from_dict(diag_dict, initial_time=initial_time)
             )
-            configs.append(config)
     else:
         # TODO Can we delete this clause? It seems like we have a more
         # sophisticated defaults mechanism now (which is bundled in
