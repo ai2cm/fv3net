@@ -39,13 +39,15 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "--model_url",
         type=str,
         default=None,
-        nargs="*",
+        action="append",
         help=(
             "Remote url to a trained ML model. If a model is omitted (and not "
             "specified in `user_config`'s `scikit-learn` `model` field either), then "
             "no ML updating will be done. Also, if an ML model is provided, no "
-            "nudging will be done. If multiple urls are given, they will be combined "
-            "into a single model at runtime, providing the outputs are nonoverlapping."
+            "nudging will be done. Can be provided multiple times, "
+            "ex. --model_url model1 --model_url model2. If multiple urls are given, "
+            "they will be combined into a single model at runtime, providing the "
+            "outputs are nonoverlapping."
         ),
     )
     parser.add_argument(
