@@ -140,7 +140,10 @@ def _column_q2(ds: xr.Dataset) -> xr.DataArray:
 
 def _column_nq1(ds: xr.Dataset) -> xr.DataArray:
     if "column_heating_nudge" in ds:
-        # name for column integrated temperature nudging in nudge-to-x runs
+        # name for column integrated temperature nudging in nudge-to-obs
+        column_nq1 = ds.net_heating_due_to_nudging
+    elif "net_heating_due_to_nudging" in ds:
+        # name for column integrated temperature nudging in nudge-to-fine
         column_nq1 = ds.net_heating_due_to_nudging
     else:
         # assume given dataset is for a run without temperature nudging
@@ -154,7 +157,10 @@ def _column_nq1(ds: xr.Dataset) -> xr.DataArray:
 
 def _column_nq2(ds: xr.Dataset) -> xr.DataArray:
     if "column_moistening_nudge" in ds:
-        # name for column integrated humidity nudging in nudge-to-x runs
+        # name for column integrated humidity nudging in nudge-to-obs
+        column_nq2 = SECONDS_PER_DAY * ds.column_moistening_nudge
+    elif "net_moistening_due_to_nudging" in ds:
+        # name for column integrated humidity nudging in nudge-to-fine
         column_nq2 = SECONDS_PER_DAY * ds.net_moistening_due_to_nudging
     else:
         # assume given dataset is for a run without humidity nudging
@@ -171,8 +177,15 @@ def _total_precip_to_surface(ds: xr.Dataset) -> xr.DataArray:
         # total precip to surface is calculated in the prognostic and nudge-to-fine runs
         total_precip_to_surface = ds.total_precip * SECONDS_PER_DAY
     else:
-        # in the baseline case total_precip and physics precip are the same
-        total_precip_to_surface = ds.PRATEsfc * SECONDS_PER_DAY
+        # in the baseline case total_precip and physics precip are the same because
+        # _column_nq2 and _column_dq2 are zero; in the N2O case total_precip needs
+        # to be computed here, limited to positive values
+        total_precip_to_surface = (
+            ds.PRATEsfc * SECONDS_PER_DAY - _column_dq2(ds) - _column_nq2(ds)
+        )
+        total_precip_to_surface = total_precip_to_surface.where(
+            total_precip_to_surface >= 0, 0
+        )
     total_precip_to_surface.attrs = {
         "long_name": "total precip to surface, max(PRATE - <dQ2 or nQ2>, 0)",
         "units": "mm/day",
