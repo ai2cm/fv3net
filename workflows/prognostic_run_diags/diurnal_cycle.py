@@ -68,7 +68,7 @@ def _add_diurnal_moisture_components(diurnal_cycles: xr.Dataset):
 
     precip_phys_ml_nudging = diurnal_cycles["total_precip_to_surface"]
     precip_phys_ml_nudging.attrs = {
-        "long_name": "total precip to surface, max(PRATE - <dQ2 or nQ2>, 0)",
+        "long_name": "Total precip to surface (max(PRATE - <dQ2 or nQ2>, 0))",
         "units": "mm/day",
     }
     diurnal_cycles["diurn_component_total-precipitation"] = precip_phys_ml_nudging
@@ -96,7 +96,10 @@ def _add_diurn_bias(prognostic_diurnal, verif_diurnal):
         - verif_diurnal["diurn_component_total-precipitation"]
     )
     precip_compare.attrs = {
-        "long_name": ("Precipitation (P-<dQ2>) diurnal cycle bias [run - verif]"),
+        "long_name": (
+            "Total precip to surface (max(PRATE - <dQ2 or nQ2>, 0)) "
+            "diurnal cycle bias [run - verif]"
+        ),
         "units": "mm/day",
     }
     prognostic_diurnal["diurn_bias_total-precipitation"] = precip_compare
