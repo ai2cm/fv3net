@@ -86,4 +86,4 @@ def test_MultiModelAdapter_exception_on_output_overlap():
     )
     combined_model = MultiModelAdapter([model, model])
     with pytest.raises(RuntimeError):
-        out = combined_model.predict_columnwise(ds)
+        combined_model.predict_columnwise(ds)
