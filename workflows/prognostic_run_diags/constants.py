@@ -97,6 +97,7 @@ DIURNAL_CYCLE_VARS = [
     "column_integrated_pQ2",
     "column_integrated_Q2",
     "total_precip_to_surface",
+    "PRATEsfc",
     "LHTFLsfc",
 ]
 
