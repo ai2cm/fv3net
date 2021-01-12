@@ -362,7 +362,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         is_root = self._comm.Get_rank() == root
         recvbuf = np.array(0.0)
         reduced = {}
-        self._log_info("------- Reporting clock statistics from python runfile -------")
+        self._log_info("--------------------------------------------------------------")
+        self._log_info("        Reporting clock statistics from python runfile        ")
+        self._log_info("--------------------------------------------------------------")
         self._log_info(f"{' ':<30}{'min (s)':>15}{'max (s)':>15}{'mean (s)':>15}")
         for name, value in self._timer.times.items():
             for label, op in [("min", MPI.MIN), ("max", MPI.MAX), ("mean", MPI.SUM)]:
