@@ -168,6 +168,7 @@
             "$id": "#/properties/total_precip",
             "type": "number",
             "default": 0.0,
+            "description": "total precip to surface, max(PRATE - <dQ2 or nQ2>, 0)",
             "units": "kg/m^2/s",
             "examples": [
                 1.3542121849959635e-05

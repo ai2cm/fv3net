@@ -427,7 +427,9 @@ class NudgingTimeLoop(TimeLoop):
         diagnostics.update(runtime.compute_nudging_diagnostics(state, tendency))
         updated_state: State = apply(state, tendency, dt=self._timestep)
         updated_state[TOTAL_PRECIP] = precipitation_sum(
-            state[TOTAL_PRECIP], diagnostics["column_moistening_nudge"], self._timestep,
+            state[TOTAL_PRECIP],
+            diagnostics["net_moistening_due_to_nudging"],
+            self._timestep,
         )
 
         self._log_debug("Setting Fortran State")

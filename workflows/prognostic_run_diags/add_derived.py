@@ -174,7 +174,7 @@ def _total_precip_to_surface(ds: xr.Dataset) -> xr.DataArray:
         # in the baseline case total_precip and physics precip are the same
         total_precip_to_surface = ds.PRATEsfc * SECONDS_PER_DAY
     total_precip_to_surface.attrs = {
-        "long_name": "total precip to surface, max(P - <dQ2 or nQ2>, 0)",
+        "long_name": "total precip to surface, max(PRATE - <dQ2 or nQ2>, 0)",
         "units": "mm/day",
     }
     return total_precip_to_surface.rename("total_precip_to_surface")
