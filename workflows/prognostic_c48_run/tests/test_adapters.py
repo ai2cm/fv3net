@@ -1,4 +1,4 @@
-from runtime import RenamingAdapter
+from runtime import RenamingAdapter, MultiModelAdapter
 import xarray as xr
 import numpy as np
 import pytest
@@ -17,12 +17,13 @@ class MockPredictor:
     dims to make this object work.
     """
 
-    input_variables = ["renamed_input"]
-    output_variables = ["rename_output"]
+    def __init__(self, input_variables=None, output_variables=None):
+        self.input_variables = input_variables or ["renamed_input"]
+        self.output_variables = output_variables or ["rename_output"]
 
     def predict_columnwise(self, x, sample_dims=None):
-        in_ = x["renamed_input"]
-        return xr.Dataset({"rename_output": in_})
+        in_ = x[self.input_variables[0]]
+        return xr.Dataset({self.output_variables[0]: in_})
 
 
 def test_RenamingAdapter_predict_inputs_and_outputs_renamed():
@@ -58,3 +59,31 @@ def test_RenamingAdapter_predict_renames_dims_correctly(
 def test_RenamingAdapter_input_vars_():
     model = RenamingAdapter(MockPredictor(), {"x": "renamed_input"})
     assert model.input_variables == {"x"}
+
+
+def test_MultiModelAdapter_combines_predictions():
+    ds = xr.Dataset({"x": (["dim_0", "dim_1"], np.ones((5, 10)))})
+
+    model0 = RenamingAdapter(
+        MockPredictor(output_variables=["rename_output0"]),
+        {"x": "renamed_input"},
+        {"y0": "rename_output0"},
+    )
+    model1 = RenamingAdapter(
+        MockPredictor(output_variables=["rename_output1"]),
+        {"x": "renamed_input"},
+        {"y1": "rename_output1"},
+    )
+    combined_model = MultiModelAdapter([model0, model1])
+    out = combined_model.predict_columnwise(ds)
+    assert "y0" in out.data_vars and "y1" in out.data_vars
+
+
+def test_MultiModelAdapter_exception_on_output_overlap():
+    ds = xr.Dataset({"x": (["dim_0", "dim_1"], np.ones((5, 10)))})
+    model = RenamingAdapter(
+        MockPredictor(), {"x": "renamed_input"}, {"y": "rename_output"}
+    )
+    combined_model = MultiModelAdapter([model, model])
+    with pytest.raises(RuntimeError):
+        out = combined_model.predict_columnwise(ds)
