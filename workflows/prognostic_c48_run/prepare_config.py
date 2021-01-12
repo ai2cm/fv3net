@@ -1,7 +1,7 @@
 import argparse
 import yaml
 import logging
-from typing import Sequence, Dict, List
+from typing import Dict, List
 
 import fv3config
 import fv3kube
