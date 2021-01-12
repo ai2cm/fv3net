@@ -4,7 +4,7 @@ import cftime
 import functools
 from datetime import timedelta
 import os
-from typing import MutableMapping, Mapping, Iterable, Callable, Hashable, Any, Dict
+from typing import MutableMapping, Mapping, Iterable, Callable, Hashable
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ def nudging_timescales_from_dict(timescales: Mapping) -> Mapping:
 
 def setup_get_reference_state(
     config: Mapping, state_names: Iterable[str], comm, tracer_metadata: Mapping
-):
+) -> Callable[[cftime.DatetimeJulian], State]:
     """
     Configure the 'get_reference_function' for use in a nudged fv3gfs run.
     """
@@ -34,7 +34,7 @@ def setup_get_reference_state(
     communicator = fv3gfs.util.CubedSphereCommunicator(comm, partitioner)
     reference_dir = config["nudging"]["restarts_path"]
 
-    get_reference_state: Callable[[Any], Dict[Any, Any]] = functools.partial(
+    get_reference_state: Callable[[cftime.DatetimeJulian], State] = functools.partial(
         _get_reference_state,
         reference_dir=reference_dir,
         communicator=communicator,
@@ -100,10 +100,10 @@ def _label_to_time(time: str) -> cftime.DatetimeJulian:
 
 
 def _time_interpolate_func(
-    func: Callable[[cftime.DatetimeJulian], dict],
+    func: Callable[[cftime.DatetimeJulian], State],
     frequency: timedelta,
     initial_time: cftime.DatetimeJulian,
-) -> Callable[[cftime.DatetimeJulian], dict]:
+) -> Callable[[cftime.DatetimeJulian], State]:
     cached_func = functools.lru_cache(maxsize=2)(func)
 
     @functools.wraps(cached_func)
@@ -125,7 +125,6 @@ def _time_interpolate_func(
                 _average_states(state_0, state_1, weight=(end_time - time) / frequency)
             )
 
-        state["time"] = time
         return state
 
     return myfunc

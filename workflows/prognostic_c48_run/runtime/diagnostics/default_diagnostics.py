@@ -50,7 +50,6 @@ state_after_timestep = DiagnosticFile(
         "vertical_wind",
         "air_temperature",
         "specific_humidity",
-        "time",
         "pressure_thickness_of_atmospheric_layer",
         "vertical_thickness_of_atmospheric_layer",
         "land_sea_mask",
