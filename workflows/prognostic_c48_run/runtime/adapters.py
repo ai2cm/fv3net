@@ -1,4 +1,4 @@
-from typing import Mapping, Set, Hashable
+from typing import Mapping, Set, Hashable, Iterable
 
 import xarray as xr
 
@@ -53,3 +53,19 @@ class RenamingAdapter:
         input_ = self._rename_inputs(arg)
         prediction = self.model.predict_columnwise(input_, **kwargs)
         return self._rename_outputs(prediction)
+
+
+class MultiModelAdapter:
+    def __init__(self, models: Iterable[RenamingAdapter]):
+        self.models = models
+
+    @property
+    def input_variables(self) -> Set[str]:
+        vars = [model.input_variables for model in self.models]
+        return {var for model_vars in vars for var in model_vars}
+
+    def predict_columnwise(self, arg: xr.Dataset, **kwargs) -> xr.Dataset:
+        predictions = []
+        for model in self.models:
+            predictions.append(model.predict_columnwise(arg, **kwargs))
+        return xr.merge(predictions)
