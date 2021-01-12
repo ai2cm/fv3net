@@ -1,6 +1,6 @@
-from .manager import DiagnosticFile
+from .manager import DiagnosticFileConfig
 
-ml_diagnostics = DiagnosticFile(
+ml_diagnostics = DiagnosticFileConfig(
     name="diags.zarr",
     variables=[
         "net_moistening",
@@ -16,7 +16,7 @@ ml_diagnostics = DiagnosticFile(
         "column_integrated_dQv_diagnostic",
     ],
 )
-nudging_diagnostics_2d = DiagnosticFile(
+nudging_diagnostics_2d = DiagnosticFileConfig(
     name="diags.zarr",
     variables=[
         "net_moistening_due_to_nudging",
@@ -27,8 +27,8 @@ nudging_diagnostics_2d = DiagnosticFile(
         "physics_precip",
     ],
 )
-nudging_tendencies = DiagnosticFile(name="nudging_tendencies.zarr", variables=[])
-physics_tendencies = DiagnosticFile(
+nudging_tendencies = DiagnosticFileConfig(name="nudging_tendencies.zarr", variables=[])
+physics_tendencies = DiagnosticFileConfig(
     name="physics_tendencies.zarr",
     variables=[
         "tendency_of_air_temperature_due_to_fv3_physics",
@@ -37,10 +37,10 @@ physics_tendencies = DiagnosticFile(
         "tendency_of_northward_wind_due_to_fv3_physics",
     ],
 )
-baseline_diagnostics = DiagnosticFile(
+baseline_diagnostics = DiagnosticFileConfig(
     name="diags.zarr", variables=["water_vapor_path", "physics_precip"],
 )
-state_after_timestep = DiagnosticFile(
+state_after_timestep = DiagnosticFileConfig(
     name="state_after_timestep.zarr",
     variables=[
         "x_wind",
@@ -77,4 +77,4 @@ state_after_timestep = DiagnosticFile(
         "longitude",
     ],
 )
-reference_state = DiagnosticFile(name="reference_state.zarr", variables=[])
+reference_state = DiagnosticFileConfig(name="reference_state.zarr", variables=[])
