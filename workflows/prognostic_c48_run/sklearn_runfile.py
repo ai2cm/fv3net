@@ -113,15 +113,14 @@ def precipitation_sum(
 
 
 def open_model(config):
-    model_paths = config["scikit_learn"]["model"].split(" ")
+    model_paths = config["scikit_learn"]["model"]
     models = []
     for path in model_paths:
         model = fv3fit.load(path)
         rename_in = config.get("input_standard_names", {})
         rename_out = config.get("output_standard_names", {})
         models.append(runtime.RenamingAdapter(model, rename_in, rename_out))
-    else:
-        return runtime.MultiModelAdapter(models)
+    return runtime.MultiModelAdapter(models)
 
 
 def predict(model: runtime.RenamingAdapter, state: State) -> State:

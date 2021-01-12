@@ -1,8 +1,7 @@
 import argparse
-import os
 import yaml
 import logging
-from typing import Sequence, Dict
+from typing import Sequence, Dict, Iterable
 
 import fv3config
 import fv3kube
@@ -70,32 +69,13 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def ml_overlay(model_type, model_url, diagnostic_ml):
-    if model_url:
-        if model_type == "scikit_learn":
-            overlay = sklearn_overlay(model_url)
-        elif model_type == "keras":
-            overlay = keras_overlay(model_url)
-        else:
-            raise ValueError(
-                "Available model types are 'scikit_learn' and 'keras'; received type:"
-                f" {model_type}."
-            )
+def ml_overlay(model_urls: Iterable[str], diagnostic_ml: bool):
+    if len(model_urls) > 0:
+        overlay = {"scikit_learn": {"model": model_urls}}
         overlay["scikit_learn"].update({"diagnostic_ml": diagnostic_ml}),
     else:
         overlay = {}
     return overlay
-
-
-def sklearn_overlay(model_url):
-    return {"scikit_learn": {"model": model_url}}
-
-
-def keras_overlay(model_url, keras_dirname="model_data"):
-    model_asset_list = fv3config.asset_list_from_path(
-        os.path.join(model_url, keras_dirname), target_location=keras_dirname
-    )
-    return {"patch_files": model_asset_list, "scikit_learn": {"model": keras_dirname}}
 
 
 def nudging_overlay(nudging_config, initial_condition_url):
@@ -107,11 +87,11 @@ def nudging_overlay(nudging_config, initial_condition_url):
     return overlay
 
 
-def diagnostics_overlay(config, model_url, nudge_to_obs, frequency_minutes):
+def diagnostics_overlay(config: dict, model_urls: Iterable[str], nudge_to_obs: bool, frequency_minutes: int):
 
     diagnostic_files = []
 
-    if ("scikit_learn" in config) or model_url:
+    if ("scikit_learn" in config) or len(model_urls) > 0:
         diagnostic_files.append(default_diagnostics.ml_diagnostics.to_dict())
     elif "nudging" in config or nudge_to_obs:
         diagnostic_files.append(default_diagnostics.state_after_timestep.to_dict())
@@ -184,8 +164,7 @@ def prepare_config(args):
     with open(args.user_config, "r") as f:
         user_config = yaml.safe_load(f)
 
-    model_type = user_config.get("scikit_learn", {}).get("model_type", "scikit_learn")
-    model_url = " ".join(args.model_url) if args.model_url else None
+    model_urls = args.model_url if args.model_url else []
     nudging_config = user_config.get("nudging", {})
 
     # To simplify the configuration flow, updates should be implemented as
@@ -198,10 +177,10 @@ def prepare_config(args):
             args.initial_condition_url, args.ic_timestep
         ),
         diagnostics_overlay(
-            user_config, model_url, args.nudge_to_observations, args.output_frequency,
+            user_config, model_urls, args.nudge_to_observations, args.output_frequency,
         ),
         step_tendency_overlay(user_config),
-        ml_overlay(model_type, model_url, args.diagnostic_ml),
+        ml_overlay(model_urls, args.diagnostic_ml),
         nudging_overlay(nudging_config, args.initial_condition_url),
         user_config,
     ]
