@@ -17,12 +17,13 @@ class MockPredictor:
     dims to make this object work.
     """
 
-    def __init__(self, input_variables=None, output_variables=None):
+    def __init__(self, input_variables=None, output_variables=None, output_scaling=1.0):
         self.input_variables = input_variables or ["renamed_input"]
         self.output_variables = output_variables or ["rename_output"]
+        self.output_scaling = output_scaling
 
     def predict_columnwise(self, x, sample_dims=None):
-        in_ = x[self.input_variables[0]]
+        in_ = x[self.input_variables[0]] * self.output_scaling
         return xr.Dataset({self.output_variables[0]: in_})
 
 
@@ -63,17 +64,8 @@ def test_RenamingAdapter_input_vars_():
 
 def test_MultiModelAdapter_combines_predictions():
     ds = xr.Dataset({"x": (["dim_0", "dim_1"], np.ones((5, 10)))})
-
-    model0 = RenamingAdapter(
-        MockPredictor(output_variables=["rename_output0"]),
-        {"x": "renamed_input"},
-        {"y0": "rename_output0"},
-    )
-    model1 = RenamingAdapter(
-        MockPredictor(output_variables=["rename_output1"]),
-        {"x": "renamed_input"},
-        {"y1": "rename_output1"},
-    )
+    model0 = MockPredictor(output_variables=["y0"], input_variables=["x"])
+    model1 = MockPredictor(output_variables=["y1"], input_variables=["x"])
     combined_model = MultiModelAdapter([model0, model1])
     out = combined_model.predict_columnwise(ds)
     assert "y0" in out.data_vars and "y1" in out.data_vars
@@ -81,9 +73,10 @@ def test_MultiModelAdapter_combines_predictions():
 
 def test_MultiModelAdapter_exception_on_output_overlap():
     ds = xr.Dataset({"x": (["dim_0", "dim_1"], np.ones((5, 10)))})
-    model = RenamingAdapter(
-        MockPredictor(), {"x": "renamed_input"}, {"y": "rename_output"}
+    model0 = MockPredictor(output_variables=["y0"], input_variables=["x"])
+    model1 = MockPredictor(
+        output_variables=["y0"], input_variables=["x"], output_scaling=2.0
     )
-    combined_model = MultiModelAdapter([model, model])
-    with pytest.raises(RuntimeError):
+    combined_model = MultiModelAdapter([model0, model1])
+    with pytest.raises(xr.MergeError):
         combined_model.predict_columnwise(ds)

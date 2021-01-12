@@ -120,8 +120,6 @@ def open_model(config):
         rename_in = config.get("input_standard_names", {})
         rename_out = config.get("output_standard_names", {})
         models.append(runtime.RenamingAdapter(model, rename_in, rename_out))
-    if len(models) == 1:
-        return models[0]
     else:
         return runtime.MultiModelAdapter(models)
 

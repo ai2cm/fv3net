@@ -68,15 +68,4 @@ class MultiModelAdapter:
         predictions = []
         for model in self.models:
             predictions.append(model.predict_columnwise(arg, **kwargs))
-        if self._outputs_overlap(predictions):
-            raise RuntimeError("Models have overlapping output variables.")
         return xr.merge(predictions)
-
-    def _outputs_overlap(self, predictions: Iterable[xr.Dataset]):
-        output_vars = [set(prediction.data_vars) for prediction in predictions]
-        unique_outputs = len(set.union(*output_vars))
-        total_outputs = sum(len(i) for i in output_vars)
-        if unique_outputs == total_outputs:
-            return False
-        else:
-            return True
