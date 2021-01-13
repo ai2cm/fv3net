@@ -133,7 +133,7 @@ class SklearnWrapper(Estimator):
         self.parallel_backend = parallel_backend
         self.scaler_type = scaler_type
         self.scaler_kwargs = scaler_kwargs or {}
-        self.target_scaler = target_scaler
+        self.target_scaler: Optional[scaler.NormalizeTransform] = target_scaler
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
@@ -145,9 +145,10 @@ class SklearnWrapper(Estimator):
             data[self.output_variables], self.sample_dim_name
         )
 
-        if self.target_scaler is not None:
-            y = self.target_scaler.normalize(y)
+        if self.target_scaler is None:
+            self.target_scaler = self._init_target_scaler(data)
 
+        y = self.target_scaler.normalize(y)
         self.model.fit(x, y)
 
     def _init_target_scaler(self, batch):
@@ -162,8 +163,6 @@ class SklearnWrapper(Estimator):
     def fit(self, batches: Sequence[xr.Dataset]):
         logger = logging.getLogger("SklearnWrapper")
         for i, batch in enumerate(batches):
-            if i == 0:
-                self._init_target_scaler(batch)
             logger.info(f"Fitting batch {i}/{len(batches)}")
             self._fit_batch(batch)
             logger.info(f"Batch {i} done fitting.")
@@ -175,6 +174,8 @@ class SklearnWrapper(Estimator):
 
             if self.target_scaler is not None:
                 y = self.target_scaler.denormalize(y)
+            else:
+                raise ValueError("Target scaler not present.")
 
         ds = unpack(y, self.sample_dim_name, self.output_features_)
         return ds.assign_coords({self.sample_dim_name: data[self.sample_dim_name]})
