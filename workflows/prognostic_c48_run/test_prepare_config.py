@@ -52,6 +52,6 @@ def test_prepare_nudging_config_regression(regtest):
 )
 def test_diagnostics_overlay_times(frequency_minutes, expected):
     diags_overlay_times = prepare_config.diagnostics_overlay(
-        {}, None, None, frequency_minutes
+        {}, [], None, frequency_minutes
     )["diagnostics"][0]["times"]
     assert diags_overlay_times == expected
