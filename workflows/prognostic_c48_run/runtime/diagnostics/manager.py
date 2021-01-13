@@ -144,7 +144,7 @@ class DiagnosticFileConfig:
             return TimeContainer(All())
         elif kind == "interval-average":
             return IntervalAveragedTimes(
-                datetime.timedelta(seconds=d["frequency"]), initial_time=initial_time,
+                datetime.timedelta(seconds=d["frequency"]), initial_time,
             )
         else:
             raise NotImplementedError(f"Time {kind} not implemented.")
