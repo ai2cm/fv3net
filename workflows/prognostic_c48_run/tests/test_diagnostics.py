@@ -165,8 +165,8 @@ def test_IntervalAveragedTimes_indicator(time, expected):
 def test_DiagnosticFile_with_non_snapshot_time():
 
     t = datetime(2000, 1, 1)
-    one = {"a": xr.DataArray(1.0)}
-    two = {"a": xr.DataArray(2.0)}
+    one = {"a": xr.DataArray(1.0), "b": xr.DataArray(1.0)}
+    two = {"a": xr.DataArray(2.0), "b": xr.DataArray(2.0)}
 
     class Hours(TimeContainer):
         def __init__(self):
@@ -183,7 +183,7 @@ def test_DiagnosticFile_with_non_snapshot_time():
             self.data[x["time"]] = x
 
     monitor = MockMonitor()
-    diag_file = DiagnosticFile(times=Hours(), variables=["a"], monitor=monitor)
+    diag_file = DiagnosticFile(times=Hours(), variables=["a", "b"], monitor=monitor)
 
     for time, x in [
         (t, one),
@@ -195,10 +195,14 @@ def test_DiagnosticFile_with_non_snapshot_time():
         diag_file.observe(time, x)
 
     diag_file.flush()
-    print(one)
+
+    # there should be only two time intervals
+    assert len(monitor.data) == 2
 
     assert monitor.data[datetime(2000, 1, 1, 0)]["a"].data.item() == pytest.approx(1.0)
     assert monitor.data[datetime(2000, 1, 1, 1)]["a"].data.item() == pytest.approx(1.5)
+    assert monitor.data[datetime(2000, 1, 1, 0)]["b"].data.item() == pytest.approx(1.0)
+    assert monitor.data[datetime(2000, 1, 1, 1)]["b"].data.item() == pytest.approx(1.5)
 
 
 def test_DiagnosticFileConfig_interval_average_from_dict():

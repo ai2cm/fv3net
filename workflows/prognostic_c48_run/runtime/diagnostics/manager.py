@@ -211,14 +211,17 @@ class DiagnosticFile:
                 self._increment_running_average(diagnostics)
 
     def _reset_running_average(self, label, diagnostics):
-        self._running_total = {key: val.copy() for key, val in diagnostics.items()}
+        self._running_total = {
+            key: val.copy() for key, val in diagnostics.items() if key in self.variables
+        }
         self._current_label = label
         self._n = 1
 
     def _increment_running_average(self, diagnostics):
+        self._n += 1
         for key in diagnostics:
-            self._running_total[key] += diagnostics[key]
-            self._n += 1
+            if key in self.variables:
+                self._running_total[key] += diagnostics[key]
 
     def flush(self):
         if self._current_label is not None:
