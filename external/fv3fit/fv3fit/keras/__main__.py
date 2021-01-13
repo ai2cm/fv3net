@@ -30,7 +30,8 @@ logger = logging.getLogger(__file__)
 
 MODEL_FILENAME = "model_data"
 HISTORY_OUTPUT_DIR = "training_history"
-
+MODEL_CHECKPOINT_DIR = "model_checkpoints"
+ 
 
 def _get_optimizer(hyperparameters: dict = None):
     hyperparameters = hyperparameters or {}
@@ -151,7 +152,8 @@ if __name__ == "__main__":
     _set_random_seed(train_config.random_seed)
     optimizer = _get_optimizer(train_config.hyperparameters)
     regularizer = _get_regularizer(train_config.hyperparameters)
-
+    model_checkpoint_path = os.path.join(args.output_data_path, MODEL_CHECKPOINT_DIR) \
+        if train_config.save_model_checkpoints else None
     fit_kwargs = train_config.hyperparameters.pop("fit_kwargs", {})
     model = get_model(
         train_config.model_type,
@@ -160,6 +162,7 @@ if __name__ == "__main__":
         train_config.output_variables,
         optimizer=optimizer,
         kernel_regularizer=regularizer,
+        checkpoint_path=model_checkpoint_path,
         **train_config.hyperparameters,
     )
     batches = shared.load_data_sequence(data_path, train_config)

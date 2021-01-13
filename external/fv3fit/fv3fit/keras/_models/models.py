@@ -53,6 +53,7 @@ class PackedKerasModel(Estimator):
         optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
         kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         loss: Literal["mse", "mae"] = "mse",
+        checkpoint_path: Optional[str] = None,
     ):
         """Initialize the model.
         
@@ -96,6 +97,7 @@ class PackedKerasModel(Estimator):
         self._optimizer = optimizer
         self._loss = loss
         self._kernel_regularizer = kernel_regularizer
+        self._checkpoint_path = checkpoint_path
 
     @property
     def model(self) -> tf.keras.Model:
@@ -224,6 +226,12 @@ class PackedKerasModel(Estimator):
                 val_loss_over_batches += history.history.get("val_loss", [np.nan])
             train_history["loss"].append(loss_over_batches)
             train_history["val_loss"].append(val_loss_over_batches)
+            if self._checkpoint_path:
+                self.dump(os.path.join(self._checkpoint_path, f"epoch_{i_epoch}"))
+                logger.info(
+                    f"Saved model checkpoint after epoch {i_epoch} "
+                    f"to {self._checkpoint_path}"
+                )
         return train_history
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
