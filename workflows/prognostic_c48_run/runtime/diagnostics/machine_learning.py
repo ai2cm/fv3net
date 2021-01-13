@@ -1,8 +1,6 @@
 from typing import MutableMapping, Hashable
 import xarray as xr
 import logging
-from vcm.catalog import catalog
-from vcm.cubedsphere import center_and_rotate_xy_winds
 
 logger = logging.getLogger(__name__)
 
@@ -125,37 +123,17 @@ def compute_nudging_diagnostics(
         }
     )
 
-    if ("x_wind" in nudging_tendency.keys()) and ("y_wind" in nudging_tendency.keys()):
-        wind_rotation_matrix = catalog["wind_rotation/c48"].to_dask()
-        u_tendency, v_tendency = center_and_rotate_xy_winds(
-            wind_rotation_matrix, nudging_tendency["x_wind"], nudging_tendency["y_wind"]
-        )
-        rotation_mapping = {
-            ("eastward_wind", "x_wind"): u_tendency,
-            ("northward_wind", "y_wind"): v_tendency,
-        }
-        for names, tendency in rotation_mapping.items():
-            a_name, d_name = names
-            integrated_wind_tendency = _mass_average(tendency, state[DELP], "z")
-            diags[
-                f"column_integrated_{a_name}_tendency_due_to_nudging"
-            ] = integrated_wind_tendency.assign_attrs(
-                units="m s^-2",
-                description=(
-                    f"column mass-averaged {a_name} wind tendency due to nudging"
-                ),
-            )
-
-    if DELP in nudging_tendency:
+    if DELP in nudging_tendency.keys():
         net_mass_tendency = (
             (nudging_tendency[DELP] / gravity)
             .sum("z")
             .assign_attrs(
                 units="kg/m^2/s",
-                description="column_integrated mass tendency due to nudging",
+                description="column-integrated mass tendency due to nudging",
             )
         )
         diags["net_mass_tendency_due_to_nudging"] = net_mass_tendency
+
     diags.update(_append_key_label(nudging_tendency, label))
 
     return diags
@@ -175,3 +153,18 @@ def _mass_average(
     mass_average = (da * delp).sum(vertical_dim) / total_thickness
     mass_average = mass_average.assign_attrs(**da.attrs)
     return mass_average
+
+
+def compute_baseline_diagnostics(state: State) -> Diagnostics:
+
+    return dict(
+        water_vapor_path=(state[SPHUM] * state[DELP] / gravity)
+        .sum("z")
+        .assign_attrs(units="mm")
+        .assign_attrs(description="column integrated water vapor"),
+        physics_precip=(state[PRECIP_RATE])
+        .assign_attrs(units="kg/m^2/s")
+        .assign_attrs(
+            description="surface precipitation rate due to parameterized physics"
+        ),
+    )
