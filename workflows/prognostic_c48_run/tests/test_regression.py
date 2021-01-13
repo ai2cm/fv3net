@@ -414,7 +414,7 @@ def test_nudge_run(tmpdir):
 
 def get_prognostic_config(model_path):
     config = yaml.safe_load(default_fv3config)
-    config["scikit_learn"] = {"model": model_path, "zarr_output": "diags.zarr"}
+    config["scikit_learn"] = {"model": [model_path], "zarr_output": "diags.zarr"}
     config["step_storage_variables"] = ["specific_humidity", "total_water"]
     # use local paths in prognostic_run image. fv3config
     # downloads data. We should change this once the fixes in

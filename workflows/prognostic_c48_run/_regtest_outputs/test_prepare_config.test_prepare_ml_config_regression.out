@@ -712,7 +712,8 @@ patch_files:
   target_name: 20160815_00Z_T85LR.nc
 scikit_learn:
   diagnostic_ml: false
-  model: gs://ml-model
+  model:
+  - gs://ml-model
 step_storage_variables:
 - specific_humidity
 - total_water
