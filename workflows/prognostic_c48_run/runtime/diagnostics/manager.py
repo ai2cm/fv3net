@@ -160,7 +160,7 @@ class DiagnosticFile:
     variables.
 
     Note:
-        Outputing a snapshot is type of time-average (e.g. taking the average
+        Outputting a snapshot is type of time-average (e.g. taking the average
         with respect to a point mass at a given time).
 
     """
