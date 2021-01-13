@@ -719,4 +719,6 @@ step_storage_variables:
 step_tendency_variables:
 - specific_humidity
 - air_temperature
+- eastward_wind
+- northward_wind
 

@@ -68,7 +68,7 @@ def test_DiagnosticFile_time_selection():
     monitor = Mock()
 
     # observe a few times
-    diag_file = DiagnosticFile(monitor, times=[t1], variables=All())
+    diag_file = DiagnosticFile(times=[t1], variables=All(), monitor=monitor)
     diag_file.observe(t1, {})
     diag_file.observe(t2, {})
     monitor.store.assert_called_once()
@@ -89,7 +89,7 @@ def test_DiagnosticFile_variable_selection():
     monitor = VariableCheckingMonitor()
 
     # observe a few times
-    diag_file = DiagnosticFile(monitor, times=All(), variables=["a"])
+    diag_file = DiagnosticFile(times=All(), variables=["a"], monitor=monitor)
     diag_file.observe(None, diagnostics)
 
 
@@ -108,5 +108,5 @@ def test_DiagnosticFile_variable_units(attrs, expected_units):
     monitor = UnitCheckingMonitor()
 
     # observe a few times
-    diag_file = DiagnosticFile(monitor, times=All(), variables=All())
+    diag_file = DiagnosticFile(times=All(), variables=All(), monitor=monitor)
     diag_file.observe(None, diagnostics)

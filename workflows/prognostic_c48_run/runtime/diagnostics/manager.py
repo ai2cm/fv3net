@@ -1,23 +1,18 @@
-from typing import (
-    Any,
-    Sequence,
-    Container,
-    Mapping,
-    List,
-    Union,
-)
+from typing import Any, Sequence, Container, Mapping, List, Union, Dict
+
 import datetime
 import cftime
 import logging
 import fv3gfs.util
 import xarray as xr
+import dataclasses
 
 logger = logging.getLogger(__name__)
 
 
 class All(Container):
     """A container that contains every thing
-    
+
     This is useful for cases where we want an ``in`` check to always return True.
 
     Example:
@@ -64,7 +59,7 @@ class IntervalTimes(Container[cftime.DatetimeJulian]):
         Args:
             frequency_seconds: the output frequency from the initial time
             initial_time: the initial time to start the period
-            
+
         """
         self._frequency_seconds = frequency_seconds
         self.initial_time = initial_time
@@ -87,6 +82,47 @@ def _assign_units_if_none_present(array: xr.DataArray, units=None):
     return array.assign_attrs(units=array.attrs.get("units", units))
 
 
+@dataclasses.dataclass
+class DiagnosticFileConfig:
+    """
+    Attrs:
+        name: file name of a zarr to store the data in, e.g., 'diags.zarr'
+        variables: a container of variables to save
+        times (optional): a container for times to output
+    """
+
+    name: str
+    variables: Container
+    times: Container[cftime.DatetimeJulian] = All()
+
+    @classmethod
+    def from_dict(
+        cls, dict_: Mapping, initial_time: cftime.DatetimeJulian
+    ) -> "DiagnosticFileConfig":
+        return DiagnosticFileConfig(
+            name=dict_["name"],
+            variables=dict_.get("variables", All()),
+            times=cls._get_times(dict_.get("times", {}), initial_time),
+        )
+
+    def to_dict(self) -> Dict:
+        return {"name": self.name, "variables": self.variables, "times": self.times}
+
+    @staticmethod
+    def _get_times(
+        d, initial_time: cftime.DatetimeJulian
+    ) -> Container[cftime.DatetimeJulian]:
+        kind = d.get("kind", "every")
+        if kind == "interval":
+            return IntervalTimes(d["frequency"], initial_time)
+        elif kind == "selected":
+            return SelectedTimes(d["times"])
+        elif kind == "every":
+            return All()
+        else:
+            raise NotImplementedError(f"Time {kind} not implemented.")
+
+
 class DiagnosticFile:
     """A object representing a diagnostics file
 
@@ -99,15 +135,11 @@ class DiagnosticFile:
 
     def __init__(
         self,
+        variables: Container,
         monitor: fv3gfs.util.ZarrMonitor,
         times: Container[cftime.DatetimeJulian],
-        variables: Container,
     ):
         """
-        Args:
-            monitor: an underlying monitor to store the data in
-            times: the set of times (potentially infinite) to save the data at
-            variables: a container of variables to save
 
         Note:
 
@@ -122,15 +154,15 @@ class DiagnosticFile:
             as well as the generic ``All`` container that contains the entire
             Universe!
         """
-        self._monitor = monitor
-        self.times = times
         self.variables = variables
+        self.times = times
+        self._monitor = monitor
 
     def observe(
         self, time: cftime.DatetimeJulian, diagnostics: Mapping[str, xr.DataArray]
     ):
-        """Possibly store the data into the monitor
-        """
+        """store the data into the monitor"""
+
         if time in self.times:
             quantities = {
                 # need units for from_data_array to work
@@ -145,33 +177,6 @@ class DiagnosticFile:
             # We should probably modify this behavior.
             quantities["time"] = time
             self._monitor.store(quantities)
-
-
-def _get_times(
-    d, initial_time: cftime.DatetimeJulian
-) -> Container[cftime.DatetimeJulian]:
-    kind = d.get("kind", "every")
-    if kind == "interval":
-        return IntervalTimes(d["frequency"], initial_time)
-    elif kind == "selected":
-        return SelectedTimes(d["times"])
-    elif kind == "every":
-        return All()
-    else:
-        raise NotImplementedError(f"Time {kind} not implemented.")
-
-
-def _config_to_diagnostic_file(
-    diag_file_config: Mapping, partitioner, comm, initial_time: cftime.DatetimeJulian,
-) -> DiagnosticFile:
-    monitor = fv3gfs.util.ZarrMonitor(
-        diag_file_config["name"], partitioner, mpi_comm=comm
-    )
-    return DiagnosticFile(
-        monitor=monitor,
-        variables=diag_file_config.get("variables", All()),
-        times=_get_times(diag_file_config.get("times", {}), initial_time),
-    )
 
 
 def get_diagnostic_files(
@@ -194,16 +199,25 @@ def get_diagnostic_files(
         initial_time: the initial time of the simulation.
 
     """
-    diag_configs = config.get("diagnostics", [])
-    if len(diag_configs) > 0:
-        return [
-            _config_to_diagnostic_file(config, partitioner, comm, initial_time)
-            for config in diag_configs
-        ]
+    diag_dicts = config.get("diagnostics", [])
+    configs: List[DiagnosticFileConfig] = []
+
+    if len(diag_dicts) > 0:
+        for diag_dict in diag_dicts:
+            configs.append(
+                DiagnosticFileConfig.from_dict(diag_dict, initial_time=initial_time)
+            )
     else:
-        # Keep old behavior for backwards compatiblity
-        output_name = config["scikit_learn"]["zarr_output"]
-        default_config = {"name": output_name, "times": {}, "variables": All()}
-        return [
-            _config_to_diagnostic_file(default_config, partitioner, comm, initial_time)
-        ]
+        default_config = DiagnosticFileConfig(
+            name=config["scikit_learn"]["zarr_output"], times=All(), variables=All()
+        )
+        configs.append(default_config)
+
+    return [
+        DiagnosticFile(
+            variables=config.variables,
+            times=config.times,
+            monitor=fv3gfs.util.ZarrMonitor(config.name, partitioner, mpi_comm=comm),
+        )
+        for config in configs
+    ]

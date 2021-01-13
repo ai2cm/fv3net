@@ -3,10 +3,7 @@ from toolz import identity
 import xarray as xr
 import numpy as np
 
-from loaders.batches._sequences import (
-    shuffle,
-    _write_to_netcdf,
-)
+from loaders.batches._sequences import shuffle
 
 from loaders.batches import Local
 from loaders import Map
@@ -78,16 +75,3 @@ def test__sequence_local(tmpdir):
 
     local = Local(str(tmpdir))
     xr.testing.assert_equal(local[0], ds)
-
-
-def test__write_to_netcdf(tmpdir):
-    ds = xr.Dataset(
-        {"a": (["x", "y"], np.ones((10, 10)))},
-        coords={"x": np.arange(10), "y": np.arange(10)},
-    )
-    stacked = ds.stack(sample=["x", "y"])
-    path = str(tmpdir.join("a.nc"))
-    _write_to_netcdf(stacked, path)
-
-    ds = xr.open_dataset(path)
-    xr.testing.assert_equal(ds, stacked.drop("sample"))

@@ -8,7 +8,7 @@ from vcm.cubedsphere.constants import (
 )
 import xarray as xr
 
-from typing import Sequence, Any, Mapping, Dict
+from typing import Sequence, Any, Mapping, Dict, Hashable
 from dataclasses import dataclass, field
 
 
@@ -114,7 +114,7 @@ def dataset_to_schema(ds: xr.Dataset) -> Mapping[Any, Schema]:
 # Note that long names and units are taken from various sources and may be
 # incomplete/incorrect, so use with caution
 
-REGISTRY = {
+REGISTRY: Mapping[Hashable, Schema] = {
     "phis": Schema(
         dims=(..., COORD_Y_CENTER, COORD_X_CENTER),
         attrs={"long_name": "surface geopotential", "units": "m ** 2 / s ** 2"},
