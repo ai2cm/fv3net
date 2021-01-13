@@ -37,6 +37,10 @@ def test_training(
     # This is the number of random forests in the ensemble, not the
     # number of total trees across the ensemble
     assert model.model.n_estimators == 1
+
+    # assert that the target scaler is fitted
+    assert model.target_scaler is not None
+
     batch_dataset = training_batches[0]
     result = model.predict(batch_dataset)
     missing_names = set(output_variables).difference(result.data_vars.keys())
