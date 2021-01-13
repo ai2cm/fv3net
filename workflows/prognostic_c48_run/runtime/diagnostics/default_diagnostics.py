@@ -77,4 +77,3 @@ state_after_timestep = DiagnosticFileConfig(
         "longitude",
     ],
 )
-reference_state = DiagnosticFileConfig(name="reference_state.zarr", variables=[])

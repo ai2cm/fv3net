@@ -69,16 +69,6 @@ diagnostics:
   - total_precip
   - water_vapor_path
   - physics_precip
-- name: reference_state.zarr
-  times:
-    frequency: 900
-    kind: interval
-  variables:
-  - air_temperature_reference
-  - specific_humidity_reference
-  - x_wind_reference
-  - y_wind_reference
-  - pressure_thickness_of_atmospheric_layer_reference
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 initial_conditions:

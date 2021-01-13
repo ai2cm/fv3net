@@ -117,7 +117,6 @@ def diagnostics_overlay(config, model_url, nudge_to_obs, frequency_minutes):
             diagnostic_files.append(
                 default_diagnostics.nudging_diagnostics_2d.to_dict()
             )
-            diagnostic_files.append(_reference_state(config))
     else:
         diagnostic_files.append(default_diagnostics.baseline_diagnostics.to_dict())
 
@@ -134,15 +133,6 @@ def _nudging_tendencies(config):
         [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
     )
     return nudging_tendencies
-
-
-def _reference_state(config):
-    reference_states = default_diagnostics.reference_state.to_dict()
-    nudging_variables = list(config["nudging"]["timescale_hours"])
-    reference_states["variables"].extend(
-        [f"{var}_reference" for var in nudging_variables]
-    )
-    return reference_states
 
 
 def _update_times(
