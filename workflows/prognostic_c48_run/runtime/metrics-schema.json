@@ -26,6 +26,7 @@
             "column_integrated_dQv": 0.0,
             "water_vapor_path": 23.721312922082713,
             "physics_precip": 1.3542121849959635e-05,
+            "physics_precip": 1.3542121849959635e-05,
             "storage_of_specific_humidity_path_due_to_python": 9.4789371892713e-19,
             "storage_of_total_water_path_due_to_python": 9.900500623895441e-19,
             "storage_of_mass_due_to_python": -4.188213798282645e-15,
@@ -158,6 +159,16 @@
             "$id": "#/properties/physics_precip",
             "type": "number",
             "default": 0.0,
+            "units": "kg/m^2/s",
+            "examples": [
+                1.3542121849959635e-05
+            ]
+        },
+        "total_precip": {
+            "$id": "#/properties/total_precip",
+            "type": "number",
+            "default": 0.0,
+            "description": "total precip to surface, max(PRATE - <dQ2 or nQ2>, 0)",
             "units": "kg/m^2/s",
             "examples": [
                 1.3542121849959635e-05
