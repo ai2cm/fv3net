@@ -121,9 +121,7 @@ def _nudging_tendencies(config):
     return nudging_tendencies
 
 
-def _update_times(
-    diagnostic_files: Sequence[Dict], frequency_minutes: int
-) -> Sequence[Dict]:
+def _update_times(diagnostic_files: List[Dict], frequency_minutes: int) -> List[Dict]:
     for diagnostic in diagnostic_files:
         diagnostic.update(
             {"times": {"kind": "interval", "frequency": 60 * frequency_minutes}}
