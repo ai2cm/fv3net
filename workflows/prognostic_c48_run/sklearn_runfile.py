@@ -354,6 +354,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
+            "total_precip": updated_state[TOTAL_PRECIP],
             **diagnostics,
         }
 
@@ -445,6 +446,7 @@ class NudgingTimeLoop(TimeLoop):
             "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
+            "total_precip": updated_state[TOTAL_PRECIP],
             **diagnostics,
         }
 
@@ -459,7 +461,9 @@ class BaselineTimeLoop(TimeLoop):
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 
-        diagnostics = {name: self._state[name] for name in self._states_to_output}
+        state: State = {name: self._state[name] for name in [PRECIP_RATE, SPHUM, DELP]}
+        diagnostics: Diagnostics = runtime.compute_baseline_diagnostics(state)
+        diagnostics.update({name: self._state[name] for name in self._states_to_output})
 
         return {
             "area": self._state[AREA],
