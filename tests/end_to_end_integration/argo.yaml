@@ -34,6 +34,8 @@ spec:
               x_wind: 3
               y_wind: 3
               pressure_thickness_of_atmospheric_layer: 3
+            reference_initial_time: "20160801.001500"
+            reference_frequency_seconds: 1800
           namelist:
             coupler_nml:
               current_date:
