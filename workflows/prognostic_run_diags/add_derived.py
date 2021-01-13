@@ -141,7 +141,7 @@ def _column_q2(ds: xr.Dataset) -> xr.DataArray:
 def _column_nq1(ds: xr.Dataset) -> xr.DataArray:
     if "column_heating_nudge" in ds:
         # name for column integrated temperature nudging in nudge-to-obs
-        column_nq1 = ds.net_heating_due_to_nudging
+        column_nq1 = ds.column_heating_nudge
     elif "net_heating_due_to_nudging" in ds:
         # name for column integrated temperature nudging in nudge-to-fine
         column_nq1 = ds.net_heating_due_to_nudging
@@ -187,7 +187,7 @@ def _total_precip_to_surface(ds: xr.Dataset) -> xr.DataArray:
             total_precip_to_surface >= 0, 0
         )
     total_precip_to_surface.attrs = {
-        "long_name": "total precip to surface, max(PRATE - <dQ2 or nQ2>, 0)",
+        "long_name": "total precip to surface (max(PRATE-<dQ2>-<nQ2>, 0))",
         "units": "mm/day",
     }
     return total_precip_to_surface.rename("total_precip_to_surface")
