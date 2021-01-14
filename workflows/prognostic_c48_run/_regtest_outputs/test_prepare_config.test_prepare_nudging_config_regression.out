@@ -14,7 +14,6 @@ diagnostics:
   - vertical_wind
   - air_temperature
   - specific_humidity
-  - time
   - pressure_thickness_of_atmospheric_layer
   - vertical_thickness_of_atmospheric_layer
   - land_sea_mask
@@ -67,8 +66,7 @@ diagnostics:
   - net_moistening_due_to_nudging
   - net_heating_due_to_nudging
   - net_mass_tendency_due_to_nudging
-  - column_integrated_eastward_wind_tendency_due_to_nudging
-  - column_integrated_northward_wind_tendency_due_to_nudging
+  - total_precip
   - water_vapor_path
   - physics_precip
 - name: reference_state.zarr
@@ -357,7 +355,7 @@ namelist:
     p_fac: 0.1
     phys_hydrostatic: false
     print_freq: 3
-    range_warn: true
+    range_warn: false
     reset_eta: false
     rf_cutoff: 800.0
     rf_fast: false

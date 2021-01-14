@@ -35,7 +35,11 @@ import runtime
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("fv3gfs.util").setLevel(logging.WARN)
+logging.getLogger("fsspec").setLevel(logging.WARN)
+logging.getLogger("urllib3").setLevel(logging.WARN)
 logger = logging.getLogger(__name__)
+# Fortran logs are output as python DEBUG level
+runtime.capture_fv3gfs_funcs()
 
 State = MutableMapping[Hashable, xr.DataArray]
 Diagnostics = MutableMapping[Hashable, xr.DataArray]
@@ -114,10 +118,14 @@ def precipitation_sum(
 
 
 def open_model(config):
-    model = fv3fit.load(config["scikit_learn"]["model"])
-    rename_in = config.get("input_standard_names", {})
-    rename_out = config.get("output_standard_names", {})
-    return runtime.RenamingAdapter(model, rename_in, rename_out)
+    model_paths = config["scikit_learn"]["model"]
+    models = []
+    for path in model_paths:
+        model = fv3fit.load(path)
+        rename_in = config.get("input_standard_names", {})
+        rename_out = config.get("output_standard_names", {})
+        models.append(runtime.RenamingAdapter(model, rename_in, rename_out))
+    return runtime.MultiModelAdapter(models)
 
 
 def predict(model: runtime.RenamingAdapter, state: State) -> State:
@@ -230,6 +238,10 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
     @property
     def time(self) -> cftime.DatetimeJulian:
         return self._state.time
+
+    def cleanup(self):
+        self._print_global_timings()
+        self._fv3gfs.cleanup()
 
     def _log_debug(self, message: str):
         if self._comm.rank == 0:
@@ -352,6 +364,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
+            "total_precip": updated_state[TOTAL_PRECIP],
             **diagnostics,
         }
 
@@ -390,8 +403,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             with self._timer.clock("apply_python_to_dycore_state"):
                 diagnostics.update(self._apply_python_to_dycore_state())
             yield self._state.time, diagnostics
-        self._print_global_timings()
-        self._fv3gfs.cleanup()
 
 
 class NudgingTimeLoop(TimeLoop):
@@ -469,6 +480,7 @@ class NudgingTimeLoop(TimeLoop):
             "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
+            "total_precip": updated_state[TOTAL_PRECIP],
             **diagnostics,
         }
 
@@ -483,7 +495,9 @@ class BaselineTimeLoop(TimeLoop):
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 
-        diagnostics = {name: self._state[name] for name in self._states_to_output}
+        state: State = {name: self._state[name] for name in [PRECIP_RATE, SPHUM, DELP]}
+        diagnostics: Diagnostics = runtime.compute_baseline_diagnostics(state)
+        diagnostics.update({name: self._state[name] for name in self._states_to_output})
 
         return {
             "area": self._state[AREA],
@@ -628,3 +642,11 @@ if __name__ == "__main__":
 
         for diag_file in diag_files:
             diag_file.observe(time, diagnostics)
+
+    # Diag files *should* flush themselves on deletion but
+    # fv3gfs.wrapper.cleanup short-circuits the usual python deletion
+    # mechanisms
+    for diag_file in diag_files:
+        diag_file.flush()
+
+    loop.cleanup()
