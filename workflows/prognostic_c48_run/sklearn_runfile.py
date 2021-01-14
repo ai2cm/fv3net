@@ -6,6 +6,7 @@ import copy
 import functools
 from typing import (
     Any,
+    Callable,
     Hashable,
     Iterable,
     Mapping,
@@ -387,21 +388,23 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
                 reduced[label] = recvbuf.copy()
             self._print_timing(name, reduced["min"], reduced["max"], reduced["mean"])
 
+    @property
+    def _substeps(self) -> Sequence[Callable]:
+        return [
+            self._step_dynamics,
+            self._compute_physics,
+            self._apply_python_to_physics_state,
+            self._apply_physics,
+            self._compute_python_tendency,
+            self._apply_python_to_dycore_state,
+        ]
+
     def __iter__(self):
         for i in range(self._fv3gfs.get_step_count()):
             diagnostics = {}
-            with self._timer.clock("step_dynamics"):
-                diagnostics.update(self._step_dynamics())
-            with self._timer.clock("compute_physics"):
-                diagnostics.update(self._compute_physics())
-            with self._timer.clock("apply_python_to_physics_state"):
-                diagnostics.update(self._apply_python_to_physics_state())
-            with self._timer.clock("apply_physics"):
-                diagnostics.update(self._apply_physics())
-            with self._timer.clock("compute_python_tendency"):
-                diagnostics.update(self._compute_python_tendency())
-            with self._timer.clock("apply_python_to_dycore_state"):
-                diagnostics.update(self._apply_python_to_dycore_state())
+            for substep in self._substeps:
+                with self._timer.clock(substep.__name__):
+                    diagnostics.update(substep())
             yield self._state.time, diagnostics
 
 
@@ -557,6 +560,8 @@ def monitor(name: str, func):
 
         return diags
 
+    # ensure monitored function has same name as original
+    step.__name__ = func.__name__
     return step
 
 
