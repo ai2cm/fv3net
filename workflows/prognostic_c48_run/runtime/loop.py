@@ -10,7 +10,6 @@ from typing import (
     Hashable,
     Iterable,
     Mapping,
-    MutableMapping,
     Tuple,
     cast,
     List,
@@ -28,24 +27,31 @@ import fv3fit
 import fv3gfs.util as util
 import runtime
 
+from runtime.steppers.base import (
+    LoggingMixin,
+    Stepper,
+    BaselineStepper,
+    State,
+    Diagnostics,
+)
+
+from .names import (
+    TEMP,
+    SPHUM,
+    NORTH_WIND,
+    EAST_WIND,
+    DELP,
+    TOTAL_PRECIP,
+    PRECIP_RATE,
+    AREA,
+)
+
 
 logger = logging.getLogger(__name__)
 # Fortran logs are output as python DEBUG level
 runtime.capture_fv3gfs_funcs()
 
-State = MutableMapping[Hashable, xr.DataArray]
-Diagnostics = MutableMapping[Hashable, xr.DataArray]
-
 # following variables are required no matter what feature set is being used
-TEMP = "air_temperature"
-TOTAL_WATER = "total_water"
-SPHUM = "specific_humidity"
-DELP = "pressure_thickness_of_atmospheric_layer"
-PRECIP_RATE = "surface_precipitation_rate"
-TOTAL_PRECIP = "total_precipitation"  # has units of m
-AREA = "area_of_grid_cell"
-EAST_WIND = "eastward_wind_after_physics"
-NORTH_WIND = "northward_wind_after_physics"
 TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
     "dQ1": TEMP,
     "dQ2": SPHUM,
@@ -157,41 +163,6 @@ def apply(state: State, tendency: State, dt: float) -> State:
             state_name = TENDENCY_TO_STATE_NAME.get(name, name)
             updated[state_name] = state[state_name] + tendency[name] * dt
     return updated  # type: ignore
-
-
-class LoggingMixin:
-
-    rank: int
-
-    def _log_debug(self, message: str):
-        if self.rank == 0:
-            logger.debug(message)
-
-    def _log_info(self, message: str):
-        if self.rank == 0:
-            logger.info(message)
-
-    def _print(self, message: str):
-        if self.rank == 0:
-            print(message)
-
-
-class Stepper(LoggingMixin):
-    def __init__(self, rank: int = 0):
-        self.rank: int = rank
-
-    @property
-    def _state(self):
-        return DerivedFV3State(self._fv3gfs)
-
-    def _compute_python_tendency(self) -> Diagnostics:
-        return {}
-
-    def _apply_python_to_dycore_state(self) -> Diagnostics:
-        return {}
-
-    def _apply_python_to_physics_state(self) -> Diagnostics:
-        return {}
 
 
 class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin):
@@ -381,29 +352,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 with self._timer.clock(substep.__name__):
                     diagnostics.update(substep())
             yield self._state.time, diagnostics
-
-
-class BaselineStepper(Stepper):
-    def __init__(self, fv3gfs, rank, states_to_output):
-        self._fv3gfs = fv3gfs
-        self._states_to_output = states_to_output
-
-    def _compute_python_tendency(self) -> Diagnostics:
-        return {}
-
-    def _apply_python_to_dycore_state(self) -> Diagnostics:
-
-        state: State = {name: self._state[name] for name in [PRECIP_RATE, SPHUM, DELP]}
-        diagnostics: Diagnostics = runtime.compute_baseline_diagnostics(state)
-        diagnostics.update({name: self._state[name] for name in self._states_to_output})
-
-        return {
-            "area": self._state[AREA],
-            "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
-                "cnvprcp"
-            ).data_array,
-            **diagnostics,
-        }
 
 
 class MLStepper(Stepper):
