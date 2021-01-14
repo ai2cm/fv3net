@@ -34,6 +34,8 @@ import runtime
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("fv3gfs.util").setLevel(logging.WARN)
+logging.getLogger("fsspec").setLevel(logging.WARN)
+logging.getLogger("urllib3").setLevel(logging.WARN)
 logger = logging.getLogger(__name__)
 # Fortran logs are output as python DEBUG level
 runtime.capture_fv3gfs_funcs()
@@ -235,6 +237,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
     def time(self) -> cftime.DatetimeJulian:
         return self._state.time
 
+    def cleanup(self):
+        self._fv3gfs.cleanup()
+
     def _log_debug(self, message: str):
         if self._comm.rank == 0:
             logger.debug(message)
@@ -370,7 +375,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             diagnostics.update(self._compute_python_tendency())
             diagnostics.update(self._apply_python_to_dycore_state())
             yield self._state.time, diagnostics
-        self._fv3gfs.cleanup()
 
 
 class NudgingTimeLoop(TimeLoop):
@@ -610,3 +614,11 @@ if __name__ == "__main__":
 
         for diag_file in diag_files:
             diag_file.observe(time, diagnostics)
+
+    # Diag files *should* flush themselves on deletion but
+    # fv3gfs.wrapper.cleanup short-circuits the usual python deletion
+    # mechanisms
+    for diag_file in diag_files:
+        diag_file.flush()
+
+    loop.cleanup()

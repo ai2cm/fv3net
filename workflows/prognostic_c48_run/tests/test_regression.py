@@ -552,6 +552,8 @@ def test_fv3run_diagnostic_outputs(completed_rundir):
         assert diagnostics[variable].dims == dims
         assert np.sum(np.isnan(diagnostics[variable].values)) == 0
 
+    assert len(diagnostics.time) == 2
+
 
 def test_fv3run_python_mass_conserving(completed_rundir):
 
