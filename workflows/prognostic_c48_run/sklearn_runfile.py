@@ -129,7 +129,7 @@ def open_model(config):
     return runtime.MultiModelAdapter(models)
 
 
-def predict(model: runtime.RenamingAdapter, state: State) -> State:
+def predict(model: fv3fit.Predictor, state: State) -> State:
     """Given ML model and state, return tendency prediction."""
     ds = xr.Dataset(state)  # type: ignore
     output = model.predict_columnwise(ds, feature_dim="z")
@@ -169,7 +169,42 @@ def apply(state: State, tendency: State, dt: float) -> State:
     return updated  # type: ignore
 
 
-class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
+class LoggingMixin:
+
+    rank: int
+
+    def _log_debug(self, message: str):
+        if self.rank == 0:
+            logger.debug(message)
+
+    def _log_info(self, message: str):
+        if self.rank == 0:
+            logger.info(message)
+
+    def _print(self, message: str):
+        if self.rank == 0:
+            print(message)
+
+
+class Stepper(LoggingMixin):
+    def __init__(self, rank: int = 0):
+        self.rank: int = rank
+
+    @property
+    def _state(self):
+        return DerivedFV3State(self._fv3gfs)
+
+    def _compute_python_tendency(self) -> Diagnostics:
+        return {}
+
+    def _apply_python_to_dycore_state(self) -> Diagnostics:
+        return {}
+
+    def _apply_python_to_physics_state(self) -> Diagnostics:
+        return {}
+
+
+class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin):
     """An iterable defining the master time loop of a prognostic simulation
 
     Yields (time, diagnostics) tuples, which can be saved using diagnostic routines.
@@ -191,7 +226,11 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
     """
 
     def __init__(
-        self, config: Optional[Mapping], comm: Any = None, fv3gfs=wrapper, util=util
+        self,
+        config: Optional[Mapping],
+        comm: Any = None,
+        fv3gfs: Any = wrapper,
+        util=util,
     ) -> None:
 
         config = config or {}
@@ -203,6 +242,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._state: DerivedFV3State = DerivedFV3State(self._fv3gfs)
         self._comm = comm
         self._timer = util.Timer()
+        self.rank: int = comm.rank
 
         namelist = runtime.get_namelist()
 
@@ -214,27 +254,47 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._tendencies_to_apply_to_dycore_state: State = {}
         self._tendencies_to_apply_to_physics_state: State = {}
 
+        self._states_to_output: Sequence[str] = self._get_states_to_output(config)
+        self._log_debug(f"States to output: {self._states_to_output}")
+        self.stepper: Stepper = self._get_stepper(config)
+        self._log_info(self._fv3gfs.get_tracer_metadata())
+        MPI.COMM_WORLD.barrier()  # wait for initialization to finish
+
+    def _get_states_to_output(self, config: Any) -> Sequence[str]:
+        states_to_output = []
+        for diagnostic in config.get("diagnostics", []):
+            if diagnostic["name"] == "state_after_timestep.zarr":
+                states_to_output = diagnostic["variables"]
+        return states_to_output
+
+    def _get_stepper(self, config: Mapping) -> Stepper:
+
         if "scikit_learn" in config:
             # download the model
             self._log_info("Downloading ML Model")
-            self._model = open_model(config)
+            model = open_model(config)
             self._log_info("Model Downloaded")
-            self._do_only_diagnostic_ml: bool = config["scikit_learn"].get(
+            do_only_diagnostic_ml: bool = config["scikit_learn"].get(
                 "diagnostic_ml", False
             )
+            return MLStepper(
+                self._fv3gfs,
+                self.rank,
+                self._timestep,
+                states_to_output=self._states_to_output,
+                model=model,
+                diagnostic_only=do_only_diagnostic_ml,
+            )
+        elif "nudging" in config:
+            return NudgingStepper(
+                self._fv3gfs,
+                self._comm,
+                config,
+                timestep=self._timestep,
+                states_to_output=self._states_to_output,
+            )
         else:
-            self._model = None
-            self._do_only_diagnostic_ml = False
-
-        self._states_to_output = []
-        for diagnostic in config.get("diagnostics", []):
-            if diagnostic["name"] == "state_after_timestep.zarr":
-                self._states_to_output = diagnostic["variables"]
-
-        self._log_debug(f"States to output: {self._states_to_output}")
-
-        self._log_info(self._fv3gfs.get_tracer_metadata())
-        MPI.COMM_WORLD.barrier()  # wait for initialization to finish
+            return BaselineStepper(self._fv3gfs, self.rank, self._states_to_output)
 
     @property
     def time(self) -> cftime.DatetimeJulian:
@@ -243,18 +303,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
     def cleanup(self):
         self._print_global_timings()
         self._fv3gfs.cleanup()
-
-    def _log_debug(self, message: str):
-        if self._comm.rank == 0:
-            logger.debug(message)
-
-    def _log_info(self, message: str):
-        if self._comm.rank == 0:
-            logger.info(message)
-
-    def _print(self, message: str):
-        if self._comm.rank == 0:
-            print(message)
 
     def _step_dynamics(self) -> Diagnostics:
         self._log_debug(f"Dynamics Step")
@@ -293,46 +341,100 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             "total_precip_after_physics": self._state[TOTAL_PRECIP],
         }
 
-    def _apply_python_to_physics_state(self) -> Diagnostics:
-        self._log_debug(f"Apply python tendencies to physics state")
-        variables: List[Hashable] = [
-            TENDENCY_TO_STATE_NAME["dQu"],
-            TENDENCY_TO_STATE_NAME["dQv"],
-            DELP,
-        ]
-        state = {name: self._state[name] for name in variables}
-        tendency = self._tendencies_to_apply_to_physics_state
-        updated_state: State = apply(state, tendency, dt=self._timestep)
-        diagnostics: Diagnostics = runtime.compute_ml_momentum_diagnostics(
-            state, tendency
-        )
-        if self._do_only_diagnostic_ml:
-            runtime.rename_diagnostics(diagnostics)
-        else:
-            self._state.update(updated_state)
+    def _print_timing(self, name, min_val, max_val, mean_val):
+        self._print(f"{name:<30}{min_val:15.4f}{max_val:15.4f}{mean_val:15.4f}")
 
-        return diagnostics
+    def _print_global_timings(self, root=0):
+        is_root = self._comm.Get_rank() == root
+        recvbuf = np.array(0.0)
+        reduced = {}
+        self._print("-----------------------------------------------------------------")
+        self._print("         Reporting clock statistics from python runfile          ")
+        self._print("-----------------------------------------------------------------")
+        self._print(f"{' ':<30}{'min (s)':>15}{'max (s)':>15}{'mean (s)':>15}")
+        for name, value in self._timer.times.items():
+            reduced[name] = {}
+            for label, op in [("min", MPI.MIN), ("max", MPI.MAX), ("mean", MPI.SUM)]:
+                comm.Reduce(np.array(value), recvbuf, op=op)
+                if is_root and label == "mean":
+                    recvbuf /= comm.Get_size()
+                reduced[name][label] = recvbuf.copy().item()
+            self._print_timing(
+                name, reduced[name]["min"], reduced[name]["max"], reduced[name]["mean"]
+            )
+        self._log_info(f"python_timing:{json.dumps(reduced)}")
+
+    @property
+    def _substeps(self) -> Sequence[Callable[..., Diagnostics]]:
+        return [
+            self._step_dynamics,
+            self._compute_physics,
+            self._apply_python_to_physics_state,
+            self._apply_physics,
+            self._compute_python_tendency,
+            self._apply_python_to_dycore_state,
+        ]
+
+    def _apply_python_to_physics_state(self) -> Diagnostics:
+        return self.stepper._apply_python_to_physics_state()
 
     def _compute_python_tendency(self) -> Diagnostics:
-        variables: List[Hashable] = list(self._model.input_variables | {SPHUM})
-        self._log_debug(f"Getting state variables: {variables}")
-        state = {name: self._state[name] for name in variables}
+        return self.stepper._compute_python_tendency()
 
-        self._log_debug("Computing ML-predicted tendencies")
-        tendency = predict(self._model, state)
+    def _apply_python_to_dycore_state(self) -> Diagnostics:
+        return self.stepper._apply_python_to_dycore_state()
 
-        self._log_debug(
-            "Correcting ML tendencies that would predict negative specific humidity"
-        )
-        tendency = limit_sphum_tendency(state, tendency, dt=self._timestep)
+    def __iter__(self):
+        for i in range(self._fv3gfs.get_step_count()):
+            diagnostics = {}
+            for substep in self._substeps:
+                with self._timer.clock(substep.__name__):
+                    diagnostics.update(substep())
+            yield self._state.time, diagnostics
 
-        self._tendencies_to_apply_to_dycore_state = {
-            k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]
-        }
-        self._tendencies_to_apply_to_physics_state = {
-            k: v for k, v in tendency.items() if k in ["dQu", "dQv"]
-        }
+
+class BaselineStepper(Stepper):
+    def __init__(self, fv3gfs, rank, states_to_output):
+        self._fv3gfs = fv3gfs
+        self._states_to_output = states_to_output
+
+    def _compute_python_tendency(self) -> Diagnostics:
         return {}
+
+    def _apply_python_to_dycore_state(self) -> Diagnostics:
+
+        state: State = {name: self._state[name] for name in [PRECIP_RATE, SPHUM, DELP]}
+        diagnostics: Diagnostics = runtime.compute_baseline_diagnostics(state)
+        diagnostics.update({name: self._state[name] for name in self._states_to_output})
+
+        return {
+            "area": self._state[AREA],
+            "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
+                "cnvprcp"
+            ).data_array,
+            **diagnostics,
+        }
+
+
+class MLStepper(Stepper):
+    def __init__(
+        self,
+        fv3gfs: Any,
+        rank: int,
+        timestep: float,
+        states_to_output: Any,
+        model: fv3fit.Predictor,
+        diagnostic_only: bool = False,
+    ):
+        self.rank: int = rank
+        self._fv3gfs: Any = fv3gfs
+        self._do_only_diagnostic_ml: bool = diagnostic_only
+        self._timestep: float = timestep
+        self._model: fv3fit.Predictor = model
+        self._states_to_output = states_to_output
+
+        self._tendencies_to_apply_to_dycore_state: State = {}
+        self._tendencies_to_apply_to_physics_state: State = {}
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 
@@ -373,55 +475,67 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             **diagnostics,
         }
 
-    def _print_timing(self, name, min_val, max_val, mean_val):
-        self._print(f"{name:<30}{min_val:15.4f}{max_val:15.4f}{mean_val:15.4f}")
-
-    def _print_global_timings(self, root=0):
-        is_root = self._comm.Get_rank() == root
-        recvbuf = np.array(0.0)
-        reduced = {}
-        self._print("-----------------------------------------------------------------")
-        self._print("         Reporting clock statistics from python runfile          ")
-        self._print("-----------------------------------------------------------------")
-        self._print(f"{' ':<30}{'min (s)':>15}{'max (s)':>15}{'mean (s)':>15}")
-        for name, value in self._timer.times.items():
-            reduced[name] = {}
-            for label, op in [("min", MPI.MIN), ("max", MPI.MAX), ("mean", MPI.SUM)]:
-                comm.Reduce(np.array(value), recvbuf, op=op)
-                if is_root and label == "mean":
-                    recvbuf /= comm.Get_size()
-                reduced[name][label] = recvbuf.copy().item()
-            self._print_timing(
-                name, reduced[name]["min"], reduced[name]["max"], reduced[name]["mean"]
-            )
-        self._log_info(f"python_timing:{json.dumps(reduced)}")
-
-    @property
-    def _substeps(self) -> Sequence[Callable]:
-        return [
-            self._step_dynamics,
-            self._compute_physics,
-            self._apply_python_to_physics_state,
-            self._apply_physics,
-            self._compute_python_tendency,
-            self._apply_python_to_dycore_state,
+    def _apply_python_to_physics_state(self) -> Diagnostics:
+        self._log_debug(f"Apply python tendencies to physics state")
+        variables: List[Hashable] = [
+            TENDENCY_TO_STATE_NAME["dQu"],
+            TENDENCY_TO_STATE_NAME["dQv"],
+            DELP,
         ]
+        state = {name: self._state[name] for name in variables}
+        tendency = self._tendencies_to_apply_to_physics_state
+        updated_state: State = apply(state, tendency, dt=self._timestep)
+        diagnostics: Diagnostics = runtime.compute_ml_momentum_diagnostics(
+            state, tendency
+        )
+        if self._do_only_diagnostic_ml:
+            runtime.rename_diagnostics(diagnostics)
+        else:
+            self._state.update(updated_state)
 
-    def __iter__(self):
-        for i in range(self._fv3gfs.get_step_count()):
-            diagnostics = {}
-            for substep in self._substeps:
-                with self._timer.clock(substep.__name__):
-                    diagnostics.update(substep())
-            yield self._state.time, diagnostics
+        return diagnostics
+
+    def _compute_python_tendency(self) -> Diagnostics:
+        variables: List[Hashable] = list(set(self._model.input_variables) | {SPHUM})
+        self._log_debug(f"Getting state variables: {variables}")
+        state = {name: self._state[name] for name in variables}
+
+        self._log_debug("Computing ML-predicted tendencies")
+        tendency = predict(self._model, state)
+
+        self._log_debug(
+            "Correcting ML tendencies that would predict negative specific humidity"
+        )
+        tendency = limit_sphum_tendency(state, tendency, dt=self._timestep)
+
+        self._tendencies_to_apply_to_dycore_state = {
+            k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]
+        }
+        self._tendencies_to_apply_to_physics_state = {
+            k: v for k, v in tendency.items() if k in ["dQu", "dQv"]
+        }
+        return {}
 
 
-class NudgingTimeLoop(TimeLoop):
-    def __init__(self, *args, **kwargs):
+class NudgingStepper(Stepper):
+    """Stepper for nudging
+    """
 
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        fv3gfs: Any,
+        comm: Any,
+        config: Mapping,
+        timestep: float,
+        states_to_output: Any,
+    ):
 
-        config = kwargs["config"]
+        self._states_to_output = states_to_output
+
+        self._fv3gfs = fv3gfs
+        self._comm = comm
+        self.rank: int = comm.rank
+        self._timestep: float = timestep
 
         self._nudging_timescales = runtime.nudging_timescales_from_dict(
             config["nudging"]["timescale_hours"]
@@ -435,6 +549,7 @@ class NudgingTimeLoop(TimeLoop):
         self._get_nudging_tendency = functools.partial(
             runtime.get_nudging_tendency, nudging_timescales=self._nudging_timescales,
         )
+        self._tendencies_to_apply_to_dycore_state: State = {}
 
     @property
     def nudging_variables(self) -> List[str]:
@@ -449,7 +564,7 @@ class NudgingTimeLoop(TimeLoop):
             MASK_NAME,
         ]
         state: State = {name: self._state[name] for name in variables}
-        reference = self._get_reference_state(self.time)
+        reference = self._get_reference_state(self._state.time)
         runtime.set_state_sst_to_reference(state, reference)
         self._tendencies_to_apply_to_dycore_state = self._get_nudging_tendency(
             state, reference
@@ -496,29 +611,6 @@ class NudgingTimeLoop(TimeLoop):
         }
 
 
-class BaselineTimeLoop(TimeLoop):
-    def __init__(self, *args, **kwargs):
-
-        super().__init__(*args, **kwargs)
-
-    def _compute_python_tendency(self) -> Diagnostics:
-        return {}
-
-    def _apply_python_to_dycore_state(self) -> Diagnostics:
-
-        state: State = {name: self._state[name] for name in [PRECIP_RATE, SPHUM, DELP]}
-        diagnostics: Diagnostics = runtime.compute_baseline_diagnostics(state)
-        diagnostics.update({name: self._state[name] for name in self._states_to_output})
-
-        return {
-            "area": self._state[AREA],
-            "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
-                "cnvprcp"
-            ).data_array,
-            **diagnostics,
-        }
-
-
 def monitor(name: str, func):
     """Decorator to add tendency monitoring to an update function
 
@@ -537,7 +629,7 @@ def monitor(name: str, func):
         diagnostics.
     """
 
-    def step(self) -> Mapping[str, xr.DataArray]:
+    def step(self: TimeLoop) -> Mapping[str, xr.DataArray]:
 
         vars_ = list(set(self._tendency_variables) | set(self._storage_variables))
         delp_before = self._state[DELP]
@@ -573,32 +665,29 @@ def monitor(name: str, func):
     return step
 
 
-def monitored_physics_time_loop_class(base):
-    class MonitoredPhysicsTimeLoop(base):
-        def __init__(
-            self,
-            tendency_variables: Sequence[str],
-            storage_variables: Sequence[str],
-            *args,
-            **kwargs,
-        ):
-            """
+class MonitoredPhysicsTimeLoop(TimeLoop):
+    def __init__(
+        self,
+        tendency_variables: Sequence[str],
+        storage_variables: Sequence[str],
+        *args,
+        **kwargs,
+    ):
+        """
 
-            Args:
-                tendency_variables: a list of variables to compute the physics
-                    tendencies of.
+        Args:
+            tendency_variables: a list of variables to compute the physics
+                tendencies of.
 
-            """
-            super().__init__(*args, **kwargs)
-            self._tendency_variables = list(tendency_variables)
-            self._storage_variables = list(storage_variables)
+        """
+        super().__init__(*args, **kwargs)
+        self._tendency_variables = list(tendency_variables)
+        self._storage_variables = list(storage_variables)
 
-        _apply_physics = monitor("fv3_physics", base._apply_physics)
-        _apply_python_to_dycore_state = monitor(
-            "python", base._apply_python_to_dycore_state
-        )
-
-    return MonitoredPhysicsTimeLoop
+    _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
+    _apply_python_to_dycore_state = monitor(
+        "python", TimeLoop._apply_python_to_dycore_state
+    )
 
 
 def globally_average_2d_diagnostics(
@@ -614,16 +703,6 @@ def globally_average_2d_diagnostics(
     return averages
 
 
-def run_class(config: Mapping):
-    if "scikit_learn" in config:
-        run_class = TimeLoop
-    elif "nudging" in config:
-        run_class = NudgingTimeLoop
-    else:
-        run_class = BaselineTimeLoop
-    return run_class
-
-
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
@@ -631,7 +710,7 @@ if __name__ == "__main__":
     partitioner = util.CubedSpherePartitioner.from_namelist(config["namelist"])
     setup_metrics_logger()
 
-    loop = monitored_physics_time_loop_class(run_class(config))(
+    loop = MonitoredPhysicsTimeLoop(
         config=config,
         comm=comm,
         tendency_variables=config.get("step_tendency_variables", []),
