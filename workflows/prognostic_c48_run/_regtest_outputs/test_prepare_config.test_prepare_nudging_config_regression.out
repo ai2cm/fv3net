@@ -356,7 +356,7 @@ namelist:
     p_fac: 0.1
     phys_hydrostatic: false
     print_freq: 3
-    range_warn: true
+    range_warn: false
     reset_eta: false
     rf_cutoff: 800.0
     rf_fast: false
