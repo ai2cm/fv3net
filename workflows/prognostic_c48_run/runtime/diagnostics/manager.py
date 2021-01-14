@@ -1,4 +1,4 @@
-from typing import Any, Sequence, Container, Mapping, List, Union, Dict, Optional
+from typing import Any, Sequence, Container, Mapping, List, Union, Dict
 
 import datetime
 import cftime
@@ -78,33 +78,8 @@ class IntervalTimes(Container[cftime.DatetimeJulian]):
         return quotient == datetime.timedelta(seconds=0)
 
 
-class TimeContainer:
-    """A time discretization can be described by an "indicator" function
-    mapping times onto discrete set of output times.
-
-    This generalizes the notion of a set of times to include a concept of grouping.
-
-    """
-
-    def __init__(self, container: Container):
-        self.container = container
-
-    def indicator(self, time: cftime.DatetimeJulian) -> Optional[cftime.DatetimeJulian]:
-        """Maps a value onto set"""
-        if time in self.container:
-            return time
-        else:
-            return None
-
-
-@dataclasses.dataclass
-class IntervalAveragedTimes(TimeContainer):
-    frequency: datetime.timedelta
-    initial_time: cftime.DatetimeJulian
-
-    def indicator(self, time: cftime.DatetimeJulian) -> Optional[cftime.DatetimeJulian]:
-        n = (time - self.initial_time) // self.frequency
-        return n * self.frequency + self.frequency / 2 + self.initial_time
+def _assign_units_if_none_present(array: xr.DataArray, units=None):
+    return array.assign_attrs(units=array.attrs.get("units", units))
 
 
 @dataclasses.dataclass
@@ -118,7 +93,7 @@ class DiagnosticFileConfig:
 
     name: str
     variables: Container
-    times: TimeContainer = TimeContainer(All())
+    times: Container[cftime.DatetimeJulian] = All()
 
     @classmethod
     def from_dict(
@@ -134,42 +109,35 @@ class DiagnosticFileConfig:
         return {"name": self.name, "variables": self.variables, "times": self.times}
 
     @staticmethod
-    def _get_times(d, initial_time: cftime.DatetimeJulian) -> TimeContainer:
+    def _get_times(
+        d, initial_time: cftime.DatetimeJulian
+    ) -> Container[cftime.DatetimeJulian]:
         kind = d.get("kind", "every")
         if kind == "interval":
-            return TimeContainer(IntervalTimes(d["frequency"], initial_time))
+            return IntervalTimes(d["frequency"], initial_time)
         elif kind == "selected":
-            return TimeContainer(SelectedTimes(d["times"]))
+            return SelectedTimes(d["times"])
         elif kind == "every":
-            return TimeContainer(All())
-        elif kind == "interval-average":
-            return IntervalAveragedTimes(
-                datetime.timedelta(seconds=d["frequency"]), initial_time,
-            )
+            return All()
         else:
             raise NotImplementedError(f"Time {kind} not implemented.")
 
 
 class DiagnosticFile:
-    """A object representing a time averaged diagnostics file
+    """A object representing a diagnostics file
 
     Provides a similar interface as the "diag_table"
 
     Replicates the abilities of the fortran models's diag_table by allowing
     the user to specify different output times for distinct sets of
     variables.
-
-    Note:
-        Outputting a snapshot is type of time-average (e.g. taking the average
-        with respect to a point mass at a given time).
-
     """
 
     def __init__(
         self,
         variables: Container,
         monitor: fv3gfs.util.ZarrMonitor,
-        times: TimeContainer,
+        times: Container[cftime.DatetimeJulian],
     ):
         """
 
@@ -190,58 +158,25 @@ class DiagnosticFile:
         self.times = times
         self._monitor = monitor
 
-        # variables used for averaging
-        self._running_total: Dict[str, xr.DataArray] = {}
-        self._current_label: Optional[cftime.DatetimeJulian] = None
-        self._n = 0
-        self._units: Dict[str, str] = {}
-
     def observe(
         self, time: cftime.DatetimeJulian, diagnostics: Mapping[str, xr.DataArray]
     ):
-        for key in diagnostics:
-            self._units[key] = diagnostics[key].attrs.get("units", "unknown")
+        """store the data into the monitor"""
 
-        label = self.times.indicator(time)
-        if label is not None:
-            if label != self._current_label:
-                self.flush()
-                self._reset_running_average(label, diagnostics)
-            else:
-                self._increment_running_average(diagnostics)
-
-    def _reset_running_average(self, label, diagnostics):
-        self._running_total = {
-            key: val.copy() for key, val in diagnostics.items() if key in self.variables
-        }
-        self._current_label = label
-        self._n = 1
-
-    def _increment_running_average(self, diagnostics):
-        self._n += 1
-        for key in diagnostics:
-            if key in self.variables:
-                self._running_total[key] += diagnostics[key]
-
-    def flush(self):
-        if self._current_label is not None:
-            average = {key: val / self._n for key, val in self._running_total.items()}
+        if time in self.times:
             quantities = {
                 # need units for from_data_array to work
                 key: fv3gfs.util.Quantity.from_data_array(
-                    average[key].assign_attrs(units=self._units[key])
+                    _assign_units_if_none_present(diagnostics[key], "unknown")
                 )
-                for key in average
+                for key in diagnostics
                 if key in self.variables
             }
 
             # patch this in manually. the ZarrMonitor needs it.
             # We should probably modify this behavior.
-            quantities["time"] = self._current_label
+            quantities["time"] = time
             self._monitor.store(quantities)
-
-    def __del__(self):
-        self.flush()
 
 
 def get_diagnostic_files(
@@ -274,9 +209,7 @@ def get_diagnostic_files(
             )
     else:
         default_config = DiagnosticFileConfig(
-            name=config["scikit_learn"]["zarr_output"],
-            times=TimeContainer(All()),
-            variables=All(),
+            name=config["scikit_learn"]["zarr_output"], times=All(), variables=All()
         )
         configs.append(default_config)
 
