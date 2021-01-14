@@ -27,6 +27,7 @@ class ModelTrainingConfig:
         additional_variables: Optional[List[str]] = None,
         random_seed: Union[float, int] = 0,
         validation_timesteps: Optional[Sequence[str]] = None,
+        save_model_checkpoints: bool = False,
     ):
         self.model_type = model_type
         self.hyperparameters = hyperparameters
@@ -39,6 +40,7 @@ class ModelTrainingConfig:
         self.additional_variables: List[str] = additional_variables or []
         self.random_seed = random_seed
         self.validation_timesteps: Sequence[str] = validation_timesteps or []
+        self.save_model_checkpoints = save_model_checkpoints
         if self.scaler_type == "mass":
             if DELP not in self.additional_variables:
                 self.additional_variables.append(DELP)
