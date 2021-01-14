@@ -6,6 +6,7 @@ import copy
 import functools
 from typing import (
     Any,
+    Callable,
     Hashable,
     Iterable,
     Mapping,
@@ -17,6 +18,7 @@ from typing import (
     Optional,
 )
 
+import numpy as np
 import xarray as xr
 from mpi4py import MPI
 
@@ -28,7 +30,7 @@ wrapper.initialize()  # noqa: E402
 
 from runtime import DerivedFV3State
 import fv3fit
-import fv3gfs.util
+import fv3gfs.util as util
 import runtime
 
 
@@ -189,7 +191,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
     """
 
     def __init__(
-        self, config: Optional[Mapping], comm: Any = None, fv3gfs=wrapper
+        self, config: Optional[Mapping], comm: Any = None, fv3gfs=wrapper, util=util
     ) -> None:
 
         config = config or {}
@@ -200,6 +202,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._fv3gfs = fv3gfs
         self._state: DerivedFV3State = DerivedFV3State(self._fv3gfs)
         self._comm = comm
+        self._timer = util.Timer()
 
         namelist = runtime.get_namelist()
 
@@ -238,6 +241,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         return self._state.time
 
     def cleanup(self):
+        self._print_global_timings()
         self._fv3gfs.cleanup()
 
     def _log_debug(self, message: str):
@@ -247,6 +251,10 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
     def _log_info(self, message: str):
         if self._comm.rank == 0:
             logger.info(message)
+
+    def _print(self, message: str):
+        if self._comm.rank == 0:
+            print(message)
 
     def _step_dynamics(self) -> Diagnostics:
         self._log_debug(f"Dynamics Step")
@@ -269,7 +277,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._log_debug(f"Physics Step (apply)")
         self._fv3gfs.apply_physics()
 
-        micro = fv3gfs.wrapper.get_diagnostic_by_name(
+        micro = self._fv3gfs.get_diagnostic_by_name(
             "tendency_of_specific_humidity_due_to_microphysics"
         ).data_array
         delp = self._state[DELP]
@@ -279,7 +287,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
             )
             / gravity,
             "evaporation": self._state["evaporation"],
-            "cnvprcp_after_physics": fv3gfs.wrapper.get_diagnostic_by_name(
+            "cnvprcp_after_physics": self._fv3gfs.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
             "total_precip_after_physics": self._state[TOTAL_PRECIP],
@@ -358,22 +366,53 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
 
         return {
             "area": self._state[AREA],
-            "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
+            "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
             "total_precip": updated_state[TOTAL_PRECIP],
             **diagnostics,
         }
 
+    def _print_timing(self, name, min_val, max_val, mean_val):
+        self._print(f"{name:<30}{min_val:15.4f}{max_val:15.4f}{mean_val:15.4f}")
+
+    def _print_global_timings(self, root=0):
+        is_root = self._comm.Get_rank() == root
+        recvbuf = np.array(0.0)
+        reduced = {}
+        self._print("-----------------------------------------------------------------")
+        self._print("         Reporting clock statistics from python runfile          ")
+        self._print("-----------------------------------------------------------------")
+        self._print(f"{' ':<30}{'min (s)':>15}{'max (s)':>15}{'mean (s)':>15}")
+        for name, value in self._timer.times.items():
+            reduced[name] = {}
+            for label, op in [("min", MPI.MIN), ("max", MPI.MAX), ("mean", MPI.SUM)]:
+                comm.Reduce(np.array(value), recvbuf, op=op)
+                if is_root and label == "mean":
+                    recvbuf /= comm.Get_size()
+                reduced[name][label] = recvbuf.copy().item()
+            self._print_timing(
+                name, reduced[name]["min"], reduced[name]["max"], reduced[name]["mean"]
+            )
+        self._log_info(f"python_timing:{json.dumps(reduced)}")
+
+    @property
+    def _substeps(self) -> Sequence[Callable]:
+        return [
+            self._step_dynamics,
+            self._compute_physics,
+            self._apply_python_to_physics_state,
+            self._apply_physics,
+            self._compute_python_tendency,
+            self._apply_python_to_dycore_state,
+        ]
+
     def __iter__(self):
         for i in range(self._fv3gfs.get_step_count()):
             diagnostics = {}
-            diagnostics.update(self._step_dynamics())
-            diagnostics.update(self._compute_physics())
-            diagnostics.update(self._apply_python_to_physics_state())
-            diagnostics.update(self._apply_physics())
-            diagnostics.update(self._compute_python_tendency())
-            diagnostics.update(self._apply_python_to_dycore_state())
+            for substep in self._substeps:
+                with self._timer.clock(substep.__name__):
+                    diagnostics.update(substep())
             yield self._state.time, diagnostics
 
 
@@ -449,7 +488,7 @@ class NudgingTimeLoop(TimeLoop):
 
         return {
             "area": self._state[AREA],
-            "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
+            "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
             "total_precip": updated_state[TOTAL_PRECIP],
@@ -473,7 +512,7 @@ class BaselineTimeLoop(TimeLoop):
 
         return {
             "area": self._state[AREA],
-            "cnvprcp_after_python": fv3gfs.wrapper.get_diagnostic_by_name(
+            "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
             **diagnostics,
@@ -529,6 +568,8 @@ def monitor(name: str, func):
 
         return diags
 
+    # ensure monitored function has same name as original
+    step.__name__ = func.__name__
     return step
 
 
@@ -587,7 +628,7 @@ if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
     config = runtime.get_config()
-    partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(config["namelist"])
+    partitioner = util.CubedSpherePartitioner.from_namelist(config["namelist"])
     setup_metrics_logger()
 
     loop = monitored_physics_time_loop_class(run_class(config))(
