@@ -252,6 +252,10 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         if self._comm.rank == 0:
             logger.info(message)
 
+    def _print(self, message: str):
+        if self._comm.rank == 0:
+            print(message)
+
     def _step_dynamics(self) -> Diagnostics:
         self._log_debug(f"Dynamics Step")
         self._fv3gfs.step_dynamics()
@@ -370,23 +374,27 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         }
 
     def _print_timing(self, name, min_val, max_val, mean_val):
-        self._log_info(f"{name:<30}{min_val:15.4f}{max_val:15.4f}{mean_val:15.4f}")
+        self._print(f"{name:<30}{min_val:15.4f}{max_val:15.4f}{mean_val:15.4f}")
 
     def _print_global_timings(self, root=0):
         is_root = self._comm.Get_rank() == root
         recvbuf = np.array(0.0)
         reduced = {}
-        self._log_info("--------------------------------------------------------------")
-        self._log_info("        Reporting clock statistics from python runfile        ")
-        self._log_info("--------------------------------------------------------------")
-        self._log_info(f"{' ':<30}{'min (s)':>15}{'max (s)':>15}{'mean (s)':>15}")
+        self._print("-----------------------------------------------------------------")
+        self._print("         Reporting clock statistics from python runfile          ")
+        self._print("-----------------------------------------------------------------")
+        self._print(f"{' ':<30}{'min (s)':>15}{'max (s)':>15}{'mean (s)':>15}")
         for name, value in self._timer.times.items():
+            reduced[name] = {}
             for label, op in [("min", MPI.MIN), ("max", MPI.MAX), ("mean", MPI.SUM)]:
                 comm.Reduce(np.array(value), recvbuf, op=op)
                 if is_root and label == "mean":
                     recvbuf /= comm.Get_size()
-                reduced[label] = recvbuf.copy()
-            self._print_timing(name, reduced["min"], reduced["max"], reduced["mean"])
+                reduced[name][label] = recvbuf.copy().item()
+            self._print_timing(
+                name, reduced[name]["min"], reduced[name]["max"], reduced[name]["mean"]
+            )
+        self._log_info(f"python_timing:{json.dumps(reduced)}")
 
     @property
     def _substeps(self) -> Sequence[Callable]:
