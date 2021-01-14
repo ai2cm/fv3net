@@ -7,13 +7,14 @@ from typing import (
 import xarray as xr
 
 from runtime.derived_state import DerivedFV3State
-from runtime.names import PRECIP_RATE, SPHUM, DELP, AREA
+from runtime.names import PRECIP_RATE, SPHUM, DELP, AREA, TENDENCY_TO_STATE_NAME
 from runtime.diagnostics.machine_learning import compute_baseline_diagnostics
 
 State = MutableMapping[Hashable, xr.DataArray]
 Diagnostics = MutableMapping[Hashable, xr.DataArray]
 
 logger = logging.getLogger(__name__)
+
 
 class LoggingMixin:
 
@@ -72,3 +73,35 @@ class BaselineStepper(Stepper):
             **diagnostics,
         }
 
+
+def apply(state: State, tendency: State, dt: float) -> State:
+    """Given state and tendency prediction, return updated state.
+    Returned state only includes variables updated by ML model."""
+
+    with xr.set_options(keep_attrs=True):
+        updated = {}
+        for name in tendency:
+            state_name = TENDENCY_TO_STATE_NAME.get(name, name)
+            updated[state_name] = state[state_name] + tendency[name] * dt
+    return updated  # type: ignore
+
+
+def precipitation_sum(
+    physics_precip: xr.DataArray, column_dq2: xr.DataArray, dt: float
+) -> xr.DataArray:
+    """Return sum of physics precipitation and ML-induced precipitation. Output is
+    thresholded to enforce positive precipitation.
+
+    Args:
+        physics_precip: precipitation from physics parameterizations [m]
+        column_dq2: column-integrated moistening from ML [kg/m^2/s]
+        dt: physics timestep [s]
+
+    Returns:
+        total precipitation [m]"""
+    m_per_mm = 1 / 1000
+    ml_precip = -column_dq2 * dt * m_per_mm  # type: ignore
+    total_precip = physics_precip + ml_precip
+    total_precip = total_precip.where(total_precip >= 0, 0)
+    total_precip.attrs["units"] = "m"
+    return total_precip
