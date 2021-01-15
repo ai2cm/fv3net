@@ -3,6 +3,7 @@ from typing import (
     Any,
     Mapping,
     List,
+    Sequence,
 )
 
 from runtime.steppers.base import (
@@ -11,6 +12,7 @@ from runtime.steppers.base import (
     Diagnostics,
     apply,
     precipitation_sum,
+    LoggingMixin,
 )
 
 from runtime.diagnostics.machine_learning import compute_nudging_diagnostics
@@ -35,7 +37,7 @@ TSFC_NAME = "surface_temperature"
 MASK_NAME = "land_sea_mask"
 
 
-class NudgingStepper(Stepper):
+class NudgingStepper(Stepper, LoggingMixin):
     """Stepper for nudging
     """
 
@@ -45,7 +47,7 @@ class NudgingStepper(Stepper):
         comm: Any,
         config: Mapping,
         timestep: float,
-        states_to_output: Any,
+        states_to_output: Sequence[str],
     ):
 
         self._states_to_output = states_to_output

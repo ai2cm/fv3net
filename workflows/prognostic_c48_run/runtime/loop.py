@@ -19,9 +19,10 @@ from mpi4py import MPI
 
 from runtime import DerivedFV3State
 import fv3gfs.wrapper
-import fv3fit
-import fv3gfs.util as util
+import fv3gfs.util
 import runtime
+
+from runtime.adapters import open_model
 
 from runtime.steppers.base import (
     LoggingMixin,
@@ -74,17 +75,6 @@ def global_average(comm, array: xr.DataArray, area: xr.DataArray) -> float:
         return -1
 
 
-def open_model(config):
-    model_paths = config["scikit_learn"]["model"]
-    models = []
-    for path in model_paths:
-        model = fv3fit.load(path)
-        rename_in = config.get("input_standard_names", {})
-        rename_out = config.get("output_standard_names", {})
-        models.append(runtime.RenamingAdapter(model, rename_in, rename_out))
-    return runtime.MultiModelAdapter(models)
-
-
 class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin):
     """An iterable defining the master time loop of a prognostic simulation
 
@@ -110,8 +100,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self,
         config: Optional[Mapping],
         comm: Any = None,
-        fv3gfs: Any = fv3gfs.wrapper,
-        util=util,
+        wrapper: Any = fv3gfs.wrapper,
     ) -> None:
 
         config = config or {}
@@ -119,10 +108,10 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         if comm is None:
             comm = MPI.COMM_WORLD
 
-        self._fv3gfs = fv3gfs
+        self._fv3gfs = wrapper
         self._state: DerivedFV3State = DerivedFV3State(self._fv3gfs)
         self._comm = comm
-        self._timer = util.Timer()
+        self._timer = fv3gfs.util.Timer()
         self.rank: int = comm.rank
 
         namelist = runtime.get_namelist()
@@ -151,6 +140,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
     def _get_stepper(self, config: Mapping) -> Stepper:
 
         if "scikit_learn" in config:
+            self._log_info("Using MLStepper")
             # download the model
             self._log_info("Downloading ML Model")
             model = open_model(config)
@@ -167,6 +157,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 diagnostic_only=do_only_diagnostic_ml,
             )
         elif "nudging" in config:
+            self._log_info("Using NudgingStepper")
             return NudgingStepper(
                 self._fv3gfs,
                 self._comm,
@@ -175,7 +166,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 states_to_output=self._states_to_output,
             )
         else:
-            return BaselineStepper(self._fv3gfs, self.rank, self._states_to_output)
+            self._log_info("Using BaselineStepper")
+            return BaselineStepper(self._fv3gfs, self._states_to_output)
 
     @property
     def time(self) -> cftime.DatetimeJulian:
@@ -226,7 +218,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._print(f"{name:<30}{min_val:15.4f}{max_val:15.4f}{mean_val:15.4f}")
 
     def _print_global_timings(self, root=0):
-        is_root = self._comm.Get_rank() == root
+        is_root = self.rank == root
         recvbuf = np.array(0.0)
         reduced = {}
         self._print("-----------------------------------------------------------------")

@@ -1,17 +1,13 @@
 import logging
-from typing import (
-    Hashable,
-    MutableMapping,
-)
+from typing import Sequence
 
 import xarray as xr
 
 from runtime.derived_state import DerivedFV3State
 from runtime.names import PRECIP_RATE, SPHUM, DELP, AREA, TENDENCY_TO_STATE_NAME
 from runtime.diagnostics.machine_learning import compute_baseline_diagnostics
+from runtime.types import State, Diagnostics
 
-State = MutableMapping[Hashable, xr.DataArray]
-Diagnostics = MutableMapping[Hashable, xr.DataArray]
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +29,7 @@ class LoggingMixin:
             print(message)
 
 
-class Stepper(LoggingMixin):
-    def __init__(self, rank: int = 0):
-        self.rank: int = rank
-
+class Stepper:
     @property
     def _state(self):
         return DerivedFV3State(self._fv3gfs)
@@ -52,7 +45,7 @@ class Stepper(LoggingMixin):
 
 
 class BaselineStepper(Stepper):
-    def __init__(self, fv3gfs, rank, states_to_output):
+    def __init__(self, fv3gfs, states_to_output: Sequence[str]):
         self._fv3gfs = fv3gfs
         self._states_to_output = states_to_output
 

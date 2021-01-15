@@ -1,12 +1,19 @@
-from typing import Any, Hashable, List, cast
+from typing import Any, Hashable, List, Sequence
 import copy
 import logging
 
-import fv3fit
 import runtime
 import xarray as xr
 
-from runtime.steppers.base import Stepper, State, Diagnostics, apply, precipitation_sum
+from runtime.adapters import MultiModelAdapter, predict
+from runtime.steppers.base import (
+    Stepper,
+    State,
+    Diagnostics,
+    apply,
+    precipitation_sum,
+    LoggingMixin,
+)
 
 from runtime.names import (
     SPHUM,
@@ -20,22 +27,22 @@ from runtime.names import (
 logger = logging.getLogger(__name__)
 
 
-class MLStepper(Stepper):
+class MLStepper(Stepper, LoggingMixin):
     def __init__(
         self,
         fv3gfs: Any,
         comm: Any,
         timestep: float,
-        states_to_output: Any,
-        model: fv3fit.Predictor,
+        states_to_output: Sequence[str],
+        model: MultiModelAdapter,
         diagnostic_only: bool = False,
     ):
         self.rank: int = comm.rank
         self.comm = comm
-        self._fv3gfs: Any = fv3gfs
-        self._do_only_diagnostic_ml: bool = diagnostic_only
-        self._timestep: float = timestep
-        self._model: fv3fit.Predictor = model
+        self._fv3gfs = fv3gfs
+        self._do_only_diagnostic_ml = diagnostic_only
+        self._timestep = timestep
+        self._model = model
         self._states_to_output = states_to_output
 
         self._tendencies_to_apply_to_dycore_state: State = {}
@@ -132,13 +139,6 @@ def log_updated_tendencies(comm, tendency: State, tendency_updated: State):
             for i, value in enumerate(updated_points.sum(["x", "y"]).values)
         }
         logger.info(f"specific_humidity_limiter_updates_per_level: {level_updates}")
-
-
-def predict(model: fv3fit.Predictor, state: State) -> State:
-    """Given ML model and state, return tendency prediction."""
-    ds = xr.Dataset(state)  # type: ignore
-    output = model.predict_columnwise(ds, feature_dim="z")
-    return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
 def limit_sphum_tendency(state: State, tendency: State, dt: float):
