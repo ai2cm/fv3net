@@ -1,4 +1,5 @@
 import argparse
+from copy import copy
 import fsspec
 import logging
 import json
@@ -157,9 +158,9 @@ def _compute_diagnostics(
     diagnostic_vars = list(
         set(list(predicted_vars) + ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"])
     )
-    metric_vars = predicted_vars
+    metric_vars = copy(predicted_vars)
     if "dQ1" in predicted_vars and "dQ2" in predicted_vars:
-        predicted_vars += ["Q1", "Q2"]
+        metric_vars += ["Q1", "Q2"]
 
     # for each batch...
     for i, ds in enumerate(batches):
