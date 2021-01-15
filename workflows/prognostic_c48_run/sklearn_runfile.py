@@ -324,7 +324,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         self._log_debug(
             "Correcting ML tendencies that would predict negative specific humidity"
         )
-        tendency = limit_sphum_tendency(state, tendency, dt=self._timestep)
+        if "dQ2" in tendency:
+            tendency = limit_sphum_tendency(state, tendency, dt=self._timestep)
 
         self._tendencies_to_apply_to_dycore_state = {
             k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]
