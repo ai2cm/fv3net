@@ -6,6 +6,7 @@ diagnostics:
   times:
     frequency: 900
     kind: interval
+    times: null
   variables:
   - x_wind
   - y_wind
@@ -43,6 +44,7 @@ diagnostics:
   times:
     frequency: 900
     kind: interval
+    times: null
   variables:
   - tendency_of_air_temperature_due_to_fv3_physics
   - tendency_of_specific_humidity_due_to_fv3_physics
@@ -52,6 +54,7 @@ diagnostics:
   times:
     frequency: 900
     kind: interval
+    times: null
   variables:
   - air_temperature_tendency_due_to_nudging
   - specific_humidity_tendency_due_to_nudging
@@ -62,6 +65,7 @@ diagnostics:
   times:
     frequency: 900
     kind: interval
+    times: null
   variables:
   - net_moistening_due_to_nudging
   - net_heating_due_to_nudging
@@ -73,6 +77,7 @@ diagnostics:
   times:
     frequency: 900
     kind: interval
+    times: null
   variables:
   - air_temperature_reference
   - specific_humidity_reference
@@ -508,6 +513,7 @@ nudging:
     x_wind: 12
     y_wind: 12
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
+scikit_learn: null
 step_storage_variables:
 - specific_humidity
 - total_water

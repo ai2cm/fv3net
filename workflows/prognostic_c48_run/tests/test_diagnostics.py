@@ -8,7 +8,7 @@ import xarray as xr
 from runtime.diagnostics import manager
 from runtime.diagnostics.manager import (
     DiagnosticFile,
-    DiagnosticFileConfig,
+    TimeConfig,
     All,
     TimeContainer,
     IntervalAveragedTimes,
@@ -205,16 +205,9 @@ def test_DiagnosticFile_with_non_snapshot_time():
     assert monitor.data[datetime(2000, 1, 1, 1)]["b"].data.item() == pytest.approx(1.5)
 
 
-def test_DiagnosticFileConfig_interval_average_from_dict():
-    config = DiagnosticFileConfig.from_dict(
-        {
-            "name": "data.zarr",
-            "variables": ["a"],
-            "times": {"kind": "interval-average", "frequency": 3600},
-        },
-        initial_time=datetime(2020, 1, 1),
-    )
-
-    assert config.times == IntervalAveragedTimes(
+def test_TimeConfig_interval_average():
+    config = TimeConfig(frequency=3600, kind="interval-average")
+    container = config.time_container(datetime(2020, 1, 1))
+    assert container == IntervalAveragedTimes(
         timedelta(seconds=3600), datetime(2020, 1, 1)
     )

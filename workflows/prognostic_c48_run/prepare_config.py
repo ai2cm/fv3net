@@ -1,7 +1,8 @@
+import dataclasses
 import argparse
 import yaml
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional, Sequence, Mapping
 
 import fv3config
 import fv3kube
@@ -9,6 +10,83 @@ import fv3kube
 import vcm
 
 from runtime import default_diagnostics
+import runtime.diagnostics.manager
+from runtime.diagnostics.manager import DiagnosticFileConfig, TimeConfig
+
+
+@dataclasses.dataclass
+class MachineLearningConfig:
+    model: Sequence[str]
+    diagnostic_ml: bool = False
+
+
+@dataclasses.dataclass
+class NudgingConfig:
+    timescale_hours: Dict[str, float]
+    restarts_path: str
+
+
+@dataclasses.dataclass
+class UserConfig:
+    diagnostics: List[runtime.diagnostics.manager.DiagnosticFileConfig]
+    nudging: Optional[NudgingConfig] = None
+    scikit_learn: Optional[MachineLearningConfig] = None
+    namelist: Mapping = dataclasses.field(default_factory=dict)
+    base_version: str = "v0.5"
+    step_tendency_variables: List[str] = dataclasses.field(
+        default_factory=lambda: list(
+            ("specific_humidity", "air_temperature", "eastward_wind", "northward_wind",)
+        )
+    )
+    step_storage_variables: List[str] = dataclasses.field(
+        default_factory=lambda: list(("specific_humidity", "total_water"))
+    )
+
+    @staticmethod
+    def from_dict_args(config_dict: dict, args):
+
+        nudging = (
+            NudgingConfig(
+                timescale_hours=config_dict["nudging"]["timescale_hours"],
+                restarts_path=config_dict["nudging"].get(
+                    "restarts_path", args.initial_condition_url
+                ),
+            )
+            if "nudging" in config_dict
+            else None
+        )
+
+        diagnostics = [
+            runtime.diagnostics.manager.DiagnosticFileConfig.from_dict(
+                diag, args.ic_timestep
+            )
+            for diag in config_dict.get("diagnostics", [])
+        ]
+
+        scikit_learn = (
+            MachineLearningConfig(
+                model=list(args.model_url), diagnostic_ml=args.diagnostic_ml
+            )
+            if "scikit_learn" in config_dict or args.model_url
+            else None
+        )
+
+        default = UserConfig(diagnostics=[])
+
+        return UserConfig(
+            nudging=nudging,
+            diagnostics=diagnostics,
+            namelist=config_dict.get("namelist", {}),
+            scikit_learn=scikit_learn,
+            base_version=config_dict["base_version"],
+            step_storage_variables=config_dict.get(
+                "step_storage_variables", default.step_storage_variables
+            ),
+            step_tendency_variables=config_dict.get(
+                "step_tendency_variables", default.step_tendency_variables
+            ),
+        )
+
 
 logger = logging.getLogger(__name__)
 
@@ -70,94 +148,63 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def ml_overlay(model_urls: List[str], diagnostic_ml: bool) -> dict:
-    if len(model_urls) > 0:
-        overlay = {"scikit_learn": {"model": model_urls}}
-        overlay["scikit_learn"].update({"diagnostic_ml": diagnostic_ml})  # type: ignore
-    else:
-        overlay = {}
-    return overlay
-
-
-def nudging_overlay(nudging_config, initial_condition_url):
-    if "timescale_hours" in nudging_config:
-        nudging_config.update({"restarts_path": initial_condition_url})
-        overlay = {"nudging": nudging_config}
-    else:
-        overlay = {}
-    return overlay
-
-
 def diagnostics_overlay(
-    config: dict, model_urls: List[str], nudge_to_obs: bool, frequency_minutes: int
+    config: UserConfig,
+    model_urls: List[str],
+    nudge_to_obs: bool,
+    frequency_minutes: int,
 ):
 
-    diagnostic_files = []  # type: List[Dict]
+    diagnostic_files: List[DiagnosticFileConfig] = []
 
-    if ("scikit_learn" in config) or len(model_urls) > 0:
-        diagnostic_files.append(default_diagnostics.ml_diagnostics.to_dict())
-    elif "nudging" in config or nudge_to_obs:
-        diagnostic_files.append(default_diagnostics.state_after_timestep.to_dict())
-        diagnostic_files.append(default_diagnostics.physics_tendencies.to_dict())
-        if "nudging" in config:
-            diagnostic_files.append(_nudging_tendencies(config))
-            diagnostic_files.append(
-                default_diagnostics.nudging_diagnostics_2d.to_dict()
-            )
-            diagnostic_files.append(_reference_state(config))
+    if config.scikit_learn:
+        diagnostic_files.append(default_diagnostics.ml_diagnostics)
+    elif config.nudging or nudge_to_obs:
+        diagnostic_files.append(default_diagnostics.state_after_timestep)
+        diagnostic_files.append(default_diagnostics.physics_tendencies)
+        if config.nudging:
+            diagnostic_files.append(_nudging_tendencies(config.nudging))
+            diagnostic_files.append(default_diagnostics.nudging_diagnostics_2d)
+            diagnostic_files.append(_reference_state(config.nudging))
     else:
-        diagnostic_files.append(default_diagnostics.baseline_diagnostics.to_dict())
+        diagnostic_files.append(default_diagnostics.baseline_diagnostics)
 
-    diagnostic_files = _update_times(diagnostic_files, frequency_minutes)
+    _update_times(diagnostic_files, frequency_minutes)
 
-    return {"diagnostics": diagnostic_files, "diag_table": PROGNOSTIC_DIAG_TABLE}
+    return {
+        "diagnostics": [diag_file.to_dict() for diag_file in diagnostic_files],
+        "diag_table": PROGNOSTIC_DIAG_TABLE,
+    }
 
 
-def _nudging_tendencies(config):
+def _nudging_tendencies(config: NudgingConfig) -> DiagnosticFileConfig:
 
-    nudging_tendencies = default_diagnostics.nudging_tendencies.to_dict()
-    nudging_variables = list(config["nudging"]["timescale_hours"])
-    nudging_tendencies["variables"].extend(
-        [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
-    )
+    nudging_tendencies = default_diagnostics.nudging_tendencies
+    nudging_variables = list(config.timescale_hours)
+    if isinstance(nudging_tendencies.variables, list):
+        nudging_tendencies.variables.extend(
+            [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
+        )
     return nudging_tendencies
 
 
-def _reference_state(config):
-    reference_states = default_diagnostics.reference_state.to_dict()
-    nudging_variables = list(config["nudging"]["timescale_hours"])
-    reference_states["variables"].extend(
-        [f"{var}_reference" for var in nudging_variables]
-    )
+def _reference_state(config: NudgingConfig) -> DiagnosticFileConfig:
+    reference_states = default_diagnostics.reference_state
+    nudging_variables = list(config.timescale_hours)
+    if isinstance(reference_states.variables, list):
+        reference_states.variables.extend(
+            [f"{var}_reference" for var in nudging_variables]
+        )
+
     return reference_states
 
 
-def _update_times(diagnostic_files: List[Dict], frequency_minutes: int) -> List[Dict]:
+def _update_times(
+    diagnostic_files: List[DiagnosticFileConfig], frequency_minutes: int
+) -> List[DiagnosticFileConfig]:
     for diagnostic in diagnostic_files:
-        diagnostic.update(
-            {"times": {"kind": "interval", "frequency": 60 * frequency_minutes}}
-        )
+        diagnostic.times = TimeConfig(kind="interval", frequency=60 * frequency_minutes)
     return diagnostic_files
-
-
-def step_tendency_overlay(
-    config,
-    default_step_tendency_variables=(
-        "specific_humidity",
-        "air_temperature",
-        "eastward_wind",
-        "northward_wind",
-    ),
-    default_step_storage_variables=("specific_humidity", "total_water"),
-):
-    step_tendency_overlay = {}
-    step_tendency_overlay["step_tendency_variables"] = config.get(
-        "step_tendency_variables", list(default_step_tendency_variables)
-    )
-    step_tendency_overlay["step_storage_variables"] = config.get(
-        "step_storage_variables", list(default_step_storage_variables)
-    )
-    return step_tendency_overlay
 
 
 def prepare_config(args):
@@ -165,31 +212,36 @@ def prepare_config(args):
     with open(args.user_config, "r") as f:
         user_config = yaml.safe_load(f)
 
+    config = UserConfig.from_dict_args(user_config, args)
+    _prepare_config_from_parsed_config(config, args)
+
+
+def get_run_duration(config: UserConfig):
+    return fv3config.get_run_duration({"namelist": config.namelist})
+
+
+def _prepare_config_from_parsed_config(config: UserConfig, args):
     model_urls = args.model_url if args.model_url else []
-    nudging_config = user_config.get("nudging", {})
 
     # To simplify the configuration flow, updates should be implemented as
     # overlays (i.e. diffs) requiring only a small number of inputs. In
     # particular, overlays should not require access to the full configuration
     # dictionary.
     overlays = [
-        fv3kube.get_base_fv3config(user_config.get("base_version")),
+        fv3kube.get_base_fv3config(config.base_version),
         fv3kube.c48_initial_conditions_overlay(
             args.initial_condition_url, args.ic_timestep
         ),
         diagnostics_overlay(
-            user_config, model_urls, args.nudge_to_observations, args.output_frequency,
+            config, model_urls, args.nudge_to_observations, args.output_frequency,
         ),
-        step_tendency_overlay(user_config),
-        ml_overlay(model_urls, args.diagnostic_ml),
-        nudging_overlay(nudging_config, args.initial_condition_url),
         SUPPRESS_RANGE_WARNINGS,
-        user_config,
+        dataclasses.asdict(config),
     ]
 
     if args.nudge_to_observations:
         # get timing information
-        duration = fv3config.get_run_duration(user_config)
+        duration = get_run_duration(config)
         current_date = vcm.parse_current_date_from_str(args.ic_timestep)
         overlays.append(
             fv3kube.enable_nudge_to_observations(
