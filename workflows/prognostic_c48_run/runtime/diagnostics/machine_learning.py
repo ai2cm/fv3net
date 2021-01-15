@@ -17,21 +17,24 @@ Diagnostics = MutableMapping[Hashable, xr.DataArray]
 
 def compute_ml_diagnostics(state: State, ml_tendency: State) -> Diagnostics:
 
-    net_moistening = (ml_tendency["dQ2"] * state[DELP] / gravity).sum("z")
     physics_precip = state[PRECIP_RATE]
+    delp = state[DELP]
+    dQ1 = ml_tendency.get("dQ1", xr.zeros_like(delp))
+    dQ2 = ml_tendency.get("dQ2", xr.zeros_like(delp))
+    net_moistening = (dQ2 * delp / gravity).sum("z")
 
     return dict(
         air_temperature=state[TEMP],
         specific_humidity=state[SPHUM],
-        pressure_thickness_of_atmospheric_layer=state[DELP],
+        pressure_thickness_of_atmospheric_layer=delp,
         net_moistening=(net_moistening)
         .assign_attrs(units="kg/m^2/s")
         .assign_attrs(description="column integrated ML model moisture tendency"),
-        net_heating=(ml_tendency["dQ1"] * state[DELP] / gravity * cp)
+        net_heating=(dQ1 * delp / gravity * cp)
         .sum("z")
         .assign_attrs(units="W/m^2")
         .assign_attrs(description="column integrated ML model heating"),
-        water_vapor_path=(state[SPHUM] * state[DELP] / gravity)
+        water_vapor_path=(state[SPHUM] * delp / gravity)
         .sum("z")
         .assign_attrs(units="mm")
         .assign_attrs(description="column integrated water vapor"),
