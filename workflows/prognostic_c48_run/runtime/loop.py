@@ -41,9 +41,6 @@ from .names import (
 
 
 logger = logging.getLogger(__name__)
-# Fortran logs are output as python DEBUG level
-runtime.capture_fv3gfs_funcs()
-
 
 gravity = 9.81
 

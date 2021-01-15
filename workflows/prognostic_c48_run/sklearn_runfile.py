@@ -22,6 +22,9 @@ logging.getLogger("fv3gfs.util").setLevel(logging.WARN)
 logging.getLogger("fsspec").setLevel(logging.WARN)
 logging.getLogger("urllib3").setLevel(logging.WARN)
 
+# Fortran logs are output as python DEBUG level
+runtime.capture_fv3gfs_funcs()
+
 logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
