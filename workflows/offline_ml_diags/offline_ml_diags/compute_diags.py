@@ -8,7 +8,7 @@ import sys
 from tempfile import NamedTemporaryFile
 import xarray as xr
 import yaml
-from typing import Mapping, Sequence, Tuple
+from typing import Mapping, Sequence, Tuple, List
 from toolz import dissoc
 
 import diagnostics_utils as utils
@@ -143,7 +143,6 @@ def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
 
 def _fill_empty_Tq_tendencies(ds: xr.Dataset, predicted_vars: Sequence[str]):
     template_vars = [var for var in predicted_vars if "z" in ds[var].dims]
-    print("template vars: ", template_vars)
     fill_template = ds[template_vars[0]]
     for tendency in ["dQ1", "dQ2"]:
         if tendency not in ds.data_vars:
@@ -152,11 +151,12 @@ def _fill_empty_Tq_tendencies(ds: xr.Dataset, predicted_vars: Sequence[str]):
 
 
 def _compute_diagnostics(
-    batches: Sequence[xr.Dataset], grid: xr.Dataset, predicted_vars: Sequence[str]
+    batches: Sequence[xr.Dataset], grid: xr.Dataset, predicted_vars: List[str]
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
     batches_summary, batches_diurnal, batches_metrics = [], [], []
-    diagnostic_vars = list(set(list(predicted_vars) 
-        + ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"]))
+    diagnostic_vars = list(
+        set(list(predicted_vars) + ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"])
+    )
     metric_vars = predicted_vars
     if "dQ1" in predicted_vars and "dQ2" in predicted_vars:
         predicted_vars += ["Q1", "Q2"]
@@ -166,7 +166,6 @@ def _compute_diagnostics(
 
         logger.info(f"Processing batch {i+1}/{len(batches)}")
         ds = _fill_empty_Tq_tendencies(ds, predicted_vars)
-        print(ds)
         # ...insert additional variables
         ds = (
             ds.pipe(utils.insert_total_apparent_sources)
