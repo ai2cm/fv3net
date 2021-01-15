@@ -64,14 +64,14 @@ spec:
               {{inputs.parameters.offline-diags-output}} \
               {{inputs.parameters.report-output}} \
               --commit-sha "$COMMIT_SHA"
-        podSpecPatch: |
-          containers:
-            - name: main
-              resources:
-                limits:
-                  cpu: "1000m"
-                  memory: "{{inputs.parameters.memory}}"
-                requests:
-                  cpu: "1000m"
-                  memory: "{{inputs.parameters.memory}}"
+      podSpecPatch: |
+        containers:
+          - name: main
+            resources:
+              limits:
+                cpu: "1000m"
+                memory: "{{inputs.parameters.memory}}"
+              requests:
+                cpu: "1000m"
+                memory: "{{inputs.parameters.memory}}"
 

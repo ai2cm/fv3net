@@ -104,11 +104,34 @@ thereafter. These options are optional; if not provided the nudging data will
 be assumed to contain every time. The reference state will be linearly
 interpolated between the available time samples. 
 
-### Configuring diagnostics
+### Configuring diagnostics with prepare_config.py
 
 To modify the output frequency of the run's Python diagnostics (which defaults to every 15 minutes), provide to `prepare_config.py` either the command line argument `--output-timestamps` as a file path or `--output_frequency` as minutes, but not both. Fortran diagnostics are configured through the diag_table.
 
 Default diagnostics are computed and saved to .zarrs depending on whether ML, nudge-to-fine, nudge-to-obs, or baseline runs are chosen. To save additional tendencies and storages across physics and nudging/ML time steps, add `step_tendency_variables` and `step_storage_variables` entries to specify these variables. (If not specified these default to `air_temperature`, `specific_humidity`, `eastward_wind`, and `northward_wind` for `tendency`, and `specific_humidity` and `total_water` for `storage`.) Then add an additional output .zarr which includes among its variables the desired tendencies and/or path storages of these variables due to physics (`_due_to_fv3_physics`) and/or ML/nudging (`_due_to_python`). See the example below of an additional diagnostic file configuration. 
+
+### Python Diagnostic Manager
+
+The python-based diagnostics can be configured with a variety of time
+sampling strategies for different subsets of variables. Additional diagnostic
+files can be configured by adding a diagnostic "block" to the "diagnostics"
+section of the configuration yaml. This diagnostic block has the following parameters
+
+```
+{"name": string, 
+, "times": <times>,
+, "variables": list of variable names
+```
+times and variables are optional. By default all times and variables are included.
+
+"times" is an json/yaml object describing the time sampling method. The
+following types of time sampling are supported:
+
+- Snapshots at every time `{"kind": "every"}`. This is the default
+- Snapshots at a regular interval (starting with the initial condition): `{"kind": "interval", "frequency": 3600}`. Frequency is the time in seconds.
+- Snapshots at selected times: `{"kind": "selected", "times": ["20200101.000000"]}`
+- Averages over specified intervals (starting with the initial condition): `{"kind": "interval-average", "frequency": 3600.}`. Frequency is the time in seconds.
+
 
 ### Additional diagnostic example `config.yml` 
 

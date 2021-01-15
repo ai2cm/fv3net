@@ -13,6 +13,7 @@ from runtime import default_diagnostics
 logger = logging.getLogger(__name__)
 
 PROGNOSTIC_DIAG_TABLE = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
+SUPPRESS_RANGE_WARNINGS = {"namelist": {"fv_core_nml": {"range_warn": False}}}
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -172,6 +173,7 @@ def prepare_config(args):
         step_tendency_overlay(user_config),
         ml_overlay(model_urls, args.diagnostic_ml),
         nudging_overlay(nudging_config, args.initial_condition_url),
+        SUPPRESS_RANGE_WARNINGS,
         user_config,
     ]
 
