@@ -1,6 +1,4 @@
 import os
-import xarray as xr
-import pandas as pd
 import glob
 import joblib
 import collections
@@ -21,16 +19,6 @@ from typing import (
 T = TypeVar("T")
 
 
-def _write_to_netcdf(ds, path):
-
-    drop_dims = []
-    for dim, index in ds.indexes.items():
-        if isinstance(index, pd.MultiIndex):
-            drop_dims.append(dim)
-
-    ds.drop(drop_dims).to_netcdf(path)
-
-
 class BaseSequence(Sequence[T]):
     def local(self, path: str, n_jobs: int = 4) -> "Local":
         """Download a sequence of xarray objects to a local path
@@ -48,7 +36,7 @@ class BaseSequence(Sequence[T]):
     def _save_item(self, path: str, i: int):
         item = self[i]
         path = os.path.join(path, "%05d.nc" % i)
-        _write_to_netcdf(item, path)
+        Local.dump(item, path)
 
     def take(self, n: int) -> "Take":
         """Return a sequence consisting of the first n elements
@@ -84,11 +72,15 @@ class Local(BaseSequence[T]):
     def files(self):
         return sorted(glob.glob(os.path.join(self.path, "*.nc")))
 
+    @classmethod
+    def dump(cls, dataset, path):
+        joblib.dump(dataset, path)
+
     def __len__(self):
         return len(self.files)
 
     def __getitem__(self, i):
-        return xr.open_dataset(self.files[i])
+        return joblib.load(self.files[i])
 
 
 class Map(BaseSequence[T]):
