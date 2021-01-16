@@ -21,7 +21,7 @@ def validation_timesteps(request) -> Optional[Sequence[str]]:
 
 @pytest.fixture
 def input_variables() -> Iterable[str]:
-    return ["air_temperature", "specific_humidity", "cos_zenith_angle"]
+    return ["air_temperature", "specific_humidity"]
 
 
 @pytest.fixture
