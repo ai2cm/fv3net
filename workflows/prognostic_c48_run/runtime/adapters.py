@@ -1,8 +1,11 @@
-from typing import Mapping, Set, Hashable, Iterable
+from typing import Mapping, Set, Hashable, Iterable, Any, cast
+import fv3fit
 
 import xarray as xr
 
 from fv3fit._shared import Predictor
+
+from .types import State
 
 NameDict = Mapping[Hashable, Hashable]
 
@@ -69,3 +72,21 @@ class MultiModelAdapter:
         for model in self.models:
             predictions.append(model.predict_columnwise(arg, **kwargs))
         return xr.merge(predictions)
+
+
+def open_model(config: Any) -> MultiModelAdapter:
+    model_paths = config["scikit_learn"]["model"]
+    models = []
+    for path in model_paths:
+        model = fv3fit.load(path)
+        rename_in = config.get("input_standard_names", {})
+        rename_out = config.get("output_standard_names", {})
+        models.append(RenamingAdapter(model, rename_in, rename_out))
+    return MultiModelAdapter(models)
+
+
+def predict(model: MultiModelAdapter, state: State) -> State:
+    """Given ML model and state, return tendency prediction."""
+    ds = xr.Dataset(state)  # type: ignore
+    output = model.predict_columnwise(ds, feature_dim="z")
+    return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
