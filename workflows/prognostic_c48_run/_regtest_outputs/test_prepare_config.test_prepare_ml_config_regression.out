@@ -11,6 +11,7 @@ diagnostics:
   - net_moistening_diagnostic
   - net_heating
   - net_heating_diagnostic
+  - total_precip
   - water_vapor_path
   - physics_precip
   - column_integrated_dQu
@@ -298,7 +299,7 @@ namelist:
     p_fac: 0.1
     phys_hydrostatic: false
     print_freq: 3
-    range_warn: true
+    range_warn: false
     reset_eta: false
     rf_cutoff: 800.0
     rf_fast: false
@@ -712,7 +713,8 @@ patch_files:
   target_name: 20160815_00Z_T85LR.nc
 scikit_learn:
   diagnostic_ml: false
-  model: gs://ml-model
+  model:
+  - gs://ml-model
 step_storage_variables:
 - specific_humidity
 - total_water
