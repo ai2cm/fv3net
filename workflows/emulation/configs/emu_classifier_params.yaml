@@ -1,0 +1,64 @@
+train-data: gs://vcm-ml-experiments/2020-12-17-20day_turb_training_callpyfort/state_output.zarr
+model-output: gs://vcm-ml-scratch/andrep/classifier-models/$DATESTR-$VARNAME-classifier/
+report-output: gs://vcm-ml-public/andrep/classifier-diags/$DATESTR-$VARNAME-classifier/
+num-test-batches: 192
+is-classifier: true
+report-image: us.gcr.io/vcm-ml/emulation_report:build-2021-01-01
+emulation-image: us.gcr.io/vcm-ml/fv3fit:emulation-2020-12-30
+# omits psk currently
+train-config: |
+  model_type: DenseClassifierModel
+  input_variables: [
+    "tdt_input",
+    "u1_input",
+    "v1_input",
+    "q1_input_0",
+    "q1_input_1",
+    "q1_input_2",
+    "q1_input_3",
+    "q1_input_4",
+    "q1_input_5",
+    "q1_input_6",
+    "q1_input_7",
+    "swh_input",
+    "hlw_input",
+    "xmu_input",
+    "rbsoil_input",
+    "zorl_input",
+    "u10m_input",
+    "v10m_input",
+    "fm_input",
+    "fh_input",
+    "tsea_input",
+    "heat_input",
+    "evap_input",
+    "stress_input",
+    "spd1_input",
+    "prsl_input",
+    "prslk_input",
+    "phii_input",
+    "phil_input",
+    "t1_input",
+  ]
+  output_variables: [
+    $VARNAME
+  ]
+  batch_function: null
+  batch_kwargs:
+    train_range: [96, 960]
+    seed: 104
+  hyperparameters:
+    depth: 4
+    width: 32
+    normalize_loss: True
+    optimizer: Adam
+    learning_rate: exponential
+    fit_kwargs:
+      epochs: 2
+      workers: 4
+      max_queue_size: 8
+      batch_size: 32
+      verbose: 2
+      loss_weights: rms
+      balance_samples: False
+      true_threshold: 0.000003

@@ -1,0 +1,84 @@
+model_type: DenseWithClassifier
+input_variables: [
+  "tdt_input",
+  "u1_input",
+  "v1_input",
+  "q1_input_0",
+  "q1_input_1",
+  "q1_input_2",
+  "q1_input_3",
+  "q1_input_4",
+  "q1_input_5",
+  "q1_input_6",
+  "q1_input_7",
+  "swh_input",
+  "hlw_input",
+  "xmu_input",
+  # "psk_input",
+  "rbsoil_input",
+  "zorl_input",
+  "u10m_input",
+  "v10m_input",
+  "fm_input",
+  "fh_input",
+  "tsea_input",
+  "heat_input",
+  "evap_input",
+  "stress_input",
+  "spd1_input",
+  "prsl_input",
+  "prslk_input",
+  "phii_input",
+  "phil_input",
+  "t1_input",
+]
+output_variables: [
+    "du_output",
+    "dv_output",
+    "tdt_update",
+    "dqsfc_output",
+    "dtsfc_output",
+    "dvsfc_output",
+    "dusfc_output",
+    "hpbl_output",
+    "kpbl_output",
+    "rtg_output_0",
+    # "rtg_output_1",
+    # "rtg_output_2",
+    # "rtg_output_3",
+    # "rtg_output_4",
+    # "rtg_output_5",
+    # "rtg_output_6",
+    # "rtg_output_7",
+]
+batch_function: null
+batch_kwargs:
+  train_range: [96, 100]
+  seed: 104
+hyperparameters:
+  depth: 2
+  width: 32
+  normalize_loss: True
+  optimizer: Adam
+  learning_rate: exponential
+  # clipnorm: 5
+  mask_with_classifier: [
+    du_output,
+    dv_output,
+    tdt_update,
+  ]
+  # weights:
+  #   du_output: rms
+  #   dv_output: rms
+  #   tdt_update: rms
+  classifiers:
+    dv_output: gs://vcm-ml-scratch/andrep/classifier-models/2020-12-30-dv_output-classifier/keras_model
+    du_output: gs://vcm-ml-scratch/andrep/classifier-models/2020-12-30-du_output-classifier/keras_model
+    tdt_update : gs://vcm-ml-scratch/andrep/classifier-models/2020-12-30-tdt_update-classifier/keras_model
+  limit_zero: [hpbl_output, kpbl_output]
+  fit_kwargs:
+    epochs: 1
+    workers: 4
+    max_queue_size: 8
+    batch_size: 32
+    verbose: 2
