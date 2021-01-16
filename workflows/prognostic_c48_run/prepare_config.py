@@ -16,7 +16,7 @@ from runtime.diagnostics.manager import DiagnosticFileConfig, TimeConfig
 
 @dataclasses.dataclass
 class MachineLearningConfig:
-    model: Sequence[str]
+    model: Sequence[str] = dataclasses.field(default_factory=list)
     diagnostic_ml: bool = False
 
 
@@ -29,8 +29,8 @@ class NudgingConfig:
 @dataclasses.dataclass
 class UserConfig:
     diagnostics: List[runtime.diagnostics.manager.DiagnosticFileConfig]
+    scikit_learn: MachineLearningConfig = MachineLearningConfig()
     nudging: Optional[NudgingConfig] = None
-    scikit_learn: Optional[MachineLearningConfig] = None
     namelist: Mapping = dataclasses.field(default_factory=dict)
     base_version: str = "v0.5"
     step_tendency_variables: List[str] = dataclasses.field(
@@ -63,17 +63,13 @@ class UserConfig:
             for diag in config_dict.get("diagnostics", [])
         ]
 
-        scikit_learn = (
-            MachineLearningConfig(
-                model=list(args.model_url), diagnostic_ml=args.diagnostic_ml
-            )
-            if "scikit_learn" in config_dict or args.model_url
-            else None
+        scikit_learn = MachineLearningConfig(
+            model=list(args.model_url or []), diagnostic_ml=args.diagnostic_ml
         )
 
         default = UserConfig(diagnostics=[])
 
-        if nudging and scikit_learn:
+        if nudging and len(scikit_learn.model):
             raise NotImplementedError(
                 "Nudging and machine learning cannot "
                 "currently be run at the same time."
@@ -163,7 +159,7 @@ def diagnostics_overlay(
 
     diagnostic_files: List[DiagnosticFileConfig] = []
 
-    if config.scikit_learn:
+    if config.scikit_learn.model:
         diagnostic_files.append(default_diagnostics.ml_diagnostics)
     elif config.nudging or nudge_to_obs:
         diagnostic_files.append(default_diagnostics.state_after_timestep)

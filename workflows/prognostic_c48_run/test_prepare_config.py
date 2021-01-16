@@ -57,7 +57,8 @@ def test_prepare_nudging_config_regression(regtest):
 def test_diagnostics_overlay_times(frequency_minutes, expected):
     class Args:
         model_url = []
-        pass
+        diagnostic_ml = True
+        model_url = []
 
     config = prepare_config.UserConfig.from_dict_args({"base_version": "v0.5"}, Args)
 
