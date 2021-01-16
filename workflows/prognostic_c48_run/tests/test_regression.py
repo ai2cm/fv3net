@@ -47,7 +47,6 @@ forcing: gs://{FORCING_PATH.as_posix()}
 initial_conditions: gs://{IC_PATH.as_posix()}
 orographic_forcing: gs://{ORO_PATH.as_posix()}
 diagnostics: {DIAGNOSTICS}
-scikit_learn: null
 nudging: null
 namelist:
   amip_interp_nml:
