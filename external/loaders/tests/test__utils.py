@@ -116,7 +116,7 @@ def test_shuffled_dask():
         (["x0", "cos_zenith_angle"], ["x0", "x1"], True),
         (["dQu"], ["x0", "x1"], True),
         (["dQu"], ["x0", "dQu"], False),
-    ]
+    ],
 )
 def test__needs_grid_data(requested, existing, needs_grid):
     assert _needs_grid_data(requested, existing) == needs_grid
