@@ -73,6 +73,12 @@ class UserConfig:
 
         default = UserConfig(diagnostics=[])
 
+        if nudging and scikit_learn:
+            raise NotImplementedError(
+                "Nudging and machine learning cannot "
+                "currently be run at the same time."
+            )
+
         return UserConfig(
             nudging=nudging,
             diagnostics=diagnostics,
