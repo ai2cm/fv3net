@@ -241,7 +241,7 @@ def zonal_means_physics(prognostic, verification, grid):
 @diag_finalizer("zonal_bias")
 @transform.apply("resample_time", "1H")
 @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
-def zonal_mean_biases_dycore(prognostic, verification, grid):
+def zonal_and_time_mean_biases_dycore(prognostic, verification, grid):
     logger.info("Preparing zonal+time mean biases (dycore)")
     zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
     return time_mean(zonal_mean_bias)
@@ -251,10 +251,36 @@ def zonal_mean_biases_dycore(prognostic, verification, grid):
 @diag_finalizer("zonal_bias")
 @transform.apply("resample_time", "1H")
 @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
-def zonal_mean_biases_physics(prognostic, verification, grid):
+def zonal_and_time_mean_biases_physics(prognostic, verification, grid):
     logger.info("Preparing zonal+time mean biases (physics)")
     zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
     return time_mean(zonal_mean_bias)
+
+
+for variable_set in ["dycore", "physics"]:
+    subset_variables = (
+        GLOBAL_AVERAGE_DYCORE_VARS
+        if variable_set == "dycore"
+        else GLOBAL_AVERAGE_PHYSICS_VARS
+    )
+
+    @add_to_diags(variable_set)
+    @diag_finalizer("zonal_mean_value")
+    @transform.apply("resample_time", "3H", inner_join=True)
+    @transform.apply("daily_mean", datetime.timedelta(days=10))
+    @transform.apply("subset_variables", subset_variables)
+    def zonal_mean_hovmoller(prognostic, verification, grid):
+        logger.info(f"Preparing zonal mean values ({variable_set})")
+        return zonal_mean(prognostic, grid.lat)
+
+    @add_to_diags(variable_set)
+    @diag_finalizer("zonal_mean_bias")
+    @transform.apply("resample_time", "3H", inner_join=True)
+    @transform.apply("daily_mean", datetime.timedelta(days=10))
+    @transform.apply("subset_variables", subset_variables)
+    def zonal_mean_bias_hovmoller(prognostic, verification, grid):
+        logger.info(f"Preparing zonal mean biases ({variable_set})")
+        return zonal_mean(prognostic - verification, grid.lat)
 
 
 for var_set in ["dycore", "physics"]:

@@ -81,6 +81,15 @@ class ImagePlot:
         return f'<img src="{self.path}" />'
 
 
+class Link:
+    def __init__(self, tag: str, url: str):
+        self.tag = tag
+        self.url = url
+
+    def __repr__(self) -> str:
+        return f'<a href="{self.url}">{self.tag}</a>'
+
+
 def resolve_plot(obj):
     if isinstance(obj, str):
         return ImagePlot(obj)
