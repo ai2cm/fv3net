@@ -5,14 +5,14 @@ diag_table: gs://vcm-ml-archive/andrep/emulation/rundir/diag_table.none # no dia
 field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.0/field_table
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
-experiment_name: default_experiment
+experiment_name: create_turb_training
 namelist:
   atmos_model_nml:
     blocksize: -1
   coupler_nml:
     months: 0
-    days: 20
-    hours: 0
+    days: 0
+    hours: 1
     minutes: 0
     seconds: 0
     dt_atmos: 900

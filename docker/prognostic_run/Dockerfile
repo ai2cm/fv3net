@@ -56,6 +56,7 @@ COPY external/emulation_slim /tmp/emulation_slim
 RUN pip3 install --upgrade pip
 RUN pip3 install wheel
 RUN pip3 install /tmp/fv3config /tmp/emulation_slim
+RUN pip3 install rechunker
 
 ARG COMMIT_SHA_ARG
 ENV COMMIT_SHA=$COMMIT_SHA_ARG
