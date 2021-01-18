@@ -11,8 +11,8 @@ namelist:
     blocksize: -1
   coupler_nml:
     months: 0
-    days: 0
-    hours: 1
+    days: 20
+    hours: 0
     minutes: 0
     seconds: 0
     dt_atmos: 900
