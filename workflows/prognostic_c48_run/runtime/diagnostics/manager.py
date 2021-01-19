@@ -155,9 +155,7 @@ class DiagnosticFileConfig:
     times: TimeConfig = dataclasses.field(default_factory=lambda: TimeConfig())
 
     @classmethod
-    def from_dict(
-        cls, dict_: Mapping, initial_time: cftime.DatetimeJulian
-    ) -> "DiagnosticFileConfig":
+    def from_dict(cls, dict_: Mapping,) -> "DiagnosticFileConfig":
         return DiagnosticFileConfig(
             name=dict_["name"],
             variables=dict_.get("variables", All()),
@@ -271,11 +269,11 @@ class DiagnosticFile:
             self._monitor.store(quantities)
 
     def __del__(self):
-        self.flush()
+        self.sflush()
 
 
 def get_diagnostic_files(
-    config: Mapping,
+    configs: Sequence[DiagnosticFileConfig],
     partitioner: fv3gfs.util.CubedSpherePartitioner,
     comm: Any,
     initial_time: cftime.DatetimeJulian,
@@ -294,20 +292,6 @@ def get_diagnostic_files(
         initial_time: the initial time of the simulation.
 
     """
-    diag_dicts = config.get("diagnostics", [])
-    configs: List[DiagnosticFileConfig] = []
-
-    if len(diag_dicts) > 0:
-        for diag_dict in diag_dicts:
-            configs.append(
-                DiagnosticFileConfig.from_dict(diag_dict, initial_time=initial_time)
-            )
-    else:
-        default_config = DiagnosticFileConfig(
-            name=config["scikit_learn"]["zarr_output"], variables=All(),
-        )
-        configs.append(default_config)
-
     return [
         config.diagnostic_file(initial_time, partitioner, comm) for config in configs
     ]

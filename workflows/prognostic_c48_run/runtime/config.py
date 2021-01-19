@@ -1,7 +1,9 @@
-from typing import Dict, List, Optional, Mapping
+from typing import List, Optional, Mapping
 import dataclasses
 import yaml
 import f90nml
+
+import dacite
 
 from runtime.diagnostics.manager import DiagnosticFileConfig
 from runtime.steppers.nudging import NudgingConfig
@@ -27,10 +29,10 @@ class UserConfig:
     )
 
 
-def get_config() -> Dict:
+def get_config() -> UserConfig:
     with open("fv3config.yml") as f:
         config = yaml.safe_load(f)
-    return config
+    return dacite.from_dict(UserConfig, config)
 
 
 def get_namelist() -> f90nml.Namelist:

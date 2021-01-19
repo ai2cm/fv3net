@@ -20,10 +20,9 @@ from mpi4py import MPI
 from runtime import DerivedFV3State
 import fv3gfs.wrapper
 import fv3gfs.util
-import runtime
 
-from runtime.adapters import open_model
-
+from runtime.steppers.machine_learning import open_model, MLStepper
+from runtime.config import UserConfig
 from runtime.steppers.base import (
     LoggingMixin,
     Stepper,
@@ -32,7 +31,6 @@ from runtime.steppers.base import (
     Diagnostics,
 )
 
-from runtime.steppers.machine_learning import MLStepper
 from runtime.steppers.nudging import NudgingStepper
 
 from .names import (
@@ -97,13 +95,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
     """
 
     def __init__(
-        self,
-        config: Optional[Mapping],
-        comm: Any = None,
-        wrapper: Any = fv3gfs.wrapper,
+        self, config: UserConfig, comm: Any = None, wrapper: Any = fv3gfs.wrapper,
     ) -> None:
-
-        config = config or {}
 
         if comm is None:
             comm = MPI.COMM_WORLD
@@ -114,7 +107,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._timer = fv3gfs.util.Timer()
         self.rank: int = comm.rank
 
-        namelist = runtime.get_namelist()
+        namelist = config.namelist
 
         # get timestep
         timestep = namelist["coupler_nml"]["dt_atmos"]
@@ -130,40 +123,45 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
-    def _get_states_to_output(self, config: Any) -> Sequence[str]:
-        states_to_output = []
-        for diagnostic in config.get("diagnostics", []):
-            if diagnostic["name"] == "state_after_timestep.zarr":
-                states_to_output = diagnostic["variables"]
+    def _get_states_to_output(self, config: UserConfig) -> Sequence[str]:
+        states_to_output: List[str] = []
+        for diagnostic in config.diagnostics:
+            if diagnostic.name == "state_after_timestep.zarr":
+                if diagnostic.variables:
+                    # states_to_output should be a Container but fixing this
+                    # type error requires changing its usage by the steppers
+                    states_to_output = diagnostic.variables  # type: ignore
         return states_to_output
 
-    def _get_stepper(self, config: Mapping) -> Stepper:
+    def _get_stepper(self, config: UserConfig) -> Stepper:
 
-        if "scikit_learn" in config:
+        if config.scikit_learn.model:
             self._log_info("Using MLStepper")
             # download the model
             self._log_info("Downloading ML Model")
-            model = open_model(config)
+            model = open_model(config.scikit_learn)
             self._log_info("Model Downloaded")
-            do_only_diagnostic_ml: bool = config["scikit_learn"].get(
-                "diagnostic_ml", False
-            )
             return MLStepper(
                 self._fv3gfs,
                 self._comm,
                 self._timestep,
                 states_to_output=self._states_to_output,
                 model=model,
-                diagnostic_only=do_only_diagnostic_ml,
+                diagnostic_only=config.scikit_learn.diagnostic_ml,
             )
-        elif "nudging" in config:
+        elif config.nudging:
             self._log_info("Using NudgingStepper")
+            partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
+                config.namelist
+            )
+            communicator = fv3gfs.util.CubedSphereCommunicator(self._comm, partitioner)
             return NudgingStepper(
                 self._fv3gfs,
                 self._comm,
-                config,
+                config.nudging,
                 timestep=self._timestep,
                 states_to_output=self._states_to_output,
+                communicator=communicator,
             )
         else:
             self._log_info("Using BaselineStepper")

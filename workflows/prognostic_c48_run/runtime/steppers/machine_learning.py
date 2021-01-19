@@ -1,37 +1,146 @@
-from typing import Any, Hashable, List, Sequence
-import dataclasses
+"""Code for machine Learning in probgnostic runs
+"""
 import copy
+import dataclasses
 import logging
+from typing import Any, Hashable, List, Mapping, Sequence, Set, Iterable, cast
 
 import runtime
 import xarray as xr
 
-from runtime.adapters import MultiModelAdapter, predict
-from runtime.steppers.base import (
-    Stepper,
-    State,
-    Diagnostics,
-    apply,
-    precipitation_sum,
-    LoggingMixin,
+import fv3fit
+from runtime.names import (
+    AREA,
+    DELP,
+    PRECIP_RATE,
+    SPHUM,
+    TENDENCY_TO_STATE_NAME,
+    TOTAL_PRECIP,
 )
 
-from runtime.names import (
-    SPHUM,
-    DELP,
-    TOTAL_PRECIP,
-    PRECIP_RATE,
-    AREA,
-    TENDENCY_TO_STATE_NAME,
-)
+from runtime.steppers.base import Stepper, LoggingMixin, apply, precipitation_sum
+from runtime.types import State, Diagnostics
+
+__all__ = ["MachineLearningConfig", "MLStepper", "open_model"]
+
 
 logger = logging.getLogger(__name__)
+
+NameDict = Mapping[Hashable, Hashable]
 
 
 @dataclasses.dataclass
 class MachineLearningConfig:
     model: Sequence[str] = dataclasses.field(default_factory=list)
     diagnostic_ml: bool = False
+    input_standard_names: Mapping[Hashable, Hashable] = dataclasses.field(
+        default_factory=dict
+    )
+    output_standard_names: Mapping[Hashable, Hashable] = dataclasses.field(
+        default_factory=dict
+    )
+
+
+def log_updated_tendencies(comm, tendency: State, tendency_updated: State):
+    rank_updated_points = xr.where(tendency["dQ2"] != tendency_updated["dQ2"], 1, 0)
+    updated_points = comm.reduce(rank_updated_points, root=0)
+    if comm.rank == 0:
+        level_updates = {
+            i: int(value)
+            for i, value in enumerate(updated_points.sum(["x", "y"]).values)
+        }
+        logger.info(f"specific_humidity_limiter_updates_per_level: {level_updates}")
+
+
+def limit_sphum_tendency(state: State, tendency: State, dt: float):
+    delta = tendency["dQ2"] * dt
+    tendency_updated = copy.copy(tendency)
+    tendency_updated["dQ2"] = xr.where(
+        state[SPHUM] + delta > 0, tendency["dQ2"], -state[SPHUM] / dt,  # type: ignore
+    )
+    return tendency_updated
+
+
+def _invert_dict(d: Mapping) -> Mapping:
+    return dict(zip(d.values(), d.keys()))
+
+
+class RenamingAdapter:
+    """Adapter object for renaming model variables
+
+    Attributes:
+        model: a model to rename
+        rename_in: mapping from standard names to input names of model
+        rename_out: mapping from standard names to the output names of model
+    
+    """
+
+    def __init__(
+        self, model: fv3fit.Predictor, rename_in: NameDict, rename_out: NameDict = None
+    ):
+        self.model = model
+        self.rename_in = rename_in
+        self.rename_out = {} if rename_out is None else rename_out
+
+    def _rename(self, ds: xr.Dataset, rename: NameDict) -> xr.Dataset:
+
+        all_names = set(ds.dims) & set(rename)
+        rename_restricted = {key: rename[key] for key in all_names}
+        redimed = ds.rename_dims(rename_restricted)
+
+        all_names = set(ds.data_vars) & set(rename)
+        rename_restricted = {key: rename[key] for key in all_names}
+        return redimed.rename(rename_restricted)
+
+    def _rename_inputs(self, ds: xr.Dataset) -> xr.Dataset:
+        return self._rename(ds, self.rename_in)
+
+    def _rename_outputs(self, ds: xr.Dataset) -> xr.Dataset:
+        return self._rename(ds, _invert_dict(self.rename_out))
+
+    @property
+    def input_variables(self) -> Set[str]:
+        invert_rename_in = _invert_dict(self.rename_in)
+        return {invert_rename_in.get(var, var) for var in self.model.input_variables}
+
+    def predict_columnwise(self, arg: xr.Dataset, **kwargs) -> xr.Dataset:
+        input_ = self._rename_inputs(arg)
+        prediction = self.model.predict_columnwise(input_, **kwargs)
+        return self._rename_outputs(prediction)
+
+
+class MultiModelAdapter:
+    def __init__(self, models: Iterable[RenamingAdapter]):
+        self.models = models
+
+    @property
+    def input_variables(self) -> Set[str]:
+        vars = [model.input_variables for model in self.models]
+        return {var for model_vars in vars for var in model_vars}
+
+    def predict_columnwise(self, arg: xr.Dataset, **kwargs) -> xr.Dataset:
+        predictions = []
+        for model in self.models:
+            predictions.append(model.predict_columnwise(arg, **kwargs))
+        return xr.merge(predictions)
+
+
+def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
+    model_paths = config.model
+    models = []
+    for path in model_paths:
+        model = fv3fit.load(path)
+        rename_in = config.input_standard_names
+        rename_out = config.output_standard_names
+        models.append(RenamingAdapter(model, rename_in, rename_out))
+    return MultiModelAdapter(models)
+
+
+def predict(model: MultiModelAdapter, state: State) -> State:
+    """Given ML model and state, return tendency prediction."""
+    ds = xr.Dataset(state)  # type: ignore
+    output = model.predict_columnwise(ds, feature_dim="z")
+    return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
 class MLStepper(Stepper, LoggingMixin):
@@ -135,23 +244,3 @@ class MLStepper(Stepper, LoggingMixin):
             k: v for k, v in tendency_updated.items() if k in ["dQu", "dQv"]
         }
         return {}
-
-
-def log_updated_tendencies(comm, tendency: State, tendency_updated: State):
-    rank_updated_points = xr.where(tendency["dQ2"] != tendency_updated["dQ2"], 1, 0)
-    updated_points = comm.reduce(rank_updated_points, root=0)
-    if comm.rank == 0:
-        level_updates = {
-            i: int(value)
-            for i, value in enumerate(updated_points.sum(["x", "y"]).values)
-        }
-        logger.info(f"specific_humidity_limiter_updates_per_level: {level_updates}")
-
-
-def limit_sphum_tendency(state: State, tendency: State, dt: float):
-    delta = tendency["dQ2"] * dt
-    tendency_updated = copy.copy(tendency)
-    tendency_updated["dQ2"] = xr.where(
-        state[SPHUM] + delta > 0, tendency["dQ2"], -state[SPHUM] / dt,  # type: ignore
-    )
-    return tendency_updated

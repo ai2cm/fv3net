@@ -90,7 +90,7 @@ def get_user_config(config_dict: dict, args) -> UserConfig:
     )
 
     diagnostics = [
-        DiagnosticFileConfig.from_dict(diag, args.ic_timestep)
+        DiagnosticFileConfig.from_dict(diag)
         for diag in config_dict.get("diagnostics", [])
     ]
 

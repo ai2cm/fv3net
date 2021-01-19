@@ -1,12 +1,11 @@
 import functools
-import dataclasses
 from typing import (
     Any,
-    Dict,
-    Mapping,
     List,
     Sequence,
 )
+
+import fv3gfs.util
 
 from runtime.steppers.base import (
     Stepper,
@@ -24,6 +23,7 @@ from runtime.nudging import (
     setup_get_reference_state,
     get_nudging_tendency,
     set_state_sst_to_reference,
+    NudgingConfig,
 )
 
 from runtime.names import (
@@ -39,12 +39,6 @@ TSFC_NAME = "surface_temperature"
 MASK_NAME = "land_sea_mask"
 
 
-@dataclasses.dataclass
-class NudgingConfig:
-    timescale_hours: Dict[str, float]
-    restarts_path: str
-
-
 class NudgingStepper(Stepper, LoggingMixin):
     """Stepper for nudging
     """
@@ -53,9 +47,10 @@ class NudgingStepper(Stepper, LoggingMixin):
         self,
         fv3gfs: Any,
         comm: Any,
-        config: Mapping,
+        config: NudgingConfig,
         timestep: float,
         states_to_output: Sequence[str],
+        communicator: fv3gfs.util.CubedSphereCommunicator,
     ):
 
         self._states_to_output = states_to_output
@@ -65,14 +60,12 @@ class NudgingStepper(Stepper, LoggingMixin):
         self.rank: int = comm.rank
         self._timestep: float = timestep
 
-        self._nudging_timescales = nudging_timescales_from_dict(
-            config["nudging"]["timescale_hours"]
-        )
+        self._nudging_timescales = nudging_timescales_from_dict(config.timescale_hours)
         self._get_reference_state = setup_get_reference_state(
             config,
             self.nudging_variables + [SST_NAME, TSFC_NAME],
-            self._comm,
             self._fv3gfs.get_tracer_metadata(),
+            communicator,
         )
         self._get_nudging_tendency = functools.partial(
             get_nudging_tendency, nudging_timescales=self._nudging_timescales,

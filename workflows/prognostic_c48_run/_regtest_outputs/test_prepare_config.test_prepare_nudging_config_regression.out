@@ -505,6 +505,8 @@ namelist:
     fvmxl: 99999
     ldebug: false
 nudging:
+  reference_frequency_seconds: 900
+  reference_initial_time: null
   restarts_path: gs://ic-bucket
   timescale_hours:
     air_temperature: 12
@@ -515,7 +517,9 @@ nudging:
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 scikit_learn:
   diagnostic_ml: false
+  input_standard_names: {}
   model: []
+  output_standard_names: {}
 step_storage_variables:
 - specific_humidity
 - total_water
