@@ -118,14 +118,6 @@ class TimeConfig:
     times: Optional[List[str]] = None
     kind: str = "every"
 
-    @staticmethod
-    def from_dict(d: Mapping):
-        return TimeConfig(
-            frequency=d.get("frequency"),
-            times=d.get("times"),  # type: ignore
-            kind=d.get("kind", TimeConfig.kind),
-        )
-
     def time_container(self, initial_time: cftime.DatetimeJulian) -> TimeContainer:
         if self.kind == "interval" and self.frequency:
             return TimeContainer(IntervalTimes(self.frequency, initial_time))

@@ -1,5 +1,8 @@
 import prepare_config
 import pytest
+import dacite
+import dataclasses
+from runtime.config import UserConfig
 
 MODEL_URL = "gs://ml-model"
 IC_URL = "gs://ic-bucket"
@@ -66,3 +69,29 @@ def test_diagnostics_overlay_times(frequency_minutes, expected):
         config, [], None, frequency_minutes
     )["diagnostics"][0]["times"]
     assert diags_overlay_times == expected
+
+
+def test_get_user_config_is_valid():
+    class Args:
+        model_url = []
+        diagnostic_ml = True
+        model_url = []
+        initial_condition_url = "gs://some-url"
+        ic_timestep = "20160801.000000"
+        nudge_to_observations = False
+        output_frequency = 900
+
+    dict_ = {
+        "base_version": "v0.5",
+        "diagnostics": [
+            {
+                "name": "state_after_timestep.zarr",
+                "times": {"frequency": 5400, "kind": "interval", "times": None},
+                "variables": ["x_wind", "y_wind"],
+            }
+        ],
+    }
+
+    config = prepare_config.get_user_config(dict_, Args)
+    # validate using dacite.from_dict
+    dacite.from_dict(UserConfig, dataclasses.asdict(config))

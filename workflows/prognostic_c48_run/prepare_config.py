@@ -4,6 +4,8 @@ import yaml
 import logging
 from typing import List
 
+import dacite
+
 import fv3config
 import fv3kube
 
@@ -90,7 +92,7 @@ def get_user_config(config_dict: dict, args) -> UserConfig:
     )
 
     diagnostics = [
-        DiagnosticFileConfig.from_dict(diag)
+        dacite.from_dict(DiagnosticFileConfig, diag)
         for diag in config_dict.get("diagnostics", [])
     ]
 
@@ -185,7 +187,8 @@ def prepare_config(args):
         user_config = yaml.safe_load(f)
 
     config = get_user_config(user_config, args)
-    _prepare_config_from_parsed_config(config, args)
+    final = _prepare_config_from_parsed_config(config, args)
+    print(yaml.dump(final))
 
 
 def get_run_duration(config: UserConfig):
@@ -223,8 +226,7 @@ def _prepare_config_from_parsed_config(config: UserConfig, args):
             )
         )
 
-    config = fv3kube.merge_fv3config_overlays(*overlays)
-    print(yaml.dump(config))
+    return fv3kube.merge_fv3config_overlays(*overlays)
 
 
 if __name__ == "__main__":
