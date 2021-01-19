@@ -60,7 +60,7 @@ def test_diagnostics_overlay_times(frequency_minutes, expected):
         diagnostic_ml = True
         model_url = []
 
-    config = prepare_config.UserConfig.from_dict_args({"base_version": "v0.5"}, Args)
+    config = prepare_config.get_user_config({"base_version": "v0.5"}, Args)
 
     diags_overlay_times = prepare_config.diagnostics_overlay(
         config, [], None, frequency_minutes

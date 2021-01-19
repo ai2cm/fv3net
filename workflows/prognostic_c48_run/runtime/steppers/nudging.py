@@ -1,6 +1,8 @@
 import functools
+import dataclasses
 from typing import (
     Any,
+    Dict,
     Mapping,
     List,
     Sequence,
@@ -35,6 +37,12 @@ from runtime.names import (
 SST_NAME = "ocean_surface_temperature"
 TSFC_NAME = "surface_temperature"
 MASK_NAME = "land_sea_mask"
+
+
+@dataclasses.dataclass
+class NudgingConfig:
+    timescale_hours: Dict[str, float]
+    restarts_path: str
 
 
 class NudgingStepper(Stepper, LoggingMixin):

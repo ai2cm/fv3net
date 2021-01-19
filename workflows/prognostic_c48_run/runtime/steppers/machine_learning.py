@@ -1,4 +1,5 @@
 from typing import Any, Hashable, List, Sequence
+import dataclasses
 import copy
 import logging
 
@@ -25,6 +26,12 @@ from runtime.names import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclasses.dataclass
+class MachineLearningConfig:
+    model: Sequence[str] = dataclasses.field(default_factory=list)
+    diagnostic_ml: bool = False
 
 
 class MLStepper(Stepper, LoggingMixin):

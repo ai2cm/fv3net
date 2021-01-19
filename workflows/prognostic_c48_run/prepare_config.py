@@ -2,7 +2,7 @@ import dataclasses
 import argparse
 import yaml
 import logging
-from typing import Dict, List, Optional, Sequence, Mapping
+from typing import List
 
 import fv3config
 import fv3kube
@@ -10,84 +10,10 @@ import fv3kube
 import vcm
 
 from runtime import default_diagnostics
-import runtime.diagnostics.manager
 from runtime.diagnostics.manager import DiagnosticFileConfig, TimeConfig
-
-
-@dataclasses.dataclass
-class MachineLearningConfig:
-    model: Sequence[str] = dataclasses.field(default_factory=list)
-    diagnostic_ml: bool = False
-
-
-@dataclasses.dataclass
-class NudgingConfig:
-    timescale_hours: Dict[str, float]
-    restarts_path: str
-
-
-@dataclasses.dataclass
-class UserConfig:
-    diagnostics: List[runtime.diagnostics.manager.DiagnosticFileConfig]
-    scikit_learn: MachineLearningConfig = MachineLearningConfig()
-    nudging: Optional[NudgingConfig] = None
-    namelist: Mapping = dataclasses.field(default_factory=dict)
-    base_version: str = "v0.5"
-    step_tendency_variables: List[str] = dataclasses.field(
-        default_factory=lambda: list(
-            ("specific_humidity", "air_temperature", "eastward_wind", "northward_wind",)
-        )
-    )
-    step_storage_variables: List[str] = dataclasses.field(
-        default_factory=lambda: list(("specific_humidity", "total_water"))
-    )
-
-    @staticmethod
-    def from_dict_args(config_dict: dict, args):
-
-        nudging = (
-            NudgingConfig(
-                timescale_hours=config_dict["nudging"]["timescale_hours"],
-                restarts_path=config_dict["nudging"].get(
-                    "restarts_path", args.initial_condition_url
-                ),
-            )
-            if "nudging" in config_dict
-            else None
-        )
-
-        diagnostics = [
-            runtime.diagnostics.manager.DiagnosticFileConfig.from_dict(
-                diag, args.ic_timestep
-            )
-            for diag in config_dict.get("diagnostics", [])
-        ]
-
-        scikit_learn = MachineLearningConfig(
-            model=list(args.model_url or []), diagnostic_ml=args.diagnostic_ml
-        )
-
-        default = UserConfig(diagnostics=[])
-
-        if nudging and len(scikit_learn.model):
-            raise NotImplementedError(
-                "Nudging and machine learning cannot "
-                "currently be run at the same time."
-            )
-
-        return UserConfig(
-            nudging=nudging,
-            diagnostics=diagnostics,
-            namelist=config_dict.get("namelist", {}),
-            scikit_learn=scikit_learn,
-            base_version=config_dict["base_version"],
-            step_storage_variables=config_dict.get(
-                "step_storage_variables", default.step_storage_variables
-            ),
-            step_tendency_variables=config_dict.get(
-                "step_tendency_variables", default.step_tendency_variables
-            ),
-        )
+from runtime.steppers.nudging import NudgingConfig
+from runtime.config import UserConfig
+from runtime.steppers.machine_learning import MachineLearningConfig
 
 
 logger = logging.getLogger(__name__)
@@ -148,6 +74,50 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Compute and save ML predictions but do not apply them to model state.",
     )
     return parser
+
+
+def get_user_config(config_dict: dict, args) -> UserConfig:
+
+    nudging = (
+        NudgingConfig(
+            timescale_hours=config_dict["nudging"]["timescale_hours"],
+            restarts_path=config_dict["nudging"].get(
+                "restarts_path", args.initial_condition_url
+            ),
+        )
+        if "nudging" in config_dict
+        else None
+    )
+
+    diagnostics = [
+        DiagnosticFileConfig.from_dict(diag, args.ic_timestep)
+        for diag in config_dict.get("diagnostics", [])
+    ]
+
+    scikit_learn = MachineLearningConfig(
+        model=list(args.model_url or []), diagnostic_ml=args.diagnostic_ml
+    )
+
+    default = UserConfig(diagnostics=[])
+
+    if nudging and len(scikit_learn.model):
+        raise NotImplementedError(
+            "Nudging and machine learning cannot " "currently be run at the same time."
+        )
+
+    return UserConfig(
+        nudging=nudging,
+        diagnostics=diagnostics,
+        namelist=config_dict.get("namelist", {}),
+        scikit_learn=scikit_learn,
+        base_version=config_dict["base_version"],
+        step_storage_variables=config_dict.get(
+            "step_storage_variables", default.step_storage_variables
+        ),
+        step_tendency_variables=config_dict.get(
+            "step_tendency_variables", default.step_tendency_variables
+        ),
+    )
 
 
 def diagnostics_overlay(
@@ -214,7 +184,7 @@ def prepare_config(args):
     with open(args.user_config, "r") as f:
         user_config = yaml.safe_load(f)
 
-    config = UserConfig.from_dict_args(user_config, args)
+    config = get_user_config(user_config, args)
     _prepare_config_from_parsed_config(config, args)
 
 
