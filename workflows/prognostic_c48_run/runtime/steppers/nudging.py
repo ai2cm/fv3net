@@ -46,7 +46,7 @@ class NudgingStepper(Stepper, LoggingMixin):
     def __init__(
         self,
         fv3gfs: Any,
-        comm: Any,
+        rank: int,
         config: NudgingConfig,
         timestep: float,
         states_to_output: Sequence[str],
@@ -56,8 +56,7 @@ class NudgingStepper(Stepper, LoggingMixin):
         self._states_to_output = states_to_output
 
         self._fv3gfs = fv3gfs
-        self._comm = comm
-        self.rank: int = comm.rank
+        self.rank: int = rank
         self._timestep: float = timestep
 
         self._nudging_timescales = nudging_timescales_from_dict(config.timescale_hours)

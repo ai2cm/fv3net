@@ -157,7 +157,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             communicator = fv3gfs.util.CubedSphereCommunicator(self._comm, partitioner)
             return NudgingStepper(
                 self._fv3gfs,
-                self._comm,
+                self._comm.rank,
                 config.nudging,
                 timestep=self._timestep,
                 states_to_output=self._states_to_output,
