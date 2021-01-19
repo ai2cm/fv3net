@@ -131,19 +131,22 @@ def diagnostics_overlay(
 
     diagnostic_files: List[DiagnosticFileConfig] = []
 
-    if config.scikit_learn.model:
-        diagnostic_files.append(default_diagnostics.ml_diagnostics)
-    elif config.nudging or nudge_to_obs:
-        diagnostic_files.append(default_diagnostics.state_after_timestep)
-        diagnostic_files.append(default_diagnostics.physics_tendencies)
-        if config.nudging:
-            diagnostic_files.append(_nudging_tendencies(config.nudging))
-            diagnostic_files.append(default_diagnostics.nudging_diagnostics_2d)
-            diagnostic_files.append(_reference_state(config.nudging))
+    if config.diagnostics:
+        diagnostic_files = config.diagnostics
     else:
-        diagnostic_files.append(default_diagnostics.baseline_diagnostics)
+        if config.scikit_learn.model:
+            diagnostic_files.append(default_diagnostics.ml_diagnostics)
+        elif config.nudging or nudge_to_obs:
+            diagnostic_files.append(default_diagnostics.state_after_timestep)
+            diagnostic_files.append(default_diagnostics.physics_tendencies)
+            if config.nudging:
+                diagnostic_files.append(_nudging_tendencies(config.nudging))
+                diagnostic_files.append(default_diagnostics.nudging_diagnostics_2d)
+                diagnostic_files.append(_reference_state(config.nudging))
+        else:
+            diagnostic_files.append(default_diagnostics.baseline_diagnostics)
 
-    _update_times(diagnostic_files, frequency_minutes)
+        _update_times(diagnostic_files, frequency_minutes)
 
     return {
         "diagnostics": [diag_file.to_dict() for diag_file in diagnostic_files],
