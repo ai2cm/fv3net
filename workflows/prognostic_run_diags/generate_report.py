@@ -5,6 +5,7 @@ from typing import Iterable, Sequence
 import os
 import xarray as xr
 import fsspec
+import logging
 import pandas as pd
 from pathlib import Path
 import argparse
@@ -12,6 +13,7 @@ import holoviews as hv
 from report import create_html, Link
 from report.holoviews import HVPlot, get_html_header
 
+logger = logging.getLogger("GenerateReport")
 hv.extension("bokeh")
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
 
@@ -78,10 +80,10 @@ def detect_rundirs(bucket: str, fs: fsspec.AbstractFileSystem):
     return [Path(url).parent.name for url in diag_ncs]
 
 
-def load_diags(bucket, rundirs):
+def load_diags(bucket, rundirs, filename):
     metrics = {}
     for rundir in rundirs:
-        path = os.path.join(bucket, rundir, "diags.nc")
+        path = os.path.join(bucket, rundir, filename)
         with fsspec.open(path, "rb") as f:
             metrics[rundir] = xr.open_dataset(f, engine="h5netcdf").compute()
     return metrics
@@ -302,6 +304,7 @@ def diurnal_component_plot(
 timeseries_plot_manager = PlotManager()
 zonal_mean_plot_manager = PlotManager()
 hovmoller_plot_manager = PlotManager()
+maps_plot_manager = PlotManager()
 diurnal_plot_manager = PlotManager()
 # this will be passed the data from the metrics.json files
 metrics_plot_manager = PlotManager()
@@ -343,6 +346,24 @@ def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot
         diagnostics,
         "zonal_mean_bias",
         dims=["time", "latitude"],
+        symmetric=True,
+        cmap="RdBu_r",
+    )
+
+
+@maps_plot_manager.register
+def latlon_maps(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_2d(
+        diagnostics, "time_mean_value", dims=["longitude", "latitude"], cmap="viridis"
+    )
+
+
+@maps_plot_manager.register
+def latlon_bias_maps(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_2d(
+        diagnostics,
+        "time_mean_bias",
+        dims=["longitude", "latitude"],
         symmetric=True,
         cmap="RdBu_r",
     )
@@ -390,6 +411,7 @@ def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
 
 
 def main():
+    logging.basicConfig(level=logging.DEBUG)
     parser = argparse.ArgumentParser()
     parser.add_argument("input")
     parser.add_argument("output")
@@ -398,15 +420,33 @@ def main():
     bucket = args.input
 
     # get run information
+    logger.debug(f"Detecting rundirs at {bucket}")
     fs, _, _ = fsspec.get_fs_token_paths(bucket)
     rundirs = detect_rundirs(bucket, fs)
     run_table = pd.DataFrame.from_records(_parse_metadata(run) for run in rundirs)
     run_table_lookup = run_table.set_index("run")
 
     # load diagnostics
-    diags = load_diags(bucket, rundirs)
+    logger.debug("Loading diagnostics (diags.nc)")
+    diags = load_diags(bucket, rundirs, "diags.nc")
+    logger.debug("Loading diagnostics (diags_latlon.nc)")
+    diags_latlon = load_diags(bucket, rundirs, "diags_latlon.nc")
+    # rename so that latitude dimension doesn't conflict with diags
+    # diags_latlon = {
+    #    k: v.rename(latitude="lat_1deg", longitude="lon_1deg")
+    #    for k, v in diags_latlon.items()
+    # }
+    # print(diags["nn-n128-e1"].pwat_run_initial)
+    # print(diags_latlon["nn-n128-e1"].pwat_run_initial)
+    # diags = {run: xr.merge([diags[run], diags_latlon[run]]) for run in diags}
+
     # keep all vars that have only these dimensions
-    dim_sets = [{"time"}, {"local_time"}, {"latitude"}, {"time", "latitude"}]
+    dim_sets = [
+        {"time"},
+        {"local_time"},
+        {"latitude"},
+        {"time", "latitude"},
+    ]
     diagnostics = [
         xr.merge([get_variables_with_dims(ds, dim) for dim in dim_sets]).assign_attrs(
             run=key, **run_table_lookup.loc[key]
@@ -414,6 +454,12 @@ def main():
         for key, ds in diags.items()
     ]
     diagnostics = [convert_time_index_to_datetime(ds, "time") for ds in diagnostics]
+    diagnostics_latlon = [
+        xr.merge([get_variables_with_dims(ds, {"latitude", "longitude"})]).assign_attrs(
+            run=key, **run_table_lookup.loc[key]
+        )
+        for key, ds in diags_latlon.items()
+    ]
 
     # hack to add verification data from longest set of diagnostics as new run
     # TODO: generate separate diags.nc file for verification data and load that in here
@@ -421,10 +467,12 @@ def main():
     diagnostics.append(_get_verification_diagnostics(longest_run_ds))
 
     # load metrics
+    logger.debug("Loading metrics")
     nested_metrics = load_metrics(bucket, rundirs)
     metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
 
     # generate all plots
+    logger.debug("Generating plots")
     sections_index = {
         "2D plots": [
             Link("Latitude versus time hovmoller", "hovmoller.html"),
@@ -437,6 +485,11 @@ def main():
     sections_hovmoller = {
         "Zonal mean value and bias": list(
             hovmoller_plot_manager.make_plots(diagnostics)
+        ),
+    }
+    sections_maps = {
+        "Time mean value and bias": list(
+            maps_plot_manager.make_plots(diagnostics_latlon)
         ),
     }
     if not metric_table.empty:
@@ -467,7 +520,15 @@ def main():
             sections=sections_hovmoller,
             html_header=get_html_header(),
         ),
+        "maps.html": create_html(
+            title="Latitude versus longitude maps",
+            metadata={**verification_label, **run_urls},
+            sections=sections_maps,
+            html_header=get_html_header(),
+        ),
     }
+
+    logger.debug(f"Writing and uploading report pages to {args.output}")
     for filename, html in pages.items():
         upload(html, os.path.join(args.output, filename))
 
