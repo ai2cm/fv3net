@@ -146,14 +146,6 @@ class DiagnosticFileConfig:
     variables: Optional[Container] = None
     times: TimeConfig = dataclasses.field(default_factory=lambda: TimeConfig())
 
-    @classmethod
-    def from_dict(cls, dict_: Mapping,) -> "DiagnosticFileConfig":
-        return DiagnosticFileConfig(
-            name=dict_["name"],
-            variables=dict_.get("variables", All()),
-            times=TimeConfig.from_dict(dict_),
-        )
-
     def to_dict(self) -> Dict:
         return dataclasses.asdict(self)
 
