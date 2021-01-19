@@ -1,0 +1,43 @@
+# Configuration recreates training data run for 20-day turb scheme emulation
+base_version: v0.5
+data_table: default
+diag_table: default # no diagnostic output
+field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.0/field_table
+forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
+experiment_name: emulation_prognostic
+namelist:
+  atmos_model_nml:
+    blocksize: -1
+  diag_manager_nml:
+    flush_nc_files: true
+  coupler_nml:
+    months: 0
+    days: 1
+    hours: 0
+    minutes: 0
+    seconds: 0
+    dt_atmos: 900
+    dt_ocean: 900
+    force_date_from_namelist: true
+  fv_core_nml:
+    do_sat_adj: true
+    external_ic: false
+    hydrostatic: false
+    k_split: 3
+    make_nh: false
+    mountain: true
+    n_split: 1
+    print_freq: 3
+    warm_start: false
+    fv_sg_adj: 600
+  gfs_physics_nml:
+    hybedmf: false
+    satmedmf: true
+    shal_cnv: true
+    swhtr: true
+    trans_trac: true
+    xkzm_h: 0.1
+    xkzm_m: 0.01
+    xkzminv: 0.0
+  

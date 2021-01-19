@@ -71,6 +71,10 @@ build_train_create: VERSION=emu-create-train-$(EMU_DATESTR)
 build_train_create: build_image_prognostic_run
 	docker tag prognostic_run:latest prognostic_run:emu-create-train
 
+build_emu_prognostic: VERSION=emulation-$(EMU_DATESTR)
+build_emu_prognostic: build_image_prognostic_run
+	docker tag prognostic_run:latest prognostic_run:emulation
+
 build_emu_train: VERSION=emulation-$(EMU_DATESTR)
 build_emu_train: build_image_fv3fit
 
@@ -84,13 +88,6 @@ push_emu:
 	docker push $(REGISTRY)/fv3fit:emulation-$(EMU_DATESTR)
 	docker push $(REGISTRY)/emulation_report:build-$(EMU_DATESTR)
 	docker push $(REGISTRY)/prognostic_run:emu-create-train-$(EMU_DATESTR)
-
-prog_dev:
-	docker run -ti --entrypoint bash \
-		-v $(shell pwd):/workdir \
-		-v /mnt/disks/scratch/rundir:/rundir \
-		-w /rundir  \
-		us.gcr.io/vcm-ml/prognostic_run:latest
 
 ## Install K8s and cluster manifests for local development
 ## Do not run for the GKE cluster

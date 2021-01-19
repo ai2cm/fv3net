@@ -17,9 +17,6 @@ Y_PACKER_FILENAME = "y_packer.json"
 
 model_path = os.environ.get("TKE_EMU_MODEL")
 
-# data for fixing del and prsi input of emulation
-fix_fields = np.load("/rundir/prsi_del_fix.npz")
-
 
 @print_errors
 def load_model_packers(model_dir):
