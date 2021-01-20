@@ -16,6 +16,9 @@ services:
     volumes:
       - ../../external:/fv3net/external
       - .:/fv3net/workflows/prognostic_c48_run
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
 
   fv3net_dev:
     image: us.gcr.io/vcm-ml/prognostic_run:ad102a241fa060338d31ec9b3503b94b82cc16d7

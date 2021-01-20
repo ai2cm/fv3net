@@ -1,5 +1,4 @@
 from pathlib import Path
-import warnings
 import json
 
 import fv3config
@@ -505,7 +504,8 @@ def completed_rundir(request, tmpdir_factory):
     return rundir
 
 
-def test_fv3run_checksum_restarts(completed_rundir):
+@pytest.mark.xfail
+def test_fv3run_checksum_restarts(completed_rundir, regtest):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
     the base class in the fv3fit test suite.
@@ -513,16 +513,8 @@ def test_fv3run_checksum_restarts(completed_rundir):
     # TODO: The checksum currently changes with new commits/updates. Figure out why
     # This checksum can be updated if checksum is expected to change
     # perhaps if an external library is updated.
-    expected_checksum = "dc024d7e6f4d165878ff2925c25a99df"
     fv_core = completed_rundir.join("RESTART").join("fv_core.res.tile1.nc")
-
-    try:
-        assert expected_checksum == fv_core.computehash()
-    except AssertionError as e:
-        warnings.warn(
-            "Prognostic fv3gfs ran successfully but failed the "
-            f"fv_core.res.tile1.nc checksum: {e}"
-        )
+    print(fv_core.computehash(), file=regtest)
 
 
 def test_fv3run_logs_present(completed_rundir):

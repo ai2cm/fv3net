@@ -17,6 +17,7 @@ setup(
         "toolz>=0.10.0",
         "xarray>=0.15.1",
         "zarr>=2.4.0",
+        "joblib>=0.16.0",
         "vcm",
     ],
     dependency_links=["../vcm"],
