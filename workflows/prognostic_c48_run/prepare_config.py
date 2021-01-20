@@ -128,11 +128,10 @@ def diagnostics_overlay(
     nudge_to_obs: bool,
     frequency_minutes: int,
 ):
-
     diagnostic_files: List[DiagnosticFileConfig] = []
 
     if config.diagnostics:
-        diagnostic_files = config.diagnostics
+        return {}
     else:
         if config.scikit_learn.model:
             diagnostic_files.append(default_diagnostics.ml_diagnostics)
@@ -147,11 +146,9 @@ def diagnostics_overlay(
             diagnostic_files.append(default_diagnostics.baseline_diagnostics)
 
         _update_times(diagnostic_files, frequency_minutes)
-
-    return {
-        "diagnostics": [diag_file.to_dict() for diag_file in diagnostic_files],
-        "diag_table": PROGNOSTIC_DIAG_TABLE,
-    }
+        return {
+            "diagnostics": [diag_file.to_dict() for diag_file in diagnostic_files],
+        }
 
 
 def _nudging_tendencies(config: NudgingConfig) -> DiagnosticFileConfig:
@@ -213,6 +210,7 @@ def _prepare_config_from_parsed_config(config: UserConfig, args):
         diagnostics_overlay(
             config, model_urls, args.nudge_to_observations, args.output_frequency,
         ),
+        {"diag_table": PROGNOSTIC_DIAG_TABLE},
         SUPPRESS_RANGE_WARNINGS,
         dataclasses.asdict(config),
     ]
