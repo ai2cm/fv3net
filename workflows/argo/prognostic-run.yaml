@@ -72,9 +72,9 @@ spec:
           - name: runfile
             path: /tmp/runfile.py
       container:
-        image: us.gcr.io/vcm-ml/fv3net
+        image: us.gcr.io/vcm-ml/prognostic_run
         command: ["bash", "-c", "-x", "-e"]
-        workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run
+        workingDir: /fv3net/workflows/prognostic_c48_run
         volumeMounts:
           - name: workdir 
             mountPath: /tmp
@@ -84,7 +84,7 @@ spec:
             {{inputs.parameters.config}}
             EOF
 
-            cp /home/jovyan/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py  /tmp/runfile.py
+            cp /fv3net/workflows/prognostic_c48_run/sklearn_runfile.py  /tmp/runfile.py
 
             python prepare_config.py \
               {{inputs.parameters.flags}} \
