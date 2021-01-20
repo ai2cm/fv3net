@@ -86,7 +86,7 @@ spec:
 
             cp /fv3net/workflows/prognostic_c48_run/sklearn_runfile.py  /tmp/runfile.py
 
-            python prepare_config.py \
+            python3 prepare_config.py \
               {{inputs.parameters.flags}} \
               config.yaml \
               {{inputs.parameters.reference-restarts}} \
