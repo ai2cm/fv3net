@@ -253,7 +253,7 @@ class DiagnosticFile:
             self._monitor.store(quantities)
 
     def __del__(self):
-        self.sflush()
+        self.flush()
 
 
 def get_diagnostic_files(
