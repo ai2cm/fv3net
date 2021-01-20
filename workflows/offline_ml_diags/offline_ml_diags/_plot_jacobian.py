@@ -43,7 +43,9 @@ def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
     plt.tight_layout()
     with fsspec.open(os.path.join(output_dir, MATRIX_NAME), "wb") as f:
         fig.savefig(f)
-    fig, axs = plt.subplots(len(variables_2d), len(outputs), figsize=(12, 12),)
+    fig, axs = plt.subplots(
+        len(variables_2d), len(outputs), figsize=(12, 12), squeeze=False
+    )
     for i, in_name in enumerate(variables_2d):
         for j, out_name in enumerate(outputs):
             pane = np.asarray(jacobian_dict[(in_name, out_name)])

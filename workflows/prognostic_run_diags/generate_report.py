@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import json
-from typing import Iterable
+from typing import Iterable, Sequence
 import os
 import xarray as xr
 import fsspec
@@ -9,7 +9,7 @@ import pandas as pd
 from pathlib import Path
 import argparse
 import holoviews as hv
-from report import create_html
+from report import create_html, Link
 from report.holoviews import HVPlot, get_html_header
 
 hv.extension("bokeh")
@@ -216,6 +216,26 @@ def plot_1d_with_region_bar(
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
+def plot_2d(
+    diagnostics: Iterable[xr.Dataset], varfilter: str, dims: Sequence = None, **opts
+) -> HVPlot:
+    """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
+    All matching diagnostics must be 2D and have the same dimensions."""
+    hmap = hv.HoloMap(kdims=["variable", "run"])
+    for ds in diagnostics:
+        run = ds.attrs["run"]
+        variables_to_plot = [varname for varname in ds if varfilter in varname]
+        for varname in variables_to_plot:
+            v = ds[varname].rename("value")
+            if dims is None:
+                dims = list(v.dims)
+            long_name_and_units = f"{v.long_name} [{v.units}]"
+            hmap[(long_name_and_units, run)] = hv.QuadMesh(
+                v, dims, varname, label=varfilter
+            )
+    return HVPlot(hmap.opts(colorbar=True, width=850, height=300, **opts))
+
+
 def _set_opts_and_overlay(hmap, overlay="run"):
     return (
         hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
@@ -242,6 +262,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
         "spatial_mean": "mean_bias",
         "diurn_component": "diurn_bias",
         "zonal_and_time_mean": "zonal_bias",
+        "zonal_mean_value": "zonal_mean_bias",
     }
     for mean_filter, bias_filter in mean_bias_pairs.items():
         mean_vars = [var for var in ds if mean_filter in var]
@@ -280,6 +301,7 @@ def diurnal_component_plot(
 # following plot managers will be passed the data from the diags.nc files
 timeseries_plot_manager = PlotManager()
 zonal_mean_plot_manager = PlotManager()
+hovmoller_plot_manager = PlotManager()
 diurnal_plot_manager = PlotManager()
 # this will be passed the data from the metrics.json files
 metrics_plot_manager = PlotManager()
@@ -306,6 +328,24 @@ def spatial_minmax_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 @zonal_mean_plot_manager.register
 def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     return plot_1d(diagnostics, varfilter="zonal_and_time_mean")
+
+
+@hovmoller_plot_manager.register
+def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_2d(
+        diagnostics, "zonal_mean_value", dims=["time", "latitude"], cmap="viridis"
+    )
+
+
+@hovmoller_plot_manager.register
+def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_2d(
+        diagnostics,
+        "zonal_mean_bias",
+        dims=["time", "latitude"],
+        symmetric=True,
+        cmap="RdBu_r",
+    )
 
 
 @diurnal_plot_manager.register
@@ -366,9 +406,9 @@ def main():
     # load diagnostics
     diags = load_diags(bucket, rundirs)
     # keep all vars that have only these dimensions
-    dims = ["time", "local_time", "latitude"]
+    dim_sets = [{"time"}, {"local_time"}, {"latitude"}, {"time", "latitude"}]
     diagnostics = [
-        xr.merge([get_variables_with_dims(ds, [dim]) for dim in dims]).assign_attrs(
+        xr.merge([get_variables_with_dims(ds, dim) for dim in dim_sets]).assign_attrs(
             run=key, **run_table_lookup.loc[key]
         )
         for key, ds in diags.items()
@@ -385,14 +425,23 @@ def main():
     metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
 
     # generate all plots
-    sections = {
+    sections_index = {
+        "2D plots": [
+            Link("Latitude versus time hovmoller", "hovmoller.html"),
+            Link("Time-mean maps (not implemented yet)", "maps.html"),
+        ],
         "Timeseries": list(timeseries_plot_manager.make_plots(diagnostics)),
         "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
         "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
     }
+    sections_hovmoller = {
+        "Zonal mean value and bias": list(
+            hovmoller_plot_manager.make_plots(diagnostics)
+        ),
+    }
     if not metric_table.empty:
         metrics = pd.merge(run_table, metric_table, on="run")
-        sections["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
+        sections_index["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
 
     # get metadata
     run_urls = {key: ds.attrs["url"] for key, ds in diags.items()}
@@ -405,13 +454,22 @@ def main():
     verification_label = {"verification dataset": verification_datasets[0]}
     movie_links = get_movie_links(bucket, rundirs, fs)
 
-    html = create_html(
-        title="Prognostic run report",
-        metadata={**verification_label, **run_urls, **movie_links},
-        sections=sections,
-        html_header=get_html_header(),
-    )
-    upload(html, args.output, content_type="text/html")
+    pages = {
+        "index.html": create_html(
+            title="Prognostic run report",
+            metadata={**verification_label, **run_urls, **movie_links},
+            sections=sections_index,
+            html_header=get_html_header(),
+        ),
+        "hovmoller.html": create_html(
+            title="Latitude versus time hovmoller plots",
+            metadata={**verification_label, **run_urls},
+            sections=sections_hovmoller,
+            html_header=get_html_header(),
+        ),
+    }
+    for filename, html in pages.items():
+        upload(html, os.path.join(args.output, filename))
 
 
 if __name__ == "__main__":
