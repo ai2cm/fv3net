@@ -22,7 +22,7 @@ import fv3gfs.wrapper
 import fv3gfs.util
 
 from runtime.steppers.machine_learning import open_model, MLStepper
-from runtime.config import UserConfig
+from runtime.config import UserConfig, get_namelist
 from runtime.steppers.base import (
     LoggingMixin,
     Stepper,
@@ -107,7 +107,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._timer = fv3gfs.util.Timer()
         self.rank: int = comm.rank
 
-        namelist = config.namelist
+        namelist = get_namelist()
 
         # get timestep
         timestep = namelist["coupler_nml"]["dt_atmos"]
@@ -152,7 +152,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         elif config.nudging:
             self._log_info("Using NudgingStepper")
             partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
-                config.namelist
+                get_namelist()
             )
             communicator = fv3gfs.util.CubedSphereCommunicator(self._comm, partitioner)
             return NudgingStepper(

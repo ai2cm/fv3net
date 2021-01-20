@@ -22,6 +22,16 @@ logger = logging.getLogger(__name__)
 
 PROGNOSTIC_DIAG_TABLE = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
 SUPPRESS_RANGE_WARNINGS = {"namelist": {"fv_core_nml": {"range_warn": False}}}
+FV3CONFIG_KEYS = {
+    "namelist",
+    "experiment_name",
+    "diag_table",
+    "data_table",
+    "initial_conditions",
+    "forcing",
+    "orographic_forcing",
+    "patch_files",
+}
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -78,7 +88,10 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def get_user_config(config_dict: dict, args) -> UserConfig:
+def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
+    """Ideally this function could be replaced by dacite.from_dict
+    without needing any information from args.
+    """
 
     nudging = (
         NudgingConfig(
@@ -104,15 +117,13 @@ def get_user_config(config_dict: dict, args) -> UserConfig:
 
     if nudging and len(scikit_learn.model):
         raise NotImplementedError(
-            "Nudging and machine learning cannot " "currently be run at the same time."
+            "Nudging and machine learning cannot currently be run at the same time."
         )
 
     return UserConfig(
         nudging=nudging,
         diagnostics=diagnostics,
-        namelist=config_dict.get("namelist", {}),
         scikit_learn=scikit_learn,
-        base_version=config_dict["base_version"],
         step_storage_variables=config_dict.get(
             "step_storage_variables", default.step_storage_variables
         ),
@@ -184,40 +195,50 @@ def _update_times(
 def prepare_config(args):
     # Get model config with prognostic run updates
     with open(args.user_config, "r") as f:
-        user_config = yaml.safe_load(f)
+        dict_ = yaml.safe_load(f)
 
-    config = get_user_config(user_config, args)
-    final = _prepare_config_from_parsed_config(config, args)
+    user_config = user_config_from_dict_and_args(dict_, args)
+
+    fv3config_config = {key: dict_[key] for key in FV3CONFIG_KEYS if key in dict_}
+    final = _prepare_config_from_parsed_config(
+        user_config, fv3config_config, dict_["base_version"], args
+    )
     print(yaml.dump(final))
 
 
-def get_run_duration(config: UserConfig):
-    return fv3config.get_run_duration({"namelist": config.namelist})
-
-
-def _prepare_config_from_parsed_config(config: UserConfig, args):
+def _prepare_config_from_parsed_config(
+    user_config: UserConfig, fv3_config: dict, base_version: str, args
+):
     model_urls = args.model_url if args.model_url else []
+
+    if not set(fv3_config) <= FV3CONFIG_KEYS:
+        raise ValueError(
+            f"{fv3_config.keys()} contains a key that fv3config does not handle. "
+            "Python runtime configurations should be specified in the user_config "
+            "argument."
+        )
 
     # To simplify the configuration flow, updates should be implemented as
     # overlays (i.e. diffs) requiring only a small number of inputs. In
     # particular, overlays should not require access to the full configuration
     # dictionary.
     overlays = [
-        fv3kube.get_base_fv3config(config.base_version),
+        fv3kube.get_base_fv3config(base_version),
         fv3kube.c48_initial_conditions_overlay(
             args.initial_condition_url, args.ic_timestep
         ),
         diagnostics_overlay(
-            config, model_urls, args.nudge_to_observations, args.output_frequency,
+            user_config, model_urls, args.nudge_to_observations, args.output_frequency,
         ),
         {"diag_table": PROGNOSTIC_DIAG_TABLE},
         SUPPRESS_RANGE_WARNINGS,
-        dataclasses.asdict(config),
+        dataclasses.asdict(user_config),
+        fv3_config,
     ]
 
     if args.nudge_to_observations:
         # get timing information
-        duration = get_run_duration(config)
+        duration = fv3config.get_run_duration(fv3_config)
         current_date = vcm.parse_current_date_from_str(args.ic_timestep)
         overlays.append(
             fv3kube.enable_nudge_to_observations(

@@ -1,4 +1,4 @@
-from typing import List, Optional, Mapping
+from typing import List, Optional
 import dataclasses
 import yaml
 import f90nml
@@ -17,8 +17,6 @@ class UserConfig:
     diagnostics: List[DiagnosticFileConfig]
     scikit_learn: MachineLearningConfig = MachineLearningConfig()
     nudging: Optional[NudgingConfig] = None
-    namelist: Mapping = dataclasses.field(default_factory=dict)
-    base_version: str = "v0.5"
     step_tendency_variables: List[str] = dataclasses.field(
         default_factory=lambda: list(
             ("specific_humidity", "air_temperature", "eastward_wind", "northward_wind",)

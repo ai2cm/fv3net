@@ -1,4 +1,4 @@
-"""Code for machine Learning in probgnostic runs
+"""Code for machine Learning in prognostic runs
 """
 import copy
 import dataclasses

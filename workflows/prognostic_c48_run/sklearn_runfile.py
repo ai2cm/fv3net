@@ -31,7 +31,7 @@ if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
     config = runtime.get_config()
-    partitioner = util.CubedSpherePartitioner.from_namelist(config.namelist)
+    partitioner = util.CubedSpherePartitioner.from_namelist(runtime.get_namelist())
     setup_metrics_logger()
 
     loop = MonitoredPhysicsTimeLoop(

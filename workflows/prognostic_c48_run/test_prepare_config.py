@@ -61,9 +61,10 @@ def test_diagnostics_overlay_times(frequency_minutes, expected):
     class Args:
         model_url = []
         diagnostic_ml = True
-        model_url = []
 
-    config = prepare_config.get_user_config({"base_version": "v0.5"}, Args)
+    config = prepare_config.user_config_from_dict_and_args(
+        {"base_version": "v0.5"}, Args
+    )
 
     diags_overlay_times = prepare_config.diagnostics_overlay(
         config, [], None, frequency_minutes
@@ -75,7 +76,6 @@ def test_get_user_config_is_valid():
     class Args:
         model_url = []
         diagnostic_ml = True
-        model_url = []
         initial_condition_url = "gs://some-url"
         ic_timestep = "20160801.000000"
         nudge_to_observations = False
@@ -92,6 +92,6 @@ def test_get_user_config_is_valid():
         ],
     }
 
-    config = prepare_config.get_user_config(dict_, Args)
+    config = prepare_config.user_config_from_dict_and_args(dict_, Args)
     # validate using dacite.from_dict
     dacite.from_dict(UserConfig, dataclasses.asdict(config))
