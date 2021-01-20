@@ -1,4 +1,4 @@
-from runtime import RenamingAdapter, MultiModelAdapter
+from runtime.steppers.machine_learning import RenamingAdapter, MultiModelAdapter
 import xarray as xr
 import numpy as np
 import pytest

@@ -1,7 +1,10 @@
+import dataclasses
 import argparse
 import yaml
 import logging
-from typing import Dict, List
+from typing import List
+
+import dacite
 
 import fv3config
 import fv3kube
@@ -9,11 +12,27 @@ import fv3kube
 import vcm
 
 from runtime import default_diagnostics
+from runtime.diagnostics.manager import DiagnosticFileConfig, TimeConfig
+from runtime.steppers.nudging import NudgingConfig
+from runtime.config import UserConfig
+from runtime.steppers.machine_learning import MachineLearningConfig
+
 
 logger = logging.getLogger(__name__)
 
 PROGNOSTIC_DIAG_TABLE = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
 SUPPRESS_RANGE_WARNINGS = {"namelist": {"fv_core_nml": {"range_warn": False}}}
+FV3CONFIG_KEYS = {
+    "namelist",
+    "experiment_name",
+    "diag_table",
+    "data_table",
+    "field_table",
+    "initial_conditions",
+    "forcing",
+    "orographic_forcing",
+    "patch_files",
+}
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -70,126 +89,157 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def ml_overlay(model_urls: List[str], diagnostic_ml: bool) -> dict:
-    if len(model_urls) > 0:
-        overlay = {"scikit_learn": {"model": model_urls}}
-        overlay["scikit_learn"].update({"diagnostic_ml": diagnostic_ml})  # type: ignore
-    else:
-        overlay = {}
-    return overlay
+def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
+    """Ideally this function could be replaced by dacite.from_dict
+    without needing any information from args.
+    """
 
+    nudging = (
+        NudgingConfig(
+            timescale_hours=config_dict["nudging"]["timescale_hours"],
+            restarts_path=config_dict["nudging"].get(
+                "restarts_path", args.initial_condition_url
+            ),
+        )
+        if "nudging" in config_dict
+        else None
+    )
 
-def nudging_overlay(nudging_config, initial_condition_url):
-    if "timescale_hours" in nudging_config:
-        nudging_config.update({"restarts_path": initial_condition_url})
-        overlay = {"nudging": nudging_config}
-    else:
-        overlay = {}
-    return overlay
+    diagnostics = [
+        dacite.from_dict(DiagnosticFileConfig, diag)
+        for diag in config_dict.get("diagnostics", [])
+    ]
+
+    scikit_learn = MachineLearningConfig(
+        model=list(args.model_url or []), diagnostic_ml=args.diagnostic_ml
+    )
+
+    default = UserConfig(diagnostics=[])
+
+    if nudging and len(scikit_learn.model):
+        raise NotImplementedError(
+            "Nudging and machine learning cannot currently be run at the same time."
+        )
+
+    return UserConfig(
+        nudging=nudging,
+        diagnostics=diagnostics,
+        scikit_learn=scikit_learn,
+        step_storage_variables=config_dict.get(
+            "step_storage_variables", default.step_storage_variables
+        ),
+        step_tendency_variables=config_dict.get(
+            "step_tendency_variables", default.step_tendency_variables
+        ),
+    )
 
 
 def diagnostics_overlay(
-    config: dict, model_urls: List[str], nudge_to_obs: bool, frequency_minutes: int
+    config: UserConfig,
+    model_urls: List[str],
+    nudge_to_obs: bool,
+    frequency_minutes: int,
 ):
+    diagnostic_files: List[DiagnosticFileConfig] = []
 
-    diagnostic_files = []  # type: List[Dict]
-
-    if ("scikit_learn" in config) or len(model_urls) > 0:
-        diagnostic_files.append(default_diagnostics.ml_diagnostics.to_dict())
-    elif "nudging" in config or nudge_to_obs:
-        diagnostic_files.append(default_diagnostics.state_after_timestep.to_dict())
-        diagnostic_files.append(default_diagnostics.physics_tendencies.to_dict())
-        if "nudging" in config:
-            diagnostic_files.append(_nudging_tendencies(config))
-            diagnostic_files.append(
-                default_diagnostics.nudging_diagnostics_2d.to_dict()
-            )
-            diagnostic_files.append(_reference_state(config))
+    if config.diagnostics:
+        return {}
     else:
-        diagnostic_files.append(default_diagnostics.baseline_diagnostics.to_dict())
+        if config.scikit_learn.model:
+            diagnostic_files.append(default_diagnostics.ml_diagnostics)
+        elif config.nudging or nudge_to_obs:
+            diagnostic_files.append(default_diagnostics.state_after_timestep)
+            diagnostic_files.append(default_diagnostics.physics_tendencies)
+            if config.nudging:
+                diagnostic_files.append(_nudging_tendencies(config.nudging))
+                diagnostic_files.append(default_diagnostics.nudging_diagnostics_2d)
+                diagnostic_files.append(_reference_state(config.nudging))
+        else:
+            diagnostic_files.append(default_diagnostics.baseline_diagnostics)
 
-    diagnostic_files = _update_times(diagnostic_files, frequency_minutes)
+        _update_times(diagnostic_files, frequency_minutes)
+        return {
+            "diagnostics": [diag_file.to_dict() for diag_file in diagnostic_files],
+        }
 
-    return {"diagnostics": diagnostic_files, "diag_table": PROGNOSTIC_DIAG_TABLE}
 
+def _nudging_tendencies(config: NudgingConfig) -> DiagnosticFileConfig:
 
-def _nudging_tendencies(config):
-
-    nudging_tendencies = default_diagnostics.nudging_tendencies.to_dict()
-    nudging_variables = list(config["nudging"]["timescale_hours"])
-    nudging_tendencies["variables"].extend(
-        [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
-    )
+    nudging_tendencies = default_diagnostics.nudging_tendencies
+    nudging_variables = list(config.timescale_hours)
+    if isinstance(nudging_tendencies.variables, list):
+        nudging_tendencies.variables.extend(
+            [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
+        )
     return nudging_tendencies
 
 
-def _reference_state(config):
-    reference_states = default_diagnostics.reference_state.to_dict()
-    nudging_variables = list(config["nudging"]["timescale_hours"])
-    reference_states["variables"].extend(
-        [f"{var}_reference" for var in nudging_variables]
-    )
+def _reference_state(config: NudgingConfig) -> DiagnosticFileConfig:
+    reference_states = default_diagnostics.reference_state
+    nudging_variables = list(config.timescale_hours)
+    if isinstance(reference_states.variables, list):
+        reference_states.variables.extend(
+            [f"{var}_reference" for var in nudging_variables]
+        )
+
     return reference_states
 
 
-def _update_times(diagnostic_files: List[Dict], frequency_minutes: int) -> List[Dict]:
+def _update_times(
+    diagnostic_files: List[DiagnosticFileConfig], frequency_minutes: int
+) -> List[DiagnosticFileConfig]:
     for diagnostic in diagnostic_files:
-        diagnostic.update(
-            {"times": {"kind": "interval", "frequency": 60 * frequency_minutes}}
-        )
+        diagnostic.times = TimeConfig(kind="interval", frequency=60 * frequency_minutes)
     return diagnostic_files
-
-
-def step_tendency_overlay(
-    config,
-    default_step_tendency_variables=(
-        "specific_humidity",
-        "air_temperature",
-        "eastward_wind",
-        "northward_wind",
-    ),
-    default_step_storage_variables=("specific_humidity", "total_water"),
-):
-    step_tendency_overlay = {}
-    step_tendency_overlay["step_tendency_variables"] = config.get(
-        "step_tendency_variables", list(default_step_tendency_variables)
-    )
-    step_tendency_overlay["step_storage_variables"] = config.get(
-        "step_storage_variables", list(default_step_storage_variables)
-    )
-    return step_tendency_overlay
 
 
 def prepare_config(args):
     # Get model config with prognostic run updates
     with open(args.user_config, "r") as f:
-        user_config = yaml.safe_load(f)
+        dict_ = yaml.safe_load(f)
 
+    user_config = user_config_from_dict_and_args(dict_, args)
+
+    fv3config_config = {key: dict_[key] for key in FV3CONFIG_KEYS if key in dict_}
+    final = _prepare_config_from_parsed_config(
+        user_config, fv3config_config, dict_["base_version"], args
+    )
+    print(yaml.dump(final))
+
+
+def _prepare_config_from_parsed_config(
+    user_config: UserConfig, fv3_config: dict, base_version: str, args
+):
     model_urls = args.model_url if args.model_url else []
-    nudging_config = user_config.get("nudging", {})
+
+    if not set(fv3_config) <= FV3CONFIG_KEYS:
+        raise ValueError(
+            f"{fv3_config.keys()} contains a key that fv3config does not handle. "
+            "Python runtime configurations should be specified in the user_config "
+            "argument."
+        )
 
     # To simplify the configuration flow, updates should be implemented as
     # overlays (i.e. diffs) requiring only a small number of inputs. In
     # particular, overlays should not require access to the full configuration
     # dictionary.
     overlays = [
-        fv3kube.get_base_fv3config(user_config.get("base_version")),
+        fv3kube.get_base_fv3config(base_version),
         fv3kube.c48_initial_conditions_overlay(
             args.initial_condition_url, args.ic_timestep
         ),
         diagnostics_overlay(
             user_config, model_urls, args.nudge_to_observations, args.output_frequency,
         ),
-        step_tendency_overlay(user_config),
-        ml_overlay(model_urls, args.diagnostic_ml),
-        nudging_overlay(nudging_config, args.initial_condition_url),
+        {"diag_table": PROGNOSTIC_DIAG_TABLE},
         SUPPRESS_RANGE_WARNINGS,
-        user_config,
+        dataclasses.asdict(user_config),
+        fv3_config,
     ]
 
     if args.nudge_to_observations:
         # get timing information
-        duration = fv3config.get_run_duration(user_config)
+        duration = fv3config.get_run_duration(fv3_config)
         current_date = vcm.parse_current_date_from_str(args.ic_timestep)
         overlays.append(
             fv3kube.enable_nudge_to_observations(
@@ -199,8 +249,7 @@ def prepare_config(args):
             )
         )
 
-    config = fv3kube.merge_fv3config_overlays(*overlays)
-    print(yaml.dump(config))
+    return fv3kube.merge_fv3config_overlays(*overlays)
 
 
 if __name__ == "__main__":

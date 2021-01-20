@@ -1,10 +1,20 @@
 import fv3gfs.util
 import xarray as xr
+import dataclasses
 import cftime
 import functools
 from datetime import timedelta
 import os
-from typing import MutableMapping, Mapping, Iterable, Callable, Hashable, Any, Dict
+from typing import (
+    MutableMapping,
+    Mapping,
+    Iterable,
+    Callable,
+    Hashable,
+    Any,
+    Dict,
+    Optional,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,6 +26,15 @@ MASK_NAME = "land_sea_mask"
 State = MutableMapping[Hashable, xr.DataArray]
 
 
+@dataclasses.dataclass
+class NudgingConfig:
+    timescale_hours: Dict[str, float]
+    restarts_path: str
+    # optional arguments needed for time interpolation
+    reference_initial_time: Optional[str] = None
+    reference_frequency_seconds: float = 900
+
+
 def nudging_timescales_from_dict(timescales: Mapping) -> Mapping:
     return_dict = {}
     for name, hours in timescales.items():
@@ -24,15 +43,15 @@ def nudging_timescales_from_dict(timescales: Mapping) -> Mapping:
 
 
 def setup_get_reference_state(
-    config: Mapping, state_names: Iterable[str], comm, tracer_metadata: Mapping
+    config: NudgingConfig,
+    state_names: Iterable[str],
+    tracer_metadata: Mapping,
+    communicator: fv3gfs.util.CubedSphereCommunicator,
 ):
     """
     Configure the 'get_reference_function' for use in a nudged fv3gfs run.
     """
-
-    partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(config["namelist"])
-    communicator = fv3gfs.util.CubedSphereCommunicator(comm, partitioner)
-    reference_dir = config["nudging"]["restarts_path"]
+    reference_dir = config.restarts_path
 
     get_reference_state: Callable[[Any], Dict[Any, Any]] = functools.partial(
         _get_reference_state,
@@ -42,14 +61,12 @@ def setup_get_reference_state(
         tracer_metadata=tracer_metadata,
     )
 
-    initial_time_label = config["nudging"].get("reference_initial_time")
+    initial_time_label = config.reference_initial_time
     if initial_time_label is not None:
         get_reference_state = _time_interpolate_func(
             get_reference_state,
             initial_time=_label_to_time(initial_time_label),
-            frequency=timedelta(
-                seconds=config["nudging"]["reference_frequency_seconds"]
-            ),
+            frequency=timedelta(seconds=config.reference_frequency_seconds),
         )
 
     return get_reference_state

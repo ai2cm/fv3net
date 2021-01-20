@@ -1,10 +1,11 @@
 import functools
 from typing import (
     Any,
-    Mapping,
     List,
     Sequence,
 )
+
+import fv3gfs.util
 
 from runtime.steppers.base import (
     Stepper,
@@ -22,6 +23,7 @@ from runtime.nudging import (
     setup_get_reference_state,
     get_nudging_tendency,
     set_state_sst_to_reference,
+    NudgingConfig,
 )
 
 from runtime.names import (
@@ -44,27 +46,25 @@ class NudgingStepper(Stepper, LoggingMixin):
     def __init__(
         self,
         fv3gfs: Any,
-        comm: Any,
-        config: Mapping,
+        rank: int,
+        config: NudgingConfig,
         timestep: float,
         states_to_output: Sequence[str],
+        communicator: fv3gfs.util.CubedSphereCommunicator,
     ):
 
         self._states_to_output = states_to_output
 
         self._fv3gfs = fv3gfs
-        self._comm = comm
-        self.rank: int = comm.rank
+        self.rank: int = rank
         self._timestep: float = timestep
 
-        self._nudging_timescales = nudging_timescales_from_dict(
-            config["nudging"]["timescale_hours"]
-        )
+        self._nudging_timescales = nudging_timescales_from_dict(config.timescale_hours)
         self._get_reference_state = setup_get_reference_state(
             config,
             self.nudging_variables + [SST_NAME, TSFC_NAME],
-            self._comm,
             self._fv3gfs.get_tracer_metadata(),
+            communicator,
         )
         self._get_nudging_tendency = functools.partial(
             get_nudging_tendency, nudging_timescales=self._nudging_timescales,

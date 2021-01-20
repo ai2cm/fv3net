@@ -10,7 +10,6 @@ from .diagnostics import (
     rename_diagnostics,
     default_diagnostics,
 )
-from .adapters import RenamingAdapter, MultiModelAdapter
 from .derived_state import DerivedFV3State
 from .nudging import (
     nudging_timescales_from_dict,
