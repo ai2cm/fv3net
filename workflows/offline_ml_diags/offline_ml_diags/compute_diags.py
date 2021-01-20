@@ -142,7 +142,7 @@ def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
     return summary
 
 
-def _fill_empty_Tq_tendencies(ds: xr.Dataset, predicted_vars: Sequence[str]):
+def _fill_empty_dQ1_dQ2(ds: xr.Dataset, predicted_vars: Sequence[str]):
     template_vars = [var for var in predicted_vars if "z" in ds[var].dims]
     fill_template = ds[template_vars[0]]
     for tendency in ["dQ1", "dQ2"]:
@@ -166,7 +166,7 @@ def _compute_diagnostics(
     for i, ds in enumerate(batches):
 
         logger.info(f"Processing batch {i+1}/{len(batches)}")
-        ds = _fill_empty_Tq_tendencies(ds, predicted_vars)
+        ds = _fill_empty_dQ1_dQ2(ds, predicted_vars)
         # ...insert additional variables
         ds = (
             ds.pipe(utils.insert_total_apparent_sources)
