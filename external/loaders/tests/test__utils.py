@@ -6,6 +6,7 @@ from loaders._utils import (
     _get_chunk_indices,
     stack_dropnan_shuffle,
     nonderived_variables,
+    _needs_grid_data,
 )
 
 
@@ -106,3 +107,16 @@ def test_shuffled():
 def test_shuffled_dask():
     dataset = _stacked_dataset("sample").chunk()
     shuffled(dataset, "sample", np.random.RandomState(1))
+
+
+@pytest.mark.parametrize(
+    "requested, existing, needs_grid",
+    [
+        (["x0", "x1"], ["x0", "x1"], False),
+        (["x0", "cos_zenith_angle"], ["x0", "x1"], True),
+        (["dQu"], ["x0", "x1"], True),
+        (["dQu"], ["x0", "dQu"], False),
+    ],
+)
+def test__needs_grid_data(requested, existing, needs_grid):
+    assert _needs_grid_data(requested, existing) == needs_grid
