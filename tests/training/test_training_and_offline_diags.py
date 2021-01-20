@@ -275,7 +275,6 @@ timesteps = ["20160801.001500", "20160801.003000"]
 variables = [
     "air_temperature",
     "specific_humidity",
-    "cos_zenith_angle",
     "dQ1",
     "dQ2",
     "pQ1",
