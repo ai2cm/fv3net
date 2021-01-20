@@ -27,6 +27,7 @@ FV3CONFIG_KEYS = {
     "experiment_name",
     "diag_table",
     "data_table",
+    "field_table",
     "initial_conditions",
     "forcing",
     "orographic_forcing",
