@@ -42,10 +42,27 @@ def nonderived_variables(requested: Sequence[str], available: Sequence[str]):
     return nonderived
 
 
+def _needs_grid_data(requested_vars: Sequence[str], existing_vars: Sequence[str]):
+    needs_grid = [
+        "land_sea_mask",
+        "cos_zenith_angle",
+        "dQu",
+        "dQv",
+        "dQu_parallel_to_eastward_wind",
+        "dQv_parallel_to_northward_wind",
+        "horizontal_wind_tendency_parallel_to_horizontal_wind",
+    ]
+    for var in needs_grid:
+        if var in requested_vars and var not in existing_vars:
+            return True
+    return False
+
+
 def get_derived_dataset(
     variables: Sequence[str], res: str, ds: xr.Dataset
 ) -> xr.Dataset:
-    ds = _add_grid_rotation(res, ds)
+    if _needs_grid_data(variables, ds.data_vars):
+        ds = _add_grid_rotation(res, ds)
     derived_mapping = DerivedMapping(ds)
     return derived_mapping.dataset(variables)
 
