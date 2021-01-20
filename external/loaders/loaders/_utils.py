@@ -43,8 +43,8 @@ def nonderived_variables(requested: Sequence[str], available: Sequence[str]):
 
 
 def _needs_grid_data(requested_vars: Sequence[str], existing_vars: Sequence[str]):
-    needs_grid = [
-        "land_sea_mask",
+    from_grid = ["land_sea_mask", "lat", "lon", "latitude", "longitude"]
+    derived_from_grid = [
         "cos_zenith_angle",
         "dQu",
         "dQv",
@@ -52,8 +52,13 @@ def _needs_grid_data(requested_vars: Sequence[str], existing_vars: Sequence[str]
         "dQv_parallel_to_northward_wind",
         "horizontal_wind_tendency_parallel_to_horizontal_wind",
     ]
-    for var in needs_grid:
-        if var in requested_vars and var not in existing_vars:
+    for var in requested_vars:
+        if var in from_grid and var not in existing_vars:
+            return True
+        if var in derived_from_grid:
+            # It is possible for the dataset to have come from a DerivedMapping,
+            # in which case the var will be in the data_vars but still need the
+            # grid loaded.
             return True
     return False
 
@@ -61,6 +66,9 @@ def _needs_grid_data(requested_vars: Sequence[str], existing_vars: Sequence[str]
 def get_derived_dataset(
     variables: Sequence[str], res: str, ds: xr.Dataset
 ) -> xr.Dataset:
+    print(variables)
+    print(f"data vars: {list(ds.data_vars)}")
+    print(f"needs grid: {_needs_grid_data(variables, ds.data_vars)}")
     if _needs_grid_data(variables, ds.data_vars):
         ds = _add_grid_rotation(res, ds)
     derived_mapping = DerivedMapping(ds)
