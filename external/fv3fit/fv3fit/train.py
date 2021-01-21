@@ -79,6 +79,8 @@ def _get_model_kwargs(routine: str, config: ModelTrainingConfig) -> dict:
             ),
             **config.hyperparameters,
         }
+    else:
+        raise ValueError("arg for 'routine' should be either 'sklearn' or 'keras'.")
 
 
 def _keras_fit_kwargs(config: ModelTrainingConfig) -> dict:
