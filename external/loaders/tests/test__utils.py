@@ -115,7 +115,7 @@ def test_shuffled_dask():
         (["x0", "x1"], ["x0", "x1"], False),
         (["x0", "cos_zenith_angle"], ["x0", "x1"], True),
         (["dQu"], ["x0", "x1"], True),
-        (["dQu"], ["x0", "dQu"], False),
+        (["dQu"], ["x0", "dQu"], True),
     ],
 )
 def test__needs_grid_data(requested, existing, needs_grid):
