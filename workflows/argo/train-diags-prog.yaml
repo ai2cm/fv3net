@@ -59,7 +59,7 @@ spec:
         arguments:
           parameters:
             - name: routine
-              value: "fv3fit.{{inputs.parameters.train-routine}}"
+              value: "{{inputs.parameters.train-routine}}"
             - name: input
               value: "{{inputs.parameters.train-test-data}}"
             - name: config

@@ -59,7 +59,8 @@ spec:
             
             echo {{inputs.parameters.routine}}
     
-            python -m {{inputs.parameters.routine}} \
+            python -m fv3fit.train
+              {{inputs.parameters.routine}} \
               {{inputs.parameters.input}} \
               config.yaml \
               {{inputs.parameters.output}} \
