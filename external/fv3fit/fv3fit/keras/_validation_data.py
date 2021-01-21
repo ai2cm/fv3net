@@ -25,8 +25,7 @@ def validation_timesteps_config(train_config: ModelTrainingConfig):
 
 
 def validation_dataset(
-    data_path,
-    train_config: ModelTrainingConfig,
+    data_path, train_config: ModelTrainingConfig,
 ) -> Optional[xr.Dataset]:
     if len(train_config.validation_timesteps) > 0:
         check_validation_train_overlap(
@@ -34,9 +33,7 @@ def validation_dataset(
         )
         validation_config = validation_timesteps_config(train_config)
         # validation config puts all data in one batch
-        validation_dataset_sequence = load_data_sequence(
-            data_path, validation_config
-        )
+        validation_dataset_sequence = load_data_sequence(data_path, validation_config)
         if len(validation_dataset_sequence) > 1:
             raise ValueError(
                 "Something went wrong! "

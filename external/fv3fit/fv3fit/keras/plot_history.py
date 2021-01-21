@@ -108,9 +108,7 @@ def parse_args():
         "history-path", type=str, help="Path of training history json file."
     )
     parser.add_argument(
-        "output-dir",
-        type=str,
-        help="Path for saving figures",
+        "output-dir", type=str, help="Path for saving figures",
     )
 
 

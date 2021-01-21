@@ -11,7 +11,7 @@ from ._shared import (
     load_model_training_config,
     load_data_sequence,
     ModelTrainingConfig,
-    io
+    io,
 )
 from .keras._training import get_regularizer, get_optimizer, set_random_seed
 from .keras._validation_data import validation_dataset
@@ -25,7 +25,7 @@ def parse_args():
     parser.add_argument(
         "routine",
         type=str,
-        help="Training routine to use. Choices are 'keras' or 'sklearn'"
+        help="Training routine to use. Choices are 'keras' or 'sklearn'",
     )
     parser.add_argument(
         "train_data_path", nargs="*", type=str, help="Location of training data"
@@ -77,7 +77,7 @@ def _get_model_kwargs(routine: str, config: ModelTrainingConfig) -> dict:
                 if config.save_model_checkpoints
                 else None
             ),
-            **config.hyperparameters
+            **config.hyperparameters,
         }
 
 

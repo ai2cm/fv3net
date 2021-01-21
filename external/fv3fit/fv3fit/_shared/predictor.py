@@ -113,7 +113,7 @@ class Estimator(Predictor):
     def fit(self, batches: Sequence[xr.Dataset],) -> None:
         pass
 
-        
+
 def _infer_dimension_order(ds: xr.Dataset) -> Tuple:
     # add check here for cases when the dimension order is inconsistent between arrays?
     dim_order = []

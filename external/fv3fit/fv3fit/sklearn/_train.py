@@ -39,9 +39,7 @@ def _get_regressor(train_config: ModelTrainingConfig):
     return regressor
 
 
-def get_model(
-    train_config: ModelTrainingConfig,
-) -> SklearnWrapper:
+def get_model(train_config: ModelTrainingConfig,) -> SklearnWrapper:
     base_regressor = _get_regressor(train_config)
     batch_regressor = RegressorEnsemble(base_regressor)
     model_wrapper = SklearnWrapper(
