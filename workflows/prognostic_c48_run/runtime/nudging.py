@@ -26,17 +26,17 @@ MASK_NAME = "land_sea_mask"
 State = MutableMapping[Hashable, xr.DataArray]
 
 
-
 @dataclasses.dataclass
 class NudgingConfig:
     """Nudging Configurations
 
     The runfile supports nudge-to-fine towards a dataset with a different sampling
     frequency than the model time step. The available nudging times should start
-    with `reference_initial_time` and appear at a regular frequency of `reference_frequency_seconds`
-    thereafter. These options are optional; if not provided the nudging data will
-    be assumed to contain every time. The reference state will be linearly
-    interpolated between the available time samples.
+    with ``reference_initial_time`` and appear at a regular frequency of
+    ``reference_frequency_seconds`` thereafter. These options are optional; if
+    not provided the nudging data will be assumed to contain every time. The
+    reference state will be linearly interpolated between the available time
+    samples.
 
     Attributes:
         timescale_hours: mapping of variable names to timescales (in hours).

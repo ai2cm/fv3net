@@ -120,7 +120,7 @@ class TimeConfig:
     Attributes:
         kind: one of interval, every, "interval-average", or "selected"
         times: List of times to be used when kind=="selected". The times
-            should be formatted as YYYYMMDD.HHMMSS strings. Example: 
+            should be formatted as YYYYMMDD.HHMMSS strings. Example:
             ``["20160101.000000"]``.
         frequency: frequency in seconds, used for kind=interval-average or interval
     """

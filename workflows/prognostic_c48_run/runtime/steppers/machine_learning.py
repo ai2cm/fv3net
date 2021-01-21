@@ -77,9 +77,7 @@ def limit_sphum_tendency(state: State, tendency: State, dt: float):
     delta = tendency["dQ2"] * dt
     tendency_updated = copy.copy(tendency)
     tendency_updated["dQ2"] = xr.where(
-        state[SPHUM] + delta > 0,
-        tendency["dQ2"],
-        -state[SPHUM] / dt,  # type: ignore
+        state[SPHUM] + delta > 0, tendency["dQ2"], -state[SPHUM] / dt,  # type: ignore
     )
     return tendency_updated
 

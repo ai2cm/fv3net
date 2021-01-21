@@ -19,7 +19,7 @@ class UserConfig:
     Attributes:
         diagnostics: list of diagnostic file configurations
         scikit_learn: a machine learning configuration
-        nudging: nudge2fine configuration. Cannot be used if any scikit_learn model 
+        nudging: nudge2fine configuration. Cannot be used if any scikit_learn model
             urls are specified.
         step_tendency_variables: variables to compute the tendencies of.
             These could in principle be inferred from the requested diagnostic
@@ -27,6 +27,7 @@ class UserConfig:
         step_storage_variables: variables to compute the storage of. Needed for certain
             diagnostics.
     """
+
     diagnostics: List[DiagnosticFileConfig]
     scikit_learn: MachineLearningConfig = MachineLearningConfig()
     nudging: Optional[NudgingConfig] = None
