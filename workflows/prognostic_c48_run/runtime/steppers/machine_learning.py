@@ -31,6 +31,27 @@ NameDict = Mapping[Hashable, Hashable]
 
 @dataclasses.dataclass
 class MachineLearningConfig:
+    """Machine learning configurations
+
+    Attributes:
+        model: list of URLs to fv3fit models.
+        diagnostic_ml: do not apply ML tendencies if true.
+        input_standard_names: mapping from non-standard names to the standard
+            ones used by the model. Renames the ML inputs.
+        output_standard_names: mapping from non-standard names to the standard
+            ones used by the model. Renames the ML predictions.
+
+    Example::
+
+        MachineLearningConfig(
+            model=["gs://vcm-ml-data/test-annak/ml-pipeline-output"],
+            diagnostic_ml=False,
+            input_standard_names={},
+            output_standard_names={},
+        )
+
+    """
+
     model: Sequence[str] = dataclasses.field(default_factory=list)
     diagnostic_ml: bool = False
     input_standard_names: Mapping[Hashable, Hashable] = dataclasses.field(
@@ -56,7 +77,9 @@ def limit_sphum_tendency(state: State, tendency: State, dt: float):
     delta = tendency["dQ2"] * dt
     tendency_updated = copy.copy(tendency)
     tendency_updated["dQ2"] = xr.where(
-        state[SPHUM] + delta > 0, tendency["dQ2"], -state[SPHUM] / dt,  # type: ignore
+        state[SPHUM] + delta > 0,
+        tendency["dQ2"],
+        -state[SPHUM] / dt,  # type: ignore
     )
     return tendency_updated
 
@@ -72,7 +95,7 @@ class RenamingAdapter:
         model: a model to rename
         rename_in: mapping from standard names to input names of model
         rename_out: mapping from standard names to the output names of model
-    
+
     """
 
     def __init__(

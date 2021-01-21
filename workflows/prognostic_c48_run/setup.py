@@ -12,7 +12,7 @@ test_requirements = ["pytest"]
 setup(
     author="Vulcan Technologies LLC",
     author_email="noahb@vulcan.com",
-    python_requires=">=3.7",
+    python_requires=">=3.6",
     package_data={"": ["*.json"]},
     description="The prognostic run application code. Not a library.",
     install_requires=requirements,
@@ -20,4 +20,5 @@ setup(
     packages=find_packages(),
     test_suite="tests",
     tests_require=test_requirements,
+    extras_require={"docs": ["sphinx >=3.4"]}
 )
