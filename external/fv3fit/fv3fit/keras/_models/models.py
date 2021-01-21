@@ -296,7 +296,7 @@ class PackedKerasModel(Estimator):
                 y_scaler = LayerStandardScaler.load(f_binary)
             with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
                 options = yaml.safe_load(f)
-                    
+
             obj = cls(
                 X_packer.sample_dim_name,
                 X_packer.pack_names,
