@@ -57,7 +57,7 @@ spec:
       - python
       - generate_report.py
       - gs://vcm-ml-public/argo/{{workflow.name}}
-      - gs://vcm-ml-public/argo/{{workflow.name}}/index.html
+      - gs://vcm-ml-public/argo/{{workflow.name}}
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS 

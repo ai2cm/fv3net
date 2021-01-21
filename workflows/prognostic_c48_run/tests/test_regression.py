@@ -1,5 +1,4 @@
 from pathlib import Path
-import warnings
 import json
 
 import fv3config
@@ -36,7 +35,7 @@ DIAGNOSTICS = [
             "column_integrated_dQu",
             "column_integrated_dQv",
         ],
-        "times": {"kind": "interval", "frequency": 900},
+        "times": {"kind": "interval", "frequency": 900, "times": None},
     },
 ]
 
@@ -47,7 +46,7 @@ experiment_name: default_experiment
 forcing: gs://{FORCING_PATH.as_posix()}
 initial_conditions: gs://{IC_PATH.as_posix()}
 orographic_forcing: gs://{ORO_PATH.as_posix()}
-diagnostics: {DIAGNOSTICS}
+nudging: null
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
@@ -409,11 +408,13 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
 
 def test_nudge_run(tmpdir):
     config = get_nudging_config(default_fv3config, "gs://" + IC_PATH.as_posix())
+    config["diagnostics"] = DIAGNOSTICS
     run_native(config, str(tmpdir), runfile=NUDGE_RUNFILE)
 
 
 def get_prognostic_config(model_path):
     config = yaml.safe_load(default_fv3config)
+    config["diagnostics"] = DIAGNOSTICS
     config["scikit_learn"] = {"model": [model_path], "zarr_output": "diags.zarr"}
     config["step_storage_variables"] = ["specific_humidity", "total_water"]
     # use local paths in prognostic_run image. fv3config
@@ -505,7 +506,8 @@ def completed_rundir(request, tmpdir_factory):
     return rundir
 
 
-def test_fv3run_checksum_restarts(completed_rundir):
+@pytest.mark.xfail
+def test_fv3run_checksum_restarts(completed_rundir, regtest):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
     the base class in the fv3fit test suite.
@@ -513,16 +515,8 @@ def test_fv3run_checksum_restarts(completed_rundir):
     # TODO: The checksum currently changes with new commits/updates. Figure out why
     # This checksum can be updated if checksum is expected to change
     # perhaps if an external library is updated.
-    expected_checksum = "dc024d7e6f4d165878ff2925c25a99df"
     fv_core = completed_rundir.join("RESTART").join("fv_core.res.tile1.nc")
-
-    try:
-        assert expected_checksum == fv_core.computehash()
-    except AssertionError as e:
-        warnings.warn(
-            "Prognostic fv3gfs ran successfully but failed the "
-            f"fv_core.res.tile1.nc checksum: {e}"
-        )
+    print(fv_core.computehash(), file=regtest)
 
 
 def test_fv3run_logs_present(completed_rundir):

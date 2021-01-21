@@ -65,8 +65,8 @@ class PredictionMapper(GeoMapper):
             except KeyError as e:
                 if key == DELP:
                     raise e
-                elif key in ["pQ1", "pQ2"]:
-                    ds_derived[key] = xr.zeros_like(derived_mapping["dQ1"])
+                elif key in ["pQ1", "pQ2", "dQ1", "dQ2"]:
+                    ds_derived[key] = xr.zeros_like(derived_mapping[DELP])
                     warnings.warn(
                         f"{key} not present in data. Filling with zeros.", UserWarning
                     )

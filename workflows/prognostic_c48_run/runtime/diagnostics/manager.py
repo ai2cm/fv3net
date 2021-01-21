@@ -108,6 +108,32 @@ class IntervalAveragedTimes(TimeContainer):
 
 
 @dataclasses.dataclass
+class TimeConfig:
+    """
+    Attrs:
+        kind: one of interval, every, "interval-average", or "selected"
+    """
+
+    frequency: Optional[float] = None
+    times: Optional[List[str]] = None
+    kind: str = "every"
+
+    def time_container(self, initial_time: cftime.DatetimeJulian) -> TimeContainer:
+        if self.kind == "interval" and self.frequency:
+            return TimeContainer(IntervalTimes(self.frequency, initial_time))
+        elif self.kind == "selected":
+            return TimeContainer(SelectedTimes(self.times or []))
+        elif self.kind == "every":
+            return TimeContainer(All())
+        elif self.kind == "interval-average" and self.frequency:
+            return IntervalAveragedTimes(
+                datetime.timedelta(seconds=self.frequency), initial_time,
+            )
+        else:
+            raise NotImplementedError(f"Time {self.kind} not implemented.")
+
+
+@dataclasses.dataclass
 class DiagnosticFileConfig:
     """
     Attrs:
@@ -117,37 +143,23 @@ class DiagnosticFileConfig:
     """
 
     name: str
-    variables: Container
-    times: TimeContainer = TimeContainer(All())
-
-    @classmethod
-    def from_dict(
-        cls, dict_: Mapping, initial_time: cftime.DatetimeJulian
-    ) -> "DiagnosticFileConfig":
-        return DiagnosticFileConfig(
-            name=dict_["name"],
-            variables=dict_.get("variables", All()),
-            times=cls._get_times(dict_.get("times", {}), initial_time),
-        )
+    variables: Optional[Container] = None
+    times: TimeConfig = dataclasses.field(default_factory=lambda: TimeConfig())
 
     def to_dict(self) -> Dict:
-        return {"name": self.name, "variables": self.variables, "times": self.times}
+        return dataclasses.asdict(self)
 
-    @staticmethod
-    def _get_times(d, initial_time: cftime.DatetimeJulian) -> TimeContainer:
-        kind = d.get("kind", "every")
-        if kind == "interval":
-            return TimeContainer(IntervalTimes(d["frequency"], initial_time))
-        elif kind == "selected":
-            return TimeContainer(SelectedTimes(d["times"]))
-        elif kind == "every":
-            return TimeContainer(All())
-        elif kind == "interval-average":
-            return IntervalAveragedTimes(
-                datetime.timedelta(seconds=d["frequency"]), initial_time,
-            )
-        else:
-            raise NotImplementedError(f"Time {kind} not implemented.")
+    def diagnostic_file(
+        self,
+        initial_time: cftime.DatetimeJulian,
+        partitioner: fv3gfs.util.CubedSpherePartitioner,
+        comm: Any,
+    ) -> "DiagnosticFile":
+        return DiagnosticFile(
+            variables=self.variables if self.variables else All(),
+            times=self.times.time_container(initial_time),
+            monitor=fv3gfs.util.ZarrMonitor(self.name, partitioner, mpi_comm=comm),
+        )
 
 
 class DiagnosticFile:
@@ -245,9 +257,9 @@ class DiagnosticFile:
 
 
 def get_diagnostic_files(
-    config: Mapping,
+    configs: Sequence[DiagnosticFileConfig],
     partitioner: fv3gfs.util.CubedSpherePartitioner,
-    comm,
+    comm: Any,
     initial_time: cftime.DatetimeJulian,
 ) -> List[DiagnosticFile]:
     """Initialize a list of diagnostic file objects from a configuration dictionary
@@ -264,27 +276,6 @@ def get_diagnostic_files(
         initial_time: the initial time of the simulation.
 
     """
-    diag_dicts = config.get("diagnostics", [])
-    configs: List[DiagnosticFileConfig] = []
-
-    if len(diag_dicts) > 0:
-        for diag_dict in diag_dicts:
-            configs.append(
-                DiagnosticFileConfig.from_dict(diag_dict, initial_time=initial_time)
-            )
-    else:
-        default_config = DiagnosticFileConfig(
-            name=config["scikit_learn"]["zarr_output"],
-            times=TimeContainer(All()),
-            variables=All(),
-        )
-        configs.append(default_config)
-
     return [
-        DiagnosticFile(
-            variables=config.variables,
-            times=config.times,
-            monitor=fv3gfs.util.ZarrMonitor(config.name, partitioner, mpi_comm=comm),
-        )
-        for config in configs
+        config.diagnostic_file(initial_time, partitioner, comm) for config in configs
     ]

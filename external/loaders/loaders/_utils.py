@@ -66,9 +66,6 @@ def _needs_grid_data(requested_vars: Sequence[str], existing_vars: Sequence[str]
 def get_derived_dataset(
     variables: Sequence[str], res: str, ds: xr.Dataset
 ) -> xr.Dataset:
-    print(variables)
-    print(f"data vars: {list(ds.data_vars)}")
-    print(f"needs grid: {_needs_grid_data(variables, ds.data_vars)}")
     if _needs_grid_data(variables, ds.data_vars):
         ds = _add_grid_rotation(res, ds)
     derived_mapping = DerivedMapping(ds)
