@@ -59,19 +59,6 @@ Machine learning is done by including a machine learning model path in the `scik
 
 ### Configuring a machine learning run
 
-The ML model and location for zarr output can be configured using `fv3config.yml`. Add/modify the `scikit_learn` entry of the yaml file as follows (here to use a model from fv3fit.sklearn):
-```
-scikit_learn:
-  model: gs://vcm-ml-data/test-annak/ml-pipeline-output
-  model_type: scikit_learn
-```
-Or to use a model from fv3fit.keras:
-```
-scikit_learn:
-  model: gs://vcm-ml-scratch/brianh/train-keras-model-testing/fv3fit-unified
-  model_type: keras
-```
-
 Alternatively, the model path can also be specified via the command line argument `--model_url`.
 
 If some variables names used for input variables in the scikit-learn model are inconsistent with the variable names used by the python wrapper, this can be handled by the optional `input_variable_standard_names` entry in the `scikit_learn` entry of the config yaml:
@@ -81,57 +68,11 @@ scikit_learn:
     DSWRFtoa_train: total_sky_downward_shortwave_flux_at_top_of_atmosphere
 ```
 
-### Configuring a nudge-to-fine run
-
-Nudge-to-fine requires a `nudging` section within the fv3config object, which contains a mapping (`timescale_hours`) of variable names to nudging timescales. Here is an example:
-```
-base_version: v0.5
-nudging:
-  timescale_hours:
-    air_temperature: 3
-    specific_humidity: 3
-    x_wind: 3
-    y_wind: 3
-  reference_initial_time: "20160801.001500"
-  reference_frequency_seconds: 900
-namelist: {}
-```
-
-The runfile supports nudge-to-fine towards a dataset with a different sampling
-frequency than the model time step. The available nudging times should start
-with `reference_initial_time` and appear at a regular frequency of `reference_frequency_seconds`
-thereafter. These options are optional; if not provided the nudging data will
-be assumed to contain every time. The reference state will be linearly
-interpolated between the available time samples. 
-
 ### Configuring diagnostics with prepare_config.py
 
 To modify the output frequency of the run's Python diagnostics (which defaults to every 15 minutes), provide to `prepare_config.py` either the command line argument `--output-timestamps` as a file path or `--output_frequency` as minutes, but not both. Fortran diagnostics are configured through the diag_table.
 
 Default diagnostics are computed and saved to .zarrs depending on whether ML, nudge-to-fine, nudge-to-obs, or baseline runs are chosen. To save additional tendencies and storages across physics and nudging/ML time steps, add `step_tendency_variables` and `step_storage_variables` entries to specify these variables. (If not specified these default to `air_temperature`, `specific_humidity`, `eastward_wind`, and `northward_wind` for `tendency`, and `specific_humidity` and `total_water` for `storage`.) Then add an additional output .zarr which includes among its variables the desired tendencies and/or path storages of these variables due to physics (`_due_to_fv3_physics`) and/or ML/nudging (`_due_to_python`). See the example below of an additional diagnostic file configuration. 
-
-### Python Diagnostic Manager
-
-The python-based diagnostics can be configured with a variety of time
-sampling strategies for different subsets of variables. Additional diagnostic
-files can be configured by adding a diagnostic "block" to the "diagnostics"
-section of the configuration yaml. This diagnostic block has the following parameters
-
-```
-{"name": string, 
-, "times": <times>,
-, "variables": list of variable names
-```
-times and variables are optional. By default all times and variables are included.
-
-"times" is an json/yaml object describing the time sampling method. The
-following types of time sampling are supported:
-
-- Snapshots at every time `{"kind": "every"}`. This is the default
-- Snapshots at a regular interval (starting with the initial condition): `{"kind": "interval", "frequency": 3600}`. Frequency is the time in seconds.
-- Snapshots at selected times: `{"kind": "selected", "times": ["20200101.000000"]}`
-- Averages over specified intervals (starting with the initial condition): `{"kind": "interval-average", "frequency": 3600.}`. Frequency is the time in seconds.
-
 
 ### Additional diagnostic example `config.yml` 
 

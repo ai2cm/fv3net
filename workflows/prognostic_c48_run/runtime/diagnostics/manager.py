@@ -109,9 +109,20 @@ class IntervalAveragedTimes(TimeContainer):
 
 @dataclasses.dataclass
 class TimeConfig:
-    """
-    Attrs:
+    """Configuration for output times
+
+    This class configures the time coordinate of the output diagnostics. It
+    allows output data at a user-specified list of snapshots
+    (``kind='selected'``), fixed intervals (``kind='interval'``), averages
+    over intervals (``kind='interval-average'``), or every single time step
+    (``kind='every'``).
+
+    Attributes:
         kind: one of interval, every, "interval-average", or "selected"
+        times: List of times to be used when kind=="selected". The times
+            should be formatted as YYYYMMDD.HHMMSS strings. Example:
+            ``["20160101.000000"]``.
+        frequency: frequency in seconds, used for kind=interval-average or interval
     """
 
     frequency: Optional[float] = None
@@ -135,11 +146,14 @@ class TimeConfig:
 
 @dataclasses.dataclass
 class DiagnosticFileConfig:
-    """
-    Attrs:
-        name: file name of a zarr to store the data in, e.g., 'diags.zarr'
-        variables: a container of variables to save
-        times (optional): a container for times to output
+    """Configurations for zarr Diagnostic Files
+
+    Attributes:
+        name: filename of a zarr to store the data in, e.g., 'diags.zarr'.
+            Paths are relative to the run-directory root.
+        variables: the variables to save. By default all available diagnostics
+            are stored. Example: ``["air_temperature", "cos_zenith_angle"]``.
+        times: the time configuration
     """
 
     name: str
