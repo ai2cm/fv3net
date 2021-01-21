@@ -171,7 +171,8 @@ def test_training_integration(
         [
             "python",
             "-m",
-            "fv3fit.keras",
+            "fv3fit.train",
+            "keras",
             data_source_path,
             train_config_filename,
             tmp_path,

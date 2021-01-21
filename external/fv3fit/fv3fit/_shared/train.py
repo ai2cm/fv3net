@@ -84,8 +84,12 @@ def _get_model_kwargs(routine: str, config: ModelTrainingConfig) -> dict:
             "output_variables": config.output_variables,
             "optimizer": get_optimizer(config.hyperparameters),
             "kernel_regularizer": get_regularizer(config.hyperparameters),
-            "checkpoint_path": KERAS_CHECKPOINT_PATH,
-            **train_config.hyperparameters
+            "checkpoint_path": (
+                os.path.join(args.output_data_path, KERAS_CHECKPOINT_PATH)
+                if config.save_model_checkpoints
+                else None
+            ),
+            **config.hyperparameters
         }
 
 
@@ -132,3 +136,4 @@ if __name__ == "__main__":
     model = get_model(**model_kwargs)
     model.fit(batches, **fit_kwargs)
     io.dump(model, args.output_data_path)
+    

@@ -80,7 +80,8 @@ def test_training_integration(
         [
             "python",
             "-m",
-            "fv3fit.sklearn",
+            "fv3fit.train",
+            "sklearn",
             data_source_path,
             train_config_filename,
             tmp_path,
