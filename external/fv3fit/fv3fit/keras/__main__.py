@@ -29,7 +29,6 @@ logger = logging.getLogger(__file__)
 
 
 MODEL_FILENAME = "model_data"
-HISTORY_OUTPUT_DIR = "training_history"
 MODEL_CHECKPOINT_DIR = "model_checkpoints"
 
 
@@ -174,8 +173,5 @@ if __name__ == "__main__":
 
     validation_dataset = _validation_dataset(train_config)
 
-    history = model.fit(batches, validation_dataset, **fit_kwargs)  # type: ignore
+    model.fit(batches, validation_dataset, **fit_kwargs)
     fv3fit._shared.io.dump(model, args.output_data_path)
-    save_history(
-        history, os.path.join(args.output_data_path, HISTORY_OUTPUT_DIR),
-    )

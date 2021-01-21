@@ -42,6 +42,7 @@ class PackedKerasModel(Estimator):
     _Y_SCALER_FILENAME = "y_scaler.npz"
     _OPTIONS_FILENAME = "options.yml"
     _LOSS_OPTIONS = {"mse": get_weighted_mse, "mae": get_weighted_mae}
+    _HISTORY_FILENAME = "training_history.json"
 
     def __init__(
         self,
@@ -89,6 +90,7 @@ class PackedKerasModel(Estimator):
         )
         self.X_scaler = LayerStandardScaler()
         self.y_scaler = LayerStandardScaler()
+        self.train_history = {"loss": [], "val_loss": []}  # type: Mapping[str, List]
         if weights is None:
             self.weights: Mapping[str, Union[int, float, np.ndarray]] = {}
         else:
@@ -131,11 +133,8 @@ class PackedKerasModel(Estimator):
         max_queue_size: int = 8,
         validation_samples: int = 13824,
         **fit_kwargs: Any,
-    ) -> History:
+    ) -> None:
         """Fits a model using data in the batches sequence
-
-        Returns a History of training loss (and validation loss if applicable).
-        Loss values are saved as a list of values for each epoch.
         
         If batch_size is provided as a kwarg, the list of values is for each batch fit.
         e.g. {"loss":
@@ -200,15 +199,13 @@ class PackedKerasModel(Estimator):
         workers: int = 1,
         max_queue_size: int = 8,
         **fit_kwargs: Any,
-    ) -> History:
+    ) -> None:
 
         if workers > 1:
             Xy = _ThreadedSequencePreLoader(
                 Xy, num_workers=workers, max_queue_size=max_queue_size
             )
-        train_history = {
-            key: [] for key in ["loss", "val_loss"]
-        }  # type: Mapping[str, List]
+
         for i_epoch in range(epochs):
             loss_over_batches, val_loss_over_batches = [], []
             for i_batch, (X, y) in enumerate(Xy):
@@ -224,15 +221,14 @@ class PackedKerasModel(Estimator):
                 )
                 loss_over_batches += history.history["loss"]
                 val_loss_over_batches += history.history.get("val_loss", [np.nan])
-            train_history["loss"].append(loss_over_batches)
-            train_history["val_loss"].append(val_loss_over_batches)
+            self.train_history["loss"].append(loss_over_batches)
+            self.train_history["val_loss"].append(val_loss_over_batches)
             if self._checkpoint_path:
                 self.dump(os.path.join(self._checkpoint_path, f"epoch_{i_epoch}"))
                 logger.info(
                     f"Saved model checkpoint after epoch {i_epoch} "
                     f"to {self._checkpoint_path}"
                 )
-        return train_history
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         sample_coord = X[self.sample_dim_name]
@@ -262,6 +258,8 @@ class PackedKerasModel(Estimator):
                 yaml.safe_dump(
                     {"normalize_loss": self._normalize_loss, "loss": self._loss}, f
                 )
+            with open(os.path.join(path, self._HISTORY_FILENAME), "w") as f:
+                yaml.safe_dump(self.train_history, f)
 
     @property
     def loss(self):
@@ -298,6 +296,7 @@ class PackedKerasModel(Estimator):
                 y_scaler = LayerStandardScaler.load(f_binary)
             with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
                 options = yaml.safe_load(f)
+                    
             obj = cls(
                 X_packer.sample_dim_name,
                 X_packer.pack_names,
