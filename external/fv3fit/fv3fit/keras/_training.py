@@ -1,5 +1,8 @@
-from typing import Iterable, Type, Optional
+from typing import Iterable, Type, Optional, Union
 import logging
+import numpy as np
+import os
+import random
 import tensorflow as tf
 from . import _models
 from .._shared import Estimator
@@ -73,3 +76,11 @@ def get_regularizer(
     else:
         regularizer = None
     return regularizer
+
+
+def set_random_seed(seed: Union[float, int] = 0):
+    # https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    np.random.seed(seed + 1)
+    random.seed(seed + 2)
+    tf.random.set_seed(seed + 3)

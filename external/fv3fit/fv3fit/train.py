@@ -2,14 +2,10 @@ import argparse
 from importlib import import_module
 import loaders
 import logging
-import numpy as np
 import os
-import random
-import tensorflow as tf
-from typing import Union
 import yaml
 
-from . import (
+from ._shared import (
     save_config_output,
     parse_data_path,
     load_model_training_config,
@@ -17,8 +13,8 @@ from . import (
     ModelTrainingConfig,
     io
 )
-from ..keras import (
-    get_regularizer, get_optimizer, validation_dataset)
+from .keras._training import get_regularizer, get_optimizer, set_random_seed
+from .keras._validation_data import validation_dataset
 
 
 KERAS_CHECKPOINT_PATH = "model_checkpoints"
@@ -62,14 +58,6 @@ def parse_args():
         "will read from remote every epoch. Local download greatly speeds NN training.",
     )
     return parser.parse_args()
-
-
-def _set_random_seed(seed: Union[float, int] = 0):
-    # https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    np.random.seed(seed + 1)
-    random.seed(seed + 2)
-    tf.random.set_seed(seed + 3)
 
 
 def _get_model_kwargs(routine: str, config: ModelTrainingConfig) -> dict:
@@ -122,7 +110,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     if args.routine == "keras":
-        _set_random_seed(train_config.random_seed)
+        set_random_seed(train_config.random_seed)
         fit_kwargs = _keras_fit_kwargs(train_config)
     else:
         fit_kwargs = {}
@@ -136,4 +124,3 @@ if __name__ == "__main__":
     model = get_model(**model_kwargs)
     model.fit(batches, **fit_kwargs)
     io.dump(model, args.output_data_path)
-    
