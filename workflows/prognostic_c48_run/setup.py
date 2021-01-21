@@ -20,5 +20,5 @@ setup(
     packages=find_packages(),
     test_suite="tests",
     tests_require=test_requirements,
-    extras_require={"docs": ["sphinx >=3.4"]},
+    extras_require={"docs": ["sphinx >=3.2"]},
 )
