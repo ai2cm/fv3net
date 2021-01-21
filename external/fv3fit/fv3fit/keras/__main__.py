@@ -10,7 +10,6 @@ from ._validation_data import (
     check_validation_train_overlap,
     validation_timesteps_config,
 )
-from ._save_history import save_history
 from .. import _shared as shared
 import fv3fit._shared.io
 import loaders
