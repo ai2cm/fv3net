@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = "Prognostic Run"
-copyright = "2021, Noah D. Brenowitz"
+copyright = "2021, Vulcan Technologies, LLC"
 author = "Noah D. Brenowitz"
 
 
