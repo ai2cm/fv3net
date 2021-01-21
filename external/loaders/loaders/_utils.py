@@ -42,7 +42,7 @@ def nonderived_variables(requested: Sequence[str], available: Sequence[str]):
     return nonderived
 
 
-def _needs_grid_data(requested_vars: Sequence[str], existing_vars: Sequence[str]):
+def _needs_grid_data(requested_vars: Sequence[str], existing_vars: Sequence[str]) -> bool:
     from_grid = ["land_sea_mask", "lat", "lon", "latitude", "longitude"]
     derived_from_grid = [
         "cos_zenith_angle",
