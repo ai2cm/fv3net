@@ -1,6 +1,5 @@
 import logging
-from .._shared import ModelTrainingConfig
-
+from typing import Iterable
 from ._wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.ensemble import RandomForestRegressor
 
@@ -10,28 +9,25 @@ logger = logging.getLogger(__file__)
 SAMPLE_DIM = "sample"
 
 
-def _get_regressor(train_config: ModelTrainingConfig):
+def _get_regressor(model_type: str, hyperparameters: dict):
     """Reads the model type from the model training config and initializes a regressor
     with hyperparameters from config.
 
     Args:
-        train_config: model training configuration
+        model_type: sklearn model to train
+        hyperparameters: should match the hyperparameters accepted by sklearn model
 
     Returns:
         regressor (varies depending on model type)
     """
-    model_type = train_config.model_type.replace(" ", "").replace("_", "")
+    model_type = model_type.replace(" ", "").replace("_", "")
     if "rf" in model_type or "randomforest" in model_type:
-        train_config.hyperparameters["random_state"] = train_config.hyperparameters.get(
-            "random_state", 0
-        )
-        train_config.hyperparameters["n_jobs"] = train_config.hyperparameters.get(
-            "n_jobs", -1
-        )
-        regressor = RandomForestRegressor(**train_config.hyperparameters)
+        hyperparameters["random_state"] = hyperparameters.get("random_state", 0)
+        hyperparameters["n_jobs"] = hyperparameters.get("n_jobs", -1)
+        regressor = RandomForestRegressor(**hyperparameters)
     else:
         raise ValueError(
-            f"Model type {train_config.model_type} not implemented. "
+            f"Model type {model_type} not implemented. "
             "Options are "
             " 1) random forest (contains keywords 'rf' "
             "or 'random forest') "
@@ -39,15 +35,22 @@ def _get_regressor(train_config: ModelTrainingConfig):
     return regressor
 
 
-def get_model(train_config: ModelTrainingConfig,) -> SklearnWrapper:
-    base_regressor = _get_regressor(train_config)
+def get_model(
+    model_type: str,
+    input_variables: Iterable[str],
+    output_variables: Iterable[str],
+    scaler_type: str,
+    scaler_kwargs: dict,
+    **hyperparameters,
+) -> SklearnWrapper:
+    base_regressor = _get_regressor(model_type, hyperparameters)
     batch_regressor = RegressorEnsemble(base_regressor)
     model_wrapper = SklearnWrapper(
         SAMPLE_DIM,
-        train_config.input_variables,
-        train_config.output_variables,
+        input_variables,
+        output_variables,
         batch_regressor,
-        scaler_type=train_config.scaler_type,
-        scaler_kwargs=train_config.scaler_kwargs,
+        scaler_type=scaler_type,
+        scaler_kwargs=scaler_kwargs,
     )
     return model_wrapper
