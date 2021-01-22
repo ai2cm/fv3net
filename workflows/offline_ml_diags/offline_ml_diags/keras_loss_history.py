@@ -7,7 +7,7 @@ import numpy as np
 import os
 import shutil
 import tempfile
-from typing import Sequence, Union, Mapping, Iterable
+from typing import Sequence, Union, Mapping
 
 from vcm.cloud import gsutil
 
@@ -88,7 +88,7 @@ def _get_epoch_losses(history: History, key: str):
         return [np.mean(epoch_batch_losses) for epoch_batch_losses in history[key]]
 
 
-def _plot_training_history(history: History) -> Iterable[plt.Figure]:
+def _plot_training_history(history: History) -> Sequence[plt.Figure]:
 
     loss_at_epoch_end = _get_epoch_losses(history, "loss")
     val_loss_at_epoch_end = _get_epoch_losses(history, "val_loss")
@@ -121,6 +121,8 @@ if __name__ == "__main__":
         loss_figures = _plot_training_history(history)
         loss_figures[0].savefig(os.path.join(tmpdir, "loss_over_epochs.png"))
         if len(loss_figures) == 2:
-            loss_figures[1].savefig(os.path.join(tmpdir, "epoch_losses_over_batches.png"))
+            loss_figures[1].savefig(
+                os.path.join(tmpdir, "epoch_losses_over_batches.png")
+            )
         _copy_outputs(tmpdir, args.output_dir)
     logger.info(f"Saved keras training history figures to {args.output_dir}")
