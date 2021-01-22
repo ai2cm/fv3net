@@ -1,7 +1,7 @@
 import inspect
 import yaml
 import os
-from typing import Iterable, Optional, Mapping, Union, Sequence, List
+from typing import Iterable, Optional, Union, Sequence, List
 import vcm
 
 
