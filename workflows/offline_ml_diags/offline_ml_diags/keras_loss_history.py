@@ -7,7 +7,7 @@ import numpy as np
 import os
 import shutil
 import tempfile
-from typing import Sequence, Union, Mapping
+from typing import Sequence, Union, Mapping, Iterable
 
 from vcm.cloud import gsutil
 
@@ -104,18 +104,19 @@ def _plot_training_history(history: History) -> Iterable[plt.Figure]:
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "history-path", type=str, help="Path of training history json file."
+        "history_path", type=str, help="Path of training history json file."
     )
     parser.add_argument(
-        "output-dir", type=str, help="Path for saving figures",
+        "output_dir", type=str, help="Path for saving figures",
     )
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
     with fsspec.open(args.history_path, "r") as f:
         history = json.load(f)
-    _plot_training_history(history, args.output_dir)
+    _plot_training_history(history)
     with tempfile.TemporaryDirectory() as tmpdir:
         loss_figures = _plot_training_history(history)
         loss_figures[0].savefig(os.path.join(tmpdir, "loss_over_epochs.png"))
