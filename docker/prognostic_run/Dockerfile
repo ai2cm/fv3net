@@ -100,5 +100,8 @@ FROM bld
 # Copy results from test stage to ensure docker buildkit executes it
 COPY --from=test /tmp/test-results.txt .
 
+# build the docs
+RUN make -C docs html
+
 ARG COMMIT_SHA_ARG
 ENV COMMIT_SHA=$COMMIT_SHA_ARG
