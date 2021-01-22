@@ -56,6 +56,7 @@ class PackedKerasModel(Estimator):
         kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         loss: Literal["mse", "mae"] = "mse",
         checkpoint_path: Optional[str] = None,
+        **fit_kwargs: Any,
     ):
         """Initialize the model.
         
@@ -80,6 +81,8 @@ class PackedKerasModel(Estimator):
             optimizer: algorithm to be used in gradient descent, must subclass
                 tf.keras.optimizers.Optimizer; defaults to tf.keras.optimizers.Adam
             loss: loss function to use. Defaults to mean squared error.
+            **fit_kwargs: other keyword arguments to be passed to the underlying
+                tf.keras.Model.fit() method
         """
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
@@ -101,6 +104,7 @@ class PackedKerasModel(Estimator):
         self._loss = loss
         self._kernel_regularizer = kernel_regularizer
         self._checkpoint_path = checkpoint_path
+        self._fit_kwargs = fit_kwargs
 
     @property
     def model(self) -> tf.keras.Model:
@@ -133,7 +137,6 @@ class PackedKerasModel(Estimator):
         workers: int = 1,
         max_queue_size: int = 8,
         validation_samples: int = 13824,
-        **fit_kwargs: Any,
     ) -> None:
         """Fits a model using data in the batches sequence
         
@@ -158,8 +161,7 @@ class PackedKerasModel(Estimator):
                 from the validation dataset, so that we can use multiple timesteps for
                 validation without having to load all the times into memory.
                 Defaults to the equivalent of a single C48 timestep.
-            **fit_kwargs: other keyword arguments to be passed to the underlying
-                tf.keras.Model.fit() method
+
         """
         epochs = epochs if epochs is not None else 1
         Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
@@ -188,7 +190,7 @@ class PackedKerasModel(Estimator):
             batch_size,
             workers=workers,
             max_queue_size=max_queue_size,
-            **fit_kwargs,
+            **self._fit_kwargs,
         )
 
     def _fit_loop(
