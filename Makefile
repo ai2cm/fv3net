@@ -44,6 +44,12 @@ push_images: $(addprefix push_image_, $(IMAGES))
 push_image_%: build_image_%
 	docker push $(REGISTRY)/$*:$(VERSION)
 
+
+## Empty rule for deploying docs
+deploy_docs_%: 
+	@echo "Nothing to do."
+
+
 ## Deploy documentation for prognostic run to vulcanclimatemodeling.com
 deploy_docs_prognostic_run:
 	mkdir html
