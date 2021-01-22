@@ -337,6 +337,13 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
         self._tendency_variables = list(tendency_variables)
         self._storage_variables = list(storage_variables)
 
+    def _step_dynamics(self) -> Diagnostics:
+        diags = super()._step_dynamics()
+        
+        # Temporary move from baseline to here for emulation task
+        diags.update({name: self._state[name] for name in self._states_to_output})
+        return diags
+
     _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
     _apply_python_to_dycore_state = monitor(
         "python", TimeLoop._apply_python_to_dycore_state

@@ -56,7 +56,7 @@ class BaselineStepper(Stepper):
 
         state: State = {name: self._state[name] for name in [PRECIP_RATE, SPHUM, DELP]}
         diagnostics: Diagnostics = compute_baseline_diagnostics(state)
-        diagnostics.update({name: self._state[name] for name in self._states_to_output})
+        # diagnostics.update({name: self._state[name] for name in self._states_to_output})
 
         return {
             "area": self._state[AREA],
