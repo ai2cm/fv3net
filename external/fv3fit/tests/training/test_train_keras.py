@@ -51,7 +51,7 @@ def model(
         input_variables,
         output_variables,
         **hyperparameters,
-        **fit_kwargs
+        **fit_kwargs,
     )
 
 
