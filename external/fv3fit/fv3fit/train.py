@@ -12,7 +12,7 @@ from ._shared import (
     load_data_sequence,
     ModelTrainingConfig,
     io,
-    Estimator
+    Estimator,
 )
 from .keras._training import get_regularizer, get_optimizer, set_random_seed
 from .keras._validation_data import validation_dataset
@@ -56,7 +56,7 @@ def parse_args():
         "--local-download-path",
         type=str,
         help="Optional path for downloading data before training. If not provided, "
-        "will read from remote every epoch. Local download greatly speeds NN training.",
+        "will read from remote every epoch. Local download greatly speeds training.",
     )
     return parser.parse_args()
 
@@ -65,16 +65,18 @@ def _get_model(config: ModelTrainingConfig) -> Estimator:
     routine = ROUTINE_LOOKUP[config.model_type]
     if routine == "sklearn":
         from fv3fit.sklearn import get_model
+
         return get_model(
             model_type=config.model_type,
             input_variables=config.input_variables,
             output_variables=config.output_variables,
             scaler_type=config.scaler_type,
             scaler_kwargs=config.scaler_kwargs,
-            **config.hyperparameters
+            **config.hyperparameters,
         )
     elif routine == "keras":
-        from fv3fit.keras import get_model
+        from fv3fit.keras import get_model  # type: ignore
+
         fit_kwargs = _keras_fit_kwargs(config)
         checkpoint_path = (
             os.path.join(args.output_data_path, KERAS_CHECKPOINT_PATH)
@@ -106,7 +108,7 @@ def _keras_fit_kwargs(config: ModelTrainingConfig) -> dict:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     args = parse_args()
-    data_path = parse_data_path(args)
+    data_path = parse_data_path(args.data_path)
     train_config = load_model_training_config(args.config_file, args.data_path)
 
     if args.timesteps_file:
