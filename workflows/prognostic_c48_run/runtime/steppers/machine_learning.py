@@ -1,9 +1,8 @@
 """Code for machine Learning in prognostic runs
 """
-import copy
 import dataclasses
 import logging
-from typing import Any, Hashable, List, Mapping, Sequence, Set, Iterable, cast
+from typing import Any, Hashable, List, Mapping, Sequence, Set, Iterable, Tuple, cast
 
 import runtime
 import xarray as xr
@@ -73,13 +72,14 @@ def log_updated_tendencies(comm, tendency: State, tendency_updated: State):
         logger.info(f"specific_humidity_limiter_updates_per_level: {level_updates}")
 
 
-def limit_sphum_tendency(state: State, tendency: State, dt: float):
-    delta = tendency["dQ2"] * dt
-    tendency_updated = copy.copy(tendency)
-    tendency_updated["dQ2"] = xr.where(
-        state[SPHUM] + delta > 0, tendency["dQ2"], -state[SPHUM] / dt,  # type: ignore
-    )
-    return tendency_updated
+def limit_sphum_tendency(
+    sphum: xr.DataArray, dQ1: xr.DataArray, dQ2: xr.DataArray, dt: float
+) -> Tuple[xr.DataArray, xr.DataArray]:
+    delta = dQ2 * dt
+    reduction_ratio = (-sphum) / (dt * dQ2)  # type: ignore
+    dQ1_updated = xr.where(sphum + delta > 0, dQ1, reduction_ratio * dQ1)
+    dQ2_updated = xr.where(sphum + delta > 0, dQ2, reduction_ratio * dQ2)
+    return dQ1_updated, dQ2_updated
 
 
 def _invert_dict(d: Mapping) -> Mapping:
@@ -250,13 +250,24 @@ class MLStepper(Stepper, LoggingMixin):
         state = {name: self._state[name] for name in variables}
 
         self._log_debug("Computing ML-predicted tendencies")
-        tendency = predict(self._model, state)
+        tendency: State = predict(self._model, state)
 
         if "dQ2" in tendency:
             self._log_debug(
                 "Correcting ML tendencies that would predict negative specific humidity"
             )
-            tendency_updated = limit_sphum_tendency(state, tendency, dt=self._timestep)
+            tendency_updated: State = {
+                name: tendency
+                for name, tendency in zip(
+                    ["dQ1", "dQ2"],
+                    limit_sphum_tendency(
+                        state[SPHUM],
+                        tendency["dQ1"],
+                        tendency["dQ2"],
+                        dt=self._timestep,
+                    ),
+                )
+            }
             log_updated_tendencies(self.comm, tendency, tendency_updated)
         else:
             tendency_updated = tendency
