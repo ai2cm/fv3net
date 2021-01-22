@@ -3,6 +3,7 @@ from typing_extensions import Literal
 import xarray as xr
 import logging
 import abc
+import json
 import tensorflow as tf
 import tensorflow_addons as tfa
 from ..._shared import ArrayPacker, Estimator, io, unpack_matrix
@@ -259,7 +260,7 @@ class PackedKerasModel(Estimator):
                     {"normalize_loss": self._normalize_loss, "loss": self._loss}, f
                 )
             with open(os.path.join(path, self._HISTORY_FILENAME), "w") as f:
-                yaml.safe_dump(self.train_history, f)
+                json.dump(self.train_history, f)
 
     @property
     def loss(self):
@@ -312,6 +313,10 @@ class PackedKerasModel(Estimator):
                 obj._model = tf.keras.models.load_model(
                     model_filename, custom_objects={"custom_loss": obj.loss}
                 )
+            history_filename = os.path.join(path, cls._HISTORY_FILENAME)
+            if os.path.exists(history_filename):
+                with open(os.path.join(path, cls._HISTORY_FILENAME), "r") as f:
+                    obj.train_history = json.load(f)
             return obj
 
     def jacobian(self, base_state: Optional[xr.Dataset] = None) -> xr.Dataset:
