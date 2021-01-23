@@ -181,7 +181,14 @@ def training_batches(data_source_name, data_source_path, data_source_train_confi
 def test_sklearn_regression(training_batches, data_source_train_config):
 
     assert len(training_batches) == 2
-    wrapper = get_model(data_source_train_config)
+    wrapper = get_model(
+        model_type=data_source_train_config.model_type,
+        input_variables=data_source_train_config.input_variables,
+        output_variables=data_source_train_config.output_variables,
+        scaler_type=data_source_train_config.scaler_type,
+        scaler_kwargs=data_source_train_config.scaler_kwargs,
+        **data_source_train_config.hyperparameters,
+    )
     wrapper.fit(training_batches)
     assert wrapper.model.n_estimators == 2
 
