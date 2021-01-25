@@ -19,8 +19,6 @@ jobs:
         environment:
           GOOGLE_APPLICATION_CREDENTIALS: /etc/key.json
     steps:
-      - gcp-cli/install:
-        version: 323.0.0
       - checkout
       - add_ssh_keys:
           fingerprints:
@@ -111,6 +109,8 @@ jobs:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       IMAGE: <<parameters.image>>
     steps:
+      - gcp-cli/install:
+        version: 323.0.0
       - checkout
       - add_ssh_keys:
           fingerprints:
