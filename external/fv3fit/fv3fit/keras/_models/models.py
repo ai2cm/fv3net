@@ -175,13 +175,7 @@ class PackedKerasModel(Estimator):
             self._model = self.get_model(n_features_in, n_features_out)
 
         validation_data: Optional[Tuple[np.ndarray, np.ndarray]]
-        if validation_dataset is not None:
-            X_val = self.X_packer.to_array(validation_dataset)
-            y_val = self.y_packer.to_array(validation_dataset)
-            val_sample = np.random.choice(
-                np.arange(len(y_val)), validation_samples, replace=False
-            )
-            validation_data = X_val[val_sample], y_val[val_sample]
+
 
         if use_last_batch_to_validate:
             if validation_dataset is not None:
@@ -197,6 +191,13 @@ class PackedKerasModel(Estimator):
             y_val = y_val[val_sample, :]
             validation_data = (X_val, y_val)
             Xy = Take(Xy, len(Xy) - 1)
+        elif validation_dataset is not None:
+            X_val = self.X_packer.to_array(validation_dataset)
+            y_val = self.y_packer.to_array(validation_dataset)
+            val_sample = np.random.choice(
+                np.arange(len(y_val)), validation_samples, replace=False
+            )
+            validation_data = X_val[val_sample], y_val[val_sample]
         else:
             validation_data = None
 
