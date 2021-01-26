@@ -50,9 +50,13 @@ ENTRYPOINT [ "/bin/bash"]
 FROM build AS test
 COPY docker/fv3net/test_environment.py /tmp/test_environment.py
 RUN pytest -vv /tmp/test_environment.py
+RUN touch /tmp/tests-done
 
 # empty stage for final output
 FROM build
 
 ARG COMMIT_SHA_ARG
 ENV COMMIT_SHA=$COMMIT_SHA_ARG
+
+# add explicit copy to ensure that tests run
+COPY --from=test /tmp/tests-done /tmp
