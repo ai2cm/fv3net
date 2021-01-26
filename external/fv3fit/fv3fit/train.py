@@ -16,11 +16,14 @@ from ._shared import (
 )
 from .keras._training import get_regularizer, get_optimizer, set_random_seed
 from .keras._validation_data import validation_dataset
-import fv3fit.keras._models as keras_models
+import fv3fit.keras
+import fv3fit.sklearn
 
 
 KERAS_CHECKPOINT_PATH = "model_checkpoints"
-KERAS_MODEL_TYPES = [m[0] for m in inspect.getmembers(keras_models, inspect.isclass)]
+KERAS_MODEL_TYPES = [
+    m[0] for m in inspect.getmembers(fv3fit.keras._models, inspect.isclass)
+]
 SKLEARN_MODEL_TYPES = ["sklearn", "rf", "random_forest", "sklearn_random_forest"]
 ROUTINE_LOOKUP = {
     **{model: "keras" for model in KERAS_MODEL_TYPES},
@@ -64,9 +67,7 @@ def parse_args():
 def _get_model(config: ModelTrainingConfig) -> Estimator:
     routine = ROUTINE_LOOKUP[config.model_type]
     if routine == "sklearn":
-        from fv3fit.sklearn import get_model
-
-        return get_model(
+        return fv3fit.sklearn.get_model(
             model_type=config.model_type,
             input_variables=config.input_variables,
             output_variables=config.output_variables,
@@ -75,15 +76,13 @@ def _get_model(config: ModelTrainingConfig) -> Estimator:
             **config.hyperparameters,
         )
     elif routine == "keras":
-        from fv3fit.keras import get_model  # type: ignore
-
         fit_kwargs = _keras_fit_kwargs(config)
         checkpoint_path = (
             os.path.join(args.output_data_path, KERAS_CHECKPOINT_PATH)
             if config.save_model_checkpoints
             else None
         )
-        return get_model(
+        return fv3fit.keras.get_model(
             model_type=config.model_type,
             sample_dim_name=loaders.SAMPLE_DIM_NAME,
             input_variables=config.input_variables,
