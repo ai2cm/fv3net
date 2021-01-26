@@ -12,6 +12,7 @@ then
 fi
 
 sudo apt-get install -y make jq
+# fv3net needs root to handle building from notebook image correctly
 if [[ "$IMAGE" == "fv3net" ]]
 then
     sudo -E make build_image_$IMAGE
