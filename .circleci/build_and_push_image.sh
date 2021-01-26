@@ -12,7 +12,7 @@ then
 fi
 
 sudo apt-get install -y make jq
-if [[ "$IMAGE" == "fv3net"]]
+if [[ "$IMAGE" == "fv3net" ]]
 then
     sudo -E make build_image_$IMAGE
 else
