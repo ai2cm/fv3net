@@ -1,8 +1,8 @@
-FROM jupyter/base-notebook as build
+FROM python:3.7.8-stretch as build
 
 
 # Install dependencies (slow)
-USER root
+# USER root
 
 # install gcloud
 RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext
@@ -20,7 +20,8 @@ RUN chmod +x /usr/local/bin/argo
 # install gcloud sdk
 RUN gcloud config set project vcm-ml
 
-ENV FV3NET=/home/$NB_USER/fv3net
+# ENV FV3NET=/home/$NB_USER/fv3net
+ENV FV3NET=/fv3net
 ENV ENVIRONMENT_SCRIPTS=$FV3NET/environment-scripts
 ENV PROJECT_NAME=fv3net
 
@@ -42,8 +43,8 @@ RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME
 
 # delete any gsutil's installed by conda
 RUN rm -f /opt/conda/envs/$PROJECT_NAME/bin/gsutil
-RUN fix-permissions /home/jovyan/
-USER $NB_UID
+# RUN fix-permissions /home/jovyan/
+# USER $NB_UID
 ENTRYPOINT [ "/bin/bash"]
 
 # new stage for testing
