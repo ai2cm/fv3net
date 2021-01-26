@@ -101,22 +101,45 @@ class TimeContainer:
 class IntervalAveragedTimes(TimeContainer):
     frequency: datetime.timedelta
     initial_time: cftime.DatetimeJulian
+    includes_lower: bool = False
+
+    def _is_endpoint(self, time: cftime.DatetimeJulian) -> bool:
+        remainder = (time - self.initial_time) % self.frequency
+        return remainder == datetime.timedelta(0)
 
     def indicator(self, time: cftime.DatetimeJulian) -> Optional[cftime.DatetimeJulian]:
         n = (time - self.initial_time) // self.frequency
+
+        if self._is_endpoint(time) and not self.includes_lower:
+            n = n - 1
+
         return n * self.frequency + self.frequency / 2 + self.initial_time
 
 
 @dataclasses.dataclass
 class TimeConfig:
-    """
-    Attrs:
+    """Configuration for output times
+
+    This class configures the time coordinate of the output diagnostics. It
+    allows output data at a user-specified list of snapshots
+    (``kind='selected'``), fixed intervals (``kind='interval'``), averages
+    over intervals (``kind='interval-average'``), or every single time step
+    (``kind='every'``).
+
+    Attributes:
         kind: one of interval, every, "interval-average", or "selected"
+        times: List of times to be used when kind=="selected". The times
+            should be formatted as YYYYMMDD.HHMMSS strings. Example:
+            ``["20160101.000000"]``.
+        frequency: frequency in seconds, used for kind=interval-average or interval
+        includes_lower: for interval-average, whether the interval includes its upper
+            or lower limit. Default: False.
     """
 
     frequency: Optional[float] = None
     times: Optional[List[str]] = None
     kind: str = "every"
+    includes_lower: bool = False
 
     def time_container(self, initial_time: cftime.DatetimeJulian) -> TimeContainer:
         if self.kind == "interval" and self.frequency:
@@ -127,7 +150,9 @@ class TimeConfig:
             return TimeContainer(All())
         elif self.kind == "interval-average" and self.frequency:
             return IntervalAveragedTimes(
-                datetime.timedelta(seconds=self.frequency), initial_time,
+                datetime.timedelta(seconds=self.frequency),
+                initial_time,
+                self.includes_lower,
             )
         else:
             raise NotImplementedError(f"Time {self.kind} not implemented.")
@@ -135,11 +160,14 @@ class TimeConfig:
 
 @dataclasses.dataclass
 class DiagnosticFileConfig:
-    """
-    Attrs:
-        name: file name of a zarr to store the data in, e.g., 'diags.zarr'
-        variables: a container of variables to save
-        times (optional): a container for times to output
+    """Configurations for zarr Diagnostic Files
+
+    Attributes:
+        name: filename of a zarr to store the data in, e.g., 'diags.zarr'.
+            Paths are relative to the run-directory root.
+        variables: the variables to save. By default all available diagnostics
+            are stored. Example: ``["air_temperature", "cos_zenith_angle"]``.
+        times: the time configuration
     """
 
     name: str
