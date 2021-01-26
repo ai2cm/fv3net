@@ -1,5 +1,7 @@
 FROM jupyter/base-notebook as build
 
+# Manually increment this string to invalidate the cache
+ENV MANUAL_CACHE_STRING 1
 
 # Install dependencies (slow)
 USER root
