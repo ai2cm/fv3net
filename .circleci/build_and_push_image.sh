@@ -12,7 +12,12 @@ then
 fi
 
 sudo apt-get install -y make jq
-sudo -E make build_image_$IMAGE
+if [[ "$IMAGE" == "fv3net"]]
+then
+    sudo -E make build_image_$IMAGE
+else
+    make build_image_$IMAGE
+fi
 
 
 if [[ "$CIRCLE_BRANCH" == "master" ]]
