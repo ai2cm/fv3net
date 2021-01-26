@@ -14,7 +14,7 @@ PYTHON_INTERPRETER = python3
 DATA = data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr.dvc
 IMAGE = fv3net
 
-CACHE_TAG =latest
+CACHE_TAG =06595c5efda983e1a696384c7fbc21ad621288a9
 
 IMAGES = fv3net fv3fit post_process_run prognostic_run
 
