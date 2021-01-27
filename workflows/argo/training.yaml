@@ -55,9 +55,7 @@ spec:
 
             echo "Configuration:"
             cat config.yaml
-            
-            echo {{inputs.parameters.routine}}
-    
+                
             python -m fv3fit.train
               {{inputs.parameters.input}} \
               config.yaml \
