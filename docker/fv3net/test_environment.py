@@ -17,3 +17,7 @@ def test_touch_config_file():
     google_config = "/home/jovyan/.config/gcloud/test_write_file"
     with open(google_config, "w") as f:
         f.write("Hello")
+
+
+def test_fv3net_is_not_empty():
+    os.path.isdir("/home/jovyan/fv3net/external")
