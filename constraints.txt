@@ -165,7 +165,7 @@ filelock==3.0.12
     #   virtualenv
 flatbuffers==1.12
     # via tensorflow
-fsspec==0.8.0
+fsspec==0.8.5
     # via
     #   -r docker/prognostic_run/requirements.txt
     #   -r external/fv3fit/requirements.txt
