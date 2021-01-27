@@ -1,8 +1,9 @@
-from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Any, List
+from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, List
 from typing_extensions import Literal
 import xarray as xr
 import logging
 import abc
+import json
 import tensorflow as tf
 import tensorflow_addons as tfa
 from ..._shared import ArrayPacker, Estimator, io, unpack_matrix
@@ -42,6 +43,7 @@ class PackedKerasModel(Estimator):
     _Y_SCALER_FILENAME = "y_scaler.npz"
     _OPTIONS_FILENAME = "options.yml"
     _LOSS_OPTIONS = {"mse": get_weighted_mse, "mae": get_weighted_mae}
+    _HISTORY_FILENAME = "training_history.json"
 
     def __init__(
         self,
@@ -54,6 +56,7 @@ class PackedKerasModel(Estimator):
         kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         loss: Literal["mse", "mae"] = "mse",
         checkpoint_path: Optional[str] = None,
+        fit_kwargs: Optional[dict] = None,
     ):
         """Initialize the model.
         
@@ -78,6 +81,8 @@ class PackedKerasModel(Estimator):
             optimizer: algorithm to be used in gradient descent, must subclass
                 tf.keras.optimizers.Optimizer; defaults to tf.keras.optimizers.Adam
             loss: loss function to use. Defaults to mean squared error.
+            fit_kwargs: other keyword arguments to be passed to the underlying
+                tf.keras.Model.fit() method
         """
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
@@ -89,6 +94,7 @@ class PackedKerasModel(Estimator):
         )
         self.X_scaler = LayerStandardScaler()
         self.y_scaler = LayerStandardScaler()
+        self.train_history = {"loss": [], "val_loss": []}  # type: Mapping[str, List]
         if weights is None:
             self.weights: Mapping[str, Union[int, float, np.ndarray]] = {}
         else:
@@ -98,6 +104,7 @@ class PackedKerasModel(Estimator):
         self._loss = loss
         self._kernel_regularizer = kernel_regularizer
         self._checkpoint_path = checkpoint_path
+        self._fit_kwargs = fit_kwargs or {}
 
     @property
     def model(self) -> tf.keras.Model:
@@ -125,17 +132,13 @@ class PackedKerasModel(Estimator):
         self,
         batches: Sequence[xr.Dataset],
         validation_dataset: Optional[xr.Dataset] = None,
-        epochs: int = 1,
+        epochs: Optional[int] = None,
         batch_size: Optional[int] = None,
-        workers: int = 1,
-        max_queue_size: int = 8,
-        validation_samples: int = 13824,
-        **fit_kwargs: Any,
-    ) -> History:
+        workers: Optional[int] = None,
+        max_queue_size: Optional[int] = None,
+        validation_samples: Optional[int] = None,
+    ) -> None:
         """Fits a model using data in the batches sequence
-
-        Returns a History of training loss (and validation loss if applicable).
-        Loss values are saved as a list of values for each epoch.
         
         If batch_size is provided as a kwarg, the list of values is for each batch fit.
         e.g. {"loss":
@@ -147,21 +150,32 @@ class PackedKerasModel(Estimator):
         Args:
             batches: sequence of stacked datasets of predictor variables
             validation_dataset: optional validation dataset
-            epochs: optional number of times through the batches to run when training
+            epochs: optional number of times through the batches to run when training.
+                Defaults to 1.
             batch_size: actual batch_size to apply in gradient descent updates,
                 independent of number of samples in each batch in batches; optional,
                 uses number of samples in each batch if omitted
             workers: number of workers for parallelized loading of batches fed into
                 training, defaults to serial loading (1 worker)
-            max_queue_size: max number of batches to hold in the parallel loading queue
+            max_queue_size: max number of batches to hold in the parallel loading queue.
+                Defaults to 8.
             validation_samples: Option to specify number of samples to randomly draw
                 from the validation dataset, so that we can use multiple timesteps for
                 validation without having to load all the times into memory.
-                Defaults to the equivalent of a single C48 timestep.
-            **fit_kwargs: other keyword arguments to be passed to the underlying
-                tf.keras.Model.fit() method
+                Defaults to the equivalent of a single C48 timestep (13824).
+
         """
-        epochs = epochs if epochs is not None else 1
+        batch_size = batch_size or self._fit_kwargs.pop("batch_size", None)
+        epochs = epochs or self._fit_kwargs.pop("epochs", 1)
+        validation_dataset = validation_dataset or self._fit_kwargs.pop(
+            "validation_dataset", None
+        )
+        workers = workers or self._fit_kwargs.pop("workers", 1)
+        max_queue_size = max_queue_size or self._fit_kwargs.pop("max_queue_size", 8)
+        validation_samples = validation_samples or self._fit_kwargs.pop(
+            "validation_samples", 13824
+        )
+
         Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
 
         if self._model is None:
@@ -184,11 +198,11 @@ class PackedKerasModel(Estimator):
         return self._fit_loop(
             Xy,
             validation_data,
-            epochs,
+            epochs,  # type: ignore
             batch_size,
-            workers=workers,
-            max_queue_size=max_queue_size,
-            **fit_kwargs,
+            workers,  # type: ignore
+            max_queue_size,  # type: ignore
+            **self._fit_kwargs,
         )
 
     def _fit_loop(
@@ -199,16 +213,14 @@ class PackedKerasModel(Estimator):
         batch_size: Optional[int] = None,
         workers: int = 1,
         max_queue_size: int = 8,
-        **fit_kwargs: Any,
-    ) -> History:
+        **fit_kwargs,
+    ) -> None:
 
         if workers > 1:
             Xy = _ThreadedSequencePreLoader(
                 Xy, num_workers=workers, max_queue_size=max_queue_size
             )
-        train_history = {
-            key: [] for key in ["loss", "val_loss"]
-        }  # type: Mapping[str, List]
+
         for i_epoch in range(epochs):
             loss_over_batches, val_loss_over_batches = [], []
             for i_batch, (X, y) in enumerate(Xy):
@@ -224,15 +236,14 @@ class PackedKerasModel(Estimator):
                 )
                 loss_over_batches += history.history["loss"]
                 val_loss_over_batches += history.history.get("val_loss", [np.nan])
-            train_history["loss"].append(loss_over_batches)
-            train_history["val_loss"].append(val_loss_over_batches)
+            self.train_history["loss"].append(loss_over_batches)
+            self.train_history["val_loss"].append(val_loss_over_batches)
             if self._checkpoint_path:
                 self.dump(os.path.join(self._checkpoint_path, f"epoch_{i_epoch}"))
                 logger.info(
                     f"Saved model checkpoint after epoch {i_epoch} "
                     f"to {self._checkpoint_path}"
                 )
-        return train_history
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         sample_coord = X[self.sample_dim_name]
@@ -262,6 +273,8 @@ class PackedKerasModel(Estimator):
                 yaml.safe_dump(
                     {"normalize_loss": self._normalize_loss, "loss": self._loss}, f
                 )
+            with open(os.path.join(path, self._HISTORY_FILENAME), "w") as f:
+                json.dump(self.train_history, f)
 
     @property
     def loss(self):
@@ -298,6 +311,7 @@ class PackedKerasModel(Estimator):
                 y_scaler = LayerStandardScaler.load(f_binary)
             with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
                 options = yaml.safe_load(f)
+
             obj = cls(
                 X_packer.sample_dim_name,
                 X_packer.pack_names,
@@ -313,6 +327,10 @@ class PackedKerasModel(Estimator):
                 obj._model = tf.keras.models.load_model(
                     model_filename, custom_objects={"custom_loss": obj.loss}
                 )
+            history_filename = os.path.join(path, cls._HISTORY_FILENAME)
+            if os.path.exists(history_filename):
+                with open(os.path.join(path, cls._HISTORY_FILENAME), "r") as f:
+                    obj.train_history = json.load(f)
             return obj
 
     def jacobian(self, base_state: Optional[xr.Dataset] = None) -> xr.Dataset:
@@ -365,6 +383,7 @@ class DenseModel(PackedKerasModel):
         loss: Literal["mse", "mae"] = "mse",
         spectral_normalization: bool = False,
         checkpoint_path: Optional[str] = None,
+        fit_kwargs: Optional[dict] = None,
     ):
         """Initialize the DenseModel.
 
@@ -393,6 +412,8 @@ class DenseModel(PackedKerasModel):
             width: number of neurons to use on layers between the input and output
                 layer. Default is 16.
             loss: loss function to use. Defaults to mean squared error.
+            fit_kwargs: other keyword arguments to be passed to the underlying
+                tf.keras.Model.fit() method
         """
         self._depth = depth
         self._width = width
@@ -408,6 +429,7 @@ class DenseModel(PackedKerasModel):
             kernel_regularizer=kernel_regularizer,
             loss=loss,
             checkpoint_path=checkpoint_path,
+            fit_kwargs=fit_kwargs,
         )
 
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
