@@ -170,7 +170,6 @@ def _time_interpolate_func(
                 _average_states(state_0, state_1, weight=(end_time - time) / frequency)
             )
 
-        state["time"] = time
         return state
 
     return myfunc
