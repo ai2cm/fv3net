@@ -44,6 +44,20 @@ push_images: $(addprefix push_image_, $(IMAGES))
 push_image_%: build_image_%
 	docker push $(REGISTRY)/$*:$(VERSION)
 
+
+## Empty rule for deploying docs
+deploy_docs_%: 
+	@echo "Nothing to do."
+
+
+## Deploy documentation for prognostic run to vulcanclimatemodeling.com
+deploy_docs_prognostic_run:
+	mkdir html
+	# use tar to grab docs from inside the docker image and extract them to "./html"
+	docker run us.gcr.io/vcm-ml/prognostic_run tar -C docs/_build/html  -c . | tar -C html -x
+	gsutil -m rsync -R html gs://vulcanclimatemodeling-com-static/docs/prognostic_c48_run
+	rm -rf html
+
 pull_image_%:
 	docker pull $(REGISTRY)/$*:$(VERSION)
 
