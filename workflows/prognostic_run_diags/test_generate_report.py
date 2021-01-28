@@ -112,4 +112,3 @@ def test__fill_missing_variables_with_nans():
     assert set(ds2) == set(ds3)
     assert ds2["var2"].shape == ds1["var2"].shape
     xr.testing.assert_identical(ds1, ds1_copy)
-
