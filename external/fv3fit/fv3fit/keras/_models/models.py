@@ -179,11 +179,6 @@ class PackedKerasModel(Estimator):
             use_last_batch_to_validate, "use_last_batch_to_validate", False
         )
         fit_loop_kwargs = copy.copy(self._fit_kwargs)
-        validation_samples = (
-            validation_samples
-            if validation_samples is not None
-            else fit_loop_kwargs.pop("validation_samples", 13824)
-        )
 
         Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
 
@@ -194,6 +189,16 @@ class PackedKerasModel(Estimator):
             self._model = self.get_model(n_features_in, n_features_out)
 
         validation_data: Optional[Tuple[np.ndarray, np.ndarray]]
+        validation_dataset = (
+            validation_dataset
+            if validation_dataset is not None
+            else fit_loop_kwargs.pop("validation_dataset", None)
+        )
+        validation_samples = (
+            validation_samples
+            if validation_samples is not None
+            else fit_loop_kwargs.pop("validation_samples", 13824)
+        )
 
         if use_last_batch_to_validate:
             if validation_dataset is not None:
