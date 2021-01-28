@@ -5,7 +5,6 @@ import xarray as xr
 import numpy as np
 import tensorflow as tf
 from typing import Sequence, Tuple, List, Any
-import random
 
 from ..._shared import ArrayPacker
 
