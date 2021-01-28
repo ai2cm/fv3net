@@ -266,7 +266,6 @@ class MLStepper(Stepper, LoggingMixin):
 
         self._log_debug("Computing ML-predicted tendencies")
         tendency: State = predict(self._model, state)
-        logger.info([key for key in tendency])
 
         if "dQ1" in tendency and "dQ2" in tendency:
             self._log_debug(
@@ -284,8 +283,6 @@ class MLStepper(Stepper, LoggingMixin):
                 )
             }
             tendency.update({"dQ1": dQ1_updated, "dQ2": dQ2_updated})
-
-        logger.info([key for key in tendency])
 
         self._tendencies_to_apply_to_dycore_state = {
             k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]
