@@ -114,7 +114,7 @@ msgpack==1.0.0
 multidict==5.1.0
 mypy-extensions==0.4.3
 nc-time-axis==1.2.0
-netcdf4==1.5.3
+netcdf4==1.5.5
 networkx==2.5
 nose==1.3.7
 numba==0.50.1
