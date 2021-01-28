@@ -13,7 +13,7 @@ from ._filesystem import get_dir, put_dir
 from ._sequences import _XyArraySequence, _ThreadedSequencePreLoader
 from .normalizer import LayerStandardScaler
 from .loss import get_weighted_mse, get_weighted_mae
-from loaders.batches import Take
+from loaders.batches import Take, shuffle
 import yaml
 
 logger = logging.getLogger(__file__)
@@ -243,11 +243,12 @@ class PackedKerasModel(Estimator):
         **fit_kwargs,
     ) -> None:
 
-        if workers > 1:
-            Xy = _ThreadedSequencePreLoader(
-                Xy, num_workers=workers, max_queue_size=max_queue_size
-            )
         for i_epoch in range(epochs):
+            Xy = shuffle(Xy)
+            if workers > 1:
+                Xy = _ThreadedSequencePreLoader(
+                    Xy, num_workers=workers, max_queue_size=max_queue_size
+                )
             loss_over_batches, val_loss_over_batches = [], []
             for i_batch, (X, y) in enumerate(Xy):
                 logger.info(

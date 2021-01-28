@@ -72,9 +72,7 @@ class _ThreadedSequencePreLoader(tf.keras.utils.Sequence):
     def __iter__(self):
 
         init_q = queue.Queue()
-        batch_indices = list(range(len(self)))
-        random.shuffle(batch_indices)
-        for idx in batch_indices:
+        for idx in list(range(len(self))):
             init_q.put(idx)
 
         event = threading.Event()

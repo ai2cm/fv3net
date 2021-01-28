@@ -7,4 +7,4 @@ from ._batch import (
     batches_from_local,
 )
 
-from ._sequences import Local, Take
+from ._sequences import Local, Take, shuffle
