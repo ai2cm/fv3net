@@ -8,6 +8,7 @@ import runtime
 import xarray as xr
 
 import fv3fit
+import vcm
 from runtime.names import (
     AREA,
     DELP,
@@ -26,6 +27,8 @@ __all__ = ["MachineLearningConfig", "MLStepper", "open_model"]
 logger = logging.getLogger(__name__)
 
 NameDict = Mapping[Hashable, Hashable]
+
+gravity = 9.81
 
 
 @dataclasses.dataclass
@@ -61,8 +64,8 @@ class MachineLearningConfig:
     )
 
 
-def log_updated_tendencies(comm, tendency: State, tendency_updated: State):
-    rank_updated_points = xr.where(tendency["dQ2"] != tendency_updated["dQ2"], 1, 0)
+def log_non_negative_sphum(comm, dQ2_initial: xr.DataArray, dQ2_updated: xr.DataArray):
+    rank_updated_points = xr.where(dQ2_initial != dQ2_updated, 1, 0)
     updated_points = comm.reduce(rank_updated_points, root=0)
     if comm.rank == 0:
         level_updates = {
@@ -72,7 +75,7 @@ def log_updated_tendencies(comm, tendency: State, tendency_updated: State):
         logger.info(f"specific_humidity_limiter_updates_per_level: {level_updates}")
 
 
-def limit_sphum_tendency(
+def non_negative_sphum(
     sphum: xr.DataArray, dQ1: xr.DataArray, dQ2: xr.DataArray, dt: float
 ) -> Tuple[xr.DataArray, xr.DataArray]:
     delta = dQ2 * dt
@@ -80,6 +83,18 @@ def limit_sphum_tendency(
     dQ1_updated = xr.where(sphum + delta > 0, dQ1, reduction_ratio * dQ1)
     dQ2_updated = xr.where(sphum + delta > 0, dQ2, reduction_ratio * dQ2)
     return dQ1_updated, dQ2_updated
+
+
+def integrated_moistening_change(
+    dQ2_initial: xr.DataArray,
+    dQ2_updated: xr.DataArray,
+    delp: xr.DataArray,
+    vertical_dim: str = "z",
+) -> xr.DataArray:
+    integrated_moistening_change = vcm.mass_integrate(
+        dQ2_updated - dQ2_initial, delp, dim="z"
+    )
+    return integrated_moistening_change
 
 
 def _invert_dict(d: Mapping) -> Mapping:
@@ -251,31 +266,31 @@ class MLStepper(Stepper, LoggingMixin):
 
         self._log_debug("Computing ML-predicted tendencies")
         tendency: State = predict(self._model, state)
+        logger.info([key for key in tendency])
 
-        if "dQ2" in tendency:
+        if "dQ1" in tendency and "dQ2" in tendency:
             self._log_debug(
                 "Correcting ML tendencies that would predict negative specific humidity"
             )
-            tendency_updated: State = {
-                name: tendency
-                for name, tendency in zip(
-                    ["dQ1", "dQ2"],
-                    limit_sphum_tendency(
-                        state[SPHUM],
-                        tendency["dQ1"],
-                        tendency["dQ2"],
-                        dt=self._timestep,
-                    ),
+            dQ1_updated, dQ2_updated = non_negative_sphum(
+                state[SPHUM], tendency["dQ1"], tendency["dQ2"], dt=self._timestep
+            )
+            log_non_negative_sphum(self.comm, tendency["dQ2"], dQ2_updated)
+            diagnostics: Diagnostics = {
+                "column_integrated_dQ2_change_non_negative_sphum_limiter": (
+                    integrated_moistening_change(
+                        tendency["dQ2"], dQ2_updated, self._state[DELP]
+                    )
                 )
             }
-            log_updated_tendencies(self.comm, tendency, tendency_updated)
-        else:
-            tendency_updated = tendency
+            tendency.update({"dQ1": dQ1_updated, "dQ2": dQ2_updated})
+
+        logger.info([key for key in tendency])
 
         self._tendencies_to_apply_to_dycore_state = {
-            k: v for k, v in tendency_updated.items() if k in ["dQ1", "dQ2"]
+            k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]
         }
         self._tendencies_to_apply_to_physics_state = {
-            k: v for k, v in tendency_updated.items() if k in ["dQu", "dQv"]
+            k: v for k, v in tendency.items() if k in ["dQu", "dQv"]
         }
-        return {}
+        return diagnostics

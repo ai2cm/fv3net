@@ -1,10 +1,9 @@
 import pytest
 import xarray as xr
-from runtime.steppers.machine_learning import limit_sphum_tendency
+from runtime.steppers.machine_learning import non_negative_sphum
 
 
 sphum = 1.0e-3 * xr.DataArray(data=[1.0, 1.0, 1.0], dims=["x"])  # type: ignore
-# temperature = 273.0*xr.DataArray(data=[1.0, 1.0, 1.0], dims=['x'])
 dQ2 = -1.0e-5 * xr.DataArray(data=[1.0, 1.0, 1.0], dims=["x"])  # type: ignore
 dQ2_mixed = -1.0e-5 * xr.DataArray(data=[1.0, 2.0, 3.0], dims=["x"])  # type: ignore
 dQ1 = 1.0e-2 * xr.DataArray(data=[1.0, 1.0, 1.0], dims=["x"])  # type: ignore
@@ -27,7 +26,7 @@ timestep = 100.0
         ),
     ],
 )
-def test_limit_sphum_tendency(sphum, dQ1, dQ2, dt, dQ1_expected, dQ2_expected):
-    dQ1_updated, dQ2_updated = limit_sphum_tendency(sphum, dQ1, dQ2, dt)
+def test_non_negative_sphum(sphum, dQ1, dQ2, dt, dQ1_expected, dQ2_expected):
+    dQ1_updated, dQ2_updated = non_negative_sphum(sphum, dQ1, dQ2, dt)
     xr.testing.assert_allclose(dQ1_updated, dQ1_expected)
     xr.testing.assert_allclose(dQ2_updated, dQ2_expected)
