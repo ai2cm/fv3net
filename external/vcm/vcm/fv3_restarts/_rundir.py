@@ -147,6 +147,7 @@ def _get_namelist_path(fs, url):
         for file in files:
             if _is_namelist_file(file):
                 return os.path.join(root, file)
+    raise ValueError(f"namelist not found in {url}")
 
 
 def _is_namelist_file(file):

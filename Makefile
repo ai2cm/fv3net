@@ -90,17 +90,17 @@ test_prognostic_run_report:
 	bash workflows/prognostic_run_diags/test_integration.sh
 
 
-test_fv3kube:
-	cd external/fv3kube && tox
+test_%:
+	cd external/$* && tox
 
-test_unit: test_fv3kube
-	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+test_unit: test_fv3kube test_loaders test_vcm
+	tox -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
 
 test_regression:
-	coverage run -m pytest -vv -m regression -s
+	tox -- -vv -m regression -s
 
 test_dataflow:
-	coverage run -m pytest -vv workflows/dataflow/tests/integration -s
+	tox -- -vv workflows/dataflow/tests/integration -s
 
 coverage_report:
 	coverage report -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3gfs-util/**.py','external/fv3gfs-wrapper/**.py','external/fv3gfs-fortran/**.py'
@@ -138,7 +138,7 @@ lock_deps: lock_pip
 
 .PHONY: lock_pip
 lock_pip:
-	pip-compile pip-requirements.txt external/fv3fit/requirements.txt workflows/post_process_run/requirements.txt docker/**/requirements.txt --output-file constraints.txt
+	pip-compile pip-requirements.txt external/vcm/setup.py external/fv3fit/requirements.txt workflows/post_process_run/requirements.txt docker/**/requirements.txt --output-file constraints.txt
 
 install_local_packages:
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
