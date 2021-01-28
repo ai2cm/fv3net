@@ -17,13 +17,13 @@ timestep = 100.0
     ["sphum", "dQ1", "dQ2", "dt", "dQ1_expected", "dQ2_expected"],
     [
         pytest.param(sphum, dQ1, dQ2, timestep, dQ1, dQ2, id="no_limiting"),
-        #         pytest.param(
-        #         sphum, dQ1, 2.0 * dQ2, timestep, dQ1 / 2.0, dQ2, id="dQ2_2x_too_big"
-        #         ),
-        # pytest.param(sphum, dQ1, dQ2_mixed, timestep, dQ1_reduced, dQ2, id="dQ2_mixed"
-        #         pytest.param(
-        #     sphum, dQ1, dQ2, 2.0 * timestep, dQ1 / 2.0, dQ2 / 2.0, id="timestep_2x"
-        #         ),
+        pytest.param(
+            sphum, dQ1, 2.0 * dQ2, timestep, dQ1 / 2.0, dQ2, id="dQ2_2x_too_big"
+        ),
+        pytest.param(sphum, dQ1, dQ2_mixed, timestep, dQ1_reduced, dQ2, id="dQ2_mixed"),
+        pytest.param(
+            sphum, dQ1, dQ2, 2.0 * timestep, dQ1 / 2.0, dQ2 / 2.0, id="timestep_2x"
+        ),
     ],
 )
 def test_non_negative_sphum(sphum, dQ1, dQ2, dt, dQ1_expected, dQ2_expected):
