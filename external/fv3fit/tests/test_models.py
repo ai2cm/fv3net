@@ -42,3 +42,56 @@ def test_PackedKerasModel_jacobian(base_state):
 
     assert jacobian[("a", "b")].dims == ("b", "a")
     np.testing.assert_allclose(np.asarray(jacobian[("a", "b")]), np.eye(5))
+
+
+@pytest.mark.parametrize(
+    "args, kwargs, expected",
+    [
+        (
+            [],
+            {},
+            {
+                "batch_size": None,
+                "epochs": 1,
+                "workers": 1,
+                "max_queue_size": 8,
+                "validation_samples": 13824,
+                "use_last_batch_to_validate": False,
+            },
+        ),
+        (
+            [1, None, 3],
+            {"validation_samples": 1000},
+            {
+                "epochs": 1,
+                "batch_size": None,
+                "workers": 3,
+                "max_queue_size": 8,
+                "validation_samples": 1000,
+                "use_last_batch_to_validate": False,
+            },
+        ),
+        ([1, None, 3], {"epochs": 2}, None),
+    ],
+)
+def test_fill_fit_kwargs_default(args, kwargs, expected):
+    class IdentityModel(PackedKerasModel):
+        def get_model(self, n, m):
+            x = tensorflow.keras.Input(shape=[n])
+            model = tensorflow.keras.Model(inputs=[x], outputs=[x])
+            model.compile()
+            return model
+
+    batch = xr.Dataset(
+        {
+            "a": (["x", "z"], np.arange(10).reshape(2, 5)),
+            "b": (["x", "z"], np.arange(10).reshape(2, 5)),
+        }
+    )
+    model = IdentityModel("x", ["a"], ["b"], fit_kwargs=kwargs)
+    if expected:
+        model.fit([batch], None, *args)
+        assert model._fit_kwargs == expected
+    else:
+        with pytest.raises(ValueError):
+            model.fit([batch], None, *args)
