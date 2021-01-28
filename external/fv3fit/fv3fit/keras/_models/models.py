@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, List
+from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, List, Any
 from typing_extensions import Literal
 import xarray as xr
 import logging
@@ -166,20 +166,23 @@ class PackedKerasModel(Estimator):
                 validation without having to load all the times into memory.
                 Defaults to the equivalent of a single C48 timestep (13824).
             use_last_batch_to_validate: if True, use the last batch as a validation
-                dataset, cannot be used with a non-None value for validation_dataset
+                dataset, cannot be used with a non-None value for validation_dataset.
+                Defaults to False.
         """
-        batch_size = batch_size or self._fit_kwargs.pop("batch_size", None)
-        epochs = epochs or self._fit_kwargs.pop("epochs", 1)
-        validation_dataset = validation_dataset or self._fit_kwargs.pop(
-            "validation_dataset", None
+        batch_size = self._fill_fit_kwarg_default(batch_size, "batch_size", None)
+        epochs = self._fill_fit_kwarg_default(epochs, "epochs", 1)
+        validation_dataset = self._fill_fit_kwarg_default(
+            validation_dataset, "validation_dataset", None
         )
-        workers = workers or self._fit_kwargs.pop("workers", 1)
-        max_queue_size = max_queue_size or self._fit_kwargs.pop("max_queue_size", 8)
-        validation_samples = validation_samples or self._fit_kwargs.pop(
-            "validation_samples", 13824
+        workers = self._fill_fit_kwarg_default(workers, "workers", 1)
+        max_queue_size = self._fill_fit_kwarg_default(
+            max_queue_size, "max_queue_size", 8
         )
-        use_last_batch_to_validate = use_last_batch_to_validate or self._fit_kwargs.pop(
-            "use_last_batch_to_validate", False
+        validation_samples = self._fill_fit_kwarg_default(
+            validation_samples, "validation_samples", 13824
+        )
+        use_last_batch_to_validate = self._fill_fit_kwarg_default(
+            use_last_batch_to_validate, "use_last_batch_to_validate", False
         )
 
         Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
@@ -385,6 +388,12 @@ class PackedKerasModel(Estimator):
 
         J = g.jacobian(y, mean_tf)[0, :, 0, :].numpy()
         return unpack_matrix(self.X_packer, self.y_packer, J)
+
+    def _fill_fit_kwarg_default(self, arg: Optional[Any], key: str, default: Any):
+        if arg is None:
+            return self._fit_kwargs.pop(key, default)
+        else:
+            return arg
 
 
 @io.register("packed-keras")
