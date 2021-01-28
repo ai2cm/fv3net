@@ -201,7 +201,7 @@ class PackedKerasModel(Estimator):
                     "cannot provide validation_dataset when "
                     "use_first_batch_to_validate is True"
                 )
-            X_val, y_val = Xy[len(Xy) - 1]
+            X_val, y_val = Xy[-1]
             val_sample = np.random.choice(
                 np.arange(X_val.shape[0]), validation_samples, replace=False
             )
