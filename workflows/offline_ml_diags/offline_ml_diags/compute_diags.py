@@ -55,6 +55,8 @@ DATASET_DIM_NAME = "dataset"
 DIAGNOSTIC_VARS = ("dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2")
 METRIC_VARS = ("dQ1", "dQ2", "Q1", "Q2")
 
+JACOBIAN_SAMPLE = {"tile": 3, "x": 24, "y": 24, "derivation": 0}
+
 
 def _create_arg_parser() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -324,17 +326,18 @@ if __name__ == "__main__":
     ds_diagnostics["time"] = times_used
     ds_diurnal["time"] = times_used
 
-    # save jacobian
-    try:
-        plot_jacobian(model, args.output_path)  # type: ignore
-    except AttributeError:
-        pass
-
     # compute transected and zonal diags
     snapshot_time = args.snapshot_time or sorted(timesteps)[0]
     snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
     ds_snapshot = pred_mapper[snapshot_key]
     ds_transect = _get_transect(ds_snapshot, grid, config["output_variables"])
+
+    # save jacobian
+    try:
+        sample_column = ds_snapshot.isel(JACOBIAN_SAMPLE)
+        plot_jacobian(model, args.output_path, sample_column)  # type: ignore
+    except AttributeError as e:
+        logger.error(f"Could not save Jacobian plots: {e}")
 
     # write diags and diurnal datasets
     _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
