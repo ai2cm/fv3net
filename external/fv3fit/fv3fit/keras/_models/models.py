@@ -171,25 +171,16 @@ class PackedKerasModel(Estimator):
                 Defaults to False.
         """
 
-        fit_loop_kwargs = copy.copy(self._fit_kwargs)
-        fit_loop_kwargs = _fill_fit_kwarg_default(
-            fit_loop_kwargs, batch_size, "batch_size", None
+        fit_kwargs = copy.copy(self._fit_kwargs)
+        fit_kwargs = _fill_default(fit_kwargs, batch_size, "batch_size", None)
+        fit_kwargs = _fill_default(fit_kwargs, epochs, "epochs", 1)
+        fit_kwargs = _fill_default(fit_kwargs, workers, "workers", 1)
+        fit_kwargs = _fill_default(fit_kwargs, max_queue_size, "max_queue_size", 8)
+        fit_kwargs = _fill_default(
+            fit_kwargs, validation_samples, "validation_samples", 13824
         )
-        fit_loop_kwargs = _fill_fit_kwarg_default(fit_loop_kwargs, epochs, "epochs", 1)
-        fit_loop_kwargs = _fill_fit_kwarg_default(
-            fit_loop_kwargs, workers, "workers", 1
-        )
-        fit_loop_kwargs = _fill_fit_kwarg_default(
-            fit_loop_kwargs, max_queue_size, "max_queue_size", 8
-        )
-        fit_loop_kwargs = _fill_fit_kwarg_default(
-            fit_loop_kwargs, validation_samples, "validation_samples", 13824
-        )
-        fit_loop_kwargs = _fill_fit_kwarg_default(
-            fit_loop_kwargs,
-            use_last_batch_to_validate,
-            "use_last_batch_to_validate",
-            False,
+        fit_kwargs = _fill_default(
+            fit_kwargs, use_last_batch_to_validate, "use_last_batch_to_validate", False
         )
 
         Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
@@ -204,12 +195,12 @@ class PackedKerasModel(Estimator):
         validation_dataset = (
             validation_dataset
             if validation_dataset is not None
-            else fit_loop_kwargs.pop("validation_dataset", None)
+            else fit_kwargs.pop("validation_dataset", None)
         )
         validation_samples = (
             validation_samples
             if validation_samples is not None
-            else fit_loop_kwargs.pop("validation_samples", 13824)
+            else fit_kwargs.pop("validation_samples", 13824)
         )
 
         if use_last_batch_to_validate:
@@ -236,7 +227,7 @@ class PackedKerasModel(Estimator):
         else:
             validation_data = None
 
-        return self._fit_loop(Xy, validation_data, **fit_loop_kwargs,)
+        return self._fit_loop(Xy, validation_data, **fit_kwargs,)
 
     def _fit_loop(
         self,
@@ -493,7 +484,7 @@ class DenseModel(PackedKerasModel):
         return model
 
 
-def _fill_fit_kwarg_default(kwargs: dict, arg: Optional[Any], key: str, default: Any):
+def _fill_default(kwargs: dict, arg: Optional[Any], key: str, default: Any):
     if key not in kwargs:
         if arg is None:
             kwargs[key] = default

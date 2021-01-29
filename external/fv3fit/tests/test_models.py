@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from fv3fit.keras._models._sequences import _ThreadedSequencePreLoader
-from fv3fit.keras._models.models import PackedKerasModel, _fill_fit_kwarg_default
+from fv3fit.keras._models.models import PackedKerasModel, _fill_default
 import tensorflow.keras
 
 
@@ -52,9 +52,9 @@ def test_PackedKerasModel_jacobian(base_state):
         ({"kwarg0": 1}, 0, "kwarg0", 0, None),
     ],
 )
-def test_fill_fit_kwarg_default(kwargs, arg, key, default, expected):
+def test_fill_default(kwargs, arg, key, default, expected):
     if expected is None:
         with pytest.raises(ValueError):
-            _fill_fit_kwarg_default(kwargs, arg, key, default)
+            _fill_default(kwargs, arg, key, default)
     else:
-        assert _fill_fit_kwarg_default(kwargs, arg, key, default) == expected
+        assert _fill_default(kwargs, arg, key, default) == expected
