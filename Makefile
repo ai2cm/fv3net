@@ -89,11 +89,10 @@ test_prognostic_run:
 test_prognostic_run_report:
 	bash workflows/prognostic_run_diags/test_integration.sh
 
+test_%:
+	cd external/$* && tox
 
-test_fv3kube:
-	cd external/fv3kube && tox
-
-test_unit: test_fv3kube
+test_unit: test_fv3kube test_vcm
 	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
 
 test_regression:
@@ -138,7 +137,14 @@ lock_deps: lock_pip
 
 .PHONY: lock_pip
 lock_pip:
-	pip-compile pip-requirements.txt external/fv3fit/requirements.txt workflows/post_process_run/requirements.txt docker/**/requirements.txt --output-file constraints.txt
+	pip-compile  \
+	--no-annotate \
+	external/vcm/setup.py \
+	pip-requirements.txt \
+	external/fv3fit/requirements.txt \
+	workflows/post_process_run/requirements.txt \
+	docker/**/requirements.txt \
+	--output-file constraints.txt
 
 install_local_packages:
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
