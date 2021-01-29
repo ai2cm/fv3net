@@ -1,18 +1,23 @@
 import fsspec
 import matplotlib.pyplot as plt
-from typing import Tuple
+from typing import Tuple, Optional
 import numpy as np
 import os
 import fv3fit.keras._models
 import logging
+import xarray as xr
 
 
 MATRIX_NAME = "jacobian_matrices.png"
 LINE_NAME = "jacobian_lines.png"
 
 
-def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
-    jacobian_dict = model.jacobian()
+def plot_jacobian(
+    model: fv3fit.keras._models.DenseModel,
+    output_dir: str,
+    sample: Optional[xr.Dataset] = None,
+):
+    jacobian_dict = model.jacobian(sample)
 
     data_vars: Tuple[str, str] = jacobian_dict.data_vars  # type: ignore
 
