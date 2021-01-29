@@ -170,19 +170,26 @@ class PackedKerasModel(Estimator):
                 dataset, cannot be used with a non-None value for validation_dataset.
                 Defaults to False.
         """
-        self._fill_fit_kwarg_default(batch_size, "batch_size", None)
-        self._fill_fit_kwarg_default(epochs, "epochs", 1)
-        self._fill_fit_kwarg_default(workers, "workers", 1)
-        self._fill_fit_kwarg_default(max_queue_size, "max_queue_size", 8)
-        self._fill_fit_kwarg_default(validation_samples, "validation_samples", 13824)
-        self._fill_fit_kwarg_default(
-            use_last_batch_to_validate, "use_last_batch_to_validate", False
-        )
+
         fit_loop_kwargs = copy.copy(self._fit_kwargs)
-        validation_samples = (
-            validation_samples
-            if validation_samples is not None
-            else fit_loop_kwargs.pop("validation_samples", 13824)
+        fit_loop_kwargs = _fill_fit_kwarg_default(
+            fit_loop_kwargs, batch_size, "batch_size", None
+        )
+        fit_loop_kwargs = _fill_fit_kwarg_default(fit_loop_kwargs, epochs, "epochs", 1)
+        fit_loop_kwargs = _fill_fit_kwarg_default(
+            fit_loop_kwargs, workers, "workers", 1
+        )
+        fit_loop_kwargs = _fill_fit_kwarg_default(
+            fit_loop_kwargs, max_queue_size, "max_queue_size", 8
+        )
+        fit_loop_kwargs = _fill_fit_kwarg_default(
+            fit_loop_kwargs, validation_samples, "validation_samples", 13824
+        )
+        fit_loop_kwargs = _fill_fit_kwarg_default(
+            fit_loop_kwargs,
+            use_last_batch_to_validate,
+            "use_last_batch_to_validate",
+            False,
         )
 
         Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
@@ -194,6 +201,16 @@ class PackedKerasModel(Estimator):
             self._model = self.get_model(n_features_in, n_features_out)
 
         validation_data: Optional[Tuple[np.ndarray, np.ndarray]]
+        validation_dataset = (
+            validation_dataset
+            if validation_dataset is not None
+            else fit_loop_kwargs.pop("validation_dataset", None)
+        )
+        validation_samples = (
+            validation_samples
+            if validation_samples is not None
+            else fit_loop_kwargs.pop("validation_samples", 13824)
+        )
 
         if use_last_batch_to_validate:
             if validation_dataset is not None:
@@ -381,19 +398,6 @@ class PackedKerasModel(Estimator):
         J = g.jacobian(y, mean_tf)[0, :, 0, :].numpy()
         return unpack_matrix(self.X_packer, self.y_packer, J)
 
-    def _fill_fit_kwarg_default(self, arg: Optional[Any], key: str, default: Any):
-        if key not in self._fit_kwargs:
-            if arg is None:
-                self._fit_kwargs[key] = default
-            else:
-                self._fit_kwargs[key] = arg
-        else:
-            if arg is not None and arg != self._fit_kwargs[key]:
-                raise ValueError(
-                    f"Different values for fit kwarg {key} were provided in both "
-                    "fit args and fit_kwargs dict."
-                )
-
 
 @io.register("packed-keras")
 class DenseModel(PackedKerasModel):
@@ -487,3 +491,18 @@ class DenseModel(PackedKerasModel):
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
         model.compile(optimizer=self._optimizer, loss=self.loss)
         return model
+
+
+def _fill_fit_kwarg_default(kwargs: dict, arg: Optional[Any], key: str, default: Any):
+    if key not in kwargs:
+        if arg is None:
+            kwargs[key] = default
+        else:
+            kwargs[key] = arg
+    else:
+        if arg is not None and arg != kwargs[key]:
+            raise ValueError(
+                f"Different values for fit kwarg {key} were provided in both "
+                "fit args and fit_kwargs dict."
+            )
+    return kwargs
