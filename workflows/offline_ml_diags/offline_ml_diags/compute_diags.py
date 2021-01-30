@@ -59,11 +59,7 @@ METRIC_VARS = ("dQ1", "dQ2", "Q1", "Q2")
 def _create_arg_parser() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("data_path", nargs="*", type=str, help="Location of test data")
-    parser.add_argument(
-        "config_yml",
-        type=str,
-        help=("Config file with dataset and variable specifications"),
-    )
+
     parser.add_argument(
         "model_path", type=str, help=("Local or remote path for reading ML model."),
     )
@@ -71,6 +67,15 @@ def _create_arg_parser() -> argparse.Namespace:
         "output_path",
         type=str,
         help=("Local or remote path where diagnostic dataset will be written."),
+    )
+    parser.add_argument(
+        "--config_yml",
+        type=str,
+        default=None,
+        help=(
+            "Config file with dataset and variable specifications. If not provided, "
+            "will use config saved in model_path dir."
+        ),
     )
     parser.add_argument(
         "--timesteps-file",
@@ -269,7 +274,13 @@ if __name__ == "__main__":
     logger.info("Starting diagnostics routine.")
     args = _create_arg_parser()
 
-    with fsspec.open(args.config_yml, "r") as f:
+    config_path = (
+        args.config_yml
+        if args.config_yml
+        else os.path.join(args.model_path, "training_config.yml")
+    )
+
+    with fsspec.open(config_path, "r") as f:
         config = yaml.safe_load(f)
     config["data_path"] = args.data_path
 
