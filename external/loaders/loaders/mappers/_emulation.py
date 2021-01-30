@@ -9,7 +9,7 @@ from ._xarray import XarrayMapper
 logger = logging.getLogger(__name__)
 
 
-def open_all_phys_emu_training(
+def open_phys_emu_training(
     url: str,
     init_times: Sequence[str],
     consolidated: bool = True,
@@ -24,7 +24,7 @@ def open_all_phys_emu_training(
         consolidated (bool): whether zarrs to open have consolidated metadata
         
     Returns:
-        mapper to dataset containing nudging tendencies, physics tendencies,
+        mapper to dataset containing nudging physics tendencies
             and model state data
         
     """
@@ -42,6 +42,7 @@ def open_all_phys_emu_training(
             loaded.append(ds)
         loaded_time_ds.append(xr.merge(loaded))
 
-    full_ds = xr.concat(loaded_time_ds, dim="time")
+    # TODO: Doesn't seem to care about overlapping times with different data
+    full_ds = xr.merge(loaded_time_ds, dim="time")
 
     return XarrayMapper(full_ds)

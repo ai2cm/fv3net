@@ -2,12 +2,17 @@ import functools
 import logging
 from numpy.random import RandomState
 import pandas as pd
-from typing import Iterable, Sequence, Mapping, Any, Hashable, Optional, Union, List
+from typing import Iterable, Sequence, Mapping, Any, Optional, Union, List
+from toolz.functoolz import compose_left
+from toolz.itertoolz import drop
 import xarray as xr
 from vcm import safe, parse_datetime_from_str
-from toolz import partition_all, compose
+from toolz import partition_all, compose, curry
 from ._sequences import Map, Local as batches_from_local  # noqa
-from .._utils import stack_dropnan_shuffle, get_derived_dataset, nonderived_variables
+from .._utils import (
+    stack, drop_nan, shuffled, preserve_samples_per_batch,
+    get_derived_dataset, nonderived_variables, subsample
+)
 from ..constants import TIME_NAME
 from ._serialized_phys import (
     SerializedSequence,
@@ -72,6 +77,8 @@ def batches_from_mapper(
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
+    derived: bool = True,
+    subsample_batch_size: int = None,
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -84,6 +91,9 @@ def batches_from_mapper(
         random_seed (int, optional): Defaults to 0.
         timesteps: List of timesteps to use in training.
         res: grid resolution, format as f'c{number cells in tile}'
+        derived: add derived variables to loaded batch
+        subsample_batch_size: draw a random subsample from the batch of the
+            specified size along the sampling dimension
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -100,17 +110,24 @@ def batches_from_mapper(
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
 
-    timesteps = timesteps or data_mapping.keys()
+    if timesteps is None:
+        timesteps = data_mapping.keys()
     num_times = len(timesteps)
     times = _sample(timesteps, num_times, random_state)
     batched_timesteps = list(partition_all(timesteps_per_batch, times))
 
-    load_batch = functools.partial(_load_batch, data_mapping, variable_names,)
+    # First function goes from mapper + timesteps to xr.dataset
+    transforms = [_load_batch(data_mapping, variable_names)]
+    # Subsequent transforms are all dataset -> dataset
+    if derived:
+        transforms.append(get_derived_dataset(variable_names, res))
 
-    transform = functools.partial(stack_dropnan_shuffle, random_state)
-    load_batch = functools.partial(_load_batch, data_mapping, variable_names)
-    derived_dataset = functools.partial(get_derived_dataset, variable_names, res)
-    batch_func = compose(transform, derived_dataset, load_batch)
+    # TODO: this can be combined with diagnostic batches if we tie to flag
+    transforms += [stack, drop_nan, preserve_samples_per_batch, shuffled(random_state)]
+
+    if subsample_batch_size is not None:
+        transforms.append(subsample(subsample_batch_size, random_state))
+    batch_func = compose_left(*transforms)
 
     seq = Map(batch_func, batched_timesteps)
     seq.attrs["times"] = times
@@ -188,11 +205,16 @@ def _sample(seq: Sequence[Any], n: int, random_state: RandomState) -> Sequence[A
     return random_state.choice(list(seq), n, replace=False).tolist()
 
 
+@curry
 def _load_batch(
     mapper: Mapping[str, xr.Dataset],
-    data_vars: Iterable[str],
-    keys: Iterable[Hashable],
+    data_vars: Sequence[str],
+    keys: Iterable[str],
 ) -> xr.Dataset:
+    """
+    Selects requested variables in the dataset that are there by default
+    (i.e., not added in derived step) and converts time strings to time
+    """
 
     time_coords = [parse_datetime_from_str(key) for key in keys]
     ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))
