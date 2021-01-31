@@ -88,17 +88,27 @@ def test_dropnan_samples(gridded_dataset, num_finite_samples):
     indirect=True,
 )
 def test_preserve_samples_per_batch(gridded_dataset):
-    stacked = stack(gridded_dataset)
     num_multiple = 4
-    multi_ds = xr.concat(
-        [stacked] * num_multiple, dim=DATASET_DIM_NAME
-    )
-    thinned = preserve_samples_per_batch(multi_ds)
+    multi_ds = xr.concat([gridded_dataset] * num_multiple, dim=DATASET_DIM_NAME)
+    stacked = stack(multi_ds)
+    thinned = preserve_samples_per_batch(stacked)
+    orig_stacked = stack(gridded_dataset)
 
-    samples_per_batch_diff = thinned.sizes["sample"] * thinned.sizes[DATASET_DIM_NAME] - stacked.sizes["sample"]
+    samples_per_batch_diff = thinned.sizes["sample"] - orig_stacked.sizes["sample"]
     # Thinning operation can be at most the size of dataset dim extra depending
     # on the index stride
     assert samples_per_batch_diff <= num_multiple
+
+
+@pytest.mark.parametrize(
+    "gridded_dataset",
+    [(0, 2, 10, 10)],
+    indirect=True,
+)
+def test_preserve_samples_per_batch_not_multi(gridded_dataset):
+    stacked = stack(gridded_dataset)
+    result = preserve_samples_per_batch(stacked)
+    assert result.sizes["sample"] == stacked.sizes["sample"]
 
 
 def test__get_chunk_indices():
