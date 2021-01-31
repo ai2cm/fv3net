@@ -135,19 +135,19 @@ def stack(ds: xr.Dataset) -> xr.Dataset:
     return ds_stacked.transpose()
 
 
-# TODO: write test
 def preserve_samples_per_batch(ds: xr.Dataset) -> xr.Dataset:
     if DATASET_DIM_NAME in ds.dims:
-        # In the multi-dataset case, preserve the same number of samples per
-        # batch as the single dataset case.
+        # In the multi-dataset case, preserve the same-ish number of samples per
+        # batch as the single dataset case. The thin op can result in the size of
+        # dataset dimension extra samples
         ds = ds.thin({SAMPLE_DIM_NAME: ds.sizes[DATASET_DIM_NAME]})
 
     return ds
 
 
-def drop_nan(ds: xr.Dataset) -> xr.Dataset:
-    ds = ds.dropna(SAMPLE_DIM_NAME)
-    if len(ds[SAMPLE_DIM_NAME]) == 0:
+def drop_nan(ds: xr.Dataset, dim=SAMPLE_DIM_NAME) -> xr.Dataset:
+    ds = ds.dropna(dim)
+    if len(ds[dim]) == 0:
         raise ValueError(
             "No Valid samples detected. Check for errors in the training data."
         )
