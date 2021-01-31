@@ -21,7 +21,7 @@ services:
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
 
   fv3net_dev:
-    image: us.gcr.io/vcm-ml/prognostic_run:ad102a241fa060338d31ec9b3503b94b82cc16d7
+    image: us.gcr.io/vcm-ml/prognostic_run:a3da2eb43fce1bd32315acbe5d0cf525f084f2f5
     entrypoint: []
     command: [bash]
     volumes:
@@ -30,6 +30,7 @@ services:
       - ../../external/loaders:/fv3net/external/loaders
       - ../../external/fv3gfs-fortran:/tmp/fortran-build
       - ../../external/fv3gfs-wrapper:/fv3net/external/fv3gfs-wrapper
+      - ../../external/fv3gfs-util:/fv3net/external/fv3gfs-util
       - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json

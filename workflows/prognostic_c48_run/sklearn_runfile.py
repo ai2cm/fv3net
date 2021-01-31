@@ -18,7 +18,7 @@ import runtime
 
 
 logging.basicConfig(level=logging.DEBUG)
-logging.getLogger("fv3gfs.util").setLevel(logging.WARN)
+logging.getLogger("fv3gfs.util").setLevel(logging.INFO)
 logging.getLogger("fsspec").setLevel(logging.WARN)
 logging.getLogger("urllib3").setLevel(logging.WARN)
 
@@ -57,6 +57,10 @@ if __name__ == "__main__":
             log_scalar(time, averages)
 
         for diag_file in diag_files:
+            logger.info(f"(rank {comm.rank}) diag_file.variables: {diag_file.variables}")
+            if 'x_wind_reference' in diag_file.variables:
+                logger.info(f"(rank {comm.rank}) diagnostics['x_wind_reference']: sizes {diagnostics['x_wind_reference'].sizes}, attrs {diagnostics['x_wind_reference'].attrs}")
+
             diag_file.observe(time, diagnostics)
 
     # Diag files *should* flush themselves on deletion but

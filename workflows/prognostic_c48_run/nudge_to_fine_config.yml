@@ -4,8 +4,10 @@ nudging:
     air_temperature: 12
     specific_humidity: 12
     x_wind: 12
-    y_wind: 12
+#     y_wind: 12
     pressure_thickness_of_atmospheric_layer: 12
+  reference_initial_time: "20160801.001500"
+  reference_frequency_seconds: 3600
 namelist:
   coupler_nml:
     current_date:

@@ -242,6 +242,9 @@ class DiagnosticFile:
         for key in diagnostics:
             self._units[key] = diagnostics[key].attrs.get("units", "unknown")
 
+        if 'x_wind_reference' in self.variables:
+            logger.info(f"(rank {self._monitor._comm.rank}) diagnostics['x_wind_reference']: sizes {diagnostics['x_wind_reference'].sizes}")
+        
         label = self.times.indicator(time)
         if label is not None:
             if label != self._current_label:
@@ -274,7 +277,10 @@ class DiagnosticFile:
                 for key in average
                 if key in self.variables
             }
-
+            
+            if 'x_wind_reference' in self.variables:
+                logger.info(f"(rank {self._monitor._comm.rank}) quantities['x_wind_reference'].metadata: {quantities['x_wind_reference'].metadata}")
+                
             # patch this in manually. the ZarrMonitor needs it.
             # We should probably modify this behavior.
             quantities["time"] = self._current_label

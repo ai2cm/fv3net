@@ -3,6 +3,7 @@ import xarray as xr
 import dataclasses
 import cftime
 import functools
+from copy import deepcopy
 from datetime import timedelta
 import os
 from typing import (
@@ -95,6 +96,7 @@ def setup_get_reference_state(
             get_reference_state,
             initial_time=_label_to_time(initial_time_label),
             frequency=timedelta(seconds=config.reference_frequency_seconds),
+            rank=communicator.comm.rank
         )
 
     return get_reference_state
@@ -148,17 +150,21 @@ def _time_interpolate_func(
     func: Callable[[cftime.DatetimeJulian], dict],
     frequency: timedelta,
     initial_time: cftime.DatetimeJulian,
+    rank
 ) -> Callable[[cftime.DatetimeJulian], dict]:
-    cached_func = functools.lru_cache(maxsize=2)(func)
+#     cached_func = functools.lru_cache(maxsize=2)(func)
+    cached_func = func
 
     @functools.wraps(cached_func)
     def myfunc(time: cftime.DatetimeJulian) -> State:
         quotient = (time - initial_time) // frequency
         remainder = (time - initial_time) % frequency
-
+        logger.info(f"(rank {rank}) _time_interpolate_func: remainder {remainder}")
+        
         state: State = {}
         if remainder == timedelta(0):
             state.update(cached_func(time))
+            logger.info(f"(rank {rank}) _time_interpolate_func: state['x_wind'] {state['x_wind']}")
         else:
             begin_time = quotient * frequency + initial_time
             end_time = begin_time + frequency
@@ -166,10 +172,25 @@ def _time_interpolate_func(
             state_0 = cached_func(begin_time)
             state_1 = cached_func(end_time)
 
-            state.update(
-                _average_states(state_0, state_1, weight=(end_time - time) / frequency)
-            )
+#             state.update(
+#                 _average_states(state_0, state_1, weight=(end_time - time) / frequency)
+#             )
 
+            common_keys = set(state_0) & set(state_1)
+            out = {}
+            weight=(end_time - time) / frequency
+            logger.info(f"weight: {weight}")
+            for key in common_keys:
+#                     out[key] = (
+#                         state_0[key] * weight + (1 - weight) * state_1[key]  # type: ignore
+#                     ).assign_attrs(**state_0[key].attrs)
+                    
+                out[key] = state_0[key].copy()
+            
+            state.update(out)
+            
+            logger.info(f"(rank {rank}) _time_interpolate_func: state['x_wind'] {state['x_wind']}")
+                
         return state
 
     return myfunc
@@ -182,7 +203,8 @@ def _average_states(state_0: State, state_1: State, weight: float) -> State:
         if isinstance(state_1[key], xr.DataArray):
             out[key] = (
                 state_0[key] * weight + (1 - weight) * state_1[key]  # type: ignore
-            )
+            ).assign_attrs(**state_0[key].attrs)
+#             out[key] = state_0[key]
     return out
 
 

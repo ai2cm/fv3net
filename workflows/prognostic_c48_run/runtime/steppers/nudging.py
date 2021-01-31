@@ -1,4 +1,5 @@
 import functools
+import logging
 from typing import (
     Any,
     List,
@@ -32,6 +33,8 @@ from runtime.names import (
     PRECIP_RATE,
     AREA,
 )
+
+logger = logging.getLogger(__name__)
 
 
 SST_NAME = "ocean_surface_temperature"
@@ -85,6 +88,7 @@ class NudgingStepper(Stepper, LoggingMixin):
         ]
         state: State = {name: self._state[name] for name in variables}
         reference = self._get_reference_state(self._state.time)
+        logger.info(f"(rank {self.rank}) _get_reference_state: reference['x_wind'] {reference['x_wind']}, name {reference['x_wind'].name}")
         set_state_sst_to_reference(state, reference)
         self._tendencies_to_apply_to_dycore_state = self._get_nudging_tendency(
             state, reference
