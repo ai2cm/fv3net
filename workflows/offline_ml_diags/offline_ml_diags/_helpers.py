@@ -2,6 +2,7 @@ import fsspec
 import json
 import numpy as np
 import os
+import random
 import shutil
 from typing import Mapping, Sequence, Dict
 import yaml
@@ -218,7 +219,7 @@ def net_precipitation_provenance_information(
 
 
 def sample_outside_train_range(
-    all: Sequence, train: Sequence, test_train_ratio: float = 1.0
+    all: Sequence, train: Sequence, test_train_ratio: float = 1.0,
 ):
     # Draws test samples from outside the training time range
     if len(train) == 0:
@@ -226,7 +227,6 @@ def sample_outside_train_range(
     outside_train_range = [t for t in all if t < min(train) or t > max(train)]
     if len(outside_train_range) == 0:
         raise ValueError("There are no timesteps available outside the training range.")
-    num_test = min(
-        len(outside_train_range), int(len(train) * test_train_ratio)
-    )
-    return np.random.choice(outside_train_range, max(1, num_test), replace=False)
+    num_test = min(len(outside_train_range), int(len(train) * test_train_ratio))
+    random.seed(0)
+    return random.sample(sorted(outside_train_range), max(1, num_test))
