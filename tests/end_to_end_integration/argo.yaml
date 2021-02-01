@@ -197,4 +197,3 @@ spec:
             value: 24
           - name: memory-prog
             value: "12Gi"
-
