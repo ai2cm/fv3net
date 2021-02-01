@@ -104,9 +104,6 @@ spec:
               flush_nc_files: true
             fv_core_nml:
               do_sat_adj: false
-              layout:
-              - 2
-              - 2
             gfdl_cloud_microphysics_nml:
               fast_sat_adj: false
             fv_nwp_nudge_nml:
@@ -193,7 +190,3 @@ spec:
           - name: public-report-output
             value: "{{workflow.parameters.root}}/offline-report"
           - {name: work-volume-name, value: work-volume}
-          - name: cpu-prog
-            value: 24
-          - name: memory-prog
-            value: "12Gi"
