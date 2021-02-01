@@ -18,10 +18,12 @@ def save_training_data(start_times, tmpdir):
         curr_time_str = start.strftime("%Y%m%d.%H%M%S")
         for name in filenames:
             ds = xr.Dataset(
-                {name[0:5]: (
-                    ["time", "tile", "z", "y", "x"],
-                    np.random.randn(len(ds_times), 2, 3, 4, 5)
-                )},
+                {
+                    name[0:5]: (
+                        ["time", "tile", "z", "y", "x"],
+                        np.random.randn(len(ds_times), 2, 3, 4, 5),
+                    )
+                },
                 coords={"time": ds_times},
             )
             ds.to_zarr(str(tmpdir.join(curr_time_str, name)), consolidated=True)
@@ -30,7 +32,7 @@ def save_training_data(start_times, tmpdir):
 def test_open_phys_emu_training(tmpdir):
     init_times = [
         cftime.DatetimeJulian(2016, 8, 1),
-        cftime.DatetimeJulian(2016, 8, 1, 4)
+        cftime.DatetimeJulian(2016, 8, 1, 4),
     ]
     init_time_strs = [t.strftime("%Y%m%d.%H%M%S") for t in init_times]
     save_training_data(init_times, tmpdir)
@@ -43,7 +45,7 @@ def test_open_phys_emu_training(tmpdir):
 def test_open_phys_emu_training_time_overlap_error(tmpdir):
     init_times = [
         cftime.DatetimeJulian(2016, 8, 1),
-        cftime.DatetimeJulian(2016, 8, 1, 2)
+        cftime.DatetimeJulian(2016, 8, 1, 2),
     ]
     init_time_strs = [t.strftime("%Y%m%d.%H%M%S") for t in init_times]
     save_training_data(init_times, tmpdir)

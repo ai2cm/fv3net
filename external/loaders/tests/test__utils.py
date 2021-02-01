@@ -9,7 +9,7 @@ from loaders._utils import (
     preserve_samples_per_batch,
     nonderived_variables,
     _needs_grid_data,
-    DATASET_DIM_NAME
+    DATASET_DIM_NAME,
 )
 
 
@@ -83,9 +83,7 @@ def test_dropnan_samples(gridded_dataset, num_finite_samples):
 
 
 @pytest.mark.parametrize(
-    "gridded_dataset",
-    [(0, 2, 10, 10)],
-    indirect=True,
+    "gridded_dataset", [(0, 2, 10, 10)], indirect=True,
 )
 def test_preserve_samples_per_batch(gridded_dataset):
     num_multiple = 4
@@ -101,9 +99,7 @@ def test_preserve_samples_per_batch(gridded_dataset):
 
 
 @pytest.mark.parametrize(
-    "gridded_dataset",
-    [(0, 2, 10, 10)],
-    indirect=True,
+    "gridded_dataset", [(0, 2, 10, 10)], indirect=True,
 )
 def test_preserve_samples_per_batch_not_multi(gridded_dataset):
     stacked = stack(gridded_dataset)

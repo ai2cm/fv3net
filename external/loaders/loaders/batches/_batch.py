@@ -7,8 +7,13 @@ from vcm import safe, parse_datetime_from_str
 from toolz import partition_all, curry, compose_left
 from ._sequences import Map
 from .._utils import (
-    stack, drop_nan, shuffled, preserve_samples_per_batch,
-    get_derived_dataset, nonderived_variables, subsample
+    stack,
+    drop_nan,
+    shuffled,
+    preserve_samples_per_batch,
+    get_derived_dataset,
+    nonderived_variables,
+    subsample,
 )
 from ..constants import TIME_NAME
 from ._serialized_phys import (
@@ -54,8 +59,14 @@ def batches_from_geodata(
     """
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     batches = batches_from_mapper(
-        data_mapping, variable_names, timesteps_per_batch, random_seed, timesteps, res,
-        training=True, derived=True
+        data_mapping,
+        variable_names,
+        timesteps_per_batch,
+        random_seed,
+        timesteps,
+        res,
+        training=True,
+        derived=True,
     )
     return batches
 
@@ -125,7 +136,12 @@ def batches_from_mapper(
         transforms.append(get_derived_dataset(variable_names, res))
 
     if training:
-        transforms += [stack, drop_nan, preserve_samples_per_batch, shuffled(random_state)]
+        transforms += [
+            stack,
+            drop_nan,
+            preserve_samples_per_batch,
+            shuffled(random_state),
+        ]
 
     if subsample_batch_size is not None:
         transforms.append(subsample(subsample_batch_size, random_state))
@@ -171,8 +187,14 @@ def diagnostic_batches_from_geodata(
 
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     sequence = batches_from_mapper(
-        data_mapping, variable_names, timesteps_per_batch, random_seed, timesteps, res,
-        training=False, derived=True
+        data_mapping,
+        variable_names,
+        timesteps_per_batch,
+        random_seed,
+        timesteps,
+        res,
+        training=False,
+        derived=True,
     )
     return sequence
 
@@ -183,9 +205,7 @@ def _sample(seq: Sequence[Any], n: int, random_state: RandomState) -> Sequence[A
 
 @curry
 def _load_batch(
-    mapper: Mapping[str, xr.Dataset],
-    data_vars: Sequence[str],
-    keys: Iterable[str],
+    mapper: Mapping[str, xr.Dataset], data_vars: Sequence[str], keys: Iterable[str],
 ) -> xr.Dataset:
     """
     Selects requested variables in the dataset that are there by default
