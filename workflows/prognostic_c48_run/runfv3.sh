@@ -10,6 +10,10 @@ RUNFILE="$3"
 # directory writing stage finishes
 mkdir -p "$RUNDIR"
 
+# Setting this variable so we can use mpich with > 6 ranks on
+# a single node. The alternative is to set --shm-size in the docker
+# run command.  Without it, C48 runs with 24 ranks crash with a "bus error."
+export MPIR_CVAR_CH3_NOLOCAL=1
 
 write_run_directory "$CONFIG" "$RUNDIR"
 cp "$RUNFILE" "$RUNDIR/runfile.py"
