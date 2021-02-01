@@ -215,3 +215,18 @@ def net_precipitation_provenance_information(
         else:
             new_domain_coords.append(_shorten_coordinate_label(coord))
     return xr.Variable(domain.dims, new_domain_coords)
+
+
+def sample_outside_train_range(
+    all: Sequence, train: Sequence, test_train_ratio: float = 1.0
+):
+    # Draws test samples from outside the training time range
+    if len(train) == 0:
+        raise ValueError("Training timestep list has zero length.")
+    outside_train_range = [t for t in all if t < min(train) or t > max(train)]
+    if len(outside_train_range) == 0:
+        raise ValueError("There are no timesteps available outside the training range.")
+    num_test = min(
+        len(outside_train_range), int(len(train) * test_train_ratio)
+    )
+    return np.random.choice(outside_train_range, max(1, num_test), replace=False)

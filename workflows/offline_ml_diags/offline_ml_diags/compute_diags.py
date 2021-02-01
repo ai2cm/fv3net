@@ -21,7 +21,11 @@ import fv3fit
 from ._plot_jacobian import plot_jacobian
 from ._metrics import compute_metrics
 from ._mapper import PredictionMapper
-from ._helpers import net_precipitation_provenance_information, load_grid_info
+from ._helpers import (
+    net_precipitation_provenance_information,
+    load_grid_info,
+    sample_outside_train_range,
+)
 from ._select import meridional_transect, nearest_time
 
 
@@ -310,7 +314,13 @@ if __name__ == "__main__":
             timesteps = yaml.safe_load(f)
     else:
         try:
-            timesteps = config["batch_kwargs"].pop("timesteps")
+            if args.config_yml:
+                timesteps = config["batch_kwargs"].pop("timesteps")
+            else:
+                train_timesteps = config["batch_kwargs"].pop("timesteps")
+                timesteps = sample_outside_train_range(
+                    list(pred_mapper), train_timesteps
+                )
         except KeyError:
             timesteps = list(pred_mapper)
 
