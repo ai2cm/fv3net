@@ -292,12 +292,7 @@ if __name__ == "__main__":
     res = config["batch_kwargs"].get("res", "c48")
     grid = load_grid_info(res)
 
-    # write out config used to generate diagnostics, including model path
     config["model_path"] = args.model_path
-    fs = get_fs(args.output_path)
-    fs.makedirs(args.output_path, exist_ok=True)
-    with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
-        yaml.safe_dump(config, f)
 
     variables = list(
         set(config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS)
@@ -315,18 +310,27 @@ if __name__ == "__main__":
     else:
         try:
             if args.config_yml:
-                timesteps = config["batch_kwargs"].pop("timesteps")
+                timesteps = config["batch_kwargs"]["timesteps"]
             else:
-                train_timesteps = config["batch_kwargs"].pop("timesteps")
+                # if config copied from model, sample times outside training
+                # range and use as test set. Updates timesteps in config to test set
+                # so saved offline config reflects this.
+                train_timesteps = config["batch_kwargs"]["timesteps"]
                 timesteps = sample_outside_train_range(
                     list(pred_mapper), train_timesteps
                 )
+                config["batch_kwargs"]["timesteps"] = timesteps
         except KeyError:
             timesteps = list(pred_mapper)
 
-    batch_kwargs = dissoc(config["batch_kwargs"], "mapping_function", "mapping_kwargs",)
-    batches = loaders.batches.diagnostic_batches_from_mapper(
-        pred_mapper, variables, timesteps=timesteps, **batch_kwargs,
+    # write out config used to generate diagnostics, including model path
+    fs = get_fs(args.output_path)
+    fs.makedirs(args.output_path, exist_ok=True)
+    with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
+        yaml.safe_dump(config, f)
+
+    batch_kwargs = dissoc(
+        config["batch_kwargs"], "mapping_function", "mapping_kwargs", "timesteps"
     )
     batches = loaders.batches.diagnostic_batches_from_mapper(
         pred_mapper, variables, timesteps=timesteps, **batch_kwargs,
