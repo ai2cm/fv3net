@@ -20,12 +20,13 @@ spec:
         parameters:
           - name: ml-model
           # argo submit yaml is processed beforehand to have config and times fed in as string parameters
-          - name: config  
           - name: times  
           - name: offline-diags-output
           - name: report-output
           - name: data-path
           - {name: memory, value: 6Gi}
+          - {name: config, value: ""}
+
       container:
         image: us.gcr.io/vcm-ml/fv3net
         command: ["bash", "-c", "-x"]
@@ -41,10 +42,16 @@ spec:
           - |
 
             gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
-
-            cat <<EOF >config.yaml
-            {{inputs.parameters.config}}
-            EOF
+            if [ -z "{{inputs.parameters.config}}" ]
+            then
+              cat <<EOF >config.yaml
+              {{inputs.parameters.config}}
+              CONFIG_FLAG="--config_yml config.yaml"
+              EOF
+            else
+              CONFIG_FLAG=" "
+            fi
+            
             
             cat << EOF > times.json
             {{inputs.parameters.times}}
@@ -55,9 +62,9 @@ spec:
     
             python -m offline_ml_diags.compute_diags \
               {{inputs.parameters.data-path}} \
-              config.yaml \
               {{inputs.parameters.ml-model}} \
               {{inputs.parameters.offline-diags-output}} \
+              $CONFIG_FLAG \
               --timesteps-file times.json
               
             python -m offline_ml_diags.create_report \
