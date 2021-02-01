@@ -301,9 +301,10 @@ def diagnostic_batches(prediction_mapper, data_source_offline_config):
     data_source_offline_config["variables"] = variables
     del data_source_offline_config["batch_kwargs"]["mapping_function"]
     del data_source_offline_config["batch_kwargs"]["mapping_kwargs"]
-    diagnostic_batches = batches.diagnostic_batches_from_mapper(
+    diagnostic_batches = batches.batches_from_mapper(
         prediction_mapper,
         data_source_offline_config["variables"],
+        training=False,
         **data_source_offline_config["batch_kwargs"],
     )
     return diagnostic_batches
