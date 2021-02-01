@@ -43,7 +43,9 @@ from offline_ml_diags._helpers import sample_outside_train_range
         ),
     ],
 )
-def test_sample_outside_train_range(train, all, frac, expected_length, allowed_test_samples):
+def test_sample_outside_train_range(
+    train, all, frac, expected_length, allowed_test_samples
+):
     if expected_length:
         test = sample_outside_train_range(all, train, frac)
         assert len(test) == expected_length
