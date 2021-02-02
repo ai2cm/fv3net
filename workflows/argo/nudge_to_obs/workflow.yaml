@@ -10,19 +10,9 @@ spec:
       - {name: segment-count, value: "1"}
       - {name: cpu, value: "6"}
       - {name: memory, value: 8Gi}
-      - {name: work-volume-name, value: work-volume}
       - {name: nudge-url, value: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data}
       - {name: flags, value: " "}
   entrypoint: main
-  volumeClaimTemplates:
-    - metadata:
-        name: work-volume
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        storageClassName: fast
-        resources:
-          requests:
-            storage: 200Gi
   volumes:
     - name: gcp-key-secret
       secret:
@@ -42,7 +32,6 @@ spec:
               - {name: segment-count, value: "{{workflow.parameters.segment-count}}"}
               - {name: cpu, value: "{{workflow.parameters.cpu}}"}
               - {name: memory, value: "{{workflow.parameters.memory}}"}
-              - {name: work-volume-name, value: "{{workflow.parameters.work-volume-name}}"}
               - {name: nudge-url, value: "{{workflow.parameters.nudge-url}}"}
               - {name: flags, value: "{{workflow.parameters.flags}}"}
     - name: nudge-to-obs
@@ -53,7 +42,6 @@ spec:
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 8Gi}
-          - {name: work-volume-name, value: work-volume}
           - {name: nudge-url, value: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data}
           - {name: flags, value: " "}
       steps:
@@ -79,7 +67,6 @@ spec:
                 - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
                 - {name: cpu, value: "{{inputs.parameters.cpu}}"}
                 - {name: memory, value: "{{inputs.parameters.memory}}"}
-                - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
     - name: prepare-config
       inputs:
         parameters:
