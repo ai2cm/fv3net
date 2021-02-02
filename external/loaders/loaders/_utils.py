@@ -122,6 +122,12 @@ def standardize_zarr_time_coord(ds: xr.Dataset) -> xr.Dataset:
 
 
 def stack(ds: xr.Dataset) -> xr.Dataset:
+    """
+    Stack all dimensions except for the Z dimensions into a sample
+
+    Args:
+        ds: dataset with geospatial dimensions
+    """
     ds = ds.load()  # TODO: Why is the dataset loaded here?
     stack_dims = [dim for dim in ds.dims if dim not in Z_DIM_NAMES]
     if len(set(ds.dims).intersection(Z_DIM_NAMES)) > 1:
@@ -136,15 +142,19 @@ def stack(ds: xr.Dataset) -> xr.Dataset:
 
 
 def preserve_samples_per_batch(ds: xr.Dataset) -> xr.Dataset:
+    """
+    In the multi-dataset case, preserve the same-ish number of samples per
+    batch as the single dataset case.
+
+    Args:
+        ds: dataset with sample dimension and potentially a dataset dimension
+    """
     try:
         dataset_coord = ds.coords[DATASET_DIM_NAME]
     except KeyError:
         dataset_coord = None
 
     if dataset_coord is not None:
-        # In the multi-dataset case, preserve the same-ish number of samples per
-        # batch as the single dataset case. The thin op can result in the size of
-        # dataset dimension extra samples
         num_datasets = len(set(dataset_coord.values))
         ds = ds.thin({SAMPLE_DIM_NAME: num_datasets})
 
@@ -152,6 +162,17 @@ def preserve_samples_per_batch(ds: xr.Dataset) -> xr.Dataset:
 
 
 def drop_nan(ds: xr.Dataset, dim=SAMPLE_DIM_NAME) -> xr.Dataset:
+    """
+    Drop any nan values along a dimension.
+
+    Args:
+        ds: dataset to drop NaN from
+        dim: dimension to drop NaN from in the dataset
+
+    Raises:
+    ValueError
+        If the size of the dimension is 0 after dropping NaN entries
+    """
     ds = ds.dropna(dim)
     if len(ds[dim]) == 0:
         raise ValueError(
@@ -188,7 +209,17 @@ def subsample(
     random_state: np.random.RandomState,
     dataset: xr.Dataset,
     sample_dim=SAMPLE_DIM_NAME,
-):
+) -> xr.Dataset:
+
+    """
+    Subsample values among a specified dimension
+
+    Args:
+        num_samples: number of random sampls to take
+        random_state: initialized numpy random state
+        dataset: dataset to sample from
+        sample_dim (optional): dimension to sample along
+    """
     dim_len = dataset.dims[sample_dim]
     sample_idx = random_state.choice(range(dim_len), num_samples, replace=False)
     return dataset.isel({sample_dim: sample_idx})

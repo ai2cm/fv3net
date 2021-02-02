@@ -8,8 +8,10 @@ from loaders._utils import (
     stack,
     preserve_samples_per_batch,
     nonderived_variables,
+    subsample,
     _needs_grid_data,
     DATASET_DIM_NAME,
+    SAMPLE_DIM_NAME,
 )
 
 
@@ -80,6 +82,23 @@ def test_dropnan_samples(gridded_dataset, num_finite_samples):
         ds_train = drop_nan(ds_grid)
         assert len(ds_train["sample"]) == num_finite_samples
         assert set(ds_train["var"].values.flatten()) == set(finite_samples)
+
+
+@pytest.mark.parametrize(
+    "gridded_dataset", [(0, 2, 10, 10)], indirect=True,
+)
+def test_subsample_dim(gridded_dataset):
+    ds_train = stack(gridded_dataset)
+    n = 10
+    subsample_func = subsample(n, np.random.RandomState(0))
+    subsampled = subsample_func(ds_train, sample_dim=SAMPLE_DIM_NAME)
+    assert subsampled.sizes[SAMPLE_DIM_NAME] == n
+    for dim in subsampled.sizes:
+        if dim != SAMPLE_DIM_NAME:
+            assert ds_train.sizes[dim] == subsampled.sizes[dim]
+
+    with pytest.raises(KeyError):
+        subsample_func(ds_train, sample_dim="not_a_dim")
 
 
 @pytest.mark.parametrize(
