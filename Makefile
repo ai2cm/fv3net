@@ -145,6 +145,9 @@ lock_pip:
 	workflows/post_process_run/requirements.txt \
 	docker/**/requirements.txt \
 	--output-file constraints.txt
+	# remove extras in name: e.g. apache-beam[gcp] --> apache-beam
+	sed -i.bak  's/\[.*\]//g' constraints.txt
+	rm -f constraints.txt.bak
 
 install_local_packages:
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
