@@ -97,13 +97,22 @@ function appendSegment {
     postProcessedOut="$workingDir/post_processed"
     gsutil cp "$runURL/runfile.py" "$workingDir/runfile.py"
 
+    set +e
     runSegment "$workingDir/fv3config.yml" "$rundir" "$workingDir/runfile.py"
+    fv3ExitCode=$?
+    set -e
+
     post_process_run --chunks "$workingDir/chunks.yaml" "$rundir" "$postProcessedOut"
     append_run "$postProcessedOut" "$runURL"
 
     echo "Cleaning up working directory"
     set +e
     rm -r "$workingDir"
+
+    if [[ "$fv3ExitCode" -ne 0 ]]
+    then
+        exit 1
+    fi
 }
 
 
