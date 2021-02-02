@@ -36,6 +36,8 @@ def batches_from_geodata(
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
+    derived: bool = True,
+    subsample_size: int = None,
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train. The data is assumed to
@@ -51,6 +53,9 @@ def batches_from_geodata(
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
         res: grid resolution, format as f'c{number cells in tile}'
+        derived: add derived variables to loaded batch
+        subsample_size: draw a random subsample from the batch of the
+            specified size along the sampling dimension
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -66,7 +71,8 @@ def batches_from_geodata(
         timesteps,
         res,
         training=True,
-        derived=True,
+        derived=derived,
+        subsample_size=subsample_size
     )
     return batches
 
@@ -162,6 +168,8 @@ def diagnostic_batches_from_geodata(
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
+    derived: bool = True,
+    subsample_size: int = None,
 ) -> Sequence[xr.Dataset]:
     """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
     as batches_from_mapper but without transformation and stacking
@@ -177,6 +185,9 @@ def diagnostic_batches_from_geodata(
         random_seed (int, optional): Defaults to 0.
         timesteps: List of timesteps to use in training.
         res: grid resolution, format as f'c{number cells in tile}'
+        derived: add derived variables to loaded batch
+        subsample_size: draw a random subsample from the batch of the
+            specified size along the sampling dimension
 
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
@@ -194,7 +205,8 @@ def diagnostic_batches_from_geodata(
         timesteps,
         res,
         training=False,
-        derived=True,
+        derived=derived,
+        subsample_size=subsample_size,
     )
     return sequence
 
