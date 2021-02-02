@@ -40,7 +40,6 @@ spec:
           value: " "
         - name: test-times
         - name: public-report-output
-        - {name: chunks, value: "{}"}  # by default just use chunks defined in post_process.py
         - {name: segment-count, value: "1"}
         - {name: cpu-prog, value: "6"}
         - {name: memory-prog, value: 6Gi}
@@ -85,8 +84,6 @@ spec:
                 value: "{{inputs.parameters.root}}/prognostic_run"
               - name: flags
                 value: "{{inputs.parameters.flags}} --model_url {{inputs.parameters.root}}/trained_model"
-              - name: chunks
-                value: "{{inputs.parameters.chunks}}"
               - name: segment-count
                 value: "{{inputs.parameters.segment-count}}"
               - name: cpu

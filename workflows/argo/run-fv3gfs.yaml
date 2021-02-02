@@ -12,7 +12,6 @@ spec:
         - name: runfile
       parameters:
         - name: output-url
-        - {name: chunks, value: "{}"}
         - {name: cpu, value: "6"}
         - {name: memory, value: 8Gi}
         - {name: segment-count, value: "1"}
@@ -32,7 +31,6 @@ spec:
               - name: runfile
                 from: "{{inputs.artifacts.runfile}}"
             parameters:
-            - {name: chunks, value: "{{inputs.parameters.chunks}}"}
             - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
       # loop over segments implemented through recursion so that a failed segment will
       # terminate the workflow. Argo loops by default run in parallel and do not fail fast.
@@ -54,7 +52,6 @@ spec:
         - name: runfile
           path: /mnt/data/runfile.py
       parameters:
-        - name: chunks
         - name: work-volume-name
     container:
       image: ubuntu:latest
@@ -68,7 +65,6 @@ spec:
         cat /mnt/data/runfile.py
         echo "Using fv3config:"
         cat /mnt/data/fv3config.yaml
-        echo "{{inputs.parameters.chunks}}" > /mnt/data/chunks.yaml
   - name: run-all-segments
     inputs:
       parameters:
@@ -215,7 +211,7 @@ spec:
       args:
       - |
         gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
-        post_process_run --chunks /mnt/data/chunks.yaml /mnt/data/rundir /tmp/processed_rundir
+        post_process_run /mnt/data/rundir /tmp/processed_rundir
         append_run /tmp/processed_rundir {{inputs.parameters.output-url}}
         rsync -r /mnt/data/rundir/RESTART/ /mnt/data/RESTART/
         rm -r /mnt/data/rundir

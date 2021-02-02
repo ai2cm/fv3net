@@ -49,26 +49,59 @@ spec:
               do_sat_adj: false
             gfdl_cloud_microphysics_nml:
               fast_sat_adj: false
+          fortran_diagnostics:
+            - name: atmos_8xdaily.zarr
+              chunks:
+                time: 2
+            - name: atmos_dt_atmos.zarr
+              chunks:
+                time: 2
+            - name: sfc_dt_atmos.zarr
+              chunks:
+                time: 2
+          diagnostics:
+            - name: diags.zarr
+              chunks:
+                time: 1
+              variables:
+                - net_moistening_due_to_nudging
+                - net_heating_due_to_nudging
+                - net_mass_tendency_due_to_nudging
+                - total_precip
+                - water_vapor_path
+                - physics_precip
+            - name: nudging_tendencies.zarr
+              chunks:
+                time: 1
+              variables:
+                - tendency_of_air_temperature_due_to_nudging
+                - tendency_of_specific_humidity_due_to_nudging
+                - tendency_of_x_wind_due_to_nudging
+                - tendency_of_y_wind_due_to_nudging
+                - tendency_of_pressure_thickness_of_atmospheric_layer_due_to_nudging
+            - name: state_after_timestep.zarr
+              chunks:
+                time: 1
+              variables:
+                - x_wind
+                - y_wind
+                - eastward_wind
+                - northward_wind
+                - vertical_wind
+                - air_temperature
+                - specific_humidity
+                - pressure_thickness_of_atmospheric_layer
+                - vertical_thickness_of_atmospheric_layer
+                - land_sea_mask
+                - surface_temperature
+                - surface_geopotential
+                - sensible_heat_flux
+                - latent_heat_flux
+                - total_precipitation
+                - surface_precipitation_rate
+                - total_soil_moisture
       - name: nudge-to-fine-segment-count
         value:  "2"
-      - name: nudge-to-fine-chunks
-        value: |
-          physics_tendencies.zarr:
-            time: 1
-          nudging_tendencies.zarr:
-            time: 1
-          state_after_timestep.zarr:
-            time: 1
-          reference_state.zarr:
-            time: 1
-          diags.zarr:
-            time: 1
-          atmos_8xdaily.zarr:
-            time: 1
-          atmos_dt_atmos.zarr:
-            time: 2
-          sfc_dt_atmos.zarr:
-            time: 2
       - name: training-config
         value: | 
           model_type: sklearn_random_forest
@@ -155,8 +188,6 @@ spec:
             value: "{{workflow.parameters.nudge-to-fine-config}}"
           - name: segment-count
             value: "{{workflow.parameters.nudge-to-fine-segment-count}}"
-          - name: chunks
-            value: "{{workflow.parameters.nudge-to-fine-chunks}}"
           - {name: work-volume-name, value: work-volume}
           - name: cpu
             value: 6000m
