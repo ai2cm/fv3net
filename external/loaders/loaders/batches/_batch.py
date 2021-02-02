@@ -88,7 +88,7 @@ def batches_from_mapper(
     res: str = "c48",
     training: bool = True,
     derived: bool = True,
-    subsample_batch_size: int = None,
+    subsample_size: int = None,
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -105,7 +105,7 @@ def batches_from_mapper(
         training: apply stack, drop_nan, shuffle, and samples-per-batch
             preseveration to the batch transforms. useful for ML model
             training
-        subsample_batch_size: draw a random subsample from the batch of the
+        subsample_size: draw a random subsample from the batch of the
             specified size along the sampling dimension
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
@@ -143,8 +143,8 @@ def batches_from_mapper(
             shuffled(random_state),
         ]
 
-    if subsample_batch_size is not None:
-        transforms.append(subsample(subsample_batch_size, random_state))
+    if subsample_size is not None:
+        transforms.append(subsample(subsample_size, random_state))
     batch_func = compose_left(*transforms)
 
     seq = Map(batch_func, batched_timesteps)
