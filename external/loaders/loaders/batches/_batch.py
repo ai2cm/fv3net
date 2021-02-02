@@ -72,7 +72,7 @@ def batches_from_geodata(
         res,
         training=True,
         derived=derived,
-        subsample_size=subsample_size
+        subsample_size=subsample_size,
     )
     return batches
 
