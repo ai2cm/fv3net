@@ -2,8 +2,8 @@ cat << EOF > config.yaml
 base_version: v0.5
 namelist:
   coupler_nml:
-    hours: 0
-    minutes: 30
+    hours: 2
+    minutes: 0
   diag_manager_nml:
     flush_nc_files: true
   fv_core_nml:
@@ -18,10 +18,13 @@ namelist:
     nudge_q: false
 EOF
 
-echo "{}" >> chunks.yaml
+cat << EOF > chunks.yaml
+atmos_8xdaily.zarr:
+  time: 1
+EOF
 
 
-outputUrl=gs://vcm-ml-scratch/noah/tmp/3
+outputUrl=gs://vcm-ml-scratch/noah/tmp/6
 
 python3 prepare_config.py \
   config.yaml \
@@ -30,4 +33,6 @@ python3 prepare_config.py \
   > fv3config.yml
 
 
-./run-fv3.sh "$outputUrl" fv3config.yml 2 "$(pwd)/sklearn_runfile.py" chunks.yaml
+./run-fv3.sh create "$outputUrl" fv3config.yml  chunks.yaml sklearn_runfile.py
+./run-fv3.sh append "$outputUrl"
+./run-fv3.sh append "$outputUrl"
