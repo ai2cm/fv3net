@@ -16,8 +16,13 @@
 
 
 function usage {
+    echo "Segmented run operations:"
+    echo ""
     echo "run-fv3.sh create outputUrl fv3configFile chunks runFile" > /dev/stderr 
     echo "run-fv3.sh append outputUrl" > /dev/stderr 
+    echo ""
+    echo "Local Running:"
+    echo ""
     echo "run-fv3.sh run config rundir runfile" > /dev/stderr 
 }
 
