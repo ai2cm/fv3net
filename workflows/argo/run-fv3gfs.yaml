@@ -18,21 +18,14 @@ spec:
         - {name: segment-count, value: "1"}
         - {name: work-volume-name, value: work-volume}
     steps:
-      - - name: verify-output-url-empty
-          template: verify-url-empty
+      - - template: create-run
+          name: create-run
+          when: "{{inputs.parameters.segment}} == 0"
           arguments:
             parameters:
-            - {name: url, value: "{{inputs.parameters.output-url}}"}
-      - - name: write-configs
-          template: write-configs
-          arguments:
-            artifacts:
-              - name: fv3config
-                from: "{{inputs.artifacts.fv3config}}"
-              - name: runfile
-                from: "{{inputs.artifacts.runfile}}"
-            parameters:
-            - {name: chunks, value: "{{inputs.parameters.chunks}}"}
+            - {name: runURL, value: "{{inputs.parameters.output-url}}"}
+            - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+            - {name: memory, value: "{{inputs.parameters.memory}}"}
             - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
       # loop over segments implemented through recursion so that a failed segment will
       # terminate the workflow. Argo loops by default run in parallel and do not fail fast.
@@ -45,30 +38,6 @@ spec:
             - {name: memory, value: "{{inputs.parameters.memory}}"}
             - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
             - {name: segment, value: 0}
-            - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
-  - name: write-configs
-    inputs:
-      artifacts:
-        - name: fv3config
-          path: /mnt/data/fv3config.yaml
-        - name: runfile
-          path: /mnt/data/runfile.py
-      parameters:
-        - name: chunks
-        - name: work-volume-name
-    container:
-      image: ubuntu:latest
-      volumeMounts:
-        - name: "{{inputs.parameters.work-volume-name}}"
-          mountPath: /mnt/data
-      command: ["/bin/bash", "-c", "-x", "-e"]
-      args:
-      - |
-        echo "Using runfile:"
-        cat /mnt/data/runfile.py
-        echo "Using fv3config:"
-        cat /mnt/data/fv3config.yaml
-        echo "{{inputs.parameters.chunks}}" > /mnt/data/chunks.yaml
   - name: run-all-segments
     inputs:
       parameters:
@@ -77,21 +46,19 @@ spec:
         - name: memory
         - name: segment-count
         - name: segment
-        - name: work-volume-name
     steps:
-      - - template: run-segment
-          name: run-segment
+      - - template: append-segment
+          name: append-segment 
           arguments:
             parameters:
-            - {name: output-url, value: "{{inputs.parameters.output-url}}"}
-            - {name: cpu, value: "{{inputs.parameters.cpu}}"}
-            - {name: memory, value: "{{inputs.parameters.memory}}"}
-            - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+              - {name: runURL, value: "{{inputs.parameters.output-url}}"}
+              - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+              - {name: memory, value: "{{inputs.parameters.memory}}"}
       - - name: increment-segment
-          template: increment-segment
+          template: increment-count
           arguments:
             parameters:
-              - {name: segment, value: "{{inputs.parameters.segment}}"}
+              - {name: segment, value: "{{inputs.parameters.count}}"}
       - - name: run-next-segment
           template: run-all-segments
           when: "{{steps.increment-segment.outputs.result}} < {{inputs.parameters.segment-count}}"
@@ -102,49 +69,12 @@ spec:
             - {name: memory, value: "{{inputs.parameters.memory}}"}
             - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
             - {name: segment, value: "{{steps.increment-segment.outputs.result}}"}
-            - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
-  - name: run-segment
-    inputs:
-      parameters:
-        - name: output-url
-        - name: cpu
-        - name: memory
-        - name: work-volume-name
-    steps:
-      - - name: run-model
-          continueOn:
-            failed: true
-          template: run-model
-          arguments:
-            parameters:
-              - {name: cpu, value: "{{inputs.parameters.cpu}}"}
-              - {name: memory, value: "{{inputs.parameters.memory}}"}
-              - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
-      - - name: upload-outputs
-          template: post-process
-          arguments:
-            parameters:
-              - {name: output-url, value: "{{inputs.parameters.output-url}}"}
-              - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
-      - - name: exit-if-run-model-failed
-          template: exit
-          when: "{{steps.run-model.exitCode}} != 0"
-      - - name: update-config
-          template: update-config
-          arguments:
-            parameters:
-              - {name: restarts-url, value: "/mnt/data/RESTART"}
-              - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
-  - name: exit
-    container:
-      image: alpine:latest
-      command: [sh, -c]
-      args: ["echo Model run crashed. Available outputs have been uploaded to specified output-url.; exit 1"]
-  - name: run-model
+  - name: create-run
     inputs:
       parameters:
         - name: cpu
         - name: memory
+        - name: runURL
         - name: work-volume-name
     tolerations:
     - key: "dedicated"
@@ -163,8 +93,15 @@ spec:
               memory: "{{inputs.parameters.memory}}"
     container:
       image: us.gcr.io/vcm-ml/prognostic_run
-      command: [runfv3.sh]
-      args: [/mnt/data/fv3config.yaml, /mnt/data/rundir, /mnt/data/runfile.py]
+      command: ["/bin/bash", "-c", "-x", "-e"]
+      args:
+      - |
+        echo "Using runfile:"
+        cat /mnt/data/runfile.py
+        echo "Using fv3config:"
+        cat /mnt/data/fv3config.yaml
+        echo "{{inputs.parameters.chunks}}" > chunks.yaml
+        runfv3.sh create {{inputs.parameters.runURL}} /mnt/data/fv3config.yml /mnt/data/chunks.yml /mnt/data/runfile.py
       env:
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /secret/gcp-credentials/key.json
@@ -175,89 +112,52 @@ spec:
       volumeMounts:
         - name: "{{inputs.parameters.work-volume-name}}"
           mountPath: /mnt/data
+          readOnly: true
         - name: gcp-key-secret
           mountPath: /secret/gcp-credentials
           readOnly: true
-  - name: verify-url-empty
+  - name: append-segment
     inputs:
       parameters:
-        - name: url
-    container:
-      image: us.gcr.io/vcm-ml/post_process_run
-      command: ["/bin/bash", "-c"]
-      args:
-      - |
-        gsutil ls {{inputs.parameters.url}} > /dev/null
-        if [[ $? -eq 0 ]]; then
-            echo "The given output url (below) contains an object. Delete everything under output url and resubmit."
-            echo "{{inputs.parameters.url}}"
-            exit 1
-        fi
-      volumeMounts:
-        - name: gcp-key-secret
-          mountPath: /secret/gcp-credentials
-  - name: post-process
-    inputs:
-      parameters:
-        - name: output-url
-        - name: work-volume-name
+        - name: cpu
+        - name: memory
+        - name: runURL
     tolerations:
     - key: "dedicated"
       operator: "Equal"
       value: "climate-sim-pool"
       effect: "NoSchedule"
+    podSpecPatch: |
+      containers:
+        - name: main
+          resources:
+            limits:
+              cpu: "{{inputs.parameters.cpu}}"
+              memory: "{{inputs.parameters.memory}}"
+            requests:
+              cpu: "{{inputs.parameters.cpu}}"
+              memory: "{{inputs.parameters.memory}}"
     container:
-      image: us.gcr.io/vcm-ml/post_process_run
-      command: ["/bin/bash", "-c", "-e"]
+      image: us.gcr.io/vcm-ml/prognostic_run
+      command: [runfv3.sh]
+      args: ["append", "{{inputs.parameters.runURL}}"]
       env:
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /secret/gcp-credentials/key.json
-      args:
-      - |
-        gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
-        post_process_run --chunks /mnt/data/chunks.yaml /mnt/data/rundir /tmp/processed_rundir
-        append_run /tmp/processed_rundir {{inputs.parameters.output-url}}
-        rsync -r /mnt/data/rundir/RESTART/ /mnt/data/RESTART/
-        rm -r /mnt/data/rundir
-        rm -r /tmp/processed_rundir
+        - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+          value: /secret/gcp-credentials/key.json
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
       volumeMounts:
-        - name: "{{inputs.parameters.work-volume-name}}"
-          mountPath: /mnt/data
         - name: gcp-key-secret
           mountPath: /secret/gcp-credentials
           readOnly: true
-      resources:
-        limits:
-          memory: 8Gi
-        requests:
-          cpu: "4"
-          memory: 6Gi
-  - name: update-config
+  - name: increment-count
     inputs:
       parameters:
-        - name: restarts-url
-        - name: work-volume-name
-    container:
-      image: gcr.io/vcm-ml/fv3config:db24f18cc8e147866a98159d8efec611d343adc9
-      command: ["/bin/bash", "-c"]
-      # set initial conditions to restarts generated by previous segment and set namelist
-      # parameters to be appropriate for a "warm-start" (i.e. initalized from restarts) run.
-      # also update nudging assets for new segment (no effect if nudging not active).
-      args: 
-      - | 
-        enable_restart /mnt/data/fv3config.yaml "{{inputs.parameters.restarts-url}}"
-        update_config_for_nudging /mnt/data/fv3config.yaml
-        echo "fv3config file updated to:"
-        cat /mnt/data/fv3config.yaml
-      volumeMounts:
-        - name: "{{inputs.parameters.work-volume-name}}"
-          mountPath: /mnt/data
-  - name: increment-segment
-    inputs:
-      parameters:
-        - name: segment
+        - name: count
     script:
       image: python:alpine3.6
       command: [python]
       source: |
-        print({{inputs.parameters.segment}} + 1)
+        print({{inputs.parameters.count}} + 1)
