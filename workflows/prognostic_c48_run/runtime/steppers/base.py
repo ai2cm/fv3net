@@ -1,5 +1,5 @@
 import logging
-from typing import Sequence
+from typing import Sequence, Optional
 
 import xarray as xr
 
@@ -34,7 +34,9 @@ class Stepper:
     def _state(self):
         return DerivedFV3State(self._fv3gfs)
 
-    def _compute_python_tendency(self) -> Diagnostics:
+    def _compute_python_tendency(
+        self, diagnostics: Optional[Diagnostics]
+    ) -> Diagnostics:
         return {}
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
@@ -49,7 +51,9 @@ class BaselineStepper(Stepper):
         self._fv3gfs = fv3gfs
         self._states_to_output = states_to_output
 
-    def _compute_python_tendency(self) -> Diagnostics:
+    def _compute_python_tendency(
+        self, diagnostics: Optional[Diagnostics]
+    ) -> Diagnostics:
         return {}
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:

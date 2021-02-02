@@ -106,6 +106,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._comm = comm
         self._timer = fv3gfs.util.Timer()
         self.rank: int = comm.rank
+        self._diagnostics: Diagnostics = {}
 
         namelist = get_namelist()
 
@@ -250,18 +251,17 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         return self.stepper._apply_python_to_physics_state()
 
     def _compute_python_tendency(self) -> Diagnostics:
-        return self.stepper._compute_python_tendency()
+        return self.stepper._compute_python_tendency(self._diagnostics)
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
         return self.stepper._apply_python_to_dycore_state()
 
     def __iter__(self):
         for i in range(self._fv3gfs.get_step_count()):
-            diagnostics = {}
             for substep in self._substeps:
                 with self._timer.clock(substep.__name__):
-                    diagnostics.update(substep())
-            yield self._state.time, diagnostics
+                    self._diagnostics.update(substep())
+            yield self._state.time, self._diagnostics
 
 
 def monitor(name: str, func):

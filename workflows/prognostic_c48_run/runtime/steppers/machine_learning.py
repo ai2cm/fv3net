@@ -3,7 +3,7 @@
 import copy
 import dataclasses
 import logging
-from typing import Any, Hashable, List, Mapping, Sequence, Set, Iterable, cast
+from typing import Any, Hashable, List, Mapping, Sequence, Set, Iterable, cast, Optional
 
 import runtime
 import xarray as xr
@@ -244,10 +244,38 @@ class MLStepper(Stepper, LoggingMixin):
 
         return diagnostics
 
-    def _compute_python_tendency(self) -> Diagnostics:
-        variables: List[Hashable] = list(set(self._model.input_variables) | {SPHUM})
+    def _compute_python_tendency(
+        self, diagnostics: Optional[Diagnostics]
+    ) -> Diagnostics:
+        if diagnostics is None:
+            diagnostics = {}
+        physics_tendency_mapping = {
+            "pQu": "tendency_of_eastward_wind_due_to_fv3_physics",
+            "pQv": "tendency_of_northward_wind_due_to_fv3_physics",
+            "pQ1": "tendency_of_air_temperature_due_to_fv3_physics",
+            "pQ2": "tendency_of_specific_humidity_due_to_fv3_physics",
+        }
+        self._log_debug(
+            f"Physics tendency variable mapping: {physics_tendency_mapping}"
+        )
+        variables: List[Hashable] = list(
+            set((self._model.input_variables) | {SPHUM})
+            - set(physics_tendency_mapping.keys())
+        )
+
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
+
+        self._log_debug(
+            "Getting physics tendency variables: "
+            f"{list(physics_tendency_mapping.keys())}"
+        )
+        state.update(
+            {
+                feature_name: diagnostics[diags_name]
+                for feature_name, diags_name in physics_tendency_mapping.items()
+            }
+        )
 
         self._log_debug("Computing ML-predicted tendencies")
         tendency = predict(self._model, state)

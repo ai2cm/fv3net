@@ -1,9 +1,5 @@
 import functools
-from typing import (
-    Any,
-    List,
-    Sequence,
-)
+from typing import Any, List, Sequence, Optional
 
 import fv3gfs.util
 
@@ -75,7 +71,9 @@ class NudgingStepper(Stepper, LoggingMixin):
     def nudging_variables(self) -> List[str]:
         return list(self._nudging_timescales)
 
-    def _compute_python_tendency(self) -> Diagnostics:
+    def _compute_python_tendency(
+        self, diagnostics: Optional[Diagnostics]
+    ) -> Diagnostics:
 
         self._log_debug("Computing nudging tendencies")
         variables: List[str] = self.nudging_variables + [
