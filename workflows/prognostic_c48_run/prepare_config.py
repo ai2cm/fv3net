@@ -107,11 +107,16 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
         for diag in config_dict.get("diagnostics", [])
     ]
 
+    fortran_diagnostics = [
+        dacite.from_dict(DiagnosticFileConfig, diag)
+        for diag in config_dict.get("fortran_diagnostics", [])
+    ]
+
     scikit_learn = MachineLearningConfig(
         model=list(args.model_url or []), diagnostic_ml=args.diagnostic_ml
     )
 
-    default = UserConfig(diagnostics=[])
+    default = UserConfig(diagnostics=[], fortran_diagnostics=[])
 
     if nudging and len(scikit_learn.model):
         raise NotImplementedError(
@@ -121,6 +126,7 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
     return UserConfig(
         nudging=nudging,
         diagnostics=diagnostics,
+        fortran_diagnostics=fortran_diagnostics,
         scikit_learn=scikit_learn,
         step_storage_variables=config_dict.get(
             "step_storage_variables", default.step_storage_variables
@@ -158,6 +164,20 @@ def diagnostics_overlay(
         return {
             "diagnostics": [diag_file.to_dict() for diag_file in diagnostic_files],
         }
+
+
+def fortran_diagnostics_overlay(config: UserConfig, nudge_to_obs: bool):
+    if config.fortran_diagnostics:
+        return {}
+    else:
+        diagnostic_files = [
+            default_diagnostics.sfc_dt_atmos,
+            default_diagnostics.atmos_dt_atmos,
+            default_diagnostics.atmos_8xdaily,
+        ]
+        if nudge_to_obs:
+            diagnostic_files.append(default_diagnostics.nudging_tendencies)
+        return {"fortran_diagnostics": [file_.to_dict() for file_ in diagnostic_files]}
 
 
 def _nudging_tendencies(config: NudgingConfig) -> DiagnosticFileConfig:
@@ -228,6 +248,7 @@ def _prepare_config_from_parsed_config(
         diagnostics_overlay(
             user_config, model_urls, args.nudge_to_observations, args.output_frequency,
         ),
+        fortran_diagnostics_overlay(user_config, args.nudge_to_observations),
         {"diag_table": PROGNOSTIC_DIAG_TABLE},
         SUPPRESS_RANGE_WARNINGS,
         dataclasses.asdict(user_config),

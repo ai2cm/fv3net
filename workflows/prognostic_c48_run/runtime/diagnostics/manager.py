@@ -168,11 +168,13 @@ class DiagnosticFileConfig:
         variables: the variables to save. By default all available diagnostics
             are stored. Example: ``["air_temperature", "cos_zenith_angle"]``.
         times: the time configuration
+        chunks: mapping of dimension names to chunk sizes
     """
 
     name: str
     variables: Optional[Container] = None
     times: TimeConfig = dataclasses.field(default_factory=lambda: TimeConfig())
+    chunks: Optional[Mapping[str, int]] = None
 
     def to_dict(self) -> Dict:
         return dataclasses.asdict(self)
@@ -187,6 +189,7 @@ class DiagnosticFileConfig:
             variables=self.variables if self.variables else All(),
             times=self.times.time_container(initial_time),
             monitor=fv3gfs.util.ZarrMonitor(self.name, partitioner, mpi_comm=comm),
+            chunks=self.chunks if self.chunks else {},
         )
 
 
@@ -210,6 +213,7 @@ class DiagnosticFile:
         variables: Container,
         monitor: fv3gfs.util.ZarrMonitor,
         times: TimeContainer,
+        chunks: Mapping[str, int],
     ):
         """
 
@@ -228,6 +232,7 @@ class DiagnosticFile:
         """
         self.variables = variables
         self.times = times
+        self.chunks = chunks
         self._monitor = monitor
 
         # variables used for averaging
