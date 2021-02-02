@@ -1,11 +1,14 @@
+import functools
 import logging
 from numpy.random import RandomState
 import pandas as pd
 from typing import Iterable, Sequence, Mapping, Any, Optional, Union, List
+from toolz.functoolz import compose_left
+from toolz.itertoolz import drop
 import xarray as xr
 from vcm import safe, parse_datetime_from_str
-from toolz import partition_all, curry, compose_left
-from ._sequences import Map
+from toolz import partition_all, compose, curry
+from ._sequences import Map, Local as batches_from_local  # noqa
 from .._utils import (
     stack, drop_nan, shuffled, preserve_samples_per_batch,
     get_derived_dataset, nonderived_variables, subsample
@@ -55,7 +58,6 @@ def batches_from_geodata(
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     batches = batches_from_mapper(
         data_mapping, variable_names, timesteps_per_batch, random_seed, timesteps, res,
-        training=True, derived=True
     )
     return batches
 
@@ -75,7 +77,6 @@ def batches_from_mapper(
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
-    training: bool = True,
     derived: bool = True,
     subsample_batch_size: int = None,
 ) -> Sequence[xr.Dataset]:
@@ -91,9 +92,6 @@ def batches_from_mapper(
         timesteps: List of timesteps to use in training.
         res: grid resolution, format as f'c{number cells in tile}'
         derived: add derived variables to loaded batch
-        training: apply stack, drop_nan, shuffle, and samples-per-batch
-            preseveration to the batch transforms. useful for ML model
-            training
         subsample_batch_size: draw a random subsample from the batch of the
             specified size along the sampling dimension
     Raises:
@@ -124,8 +122,8 @@ def batches_from_mapper(
     if derived:
         transforms.append(get_derived_dataset(variable_names, res))
 
-    if training:
-        transforms += [stack, drop_nan, preserve_samples_per_batch, shuffled(random_state)]
+    # TODO: this can be combined with diagnostic batches if we tie to flag
+    transforms += [stack, drop_nan, preserve_samples_per_batch, shuffled(random_state)]
 
     if subsample_batch_size is not None:
         transforms.append(subsample(subsample_batch_size, random_state))
@@ -170,11 +168,37 @@ def diagnostic_batches_from_geodata(
     """
 
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
-    sequence = batches_from_mapper(
+    sequence = diagnostic_batches_from_mapper(
         data_mapping, variable_names, timesteps_per_batch, random_seed, timesteps, res,
-        training=False, derived=True
     )
     return sequence
+
+
+def diagnostic_batches_from_mapper(
+    data_mapping: Mapping[str, xr.Dataset],
+    variable_names: Sequence[str],
+    timesteps_per_batch: int = 1,
+    random_seed: int = 0,
+    timesteps: Sequence[str] = None,
+    res: str = "c48",
+) -> Sequence[xr.Dataset]:
+    if timesteps and set(timesteps).issubset(data_mapping.keys()) is False:
+        raise ValueError(
+            "Timesteps specified in file are not present in data: "
+            f"{list(set(timesteps)-set(data_mapping.keys()))}"
+        )
+    random_state = RandomState(random_seed)
+    timesteps = timesteps or data_mapping.keys()
+    num_times = len(timesteps)
+    times = _sample(timesteps, num_times, random_state)
+    batched_timesteps = list(partition_all(timesteps_per_batch, times))
+
+    load_batch = functools.partial(_load_batch, data_mapping, variable_names)
+    derived_dataset = functools.partial(get_derived_dataset, variable_names, res,)
+    batch_func = compose(derived_dataset, load_batch)
+    seq = Map(batch_func, batched_timesteps)
+    seq.attrs["times"] = times
+    return seq
 
 
 def _sample(seq: Sequence[Any], n: int, random_state: RandomState) -> Sequence[Any]:

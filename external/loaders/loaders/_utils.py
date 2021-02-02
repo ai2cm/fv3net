@@ -136,17 +136,11 @@ def stack(ds: xr.Dataset) -> xr.Dataset:
 
 
 def preserve_samples_per_batch(ds: xr.Dataset) -> xr.Dataset:
-    try:
-        dataset_coord = ds.coords[DATASET_DIM_NAME]
-    except KeyError:
-        dataset_coord = None
-
-    if dataset_coord is not None:
+    if DATASET_DIM_NAME in ds.dims:
         # In the multi-dataset case, preserve the same-ish number of samples per
         # batch as the single dataset case. The thin op can result in the size of
         # dataset dimension extra samples
-        num_datasets = len(set(dataset_coord.values))
-        ds = ds.thin({SAMPLE_DIM_NAME: num_datasets})
+        ds = ds.thin({SAMPLE_DIM_NAME: ds.sizes[DATASET_DIM_NAME]})
 
     return ds
 
