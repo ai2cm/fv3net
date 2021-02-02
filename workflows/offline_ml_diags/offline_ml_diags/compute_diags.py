@@ -306,9 +306,7 @@ if __name__ == "__main__":
     batch_kwargs = dissoc(config["batch_kwargs"], "mapping_function", "mapping_kwargs",)
 
     # for backwards compatibility with old diagnostic_batches_from_mapper
-    training = batch_kwargs.pop("training", None)
-    if training is None:
-        training = False
+    training = batch_kwargs.pop("training", False)
 
     batches = loaders.batches.batches_from_mapper(
         pred_mapper, variables, timesteps=timesteps, training=training, **batch_kwargs,
