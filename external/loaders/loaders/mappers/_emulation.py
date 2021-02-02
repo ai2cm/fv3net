@@ -43,6 +43,6 @@ def open_phys_emu_training(
         loaded_time_ds.append(xr.merge(loaded))
 
     # TODO: Doesn't seem to care about overlapping times with different data
-    full_ds = xr.merge(loaded_time_ds, dim="time")
+    full_ds = xr.concat(loaded_time_ds, dim="time")
 
     return XarrayMapper(full_ds)
