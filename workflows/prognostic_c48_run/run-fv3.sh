@@ -18,6 +18,7 @@
 function usage {
     echo "run-fv3.sh create outputUrl fv3configFile chunks runFile" > /dev/stderr 
     echo "run-fv3.sh append outputUrl" > /dev/stderr 
+    echo "run-fv3.sh run config rundir runfile" > /dev/stderr 
 }
 
 function createRun {
@@ -148,6 +149,10 @@ case "$command" in
     "append")
         shift
         appendSegment "$1"
+        ;;
+    "run")
+        shift
+        runSegment $@
         ;;
     *)
         usage
