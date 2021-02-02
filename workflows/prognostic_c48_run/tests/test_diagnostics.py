@@ -76,7 +76,7 @@ def test_DiagnosticFile_time_selection():
 
     # observe a few times
     diag_file = DiagnosticFile(
-        times=TimeContainer([t1]), variables=All(), monitor=monitor
+        times=TimeContainer([t1]), variables=All(), monitor=monitor, chunks={}
     )
     diag_file.observe(t1, {})
     diag_file.observe(t2, {})
@@ -102,7 +102,7 @@ def test_DiagnosticFile_variable_selection():
 
     # observe a few times
     diag_file = DiagnosticFile(
-        times=TimeContainer(All()), variables=["a"], monitor=monitor
+        times=TimeContainer(All()), variables=["a"], monitor=monitor, chunks={}
     )
     diag_file.observe(datetime(2020, 1, 1), diagnostics)
     # force flush to disk
@@ -125,7 +125,7 @@ def test_DiagnosticFile_variable_units(attrs, expected_units):
 
     # observe a few times
     diag_file = DiagnosticFile(
-        times=TimeContainer(All()), variables=All(), monitor=monitor
+        times=TimeContainer(All()), variables=All(), monitor=monitor, chunks={}
     )
     diag_file.observe(datetime(2020, 1, 1), diagnostics)
     # force flush to disk
@@ -187,7 +187,9 @@ def test_DiagnosticFile_with_non_snapshot_time():
             self.data[x["time"]] = x
 
     monitor = MockMonitor()
-    diag_file = DiagnosticFile(times=Hours(), variables=["a", "b"], monitor=monitor)
+    diag_file = DiagnosticFile(
+        times=Hours(), variables=["a", "b"], monitor=monitor, chunks={}
+    )
 
     for time, x in [
         (t, one),

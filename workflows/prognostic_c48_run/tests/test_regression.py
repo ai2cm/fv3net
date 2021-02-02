@@ -409,12 +409,14 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
 def test_nudge_run(tmpdir):
     config = get_nudging_config(default_fv3config, "gs://" + IC_PATH.as_posix())
     config["diagnostics"] = DIAGNOSTICS
+    config["fortran_diagnostics"] = []
     run_native(config, str(tmpdir), runfile=NUDGE_RUNFILE)
 
 
 def get_prognostic_config(model_path):
     config = yaml.safe_load(default_fv3config)
     config["diagnostics"] = DIAGNOSTICS
+    config["fortran_diagnostics"] = []
     config["scikit_learn"] = {"model": [model_path], "zarr_output": "diags.zarr"}
     config["step_storage_variables"] = ["specific_humidity", "total_water"]
     # use local paths in prognostic_run image. fv3config
