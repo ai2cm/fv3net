@@ -208,7 +208,7 @@ def subsample(
     num_samples: int,
     random_state: np.random.RandomState,
     dataset: xr.Dataset,
-    sample_dim=SAMPLE_DIM_NAME,
+    dim=SAMPLE_DIM_NAME,
 ) -> xr.Dataset:
 
     """
