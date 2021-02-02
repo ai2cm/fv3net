@@ -28,8 +28,6 @@ logger = logging.getLogger(__name__)
 
 NameDict = Mapping[Hashable, Hashable]
 
-gravity = 9.81
-
 
 @dataclasses.dataclass
 class MachineLearningConfig:
