@@ -354,7 +354,7 @@ def run_native(config, rundir, runfile):
     with tempfile.NamedTemporaryFile("w") as f:
         yaml.safe_dump(config, f)
         fv3_script = Path(__file__).parent.parent.joinpath("runfv3.sh").as_posix()
-        subprocess.check_call([fv3_script, f.name, str(rundir), runfile])
+        subprocess.check_call([fv3_script, "run", f.name, str(rundir), runfile])
 
 
 def assets_from_initial_condition_dir(dir_: str):
