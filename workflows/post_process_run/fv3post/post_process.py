@@ -4,6 +4,7 @@ import re
 import yaml
 import shutil
 from typing import Sequence, Iterable, Union, Mapping
+import fsspec
 import numpy as np
 import xarray as xr
 import tempfile
@@ -17,24 +18,17 @@ logger = logging.getLogger(__file__)
 logging.basicConfig(level=logging.INFO)
 
 ChunkSpec = Mapping[str, Mapping[str, int]]
-CHUNKS_2D = {"time": 96}
+CHUNKS_DEFAULT = {"time": 96}
+FV3CONFIG_FILENAME = "fv3config.yml"
 
 
-def get_chunks(user_chunks: ChunkSpec) -> ChunkSpec:
-    CHUNKS_3D = {"time": 8}
-
-    CHUNKS = {
-        "diags.zarr": CHUNKS_2D,
-        "atmos_dt_atmos.zarr": CHUNKS_2D,
-        "sfc_dt_atmos.zarr": CHUNKS_2D,
-        "atmos_8xdaily.zarr": CHUNKS_3D,
-        "nudging_tendencies.zarr": CHUNKS_3D,
-        "physics_tendencies.zarr": CHUNKS_3D,
-        "reference_state.zarr": CHUNKS_3D,
-        "state_after_timestep.zarr": CHUNKS_3D,
-    }
-    CHUNKS.update(user_chunks)
-    return CHUNKS
+def get_chunks(config) -> ChunkSpec:
+    chunks: ChunkSpec = {}
+    for key in ["fortran_diagnostics", "diagnostics"]:
+        if key in config:
+            for diagnostics_file in config[key]:
+                chunks[diagnostics_file["name"]] = diagnostics_file["chunks"]
+    return chunks
 
 
 def _get_true_chunks(ds, chunks):
@@ -139,7 +133,7 @@ def process_item(
     except TypeError:
         # is an xarray
         relpath = os.path.relpath(item.path, d_in)  # type: ignore
-        chunks = chunks.get(relpath, CHUNKS_2D)
+        chunks = chunks.get(relpath, CHUNKS_DEFAULT)
         clear_encoding(item)
         chunked = rechunk(item, chunks)
         chunked = encode_chunks(chunked, chunks)
@@ -161,9 +155,6 @@ def process_item(
 @click.command()
 @click.argument("rundir")
 @click.argument("destination")
-@click.option(
-    "--chunks", type=click.Path(), help="path to yaml file containing chunk information"
-)
 def post_process(rundir: str, destination: str, chunks: str):
     """Post-process the fv3gfs output located RUNDIR and save to DESTINATION
 
@@ -175,12 +166,10 @@ def post_process(rundir: str, destination: str, chunks: str):
     logger.info("Post-processing the run")
     authenticate()
 
-    if chunks:
-        with open(chunks) as f:
-            user_chunks = yaml.safe_load(f)
-    else:
-        user_chunks = {}
-    chunks = get_chunks(user_chunks)
+    fv3config_url = os.path.join(rundir, FV3CONFIG_FILENAME)
+    with fsspec.open(fv3config_url) as f:
+        config = yaml.safe_load(f)
+    chunks = get_chunks(config)
 
     with tempfile.TemporaryDirectory() as d_in, tempfile.TemporaryDirectory() as d_out:
 

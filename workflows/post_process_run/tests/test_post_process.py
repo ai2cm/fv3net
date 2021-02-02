@@ -1,4 +1,5 @@
 import os
+import pytest
 import numpy as np
 import xarray as xr
 from fv3post.post_process import (
@@ -124,10 +125,31 @@ def test_open_tiles_netcdf_data(tmpdir):
     saved_ds["a"]
 
 
-def test_get_chunks():
-    output = get_chunks(TEST_CHUNKS)
-    for key in TEST_CHUNKS:
-        assert output[key] == TEST_CHUNKS[key]
+@pytest.mark.parametrize(
+    "fortran_diagnostics,diagnostics,expected_chunks",
+    [
+        ([], [], {}),
+        (
+            [{"name": "sfc_dt_atmos.zarr", "chunks": {"time": 2}}],
+            [],
+            {"sfc_dt_atmos.zarr": {"time": 2}},
+        ),
+        (
+            [],
+            [{"name": "diags.zarr", "chunks": {"time": 4}}],
+            {"diags.zarr": {"time": 4}},
+        ),
+        (
+            [{"name": "sfc_dt_atmos.zarr", "chunks": {"time": 2}}],
+            [{"name": "diags.zarr", "chunks": {"time": 4}}],
+            {"diags.zarr": {"time": 4}, "sfc_dt_atmos.zarr": {"time": 2}},
+        ),
+    ],
+)
+def test_get_chunks(fortran_diagnostics, diagnostics, expected_chunks):
+    config = {"fortran_diagnostics": fortran_diagnostics, "diagnostics": diagnostics}
+    chunks = get_chunks(config)
+    assert chunks == expected_chunks
 
 
 def test_cast_time_no_coord():
