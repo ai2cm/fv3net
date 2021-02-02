@@ -2,8 +2,8 @@ cat << EOF > config.yaml
 base_version: v0.5
 namelist:
   coupler_nml:
-    hours: 4
-    minutes: 0
+    hours: 0
+    minutes: 30
   diag_manager_nml:
     flush_nc_files: true
   fv_core_nml:
@@ -21,7 +21,7 @@ EOF
 echo "{}" >> chunks.yaml
 
 
-outputUrl=gs://vcm-ml-scratch/noah/tmp/2
+outputUrl=gs://vcm-ml-scratch/noah/tmp/3
 
 python3 prepare_config.py \
   config.yaml \
