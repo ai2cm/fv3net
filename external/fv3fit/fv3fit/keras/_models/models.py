@@ -1,8 +1,9 @@
-from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, List
+from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, List, Any
 from typing_extensions import Literal
 import xarray as xr
 import logging
 import abc
+import copy
 import json
 import tensorflow as tf
 import tensorflow_addons as tfa
@@ -13,6 +14,7 @@ from ._filesystem import get_dir, put_dir
 from ._sequences import _XyArraySequence, _ThreadedSequencePreLoader
 from .normalizer import LayerStandardScaler
 from .loss import get_weighted_mse, get_weighted_mae
+from loaders.batches import Take, shuffle
 import yaml
 
 logger = logging.getLogger(__file__)
@@ -137,6 +139,7 @@ class PackedKerasModel(Estimator):
         workers: Optional[int] = None,
         max_queue_size: Optional[int] = None,
         validation_samples: Optional[int] = None,
+        use_last_batch_to_validate: Optional[bool] = None,
     ) -> None:
         """Fits a model using data in the batches sequence
         
@@ -163,17 +166,21 @@ class PackedKerasModel(Estimator):
                 from the validation dataset, so that we can use multiple timesteps for
                 validation without having to load all the times into memory.
                 Defaults to the equivalent of a single C48 timestep (13824).
-
+            use_last_batch_to_validate: if True, use the last batch as a validation
+                dataset, cannot be used with a non-None value for validation_dataset.
+                Defaults to False.
         """
-        batch_size = batch_size or self._fit_kwargs.pop("batch_size", None)
-        epochs = epochs or self._fit_kwargs.pop("epochs", 1)
-        validation_dataset = validation_dataset or self._fit_kwargs.pop(
-            "validation_dataset", None
+
+        fit_kwargs = copy.copy(self._fit_kwargs)
+        fit_kwargs = _fill_default(fit_kwargs, batch_size, "batch_size", None)
+        fit_kwargs = _fill_default(fit_kwargs, epochs, "epochs", 1)
+        fit_kwargs = _fill_default(fit_kwargs, workers, "workers", 1)
+        fit_kwargs = _fill_default(fit_kwargs, max_queue_size, "max_queue_size", 8)
+        fit_kwargs = _fill_default(
+            fit_kwargs, validation_samples, "validation_samples", 13824
         )
-        workers = workers or self._fit_kwargs.pop("workers", 1)
-        max_queue_size = max_queue_size or self._fit_kwargs.pop("max_queue_size", 8)
-        validation_samples = validation_samples or self._fit_kwargs.pop(
-            "validation_samples", 13824
+        fit_kwargs = _fill_default(
+            fit_kwargs, use_last_batch_to_validate, "use_last_batch_to_validate", False
         )
 
         Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
@@ -185,7 +192,32 @@ class PackedKerasModel(Estimator):
             self._model = self.get_model(n_features_in, n_features_out)
 
         validation_data: Optional[Tuple[np.ndarray, np.ndarray]]
-        if validation_dataset is not None:
+        validation_dataset = (
+            validation_dataset
+            if validation_dataset is not None
+            else fit_kwargs.pop("validation_dataset", None)
+        )
+        validation_samples = (
+            validation_samples
+            if validation_samples is not None
+            else fit_kwargs.pop("validation_samples", 13824)
+        )
+
+        if use_last_batch_to_validate:
+            if validation_dataset is not None:
+                raise ValueError(
+                    "cannot provide validation_dataset when "
+                    "use_first_batch_to_validate is True"
+                )
+            X_val, y_val = Xy[-1]
+            val_sample = np.random.choice(
+                np.arange(X_val.shape[0]), validation_samples, replace=False
+            )
+            X_val = X_val[val_sample, :]
+            y_val = y_val[val_sample, :]
+            validation_data = (X_val, y_val)
+            Xy = Take(Xy, len(Xy) - 1)  # type: ignore
+        elif validation_dataset is not None:
             X_val = self.X_packer.to_array(validation_dataset)
             y_val = self.y_packer.to_array(validation_dataset)
             val_sample = np.random.choice(
@@ -195,15 +227,7 @@ class PackedKerasModel(Estimator):
         else:
             validation_data = None
 
-        return self._fit_loop(
-            Xy,
-            validation_data,
-            epochs,  # type: ignore
-            batch_size,
-            workers,  # type: ignore
-            max_queue_size,  # type: ignore
-            **self._fit_kwargs,
-        )
+        return self._fit_loop(Xy, validation_data, **fit_kwargs,)
 
     def _fit_loop(
         self,
@@ -213,19 +237,22 @@ class PackedKerasModel(Estimator):
         batch_size: Optional[int] = None,
         workers: int = 1,
         max_queue_size: int = 8,
+        use_last_batch_to_validate: bool = False,
+        last_batch_validation_fraction: float = 1.0,
         **fit_kwargs,
     ) -> None:
 
-        if workers > 1:
-            Xy = _ThreadedSequencePreLoader(
-                Xy, num_workers=workers, max_queue_size=max_queue_size
-            )
-
         for i_epoch in range(epochs):
+            Xy = shuffle(Xy)
+            if workers > 1:
+                Xy = _ThreadedSequencePreLoader(
+                    Xy, num_workers=workers, max_queue_size=max_queue_size
+                )
             loss_over_batches, val_loss_over_batches = [], []
             for i_batch, (X, y) in enumerate(Xy):
                 logger.info(
-                    f"Fitting on timestep {i_batch} of {len(Xy)}, of epoch {i_epoch}..."
+                    f"Fitting on batch {i_batch + 1} of {len(Xy)}, "
+                    f"of epoch {i_epoch}..."
                 )
                 history = self.model.fit(
                     X,
@@ -380,6 +407,7 @@ class DenseModel(PackedKerasModel):
         kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         depth: int = 3,
         width: int = 16,
+        gaussian_noise: float = 0.0,
         loss: Literal["mse", "mae"] = "mse",
         spectral_normalization: bool = False,
         checkpoint_path: Optional[str] = None,
@@ -411,6 +439,8 @@ class DenseModel(PackedKerasModel):
                 The number of hidden layers will be (depth - 1). Default is 3.
             width: number of neurons to use on layers between the input and output
                 layer. Default is 16.
+            gaussian_noise: how much gaussian noise to add before each Dense layer,
+                apart from the output layer
             loss: loss function to use. Defaults to mean squared error.
             fit_kwargs: other keyword arguments to be passed to the underlying
                 tf.keras.Model.fit() method
@@ -418,6 +448,7 @@ class DenseModel(PackedKerasModel):
         self._depth = depth
         self._width = width
         self._spectral_normalization = spectral_normalization
+        self._gaussian_noise = gaussian_noise
         optimizer = optimizer or tf.keras.optimizers.Adam()
         super().__init__(
             sample_dim_name,
@@ -443,9 +474,26 @@ class DenseModel(PackedKerasModel):
             )
             if self._spectral_normalization:
                 hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
+            if self._gaussian_noise > 0.0:
+                x = tf.keras.layers.GaussianNoise(self._gaussian_noise)(x)
             x = hidden_layer(x)
         x = tf.keras.layers.Dense(n_features_out)(x)
         outputs = self.y_scaler.denormalize_layer(x)
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
         model.compile(optimizer=self._optimizer, loss=self.loss)
         return model
+
+
+def _fill_default(kwargs: dict, arg: Optional[Any], key: str, default: Any):
+    if key not in kwargs:
+        if arg is None:
+            kwargs[key] = default
+        else:
+            kwargs[key] = arg
+    else:
+        if arg is not None and arg != kwargs[key]:
+            raise ValueError(
+                f"Different values for fit kwarg {key} were provided in both "
+                "fit args and fit_kwargs dict."
+            )
+    return kwargs
