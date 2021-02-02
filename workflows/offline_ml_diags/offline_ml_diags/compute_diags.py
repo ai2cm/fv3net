@@ -304,13 +304,13 @@ if __name__ == "__main__":
             timesteps = list(pred_mapper)
 
     batch_kwargs = dissoc(config["batch_kwargs"], "mapping_function", "mapping_kwargs",)
-    batches = loaders.batches.diagnostic_batches_from_mapper(
-        pred_mapper, variables, timesteps=timesteps, **batch_kwargs,
-    )
-    batches = loaders.batches.diagnostic_batches_from_mapper(
-        pred_mapper, variables, timesteps=timesteps, **batch_kwargs,
-    )
 
+    # for backwards compatibility with old diagnostic_batches_from_mapper
+    training = batch_kwargs.pop("training", False)
+
+    batches = loaders.batches.batches_from_mapper(
+        pred_mapper, variables, timesteps=timesteps, training=training, **batch_kwargs,
+    )
     # compute diags
     ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diagnostics(
         batches, grid, predicted_vars=config["output_variables"]

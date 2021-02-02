@@ -3,6 +3,7 @@
 import json
 from typing import Iterable, Sequence
 import os
+import numpy as np
 import xarray as xr
 import fsspec
 import pandas as pd
@@ -275,6 +276,17 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
     return xr.Dataset(verif_diagnostics, attrs=verif_attrs)
 
 
+def _fill_missing_variables_with_nans(diagnostics: Sequence[xr.Dataset]):
+    """Ensure all datasets within given sequence contain same data variables. Fills
+    missing variables with NaNs as necessary. Operates in place."""
+    all_variables = {varname: ds for ds in diagnostics for varname in ds.data_vars}
+    for ds in diagnostics:
+        missing_variables = set(all_variables) - set(ds.data_vars)
+        for varname in missing_variables:
+            ds_with_varname = all_variables[varname]
+            ds[varname] = xr.full_like(ds_with_varname[varname], np.nan)
+
+
 def diurnal_component_plot(
     diagnostics: Iterable[xr.Dataset],
     run_attr_name="run",
@@ -419,6 +431,8 @@ def main():
     # TODO: generate separate diags.nc file for verification data and load that in here
     longest_run_ds = _longest_run(diagnostics)
     diagnostics.append(_get_verification_diagnostics(longest_run_ds))
+
+    _fill_missing_variables_with_nans(diagnostics)
 
     # load metrics
     nested_metrics = load_metrics(bucket, rundirs)

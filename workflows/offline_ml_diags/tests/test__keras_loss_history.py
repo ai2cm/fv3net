@@ -1,5 +1,5 @@
 import pytest
-from fv3fit.keras._save_history import _get_epoch_losses
+from offline_ml_diags.keras_loss_history import _get_epoch_losses
 
 
 @pytest.mark.parametrize(
