@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.random import RandomState
 from typing import Tuple, Sequence
-from toolz.functoolz import _restore_curry, curry
+from toolz.functoolz import curry
 import xarray as xr
 import vcm
 from vcm import safe, net_heating, net_precipitation, DerivedMapping
