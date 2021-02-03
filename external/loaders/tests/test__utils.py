@@ -3,7 +3,10 @@ import pytest
 import xarray as xr
 from loaders._utils import (
     shuffled,
+    _ensure_sample_first,
     _get_chunk_indices,
+    _get_z_dim,
+    _group_by_z_dim,
     check_empty,
     stack_non_vertical,
     preserve_samples_per_batch,
@@ -149,3 +152,61 @@ def test_shuffled():
 def test_shuffled_dask():
     dataset = _stacked_dataset("sample").chunk()
     shuffled(np.random.RandomState(1), dataset, dim="sample")
+
+
+def test__ensure_sample_first():
+    s_dim = "sample"
+    ds = xr.Dataset(
+        data_vars={
+            "correct": xr.DataArray(np.ones((4, 6)), dims=[s_dim, "z"]),
+            "incorrect": xr.DataArray(np.ones((6, 4)), dims=["z", s_dim]),
+        }
+    )
+
+    sample_first = _ensure_sample_first(ds, sample_dim_name=s_dim)
+    for da in sample_first.values():
+        assert da.dims[0] == s_dim
+
+
+def test__ensure_sample_first_error_on_3d():
+    ds = xr.Dataset(
+        data_vars={
+            "var": xr.DataArray(np.ones((4, 6, 8)), dims=["x", "y", "z"]),
+        }
+    )
+    with pytest.raises(ValueError):
+        _ensure_sample_first(ds)
+
+
+def test__get_z_dim():
+    dims = ["x", "y", "z"]
+    vert_dim = "z"
+
+    result = _get_z_dim(dims, z_dim_names=[vert_dim])
+    assert result == vert_dim
+
+    result = _get_z_dim(dims[0:2], z_dim_names=[vert_dim])
+    assert result is None
+
+
+def test__get_z_dim_multiple_vert_dims():
+    with pytest.raises(ValueError):
+        _get_z_dim(["x", "z", "z_soil"], z_dim_names=["z", "z_soil"])
+
+
+def test__group_by_z_dim():
+    z_dims = ["z", "z_soil"]
+    ds = xr.Dataset(
+        data_vars={
+            "vert_var": xr.DataArray(np.ones((4, 6)), dims=["x", "z"]),
+            "2d_var": xr.DataArray(np.ones(4), dims=["x"]),
+            "alt_vert_var": xr.DataArray(np.ones((4, 2)), dims=["x", "z_soil"]),
+        }
+    )
+
+    groups = _group_by_z_dim(ds, z_dim_names=z_dims)
+    for group_ds in groups.values():
+        assert len(group_ds.data_vars) == 1
+    assert "vert_var" in groups["z"].data_vars
+    assert "alt_vert_var" in groups["z_soil"].data_vars
+    assert "2d_var" in groups["no_vertical"].data_vars

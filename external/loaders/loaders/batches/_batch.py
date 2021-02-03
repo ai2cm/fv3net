@@ -262,7 +262,7 @@ def batches_from_serialized(
         path: Path (local or remote) to the input/output zarr files
         zarr_prefix: Zarr file prefix for input/output files.  Becomes {prefix}_in.
             zarr and {prefix}_out.zarr
-        sample_dims: Sequence of dimensions to stack as a single sample dimension
+        sample_dims: Sequence of dimensions to stack_non_z_dims as a single sample dimension
         savepoints_per_batch: Number of serialized savepoints to include in a single
             batch
     

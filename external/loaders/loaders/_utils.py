@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.random import RandomState
-from typing import Tuple, Sequence
+from typing import Mapping, Tuple, Sequence, Union
 from toolz.functoolz import curry
 import xarray as xr
 import vcm
@@ -18,7 +18,7 @@ CLOUDS_OFF_TEMP_TENDENCIES = [
     "tendency_of_air_temperature_due_to_dissipation_of_gravity_waves",
 ]
 CLOUDS_OFF_SPHUM_TENDENCIES = ["tendency_of_specific_humidity_due_to_turbulence"]
-Z_DIM_NAMES = ["z", "pfull"]
+Z_DIM_NAMES = ["z", "pfull", "z_soil"]
 EAST_NORTH_WIND_TENDENCIES = ["dQu", "dQv"]
 X_Y_WIND_TENDENCIES = ["dQxwind", "dQywind"]
 WIND_ROTATION_COEFFICIENTS = [
@@ -127,16 +127,64 @@ def stack_non_vertical(ds: xr.Dataset, sample_dim_name=SAMPLE_DIM_NAME) -> xr.Da
         ds: dataset with geospatial dimensions
         sample_dim_name: name for new sampling dimension
     """
-    stack_dims = [dim for dim in ds.dims if dim not in Z_DIM_NAMES]
-    if len(set(ds.dims).intersection(Z_DIM_NAMES)) > 1:
-        raise ValueError("Data cannot have >1 feature dimension in {Z_DIM_NAMES}.")
-    ds_stacked = safe.stack_once(
-        ds,
-        sample_dim_name,
-        stack_dims,
-        allowed_broadcast_dims=Z_DIM_NAMES + [TIME_NAME, DATASET_DIM_NAME],
-    )
-    return ds_stacked.transpose()
+
+    ds_group_by_zdim = _group_by_z_dim(ds)
+    to_merge = []
+    for zdim_name, group_ds in ds_group_by_zdim.items():
+        stack_dims = [dim for dim in group_ds.dims if dim != zdim_name]
+        ds_stacked = safe.stack_once(
+            group_ds,
+            SAMPLE_DIM_NAME,
+            stack_dims,
+            allowed_broadcast_dims=[zdim_name] + [TIME_NAME, DATASET_DIM_NAME],
+        )
+        # drop multi-level index coordinate for merge
+        ds_stacked = ds_stacked.reset_index("sample")
+        to_merge.append(ds_stacked)
+
+    full_stacked_ds = xr.merge(to_merge)
+    full_stacked_ds = _ensure_sample_first(full_stacked_ds, sample_dim_name=sample_dim_name)
+
+    return full_stacked_ds
+
+
+def _ensure_sample_first(ds: xr.Dataset, sample_dim_name=SAMPLE_DIM_NAME) -> xr.Dataset:
+    for varname, da in ds.items():
+        if len(da.dims) > 2:
+            raise ValueError("Sample first check function expects stacked data arrays with two dimensions or less")
+        if da.dims[0] != sample_dim_name:
+            ds[varname] = da.transpose()
+
+    return ds
+
+
+def _group_by_z_dim(ds: xr.Dataset, z_dim_names: Sequence = Z_DIM_NAMES) -> Mapping[str, xr.Dataset]:
+    """
+    Cannot stack a dataset with multiple z dimensions. So we'll divide
+    and conquer.
+    """
+    groups = {}
+    for varname, da in ds.items():
+        da_item = (varname, da)
+        da_z_dim = _get_z_dim(da.dims, z_dim_names=z_dim_names)
+        if da_z_dim is not None:
+            groups.setdefault(da_z_dim, []).append(da_item)
+        else:
+            groups.setdefault("no_vertical", []).append(da_item)
+
+    for zdim, da_items in groups.items():
+        groups[zdim] = xr.Dataset({k: v for k, v in da_items})
+
+    return groups
+
+
+def _get_z_dim(dims: Sequence, z_dim_names: Sequence = Z_DIM_NAMES) -> Union[str, None]:
+    da_z_dim = set(z_dim_names).intersection(dims)
+    if len(da_z_dim) > 1:
+        raise ValueError("Data cannot have >1 feature dimension in {z_dim_names}.")
+
+    z_dim = da_z_dim.pop() if da_z_dim else None
+    return z_dim
 
 
 def preserve_samples_per_batch(
