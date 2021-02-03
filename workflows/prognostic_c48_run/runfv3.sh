@@ -16,14 +16,23 @@
 
 
 function usage {
-    echo "Segmented run operations:"
+    echo "A segmented run is currently a location on Google Cloud Storage."
+    echo "This script can create segmented runs and appending segments to them."
+    echo "It also provides low level commands used for debugging."
     echo ""
-    echo "run-fv3.sh create outputUrl fv3configFile chunks runFile" > /dev/stderr 
-    echo "run-fv3.sh append outputUrl" > /dev/stderr 
+    echo "Usage:"
+    echo " runfv3.sh create <outputUrl> <fv3configFile> <chunks> <runFile>" > /dev/stderr 
+    echo " runfv3.sh append <outputUrl>" > /dev/stderr 
+    echo " runfv3.sh run-native <fv3config> <rundir> <runfile>" > /dev/stderr
     echo ""
-    echo "Local Running:"
+    echo "Segmented Run Commands:"
+    echo "  create      Initialize a segmented run in GCS"
+    echo "  append      Add a segmented to a segmented run"
     echo ""
-    echo "run-fv3.sh run config rundir runfile" > /dev/stderr 
+    echo "Low-level Commands:"
+    echo "  run-native  Setup a run-directory and run the model. Used for "
+    echo "              testing/debugging."
+    echo ""
 }
 
 function createRun {
@@ -152,7 +161,7 @@ command="$1"
 
 if [[ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]]
 then
-    gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
+    gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS" 2> /dev/null
 fi
 
 case "$command" in 
@@ -164,7 +173,7 @@ case "$command" in
         shift
         appendSegment "$1"
         ;;
-    "run")
+    "run-native")
         shift
         runSegment $@
         ;;
