@@ -100,7 +100,34 @@ diagnostics:
   - pressure_thickness_of_atmospheric_layer_reference
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
-fortran_diagnostics: []
+fortran_diagnostics:
+- chunks:
+    time: 96
+  name: sfc_dt_atmos.zarr
+  times:
+    frequency: null
+    includes_lower: false
+    kind: every
+    times: null
+  variables: null
+- chunks:
+    time: 96
+  name: atmos_dt_atmos.zarr
+  times:
+    frequency: null
+    includes_lower: false
+    kind: every
+    times: null
+  variables: null
+- chunks:
+    time: 8
+  name: atmos_8xdaily.zarr
+  times:
+    frequency: null
+    includes_lower: false
+    kind: every
+    times: null
+  variables: null
 initial_conditions:
 - copy_method: copy
   source_location: gs://ic-bucket/20160805.000000

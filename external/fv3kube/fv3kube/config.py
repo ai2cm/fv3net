@@ -40,7 +40,7 @@ def _merge_once(source, update):
         Recursively updated mapping.
     """
     for key in update:
-        if key in ["patch_files", "diagnostics"]:
+        if key in ["patch_files", "diagnostics", "fortran_diagnostics"]:
             source.setdefault(key, []).extend(update[key])
         elif (
             key in source
