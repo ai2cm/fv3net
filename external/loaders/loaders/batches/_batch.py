@@ -40,6 +40,7 @@ def batches_from_geodata(
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
     subsample_size: int = None,
+    needs_grid: bool = True,
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train. The data is assumed to
@@ -57,6 +58,8 @@ def batches_from_geodata(
         res: grid resolution, format as f'c{number cells in tile}'
         subsample_size: draw a random subsample from the batch of the
             specified size along the sampling dimension
+        needs_grid: Add grid information into batched datasets. [Warning] requires
+            remote GCS access
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -73,6 +76,7 @@ def batches_from_geodata(
         res,
         training=True,
         subsample_size=subsample_size,
+        needs_grid=needs_grid,
     )
     return batches
 
@@ -92,6 +96,7 @@ def batches_from_mapper(
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
+    needs_grid: bool = True,
     training: bool = True,
     subsample_size: int = None,
 ) -> Sequence[xr.Dataset]:
@@ -105,6 +110,8 @@ def batches_from_mapper(
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
         timesteps: List of timesteps to use in training.
+        needs_grid: Add grid information into batched datasets. [Warning] requires
+            remote GCS access
         training: apply stack_non_vertical, dropna, shuffle, and samples-per-batch
             preseveration to the batch transforms. useful for ML model
             training
@@ -134,12 +141,15 @@ def batches_from_mapper(
 
     # First function goes from mapper + timesteps to xr.dataset
     # Subsequent transforms are all dataset -> dataset
-    transforms = [
-        _get_batch(data_mapping, variable_names),
-        add_grid_info(res),
-        add_wind_rotation_info(res),
-        add_derived_data(variable_names),
-    ]
+    transforms = [_get_batch(data_mapping, variable_names)]
+
+    if needs_grid:
+        transforms += [
+            add_grid_info(res),
+            add_wind_rotation_info(res),
+        ]
+
+    transforms += [add_derived_data(variable_names)]
 
     if training:
         transforms += [
@@ -172,6 +182,7 @@ def diagnostic_batches_from_geodata(
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
     subsample_size: int = None,
+    needs_grid: bool = True,
 ) -> Sequence[xr.Dataset]:
     """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
     as batches_from_mapper but without transformation and stacking
@@ -189,6 +200,8 @@ def diagnostic_batches_from_geodata(
         res: grid resolution, format as f'c{number cells in tile}'
         subsample_size: draw a random subsample from the batch of the
             specified size along the sampling dimension
+        needs_grid: Add grid information into batched datasets. [Warning] requires
+            remote GCS access
 
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
@@ -207,6 +220,7 @@ def diagnostic_batches_from_geodata(
         res,
         training=False,
         subsample_size=subsample_size,
+        needs_grid=needs_grid,
     )
     return sequence
 
