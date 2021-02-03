@@ -3,7 +3,6 @@ import logging
 import os
 import xarray as xr
 import numpy as np
-from .models import History
 from ._sequences import _XyArraySequence
 from ._filesystem import get_dir, put_dir
 from ..._shared import ArrayPacker, Estimator
@@ -51,10 +50,9 @@ class DummyModel(Estimator):
         epochs: Optional[int] = None,
         batch_size: Optional[int] = None,
         **fit_kwargs: Any
-    ) -> History:
+    ) -> None:
         # this is all we need to do to learn n output feature
         _, _ = _XyArraySequence(self.X_packer, self.y_packer, batches)[0]
-        return {"loss": [[1.0], [2.0]]}
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         if not self.y_packer._n_features:

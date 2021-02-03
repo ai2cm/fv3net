@@ -1,4 +1,7 @@
 import fv3gfs.util
+from mpi4py import MPI
+import shutil
+import fsspec
 import xarray as xr
 import dataclasses
 import cftime
@@ -109,13 +112,30 @@ def _get_reference_state(
 ):
     label = _time_to_label(time)
     dirname = os.path.join(reference_dir, label)
+
+    localdir = "download"
+
+    if MPI.COMM_WORLD.rank == 0:
+        fs = fsspec.get_fs_token_paths(dirname)[0]
+        fs.get(dirname, localdir, recursive=True)
+
+    # need this for synchronization
+    MPI.COMM_WORLD.barrier()
+
     state = fv3gfs.util.open_restart(
-        dirname,
+        localdir,
         communicator,
         label=label,
         only_names=only_names,
         tracer_properties=tracer_metadata,
     )
+
+    # clean up the local directory
+    # wait for other processes to finish using the data
+    MPI.COMM_WORLD.barrier()
+    if MPI.COMM_WORLD.rank == 0:
+        shutil.rmtree(localdir)
+
     return _to_state_dataarrays(state)
 
 
@@ -170,7 +190,6 @@ def _time_interpolate_func(
                 _average_states(state_0, state_1, weight=(end_time - time) / frequency)
             )
 
-        state["time"] = time
         return state
 
     return myfunc
