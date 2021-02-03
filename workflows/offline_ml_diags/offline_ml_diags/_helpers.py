@@ -219,7 +219,7 @@ def net_precipitation_provenance_information(
 
 
 def sample_outside_train_range(
-    all: Sequence, train: Sequence, test_train_ratio: float = 1.0,
+    all: Sequence, train: Sequence, n_sample: int,
 ):
     # Draws test samples from outside the training time range
     if len(train) == 0:
@@ -227,6 +227,6 @@ def sample_outside_train_range(
     outside_train_range = [t for t in all if t < min(train) or t > max(train)]
     if len(outside_train_range) == 0:
         raise ValueError("There are no timesteps available outside the training range.")
-    num_test = min(len(outside_train_range), int(len(train) * test_train_ratio))
+    num_test = min(len(outside_train_range), n_sample)
     random.seed(0)
     return random.sample(sorted(outside_train_range), max(1, num_test))
