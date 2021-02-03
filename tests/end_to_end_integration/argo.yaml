@@ -196,4 +196,4 @@ spec:
           - name: cpu-prog
             value: 24
           - name: memory-prog
-            value: "12Gi"
+            value: "18Gi"
