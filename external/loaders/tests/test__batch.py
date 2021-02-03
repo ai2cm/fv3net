@@ -6,8 +6,7 @@ import numpy as np
 import loaders
 from loaders.batches._batch import (
     batches_from_mapper,
-    diagnostic_batches_from_mapper,
-    _load_batch,
+    _get_batch,
 )
 
 DATA_VARS = ["air_temperature", "specific_humidity"]
@@ -54,8 +53,8 @@ def random_state():
     return np.random.RandomState(0)
 
 
-def test__load_batch(mapper):
-    ds = _load_batch(
+def test__get_batch(mapper):
+    ds = _get_batch(
         mapper=mapper,
         data_vars=["air_temperature", "specific_humidity"],
         keys=mapper.keys(),
@@ -102,8 +101,8 @@ def test__batches_from_mapper_invalid_times(mapper):
 
 
 def test_diagnostic_batches_from_mapper(mapper):
-    batched_data_sequence = diagnostic_batches_from_mapper(
-        mapper, DATA_VARS, timesteps_per_batch=2,
+    batched_data_sequence = batches_from_mapper(
+        mapper, DATA_VARS, timesteps_per_batch=2, training=False
     )
     assert len(batched_data_sequence) == len(mapper) // 2 + len(mapper) % 2
     for i, batch in enumerate(batched_data_sequence):

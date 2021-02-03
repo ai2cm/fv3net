@@ -35,7 +35,7 @@ class BaseSequence(Sequence[T]):
 
     def _save_item(self, path: str, i: int):
         item = self[i]
-        path = os.path.join(path, "%05d.nc" % i)
+        path = os.path.join(path, "%05d.pkl" % i)
         Local.dump(item, path)
 
     def take(self, n: int) -> "Take":
@@ -70,7 +70,7 @@ class Local(BaseSequence[T]):
 
     @property
     def files(self):
-        return sorted(glob.glob(os.path.join(self.path, "*.nc")))
+        return sorted(glob.glob(os.path.join(self.path, "*.pkl")))
 
     @classmethod
     def dump(cls, dataset, path):
