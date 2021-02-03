@@ -5,7 +5,6 @@ import cftime
 import functools
 from datetime import timedelta
 import os
-from mpi4py import MPI
 from typing import (
     MutableMapping,
     Mapping,
@@ -110,9 +109,6 @@ def _get_reference_state(
 ):
     label = _time_to_label(time)
     dirname = os.path.join(reference_dir, label)
-    # This barrier helps make the I/O in fv3gfs-util open restart more reliable
-    # no clue why. We should consider raising this issue upstream
-    MPI.COMM_WORLD.barrier()
     state = fv3gfs.util.open_restart(
         dirname,
         communicator,
@@ -120,7 +116,6 @@ def _get_reference_state(
         only_names=only_names,
         tracer_properties=tracer_metadata,
     )
-    MPI.COMM_WORLD.barrier()
     return _to_state_dataarrays(state)
 
 
