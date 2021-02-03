@@ -94,13 +94,16 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
     without needing any information from args.
     """
 
-    if "nudging" in config_dict:
-        config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
-            "restarts_path", args.initial_condition_url
+    nudging = (
+        NudgingConfig(
+            timescale_hours=config_dict["nudging"]["timescale_hours"],
+            restarts_path=config_dict["nudging"].get(
+                "restarts_path", args.initial_condition_url
+            ),
         )
-        nudging = dacite.from_dict(NudgingConfig, config_dict["nudging"])
-    else:
-        nudging = None
+        if "nudging" in config_dict
+        else None
+    )
 
     diagnostics = [
         dacite.from_dict(DiagnosticFileConfig, diag)

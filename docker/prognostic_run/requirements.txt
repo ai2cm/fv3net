@@ -96,4 +96,3 @@ zipp
 jsonschema
 typing_extensions
 dacite>=1.6.0
-fv3config

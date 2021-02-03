@@ -4,11 +4,9 @@ import xarray as xr
 from loaders._utils import (
     shuffled,
     _get_chunk_indices,
-    check_empty,
-    stack_non_vertical,
-    preserve_samples_per_batch,
+    stack_dropnan_shuffle,
     nonderived_variables,
-    subsample,
+    _needs_grid_data,
 )
 
 
@@ -33,7 +31,7 @@ def test_nonderived_variable_names(requested, available, nonderived):
 
 
 @pytest.fixture
-def gridded_dataset(request):
+def test_gridded_dataset(request):
     num_nans, zdim, ydim, xdim = request.param
     coords = {"z": range(zdim), "y": range(ydim), "x": range(xdim)}
     # unique values for ease of set comparison in test
@@ -50,77 +48,37 @@ def gridded_dataset(request):
 
 
 @pytest.mark.parametrize(
-    "gridded_dataset", [(0, 1, 10, 10), (0, 10, 10, 10)], indirect=True,
+    "test_gridded_dataset", [(0, 1, 10, 10), (0, 10, 10, 10)], indirect=True,
 )
-def test_stack_dims(gridded_dataset):
-    s_dim = "sample"
-    ds_train = stack_non_vertical(gridded_dataset, sample_dim_name=s_dim)
-    assert set(ds_train.dims) == {s_dim, "z"}
-    assert len(ds_train["z"]) == len(gridded_dataset.z)
-    assert ds_train["var"].dims[0] == s_dim
+def test_stack_dropnan_shuffle_dims(test_gridded_dataset):
+    ds_grid = test_gridded_dataset
+    rs = np.random.RandomState(seed=0)
+    ds_train = stack_dropnan_shuffle(random_state=rs, ds=ds_grid)
+    assert set(ds_train.dims) == {"sample", "z"}
+    assert len(ds_train["z"]) == len(ds_grid.z)
 
 
 @pytest.mark.parametrize(
-    "gridded_dataset, expected_error",
-    [((0, 2, 10, 10), None), ((10, 2, 10, 10), None), ((110, 2, 10, 10), ValueError)],
-    indirect=["gridded_dataset"],
+    "test_gridded_dataset, num_finite_samples",
+    [((0, 2, 10, 10), 100), ((10, 2, 10, 10), 90), ((110, 2, 10, 10), 0)],
+    indirect=["test_gridded_dataset"],
 )
-def test_check_empty(gridded_dataset, expected_error):
-    s_dim = "sample"
-    ds_grid = stack_non_vertical(gridded_dataset, sample_dim_name=s_dim)
-    no_nan = ds_grid.dropna(s_dim)
-    if expected_error is not None:
-        with pytest.raises(expected_error):
-            check_empty(no_nan)
+def test_stack_dropnan_shuffle_samples(test_gridded_dataset, num_finite_samples):
+    ds_grid = test_gridded_dataset
+    nan_mask_2d = ~np.isnan(
+        ds_grid["var"].sum("z", skipna=False)
+    )  # mask if any z coord has nan
+    flattened = ds_grid["var"].where(nan_mask_2d).values.flatten()
+    finite_samples = flattened[~np.isnan(flattened)]
+    rs = np.random.RandomState(seed=0)
+
+    if num_finite_samples == 0:
+        with pytest.raises(ValueError):
+            ds_train = stack_dropnan_shuffle(random_state=rs, ds=ds_grid)
     else:
-        check_empty(no_nan)
-
-
-@pytest.mark.parametrize(
-    "gridded_dataset", [(0, 2, 10, 10)], indirect=True,
-)
-def test_subsample_dim(gridded_dataset):
-    s_dim = "sample"
-    ds_train = stack_non_vertical(gridded_dataset, sample_dim_name=s_dim)
-    n = 10
-    subsample_func = subsample(n, np.random.RandomState(0))
-    subsampled = subsample_func(ds_train, dim=s_dim)
-    assert subsampled.sizes[s_dim] == n
-    for dim in subsampled.sizes:
-        if dim != s_dim:
-            assert ds_train.sizes[dim] == subsampled.sizes[dim]
-
-    with pytest.raises(KeyError):
-        subsample_func(ds_train, dim="not_a_dim")
-
-
-@pytest.mark.parametrize(
-    "gridded_dataset", [(0, 2, 10, 10)], indirect=True,
-)
-def test_preserve_samples_per_batch(gridded_dataset):
-    num_multiple = 4
-    d_dim = "dataset"
-    s_dim = "sample"
-
-    multi_ds = xr.concat([gridded_dataset] * num_multiple, dim=d_dim)
-    stacked = stack_non_vertical(multi_ds, sample_dim_name=s_dim)
-    thinned = preserve_samples_per_batch(stacked, dataset_dim_name=d_dim)
-    orig_stacked = stack_non_vertical(gridded_dataset, sample_dim_name=s_dim)
-
-    samples_per_batch_diff = thinned.sizes[s_dim] - orig_stacked.sizes[s_dim]
-    # Thinning operation can be at most the size of dataset dim extra depending
-    # on the index stride
-    assert samples_per_batch_diff <= num_multiple
-
-
-@pytest.mark.parametrize(
-    "gridded_dataset", [(0, 2, 10, 10)], indirect=True,
-)
-def test_preserve_samples_per_batch_not_multi(gridded_dataset):
-    s_dim = "sample"
-    stacked = stack_non_vertical(gridded_dataset, sample_dim_name=s_dim)
-    result = preserve_samples_per_batch(stacked)
-    assert result.sizes[s_dim] == stacked.sizes[s_dim]
+        ds_train = stack_dropnan_shuffle(random_state=rs, ds=ds_grid)
+        assert len(ds_train["sample"]) == num_finite_samples
+        assert set(ds_train["var"].values.flatten()) == set(finite_samples)
 
 
 def test__get_chunk_indices():
@@ -143,9 +101,22 @@ def _stacked_dataset(sample_dim):
 def test_shuffled():
     dataset = _stacked_dataset("sample")
     dataset.isel(sample=1)
-    shuffled(np.random.RandomState(1), dataset, dim="sample")
+    shuffled(dataset, "sample", np.random.RandomState(1))
 
 
 def test_shuffled_dask():
     dataset = _stacked_dataset("sample").chunk()
-    shuffled(np.random.RandomState(1), dataset, dim="sample")
+    shuffled(dataset, "sample", np.random.RandomState(1))
+
+
+@pytest.mark.parametrize(
+    "requested, existing, needs_grid",
+    [
+        (["x0", "x1"], ["x0", "x1"], False),
+        (["x0", "cos_zenith_angle"], ["x0", "x1"], True),
+        (["dQu"], ["x0", "x1"], True),
+        (["dQu"], ["x0", "dQu"], True),
+    ],
+)
+def test__needs_grid_data(requested, existing, needs_grid):
+    assert _needs_grid_data(requested, existing) == needs_grid

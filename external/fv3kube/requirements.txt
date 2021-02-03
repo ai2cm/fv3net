@@ -2,5 +2,5 @@ pytest
 fsspec
 pyyaml
 kubernetes
-fv3config
+../fv3config
 pytest-regtest

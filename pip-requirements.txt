@@ -10,7 +10,6 @@ pip-tools
 tox
 tensorflow>=2.3
 tensorflow-addons
-fv3config
 
 # This version of gcsfs breaks logging
 gcsfs!=0.7.0
