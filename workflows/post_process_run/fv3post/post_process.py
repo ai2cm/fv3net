@@ -155,7 +155,7 @@ def process_item(
 @click.command()
 @click.argument("rundir")
 @click.argument("destination")
-def post_process(rundir: str, destination: str, chunks: str):
+def post_process(rundir: str, destination: str):
     """Post-process the fv3gfs output located RUNDIR and save to DESTINATION
 
     RUNDIR and DESTINATION may be local or GCS paths.
