@@ -131,6 +131,8 @@ def _get_reference_state(
     )
 
     # clean up the local directory
+    # wait for other processes to finish using the data
+    MPI.COMM_WORLD.barrier()
     if MPI.COMM_WORLD.rank == 0:
         shutil.rmtree(localdir)
 
