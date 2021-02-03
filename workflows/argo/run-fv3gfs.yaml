@@ -110,7 +110,7 @@ spec:
         echo "Using fv3config:"
         cat /mnt/data/fv3config.yaml
         echo "{{inputs.parameters.chunks}}" > chunks.yaml
-        runfv3.sh create {{inputs.parameters.runURL}} /mnt/data/fv3config.yaml chunks.yaml /mnt/data/runfile.py
+        runfv3 create {{inputs.parameters.runURL}} /mnt/data/fv3config.yaml chunks.yaml /mnt/data/runfile.py
       env:
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /secret/gcp-credentials/key.json
@@ -145,7 +145,7 @@ spec:
               memory: "{{inputs.parameters.memory}}"
     container:
       image: us.gcr.io/vcm-ml/prognostic_run
-      command: [runfv3.sh]
+      command: [runfv3]
       args: ["append", "{{inputs.parameters.runURL}}"]
       env:
         - name: GOOGLE_APPLICATION_CREDENTIALS

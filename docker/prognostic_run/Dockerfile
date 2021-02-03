@@ -81,8 +81,8 @@ RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
 # Install fv3gfs run script
 RUN apt-get install -y jq
 RUN pip3 install yq==2.11.1
-COPY workflows/prognostic_c48_run/runfv3.sh /usr/local/bin/
-RUN chmod 755 /usr/local/bin/runfv3.sh
+COPY workflows/prognostic_c48_run/runfv3 /usr/local/bin/
+RUN chmod 755 /usr/local/bin/runfv3
 
 #Install gcloud
 RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext && \

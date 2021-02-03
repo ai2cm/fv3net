@@ -21,13 +21,13 @@ function usage {
     echo "It also provides low level commands used for debugging."
     echo ""
     echo "Usage:"
-    echo " runfv3.sh create <outputUrl> <fv3configFile> <chunks> <runFile>" > /dev/stderr 
-    echo " runfv3.sh append <outputUrl>" > /dev/stderr 
-    echo " runfv3.sh run-native <fv3config> <rundir> <runfile>" > /dev/stderr
+    echo " runfv3 create <outputUrl> <fv3configFile> <chunks> <runFile>" > /dev/stderr 
+    echo " runfv3 append <outputUrl>" > /dev/stderr 
+    echo " runfv3 run-native <fv3config> <rundir> <runfile>" > /dev/stderr
     echo ""
     echo "Segmented Run Commands:"
     echo "  create      Initialize a segmented run in GCS"
-    echo "  append      Add a segmented to a segmented run"
+    echo "  append      Append a segment to a segmented run"
     echo ""
     echo "Low-level Commands:"
     echo "  run-native  Setup a run-directory and run the model. Used for "

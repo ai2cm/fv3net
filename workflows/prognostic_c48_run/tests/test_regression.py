@@ -353,7 +353,7 @@ RUNTIME = {"days": 0, "months": 0, "hours": 0, "minutes": RUNTIME_MINUTES, "seco
 def run_native(config, rundir, runfile):
     with tempfile.NamedTemporaryFile("w") as f:
         yaml.safe_dump(config, f)
-        fv3_script = Path(__file__).parent.parent.joinpath("runfv3.sh").as_posix()
+        fv3_script = Path(__file__).parent.parent.joinpath("runfv3").as_posix()
         subprocess.check_call([fv3_script, "run-native", f.name, str(rundir), runfile])
 
 
