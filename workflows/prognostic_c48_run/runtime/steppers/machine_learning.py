@@ -8,7 +8,7 @@ import runtime
 import xarray as xr
 
 import fv3fit
-import vcm
+from vcm import thermo
 from runtime.names import (
     AREA,
     DELP,
@@ -78,21 +78,9 @@ def non_negative_sphum(
 ) -> Tuple[xr.DataArray, xr.DataArray]:
     delta = dQ2 * dt
     reduction_ratio = (-sphum) / (dt * dQ2)  # type: ignore
-    dQ1_updated = xr.where(sphum + delta > 0, dQ1, reduction_ratio * dQ1)
-    dQ2_updated = xr.where(sphum + delta > 0, dQ2, reduction_ratio * dQ2)
+    dQ1_updated = xr.where(sphum + delta >= 0, dQ1, reduction_ratio * dQ1)
+    dQ2_updated = xr.where(sphum + delta >= 0, dQ2, reduction_ratio * dQ2)
     return dQ1_updated, dQ2_updated
-
-
-def integrated_moistening_change(
-    dQ2_initial: xr.DataArray,
-    dQ2_updated: xr.DataArray,
-    delp: xr.DataArray,
-    vertical_dim: str = "z",
-) -> xr.DataArray:
-    integrated_moistening_change = vcm.mass_integrate(
-        dQ2_updated - dQ2_initial, delp, dim="z"
-    )
-    return integrated_moistening_change
 
 
 def _invert_dict(d: Mapping) -> Mapping:
@@ -261,26 +249,58 @@ class MLStepper(Stepper, LoggingMixin):
         variables: List[Hashable] = list(set(self._model.input_variables) | {SPHUM})
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
+        diagnostics: Diagnostics = {}
+        delp = self._state[DELP]
 
         self._log_debug("Computing ML-predicted tendencies")
         tendency: State = predict(self._model, state)
 
-        if "dQ1" in tendency and "dQ2" in tendency:
-            self._log_debug(
-                "Correcting ML tendencies that would predict negative specific humidity"
-            )
-            dQ1_updated, dQ2_updated = non_negative_sphum(
-                state[SPHUM], tendency["dQ1"], tendency["dQ2"], dt=self._timestep
-            )
-            log_non_negative_sphum(self.comm, tendency["dQ2"], dQ2_updated)
-            diagnostics: Diagnostics = {
-                "column_integrated_dQ2_change_non_negative_sphum_limiter": (
-                    integrated_moistening_change(
-                        tendency["dQ2"], dQ2_updated, self._state[DELP]
+        self._log_debug(
+            "Correcting ML tendencies that would predict negative specific humidity"
+        )
+        dQ1_updated, dQ2_updated = non_negative_sphum(
+            state[SPHUM],
+            tendency.get("dQ1", xr.zeros_like(state[SPHUM])),
+            tendency.get("dQ2", xr.zeros_like(state[SPHUM])),
+            dt=self._timestep,
+        )
+        log_non_negative_sphum(self.comm, tendency["dQ2"], dQ2_updated)
+        for k, v in {"dQ1": dQ1_updated, "dQ2": dQ2_updated}.items():
+            if k in tendency:
+                tendency.update({k: v})
+                if k == "dQ1":
+                    diag = thermo.column_integrated_heating(v - tendency[k], delp)
+                    diag = diag.assign_attrs(
+                        {
+                            "long_name": (
+                                "heating change by non-negative humidity constraint"
+                            )
+                        }
                     )
-                )
-            }
-            tendency.update({"dQ1": dQ1_updated, "dQ2": dQ2_updated})
+                    diagnostics.update(
+                        {
+                            "column_integrated_dQ1_change_non_neg_sphum_constraint": (
+                                diag
+                            )
+                        }
+                    )
+                else:
+                    diag = thermo.mass_integrate(v - tendency[k], delp, dim="z")
+                    diag = diag.assign_attrs(
+                        {
+                            "long_name": (
+                                "moistening change by non-negative humidity constraint"
+                            ),
+                            "units": "kg/m^2/s",
+                        }
+                    )
+                    diagnostics.update(
+                        {
+                            "column_integrated_dQ2_change_non_neg_sphum_constraint": (
+                                diag
+                            )
+                        }
+                    )
 
         self._tendencies_to_apply_to_dycore_state = {
             k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]

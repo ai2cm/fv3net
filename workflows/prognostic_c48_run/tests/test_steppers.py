@@ -20,6 +20,15 @@ timestep = 100.0
         pytest.param(
             sphum, dQ1, 2.0 * dQ2, timestep, dQ1 / 2.0, dQ2, id="dQ2_2x_too_big"
         ),
+        pytest.param(
+            sphum,
+            xr.zeros_like(dQ2),
+            2.0 * dQ2,
+            timestep,
+            xr.zeros_like(dQ2),
+            dQ2,
+            id="dQ2_2x_too_big_no_dQ1",
+        ),
         pytest.param(sphum, dQ1, dQ2_mixed, timestep, dQ1_reduced, dQ2, id="dQ2_mixed"),
         pytest.param(
             sphum, dQ1, dQ2, 2.0 * timestep, dQ1 / 2.0, dQ2 / 2.0, id="timestep_2x"
