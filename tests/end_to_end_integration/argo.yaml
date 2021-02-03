@@ -52,7 +52,7 @@ spec:
           fortran_diagnostics:
             - name: atmos_8xdaily.zarr
               chunks:
-                time: 2
+                time: 1
             - name: atmos_dt_atmos.zarr
               chunks:
                 time: 2
