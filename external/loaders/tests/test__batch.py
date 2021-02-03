@@ -6,7 +6,7 @@ import numpy as np
 import loaders
 from loaders.batches._batch import (
     batches_from_mapper,
-    _load_batch,
+    _get_batch,
 )
 
 DATA_VARS = ["air_temperature", "specific_humidity"]
@@ -53,8 +53,8 @@ def random_state():
     return np.random.RandomState(0)
 
 
-def test__load_batch(mapper):
-    ds = _load_batch(
+def test__get_batch(mapper):
+    ds = _get_batch(
         mapper=mapper,
         data_vars=["air_temperature", "specific_humidity"],
         keys=mapper.keys(),

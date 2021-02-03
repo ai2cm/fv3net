@@ -7,13 +7,15 @@ from vcm import safe, parse_datetime_from_str
 from toolz import partition_all, curry, compose_left
 from ._sequences import Map
 from .._utils import (
-    stack,
-    drop_nan,
-    shuffled,
-    preserve_samples_per_batch,
-    get_derived_dataset,
+    add_grid_info,
+    add_derived_data,
+    check_empty,
     nonderived_variables,
+    preserve_samples_per_batch,
+    shuffled,
+    stack_non_vertical,
     subsample,
+    SAMPLE_DIM_NAME,
 )
 from ..constants import TIME_NAME
 from ._serialized_phys import (
@@ -107,8 +109,11 @@ def batches_from_mapper(
         random_seed (int, optional): Defaults to 0.
         timesteps: List of timesteps to use in training.
         res: grid resolution, format as f'c{number cells in tile}'
-        derived: add derived variables to loaded batch
-        training: apply stack, drop_nan, shuffle, and samples-per-batch
+        derived: Overlay DerivedMapping to access rotated winds and other
+            derived variables registered in `vcm.derived_mapping`. Derived
+            variables are calculated on-demand instead of directly adjusting
+            the dataset.
+        training: apply stack_non_vertical, dropna, shuffle, and samples-per-batch
             preseveration to the batch transforms. useful for ML model
             training
         subsample_size: draw a random subsample from the batch of the
@@ -136,15 +141,17 @@ def batches_from_mapper(
     batched_timesteps = list(partition_all(timesteps_per_batch, times))
 
     # First function goes from mapper + timesteps to xr.dataset
-    transforms = [_load_batch(data_mapping, variable_names)]
+    transforms = [_get_batch(data_mapping, variable_names), add_grid_info(res)]
     # Subsequent transforms are all dataset -> dataset
     if derived:
-        transforms.append(get_derived_dataset(variable_names, res))
+        transforms.append(add_derived_data(variable_names, res))
 
     if training:
         transforms += [
-            stack,
-            drop_nan,
+            stack_non_vertical,
+            lambda ds: ds.load(),
+            lambda ds: ds.dropna(dim=SAMPLE_DIM_NAME),
+            check_empty,
             preserve_samples_per_batch,
             shuffled(random_state),
         ]
@@ -216,12 +223,13 @@ def _sample(seq: Sequence[Any], n: int, random_state: RandomState) -> Sequence[A
 
 
 @curry
-def _load_batch(
+def _get_batch(
     mapper: Mapping[str, xr.Dataset], data_vars: Sequence[str], keys: Iterable[str],
 ) -> xr.Dataset:
     """
     Selects requested variables in the dataset that are there by default
-    (i.e., not added in derived step) and converts time strings to time
+    (i.e., not added in derived step), converts time strings to time, and combines
+    into a single dataset.
     """
 
     time_coords = [parse_datetime_from_str(key) for key in keys]

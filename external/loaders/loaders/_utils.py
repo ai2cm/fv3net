@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.random import RandomState
 from typing import Tuple, Sequence
-from toolz.functoolz import curry
+from toolz.functoolz import _restore_curry, curry
 import xarray as xr
 import vcm
 from vcm import safe, net_heating, net_precipitation, DerivedMapping
@@ -43,47 +43,24 @@ def nonderived_variables(requested: Sequence[str], available: Sequence[str]):
     return nonderived
 
 
-def _needs_grid_data(
-    requested_vars: Sequence[str], existing_vars: Sequence[str]
-) -> bool:
-    from_grid = ["land_sea_mask", "lat", "lon", "latitude", "longitude"]
-    derived_from_grid = [
-        "cos_zenith_angle",
-        "dQu",
-        "dQv",
-        "dQu_parallel_to_eastward_wind",
-        "dQv_parallel_to_northward_wind",
-        "horizontal_wind_tendency_parallel_to_horizontal_wind",
-    ]
-    for var in requested_vars:
-        if var in from_grid and var not in existing_vars:
-            return True
-        if var in derived_from_grid:
-            # It is possible for the dataset to have come from a DerivedMapping,
-            # in which case the var will be in the data_vars but still need the
-            # grid loaded.
-            return True
-    return False
-
-
 @curry
-def get_derived_dataset(
-    variables: Sequence[str], res: str, ds: xr.Dataset
-) -> xr.Dataset:
-    if _needs_grid_data(variables, ds.data_vars):
-        ds = _add_grid_rotation(res, ds)
+def add_derived_data(variables: Sequence[str], res: str, ds: xr.Dataset) -> xr.Dataset:
+
+    rotation = _load_wind_rotation_matrix(res)
+    common_coords = {"x": ds["x"].values, "y": ds["y"].values}
+    rotation = rotation.assign_coords(common_coords)
+    # defaults to data already in dataset
+    ds.merge(rotation, compat="override")
+
     derived_mapping = DerivedMapping(ds)
     return derived_mapping.dataset(variables)
 
 
-def _add_grid_rotation(res: str, ds: xr.Dataset) -> xr.Dataset:
+@curry
+def add_grid_info(res: str, ds: xr.Dataset) -> xr.Dataset:
     grid = _load_grid(res)
-    rotation = _load_wind_rotation_matrix(res)
-    common_coords = {"x": ds["x"].values, "y": ds["y"].values}
-    rotation = rotation.assign_coords(common_coords)
-    grid = grid.assign_coords(common_coords)
     # Prioritize dataset's land_sea_mask if it differs from grid
-    return xr.merge([ds, grid, rotation], compat="override")
+    return xr.merge([ds, grid], compat="override")
 
 
 def _load_grid(res: str) -> xr.Dataset:
@@ -121,14 +98,13 @@ def standardize_zarr_time_coord(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
-def stack(ds: xr.Dataset) -> xr.Dataset:
+def stack_non_vertical(ds: xr.Dataset, sample_dim_name=SAMPLE_DIM_NAME) -> xr.Dataset:
     """
     Stack all dimensions except for the Z dimensions into a sample
 
     Args:
         ds: dataset with geospatial dimensions
     """
-    ds = ds.load()  # TODO: Why is the dataset loaded here?
     stack_dims = [dim for dim in ds.dims if dim not in Z_DIM_NAMES]
     if len(set(ds.dims).intersection(Z_DIM_NAMES)) > 1:
         raise ValueError("Data cannot have >1 feature dimension in {Z_DIM_NAMES}.")
@@ -141,7 +117,9 @@ def stack(ds: xr.Dataset) -> xr.Dataset:
     return ds_stacked.transpose()
 
 
-def preserve_samples_per_batch(ds: xr.Dataset) -> xr.Dataset:
+def preserve_samples_per_batch(
+    ds: xr.Dataset, dataset_dim_name=DATASET_DIM_NAME
+) -> xr.Dataset:
     """
     In the multi-dataset case, preserve the same-ish number of samples per
     batch as the single dataset case.
@@ -150,34 +128,23 @@ def preserve_samples_per_batch(ds: xr.Dataset) -> xr.Dataset:
         ds: dataset with sample dimension and potentially a dataset dimension
     """
     try:
-        dataset_coord = ds.coords[DATASET_DIM_NAME]
+        dataset_coord = ds.coords[dataset_dim_name]
     except KeyError:
         dataset_coord = None
 
     if dataset_coord is not None:
-        num_datasets = len(set(dataset_coord.values))
+        num_datasets = len(set(dataset_coord.values.tolist()))
         ds = ds.thin({SAMPLE_DIM_NAME: num_datasets})
 
     return ds
 
 
-def drop_nan(ds: xr.Dataset, dim=SAMPLE_DIM_NAME) -> xr.Dataset:
+def check_empty(ds: xr.Dataset, dim=SAMPLE_DIM_NAME) -> xr.Dataset:
     """
-    Drop any nan values along a dimension.
-
-    Args:
-        ds: dataset to drop NaN from
-        dim: dimension to drop NaN from in the dataset
-
-    Raises:
-    ValueError
-        If the size of the dimension is 0 after dropping NaN entries
+    Check for an empty variables along a dimension in a dataset
     """
-    ds = ds.dropna(dim)
     if len(ds[dim]) == 0:
-        raise ValueError(
-            "No Valid samples detected. Check for errors in the training data."
-        )
+        raise ValueError("Check for NaN fields in the training data.")
     return ds
 
 
@@ -203,12 +170,22 @@ def shuffled(
     return dataset.isel({dim: shuffled_inds})
 
 
+def _get_chunk_indices(chunks):
+    indices = []
+
+    start = 0
+    for chunk in chunks:
+        indices.append(list(range(start, start + chunk)))
+        start += chunk
+    return indices
+
+
 @curry
 def subsample(
     num_samples: int,
     random_state: np.random.RandomState,
     dataset: xr.Dataset,
-    sample_dim=SAMPLE_DIM_NAME,
+    dim=SAMPLE_DIM_NAME,
 ) -> xr.Dataset:
 
     """
@@ -218,21 +195,11 @@ def subsample(
         num_samples: number of random sampls to take
         random_state: initialized numpy random state
         dataset: dataset to sample from
-        sample_dim (optional): dimension to sample along
+        dim (optional): dimension to sample along
     """
-    dim_len = dataset.dims[sample_dim]
+    dim_len = dataset.dims[dim]
     sample_idx = random_state.choice(range(dim_len), num_samples, replace=False)
-    return dataset.isel({sample_dim: sample_idx})
-
-
-def _get_chunk_indices(chunks):
-    indices = []
-
-    start = 0
-    for chunk in chunks:
-        indices.append(list(range(start, start + chunk)))
-        start += chunk
-    return indices
+    return dataset.isel({dim: sample_idx})
 
 
 def net_heating_from_physics(ds: xr.Dataset) -> xr.DataArray:
