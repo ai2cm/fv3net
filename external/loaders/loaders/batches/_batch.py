@@ -9,6 +9,7 @@ from ._sequences import Map
 from .._utils import (
     add_grid_info,
     add_derived_data,
+    add_wind_rotation_info,
     check_empty,
     nonderived_variables,
     preserve_samples_per_batch,
@@ -95,7 +96,6 @@ def batches_from_mapper(
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
     training: bool = True,
-    derived: bool = True,
     subsample_size: int = None,
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
@@ -108,11 +108,6 @@ def batches_from_mapper(
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
         timesteps: List of timesteps to use in training.
-        res: grid resolution, format as f'c{number cells in tile}'
-        derived: Overlay DerivedMapping to access rotated winds and other
-            derived variables registered in `vcm.derived_mapping`. Derived
-            variables are calculated on-demand instead of directly adjusting
-            the dataset.
         training: apply stack_non_vertical, dropna, shuffle, and samples-per-batch
             preseveration to the batch transforms. useful for ML model
             training
@@ -141,10 +136,13 @@ def batches_from_mapper(
     batched_timesteps = list(partition_all(timesteps_per_batch, times))
 
     # First function goes from mapper + timesteps to xr.dataset
-    transforms = [_get_batch(data_mapping, variable_names), add_grid_info(res)]
     # Subsequent transforms are all dataset -> dataset
-    if derived:
-        transforms.append(add_derived_data(variable_names, res))
+    transforms = [
+        _get_batch(data_mapping, variable_names),
+        add_grid_info(res),
+        add_wind_rotation_info(res),
+        add_derived_data(variable_names),
+    ]
 
     if training:
         transforms += [
@@ -158,6 +156,7 @@ def batches_from_mapper(
 
     if subsample_size is not None:
         transforms.append(subsample(subsample_size, random_state))
+
     batch_func = compose_left(*transforms)
 
     seq = Map(batch_func, batched_timesteps)
@@ -175,7 +174,6 @@ def diagnostic_batches_from_geodata(
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
-    derived: bool = True,
     subsample_size: int = None,
 ) -> Sequence[xr.Dataset]:
     """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
@@ -192,7 +190,6 @@ def diagnostic_batches_from_geodata(
         random_seed (int, optional): Defaults to 0.
         timesteps: List of timesteps to use in training.
         res: grid resolution, format as f'c{number cells in tile}'
-        derived: add derived variables to loaded batch
         subsample_size: draw a random subsample from the batch of the
             specified size along the sampling dimension
 
@@ -212,7 +209,6 @@ def diagnostic_batches_from_geodata(
         timesteps,
         res,
         training=False,
-        derived=derived,
         subsample_size=subsample_size,
     )
     return sequence

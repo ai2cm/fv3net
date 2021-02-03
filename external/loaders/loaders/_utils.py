@@ -44,23 +44,44 @@ def nonderived_variables(requested: Sequence[str], available: Sequence[str]):
 
 
 @curry
-def add_derived_data(variables: Sequence[str], res: str, ds: xr.Dataset) -> xr.Dataset:
+def add_derived_data(variables: Sequence[str], ds: xr.Dataset) -> xr.Dataset:
+    """
+    Overlay the DerivedMapping and grab a dataset of specified variables
 
-    rotation = _load_wind_rotation_matrix(res)
-    common_coords = {"x": ds["x"].values, "y": ds["y"].values}
-    rotation = rotation.assign_coords(common_coords)
-    # defaults to data already in dataset
-    ds.merge(rotation, compat="override")
-
+    Args:
+        variables: All variables (derived and non-derived) to include in the
+            dataset.
+    """
     derived_mapping = DerivedMapping(ds)
     return derived_mapping.dataset(variables)
 
 
 @curry
 def add_grid_info(res: str, ds: xr.Dataset) -> xr.Dataset:
+    """
+    Add lat, lon, land-type mask information to the dataset
+
+    Args:
+        res: grid resolution, format as f'c{number cells in tile}'
+    """
     grid = _load_grid(res)
     # Prioritize dataset's land_sea_mask if it differs from grid
     return xr.merge([ds, grid], compat="override")
+
+
+@curry
+def add_wind_rotation_info(res: str, ds: xr.Dataset) -> xr.Dataset:
+    """
+    Add wind rotation information to the dataset
+
+    Args:
+        res: grid resolution, format as f'c{number cells in tile}'
+    """
+
+    rotation = _load_wind_rotation_matrix(res)
+    common_coords = {"x": ds["x"].values, "y": ds["y"].values}
+    rotation = rotation.assign_coords(common_coords)
+    return ds.merge(rotation, compat="override")
 
 
 def _load_grid(res: str) -> xr.Dataset:
