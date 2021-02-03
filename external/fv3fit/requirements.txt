@@ -48,7 +48,6 @@ MetPy
 more-itertools
 msgpack
 networkx
-nose
 numba
 oauthlib
 packaging
