@@ -39,7 +39,6 @@ def batches_from_geodata(
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
-    derived: bool = True,
     subsample_size: int = None,
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
@@ -56,7 +55,6 @@ def batches_from_geodata(
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
         res: grid resolution, format as f'c{number cells in tile}'
-        derived: add derived variables to loaded batch
         subsample_size: draw a random subsample from the batch of the
             specified size along the sampling dimension
     Raises:
@@ -74,7 +72,6 @@ def batches_from_geodata(
         timesteps,
         res,
         training=True,
-        derived=derived,
         subsample_size=subsample_size,
     )
     return batches
