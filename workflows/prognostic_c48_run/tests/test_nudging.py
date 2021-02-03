@@ -44,6 +44,24 @@ def test__time_interpolate_func_has_correct_value(fraction):
     assert float(ans["a"].values) == pytest.approx(fraction)
 
 
+@pytest.mark.parametrize(
+    "middle_time",
+    [
+        cftime.DatetimeJulian(2016, 1, 1, 5, 0, 0),
+        cftime.DatetimeJulian(2016, 1, 1, 5, 15, 0),
+    ],
+)
+def test__time_interpolate_func_has_time(middle_time):
+    initial_time = cftime.DatetimeJulian(2016, 1, 1)
+
+    def func(time):
+        return {"a": xr.DataArray(data=np.array([1.0]), dims=["x"])}
+
+    myfunc = _time_interpolate_func(func, timedelta(hours=1), initial_time)
+    ans = myfunc(middle_time)
+    assert ans["time"] == middle_time
+
+
 def test__time_interpolate_func_only_grabs_correct_points():
     initial_time = cftime.DatetimeJulian(2016, 1, 1)
     frequency = timedelta(hours=2)

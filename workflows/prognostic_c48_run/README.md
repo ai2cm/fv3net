@@ -1,8 +1,6 @@
 Prognostic model run workflow
 =============================
 
-[Sphinx Documentation](https://vulcanclimatemodeling.com/docs/prognostic_c48_run/)
-
 This workflow makes a coupled C48 FV3 run with a scikit-learn model. This workflow
 1. includes runfile `sklearn_runfile.py` which can be used with `fv3run`
 1. uses the `prognostic_run` docker image, built by `fv3net/docker/prognostic_run/Dockerfile`

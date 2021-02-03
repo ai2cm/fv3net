@@ -44,20 +44,6 @@ push_images: $(addprefix push_image_, $(IMAGES))
 push_image_%: build_image_%
 	docker push $(REGISTRY)/$*:$(VERSION)
 
-
-## Empty rule for deploying docs
-deploy_docs_%: 
-	@echo "Nothing to do."
-
-
-## Deploy documentation for prognostic run to vulcanclimatemodeling.com
-deploy_docs_prognostic_run:
-	mkdir html
-	# use tar to grab docs from inside the docker image and extract them to "./html"
-	docker run us.gcr.io/vcm-ml/prognostic_run tar -C docs/_build/html  -c . | tar -C html -x
-	gsutil -m rsync -R html gs://vulcanclimatemodeling-com-static/docs/prognostic_c48_run
-	rm -rf html
-
 pull_image_%:
 	docker pull $(REGISTRY)/$*:$(VERSION)
 
@@ -89,10 +75,11 @@ test_prognostic_run:
 test_prognostic_run_report:
 	bash workflows/prognostic_run_diags/test_integration.sh
 
-test_%:
-	cd external/$* && tox
 
-test_unit: test_fv3kube test_vcm
+test_fv3kube:
+	cd external/fv3kube && tox
+
+test_unit: test_fv3kube
 	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
 
 test_regression:
@@ -131,23 +118,10 @@ update_submodules:
 install_deps:
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
 
-lock_deps: lock_pip
+lock_deps:
 	conda-lock -f environment.yml
 	# external directories must be explicitly listed to avoid model requirements files which use locked versions
-
-.PHONY: lock_pip
-lock_pip:
-	pip-compile  \
-	--no-annotate \
-	external/vcm/setup.py \
-	pip-requirements.txt \
-	external/fv3fit/requirements.txt \
-	workflows/post_process_run/requirements.txt \
-	docker/**/requirements.txt \
-	--output-file constraints.txt
-	# remove extras in name: e.g. apache-beam[gcp] --> apache-beam
-	sed -i.bak  's/\[.*\]//g' constraints.txt
-	rm -f constraints.txt.bak
+	pip-compile pip-requirements.txt external/fv3fit/requirements.txt workflows/post_process_run/requirements.txt docker/**/requirements.txt --output-file constraints.txt
 
 install_local_packages:
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)

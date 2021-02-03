@@ -1,7 +1,6 @@
 import numpy as np
 from numpy.random import RandomState
 from typing import Tuple, Sequence
-from toolz.functoolz import curry
 import xarray as xr
 import vcm
 from vcm import safe, net_heating, net_precipitation, DerivedMapping
@@ -66,7 +65,6 @@ def _needs_grid_data(
     return False
 
 
-@curry
 def get_derived_dataset(
     variables: Sequence[str], res: str, ds: xr.Dataset
 ) -> xr.Dataset:
@@ -121,14 +119,8 @@ def standardize_zarr_time_coord(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
-def stack(ds: xr.Dataset) -> xr.Dataset:
-    """
-    Stack all dimensions except for the Z dimensions into a sample
-
-    Args:
-        ds: dataset with geospatial dimensions
-    """
-    ds = ds.load()  # TODO: Why is the dataset loaded here?
+def stack_dropnan_shuffle(random_state: RandomState, ds: xr.Dataset,) -> xr.Dataset:
+    ds = ds.load()
     stack_dims = [dim for dim in ds.dims if dim not in Z_DIM_NAMES]
     if len(set(ds.dims).intersection(Z_DIM_NAMES)) > 1:
         raise ValueError("Data cannot have >1 feature dimension in {Z_DIM_NAMES}.")
@@ -138,60 +130,31 @@ def stack(ds: xr.Dataset) -> xr.Dataset:
         stack_dims,
         allowed_broadcast_dims=Z_DIM_NAMES + [TIME_NAME, DATASET_DIM_NAME],
     )
-    return ds_stacked.transpose()
-
-
-def preserve_samples_per_batch(ds: xr.Dataset) -> xr.Dataset:
-    """
-    In the multi-dataset case, preserve the same-ish number of samples per
-    batch as the single dataset case.
-
-    Args:
-        ds: dataset with sample dimension and potentially a dataset dimension
-    """
-    try:
-        dataset_coord = ds.coords[DATASET_DIM_NAME]
-    except KeyError:
-        dataset_coord = None
-
-    if dataset_coord is not None:
-        num_datasets = len(set(dataset_coord.values))
-        ds = ds.thin({SAMPLE_DIM_NAME: num_datasets})
-
-    return ds
-
-
-def drop_nan(ds: xr.Dataset, dim=SAMPLE_DIM_NAME) -> xr.Dataset:
-    """
-    Drop any nan values along a dimension.
-
-    Args:
-        ds: dataset to drop NaN from
-        dim: dimension to drop NaN from in the dataset
-
-    Raises:
-    ValueError
-        If the size of the dimension is 0 after dropping NaN entries
-    """
-    ds = ds.dropna(dim)
-    if len(ds[dim]) == 0:
+    ds_no_nan = ds_stacked.dropna(SAMPLE_DIM_NAME)
+    if len(ds_no_nan[SAMPLE_DIM_NAME]) == 0:
         raise ValueError(
             "No Valid samples detected. Check for errors in the training data."
         )
-    return ds
+    ds_no_nan = ds_no_nan.transpose()
+    result = shuffled(ds_no_nan, SAMPLE_DIM_NAME, random_state)
+    if DATASET_DIM_NAME in ds.dims:
+        # In the multi-dataset case, preserve the same number of samples per
+        # batch as the single dataset case.
+        return result.thin({SAMPLE_DIM_NAME: ds.sizes[DATASET_DIM_NAME]})
+    else:
+        return result
 
 
-@curry
 def shuffled(
-    random: RandomState, dataset: xr.Dataset, dim=SAMPLE_DIM_NAME
+    dataset: xr.Dataset, dim: str, random: np.random.RandomState
 ) -> xr.Dataset:
     """
     Shuffles dataset along a dimension within chunks if chunking is present
 
     Args:
+        dataset: input data to be shuffled
         dim: dimension to shuffle indices along
         random: Initialized random number generator state used for shuffling
-        dataset: input data to be shuffled
     """
     chunks_default = (len(dataset[dim]),)
     chunks = dataset.chunks.get(dim, chunks_default)
@@ -201,28 +164,6 @@ def shuffled(
     )
 
     return dataset.isel({dim: shuffled_inds})
-
-
-@curry
-def subsample(
-    num_samples: int,
-    random_state: np.random.RandomState,
-    dataset: xr.Dataset,
-    sample_dim=SAMPLE_DIM_NAME,
-) -> xr.Dataset:
-
-    """
-    Subsample values among a specified dimension
-
-    Args:
-        num_samples: number of random sampls to take
-        random_state: initialized numpy random state
-        dataset: dataset to sample from
-        sample_dim (optional): dimension to sample along
-    """
-    dim_len = dataset.dims[sample_dim]
-    sample_idx = random_state.choice(range(dim_len), num_samples, replace=False)
-    return dataset.isel({sample_dim: sample_idx})
 
 
 def _get_chunk_indices(chunks):

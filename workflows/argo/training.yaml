@@ -25,6 +25,7 @@ spec:
     - name: training
       inputs:
         parameters:
+          - name: routine
           - name: input
           - name: config
           - name: times
@@ -55,8 +56,10 @@ spec:
 
             echo "Configuration:"
             cat config.yaml
-                
-            python -m fv3fit.train \
+            
+            echo {{inputs.parameters.routine}}
+    
+            python -m {{inputs.parameters.routine}} \
               {{inputs.parameters.input}} \
               config.yaml \
               {{inputs.parameters.output}} \

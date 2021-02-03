@@ -30,6 +30,8 @@ spec:
     inputs:
       parameters:
         - name: root
+        - name: train-routine
+          value: sklearn
         - name: train-test-data
         - name: training-config
         - name: train-times
@@ -56,6 +58,8 @@ spec:
           template: training
         arguments:
           parameters:
+            - name: routine
+              value: "fv3fit.{{inputs.parameters.train-routine}}"
             - name: input
               value: "{{inputs.parameters.train-test-data}}"
             - name: config

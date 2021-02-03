@@ -49,6 +49,8 @@ COPY /external/fv3gfs-wrapper /fv3gfs-wrapper
 RUN make -C /fv3gfs-wrapper/lib
 
 # copy dependency packages
+COPY /external/fv3config /external/fv3config
+RUN pip3 install /external/fv3config
 COPY /external/fv3gfs-util /external/fv3gfs-util
 RUN pip3 install /external/fv3gfs-util 
 

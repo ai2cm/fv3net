@@ -48,23 +48,11 @@ def test_prepare_nudging_config_regression(regtest):
     ["frequency_minutes", "expected"],
     [
         pytest.param(
-            120,
-            {
-                "kind": "interval",
-                "frequency": 7200,
-                "times": None,
-                "includes_lower": False,
-            },
-            id="2-hourly",
+            120, {"kind": "interval", "frequency": 7200, "times": None}, id="2-hourly"
         ),
         pytest.param(
             15,
-            {
-                "kind": "interval",
-                "frequency": 900,
-                "times": None,
-                "includes_lower": False,
-            },
+            {"kind": "interval", "frequency": 900, "times": None},
             id="default_15-minute",
         ),
     ],
