@@ -125,13 +125,14 @@ def stack_non_vertical(ds: xr.Dataset, sample_dim_name=SAMPLE_DIM_NAME) -> xr.Da
 
     Args:
         ds: dataset with geospatial dimensions
+        sample_dim_name: name for new sampling dimension
     """
     stack_dims = [dim for dim in ds.dims if dim not in Z_DIM_NAMES]
     if len(set(ds.dims).intersection(Z_DIM_NAMES)) > 1:
         raise ValueError("Data cannot have >1 feature dimension in {Z_DIM_NAMES}.")
     ds_stacked = safe.stack_once(
         ds,
-        SAMPLE_DIM_NAME,
+        sample_dim_name,
         stack_dims,
         allowed_broadcast_dims=Z_DIM_NAMES + [TIME_NAME, DATASET_DIM_NAME],
     )
@@ -142,11 +143,14 @@ def preserve_samples_per_batch(
     ds: xr.Dataset, dataset_dim_name=DATASET_DIM_NAME
 ) -> xr.Dataset:
     """
-    In the multi-dataset case, preserve the same-ish number of samples per
-    batch as the single dataset case.
+    Peserve the same-ish number of samples per batch when multiple dataset
+    sources are detected in the batch dataset.  Returns an unadjusted dataset
+    when no dataset dimension is found.
 
     Args:
         ds: dataset with sample dimension and potentially a dataset dimension
+        dataset_dim_name: name of dataset dimension to check existence of before
+            thinning
     """
     try:
         dataset_coord = ds.coords[dataset_dim_name]
