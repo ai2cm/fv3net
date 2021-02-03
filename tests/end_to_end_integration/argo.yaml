@@ -134,17 +134,48 @@ spec:
         defaultMode: 420
         secretName: gcp-key
   templates:
+  - name: download-nudging-data
+    inputs:
+      parameters:
+        - name: reference-restarts
+    container:
+      image: us.gcr.io/vcm-ml/post_process_run
+      command: ["/bin/bash", "-c", "-e"]
+      env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secret/gcp-credentials/key.json
+      args:
+      - |
+        gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
+        mkdir -p /mnt/data/nudging-data
+        gsutil -m cp -r {{inputs.parameters.reference-restarts}}/* /mnt/data/nudging-data
+      volumeMounts:
+        - name: work-volume
+          mountPath: /mnt/data
+        - name: gcp-key-secret
+          mountPath: /secret/gcp-credentials
+      resources:
+        requests:
+          cpu: "1"
+          memory: 1Gi
   - name: main
     dag:
       tasks:
+      - name: download-nudging-data
+        template: download-nudging-data
+        arguments:
+          parameters:
+          - name: reference-restarts
+            value: "{{workflow.parameters.reference-restarts}}"
       - name: nudge-to-fine-run
+        dependencies: [download-nudging-data]
         templateRef:
           name: prognostic-run
           template: prognostic-run
         arguments:
           parameters:
           - name: reference-restarts
-            value: "{{workflow.parameters.reference-restarts}}"
+            value: /mnt/data/nudging-data
           - name: initial-condition
             value: "{{workflow.parameters.initial-condition}}"
           - name: flags
