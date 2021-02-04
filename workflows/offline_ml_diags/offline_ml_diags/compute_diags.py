@@ -11,6 +11,7 @@ import xarray as xr
 import yaml
 from typing import Mapping, Sequence, Tuple, List
 from toolz import dissoc
+import warnings
 
 import diagnostics_utils as utils
 import loaders
@@ -62,7 +63,6 @@ METRIC_VARS = ("dQ1", "dQ2", "Q1", "Q2")
 
 def _create_arg_parser() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("data_path", nargs="*", type=str, help="Location of test data")
 
     parser.add_argument(
         "model_path", type=str, help=("Local or remote path for reading ML model."),
@@ -70,8 +70,18 @@ def _create_arg_parser() -> argparse.Namespace:
     parser.add_argument(
         "output_path",
         type=str,
-        help=("Local or remote path where diagnostic dataset will be written."),
+        help="Local or remote path where diagnostic dataset will be written.",
     )
+    parser.add_argument(
+        "--data_path",
+        nargs="*",
+        type=str,
+        default=None,
+        help=(
+            "Location of test data. If not provided, will use the data_path saved "
+            "with the trained model config file."
+        ))
+
     parser.add_argument(
         "--config_yml",
         type=str,
@@ -98,7 +108,7 @@ def _create_arg_parser() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--num-sample",
+        "--num-test-sample",
         type=int,
         default=None,
         help=(
@@ -242,12 +252,12 @@ def _consolidate_dimensioned_data(ds_summary, ds_metrics):
     return ds_diagnostics, ds_metrics.drop(metrics_arrays_vars)
 
 
-def _get_base_mapper(args, config: Mapping):
+def _get_base_mapper(config: Mapping):
     logger.info("Creating base mapper")
     base_mapping_function = getattr(
         loaders.mappers, config["batch_kwargs"]["mapping_function"]
     )
-    data_path = args.data_path
+    data_path = config["data_path"]
     if len(data_path) == 1:
         data_path = data_path[0]
     return base_mapping_function(
@@ -256,9 +266,9 @@ def _get_base_mapper(args, config: Mapping):
 
 
 def _get_prediction_mapper(
-    args, config: Mapping, variables: Sequence[str], model: fv3fit.Predictor
+    config: Mapping, variables: Sequence[str], model: fv3fit.Predictor
 ):
-    base_mapper = _get_base_mapper(args, config)
+    base_mapper = _get_base_mapper(config)
     model_mapper_kwargs = config.get("model_mapper_kwargs", {})
     logger.info("Creating prediction mapper")
     return PredictionMapper(
@@ -289,31 +299,31 @@ def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence
 
 def _get_timesteps(
     timesteps_file: str,
-    num_sample: int,
+    num_test_sample: int,
     available_times: List[str],
     config: dict,
 ):
     if timesteps_file:
-        if num_sample:
+        if num_test_sample:
             raise ValueError(
                 "Cannot provide both optional args --timesteps-file and "
-                "--num-sample for timestep selection."
+                "--num-test-sample for timestep selection."
             )
         logger.info("Reading timesteps file")
         with open(timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
-    elif num_sample:
+    elif num_test_sample:
         # sample times outside training range and use as test set.
         # Updates timesteps in config to test set so that the
         # saved offline config reflects this.
         train_timesteps = config["batch_kwargs"].pop("timesteps", None)
         if train_timesteps is None:
             raise ValueError(
-                "Optional arg --num-sample was provided "
+                "Optional arg --num-test-sample was provided "
                 "but the config file has no entry for batch_kwargs['timesteps']."
             )
         timesteps = sample_outside_train_range(
-            available_times, train_timesteps, num_sample
+            available_times, train_timesteps, num_test_sample
         )
     else:
         try:
@@ -334,7 +344,8 @@ if __name__ == "__main__":
 
     with fsspec.open(config_path, "r") as f:
         config = yaml.safe_load(f)
-    config["data_path"] = args.data_path
+    if args.data_path:
+        config["data_path"] = args.data_path
 
     logger.info("Reading grid...")
     res = config["batch_kwargs"].get("res", "c48")
@@ -348,12 +359,17 @@ if __name__ == "__main__":
 
     logger.info("Opening ML model")
     model = fv3fit.load(config["model_path"])
-    pred_mapper = _get_prediction_mapper(args, config, variables, model)
+    pred_mapper = _get_prediction_mapper(config, variables, model)
 
     # Overwrite timesteps list if option to resample or list file provided.
+    if not args.config_yml and not args.timesteps_file and not args.num_test_sample:
+        warnings.warn(
+            "Using the timesteps saved in model training config. You are running "
+            "the offline diagnostics on the training set."
+        )
     timesteps = _get_timesteps(
         args.timesteps_file,
-        args.num_sample,
+        args.num_test_sample,
         list(pred_mapper),
         config,
     )
