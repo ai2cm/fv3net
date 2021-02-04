@@ -84,6 +84,11 @@ function readRunLastSegment {
 
 function appendSegment {
     set -e
+    if [[ $# -ne 1 ]]
+    then
+        usage
+        exit 1
+    fi
     runURL="$1"
 
     workingDir="$(mktemp -d)"
@@ -129,6 +134,13 @@ function runSegment {
     fv3config="$1"
     rundir="$2"
     runfile="$3"
+
+    if [[ $# -ne 3 ]]
+    then
+        usage
+        exit 1
+    fi
+
     write_run_directory "$fv3config" "$rundir"
     mkdir -p "$rundir"
     cp "$runfile" "$rundir/runfile.py"
