@@ -267,16 +267,8 @@ class MLStepper(Stepper, LoggingMixin):
         log_non_negative_sphum(self.comm, tendency["dQ2"], dQ2_updated)
         for k, v in {"dQ1": dQ1_updated, "dQ2": dQ2_updated}.items():
             if k in tendency:
-                tendency.update({k: v})
                 if k == "dQ1":
                     diag = thermo.column_integrated_heating(v - tendency[k], delp)
-                    diag = diag.assign_attrs(
-                        {
-                            "long_name": (
-                                "heating change by non-negative humidity constraint"
-                            )
-                        }
-                    )
                     diagnostics.update(
                         {
                             "column_integrated_dQ1_change_non_neg_sphum_constraint": (
@@ -284,16 +276,10 @@ class MLStepper(Stepper, LoggingMixin):
                             )
                         }
                     )
+                    tendency.update({k: v})
                 else:
                     diag = thermo.mass_integrate(v - tendency[k], delp, dim="z")
-                    diag = diag.assign_attrs(
-                        {
-                            "long_name": (
-                                "moistening change by non-negative humidity constraint"
-                            ),
-                            "units": "kg/m^2/s",
-                        }
-                    )
+                    diag = diag.assign_attrs({"units": "kg/m^2/s"})
                     diagnostics.update(
                         {
                             "column_integrated_dQ2_change_non_neg_sphum_constraint": (
@@ -301,6 +287,7 @@ class MLStepper(Stepper, LoggingMixin):
                             )
                         }
                     )
+                    tendency.update({k: v})
 
         self._tendencies_to_apply_to_dycore_state = {
             k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]
