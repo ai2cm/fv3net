@@ -29,6 +29,7 @@ class ModelTrainingConfig:
         validation_timesteps: Optional[Sequence[str]] = None,
         save_model_checkpoints: bool = False,
     ):
+        self.data_path = data_path
         self.model_type = model_type
         self.hyperparameters = hyperparameters
         self.input_variables = input_variables
