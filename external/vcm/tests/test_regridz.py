@@ -3,18 +3,9 @@ import numpy as np
 import pytest
 import xarray as xr
 from vcm.cubedsphere.regridz import (
-    regrid_vertical_legacy,
     _mask_weights,
     regrid_vertical,
 )
-
-
-try:
-    import mappm  # noqa: F401
-except ImportError:
-    has_mappm = False
-else:
-    has_mappm = True
 
 
 def input_dataarray(shape, chunks=None, z_dim_name="z"):
@@ -28,35 +19,6 @@ def input_dataarray(shape, chunks=None, z_dim_name="z"):
     return da
 
 
-@pytest.mark.skipif(not has_mappm, reason="test requires mappm")
-@pytest.mark.parametrize(
-    "p_in_shape, f_in_shape, p_out_shape, expected",
-    [
-        ((4, 6), (4, 5), (4, 6), (4, 5)),
-        ((4, 4, 6), (4, 4, 5), (4, 4, 6), (4, 4, 5)),
-        ((6, 4, 4, 6), (6, 4, 4, 5), (6, 4, 4, 6), (6, 4, 4, 5)),
-        ((4, 4, 6), (4, 4, 5), (4, 4, 3), (4, 4, 2)),
-    ],
-)
-def test_regrid_vertical_against_regrid_vertical_legacy(
-    p_in_shape, f_in_shape, p_out_shape, expected
-):
-    p_in = input_dataarray(p_in_shape, z_dim_name="z_outer")
-    f_in = input_dataarray(f_in_shape, z_dim_name="z_center")
-    p_out = input_dataarray(p_out_shape, z_dim_name="z_outer")
-    f_out_legacy = regrid_vertical_legacy(
-        p_in, f_in, p_out, z_dim_center="z_center", z_dim_outer="z_outer"
-    )
-    f_out_current = regrid_vertical(
-        p_in, f_in, p_out, z_dim_center="z_center", z_dim_outer="z_outer"
-    )
-
-    # The legacy version of regrid_vertical adds coordinates where they don't
-    # exist; therefore we'll only check for equality of the arrays themselves here.
-    np.testing.assert_array_equal(f_out_legacy, f_out_current)
-
-
-@pytest.mark.skipif(not has_mappm, reason="test requires mappm")
 @pytest.mark.parametrize(
     [
         "p_in_shape",
@@ -109,7 +71,6 @@ def test_regrid_vertical_dask(
     xr.testing.assert_identical(f_out.compute(), f_out_numpy)
 
 
-@pytest.mark.skipif(not has_mappm, reason="test requires mappm")
 def test_regrid_vertical_invalid_dimension_names():
     p_in = input_dataarray((4, 6), z_dim_name="z")
     f_in = input_dataarray((4, 5), z_dim_name="z")
@@ -118,7 +79,6 @@ def test_regrid_vertical_invalid_dimension_names():
         regrid_vertical(p_in, f_in, p_out, z_dim_center="z", z_dim_outer="z")
 
 
-@pytest.mark.skipif(not has_mappm, reason="test requires mappm")
 def test_regrid_vertical_invalid_columns():
     p_in = input_dataarray((4, 6), z_dim_name="z_outer")
     f_in = input_dataarray((3, 5), z_dim_name="z_center")
@@ -129,7 +89,6 @@ def test_regrid_vertical_invalid_columns():
         )
 
 
-@pytest.mark.skipif(not has_mappm, reason="test requires mappm")
 def test_regrid_vertical_invalid_vertical_dimension_size():
     p_in = input_dataarray((4, 6), z_dim_name="z_outer")
     f_in = input_dataarray((4, 3), z_dim_name="z_center")
@@ -140,7 +99,6 @@ def test_regrid_vertical_invalid_vertical_dimension_size():
         )
 
 
-@pytest.mark.skipif(not has_mappm, reason="test requires mappm")
 def test_regrid_vertical_keep_attrs():
     attrs = {"units": "m"}
     p_in = input_dataarray((4, 6), z_dim_name="z_outer")

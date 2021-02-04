@@ -8,14 +8,33 @@ HORIZONTAL_DIMS = ["x", "y", "tile"]
 # the diagnostic script
 DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
 
-GLOBAL_AVERAGE_DYCORE_VARS = [
+RMSE_VARS = [
     "UGRDlowest",
+    "VGRDlowest",
+    "UGRD850",
+    "UGRD200",
+    "VGRD850",
+    "VGRD200",
+    "VORT850",
+    "VORT200",
+    "TMP500_300",
+    "TMPlowest",
+    "TMP850",
+    "TMP200",
+    "h500",
+    "PRMSL",
+    "PRESsfc",
+    "PWAT",
+    "VIL",
+    "iw",
+]
+
+GLOBAL_AVERAGE_DYCORE_VARS = [
     "UGRD850",
     "UGRD200",
     "TMP500_300",
     "TMPlowest",
     "TMP850",
-    "TMP500",
     "TMP200",
     "w500",
     "h500",
@@ -23,8 +42,8 @@ GLOBAL_AVERAGE_DYCORE_VARS = [
     "RH850",
     "RH500",
     "q1000",
-    "q850",
     "q500",
+    "PRMSL",
     "PRESsfc",
     "PWAT",
     "VIL",
@@ -38,24 +57,18 @@ GLOBAL_AVERAGE_PHYSICS_VARS = [
     "column_integrated_pQ2",
     "column_integrated_dQ2",
     "column_integrated_Q2",
+    "vertical_mean_dQu",
+    "vertical_mean_dQv",
     "total_precip",
-    "CPRATsfc",
     "PRATEsfc",
     "LHTFLsfc",
     "SHTFLsfc",
-    "DSWRFsfc",
-    "USWRFsfc",
-    "DSWRFtoa",
     "USWRFtoa",
     "ULWRFtoa",
-    "ULWRFsfc",
-    "DLWRFsfc",
-    "TMP2m",
     "TMPsfc",
     "UGRD10m",
     "MAXWIND10m",
     "SOILM",
-    "SOILT1",
 ]
 
 GLOBAL_BIAS_PHYSICS_VARS = [
@@ -64,17 +77,12 @@ GLOBAL_BIAS_PHYSICS_VARS = [
     "total_precip",
     "LHTFLsfc",
     "SHTFLsfc",
-    "DSWRFsfc",
-    "USWRFsfc",
-    "DSWRFtoa",
     "USWRFtoa",
     "ULWRFtoa",
-    "ULWRFsfc",
-    "DLWRFsfc",
-    "TMP2m",
     "TMPsfc",
     "UGRD10m",
     "MAXWIND10m",
+    "SOILM",
 ]
 
 DIURNAL_CYCLE_VARS = [
@@ -92,4 +100,10 @@ TIME_MEAN_VARS = [
     "column_integrated_Q1",
     "column_integrated_Q2",
     "total_precip",
+    "UGRD850",
+    "UGRD200",
+    "TMPsfc",
+    "TMP850",
+    "TMP200",
+    "h500",
 ]

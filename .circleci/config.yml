@@ -29,7 +29,8 @@ jobs:
             # Install Google Cloud sdk
             echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list &&\
             curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
-            apt-get update && apt-get install -y google-cloud-sdk
+
+            apt-get update && apt-get install -y google-cloud-sdk gfortran
             gcloud config set project vcm-ml
 
             # Setup credentials
@@ -40,7 +41,7 @@ jobs:
       - run: make update_submodules
       - run:
           name: "Concatenate package dependency files"
-          command: cat conda-linux-64.lock pip-requirements.txt > combined_deps.txt
+          command: cat conda-linux-64.lock constraints.txt > combined_deps.txt
       - restore_cache:
           keys:
             # change this string to invalidate cache
@@ -99,57 +100,26 @@ jobs:
         default: fv3net
         type: enum
         enum: ["prognostic_run", "post_process_run", "fv3net", "fv3fit"]
-    docker:
-      - image: google/cloud-sdk
+    machine: 
+      image: ubuntu-1604:202007-01
     environment:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       IMAGE: <<parameters.image>>
     steps:
-      - setup_remote_docker:
-          docker_layer_caching: true
-      - run:
-          name: Authenticate docker with GCR
-          command: |
-            echo "$ENCODED_GOOGLE_CREDENTIALS" | base64 -d > "$GOOGLE_APPLICATION_CREDENTIALS"
-            gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
-            gcloud auth configure-docker
       - checkout
       - add_ssh_keys:
           fingerprints:
             - "28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d" # github user key
-      - run: apt-get install -y make jq
+      - run: git submodule update --init --recursive
       - run:
-          name: "Pull submodules"
+          name: "gcloud auth"
           command: |
-            git submodule update --init --recursive
-      - run:
-          name: Build fv3net images
-          command: |
-            make build_image_$IMAGE
-      - run:
-          name: Push fv3net images
-          command: |
-            echo $CIRCLE_BRANCH
-            echo $CIRCLE_TAG
-            if [[ "$CIRCLE_BRANCH" == "master" ]]
-            then
-                echo "pushing untagged images as 'latest'"
-                make push_image_$IMAGE VERSION=latest
-            fi
-
-            if [[ ! -z "$CIRCLE_TAG" ]]
-            then
-              make push_image_$IMAGE VERSION=$CIRCLE_TAG
-            fi
-
-            # push all images with sha for testing later on
-            echo "pushing tagged images $CIRCLE_SHA1"
-            make push_image_$IMAGE VERSION=$CIRCLE_SHA1
-      - slack/status:
-          fail_only: true
-          mentions: "channel"
+            echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
+            echo "export GCLOUD_SERVICE_KEY=\$(echo \$ENCODED_GOOGLE_CREDENTIALS | base64 --decode)" >> $BASH_ENV
+      - gcp-gcr/gcr-auth
+      - run: sudo -E .circleci/build_and_push_image.sh
   mypy:
     docker:
       - image: circleci/python:3.7
@@ -179,6 +149,19 @@ jobs:
             apt-get install -y wget jq make gettext gzip
             wget -qO /bin/yq https://github.com/mikefarah/yq/releases/download/3.2.1/yq_linux_386
             chmod +x /bin/yq
+
+            # install kustomize
+            wget "https://raw.githubusercontent.com/\
+            kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
+            chmod +x install_kustomize.sh
+            ./install_kustomize.sh  3.8.6
+            mv kustomize /usr/local/bin/
+
+            # Install argo
+            curl -sLO https://github.com/argoproj/argo/releases/download/v2.11.6/argo-linux-amd64.gz
+            gunzip argo-linux-amd64.gz
+            chmod +x argo-linux-amd64
+            mv ./argo-linux-amd64 /usr/local/bin/argo
       - run:
           name: Setup firewall rule
           command: |
@@ -204,13 +187,6 @@ jobs:
             kubectl config set-cluster $kube_cluster_name --server="https://"$proxy_ip
             echo $K8S_PROXY_ENCODED_CA_CRT | base64 -d > proxy.crt
             kubectl config set-cluster $kube_cluster_name --certificate-authority="./proxy.crt"
-      - run:
-          name: Install argo
-          command: |
-            curl -sLO https://github.com/argoproj/argo/releases/download/v2.10.0-rc5/argo-linux-amd64.gz
-            gunzip argo-linux-amd64.gz
-            chmod +x argo-linux-amd64
-            mv ./argo-linux-amd64 /usr/local/bin/argo
       - run:
           name: Submit integration tests
           command: |

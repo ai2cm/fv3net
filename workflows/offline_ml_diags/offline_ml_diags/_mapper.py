@@ -1,49 +1,39 @@
-from typing import Mapping, Union
+from typing import Mapping, Sequence
 
-from vcm import safe, cast_to_datetime, cos_zenith_angle
+from vcm import safe, DerivedMapping, parse_datetime_from_str
 import xarray as xr
 
-from fv3fit.sklearn import SklearnWrapper
-from fv3fit.keras import Model
+import fv3fit
 from loaders.mappers import GeoMapper
 from loaders import DERIVATION_DIM
-
-Predictor = Union[SklearnWrapper, Model]
+import warnings
 
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
+
+DELP = "pressure_thickness_of_atmospheric_layer"
 
 
 class PredictionMapper(GeoMapper):
     def __init__(
         self,
         base_mapper: GeoMapper,
-        wrapped_model: Predictor,
+        wrapped_model: fv3fit.Predictor,
+        variables: Sequence[str],
         z_dim: str = "z",
         rename_vars: Mapping[str, str] = None,
-        cos_z_var: str = None,
         grid: xr.Dataset = None,
     ):
         self._base_mapper = base_mapper
         self._model = wrapped_model
         self._z_dim = z_dim
-        self._cos_z_var = cos_z_var
-        self._grid = grid
+        self._grid = grid or xr.Dataset()
+        self._variables = variables
         self.rename_vars = rename_vars or {}
 
     def _predict(self, ds: xr.Dataset) -> xr.Dataset:
         output = self._model.predict_columnwise(ds, feature_dim=self._z_dim)
-        return output.rename(self.rename_vars)
-
-    def _insert_cos_zenith_angle(self, time_key: str, ds: xr.Dataset) -> xr.Dataset:
-        time = cast_to_datetime(time_key)
-        if self._grid is not None:
-            cos_z = cos_zenith_angle(time, self._grid["lon"], self._grid["lat"])
-            return ds.assign(
-                {self._cos_z_var: (self._grid["lon"].dims, cos_z)}  # type: ignore
-            )
-        else:
-            raise ValueError()
+        return output.rename(self.rename_vars)  # type: ignore
 
     def _insert_prediction(self, ds: xr.Dataset, ds_pred: xr.Dataset) -> xr.Dataset:
         predicted_vars = ds_pred.data_vars
@@ -62,10 +52,29 @@ class PredictionMapper(GeoMapper):
 
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = self._base_mapper[key]
-        if self._cos_z_var and self._grid:
-            ds = self._insert_cos_zenith_angle(key, ds)
-        ds_prediction = self._predict(ds)
-        return self._insert_prediction(ds, ds_prediction)
+        # Prioritize dataset's land_sea_mask if grid values disagree
+        ds = xr.merge(
+            [ds, self._grid], compat="override"  # type: ignore
+        ).assign_coords({"time": parse_datetime_from_str(key)})
+        derived_mapping = DerivedMapping(ds)
+
+        ds_derived = xr.Dataset({})
+        for key in self._variables:
+            try:
+                ds_derived[key] = derived_mapping[key]
+            except KeyError as e:
+                if key == DELP:
+                    raise e
+                elif key in ["pQ1", "pQ2"]:
+                    ds_derived[key] = xr.zeros_like(derived_mapping["dQ1"])
+                    warnings.warn(
+                        f"{key} not present in data. Filling with zeros.", UserWarning
+                    )
+                else:
+                    raise e
+
+        ds_prediction = self._predict(ds_derived)
+        return self._insert_prediction(ds_derived, ds_prediction)
 
     def keys(self):
         return self._base_mapper.keys()

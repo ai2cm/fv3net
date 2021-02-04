@@ -6,9 +6,10 @@ spec:
   arguments:
     parameters:
     - name: runs
-    - name: docker-image
     - name: make-movies
       value: "false"
+    - name: flags
+      value: " "
   entrypoint: all
   volumes:
   - name: gcp-key-secret
@@ -27,6 +28,8 @@ spec:
               value: "{{item.url}}"
             - name: output
               value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}"
+            - name: flags
+              value: "{{workflow.parameters.flags}}"
       - name: movie-step
         when: "{{workflow.parameters.make-movies}} == true"
         withParam: "{{workflow.parameters.runs}}"
@@ -49,22 +52,18 @@ spec:
       value: "climate-sim-pool"
       effect: "NoSchedule"
     container:
-      image: '{{workflow.parameters.docker-image}}'
+      image: us.gcr.io/vcm-ml/fv3net
       command:
       - python
       - generate_report.py
-      - $(INPUT)
-      - $(OUTPUT)
+      - gs://vcm-ml-public/argo/{{workflow.name}}
+      - gs://vcm-ml-public/argo/{{workflow.name}}/index.html
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS 
         value: /secret/gcp-credentials/key.json
       - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
         value: /secret/gcp-credentials/key.json
-      - name: OUTPUT
-        value: "gs://vcm-ml-public/argo/{{workflow.name}}/index.html"
-      - name: INPUT
-        value: "gs://vcm-ml-public/argo/{{workflow.name}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
@@ -80,22 +79,44 @@ spec:
       parameters:
       - name: run
       - name: output
-      - name: image
-        value: '{{workflow.parameters.docker-image}}'
+      - name: flags
+        value: " "
+    steps:
+    - - name: compute-reduced-diagnostics
+        template: compute-reduced-diagnostics
+        arguments:
+          parameters:
+            - {name: run, value: "{{inputs.parameters.run}}"}
+            - {name: output, value: "{{inputs.parameters.output}}"}
+            - {name: flags, value: "{{inputs.parameters.flags}}"}
+    - - name: regrid-reduced-diagnostics-to-latlon
+        templateRef:
+          name: cubed-to-latlon
+          template: regrid-single-input
+        arguments:
+          parameters:
+            - {name: input, value: "{{inputs.parameters.output}}/diags.nc"}
+            - {name: output, value: "{{inputs.parameters.output}}/diags_latlon.nc"}
+  - name: compute-reduced-diagnostics
+    inputs:
+      parameters:
+      - name: run
+      - name: output
+      - name: flags
+        value: " "
     tolerations:
     - key: "dedicated"
       operator: "Equal"
-      value: "climate-sim-pool"
+      value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: '{{inputs.parameters.image}}'
-      command: ["/bin/bash", "-x", "-e", "-c"]
-      args:
-      - | 
-        python save_prognostic_run_diags.py {{inputs.parameters.run}} diags.nc
-        python metrics.py diags.nc > metrics.json
-        gsutil cp diags.nc {{inputs.parameters.output}}/diags.nc
-        gsutil cp metrics.json {{inputs.parameters.output}}/metrics.json
+      image: us.gcr.io/vcm-ml/fv3net
+      command:
+      - bash
+      - memoized_compute_diagnostics.sh
+      - "{{inputs.parameters.run}}"
+      - "{{inputs.parameters.output}}"
+      - "{{inputs.parameters.flags}}"
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -123,7 +144,7 @@ spec:
       value: "climate-sim-pool"
       effect: "NoSchedule"
     container:
-      image: '{{workflow.parameters.docker-image}}'
+      image: us.gcr.io/vcm-ml/fv3net
       command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - |

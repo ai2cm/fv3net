@@ -1,4 +1,4 @@
-from typing import Iterable, Sequence
+from typing import Iterable, Sequence, Optional
 from synth import (  # noqa: F401
     dataset_fixtures_dir,
     data_source_name,
@@ -14,9 +14,14 @@ import tempfile
 import yaml
 
 
+@pytest.fixture(params=[None])
+def validation_timesteps(request) -> Optional[Sequence[str]]:
+    return request.param
+
+
 @pytest.fixture
 def input_variables() -> Iterable[str]:
-    return ["air_temperature", "specific_humidity"]
+    return ["air_temperature", "specific_humidity", "cos_zenith_angle"]
 
 
 @pytest.fixture
@@ -33,9 +38,10 @@ def batch_function(model_type: str) -> str:
 def batch_kwargs(data_source_name: str) -> dict:  # noqa: F811
     if data_source_name == "nudging_tendencies":
         return {
+            "res": "c8_random_values",
             "timesteps_per_batch": 1,
             "mapping_function": "open_merged_nudged",
-            "timesteps": ["20160801.001500", "20160801.003000"],
+            "timesteps": ["20160801.001500"],
             "mapping_kwargs": {
                 "i_start": 0,
                 "rename_vars": {
@@ -46,9 +52,10 @@ def batch_kwargs(data_source_name: str) -> dict:  # noqa: F811
         }
     elif data_source_name == "fine_res_apparent_sources":
         return {
+            "res": "c8_random_values",
             "timesteps_per_batch": 1,
             "mapping_function": "open_fine_res_apparent_sources",
-            "timesteps": ["20160801.001500", "20160801.003000"],
+            "timesteps": ["20160801.001500"],
             "mapping_kwargs": {
                 "rename_vars": {
                     "delp": "pressure_thickness_of_atmospheric_layer",
@@ -68,6 +75,7 @@ def train_config(
     output_variables: Iterable[str],
     batch_function: str,
     batch_kwargs: dict,
+    validation_timesteps: Optional[Sequence[str]],
 ) -> ModelTrainingConfig:
     return ModelTrainingConfig(
         data_path="train_data_path",
@@ -80,6 +88,8 @@ def train_config(
         scaler_type="standard",
         scaler_kwargs={},
         additional_variables=None,
+        random_seed=0,
+        validation_timesteps=validation_timesteps,
     )
 
 
@@ -91,6 +101,7 @@ def train_config_filename(
     output_variables: Iterable[str],
     batch_function: str,
     batch_kwargs: dict,
+    validation_timesteps: Optional[Sequence[str]],
 ) -> str:
     with tempfile.NamedTemporaryFile(mode="w") as f:
         yaml.dump(
@@ -104,6 +115,8 @@ def train_config_filename(
                 "scaler_type": "standard",
                 "scaler_kwargs": {},
                 "additional_variables": None,
+                "random_seed": 0,
+                "validation_timesteps": validation_timesteps,
             },
             f,
         )

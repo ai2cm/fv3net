@@ -2,7 +2,23 @@ import numpy as np
 import pytest
 import xarray as xr
 from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
-from vcm.select import mask_to_surface_type, get_latlon_grid_coords, RegionOfInterest
+from vcm.select import (
+    mask_to_surface_type,
+    get_latlon_grid_coords,
+    RegionOfInterest,
+    zonal_average_approximate,
+)
+
+
+def test_zonal_average_approximate():
+    lat = xr.DataArray(np.linspace(0, 9, 10), dims=["x"]).rename("lat")
+    data = xr.DataArray(
+        [[i * j for i in range(10)] for j in [0, 1]], dims=["z", "x"]
+    ).rename("data")
+    zonal_avg = zonal_average_approximate(lat, data, bins=np.arange(0, 10, 2),)
+    # bins are (low, high]
+    np.testing.assert_allclose(zonal_avg.isel(z=0), np.zeros(4))
+    np.testing.assert_allclose(zonal_avg.isel(z=1), [1.5, 3.5, 5.5, 7.5])
 
 
 @pytest.fixture()

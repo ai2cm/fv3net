@@ -17,6 +17,13 @@ def _weighted_mse(weights, std):
     return custom_loss
 
 
+def _weighted_mae(weights, std):
+    def custom_loss(y_true, y_pred):
+        return tf.math.reduce_mean(weights * tf.math.abs((y_pred - y_true) / std))
+
+    return custom_loss
+
+
 def _pack_weights(y_packer: ArrayPacker, **weights):
     """Returns a size [1, n_features] array of stacked weights corresponding to a
     stacked array, based on values given in a weights dictionary. Default weight is
@@ -88,3 +95,38 @@ def get_weighted_mse(
     # convert scalar weights from total variable weight to per-feature weight
     weights = _pack_weights(y_packer, **weights).astype(np.float32)
     return _weighted_mse(weights, y_std)
+
+
+def get_weighted_mae(
+    y_packer: ArrayPacker, y_std: np.ndarray, **weights: Weight,
+) -> Callable:
+    """Retrieve a weighted mean absolute error loss function for a given set of weights.
+
+    Each feature is divided by the standard deviation before multiplying by the given
+    weights, so that the weight given as input to this function represents the overall
+    contribution of that feature to the loss, *independent of how much variance
+    that feature has*.
+
+    If you do not want scaling to occur, provide a standard deviation of 1.
+
+    If a uniform weighting is given to specific
+    humidity, and the variance of specific humidity is much smaller in upper levels,
+    a heavier weight will be given to upper levels so that it contributes just as much
+    to the loss as lower levels, despite the lower variance.
+
+    Args:
+        y_packer: an object which creates stacked arrays
+        y_std: the standard deviation of a stacked array of outputs
+        **weights: for each variable, either a scalar weight which will be split between
+            all features of that variable, or an array specifying the weight
+            for each feature of that variable. Default weight is 1 split between all
+            features of that variable. Weights indicate
+            how much contribution that feature will give to the loss,
+            independent of the variance of that feature.
+
+    Returns:
+        weighted_loss
+    """
+    # convert scalar weights from total variable weight to per-feature weight
+    weights = _pack_weights(y_packer, **weights)
+    return _weighted_mae(weights, y_std)

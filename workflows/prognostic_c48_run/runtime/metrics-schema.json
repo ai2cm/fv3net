@@ -1,0 +1,216 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "http://vulcan.com/climate-modeling/prognostic-run-statistics.json",
+    "type": "object",
+    "default": {},
+    "required": [
+        "time",
+        "storage_of_total_water_path_due_to_python",
+        "storage_of_mass_due_to_python"
+    ],
+    "examples": [
+        {
+            "time": "2016-08-01T00:30:00",
+            "storage_of_specific_humidity_path_due_to_microphysics": 8.76195584585564e-06,
+            "evaporation": 2.8776082145250183e-05,
+            "cnvprcp_after_physics": 8.388836350374921e-06,
+            "total_precip_after_physics": 1.218790966496367e-05,
+            "storage_of_specific_humidity_path_due_to_fv3_physics": -2.0750020485967658e-05,
+            "storage_of_total_water_path_due_to_fv3_physics": -1.5632549999919844e-05,
+            "storage_of_mass_due_to_fv3_physics": 0.00015335531549915231,
+            "area": 615379799156.7335,
+            "cnvprcp_after_python": 8.388836350374921e-06,
+            "net_moistening": 0.0,
+            "net_heating": 0.0,
+            "column_integrated_dQu": 0.0,
+            "column_integrated_dQv": 0.0,
+            "water_vapor_path": 23.721312922082713,
+            "physics_precip": 1.3542121849959635e-05,
+            "storage_of_specific_humidity_path_due_to_python": 9.4789371892713e-19,
+            "storage_of_total_water_path_due_to_python": 9.900500623895441e-19,
+            "storage_of_mass_due_to_python": -4.188213798282645e-15,
+            "storage_of_specific_humidity_path_due_to_nudging": 9.4789371892713e-19,
+            "storage_of_total_water_path_due_to_nudging": 9.900500623895441e-19,
+            "storage_of_mass_due_to_nudging": -4.188213798282645e-15
+        }
+    ],
+    "properties": {
+        "time": {
+            "$id": "#/properties/time",
+            "type": "string",
+            "format": "date-time",
+            "title": "The time schema",
+            "description": "the forecast valid time",
+            "default": "",
+            "examples": [
+                "2016-08-01T00:30:00"
+            ]
+        },
+        "storage_of_specific_humidity_path_due_to_microphysics": {
+            "$id": "#/properties/storage_of_specific_humidity_path_due_to_microphysics",
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s",
+            "examples": [
+                8.76195584585564e-06
+            ]
+        },
+        "evaporation": {
+            "$id": "#/properties/evaporation",
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s",
+            "examples": [
+                2.8776082145250183e-05
+            ]
+        },
+        "cnvprcp_after_physics": {
+            "$id": "#/properties/cnvprcp_after_physics",
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s",
+            "examples": [
+                8.388836350374921e-06
+            ]
+        },
+        "total_precip_after_physics": {
+            "$id": "#/properties/total_precip_after_physics",
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s",
+            "examples": [
+                1.218790966496367e-05
+            ]
+        },
+        "storage_of_mass_due_to_fv3_physics": {
+            "$id": "#/properties/storage_of_mass_due_to_fv3_physics",
+            "type": "number",
+            "default": 0.0,
+            "units": "Pa/s",
+            "examples": [
+                0.00015335531549915231
+            ]
+        },
+        "area": {
+            "$id": "#/properties/area",
+            "type": "number",
+            "default": 0.0,
+            "units": "m^2",
+            "examples": [
+                615379799156.7335
+            ]
+        },
+        "cnvprcp_after_python": {
+            "$id": "#/properties/cnvprcp_after_python",
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s",
+            "examples": [
+                8.388836350374921e-06
+            ]
+        },
+        "net_moistening": {
+            "$id": "#/properties/net_moistening",
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s",
+            "examples": [
+                0.0
+            ]
+        },
+        "net_heating": {
+            "$id": "#/properties/net_heating",
+            "type": "number",
+            "units": "kg/m^2/s",
+            "default": 0.0,
+            "examples": [
+                0.0
+            ]
+        },
+        "column_integrated_dQu": {
+            "$id": "#/properties/column_integrated_dQu",
+            "type": "number",
+            "units": "m/s/s",
+            "default": 0.0,
+            "examples": [
+                0.0
+            ]
+        },
+        "column_integrated_dQv": {
+            "$id": "#/properties/column_integrated_dQu",
+            "type": "number",
+            "units": "m/s/s",
+            "default": 0.0,
+            "examples": [
+                0.0
+            ]
+        },
+        "water_vapor_path": {
+            "$id": "#/properties/water_vapor_path",
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s",
+            "examples": [
+                23.721312922082713
+            ]
+        },
+        "physics_precip": {
+            "$id": "#/properties/physics_precip",
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s",
+            "examples": [
+                1.3542121849959635e-05
+            ]
+        },
+        "storage_of_mass_due_to_python": {
+            "$id": "#/properties/storage_of_mass_due_to_python",
+            "type": "number",
+            "default": 0.0,
+            "units": "Pa/s",
+            "examples": [
+                -4.188213798282645e-15
+            ]
+        },
+        "storage_of_total_water_path_due_to_python": {
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s"
+        },
+        "storage_of_total_water_path_due_to_fv3_physics": {
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s"
+        },
+        "storage_of_specific_humidity_path_due_to_python": {
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s"
+        },
+        "storage_of_specific_humidity_path_due_to_fv3_physics": {
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s"
+        },
+        "storage_of_mass_due_to_nudging": {
+            "$id": "#/properties/storage_of_mass_due_to_nudging",
+            "type": "number",
+            "default": 0.0,
+            "units": "Pa/s",
+            "examples": [
+                -4.188213798282645e-15
+            ]
+        },
+        "storage_of_total_water_path_due_to_nudging": {
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s"
+        },
+        "storage_of_specific_humidity_path_due_to_nudging": {
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s"
+        }
+    },
+    "additionalProperties": false
+}

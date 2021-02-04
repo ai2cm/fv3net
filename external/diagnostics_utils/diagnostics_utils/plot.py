@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from typing import Sequence, Union
+from typing import Sequence, Union, Mapping
 import xarray as xr
 
 import fv3viz as visualize
@@ -69,10 +69,10 @@ def plot_column_integrated_var(
         row=data_source_dim,
         vmax=vmax,
     )
-    facet_grid.set_titles(template="{value}", maxchar=40)
+    facet_grid.set_titles(template="{value} ", maxchar=40)
     f.set_size_inches([14, 3.5])
     f.set_dpi(dpi)
-    f.suptitle(var.replace("_", " "))
+    f.suptitle(f'{var.replace("_", " ")} {_units_from_Q_name(var)}')
     return f
 
 
@@ -126,4 +126,23 @@ def _plot_generic_data_array(
     plt.ylabel(ylabel)
     plt.title(title)
     plt.tight_layout()
+    return fig
+
+
+def plot_zonal_average(
+    data: xr.DataArray,
+    rename_axes: Mapping = None,
+    title: str = None,
+    plot_kwargs: Mapping = None,
+):
+    fig = plt.figure()
+    units = _units_from_Q_name(data.name) or ""
+    title = f"{title or data.name} {units}"
+    plot_kwargs = plot_kwargs or {}
+    rename_axes = rename_axes or {
+        "lat_interp": "Latitude [deg]",
+        "pressure": "Pressure [Pa]",
+    }
+    data = data.rename(rename_axes).rename(title)
+    data.plot(yincrease=False, x="Latitude [deg]", robust=True, **plot_kwargs)
     return fig

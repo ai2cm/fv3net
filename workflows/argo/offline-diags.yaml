@@ -10,15 +10,14 @@ spec:
         defaultMode: 420
         secretName: gcp-key
   serviceAccountName: integration-tests
-  tolerations:
-    - effect: NoSchedule
-      key: dedicated
-      value: climate-sim-pool
   templates:
     - name: offline-diags
+      tolerations:
+        - effect: NoSchedule
+          key: dedicated
+          value: climate-sim-pool
       inputs:
         parameters:
-          - name: image-tag
           - name: ml-model
           # argo submit yaml is processed beforehand to have config and times fed in as string parameters
           - name: config  
@@ -26,8 +25,9 @@ spec:
           - name: offline-diags-output
           - name: report-output
           - name: data-path
+          - {name: memory, value: 6Gi}
       container:
-        image: us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}
+        image: us.gcr.io/vcm-ml/fv3net
         command: ["bash", "-c", "-x"]
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -39,6 +39,8 @@ spec:
             name: gcp-key-secret
         args:
           - |
+
+            gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
 
             cat <<EOF >config.yaml
             {{inputs.parameters.config}}
@@ -61,12 +63,15 @@ spec:
             python -m offline_ml_diags.create_report \
               {{inputs.parameters.offline-diags-output}} \
               {{inputs.parameters.report-output}} \
-              --commit-sha {{inputs.parameters.image-tag}}
+              --commit-sha "$COMMIT_SHA"
+        podSpecPatch: |
+          containers:
+            - name: main
+              resources:
+                limits:
+                  cpu: "1000m"
+                  memory: "{{inputs.parameters.memory}}"
+                requests:
+                  cpu: "1000m"
+                  memory: "{{inputs.parameters.memory}}"
 
-        resources:
-          requests:
-            memory: "6Gi"
-            cpu: "1000m"
-          limits:
-            memory: "10Gi"
-            cpu: "1000m"

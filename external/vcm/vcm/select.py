@@ -2,7 +2,7 @@
 This module is for functions that select subsets of the data
 """
 import numpy as np
-from typing import Tuple, Hashable
+from typing import Tuple, Hashable, Union, Sequence
 import xarray as xr
 from dataclasses import dataclass
 
@@ -12,6 +12,44 @@ from vcm.cubedsphere.constants import (
     VAR_LAT_CENTER,
     VAR_LON_CENTER,
 )
+
+
+def zonal_average_approximate(
+    lat: xr.DataArray,
+    data: Union[xr.DataArray, xr.Dataset],
+    bins: Sequence[float] = None,
+):
+    if bins is None:
+        bins = np.arange(-90, 90, 2)
+    data = data.assign_coords(lat=lat)
+    grouped = data.groupby_bins("lat", bins=bins)
+    output = (
+        grouped.mean().drop_vars("lat", errors="ignore").rename({"lat_bins": "lat"})
+    )
+    lats_mid = [lat.item().mid for lat in output["lat"]]
+    return output.assign_coords({"lat": lats_mid})
+
+
+def meridional_ring(lon=0, n=180):
+    attrs = {"description": f"Lon = {lon}"}
+    lat = np.linspace(-90, 90, n)
+    lon = np.ones_like(lat) * lon
+
+    return {
+        "lat": xr.DataArray(lat, dims="sample", attrs=attrs),
+        "lon": xr.DataArray(lon, dims="sample", attrs=attrs),
+    }
+
+
+def zonal_ring(lat=45, n=360):
+    attrs = {"description": f"Lat = {lat}"}
+    lon = np.linspace(0, 360, n)
+    lat = np.ones_like(lon) * lat
+
+    return {
+        "lat": xr.DataArray(lat, dims="sample", attrs=attrs),
+        "lon": xr.DataArray(lon, dims="sample", attrs=attrs),
+    }
 
 
 @dataclass
@@ -25,9 +63,9 @@ class RegionOfInterest:
 
 def _roi_average(
     dataset: xr.Dataset,
-    lat_bounds: Tuple[float],
-    lon_bounds: Tuple[float],
-    dims: Tuple[Hashable] = None,
+    lat_bounds: Tuple[float, float],
+    lon_bounds: Tuple[float, float],
+    dims: Sequence[Hashable] = (),
 ):
     """Average a dataset over a region of interest
     Args:
@@ -36,7 +74,7 @@ def _roi_average(
         dims: the spacial dimensions to average over.
     """
 
-    if dims is None:
+    if not dims:
         dims = dataset["lat"].dims
 
     stacked = dataset.stack(space=dims)

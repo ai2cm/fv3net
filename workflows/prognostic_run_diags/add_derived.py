@@ -25,6 +25,8 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _column_q1,
         _column_q2,
         _total_precip,
+        _column_dqu,
+        _column_dqv,
     ]:
         try:
             arrays.append(func(ds))
@@ -90,6 +92,32 @@ def _column_dq2(ds: xr.Dataset) -> xr.DataArray:
     return column_dq2.rename("column_integrated_dQ2")
 
 
+def _column_dqu(ds: xr.Dataset) -> xr.DataArray:
+    if "column_integrated_dQu" in ds:
+        column_dqu = SECONDS_PER_DAY * ds.column_integrated_dQu
+    else:
+        # assume given dataset has no ML prediction of momentum tendencies
+        column_dqu = xr.zeros_like(ds.PRATEsfc)
+    column_dqu.attrs = {
+        "long_name": "<dQu> vertical mean eastward wind tendency from ML",
+        "units": "m/s/day",
+    }
+    return column_dqu.rename("vertical_mean_dQu")
+
+
+def _column_dqv(ds: xr.Dataset) -> xr.DataArray:
+    if "column_integrated_dQv" in ds:
+        column_dqv = SECONDS_PER_DAY * ds.column_integrated_dQv
+    else:
+        # assume given dataset has no ML prediction of momentum tendencies
+        column_dqv = xr.zeros_like(ds.PRATEsfc)
+    column_dqv.attrs = {
+        "long_name": "<dQv> vertical mean northward wind tendency from ML",
+        "units": "m/s/day",
+    }
+    return column_dqv.rename("vertical_mean_dQv")
+
+
 def _column_q1(ds: xr.Dataset) -> xr.DataArray:
     column_q1 = _column_pq1(ds) + _column_dq1(ds)
     column_q1.attrs = {
@@ -108,8 +136,26 @@ def _column_q2(ds: xr.Dataset) -> xr.DataArray:
     return column_q2.rename("column_integrated_Q2")
 
 
+def _column_moistening_from_nudging(ds: xr.Dataset) -> xr.DataArray:
+    if "column_moistening_nudge" in ds:
+        # name for column integrated humidity nudging in nudge-to-obs runs
+        column_moistening_from_nudging = SECONDS_PER_DAY * ds.column_moistening_nudge
+    else:
+        # assume given dataset is for a run without humidity nudging
+        column_moistening_from_nudging = xr.zeros_like(ds.PRATEsfc)
+    column_moistening_from_nudging.attrs = {
+        "long_name": "column integrated moistening from nudging",
+        "units": "mm/day",
+    }
+    return column_moistening_from_nudging.rename("column_moistening_from_nudging")
+
+
 def _total_precip(ds: xr.Dataset) -> xr.DataArray:
-    total_precip = ds.PRATEsfc * SECONDS_PER_DAY - _column_dq2(ds)
+    total_precip = (
+        ds.PRATEsfc * SECONDS_PER_DAY
+        - _column_dq2(ds)
+        - _column_moistening_from_nudging(ds)
+    )
     total_precip.attrs = {
         "long_name": "P - <dQ2> total precipitation",
         "units": "mm/day",

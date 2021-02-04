@@ -16,6 +16,7 @@ from fv3fit._shared.packer import ArrayPacker
 
 SAMPLE_DIM = "sample"
 FEATURE_DIM = "z"
+SEED = 1
 
 
 def test_standard_scaler_not_fit_before_call():
@@ -26,13 +27,15 @@ def test_standard_scaler_not_fit_before_call():
         scaler.denormalize(np.array([0.0, 1.0]))
 
 
-def test_standard_scaler_constant_scaling():
-    scaler = StandardScaler()
+@pytest.mark.parametrize("std_epsilon", [(1e-12), (1e-8)])
+def test_standard_scaler_constant_scaling(std_epsilon):
+    scaler = StandardScaler(std_epsilon)
     const = 10.0
     constant_feature = np.array([const for i in range(5)])
     varying_feature = np.array([i for i in range(5)])
     y = np.vstack([varying_feature, constant_feature, constant_feature * 2.0]).T
     scaler.fit(y)
+    assert (scaler.std[1:] == std_epsilon).all()
     normed_sample = scaler.normalize(np.array([3.0, const, const * 2.0]))
     assert (normed_sample[1:] == 0.0).all()
     denormed_sample = scaler.denormalize(np.array([3.0, 0.0, 0.0]))
@@ -43,6 +46,7 @@ def test_standard_scaler_constant_scaling():
 @pytest.mark.parametrize("shape", [(10, 1), (10, 5), (10, 3, 2)])
 def test_standard_scaler_normalize_then_denormalize(shape):
     scaler = StandardScaler()
+    np.random.seed(SEED)
     X = np.random.uniform(0, 10, size=shape)
     scaler.fit(X)
     result = scaler.denormalize(scaler.normalize(X))
@@ -51,6 +55,7 @@ def test_standard_scaler_normalize_then_denormalize(shape):
 
 @pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
 def test_standard_scaler_normalize(n_samples, n_features):
+    np.random.seed(SEED)
     scaler = StandardScaler()
     X = np.random.uniform(0, 10, size=[n_samples, n_features])
     scaler.fit(X)
@@ -71,6 +76,7 @@ def test_standard_scaler_3d_normalize(shape):
 
 @pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
 def test_normalize_then_denormalize_on_reloaded_scaler(n_samples, n_features):
+    np.random.seed(SEED)
     scaler = StandardScaler()
     X = np.random.uniform(0, 10, size=[n_samples, n_features])
     scaler.fit(X)
@@ -172,6 +178,7 @@ def test_weight_scaler_normalize():
 
 
 def test_weight_scaler_normalize_then_denormalize_on_reloaded_scaler():
+    np.random.seed(SEED)
     y = np.random.uniform(0, 10, 10)
     weights = np.random.uniform(0, 100, 10)
     scaler = ManualScaler(weights)

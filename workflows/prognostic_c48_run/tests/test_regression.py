@@ -3,40 +3,51 @@ import warnings
 import json
 
 import fv3config
+import runtime.metrics
+import tempfile
 import numpy as np
 import pytest
 import xarray as xr
+import datetime
 import yaml
-from datetime import timedelta, datetime
 from sklearn.dummy import DummyRegressor
 
+import fv3fit
 from fv3fit.sklearn import RegressorEnsemble, SklearnWrapper
 from fv3fit.keras import DummyModel
 import subprocess
 
-#  Importing fv3gfs causes a call to MPI_Init but not MPI_Finalize. When the
-#  subprocess subsequently calls MPI_Init from a process not managed by MPI,
-#  mpirun throws a fit. Use a subprocess as a workaround.
-FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs.wrapper"]) == 0
-
-
-BASE_FV3CONFIG_CACHE = Path(
-    "/inputdata", "fv3config-cache", "gs", "vcm-fv3config", "data"
-)
+BASE_FV3CONFIG_CACHE = Path("vcm-fv3config", "data")
 IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
     "initial_conditions", "c12_restart_initial_conditions", "v1.0"
 )
 ORO_PATH = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
 FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
-LOG_PATH = "logs.txt"
+LOG_PATH = "statistics.txt"
+RUNFILE_PATH = "runfile.py"
+DIAGNOSTICS = [
+    {
+        "name": "diags.zarr",
+        "output_variables": [
+            "net_moistening",
+            "net_heating",
+            "water_vapor_path",
+            "physics_precip",
+            "column_integrated_dQu",
+            "column_integrated_dQv",
+        ],
+        "times": {"kind": "interval", "frequency": 900},
+    },
+]
 
 default_fv3config = rf"""
 data_table: default
 diag_table: default
 experiment_name: default_experiment
-forcing: {FORCING_PATH.as_posix()}
-initial_conditions: {IC_PATH.as_posix()}
-orographic_forcing: {ORO_PATH.as_posix()}
+forcing: gs://{FORCING_PATH.as_posix()}
+initial_conditions: gs://{IC_PATH.as_posix()}
+orographic_forcing: gs://{ORO_PATH.as_posix()}
+diagnostics: {DIAGNOSTICS}
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
@@ -268,7 +279,7 @@ namelist:
     isubc_lw: 2
     isubc_sw: 2
     ivegsrc: 1
-    ldiag3d: false
+    ldiag3d: true
     lwhtr: true
     ncld: 5
     nst_anl: true
@@ -330,9 +341,7 @@ namelist:
     ldebug: false
 """
 
-NUDGE_RUNFILE = (
-    Path(__file__).parent.parent.joinpath("nudging/nudging_runfile.py").as_posix()
-)
+NUDGE_RUNFILE = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
 # Necessary to know the number of restart timestamp folders to generate in fixture
 START_TIME = [2016, 8, 1, 0, 0, 0]
 TIMESTEP_MINUTES = 15
@@ -342,6 +351,39 @@ TIME_FMT = "%Y%m%d.%H%M%S"
 RUNTIME = {"days": 0, "months": 0, "hours": 0, "minutes": RUNTIME_MINUTES, "seconds": 0}
 
 
+def run_native(config, rundir, runfile):
+    with tempfile.NamedTemporaryFile("w") as f:
+        yaml.safe_dump(config, f)
+        fv3_script = Path(__file__).parent.parent.joinpath("runfv3.sh").as_posix()
+        subprocess.check_call([fv3_script, f.name, str(rundir), runfile])
+
+
+def assets_from_initial_condition_dir(dir_: str):
+    start = datetime.datetime(*START_TIME)  # type: ignore
+    delta_t = datetime.timedelta(minutes=TIMESTEP_MINUTES)
+    assets = []
+    for i in range(NUM_NUDGING_TIMESTEPS + 1):
+        timestamp = (start + i * delta_t).strftime(TIME_FMT)
+
+        for tile in range(1, 7):
+            for category in [
+                "fv_core.res",
+                "fv_srf_wnd.res",
+                "fv_tracer.res",
+                "phy_data",
+                "sfc_data",
+            ]:
+                assets.append(
+                    fv3config.get_asset_dict(
+                        dir_,
+                        f"{category}.tile{tile}.nc",
+                        target_location=timestamp,
+                        target_name=f"{timestamp}.{category}.tile{tile}.nc",
+                    )
+                )
+    return assets
+
+
 def get_nudging_config(config_yaml: str, timestamp_dir: str):
     config = yaml.safe_load(config_yaml)
     coupler_nml = config["namelist"]["coupler_nml"]
@@ -349,15 +391,13 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
     coupler_nml.update(RUNTIME)
 
     config["nudging"] = {
-        "restarts_path": Path(timestamp_dir).as_posix(),
-        "timescale_hours": {
-            "air_temperature": 3.0,
-            "specific_humidity": 3.0,
-            "x_wind": 3.0,
-            "y_wind": 3.0,
-        },
+        "restarts_path": ".",
+        "timescale_hours": {"air_temperature": 3.0, "specific_humidity": 3.0},
     }
 
+    config.setdefault("patch_files", []).extend(
+        assets_from_initial_condition_dir(timestamp_dir)
+    )
     if coupler_nml["dt_atmos"] // 60 != TIMESTEP_MINUTES:
         raise ValueError(
             "Model timestep in default_fv3config not aligned"
@@ -367,65 +407,23 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
     return config
 
 
-@pytest.fixture
-def tmp_restart_dir(tmpdir):
-    """Symlink fake restart directories used for nudging"""
-
-    restart_dir = Path(tmpdir, "restarts")
-    restart_dir.mkdir(exist_ok=True)
-
-    start = datetime(*START_TIME)
-    delta_t = timedelta(minutes=TIMESTEP_MINUTES)
-    for i in range(NUM_NUDGING_TIMESTEPS + 1):
-        timestamp = (start + i * delta_t).strftime(TIME_FMT)
-
-        # Make timestamped restart directory
-        timestamp_dir = restart_dir.joinpath(timestamp)
-        timestamp_dir.mkdir(parents=True, exist_ok=True)
-
-        # Link all restart files from initial conditions folder with prefix
-        _symlink_restart_files(timestamp_dir, IC_PATH, timestamp)
-
-    return restart_dir
+def test_nudge_run(tmpdir):
+    config = get_nudging_config(default_fv3config, "gs://" + IC_PATH.as_posix())
+    run_native(config, str(tmpdir), runfile=NUDGE_RUNFILE)
 
 
-def _symlink_restart_files(timestamp_dir: Path, target_dir: Path, symlink_prefix: str):
-    fv_glob_patterns = ["fv_core*", "fv_srf_wnd*", "fv_tracer*", "sfc_data*"]
-
-    for file_pattern in fv_glob_patterns:
-
-        for fv_file in target_dir.glob(file_pattern):
-            fname_with_prefix = f"{symlink_prefix}.{fv_file.name}"
-            new_sym_fv_file = timestamp_dir.joinpath(fname_with_prefix)
-            new_sym_fv_file.symlink_to(fv_file)
-
-
-def test_nudge_run(tmp_restart_dir):
-    if not FV3GFS_INSTALLED:
-        pytest.skip("fv3gfs not installed")
-
-    tmpdir = tmp_restart_dir.parent.as_posix()
-    config = get_nudging_config(default_fv3config, tmp_restart_dir.as_posix())
-    fv3config.run_native(config, tmpdir, capture_output=False, runfile=NUDGE_RUNFILE)
-
-
-def get_prognostic_config(model_type, model_path):
+def get_prognostic_config(model_path):
     config = yaml.safe_load(default_fv3config)
-    sklearn_config = {"model": model_path, "zarr_output": "diags.zarr"}
-    if model_type == "keras":
-        sklearn_config.update(
-            model_type="keras", model_loader_kwargs={"keras_model_type": "DummyModel"},
-        )
-    config["scikit_learn"] = sklearn_config
+    config["scikit_learn"] = {"model": model_path, "zarr_output": "diags.zarr"}
+    config["step_storage_variables"] = ["specific_humidity", "total_water"]
     # use local paths in prognostic_run image. fv3config
     # downloads data. We should change this once the fixes in
     # https://github.com/VulcanClimateModeling/fv3gfs-python/pull/78 propagates
     # into the prognostic_run image
-
     return config
 
 
-def _model_dataset():
+def _model_dataset() -> xr.Dataset:
 
     nz = 63
     arr = np.zeros((1, nz))
@@ -437,13 +435,15 @@ def _model_dataset():
             "air_temperature": (dims, arr),
             "dQ1": (dims, arr),
             "dQ2": (dims, arr),
+            "dQu": (dims, arr),
+            "dQv": (dims, arr),
         }
     )
 
     return data
 
 
-def _save_mock_sklearn_model(tmpdir):
+def _save_mock_sklearn_model(path: str) -> str:
 
     data = _model_dataset()
 
@@ -451,20 +451,29 @@ def _save_mock_sklearn_model(tmpdir):
     heating_constant_K_per_s = np.zeros(nz)
     # include nonzero moistening to test for mass conservation
     moistening_constant_per_s = -np.full(nz, 1e-4 / 86400)
-    constant = np.concatenate([heating_constant_K_per_s, moistening_constant_per_s])
+    wind_tendency_constant_m_per_s_per_s = np.zeros(nz)
+    constant = np.concatenate(
+        [
+            heating_constant_K_per_s,
+            moistening_constant_per_s,
+            wind_tendency_constant_m_per_s_per_s,
+            wind_tendency_constant_m_per_s_per_s,
+        ]
+    )
     estimator = RegressorEnsemble(
         DummyRegressor(strategy="constant", constant=constant)
     )
 
     model = SklearnWrapper(
-        "sample", ["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], estimator
+        "sample",
+        ["specific_humidity", "air_temperature"],
+        ["dQ1", "dQ2", "dQu", "dQv"],
+        estimator,
     )
 
     # needed to avoid sklearn.exceptions.NotFittedError
-    model.fit(data)
-
-    path = str(tmpdir.join("model.yaml"))
-    model.dump(path)
+    model.fit([data])
+    fv3fit.dump(model, path)
     return path
 
 
@@ -475,35 +484,25 @@ def _save_mock_keras_model(tmpdir):
 
     model = DummyModel("sample", input_variables, output_variables)
     model.fit([_model_dataset()])
-    model.dump(str(tmpdir))
-
+    fv3fit.dump(model, tmpdir)
     return str(tmpdir)
 
 
 @pytest.fixture(scope="module", params=["keras", "sklearn"])
 def completed_rundir(request, tmpdir_factory):
 
-    if not FV3GFS_INSTALLED:
-        pytest.skip("fv3gfs not installed")
-
-    tmpdir = tmpdir_factory.mktemp("rundir")
+    model_path = str(tmpdir_factory.mktemp("model"))
 
     if request.param == "sklearn":
-        model_path = _save_mock_sklearn_model(tmpdir)
+        _save_mock_sklearn_model(model_path)
     elif request.param == "keras":
-        model_path = _save_mock_keras_model(tmpdir)
+        _save_mock_keras_model(model_path)
+    config = get_prognostic_config(model_path)
 
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
-    fv3_script = Path(__file__).parent.parent.joinpath("runfv3.sh").as_posix()
-    config = get_prognostic_config(request.param, model_path)
-
-    config_path = str(tmpdir.join("fv3config.yaml"))
-
-    with open(config_path, "w") as f:
-        yaml.safe_dump(config, f)
-
-    subprocess.check_call([fv3_script, config_path, str(tmpdir), runfile])
-    return tmpdir
+    rundir = tmpdir_factory.mktemp("rundir")
+    run_native(config, str(rundir), runfile)
+    return rundir
 
 
 def test_fv3run_checksum_restarts(completed_rundir):
@@ -530,6 +529,10 @@ def test_fv3run_logs_present(completed_rundir):
     assert completed_rundir.join(LOG_PATH).exists()
 
 
+def test_runfile_script_present(completed_rundir):
+    assert completed_rundir.join(RUNFILE_PATH).exists()
+
+
 def test_fv3run_diagnostic_outputs(completed_rundir):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
@@ -543,26 +546,29 @@ def test_fv3run_diagnostic_outputs(completed_rundir):
         "net_moistening",
         "physics_precip",
         "water_vapor_path",
+        "column_integrated_dQu",
+        "column_integrated_dQv",
     ]:
         assert diagnostics[variable].dims == dims
         assert np.sum(np.isnan(diagnostics[variable].values)) == 0
 
 
 def test_fv3run_python_mass_conserving(completed_rundir):
-    data_lines = []
 
     path = str(completed_rundir.join(LOG_PATH))
 
     # read python mass conservation info
     with open(path) as f:
-        for line in f:
-            start = "INFO:root:python:"
-            if line.startswith(start):
-                data_lines.append(json.loads(line[len(start) :]))
+        lines = f.readlines()
 
-    for metric in data_lines:
+    assert len(lines) > 0
+    for metric in lines:
+        obj = json.loads(metric)
+        runtime.metrics.validate(obj)
+
         np.testing.assert_allclose(
-            metric["vapor_mass_change"]["value"],
-            metric["total_mass_change"]["value"],
-            atol=1e-2,
+            obj["storage_of_mass_due_to_python"],
+            obj["storage_of_total_water_path_due_to_python"] * 9.81,
+            rtol=0.003,
+            atol=1e-4 / 86400,
         )

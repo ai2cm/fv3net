@@ -1,15 +1,14 @@
-from datetime import datetime
 import functools
 import logging
 from numpy.random import RandomState
 import pandas as pd
 from typing import Iterable, Sequence, Mapping, Any, Hashable, Optional, Union, List
 import xarray as xr
-from vcm import safe
+from vcm import safe, parse_datetime_from_str
 from toolz import partition_all, compose
-from ._sequences import FunctionOutputSequence
-from .._utils import stack_dropnan_shuffle, load_grid, add_cosine_zenith_angle
-from ..constants import TIME_FMT, TIME_NAME
+from ._sequences import Map, Local as batches_from_local  # noqa
+from .._utils import stack_dropnan_shuffle, get_derived_dataset, nonderived_variables
+from ..constants import TIME_NAME
 from ._serialized_phys import (
     SerializedSequence,
     FlattenDims,
@@ -29,7 +28,7 @@ def batches_from_geodata(
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
-    cos_z_var: str = "cos_zenith_angle",
+    res: str = "c48",
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train. The data is assumed to
@@ -44,8 +43,7 @@ def batches_from_geodata(
             passed to the mapping function
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
-        cos_z_var: Name of cosine zenith angle variable to insert.
-            Defaults to "cos_zenith_angle".
+        res: grid resolution, format as f'c{number cells in tile}'
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -54,12 +52,7 @@ def batches_from_geodata(
     """
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     batches = batches_from_mapper(
-        data_mapping,
-        variable_names,
-        timesteps_per_batch,
-        random_seed,
-        timesteps,
-        cos_z_var,
+        data_mapping, variable_names, timesteps_per_batch, random_seed, timesteps, res,
     )
     return batches
 
@@ -78,7 +71,7 @@ def batches_from_mapper(
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
-    cos_z_var: str = "cos_zenith_angle",
+    res: str = "c48",
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -90,8 +83,7 @@ def batches_from_mapper(
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
         timesteps: List of timesteps to use in training.
-        cos_z_var: Name of cosine zenith angle variable to insert.
-            Defaults to "cos_zenith_angle".
+        res: grid resolution, format as f'c{number cells in tile}'
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -113,20 +105,14 @@ def batches_from_mapper(
     times = _sample(timesteps, num_times, random_state)
     batched_timesteps = list(partition_all(timesteps_per_batch, times))
 
-    load_batch = functools.partial(
-        _load_batch, data_mapping, variable_names, cos_z_var,
-    )
+    load_batch = functools.partial(_load_batch, data_mapping, variable_names,)
 
     transform = functools.partial(stack_dropnan_shuffle, random_state)
-    # If additional dervied variable(s) added, refactor instead of adding if statements
-    if cos_z_var in variable_names:
-        grid = load_grid()
-        insert_cos_z = functools.partial(add_cosine_zenith_angle, grid, cos_z_var)
-        batch_func = compose(transform, insert_cos_z, load_batch)
-    else:
-        batch_func = compose(transform, load_batch)
+    load_batch = functools.partial(_load_batch, data_mapping, variable_names)
+    derived_dataset = functools.partial(get_derived_dataset, variable_names, res)
+    batch_func = compose(transform, derived_dataset, load_batch)
 
-    seq = FunctionOutputSequence(batch_func, batched_timesteps)
+    seq = Map(batch_func, batched_timesteps)
     seq.attrs["times"] = times
 
     return seq
@@ -140,7 +126,7 @@ def diagnostic_batches_from_geodata(
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
-    cos_z_var: str = "cos_zenith_angle",
+    res: str = "c48",
 ) -> Sequence[xr.Dataset]:
     """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
     as batches_from_mapper but without transformation and stacking
@@ -155,8 +141,7 @@ def diagnostic_batches_from_geodata(
         num_batches (int, optional): Defaults to None.
         random_seed (int, optional): Defaults to 0.
         timesteps: List of timesteps to use in training.
-        cos_z_var: Name of cosine zenith angle variable to insert.
-            Defaults to "cos_zenith_angle".
+        res: grid resolution, format as f'c{number cells in tile}'
 
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
@@ -167,14 +152,8 @@ def diagnostic_batches_from_geodata(
 
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     sequence = diagnostic_batches_from_mapper(
-        data_mapping,
-        variable_names,
-        timesteps_per_batch,
-        random_seed,
-        timesteps,
-        cos_z_var,
+        data_mapping, variable_names, timesteps_per_batch, random_seed, timesteps, res,
     )
-
     return sequence
 
 
@@ -184,7 +163,7 @@ def diagnostic_batches_from_mapper(
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
     timesteps: Sequence[str] = None,
-    cos_z_var: str = "cos_zenith_angle",
+    res: str = "c48",
 ) -> Sequence[xr.Dataset]:
     if timesteps and set(timesteps).issubset(data_mapping.keys()) is False:
         raise ValueError(
@@ -197,17 +176,10 @@ def diagnostic_batches_from_mapper(
     times = _sample(timesteps, num_times, random_state)
     batched_timesteps = list(partition_all(timesteps_per_batch, times))
 
-    load_batch = functools.partial(
-        _load_batch, data_mapping, variable_names, cos_z_var,
-    )
-    # If additional dervied variable(s) added, refactor instead of adding if statements
-    if cos_z_var in variable_names:
-        grid = load_grid()
-        insert_cos_z = functools.partial(add_cosine_zenith_angle, grid, cos_z_var)
-        batch_func = compose(insert_cos_z, load_batch)
-    else:
-        batch_func = load_batch
-    seq = FunctionOutputSequence(batch_func, batched_timesteps)
+    load_batch = functools.partial(_load_batch, data_mapping, variable_names)
+    derived_dataset = functools.partial(get_derived_dataset, variable_names, res,)
+    batch_func = compose(derived_dataset, load_batch)
+    seq = Map(batch_func, batched_timesteps)
     seq.attrs["times"] = times
     return seq
 
@@ -219,15 +191,13 @@ def _sample(seq: Sequence[Any], n: int, random_state: RandomState) -> Sequence[A
 def _load_batch(
     mapper: Mapping[str, xr.Dataset],
     data_vars: Iterable[str],
-    cos_z_var: str,
     keys: Iterable[Hashable],
 ) -> xr.Dataset:
-    time_coords = [datetime.strptime(key, TIME_FMT) for key in keys]
-    ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))
 
-    # cos z is special case of feature that is not present in dataset
-    # If additional derived variable(s) added, refactor instead of adding if statements
-    ds = safe.get_variables(ds, [var for var in data_vars if var != cos_z_var])
+    time_coords = [parse_datetime_from_str(key) for key in keys]
+    ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))
+    nonderived_vars = nonderived_variables(data_vars, ds.data_vars)
+    ds = safe.get_variables(ds, nonderived_vars)
     return ds
 
 
@@ -236,7 +206,7 @@ def batches_from_serialized(
     zarr_prefix: str = "phys",
     sample_dims: Sequence[str] = ["savepoint", "rank", "horizontal_dimension"],
     savepoints_per_batch: int = 1,
-) -> FunctionOutputSequence:
+) -> Map:
     """
     Load a sequence of serialized physics data for use in model fitting procedures.
     Data variables are reduced to a sample and feature dimension by stacking specified
@@ -269,6 +239,6 @@ def batches_from_serialized(
     def _load_item(item: Union[int, slice]):
         return seq[item]
 
-    func_seq = FunctionOutputSequence(_load_item, batch_args)
+    func_seq = Map(_load_item, batch_args)
 
     return func_seq

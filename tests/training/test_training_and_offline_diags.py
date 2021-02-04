@@ -11,13 +11,12 @@ import diagnostics_utils as utils
 import synth
 from fv3fit import _shared as shared
 import fv3fit
-from fv3fit.sklearn._train import train_model
+from fv3fit.sklearn._train import get_transformed_batch_regressor
 from offline_ml_diags._mapper import PredictionMapper
+from offline_ml_diags._helpers import load_grid_info
+
 from loaders import SAMPLE_DIM_NAME, batches, mappers
-from offline_ml_diags.compute_diags import (
-    _average_metrics_dict,
-    _compute_diags_over_batches,
-)
+from offline_ml_diags.compute_diags import _average_metrics_dict, _compute_diagnostics
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +104,7 @@ def test_compute_training_diags(
             mapping_function=data_source_config["mapping_function"],
             mapping_kwargs=data_source_config["mapping_kwargs"],
             timesteps_per_batch=1,
+            res="c8_random_values",
         )
         ds = xr.concat(ds_batches, dim="time")
         ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
@@ -181,7 +181,8 @@ def training_batches(data_source_name, data_source_path, data_source_train_confi
 def test_sklearn_regression(training_batches, data_source_train_config):
 
     assert len(training_batches) == 2
-    wrapper = train_model(training_batches, data_source_train_config)
+    wrapper = get_transformed_batch_regressor(data_source_train_config)
+    wrapper.fit(training_batches)
     assert wrapper.model.n_estimators == 2
 
 
@@ -209,6 +210,9 @@ class MockSklearnWrappedModel(fv3fit.Predictor):
         return ds_pred
 
     def load(self, *args, **kwargs):
+        pass
+
+    def dump(self, path):
         pass
 
 
@@ -251,7 +255,7 @@ def data_source_offline_config(
 
 @pytest.fixture
 def prediction_mapper(
-    mock_model, data_source_name, data_source_path, data_source_offline_config
+    mock_model, data_source_name, data_source_path, data_source_offline_config,
 ):
 
     base_mapping_function = getattr(
@@ -261,8 +265,8 @@ def prediction_mapper(
         data_source_path,
         **data_source_offline_config["batch_kwargs"].get("mapping_kwargs", {}),
     )
-
-    prediction_mapper = PredictionMapper(base_mapper, mock_model)
+    grid = load_grid_info(res="c8_random_values")
+    prediction_mapper = PredictionMapper(base_mapper, mock_model, variables, grid=grid)
 
     return prediction_mapper
 
@@ -271,6 +275,7 @@ timesteps = ["20160801.001500", "20160801.003000"]
 variables = [
     "air_temperature",
     "specific_humidity",
+    "cos_zenith_angle",
     "dQ1",
     "dQ2",
     "pQ1",
@@ -278,6 +283,8 @@ variables = [
     "pressure_thickness_of_atmospheric_layer",
     "net_heating",
     "net_precipitation",
+    "area",
+    "land_sea_mask",
 ]
 
 
@@ -293,16 +300,20 @@ def diagnostic_batches(prediction_mapper, data_source_offline_config):
         data_source_offline_config["variables"],
         **data_source_offline_config["batch_kwargs"],
     )
-
     return diagnostic_batches
 
 
 @pytest.mark.regression
 def test_compute_offline_diags(
-    offline_diags_reference_schema, diagnostic_batches, grid_dataset
+    offline_diags_reference_schema,
+    diagnostic_batches,
+    grid_dataset,
+    data_source_offline_config,
 ):
-    ds_diagnostics, ds_diurnal, ds_metrics = _compute_diags_over_batches(
-        diagnostic_batches, grid_dataset
+    ds_diagnostics, ds_diurnal, ds_metrics = _compute_diagnostics(
+        diagnostic_batches,
+        grid_dataset,
+        predicted_vars=data_source_offline_config["output_variables"],
     )
 
     # convert metrics to dict
@@ -338,7 +349,7 @@ def test_compute_offline_diags(
             assert dim in ["local_time_hr", "derivation", "surface_type"]
 
     assert isinstance(metrics, dict)
-    assert len(metrics) == 40
+    assert len(metrics) == 32
     for metric, metric_entry in metrics.items():
         assert isinstance(metric, str)
         assert isinstance(metric_entry, dict)

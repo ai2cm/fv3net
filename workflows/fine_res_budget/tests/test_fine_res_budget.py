@@ -1,5 +1,4 @@
 import datetime
-from pathlib import Path
 
 import cftime
 import pytest
@@ -7,29 +6,13 @@ import xarray as xr
 import numpy as np
 import dask.array as da
 
-import synth
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from budget.data import shift
 from budget.pipeline import run, OpenTimeChunks
+import budget.config
 from budget.budgets import _compute_second_moment, storage
-
-from vcm import safe
-
-ranges = {
-    # Need to use a small range here to avoid SEGFAULTS in the mappm
-    # if delp varies to much then the mean pressures may lie completely out of bounds
-    # an individual column
-    "delp": synth.Range(0.99, 1.01)
-}
-
-
-def open_schema(path_relative_to_file):
-    path = Path(__file__)
-    abspath = path.parent / path_relative_to_file
-    with open(abspath) as f:
-        return synth.generate(synth.load(f), ranges)
 
 
 def test_OpenTimeChunks():
@@ -63,73 +46,22 @@ def test_OpenTimeChunks():
 
 
 @pytest.mark.regression
-def test_run(tmpdir):
+def test_run(data_dirs, tmpdir):
+    diag_path, restart_path, gfsphysics_url, area_url = data_dirs
 
-    variables = [
-        "t_dt_fv_sat_adj_coarse",
-        "t_dt_nudge_coarse",
-        "t_dt_phys_coarse",
-        "qv_dt_fv_sat_adj_coarse",
-        "qv_dt_phys_coarse",
-        "eddy_flux_vulcan_omega_sphum",
-        "eddy_flux_vulcan_omega_temp",
-        "grid_lat_coarse",
-        "grid_latt_coarse",
-        "grid_lon_coarse",
-        "grid_lont_coarse",
-        "vulcan_omega_coarse",
-        "area_coarse",
-    ]
-
-    # use a small tile for much faster testing
-    n = 48
-
-    diag_selectors = dict(
-        tile=[0], time=[0, 1], grid_xt_coarse=slice(0, n), grid_yt_coarse=slice(0, n)
-    )
-
-    restart_selectors = dict(
-        tile=[0], time=[0, 1, 2], grid_xt=slice(0, n), grid_yt=slice(0, n)
-    )
-
-    diag_schema = safe.get_variables(open_schema("diag.json"), variables).isel(
-        diag_selectors
-    )
-    restart = open_schema("restart.json").isel(restart_selectors)
-
-    diag_path = str(tmpdir.join("diag.zarr"))
-    restart_path = str(tmpdir.join("restart.zarr"))
     output_path = str(tmpdir.join("out"))
-
-    diag_schema.to_zarr(diag_path, mode="w")
-    restart.to_zarr(restart_path, mode="w")
-
-    run(restart_path, diag_path, output_path)
-
+    run(restart_path, diag_path, gfsphysics_url, area_url, output_path)
     ds = xr.open_mfdataset(f"{output_path}/*.nc", combine="by_coords")
 
-    expected_variables = [
-        "T",
-        "t_dt_fv_sat_adj_coarse",
-        "t_dt_nudge_coarse",
-        "t_dt_phys_coarse",
-        "delp",
-        "vulcan_omega_coarse",
-        "sphum",
-        "qv_dt_fv_sat_adj_coarse",
-        "qv_dt_phys_coarse",
-        "sphum_vulcan_omega_coarse",
-        "T_vulcan_omega_coarse",
-        "eddy_flux_vulcan_omega_temp",
-        "eddy_flux_vulcan_omega_sphum",
-        "T_storage",
-        "sphum_storage",
-    ]
-
-    for variable in expected_variables:
+    for variable in budget.config.VARIABLES_TO_AVERAGE | {
+        "exposed_area",
+        "area",
+    }:
         assert variable in ds
         assert "long_name" in ds[variable].attrs
         assert "units" in ds[variable].attrs
+
+    assert "history" in ds.attrs
 
 
 def test_shift():

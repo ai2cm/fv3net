@@ -1,0 +1,69 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: cubed-to-latlon
+spec:
+  arguments:
+    parameters:
+    - name: source_prefix
+      value: gs://vcm-ml-data/2019-11-12-fv3gfs-C48-five-day-nudged-run/nudge_rundir/sfc_dt_atmos
+    - name: output_bucket
+      value: gs://vcm-ml-data/2019-11-12-fv3gfs-C48-five-day-nudged-run/nLat180_nLon360/sfc_dt_atmos.nc
+    - name: resolution
+      value: C48
+    - name: fields
+      value: DLWRFsfc,DSWRFsfc,DSWRFtoa,HPBLsfc,LHTFLsfc,PRATEsfc,SHTFLsfc,ULWRFsfc,ULWRFtoa,USWRFsfc,USWRFtoa
+    - name: extra_args
+      value: --nlat 180 --nlon 360
+  entrypoint: regrid
+  volumes:
+  - name: gcp-credentials-user-gcp-sa
+    secret:
+      secretName: gcp-key
+  templates:
+  - name: regrid
+    container:
+      image: us.gcr.io/vcm-ml/post_process_run
+      command:
+      - fregrid_cubed_to_latlon.sh
+      - '{{workflow.parameters.source_prefix}}'
+      - '{{workflow.parameters.output_bucket}}'
+      - '{{workflow.parameters.resolution}}'
+      - '{{workflow.parameters.fields}}'
+      - '{{workflow.parameters.extra_args}}'
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/gcp-credentials/key.json
+      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+        value: /secret/gcp-credentials/key.json
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-credentials-user-gcp-sa
+  - name: regrid-single-input
+    inputs:
+      parameters:
+      - name: input
+      - name: output
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "med-sim-pool"
+      effect: "NoSchedule"
+    container:
+      image: us.gcr.io/vcm-ml/post_process_run
+      command:
+      - fregrid_single_input
+      - "{{inputs.parameters.input}}"
+      - "{{inputs.parameters.output}}"
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/gcp-credentials/key.json
+      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+        value: /secret/gcp-credentials/key.json
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-key-secret
+      resources:
+        requests:
+          memory: "3Gi"
+          cpu: "1000m"

@@ -3,6 +3,115 @@ kind: Workflow
 metadata:
   generateName: integration-test-
 spec:
+  arguments:
+    parameters:
+      - name: initial-condition
+        value: "20160801.001500"
+      - name: reference-restarts
+        value: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
+      - name: nudge-to-fine-output-frequency
+        value: 30
+      - name: train-times
+        value: |
+          [
+            "20160801.004500",
+            "20160801.011500"
+          ]
+      - name: test-times
+        value: |
+          [
+            "20160801.004500",
+            "20160801.011500"
+          ]
+      - name: nudge-to-fine-config
+        value: | 
+          base_version: v0.5
+          forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+          nudging:
+            timescale_hours:
+              air_temperature: 3
+              specific_humidity: 3
+              x_wind: 3
+              y_wind: 3
+              pressure_thickness_of_atmospheric_layer: 3
+          namelist:
+            coupler_nml:
+              current_date:
+                - 2016
+                - 8
+                - 1
+                - 0
+                - 15
+                - 0
+              hours: 0
+              minutes: 30
+            fv_core_nml:
+              do_sat_adj: false
+            gfdl_cloud_microphysics_nml:
+              fast_sat_adj: false
+      - name: nudge-to-fine-segment-count
+        value:  "2"
+      - name: nudge-to-fine-chunks
+        value: |
+          physics_tendencies.zarr:
+            time: 1
+          nudging_tendencies.zarr:
+            time: 1
+          state_after_timestep.zarr:
+            time: 1
+          reference_state.zarr:
+            time: 1
+          diags.zarr:
+            time: 1
+          atmos_8xdaily.zarr:
+            time: 1
+          atmos_dt_atmos.zarr:
+            time: 2
+          sfc_dt_atmos.zarr:
+            time: 2
+      - name: training-config
+        value: | 
+          model_type: sklearn_random_forest
+          hyperparameters:
+            max_depth: 13
+            n_estimators: 1
+          input_variables:
+            - air_temperature
+            - specific_humidity
+            - cos_zenith_angle
+          output_variables:
+            - dQ1
+            - dQ2
+          batch_function: batches_from_geodata
+          batch_kwargs:
+            timesteps_per_batch: 1
+            mapping_function: open_nudge_to_fine
+            mapping_kwargs:
+              nudging_variables: 
+                - air_temperature
+                - specific_humidity
+                - x_wind
+                - y_wind
+                - pressure_thickness_of_atmospheric_layer
+      - name: prognostic-run-config
+        value: |
+          base_version: v0.5
+          namelist:
+            coupler_nml:
+              hours: 4
+              minutes: 0
+            diag_manager_nml:
+              flush_nc_files: true
+            fv_core_nml:
+              do_sat_adj: false
+            gfdl_cloud_microphysics_nml:
+              fast_sat_adj: false
+            fv_nwp_nudge_nml:
+              nudge_hght: false
+              nudge_ps: false
+              nudge_virt: false
+              nudge_winds: false
+              nudge_q: false
   serviceAccountName: integration-tests
   tolerations:
     - effect: NoSchedule
@@ -18,14 +127,8 @@ spec:
           requests:
             storage: 5Gi
   volumes:
-    - name: restart-data
-      persistentVolumeClaim:
-        claimName: nudging-read-only
-        readOnly: true
-    - name: gfs-analysis-data
-      persistentVolumeClaim:
-        claimName: gfs-analysis-read-only
-        readOnly: true
+    - name: workdir
+      emptyDir: {}
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -34,45 +137,42 @@ spec:
   - name: main
     dag:
       tasks:
-      - name: nudging-run
+      - name: nudge-to-fine-run
         templateRef:
-          name: nudging
-          template: nudging
+          name: prognostic-run
+          template: prognostic-run
         arguments:
           parameters:
-          - name: fv3net-image
-            value: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image-tag}}"
-          - name: fv3gfs-image
-            value: "us.gcr.io/vcm-ml/prognostic_run:{{workflow.parameters.image-tag}}"
-          - name: post-process-image
-            value: "us.gcr.io/vcm-ml/post_process_run:{{workflow.parameters.image-tag}}"
-          - name: times
-            value: "{{workflow.parameters.nudging-times}}"
-          - name: output-url
-            value: "{{workflow.parameters.root}}/nudging"
-          - name: nudging-config
-            value: "{{workflow.parameters.nudging-config}}"
+          - name: reference-restarts
+            value: "{{workflow.parameters.reference-restarts}}"
+          - name: initial-condition
+            value: "{{workflow.parameters.initial-condition}}"
+          - name: flags
+            value: "--output-frequency {{workflow.parameters.nudge-to-fine-output-frequency}}"
+          - name: output
+            value: "{{workflow.parameters.root}}/nudge_to_fine_run"
+          - name: config
+            value: "{{workflow.parameters.nudge-to-fine-config}}"
           - name: segment-count
-            value: "{{workflow.parameters.nudging-segment-count}}"
-          - name: use-default-chunks
-            value: "false"
-          - name: custom-chunks
-            value: "{{workflow.parameters.nudging-chunks}}"
+            value: "{{workflow.parameters.nudge-to-fine-segment-count}}"
+          - name: chunks
+            value: "{{workflow.parameters.nudge-to-fine-chunks}}"
           - {name: work-volume-name, value: work-volume}
-          - {name: external-volume-name, value: restart-data}
+          - name: cpu
+            value: 6000m
+          - name: memory
+            value: 6Gi
       - name: train-offline-diags-prognostic
-        dependencies: [nudging-run]
+        dependencies: [nudge-to-fine-run]
         templateRef:
           name: train-diags-prog
           template: train-diags-prog
         arguments:
           parameters:
-          - name: image-tag
-            value: "{{workflow.parameters.image-tag}}"
           - name: root
             value: "{{workflow.parameters.root}}"
           - name: train-test-data
-            value: "{{workflow.parameters.root}}/nudging"
+            value: "{{workflow.parameters.root}}/nudge_to_fine_run"
           - name: training-config
             value: "{{workflow.parameters.training-config}}"
           - name: train-times
@@ -83,11 +183,10 @@ spec:
             value: "{{workflow.parameters.prognostic-run-config}}"
           - name: reference-restarts
             value: "{{workflow.parameters.reference-restarts}}"
-          - name: store-true-args
+          - name: flags
             value: "--nudge-to-observations"
           - name: test-times
             value: "{{workflow.parameters.test-times}}"
           - name: public-report-output
             value: "{{workflow.parameters.root}}/offline-report"
           - {name: work-volume-name, value: work-volume}
-          - {name: external-volume-name, value: gfs-analysis-data}

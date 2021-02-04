@@ -1,12 +1,16 @@
+intake
+intake-xarray==0.3.1
 xarray
 numpy
 scikit-learn
 fsspec
 pyyaml
-tensorflow
+tensorflow>=2.3.0
 pytest
 pytest-cov
 joblib
+typing_extensions
+tensorflow-addons
 
 # requirements from loaders or synth
 zarr
@@ -84,7 +88,7 @@ requests
 requests-oauthlib
 rsa
 scikit-image
-scipy
+scipy >= 1.5.0
 six
 traitlets
 urllib3

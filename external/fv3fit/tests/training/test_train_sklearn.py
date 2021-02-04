@@ -5,13 +5,11 @@ import logging
 from fv3fit._shared import ModelTrainingConfig
 import numpy as np
 import subprocess
+import copy
 
-from fv3fit.sklearn._train import (
-    train_model,
-    _get_target_scaler,
-)
+
+from fv3fit.sklearn._train import get_transformed_batch_regressor
 import fv3fit.sklearn
-from fv3fit._shared import StandardScaler, ManualScaler
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +32,11 @@ def test_training(
     output_variables: Iterable[str],
     train_config: ModelTrainingConfig,
 ):
-    model = train_model(training_batches, train_config)
-    assert model.model.n_estimators == 2
+    model = get_transformed_batch_regressor(train_config)
+    model.fit(training_batches)
+    # This is the number of random forests in the ensemble, not the
+    # number of total trees across the ensemble
+    assert model.model.n_estimators == 1
     batch_dataset = training_batches[0]
     result = model.predict(batch_dataset)
     missing_names = set(output_variables).difference(result.data_vars.keys())
@@ -43,6 +44,23 @@ def test_training(
     for varname in output_variables:
         assert result[varname].shape == batch_dataset[varname].shape, varname
         assert np.sum(np.isnan(result[varname].values)) == 0
+
+
+def test_reproducibility(
+    training_batches: Sequence[xr.Dataset], train_config: ModelTrainingConfig,
+):
+    batch_dataset = training_batches[0]
+    train_config.hyperparameters["random_state"] = 0
+
+    model_0 = get_transformed_batch_regressor(train_config)
+    model_0.fit(copy.deepcopy(training_batches))
+    result_0 = model_0.predict(batch_dataset)
+
+    model_1 = get_transformed_batch_regressor(train_config)
+    model_1.fit(copy.deepcopy(training_batches))
+    result_1 = model_1.predict(batch_dataset)
+
+    xr.testing.assert_allclose(result_0, result_1)
 
 
 def test_training_integration(
@@ -65,26 +83,4 @@ def test_training_integration(
         ]
     )
 
-    fv3fit.sklearn.SklearnWrapper.load(str(tmp_path / "sklearn.yaml"))
-
-
-@pytest.mark.parametrize(
-    "scaler_type, expected_type", (["standard", StandardScaler], ["mass", ManualScaler])
-)
-def test__get_target_scaler_type(scaler_type, expected_type):
-    scaler = _get_target_scaler(
-        scaler_type, scaler_kwargs={}, norm_data=norm_data, output_vars=["y0", "y1"]
-    )
-    assert isinstance(scaler, expected_type)
-
-
-norm_data = xr.Dataset(
-    {
-        "y0": (["sample", "z"], np.array([[1.0, 1.0], [2.0, 2.0]])),
-        "y1": (["sample"], np.array([-1.0, -2.0])),
-        "pressure_thickness_of_atmospheric_layer": (
-            ["sample", "z"],
-            np.array([[1.0, 1.0], [1.0, 1.0]]),
-        ),
-    }
-)
+    fv3fit.sklearn.SklearnWrapper.load(str(tmp_path))

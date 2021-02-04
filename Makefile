@@ -4,6 +4,7 @@
 # GLOBALS                                                                       #
 #################################################################################
 VERSION ?= $(shell git rev-parse HEAD)
+REGISTRY ?= us.gcr.io/vcm-ml
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
@@ -12,13 +13,10 @@ PROJECT_NAME = fv3net
 PYTHON_INTERPRETER = python3
 DATA = data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr.dvc
 IMAGE = fv3net
-GCR_IMAGE = us.gcr.io/vcm-ml/fv3net
 
-GCR_BASE  = us.gcr.io/vcm-ml
-FV3NET_IMAGE = $(GCR_BASE)/fv3net
-PROGNOSTIC_RUN_IMAGE = $(GCR_BASE)/prognostic_run
-FORTRAN_VERSION = $(shell git -C external/fv3gfs-fortran rev-parse HEAD)
-FORTRAN_IMAGE = $(GCR_BASE)/fv3gfs-fortran-fv3net:$(FORTRAN_VERSION)
+CACHE_TAG =latest
+
+IMAGES = fv3net fv3fit post_process_run prognostic_run
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -34,53 +32,39 @@ endif
 
 # pattern rule for building docker images
 build_image_%:
-	docker build . -f docker/$*/Dockerfile -t $*
-
-build_image_prognostic_run:
-	if [ -z "$(shell docker images -q $(FORTRAN_IMAGE) 2> /dev/null)" ]; \
-	then \
-		docker pull $(FORTRAN_IMAGE) || ($(MAKE) rebuild_image_fortran && docker push $(FORTRAN_IMAGE)); \
-	fi
-	docker build . -f docker/prognostic_run/Dockerfile -t prognostic_run --build-arg FORTRAN_IMAGE=$(FORTRAN_IMAGE)
-
-rebuild_image_fortran:
-	docker build . -f docker/prognostic_run/fortran.Dockerfile -t $(FORTRAN_IMAGE)
-
-push_image_fortran:
-	docker push $(FORTRAN_IMAGE)
-
-build_image_post_process_run:
-	docker build workflows/post_process_run -t post_process_run
+	tools/docker_build_cached.sh us.gcr.io/vcm-ml/$*:$(CACHE_TAG) \
+		-f docker/$*/Dockerfile -t $(REGISTRY)/$*:$(VERSION) .
 
 enter_%:
 	docker run -ti -w /fv3net -v $(shell pwd):/fv3net $* bash
 
-build_images: build_image_fv3net build_image_prognostic_run build_image_post_process_run
+build_images: $(addprefix build_image_, $(IMAGES))
+push_images: $(addprefix push_image_, $(IMAGES))
 
-push_images: push_image_prognostic_run push_image_fv3net push_image_post_process_run
-
-push_image_%:
-	docker tag $* $(GCR_BASE)/$*:$(VERSION)
-	docker push $(GCR_BASE)/$*:$(VERSION)
+push_image_%: build_image_%
+	docker push $(REGISTRY)/$*:$(VERSION)
 
 pull_image_%:
-	docker pull $(GCR_BASE)/$*:$(VERSION)
+	docker pull $(REGISTRY)/$*:$(VERSION)
 
 enter: build_image
 	docker run -it -v $(shell pwd):/code \
 		-e GOOGLE_CLOUD_PROJECT=vcm-ml \
 		-w /code $(IMAGE)  bash
 
-#		-e GOOGLE_APPLICATION_CREDENTIALS=/google_creds.json \
-#		-v $(HOME)/.config/gcloud/application_default_credentials.json:/google_creds.json \
-
 build_ci_image:
 	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
 
+## Install K8s and cluster manifests for local development
+## Do not run for the GKE cluster
+deploy_local:
+	kubectl apply -f https://raw.githubusercontent.com/argoproj/argo/v2.11.6/manifests/install.yaml
+	kubectl create secret generic gcp-key --from-file="${GOOGLE_APPLICATION_CREDENTIALS}"
+	kubectl apply -f workflows/argo/cluster
 
 # run integration tests
 run_integration_tests:
-	./tests/end_to_end_integration/run_test.sh $(VERSION)
+	./tests/end_to_end_integration/run_test.sh $(REGISTRY) $(VERSION)
 
 test:
 	pytest external tests
@@ -91,7 +75,11 @@ test_prognostic_run:
 test_prognostic_run_report:
 	bash workflows/prognostic_run_diags/test_integration.sh
 
-test_unit:
+
+test_fv3kube:
+	cd external/fv3kube && tox
+
+test_unit: test_fv3kube
 	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
 
 test_regression:
@@ -133,7 +121,7 @@ install_deps:
 lock_deps:
 	conda-lock -f environment.yml
 	# external directories must be explicitly listed to avoid model requirements files which use locked versions
-	pip-compile pip-requirements.txt external/fv3fit/requirements.txt docker/**/requirements.txt --output-file constraints.txt
+	pip-compile pip-requirements.txt external/fv3fit/requirements.txt workflows/post_process_run/requirements.txt docker/**/requirements.txt --output-file constraints.txt
 
 install_local_packages:
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)

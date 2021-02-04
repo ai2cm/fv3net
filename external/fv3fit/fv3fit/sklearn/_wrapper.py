@@ -1,4 +1,5 @@
-import abc
+from typing import Mapping
+import logging
 import io
 from copy import copy
 import numpy as np
@@ -6,15 +7,13 @@ import xarray as xr
 import pandas as pd
 import fsspec
 import joblib
-from .._shared import pack, unpack, Predictor
+from .._shared import pack, unpack, Estimator, get_scaler
+from .. import _shared
 from .._shared import scaler
 import sklearn.base
 
-from typing import Optional, Iterable, Sequence, MutableMapping, Any
+from typing import Optional, Iterable, Sequence
 import yaml
-
-# bump this version for incompatible changes
-SERIALIZATION_VERSION = "v0"
 
 
 def _multiindex_to_tuple(index: pd.MultiIndex) -> tuple:
@@ -32,9 +31,7 @@ class RegressorEnsemble:
     """
 
     def __init__(
-        self,
-        base_regressor=None,
-        regressors: Sequence[sklearn.base.BaseEstimator] = None,
+        self, base_regressor, regressors: Sequence[sklearn.base.BaseEstimator] = None,
     ) -> None:
         self.base_regressor = base_regressor
         self.regressors = regressors or []
@@ -76,52 +73,35 @@ class RegressorEnsemble:
         return np.mean(predictions, axis=0)
 
     def dumps(self) -> bytes:
+        batch_regressor_components = {
+            "regressors": self.regressors,
+            "base_regressor": self.base_regressor,
+        }
         f = io.BytesIO()
-        joblib.dump(self.regressors, f)
+        joblib.dump(batch_regressor_components, f)
         return f.getvalue()
 
     @classmethod
     def loads(cls, b: bytes) -> "RegressorEnsemble":
         f = io.BytesIO(b)
-        regressors: Sequence[sklearn.base.BaseEstimator] = joblib.load(f)
-        obj = cls(regressors=regressors)
+        batch_regressor_components = joblib.load(f)
+        regressors: Sequence[sklearn.base.BaseEstimator] = batch_regressor_components[
+            "regressors"
+        ]
+        base_regressor = batch_regressor_components["base_regressor"]
+        obj = cls(base_regressor=base_regressor, regressors=regressors)
         return obj
 
 
-class BaseXarrayEstimator(Predictor):
-    """Abstract base class for an estimator wich works with xarray datasets.
-    Subclasses Predictor abstract base class but adds `fit` method taking in
-    xarray dataset.
-    """
-
-    def __init__(
-        self,
-        sample_dim_name: str,
-        input_variables: Iterable[str],
-        output_variables: Iterable[str],
-    ):
-        """
-        Args:
-            sample_dim_name: dimension over which samples are taken
-            input_variables: list of input variables
-            output_variables: list of output variables
-        """
-        super().__init__(sample_dim_name, input_variables, output_variables)
-
-    @abc.abstractmethod
-    def fit(self, data: xr.Dataset) -> None:
-        """
-        Args:
-            data: xarray Dataset with dimensions (sample_dim, *)
-
-        """
-        raise NotImplementedError
-
-
-class SklearnWrapper(BaseXarrayEstimator):
+@_shared.io.register("sklearn")
+class SklearnWrapper(Estimator):
     """Wrap a SkLearn model for use with xarray
 
     """
+
+    _PICKLE_NAME = "sklearn.pkl"
+    _SCALER_NAME = "scaler.bin"
+    _METADATA_NAME = "metadata.bin"
 
     def __init__(
         self,
@@ -129,8 +109,10 @@ class SklearnWrapper(BaseXarrayEstimator):
         input_variables: Iterable[str],
         output_variables: Iterable[str],
         model: RegressorEnsemble,
-        target_scaler: Optional[scaler.NormalizeTransform] = None,
         parallel_backend: str = "threading",
+        scaler_type: str = "standard",
+        scaler_kwargs: Optional[Mapping] = None,
+        target_scaler: Optional[scaler.NormalizeTransform] = None,
         n_jobs: int = 1,
     ) -> None:
         """
@@ -149,12 +131,14 @@ class SklearnWrapper(BaseXarrayEstimator):
 
         self.n_jobs = n_jobs
         self.parallel_backend = parallel_backend
+        self.scaler_type = scaler_type
+        self.scaler_kwargs = scaler_kwargs or {}
         self.target_scaler = target_scaler
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
-    def fit(self, data: xr.Dataset):
+    def _fit_batch(self, data: xr.Dataset):
         # TODO the sample_dim can change so best to use feature dim to flatten
         x, _ = pack(data[self.input_variables], self.sample_dim_name)
         y, self.output_features_ = pack(
@@ -165,6 +149,24 @@ class SklearnWrapper(BaseXarrayEstimator):
             y = self.target_scaler.normalize(y)
 
         self.model.fit(x, y)
+
+    def _init_target_scaler(self, batch):
+        return get_scaler(
+            self.scaler_type,
+            self.scaler_kwargs,
+            batch,
+            self._output_variables,
+            self._sample_dim_name,
+        )
+
+    def fit(self, batches: Sequence[xr.Dataset]):
+        logger = logging.getLogger("SklearnWrapper")
+        for i, batch in enumerate(batches):
+            if i == 0:
+                self._init_target_scaler(batch)
+            logger.info(f"Fitting batch {i}/{len(batches)}")
+            self._fit_batch(batch)
+            logger.info(f"Batch {i} done fitting.")
 
     def predict(self, data):
         x, _ = pack(data[self.input_variables], self.sample_dim_name)
@@ -183,37 +185,32 @@ class SklearnWrapper(BaseXarrayEstimator):
         Args:
             path: a URL pointing to a directory
         """
-        output: MutableMapping[str, Any] = {}
-        output["version"] = SERIALIZATION_VERSION
-        output["model"] = self.model.dumps()
-        if self.target_scaler is not None:
-            output["scaler"] = scaler.dumps(self.target_scaler)
 
-        output["metadata"] = [
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+
+        fs.makedirs(path, exist_ok=True)
+
+        mapper = fs.get_mapper(path)
+        mapper[self._PICKLE_NAME] = self.model.dumps()
+        if self.target_scaler is not None:
+            mapper[self._SCALER_NAME] = scaler.dumps(self.target_scaler).encode("UTF-8")
+
+        metadata = [
             self.sample_dim_name,
             self.input_variables,
             self.output_variables,
             _multiindex_to_tuple(self.output_features_),
         ]
 
-        with fsspec.open(path, "w") as f:
-            yaml.safe_dump(output, f)
+        mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
 
     @classmethod
     def load(cls, path: str) -> "SklearnWrapper":
         """Load a model from a remote path"""
-        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-        data = yaml.safe_load(fs.cat(path))
+        mapper = fsspec.get_mapper(path)
+        model = RegressorEnsemble.loads(mapper[cls._PICKLE_NAME])
 
-        if data["version"] != SERIALIZATION_VERSION:
-            raise ValueError(
-                f"Artifact has version {data['version']}."
-                f"Only {SERIALIZATION_VERSION} is supported."
-            )
-
-        model = RegressorEnsemble.loads(data["model"])
-
-        scaler_str = data.get("scaler", "")
+        scaler_str = mapper.get(cls._SCALER_NAME, b"")
         scaler_obj: Optional[scaler.NormalizeTransform]
         if scaler_str:
             scaler_obj = scaler.loads(scaler_str)
@@ -224,12 +221,16 @@ class SklearnWrapper(BaseXarrayEstimator):
             input_variables,
             output_variables,
             output_features_dict_,
-        ) = data["metadata"]
+        ) = yaml.safe_load(mapper[cls._METADATA_NAME])
 
         output_features_ = _tuple_to_multiindex(output_features_dict_)
 
         obj = cls(
-            sample_dim_name, input_variables, output_variables, model, scaler_obj,
+            sample_dim_name,
+            input_variables,
+            output_variables,
+            model,
+            target_scaler=scaler_obj,
         )
         obj.output_features_ = output_features_
 

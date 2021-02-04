@@ -1,13 +1,13 @@
 import numpy as np
 from numpy.random import RandomState
-import intake
-from typing import Tuple
+from typing import Tuple, Sequence
 import xarray as xr
 import vcm
-from vcm import safe, net_heating, net_precipitation
+from vcm import safe, net_heating, net_precipitation, DerivedMapping
 from vcm.convenience import round_time
 
-from .constants import SAMPLE_DIM_NAME, TIME_NAME
+from .constants import DATASET_DIM_NAME, SAMPLE_DIM_NAME, TIME_NAME
+from vcm.catalog import catalog
 
 
 CLOUDS_OFF_TEMP_TENDENCIES = [
@@ -18,32 +18,58 @@ CLOUDS_OFF_TEMP_TENDENCIES = [
 ]
 CLOUDS_OFF_SPHUM_TENDENCIES = ["tendency_of_specific_humidity_due_to_turbulence"]
 Z_DIM_NAMES = ["z", "pfull"]
+EAST_NORTH_WIND_TENDENCIES = ["dQu", "dQv"]
+X_Y_WIND_TENDENCIES = ["dQxwind", "dQywind"]
+WIND_ROTATION_COEFFICIENTS = [
+    "eastward_wind_u_coeff",
+    "eastward_wind_v_coeff",
+    "northward_wind_u_coeff",
+    "northward_wind_v_coeff",
+]
 
 Time = str
 Tile = int
 K = Tuple[Time, Tile]
 
 
-def load_grid(res="c48"):
-    cat = intake.open_catalog("catalog.yml")
-    grid = cat[f"grid/{res}"].to_dask()
-    land_sea_mask = cat[f"landseamask/{res}"].to_dask()
-    grid = grid.assign({"land_sea_mask": land_sea_mask["land_sea_mask"]})
-    grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
-    return grid
+def nonderived_variables(requested: Sequence[str], available: Sequence[str]):
+    derived = [var for var in requested if var not in available]
+    nonderived = [var for var in requested if var in available]
+    # if E/N winds not in underlying data, need to load x/y wind
+    # tendencies to derive them
+    if any(var in derived for var in EAST_NORTH_WIND_TENDENCIES):
+        nonderived += X_Y_WIND_TENDENCIES
+    return nonderived
 
 
-def add_cosine_zenith_angle(
-    grid: xr.Dataset, cos_z_var: str, ds: xr.Dataset
+def get_derived_dataset(
+    variables: Sequence[str], res: str, ds: xr.Dataset
 ) -> xr.Dataset:
-    times_exploded = np.array(
-        [
-            np.full(grid["lon"].shape, vcm.cast_to_datetime(t))
-            for t in ds[TIME_NAME].values
-        ]
-    )
-    cos_z = vcm.cos_zenith_angle(times_exploded, grid["lon"], grid["lat"])
-    return ds.assign({cos_z_var: ((TIME_NAME,) + grid["lon"].dims, cos_z)})
+    ds = _add_grid_rotation(res, ds)
+    derived_mapping = DerivedMapping(ds)
+    return derived_mapping.dataset(variables)
+
+
+def _add_grid_rotation(res: str, ds: xr.Dataset) -> xr.Dataset:
+    grid = _load_grid(res)
+    rotation = _load_wind_rotation_matrix(res)
+    common_coords = {"x": ds["x"].values, "y": ds["y"].values}
+    rotation = rotation.assign_coords(common_coords)
+    grid = grid.assign_coords(common_coords)
+    # Prioritize dataset's land_sea_mask if it differs from grid
+    return xr.merge([ds, grid, rotation], compat="override")
+
+
+def _load_grid(res: str) -> xr.Dataset:
+    grid = catalog[f"grid/{res}"].to_dask()
+    land_sea_mask = catalog[f"landseamask/{res}"].to_dask()
+    grid = grid.assign({"land_sea_mask": land_sea_mask["land_sea_mask"]})
+    return safe.get_variables(grid, ["lat", "lon", "land_sea_mask"])
+
+
+def _load_wind_rotation_matrix(res: str) -> xr.Dataset:
+    rotation = catalog[f"wind_rotation/{res}"].to_dask()
+    return safe.get_variables(rotation, WIND_ROTATION_COEFFICIENTS)
 
 
 def get_sample_dataset(mapper):
@@ -64,7 +90,7 @@ def standardize_zarr_time_coord(ds: xr.Dataset) -> xr.Dataset:
     """
     # Vectorize doesn't work on type-dispatched function overloading
     times = np.array(list(map(vcm.cast_to_datetime, ds[TIME_NAME].values)))
-    times = np.vectorize(round_time)(times)
+    times = round_time(times)
     ds = ds.assign_coords({TIME_NAME: times})
     return ds
 
@@ -78,15 +104,21 @@ def stack_dropnan_shuffle(random_state: RandomState, ds: xr.Dataset,) -> xr.Data
         ds,
         SAMPLE_DIM_NAME,
         stack_dims,
-        allowed_broadcast_dims=Z_DIM_NAMES + [TIME_NAME],
+        allowed_broadcast_dims=Z_DIM_NAMES + [TIME_NAME, DATASET_DIM_NAME],
     )
     ds_no_nan = ds_stacked.dropna(SAMPLE_DIM_NAME)
     if len(ds_no_nan[SAMPLE_DIM_NAME]) == 0:
         raise ValueError(
             "No Valid samples detected. Check for errors in the training data."
         )
-    ds = ds_no_nan.transpose()
-    return shuffled(ds, SAMPLE_DIM_NAME, random_state)
+    ds_no_nan = ds_no_nan.transpose()
+    result = shuffled(ds_no_nan, SAMPLE_DIM_NAME, random_state)
+    if DATASET_DIM_NAME in ds.dims:
+        # In the multi-dataset case, preserve the same number of samples per
+        # batch as the single dataset case.
+        return result.thin({SAMPLE_DIM_NAME: ds.sizes[DATASET_DIM_NAME]})
+    else:
+        return result
 
 
 def shuffled(dataset: xr.Dataset, dim: str, random: RandomState) -> xr.Dataset:

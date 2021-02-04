@@ -1,56 +1,30 @@
 import argparse
 import os
-from typing import Mapping
 import yaml
 import logging
+from typing import Sequence, Dict
 
 import fv3config
 import fv3kube
 
 import vcm
 
+from runtime import default_diagnostics
+
 logger = logging.getLogger(__name__)
 
-
-def _merge_once(source, update):
-    """Recursively update a mapping with new values.
-
-    Args:
-        source: Mapping to be updated.
-        update: Mapping whose key-value pairs will update those in source.
-            Key-value pairs will be inserted for keys in update that do not exist
-            in source.
-
-    Returns:
-        Recursively updated mapping.
-    """
-    for key in update:
-        if key in ["patch_files", "diagnostics"]:
-            source.setdefault(key, []).extend(update[key])
-        elif (
-            key in source
-            and isinstance(source[key], Mapping)
-            and isinstance(update[key], Mapping)
-        ):
-            _merge_once(source[key], update[key])
-        else:
-            source[key] = update[key]
-    return source
-
-
-def merge_fv3config_overlays(*mappings) -> Mapping:
-    """Recursive merge dictionaries updating from left to right.
-
-    For example, the rightmost mapping will override the proceeding ones. """
-    out, rest = mappings[0], mappings[1:]
-    for mapping in rest:
-        out = _merge_once(out, mapping)
-    return out
+PROGNOSTIC_DIAG_TABLE = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "user_config",
+        type=str,
+        help="Path to a config update YAML file specifying the changes from the base"
+        "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
+    )
     parser.add_argument(
         "initial_condition_url",
         type=str,
@@ -59,20 +33,30 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "ic_timestep",
         type=str,
-        help="Time step to grab from the initial conditions url.",
+        help="YYYYMMDD.HHMMSS timestamp to grab from the initial conditions url.",
     )
     parser.add_argument(
-        "--model_url", type=str, default=None, help="Remote url to a trained ML model.",
+        "--model_url",
+        type=str,
+        default=None,
+        help=(
+            "Remote url to a trained ML model. If a model is omitted (and not "
+            "specified in `user_config`'s `scikit-learn` `model` field either), then "
+            "no ML updating will be done. Also, if an ML model is provided, no "
+            "nudging will be done."
+        ),
     )
     parser.add_argument(
         "--nudge-to-observations", action="store_true", help="Nudge to observations",
     )
     parser.add_argument(
-        "--prog_config_yml",
-        type=str,
-        default="prognostic_config.yml",
-        help="Path to a config update YAML file specifying the changes from the base"
-        "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
+        "--output-frequency",
+        type=int,
+        default=15,
+        help=(
+            "Output frequency (in minutes) of ML/nudging diagnostics. If omitted, "
+            "output will be written every 15 minutes from the initial time."
+        ),
     )
     parser.add_argument(
         "--diagnostic_ml",
@@ -82,22 +66,25 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def ml_settings(model_type, model_url):
+def ml_overlay(model_type, model_url, diagnostic_ml):
     if model_url:
         if model_type == "scikit_learn":
-            return sklearn_overlay(model_url)
+            overlay = sklearn_overlay(model_url)
         elif model_type == "keras":
-            return keras_overlay(model_url)
+            overlay = keras_overlay(model_url)
         else:
             raise ValueError(
                 "Available model types are 'scikit_learn' and 'keras'; received type:"
                 f" {model_type}."
             )
+        overlay["scikit_learn"].update({"diagnostic_ml": diagnostic_ml}),
+    else:
+        overlay = {}
+    return overlay
 
 
-def sklearn_overlay(model_url, sklearn_filename="sklearn.yaml"):
-    model_asset = fv3config.get_asset_dict(model_url, sklearn_filename)
-    return {"patch_files": [model_asset], "scikit_learn": {"model": sklearn_filename}}
+def sklearn_overlay(model_url):
+    return {"scikit_learn": {"model": model_url}}
 
 
 def keras_overlay(model_url, keras_dirname="model_data"):
@@ -107,37 +94,94 @@ def keras_overlay(model_url, keras_dirname="model_data"):
     return {"patch_files": model_asset_list, "scikit_learn": {"model": keras_dirname}}
 
 
-def diagnostics_overlay(diagnostic_ml):
-    return {
-        "diagnostics": [
-            {
-                "name": "diags.zarr",
-                "variables": [
-                    "net_moistening",
-                    "net_moistening_diagnostic",
-                    "net_heating",
-                    "net_heating_diagnostic",
-                    "water_vapor_path",
-                    "physics_precip",
-                ],
-                "times": {"kind": "interval", "frequency": 900},
-            }
-        ],
-        "diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic",
-        "scikit_learn": {"diagnostic_ml": diagnostic_ml},
-    }
+def nudging_overlay(nudging_config, initial_condition_url):
+    if "timescale_hours" in nudging_config:
+        nudging_config.update({"restarts_path": initial_condition_url})
+        overlay = {"nudging": nudging_config}
+    else:
+        overlay = {}
+    return overlay
+
+
+def diagnostics_overlay(config, model_url, nudge_to_obs, frequency_minutes):
+
+    diagnostic_files = []
+
+    if ("scikit_learn" in config) or model_url:
+        diagnostic_files.append(default_diagnostics.ml_diagnostics.to_dict())
+    elif "nudging" in config or nudge_to_obs:
+        diagnostic_files.append(default_diagnostics.state_after_timestep.to_dict())
+        diagnostic_files.append(default_diagnostics.physics_tendencies.to_dict())
+        if "nudging" in config:
+            diagnostic_files.append(_nudging_tendencies(config))
+            diagnostic_files.append(
+                default_diagnostics.nudging_diagnostics_2d.to_dict()
+            )
+            diagnostic_files.append(_reference_state(config))
+    else:
+        diagnostic_files.append(default_diagnostics.baseline_diagnostics.to_dict())
+
+    diagnostic_files = _update_times(diagnostic_files, frequency_minutes)
+
+    return {"diagnostics": diagnostic_files, "diag_table": PROGNOSTIC_DIAG_TABLE}
+
+
+def _nudging_tendencies(config):
+
+    nudging_tendencies = default_diagnostics.nudging_tendencies.to_dict()
+    nudging_variables = list(config["nudging"]["timescale_hours"])
+    nudging_tendencies["variables"].extend(
+        [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
+    )
+    return nudging_tendencies
+
+
+def _reference_state(config):
+    reference_states = default_diagnostics.reference_state.to_dict()
+    nudging_variables = list(config["nudging"]["timescale_hours"])
+    reference_states["variables"].extend(
+        [f"{var}_reference" for var in nudging_variables]
+    )
+    return reference_states
+
+
+def _update_times(
+    diagnostic_files: Sequence[Dict], frequency_minutes: int
+) -> Sequence[Dict]:
+    for diagnostic in diagnostic_files:
+        diagnostic.update(
+            {"times": {"kind": "interval", "frequency": 60 * frequency_minutes}}
+        )
+    return diagnostic_files
+
+
+def step_tendency_overlay(
+    config,
+    default_step_tendency_variables=(
+        "specific_humidity",
+        "air_temperature",
+        "eastward_wind",
+        "northward_wind",
+    ),
+    default_step_storage_variables=("specific_humidity", "total_water"),
+):
+    step_tendency_overlay = {}
+    step_tendency_overlay["step_tendency_variables"] = config.get(
+        "step_tendency_variables", list(default_step_tendency_variables)
+    )
+    step_tendency_overlay["step_storage_variables"] = config.get(
+        "step_storage_variables", list(default_step_storage_variables)
+    )
+    return step_tendency_overlay
 
 
 def prepare_config(args):
     # Get model config with prognostic run updates
-    with open(args.prog_config_yml, "r") as f:
+    with open(args.user_config, "r") as f:
         user_config = yaml.safe_load(f)
 
     model_type = user_config.get("scikit_learn", {}).get("model_type", "scikit_learn")
-
-    # get timing information
-    duration = fv3config.get_run_duration(user_config)
-    current_date = vcm.parse_current_date_from_str(args.ic_timestep)
+    nudging_config = user_config.get("nudging", {})
 
     # To simplify the configuration flow, updates should be implemented as
     # overlays (i.e. diffs) requiring only a small number of inputs. In
@@ -148,22 +192,31 @@ def prepare_config(args):
         fv3kube.c48_initial_conditions_overlay(
             args.initial_condition_url, args.ic_timestep
         ),
-        diagnostics_overlay(args.diagnostic_ml),
-        ml_settings(model_type, args.model_url),
+        diagnostics_overlay(
+            user_config,
+            args.model_url,
+            args.nudge_to_observations,
+            args.output_frequency,
+        ),
+        step_tendency_overlay(user_config),
+        ml_overlay(model_type, args.model_url, args.diagnostic_ml),
+        nudging_overlay(nudging_config, args.initial_condition_url),
         user_config,
     ]
 
     if args.nudge_to_observations:
+        # get timing information
+        duration = fv3config.get_run_duration(user_config)
+        current_date = vcm.parse_current_date_from_str(args.ic_timestep)
         overlays.append(
             fv3kube.enable_nudge_to_observations(
                 duration,
                 current_date,
-                nudge_url="/mnt/input/gfs-analysis-T85",
-                copy_method="link",
+                nudge_url="gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
             )
         )
 
-    config = merge_fv3config_overlays(*overlays)
+    config = fv3kube.merge_fv3config_overlays(*overlays)
     print(yaml.dump(config))
 
 

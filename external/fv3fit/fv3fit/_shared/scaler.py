@@ -1,7 +1,7 @@
 import abc
 from copy import copy
 import numpy as np
-from typing import Mapping, BinaryIO, Type, Sequence, Optional
+from typing import Mapping, BinaryIO, Type, Sequence, Optional, Iterable
 import xarray as xr
 import io
 import yaml
@@ -41,17 +41,18 @@ class StandardScaler(NormalizeTransform):
 
     kind: str = "standard"
 
-    def __init__(self, std_threshold: float = 1e-12):
+    def __init__(self, std_epsilon: np.float32 = 1e-12):
         """Standard scaler normalizer: normalizes via (x-mean)/std
 
         Args:
-            std_threshold: Features with standard deviations below
-                this threshold are treated as constants. Normalize/denormalize
-                will just subtract / add the mean. Defaults to 1e-12.
+            std_epsilon: A small value that is added to the standard deviation
+                of each variable to be scaled, such that no variables (even those
+                that are constant across samples) are unable to be scaled due to
+                having zero standard deviation. Defaults to 1e-12.
         """
         self.mean: Optional[np.ndarray] = None
         self.std: Optional[np.ndarray] = None
-        self.std_threshold = std_threshold
+        self.std_epsilon: np.float32 = std_epsilon
 
     def fit(self, data: np.ndarray):
         if len(data.shape) == 2:
@@ -62,7 +63,7 @@ class StandardScaler(NormalizeTransform):
             self.std = data.std(axis=(0, 1)).astype(np.float32)
         else:
             raise NotImplementedError()
-        self.std[self.std < self.std_threshold] = self.std_threshold
+        self.std += self.std_epsilon
 
     def normalize(self, data):
         if self.mean is None or self.std is None:
@@ -232,3 +233,29 @@ def loads(b: str) -> NormalizeTransform:
             return scaler_cls.load(f)
 
     raise NotImplementedError(f"Cannot load {class_name} scaler")
+
+
+def get_scaler(
+    scaler_type: str,
+    scaler_kwargs: Mapping,
+    norm_data: xr.Dataset,
+    output_vars: Iterable[str],
+    sample_dim: str,
+) -> NormalizeTransform:
+    DELP = "pressure_thickness_of_atmospheric_layer"
+    # Defaults to StandardScaler if none specified in config
+    packer = ArrayPacker(sample_dim, output_vars)
+    data_array = packer.to_array(norm_data)
+    if "standard" in scaler_type.lower():
+        target_scaler = StandardScaler()
+        target_scaler.fit(data_array)
+    elif "mass" in scaler_type.lower():
+        delp = norm_data[DELP].mean(dim=sample_dim).values
+        target_scaler = get_mass_scaler(  # type: ignore
+            packer, delp, scaler_kwargs.get("variable_scale_factors"), sqrt_scales=True
+        )
+    else:
+        raise ValueError(
+            "Config variable scaler_type must be either 'standard' or 'mass' ."
+        )
+    return target_scaler

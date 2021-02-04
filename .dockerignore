@@ -7,6 +7,7 @@ conservative_768x1536_180x360.nc
 data
 .dockerignore
 .dockerignore.swp
+Dockerfile
 .dvc
 .env
 .envrc
@@ -40,3 +41,6 @@ workflows/offline_bptt/cache-*
 workflows/offline_bptt/models-*
 workflows/offline_bptt/block-*
 workflows/offline_bptt/fv3fit-model-*
+workflows/argo
+**/.tox/
+**/.env/

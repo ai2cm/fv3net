@@ -6,7 +6,7 @@ import xarray as xr
 
 def isclose(
     a: xr.DataArray,
-    b: xr.DataArray,
+    b: Union[xr.DataArray, float],
     rtol: float = 1e-05,
     atol: float = 1e-08,
     equal_nan: bool = False,

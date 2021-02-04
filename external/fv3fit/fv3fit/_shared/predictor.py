@@ -1,10 +1,11 @@
 import xarray as xr
 from vcm import safe
 import abc
-from typing import Iterable, Sequence, Hashable, Tuple
+from typing import Hashable, Iterable, Sequence, Tuple
 import logging
 
 
+DATASET_DIM_NAME = "dataset"
 logger = logging.getLogger(__file__)
 
 
@@ -42,13 +43,11 @@ class Predictor(abc.ABC):
     @abc.abstractmethod
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
-        pass
 
     @classmethod
     @abc.abstractmethod
     def load(cls, path: str) -> object:
         """Load a serialized model from a directory."""
-        pass
 
     def predict_columnwise(
         self,
@@ -76,7 +75,12 @@ class Predictor(abc.ABC):
         if feature_dim is not None:
             sample_dims = _infer_sample_dims(inputs_, feature_dim)
 
-        stacked = safe.stack_once(inputs_, "sample", dims=sample_dims)
+        stacked = safe.stack_once(
+            inputs_,
+            "sample",
+            dims=sample_dims,
+            allowed_broadcast_dims=[DATASET_DIM_NAME],
+        )
         transposed = stacked.transpose("sample", ...)
         output = self.predict(transposed).unstack("sample")
 
@@ -93,6 +97,18 @@ class Predictor(abc.ABC):
             dim for dim in _infer_dimension_order(inputs_) if dim in output.dims
         ]
         return output.transpose(*dim_order)
+
+
+class Estimator(Predictor):
+    """
+    Abstract base class for a machine learning model which operates on xarray
+    datasets, and is trained on sequences of such datasets. Extends the predictor
+    base class by defining `dump` method
+    """
+
+    @abc.abstractmethod
+    def dump(self, path: str) -> None:
+        pass
 
 
 def _infer_dimension_order(ds: xr.Dataset) -> Tuple:

@@ -1,8 +1,5 @@
-from ._shared import Predictor, ArrayPacker
+from ._shared.predictor import Predictor, Estimator
+from ._shared import ArrayPacker
+from ._shared.io import dump, load
 from . import keras
 from . import sklearn
-
-PRODUCTION_MODEL_TYPES = {
-    "sklearn": ["random_forest"],
-    "keras": ["DenseModel", "RecurrentModel", "ExternalModel"],
-}

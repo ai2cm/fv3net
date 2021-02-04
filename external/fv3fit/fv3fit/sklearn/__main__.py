@@ -1,12 +1,10 @@
 import argparse
-import os
 import yaml
 import logging
 from . import _train as train
 from .. import _shared as shared
+import fv3fit._shared.io
 
-
-MODEL_FILENAME = "sklearn.yaml"
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
 
 
@@ -52,12 +50,13 @@ if __name__ == "__main__":
             timesteps = yaml.safe_load(f)
         train_config.batch_kwargs["timesteps"] = timesteps
 
-    batched_data = shared.load_data_sequence(data_path, train_config)
     shared.save_config_output(args.output_data_path, train_config)
 
     logging.basicConfig(level=logging.DEBUG)
     logging.getLogger("fsspec").setLevel(logging.INFO)
     logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 
-    model = train.train_model(batched_data, train_config)
-    model.dump(os.path.join(args.output_data_path, MODEL_FILENAME))
+    model = train.get_transformed_batch_regressor(train_config)
+    batches = shared.load_data_sequence(data_path, train_config)
+    model.fit(batches)
+    fv3fit._shared.io.dump(model, args.output_data_path)

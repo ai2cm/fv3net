@@ -14,7 +14,10 @@ import numpy as np
 import xarray as xr
 
 import vcm
+from vcm import safe
 from vcm.convenience import round_time
+
+from . import config
 
 logger = logging.getLogger(__file__)
 
@@ -44,15 +47,47 @@ def rename_latlon(ds):
 def open_diagnostic_output(url):
     logger.info(f"Opening Diagnostic data at {url}")
     # open diagnostic output
-    ds = xr.open_zarr(fsspec.get_mapper(url))
+    ds = xr.open_zarr(fsspec.get_mapper(url), consolidated=True)
     return standardize_diagnostic_metadata(ds)
 
 
 def open_restart_data(RESTART_ZARR):
     logger.info(f"Opening restart data at {RESTART_ZARR}")
     store = fsspec.get_mapper(RESTART_ZARR)
-    restarts = xr.open_zarr(store)
+    restarts = xr.open_zarr(store, consolidated=True)
     return standardize_restart_metadata(restarts)
+
+
+def open_merged(
+    restart_url: str = config.restart_url,
+    physics_url: str = config.physics_url,
+    gfsphysics_url: str = config.gfsphysics_url,
+    area_url: str = config.area_url,
+) -> xr.Dataset:
+    restarts = open_restart_data(restart_url)
+    diag = open_diagnostic_output(physics_url)
+    gfsphysics = safe.get_variables(
+        open_diagnostic_output(gfsphysics_url), config.GFSPHYSICS_VARIABLES
+    )
+    area_diags = open_diagnostic_output(area_url)
+
+    shifted_restarts = shift(restarts)
+    shift_gfs = shift(gfsphysics)
+
+    merged = xr.merge(
+        [
+            safe.get_variables(shifted_restarts, config.RESTART_VARIABLES),
+            safe.get_variables(shift_gfs, config.GFSPHYSICS_VARIABLES).drop("tile"),
+            safe.get_variables(diag, config.PHYSICS_VARIABLES),
+            area_diags["exposed_area_coarse"],
+        ],
+        join="inner",
+        compat="override",
+    ).drop_vars(GRID_VARIABLES, errors="ignore")
+
+    num_tiles = len(merged.tile)
+    tiles = range(1, num_tiles + 1)
+    return merged.assign_coords(tile=tiles)
 
 
 def standardize_restart_metadata(restarts):
@@ -61,7 +96,7 @@ def standardize_restart_metadata(restarts):
 
 
 def standardize_diagnostic_metadata(ds):
-    times = np.vectorize(round_time)(ds.time)
+    times = round_time(ds.time)
     return ds.assign(time=times).pipe(rename_dims).pipe(rename_latlon)
 
 
@@ -92,11 +127,4 @@ def shift(restarts, dt=datetime.timedelta(seconds=30, minutes=7)):
         [begin, (begin + end) / 2, end],
         dim=xr.IndexVariable("step", ["begin", "middle", "end"]),
         join="inner",
-    )
-
-
-def merge(restarts, diag):
-    restarts = shift(restarts)
-    return xr.merge([restarts, diag], join="inner", compat="override").drop_vars(
-        GRID_VARIABLES, errors="ignore"
     )

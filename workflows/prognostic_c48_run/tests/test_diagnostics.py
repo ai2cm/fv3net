@@ -4,8 +4,8 @@ from unittest.mock import Mock
 import pytest
 import xarray as xr
 
-from runtime import diagnostics
-from runtime.diagnostics import DiagnosticFile, All
+from runtime.diagnostics import manager
+from runtime.diagnostics.manager import DiagnosticFile, All
 
 
 @pytest.mark.parametrize(
@@ -16,13 +16,13 @@ from runtime.diagnostics import DiagnosticFile, All
     ],
 )
 def test_SelectedTimes(time_stamp):
-    times = diagnostics.SelectedTimes([time_stamp])
+    times = manager.SelectedTimes([time_stamp])
     time = datetime(year=2016, month=8, day=1, hour=0, minute=0, second=0)
     assert time in times
 
 
 def test_SelectedTimes_not_in_list():
-    times = diagnostics.SelectedTimes(["20160801.000000"])
+    times = manager.SelectedTimes(["20160801.000000"])
     time = datetime(year=2016, month=8, day=1, hour=0, minute=0, second=1)
     assert time not in times
 
@@ -56,7 +56,7 @@ august_2 = datetime(year=2016, month=8, day=2, hour=0, minute=0)
     ],
 )
 def test_IntervalTimes(frequency, time, initial_time, expected):
-    times = diagnostics.IntervalTimes(frequency, initial_time)
+    times = manager.IntervalTimes(frequency, initial_time)
     assert (time in times) == expected
 
 
@@ -65,10 +65,11 @@ def test_DiagnosticFile_time_selection():
     t1 = datetime(year=2016, month=8, day=1, hour=0, minute=15)
     t2 = datetime(year=2016, month=8, day=1, hour=0, minute=16)
 
+    path = "diag.zarr"
     monitor = Mock()
 
     # observe a few times
-    diag_file = DiagnosticFile(monitor, times=[t1], variables=All())
+    diag_file = DiagnosticFile(path, times=[t1], variables=All()).set_monitor(monitor)
     diag_file.observe(t1, {})
     diag_file.observe(t2, {})
     monitor.store.assert_called_once()
@@ -89,7 +90,9 @@ def test_DiagnosticFile_variable_selection():
     monitor = VariableCheckingMonitor()
 
     # observe a few times
-    diag_file = DiagnosticFile(monitor, times=All(), variables=["a"])
+    diag_file = DiagnosticFile("diags.zarr", times=All(), variables=["a"]).set_monitor(
+        monitor
+    )
     diag_file.observe(None, diagnostics)
 
 
@@ -108,5 +111,7 @@ def test_DiagnosticFile_variable_units(attrs, expected_units):
     monitor = UnitCheckingMonitor()
 
     # observe a few times
-    diag_file = DiagnosticFile(monitor, times=All(), variables=All())
+    diag_file = DiagnosticFile("diags.zarr", times=All(), variables=All()).set_monitor(
+        monitor
+    )
     diag_file.observe(None, diagnostics)

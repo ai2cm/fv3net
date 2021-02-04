@@ -1,5 +1,6 @@
-import os
 import save_prognostic_run_diags as savediags
+import cftime
+import numpy as np
 import xarray as xr
 import fsspec
 from unittest.mock import Mock
@@ -60,5 +61,13 @@ def test_compute_diags_succeeds(func, resampled, verification, grid):
     func(resampled, verification, grid)
 
 
-def test__catalog():
-    assert os.path.isfile(savediags._catalog())
+def test_time_mean():
+    ntimes = 5
+    time_coord = [cftime.DatetimeJulian(2016, 4, 2, i + 1) for i in range(ntimes)]
+    ds = xr.Dataset(
+        data_vars={"temperature": (["time", "x"], np.zeros((ntimes, 10)))},
+        coords={"time": time_coord},
+    )
+    diagnostic = savediags.time_mean(ds)
+    assert diagnostic.temperature.attrs["diagnostic_start_time"] == str(time_coord[0])
+    assert diagnostic.temperature.attrs["diagnostic_end_time"] == str(time_coord[-1])

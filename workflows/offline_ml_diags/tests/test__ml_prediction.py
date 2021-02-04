@@ -19,7 +19,7 @@ from vcm import safe
 class MockBaseMapper:
     def __init__(self, ds_template):
         self._ds_template = ds_template
-        self._keys = [f"2020050{i}.000000" for i in range(4)]
+        self._keys = [f"2020050{i+1}.000000" for i in range(4)]
 
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = self._ds_template
@@ -75,7 +75,7 @@ def get_mock_sklearn_model(input_variables, output_variables, ds):
     ds_stacked = safe.stack_once(
         ds, "sample", [dim for dim in ds.dims if dim != "z"]
     ).transpose("sample", "z")
-    model_wrapper.fit(ds_stacked * 0)
+    model_wrapper.fit([ds_stacked * 0])
     return model_wrapper
 
 
@@ -126,7 +126,10 @@ def mock_model(request, gridded_dataset):
     indirect=True,
 )
 def test_ml_predict_mapper_insert_prediction(mock_model, base_mapper, gridded_dataset):
-    mapper = PredictionMapper(base_mapper, mock_model, z_dim="z",)
+    variables = mock_model.output_variables + mock_model.input_variables
+    mapper = PredictionMapper(
+        base_mapper, mock_model, variables, z_dim="z", grid=xr.Dataset()
+    )
     for key in mapper.keys():
         mapper_output = mapper[key]
         for var in mock_model.output_variables:
@@ -153,18 +156,24 @@ def test_ml_predict_mapper_insert_prediction(mock_model, base_mapper, gridded_da
     indirect=True,
 )
 def test_ml_predict_mapper(mock_model, base_mapper, gridded_dataset):
-    mapper = PredictionMapper(base_mapper, mock_model, z_dim="z",)
+    variables = mock_model.output_variables + mock_model.input_variables
+    mapper = PredictionMapper(
+        base_mapper, mock_model, variables, z_dim="z", grid=xr.Dataset()
+    )
     for key in mapper.keys():
         mapper_output = mapper[key]
         for var in mock_model.output_variables:
             target = base_mapper[key][var]
             truth = (
-                mapper_output[var].sel({DERIVATION_DIM: "target"}).drop(DERIVATION_DIM)
+                mapper_output[var]
+                .sel({DERIVATION_DIM: "target"})
+                .drop([DERIVATION_DIM, "time"])
             )
             prediction = (
-                mapper_output[var].sel({DERIVATION_DIM: "predict"}).drop(DERIVATION_DIM)
+                mapper_output[var]
+                .sel({DERIVATION_DIM: "predict"})
+                .drop([DERIVATION_DIM, "time"])
             )
-
             xr.testing.assert_allclose(truth, target)
             # assume the model outputs 0.0
             xr.testing.assert_allclose(prediction, target * 0.0)
