@@ -63,12 +63,7 @@ METRIC_VARS = ("dQ1", "dQ2", "Q1", "Q2")
 def _create_arg_parser() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("data_path", nargs="*", type=str, help="Location of test data")
-    parser.add_argument(
-        "config_yml",
-        type=str,
-        default=None,
-        help=("Config file with dataset and variable specifications."),
-    )
+
     parser.add_argument(
         "model_path", type=str, help=("Local or remote path for reading ML model."),
     )
@@ -77,12 +72,20 @@ def _create_arg_parser() -> argparse.Namespace:
         type=str,
         help=("Local or remote path where diagnostic dataset will be written."),
     )
-
+    parser.add_argument(
+        "--config_yml",
+        type=str,
+        default=None,
+        help=("Config file with dataset and variable specifications."),
+    )
     parser.add_argument(
         "--timesteps-file",
         type=str,
         default=None,
-        help="Json file that defines train timestep set.",
+        help=(
+            "Json file that defines train timestep set. Overrides any timestep set "
+            "in training config if both are provided."
+        ),
     )
     parser.add_argument(
         "--snapshot-time",
@@ -96,16 +99,15 @@ def _create_arg_parser() -> argparse.Namespace:
     )
     parser.add_argument(
         "--sample-size-outside-config-range",
-        type=interpolate_to_pressure_levels,
+        type=int,
         default=None,
         help=(
             "If specified, will draw attempt to draw this many test timesteps from the "
             "mapper keys that lie outside the range of times in the config timesteps. "
             "If there are not enough timesteps available outside the config range, "
             "will return all timesteps outside the range. "
-            "Useful if the config_yml arg is directly from the training step."
+            "Useful if the config_yml is taken directly from the trained model."
             "Incompatible with also providing a timesteps-file arg. "
-
         ),
     )
     return parser.parse_args()
@@ -285,16 +287,22 @@ def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence
     return ds_transect
 
 
-def _get_timesteps(args, pred_mapper: PredictionMapper, config: dict):
-    if args.timesteps_file:
-        if args.sample_size_outside_config_range:
+def _get_timesteps(
+    timesteps_file: str,
+    sample_size_outside_config_range: int,
+    available_times: List[str],
+    config: dict,
+):
+    if timesteps_file:
+        if sample_size_outside_config_range:
             raise ValueError(
                 "Cannot provide both optional args --timesteps-file and "
-                "--sample-size-outside-config-range for timestep selection.")
+                "--sample-size-outside-config-range for timestep selection."
+            )
         logger.info("Reading timesteps file")
-        with open(args.timesteps_file, "r") as f:
+        with open(timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
-    elif args.sample_size_outside_config_range:
+    elif sample_size_outside_config_range:
         # sample times outside training range and use as test set.
         # Updates timesteps in config to test set so that the
         # saved offline config reflects this.
@@ -305,22 +313,26 @@ def _get_timesteps(args, pred_mapper: PredictionMapper, config: dict):
                 "but the config file has no entry for batch_kwargs['timesteps']."
             )
         timesteps = sample_outside_train_range(
-            list(pred_mapper), train_timesteps, args.sample_size_outside_config_range
+            available_times, train_timesteps, sample_size_outside_config_range
         )
     else:
         try:
             timesteps = config["batch_kwargs"]["timesteps"]
         except KeyError:
-            timesteps = list(pred_mapper)
+            timesteps = available_times
     return timesteps
-
 
 
 if __name__ == "__main__":
     logger.info("Starting diagnostics routine.")
     args = _create_arg_parser()
+    config_path = (
+        os.path.join(args.model_path, "training_config.yml")
+        if args.config_yml is None
+        else args.config_yml
+    )
 
-    with fsspec.open(args.config_yml, "r") as f:
+    with fsspec.open(config_path, "r") as f:
         config = yaml.safe_load(f)
     config["data_path"] = args.data_path
 
@@ -339,7 +351,12 @@ if __name__ == "__main__":
     pred_mapper = _get_prediction_mapper(args, config, variables, model)
 
     # Overwrite timesteps list if option to resample or list file provided.
-    timesteps = _get_timesteps(args, pred_mapper, config)
+    timesteps = _get_timesteps(
+        args.timesteps_file,
+        args.sample_size_outside_config_range,
+        list(pred_mapper),
+        config,
+    )
     config["batch_kwargs"]["timesteps"] = timesteps
 
     # write out config used to generate diagnostics, including model path

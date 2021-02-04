@@ -104,8 +104,6 @@ spec:
           parameters:
               - name: ml-model
                 value: "{{inputs.parameters.root}}/trained_model"
-              - name: config
-                value: "{{inputs.parameters.training-config}}"
               - name: times
                 value: "{{inputs.parameters.test-times}}"
               - name: offline-diags-output

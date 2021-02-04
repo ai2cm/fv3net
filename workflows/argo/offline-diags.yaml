@@ -25,7 +25,7 @@ spec:
           - name: report-output
           - name: data-path
           - {name: memory, value: 6Gi}
-          - {name: config, value: ""}
+          - {name: flags, value: ""}
 
       container:
         image: us.gcr.io/vcm-ml/fv3net
@@ -42,17 +42,7 @@ spec:
           - |
 
             gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
-            if [ -z "{{inputs.parameters.config}}" ]
-            then
-              cat <<EOF >config.yaml
-              {{inputs.parameters.config}}
-              CONFIG_FLAG="--config_yml config.yaml"
-              EOF
-            else
-              CONFIG_FLAG=" "
-            fi
-            
-            
+                    
             cat << EOF > times.json
             {{inputs.parameters.times}}
             EOF
@@ -64,7 +54,7 @@ spec:
               {{inputs.parameters.data-path}} \
               {{inputs.parameters.ml-model}} \
               {{inputs.parameters.offline-diags-output}} \
-              $CONFIG_FLAG \
+              {{inputs.parameters.flags}} \
               --timesteps-file times.json
               
             python -m offline_ml_diags.create_report \
