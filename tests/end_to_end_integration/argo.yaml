@@ -159,14 +159,6 @@ spec:
       key: dedicated
       value: climate-sim-pool
   entrypoint: main
-  volumeClaimTemplates:
-    - metadata:
-        name: work-volume
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 5Gi
   volumes:
     - name: workdir
       emptyDir: {}
@@ -196,7 +188,6 @@ spec:
             value: "{{workflow.parameters.nudge-to-fine-config}}"
           - name: segment-count
             value: "{{workflow.parameters.nudge-to-fine-segment-count}}"
-          - {name: work-volume-name, value: work-volume}
           - name: cpu
             value: 6000m
           - name: memory
@@ -228,4 +219,3 @@ spec:
             value: "{{workflow.parameters.test-times}}"
           - name: public-report-output
             value: "{{workflow.parameters.root}}/offline-report"
-          - {name: work-volume-name, value: work-volume}

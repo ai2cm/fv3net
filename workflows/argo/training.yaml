@@ -5,15 +5,6 @@ metadata:
   name: training
 spec:
   entrypoint: training
-  volumeClaimTemplates:
-    - metadata:
-        name: work-volume
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        storageClassName: fast
-        resources:
-          requests:
-            storage: 100Gi
   volumes:
     - name: workdir
       emptyVol: {}

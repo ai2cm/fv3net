@@ -9,15 +9,6 @@ spec:
       key: dedicated
       value: climate-sim-pool
   entrypoint: train-diags-prog
-  volumeClaimTemplates:
-    - metadata:
-        name: work-volume
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        storageClassName: fast
-        resources:
-          requests:
-            storage: 100Gi
   volumes:
     - name: workdir
       emptyVol: {}
@@ -43,7 +34,6 @@ spec:
         - {name: segment-count, value: "1"}
         - {name: cpu-prog, value: "6"}
         - {name: memory-prog, value: 6Gi}
-        - {name: work-volume-name, value: work-volume}
         - {name: memory-training, value: 6Gi}
         - {name: memory-offline-diags, value: 6Gi}
         - {name: training-flags, value: " "}
@@ -90,8 +80,6 @@ spec:
                 value: "{{inputs.parameters.cpu-prog}}"
               - name: memory
                 value: "{{inputs.parameters.memory-prog}}"
-              - name: work-volume-name
-                value: "{{inputs.parameters.work-volume-name}}"
       - name: offline-diags
         dependencies: [train-model]
         templateRef:
