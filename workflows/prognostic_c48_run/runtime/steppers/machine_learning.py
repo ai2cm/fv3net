@@ -265,29 +265,19 @@ class MLStepper(Stepper, LoggingMixin):
             dt=self._timestep,
         )
         log_non_negative_sphum(self.comm, tendency["dQ2"], dQ2_updated)
-        for k, v in {"dQ1": dQ1_updated, "dQ2": dQ2_updated}.items():
-            if k in tendency:
-                if k == "dQ1":
-                    diag = thermo.column_integrated_heating(v - tendency[k], delp)
-                    diagnostics.update(
-                        {
-                            "column_integrated_dQ1_change_non_neg_sphum_constraint": (
-                                diag
-                            )
-                        }
-                    )
-                    tendency.update({k: v})
-                else:
-                    diag = thermo.mass_integrate(v - tendency[k], delp, dim="z")
-                    diag = diag.assign_attrs({"units": "kg/m^2/s"})
-                    diagnostics.update(
-                        {
-                            "column_integrated_dQ2_change_non_neg_sphum_constraint": (
-                                diag
-                            )
-                        }
-                    )
-                    tendency.update({k: v})
+        if "dQ1" in tendency:
+            diag = thermo.column_integrated_heating(dQ1_updated - tendency["dQ1"], delp)
+            diagnostics.update(
+                {"column_integrated_dQ1_change_non_neg_sphum_constraint": (diag)}
+            )
+            tendency.update({"dQ1": dQ1_updated})
+        if "dQ2" in tendency:
+            diag = thermo.mass_integrate(dQ2_updated - tendency["dQ2"], delp, dim="z")
+            diag = diag.assign_attrs({"units": "kg/m^2/s"})
+            diagnostics.update(
+                {"column_integrated_dQ2_change_non_neg_sphum_constraint": (diag)}
+            )
+            tendency.update({"dQ2": dQ2_updated})
 
         self._tendencies_to_apply_to_dycore_state = {
             k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]
