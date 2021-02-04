@@ -7,7 +7,7 @@ with open("requirements.txt") as requirements_file:
 setup(
     name="fv3post",
     version="0.1.0",
-    python_requires=">=3.7.0",
+    python_requires=">=3.6.0",
     author="Oliver Watt-Meyer",
     author_email="oliwm@vulcan.com",
     packages=find_packages(),
