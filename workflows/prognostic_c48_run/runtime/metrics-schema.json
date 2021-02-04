@@ -222,6 +222,16 @@
             "default": 0.0,
             "units": "kg/m^2/s"
         },
+        "column_integrated_dQ1_change_non_negative_sphum_limiter": {
+            "$id": "#/properties/column_integrated_dQ1_change_non_negative_sphum_limiter",
+            "type": "number",
+            "default": 0.0,
+            "description": "change in column-integrated dQ1 due to non-negative specific humidity limiter",
+            "units": "W/m^2",
+            "examples": [
+                -7.721312922082713e-01
+            ]
+        },
         "column_integrated_dQ2_change_non_negative_sphum_limiter": {
             "$id": "#/properties/column_integrated_dQ2_change_non_negative_sphum_limiter",
             "type": "number",
