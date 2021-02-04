@@ -74,11 +74,19 @@ spec:
               chunks:
                 time: 1
               variables:
-                - tendency_of_air_temperature_due_to_nudging
-                - tendency_of_specific_humidity_due_to_nudging
-                - tendency_of_x_wind_due_to_nudging
-                - tendency_of_y_wind_due_to_nudging
-                - tendency_of_pressure_thickness_of_atmospheric_layer_due_to_nudging
+                - air_temperature_tendency_due_to_nudging
+                - specific_humidity_tendency_due_to_nudging
+                - x_wind_tendency_due_to_nudging
+                - y_wind_tendency_due_to_nudging
+                - pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging
+            - name: physics_tendencies.zarr
+              chunks:
+                time: 1
+              variables:
+                - tendency_of_air_temperature_due_to_fv3_physics
+                - tendency_of_specific_humidity_due_to_fv3_physics
+                - tendency_of_eastward_wind_due_to_fv3_physics
+                - tendency_of_northward_wind_due_to_fv3_physics
             - name: state_after_timestep.zarr
               chunks:
                 time: 1
