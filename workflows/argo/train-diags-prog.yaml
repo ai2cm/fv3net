@@ -110,8 +110,6 @@ spec:
                 value: "{{inputs.parameters.root}}/offline_diags"
               - name: report-output
                 value: "{{inputs.parameters.public-report-output}}"
-              - name: data-path
-                value: "{{inputs.parameters.train-test-data}}"
               - name: memory
                 value: "{{inputs.parameters.memory-offline-diags}}"
       - name: online-diags

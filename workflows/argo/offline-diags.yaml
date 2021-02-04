@@ -23,9 +23,7 @@ spec:
           - name: times  
           - name: offline-diags-output
           - name: report-output
-          - name: data-path
           - {name: memory, value: 6Gi}
-          - {name: flags, value: ""}
 
       container:
         image: us.gcr.io/vcm-ml/fv3net
@@ -46,16 +44,11 @@ spec:
             cat << EOF > times.json
             {{inputs.parameters.times}}
             EOF
-
-            echo "Configuration:"
-            cat config.yaml
     
             python -m offline_ml_diags.compute_diags \
-              {{inputs.parameters.data-path}} \
               {{inputs.parameters.ml-model}} \
               {{inputs.parameters.offline-diags-output}} \
-              {{inputs.parameters.flags}} \
-              --timesteps-file times.json
+              --timesteps-file times.json 
               
             python -m offline_ml_diags.create_report \
               {{inputs.parameters.offline-diags-output}} \

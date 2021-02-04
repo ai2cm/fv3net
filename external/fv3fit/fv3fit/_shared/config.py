@@ -70,6 +70,7 @@ def load_model_training_config(config_path: str, data_path: str) -> ModelTrainin
             config_dict = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             raise ValueError(f"Bad yaml config: {exc}")
+    data_path = data_path or config_dict.pop("data_path", None)
     return ModelTrainingConfig(data_path, **config_dict)
 
 
