@@ -98,7 +98,7 @@ def _create_arg_parser() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--sample-size-outside-config-range",
+        "--num-sample",
         type=int,
         default=None,
         help=(
@@ -289,31 +289,31 @@ def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence
 
 def _get_timesteps(
     timesteps_file: str,
-    sample_size_outside_config_range: int,
+    num_sample: int,
     available_times: List[str],
     config: dict,
 ):
     if timesteps_file:
-        if sample_size_outside_config_range:
+        if num_sample:
             raise ValueError(
                 "Cannot provide both optional args --timesteps-file and "
-                "--sample-size-outside-config-range for timestep selection."
+                "--num-sample for timestep selection."
             )
         logger.info("Reading timesteps file")
         with open(timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
-    elif sample_size_outside_config_range:
+    elif num_sample:
         # sample times outside training range and use as test set.
         # Updates timesteps in config to test set so that the
         # saved offline config reflects this.
         train_timesteps = config["batch_kwargs"].pop("timesteps", None)
         if train_timesteps is None:
             raise ValueError(
-                "Optional arg --sample-size-outside-config-range was provided "
+                "Optional arg --num-sample was provided "
                 "but the config file has no entry for batch_kwargs['timesteps']."
             )
         timesteps = sample_outside_train_range(
-            available_times, train_timesteps, sample_size_outside_config_range
+            available_times, train_timesteps, num_sample
         )
     else:
         try:
@@ -353,7 +353,7 @@ if __name__ == "__main__":
     # Overwrite timesteps list if option to resample or list file provided.
     timesteps = _get_timesteps(
         args.timesteps_file,
-        args.sample_size_outside_config_range,
+        args.num_sample,
         list(pred_mapper),
         config,
     )
