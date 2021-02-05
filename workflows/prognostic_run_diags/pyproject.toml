@@ -13,7 +13,7 @@ gcsfs = "^0.6.1"
 bokeh = "^2.0.2"
 report = {path = "../../external/report", extras = ["holoviews"]}
 h5netcdf = "^0.8.0"
-cftime = "^1.1.2"
+cftime = "^1.4.1"
 intake = "^0.5.5"
 vcm = {path = "../../external/vcm"}
 google-cloud-storage = "^1.28.0"

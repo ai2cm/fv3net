@@ -24,7 +24,7 @@ install_requirements = [
     "gcsfs",
     "zarr",
     "xgcm",
-    "cftime",
+    "cftime>=1.4.1",
     "pytest",
     "google-cloud-storage>=1.28.0",
     "google-api-core",

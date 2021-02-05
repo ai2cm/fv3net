@@ -14,7 +14,7 @@ dependencies = [
     "xgcm==0.3.0",
     "zarr==2.4.0",
     "numba",
-    "cftime==1.1.1.2",
+    "cftime>=1.4.1",
     "vcm",
 ]
 
