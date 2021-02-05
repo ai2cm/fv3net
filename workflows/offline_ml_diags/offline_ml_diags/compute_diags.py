@@ -129,8 +129,8 @@ def _create_arg_parser() -> argparse.Namespace:
             "If provided, allows the use of timesteps from the trained model config "
             "to be used for offline diags. Only relevant if no config file is provided "
             "and no optional args for timesteps-file or num-test-sample given. "
-            "Acts as a safety to prevent accidental use of training set for the offline "
-            "metrics."
+            "Acts as a safety to prevent accidental use of training set for the "
+            "offline metrics."
         ),
     )
     return parser.parse_args()
@@ -361,8 +361,9 @@ if __name__ == "__main__":
         and not args.training
     ):
         raise ValueError(
-            "No configuration file, timesteps file, or test sample size provided. This will lead to "
-            "the training set from the saved model being used to calculate offline diagnostics and metrics. "
+            "No configuration file, timesteps file, or test sample size provided. "
+            "This will lead to  the training set from the saved model being used "
+            "to calculate offline diagnostics and metrics. "
             "If this is intended, run with the flag --training ."
         )
 
