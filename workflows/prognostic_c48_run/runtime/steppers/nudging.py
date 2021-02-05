@@ -9,6 +9,7 @@ from runtime.steppers.base import (
     Diagnostics,
     apply,
     precipitation_sum,
+    precipitation_rate,
     LoggingMixin,
 )
 
@@ -124,6 +125,8 @@ class NudgingStepper(Stepper, LoggingMixin):
             "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
-            "total_precip": updated_state[TOTAL_PRECIP],
+            "total_precipitation_rate": precipitation_rate(
+                updated_state[TOTAL_PRECIP], self._timestep
+            ),
             **diagnostics,
         }
