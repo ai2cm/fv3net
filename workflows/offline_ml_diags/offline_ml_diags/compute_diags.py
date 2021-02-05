@@ -5,6 +5,7 @@ import logging
 import json
 import numpy as np
 import os
+import random
 import sys
 from tempfile import NamedTemporaryFile
 import xarray as xr
@@ -109,12 +110,13 @@ def _create_arg_parser() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--num-test-sample",
+        "--timesteps-n-samples",
         type=int,
         default=None,
         help=(
-            "If specified, will draw attempt to draw this many test timesteps from the "
-            "mapper keys that lie outside the range of times in the config timesteps. "
+            "If specified, will draw attempt to draw this many test timesteps from "
+            "either i) the mapper keys that lie outside the range of times in the "
+            "config timesteps or ii) the set of timesteps provided in --timesteps-file."
             "Random seed for sampling is fixed to 0. "
             "If there are not enough timesteps available outside the config range, "
             "will return all timesteps outside the range. "
@@ -129,7 +131,7 @@ def _create_arg_parser() -> argparse.Namespace:
         help=(
             "If provided, allows the use of timesteps from the trained model config "
             "to be used for offline diags. Only relevant if no config file is provided "
-            "and no optional args for timesteps-file or num-test-sample given. "
+            "and no optional args for timesteps-file or timesteps-n-samples given. "
             "Acts as a safety to prevent accidental use of training set for the "
             "offline metrics."
         ),
@@ -320,7 +322,7 @@ if __name__ == "__main__":
     if (
         not args.config_yml
         and not args.timesteps_file
-        and not args.num_test_sample
+        and not args.timesteps_n_samples
         and not args.training
     ):
         raise ValueError(
@@ -352,36 +354,36 @@ if __name__ == "__main__":
     model = fv3fit.load(config["model_path"])
     pred_mapper = _get_prediction_mapper(config, variables, model)
 
-    # Overwrite timesteps list if options --timesteps-file or --num-test-sample provided
+    # Use appropriate times if options --timesteps-file or --timesteps-n-samples given
     if args.timesteps_file:
-        if args.num_test_sample:
-            raise ValueError(
-                "Cannot provide both optional args --timesteps-file and "
-                "--num-test-sample for timestep selection."
-            )
-        logger.info("Reading timesteps file")
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
-    elif args.num_test_sample:
-        # sample times outside training range and use as test set.
-        # Updates timesteps in config to test set so that the
-        # saved offline config reflects this.
-        train_timesteps = config["batch_kwargs"].pop("timesteps", None)
-        if train_timesteps is None:
-            raise ValueError(
-                "Optional arg --num-test-sample was provided "
-                "but the config file has no entry for batch_kwargs['timesteps']."
-            )
+        if args.timesteps_n_samples:
+            random.seed(0)
+            timesteps = random.sample(sorted(timesteps), args.timesteps_n_samples)
+        logger.info(f"Using timesteps from --timesteps-file: {timesteps}")
+        config["timesteps_source"] = "timesteps_file"
+    elif args.timesteps_n_samples:
+        # Sample times outside training range and use as test set.
+        train_timesteps = config["batch_kwargs"].pop("timesteps", [])
         timesteps = sample_outside_train_range(
-            list(pred_mapper), train_timesteps, args.num_test_sample
+            list(pred_mapper), train_timesteps, args.timesteps_n_samples
         )
+        logger.info(
+            f"Using timesteps sampled from outside config timestep range: {timesteps}"
+        )
+        config["timesteps_source"] = "sampled_outside_input_config"
     else:
         try:
             timesteps = config["batch_kwargs"]["timesteps"]
+            logger.info(f"Using timesteps given in config file: {timesteps}")
+            config["timesteps_source"] = "input_config"
         except KeyError:
             timesteps = list(pred_mapper)
-    
-    # Ensure the actual set of timesteps used is saved
+            logger.info(f"Using all timesteps available from mapper: {timesteps}")
+            config["timesteps_source"] = "all_mapper_times"
+
+    # Updates timesteps so that the saved config reflects the timesteps used.
     config["batch_kwargs"]["timesteps"] = timesteps
 
     # write out config used to generate diagnostics, including model path
@@ -389,10 +391,10 @@ if __name__ == "__main__":
     fs.makedirs(args.output_path, exist_ok=True)
     with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
         yaml.safe_dump(config, f)
+
     batch_kwargs = dissoc(
         config["batch_kwargs"], "mapping_function", "mapping_kwargs", "timesteps"
     )
-
     batches = loaders.batches.batches_from_mapper(
         pred_mapper, variables, timesteps=timesteps, training=False, **batch_kwargs,
     )
