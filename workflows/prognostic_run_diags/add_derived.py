@@ -4,6 +4,7 @@ import xarray as xr
 import vcm
 
 SECONDS_PER_DAY = 86400
+KG_PER_M2_PER_M = 1000
 
 logger = logging.getLogger(__name__)
 
@@ -173,13 +174,16 @@ def _column_nq2(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _total_precip_to_surface(ds: xr.Dataset) -> xr.DataArray:
-    if "total_precip" in ds:
-        # total precip to surface is calculated in the prognostic and nudge-to-fine runs
-        total_precip_to_surface = ds.total_precip * SECONDS_PER_DAY
+    if "total_precipitation_rate" in ds:
+        # this is calculated in the prognostic and nudge-to-fine runs
+        total_precip_to_surface = ds.total_precipitation_rate * SECONDS_PER_DAY
     else:
-        # in the baseline case total_precip and physics precip are the same because
-        # _column_nq2 and _column_dq2 are zero; in the N2O case total_precip needs
-        # to be computed here, limited to positive values
+        # in the baseline case total_precip_to_surface and physics precip are the
+        # same because _column_nq2 and _column_dq2 are zero; in the N2O case
+        # total_precip_to_surface needs to be computed here, limited to positive
+        # values; finally, this is also a backward compatible fix to overwrite
+        # timestep-dependent `total_precip` accumulations calculated previously in
+        # the prognostic and nudge-to-fine runs
         total_precip_to_surface = (
             ds.PRATEsfc * SECONDS_PER_DAY - _column_dq2(ds) - _column_nq2(ds)
         )
