@@ -347,11 +347,6 @@ if __name__ == "__main__":
     logger.info("Starting diagnostics routine.")
 
     args = _create_arg_parser()
-    config_path = (
-        os.path.join(args.model_path, "training_config.yml")
-        if args.config_yml is None
-        else args.config_yml
-    )
 
     # Safety check if user is using the training set
     if (
@@ -367,8 +362,12 @@ if __name__ == "__main__":
             "If this is intended, run with the flag --training ."
         )
 
-    with fsspec.open(config_path, "r") as f:
-        config = yaml.safe_load(f)
+    if args.config_yml:
+        with fsspec.open(args.config_ym, "r") as f:
+            config = yaml.safe_load(f)
+    else:
+        config = fv3fit.load_training_config(args.model_path)
+        
     if args.data_path:
         config["data_path"] = args.data_path
 
@@ -387,10 +386,10 @@ if __name__ == "__main__":
     pred_mapper = _get_prediction_mapper(config, variables, model)
 
     # Overwrite timesteps list if option to resample or list file provided.
-
     timesteps = _get_timesteps(
         args.timesteps_file, args.num_test_sample, list(pred_mapper), config,
     )
+    # Ensure the actual set of timesteps used is saved
     config["batch_kwargs"]["timesteps"] = timesteps
 
     # write out config used to generate diagnostics, including model path
@@ -398,7 +397,6 @@ if __name__ == "__main__":
     fs.makedirs(args.output_path, exist_ok=True)
     with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
         yaml.safe_dump(config, f)
-
     batch_kwargs = dissoc(
         config["batch_kwargs"], "mapping_function", "mapping_kwargs", "timesteps"
     )
