@@ -33,9 +33,16 @@ from offline_ml_diags._helpers import sample_outside_train_range
             10,
             3,
             ["20150101.120000", "20160202.120000", "20160203.120000"],
-            id="request_less_than_available",
+            id="request_more_than_available",
         ),
-        pytest.param([], ["20150101.120000"], 3, None, None, id="error-no-config-set"),
+        pytest.param(
+            [],
+            ["20150101.120000", "20150102.120000"],
+            1,
+            1,
+            ["20150101.120000", "20150102.120000"],
+            id="no-config-set",
+        ),
         pytest.param(
             ["20160101.120000", "20160102.120000"],
             ["20160101.120000", "20160102.120000"],
