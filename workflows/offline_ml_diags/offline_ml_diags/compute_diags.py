@@ -73,7 +73,7 @@ def _create_arg_parser() -> argparse.Namespace:
         help="Local or remote path where diagnostic dataset will be written.",
     )
     parser.add_argument(
-        "--data_path",
+        "--data-path",
         nargs="*",
         type=str,
         default=None,
@@ -84,7 +84,7 @@ def _create_arg_parser() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--config_yml",
+        "--config-yml",
         type=str,
         default=None,
         help=("Config file with dataset and variable specifications."),
@@ -115,9 +115,10 @@ def _create_arg_parser() -> argparse.Namespace:
         help=(
             "If specified, will draw attempt to draw this many test timesteps from the "
             "mapper keys that lie outside the range of times in the config timesteps. "
+            "Random seed for sampling is fixed to 0. "
             "If there are not enough timesteps available outside the config range, "
             "will return all timesteps outside the range. "
-            "Useful if the config_yml is taken directly from the trained model."
+            "Useful if args.config_yml is taken directly from the trained model."
             "Incompatible with also providing a timesteps-file arg. "
         ),
     )
@@ -310,39 +311,6 @@ def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence
     return ds_transect
 
 
-def _get_timesteps(
-    timesteps_file: str, num_test_sample: int, available_times: List[str], config: dict,
-):
-    if timesteps_file:
-        if num_test_sample:
-            raise ValueError(
-                "Cannot provide both optional args --timesteps-file and "
-                "--num-test-sample for timestep selection."
-            )
-        logger.info("Reading timesteps file")
-        with open(timesteps_file, "r") as f:
-            timesteps = yaml.safe_load(f)
-    elif num_test_sample:
-        # sample times outside training range and use as test set.
-        # Updates timesteps in config to test set so that the
-        # saved offline config reflects this.
-        train_timesteps = config["batch_kwargs"].pop("timesteps", None)
-        if train_timesteps is None:
-            raise ValueError(
-                "Optional arg --num-test-sample was provided "
-                "but the config file has no entry for batch_kwargs['timesteps']."
-            )
-        timesteps = sample_outside_train_range(
-            available_times, train_timesteps, num_test_sample
-        )
-    else:
-        try:
-            timesteps = config["batch_kwargs"]["timesteps"]
-        except KeyError:
-            timesteps = available_times
-    return timesteps
-
-
 if __name__ == "__main__":
     logger.info("Starting diagnostics routine.")
 
@@ -357,7 +325,7 @@ if __name__ == "__main__":
     ):
         raise ValueError(
             "No configuration file, timesteps file, or test sample size provided. "
-            "This will lead to  the training set from the saved model being used "
+            "This will lead to the training set from the saved model being used "
             "to calculate offline diagnostics and metrics. "
             "If this is intended, run with the flag --training ."
         )
@@ -367,15 +335,14 @@ if __name__ == "__main__":
             config = yaml.safe_load(f)
     else:
         config = fv3fit.load_training_config(args.model_path)
-        
+
     if args.data_path:
         config["data_path"] = args.data_path
+    config["model_path"] = args.model_path
 
     logger.info("Reading grid...")
     res = config["batch_kwargs"].get("res", "c48")
     grid = load_grid_info(res)
-
-    config["model_path"] = args.model_path
 
     variables = list(
         set(config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS)
@@ -385,10 +352,35 @@ if __name__ == "__main__":
     model = fv3fit.load(config["model_path"])
     pred_mapper = _get_prediction_mapper(config, variables, model)
 
-    # Overwrite timesteps list if option to resample or list file provided.
-    timesteps = _get_timesteps(
-        args.timesteps_file, args.num_test_sample, list(pred_mapper), config,
-    )
+    # Overwrite timesteps list if options --timesteps-file or --num-test-sample provided
+    if args.timesteps_file:
+        if args.num_test_sample:
+            raise ValueError(
+                "Cannot provide both optional args --timesteps-file and "
+                "--num-test-sample for timestep selection."
+            )
+        logger.info("Reading timesteps file")
+        with open(args.timesteps_file, "r") as f:
+            timesteps = yaml.safe_load(f)
+    elif args.num_test_sample:
+        # sample times outside training range and use as test set.
+        # Updates timesteps in config to test set so that the
+        # saved offline config reflects this.
+        train_timesteps = config["batch_kwargs"].pop("timesteps", None)
+        if train_timesteps is None:
+            raise ValueError(
+                "Optional arg --num-test-sample was provided "
+                "but the config file has no entry for batch_kwargs['timesteps']."
+            )
+        timesteps = sample_outside_train_range(
+            list(pred_mapper), train_timesteps, args.num_test_sample
+        )
+    else:
+        try:
+            timesteps = config["batch_kwargs"]["timesteps"]
+        except KeyError:
+            timesteps = list(pred_mapper)
+    
     # Ensure the actual set of timesteps used is saved
     config["batch_kwargs"]["timesteps"] = timesteps
 
