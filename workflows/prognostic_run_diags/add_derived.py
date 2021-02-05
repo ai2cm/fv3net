@@ -4,7 +4,6 @@ import xarray as xr
 import vcm
 
 SECONDS_PER_DAY = 86400
-KG_PER_M2_PER_M = 1000
 
 logger = logging.getLogger(__name__)
 
