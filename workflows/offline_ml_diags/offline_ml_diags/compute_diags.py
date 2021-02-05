@@ -333,7 +333,7 @@ if __name__ == "__main__":
         )
 
     if args.config_yml:
-        with fsspec.open(args.config_ym, "r") as f:
+        with fsspec.open(args.config_yml, "r") as f:
             config = yaml.safe_load(f)
     else:
         config = fv3fit.load_training_config(args.model_path)
