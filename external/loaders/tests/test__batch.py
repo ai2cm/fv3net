@@ -6,8 +6,7 @@ import numpy as np
 import loaders
 from loaders.batches._batch import (
     batches_from_mapper,
-    diagnostic_batches_from_mapper,
-    _load_batch,
+    _get_batch,
 )
 
 DATA_VARS = ["air_temperature", "specific_humidity"]
@@ -54,8 +53,8 @@ def random_state():
     return np.random.RandomState(0)
 
 
-def test__load_batch(mapper):
-    ds = _load_batch(
+def test__get_batch(mapper):
+    ds = _get_batch(
         mapper=mapper,
         data_vars=["air_temperature", "specific_humidity"],
         keys=mapper.keys(),
@@ -65,7 +64,7 @@ def test__load_batch(mapper):
 
 def test_batches_from_mapper(mapper):
     batched_data_sequence = batches_from_mapper(
-        mapper, DATA_VARS, timesteps_per_batch=2
+        mapper, DATA_VARS, timesteps_per_batch=2, needs_grid=False,
     )
     assert len(batched_data_sequence) == 2
     expected_num_samples = 6 * 48 * 48 * 2
@@ -85,7 +84,11 @@ def test_batches_from_mapper_timestep_list(
 ):
     timestep_list = list(mapper.keys())[:total_times]
     batched_data_sequence = batches_from_mapper(
-        mapper, DATA_VARS, timesteps_per_batch=times_per_batch, timesteps=timestep_list
+        mapper,
+        DATA_VARS,
+        timesteps_per_batch=times_per_batch,
+        timesteps=timestep_list,
+        needs_grid=False,
     )
     print(batched_data_sequence._args)
     assert len(batched_data_sequence) == valid_num_batches
@@ -97,13 +100,17 @@ def test__batches_from_mapper_invalid_times(mapper):
     invalid_times = list(mapper.keys())[:2] + ["20000101.000000", "20000102.000000"]
     with pytest.raises(ValueError):
         batches_from_mapper(
-            mapper, DATA_VARS, timesteps_per_batch=2, timesteps=invalid_times
+            mapper,
+            DATA_VARS,
+            timesteps_per_batch=2,
+            timesteps=invalid_times,
+            needs_grid=False,
         )
 
 
 def test_diagnostic_batches_from_mapper(mapper):
-    batched_data_sequence = diagnostic_batches_from_mapper(
-        mapper, DATA_VARS, timesteps_per_batch=2,
+    batched_data_sequence = batches_from_mapper(
+        mapper, DATA_VARS, timesteps_per_batch=2, training=False, needs_grid=False,
     )
     assert len(batched_data_sequence) == len(mapper) // 2 + len(mapper) % 2
     for i, batch in enumerate(batched_data_sequence):

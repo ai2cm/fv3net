@@ -105,6 +105,7 @@ def test_compute_training_diags(
             mapping_kwargs=data_source_config["mapping_kwargs"],
             timesteps_per_batch=1,
             res="c8_random_values",
+            needs_grid=False,
         )
         ds = xr.concat(ds_batches, dim="time")
         ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
@@ -301,9 +302,11 @@ def diagnostic_batches(prediction_mapper, data_source_offline_config):
     data_source_offline_config["variables"] = variables
     del data_source_offline_config["batch_kwargs"]["mapping_function"]
     del data_source_offline_config["batch_kwargs"]["mapping_kwargs"]
-    diagnostic_batches = batches.diagnostic_batches_from_mapper(
+    diagnostic_batches = batches.batches_from_mapper(
         prediction_mapper,
         data_source_offline_config["variables"],
+        training=False,
+        needs_grid=False,
         **data_source_offline_config["batch_kwargs"],
     )
     return diagnostic_batches
