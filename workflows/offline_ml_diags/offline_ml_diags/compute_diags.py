@@ -11,7 +11,6 @@ import xarray as xr
 import yaml
 from typing import Mapping, Sequence, Tuple, List
 from toolz import dissoc
-import warnings
 
 import diagnostics_utils as utils
 import loaders
@@ -37,6 +36,7 @@ handler.setFormatter(
 handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
+
 
 # variables that are needed in addition to the model features
 ADDITIONAL_VARS = ["pressure_thickness_of_atmospheric_layer", "pQ1", "pQ2"]
@@ -80,7 +80,8 @@ def _create_arg_parser() -> argparse.Namespace:
         help=(
             "Location of test data. If not provided, will use the data_path saved "
             "with the trained model config file."
-        ))
+        ),
+    )
 
     parser.add_argument(
         "--config_yml",
@@ -118,6 +119,18 @@ def _create_arg_parser() -> argparse.Namespace:
             "will return all timesteps outside the range. "
             "Useful if the config_yml is taken directly from the trained model."
             "Incompatible with also providing a timesteps-file arg. "
+        ),
+    )
+    parser.add_argument(
+        "--training",
+        action="store_true",
+        default=False,
+        help=(
+            "If provided, allows the use of timesteps from the trained model config "
+            "to be used for offline diags. Only relevant if no config file is provided "
+            "and no optional args for timesteps-file or num-test-sample given. "
+            "Acts as a safety to prevent accidental use of training set for the offline "
+            "metrics."
         ),
     )
     return parser.parse_args()
@@ -298,10 +311,7 @@ def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence
 
 
 def _get_timesteps(
-    timesteps_file: str,
-    num_test_sample: int,
-    available_times: List[str],
-    config: dict,
+    timesteps_file: str, num_test_sample: int, available_times: List[str], config: dict,
 ):
     if timesteps_file:
         if num_test_sample:
@@ -335,12 +345,26 @@ def _get_timesteps(
 
 if __name__ == "__main__":
     logger.info("Starting diagnostics routine.")
+
     args = _create_arg_parser()
     config_path = (
         os.path.join(args.model_path, "training_config.yml")
         if args.config_yml is None
         else args.config_yml
     )
+
+    # Safety check if user is using the training set
+    if (
+        not args.config_yml
+        and not args.timesteps_file
+        and not args.num_test_sample
+        and not args.training
+    ):
+        raise ValueError(
+            "No configuration file, timesteps file, or test sample size provided. This will lead to "
+            "the training set from the saved model being used to calculate offline diagnostics and metrics. "
+            "If this is intended, run with the flag --training ."
+        )
 
     with fsspec.open(config_path, "r") as f:
         config = yaml.safe_load(f)
@@ -362,16 +386,9 @@ if __name__ == "__main__":
     pred_mapper = _get_prediction_mapper(config, variables, model)
 
     # Overwrite timesteps list if option to resample or list file provided.
-    if not args.config_yml and not args.timesteps_file and not args.num_test_sample:
-        warnings.warn(
-            "Using the timesteps saved in model training config. You are running "
-            "the offline diagnostics on the training set."
-        )
+
     timesteps = _get_timesteps(
-        args.timesteps_file,
-        args.num_test_sample,
-        list(pred_mapper),
-        config,
+        args.timesteps_file, args.num_test_sample, list(pred_mapper), config,
     )
     config["batch_kwargs"]["timesteps"] = timesteps
 
