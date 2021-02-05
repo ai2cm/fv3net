@@ -1,0 +1,20 @@
+sources:
+  nudging_tendencies:
+    path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging/outdir-3h
+    mapping_function: open_merged_nudged_full_tendencies
+    mapping_kwargs:
+      open_checkpoints_kwargs: 
+        checkpoint_files: 
+          - after_dynamics.zarr
+          - after_physics.zarr
+    res: c8_random_values
+  fine_res_apparent_sources: 
+    path: gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget
+    mapping_function: open_fine_res_apparent_sources
+    mapping_kwargs:
+      rename_vars:
+        delp: pressure_thickness_of_atmospheric_layer
+        pfull: z
+        grid_xt: x
+        grid_yt: y 
+    res: c8_random_values
