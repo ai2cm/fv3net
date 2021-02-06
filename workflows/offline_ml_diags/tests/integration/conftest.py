@@ -122,6 +122,11 @@ def train_config_filename(
         )
         yield f.name
 
+@pytest.fixture
+def model():
+    with tempfile.NamedTemporaryFile(mode="w") as f:
+        
+
 
 @pytest.fixture
 def training_batches(
