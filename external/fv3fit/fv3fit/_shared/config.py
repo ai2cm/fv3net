@@ -3,7 +3,7 @@ import yaml
 import os
 from typing import Iterable, Optional, Union, Sequence, List
 
-from ._filesystem import put_dir
+from ._filesystem import put_dir, get_dir
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
@@ -15,13 +15,13 @@ class ModelTrainingConfig:
 
     def __init__(
         self,
-        data_path: str,
         model_type: str,
         hyperparameters: dict,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
         batch_function: str,
         batch_kwargs: dict,
+        data_path: Optional[str] = None,
         scaler_type: str = "standard",
         scaler_kwargs: Optional[dict] = None,
         additional_variables: Optional[List[str]] = None,
@@ -57,13 +57,10 @@ class ModelTrainingConfig:
         with put_dir(dir_) as output_path:
             with open(output_path, "w") as f:
                 yaml.safe_dump(dict_, f)
-
-
-def load_model_training_config(config_path: str, data_path: str) -> ModelTrainingConfig:
-    with open(config_path, "r") as stream:
-        try:
-            config_dict = yaml.safe_load(stream)
-        except yaml.YAMLError as exc:
-            raise ValueError(f"Bad yaml config: {exc}")
-    data_path = data_path or config_dict.pop("data_path", None)
-    return ModelTrainingConfig(data_path, **config_dict)
+    
+    @classmethod
+    def load(cls, path: str) -> "ModelTrainingConfig":
+        with get_dir(path) as config_path:
+            with open(config_path, "r") as f:
+                config_dict = yaml.safe_load(f)
+        return ModelTrainingConfig(**config_dict)

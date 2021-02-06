@@ -108,7 +108,8 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     args = parse_args()
     data_path = parse_data_path(args.data_path)
-    train_config = load_model_training_config(args.config_file, args.data_path)
+    train_config = ModelTrainingConfig.load(args.config_file)
+    train_config.data_path = args.data_path
 
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
