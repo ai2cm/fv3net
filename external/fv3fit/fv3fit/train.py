@@ -120,7 +120,7 @@ if __name__ == "__main__":
             val_timesteps = yaml.safe_load(f)
         train_config.validation_timesteps = val_timesteps
 
-    save_config_output(args.output_data_path, train_config)
+    train_config.dump(args.output_data_path)
     set_random_seed(train_config.random_seed)
 
     batches = load_data_sequence(data_path, train_config)

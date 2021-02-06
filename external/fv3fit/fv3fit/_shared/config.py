@@ -2,8 +2,8 @@ import inspect
 import yaml
 import os
 from typing import Iterable, Optional, Union, Sequence, List
-import vcm
 
+from ._filesystem import put_dir
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
@@ -46,25 +46,20 @@ class ModelTrainingConfig:
             if DELP not in self.additional_variables:
                 self.additional_variables.append(DELP)
 
-    def dump(self, f):
+    def dump(self, path: str) -> None:
         attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
         dict_ = {
             key: value
             for key, value in attributes
             if not (key.startswith("__") and key.endswith("__"))
         }
-        yaml.safe_dump(dict_, f)
+        dir_ = os.path.join(path, MODEL_CONFIG_FILENAME)
+        with put_dir(dir_) as output_path:
+            with open(output_path, "w") as f:
+                yaml.safe_dump(dict_, f)
 
 
 def load_model_training_config(config_path: str, data_path: str) -> ModelTrainingConfig:
-    """
-
-    Args:
-        config_path: location of .yaml that contains config for model training
-
-    Returns:
-        ModelTrainingConfig object
-    """
     with open(config_path, "r") as stream:
         try:
             config_dict = yaml.safe_load(stream)
@@ -72,14 +67,3 @@ def load_model_training_config(config_path: str, data_path: str) -> ModelTrainin
             raise ValueError(f"Bad yaml config: {exc}")
     data_path = data_path or config_dict.pop("data_path", None)
     return ModelTrainingConfig(data_path, **config_dict)
-
-
-def save_config_output(
-    output_url: str, config: ModelTrainingConfig,
-):
-    fs = vcm.cloud.fsspec.get_fs(output_url)
-    fs.makedirs(output_url, exist_ok=True)
-    config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
-
-    with fs.open(config_url, "w") as f:
-        config.dump(f)
