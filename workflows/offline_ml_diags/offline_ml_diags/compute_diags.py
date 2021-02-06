@@ -271,13 +271,13 @@ def _consolidate_dimensioned_data(ds_summary, ds_metrics):
 def _get_base_mapper(config: Mapping):
     logger.info("Creating base mapper")
     base_mapping_function = getattr(
-        loaders.mappers, config["batch_kwargs"]["mapping_function"]
+        loaders.mappers, config.batch_kwargs["mapping_function"]
     )
-    data_path = config["data_path"]
+    data_path = config.data_path
     if len(data_path) == 1:
         data_path = data_path[0]
     return base_mapping_function(
-        data_path, **config["batch_kwargs"].get("mapping_kwargs", {})
+        data_path, **config.batch_kwargs.get("mapping_kwargs", {})
     )
 
 
@@ -339,19 +339,19 @@ if __name__ == "__main__":
         config = fv3fit.load_training_config(args.model_path)
 
     if args.data_path:
-        config["data_path"] = args.data_path
-    config["model_path"] = args.model_path
+        config.data_path = args.data_path
+    config.model_path = args.model_path
 
     logger.info("Reading grid...")
-    res = config["batch_kwargs"].get("res", "c48")
+    res = config.batch_kwargs.get("res", "c48")
     grid = load_grid_info(res)
 
     variables = list(
-        set(config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS)
+        set(config.input_variables + config.output_variables + ADDITIONAL_VARS)
     )
 
     logger.info("Opening ML model")
-    model = fv3fit.load(config["model_path"])
+    model = fv3fit.load(config.model_path)
     pred_mapper = _get_prediction_mapper(config, variables, model)
 
     # Use appropriate times if options --timesteps-file or --timesteps-n-samples given
@@ -362,29 +362,29 @@ if __name__ == "__main__":
             random.seed(0)
             timesteps = random.sample(sorted(timesteps), args.timesteps_n_samples)
         logger.info(f"Using timesteps from --timesteps-file: {timesteps}")
-        config["timesteps_source"] = "timesteps_file"
+        config.timesteps_source = "timesteps_file"
     elif args.timesteps_n_samples:
         # Sample times outside training range and use as test set.
-        train_timesteps = config["batch_kwargs"].pop("timesteps", [])
+        train_timesteps = config.batch_kwargs.pop("timesteps", [])
         timesteps = sample_outside_train_range(
             list(pred_mapper), train_timesteps, args.timesteps_n_samples
         )
         logger.info(
             f"Using timesteps sampled from outside config timestep range: {timesteps}"
         )
-        config["timesteps_source"] = "sampled_outside_input_config"
+        config.timesteps_source = "sampled_outside_input_config"
     else:
         try:
-            timesteps = config["batch_kwargs"]["timesteps"]
+            timesteps = config.batch_kwargs["timesteps"]
             logger.info(f"Using timesteps given in config file: {timesteps}")
-            config["timesteps_source"] = "input_config"
+            config.timesteps_source = "input_config"
         except KeyError:
             timesteps = list(pred_mapper)
             logger.info(f"Using all timesteps available from mapper: {timesteps}")
-            config["timesteps_source"] = "all_mapper_times"
+            config.timesteps_source = "all_mapper_times"
 
     # Updates timesteps so that the saved config reflects the timesteps used.
-    config["batch_kwargs"]["timesteps"] = timesteps
+    config.batch_kwargs["timesteps"] = timesteps
 
     # write out config used to generate diagnostics, including model path
     fs = get_fs(args.output_path)
@@ -393,14 +393,14 @@ if __name__ == "__main__":
         yaml.safe_dump(config, f)
 
     batch_kwargs = dissoc(
-        config["batch_kwargs"], "mapping_function", "mapping_kwargs", "timesteps"
+        config.batch_kwargs, "mapping_function", "mapping_kwargs", "timesteps"
     )
     batches = loaders.batches.batches_from_mapper(
         pred_mapper, variables, timesteps=timesteps, training=False, **batch_kwargs,
     )
     # compute diags
     ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diagnostics(
-        batches, grid, predicted_vars=config["output_variables"]
+        batches, grid, predicted_vars=config.output_variables
     )
 
     # Save metadata
@@ -421,7 +421,7 @@ if __name__ == "__main__":
     snapshot_time = args.snapshot_time or sorted(timesteps)[0]
     snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
     ds_snapshot = pred_mapper[snapshot_key]
-    ds_transect = _get_transect(ds_snapshot, grid, config["output_variables"])
+    ds_transect = _get_transect(ds_snapshot, grid, config.output_variables)
 
     # write diags and diurnal datasets
     _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
