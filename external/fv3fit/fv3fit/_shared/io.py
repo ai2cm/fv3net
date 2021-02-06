@@ -2,8 +2,8 @@ from typing import MutableMapping, Callable
 import os
 import fsspec
 import warnings
-import yaml
 
+from .config import ModelTrainingConfig
 from .predictor import Predictor, Estimator
 from functools import partial
 
@@ -13,10 +13,14 @@ _TRAINING_CONFIG = "training_config.yml"
 
 
 def load_training_config(model_path: str) -> dict:
-    """Convenience load function for training configs so that
-    other workflows do not need to know the details of how it's dumped with model.
-    Differs from the similar fv3fit._shared.config.load_model_training_config
-    in that it takes a model_path as input and returns the raw dict.
+    """Load training configuration information from a model URL
+    
+    To ensure backwards compatibility, user code should use this function to load
+    the configuration information.
+    
+    Note:
+        Differs from the similar ModelTrainingConfig in that this function
+        takes a model_path as input, not the complete path to the config file.
 
     Args:
         model_path: model dir dumped by fv3fit.dump
@@ -24,8 +28,8 @@ def load_training_config(model_path: str) -> dict:
     Returns:
         dict: training config dict
     """
-    with fsspec.open(os.path.join(model_path, _TRAINING_CONFIG), "r") as f:
-        return yaml.safe_load(f)
+    config_path = os.path.join(model_path, _TRAINING_CONFIG)
+    return ModelTrainingConfig.load(config_path)
 
 
 class _Register:

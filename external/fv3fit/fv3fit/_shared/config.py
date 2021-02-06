@@ -1,9 +1,9 @@
+import fsspec
 import inspect
 import yaml
 import os
 from typing import Iterable, Optional, Union, Sequence, List
 
-from ._filesystem import put_dir, get_dir
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
@@ -53,14 +53,11 @@ class ModelTrainingConfig:
             for key, value in attributes
             if not (key.startswith("__") and key.endswith("__"))
         }
-        dir_ = os.path.join(path, MODEL_CONFIG_FILENAME)
-        with put_dir(dir_) as output_path:
-            with open(output_path, "w") as f:
-                yaml.safe_dump(dict_, f)
+        with fsspec.open(os.path.join(path, MODEL_CONFIG_FILENAME), "w") as f:
+            yaml.safe_dump(dict_, f)
     
     @classmethod
     def load(cls, path: str) -> "ModelTrainingConfig":
-        with get_dir(path) as config_path:
-            with open(config_path, "r") as f:
-                config_dict = yaml.safe_load(f)
+        with fsspec.open(path, "r") as f:
+            config_dict = yaml.safe_load(f)
         return ModelTrainingConfig(**config_dict)
