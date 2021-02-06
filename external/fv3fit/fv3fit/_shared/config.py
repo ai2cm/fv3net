@@ -46,16 +46,17 @@ class ModelTrainingConfig:
             if DELP not in self.additional_variables:
                 self.additional_variables.append(DELP)
 
-    def dump(self, path: str) -> None:
+    def dump(self, path: str, filename: str = None) -> None:
         attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
         dict_ = {
             key: value
             for key, value in attributes
             if not (key.startswith("__") and key.endswith("__"))
         }
-        with fsspec.open(os.path.join(path, MODEL_CONFIG_FILENAME), "w") as f:
+        filename = filename or MODEL_CONFIG_FILENAME
+        with fsspec.open(os.path.join(path, filename), "w") as f:
             yaml.safe_dump(dict_, f)
-    
+
     @classmethod
     def load(cls, path: str) -> "ModelTrainingConfig":
         with fsspec.open(path, "r") as f:

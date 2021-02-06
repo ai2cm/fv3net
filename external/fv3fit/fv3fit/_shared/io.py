@@ -12,7 +12,7 @@ _NAME_ENCODING = "UTF-8"
 _TRAINING_CONFIG = "training_config.yml"
 
 
-def load_training_config(model_path: str) -> dict:
+def load_training_config(model_path: str) -> ModelTrainingConfig:
     """Load training configuration information from a model URL
     
     To ensure backwards compatibility, user code should use this function to load

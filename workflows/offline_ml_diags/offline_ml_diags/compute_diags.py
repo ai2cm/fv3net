@@ -285,11 +285,8 @@ def _get_prediction_mapper(
     config: Mapping, variables: Sequence[str], model: fv3fit.Predictor
 ):
     base_mapper = _get_base_mapper(config)
-    model_mapper_kwargs = config.get("model_mapper_kwargs", {})
     logger.info("Creating prediction mapper")
-    return PredictionMapper(
-        base_mapper, model, grid=grid, variables=variables, **model_mapper_kwargs
-    )
+    return PredictionMapper(base_mapper, model, grid=grid, variables=variables)
 
 
 def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence[str]):
@@ -333,11 +330,9 @@ if __name__ == "__main__":
         )
 
     if args.config_yml:
-        with fsspec.open(args.config_yml, "r") as f:
-            config = yaml.safe_load(f)
+        config = fv3fit.ModelTrainingConfig.load(args.config_yml)
     else:
         config = fv3fit.load_training_config(args.model_path)
-
     if args.data_path:
         config.data_path = args.data_path
     config.model_path = args.model_path
@@ -387,10 +382,11 @@ if __name__ == "__main__":
     config.batch_kwargs["timesteps"] = timesteps
 
     # write out config used to generate diagnostics, including model path
-    fs = get_fs(args.output_path)
-    fs.makedirs(args.output_path, exist_ok=True)
-    with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
-        yaml.safe_dump(config, f)
+    config.dump(args.output_path, filename="config.yaml")
+    # fs = get_fs(args.output_path)
+    # fs.makedirs(args.output_path, exist_ok=True)
+    # with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
+    #    yaml.safe_dump(config, f)
 
     batch_kwargs = dissoc(
         config.batch_kwargs, "mapping_function", "mapping_kwargs", "timesteps"
@@ -432,7 +428,7 @@ if __name__ == "__main__":
 
     # convert and output metrics json
     metrics = _average_metrics_dict(ds_scalar_metrics)
-    with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
+    with fsspec.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
         json.dump(metrics, f, indent=4)
 
     logger.info(f"Finished processing dataset diagnostics and metrics.")

@@ -10,7 +10,7 @@ config = ModelTrainingConfig(
     input_variables=["in0", "in1"],
     output_variables=["out0, out1"],
     batch_function="batches_from_mapper",
-    batch_kwargs={"timesteps_per_batch": 1}
+    batch_kwargs={"timesteps_per_batch": 1},
 )
 
 
