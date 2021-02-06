@@ -207,31 +207,6 @@ def test_compute_offline_diags(
 
     # convert metrics to dict
     metrics = _average_metrics_dict(ds_metrics)
-
-    # TODO standardize schema encoding in synth to avoid the casting that makes
-    # the following lines necessary
-    with tempfile.TemporaryDirectory() as output_dir:
-        output_file = os.path.join(output_dir, "offline_diags.nc")
-        xr.merge([grid_dataset, ds_diagnostics], compat="override").to_netcdf(
-            output_file
-        )
-        with open(output_file, "rb") as f:
-            ds = xr.open_dataset(f).load()
-    offline_diags_output_schema_raw = synth.read_schema_from_dataset(ds)
-    offline_diags_output_schema = synth.loads(
-        synth.dumps(offline_diags_output_schema_raw)
-    )
-    for var in set(offline_diags_output_schema.variables):
-        assert (
-            offline_diags_output_schema.variables[var]
-            == offline_diags_reference_schema.variables[var]
-        )
-    for coord in set(offline_diags_output_schema.coords):
-        assert (
-            offline_diags_output_schema.coords[coord]
-            == offline_diags_reference_schema.coords[coord]
-        )
-
     for var in DIURNAL_VARS:
         assert "local_time_hr" in ds_diurnal[var].dims
         for dim in ds_diurnal[var].dims:
@@ -245,3 +220,27 @@ def test_compute_offline_diags(
         for metric_key, metric_value in metric_entry.items():
             assert isinstance(metric_key, str)
             assert isinstance(metric_value, (float, np.float32))
+
+
+
+def test_offline_diags_integration(
+    diagnostic_batches,
+    grid_dataset,
+    data_source_offline_config,
+):
+    """
+    Test the bash endpoint for training the model produces the expected output files.
+    """
+    subprocess.check_call(
+        [
+            "python",
+            "-m",
+            "offline_ml_diags.compute_diags",
+            data_source_path,
+            train_config_filename,
+            tmp_path,
+        ]
+    )
+    required_names = ["model_data", "training_config.yml"]
+    missing_names = set(required_names).difference(os.listdir(tmp_path))
+    assert len(missing_names) == 0
