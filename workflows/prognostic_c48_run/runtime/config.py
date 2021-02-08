@@ -70,7 +70,9 @@ def get_namelist() -> f90nml.Namelist:
 
 def write_chunks(config: UserConfig):
     """Given UserConfig, write chunks to 'chunks.yaml'"""
-    diagnostic_file_configs = config.fortran_diagnostics + config.diagnostics  # type: ignore
+    diagnostic_file_configs = (
+        config.fortran_diagnostics + config.diagnostics  # type: ignore
+    )
     chunks = get_chunks(diagnostic_file_configs)
     with open("chunks.yaml", "w") as f:
         yaml.safe_dump(chunks, f)
