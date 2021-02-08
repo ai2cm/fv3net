@@ -27,39 +27,15 @@ fortran_diagnostics:
 - chunks:
     time: 96
   name: sfc_dt_atmos.zarr
-  times:
-    frequency: null
-    includes_lower: false
-    kind: every
-    times: null
-  variables: null
 - chunks:
     time: 96
   name: atmos_dt_atmos.zarr
-  times:
-    frequency: null
-    includes_lower: false
-    kind: every
-    times: null
-  variables: null
 - chunks:
     time: 8
   name: atmos_8xdaily.zarr
-  times:
-    frequency: null
-    includes_lower: false
-    kind: every
-    times: null
-  variables: null
 - chunks:
     time: 8
   name: nudging_tendencies.zarr
-  times:
-    frequency: null
-    includes_lower: false
-    kind: every
-    times: null
-  variables: []
 gfs_analysis_data:
   copy_method: copy
   filename_pattern: '%Y%m%d_%HZ_T85LR.nc'
