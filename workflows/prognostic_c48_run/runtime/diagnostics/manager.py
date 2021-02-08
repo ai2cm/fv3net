@@ -1,4 +1,14 @@
-from typing import Any, Sequence, Container, Mapping, List, Union, Dict, Optional
+from typing import (
+    Any,
+    Sequence,
+    Container,
+    Mapping,
+    List,
+    Union,
+    Dict,
+    Optional,
+    MutableMapping,
+)
 
 import datetime
 import cftime
@@ -333,7 +343,7 @@ def get_chunks(
 ) -> Mapping[str, Mapping[str, int]]:
     """Get a mapping of diagnostic file name to chunking from a sequence of diagnostic
     file configs."""
-    chunks = {}
+    chunks: MutableMapping = {}
     for diagnostic_file_config in diagnostic_file_configs:
         chunks[diagnostic_file_config.name] = diagnostic_file_config.chunks
     return chunks

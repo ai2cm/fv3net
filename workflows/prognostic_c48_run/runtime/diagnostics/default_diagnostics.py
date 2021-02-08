@@ -1,4 +1,4 @@
-from .manager import DiagnosticFileConfig
+from .manager import DiagnosticFileConfig, FortranFileConfig
 
 ml_diagnostics = DiagnosticFileConfig(
     name="diags.zarr",
@@ -88,6 +88,9 @@ state_after_timestep = DiagnosticFileConfig(
 reference_state = DiagnosticFileConfig(
     name="reference_state.zarr", chunks={"time": 8}, variables=[]
 )
-sfc_dt_atmos = DiagnosticFileConfig(name="sfc_dt_atmos.zarr", chunks={"time": 96})
-atmos_dt_atmos = DiagnosticFileConfig(name="atmos_dt_atmos.zarr", chunks={"time": 96})
-atmos_8xdaily = DiagnosticFileConfig(name="atmos_8xdaily.zarr", chunks={"time": 8})
+sfc_dt_atmos = FortranFileConfig(name="sfc_dt_atmos.zarr", chunks={"time": 96})
+atmos_dt_atmos = FortranFileConfig(name="atmos_dt_atmos.zarr", chunks={"time": 96})
+atmos_8xdaily = FortranFileConfig(name="atmos_8xdaily.zarr", chunks={"time": 8})
+nudging_tendencies_fortran = FortranFileConfig(
+    name="nudging_tendencies.zarr", chunks={"time": 8}
+)

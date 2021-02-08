@@ -12,7 +12,11 @@ import fv3kube
 import vcm
 
 from runtime import default_diagnostics
-from runtime.diagnostics.manager import DiagnosticFileConfig, TimeConfig
+from runtime.diagnostics.manager import (
+    FortranFileConfig,
+    DiagnosticFileConfig,
+    TimeConfig,
+)
 from runtime.steppers.nudging import NudgingConfig
 from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
@@ -118,7 +122,7 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
 
     if "fortran_diagnostics" in config_dict:
         fortran_diagnostics = [
-            dacite.from_dict(DiagnosticFileConfig, diag)
+            dacite.from_dict(FortranFileConfig, diag)
             for diag in config_dict["fortran_diagnostics"]
         ]
     else:
@@ -171,14 +175,14 @@ def _default_diagnostics(
 
 def _default_fortran_diagnostics(
     nudge_to_observations: bool,
-) -> List[DiagnosticFileConfig]:
+) -> List[FortranFileConfig]:
     fortran_diags = [
         default_diagnostics.sfc_dt_atmos,
         default_diagnostics.atmos_dt_atmos,
         default_diagnostics.atmos_8xdaily,
     ]
     if nudge_to_observations:
-        fortran_diags.append(default_diagnostics.nudging_tendencies)
+        fortran_diags.append(default_diagnostics.nudging_tendencies_fortran)
     return fortran_diags
 
 
