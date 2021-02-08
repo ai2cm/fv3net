@@ -189,8 +189,24 @@ class DiagnosticFileConfig:
             variables=self.variables if self.variables else All(),
             times=self.times.time_container(initial_time),
             monitor=fv3gfs.util.ZarrMonitor(self.name, partitioner, mpi_comm=comm),
-            chunks=self.chunks if self.chunks else {},
         )
+
+
+@dataclasses.dataclass
+class FortranFileConfig:
+    """Configurations for Fortran diagnostics defined in diag_table to be converted to zarr
+
+    Attributes:
+        name: filename of the diagnostic. Must include .zarr suffix. For example, if
+            atmos_8xdaily is defined in diag_table, use atmos_8xdaily.zarr here.
+        chunks: mapping of dimension names to chunk sizes
+    """
+
+    name: str
+    chunks: Mapping[str, int]
+
+    def to_dict(self) -> Dict:
+        return dataclasses.asdict(self)
 
 
 class DiagnosticFile:
@@ -213,7 +229,6 @@ class DiagnosticFile:
         variables: Container,
         monitor: fv3gfs.util.ZarrMonitor,
         times: TimeContainer,
-        chunks: Mapping[str, int],
     ):
         """
 
@@ -232,7 +247,6 @@ class DiagnosticFile:
         """
         self.variables = variables
         self.times = times
-        self.chunks = chunks
         self._monitor = monitor
 
         # variables used for averaging
@@ -302,7 +316,7 @@ def get_diagnostic_files(
     the sklearn runfile.
 
     Args:
-        config: A loaded "fv3config" dictionary with a "diagnostics" section
+        configs: A sequence of DiagnosticFileConfigs
         paritioner: a partioner object used for writing, maybe it would be
             cleaner to pass a factory
         comm: an MPI Comm object
@@ -312,3 +326,14 @@ def get_diagnostic_files(
     return [
         config.diagnostic_file(initial_time, partitioner, comm) for config in configs
     ]
+
+
+def get_chunks(
+    diagnostic_file_configs: Sequence[Union[DiagnosticFileConfig, FortranFileConfig]],
+) -> Mapping[str, Mapping[str, int]]:
+    """Get a mapping of diagnostic file name to chunking from a sequence of diagnostic
+    file configs."""
+    chunks = {}
+    for diagnostic_file_config in diagnostic_file_configs:
+        chunks[diagnostic_file_config.name] = diagnostic_file_config.chunks
+    return chunks

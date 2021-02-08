@@ -102,7 +102,7 @@ function appendSegment {
     fv3ExitCode=$?
     set -e
 
-    post_process_run "$rundir" "$postProcessedOut"
+    post_process_run --chunks "$rundir/chunks.yaml" "$rundir" "$postProcessedOut"
     append_run "$postProcessedOut" "$runURL"
 
     echo "Cleaning up working directory"

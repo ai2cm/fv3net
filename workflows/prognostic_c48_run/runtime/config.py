@@ -5,7 +5,11 @@ import f90nml
 
 import dacite
 
-from runtime.diagnostics.manager import DiagnosticFileConfig
+from runtime.diagnostics.manager import (
+    DiagnosticFileConfig,
+    FortranFileConfig,
+    get_chunks,
+)
 from runtime.steppers.nudging import NudgingConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
 
@@ -31,7 +35,7 @@ class UserConfig:
     """
 
     diagnostics: List[DiagnosticFileConfig]
-    fortran_diagnostics: List[DiagnosticFileConfig]
+    fortran_diagnostics: List[FortranFileConfig]
     scikit_learn: MachineLearningConfig = MachineLearningConfig()
     nudging: Optional[NudgingConfig] = None
     step_tendency_variables: List[str] = dataclasses.field(
@@ -62,3 +66,11 @@ def get_namelist() -> f90nml.Namelist:
         Only valid at runtime
     """
     return f90nml.read("input.nml")
+
+
+def write_chunks(config: UserConfig):
+    """Given UserConfig, write chunks to 'chunks.yaml'"""
+    diagnostic_file_configs = config.fortran_diagnostics + config.diagnostics
+    chunks = get_chunks(diagnostic_file_configs)
+    with open("chunks.yaml", "w") as f:
+        yaml.safe_dump(chunks, f)

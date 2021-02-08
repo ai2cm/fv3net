@@ -7,6 +7,8 @@ import xarray as xr
 
 from runtime.diagnostics import manager
 from runtime.diagnostics.manager import (
+    FortranFileConfig,
+    DiagnosticFileConfig,
     DiagnosticFile,
     TimeConfig,
     All,
@@ -76,7 +78,7 @@ def test_DiagnosticFile_time_selection():
 
     # observe a few times
     diag_file = DiagnosticFile(
-        times=TimeContainer([t1]), variables=All(), monitor=monitor, chunks={}
+        times=TimeContainer([t1]), variables=All(), monitor=monitor
     )
     diag_file.observe(t1, {})
     diag_file.observe(t2, {})
@@ -102,7 +104,7 @@ def test_DiagnosticFile_variable_selection():
 
     # observe a few times
     diag_file = DiagnosticFile(
-        times=TimeContainer(All()), variables=["a"], monitor=monitor, chunks={}
+        times=TimeContainer(All()), variables=["a"], monitor=monitor
     )
     diag_file.observe(datetime(2020, 1, 1), diagnostics)
     # force flush to disk
@@ -125,7 +127,7 @@ def test_DiagnosticFile_variable_units(attrs, expected_units):
 
     # observe a few times
     diag_file = DiagnosticFile(
-        times=TimeContainer(All()), variables=All(), monitor=monitor, chunks={}
+        times=TimeContainer(All()), variables=All(), monitor=monitor
     )
     diag_file.observe(datetime(2020, 1, 1), diagnostics)
     # force flush to disk
@@ -187,9 +189,7 @@ def test_DiagnosticFile_with_non_snapshot_time():
             self.data[x["time"]] = x
 
     monitor = MockMonitor()
-    diag_file = DiagnosticFile(
-        times=Hours(), variables=["a", "b"], monitor=monitor, chunks={}
-    )
+    diag_file = DiagnosticFile(times=Hours(), variables=["a", "b"], monitor=monitor)
 
     for time, x in [
         (t, one),
@@ -225,3 +225,29 @@ def test_TimeConfig_interval_average_endpoint():
     assert container == IntervalAveragedTimes(
         timedelta(seconds=3600), datetime(2020, 1, 1), includes_lower=True
     )
+
+
+@pytest.mark.parametrize(
+    "fortran_diagnostics,diagnostics,expected_chunks",
+    [
+        ([], [], {}),
+        (
+            [FortranFileConfig(name="sfc_dt_atmos.zarr", chunks={"time": 2})],
+            [],
+            {"sfc_dt_atmos.zarr": {"time": 2}},
+        ),
+        (
+            [],
+            [DiagnosticFileConfig(name="diags.zarr", chunks={"time": 4})],
+            {"diags.zarr": {"time": 4}},
+        ),
+        (
+            [FortranFileConfig(name="sfc_dt_atmos.zarr", chunks={"time": 2})],
+            [DiagnosticFileConfig(name="diags.zarr", chunks={"time": 4})],
+            {"diags.zarr": {"time": 4}, "sfc_dt_atmos.zarr": {"time": 2}},
+        ),
+    ],
+)
+def test_get_chunks(fortran_diagnostics, diagnostics, expected_chunks):
+    chunks = manager.get_chunks(fortran_diagnostics + diagnostics)
+    assert chunks == expected_chunks

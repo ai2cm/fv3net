@@ -4,7 +4,6 @@ import re
 import yaml
 import shutil
 from typing import Sequence, Iterable, Union, Mapping
-import fsspec
 import numpy as np
 import xarray as xr
 import tempfile
@@ -19,16 +18,6 @@ logging.basicConfig(level=logging.INFO)
 
 ChunkSpec = Mapping[str, Mapping[str, int]]
 CHUNKS_DEFAULT = {"time": 96}
-FV3CONFIG_FILENAME = "fv3config.yml"
-
-
-def get_chunks(config) -> ChunkSpec:
-    chunks: ChunkSpec = {}
-    for key in ["fortran_diagnostics", "diagnostics"]:
-        if key in config:
-            for diagnostics_file in config[key]:
-                chunks[diagnostics_file["name"]] = diagnostics_file["chunks"]
-    return chunks
 
 
 def _get_true_chunks(ds, chunks):
@@ -155,7 +144,10 @@ def process_item(
 @click.command()
 @click.argument("rundir")
 @click.argument("destination")
-def post_process(rundir: str, destination: str):
+@click.option(
+    "--chunks", type=click.Path(), help="path to yaml file containing chunk information"
+)
+def post_process(rundir: str, destination: str, chunks: str):
     """Post-process the fv3gfs output located RUNDIR and save to DESTINATION
 
     RUNDIR and DESTINATION may be local or GCS paths.
@@ -166,10 +158,11 @@ def post_process(rundir: str, destination: str):
     logger.info("Post-processing the run")
     authenticate()
 
-    fv3config_url = os.path.join(rundir, FV3CONFIG_FILENAME)
-    with fsspec.open(fv3config_url) as f:
-        config = yaml.safe_load(f)
-    chunks = get_chunks(config)
+    if chunks:
+        with open(chunks) as f:
+            chunks = yaml.safe_load(f)
+    else:
+        chunks = {}
 
     with tempfile.TemporaryDirectory() as d_in, tempfile.TemporaryDirectory() as d_out:
 
