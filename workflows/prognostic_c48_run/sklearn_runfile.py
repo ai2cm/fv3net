@@ -45,8 +45,6 @@ if __name__ == "__main__":
         config.diagnostics, partitioner, comm, initial_time=loop.time
     )
     if comm.rank == 0:
-        # with open("somefile.yaml", "w") as f:
-        #   yaml.safe_dump({"a": 1}, f)
         runtime.write_chunks(config)
 
     for time, diagnostics in loop:
