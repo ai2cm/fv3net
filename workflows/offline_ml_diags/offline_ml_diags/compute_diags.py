@@ -268,11 +268,13 @@ def _consolidate_dimensioned_data(ds_summary, ds_metrics):
     return ds_diagnostics, ds_metrics.drop(metrics_arrays_vars)
 
 
-def _get_base_mapper(config: Mapping):
+def _get_base_mapper(config: fv3fit.ModelTrainingConfig):
     logger.info("Creating base mapper")
     base_mapping_function = getattr(
         loaders.mappers, config.batch_kwargs["mapping_function"]
     )
+    if not config.data_path:
+        raise ValueError("Model training config has no data path attribute.")
     data_path = config.data_path
     if len(data_path) == 1:
         data_path = data_path[0]
@@ -282,7 +284,9 @@ def _get_base_mapper(config: Mapping):
 
 
 def _get_prediction_mapper(
-    config: Mapping, variables: Sequence[str], model: fv3fit.Predictor
+    config: fv3fit.ModelTrainingConfig,
+    variables: Sequence[str],
+    model: fv3fit.Predictor,
 ):
     base_mapper = _get_base_mapper(config)
     logger.info("Creating prediction mapper")
@@ -346,7 +350,7 @@ if __name__ == "__main__":
     )
 
     logger.info("Opening ML model")
-    model = fv3fit.load(config.model_path)
+    model = fv3fit.load(args.model_path)
     pred_mapper = _get_prediction_mapper(config, variables, model)
 
     # Use appropriate times if options --timesteps-file or --timesteps-n-samples given

@@ -17,8 +17,8 @@ class ModelTrainingConfig:
         self,
         model_type: str,
         hyperparameters: dict,
-        input_variables: Iterable[str],
-        output_variables: Iterable[str],
+        input_variables: List[str],
+        output_variables: List[str],
         batch_function: str,
         batch_kwargs: dict,
         data_path: Optional[str] = None,
@@ -27,7 +27,9 @@ class ModelTrainingConfig:
         additional_variables: Optional[List[str]] = None,
         random_seed: Union[float, int] = 0,
         validation_timesteps: Optional[Sequence[str]] = None,
-        save_model_checkpoints: bool = False,
+        save_model_checkpoints: Optional[bool] = False,
+        model_path: Optional[str] = None,
+        timesteps_source: Optional[str] = None,
     ):
         self.data_path = data_path
         self.model_type = model_type
@@ -42,9 +44,11 @@ class ModelTrainingConfig:
         self.random_seed = random_seed
         self.validation_timesteps: Sequence[str] = validation_timesteps or []
         self.save_model_checkpoints = save_model_checkpoints
+        self.timesteps_source = timesteps_source
         if self.scaler_type == "mass":
             if DELP not in self.additional_variables:
                 self.additional_variables.append(DELP)
+        self.model_path = model_path
 
     def dump(self, path: str, filename: str = None) -> None:
         attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
