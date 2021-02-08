@@ -6,9 +6,7 @@ import os
 import yaml
 
 from ._shared import (
-    save_config_output,
     parse_data_path,
-    load_model_training_config,
     load_data_sequence,
     ModelTrainingConfig,
     io,
@@ -108,19 +106,21 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     args = parse_args()
     data_path = parse_data_path(args.data_path)
-    train_config = load_model_training_config(args.config_file, args.data_path)
+    train_config = ModelTrainingConfig.load(args.config_file)
+    train_config.data_path = args.data_path
 
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
         train_config.batch_kwargs["timesteps"] = timesteps
+        train_config.timesteps_source = "timesteps_file"
 
     if args.validation_timesteps_file:
         with open(args.validation_timesteps_file, "r") as f:
             val_timesteps = yaml.safe_load(f)
         train_config.validation_timesteps = val_timesteps
 
-    save_config_output(args.output_data_path, train_config)
+    train_config.dump(args.output_data_path)
     set_random_seed(train_config.random_seed)
 
     batches = load_data_sequence(data_path, train_config)
@@ -129,4 +129,5 @@ if __name__ == "__main__":
 
     model = _get_model(train_config)
     model.fit(batches)
+    train_config.model_path = args.output_data_path
     io.dump(model, args.output_data_path)
