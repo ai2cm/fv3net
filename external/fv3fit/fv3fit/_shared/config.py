@@ -2,7 +2,7 @@ import fsspec
 import inspect
 import yaml
 import os
-from typing import Iterable, Optional, Union, Sequence, List
+from typing import Optional, Union, Sequence, List
 
 
 DELP = "pressure_thickness_of_atmospheric_layer"
