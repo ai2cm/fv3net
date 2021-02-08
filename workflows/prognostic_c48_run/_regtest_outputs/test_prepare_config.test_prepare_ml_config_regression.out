@@ -14,7 +14,7 @@ diagnostics:
   - net_moistening_diagnostic
   - net_heating
   - net_heating_diagnostic
-  - total_precip
+  - total_precipitation_rate
   - water_vapor_path
   - physics_precip
   - column_integrated_dQu

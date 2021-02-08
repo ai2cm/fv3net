@@ -62,3 +62,8 @@ ENV COMMIT_SHA=$COMMIT_SHA_ARG
 
 # add explicit copy to ensure that tests run
 COPY --from=test /tmp/tests-done /tmp
+
+# add development tools
+USER root
+RUN apt-get install -y git
+USER $NB_UID
