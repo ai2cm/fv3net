@@ -18,7 +18,13 @@ from runtime.names import (
     TOTAL_PRECIP,
 )
 
-from runtime.steppers.base import Stepper, LoggingMixin, apply, precipitation_sum
+from runtime.steppers.base import (
+    Stepper,
+    LoggingMixin,
+    apply,
+    precipitation_sum,
+    precipitation_rate,
+)
 from runtime.types import State, Diagnostics
 
 __all__ = ["MachineLearningConfig", "MLStepper", "open_model"]
@@ -221,7 +227,9 @@ class MLStepper(Stepper, LoggingMixin):
             "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
-            "total_precip": updated_state[TOTAL_PRECIP],
+            "total_precipitation_rate": precipitation_rate(
+                updated_state[TOTAL_PRECIP], self._timestep
+            ),
             **diagnostics,
         }
 

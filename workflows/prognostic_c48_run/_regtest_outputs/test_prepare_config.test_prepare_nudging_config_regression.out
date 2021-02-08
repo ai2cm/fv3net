@@ -73,7 +73,7 @@ diagnostics:
   - net_moistening_due_to_nudging
   - net_heating_due_to_nudging
   - net_mass_tendency_due_to_nudging
-  - total_precip
+  - total_precipitation_rate
   - water_vapor_path
   - physics_precip
 - name: reference_state.zarr

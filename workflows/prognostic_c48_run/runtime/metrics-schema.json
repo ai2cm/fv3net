@@ -164,11 +164,11 @@
                 1.3542121849959635e-05
             ]
         },
-        "total_precip": {
-            "$id": "#/properties/total_precip",
+        "total_precipitation_rate": {
+            "$id": "#/properties/total_precipitation_rate",
             "type": "number",
             "default": 0.0,
-            "description": "total precip to surface, max(PRATE - <dQ2 or nQ2>, 0)",
+            "description": "total precip rate to surface, max(PRATE - <dQ2 or nQ2>, 0)",
             "units": "kg/m^2/s",
             "examples": [
                 1.3542121849959635e-05
