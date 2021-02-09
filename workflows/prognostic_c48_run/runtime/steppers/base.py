@@ -11,6 +11,8 @@ from runtime.types import State, Diagnostics
 
 logger = logging.getLogger(__name__)
 
+KG_PER_M2_PER_M = 1000.0
+
 
 class LoggingMixin:
 
@@ -98,3 +100,21 @@ def precipitation_sum(
     total_precip = total_precip.where(total_precip >= 0, 0)
     total_precip.attrs["units"] = "m"
     return total_precip
+
+
+def precipitation_rate(
+    precipitation_accumulation: xr.DataArray, dt: float
+) -> xr.DataArray:
+    """Return precipitation rate from a precipitation accumulation and timestep
+    
+    Args:
+        precipitation_accumulation: precipitation accumulation [m]
+        dt: timestep over which accumulation occurred [s]
+
+    Returns:
+        precipitation rate [kg/m^s/s]"""
+    precipitation_rate: xr.DataArray = (
+        KG_PER_M2_PER_M * precipitation_accumulation / dt  # type: ignore
+    )
+    precipitation_rate.attrs["units"] = "kg/m^2/s"
+    return precipitation_rate

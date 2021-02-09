@@ -51,7 +51,8 @@ def _nudging_train_config(datadir_module):
         os.path.join(str(datadir_module), "train_sklearn_model_nudged_source.yml"), "r"
     ) as f:
         config = yaml.safe_load(f)
-    return shared.ModelTrainingConfig("nudging_data_path", **config)
+    config["data_path"] = "nudging_data_path"
+    return shared.ModelTrainingConfig(**config)
 
 
 @pytest.fixture
@@ -64,7 +65,8 @@ def _fine_res_train_config(datadir_module):
         os.path.join(str(datadir_module), "train_sklearn_model_fineres_source.yml"), "r"
     ) as f:
         config = yaml.safe_load(f)
-    return shared.ModelTrainingConfig("fine_res_data_path", **config)
+    config["data_path"] = "fine_res_data_path"
+    return shared.ModelTrainingConfig(**config)
 
 
 @pytest.fixture
