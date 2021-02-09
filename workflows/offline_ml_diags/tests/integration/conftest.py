@@ -9,6 +9,7 @@ from synth import (  # noqa: F401
 )
 import xarray as xr
 from fv3fit._shared import load_data_sequence
+from fv3fit._shared.config import ModelTrainingConfig
 import pytest
 import tempfile
 import yaml
@@ -36,35 +37,19 @@ def batch_function(model_type: str) -> str:
 
 @pytest.fixture()
 def batch_kwargs(data_source_name: str) -> dict:  # noqa: F811
-    if data_source_name == "nudging_tendencies":
-        return {
-            "res": "c8_random_values",
-            "timesteps_per_batch": 1,
-            "mapping_function": "open_merged_nudged",
-            "timesteps": ["20160801.001500"],
-            "mapping_kwargs": {
-                "i_start": 0,
-                "rename_vars": {
-                    "air_temperature_tendency_due_to_nudging": "dQ1",
-                    "specific_humidity_tendency_due_to_nudging": "dQ2",
-                },
+    return {
+        "res": "c8_random_values",
+        "timesteps_per_batch": 1,
+        "mapping_function": "open_merged_nudged",
+        "timesteps": ["20160801.001500"],
+        "mapping_kwargs": {
+            "i_start": 0,
+            "rename_vars": {
+                "air_temperature_tendency_due_to_nudging": "dQ1",
+                "specific_humidity_tendency_due_to_nudging": "dQ2",
             },
-        }
-    elif data_source_name == "fine_res_apparent_sources":
-        return {
-            "res": "c8_random_values",
-            "timesteps_per_batch": 1,
-            "mapping_function": "open_fine_res_apparent_sources",
-            "timesteps": ["20160801.001500"],
-            "mapping_kwargs": {
-                "rename_vars": {
-                    "delp": "pressure_thickness_of_atmospheric_layer",
-                    "grid_xt": "x",
-                    "grid_yt": "y",
-                    "pfull": "z",
-                }
-            },
-        }
+        },
+    }
 
 
 @pytest.fixture
@@ -117,22 +102,10 @@ def train_config_filename(
                 "additional_variables": None,
                 "random_seed": 0,
                 "validation_timesteps": validation_timesteps,
+                "data_path": data_source_path
             },
             f,
         )
         yield f.name
 
-@pytest.fixture
-def model():
-    with tempfile.NamedTemporaryFile(mode="w") as f:
-        
 
-
-@pytest.fixture
-def training_batches(
-    data_source_name: str,  # noqa: F811
-    data_source_path: str,  # noqa: F811
-    train_config: ModelTrainingConfig,
-) -> Sequence[xr.Dataset]:
-    batched_data = load_data_sequence(data_source_path, train_config)
-    return batched_data
