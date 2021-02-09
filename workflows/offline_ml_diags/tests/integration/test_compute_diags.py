@@ -1,10 +1,12 @@
 import pytest
 import logging
-import subprocess
+from dataclasses import dataclass
 import tempfile
 import os
+from typing import Optional
 
 import fv3fit
+from offline_ml_diags.compute_diags import main
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,19 @@ def model(training_batches) -> fv3fit.Estimator:
     return model
 
 
+@dataclass
+class Args:
+    model_path: str
+    output_path: str
+    grid: str
+    timesteps_n_samples: Optional[int] = 2
+    data_path: Optional[str] = None
+    config_yml: Optional[str] = None
+    timesteps_file: Optional[str] = None
+    training: Optional[bool] = False
+    snapshot_time: Optional[str] = None
+
+
 @pytest.mark.parametrize("data_source_name", ["nudging_tendencies"], indirect=True)
 def test_offline_diags_integration(
     model,
@@ -39,16 +54,5 @@ def test_offline_diags_integration(
         model.dump(model_dir)
         train_config.data_path = data_source_path
         train_config.dump(model_dir)
-        subprocess.check_call(
-            [
-                "python",
-                "-m",
-                "offline_ml_diags.compute_diags",
-                model_dir,
-                os.path.join(tmpdir, "offline_diags"),
-                "--timesteps-n-samples",
-                "2",
-                "--grid",
-                grid_dataset_path,
-            ]
-        )
+        args = Args(model_dir, os.path.join(tmpdir, "offline_diags"), grid_dataset_path)
+        main(args)
