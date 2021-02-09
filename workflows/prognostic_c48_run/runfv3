@@ -111,10 +111,8 @@ function appendSegment {
     postProcessedOut="$workingDir/post_processed"
     gsutil cp "$runURL/runfile.py" "$workingDir/runfile.py"
 
-    set +e
     runSegment "$workingDir/fv3config.yml" "$rundir" "$workingDir/runfile.py"
     fv3ExitCode=$?
-    set -e
 
     post_process_run --chunks "$workingDir/chunks.yaml" "$rundir" "$postProcessedOut"
     append_run "$postProcessedOut" "$runURL"
@@ -144,10 +142,13 @@ function runSegment {
     write_run_directory "$fv3config" "$rundir"
     mkdir -p "$rundir"
     cp "$runfile" "$rundir/runfile.py"
+    ulimit -s unlimited
     (
         cd "$rundir"
         NUM_PROC=$(yq '.namelist.fv_core_nml.layout | .[0] *.[1] * 6' "$fv3config")
+        set +e
         mpirun -n "$NUM_PROC" python3 "$runfile" |& tee -a "$rundir/logs.txt"
+        set -e
     )
 }
 
@@ -159,7 +160,7 @@ function verifyUrlEmpty {
     set -e
     if [[ "$ret" -eq 0 ]]; then
         echo "The given output url (below) contains an object. Delete everything under output url and resubmit."
-        echo "{{inputs.parameters.url}}"
+        echo "$url"
         exit 1
     fi
 }
