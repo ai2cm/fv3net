@@ -1,43 +1,30 @@
-from typing import Iterable, Sequence
-import xarray as xr
 import pytest
 import logging
-from fv3fit._shared import ModelTrainingConfig
-import numpy as np
 import subprocess
-import copy
-
+import tempfile
+import os
 
 import fv3fit
-from synth import data_source_path
 
 
 logger = logging.getLogger(__name__)
 
 
-
 @pytest.fixture
-def model(
-    model_type: str,
-    input_variables: Iterable[str],
-    output_variables: Iterable[str],
-    hyperparameters: dict,
-) -> fv3fit.Estimator:
-    fit_kwargs = hyperparameters.pop("fit_kwargs", {})
-    return fv3fit.keras.get_model(
-        "DenseModel",
-        loaders.SAMPLE_DIM_NAME,
-        input_variables,
-        output_variables,
-        width=3,
-        depth=2
+def model(training_batches) -> fv3fit.Estimator:
+    model = fv3fit.keras.get_model(
+        "DenseModel", "sample", ["air_temperature", "specific_humidity"], ["dQ1", "dQ2"], width=3, depth=2
     )
-         
+    model.fit(training_batches)
+    return model
 
+
+@pytest.mark.parametrize("data_source_name", ["nudging_tendencies"], indirect=True)
 def test_offline_diags_integration(
-    data_source_path: str,
-    train_config_filename: str,
-    data_source_name: str,
+    model,
+    train_config,
+    # data_source_name: str,
+    data_source_path,
 ):
     """
     Test the bash endpoint for computing offline diagnostics
@@ -45,7 +32,8 @@ def test_offline_diags_integration(
     with tempfile.TemporaryDirectory() as tmpdir:
         model_dir = os.path.join(tmpdir, "trained_model")
         model.dump(model_dir)
-        train_config.dump(os.path.join(model_dir, "training_config.yml")
+        train_config.data_path = data_source_path
+        train_config.dump(model_dir)
         subprocess.check_call(
             [
                 "python",
@@ -53,6 +41,7 @@ def test_offline_diags_integration(
                 "offline_ml_diags.compute_diags",
                 model_dir,
                 os.path.join(tmpdir, "offline_diags"),
-                "--timesteps-n-samples 2"
+                "--timesteps-n-samples",
+                "2",
             ]
         )

@@ -29,7 +29,6 @@ DIURNAL_VARS = [
 OUTPUT_NC_NAME = "diagnostics.nc"
 
 
-
 @pytest.fixture
 def training_data_diags_config(datadir_module):
     with open(
@@ -224,11 +223,8 @@ def test_compute_offline_diags(
             assert isinstance(metric_value, (float, np.float32))
 
 
-
 def test_offline_diags_integration(
-    diagnostic_batches,
-    grid_dataset,
-    data_source_offline_config,
+    diagnostic_batches, grid_dataset, data_source_offline_config,
 ):
     """
     Test the bash endpoint for training the model produces the expected output files.
