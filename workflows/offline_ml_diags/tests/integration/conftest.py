@@ -29,13 +29,14 @@ batch_kwargs = {
     },
 }
 
+
 @pytest.fixture
 def train_config() -> ModelTrainingConfig:
     return ModelTrainingConfig(
         model_type="DenseModel",
         hyperparameters={"width": 3, "depth": 2},
         input_variables=["air_temperature", "specific_humidity"],
-        output_variables= ["dQ1", "dQ2"],
+        output_variables=["dQ1", "dQ2"],
         batch_function="batches_from_geodata",
         batch_kwargs=batch_kwargs,
         scaler_type="standard",
