@@ -8,6 +8,9 @@ spec:
   volumes:
     - name: workdir
       emptyVol: {}
+    - name: dshm
+      emptyDir:
+        medium: Memory
     - name: gcp-key-secret
       secret:
         defaultMode: 420

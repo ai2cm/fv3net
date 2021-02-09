@@ -80,25 +80,8 @@ spec:
         - name: runfile
           path: /mnt/data/runfile.py
       parameters:
-        - name: cpu
-        - name: memory
         - name: runURL
         - name: chunks
-    tolerations:
-    - key: "dedicated"
-      operator: "Equal"
-      value: "climate-sim-pool"
-      effect: "NoSchedule"
-    podSpecPatch: |
-      containers:
-        - name: main
-          resources:
-            limits:
-              cpu: "{{inputs.parameters.cpu}}"
-              memory: "{{inputs.parameters.memory}}"
-            requests:
-              cpu: "{{inputs.parameters.cpu}}"
-              memory: "{{inputs.parameters.memory}}"
     container:
       image: us.gcr.io/vcm-ml/prognostic_run
       command: ["/bin/bash", "-c", "-x", "-e"]
@@ -158,6 +141,8 @@ spec:
         - name: gcp-key-secret
           mountPath: /secret/gcp-credentials
           readOnly: true
+        - name: dshm
+          mountPath: /dev/shm
   - name: increment-count
     inputs:
       parameters:
