@@ -136,6 +136,16 @@ def _create_arg_parser() -> argparse.Namespace:
             "offline metrics."
         ),
     )
+    parser.add_argument(
+        "--grid",
+        type=str,
+        default=None,
+        help=(
+            "Optional path to grid data netcdf. If not provided, defaults to loading the grid "
+            "with the appropriate resolution (given in batch_kwargs) from the catalog. "
+            "Useful if you do not have permissions to access the GCS data in vcm.catalog."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -342,8 +352,13 @@ if __name__ == "__main__":
     config.model_path = args.model_path
 
     logger.info("Reading grid...")
-    res = config.batch_kwargs.get("res", "c48")
-    grid = load_grid_info(res)
+    if not args.grid:
+        # By default, read the appropriate resolution grid from vcm.catalog
+        res = config.batch_kwargs.get("res", "c48")
+        grid = load_grid_info(res)
+    else:
+        with fsspec.open(args.grid, "rb") as f:
+            grid = xr.open_dataset(f).load()
 
     variables = list(
         set(config.input_variables + config.output_variables + ADDITIONAL_VARS)

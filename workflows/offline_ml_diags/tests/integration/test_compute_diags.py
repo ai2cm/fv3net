@@ -6,7 +6,6 @@ import os
 
 import fv3fit
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -25,6 +24,7 @@ def test_offline_diags_integration(
     train_config,
     # data_source_name: str,
     data_source_path,
+    grid_dataset_path,
 ):
     """
     Test the bash endpoint for computing offline diagnostics
@@ -33,6 +33,7 @@ def test_offline_diags_integration(
         model_dir = os.path.join(tmpdir, "trained_model")
         model.dump(model_dir)
         train_config.data_path = data_source_path
+        print("grid path", grid_dataset_path)
         train_config.dump(model_dir)
         subprocess.check_call(
             [
@@ -43,5 +44,7 @@ def test_offline_diags_integration(
                 os.path.join(tmpdir, "offline_diags"),
                 "--timesteps-n-samples",
                 "2",
+                "--grid",
+                grid_dataset_path
             ]
         )

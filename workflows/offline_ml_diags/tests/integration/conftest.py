@@ -6,6 +6,7 @@ from synth import (  # noqa: F401
     fine_res_dataset_path,
     data_source_path,
     grid_dataset,
+    grid_dataset_path,
 )
 import xarray as xr
 from fv3fit._shared import load_data_sequence
