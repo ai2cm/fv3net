@@ -40,10 +40,7 @@ class Args:
 
 @pytest.mark.parametrize("data_source_name", ["nudging_tendencies"], indirect=True)
 def test_offline_diags_integration(
-    model,
-    train_config,
-    data_source_path,
-    grid_dataset_path,
+    model, train_config, data_source_path, grid_dataset_path,
 ):
     """
     Test the bash endpoint for computing offline diagnostics
