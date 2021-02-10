@@ -328,10 +328,6 @@ def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence
 def main(args):
 
     logger.info("Starting diagnostics routine.")
-    print("@@@@@@@@@@@")
-
-    print("grid: ", args.grid)
-    print("@@@@@@@@@@@")
 
     # Safety check if user is using the training set
     if (

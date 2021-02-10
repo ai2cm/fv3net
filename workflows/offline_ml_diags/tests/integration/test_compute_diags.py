@@ -42,7 +42,6 @@ class Args:
 def test_offline_diags_integration(
     model,
     train_config,
-    # data_source_name: str,
     data_source_path,
     grid_dataset_path,
 ):
