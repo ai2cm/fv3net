@@ -24,6 +24,7 @@ ORO_PATH = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
 FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
 LOG_PATH = "statistics.txt"
 RUNFILE_PATH = "runfile.py"
+CHUNKS_PATH = "chunks.yaml"
 DIAGNOSTICS = [
     {
         "name": "diags.zarr",
@@ -409,12 +410,14 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
 def test_nudge_run(tmpdir):
     config = get_nudging_config(default_fv3config, "gs://" + IC_PATH.as_posix())
     config["diagnostics"] = DIAGNOSTICS
+    config["fortran_diagnostics"] = []
     run_native(config, str(tmpdir), runfile=NUDGE_RUNFILE)
 
 
 def get_prognostic_config(model_path):
     config = yaml.safe_load(default_fv3config)
     config["diagnostics"] = DIAGNOSTICS
+    config["fortran_diagnostics"] = []
     config["scikit_learn"] = {"model": [model_path], "zarr_output": "diags.zarr"}
     config["step_storage_variables"] = ["specific_humidity", "total_water"]
     # use local paths in prognostic_run image. fv3config
@@ -525,6 +528,10 @@ def test_fv3run_logs_present(completed_rundir):
 
 def test_runfile_script_present(completed_rundir):
     assert completed_rundir.join(RUNFILE_PATH).exists()
+
+
+def test_chunks_present(completed_rundir):
+    assert completed_rundir.join(CHUNKS_PATH).exists()
 
 
 def test_fv3run_diagnostic_outputs(completed_rundir):

@@ -1,4 +1,14 @@
-from typing import Any, Sequence, Container, Mapping, List, Union, Dict, Optional
+from typing import (
+    Any,
+    Sequence,
+    Container,
+    Mapping,
+    List,
+    Union,
+    Dict,
+    Optional,
+    MutableMapping,
+)
 
 import datetime
 import cftime
@@ -168,11 +178,13 @@ class DiagnosticFileConfig:
         variables: the variables to save. By default all available diagnostics
             are stored. Example: ``["air_temperature", "cos_zenith_angle"]``.
         times: the time configuration
+        chunks: mapping of dimension names to chunk sizes
     """
 
     name: str
     variables: Optional[Container] = None
     times: TimeConfig = dataclasses.field(default_factory=lambda: TimeConfig())
+    chunks: Optional[Mapping[str, int]] = None
 
     def to_dict(self) -> Dict:
         return dataclasses.asdict(self)
@@ -188,6 +200,23 @@ class DiagnosticFileConfig:
             times=self.times.time_container(initial_time),
             monitor=fv3gfs.util.ZarrMonitor(self.name, partitioner, mpi_comm=comm),
         )
+
+
+@dataclasses.dataclass
+class FortranFileConfig:
+    """Configurations for Fortran diagnostics defined in diag_table to be converted to zarr
+
+    Attributes:
+        name: filename of the diagnostic. Must include .zarr suffix. For example, if
+            atmos_8xdaily is defined in diag_table, use atmos_8xdaily.zarr here.
+        chunks: mapping of dimension names to chunk sizes
+    """
+
+    name: str
+    chunks: Mapping[str, int]
+
+    def to_dict(self) -> Dict:
+        return dataclasses.asdict(self)
 
 
 class DiagnosticFile:
@@ -297,7 +326,7 @@ def get_diagnostic_files(
     the sklearn runfile.
 
     Args:
-        config: A loaded "fv3config" dictionary with a "diagnostics" section
+        configs: A sequence of DiagnosticFileConfigs
         paritioner: a partioner object used for writing, maybe it would be
             cleaner to pass a factory
         comm: an MPI Comm object
@@ -307,3 +336,14 @@ def get_diagnostic_files(
     return [
         config.diagnostic_file(initial_time, partitioner, comm) for config in configs
     ]
+
+
+def get_chunks(
+    diagnostic_file_configs: Sequence[Union[DiagnosticFileConfig, FortranFileConfig]],
+) -> Mapping[str, Mapping[str, int]]:
+    """Get a mapping of diagnostic file name to chunking from a sequence of diagnostic
+    file configs."""
+    chunks: MutableMapping = {}
+    for diagnostic_file_config in diagnostic_file_configs:
+        chunks[diagnostic_file_config.name] = diagnostic_file_config.chunks
+    return chunks

@@ -44,6 +44,8 @@ if __name__ == "__main__":
     diag_files = runtime.get_diagnostic_files(
         config.diagnostics, partitioner, comm, initial_time=loop.time
     )
+    if comm.rank == 0:
+        runtime.write_chunks(config)
 
     for time, diagnostics in loop:
 

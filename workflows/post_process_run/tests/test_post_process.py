@@ -5,7 +5,6 @@ from fv3post.post_process import (
     parse_rundir,
     process_item,
     open_tiles,
-    get_chunks,
     cast_time,
     clear_encoding,
 )
@@ -122,12 +121,6 @@ def test_open_tiles_netcdf_data(tmpdir):
     assert isinstance(saved_ds, xr.Dataset)
     # check for variable "a"
     saved_ds["a"]
-
-
-def test_get_chunks():
-    output = get_chunks(TEST_CHUNKS)
-    for key in TEST_CHUNKS:
-        assert output[key] == TEST_CHUNKS[key]
 
 
 def test_cast_time_no_coord():

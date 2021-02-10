@@ -95,6 +95,8 @@ step_storage_variables:
   - cloud_water_mixing_ratio
 diagnostics:
   - name: step_diags.zarr
+    chunks:
+      time: 4
     variables:
       - tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics
       - storage_of_specific_humidity_path_due_to_fv3_physics

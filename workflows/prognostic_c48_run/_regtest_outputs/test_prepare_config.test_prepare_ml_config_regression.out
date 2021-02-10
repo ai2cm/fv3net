@@ -1,7 +1,9 @@
 data_table: default
 diag_table: /fv3net/workflows/prognostic_c48_run/diag_table_prognostic
 diagnostics:
-- name: diags.zarr
+- chunks:
+    time: 96
+  name: diags.zarr
   times:
     frequency: 900
     includes_lower: false
@@ -21,6 +23,19 @@ diagnostics:
   - column_integrated_dQv_diagnostic
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+fortran_diagnostics:
+- chunks:
+    time: 96
+  name: sfc_dt_atmos.zarr
+- chunks:
+    time: 96
+  name: atmos_dt_atmos.zarr
+- chunks:
+    time: 8
+  name: atmos_8xdaily.zarr
+- chunks:
+    time: 8
+  name: nudging_tendencies.zarr
 gfs_analysis_data:
   copy_method: copy
   filename_pattern: '%Y%m%d_%HZ_T85LR.nc'
