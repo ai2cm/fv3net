@@ -2,10 +2,12 @@ import fsspec
 import json
 import numpy as np
 import os
+import random
 import shutil
 from typing import Mapping, Sequence, Dict
-import yaml
+import warnings
 import xarray as xr
+import yaml
 
 import report
 from vcm import safe
@@ -215,3 +217,20 @@ def net_precipitation_provenance_information(
         else:
             new_domain_coords.append(_shorten_coordinate_label(coord))
     return xr.Variable(domain.dims, new_domain_coords)
+
+
+def sample_outside_train_range(all: Sequence, train: Sequence, n_sample: int,) -> list:
+    # Draws test samples from outside the training time range
+    if len(train) == 0:
+        warnings.warn(
+            "Training timestep list has zero length, test set will be drawn from "
+            "the full set of timesteps in mapper."
+        )
+        outside_train_range = all
+    else:
+        outside_train_range = [t for t in all if t < min(train) or t > max(train)]
+    if len(outside_train_range) == 0:
+        raise ValueError("There are no timesteps available outside the training range.")
+    num_test = min(len(outside_train_range), n_sample)
+    random.seed(0)
+    return random.sample(sorted(outside_train_range), max(1, num_test))
