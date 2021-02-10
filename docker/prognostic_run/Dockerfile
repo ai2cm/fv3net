@@ -72,8 +72,6 @@ RUN pip3 install /fv3net/external/fv3fit
 COPY external/fv3kube /fv3net/external/fv3kube
 RUN pip3 install /fv3net/external/fv3kube
 
-COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
-
 RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     mkdir /outdir && \
     chmod -R 777 /outdir
@@ -98,6 +96,8 @@ RUN pip3 install -c /tmp/constraints.txt -e /fv3net/workflows/post_process_run
 # these are needed for "click" to work
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
+
+COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
 
 ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:${PYTHONPATH}
 WORKDIR /fv3net/workflows/prognostic_c48_run

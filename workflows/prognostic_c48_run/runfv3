@@ -21,7 +21,7 @@ function usage {
     echo "It also provides low level commands used for debugging."
     echo ""
     echo "Usage:"
-    echo " runfv3 create <outputUrl> <fv3configFile> <chunks> <runFile>" > /dev/stderr 
+    echo " runfv3 create <outputUrl> <fv3configFile> <runFile>" > /dev/stderr 
     echo " runfv3 append <outputUrl>" > /dev/stderr 
     echo " runfv3 run-native <fv3config> <rundir> <runfile>" > /dev/stderr
     echo ""
@@ -38,19 +38,12 @@ function usage {
 function createRun {
     url="$1"
     fv3config="$2"
-    chunks="$3"
-    runfile="$4"
+    runfile="$3"
 
 
-    if [[ $# != 4 ]]
+    if [[ $# != 3 ]]
     then 
         usage
-        exit 1
-    fi
-
-    if [[ "$(cat "$chunks")" == "" ]] 
-    then
-        echo "$chunks is empty" > /dev/stderr
         exit 1
     fi
 
@@ -58,18 +51,12 @@ function createRun {
 
     echo "Setting up iterations"
     gsutil cp "$fv3config" "$url/fv3config.yml"
-    gsutil cp "$chunks" "$url/chunks.yaml"
     gsutil cp "$runfile" "$url/runfile.py"
 }
 
 function readRunConfig {
     url="$1"
     gsutil cat "$runURL/fv3config.yml"
-}
-
-function readRunChunks {
-    url="$1"
-    gsutil cat "$runURL/chunks.yaml"
 }
 
 function readRunLastSegment {
@@ -94,7 +81,6 @@ function appendSegment {
     workingDir="$(mktemp -d)"
     echo "Iteration run=$runURL working_directory=$workingDir" > /dev/stderr
     readRunConfig "$runURL" > "$workingDir/fv3config.yml"
-    readRunChunks "$runURL" > "$workingDir/chunks.yaml"
     lastSegment=$(readRunLastSegment "$runURL")
 
     if [[ -n "$lastSegment" ]]
@@ -116,7 +102,7 @@ function appendSegment {
     fv3ExitCode=$?
     set -e
 
-    post_process_run --chunks "$workingDir/chunks.yaml" "$rundir" "$postProcessedOut"
+    post_process_run --chunks "$rundir/chunks.yaml" "$rundir" "$postProcessedOut"
     append_run "$postProcessedOut" "$runURL"
 
     echo "Cleaning up working directory"
