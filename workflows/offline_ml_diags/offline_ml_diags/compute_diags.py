@@ -141,9 +141,10 @@ def _create_arg_parser() -> argparse.Namespace:
         type=str,
         default=None,
         help=(
-            "Optional path to grid data netcdf. If not provided, defaults to loading the grid "
-            "with the appropriate resolution (given in batch_kwargs) from the catalog. "
-            "Useful if you do not have permissions to access the GCS data in vcm.catalog."
+            "Optional path to grid data netcdf. If not provided, defaults to loading "
+            "the grid  with the appropriate resolution (given in batch_kwargs) from "
+            "the catalog. Useful if you do not have permissions to access the GCS "
+            "data in vcm.catalog."
         ),
     )
     return parser.parse_args()
