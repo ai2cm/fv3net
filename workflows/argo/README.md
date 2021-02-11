@@ -84,8 +84,8 @@ See the [end-to-end intergration tests](/tests/end_to_end_integration) for an ex
 The `run-fv3gfs` template is a general purpose workflow to do fv3gfs simulations on the
 cloud. It does post-processing on the fly and the workflow can run the model in
 sequential segments to increase reliability and reduce the memory requirement for
-the post-processing step. See the nudging workflow at
-`workflows/argo/nudging/nudging.yaml` for an example usage of the `run-fv3gfs`
+the post-processing step. See the prognostic run workflow at
+`workflows/argo/prognostic-run.yaml` for an example usage of the `run-fv3gfs`
 template.
 
 | Parameter            | Description                                                                                           |
@@ -93,7 +93,6 @@ template.
 | fv3config            | String representation of an fv3config object                                                          |
 | runfile              | String representation of an fv3gfs runfile                                                            |
 | output-url           | GCS url for outputs                                                                                   |
-| chunks               | (optional) String describing desired chunking of diagnostics                                          |
 | cpu                  | (optional) Requested cpu for run-model step                                                           |
 | memory               | (optional) Requested memory for run-model step                                                        |
 | segment-count        | (optional) Number of segments to run                                                                  |
@@ -115,18 +114,37 @@ to the workflow.
 The post-processing can convert netCDF diagnostic outputs of the form `name.tile?.nc`
 to zarr with user-specified chunks and rechunk zarrs output by fv3gfs-wrapper. To
 specify that a set of netCDF outputs should be converted to zarr, their chunking must be
-defined in the given `chunks` parameter. For example:
+defined in the `fortran_diagnostics` section of the config provided to the `prognostic-run`
+workflow. The chunking for zarr outputs from the python runfile are defined with the `diagnostics`
+section. For example:
 ```yaml
-atmos_8xdaily.zarr:
-  time: 8
-nudging_tendencies.zarr:
-  time: 1
-sfc_dt_atmos.zarr:
-  time: 96
+initial_conditions: gs://vcm-ml-data/initial-conditions-url
+namelist:
+  coupler_nml:
+    days: 5
+fortran_diagnostics:
+  - name: atmos_8xdaily.zarr
+    chunks:
+      time: 8
+  - name: nudging_tendencies.zarr
+    chunks:
+      time: 1
+  - name: sfc_dt_atmos.zarr
+    chunks:
+      time: 96
+diagnostics:
+  - name: diags.zarr
+    chunks:
+      time: 96
+    variables:
+      - net_heating
+      - net_moistening
+      - column_integrated_dQu
+      - column_integrated_dQv
 ```
 
-Some diagnostics have default chunking. See post-processing script at 
-`workflows/post_process_run/post_process.py` for more details.
+Some diagnostics have default chunking which is inserted by the `prepare_config.py`
+script if no diagnostics are specified.
 
 WARNING: if `segment-count` is greater than 1, the chunk size in time must evenly
 divide the length of the time dimension for each diagnostic output.
@@ -165,7 +183,6 @@ an appropriate `training-config` string.
 | prognostic-run-config | String representation of a prognostic run configuration YAML file          |
 | reference-restarts    | Location of restart data for initializing the prognostic run               |
 | flags                 | (optional) extra command line flags for prepare_config.py                  |
-| chunks                | (optional) Custom dimension rechunking mapping for prognostic run outputs  |
 | segment-count         | (optional) Number of prognostic run segments; default 1                    |
 | cpu-prog              | (optional) Number of cpus for prognostic run nodes; default 6              |
 | memory-prog           | (optional) Memory for prognostic run nodes; default 6Gi                    |
