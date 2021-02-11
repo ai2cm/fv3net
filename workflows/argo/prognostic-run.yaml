@@ -24,7 +24,6 @@ spec:
           - {name: reference-restarts}
           - {name: flags, value: ""}
           - {name: output}
-          - {name: chunks, value: "{}"}  # by default just use chunks defined in post_process.py
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 6Gi}
@@ -46,7 +45,6 @@ spec:
               - {name: fv3config, from: "{{steps.prepare-config.outputs.artifacts.fv3config}}"}
               - {name: runfile, from: "{{steps.prepare-config.outputs.artifacts.runfile}}"}
             parameters:
-              - {name: chunks, value: "{{inputs.parameters.chunks}}"} 
               - {name: output-url, value: "{{inputs.parameters.output}}"}
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}

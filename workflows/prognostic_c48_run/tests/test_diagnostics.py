@@ -7,6 +7,8 @@ import xarray as xr
 
 from runtime.diagnostics import manager
 from runtime.diagnostics.manager import (
+    FortranFileConfig,
+    DiagnosticFileConfig,
     DiagnosticFile,
     TimeConfig,
     All,
@@ -223,3 +225,29 @@ def test_TimeConfig_interval_average_endpoint():
     assert container == IntervalAveragedTimes(
         timedelta(seconds=3600), datetime(2020, 1, 1), includes_lower=True
     )
+
+
+@pytest.mark.parametrize(
+    "fortran_diagnostics,diagnostics,expected_chunks",
+    [
+        ([], [], {}),
+        (
+            [FortranFileConfig(name="sfc_dt_atmos.zarr", chunks={"time": 2})],
+            [],
+            {"sfc_dt_atmos.zarr": {"time": 2}},
+        ),
+        (
+            [],
+            [DiagnosticFileConfig(name="diags.zarr", chunks={"time": 4})],
+            {"diags.zarr": {"time": 4}},
+        ),
+        (
+            [FortranFileConfig(name="sfc_dt_atmos.zarr", chunks={"time": 2})],
+            [DiagnosticFileConfig(name="diags.zarr", chunks={"time": 4})],
+            {"diags.zarr": {"time": 4}, "sfc_dt_atmos.zarr": {"time": 2}},
+        ),
+    ],
+)
+def test_get_chunks(fortran_diagnostics, diagnostics, expected_chunks):
+    chunks = manager.get_chunks(fortran_diagnostics + diagnostics)
+    assert chunks == expected_chunks

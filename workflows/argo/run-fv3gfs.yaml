@@ -12,7 +12,6 @@ spec:
         - name: runfile
       parameters:
         - name: output-url
-        - {name: chunks, value: "{}"}
         - {name: cpu, value: "6"}
         - {name: memory, value: 8Gi}
         - {name: segment-count, value: "1"}
@@ -24,7 +23,6 @@ spec:
             - {name: runURL, value: "{{inputs.parameters.output-url}}"}
             - {name: cpu, value: "{{inputs.parameters.cpu}}"}
             - {name: memory, value: "{{inputs.parameters.memory}}"}
-            - {name: chunks, value: "{{inputs.parameters.chunks}}"}
             artifacts:
               - name: fv3config
                 from: "{{inputs.artifacts.fv3config}}"
@@ -81,7 +79,6 @@ spec:
           path: /mnt/data/runfile.py
       parameters:
         - name: runURL
-        - name: chunks
     container:
       image: us.gcr.io/vcm-ml/prognostic_run
       command: ["/bin/bash", "-c", "-x", "-e"]
@@ -92,8 +89,7 @@ spec:
         cat /mnt/data/runfile.py
         echo "Using fv3config:"
         cat /mnt/data/fv3config.yaml
-        echo "{{inputs.parameters.chunks}}" > chunks.yaml
-        runfv3 create {{inputs.parameters.runURL}} /mnt/data/fv3config.yaml chunks.yaml /mnt/data/runfile.py
+        runfv3 create {{inputs.parameters.runURL}} /mnt/data/fv3config.yaml /mnt/data/runfile.py
       env:
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /secret/gcp-credentials/key.json
