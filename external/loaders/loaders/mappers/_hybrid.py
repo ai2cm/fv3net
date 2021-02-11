@@ -2,7 +2,7 @@ from typing import Mapping, List, TypeVar
 import xarray as xr
 
 from ._base import GeoMapper
-from ._nudged import open_merged_nudged_full_tendencies, open_nudged_to_obs_prognostic
+from ._nudged import open_merged_nudged_full_tendencies, open_nudged_to_obs_prognostic, open_nudge_to_fine
 from ._fine_resolution_budget import (
     FineResolutionSources,
     open_fine_res_apparent_sources,
@@ -104,6 +104,7 @@ def _open_fine_resolution_nudging_hybrid(
     mapper: T_Mapper = FineResolutionResidual,
     nudging: Mapping = None,
     fine_res: Mapping = None,
+    legacy: bool = True,
     **kwargs
 ) -> T_Mapper:
     """
@@ -117,6 +118,7 @@ def _open_fine_resolution_nudging_hybrid(
         nudging: keyword arguments passed to
             :py:func:`open_merged_nudging_full_tendencies`
         fine_res: keyword arguments passed to :py:func:`open_fine_res_apparent_sources`
+        legacy: if true (default) use the legacy method for opening the nudged data.
         **kwargs: additional keyword arguments to be passed to the mapper constructor
 
     Returns:
@@ -137,13 +139,16 @@ def _open_fine_resolution_nudging_hybrid(
                 "fine res kwargs."
             )
 
-    nudged = open_merged_nudged_full_tendencies(**nudging)
+    if legacy:
+        nudged = open_merged_nudged_full_tendencies(**nudging)
+    else:
+        nudged = open_nudge_to_fine(**nudging)
     fine_res = open_fine_res_apparent_sources(offset_seconds=offset_seconds, **fine_res)
     return mapper(nudged, fine_res, **kwargs)
 
 
 def open_fine_resolution_nudging_hybrid(
-    data_paths: List[str], nudging: Mapping = None, fine_res: Mapping = None,
+    data_paths: List[str], legacy: bool = True, nudging: Mapping = None, fine_res: Mapping = None,
 ) -> FineResolutionResidual:
     """
     Open the fine resolution nudging_hybrid mapper
@@ -152,6 +157,7 @@ def open_fine_resolution_nudging_hybrid(
         data_paths: If list of urls is provided, the first is used as the nudging
             data url and second is used as fine res. If string or None, the paths must
             be provided in each mapper's kwargs.
+        legacy: if true (default), use the legacy method of opening the nudging data.
         nudging: keyword arguments passed to
             :py:func:`open_merged_nudging_full_tendencies`
         fine_res: keyword arguments passed to :py:func:`open_fine_res_apparent_sources`
@@ -160,9 +166,9 @@ def open_fine_resolution_nudging_hybrid(
         a mapper
     """
     return _open_fine_resolution_nudging_hybrid(
-        data_paths, nudging=nudging, fine_res=fine_res
+        data_paths, nudging=nudging, fine_res=fine_res, legacy=legacy
     )
-
+    
 
 def open_fine_resolution_nudging_hybrid_clouds_off(
     data_paths: List[str],
