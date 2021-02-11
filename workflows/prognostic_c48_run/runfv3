@@ -142,7 +142,6 @@ function runSegment {
     write_run_directory "$fv3config" "$rundir"
     mkdir -p "$rundir"
     cp "$runfile" "$rundir/runfile.py"
-    export OMP_NUM_THREADS=1
     (
         cd "$rundir"
         NUM_PROC=$(yq '.namelist.fv_core_nml.layout | .[0] *.[1] * 6' "$fv3config")
