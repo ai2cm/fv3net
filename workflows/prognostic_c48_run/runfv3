@@ -97,7 +97,9 @@ function appendSegment {
     postProcessedOut="$workingDir/post_processed"
     gsutil cp "$runURL/runfile.py" "$workingDir/runfile.py"
 
+    set +e
     runSegment "$workingDir/fv3config.yml" "$rundir" "$workingDir/runfile.py"
+    set -e
     fv3ExitCode=$?
 
     post_process_run --chunks "$rundir/chunks.yaml" "$rundir" "$postProcessedOut"
@@ -131,9 +133,7 @@ function runSegment {
     (
         cd "$rundir"
         NUM_PROC=$(yq '.namelist.fv_core_nml.layout | .[0] *.[1] * 6' "$fv3config")
-        set +e
         mpirun -n "$NUM_PROC" python3 "$runfile" |& tee -a "$rundir/logs.txt"
-        set -e
     )
 }
 
