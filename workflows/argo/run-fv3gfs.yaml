@@ -82,6 +82,10 @@ spec:
     container:
       image: us.gcr.io/vcm-ml/prognostic_run
       command: ["/bin/bash", "-c", "-x", "-e"]
+      resources:
+        limits:
+            memory: "250Mi"
+            cpu: "500m"
       args:
       - |
         find /mnt/data
