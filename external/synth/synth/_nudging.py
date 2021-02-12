@@ -3,7 +3,8 @@ from typing import Sequence
 
 import numpy as np
 
-from synth.core import DatasetSchema, generate
+from synth.core import DatasetSchema, generate, Range
+
 
 from .schemas import load_schema as _load_schema
 
@@ -19,6 +20,7 @@ def _generate(
     physics_tendency_components_schema: DatasetSchema,
     times: Sequence[np.datetime64],
 ):
+    ranges = {"pressure_thickness_of_atmospheric_layer": Range(0.99, 1.01)}
     for relpath, schema in [
         ("before_dynamics.zarr", before_dynamics_schema),
         ("after_dynamics.zarr", after_dynamics_schema),
@@ -29,7 +31,11 @@ def _generate(
         ("physics_tendency_components.zarr", physics_tendency_components_schema),
     ]:
         outpath = os.path.join(directory, relpath)
-        (generate(schema).assign_coords(time=times).to_zarr(outpath, consolidated=True))
+        (
+            generate(schema, ranges)
+            .assign_coords(time=times)
+            .to_zarr(outpath, consolidated=True)
+        )
 
 
 def generate_nudging(outdir: str, times: Sequence[np.datetime64]):
