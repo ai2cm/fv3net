@@ -1,17 +1,14 @@
-import pytest
 import logging
 from dataclasses import dataclass
 import tempfile
 import os
-from typing import Optional, Sequence
+from typing import Optional
 from synth import (  # noqa: F401
-    dataset_fixtures_dir,
-    data_source_name,
-    data_source_path,
     grid_dataset,
     grid_dataset_path,
+    nudging_dataset_path,
+    dataset_fixtures_dir,
 )
-import xarray as xr
 from fv3fit._shared import load_data_sequence
 from fv3fit._shared.config import ModelTrainingConfig
 from fv3fit.keras import get_model
@@ -37,32 +34,20 @@ batch_kwargs = {
 }
 
 
-@pytest.fixture
-def train_config() -> ModelTrainingConfig:
-    return ModelTrainingConfig(
-        model_type="DenseModel",
-        hyperparameters={"width": 3, "depth": 2},
-        input_variables=["air_temperature", "specific_humidity"],
-        output_variables=["dQ1", "dQ2"],
-        batch_function="batches_from_geodata",
-        batch_kwargs=batch_kwargs,
-        scaler_type="standard",
-        scaler_kwargs={},
-        additional_variables=None,
-        random_seed=0,
-        validation_timesteps=None,
-        data_path=data_source_path,
-    )
-
-
-@pytest.fixture
-def training_batches(
-    data_source_name: str,  # noqa: F811
-    data_source_path: str,  # noqa: F811
-    train_config: ModelTrainingConfig,
-) -> Sequence[xr.Dataset]:
-    batched_data = load_data_sequence(data_source_path, train_config)
-    return batched_data
+train_config = ModelTrainingConfig(
+    model_type="DenseModel",
+    hyperparameters={"width": 3, "depth": 2},
+    input_variables=["air_temperature", "specific_humidity"],
+    output_variables=["dQ1", "dQ2"],
+    batch_function="batches_from_geodata",
+    batch_kwargs=batch_kwargs,
+    scaler_type="standard",
+    scaler_kwargs={},
+    additional_variables=None,
+    random_seed=0,
+    validation_timesteps=None,
+    data_path=nudging_dataset_path,
+)
 
 
 def model(training_batches) -> Estimator:
@@ -91,18 +76,18 @@ class Args:
     snapshot_time: Optional[str] = None
 
 
-@pytest.mark.parametrize("data_source_name", ["nudging_tendencies"], indirect=True)
 def test_offline_diags_integration(
-    train_config, data_source_path, training_batches, grid_dataset_path  # noqa: F811
+    nudging_dataset_path, grid_dataset_path  # noqa: F811
 ):
     """
     Test the bash endpoint for computing offline diagnostics
     """
+    training_batches = load_data_sequence(nudging_dataset_path, train_config)
     trained_model = model(training_batches)
     with tempfile.TemporaryDirectory() as tmpdir:
         model_dir = os.path.join(tmpdir, "trained_model")
         trained_model.dump(model_dir)
-        train_config.data_path = data_source_path
+        train_config.data_path = nudging_dataset_path
         train_config.dump(model_dir)
         args = Args(model_dir, os.path.join(tmpdir, "offline_diags"), grid_dataset_path)
         main(args)
