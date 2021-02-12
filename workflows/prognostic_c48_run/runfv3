@@ -99,8 +99,8 @@ function appendSegment {
 
     set +e
     runSegment "$workingDir/fv3config.yml" "$rundir" "$workingDir/runfile.py"
-    set -e
     fv3ExitCode=$?
+    set -e
 
     post_process_run --chunks "$rundir/chunks.yaml" "$rundir" "$postProcessedOut"
     append_run "$postProcessedOut" "$runURL"
