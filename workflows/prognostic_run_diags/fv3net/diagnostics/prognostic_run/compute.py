@@ -12,7 +12,6 @@ dynamical core of the model and saved in `atmos_dt_atmos.tile*.nc` while the "ph
 grouping contains outputs from the physics routines (`sfc_dt_atmos.tile*.nc` and
 `diags.zarr`).
 """
-import argparse
 import os
 import sys
 

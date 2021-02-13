@@ -1,9 +1,9 @@
-import warnings
-warnings.filterwarnings("ignore", module="intake")
-
 import argparse
-from fv3net.diagnostics.prognostic_run import (metrics, compute)
-from fv3net.diagnostics.prognostic_run.views import (movie_stills, static_report)
+from fv3net.diagnostics.prognostic_run import metrics, compute
+from fv3net.diagnostics.prognostic_run.views import (
+    movie_stills,
+    static_report,
+)  # ignore: E402
 
 
 parser = argparse.ArgumentParser(description="Prognostic run diagnostics")
@@ -14,6 +14,5 @@ metrics.register_parser(subparsers)
 movie_stills.register_parser(subparsers)
 static_report.register_parser(subparsers)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser.parse_args()
-

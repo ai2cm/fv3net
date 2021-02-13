@@ -1,4 +1,3 @@
-import argparse
 import logging
 import os
 from multiprocessing import get_context

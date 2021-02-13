@@ -122,7 +122,9 @@ def time_mean_bias(diags):
 
 
 def register_parser(subparsers):
-    parser = subparsers.add_parser("metrics", help="Compute metrics from verification diagnostics.")
+    parser = subparsers.add_parser(
+        "metrics", help="Compute metrics from verification diagnostics."
+    )
     parser.add_argument("input", help="netcdf file of compute diagnostics.")
     parser.add_argument("output")
     parser.set_defaults(func=main)
