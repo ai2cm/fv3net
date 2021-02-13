@@ -15,8 +15,9 @@ import xarray as xr
 import fv3viz as viz
 import vcm
 import vcm.catalog
-import config
-import load_diagnostic_data as load_diags
+
+from fv3net.diagnostics.prognostic_run import config
+import fv3net.diagnostics.prognostic_run.load_diagnostic_data as load_diags
 
 dask.config.set(sheduler="single-threaded")
 
@@ -126,11 +127,8 @@ def _movie_specs():
     }
 
 
-if __name__ == "__main__":
-    logger = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.INFO)
-
-    parser = argparse.ArgumentParser()
+def register_parser(subparsers):
+    parser = subparsers.add_parser("movie", help="generate movie still.")
     parser.add_argument("url", help="Path to rundir")
     parser.add_argument("output", help="Output location for movie stills")
     parser.add_argument("--n_jobs", default=8, type=int, help="Number of workers.")
@@ -141,7 +139,12 @@ if __name__ == "__main__":
         help="Number of timesteps for which stills are generated.",
     )
     parser.add_argument("--catalog", default=vcm.catalog.catalog_path)
-    args = parser.parse_args()
+    parser.set_defaults(func=main)
+
+
+def main(args):
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO)
 
     if vcm.cloud.get_protocol(args.output) == "file":
         os.makedirs(args.output, exist_ok=True)

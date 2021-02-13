@@ -29,11 +29,12 @@ from collections import defaultdict
 from typing import Dict, Callable, Mapping, Union
 
 import vcm.catalog
-import load_diagnostic_data as load_diags
-import config
-import diurnal_cycle
-import transform
-from constants import (
+
+from fv3net.diagnostics.prognostic_run import load_diagnostic_data as load_diags
+from fv3net.diagnostics.prognostic_run import config
+from fv3net.diagnostics.prognostic_run import diurnal_cycle
+from fv3net.diagnostics.prognostic_run import transform
+from fv3net.diagnostics.prognostic_run.constants import (
     HORIZONTAL_DIMS,
     DiagArg,
     GLOBAL_AVERAGE_DYCORE_VARS,
@@ -444,8 +445,8 @@ for mask_type in ["global", "land", "sea"]:
             return _assign_diagnostic_time_attrs(diag, prognostic)
 
 
-def _get_parser():
-    parser = argparse.ArgumentParser()
+def register_parser(subparsers):
+    parser = subparsers.add_parser("save", help="Compute the prognostic run diags.")
     parser.add_argument("url")
     parser.add_argument("output")
     parser.add_argument("--catalog", default=vcm.catalog.catalog_path)
@@ -455,14 +456,12 @@ def _get_parser():
         "'simulation' metadata from intake catalog.",
         default="40day_may2020",
     )
-    return parser
+    parser.set_defaults(func=main)
 
 
-if __name__ == "__main__":
+def main(args):
+
     logging.basicConfig(level=logging.INFO)
-
-    args = _get_parser().parse_args()
-
     attrs = vars(args)
     attrs["history"] = " ".join(sys.argv)
 

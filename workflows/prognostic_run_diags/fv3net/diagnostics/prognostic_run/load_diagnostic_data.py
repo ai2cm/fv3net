@@ -7,8 +7,9 @@ from typing import List, Iterable, Mapping, Set, Sequence
 
 import fsspec
 import vcm
-import add_derived
-from constants import DiagArg
+
+from fv3net.diagnostics.prognostic_run import add_derived
+from fv3net.diagnostics.prognostic_run.constants import DiagArg
 
 logger = logging.getLogger(__name__)
 

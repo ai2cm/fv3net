@@ -401,10 +401,15 @@ def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
         return HVPlot(hmap.opts(**bar_opts))
 
 
-def main():
-    parser = argparse.ArgumentParser()
+def register_parser(subparsers):
+    parser = subparsers.add_parser("report", help="Generate a static html report.")
     parser.add_argument("input")
     parser.add_argument("output")
+    parser.set_defaults(func=main)
+
+
+def main(args):
+    parser = argparse.ArgumentParser()
 
     args = parser.parse_args()
     bucket = args.input

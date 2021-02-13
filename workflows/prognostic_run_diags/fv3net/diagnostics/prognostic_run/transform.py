@@ -14,7 +14,7 @@ import pandas as pd
 import xarray as xr
 from datetime import datetime, timedelta
 
-from constants import HORIZONTAL_DIMS, DiagArg
+from .constants import HORIZONTAL_DIMS, DiagArg
 
 _TRANSFORM_FNS = {}
 
