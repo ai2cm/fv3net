@@ -4,7 +4,7 @@ import intake
 import os
 from typing import Hashable, Sequence, Mapping, Optional, Any, MutableMapping
 
-from .._base import MultiDatasetMapper
+from .._base import MultiDatasetMapper, LongRunMapper
 from .._xarray import XarrayMapper
 
 logger = logging.getLogger(__name__)
@@ -115,7 +115,7 @@ def open_nudge_to_fine(
     nudging_variables: Sequence[str],
     physics_timestep_seconds: float = 900.0,
     consolidated: bool = True,
-) -> XarrayMapper:
+) -> LongRunMapper:
     """
     Load nudge-to-fine data mapper for use with training. Merges
     variables saved in the physics tendencies, nudging tendencies, and
@@ -167,7 +167,7 @@ def open_nudge_to_fine(
         "tendency_of_northward_wind_due_to_fv3_physics": "pQv",
     }
 
-    return XarrayMapper(ds.rename(rename_vars))
+    return LongRunMapper(ds.rename(rename_vars))
 
 
 def open_nudge_to_fine_multiple_datasets(
