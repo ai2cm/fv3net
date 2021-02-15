@@ -23,4 +23,4 @@ def test_open_zarr(tmpdir):
 
     mapper = open_zarr(str(tmpdir))
     assert isinstance(mapper, XarrayMapper)
-    xr.testing.assert_equal(mapper[time_str], ds.isel(time=0))
+    xr.testing.assert_equal(mapper[time_str], ds.isel(time=0).drop_vars(names="time"))

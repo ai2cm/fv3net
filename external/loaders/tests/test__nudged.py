@@ -151,10 +151,16 @@ def test_open_nudge_to_fine_subtract_nudging_increment(
 
     for nudging_variable in nudge_to_fine_variables:
         before_nudging_variable_state = (
-            nudging_variable_state[nudging_variable]
-            - nudge_to_fine_tendencies[f"{nudging_variable}_tendency_due_to_nudging"]
-            * physics_timestep_seconds
-        ).isel(time=0)
+            (
+                nudging_variable_state[nudging_variable]
+                - nudge_to_fine_tendencies[
+                    f"{nudging_variable}_tendency_due_to_nudging"
+                ]
+                * physics_timestep_seconds
+            )
+            .isel(time=0)
+            .drop_vars(names="time")
+        )
         key = sorted(list(mapper.keys()))[0]
         xr.testing.assert_allclose(
             mapper[key][nudging_variable], before_nudging_variable_state
@@ -229,9 +235,14 @@ def test_open_nudge_to_obs_subtract_nudging_increment(
 
     for nudged_variable_name, nudging_tendency_name in nudge_to_obs_variables.items():
         before_nudging_variable_state = (
-            nudging_variable_state[nudged_variable_name]
-            - nudge_to_obs_tendencies[nudging_tendency_name] * physics_timestep_seconds
-        ).isel(time=0)
+            (
+                nudging_variable_state[nudged_variable_name]
+                - nudge_to_obs_tendencies[nudging_tendency_name]
+                * physics_timestep_seconds
+            )
+            .isel(time=0)
+            .drop_vars(names="time")
+        )
         key = sorted(list(mapper.keys()))[0]
         xr.testing.assert_allclose(
             mapper[key][nudged_variable_name], before_nudging_variable_state
@@ -281,8 +292,12 @@ def test_open_nudge_to_obs_subtract_nudging_tendency(
 
     for nudging_tendency_name, physics_tendency_name in physics_nudging_mapping.items():
         physics_tendency = (
-            physics_tendencies[physics_tendency_name]
-            - nudge_to_obs_tendencies[nudging_tendency_name]
-        ).isel(time=0)
+            (
+                physics_tendencies[physics_tendency_name]
+                - nudge_to_obs_tendencies[nudging_tendency_name]
+            )
+            .isel(time=0)
+            .drop_vars(names="time")
+        )
         key = sorted(list(mapper.keys()))[0]
         xr.testing.assert_allclose(mapper[key][physics_tendency_name], physics_tendency)

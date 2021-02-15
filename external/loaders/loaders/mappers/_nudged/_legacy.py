@@ -98,8 +98,6 @@ class MergeNudged(LongRunMapper):
         for source in data_sources:
             if isinstance(source, LongRunMapper):
                 source = source.ds
-            print("_mapper_to_datasets")
-            print(source)
             datasets.append(standardize_zarr_time_coord(source))
 
         return datasets

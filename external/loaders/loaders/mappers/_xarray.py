@@ -19,8 +19,6 @@ class XarrayMapper(GeoMapper):
         >>> mapper["20160101.000000"]
         <xarray.Dataset>
         Dimensions:  (x: 2)
-        Coordinates:
-            time     object 2016-01-01 00:00:00
         Dimensions without coordinates: x
         Data variables:
             a        (x) int64 0 0
@@ -43,7 +41,7 @@ class XarrayMapper(GeoMapper):
         self.time_string_lookup = dict(zip(times, time_strings))
 
     def __getitem__(self, time_string):
-        return self.data.sel(time=self.time_lookup[time_string])
+        return self.data.sel(time=self.time_lookup[time_string]).drop_vars(names="time")
 
     def keys(self):
         return self.time_lookup.keys()
