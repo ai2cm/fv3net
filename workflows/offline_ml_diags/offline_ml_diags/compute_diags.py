@@ -274,7 +274,10 @@ def _get_base_mapper(config: fv3fit.ModelTrainingConfig):
         loaders.mappers, config.batch_kwargs["mapping_function"]
     )
     if not config.data_path:
-        raise ValueError("Model training config has no data path attribute.")
+        return base_mapping_function(
+        None, **config.batch_kwargs.get("mapping_kwargs", {})
+    )
+        # raise ValueError("Model training config has no data path attribute.")
     data_path = config.data_path
     if len(data_path) == 1:
         data_path = data_path[0]

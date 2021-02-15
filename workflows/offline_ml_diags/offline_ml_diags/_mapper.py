@@ -73,6 +73,8 @@ class PredictionMapper(GeoMapper):
                 else:
                     raise e
 
+        print(ds_derived)
+        print(ds_derived.isnull().sum().compute())
         ds_prediction = self._predict(ds_derived)
         return self._insert_prediction(ds_derived, ds_prediction)
 
