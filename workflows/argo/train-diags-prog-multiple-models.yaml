@@ -1,0 +1,177 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: train-diags-prog-multiple-models
+spec:
+  entrypoint: all
+  volumes:
+  - name: workdir
+    emptyVol: {}
+  - name: gcp-key-secret
+    secret:
+      secretName: gcp-key
+  templates:
+  - name: all
+    inputs:
+      parameters:
+      - name: root
+      - name: train-test-data
+      - name: training-configs  # used in withParam
+      - name: train-times
+      - name: initial-condition
+      - name: prognostic-run-config
+      - name: reference-restarts
+      - name: flags
+        value: " "
+      - name: test-times
+      - name: public-report-output
+      - {name: segment-count, value: "1"}
+      - {name: cpu-prog, value: "6"}
+      - {name: memory-prog, value: 6Gi}
+      - {name: memory-training, value: 6Gi}
+      - {name: memory-offline-diags, value: 6Gi}
+      - {name: training-flags, value: " "}
+    dag:
+      tasks:
+      - name: train-model
+        templateRef:
+          name: training
+          template: training
+        withParam: "{{workflow.parameters.training-configs}}"
+        arguments:
+          parameters:
+            - name: input
+              value: "{{inputs.parameters.train-test-data}}"
+            - name: config
+              value: "{{item.config}}"
+            - name: times
+              value: "{{inputs.parameters.train-times}}"
+            - name: output
+              value: "{{inputs.parameters.root}}/trained_models/{{item.name}}"
+            - name: memory
+              value: "{{inputs.parameters.memory-training}}"
+            - name: flags
+              value: "{{inputs.parameters.training-flags}}"
+      - name: offline-diags
+        dependencies: [train-model]
+        templateRef:
+          name: offline-diags
+          template: offline-diags
+        withParam: "{{workflow.parameters.training-configs}}"
+        arguments:
+          parameters:
+              - name: ml-model
+                value: "{{inputs.parameters.root}}/trained_models/{{item.name}}"
+              - name: times
+                value: "{{inputs.parameters.test-times}}"
+              - name: offline-diags-output
+                value: "{{inputs.parameters.root}}/offline_diags"
+              - name: report-output
+                value: "{{inputs.parameters.public-report-output}}"
+              - name: memory
+                value: "{{inputs.parameters.memory-offline-diags}}"
+      - name: prognostic-run-multiple-models
+        template: prognostic-run-multiple-models
+        dependencies: [train-model]
+        arguments:
+          parameters:
+              - name: initial-condition
+                value: "{{inputs.parameters.initial-condition}}"
+              - name: config
+                value: "{{inputs.parameters.prognostic-run-config}}"
+              - name: reference-restarts
+                value: "{{inputs.parameters.reference-restarts}}"
+              - name: output
+                value: "{{inputs.parameters.root}}/prognostic_run"
+              - name: flags
+                value: "{{inputs.parameters.flags}}"
+              - name: models-dir
+                value: "{{inputs.parameters.root}}/trained_models"
+              - name: segment-count
+                value: "{{inputs.parameters.segment-count}}"
+              - name: cpu
+                value: "{{inputs.parameters.cpu-prog}}"
+              - name: memory
+                value: "{{inputs.parameters.memory-prog}}"
+  - name: prognostic-run-multiple-models
+    inputs:
+      parameters:
+        - {name: initial-condition}
+        - {name: config}
+        - {name: reference-restarts}
+        - {name: flags, value: ""}
+        - {name: models-dir}
+        - {name: output}
+        - {name: segment-count, value: "1"}
+        - {name: cpu, value: "6"}
+        - {name: memory, value: 6Gi}
+    steps:
+    - - name: prepare-config
+        template: prepare-config
+        arguments:
+          parameters:
+            - {name: initial-condition, value: "{{inputs.parameters.initial-condition}}"}
+            - {name: config, value: "{{inputs.parameters.config}}"}
+            - {name: reference-restarts, value: "{{inputs.parameters.reference-restarts}}"}
+            - {name: flags, value: "{{inputs.parameters.flags}}"}
+            - {name: models-dir, value: "{{inputs.parameters.models-dir}}"}
+    - - name: run-model
+        templateRef:
+          name: run-fv3gfs
+          template: run-fv3gfs
+        arguments:
+          artifacts:
+            - {name: fv3config, from: "{{steps.prepare-config.outputs.artifacts.fv3config}}"}
+            - {name: runfile, from: "{{steps.prepare-config.outputs.artifacts.runfile}}"}
+          parameters:
+            - {name: output-url, value: "{{inputs.parameters.output}}"}
+            - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
+            - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+            - {name: memory, value: "{{inputs.parameters.memory}}"}
+  - name: prepare-config
+    inputs:
+      parameters:
+        - name: initial-condition
+        - name: config
+        - name: reference-restarts
+        - name: flags
+        - name: models-dir
+    outputs:
+      artifacts:
+        - {name: fv3config, path: /tmp/fv3config.yaml}
+        - name: runfile
+          path: /tmp/runfile.py
+    container:
+      image: us.gcr.io/vcm-ml/prognostic_run
+      command: ["bash", "-c", "-x", "-e"]
+      workingDir: /fv3net/workflows/prognostic_c48_run
+      volumeMounts:
+        - name: workdir 
+          mountPath: /tmp
+      args:
+        - |
+          cat << EOF > config.yaml
+          {{inputs.parameters.config}}
+          EOF
+
+          cp /fv3net/workflows/prognostic_c48_run/sklearn_runfile.py  /tmp/runfile.py
+          apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext
+
+          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list &&\
+          curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+          apt-get update && apt-get install -y google-cloud-sdk
+          gcloud config set project vcm-ml
+          
+          model_urls=$(gsutil ls {{inputs.parameters.models-dir}})
+          model_flags=""
+          for model in $model_urls; do
+              model_flags="${model_flags} --model_url ${model}"
+          done
+
+          python3 prepare_config.py \
+            {{inputs.parameters.flags}} \
+            $model_flags \
+            config.yaml \
+            {{inputs.parameters.reference-restarts}} \
+            {{inputs.parameters.initial-condition}} \
+            > /tmp/fv3config.yaml
