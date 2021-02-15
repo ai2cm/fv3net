@@ -136,6 +136,17 @@ def _create_arg_parser() -> argparse.Namespace:
             "offline metrics."
         ),
     )
+    parser.add_argument(
+        "--grid",
+        type=str,
+        default=None,
+        help=(
+            "Optional path to grid data netcdf. If not provided, defaults to loading "
+            "the grid  with the appropriate resolution (given in batch_kwargs) from "
+            "the catalog. Useful if you do not have permissions to access the GCS "
+            "data in vcm.catalog."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -290,6 +301,7 @@ def _get_prediction_mapper(
     config: fv3fit.ModelTrainingConfig,
     variables: Sequence[str],
     model: fv3fit.Predictor,
+    grid: xr.Dataset,
 ):
     base_mapper = _get_base_mapper(config)
     logger.info("Creating prediction mapper")
@@ -317,10 +329,9 @@ def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence
     return ds_transect
 
 
-if __name__ == "__main__":
-    logger.info("Starting diagnostics routine.")
+def main(args):
 
-    args = _create_arg_parser()
+    logger.info("Starting diagnostics routine.")
 
     # Safety check if user is using the training set
     if (
@@ -345,8 +356,13 @@ if __name__ == "__main__":
     config.model_path = args.model_path
 
     logger.info("Reading grid...")
-    res = config.batch_kwargs.get("res", "c48")
-    grid = load_grid_info(res)
+    if not args.grid:
+        # By default, read the appropriate resolution grid from vcm.catalog
+        res = config.batch_kwargs.get("res", "c48")
+        grid = load_grid_info(res)
+    else:
+        with fsspec.open(args.grid, "rb") as f:
+            grid = xr.open_dataset(f).load()
 
     variables = list(
         set(config.input_variables + config.output_variables + ADDITIONAL_VARS)
@@ -354,7 +370,7 @@ if __name__ == "__main__":
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
-    pred_mapper = _get_prediction_mapper(config, variables, model)
+    pred_mapper = _get_prediction_mapper(config, variables, model, grid)
 
     # Use appropriate times if options --timesteps-file or --timesteps-n-samples given
     if args.timesteps_file:
@@ -390,10 +406,6 @@ if __name__ == "__main__":
 
     # write out config used to generate diagnostics, including model path
     config.dump(args.output_path, filename="config.yaml")
-    # fs = get_fs(args.output_path)
-    # fs.makedirs(args.output_path, exist_ok=True)
-    # with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
-    #    yaml.safe_dump(config, f)
 
     batch_kwargs = dissoc(
         config.batch_kwargs, "mapping_function", "mapping_kwargs", "timesteps"
@@ -439,3 +451,8 @@ if __name__ == "__main__":
         json.dump(metrics, f, indent=4)
 
     logger.info(f"Finished processing dataset diagnostics and metrics.")
+
+
+if __name__ == "__main__":
+    args = _create_arg_parser()
+    main(args)

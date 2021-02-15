@@ -5,6 +5,7 @@ from ._dataset_fixtures import (
     dataset_fixtures_dir,
     fine_res_dataset_path,
     grid_dataset,
+    grid_dataset_path,
     nudging_dataset_path,
 )
 from ._fine_res import generate_fine_res
