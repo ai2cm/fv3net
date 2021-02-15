@@ -1,4 +1,4 @@
-from typing import Mapping, List, TypeVar
+from typing import Mapping, List, Sequence, TypeVar
 import xarray as xr
 
 from ._base import GeoMapper
@@ -23,16 +23,30 @@ class FineResolutionResidual(ResidualMapper):
     """Define the fine resolution dQ as a residual from the physics tendencies in
     another mapper
     """
+    def __init__(self, physics_mapper: GeoMapper, fine_res: FineResolutionSources, hybrid_variables):
+        self.physics_mapper = physics_mapper
+        self.fine_res = fine_res
+        self.hybrid_variables = hybrid_variables
 
     def __getitem__(self, key: str) -> xr.Dataset:
         nudging = self.physics_mapper[key]
         fine_res = self.fine_res[key]
 
+        if "Q1" in self.hybrid_variables:
+            dQ1 = fine_res.dQ1 - nudging.pQ1
+        else:
+            dQ1 = nudging.dQ1
+
+        if "Q2" in self.hybrid_variables:
+            dQ2 = fine_res.dQ2 - nudging.pQ2
+        else:
+            dQ2 = nudging.dQ2
+
         return nudging.assign(
             pQ1=nudging.pQ1,
             pQ2=nudging.pQ2,
-            dQ1=fine_res.dQ1 - nudging.pQ1,
-            dQ2=fine_res.dQ2 - nudging.pQ2,
+            dQ1=dQ1,
+            dQ2=dQ2,
         ).load()
 
 
@@ -149,6 +163,7 @@ def _open_fine_resolution_nudging_hybrid(
 
 def open_fine_resolution_nudging_hybrid(
     data_paths: List[str], legacy: bool = True, nudging: Mapping = None, fine_res: Mapping = None,
+    hybrid_variables: Sequence[str] = ("Q1", "Q2")
 ) -> FineResolutionResidual:
     """
     Open the fine resolution nudging_hybrid mapper
@@ -166,9 +181,9 @@ def open_fine_resolution_nudging_hybrid(
         a mapper
     """
     return _open_fine_resolution_nudging_hybrid(
-        data_paths, nudging=nudging, fine_res=fine_res, legacy=legacy
+        data_paths, nudging=nudging, fine_res=fine_res, legacy=legacy, hybrid_variables=hybrid_variables
     )
-    
+
 
 def open_fine_resolution_nudging_hybrid_clouds_off(
     data_paths: List[str],
