@@ -22,6 +22,7 @@ from ._hybrid import (
 
 # additional open mapper functions
 from ._high_res_diags import open_high_res_diags
+from ._radiative_fluxes import open_n2f_radiative_flux_biases
 
 # mapper classes used externally
 from ._base import GeoMapper, LongRunMapper, MultiDatasetMapper
