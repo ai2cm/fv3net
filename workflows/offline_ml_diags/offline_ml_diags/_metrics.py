@@ -51,6 +51,7 @@ def compute_metrics(
     list arg predicted as well as area and delp
     """
     column_integrated_vars = [f"column_integrated_{name}" for name in predicted_vars]
+    predicted_vars = [var for var in predicted_vars if "z" in ds[var].dims]
     vertical_bias_vars = [var for var in predicted_vars if var not in ["Q1", "Q2"]]
 
     derivation_kwargs = {

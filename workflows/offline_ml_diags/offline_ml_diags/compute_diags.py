@@ -171,9 +171,11 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
     return metrics
 
 
-def _compute_diurnal_cycle(ds: xr.Dataset) -> xr.Dataset:
+def _compute_diurnal_cycle(
+    ds: xr.Dataset, diurnal_vars: Sequence[str] = DIURNAL_VARS
+) -> xr.Dataset:
     return utils.create_diurnal_cycle_dataset(
-        ds, ds["lon"], ds["land_sea_mask"], DIURNAL_VARS,
+        ds, ds["lon"], ds["land_sea_mask"], diurnal_vars,
     )
 
 
@@ -243,7 +245,10 @@ def _compute_diagnostics(
             sample_dims = ("time",)  # type: ignore
         stacked = ds.stack(sample=sample_dims)
 
-        ds_diurnal = _compute_diurnal_cycle(stacked)
+        diurnal_vars = [
+            str(var) for var in ds if str(var).startswith("column_integrated")
+        ]
+        ds_diurnal = _compute_diurnal_cycle(stacked, diurnal_vars=diurnal_vars)
         ds_metrics = compute_metrics(
             stacked,
             stacked["lat"],
@@ -433,7 +438,10 @@ def main(args):
     snapshot_time = args.snapshot_time or sorted(timesteps)[0]
     snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
     ds_snapshot = pred_mapper[snapshot_key]
-    ds_transect = _get_transect(ds_snapshot, grid, config.output_variables)
+    transect_vars = [
+        var for var in config.output_variables if "z" in ds_snapshot[var].dims
+    ]
+    ds_transect = _get_transect(ds_snapshot, grid, transect_vars)
 
     # write diags and diurnal datasets
     _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)

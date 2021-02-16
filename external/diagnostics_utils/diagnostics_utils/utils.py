@@ -95,8 +95,10 @@ def insert_column_integrated_vars(
             da = da.assign_attrs(
                 {"long_name": "column integrated moistening", "units": "mm/day"}
             )
-        else:
+        elif "z" in ds[var].dims:
             da = mass_integrate(ds[var], ds[VARNAMES["delp"]], dim="z")
+        else:
+            da = ds[var]
         ds = ds.assign({column_integrated_name: da})
 
     return ds
