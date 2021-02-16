@@ -189,7 +189,7 @@ def units_from_Q_name(var):
         else:
             return "[m/s^2]"
     else:
-        return None
+        return "[unspecified]"
 
 
 def _shorten_coordinate_label(coord: str):

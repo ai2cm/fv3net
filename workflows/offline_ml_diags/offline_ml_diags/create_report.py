@@ -206,6 +206,7 @@ if __name__ == "__main__":
     for tag, var_group in {
         "Q1_components": ["column_integrated_dQ1", "column_integrated_Q1"],
         "Q2_components": ["column_integrated_dQ2", "column_integrated_Q2"],
+        "surface_radiation": ["column_integrated_DRFsfc_bias"],
     }.items():
         fig = diagplot.plot_diurnal_cycles(
             ds_diurnal,

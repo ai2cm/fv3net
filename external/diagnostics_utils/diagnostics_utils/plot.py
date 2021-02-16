@@ -83,12 +83,20 @@ def plot_diurnal_cycles(
     dpi: int = 100,
 ):
     ds_diurnal = ds_diurnal.sel(derivation=derivation_plot_coords)
-    facetgrid = (
-        ds_diurnal[vars]
-        .squeeze()
-        .to_array()
-        .plot(hue="derivation", row="variable", col="surface_type")
-    )
+    if len(vars) > 1:
+        facetgrid = (
+            ds_diurnal[vars]
+            .squeeze()
+            .to_array()
+            .plot(hue="derivation", row="variable", col="surface_type")
+        )
+    elif len(vars) == 1:
+        facetgrid = (
+            ds_diurnal[vars]
+            .squeeze()
+            .to_array()
+            .plot(hue="derivation", col="surface_type")
+        )
     facetgrid.set_titles(template="{value}", maxchar=40)
     f = facetgrid.fig
     axes = facetgrid.axes
