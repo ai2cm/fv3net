@@ -11,20 +11,18 @@ local_packages_to_install=(
 )
 for package  in "${local_packages_to_install[@]}"
 do
-  pip install --no-deps -e "$package"
+  pip install -c constraints.txt --no-deps -e "$package"
 done
 
 poetry_packages=( 
   external/report
   external/fv3viz
-  external/fv3config 
   external/synth
   external/fv3kube
   external/loaders
   external/diagnostics_utils
   workflows/fine_res_budget
   workflows/offline_ml_diags
-  workflows/prognostic_run_diags
   workflows/dataflow
 )
 
@@ -35,3 +33,6 @@ do
     conda develop .
   )
 done
+
+# needs to be installed after reports
+pip install -c constraints.txt --no-deps -e workflows/prognostic_run_diags
