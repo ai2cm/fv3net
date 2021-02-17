@@ -1,0 +1,6 @@
+pytest
+-c ../../constraints.txt
+../../external/vcm
+../../external/loaders
+../../external/fv3viz
+../../external/report
