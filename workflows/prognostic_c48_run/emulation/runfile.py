@@ -15,8 +15,8 @@ else:
     wrapper = None
     MPI = None
 
-#layer phi - could just sum delz
-#layer p - could just sum delp
+# layer phi - could just sum delz
+# layer p - could just sum delp
 
 STORE_NAMES = [
     "time",
@@ -28,7 +28,6 @@ STORE_NAMES = [
     "vertical_wind",
     "air_temperature",
     "specific_humidity",
-    
 ]
 
 

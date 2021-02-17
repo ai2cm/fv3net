@@ -10,9 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def open_phys_emu_training(
-    url: str,
-    init_times: Sequence[str],
-    consolidated: bool = True,
+    url: str, init_times: Sequence[str], consolidated: bool = True,
 ):
     """
     Load training data for the all-physics emulation.  Combines specified initialization

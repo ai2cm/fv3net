@@ -339,7 +339,7 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
 
     def _step_dynamics(self) -> Diagnostics:
         diags = super()._step_dynamics()
-        
+
         # Temporary move from baseline to here for emulation task
         diags.update({name: self._state[name] for name in self._states_to_output})
         return diags

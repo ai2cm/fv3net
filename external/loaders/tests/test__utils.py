@@ -170,9 +170,7 @@ def test__ensure_sample_first():
 
 def test__ensure_sample_first_error_on_3d():
     ds = xr.Dataset(
-        data_vars={
-            "var": xr.DataArray(np.ones((4, 6, 8)), dims=["x", "y", "z"]),
-        }
+        data_vars={"var": xr.DataArray(np.ones((4, 6, 8)), dims=["x", "y", "z"]),}
     )
     with pytest.raises(ValueError):
         _ensure_sample_first(ds)
