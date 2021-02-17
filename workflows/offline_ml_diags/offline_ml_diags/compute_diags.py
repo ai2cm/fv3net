@@ -181,7 +181,7 @@ def _compute_diurnal_cycle(
 
 def _compute_summary(ds: xr.Dataset, variables: Sequence[str]) -> xr.Dataset:
     # ...reduce to diagnostic variables
-    net_precipitation = -ds["column_integrated_Q2"]
+    net_precipitation = -ds["column_integrated_Q2"]  # type: ignore
     net_precip_domain_coord = "target"
     if "derivation" in net_precipitation.coords:
         if SHIELD_DERIVATION_COORD in net_precipitation.derivation.values:
