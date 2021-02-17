@@ -5,7 +5,7 @@ import yaml
 
 
 def _unique_dim_name(data):
-    return "".join(data.dims)
+    return "_".join(["feature"] + list(data.dims))
 
 
 def pack(data, sample_dim):
@@ -18,6 +18,8 @@ def pack(data, sample_dim):
 
 
 def unpack(data: np.ndarray, sample_dim, feature_index):
+    if len(data.shape) == 1:
+        data = data[:, None]
     da = xr.DataArray(
         data, dims=[sample_dim, "feature"], coords={"feature": feature_index}
     )
