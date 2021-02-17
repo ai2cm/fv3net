@@ -87,7 +87,7 @@ test_prognostic_run:
 	docker run prognostic_run pytest
 
 test_prognostic_run_report:
-	bash workflows/prognostic_run_diags/test_integration.sh
+	bash workflows/prognostic_run_diags/tests/test_integration.sh
 
 test_%:
 	cd external/$* && tox
