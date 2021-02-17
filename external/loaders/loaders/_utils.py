@@ -27,6 +27,7 @@ WIND_ROTATION_COEFFICIENTS = [
     "northward_wind_u_coeff",
     "northward_wind_v_coeff",
 ]
+ALLOWED_BROADCAST = ["cos_day", "sin_day", "cos_month", "sin_month"]
 
 Time = str
 Tile = int
@@ -137,13 +138,16 @@ def stack_non_vertical(ds: xr.Dataset, sample_dim_name=SAMPLE_DIM_NAME) -> xr.Da
             SAMPLE_DIM_NAME,
             stack_dims,
             allowed_broadcast_dims=[zdim_name] + [TIME_NAME, DATASET_DIM_NAME],
+            allowed_broadcast_vars=ALLOWED_BROADCAST,
         )
         # drop multi-level index coordinate for merge
         ds_stacked = ds_stacked.reset_index("sample")
         to_merge.append(ds_stacked)
 
     full_stacked_ds = xr.merge(to_merge)
-    full_stacked_ds = _ensure_sample_first(full_stacked_ds, sample_dim_name=sample_dim_name)
+    full_stacked_ds = _ensure_sample_first(
+        full_stacked_ds, sample_dim_name=sample_dim_name
+    )
 
     return full_stacked_ds
 
@@ -151,14 +155,18 @@ def stack_non_vertical(ds: xr.Dataset, sample_dim_name=SAMPLE_DIM_NAME) -> xr.Da
 def _ensure_sample_first(ds: xr.Dataset, sample_dim_name=SAMPLE_DIM_NAME) -> xr.Dataset:
     for varname, da in ds.items():
         if len(da.dims) > 2:
-            raise ValueError("Sample first check function expects stacked data arrays with two dimensions or less")
+            raise ValueError(
+                "Sample first check function expects stacked data arrays with two dimensions or less"
+            )
         if da.dims[0] != sample_dim_name:
             ds[varname] = da.transpose()
 
     return ds
 
 
-def _group_by_z_dim(ds: xr.Dataset, z_dim_names: Sequence = Z_DIM_NAMES) -> Mapping[str, xr.Dataset]:
+def _group_by_z_dim(
+    ds: xr.Dataset, z_dim_names: Sequence = Z_DIM_NAMES
+) -> Mapping[str, xr.Dataset]:
     """
     Cannot stack a dataset with multiple z dimensions. So we'll divide
     and conquer.
