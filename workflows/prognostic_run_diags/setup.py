@@ -3,7 +3,7 @@
 
 """The setup script."""
 
-from setuptools import find_packages, setup
+from setuptools import setup, find_namespace_packages
 
 install_requirements = [
     "xarray",
@@ -14,7 +14,17 @@ install_requirements = [
     "h5netcdf",
     "cftime",
     "intake",
+    "numpy",
+    "google-cloud-storage",
+    "toolz",
+    "cartopy",
+    "intake-xarray",
+    # including these vulcan packages managed with poetry causes this error
+    # pkg_resources.DistributionNotFound: The 'fv3viz' distribution was not
+    # found and is required by fv3net-diagnostics-prog-run
+    # "fv3viz",
     "vcm",
+    "report",
 ]
 
 setup(
@@ -44,6 +54,6 @@ setup(
     license="BSD license",
     include_package_data=True,
     name="fv3net-diagnostics-prog-run",
-    packages=find_packages(),
+    packages=find_namespace_packages(include=["fv3net.diagnostics.prognostic_run"]),
     version="0.1.0",
 )

@@ -11,7 +11,7 @@ local_packages_to_install=(
 )
 for package  in "${local_packages_to_install[@]}"
 do
-  pip install -c constraints.txt --no-deps -e "$package"
+  pip install -c constraints.txt -e "$package"
 done
 
 poetry_packages=( 

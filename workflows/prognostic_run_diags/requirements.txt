@@ -1,6 +1,14 @@
 pytest
--c ../../constraints.txt
-../../external/vcm
-../../external/loaders
-../../external/fv3viz
-../../external/report
+xarray
+holoviews
+fsspec
+gcsfs
+bokeh
+h5netcdf
+cftime
+intake
+numpy
+google-cloud-storage
+toolz
+cartopy
+intake-xarray

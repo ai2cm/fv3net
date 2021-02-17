@@ -143,6 +143,7 @@ lock_pip:
 	pip-requirements.txt \
 	external/fv3fit/requirements.txt \
 	workflows/post_process_run/requirements.txt \
+	workflows/prognostic_run_diags/requirements.txt \
 	docker/**/requirements.txt \
 	--output-file constraints.txt
 	# remove extras in name: e.g. apache-beam[gcp] --> apache-beam
