@@ -57,7 +57,7 @@ The runfile can be configured to run in the following configurations:
 1. Baseline (no ML or nudging)
 1. Nudge-to-obs
 
-Machine learning is done by including a machine learning model path in the `scikit-learn` config section or via a `--model_url` command line argument. Nudge-to-fine is done by including a `nudging` config section. A baseline run is done by providing neither an ML model nor nudging arguments. A nudge-to-obs run can be executed by including the argument `--nudge-to-observations` to `prepare_config.py`; note that nudge-to-obs is not mutually exclusive with any of the first three options as it is conducted within the Fortran physics routine. 
+Machine learning is done by including a machine learning model path in the `scikit-learn` config section or via a `--model_url` command line argument. Nudge-to-fine is done by including a `nudging` config section. A baseline run is done by providing neither an ML model nor nudging arguments. A nudge-to-obs run can be executed by including the argument `--nudge-to-observations URL` to `prepare_config.py` where `URL` is the path to a directory containing GFS analysis data. Note that nudge-to-obs is not mutually exclusive with any of the first three options as it is conducted within the Fortran physics routine. 
 
 ### Configuring a machine learning run
 
