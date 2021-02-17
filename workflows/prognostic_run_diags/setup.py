@@ -31,6 +31,11 @@ setup(
         "Programming Language :: Python :: 3.7",
     ],
     description="Prognostic run diagnostics",
+    entry_points={
+        "console_scripts": [
+            "prognostic-run-diags=fv3net.diagnostics.prognostic_run.cli:main"
+        ]
+    },
     install_requires=install_requirements,
     license="BSD license",
     include_package_data=True,

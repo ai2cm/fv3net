@@ -6,13 +6,16 @@ from fv3net.diagnostics.prognostic_run.views import (
 )  # ignore: E402
 
 
-parser = argparse.ArgumentParser(description="Prognostic run diagnostics")
-subparsers = parser.add_subparsers(help="Prognostic run diagnostics")
+def main():
+    parser = argparse.ArgumentParser(description="Prognostic run diagnostics")
+    subparsers = parser.add_subparsers(help="Prognostic run diagnostics")
 
-compute.register_parser(subparsers)
-metrics.register_parser(subparsers)
-movie_stills.register_parser(subparsers)
-static_report.register_parser(subparsers)
+    compute.register_parser(subparsers)
+    metrics.register_parser(subparsers)
+    movie_stills.register_parser(subparsers)
+    static_report.register_parser(subparsers)
+    parser.parse_args()
+
 
 if __name__ == "__main__":
-    parser.parse_args()
+    main()
