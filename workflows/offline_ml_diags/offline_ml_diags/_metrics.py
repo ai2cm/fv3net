@@ -50,9 +50,11 @@ def compute_metrics(
     variables, assumed to include variables in
     list arg predicted as well as area and delp
     """
-    column_integrated_vars = [f"column_integrated_{name}" for name in predicted_vars]
-    predicted_vars = [var for var in predicted_vars if "z" in ds[var].dims]
-    vertical_bias_vars = [var for var in predicted_vars if var not in ["Q1", "Q2"]]
+    predicted_vars_2d = [f"column_integrated_{name}" for name in predicted_vars]
+    predicted_vars_3d = [var for var in predicted_vars if "z" in ds[var].dims]
+    vertical_bias_vars = [
+        var for var in predicted_vars if var not in ["Q1", "Q2"] and "z" in ds[var].dims
+    ]
 
     derivation_kwargs = {
         "predict_coord": predict_coord,
@@ -68,21 +70,21 @@ def compute_metrics(
         "scalar_metrics_column_integrated_vars": {
             "ds": ds,
             "dim_tag": "scalar",
-            "vars": column_integrated_vars,
+            "vars": predicted_vars_2d,
             "weights": [area_weights],
             "mean_dim_vars": None,
         },
         "scalar_column_integrated_metrics": {
             "ds": ds,
             "dim_tag": "scalar",
-            "vars": predicted_vars,
+            "vars": predicted_vars_3d,
             "weights": [area_weights, delp_weights],
             "mean_dim_vars": None,
         },
         "pressure_level_metrics": {
             "ds": ds_regrid_z,
             "dim_tag": "pressure_level",
-            "vars": predicted_vars,
+            "vars": predicted_vars_3d,
             "weights": [area_weights],
             "mean_dim_vars": vertical_profile_mean_dims,
         },
@@ -141,6 +143,9 @@ def _regrid_dataset_zdim(
     vertical_dim_vars = [var for var in ds.data_vars if vertical_dim in ds[var].dims]
     ds_2d = ds.drop(vertical_dim_vars)
     ds_3d = safe.get_variables(ds, vertical_dim_vars)
+    if derivation_dim not in ds_3d.coords:
+        ds_3d = ds_3d.expand_dims({derivation_dim: [target_coord, predict_coord]})
+    print(vertical_dim_vars)
 
     for derivation_coord in [target_coord, predict_coord]:
         ds_regrid = ds_3d.sel({derivation_dim: derivation_coord})

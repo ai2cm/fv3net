@@ -179,20 +179,23 @@ def _compute_diurnal_cycle(
     )
 
 
-def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
+def _compute_summary(ds: xr.Dataset, variables: Sequence[str]) -> xr.Dataset:
     # ...reduce to diagnostic variables
-    if SHIELD_DERIVATION_COORD in ds["derivation"].values:
-        net_precip_domain_coord = SHIELD_DERIVATION_COORD
-    else:
-        net_precip_domain_coord = "target"
+    net_precipitation = -ds["column_integrated_Q2"]
+    net_precip_domain_coord = "target"
+    if "derivation" in net_precipitation.coords:
+        if SHIELD_DERIVATION_COORD in net_precipitation.derivation.values:
+            net_precipitation = net_precipitation.sel(  # type: ignore
+                derivation=SHIELD_DERIVATION_COORD
+            )
+            net_precip_domain_coord = SHIELD_DERIVATION_COORD
+        elif "target" in net_precipitation.derivation.values:
+            net_precipitation = net_precipitation.sel(  # type: ignore
+                derivation="target"
+            )
 
     summary = utils.reduce_to_diagnostic(
-        ds,
-        ds,
-        net_precipitation=-ds["column_integrated_Q2"].sel(  # type: ignore
-            derivation=net_precip_domain_coord
-        ),
-        primary_vars=variables,
+        ds, ds, net_precipitation=net_precipitation, primary_vars=variables,
     )
     summary = summary.assign_coords(
         domain=net_precipitation_provenance_information(
@@ -203,9 +206,8 @@ def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
     return summary
 
 
-def _fill_empty_dQ1_dQ2(ds: xr.Dataset, predicted_vars: Sequence[str]):
-    template_vars = [var for var in predicted_vars if "z" in ds[var].dims]
-    fill_template = ds[template_vars[0]]
+def _fill_empty_dQ1_dQ2(ds: xr.Dataset, template_var: str = "pQ1"):
+    fill_template = ds[template_var]
     for tendency in ["dQ1", "dQ2"]:
         if tendency not in ds.data_vars:
             ds[tendency] = xr.zeros_like(fill_template)
@@ -227,7 +229,7 @@ def _compute_diagnostics(
     for i, ds in enumerate(batches):
 
         logger.info(f"Processing batch {i+1}/{len(batches)}")
-        ds = _fill_empty_dQ1_dQ2(ds, predicted_vars)
+        ds = _fill_empty_dQ1_dQ2(ds)
         # ...insert additional variables
         ds = (
             ds.pipe(utils.insert_total_apparent_sources)
