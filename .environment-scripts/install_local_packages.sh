@@ -24,6 +24,7 @@ poetry_packages=(
   external/diagnostics_utils
   workflows/fine_res_budget
   workflows/offline_ml_diags
+  workflows/prognostic_run_diags
   workflows/dataflow
 )
 
