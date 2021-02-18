@@ -10,6 +10,9 @@ spec:
   - name: gcp-key-secret
     secret:
       secretName: gcp-key
+  - name: dshm
+    emptyDir:
+      medium: Memory
   templates:
   - name: all
     inputs:
