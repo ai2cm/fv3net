@@ -14,8 +14,11 @@ do
   pip install -c constraints.txt -e "$package"
 done
 
+  
+# need to pip install these to avoid pkg_resources error
+pip install -c constraints.txt external/report
+
 poetry_packages=( 
-  external/report
   external/fv3viz
   external/synth
   external/fv3kube
