@@ -1,0 +1,139 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: train-diags-prog-multiple-models
+spec:
+  entrypoint: all
+  volumes:
+  - name: workdir
+    emptyVol: {}
+  - name: gcp-key-secret
+    secret:
+      secretName: gcp-key
+  - name: dshm
+    emptyDir:
+      medium: Memory
+  templates:
+  - name: all
+    inputs:
+      parameters:
+      - name: root
+      - name: train-test-data
+      - name: training-configs  # used in withParam
+      - name: train-times
+      - name: initial-condition
+      - name: prognostic-run-config
+      - name: reference-restarts
+      - name: flags
+        value: " "
+      - name: test-times
+      - name: public-report-output
+      - {name: segment-count, value: "1"}
+      - {name: cpu-prog, value: "6"}
+      - {name: memory-prog, value: 6Gi}
+      - {name: memory-training, value: 6Gi}
+      - {name: memory-offline-diags, value: 6Gi}
+      - {name: training-flags, value: " "}
+    dag:
+      tasks:
+      - name: train-model
+        templateRef:
+          name: training
+          template: training
+        withParam: "{{workflow.parameters.training-configs}}"
+        arguments:
+          parameters:
+            - name: input
+              value: "{{inputs.parameters.train-test-data}}"
+            - name: config
+              value: "{{item.config}}"
+            - name: times
+              value: "{{inputs.parameters.train-times}}"
+            - name: output
+              value: "{{inputs.parameters.root}}/trained_models/{{item.name}}"
+            - name: memory
+              value: "{{inputs.parameters.memory-training}}"
+            - name: flags
+              value: "{{inputs.parameters.training-flags}}"
+      - name: offline-diags
+        dependencies: [train-model]
+        templateRef:
+          name: offline-diags
+          template: offline-diags
+        withParam: "{{workflow.parameters.training-configs}}"
+        arguments:
+          parameters:
+              - name: ml-model
+                value: "{{inputs.parameters.root}}/trained_models/{{item.name}}"
+              - name: times
+                value: "{{inputs.parameters.test-times}}"
+              - name: offline-diags-output
+                value: "{{inputs.parameters.root}}/offline_diags"
+              - name: report-output
+                value: "{{inputs.parameters.public-report-output}}"
+              - name: memory
+                value: "{{inputs.parameters.memory-offline-diags}}"
+      - name: construct-full-flags
+        template: construct-full-flags
+        arguments:
+          parameters:
+              - name: root
+                value: "{{inputs.parameters.root}}"
+              - name: training-configs
+                value: "{{inputs.parameters.training-configs}}"
+              - name: flags
+                value: "{{inputs.parameters.flags}}"
+      - name: prognostic-run
+        templateRef:
+          name: prognostic-run
+          template: prognostic-run
+        dependencies: [train-model, construct-full-flags]
+        arguments:
+          parameters:
+              - name: initial-condition
+                value: "{{inputs.parameters.initial-condition}}"
+              - name: config
+                value: "{{inputs.parameters.prognostic-run-config}}"
+              - name: reference-restarts
+                value: "{{inputs.parameters.reference-restarts}}"
+              - name: output
+                value: "{{inputs.parameters.root}}/prognostic_run"
+              - name: flags
+                value: "{{tasks.construct-full-flags.outputs.parameters.prognostic-flags}}"
+              - name: models-dir
+                value: "{{inputs.parameters.root}}/trained_models"
+              - name: segment-count
+                value: "{{inputs.parameters.segment-count}}"
+              - name: cpu
+                value: "{{inputs.parameters.cpu-prog}}"
+              - name: memory
+                value: "{{inputs.parameters.memory-prog}}"
+  - name: construct-full-flags
+    inputs:
+      parameters:
+        - {name: root}
+        - {name: training-configs}
+        - {name: flags}
+    outputs:
+      parameters:
+      - name: prognostic-flags
+        valueFrom:
+          path: /tmp/prognostic-flags.txt
+    container:
+      image: bash:4.4
+      command: ["bash", "-c", "-x", "-e"]
+      args:
+        - |
+          FLAGS_OUTPUT=/tmp/prognostic-flags.txt
+
+          apk add --no-cache jq
+
+          configs='{{inputs.parameters.training-configs}}'
+
+          echo "{{inputs.parameters.flags}} " | tr '\n' ' ' > $FLAGS_OUTPUT
+          echo "$configs" | jq -c '.[]' | \
+          while IFS= read -r line; 
+          do 
+              model=$( echo $line | jq -j '.name, "\n"');
+              echo "--model_url {{inputs.parameters.root}}/trained_models/${model}" | tr '\n' ' ' >>  $FLAGS_OUTPUT
+          done
