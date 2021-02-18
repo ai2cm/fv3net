@@ -10,10 +10,12 @@ local_packages_to_install=(
   external/fv3gfs-util
   external/vcm
 )
+set -e
 for package  in "${local_packages_to_install[@]}"
 do
   pip install -c constraints.txt -e "$package"
 done
+set +e
 
   
 # need to pip install these to avoid pkg_resources error
