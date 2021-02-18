@@ -135,5 +135,5 @@ spec:
           while IFS= read -r line; 
           do 
               model=$( echo $line | jq -j '.name, "\n"');
-              echo "${flags}  --model_url {{inputs.parameters.root}}/trained_models/${model}" | tr '\n' ' ' >>  $FLAGS_OUTPUT
+              echo "--model_url {{inputs.parameters.root}}/trained_models/${model}" | tr '\n' ' ' >>  $FLAGS_OUTPUT
           done
