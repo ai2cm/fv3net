@@ -8,7 +8,6 @@ import xarray as xr
 import fsspec
 import pandas as pd
 from pathlib import Path
-import argparse
 import holoviews as hv
 from report import create_html, Link
 from report.holoviews import HVPlot, get_html_header
@@ -409,9 +408,6 @@ def register_parser(subparsers):
 
 
 def main(args):
-    parser = argparse.ArgumentParser()
-
-    args = parser.parse_args()
     bucket = args.input
 
     # get run information
