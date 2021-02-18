@@ -10,6 +10,10 @@ spec:
       value: "false"
     - name: flags
       value: " "
+    - name: memory-compute-diags
+      value: "12Gi"
+    - name: memory-movie
+      value: "8Gi"
   entrypoint: all
   volumes:
   - name: gcp-key-secret
@@ -30,6 +34,8 @@ spec:
               value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}"
             - name: flags
               value: "{{workflow.parameters.flags}}"
+            - name: memory
+              value: "{{workflow.parameters.memory-compute-diags}}"
       - name: movie-step
         when: "{{workflow.parameters.make-movies}} == true"
         withParam: "{{workflow.parameters.runs}}"
@@ -42,6 +48,8 @@ spec:
               value: "{{item.url}}"
             - name: output
               value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}"
+            - name: memory
+              value: "{{workflow.parameters.memory-movie}}"
       - name: generate-report
         template: report
         dependencies: [diagnostics-step, movie-step]
@@ -81,6 +89,8 @@ spec:
       - name: output
       - name: flags
         value: " "
+      - name: memory
+        value: "12Gi"
     steps:
     - - name: compute-reduced-diagnostics
         template: compute-reduced-diagnostics
@@ -89,6 +99,7 @@ spec:
             - {name: run, value: "{{inputs.parameters.run}}"}
             - {name: output, value: "{{inputs.parameters.output}}"}
             - {name: flags, value: "{{inputs.parameters.flags}}"}
+            - {name: memory, value: "{{inputs.parameters.memory}}"}
     - - name: regrid-reduced-diagnostics-to-latlon
         templateRef:
           name: cubed-to-latlon
@@ -104,6 +115,8 @@ spec:
       - name: output
       - name: flags
         value: " "
+      - name: memory
+        value: "12Gi"
     tolerations:
     - key: "dedicated"
       operator: "Equal"
@@ -127,16 +140,18 @@ spec:
         name: gcp-key-secret
       resources:
         requests:
-            memory: "12Gi"
+            memory: "{{inputs.parameters.memory}}"
             cpu: "1000m"
         limits:
-            memory: "12Gi"
+            memory: "{{inputs.parameters.memory}}"
             cpu: "1000m"
   - name: movie
     inputs:
       parameters:
       - name: run
       - name: output
+      - name: memory
+        value: "8Gi"
     tolerations:
     - key: "dedicated"
       operator: "Equal"
@@ -160,8 +175,8 @@ spec:
         name: gcp-key-secret
       resources:
         requests:
-            memory: "8Gi"
+            memory: "{{inputs.parameters.memory}}"
             cpu: "8000m"
         limits:
-            memory: "8Gi"
+            memory: "{{inputs.parameters.memory}}"
             cpu: "8000m"
