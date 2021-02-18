@@ -188,6 +188,40 @@ an appropriate `training-config` string.
 | memory-prog           | (optional) Memory for prognostic run nodes; default 6Gi                    |
 | work-volume-name      | (optional) Working volume name, prognostic run; default 'work-volume'      |
 
+### train-diags-prog-multiple-models workflow template
+
+This is similar to the above `train-diags-prog` workflow, but trains and runs offline diagnostics for >1
+model, then uses all trained models in the prognostic run. This allows different outputs to be trained
+with separate sets of hyperparameters. All parameters are the same as for the `train-diags-prog` workflow,
+except this workflow takes a `training-configs` parameter instead of `training-config`. `training-configs`
+is the string representation of a JSON file, which should be formatted as 
+`[{name: model_name, config: model_config}, ...]`, and where the model config values are identical in
+structure to the single configurations used in `train-diags-prog`.  In practice it is easiest to write this as
+a YAML file since our existing training configs are YAMLs that can be pasted in, and then converted to JSON
+format using `yq . config.yml` in the submit command. 
+
+ Models and offline diagnostics are saved in "{{inputs.parameters.root}}/trained_models/{{item.name}}" and 
+ "{{inputs.parameters.root}}/offline_diags/{{item.name}}".
+
+
+| Parameter             | Description                                                                |
+|-----------------------|----------------------------------------------------------------------------|
+| root                  | Local or remote root directory for the outputs from this workflow          |
+| train-routine         | Training routine to use: e.g., "sklearn" (default) or "keras"              |
+| train-test-data       | Location of data to be used in training and testing the model              |
+| training-configs      | String representation of list of training configurations and their names   |
+| train-times           | List strings of timesteps to be used in model training                     |
+| test-times            | List strings of timesteps to be used in offline model testing              |
+| public-report-output  | Location to write HTML report of model's offline diagnostic performance    |
+| initial-condition     | String of initial time at which to begin the prognostic run                |
+| prognostic-run-config | String representation of a prognostic run configuration YAML file          |
+| reference-restarts    | Location of restart data for initializing the prognostic run               |
+| flags                 | (optional) extra command line flags for prepare_config.py                  |
+| segment-count         | (optional) Number of prognostic run segments; default 1                    |
+| cpu-prog              | (optional) Number of cpus for prognostic run nodes; default 6              |
+| memory-prog           | (optional) Memory for prognostic run nodes; default 6Gi                    |
+| work-volume-name      | (optional) Working volume name, prognostic run; default 'work-volume'      |
+
 
 ### Prognostic run report
 
