@@ -70,9 +70,21 @@ spec:
                 value: "{{inputs.parameters.public-report-output}}"
               - name: memory
                 value: "{{inputs.parameters.memory-offline-diags}}"
-      - name: prognostic-run-multiple-models
-        template: prognostic-run-multiple-models
-        dependencies: [train-model]
+      - name: construct-full-flags
+        template: construct-full-flags
+        arguments:
+          parameters:
+              - name: root
+                value: "{{inputs.parameters.root}}"
+              - name: training-configs
+                value: "{{inputs.parameters.training-configs}}"
+              - name: flags
+                value: "{{inputs.parameters.flags}}"
+      - name: prognostic-run
+        templateRef:
+          name: prognostic-run
+          template: prognostic-run
+        dependencies: [train-model, construct-full-flags]
         arguments:
           parameters:
               - name: initial-condition
@@ -84,7 +96,7 @@ spec:
               - name: output
                 value: "{{inputs.parameters.root}}/prognostic_run"
               - name: flags
-                value: "{{inputs.parameters.flags}}"
+                value: "{{tasks.construct-full-flags.outputs.parameters.prognostic-flags}}"
               - name: models-dir
                 value: "{{inputs.parameters.root}}/trained_models"
               - name: segment-count
@@ -93,85 +105,37 @@ spec:
                 value: "{{inputs.parameters.cpu-prog}}"
               - name: memory
                 value: "{{inputs.parameters.memory-prog}}"
-  - name: prognostic-run-multiple-models
+  - name: construct-full-flags
     inputs:
       parameters:
-        - {name: initial-condition}
-        - {name: config}
-        - {name: reference-restarts}
-        - {name: flags, value: ""}
-        - {name: models-dir}
-        - {name: output}
-        - {name: segment-count, value: "1"}
-        - {name: cpu, value: "6"}
-        - {name: memory, value: 6Gi}
-    steps:
-    - - name: prepare-config
-        template: prepare-config
-        arguments:
-          parameters:
-            - {name: initial-condition, value: "{{inputs.parameters.initial-condition}}"}
-            - {name: config, value: "{{inputs.parameters.config}}"}
-            - {name: reference-restarts, value: "{{inputs.parameters.reference-restarts}}"}
-            - {name: flags, value: "{{inputs.parameters.flags}}"}
-            - {name: models-dir, value: "{{inputs.parameters.models-dir}}"}
-    - - name: run-model
-        templateRef:
-          name: run-fv3gfs
-          template: run-fv3gfs
-        arguments:
-          artifacts:
-            - {name: fv3config, from: "{{steps.prepare-config.outputs.artifacts.fv3config}}"}
-            - {name: runfile, from: "{{steps.prepare-config.outputs.artifacts.runfile}}"}
-          parameters:
-            - {name: output-url, value: "{{inputs.parameters.output}}"}
-            - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
-            - {name: cpu, value: "{{inputs.parameters.cpu}}"}
-            - {name: memory, value: "{{inputs.parameters.memory}}"}
-  - name: prepare-config
-    inputs:
-      parameters:
-        - name: initial-condition
-        - name: config
-        - name: reference-restarts
-        - name: flags
-        - name: models-dir
+        - {name: root}
+        - {name: training-configs}
+        - {name: flags}
     outputs:
-      artifacts:
-        - {name: fv3config, path: /tmp/fv3config.yaml}
-        - name: runfile
-          path: /tmp/runfile.py
+      parameters:
+      - name: prognostic-flags
+        valueFrom:
+          path: /tmp/prognostic-flags.txt
     container:
-      image: us.gcr.io/vcm-ml/prognostic_run
+      image: bash:4.4
       command: ["bash", "-c", "-x", "-e"]
-      workingDir: /fv3net/workflows/prognostic_c48_run
-      volumeMounts:
-        - name: workdir 
-          mountPath: /tmp
       args:
         - |
-          cat << EOF > config.yaml
-          {{inputs.parameters.config}}
+          FLAGS_OUTPUT=/tmp/prognostic-flags.txt
+          cat << EOF > configs.yaml
+          {{inputs.parameters.training-configs}}
           EOF
+         
+          apk add --no-cache jq
+          wget -q -O /usr/bin/yq $(wget -q -O - https://api.github.com/repos/mikefarah/yq/releases/latest | jq -r '.assets[] | select(.name == "yq_linux_amd64") | .browser_download_url')
+          chmod +x /usr/bin/yq
 
-          cp /fv3net/workflows/prognostic_c48_run/sklearn_runfile.py  /tmp/runfile.py
-          apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext
+          configs=$( yq eval -j configs.yaml )
 
-          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list &&\
-          curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
-          apt-get update && apt-get install -y google-cloud-sdk
-          gcloud config set project vcm-ml
-          
-          model_urls=$(gsutil ls {{inputs.parameters.models-dir}})
-          model_flags=""
-          for model in $model_urls; do
-              model_flags="${model_flags} --model_url ${model}"
+          echo "{{inputs.parameters.flags}} " > $FLAGS_OUTPUT
+          echo "$configs" | jq -c '.[]' | \
+          while IFS= read -r line; 
+          do 
+              model=$( echo $line | jq -j '.name, "\n"');
+              echo "${flags}  --model_url {{inputs.parameters.root}}/trained_models/${model}" | tr '\n' ' ' >>  $FLAGS_OUTPUT
           done
-
-          python3 prepare_config.py \
-            {{inputs.parameters.flags}} \
-            $model_flags \
-            config.yaml \
-            {{inputs.parameters.reference-restarts}} \
-            {{inputs.parameters.initial-condition}} \
-            > /tmp/fv3config.yaml
