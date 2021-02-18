@@ -436,7 +436,7 @@ def main(args):
     except AttributeError:
         pass
 
-    # compute transected and zonal diags
+    # compute snapshot of transected and zonal diags, and snapshot of 2D variables
     snapshot_time = args.snapshot_time or sorted(timesteps)[0]
     snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
     ds_snapshot = pred_mapper[snapshot_key]
@@ -444,6 +444,11 @@ def main(args):
         var for var in config.output_variables if "z" in ds_snapshot[var].dims
     ]
     ds_transect = _get_transect(ds_snapshot, grid, transect_vars)
+    map_vars = set(config.output_variables) - set(transect_vars)
+    ds_map = safe.get_variables(ds_snapshot, map_vars).rename(
+        {map_var: f"{map_var}_snapshot" for map_var in map_vars}
+    )
+    ds_diagnostics = xr.merge([ds_diagnostics, ds_map])
 
     # write diags and diurnal datasets
     _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)

@@ -231,7 +231,7 @@ if __name__ == "__main__":
             output_dir=temp_output_dir.name,
         )
 
-    # transect of predicted fields at lon=0
+    # transect of predicted fields at lon=0 and snapshot time
     for var in ds_transect:
         fig = plot_transect(ds_transect[var])
         insert_report_figure(
@@ -239,6 +239,20 @@ if __name__ == "__main__":
             fig,
             filename=f"transect_lon0_{var}.png",
             section_name=f"Transect snapshot at lon=0 deg, {ds_transect.time.item()}",
+            output_dir=temp_output_dir.name,
+        )
+
+    # snapshots of 2-D predicted fields
+    map_vars = [var for var in ds_diags if var.endswith("_snapshot")]
+    for var in map_vars:
+        fig = diagplot.plot_column_integrated_var(
+            ds_diags, var, derivation_plot_coords=ds_diags[DERIVATION_DIM].values,
+        )
+        insert_report_figure(
+            report_sections,
+            fig,
+            filename=f"{var}.png",
+            section_name="Snapshot maps",
             output_dir=temp_output_dir.name,
         )
 
