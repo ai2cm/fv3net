@@ -145,7 +145,7 @@ function verifyUrlEmpty {
     set -e
     if [[ "$ret" -eq 0 ]]; then
         echo "The given output url (below) contains an object. Delete everything under output url and resubmit."
-        echo "{{inputs.parameters.url}}"
+        echo "$url"
         exit 1
     fi
 }
