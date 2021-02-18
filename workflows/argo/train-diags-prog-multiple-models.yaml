@@ -122,15 +122,10 @@ spec:
       args:
         - |
           FLAGS_OUTPUT=/tmp/prognostic-flags.txt
-          cat << EOF > configs.yaml
-          {{inputs.parameters.training-configs}}
-          EOF
-         
-          apk add --no-cache jq
-          wget -q -O /usr/bin/yq $(wget -q -O - https://api.github.com/repos/mikefarah/yq/releases/latest | jq -r '.assets[] | select(.name == "yq_linux_amd64") | .browser_download_url')
-          chmod +x /usr/bin/yq
 
-          configs=$( yq eval -j configs.yaml )
+          apk add --no-cache jq
+
+          configs='{{inputs.parameters.training-configs}}'
 
           echo "{{inputs.parameters.flags}} " | tr '\n' ' ' > $FLAGS_OUTPUT
           echo "$configs" | jq -c '.[]' | \
