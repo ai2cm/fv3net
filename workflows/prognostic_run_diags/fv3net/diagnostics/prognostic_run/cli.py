@@ -14,7 +14,8 @@ def main():
     metrics.register_parser(subparsers)
     movie_stills.register_parser(subparsers)
     static_report.register_parser(subparsers)
-    parser.parse_args()
+    args = parser.parse_args()
+    args.func(args)
 
 
 if __name__ == "__main__":
