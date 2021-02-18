@@ -132,7 +132,7 @@ spec:
 
           configs=$( yq eval -j configs.yaml )
 
-          echo "{{inputs.parameters.flags}} " > $FLAGS_OUTPUT
+          echo "{{inputs.parameters.flags}} " | tr '\n' ' ' > $FLAGS_OUTPUT
           echo "$configs" | jq -c '.[]' | \
           while IFS= read -r line; 
           do 
