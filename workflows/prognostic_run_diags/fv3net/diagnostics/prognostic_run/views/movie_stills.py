@@ -127,7 +127,7 @@ def _movie_specs():
 
 
 def register_parser(subparsers):
-    parser = subparsers.add_parser("movie", help="generate movie still.")
+    parser = subparsers.add_parser("movie", help="generate movie stills.")
     parser.add_argument("url", help="Path to rundir")
     parser.add_argument("output", help="Output location for movie stills")
     parser.add_argument("--n_jobs", default=8, type=int, help="Number of workers.")

@@ -13,20 +13,20 @@ cd workflows/prognostic_run_diags
 
 # compute diagnostics/mterics for a short sample prognostic run
 mkdir -p /tmp/$random
-prognostic-run-diags save $RUN /tmp/$random/diags.nc
-prognostic-run-diags metrics /tmp/$random/diags.nc > /tmp/$random/metrics.json
+prognostic_run_diags save $RUN /tmp/$random/diags.nc
+prognostic_run_diags metrics /tmp/$random/diags.nc > /tmp/$random/metrics.json
 gsutil cp /tmp/$random/diags.nc $OUTPUT/run1/diags.nc
 gsutil cp /tmp/$random/metrics.json $OUTPUT/run1/metrics.json
 
 # generate movies for short sample prognostic run
-prognostic-run-diags movie --n_jobs 1 --n_timesteps 2 $RUN /tmp/$random
+prognostic_run_diags movie --n_jobs 1 --n_timesteps 2 $RUN /tmp/$random
 stitch_movie_stills.sh /tmp/$random $OUTPUT/run1
 
 # make a second copy of diags/metrics since generate_report.py needs at least two runs
 gsutil -m cp -r $OUTPUT/run1 $OUTPUT/run2
 
 # generate report based on diagnostics computed above
-prognostic-run-diags report $OUTPUT $OUTPUT
+prognostic_run_diags report $OUTPUT $OUTPUT
 
 # cleanup
 rm -r /tmp/$random

@@ -47,7 +47,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "prognostic-run-diags=fv3net.diagnostics.prognostic_run.cli:main"
+            "prognostic_run_diags=fv3net.diagnostics.prognostic_run.cli:main"
         ]
     },
     install_requires=install_requirements,
