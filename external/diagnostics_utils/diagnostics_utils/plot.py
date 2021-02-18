@@ -31,12 +31,13 @@ def plot_profile_var(
     xlim: Sequence[float] = None,
     xticks: Union[Sequence[float], np.ndarray] = None,
 ):
-    if derivation_dim in ds[var].dims:
-        facet_grid = (
-            ds[var]
-            .sel({derivation_dim: list(derivation_plot_coords)})
-            .plot(y="z", hue=derivation_dim, col=domain_dim)
-        )
+    if derivation_dim not in ds[var].dims:
+        ds[var] = ds[var].expand_dims({derivation_dim: ["target"]})
+    facet_grid = (
+        ds[var]
+        .sel({derivation_dim: list(derivation_plot_coords)})
+        .plot(y="z", hue=derivation_dim, col=domain_dim)
+    )
     facet_grid.set_titles(template="{value}", maxchar=40)
     f = facet_grid.fig
     for ax in facet_grid.axes.flatten():

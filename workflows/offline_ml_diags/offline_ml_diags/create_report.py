@@ -136,6 +136,7 @@ if __name__ == "__main__":
         if var.startswith("zonal_avg_pressure")
         and var.endswith("predict_vs_target")
         and ("r2" in var or "bias" in var)
+        and "pressure" in ds_diags[var].dims
     ]
     for var in zonal_avg_pressure_level_metrics:
         vmin, vmax = (0, 1) if "r2" in var.lower() else (None, None)
@@ -176,8 +177,17 @@ if __name__ == "__main__":
         var for var in ds_diags.data_vars if "dQ" in var and "z" in ds_diags[var].dims
     ] + ["Q1", "Q2"]
     for var in profiles:
+        derivation_plot_coords_kwarg = (
+            {}
+            if DERIVATION_DIM in ds_diags[var]
+            else {"derivation_plot_coords": ("target",)}
+        )
         fig = diagplot.plot_profile_var(
-            ds_diags, var, derivation_dim=DERIVATION_DIM, domain_dim=DOMAIN_DIM,
+            ds_diags,
+            var,
+            derivation_dim=DERIVATION_DIM,
+            domain_dim=DOMAIN_DIM,
+            **derivation_plot_coords_kwarg,
         )
         insert_report_figure(
             report_sections,
@@ -222,14 +232,13 @@ if __name__ == "__main__":
         )
 
     # transect of predicted fields at lon=0
-    transect_time = ds_transect.time.item()
     for var in ds_transect:
         fig = plot_transect(ds_transect[var])
         insert_report_figure(
             report_sections,
             fig,
             filename=f"transect_lon0_{var}.png",
-            section_name=f"Transect snapshot at lon=0 deg, {transect_time}",
+            section_name=f"Transect snapshot at lon=0 deg, {ds_transect.time.item()}",
             output_dir=temp_output_dir.name,
         )
 
