@@ -121,16 +121,18 @@ def time_mean_bias(diags):
     return time_and_global_mean_bias
 
 
-if __name__ == "__main__":
-    import sys
+def register_parser(subparsers):
+    parser = subparsers.add_parser(
+        "metrics",
+        help="Compute metrics from verification diagnostics. "
+        "Prints to standard output.",
+    )
+    parser.add_argument("input", help="netcdf file of compute diagnostics.")
+    parser.set_defaults(func=main)
 
-    try:
-        path = sys.argv[1]
-    except IndexError:
-        print(__doc__, file=sys.stderr)
-        sys.exit(1)
 
-    diags = xr.open_dataset(path)
+def main(args):
+    diags = xr.open_dataset(args.input)
     diags["time"] = diags.time - diags.time[0]
     metrics = compute_all_metrics(diags)
     # print to stdout, use pipes to save

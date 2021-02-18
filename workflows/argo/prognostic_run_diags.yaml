@@ -54,8 +54,8 @@ spec:
     container:
       image: us.gcr.io/vcm-ml/fv3net
       command:
-      - python
-      - generate_report.py
+      - prognostic_run_diags 
+      - report
       - gs://vcm-ml-public/argo/{{workflow.name}}
       - gs://vcm-ml-public/argo/{{workflow.name}}
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
@@ -112,7 +112,6 @@ spec:
     container:
       image: us.gcr.io/vcm-ml/fv3net
       command:
-      - bash
       - memoized_compute_diagnostics.sh
       - "{{inputs.parameters.run}}"
       - "{{inputs.parameters.output}}"
@@ -148,8 +147,8 @@ spec:
       command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - |
-        python generate_movie_stills.py {{inputs.parameters.run}} /tmp/movie_stills
-        bash stitch_movie_stills.sh /tmp/movie_stills {{inputs.parameters.output}}
+        prognostic_run_diags movie {{inputs.parameters.run}} /tmp/movie_stills
+        stitch_movie_stills.sh /tmp/movie_stills {{inputs.parameters.output}}
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS

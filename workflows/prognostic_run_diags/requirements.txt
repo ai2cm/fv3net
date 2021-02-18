@@ -1,0 +1,14 @@
+pytest
+xarray
+holoviews
+fsspec
+gcsfs
+bokeh
+h5netcdf
+cftime
+intake
+numpy
+google-cloud-storage
+toolz
+cartopy
+intake-xarray

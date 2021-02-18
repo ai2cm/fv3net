@@ -1,4 +1,4 @@
-from generate_report import (
+from fv3net.diagnostics.prognostic_run.views.static_report import (
     upload,
     _parse_metadata,
     detect_rundirs,

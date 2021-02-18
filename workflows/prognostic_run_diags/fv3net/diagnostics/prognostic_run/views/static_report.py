@@ -8,7 +8,6 @@ import xarray as xr
 import fsspec
 import pandas as pd
 from pathlib import Path
-import argparse
 import holoviews as hv
 from report import create_html, Link
 from report.holoviews import HVPlot, get_html_header
@@ -401,12 +400,14 @@ def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
         return HVPlot(hmap.opts(**bar_opts))
 
 
-def main():
-    parser = argparse.ArgumentParser()
+def register_parser(subparsers):
+    parser = subparsers.add_parser("report", help="Generate a static html report.")
     parser.add_argument("input")
     parser.add_argument("output")
+    parser.set_defaults(func=main)
 
-    args = parser.parse_args()
+
+def main(args):
     bucket = args.input
 
     # get run information

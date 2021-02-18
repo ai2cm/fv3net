@@ -70,7 +70,7 @@ test_prognostic_run:
 	docker run prognostic_run pytest
 
 test_prognostic_run_report:
-	bash workflows/prognostic_run_diags/test_integration.sh
+	bash workflows/prognostic_run_diags/tests/test_integration.sh
 
 test_%:
 	cd external/$* && tox
@@ -129,6 +129,7 @@ lock_pip:
 	pip-requirements.txt \
 	external/fv3fit/requirements.txt \
 	workflows/post_process_run/requirements.txt \
+	workflows/prognostic_run_diags/requirements.txt \
 	docker/**/requirements.txt \
 	--output-file constraints.txt
 	# remove extras in name: e.g. apache-beam[gcp] --> apache-beam

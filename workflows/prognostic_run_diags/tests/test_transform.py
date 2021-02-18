@@ -3,7 +3,7 @@ from datetime import timedelta
 import cftime
 import xarray as xr
 
-import transform
+from fv3net.diagnostics.prognostic_run import transform
 
 # Transform params structure
 # key - transform name, value Tuple(transform_args, transform_kwargs)

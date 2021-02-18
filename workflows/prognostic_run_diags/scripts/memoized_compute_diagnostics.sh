@@ -27,8 +27,8 @@ if [[ $diagsExitCode -eq 0 && $metricsExitCode -eq 0 ]]; then
     echo "Prognostic run diagnostics detected in cache for given run. Using cached diagnostics."
 else
     echo "No prognostic run diagnostics detected in cache for given run. Computing diagnostics and adding to cache."	
-    python save_prognostic_run_diags.py $flags $run diags.nc
-    python metrics.py diags.nc > metrics.json
+    prognostic_run_diags save $flags $run diags.nc
+    prognostic_run_diags metrics diags.nc > metrics.json
     gsutil cp diags.nc "$cacheURL/diags.nc"
     gsutil cp metrics.json "$cacheURL/metrics.json"
 fi

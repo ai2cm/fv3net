@@ -1,4 +1,4 @@
-import save_prognostic_run_diags as savediags
+import fv3net.diagnostics.prognostic_run.compute as savediags
 import cftime
 import numpy as np
 import xarray as xr
