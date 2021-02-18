@@ -175,8 +175,3 @@ def test_weighted_mae(weights, std, y_true, y_pred, reference):
     loss = _weighted_mae(weights, std)
     result = loss(y_true, y_pred)
     np.testing.assert_almost_equal(result, reference)
-
-
-def test_loss_formula():
-    # If you find this test failing, talk to team about
-    # changing loss function formulation.
