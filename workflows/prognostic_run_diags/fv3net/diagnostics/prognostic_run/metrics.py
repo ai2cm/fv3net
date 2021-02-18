@@ -132,7 +132,7 @@ def register_parser(subparsers):
 
 
 def main(args):
-    diags = xr.open_dataset(args.path)
+    diags = xr.open_dataset(args.input)
     diags["time"] = diags.time - diags.time[0]
     metrics = compute_all_metrics(diags)
     # print to stdout, use pipes to save
