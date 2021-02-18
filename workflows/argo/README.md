@@ -196,7 +196,12 @@ with separate sets of hyperparameters. All parameters are the same as for the `t
 except this workflow takes a `training-configs` parameter instead of `training-config`. `training-configs`
 is the string representation of a JSON file, which should be formatted as 
 `[{name: model_name, config: model_config}, ...]`, and where the model config values are identical in
-structure to the single configurations used in `train-diags-prog`.
+structure to the single configurations used in `train-diags-prog`.  In practice it is easiest to write this as
+a YAML file since our existing training configs are YAMLs that can be pasted in, and then converted to JSON
+format using `yq . config.yml` in the submit command. 
+
+ Models and offline diagnostics are saved in "{{inputs.parameters.root}}/trained_models/{{item.name}}" and 
+ "{{inputs.parameters.root}}/offline_diags/{{item.name}}".
 
 
 | Parameter             | Description                                                                |
