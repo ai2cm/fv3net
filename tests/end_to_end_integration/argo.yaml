@@ -220,7 +220,7 @@ spec:
           - name: reference-restarts
             value: "{{workflow.parameters.reference-restarts}}"
           - name: flags
-            value: "--nudge-to-observations"
+            value: "--nudge-to-observations gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data"
           - name: test-times
             value: "{{workflow.parameters.test-times}}"
           - name: public-report-output
