@@ -5,6 +5,7 @@ CONDA_ENV=$1
 source activate $CONDA_ENV
 
 local_packages_to_install=( 
+  external/loaders
   external/fv3fit
   external/fv3gfs-util
   external/vcm
@@ -22,7 +23,6 @@ poetry_packages=(
   external/fv3viz
   external/synth
   external/fv3kube
-  external/loaders
   external/diagnostics_utils
   workflows/fine_res_budget
   workflows/offline_ml_diags
