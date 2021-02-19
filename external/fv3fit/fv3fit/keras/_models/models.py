@@ -52,11 +52,8 @@ class PackedKerasModel(Estimator):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
-        weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
-        normalize_loss: bool = True,
         optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
         kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
-        loss: Literal["mse", "mae"] = "mse",
         checkpoint_path: Optional[str] = None,
         fit_kwargs: Optional[dict] = None,
     ):
@@ -97,13 +94,7 @@ class PackedKerasModel(Estimator):
         self.X_scaler = LayerStandardScaler()
         self.y_scaler = LayerStandardScaler()
         self.train_history = {"loss": [], "val_loss": []}  # type: Mapping[str, List]
-        if weights is None:
-            self.weights: Mapping[str, Union[int, float, np.ndarray]] = {}
-        else:
-            self.weights = weights
-        self._normalize_loss = normalize_loss
         self._optimizer = optimizer
-        self._loss = loss
         self._kernel_regularizer = kernel_regularizer
         self._checkpoint_path = checkpoint_path
         self._fit_kwargs = fit_kwargs or {}
@@ -119,6 +110,14 @@ class PackedKerasModel(Estimator):
         self.y_scaler.fit(y)
 
     @abc.abstractmethod
+    def fit(self, batches: Sequence[xr.Dataset], **kwargs) -> None:
+        """
+        Args:
+            batches: batches
+            kwargs: specific keyword args
+        """
+
+    @abc.abstractmethod
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         """Returns a Keras model to use as the underlying predictive model.
         
@@ -129,6 +128,131 @@ class PackedKerasModel(Estimator):
             model: a Keras model whose input shape is [n_samples, n_features_in] and
                 output shape is [n_samples, features_out]
         """
+
+    def dump(self, path: str) -> None:
+        dir_ = os.path.join(path, MODEL_DIRECTORY)
+        with put_dir(dir_) as path:
+            if self._model is not None:
+                model_filename = os.path.join(path, self._MODEL_FILENAME)
+                self.model.save(model_filename)
+            with open(os.path.join(path, self._X_PACKER_FILENAME), "w") as f:
+                self.X_packer.dump(f)
+            with open(os.path.join(path, self._Y_PACKER_FILENAME), "w") as f:
+                self.y_packer.dump(f)
+            with open(os.path.join(path, self._X_SCALER_FILENAME), "wb") as f_binary:
+                self.X_scaler.dump(f_binary)
+            with open(os.path.join(path, self._Y_SCALER_FILENAME), "wb") as f_binary:
+                self.y_scaler.dump(f_binary)
+            with open(os.path.join(path, self._OPTIONS_FILENAME), "w") as f:
+                yaml.safe_dump(
+                    {"normalize_loss": self._normalize_loss, "loss": self._loss}, f
+                )
+            with open(os.path.join(path, self._HISTORY_FILENAME), "w") as f:
+                json.dump(self.train_history, f)
+
+    @classmethod
+    def load(cls, path: str) -> "PackedKerasModel":
+        dir_ = os.path.join(path, MODEL_DIRECTORY)
+        with get_dir(dir_) as path:
+            with open(os.path.join(path, cls._X_PACKER_FILENAME), "r") as f:
+                X_packer = ArrayPacker.load(f)
+            with open(os.path.join(path, cls._Y_PACKER_FILENAME), "r") as f:
+                y_packer = ArrayPacker.load(f)
+            with open(os.path.join(path, cls._X_SCALER_FILENAME), "rb") as f_binary:
+                X_scaler = LayerStandardScaler.load(f_binary)
+            with open(os.path.join(path, cls._Y_SCALER_FILENAME), "rb") as f_binary:
+                y_scaler = LayerStandardScaler.load(f_binary)
+            with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
+                options = yaml.safe_load(f)
+
+            obj = cls(
+                X_packer.sample_dim_name,
+                X_packer.pack_names,
+                y_packer.pack_names,
+                **options,
+            )
+            obj.X_packer = X_packer
+            obj.y_packer = y_packer
+            obj.X_scaler = X_scaler
+            obj.y_scaler = y_scaler
+            model_filename = os.path.join(path, cls._MODEL_FILENAME)
+            if os.path.exists(model_filename):
+                obj._model = tf.keras.models.load_model(
+                    model_filename, custom_objects={"custom_loss": obj.loss}
+                )
+            history_filename = os.path.join(path, cls._HISTORY_FILENAME)
+            if os.path.exists(history_filename):
+                with open(os.path.join(path, cls._HISTORY_FILENAME), "r") as f:
+                    obj.train_history = json.load(f)
+            return obj
+
+    def jacobian(self, base_state: Optional[xr.Dataset] = None) -> xr.Dataset:
+        """Compute the jacobian of the NN around a base state
+
+        Args:
+            base_state: a single sample of input data. If not passed, then
+                the mean of the input data stored in the X_scaler will be used.
+
+        Returns:
+            The jacobian matrix as a Dataset
+
+        """
+        if base_state is None:
+            if self.X_scaler.mean is not None:
+                mean_expanded = self.X_packer.to_dataset(
+                    self.X_scaler.mean[np.newaxis, :]
+                )
+            else:
+                raise ValueError("X_scaler needs to be fit first.")
+        else:
+            mean_expanded = base_state.expand_dims(self.sample_dim_name)
+
+        mean_tf = tf.convert_to_tensor(self.X_packer.to_array(mean_expanded))
+        with tf.GradientTape() as g:
+            g.watch(mean_tf)
+            y = self.model(mean_tf)
+
+        J = g.jacobian(y, mean_tf)[0, :, 0, :].numpy()
+        return unpack_matrix(self.X_packer, self.y_packer, J)
+
+
+class FitLoopModel(PackedKerasModel):
+    """
+    Implements a fit loop to emulate keras fit behaviors for batched items
+    """
+    def __init__(
+        self,
+        loss: Literal["mse", "mae"] = "mse",
+        normalize_loss: bool = True,
+        weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
+    ):
+        if weights is None:
+            self.weights: Mapping[str, Union[int, float, np.ndarray]] = {}
+        else:
+            self.weights = weights
+        self._normalize_loss = normalize_loss
+        self._loss = loss        
+
+    @property
+    def loss(self):
+        # putting this on a property method is needed so we can save and load models
+        # using custom loss functions. If using a custom function, it must either
+        # be named "custom_loss", as used in the load method below,
+        # or it must be registered with keras as a custom object.
+        # Do this by defining the function returned by the decorator as custom_loss.
+        # See https://github.com/keras-team/keras/issues/5916 for more info
+        std = self.y_scaler.std
+        std[std == 0] = 1.0
+        if not self._normalize_loss:
+            std[:] = 1.0
+        if self._loss in self._LOSS_OPTIONS:
+            loss_getter = self._LOSS_OPTIONS[self._loss]
+            return loss_getter(self.y_packer, std, **self.weights)
+        else:
+            raise ValueError(
+                f"Invalid loss {self._loss} provided. "
+                f"Allowed loss functions are {list(self._LOSS_OPTIONS.keys())}."
+            )
 
     def fit(
         self,
@@ -237,8 +361,6 @@ class PackedKerasModel(Estimator):
         batch_size: Optional[int] = None,
         workers: int = 1,
         max_queue_size: int = 8,
-        use_last_batch_to_validate: bool = False,
-        last_batch_validation_fraction: float = 1.0,
         **fit_kwargs,
     ) -> None:
 
@@ -282,116 +404,9 @@ class PackedKerasModel(Estimator):
     def predict_array(self, X: np.ndarray) -> np.ndarray:
         return self.model.predict(X)
 
-    def dump(self, path: str) -> None:
-        dir_ = os.path.join(path, MODEL_DIRECTORY)
-        with put_dir(dir_) as path:
-            if self._model is not None:
-                model_filename = os.path.join(path, self._MODEL_FILENAME)
-                self.model.save(model_filename)
-            with open(os.path.join(path, self._X_PACKER_FILENAME), "w") as f:
-                self.X_packer.dump(f)
-            with open(os.path.join(path, self._Y_PACKER_FILENAME), "w") as f:
-                self.y_packer.dump(f)
-            with open(os.path.join(path, self._X_SCALER_FILENAME), "wb") as f_binary:
-                self.X_scaler.dump(f_binary)
-            with open(os.path.join(path, self._Y_SCALER_FILENAME), "wb") as f_binary:
-                self.y_scaler.dump(f_binary)
-            with open(os.path.join(path, self._OPTIONS_FILENAME), "w") as f:
-                yaml.safe_dump(
-                    {"normalize_loss": self._normalize_loss, "loss": self._loss}, f
-                )
-            with open(os.path.join(path, self._HISTORY_FILENAME), "w") as f:
-                json.dump(self.train_history, f)
-
-    @property
-    def loss(self):
-        # putting this on a property method is needed so we can save and load models
-        # using custom loss functions. If using a custom function, it must either
-        # be named "custom_loss", as used in the load method below,
-        # or it must be registered with keras as a custom object.
-        # Do this by defining the function returned by the decorator as custom_loss.
-        # See https://github.com/keras-team/keras/issues/5916 for more info
-        std = self.y_scaler.std
-        std[std == 0] = 1.0
-        if not self._normalize_loss:
-            std[:] = 1.0
-        if self._loss in self._LOSS_OPTIONS:
-            loss_getter = self._LOSS_OPTIONS[self._loss]
-            return loss_getter(self.y_packer, std, **self.weights)
-        else:
-            raise ValueError(
-                f"Invalid loss {self._loss} provided. "
-                f"Allowed loss functions are {list(self._LOSS_OPTIONS.keys())}."
-            )
-
-    @classmethod
-    def load(cls, path: str) -> "PackedKerasModel":
-        dir_ = os.path.join(path, MODEL_DIRECTORY)
-        with get_dir(dir_) as path:
-            with open(os.path.join(path, cls._X_PACKER_FILENAME), "r") as f:
-                X_packer = ArrayPacker.load(f)
-            with open(os.path.join(path, cls._Y_PACKER_FILENAME), "r") as f:
-                y_packer = ArrayPacker.load(f)
-            with open(os.path.join(path, cls._X_SCALER_FILENAME), "rb") as f_binary:
-                X_scaler = LayerStandardScaler.load(f_binary)
-            with open(os.path.join(path, cls._Y_SCALER_FILENAME), "rb") as f_binary:
-                y_scaler = LayerStandardScaler.load(f_binary)
-            with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
-                options = yaml.safe_load(f)
-
-            obj = cls(
-                X_packer.sample_dim_name,
-                X_packer.pack_names,
-                y_packer.pack_names,
-                **options,
-            )
-            obj.X_packer = X_packer
-            obj.y_packer = y_packer
-            obj.X_scaler = X_scaler
-            obj.y_scaler = y_scaler
-            model_filename = os.path.join(path, cls._MODEL_FILENAME)
-            if os.path.exists(model_filename):
-                obj._model = tf.keras.models.load_model(
-                    model_filename, custom_objects={"custom_loss": obj.loss}
-                )
-            history_filename = os.path.join(path, cls._HISTORY_FILENAME)
-            if os.path.exists(history_filename):
-                with open(os.path.join(path, cls._HISTORY_FILENAME), "r") as f:
-                    obj.train_history = json.load(f)
-            return obj
-
-    def jacobian(self, base_state: Optional[xr.Dataset] = None) -> xr.Dataset:
-        """Compute the jacobian of the NN around a base state
-
-        Args:
-            base_state: a single sample of input data. If not passed, then
-                the mean of the input data stored in the X_scaler will be used.
-
-        Returns:
-            The jacobian matrix as a Dataset
-
-        """
-        if base_state is None:
-            if self.X_scaler.mean is not None:
-                mean_expanded = self.X_packer.to_dataset(
-                    self.X_scaler.mean[np.newaxis, :]
-                )
-            else:
-                raise ValueError("X_scaler needs to be fit first.")
-        else:
-            mean_expanded = base_state.expand_dims(self.sample_dim_name)
-
-        mean_tf = tf.convert_to_tensor(self.X_packer.to_array(mean_expanded))
-        with tf.GradientTape() as g:
-            g.watch(mean_tf)
-            y = self.model(mean_tf)
-
-        J = g.jacobian(y, mean_tf)[0, :, 0, :].numpy()
-        return unpack_matrix(self.X_packer, self.y_packer, J)
-
 
 @io.register("packed-keras")
-class DenseModel(PackedKerasModel):
+class DenseModel(FitLoopModel):
     """
     A simple feedforward neural network model with dense layers.
     """
