@@ -76,7 +76,7 @@ Connecting to a kubernetes cluster
   * We also have an detailed explanation of creating and connecting to
     a local k8s cluster in :ref:`local_k8s`. 
 
-After authenticated you will be able to set up / utilize infrastructure with
+After authenticated you will be able to set up and utilize infrastructure with
 proper permissions.  If you are having trouble with authentication being 
 recognized check out the :ref:`faqs` page.
 
@@ -85,3 +85,11 @@ Test drive
 
 Many of the ML workflows are documented with their usage.  Here's a simple example to validate
 everything is working properly!
+
+
+Cloud Workflows
+---------------
+
+The main data processing pipelines for this project currently utilize Kubernetes 
+with Docker images and Dataflow on Google Cloud.  Check out :ref:`workflows` to see
+how to run and compose them!
