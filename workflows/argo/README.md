@@ -146,7 +146,7 @@ prognostic runs. See this [example][1].
 | Parameter     | Description                                                      |
 |---------------|------------------------------------------------------------------|
 | `runs`        | A json-encoded list of {"name": ..., "url": ...} items           |
-| `make-movies` | (optional) whether to generate movies. Defaults to false         |
+| `make-movies` | (optional) whether to generate movies. Defaults to "false".      |
 | `flags`       | (optional) flags to pass to `prognostic_run_diags save` command. |
 
 To specify what verification data use when computing the diagnostics, use the `--verification`
@@ -224,7 +224,7 @@ associated report (`offline_ml_diags.create_report`).
 ### train-diags-prog workflow template
 
 This workflow template runs the `training`, `offline-diags`, `prognostic-run` and
-`prognostic-run-diags.diagsnostics-step` workflow templates in sequence.
+`prognostic-run-diags.diagnostics-step` workflow templates in sequence.
 
 | Parameter               | Description                                                                         |
 |-------------------------|-------------------------------------------------------------------------------------|
@@ -259,9 +259,6 @@ format using `yq . config.yml` in the submit command.
 
  Models and offline diagnostics are saved in "{{inputs.parameters.root}}/trained_models/{{item.name}}" and 
  "{{inputs.parameters.root}}/offline_diags/{{item.name}}".
-
-
-
 
 ### Cubed-sphere to lat-lon interpolation workflow
 
