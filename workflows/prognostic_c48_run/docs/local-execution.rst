@@ -73,7 +73,7 @@ machine. This restrictions means that a segmented run can be continued from a
 machine other than the one it was created with. This is useful for
 debugging e.g. failing segmented runs in the integration tests or prognostic
 run argo workflow (TODO add link). To debug this run, simply open an
-prognostic_run development environment and run
+prognostic_run development environment and run::
 
     runfv3 append gs://path/to/failing/run
 
