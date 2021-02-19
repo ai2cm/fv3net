@@ -2,8 +2,12 @@
 Running the Prognostic run
 --------------------------
 
-This section assumes you are within an environment with the prognostic run
-installed. Prognostic runs currently require using a few command line utilities:
+.. note:: 
+
+    This section assumes you are within an environment with the prognostic
+    run installed. See :ref:`development` for instructions on how to set this up.
+
+Prognostic runs currently require using a few command line utilities:
 
 .. graphviz::
 

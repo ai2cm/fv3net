@@ -12,6 +12,7 @@ Welcome to Prognostic Run's documentation!
 
    configuration
    local-execution
+   development
 
 
 
