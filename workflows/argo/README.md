@@ -68,14 +68,33 @@ sequential segments.
 
 | Parameter            | Description                                                                   |
 |----------------------|-------------------------------------------------------------------------------|
-| `initial-condition`  | String of initial time at which to begin the prognostic run                   |
+| `initial-condition`  | Timestamp string for time at which to begin the prognostic run                |
 | `config`             | String representation of base config YAML file; supplied to prepare_config.py |
 | `reference-restarts` | Location of restart data for initializing the prognostic run                  |
+| `output`             | Location to save prognostic run output                                        |
 | `flags`              | (optional) extra command line flags for prepare_config.py                     |
 | `segment-count`      | (optional) Number of prognostic run segments; default 1                       |
 | `cpu`                | (optional) Number of cpus for prognostic run nodes; default 6                 |
 | `memory`             | (optional) Memory for prognostic run nodes; default 6Gi                       |
 
+#### Called command line interfaces
+This workflow calls:
+```
+python3 prepare_config.py \
+        {{inputs.parameters.flags}} \
+        config.yaml \
+        {{inputs.parameters.reference-restarts}} \
+        {{inputs.parameters.initial-condition}} \
+        > /tmp/fv3config.yaml
+```
+And then 
+```
+runfv3 create {{inputs.parameters.output}} /tmp/fv3config.yaml sklearn_runfile.py
+```
+Followed by `segment-count` iterations of
+```
+runfv3 append {{inputs.parameters.output}}
+```
 
 #### Running multiple segments
 
@@ -208,6 +227,17 @@ This workflow trains machine learning models (`fv3fit.train`).
 | `report-output`        | Where to save report                                 |
 | `memory`               | (optional) memory for workflow. Defaults to 6Gi.     |
 
+#### Called command line interfaces
+This workflow calls
+```
+python -m fv3fit.train \
+          {{inputs.parameters.input}} \
+          {{inputs.parameters.config}} \
+          {{inputs.parameters.output}} \
+          --timesteps-file {{inputs.parameters.times}} \
+          {{inputs.parameters.flags}}
+```
+
 ### offline-diags workflow
 
 This workflow computes offline ML diagnostics (`offline_ml_diags.compute_diags`) and generates an
@@ -220,6 +250,20 @@ associated report (`offline_ml_diags.create_report`).
 | `offline-diags-output` | Where to save offline diagnsostics                   |
 | `report-output`        | Where to save report                                 |
 | `memory`               | (optional) memory for workflow. Defaults to 6Gi.     |
+
+#### Called command line interfaces
+This workflow calls
+```
+python -m offline_ml_diags.compute_diags \
+          {{inputs.parameters.ml-model}} \
+          {{inputs.parameters.offline-diags-output}} \
+          --timesteps-file {{inpts.parameters.times}} 
+          
+python -m offline_ml_diags.create_report \
+          {{inputs.parameters.offline-diags-output}} \
+          {{inputs.parameters.report-output}} \
+          --commit-sha "$COMMIT_SHA"
+```
 
 ### train-diags-prog workflow template
 
@@ -234,7 +278,7 @@ This workflow template runs the `training`, `offline-diags`, `prognostic-run` an
 | `train-times`           | List strings of timesteps to be used in model training                              |
 | `test-times`            | List strings of timesteps to be used in offline model testing                       |
 | `public-report-output`  | Location to write HTML report of model's offline diagnostic performance             |
-| `initial-condition`     | String of initial time at which to begin the prognostic run                         |
+| `initial-condition`     | Timestamp string for time at which to begin the prognostic run                      |
 | `prognostic-run-config` | String representation of a prognostic run configuration YAML file                   |
 | `reference-restarts`    | Location of restart data for initializing the prognostic run                        |
 | `flags`                 | (optional) extra command line flags for prognostic run; passed to prepare_config.py |
