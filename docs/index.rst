@@ -12,11 +12,41 @@ Other VCM Projects
 - fv3gfs-python_ (`docs <https://vulcanclimatemodeling.github.io/fv3gfs-python/f12n7eq5xkoibbqp/index.html>`_)
 - fv3config_
 
+
+short, quick hits of information with links to dive into the full docs
+links to paper docs with active descriptions of stored datasets, active experiments
+   in that paper doc, please link to the configuration used to generate the dataset
+
+Link to Quickstarts page
+Quickstarts:
+- setup
+   - local environment install
+   - building docker containers
+   - authentication
+      - for each step, ideally include what to do, how to validate that it worked, and how to roll back (rollback could mean delete and start over)
+- examples
+   - link to vcm-workflow-control
+   - running workflows
+      - the fact that you probably look in the makefile and README
+      - make branch in vcm-workflow-control and edit example folder, so you can easiliy diff with example
+
+Workflows:
+- overall description/data flow between workflows
+- links to individual workflow docs
+
+Packages:
+- for each one, a short description and a link
+
+FAQs:
+   - I see this error, what does it mean? (especially for authentication)
+   - some kind of "if you get this authentication error, see the authentication rollback and quickstart docs (link)"
+
+
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   readme_link
    workflows
    vcm
    science

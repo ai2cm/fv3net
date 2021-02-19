@@ -2,6 +2,8 @@ fv3net
 ==============================
 [![CircleCI](https://circleci.com/gh/VulcanClimateModeling/fv3net.svg?style=svg&circle-token=98ccddae8375060a2fbbf240407dd4135d3dcf68)](https://circleci.com/gh/VulcanClimateModeling/fv3net)
 
+TODO: you can see the docs at <link>
+
 Improving the GFDL FV3 model physics with machine learning
 
 # The default fv3net environment
