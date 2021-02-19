@@ -3,7 +3,16 @@ Running the Prognostic run
 --------------------------
 
 This section assumes you are within an environment with the prognostic run
-installed.
+installed. Prognostic runs currently require using a few command line utilities:
+
+.. graphviz::
+
+   digraph foo {
+      "minimal-fv3config.yml" -> "full fv3config.yml" [label="prepare_config.py"];
+      "full fv3config.yml" -> "Segmented run" [label="runfv3 create"];
+      "Segmented run" -> "Segmented run" [label="runfv3 append"];
+   }
+
 
 .. _segmented-run-cli:
 

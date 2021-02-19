@@ -114,6 +114,7 @@ FROM bld
 COPY --from=test /tmp/test-results.txt .
 
 # build the docs
+RUN apt-get install graphviz
 RUN make -C docs html
 
 ARG COMMIT_SHA_ARG
