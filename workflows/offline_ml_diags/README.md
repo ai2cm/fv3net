@@ -96,8 +96,13 @@ positive net precipitation, and negative net precipitation domains
 - Single timestep snapshot of predicted vs. target varible, along a 0 deg longitude transect
 - Model's Jacobian evaluated at the input means (only for neural net models) 
 
+
+## CLI and full list of arguments
+
+### `offline_ml_diags.compute_diags`
+
 ```bash
-usage: argmark [-h] [--data-path [DATA_PATH [DATA_PATH ...]]]
+usage: python -m offline_ml_diags.compute_diags [-h] [--data-path [DATA_PATH [DATA_PATH ...]]]
                [--config-yml CONFIG_YML] [--timesteps-file TIMESTEPS_FILE]
                [--snapshot-time SNAPSHOT_TIME]
                [--timesteps-n-samples TIMESTEPS_N_SAMPLES] [--training]
@@ -105,15 +110,27 @@ usage: argmark [-h] [--data-path [DATA_PATH [DATA_PATH ...]]]
                model_path output_path
 
 ```
-### CLI and full list of arguments
 
 |arg|default|help|
 | :--- | :--- | :--- |
+|`model_path`||Local or remote path for reading ML model.|
+|`output_path`||Local or remote path where diagnostic output will be written.|
 |`--help`||show this help message and exit|
 |`--data-path`|`None`|Location of test data. If not provided, will use the data_path saved with the trained model config file.|
 |`--config-yml`|`None`|Config file with dataset and variable specifications.|
 |`--timesteps-file`|`None`|Json file that defines train timestep set. Overrides any timestep set in training config if both are provided.|
 |`--snapshot-time`|`None`|Timestep to use for snapshot. Provide a string 'YYYYMMDD.HHMMSS'. If provided, will use the closest timestep in the test set. If not, will default to use the first timestep available.|
 |`--timesteps-n-samples`|`None`|If specified, will draw attempt to draw this many test timesteps from either i) the mapper keys that lie outside the range of times in the config timesteps or ii) the set of timesteps provided in --timesteps-file.Random seed for sampling is fixed to 0. If there are not enough timesteps available outside the config range, will return all timesteps outside the range. Useful if args.config_yml is taken directly from the trained model.Incompatible with also providing a timesteps-file arg. |
-|`--training`||If provided, allows the use of timesteps from the trained model config to be used for offline diags. Only relevant if no config file is provided and no optional args for timesteps-file or timesteps-n-samples given. Acts as a safety to prevent accidental use of training set for the offline metrics.|
+|`--training`|False|If provided, allows the use of timesteps from the trained model config to be used for offline diags. Only relevant if no config file is provided and no optional args for timesteps-file or timesteps-n-samples given. Acts as a safety to prevent accidental use of training set for the offline metrics.|
 |`--grid`|`None`|Optional path to grid data netcdf. If not provided, defaults to loading the grid  with the appropriate resolution (given in batch_kwargs) from the catalog. Useful if you do not have permissions to access the GCS data in vcm.catalog.|
+
+### `offline_ml_diags.create_report`
+```bash
+usage: python -m offline_ml_diags.create_report [-h] [--commit-sha COMMIT_SHA] input_path output_path
+
+```
+|arg|default|help|
+| :--- | :--- | :--- |
+|`--help`||show this help message and exit|
+|`--commit-sha`|`None`|Commit SHA of fv3net used to create report. Useful for referencingthe version used to train the model.|
+

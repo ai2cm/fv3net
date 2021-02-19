@@ -72,19 +72,11 @@ def _create_arg_parser() -> argparse.Namespace:
         help=("Local or remote path where diagnostic dataset will be written."),
     )
     parser.add_argument(
-        "--baseline_physics_path",
-        type=str,
-        default=None,
-        help=(
-            "Location of baseline physics data. "
-            "If omitted, will not add this to the comparison."
-        ),
-    )
-    parser.add_argument(
         "--commit-sha",
         type=str,
         default=None,
-        help=("Commit SHA of fv3net used to create report."),
+        help=("Commit SHA of fv3net used to create report. Useful for referencing"
+        "the version used to train the model."),
     )
     return parser.parse_args()
 
