@@ -24,7 +24,7 @@ We track our internal experiments in this `dropbox paper document <https://paper
    workflows
    packages
    faqs
-
+   dev_info
 
 
 TODO: delete these notes before we merge
