@@ -12,7 +12,7 @@ The :ref:`workflows` page documents our overall scientific workflow, with links 
 
 :ref:`packages` describes the tools and libraries we use to organize our code.
 
-If you run into issues, you may want to check the :ref:`faqs` to see if this is a known issue we have a solution for.
+If you run into issues, you may want to check the :ref:`FAQs` to see if this is a known issue we have a solution for.
 
 
 .. toctree::
