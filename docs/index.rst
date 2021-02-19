@@ -24,13 +24,6 @@ If you run into issues, you may want to check the :ref:`FAQs` to see if this is 
    packages
    faqs
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
 
 TODO: delete these notes before we merge
 
