@@ -3,8 +3,14 @@
 Developer's Guide
 -----------------
 
-The prognostic run is developed via docker and docker-compose. It is usually fastest to use the
-latest docker image from Google Container Repository. Pull the image::
+The prognostic run is developed via docker and docker-compose. This
+environment is based off the `prognostic_run` docker image, but has
+bind-mounts to the packages in "/external" of this repository and this
+directory, which allows locally developing this workflow and its
+dependencies.
+
+It is usually fastest to use the latest docker image from Google Container
+Repository. Pull the image::
 
     docker pull us.gcr.io/vcm-ml/prognostic_run:latest
 
@@ -13,7 +19,6 @@ latest docker image from Google Container Repository. Pull the image::
     If you run into problems, it would be best to rebuild the docker image from scratch::
 
         docker-compose build fv3
-
 
 Enter a bash shell in the image::
 

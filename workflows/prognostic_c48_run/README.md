@@ -21,29 +21,7 @@ will point to a valid service account key on the host system. For example,
 Quickstart
 ----------
 
-The tests can be run with
-
-	make test
-
-Development
------------
-
-This workflow uses docker-compose to bootstrap a development environment. This
-environment is based off the `prognostic_run` docker image, but has bind-mounts
-to the packages in "/external" of this repository and this directory, which
-allows locally developing this workflow and its dependencies. To enter a
-development bash shell, run
-
-    make dev
-
-This command may take some time to run, as it needs to re-compile the Fortran and
-Cython sources you have on your local machine.
-
-If you change the base image (not the files which get bind-mounted), you will need
-to re-build the docker-compose image using
-
-    make build
-
+  docker-compose run fv3 pytest
 
 Prognostic Run Configuration
 ----------------------------
