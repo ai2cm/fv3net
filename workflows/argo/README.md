@@ -13,11 +13,7 @@ To install these templates run
     kubectl apply -k <this directory>
 
 This can be done from an external location (e.g. vcm-workflow-control). To run an installed workflowtemplate, 
-use  the `--from` flag. For example,
-
-    argo submit --from workflowtemplate/<templatename> ...
-
-Workflow parameters can be passed via the command line, e.g.
+use the `--from` flag. Workflow parameters can be passed via the command line with the `-p` option. For example
 ```
 argo submit --from workflowtemplate/prognostic-run-diags \
     -p runs="$(< rundirs.json)" \
