@@ -90,7 +90,7 @@ by adding the following to the ``minimal.yaml`` example::
 
 For convenient scripting, The ``--model_url`` command line argument adds a
 model to :py:class:`runtime.steppers.machine_learning.MachineLearningConfig`.
-It can be used multiple times to specify multiple models. For example:
+It can be used multiple times to specify multiple models. For example::
 
     python3 prepare_config.py \
         minimal.yaml \
