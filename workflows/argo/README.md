@@ -230,35 +230,33 @@ python -m offline_ml_diags.create_report \
 This workflow template runs the `training`, `offline-diags`, `prognostic-run` and
 `prognostic-run-diags.diagnostics-step` workflow templates in sequence.
 
-| Parameter               | Description                                                                         |
-|-------------------------|-------------------------------------------------------------------------------------|
-| `root`                  | Local or remote root directory for the outputs from this workflow                   |
-| `train-test-data`       | Location of data to be used in training and testing the model                       |
-| `training-config`       | String representation of a training configuration YAML file                         |
-| `train-times`           | List strings of timesteps to be used in model training                              |
-| `test-times`            | List strings of timesteps to be used in offline model testing                       |
-| `public-report-output`  | Location to write HTML report of model's offline diagnostic performance             |
-| `initial-condition`     | Timestamp string for time at which to begin the prognostic run                      |
-| `prognostic-run-config` | String representation of a prognostic run configuration YAML file                   |
-| `reference-restarts`    | Location of restart data for initializing the prognostic run                        |
-| `flags`                 | (optional) extra command line flags for prognostic run; passed to prepare_config.py |
-| `segment-count`         | (optional) Number of prognostic run segments; default "1"                           |
-| `cpu-prog`              | (optional) Number of cpus for prognostic run; default "6"                           |
-| `memory-prog`           | (optional) Memory for prognostic run; default 6Gi                                   |
-| `memory-training`       | (optional) Memory for model training; default 6Gi                                   |
-| `memory-offline-diags`  | (optional) Memory for offline diagnostics; default 6Gi                              |
-| `training-flags`        | (optional) extra command line flags for training; passed to fv3fit.train            |
+| Parameter               | Description                                                           |
+|-------------------------|-----------------------------------------------------------------------|
+| `root`                  | URL for the outputs from this workflow                                |
+| `train-test-data`       | `input` for `training` workflow                                       |
+| `training-config`       | `config` for `training` workflow                                      |
+| `train-times`           | `times` for `training` workflow                                       |
+| `test-times`            | `times` for `offline-diags` workflow                                  |
+| `public-report-output`  | `report-output` for `offline-diags` workflow                          |
+| `initial-condition`     | `initial-condition` for `prognostic-run` workflow                     |
+| `prognostic-run-config` | `config` for `prognostic-run` workflow                                |
+| `reference-restarts`    | `reference-restarts` for `prognostic-run` workflow                    |
+| `flags`                 | (optional) `flags` for `prognostic-run` workflow                      |
+| `segment-count`         | (optional) `segment-count` for `prognostic-run` workflow; default "1" |
+| `cpu-prog`              | (optional) `cpu` for `prognostic-run` workflow; default "6"           |
+| `memory-prog`           | (optional) `memory` for `prognostic-run` workflow; default 6Gi        |
+| `memory-training`       | (optional) `memory` for `training` workflow; default 6Gi              |
+| `memory-offline-diags`  | (optional) `memory` for `offline-diags` workflow; default 6Gi         |
+| `training-flags`        | (optional) `flags` for `training` workflow                            |
 
 ### train-diags-prog-multiple-models workflow template
 
-This is similar to the above `train-diags-prog` workflow, but trains and runs offline diagnostics for >1
-ML model, then uses all trained models in the prognostic run. All parameters are the same as for the 
-`train-diags-prog` workflow, except this workflow takes a `training-configs` parameter instead of 
-`training-config`. `training-configs` is the string representation of a JSON file, which should be formatted as 
-`[{name: model_name, config: model_config}, ...]`, and where the model config values are identical in
-structure to the single configurations used in `train-diags-prog`.  In practice it is easiest to write this as
-a YAML file since our existing training configs are YAMLs that can be pasted in, and then converted to JSON
-format using `yq . config.yml` in the submit command.
+This is similar to the above `train-diags-prog` workflow, but trains and runs offline diagnostics for multiple
+ML models and then uses all trained models in the prognostic run. 
+
+The parameters are the same as for the `train-diags-prog` workflow except this workflow takes a `training-configs` parameter instead of `training-config`. This new parameter is the string representation of a JSON file, which should be formatted as `[{name: model_name, config: model_config}, ...]`, and where the individal model config values are
+as for the `training` workflow.  In practice it may be easiest to write this as a YAML file and then converted to
+JSON format using `yq . config.yml` in a submission script.
 
 ### Cubed-sphere to lat-lon interpolation workflow
 
