@@ -6,13 +6,13 @@
 Welcome to fv3net's documentation!
 ==================================
 
-To get running quickly, see our `quickstarts`_. These contain information about installation/setup, as well as how you can run pre-configured examples.
+To get running quickly, see our :ref:`quickstarts`. These contain information about installation/setup, as well as how you can run pre-configured examples.
 
-The `workflows`_ page documents our overall scientific workflow, with links to documentation for each component.
+The :ref:`workflows` page documents our overall scientific workflow, with links to documentation for each component.
 
-`packages`_ describes the tools and libraries we use to organize our code.
+:ref:`packages` describes the tools and libraries we use to organize our code.
 
-If you run into issues, you may want to check the `faqs`_ to see if this is a known issue we have a solution for.
+If you run into issues, you may want to check the :ref:`faqs` to see if this is a known issue we have a solution for.
 
 
 .. toctree::
@@ -24,11 +24,12 @@ If you run into issues, you may want to check the `faqs`_ to see if this is a kn
    packages
    faqs
 
-Other VCM Projects
-------------------
+Indices and tables
+==================
 
-- fv3gfs-python_ (`docs <https://vulcanclimatemodeling.github.io/fv3gfs-python/f12n7eq5xkoibbqp/index.html>`_)
-- fv3config_
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
 
 
 TODO: delete these notes before we merge
@@ -63,9 +64,3 @@ FAQs:
 
 
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

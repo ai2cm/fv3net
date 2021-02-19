@@ -1,5 +1,5 @@
-Regression Testing
-==================
+Synth
+=====
 
 The package `synth` provides tools for generating synthetic xarray datasets for testing purposes. Compared to real data, it is much easier and cheaper to manage code for generating synthetic using software version control tools like git.
 
