@@ -1,8 +1,50 @@
-## Offline ML Diagnostics
+# Offline ML Diagnostics workflow
 
-### Generating diagnostics
+This workflow generate offline diagnostics datasets, $R^2$, and bias metrics
+for a given ML model. It contains two steps: 1) `compute_diags`, which calculates the
+aforementioned data, and 2) `create_report`, which compiles an HTML report of tables and
+figures and uploads it to a destination. If that destination is a public bucket, the report
+can be viewed at its URL on a web browser.
+## Quickstart
 
-#### Required variables
+### 1. Generating diagnostics and metrics
+Generating the diagnostics can be done by providing a path to a model trained and dumped by 
+`fv3fit`, an output path, and a flag specifiying how to select the test set of timesteps.
+e.g.,
+```
+python -m offline_ml_diags.compute_diags \
+    $MODEL_PATH \
+    $DIAGNOSTICS_OUTPUT_PATH \
+    --timesteps-file $TIMESTEP_LIST_JSON
+```
+#### Specifying the test set
+The test set of timesteps may provided via one of the following options:
+- `--timesteps-file $TIMES_JSON` : Provide a JSON file with a list of timesteps 
+(`"YYYYMMDD.HHMMSS"` formatted strings)
+- `--num-test-sample $N` : Sample `N` timesteps from outside the training dataset
+range of times
+- `--training` (just the flag, no arg provided): Use the set of training timesteps, read
+from the training configuration saved with the model. This a safety flag to prevent accidental 
+evaluation of skill on the training set.
+- `--config_yml $CONFIG` : Use a different config file from the trained model, which 
+may contain a separate set of timesteps. *If no `batch_kwargs["timesteps"]` field is present in the config file provided, all timesteps in the dataset mapper are used. This can be a very large number of timesteps*.
+
+
+### 2. Generating an HTML report
+The HTML report is generate by providing the path to the diagnostics and metrics
+calculated in the previous step, and the desired output path.
+```
+python -m offline_ml_diags.create_report \
+    $DIAGNOSTICS_OUTPUT_PATH \
+    $REPORT_OUTPUT_PATH
+```
+
+
+
+
+## Generating diagnostics
+
+### Inputs
 
 This workflow works with GeoMapper objects. This report requires the
 following variables
@@ -13,6 +55,8 @@ following variables
 Optional variables include:
 - pQ1
 - pQ2
+
+### Outputs
 
 #### Usage
 
