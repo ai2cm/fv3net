@@ -11,62 +11,74 @@ Installation
 To install all the requirements and fv3net packages locally, run this from
 the main directory::
 
-    make create_env
+    make update_submodules
+    make create_environment
 
-This will incorporate a deterministic build based on frozen pip and conda
-requirements files.  See <Reference Dev Environment for more details>
+This creates an Anaconda environment ``fv3net`` with all the dependicies
+for running the Vulcan FV3GFS ML workflows.   All submodules are installed
+in development mode (e.g., ``pip install -e``) so any modifications will
+be loaded in the conda environment.  After the build completes successfully,
+activate the environment with::
 
+    conda activate fv3net
+
+.. _cloud_auth:
 
 Cloud Authentication
 --------------------
 
 The `fv3net` project currently utilizes Google Cloud to deploy workflow items
 to services such as Kubernetes and Dataflow.  Authentication requires an
-installation of [Google Cloud SDK](https://cloud.google.com/sdk/docs/install).
+installation of `Google Cloud SDK <https://cloud.google.com/sdk/docs/install>`_.
 
-#. Step 1. Example:
+Authentication obtained via ``gcloud auth login`` does not work well with
+secrets management and is not used by many APIs. Service account key-based
+authentication works much better, because the service account key is a single
+file that can be deployed in a variety of contexts (K8s cluter, VM, etc).
+Many Python APIs can authenticate with google using the
+``GOOGLE_APPLICATION_CREDENTIALS`` environmental variable. 
+`(See Google authentication details) <https://cloud.google.com/sdk/docs/authorizing>`_
 
-    .. code-block:: bash
+* If gcloud is a fresh install, initialize and grab a keyfile::
+      
+    > gcloud init
+    > gcloud auth login
+    > mkdir -p ~/.keys
+    > gcloud iam service-accounts keys create ~/.keys/key.json \
+          --iam-account <service account>
 
-      Example code
+* Else activate your service account key::
 
-#. Step 2.
+    > gcloud auth activate-service-account <account> --key-file=<key-file>
+    > export GOOGLE_APPLICATION_CREDENTIALS=~/.keys/key.json
 
-#. Activate your account or service account 
-   ([more details](https://cloud.google.com/sdk/docs/authorizing)):
-   #. Local Machine::
+It is recommended to add ``GOOGLE_APPLICATION_CREDENTIALS`` to your .bashrc since
+many libraries and tools require it.
 
-        > gcloud init
-        > gclout auth login
-  
-   #. Virtual Machine::
+Connecting to a kubernetes cluster
+----------------------------------
 
-        > gcloud auth activate-service-account <account> --key-file=<key-file>
+  * Pre-existing basic cluster::
 
-#. Connect to a kubernetes cluster
-  a. Pre-existing cluster::
+      > gcloud container clusters get-credentials <cluster-name>
 
-        > gcloud container clusters get-credentials <cluster-name>
+  * From a VM to our firewalled cluster (Vulcan Specific)
 
-  a. From a VM (Vulcan Specific)
-
-    - Clone the 
-      [long-lived-infrastructure repo](https://github.com/VulcanClimateModeling/long-lived-infrastructure)
-    - Use terraform to connect to our cluster
-      [details](https://github.com/VulcanClimateModeling/long-lived-infrastructure#vm-access-setup)::
+    * Clone the 
+      `long-lived-infrastructure repo <https://github.com/VulcanClimateModeling/long-lived-infrastructure>`_
+    * Use terraform to connect to our cluster
+      `(details) <https://github.com/VulcanClimateModeling/long-lived-infrastructure#vm-access-setup>`_::
         
-         > make tf_init
-         > make tf_dev_workspace_create
-         > make kubeconfig_init
-
+        > make tf_init
+        > make tf_dev_workspace_create
+        > make kubeconfig_init
     
-  b. Local
-    i. Proxy firewalled to VM [link](https://github.com/VulcanClimateModeling/long-lived-infrastructure#cluster-provisioning-resettingupdating-kubernetes-cluster)
-    ii. local k8s cluster <link to local k8s install
+  * We also have an detailed explanation of creating and connecting to
+    a local k8s cluster in :ref:`local_k8s`. 
 
 After authenticated you will be able to set up / utilize infrastructure with
 proper permissions.  If you are having trouble with authentication being 
-recognized check out the `faqs`_ page.
+recognized check out the :ref:`faqs` page.
 
 Test drive
 ----------
