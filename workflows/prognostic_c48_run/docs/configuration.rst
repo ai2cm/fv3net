@@ -1,7 +1,7 @@
 .. py:module:: runtime.config
 .. _configuration:
 
-Python Configuration
+Configuration
 --------------------
 
 The python model is configured using a nested hierarchy of dataclasses_. This
@@ -21,33 +21,61 @@ configurations with :func:`get_config`. See :class:`UserConfig` and the
 configuration objects it links to for detailed documentation on the available
 configuration options.
 
+The run can can be configured to run with the following
 
-.. _prepare-config: 
+#. Machine learning (prognostic)
+#. Nudge-to-fine
+#. Baseline (no ML or nudging)
+#. Nudge-to-obs
 
-Configuration Preparation
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The prognostic run provides a command line script ``prepare_config.py`` to
-minimize the boilerplate needed by a full yaml configuration described in
-:ref:`configuration`. For example to create an initial value experiment from
-this minimal configuration:
-
-.. literalinclude:: prognostic_config.yml
-    :language: yaml
+Machine learning is done by including a machine learning model path in the
+:py:attr:`runtime.steppers.machine_learning.MachineLearningConfig.model_url`.
+Nudge-to-fine is done by including a `nudging` config section.
 
 
-you can run::
+Diagnostics
+^^^^^^^^^^^
 
-    python3 prepare_config.py \
-        minimal.yaml \
-        gs://vcm-ml-code-testing-data/c48-restarts-for-e2e \
-        20160801.001500 \
-        > fv3config.yaml
+Default diagnostics are computed and saved to .zarrs depending on whether ML,
+nudge-to-fine, nudge-to-obs, or baseline runs are chosen. To save additional
+tendencies and storages across physics and nudging/ML time steps, add
+:py:attr:`UserConfig.step_tendency_variables` and
+:py:attr:`UserConfig.step_storage_variables` entries to specify these
+variables. (If not specified these default to ``air_temperature``,
+``specific_humidity``, ``eastward_wind``, and ``northward_wind`` for ``tendency``,
+and ``specific_humidity`` and ``total_water`` for ``storage``.) Then add an
+additional output .zarr which includes among its variables the desired
+tendencies and/or path storages of these variables due to physics
+(``_due_to_fv3_physics``) and/or ML/nudging (``_due_to_python``). See the example
+below of an additional diagnostic file configuration.
 
-The second two arguments describe the time and GCS location of the initial
-data. The configuration is printed to the standard output, so the command
-above pipes to the file fv3config.yaml.
+.. code-block:: yaml
 
+    namelist:
+    coupler_nml:
+        hours: 0
+        minutes: 60
+        seconds: 0
+    step_tendency_variables: 
+    - air_temperature
+    - specific_humidity
+    - eastward_wind
+    - northward_wind
+    - cloud_water_mixing_ratio
+    step_storage_variables: 
+    - specific_humidity
+    - cloud_water_mixing_ratio
+    diagnostics:
+    - name: step_diags.zarr
+        chunks:
+        time: 4
+        variables:
+        - tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics
+        - storage_of_specific_humidity_path_due_to_fv3_physics
+        - storage_of_cloud_water_mixing_ratio_path_due_to_fv3_physics
+        - storage_of_specific_humidity_path_due_to_python
+
+.. _user config:
 
 API
 ~~~
