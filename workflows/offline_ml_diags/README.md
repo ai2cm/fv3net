@@ -17,6 +17,7 @@ python -m offline_ml_diags.compute_diags \
     $DIAGNOSTICS_OUTPUT_PATH \
     --timesteps-file $TIMESTEP_LIST_JSON
 ```
+
 #### Specifying the test set
 The test set of timesteps may provided via one of the following options:
 - `--timesteps-file $TIMES_JSON` : Provide a JSON file with a list of timesteps 
@@ -39,110 +40,80 @@ python -m offline_ml_diags.create_report \
     $REPORT_OUTPUT_PATH
 ```
 
-
-
-
-## Generating diagnostics
+## Generating diagnostics and metrics
 
 ### Inputs
+#### Optional: User provided configuration file
+The simplest way to specify the test dataset to use is to use the configuration saved
+in the trained model; in this case you do not need to be concerned with providing the
+following information in a configuration file.
 
-This workflow works with GeoMapper objects. This report requires the
-following variables
-- dQ1
-- dQ2
-- pressure_thickness_of_atmospheric_layer
+If a separate configuration YAML file is used via the optional `--config-yml` flag, it must provide
+the following information as top level keys:
+- `batch_function`: must be `batches_from_geodata`
+- `batch_kwargs`: kwargs passed to the batch loading function `loaders.<batch_function>`
+specified above, see [loaders]<link to loaders docs> for details.
+- `input_variables`: variable names of ML model features
+- `output_variables`: ML model target variables
+- (optional) `data_path`: location of the test dataset; if not present in the configuration
+file it must be provided via the command line arg `--data-path`
 
-Optional variables include:
-- pQ1
-- pQ2
-
-### Outputs
-
-#### Usage
-
-This workflow generates diagnostic outputs for variables predicted by 
-a trained ML model. Currently, the workflow only accepts models wrapped 
-for usage with xarray dataset inputs and outputs (the `SklearnWrapper` class 
-found in `fv3fit.sklearn.wrapper`.) 
-
-The script takes in the same configuration YAML file as the training step, 
-a trained ML model (for sklearn the user must include the .pkl file in the model path;
-for keras the model path is the directory containing the various model files), and the
-output path. An optional json file containing a list of timesteps to use can also be
-provided. If not provided, the workflow will use all timesteps present in the data.
-
-If the mapper requires >1 data source, multiple path strings may be provided 
-in the `$DATA_PATH` argument.
-
+#### Example `config.yml`
 ```
-python -m offline_ml_diags.compute_diags \
-    $DATA_PATH  \  # this may be multiple strings 
-    $CONFIG_YAML \
-    $MODEL \
-    $OUTPUT \
-    --timesteps-file $TIMESTEP_LIST_JSON \
-```
-
-The cosine zenith angle feature is a special case of a feature variable that is not
-present in the dataset and must be derived after the mapper reads the data. To include it
-as a feature, provide the `model_mapper_kwarg` mapping `cos_z_var: <name of cosine z feature>`
-in the configuration. An example is below.
-
-If the SHiELD diagnostics are loaded via the model mapper, the variables `net_heating` and
-`net_precipitation` should be included in the `variables` list.
-
-`model_type` specifies the type of ML model to be loaded, as defined in the `fv3fit` package;
-see that package for a list of valid model types, e.g., `random_forest`.
-
-Example config:
-```
-variables:
-  - air_temperature
-  - specific_humidity
-  - dQ1
-  - dQ2
-  - pQ1
-  - pQ2
-  - pressure_thickness_of_atmospheric_layer
-  - land_sea_mask
-  - surface_geopotential
-  - net_precipitation
-  - net_heating
-model_type: random_forest
-model_mapper_kwargs:
-  cos_z_var: cos_zenith_angle
-mapping_function: open_fine_resolution_nudging_hybrid
-mapping_kwargs:
-  nudging:
-    shield_diags_url: gs://vcm-ml-experiments/2020-06-17-triad-round-1/coarsen-c384-diagnostics/coarsen_diagnostics/gfsphysics_15min_coarse.zarr
-    offset_seconds: -900
-    nudging_url: gs://vcm-ml-experiments/2020-06-30-triad-round-2/hybrid/nudging
-  fine_res:
-    offset_seconds: 450
-    fine_res_url: gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget      
+batch_function: batches_from_geodata
 batch_kwargs:
   timesteps_per_batch: 10
-data_path: this_isnt_used_for_hybrid_mapper
-```
+  mapping_function: open_nudge_to_fine
+  mapping_kwargs:
+    nudging_variables:
+      - air_temperature
+      - specific_humidity
+      - x_wind
+      - y_wind
+      - pressure_thickness_of_atmospheric_layer
+input_variables:
+  - surface_geopotential
+  - cos_zenith_angle
+  - air_temperature
+  - specific_humidity
+output_variables:
+- dQ1
+- dQ2
 
-Example usage (from top level of `fv3net`): 
+# optional- if not provided here, must be passed via the CLI arg `--data-path`
+data_path: gs://vcm-ml-data/nudge-to-fine   
 ```
-python -m offline_ml_diags.compute_diags \
-    workflows/offline_ml_diags/tests/config.yml \
-    gs://vcm-ml-scratch/andrep/test-nudging-workflow/train_sklearn_model \
-    gs://vcm-ml-scratch/annak/test-offline-validation-workflow \
-    --timesteps-file workflows/offline_ml_diags/tests/times.json
-```
+### Outputs
+This workflow generates the following outputs:
+- Copy of the config used to generate the diagnostics
+- Distribution of the timesteps in test set, both day and hour
+- Zonal average of bias and $R^2$ at each pressure level
+- Average bias, RMSE, and $R^2$ at each pressure level
+- Average vertical profile of predicted variables, for global, land, ocean,
+positive net precipitation, and negative net precipitation domains
+- Time averaged maps of column integrated predicted variables
+- Diurnal cycle of column integrated dQ1 and dQ2, for global, land, and ocean domains
+- Single timestep snapshot of predicted vs. target varible, along a 0 deg longitude transect
+- Model's Jacobian evaluated at the input means (only for neural net models) 
 
+```bash
+usage: argmark [-h] [--data-path [DATA_PATH [DATA_PATH ...]]]
+               [--config-yml CONFIG_YML] [--timesteps-file TIMESTEPS_FILE]
+               [--snapshot-time SNAPSHOT_TIME]
+               [--timesteps-n-samples TIMESTEPS_N_SAMPLES] [--training]
+               [--grid GRID]
+               model_path output_path
 
-### Creating reports
-Report HTMLs may be created using `offline_ml_diags.create_report`, where the input data path should be
-the output path of the `offline_ml_diags.compute_diags` script. The output location can be either a local
-or remote GCS directory.
+```
+### CLI and full list of arguments
 
-Example usage:
-```
-python -m offline_ml_diags.create_report \
-    $INPUT \
-    $OUTPUT 
-```
+|arg|default|help|
+| :--- | :--- | :--- |
+|`--help`||show this help message and exit|
+|`--data-path`|`None`|Location of test data. If not provided, will use the data_path saved with the trained model config file.|
+|`--config-yml`|`None`|Config file with dataset and variable specifications.|
+|`--timesteps-file`|`None`|Json file that defines train timestep set. Overrides any timestep set in training config if both are provided.|
+|`--snapshot-time`|`None`|Timestep to use for snapshot. Provide a string 'YYYYMMDD.HHMMSS'. If provided, will use the closest timestep in the test set. If not, will default to use the first timestep available.|
+|`--timesteps-n-samples`|`None`|If specified, will draw attempt to draw this many test timesteps from either i) the mapper keys that lie outside the range of times in the config timesteps or ii) the set of timesteps provided in --timesteps-file.Random seed for sampling is fixed to 0. If there are not enough timesteps available outside the config range, will return all timesteps outside the range. Useful if args.config_yml is taken directly from the trained model.Incompatible with also providing a timesteps-file arg. |
+|`--training`||If provided, allows the use of timesteps from the trained model config to be used for offline diags. Only relevant if no config file is provided and no optional args for timesteps-file or timesteps-n-samples given. Acts as a safety to prevent accidental use of training set for the offline metrics.|
+|`--grid`|`None`|Optional path to grid data netcdf. If not provided, defaults to loading the grid  with the appropriate resolution (given in batch_kwargs) from the catalog. Useful if you do not have permissions to access the GCS data in vcm.catalog.|
