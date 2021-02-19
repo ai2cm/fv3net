@@ -40,6 +40,13 @@ build_image_ci:
 deploy_docs_%: 
 	@echo "Nothing to do."
 
+
+## Deploy documentation for fv3net to vulcanclimatemodeling.com
+deploy_docs_fv3net:
+	mkdir -p docs/_build/html
+	docker run us.gcr.io/vcm-ml/fv3net:$(VERSION) tar -C docs/_build/html -c . | tar -C docs/_build/html -x
+	gsutil -m rsync -R docs/_build/html gs://vulcanclimatemodeling-com-static/docs/fv3net
+
 ## Deploy documentation for prognostic run to vulcanclimatemodeling.com
 deploy_docs_prognostic_run:
 	mkdir html
