@@ -20,5 +20,4 @@ setup(
     packages=find_packages(),
     test_suite="tests",
     tests_require=test_requirements,
-    extras_require={"docs": ["sphinx >=3.2", "sphinx-rtd-theme>=0.5.0"]},
 )
