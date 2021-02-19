@@ -57,12 +57,12 @@ def plot_cube(
         plottable_variable (xr.Dataset):
             Dataset containing variable to plotted via pcolormesh, along with
             coordinate variables (lat, latb, lon, lonb). This dataset object
-            can be created from the helper function `mappable_var`, which takes
+            can be created from the helper function :py:func:`mappable_var`, which takes
             in an fv3gfs restart or diagnostic dataset along with the name of
             the variable to be plotted.
         plotting_function (str, optional):
             Name of matplotlib 2-d plotting function. Available options are
-            "pcolormesh", "contour", and "contourf". Defaults to plt.pcolormesh.
+            "pcolormesh", "contour", and "contourf". Defaults to "pcolormesh".
         ax (plt.axes, optional):
             Axes onto which the map should be plotted; must be created with
             a cartopy projection argument. If not supplied, axes are generated
@@ -95,15 +95,16 @@ def plot_cube(
             Additional keyword arguments to be passed to the plotting function.
 
     Returns:
-        figure (matlotlib Figure)
+        figure (plt.Figure):
+            matplotlib figure object onto which axes grid is created
         axes (np.ndarray):
             Array of `plt.axes` objects assocated with map subplots if faceting;
             otherwise array containing single axes object.
         handles (list):
             List or nested list of matplotlib object handles associated with
             map subplots if faceting; otherwise list of single object handle.
-        cbar (obj):
-            `plt.colorbar` object handle associated with figure, if `colorbar`
+        cbar (plt.colorbar):
+            object handle associated with figure, if `colorbar`
             arg is True, else None.
         facet_grid (xarray.plot.facetgrid):
             xarray plotting facetgrid for multi-axes case. In single-axes case,
@@ -207,9 +208,7 @@ def mappable_var(
 
     Args:
         ds (xr.Dataset):
-            Dataset containing the variable to be plotted, along with grid spec
-            information. May be created by merging
-            `fv3_restarts.open_restarts` output and grid spec tiles.
+            Dataset containing the variable to be plotted, along with grid variables.
         var_name (str):
             Name of variable to be plotted.
 
@@ -217,9 +216,11 @@ def mappable_var(
         ds (xr.Dataset):
             Dataset containing variable to be plotted as well as grid
             coordinates variables. Grid variables are renamed and ordered for
-            plotting as first argument to `plot_cube`.
+            plotting as first argument to :py:func:`plot_cube`.
 
     Example:
+    .. :: 
+        
         # plot diag winds at two times
         axes, hs, cbar = plot_cube(
             mappable_var(diag_ds, 'VGRD850').isel(time = slice(2, 4)),
@@ -410,7 +411,7 @@ def plot_cube_axes(
         using np.ndarrays for all data
 
     The `edgecolor` argument produces artifacts with this approach for pcolormesh.
-    To plot pcolormesh, you should consider using `pcolormesh_cube`.
+    To plot pcolormesh, you should consider using :py:func:`pcolormesh_cube`.
 
     Args:
         array (np.ndarray):

@@ -31,12 +31,16 @@ def plot_diurnal_cycle(
     """
 
     Args:
-        merged_ds: xr dataset, can either provide a merged dataset with a "dataset" dim
-        that will be used to plot separate lines for each variable, or a single dataset
-        with no "dataset" dim
-        var: str, name of variable to plot
-        num_time_bins: number of bins per day
-        title: str, optional plot title
+        merged_ds (xr.dataset):
+            can either provide a merged dataset with a "dataset" dim
+            that will be used to plot separate lines for each variable, or a single dataset
+            with no "dataset" dim
+        var (str):
+            name of variable to plot
+        num_time_bins (int):
+            number of bins per day
+        title(str):
+            optional plot title
 
     Returns:
         matplotlib figure
@@ -78,9 +82,12 @@ def plot_diag_var_single_map(da, grid, var_name, plot_cube_kwargs=None):
     """ Uses fv3viz.plot_cube to plot
 
     Args:
-        da: xr data array of variable to plot
-        grid: xr dataset with grid coordinate variables on the same dims as da
-        var_name: name of variable
+        da (xr.dataarray):
+            data array of variable to plot
+        grid (xr dataset):
+            dataset with grid coordinate variables on the same dims as da
+        var_name (str):
+            name of variable
     Returns:
         matplotlib Figure object
     """
@@ -105,14 +112,22 @@ def plot_time_series(
     """ Plot one or more variables as a time series.
 
     Args:
-        ds: xarray dataset
-        vars_to_plot: list[str] of data variables to plot
-        output_dir: str, output directory to save figure into
-        plot_filename: str, filename to save figure to
-        time_var: str, name of time dimension
-        xlabel: str, x axis label
-        ylabel: str, y axis label
-        title: str, plot title
+        ds (xr.dataset):
+            dataset containing time series variables to plot
+        vars_to_plot(list[str]): 
+            data variables to plot
+        output_dir (str): 
+            output directory to save figure into
+        plot_filename (str):
+            filename to save figure to
+        time_var (str):
+            name of time dimension
+        xlabel (str):
+            x axis label
+        ylabel (str):
+            y axis label
+        title (str):
+            plot title
     Returns:
         matplotlib figure
     """
