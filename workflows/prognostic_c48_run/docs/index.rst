@@ -13,13 +13,19 @@ machine learning models online.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Usage:
 
-   configuration
    prepare-config
    local-execution
    development
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Reference:
+
+   configuration
    outputdata
+
 
 
 Indices and tables

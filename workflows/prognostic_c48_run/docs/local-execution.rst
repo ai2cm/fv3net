@@ -1,6 +1,7 @@
+.. _execution:
 
-Running the Prognostic run
---------------------------
+Execution
+---------
 
 .. note:: 
 
@@ -23,12 +24,12 @@ Prognostic runs currently require using a few command line utilities:
 Segmented Runs
 ~~~~~~~~~~~~~~
 
-The prognostic run can be run via the local command line interface: `runfv3`.
+The prognostic run can be run via the local command line interface: ``runfv3``.
 
 For robustness, the FV3 model is typically run in several short segments,
 with restart files saved after each segment. This ensures that the model
 still produces outputs if a given segment crashes. For example, assume you
-would like to run a full fv3config file (see :ref:`prepare-config` for instructions), 
+would like to run a full fv3config file (see :ref:`config usage` for instructions), 
 with the runfile ``sklearn_runfile.py`` and save the outputs to a google
 cloud storage bucket ``gs://bucket/prognostic_run``.
 
