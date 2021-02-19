@@ -1,4 +1,4 @@
-.. faqs:
+.. _faqs:
 
 FAQs
 ====
