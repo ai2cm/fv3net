@@ -31,7 +31,7 @@ Top-level
 .. autoclass:: UserConfig
 
 Python "Physics"
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 
 .. py:module:: runtime.steppers.machine_learning

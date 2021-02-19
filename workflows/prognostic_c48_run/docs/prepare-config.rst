@@ -5,14 +5,19 @@ Configuration Usage
 
 The prognostic run can can be configured to run with the following
 
-#. Baseline (no ML or nudging)
-#. Machine learning (prognostic)
-#. Nudge-to-fine
-#. Nudge-to-obs
+#. :ref:`Baseline (no ML or nudging) <baseline>`
+#. :ref:`Nudge-to-fine <nudge to fine>`
+#. :ref:`Nudge-to-obs <nudge to obs>`
+#. :ref:`Machine learning (prognostic) <ml config>`
 
 The prognostic run provides a command line script ``prepare_config.py`` to
 minimize the boilerplate required to configure a run. This script allows
 specifying changes over the "default" configurations stored `here <https://github.com/VulcanClimateModeling/fv3net/tree/master/external/fv3kube/fv3kube/base_yamls>`_.
+
+.. _baseline:
+
+Baseline Run
+~~~~~~~~~~~~
 
 To configure a simple baseline run, save the following to a file ``minimal.yaml``
 
@@ -42,6 +47,8 @@ The second two arguments describe the time and GCS location of the initial
 data. The configuration is printed to the standard output, so the command
 above pipes to the file fv3config.yaml.
 
+.. _nudge to fine:
+
 Nudge to fine
 ^^^^^^^^^^^^^
 
@@ -62,6 +69,8 @@ Notice how these configurations correspond with
 :py:attr:`runtime.config.UserConfig.nudging`. Refer to those docs as a
 reference.
 
+.. _nudge to obs:
+
 Nudge to obs
 ^^^^^^^^^^^^
 
@@ -75,6 +84,8 @@ including the argument ``--nudge-to-observations URL`` to
 
     Nudge-to-obs is not mutually exclusive with any of the first three
     options as it is conducted within the Fortran physics routine.
+
+.. _ml config:
 
 Machine learning
 ^^^^^^^^^^^^^^^^

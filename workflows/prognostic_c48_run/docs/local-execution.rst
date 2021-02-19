@@ -8,16 +8,6 @@ Execution
     This section assumes you are within an environment with the prognostic
     run installed. See :ref:`development` for instructions on how to set this up.
 
-Prognostic runs currently require using a few command line utilities:
-
-.. graphviz::
-
-   digraph foo {
-      "minimal-fv3config.yml" -> "full fv3config.yml" [label="prepare_config.py"];
-      "full fv3config.yml" -> "Segmented run" [label="runfv3 create"];
-      "Segmented run" -> "Segmented run" [label="runfv3 append"];
-   }
-
 
 .. _segmented-run-cli:
 
@@ -88,7 +78,7 @@ prognostic_run development environment and run
     runfv3 append gs://path/to/failing/run
 
 Low-level usage
----------------
+~~~~~~~~~~~~~~~
 
 Sometimes it is nice to avoid the complexities of a segmented run
 (:ref:`segmented-run-cli`) for local development. For this reason, the `runfv3`
