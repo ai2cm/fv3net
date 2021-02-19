@@ -11,6 +11,7 @@ Welcome to Prognostic Run's documentation!
    :caption: Contents:
 
    configuration
+   local-execution
 
 
 
