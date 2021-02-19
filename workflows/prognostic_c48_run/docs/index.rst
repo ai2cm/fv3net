@@ -29,7 +29,7 @@ Please see the documentation below:
    :maxdepth: 2
    :caption: Usage:
 
-   prepare-config
+   config-usage
    local-execution
    development
 
