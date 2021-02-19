@@ -75,8 +75,10 @@ def _create_arg_parser() -> argparse.Namespace:
         "--commit-sha",
         type=str,
         default=None,
-        help=("Commit SHA of fv3net used to create report. Useful for referencing"
-        "the version used to train the model."),
+        help=(
+            "Commit SHA of fv3net used to create report. Useful for referencing"
+            "the version used to train the model."
+        ),
     )
     return parser.parse_args()
 
