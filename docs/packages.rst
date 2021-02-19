@@ -3,15 +3,13 @@
 Packages
 ========
 
-fv3fit
+`fv3fit <https://vulcanclimatemodeling.com/docs/fv3fit>`_ is a library for machine learning workflows.
 
-loaders
+`loaders <https://vulcanclimatemodeling.com/docs/loaders>`_ provides unified APIs for accessing model output datasets.
 
-fv3viz
+`fv3viz <https://vulcanclimatemodeling.com/docs/fv3viz>`_ contains visualization tools.
 
-offline_ml_diags
-
-vcm
+`vcm <https://vulcanclimatemodeling.com/docs/vcm>`_ is a collection of various routines.
 
 :doc:`synth <readme_links/synth_readme>` is a package which allows you to define data schemas and create synthetic datasets for testing.
 
@@ -20,6 +18,8 @@ vcm
 :doc:`fv3kube <readme_links/fv3kube_readme>` contains utilities to handle submitting and monitoring fv3gfs-python jobs on kubernetes.
 
 :doc:`diagnostics_utils <readme_links/diagnostics_utils_readme>` processes training data from multiple sources into a diagnostic dataset.
+
+.. rubric:: VCM packages in other repositories:
 
 fv3gfs-python_ (`docs <https://vulcanclimatemodeling.github.io/fv3gfs-python/f12n7eq5xkoibbqp/index.html>`_) is a Python wrapper for the FV3GFS Fortran model.
 
