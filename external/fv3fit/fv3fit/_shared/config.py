@@ -2,11 +2,17 @@ import fsspec
 import inspect
 import yaml
 import os
-from typing import Optional, Union, Sequence, List
+from ..keras import _models as keras_models
+from typing import Optional, Union, Sequence, List, Iterable, Mapping
+import dataclasses
 
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
+KERAS_MODEL_TYPES = [
+    m[0] for m in inspect.getmembers(keras_models, inspect.isclass)
+]
+SKLEARN_MODEL_TYPES = ["sklearn", "rf", "random_forest", "sklearn_random_forest"]
 
 
 class ModelTrainingConfig:
@@ -31,6 +37,31 @@ class ModelTrainingConfig:
         model_path: Optional[str] = None,
         timesteps_source: Optional[str] = None,
     ):
+        """
+            Initialize the configuration class.
+
+            Args:
+                model_type: sklearn model type or keras model class to initialize
+                hyperparameters: arguments to pass to model class at initialization
+                    time
+                input_variables: variables used as features
+                output_variables: variables to predict
+                batch_function: name of function from `fv3fit.batches` to use for
+                    loading batched data
+                batch_kwargs: keyword arguments to pass to batch function
+                data_path: location of training data to be loaded by batch function
+                scaler_type: scaler to use for training
+                scaler_kwargs: keyword arguments to pass to scaler initialization
+                additional_variables: list of needed variables which are not inputs
+                    or outputs (e.g. pressure thickness if needed for scaling)
+                random_seed: value to use to initialize randomness
+                validation_timesteps: timestamps to use as validation samples
+                save_model_checkpoints: whether to save a copy of the model at
+                    each epoch
+                model_path: output location for final model
+                timesteps_source: one of "timesteps_file",
+                    "sampled_outside_input_config", "input_config", "all_mapper_times"
+        """
         self.data_path = data_path
         self.model_type = model_type
         self.hyperparameters = hyperparameters

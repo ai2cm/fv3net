@@ -7,7 +7,10 @@ import copy
 import json
 import tensorflow as tf
 import tensorflow_addons as tfa
-from ..._shared import ArrayPacker, Estimator, io, unpack_matrix
+
+from ..._shared.packer import ArrayPacker, unpack_matrix
+from ..._shared.predictor import Estimator
+from ..._shared import io
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
