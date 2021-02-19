@@ -96,50 +96,6 @@ Followed by `segment-count` iterations of
 runfv3 append {{inputs.parameters.output}}
 ```
 
-#### Post-processing and chunking
-
-The post-processing can convert netCDF diagnostic outputs of the form `name.tile?.nc`
-to zarr with user-specified chunks and rechunk zarrs output by fv3gfs-wrapper. To
-specify that a set of netCDF outputs should be converted to zarr, their chunking must be
-defined in the `fortran_diagnostics` section of the config provided to the `prognostic-run`
-workflow. The chunking for zarr outputs from the python runfile are defined with the `diagnostics`
-section. For example:
-```yaml
-initial_conditions: gs://vcm-ml-data/initial-conditions-url
-namelist:
-  coupler_nml:
-    days: 5
-fortran_diagnostics:
-  - name: atmos_8xdaily.zarr
-    chunks:
-      time: 8
-  - name: nudging_tendencies.zarr
-    chunks:
-      time: 1
-  - name: sfc_dt_atmos.zarr
-    chunks:
-      time: 96
-diagnostics:
-  - name: diags.zarr
-    chunks:
-      time: 96
-    variables:
-      - net_heating
-      - net_moistening
-      - column_integrated_dQu
-      - column_integrated_dQv
-```
-
-Some diagnostics have default chunking which is inserted by the `prepare_config.py`
-script if no diagnostics are specified.
-
-WARNING: if `segment-count` is greater than 1, the time chunk size must evenly
-divide the length of the time dimension for each diagnostic output.
-
-As a rule of thumb, make sure the size of netCDF outputs is no larger than about
-1 GB per file. The size of output files can be controlled by output frequency, 
-number/dimensionality of variables in each diagnostic category, and segment length.
-
 #### Volumes used by run-fv3gfs template
 
 The `prognostic-run` template uses an internal workflow template `run-fv3gfs`. Due to 
@@ -174,7 +130,7 @@ recomputation of the diagnostics, simply delete everything under the appropriate
 subdirectory.
 
 #### Command line interfaces used by workflow
-This workflow calls
+For each `run` in the `runs` JSON parameter, this workflow calls
 ```
 memoized_compute_diagnostics.sh {{run.url}} \
                                 gs://vcm-ml-public/argo/{{workflow.name}}/{{run.name}} \
@@ -186,7 +142,7 @@ It then optionally calls
 prognostic_run_diags movie {{run.url}} /tmp/movie_stills
 stitch_movie_stills.sh /tmp/movie_stills  gs://vcm-ml-public/argo/{{workflow.name}}/{{run.name}}
 ```
-for each `run` in the `runs` JSON. Once these steps are completed, a report is generated with
+Once these steps are completed, a report is generated with
 ```
 prognostic_run_diags report gs://vcm-ml-public/argo/{{workflow.name}} gs://vcm-ml-public/argo/{{workflow.name}}
 ```
@@ -215,7 +171,7 @@ argo submit --from workflowtemplate/prognostic-run-diags \
 ```
 
 If successful, the completed report will be available at
-`gs://vcm-ml-public/argo/<name>/index.html`, where `<workflow name>` is the name of the created
+`gs://vcm-ml-public/argo/<name>/index.html`, where `<name>` is the name of the created
 argo `workflow` resource. This can be accessed from a web browser using this link:
 
     http://storage.googleapis.com/vcm-ml-public/argo/<name>/index.html 
@@ -225,7 +181,7 @@ argo `workflow` resource. This can be accessed from a web browser using this lin
 
 ### training workflow
 
-This workflow trains machine learning models (`fv3fit.train`).
+This workflow trains machine learning models.
 
 | Parameter              | Description                                          |
 |------------------------|------------------------------------------------------|
@@ -249,8 +205,7 @@ python -m fv3fit.train \
 
 ### offline-diags workflow
 
-This workflow computes offline ML diagnostics (`offline_ml_diags.compute_diags`) and generates an
-associated report (`offline_ml_diags.create_report`).
+This workflow computes offline ML diagnostics and generates an associated report.
 
 | Parameter              | Description                                          |
 |------------------------|------------------------------------------------------|
@@ -266,7 +221,7 @@ This workflow calls
 python -m offline_ml_diags.compute_diags \
           {{inputs.parameters.ml-model}} \
           {{inputs.parameters.offline-diags-output}} \
-          --timesteps-file {{inpts.parameters.times}} 
+          --timesteps-file {{inputs.parameters.times}} 
           
 python -m offline_ml_diags.create_report \
           {{inputs.parameters.offline-diags-output}} \
@@ -301,17 +256,13 @@ This workflow template runs the `training`, `offline-diags`, `prognostic-run` an
 ### train-diags-prog-multiple-models workflow template
 
 This is similar to the above `train-diags-prog` workflow, but trains and runs offline diagnostics for >1
-model, then uses all trained models in the prognostic run. This allows different outputs to be trained
-with separate sets of hyperparameters. All parameters are the same as for the `train-diags-prog` workflow,
-except this workflow takes a `training-configs` parameter instead of `training-config`. `training-configs`
-is the string representation of a JSON file, which should be formatted as 
+ML model, then uses all trained models in the prognostic run. All parameters are the same as for the 
+`train-diags-prog` workflow, except this workflow takes a `training-configs` parameter instead of 
+`training-config`. `training-configs` is the string representation of a JSON file, which should be formatted as 
 `[{name: model_name, config: model_config}, ...]`, and where the model config values are identical in
 structure to the single configurations used in `train-diags-prog`.  In practice it is easiest to write this as
 a YAML file since our existing training configs are YAMLs that can be pasted in, and then converted to JSON
-format using `yq . config.yml` in the submit command. 
-
- Models and offline diagnostics are saved in "{{inputs.parameters.root}}/trained_models/{{item.name}}" and 
- "{{inputs.parameters.root}}/offline_diags/{{item.name}}".
+format using `yq . config.yml` in the submit command.
 
 ### Cubed-sphere to lat-lon interpolation workflow
 
