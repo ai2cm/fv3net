@@ -1,0 +1,5 @@
+.. _quickstarts:
+
+Quickstarts
+===========
+

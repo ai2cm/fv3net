@@ -6,12 +6,32 @@
 Welcome to fv3net's documentation!
 ==================================
 
+To get running quickly, see our `quickstarts`_. These contain information about installation/setup, as well as how you can run pre-configured examples.
+
+The `workflows`_ page documents our overall scientific workflow, with links to documentation for each component.
+
+`packages`_ describes the tools and libraries we use to organize our code.
+
+If you run into issues, you may want to check the `faqs`_ to see if this is a known issue we have a solution for.
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+
+   quickstarts
+   workflows
+   packages
+   faqs
+
 Other VCM Projects
 ------------------
 
 - fv3gfs-python_ (`docs <https://vulcanclimatemodeling.github.io/fv3gfs-python/f12n7eq5xkoibbqp/index.html>`_)
 - fv3config_
 
+
+TODO: delete these notes before we merge
 
 short, quick hits of information with links to dive into the full docs
 links to paper docs with active descriptions of stored datasets, active experiments
@@ -42,19 +62,6 @@ FAQs:
    - some kind of "if you get this authentication error, see the authentication rollback and quickstart docs (link)"
 
 
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
-   workflows
-   vcm
-   science
-   regression-testing
-
-
-.. _fv3gfs-python: https://github.com/VulcanClimateModeling/fv3gfs-python
-.. _fv3config: https://fv3config.readthedocs.io/en/latest/
 
 Indices and tables
 ==================
