@@ -73,37 +73,28 @@ sequential segments.
 | `reference-restarts` | Location of restart data for initializing the prognostic run                  |
 | `output`             | Location to save prognostic run output                                        |
 | `flags`              | (optional) extra command line flags for prepare_config.py                     |
-| `segment-count`      | (optional) Number of prognostic run segments; default 1                       |
-| `cpu`                | (optional) Number of cpus for prognostic run nodes; default 6                 |
-| `memory`             | (optional) Memory for prognostic run nodes; default 6Gi                       |
+| `segment-count`      | (optional) Number of prognostic run segments; default "1"                     |
+| `cpu`                | (optional) Number of cpus to request; default "6"                             |
+| `memory`             | (optional) Amount of memory to request; default 6Gi                           |
 
 #### Called command line interfaces
 This workflow calls:
 ```
-python3 prepare_config.py \
+python3 /fv3net/workflows/prognostic_c48_run/prepare_config.py \
         {{inputs.parameters.flags}} \
-        config.yaml \
+        {{inputs.parameters.config}} \
         {{inputs.parameters.reference-restarts}} \
         {{inputs.parameters.initial-condition}} \
         > /tmp/fv3config.yaml
 ```
-And then 
+And then
 ```
-runfv3 create {{inputs.parameters.output}} /tmp/fv3config.yaml sklearn_runfile.py
+runfv3 create {{inputs.parameters.output}} /tmp/fv3config.yaml /fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
 ```
 Followed by `segment-count` iterations of
 ```
 runfv3 append {{inputs.parameters.output}}
 ```
-
-#### Running multiple segments
-
-The workflow will submit `segment-count` model segments in sequence. The post-processed diagnostic 
-outputs from each segment will automatically be appended to the previous segment's at
-`output-url`. All other outputs (restart files, logging, etc.) will be saved to
-`output-url/artifacts/{timestamp}` where `timestamp` corresponds to the start time of
-each segment. The duration of each segment is defined by the `fv3config` object passed
-to the workflow.
 
 #### Post-processing and chunking
 
@@ -154,8 +145,8 @@ number/dimensionality of variables in each diagnostic category, and segment leng
 The `prognostic-run` template uses an internal workflow template `run-fv3gfs`. Due to 
 some limitations of argo, it is necessary that the entrypoint workflow makes a
 claim for volumes that are ultimately mounted and used by `run-fv3gfs`. See the
-`train-diags-prog` workflow (described below) for an example of the volume claims necessary
-to use `run-fv3gfs`.
+`volumes` section of the `prognostic-run` workflow for an example of the volume claims 
+necessary to use `run-fv3gfs`.
 
 ### Prognostic run report
 
@@ -182,7 +173,25 @@ compute the diagnostics if they don't already exist in the cache. If you wish to
 recomputation of the diagnostics, simply delete everything under the appropriate cached
 subdirectory.
 
-#### Command line Usage Example
+#### Command line interfaces used by workflow
+This workflow calls
+```
+memoized_compute_diagnostics.sh {{run.url}} \
+                                gs://vcm-ml-public/argo/{{workflow.name}}/{{run.name}} \
+                                {{inputs.parameters.flags}}
+```
+and then regrids the relevant diagnostics to a lat-lon grid using `cubed-to-latlon.regrid-single-input`.
+It then optionally calls
+```
+prognostic_run_diags movie {{run.url}} /tmp/movie_stills
+stitch_movie_stills.sh /tmp/movie_stills  gs://vcm-ml-public/argo/{{workflow.name}}/{{run.name}}
+```
+for each `run` in the `runs` JSON. Once these steps are completed, a report is generated with
+```
+prognostic_run_diags report gs://vcm-ml-public/argo/{{workflow.name}} gs://vcm-ml-public/argo/{{workflow.name}}
+```
+
+#### Workflow Usage Example
 
 Typically, `runs` will be stored in a json file (e.g. `rundirs.json`).
 ```
