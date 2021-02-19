@@ -6,7 +6,6 @@ installed onto a K8s cluster. Once installed on a cluster, they can be
 referenced from other argo workflows, or run directly using the `argo`
 command line tool.
 
-
 ### Quickstart
 
 To install these templates run
@@ -15,11 +14,9 @@ To install these templates run
 
 This can be done from an external location (e.g. vcm-workflow-control)
 
-Running a job from a workflowtemplate is similar to running a standard argo
-workflow, but uses the `--from` flag instead. For example,
+To run an installed workflowtemplate, use  the `--from` flag. For example,
 
     argo submit --from workflowtemplate/<templatename> ...
-
 
 Workflow parameters can be passed via the command line, e.g.
 ```
@@ -28,25 +25,9 @@ argo submit --from workflowtemplate/prognostic-run-diags \
     --name <name>
 ```
 
-You can also use submit by supplying a file containing the parameters with the `--parameter-file` or `-f` flag, e.g.
-```
-argo submit --from workflowtemplate/train-diags-prog --parameter-file config.json
-```
-
-This command will make output like this:
-
-    Name:                prognostic-run-diags-sps8h
-    Namespace:           default
-    ServiceAccount:      default
-    Status:              Pending
-    Created:             Thu Apr 30 12:01:17 -0700 (now)
-
-
 This job can be monitored by running
 
-    argo watch <Name>
-
-Moreover, the templates within this workflows can be used by other workflows.
+    argo get <name>
 
 ### Pinning the image tags
 
@@ -81,24 +62,22 @@ See the [end-to-end intergration tests](/tests/end_to_end_integration) for an ex
 
 ### Running fv3gfs with argo
 
-The `run-fv3gfs` template is a general purpose workflow to do fv3gfs simulations on the
-cloud. It does post-processing on the fly and the workflow can run the model in
+The `prognostic-run` template is a workflow to do fv3gfs simulations on the
+cloud. It can do baseline (no-ML) runs, nudged runs or prognostic runs.
+It does post-processing on the fly and the workflow can run the model in
 sequential segments to increase reliability and reduce the memory requirement for
-the post-processing step. See the prognostic run workflow at
-`workflows/argo/prognostic-run.yaml` for an example usage of the `run-fv3gfs`
-template.
+the post-processing step.
 
-| Parameter            | Description                                                                                           |
-|----------------------|-------------------------------------------------------------------------------------------------------|
-| fv3config            | String representation of an fv3config object                                                          |
-| runfile              | String representation of an fv3gfs runfile                                                            |
-| output-url           | GCS url for outputs                                                                                   |
-| cpu                  | (optional) Requested cpu for run-model step                                                           |
-| memory               | (optional) Requested memory for run-model step                                                        |
-| segment-count        | (optional) Number of segments to run                                                                  |
-| working-volume-name  | (optional) Name of volume for temporary work. Volume claim must be made prior to run-fv3gfs workflow. |
+| Parameter          | Description                                                                   |
+|--------------------|-------------------------------------------------------------------------------|
+| initial-condition  | String of initial time at which to begin the prognostic run                   |
+| config             | String representation of base config YAML file; supplied to prepare_config.py |
+| reference-restarts | Location of restart data for initializing the prognostic run                  |
+| flags              | (optional) extra command line flags for prepare_config.py                     |
+| segment-count      | (optional) Number of prognostic run segments; default 1                       |
+| cpu                | (optional) Number of cpus for prognostic run nodes; default 6                 |
+| memory             | (optional) Memory for prognostic run nodes; default 6Gi                       |
 
-Defaults for optional parameters can be found in the workflow.
 
 #### Running multiple segments
 
@@ -155,38 +134,37 @@ number/dimensionality of variables in each diagnostic category, and segment leng
 
 #### Volumes used by run-fv3gfs template
 
-Due to some limitations of argo, it is necessary that the entrypoint workflow makes a
-claim for volumes that are ultimately mounted and used by `run-fv3gfs`. The name of these
-volumes can be passed to the `run-fv3gfs` template. See the end-to-end test workflow at
-`tests/end_to_end_integration/argo.yaml` for an example of the volume claims (including 
-`gcp-secret-key`) necessary to use `run-fv3gfs` .
+The `prognostic-run` template uses an internal workflow template `run-fv3gfs`. Due to 
+some limitations of argo, it is necessary that the entrypoint workflow makes a
+claim for volumes that are ultimately mounted and used by `run-fv3gfs`. See the
+`train-diags-prog` workflow described below for an example of the volume claims (including 
+`gcp-secret-key` and `dhsm`) necessary to use `run-fv3gfs`.
 
 
 ### train-diags-prog workflow template
 
 This workflow template runs the model training, offline diagnostics, prognostic run,
-and online diagnostics steps, using the following workflow templates: `training`,
-`offline-diags`, and `prognostic-run`. Model training can be run with either `sklearn`
-or `keras` training routines using the `train-routine` input parameter and passing
-an appropriate `training-config` string.
+and online diagnostics steps using the `training`, `offline-diags`, and `prognostic-run`
+workflow templates.
 
-| Parameter             | Description                                                                |
-|-----------------------|----------------------------------------------------------------------------|
-| root                  | Local or remote root directory for the outputs from this workflow          |
-| train-routine         | Training routine to use: e.g., "sklearn" (default) or "keras"              |
-| train-test-data       | Location of data to be used in training and testing the model              |
-| training-config       | String representation of a training configuration YAML file                |
-| train-times           | List strings of timesteps to be used in model training                     |
-| test-times            | List strings of timesteps to be used in offline model testing              |
-| public-report-output  | Location to write HTML report of model's offline diagnostic performance    |
-| initial-condition     | String of initial time at which to begin the prognostic run                |
-| prognostic-run-config | String representation of a prognostic run configuration YAML file          |
-| reference-restarts    | Location of restart data for initializing the prognostic run               |
-| flags                 | (optional) extra command line flags for prepare_config.py                  |
-| segment-count         | (optional) Number of prognostic run segments; default 1                    |
-| cpu-prog              | (optional) Number of cpus for prognostic run nodes; default 6              |
-| memory-prog           | (optional) Memory for prognostic run nodes; default 6Gi                    |
-| work-volume-name      | (optional) Working volume name, prognostic run; default 'work-volume'      |
+| Parameter             | Description                                                                         |
+|-----------------------|-------------------------------------------------------------------------------------|
+| root                  | Local or remote root directory for the outputs from this workflow                   |
+| train-test-data       | Location of data to be used in training and testing the model                       |
+| training-config       | String representation of a training configuration YAML file                         |
+| train-times           | List strings of timesteps to be used in model training                              |
+| test-times            | List strings of timesteps to be used in offline model testing                       |
+| public-report-output  | Location to write HTML report of model's offline diagnostic performance             |
+| initial-condition     | String of initial time at which to begin the prognostic run                         |
+| prognostic-run-config | String representation of a prognostic run configuration YAML file                   |
+| reference-restarts    | Location of restart data for initializing the prognostic run                        |
+| flags                 | (optional) extra command line flags for prognostic run; passed to prepare_config.py |
+| segment-count         | (optional) Number of prognostic run segments; default 1                             |
+| cpu-prog              | (optional) Number of cpus for prognostic run; default 6                             |
+| memory-prog           | (optional) Memory for prognostic run; default 6Gi                                   |
+| memory-training       | (optional) Memory for model training; default 6Gi                                   |
+| memory-offline-diags  | (optional) Memory for offline diagnostics; default 6Gi                              |
+| flags                 | (optional) extra command line flags for training; passed to fv3fit.train            |
 
 ### train-diags-prog-multiple-models workflow template
 
@@ -203,45 +181,22 @@ format using `yq . config.yml` in the submit command.
  Models and offline diagnostics are saved in "{{inputs.parameters.root}}/trained_models/{{item.name}}" and 
  "{{inputs.parameters.root}}/offline_diags/{{item.name}}".
 
-
-| Parameter             | Description                                                                |
-|-----------------------|----------------------------------------------------------------------------|
-| root                  | Local or remote root directory for the outputs from this workflow          |
-| train-routine         | Training routine to use: e.g., "sklearn" (default) or "keras"              |
-| train-test-data       | Location of data to be used in training and testing the model              |
-| training-configs      | String representation of list of training configurations and their names   |
-| train-times           | List strings of timesteps to be used in model training                     |
-| test-times            | List strings of timesteps to be used in offline model testing              |
-| public-report-output  | Location to write HTML report of model's offline diagnostic performance    |
-| initial-condition     | String of initial time at which to begin the prognostic run                |
-| prognostic-run-config | String representation of a prognostic run configuration YAML file          |
-| reference-restarts    | Location of restart data for initializing the prognostic run               |
-| flags                 | (optional) extra command line flags for prepare_config.py                  |
-| segment-count         | (optional) Number of prognostic run segments; default 1                    |
-| cpu-prog              | (optional) Number of cpus for prognostic run nodes; default 6              |
-| memory-prog           | (optional) Memory for prognostic run nodes; default 6Gi                    |
-| work-volume-name      | (optional) Working volume name, prognostic run; default 'work-volume'      |
-
-
 ### Prognostic run report
 
 The `prognostic-run-diags` workflow template will generate reports for
 prognostic runs. See this [example][1].
 
-| Parameter    | Description                                                  |
-|--------------|--------------------------------------------------------------|
-| runs         | A json-encoded list of {"name": ..., "url": ...} items       |
-| make-movies  | (optional) whether to generate movies. Defaults to false     |
-| flags        | (optional) flags to pass to save_prognostic_diags.py script. |
-
-The outputs will be stored at the directory
-`gs://vcm-ml-public/argo/<workflow name>`, where `<workflow name>` is NOT the
-name of the workflow template, but of the created `workflow` resource.
+| Parameter   | Description                                                      |
+|-------------|------------------------------------------------------------------|
+| runs        | A json-encoded list of {"name": ..., "url": ...} items           |
+| make-movies | (optional) whether to generate movies. Defaults to false         |
+| flags       | (optional) flags to pass to `prognostic_run_diags save` command. |
 
 To specify what verification data use when computing the diagnostics, use the `--verification`
-flag. E.g. specifying the argo parameter `flags="--verification nudged_c48_fv3gfs_2016` will use a
+flag. E.g. specifying the argo parameter `flags= --verification nudged_c48_fv3gfs_2016` will use a
 year-long nudged-to-obs C48 run as verification. By default, the `40day_may2020` simulation
-is used as verification (see fv3net catalog).
+is used as verification. Any verification dataset in the vcm catalog with the `simulation` and
+`category` metadata tags can be used.
 
 The prognostic run report implements some basic caching to speed the generation of multiple
 reports that use the same run. The diagnostics and metrics for each run will be saved
@@ -274,29 +229,27 @@ argo submit --from workflowtemplate/prognostic-run-diags \
     --name <name>
 ```
 
-
 If successful, the completed report will be available at
-`gs://vcm-ml-public/argo/<name>/index.html`. This can be accessed from a web browser using this link:
+`gs://vcm-ml-public/argo/<name>/index.html`, where `<workflow name>` is the name of the created
+argo `workflow` resource. This can be accessed from a web browser using this link:
 
     http://storage.googleapis.com/vcm-ml-public/argo/<name>/index.html 
-
-If you wish to generate movies of column-integrated heating and moistening along with the report, 
-add the parameter `-p make-movies="true"`. By default, the movies will not be created.
 
 [1]: http://storage.googleapis.com/vcm-ml-public/experiments-2020-03/prognostic_run_diags/combined.html
 
 
-### Nudging workflow
+### offline-diags workflow
 
-A nudging (nudge to fine) workflow template is available and can be run with the
-following minimum arguments: `nudging-config`, `reference-restarts`, `initial-condition`,
-and `output-url`, e.g., using the example config in `./nudging/examples/argo_clouds_off.yaml`:
+This workflow computes offline ML diagnostics (`offline_ml_diags.compute_diags`) and generates an
+associated report (`offline_ml_diags.create_report`).
 
-    argo submit --from workflowtemplate/nudging \
-        -p nudging-config="$(< ./nudging/examples/argo_clouds_off.yaml)" \
-        -p reference-restarts="gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts" \
-        -p initial-condition="20160801.001500" \
-        -p output-url="gs://vcm-ml-scratch/brianh/nudge-to-fine-test" 
+| Parameter              | Description                                          |
+|------------------------|------------------------------------------------------|
+| `ml-model`             | URL to machine learning model                        |
+| `times`                | JSON-encoded list of timestamps to use for test data |
+| `offline-diags-output` | Where to save offline diagnsostics                   |
+| `report-output`        | Where to save report                                 |
+| `memory`               | (optional) memory for workflow. Defaults to 6Gi.     |
 
 
 ### Cubed-sphere to lat-lon interpolation workflow
