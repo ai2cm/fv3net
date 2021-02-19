@@ -63,7 +63,7 @@ appended to the previous segment's. All other outputs
 time of each segment. The duration of each segment is defined by the root level ``fv3config.yml``.
 
 Every subsequent time this command is executed, a new segmented starting at
-the end of the previous one, will be appended. For example, the following for loop will run 5 segments::
+the end of the previous one will be appended. For example, the following for loop will run 5 segments::
 
     for i in {1..5}
     do
