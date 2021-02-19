@@ -73,7 +73,7 @@ sequential segments.
 | `cpu`                | (optional) Number of cpus to request; default "6"                             |
 | `memory`             | (optional) Amount of memory to request; default 6Gi                           |
 
-#### Called command line interfaces
+#### Command line interfaces used by workflow
 This workflow calls:
 ```
 python3 /fv3net/workflows/prognostic_c48_run/prepare_config.py \
@@ -188,7 +188,7 @@ This workflow trains machine learning models.
 | `report-output`        | Where to save report                                 |
 | `memory`               | (optional) memory for workflow. Defaults to 6Gi.     |
 
-#### Called command line interfaces
+#### Command line interfaces used by workflow
 This workflow calls
 ```
 python -m fv3fit.train \
@@ -211,7 +211,7 @@ This workflow computes offline ML diagnostics and generates an associated report
 | `report-output`        | Where to save report                                 |
 | `memory`               | (optional) memory for workflow. Defaults to 6Gi.     |
 
-#### Called command line interfaces
+#### Command line interfaces used by workflow
 This workflow calls
 ```
 python -m offline_ml_diags.compute_diags \
