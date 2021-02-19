@@ -58,31 +58,6 @@ specified above, see [loaders]<link to loaders docs> for details.
 - (optional) `data_path`: location of the test dataset; if not present in the configuration
 file it must be provided via the command line arg `--data-path`
 
-#### Example `config.yml`
-```
-batch_function: batches_from_geodata
-batch_kwargs:
-  timesteps_per_batch: 10
-  mapping_function: open_nudge_to_fine
-  mapping_kwargs:
-    nudging_variables:
-      - air_temperature
-      - specific_humidity
-      - x_wind
-      - y_wind
-      - pressure_thickness_of_atmospheric_layer
-input_variables:
-  - surface_geopotential
-  - cos_zenith_angle
-  - air_temperature
-  - specific_humidity
-output_variables:
-- dQ1
-- dQ2
-
-# optional- if not provided here, must be passed via the CLI arg `--data-path`
-data_path: gs://vcm-ml-data/nudge-to-fine   
-```
 ### Outputs
 This workflow generates the following outputs:
 - Copy of the config used to generate the diagnostics
