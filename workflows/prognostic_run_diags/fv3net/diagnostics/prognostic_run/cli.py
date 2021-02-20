@@ -12,7 +12,7 @@ def dissoc(namespace, key):
     )
 
 
-def main():
+def get_parser():
     parser = argparse.ArgumentParser(description="Prognostic run diagnostics")
     subparsers = parser.add_subparsers(help="Prognostic run diagnostics")
 
@@ -20,6 +20,11 @@ def main():
     metrics.register_parser(subparsers)
     movie_stills.register_parser(subparsers)
     static_report.register_parser(subparsers)
+    return parser
+
+
+def main():
+    parser = get_parser()
     args = parser.parse_args()
 
     # need to remove the 'func' entry since some of these scripts save these
