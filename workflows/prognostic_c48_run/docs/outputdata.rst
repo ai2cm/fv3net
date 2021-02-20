@@ -1,7 +1,7 @@
 Prognostic run output data specs
 --------------------------------
 
-Data specifications for the merged (prognostic + nudging) sklearn
+Data specifications for the sklearn
 runfile for nudge-to-fine, nudge-to-obs, and ML/baseline runs, which
 correponds to data expectations of the nudge-to-fine and nudge-to-obs
 mappers and the prognostic run report generation workflow step.

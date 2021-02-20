@@ -40,12 +40,8 @@ docs) is now compatible with ``fv3config.write_run_directory`` or
 :ref:`execution`.
 
 The first argument of ``prepare_config.py`` points to the minimal yaml file.
-This file can contains both fv3config_ settings like ``namelist``, as well as
+This file can contain both fv3config_ settings like ``namelist``, as well as
 the python runtime configurations described in :ref:`configuration-api`.
-
-The second two arguments describe the time and GCS location of the initial
-data. The configuration is printed to the standard output, so the command
-above pipes to the file fv3config.yaml.
 
 .. _nudge to fine:
 
@@ -99,7 +95,7 @@ by adding the following to the ``minimal.yaml`` example::
         model: ["path/to/model"]
 
 
-For convenient scripting, The ``--model_url`` command line argument adds a
+For convenient scripting, the ``--model_url`` command line argument adds a
 model to :py:class:`runtime.steppers.machine_learning.MachineLearningConfig`.
 It can be used multiple times to specify multiple models. For example::
 
