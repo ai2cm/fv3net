@@ -8,14 +8,23 @@ Command line interface
    :func: get_parser
    :prog: prognostic_run_diags
 
-Other available command line interfaces are:
+memoized_compute_diagnostics.sh
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``memoized_compute_diagnostics.sh``
+This script checks for availability of diagnostics and metrics of a given
+prognostic run in the diagnostics cache. If not available, they will be computed
+and added to the cache. The diagnostics will then be copied to specified
+output location::
 
-TODO: add usage
+   memoized_compute_diagnostics.sh runURL output flags
 
-and
+where ``flags`` is provided to ``prognostic_run_diags save``
 
-``stitch_movie_still.sh``
+stitch_movie_still.sh
+^^^^^^^^^^^^^^^^^^^^^
 
-TODO: add usage
+This script detects all images with a pattern like ``prefix_%05d.png`` in
+a given directory and saves movies as ``prefix.mp4`` to the
+specified output location::
+
+   stitch_movie_stills.sh workDir output

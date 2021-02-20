@@ -446,8 +446,8 @@ for mask_type in ["global", "land", "sea"]:
 
 def register_parser(subparsers):
     parser = subparsers.add_parser("save", help="Compute the prognostic run diags.")
-    parser.add_argument("url")
-    parser.add_argument("output")
+    parser.add_argument("url", help="Prognostic run output location.")
+    parser.add_argument("output", help="Output path including filename.")
     parser.add_argument("--catalog", default=vcm.catalog.catalog_path)
     parser.add_argument(
         "--verification",
