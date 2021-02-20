@@ -27,6 +27,7 @@ Tools
 * :doc:`sampling`
 * :doc:`derived-mapping`
 * :doc:`coarse-graining`
+* :doc:`xarray-loaders`
 * :doc:`xarray-tools`
 * :doc:`metadata`
 * :doc:`select`
@@ -47,6 +48,7 @@ Tools
    sampling
    derived-mapping
    coarse-graining
+   xarray-loaders
    xarray-tools
    metadata
    select
