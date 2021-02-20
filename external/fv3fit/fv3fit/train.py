@@ -12,7 +12,6 @@ from ._shared import (
     io,
     Estimator,
 )
-from ._shared.config import KERAS_MODEL_TYPES, SKLEARN_MODEL_TYPES
 from .keras._training import get_regularizer, get_optimizer, set_random_seed
 from .keras._validation_data import validation_dataset
 import fv3fit.keras
@@ -20,6 +19,10 @@ import fv3fit.sklearn
 
 
 KERAS_CHECKPOINT_PATH = "model_checkpoints"
+KERAS_MODEL_TYPES = [
+    m[0] for m in inspect.getmembers(fv3fit.keras._models, inspect.isclass)
+]
+SKLEARN_MODEL_TYPES = ["sklearn", "rf", "random_forest", "sklearn_random_forest"]
 ROUTINE_LOOKUP = {
     **{model: "keras" for model in KERAS_MODEL_TYPES},
     **{model: "sklearn" for model in SKLEARN_MODEL_TYPES},

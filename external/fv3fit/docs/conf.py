@@ -35,9 +35,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
-    "sphinx.ext.graphviz",
     "sphinxarg.ext",
-    "recommonmark",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -67,5 +65,4 @@ graphviz_output_format = "svg"
 # recommonmark
 source_suffix = {
     ".rst": "restructuredtext",
-    ".md": "markdown",
 }

@@ -2,17 +2,11 @@ import fsspec
 import inspect
 import yaml
 import os
-from ..keras import _models as keras_models
-from typing import Optional, Union, Sequence, List, Iterable, Mapping
-import dataclasses
+from typing import Optional, Union, Sequence, List
 
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
-KERAS_MODEL_TYPES = [
-    m[0] for m in inspect.getmembers(keras_models, inspect.isclass)
-]
-SKLEARN_MODEL_TYPES = ["sklearn", "rf", "random_forest", "sklearn_random_forest"]
 
 
 class ModelTrainingConfig:
@@ -88,7 +82,8 @@ class ModelTrainingConfig:
             for key, value in attributes
             if not (key.startswith("__") and key.endswith("__"))
         }
-        filename = filename or MODEL_CONFIG_FILENAME
+        if filename is None:
+            filename = MODEL_CONFIG_FILENAME
         with fsspec.open(os.path.join(path, filename), "w") as f:
             yaml.safe_dump(dict_, f)
 
@@ -97,3 +92,21 @@ class ModelTrainingConfig:
         with fsspec.open(path, "r") as f:
             config_dict = yaml.safe_load(f)
         return ModelTrainingConfig(**config_dict)
+
+
+def load_training_config(model_path: str) -> ModelTrainingConfig:
+    """Load training configuration information from a model directory URL.
+
+    Note:
+        This loads a file that you would get from using ModelTrainingConfig.dump
+        with no filename argument, as is done by fv3fit.train. To ensure
+        backwards compatibility, you should use this routine to load such
+        a file instead of manually specifying the filename.
+        The default filename may change in the future.
+    Args:
+        model_path: model dir dumped by fv3fit.dump
+    Returns:
+        dict: training config dict
+    """
+    config_path = os.path.join(model_path, MODEL_CONFIG_FILENAME)
+    return ModelTrainingConfig.load(config_path)
