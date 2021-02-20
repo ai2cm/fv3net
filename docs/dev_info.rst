@@ -5,10 +5,19 @@ Developer information
 
 Links and extended explanations of tools for development
 
+.. toctree::
+    :maxdepth: 1
+    :hidden:
+
+    local_k8s
+    dependency_management
+
+
 * :ref:`local_k8s`: Use a local k8s cluster for development
 * :ref:`dependency_management`: Adding or updating requirements? Look
   here to help keep our builds deterministic!
 
+.. _linting:
 
 Code linting checks
 -------------------
@@ -29,6 +38,7 @@ If it does not pass, than it can be autoformatted using::
 
     make reformat
 
+.. _docker_images:
 
 Building the fv3net docker images
 ---------------------------------
