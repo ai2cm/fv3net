@@ -38,8 +38,8 @@ These images can be built and pushed to GCR using `make build_images` and
 `make push_images`, respectively.
 
 
-Misc To Deal with Stil
-----------------------
+Misc To Deal with Still
+-----------------------
 
 # How to contribute to fv3net
 
