@@ -80,12 +80,22 @@ After authenticated you will be able to set up and utilize infrastructure with
 proper permissions.  If you are having trouble with authentication being 
 recognized check out the :ref:`faqs` page.
 
+Install Argo
+------------
+
+Argo is a workflow engine for easier orchestration of jobs on Kubernetes.
+Use `these instructions <https://github.com/argoproj/argo-workflows/blob/master/docs/quick-start.md>`_ 
+to install Argo on your workstation.
+
+
 Test drive
 ----------
 
-Many of the ML workflows are documented with their usage.  Here's a simple example to validate
-everything is working properly!
+Many of the ML workflows are documented with their usage.  Here we'll walk through
+a simple example to check that everything works.
 
+Use the ``examples`` folder from 
+`VulcanClimateModeling/vcm-workflow-control`_
 
 Cloud Workflows
 ---------------
