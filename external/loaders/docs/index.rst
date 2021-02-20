@@ -6,10 +6,13 @@
 Welcome to loaders's documentation!
 ===================================
 
+.. mdinclude:: ../README.md 
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
+   loaders_api
 
 
 Indices and tables
