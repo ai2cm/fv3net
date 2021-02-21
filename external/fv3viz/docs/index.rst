@@ -13,6 +13,7 @@ fv3net/fv3viz
    :caption: Contents:
    
    fv3viz_api
+   auto_examples/index
 
 
 

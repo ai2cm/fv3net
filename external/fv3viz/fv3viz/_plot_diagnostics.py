@@ -33,8 +33,8 @@ def plot_diurnal_cycle(
     Args:
         merged_ds (xr.dataset):
             can either provide a merged dataset with a "dataset" dim
-            that will be used to plot separate lines for each variable, or a single dataset
-            with no "dataset" dim
+            that will be used to plot separate lines for each variable, or a
+            single dataset with no "dataset" dim
         var (str):
             name of variable to plot
         num_time_bins (int):
@@ -114,9 +114,9 @@ def plot_time_series(
     Args:
         ds (xr.dataset):
             dataset containing time series variables to plot
-        vars_to_plot(list[str]): 
+        vars_to_plot(list[str]):
             data variables to plot
-        output_dir (str): 
+        output_dir (str):
             output directory to save figure into
         plot_filename (str):
             filename to save figure to
