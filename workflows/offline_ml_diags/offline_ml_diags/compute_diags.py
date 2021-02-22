@@ -71,7 +71,7 @@ def _create_arg_parser() -> argparse.Namespace:
     parser.add_argument(
         "output_path",
         type=str,
-        help="Local or remote path where diagnostic dataset will be written.",
+        help="Local or remote path where diagnostic output will be written.",
     )
     parser.add_argument(
         "--data-path",
