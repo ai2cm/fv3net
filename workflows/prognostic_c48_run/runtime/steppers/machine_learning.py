@@ -10,7 +10,6 @@ import xarray as xr
 import fv3fit
 from vcm import thermo
 from runtime.names import (
-    AREA,
     DELP,
     PRECIP_RATE,
     SPHUM,
@@ -23,7 +22,6 @@ from runtime.steppers.base import (
     LoggingMixin,
     apply,
     precipitation_sum,
-    precipitation_rate,
 )
 from runtime.types import State, Diagnostics
 
@@ -176,16 +174,16 @@ def predict(model: MultiModelAdapter, state: State) -> State:
 class MLStepper(Stepper, LoggingMixin):
     def __init__(
         self,
-        fv3gfs: Any,
+        state,
         comm: Any,
         timestep: float,
         states_to_output: Sequence[str],
         model: MultiModelAdapter,
         diagnostic_only: bool = False,
     ):
+        self._state = state
         self.rank: int = comm.rank
         self.comm = comm
-        self._fv3gfs = fv3gfs
         self._do_only_diagnostic_ml = diagnostic_only
         self._timestep = timestep
         self._model = model
@@ -218,22 +216,9 @@ class MLStepper(Stepper, LoggingMixin):
         updated_state[TOTAL_PRECIP] = precipitation_sum(
             state[TOTAL_PRECIP], diagnostics["net_moistening"], self._timestep
         )
-
-        self._log_debug("Setting Fortran State")
+        diagnostics[TOTAL_PRECIP] = updated_state[TOTAL_PRECIP]
         self._state.update(updated_state)
-
-        diagnostics.update({name: self._state[name] for name in self._states_to_output})
-
-        return {
-            "area": self._state[AREA],
-            "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
-                "cnvprcp"
-            ).data_array,
-            "total_precipitation_rate": precipitation_rate(
-                updated_state[TOTAL_PRECIP], self._timestep
-            ),
-            **diagnostics,
-        }
+        return diagnostics
 
     def _apply_python_to_physics_state(self) -> Diagnostics:
         self._log_debug(f"Apply python tendencies to physics state")

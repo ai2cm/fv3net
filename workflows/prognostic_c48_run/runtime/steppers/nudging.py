@@ -13,7 +13,6 @@ from runtime.steppers.base import (
     Diagnostics,
     apply,
     precipitation_sum,
-    precipitation_rate,
     LoggingMixin,
 )
 
@@ -31,7 +30,6 @@ from runtime.names import (
     DELP,
     TOTAL_PRECIP,
     PRECIP_RATE,
-    AREA,
 )
 
 
@@ -46,6 +44,7 @@ class NudgingStepper(Stepper, LoggingMixin):
 
     def __init__(
         self,
+        state,
         fv3gfs: Any,
         rank: int,
         config: NudgingConfig,
@@ -55,6 +54,7 @@ class NudgingStepper(Stepper, LoggingMixin):
     ):
 
         self._states_to_output = states_to_output
+        self._state = state
 
         self._fv3gfs = fv3gfs
         self.rank: int = rank
@@ -116,19 +116,6 @@ class NudgingStepper(Stepper, LoggingMixin):
             diagnostics["net_moistening_due_to_nudging"],
             self._timestep,
         )
-
-        self._log_debug("Setting Fortran State")
+        diagnostics[TOTAL_PRECIP] = updated_state[TOTAL_PRECIP]
         self._state.update(updated_state)
-
-        diagnostics.update({name: self._state[name] for name in self._states_to_output})
-
-        return {
-            "area": self._state[AREA],
-            "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
-                "cnvprcp"
-            ).data_array,
-            "total_precipitation_rate": precipitation_rate(
-                updated_state[TOTAL_PRECIP], self._timestep
-            ),
-            **diagnostics,
-        }
+        return diagnostics

@@ -1,10 +1,8 @@
 import logging
-from typing import Sequence
 
 import xarray as xr
 
-from runtime.derived_state import DerivedFV3State
-from runtime.names import PRECIP_RATE, SPHUM, DELP, AREA, TENDENCY_TO_STATE_NAME
+from runtime.names import TENDENCY_TO_STATE_NAME
 from runtime.diagnostics.machine_learning import compute_baseline_diagnostics
 from runtime.types import State, Diagnostics
 
@@ -32,10 +30,6 @@ class LoggingMixin:
 
 
 class Stepper:
-    @property
-    def _state(self):
-        return DerivedFV3State(self._fv3gfs)
-
     def _compute_python_tendency(self) -> Diagnostics:
         return {}
 
@@ -47,26 +41,14 @@ class Stepper:
 
 
 class BaselineStepper(Stepper):
-    def __init__(self, fv3gfs, states_to_output: Sequence[str]):
-        self._fv3gfs = fv3gfs
-        self._states_to_output = states_to_output
+    def __init__(self, state):
+        self._state = state
 
     def _compute_python_tendency(self) -> Diagnostics:
         return {}
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
-
-        state: State = {name: self._state[name] for name in [PRECIP_RATE, SPHUM, DELP]}
-        diagnostics: Diagnostics = compute_baseline_diagnostics(state)
-        diagnostics.update({name: self._state[name] for name in self._states_to_output})
-
-        return {
-            "area": self._state[AREA],
-            "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
-                "cnvprcp"
-            ).data_array,
-            **diagnostics,
-        }
+        return compute_baseline_diagnostics(self._state)
 
 
 def apply(state: State, tendency: State, dt: float) -> State:

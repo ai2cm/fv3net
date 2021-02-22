@@ -32,10 +32,12 @@ from runtime.steppers.base import (
 )
 
 from runtime.steppers.nudging import NudgingStepper
+from runtime.steppers.base import precipitation_rate
 
 from .names import (
-    DELP,
     TOTAL_PRECIP,
+    AREA,
+    DELP,
 )
 
 
@@ -142,7 +144,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             model = open_model(config.scikit_learn)
             self._log_info("Model Downloaded")
             return MLStepper(
-                self._fv3gfs,
+                self._state,
                 self._comm,
                 self._timestep,
                 states_to_output=self._states_to_output,
@@ -156,6 +158,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             )
             communicator = fv3gfs.util.CubedSphereCommunicator(self._comm, partitioner)
             return NudgingStepper(
+                self._state,
                 self._fv3gfs,
                 self._comm.rank,
                 config.nudging,
@@ -165,7 +168,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             )
         else:
             self._log_info("Using BaselineStepper")
-            return BaselineStepper(self._fv3gfs, self._states_to_output)
+            return BaselineStepper(self._state)
 
     @property
     def time(self) -> cftime.DatetimeJulian:
@@ -253,7 +256,27 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         return self.stepper._compute_python_tendency()
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
-        return self.stepper._apply_python_to_dycore_state()
+
+        diagnostics = self.stepper._apply_python_to_dycore_state()
+        diagnostics.update({name: self._state[name] for name in self._states_to_output})
+        diagnostics.update(
+            {
+                "area": self._state[AREA],
+                "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
+                    "cnvprcp"
+                ).data_array,
+                "total_precipitation_rate": precipitation_rate(
+                    diagnostics[TOTAL_PRECIP], self._timestep
+                ),
+            }
+        )
+
+        try:
+            del diagnostics[TOTAL_PRECIP]
+        except KeyError:
+            pass
+
+        return diagnostics
 
     def __iter__(self):
         for i in range(self._fv3gfs.get_step_count()):
