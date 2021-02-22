@@ -69,4 +69,4 @@ RUN apt-get install -y git
 USER $NB_UID
 
 # build docs
-RUN make -C $FV3NET/external/fv3fit/docs html 
+RUN make -C external/loaders/docs html 
