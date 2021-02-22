@@ -37,7 +37,7 @@ Please see the documentation below:
    :maxdepth: 2
    :caption: Reference:
 
-   configuration
+   configuration-api
    outputdata
 
 

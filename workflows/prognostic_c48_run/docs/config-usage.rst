@@ -24,7 +24,9 @@ To configure a simple baseline run, save the following to a file ``minimal.yaml`
 .. literalinclude:: prognostic_config.yml
     :language: yaml
 
-This file contains a subset of options described by fv3config_. To generate a
+This file contains a subset of options described by fv3config_. This file can
+contain both fv3config_ settings like ``namelist``, as well as the python
+runtime configurations described in :ref:`configuration-api`. To generate a
 "full configuration" usable by fv3config_ and the python runtime
 configurations, run the following::
 
@@ -39,18 +41,14 @@ The output file ``fv3config.yaml`` (which is to long to include in these
 docs) is now compatible with ``fv3config.write_run_directory`` or
 :ref:`execution`.
 
-The first argument of ``prepare_config.py`` points to the minimal yaml file.
-This file can contain both fv3config_ settings like ``namelist``, as well as
-the python runtime configurations described in :ref:`configuration-api`.
-
 .. _nudge to fine:
 
 Nudge to fine
-^^^^^^^^^^^^^
+~~~~~~~~~~~~~
 
 A nudged-to-fine run can be configured by setting the
 :py:attr:`runtime.config.UserConfig.nudging` configuration option. This can
-be done by adding the following section to the minimal.yaml file::
+be done by adding the following section to the ``minimal.yaml`` file::
 
     nudging:
         restarts_path: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
@@ -68,15 +66,27 @@ reference.
 .. _nudge to obs:
 
 Nudge to obs
-^^^^^^^^^^^^
+~~~~~~~~~~~~
 
 Obervational nudging is implemented in the Fortran model, so is configured by
 a complex combination of Fortran namelist options and fv3config_ data
 provisioning. For convenience, a nudge-to-obs run can be configured by
 including the argument ``--nudge-to-observations URL`` to
-``prepare_config.py``.
+``prepare_config.py`` and a ``minimal.yaml`` including the following namelist
+settings::
 
-.. note:: 
+    namelist:
+      fv_nwp_nudge_nml:
+        nudge_ps: true
+        nudge_virt: true
+        nudge_winds: true
+        nudge_q: true
+        tau_ps: 21600.0
+        tau_virt: 21600.0
+        tau_winds: 21600.0
+        tau_q: 21600.0
+
+.. note::
 
     Nudge-to-obs is not mutually exclusive with any of the first three
     options as it is conducted within the Fortran physics routine.
@@ -84,7 +94,7 @@ including the argument ``--nudge-to-observations URL`` to
 .. _ml config:
 
 Machine learning
-^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~
 
 A machine learning run can be configured in two ways. The first is by
 specifying a path to a fv3fit_ model in
@@ -108,7 +118,7 @@ It can be used multiple times to specify multiple models. For example::
         > fv3config.yaml
  
 Diagnostics
-^^^^^^^^^^^
+~~~~~~~~~~~
 
 Default diagnostics are computed and saved to .zarrs depending on whether ML,
 nudge-to-fine, nudge-to-obs, or baseline runs are chosen. To save additional

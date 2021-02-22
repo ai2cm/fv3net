@@ -29,4 +29,4 @@ Use docker-compose to develop this.
     docker-compose run fv3 bash
 
   
-See the [developer's guide](file:///Users/noah/workspace/VulcanClimateModeling/fv3net/workflows/prognostic_c48_run/docs/_build/html/development.html).
+See the [developer's guide](https://www.vulcanclimatemodeling.com/docs/prognostic_c48_run/development.html).
