@@ -3,18 +3,20 @@ import shutil
 
 build_dir = "readme_links"
 
+
 def link_readmes(root_dir, dest_dir):
     for root, dirs, files in os.walk(root_dir):
         if "README.md" in files:
             readme_parent = os.path.split(root)[-1]
             shutil.copyfile(
                 os.path.join(root, "README.md"),
-                os.path.join(dest_dir, f"{readme_parent}_readme.md")
+                os.path.join(dest_dir, f"{readme_parent}_readme.md"),
             )
             # with open(os.path.join(dest_dir, f"{readme_parent}_readme.rst"), "w") as f:
             #     readme_relative_path = os.path.relpath(os.path.join(root, "README.md"), dest_dir)
-                # f.write(f".. _{readme_parent.replace('_', '-')}-readme:\n")
-                # f.write(f".. mdinclude:: {readme_relative_path}")
+            # f.write(f".. _{readme_parent.replace('_', '-')}-readme:\n")
+            # f.write(f".. mdinclude:: {readme_relative_path}")
+
 
 link_readmes(os.path.abspath("../workflows"), build_dir)
 link_readmes(os.path.abspath("../external"), build_dir)
