@@ -1,5 +1,5 @@
 # platform: linux-64
-# env_hash: 79aa9cff907aa49e573da71ef5e4761b1349039cf2855c73d4707c972ce0af2f
+# env_hash: 2137a8be57dd6912a99651c9a7192b3d68204e7e3d858b3b2b16ba2e9d9a4423
 @EXPLICIT
 https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2#d7c89558ba9fa0495403155b64376d81
 https://conda.anaconda.org/conda-forge/linux-64/ca-certificates-2020.12.5-ha878542_0.tar.bz2#7eb5d4ffeee663caa1635cd67071bc1b
@@ -229,13 +229,13 @@ https://conda.anaconda.org/conda-forge/linux-64/setuptools-49.6.0-py37h89c1867_3
 https://conda.anaconda.org/conda-forge/linux-64/shapely-1.7.1-py37hf7ed6d2_4.tar.bz2#0209359199915534c567ffc7fafdb6c4
 https://conda.anaconda.org/conda-forge/linux-64/terminado-0.9.2-py37h89c1867_0.tar.bz2#660216081c3ff3826a726bb16a623576
 https://conda.anaconda.org/conda-forge/linux-64/yarl-1.6.3-py37h5e8e339_1.tar.bz2#11ee71d9c49f5d467c229917feaa0be0
-https://conda.anaconda.org/conda-forge/linux-64/aiohttp-3.7.3-py37h5e8e339_1.tar.bz2#8defbda5f204416aa55649a0dbee593f
+https://conda.anaconda.org/conda-forge/linux-64/aiohttp-3.7.3-py37h5e8e339_2.tar.bz2#6002976673fcb4cc3d07f5c2c35e86de
 https://conda.anaconda.org/conda-forge/noarch/backports.functools_lru_cache-1.6.1-py_0.tar.bz2#d36df15eaef96549ce6231e3088fba54
 https://conda.anaconda.org/conda-forge/noarch/bleach-3.3.0-pyh44b312d_0.tar.bz2#abf6b76c39358ca36ca706c46f054f2a
 https://conda.anaconda.org/conda-forge/linux-64/distributed-2.30.1-py37h89c1867_0.tar.bz2#1b3ed8d564162fb8eac084f10dbf1926
 https://conda.anaconda.org/conda-forge/linux-64/flake8-3.7.9-py37hc8dfbb8_1.tar.bz2#77c92eec6027fece8b5be42092fc3a66
 https://conda.anaconda.org/conda-forge/noarch/h5netcdf-0.10.0-pyhd8ed1ab_0.tar.bz2#b5c92155f9e1c3c7c18b95453f90145a
-https://conda.anaconda.org/conda-forge/noarch/hypothesis-6.2.0-pyhd8ed1ab_0.tar.bz2#73406110ba9b0edbce610de39b819c95
+https://conda.anaconda.org/conda-forge/noarch/hypothesis-6.3.0-pyhd8ed1ab_0.tar.bz2#a3fca24e8915ada4945962d5a4abe8c7
 https://conda.anaconda.org/conda-forge/linux-64/importlib_resources-5.1.0-py37h89c1867_0.tar.bz2#73e16856addd8f46afef612fa77f76b9
 https://conda.anaconda.org/conda-forge/noarch/isort-5.7.0-pyhd8ed1ab_0.tar.bz2#073e46728e0d9a8722457cbf1c335c14
 https://conda.anaconda.org/conda-forge/noarch/jinja2-2.11.3-pyh44b312d_0.tar.bz2#1d4c3605d85a3655b1595e0694138eb6
@@ -284,12 +284,13 @@ https://conda.anaconda.org/conda-forge/noarch/xgcm-0.5.1-py_0.tar.bz2#935f4608a9
 https://conda.anaconda.org/conda-forge/noarch/colorcet-2.0.6-pyhd8ed1ab_0.tar.bz2#bdf0d14cb996a18a3df88ddac83e11f9
 https://conda.anaconda.org/conda-forge/linux-64/conda-build-3.21.4-py37h89c1867_0.tar.bz2#d3f12f8b4c8bb9186e06755cfe2f0335
 https://conda.anaconda.org/conda-forge/noarch/intake-xarray-0.4.1-pyhd8ed1ab_0.tar.bz2#a3204c2105c162fb1c3087ee43513fdd
-https://conda.anaconda.org/conda-forge/linux-64/ipykernel-5.4.2-py37h888b3d9_0.tar.bz2#a0b4767e65f528ecbc560e2012bb61fb
+https://conda.anaconda.org/conda-forge/linux-64/ipykernel-5.5.0-py37h888b3d9_1.tar.bz2#0f3659210c464bbc885642b9750e7a2a
 https://conda.anaconda.org/conda-forge/linux-64/jupyter_server-1.4.0-py37h89c1867_0.tar.bz2#8e69cd5972999e543aa0d9ace8b6a78d
 https://conda.anaconda.org/conda-forge/noarch/metpy-1.0-pyhd8ed1ab_0.tar.bz2#b7da8602ec108ea1e056598f8d861909
 https://conda.anaconda.org/conda-forge/noarch/panel-0.10.3-pyhd8ed1ab_0.tar.bz2#728cb40d5b9b8b1b12232c05135b5709
 https://conda.anaconda.org/conda-forge/noarch/python-kubernetes-12.0.1-pyhd3deb0d_0.tar.bz2#ea05dfb791055ec8f6c0bf696bfe92d0
 https://conda.anaconda.org/conda-forge/noarch/recommonmark-0.7.1-pyhd8ed1ab_0.tar.bz2#b3becf9905b8c7ba839072f65e693253
+https://conda.anaconda.org/conda-forge/noarch/sphinx-gallery-0.8.2-pyhd8ed1ab_0.tar.bz2#26210aef2e849fd276e050fb4e9c44e0
 https://conda.anaconda.org/conda-forge/noarch/sphinx_rtd_theme-0.5.1-pyhd3deb0d_0.tar.bz2#c050f3a32c6e361917a54d10259b41bc
 https://conda.anaconda.org/conda-forge/noarch/jupyterlab_server-2.3.0-pyhd8ed1ab_0.tar.bz2#e1ab43655ba7ede6917e2daa37c7b217
 https://conda.anaconda.org/conda-forge/linux-64/notebook-6.2.0-py37h89c1867_0.tar.bz2#3bead31ff255215b069399b1dfb06200

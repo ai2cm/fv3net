@@ -1,5 +1,5 @@
 # platform: win-64
-# env_hash: b344bde9d2c09b4bdd00a573b9834d498c69e251b05378300e5469c3b5cde004
+# env_hash: efc11c1f584fa724079a0cebaaec652d0e566d74b295c54f1fa4b45dc2127714
 @EXPLICIT
 https://conda.anaconda.org/conda-forge/win-64/ca-certificates-2020.12.5-h5b45459_0.tar.bz2#f36a2988a9f57cffdc43929ba67a3a2a
 https://conda.anaconda.org/conda-forge/win-64/intel-openmp-2020.3-h57928b3_311.tar.bz2#361a51c98a0cb06415bd3f9d3bbb5778
@@ -225,13 +225,13 @@ https://conda.anaconda.org/conda-forge/win-64/setuptools-49.6.0-py37h03978a9_3.t
 https://conda.anaconda.org/conda-forge/win-64/shapely-1.7.1-py37hdcc0ea0_4.tar.bz2#2af684101a7a276b84f3d3b4a90496d2
 https://conda.anaconda.org/conda-forge/win-64/terminado-0.9.2-py37h03978a9_0.tar.bz2#f47b67d50f075d51b8175077c7539227
 https://conda.anaconda.org/conda-forge/win-64/yarl-1.6.3-py37hcc03f2d_1.tar.bz2#fcd33d95978d0c2457a72bdf3db41436
-https://conda.anaconda.org/conda-forge/win-64/aiohttp-3.7.3-py37hcc03f2d_1.tar.bz2#f430cca5319f05800d601b92e03543c7
+https://conda.anaconda.org/conda-forge/win-64/aiohttp-3.7.3-py37hcc03f2d_2.tar.bz2#2f1a3a3d2ad4cdc007eac1829b876912
 https://conda.anaconda.org/conda-forge/noarch/backports.functools_lru_cache-1.6.1-py_0.tar.bz2#d36df15eaef96549ce6231e3088fba54
 https://conda.anaconda.org/conda-forge/noarch/bleach-3.3.0-pyh44b312d_0.tar.bz2#abf6b76c39358ca36ca706c46f054f2a
 https://conda.anaconda.org/conda-forge/win-64/distributed-2.30.1-py37h03978a9_0.tar.bz2#6a2abc792ee458e1b9deee21d8d1fe5a
 https://conda.anaconda.org/conda-forge/win-64/flake8-3.7.9-py37hc8dfbb8_1.tar.bz2#0c75dd0819f8d9e84006a09d3cbe2607
 https://conda.anaconda.org/conda-forge/noarch/h5netcdf-0.10.0-pyhd8ed1ab_0.tar.bz2#b5c92155f9e1c3c7c18b95453f90145a
-https://conda.anaconda.org/conda-forge/noarch/hypothesis-6.2.0-pyhd8ed1ab_0.tar.bz2#73406110ba9b0edbce610de39b819c95
+https://conda.anaconda.org/conda-forge/noarch/hypothesis-6.3.0-pyhd8ed1ab_0.tar.bz2#a3fca24e8915ada4945962d5a4abe8c7
 https://conda.anaconda.org/conda-forge/noarch/imageio-2.9.0-py_0.tar.bz2#62ad9e579278e777d4abaa8c9312b6a7
 https://conda.anaconda.org/conda-forge/win-64/importlib_resources-5.1.0-py37h03978a9_0.tar.bz2#643d8477ad78a3acec28a2079cb15e6c
 https://conda.anaconda.org/conda-forge/noarch/isort-5.7.0-pyhd8ed1ab_0.tar.bz2#073e46728e0d9a8722457cbf1c335c14
@@ -284,12 +284,13 @@ https://conda.anaconda.org/conda-forge/noarch/xgcm-0.5.1-py_0.tar.bz2#935f4608a9
 https://conda.anaconda.org/conda-forge/noarch/colorcet-2.0.6-pyhd8ed1ab_0.tar.bz2#bdf0d14cb996a18a3df88ddac83e11f9
 https://conda.anaconda.org/conda-forge/win-64/conda-build-3.21.4-py37h03978a9_0.tar.bz2#cefcfc39ce34ef9cc28b2515fbf7c953
 https://conda.anaconda.org/conda-forge/noarch/intake-xarray-0.4.1-pyhd8ed1ab_0.tar.bz2#a3204c2105c162fb1c3087ee43513fdd
-https://conda.anaconda.org/conda-forge/win-64/ipykernel-5.4.2-py37h7b7c402_0.tar.bz2#93c4cc668f269218812331cb811045a2
+https://conda.anaconda.org/conda-forge/win-64/ipykernel-5.5.0-py37heaed05f_1.tar.bz2#612357f63e06678da379059570ae6b28
 https://conda.anaconda.org/conda-forge/win-64/jupyter_server-1.4.0-py37h03978a9_0.tar.bz2#830c176c520cc2d3b85b8e8b228dbfff
 https://conda.anaconda.org/conda-forge/noarch/metpy-1.0-pyhd8ed1ab_0.tar.bz2#b7da8602ec108ea1e056598f8d861909
 https://conda.anaconda.org/conda-forge/noarch/panel-0.10.3-pyhd8ed1ab_0.tar.bz2#728cb40d5b9b8b1b12232c05135b5709
 https://conda.anaconda.org/conda-forge/noarch/python-kubernetes-12.0.1-pyhd3deb0d_0.tar.bz2#ea05dfb791055ec8f6c0bf696bfe92d0
 https://conda.anaconda.org/conda-forge/noarch/recommonmark-0.7.1-pyhd8ed1ab_0.tar.bz2#b3becf9905b8c7ba839072f65e693253
+https://conda.anaconda.org/conda-forge/noarch/sphinx-gallery-0.8.2-pyhd8ed1ab_0.tar.bz2#26210aef2e849fd276e050fb4e9c44e0
 https://conda.anaconda.org/conda-forge/noarch/sphinx_rtd_theme-0.5.1-pyhd3deb0d_0.tar.bz2#c050f3a32c6e361917a54d10259b41bc
 https://conda.anaconda.org/conda-forge/noarch/jupyterlab_server-2.3.0-pyhd8ed1ab_0.tar.bz2#e1ab43655ba7ede6917e2daa37c7b217
 https://conda.anaconda.org/conda-forge/win-64/notebook-6.2.0-py37h03978a9_0.tar.bz2#e8dcf1ffa7819ac113f2a5fd6a0a1b0e

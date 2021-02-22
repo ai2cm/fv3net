@@ -59,7 +59,7 @@ deploy_docs_prognostic_run:
 deploy_docs_fv3viz:
 	mkdir fv3viz_html
 	# use tar to grab docs from inside the docker image and extract them to "./html"
-	docker run us.gcr.io/vcm-ml/fv3net:$(VERSION) tar -C external/fv3fit/docs/_build/html  -c . | tar -C fv3viz_html -x
+	docker run us.gcr.io/vcm-ml/fv3net:$(VERSION) tar -C external/fv3viz/docs/_build/html  -c . | tar -C fv3viz_html -x
 	gsutil -m rsync -R fv3viz_html gs://vulcanclimatemodeling-com-static/docs/fv3viz
 	rm -rf fv3viz_html
 

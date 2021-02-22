@@ -1,5 +1,5 @@
 # platform: osx-64
-# env_hash: 71dd4a2eb1dc313513650ff6bf1f58a490f23a412fc1cad0499afc89d32c5458
+# env_hash: c2c7fc08b9c2f521fb65811456a6985c28d9ae31264ec6c47a3135147cb66f5f
 @EXPLICIT
 https://conda.anaconda.org/conda-forge/osx-64/bzip2-1.0.8-hc929b4f_4.tar.bz2#521b82c700a64bac7d8da27539422e91
 https://conda.anaconda.org/conda-forge/osx-64/c-ares-1.17.1-hc929b4f_0.tar.bz2#24fc0b91a6eacc6753fef90514d67ce9
@@ -217,14 +217,14 @@ https://conda.anaconda.org/conda-forge/noarch/pyquery-1.4.3-pyhd8ed1ab_0.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/setuptools-49.6.0-py37hf985489_3.tar.bz2#5030dea82548d67ec8b80882e8e4a099
 https://conda.anaconda.org/conda-forge/osx-64/terminado-0.9.2-py37hf985489_0.tar.bz2#dad18ca09ac039309ee0aace6e9010f1
 https://conda.anaconda.org/conda-forge/osx-64/yarl-1.6.3-py37hf967b71_1.tar.bz2#bb2b9077a2f93b909ae952cc204e10c0
-https://conda.anaconda.org/conda-forge/osx-64/aiohttp-3.7.3-py37hf967b71_1.tar.bz2#d3607e47ecc0b56c0309451ff885ad1c
+https://conda.anaconda.org/conda-forge/osx-64/aiohttp-3.7.3-py37h7585375_2.tar.bz2#2b4a584f687da1e93e02721d038df516
 https://conda.anaconda.org/conda-forge/noarch/backports.functools_lru_cache-1.6.1-py_0.tar.bz2#d36df15eaef96549ce6231e3088fba54
 https://conda.anaconda.org/conda-forge/noarch/bleach-3.3.0-pyh44b312d_0.tar.bz2#abf6b76c39358ca36ca706c46f054f2a
 https://conda.anaconda.org/conda-forge/osx-64/cftime-1.4.1-py37h183f225_0.tar.bz2#d9897f2fbbd0efc48f792b2e13669e02
 https://conda.anaconda.org/conda-forge/osx-64/distributed-2.30.1-py37hf985489_0.tar.bz2#1aebe1e3d8da584ed0de5e2181c9633b
 https://conda.anaconda.org/conda-forge/osx-64/flake8-3.7.9-py37hc8dfbb8_1.tar.bz2#476f05498d494dcd69db49353b868d17
 https://conda.anaconda.org/conda-forge/osx-64/h5py-3.1.0-nompi_py37hcd7841c_100.tar.bz2#df675fbb070df1c9585821fa77dfb692
-https://conda.anaconda.org/conda-forge/noarch/hypothesis-6.2.0-pyhd8ed1ab_0.tar.bz2#73406110ba9b0edbce610de39b819c95
+https://conda.anaconda.org/conda-forge/noarch/hypothesis-6.3.0-pyhd8ed1ab_0.tar.bz2#a3fca24e8915ada4945962d5a4abe8c7
 https://conda.anaconda.org/conda-forge/osx-64/imagecodecs-2021.1.11-py37h37c44b6_1.tar.bz2#8366a313b51929eae356e4f6f6a68b27
 https://conda.anaconda.org/conda-forge/noarch/imageio-2.9.0-py_0.tar.bz2#62ad9e579278e777d4abaa8c9312b6a7
 https://conda.anaconda.org/conda-forge/osx-64/importlib_resources-5.1.0-py37hf985489_0.tar.bz2#b2ed5ff6d9795f6ac9b46cde9b289ce0
@@ -281,12 +281,13 @@ https://conda.anaconda.org/conda-forge/noarch/xgcm-0.5.1-py_0.tar.bz2#935f4608a9
 https://conda.anaconda.org/conda-forge/noarch/colorcet-2.0.6-pyhd8ed1ab_0.tar.bz2#bdf0d14cb996a18a3df88ddac83e11f9
 https://conda.anaconda.org/conda-forge/osx-64/conda-build-3.21.4-py37hf985489_0.tar.bz2#a1ecb21325fdd3930b635bb8bac00a58
 https://conda.anaconda.org/conda-forge/noarch/intake-xarray-0.4.1-pyhd8ed1ab_0.tar.bz2#a3204c2105c162fb1c3087ee43513fdd
-https://conda.anaconda.org/conda-forge/osx-64/ipykernel-5.4.2-py37he01cfaa_0.tar.bz2#e8a11751b77c444f687ddc0fa79d4077
+https://conda.anaconda.org/conda-forge/osx-64/ipykernel-5.5.0-py37he01cfaa_1.tar.bz2#b10a8e1325fd68f9f436dcd7b18fc1bc
 https://conda.anaconda.org/conda-forge/osx-64/jupyter_server-1.4.0-py37hf985489_0.tar.bz2#f3f461e206282ead93eb9f6857297e16
 https://conda.anaconda.org/conda-forge/noarch/metpy-1.0-pyhd8ed1ab_0.tar.bz2#b7da8602ec108ea1e056598f8d861909
 https://conda.anaconda.org/conda-forge/noarch/panel-0.10.3-pyhd8ed1ab_0.tar.bz2#728cb40d5b9b8b1b12232c05135b5709
 https://conda.anaconda.org/conda-forge/noarch/python-kubernetes-12.0.1-pyhd3deb0d_0.tar.bz2#ea05dfb791055ec8f6c0bf696bfe92d0
 https://conda.anaconda.org/conda-forge/noarch/recommonmark-0.7.1-pyhd8ed1ab_0.tar.bz2#b3becf9905b8c7ba839072f65e693253
+https://conda.anaconda.org/conda-forge/noarch/sphinx-gallery-0.8.2-pyhd8ed1ab_0.tar.bz2#26210aef2e849fd276e050fb4e9c44e0
 https://conda.anaconda.org/conda-forge/noarch/sphinx_rtd_theme-0.5.1-pyhd3deb0d_0.tar.bz2#c050f3a32c6e361917a54d10259b41bc
 https://conda.anaconda.org/conda-forge/noarch/jupyterlab_server-2.3.0-pyhd8ed1ab_0.tar.bz2#e1ab43655ba7ede6917e2daa37c7b217
 https://conda.anaconda.org/conda-forge/osx-64/notebook-6.2.0-py37hf985489_0.tar.bz2#ea3b665188257fff426848e7d8e5b28b
