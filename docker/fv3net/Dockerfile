@@ -64,10 +64,12 @@ COPY --from=test /tmp/tests-done /tmp
 
 # build the docs
 COPY docs $FV3NET/docs
+COPY external/fv3viz/docs $FV3NET/external/fv3viz/docs
 USER root
-RUN fix-permissions $FV3NET/docs
+RUN fix-permissions $FV3NET/docs $FV3NET/external/fv3viz/docs
 USER $NB_UID
 RUN make -C $FV3NET/docs html
+RUN make -C $FV3NET/external/fv3viz/docs html
 
 # add development tools
 USER root

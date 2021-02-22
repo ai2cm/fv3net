@@ -209,7 +209,7 @@ def mappable_var(
     Note that the default coordinate names and grid variable coordinates are for FV3
     restart and diagnostic file formats. If plotting prognostic-run python diagnostic
     zarrs, use the following kwargs:
-    .. ::
+    ::
     
         MAPPABLE_VAR_KWARGS = {
             "coord_x_center": "x",
@@ -225,16 +225,16 @@ def mappable_var(
         }
         
     while if plotting prognostic run report diagnostics variables use the following:
-    .. ::
+    ::
     
         MAPPABLE_VAR_KWARGS = {
             "coord_x_center": "x",
             "coord_y_center": "y",
-            "coord_x_outer": "x_interface",
-            "coord_y_outer": "y_interface",
+            "coord_x_outer": "xb",
+            "coord_y_outer": "yb",
             "coord_vars": {
-                "lonb": ["y_interface", "x_interface", "tile"],
-                "latb": ["y_interface", "x_interface", "tile"],
+                "lonb": ["yb", "xb", "tile"],
+                "latb": ["yb", "xb", "tile"],
                 "lon": ["y", "x", "tile"],
                 "lat": ["y", "x", "tile"],
             },
@@ -265,7 +265,7 @@ def mappable_var(
             plotting. Intended as first argument to :py:func:`plot_cube`.
 
     Example:
-    .. ::
+    ::
         
         # plot diag winds at two times
         axes, hs, cbar = plot_cube(

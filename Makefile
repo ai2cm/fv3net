@@ -54,6 +54,14 @@ deploy_docs_prognostic_run:
 	docker run us.gcr.io/vcm-ml/prognostic_run tar -C docs/_build/html  -c . | tar -C html -x
 	gsutil -m rsync -R html gs://vulcanclimatemodeling-com-static/docs/prognostic_c48_run
 	rm -rf html
+    
+## Deploy documentation for fv3viz to vulcanclimatemodeling.com
+deploy_docs_fv3viz:
+	mkdir fv3viz_html
+	# use tar to grab docs from inside the docker image and extract them to "./html"
+	docker run us.gcr.io/vcm-ml/fv3net:$(VERSION) tar -C external/fv3fit/docs/_build/html  -c . | tar -C fv3viz_html -x
+	gsutil -m rsync -R fv3viz_html gs://vulcanclimatemodeling-com-static/docs/fv3viz
+	rm -rf fv3viz_html
 
 
 ############################################################
