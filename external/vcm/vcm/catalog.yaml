@@ -550,7 +550,7 @@ sources:
       urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/landseamask.zarr/"
       consolidated: true
 
-   free_minus_4K_ssts_c384_fv3gfs_20170801_20190801_physics_output:
+  free_minus_4K_ssts_c384_fv3gfs_20170801_20190801_physics_output:
     description: 2D physics diagnostics variables from two-year free-running C384 FV3GFS simulation with minus 4K SSTs (January 9, 2021)
     driver: zarr
     args:
