@@ -6,6 +6,7 @@ from typing import Any, Hashable, List, Mapping, Sequence, Set, Iterable, Tuple,
 
 import runtime
 import xarray as xr
+from functools import partial
 
 import fv3fit
 from vcm import thermo
@@ -66,17 +67,6 @@ class MachineLearningConfig:
     output_standard_names: Mapping[Hashable, Hashable] = dataclasses.field(
         default_factory=dict
     )
-
-
-def log_non_negative_sphum(comm, dQ2_initial: xr.DataArray, dQ2_updated: xr.DataArray):
-    rank_updated_points = xr.where(dQ2_initial != dQ2_updated, 1, 0)
-    updated_points = comm.reduce(rank_updated_points, root=0)
-    if comm.rank == 0:
-        level_updates = {
-            i: int(value)
-            for i, value in enumerate(updated_points.sum(["x", "y"]).values)
-        }
-        logger.info(f"specific_humidity_limiter_updates_per_level: {level_updates}")
 
 
 def non_negative_sphum(
@@ -166,9 +156,43 @@ def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
 
 def predict(model: MultiModelAdapter, state: State) -> State:
     """Given ML model and state, return tendency prediction."""
-    ds = xr.Dataset(state)  # type: ignore
+    state_loaded = {key: state[key] for key in model.input_variables}
+    ds = xr.Dataset(state_loaded)  # type: ignore
     output = model.predict_columnwise(ds, feature_dim="z")
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
+
+
+def PureMLStepper(model: Any, state, timestep: float):
+    diagnostics: Diagnostics = {}
+    delp = state[DELP]
+
+    tendency: State = predict(model, state)
+
+    dQ1_initial = tendency.get("dQ1", xr.zeros_like(state[SPHUM]))
+    dQ2_initial = tendency.get("dQ2", xr.zeros_like(state[SPHUM]))
+
+    dQ1_updated, dQ2_updated = non_negative_sphum(
+        state[SPHUM], dQ1_initial, dQ2_initial, dt=timestep,
+    )
+
+    rank_updated_points = xr.where(dQ2_initial != dQ2_updated, 1, 0)
+
+    if "dQ1" in tendency:
+        diag = thermo.column_integrated_heating(dQ1_updated - tendency["dQ1"], delp)
+        diagnostics.update(
+            {"column_integrated_dQ1_change_non_neg_sphum_constraint": (diag)}
+        )
+        tendency.update({"dQ1": dQ1_updated})
+    if "dQ2" in tendency:
+        diag = thermo.mass_integrate(dQ2_updated - tendency["dQ2"], delp, dim="z")
+        diag = diag.assign_attrs({"units": "kg/m^2/s"})
+        diagnostics.update(
+            {"column_integrated_dQ2_change_non_neg_sphum_constraint": (diag)}
+        )
+        tendency.update({"dQ2": dQ2_updated})
+    dycore_tendencies = {k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]}
+    physics_tendencies = {k: v for k, v in tendency.items() if k in ["dQu", "dQv"]}
+    return dycore_tendencies, physics_tendencies, diagnostics, rank_updated_points
 
 
 class MLStepper(Stepper, LoggingMixin):
@@ -186,7 +210,7 @@ class MLStepper(Stepper, LoggingMixin):
         self.comm = comm
         self._do_only_diagnostic_ml = diagnostic_only
         self._timestep = timestep
-        self._model = model
+        self.model = model
         self._states_to_output = states_to_output
 
         self._tendencies_to_apply_to_dycore_state: State = {}
@@ -241,43 +265,20 @@ class MLStepper(Stepper, LoggingMixin):
         return diagnostics
 
     def _compute_python_tendency(self) -> Diagnostics:
-        variables: List[Hashable] = list(set(self._model.input_variables) | {SPHUM})
-        self._log_debug(f"Getting state variables: {variables}")
-        state = {name: self._state[name] for name in variables}
-        diagnostics: Diagnostics = {}
-        delp = self._state[DELP]
+        self._log_info("Computing ML Tendency")
+        (
+            self._tendencies_to_apply_to_dycore_state,
+            self._tendencies_to_apply_to_physics_state,
+            diagnostics,
+            rank_updated_points,
+        ) = PureMLStepper(self.model, self._state, self._timestep)
 
-        self._log_debug("Computing ML-predicted tendencies")
-        tendency: State = predict(self._model, state)
+        updated_points = self.comm.reduce(rank_updated_points, root=0)
+        if self.comm.rank == 0:
+            level_updates = {
+                i: int(value)
+                for i, value in enumerate(updated_points.sum(["x", "y"]).values)
+            }
+            logger.info(f"specific_humidity_limiter_updates_per_level: {level_updates}")
 
-        self._log_debug(
-            "Correcting ML tendencies that would predict negative specific humidity"
-        )
-        dQ1_updated, dQ2_updated = non_negative_sphum(
-            state[SPHUM],
-            tendency.get("dQ1", xr.zeros_like(state[SPHUM])),
-            tendency.get("dQ2", xr.zeros_like(state[SPHUM])),
-            dt=self._timestep,
-        )
-        log_non_negative_sphum(self.comm, tendency["dQ2"], dQ2_updated)
-        if "dQ1" in tendency:
-            diag = thermo.column_integrated_heating(dQ1_updated - tendency["dQ1"], delp)
-            diagnostics.update(
-                {"column_integrated_dQ1_change_non_neg_sphum_constraint": (diag)}
-            )
-            tendency.update({"dQ1": dQ1_updated})
-        if "dQ2" in tendency:
-            diag = thermo.mass_integrate(dQ2_updated - tendency["dQ2"], delp, dim="z")
-            diag = diag.assign_attrs({"units": "kg/m^2/s"})
-            diagnostics.update(
-                {"column_integrated_dQ2_change_non_neg_sphum_constraint": (diag)}
-            )
-            tendency.update({"dQ2": dQ2_updated})
-
-        self._tendencies_to_apply_to_dycore_state = {
-            k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]
-        }
-        self._tendencies_to_apply_to_physics_state = {
-            k: v for k, v in tendency.items() if k in ["dQu", "dQv"]
-        }
         return diagnostics
