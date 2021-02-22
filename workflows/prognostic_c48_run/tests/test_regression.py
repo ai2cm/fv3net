@@ -521,6 +521,11 @@ def test_fv3run_checksum_restarts(completed_rundir, regtest):
     print(fv_core.computehash(), file=regtest)
 
 
+def test_fv3run_checksum_logs(completed_rundir, regtest):
+    logs = completed_rundir.join("logs.txt")
+    print(logs.computehash(), file=regtest)
+
+
 def test_fv3run_logs_present(completed_rundir):
     assert completed_rundir.join(LOG_PATH).exists()
 
