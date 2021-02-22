@@ -7,12 +7,12 @@ This system is designed for extension without extensively modifying the
 source code. To accomplish this, it divides report generation into
 phases:
 
-1. Diagnostic computation: "diagnostic" is a multidimensional quantity 
+#. Diagnostic computation: "diagnostic" is a multidimensional quantity 
    that is reasonably limited in size (e.g. can be easily downloaded).
-1. Metric computation: scalar "metrics" calculated from the output of the
+#. Metric computation: scalar "metrics" calculated from the output of the
    step above.
-1. Movie creation: generate move stills and then create movie with ffmpeg.
-1. Report generation: multiple sets of diagnostics/metrics are visualized
+#. Movie creation: generate move stills and then create movie with ffmpeg.
+#. Report generation: multiple sets of diagnostics/metrics are visualized
    in a static html report.
 
 Adding a diagnostic
@@ -45,5 +45,5 @@ Testing
 ~~~~~~~
 
 An integration test of the various steps required to generate a prognostic run report 
-can be launched by calling `make test_prognostic_run_report` from the root of the 
+can be launched by calling ``make test_prognostic_run_report`` from the root of the 
 fv3net repository.

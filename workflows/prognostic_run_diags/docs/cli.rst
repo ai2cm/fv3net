@@ -23,7 +23,7 @@ output location::
 
 where ``flags`` is provided to ``prognostic_run_diags save``
 
-stitch_movie_still.sh
+stitch_movie_stills.sh
 ^^^^^^^^^^^^^^^^^^^^^
 
 This script detects all images with a pattern like ``prefix_%05d.png`` in
