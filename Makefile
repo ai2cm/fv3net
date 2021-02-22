@@ -48,6 +48,12 @@ deploy_docs_prognostic_run:
 	gsutil -m rsync -R html gs://vulcanclimatemodeling-com-static/docs/prognostic_c48_run
 	rm -rf html
 
+## Deploy documentation for loaders to vulcanclimatemodeling.com
+deploy_docs_loaders:
+	mkdir html
+	# use tar to grab docs from inside the docker image and extract them to "./html"
+	docker run --entrypoint="tar" us.gcr.io/vcm-ml/fv3net:$(VERSION) -C external/loaders/docs/_build/html  -c . | tar -C html -x
+	rm -rf html
 
 ############################################################
 # Local Kubernetes
