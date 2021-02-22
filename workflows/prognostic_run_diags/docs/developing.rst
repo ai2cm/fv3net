@@ -36,10 +36,10 @@ not change the report.
 
 To plot a new metric or diagnostic, add a function to
 :py:mod:`fv3net.diagnostics.prognostic_run.views.static_report` and decorate
-it with the `metrics_plot_manager.register` if its metric or
-`*_plot_manager.register` for the desired report section if it is a diagnostic.
-This function needs to return an object that is valid input to the `sections` argument of
-report.create_html`.
+it with the ``@metrics_plot_manager.register`` if its metric or
+``@..._plot_manager.register`` for the desired report section if it is a diagnostic.
+This function needs to return an object that is valid input to the ``sections`` argument of
+``report.create_html``.
 
 Testing
 ~~~~~~~

@@ -3,6 +3,9 @@
 Command line interface
 ======================
 
+prognostic_run_diags
+^^^^^^^^^^^^^^^^^^^^
+
 .. argparse::
    :module: fv3net.diagnostics.prognostic_run.cli
    :func: get_parser
