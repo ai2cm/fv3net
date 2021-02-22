@@ -88,8 +88,8 @@ Use `these instructions <https://github.com/argoproj/argo-workflows/blob/master/
 to install Argo on your workstation.
 
 
-Test drive
-----------
+Test drive (WIP)
+----------------
 
 Many of the ML workflows are documented with their usage.  Here we'll walk through
 a simple example to check that everything works.
@@ -102,4 +102,5 @@ Cloud Workflows
 
 The main data processing pipelines for this project currently utilize Kubernetes 
 with Docker images and Dataflow on Google Cloud.  Check out :ref:`workflows` to see
-how to run and compose them!
+how to run and compose them! The Makefiles typically specify what's being run with
+extended descriptions of the workflow in the ``README.md`` files.
