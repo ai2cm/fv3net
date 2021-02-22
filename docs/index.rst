@@ -6,29 +6,56 @@
 Welcome to fv3net's documentation!
 ==================================
 
-Other VCM Projects
-------------------
+To get running quickly, see our :ref:`quickstarts`. These contain information about installation/setup, as well as how you can run pre-configured examples.
 
-- fv3gfs-python_ (`docs <https://vulcanclimatemodeling.github.io/fv3gfs-python/f12n7eq5xkoibbqp/index.html>`_)
-- fv3config_
+The :ref:`workflows` page documents our overall scientific workflow, with links to documentation for each component.
+
+:ref:`packages` describes the tools and libraries we use to organize our code.
+
+If you run into issues, you may want to check the :ref:`FAQs` to see if this is a known issue we have a solution for.
+
+We track our internal experiments in this `dropbox paper document <https://paper.dropbox.com/doc/ML-skill-for-FV3-GFS-rcRyq37aoDiWOtYMVchW9>`_. Available datasets can also be seen in the `intake catalog <https://github.com/VulcanClimateModeling/fv3net/blob/master/external/vcm/vcm/catalog.yaml>`_. These resources are both private and available internally.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   readme_link
+   quickstarts
    workflows
-   vcm
-   science
-   regression-testing
+   packages
+   faqs
+   dev_info
 
 
-.. _fv3gfs-python: https://github.com/VulcanClimateModeling/fv3gfs-python
-.. _fv3config: https://fv3config.readthedocs.io/en/latest/
+TODO: delete these notes before we merge
 
-Indices and tables
-==================
+short, quick hits of information with links to dive into the full docs
+links to paper docs with active descriptions of stored datasets, active experiments
+   in that paper doc, please link to the configuration used to generate the dataset
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+Link to Quickstarts page
+Quickstarts:
+- setup
+   - local environment install
+   - building docker containers
+   - authentication
+      - for each step, ideally include what to do, how to validate that it worked, and how to roll back (rollback could mean delete and start over)
+- examples
+   - link to vcm-workflow-control
+   - running workflows
+      - the fact that you probably look in the makefile and README
+      - make branch in vcm-workflow-control and edit example folder, so you can easiliy diff with example
+
+Workflows:
+- overall description/data flow between workflows
+- links to individual workflow docs
+
+Packages:
+- for each one, a short description and a link
+
+FAQs:
+   - I see this error, what does it mean? (especially for authentication)
+   - some kind of "if you get this authentication error, see the authentication rollback and quickstart docs (link)"
+
+
+
