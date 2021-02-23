@@ -15,7 +15,8 @@ def _weighted_mse(weights, std, dtype=tf.float32):
     def custom_loss(y_true, y_pred):
         return tf.math.reduce_sum(
             tf.math.reduce_mean(
-                tf.math.multiply(tf.weights, tf.math.square((y_pred - y_true) / std)), axis=0
+                tf.math.multiply(tf.weights, tf.math.square((y_pred - y_true) / std)),
+                axis=0,
             )
         )
 
