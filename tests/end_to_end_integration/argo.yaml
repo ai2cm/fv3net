@@ -25,7 +25,7 @@ spec:
           ]
       - name: nudge-to-fine-config
         value: | 
-          base_version: v0.5
+          base_version: v0.6
           forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
           nudging:
             timescale_hours:
@@ -136,7 +136,7 @@ spec:
                 - pressure_thickness_of_atmospheric_layer
       - name: prognostic-run-config
         value: |
-          base_version: v0.5
+          base_version: v0.6
           namelist:
             coupler_nml:
               hours: 4
@@ -148,6 +148,7 @@ spec:
               layout:
                 - 2
                 - 2
+              nudge: true
             gfdl_cloud_microphysics_nml:
               fast_sat_adj: false
             fv_nwp_nudge_nml:
@@ -219,8 +220,6 @@ spec:
             value: "{{workflow.parameters.prognostic-run-config}}"
           - name: reference-restarts
             value: "{{workflow.parameters.reference-restarts}}"
-          - name: flags
-            value: "--nudge-to-observations gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data"
           - name: test-times
             value: "{{workflow.parameters.test-times}}"
           - name: public-report-output
