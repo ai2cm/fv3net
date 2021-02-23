@@ -103,13 +103,14 @@ This example submits a "baseline" run of our fv3gfs model run to the Kubernetes 
       fast_sat_adj: false
   EOF
 
+  gsutil -m rm -r gs://vcm-ml-scratch/test-prognostic-run-example
+
   argo submit \
       --from workflowtemplate/prognostic-run \
       -p output=gs://vcm-ml-scratch/test-prognostic-run-example \
       -p reference-restarts=gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts \
       -p initial-condition="20160805.000000" \
-      -p config="$(cat ./test_fv3config.yaml)" \
-      -p segment-count=1
+      -p config="$(cat ./test_fv3config.yaml)"
 
 After the job submits, there will be a read out of the job::
 
