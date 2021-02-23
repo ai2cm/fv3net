@@ -6,11 +6,39 @@
 Welcome to Prognostic Run's documentation!
 ==========================================
 
+A machine-learning capable python wrapper of the FV3 dynamical core. It also
+supports nudging workflows either to observations or fine resolution
+datasets. This the primary tool used to pre-process datasets and evaluate
+machine learning models online.
+
+
+Configuring and executing prognostic runs currently require using a few command
+line utilities:
+
+.. graphviz::
+
+   digraph foo {
+      "minimal-fv3config.yml" -> "full fv3config.yml" [label="prepare_config.py"];
+      "full fv3config.yml" -> "Segmented run" [label="runfv3 create"];
+      "Segmented run" -> "Segmented run" [label="runfv3 append"];
+   }
+
+Please see the documentation below:
+
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Usage:
 
-   configuration
+   config-usage
+   local-execution
+   development
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Reference:
+
+   configuration-api
+   outputdata
 
 
 
