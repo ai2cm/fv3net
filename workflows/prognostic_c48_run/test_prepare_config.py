@@ -8,9 +8,9 @@ from runtime.diagnostics.manager import TimeConfig
 MODEL_URL = "gs://ml-model"
 IC_URL = "gs://ic-bucket"
 IC_TIMESTAMP = "20160805.000000"
-ML_CONFIG_UPDATE = "prognostic_config.yml"
-NUDGE_TO_FINE_CONFIG_UPDATE = "nudge_to_fine_config.yml"
-NUDGE_TO_OBS_CONFIG_UPDATE = "nudge_to_obs_config.yml"
+ML_CONFIG_UPDATE = "../examples/prognostic_config.yml"
+NUDGE_TO_FINE_CONFIG_UPDATE = "../examples/nudge_to_fine_config.yml"
+NUDGE_TO_OBS_CONFIG_UPDATE = "../examples/nudge_to_obs_config.yml"
 
 
 def get_ml_args():
