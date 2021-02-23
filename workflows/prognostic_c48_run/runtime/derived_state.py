@@ -5,8 +5,11 @@ import xarray as xr
 import fv3gfs.util
 from vcm import DerivedMapping
 
+import fv3gfs.wrapper._properties
+import fv3gfs.wrapper
 
-class FV3StateMapper:
+
+class FV3StateMapper(Mapping):
     """ A mapping interface for the FV3GFS getter.
         
     Maps variables to the common names used in shared functions.
@@ -29,6 +32,24 @@ class FV3StateMapper:
             if key in self._alternate_keys:
                 key = self._alternate_keys[key]
             return self._getter.get_state([key])[key].data_array
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __len__(self):
+        return len(self.keys())
+
+    def keys(self):
+        dynamics_names = set(
+            v["name"] for v in fv3gfs.wrapper._properties.DYNAMICS_PROPERTIES
+        )
+        physics_names = set(
+            v["name"] for v in fv3gfs.wrapper._properties.PHYSICS_PROPERTIES
+        )
+        tracer_names = set(v for v in fv3gfs.wrapper.get_tracer_metadata())
+        # see __getitem__
+        local_names = {"latent_heat_flux", "total_water"}
+        return dynamics_names | physics_names | tracer_names | local_names
 
     def _total_water(self):
         a = self._getter.get_tracer_metadata()
@@ -66,6 +87,9 @@ class DerivedFV3State:
             {key: fv3gfs.util.Quantity.from_data_array(value)}
         )
 
+    def keys(self):
+        return self._mapper.keys()
+
     def update(
         self,
         items: MutableMapping[Hashable, xr.DataArray],
@@ -88,3 +112,14 @@ class DerivedFV3State:
                 for key, value in items.items()
             }
         )
+
+    def checkpoint(self) -> Mapping[Hashable, xr.DataArray]:
+        out = {}
+        for key in self.keys():
+            try:
+                data = self[key]
+            except:
+                pass
+            else:
+                out[key] = data
+        return out
