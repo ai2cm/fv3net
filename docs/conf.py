@@ -19,8 +19,6 @@ import sys
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("../external/vcm"))
 
-import fv3net  # noqa
-
 # -- Project information -----------------------------------------------------
 
 project = "fv3net"
@@ -28,8 +26,7 @@ copyright = u"2019-2020, Vulcan Technologies LLC"
 author = u"Vulcan Technologies LLC"
 
 # The full version, including alpha/beta/rc tags
-release = fv3net.__version__
-
+release = "0.1.0"
 
 # -- General configuration ---------------------------------------------------
 
@@ -41,7 +38,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.graphviz",
-    "m2r",
+    "recommonmark",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -68,6 +65,8 @@ html_static_path = ["_static"]
 # Graphviz
 graphviz_output_format = "svg"
 
-
-# M2r
-source_suffix = [".rst", ".md"]
+# recommonmark
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}

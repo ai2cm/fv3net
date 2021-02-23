@@ -1,7 +1,8 @@
 .. py:module:: runtime.config
+.. _configuration-api:
 
-Python Configuration
---------------------
+Configuration API
+-----------------
 
 The python model is configured using a nested hierarchy of dataclasses_. This
 static structure allows the type-checker to find errors related to improper
@@ -20,11 +21,9 @@ configurations with :func:`get_config`. See :class:`UserConfig` and the
 configuration objects it links to for detailed documentation on the available
 configuration options.
 
-API
-~~~
 
 Top-level
-^^^^^^^^^
+~~~~~~~~~
 
 .. automodule:: runtime.config
     :members: get_config, get_namelist
@@ -32,7 +31,7 @@ Top-level
 .. autoclass:: UserConfig
 
 Python "Physics"
-^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~
 
 
 .. py:module:: runtime.steppers.machine_learning
@@ -43,7 +42,7 @@ Python "Physics"
 
 
 Diagnostics
-^^^^^^^^^^^
+~~~~~~~~~~~
 
 .. py:module:: runtime.diagnostics.manager
 
