@@ -6,7 +6,6 @@ import joblib
 import numpy as np
 import yaml
 import pytest
-import io
 
 
 def checksum_xarray(xobj):
@@ -32,7 +31,8 @@ def test_PureMLStepper_schema_unchanged(state, regtest):
         physics_tendencies,
         diagnostics,
         rank_updated_points,
-    ) = PureMLStepper(model, state, timestep)
+        _,
+    ) = PureMLStepper(model, timestep)(None, state)
 
     xr.Dataset(diagnostics).info(regtest)
     xr.Dataset(dycore_tendencies).info(regtest)
@@ -48,7 +48,8 @@ def test_PureMLStepper_regression_checksum(state, regtest):
         physics_tendencies,
         diagnostics,
         rank_updated_points,
-    ) = PureMLStepper(model, state, timestep)
+        _,
+    ) = PureMLStepper(model, timestep)(None, state)
 
     checksums = yaml.safe_dump(
         [

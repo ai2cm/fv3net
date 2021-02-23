@@ -429,7 +429,6 @@ def get_ml_config(model_path):
     return config
 
 
-
 @pytest.fixture(
     scope="module", params=[ConfigEnum.sklearn, ConfigEnum.keras, ConfigEnum.nudging]
 )

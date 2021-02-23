@@ -1,45 +1,29 @@
-import cftime
 import datetime
 import json
 import logging
-from typing import (
-    Any,
-    Callable,
-    Iterable,
-    Mapping,
-    Tuple,
-    List,
-    Sequence,
-    Optional,
-)
+from typing import Any, Callable, Iterable, List, Mapping, Optional, Sequence, Tuple
 
+import cftime
+import fv3gfs.util
+import fv3gfs.wrapper
 import numpy as np
 import xarray as xr
 from mpi4py import MPI
-
 from runtime import DerivedFV3State
-import fv3gfs.wrapper
-import fv3gfs.util
-
-from runtime.steppers.machine_learning import open_model, MLStepper
 from runtime.config import UserConfig, get_namelist
+from runtime.diagnostics.machine_learning import rename_diagnostics
+from runtime.types import Diagnostics, State
 from runtime.steppers.base import (
-    LoggingMixin,
-    Stepper,
     BaselineStepper,
-    State,
-    Diagnostics,
+    LoggingMixin,
+    precipitation_rate,
+    precipitation_sum,
 )
+from runtime.steppers.machine_learning import PureMLStepper, open_model
+from runtime.steppers.nudging import PureNudger
+from typing_extensions import Protocol
 
-from runtime.steppers.nudging import NudgingStepper
-from runtime.steppers.base import precipitation_rate
-
-from .names import (
-    TOTAL_PRECIP,
-    AREA,
-    DELP,
-)
-
+from .names import AREA, DELP, TOTAL_PRECIP
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +59,29 @@ def global_average(comm, array: xr.DataArray, area: xr.DataArray) -> float:
         return -1
 
 
+class Stepper(Protocol):
+    """Stepper interface
+
+    Users typing_extensions.Protocol to avoid the need for explicit sub-typing
+    """
+
+    @property
+    def net_moistening(self) -> str:
+        pass
+
+    def __call__(self, time, state):
+        return {}, {}, {}, None, {}
+
+    def get_diagnostics(self, state, tendency):
+        return {}
+
+    def get_momentum_diagnostics(self, state, tendency):
+        return {}
+
+    def apply(self, state, tendency, dt):
+        return {}
+
+
 class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin):
     """An iterable defining the master time loop of a prognostic simulation
 
@@ -105,7 +112,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
         self._fv3gfs = wrapper
         self._state: DerivedFV3State = DerivedFV3State(self._fv3gfs)
-        self._comm = comm
+        self.comm = comm
         self._timer = fv3gfs.util.Timer()
         self.rank: int = comm.rank
 
@@ -116,12 +123,14 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._timestep = timestep
         self._log_info(f"Timestep: {timestep}")
 
+        self._do_only_diagnostic_ml = config.scikit_learn.diagnostic_ml
         self._tendencies_to_apply_to_dycore_state: State = {}
         self._tendencies_to_apply_to_physics_state: State = {}
+        self._state_updates: State = {}
 
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
         self._log_debug(f"States to output: {self._states_to_output}")
-        self.stepper: Stepper = self._get_stepper(config)
+        self.stepper = self._get_stepper(config)
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -143,31 +152,17 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             self._log_info("Downloading ML Model")
             model = open_model(config.scikit_learn)
             self._log_info("Model Downloaded")
-            return MLStepper(
-                self._state,
-                self._comm,
-                self._timestep,
-                states_to_output=self._states_to_output,
-                model=model,
-                diagnostic_only=config.scikit_learn.diagnostic_ml,
-            )
+            return PureMLStepper(model, self._timestep)
         elif config.nudging:
             self._log_info("Using NudgingStepper")
             partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
                 get_namelist()
             )
-            communicator = fv3gfs.util.CubedSphereCommunicator(self._comm, partitioner)
-            return NudgingStepper(
-                self._state,
-                self._fv3gfs,
-                self._comm.rank,
-                config.nudging,
-                timestep=self._timestep,
-                communicator=communicator,
-            )
+            communicator = fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
+            return PureNudger(config.nudging, communicator)
         else:
             self._log_info("Using BaselineStepper")
-            return BaselineStepper(self._state)
+            return BaselineStepper()
 
     @property
     def time(self) -> cftime.DatetimeJulian:
@@ -228,9 +223,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         for name, value in self._timer.times.items():
             reduced[name] = {}
             for label, op in [("min", MPI.MIN), ("max", MPI.MAX), ("mean", MPI.SUM)]:
-                self._comm.Reduce(np.array(value), recvbuf, op=op)
+                self.comm.Reduce(np.array(value), recvbuf, op=op)
                 if is_root and label == "mean":
-                    recvbuf /= self._comm.Get_size()
+                    recvbuf /= self.comm.Get_size()
                 reduced[name][label] = recvbuf.copy().item()
             self._print_timing(
                 name, reduced[name]["min"], reduced[name]["max"], reduced[name]["mean"]
@@ -249,14 +244,66 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         ]
 
     def _apply_python_to_physics_state(self) -> Diagnostics:
-        return self.stepper._apply_python_to_physics_state()
+        self._log_debug(f"Apply python tendencies to physics state")
+        tendency = self._tendencies_to_apply_to_physics_state
+        updated_state: State = self.stepper.apply(
+            self._state, tendency, dt=self._timestep
+        )
+        diagnostics: Diagnostics = self.stepper.get_momentum_diagnostics(
+            self._state, tendency
+        )
+        if self._do_only_diagnostic_ml:
+            rename_diagnostics(diagnostics)
+        else:
+            self._state.update(updated_state)
+
+        return diagnostics
 
     def _compute_python_tendency(self) -> Diagnostics:
-        return self.stepper._compute_python_tendency()
+        self._log_info("Computing ML Tendency")
+        (
+            self._tendencies_to_apply_to_dycore_state,
+            self._tendencies_to_apply_to_physics_state,
+            diagnostics,
+            rank_updated_points,
+            self._state_updates,
+        ) = self.stepper(self._state.time, self._state)
+
+        if rank_updated_points is not None:
+            updated_points = self.comm.reduce(rank_updated_points, root=0)
+            if self.comm.rank == 0:
+                level_updates = {
+                    i: int(value)
+                    for i, value in enumerate(updated_points.sum(["x", "y"]).values)
+                }
+                logger.info(
+                    f"specific_humidity_limiter_updates_per_level: {level_updates}"
+                )
+
+        self._state.update(self._state_updates)
+        return diagnostics
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 
-        diagnostics = self.stepper._apply_python_to_dycore_state()
+        tendency = self._tendencies_to_apply_to_dycore_state
+        diagnostics = self.stepper.get_diagnostics(self._state, tendency)
+
+        if self._do_only_diagnostic_ml:
+            rename_diagnostics(diagnostics)
+        else:
+            if not isinstance(self.stepper, BaselineStepper):
+                updated_state = self.stepper.apply(
+                    self._state, tendency, dt=self._timestep
+                )
+                updated_state[TOTAL_PRECIP] = precipitation_sum(
+                    self._state[TOTAL_PRECIP],
+                    diagnostics[self.stepper.net_moistening],
+                    self._timestep,
+                )
+                diagnostics[TOTAL_PRECIP] = updated_state[TOTAL_PRECIP]
+                self._state.update(updated_state)
+                self._state.update(self._state_updates)
+
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
         diagnostics.update(
             {
@@ -265,7 +312,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                     "cnvprcp"
                 ).data_array,
                 "total_precipitation_rate": precipitation_rate(
-                    diagnostics[TOTAL_PRECIP], self._timestep
+                    self._state[TOTAL_PRECIP], self._timestep
                 ),
             }
         )

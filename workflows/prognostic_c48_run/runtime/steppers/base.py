@@ -1,11 +1,9 @@
 import logging
 
 import xarray as xr
-
-from runtime.names import TENDENCY_TO_STATE_NAME
 from runtime.diagnostics.machine_learning import compute_baseline_diagnostics
-from runtime.types import State, Diagnostics
-
+from runtime.names import TENDENCY_TO_STATE_NAME
+from runtime.types import State
 
 logger = logging.getLogger(__name__)
 
@@ -29,26 +27,20 @@ class LoggingMixin:
             print(message)
 
 
-class Stepper:
-    def _compute_python_tendency(self) -> Diagnostics:
+class BaselineStepper:
+    net_moistening = "doesn't matter"
+
+    def __call__(self, time, state):
+        return {}, {}, {}, None, {}
+
+    def get_diagnostics(self, state, tendency):
+        return compute_baseline_diagnostics(state)
+
+    def get_momentum_diagnostics(self, state, tendency):
         return {}
 
-    def _apply_python_to_dycore_state(self) -> Diagnostics:
-        return {}
-
-    def _apply_python_to_physics_state(self) -> Diagnostics:
-        return {}
-
-
-class BaselineStepper(Stepper):
-    def __init__(self, state):
-        self._state = state
-
-    def _compute_python_tendency(self) -> Diagnostics:
-        return {}
-
-    def _apply_python_to_dycore_state(self) -> Diagnostics:
-        return compute_baseline_diagnostics(self._state)
+    def apply(self, state, tendency, dt):
+        return apply(state, tendency, dt)
 
 
 def apply(state: State, tendency: State, dt: float) -> State:
