@@ -13,7 +13,7 @@ A: Check out the `long lived infrastructure repo <https://github.com/VulcanClima
 Authentication
 --------------
 
-See cloud_auth_ for details.
+See :ref:`cloud_auth` for details.
 
 * My authentication to gcloud resources doesn't seem to be working
     Make sure that the ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable
