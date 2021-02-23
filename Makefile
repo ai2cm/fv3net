@@ -40,6 +40,15 @@ build_image_ci:
 deploy_docs_%: 
 	@echo "Nothing to do."
 
+
+## Deploy documentation for fv3net to vulcanclimatemodeling.com
+deploy_docs_fv3net:
+	mkdir -p docs/_build/html
+	# use tar to grab already-built docs from inside the docker image and extract them to "./html"
+	# will have one docker and gsutil command for each project whose docs are built in the fv3net image
+	docker run us.gcr.io/vcm-ml/fv3net:$(VERSION) tar -C docs/_build/html -c . | tar -C docs/_build/html -x
+	gsutil -m rsync -R docs/_build/html gs://vulcanclimatemodeling-com-static/docs/fv3net
+
 ## Deploy documentation for prognostic run to vulcanclimatemodeling.com
 deploy_docs_prognostic_run:
 	mkdir html
