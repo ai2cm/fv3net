@@ -9,7 +9,6 @@ import xarray as xr
 import datetime
 import yaml
 from sklearn.dummy import DummyRegressor
-from hashlib import md5
 
 import fv3fit
 from fv3fit.sklearn import RegressorEnsemble, SklearnWrapper
@@ -537,15 +536,6 @@ def test_fv3run_checksum_restarts(completed_rundir, regtest):
     # perhaps if an external library is updated.
     fv_core = completed_rundir.join("RESTART").join("fv_core.res.tile1.nc")
     print(fv_core.computehash(), file=regtest)
-
-
-def test_fv3run_checksum_logs(completed_rundir, regtest):
-    f = completed_rundir.join("logs.txt").open()
-    lines = f.readlines()
-    lines_with_no_timing_info = lines[:-102]
-    data = "\n".join(lines_with_no_timing_info)
-    checksum = md5(data.encode())
-    print(checksum.hexdigest(), file=regtest)
 
 
 def test_fv3run_logs_present(completed_rundir):
