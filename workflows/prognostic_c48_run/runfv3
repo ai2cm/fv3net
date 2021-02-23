@@ -88,7 +88,6 @@ function appendSegment {
         echo "Continuing from segment $lastSegment"
         # lastSegment includes trailing slash
         enable_restart "$workingDir/fv3config.yml" "${lastSegment}RESTART"
-        update_config_for_nudging "$workingDir/fv3config.yml"
     else
         echo "First segment in $runURL"
     fi
