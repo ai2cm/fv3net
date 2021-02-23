@@ -68,23 +68,21 @@ reference.
 Nudge to obs
 ~~~~~~~~~~~~
 
-Obervational nudging is implemented in the Fortran model, so is configured by
-a complex combination of Fortran namelist options and fv3config_ data
-provisioning. For convenience, a nudge-to-obs run can be configured by
-including the argument ``--nudge-to-observations URL`` to
-``prepare_config.py`` and a ``minimal.yaml`` including the following namelist
-settings::
+Obervational nudging is implemented in the Fortran model. It is activated by
+setting the namelist parameter ``fv_core_nml.nudge`` to ``True``. The nudging
+is configured through the ``fv_nwp_nudge_nml`` namelist. For convenience, a
+base YAML (``v0.6``) is provided which provides useful defaults nudge to obs
+runs. Here is an example ``minimal.yaml``:
 
-    namelist:
-      fv_nwp_nudge_nml:
-        nudge_ps: true
-        nudge_virt: true
-        nudge_winds: true
-        nudge_q: true
-        tau_ps: 21600.0
-        tau_virt: 21600.0
-        tau_winds: 21600.0
-        tau_q: 21600.0
+.. literalinclude:: nudge_to_obs_config.yml
+    :language: yaml
+
+The location and filename format of the reference analysis data can be customized
+by adding a ``gfs_analysis_data`` section to the ``minimal.yaml``::
+
+    gfs_analysis_data:
+        url: gs://bucket/path/to/analysis
+        filename_pattern: "%Y%m%d_%H.nc"
 
 .. note::
 
