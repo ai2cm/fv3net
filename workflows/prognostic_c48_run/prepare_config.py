@@ -6,10 +6,7 @@ from typing import List
 
 import dacite
 
-import fv3config
 import fv3kube
-
-import vcm
 
 from runtime import default_diagnostics
 from runtime.diagnostics.manager import (
