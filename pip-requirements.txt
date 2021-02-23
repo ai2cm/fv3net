@@ -7,9 +7,14 @@ yq
 pytest-regtest
 conda-lock
 pip-tools
+recommonmark
+sphinx
+sphinx-argparse
+sphinx_rtd_theme
 tox
 tensorflow>=2.3
 tensorflow-addons
+fv3config
 
 # This version of gcsfs breaks logging
 gcsfs!=0.7.0

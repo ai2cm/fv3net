@@ -1,12 +1,14 @@
-from .manager import DiagnosticFile
+from .manager import DiagnosticFileConfig, FortranFileConfig
 
-ml_diagnostics = DiagnosticFile(
+ml_diagnostics = DiagnosticFileConfig(
     name="diags.zarr",
+    chunks={"time": 96},
     variables=[
         "net_moistening",
         "net_moistening_diagnostic",
         "net_heating",
         "net_heating_diagnostic",
+        "total_precipitation_rate",
         "water_vapor_path",
         "physics_precip",
         "column_integrated_dQu",
@@ -15,21 +17,24 @@ ml_diagnostics = DiagnosticFile(
         "column_integrated_dQv_diagnostic",
     ],
 )
-nudging_diagnostics_2d = DiagnosticFile(
+nudging_diagnostics_2d = DiagnosticFileConfig(
     name="diags.zarr",
+    chunks={"time": 96},
     variables=[
         "net_moistening_due_to_nudging",
         "net_heating_due_to_nudging",
         "net_mass_tendency_due_to_nudging",
-        "column_integrated_eastward_wind_tendency_due_to_nudging",
-        "column_integrated_northward_wind_tendency_due_to_nudging",
+        "total_precipitation_rate",
         "water_vapor_path",
         "physics_precip",
     ],
 )
-nudging_tendencies = DiagnosticFile(name="nudging_tendencies.zarr", variables=[])
-physics_tendencies = DiagnosticFile(
+nudging_tendencies = DiagnosticFileConfig(
+    name="nudging_tendencies.zarr", chunks={"time": 8}, variables=[]
+)
+physics_tendencies = DiagnosticFileConfig(
     name="physics_tendencies.zarr",
+    chunks={"time": 8},
     variables=[
         "tendency_of_air_temperature_due_to_fv3_physics",
         "tendency_of_specific_humidity_due_to_fv3_physics",
@@ -37,11 +42,14 @@ physics_tendencies = DiagnosticFile(
         "tendency_of_northward_wind_due_to_fv3_physics",
     ],
 )
-baseline_diagnostics = DiagnosticFile(
-    name="diags.zarr", variables=["water_vapor_path", "physics_precip"],
+baseline_diagnostics = DiagnosticFileConfig(
+    name="diags.zarr",
+    chunks={"time": 96},
+    variables=["water_vapor_path", "physics_precip"],
 )
-state_after_timestep = DiagnosticFile(
+state_after_timestep = DiagnosticFileConfig(
     name="state_after_timestep.zarr",
+    chunks={"time": 8},
     variables=[
         "x_wind",
         "y_wind",
@@ -50,7 +58,6 @@ state_after_timestep = DiagnosticFile(
         "vertical_wind",
         "air_temperature",
         "specific_humidity",
-        "time",
         "pressure_thickness_of_atmospheric_layer",
         "vertical_thickness_of_atmospheric_layer",
         "land_sea_mask",
@@ -78,4 +85,12 @@ state_after_timestep = DiagnosticFile(
         "longitude",
     ],
 )
-reference_state = DiagnosticFile(name="reference_state.zarr", variables=[])
+reference_state = DiagnosticFileConfig(
+    name="reference_state.zarr", chunks={"time": 8}, variables=[]
+)
+sfc_dt_atmos = FortranFileConfig(name="sfc_dt_atmos.zarr", chunks={"time": 96})
+atmos_dt_atmos = FortranFileConfig(name="atmos_dt_atmos.zarr", chunks={"time": 96})
+atmos_8xdaily = FortranFileConfig(name="atmos_8xdaily.zarr", chunks={"time": 8})
+nudging_tendencies_fortran = FortranFileConfig(
+    name="nudging_tendencies.zarr", chunks={"time": 8}
+)

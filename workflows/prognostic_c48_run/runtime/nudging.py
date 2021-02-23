@@ -1,10 +1,23 @@
 import fv3gfs.util
+from mpi4py import MPI
+import shutil
+import fsspec
 import xarray as xr
+import dataclasses
 import cftime
 import functools
 from datetime import timedelta
 import os
-from typing import MutableMapping, Mapping, Iterable, Callable, Hashable, Any, Dict
+from typing import (
+    MutableMapping,
+    Mapping,
+    Iterable,
+    Callable,
+    Hashable,
+    Any,
+    Dict,
+    Optional,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,6 +29,43 @@ MASK_NAME = "land_sea_mask"
 State = MutableMapping[Hashable, xr.DataArray]
 
 
+@dataclasses.dataclass
+class NudgingConfig:
+    """Nudging Configurations
+
+    The runfile supports nudge-to-fine towards a dataset with a different sampling
+    frequency than the model time step. The available nudging times should start
+    with ``reference_initial_time`` and appear at a regular frequency of
+    ``reference_frequency_seconds`` thereafter. These options are optional; if
+    not provided the nudging data will be assumed to contain every time. The
+    reference state will be linearly interpolated between the available time
+    samples.
+
+    Attributes:
+        timescale_hours: mapping of variable names to timescales (in hours).
+
+    Examples::
+
+        NudgingConfig(
+            timescale_hours={
+                "air_temperature": 3,
+                "specific_humidity": 3,
+                "x_wind": 3,
+                "y_wind": 3,
+            },
+            restarts_path="gs://some-bucket/some-path",
+            reference_initial_time="20160801.001500",
+            reference_frequency_seconds=900,
+        )
+    """
+
+    timescale_hours: Dict[str, float]
+    restarts_path: str
+    # optional arguments needed for time interpolation
+    reference_initial_time: Optional[str] = None
+    reference_frequency_seconds: float = 900
+
+
 def nudging_timescales_from_dict(timescales: Mapping) -> Mapping:
     return_dict = {}
     for name, hours in timescales.items():
@@ -24,15 +74,15 @@ def nudging_timescales_from_dict(timescales: Mapping) -> Mapping:
 
 
 def setup_get_reference_state(
-    config: Mapping, state_names: Iterable[str], comm, tracer_metadata: Mapping
+    config: NudgingConfig,
+    state_names: Iterable[str],
+    tracer_metadata: Mapping,
+    communicator: fv3gfs.util.CubedSphereCommunicator,
 ):
     """
     Configure the 'get_reference_function' for use in a nudged fv3gfs run.
     """
-
-    partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(config["namelist"])
-    communicator = fv3gfs.util.CubedSphereCommunicator(comm, partitioner)
-    reference_dir = config["nudging"]["restarts_path"]
+    reference_dir = config.restarts_path
 
     get_reference_state: Callable[[Any], Dict[Any, Any]] = functools.partial(
         _get_reference_state,
@@ -42,14 +92,12 @@ def setup_get_reference_state(
         tracer_metadata=tracer_metadata,
     )
 
-    initial_time_label = config["nudging"].get("reference_initial_time")
+    initial_time_label = config.reference_initial_time
     if initial_time_label is not None:
         get_reference_state = _time_interpolate_func(
             get_reference_state,
             initial_time=_label_to_time(initial_time_label),
-            frequency=timedelta(
-                seconds=config["nudging"]["reference_frequency_seconds"]
-            ),
+            frequency=timedelta(seconds=config.reference_frequency_seconds),
         )
 
     return get_reference_state
@@ -64,13 +112,30 @@ def _get_reference_state(
 ):
     label = _time_to_label(time)
     dirname = os.path.join(reference_dir, label)
+
+    localdir = "download"
+
+    if MPI.COMM_WORLD.rank == 0:
+        fs = fsspec.get_fs_token_paths(dirname)[0]
+        fs.get(dirname, localdir, recursive=True)
+
+    # need this for synchronization
+    MPI.COMM_WORLD.barrier()
+
     state = fv3gfs.util.open_restart(
-        dirname,
+        localdir,
         communicator,
         label=label,
         only_names=only_names,
         tracer_properties=tracer_metadata,
     )
+
+    # clean up the local directory
+    # wait for other processes to finish using the data
+    MPI.COMM_WORLD.barrier()
+    if MPI.COMM_WORLD.rank == 0:
+        shutil.rmtree(localdir)
+
     return _to_state_dataarrays(state)
 
 
@@ -125,7 +190,6 @@ def _time_interpolate_func(
                 _average_states(state_0, state_1, weight=(end_time - time) / frequency)
             )
 
-        state["time"] = time
         return state
 
     return myfunc

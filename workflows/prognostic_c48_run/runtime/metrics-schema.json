@@ -26,6 +26,7 @@
             "column_integrated_dQv": 0.0,
             "water_vapor_path": 23.721312922082713,
             "physics_precip": 1.3542121849959635e-05,
+            "physics_precip": 1.3542121849959635e-05,
             "storage_of_specific_humidity_path_due_to_python": 9.4789371892713e-19,
             "storage_of_total_water_path_due_to_python": 9.900500623895441e-19,
             "storage_of_mass_due_to_python": -4.188213798282645e-15,
@@ -163,6 +164,16 @@
                 1.3542121849959635e-05
             ]
         },
+        "total_precipitation_rate": {
+            "$id": "#/properties/total_precipitation_rate",
+            "type": "number",
+            "default": 0.0,
+            "description": "total precip rate to surface, max(PRATE - <dQ2 or nQ2>, 0)",
+            "units": "kg/m^2/s",
+            "examples": [
+                1.3542121849959635e-05
+            ]
+        },
         "storage_of_mass_due_to_python": {
             "$id": "#/properties/storage_of_mass_due_to_python",
             "type": "number",
@@ -210,6 +221,26 @@
             "type": "number",
             "default": 0.0,
             "units": "kg/m^2/s"
+        },
+        "column_integrated_dQ1_change_non_neg_sphum_constraint": {
+            "$id": "#/properties/column_integrated_dQ1_change_non_neg_sphum_constraint",
+            "type": "number",
+            "default": 0.0,
+            "description": "change in column-integrated dQ1 due to non-negative specific humidity limiter",
+            "units": "W/m^2",
+            "examples": [
+                -7.721312922082713e-01
+            ]
+        },
+        "column_integrated_dQ2_change_non_neg_sphum_constraint": {
+            "$id": "#/properties/column_integrated_dQ2_change_non_neg_sphum_constraint",
+            "type": "number",
+            "default": 0.0,
+            "description": "change in column-integrated dQ2 due to non-negative specific humidity limiter",
+            "units": "kg/m^2/s",
+            "examples": [
+                1.3542121849959635e-07
+            ]
         }
     },
     "additionalProperties": false

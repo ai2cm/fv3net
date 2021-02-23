@@ -1,17 +1,28 @@
-from typing import Any, Sequence, Container, Mapping, List, Union, Optional, Dict
+from typing import (
+    Any,
+    Sequence,
+    Container,
+    Mapping,
+    List,
+    Union,
+    Dict,
+    Optional,
+    MutableMapping,
+)
 
 import datetime
 import cftime
 import logging
 import fv3gfs.util
 import xarray as xr
+import dataclasses
 
 logger = logging.getLogger(__name__)
 
 
 class All(Container):
     """A container that contains every thing
-    
+
     This is useful for cases where we want an ``in`` check to always return True.
 
     Example:
@@ -58,7 +69,7 @@ class IntervalTimes(Container[cftime.DatetimeJulian]):
         Args:
             frequency_seconds: the output frequency from the initial time
             initial_time: the initial time to start the period
-            
+
         """
         self._frequency_seconds = frequency_seconds
         self.initial_time = initial_time
@@ -77,31 +88,159 @@ class IntervalTimes(Container[cftime.DatetimeJulian]):
         return quotient == datetime.timedelta(seconds=0)
 
 
-def _assign_units_if_none_present(array: xr.DataArray, units=None):
-    return array.assign_attrs(units=array.attrs.get("units", units))
+class TimeContainer:
+    """A time discretization can be described by an "indicator" function
+    mapping times onto discrete set of output times.
+
+    This generalizes the notion of a set of times to include a concept of grouping.
+
+    """
+
+    def __init__(self, container: Container):
+        self.container = container
+
+    def indicator(self, time: cftime.DatetimeJulian) -> Optional[cftime.DatetimeJulian]:
+        """Maps a value onto set"""
+        if time in self.container:
+            return time
+        else:
+            return None
+
+
+@dataclasses.dataclass
+class IntervalAveragedTimes(TimeContainer):
+    frequency: datetime.timedelta
+    initial_time: cftime.DatetimeJulian
+    includes_lower: bool = False
+
+    def _is_endpoint(self, time: cftime.DatetimeJulian) -> bool:
+        remainder = (time - self.initial_time) % self.frequency
+        return remainder == datetime.timedelta(0)
+
+    def indicator(self, time: cftime.DatetimeJulian) -> Optional[cftime.DatetimeJulian]:
+        n = (time - self.initial_time) // self.frequency
+
+        if self._is_endpoint(time) and not self.includes_lower:
+            n = n - 1
+
+        return n * self.frequency + self.frequency / 2 + self.initial_time
+
+
+@dataclasses.dataclass
+class TimeConfig:
+    """Configuration for output times
+
+    This class configures the time coordinate of the output diagnostics. It
+    allows output data at a user-specified list of snapshots
+    (``kind='selected'``), fixed intervals (``kind='interval'``), averages
+    over intervals (``kind='interval-average'``), or every single time step
+    (``kind='every'``).
+
+    Attributes:
+        kind: one of interval, every, "interval-average", or "selected"
+        times: List of times to be used when kind=="selected". The times
+            should be formatted as YYYYMMDD.HHMMSS strings. Example:
+            ``["20160101.000000"]``.
+        frequency: frequency in seconds, used for kind=interval-average or interval
+        includes_lower: for interval-average, whether the interval includes its upper
+            or lower limit. Default: False.
+    """
+
+    frequency: Optional[float] = None
+    times: Optional[List[str]] = None
+    kind: str = "every"
+    includes_lower: bool = False
+
+    def time_container(self, initial_time: cftime.DatetimeJulian) -> TimeContainer:
+        if self.kind == "interval" and self.frequency:
+            return TimeContainer(IntervalTimes(self.frequency, initial_time))
+        elif self.kind == "selected":
+            return TimeContainer(SelectedTimes(self.times or []))
+        elif self.kind == "every":
+            return TimeContainer(All())
+        elif self.kind == "interval-average" and self.frequency:
+            return IntervalAveragedTimes(
+                datetime.timedelta(seconds=self.frequency),
+                initial_time,
+                self.includes_lower,
+            )
+        else:
+            raise NotImplementedError(f"Time {self.kind} not implemented.")
+
+
+@dataclasses.dataclass
+class DiagnosticFileConfig:
+    """Configurations for zarr Diagnostic Files
+
+    Attributes:
+        name: filename of a zarr to store the data in, e.g., 'diags.zarr'.
+            Paths are relative to the run-directory root.
+        variables: the variables to save. By default all available diagnostics
+            are stored. Example: ``["air_temperature", "cos_zenith_angle"]``.
+        times: the time configuration
+        chunks: mapping of dimension names to chunk sizes
+    """
+
+    name: str
+    variables: Optional[Container] = None
+    times: TimeConfig = dataclasses.field(default_factory=lambda: TimeConfig())
+    chunks: Optional[Mapping[str, int]] = None
+
+    def to_dict(self) -> Dict:
+        return dataclasses.asdict(self)
+
+    def diagnostic_file(
+        self,
+        initial_time: cftime.DatetimeJulian,
+        partitioner: fv3gfs.util.CubedSpherePartitioner,
+        comm: Any,
+    ) -> "DiagnosticFile":
+        return DiagnosticFile(
+            variables=self.variables if self.variables else All(),
+            times=self.times.time_container(initial_time),
+            monitor=fv3gfs.util.ZarrMonitor(self.name, partitioner, mpi_comm=comm),
+        )
+
+
+@dataclasses.dataclass
+class FortranFileConfig:
+    """Configurations for Fortran diagnostics defined in diag_table to be converted to zarr
+
+    Attributes:
+        name: filename of the diagnostic. Must include .zarr suffix. For example, if
+            atmos_8xdaily is defined in diag_table, use atmos_8xdaily.zarr here.
+        chunks: mapping of dimension names to chunk sizes
+    """
+
+    name: str
+    chunks: Mapping[str, int]
+
+    def to_dict(self) -> Dict:
+        return dataclasses.asdict(self)
 
 
 class DiagnosticFile:
-    """A object representing a diagnostics file
+    """A object representing a time averaged diagnostics file
 
     Provides a similar interface as the "diag_table"
 
     Replicates the abilities of the fortran models's diag_table by allowing
     the user to specify different output times for distinct sets of
     variables.
+
+    Note:
+        Outputting a snapshot is type of time-average (e.g. taking the average
+        with respect to a point mass at a given time).
+
     """
 
     def __init__(
         self,
-        name: str,
         variables: Container,
-        times: Optional[Container[cftime.DatetimeJulian]] = None,
+        monitor: fv3gfs.util.ZarrMonitor,
+        times: TimeContainer,
     ):
         """
-        Args:
-            name: file name of a zarr to store the data in, e.g., 'diags.zarr'
-            variables: a container of variables to save
-            times (optional): a container for times to output
 
         Note:
 
@@ -116,74 +255,68 @@ class DiagnosticFile:
             as well as the generic ``All`` container that contains the entire
             Universe!
         """
-        self._name = name
         self.variables = variables
         self.times = times
-        self._monitor: Optional[fv3gfs.util.ZarrMonitor] = None
+        self._monitor = monitor
+
+        # variables used for averaging
+        self._running_total: Dict[str, xr.DataArray] = {}
+        self._current_label: Optional[cftime.DatetimeJulian] = None
+        self._n = 0
+        self._units: Dict[str, str] = {}
 
     def observe(
         self, time: cftime.DatetimeJulian, diagnostics: Mapping[str, xr.DataArray]
     ):
-        """Possibly store the data into the monitor
-        """
-        if self._monitor is None or self.times is None:
-            raise ValueError(
-                f"zarr monitor not yet established for {self._name}. Call set_monitor."
-            )
+        for key in diagnostics:
+            self._units[key] = diagnostics[key].attrs.get("units", "unknown")
 
-        if time in self.times:
+        label = self.times.indicator(time)
+        if label is not None:
+            if label != self._current_label:
+                self.flush()
+                self._reset_running_average(label, diagnostics)
+            else:
+                self._increment_running_average(diagnostics)
+
+    def _reset_running_average(self, label, diagnostics):
+        self._running_total = {
+            key: val.copy() for key, val in diagnostics.items() if key in self.variables
+        }
+        self._current_label = label
+        self._n = 1
+
+    def _increment_running_average(self, diagnostics):
+        self._n += 1
+        for key in diagnostics:
+            if key in self.variables:
+                self._running_total[key] += diagnostics[key]
+
+    def flush(self):
+        if self._current_label is not None:
+            average = {key: val / self._n for key, val in self._running_total.items()}
             quantities = {
                 # need units for from_data_array to work
                 key: fv3gfs.util.Quantity.from_data_array(
-                    _assign_units_if_none_present(diagnostics[key], "unknown")
+                    average[key].assign_attrs(units=self._units[key])
                 )
-                for key in diagnostics
+                for key in average
                 if key in self.variables
             }
 
             # patch this in manually. the ZarrMonitor needs it.
             # We should probably modify this behavior.
-            quantities["time"] = time
+            quantities["time"] = self._current_label
             self._monitor.store(quantities)
 
-    @classmethod
-    def from_config(
-        cls, diag_file_config: Mapping, initial_time: cftime.DatetimeJulian
-    ) -> "DiagnosticFile":
-        return DiagnosticFile(
-            name=diag_file_config["name"],
-            variables=diag_file_config.get("variables", All()),
-            times=cls._get_times(diag_file_config.get("times", {}), initial_time),
-        )
-
-    def set_monitor(self, monitor: fv3gfs.util.ZarrMonitor) -> "DiagnosticFile":
-        if self._monitor is not None:
-            raise ValueError(f"zarr monitor already initialized at {self._name}")
-        self._monitor = monitor
-        return self
-
-    @staticmethod
-    def _get_times(
-        d, initial_time: cftime.DatetimeJulian
-    ) -> Container[cftime.DatetimeJulian]:
-        kind = d.get("kind", "every")
-        if kind == "interval":
-            return IntervalTimes(d["frequency"], initial_time)
-        elif kind == "selected":
-            return SelectedTimes(d["times"])
-        elif kind == "every":
-            return All()
-        else:
-            raise NotImplementedError(f"Time {kind} not implemented.")
-
-    def to_dict(self) -> Dict:
-        return {"name": self._name, "variables": self.variables, "times": self.times}
+    def __del__(self):
+        self.flush()
 
 
 def get_diagnostic_files(
-    config: Mapping,
+    configs: Sequence[DiagnosticFileConfig],
     partitioner: fv3gfs.util.CubedSpherePartitioner,
-    comm,
+    comm: Any,
     initial_time: cftime.DatetimeJulian,
 ) -> List[DiagnosticFile]:
     """Initialize a list of diagnostic file objects from a configuration dictionary
@@ -193,29 +326,24 @@ def get_diagnostic_files(
     the sklearn runfile.
 
     Args:
-        config: A loaded "fv3config" dictionary with a "diagnostics" section
+        configs: A sequence of DiagnosticFileConfigs
         paritioner: a partioner object used for writing, maybe it would be
             cleaner to pass a factory
         comm: an MPI Comm object
         initial_time: the initial time of the simulation.
 
     """
-    diag_configs = config.get("diagnostics", [])
-    if len(diag_configs) > 0:
-        return [
-            DiagnosticFile.from_config(config, initial_time).set_monitor(
-                fv3gfs.util.ZarrMonitor(config["name"], partitioner, mpi_comm=comm)
-            )
-            for config in diag_configs
-        ]
-    else:
-        # Keep old behavior for backwards compatiblity
-        output_name = config["scikit_learn"]["zarr_output"]
-        default_config = {"name": output_name, "times": {}, "variables": All()}
-        return [
-            DiagnosticFile.from_config(default_config, initial_time).set_monitor(
-                fv3gfs.util.ZarrMonitor(
-                    default_config["name"], partitioner, mpi_comm=comm
-                )
-            )
-        ]
+    return [
+        config.diagnostic_file(initial_time, partitioner, comm) for config in configs
+    ]
+
+
+def get_chunks(
+    diagnostic_file_configs: Sequence[Union[DiagnosticFileConfig, FortranFileConfig]],
+) -> Mapping[str, Mapping[str, int]]:
+    """Get a mapping of diagnostic file name to chunking from a sequence of diagnostic
+    file configs."""
+    chunks: MutableMapping = {}
+    for diagnostic_file_config in diagnostic_file_configs:
+        chunks[diagnostic_file_config.name] = diagnostic_file_config.chunks
+    return chunks

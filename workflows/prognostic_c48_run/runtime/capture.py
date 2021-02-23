@@ -77,10 +77,10 @@ def captured_stream(func):
 
 def capture_fv3gfs_funcs():
     """Surpress stderr and stdout from all fv3gfs functions"""
-    import fv3gfs  # noqa
+    import fv3gfs.wrapper as wrapper  # noqa
 
     for func in ["step_dynamics", "step_physics", "initialize", "cleanup"]:
-        setattr(fv3gfs, func, captured_stream(getattr(fv3gfs, func)))
+        setattr(wrapper, func, captured_stream(getattr(wrapper, func)))
 
 
 if __name__ == "__main__":

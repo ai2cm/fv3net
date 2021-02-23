@@ -15,3 +15,6 @@ may be local or remote paths. An example config YAML file is provided:
 The output of this workflow is used later
 as an input to the training and testing data pipeline steps. In the future we 
 can move this task into the SHiELD post-processing and upload workflow.
+
+An example of a short test script can be found in the explore repo in the 
+`explore/misc_scripts/coarsen_diagnostics` directory.

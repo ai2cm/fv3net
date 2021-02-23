@@ -5,18 +5,12 @@ metadata:
   name: prognostic-run
 spec:
   entrypoint: prognostic-run
-  volumeClaimTemplates:
-    - metadata:
-        name: work-volume
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        storageClassName: fast
-        resources:
-          requests:
-            storage: 100Gi
   volumes:
     - name: workdir
       emptyVol: {}
+    - name: dshm
+      emptyDir:
+        medium: Memory
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -30,11 +24,9 @@ spec:
           - {name: reference-restarts}
           - {name: flags, value: ""}
           - {name: output}
-          - {name: chunks, value: "{}"}  # by default just use chunks defined in post_process.py
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 6Gi}
-          - {name: work-volume-name, value: work-volume}
       steps:
       - - name: prepare-config
           template: prepare-config
@@ -53,12 +45,10 @@ spec:
               - {name: fv3config, from: "{{steps.prepare-config.outputs.artifacts.fv3config}}"}
               - {name: runfile, from: "{{steps.prepare-config.outputs.artifacts.runfile}}"}
             parameters:
-              - {name: chunks, value: "{{inputs.parameters.chunks}}"} 
               - {name: output-url, value: "{{inputs.parameters.output}}"}
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
-              - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
     - name: prepare-config
       inputs:
         parameters:
@@ -72,9 +62,9 @@ spec:
           - name: runfile
             path: /tmp/runfile.py
       container:
-        image: us.gcr.io/vcm-ml/fv3net
+        image: us.gcr.io/vcm-ml/prognostic_run
         command: ["bash", "-c", "-x", "-e"]
-        workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run
+        workingDir: /fv3net/workflows/prognostic_c48_run
         volumeMounts:
           - name: workdir 
             mountPath: /tmp
@@ -84,9 +74,9 @@ spec:
             {{inputs.parameters.config}}
             EOF
 
-            cp /home/jovyan/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py  /tmp/runfile.py
+            cp /fv3net/workflows/prognostic_c48_run/sklearn_runfile.py  /tmp/runfile.py
 
-            python prepare_config.py \
+            python3 prepare_config.py \
               {{inputs.parameters.flags}} \
               config.yaml \
               {{inputs.parameters.reference-restarts}} \

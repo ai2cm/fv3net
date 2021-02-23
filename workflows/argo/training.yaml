@@ -5,15 +5,6 @@ metadata:
   name: training
 spec:
   entrypoint: training
-  volumeClaimTemplates:
-    - metadata:
-        name: work-volume
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        storageClassName: fast
-        resources:
-          requests:
-            storage: 100Gi
   volumes:
     - name: workdir
       emptyVol: {}
@@ -25,7 +16,6 @@ spec:
     - name: training
       inputs:
         parameters:
-          - name: routine
           - name: input
           - name: config
           - name: times
@@ -56,10 +46,8 @@ spec:
 
             echo "Configuration:"
             cat config.yaml
-            
-            echo {{inputs.parameters.routine}}
-    
-            python -m {{inputs.parameters.routine}} \
+                
+            python -m fv3fit.train \
               {{inputs.parameters.input}} \
               config.yaml \
               {{inputs.parameters.output}} \

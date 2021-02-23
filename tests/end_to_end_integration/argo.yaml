@@ -49,26 +49,67 @@ spec:
               do_sat_adj: false
             gfdl_cloud_microphysics_nml:
               fast_sat_adj: false
+          fortran_diagnostics:
+            - name: atmos_8xdaily.zarr
+              chunks:
+                time: 1
+            - name: atmos_dt_atmos.zarr
+              chunks:
+                time: 2
+            - name: sfc_dt_atmos.zarr
+              chunks:
+                time: 2
+          diagnostics:
+            - name: diags.zarr
+              chunks:
+                time: 1
+              variables:
+                - net_moistening_due_to_nudging
+                - net_heating_due_to_nudging
+                - net_mass_tendency_due_to_nudging
+                - total_precip
+                - water_vapor_path
+                - physics_precip
+            - name: nudging_tendencies.zarr
+              chunks:
+                time: 1
+              variables:
+                - air_temperature_tendency_due_to_nudging
+                - specific_humidity_tendency_due_to_nudging
+                - x_wind_tendency_due_to_nudging
+                - y_wind_tendency_due_to_nudging
+                - pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging
+            - name: physics_tendencies.zarr
+              chunks:
+                time: 1
+              variables:
+                - tendency_of_air_temperature_due_to_fv3_physics
+                - tendency_of_specific_humidity_due_to_fv3_physics
+                - tendency_of_eastward_wind_due_to_fv3_physics
+                - tendency_of_northward_wind_due_to_fv3_physics
+            - name: state_after_timestep.zarr
+              chunks:
+                time: 1
+              variables:
+                - x_wind
+                - y_wind
+                - eastward_wind
+                - northward_wind
+                - vertical_wind
+                - air_temperature
+                - specific_humidity
+                - pressure_thickness_of_atmospheric_layer
+                - vertical_thickness_of_atmospheric_layer
+                - land_sea_mask
+                - surface_temperature
+                - surface_geopotential
+                - sensible_heat_flux
+                - latent_heat_flux
+                - total_precipitation
+                - surface_precipitation_rate
+                - total_soil_moisture
       - name: nudge-to-fine-segment-count
         value:  "2"
-      - name: nudge-to-fine-chunks
-        value: |
-          physics_tendencies.zarr:
-            time: 1
-          nudging_tendencies.zarr:
-            time: 1
-          state_after_timestep.zarr:
-            time: 1
-          reference_state.zarr:
-            time: 1
-          diags.zarr:
-            time: 1
-          atmos_8xdaily.zarr:
-            time: 1
-          atmos_dt_atmos.zarr:
-            time: 2
-          sfc_dt_atmos.zarr:
-            time: 2
       - name: training-config
         value: | 
           model_type: sklearn_random_forest
@@ -104,6 +145,9 @@ spec:
               flush_nc_files: true
             fv_core_nml:
               do_sat_adj: false
+              layout:
+                - 2
+                - 2
             gfdl_cloud_microphysics_nml:
               fast_sat_adj: false
             fv_nwp_nudge_nml:
@@ -118,17 +162,12 @@ spec:
       key: dedicated
       value: climate-sim-pool
   entrypoint: main
-  volumeClaimTemplates:
-    - metadata:
-        name: work-volume
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 5Gi
   volumes:
     - name: workdir
       emptyDir: {}
+    - name: dshm
+      emptyDir:
+        medium: Memory
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -155,9 +194,6 @@ spec:
             value: "{{workflow.parameters.nudge-to-fine-config}}"
           - name: segment-count
             value: "{{workflow.parameters.nudge-to-fine-segment-count}}"
-          - name: chunks
-            value: "{{workflow.parameters.nudge-to-fine-chunks}}"
-          - {name: work-volume-name, value: work-volume}
           - name: cpu
             value: 6000m
           - name: memory
@@ -184,9 +220,12 @@ spec:
           - name: reference-restarts
             value: "{{workflow.parameters.reference-restarts}}"
           - name: flags
-            value: "--nudge-to-observations"
+            value: "--nudge-to-observations gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data"
           - name: test-times
             value: "{{workflow.parameters.test-times}}"
           - name: public-report-output
             value: "{{workflow.parameters.root}}/offline-report"
-          - {name: work-volume-name, value: work-volume}
+          - name: cpu-prog
+            value: "24"
+          - name: memory-prog
+            value: 25Gi

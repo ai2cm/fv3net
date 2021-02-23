@@ -8,8 +8,9 @@ import numpy as np
 import tempfile
 import subprocess
 import os
+import copy
 
-from fv3fit.keras.__main__ import _set_random_seed
+from fv3fit.keras._training import set_random_seed
 
 
 logger = logging.getLogger(__name__)
@@ -43,12 +44,14 @@ def model(
     output_variables: Iterable[str],
     hyperparameters: dict,
 ) -> fv3fit.Estimator:
+    fit_kwargs = hyperparameters.pop("fit_kwargs", {})
     return fv3fit.keras.get_model(
         model_type,
         loaders.SAMPLE_DIM_NAME,
         input_variables,
         output_variables,
         **hyperparameters,
+        **fit_kwargs,
     )
 
 
@@ -60,26 +63,28 @@ def test_reproducibility(
 ):
     batch_dataset_test = training_batches[0]
     fit_kwargs = {"batch_size": 384, "validation_samples": 384}
-    _set_random_seed(0)
+    set_random_seed(0)
     model_0 = fv3fit.keras.get_model(
         "DenseModel",
         loaders.SAMPLE_DIM_NAME,
         input_variables,
         output_variables,
+        fit_kwargs=copy.deepcopy(fit_kwargs),
         **hyperparameters,
     )
-    model_0.fit(training_batches, **fit_kwargs)
+    model_0.fit(training_batches)
     result_0 = model_0.predict(batch_dataset_test)
 
-    _set_random_seed(0)
+    set_random_seed(0)
     model_1 = fv3fit.keras.get_model(
         "DenseModel",
         loaders.SAMPLE_DIM_NAME,
         input_variables,
         output_variables,
+        fit_kwargs=copy.deepcopy(fit_kwargs),
         **hyperparameters,
     )
-    model_1.fit(training_batches, **fit_kwargs)
+    model_1.fit(training_batches)
     result_1 = model_1.predict(batch_dataset_test)
 
     xr.testing.assert_allclose(result_0, result_1, rtol=1e-03)
@@ -171,7 +176,7 @@ def test_training_integration(
         [
             "python",
             "-m",
-            "fv3fit.keras",
+            "fv3fit.train",
             data_source_path,
             train_config_filename,
             tmp_path,

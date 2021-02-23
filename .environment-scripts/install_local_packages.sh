@@ -5,22 +5,25 @@ CONDA_ENV=$1
 source activate $CONDA_ENV
 
 local_packages_to_install=( 
-  external/fv3fit
-  external/fv3gfs-util
   external/vcm
+  external/loaders
+  external/fv3fit
 )
+set -e
 for package  in "${local_packages_to_install[@]}"
 do
-  pip install --no-deps -e "$package"
+  pip install -c constraints.txt -e "$package"
 done
+set +e
+
+  
+# need to pip install these to avoid pkg_resources error
+pip install -c constraints.txt external/report
 
 poetry_packages=( 
-  external/report
   external/fv3viz
-  external/fv3config 
   external/synth
   external/fv3kube
-  external/loaders
   external/diagnostics_utils
   workflows/fine_res_budget
   workflows/offline_ml_diags
@@ -34,3 +37,6 @@ do
     conda develop .
   )
 done
+
+# needs to be installed after reports and fv3viz
+pip install -c constraints.txt --no-deps -e workflows/prognostic_run_diags
