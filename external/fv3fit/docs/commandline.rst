@@ -1,5 +1,3 @@
-.. commandline_:
-
 Command-line interface
 ======================
 
