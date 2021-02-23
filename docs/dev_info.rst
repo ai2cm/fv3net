@@ -48,16 +48,14 @@ These images can be built and pushed to GCR using `make build_images` and
 `make push_images`, respectively.
 
 
-Misc To Deal with Still
------------------------
+Unhandled Topics (WIP)
+----------------------
 
-# How to contribute to fv3net
+* How to contribute to fv3net
+    Please see the [contribution guide.](./CONTRIBUTING.md)
 
-Please see the [contribution guide.](./CONTRIBUTING.md)
+* How to get updates and releases
+    For details on what's included or upcoming for a release, please see the [HISTORY.rst](./HISTORY.rst) document.
 
-# How to get updates and releases
-
-For details on what's included or upcoming for a release, please see the [HISTORY.rst](./HISTORY.rst) document.
-
-For instructions on preparing a release, please read [RELEASE.rst](./RELEASE.rst).
+    For instructions on preparing a release, please read [RELEASE.rst](./RELEASE.rst).
 
