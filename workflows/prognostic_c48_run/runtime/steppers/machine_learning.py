@@ -2,6 +2,7 @@
 """
 import dataclasses
 import logging
+from runtime import diagnostics
 from typing import Any, Hashable, List, Mapping, Sequence, Set, Iterable, Tuple, cast
 
 import runtime
@@ -216,32 +217,22 @@ class MLStepper(Stepper, LoggingMixin):
         self._tendencies_to_apply_to_dycore_state: State = {}
         self._tendencies_to_apply_to_physics_state: State = {}
 
+    def get_diagnostics(self, state, tendency):
+        return runtime.compute_ml_diagnostics(state, tendency)
+
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 
-        updated_state: State = {}
-
-        variables: List[Hashable] = [
-            TENDENCY_TO_STATE_NAME["dQ1"],
-            TENDENCY_TO_STATE_NAME["dQ2"],
-            DELP,
-            PRECIP_RATE,
-            TOTAL_PRECIP,
-        ]
-        self._log_debug(f"Getting state variables: {variables}")
-        state = {name: self._state[name] for name in variables}
         tendency = self._tendencies_to_apply_to_dycore_state
-        diagnostics = runtime.compute_ml_diagnostics(state, tendency)
-
+        diagnostics = self.get_diagnostics(self._state, tendency)
         if self._do_only_diagnostic_ml:
             runtime.rename_diagnostics(diagnostics)
         else:
-            updated_state.update(apply(state, tendency, dt=self._timestep))
-
-        updated_state[TOTAL_PRECIP] = precipitation_sum(
-            state[TOTAL_PRECIP], diagnostics["net_moistening"], self._timestep
-        )
-        diagnostics[TOTAL_PRECIP] = updated_state[TOTAL_PRECIP]
-        self._state.update(updated_state)
+            updated_state = apply(self._state, tendency, dt=self._timestep)
+            updated_state[TOTAL_PRECIP] = precipitation_sum(
+                self._state[TOTAL_PRECIP], diagnostics["net_moistening"], self._timestep
+            )
+            diagnostics[TOTAL_PRECIP] = updated_state[TOTAL_PRECIP]
+            self._state.update(updated_state)
         return diagnostics
 
     def _apply_python_to_physics_state(self) -> Diagnostics:

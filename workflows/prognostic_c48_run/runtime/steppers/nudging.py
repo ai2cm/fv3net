@@ -98,21 +98,12 @@ class NudgingStepper(Stepper, LoggingMixin):
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 
-        diagnostics: Diagnostics = {}
+        tendency = self._tendencies_to_apply_to_dycore_state
 
-        variables: List[str] = self.nudging_variables + [
-            TOTAL_PRECIP,
-            PRECIP_RATE,
-            DELP,
-        ]
-        self._log_debug(f"Getting state variables: {variables}")
-        state: State = {name: self._state[name] for name in variables}
-        tendency: State = self._tendencies_to_apply_to_dycore_state
-
-        diagnostics.update(compute_nudging_diagnostics(state, tendency))
-        updated_state: State = apply(state, tendency, dt=self._timestep)
+        diagnostics = compute_nudging_diagnostics(self._state, tendency)
+        updated_state: State = apply(self._state, tendency, dt=self._timestep)
         updated_state[TOTAL_PRECIP] = precipitation_sum(
-            state[TOTAL_PRECIP],
+            self._state[TOTAL_PRECIP],
             diagnostics["net_moistening_due_to_nudging"],
             self._timestep,
         )
