@@ -2,18 +2,15 @@
 """
 import dataclasses
 import logging
-from runtime import diagnostics
 from typing import Any, Hashable, List, Mapping, Sequence, Set, Iterable, Tuple, cast
 
 import runtime
 import xarray as xr
-from functools import partial
 
 import fv3fit
 from vcm import thermo
 from runtime.names import (
     DELP,
-    PRECIP_RATE,
     SPHUM,
     TENDENCY_TO_STATE_NAME,
     TOTAL_PRECIP,
