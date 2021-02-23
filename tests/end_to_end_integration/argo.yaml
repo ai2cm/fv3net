@@ -145,6 +145,9 @@ spec:
               flush_nc_files: true
             fv_core_nml:
               do_sat_adj: false
+              layout:
+                - 2
+                - 2
             gfdl_cloud_microphysics_nml:
               fast_sat_adj: false
             fv_nwp_nudge_nml:
@@ -162,6 +165,9 @@ spec:
   volumes:
     - name: workdir
       emptyDir: {}
+    - name: dshm
+      emptyDir:
+        medium: Memory
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -214,8 +220,12 @@ spec:
           - name: reference-restarts
             value: "{{workflow.parameters.reference-restarts}}"
           - name: flags
-            value: "--nudge-to-observations"
+            value: "--nudge-to-observations gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data"
           - name: test-times
             value: "{{workflow.parameters.test-times}}"
           - name: public-report-output
             value: "{{workflow.parameters.root}}/offline-report"
+          - name: cpu-prog
+            value: "24"
+          - name: memory-prog
+            value: 25Gi

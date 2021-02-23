@@ -1,4 +1,4 @@
-.PHONY: clean data lint requirements sync_data_to_s3 sync_data_from_s3
+.PHONY: clean data lint
 
 #################################################################################
 # GLOBALS                                                                       #
@@ -6,37 +6,19 @@
 VERSION ?= $(shell git rev-parse HEAD)
 REGISTRY ?= us.gcr.io/vcm-ml
 ENVIRONMENT_SCRIPTS = .environment-scripts
-PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
-PROFILE = default
 PROJECT_NAME = fv3net
-PYTHON_INTERPRETER = python3
-DATA = data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr.dvc
-IMAGE = fv3net
-
 CACHE_TAG =latest
 
 IMAGES = fv3net fv3fit post_process_run prognostic_run
 
-ifeq (,$(shell which conda))
-HAS_CONDA=False
-else
-HAS_CONDA=True
-endif
-
-#################################################################################
-# COMMANDS                                                                      #
-#################################################################################
-
 .PHONY: build_images push_image run_integration_tests image_name_explicit
-
+############################################################
+# Docker Image Management
+############################################################
 # pattern rule for building docker images
 build_image_%:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/$*:$(CACHE_TAG) \
 		-f docker/$*/Dockerfile -t $(REGISTRY)/$*:$(VERSION) .
-
-enter_%:
-	docker run -ti -w /fv3net -v $(shell pwd):/fv3net $* bash
 
 build_images: $(addprefix build_image_, $(IMAGES))
 push_images: $(addprefix push_image_, $(IMAGES))
@@ -44,11 +26,36 @@ push_images: $(addprefix push_image_, $(IMAGES))
 push_image_%: build_image_%
 	docker push $(REGISTRY)/$*:$(VERSION)
 
+pull_image_%:
+	docker pull $(REGISTRY)/$*:$(VERSION)
+
+build_image_ci:
+	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
+
+############################################################
+# Documentation (rules match "deploy_docs_%")
+############################################################
 
 ## Empty rule for deploying docs
 deploy_docs_%: 
 	@echo "Nothing to do."
 
+
+## Deploy documentation for fv3net to vulcanclimatemodeling.com
+deploy_docs_fv3net:
+	mkdir -p docs/_build/html
+	# use tar to grab already-built docs from inside the docker image and extract them to "./html"
+	# will have one docker and gsutil command for each project whose docs are built in the fv3net image
+	docker run us.gcr.io/vcm-ml/fv3net:$(VERSION) tar -C docs/_build/html -c . | tar -C docs/_build/html -x
+	gsutil -m rsync -R docs/_build/html gs://vulcanclimatemodeling-com-static/docs/fv3net
+
+## Deploy documentation for fv3fit to vulcanclimatemodeling.com
+deploy_docs_fv3fit:
+	mkdir html
+	# use tar to grab docs from inside the docker image and extract them to "./html"
+	docker run --entrypoint="tar" us.gcr.io/vcm-ml/fv3fit:$(VERSION) -C /fv3fit/docs/_build/html  -c . | tar -C html -x
+	gsutil -m rsync -R html gs://vulcanclimatemodeling-com-static/docs/fv3fit
+	rm -rf html
 
 ## Deploy documentation for prognostic run to vulcanclimatemodeling.com
 deploy_docs_prognostic_run:
@@ -58,16 +65,10 @@ deploy_docs_prognostic_run:
 	gsutil -m rsync -R html gs://vulcanclimatemodeling-com-static/docs/prognostic_c48_run
 	rm -rf html
 
-pull_image_%:
-	docker pull $(REGISTRY)/$*:$(VERSION)
 
-enter: build_image
-	docker run -it -v $(shell pwd):/code \
-		-e GOOGLE_CLOUD_PROJECT=vcm-ml \
-		-w /code $(IMAGE)  bash
-
-build_ci_image:
-	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
+############################################################
+# Local Kubernetes
+############################################################
 
 ## Install K8s and cluster manifests for local development
 ## Do not run for the GKE cluster
@@ -76,18 +77,17 @@ deploy_local:
 	kubectl create secret generic gcp-key --from-file="${GOOGLE_APPLICATION_CREDENTIALS}"
 	kubectl apply -f workflows/argo/cluster
 
-# run integration tests
+############################################################
+# Testing
+############################################################
 run_integration_tests:
 	./tests/end_to_end_integration/run_test.sh $(REGISTRY) $(VERSION)
-
-test:
-	pytest external tests
 
 test_prognostic_run:
 	docker run prognostic_run pytest
 
 test_prognostic_run_report:
-	bash workflows/prognostic_run_diags/test_integration.sh
+	bash workflows/prognostic_run_diags/tests/test_integration.sh
 
 test_%:
 	cd external/$* && tox
@@ -113,8 +113,6 @@ test_argo:
 
 ## Make Dataset
 .PHONY: data update_submodules create_environment overwrite_baseline_images
-data:
-	dvc repro $(DATA)
 
 ## Delete all compiled Python files
 clean:
@@ -128,8 +126,13 @@ update_submodules:
 	git submodule update --recursive --init
 
 
-install_deps:
-	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
+overwrite_baseline_images:
+	pytest tests/test_diagnostics_plots.py --mpl-generate-path tests/baseline_images
+
+
+############################################################
+# Dependency Management
+############################################################
 
 lock_deps: lock_pip
 	conda-lock -f environment.yml
@@ -143,12 +146,18 @@ lock_pip:
 	pip-requirements.txt \
 	external/fv3fit/requirements.txt \
 	workflows/post_process_run/requirements.txt \
+	workflows/prognostic_run_diags/requirements.txt \
 	docker/**/requirements.txt \
 	--output-file constraints.txt
 	# remove extras in name: e.g. apache-beam[gcp] --> apache-beam
 	sed -i.bak  's/\[.*\]//g' constraints.txt
 	rm -f constraints.txt.bak
 
+## Install External Dependencies
+install_deps:
+	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
+
+## Install Local Packages for the "fv3net" environment
 install_local_packages:
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
 
@@ -156,20 +165,9 @@ create_environment:
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
 
-
-overwrite_baseline_images:
-	pytest tests/test_diagnostics_plots.py --mpl-generate-path tests/baseline_images
-
-#################################################################################
-# PROJECT RULES                                                                 #
-#################################################################################
-
-snakemake_k8s: push_image
-	make -C k8s-workflows/scale-snakemake/
-
-snakemake:
-	bash -c 'snakemake 2> >(tee snakemake_log.txt)'
-
+############################################################
+# Linting
+############################################################
 
 PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
 PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')

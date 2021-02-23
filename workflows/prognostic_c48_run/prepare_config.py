@@ -74,7 +74,12 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--nudge-to-observations", action="store_true", help="Nudge to observations",
+        "--nudge-to-observations",
+        type=str,
+        default=None,
+        help="Remote url to location containing GFS analysis data for nudging. If not "
+        "provided, no nudging towards observations is done. Other options related to "
+        "nudging towards observations are set in the 'fv_nwp_nudge_nml' namelist.",
     )
     parser.add_argument(
         "--output-frequency",
@@ -261,9 +266,7 @@ def _prepare_config_from_parsed_config(
         current_date = vcm.parse_current_date_from_str(args.ic_timestep)
         overlays.append(
             fv3kube.enable_nudge_to_observations(
-                duration,
-                current_date,
-                nudge_url="gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
+                duration, current_date, nudge_url=args.nudge_to_observations,
             )
         )
 

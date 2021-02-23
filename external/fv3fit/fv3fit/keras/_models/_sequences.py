@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 from typing import Sequence, Tuple, List, Any
 
-from ..._shared import ArrayPacker
+from ..._shared.packer import ArrayPacker
 
 logger = logging.getLogger(__name__)
 

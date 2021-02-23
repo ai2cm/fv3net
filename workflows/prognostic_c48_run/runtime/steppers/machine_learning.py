@@ -43,7 +43,9 @@ class MachineLearningConfig:
         model: list of URLs to fv3fit models.
         diagnostic_ml: do not apply ML tendencies if true.
         input_standard_names: mapping from non-standard names to the standard
-            ones used by the model. Renames the ML inputs.
+            ones used by the model. Renames the ML inputs. Useful if the
+            input variables in the ML model are inconsistent with
+            the canonical names used in the wrapper.
         output_standard_names: mapping from non-standard names to the standard
             ones used by the model. Renames the ML predictions.
 
