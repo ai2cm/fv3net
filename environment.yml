@@ -37,7 +37,6 @@ dependencies:
   - scipy >= 1.5.0
   - sphinx_rtd_theme
   - sphinx
-  - sphinx-gallery
   - recommonmark
   - toolz
   - xarray>=0.14

@@ -185,6 +185,7 @@ six==1.15.0
 smmap==3.0.4
 snowballstemmer==2.0.0
 sphinx-argparse==0.2.5
+sphinx-gallery==0.8.2
 sphinx-rtd-theme==0.5.0
 sphinx==3.2.1
 sphinxcontrib-applehelp==1.0.2

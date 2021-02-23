@@ -1,5 +1,5 @@
 # platform: win-64
-# env_hash: efc11c1f584fa724079a0cebaaec652d0e566d74b295c54f1fa4b45dc2127714
+# env_hash: b344bde9d2c09b4bdd00a573b9834d498c69e251b05378300e5469c3b5cde004
 @EXPLICIT
 https://conda.anaconda.org/conda-forge/win-64/ca-certificates-2020.12.5-h5b45459_0.tar.bz2#f36a2988a9f57cffdc43929ba67a3a2a
 https://conda.anaconda.org/conda-forge/win-64/intel-openmp-2020.3-h57928b3_311.tar.bz2#361a51c98a0cb06415bd3f9d3bbb5778
@@ -285,12 +285,11 @@ https://conda.anaconda.org/conda-forge/noarch/colorcet-2.0.6-pyhd8ed1ab_0.tar.bz
 https://conda.anaconda.org/conda-forge/win-64/conda-build-3.21.4-py37h03978a9_0.tar.bz2#cefcfc39ce34ef9cc28b2515fbf7c953
 https://conda.anaconda.org/conda-forge/noarch/intake-xarray-0.4.1-pyhd8ed1ab_0.tar.bz2#a3204c2105c162fb1c3087ee43513fdd
 https://conda.anaconda.org/conda-forge/win-64/ipykernel-5.5.0-py37heaed05f_1.tar.bz2#612357f63e06678da379059570ae6b28
-https://conda.anaconda.org/conda-forge/win-64/jupyter_server-1.4.0-py37h03978a9_0.tar.bz2#830c176c520cc2d3b85b8e8b228dbfff
+https://conda.anaconda.org/conda-forge/win-64/jupyter_server-1.4.1-py37h03978a9_0.tar.bz2#525dd8bae19fdf5b67ce77ba040c9f55
 https://conda.anaconda.org/conda-forge/noarch/metpy-1.0-pyhd8ed1ab_0.tar.bz2#b7da8602ec108ea1e056598f8d861909
 https://conda.anaconda.org/conda-forge/noarch/panel-0.10.3-pyhd8ed1ab_0.tar.bz2#728cb40d5b9b8b1b12232c05135b5709
 https://conda.anaconda.org/conda-forge/noarch/python-kubernetes-12.0.1-pyhd3deb0d_0.tar.bz2#ea05dfb791055ec8f6c0bf696bfe92d0
 https://conda.anaconda.org/conda-forge/noarch/recommonmark-0.7.1-pyhd8ed1ab_0.tar.bz2#b3becf9905b8c7ba839072f65e693253
-https://conda.anaconda.org/conda-forge/noarch/sphinx-gallery-0.8.2-pyhd8ed1ab_0.tar.bz2#26210aef2e849fd276e050fb4e9c44e0
 https://conda.anaconda.org/conda-forge/noarch/sphinx_rtd_theme-0.5.1-pyhd3deb0d_0.tar.bz2#c050f3a32c6e361917a54d10259b41bc
 https://conda.anaconda.org/conda-forge/noarch/jupyterlab_server-2.3.0-pyhd8ed1ab_0.tar.bz2#e1ab43655ba7ede6917e2daa37c7b217
 https://conda.anaconda.org/conda-forge/win-64/notebook-6.2.0-py37h03978a9_0.tar.bz2#e8dcf1ffa7819ac113f2a5fd6a0a1b0e

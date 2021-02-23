@@ -51,7 +51,7 @@ deploy_docs_fv3net:
 	docker run us.gcr.io/vcm-ml/fv3net:$(VERSION) tar -C docs/_build/html -c . | tar -C docs/_build/html -x
 	gsutil -m rsync -R docs/_build/html gs://vulcanclimatemodeling-com-static/docs/fv3net
     
-    mkdir fv3viz_html
+	mkdir fv3viz_html
 	docker run us.gcr.io/vcm-ml/fv3net:$(VERSION) tar -C external/fv3viz/docs/_build/html  -c . | tar -C fv3viz_html -x
 	gsutil -m rsync -R fv3viz_html gs://vulcanclimatemodeling-com-static/docs/fv3viz
 	rm -rf fv3viz_html
