@@ -68,8 +68,13 @@ USER root
 RUN fix-permissions $FV3NET/docs
 USER $NB_UID
 RUN make -C $FV3NET/docs html
+RUN make -C $FV3NET/external/loaders/docs html
+RUN mkdir fv3net_docs
+RUN cp -r $FV3NET/docs/_build/html fv3net_docs/fv3net
+RUN cp -r $FV3NET/external/loaders/docs/_build/html fv3net_docs/loaders
 
 # add development tools
 USER root
 RUN apt-get install -y git tar
 USER $NB_UID
+
