@@ -6,10 +6,7 @@ from typing import List
 
 import dacite
 
-import fv3config
 import fv3kube
-
-import vcm
 
 from runtime import default_diagnostics
 from runtime.diagnostics.manager import (
@@ -36,6 +33,7 @@ FV3CONFIG_KEYS = {
     "forcing",
     "orographic_forcing",
     "patch_files",
+    "gfs_analysis_data",
 }
 
 
@@ -74,14 +72,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--nudge-to-observations",
-        type=str,
-        default=None,
-        help="Remote url to location containing GFS analysis data for nudging. If not "
-        "provided, no nudging towards observations is done. Other options related to "
-        "nudging towards observations are set in the 'fv_nwp_nudge_nml' namelist.",
-    )
-    parser.add_argument(
         "--output-frequency",
         type=int,
         default=15,
@@ -102,6 +92,9 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
     """Ideally this function could be replaced by dacite.from_dict
     without needing any information from args.
     """
+    nudge_to_observations = (
+        config_dict.get("namelist", {}).get("fv_core_nml", {}).get("nudge", False)
+    )
 
     if "nudging" in config_dict:
         config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
@@ -122,7 +115,7 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
         ]
     else:
         diagnostics = _default_diagnostics(
-            nudging, scikit_learn, args.nudge_to_observations, args.output_frequency,
+            nudging, scikit_learn, nudge_to_observations, args.output_frequency,
         )
 
     if "fortran_diagnostics" in config_dict:
@@ -131,7 +124,7 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
             for diag in config_dict["fortran_diagnostics"]
         ]
     else:
-        fortran_diagnostics = _default_fortran_diagnostics(args.nudge_to_observations)
+        fortran_diagnostics = _default_fortran_diagnostics(nudge_to_observations)
 
     default = UserConfig(diagnostics=[], fortran_diagnostics=[])
 
@@ -259,16 +252,6 @@ def _prepare_config_from_parsed_config(
         dataclasses.asdict(user_config),
         fv3_config,
     ]
-
-    if args.nudge_to_observations:
-        # get timing information
-        duration = fv3config.get_run_duration(fv3_config)
-        current_date = vcm.parse_current_date_from_str(args.ic_timestep)
-        overlays.append(
-            fv3kube.enable_nudge_to_observations(
-                duration, current_date, nudge_url=args.nudge_to_observations,
-            )
-        )
 
     return fv3kube.merge_fv3config_overlays(*overlays)
 
