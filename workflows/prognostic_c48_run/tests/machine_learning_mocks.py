@@ -26,6 +26,7 @@ def _model_dataset() -> xr.Dataset:
 
     return data
 
+
 def get_mock_sklearn_model() -> fv3fit.Predictor:
 
     data = _model_dataset()
@@ -67,5 +68,3 @@ def get_mock_keras_model() -> fv3fit.Predictor:
     model = DummyModel("sample", input_variables, output_variables)
     model.fit([_model_dataset()])
     return model
-
-
