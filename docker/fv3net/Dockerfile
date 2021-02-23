@@ -70,8 +70,8 @@ USER $NB_UID
 RUN make -C $FV3NET/docs html
 RUN make -C $FV3NET/external/loaders/docs html
 RUN mkdir fv3net_docs
-COPY $FV3NET/docs/_build/html fv3net_docs/fv3net
-COPY $FV3NET/external/loaders/docs/_build/html fv3net_docs/loaders
+RUN cp -r $FV3NET/docs/_build/html fv3net_docs/fv3net
+RUN cp -r $FV3NET/external/loaders/docs/_build/html fv3net_docs/loaders
 
 # add development tools
 USER root
