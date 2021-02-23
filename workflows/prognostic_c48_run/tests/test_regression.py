@@ -8,11 +8,8 @@ import pytest
 import xarray as xr
 import datetime
 import yaml
-from sklearn.dummy import DummyRegressor
+from machine_learning_mocks import get_mock_sklearn_model, get_mock_keras_model
 
-import fv3fit
-from fv3fit.sklearn import RegressorEnsemble, SklearnWrapper
-from fv3fit.keras import DummyModel
 import subprocess
 
 BASE_FV3CONFIG_CACHE = Path("vcm-fv3config", "data")
@@ -432,70 +429,6 @@ def get_ml_config(model_path):
     return config
 
 
-def _model_dataset() -> xr.Dataset:
-
-    nz = 63
-    arr = np.zeros((1, nz))
-    dims = ["sample", "z"]
-
-    data = xr.Dataset(
-        {
-            "specific_humidity": (dims, arr),
-            "air_temperature": (dims, arr),
-            "dQ1": (dims, arr),
-            "dQ2": (dims, arr),
-            "dQu": (dims, arr),
-            "dQv": (dims, arr),
-        }
-    )
-
-    return data
-
-
-def _save_mock_sklearn_model(path: str) -> str:
-
-    data = _model_dataset()
-
-    nz = data.sizes["z"]
-    heating_constant_K_per_s = np.zeros(nz)
-    # include nonzero moistening to test for mass conservation
-    moistening_constant_per_s = -np.full(nz, 1e-4 / 86400)
-    wind_tendency_constant_m_per_s_per_s = np.zeros(nz)
-    constant = np.concatenate(
-        [
-            heating_constant_K_per_s,
-            moistening_constant_per_s,
-            wind_tendency_constant_m_per_s_per_s,
-            wind_tendency_constant_m_per_s_per_s,
-        ]
-    )
-    estimator = RegressorEnsemble(
-        DummyRegressor(strategy="constant", constant=constant)
-    )
-
-    model = SklearnWrapper(
-        "sample",
-        ["specific_humidity", "air_temperature"],
-        ["dQ1", "dQ2", "dQu", "dQv"],
-        estimator,
-    )
-
-    # needed to avoid sklearn.exceptions.NotFittedError
-    model.fit([data])
-    fv3fit.dump(model, path)
-    return path
-
-
-def _save_mock_keras_model(tmpdir):
-
-    input_variables = ["air_temperature", "specific_humidity"]
-    output_variables = ["dQ1", "dQ2"]
-
-    model = DummyModel("sample", input_variables, output_variables)
-    model.fit([_model_dataset()])
-    fv3fit.dump(model, tmpdir)
-    return str(tmpdir)
-
 
 @pytest.fixture(
     scope="module", params=[ConfigEnum.sklearn, ConfigEnum.keras, ConfigEnum.nudging]
@@ -510,10 +443,12 @@ def completed_rundir(configuration, tmpdir_factory):
     model_path = str(tmpdir_factory.mktemp("model"))
 
     if configuration == ConfigEnum.sklearn:
-        _save_mock_sklearn_model(model_path)
+        model = get_mock_sklearn_model()
+        model.dump(str(model_path))
         config = get_ml_config(model_path)
     elif configuration == ConfigEnum.keras:
-        _save_mock_keras_model(model_path)
+        model = get_mock_keras_model()
+        model.dump(str(model_path))
         config = get_ml_config(model_path)
     elif configuration == ConfigEnum.nudging:
         config = get_nudging_config()
