@@ -33,6 +33,7 @@ FV3CONFIG_KEYS = {
     "forcing",
     "orographic_forcing",
     "patch_files",
+    "gfs_analysis_data",
 }
 
 
