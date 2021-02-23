@@ -163,7 +163,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 self._comm.rank,
                 config.nudging,
                 timestep=self._timestep,
-                states_to_output=self._states_to_output,
                 communicator=communicator,
             )
         else:

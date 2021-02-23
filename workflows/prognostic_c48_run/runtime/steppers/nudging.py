@@ -1,11 +1,8 @@
 import functools
-from typing import (
-    Any,
-    List,
-    Sequence,
-)
+from typing import Any
 
 import fv3gfs.util
+import fv3gfs.wrapper
 
 from runtime.steppers.base import (
     Stepper,
@@ -22,15 +19,11 @@ from runtime.nudging import (
     nudging_timescales_from_dict,
     setup_get_reference_state,
     get_nudging_tendency,
-    set_state_sst_to_reference,
+    get_reference_surface_temperatures,
     NudgingConfig,
 )
 
-from runtime.names import (
-    DELP,
-    TOTAL_PRECIP,
-    PRECIP_RATE,
-)
+from runtime.names import TOTAL_PRECIP
 
 
 SST_NAME = "ocean_surface_temperature"
@@ -38,9 +31,41 @@ TSFC_NAME = "surface_temperature"
 MASK_NAME = "land_sea_mask"
 
 
+class PureNudger:
+
+    name = "nudging"
+
+    def __init__(
+        self, config: NudgingConfig, communicator: fv3gfs.util.CubedSphereCommunicator,
+    ):
+
+        variables_to_nudge = list(config.timescale_hours)
+        self._get_reference_state = setup_get_reference_state(
+            config,
+            variables_to_nudge + [SST_NAME, TSFC_NAME],
+            fv3gfs.wrapper.get_tracer_metadata(),
+            communicator,
+        )
+
+        self._nudging_timescales = nudging_timescales_from_dict(config.timescale_hours)
+        self._get_nudging_tendency = functools.partial(
+            get_nudging_tendency, nudging_timescales=self._nudging_timescales,
+        )
+
+    def __call__(self, time, state):
+        reference = self._get_reference_state(time)
+        tendencies = get_nudging_tendency(state, reference, self._nudging_timescales)
+        ssts = get_reference_surface_temperatures(state, reference)
+
+        reference = {
+            f"{key}_reference": reference_state
+            for key, reference_state in reference.items()
+        }
+        return tendencies, ssts, reference
+
+
 class NudgingStepper(Stepper, LoggingMixin):
-    """Stepper for nudging
-    """
+    """Stepper for nudging"""
 
     def __init__(
         self,
@@ -49,64 +74,30 @@ class NudgingStepper(Stepper, LoggingMixin):
         rank: int,
         config: NudgingConfig,
         timestep: float,
-        states_to_output: Sequence[str],
         communicator: fv3gfs.util.CubedSphereCommunicator,
     ):
-
-        self._states_to_output = states_to_output
         self._state = state
-
-        self._fv3gfs = fv3gfs
-        self.rank: int = rank
         self._timestep: float = timestep
-
-        self._nudging_timescales = nudging_timescales_from_dict(config.timescale_hours)
-        self._get_reference_state = setup_get_reference_state(
-            config,
-            self.nudging_variables + [SST_NAME, TSFC_NAME],
-            self._fv3gfs.get_tracer_metadata(),
-            communicator,
-        )
-        self._get_nudging_tendency = functools.partial(
-            get_nudging_tendency, nudging_timescales=self._nudging_timescales,
-        )
-        self._tendencies_to_apply_to_dycore_state: State = {}
-
-    @property
-    def nudging_variables(self) -> List[str]:
-        return list(self._nudging_timescales)
+        self.nudger = PureNudger(config, communicator)
+        self._tendencies: State = {}
+        self._state_updates: State = {}
 
     def _compute_python_tendency(self) -> Diagnostics:
-
-        self._log_debug("Computing nudging tendencies")
-        variables: List[str] = self.nudging_variables + [
-            SST_NAME,
-            TSFC_NAME,
-            MASK_NAME,
-        ]
-        state: State = {name: self._state[name] for name in variables}
-        reference = self._get_reference_state(self._state.time)
-        set_state_sst_to_reference(state, reference)
-        self._tendencies_to_apply_to_dycore_state = self._get_nudging_tendency(
-            state, reference
+        (self._tendencies, self._state_updates, diagnostics,) = self.nudger(
+            self._state.time, self._state
         )
-
-        return {
-            f"{key}_reference": reference_state
-            for key, reference_state in reference.items()
-        }
+        return diagnostics
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 
-        tendency = self._tendencies_to_apply_to_dycore_state
-
-        diagnostics = compute_nudging_diagnostics(self._state, tendency)
-        updated_state: State = apply(self._state, tendency, dt=self._timestep)
+        diagnostics = compute_nudging_diagnostics(self._state, self._tendencies)
+        updated_state: State = apply(self._state, self._tendencies, dt=self._timestep)
         updated_state[TOTAL_PRECIP] = precipitation_sum(
             self._state[TOTAL_PRECIP],
-            diagnostics["net_moistening_due_to_nudging"],
+            diagnostics[f"net_moistening_due_to_{self.nudger.name}"],
             self._timestep,
         )
         diagnostics[TOTAL_PRECIP] = updated_state[TOTAL_PRECIP]
         self._state.update(updated_state)
+        self._state.update(self._state_updates)
         return diagnostics
