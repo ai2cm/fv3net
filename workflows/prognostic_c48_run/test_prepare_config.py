@@ -10,10 +10,6 @@ IC_URL = "gs://ic-bucket"
 IC_TIMESTAMP = "20160805.000000"
 ML_CONFIG_UPDATE = "prognostic_config.yml"
 NUDGE_TO_FINE_CONFIG_UPDATE = "nudge_to_fine_config.yml"
-OTHER_FLAGS = [
-    "--nudge-to-observations",
-    "gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
-]
 
 
 def get_ml_args():
@@ -23,7 +19,7 @@ def get_ml_args():
         IC_TIMESTAMP,
         "--model_url",
         MODEL_URL,
-    ] + OTHER_FLAGS
+    ]
 
 
 def get_nudge_to_fine_args():
