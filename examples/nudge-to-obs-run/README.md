@@ -10,8 +10,8 @@ Some unique aspects of the given example:
 - 2D dycore and physics diagnostics output every 3 hours
 - run is configured to output nudging tendencies as well as physics component tendencies
 
-Given the default nudge-to-obs chunking and the output frequency specified in this example,
-you should use segment lengths that are a multiple of five days.
+Given the chunking and the output frequency specified in this example,
+you should use segment lengths that are a multiple of ten days.
 
 Note that GFS analysis data is only available from 1 January 2015 to 1 January 2017, so
 any portion of a model run that falls outside this period will not having nudging active.

@@ -3,7 +3,7 @@ set -e
 set -x
 
 [[ -f ./kustomize ]] || \
-    ./install_kustomize.sh 3.8.6
+    ./install_kustomize.sh 3.10.0
 
 kustomizations=( "examples/" )
 

@@ -19,6 +19,6 @@ deploy: kustomize
 	./kustomize build . | kubectl apply -f -
 
 kustomize:
-	../install_kustomize.sh 3.8.6
+	../install_kustomize.sh 3.10.0
 
 .PHONY: nudge_to_fine_run nudge_to_obs_run prognostic_run train_evaluate_prognostic_run deploy prognostic_run_report

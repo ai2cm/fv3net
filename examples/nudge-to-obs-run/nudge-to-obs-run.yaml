@@ -1,7 +1,9 @@
-base_version: v0.5
-diag_table: gs://vcm-ml-experiments/diag_tables/nudge_to_obs_3h/v1.1/diag_table
+base_version: v0.6
+diag_table: gs://vcm-ml-experiments/diag_tables/nudge_to_obs_3h/v1.2/diag_table
 initial_conditions: gs://vcm-ml-data/2019-12-03-C48-20160101.00Z_IC
-orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
+gfs_analysis_data:
+  url: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
+  filename_pattern: "%Y%m%d_%HZ_T85LR.nc"
 namelist:
   atmos_model_nml:
     fhout: 3.0
@@ -13,7 +15,7 @@ namelist:
     - 0
     - 0
     - 0
-    days: 5
+    days: 10
     minutes: 0
     hours: 0
     seconds: 0
@@ -35,7 +37,6 @@ namelist:
   gfdl_cloud_microphysics_nml:
     fast_sat_adj: false
   fv_nwp_nudge_nml:
-    nudge_hght: false
     nudge_ps: true
     nudge_virt: true
     nudge_winds: true
@@ -44,3 +45,90 @@ namelist:
     tau_virt: 21600.0
     tau_winds: 21600.0
     tau_q: 21600.0
+step_tendency_variables:
+  - air_temperature
+  - specific_humidity
+  - cloud_water_mixing_ratio
+  - cloud_ice_mixing_ratio
+  - rain_mixing_ratio
+  - snow_mixing_ratio
+  - graupel_mixing_ratio
+  - eastward_wind
+  - northward_wind
+  - x_wind
+  - y_wind
+fortran_diagnostics:
+  - name: atmos_dt_atmos.zarr
+    chunks:
+      time: 80
+  - name: sfc_dt_atmos.zarr
+    chunks:
+      time: 80
+  - name: physics_tendency_components.zarr
+    chunks:
+      time: 1
+  - name: nudging_tendencies.zarr
+    chunks:
+      time: 1
+diagnostics:
+  - name: physics_tendencies.zarr
+    times:
+      kind: interval
+      frequency: 18000
+    chunks:
+      time: 1
+    variables:
+      - tendency_of_air_temperature_due_to_fv3_physics
+      - tendency_of_specific_humidity_due_to_fv3_physics
+      - tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics
+      - tendency_of_cloud_ice_mixing_ratio_ratio_due_to_fv3_physics
+      - tendency_of_rain_mixing_ratio_due_to_fv3_physics
+      - tendency_of_snow_mixing_ratio_due_to_fv3_physics
+      - tendency_of_graupel_mixing_ratio_due_to_fv3_physics
+      - tendency_of_eastward_wind_due_to_fv3_physics
+      - tendency_of_northward_wind_due_to_fv3_physics
+      - tendency_of_x_wind_due_to_fv3_physics
+      - tendency_of_y_wind_due_to_fv3_physics
+  - name: state_after_timestep.zarr
+    times:
+      kind: interval
+      frequency: 18000
+    chunks:
+      time: 1
+    variables:
+      - air_temperature
+      - specific_humidity
+      - cloud_water_mixing_ratio
+      - cloud_ice_mixing_ratio
+      - rain_mixing_ratio
+      - snow_mixing_ratio
+      - graupel_mixing_ratio
+      - eastward_wind
+      - northward_wind
+      - x_wind
+      - y_wind
+      - vertical_wind
+      - pressure_thickness_of_atmospheric_layer
+      - vertical_thickness_of_atmospheric_layer
+      - land_sea_mask
+      - surface_temperature
+      - surface_geopotential
+      - sensible_heat_flux
+      - latent_heat_flux
+      - surface_precipitation_rate
+      - total_soil_moisture
+      - total_sky_downward_shortwave_flux_at_surface
+      - total_sky_upward_shortwave_flux_at_surface
+      - total_sky_downward_longwave_flux_at_surface
+      - total_sky_upward_longwave_flux_at_surface
+      - total_sky_downward_shortwave_flux_at_top_of_atmosphere
+      - total_sky_upward_shortwave_flux_at_top_of_atmosphere
+      - total_sky_upward_longwave_flux_at_top_of_atmosphere
+      - clear_sky_downward_shortwave_flux_at_surface
+      - clear_sky_upward_shortwave_flux_at_surface
+      - clear_sky_downward_longwave_flux_at_surface
+      - clear_sky_upward_longwave_flux_at_surface
+      - clear_sky_upward_shortwave_flux_at_top_of_atmosphere
+      - clear_sky_upward_longwave_flux_at_top_of_atmosphere
+      - latitude
+      - longitude
