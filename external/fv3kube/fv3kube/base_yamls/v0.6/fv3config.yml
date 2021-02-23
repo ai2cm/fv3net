@@ -1,4 +1,5 @@
-# base config for initializing from model restart data with fv3gfs-python v0.5.0
+# base config for initializing from model restart data. Defaults provided for
+# nudge-to-obs runs.
 data_table: default
 diag_table: default
 experiment_name: default_experiment

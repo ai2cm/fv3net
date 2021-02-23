@@ -10,6 +10,7 @@ IC_URL = "gs://ic-bucket"
 IC_TIMESTAMP = "20160805.000000"
 ML_CONFIG_UPDATE = "prognostic_config.yml"
 NUDGE_TO_FINE_CONFIG_UPDATE = "nudge_to_fine_config.yml"
+NUDGE_TO_OBS_CONFIG_UPDATE = "nudge_to_obs_config.yml"
 
 
 def get_ml_args():
@@ -30,6 +31,14 @@ def get_nudge_to_fine_args():
     ]
 
 
+def get_nudge_to_obs_args():
+    return [
+        NUDGE_TO_OBS_CONFIG_UPDATE,
+        IC_URL,
+        IC_TIMESTAMP,
+    ]
+
+
 def test_prepare_ml_config_regression(regtest):
     parser = prepare_config._create_arg_parser()
     args = parser.parse_args(get_ml_args())
@@ -40,6 +49,13 @@ def test_prepare_ml_config_regression(regtest):
 def test_prepare_nudging_config_regression(regtest):
     parser = prepare_config._create_arg_parser()
     args = parser.parse_args(get_nudge_to_fine_args())
+    with regtest:
+        prepare_config.prepare_config(args)
+
+
+def test_prepare_nudge_to_obs_config_regression(regtest):
+    parser = prepare_config._create_arg_parser()
+    args = parser.parse_args(get_nudge_to_obs_args())
     with regtest:
         prepare_config.prepare_config(args)
 

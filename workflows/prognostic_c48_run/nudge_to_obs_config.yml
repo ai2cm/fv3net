@@ -1,4 +1,7 @@
 base_version: v0.6
+gfs_analysis_data:
+  url: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
+  filename_pattern: "%Y%m%d_%HZ_T85LR.nc"
 namelist:
   coupler_nml:
     days: 10 
