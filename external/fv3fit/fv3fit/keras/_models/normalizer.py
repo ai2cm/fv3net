@@ -1,6 +1,6 @@
 import tensorflow.keras.layers as layers
 import tensorflow as tf
-from ..._shared import StandardScaler
+from ..._shared.scaler import StandardScaler
 
 
 class StandardNormalize(layers.Layer):

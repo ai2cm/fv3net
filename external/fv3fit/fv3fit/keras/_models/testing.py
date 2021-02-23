@@ -5,13 +5,14 @@ import xarray as xr
 import numpy as np
 from ._sequences import _XyArraySequence
 from ._filesystem import get_dir, put_dir
-from ..._shared import ArrayPacker, Estimator
-from ... import _shared
+from ..._shared.packer import ArrayPacker
+from ..._shared.predictor import Estimator
+from ..._shared import io
 
 logger = logging.getLogger(__file__)
 
 
-@_shared.io.register("dummy")
+@io.register("dummy")
 class DummyModel(Estimator):
     """
     A dummy keras model for testing, whose `fit` method learns only the input and
