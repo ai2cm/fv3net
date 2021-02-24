@@ -29,7 +29,7 @@ def open_n2f_radiative_flux_biases(
     url: str,
     verification: str = "40day_c48_gfsphysics_15min_may2020",
     consolidated: bool = True,
-    **open_nudge_to_fine_kwargs: Mapping[str, Any]
+    **open_nudge_to_fine_kwargs: Mapping[str, Any],
 ):
     """
     Include surface radiative flux biases.
@@ -45,8 +45,12 @@ def open_n2f_radiative_flux_biases(
     Returns:
         mapper to LW and SW surface radiative flux biases and model state data
     """
-    coarse_dswrf_sfc, coarse_swnetrf_sfc, coarse_dlwrf_sfc = _get_coarse_fluxes(url, "sfc_dt_atmos.zarr", consolidated=consolidated)
-    verif_dswrf_sfc, verif_swnetrf_sfc, verif_dlwrf_sfc = _get_verification_fluxes(CATALOG, verification)
+    coarse_dswrf_sfc, coarse_swnetrf_sfc, coarse_dlwrf_sfc = _get_coarse_fluxes(
+        url, "sfc_dt_atmos.zarr", consolidated=consolidated
+    )
+    verif_dswrf_sfc, verif_swnetrf_sfc, verif_dlwrf_sfc = _get_verification_fluxes(
+        CATALOG, verification
+    )
     dswrf_sfc_bias = (verif_dswrf_sfc - coarse_dswrf_sfc).assign_attrs(
         {
             "long_name": "downward shortwave surface flux bias (fine minus coarse)",
@@ -55,7 +59,9 @@ def open_n2f_radiative_flux_biases(
     )
     swnetrf_sfc_bias = (verif_swnetrf_sfc - coarse_swnetrf_sfc).assign_attrs(
         {
-            "long_name": "net shortwave surface flux bias (down minus up, fine minus coarse)",
+            "long_name": (
+                "net shortwave surface flux bias " "(down minus up, fine minus coarse)"
+            ),
             "units": "W/m^2",
         }
     )
@@ -65,16 +71,17 @@ def open_n2f_radiative_flux_biases(
             "units": "W/m^2",
         }
     )
-    sfc_biases_ds = xr.Dataset({
-        'DSWRFsfc_bias': dswrf_sfc_bias,
-        'NSWRFsfc_bias': swnetrf_sfc_bias,
-        'DLWRFsfc_bias': dlwrf_sfc_bias,
-        'DSWRFsfc': coarse_dswrf_sfc,
-        'DSWRFsfc_verif': verif_dswrf_sfc,
-        'NSWRFsfc': coarse_swnetrf_sfc,
-        'NSWRFsfc_verif': verif_swnetrf_sfc
-        
-    })
+    sfc_biases_ds = xr.Dataset(
+        {
+            "DSWRFsfc_bias": dswrf_sfc_bias,
+            "NSWRFsfc_bias": swnetrf_sfc_bias,
+            "DLWRFsfc_bias": dlwrf_sfc_bias,
+            "DSWRFsfc": coarse_dswrf_sfc,
+            "DSWRFsfc_verif": verif_dswrf_sfc,
+            "NSWRFsfc": coarse_swnetrf_sfc,
+            "NSWRFsfc_verif": verif_swnetrf_sfc,
+        }
+    )
     sfc_biases_mapper = LongRunMapper(sfc_biases_ds)
     nudge_to_fine_mapper = open_nudge_to_fine(
         url, **open_nudge_to_fine_kwargs, consolidated=consolidated
@@ -82,18 +89,13 @@ def open_n2f_radiative_flux_biases(
     return MergeNudged(nudge_to_fine_mapper, sfc_biases_mapper)
 
 
-def _get_coarse_fluxes(
-    url: str, source: str, consolidated: bool = True
-) -> xr.Dataset:
+def _get_coarse_fluxes(url: str, source: str, consolidated: bool = True) -> xr.Dataset:
     ds = intake.open_zarr(
         os.path.join(url, f"{source}"), consolidated=consolidated
     ).to_dask()
     ds = standardize_gfsphysics_diagnostics(ds)
     swnetrf_sfc = (ds["DSWRFsfc"] - ds["USWRFsfc"]).assign_attrs(
-        {
-            "long_name": "net shortwave surface flux (down minus up)",
-            "units": "W/m^2",
-        }
+        {"long_name": "net shortwave surface flux (down minus up)", "units": "W/m^2"}
     )
     return ds["DSWRFsfc"], swnetrf_sfc, ds["DLWRFsfc"]
 
@@ -102,10 +104,7 @@ def _get_verification_fluxes(catalog: intake.catalog, verification: str) -> xr.D
     ds = catalog[verification].to_dask()
     ds = standardize_gfsphysics_diagnostics(ds)
     swnetrf_sfc = (ds["DSWRFsfc"] - ds["USWRFsfc"]).assign_attrs(
-        {
-            "long_name": "net shortwave surface flux (down minus up)",
-            "units": "W/m^2",
-        }
+        {"long_name": "net shortwave surface flux (down minus up)", "units": "W/m^2"}
     )
     return ds["DSWRFsfc"], swnetrf_sfc, ds["DLWRFsfc"]
 
