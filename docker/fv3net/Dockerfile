@@ -65,8 +65,7 @@ COPY --from=test /tmp/tests-done /tmp
 # build the docs
 COPY docs $FV3NET/docs
 USER root
-RUN fix-permissions $FV3NET/docs $FV3NET/external/fv3viz/docs
-USER $NB_UID
+RUN fix-permissions $FV3NET/docs
 RUN make -C $FV3NET/docs html
 RUN make -C $FV3NET/external/fv3viz/docs html
 RUN make -C $FV3NET/external/loaders/docs html
@@ -78,7 +77,6 @@ RUN cp -r $FV3NET/external/loaders/docs/_build/html fv3net_docs/loaders
 RUN cp -r $FV3NET/workflows/prognostic_run_diags/docs/_build/html fv3net_docs/prognostic_run_diags
 
 # add development tools
-USER root
 RUN apt-get install -y git tar
 USER $NB_UID
 
