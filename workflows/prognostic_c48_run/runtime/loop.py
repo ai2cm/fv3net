@@ -70,21 +70,35 @@ class Stepper(Protocol):
     will be applied.
 
     Note:
-        Users typing_extensions.Protocol to avoid the need for explicit sub-typing
+        Uses typing_extensions.Protocol to avoid the need for explicit sub-typing
 
     """
 
     @property
     def net_moistening(self) -> str:
+        """Legacy variable needed to renaming the "net_moistening" variable
+
+        This should be refactored away
+        """
         pass
 
     def __call__(self, time, state) -> Tuple[Tendencies, Diagnostics, State]:
         return {}, {}, {}
 
     def get_diagnostics(self, state, tendency) -> Diagnostics:
+        """Legacy method to provide polymorphic interface for diagnostics
+
+        This should be refactored away by merging the diagnostics code, which
+        is mostly very similar
+        """
         return {}
 
     def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
+        """Legacy method to provide polymorphic interface for diagnostics
+
+        This should be refactored away by merging the diagnostics code, which
+        is mostly very similar
+        """
         return {}
 
 
@@ -122,20 +136,19 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
     Yields (time, diagnostics) tuples, which can be saved using diagnostic routines.
 
-    Note:
+    Each time step of the model evolutions proceeds like this::
 
-        Each iteration consists of three phases
+        step_dynamics,
+        compute_physics,
+        apply_python_to_physics_state
+        apply_physics
+        compute_python_updates
+        apply_python_to_dycore_state
 
-        1. ``_step_dynamics``
-        2. ``_step_physics``
-        3. ``_step_python``
-
-        Each phase updates the fv3gfs state and returns any computed
-        diagnostics. After all these stages finish, the diagnostics they
-        output are merged and yielded along with the timestep.
-
-        These methods can be overriden to change behavior or return new
-        diagnostics.
+    The time loop relies on objects implementing the :py:class:`Stepper`
+    interface to enable ML and other updates. The steppers compute their
+    updates in ``_compute_python_updates``. The ``TimeLoop`` controls when
+    and how to apply these updates to the FV3 state.
     """
 
     def __init__(
@@ -272,11 +285,15 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             self._compute_physics,
             self._apply_python_to_physics_state,
             self._apply_physics,
-            self._compute_python_tendency,
+            self._compute_python_updates,
             self._apply_python_to_dycore_state,
         ]
 
     def _apply_python_to_physics_state(self) -> Diagnostics:
+        """Apply computed tendencies and state updates to the physics state
+
+        Mostly used for updating the eastward and northward winds.
+        """
         self._log_debug(f"Apply python tendencies to physics state")
         tendency = {k: v for k, v in self._tendencies.items() if k in ["dQu", "dQv"]}
 
@@ -288,11 +305,11 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 rename_diagnostics(diagnostics)
             else:
                 updated_state = add_tendency(self._state, tendency, dt=self._timestep)
-                self._state.update(updated_state)
+                self._state.update_mass_conserving(updated_state)
 
         return diagnostics
 
-    def _compute_python_tendency(self) -> Diagnostics:
+    def _compute_python_updates(self) -> Diagnostics:
         self._log_info("Computing ML Tendency")
 
         if self.stepper is None:
@@ -301,7 +318,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             (self._tendencies, diagnostics, self._state_updates,) = self.stepper(
                 self._state.time, self._state
             )
-
             try:
                 rank_updated_points = diagnostics["rank_updated_points"]
             except KeyError:
@@ -336,8 +352,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                     self._timestep,
                 )
                 diagnostics[TOTAL_PRECIP] = updated_state[TOTAL_PRECIP]
-                self._state.update(updated_state)
-                self._state.update(self._state_updates)
+                self._state.update_mass_conserving(updated_state)
+                self._state.update_mass_conserving(self._state_updates)
 
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
         diagnostics.update(

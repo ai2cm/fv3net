@@ -1,9 +1,11 @@
 import cftime
 from typing import Mapping, MutableMapping, Hashable
+from toolz import dissoc
 import xarray as xr
 
 import fv3gfs.util
 from vcm import DerivedMapping
+from runtime.names import DELP
 
 import fv3gfs.wrapper._properties
 import fv3gfs.wrapper
@@ -57,7 +59,7 @@ class FV3StateMapper(Mapping):
         return sum(self[name] for name in water_species)
 
 
-class DerivedFV3State:
+class DerivedFV3State(MutableMapping):
     """A uniform mapping-like interface to the FV3GFS model state
     
     This class wraps the fv3gfs getters with the FV3StateMapper, that always returns
@@ -90,10 +92,8 @@ class DerivedFV3State:
     def keys(self):
         return self._mapper.keys()
 
-    def update(
-        self,
-        items: MutableMapping[Hashable, xr.DataArray],
-        pressure: str = "pressure_thickness_of_atmospheric_layer",
+    def update_mass_conserving(
+        self, items: Mapping[Hashable, xr.DataArray],
     ):
         """Update state from another mapping
 
@@ -101,17 +101,27 @@ class DerivedFV3State:
         
         All states except for pressure thicknesses are set in a mass-conserving fashion.
         """
-        if pressure in items:
+        if DELP in items:
             self._getter.set_state(
-                {pressure: fv3gfs.util.Quantity.from_data_array(items.pop(pressure))}
+                {DELP: fv3gfs.util.Quantity.from_data_array(items[DELP])}
             )
 
+        not_pressure = dissoc(items, DELP)
         self._getter.set_state_mass_conserving(
             {
                 key: fv3gfs.util.Quantity.from_data_array(value)
-                for key, value in items.items()
+                for key, value in not_pressure.items()
             }
         )
+
+    def __delitem__(self):
+        raise NotImplementedError()
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __len__(self):
+        return len(self.keys())
 
     def checkpoint(self) -> Mapping[Hashable, xr.DataArray]:
         out = {}
