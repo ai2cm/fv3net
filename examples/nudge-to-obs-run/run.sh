@@ -6,12 +6,14 @@ set -e
 # under output-url after debugging configuration
 EXPERIMENT=fill_in_here
 
-gsutil cp diag_table gs://vcm-ml-experiments/diag_tables/nudge_to_obs_3h/v1.1/diag_table
+gsutil cp diag_table gs://vcm-ml-experiments/diag_tables/nudge_to_obs_3h/v1.2/diag_table
+
 argo submit \
-    --from workflowtemplate/nudge-to-obs \
-    -p output-url=gs://vcm-ml-scratch/$EXPERIMENT \
-    -p nudging-config="$(< nudge-to-obs-run.yaml)" \
+    --from workflowtemplate/prognostic-run \
+    -p output=gs://vcm-ml-scratch/$EXPERIMENT \
+    -p config="$(< nudge-to-obs-run.yaml)" \
+    -p initial-condition="20160801.000000" \
+    -p reference-restarts=unused-parameter \
     -p cpu="24" \
-    -p memory="20Gi" \
-    -p segment-count=1 \
-    -p flags="--python-output-interval 5"
+    -p memory="25Gi" \
+    -p segment-count=1
