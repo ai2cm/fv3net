@@ -35,7 +35,7 @@ def get_mock_sklearn_model() -> fv3fit.Predictor:
     heating_constant_K_per_s = np.zeros(nz)
     # include nonzero moistening to test for mass conservation
     moistening_constant_per_s = -np.full(nz, 1e-4 / 86400)
-    wind_tendency_constant_m_per_s_per_s = np.zeros(nz)
+    wind_tendency_constant_m_per_s_per_s = np.full(nz, 1 / 86400)
     constant = np.concatenate(
         [
             heating_constant_K_per_s,

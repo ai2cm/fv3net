@@ -170,8 +170,6 @@ class PureMLStepper:
             state[SPHUM], dQ1_initial, dQ2_initial, dt=self.timestep,
         )
 
-        rank_updated_points = xr.where(dQ2_initial != dQ2_updated, 1, 0)
-
         if "dQ1" in tendency:
             diag = thermo.column_integrated_heating(dQ1_updated - tendency["dQ1"], delp)
             diagnostics.update(
@@ -192,7 +190,7 @@ class PureMLStepper:
             dycore_tendencies,
             physics_tendencies,
             diagnostics,
-            rank_updated_points,
+            xr.where(dQ2_initial != dQ2_updated, 1, 0),
             state_updates,
         )
 

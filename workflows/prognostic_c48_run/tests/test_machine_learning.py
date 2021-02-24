@@ -40,6 +40,11 @@ def test_PureMLStepper_schema_unchanged(state, regtest):
     rank_updated_points.to_dataset(name="name").info(regtest)
 
 
+def test_state_regression(state, regtest):
+    checksum = checksum_xarray_dict(state)
+    print(checksum, file=regtest)
+
+
 def test_PureMLStepper_regression_checksum(state, regtest):
     model = get_mock_sklearn_model()
     timestep = 900
