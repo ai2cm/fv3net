@@ -184,5 +184,5 @@ spec:
               cpu: "8000m"
               memory: "{{inputs.parameters.memory}}"
             requests:
-              cpu: "8000m"
+              cpu: "7500m"
               memory: "{{inputs.parameters.memory}}"
