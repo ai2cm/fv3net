@@ -15,7 +15,7 @@ spec:
       tolerations:
         - effect: NoSchedule
           key: dedicated
-          value: climate-sim-pool
+          value: med-sim-pool
       inputs:
         parameters:
           - name: ml-model

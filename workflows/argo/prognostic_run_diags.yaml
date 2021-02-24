@@ -57,7 +57,7 @@ spec:
     tolerations:
     - key: "dedicated"
       operator: "Equal"
-      value: "climate-sim-pool"
+      value: "med-sim-pool"
       effect: "NoSchedule"
     container:
       image: us.gcr.io/vcm-ml/fv3net
@@ -158,7 +158,7 @@ spec:
     tolerations:
     - key: "dedicated"
       operator: "Equal"
-      value: "climate-sim-pool"
+      value: "med-sim-pool"
       effect: "NoSchedule"
     container:
       image: us.gcr.io/vcm-ml/fv3net
@@ -184,5 +184,5 @@ spec:
               cpu: "8000m"
               memory: "{{inputs.parameters.memory}}"
             requests:
-              cpu: "8000m"
+              cpu: "7500m"
               memory: "{{inputs.parameters.memory}}"

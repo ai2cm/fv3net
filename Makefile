@@ -43,18 +43,19 @@ deploy_docs_%:
 
 ## Deploy documentation for fv3net to vulcanclimatemodeling.com
 deploy_docs_fv3net:
+	mkdir -p fv3net_docs
+	# use tar to grab already-built docs from inside the docker image and extract them to "./fv3net_docs"
+	docker run us.gcr.io/vcm-ml/fv3net:$(VERSION) tar -C fv3net_docs -c . | tar -C fv3net_docs -x
+	gsutil -m rsync -R fv3net_docs gs://vulcanclimatemodeling-com-static/docs
+	rm -rf fv3net_docs
 
-	# use tar to grab already-built docs from inside the docker image and extract them to "./html"
-	# will have one docker and gsutil command for each project whose docs are built in the fv3net image
-    
-	mkdir -p docs/_build/html
-	docker run us.gcr.io/vcm-ml/fv3net:$(VERSION) tar -C docs/_build/html -c . | tar -C docs/_build/html -x
-	gsutil -m rsync -R docs/_build/html gs://vulcanclimatemodeling-com-static/docs/fv3net
-    
-	mkdir fv3viz_html
-	docker run us.gcr.io/vcm-ml/fv3net:$(VERSION) tar -C external/fv3viz/docs/_build/html  -c . | tar -C fv3viz_html -x
-	gsutil -m rsync -R fv3viz_html gs://vulcanclimatemodeling-com-static/docs/fv3viz
-	rm -rf fv3viz_html
+## Deploy documentation for fv3fit to vulcanclimatemodeling.com
+deploy_docs_fv3fit:
+	mkdir html
+	# use tar to grab docs from inside the docker image and extract them to "./html"
+	docker run --entrypoint="tar" us.gcr.io/vcm-ml/fv3fit:$(VERSION) -C /fv3fit/docs/_build/html  -c . | tar -C html -x
+	gsutil -m rsync -R html gs://vulcanclimatemodeling-com-static/docs/fv3fit
+	rm -rf html
 
 ## Deploy documentation for prognostic run to vulcanclimatemodeling.com
 deploy_docs_prognostic_run:

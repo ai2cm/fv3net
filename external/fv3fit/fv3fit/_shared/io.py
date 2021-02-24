@@ -3,33 +3,11 @@ import os
 import fsspec
 import warnings
 
-from .config import ModelTrainingConfig
 from .predictor import Predictor, Estimator
 from functools import partial
 
 _NAME_PATH = "name"
 _NAME_ENCODING = "UTF-8"
-_TRAINING_CONFIG = "training_config.yml"
-
-
-def load_training_config(model_path: str) -> ModelTrainingConfig:
-    """Load training configuration information from a model URL
-    
-    To ensure backwards compatibility, user code should use this function to load
-    the configuration information.
-    
-    Note:
-        Differs from the similar ModelTrainingConfig in that this function
-        takes a model_path as input, not the complete path to the config file.
-
-    Args:
-        model_path: model dir dumped by fv3fit.dump
-
-    Returns:
-        dict: training config dict
-    """
-    config_path = os.path.join(model_path, _TRAINING_CONFIG)
-    return ModelTrainingConfig.load(config_path)
 
 
 class _Register:
