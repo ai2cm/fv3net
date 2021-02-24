@@ -5,7 +5,7 @@ import logging
 from typing import List
 
 import dacite
-
+import fsspec
 import fv3kube
 
 from runtime import default_diagnostics
@@ -253,7 +253,9 @@ def _prepare_config_from_parsed_config(
         fv3_config,
     ]
 
-    return fv3kube.merge_fv3config_overlays(*overlays)
+    merged = fv3kube.merge_fv3config_overlays(*overlays)
+    verify_config(merged)
+    return merged
 
 
 if __name__ == "__main__":
