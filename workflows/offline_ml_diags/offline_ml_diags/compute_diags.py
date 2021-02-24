@@ -62,6 +62,14 @@ DIAGNOSTIC_VARS = ("dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2")
 METRIC_VARS = ("dQ1", "dQ2", "Q1", "Q2")
 
 
+import psutil
+def memory_usage_psutil():
+    # return the memory usage in MB
+    process = psutil.Process(os.getpid())
+    mem = process.memory_info()[0] / float(2 ** 20)
+    return mem
+
+
 def _create_arg_parser() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
@@ -256,6 +264,7 @@ def _compute_diagnostics(
         batches_diurnal.append(ds_diurnal.load())
         batches_metrics.append(ds_metrics.load())
         del ds
+        logger.info(f"batch {i}: {memory_usage_psutil()/1000} Gi")
 
     # then average over the batches for each output
     ds_summary = xr.concat(batches_summary, dim="batch")
