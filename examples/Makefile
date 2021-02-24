@@ -1,3 +1,5 @@
+train_evaluate_combined_models: deploy
+	cd train-evaluate-combined-models; ./run.sh
 
 nudge_to_fine_run: deploy
 	cd nudge-to-fine-run; ./run.sh
