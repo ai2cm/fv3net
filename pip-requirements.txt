@@ -8,7 +8,7 @@ pytest-regtest
 conda-lock
 pip-tools
 recommonmark
-sphinx
+sphinx>=1.4
 sphinx-argparse
 sphinx_rtd_theme
 tox

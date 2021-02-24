@@ -1,10 +1,20 @@
-from typing import Mapping
+from typing import Mapping, Sequence
 import intake
 
 
-def get_verification_entries(name: str, catalog: intake.Catalog) -> Mapping[str, str]:
-    """Given simulation name, return fv3net catalog keys for related c48 dycore and
-    physics data."""
+def get_verification_entries(
+    name: str, catalog: intake.Catalog
+) -> Mapping[str, Sequence[str]]:
+    """Given simulation name, return catalog keys for c48 dycore and physics data.
+    
+    Args:
+        name: Simulation to use for verification.
+        catalog: Catalog to search for verification data.
+        
+    Returns:
+        Mapping from category name ('physics' or 'dycore') to sequence of catalog keys
+        representing given diagnostics for specified simulation.
+    """
     entries = {"physics": [], "dycore": []}
     for item in catalog:
         metadata = catalog[item].metadata
