@@ -118,7 +118,7 @@ class DerivedFV3State:
         for key in self.keys():
             try:
                 data = self[key]
-            except:
+            except:  # noqa: E722
                 pass
             else:
                 out[key] = data

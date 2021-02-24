@@ -26,18 +26,9 @@ def state():
 def test_PureMLStepper_schema_unchanged(state, regtest):
     model = get_mock_sklearn_model()
     timestep = 900
-    (
-        dycore_tendencies,
-        physics_tendencies,
-        diagnostics,
-        rank_updated_points,
-        _,
-    ) = PureMLStepper(model, timestep)(None, state)
-
+    (tendencies, diagnostics, _,) = PureMLStepper(model, timestep)(None, state)
     xr.Dataset(diagnostics).info(regtest)
-    xr.Dataset(dycore_tendencies).info(regtest)
-    xr.Dataset(physics_tendencies).info(regtest)
-    rank_updated_points.to_dataset(name="name").info(regtest)
+    xr.Dataset(tendencies).info(regtest)
 
 
 def test_state_regression(state, regtest):
@@ -48,20 +39,11 @@ def test_state_regression(state, regtest):
 def test_PureMLStepper_regression_checksum(state, regtest):
     model = get_mock_sklearn_model()
     timestep = 900
-    (
-        dycore_tendencies,
-        physics_tendencies,
-        diagnostics,
-        rank_updated_points,
-        _,
-    ) = PureMLStepper(model, timestep)(None, state)
-
+    (tendencies, diagnostics, _,) = PureMLStepper(model, timestep)(None, state)
     checksums = yaml.safe_dump(
         [
-            ("dycore_tendencies", checksum_xarray_dict(dycore_tendencies)),
-            ("physics_tendencies", checksum_xarray_dict(physics_tendencies)),
+            ("tendencies", checksum_xarray_dict(tendencies)),
             ("diagnostics", checksum_xarray_dict(diagnostics)),
-            ("rank_updated_points", checksum_xarray(rank_updated_points)),
         ]
     )
 

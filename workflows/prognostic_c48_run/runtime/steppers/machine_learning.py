@@ -8,7 +8,6 @@ import fv3fit
 import runtime
 import xarray as xr
 from runtime.names import DELP, SPHUM
-from runtime.steppers.base import apply
 from runtime.types import Diagnostics, State
 from vcm import thermo
 
@@ -183,14 +182,13 @@ class PureMLStepper:
                 {"column_integrated_dQ2_change_non_neg_sphum_constraint": (diag)}
             )
             tendency.update({"dQ2": dQ2_updated})
-        dycore_tendencies = {k: v for k, v in tendency.items() if k in ["dQ1", "dQ2"]}
-        physics_tendencies = {k: v for k, v in tendency.items() if k in ["dQu", "dQv"]}
+
+        diagnostics["rank_updated_points"] = xr.where(dQ2_initial != dQ2_updated, 1, 0)
+
         state_updates = {}
         return (
-            dycore_tendencies,
-            physics_tendencies,
+            tendency,
             diagnostics,
-            xr.where(dQ2_initial != dQ2_updated, 1, 0),
             state_updates,
         )
 
@@ -199,6 +197,3 @@ class PureMLStepper:
 
     def get_momentum_diagnostics(self, state, tendency):
         return runtime.compute_ml_momentum_diagnostics(state, tendency)
-
-    def apply(self, state, tendency, dt):
-        return apply(state, tendency, dt)

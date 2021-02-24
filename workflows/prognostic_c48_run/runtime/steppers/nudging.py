@@ -10,7 +10,6 @@ from runtime.nudging import (
     nudging_timescales_from_dict,
     setup_get_reference_state,
 )
-from runtime.steppers.base import apply
 from runtime.types import Diagnostics, State
 
 SST_NAME = "ocean_surface_temperature"
@@ -48,13 +47,10 @@ class PureNudger:
             f"{key}_reference": reference_state
             for key, reference_state in reference.items()
         }
-        return tendencies, {}, reference, None, ssts
+        return tendencies, reference, ssts
 
     def get_diagnostics(self, state: State, tendency: State) -> Diagnostics:
         return compute_nudging_diagnostics(state, tendency)
 
     def get_momentum_diagnostics(self, state: State, tendency: State) -> Diagnostics:
         return {}
-
-    def apply(self, state, tendency, dt):
-        return apply(state, tendency, dt)

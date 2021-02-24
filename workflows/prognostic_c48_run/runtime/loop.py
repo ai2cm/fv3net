@@ -11,16 +11,19 @@ import xarray as xr
 from mpi4py import MPI
 from runtime import DerivedFV3State
 from runtime.config import UserConfig, get_namelist
-from runtime.diagnostics.machine_learning import rename_diagnostics
-from runtime.types import Diagnostics, State
-from runtime.steppers.base import (
-    BaselineStepper,
-    LoggingMixin,
+from runtime.diagnostics.machine_learning import (
+    compute_baseline_diagnostics,
+    rename_diagnostics,
+)
+from runtime.diagnostics.machine_learning import (
     precipitation_rate,
     precipitation_sum,
 )
 from runtime.steppers.machine_learning import PureMLStepper, open_model
 from runtime.steppers.nudging import PureNudger
+from runtime.types import Diagnostics, State, Tendencies
+from runtime.names import TENDENCY_TO_STATE_NAME
+from toolz import dissoc
 from typing_extensions import Protocol
 
 from .names import AREA, DELP, TOTAL_PRECIP
@@ -62,24 +65,56 @@ def global_average(comm, array: xr.DataArray, area: xr.DataArray) -> float:
 class Stepper(Protocol):
     """Stepper interface
 
-    Users typing_extensions.Protocol to avoid the need for explicit sub-typing
+    Steppers know the difference between tendencies, diagnostics, and
+    in-place state updates, but they do not know how and when these updates
+    will be applied.
+
+    Note:
+        Users typing_extensions.Protocol to avoid the need for explicit sub-typing
+
     """
 
     @property
     def net_moistening(self) -> str:
         pass
 
-    def __call__(self, time, state):
-        return {}, {}, {}, None, {}
+    def __call__(self, time, state) -> Tuple[Tendencies, Diagnostics, State]:
+        return {}, {}, {}
 
-    def get_diagnostics(self, state, tendency):
+    def get_diagnostics(self, state, tendency) -> Diagnostics:
         return {}
 
-    def get_momentum_diagnostics(self, state, tendency):
+    def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
         return {}
 
-    def apply(self, state, tendency, dt):
-        return {}
+
+def add_tendency(state: Any, tendency: State, dt: float) -> State:
+    """Given state and tendency prediction, return updated state.
+    Returned state only includes variables updated by ML model."""
+
+    with xr.set_options(keep_attrs=True):
+        updated = {}
+        for name in tendency:
+            state_name = TENDENCY_TO_STATE_NAME.get(name, name)
+            updated[state_name] = state[state_name] + tendency[name] * dt
+    return updated  # type: ignore
+
+
+class LoggingMixin:
+
+    rank: int
+
+    def _log_debug(self, message: str):
+        if self.rank == 0:
+            logger.debug(message)
+
+    def _log_info(self, message: str):
+        if self.rank == 0:
+            logger.info(message)
+
+    def _print(self, message: str):
+        if self.rank == 0:
+            print(message)
 
 
 class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin):
@@ -124,8 +159,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._log_info(f"Timestep: {timestep}")
 
         self._do_only_diagnostic_ml = config.scikit_learn.diagnostic_ml
-        self._tendencies_to_apply_to_dycore_state: State = {}
-        self._tendencies_to_apply_to_physics_state: State = {}
+        self._tendencies: Tendencies = {}
         self._state_updates: State = {}
 
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
@@ -144,8 +178,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                     states_to_output = diagnostic.variables  # type: ignore
         return states_to_output
 
-    def _get_stepper(self, config: UserConfig) -> Stepper:
-
+    def _get_stepper(self, config: UserConfig) -> Optional[Stepper]:
         if config.scikit_learn.model:
             self._log_info("Using MLStepper")
             # download the model
@@ -161,8 +194,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             communicator = fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
             return PureNudger(config.nudging, communicator)
         else:
-            self._log_info("Using BaselineStepper")
-            return BaselineStepper()
+            self._log_info("Performing baseline simulation")
+            return None
 
     @property
     def time(self) -> cftime.DatetimeJulian:
@@ -245,56 +278,58 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
     def _apply_python_to_physics_state(self) -> Diagnostics:
         self._log_debug(f"Apply python tendencies to physics state")
-        tendency = self._tendencies_to_apply_to_physics_state
-        updated_state: State = self.stepper.apply(
-            self._state, tendency, dt=self._timestep
-        )
-        diagnostics: Diagnostics = self.stepper.get_momentum_diagnostics(
-            self._state, tendency
-        )
-        if self._do_only_diagnostic_ml:
-            rename_diagnostics(diagnostics)
-        else:
-            self._state.update(updated_state)
+        tendency = {k: v for k, v in self._tendencies.items() if k in ["dQu", "dQv"]}
+
+        diagnostics: Diagnostics = {}
+
+        if self.stepper is not None:
+            diagnostics = self.stepper.get_momentum_diagnostics(self._state, tendency)
+            if self._do_only_diagnostic_ml:
+                rename_diagnostics(diagnostics)
+            else:
+                updated_state = add_tendency(self._state, tendency, dt=self._timestep)
+                self._state.update(updated_state)
 
         return diagnostics
 
     def _compute_python_tendency(self) -> Diagnostics:
         self._log_info("Computing ML Tendency")
-        (
-            self._tendencies_to_apply_to_dycore_state,
-            self._tendencies_to_apply_to_physics_state,
-            diagnostics,
-            rank_updated_points,
-            self._state_updates,
-        ) = self.stepper(self._state.time, self._state)
 
-        if rank_updated_points is not None:
-            updated_points = self.comm.reduce(rank_updated_points, root=0)
-            if self.comm.rank == 0:
-                level_updates = {
-                    i: int(value)
-                    for i, value in enumerate(updated_points.sum(["x", "y"]).values)
-                }
-                logger.info(
-                    f"specific_humidity_limiter_updates_per_level: {level_updates}"
-                )
+        if self.stepper is None:
+            return {}
+        else:
+            (self._tendencies, diagnostics, self._state_updates,) = self.stepper(
+                self._state.time, self._state
+            )
 
-        self._state.update(self._state_updates)
-        return diagnostics
+            try:
+                rank_updated_points = diagnostics["rank_updated_points"]
+            except KeyError:
+                pass
+            else:
+                updated_points = self.comm.reduce(rank_updated_points, root=0)
+                if self.comm.rank == 0:
+                    level_updates = {
+                        i: int(value)
+                        for i, value in enumerate(updated_points.sum(["x", "y"]).values)
+                    }
+                    logger.info(
+                        f"specific_humidity_limiter_updates_per_level: {level_updates}"
+                    )
+            return diagnostics
 
     def _apply_python_to_dycore_state(self) -> Diagnostics:
 
-        tendency = self._tendencies_to_apply_to_dycore_state
-        diagnostics = self.stepper.get_diagnostics(self._state, tendency)
+        tendency = dissoc(self._tendencies, "dQu", "dQv")
 
-        if self._do_only_diagnostic_ml:
-            rename_diagnostics(diagnostics)
+        if self.stepper is None:
+            diagnostics = compute_baseline_diagnostics(self._state)
         else:
-            if not isinstance(self.stepper, BaselineStepper):
-                updated_state = self.stepper.apply(
-                    self._state, tendency, dt=self._timestep
-                )
+            diagnostics = self.stepper.get_diagnostics(self._state, tendency)
+            if self._do_only_diagnostic_ml:
+                rename_diagnostics(diagnostics)
+            else:
+                updated_state = add_tendency(self._state, tendency, dt=self._timestep)
                 updated_state[TOTAL_PRECIP] = precipitation_sum(
                     self._state[TOTAL_PRECIP],
                     diagnostics[self.stepper.net_moistening],
