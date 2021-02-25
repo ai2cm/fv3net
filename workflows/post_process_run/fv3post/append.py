@@ -255,7 +255,7 @@ def append_zarr_along_time(
 @click.option(
     "--no-copy",
     is_flag=True,
-    help="Skip copy of rundir. Will modify files in rundir in place.",
+    help="Skip copy of RUNDIR. Warning: will modify and delete files in RUNDIR.",
 )
 def append_segment(rundir: str, destination: str, segment_label: str, no_copy: bool):
     """Append local RUNDIR to possibly existing output at DESTINATION

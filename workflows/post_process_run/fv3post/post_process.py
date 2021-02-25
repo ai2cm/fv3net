@@ -9,7 +9,6 @@ import xarray as xr
 import tempfile
 import logging
 import click
-from dask.distributed import Client
 from toolz import groupby
 from itertools import chain
 from .gsutil import authenticate, upload_dir, download_directory
