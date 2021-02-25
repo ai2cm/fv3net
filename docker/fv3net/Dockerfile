@@ -46,7 +46,6 @@ RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME
 RUN rm -f /opt/conda/envs/$PROJECT_NAME/bin/gsutil
 RUN fix-permissions /home/jovyan/
 USER $NB_UID
-ENTRYPOINT [ "/bin/bash"]
 
 # new stage for testing
 FROM build AS test
@@ -63,7 +62,21 @@ ENV COMMIT_SHA=$COMMIT_SHA_ARG
 # add explicit copy to ensure that tests run
 COPY --from=test /tmp/tests-done /tmp
 
+# build the docs
+COPY docs $FV3NET/docs
+USER root
+RUN fix-permissions $FV3NET/docs
+USER $NB_UID
+RUN make -C $FV3NET/docs html
+RUN make -C $FV3NET/external/loaders/docs html
+RUN make -C $FV3NET/workflows/prognostic_run_diags/docs html
+RUN mkdir fv3net_docs
+RUN cp -r $FV3NET/docs/_build/html fv3net_docs/fv3net
+RUN cp -r $FV3NET/external/loaders/docs/_build/html fv3net_docs/loaders
+RUN cp -r $FV3NET/workflows/prognostic_run_diags/docs/_build/html fv3net_docs/prognostic_run_diags
+
 # add development tools
 USER root
-RUN apt-get install -y git
+RUN apt-get install -y git tar
 USER $NB_UID
+

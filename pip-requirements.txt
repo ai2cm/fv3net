@@ -7,6 +7,10 @@ yq
 pytest-regtest
 conda-lock
 pip-tools
+recommonmark
+sphinx>=1.4
+sphinx-argparse
+sphinx_rtd_theme
 tox
 tensorflow>=2.3
 tensorflow-addons
