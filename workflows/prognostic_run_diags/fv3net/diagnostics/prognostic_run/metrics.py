@@ -127,7 +127,7 @@ def register_parser(subparsers):
         help="Compute metrics from verification diagnostics. "
         "Prints to standard output.",
     )
-    parser.add_argument("input", help="netcdf file of compute diagnostics.")
+    parser.add_argument("input", help="netcdf file of prognostic_run_diags save.")
     parser.set_defaults(func=main)
 
 

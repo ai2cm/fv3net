@@ -402,8 +402,8 @@ def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
 
 def register_parser(subparsers):
     parser = subparsers.add_parser("report", help="Generate a static html report.")
-    parser.add_argument("input")
-    parser.add_argument("output")
+    parser.add_argument("input", help="Directory containing multiple run diagnostics.")
+    parser.add_argument("output", help="Location to save report html files.")
     parser.set_defaults(func=main)
 
 

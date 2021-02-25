@@ -4,10 +4,6 @@ metadata:
   name: train-diags-prog
 spec:
   serviceAccountName: integration-tests
-  tolerations:
-    - effect: NoSchedule
-      key: dedicated
-      value: climate-sim-pool
   entrypoint: train-diags-prog
   volumes:
     - name: workdir
