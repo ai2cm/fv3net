@@ -6,13 +6,19 @@ Example of :py:func:`plot_cube` using prognostic run python diagnostic output da
 with faceting over timesteps
 """
 
+import os
 import xarray as xr
+from xarray.tutorial import open_dataset
 from fv3viz import plot_cube, mappable_var
-from vcm.catalog import catalog
-import intake
-import cftime
 
-PATH = "gs://vcm-ml-code-testing-data/sample-prognostic-run-output/diags.zarr"
+DATA_DIR = "./fv3net/fv3viz"
+DATA_PATH = os.path.join(DATA_DIR, "plot_0_plot_cube_prognostic_ml.nc")
+GRID_PATH = os.path.join(DATA_DIR, "grid.nc")
+OPEN_DATASET_KWARGS = {
+    "cache_dir": ".",
+    "cache": True,
+    "github_url": "https://github.com/VulcanClimateModeling/vcm-ml-example-data",
+}
 VAR = "net_heating"
 MAPPABLE_VAR_KWARGS = {
     "coord_x_center": "x",
@@ -26,17 +32,16 @@ MAPPABLE_VAR_KWARGS = {
         "lat": ["y", "x", "tile"],
     },
 }
-TIMESTEPS = slice(
-    cftime.DatetimeJulian(2016, 8, 5, 4, 45, 0, 0),
-    cftime.DatetimeJulian(2016, 8, 5, 6, 0, 0, 0),
-)
 
-prognostic_ds = intake.open_zarr(PATH).to_dask()
-grid_ds = catalog["grid/c48"].to_dask()
-# subset data in time and merge with grid
-subset_ds = xr.merge([prognostic_ds.sel(time=TIMESTEPS), grid_ds])
-plot_cube(
-    mappable_var(subset_ds, VAR, **MAPPABLE_VAR_KWARGS),
+if not os.path.isdir(DATA_DIR):
+    os.makedirs(DATA_DIR)
+
+prognostic_ds = open_dataset(DATA_PATH, **OPEN_DATASET_KWARGS)
+grid_ds = open_dataset(GRID_PATH, **OPEN_DATASET_KWARGS)
+
+merged_ds = xr.merge([prognostic_ds, grid_ds])
+_ = plot_cube(
+    mappable_var(merged_ds, VAR, **MAPPABLE_VAR_KWARGS),
     vmin=-100,
     vmax=100,
     cmap="seismic_r",

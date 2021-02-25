@@ -6,18 +6,23 @@ Example of using :py:func:`plot_cube_axes` to plot two different variables on th
 same figure
 """
 
+import os
 import xarray as xr
+from xarray.tutorial import open_dataset
 from matplotlib import pyplot as plt
 from fv3viz import plot_cube_axes, mappable_var
-import intake
-import cftime
-from vcm.catalog import catalog
 from cartopy import crs as ccrs
 
-PATH = "gs://vcm-ml-code-testing-data/sample-prognostic-run-output/diags.zarr"
+DATA_DIR = "./fv3net/fv3viz"
+DATA_PATH = os.path.join(DATA_DIR, "plot_3_plot_cube_axes.nc")
+GRID_PATH = os.path.join(DATA_DIR, "grid.nc")
+OPEN_DATASET_KWARGS = {
+    "cache_dir": ".",
+    "cache": True,
+    "github_url": "https://github.com/VulcanClimateModeling/vcm-ml-example-data",
+}
 VAR1 = "net_moistening"
 VAR2 = "net_heating"
-TIME = cftime.DatetimeJulian(2016, 8, 5, 4, 45, 0, 0)
 MAPPABLE_VAR_KWARGS = {
     "coord_x_center": "x",
     "coord_y_center": "y",
@@ -31,10 +36,14 @@ MAPPABLE_VAR_KWARGS = {
     },
 }
 
-prognostic_ds = intake.open_zarr(PATH).to_dask()
-grid_ds = catalog["grid/c48"].to_dask()
+if not os.path.isdir(DATA_DIR):
+    os.makedirs(DATA_DIR)
+
+prognostic_ds = open_dataset(DATA_PATH, **OPEN_DATASET_KWARGS)
+grid_ds = open_dataset(GRID_PATH, **OPEN_DATASET_KWARGS)
+
 ds1 = mappable_var(
-    xr.merge([prognostic_ds[VAR1].sel(time=TIME), grid_ds]), VAR1, **MAPPABLE_VAR_KWARGS
+    xr.merge([prognostic_ds[VAR1], grid_ds]), VAR1, **MAPPABLE_VAR_KWARGS
 ).load()
 fig, axes = plt.subplots(2, 1, subplot_kw={"projection": ccrs.Robinson()})
 h1 = plot_cube_axes(
@@ -53,7 +62,7 @@ axes[0].set_title(VAR1)
 axes[0].coastlines()
 plt.colorbar(h1, ax=axes[0], label="kg/s/m^2")
 ds2 = mappable_var(
-    xr.merge([prognostic_ds[VAR2].sel(time=TIME), grid_ds]), VAR2, **MAPPABLE_VAR_KWARGS
+    xr.merge([prognostic_ds[VAR2], grid_ds]), VAR2, **MAPPABLE_VAR_KWARGS
 ).load()
 h2 = plot_cube_axes(
     ds2[VAR2].values,

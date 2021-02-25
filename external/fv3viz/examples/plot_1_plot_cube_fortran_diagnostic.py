@@ -6,21 +6,27 @@ Example of :py:func:`plot_cube` using FV3 Fortran diagnostic data, with faceting
 over timesteps
 """
 
+import os
+from xarray.tutorial import open_dataset
 from fv3viz import plot_cube, mappable_var
-import intake
-import cftime
 
-PATH = "gs://vcm-ml-code-testing-data/sample-prognostic-run-output/sfc_dt_atmos.zarr"
+DATA_DIR = "./fv3net/fv3viz"
+DATA_PATH = os.path.join(DATA_DIR, "plot_1_plot_cube_fortran_diagnostic.nc")
+OPEN_DATASET_KWARGS = {
+    "cache_dir": ".",
+    "cache": True,
+    "github_url": "https://github.com/VulcanClimateModeling/vcm-ml-example-data",
+}
 VAR = "LHTFLsfc"
-TIMESTEPS = slice(
-    cftime.DatetimeJulian(2016, 8, 5, 4, 45, 0, 0),
-    cftime.DatetimeJulian(2016, 8, 5, 6, 0, 0, 0),
-)
 
-prognostic_ds = intake.open_zarr(PATH).to_dask()
+if not os.path.isdir(DATA_DIR):
+    os.makedirs(DATA_DIR)
+
+fortran_diagnostic_ds = open_dataset(DATA_PATH, **OPEN_DATASET_KWARGS)
+
 # grid data is already present in this Fortran diagnostic file
-plot_cube(
-    mappable_var(prognostic_ds.sel(time=TIMESTEPS), VAR),
+_ = plot_cube(
+    mappable_var(fortran_diagnostic_ds, VAR),
     vmin=-100,
     vmax=300,
     cmap="viridis_r",

@@ -5,24 +5,33 @@ plot_pcolormesh_cube
 Example of using :py:func:`plot_pcolormesh_cube` to plot a map with grid cell boundaries
 """
 
-from matplotlib import pyplot as plt
-from fv3viz import pcolormesh_cube
-import intake
-import cftime
-from vcm.catalog import catalog
+import os
 from cartopy import crs as ccrs
+from matplotlib import pyplot as plt
+from xarray.tutorial import open_dataset
+from fv3viz import pcolormesh_cube
 
-PATH = "gs://vcm-ml-code-testing-data/sample-prognostic-run-output/diags.zarr"
+DATA_DIR = "./fv3net/fv3viz"
+DATA_PATH = os.path.join(DATA_DIR, "plot_4_plot_pcolormesh_cube.nc")
+GRID_PATH = os.path.join(DATA_DIR, "grid.nc")
+OPEN_DATASET_KWARGS = {
+    "cache_dir": ".",
+    "cache": True,
+    "github_url": "https://github.com/VulcanClimateModeling/vcm-ml-example-data",
+}
 VAR = "net_moistening"
-TIME = cftime.DatetimeJulian(2016, 8, 5, 4, 45, 0, 0)
 
-prognostic_ds = intake.open_zarr(PATH).to_dask()
-grid_ds = catalog["grid/c48"].to_dask()
+if not os.path.isdir(DATA_DIR):
+    os.makedirs(DATA_DIR)
+
+prognostic_ds = open_dataset(DATA_PATH, **OPEN_DATASET_KWARGS)
+grid_ds = open_dataset(GRID_PATH, **OPEN_DATASET_KWARGS)
+
 fig, ax = plt.subplots(1, 1, subplot_kw={"projection": ccrs.Robinson()})
 h = pcolormesh_cube(
     grid_ds["latb"].values,
     grid_ds["lonb"].values,
-    prognostic_ds[VAR].sel(time=TIME).values,
+    prognostic_ds[VAR].values,
     vmin=-1.0e-4,
     vmax=1.0e-4,
     cmap="seismic_r",
@@ -35,3 +44,4 @@ ax.coastlines()
 plt.colorbar(h, ax=ax, label="kg/s/m^2")
 fig.set_size_inches([10, 4])
 fig.set_dpi(100)
+fig.savefig("plot_4.png")
