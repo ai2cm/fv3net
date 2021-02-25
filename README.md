@@ -5,4 +5,4 @@ fv3net
 
 Improving the GFDL FV3 model physics with machine learning. See the [documentation](https://vulcanclimatemodeling.com/docs/fv3net/) for more information on using this suite of tools. 
 
-<p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
+Disclaimer: This is a work in progress.
