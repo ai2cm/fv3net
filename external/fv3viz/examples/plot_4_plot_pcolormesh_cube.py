@@ -10,6 +10,16 @@ from cartopy import crs as ccrs
 from matplotlib import pyplot as plt
 from xarray.tutorial import open_dataset
 from fv3viz import pcolormesh_cube
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    message=(
+        "Tight layout not applied. The left and right margins cannot be made "
+        "large enough to accommodate all axes decorations."
+    ),
+)
 
 DATA_DIR = "./fv3net/fv3viz"
 DATA_PATH = os.path.join(DATA_DIR, "plot_4_plot_pcolormesh_cube.nc")
@@ -18,6 +28,7 @@ OPEN_DATASET_KWARGS = {
     "cache_dir": ".",
     "cache": True,
     "github_url": "https://github.com/VulcanClimateModeling/vcm-ml-example-data",
+    "branch": "main",
 }
 VAR = "net_moistening"
 
