@@ -1,8 +1,10 @@
 import numpy as np
-from numpy.random import RandomState
-from typing import Mapping, Tuple, Sequence, Union
-from toolz.functoolz import curry
+import pandas as pd
 import xarray as xr
+from numpy.random import RandomState
+from toolz.functoolz import curry
+from typing import Mapping, Tuple, Sequence, Union
+
 import vcm
 from vcm import safe, net_heating, net_precipitation, DerivedMapping
 from vcm.convenience import round_time
@@ -131,6 +133,7 @@ def stack_non_vertical(ds: xr.Dataset, sample_dim_name=SAMPLE_DIM_NAME) -> xr.Da
 
     ds_group_by_zdim = _group_by_z_dim(ds)
     to_merge = []
+    multi_idx = multi_coord_names= None
     for zdim_name, group_ds in ds_group_by_zdim.items():
         stack_dims = [dim for dim in group_ds.dims if dim != zdim_name]
         ds_stacked = safe.stack_once(
@@ -140,28 +143,36 @@ def stack_non_vertical(ds: xr.Dataset, sample_dim_name=SAMPLE_DIM_NAME) -> xr.Da
             allowed_broadcast_dims=[zdim_name] + [TIME_NAME, DATASET_DIM_NAME],
             allowed_broadcast_vars=ALLOWED_BROADCAST,
         )
+        if multi_idx is None:
+            multi_idx, multi_coord_names = _get_multi_idx(ds_stacked, "sample")
         # drop multi-level index coordinate for merge
         ds_stacked = ds_stacked.reset_index("sample")
         to_merge.append(ds_stacked)
 
     full_stacked_ds = xr.merge(to_merge)
-    full_stacked_ds = _ensure_sample_first(
-        full_stacked_ds, sample_dim_name=sample_dim_name
-    )
+    # reinsert multi-index
+    full_stacked_ds = _reinsert_multi_idx(full_stacked_ds, multi_idx, multi_coord_names)
+    full_stacked_ds = full_stacked_ds.transpose("sample", ...)
 
     return full_stacked_ds
 
 
-def _ensure_sample_first(ds: xr.Dataset, sample_dim_name=SAMPLE_DIM_NAME) -> xr.Dataset:
-    for varname, da in ds.items():
-        if len(da.dims) > 2:
-            raise ValueError(
-                "Sample first check function expects stacked data arrays with two dimensions or less"
-            )
-        if da.dims[0] != sample_dim_name:
-            ds[varname] = da.transpose()
+def _get_multi_idx(ds, stacked_name):
+    multi_idx = ds.coords[stacked_name]
+    multi_idx_coord_names = [
+        name
+        for name in multi_idx.reset_index(stacked_name).coords
+        if name != stacked_name
+    ]
+    multi_idx = pd.MultiIndex.from_tuples(multi_idx.values, names=multi_idx_coord_names)
 
-    return ds
+    return multi_idx, multi_idx_coord_names
+
+
+def _reinsert_multi_idx(ds, multi_idx, coords_to_drop, ):
+
+    ds = ds.reset_coords(coords_to_drop, drop=True)
+    return ds.assign_coords({"sample": multi_idx})
 
 
 def _group_by_z_dim(
