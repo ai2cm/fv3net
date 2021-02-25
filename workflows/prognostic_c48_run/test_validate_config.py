@@ -102,8 +102,8 @@ def generate_diag_table(initial_time, module_name, frequency, frequency_units):
         ("dynamics", 1, "hours", {"time": 12}, True),
         ("dynamics", 1, "hours", {"time": 7}, False),
         ("dynamics", 7, "hours", {"time": 12}, False),
-        ("gfsphys", 1, "hours", {"time": 8}, True),
-        ("gfsphys", 1, "hours", {"time": 12}, False),
+        ("gfsphys", 1, "hours", {"time": 2}, True),
+        ("gfsphys", 1, "hours", {"time": 3}, False),
     ],
 )
 def test__validate_fortran_diagnostic_chunks(
