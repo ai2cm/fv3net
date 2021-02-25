@@ -46,6 +46,20 @@ def test_prepare_ml_config_regression(regtest):
         prepare_config.prepare_config(args)
 
 
+def test_prepare_nudging_config_regression(regtest):
+    parser = prepare_config._create_arg_parser()
+    args = parser.parse_args(get_nudge_to_fine_args())
+    with regtest:
+        prepare_config.prepare_config(args)
+
+
+def test_prepare_nudge_to_obs_config_regression(regtest):
+    parser = prepare_config._create_arg_parser()
+    args = parser.parse_args(get_nudge_to_obs_args())
+    with regtest:
+        prepare_config.prepare_config(args)
+
+
 @pytest.mark.parametrize(
     ["frequency_minutes", "expected"],
     [
