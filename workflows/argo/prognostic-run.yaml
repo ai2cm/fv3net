@@ -36,6 +36,7 @@ spec:
               - {name: config, value: "{{inputs.parameters.config}}"}
               - {name: reference-restarts, value: "{{inputs.parameters.reference-restarts}}"}
               - {name: flags, value: "{{inputs.parameters.flags}}"}
+              - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
       - - name: run-model
           templateRef:
             name: run-fv3gfs
@@ -56,6 +57,7 @@ spec:
           - name: config
           - name: reference-restarts
           - name: flags
+          - name: segment-count
       outputs:
         artifacts:
           - {name: fv3config, path: /tmp/fv3config.yaml}
@@ -76,8 +78,12 @@ spec:
 
             cp /fv3net/workflows/prognostic_c48_run/sklearn_runfile.py  /tmp/runfile.py
 
+            if [[ "{{inputs.parameters.segment-count}}" -gt 1 ]]; then
+                FLAGS="{{inputs.parameters.flags}} --validate-chunks"
+            fi
+
             python3 prepare_config.py \
-              {{inputs.parameters.flags}} \
+              $FLAGS \
               config.yaml \
               {{inputs.parameters.reference-restarts}} \
               {{inputs.parameters.initial-condition}} \

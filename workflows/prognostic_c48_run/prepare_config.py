@@ -5,7 +5,6 @@ import logging
 from typing import List
 
 import dacite
-import fsspec
 import fv3kube
 
 from runtime import default_diagnostics
@@ -18,7 +17,7 @@ from runtime.steppers.nudging import NudgingConfig
 from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
 
-import verify_config
+import validate_config
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +84,11 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "--diagnostic_ml",
         action="store_true",
         help="Compute and save ML predictions but do not apply them to model state.",
+    )
+    parser.add_argument(
+        "--validate-chunks",
+        action="store_true",
+        help="Raise error if chunk sizes not appropriate for multi-segment run.",
     )
     return parser
 
@@ -226,6 +230,8 @@ def prepare_config(args):
     final = _prepare_config_from_parsed_config(
         user_config, fv3config_config, dict_["base_version"], args
     )
+    if args.validate_chunks:
+        validate_config.validate_chunks(final)
     print(yaml.dump(final))
 
 
@@ -254,9 +260,7 @@ def _prepare_config_from_parsed_config(
         fv3_config,
     ]
 
-    merged = fv3kube.merge_fv3config_overlays(*overlays)
-    verify_config.verify_config(merged)
-    return merged
+    return fv3kube.merge_fv3config_overlays(*overlays)
 
 
 if __name__ == "__main__":

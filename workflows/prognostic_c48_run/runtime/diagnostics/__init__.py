@@ -3,6 +3,7 @@ from .manager import (
     get_diagnostic_files,
     DiagnosticFile,
     DiagnosticFileConfig,
+    FortranFileConfig,
 )
 from .machine_learning import (
     compute_ml_diagnostics,

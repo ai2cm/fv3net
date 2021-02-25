@@ -5,6 +5,7 @@ from .diagnostics import (
     get_diagnostic_files,
     DiagnosticFile,
     DiagnosticFileConfig,
+    FortranFileConfig,
     compute_ml_diagnostics,
     compute_ml_momentum_diagnostics,
     compute_nudging_diagnostics,

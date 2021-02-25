@@ -12,11 +12,7 @@ class ConfigValidationError(ValueError):
     pass
 
 
-def validate_config(config_dict: Mapping):
-    _validate_chunks(config_dict)
-
-
-def _validate_chunks(config_dict: Mapping):
+def validate_chunks(config_dict: Mapping):
     user_config = dacite.from_dict(UserConfig, config_dict)
     run_duration = fv3config.get_run_duration(config_dict)
     initial_time = datetime(*config_dict["namelist"]["coupler_nml"]["current_date"])
@@ -45,7 +41,7 @@ def _validate_chunks(config_dict: Mapping):
 
 
 def _validate_fortran_diagnostic_chunks(
-    diagnostics, diag_table, timestep, run_duration, physics_interval
+    diagnostics, diag_table, timestep, run_duration, physics_output_interval
 ):
     for diagnostic_config in diagnostics:
         name = os.path.splitext(diagnostic_config.name)[0]  # remove .zarr suffix
@@ -54,8 +50,12 @@ def _validate_fortran_diagnostic_chunks(
         if matching_file_configs and time_chunk_size:
             file_config = matching_file_configs[0]
             for field_config in file_config.field_configs:
-                num_output_timesteps = _get_num_output_timesteps(
-                    file_config, field_config, physics_interval, timestep, run_duration,
+                num_output_timesteps = _get_fortran_num_output_timesteps(
+                    file_config,
+                    field_config,
+                    physics_output_interval,
+                    timestep,
+                    run_duration,
                 )
                 _validate_time_chunks(
                     num_output_timesteps, time_chunk_size, file_config.name
@@ -88,14 +88,14 @@ def _validate_time_chunks(time_dim_size: int, chunk_size: int, file_name: str):
         )
 
 
-def _get_num_output_timesteps(
+def _get_fortran_num_output_timesteps(
     file_config: fv3config.DiagFileConfig,
     field_config: fv3config.DiagFieldConfig,
-    physics_interval: timedelta,
+    physics_output_interval: timedelta,
     timestep: timedelta,
     run_duration: timedelta,
 ) -> int:
-    """Given configurations for Fortran diagnostic, return number of timesteps given
+    """Given configurations for Fortran diagnostic, return number of timesteps this
     diagnostic will have in output."""
     if field_config.module_name == "dynamics":
         # frequency is specified in diag_table
@@ -107,7 +107,7 @@ def _get_num_output_timesteps(
             interval = timedelta(**{file_config.frequency_units: file_config.frequency})
     else:
         # assuming from physics module, so frequency set in namelist
-        interval = physics_interval
+        interval = physics_output_interval
 
     if run_duration % interval == timedelta(0):
         return int(run_duration / interval)
