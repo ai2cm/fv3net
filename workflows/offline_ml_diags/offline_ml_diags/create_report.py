@@ -238,7 +238,7 @@ if __name__ == "__main__":
             ),
         }
         metrics_formatted.append((var.replace("_", " "), values))
-    metrics_formatted = OrderedDict(metrics_formatted)
+    metrics_formatted = OrderedDict(metrics_formatted)  # type: ignore
 
     for png in copy_pngs_to_report(args.input_path, temp_output_dir.name):
         report_sections[png] = [png]
