@@ -18,6 +18,7 @@ from runtime.steppers.nudging import NudgingConfig
 from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
 
+import verify_config
 
 logger = logging.getLogger(__name__)
 
@@ -254,7 +255,7 @@ def _prepare_config_from_parsed_config(
     ]
 
     merged = fv3kube.merge_fv3config_overlays(*overlays)
-    verify_config(merged)
+    verify_config.verify_config(merged)
     return merged
 
 
