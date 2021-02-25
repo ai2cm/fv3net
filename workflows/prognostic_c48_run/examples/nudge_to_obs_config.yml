@@ -1,0 +1,22 @@
+base_version: v0.6
+gfs_analysis_data:
+  url: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
+  filename_pattern: "%Y%m%d_%HZ_T85LR.nc"
+namelist:
+  coupler_nml:
+    days: 10 
+    hours: 0
+    minutes: 0
+    seconds: 0
+  fv_core_nml:
+    do_sat_adj: false
+    nudge: true
+  fv_nwp_nudge_nml:
+    nudge_ps: true  # surface pressure
+    nudge_virt: true  # temperature
+    nudge_winds: true  # horizontal winds
+    nudge_q: true  # specific humidity
+    tau_ps: 21600.0
+    tau_virt: 21600.0
+    tau_winds: 21600.0
+    tau_q: 21600.0

@@ -11,6 +11,11 @@ pytest-cov
 typing_extensions
 tensorflow-addons
 
+# requirements to build docs
+sphinx
+sphinx-argparse
+sphinx_rtd_theme
+
 # requirements from loaders or synth
 zarr
 dask

@@ -4,23 +4,13 @@ metadata:
   name: train-diags-prog
 spec:
   serviceAccountName: integration-tests
-  tolerations:
-    - effect: NoSchedule
-      key: dedicated
-      value: climate-sim-pool
   entrypoint: train-diags-prog
-  volumeClaimTemplates:
-    - metadata:
-        name: work-volume
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        storageClassName: fast
-        resources:
-          requests:
-            storage: 100Gi
   volumes:
     - name: workdir
       emptyVol: {}
+    - name: dshm
+      emptyDir:
+        medium: Memory
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -40,11 +30,9 @@ spec:
           value: " "
         - name: test-times
         - name: public-report-output
-        - {name: chunks, value: "{}"}  # by default just use chunks defined in post_process.py
         - {name: segment-count, value: "1"}
         - {name: cpu-prog, value: "6"}
         - {name: memory-prog, value: 6Gi}
-        - {name: work-volume-name, value: work-volume}
         - {name: memory-training, value: 6Gi}
         - {name: memory-offline-diags, value: 6Gi}
         - {name: training-flags, value: " "}
@@ -85,16 +73,12 @@ spec:
                 value: "{{inputs.parameters.root}}/prognostic_run"
               - name: flags
                 value: "{{inputs.parameters.flags}} --model_url {{inputs.parameters.root}}/trained_model"
-              - name: chunks
-                value: "{{inputs.parameters.chunks}}"
               - name: segment-count
                 value: "{{inputs.parameters.segment-count}}"
               - name: cpu
                 value: "{{inputs.parameters.cpu-prog}}"
               - name: memory
                 value: "{{inputs.parameters.memory-prog}}"
-              - name: work-volume-name
-                value: "{{inputs.parameters.work-volume-name}}"
       - name: offline-diags
         dependencies: [train-model]
         templateRef:
@@ -104,16 +88,12 @@ spec:
           parameters:
               - name: ml-model
                 value: "{{inputs.parameters.root}}/trained_model"
-              - name: config
-                value: "{{inputs.parameters.training-config}}"
               - name: times
                 value: "{{inputs.parameters.test-times}}"
               - name: offline-diags-output
                 value: "{{inputs.parameters.root}}/offline_diags"
               - name: report-output
                 value: "{{inputs.parameters.public-report-output}}"
-              - name: data-path
-                value: "{{inputs.parameters.train-test-data}}"
               - name: memory
                 value: "{{inputs.parameters.memory-offline-diags}}"
       - name: online-diags

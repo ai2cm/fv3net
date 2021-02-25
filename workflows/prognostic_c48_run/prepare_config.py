@@ -6,13 +6,14 @@ from typing import List
 
 import dacite
 
-import fv3config
 import fv3kube
 
-import vcm
-
 from runtime import default_diagnostics
-from runtime.diagnostics.manager import DiagnosticFileConfig, TimeConfig
+from runtime.diagnostics.manager import (
+    FortranFileConfig,
+    DiagnosticFileConfig,
+    TimeConfig,
+)
 from runtime.steppers.nudging import NudgingConfig
 from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
@@ -32,6 +33,7 @@ FV3CONFIG_KEYS = {
     "forcing",
     "orographic_forcing",
     "patch_files",
+    "gfs_analysis_data",
 }
 
 
@@ -70,9 +72,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--nudge-to-observations", action="store_true", help="Nudge to observations",
-    )
-    parser.add_argument(
         "--output-frequency",
         type=int,
         default=15,
@@ -93,6 +92,9 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
     """Ideally this function could be replaced by dacite.from_dict
     without needing any information from args.
     """
+    nudge_to_observations = (
+        config_dict.get("namelist", {}).get("fv_core_nml", {}).get("nudge", False)
+    )
 
     if "nudging" in config_dict:
         config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
@@ -102,16 +104,29 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
     else:
         nudging = None
 
-    diagnostics = [
-        dacite.from_dict(DiagnosticFileConfig, diag)
-        for diag in config_dict.get("diagnostics", [])
-    ]
-
     scikit_learn = MachineLearningConfig(
         model=list(args.model_url or []), diagnostic_ml=args.diagnostic_ml
     )
 
-    default = UserConfig(diagnostics=[])
+    if "diagnostics" in config_dict:
+        diagnostics = [
+            dacite.from_dict(DiagnosticFileConfig, diag)
+            for diag in config_dict["diagnostics"]
+        ]
+    else:
+        diagnostics = _default_diagnostics(
+            nudging, scikit_learn, nudge_to_observations, args.output_frequency,
+        )
+
+    if "fortran_diagnostics" in config_dict:
+        fortran_diagnostics = [
+            dacite.from_dict(FortranFileConfig, diag)
+            for diag in config_dict["fortran_diagnostics"]
+        ]
+    else:
+        fortran_diagnostics = _default_fortran_diagnostics(nudge_to_observations)
+
+    default = UserConfig(diagnostics=[], fortran_diagnostics=[])
 
     if nudging and len(scikit_learn.model):
         raise NotImplementedError(
@@ -121,6 +136,7 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
     return UserConfig(
         nudging=nudging,
         diagnostics=diagnostics,
+        fortran_diagnostics=fortran_diagnostics,
         scikit_learn=scikit_learn,
         step_storage_variables=config_dict.get(
             "step_storage_variables", default.step_storage_variables
@@ -131,33 +147,41 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
     )
 
 
-def diagnostics_overlay(
-    config: UserConfig,
-    model_urls: List[str],
+def _default_diagnostics(
+    nudging: NudgingConfig,
+    scikit_learn: MachineLearningConfig,
     nudge_to_obs: bool,
     frequency_minutes: int,
-):
+) -> List[DiagnosticFileConfig]:
     diagnostic_files: List[DiagnosticFileConfig] = []
 
-    if config.diagnostics:
-        return {}
+    if scikit_learn.model:
+        diagnostic_files.append(default_diagnostics.ml_diagnostics)
+    elif nudging or nudge_to_obs:
+        diagnostic_files.append(default_diagnostics.state_after_timestep)
+        diagnostic_files.append(default_diagnostics.physics_tendencies)
+        if nudging:
+            diagnostic_files.append(_nudging_tendencies(nudging))
+            diagnostic_files.append(default_diagnostics.nudging_diagnostics_2d)
+            diagnostic_files.append(_reference_state(nudging))
     else:
-        if config.scikit_learn.model:
-            diagnostic_files.append(default_diagnostics.ml_diagnostics)
-        elif config.nudging or nudge_to_obs:
-            diagnostic_files.append(default_diagnostics.state_after_timestep)
-            diagnostic_files.append(default_diagnostics.physics_tendencies)
-            if config.nudging:
-                diagnostic_files.append(_nudging_tendencies(config.nudging))
-                diagnostic_files.append(default_diagnostics.nudging_diagnostics_2d)
-                diagnostic_files.append(_reference_state(config.nudging))
-        else:
-            diagnostic_files.append(default_diagnostics.baseline_diagnostics)
+        diagnostic_files.append(default_diagnostics.baseline_diagnostics)
 
-        _update_times(diagnostic_files, frequency_minutes)
-        return {
-            "diagnostics": [diag_file.to_dict() for diag_file in diagnostic_files],
-        }
+    _update_times(diagnostic_files, frequency_minutes)
+    return diagnostic_files
+
+
+def _default_fortran_diagnostics(
+    nudge_to_observations: bool,
+) -> List[FortranFileConfig]:
+    fortran_diags = [
+        default_diagnostics.sfc_dt_atmos,
+        default_diagnostics.atmos_dt_atmos,
+        default_diagnostics.atmos_8xdaily,
+    ]
+    if nudge_to_observations:
+        fortran_diags.append(default_diagnostics.nudging_tendencies_fortran)
+    return fortran_diags
 
 
 def _nudging_tendencies(config: NudgingConfig) -> DiagnosticFileConfig:
@@ -207,8 +231,6 @@ def prepare_config(args):
 def _prepare_config_from_parsed_config(
     user_config: UserConfig, fv3_config: dict, base_version: str, args
 ):
-    model_urls = args.model_url if args.model_url else []
-
     if not set(fv3_config) <= FV3CONFIG_KEYS:
         raise ValueError(
             f"{fv3_config.keys()} contains a key that fv3config does not handle. "
@@ -225,26 +247,11 @@ def _prepare_config_from_parsed_config(
         fv3kube.c48_initial_conditions_overlay(
             args.initial_condition_url, args.ic_timestep
         ),
-        diagnostics_overlay(
-            user_config, model_urls, args.nudge_to_observations, args.output_frequency,
-        ),
         {"diag_table": PROGNOSTIC_DIAG_TABLE},
         SUPPRESS_RANGE_WARNINGS,
         dataclasses.asdict(user_config),
         fv3_config,
     ]
-
-    if args.nudge_to_observations:
-        # get timing information
-        duration = fv3config.get_run_duration(fv3_config)
-        current_date = vcm.parse_current_date_from_str(args.ic_timestep)
-        overlays.append(
-            fv3kube.enable_nudge_to_observations(
-                duration,
-                current_date,
-                nudge_url="gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
-            )
-        )
 
     return fv3kube.merge_fv3config_overlays(*overlays)
 

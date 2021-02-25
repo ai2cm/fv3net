@@ -110,3 +110,11 @@ def grid_dataset(dataset_fixtures_dir):
         [0, 1, 2], size=grid["land_sea_mask"].shape
     )
     return grid
+
+
+@pytest.fixture
+def grid_dataset_path(grid_dataset):
+    with tempfile.TemporaryDirectory() as grid_dir:
+        grid_path = os.path.join(grid_dir, "grid.nc")
+        grid_dataset.to_netcdf(grid_path)
+        yield grid_path

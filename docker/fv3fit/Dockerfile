@@ -23,6 +23,9 @@ COPY docker/fv3fit/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh && \
     /entrypoint.sh
 
+# build the docs
+RUN make -C /fv3fit/docs html
+
 WORKDIR /fv3fit
 ENTRYPOINT [ "/entrypoint.sh" ]
 FROM bld AS test
@@ -34,6 +37,8 @@ RUN --mount=type=secret,id=gcp,dst=/tmp/key.json \
     --cov=fv3fit \
     --cov-report term \
     --cov-report html:htmlcov
+
+RUN apt-get install tar
 
 ARG COMMIT_SHA_ARG
 ENV COMMIT_SHA=$COMMIT_SHA_ARG
