@@ -252,7 +252,12 @@ def append_zarr_along_time(
 @click.argument("rundir")
 @click.argument("destination")
 @click.option("--segment_label", help="Defaults to timestamp of start of segment.")
-def append_segment(rundir: str, destination: str, segment_label: str):
+@click.option(
+    "--no-copy",
+    is_flag=True,
+    help="Skip copy of rundir. Will modify files in rundir in place.",
+)
+def append_segment(rundir: str, destination: str, segment_label: str, no_copy: bool):
     """Append local RUNDIR to possibly existing output at DESTINATION
     
     Zarr's will be appended to in place, while all other files will be saved to
@@ -267,7 +272,10 @@ def append_segment(rundir: str, destination: str, segment_label: str):
     fs, _, _ = fsspec.get_fs_token_paths(destination)
 
     with tempfile.TemporaryDirectory() as d_in:
-        tmp_rundir = shutil.copytree(rundir, os.path.join(d_in, "rundir"))
+        if no_copy:
+            tmp_rundir = rundir
+        else:
+            tmp_rundir = shutil.copytree(rundir, os.path.join(d_in, "rundir"))
         files = os.listdir(tmp_rundir)
         artifacts_dir = os.path.join(tmp_rundir, "artifacts", segment_label)
         os.makedirs(artifacts_dir, exist_ok=True)
