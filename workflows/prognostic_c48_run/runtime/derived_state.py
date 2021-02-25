@@ -122,14 +122,3 @@ class DerivedFV3State(MutableMapping):
 
     def __len__(self):
         return len(self.keys())
-
-    def checkpoint(self) -> Mapping[Hashable, xr.DataArray]:
-        out = {}
-        for key in self.keys():
-            try:
-                data = self[key]
-            except:  # noqa: E722
-                pass
-            else:
-                out[key] = data
-        return out

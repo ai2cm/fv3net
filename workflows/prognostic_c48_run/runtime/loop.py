@@ -310,7 +310,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         return diagnostics
 
     def _compute_python_updates(self) -> Diagnostics:
-        self._log_info("Computing ML Tendency")
+        self._log_info("Computing Python Updates")
 
         if self.stepper is None:
             return {}
