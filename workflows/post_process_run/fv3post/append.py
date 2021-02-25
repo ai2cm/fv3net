@@ -255,7 +255,7 @@ def append_zarr_along_time(
 @click.option(
     "--no-copy",
     is_flag=True,
-    help="Skip copy of RUNDIR. Warning: will modify and delete files in RUNDIR.",
+    help="Skip local copy of RUNDIR. Warning: will modify and delete files in RUNDIR.",
 )
 def append_segment(rundir: str, destination: str, segment_label: str, no_copy: bool):
     """Append local RUNDIR to possibly existing output at DESTINATION
@@ -275,6 +275,8 @@ def append_segment(rundir: str, destination: str, segment_label: str, no_copy: b
         if no_copy:
             tmp_rundir = rundir
         else:
+            # this copy is necessary to not destroy the input RUNDIR. Ideally,
+            # append_segment could operate without making a copy or affecting RUNDIR.
             tmp_rundir = shutil.copytree(rundir, os.path.join(d_in, "rundir"))
         files = os.listdir(tmp_rundir)
         artifacts_dir = os.path.join(tmp_rundir, "artifacts", segment_label)
