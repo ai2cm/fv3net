@@ -1,5 +1,4 @@
 import argparse
-from collections import OrderedDict
 import os
 import atexit
 import logging
@@ -238,7 +237,6 @@ if __name__ == "__main__":
             ),
         }
         metrics_formatted.append((var.replace("_", " "), values))
-    metrics_formatted = OrderedDict(metrics_formatted)  # type: ignore
 
     for png in copy_pngs_to_report(args.input_path, temp_output_dir.name):
         report_sections[png] = [png]
@@ -248,7 +246,7 @@ if __name__ == "__main__":
         "ML offline diagnostics",
         report_sections,
         metadata=config,
-        report_metrics=metrics_formatted,
+        report_metrics=dict(metrics_formatted),
     )
 
     copy_outputs(temp_output_dir.name, args.output_path)
