@@ -23,7 +23,6 @@ from ._plot_jacobian import plot_jacobian
 from ._metrics import compute_metrics
 from ._mapper import PredictionMapper
 from ._helpers import (
-    net_precipitation_provenance_information,
     load_grid_info,
     sample_outside_train_range,
 )
@@ -50,7 +49,6 @@ DIURNAL_VARS = [
     "column_integrated_Q1",
     "column_integrated_Q2",
 ]
-SHIELD_DERIVATION_COORD = "coarsened_SHiELD"
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
 TRANSECT_NC_NAME = "transect_lon0.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
@@ -179,25 +177,12 @@ def _compute_diurnal_cycle(ds: xr.Dataset) -> xr.Dataset:
 
 def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
     # ...reduce to diagnostic variables
-    if SHIELD_DERIVATION_COORD in ds["derivation"].values:
-        net_precip_domain_coord = SHIELD_DERIVATION_COORD
-    else:
-        net_precip_domain_coord = "target"
-
     summary = utils.reduce_to_diagnostic(
         ds,
         ds,
-        net_precipitation=-ds["column_integrated_Q2"].sel(  # type: ignore
-            derivation=net_precip_domain_coord
-        ),
+        net_precipitation=-ds["column_integrated_Q2"].sel(derivation="target"),
         primary_vars=variables,
     )
-    summary = summary.assign_coords(
-        domain=net_precipitation_provenance_information(
-            summary["domain"], net_precip_domain_coord
-        )
-    )
-
     return summary
 
 
