@@ -9,6 +9,7 @@ import xarray as xr
 import tempfile
 import logging
 import click
+from dask.distributed import Client
 from toolz import groupby
 from itertools import chain
 from .gsutil import authenticate, upload_dir, download_directory
@@ -157,6 +158,7 @@ def post_process(rundir: str, destination: str, chunks: str):
     """
     logger.info("Post-processing the run")
     authenticate()
+    client = Client()
 
     if chunks:
         with open(chunks) as f:
