@@ -127,4 +127,4 @@ def _infer_dimension_order(ds: xr.Dataset) -> Tuple:
 def _infer_sample_dims(ds: xr.Dataset, feature_dim: Hashable) -> Tuple:
     dims_in_inputs = set.union(*[set(ds[variable].dims) for variable in ds])
     non_feature_dims = set(dim for dim in ds.dims if dim != feature_dim)
-    return tuple(dims_in_inputs.intersection(non_feature_dims))
+    return tuple(sorted(dims_in_inputs.intersection(non_feature_dims)))

@@ -4,7 +4,9 @@ whiteList="\
 external/vcm/tests/test_data/test_data.tar \
 workflows/fine_res_budget/tests/gfsphysics.json \
 workflows/fine_res_budget/tests/diag.json \
-workflows/fine_res_budget/tests/restart.json"
+workflows/fine_res_budget/tests/restart.json \
+workflows/prognostic_c48_run/tests/input_data/inputs_4x4.nc
+"
 
 thresholdKb=250
 
