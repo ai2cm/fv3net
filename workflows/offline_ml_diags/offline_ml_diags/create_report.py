@@ -1,7 +1,6 @@
 import argparse
-import shutil
+from collections import OrderedDict
 import os
-import glob
 import atexit
 import logging
 import sys
@@ -12,6 +11,7 @@ import fv3viz
 import numpy as np
 from report import insert_report_figure
 import vcm
+from vcm.cloud import get_fs
 import diagnostics_utils.plot as diagplot
 from ._helpers import (
     get_metric_string,
@@ -46,12 +46,13 @@ logger = logging.getLogger("offline_diags_report")
 
 
 def copy_pngs_to_report(input: str, output: str) -> List[str]:
-    pngs = glob.glob(os.path.join(input, "*.png"))
+    fs = get_fs(input)
+    pngs = fs.glob(os.path.join(input, "*.png"))
     output_pngs = []
     if len(pngs) > 0:
         for png in pngs:
             relative_path = os.path.basename(png)
-            shutil.copy(png, os.path.join(output, relative_path))
+            fs.get(png, os.path.join(output, relative_path))
             output_pngs.append(relative_path)
     return output_pngs
 
@@ -131,7 +132,7 @@ if __name__ == "__main__":
         and var.endswith("predict_vs_target")
         and ("r2" in var or "bias" in var)
     ]
-    for var in zonal_avg_pressure_level_metrics:
+    for var in sorted(zonal_avg_pressure_level_metrics):
         vmin, vmax = (0, 1) if "r2" in var.lower() else (None, None)
         fig = diagplot.plot_zonal_average(
             data=ds_diags[var],
@@ -152,7 +153,7 @@ if __name__ == "__main__":
         for var in ds_diags.data_vars
         if var.startswith("pressure_level") and var.endswith("predict_vs_target")
     ]
-    for var in pressure_level_metrics:
+    for var in sorted(pressure_level_metrics):
         ylim = (0, 1) if "r2" in var.lower() else None
         fig = diagplot._plot_generic_data_array(
             ds_diags[var], xlabel="pressure [Pa]", ylim=ylim, title=tidy_title(var)
@@ -169,7 +170,7 @@ if __name__ == "__main__":
     profiles = [
         var for var in ds_diags.data_vars if "dQ" in var and "z" in ds_diags[var].dims
     ] + ["Q1", "Q2"]
-    for var in profiles:
+    for var in sorted(profiles):
         fig = diagplot.plot_profile_var(
             ds_diags, var, derivation_dim=DERIVATION_DIM, domain_dim=DOMAIN_DIM,
         )
@@ -197,10 +198,10 @@ if __name__ == "__main__":
         )
 
     # column integrated quantity diurnal cycles
-    for tag, var_group in {
-        "Q1_components": ["column_integrated_dQ1", "column_integrated_Q1"],
-        "Q2_components": ["column_integrated_dQ2", "column_integrated_Q2"],
-    }.items():
+    for tag, var_group in [
+        ("Q1_components", ["column_integrated_dQ1", "column_integrated_Q1"]),
+        ("Q2_components", ["column_integrated_dQ2", "column_integrated_Q2"]),
+    ]:
         fig = diagplot.plot_diurnal_cycles(
             ds_diurnal,
             vars=var_group,
@@ -216,7 +217,7 @@ if __name__ == "__main__":
 
     # transect of predicted fields at lon=0
     transect_time = ds_transect.time.item()
-    for var in ds_transect:
+    for var in sorted(ds_transect.data_vars):
         fig = plot_transect(ds_transect[var])
         insert_report_figure(
             report_sections,
@@ -227,18 +228,20 @@ if __name__ == "__main__":
         )
 
     # scalar metrics for RMSE and bias
-    metrics_formatted = {}
+    metrics_formatted = []
     metrics = insert_scalar_metrics_r2(metrics, column_integrated_metrics)
-    for var in column_integrated_metrics:
-        metrics_formatted[var.replace("_", " ")] = {
+    for var in sorted(column_integrated_metrics):
+        values = {
             "r2": get_metric_string(metrics, "r2", var),
             "bias": " ".join(
                 [get_metric_string(metrics, "bias", var), units_from_Q_name(var)]
             ),
         }
+        metrics_formatted.append((var.replace("_", " "), values))
+    metrics_formatted = OrderedDict(metrics_formatted)
 
     for png in copy_pngs_to_report(args.input_path, temp_output_dir.name):
-        report_sections[png] = png
+        report_sections[png] = [png]
 
     write_report(
         temp_output_dir.name,
