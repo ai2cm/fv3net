@@ -72,8 +72,11 @@ def open_n2f_radiative_flux_biases(
         }
     )
     surface_albedo = (
-        (coarse_dswrf_sfc - coarse_swnetrf_sfc) / coarse_swnetrf_sfc
-    ).assign_attrs({"long_name": "surface albedo (coarse)", "units": "-"})
+        ((coarse_dswrf_sfc - coarse_swnetrf_sfc) / coarse_dswrf_sfc)
+        .mean(dim=["time"], skipna=True)
+        .broadcast_like(dlwrf_sfc_bias)
+        .assign_attrs({"long_name": "surface albedo (coarse)", "units": "-"})
+    )
     sfc_biases_ds = xr.Dataset(
         {
             "DSWRFsfc_bias": dswrf_sfc_bias,
