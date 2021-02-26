@@ -15,6 +15,4 @@ from .utils import (
     get_alphanumeric_unique_tag,
 )
 
-from .nudge_to_obs import enable_nudge_to_observations
-
 __version__ = "0.1.0"

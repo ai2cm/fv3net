@@ -6,29 +6,22 @@
 Welcome to fv3net's documentation!
 ==================================
 
-Other VCM Projects
-------------------
+To get running quickly, see our :ref:`quickstarts`. These contain information about installation/setup, as well as how you can run pre-configured examples.
 
-- fv3gfs-python_ (`docs <https://vulcanclimatemodeling.github.io/fv3gfs-python/f12n7eq5xkoibbqp/index.html>`_)
-- fv3config_
+The :ref:`workflows` page documents our overall scientific workflow, with links to documentation for each component.
+
+:ref:`packages` describes the tools and libraries we use to organize our code.
+
+If you run into issues, you may want to check the :ref:`FAQs` to see if this is a known issue we have a solution for.
+
+We track our internal experiments in this `dropbox paper document <https://paper.dropbox.com/doc/ML-skill-for-FV3-GFS-rcRyq37aoDiWOtYMVchW9>`_. Available datasets can also be seen in the `intake catalog <https://github.com/VulcanClimateModeling/fv3net/blob/master/external/vcm/vcm/catalog.yaml>`_. These resources are both private and available internally.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   readme_link
+   quickstarts
    workflows
-   vcm
-   science
-   regression-testing
-
-
-.. _fv3gfs-python: https://github.com/VulcanClimateModeling/fv3gfs-python
-.. _fv3config: https://fv3config.readthedocs.io/en/latest/
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   packages
+   faqs
+   dev_info

@@ -5,7 +5,7 @@ import os
 import random
 import tensorflow as tf
 from . import _models
-from .._shared import Estimator
+from .._shared.predictor import Estimator
 
 logger = logging.getLogger(__file__)
 

@@ -1,27 +1,17 @@
 """Code for machine Learning in prognostic runs
 """
-import copy
 import dataclasses
 import logging
-from typing import Any, Hashable, List, Mapping, Sequence, Set, Iterable, cast
-
-import runtime
-import xarray as xr
+from typing import Hashable, Iterable, Mapping, Sequence, Set, Tuple, cast
 
 import fv3fit
-from runtime.names import (
-    AREA,
-    DELP,
-    PRECIP_RATE,
-    SPHUM,
-    TENDENCY_TO_STATE_NAME,
-    TOTAL_PRECIP,
-)
+import runtime
+import xarray as xr
+from runtime.names import DELP, SPHUM
+from runtime.types import Diagnostics, State
+from vcm import thermo
 
-from runtime.steppers.base import Stepper, LoggingMixin, apply, precipitation_sum
-from runtime.types import State, Diagnostics
-
-__all__ = ["MachineLearningConfig", "MLStepper", "open_model"]
+__all__ = ["MachineLearningConfig", "PureMLStepper", "open_model"]
 
 
 logger = logging.getLogger(__name__)
@@ -37,7 +27,9 @@ class MachineLearningConfig:
         model: list of URLs to fv3fit models.
         diagnostic_ml: do not apply ML tendencies if true.
         input_standard_names: mapping from non-standard names to the standard
-            ones used by the model. Renames the ML inputs.
+            ones used by the model. Renames the ML inputs. Useful if the
+            input variables in the ML model are inconsistent with
+            the canonical names used in the wrapper.
         output_standard_names: mapping from non-standard names to the standard
             ones used by the model. Renames the ML predictions.
 
@@ -62,24 +54,14 @@ class MachineLearningConfig:
     )
 
 
-def log_updated_tendencies(comm, tendency: State, tendency_updated: State):
-    rank_updated_points = xr.where(tendency["dQ2"] != tendency_updated["dQ2"], 1, 0)
-    updated_points = comm.reduce(rank_updated_points, root=0)
-    if comm.rank == 0:
-        level_updates = {
-            i: int(value)
-            for i, value in enumerate(updated_points.sum(["x", "y"]).values)
-        }
-        logger.info(f"specific_humidity_limiter_updates_per_level: {level_updates}")
-
-
-def limit_sphum_tendency(state: State, tendency: State, dt: float):
-    delta = tendency["dQ2"] * dt
-    tendency_updated = copy.copy(tendency)
-    tendency_updated["dQ2"] = xr.where(
-        state[SPHUM] + delta > 0, tendency["dQ2"], -state[SPHUM] / dt,  # type: ignore
-    )
-    return tendency_updated
+def non_negative_sphum(
+    sphum: xr.DataArray, dQ1: xr.DataArray, dQ2: xr.DataArray, dt: float
+) -> Tuple[xr.DataArray, xr.DataArray]:
+    delta = dQ2 * dt
+    reduction_ratio = (-sphum) / (dt * dQ2)  # type: ignore
+    dQ1_updated = xr.where(sphum + delta >= 0, dQ1, reduction_ratio * dQ1)
+    dQ2_updated = xr.where(sphum + delta >= 0, dQ2, reduction_ratio * dQ2)
+    return dQ1_updated, dQ2_updated
 
 
 def _invert_dict(d: Mapping) -> Mapping:
@@ -159,112 +141,59 @@ def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
 
 def predict(model: MultiModelAdapter, state: State) -> State:
     """Given ML model and state, return tendency prediction."""
-    ds = xr.Dataset(state)  # type: ignore
+    state_loaded = {key: state[key] for key in model.input_variables}
+    ds = xr.Dataset(state_loaded)  # type: ignore
     output = model.predict_columnwise(ds, feature_dim="z")
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
-class MLStepper(Stepper, LoggingMixin):
-    def __init__(
-        self,
-        fv3gfs: Any,
-        comm: Any,
-        timestep: float,
-        states_to_output: Sequence[str],
-        model: MultiModelAdapter,
-        diagnostic_only: bool = False,
-    ):
-        self.rank: int = comm.rank
-        self.comm = comm
-        self._fv3gfs = fv3gfs
-        self._do_only_diagnostic_ml = diagnostic_only
-        self._timestep = timestep
-        self._model = model
-        self._states_to_output = states_to_output
+class PureMLStepper:
 
-        self._tendencies_to_apply_to_dycore_state: State = {}
-        self._tendencies_to_apply_to_physics_state: State = {}
+    net_moistening = "net_moistening"
 
-    def _apply_python_to_dycore_state(self) -> Diagnostics:
+    def __init__(self, model: MultiModelAdapter, timestep: float):
+        self.model = model
+        self.timestep = timestep
 
-        updated_state: State = {}
+    def __call__(self, time, state):
 
-        variables: List[Hashable] = [
-            TENDENCY_TO_STATE_NAME["dQ1"],
-            TENDENCY_TO_STATE_NAME["dQ2"],
-            DELP,
-            PRECIP_RATE,
-            TOTAL_PRECIP,
-        ]
-        self._log_debug(f"Getting state variables: {variables}")
-        state = {name: self._state[name] for name in variables}
-        tendency = self._tendencies_to_apply_to_dycore_state
-        diagnostics = runtime.compute_ml_diagnostics(state, tendency)
+        diagnostics: Diagnostics = {}
+        delp = state[DELP]
 
-        if self._do_only_diagnostic_ml:
-            runtime.rename_diagnostics(diagnostics)
-        else:
-            updated_state.update(apply(state, tendency, dt=self._timestep))
+        tendency: State = predict(self.model, state)
 
-        updated_state[TOTAL_PRECIP] = precipitation_sum(
-            state[TOTAL_PRECIP], diagnostics["net_moistening"], self._timestep
+        dQ1_initial = tendency.get("dQ1", xr.zeros_like(state[SPHUM]))
+        dQ2_initial = tendency.get("dQ2", xr.zeros_like(state[SPHUM]))
+
+        dQ1_updated, dQ2_updated = non_negative_sphum(
+            state[SPHUM], dQ1_initial, dQ2_initial, dt=self.timestep,
         )
 
-        self._log_debug("Setting Fortran State")
-        self._state.update(updated_state)
-
-        diagnostics.update({name: self._state[name] for name in self._states_to_output})
-
-        return {
-            "area": self._state[AREA],
-            "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
-                "cnvprcp"
-            ).data_array,
-            "total_precip": updated_state[TOTAL_PRECIP],
-            **diagnostics,
-        }
-
-    def _apply_python_to_physics_state(self) -> Diagnostics:
-        self._log_debug(f"Apply python tendencies to physics state")
-        variables: List[Hashable] = [
-            TENDENCY_TO_STATE_NAME["dQu"],
-            TENDENCY_TO_STATE_NAME["dQv"],
-            DELP,
-        ]
-        state = {name: self._state[name] for name in variables}
-        tendency = self._tendencies_to_apply_to_physics_state
-        updated_state: State = apply(state, tendency, dt=self._timestep)
-        diagnostics: Diagnostics = runtime.compute_ml_momentum_diagnostics(
-            state, tendency
-        )
-        if self._do_only_diagnostic_ml:
-            runtime.rename_diagnostics(diagnostics)
-        else:
-            self._state.update(updated_state)
-
-        return diagnostics
-
-    def _compute_python_tendency(self) -> Diagnostics:
-        variables: List[Hashable] = list(set(self._model.input_variables) | {SPHUM})
-        self._log_debug(f"Getting state variables: {variables}")
-        state = {name: self._state[name] for name in variables}
-
-        self._log_debug("Computing ML-predicted tendencies")
-        tendency = predict(self._model, state)
-
-        if "dQ2" in tendency:
-            self._log_debug(
-                "Correcting ML tendencies that would predict negative specific humidity"
+        if "dQ1" in tendency:
+            diag = thermo.column_integrated_heating(dQ1_updated - tendency["dQ1"], delp)
+            diagnostics.update(
+                {"column_integrated_dQ1_change_non_neg_sphum_constraint": (diag)}
             )
-            tendency_updated = limit_sphum_tendency(state, tendency, dt=self._timestep)
-            log_updated_tendencies(self.comm, tendency, tendency_updated)
-        else:
-            tendency_updated = tendency
+            tendency.update({"dQ1": dQ1_updated})
+        if "dQ2" in tendency:
+            diag = thermo.mass_integrate(dQ2_updated - tendency["dQ2"], delp, dim="z")
+            diag = diag.assign_attrs({"units": "kg/m^2/s"})
+            diagnostics.update(
+                {"column_integrated_dQ2_change_non_neg_sphum_constraint": (diag)}
+            )
+            tendency.update({"dQ2": dQ2_updated})
 
-        self._tendencies_to_apply_to_dycore_state = {
-            k: v for k, v in tendency_updated.items() if k in ["dQ1", "dQ2"]
-        }
-        self._tendencies_to_apply_to_physics_state = {
-            k: v for k, v in tendency_updated.items() if k in ["dQu", "dQv"]
-        }
-        return {}
+        diagnostics["rank_updated_points"] = xr.where(dQ2_initial != dQ2_updated, 1, 0)
+
+        state_updates = {}
+        return (
+            tendency,
+            diagnostics,
+            state_updates,
+        )
+
+    def get_diagnostics(self, state, tendency):
+        return runtime.compute_ml_diagnostics(state, tendency)
+
+    def get_momentum_diagnostics(self, state, tendency):
+        return runtime.compute_ml_momentum_diagnostics(state, tendency)

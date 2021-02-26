@@ -1,5 +1,5 @@
 from typing import Callable, Union, Mapping, MutableMapping
-from ..._shared import ArrayPacker
+from ..._shared.packer import ArrayPacker
 import numpy as np
 import xarray as xr
 import tensorflow as tf

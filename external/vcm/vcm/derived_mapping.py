@@ -38,6 +38,9 @@ class DerivedMapping:
         else:
             return self._mapper[key]
 
+    def keys(self):
+        return set(self._mapper) | set(self._VARIABLES)
+
     def _data_arrays(self, keys: Sequence[str]):
         return {key: self[key] for key in keys}
 

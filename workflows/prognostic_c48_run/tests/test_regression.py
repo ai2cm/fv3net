@@ -1,6 +1,5 @@
 from pathlib import Path
 import json
-
 import fv3config
 import runtime.metrics
 import tempfile
@@ -9,11 +8,8 @@ import pytest
 import xarray as xr
 import datetime
 import yaml
-from sklearn.dummy import DummyRegressor
+from machine_learning_mocks import get_mock_sklearn_model, get_mock_keras_model
 
-import fv3fit
-from fv3fit.sklearn import RegressorEnsemble, SklearnWrapper
-from fv3fit.keras import DummyModel
 import subprocess
 
 BASE_FV3CONFIG_CACHE = Path("vcm-fv3config", "data")
@@ -24,6 +20,7 @@ ORO_PATH = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
 FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
 LOG_PATH = "statistics.txt"
 RUNFILE_PATH = "runfile.py"
+CHUNKS_PATH = "chunks.yaml"
 DIAGNOSTICS = [
     {
         "name": "diags.zarr",
@@ -38,6 +35,13 @@ DIAGNOSTICS = [
         "times": {"kind": "interval", "frequency": 900, "times": None},
     },
 ]
+
+
+class ConfigEnum:
+    nudging = "nudging"
+    sklearn = "sklearn"
+    keras = "keras"
+
 
 default_fv3config = rf"""
 data_table: default
@@ -340,7 +344,6 @@ namelist:
     ldebug: false
 """
 
-NUDGE_RUNFILE = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
 # Necessary to know the number of restart timestamp folders to generate in fixture
 START_TIME = [2016, 8, 1, 0, 0, 0]
 TIMESTEP_MINUTES = 15
@@ -353,8 +356,8 @@ RUNTIME = {"days": 0, "months": 0, "hours": 0, "minutes": RUNTIME_MINUTES, "seco
 def run_native(config, rundir, runfile):
     with tempfile.NamedTemporaryFile("w") as f:
         yaml.safe_dump(config, f)
-        fv3_script = Path(__file__).parent.parent.joinpath("runfv3.sh").as_posix()
-        subprocess.check_call([fv3_script, f.name, str(rundir), runfile])
+        fv3_script = Path(__file__).parent.parent.joinpath("runfv3").as_posix()
+        subprocess.check_call([fv3_script, "run-native", f.name, str(rundir), runfile])
 
 
 def assets_from_initial_condition_dir(dir_: str):
@@ -383,7 +386,7 @@ def assets_from_initial_condition_dir(dir_: str):
     return assets
 
 
-def get_nudging_config(config_yaml: str, timestamp_dir: str):
+def _get_nudging_config(config_yaml: str, timestamp_dir: str):
     config = yaml.safe_load(config_yaml)
     coupler_nml = config["namelist"]["coupler_nml"]
     coupler_nml["current_date"] = START_TIME
@@ -406,15 +409,17 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
     return config
 
 
-def test_nudge_run(tmpdir):
-    config = get_nudging_config(default_fv3config, "gs://" + IC_PATH.as_posix())
+def get_nudging_config():
+    config = _get_nudging_config(default_fv3config, "gs://" + IC_PATH.as_posix())
     config["diagnostics"] = DIAGNOSTICS
-    run_native(config, str(tmpdir), runfile=NUDGE_RUNFILE)
+    config["fortran_diagnostics"] = []
+    return config
 
 
-def get_prognostic_config(model_path):
+def get_ml_config(model_path):
     config = yaml.safe_load(default_fv3config)
     config["diagnostics"] = DIAGNOSTICS
+    config["fortran_diagnostics"] = []
     config["scikit_learn"] = {"model": [model_path], "zarr_output": "diags.zarr"}
     config["step_storage_variables"] = ["specific_humidity", "total_water"]
     # use local paths in prognostic_run image. fv3config
@@ -424,81 +429,30 @@ def get_prognostic_config(model_path):
     return config
 
 
-def _model_dataset() -> xr.Dataset:
-
-    nz = 63
-    arr = np.zeros((1, nz))
-    dims = ["sample", "z"]
-
-    data = xr.Dataset(
-        {
-            "specific_humidity": (dims, arr),
-            "air_temperature": (dims, arr),
-            "dQ1": (dims, arr),
-            "dQ2": (dims, arr),
-            "dQu": (dims, arr),
-            "dQv": (dims, arr),
-        }
-    )
-
-    return data
+@pytest.fixture(
+    scope="module", params=[ConfigEnum.sklearn, ConfigEnum.keras, ConfigEnum.nudging]
+)
+def configuration(request):
+    return request.param
 
 
-def _save_mock_sklearn_model(path: str) -> str:
-
-    data = _model_dataset()
-
-    nz = data.sizes["z"]
-    heating_constant_K_per_s = np.zeros(nz)
-    # include nonzero moistening to test for mass conservation
-    moistening_constant_per_s = -np.full(nz, 1e-4 / 86400)
-    wind_tendency_constant_m_per_s_per_s = np.zeros(nz)
-    constant = np.concatenate(
-        [
-            heating_constant_K_per_s,
-            moistening_constant_per_s,
-            wind_tendency_constant_m_per_s_per_s,
-            wind_tendency_constant_m_per_s_per_s,
-        ]
-    )
-    estimator = RegressorEnsemble(
-        DummyRegressor(strategy="constant", constant=constant)
-    )
-
-    model = SklearnWrapper(
-        "sample",
-        ["specific_humidity", "air_temperature"],
-        ["dQ1", "dQ2", "dQu", "dQv"],
-        estimator,
-    )
-
-    # needed to avoid sklearn.exceptions.NotFittedError
-    model.fit([data])
-    fv3fit.dump(model, path)
-    return path
-
-
-def _save_mock_keras_model(tmpdir):
-
-    input_variables = ["air_temperature", "specific_humidity"]
-    output_variables = ["dQ1", "dQ2"]
-
-    model = DummyModel("sample", input_variables, output_variables)
-    model.fit([_model_dataset()])
-    fv3fit.dump(model, tmpdir)
-    return str(tmpdir)
-
-
-@pytest.fixture(scope="module", params=["keras", "sklearn"])
-def completed_rundir(request, tmpdir_factory):
+@pytest.fixture(scope="module")
+def completed_rundir(configuration, tmpdir_factory):
 
     model_path = str(tmpdir_factory.mktemp("model"))
 
-    if request.param == "sklearn":
-        _save_mock_sklearn_model(model_path)
-    elif request.param == "keras":
-        _save_mock_keras_model(model_path)
-    config = get_prognostic_config(model_path)
+    if configuration == ConfigEnum.sklearn:
+        model = get_mock_sklearn_model()
+        model.dump(str(model_path))
+        config = get_ml_config(model_path)
+    elif configuration == ConfigEnum.keras:
+        model = get_mock_keras_model()
+        model.dump(str(model_path))
+        config = get_ml_config(model_path)
+    elif configuration == ConfigEnum.nudging:
+        config = get_nudging_config()
+    else:
+        raise NotImplementedError()
 
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
     rundir = tmpdir_factory.mktemp("rundir")
@@ -506,7 +460,6 @@ def completed_rundir(request, tmpdir_factory):
     return rundir
 
 
-@pytest.mark.xfail
 def test_fv3run_checksum_restarts(completed_rundir, regtest):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
@@ -527,11 +480,18 @@ def test_runfile_script_present(completed_rundir):
     assert completed_rundir.join(RUNFILE_PATH).exists()
 
 
-def test_fv3run_diagnostic_outputs(completed_rundir):
+def test_chunks_present(completed_rundir):
+    assert completed_rundir.join(CHUNKS_PATH).exists()
+
+
+def test_fv3run_diagnostic_outputs(completed_rundir, configuration):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
     the base class in the fv3fit test suite.
     """
+    if configuration == ConfigEnum.nudging:
+        pytest.skip()
+
     diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
     dims = ("time", "tile", "y", "x")
 
@@ -549,7 +509,9 @@ def test_fv3run_diagnostic_outputs(completed_rundir):
     assert len(diagnostics.time) == 2
 
 
-def test_fv3run_python_mass_conserving(completed_rundir):
+def test_fv3run_python_mass_conserving(completed_rundir, configuration):
+    if configuration == ConfigEnum.nudging:
+        pytest.skip()
 
     path = str(completed_rundir.join(LOG_PATH))
 

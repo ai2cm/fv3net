@@ -1,6 +1,7 @@
-from .config import get_namelist, get_config
+from .config import get_namelist, get_config, write_chunks
 from .capture import capture_stream, capture_stream_mpi, capture_fv3gfs_funcs
 from .diagnostics import (
+    get_chunks,
     get_diagnostic_files,
     DiagnosticFile,
     compute_ml_diagnostics,
@@ -15,7 +16,7 @@ from .nudging import (
     nudging_timescales_from_dict,
     setup_get_reference_state,
     get_nudging_tendency,
-    set_state_sst_to_reference,
+    get_reference_surface_temperatures,
 )
 
 __version__ = "0.1.0"
