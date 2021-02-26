@@ -60,7 +60,7 @@ def open_n2f_radiative_flux_biases(
     swnetrf_sfc_bias = (verif_swnetrf_sfc - coarse_swnetrf_sfc).assign_attrs(
         {
             "long_name": (
-                "net shortwave surface flux bias " "(down minus up, fine minus coarse)"
+                "net shortwave surface flux bias (down minus up, fine minus coarse)"
             ),
             "units": "W/m^2",
         }
@@ -71,6 +71,9 @@ def open_n2f_radiative_flux_biases(
             "units": "W/m^2",
         }
     )
+    surface_albedo = (
+        (coarse_dswrf_sfc - coarse_swnetrf_sfc) / coarse_swnetrf_sfc
+    ).assign_attrs({"long_name": "surface albedo (coarse)", "units": "-"})
     sfc_biases_ds = xr.Dataset(
         {
             "DSWRFsfc_bias": dswrf_sfc_bias,
@@ -80,6 +83,7 @@ def open_n2f_radiative_flux_biases(
             "DSWRFsfc_verif": verif_dswrf_sfc,
             "NSWRFsfc": coarse_swnetrf_sfc,
             "NSWRFsfc_verif": verif_swnetrf_sfc,
+            "surface_albedo": surface_albedo,
         }
     )
     sfc_biases_mapper = LongRunMapper(sfc_biases_ds)
