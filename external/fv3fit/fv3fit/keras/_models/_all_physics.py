@@ -5,14 +5,18 @@ import numpy as np
 import tensorflow as tf
 import xarray as xr
 from toolz.functoolz import compose_left
+import tempfile
 from typing import Callable, Hashable, Mapping, Sequence
+import fsspec
 
 from vcm import safe
 from ..._shared import _transforms
 from ..._shared.predictor import DATASET_DIM_NAME, Predictor
 from loaders._utils import stack_non_vertical
+import fv3fit._shared.io
 
 
+@fv3fit._shared.io.register("all-physics")
 class AllPhysicsEmulator(Predictor):
 
     def __init__(
@@ -55,11 +59,15 @@ class AllPhysicsEmulator(Predictor):
 
     @classmethod
     def load(cls, path: str) -> object:
-        X_transform = get_notebook_X_transform_func(path)
-        y_transform = get_notebook_y_transform_func(path)
-        model = tf.keras.models.load_model(os.path.join(path, "model.tf"))
-        with open(os.path.join(path, "model_options.yaml"), "r") as f:
-            model_options = yaml.safe_load(f)
+        with tempfile.TemporaryDirectory() as dir_:
+            fs = fsspec.get_fs_token_paths(path)[0]
+            fs.get(path, dir_, recursive=True)
+
+            X_transform = get_notebook_X_transform_func(dir_)
+            y_transform = get_notebook_y_transform_func(dir_)
+            model = tf.keras.models.load_model(os.path.join(dir_, "model.tf"))
+            with open(os.path.join(dir_, "model_options.yaml"), "r") as f:
+                model_options = yaml.safe_load(f)
 
         return cls(
             model=model,
