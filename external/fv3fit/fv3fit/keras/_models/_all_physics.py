@@ -45,8 +45,8 @@ class AllPhysicsEmulator(Predictor):
     def predict_columnwise(
         self,
         X: xr.Dataset,
-        sample_dims: Sequence[Hashable],
-        feature_dim: Hashable
+        sample_dims: Sequence[Hashable] = None,
+        feature_dim: Hashable = None,
     ) -> xr.Dataset:
         inputs_ = safe.get_variables(X, self.input_variables)
         X_stacked = stack_non_vertical(inputs_)
