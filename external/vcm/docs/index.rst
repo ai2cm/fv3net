@@ -21,14 +21,12 @@ It is licensed under a BSD License.
    rotating-winds   
    sampling
    derived-mapping
-   coarse-graining
+   grid-operations
    xarray-loaders
    xarray-tools
    metadata
-   select
    thermodynamics
    times
-   vertical-interpolation
 
 .. toctree::
    :maxdepth: 1
