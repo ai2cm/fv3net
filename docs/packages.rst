@@ -42,6 +42,7 @@ fv3config_ (`docs <https://fv3config.readthedocs.io/en/latest/>`_) provides rout
     readme_links/fv3fit_readme
     readme_links/loaders_readme
     readme_links/fv3viz_readme
+    readme_links/vcm_readme
     readme_links/offline_ml_diags_readme
     readme_links/vcm_readme
     readme_links/synth_readme
