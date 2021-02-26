@@ -7,6 +7,8 @@ from typing import List, Iterable, Mapping, Set, Sequence
 
 import fsspec
 import vcm
+from vcm.cloud import get_fs
+
 
 from fv3net.diagnostics.prognostic_run import add_derived
 from fv3net.diagnostics.prognostic_run.constants import DiagArg
@@ -208,6 +210,38 @@ def _get_coarsening_args(
     if input_res not in grid_entries:
         raise KeyError(f"No grid defined in catalog for c{input_res} resolution")
     return grid_entries[input_res], coarsening_factor
+
+
+def load_3d(url: str, catalog: intake.Catalog) -> DiagArg:
+    logger.info(f"Processing 3d data from run directory at {url}")
+    
+    # open grid
+    logger.info("Opening Grid Spec")
+    grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
+
+    # there is no 3d verification data, return empty dataset so this works
+    # with diags functions APIs
+    verification_c48 = xr.Dataset()
+
+    # open prognostic run data
+    fs = get_fs(url)
+    zarr_name = os.path.basename(fs.glob(os.path.join(url, "atmos_*xdaily.zarr"))[0])
+    path = os.path.join(url, zarr_name)
+    logger.info(f"Opening prognostic run data at {path}")
+    ds = _load_standardized(path)
+    input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
+    area = catalog[input_grid].to_dask()["area"]
+    ds = _coarsen(ds, area, coarsening_factor)
+    
+    # interpolate 3d fields to pressure levels
+    pressure_level_data = ["temp", "w", "sphum", "ucomp", "vcomp"]
+    ds_interp = xr.Dataset()
+    for var in pressure_level_data:
+        ds_interp[var] = vcm.interpolate_to_pressure_levels(
+            field=ds[var],
+            delp=ds["delp"]
+        )
+    return ds_interp, verification_c48, grid_c48
 
 
 def load_dycore(

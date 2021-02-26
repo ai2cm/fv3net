@@ -313,6 +313,7 @@ def diurnal_component_plot(
 timeseries_plot_manager = PlotManager()
 zonal_mean_plot_manager = PlotManager()
 hovmoller_plot_manager = PlotManager()
+zonal_pressure_plot_manager = PlotManager()
 diurnal_plot_manager = PlotManager()
 # this will be passed the data from the metrics.json files
 metrics_plot_manager = PlotManager()
@@ -359,6 +360,11 @@ def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot
     )
 
 
+@zonal_pressure_plot_manager.register
+def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_2d
+
+
 @diurnal_plot_manager.register
 def diurnal_cycle_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     return plot_1d_with_region_bar(diagnostics, varfilter="diurnal")
@@ -384,6 +390,7 @@ def rmse_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
 @metrics_plot_manager.register
 def drift_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
     return generic_metric_plot(metrics, "drift")
+
 
 
 def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
