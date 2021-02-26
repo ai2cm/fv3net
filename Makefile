@@ -43,11 +43,11 @@ deploy_docs_%:
 
 ## Deploy documentation for fv3net to vulcanclimatemodeling.com
 deploy_docs_fv3net:
-	mkdir -p docs/_build/html
-	# use tar to grab already-built docs from inside the docker image and extract them to "./html"
-	# will have one docker and gsutil command for each project whose docs are built in the fv3net image
-	docker run us.gcr.io/vcm-ml/fv3net:$(VERSION) tar -C docs/_build/html -c . | tar -C docs/_build/html -x
-	gsutil -m rsync -R docs/_build/html gs://vulcanclimatemodeling-com-static/docs/fv3net
+	mkdir -p fv3net_docs
+	# use tar to grab already-built docs from inside the docker image and extract them to "./fv3net_docs"
+	docker run us.gcr.io/vcm-ml/fv3net:$(VERSION) tar -C fv3net_docs -c . | tar -C fv3net_docs -x
+	gsutil -m rsync -R fv3net_docs gs://vulcanclimatemodeling-com-static/docs
+	rm -rf fv3net_docs
 
 ## Deploy documentation for fv3fit to vulcanclimatemodeling.com
 deploy_docs_fv3fit:
@@ -64,7 +64,6 @@ deploy_docs_prognostic_run:
 	docker run us.gcr.io/vcm-ml/prognostic_run tar -C docs/_build/html  -c . | tar -C html -x
 	gsutil -m rsync -R html gs://vulcanclimatemodeling-com-static/docs/prognostic_c48_run
 	rm -rf html
-
 
 ############################################################
 # Local Kubernetes
