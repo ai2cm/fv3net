@@ -77,7 +77,7 @@ RUN cp -r $FV3NET/docs/_build/html fv3net_docs/fv3net
 RUN cp -r $FV3NET/external/fv3viz/docs/_build/html fv3net_docs/fv3viz
 RUN cp -r $FV3NET/external/loaders/docs/_build/html fv3net_docs/loaders
 RUN cp -r $FV3NET/workflows/prognostic_run_diags/docs/_build/html fv3net_docs/prognostic_run_diags
-RUN cp -R $FV3NET/external/vcm/docs/_build/html fv3net_docs/vcm
+RUN cp -r $FV3NET/external/vcm/docs/_build/html fv3net_docs/vcm
 
 # add development tools
 USER root
