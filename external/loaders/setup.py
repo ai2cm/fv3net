@@ -19,6 +19,7 @@ setup(
         "zarr>=2.4.0",
         "joblib>=0.16.0",
         "vcm",
+        "m2r2",
     ],
     dependency_links=["../vcm"],
 )

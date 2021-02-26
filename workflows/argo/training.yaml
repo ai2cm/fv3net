@@ -56,7 +56,7 @@ spec:
       tolerations:
       - key: "dedicated"
         operator: "Equal"
-        value: "climate-sim-pool"
+        value: "med-sim-pool"
         effect: "NoSchedule"      
       podSpecPatch: |
         containers:

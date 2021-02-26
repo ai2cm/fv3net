@@ -33,13 +33,6 @@ fortran_diagnostics:
 - chunks:
     time: 8
   name: atmos_8xdaily.zarr
-- chunks:
-    time: 8
-  name: nudging_tendencies.zarr
-gfs_analysis_data:
-  copy_method: copy
-  filename_pattern: '%Y%m%d_%HZ_T85LR.nc'
-  url: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
 initial_conditions:
 - copy_method: copy
   source_location: gs://ic-bucket/20160805.000000
@@ -309,7 +302,7 @@ namelist:
     npy: 49
     npz: 79
     ntiles: 6
-    nudge: true
+    nudge: false
     nudge_qv: true
     nwat: 6
     p_fac: 0.1
@@ -325,66 +318,6 @@ namelist:
     warm_start: true
     z_tracer: true
   fv_grid_nml: {}
-  fv_nwp_nudge_nml:
-    add_bg_wind: false
-    do_ps_bias: false
-    file_names:
-    - INPUT/20160805_00Z_T85LR.nc
-    - INPUT/20160805_06Z_T85LR.nc
-    - INPUT/20160805_12Z_T85LR.nc
-    - INPUT/20160805_18Z_T85LR.nc
-    - INPUT/20160806_00Z_T85LR.nc
-    - INPUT/20160806_06Z_T85LR.nc
-    - INPUT/20160806_12Z_T85LR.nc
-    - INPUT/20160806_18Z_T85LR.nc
-    - INPUT/20160807_00Z_T85LR.nc
-    - INPUT/20160807_06Z_T85LR.nc
-    - INPUT/20160807_12Z_T85LR.nc
-    - INPUT/20160807_18Z_T85LR.nc
-    - INPUT/20160808_00Z_T85LR.nc
-    - INPUT/20160808_06Z_T85LR.nc
-    - INPUT/20160808_12Z_T85LR.nc
-    - INPUT/20160808_18Z_T85LR.nc
-    - INPUT/20160809_00Z_T85LR.nc
-    - INPUT/20160809_06Z_T85LR.nc
-    - INPUT/20160809_12Z_T85LR.nc
-    - INPUT/20160809_18Z_T85LR.nc
-    - INPUT/20160810_00Z_T85LR.nc
-    - INPUT/20160810_06Z_T85LR.nc
-    - INPUT/20160810_12Z_T85LR.nc
-    - INPUT/20160810_18Z_T85LR.nc
-    - INPUT/20160811_00Z_T85LR.nc
-    - INPUT/20160811_06Z_T85LR.nc
-    - INPUT/20160811_12Z_T85LR.nc
-    - INPUT/20160811_18Z_T85LR.nc
-    - INPUT/20160812_00Z_T85LR.nc
-    - INPUT/20160812_06Z_T85LR.nc
-    - INPUT/20160812_12Z_T85LR.nc
-    - INPUT/20160812_18Z_T85LR.nc
-    - INPUT/20160813_00Z_T85LR.nc
-    - INPUT/20160813_06Z_T85LR.nc
-    - INPUT/20160813_12Z_T85LR.nc
-    - INPUT/20160813_18Z_T85LR.nc
-    - INPUT/20160814_00Z_T85LR.nc
-    - INPUT/20160814_06Z_T85LR.nc
-    - INPUT/20160814_12Z_T85LR.nc
-    - INPUT/20160814_18Z_T85LR.nc
-    - INPUT/20160815_00Z_T85LR.nc
-    ibtrack: true
-    k_breed: 10
-    kbot_winds: 0
-    mask_fac: 0.2
-    nf_ps: 3
-    nf_t: 3
-    nudge_debug: true
-    r_hi: 5.0
-    r_lo: 3.0
-    r_min: 225000.0
-    t_is_tv: false
-    tc_mask: true
-    time_varying: false
-    track_file_name: No_File_specified
-    use_high_top: true
   gfdl_cloud_microphysics_nml:
     c_cracw: 0.8
     c_paut: 0.5
@@ -471,7 +404,6 @@ namelist:
     shal_cnv: true
     swhtr: true
     trans_trac: true
-    use_analysis_sst: true
     use_ufo: true
   interpolator_nml:
     interp_method: conserve_great_circle
@@ -522,212 +454,6 @@ namelist:
     ldebug: false
 nudging: null
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
-patch_files:
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160805_00Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160805_00Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160805_06Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160805_06Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160805_12Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160805_12Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160805_18Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160805_18Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160806_00Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160806_00Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160806_06Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160806_06Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160806_12Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160806_12Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160806_18Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160806_18Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160807_00Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160807_00Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160807_06Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160807_06Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160807_12Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160807_12Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160807_18Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160807_18Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160808_00Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160808_00Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160808_06Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160808_06Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160808_12Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160808_12Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160808_18Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160808_18Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160809_00Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160809_00Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160809_06Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160809_06Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160809_12Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160809_12Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160809_18Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160809_18Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160810_00Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160810_00Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160810_06Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160810_06Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160810_12Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160810_12Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160810_18Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160810_18Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160811_00Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160811_00Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160811_06Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160811_06Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160811_12Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160811_12Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160811_18Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160811_18Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160812_00Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160812_00Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160812_06Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160812_06Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160812_12Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160812_12Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160812_18Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160812_18Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160813_00Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160813_00Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160813_06Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160813_06Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160813_12Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160813_12Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160813_18Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160813_18Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160814_00Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160814_00Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160814_06Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160814_06Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160814_12Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160814_12Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160814_18Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160814_18Z_T85LR.nc
-- copy_method: copy
-  source_location: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-  source_name: 20160815_00Z_T85LR.nc
-  target_location: INPUT
-  target_name: 20160815_00Z_T85LR.nc
 scikit_learn:
   diagnostic_ml: false
   input_standard_names: {}

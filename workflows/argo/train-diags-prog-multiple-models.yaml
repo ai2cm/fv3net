@@ -14,10 +14,6 @@ spec:
     emptyDir:
       medium: Memory
   serviceAccountName: integration-tests
-  tolerations:
-    - effect: NoSchedule
-      key: dedicated
-      value: climate-sim-pool
   templates:
   - name: all
     inputs:
