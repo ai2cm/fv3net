@@ -27,6 +27,8 @@ from toolz import curry
 from collections import defaultdict
 from typing import Dict, Callable, Mapping, Union
 
+from joblib import Parallel, delayed
+
 import vcm.catalog
 
 from fv3net.diagnostics.prognostic_run import load_diagnostic_data as load_diags
@@ -129,7 +131,7 @@ def add_to_diags(
     return func
 
 
-def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
+def compute_all_diagnostics(input_datasets: Dict[str, DiagArg], n_jobs: int = 1) -> DiagDict:
     """
     Compute all diagnostics for input data.
 
@@ -144,17 +146,26 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
     diags = {}
     logger.info("Computing all diagnostics")
 
-    for key, input_args in input_datasets.items():
-
-        if key not in _DIAG_FNS:
-            raise KeyError(f"No target diagnostics found for input data group: {key}")
-
-        for func in _DIAG_FNS[key]:
-            current_diags = func(*input_args)
-            load_diags.warn_on_overwrite(diags.keys(), current_diags.keys())
-            diags.update(current_diags)
+    single_diags = Parallel(n_jobs=-1, verbose=True)(
+        delayed(_compute_diag)(diag_func, input_args)
+        for diag_func, input_args in _generate_diag_funcs(input_datasets))
+    for diag in single_diags:
+        load_diags.warn_on_overwrite(diags.keys(), single_diags.keys())
+        diags.update(single_diags)
 
     return diags
+
+
+def _compute_diag(func, input_args):
+    return {key: diag.load() for key, diag in func(*input_args).items()}
+    
+
+def _generate_diag_funcs(input_datasets):
+    for key, input_args in input_datasets.items():
+        if key not in _DIAG_FNS:
+            raise KeyError(f"No target diagnostics found for input data group: {key}")
+        for func in _DIAG_FNS[key]:
+            yield func, input_args
 
 
 def rms(x, y, w, dims):
