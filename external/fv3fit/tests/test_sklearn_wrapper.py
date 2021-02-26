@@ -1,8 +1,10 @@
 import numpy as np
 from sklearn.linear_model import LinearRegression
+from sklearn.dummy import DummyRegressor
 import unittest.mock
 import pytest
 import xarray as xr
+import joblib
 
 from fv3fit.sklearn._wrapper import RegressorEnsemble, pack, SklearnWrapper
 from fv3fit._shared.scaler import ManualScaler
@@ -185,3 +187,31 @@ def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
     loaded.fit([data])
 
     assert len(loaded.model.regressors) == 2
+
+
+def test_predict_columnwise_is_deterministic(regtest):
+    """Tests that fitting/predicting with a model is deterministic
+
+    If this fails, look for non-deterministic logic (e.g. converting sets to lists)
+    """
+    nz = 2
+    model = RegressorEnsemble(
+        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz))
+    )
+    wrapper = SklearnWrapper(
+        sample_dim_name="sample",
+        input_variables=["a"],
+        output_variables=["b"],
+        model=model,
+        target_scaler=None,
+    )
+
+    dims = ["x", "y", "z"]
+    shape = (2, 2, nz)
+    arr = np.arange(np.prod(shape)).reshape(shape)
+    data = xr.Dataset({"a": (dims, arr), "b": (dims, arr + 1)})
+    stacked = data.stack(sample=["x", "y"]).transpose("sample", "z")
+    wrapper.fit([stacked])
+
+    output = wrapper.predict_columnwise(data, feature_dim="z")
+    print(joblib.hash(np.asarray(output["b"])), file=regtest)
