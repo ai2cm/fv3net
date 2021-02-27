@@ -10,10 +10,14 @@ from runtime.diagnostics.manager import (
     FortranFileConfig,
     DiagnosticFileConfig,
     DiagnosticFile,
+)
+from runtime.diagnostics.time import (
     TimeConfig,
     All,
     TimeContainer,
+    IntervalTimes,
     IntervalAveragedTimes,
+    SelectedTimes,
 )
 
 
@@ -25,13 +29,13 @@ from runtime.diagnostics.manager import (
     ],
 )
 def test_SelectedTimes(time_stamp):
-    times = manager.SelectedTimes([time_stamp])
+    times = SelectedTimes([time_stamp])
     time = datetime(year=2016, month=8, day=1, hour=0, minute=0, second=0)
     assert time in times
 
 
 def test_SelectedTimes_not_in_list():
-    times = manager.SelectedTimes(["20160801.000000"])
+    times = SelectedTimes(["20160801.000000"])
     time = datetime(year=2016, month=8, day=1, hour=0, minute=0, second=1)
     assert time not in times
 
@@ -65,7 +69,7 @@ august_2 = datetime(year=2016, month=8, day=2, hour=0, minute=0)
     ],
 )
 def test_IntervalTimes(frequency, time, initial_time, expected):
-    times = manager.IntervalTimes(frequency, initial_time)
+    times = IntervalTimes(frequency, initial_time)
     assert (time in times) == expected
 
 
