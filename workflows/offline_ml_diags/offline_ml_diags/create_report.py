@@ -207,14 +207,24 @@ if __name__ == "__main__":
         )
 
     # column integrated quantity diurnal cycles
-    for tag, var_group in {
-        "Q1_components": ["column_integrated_dQ1", "column_integrated_Q1"],
-        "Q2_components": ["column_integrated_dQ2", "column_integrated_Q2"],
-        "surface_radiation": ["column_integrated_DRFsfc_bias"],
-    }.items():
+
+    diurnal_groups = {}
+    diurnal_groups["Q1_components"] = [
+        var for var in ds_diurnal.data_vars if "Q1" in var
+    ]
+    diurnal_groups["Q2_components"] = [
+        var for var in ds_diurnal.data_vars if "Q2" in var
+    ]
+    diurnal_groups["other_components"] = list(
+        set(ds_diurnal.data_vars)
+        - set(diurnal_groups["Q1_components"])
+        - set(diurnal_groups["Q2_components"])
+    )
+
+    for tag, var_group in diurnal_groups.items():
         fig = diagplot.plot_diurnal_cycles(
             ds_diurnal,
-            vars=var_group,
+            vars_=var_group,
             derivation_plot_coords=ds_diurnal[DERIVATION_DIM].values,
         )
         insert_report_figure(

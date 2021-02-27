@@ -79,21 +79,21 @@ def plot_column_integrated_var(
 
 def plot_diurnal_cycles(
     ds_diurnal: xr.Dataset,
-    vars: Sequence[str],
+    vars_: Sequence[str],
     derivation_plot_coords: Sequence[str],
     dpi: int = 100,
 ):
     ds_diurnal = ds_diurnal.sel(derivation=derivation_plot_coords)
-    if len(vars) > 1:
+    if len(vars_) > 1:
         facetgrid = (
-            ds_diurnal[vars]
+            ds_diurnal[vars_]
             .squeeze()
             .to_array()
             .plot(hue="derivation", row="variable", col="surface_type")
         )
-    elif len(vars) == 1:
+    elif len(vars_) == 1:
         facetgrid = (
-            ds_diurnal[vars]
+            ds_diurnal[vars_]
             .squeeze()
             .to_array()
             .plot(hue="derivation", col="surface_type")
@@ -104,10 +104,10 @@ def plot_diurnal_cycles(
     for ax in axes.flatten():
         ax.grid(axis="y")
         ax.set_xlabel("local_time [hrs]")
-        ax.set_ylabel(_units_from_Q_name(vars[0]))
+        ax.set_ylabel(_units_from_Q_name(vars_[0]))
         ax.set_xlim([0, 23])
         ax.set_xticks(np.linspace(0, 24, 13))
-    f.set_size_inches([12, 4 * len(vars)])
+    f.set_size_inches([12, 4 * len(vars_)])
     f.set_dpi(dpi)
     f.tight_layout()
     return f
