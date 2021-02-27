@@ -2,14 +2,18 @@
 """
 import dataclasses
 import logging
-from typing import Hashable, Iterable, Mapping, Sequence, Set, Tuple, cast
+from typing import Hashable, Iterable, Mapping, Sequence, Set, Tuple, cast, Any
 
 import fv3fit
 import runtime
 import xarray as xr
+from toolz.dicttoolz import dissoc
 from runtime.names import DELP, SPHUM
 from runtime.types import Diagnostics, State
 from vcm import thermo
+import vcm.derived_mapping
+from runtime.names import TENDENCY_TO_STATE_NAME
+
 
 __all__ = ["MachineLearningConfig", "PureMLStepper", "open_model"]
 
@@ -17,6 +21,18 @@ __all__ = ["MachineLearningConfig", "PureMLStepper", "open_model"]
 logger = logging.getLogger(__name__)
 
 NameDict = Mapping[Hashable, Hashable]
+
+
+def add_tendency(state: Any, tendency: State, dt: float) -> State:
+    """Given state and tendency prediction, return updated state.
+    Returned state only includes variables updated by ML model."""
+
+    with xr.set_options(keep_attrs=True):
+        updated = {}
+        for name in tendency:
+            state_name = TENDENCY_TO_STATE_NAME.get(name, name)
+            updated[state_name] = state[state_name] + tendency[name] * dt
+    return updated  # type: ignore
 
 
 @dataclasses.dataclass
@@ -197,3 +213,42 @@ class PureMLStepper:
 
     def get_momentum_diagnostics(self, state, tendency):
         return runtime.compute_ml_momentum_diagnostics(state, tendency)
+
+
+def maybe_get(d, keys):
+    out = {}
+    for key in keys:
+        try:
+            out[key] = d[key]
+        except KeyError:
+            pass
+    return out
+
+
+class EmulatorStepper:
+
+    net_moistening = "net_moistening_emulator"
+
+    def __init__(self, model: MultiModelAdapter, timestep: float):
+        self.model = model
+        self.timestep = timestep
+
+    def __call__(self, time, state):
+
+        state1 = maybe_get(state, self.model.input_variables)
+        time, lat, lon = xr.DataArray(time), state["latitude"], state["longitude"]
+        time, lat, lon = xr.broadcast(time, lat, lon)
+        state1["time"] = time
+        state1["lon"] = lon
+        state1["lat"] = lat
+        derived_state1 = vcm.derived_mapping.DerivedMapping(state1)
+        state2 = {key: derived_state1[key] for key in self.model.input_variables}
+        tendency = predict(self.model, state2)
+        state_updates = add_tendency(state2, tendency, dt=self.timestep)
+        return {}, {}, state_updates
+
+    def get_diagnostics(self, state, tendency):
+        return {}
+
+    def get_momentum_diagnostics(self, state, tendency):
+        return {}

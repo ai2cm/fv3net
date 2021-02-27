@@ -68,3 +68,9 @@ def get_mock_keras_model() -> fv3fit.Predictor:
     model = DummyModel("sample", input_variables, output_variables)
     model.fit([_model_dataset()])
     return model
+
+
+def get_emulator() -> fv3fit.Predictor:
+    return fv3fit.load(
+        "gs://vcm-ml-scratch/andrep/all-physics-emu/model_for_prognostic/"
+    )

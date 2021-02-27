@@ -14,6 +14,7 @@ from runtime.config import UserConfig, get_namelist
 from runtime.diagnostics.machine_learning import (
     compute_baseline_diagnostics,
     rename_diagnostics,
+    add_tendency,
 )
 from runtime.diagnostics.machine_learning import (
     precipitation_rate,
@@ -62,6 +63,14 @@ def global_average(comm, array: xr.DataArray, area: xr.DataArray) -> float:
         return -1
 
 
+class Emulator:
+    def __call__(self, state):
+        tendency = self.emulator.predict_columnwise(state, dim="z")
+        self._state_to_apply_after_physics = add_tendency(
+            state, tendency, dt=self._timestep
+        )
+
+
 class Stepper(Protocol):
     """Stepper interface
 
@@ -100,18 +109,6 @@ class Stepper(Protocol):
         is mostly very similar
         """
         return {}
-
-
-def add_tendency(state: Any, tendency: State, dt: float) -> State:
-    """Given state and tendency prediction, return updated state.
-    Returned state only includes variables updated by ML model."""
-
-    with xr.set_options(keep_attrs=True):
-        updated = {}
-        for name in tendency:
-            state_name = TENDENCY_TO_STATE_NAME.get(name, name)
-            updated[state_name] = state[state_name] + tendency[name] * dt
-    return updated  # type: ignore
 
 
 class LoggingMixin:
@@ -282,12 +279,23 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
     def _substeps(self) -> Sequence[Callable[..., Diagnostics]]:
         return [
             self._step_dynamics,
+            self._compute_emulator,
             self._compute_physics,
             self._apply_python_to_physics_state,
             self._apply_physics,
+            self._apply_emulator,
             self._compute_python_updates,
             self._apply_python_to_dycore_state,
         ]
+
+    def _compute_emulator(self):
+        tendency = predict()
+        self._state_to_apply_after_physics = add_tendency(
+            self._state, tendency, dt=self._timestep
+        )
+
+    def _apply_emulator(self):
+        self._state.update(self._state_to_apply_after_physics)
 
     def _apply_python_to_physics_state(self) -> Diagnostics:
         """Apply computed tendencies and state updates to the physics state
