@@ -55,6 +55,21 @@ _DIAG_FNS = defaultdict(list)
 DiagDict = Mapping[str, xr.DataArray]
 
 
+def _start_logger_if_necessary():
+    # workaround for joblib.Parallel logging from
+    # https://github.com/joblib/joblib/issues/1017
+    logger = logging.getLogger("SaveDiags")
+    if len(logger.handlers) == 0:
+        logger.setLevel(logging.INFO)
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter("%(asctime)s %(levelname)-8s %(message)s"))
+        fh = logging.FileHandler('out.log', mode='w')
+        fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)-8s %(message)s"))
+        logger.addHandler(sh)
+        logger.addHandler(fh)
+    return logger
+
+
 def _prepare_diag_dict(
     suffix: str, new_diags: xr.Dataset, src_ds: xr.Dataset
 ) -> DiagDict:
@@ -145,7 +160,6 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
 
     diags = {}
     logger.info("Computing all diagnostics")
-
     single_diags = Parallel(n_jobs=-1, verbose=True)(
         delayed(_compute_diag)(diag_func, input_args)
         for diag_func, input_args in _generate_diag_funcs(input_datasets))
@@ -157,6 +171,7 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
 
 
 def _compute_diag(func, input_args):
+    _start_logger_if_necessary()
     return {key: diag.load() for key, diag in func(*input_args).items()}
     
 
