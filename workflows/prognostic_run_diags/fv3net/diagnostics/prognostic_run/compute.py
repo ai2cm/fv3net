@@ -131,7 +131,7 @@ def add_to_diags(
     return func
 
 
-def compute_all_diagnostics(input_datasets: Dict[str, DiagArg], n_jobs: int = 1) -> DiagDict:
+def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
     """
     Compute all diagnostics for input data.
 
@@ -149,9 +149,9 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg], n_jobs: int = 1)
     single_diags = Parallel(n_jobs=-1, verbose=True)(
         delayed(_compute_diag)(diag_func, input_args)
         for diag_func, input_args in _generate_diag_funcs(input_datasets))
-    for diag in single_diags:
-        load_diags.warn_on_overwrite(diags.keys(), single_diags.keys())
-        diags.update(single_diags)
+    for single_diag in single_diags:
+        load_diags.warn_on_overwrite(diags.keys(), single_diag.keys())
+        diags.update(single_diag)
 
     return diags
 
