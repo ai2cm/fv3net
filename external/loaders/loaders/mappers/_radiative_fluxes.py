@@ -3,7 +3,6 @@ import warnings
 import xarray as xr
 import intake
 from vcm.catalog import catalog as CATALOG
-import os
 from typing import (
     Hashable,
     Mapping,
@@ -45,50 +44,24 @@ def open_n2f_radiative_flux_biases(
     Returns:
         mapper to LW and SW surface radiative flux biases and model state data
     """
-    coarse_dswrf_sfc, coarse_swnetrf_sfc, coarse_dlwrf_sfc = _get_coarse_fluxes(
-        url, "sfc_dt_atmos.zarr", consolidated=consolidated
-    )
     verif_dswrf_sfc, verif_swnetrf_sfc, verif_dlwrf_sfc = _get_verification_fluxes(
         CATALOG, verification
     )
-    dswrf_sfc_bias = (verif_dswrf_sfc - coarse_dswrf_sfc).assign_attrs(
-        {
-            "long_name": "downward shortwave surface flux bias (fine minus coarse)",
-            "units": "W/m^2",
-        }
-    )
-    swnetrf_sfc_bias = (verif_swnetrf_sfc - coarse_swnetrf_sfc).assign_attrs(
-        {
-            "long_name": (
-                "net shortwave surface flux bias (down minus up, fine minus coarse)"
-            ),
-            "units": "W/m^2",
-        }
-    )
-    dlwrf_sfc_bias = (verif_dlwrf_sfc - coarse_dlwrf_sfc).assign_attrs(
-        {
-            "long_name": "downward longwave surface flux bias (fine minus coarse)",
-            "units": "W/m^2",
-        }
-    )
-    surface_albedo = ((coarse_dswrf_sfc - coarse_swnetrf_sfc) / coarse_dswrf_sfc).mean(
-        dim=["time"]
-    )
+    verif_dswrf_sfc_mean = verif_dswrf_sfc.mean(dim="time")
+    surface_albedo = (
+        verif_dswrf_sfc_mean - verif_swnetrf_sfc.mean(dim="time")
+    ) / verif_dswrf_sfc_mean
     mean_albedo = surface_albedo.mean().values
     surface_albedo = (
         surface_albedo.fillna(mean_albedo)
-        .broadcast_like(dlwrf_sfc_bias)
+        .broadcast_like(verif_dswrf_sfc)
         .assign_attrs({"long_name": "surface albedo (coarse)", "units": "-"})
     )
     sfc_biases_ds = xr.Dataset(
         {
-            "DSWRFsfc_bias": dswrf_sfc_bias,
-            "NSWRFsfc_bias": swnetrf_sfc_bias,
-            "DLWRFsfc_bias": dlwrf_sfc_bias,
-            "DSWRFsfc": coarse_dswrf_sfc,
             "DSWRFsfc_verif": verif_dswrf_sfc,
-            "NSWRFsfc": coarse_swnetrf_sfc,
             "NSWRFsfc_verif": verif_swnetrf_sfc,
+            "DLWRFsfc_verif": verif_dlwrf_sfc,
             "surface_albedo": surface_albedo,
         }
     )
@@ -97,17 +70,6 @@ def open_n2f_radiative_flux_biases(
         url, **open_nudge_to_fine_kwargs, consolidated=consolidated
     )
     return MergeNudged(nudge_to_fine_mapper, sfc_biases_mapper)
-
-
-def _get_coarse_fluxes(url: str, source: str, consolidated: bool = True) -> xr.Dataset:
-    ds = intake.open_zarr(
-        os.path.join(url, f"{source}"), consolidated=consolidated
-    ).to_dask()
-    ds = standardize_gfsphysics_diagnostics(ds)
-    swnetrf_sfc = (ds["DSWRFsfc"] - ds["USWRFsfc"]).assign_attrs(
-        {"long_name": "net shortwave surface flux (down minus up)", "units": "W/m^2"}
-    )
-    return ds["DSWRFsfc"], swnetrf_sfc, ds["DLWRFsfc"]
 
 
 def _get_verification_fluxes(catalog: intake.catalog, verification: str) -> xr.Dataset:
