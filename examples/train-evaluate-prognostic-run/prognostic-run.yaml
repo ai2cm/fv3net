@@ -11,3 +11,36 @@ namelist:
     do_sat_adj: false
   gfdl_cloud_microphysics_nml:
     fast_sat_adj: false
+fortran_diagnostics:
+- name: sfc_dt_atmos.zarr
+  chunks:
+    time: 96
+- name: atmos_dt_atmos.zarr
+  chunks:
+    time: 96
+- name: atmos_8xdaily.zarr
+  chunks:
+    time: 8
+diagnostics:
+- name: diags.zarr
+  chunks:
+    time: 96
+  times:
+    frequency: 900
+    kind: interval
+  variables:
+  - net_moistening
+  - net_heating
+  - total_precipitation_rate
+  - water_vapor_path
+  - physics_precip
+  - column_integrated_dQu
+  - column_integrated_dQv
+step_storage_variables:
+- specific_humidity
+- total_water
+step_tendency_variables:
+- specific_humidity
+- air_temperature
+- eastward_wind
+- northward_wind
