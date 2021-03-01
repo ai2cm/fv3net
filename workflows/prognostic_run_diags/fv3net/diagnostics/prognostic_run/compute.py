@@ -451,24 +451,29 @@ def time_mean_biases_dycore(prognostic, verification, grid):
 
 
 for mask_type in ["global", "land", "sea"]:
+    for var in DIURNAL_CYCLE_VARS:
 
-    @add_to_diags("physics")
-    @diag_finalizer(f"diurnal_{mask_type}")
-    @transform.apply("mask_to_sfc_type", mask_type)
-    @transform.apply("resample_time", "1H", time_slice=slice(24, -1), inner_join=True)
-    @transform.apply("subset_variables", DIURNAL_CYCLE_VARS)
-    def _diurnal_func(
-        prognostic, verification, grid, mask_type=mask_type
-    ) -> xr.Dataset:
-        # mask_type is added as a kwarg solely to give the logging access to the info
-        logger.info(
-            f"Computing diurnal cycle info for physics variables with mask={mask_type}"
+        @add_to_diags("physics")
+        @diag_finalizer(f"diurnal_{mask_type}")
+        @transform.apply("mask_to_sfc_type", mask_type)
+        @transform.apply(
+            "resample_time", "1H", time_slice=slice(24, -1), inner_join=True
         )
-        if len(prognostic.time) == 0:
-            return xr.Dataset({})
-        else:
-            diag = diurnal_cycle.calc_diagnostics(prognostic, verification, grid).load()
-            return _assign_diagnostic_time_attrs(diag, prognostic)
+        @transform.apply("subset_variables", [var])
+        def _diurnal_func(
+            prognostic, verification, grid, mask_type=mask_type
+        ) -> xr.Dataset:
+            # mask_type is added as a kwarg solely to give the logging access to the info
+            logger.info(
+                f"Computing diurnal cycle info for physics variables with mask={mask_type}"
+            )
+            if len(prognostic.time) == 0:
+                return xr.Dataset({})
+            else:
+                diag = diurnal_cycle.calc_diagnostics(
+                    prognostic, verification, grid
+                ).load()
+                return _assign_diagnostic_time_attrs(diag, prognostic)
 
 
 def register_parser(subparsers):
