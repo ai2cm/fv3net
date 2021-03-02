@@ -5,12 +5,8 @@ from unittest.mock import Mock
 import pytest
 import xarray as xr
 
-from runtime.diagnostics import manager
-from runtime.diagnostics.manager import (
-    FortranFileConfig,
-    DiagnosticFileConfig,
-    DiagnosticFile,
-)
+from runtime.diagnostics.fortran import FortranFileConfig
+from runtime.diagnostics.manager import DiagnosticFileConfig, DiagnosticFile, get_chunks
 from runtime.diagnostics.time import (
     TimeConfig,
     All,
@@ -253,5 +249,5 @@ def test_TimeConfig_interval_average_endpoint():
     ],
 )
 def test_get_chunks(fortran_diagnostics, diagnostics, expected_chunks):
-    chunks = manager.get_chunks(fortran_diagnostics + diagnostics)
+    chunks = get_chunks(fortran_diagnostics + diagnostics)
     assert chunks == expected_chunks

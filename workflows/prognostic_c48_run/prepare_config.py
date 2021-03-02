@@ -2,10 +2,12 @@ import dataclasses
 import argparse
 import yaml
 import logging
-from typing import List
+from datetime import datetime
+from typing import List, Mapping, Sequence
 
 import dacite
 
+import fv3config
 import fv3kube
 
 from runtime import default_diagnostics
@@ -214,6 +216,19 @@ def _update_times(
     return diagnostic_files
 
 
+def _diag_table_overlay(
+    fortran_diagnostics: Sequence[FortranFileConfig],
+) -> Mapping[str, fv3config.DiagTable]:
+    file_configs = [
+        fortran_diagnostic.to_fv3config_diag_file_config()
+        for fortran_diagnostic in fortran_diagnostics
+    ]
+    diag_table = fv3config.DiagTable(
+        "prognostic_run", datetime(2000, 1, 1), file_configs=file_configs
+    )
+    return {"diag_table": diag_table}
+
+
 def prepare_config(args):
     # Get model config with prognostic run updates
     with open(args.user_config, "r") as f:
@@ -225,7 +240,10 @@ def prepare_config(args):
     final = _prepare_config_from_parsed_config(
         user_config, fv3config_config, dict_["base_version"], args
     )
-    print(yaml.dump(final))
+    # following should be handled by fv3config
+    if isinstance(final["diag_table"], fv3config.DiagTable):
+        final["diag_table"] = final["diag_table"].asdict()
+    print(yaml.safe_dump(final))
 
 
 def _prepare_config_from_parsed_config(
@@ -247,7 +265,7 @@ def _prepare_config_from_parsed_config(
         fv3kube.c48_initial_conditions_overlay(
             args.initial_condition_url, args.ic_timestep
         ),
-        {"diag_table": PROGNOSTIC_DIAG_TABLE},
+        _diag_table_overlay(user_config.fortran_diagnostics),
         SUPPRESS_RANGE_WARNINGS,
         dataclasses.asdict(user_config),
         fv3_config,
