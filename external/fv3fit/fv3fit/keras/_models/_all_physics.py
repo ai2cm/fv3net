@@ -107,7 +107,7 @@ def get_notebook_y_transform_func(model_path: str):
         _transforms.unstandardize(std_info),
     ]
 
-    return compose_left(*pipeline)    
+    return compose_left(*pipeline)
 
 
 def _load_stacker(stacker_path: str) -> _transforms.ArrayStacker:

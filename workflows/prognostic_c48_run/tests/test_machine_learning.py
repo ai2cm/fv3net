@@ -1,5 +1,5 @@
 from runtime.steppers.machine_learning import PureMLStepper, EmulatorStepper
-from machine_learning_mocks import get_mock_sklearn_model, get_emulator
+from machine_learning_mocks import get_mock_sklearn_model, get_mock_all_physics_emulator
 import xarray as xr
 from pathlib import Path
 import joblib
@@ -23,7 +23,7 @@ def checksum_xarray_dict(d):
 def state():
     INPUT_DATA = Path(__file__).parent / "input_data" / "inputs_4x4.nc"
     ds = xr.open_dataset(INPUT_DATA.as_posix())
-    return vcm.derived_mapping.DerivedMapping(ds)
+    return ds
 
 
 @pytest.fixture(params=["ml", "emulator"])
@@ -33,7 +33,8 @@ def stepper(request):
         model = get_mock_sklearn_model()
         return PureMLStepper(model, timestep)
     elif request.param == "emulator":
-        return EmulatorStepper(get_emulator(), timestep)
+        model = get_mock_all_physics_emulator()
+        return EmulatorStepper(model, timestep)
 
 
 def test_PureMLStepper_schema_unchanged(state, regtest, stepper):

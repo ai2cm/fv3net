@@ -14,13 +14,12 @@ from runtime.config import UserConfig, get_namelist
 from runtime.diagnostics.machine_learning import (
     compute_baseline_diagnostics,
     rename_diagnostics,
-    add_tendency,
 )
 from runtime.diagnostics.machine_learning import (
     precipitation_rate,
     precipitation_sum,
 )
-from runtime.steppers.machine_learning import PureMLStepper, open_model
+from runtime.steppers.machine_learning import PureMLStepper, open_model, add_tendency
 from runtime.steppers.nudging import PureNudger
 from runtime.types import Diagnostics, State, Tendencies
 from runtime.names import TENDENCY_TO_STATE_NAME
@@ -293,9 +292,11 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._state_to_apply_after_physics = add_tendency(
             self._state, tendency, dt=self._timestep
         )
+        return {}
 
     def _apply_emulator(self):
         self._state.update(self._state_to_apply_after_physics)
+        return {}
 
     def _apply_python_to_physics_state(self) -> Diagnostics:
         """Apply computed tendencies and state updates to the physics state

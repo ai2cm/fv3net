@@ -236,11 +236,7 @@ class EmulatorStepper:
     def __call__(self, time, state):
 
         state1 = maybe_get(state, self.model.input_variables)
-        time, lat, lon = xr.DataArray(time), state["latitude"], state["longitude"]
-        time, lat, lon = xr.broadcast(time, lat, lon)
         state1["time"] = time
-        state1["lon"] = lon
-        state1["lat"] = lat
         derived_state1 = vcm.derived_mapping.DerivedMapping(state1)
         state2 = {key: derived_state1[key] for key in self.model.input_variables}
         tendency = predict(self.model, state2)

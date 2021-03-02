@@ -69,6 +69,9 @@ class ArrayStacker:
 
     @classmethod
     def from_data(cls, dataset, variables_to_stack, feature_subselections=None):
+        if feature_subselections is None:
+            feature_subselections = {}
+
         init_kwargs = _get_ArrayStacker_args(
             variables_to_stack,
             dataset,

@@ -1,0 +1,35 @@
+xarray.Dataset {
+dimensions:
+	x = 4 ;
+	y = 4 ;
+	z = 63 ;
+
+variables:
+	float64 column_integrated_dQ1_change_non_neg_sphum_constraint(y, x) ;
+		column_integrated_dQ1_change_non_neg_sphum_constraint:long_name = column integrated heating ;
+		column_integrated_dQ1_change_non_neg_sphum_constraint:units = W/m**2 ;
+	float64 column_integrated_dQ2_change_non_neg_sphum_constraint(y, x) ;
+		column_integrated_dQ2_change_non_neg_sphum_constraint:units = kg/m^2/s ;
+	int64 rank_updated_points(z, y, x) ;
+
+// global attributes:
+}xarray.Dataset {
+dimensions:
+	x = 4 ;
+	y = 4 ;
+	z = 63 ;
+
+variables:
+	float64 dQ1(z, y, x) ;
+	float64 dQ2(z, y, x) ;
+	float64 dQu(z, y, x) ;
+	float64 dQv(z, y, x) ;
+
+// global attributes:
+}xarray.Dataset {
+dimensions:
+
+variables:
+
+// global attributes:
+}

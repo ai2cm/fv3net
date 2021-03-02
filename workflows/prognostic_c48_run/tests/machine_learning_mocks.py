@@ -1,10 +1,17 @@
 import numpy as np
 import xarray as xr
+import tensorflow as tf
+from toolz.functoolz import compose_left
 from sklearn.dummy import DummyRegressor
 
 import fv3fit
 from fv3fit.sklearn import RegressorEnsemble, SklearnWrapper
 from fv3fit.keras import DummyModel
+from fv3fit.keras._models import AllPhysicsEmulator
+from fv3fit._shared._transforms import stacking
+from fv3fit._shared._transforms import emu_transforms
+
+from runtime.loop import Emulator
 
 
 def _model_dataset() -> xr.Dataset:
@@ -70,7 +77,37 @@ def get_mock_keras_model() -> fv3fit.Predictor:
     return model
 
 
-def get_emulator() -> fv3fit.Predictor:
-    return fv3fit.load(
-        "gs://vcm-ml-scratch/andrep/all-physics-emu/model_for_prognostic/"
+def get_mock_all_physics_emulator() -> fv3fit.Predictor:
+
+    ds = _model_dataset()
+    input_variables = ["air_temperature", "specific_humidity"]
+    output_variables = ["dQ1", "dQ2"]
+
+    X_stacker = stacking.ArrayStacker.from_data(ds, input_variables)
+    y_stacker = stacking.ArrayStacker.from_data(ds, output_variables)
+
+    X_to_arr_func = compose_left(
+        emu_transforms.extract_ds_arrays,
+        X_stacker.stack,
     )
+
+    model = _get_dummy_tensorflow_model(X.feature_size, y.feature_size)
+
+    return AllPhysicsEmulator(
+        "sample",
+        input_variables,
+        output_variables,
+        model,
+        X_to_arr_func,
+        y_stacker.unstack,
+    )
+
+
+def _get_dummy_tensorflow_model(input_feature_size, output_feature_size):
+    identity_matrix = tf.eye(input_feature_size, output_feature_size)
+
+    input_ = tf.keras.layers.Input(input_feature_size)
+    output_ = tf.keras.layers.Lambda(lambda x: x @ identity_matrix)(input_)
+    model = tf.keras.Model(input_, output_)
+
+    return model
