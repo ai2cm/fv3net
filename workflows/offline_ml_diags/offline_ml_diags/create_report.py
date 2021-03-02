@@ -1,7 +1,5 @@
 import argparse
-import shutil
 import os
-import glob
 import atexit
 import logging
 import sys
@@ -12,6 +10,7 @@ import fv3viz
 import numpy as np
 from report import insert_report_figure
 import vcm
+from vcm.cloud import get_fs
 import diagnostics_utils.plot as diagplot
 from ._helpers import (
     get_metric_string,
@@ -46,12 +45,13 @@ logger = logging.getLogger("offline_diags_report")
 
 
 def copy_pngs_to_report(input: str, output: str) -> List[str]:
-    pngs = glob.glob(os.path.join(input, "*.png"))
+    fs = get_fs(input)
+    pngs = fs.glob(os.path.join(input, "*.png"))
     output_pngs = []
     if len(pngs) > 0:
         for png in pngs:
             relative_path = os.path.basename(png)
-            shutil.copy(png, os.path.join(output, relative_path))
+            fs.get(png, os.path.join(output, relative_path))
             output_pngs.append(relative_path)
     return output_pngs
 
@@ -132,7 +132,7 @@ if __name__ == "__main__":
         and ("r2" in var or "bias" in var)
         and "pressure" in ds_diags[var].dims
     ]
-    for var in zonal_avg_pressure_level_metrics:
+    for var in sorted(zonal_avg_pressure_level_metrics):
         vmin, vmax = (0, 1) if "r2" in var.lower() else (None, None)
         fig = diagplot.plot_zonal_average(
             data=ds_diags[var],
@@ -153,7 +153,7 @@ if __name__ == "__main__":
         for var in ds_diags.data_vars
         if var.startswith("pressure_level") and var.endswith("predict_vs_target")
     ]
-    for var in pressure_level_metrics:
+    for var in sorted(pressure_level_metrics):
         ylim = (0, 1) if "r2" in var.lower() else None
         fig = diagplot._plot_generic_data_array(
             ds_diags[var], xlabel="pressure [Pa]", ylim=ylim, title=tidy_title(var)
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     profiles = [
         var for var in ds_diags.data_vars if "dQ" in var and "z" in ds_diags[var].dims
     ] + ["Q1", "Q2"]
-    for var in profiles:
+    for var in sorted(profiles):
         derivation_plot_coords_kwarg = (
             {}
             if DERIVATION_DIM in ds_diags[var]
@@ -208,20 +208,20 @@ if __name__ == "__main__":
 
     # column integrated quantity diurnal cycles
 
-    diurnal_groups = {}
-    diurnal_groups["Q1_components"] = [
+    diurnal_groups = []
+    diurnal_groups.append(("Q1_components", [
         var for var in ds_diurnal.data_vars if "Q1" in var
-    ]
-    diurnal_groups["Q2_components"] = [
+    ]))
+    diurnal_groups.append(("Q2_components", [
         var for var in ds_diurnal.data_vars if "Q2" in var
-    ]
-    diurnal_groups["other_components"] = list(
+    ]))
+    diurnal_groups.append(("other_components", list(
         set(ds_diurnal.data_vars)
         - set(diurnal_groups["Q1_components"])
         - set(diurnal_groups["Q2_components"])
-    )
+    )))
 
-    for tag, var_group in diurnal_groups.items():
+    for tag, var_group in diurnal_groups:
         fig = diagplot.plot_diurnal_cycles(
             ds_diurnal,
             vars_=var_group,
@@ -236,7 +236,7 @@ if __name__ == "__main__":
         )
 
     # transect of predicted fields at lon=0 and snapshot time
-    for var in ds_transect:
+    for var in sorted(ds_transect.data_vars):
         fig = plot_transect(ds_transect[var])
         insert_report_figure(
             report_sections,
@@ -261,25 +261,26 @@ if __name__ == "__main__":
         )
 
     # scalar metrics for RMSE and bias
-    metrics_formatted = {}
+    metrics_formatted = []
     metrics = insert_scalar_metrics_r2(metrics, column_integrated_metrics)
-    for var in column_integrated_metrics:
-        metrics_formatted[var.replace("_", " ")] = {
+    for var in sorted(column_integrated_metrics):
+        values = {
             "r2": get_metric_string(metrics, "r2", var),
             "bias": " ".join(
                 [get_metric_string(metrics, "bias", var), units_from_Q_name(var)]
             ),
         }
+        metrics_formatted.append((var.replace("_", " "), values))
 
     for png in copy_pngs_to_report(args.input_path, temp_output_dir.name):
-        report_sections[png] = png
+        report_sections[png] = [png]
 
     write_report(
         temp_output_dir.name,
         "ML offline diagnostics",
         report_sections,
         metadata=config,
-        report_metrics=metrics_formatted,
+        report_metrics=dict(metrics_formatted),
     )
 
     copy_outputs(temp_output_dir.name, args.output_path)
