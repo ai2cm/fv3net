@@ -7,6 +7,7 @@ from typing import (
     cast,
     Mapping,
     Sequence,
+    Optional
 )
 import numpy as np
 import xarray as xr
@@ -47,8 +48,12 @@ class ArrayPacker:
         Args:
             sample_dim_name: dimension name to treat as the sample dimension
             pack_names: variable pack_names to pack
+            n_features: if given, use these feature counts instead of fitting
+                n_features on the data the first time to_array is called.
+            dims: if n_features is given, use these dimension names instead
+                of fitting on the data the first time to_array is called.
         """
-        self._pack_names = list(pack_names)
+        self._pack_names = list(str(name) for name in pack_names)
         self._n_features: Dict[str, int] = {}
         self._sample_dim_name = sample_dim_name
         self._dims: Dict[str, Iterable[str]] = {}
@@ -101,6 +106,13 @@ class ArrayPacker:
             for name in self.pack_names:
                 self._dims[name] = cast(Tuple[str], dataset[name].dims)
             self._coords = cast(Mapping[str, xr.IndexVariable], dataset.coords)
+        else:
+            features = count_features(self.pack_names, dataset, self._sample_dim_name)
+            for name in self.pack_names:
+                array_features = features[name]
+                expected_features = self._n_features[name]
+                if array_features != expected_features:
+                    raise ValueError(f"received array for {name} with {array_features} features, was expecting {expected_features}")
         for var in self.pack_names:
             if dataset[var].dims[0] != self.sample_dim_name:
                 dataset[var] = dataset[var].transpose()

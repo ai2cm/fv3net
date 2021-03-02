@@ -9,7 +9,6 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
         n_input: int,
         n_state: int,
         n_hidden_layers: int,
-        # tendency_regularizer=None,
         kernel_regularizer=None,
         tendency_ratio: float = 0.1,
         dropout: float = 0.0,
@@ -25,17 +24,13 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
         self.dropout = tf.keras.layers.Dropout(dropout)
         self.kernel_regularizer = kernel_regularizer
         self.lock_to_inputs = False
-        self.use_spectral_normalization = use_spectral_normalization
-        self.us = {}
         """Set to True to set the GCMCell state exactly to the states you provide it.
         
         If False, the difference between consecutive inputs is still used as a forcing,
         but the GCMCell state is allowed to diverge from the input state.
         """
-        # if tendency_regularizer is not None:
-        #     self.tendency_regularizer = tendency_regularizer
-        # else:
-        #     self.tendency_regularizer = tf.keras.regularizers.l2(0.)
+        self.use_spectral_normalization = use_spectral_normalization
+        self.us = {}
         super().__init__(**kwargs)
 
     @property
@@ -114,10 +109,12 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
         self.built = True
 
     def call(self, inputs, states, training=None):
+        # stepwise mode is used when constructing stepwise predictor model
         gcm_state = states[0]
         input_forcing, input_state_delta = inputs
-        # add tendencies from the host model
-        gcm_state = tf.add(gcm_state, input_state_delta)
+        if input_state_delta is not None:  # can be None when using stepwise model
+            # add tendencies from the host model
+            gcm_state = tf.add(gcm_state, input_state_delta)
         h = K.concatenate([input_forcing, gcm_state], axis=-1)
         for kernel, bias in self.dense_weights:
             if self.use_spectral_normalization:
@@ -137,6 +134,7 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
         )
         gcm_output = gcm_state + gcm_update
         return gcm_output, [gcm_output]
+
 
     def get_config(self):
         config = super().get_config()
@@ -159,3 +157,7 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
         obj = cls(**config)
         obj.lock_to_inputs = lock_to_inputs
         return obj
+
+
+class StepwiseGCMCell(tf.keras.layers.Layer):
+    pass
