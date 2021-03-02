@@ -1,14 +1,15 @@
 from typing import Iterable, TextIO, List, Dict, Tuple, cast, Mapping, Sequence
 import numpy as np
 import xarray as xr
+import pandas as pd
 import yaml
 
 
-def _unique_dim_name(data):
-    return "_".join(["feature"] + list(data.dims))
+def _unique_dim_name(data: xr.Dataset) -> str:
+    return "_".join(["feature"] + list(data.dims))  # type: ignore
 
 
-def pack(data, sample_dim):
+def pack(data: xr.Dataset, sample_dim: str) -> Tuple[np.ndarray, pd.MultiIndex]:
     feature_dim_name = _unique_dim_name(data)
     stacked = data.to_stacked_array(feature_dim_name, sample_dims=[sample_dim])
     return (
@@ -17,7 +18,9 @@ def pack(data, sample_dim):
     )
 
 
-def unpack(data: np.ndarray, sample_dim, feature_index):
+def unpack(
+    data: np.ndarray, sample_dim: str, feature_index: pd.MultiIndex
+) -> xr.Dataset:
     if len(data.shape) == 1:
         data = data[:, None]
     da = xr.DataArray(

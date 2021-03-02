@@ -1,9 +1,10 @@
 from fv3fit._shared import ArrayPacker
 from typing import Iterable
-from fv3fit._shared.packer import unpack_matrix
+from fv3fit._shared.packer import unpack_matrix, pack, unpack
 import pytest
 import numpy as np
 import xarray as xr
+import pandas as pd
 
 SAMPLE_DIM = "sample"
 FEATURE_DIM = "z"
@@ -14,9 +15,13 @@ DIM_LENGTHS = {
 }
 
 
-@pytest.fixture(params=["one_var", "two_2d_vars", "1d_and_2d"])
+@pytest.fixture(
+    params=["one_1d_var", "one_2d_var", "two_2d_vars", "1d_and_2d", "five_vars"]
+)
 def dims_list(request) -> Iterable[str]:
-    if request.param == "one_var":
+    if request.param == "one_1d_var":
+        return [[SAMPLE_DIM]]
+    elif request.param == "one_2d_var":
         return [[SAMPLE_DIM, FEATURE_DIM]]
     elif request.param == "two_2d_vars":
         return [
@@ -49,9 +54,10 @@ def dataset(names: Iterable[str], dims_list: Iterable[str]) -> xr.Dataset:
     data_vars = {}
     for i, (name, dims) in enumerate(zip(names, dims_list)):
         data_vars[name] = xr.DataArray(get_array(dims, i), dims=dims)
-    return xr.Dataset(
-        data_vars, coords={FEATURE_DIM: np.arange(DIM_LENGTHS[FEATURE_DIM])}
-    )
+    ds = xr.Dataset(data_vars)
+    if FEATURE_DIM in ds.dims:
+        ds = ds.assign_coords({FEATURE_DIM: np.arange(DIM_LENGTHS[FEATURE_DIM])})
+    return ds
 
 
 @pytest.fixture
@@ -118,3 +124,36 @@ def test_unpack_matrix():
     assert jacobian[("b", "c")].dims == ("c", "b")
     assert isinstance(jacobian[("b", "d")], xr.DataArray)
     assert jacobian[("b", "d")].dims == ("d", "b")
+
+
+@pytest.fixture
+def multi_index(names: Iterable[str], dims_list: Iterable[str]) -> pd.MultiIndex:
+    indices = []
+    levels = ["variable"]
+    for name, dims in zip(names, dims_list):
+        if FEATURE_DIM in dims:
+            feature_coord = np.arange(DIM_LENGTHS[FEATURE_DIM])
+            var_multi_index = pd.MultiIndex.from_product(
+                [[name], feature_coord], names=["variable", FEATURE_DIM]
+            )
+            levels = ["variable", FEATURE_DIM]
+        else:
+            var_multi_index = pd.MultiIndex.from_product([[name]], names=["variable"])
+        indices.extend(var_multi_index.to_flat_index())
+    multi_index = pd.MultiIndex.from_tuples(indices, names=levels)
+    return multi_index
+
+
+def test_sklearn_pack(
+    dataset: xr.Dataset, array: np.ndarray, multi_index: pd.MultiIndex
+):
+    packed_array, feature_index = pack(dataset, "sample")
+    np.testing.assert_almost_equal(packed_array, array)
+    pd.testing.assert_index_equal(feature_index, multi_index)
+
+
+def test_sklearn_unpack(
+    array: np.ndarray, multi_index: pd.MultiIndex, dataset: xr.Dataset
+):
+    unpacked_dataset = unpack(array, "sample", multi_index)
+    xr.testing.assert_allclose(unpacked_dataset, dataset)
