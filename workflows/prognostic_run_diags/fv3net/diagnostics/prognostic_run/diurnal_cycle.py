@@ -38,8 +38,10 @@ def _calc_ds_diurnal_cycle(ds):
 
     local_time = np.floor(local_time)  # equivalent to hourly binning
     ds["local_time"] = local_time
-    diurnal_cycles = ds.groupby("local_time").mean()
-
+    diurnal_cycles = xr.Dataset()
+    for var in ds.data_vars:
+        diurnal_cycles[var] = ds[var].groupby(local_time).mean()
+    # diurnal_cycles = ds.groupby("local_time").mean()
     return diurnal_cycles
 
 
