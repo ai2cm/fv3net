@@ -42,3 +42,4 @@ from . import metadata
 
 
 __all__ = [item for item in dir() if not item.startswith("_")]
+__version__ = "0.1.0"

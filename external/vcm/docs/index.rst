@@ -1,14 +1,37 @@
 VCM Tools Documentation
 =======================
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+VCM Tools is a collection of routines used by the Vulcan Climate Modeling group.
+It is licensed under a BSD License.
 
-   readme
+.. toctree::
+   :maxdepth: 1
+   :caption: Setup
+
    installation
-   usage
-   api
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Tools
+
+   calculations
+   cloud
+   coarsen-restarts
+   combining
+   rotating-winds   
+   sampling
+   derived-mapping
+   grid-operations
+   xarray-loaders
+   xarray-tools
+   metadata
+   thermodynamics
+   times
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Reference
+
    history
 
 Indices and tables

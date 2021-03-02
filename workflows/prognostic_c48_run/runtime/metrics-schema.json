@@ -119,6 +119,14 @@
                 0.0
             ]
         },
+        "net_moistening_due_to_nudging": {
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s",
+            "examples": [
+                0.0
+            ]
+        },
         "net_heating": {
             "$id": "#/properties/net_heating",
             "type": "number",
@@ -126,6 +134,22 @@
             "default": 0.0,
             "examples": [
                 0.0
+            ]
+        },
+        "net_heating_due_to_nudging": {
+            "type": "number",
+            "units": "kg/m^2/s",
+            "default": 0.0,
+            "examples": [
+                0.0
+            ]
+        },
+        "surface_temperature_reference": {
+            "type": "number",
+            "units": "degK",
+            "default": 300.0, 
+            "examples": [
+                273.0
             ]
         },
         "column_integrated_dQu": {

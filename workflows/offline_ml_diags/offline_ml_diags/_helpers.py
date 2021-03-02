@@ -204,21 +204,6 @@ def _shorten_coordinate_label(coord: str):
     )
 
 
-def net_precipitation_provenance_information(
-    domain: xr.DataArray, derivation: str
-) -> xr.Variable:
-    # adds information about which data was used to determine pos/neg precip
-    new_domain_coords = []
-    for coord in np.asarray(domain):
-        if "net_precip" in coord:
-            new_domain_coords.append(
-                _shorten_coordinate_label(coord) + f" ({derivation})"
-            )
-        else:
-            new_domain_coords.append(_shorten_coordinate_label(coord))
-    return xr.Variable(domain.dims, new_domain_coords)
-
-
 def sample_outside_train_range(all: Sequence, train: Sequence, n_sample: int,) -> list:
     # Draws test samples from outside the training time range
     if len(train) == 0:
