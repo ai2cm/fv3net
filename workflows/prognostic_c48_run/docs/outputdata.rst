@@ -15,28 +15,26 @@ outputs used by data mappers for training (nudge-to-x runs) or in
 generating the prognostic run report. Additional Fortran diagnostic
 collections (e.g., atmos_dt_atmos) are specified by the diag_table file.
 
-+-----------------+-----------------+-----------------+-----------------+
-| Output Type     | Nudge-to-fine   | Nudge-to-obs    | Prognostic (ML  |
-|                 | (N2F)           | (N2O)           | and baseline)   |
-+=================+=================+=================+=================+
-| 3-D physics     | ``physics_te    | ``physics_te    | N/A             |
-| tendencies      | ndencies.zarr`` | ndencies.zarr`` |                 |
-| (pQs)           |                 |                 |                 |
-+-----------------+-----------------+-----------------+-----------------+
-| 3-D nudging     | ``nudging_te    | ``nudging_te    | N/A             |
-| tendencies      | ndencies.zarr`` | ndencies.zarr`` |                 |
-| (dQs)           |                 | (Fortran        |                 |
-|                 |                 | diagnostic      |                 |
-|                 |                 | zarr)           |                 |
-+-----------------+-----------------+-----------------+-----------------+
-| 3-D model state | ``state_after_  | ``state_after_  | N/A             |
-|                 | timestep.zarr`` | timestep.zarr`` |                 |
-+-----------------+-----------------+-----------------+-----------------+
-| 2-D diagnostics | ``diags.zarr``  | N/A             | ``diags.zarr``  |
-| (for prognostic |                 |                 |                 |
-| report, not     |                 |                 |                 |
-| mappers)        |                 |                 |                 |
-+-----------------+-----------------+-----------------+-----------------+
++-----------------+------------------------------+------------------------------+-----------------+
+| Output Type     | Nudge-to-fine                | Nudge-to-obs                 | Prognostic (ML  |
+|                 | (N2F)                        | (N2O)                        | and baseline)   |
++=================+==============================+==============================+=================+
+| 3-D physics     | ``physics_tendencies.zarr``  | ``physics_tendencies.zarr``  | N/A             |
+| tendencies      |                              |                              |                 |
+| (pQs)           |                              |                              |                 |
++-----------------+------------------------------+------------------------------+-----------------+
+| 3-D nudging     | ``nudging_tendencies.zarr``  | ``nudging_tendencies.zarr``  | N/A             |
+| tendencies      |                              | (Fortran                     |                 |
+| (dQs)           |                              | diagnostic                   |                 |
+|                 |                              | zarr)                        |                 |
++-----------------+------------------------------+------------------------------+-----------------+
+| 3-D model state | ``state_after_timestep.zarr``| ``state_after_timestep.zarr``| N/A             |
++-----------------+------------------------------+------------------------------+-----------------+
+| 2-D diagnostics | ``diags.zarr``               | N/A                          | ``diags.zarr``  |
+| (for prognostic |                              |                              |                 |
+| report, not     |                              |                              |                 |
+| mappers)        |                              |                              |                 |
++-----------------+------------------------------+------------------------------+-----------------+
 
 -  **physics_tendencies.zarr**: 3-D physics tendencies computed via
    sklearn_runfile monitor function, e.g.,

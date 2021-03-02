@@ -35,6 +35,7 @@ function usage {
     echo ""
 }
 
+
 function createRun {
     url="$1"
     fv3config="$2"
@@ -55,8 +56,13 @@ function createRun {
 }
 
 function readRunConfig {
-    url="$1"
-    gsutil cat "$runURL/fv3config.yml"
+    echo $gsutil
+    # gsutil can't cat local files
+    if [ ${runURL:0:3} == "gs:" ]; then
+        gsutil cat "$runURL/fv3config.yml"
+    else
+        cat "$runURL/fv3config.yml"
+    fi
 }
 
 function readRunLastSegment {

@@ -1,0 +1,39 @@
+# this is only for development purposes and integration with visual studio code
+version: '3.4'
+services:
+  fv3fit:
+    build:
+      context: "../../"
+      # dockerfile is relative to context
+      dockerfile: "docker/fv3fit/Dockerfile"
+      target: bld
+    volumes:
+      - ../../external/vcm:/external/vcm
+      - ../../external/loaders:/external/loaders
+      - ../../external/synth:/external/synth
+      - ../../external/fv3fit:/fv3fit
+      - ../../external/fv3gfs-util:/external/fv3gfs-util
+      - ../../workflows/bptt:/workflows/_bptt
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:${GOOGLE_APPLICATION_CREDENTIALS}
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS
+    working_dir: /workflows/bptt
+  prognostic_run:
+    image: us.gcr.io/vcm-ml/prognostic_run
+    # build:
+    #   context: "../../"
+    #   # dockerfile is relative to context
+    #   dockerfile: "docker/prognostic_run/Dockerfile"
+    #   target: bld
+    volumes:
+      - ../../external/vcm:/fv3net/external/vcm
+      - ../../external/loaders:/fv3netexternal/loaders
+      - ../../external/synth:/fv3net/external/synth
+      - ../../external/fv3fit:/fv3net/external/fv3fit
+      - ../../external/fv3gfs-util:/fv3net/external/fv3gfs-util
+      - ../../workflows/bptt:/fv3net/workflows/bptt
+      - ../../workflows/prognostic_c48_run:/fv3net/workflows/prognostic_c48_run
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:${GOOGLE_APPLICATION_CREDENTIALS}
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS
+    working_dir: /fv3net/workflows/bptt
