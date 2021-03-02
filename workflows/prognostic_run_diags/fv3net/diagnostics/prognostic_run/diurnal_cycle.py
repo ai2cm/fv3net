@@ -1,3 +1,4 @@
+from joblib import Parallel, delayed
 import logging
 import numpy as np
 import xarray as xr
@@ -28,6 +29,13 @@ def calc_diagnostics(prognostic, verification, grid):
     return prog_diurnal_ds
 
 
+def _hourly_mean(ds: xr.Dataset, var: str):
+    logger.info(f"Computing diurnal cycle for {var}.")
+    groupby_local_time = ds[[var, "local_time"]].groupby("local_time")
+    hourly_mean = groupby_local_time.mean()[var]
+    return hourly_mean.load()
+
+
 def _calc_ds_diurnal_cycle(ds):
     """
     Calculates the diurnal cycle for all variables.  Expects
@@ -38,12 +46,12 @@ def _calc_ds_diurnal_cycle(ds):
 
     local_time = np.floor(local_time)  # equivalent to hourly binning
     ds["local_time"] = local_time
-    diurnal_cycles = xr.Dataset()
-    for var in ds.data_vars:
-        diurnal_cycles[var] = (
-            ds[[var, "local_time"]].groupby("local_time").mean()[var].load()
-        )
-    return diurnal_cycles
+    diurnal_vars = ds.drop("local_time").data_vars
+    diurnal_cycles = Parallel(n_jobs=-1, verbose=True)(
+        delayed(_hourly_mean)(ds, var) for var in diurnal_vars
+    )
+    logger.info(diurnal_cycles)
+    return xr.merge(diurnal_cycles)
 
 
 def _add_diurnal_moisture_components(diurnal_cycles: xr.Dataset):
