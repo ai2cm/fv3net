@@ -46,10 +46,6 @@ class ArrayPacker:
         Args:
             sample_dim_name: dimension name to treat as the sample dimension
             pack_names: variable pack_names to pack
-            n_features: if given, use these feature counts instead of fitting
-                n_features on the data the first time to_array is called.
-            dims: if n_features is given, use these dimension names instead
-                of fitting on the data the first time to_array is called.
         """
         self._pack_names = list(pack_names)
         self._n_features: Dict[str, int] = {}

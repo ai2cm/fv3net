@@ -48,8 +48,6 @@ def get_dQ_arrays(base_value: xr.DataArray, nudging_tendency: xr.DataArray, time
     dQ1_total = np.diff(T, axis=1) / timestep_seconds
     # we have to discard the first nudging data point, because we don't have information
     # about the initial model state for time differencing
-    # when we have reference data, this actually requires reference data to compute in order
-    #
     dQ1_nudging = nudging_tendency.values.reshape([n_total_samples, nt, nz])[sample_idx, 1:, :]
     dQ1_base = dQ1_total - dQ1_nudging
     return T[:, 1:, :], dQ1_base, dQ1_nudging
