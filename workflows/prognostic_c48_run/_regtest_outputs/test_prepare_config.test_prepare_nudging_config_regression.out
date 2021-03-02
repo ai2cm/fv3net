@@ -1,5 +1,757 @@
 data_table: default
-diag_table: /fv3net/workflows/prognostic_c48_run/diag_table_prognostic
+diag_table:
+  base_time: 2000-01-01 00:00:00
+  file_configs:
+  - field_configs:
+    - field_name: grid_lont
+      module_name: dynamics
+      output_name: lon
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: grid_latt
+      module_name: dynamics
+      output_name: lat
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: grid_lon
+      module_name: dynamics
+      output_name: lonb
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: grid_lat
+      module_name: dynamics
+      output_name: latb
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: area
+      module_name: dynamics
+      output_name: area
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: dusfci
+      module_name: gfs_phys
+      output_name: uflx
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: dvsfci
+      module_name: gfs_phys
+      output_name: vflx
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: cnvprcpb_ave
+      module_name: gfs_phys
+      output_name: CPRATsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: totprcpb_ave
+      module_name: gfs_phys
+      output_name: PRATEsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: toticeb_ave
+      module_name: gfs_phys
+      output_name: ICEsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: totsnwb_ave
+      module_name: gfs_phys
+      output_name: SNOWsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: totgrpb_ave
+      module_name: gfs_phys
+      output_name: GRAUPELsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: DSWRF
+      module_name: gfs_phys
+      output_name: DSWRFsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: USWRF
+      module_name: gfs_phys
+      output_name: USWRFsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: DSWRFtoa
+      module_name: gfs_phys
+      output_name: DSWRFtoa
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: USWRFtoa
+      module_name: gfs_phys
+      output_name: USWRFtoa
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: ULWRFtoa
+      module_name: gfs_phys
+      output_name: ULWRFtoa
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: ULWRF
+      module_name: gfs_phys
+      output_name: ULWRFsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: DLWRF
+      module_name: gfs_phys
+      output_name: DLWRFsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: lhtfl_ave
+      module_name: gfs_phys
+      output_name: LHTFLsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: shtfl_ave
+      module_name: gfs_phys
+      output_name: SHTFLsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: hpbl
+      module_name: gfs_phys
+      output_name: HPBLsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: fice
+      module_name: gfs_sfc
+      output_name: ICECsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: SLMSKsfc
+      module_name: gfs_sfc
+      output_name: SLMSKsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: q2m
+      module_name: gfs_sfc
+      output_name: SPFH2m
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: t2m
+      module_name: gfs_sfc
+      output_name: TMP2m
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: tsfc
+      module_name: gfs_sfc
+      output_name: TMPsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: dpt2m
+      module_name: gfs_phys
+      output_name: DPT2m
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: u10m
+      module_name: gfs_phys
+      output_name: UGRD10m
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: v10m
+      module_name: gfs_phys
+      output_name: VGRD10m
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: tmpmax2m
+      module_name: gfs_phys
+      output_name: TMAX2m
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: wind10mmax
+      module_name: gfs_phys
+      output_name: MAXWIND10m
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: soilm
+      module_name: gfs_phys
+      output_name: SOILM
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: SOILT1
+      module_name: gfs_sfc
+      output_name: SOILT1
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: SOILT2
+      module_name: gfs_sfc
+      output_name: SOILT2
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: SOILT3
+      module_name: gfs_sfc
+      output_name: SOILT3
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: SOILT4
+      module_name: gfs_sfc
+      output_name: SOILT4
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    file_format: 1
+    frequency: 0
+    frequency_units: seconds
+    name: sfc_dt_atmos
+    time_axis_name: time
+    time_axis_units: hours
+  - field_configs:
+    - field_name: grid_lont
+      module_name: dynamics
+      output_name: lon
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: grid_latt
+      module_name: dynamics
+      output_name: lat
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: grid_lon
+      module_name: dynamics
+      output_name: lonb
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: grid_lat
+      module_name: dynamics
+      output_name: latb
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: area
+      module_name: dynamics
+      output_name: area
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: us
+      module_name: dynamics
+      output_name: UGRDlowest
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: u850
+      module_name: dynamics
+      output_name: UGRD850
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: u500
+      module_name: dynamics
+      output_name: UGRD500
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: u200
+      module_name: dynamics
+      output_name: UGRD200
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: u50
+      module_name: dynamics
+      output_name: UGRD50
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: vs
+      module_name: dynamics
+      output_name: VGRDlowest
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: v850
+      module_name: dynamics
+      output_name: VGRD850
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: v500
+      module_name: dynamics
+      output_name: VGRD500
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: v200
+      module_name: dynamics
+      output_name: VGRD200
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: v50
+      module_name: dynamics
+      output_name: VGRD50
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: tm
+      module_name: dynamics
+      output_name: TMP500_300
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: tb
+      module_name: dynamics
+      output_name: TMPlowest
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: t850
+      module_name: dynamics
+      output_name: TMP850
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: t500
+      module_name: dynamics
+      output_name: TMP500
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: t200
+      module_name: dynamics
+      output_name: TMP200
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: w850
+      module_name: dynamics
+      output_name: w850
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: w500
+      module_name: dynamics
+      output_name: w500
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: w200
+      module_name: dynamics
+      output_name: w200
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: w50
+      module_name: dynamics
+      output_name: w50
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: vort850
+      module_name: dynamics
+      output_name: VORT850
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: vort500
+      module_name: dynamics
+      output_name: VORT500
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: vort200
+      module_name: dynamics
+      output_name: VORT200
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: z850
+      module_name: dynamics
+      output_name: h850
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: z500
+      module_name: dynamics
+      output_name: h500
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: z200
+      module_name: dynamics
+      output_name: h200
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: rh1000
+      module_name: dynamics
+      output_name: RH1000
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: rh925
+      module_name: dynamics
+      output_name: RH925
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: rh850
+      module_name: dynamics
+      output_name: RH850
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: rh700
+      module_name: dynamics
+      output_name: RH700
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: rh500
+      module_name: dynamics
+      output_name: RH500
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: q1000
+      module_name: dynamics
+      output_name: q1000
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: q925
+      module_name: dynamics
+      output_name: q925
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: q850
+      module_name: dynamics
+      output_name: q850
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: q700
+      module_name: dynamics
+      output_name: q700
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: q500
+      module_name: dynamics
+      output_name: q500
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: slp
+      module_name: dynamics
+      output_name: PRMSL
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: ps
+      module_name: dynamics
+      output_name: PRESsfc
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: tq
+      module_name: dynamics
+      output_name: PWAT
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: lw
+      module_name: dynamics
+      output_name: VIL
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: iw
+      module_name: dynamics
+      output_name: iw
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: ke
+      module_name: dynamics
+      output_name: kinetic_energy
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: te
+      module_name: dynamics
+      output_name: total_energy
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    file_format: 1
+    frequency: 0
+    frequency_units: seconds
+    name: atmos_dt_atmos
+    time_axis_name: time
+    time_axis_units: hours
+  - field_configs:
+    - field_name: grid_lont
+      module_name: dynamics
+      output_name: lon
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: grid_latt
+      module_name: dynamics
+      output_name: lat
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: grid_lon
+      module_name: dynamics
+      output_name: lonb
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: grid_lat
+      module_name: dynamics
+      output_name: latb
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: area
+      module_name: dynamics
+      output_name: area
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: ucomp
+      module_name: dynamics
+      output_name: ucomp
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: vcomp
+      module_name: dynamics
+      output_name: vcomp
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: temp
+      module_name: dynamics
+      output_name: temp
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: delp
+      module_name: dynamics
+      output_name: delp
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: sphum
+      module_name: dynamics
+      output_name: sphum
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: pfnh
+      module_name: dynamics
+      output_name: nhpres
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: w
+      module_name: dynamics
+      output_name: w
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: delz
+      module_name: dynamics
+      output_name: delz
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: ps
+      module_name: dynamics
+      output_name: ps
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: reflectivity
+      module_name: dynamics
+      output_name: reflectivity
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: liq_wat
+      module_name: dynamics
+      output_name: liq_wat
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: ice_wat
+      module_name: dynamics
+      output_name: ice_wat
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: rainwat
+      module_name: dynamics
+      output_name: rainwat
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: snowwat
+      module_name: dynamics
+      output_name: snowwat
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    - field_name: graupel
+      module_name: dynamics
+      output_name: graupel
+      packing: 2
+      reduction_method: none
+      regional_section: none
+      time_sampling: all
+    file_format: 1
+    frequency: 0
+    frequency_units: seconds
+    name: atmos_8xdaily
+    time_axis_name: time
+    time_axis_units: hours
+  name: prognostic_run
 diagnostics:
 - chunks:
     time: 8
@@ -104,12 +856,134 @@ fortran_diagnostics:
 - chunks:
     time: 96
   name: sfc_dt_atmos.zarr
+  times:
+    frequency: null
+    includes_lower: false
+    kind: every
+    times: null
+  variables:
+  - lon
+  - lat
+  - lonb
+  - latb
+  - area
+  - uflx
+  - vflx
+  - CPRATsfc
+  - PRATEsfc
+  - ICEsfc
+  - SNOWsfc
+  - GRAUPELsfc
+  - DSWRFsfc
+  - USWRFsfc
+  - DSWRFtoa
+  - USWRFtoa
+  - ULWRFtoa
+  - ULWRFsfc
+  - DLWRFsfc
+  - LHTFLsfc
+  - SHTFLsfc
+  - HPBLsfc
+  - ICECsfc
+  - SLMSKsfc
+  - SPFH2m
+  - TMP2m
+  - TMPsfc
+  - DPT2m
+  - UGRD10m
+  - VGRD10m
+  - TMAX2m
+  - MAXWIND10m
+  - SOILM
+  - SOILT1
+  - SOILT2
+  - SOILT3
+  - SOILT4
 - chunks:
     time: 96
   name: atmos_dt_atmos.zarr
+  times:
+    frequency: null
+    includes_lower: false
+    kind: every
+    times: null
+  variables:
+  - lon
+  - lat
+  - lonb
+  - latb
+  - area
+  - UGRDlowest
+  - UGRD850
+  - UGRD500
+  - UGRD200
+  - UGRD50
+  - VGRDlowest
+  - VGRD850
+  - VGRD500
+  - VGRD200
+  - VGRD50
+  - TMP500_300
+  - TMPlowest
+  - TMP850
+  - TMP500
+  - TMP200
+  - w850
+  - w500
+  - w200
+  - w50
+  - VORT850
+  - VORT500
+  - VORT200
+  - h850
+  - h500
+  - h200
+  - RH1000
+  - RH925
+  - RH850
+  - RH700
+  - RH500
+  - q1000
+  - q925
+  - q850
+  - q700
+  - q500
+  - PRMSL
+  - PRESsfc
+  - PWAT
+  - VIL
+  - iw
+  - kinetic_energy
+  - total_energy
 - chunks:
     time: 8
   name: atmos_8xdaily.zarr
+  times:
+    frequency: null
+    includes_lower: false
+    kind: every
+    times: null
+  variables:
+  - lon
+  - lat
+  - lonb
+  - latb
+  - area
+  - ucomp
+  - vcomp
+  - temp
+  - delp
+  - sphum
+  - nhpres
+  - w
+  - delz
+  - ps
+  - reflectivity
+  - liq_wat
+  - ice_wat
+  - rainwat
+  - snowwat
+  - graupel
 initial_conditions:
 - copy_method: copy
   source_location: gs://ic-bucket/20160805.000000
