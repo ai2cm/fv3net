@@ -56,6 +56,7 @@ def open_n2f_radiative_flux_biases(
         surface_albedo.fillna(mean_albedo)
         .broadcast_like(verif_dswrf_sfc)
         .assign_attrs({"long_name": "surface albedo (coarse)", "units": "-"})
+        .load()
     )
     sfc_biases_ds = xr.Dataset(
         {
