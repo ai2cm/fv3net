@@ -143,7 +143,11 @@ def loads(log: str) -> FV3Log:
         if "fv_restart_end" in line:
             # the logs end with a block like this::
             #
-            #    C3072_0801_n11a_vulcan-2020-05-21-production-simulation.o268642462
+            # fv_restart_end u    =    5404162460055465614
+            # ...
+            #  ZS   6849.180      -412.0000       231.8706
+            #
+            # This break avoids appending the final date twice.
             break
 
         try:
@@ -153,6 +157,9 @@ def loads(log: str) -> FV3Log:
 
         match = zs_regexp.search(line)
         if match:
+            # The statistics block begins with the date followed by ZS::
+            #         2016           8           2           8           0           0
+            #  ZS      6849.180      -412.0000       231.8707
             dates.append(date)
 
         match = min_max_regex.search(line)
