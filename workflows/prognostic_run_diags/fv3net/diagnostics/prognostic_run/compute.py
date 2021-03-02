@@ -161,9 +161,12 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
     diags = {}
     logger.info("Computing all diagnostics")
     single_diags = Parallel(n_jobs=-1, verbose=True)(
-        delayed(_compute_diag)(diag_func, input_args)
-        for diag_func, input_args in _generate_diag_funcs(input_datasets)
+        delayed(_apply_and_load)(diag_func, data, verification, grid)
+        for diag_func, (data, verification, grid) in _generate_diag_functions(
+            input_datasets
+        )
     )
+
     for single_diag in single_diags:
         load_diags.warn_on_overwrite(diags.keys(), single_diag.keys())
         diags.update(single_diag)
@@ -171,12 +174,12 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
     return diags
 
 
-def _compute_diag(func, input_args):
+def _apply_and_load(func, data, verification, grid):
     _start_logger_if_necessary()
-    return {key: diag.load() for key, diag in func(*input_args).items()}
+    return {key: diag.load() for key, diag in func(data, verification, grid).items()}
 
 
-def _generate_diag_funcs(input_datasets):
+def _generate_diag_functions(input_datasets):
     for key, input_args in input_datasets.items():
         if key not in _DIAG_FNS:
             raise KeyError(f"No target diagnostics found for input data group: {key}")
