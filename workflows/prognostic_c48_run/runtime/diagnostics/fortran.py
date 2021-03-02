@@ -167,4 +167,3 @@ class FortranFileConfig:
         return fv3config.DiagFieldConfig(
             module_name, field_name, output_name, reduction_method=reduction_method
         )
-

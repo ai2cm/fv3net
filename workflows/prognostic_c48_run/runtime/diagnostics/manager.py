@@ -18,7 +18,7 @@ import xarray as xr
 import dataclasses
 
 from .fortran import FortranFileConfig
-from .time import TimeConfig, TimeContainer
+from .time import TimeConfig, TimeContainer, All
 
 logger = logging.getLogger(__name__)
 
