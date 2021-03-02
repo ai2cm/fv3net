@@ -10,7 +10,6 @@ from typing import (
     MutableMapping,
 )
 
-import datetime
 import cftime
 import logging
 import fv3gfs.util
