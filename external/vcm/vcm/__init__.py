@@ -39,6 +39,7 @@ from .xarray_loaders import open_tiles, open_delayed, open_remote_nc, dump_nc
 from .sampling import train_test_split_sample
 from .derived_mapping import DerivedMapping
 from . import metadata
+from .standardize_diagnostics import standardize_gfsphysics_diagnostics
 
 
 __all__ = [item for item in dir() if not item.startswith("_")]
