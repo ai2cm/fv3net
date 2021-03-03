@@ -19,7 +19,7 @@ from runtime.diagnostics.machine_learning import (
     precipitation_rate,
     precipitation_sum,
 )
-from runtime.steppers.machine_learning import PureMLStepper, open_model, add_tendency
+from runtime.steppers.machine_learning import EmulatorStepper, open_model, add_tendency
 from runtime.steppers.nudging import PureNudger
 from runtime.types import Diagnostics, State, Tendencies
 from runtime.names import TENDENCY_TO_STATE_NAME
@@ -194,7 +194,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             self._log_info("Downloading ML Model")
             model = open_model(config.scikit_learn)
             self._log_info("Model Downloaded")
-            return PureMLStepper(model, self._timestep)
+            return EmulatorStepper(model, self._timestep)
         elif config.nudging:
             self._log_info("Using NudgingStepper")
             partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
@@ -288,13 +288,22 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         ]
 
     def _compute_emulator(self):
-        tendency = predict()
+        self._log_debug("Computing emulator tendencies")
+        if self.stepper is None:
+            return {}
+        else:
+            (self._tendencies,
+             diagnostics,
+             self._state_updates,
+             ) = self.stepper(self._state.time, self._state)
+
         self._state_to_apply_after_physics = add_tendency(
-            self._state, tendency, dt=self._timestep
+            self._state, self._tendencies, dt=self._timestep
         )
-        return {}
+        return diagnostics
 
     def _apply_emulator(self):
+        self._log_debug("Overwriting state with emulated updates")
         self._state.update(self._state_to_apply_after_physics)
         return {}
 

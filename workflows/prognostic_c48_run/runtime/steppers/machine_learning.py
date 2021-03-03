@@ -237,9 +237,13 @@ class EmulatorStepper:
 
         state1 = maybe_get(state, self.model.input_variables)
         state1["time"] = time
+        state1["lon"] = state["longitude"]
+        state1["lat"] = state["latitude"]
         derived_state1 = vcm.derived_mapping.DerivedMapping(state1)
         state2 = {key: derived_state1[key] for key in self.model.input_variables}
         tendency = predict(self.model, state2)
+        logger.debug(f"tendency_keys: {tendency.keys()}")
+        logger.debug(f"state2 keys: {state2.keys()}")
         state_updates = add_tendency(state2, tendency, dt=self.timestep)
         return {}, {}, state_updates
 
