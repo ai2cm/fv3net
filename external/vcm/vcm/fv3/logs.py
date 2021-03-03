@@ -90,6 +90,8 @@ def loads(log: str) -> FV3Log:
         graupel max =   1.3989445E-02  min =  -4.0843832E-05
         o3mr max =   1.7852419E-05  min =   2.2205915E-09
         sgs_tke max =    130.6761      min =   9.8705533E-10
+        cld_amt max =    1.0000000000000000       min =    0.0000000000000000
+        Max_cld GB_NH_SH_EQ  0.38806349956593428       0.34442529145606493       ...
 
     Currently it only supports the min/max and total statistics.
 
