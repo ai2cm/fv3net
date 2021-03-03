@@ -171,3 +171,24 @@ def test_cos_sin_derived():
     np.testing.assert_almost_equal(derived_state["sin_month"].values[1], 0)
     np.testing.assert_almost_equal(derived_state["cos_lon"].values[0], -1)
     np.testing.assert_almost_equal(derived_state["sin_lon"].values[0], 0)
+
+
+def test_cos_single_time_DataArray():
+    
+    ds = xr.Dataset(
+        {
+            "time": xr.DataArray(
+                data=[cftime.DatetimeJulian(2016, 7, 1)],
+                dims=["time"],
+            ),
+            "longitude": xr.DataArray(data=[np.pi]),
+        }
+    )
+    derived_state = DerivedMapping(ds)
+    np.testing.assert_almost_equal(derived_state["cos_day"].values[0], -1)
+
+
+def test_cos_single_time_no_array():
+    datadict = {"time": cftime.DatetimeJulian(2016, 7, 1)}
+    derived_state_from_dict = DerivedMapping(datadict)
+    np.testing.assert_almost_equal(derived_state_from_dict["cos_day"].values[0], -1)
