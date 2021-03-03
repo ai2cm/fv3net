@@ -10,13 +10,13 @@ DIM_RENAME_INVERSE_MAP = {
     "x": {"grid_xt", "grid_xt_coarse"},
     "y": {"grid_yt", "grid_yt_coarse"},
     "tile": {"rank"},
-    "xb": {"grid_x", "grid_x_coarse", "x_interface"},
-    "yb": {"grid_y", "grid_y_coarse", "y_interface"},
+    "x_interface": {"grid_x", "grid_x_coarse"},
+    "y_interface": {"grid_y", "grid_y_coarse"},
 }
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
 
 
-def standardize_gfsphysics_diagnostics(ds: xr.Dataset) -> xr.Dataset:
+def standardize_run_diagnostics(ds: xr.Dataset) -> xr.Dataset:
 
     funcs: Sequence[Callable[[xr.Dataset], xr.Dataset]] = [
         _set_calendar_to_julian,
