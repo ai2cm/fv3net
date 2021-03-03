@@ -19,6 +19,7 @@ from runtime.diagnostics.manager import (
 from runtime.steppers.nudging import NudgingConfig
 from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
+from runtime.diagnostics.fortran import MODULE_FIELD_NAME_TABLE
 
 
 logger = logging.getLogger(__name__)
@@ -224,9 +225,33 @@ def _diag_table_overlay(
         for fortran_diagnostic in fortran_diagnostics
     ]
     diag_table = fv3config.DiagTable(
-        "prognostic_run", datetime(2000, 1, 1), file_configs=file_configs
+        "prognostic_run", datetime(2000, 1, 1), file_configs
     )
     return {"diag_table": diag_table}
+
+
+def _physics_frequency_overlay(
+    diagnostics: Sequence[FortranFileConfig], physics_timestep: float
+) -> Mapping[str, Mapping]:
+    physics_frequencies = set()
+    for diagnostic_config in diagnostics:
+        for variable in diagnostic_config.variables:
+            if MODULE_FIELD_NAME_TABLE[variable][0] in ["gfs_phys", "gfs_sfc"]:
+                if diagnostic_config.times.kind == "every":
+                    physics_frequencies.add(physics_timestep)
+                else:
+                    physics_frequencies.add(diagnostic_config.times.frequency)
+    if len(physics_frequencies) > 1:
+        raise NotImplementedError(
+            "Cannot output physics diagnostics at multiple frequencies."
+        )
+    physics_output_frequency_in_hours = list(physics_frequencies)[0] / 3600.0
+    return {
+        "namelist": {
+            "atmos_model_nml": {"fhout": physics_output_frequency_in_hours},
+            "gfs_physics_nml": {"fhzero": physics_output_frequency_in_hours},
+        }
+    }
 
 
 def prepare_config(args):
@@ -256,6 +281,10 @@ def _prepare_config_from_parsed_config(
             "argument."
         )
 
+    physics_timestep = fv3kube.merge_fv3config_overlays(
+        fv3kube.get_base_fv3config(base_version), fv3_config
+    )["namelist"]["coupler_nml"]["dt_atmos"]
+
     # To simplify the configuration flow, updates should be implemented as
     # overlays (i.e. diffs) requiring only a small number of inputs. In
     # particular, overlays should not require access to the full configuration
@@ -269,6 +298,7 @@ def _prepare_config_from_parsed_config(
         SUPPRESS_RANGE_WARNINGS,
         dataclasses.asdict(user_config),
         fv3_config,
+        _physics_frequency_overlay(user_config.fortran_diagnostics, physics_timestep),
     ]
 
     return fv3kube.merge_fv3config_overlays(*overlays)
