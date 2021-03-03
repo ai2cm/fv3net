@@ -1,6 +1,6 @@
 from fv3fit._shared import ArrayPacker
 from typing import Iterable
-from fv3fit._shared.packer import unpack_matrix
+from fv3fit._shared.packer import unpack_matrix, pack, unpack, _unique_dim_name
 import pytest
 import numpy as np
 import xarray as xr
@@ -14,9 +14,13 @@ DIM_LENGTHS = {
 }
 
 
-@pytest.fixture(params=["one_var", "two_2d_vars", "1d_and_2d"])
+@pytest.fixture(
+    params=["one_1d_var", "one_2d_var", "two_2d_vars", "1d_and_2d", "five_vars"]
+)
 def dims_list(request) -> Iterable[str]:
-    if request.param == "one_var":
+    if request.param == "one_1d_var":
+        return [[SAMPLE_DIM]]
+    elif request.param == "one_2d_var":
         return [[SAMPLE_DIM, FEATURE_DIM]]
     elif request.param == "two_2d_vars":
         return [
@@ -49,9 +53,10 @@ def dataset(names: Iterable[str], dims_list: Iterable[str]) -> xr.Dataset:
     data_vars = {}
     for i, (name, dims) in enumerate(zip(names, dims_list)):
         data_vars[name] = xr.DataArray(get_array(dims, i), dims=dims)
-    return xr.Dataset(
-        data_vars, coords={FEATURE_DIM: np.arange(DIM_LENGTHS[FEATURE_DIM])}
-    )
+    ds = xr.Dataset(data_vars)
+    if FEATURE_DIM in ds.dims:
+        ds = ds.assign_coords({FEATURE_DIM: np.arange(DIM_LENGTHS[FEATURE_DIM])})
+    return ds
 
 
 @pytest.fixture
@@ -118,3 +123,22 @@ def test_unpack_matrix():
     assert jacobian[("b", "c")].dims == ("c", "b")
     assert isinstance(jacobian[("b", "d")], xr.DataArray)
     assert jacobian[("b", "d")].dims == ("d", "b")
+
+
+stacked_dataset = xr.Dataset({"a": xr.DataArray([1.0, 2.0, 3.0, 4.0], dims=["sample"])})
+
+
+def test__unique_dim_name():
+    with pytest.raises(ValueError):
+        _unique_dim_name(stacked_dataset, "feature_sample")
+
+
+def test_sklearn_pack(dataset: xr.Dataset, array: np.ndarray):
+    packed_array, _ = pack(dataset, "sample")
+    np.testing.assert_almost_equal(packed_array, array)
+
+
+def test_sklearn_unpack(dataset: xr.Dataset):
+    packed_array, feature_index = pack(dataset, "sample")
+    unpacked_dataset = unpack(packed_array, "sample", feature_index)
+    xr.testing.assert_allclose(unpacked_dataset, dataset)
