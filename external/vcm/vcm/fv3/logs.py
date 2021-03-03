@@ -10,27 +10,6 @@ import dataclasses
 __all__ = ["loads"]
 
 
-def parse_date_forecast_date(string):
-    match = re.search(r"FORECAST DATE *(\d.* MINS)", string)
-    if match:
-        date = match.group(1)
-        tokens = date.split()
-        day, month, year, _, hour, _, minutes_seconds, _ = tokens
-        minutes_seconds_f = float(minutes_seconds)
-
-        minutes = int(minutes_seconds_f // 1)
-        seconds = int((minutes_seconds_f % 1) * 60)
-
-        month_dictionary = {
-            "AUG.": 8,
-            "SEP.": 9,
-        }
-
-        return datetime(
-            int(year), month_dictionary[month], int(day), int(hour), minutes, seconds
-        )
-
-
 def parse_date_stats_block(line):
     tokens = line.split()
     args = [int(tok) for tok in tokens]

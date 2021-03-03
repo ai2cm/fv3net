@@ -1,5 +1,4 @@
-from vcm.fv3.logs import loads, parse_date_forecast_date
-from datetime import datetime
+from vcm.fv3.logs import loads
 from pathlib import Path
 import pytest
 import yaml
@@ -20,13 +19,6 @@ def shield_log(request):
         with open(path) as f:
             str_ = f.read()
         return str_
-
-
-def test_parse_date():
-    example_date = "0 FORECAST DATE          14 AUG.  2016 AT 18 HRS  0.00 MINS"
-    assert parse_date_forecast_date(example_date) == datetime(
-        year=2016, month=8, day=14, hour=18
-    )
 
 
 def test_loads_with_shield_data(shield_log: str):
