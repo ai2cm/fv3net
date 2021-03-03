@@ -315,6 +315,7 @@ zonal_mean_plot_manager = PlotManager()
 hovmoller_plot_manager = PlotManager()
 zonal_pressure_plot_manager = PlotManager()
 diurnal_plot_manager = PlotManager()
+
 # this will be passed the data from the metrics.json files
 metrics_plot_manager = PlotManager()
 
@@ -362,7 +363,13 @@ def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot
 
 @zonal_pressure_plot_manager.register
 def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d
+    return plot_2d(
+        diagnostics,
+        "zonal_and_time_mean",
+        dims=["latitude", "pressure"],
+        symmetric=True,
+        cmap="viridis",
+    )
 
 
 @diurnal_plot_manager.register
@@ -390,7 +397,6 @@ def rmse_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
 @metrics_plot_manager.register
 def drift_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
     return generic_metric_plot(metrics, "drift")
-
 
 
 def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
@@ -451,6 +457,7 @@ def main(args):
         "2D plots": [
             Link("Latitude versus time hovmoller", "hovmoller.html"),
             Link("Time-mean maps (not implemented yet)", "maps.html"),
+            Link("Time-mean zonal-pressure profiles", "zonal_pressure.html"),
         ],
         "Timeseries": list(timeseries_plot_manager.make_plots(diagnostics)),
         "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
@@ -460,6 +467,11 @@ def main(args):
         "Zonal mean value and bias": list(
             hovmoller_plot_manager.make_plots(diagnostics)
         ),
+    }
+    sections_zonal_pressure = {
+        "Zonal mean values at pressure levels": list(
+            zonal_mean_plot_manager.make_plots(diagnostics)
+        )
     }
     if not metric_table.empty:
         metrics = pd.merge(run_table, metric_table, on="run")
@@ -487,6 +499,12 @@ def main(args):
             title="Latitude versus time hovmoller plots",
             metadata={**verification_label, **run_urls},
             sections=sections_hovmoller,
+            html_header=get_html_header(),
+        ),
+        "zonal_pressure.html": create_html(
+            title="Pressure versus latitude plots",
+            metadata={**run_urls},
+            sections=sections_zonal_pressure,
             html_header=get_html_header(),
         ),
     }

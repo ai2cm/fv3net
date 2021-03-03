@@ -214,7 +214,7 @@ def _get_coarsening_args(
 
 def load_3d(url: str, catalog: intake.Catalog) -> DiagArg:
     logger.info(f"Processing 3d data from run directory at {url}")
-    
+
     # open grid
     logger.info("Opening Grid Spec")
     grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
@@ -232,14 +232,13 @@ def load_3d(url: str, catalog: intake.Catalog) -> DiagArg:
     input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
     area = catalog[input_grid].to_dask()["area"]
     ds = _coarsen(ds, area, coarsening_factor)
-    
+
     # interpolate 3d fields to pressure levels
     pressure_level_data = ["temp", "w", "sphum", "ucomp", "vcomp"]
     ds_interp = xr.Dataset()
     for var in pressure_level_data:
         ds_interp[var] = vcm.interpolate_to_pressure_levels(
-            field=ds[var],
-            delp=ds["delp"]
+            field=ds[var], delp=ds["delp"]
         )
     return ds_interp, verification_c48, grid_c48
 
