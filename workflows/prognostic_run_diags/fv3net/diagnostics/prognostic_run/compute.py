@@ -29,7 +29,7 @@ from typing import Dict, Callable, Mapping, Union
 
 from joblib import Parallel, delayed
 
-import vcm.catalog
+import vcm
 
 from fv3net.diagnostics.prognostic_run import load_diagnostic_data as load_diags
 from fv3net.diagnostics.prognostic_run import config
@@ -168,7 +168,7 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
     )
 
     for single_diag in single_diags:
-        load_diags.warn_on_overwrite(diags.keys(), single_diag.keys())
+        vcm.warn_on_overwrite(diags.keys(), single_diag.keys())
         diags.update(single_diag)
 
     return diags
