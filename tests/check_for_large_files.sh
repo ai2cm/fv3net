@@ -12,7 +12,7 @@ thresholdKb=250
 
 ret=0
 
-for file in $(git ls-files)
+while IFS= read -r -d $'\0' file
 do
     size=$(du -k "$file" | awk -F' ' '{print $1}')
 
@@ -30,6 +30,6 @@ do
         fi
     fi
 
-done
+done < <(git ls-files -z)
 
 exit $ret
