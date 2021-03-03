@@ -198,7 +198,10 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             self._log_info("Downloading ML Model")
             model = open_model(config.scikit_learn)
             self._log_info("Model Downloaded")
-            return PureMLStepper(model, self._timestep)
+            self._log_info("Downloading prephysics ML Model")
+            model = open_model(config.prephysics_scikit_learn)
+            self._log_info("Prephysics Model Downloaded")
+            return PureMLStepper(model, prephysics_model, self._timestep)
         elif config.nudging:
             self._log_info("Using NudgingStepper")
             partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
@@ -282,12 +285,26 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
     def _substeps(self) -> Sequence[Callable[..., Diagnostics]]:
         return [
             self._step_dynamics,
+            self._compute_prephysics,
+            self._apply_prephysics,
             self._compute_physics,
             self._apply_python_to_physics_state,
             self._apply_physics,
             self._compute_python_updates,
             self._apply_python_to_dycore_state,
         ]
+
+    def _compute_prephysics(self):
+        if self.stepper is None:
+            return {}
+        else:
+            self._tendencies, diagnostics, self._state_updates = self.stepper(
+                self._state.time, self._state
+            )
+            return diagnostics
+
+    def _apply_prephysics(self):
+        self._state.update_mass_conserving(self._updated_state)
 
     def _apply_python_to_physics_state(self) -> Diagnostics:
         """Apply computed tendencies and state updates to the physics state

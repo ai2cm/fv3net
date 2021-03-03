@@ -72,6 +72,21 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--prephysics_model_url",
+        type=str,
+        default=None,
+        action="append",
+        help=(
+            "Remote url to a trained ML model. If a model is omitted (and not "
+            "specified in `user_config`'s `scikit-learn` `model` field either), then "
+            "no ML updating will be done. Also, if an ML model is provided, no "
+            "nudging will be done. Can be provided multiple times, "
+            "ex. --prephysics_model_url model1 --prephysics_model_url model2. If multiple urls are given, "
+            "they will be combined into a single model at runtime, providing the "
+            "outputs are nonoverlapping."
+        ),
+    )
+    parser.add_argument(
         "--output-frequency",
         type=int,
         default=15,
@@ -107,6 +122,9 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
     scikit_learn = MachineLearningConfig(
         model=list(args.model_url or []), diagnostic_ml=args.diagnostic_ml
     )
+    prephysics_scikit_learn = MachineLearningConfig(
+        model=list(args.prephysics_model_url or []), diagnostic_ml=args.diagnostic_ml
+    )
 
     if "diagnostics" in config_dict:
         diagnostics = [
@@ -138,6 +156,7 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
         diagnostics=diagnostics,
         fortran_diagnostics=fortran_diagnostics,
         scikit_learn=scikit_learn,
+        prephysics_scikit_learn=prephysics_scikit_learn,
         step_storage_variables=config_dict.get(
             "step_storage_variables", default.step_storage_variables
         ),

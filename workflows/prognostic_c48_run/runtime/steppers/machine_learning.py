@@ -151,8 +151,9 @@ class PureMLStepper:
 
     net_moistening = "net_moistening"
 
-    def __init__(self, model: MultiModelAdapter, timestep: float):
+    def __init__(self, model: MultiModelAdapter, prephysics_model: MultiModelAdapter, timestep: float):
         self.model = model
+        self.prephysics_model = prephysics_model
         self.timestep = timestep
 
     def __call__(self, time, state):
@@ -186,6 +187,24 @@ class PureMLStepper:
         diagnostics["rank_updated_points"] = xr.where(dQ2_initial != dQ2_updated, 1, 0)
 
         state_updates = {}
+        return (
+            tendency,
+            diagnostics,
+            state_updates,
+        )
+
+    def prephysics_call(self, time, state):
+        diagnostics: Diagnostics = {}
+        tendency: State = {}
+        state_updates: State = predict(self.prephysics_model, state)
+        
+        updated_names = {
+            "DSWRFsfc_verif": "adjsfcdsw_override",
+            "NSWRFsfc_verif": "adjsfcnsw_override",
+            "DLWRFsfc_verif": "adjsfcdlw_override"
+        }
+        for old_name, new_name in updated_names.items():
+            state_updates[new_name] = state_updates.pop(old_name)
         return (
             tendency,
             diagnostics,

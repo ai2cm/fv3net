@@ -37,6 +37,7 @@ class UserConfig:
     diagnostics: List[DiagnosticFileConfig]
     fortran_diagnostics: List[FortranFileConfig]
     scikit_learn: MachineLearningConfig = MachineLearningConfig()
+    prephysics_scikit_learn: MachineLearningConfig = MachineLearningConfig()
     nudging: Optional[NudgingConfig] = None
     step_tendency_variables: List[str] = dataclasses.field(
         default_factory=lambda: list(
