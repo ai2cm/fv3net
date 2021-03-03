@@ -13,6 +13,7 @@ from vcm.convenience import (
     round_time,
     parse_datetime_from_str,
     shift_timestamp,
+    warn_on_overwrite,
 )
 
 
@@ -154,3 +155,32 @@ def test_round_time_numpy():
     time = np.array([cftime.DatetimeJulian(2016, 1, 1)])
     ans = round_time(time)
     assert isinstance(ans, np.ndarray)
+
+
+def test_warn_on_overwrite_duplicates():
+
+    old = {"key"}
+    new = ["duplicate", "duplicate"]
+    with pytest.warns(UserWarning):
+        warn_on_overwrite(old, new)
+
+
+def test_warn_on_overwrite_overlap():
+
+    old = {"key"}
+    new = ["key", "duplicate"]
+    with pytest.warns(UserWarning):
+        warn_on_overwrite(old, new)
+
+
+def test_warn_on_overwrite_no_warning():
+
+    old = {"key"}
+    new = {"new_key"}
+
+    with pytest.warns(None) as records:
+        warn_on_overwrite(old, new)
+
+    # ignore deprecation warnings
+    for warning in records:
+        assert not isinstance(warning, UserWarning), warning
