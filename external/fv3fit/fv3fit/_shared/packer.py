@@ -5,12 +5,28 @@ import pandas as pd
 import yaml
 
 
-def _unique_dim_name(data: xr.Dataset) -> str:
-    return "_".join(["feature"] + list(data.dims))  # type: ignore
+def _feature_dims(data: xr.Dataset, sample_dim: str) -> Sequence[str]:
+    return [str(dim) for dim in data.dims.keys() if dim != sample_dim]
+
+
+def _unique_dim_name(
+    data: xr.Dataset, sample_dim: str, feature_dim_name_2d_var: str = "feature"
+) -> str:
+    feature_dims = _feature_dims(data, sample_dim)
+    if len(feature_dims) > 0:
+        feature_dim_name = "_".join(["feature"] + list(feature_dims))
+    else:
+        feature_dim_name = feature_dim_name_2d_var
+    if sample_dim == feature_dim_name:
+        raise ValueError(
+            f"The sample dim name ({sample_dim}) cannot be the same "
+            f"as the feature dim name ({feature_dim_name})"
+        )
+    return feature_dim_name
 
 
 def pack(data: xr.Dataset, sample_dim: str) -> Tuple[np.ndarray, pd.MultiIndex]:
-    feature_dim_name = _unique_dim_name(data)
+    feature_dim_name = _unique_dim_name(data, sample_dim)
     stacked = data.to_stacked_array(feature_dim_name, sample_dims=[sample_dim])
     return (
         stacked.transpose(sample_dim, feature_dim_name).data,
