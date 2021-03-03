@@ -1,3 +1,4 @@
+yq
 alabaster
 appdirs
 asciitree
