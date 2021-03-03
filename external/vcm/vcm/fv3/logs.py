@@ -101,6 +101,7 @@ def loads(log: str) -> FV3Log:
     lines = log.splitlines()
     min_max_regex = re.compile(r"(.*)max *= *([0-9E\-\.]+) *min = *([0-9E\-\+\.]+)")
     zs_regexp = re.compile(r"ZS *([0-9E\-\.]+) +([0-9E\-\.]+) +([0-9E\-\+\.]+)")
+    end_stats_block_regexp = re.compile(r"Max_cld GB_NH_SH_EQ")
     totals = defaultdict(list)
     min_max = defaultdict(list)
     dates = []
@@ -117,6 +118,7 @@ def loads(log: str) -> FV3Log:
     }
 
     date = None
+    in_stats_block = False
     for line in lines:
 
         if "fv_restart_end" in line:
@@ -140,16 +142,21 @@ def loads(log: str) -> FV3Log:
             #         2016           8           2           8           0           0
             #  ZS      6849.180      -412.0000       231.8707
             dates.append(date)
+            in_stats_block = True
 
-        match = min_max_regex.search(line)
-        if match:
-            name, max_, min_ = match.groups()
-            name = name.strip()
-            min_max[name].append((float(min_), float(max_)))
+        if in_stats_block:
+            match = min_max_regex.search(line)
+            if match:
+                name, max_, min_ = match.groups()
+                name = name.strip()
+                min_max[name].append((float(min_), float(max_)))
 
-        for variable, parser in mean_patterns.items():
-            val = parser(line)
-            if val is not None:
-                totals[variable].append(val)
+            if end_stats_block_regexp.search(line):
+                in_stats_block = False
+
+            for variable, parser in mean_patterns.items():
+                val = parser(line)
+                if val is not None:
+                    totals[variable].append(val)
 
     return FV3Log(set_initial_date(dates), dict(totals), dict(min_max))
