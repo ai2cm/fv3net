@@ -107,7 +107,7 @@ FROM bld as test
 
 ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/key.json
 RUN --mount=type=secret,id=gcp,dst=/tmp/key.json \
-    ["bash", "-o", "pipefail", "-c", "pytest | tee /tmp/test-results.txt"]
+    ["bash", "-o", "pipefail", "-c", "pytest --regtest-reset | tee /tmp/test-results.txt"]
 
 FROM bld
 # Copy results from test stage to ensure docker buildkit executes it
