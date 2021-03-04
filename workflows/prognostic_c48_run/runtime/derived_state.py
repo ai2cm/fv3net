@@ -1,4 +1,5 @@
 import cftime
+import numpy as np
 from typing import Mapping, MutableMapping, Hashable
 from toolz import dissoc
 import xarray as xr
@@ -30,6 +31,9 @@ class FV3StateMapper(Mapping):
             return self._getter.get_diagnostic_by_name("lhtfl").data_array
         elif key == "total_water":
             return self._total_water()
+        elif key in ["lon", "lat"]:
+            alternate_key = self._alternate_keys[key]
+            return np.rad2deg(self._getter.get_state((alternate_key))[alternate_key].data_array)
         else:
             if key in self._alternate_keys:
                 key = self._alternate_keys[key]
