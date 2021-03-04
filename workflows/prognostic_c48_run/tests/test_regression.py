@@ -8,7 +8,7 @@ import pytest
 import xarray as xr
 import datetime
 import yaml
-from machine_learning_mocks import get_mock_sklearn_model, get_mock_keras_model
+from machine_learning_mocks import get_mock_sklearn_model, get_mock_keras_model, get_mock_radiative_flux_predictor_model
 
 import subprocess
 
@@ -416,11 +416,13 @@ def get_nudging_config():
     return config
 
 
-def get_ml_config(model_path):
+def get_ml_config(model_path, prephysics_model_path=None):
     config = yaml.safe_load(default_fv3config)
     config["diagnostics"] = DIAGNOSTICS
     config["fortran_diagnostics"] = []
     config["scikit_learn"] = {"model": [model_path], "zarr_output": "diags.zarr"}
+    if prephysics_model_path  is not None:
+        config["prephysics_scikit_learn"] = {"model": prephysics_model_path}
     config["step_storage_variables"] = ["specific_humidity", "total_water"]
     # use local paths in prognostic_run image. fv3config
     # downloads data. We should change this once the fixes in
@@ -440,11 +442,14 @@ def configuration(request):
 def completed_rundir(configuration, tmpdir_factory):
 
     model_path = str(tmpdir_factory.mktemp("model"))
+    prephysics_model_path = str(tmpdir_factory.mktemp("prephysics_model"))
 
     if configuration == ConfigEnum.sklearn:
         model = get_mock_sklearn_model()
         model.dump(str(model_path))
-        config = get_ml_config(model_path)
+        prephysics_model = get_mock_radiative_flux_predictor_model()
+        prephysics_model.dump(str(prephysics_model_path))
+        config = get_ml_config(model_path, prephysics_model_path)
     elif configuration == ConfigEnum.keras:
         model = get_mock_keras_model()
         model.dump(str(model_path))

@@ -27,6 +27,23 @@ def _model_dataset() -> xr.Dataset:
     return data
 
 
+def _model_radiative_flux_dataset() -> xr.Dataset:
+    nz = 63
+    column = np.zeros((1, nz))
+    point = np.zeros((1, ))
+    dims = ["sample", "z"]
+    data = xr.Dataset(
+        {
+            "specific_humidity": (dims, column),
+            "air_temperature": (dims, column),
+            "DSWRFsfc_verif": (["sample"], point),
+            "NSWRFsfc_verif": (["sample"], point),
+            "DLWRFsfc_verif": (["sample"], point)
+        }
+    )
+    return data
+
+
 def get_mock_sklearn_model() -> fv3fit.Predictor:
 
     data = _model_dataset()
@@ -52,6 +69,25 @@ def get_mock_sklearn_model() -> fv3fit.Predictor:
         "sample",
         ["specific_humidity", "air_temperature"],
         ["dQ1", "dQ2", "dQu", "dQv"],
+        estimator,
+    )
+
+    # needed to avoid sklearn.exceptions.NotFittedError
+    model.fit([data])
+    return model
+
+
+def get_mock_radiative_flux_predictor_model() -> fv3fit.Predictor:
+
+    data = _model_radiative_flux_dataset()
+    estimator = RegressorEnsemble(
+        DummyRegressor(strategy="constant")
+    )
+
+    model = SklearnWrapper(
+        "sample",
+        ["specific_humidity", "air_temperature"],
+        ["DSWRFsfc_verif", "NSWRFsfc_verif", "DLWRFsfc_verif"],
         estimator,
     )
 

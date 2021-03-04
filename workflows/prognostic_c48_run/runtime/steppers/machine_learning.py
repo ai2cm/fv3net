@@ -196,8 +196,9 @@ class PureMLStepper:
     def prephysics_call(self, time, state):
         diagnostics: Diagnostics = {}
         tendency: State = {}
+        print(f"prephysics_call state:\n{state.keys()}")
         state_updates: State = predict(self.prephysics_model, state)
-        
+        print(f"prephysics_call state_updates:\n{state_updates}")
         updated_names = {
             "DSWRFsfc_verif": "adjsfcdsw_override",
             "NSWRFsfc_verif": "adjsfcnsw_override",
