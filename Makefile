@@ -23,6 +23,19 @@ build_image_%:
 build_images: $(addprefix build_image_, $(IMAGES))
 push_images: $(addprefix push_image_, $(IMAGES))
 
+build_image_prognostic_run:
+	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
+		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
+		--target prognostic-run .
+
+	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
+		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/notebook:$(VERSION) \
+		--target notebook .
+
+push_image_prognostic_run:
+	docker push $(REGISTRY)/prognostic_run:$(VERSION)
+	docker push $(REGISTRY)/notebook:$(VERSION)
+
 push_image_%: build_image_%
 	docker push $(REGISTRY)/$*:$(VERSION)
 
@@ -39,7 +52,6 @@ build_image_ci:
 ## Empty rule for deploying docs
 deploy_docs_%: 
 	@echo "Nothing to do."
-
 
 ## Deploy documentation for fv3net to vulcanclimatemodeling.com
 deploy_docs_fv3net:
@@ -144,9 +156,10 @@ lock_pip:
 	external/vcm/setup.py \
 	pip-requirements.txt \
 	external/fv3fit/requirements.txt \
+	external/fv3kube/setup.py \
 	workflows/post_process_run/requirements.txt \
-	workflows/prognostic_run_diags/requirements.txt \
-	docker/**/requirements.txt \
+	workflows/prognostic_c48_run/requirements.in \
+	docker/prognostic_run/requirements/*.txt \
 	--output-file constraints.txt
 	# remove extras in name: e.g. apache-beam[gcp] --> apache-beam
 	sed -i.bak  's/\[.*\]//g' constraints.txt
