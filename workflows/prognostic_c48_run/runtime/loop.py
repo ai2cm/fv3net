@@ -199,7 +199,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             model = open_model(config.scikit_learn) if self.rank == 0 else None
             model = self.comm.bcast(model, root=0)
             self._log_info("Model Downloaded")
-            return PureMLStepper(model, self._timestep)
+            return PureMLStepper(model, self._timestep)  # type: ignore
         elif config.nudging:
             self._log_info("Using NudgingStepper")
             partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
