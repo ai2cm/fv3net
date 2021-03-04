@@ -36,7 +36,11 @@ RUN apt-get update && \
 # Python components here
 COPY docker/prognostic_run/requirements/base.txt /tmp/requirements.txt
 COPY constraints.txt /tmp/constraints.txt
+
+# Enforce constraints are used for all pip installs
 ENV PIP_CONSTRAINT=/tmp/constraints.txt
+# Equivalent to passing --no-cache-dir to every pip install
+ENV PIP_NO_CACHE_DIR=off
 
 RUN pip3 install wheel && \
     pip3 install --upgrade pip==20.2.4 setuptools==40.1.0 && \
