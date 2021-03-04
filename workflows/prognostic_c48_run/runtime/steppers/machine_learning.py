@@ -199,9 +199,7 @@ class PureMLStepper:
         tendency: State = {}
 
         if self.prephysics_model.models:
-            print(f"prephysics_call state:\n{state.keys()}")
             state_updates: State = predict(self.prephysics_model, state)
-            print(f"prephysics_call state_updates:\n{state_updates}")
             updated_names = {
                 "DSWRFsfc_verif": "total_sky_downward_shortwave_flux_at_surface_override",
                 "NSWRFsfc_verif": "total_sky_net_shortwave_flux_at_surface_override",

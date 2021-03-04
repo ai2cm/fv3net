@@ -304,7 +304,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             return diagnostics
 
     def _apply_prephysics(self):
-        print(f"_apply_prephysics: self._state_updates:\n{self._state_updates}")
+        self._log_debug(f"Applying prephysics state updates for {list(self._state_updates.keys())}")
         self._state.update_mass_conserving(self._state_updates)
         return {}
 
