@@ -265,6 +265,36 @@
             "examples": [
                 1.3542121849959635e-07
             ]
+        },
+        "total_sky_downward_longwave_flux_at_surface_override": {
+            "$id": "#/properties/total_sky_downward_longwave_flux_at_surface_override",
+            "type": "number",
+            "default": 0.0,
+            "description": "total sky downward longwave radiation at the surface",
+            "units": "W/m^2",
+            "examples": [
+                0.0
+            ]
+        },
+        "total_sky_downward_shortwave_flux_at_surface_override": {
+            "$id": "#/properties/total_sky_downward_shortwave_flux_at_surface_override",
+            "type": "number",
+            "default": 0.0,
+            "description": "total sky downward shortwave radiation at the surface",
+            "units": "W/m^2",
+            "examples": [
+                0.0
+            ]
+        },
+        "total_sky_net_shortwave_flux_at_surface_override": {
+            "$id": "#/properties/total_sky_net_shortwave_flux_at_surface_override",
+            "type": "number",
+            "default": 0.0,
+            "description": "total sky net shortwave radiation at the surface",
+            "units": "W/m^2",
+            "examples": [
+                0.0
+            ]
         }
     },
     "additionalProperties": false

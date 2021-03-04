@@ -421,8 +421,9 @@ def get_ml_config(model_path, prephysics_model_path=None):
     config["diagnostics"] = DIAGNOSTICS
     config["fortran_diagnostics"] = []
     config["scikit_learn"] = {"model": [model_path], "zarr_output": "diags.zarr"}
-    if prephysics_model_path  is not None:
-        config["prephysics_scikit_learn"] = {"model": prephysics_model_path}
+    if prephysics_model_path is not None:
+        config["prephysics_scikit_learn"] = {"model": [prephysics_model_path]}
+        config["namelist"]["gfs_physics_nml"]["override_surface_radiative_fluxes"] = True
     config["step_storage_variables"] = ["specific_humidity", "total_water"]
     # use local paths in prognostic_run image. fv3config
     # downloads data. We should change this once the fixes in

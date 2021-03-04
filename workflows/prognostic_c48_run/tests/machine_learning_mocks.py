@@ -81,7 +81,7 @@ def get_mock_radiative_flux_predictor_model() -> fv3fit.Predictor:
 
     data = _model_radiative_flux_dataset()
     estimator = RegressorEnsemble(
-        DummyRegressor(strategy="constant")
+        DummyRegressor()
     )
 
     model = SklearnWrapper(

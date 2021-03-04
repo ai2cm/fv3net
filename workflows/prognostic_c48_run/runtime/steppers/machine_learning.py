@@ -142,6 +142,7 @@ def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
 def predict(model: MultiModelAdapter, state: State) -> State:
     """Given ML model and state, return tendency prediction."""
     state_loaded = {key: state[key] for key in model.input_variables}
+    print(f"state_loaded: {list(state_loaded.keys())}")
     ds = xr.Dataset(state_loaded)  # type: ignore
     output = model.predict_columnwise(ds, feature_dim="z")
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
@@ -196,17 +197,21 @@ class PureMLStepper:
     def prephysics_call(self, time, state):
         diagnostics: Diagnostics = {}
         tendency: State = {}
-        print(f"prephysics_call state:\n{state.keys()}")
-        state_updates: State = predict(self.prephysics_model, state)
-        print(f"prephysics_call state_updates:\n{state_updates}")
-        updated_names = {
-            "DSWRFsfc_verif": "adjsfcdsw_override",
-            "NSWRFsfc_verif": "adjsfcnsw_override",
-            "DLWRFsfc_verif": "adjsfcdlw_override"
-        }
-        for old_name, new_name in updated_names.items():
-            state_updates[new_name] = state_updates.pop(old_name)
-            diagnostics[new_name] = state_updates[new_name]
+
+        if self.prephysics_model.models:
+            print(f"prephysics_call state:\n{state.keys()}")
+            state_updates: State = predict(self.prephysics_model, state)
+            print(f"prephysics_call state_updates:\n{state_updates}")
+            updated_names = {
+                "DSWRFsfc_verif": "total_sky_downward_shortwave_flux_at_surface_override",
+                "NSWRFsfc_verif": "total_sky_net_shortwave_flux_at_surface_override",
+                "DLWRFsfc_verif": "total_sky_downward_longwave_flux_at_surface_override"
+            }
+            for old_name, new_name in updated_names.items():
+                state_updates[new_name] = state_updates.pop(old_name).assign_attrs(units="W/m^2")
+                diagnostics[new_name] = state_updates[new_name]
+        else:
+            state_updates = {}
 
         return (
             tendency,

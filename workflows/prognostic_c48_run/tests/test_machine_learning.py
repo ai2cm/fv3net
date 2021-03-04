@@ -1,5 +1,5 @@
 from runtime.steppers.machine_learning import PureMLStepper
-from machine_learning_mocks import get_mock_sklearn_model
+from machine_learning_mocks import get_mock_sklearn_model, get_mock_radiative_flux_predictor_model
 import requests
 import xarray as xr
 import joblib
