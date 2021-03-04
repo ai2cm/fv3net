@@ -227,11 +227,12 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._log_debug(f"Physics Step (apply)")
         self._fv3gfs.apply_physics()
 
+        diagnostics = {name: self._state[name] for name in self._states_to_output}
         micro = self._fv3gfs.get_diagnostic_by_name(
             "tendency_of_specific_humidity_due_to_microphysics"
         ).data_array
         delp = self._state[DELP]
-        return {
+        diagnostics.update({
             "storage_of_specific_humidity_path_due_to_microphysics": (micro * delp).sum(
                 "z"
             )
@@ -241,7 +242,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 "cnvprcp"
             ).data_array,
             "total_precip_after_physics": self._state[TOTAL_PRECIP],
-        }
+        })
+        return diagnostics
 
     def _print_timing(self, name, min_val, max_val, mean_val):
         self._print(f"{name:<30}{min_val:15.4f}{max_val:15.4f}{mean_val:15.4f}")
@@ -300,6 +302,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         updated_state = self._state_to_apply_after_physics
         self._state.update_mass_conserving(updated_state)
         diagnostics = self.stepper.get_diagnostics(self._state, self._tendencies)
+        diagnostics.update(
+            self.stepper.get_momentum_diagnostics(self._state, self._tendencies)
+        )
         updated_state[TOTAL_PRECIP] = precipitation_sum(
             self._state[TOTAL_PRECIP],
             diagnostics[self.stepper.net_moistening],
@@ -308,6 +313,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         diagnostics[TOTAL_PRECIP] = updated_state[TOTAL_PRECIP]
 
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
+        diagnostics.update({
+            name: tendency for name, tendency in self._tendencies.items()
+        })
         diagnostics.update(
             {
                 "area": self._state[AREA],
@@ -447,6 +455,10 @@ def monitor(name: str, func):
         before = {key: self._state[key] for key in vars_}
 
         diags = func(self)
+        diags = {
+            f"{diag_name}_after_{name}": diag_value
+            for diag_name, diag_value in diags.items()
+        }
 
         delp_after = self._state[DELP]
         after = {key: self._state[key] for key in vars_}
@@ -495,7 +507,7 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
         self._tendency_variables = list(tendency_variables)
         self._storage_variables = list(storage_variables)
 
-    _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
+    _apply_physics = monitor("fv3_physics_diagnostic", TimeLoop._apply_physics)
     _apply_python_to_dycore_state = monitor(
         "python", TimeLoop._apply_python_to_dycore_state
     )
