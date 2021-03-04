@@ -62,14 +62,6 @@ def global_average(comm, array: xr.DataArray, area: xr.DataArray) -> float:
         return -1
 
 
-class Emulator:
-    def __call__(self, state):
-        tendency = self.emulator.predict_columnwise(state, dim="z")
-        self._state_to_apply_after_physics = add_tendency(
-            state, tendency, dt=self._timestep
-        )
-
-
 class Stepper(Protocol):
     """Stepper interface
 
@@ -280,11 +272,11 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             self._step_dynamics,
             self._compute_emulator,
             self._compute_physics,
-            self._apply_python_to_physics_state,
+            # self._apply_python_to_physics_state,
             self._apply_physics,
             self._apply_emulator,
-            self._compute_python_updates,
-            self._apply_python_to_dycore_state,
+            # self._compute_python_updates,
+            # self._apply_python_to_dycore_state,
         ]
 
     def _compute_emulator(self):
@@ -304,8 +296,36 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
     def _apply_emulator(self):
         self._log_debug("Overwriting state with emulated updates")
-        self._state.update(self._state_to_apply_after_physics)
-        return {}
+
+        updated_state = self._state_to_apply_after_physics
+        self._state.update_mass_conserving(updated_state)
+        diagnostics = self.stepper.get_diagnostics(self._state, self._tendencies)
+        updated_state[TOTAL_PRECIP] = precipitation_sum(
+            self._state[TOTAL_PRECIP],
+            diagnostics[self.stepper.net_moistening],
+            self._timestep,
+        )
+        diagnostics[TOTAL_PRECIP] = updated_state[TOTAL_PRECIP]
+
+        diagnostics.update({name: self._state[name] for name in self._states_to_output})
+        diagnostics.update(
+            {
+                "area": self._state[AREA],
+                "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
+                    "cnvprcp"
+                ).data_array,
+                "total_precipitation_rate": precipitation_rate(
+                    self._state[TOTAL_PRECIP], self._timestep
+                ),
+            }
+        )
+
+        try:
+            del diagnostics[TOTAL_PRECIP]
+        except KeyError:
+            pass
+
+        return diagnostics
 
     def _apply_python_to_physics_state(self) -> Diagnostics:
         """Apply computed tendencies and state updates to the physics state
