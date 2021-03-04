@@ -72,6 +72,7 @@ def test_prepare_nudge_to_obs_config_regression(regtest):
 def test_diagnostics_overlay_times(frequency_minutes, expected):
     class Args:
         model_url = []
+        prephysics_model_url = []
         diagnostic_ml = True
         nudge_to_observations = False
         output_frequency = frequency_minutes
@@ -87,6 +88,7 @@ def test_diagnostics_overlay_times(frequency_minutes, expected):
 def test_get_user_config_is_valid():
     class Args:
         model_url = []
+        prephysics_model_url = []
         diagnostic_ml = True
         initial_condition_url = "gs://some-url"
         ic_timestep = "20160801.000000"

@@ -205,6 +205,8 @@ class PureMLStepper:
         }
         for old_name, new_name in updated_names.items():
             state_updates[new_name] = state_updates.pop(old_name)
+            diagnostics[new_name] = state_updates[new_name]
+
         return (
             tendency,
             diagnostics,

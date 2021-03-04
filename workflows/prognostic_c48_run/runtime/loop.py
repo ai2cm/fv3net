@@ -199,7 +199,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             model = open_model(config.scikit_learn)
             self._log_info("Model Downloaded")
             self._log_info("Downloading prephysics ML Model")
-            model = open_model(config.prephysics_scikit_learn)
+            prephysics_model = open_model(config.prephysics_scikit_learn)
             self._log_info("Prephysics Model Downloaded")
             return PureMLStepper(model, prephysics_model, self._timestep)
         elif config.nudging:
@@ -304,7 +304,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             return diagnostics
 
     def _apply_prephysics(self):
-        self._state.update_mass_conserving(self._updated_state)
+        print(f"_apply_prephysics: self._state_updates:\n{self._state_updates}")
+        self._state.update_mass_conserving(self._state_updates)
+        return {}
 
     def _apply_python_to_physics_state(self) -> Diagnostics:
         """Apply computed tendencies and state updates to the physics state

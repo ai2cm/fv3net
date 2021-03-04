@@ -28,8 +28,9 @@ def state(tmp_path_factory):
 
 def test_PureMLStepper_schema_unchanged(state, regtest):
     model = get_mock_sklearn_model()
+    prephysics_model = get_mock_sklearn_model()
     timestep = 900
-    (tendencies, diagnostics, _,) = PureMLStepper(model, timestep)(None, state)
+    (tendencies, diagnostics, _,) = PureMLStepper(model, prephysics_model, timestep)(None, state)
     xr.Dataset(diagnostics).info(regtest)
     xr.Dataset(tendencies).info(regtest)
 
@@ -41,8 +42,9 @@ def test_state_regression(state, regtest):
 
 def test_PureMLStepper_regression_checksum(state, regtest):
     model = get_mock_sklearn_model()
+    prephysics_model = get_mock_sklearn_model()
     timestep = 900
-    (tendencies, diagnostics, _,) = PureMLStepper(model, timestep)(None, state)
+    (tendencies, diagnostics, _,) = PureMLStepper(model, prephysics_model, timestep)(None, state)
     checksums = yaml.safe_dump(
         [
             ("tendencies", checksum_xarray_dict(tendencies)),
