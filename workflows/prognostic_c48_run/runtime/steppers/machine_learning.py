@@ -208,6 +208,8 @@ class PureMLStepper:
             for old_name, new_name in updated_names.items():
                 state_updates[new_name] = state_updates.pop(old_name).assign_attrs(units="W/m^2")
                 diagnostics[new_name] = state_updates[new_name]
+            for variable in self.prephysics.input_variables:
+                diagnostics[f"{variable}_for_prephysics_model"] = state[variable]
         else:
             state_updates = {}
 
