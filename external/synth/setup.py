@@ -10,7 +10,7 @@ setup(
     long_description=readme,
     name="synth",
     version="0.1.0",
-    python_requires="==3.*,>=3.6.0",
+    python_requires="==3.*,>=3.7.0",
     author="Noah D. Brenowitz",
     author_email="noahb@vulcan.com",
     packages=["synth"],
