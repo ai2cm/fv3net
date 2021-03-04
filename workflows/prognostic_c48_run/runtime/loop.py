@@ -298,7 +298,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         if self.stepper is None:
             return {}
         else:
-            self._tendencies, diagnostics, self._state_updates = self.stepper(
+            self._tendencies, diagnostics, self._state_updates = self.stepper.prephysics_call(
                 self._state.time, self._state
             )
             return diagnostics
