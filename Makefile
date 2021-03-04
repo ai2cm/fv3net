@@ -153,6 +153,7 @@ lock_pip:
 	external/vcm/setup.py \
 	pip-requirements.txt \
 	external/fv3fit/requirements.txt \
+	external/fv3kube/setup.py \
 	workflows/post_process_run/requirements.txt \
 	workflows/prognostic_c48_run/requirements.in \
 	docker/prognostic_run/requirements/*.txt \
