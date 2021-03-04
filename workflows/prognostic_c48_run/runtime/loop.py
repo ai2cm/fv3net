@@ -295,7 +295,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         ]
 
     def _compute_prephysics(self):
-        if self.stepper is None:
+        if self.stepper is None or not hasattr(self.stepper, "prephysics_call"):
             return {}
         else:
             self._tendencies, diagnostics, self._state_updates = self.stepper.prephysics_call(
