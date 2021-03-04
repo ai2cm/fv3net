@@ -53,12 +53,15 @@ def precipitation_rate(
     return precipitation_rate
 
 
-def compute_ml_diagnostics(state: State, ml_tendency: State) -> Diagnostics:
+def compute_ml_diagnostics(
+    state: State, ml_tendency: State,
+    heating_key="dQ1", moistening_key="dQ2"
+) -> Diagnostics:
 
     physics_precip = state[PRECIP_RATE]
     delp = state[DELP]
-    dQ1 = ml_tendency.get("dQ1", xr.zeros_like(delp))
-    dQ2 = ml_tendency.get("dQ2", xr.zeros_like(delp))
+    dQ1 = ml_tendency.get(heating_key, xr.zeros_like(delp))
+    dQ2 = ml_tendency.get(moistening_key, xr.zeros_like(delp))
     net_moistening = (dQ2 * delp / gravity).sum("z")
 
     return dict(
@@ -84,11 +87,12 @@ def compute_ml_diagnostics(state: State, ml_tendency: State) -> Diagnostics:
     )
 
 
-def compute_ml_momentum_diagnostics(state: State, tendency: State) -> Diagnostics:
+def compute_ml_momentum_diagnostics(state: State, tendency: State,
+    eastwind_key="dQu", northwind_key="dQv") -> Diagnostics:
     delp = state[DELP]
 
-    dQu = tendency.get("dQu", xr.zeros_like(delp))
-    dQv = tendency.get("dQv", xr.zeros_like(delp))
+    dQu = tendency.get(eastwind_key, xr.zeros_like(delp))
+    dQv = tendency.get(northwind_key, xr.zeros_like(delp))
     column_integrated_dQu = _mass_average(dQu, delp, "z")
     column_integrated_dQv = _mass_average(dQv, delp, "z")
     return dict(

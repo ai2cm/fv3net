@@ -7,8 +7,10 @@ DELP = "pressure_thickness_of_atmospheric_layer"
 PRECIP_RATE = "surface_precipitation_rate"
 TOTAL_PRECIP = "total_precipitation"  # has units of m
 AREA = "area_of_grid_cell"
-EAST_WIND = "eastward_wind_after_physics"
-NORTH_WIND = "northward_wind_after_physics"
+EAST_WIND_AFTER_PHYSICS = "eastward_wind_after_physics"
+NORTH_WIND_AFTER_PHYSICS = "northward_wind_after_physics"
+EAST_WIND = "eastward_wind"
+NORTH_WIND = "northward_wind"
 CLOUD_ICE = "cloud_ice_mixing_ratio"
 CLOUD_WATER = "cloud_water_mixing_ratio"
 GRAUPEL = "graupel_mixing_ratio"
@@ -20,8 +22,8 @@ OZONE = "ozone_mixing_ratio"
 TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
     "dQ1": TEMP,
     "dQ2": SPHUM,
-    "dQu": EAST_WIND,
-    "dQv": NORTH_WIND,
+    "dQu": EAST_WIND_AFTER_PHYSICS,
+    "dQv": NORTH_WIND_AFTER_PHYSICS,
     "tendency_of_air_temperature_due_to_fv3_physics": TEMP,
     "tendency_of_specific_humidity_due_to_fv3_physics": SPHUM,
     "tendency_of_eastward_wind_due_to_fv3_physics": EAST_WIND,

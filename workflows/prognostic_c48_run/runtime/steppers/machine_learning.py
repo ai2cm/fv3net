@@ -159,7 +159,7 @@ def predict(model: MultiModelAdapter, state: State) -> State:
     """Given ML model and state, return tendency prediction."""
     state_loaded = {key: state[key] for key in model.input_variables}
     ds = xr.Dataset(state_loaded)  # type: ignore
-    output = model.predict_columnwise(ds, feature_dim="z")
+    output = model.predict_columnwise(ds, feature_dim="z").squeeze()
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
@@ -227,7 +227,7 @@ def maybe_get(d, keys):
 
 class EmulatorStepper:
 
-    net_moistening = "net_moistening_emulator"
+    net_moistening = "net_moistening"
 
     def __init__(self, model: MultiModelAdapter, timestep: float):
         self.model = model
@@ -242,13 +242,25 @@ class EmulatorStepper:
         derived_state1 = vcm.derived_mapping.DerivedMapping(state1)
         state2 = {key: derived_state1[key] for key in self.model.input_variables}
         tendency = predict(self.model, state2)
-        logger.debug(f"tendency_keys: {tendency.keys()}")
-        logger.debug(f"state2 keys: {state2.keys()}")
+        try:
+            del state2["time"]
+        except KeyError:
+            pass
+        
         state_updates = add_tendency(state2, tendency, dt=self.timestep)
-        return {}, {}, state_updates
+
+        return tendency, {}, state_updates
 
     def get_diagnostics(self, state, tendency):
-        return {}
+        return runtime.compute_ml_diagnostics(
+            state, tendency,
+            heating_key="tendency_of_air_temperature_due_to_fv3_physics",
+            moistening_key="tendency_of_specific_humidity_due_to_fv3_physics",
+        )
 
     def get_momentum_diagnostics(self, state, tendency):
-        return {}
+        return runtime.compute_ml_momentum_diagnostics(
+            state, tendency,
+            eastwind_key="tendency_of_eastward_wind_due_to_fv3_physics",
+            northwind_key="tendency_of_northward_wind_due_to_fv3_physics",
+        )
