@@ -7,11 +7,11 @@ authors = ["Oliver Watt-Meyer <oliwm@vulcan.com>", "Brian Henn <brianh@vulcan.co
 [tool.poetry.dependencies]
 matplotlib = "^3.1"
 pandas = "^1.0"
-python = "^3.6"
+python = "^3.7"
 numpy = "^1.19.0"
 xarray = "^0.16.0"
 scipy = "^1.5.0"
-cartopy = "^0.14.0"
+cartopy = "^0.17.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
