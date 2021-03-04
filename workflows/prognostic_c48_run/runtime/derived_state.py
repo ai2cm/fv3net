@@ -33,7 +33,7 @@ class FV3StateMapper(Mapping):
             return self._total_water()
         elif key in ["lon", "lat"]:
             alternate_key = self._alternate_keys[key]
-            return np.rad2deg(self._getter.get_state((alternate_key))[alternate_key].data_array)
+            return np.rad2deg(self._getter.get_state([alternate_key])[alternate_key].data_array)
         else:
             if key in self._alternate_keys:
                 key = self._alternate_keys[key]
