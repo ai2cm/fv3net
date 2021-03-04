@@ -196,7 +196,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             self._log_info("Using MLStepper")
             # download the model
             self._log_info("Downloading ML Model")
-            model = open_model(config.scikit_learn)
+            model = open_model(config.scikit_learn) if self.rank == 0 else None
+            model = self.comm.bcast(model, root=0)
             self._log_info("Model Downloaded")
             return PureMLStepper(model, self._timestep)
         elif config.nudging:
