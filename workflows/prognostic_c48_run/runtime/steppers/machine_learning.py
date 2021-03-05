@@ -196,7 +196,6 @@ class PureMLStepper:
 
     def prephysics_call(self, time, state):
         diagnostics: Diagnostics = {}
-        tendency: State = {}
 
         if self.prephysics_model.models:
             state_updates: State = predict(self.prephysics_model, state)
@@ -213,11 +212,7 @@ class PureMLStepper:
         else:
             state_updates = {}
 
-        return (
-            tendency,
-            diagnostics,
-            state_updates,
-        )
+        return diagnostics, state_updates
 
     def get_diagnostics(self, state, tendency):
         return runtime.compute_ml_diagnostics(state, tendency)

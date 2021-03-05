@@ -298,14 +298,18 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         if self.stepper is None or not hasattr(self.stepper, "prephysics_call"):
             return {}
         else:
-            self._tendencies, diagnostics, self._state_updates = self.stepper.prephysics_call(
+            diagnostics, state_updates = self.stepper.prephysics_call(
                 self._state.time, self._state
             )
+            self._state_updates.update(state_updates)
             return diagnostics
 
     def _apply_prephysics(self):
-        self._log_debug(f"Applying prephysics state updates for {list(self._state_updates.keys())}")
-        self._state.update_mass_conserving(self._state_updates)
+        radiative_fluxes = ["total_sky_downward_shortwave_flux_at_surface_override", "total_sky_net_shortwave_flux_at_surface_override", "total_sky_downward_longwave_flux_at_surface_override"]
+        state_updates = {self._state_updates[key] for key in radiative_fluxes}
+        self._state_updates = dissoc(self._state_updates, *radiative_fluxes)
+        self._log_debug(f"Applying prephysics state updates for {list(state_updates.keys())}")
+        self._state.update_mass_conserving(state_updates)
         return {}
 
     def _apply_python_to_physics_state(self) -> Diagnostics:
