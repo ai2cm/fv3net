@@ -4,13 +4,15 @@ whiteList="\
 external/vcm/tests/test_data/test_data.tar \
 workflows/fine_res_budget/tests/gfsphysics.json \
 workflows/fine_res_budget/tests/diag.json \
-workflows/fine_res_budget/tests/restart.json"
+workflows/fine_res_budget/tests/restart.json \
+workflows/prognostic_c48_run/tests/input_data/inputs_4x4.nc
+"
 
 thresholdKb=250
 
 ret=0
 
-for file in $(git ls-files)
+while IFS= read -r -d $'\0' file
 do
     size=$(du -k "$file" | awk -F' ' '{print $1}')
 
@@ -28,6 +30,6 @@ do
         fi
     fi
 
-done
+done < <(git ls-files -z)
 
 exit $ret

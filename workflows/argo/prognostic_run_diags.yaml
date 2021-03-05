@@ -14,6 +14,8 @@ spec:
       value: "12Gi"
     - name: memory-movie
       value: "8Gi"
+    - name: memory-report
+      value: "6Gi"
   entrypoint: all
   volumes:
   - name: gcp-key-secret
@@ -53,7 +55,15 @@ spec:
       - name: generate-report
         template: report
         dependencies: [diagnostics-step, movie-step]
+        arguments:
+          parameters:
+            - name: memory
+              value: "{{workflow.parameters.memory-report}}"
   - name: report
+    inputs:
+      parameters:
+      - name: memory
+        value: "6Gi"
     tolerations:
     - key: "dedicated"
       operator: "Equal"
@@ -75,13 +85,16 @@ spec:
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
-      resources:
-        requests:
-            memory: "6Gi"
-            cpu: "1000m"
-        limits:
-            memory: "6Gi"
-            cpu: "1000m"
+    podSpecPatch: |
+      containers:
+        - name: main
+          resources:
+            limits:
+              cpu: "1000m"
+              memory: "{{inputs.parameters.memory}}"
+            requests:
+              cpu: "1000m"
+              memory: "{{inputs.parameters.memory}}"
   - name: diagnostics
     inputs:
       parameters:
@@ -143,10 +156,10 @@ spec:
         - name: main
           resources:
             limits:
-              cpu: "1000m"
+              cpu: "8000m"
               memory: "{{inputs.parameters.memory}}"
             requests:
-              cpu: "1000m"
+              cpu: "6000m"
               memory: "{{inputs.parameters.memory}}"
   - name: movie
     inputs:

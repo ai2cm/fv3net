@@ -57,12 +57,12 @@ def plot_cube(
         plottable_variable (xr.Dataset):
             Dataset containing variable to plotted via pcolormesh, along with
             coordinate variables (lat, latb, lon, lonb). This dataset object
-            can be created from the helper function `mappable_var`, which takes
+            can be created from the helper function :py:func:`mappable_var`, which takes
             in an fv3gfs restart or diagnostic dataset along with the name of
             the variable to be plotted.
         plotting_function (str, optional):
             Name of matplotlib 2-d plotting function. Available options are
-            "pcolormesh", "contour", and "contourf". Defaults to plt.pcolormesh.
+            "pcolormesh", "contour", and "contourf". Defaults to "pcolormesh".
         ax (plt.axes, optional):
             Axes onto which the map should be plotted; must be created with
             a cartopy projection argument. If not supplied, axes are generated
@@ -95,15 +95,16 @@ def plot_cube(
             Additional keyword arguments to be passed to the plotting function.
 
     Returns:
-        figure (matlotlib Figure)
+        figure (plt.Figure):
+            matplotlib figure object onto which axes grid is created
         axes (np.ndarray):
             Array of `plt.axes` objects assocated with map subplots if faceting;
             otherwise array containing single axes object.
         handles (list):
             List or nested list of matplotlib object handles associated with
             map subplots if faceting; otherwise list of single object handle.
-        cbar (obj):
-            `plt.colorbar` object handle associated with figure, if `colorbar`
+        cbar (plt.colorbar):
+            object handle associated with figure, if `colorbar`
             arg is True, else None.
         facet_grid (xarray.plot.facetgrid):
             xarray plotting facetgrid for multi-axes case. In single-axes case,
@@ -204,22 +205,68 @@ def mappable_var(
 ):
     """ Converts a restart or diagnostic dataset into a format for plotting
     across cubed-sphere tiles
+    
+    Note that the default coordinate names and grid variable coordinates are for FV3
+    restart and diagnostic file formats. If plotting prognostic-run python diagnostic
+    zarrs, use the following kwargs:
+    ::
+    
+        MAPPABLE_VAR_KWARGS = {
+            "coord_x_center": "x",
+            "coord_y_center": "y",
+            "coord_x_outer": "x_interface",
+            "coord_y_outer": "y_interface",
+            "coord_vars": {
+                "lonb": ["y_interface", "x_interface", "tile"],
+                "latb": ["y_interface", "x_interface", "tile"],
+                "lon": ["y", "x", "tile"],
+                "lat": ["y", "x", "tile"],
+            },
+        }
+        
+    while if plotting prognostic run report diagnostics variables use the following:
+    ::
+    
+        MAPPABLE_VAR_KWARGS = {
+            "coord_x_center": "x",
+            "coord_y_center": "y",
+            "coord_x_outer": "xb",
+            "coord_y_outer": "yb",
+            "coord_vars": {
+                "lonb": ["yb", "xb", "tile"],
+                "latb": ["yb", "xb", "tile"],
+                "lon": ["y", "x", "tile"],
+                "lat": ["y", "x", "tile"],
+            },
+        }
 
     Args:
         ds (xr.Dataset):
-            Dataset containing the variable to be plotted, along with grid spec
-            information. May be created by merging
-            `fv3_restarts.open_restarts` output and grid spec tiles.
+            Dataset containing the variable to be plotted, along with grid variables.
         var_name (str):
             Name of variable to be plotted.
+        coord_x_center (str):
+            name of the x-coordinate describing cell centers
+        coord_y_center (str):
+            name of the y-coordinate describing cell centers
+        coord_x_outer (str):
+            name of the x-coordinate describing cell interfaces
+        coord_y_outer (str):
+            name of the y-coordinate describing cell interfaces
+        coord_vars (Mapping[str, Sequence[str]]):
+            mapping of names of grid variables, which must include latitudes and
+            longitudes of both cell centers and bounds, to their sequence of
+            coordinate names
 
     Returns:
         ds (xr.Dataset):
             Dataset containing variable to be plotted as well as grid
-            coordinates variables. Grid variables are renamed and ordered for
-            plotting as first argument to `plot_cube`.
+            coordinates variables, which are renamed and ordered for
+            plotting. Intended as first argument to :py:func:`plot_cube`.
 
     Example:
+    ::
+        
         # plot diag winds at two times
         axes, hs, cbar = plot_cube(
             mappable_var(diag_ds, 'VGRD850').isel(time = slice(2, 4)),
@@ -410,7 +457,7 @@ def plot_cube_axes(
         using np.ndarrays for all data
 
     The `edgecolor` argument produces artifacts with this approach for pcolormesh.
-    To plot pcolormesh, you should consider using `pcolormesh_cube`.
+    To plot pcolormesh, you should consider using :py:func:`pcolormesh_cube`.
 
     Args:
         array (np.ndarray):
@@ -426,9 +473,9 @@ def plot_cube_axes(
         lonb (np.ndarray):
             Array of longitudes of cell edges, of dimensions (npy + 1, npx + 1,
             tile)
-        plotting_function (str, optional):
+        plotting_function (str):
             Name of matplotlib 2-d plotting function. Available options are
-            "pcolormesh", "contour", and "contourf". Defaults to "pcolormesh".
+            "pcolormesh", "contour", and "contourf".
         ax (plt.axes, optional)
             Matplotlib geoaxes object onto which plotting function will be
             called. Default None uses current axes.
