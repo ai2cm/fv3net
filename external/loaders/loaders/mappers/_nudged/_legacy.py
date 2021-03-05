@@ -13,7 +13,8 @@ from ...constants import DERIVATION_SHIELD_COORD, DERIVATION_FV3GFS_COORD
 from .._high_res_diags import open_high_res_diags
 from .._merged import MergeOverlappingData
 from .._transformations import KeyMap, SubsetTimes
-from .._base import GeoMapper, LongRunMapper, MultiDatasetMapper
+from .._base import GeoMapper, MultiDatasetMapper
+from .._legacy_base import LongRunMapper
 
 import vcm
 

@@ -7,8 +7,8 @@ from itertools import chain
 import synth
 from vcm import safe
 from loaders import DATASET_DIM_NAME, TIME_NAME, TIME_FMT
-from loaders.mappers import LongRunMapper, SubsetTimes
 from loaders.mappers._nudged._legacy import (
+    LongRunMapper,
     MergeNudged,
     NudgedStateCheckpoints,
     NudgedFullTendencies,
@@ -596,39 +596,6 @@ def test_open_merged_nudge_to_obs_full_tendencies(nudged_data_dir):
     for var in vars_to_check_existence_of:
         mapper[key][var]
     assert len(mapper) == 6
-
-
-def test_SubsetTime(nudged_tstep_mapper):
-
-    i_start = 4
-    n_times = 6
-    times = sorted(list(nudged_tstep_mapper.keys()))[4:10]
-
-    subset = SubsetTimes(i_start, n_times, nudged_tstep_mapper)
-
-    assert len(subset) == n_times
-    assert times == sorted(list(subset.keys()))
-
-
-def test_SubsetTime_out_of_order_times(nudged_tstep_mapper):
-
-    times = sorted(list(nudged_tstep_mapper.keys()))[:5]
-    shuffled_idxs = [4, 0, 2, 3, 1]
-    shuffled_map = {times[i]: nudged_tstep_mapper[times[i]] for i in shuffled_idxs}
-    subset = SubsetTimes(0, 2, shuffled_map)
-
-    for i, key in enumerate(sorted(list(subset.keys()))):
-        assert key == times[i]
-        xr.testing.assert_equal(nudged_tstep_mapper[key], subset[key])
-
-
-def test_SubsetTime_fail_on_non_subset_key(nudged_tstep_mapper):
-
-    out_of_bounds = sorted(list(nudged_tstep_mapper.keys()))[4]
-    subset = SubsetTimes(0, 4, nudged_tstep_mapper)
-
-    with pytest.raises(KeyError):
-        subset[out_of_bounds]
 
 
 @pytest.mark.regression

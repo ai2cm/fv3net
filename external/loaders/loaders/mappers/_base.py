@@ -1,12 +1,11 @@
 import pandas as pd
-import numpy as np
 import xarray as xr
+import fsspec
 import vcm
 from typing import Hashable, Mapping, Optional, Sequence
 
 
-from ..constants import DATASET_DIM_NAME, TIME_NAME, TIME_FMT
-from .._utils import standardize_zarr_time_coord
+from ..constants import DATASET_DIM_NAME, TIME_NAME
 
 
 class GeoMapper(Mapping[str, xr.Dataset]):
@@ -17,42 +16,61 @@ class GeoMapper(Mapping[str, xr.Dataset]):
         return iter(self.keys())
 
 
-class LongRunMapper(GeoMapper):
-    """
-    Basic mapper across the time dimension for any long-form
-    simulation output.
-    
-    This mapper uses slightly different initialization from the
-    base GeoMapper class (this takes a dataset instead of a url) because
-    run information for all timesteps already exists within
-    a single file, i.e., no filesystem grouping is necessary to get
-    an item.
+class XarrayMapper(GeoMapper):
+    """A mapper for accessing an xarray dataset.
+
+    Example:
+        >>> import cftime
+        >>> data = xr.Dataset(
+        ...         {"a": (["time", "x"], [[0, 0]])},
+        ...         coords={"time": [cftime.DatetimeJulian(2016, 1, 1)]}
+        ...        )
+        >>> mapper = XarrayMapper(data, time="time")
+        >>> list(mapper)
+        ['20160101.000000']
+        >>> mapper["20160101.000000"]
+        <xarray.Dataset>
+        Dimensions:  (x: 2)
+        Coordinates:
+            time     object 2016-01-01 00:00:00
+        Dimensions without coordinates: x
+        Data variables:
+            a        (x) int64 0 0
     """
 
-    def __init__(self, ds):
-        self.ds = standardize_zarr_time_coord(ds)
+    def __init__(self, ds: xr.Dataset, time: str = TIME_NAME):
+        """Create an XarrayMapper
+        
+        Args:
+            ds (xr.Dataset):
+                Dataset, assumed to have datetime-like time coordinate
+            time (str):
+                name of dataset time coordinate
+        """
+        self.ds = ds
 
-    def __getitem__(self, key: str) -> xr.Dataset:
-        dt64 = np.datetime64(vcm.parse_datetime_from_str(key))
-        return self.ds.sel({TIME_NAME: dt64}).drop_vars(names=TIME_NAME)
+        times = self.ds[time].values.tolist()
+        time_strings = [vcm.encode_time(single_time) for single_time in times]
+        self.time_lookup = dict(zip(time_strings, times))
+        self.time_string_lookup = dict(zip(times, time_strings))
+
+    def __getitem__(self, time_string):
+        return self.ds.sel(time=self.time_lookup[time_string])
 
     def keys(self):
-        return set(
-            [
-                time.strftime(TIME_FMT)
-                for time in pd.to_datetime(self.ds[TIME_NAME].values)
-            ]
-        )
+        return self.time_lookup.keys()
 
 
 class MultiDatasetMapper(GeoMapper):
     def __init__(
-        self, mappers: Sequence[GeoMapper], names: Optional[Sequence[Hashable]] = None,
+        self,
+        mappers: Sequence[XarrayMapper],
+        names: Optional[Sequence[Hashable]] = None,
     ):
         """Create a new MultiDatasetMapper.
         
         Args:
-            mappers: sequence of LongRunMapper objects
+            mappers: sequence of XarrayMapper objects
             names: sequence of names to assign to the dataset coordinate (optional)
         """
         self.mappers = mappers
@@ -71,3 +89,22 @@ class MultiDatasetMapper(GeoMapper):
             else:
                 dim = DATASET_DIM_NAME
             return xr.concat(datasets, dim=dim)
+
+
+def open_zarr(url: str, consolidated: bool = True, dim: str = "time") -> XarrayMapper:
+    """Open a zarr and return a XarrayMapper
+    
+    Args:
+        url (str):
+            location of zarr store
+        consolidate (bool):
+            whether to open zarr with consolidated metadata; defaults to True
+        dim (str):
+            name of time dimension; defaults to 'time'
+            
+    Returns:
+        XarrayMapper
+    
+    """
+    ds = xr.open_zarr(fsspec.get_mapper(url), consolidated=consolidated)
+    return XarrayMapper(ds, dim)

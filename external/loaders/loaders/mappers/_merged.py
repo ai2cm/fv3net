@@ -1,10 +1,81 @@
-from typing import Sequence
+from typing import Sequence, Union, Mapping
 import xarray as xr
-from vcm import safe
+import vcm
 
-from ._base import GeoMapper
-from ..constants import DERIVATION_DIM
+from ._base import GeoMapper, XarrayMapper
+from ..constants import DERIVATION_DIM, TIME_NAME
 from .._utils import get_sample_dataset
+
+
+def _round_ds_times(ds: xr.Dataset, time: str = TIME_NAME) -> xr.Dataset:
+    rounded_times = vcm.convenience.round_time(ds[time].values)
+    return ds.assign_coords({time: rounded_times})
+
+
+class MergedMapper(XarrayMapper):
+    """
+    Mapper which is produced from merging two XarrayMappers, or two xarray datasets,
+    via an inner join. Assumes no overlapping data variables between the two inputs.
+    """
+
+    def __init__(
+        self,
+        *sources: Sequence[Union[XarrayMapper, xr.Dataset]],
+        rename_vars: Mapping[str, str] = None,
+        time: str = TIME_NAME,
+    ):
+        rename_vars = rename_vars or {}
+        if len(sources) < 2:
+            raise TypeError(
+                "MergedMapper should be instantiated with two or more data sources."
+            )
+        sources = self._mapper_to_datasets(sources)
+        sources = self._rename_vars(sources, rename_vars)
+        self._check_dvar_overlap(*sources)
+        self.ds = xr.merge(sources, join="inner")
+        times = self.ds[time].values.tolist()
+        time_strings = [vcm.encode_time(single_time) for single_time in times]
+        self.time_lookup = dict(zip(time_strings, times))
+        self.time_string_lookup = dict(zip(times, time_strings))
+
+    @staticmethod
+    def _rename_vars(
+        datasets: Sequence[xr.Dataset], rename_vars: Mapping[str, str]
+    ) -> Sequence[xr.Dataset]:
+        renamed_datasets = []
+        for ds in datasets:
+            ds_rename_vars = {k: v for k, v in rename_vars.items() if k in ds}
+            renamed_datasets.append(ds.rename(ds_rename_vars))
+        return renamed_datasets
+
+    @staticmethod
+    def _mapper_to_datasets(
+        data_sources: Sequence[Union[XarrayMapper, xr.Dataset]]
+    ) -> Sequence[xr.Dataset]:
+
+        datasets = []
+        for source in data_sources:
+            if isinstance(source, XarrayMapper):
+                source = source.ds
+            datasets.append(_round_ds_times(source))
+
+        return datasets
+
+    @staticmethod
+    def _check_dvar_overlap(*ds_to_combine):
+        ds_var_sets = [set(ds.data_vars.keys()) for ds in ds_to_combine]
+
+        overlap = set()
+        checked = set()
+        for data_var in ds_var_sets:
+            overlap |= data_var & checked
+            checked |= data_var
+
+        if overlap:
+            raise ValueError(
+                "Could not combine requested data sources due to "
+                f"overlapping variables {overlap}"
+            )
 
 
 class MergeOverlappingData(GeoMapper):
@@ -56,10 +127,10 @@ class MergeOverlappingData(GeoMapper):
         overlapping = []
         for ds, source_coord in zip(datasets, self._source_names):
             if self._overlap_dim in ds.dims:
-                overlapping.append(safe.get_variables(ds, self._var_overlap))
+                overlapping.append(vcm.safe.get_variables(ds, self._var_overlap))
             else:
                 overlapping.append(
-                    safe.get_variables(ds, self._var_overlap)
+                    vcm.safe.get_variables(ds, self._var_overlap)
                     .expand_dims(self._overlap_dim)
                     .assign_coords({self._overlap_dim: [source_coord]})
                 )

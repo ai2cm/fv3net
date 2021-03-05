@@ -1,6 +1,113 @@
 import pytest
 import xarray as xr
-from loaders.mappers import GeoMapper, MergeOverlappingData
+import numpy as np
+import cftime
+from itertools import chain
+from loaders.mappers import XarrayMapper, MergedMapper, MergeOverlappingData
+
+TIME_DIM = 10
+X_DIM = 5
+
+template_da = xr.DataArray(np.ones([TIME_DIM, X_DIM]), dims=["time", "x"])
+time_coord = [cftime.DatetimeJulian(2016, 1, 1 + i) for i in range(TIME_DIM)]
+
+
+@pytest.fixture
+def ds1():
+    ds = xr.Dataset(
+        {"a": template_da, "b": template_da},
+        coords={"x": np.arange(X_DIM), "time": time_coord},
+    )
+    return ds
+
+
+@pytest.fixture
+def ds2():
+    ds = xr.Dataset(
+        {"c": template_da, "d": template_da},
+        coords={"x": np.arange(X_DIM), "time": time_coord},
+    )
+    return ds
+
+
+@pytest.fixture
+def xarray_mapper1(ds1):
+    return XarrayMapper(ds1)
+
+
+@pytest.fixture
+def xarray_mapper2(ds2):
+    return XarrayMapper(ds2)
+
+
+@pytest.fixture(params=["dataset_only", "mapper_only", "mixed"])
+def mapper_to_ds_case(request, ds1, ds2, xarray_mapper1, xarray_mapper2):
+
+    if request.param == "dataset_only":
+        sources = (ds1, ds2)
+    elif request.param == "mapper_only":
+        sources = (
+            xarray_mapper1,
+            xarray_mapper2,
+        )
+    elif request.param == "mixed":
+        sources = (ds1, xarray_mapper1)
+
+    return sources
+
+
+def test_MergedMapper__mapper_to_datasets(mapper_to_ds_case):
+
+    datasets = MergedMapper._mapper_to_datasets(mapper_to_ds_case)
+    for source in datasets:
+        assert isinstance(source, xr.Dataset)
+
+
+@pytest.mark.parametrize("init_args", [(), ("single_arg",)])
+def test_MergedMapper__fail_on_empty_sources(init_args):
+
+    with pytest.raises(TypeError):
+        MergedMapper(*init_args)
+
+
+def test_MergedMapper__check_dvar_overlap(ds1, ds2):
+
+    MergedMapper._check_dvar_overlap(*(ds1, ds2))
+
+
+@pytest.fixture(params=["single_overlap", "all_overlap"])
+def overlap_check_fail_datasets(request, ds1, ds2):
+
+    if request.param == "single_overlap":
+        sources = (ds1, ds2, ds2)
+    elif request.param == "all_overlap":
+        sources = (ds1, ds1, ds1)
+
+    return sources
+
+
+def test_MergedMapper__check_dvar_overlap_fail(overlap_check_fail_datasets):
+    with pytest.raises(ValueError):
+        MergedMapper._check_dvar_overlap(*overlap_check_fail_datasets)
+
+
+def test_MergedMapper(ds1, ds2):
+
+    merged = MergedMapper(ds1, XarrayMapper(ds2))
+
+    assert len(merged) == TIME_DIM
+
+    item = merged[list(merged.keys())[0]]
+    source_vars = chain(ds1.data_vars.keys(), ds2.data_vars.keys(),)
+    for var in source_vars:
+        assert var in item
+
+
+def test_MergedMapper__rename_vars(ds1, ds2):
+    renamed = MergedMapper._rename_vars((ds1, ds2), {"d": "e"},)
+    assert len(renamed) == 2
+    assert "e" in renamed[1]
+
 
 OVERLAP_DIM = "derivation"
 
@@ -21,7 +128,7 @@ def dataset(variables):
     return xr.Dataset(data_arrays)
 
 
-class MockBaseMapper(GeoMapper):
+class MockBaseMapper(XarrayMapper):
     def __init__(self, ds, start_time=0, end_time=4):
         self._ds = ds
         self._keys = [f"2020050{i}.000000" for i in range(start_time, end_time)]

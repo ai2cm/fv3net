@@ -1,16 +1,23 @@
 import string
-
-import pandas as pd
+import doctest
+import numpy as np
 import pytest
 import xarray as xr
+import cftime
 from loaders import DATASET_DIM_NAME, TIME_NAME, TIME_FMT
-from loaders.mappers import LongRunMapper, MultiDatasetMapper
+from loaders.mappers import XarrayMapper, MultiDatasetMapper, open_zarr
+import loaders.mappers._base
+
+
+def test_xarray_wrapper_doctests():
+    doctest.testmod(loaders.mappers._base, raise_on_error=True)
 
 
 def construct_dataset(num_tsteps):
     xdim = 10
+    time_coord = [cftime.DatetimeJulian(2000, 1, 1 + t) for t in range(num_tsteps)]
     coords = {
-        TIME_NAME: pd.date_range("2000-01-01", periods=num_tsteps),
+        TIME_NAME: time_coord,
         "x": range(xdim),
     }
     # unique values for ease of set comparison in test
@@ -28,15 +35,29 @@ def ds(request):
 
 
 @pytest.mark.parametrize("ds", [1, 5], indirect=True)
-def test_LongRunMapper(ds):
-    mapper = LongRunMapper(ds)
+def test_XarrayMapper(ds):
+    mapper = XarrayMapper(ds)
 
     assert len(mapper) == ds.sizes[TIME_NAME]
 
     single_time = ds[TIME_NAME].values[0]
-    item = ds.sel({TIME_NAME: single_time}).drop_vars(names=TIME_NAME)
-    time_key = pd.to_datetime(single_time).strftime(TIME_FMT)
+    item = ds.sel({TIME_NAME: single_time})
+    time_key = single_time.strftime(TIME_FMT)
     xr.testing.assert_equal(item, mapper[time_key])
+
+
+def test_open_zarr(tmpdir):
+    time = cftime.DatetimeJulian(2020, 1, 1)
+    time_str = "20200101.000000"
+    ds = xr.Dataset(
+        {"a": (["time", "tile", "z", "y", "x"], np.ones((1, 2, 3, 4, 5)))},
+        coords={"time": [time]},
+    )
+    ds.to_zarr(str(tmpdir), consolidated=True)
+
+    mapper = open_zarr(str(tmpdir))
+    assert isinstance(mapper, XarrayMapper)
+    xr.testing.assert_equal(mapper[time_str], ds.isel({TIME_NAME: 0}))
 
 
 @pytest.fixture(
@@ -53,7 +74,12 @@ def expected_length(sizes):
 
 @pytest.fixture
 def expected_keys(expected_length):
-    return set(pd.date_range("2000-01-01", periods=expected_length).strftime(TIME_FMT))
+    return set(
+        [
+            cftime.DatetimeJulian(2000, 1, 1 + t).strftime(TIME_FMT)
+            for t in range(expected_length)
+        ]
+    )
 
 
 @pytest.fixture
@@ -63,7 +89,7 @@ def datasets(sizes):
 
 @pytest.fixture
 def multi_dataset_mapper(datasets):
-    mappers = [LongRunMapper(ds) for ds in datasets]
+    mappers = [XarrayMapper(ds) for ds in datasets]
     return MultiDatasetMapper(mappers)
 
 
@@ -77,13 +103,9 @@ def test_MultiDatasetMapper_keys(multi_dataset_mapper, expected_keys):
 
 def test_MultiDatasetMapper_value(multi_dataset_mapper, datasets):
     single_time = datasets[0][TIME_NAME].isel({TIME_NAME: 0}).item()
-    time_key = pd.to_datetime(single_time).strftime(TIME_FMT)
+    time_key = single_time.strftime(TIME_FMT)
     expected_dataset = xr.concat(
-        [
-            ds.sel({TIME_NAME: single_time}).drop_vars(names=TIME_NAME)
-            for ds in datasets
-        ],
-        dim=DATASET_DIM_NAME,
+        [ds.sel({TIME_NAME: single_time}) for ds in datasets], dim=DATASET_DIM_NAME,
     )
     xr.testing.assert_identical(multi_dataset_mapper[time_key], expected_dataset)
 
@@ -95,12 +117,12 @@ def test_MultiDatasetMapper_key_error(multi_dataset_mapper):
 
 @pytest.fixture
 def multi_dataset_mapper_with_names(datasets):
-    mappers = [LongRunMapper(ds) for ds in datasets]
+    mappers = [XarrayMapper(ds) for ds in datasets]
     names = [i for i, _ in zip(string.ascii_lowercase, datasets)]
     return MultiDatasetMapper(mappers, names=names)
 
 
 def test_multidataset_mapper_with_names(datasets, multi_dataset_mapper_with_names):
     single_time = datasets[0][TIME_NAME].isel({TIME_NAME: 0}).item()
-    time_key = pd.to_datetime(single_time).strftime(TIME_FMT)
+    time_key = single_time.strftime(TIME_FMT)
     assert "a" in multi_dataset_mapper_with_names[time_key][DATASET_DIM_NAME]

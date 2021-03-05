@@ -1,5 +1,5 @@
 import pytest
-from loaders.mappers._base import GeoMapper, LongRunMapper
+from loaders.mappers._base import GeoMapper
 from loaders.mappers._fine_resolution_budget import (
     FineResolutionBudgetTiles,
     GroupByTime,
@@ -7,6 +7,7 @@ from loaders.mappers._fine_resolution_budget import (
 )
 from loaders.mappers._transformations import SubsetTimes
 from loaders.mappers._nudged._legacy import (
+    LongRunMapper,
     MergeNudged,
     NudgedStateCheckpoints,
     NudgedFullTendencies,

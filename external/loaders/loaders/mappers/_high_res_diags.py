@@ -4,7 +4,7 @@ from vcm import safe
 import xarray as xr
 import zarr.storage as zstore
 from .._utils import net_precipitation_from_physics, net_heating_from_physics
-from ._base import LongRunMapper
+from ._legacy_base import LongRunMapper
 from ..constants import RENAMED_SHIELD_DIAG_VARS
 
 RENAMED_SHIELD_DIMS = {

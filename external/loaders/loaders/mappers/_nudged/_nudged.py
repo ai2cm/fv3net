@@ -4,8 +4,7 @@ import intake
 import os
 from typing import Hashable, Sequence, Mapping, Optional, Any, MutableMapping
 
-from .._base import MultiDatasetMapper
-from .._xarray import XarrayMapper
+from .._base import XarrayMapper, MultiDatasetMapper
 
 logger = logging.getLogger(__name__)
 
