@@ -55,7 +55,7 @@ def cos_zenith_angle(
     time: Union[T, datetime.datetime, cftime.DatetimeJulian], lon: T, lat: T,
 ) -> T:
     """
-    Cosine of sun-zenith angle for lon, lat at time (UTC).  
+    Cosine of sun-zenith angle for lon, lat at time (UTC).
 
     If DataArrays are provided for the lat and lon arguments, their units will
     be assumed to be in degrees, unless they have a units attribute that
