@@ -25,7 +25,7 @@ DIM_RENAME_INVERSE_MAP = {
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
 _DIAG_OUTPUT_LOADERS = []
 MASK_VARNAME = "SLMSKsfc"
-GRID_ENTRIES = {48: "grid/c48", 96: "grid/c96"}
+GRID_ENTRIES = {48: "grid/c48", 96: "grid/c96", 384: "grid/c384"}
 
 
 def _adjust_tile_range(ds: xr.Dataset) -> xr.Dataset:
