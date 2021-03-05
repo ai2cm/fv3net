@@ -112,9 +112,7 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
         # stepwise mode is used when constructing stepwise predictor model
         gcm_state = states[0]
         input_forcing, input_state_delta = inputs
-        if input_state_delta is not None:  # can be None when using stepwise model
-            # add tendencies from the host model
-            gcm_state = tf.add(gcm_state, input_state_delta)
+        gcm_state = tf.add(gcm_state, input_state_delta)
         h = K.concatenate([input_forcing, gcm_state], axis=-1)
         for kernel, bias in self.dense_weights:
             if self.use_spectral_normalization:
@@ -129,11 +127,16 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
             output_kernel = self.output_kernel
         tendency_output = K.dot(h, output_kernel) + self.output_bias
         # tendencies are on a much smaller scale than the variability of the data
-        gcm_update = tf.multiply(
+        gcm_ml_update = tf.multiply(
             tf.constant(self.tendency_ratio, dtype=tf.float32), tendency_output
         )
-        gcm_output = gcm_state + gcm_update
-        return gcm_output, [gcm_output]
+        gcm_ml_output = gcm_state + gcm_ml_update
+        # we don't want to add ML tendency to the first timestep output,
+        # because we start on a correct state. pass it as hidden state
+        # to apply forcing and output on the next timestep
+        # gcm_last_state only includes input_state delta from this execution
+        # and then the gcm_ml_output from the last execution
+        return gcm_state, [gcm_ml_output]
 
 
     def get_config(self):
