@@ -10,6 +10,7 @@ Usage:
 
 """
 from typing import Callable, Mapping
+import numpy as np
 import xarray as xr
 from toolz import curry
 from .constants import HORIZONTAL_DIMS
