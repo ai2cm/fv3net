@@ -306,7 +306,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
     def _apply_prephysics(self):
         radiative_fluxes = ["total_sky_downward_shortwave_flux_at_surface_override", "total_sky_net_shortwave_flux_at_surface_override", "total_sky_downward_longwave_flux_at_surface_override"]
-        state_updates = {self._state_updates[key] for key in radiative_fluxes}
+        state_updates = {k: v for k, v in self._state_updates.items() if k in radiative_fluxes}
         self._state_updates = dissoc(self._state_updates, *radiative_fluxes)
         self._log_debug(f"Applying prephysics state updates for {list(state_updates.keys())}")
         self._state.update_mass_conserving(state_updates)
