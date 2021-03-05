@@ -1,3 +1,7 @@
+loaders
+=======
+
+
 The `loaders` package contains modules that are used to load data for use in
 training and offline evaluation workflows. Since the size of the datasets used
 is usually larger than will fit in memory, data is processed in batches rather
