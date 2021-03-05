@@ -1,3 +1,4 @@
+import cftime
 import pytest
 import xarray as xr
 import numpy as np
@@ -142,3 +143,11 @@ def test__set_calendar_to_julian(input_dims):
     ds_out = load_diags._set_calendar_to_julian(ds)
     if "time" in input_dims:
         assert ds_out.time.attrs["calendar"] == "julian"
+
+
+def test__load_prognostic_run_physics_output_no_diags(tmpdir):
+    ds1 = _create_dataset("grid_xt", "grid_yt", "tile", "time")
+    time = [cftime.DatetimeJulian(2016, 1, n + 1) for n in range(ds1.sizes["time"])]
+    ds1["time"] = time
+    ds1.to_zarr(str(tmpdir.join("sfc_dt_atmos.zarr")), consolidated=True)
+    output = load_diags._load_prognostic_run_physics_output(str(tmpdir))
