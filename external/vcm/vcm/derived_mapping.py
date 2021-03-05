@@ -48,19 +48,9 @@ class DerivedMapping:
         return xr.Dataset(self._data_arrays(keys))
 
 
-def _maybe_convert_to_degrees(da):
-    units = da.attrs.get("units", "").lower()
-    if "radians" in units:
-        return np.rad2deg(da).assign_attrs(units="degrees")
-    else:
-        return da
-
-
 @DerivedMapping.register("cos_zenith_angle")
 def cos_zenith_angle(self):
-    lon_in_degrees = _maybe_convert_to_degrees(self["lon"])
-    lat_in_degrees = _maybe_convert_to_degrees(self["lat"])
-    return vcm.cos_zenith_angle(self["time"], lon_in_degrees, lat_in_degrees)
+    return vcm.cos_zenith_angle(self["time"], self["lon"], self["lat"])
 
 
 @DerivedMapping.register("evaporation")

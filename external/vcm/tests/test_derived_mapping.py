@@ -131,24 +131,3 @@ def test_DerivedMapping_unregistered():
     derived_state = DerivedMapping(ds)
     with pytest.raises(KeyError):
         derived_state["latent_heat_flux"]
-
-
-def _maybe_convert_grid_units(ds, lon_units, lat_units):
-    result = ds.copy(deep=True)
-    if lon_units == "radians":
-        result["lon"] = np.deg2rad(ds.lon).assign_attrs(units=lon_units)
-    if lat_units == "radians":
-        result["lat"] = np.deg2rad(ds.lat).assign_attrs(units=lat_units)
-    return result
-
-
-@pytest.mark.parametrize("lon_units", ["degrees", "radians"])
-@pytest.mark.parametrize("lat_units", ["degrees", "radians"])
-def test_DerivedMapping_cos_zenith_angle_converts_units(lon_units, lat_units):
-    ds_with_specified_units = _maybe_convert_grid_units(ds, lon_units, lat_units)
-    result_derived_state = DerivedMapping(ds_with_specified_units)
-    expected_derived_state = DerivedMapping(ds)
-
-    result = result_derived_state["cos_zenith_angle"]
-    expected = expected_derived_state["cos_zenith_angle"]
-    xr.testing.assert_identical(result, expected)

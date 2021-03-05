@@ -43,6 +43,14 @@ RAD_PER_DEG = np.pi / 180.0
 T = TypeVar("T", xr.DataArray, np.ndarray, float)
 
 
+def _ensure_units_of_degrees(da):
+    units = da.attrs.get("units", "").lower()
+    if "radians" in units:
+        return np.rad2deg(da).assign_attrs(units="degrees")
+    else:
+        return da
+
+
 def cos_zenith_angle(
     time: Union[T, datetime.datetime, cftime.DatetimeJulian], lon: T, lat: T,
 ) -> T:
@@ -54,6 +62,8 @@ def cos_zenith_angle(
     vectorized_cos_zenith = np.vectorize(_star_cos_zenith)
 
     if isinstance(lon, xr.DataArray):
+        lon = _ensure_units_of_degrees(lon)
+        lat = _ensure_units_of_degrees(lat)
         return (
             xr.apply_ufunc(cos_zenith_angle, time, lon, lat, dask="allowed")
             .rename("cos_zenith_angle")
