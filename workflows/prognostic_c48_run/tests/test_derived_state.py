@@ -16,8 +16,12 @@ class MockFV3GFS:
 
         nx, ny = 10, 10
 
-        lat = fv3gfs.util.Quantity(np.random.rand(ny, nx), dims=["y", "x"], units="radians")
-        lon = fv3gfs.util.Quantity(np.random.rand(ny, nx), dims=["y", "x"], units="radians")
+        lat = fv3gfs.util.Quantity(
+            np.random.rand(ny, nx), dims=["y", "x"], units="radians"
+        )
+        lon = fv3gfs.util.Quantity(
+            np.random.rand(ny, nx), dims=["y", "x"], units="radians"
+        )
         lhtfl = fv3gfs.util.Quantity(
             np.random.rand(ny, nx), dims=["y", "x"], units="deg"
         )
@@ -51,8 +55,8 @@ def test_DerivedFV3State_cos_zenith():
     fv3gfs = MockFV3GFS()
     getter = DerivedFV3State(fv3gfs)
     output = getter["cos_zenith_angle"]
-    assert isinstance(result, xr.DataArray)
-    assert "time" not in result.dims
+    assert isinstance(output, xr.DataArray)
+    assert "time" not in output.dims
 
 
 def test_DerivedFV3State_latent_heat_flux():

@@ -9,12 +9,8 @@ from vcm import DerivedMapping
 nt, nx, ny = 3, 2, 1
 ds = xr.Dataset(
     {
-        "lat": xr.DataArray(
-            np.random.rand(ny, nx), dims=["y", "x"], attrs={"units": "degrees"}
-        ),
-        "lon": xr.DataArray(
-            np.random.rand(ny, nx), dims=["y", "x"], attrs={"units": "degrees"}
-        ),
+        "lat": xr.DataArray(np.random.rand(ny, nx), dims=["y", "x"]),
+        "lon": xr.DataArray(np.random.rand(ny, nx), dims=["y", "x"]),
         "T": xr.DataArray(
             np.random.rand(ny, nx, nt),
             dims=["y", "x", "time"],
