@@ -3,7 +3,8 @@ import xarray as xr
 import numpy as np
 import cftime
 from itertools import chain
-from loaders.mappers import XarrayMapper, MergedMapper, MergeOverlappingData
+from loaders.mappers import XarrayMapper
+from loaders.mappers._merged import MergedMapper, MergeOverlappingData
 
 TIME_DIM = 10
 X_DIM = 5

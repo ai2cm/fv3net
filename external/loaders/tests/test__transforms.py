@@ -1,4 +1,5 @@
-from loaders.mappers import ValMap, KeyMap, SubsetTimes, XarrayMapper
+from loaders.mappers import XarrayMapper
+from loaders.mappers._transformations import ValMap, KeyMap, SubsetTimes
 import xarray as xr
 import numpy as np
 import cftime

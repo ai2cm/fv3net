@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 
-from loaders.mappers import LocalMapper, mapper_to_local
+from loaders.mappers._local import LocalMapper, mapper_to_local
 
 
 def test_LocalMapper(tmpdir):

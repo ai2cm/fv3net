@@ -4,6 +4,7 @@ import synth
 import xarray as xr
 import numpy as np
 import loaders
+from loaders.mappers._base import MultiDatasetMapper
 from loaders.batches._batch import (
     batches_from_mapper,
     _get_batch,
@@ -43,7 +44,7 @@ def mapper(request, datadir):
     if request.param == "MockDatasetMapper":
         return mapper
     elif request.param == "MultiDatasetMapper":
-        return loaders.mappers.MultiDatasetMapper([mapper, mapper, mapper])
+        return MultiDatasetMapper([mapper, mapper, mapper])
     else:
         raise ValueError("Invalid mapper type provided.")
 

@@ -3,7 +3,7 @@ import os
 import xarray as xr
 import synth
 from loaders import TIME_NAME
-from loaders.mappers._nudged._nudged import open_nudge_to_fine, open_nudge_to_obs
+from loaders.mappers import open_nudge_to_fine, open_nudge_to_obs
 
 NTIMES = 2
 

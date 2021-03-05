@@ -5,7 +5,8 @@ import pytest
 import xarray as xr
 import cftime
 from loaders import DATASET_DIM_NAME, TIME_NAME, TIME_FMT
-from loaders.mappers import XarrayMapper, MultiDatasetMapper, open_zarr
+from loaders.mappers import XarrayMapper, open_zarr
+from loaders.mappers._base import MultiDatasetMapper
 import loaders.mappers._base
 
 

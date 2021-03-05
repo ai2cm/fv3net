@@ -9,6 +9,8 @@ from ..constants import DATASET_DIM_NAME, TIME_NAME
 
 
 class GeoMapper(Mapping[str, xr.Dataset]):
+    """Abstract base class for a mapper"""
+
     def __len__(self):
         return len(self.keys())
 
@@ -58,6 +60,7 @@ class XarrayMapper(GeoMapper):
         return self.ds.sel(time=self.time_lookup[time_string])
 
     def keys(self):
+        """The mapper's time keys"""
         return self.time_lookup.keys()
 
 

@@ -10,7 +10,10 @@ These are python Mappings whose keys correspond to timesteps of the form `YYYYMM
 and whose values are the data at the keyed timestep.
 
 .. automodule:: loaders.mappers
-   :members: open_nudge_to_obs, open_nudge_to_fine, open_nudge_to_fine_multiple_datasets
+   :members: open_zarr, open_nudge_to_obs, open_nudge_to_fine, open_nudge_to_fine_multiple_datasets, open_fine_res_apparent_sources, open_fine_resolution_nudging_hybrid, open_fine_resolution_nudging_hybrid_clouds_off, open_fine_resolution_nudging_to_obs_hybrid, mapper_to_local
+   
+.. automodule:: loaders.mappers._base
+   :members: XarrayMapper, GeoMapper
 
 
 Batches
