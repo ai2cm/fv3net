@@ -377,8 +377,13 @@ def time_mean_bias_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
 
 
 @metrics_plot_manager.register
-def rmse_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "rmse")
+def rmse_3day_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+    return generic_metric_plot(metrics, "rmse_3day")
+
+
+@metrics_plot_manager.register
+def rmse_time_mean_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+    return generic_metric_plot(metrics, "rmse_of_time_mean")
 
 
 @metrics_plot_manager.register

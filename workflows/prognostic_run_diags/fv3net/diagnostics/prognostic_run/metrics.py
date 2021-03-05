@@ -122,7 +122,7 @@ def time_mean_bias(diags):
     return time_and_global_mean_bias
 
 
-@add_to_metrics("rmse_time_mean")
+@add_to_metrics("rmse_of_time_mean")
 def rmse_time_mean(diags):
     time_mean_bias = grab_diag(diags, "time_mean_bias")
     area = diags["area"]
