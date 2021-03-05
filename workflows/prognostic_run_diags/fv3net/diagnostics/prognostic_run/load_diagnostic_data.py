@@ -186,7 +186,8 @@ def _load_prognostic_run_physics_output(url):
     diagnostic_data = [_load_standardized(sfc_dt_atmos_url)]
     try:
         diags_ds = _load_standardized(diags_url)
-    except FileNotFoundError:
+    except (FileNotFoundError, KeyError):
+        # don't fail if diags.zarr doesn't exist (fsspec raises KeyError)
         pass
     else:
         # values equal to zero in diags.zarr may get interpreted as nans by xarray
