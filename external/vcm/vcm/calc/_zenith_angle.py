@@ -55,9 +55,20 @@ def cos_zenith_angle(
     time: Union[T, datetime.datetime, cftime.DatetimeJulian], lon: T, lat: T,
 ) -> T:
     """
-    Cosine of sun-zenith angle for lon, lat at time (UTC).
-    lon is in degrees (E/W)
-    lat is in degrees (N/S)
+    Cosine of sun-zenith angle for lon, lat at time (UTC).  
+
+    If DataArrays are provided for the lat and lon arguments, their units will
+    be assumed to be in degrees, unless they have a units attribute that
+    contains "rad"; in that case they will automatically be converted to having
+    units of degrees.
+
+    Args:
+        time: time in UTC
+        lon: float or np.ndarray in degrees (E/W), or xr.DataArray
+        lat: float or np.ndarray in degrees (N/S), or xr.DataArray
+
+    Returns:
+        float, np.ndarray, or xr.DataArray
     """
     vectorized_cos_zenith = np.vectorize(_star_cos_zenith)
 
