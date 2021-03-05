@@ -112,8 +112,13 @@ It can be used multiple times to specify multiple models. For example::
 Diagnostics
 ~~~~~~~~~~~
 
-Default diagnostics are computed and saved to .zarrs depending on whether ML,
-nudge-to-fine, nudge-to-obs, or baseline runs are chosen. To save additional
+Python diagnostics
+^^^^^^^^^^^^^^^^^^
+
+If no ``diagnostics`` section is provided in the ``minimal.yaml``, default diagnostics
+are configured depending on whether ML, nudge-to-fine, nudge-to-obs, or baseline runs
+are chosen. To save custom diagnostics, provide a ``diagnostics`` section. To save 
+additional
 tendencies and storages across physics and nudging/ML time steps, add
 :py:attr:`UserConfig.step_tendency_variables` and
 :py:attr:`UserConfig.step_storage_variables` entries to specify these
@@ -141,7 +146,7 @@ being saved.
       chunks:
         time: 4
       times:
-        kind: interval
+        kind: interval-average
         # 3 hours = 10800 seconds
         frequency: 10800
       variables:
@@ -151,5 +156,34 @@ being saved.
         - storage_of_specific_humidity_path_due_to_python
 
 
+Fortran diagnostics
+^^^^^^^^^^^^^^^^^^^
+
+Diagnostic to be output by the Fortran model are specified in the
+``fortran_diagnostics`` section. For example:
+
+.. code-block:: yaml
+
+    fortran_diagnostics:
+    - name: dycore_diags.zarr
+      chunks:
+        time: 4
+      times:
+        kind: interval
+        frequency: 900
+      variables:
+        - PWAT
+        - h500
+        - TMPlowest
+        - TMP850
+        - TMP200
+
+Only ``interval``, ``interval-average`` and ``every`` are allowed as the
+``times`` ``kind``. The Fortran diag_table is generated from the
+``fortran_diagnostics`` section. This requires knowing what module and
+Fortran name to use for each diagnostic listed in the variables. This
+enformation is encoded in ``MODULE_FIELD_NAME_TABLE``. See API page for
+details of available Fortran diagnostics.
+
 .. _fv3config: https://fv3config.readthedocs.io/en/latest/
-.. _fv3fit: broken link
+.. _fv3fit: https://vulcanclimatemodeling.com/docs/fv3fit/

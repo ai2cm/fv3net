@@ -45,9 +45,24 @@ Diagnostics
 ~~~~~~~~~~~
 
 .. py:module:: runtime.diagnostics.manager
+.. autoclass:: TimeConfig
 
+Python Diagnostics
+^^^^^^^^^^^^^^^^^^
+
+.. py:module:: runtime.diagnostics.manager
 .. autoclass:: DiagnosticFileConfig
 
-.. autoclass:: TimeConfig
+
+Fortran Diagnostics
+^^^^^^^^^^^^^^^^^^^
+
+.. py:module:: runtime.diagnostics.fortran
+.. autoclass:: FortranFileConfig
+
+.. literalinclude:: ../runtime/diagnostics.fortran.py
+   :language: python
+   :linenos:
+   :lines: 9-116
 
 .. _dataclasses: https://docs.python.org/3/library/dataclasses.html
