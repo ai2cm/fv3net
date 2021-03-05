@@ -43,17 +43,38 @@ RAD_PER_DEG = np.pi / 180.0
 T = TypeVar("T", xr.DataArray, np.ndarray, float)
 
 
+def _ensure_units_of_degrees(da):
+    units = da.attrs.get("units", "").lower()
+    if "rad" in units:
+        return np.rad2deg(da).assign_attrs(units="degrees")
+    else:
+        return da
+
+
 def cos_zenith_angle(
     time: Union[T, datetime.datetime, cftime.DatetimeJulian], lon: T, lat: T,
 ) -> T:
     """
     Cosine of sun-zenith angle for lon, lat at time (UTC).
-    lon is in degrees (E/W)
-    lat is in degrees (N/S)
+
+    If DataArrays are provided for the lat and lon arguments, their units will
+    be assumed to be in degrees, unless they have a units attribute that
+    contains "rad"; in that case they will automatically be converted to having
+    units of degrees.
+
+    Args:
+        time: time in UTC
+        lon: float or np.ndarray in degrees (E/W), or xr.DataArray
+        lat: float or np.ndarray in degrees (N/S), or xr.DataArray
+
+    Returns:
+        float, np.ndarray, or xr.DataArray
     """
     vectorized_cos_zenith = np.vectorize(_star_cos_zenith)
 
     if isinstance(lon, xr.DataArray):
+        lon = _ensure_units_of_degrees(lon)
+        lat = _ensure_units_of_degrees(lat)
         return (
             xr.apply_ufunc(cos_zenith_angle, time, lon, lat, dask="allowed")
             .rename("cos_zenith_angle")
