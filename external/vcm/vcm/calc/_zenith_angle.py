@@ -45,7 +45,7 @@ T = TypeVar("T", xr.DataArray, np.ndarray, float)
 
 def _ensure_units_of_degrees(da):
     units = da.attrs.get("units", "").lower()
-    if "radians" in units:
+    if "rad" in units:
         return np.rad2deg(da).assign_attrs(units="degrees")
     else:
         return da
