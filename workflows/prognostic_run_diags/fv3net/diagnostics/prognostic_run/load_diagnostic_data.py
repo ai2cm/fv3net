@@ -212,16 +212,16 @@ def _get_coarsening_args(
     return grid_entries[input_res], coarsening_factor
 
 
-def load_3d(url: str, catalog: intake.Catalog) -> DiagArg:
+def load_3d(url: str, verification_entries: Sequence[str], catalog: intake.Catalog) -> DiagArg:
     logger.info(f"Processing 3d data from run directory at {url}")
 
     # open grid
     logger.info("Opening Grid Spec")
     grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
 
-    # there is no 3d verification data, return empty dataset so this works
-    # with diags functions APIs
-    verification_c48 = xr.Dataset()
+    # open verification
+    logger.info("Opening verification data")
+    verification_c48 = load_verification(verification_entries, catalog)
 
     # open prognostic run data
     fs = get_fs(url)

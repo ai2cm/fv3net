@@ -511,7 +511,7 @@ def main(args):
     input_data = {
         "dycore": load_diags.load_dycore(args.url, verif_entries["dycore"], catalog),
         "physics": load_diags.load_physics(args.url, verif_entries["physics"], catalog),
-        "3d": load_diags.load_3d(args.url, catalog),
+        "3d": load_diags.load_3d(args.url, verif_entries["dycore"], catalog),
     }
 
     # begin constructing diags
