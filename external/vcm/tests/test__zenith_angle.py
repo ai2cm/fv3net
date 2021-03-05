@@ -53,3 +53,38 @@ def test_cos_zenith_angle_dataarray():
     assert isinstance(ans, xr.DataArray)
     assert ans.item() == pytest.approx(expected)
     assert ans.name == "cos_zenith_angle"
+
+
+def _dataset(lon_units, lat_units):
+    time = DatetimeJulian(2020, 3, 21, 12, 0, 0)
+    lat = 10
+    lon = 10
+    if lon_units == "radians":
+        lon = np.deg2rad(lon)
+    if lat_units == "radians":
+        lat = np.deg2rad(lat)
+    lon_attrs = {"units": lon_units}
+    lat_attrs = {"units": lat_units}
+    return xr.Dataset(
+        {
+            "time": ([], time),
+            "lat": (["x"], [lat], lat_attrs),
+            "lon": (["x"], [lon], lon_attrs),
+        }
+    )
+
+
+@pytest.mark.parametrize("lon_units", ["degrees", "radians"])
+@pytest.mark.parametrize("lat_units", ["degrees", "radians"])
+def test_cos_zenith_angle_dataarray_converts_units(lon_units, lat_units):
+    ds_in_degrees = _dataset("degrees", "degrees")
+    expected = cos_zenith_angle(
+        ds_in_degrees.time, ds_in_degrees.lon, ds_in_degrees.lat
+    )
+
+    ds_with_test_units = _dataset(lon_units, lat_units)
+    result = cos_zenith_angle(
+        ds_with_test_units.time, ds_with_test_units.lon, ds_with_test_units.lat
+    )
+
+    xr.testing.assert_identical(result, expected)
