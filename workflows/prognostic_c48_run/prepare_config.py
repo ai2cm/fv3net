@@ -233,25 +233,30 @@ def _diag_table_overlay(
 def _physics_frequency_overlay(
     diagnostics: Sequence[FortranFileConfig], physics_timestep: float
 ) -> Mapping[str, Mapping]:
+    """Return overlay for physics output frequency configuration if any physics
+    diagnostics are specified in given sequence of FortranFileConfig's."""
     physics_frequencies = set()
     for diagnostic_config in diagnostics:
         for variable in diagnostic_config.variables:
             if MODULE_FIELD_NAME_TABLE[variable][0] in ["gfs_phys", "gfs_sfc"]:
                 if diagnostic_config.times.kind == "every":
                     physics_frequencies.add(physics_timestep)
-                else:
+                elif diagnostic_config.times.frequency is not None:
                     physics_frequencies.add(diagnostic_config.times.frequency)
-    if len(physics_frequencies) > 1:
+    if len(physics_frequencies) == 0:
+        return {}
+    elif len(physics_frequencies) > 1:
         raise NotImplementedError(
             "Cannot output physics diagnostics at multiple frequencies."
         )
-    physics_output_frequency_in_hours = list(physics_frequencies)[0] / 3600.0
-    return {
-        "namelist": {
-            "atmos_model_nml": {"fhout": physics_output_frequency_in_hours},
-            "gfs_physics_nml": {"fhzero": physics_output_frequency_in_hours},
+    else:
+        physics_output_frequency_in_hours = list(physics_frequencies)[0] / 3600.0
+        return {
+            "namelist": {
+                "atmos_model_nml": {"fhout": physics_output_frequency_in_hours},
+                "gfs_physics_nml": {"fhzero": physics_output_frequency_in_hours},
+            }
         }
-    }
 
 
 def prepare_config(args):

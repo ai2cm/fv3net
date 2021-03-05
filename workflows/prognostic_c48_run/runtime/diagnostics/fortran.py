@@ -155,8 +155,9 @@ class FortranFileConfig:
             self._field_config_from_variable(variable, reduction_method)
             for variable in self.variables
         ]
+        name_without_ext = os.path.splitext(self.name)[0]
         return fv3config.DiagFileConfig(
-            os.path.splitext(self.name)[0], frequency, frequency_units, field_configs
+            name_without_ext, frequency, frequency_units, field_configs
         )
 
     @staticmethod
