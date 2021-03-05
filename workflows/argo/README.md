@@ -100,6 +100,19 @@ claim for volumes that are ultimately mounted and used by `run-fv3gfs`. See the
 `volumes` section of the `prognostic-run` workflow for an example of the volume claims 
 necessary to use `run-fv3gfs`.
 
+#### Restarting prognostic runs
+
+Once a prognostic run has finished running, it is possible to extend the run using the 
+`restart-prognostic-run` workflow. Note it is not possible to change any aspects of the
+configuration when restarting runs.
+
+| Parameter       | Description                                                  |
+|-----------------|--------------------------------------------------------------|
+| `url`           | Location of existing prognostic run.                         |
+| `segment-count` | (optional) Number of additional segments to run; default "1" |
+| `cpu`           | (optional) Number of cpus to request; default "6"            |
+| `memory`        | (optional) Amount of memory to request; default 6Gi          |
+
 ### Prognostic run report
 
 The `prognostic-run-diags` workflow template will generate reports for
