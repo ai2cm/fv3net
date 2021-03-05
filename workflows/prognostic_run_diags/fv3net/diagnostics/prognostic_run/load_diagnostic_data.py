@@ -13,7 +13,7 @@ from fv3net.diagnostics.prognostic_run.constants import DiagArg
 logger = logging.getLogger(__name__)
 
 
-GRID_ENTRIES = {48: "grid/c48", 96: "grid/c96"}
+GRID_ENTRIES = {48: "grid/c48", 96: "grid/c96", 384: "grid/c384"}
 
 
 def load_verification(catalog_keys: List[str], catalog: intake.Catalog,) -> xr.Dataset:
