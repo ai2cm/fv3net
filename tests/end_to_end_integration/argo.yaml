@@ -112,68 +112,91 @@ spec:
         value:  "2"
       - name: training-configs
         value: |
-          - 
-            name: sklearn_dQ1_model
-            config:
-              model_type: sklearn_random_forest
-              hyperparameters:
-                max_depth: 13
-                n_estimators: 1
-              input_variables:
-                - air_temperature
-                - specific_humidity
-                - cos_zenith_angle
-              output_variables:
-                - dQ1
-                - dQ2
-              batch_function: batches_from_geodata
-              batch_kwargs:
-                timesteps_per_batch: 1
-                mapping_function: open_nudge_to_fine
-                mapping_kwargs:
-                  nudging_variables: 
-                    - air_temperature
-                    - specific_humidity
-                    - x_wind
-                    - y_wind
-                    - pressure_thickness_of_atmospheric_layer
-          - 
-            name: keras_dQ2_model
-            config:
-              model_type: DenseModel
-              hyperparameters:
-                loss: mae
-                depth: 2
-                fit_kwargs:
-                  batch_size: 512
-                  epochs: 2
-                normalize_loss: true
-                width: 12
-                regularizer:
-                  name: l2
-                  kwargs:
-                    l: 0.0001
-                optimizer:
-                  name: Adam
-                  kwargs:
-                    learning_rate: 0.002
-              input_variables:
-                - air_temperature
-                - specific_humidity
-                - cos_zenith_angle
-              output_variables:
-                - dQ2
-              batch_function: batches_from_geodata
-              batch_kwargs:
-                timesteps_per_batch: 1
-                mapping_function: open_nudge_to_fine
-                mapping_kwargs:
-                  nudging_variables: 
-                    - air_temperature
-                    - specific_humidity
-                    - x_wind
-                    - y_wind
-                    - pressure_thickness_of_atmospheric_layer                    
+          [
+            {
+              "name": "sklearn_dQ1_model",
+              "config": {
+                "model_type": "sklearn_random_forest",
+                "hyperparameters": {
+                  "max_depth": 13,
+                  "n_estimators": 1
+                },
+                "input_variables": [
+                  "air_temperature",
+                  "specific_humidity",
+                  "cos_zenith_angle"
+                ],
+                "output_variables": [
+                  "dQ1",
+                  "dQ2"
+                ],
+                "batch_function": "batches_from_geodata",
+                "batch_kwargs": {
+                  "timesteps_per_batch": 1,
+                  "mapping_function": "open_nudge_to_fine",
+                  "mapping_kwargs": {
+                    "nudging_variables": [
+                      "air_temperature",
+                      "specific_humidity",
+                      "x_wind",
+                      "y_wind",
+                      "pressure_thickness_of_atmospheric_layer"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "name": "keras_dQ2_model",
+              "config": {
+                "model_type": "DenseModel",
+                "hyperparameters": {
+                  "loss": "mae",
+                  "depth": 2,
+                  "fit_kwargs": {
+                    "batch_size": 512,
+                    "epochs": 2
+                  },
+                  "normalize_loss": true,
+                  "width": 12,
+                  "regularizer": {
+                    "name": "l2",
+                    "kwargs": {
+                      "l": 0.0001
+                    }
+                  },
+                  "optimizer": {
+                    "name": "Adam",
+                    "kwargs": {
+                      "learning_rate": 0.002
+                    }
+                  }
+                },
+                "input_variables": [
+                  "air_temperature",
+                  "specific_humidity",
+                  "cos_zenith_angle"
+                ],
+                "output_variables": [
+                  "dQ2"
+                ],
+                "batch_function": "batches_from_geodata",
+                "batch_kwargs": {
+                  "timesteps_per_batch": 1,
+                  "mapping_function": "open_nudge_to_fine",
+                  "mapping_kwargs": {
+                    "nudging_variables": [
+                      "air_temperature",
+                      "specific_humidity",
+                      "x_wind",
+                      "y_wind",
+                      "pressure_thickness_of_atmospheric_layer"
+                    ]
+                  }
+                }
+              }
+            }
+          ]              
       - name: prognostic-run-config
         value: |
           base_version: v0.6
