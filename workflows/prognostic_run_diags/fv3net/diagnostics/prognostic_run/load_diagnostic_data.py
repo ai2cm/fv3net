@@ -6,6 +6,7 @@ from typing import List, Mapping, Sequence
 
 import fsspec
 import vcm
+from vcm.fv3 import standardize_fv3_diagnostics
 
 from fv3net.diagnostics.prognostic_run import add_derived
 from fv3net.diagnostics.prognostic_run.constants import DiagArg
@@ -32,7 +33,7 @@ def load_verification(catalog_keys: List[str], catalog: intake.Catalog,) -> xr.D
     verif_data = []
     for dataset_key in catalog_keys:
         ds = catalog[dataset_key].to_dask()
-        ds = vcm.standardize_run_diagnostics(ds)
+        ds = standardize_fv3_diagnostics(ds)
         verif_data.append(ds)
 
     return xr.merge(verif_data, join="outer")
@@ -42,7 +43,7 @@ def _load_standardized(path):
     logger.info(f"Loading and standardizing {path}")
     m = fsspec.get_mapper(path)
     ds = xr.open_zarr(m, consolidated=True, decode_times=False)
-    return vcm.standardize_run_diagnostics(ds)
+    return standardize_fv3_diagnostics(ds)
 
 
 def _load_prognostic_run_physics_output(url):
@@ -95,8 +96,8 @@ def load_dycore(
 
     # open grid
     logger.info("Opening Grid Spec")
-    grid_c48 = vcm.standardize_run_diagnostics(catalog["grid/c48"].to_dask())
-    ls_mask = vcm.standardize_run_diagnostics(catalog["landseamask/c48"].to_dask())
+    grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
+    ls_mask = standardize_fv3_diagnostics(catalog["landseamask/c48"].to_dask())
     grid_c48 = xr.merge([grid_c48, ls_mask])
 
     # open verification
@@ -133,8 +134,8 @@ def load_physics(
 
     # open grid
     logger.info("Opening Grid Spec")
-    grid_c48 = vcm.standardize_run_diagnostics(catalog["grid/c48"].to_dask())
-    ls_mask = vcm.standardize_run_diagnostics(catalog["landseamask/c48"].to_dask())
+    grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
+    ls_mask = standardize_fv3_diagnostics(catalog["landseamask/c48"].to_dask())
     grid_c48 = xr.merge([grid_c48, ls_mask])
 
     # open verification

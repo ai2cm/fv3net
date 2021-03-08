@@ -1,12 +1,17 @@
 import pytest
 import xarray as xr
 import numpy as np
+import cftime
+from numpy.random import randint
+import numpy as np
 
-from vcm.standardize_diagnostics import (
-    _set_calendar_to_julian,
+from vcm.fv3.metadata import (
     _adjust_tile_range,
     _rename_dims,
     _set_missing_attrs,
+    standardize_fv3_diagnostics,
+    gfdl_to_standard,
+    standard_to_gfdl
 )
 
 
@@ -54,16 +59,6 @@ def test__rename_dims(input_dims, rename_inverse, renamed_dims):
         assert set(ds_out.dims) == renamed_dims
 
 
-@pytest.mark.parametrize(
-    "input_dims", [("x", "time"), ("x", "y")],
-)
-def test__set_calendar_to_julian(input_dims):
-    ds = _create_dataset(*input_dims, with_coords=True)
-    ds_out = _set_calendar_to_julian(ds)
-    if "time" in input_dims:
-        assert ds_out.time.attrs["calendar"] == "julian"
-
-
 @pytest.fixture
 def xr_darray():
     data = np.arange(16).reshape(4, 4)
@@ -98,3 +93,60 @@ def test__set_missing_attrs_description(xr_darray):
     xr_darray.attrs.update(attrs)
     res = _set_missing_attrs(xr_darray.to_dataset(name="data"))
     assert res.data.attrs["long_name"] == attrs["description"]
+
+
+DIM_NAMES = ["grid_xt", "grid_yt", "tile"]
+DATA_VARS = ["a", "b"]
+TIME_DIM = 10
+
+
+def _create_raw_dataset():
+    coords = {dim: np.arange(i + 1) for i, dim in enumerate(DIM_NAMES)}
+    sizes = {dim: len(coords[dim]) for dim in DIM_NAMES}
+    dataset = {}
+    for data_var in DATA_VARS:
+        arr = np.ones([*sizes.values()])
+        dataset[data_var] = xr.DataArray(arr, dims=DIM_NAMES)
+    ds = xr.Dataset(dataset, coords=coords)
+    time_coord = [
+        cftime.DatetimeJulian(2016, 1, n + 1, 0, 0, 0, randint(100))
+        for n in range(TIME_DIM)
+    ]
+    ds["time"] = time_coord
+    return ds
+
+
+def test_standardize_fv3_diagnostics(tmpdir, regtest):
+    ds = _create_raw_dataset()
+    ds.to_zarr(str(tmpdir.join("fv3_diag.zarr")), consolidated=True)
+    diag = xr.open_zarr(str(tmpdir.join("fv3_diag.zarr")), consolidated=True).load()
+    standardized_ds = standardize_fv3_diagnostics(diag)
+    with regtest:
+        print(standardized_ds)
+        print(standardized_ds.time)
+        print(standardized_ds.time.attrs)
+
+
+def test_gfdl_to_standard_dims_correct():
+    data = xr.Dataset(
+        {
+            "2d": (["tile", "grid_yt", "grid_xt"], np.ones((1, 1, 1))),
+            "3d": (["tile", "pfull", "grid_yt", "grid_xt"], np.ones((1, 1, 1, 1))),
+        }
+    )
+
+    ans = gfdl_to_standard(data)
+    assert set(ans.dims) == {"tile", "x", "y", "z"}
+
+
+def test_gfdl_to_standard_is_inverse_of_standard_to_gfdl():
+
+    data = xr.Dataset(
+        {
+            "2d": (["tile", "grid_yt", "grid_xt"], np.ones((1, 1, 1))),
+            "3d": (["tile", "pfull", "grid_yt", "grid_xt"], np.ones((1, 1, 1, 1))),
+        }
+    )
+
+    back = standard_to_gfdl(gfdl_to_standard(data))
+    xr.testing.assert_equal(data, back)

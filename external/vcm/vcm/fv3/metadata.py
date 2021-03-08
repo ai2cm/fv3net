@@ -1,7 +1,7 @@
 import xarray as xr
 from typing import Mapping, Set, Callable, Sequence
 import logging
-from .convenience import warn_on_overwrite
+from ..convenience import warn_on_overwrite, round_time
 
 logger = logging.getLogger(__name__)
 
@@ -14,12 +14,24 @@ DIM_RENAME_INVERSE_MAP = {
     "y_interface": {"grid_y", "grid_y_coarse"},
 }
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
+TIME_DIM_NAME = "time"
+STANDARD_TO_GFDL_DIM_MAP = {
+    "x_interface": "grid_x",
+    "y_interface": "grid_y",
+    "x": "grid_xt",
+    "y": "grid_yt",
+    "z": "pfull",
+}
 
 
-def standardize_run_diagnostics(ds: xr.Dataset) -> xr.Dataset:
+def standardize_fv3_diagnostics(
+    ds: xr.Dataset, time: str = TIME_DIM_NAME
+) -> xr.Dataset:
+
+    if time in ds.coords:
+        ds[time].attrs["calendar"] = "julian"
 
     funcs: Sequence[Callable[[xr.Dataset], xr.Dataset]] = [
-        _set_calendar_to_julian,
         xr.decode_cf,
         _adjust_tile_range,
         _rename_dims,
@@ -62,20 +74,10 @@ def _rename_dims(
     return ds
 
 
-def _set_calendar_to_julian(ds: xr.Dataset, time_coord: str = "time") -> xr.Dataset:
-    if time_coord in ds.coords:
-        ds[time_coord].attrs["calendar"] = "julian"
-    return ds
-
-
-def _round_to_nearest_second(time: xr.DataArray) -> xr.DataArray:
-    return time.dt.round("1S")
-
-
-def _round_time_coord(ds: xr.Dataset, time_coord: str = "time") -> xr.Dataset:
+def _round_time_coord(ds: xr.Dataset, time_coord: str = TIME_DIM_NAME) -> xr.Dataset:
 
     if time_coord in ds.coords:
-        new_times = _round_to_nearest_second(ds[time_coord])
+        new_times = round_time(ds[time_coord])
         ds = ds.assign_coords({time_coord: new_times})
     else:
         logger.debug(
@@ -115,3 +117,20 @@ def _remove_name_suffix(
         warn_on_overwrite(ds.data_vars.keys(), replace_names.values())
         ds = ds.rename(replace_names)
     return ds
+
+
+def gfdl_to_standard(ds: xr.Dataset, rename: Mapping[str, str]=STANDARD_TO_GFDL_DIM_MAP):
+    """Convert from GFDL dimension names (grid_xt, etc) to standard
+    names (x, y, z)
+    """
+
+    key, val = rename.keys(), rename.values()
+    inverse = dict(zip(val, key))
+
+    return ds.rename({key: val for key, val in inverse.items() if key in ds.dims})
+
+
+def standard_to_gfdl(ds: xr.Dataset, rename: Mapping[str, str]=STANDARD_TO_GFDL_DIM_MAP):
+    """Convert from standard names to GFDL names"""
+    return ds.rename({key: val for key, val in rename.items() if key in ds.dims})
+
