@@ -144,7 +144,7 @@ def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
 def download_model(config: MachineLearningConfig, path: str) -> Sequence[str]:
     """Download models to local path and return the local paths"""
     remote_model_paths = config.model
-    local_model_paths: Sequence[str] = []
+    local_model_paths = []
     for i, remote_path in enumerate(remote_model_paths):
         local_path = os.path.join(path, str(i))
         os.makedirs(local_path)
