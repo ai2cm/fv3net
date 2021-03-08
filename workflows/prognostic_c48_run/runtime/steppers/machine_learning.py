@@ -142,6 +142,7 @@ def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
 
 
 def download_model(config: MachineLearningConfig, path: str) -> Sequence[str]:
+    """Download models to local path and return the local paths"""
     remote_model_paths = config.model
     local_model_paths: Sequence[str] = []
     for i, remote_path in enumerate(remote_model_paths):
@@ -149,6 +150,7 @@ def download_model(config: MachineLearningConfig, path: str) -> Sequence[str]:
         os.makedirs(local_path)
         fs = vcm.cloud.get_fs(remote_path)
         fs.get(remote_path, local_path, recursive=True)
+        local_model_paths.append(local_path)
     return local_model_paths
 
 
