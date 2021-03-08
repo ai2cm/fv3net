@@ -28,6 +28,22 @@ STANDARD_TO_GFDL_DIM_MAP = {
 def standardize_fv3_diagnostics(
     ds: xr.Dataset, time: str = TIME_DIM_NAME
 ) -> xr.Dataset:
+    """Standardize dimensions, coordinates, and attributes of FV3 diagnostic output
+    
+    Args:
+        ds (xr.Dataset):
+            Dataset of FV3GFS or SHiELD diagnostics outputs (either Fortran or
+            python-derived), presumably opened from disk via zarr.
+        time (str, optional):
+            Name of the time coordinate dimension in the dataset
+        
+    Returns:
+        The dataset with coordinate names and tile ranges set to CF "standard" values,
+        variable name suffixes (e.g., "_coarse") removed, and data variable attributes
+        ("long_name" and "units") set. The time coordinate is rounded to the nearest
+        second.
+    
+    """
 
     if time in ds.coords:
         ds[time].attrs["calendar"] = "julian"
@@ -123,7 +139,7 @@ def _remove_name_suffix(
 def gfdl_to_standard(
     ds: xr.Dataset, rename: Mapping[str, str] = STANDARD_TO_GFDL_DIM_MAP
 ):
-    """Convert from GFDL dimension names (grid_xt, etc) to standard
+    """Convert from GFDL dimension names (grid_xt, etc) to "standard"
     names (x, y, z)
     """
 
@@ -136,5 +152,5 @@ def gfdl_to_standard(
 def standard_to_gfdl(
     ds: xr.Dataset, rename: Mapping[str, str] = STANDARD_TO_GFDL_DIM_MAP
 ):
-    """Convert from standard names to GFDL names"""
+    """Convert from "standard" names to GFDL names"""
     return ds.rename({key: val for key, val in rename.items() if key in ds.dims})
