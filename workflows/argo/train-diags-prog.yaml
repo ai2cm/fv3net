@@ -3,7 +3,7 @@ kind: WorkflowTemplate
 metadata:
   name: train-diags-prog
 spec:
-  entrypoint: all
+  entrypoint: train-diags-prog
   volumes:
   - name: workdir
     emptyVol: {}
