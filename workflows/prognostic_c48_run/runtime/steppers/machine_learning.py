@@ -130,7 +130,8 @@ class MultiModelAdapter:
         return xr.merge(predictions)
 
 
-def open_model(model_paths: Sequence[str]) -> MultiModelAdapter:
+def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
+    model_paths = config.model
     models = []
     for path in model_paths:
         model = fv3fit.load(path)

@@ -200,8 +200,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             else:
                 local_model_paths = None
             local_model_paths = self.comm.bcast(local_model_paths, root=0)
+            setattr(config.scikit_learn, "model", local_model_paths)
             self._log_info("Model Downloaded From Remote")
-            model = open_model(local_model_paths)
+            model = open_model(config.scikit_learn)
             self._log_info("Model Loaded")
             return PureMLStepper(model, self._timestep)
         elif config.nudging:
