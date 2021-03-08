@@ -15,7 +15,7 @@ spec:
       medium: Memory
   serviceAccountName: integration-tests
   templates:
-  - name: all
+  - name: train-diags-prog
     inputs:
       parameters:
       - name: root
