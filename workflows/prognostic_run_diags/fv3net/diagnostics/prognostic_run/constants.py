@@ -65,6 +65,8 @@ GLOBAL_AVERAGE_PHYSICS_VARS = [
     "PRATEsfc",
     "LHTFLsfc",
     "SHTFLsfc",
+    "DSWRFsfc",
+    "DLWRFsfc",
     "USWRFtoa",
     "ULWRFtoa",
     "TMPsfc",

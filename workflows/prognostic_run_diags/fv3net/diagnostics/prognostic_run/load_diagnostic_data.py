@@ -48,12 +48,17 @@ def _load_standardized(path):
 
 def _load_prognostic_run_physics_output(url):
     """Load, standardize and merge prognostic run physics outputs"""
-    # values euqal to zero in diags.zarr get interpreted as nans by xarray, so fix here
-    diagnostic_data = [
-        _load_standardized(os.path.join(url, "diags.zarr")).fillna(0.0),
-        _load_standardized(os.path.join(url, "sfc_dt_atmos.zarr")),
-    ]
-
+    diags_url = os.path.join(url, "diags.zarr")
+    sfc_dt_atmos_url = os.path.join(url, "sfc_dt_atmos.zarr")
+    diagnostic_data = [_load_standardized(sfc_dt_atmos_url)]
+    try:
+        diags_ds = _load_standardized(diags_url)
+    except (FileNotFoundError, KeyError):
+        # don't fail if diags.zarr doesn't exist (fsspec raises KeyError)
+        pass
+    else:
+        # values equal to zero in diags.zarr may get interpreted as nans by xarray
+        diagnostic_data.append(diags_ds.fillna(0.0))
     return xr.merge(diagnostic_data, join="inner")
 
 
