@@ -242,8 +242,8 @@ spec:
       - name: train-offline-diags-prognostic
         dependencies: [nudge-to-fine-run]
         templateRef:
-          name: train-diags-prog-multiple-models
-          template: train-diags-prog-multiple-models
+          name: train-diags-prog
+          template: train-diags-prog
         arguments:
           parameters:
           - name: root
