@@ -198,7 +198,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             if self.rank == 0:
                 local_model_paths = download_model(config.scikit_learn, "ml_model")
             else:
-                local_model_paths = None
+                local_model_paths = None  # type: ignore
             local_model_paths = self.comm.bcast(local_model_paths, root=0)
             setattr(config.scikit_learn, "model", local_model_paths)
             self._log_info("Model Downloaded From Remote")
