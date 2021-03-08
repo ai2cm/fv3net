@@ -16,8 +16,12 @@ class MockFV3GFS:
 
         nx, ny = 10, 10
 
-        lat = fv3gfs.util.Quantity(np.random.rand(ny, nx), dims=["y", "x"], units="deg")
-        lon = fv3gfs.util.Quantity(np.random.rand(ny, nx), dims=["y", "x"], units="deg")
+        lat = fv3gfs.util.Quantity(
+            np.random.rand(ny, nx), dims=["y", "x"], units="radians"
+        )
+        lon = fv3gfs.util.Quantity(
+            np.random.rand(ny, nx), dims=["y", "x"], units="radians"
+        )
         lhtfl = fv3gfs.util.Quantity(
             np.random.rand(ny, nx), dims=["y", "x"], units="deg"
         )
