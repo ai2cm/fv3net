@@ -1,7 +1,8 @@
 import xarray as xr
 from typing import Mapping, Set, Callable, Sequence
 import logging
-from ..convenience import warn_on_overwrite, round_time
+from ..convenience import round_time
+from ..safe import unsafe_rename_warning
 
 logger = logging.getLogger(__name__)
 
@@ -114,12 +115,14 @@ def _remove_name_suffix(
             if target in str(vname)
         }
 
-        warn_on_overwrite(ds.data_vars.keys(), replace_names.values())
+        unsafe_rename_warning(ds.data_vars.keys(), replace_names.values())
         ds = ds.rename(replace_names)
     return ds
 
 
-def gfdl_to_standard(ds: xr.Dataset, rename: Mapping[str, str]=STANDARD_TO_GFDL_DIM_MAP):
+def gfdl_to_standard(
+    ds: xr.Dataset, rename: Mapping[str, str] = STANDARD_TO_GFDL_DIM_MAP
+):
     """Convert from GFDL dimension names (grid_xt, etc) to standard
     names (x, y, z)
     """
@@ -130,7 +133,8 @@ def gfdl_to_standard(ds: xr.Dataset, rename: Mapping[str, str]=STANDARD_TO_GFDL_
     return ds.rename({key: val for key, val in inverse.items() if key in ds.dims})
 
 
-def standard_to_gfdl(ds: xr.Dataset, rename: Mapping[str, str]=STANDARD_TO_GFDL_DIM_MAP):
+def standard_to_gfdl(
+    ds: xr.Dataset, rename: Mapping[str, str] = STANDARD_TO_GFDL_DIM_MAP
+):
     """Convert from standard names to GFDL names"""
     return ds.rename({key: val for key, val in rename.items() if key in ds.dims})
-

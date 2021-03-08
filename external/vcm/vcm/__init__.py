@@ -15,7 +15,6 @@ from .convenience import (
     cast_to_datetime,
     encode_time,
     shift_timestamp,
-    warn_on_overwrite,
 )
 from .calc import mass_integrate, r2_score, local_time, thermo, cos_zenith_angle
 from .calc.thermo import (
@@ -39,7 +38,6 @@ from .select import mask_to_surface_type, RegionOfInterest
 from .xarray_loaders import open_tiles, open_delayed, open_remote_nc, dump_nc
 from .sampling import train_test_split_sample
 from .derived_mapping import DerivedMapping
-from . import metadata
 
 
 __all__ = [item for item in dir() if not item.startswith("_")]

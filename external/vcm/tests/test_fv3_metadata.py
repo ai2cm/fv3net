@@ -2,8 +2,6 @@ import pytest
 import xarray as xr
 import numpy as np
 import cftime
-from numpy.random import randint
-import numpy as np
 
 from vcm.fv3.metadata import (
     _adjust_tile_range,
@@ -11,7 +9,7 @@ from vcm.fv3.metadata import (
     _set_missing_attrs,
     standardize_fv3_diagnostics,
     gfdl_to_standard,
-    standard_to_gfdl
+    standard_to_gfdl,
 )
 
 
@@ -109,7 +107,7 @@ def _create_raw_dataset():
         dataset[data_var] = xr.DataArray(arr, dims=DIM_NAMES)
     ds = xr.Dataset(dataset, coords=coords)
     time_coord = [
-        cftime.DatetimeJulian(2016, 1, n + 1, 0, 0, 0, randint(100))
+        cftime.DatetimeJulian(2016, 1, n + 1, 0, 0, 0, np.random.randint(100))
         for n in range(TIME_DIM)
     ]
     ds["time"] = time_coord

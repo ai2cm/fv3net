@@ -1,9 +1,8 @@
 import pathlib
 import re
 from datetime import datetime, timedelta
-from typing import List, Union, Iterable, Hashable
+from typing import List, Union
 from functools import singledispatch
-import warnings
 
 import cftime
 import numpy as np
@@ -147,24 +146,3 @@ def shift_timestamp(time: str, seconds: Union[int, float]) -> str:
 def get_root():
     """Returns the absolute path to the root directory for any machine"""
     return str(TOP_LEVEL_DIR)
-
-
-def warn_on_overwrite(old: Iterable[Hashable], new: Iterable[Hashable]):
-    """
-    Warn if new data keys will overwrite names (e.g., in a xr.Dataset)
-    via an overlap with old keys or from duplication in new keys.
-
-    Args:
-        old: Original keys to check against
-        new: Incoming keys to check for duplicates or existence in old
-    """
-    duplicates = {item for item in new if list(new).count(item) > 1}
-    overlap = set(old) & set(new)
-    overwrites = duplicates | overlap
-    if len(overwrites) > 0:
-        warnings.warn(
-            UserWarning(
-                f"Overwriting keys detected. Overlap: {overlap}"
-                f"  Duplicates: {duplicates}"
-            )
-        )
