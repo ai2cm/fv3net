@@ -33,7 +33,9 @@ services:
       - ../../external/fv3gfs-util:/fv3net/external/fv3gfs-util
       - ../../workflows/bptt:/fv3net/workflows/bptt
       - ../../workflows/prognostic_c48_run:/fv3net/workflows/prognostic_c48_run
+      - ../../constraints.txt:/fv3net/constraints.txt
       - ${GOOGLE_APPLICATION_CREDENTIALS}:${GOOGLE_APPLICATION_CREDENTIALS}
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS
     working_dir: /fv3net/workflows/bptt
+    entrypoint: /fv3net/workflows/bptt/prognostic_entrypoint.sh

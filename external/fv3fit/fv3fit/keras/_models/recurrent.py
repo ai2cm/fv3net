@@ -158,15 +158,10 @@ class RecurrentModel(ExternalModel):
         state_in = self.prognostic_packer.to_array(X)
         norm_forcing = self.input_scaler.normalize(forcing)
         norm_state_in = self.prognostic_scaler.normalize(state_in)
-        import numpy as np
-        print("norm_forcing", np.mean(norm_forcing, axis=0), np.std(norm_forcing, axis=0))
-        print("norm_state_in", np.mean(norm_state_in, axis=0), np.std(norm_state_in, axis=0))
         norm_state_out = self.model.predict([norm_forcing, norm_state_in])
-        print("norm_state_out", np.mean(norm_state_out, axis=0), np.std(norm_state_out, axis=0))
         tendency_out = self.tendency_scaler.denormalize(
             norm_state_out - norm_state_in
         ) / self.train_timestep_seconds # divide difference by timestep to get s^-1 units
-        print("norm_state_out", np.mean(norm_state_out, axis=0), np.std(norm_state_out, axis=0))
         # assert False
         ds_tendency = self.prognostic_packer.to_dataset(tendency_out)
         ds_pred = xr.Dataset({})

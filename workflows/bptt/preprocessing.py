@@ -11,7 +11,7 @@ import argparse
 COARSE_OUTPUT_URL = "/Volumes/OWC Envoy Pro EX/gs/vcm-ml-experiments/2021-01-22-nudge-to-fine-3hr-averages"
 # COARSE_OUTPUT_URL = "/Volumes/OWC Envoy Pro EX/gs/vcm-ml-experiments/2021-01-22-nudge-to-fine-3hr/merged.zarr"
 
-INPUT_NAMES = ["cos_zenith_angle"]
+INPUT_NAMES = ["surface_geopotential", "cos_zenith_angle", "land_sea_mask"]
 
 # notebook using the output data:
 # https://github.com/VulcanClimateModeling/explore/blob/master/noahb/2021-01-26-average-nudging-ml.ipynb
@@ -46,11 +46,12 @@ def get_dQ_arrays(base_value: xr.DataArray, nudging_tendency: xr.DataArray, time
         )
     T = base_value.values.reshape([n_total_samples, nt, nz])[sample_idx, :, :]
     dQ1_total = np.diff(T, axis=1) / timestep_seconds
-    # we have to discard the first nudging data point, because we don't have information
-    # about the initial model state for time differencing
-    dQ1_nudging = nudging_tendency.values.reshape([n_total_samples, nt, nz])[sample_idx, 1:, :]
-    dQ1_base = dQ1_total - dQ1_nudging
-    return T[:, 1:, :], dQ1_base, dQ1_nudging
+    dQ1_nudging = nudging_tendency.values.reshape([n_total_samples, nt, nz])[sample_idx, :, :]
+    dQ1_base = np.zeros_like(T)
+    # before operating ML at each timestep, add the physics tendency from the last timestep
+    # this is "parallel" in that the ML and the physics operate on the same state
+    dQ1_base[:, 1:, :] = dQ1_total - dQ1_nudging[:, 1:, :]
+    return T[:, :, :], dQ1_base, dQ1_nudging
 
 
 def get_packed_array(
@@ -184,9 +185,8 @@ def open_nudge(input_names) -> Iterable["TrainingArrays"]:
         X_in, input_features = get_packed_array(
             state_window, input_names, n_total_samples, nt_window, nz, sample_idx
         )
-        # discard first time point, which we can't predict because we don't have
-        # start-of-timestep data for it
-        X_in = X_in[:, 1:, :]
+        lat = state_window["lat"].values.reshape([n_total_samples, nt_window])[sample_idx, 0]
+        lon = state_window["lat"].values.reshape([n_total_samples, nt_window])[sample_idx, 0]
 
         yield TrainingArrays(
             inputs_baseline=X_in,
@@ -195,6 +195,8 @@ def open_nudge(input_names) -> Iterable["TrainingArrays"]:
             prognostic_baseline=np.concatenate([Q1_base, Q2_base], axis=2),
             # temporary work-around for not having reference data in run, use baseline as reference data
             prognostic_reference=np.concatenate([Q1_base, Q2_base], axis=2),
+            latitude=lat,
+            longitude=lon,
             input_names=input_names,
             input_features=input_features,
         )
@@ -241,6 +243,8 @@ class TrainingArrays:
         nudging_tendency: np.ndarray,
         prognostic_baseline: np.ndarray,
         prognostic_reference: np.ndarray,
+        latitude: np.ndarray,
+        longitude: np.ndarray,
         input_names: Tuple[str],
         input_features: Tuple[str],
     ):
@@ -257,6 +261,8 @@ class TrainingArrays:
         self.nudging_tendency = nudging_tendency
         self.prognostic_baseline = prognostic_baseline
         self.prognostic_reference = prognostic_reference
+        self.latitude = latitude
+        self.longitude = longitude
         self.input_names = input_names
         self.input_features = input_features
 
@@ -270,6 +276,8 @@ class TrainingArrays:
             prognostic_reference = self.prognostic_reference,
             input_names = self.input_names,
             input_features = self.input_features,
+            latitude=self.latitude,
+            longitude=self.longitude
         )
 
     @classmethod
@@ -281,6 +289,8 @@ class TrainingArrays:
             data["nudging_tendency"],
             data["prognostic_baseline"],
             data["prognostic_reference"],
+            data["latitude"],
+            data["longitude"],
             tuple(str(name) for name in data["input_names"]),
             tuple(int(n) for n in data["input_features"])
         )

@@ -206,17 +206,36 @@ def build_model(
     return model
 
 
-def penalize_negative_water(loss, negative_water_weight):
+def penalize_negative_water(loss, negative_water_weight, negative_water_threshold):
+    """
+    negative_water_threshold should have dimension [nz].
+
+    Assumes water is the last variable in the output prediction, uses
+    the shape of the negative water threshold to determine number of water features.
+    """
+    nz = negative_water_threshold.shape[0]
+    negative_water_threshold = tf.constant(negative_water_threshold, dtype=tf.float32)
     def custom_loss(y_true, y_pred):
         # we can assume temperature will never be even close to zero
         # TODO this assumes temperature + humidity are the prognostic outputs,
         # better would be to get the specific indices corresponding to humidity
+        if len(y_pred.shape) == 2:
+            pred_water = y_pred[:, -nz:]
+            shaped_threshold = negative_water_threshold[None, :]
+        elif len(y_pred.shape) == 3:
+            pred_water = y_pred[:, :, -nz:]
+            shaped_threshold = negative_water_threshold[None, None, :]
+        else:
+            raise NotImplementedError("only 2d or 3d y are supported")
         negative_water = tf.math.multiply(
             tf.constant(negative_water_weight, dtype=tf.float32),
             tf.math.reduce_mean(
                 tf.where(
-                    y_pred < tf.constant(0.0, dtype=tf.float32),
-                    tf.math.multiply(tf.constant(-1.0, dtype=tf.float32), y_pred),
+                    pred_water < shaped_threshold,
+                    tf.math.multiply(
+                        tf.constant(-1.0, dtype=tf.float32),
+                        pred_water - shaped_threshold
+                    ),
                     tf.constant(0.0, dtype=tf.float32),
                 )
             ),
@@ -314,7 +333,8 @@ def get_stepwise_model(recurrent_model):
     # tendency is already incorporated into passed state
     tendencies = tf.keras.layers.Lambda(lambda x: x * 0.)(state_input)
     gcm_cell = recurrent_model.get_layer("rnn").cell
-    outputs, _ = gcm_cell([forcing_input, tendencies], [state_input])
+    _, latent_state = gcm_cell([forcing_input, tendencies], [state_input])
+    outputs = latent_state[0]
     model = tf.keras.Model(inputs=[forcing_input, state_input], outputs=outputs)
     return model
 
@@ -328,9 +348,7 @@ def prepare_keras_arrays(arrays, input_scaler, tendency_scaler, prognostic_scale
     # use tendency to set model initial state on first timestep
     norm_given_tendency[:, 0, :] = prognostic_scaler.normalize(
         arrays.prognostic_baseline
-    )[:, 0, :] / timestep_seconds - tendency_scaler.normalize(
-        arrays.nudging_tendency
-    )[:, 0, :]
+    )[:, 0, :] / timestep_seconds
     return norm_input, norm_given_tendency, norm_prognostic_reference
 
 
@@ -350,6 +368,7 @@ if __name__ == '__main__':
         # do not remove mean for tendency scaling
         tendency_scaler = copy.deepcopy(prognostic_scaler)
         tendency_scaler.mean[:] = 0.
+        assert not np.all(prognostic_scaler.mean[:] == 0.)
         input_scaler = fv3fit.StandardScaler()
         input_scaler.fit(arrays.inputs_baseline)
         input_packer = fv3fit.ArrayPacker(
@@ -381,7 +400,22 @@ if __name__ == '__main__':
     # batch size to use for training
     batch_size = 48
 
-    loss = tf.keras.losses.mse
+    # loss = tf.keras.losses.mse
+    weight = np.zeros_like(prognostic_scaler.std)
+    weight[:nz] = 0.5 * prognostic_scaler.std[:nz] / np.sum(prognostic_scaler.std[:nz])
+    weight[nz:] = 0.5 * prognostic_scaler.std[nz:] / np.sum(prognostic_scaler.std[nz:])
+    weight = tf.constant(weight.astype(np.float32), dtype=tf.float32)
+
+    def custom_loss(y_true, y_pred):
+        return tf.math.reduce_sum(
+            tf.reduce_mean((weight[None, None, :] * tf.math.square(y_pred - y_true)), axis=(0, 1))
+        )
+    
+    loss = penalize_negative_water(
+        custom_loss,
+        1.0,
+        -1. * prognostic_scaler.mean[nz:] / prognostic_scaler.std[nz:],
+    )
     # loss = penalize_negative_water(loss, 1.0)
     optimizer = tf.keras.optimizers.Adam(lr=0.001, amsgrad=True, clipnorm=1.0)
 
@@ -412,64 +446,12 @@ if __name__ == '__main__':
         validation_arrays, input_scaler, tendency_scaler, prognostic_scaler, timestep_seconds
     )
     val_base_out = timestep_seconds * np.cumsum(val_given_tendency, axis=1)
-    baseline_loss = np.mean(loss(val_base_out, val_target_out))
+    baseline_loss = np.mean(loss(val_base_out.astype(np.float32), val_target_out.astype(np.float32)))
     print(f"baseline loss {baseline_loss}")
 
-    # import matplotlib.pyplot as plt
-    # loaded = fv3fit.load(args.model_output_dir)
-    # val_out = np.zeros_like(val_base_out)
-    # val_out[:, 0, :] = val_base_out[:, 0, :]
-    # profile_out = np.zeros_like(val_out)
-    # profile_out[:, 0, :] = prognostic_scaler.denormalize(val_out[:, 0, :])
-    # for i in range(1, val_base_out.shape[1]):
-    #     val_out[:, i, :] = val_out[:, i-1, :] + timestep_seconds * val_given_tendency[:, i, :]
-    #     val_out[:, i, :] = loaded.model.predict([val_inputs[:, i, :], val_out[:, i, :]])
-    #     profile_out[:, i, :] = prognostic_scaler.denormalize(val_out[:, i, :])
-    # # val_out = loaded.model.predict([val_inputs, val_given_tendency])
-    # val_loss = np.mean(loss(val_out, val_target_out))
-    # print(f"validation loss: {val_loss}")
-
-    # # plt.figure()
-    # # print(profile_out[0, :, :79].min(), profile_out[0, :, :79].max())
-    # # print(profile_out[0, :, 79:].min(), profile_out[0, :, 79:].max())
-    # # im = plt.pcolormesh(profile_out[0, :, :].T)
-    # # plt.colorbar(im)
-    # # plt.show()
-
-    # val_initial_state = val_given_tendency[:, 0, :] * timestep_seconds
-    # val_first_output = loaded.model.predict([val_inputs[:, 0, :], val_given_tendency[:, 0, :] * timestep_seconds])
-    # val_first_tendency = val_first_output - val_initial_state
-    # target_first_tendency = tendency_scaler.normalize(arrays.nudging_tendency)[:, 0, :]
-    # first_tendency_loss = np.mean(loss(val_first_tendency, target_first_tendency * timestep_seconds))
-    # print(f"first tendency loss: {first_tendency_loss}")
-    # print(f"first tendency std: {np.std(target_first_tendency * timestep_seconds)}")
-
-    # n_samples = val_inputs.shape[0] * val_inputs.shape[1]
-    # ds_initial = prognostic_packer.to_dataset(prognostic_scaler.denormalize(val_target_out.reshape([n_samples, val_target_out.shape[2]])))
-    # ds_input = input_packer.to_dataset(input_scaler.denormalize(val_inputs.reshape([n_samples, val_inputs.shape[2]])))
-    # ds_output = prognostic_packer.to_dataset(prognostic_scaler.denormalize(profile_out.reshape([n_samples, profile_out.shape[2]])))
-    # ds_initial.to_netcdf("ds_initial.nc")
-    # ds_input.to_netcdf("ds_input.nc")
-    # ds_output.to_netcdf("ds_output.nc")
-
-    # i = 0
-    # for i in np.random.randint(0, high=val_base_out.shape[0], size=5):
-    #     fig, ax = plt.subplots(3, 1)
-    #     vmin = min(val_base_out[i, :, :].min(), val_target_out[i, :, :].min())
-    #     vmax = max(val_base_out[i, :, :].max(), val_target_out[i, :, :].max())
-    #     im = ax[0].pcolormesh(val_out[i, :, :].T, vmin=vmin, vmax=vmax)
-    #     plt.colorbar(im, ax=ax[0])
-    #     im = ax[1].pcolormesh(val_target_out[i, :, :].T, vmin=vmin, vmax=vmax)
-    #     plt.colorbar(im, ax=ax[1])
-    #     im = ax[2].pcolormesh(val_base_out[i, :, :].T, vmin=vmin, vmax=vmax)
-    #     plt.colorbar(im, ax=ax[2])
-    #     plt.show()
-    # print(val_target_out.std(axis=(0, 1)))
-
-    # assert False
 
     base_epoch = 0
-    for i_epoch in range(5):
+    for i_epoch in range(20):
         epoch = base_epoch + i_epoch
         print(f"starting epoch {epoch}")
         for arrays in training_arrays:
@@ -484,7 +466,7 @@ if __name__ == '__main__':
                 shuffle=True
             )
         val_out = model.predict([val_inputs, val_given_tendency])
-        val_loss = np.mean(loss(val_out, val_target_out))
+        val_loss = np.mean(loss(val_out.astype(np.float32), val_target_out.astype(np.float32)))
         print(f"validation loss: {val_loss}")
     stepwise_model = get_stepwise_model(model)
     stepwise_model.compile(
@@ -502,3 +484,4 @@ if __name__ == '__main__':
     )
     fv3fit.dump(recurrent, args.model_output_dir)
     loaded = fv3fit.load(args.model_output_dir)
+
