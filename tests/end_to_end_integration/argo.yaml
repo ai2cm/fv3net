@@ -127,7 +127,7 @@ spec:
                   "cos_zenith_angle"
                 ],
                 "output_variables": [
-                  "dQ1",
+                  "dQ1"
                 ],
                 "batch_function": "batches_from_geodata",
                 "batch_kwargs": {
