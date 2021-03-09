@@ -28,10 +28,11 @@ class EnsembleModel(Predictor):
         else:
             return ds.mean(dim="member")
 
-    def load(cls, path: str) -> object:
+    @classmethod
+    def load(cls, path: str) -> "EnsembleModel":
         """Load a serialized model from a directory."""
         with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
             config = yaml.safe_load(f)
         models = [io.load(path) for path in config["models"]]
-        return cls(models)
-
+        reduction = config["reduction"]
+        return cls(models, reduction)

@@ -2,7 +2,7 @@ import dataclasses
 import argparse
 import yaml
 import logging
-from typing import List
+from typing import List, Optional
 
 import dacite
 
@@ -95,7 +95,7 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
     nudge_to_observations = (
         config_dict.get("namelist", {}).get("fv_core_nml", {}).get("nudge", False)
     )
-
+    nudging: Optional[NudgingConfig]
     if "nudging" in config_dict:
         config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
             "restarts_path", args.initial_condition_url
@@ -114,9 +114,12 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
             for diag in config_dict["diagnostics"]
         ]
     else:
-        diagnostics = _default_diagnostics(
-            nudging, scikit_learn, nudge_to_observations, args.output_frequency,
-        )
+        if nudging is not None:
+            diagnostics = _default_diagnostics(
+                nudging, scikit_learn, nudge_to_observations, args.output_frequency,
+            )
+        else:
+            raise ValueError("must provide either diagnostics or nudging info")
 
     if "fortran_diagnostics" in config_dict:
         fortran_diagnostics = [
