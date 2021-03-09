@@ -1,0 +1,31 @@
+xarray.Dataset {
+dimensions:
+	tile = 6 ;
+	time = 10 ;
+	x = 1 ;
+	y = 2 ;
+
+variables:
+	float64 a(tile, time, x, y) ;
+		a:long_name = a ;
+		a:units = unspecified ;
+	int64 x(x) ;
+	int64 y(y) ;
+	int64 tile(tile) ;
+	object time(time) ;
+
+// global attributes:
+}
+<xarray.DataArray 'time' (time: 10)>
+array([cftime.DatetimeJulian(2016, 1, 1, 0, 0, 0, 0),
+       cftime.DatetimeJulian(2016, 1, 2, 0, 0, 0, 0),
+       cftime.DatetimeJulian(2016, 1, 3, 0, 0, 0, 0),
+       cftime.DatetimeJulian(2016, 1, 4, 0, 0, 0, 0),
+       cftime.DatetimeJulian(2016, 1, 5, 0, 0, 0, 0),
+       cftime.DatetimeJulian(2016, 1, 6, 0, 0, 0, 0),
+       cftime.DatetimeJulian(2016, 1, 7, 0, 0, 0, 0),
+       cftime.DatetimeJulian(2016, 1, 8, 0, 0, 0, 0),
+       cftime.DatetimeJulian(2016, 1, 9, 0, 0, 0, 0),
+       cftime.DatetimeJulian(2016, 1, 10, 0, 0, 0, 0)], dtype=object)
+Coordinates:
+  * time     (time) object 2016-01-01 00:00:00 ... 2016-01-10 00:00:00

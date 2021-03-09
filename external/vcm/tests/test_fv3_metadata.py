@@ -4,125 +4,122 @@ import numpy as np
 import cftime
 
 from vcm.fv3.metadata import (
-    _adjust_tile_range,
-    _rename_dims,
-    _set_missing_attrs,
     standardize_fv3_diagnostics,
     gfdl_to_standard,
     standard_to_gfdl,
 )
 
 
-@pytest.mark.parametrize(
-    "ds",
-    [
-        xr.Dataset(coords={"tile": np.arange(1, 7)}),
-        xr.Dataset(coords={"tile": np.arange(6)}),
-    ],
-)
-def test__check_tile_range(ds):
-
-    expected = np.arange(6)
-    expected_da = xr.DataArray(expected, dims=["tile"], coords={"tile": expected})
-    tile_result = _adjust_tile_range(ds).tile
-    xr.testing.assert_equal(tile_result, expected_da)
-
-
-def _create_dataset(*dims, with_coords=True):
-    if with_coords:
-        coords = {dim: np.arange(i + 1) for i, dim in enumerate(dims)}
-        ds = xr.Dataset(coords=coords)
-    else:
-        arr = np.zeros([i + 1 for i in range(len(dims))])
-        da = xr.DataArray(arr, dims=dims)
-        ds = xr.Dataset({"varname": da})
-    return ds
-
-
-@pytest.mark.parametrize(
-    "input_dims, rename_inverse, renamed_dims",
-    [
-        ({"x", "y"}, {}, {"x", "y"}),
-        ({"x", "y"}, {"y_out": {"y"}}, {"x", "y_out"}),
-        ({"x", "y"}, {"y_out": {"y", "y2"}}, {"x", "y_out"}),
-        ({"x", "y"}, {"x_out": {"x"}, "y_out": {"y", "y2"}}, {"x_out", "y_out"}),
-        ({"x", "y"}, {"z_out": {"z"}}, {"x", "y"}),
-    ],
-)
-def test__rename_dims(input_dims, rename_inverse, renamed_dims):
-    # datasets can have dimensions with or without coordinates, so cover both cases
-    for with_coords in [True, False]:
-        ds_in = _create_dataset(*input_dims, with_coords=with_coords)
-        ds_out = _rename_dims(ds_in, rename_inverse=rename_inverse)
-        assert set(ds_out.dims) == renamed_dims
-
-
-@pytest.fixture
-def xr_darray():
-    data = np.arange(16).reshape(4, 4)
-    x = np.arange(4)
-    y = np.arange(4)
-
-    da = xr.DataArray(data, coords={"x": x, "y": y}, dims=["x", "y"],)
-
-    return da
-
-
-@pytest.mark.parametrize(
-    "attrs",
-    [
-        {},
-        {"units": "best units"},
-        {"long_name": "name is long!"},
-        {"units": "trees", "long_name": "number of U.S. trees"},
-    ],
-)
-def test__set_missing_attrs(attrs, xr_darray):
-
-    xr_darray.attrs.update(attrs)
-    res = _set_missing_attrs(xr_darray.to_dataset(name="data"))
-    assert "long_name" in res.data.attrs
-    assert "units" in res.data.attrs
-
-
-def test__set_missing_attrs_description(xr_darray):
-
-    attrs = {"description": "a description will be converted to a longname"}
-    xr_darray.attrs.update(attrs)
-    res = _set_missing_attrs(xr_darray.to_dataset(name="data"))
-    assert res.data.attrs["long_name"] == attrs["description"]
-
-
-DIM_NAMES = ["grid_xt", "grid_yt", "tile"]
-DATA_VARS = ["a", "b"]
+DIM_NAMES = {"x", "y", "tile", "time"}
+DATA_VAR = "a"
+TILE_RANGE = np.arange(6)
 TIME_DIM = 10
 
 
-def _create_raw_dataset():
-    coords = {dim: np.arange(i + 1) for i, dim in enumerate(DIM_NAMES)}
-    sizes = {dim: len(coords[dim]) for dim in DIM_NAMES}
-    dataset = {}
-    for data_var in DATA_VARS:
-        arr = np.ones([*sizes.values()])
-        dataset[data_var] = xr.DataArray(arr, dims=DIM_NAMES)
-    ds = xr.Dataset(dataset, coords=coords)
-    time_coord = [
-        cftime.DatetimeJulian(2016, 1, n + 1, 0, 0, 0, np.random.randint(100))
-        for n in range(TIME_DIM)
-    ]
-    ds["time"] = time_coord
-    return ds
+def _create_raw_dataset(
+    dims, tile_range, time_coord_random, attrs,
+):
+    spatial_dims = {dim for dim in dims if dim not in ["tile", "time"]}
+    coords = {dim: np.arange(i + 1) for i, dim in enumerate(sorted(spatial_dims))}
+    sizes = {dim: len(coords[dim]) for dim in spatial_dims}
+    coords.update({"tile": tile_range})
+    sizes["tile"] = tile_range.shape[0]
+    if time_coord_random:
+        time_coord = [
+            cftime.DatetimeJulian(2016, 1, n + 1, 0, 0, 0, np.random.randint(100))
+            for n in range(TIME_DIM)
+        ]
+    else:
+        time_coord = [
+            cftime.DatetimeJulian(2016, 1, n + 1, 0, 0, 0) for n in range(TIME_DIM)
+        ]
+    coords.update({"time": time_coord})
+    sizes["time"] = TIME_DIM
+    arr = np.ones([sizes[k] for k in sorted(sizes)])
+    data_array = xr.DataArray(arr, dims=sorted(dims))
+    data_array.attrs.update(attrs)
+    return xr.Dataset({DATA_VAR: data_array}, coords=coords)
 
 
-def test_standardize_fv3_diagnostics(tmpdir, regtest):
-    ds = _create_raw_dataset()
-    ds.to_zarr(str(tmpdir.join("fv3_diag.zarr")), consolidated=True)
-    diag = xr.open_zarr(str(tmpdir.join("fv3_diag.zarr")), consolidated=True).load()
+@pytest.mark.parametrize(
+    ["dims", "tile_range", "time_coord_random", "attrs", "expected_dims"],
+    [
+        pytest.param(DIM_NAMES, TILE_RANGE, False, {}, DIM_NAMES, id="dims_no_change"),
+        pytest.param(
+            {"grid_xt", "grid_yt", "tile", "time"},
+            TILE_RANGE,
+            False,
+            {},
+            DIM_NAMES,
+            id="dims_change_xy",
+        ),
+        pytest.param(
+            {"grid_xt", "grid_yt", "tile", "time", "some_other"},
+            TILE_RANGE,
+            False,
+            {},
+            {"x", "y", "tile", "time", "some_other"},
+            id="dims_change_xy_not_other",
+        ),
+        pytest.param(
+            DIM_NAMES, np.arange(1, 7), False, {}, DIM_NAMES, id="change_tile_range"
+        ),
+        pytest.param(
+            DIM_NAMES, TILE_RANGE, True, {}, DIM_NAMES, id="random_time_values"
+        ),
+        pytest.param(
+            DIM_NAMES,
+            TILE_RANGE,
+            False,
+            {"units": "best units"},
+            DIM_NAMES,
+            id="attrs_units_only",
+        ),
+        pytest.param(
+            DIM_NAMES,
+            TILE_RANGE,
+            False,
+            {"long_name": "name is long!"},
+            DIM_NAMES,
+            id="attrs_long_name_only",
+        ),
+        pytest.param(
+            DIM_NAMES,
+            TILE_RANGE,
+            False,
+            {"units": "trees", "long_name": "number of U.S. trees"},
+            DIM_NAMES,
+            id="attrs_both_only",
+        ),
+        pytest.param(
+            DIM_NAMES,
+            TILE_RANGE,
+            False,
+            {"description": "a description will be converted to a longname"},
+            DIM_NAMES,
+            id="attrs_description_only",
+        ),
+    ],
+)
+def test_standardize_fv3_diagnostics(
+    dims, tile_range, time_coord_random, attrs, expected_dims, regtest,
+):
+    diag = _create_raw_dataset(dims, tile_range, time_coord_random, attrs)
     standardized_ds = standardize_fv3_diagnostics(diag)
+
+    assert set(standardized_ds.dims) == expected_dims
+    xr.testing.assert_equal(
+        standardized_ds.tile,
+        xr.DataArray(TILE_RANGE, dims=["tile"], coords={"tile": TILE_RANGE}),
+    )
+    assert "long_name" in standardized_ds[DATA_VAR].attrs
+    assert "units" in standardized_ds[DATA_VAR].attrs
+    if "description" in attrs:
+        assert standardized_ds[DATA_VAR].attrs["long_name"] == attrs["description"]
+
+    standardized_ds.info(regtest)
     with regtest:
-        print(standardized_ds)
-        print(standardized_ds.time)
-        print(standardized_ds.time.attrs)
+        print(f"\n{standardized_ds.time}")
 
 
 def test_gfdl_to_standard_dims_correct():
