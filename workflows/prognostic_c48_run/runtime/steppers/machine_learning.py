@@ -7,6 +7,7 @@ from typing import Hashable, Iterable, Mapping, Sequence, Set, Tuple, cast, Any
 import fv3fit
 import runtime
 import xarray as xr
+import numpy as np
 from toolz.dicttoolz import dissoc
 from runtime.names import DELP, SPHUM
 from runtime.types import Diagnostics, State
@@ -237,8 +238,8 @@ class EmulatorStepper:
 
         state1 = maybe_get(state, self.model.input_variables)
         state1["time"] = time
-        state1["lon"] = state["longitude"]
-        state1["lat"] = state["latitude"]
+        state1["lon"] = np.rad2deg(state["longitude"])
+        state1["lat"] = np.rad2deg(state["latitude"])
         derived_state1 = vcm.derived_mapping.DerivedMapping(state1)
         state2 = {key: derived_state1[key] for key in self.model.input_variables}
         tendency = predict(self.model, state2)
@@ -248,8 +249,8 @@ class EmulatorStepper:
             pass
         
         state_updates = add_tendency(state2, tendency, dt=self.timestep)
-
-        return tendency, {}, state_updates
+        diags = {f"{key}_input": value for key, value in state2.items()}
+        return tendency, diags, state_updates
 
     def get_diagnostics(self, state, tendency):
         return runtime.compute_ml_diagnostics(
