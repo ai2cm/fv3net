@@ -128,7 +128,6 @@ spec:
                 ],
                 "output_variables": [
                   "dQ1",
-                  "dQ2"
                 ],
                 "batch_function": "batches_from_geodata",
                 "batch_kwargs": {
