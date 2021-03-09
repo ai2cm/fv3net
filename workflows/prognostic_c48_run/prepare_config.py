@@ -114,12 +114,9 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
             for diag in config_dict["diagnostics"]
         ]
     else:
-        if nudging is not None:
-            diagnostics = _default_diagnostics(
-                nudging, scikit_learn, nudge_to_observations, args.output_frequency,
-            )
-        else:
-            raise ValueError("must provide either diagnostics or nudging info")
+        diagnostics = _default_diagnostics(
+            nudging, scikit_learn, nudge_to_observations, args.output_frequency,
+        )
 
     if "fortran_diagnostics" in config_dict:
         fortran_diagnostics = [
@@ -151,7 +148,7 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
 
 
 def _default_diagnostics(
-    nudging: NudgingConfig,
+    nudging: Optional[NudgingConfig],
     scikit_learn: MachineLearningConfig,
     nudge_to_obs: bool,
     frequency_minutes: int,
