@@ -2,7 +2,7 @@ import xarray as xr
 from typing import Mapping, Set, Callable, Sequence
 import logging
 from ..convenience import round_time
-from ..safe import unsafe_rename_warning
+from ..safe import warn_if_intersecting
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +131,7 @@ def _remove_name_suffix(
             if target in str(vname)
         }
 
-        unsafe_rename_warning(ds.data_vars.keys(), replace_names.values())
+        warn_if_intersecting(ds.data_vars.keys(), replace_names.values())
         ds = ds.rename(replace_names)
     return ds
 

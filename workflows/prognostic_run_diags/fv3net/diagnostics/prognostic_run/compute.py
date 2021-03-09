@@ -168,7 +168,7 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
     )
 
     for single_diag in single_diags:
-        vcm.safe.unsafe_rename_warning(diags.keys(), single_diag.keys())
+        vcm.safe.warn_if_intersecting(diags.keys(), single_diag.keys())
         diags.update(single_diag)
 
     return diags

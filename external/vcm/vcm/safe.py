@@ -40,7 +40,7 @@ def stack_once(
     return ds.stack({dim: dims})
 
 
-def unsafe_rename_warning(old: Iterable[Hashable], new: Iterable[Hashable]):
+def warn_if_intersecting(old: Iterable[Hashable], new: Iterable[Hashable]):
     """
     Warn if renaming to new data keys will overwrite names (e.g., in a xr.Dataset)
     via an overlap with old keys or from duplication in new keys.
