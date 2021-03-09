@@ -638,6 +638,22 @@ sources:
       urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/unperturbed/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr"
       consolidated: True
 
+  free_unperturbed_ssts_c384_fv3gfs_20170801_20190801_3d_output:
+    description: 3D variables interpolated to pressure levels from two-year free-running C384 FV3GFS simulation with unperturbed SSTs (January 9, 2021)
+    driver: zarr
+    args:
+      metadata:
+        grid: c48
+        simulation: free_unperturbed_ssts_c384_fv3gfs_20170801_20190801
+        category: 3d
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-scratch/annak/2021-03-07-test-3d-verification-data/unperturbed_3d_output.zarr"
+      #urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/unperturbed/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr"
+      consolidated: True
+
+
   free_plus_4K_ssts_c384_fv3gfs_20170801_20190801_physics_output:
     description: 2D physics diagnostics variables from two-year free-running C384 FV3GFS simulation with plus 4K SSTs (January 9, 2021)
     driver: zarr
@@ -665,3 +681,34 @@ sources:
         access: read_only
       urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-4K/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr"
       consolidated: True
+
+  free_plus_4K_ssts_c384_fv3gfs_20170801_20190801_3d_output:
+    description: 3D variables interpolated to pressure levels from two-year free-running C384 FV3GFS simulation with plus 4K SSTs (January 9, 2021)
+    driver: zarr
+    args:
+      metadata:
+        grid: c48
+        simulation: free_plus_4K_ssts_c384_fv3gfs_20170801_20190801
+        category: dycore
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-scratch/annak/2021-03-07-test-3d-verification-data/plus_4K_3d_output.zarr"
+      #urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-4K/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr"
+      consolidated: True      
+
+
+  temporary_testing_3d_output:
+    description: FOR TESTING DURING DEVELOPMENT ONLY, DELETE BEFORE OPENING PR
+    driver: zarr
+    args:
+      metadata:
+        grid: c48
+        simulation: 40day_may2020 
+        category: dycore
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-scratch/annak/2021-03-07-test-3d-verification-data/plus_4K_3d_output.zarr"
+      #urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-4K/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr"
+      consolidated: True      
