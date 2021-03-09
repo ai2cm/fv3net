@@ -42,80 +42,86 @@ def _create_raw_dataset(
 
 
 @pytest.mark.parametrize(
-    ["dims", "tile_range", "time_coord_random", "attrs", "expected_dims"],
+    ["dims", "expected_dims"],
     [
-        pytest.param(DIM_NAMES, TILE_RANGE, False, {}, DIM_NAMES, id="dims_no_change"),
+        pytest.param(DIM_NAMES, DIM_NAMES, id="dims_no_change"),
         pytest.param(
-            {"grid_xt", "grid_yt", "tile", "time"},
-            TILE_RANGE,
-            False,
-            {},
-            DIM_NAMES,
-            id="dims_change_xy",
+            {"grid_xt", "grid_yt", "tile", "time"}, DIM_NAMES, id="dims_change_xy",
         ),
         pytest.param(
             {"grid_xt", "grid_yt", "tile", "time", "some_other"},
-            TILE_RANGE,
-            False,
-            {},
             {"x", "y", "tile", "time", "some_other"},
             id="dims_change_xy_not_other",
         ),
+    ],
+)
+def test_standardize_fv3_diagnostics_dims(
+    dims, expected_dims,
+):
+    diag = _create_raw_dataset(dims, TILE_RANGE, False, {})
+    standardized_ds = standardize_fv3_diagnostics(diag)
+
+    assert set(standardized_ds.dims) == expected_dims
+
+
+@pytest.mark.parametrize(
+    ["attrs"],
+    [
+        pytest.param({}, id="attrs_no_attrs",),
+        pytest.param({"units": "best units"}, id="attrs_units_only",),
+        pytest.param({"long_name": "name is long!"}, id="attrs_long_name_only",),
         pytest.param(
-            DIM_NAMES, np.arange(1, 7), False, {}, DIM_NAMES, id="change_tile_range"
-        ),
-        pytest.param(
-            DIM_NAMES, TILE_RANGE, True, {}, DIM_NAMES, id="random_time_values"
-        ),
-        pytest.param(
-            DIM_NAMES,
-            TILE_RANGE,
-            False,
-            {"units": "best units"},
-            DIM_NAMES,
-            id="attrs_units_only",
-        ),
-        pytest.param(
-            DIM_NAMES,
-            TILE_RANGE,
-            False,
-            {"long_name": "name is long!"},
-            DIM_NAMES,
-            id="attrs_long_name_only",
-        ),
-        pytest.param(
-            DIM_NAMES,
-            TILE_RANGE,
-            False,
             {"units": "trees", "long_name": "number of U.S. trees"},
-            DIM_NAMES,
             id="attrs_both_only",
         ),
         pytest.param(
-            DIM_NAMES,
-            TILE_RANGE,
-            False,
             {"description": "a description will be converted to a longname"},
-            DIM_NAMES,
             id="attrs_description_only",
         ),
     ],
 )
-def test_standardize_fv3_diagnostics(
-    dims, tile_range, time_coord_random, attrs, expected_dims, regtest,
-):
-    diag = _create_raw_dataset(dims, tile_range, time_coord_random, attrs)
+def test_standardize_fv3_diagnostics_attrs(attrs):
+    diag = _create_raw_dataset(DIM_NAMES, TILE_RANGE, False, attrs)
     standardized_ds = standardize_fv3_diagnostics(diag)
 
-    assert set(standardized_ds.dims) == expected_dims
-    xr.testing.assert_equal(
-        standardized_ds.tile,
-        xr.DataArray(TILE_RANGE, dims=["tile"], coords={"tile": TILE_RANGE}),
-    )
     assert "long_name" in standardized_ds[DATA_VAR].attrs
     assert "units" in standardized_ds[DATA_VAR].attrs
     if "description" in attrs:
         assert standardized_ds[DATA_VAR].attrs["long_name"] == attrs["description"]
+
+
+def test_standardize_fv3_diagnostics_tile_range():
+    diag = _create_raw_dataset(DIM_NAMES, np.arange(1, 7), False, {})
+    standardized_ds = standardize_fv3_diagnostics(diag)
+
+    xr.testing.assert_equal(
+        standardized_ds.tile,
+        xr.DataArray(TILE_RANGE, dims=["tile"], coords={"tile": TILE_RANGE}),
+    )
+
+
+def test_standardize_fv3_diagnostics_time_coord():
+    diag = _create_raw_dataset(DIM_NAMES, TILE_RANGE, True, {})
+    standardized_ds = standardize_fv3_diagnostics(diag)
+
+    expected_coord = [
+        cftime.DatetimeJulian(2016, 1, n + 1, 0, 0, 0) for n in range(TIME_DIM)
+    ]
+
+    xr.testing.assert_equal(
+        standardized_ds.time,
+        xr.DataArray(expected_coord, dims=["time"], coords={"time": expected_coord}),
+    )
+
+
+def test_standardize_fv3_diagnostics_reg(regtest):
+    diag = _create_raw_dataset(
+        {"grid_xt", "grid_yt", "tile", "time"},
+        np.arange(1, 7),
+        True,
+        {"units": "trees", "long_name": "number of U.S. trees"},
+    )
+    standardized_ds = standardize_fv3_diagnostics(diag)
 
     standardized_ds.info(regtest)
     with regtest:

@@ -7,8 +7,8 @@ dimensions:
 
 variables:
 	float64 a(x, y, tile, time) ;
-		a:long_name = a ;
-		a:units = unspecified ;
+		a:units = trees ;
+		a:long_name = number of U.S. trees ;
 	int64 x(x) ;
 	int64 y(y) ;
 	int64 tile(tile) ;
