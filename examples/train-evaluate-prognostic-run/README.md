@@ -13,7 +13,8 @@ The configurations are contained in three places:
 
 1. `prognostic-run.yaml` contains the prognostic run configurations
 2. `training-config.yaml` contains the ML model(s) settings. Note the required format:
-a list of dicts, each with entries `name` and `config`.
+a list of dicts, each with entries `name` and `config`. If only one model is to be trained
+and used, just provide a list of length one.
 3. `run.sh` contains other configurations, such as the output location,
    timestep selection, etc.
 
