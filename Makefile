@@ -32,7 +32,7 @@ build_image_prognostic_run:
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/notebook:$(VERSION) \
 		--target notebook .
 
-push_image_prognostic_run:
+push_image_prognostic_run: build_image_prognostic_run
 	docker push $(REGISTRY)/prognostic_run:$(VERSION)
 	docker push $(REGISTRY)/notebook:$(VERSION)
 

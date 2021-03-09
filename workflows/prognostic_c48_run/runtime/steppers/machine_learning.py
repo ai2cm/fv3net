@@ -2,6 +2,7 @@
 """
 import dataclasses
 import logging
+import os
 from typing import Hashable, Iterable, Mapping, Sequence, Set, Tuple, cast
 
 import fv3fit
@@ -10,6 +11,7 @@ import xarray as xr
 from runtime.names import DELP, SPHUM
 from runtime.types import Diagnostics, State
 from vcm import thermo
+import vcm
 
 __all__ = ["MachineLearningConfig", "PureMLStepper", "open_model"]
 
@@ -137,6 +139,19 @@ def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
         rename_out = config.output_standard_names
         models.append(RenamingAdapter(model, rename_in, rename_out))
     return MultiModelAdapter(models)
+
+
+def download_model(config: MachineLearningConfig, path: str) -> Sequence[str]:
+    """Download models to local path and return the local paths"""
+    remote_model_paths = config.model
+    local_model_paths = []
+    for i, remote_path in enumerate(remote_model_paths):
+        local_path = os.path.join(path, str(i))
+        os.makedirs(local_path)
+        fs = vcm.cloud.get_fs(remote_path)
+        fs.get(remote_path, local_path, recursive=True)
+        local_model_paths.append(local_path)
+    return local_model_paths
 
 
 def predict(model: MultiModelAdapter, state: State) -> State:

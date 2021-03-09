@@ -22,7 +22,9 @@ def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
     variables_2d = [var_ for var_ in inputs if jacobian_dict.sizes[var_] == 1]
 
     if len(variables_3d) > 0:
-        fig, axs = plt.subplots(len(variables_3d), len(outputs), figsize=(12, 12),)
+        fig, axs = plt.subplots(
+            len(variables_3d), len(outputs), figsize=(12, 12), squeeze=False
+        )
         for i, in_name in enumerate(variables_3d):
             for j, out_name in enumerate(outputs):
                 logging.debug(f"{in_name}_{out_name}")
