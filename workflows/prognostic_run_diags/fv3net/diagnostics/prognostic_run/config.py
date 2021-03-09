@@ -15,7 +15,7 @@ def get_verification_entries(
         Mapping from category name ('physics' or 'dycore') to sequence of catalog keys
         representing given diagnostics for specified simulation.
     """
-    entries = {"physics": [], "dycore": []}
+    entries = {"physics": [], "dycore": [], "3d": []}
     for item in catalog:
         metadata = catalog[item].metadata
         item_simulation = metadata.get("simulation", None)
