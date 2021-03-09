@@ -23,6 +23,7 @@ from runtime.steppers.machine_learning import PureMLStepper, open_model, downloa
 from runtime.steppers.nudging import PureNudger
 from runtime.types import Diagnostics, State, Tendencies
 from runtime.names import TENDENCY_TO_STATE_NAME
+import tempfile
 from toolz import dissoc
 from typing_extensions import Protocol
 
@@ -195,14 +196,15 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         if config.scikit_learn.model:
             self._log_info("Using MLStepper")
             self._log_info("Downloading ML Model")
-            if self.rank == 0:
-                local_model_paths = download_model(config.scikit_learn, "ml_model")
-            else:
-                local_model_paths = None  # type: ignore
-            local_model_paths = self.comm.bcast(local_model_paths, root=0)
-            setattr(config.scikit_learn, "model", local_model_paths)
-            self._log_info("Model Downloaded From Remote")
-            model = open_model(config.scikit_learn)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                if self.rank == 0:
+                    local_model_paths = download_model(config.scikit_learn, tmpdir)
+                else:
+                    local_model_paths = None  # type: ignore
+                local_model_paths = self.comm.bcast(local_model_paths, root=0)
+                setattr(config.scikit_learn, "model", local_model_paths)
+                self._log_info("Model Downloaded From Remote")
+                model = open_model(config.scikit_learn)
             self._log_info("Model Loaded")
             return PureMLStepper(model, self._timestep)
         elif config.nudging:
