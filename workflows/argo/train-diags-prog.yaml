@@ -3,17 +3,18 @@ kind: WorkflowTemplate
 metadata:
   name: train-diags-prog
 spec:
+  serviceAccountName: integration-tests
   entrypoint: train-diags-prog
   volumes:
-  - name: workdir
-    emptyVol: {}
-  - name: gcp-key-secret
-    secret:
-      secretName: gcp-key
-  - name: dshm
-    emptyDir:
-      medium: Memory
-  serviceAccountName: integration-tests
+    - name: workdir
+      emptyVol: {}
+    - name: dshm
+      emptyDir:
+        medium: Memory
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
   templates:
   - name: train-diags-prog
     inputs:
