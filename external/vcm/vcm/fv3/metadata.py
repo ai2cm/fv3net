@@ -136,21 +136,19 @@ def _remove_name_suffix(
     return ds
 
 
-def gfdl_to_standard(
-    ds: xr.Dataset, rename: Mapping[str, str] = STANDARD_TO_GFDL_DIM_MAP
-):
+def gfdl_to_standard(ds: xr.Dataset):
     """Convert from GFDL dimension names (grid_xt, etc) to "standard"
     names (x, y, z)
     """
 
-    key, val = rename.keys(), rename.values()
+    key, val = STANDARD_TO_GFDL_DIM_MAP.keys(), STANDARD_TO_GFDL_DIM_MAP.values()
     inverse = dict(zip(val, key))
 
     return ds.rename({key: val for key, val in inverse.items() if key in ds.dims})
 
 
-def standard_to_gfdl(
-    ds: xr.Dataset, rename: Mapping[str, str] = STANDARD_TO_GFDL_DIM_MAP
-):
+def standard_to_gfdl(ds: xr.Dataset):
     """Convert from "standard" names to GFDL names"""
-    return ds.rename({key: val for key, val in rename.items() if key in ds.dims})
+    return ds.rename(
+        {key: val for key, val in STANDARD_TO_GFDL_DIM_MAP.items() if key in ds.dims}
+    )
