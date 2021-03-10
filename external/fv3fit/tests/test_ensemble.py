@@ -14,7 +14,7 @@ class ConstantModel(fv3fit.Predictor):
         sample_dim_name: str,
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
-        output_value: float = 0.
+        output_value: float = 0.0,
     ):
         """Initialize the predictor
         
@@ -26,7 +26,7 @@ class ConstantModel(fv3fit.Predictor):
         """
         self.output_value = output_value
         super().__init__(sample_dim_name, input_variables, output_variables)
-    
+
     def load(cls, path):
         raise NotImplementedError()
 
@@ -42,10 +42,7 @@ class ConstantModel(fv3fit.Predictor):
 
 @pytest.mark.parametrize(
     "values, reduction, output",
-    [
-        ((0., 3., 5.), "median", 3.0),
-        ((0., 3., 5.), "mean", 8.0 / 3),
-    ]
+    [((0.0, 3.0, 5.0), "median", 3.0), ((0.0, 3.0, 5.0), "mean", 8.0 / 3)],
 )
 def test_ensemble_model_median(values, reduction, output):
     sample_dim_name = "sample"
@@ -55,16 +52,9 @@ def test_ensemble_model_median(values, reduction, output):
         ConstantModel(sample_dim_name, input_variables, output_variables, value)
         for value in values
     )
-    ensemble = EnsembleModel(
-        models, reduction=reduction
-    )
+    ensemble = EnsembleModel(models, reduction=reduction)
     ds_in = xr.Dataset(
-        data_vars={
-            "input": xr.DataArray(
-                np.zeros([3, 3, 5]),
-                dims=["x", "y", "z"],
-            )
-        }
+        data_vars={"input": xr.DataArray(np.zeros([3, 3, 5]), dims=["x", "y", "z"],)}
     )
     ds_out = ensemble.predict(ds_in)
     assert len(ds_out.data_vars) == 1

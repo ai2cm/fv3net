@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Set, Hashable
 import yaml
 import os
 import xarray as xr
@@ -12,28 +12,29 @@ class EnsembleModel(Predictor):
     _CONFIG_FILENAME = "ensemble_model.yaml"
 
     def __init__(self, models: Iterable[Predictor], reduction: str):
-        if len(models) == 0:
-            raise ValueError("at least one model must be given")
         self._models = tuple(models)
+        if len(self._models) == 0:
+            raise ValueError("at least one model must be given")
         if reduction.lower() not in ("mean", "median"):
             raise NotImplementedError(
                 f"only supported reductions are mean and median, got {reduction}"
             )
         self._reduction = reduction
-        input_variables = set()
-        output_variables = set()
+        input_variables: Set[Hashable] = set()
+        output_variables: Set[Hashable] = set()
         sample_dim_name = self._models[0].sample_dim_name
         for model in self._models:
             if model.sample_dim_name != sample_dim_name:
                 raise ValueError(
                     "all models in ensemble must have same sample_dim_name, "
-                    f"got {sample_dim_name} and {model.sample_dim_name}")
+                    f"got {sample_dim_name} and {model.sample_dim_name}"
+                )
             input_variables.update(model.input_variables)
             output_variables.update(model.output_variables)
         super().__init__(
             sample_dim_name,
-            input_variables=input_variables,
-            output_variables=output_variables
+            input_variables=tuple(input_variables),
+            output_variables=tuple(output_variables),
         )
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
