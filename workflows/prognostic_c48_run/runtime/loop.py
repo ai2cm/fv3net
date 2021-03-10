@@ -33,6 +33,7 @@ from runtime.steppers.machine_learning import (
     load_adapted_model,
     download_model,
     MachineLearningConfig,
+    MLStateStepper,
 )
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prephysics import Prescriber, PrescriberConfig
@@ -129,6 +130,17 @@ def add_tendency(state: Any, tendency: State, dt: float) -> State:
     return updated  # type: ignore
 
 
+def override_state(state: Any, overriding_state: State) -> State:
+    """Given state and an overriding state, return updated state. Needed
+    to maintain attributes of the target state
+    """
+    with xr.set_options(keep_attrs=True):
+        updated = {}
+        for name in overriding_state:
+            updated[name] = 0.0 * state[name] + overriding_state[name]
+    return updated  # type: ignore
+
+
 class LoggingMixin:
 
     rank: int
@@ -213,9 +225,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         if config.prephysics is not None and isinstance(
             config.prephysics.config, MachineLearningConfig
         ):
-            self._log_info("Using MLStepper for prephysics")
+            self._log_info("Using MLStateStepper for prephysics")
             model = self._open_model(config.prephysics.config, "_compute_prephysics")
-            steppers["_compute_prephysics"] = PureMLStepper(model, self._timestep)
+            steppers["_compute_prephysics"] = MLStateStepper(model, self._timestep)
         elif config.prephysics is not None and isinstance(
             config.prephysics.config, PrescriberConfig
         ):
@@ -353,7 +365,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         else:
             _, diagnostics, state_updates = stepper(self._state.time, self._state)
             self._state_updates.update(state_updates)
-        self._log_debug(f"Computing prephysics state updates")
+        self._log_debug(
+            f"Computing prephysics state updates for {list(self._state_updates.keys())}"
+        )
         return diagnostics
 
     def _apply_prephysics(self):
@@ -369,7 +383,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._log_debug(
             f"Applying prephysics state updates for {list(state_updates.keys())}"
         )
-        self._state.update_mass_conserving(state_updates)
+        updated_state = override_state(self._state, state_updates)
+        self._state.update_mass_conserving(updated_state)
         return {}
 
     def _apply_python_to_physics_state(self) -> Diagnostics:

@@ -219,11 +219,11 @@ namelist:
     - 0
     - 0
     - 0
-    days: 10
+    days: 0
     dt_atmos: 900
     dt_ocean: 900
     force_date_from_namelist: true
-    hours: 0
+    hours: 4
     memuse_verbose: true
     minutes: 0
     months: 0
@@ -454,7 +454,16 @@ namelist:
     ldebug: false
 nudging: null
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
-prephysics: null
+prephysics:
+  config:
+    diagnostic_ml: false
+    input_standard_names: {}
+    model:
+    - gs://vcm-ml-experiments/2021-03-01-predict-surface-radiative-flux/static-t-q/trained_model
+    output_standard_names:
+      total_sky_downward_longwave_flux_at_surface_override: DLWRFsfc_verif
+      total_sky_downward_shortwave_flux_at_surface_override: DSWRFsfc_verif
+      total_sky_net_shortwave_flux_at_surface_override: NSWRFsfc_verif
 scikit_learn:
   diagnostic_ml: false
   input_standard_names: {}
