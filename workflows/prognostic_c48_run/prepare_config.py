@@ -219,14 +219,14 @@ def _update_times(
 
 def _diag_table_overlay(
     fortran_diagnostics: Sequence[FortranFileConfig],
+    name: str = "prognostic_run",
+    base_time: datetime = datetime(2000, 1, 1),
 ) -> Mapping[str, fv3config.DiagTable]:
     file_configs = [
         fortran_diagnostic.to_fv3config_diag_file_config()
         for fortran_diagnostic in fortran_diagnostics
     ]
-    diag_table = fv3config.DiagTable(
-        "prognostic_run", datetime(2000, 1, 1), file_configs
-    )
+    diag_table = fv3config.DiagTable(name, base_time, file_configs)
     return {"diag_table": diag_table}
 
 
@@ -270,7 +270,7 @@ def prepare_config(args):
     final = _prepare_config_from_parsed_config(
         user_config, fv3config_config, dict_["base_version"], args
     )
-    # following should be handled by fv3config
+    # TODO: replace with print(fv3config.dump(final)) once fv3config version bumped
     if isinstance(final["diag_table"], fv3config.DiagTable):
         final["diag_table"] = final["diag_table"].asdict()
     print(yaml.safe_dump(final))
