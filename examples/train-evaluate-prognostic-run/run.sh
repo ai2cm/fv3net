@@ -5,7 +5,7 @@ set -e
 EXPERIMENT=2020-test
 
 argo submit \
-    --from workflowtemplate/train-diags-prog-multiple-models \
+    --from workflowtemplate/train-diags-prog \
     -p root=gs://vcm-ml-scratch/$EXPERIMENT \
     -p train-test-data=gs://vcm-ml-experiments/2020-07-30-fine-res \
     -p training-configs="$( yq . training-config.yaml )" \
@@ -15,6 +15,5 @@ argo submit \
     -p train-times="$(<  ../../train_short.json)" \
     -p test-times="$(<  ../../test_short.json)" \
     -p public-report-output=gs://vcm-ml-public/offline_ml_diags/$EXPERIMENT \
-    -p segment-count=1 \
-    --name 2021-03-07-test
+    -p segment-count=1
 
