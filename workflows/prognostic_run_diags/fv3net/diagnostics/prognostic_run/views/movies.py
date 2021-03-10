@@ -176,14 +176,14 @@ def _stitch_movie_stills(input_path):
 
 def register_parser(subparsers):
     parser = subparsers.add_parser("movie", help="Generate movies from prognostic run.")
-    parser.add_argument("url", help="Path to rundir")
-    parser.add_argument("output", help="Output location for movies")
+    parser.add_argument("url", help="Path to rundir.")
+    parser.add_argument("output", help="Output location for movies.")
     parser.add_argument("--n_jobs", default=8, type=int, help="Number of workers.")
     parser.add_argument(
         "--n_timesteps",
         default=None,
         type=int,
-        help="Number of timesteps for which stills are generated.",
+        help="Number of timesteps to use in movie. If not provided all times are used.",
     )
     parser.add_argument("--catalog", default=vcm.catalog.catalog_path)
     parser.set_defaults(func=main)
