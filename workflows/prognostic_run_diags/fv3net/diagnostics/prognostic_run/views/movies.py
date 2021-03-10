@@ -130,23 +130,23 @@ def _movie_specs():
 
 
 def _create_movie(name: str, spec: Mapping, ds: xr.Dataset, output: str, n_jobs: int):
+    fs = vcm.cloud.get_fs(output)
     func = spec["plotting_function"]
     required_variables = spec["required_variables"]
     logger.info(f"Forcing load for required variables for {name} movie")
     data = ds[GRID_VARS + required_variables].load()
     T = data.sizes["time"]
-    with tempfile.TemporaryDirectory() as tmpdir:
-        filename = os.path.join(tmpdir, name + FIG_SUFFIX)
-        func_args = [(data.isel(time=t), filename % t) for t in range(T)]
-        if _non_zero(data, required_variables):
+    if _non_zero(data, required_variables):
+        with tempfile.TemporaryDirectory() as tmpdir:
             logger.info(f"Saving {T} still images for {name} movie to {tmpdir}")
+            filename = os.path.join(tmpdir, name + FIG_SUFFIX)
+            func_args = [(data.isel(time=t), filename % t) for t in range(T)]
             with get_context("spawn").Pool(n_jobs) as p:
                 p.map(func, func_args)
-            movie_path = _stitch_movie_stills(tmpdir, name)
-            fs = vcm.cloud.get_fs(output)
+            movie_path = _stitch_movie_stills(filename)
             fs.put(movie_path, os.path.join(output, f"{name}.mp4"))
-        else:
-            logger.info(f"Skipping {name} movie since all plotted variables are zero")
+    else:
+        logger.info(f"Skipping {name} movie since all plotted variables are zero")
 
 
 def _get_ffpmeg_args(input_: str, output: str) -> Sequence[str]:
@@ -167,9 +167,8 @@ def _get_ffpmeg_args(input_: str, output: str) -> Sequence[str]:
     ]
 
 
-def _stitch_movie_stills(workdir, name):
-    input_path = os.path.join(workdir, name + FIG_SUFFIX)
-    output_path = os.path.join(workdir, f"{name}.mp4")
+def _stitch_movie_stills(input_path):
+    output_path = input_path[: -len(FIG_SUFFIX)] + ".mp4"
     ffmpeg_args = _get_ffpmeg_args(input_path, output_path)
     subprocess.check_call(ffmpeg_args)
     return output_path
