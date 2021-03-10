@@ -2,7 +2,9 @@
 plot_cube_prognostic_diags
 ==========================
 
-Example of :py:func:`plot_cube` using a time-mean prognostic run report diag
+Example of :py:func:`plot_cube` using a legacy time-mean prognostic run diags
+dataset. Note that the MAPPABLE_VAR_KWARGS may need to be set to those in
+the `plot_cube_prognostic_ml` example in newer prognostic run datasets.
 """
 
 import os

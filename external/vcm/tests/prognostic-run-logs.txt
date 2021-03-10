@@ -1,0 +1,2000 @@
+NOTE from PE     0: MPP_DOMAINS_SET_STACK_SIZE: stack size set to    32768.
+&MPP_IO_NML
+ HEADER_BUFFER_VAL=      16384,
+ GLOBAL_FIELD_ON_ROOT_PE=T,
+ IO_CLOCKS_ON=F,
+ SHUFFLE=          0,
+ DEFLATE_LEVEL=         -1,
+ CF_COMPLIANCE=F,
+ /
+NOTE from PE     0: MPP_IO_SET_STACK_SIZE: stack size set to     131072.
+NOTE from PE     0: MPP_DOMAINS_SET_STACK_SIZE: stack size set to  3000000.
+atmosphere_init: current_time_seconds =       0.0
+Using n_split from the namelist: 006
+ Off center implicit scheme param=   1.0000000000000000     
+  p_fac=  0.10000000000000001     
+Using n_sponge : 004
+Using non_ortho :       T
+ Starting PEs :            6
+ Starting Threads :            1
+ Cubic: cubed-sphere domain decomposition
+whalo =    3, ehalo =    3, shalo =    3, nhalo =    3
+  X-AXIS =   48
+  Y-AXIS =   48
+ Cubic: cubed-sphere domain decomposition
+whalo =    3, ehalo =    3, shalo =    3, nhalo =    3
+  X-AXIS =   48
+  Y-AXIS =   48
+ Cubic: cubed-sphere domain decomposition
+whalo =    3, ehalo =    3, shalo =    3, nhalo =    3
+  X-AXIS =   48
+  Y-AXIS =   48
+ Cubic: cubed-sphere domain decomposition
+whalo =    3, ehalo =    3, shalo =    3, nhalo =    3
+  X-AXIS =   48
+  Y-AXIS =   48
+ Cubic: cubed-sphere domain decomposition
+whalo =    3, ehalo =    3, shalo =    3, nhalo =    3
+  X-AXIS =   48
+  Y-AXIS =   48
+ Cubic: cubed-sphere domain decomposition
+whalo =    3, ehalo =    3, shalo =    3, nhalo =    3
+  X-AXIS =   48
+  Y-AXIS =   48
+ Cubic: cubed-sphere domain decomposition
+whalo =    1, ehalo =    1, shalo =    1, nhalo =    1
+  X-AXIS =   48
+  Y-AXIS =   48
+ Cubic: cubed-sphere domain decomposition
+whalo =    1, ehalo =    1, shalo =    1, nhalo =    1
+  X-AXIS =   48
+  Y-AXIS =   48
+ Cubic: cubed-sphere domain decomposition
+whalo =    1, ehalo =    1, shalo =    1, nhalo =    1
+  X-AXIS =   48
+  Y-AXIS =   48
+ Cubic: cubed-sphere domain decomposition
+whalo =    1, ehalo =    1, shalo =    1, nhalo =    1
+  X-AXIS =   48
+  Y-AXIS =   48
+ Cubic: cubed-sphere domain decomposition
+whalo =    1, ehalo =    1, shalo =    1, nhalo =    1
+  X-AXIS =   48
+  Y-AXIS =   48
+ Cubic: cubed-sphere domain decomposition
+whalo =    1, ehalo =    1, shalo =    1, nhalo =    1
+  X-AXIS =   48
+  Y-AXIS =   48
+ ncnst=           9  num_prog=           9  pnats=           0  dnats=           1  num_family=           0
+ 
+ Gird distance at face edge (km)=   163389.34666170005     
+MAX    AREA (m*m): 0.53345393142788E+11          MIN AREA (m*m): 0.23547028204749E+11
+GLOBAL AREA (m*m): 0.51009649655145E+15 IDEAL GLOBAL AREA (m*m): 0.51009649655132E+15
+ 
+  Cubed-Sphere Grid Stats :           49 x          49 x           6
+      Deviation from Orthogonal : min:      0.00 max:     29.08 avg:      8.76
+      Aspect Ratio              : min:      1.00 max:      1.07 avg:      1.02
+ 
+ Corner interpolation coefficient=   1.4864111357884311     
+ Corner interpolation coefficient=   1.4864111357884220     
+ Corner interpolation coefficient=   1.4864111357884215     
+ Corner interpolation coefficient=   1.4864111357884076     
+ Corner interpolation coefficient=   1.4864111357884122     
+ Corner interpolation coefficient=   1.4864111357884175     
+ da_max/da_min=   2.2654830443541312     
+ da_max_c/da_min_c=   2.2867226134919445     
+  
+ Divergence damping Coefficients
+ For small dt=   150.00000000000000     
+ External mode del-2 (m**2/s)=   0.0000000000000000     
+ Internal mode del-2 SMAG dimensionless coeff=  0.20000000000000001     
+ Internal mode del-2 background diff=   0.0000000000000000     
+ Internal mode del-6 background diff=  0.14999999999999999     
+ tracer del-2 diff=   0.0000000000000000     
+ Vorticity del-4 (m**4/s)=   13307100894.606039     
+ beta=   0.0000000000000000     
+  
+ FV_RESTART:            1 F
+NOTE from PE     0: READING FROM SST_RESTART DISABLED
+Tracer sphum initialized with surface value of 0.100000E+31 and vertical multiplier of   1.000000
+Tracer liq_wat initialized with surface value of 0.100000E+31 and vertical multiplier of   1.000000
+Tracer rainwat initialized with surface value of 0.100000E+31 and vertical multiplier of   1.000000
+Tracer ice_wat initialized with surface value of 0.100000E+31 and vertical multiplier of   1.000000
+Tracer snowwat initialized with surface value of 0.100000E+31 and vertical multiplier of   1.000000
+Tracer graupel initialized with surface value of 0.100000E+31 and vertical multiplier of   1.000000
+Tracer o3mr initialized with surface value of 0.100000E+31 and vertical multiplier of   1.000000
+Tracer sgs_tke initialized with surface value of 0.100000E+03 and vertical multiplier of   1.000000
+Tracer cld_amt initialized with surface value of 0.100000E+31 and vertical multiplier of   1.000000
+ Warm starting, calling fv_io_restart
+  ptop & ks    300.00000000000000               18
+NOTE from PE     0: MPP_IO_SET_STACK_SIZE: stack size set to     185808.
+ in fv_restart ncnst=           9
+
+ fv_restart ua    =   3471117171308385280
+ fv_restart va    =   3471117171308385280
+ fv_restart u    =  -8603256635122515968
+ fv_restart v    =   -658772721420730368
+ fv_restart w    =    126295853559185408
+ fv_restart delp =   9179294271407128576
+ fv_restart phis =   3346107741763534848
+ fv_restart pt   =  -8611926912446496768
+ fv_restart q(prog) nq   =           9 -5645995667152175104
+ fv_restart sphum =   1730169247390236672
+ fv_restart liq_wat =   3370627339615469568
+ fv_restart rainwat =     64749277687054336
+ fv_restart ice_wat =  -1227530577654054912
+ fv_restart snowwat =  -7012755819536056320
+ fv_restart graupel =   -563362715884584960
+ fv_restart o3mr =   8971037710483456000
+ fv_restart sgs_tke =   2342417099038654464
+ fv_restart cld_amt =   5125396845417201664
+ Global Area=   510096496551451.19     
+ ZS   5226.4415281977026       -23.781250604958593        230.89473439619951     
+ PS   1036.8063897705078        541.50383056640624        985.89092128789025     
+ T    312.92749023437500        179.71798706054688        289.22386828136047     
+ sphum   2.5046365335583687E-002   3.8746382102772259E-008   1.0180018653529885E-002
+ liq_wat   9.2836306430399418E-004  -2.4872479841309087E-023   3.5180805693448711E-006
+ rainwat   7.8930507879704237E-004  -3.0904066999990402E-027   7.9689853252182544E-006
+ ice_wat   5.6549167493358254E-004  -3.9657517608518458E-023   9.2153176481636465E-007
+ snowwat   1.1303732171654701E-003  -3.9145920011467819E-028   5.7894339049285622E-007
+ graupel   1.6092656878754497E-003  -3.0818210968999564E-027   3.7235841834810370E-008
+ o3mr   1.6198942830669694E-005   3.6818438076124949E-008   5.7050739697348480E-008
+ sgs_tke   11.279047966003418        9.9985919543854607E-010  0.67655643199904925     
+ cld_amt   1.0000000000000000       -5.0783012281467641E-023   6.3464375711189833E-002
+ U  max =    128.74537658691406       min =   -117.39817810058594     
+ V  max =    124.07554626464844       min =   -134.46305847167969     
+ W   0.81832098960876465      -0.34646475315093994       -3.7283904815473484E-004
+
+ mp_top=           1 pfull=   4.5137976812487102     
+ Mean specific humidity (mg/kg) above 75 mb=   3.9757120865363280     
+ Total surface pressure (mb) =    985.89092128788980     
+ mean dry surface pressure =    983.24043506417604     
+ Total Water Vapor (kg/m**2) =   26.860527509776070     
+ --- Micro Phys water substances (kg/m**2) ---
+ Total cloud water=   5.3171506758770679E-002
+ Total rain  water=   2.7682988514109420E-002
+ Total cloud ice  =   3.7319952935133578E-002
+ Total snow       =   3.2388140158539337E-002
+ Total graupel    =   1.6347647813872244E-002
+ ---------------------------------------------
+NOTE from PE     0: No adiabatic initialization correction in use
+  model init,iaufhrs=  -1.0000000000000000       -1.0000000000000000       -1.0000000000000000       -1.0000000000000000       -1.0000000000000000       -1.0000000000000000       -1.0000000000000000     
+  dxmax=   18.199108087004454       dxmin=   24.516413583664988       dxinv= -0.15829533660017264      max_lon=        5000  max_lat=        2000  min_lon=         192  min_lat=          94  rhc_max=  0.99999990000000005     
+  NOAH Land Surface Model used
+  nst_anl= T  use_ufo= T  frac_grid= F
+  use_analysis_sst= F
+  min_lakeice=  0.14999999999999999       min_seaice=   9.9999999999999995E-007
+  scale & aerosol-aware mass-flux deep conv scheme
+  initial version (Nov 2018) of sale-aware TKE-based moist EDMF scheme used
+  scale- & aerosol-aware mass-flux shallow conv scheme (2017)
+  Original mountain blocking and oragraphic  gravity wave drag parameterization used
+  non-statioary gravity wave drag parameterization used
+  do_gwd= T
+  Radiative heating calculated at          79  layers
+  max-random cloud overlap for Shortwave IOVR_SW=           1
+  max-random cloud overlap for Longwave IOVR_LW=           1
+  sub-grid cloud for Shortwave ISUBC_SW=           2
+  sub-grid cloud for Longwave ISUBC_LW=           2
+  avg_max_length=   3600.0000000000000     
+  Using GFDL Cloud Microphysics
+  num_p3d=           1  num_p2d=           1  crtrh=  0.90000000000000002       0.90000000000000002       0.90000000000000002       npdf3d=           0  pdfcld= F  shcnvcw= F  cnvcld= F  ncnvcld3d=           0  do_shoc= F  nshoc3d=           0  nshoc_2d=           0  shoc_cld= F  uni_cld= F  ntot3d=           1  ntot2d=           1  shocaftcnv= F  indcld=          -1  shoc_parm=   7000.0000000000000        1.0000000000000000        4.2857143000000004       0.69999999999999996       -999.00000000000000       ncnvw=        -999  ncnvc=        -999
+  
+ basic control parameters
+  me                :            0
+  master            :            0
+  nlunit            :         9999
+  fn_nml            : using internal file
+  fhzero            :   0.25000000000000000     
+  ldiag3d           :  T
+  lssav             :  F
+  fhcyc             :    24.000000000000000     
+  thermodyn_id      :            1
+  sfcpress_id       :            1
+  gen_coord_hybrid  :  F
+  sfc_override      :  F
+  
+ grid extent parameters
+  isc               :            1
+  jsc               :            1
+  nx                :           48
+  ny                :           48
+  levs              :           79
+  cnx               :           48
+  cny               :           48
+  lonr              :          192
+  latr              :           96
+  blksz(1)          :           24
+  blksz(nblks)      :           24
+  
+ coupling parameters
+  cplflx            :  F
+  cplwav            :  F
+  cplchm            :  F
+  
+ integrated dynamics through earth atmosphere
+  lsidea            :  F
+  
+ calendars and time parameters and activation triggers
+  dtp               :    900.00000000000000     
+  dtf               :    900.00000000000000     
+  nscyc             :           96
+  nszero            :            1
+  idat              :         2016           8           5           0           0           0           0           0
+  idate             :            0           8           5        2016
+  
+ radiation control parameters
+  fhswr             :    3600.0000000000000     
+  fhlwr             :    3600.0000000000000     
+  nsswr             :            4
+  nslwr             :            4
+  levr              :           79
+  nfxr              :           45
+  aero_in           :  F
+  lmfshal           :  T
+  lmfdeep2          :  T
+  nrcm              :            2
+  iflip             :            1
+  isol              :            2
+  ico2              :            2
+  ialb              :            1
+  iems              :            1
+  iaer              :          111
+  icliq_sw          :            1
+  iovr_sw           :            1
+  iovr_lw           :            1
+  ictm              :            1
+  isubc_sw          :            2
+  isubc_lw          :            2
+  crick_proof       :  F
+  ccnorm            :  F
+  norad_precip      :  F
+  lwhtr             :  T
+  swhtr             :  T
+  do_only_clearsky_rad:  F
+  
+ microphysical switch
+  ncld              :            5
+  imp_physics       :           11
+  
+  GFDL microphysical parameters
+  GFDL MP radiation inter:  F
+  GFDL MP do microphysics in physics switch:  T
+  
+ land/surface model parameters
+  lsm               :            1
+  lsoil             :            4
+  ivegsrc           :            1
+  isot              :            1
+  sst_perturbation  :    0.0000000000000000     
+  use_ufo           :  T
+  use_analysis_sst :  F
+  
+ tuning parameters for physical parameterizations
+  ras               :  F
+  flipv             :  T
+  trans_trac        :  T
+  old_monin         :  F
+  do_gwd            :  T
+  cnvgwd            :  T
+  do_cnvgwd         :  F
+  mstrat            :  F
+  moist_adj         :  F
+  cscnv             :  F
+  cal_pre           :  F
+  do_aw             :  F
+  flx_form          :  F
+  do_shoc           :  F
+  shoc_parm         :    7000.0000000000000        1.0000000000000000        4.2857143000000004       0.69999999999999996       -999.00000000000000     
+  shocaftcnv        :  F
+  shoc_cld          :  F
+  uni_cld           :  F
+  h2o_phys          :  F
+  pdfcld            :  F
+  shcnvcw           :  F
+  redrag            :  T
+  hybedmf           :  F
+  satmedmf          :  T
+  isatmedmf         :            0
+  shinhong          :  F
+  do_ysu            :  F
+  dspheat           :  T
+  lheatstrg         :  F
+  cnvcld            :  F
+  random_clds       :  F
+  shal_cnv          :  T
+  imfshalcnv        :            2
+  imfdeepcnv        :            2
+  do_deep           :  T
+  nmtvr             :           14
+  jcap              :            1
+  cs_parm           :    8.0000000000000000        4.0000000000000000        1000.0000000000000        3500.0000000000000        20.000000000000000        1.0000000000000000       -999.00000000000000        1.0000000000000000       0.59999999999999998        0.0000000000000000     
+  flgmin            :   0.17999999999999999       0.22000000000000000     
+  cgwf              :   0.50000000000000000        5.0000000000000003E-002
+  ccwf              :    1.0000000000000000        1.0000000000000000     
+  cdmbgwd           :    3.5000000000000000       0.25000000000000000        1.0000000000000000        1.0000000000000000     
+  sup               :    1.0000000000000000     
+  ctei_rm           :    10.000000000000000        10.000000000000000     
+  crtrh             :   0.90000000000000002       0.90000000000000002       0.90000000000000002     
+  dlqf              :    0.0000000000000000        0.0000000000000000     
+  seed0             :            0
+  rbcr              :   0.25000000000000000     
+  
+ Rayleigh friction
+  prslrd0           :    0.0000000000000000     
+  ral_ts            :    0.0000000000000000     
+  
+ mass flux deep convection
+  clam_deep         :   0.10000000000000001     
+  c0s_deep          :    2.0000000000000000E-003
+  c1_deep           :    2.0000000000000000E-003
+  betal_deep        :    5.0000000000000003E-002
+  betas_deep        :    5.0000000000000003E-002
+  evfact_deep       :   0.29999999999999999     
+  evfactl_deep      :   0.29999999999999999     
+  pgcon_deep        :   0.55000000000000004     
+  asolfac_deep      :   0.95799999999999996     
+  
+ mass flux shallow convection
+  clam_shal         :   0.29999999999999999     
+  c0s_shal          :    2.0000000000000000E-003
+  c1_shal           :    5.0000000000000001E-004
+  pgcon_shal        :   0.55000000000000004     
+  asolfac_shal      :   0.95799999999999996     
+  
+ near surface sea temperature model
+  nst_anl           :  T
+  nstf_name         :            0           0           1           0           5
+  lsea              :            0
+  
+ surface layer options
+  sfc_z0_type       :            0
+  
+ background vertical diffusion coefficients
+  xkzm_m            :    1.0000000000000000     
+  xkzm_h            :    1.0000000000000000     
+  xkzm_s            :    1.0000000000000000     
+  xkzminv           :   0.29999999999999999     
+  moninq_fac        :    1.0000000000000000     
+  dspfac            :    1.0000000000000000     
+  bl_upfr           :   0.13000000000000000     
+  bl_dnfr           :   0.10000000000000001     
+  
+ stochastic physics
+  do_sppt           :  F
+  do_shum           :  F
+  do_skeb           :  F
+  do_sfcperts       :  F
+  
+ cellular automata
+  nca               :            5
+  ncells            :            5
+  nlives            :           10
+  nfracseed         :   0.50000000000000000     
+  nseed             :       100000
+  ca_global         :  F
+  ca_sgs            :  F
+  do_ca             :  F
+  iseed_ca          :            0
+  ca_smooth         :  F
+  isppt_deep        :  F
+  nspinup           :            1
+  nthresh           :    0.0000000000000000     
+  
+ tracers
+  tracer_names      : sphum                           liq_wat                         rainwat                         ice_wat                         snowwat                         graupel                         o3mr                            sgs_tke                         cld_amt                         
+  ntrac             :            9
+  ntoz              :            7
+  ntcw              :            2
+  ntiw              :            4
+  ntrw              :            3
+  ntsw              :            5
+  ntgl              :            6
+  ntclamt           :            9
+  ntlnc             :          -99
+  ntinc             :          -99
+  ntrnc             :          -99
+  ntsnc             :          -99
+  ntgnc             :          -99
+  ntke              :            8
+  nto               :            0
+  nto2              :            0
+  ntwa              :          -99
+  ntia              :          -99
+  ntchm             :            0
+  ntchs             :          -99
+  fscav             : 
+  
+ derived totals for phy_f*d
+  ntot2d            :            1
+  ntot3d            :            1
+  num_p2d           :            1
+  num_p3d           :            1
+  nshoc_2d          :            0
+  nshoc_3d          :            0
+  ncnvcld3d         :            0
+  npdf3d            :            0
+  nctp              :            0
+  
+ debug flags
+  debug             :  F
+  pre_rad           :  F
+  do_ocean          :  F
+  
+ variables modified at each time step
+  ipt               :            1
+  lprnt             :  F
+  lsswr             :  F
+  lslwr             :  F
+  solhr             :   -9999.0000000000000     
+  solcon            :   -9999.0000000000000     
+  slag              :   -9999.0000000000000     
+  sdec              :   -9999.0000000000000     
+  cdec              :   -9999.0000000000000     
+  clstp             :   -9999.0000000000000     
+  phour             :    0.0000000000000000     
+  fhour             :   0.25000000000000000     
+  zhour             :    0.0000000000000000     
+  kdt               :            0
+  jdat              :         2016           8           5           0           0           0           0           0
+ Reading in o3data from global_o3prdlos.f77 
+       oz_coeff =            4
+        latsozp =           35
+         levozp =           80
+         timeoz =           12
+   In rad_initialize, before calling radinit
+  si =   1.0000000000000000       0.99652691728642184       0.99213036612631278       0.98683134958136942       0.98064527412535851       0.97358832047381516       0.96567969253115715       0.95694080494559952       0.94739536850737394       0.93706900013286687       0.92598921736700945       0.91418527121179260       0.90168811588823072       0.88853026815759928       0.87474555680610788       0.86036900117886417       0.84543661987212171       0.82998563780934465       0.81405384136054570       0.79767965325799450       0.78090209634668073       0.76376038058032436       0.74629389882235209       0.72854209278279436       0.71054430750625264       0.69233959396237699       0.67396650248369172       0.65546008017888546       0.63683657691491125       0.61811400244832482       0.59931083309918876       0.58044654724887623       0.56154186751753410       0.54261789303904451       0.52369688286075677       0.50480150510815813       0.48595597297270327       0.46718397943491513       0.44851091034959312       0.42996176593759750       0.41156256503647021       0.39333926889424986       0.37531783587712519       0.35752480961933669       0.33998667822117795       0.32272959213686353       0.30577902138955931       0.28916060327701831       0.27289910860121824       0.25701846559399927       0.24154184897150682       0.22649148502582314       0.21188836491858715       0.19775186634818182       0.18410034752484300       0.17095036544833139       0.15831680775715687       0.14621281545323456       0.13464987948603246       0.12363731470174739       0.11318247991045133       0.10329111954033655        9.3951818083395200E-002   8.5149096758228168E-002   7.6879364444135109E-002   6.9136565051967330E-002   6.1912559352573622E-002   5.5196936479213067E-002   4.8977381256186586E-002   4.3239616199579313E-002   3.7967585181576342E-002   3.3143598428606778E-002   2.8619593502536501E-002   2.4294932024870080E-002   2.0048352047760454E-002   1.5816170386352389E-002   1.1573255237332962E-002   7.3766126210251179E-003   3.4319816123020291E-003   0.0000000000000000     
+  levr=          79  ictm=           1  isol=           2  ico2=           2  iaer=         111  ialb=           1  iems=           1  ntcw=           2
+  np3d=           1  ntoz=           7  iovr_sw=           1  iovr_lw=           1  isubc_sw=           2  isubc_lw=           2  icliq_sw=           1  iflip=           1   me=           0
+  crick_proof= F  ccnorm= F  norad_precip= F
+  NEW RADIATION PROGRAM STRUCTURES BECAME OPER.   May 01 2007
+ NCEP-Radiation_driver    v5.2  Jan 2013 
+  - Selected Control Flag settings: ICTMflg=           1  ISOLar =           2  ICO2flg=           2  IAERflg=         111  IALBflg=           1  IEMSflg=           1  ICLDflg=           1  IMP_PHYSICS=          11  IOZNflg=           7
+  IVFLIP=           1  IOVRSW=           1  IOVRLW=           1  ISUBCSW=           2  ISUBCLW=           2
+  LCRICK= F  LCNORM= F  LNOPREC= F
+  LTP =           0 , add extra top layer = F
+  - ISUBCLW=           2  Use McICA with random permutation seeds for LW random number generator
+  - ISUBCSW=           2  Use McICA with random permutation seeds for SW random number generator
+ NCEP-Radiation_astronomy v5.2  Jan 2013 
+  - Using NOAA annual mean TSI table in TIM scale with cycle approximation (new values)!
+ NCEP-Radiation_aerosols  v5.2  Jan 2013 
+  - Using OPAC-seasonal climatology for tropospheric aerosol effect
+    IAER=         111   LW-trop-aer= T   SW-trop-aer= T   Volc-aer= T
+  - Include stratospheric volcanic aerosol effect
+    - Compute multi-band aerosol optical properties for SW input parameters
+    - Compute multi-band aerosol optical properties for LW input parameters
+ NCEP-Radiation_gases     v5.1  Nov 2012 
+  - Using interactive ozone distribution
+  - Using observed co2 monthly 2-d data
+ NCEP-Radiation_surface   v5.1  Nov 2012 
+  - Using MODIS based land surface albedo for sw
+  - Using Varying Surface Emissivity for lw
+    Opened data file: sfc_emissivity_idx.txt    
+ SURFACE EMISSIVITY INDEX, IDM,JDM: 360 180    NOTE: DATA FROM N TO S            
+ NCEP-Radiation_clouds    v5.1  Nov 2012 
+  - Using Prognostic Cloud Method
+    --- GFDL Lin cloud microphysics
+  - Using AER Longwave Radiation, Version: NCEP LW v5.1  Nov 2012 -RRTMG-LW v4.82  
+    --- Include rare gases N2O, CH4, O2, CFCs absorptions in LW
+    --- Using MCICA sub-colum clouds approximation with provided input array of permutation seeds
+  - Using AER Shortwave Radiation, Version: NCEP SW v5.1  Nov 2012 -RRTMG-SW v3.8   
+    --- PIFM 2-stream transfer scheme
+    --- Include rare gases N2O, CH4, O2, absorptions in SW
+    --- Using MCICA sub-colum clouds approximation with provided input array of permutation seeds
+   Radiation sub-cloud initial seed =       46897  IC-idate =           0           8           5        2016
+  return from rad_initialize - after calling radinit
+ input.nml GW-namelist file 
+  do_physb_gwsrcs  T  in cires_ugwp_init 
+  init_okw_gws 
+  init_fjet_gws 
+  init_convective GWs cgwf          32           4
+ ugwp_v0: init_gw_wmsdis_control 
+ ugwp_v0: WMSDIS launch layer           55
+ ugwp_v0: WMSDID tot_mflux in mpa   30.000000000000000     
+
+ ugwp_v0: zcimin=  0.50000000000000000     
+ ugwp_v0: zcimax=   125.00000000000000     
+ ugwp_v0: cd_crit=  0.25000000000000000     
+ ugwp_v0: launch_level          55
+  ugwp_v0 zms_l=   2000.0000000000000     
+  ugwp_vgw  nslope=   1.0000000000000000     
+
+  VAY-ugwp is initialized  T
+ in iau_init  -1.0000000000000000     
+ nfiles =            0
+ in fv3gfs_diag_register, nrgst_bl=          19  nrgst_nb=          13  nrgst_vctbl=           1 isco=           1          48 jsco=           1          48  num_axes_phys=           2
+NOTE from PE     0: reading topographic/orographic information from INPUT/oro_data.tile*.nc
+NOTE from PE     0: gfs_driver::surface_props_input - will computing lakefrac
+  resetting Model%frac_grid= F
+NOTE from PE     0: reading surface properties data from INPUT/sfc_data.tile*.nc
+NOTE from PE     0: gfs_driver:: - after put to container
+NOTE from PE     0: No physics restarts - cold starting physical parameterizations
+ ---fdiag   0.0000000000000000       0.25000000000000000       0.50000000000000000       0.75000000000000000        1.0000000000000000        1.2500000000000000        1.5000000000000000        1.7500000000000000        2.0000000000000000        2.2500000000000000        2.5000000000000000        2.7500000000000000        3.0000000000000000        3.2500000000000000        3.5000000000000000        3.7500000000000000        4.0000000000000000        4.2500000000000000        4.5000000000000000        4.7500000000000000        5.0000000000000000        5.2500000000000000        5.5000000000000000        5.7500000000000000        6.0000000000000000        6.2500000000000000        6.5000000000000000        6.7500000000000000        7.0000000000000000        7.2500000000000000        7.5000000000000000        7.7500000000000000        8.0000000000000000        8.2500000000000000        8.5000000000000000        8.7500000000000000        9.0000000000000000        9.2500000000000000        9.5000000000000000        9.7500000000000000     
+2021-01-04 23:08:51.018529: W tensorflow/stream_executor/platform/default/dso_loader.cc:60] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: :/usr/local/esmf/lib/libO3/Linux.gfortran.64.mpiuni.default/:/FMS/libFMS/.libs/
+2021-01-04 23:08:51.018595: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
+2021-01-04 23:08:51.018535: W tensorflow/stream_executor/platform/default/dso_loader.cc:60] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: :/usr/local/esmf/lib/libO3/Linux.gfortran.64.mpiuni.default/:/FMS/libFMS/.libs/
+2021-01-04 23:08:51.018596: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
+2021-01-04 23:08:51.018529: W tensorflow/stream_executor/platform/default/dso_loader.cc:60] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: :/usr/local/esmf/lib/libO3/Linux.gfortran.64.mpiuni.default/:/FMS/libFMS/.libs/
+2021-01-04 23:08:51.018595: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
+2021-01-04 23:08:51.018529: W tensorflow/stream_executor/platform/default/dso_loader.cc:60] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: :/usr/local/esmf/lib/libO3/Linux.gfortran.64.mpiuni.default/:/FMS/libFMS/.libs/
+2021-01-04 23:08:51.018595: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
+2021-01-04 23:08:51.038321: W tensorflow/stream_executor/platform/default/dso_loader.cc:60] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: :/usr/local/esmf/lib/libO3/Linux.gfortran.64.mpiuni.default/:/FMS/libFMS/.libs/
+2021-01-04 23:08:51.038387: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
+2021-01-04 23:08:51.038321: W tensorflow/stream_executor/platform/default/dso_loader.cc:60] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: :/usr/local/esmf/lib/libO3/Linux.gfortran.64.mpiuni.default/:/FMS/libFMS/.libs/
+2021-01-04 23:08:51.038387: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
+ Rayleigh_Super tau=   5.0000000000000000     
+           1   4.5137976812487102     
+           2   8.3008718816815978     
+           3   12.451990419612816     
+           4   16.743739873688465     
+           5   21.043726007313577     
+           6   25.338399538283603     
+           7   29.674865710752979     
+           8   34.147171288377486     
+           9   38.869130488981618     
+          10   43.966033831379001     
+          11   49.524585653140434     
+          12   55.561851678687063     
+          13   62.093172441138499     
+          14   69.131998152667464     
+          15   76.689821214560823     
+          16   84.776027742393893     
+          17   93.397797804356074     
+          18   102.56001761730100     
+          19   112.26526281497033     
+ Rayleigh friction E-folding time (days):
+           1   4.5137976812487102        7.9409815550254379     
+ Sponge layer divergence damping coefficent:
+   Updating solar constant with cycle approx
+    Opened solar constant data file: solarconstant_noaa_an.txt 
+  CHECK: Solar constant data used for year        2016   1360.7100000000000        1360.7100000000000     
+0 FORECAST DATE           5 AUG.  2016 AT  0 HRS  0.00 MINS
+  JULIAN DAY             2457605  PLUS   0.500000
+  RADIUS VECTOR          1.0144250
+  RIGHT ASCENSION OF SUN   9.0328363 HRS, OR   9 HRS   1 MINS  58.2 SECS
+  DECLINATION OF THE SUN  16.9035046 DEGS, OR   16 DEGS  54 MINS  12.6 SECS
+  EQUATION OF TIME        -6.0280938 MINS, OR   -361.69 SECS, OR-0.026375 RADIANS
+  SOLAR CONSTANT        1322.2868768 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+    Opened aerosol data file: aerosol.dat               
+   --- Reading  MONTH OF AUGUST    CLIMATOLOGICAL AEROSOL GLOBAL DISTRIBUTION                  
+    Request volcanic date out of range, optical depth set to lowest value
+
+ FV3GFS finished fv3_ugwp_v0 in ugwp_driver_v0 
+  non-stationary GWs with GMAO/MERRA GW-forcing 
+
+ ---isec,seconds         900         900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ calculating slp kr value
+ calculating slp kr value
+ calculating slp kr value
+ calculating slp kr value
+ calculating slp kr value
+ calculating slp kr value
+
+WARNING from PE     0: diag_util_mod::opening_file: module/field_name (dynamics/w50) NOT registered
+
+
+WARNING from PE     0: diag_util_mod::opening_file: module/field_name (dynamics/w50) NOT registered
+
+ ---isec,seconds         900        1800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900        2700
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900        3600
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT  1 HRS  0.00 MINS
+  JULIAN DAY             2457605  PLUS   0.541667
+  RADIUS VECTOR          1.0144190
+  RIGHT ASCENSION OF SUN   9.0355021 HRS, OR   9 HRS   2 MINS   7.8 SECS
+  DECLINATION OF THE SUN  16.8921825 DEGS, OR   16 DEGS  53 MINS  31.9 SECS
+  EQUATION OF TIME        -6.0237916 MINS, OR   -361.43 SECS, OR-0.026356 RADIANS
+  SOLAR CONSTANT        1322.3023940 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900        4500
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900        5400
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900        6300
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900        7200
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT  2 HRS  0.00 MINS
+  JULIAN DAY             2457605  PLUS   0.583333
+  RADIUS VECTOR          1.0144131
+  RIGHT ASCENSION OF SUN   9.0381677 HRS, OR   9 HRS   2 MINS  17.4 SECS
+  DECLINATION OF THE SUN  16.8808524 DEGS, OR   16 DEGS  52 MINS  51.1 SECS
+  EQUATION OF TIME        -6.0194722 MINS, OR   -361.17 SECS, OR-0.026337 RADIANS
+  SOLAR CONSTANT        1322.3179304 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900        8100
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900        9000
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900        9900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+        2016           8           5           3           0           0
+ ZS      5226.4415281977026       -23.781250604958593        230.89473439619954     
+ PS max =    1036.3514108054771       min =    541.64431359570699     
+ Mean specific humidity (mg/kg) above 75 mb=   3.9760074355861068     
+ Total surface pressure (mb) =    985.90123017909343     
+ mean dry surface pressure =    983.24043506422140     
+ Total Water Vapor (kg/m**2) =   27.065128176774063     
+ --- Micro Phys water substances (kg/m**2) ---
+ Total cloud water=   3.2130681444351231E-002
+ Total rain  water=   3.8482893349081303E-003
+ Total cloud ice  =   2.6758736833690497E-002
+ Total snow       =   4.4818158541819458E-003
+ Total graupel    =   2.1148023395310667E-004
+ ---------------------------------------------
+ ENG Deficit (W/m**2)=  0.567316532    
+ TE ( Joule/m^2 * E9) =   2.6320286332575114     
+ UA_top max =    139.48117633060141       min =   -39.194127538019885     
+ UA max =    139.48117633060141       min =   -44.043898934165824     
+ VA max =    58.579355337320877       min =   -56.423881856902348     
+ W  max =   0.20672308137228934       min =  -0.31619830499735629     
+ Bottom w max =    2.1760820337924550E-002  min =   -9.1349625887571811E-002
+ Bottom: w/dz max =    7.1414058681512225E-004  min =   -3.0964495909248375E-003
+ DZ (m) max =   -21.783513827048534       min =   -5882.2666147822774     
+ Bottom DZ (m) max =   -21.783513827048534       min =   -31.681487417193701     
+ TA max =    312.73855158895810       min =    179.52266270818780     
+ OM max =   0.75737238267838336       min =  -0.76416666269052791     
+ ZTOP      40.867751905053026        33.885836067418168        39.244156981670926     
+ SLP max =    1068.6456087855379       min =    946.10125595756222     
+ ATL SLP max =    1020.4707767605607       min =    1009.5045913438237     
+ fv_GFS Z500   5696.6810211400998        5787.6695459118755        5447.4452301724905        5868.2302083722661     
+ T200:      239.00844667331467        192.89514877720347        219.11315544010097     
+ Tropical [-20.,20.] mean T200 =   220.41912327503715     
+ Surf_wind_speed max =    22.630205505629267       min =    1.2225468937101804E-002
+ T_bot:      310.49574701485568        214.28764755603032        289.03954319200221     
+ SQRT(2.*KE; m/s)=   17.421151682580540     
+ max reflectivity =    51.042612039325775       dBZ
+ sphum max =    2.3685183862511179E-002  min =    4.0530360560992424E-008
+ liq_wat max =    1.2621657488233395E-003  min =   -5.4235617005419356E-020
+ rainwat max =    1.2942346909320152E-003  min =   -5.4166889441056490E-020
+ ice_wat max =    7.7848392820314765E-004  min =   -2.7093733632158894E-020
+ snowwat max =    1.4187174335080382E-003  min =   -2.7086661358954720E-020
+ graupel max =    1.2707065334831194E-004  min =   -6.7737692668950220E-021
+ o3mr max =    1.6173800531411833E-005  min =    3.6944359771961875E-008
+ sgs_tke max =    51.260536078114995       min =  -0.12542917591018124     
+ cld_amt max =    1.0000000000000000       min =    0.0000000000000000     
+ Max_cld GB_NH_SH_EQ  0.38806349956593428       0.34442529145606493       0.45257246220736685       0.36068686905680353     
+ ---isec,seconds         900       10800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT  3 HRS  0.00 MINS
+  JULIAN DAY             2457605  PLUS   0.625000
+  RADIUS VECTOR          1.0144071
+  RIGHT ASCENSION OF SUN   9.0408330 HRS, OR   9 HRS   2 MINS  27.0 SECS
+  DECLINATION OF THE SUN  16.8695145 DEGS, OR   16 DEGS  52 MINS  10.3 SECS
+  EQUATION OF TIME        -6.0151355 MINS, OR   -360.91 SECS, OR-0.026318 RADIANS
+  SOLAR CONSTANT        1322.3334858 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       11700
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       12600
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       13500
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       14400
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT  4 HRS  0.00 MINS
+  JULIAN DAY             2457605  PLUS   0.666667
+  RADIUS VECTOR          1.0144011
+  RIGHT ASCENSION OF SUN   9.0434980 HRS, OR   9 HRS   2 MINS  36.6 SECS
+  DECLINATION OF THE SUN  16.8581687 DEGS, OR   16 DEGS  51 MINS  29.4 SECS
+  EQUATION OF TIME        -6.0107815 MINS, OR   -360.65 SECS, OR-0.026299 RADIANS
+  SOLAR CONSTANT        1322.3490605 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       15300
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       16200
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       17100
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       18000
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT  5 HRS  0.00 MINS
+  JULIAN DAY             2457605  PLUS   0.708333
+  RADIUS VECTOR          1.0143952
+  RIGHT ASCENSION OF SUN   9.0461628 HRS, OR   9 HRS   2 MINS  46.2 SECS
+  DECLINATION OF THE SUN  16.8468150 DEGS, OR   16 DEGS  50 MINS  48.5 SECS
+  EQUATION OF TIME        -6.0064102 MINS, OR   -360.38 SECS, OR-0.026280 RADIANS
+  SOLAR CONSTANT        1322.3646542 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       18900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       19800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       20700
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+        2016           8           5           6           0           0
+ ZS      5226.4415281977026       -23.781250604958593        230.89473439619954     
+ PS max =    1036.2459334892733       min =    541.10945435068970     
+ Mean specific humidity (mg/kg) above 75 mb=   3.9761303105506545     
+ Total surface pressure (mb) =    985.91441037276161     
+ mean dry surface pressure =    983.24043506422049     
+ Total Water Vapor (kg/m**2) =   27.188156696289539     
+ --- Micro Phys water substances (kg/m**2) ---
+ Total cloud water=   4.2400663711102564E-002
+ Total rain  water=   4.3091777015392399E-003
+ Total cloud ice  =   2.7577538504370926E-002
+ Total snow       =   4.3009051484092847E-003
+ Total graupel    =   2.1477086586411693E-004
+ ---------------------------------------------
+ ENG Deficit (W/m**2)=  0.447855055    
+ TE ( Joule/m^2 * E9) =   2.6320724497475507     
+ UA_top max =    134.74632592581594       min =   -38.277560091228459     
+ UA max =    134.74632592581594       min =   -42.498535770591033     
+ VA max =    58.183040150634270       min =   -57.173204850641085     
+ W  max =   0.18501064000384565       min =  -0.33543899751577377     
+ Bottom w max =    4.4934340251335227E-002  min =   -9.7328918178179763E-002
+ Bottom: w/dz max =    1.5573108279639785E-003  min =   -3.3093795000594980E-003
+ DZ (m) max =   -21.655947179232395       min =   -5869.5710928290646     
+ Bottom DZ (m) max =   -21.655947179232395       min =   -32.107726509735542     
+ TA max =    315.83163577861006       min =    179.76729582182611     
+ OM max =   0.82076097023931793       min =  -0.72822974837110444     
+ ZTOP      40.835633670967802        33.928454644972874        39.246672067159714     
+ SLP max =    1071.1770207826535       min =    949.28687767098336     
+ ATL SLP max =    1020.1762598701963       min =    1009.2546576960858     
+ fv_GFS Z500   5696.0512614621839        5787.8199733738920        5446.7566106337836        5867.0296771555595     
+ T200:      238.79507777556623        192.71482343423384        219.08531703131587     
+ Tropical [-20.,20.] mean T200 =   220.35568323591534     
+ Surf_wind_speed max =    22.388149739153153       min =    2.7323923244511037E-003
+ T_bot:      315.83163577861006        213.19069115848927        289.28378988337045     
+ SQRT(2.*KE; m/s)=   17.329177812458713     
+ max reflectivity =    53.733524142388760       dBZ
+ sphum max =    2.1449527798301463E-002  min =    4.8824692414277068E-008
+ liq_wat max =    1.5285588754185852E-003  min =   -8.1259809511055456E-020
+ rainwat max =    2.4456704816709189E-003  min =   -5.4179323124734469E-020
+ ice_wat max =    7.9415017569502307E-004  min =   -5.4182335701096100E-020
+ snowwat max =    2.0738354685192095E-003  min =   -1.0836622080831559E-019
+ graupel max =    1.5778522153655266E-004  min =   -6.7728888005197243E-021
+ o3mr max =    1.6157254382510673E-005  min =    3.6997064588182383E-008
+ sgs_tke max =    41.346430087774692       min =  -0.31970547442263231     
+ cld_amt max =    1.0000000000000000       min =    0.0000000000000000     
+ Max_cld GB_NH_SH_EQ  0.38806349956593428       0.34442529145606493       0.45257246220736685       0.36068686905680353     
+ ---isec,seconds         900       21600
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT  6 HRS  0.00 MINS
+  JULIAN DAY             2457605  PLUS   0.750000
+  RADIUS VECTOR          1.0143892
+  RIGHT ASCENSION OF SUN   9.0488272 HRS, OR   9 HRS   2 MINS  55.8 SECS
+  DECLINATION OF THE SUN  16.8354535 DEGS, OR   16 DEGS  50 MINS   7.6 SECS
+  EQUATION OF TIME        -6.0020217 MINS, OR   -360.12 SECS, OR-0.026260 RADIANS
+  SOLAR CONSTANT        1322.3802670 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       22500
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       23400
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       24300
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       25200
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT  7 HRS  0.00 MINS
+  JULIAN DAY             2457605  PLUS   0.791667
+  RADIUS VECTOR          1.0143832
+  RIGHT ASCENSION OF SUN   9.0514914 HRS, OR   9 HRS   3 MINS   5.4 SECS
+  DECLINATION OF THE SUN  16.8240841 DEGS, OR   16 DEGS  49 MINS  26.7 SECS
+  EQUATION OF TIME        -5.9976160 MINS, OR   -359.86 SECS, OR-0.026241 RADIANS
+  SOLAR CONSTANT        1322.3958989 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       26100
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       27000
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       27900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       28800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT  8 HRS  0.00 MINS
+  JULIAN DAY             2457605  PLUS   0.833333
+  RADIUS VECTOR          1.0143772
+  RIGHT ASCENSION OF SUN   9.0541552 HRS, OR   9 HRS   3 MINS  15.0 SECS
+  DECLINATION OF THE SUN  16.8127068 DEGS, OR   16 DEGS  48 MINS  45.7 SECS
+  EQUATION OF TIME        -5.9931929 MINS, OR   -359.59 SECS, OR-0.026222 RADIANS
+  SOLAR CONSTANT        1322.4115499 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       29700
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       30600
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       31500
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+        2016           8           5           9           0           0
+ ZS      5226.4415281977026       -23.781250604958593        230.89473439619954     
+ PS max =    1036.2403637549471       min =    541.01981384367127     
+ Mean specific humidity (mg/kg) above 75 mb=   3.9759359069206699     
+ Total surface pressure (mb) =    985.92638971080953     
+ mean dry surface pressure =    983.24043506422140     
+ Total Water Vapor (kg/m**2) =   27.299321687114361     
+ --- Micro Phys water substances (kg/m**2) ---
+ Total cloud water=   5.0760319699373307E-002
+ Total rain  water=   5.0188963509577092E-003
+ Total cloud ice  =   2.9102524239509663E-002
+ Total snow       =   4.6687287504583279E-003
+ Total graupel    =   2.4284833770698530E-004
+ ---------------------------------------------
+ ENG Deficit (W/m**2)=  0.357360035    
+ TE ( Joule/m^2 * E9) =   2.6322466588095614     
+ UA_top max =    133.18347570059888       min =   -39.983022545228629     
+ UA max =    133.18347570059888       min =   -40.653083406460702     
+ VA max =    58.883972663327356       min =   -53.145517607897766     
+ W  max =   0.18040865520851690       min =  -0.35020592097731912     
+ Bottom w max =    5.2145538427496273E-002  min =   -9.6641003895041738E-002
+ Bottom: w/dz max =    1.8060999854780794E-003  min =   -3.2747641051299684E-003
+ DZ (m) max =   -21.524488251393958       min =   -5845.4857471216128     
+ Bottom DZ (m) max =   -21.524488251393958       min =   -32.511579869074978     
+ TA max =    319.65166772458463       min =    179.84985316085061     
+ OM max =    1.0520176447553620       min =  -0.69875097995166968     
+ ZTOP      40.796085930994956        33.928728971487445        39.249358915889317     
+ SLP max =    1073.7728033019321       min =    953.10447819676278     
+ ATL SLP max =    1019.2335274264868       min =    1007.5817287679193     
+ fv_GFS Z500   5695.9247993662439        5788.8616887321577        5446.6644748690869        5865.8741407785465     
+ T200:      238.78560384387524        192.59705242911468        219.04860467004815     
+ Tropical [-20.,20.] mean T200 =   220.29234604263092     
+ Surf_wind_speed max =    22.567649603188052       min =    5.2659421745413970E-003
+ T_bot:      319.65166772458463        211.79970178739421        289.63319641252139     
+ SQRT(2.*KE; m/s)=   17.259486848105880     
+ max reflectivity =    44.425995937589789       dBZ
+ sphum max =    2.1734462995361515E-002  min =    6.7851817552585146E-008
+ liq_wat max =    1.4644629690379661E-003  min =   -5.4285003002148675E-020
+ rainwat max =    1.1643754634289459E-003  min =   -5.4161924417820597E-020
+ ice_wat max =    7.9965340065803929E-004  min =   -2.7104641128983674E-020
+ snowwat max =    8.5390577695285933E-004  min =   -5.4188827471635586E-020
+ graupel max =    1.5177006244320893E-004  min =   -6.7736034339544482E-021
+ o3mr max =    1.6125781354706304E-005  min =    3.7081359671589526E-008
+ sgs_tke max =    36.681497864891419       min =  -0.14858002061343892     
+ cld_amt max =    1.0000000000000000       min =    0.0000000000000000     
+ Max_cld GB_NH_SH_EQ  0.38806349956593428       0.34442529145606493       0.45257246220736685       0.36068686905680353     
+ ---isec,seconds         900       32400
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT  9 HRS  0.00 MINS
+  JULIAN DAY             2457605  PLUS   0.875000
+  RADIUS VECTOR          1.0143712
+  RIGHT ASCENSION OF SUN   9.0568188 HRS, OR   9 HRS   3 MINS  24.5 SECS
+  DECLINATION OF THE SUN  16.8013217 DEGS, OR   16 DEGS  48 MINS   4.8 SECS
+  EQUATION OF TIME        -5.9887527 MINS, OR   -359.33 SECS, OR-0.026202 RADIANS
+  SOLAR CONSTANT        1322.4272200 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       33300
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       34200
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       35100
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       36000
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT 10 HRS  0.00 MINS
+  JULIAN DAY             2457605  PLUS   0.916667
+  RADIUS VECTOR          1.0143652
+  RIGHT ASCENSION OF SUN   9.0594821 HRS, OR   9 HRS   3 MINS  34.1 SECS
+  DECLINATION OF THE SUN  16.7899287 DEGS, OR   16 DEGS  47 MINS  23.7 SECS
+  EQUATION OF TIME        -5.9842952 MINS, OR   -359.06 SECS, OR-0.026183 RADIANS
+  SOLAR CONSTANT        1322.4429092 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       36900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       37800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       38700
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       39600
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT 11 HRS  0.00 MINS
+  JULIAN DAY             2457605  PLUS   0.958333
+  RADIUS VECTOR          1.0143591
+  RIGHT ASCENSION OF SUN   9.0621451 HRS, OR   9 HRS   3 MINS  43.7 SECS
+  DECLINATION OF THE SUN  16.7785279 DEGS, OR   16 DEGS  46 MINS  42.7 SECS
+  EQUATION OF TIME        -5.9798205 MINS, OR   -358.79 SECS, OR-0.026163 RADIANS
+  SOLAR CONSTANT        1322.4586175 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       40500
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       41400
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       42300
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+        2016           8           5          12           0           0
+ ZS      5226.4415281977026       -23.781250604958593        230.89473439619954     
+ PS max =    1035.4808458516345       min =    541.08923089824088     
+ Mean specific humidity (mg/kg) above 75 mb=   3.9756289670948859     
+ Total surface pressure (mb) =    985.93504132218300     
+ mean dry surface pressure =    983.24043506422095     
+ Total Water Vapor (kg/m**2) =   27.378693036159156     
+ --- Micro Phys water substances (kg/m**2) ---
+ Total cloud water=   5.7756367240308977E-002
+ Total rain  water=   5.5824520170540343E-003
+ Total cloud ice  =   3.0288311884179863E-002
+ Total snow       =   4.7684605723505641E-003
+ Total graupel    =   2.4826048288113762E-004
+ ---------------------------------------------
+ ENG Deficit (W/m**2)=  0.302020520    
+ TE ( Joule/m^2 * E9) =   2.6324034089978414     
+ UA_top max =    127.40072484042346       min =   -40.463000434540284     
+ UA max =    127.40072484042346       min =   -40.463000434540284     
+ VA max =    57.136839281549051       min =   -55.143882864327956     
+ W  max =   0.16738205341671086       min =  -0.33478944149426026     
+ Bottom w max =    5.0172545284733396E-002  min =   -9.4728021099795043E-002
+ Bottom: w/dz max =    1.7371255986560804E-003  min =   -3.6153174165286144E-003
+ DZ (m) max =   -21.447251649135374       min =   -5831.4059593374386     
+ Bottom DZ (m) max =   -21.447251649135374       min =   -32.675201986882669     
+ TA max =    321.14596758016967       min =    179.83227363773713     
+ OM max =    1.0304582306692085       min =  -0.74592614575711524     
+ ZTOP      40.785198339705772        33.946631784605884        39.252069282693760     
+ SLP max =    1073.9838657705625       min =    956.44235076075302     
+ ATL SLP max =    1019.3918881551308       min =    1007.7820540377809     
+ fv_GFS Z500   5696.1385375008322        5789.5890005507526        5447.2665266618760        5865.3601867057750     
+ T200:      238.84520332765842        192.77154575129853        219.00221186163495     
+ Tropical [-20.,20.] mean T200 =   220.23040500842839     
+ Surf_wind_speed max =    22.671419983066208       min =    1.5744852536414052E-002
+ T_bot:      321.14596758016967        211.06170794597324        289.83934639498415     
+ SQRT(2.*KE; m/s)=   17.206453995078736     
+ max reflectivity =    44.725297855172244       dBZ
+ sphum max =    2.2354038458121245E-002  min =    9.7440858212206258E-008
+ liq_wat max =    1.4523405025452160E-003  min =   -1.0835179767865033E-019
+ rainwat max =    1.1455401746875570E-003  min =   -2.7090459724783552E-020
+ ice_wat max =    7.9173365458787975E-004  min =   -2.7092999338695685E-020
+ snowwat max =    9.2335037166636216E-004  min =   -2.7090226923788056E-020
+ graupel max =    1.5145206859908434E-004  min =   -3.3847640332645529E-021
+ o3mr max =    1.6105863920693158E-005  min =    3.7292199607920339E-008
+ sgs_tke max =    39.935240231123039       min =  -0.26331898909667412     
+ cld_amt max =    1.0000000000000000       min =    0.0000000000000000     
+ Max_cld GB_NH_SH_EQ  0.38806349956593428       0.34442529145606493       0.45257246220736685       0.36068686905680353     
+ ---isec,seconds         900       43200
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT 12 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.000000
+  RADIUS VECTOR          1.0143531
+  RIGHT ASCENSION OF SUN   9.0648109 HRS, OR   9 HRS   3 MINS  53.3 SECS
+  DECLINATION OF THE SUN  16.7671057 DEGS, OR   16 DEGS  46 MINS   1.6 SECS
+  EQUATION OF TIME        -5.9753306 MINS, OR   -358.52 SECS, OR-0.026144 RADIANS
+  SOLAR CONSTANT        1322.4743474 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       44100
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       45000
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       45900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       46800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT 13 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.041667
+  RADIUS VECTOR          1.0143471
+  RIGHT ASCENSION OF SUN   9.0674733 HRS, OR   9 HRS   4 MINS   2.9 SECS
+  DECLINATION OF THE SUN  16.7556893 DEGS, OR   16 DEGS  45 MINS  20.5 SECS
+  EQUATION OF TIME        -5.9708214 MINS, OR   -358.25 SECS, OR-0.026124 RADIANS
+  SOLAR CONSTANT        1322.4900938 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       47700
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       48600
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       49500
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       50400
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT 14 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.083333
+  RADIUS VECTOR          1.0143410
+  RIGHT ASCENSION OF SUN   9.0701354 HRS, OR   9 HRS   4 MINS  12.5 SECS
+  DECLINATION OF THE SUN  16.7442650 DEGS, OR   16 DEGS  44 MINS  39.4 SECS
+  EQUATION OF TIME        -5.9662949 MINS, OR   -357.98 SECS, OR-0.026104 RADIANS
+  SOLAR CONSTANT        1322.5058592 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       51300
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       52200
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       53100
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+        2016           8           5          15           0           0
+ ZS      5226.4415281977026       -23.781250604958593        230.89473439619954     
+ PS max =    1035.4803966624265       min =    541.11248120430810     
+ Mean specific humidity (mg/kg) above 75 mb=   3.9748616145500524     
+ Total surface pressure (mb) =    985.94190319434824     
+ mean dry surface pressure =    983.24043506422186     
+ Total Water Vapor (kg/m**2) =   27.443142878226162     
+ --- Micro Phys water substances (kg/m**2) ---
+ Total cloud water=   6.2450027976981431E-002
+ Total rain  water=   5.9756635699478918E-003
+ Total cloud ice  =   3.0817425026785021E-002
+ Total snow       =   4.6814034108998530E-003
+ Total graupel    =   2.4111312043663367E-004
+ ---------------------------------------------
+ ENG Deficit (W/m**2)=  0.255058974    
+ TE ( Joule/m^2 * E9) =   2.6324858724348896     
+ UA_top max =    123.60700575930224       min =   -41.089594767471681     
+ UA max =    123.60700575930224       min =   -41.089594767471681     
+ VA max =    50.379239112884079       min =   -53.302192386384341     
+ W  max =   0.17327209443958391       min =  -0.32448831370217973     
+ Bottom w max =    3.8875388524665676E-002  min =   -7.9308630395353838E-002
+ Bottom: w/dz max =    1.3575197867178065E-003  min =   -3.3233316655392714E-003
+ DZ (m) max =   -21.374304669430330       min =   -5821.8162641378985     
+ Bottom DZ (m) max =   -21.374304669430330       min =   -32.662064256412883     
+ TA max =    320.96664998664403       min =    180.07315733274089     
+ OM max =   0.89345746189174435       min =  -0.91397279104697760     
+ ZTOP      40.753744215304074        33.981797076047982        39.254592409515389     
+ SLP max =    1073.1202131157861       min =    958.62832436342910     
+ ATL SLP max =    1020.2915697517275       min =    1009.3743643891610     
+ fv_GFS Z500   5696.3206662321882        5789.6648758903730        5448.0484163041010        5865.2416763424226     
+ T200:      238.79776293005921        192.52967733925379        218.95864314046466     
+ Tropical [-20.,20.] mean T200 =   220.16945930162296     
+ Surf_wind_speed max =    22.391124756077165       min =    6.3409392158796339E-003
+ T_bot:      320.96664998664403        210.37704773184780        290.04744253187846     
+ SQRT(2.*KE; m/s)=   17.151707577915616     
+ max reflectivity =    45.619459577287955       dBZ
+ sphum max =    2.2378305632511471E-002  min =    9.6961867527425114E-008
+ liq_wat max =    1.4191444814467286E-003  min =   -5.4238355748818436E-020
+ rainwat max =    1.1260609859719507E-003  min =   -5.4159753701862361E-020
+ ice_wat max =    9.3096970556488508E-004  min =   -2.7092238520847488E-020
+ snowwat max =    9.2338471432458925E-004  min =   -2.7085196864433608E-020
+ graupel max =    2.1789873377426369E-004  min =   -6.7680044310011172E-021
+ o3mr max =    1.6074300169050683E-005  min =    3.6908913825678220E-008
+ sgs_tke max =    35.070919347409038       min =   -1.2163044941866772     
+ cld_amt max =    1.0000000000000000       min =    0.0000000000000000     
+ Max_cld GB_NH_SH_EQ  0.38806349956593428       0.34442529145606493       0.45257246220736685       0.36068686905680353     
+ ---isec,seconds         900       54000
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT 15 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.125000
+  RADIUS VECTOR          1.0143350
+  RIGHT ASCENSION OF SUN   9.0727973 HRS, OR   9 HRS   4 MINS  22.1 SECS
+  DECLINATION OF THE SUN  16.7328329 DEGS, OR   16 DEGS  43 MINS  58.2 SECS
+  EQUATION OF TIME        -5.9617513 MINS, OR   -357.71 SECS, OR-0.026084 RADIANS
+  SOLAR CONSTANT        1322.5216437 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       54900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       55800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       56700
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       57600
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT 16 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.166667
+  RADIUS VECTOR          1.0143289
+  RIGHT ASCENSION OF SUN   9.0754588 HRS, OR   9 HRS   4 MINS  31.7 SECS
+  DECLINATION OF THE SUN  16.7213930 DEGS, OR   16 DEGS  43 MINS  17.0 SECS
+  EQUATION OF TIME        -5.9571904 MINS, OR   -357.43 SECS, OR-0.026064 RADIANS
+  SOLAR CONSTANT        1322.5374472 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       58500
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       59400
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       60300
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       61200
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT 17 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.208333
+  RADIUS VECTOR          1.0143228
+  RIGHT ASCENSION OF SUN   9.0781201 HRS, OR   9 HRS   4 MINS  41.2 SECS
+  DECLINATION OF THE SUN  16.7099453 DEGS, OR   16 DEGS  42 MINS  35.8 SECS
+  EQUATION OF TIME        -5.9526124 MINS, OR   -357.16 SECS, OR-0.026044 RADIANS
+  SOLAR CONSTANT        1322.5532698 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       62100
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       63000
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       63900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+        2016           8           5          18           0           0
+ ZS      5226.4415281977026       -23.781250604958593        230.89473439619954     
+ PS max =    1035.6358977579159       min =    541.58141984603446     
+ Mean specific humidity (mg/kg) above 75 mb=   3.9740029650573696     
+ Total surface pressure (mb) =    985.94792834754458     
+ mean dry surface pressure =    983.24043506422186     
+ Total Water Vapor (kg/m**2) =   27.500545808563725     
+ --- Micro Phys water substances (kg/m**2) ---
+ Total cloud water=   6.5156297466395466E-002
+ Total rain  water=   6.3145202430566223E-003
+ Total cloud ice  =   3.1726246151562346E-002
+ Total snow       =   4.7775228328613504E-003
+ Total graupel    =   2.2758007260593156E-004
+ ---------------------------------------------
+ ENG Deficit (W/m**2)=  0.206793785    
+ TE ( Joule/m^2 * E9) =   2.6324696676067472     
+ UA_top max =    120.28081314342387       min =   -41.718598335823359     
+ UA max =    120.28081314342387       min =   -41.718598335823359     
+ VA max =    47.702242369948564       min =   -48.010422523342655     
+ W  max =   0.18544712741191410       min =  -0.32445864513921013     
+ Bottom w max =    4.8771377655173344E-002  min =   -8.2222937585370581E-002
+ Bottom: w/dz max =    1.6161452566696543E-003  min =   -3.4608142383279849E-003
+ DZ (m) max =   -21.344355653493274       min =   -5815.6283640434222     
+ Bottom DZ (m) max =   -21.344355653493274       min =   -32.510581970305758     
+ TA max =    319.26940499077432       min =    179.90814481121720     
+ OM max =   0.81206785481238086       min =   -1.1121397801213779     
+ ZTOP      40.726693991930723        33.999178774009707        39.256366523438587     
+ SLP max =    1072.7562011501725       min =    956.61948075710245     
+ ATL SLP max =    1019.4287646514674       min =    1009.2038955542374     
+ fv_GFS Z500   5696.2076440491555        5789.5684750762794        5448.3050852419155        5864.7855751779716     
+ T200:      238.53365201965536        192.56895453049793        218.91449907361141     
+ Tropical [-20.,20.] mean T200 =   220.10833919083151     
+ Surf_wind_speed max =    22.206283456339598       min =    9.0465857657149491E-003
+ T_bot:      319.26940499077432        210.11197906639276        289.82550741039734     
+ SQRT(2.*KE; m/s)=   17.089874426005945     
+ max reflectivity =    46.028037781061656       dBZ
+ sphum max =    2.1944915958732207E-002  min =    6.5654770530334198E-008
+ liq_wat max =    1.3957596291297690E-003  min =   -5.4277388825246546E-020
+ rainwat max =    1.2732553847609673E-003  min =   -5.4185445634033045E-020
+ ice_wat max =    8.9713614642278089E-004  min =   -2.7092233738152784E-020
+ snowwat max =    1.0996692373382261E-003  min =   -2.1673411947944220E-019
+ graupel max =    3.4803804934161343E-004  min =   -1.6920283441326314E-021
+ o3mr max =    1.6014003606874401E-005  min =    3.5072827730318776E-008
+ sgs_tke max =    32.343162617542923       min =  -0.54023813876381188     
+ cld_amt max =    1.0000000000000000       min =    0.0000000000000000     
+ Max_cld GB_NH_SH_EQ  0.38806349956593428       0.34442529145606493       0.45257246220736685       0.36068686905680353     
+ ---isec,seconds         900       64800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT 18 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.250000
+  RADIUS VECTOR          1.0143168
+  RIGHT ASCENSION OF SUN   9.0807811 HRS, OR   9 HRS   4 MINS  50.8 SECS
+  DECLINATION OF THE SUN  16.6984898 DEGS, OR   16 DEGS  41 MINS  54.6 SECS
+  EQUATION OF TIME        -5.9480171 MINS, OR   -356.88 SECS, OR-0.026024 RADIANS
+  SOLAR CONSTANT        1322.5691114 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       65700
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       66600
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       67500
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       68400
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT 19 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.291667
+  RADIUS VECTOR          1.0143107
+  RIGHT ASCENSION OF SUN   9.0834418 HRS, OR   9 HRS   5 MINS   0.4 SECS
+  DECLINATION OF THE SUN  16.6870265 DEGS, OR   16 DEGS  41 MINS  13.3 SECS
+  EQUATION OF TIME        -5.9434046 MINS, OR   -356.60 SECS, OR-0.026004 RADIANS
+  SOLAR CONSTANT        1322.5849720 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       69300
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       70200
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       71100
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       72000
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT 20 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.333333
+  RADIUS VECTOR          1.0143046
+  RIGHT ASCENSION OF SUN   9.0861022 HRS, OR   9 HRS   5 MINS  10.0 SECS
+  DECLINATION OF THE SUN  16.6755554 DEGS, OR   16 DEGS  40 MINS  32.0 SECS
+  EQUATION OF TIME        -5.9387750 MINS, OR   -356.33 SECS, OR-0.025984 RADIANS
+  SOLAR CONSTANT        1322.6008516 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       72900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       73800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       74700
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+        2016           8           5          21           0           0
+ ZS      5226.4415281977026       -23.781250604958593        230.89473439619954     
+ PS max =    1035.5858112418102       min =    540.79292741872598     
+ Mean specific humidity (mg/kg) above 75 mb=   3.9734230902691099     
+ Total surface pressure (mb) =    985.95353002884451     
+ mean dry surface pressure =    983.24043506422174     
+ Total Water Vapor (kg/m**2) =   27.550913126893747     
+ --- Micro Phys water substances (kg/m**2) ---
+ Total cloud water=   7.0177745064450278E-002
+ Total rain  water=   6.5249705329124084E-003
+ Total cloud ice  =   3.3016362705214408E-002
+ Total snow       =   4.9621232879208067E-003
+ Total graupel    =   2.7489926235536784E-004
+ ---------------------------------------------
+ ENG Deficit (W/m**2)=  0.174916089    
+ TE ( Joule/m^2 * E9) =   2.6323334375465097     
+ UA_top max =    115.57738267855416       min =   -41.587587694026816     
+ UA max =    115.57738267855416       min =   -41.587587694026816     
+ VA max =    49.142857527235314       min =   -47.692902742081813     
+ W  max =   0.19255453655804003       min =  -0.32740699647253085     
+ Bottom w max =    6.4931467958812078E-002  min =   -8.1216353583336079E-002
+ Bottom: w/dz max =    2.1602363858496247E-003  min =   -3.4309549667594116E-003
+ DZ (m) max =   -21.324753715274930       min =   -5812.1174780672945     
+ Bottom DZ (m) max =   -21.324753715274930       min =   -32.307226102549471     
+ TA max =    318.16911719993135       min =    180.13305231269646     
+ OM max =   0.80652335252915330       min =   -1.2159679824274268     
+ ZTOP      40.727024752318421        34.029432918484083        39.257696540229070     
+ SLP max =    1072.8087419089948       min =    955.28280503987662     
+ ATL SLP max =    1018.2360180118194       min =    1007.1651870957591     
+ fv_GFS Z500   5695.7678553510314        5789.8984784810436        5447.9152303739447        5863.6514096223964     
+ T200:      238.25892044358835        192.49527442419847        218.85981289894480     
+ Tropical [-20.,20.] mean T200 =   220.05067571184463     
+ Surf_wind_speed max =    22.446165438548508       min =    5.3875740416406597E-003
+ T_bot:      317.27571847477708        209.96377119507679        289.55179452519184     
+ SQRT(2.*KE; m/s)=   17.035232623399160     
+ max reflectivity =    47.650033377567780       dBZ
+ sphum max =    2.1869789492131631E-002  min =    5.6169278742812625E-008
+ liq_wat max =    1.3827468983704629E-003  min =   -1.0831951271918509E-019
+ rainwat max =    1.4163128071212818E-003  min =   -1.0831272677475841E-019
+ ice_wat max =    1.1971544658820439E-003  min =   -5.4183250479136749E-020
+ snowwat max =    1.0670646889438466E-003  min =   -5.4149507871075598E-020
+ graupel max =    2.0464216770516063E-004  min =   -2.7074753935537799E-020
+ o3mr max =    1.5984616803546238E-005  min =    3.7247528396679881E-008
+ sgs_tke max =    24.939806604731160       min =  -0.41758705248039407     
+ cld_amt max =    1.0000000000000000       min =    0.0000000000000000     
+ Max_cld GB_NH_SH_EQ  0.38806349956593428       0.34442529145606493       0.45257246220736685       0.36068686905680353     
+ ---isec,seconds         900       75600
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT 21 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.375000
+  RADIUS VECTOR          1.0142985
+  RIGHT ASCENSION OF SUN   9.0887623 HRS, OR   9 HRS   5 MINS  19.5 SECS
+  DECLINATION OF THE SUN  16.6640765 DEGS, OR   16 DEGS  39 MINS  50.7 SECS
+  EQUATION OF TIME        -5.9341281 MINS, OR   -356.05 SECS, OR-0.025963 RADIANS
+  SOLAR CONSTANT        1322.6167503 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       76500
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       77400
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       78300
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       79200
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT 22 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.416667
+  RADIUS VECTOR          1.0142924
+  RIGHT ASCENSION OF SUN   9.0914221 HRS, OR   9 HRS   5 MINS  29.1 SECS
+  DECLINATION OF THE SUN  16.6525899 DEGS, OR   16 DEGS  39 MINS   9.3 SECS
+  EQUATION OF TIME        -5.9294641 MINS, OR   -355.77 SECS, OR-0.025943 RADIANS
+  SOLAR CONSTANT        1322.6326679 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       80100
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       81000
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       81900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       82800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           5 AUG.  2016 AT 23 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.458333
+  RADIUS VECTOR          1.0142863
+  RIGHT ASCENSION OF SUN   9.0940817 HRS, OR   9 HRS   5 MINS  38.7 SECS
+  DECLINATION OF THE SUN  16.6410955 DEGS, OR   16 DEGS  38 MINS  27.9 SECS
+  EQUATION OF TIME        -5.9247829 MINS, OR   -355.49 SECS, OR-0.025923 RADIANS
+  SOLAR CONSTANT        1322.6486046 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       83700
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       84600
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       85500
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+        2016           8           6           0           0           0
+ ZS      5226.4415281977026       -23.781250604958593        230.89473439619954     
+ PS max =    1035.1988147202217       min =    540.41412441496232     
+ Mean specific humidity (mg/kg) above 75 mb=   3.9735179485777694     
+ Total surface pressure (mb) =    985.95732719818136     
+ mean dry surface pressure =    983.24043506422129     
+ Total Water Vapor (kg/m**2) =   27.582763896508617     
+ --- Micro Phys water substances (kg/m**2) ---
+ Total cloud water=   7.5198590933782644E-002
+ Total rain  water=   6.7813427208571371E-003
+ Total cloud ice  =   3.4255914636550658E-002
+ Total snow       =   5.3098467409865794E-003
+ Total graupel    =   2.7998757246220144E-004
+ ---------------------------------------------
+ ENG Deficit (W/m**2)=  0.166986540    
+ TE ( Joule/m^2 * E9) =   2.6320669725562338     
+ UA_top max =    110.61913990695420       min =   -40.574641804962987     
+ UA max =    110.61913990695420       min =   -41.169429746678176     
+ VA max =    50.606265995332656       min =   -49.443898637748397     
+ W  max =   0.19329324680088378       min =  -0.30270549487561299     
+ Bottom w max =    4.2667855161498063E-002  min =   -8.0758239947261848E-002
+ Bottom: w/dz max =    1.4445719740056992E-003  min =   -3.4170852455108940E-003
+ DZ (m) max =   -21.294283275811239       min =   -5810.8200834861855     
+ Bottom DZ (m) max =   -21.294283275811239       min =   -32.142346713564443     
+ TA max =    317.20347437043642       min =    180.26957028260750     
+ OM max =   0.80365314937568100       min =   -1.0181974452606839     
+ ZTOP      40.688771183954820        34.054962676649438        39.258761009172602     
+ SLP max =    1072.8296821511058       min =    954.61621145078857     
+ ATL SLP max =    1018.0544068778980       min =    1007.9633144296023     
+ fv_GFS Z500   5695.0361713224811        5789.9439174254421        5447.7922509131222        5861.6482240553332     
+ T200:      237.93612051008088        192.42667792038981        218.80298126062601     
+ Tropical [-20.,20.] mean T200 =   220.00438986632864     
+ Surf_wind_speed max =    22.278270468826079       min =    7.6360959620626299E-003
+ T_bot:      315.63884632871856        209.65959721848745        289.31018355708051     
+ SQRT(2.*KE; m/s)=   16.984832328409802     
+ max reflectivity =    47.217845076291098       dBZ
+ sphum max =    2.1732651029086676E-002  min =    4.8563611401488888E-008
+ liq_wat max =    1.4063043839839728E-003  min =   -5.4242375036834203E-020
+ rainwat max =    1.5806171487350884E-003  min =   -5.4161813210045006E-020
+ ice_wat max =    1.0789027502900899E-003  min =   -1.3548827998483392E-020
+ snowwat max =    1.0888299102591512E-003  min =   -1.3545132985977314E-020
+ graupel max =    2.8145985540929214E-004  min =   -3.3863569581603682E-021
+ o3mr max =    1.5956508015431057E-005  min =    3.7185244704606491E-008
+ sgs_tke max =    20.580620635447758       min =  -0.35362181052958869     
+ cld_amt max =    1.0000000000000000       min =    0.0000000000000000     
+ Max_cld GB_NH_SH_EQ  0.38806349956593428       0.34442529145606493       0.45257246220736685       0.36068686905680353     
+ ---isec,seconds         900       86400
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           6 AUG.  2016 AT  0 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.500000
+  RADIUS VECTOR          1.0142802
+  RIGHT ASCENSION OF SUN   9.0967409 HRS, OR   9 HRS   5 MINS  48.3 SECS
+  DECLINATION OF THE SUN  16.6295934 DEGS, OR   16 DEGS  37 MINS  46.5 SECS
+  EQUATION OF TIME        -5.9200845 MINS, OR   -355.21 SECS, OR-0.025902 RADIANS
+  SOLAR CONSTANT        1322.6645602 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ==============
+ climatology
+ ==============
+  forecast jy,jm,jd,jh,rjday=        2016           8           6           0   219.00000000000000     
+ forecast jy,jm,jd,jh=        2016           8           6           0
+ rjday,mon1,mon2,wei1m,wei2m=   219.00000000000000                7           8  0.27419354838709675       0.72580645161290325     
+ rjday,sea1,sea2,wei1s,wei2s=   219.00000000000000                7          10  0.75543478260869568       0.24456521739130432     
+ rjday,hyr1,hyr2,wei1y,wei2y=   219.00000000000000                7           1  0.87771739130434778       0.12228260869565222     
+ monthly albedo weights are   0.27419354838709675       for k           1  0.72580645161290325       for k           2
+ qc of sea ice
+  sea ice over land mask at          882  points (   38.281250000000000      percent)
+  
+ qc of snow
+ snow set to zero over open sea at         1422  points (   61.718750000000000      percent)
+ performing qc of snow     mode=           1 (0=count only, 1=replace)
+ set snow temp to tsfsmx if greater
+ performing qc of tsfc     mode=           1 (0=count only, 1=replace)
+ performing qc of tsf2     mode=           1 (0=count only, 1=replace)
+ performing qc of albc     mode=           1 (0=count only, 1=replace)
+ performing qc of albc     mode=           1 (0=count only, 1=replace)
+ performing qc of albc     mode=           1 (0=count only, 1=replace)
+ performing qc of albc     mode=           1 (0=count only, 1=replace)
+ performing qc of zorc     mode=           1 (0=count only, 1=replace)
+ open ocean min. check. lat=-34.9 lon= 305.8 fld= 0.0000E+00 to  0.1000E-04
+ open ocean min. check. lat=-35.6 lon= 307.4 fld= 0.0000E+00 to  0.1000E-04
+ open ocean min check.  modified to      0.0 at  1422 points 61.7percent
+ performing qc of tg3c     mode=           1 (0=count only, 1=replace)
+ performing qc of smc1c    mode=           1 (0=count only, 1=replace)
+ open ocean min. check. lat=-34.9 lon= 305.8 fld= 0.0000E+00 to  0.1000E+01
+ open ocean min. check. lat=-35.6 lon= 307.4 fld= 0.0000E+00 to  0.1000E+01
+ open ocean min check.  modified to      1.0 at  1422 points 61.7percent
+ performing qc of smc2c    mode=           1 (0=count only, 1=replace)
+ open ocean min. check. lat=-34.9 lon= 305.8 fld= 0.0000E+00 to  0.1000E+01
+ open ocean min. check. lat=-35.6 lon= 307.4 fld= 0.0000E+00 to  0.1000E+01
+ open ocean min check.  modified to      1.0 at  1422 points 61.7percent
+ performing qc of smc3c    mode=           1 (0=count only, 1=replace)
+ open ocean min. check. lat=-34.9 lon= 305.8 fld= 0.0000E+00 to  0.1000E+01
+ open ocean min. check. lat=-35.6 lon= 307.4 fld= 0.0000E+00 to  0.1000E+01
+ open ocean min check.  modified to      1.0 at  1422 points 61.7percent
+ performing qc of smc4c    mode=           1 (0=count only, 1=replace)
+ open ocean min. check. lat=-34.9 lon= 305.8 fld= 0.0000E+00 to  0.1000E+01
+ open ocean min. check. lat=-35.6 lon= 307.4 fld= 0.0000E+00 to  0.1000E+01
+ open ocean min check.  modified to      1.0 at  1422 points 61.7percent
+ performing qc of stc1c    mode=           1 (0=count only, 1=replace)
+ performing qc of stc2c    mode=           1 (0=count only, 1=replace)
+ performing qc of stc3c    mode=           1 (0=count only, 1=replace)
+ performing qc of stc4c    mode=           1 (0=count only, 1=replace)
+ performing qc of vegc     mode=           1 (0=count only, 1=replace)
+ performing qc of vetc     mode=           1 (0=count only, 1=replace)
+ performing qc of sotc     mode=           1 (0=count only, 1=replace)
+ performing qc of sihc     mode=           1 (0=count only, 1=replace)
+ bare land max. check. lat=-33.4 lon= 305.8 fld= 0.471000E+01 to  0.000000E+00
+ bare land max. check. lat=-31.9 lon= 305.8 fld= 0.471000E+01 to  0.000000E+00
+ bare land max check. modified to      0.0 at   882 points 38.3percent
+ performing qc of sicc     mode=           1 (0=count only, 1=replace)
+ bare land max. check. lat=-33.4 lon= 305.8 fld= 0.157000E+01 to  0.000000E+00
+ bare land max. check. lat=-31.9 lon= 305.8 fld= 0.157000E+01 to  0.000000E+00
+ bare land max check. modified to      0.0 at   882 points 38.3percent
+ performing qc of vmnc     mode=           1 (0=count only, 1=replace)
+ performing qc of vmxc     mode=           1 (0=count only, 1=replace)
+ performing qc of slpc     mode=           1 (0=count only, 1=replace)
+ performing qc of absc     mode=           1 (0=count only, 1=replace)
+ ==============
+    analysis
+ ==============
+ no tsf analysis available.  climatology used
+ no albedo analysis available.  climatology used
+ no vegfalbedo analysis available.  climatology used
+ no soil wetness analysis available.  climatology used
+ no snow/snocov analysis available.  climatology used
+ no sea-ice analysis available.  climatology used
+ no srfc roughness analysis available. climatology used
+ no deep soil temp analy available.  climatology used
+ no vegetation cover anly available. climatology used
+ no vegetation type anly available. climatology used
+ no soil type anly available. climatology used
+ no shdmin anly available. climatology used
+ no shdmax anly available. climatology used
+ no slope type anly available. climatology used
+ no snoalb anly available. climatology used
+ qc of sea ice
+ performing qc of siha     mode=           1 (0=count only, 1=replace)
+ performing qc of sica     mode=           1 (0=count only, 1=replace)
+  
+ qc of snow
+ snow set to zero over open sea at         1422  points (   61.718750000000000      percent)
+ performing qc of sncva    mode=           1 (0=count only, 1=replace)
+ snodpth
+  
+ qc of snow
+ snow set to zero over open sea at         1422  points (   61.718750000000000      percent)
+ set snow temp to tsfsmx if greater
+ performing qc of snowa    mode=           1 (0=count only, 1=replace)
+ performing qc of tsfa     mode=           1 (0=count only, 1=replace)
+ performing qc of alba     mode=           1 (0=count only, 1=replace)
+ performing qc of alba     mode=           1 (0=count only, 1=replace)
+ performing qc of alba     mode=           1 (0=count only, 1=replace)
+ performing qc of alba     mode=           1 (0=count only, 1=replace)
+ performing qc of zora     mode=           1 (0=count only, 1=replace)
+ performing qc of tg3a     mode=           1 (0=count only, 1=replace)
+ performing qc of smc1a    mode=           1 (0=count only, 1=replace)
+ performing qc of smc2a    mode=           1 (0=count only, 1=replace)
+ performing qc of smc3a    mode=           1 (0=count only, 1=replace)
+ performing qc of smc4a    mode=           1 (0=count only, 1=replace)
+ performing qc of stc1a    mode=           1 (0=count only, 1=replace)
+ performing qc of stc2a    mode=           1 (0=count only, 1=replace)
+ performing qc of stc3a    mode=           1 (0=count only, 1=replace)
+ performing qc of stc4a    mode=           1 (0=count only, 1=replace)
+ performing qc of vega     mode=           1 (0=count only, 1=replace)
+ performing qc of veta     mode=           1 (0=count only, 1=replace)
+ performing qc of sota     mode=           1 (0=count only, 1=replace)
+ performing qc of vmna     mode=           1 (0=count only, 1=replace)
+ performing qc of vmxa     mode=           1 (0=count only, 1=replace)
+ performing qc of slpa     mode=           1 (0=count only, 1=replace)
+ performing qc of absa     mode=           1 (0=count only, 1=replace)
+ ==============
+   fcst guess
+ ==============
+  
+ qcsli
+ performing qc of snof     mode=           1 (0=count only, 1=replace)
+ performing qc of tsff     mode=           1 (0=count only, 1=replace)
+ performing qc of albf     mode=           1 (0=count only, 1=replace)
+ performing qc of albf     mode=           1 (0=count only, 1=replace)
+ performing qc of albf     mode=           1 (0=count only, 1=replace)
+ performing qc of albf     mode=           1 (0=count only, 1=replace)
+ performing qc of zorf     mode=           1 (0=count only, 1=replace)
+ performing qc of tg3f     mode=           1 (0=count only, 1=replace)
+ performing qc of sihf     mode=           1 (0=count only, 1=replace)
+ performing qc of sicf     mode=           1 (0=count only, 1=replace)
+ performing qc of smc1f    mode=           1 (0=count only, 1=replace)
+ performing qc of smc2f    mode=           1 (0=count only, 1=replace)
+ performing qc of smc3f    mode=           1 (0=count only, 1=replace)
+ performing qc of smc4f    mode=           1 (0=count only, 1=replace)
+ performing qc of stc1f    mode=           1 (0=count only, 1=replace)
+ performing qc of stc2f    mode=           1 (0=count only, 1=replace)
+ performing qc of stc3f    mode=           1 (0=count only, 1=replace)
+ performing qc of stc4f    mode=           1 (0=count only, 1=replace)
+ performing qc of vegf     mode=           1 (0=count only, 1=replace)
+ performing qc of vetf     mode=           1 (0=count only, 1=replace)
+ performing qc of sotf     mode=           1 (0=count only, 1=replace)
+ performing qc of vmnf     mode=           1 (0=count only, 1=replace)
+ performing qc of vmxf     mode=           1 (0=count only, 1=replace)
+ performing qc of slpf     mode=           1 (0=count only, 1=replace)
+ performing qc of absf     mode=           1 (0=count only, 1=replace)
+ qc of snow and sea-ice analysis
+ ==============
+    merging
+ ==============
+ use forecast land-sea-ice mask
+rtsfl,ralbl,raisl,rsnol,rsmcl,rzorl,rvegl=  1.000  0.000  1.000  1.000  1.000  1.000  1.000  1.000  0.000  0.000
+rtsfs,ralbs,raiss,rsnos,rsmcs,rzors,rvegs=  0.989  0.000  1.000  1.000  0.000  0.000  0.000  0.000  1.000  1.000
+ dbgx-- csmcl:   1.0000000000000000        1.0000000000000000        1.0000000000000000        1.0000000000000000     
+ dbgx-- rsmcl:   1.0000000000000000        1.0000000000000000        1.0000000000000000        1.0000000000000000     
+ dbgx-- csnol, csnos:   1.0000000000000000        1.0000000000000000     
+ dbgx-- rsnol, rsnos:   1.0000000000000000        1.0000000000000000     
+ newice
+ set snow temp to tsfsmx if greater
+ snow sfc.  tsf set to    305.00000000000000       at            1  points    4.3402777777777776E-002 percent
+ performing qc of snowm    mode=           0 (0=count only, 1=replace)
+ performing qc of tsfm     mode=           0 (0=count only, 1=replace)
+ performing qc of albm     mode=           0 (0=count only, 1=replace)
+ performing qc of albm     mode=           0 (0=count only, 1=replace)
+ performing qc of albm     mode=           0 (0=count only, 1=replace)
+ performing qc of albm     mode=           0 (0=count only, 1=replace)
+ performing qc of zorm     mode=           0 (0=count only, 1=replace)
+ performing qc of stc1m    mode=           0 (0=count only, 1=replace)
+ performing qc of stc2m    mode=           0 (0=count only, 1=replace)
+ performing qc of stc3m    mode=           0 (0=count only, 1=replace)
+ performing qc of stc4m    mode=           0 (0=count only, 1=replace)
+ performing qc of smc1m    mode=           0 (0=count only, 1=replace)
+ performing qc of smc2m    mode=           0 (0=count only, 1=replace)
+ performing qc of smc3m    mode=           0 (0=count only, 1=replace)
+ performing qc of smc4m    mode=           0 (0=count only, 1=replace)
+ performing qc of vegm     mode=           1 (0=count only, 1=replace)
+ performing qc of vetm     mode=           1 (0=count only, 1=replace)
+ performing qc of sotm     mode=           1 (0=count only, 1=replace)
+ performing qc of sihm     mode=           1 (0=count only, 1=replace)
+ performing qc of sicm     mode=           1 (0=count only, 1=replace)
+ performing qc of vmnm     mode=           1 (0=count only, 1=replace)
+ performing qc of vmxm     mode=           1 (0=count only, 1=replace)
+ performing qc of slpm     mode=           1 (0=count only, 1=replace)
+ performing qc of absm     mode=           1 (0=count only, 1=replace)
+ ==============
+ final results
+ ==============
+ dbgx --fixratio: F F F F
+ ---isec,seconds         900       87300
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       88200
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       89100
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       90000
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           6 AUG.  2016 AT  1 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.541667
+  RADIUS VECTOR          1.0142740
+  RIGHT ASCENSION OF SUN   9.0993999 HRS, OR   9 HRS   5 MINS  57.8 SECS
+  DECLINATION OF THE SUN  16.6180835 DEGS, OR   16 DEGS  37 MINS   5.1 SECS
+  EQUATION OF TIME        -5.9153689 MINS, OR   -354.92 SECS, OR-0.025881 RADIANS
+  SOLAR CONSTANT        1322.6805348 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       90900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       91800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       92700
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       93600
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           6 AUG.  2016 AT  2 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.583333
+  RADIUS VECTOR          1.0142679
+  RIGHT ASCENSION OF SUN   9.1020586 HRS, OR   9 HRS   6 MINS   7.4 SECS
+  DECLINATION OF THE SUN  16.6065658 DEGS, OR   16 DEGS  36 MINS  23.6 SECS
+  EQUATION OF TIME        -5.9106362 MINS, OR   -354.64 SECS, OR-0.025861 RADIANS
+  SOLAR CONSTANT        1322.6965284 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       94500
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       95400
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       96300
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+        2016           8           6           3           0           0
+ ZS      5226.4415281977026       -23.781250604958593        230.89473439619954     
+ PS max =    1034.9862344396847       min =    540.74780459332931     
+ Mean specific humidity (mg/kg) above 75 mb=   3.9735859167552641     
+ Total surface pressure (mb) =    985.96147118008344     
+ mean dry surface pressure =    983.24043506422208     
+ Total Water Vapor (kg/m**2) =   27.624350874310966     
+ --- Micro Phys water substances (kg/m**2) ---
+ Total cloud water=   7.5082772126182321E-002
+ Total rain  water=   7.0912590702784939E-003
+ Total cloud ice  =   3.4275430872583092E-002
+ Total snow       =   5.7363043067531240E-003
+ Total graupel    =   3.0979373569228578E-004
+ ---------------------------------------------
+ ENG Deficit (W/m**2)=  0.159485921    
+ TE ( Joule/m^2 * E9) =   2.6318859352906934     
+ UA_top max =    107.60754154057184       min =   -38.368303586888096     
+ UA max =    108.12897157694042       min =   -41.684090810687749     
+ VA max =    50.463563471930463       min =   -53.326150906311113     
+ W  max =   0.22411623889134999       min =  -0.28371572198680883     
+ Bottom w max =    4.6372534877343462E-002  min =   -8.0415292430814939E-002
+ Bottom: w/dz max =    1.6124221940419328E-003  min =   -3.4107186996992947E-003
+ DZ (m) max =   -21.268763101307520       min =   -5817.9168812338721     
+ Bottom DZ (m) max =   -21.268763101307520       min =   -31.976586292687891     
+ TA max =    316.17362092887146       min =    180.05005520683218     
+ OM max =   0.80297438357024264       min =   -1.0357471580150819     
+ ZTOP      40.691796142640428        34.089648991291043        39.259885471186358     
+ SLP max =    1073.6342907026381       min =    953.46619426595612     
+ ATL SLP max =    1018.6895069779297       min =    1009.1865761814901     
+ fv_GFS Z500   5694.4067257594979        5789.2429692644901        5447.6194444887678        5860.5464327727404     
+ T200:      237.50708776231551        192.35634554861358        218.75622712401614     
+ Tropical [-20.,20.] mean T200 =   219.96700275979742     
+ Surf_wind_speed max =    21.739093904756228       min =    1.4410273107781348E-002
+ T_bot:      314.03549294101640        209.41006583894423        289.27237045746801     
+ SQRT(2.*KE; m/s)=   16.926288681683623     
+ max reflectivity =    47.245387770769156       dBZ
+ sphum max =    2.2639213583583451E-002  min =    4.4004173274404801E-008
+ liq_wat max =    1.4633724090597226E-003  min =   -5.4215237297362663E-020
+ rainwat max =    1.6006505109325830E-003  min =   -2.1663287954566561E-019
+ ice_wat max =    1.1630527828760903E-003  min =   -1.3552807599504624E-020
+ snowwat max =    8.2918688048782923E-004  min =   -1.3543669347385505E-020
+ graupel max =    2.6124972421526970E-004  min =   -1.6922108279463297E-021
+ o3mr max =    1.5987749182139704E-005  min =    3.7150516982722958E-008
+ sgs_tke max =    20.560451771265207       min =  -0.34410275286446490     
+ cld_amt max =    1.0000000000000000       min =    0.0000000000000000     
+ Max_cld GB_NH_SH_EQ  0.38806349956593428       0.34442529145606493       0.45257246220736685       0.36068686905680353     
+ ---isec,seconds         900       97200
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           6 AUG.  2016 AT  3 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.625000
+  RADIUS VECTOR          1.0142618
+  RIGHT ASCENSION OF SUN   9.1047170 HRS, OR   9 HRS   6 MINS  17.0 SECS
+  DECLINATION OF THE SUN  16.5950405 DEGS, OR   16 DEGS  35 MINS  42.1 SECS
+  EQUATION OF TIME        -5.9058864 MINS, OR   -354.35 SECS, OR-0.025840 RADIANS
+  SOLAR CONSTANT        1322.7125410 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900       98100
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       99000
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900       99900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      100800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           6 AUG.  2016 AT  4 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.666667
+  RADIUS VECTOR          1.0142556
+  RIGHT ASCENSION OF SUN   9.1073751 HRS, OR   9 HRS   6 MINS  26.6 SECS
+  DECLINATION OF THE SUN  16.5835073 DEGS, OR   16 DEGS  35 MINS   0.6 SECS
+  EQUATION OF TIME        -5.9011194 MINS, OR   -354.07 SECS, OR-0.025819 RADIANS
+  SOLAR CONSTANT        1322.7285725 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900      101700
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      102600
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      103500
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      104400
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           6 AUG.  2016 AT  5 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.708333
+  RADIUS VECTOR          1.0142495
+  RIGHT ASCENSION OF SUN   9.1100329 HRS, OR   9 HRS   6 MINS  36.1 SECS
+  DECLINATION OF THE SUN  16.5719665 DEGS, OR   16 DEGS  34 MINS  19.1 SECS
+  EQUATION OF TIME        -5.8963352 MINS, OR   -353.78 SECS, OR-0.025798 RADIANS
+  SOLAR CONSTANT        1322.7446230 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900      105300
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      106200
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      107100
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+        2016           8           6           6           0           0
+ ZS      5226.4415281977026       -23.781250604958593        230.89473439619954     
+ PS max =    1034.5792296044160       min =    540.24873868158511     
+ Mean specific humidity (mg/kg) above 75 mb=   3.9731345540385363     
+ Total surface pressure (mb) =    985.96810910892907     
+ mean dry surface pressure =    983.24043506422140     
+ Total Water Vapor (kg/m**2) =   27.689822464758123     
+ --- Micro Phys water substances (kg/m**2) ---
+ Total cloud water=   7.5212490208334051E-002
+ Total rain  water=   7.4619676744243435E-003
+ Total cloud ice  =   3.5323349373052378E-002
+ Total snow       =   6.3809666997301827E-003
+ Total graupel    =   3.3323236194360387E-004
+ ---------------------------------------------
+ ENG Deficit (W/m**2)=  0.198811084    
+ TE ( Joule/m^2 * E9) =   2.6319018296776640     
+ UA_top max =    106.49684860348241       min =   -36.799722252178668     
+ UA max =    106.49684860348241       min =   -41.847142987777985     
+ VA max =    51.961285322140540       min =   -53.991088193572693     
+ W  max =   0.23416504908094490       min =  -0.27816635232049725     
+ Bottom w max =    5.9704423264102274E-002  min =   -7.6831242576795716E-002
+ Bottom: w/dz max =    2.0662819908432114E-003  min =   -3.2777121704053889E-003
+ DZ (m) max =   -21.244170546454466       min =   -5808.0110223372149     
+ Bottom DZ (m) max =   -21.244170546454466       min =   -32.430129886938886     
+ TA max =    319.06629329032222       min =    180.38654155490536     
+ OM max =   0.77619954499729038       min =   -1.0628830648986707     
+ ZTOP      40.672805688794938        34.114083692534798        39.261458397562627     
+ SLP max =    1073.9173930842062       min =    952.31281933477692     
+ ATL SLP max =    1018.2929524258901       min =    1009.5008533528603     
+ fv_GFS Z500   5694.1005635288411        5788.6065743529780        5447.7682160351060        5860.1399746063853     
+ T200:      237.31955856999761        192.26821775113063        218.72023047797327     
+ Tropical [-20.,20.] mean T200 =   219.92739288979161     
+ Surf_wind_speed max =    21.824302057100830       min =    2.6608980997759098E-003
+ T_bot:      319.06629329032222        209.17397014677957        289.46075984654385     
+ SQRT(2.*KE; m/s)=   16.875620262825986     
+ max reflectivity =    48.061917394056280       dBZ
+ sphum max =    2.1719043338797556E-002  min =    1.0000001986129421E-009
+ liq_wat max =    1.4661745749566897E-003  min =   -1.0841226831542764E-019
+ rainwat max =    1.8114218460817220E-003  min =   -5.4169128009108132E-020
+ ice_wat max =    8.9929268273816580E-004  min =   -1.3547330552856359E-020
+ snowwat max =    6.6888893026111030E-004  min =   -1.3548029648115158E-020
+ graupel max =    3.5197994349491695E-004  min =   -3.3864630523489745E-021
+ o3mr max =    1.5951617598596610E-005  min =    3.7137864240510937E-008
+ sgs_tke max =    22.351545996123313       min =  -0.62701323926498442     
+ cld_amt max =    1.0000000000000000       min =    0.0000000000000000     
+ Max_cld GB_NH_SH_EQ  0.38806349956593428       0.34442529145606493       0.45257246220736685       0.36068686905680353     
+ ---isec,seconds         900      108000
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           6 AUG.  2016 AT  6 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.750000
+  RADIUS VECTOR          1.0142433
+  RIGHT ASCENSION OF SUN   9.1126904 HRS, OR   9 HRS   6 MINS  45.7 SECS
+  DECLINATION OF THE SUN  16.5604179 DEGS, OR   16 DEGS  33 MINS  37.5 SECS
+  EQUATION OF TIME        -5.8915339 MINS, OR   -353.49 SECS, OR-0.025777 RADIANS
+  SOLAR CONSTANT        1322.7606924 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900      108900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      109800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      110700
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      111600
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           6 AUG.  2016 AT  7 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.791667
+  RADIUS VECTOR          1.0142371
+  RIGHT ASCENSION OF SUN   9.1153477 HRS, OR   9 HRS   6 MINS  55.3 SECS
+  DECLINATION OF THE SUN  16.5488616 DEGS, OR   16 DEGS  32 MINS  55.9 SECS
+  EQUATION OF TIME        -5.8867155 MINS, OR   -353.20 SECS, OR-0.025756 RADIANS
+  SOLAR CONSTANT        1322.7767808 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900      112500
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      113400
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      114300
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      115200
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           6 AUG.  2016 AT  8 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.833333
+  RADIUS VECTOR          1.0142310
+  RIGHT ASCENSION OF SUN   9.1180047 HRS, OR   9 HRS   7 MINS   4.8 SECS
+  DECLINATION OF THE SUN  16.5372976 DEGS, OR   16 DEGS  32 MINS  14.3 SECS
+  EQUATION OF TIME        -5.8818799 MINS, OR   -352.91 SECS, OR-0.025735 RADIANS
+  SOLAR CONSTANT        1322.7928881 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900      116100
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      117000
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      117900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+        2016           8           6           9           0           0
+ ZS      5226.4415281977026       -23.781250604958593        230.89473439619954     
+ PS max =    1034.6186621348577       min =    539.26964445525323     
+ Mean specific humidity (mg/kg) above 75 mb=   3.9720575980675719     
+ Total surface pressure (mb) =    985.97447334347100     
+ mean dry surface pressure =    983.24043506422106     
+ Total Water Vapor (kg/m**2) =   27.749010795779053     
+ --- Micro Phys water substances (kg/m**2) ---
+ Total cloud water=   7.9083434733203520E-002
+ Total rain  water=   7.5790180599194009E-003
+ Total cloud ice  =   3.6560208761069433E-002
+ Total snow       =   6.8716953001165121E-003
+ Total graupel    =   3.2644990159031389E-004
+ ---------------------------------------------
+ ENG Deficit (W/m**2)=  0.215779051    
+ TE ( Joule/m^2 * E9) =   2.6320716791216214     
+ UA_top max =    105.19014799050829       min =   -37.324063307784172     
+ UA max =    106.34791614725791       min =   -40.534658504583319     
+ VA max =    52.118622955979738       min =   -53.410915763212174     
+ W  max =   0.19519857451533362       min =  -0.25363071818646421     
+ Bottom w max =    6.4911412223266740E-002  min =   -8.4223439264843797E-002
+ Bottom: w/dz max =    2.2299667854796456E-003  min =   -3.5975985859902420E-003
+ DZ (m) max =   -21.222312570692356       min =   -5786.6943554111003     
+ Bottom DZ (m) max =   -21.222312570692356       min =   -32.788253775504437     
+ TA max =    322.22420372235104       min =    180.33108308242984     
+ OM max =   0.84725316563496134       min =   -1.0794251620095749     
+ ZTOP      40.622732525636074        34.158449346928293        39.263717195200925     
+ SLP max =    1074.2415245832217       min =    952.73286680582669     
+ ATL SLP max =    1017.7634707230244       min =    1008.1021573557809     
+ fv_GFS Z500   5694.2951325688327        5788.7542522907734        5448.3038508124155        5860.0339479033555     
+ T200:      237.04452354252624        192.20834469760604        218.69818099502996     
+ Tropical [-20.,20.] mean T200 =   219.88718319560675     
+ Surf_wind_speed max =    22.425552539647647       min =    3.0768379259960192E-003
+ T_bot:      322.22420372235104        208.95515997018015        289.76285847766394     
+ SQRT(2.*KE; m/s)=   16.849497924540138     
+ max reflectivity =    52.457510965744135       dBZ
+ sphum max =    2.1833848960159739E-002  min =    4.1684051435987695E-008
+ liq_wat max =    1.4925642342760190E-003  min =   -1.0847583049114670E-019
+ rainwat max =    1.6681772463718618E-003  min =   -5.4174021725916688E-020
+ ice_wat max =    9.0175502434110863E-004  min =   -2.7103797504252010E-020
+ snowwat max =    2.4762311739914009E-003  min =   -5.4192086481742741E-020
+ graupel max =    4.4187891375240234E-004  min =   -3.3865404741864962E-021
+ o3mr max =    1.5922944871561432E-005  min =    3.7167583838467156E-008
+ sgs_tke max =    21.542492556881609       min =  -0.19361938836418618     
+ cld_amt max =    1.0000000000000000       min =    0.0000000000000000     
+ Max_cld GB_NH_SH_EQ  0.38806349956593428       0.34442529145606493       0.45257246220736685       0.36068686905680353     
+ ---isec,seconds         900      118800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           6 AUG.  2016 AT  9 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.875000
+  RADIUS VECTOR          1.0142248
+  RIGHT ASCENSION OF SUN   9.1206613 HRS, OR   9 HRS   7 MINS  14.4 SECS
+  DECLINATION OF THE SUN  16.5257259 DEGS, OR   16 DEGS  31 MINS  32.6 SECS
+  EQUATION OF TIME        -5.8770272 MINS, OR   -352.62 SECS, OR-0.025714 RADIANS
+  SOLAR CONSTANT        1322.8090144 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900      119700
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      120600
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      121500
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      122400
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           6 AUG.  2016 AT 10 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.916667
+  RADIUS VECTOR          1.0142186
+  RIGHT ASCENSION OF SUN   9.1233177 HRS, OR   9 HRS   7 MINS  23.9 SECS
+  DECLINATION OF THE SUN  16.5141465 DEGS, OR   16 DEGS  30 MINS  50.9 SECS
+  EQUATION OF TIME        -5.8721574 MINS, OR   -352.33 SECS, OR-0.025692 RADIANS
+  SOLAR CONSTANT        1322.8251595 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900      123300
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      124200
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      125100
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      126000
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           6 AUG.  2016 AT 11 HRS  0.00 MINS
+  JULIAN DAY             2457606  PLUS   0.958333
+  RADIUS VECTOR          1.0142124
+  RIGHT ASCENSION OF SUN   9.1259738 HRS, OR   9 HRS   7 MINS  33.5 SECS
+  DECLINATION OF THE SUN  16.5025594 DEGS, OR   16 DEGS  30 MINS   9.2 SECS
+  EQUATION OF TIME        -5.8672705 MINS, OR   -352.04 SECS, OR-0.025671 RADIANS
+  SOLAR CONSTANT        1322.8413236 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900      126900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      127800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      128700
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+        2016           8           6          12           0           0
+ ZS      5226.4415281977026       -23.781250604958593        230.89473439619954     
+ PS max =    1033.5709419718739       min =    538.90637586551338     
+ Mean specific humidity (mg/kg) above 75 mb=   3.9712164410616992     
+ Total surface pressure (mb) =    985.97900128443405     
+ mean dry surface pressure =    983.24043506422242     
+ Total Water Vapor (kg/m**2) =   27.790104870389342     
+ --- Micro Phys water substances (kg/m**2) ---
+ Total cloud water=   8.2729401635664335E-002
+ Total rain  water=   8.0192104982755238E-003
+ Total cloud ice  =   3.7215251536785329E-002
+ Total snow       =   7.2086370166580382E-003
+ Total graupel    =   3.2637955835862525E-004
+ ---------------------------------------------
+ ENG Deficit (W/m**2)=  0.193194598    
+ TE ( Joule/m^2 * E9) =   2.6322469291733683     
+ UA_top max =    104.24387348678745       min =   -40.267559271163641     
+ UA max =    106.73587130865565       min =   -40.851818825922081     
+ VA max =    51.368162153174985       min =   -52.177445181143334     
+ W  max =   0.20630415983036285       min =  -0.24356218578381464     
+ Bottom w max =    6.1479632740917965E-002  min =   -8.9006209221563715E-002
+ Bottom: w/dz max =    2.1128868348189458E-003  min =   -3.7881726694086030E-003
+ DZ (m) max =   -21.188988133340565       min =   -5802.5808913791298     
+ Bottom DZ (m) max =   -21.188988133340565       min =   -32.880546210228808     
+ TA max =    323.08951683169562       min =    180.21527571891195     
+ OM max =    1.0113415868057039       min =   -1.0980557102979702     
+ ZTOP      40.608523671489763        34.196568748501726        39.265944104278418     
+ SLP max =    1074.4407325929581       min =    952.27846474613091     
+ ATL SLP max =    1017.6751684966328       min =    1008.2819327612393     
+ fv_GFS Z500   5694.7283219471192        5789.0655806577979        5449.1361303329977        5860.1703203499737     
+ T200:      237.06254712358796        192.15218902410061        218.67598362666462     
+ Tropical [-20.,20.] mean T200 =   219.83421412744804     
+ Surf_wind_speed max =    22.672175671491427       min =    1.3896656908459350E-002
+ T_bot:      323.08951683169562        208.60118127664111        289.92039277573809     
+ SQRT(2.*KE; m/s)=   16.836844597908811     
+ max reflectivity =    48.001811305681258       dBZ
+ sphum max =    2.3616784744161477E-002  min =    2.9615449757655045E-008
+ liq_wat max =    1.3799825419245914E-003  min =   -1.0836509696962243E-019
+ rainwat max =    1.8226263006454785E-003  min =   -2.7087304695379902E-020
+ ice_wat max =    8.9278213900453418E-004  min =   -2.7094083544556917E-020
+ snowwat max =    9.5761426852285149E-004  min =   -1.3546128264768553E-020
+ graupel max =    2.9529156680459272E-004  min =   -3.3874256189277663E-021
+ o3mr max =    1.5899268484787711E-005  min =    3.7164457575925366E-008
+ sgs_tke max =    23.058508024417456       min =  -0.60639351214309278     
+ cld_amt max =    1.0000000000000000       min =    0.0000000000000000     
+ Max_cld GB_NH_SH_EQ  0.38806349956593428       0.34442529145606493       0.45257246220736685       0.36068686905680353     
+ ---isec,seconds         900      129600
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           6 AUG.  2016 AT 12 HRS  0.00 MINS
+  JULIAN DAY             2457607  PLUS   0.000000
+  RADIUS VECTOR          1.0142062
+  RIGHT ASCENSION OF SUN   9.1286328 HRS, OR   9 HRS   7 MINS  43.1 SECS
+  DECLINATION OF THE SUN  16.4909509 DEGS, OR   16 DEGS  29 MINS  27.4 SECS
+  EQUATION OF TIME        -5.8623681 MINS, OR   -351.74 SECS, OR-0.025649 RADIANS
+  SOLAR CONSTANT        1322.8575092 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900      130500
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      131400
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      132300
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      133200
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           6 AUG.  2016 AT 13 HRS  0.00 MINS
+  JULIAN DAY             2457607  PLUS   0.041667
+  RADIUS VECTOR          1.0142000
+  RIGHT ASCENSION OF SUN   9.1312883 HRS, OR   9 HRS   7 MINS  52.6 SECS
+  DECLINATION OF THE SUN  16.4793484 DEGS, OR   16 DEGS  28 MINS  45.7 SECS
+  EQUATION OF TIME        -5.8574469 MINS, OR   -351.45 SECS, OR-0.025628 RADIANS
+  SOLAR CONSTANT        1322.8737111 (DISTANCE AJUSTED)
+
+
+    for cosz calculations: nswr,deltim,deltsw,dtswh =           4   900.00000000000000        3600.0000000000000        1.0000000000000000        anginc,nstp =   4.3633231299858237E-002           6
+ ---isec,seconds         900      134100
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      135000
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      135900
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+ ---isec,seconds         900      136800
+  gfs diags time since last bucket empty:   0.25000000000000000      hrs
+0 FORECAST DATE           6 AUG.  2016 AT 14 HRS  0.00 MINS
+  JULIAN DAY             2457607  PLUS   0.083333
+  RADIUS VECTOR          1.0141938
+  RIGHT ASCENSION OF SUN   9.1339435 HRS, OR   9 HRS   8 MINS   2.2 SECS
+  DECLINATION OF THE SUN  16.4677382 DEGS, OR   16 DEGS  28 MINS   3.9 SECS
+  EQUATION OF TIME        -5.8525087 MINS, OR   -351.15 SECS, OR-0.025606 RADIANS
+  SOLAR CONSTANT        1322.8899319 (DISTANCE AJUSTED)
+
+

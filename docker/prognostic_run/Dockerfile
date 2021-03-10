@@ -34,19 +34,23 @@ RUN apt-get update && \
     cython3
 
 # Python components here
-COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
+COPY docker/prognostic_run/requirements/base.txt /tmp/requirements.txt
 COPY constraints.txt /tmp/constraints.txt
 
+# Enforce constraints are used for all pip installs
+ENV PIP_CONSTRAINT=/tmp/constraints.txt
+# Equivalent to passing --no-cache-dir to every pip install
+ENV PIP_NO_CACHE_DIR=off
+
 RUN pip3 install wheel && \
-    pip3 install --upgrade pip==20.2.4 && \
-    pip3 install --no-cache-dir -c /tmp/constraints.txt -r /tmp/requirements.txt && \
+    pip3 install --upgrade pip==20.2.4 setuptools==40.1.0 && \
     ln -s /bin/python3 /bin/python && \
     ln -s /bin/pip3 /bin/pip
 
 # Build the wrapper
 RUN apt-get install -y pkg-config
 COPY /external/fv3gfs-wrapper /fv3gfs-wrapper
-RUN make -C /fv3gfs-wrapper/lib
+RUN pip3 install jinja2 && make -C /fv3gfs-wrapper/lib
 
 # copy dependency packages
 COPY /external/fv3gfs-util /external/fv3gfs-util
@@ -98,24 +102,49 @@ ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
 COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
+RUN pip install /fv3net/workflows/prognostic_c48_run
 
 ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:${PYTHONPATH}
 WORKDIR /fv3net/workflows/prognostic_c48_run
 CMD ["bash"]
 
+###############################################################################
+#  prognostic-run tests
+###############################################################################
 FROM bld as test
 
 ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/key.json
 RUN --mount=type=secret,id=gcp,dst=/tmp/key.json \
     ["bash", "-o", "pipefail", "-c", "pytest | tee /tmp/test-results.txt"]
 
-FROM bld
+###############################################################################
+#  prognostic-run image
+###############################################################################
+FROM bld AS prognostic-run
 # Copy results from test stage to ensure docker buildkit executes it
 COPY --from=test /tmp/test-results.txt .
 
 # build the docs
-RUN apt-get install -y graphviz
+RUN apt-get install -y graphviz && pip3 install sphinx sphinx_rtd_theme
 RUN make -C docs html
 
 ARG COMMIT_SHA_ARG
 ENV COMMIT_SHA=$COMMIT_SHA_ARG
+
+###############################################################################
+#  notebook image
+###############################################################################
+FROM bld AS notebook
+
+COPY docker/prognostic_run/requirements/notebook.txt requirements.txt
+RUN pip install -r requirements.txt
+RUN apt-get install -y bash-completion vim netcdf-bin
+
+RUN useradd --create-home --shell /bin/bash jovyan
+
+USER jovyan
+WORKDIR /home/jovyan
+VOLUME /home/jovyan
+
+ENTRYPOINT ["jupyter", "lab"]
+CMD ["--ip", "0.0.0.0", "--port", "8888", "--no-browser"]
