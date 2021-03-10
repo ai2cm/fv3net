@@ -27,19 +27,19 @@ FIG_SUFFIX = "_{t:05}.png"
 COORD_NAMES = {
     "coord_x_center": "x",
     "coord_y_center": "y",
-    "coord_x_outer": "xb",
-    "coord_y_outer": "yb",
+    "coord_x_outer": "x_interface",
+    "coord_y_outer": "y_interface",
 }
 
 _COORD_VARS = {
-    "lonb": ["yb", "xb", "tile"],
-    "latb": ["yb", "xb", "tile"],
+    "lonb": ["y_interface", "x_interface", "tile"],
+    "latb": ["y_interface", "x_interface", "tile"],
     "lon": ["y", "x", "tile"],
     "lat": ["y", "x", "tile"],
 }
 
 GRID_VARS = ["area", "lonb", "latb", "lon", "lat"]
-INTERFACE_DIMS = ["xb", "yb"]
+INTERFACE_DIMS = ["x_interface", "y_interface"]
 
 HEATING_MOISTENING_PLOT_KWARGS = {
     "column_integrated_pQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},

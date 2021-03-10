@@ -7,7 +7,6 @@ resources:
 - offline-diags.yaml
 - train-diags-prog.yaml
 - cubed-to-latlon.yaml
-- train-diags-prog-multiple-models.yaml
 configurations:
 - image-transformerconfig.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
