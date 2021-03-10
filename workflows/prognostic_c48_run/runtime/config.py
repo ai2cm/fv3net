@@ -12,6 +12,7 @@ from runtime.diagnostics.manager import (
 )
 from runtime.steppers.nudging import NudgingConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
+from runtime.steppers.prephysics import PrephysicsConfig
 
 FV3CONFIG_FILENAME = "fv3config.yml"
 
@@ -36,6 +37,7 @@ class UserConfig:
 
     diagnostics: List[DiagnosticFileConfig]
     fortran_diagnostics: List[FortranFileConfig]
+    prephysics: Optional[PrephysicsConfig] = None
     scikit_learn: MachineLearningConfig = MachineLearningConfig()
     nudging: Optional[NudgingConfig] = None
     step_tendency_variables: List[str] = dataclasses.field(

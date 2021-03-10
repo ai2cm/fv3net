@@ -13,7 +13,7 @@ from runtime.types import Diagnostics, State
 from vcm import thermo
 import vcm
 
-__all__ = ["MachineLearningConfig", "PureMLStepper", "open_model"]
+__all__ = ["MachineLearningConfig", "PureMLStepper", "load_adapted_model"]
 
 
 logger = logging.getLogger(__name__)
@@ -130,7 +130,7 @@ class MultiModelAdapter:
         return xr.merge(predictions)
 
 
-def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
+def load_adapted_model(config: MachineLearningConfig) -> MultiModelAdapter:
     model_paths = config.model
     models = []
     for path in model_paths:

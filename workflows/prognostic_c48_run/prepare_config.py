@@ -17,6 +17,7 @@ from runtime.diagnostics.manager import (
 from runtime.steppers.nudging import NudgingConfig
 from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
+from runtime.steppers.prephysics import PrephysicsConfig
 
 
 logger = logging.getLogger(__name__)
@@ -96,6 +97,11 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
         config_dict.get("namelist", {}).get("fv_core_nml", {}).get("nudge", False)
     )
 
+    if "prephysics" in config_dict:
+        prephysics = dacite.from_dict(PrephysicsConfig, config_dict["prephysics"])
+    else:
+        prephysics = None
+
     if "nudging" in config_dict:
         config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
             "restarts_path", args.initial_condition_url
@@ -134,6 +140,7 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
         )
 
     return UserConfig(
+        prephysics=prephysics,
         nudging=nudging,
         diagnostics=diagnostics,
         fortran_diagnostics=fortran_diagnostics,
