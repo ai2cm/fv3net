@@ -17,6 +17,14 @@ let
           sha256 = "ab5d5076f7d3e699758a244ada7c66da96bae36e22b9e351ce0ececc36f0a57f";
         };
       });
+    numcodecs = super.numcodecs.overrideAttrs (oldAttrs: {
+      disabledTests = [
+        "test_backwards_compatibility"
+        "test_encode_decode"
+        "test_legacy_codec_broken"
+        "test_bytes"
+      ];
+    });
     fv3gfs-util = super.buildPythonPackage {
       version = "0.1.0";
       pname = "fv3gfs-wrapper";
@@ -30,6 +38,30 @@ let
       ];
 
     };
+    fv3config = super.buildPythonPackage rec {
+      pname = "fv3config";
+      version = "0.6.1";
+
+      src = super.fetchPypi {
+        inherit pname version;
+        sha256 = "00f0c1c1lnbhwmyg1kjvp0yxbj1kj3pls7jh2zywb0l0fs72n2px";
+      };
+
+      doCheck = false;
+
+      propagatedBuildInputs = [
+        super.fsspec
+        super.backoff
+        super.pyyaml
+        super.appdirs
+        gcsfs
+        f90nml
+        dacite
+      ];
+    };
+    gcsfs = super.callPackage ../pynixify/packages/gcsfs {} ;
+    dacite = super.callPackage ../pynixify/packages/dacite {} ;
+    f90nml = super.callPackage ../pynixify/packages/f90nml {} ;
   };
   overlay = self: super: with nixpkgs; rec {
     # ensure that everything uses mpich for mpi
@@ -40,14 +72,19 @@ let
     python3 = super.python3.override {
       packageOverrides = packageOverrides mpich fv3;
     };
-    py = python.withPackages (ps: [ ps.pytest ps.pyyaml ps.wrapper]);
     wrapper = python.pkgs.wrapper;
   };
-  nixpkgs = import <nixpkgs> {overlays = [overlay];};
-  mypy = nixpkgs.python3.withPackages (ps: with ps; [pkgconfig jinja2 cython numpy mpi4py setuptools]);
+  nixpkgs = import (builtins.fetchTarball {
+  # Descriptive name to make the store path easier to identify
+  name = "release-20.09";
+  # Commit hash for nixos-unstable as of 2018-09-12
+  url = "https://github.com/nixos/nixpkgs/archive/20.09.tar.gz";
+  # Hash obtained using `nix-prefetch-url --unpack <url>`
+  sha256 = "1wg61h4gndm3vcprdcg7rc4s1v3jkm5xd7lw8r2f67w502y94gcy";
+}) {overlays = [overlay];};
+  py = nixpkgs.python3.withPackages (ps: [ ps.scikitimage ps.pip ps.pytest ps.pyyaml ps.fv3config ps.wrapper ps.cartopy ps.matplotlib ps.ipython ps.mypy ps.black ps.flake8 ]);
   shell = with nixpkgs; mkShell {
   buildInputs = [
-          mypy
           pkg-config
           fv3
           fms
@@ -61,6 +98,7 @@ let
           # see this issue: https://discourse.nixos.org/t/building-shared-libraries-with-fortran/11876/2
           gfortran.cc.lib
           mpich
+          py
     ];
 
     MPI="mpich";
@@ -69,5 +107,14 @@ let
     CC="${gfortran}/bin/gcc";
     inherit gfortran;
     gfc="${gfortran.cc}";
+
+  shellHook = ''
+    # Tells pip to put packages into $PIP_PREFIX instead of the usual locations.
+    # See https://pip.pypa.io/en/stable/user_guide/#environment-variables.
+    export PIP_PREFIX=$(pwd)/_build/pip_packages
+    export PYTHONPATH="$PIP_PREFIX/${pkgs.python3.sitePackages}:$PYTHONPATH"
+    export PATH="$PIP_PREFIX/bin:$PATH"
+    unset SOURCE_DATE_EPOCH
+  '';
 };
-in nixpkgs.python3Packages.wrapper
+in shell

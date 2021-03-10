@@ -9,6 +9,7 @@
   , mpi4py
   , pyyaml
   , fv3gfs-util
+  , netcdf4
 }:
 buildPythonPackage rec {
       version = "0.1.0";
@@ -42,7 +43,6 @@ buildPythonPackage rec {
           cython
           fv3
           gfortran
-          fv3gfs-util
       ];
 
 
@@ -58,5 +58,7 @@ buildPythonPackage rec {
           mpi4py
           numpy
           pyyaml
+          netcdf4
+          fv3gfs-util
       ];
   }
