@@ -1,7 +1,7 @@
 import logging
 import os
 from multiprocessing import get_context
-from typing import Sequence, Tuple
+from typing import Mapping, Sequence, Tuple
 
 import dask
 
@@ -19,6 +19,7 @@ from fv3net.diagnostics.prognostic_run import config
 import fv3net.diagnostics.prognostic_run.load_diagnostic_data as load_diags
 
 dask.config.set(sheduler="single-threaded")
+logger = logging.getLogger(__name__)
 
 
 MovieArg = Tuple[xr.Dataset, str]
@@ -126,6 +127,22 @@ def _movie_specs():
     }
 
 
+def _create_movie(name: str, spec: Mapping, ds: xr.Dataset, output: str, n_jobs: int):
+    func = spec["plotting_function"]
+    required_variables = spec["required_variables"]
+    logger.info(f"Forcing load for required variables for {name} movie")
+    movie_data = ds[GRID_VARS + required_variables].load()
+    T = ds.sizes["time"]
+    filename = os.path.join(output, name + FIG_SUFFIX)
+    func_args = [(movie_data.isel(time=t), filename.format(t=t)) for t in range(T)]
+    if _non_zero(movie_data, required_variables):
+        logger.info(f"Saving {T} still images for {name} movie to {output}")
+        with get_context("spawn").Pool(n_jobs) as p:
+            p.map(func, func_args)
+    else:
+        logger.info(f"Skipping {name} movie since all plotted variables are zero")
+
+
 def register_parser(subparsers):
     parser = subparsers.add_parser("movie", help="generate movie stills.")
     parser.add_argument("url", help="Path to rundir")
@@ -142,7 +159,6 @@ def register_parser(subparsers):
 
 
 def main(args):
-    logger = logging.getLogger(__name__)
     logging.basicConfig(level=logging.INFO)
 
     if vcm.cloud.get_protocol(args.output) == "file":
@@ -163,18 +179,6 @@ def main(args):
 
     if args.n_timesteps:
         prognostic = prognostic.isel(time=slice(None, args.n_timesteps))
-    T = prognostic.sizes["time"]
 
     for name, movie_spec in _movie_specs().items():
-        func = movie_spec["plotting_function"]
-        required_variables = movie_spec["required_variables"]
-        logger.info(f"Forcing load for required variables for {name} movie")
-        movie_data = prognostic[GRID_VARS + required_variables].load()
-        filename = os.path.join(args.output, name + FIG_SUFFIX)
-        func_args = [(movie_data.isel(time=t), filename.format(t=t)) for t in range(T)]
-        if _non_zero(movie_data, required_variables):
-            logger.info(f"Saving {T} still images for {name} movie to {args.output}")
-            with get_context("spawn").Pool(args.n_jobs) as p:
-                p.map(func, func_args)
-        else:
-            logger.info(f"Skipping {name} movie since all plotted variables are zero")
+        _create_movie(name, movie_spec, prognostic, args.output, args.n_jobs)
