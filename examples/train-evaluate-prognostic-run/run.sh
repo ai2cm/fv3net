@@ -9,6 +9,7 @@ argo submit \
     -p root=gs://vcm-ml-scratch/$EXPERIMENT \
     -p train-test-data=gs://vcm-ml-experiments/2020-07-30-fine-res \
     -p training-configs="$( yq . training-config.yaml )" \
+    -p training-flags="--local-download-path train-data-download-dir" \
     -p reference-restarts=gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts \
     -p initial-condition="20160805.000000" \
     -p prognostic-run-config="$(< prognostic-run.yaml)" \
