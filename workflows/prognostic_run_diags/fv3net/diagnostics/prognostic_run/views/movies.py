@@ -1,6 +1,8 @@
 import logging
 import os
 from multiprocessing import get_context
+import subprocess
+import tempfile
 from typing import Mapping, Sequence, Tuple
 
 import dask
@@ -23,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 MovieArg = Tuple[xr.Dataset, str]
-FIG_SUFFIX = "_{t:05}.png"
+FIG_SUFFIX = "_%05d.png"
 
 COORD_NAMES = {
     "coord_x_center": "x",
@@ -131,16 +133,46 @@ def _create_movie(name: str, spec: Mapping, ds: xr.Dataset, output: str, n_jobs:
     func = spec["plotting_function"]
     required_variables = spec["required_variables"]
     logger.info(f"Forcing load for required variables for {name} movie")
-    movie_data = ds[GRID_VARS + required_variables].load()
-    T = ds.sizes["time"]
-    filename = os.path.join(output, name + FIG_SUFFIX)
-    func_args = [(movie_data.isel(time=t), filename.format(t=t)) for t in range(T)]
-    if _non_zero(movie_data, required_variables):
-        logger.info(f"Saving {T} still images for {name} movie to {output}")
-        with get_context("spawn").Pool(n_jobs) as p:
-            p.map(func, func_args)
-    else:
-        logger.info(f"Skipping {name} movie since all plotted variables are zero")
+    data = ds[GRID_VARS + required_variables].load()
+    T = data.sizes["time"]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filename = os.path.join(tmpdir, name + FIG_SUFFIX)
+        func_args = [(data.isel(time=t), filename % t) for t in range(T)]
+        if _non_zero(data, required_variables):
+            logger.info(f"Saving {T} still images for {name} movie to {tmpdir}")
+            with get_context("spawn").Pool(n_jobs) as p:
+                p.map(func, func_args)
+            movie_path = _stitch_movie_stills(tmpdir, name)
+            fs = vcm.cloud.get_fs(output)
+            fs.put(movie_path, os.path.join(output, f"{name}.mp4"))
+        else:
+            logger.info(f"Skipping {name} movie since all plotted variables are zero")
+
+
+def _get_ffpmeg_args(input_: str, output: str) -> Sequence[str]:
+    return [
+        "ffmpeg",
+        "-y",
+        "-r",
+        "15",
+        "-i",
+        input_,
+        "-vf",
+        "fps=15",
+        "-pix_fmt",
+        "yuv420p",
+        "-s:v",
+        "1920x1080",
+        output,
+    ]
+
+
+def _stitch_movie_stills(workdir, name):
+    input_path = os.path.join(workdir, name + FIG_SUFFIX)
+    output_path = os.path.join(workdir, f"{name}.mp4")
+    ffmpeg_args = _get_ffpmeg_args(input_path, output_path)
+    subprocess.check_call(ffmpeg_args)
+    return output_path
 
 
 def register_parser(subparsers):
