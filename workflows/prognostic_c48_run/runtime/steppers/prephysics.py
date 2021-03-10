@@ -34,7 +34,9 @@ class Prescriber:
     net_moistening = "net_moistening"
 
     def __init__(
-        self, config: PrescriberConfig, communicator: fv3gfs.util.Commmunicator
+        self,
+        config: PrescriberConfig,
+        communicator: fv3gfs.util.CubedSphereCommunicator,
     ):
 
         self._prescribed_variables: Sequence[str] = list(config.variables)

@@ -539,6 +539,13 @@ nudging:
     x_wind: 12
     y_wind: 12
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
+prephysics:
+  config:
+    data_source: 40day_c48_gfsphysics_15min_may2020
+    variables:
+    - DLWRFsfc_coarse
+    - DSWRFsfc_coarse
+    - USWRFsfc_coarse
 scikit_learn:
   diagnostic_ml: false
   input_standard_names: {}

@@ -6,6 +6,12 @@ nudging:
     x_wind: 12
     y_wind: 12
     pressure_thickness_of_atmospheric_layer: 12
+prephysics:
+  data_source: 40day_c48_gfsphysics_15min_may2020
+  variables:
+    - DLWRFsfc_coarse
+    - DSWRFsfc_coarse
+    - USWRFsfc_coarse
 namelist:
   coupler_nml:
     current_date:

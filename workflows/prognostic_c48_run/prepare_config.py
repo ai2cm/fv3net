@@ -98,7 +98,9 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
     )
 
     if "prephysics" in config_dict:
-        prephysics = dacite.from_dict(PrephysicsConfig, config_dict["prephysics"])
+        prephysics = dacite.from_dict(
+            PrephysicsConfig, {"config": config_dict["prephysics"]}
+        )
     else:
         prephysics = None
 

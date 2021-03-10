@@ -353,6 +353,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         else:
             _, diagnostics, state_updates = stepper(self._state.time, self._state)
             self._state_updates.update(state_updates)
+        self._log_debug(f"Computing prephysics state updates")
         return diagnostics
 
     def _apply_prephysics(self):
