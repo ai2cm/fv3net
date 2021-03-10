@@ -82,7 +82,7 @@ let
   # Hash obtained using `nix-prefetch-url --unpack <url>`
   sha256 = "1wg61h4gndm3vcprdcg7rc4s1v3jkm5xd7lw8r2f67w502y94gcy";
 }) {overlays = [overlay];};
-  py = nixpkgs.python3.withPackages (ps: [ ps.scikitimage ps.pip ps.pytest ps.pyyaml ps.fv3config ps.wrapper ps.cartopy ps.matplotlib ps.ipython ps.mypy ps.black ps.flake8 ]);
+  py = nixpkgs.python3.withPackages (ps: [ ps.pip ps.setuptools]);
   shell = with nixpkgs; mkShell {
   buildInputs = [
           pkg-config
@@ -107,6 +107,7 @@ let
     CC="${gfortran}/bin/gcc";
     inherit gfortran;
     gfc="${gfortran.cc}";
+    cclib="${gfortran.cc.lib}";
 
   shellHook = ''
     # Tells pip to put packages into $PIP_PREFIX instead of the usual locations.
@@ -115,6 +116,12 @@ let
     export PYTHONPATH="$PIP_PREFIX/${pkgs.python3.sitePackages}:$PYTHONPATH"
     export PATH="$PIP_PREFIX/bin:$PATH"
     unset SOURCE_DATE_EPOCH
+
+    export PIP_CONSTRAINT=$(pwd)/constraints.txt
+    export PIP_NO_BINARY=shapely,cartopy,mpi4py
+    export GEOS_CONFIG=geos-config
+
+    export LD_LIBRARY_PATH="$cclib/lib"
   '';
 };
 in shell
