@@ -12,12 +12,29 @@ class EnsembleModel(Predictor):
     _CONFIG_FILENAME = "ensemble_model.yaml"
 
     def __init__(self, models: Iterable[Predictor], reduction: str):
-        self._models = models
+        if len(models) == 0:
+            raise ValueError("at least one model must be given")
+        self._models = tuple(models)
         if reduction.lower() not in ("mean", "median"):
             raise NotImplementedError(
                 f"only supported reductions are mean and median, got {reduction}"
             )
         self._reduction = reduction
+        input_variables = set()
+        output_variables = set()
+        sample_dim_name = self._models[0].sample_dim_name
+        for model in self._models:
+            if model.sample_dim_name != sample_dim_name:
+                raise ValueError(
+                    "all models in ensemble must have same sample_dim_name, "
+                    f"got {sample_dim_name} and {model.sample_dim_name}")
+            input_variables.update(model.input_variables)
+            output_variables.update(model.output_variables)
+        super().__init__(
+            sample_dim_name,
+            input_variables=input_variables,
+            output_variables=output_variables
+        )
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
