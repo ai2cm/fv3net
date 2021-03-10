@@ -3,17 +3,19 @@
 This directory contains an example workflow for running the end to end
 workflow starting with pre-computed training data. It performs the following
 operations:
-- train
+- train one or more models
 - offline report
-- prognostic run
+- prognostic run using the model(s) trained in step 1
 - compute prognostic run diagnostic netCDFs and json files. A report combining
   several runs should be run separately.
 
 The configurations are contained in three places:
 
 1. `prognostic-run.yaml` contains the prognostic run configurations
-1. `training-config.yaml` contains the ML model settings
-1. `run.sh` contains other configurations, such as the output location,
+2. `training-config.yaml` contains the ML model(s) settings. Note the required format:
+a list of dicts, each with entries `name` and `config`. If only one model is to be trained
+and used, just provide a list of length one.
+3. `run.sh` contains other configurations, such as the output location,
    timestep selection, etc.
 
 

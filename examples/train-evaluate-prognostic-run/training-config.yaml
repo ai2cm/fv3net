@@ -1,21 +1,61 @@
-model_type: sklearn_random_forest
-hyperparameters:
-  max_depth: 13
-  n_estimators: 1
-input_variables:
-- air_temperature
-- specific_humidity
-output_variables:
-- dQ1
-- dQ2
-batch_function: batches_from_geodata
-batch_kwargs:
-  timesteps_per_batch: 10
-  mapping_function: open_fine_res_apparent_sources
-  mapping_kwargs:
-    offset_seconds: 450
-    rename_vars:
-      delp: pressure_thickness_of_atmospheric_layer
-      grid_xt: x
-      grid_yt: y
-      pfull: z
+- name: sklearn_dQ1_model
+  config:
+    random_seed: 0 
+    model_type: sklearn_random_forest
+    hyperparameters:
+      max_depth: 13
+      n_estimators: 1
+    batch_function: batches_from_geodata
+    batch_kwargs:
+      timesteps_per_batch: 2
+      mapping_function: open_fine_res_apparent_sources
+      mapping_kwargs:
+        offset_seconds: 450
+        rename_vars:
+          delp: pressure_thickness_of_atmospheric_layer
+          grid_xt: x
+          grid_yt: y
+          pfull: z
+    input_variables:
+      - cos_zenith_angle
+      - air_temperature
+      - specific_humidity
+    output_variables:
+    - dQ1
+- name: keras_dQ2_model
+  config:
+    random_seed: 0 
+    model_type: DenseModel
+    hyperparameters:
+      loss: mae
+      depth: 2
+      fit_kwargs:
+        batch_size: 512
+        epochs: 2
+      normalize_loss: true
+      width: 32
+      regularizer:
+        name: l2
+        kwargs:
+          l: 0.01
+      optimizer:
+        name: Adam
+        kwargs:
+          learning_rate: 0.002
+    batch_function: batches_from_geodata
+    batch_kwargs:
+      timesteps_per_batch: 2
+      mapping_function: open_fine_res_apparent_sources
+      mapping_kwargs:
+        offset_seconds: 450
+        rename_vars:
+          delp: pressure_thickness_of_atmospheric_layer
+          grid_xt: x
+          grid_yt: y
+          pfull: z
+    input_variables:
+      - cos_zenith_angle
+      - air_temperature
+      - specific_humidity
+    output_variables:
+    - dQ2
