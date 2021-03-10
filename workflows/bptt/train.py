@@ -19,8 +19,7 @@ SAMPLE_DIM_NAME = "sample"
 
 
 def get_packed_array(
-    dataset: xr.Dataset,
-    names: Iterable[Hashable],
+    dataset: xr.Dataset, names: Iterable[Hashable],
 ) -> Tuple[np.ndarray, Tuple[int]]:
     """
     Transform dataset into packed numpy array.
@@ -64,7 +63,9 @@ class DatasetTransformer:
     ) -> Tuple["SnapshotArrays", str]:
         pass
 
-    def inverse_transform_tendencies(self, y: np.ndarray, sample_dim_name: str) -> xr.Dataset:
+    def inverse_transform_tendencies(
+        self, y: np.ndarray, sample_dim_name: str
+    ) -> xr.Dataset:
         pass
 
     def dump(self, f):
@@ -138,12 +139,12 @@ def unpack_array(
 #         keras_model: tf.keras.Model,
 #     ):
 #         """Initialize the predictor
-        
+
 #         Args:
 #             sample_dim_name: name of sample dimension
 #             input_variables: names of input variables
 #             output_variables: names of output variables
-        
+
 #         """
 #         super().__init__(sample_dim_name, input_variables, output_variables)
 #         self.transformer = transformer
@@ -151,7 +152,7 @@ def unpack_array(
 
 #     def predict(self, ds: xr.Dataset):
 #         """Predict an output xarray dataset from an input xarray dataset.
-        
+
 #         This object has internal memory of previously passed states,
 #         and assumes that the X given represents the timestep after the
 #         last one given (if it has been called before).
@@ -170,6 +171,7 @@ def unpack_array(
 #     def load(cls, path: str) -> object:
 #         """Load a serialized model from a directory."""
 #         pass
+
 
 def build_model(
     n_input,
@@ -202,7 +204,9 @@ def build_model(
         return_sequences=True,
     )
     outputs = rnn(inputs=(forcing_input, state_delta))
-    model = tf.keras.Model(inputs=[forcing_input, given_tendency_input], outputs=outputs)
+    model = tf.keras.Model(
+        inputs=[forcing_input, given_tendency_input], outputs=outputs
+    )
     return model
 
 
@@ -215,6 +219,7 @@ def penalize_negative_water(loss, negative_water_weight, negative_water_threshol
     """
     nz = negative_water_threshold.shape[0]
     negative_water_threshold = tf.constant(negative_water_threshold, dtype=tf.float32)
+
     def custom_loss(y_true, y_pred):
         # we can assume temperature will never be even close to zero
         # TODO this assumes temperature + humidity are the prognostic outputs,
@@ -234,7 +239,7 @@ def penalize_negative_water(loss, negative_water_weight, negative_water_threshol
                     pred_water < shaped_threshold,
                     tf.math.multiply(
                         tf.constant(-1.0, dtype=tf.float32),
-                        pred_water - shaped_threshold
+                        pred_water - shaped_threshold,
                     ),
                     tf.constant(0.0, dtype=tf.float32),
                 )
@@ -246,7 +251,6 @@ def penalize_negative_water(loss, negative_water_weight, negative_water_threshol
     return custom_loss
 
 
-
 class PreloadedArrayIterator:
     """
     Iterator for array data which asynchronously pre-loads
@@ -254,8 +258,7 @@ class PreloadedArrayIterator:
     """
 
     def __init__(
-        self,
-        filenames: Sequence[str],
+        self, filenames: Sequence[str],
     ):
         """
         Args:
@@ -316,6 +319,7 @@ def get_dim_lengths(arrays):
         )
     return n_input, n_state, n_window
 
+
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -331,7 +335,7 @@ def get_stepwise_model(recurrent_model):
     forcing_input = tf.keras.layers.Input(shape=[n_input])
     state_input = tf.keras.layers.Input(shape=[n_state])
     # tendency is already incorporated into passed state
-    tendencies = tf.keras.layers.Lambda(lambda x: x * 0.)(state_input)
+    tendencies = tf.keras.layers.Lambda(lambda x: x * 0.0)(state_input)
     gcm_cell = recurrent_model.get_layer("rnn").cell
     _, latent_state = gcm_cell([forcing_input, tendencies], [state_input])
     outputs = latent_state[0]
@@ -339,20 +343,21 @@ def get_stepwise_model(recurrent_model):
     return model
 
 
-def prepare_keras_arrays(arrays, input_scaler, tendency_scaler, prognostic_scaler, timestep_seconds):
+def prepare_keras_arrays(
+    arrays, input_scaler, tendency_scaler, prognostic_scaler, timestep_seconds
+):
     norm_input = input_scaler.normalize(arrays.inputs_baseline)
     norm_given_tendency = tendency_scaler.normalize(arrays.given_tendency)
-    norm_prognostic_reference = prognostic_scaler.normalize(
-        arrays.prognostic_reference
-    )
+    norm_prognostic_reference = prognostic_scaler.normalize(arrays.prognostic_reference)
     # use tendency to set model initial state on first timestep
-    norm_given_tendency[:, 0, :] = prognostic_scaler.normalize(
-        arrays.prognostic_baseline
-    )[:, 0, :] / timestep_seconds
+    norm_given_tendency[:, 0, :] = (
+        prognostic_scaler.normalize(arrays.prognostic_baseline)[:, 0, :]
+        / timestep_seconds
+    )
     return norm_input, norm_given_tendency, norm_prognostic_reference
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     np.random.seed(0)
     random.seed(1)
     tf.random.set_seed(2)
@@ -367,13 +372,12 @@ if __name__ == '__main__':
         prognostic_scaler.fit(arrays.prognostic_baseline)
         # do not remove mean for tendency scaling
         tendency_scaler = copy.deepcopy(prognostic_scaler)
-        tendency_scaler.mean[:] = 0.
-        assert not np.all(prognostic_scaler.mean[:] == 0.)
+        tendency_scaler.mean[:] = 0.0
+        assert not np.all(prognostic_scaler.mean[:] == 0.0)
         input_scaler = fv3fit.StandardScaler()
         input_scaler.fit(arrays.inputs_baseline)
         input_packer = fv3fit.ArrayPacker(
-            sample_dim_name=SAMPLE_DIM_NAME,
-            pack_names=arrays.input_names,
+            sample_dim_name=SAMPLE_DIM_NAME, pack_names=arrays.input_names,
         )
         # we have a hard-coded assumption that output state is
         # [specific_humidity, air_temperature] and that both have the same nz
@@ -408,13 +412,15 @@ if __name__ == '__main__':
 
     def custom_loss(y_true, y_pred):
         return tf.math.reduce_sum(
-            tf.reduce_mean((weight[None, None, :] * tf.math.square(y_pred - y_true)), axis=(0, 1))
+            tf.reduce_mean(
+                (weight[None, None, :] * tf.math.square(y_pred - y_true)), axis=(0, 1)
+            )
         )
-    
+
     loss = penalize_negative_water(
         custom_loss,
         1.0,
-        -1. * prognostic_scaler.mean[nz:] / prognostic_scaler.std[nz:],
+        -1.0 * prognostic_scaler.mean[nz:] / prognostic_scaler.std[nz:],
     )
     # loss = penalize_negative_water(loss, 1.0)
     optimizer = tf.keras.optimizers.Adam(lr=0.001, amsgrad=True, clipnorm=1.0)
@@ -443,30 +449,45 @@ if __name__ == '__main__':
     training_arrays = PreloadedArrayIterator(fs.listdir(args.arrays_dir, detail=False))
 
     val_inputs, val_given_tendency, val_target_out = prepare_keras_arrays(
-        validation_arrays, input_scaler, tendency_scaler, prognostic_scaler, timestep_seconds
+        validation_arrays,
+        input_scaler,
+        tendency_scaler,
+        prognostic_scaler,
+        timestep_seconds,
     )
     val_base_out = timestep_seconds * np.cumsum(val_given_tendency, axis=1)
-    baseline_loss = np.mean(loss(val_base_out.astype(np.float32), val_target_out.astype(np.float32)))
+    baseline_loss = np.mean(
+        loss(val_base_out.astype(np.float32), val_target_out.astype(np.float32))
+    )
     print(f"baseline loss {baseline_loss}")
-
 
     base_epoch = 0
     for i_epoch in range(20):
         epoch = base_epoch + i_epoch
         print(f"starting epoch {epoch}")
         for arrays in training_arrays:
-            norm_input, norm_given_tendency, norm_prognostic_reference = prepare_keras_arrays(
-                arrays, input_scaler, tendency_scaler, prognostic_scaler, timestep_seconds
+            (
+                norm_input,
+                norm_given_tendency,
+                norm_prognostic_reference,
+            ) = prepare_keras_arrays(
+                arrays,
+                input_scaler,
+                tendency_scaler,
+                prognostic_scaler,
+                timestep_seconds,
             )
             model.fit(
                 x=[norm_input, norm_given_tendency],
                 y=[norm_prognostic_reference],
                 batch_size=batch_size,
                 epochs=1,
-                shuffle=True
+                shuffle=True,
             )
         val_out = model.predict([val_inputs, val_given_tendency])
-        val_loss = np.mean(loss(val_out.astype(np.float32), val_target_out.astype(np.float32)))
+        val_loss = np.mean(
+            loss(val_out.astype(np.float32), val_target_out.astype(np.float32))
+        )
         print(f"validation loss: {val_loss}")
     stepwise_model = get_stepwise_model(model)
     stepwise_model.compile(
@@ -474,8 +495,8 @@ if __name__ == '__main__':
     )
     recurrent = fv3fit.keras.RecurrentModel(
         SAMPLE_DIM_NAME,
-        input_variables = list(input_names),
-        model = stepwise_model,
+        input_variables=list(input_names),
+        model=stepwise_model,
         input_packer=input_packer,
         prognostic_packer=prognostic_packer,
         input_scaler=input_scaler,
@@ -484,4 +505,3 @@ if __name__ == '__main__':
     )
     fv3fit.dump(recurrent, args.model_output_dir)
     loaded = fv3fit.load(args.model_output_dir)
-

@@ -99,13 +99,6 @@ class ArrayPacker:
             for name in self.pack_names:
                 self._dims[name] = cast(Tuple[str], dataset[name].dims)
             self._coords = cast(Mapping[str, xr.IndexVariable], dataset.coords)
-        else:
-            features = count_features(self.pack_names, dataset, self._sample_dim_name)
-            for name in self.pack_names:
-                array_features = features[name]
-                expected_features = self._n_features[name]
-                if array_features != expected_features:
-                    raise ValueError(f"received array for {name} with {array_features} features, was expecting {expected_features}")
         for var in self.pack_names:
             if dataset[var].dims[0] != self.sample_dim_name:
                 dataset[var] = dataset[var].transpose()

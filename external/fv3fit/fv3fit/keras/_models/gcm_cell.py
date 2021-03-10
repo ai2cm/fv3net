@@ -77,6 +77,10 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
             initializer="glorot_uniform",
             name=f"dense_kernel_0",
         )
+        self.thermal_constant = self.add_weight(
+            initializer=tf.keras.initializers.Constant(value=-1.0),
+            name="thermal_constant",
+        )
         if self.use_spectral_normalization:
             self.add_u(kernel, "0")
         bias = self.add_weight(
@@ -126,6 +130,13 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
         else:
             output_kernel = self.output_kernel
         tendency_output = K.dot(h, output_kernel) + self.output_bias
+        specific_humidity_output = tendency_output[:, 79:]
+        temperature_output = tendency_output[:, :79] + tf.multiply(
+            self.thermal_constant, specific_humidity_output
+        )
+        tendency_output = tf.concat(
+            [temperature_output, specific_humidity_output], axis=-1
+        )
         # tendencies are on a much smaller scale than the variability of the data
         gcm_ml_update = tf.multiply(
             tf.constant(self.tendency_ratio, dtype=tf.float32), tendency_output
@@ -137,7 +148,6 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
         # gcm_last_state only includes input_state delta from this execution
         # and then the gcm_ml_output from the last execution
         return gcm_state, [gcm_ml_output]
-
 
     def get_config(self):
         config = super().get_config()
@@ -160,7 +170,3 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
         obj = cls(**config)
         obj.lock_to_inputs = lock_to_inputs
         return obj
-
-
-class StepwiseGCMCell(tf.keras.layers.Layer):
-    pass

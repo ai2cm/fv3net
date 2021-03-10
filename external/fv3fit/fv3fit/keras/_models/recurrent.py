@@ -126,18 +126,22 @@ class RecurrentModel(ExternalModel):
         "GCMCell": GCMCell,
     }
 
-    def __init__(self, 
-            sample_dim_name: str,
-            input_variables: Iterable[Hashable],
-            model: tf.keras.Model,
-            input_packer: ArrayPacker,
-            prognostic_packer: ArrayPacker,
-            input_scaler: StandardScaler,
-            prognostic_scaler: StandardScaler,
-            train_timestep_seconds: int,
-        ):
+    def __init__(
+        self,
+        sample_dim_name: str,
+        input_variables: Iterable[Hashable],
+        model: tf.keras.Model,
+        input_packer: ArrayPacker,
+        prognostic_packer: ArrayPacker,
+        input_scaler: StandardScaler,
+        prognostic_scaler: StandardScaler,
+        train_timestep_seconds: int,
+    ):
         output_variables = ["dQ1", "dQ2"]
-        input_variables = list(input_variables) + ["air_temperature", "specific_humidity"]
+        input_variables = list(input_variables) + [
+            "air_temperature",
+            "specific_humidity",
+        ]
         super(RecurrentModel, self).__init__(
             sample_dim_name,
             input_variables,
@@ -146,11 +150,11 @@ class RecurrentModel(ExternalModel):
             input_packer,
             prognostic_packer,
             input_scaler,
-            prognostic_scaler
+            prognostic_scaler,
         )
         self.train_timestep_seconds = train_timestep_seconds
         self.tendency_scaler = copy.deepcopy(prognostic_scaler)
-        self.tendency_scaler.mean[:] = 0.  # don't remove mean for tendencies
+        self.tendency_scaler.mean[:] = 0.0  # don't remove mean for tendencies
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         sample_coord = X[self.sample_dim_name]
@@ -159,9 +163,10 @@ class RecurrentModel(ExternalModel):
         norm_forcing = self.input_scaler.normalize(forcing)
         norm_state_in = self.prognostic_scaler.normalize(state_in)
         norm_state_out = self.model.predict([norm_forcing, norm_state_in])
-        tendency_out = self.tendency_scaler.denormalize(
-            norm_state_out - norm_state_in
-        ) / self.train_timestep_seconds # divide difference by timestep to get s^-1 units
+        tendency_out = (
+            self.tendency_scaler.denormalize(norm_state_out - norm_state_in)
+            / self.train_timestep_seconds
+        )  # divide difference by timestep to get s^-1 units
         # assert False
         ds_tendency = self.prognostic_packer.to_dataset(tendency_out)
         ds_pred = xr.Dataset({})
@@ -208,6 +213,6 @@ class RecurrentModel(ExternalModel):
                 prognostic_packer,
                 input_scaler,
                 prognostic_scaler,
-                train_timestep_seconds
+                train_timestep_seconds,
             )
             return obj

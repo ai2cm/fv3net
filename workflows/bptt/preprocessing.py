@@ -34,10 +34,18 @@ def open_zarr(url: str) -> xr.Dataset:
 def get_random_indices(n: int, i_max: int):
     batch_indices = np.arange(i_max)
     np.random.shuffle(batch_indices)
-    return batch_indices[:n]
+    return np.arange(i_max)  # batch_indices[:n]
 
 
-def get_dQ_arrays(base_value: xr.DataArray, nudging_tendency: xr.DataArray, timestep_seconds: float, n_total_samples: int, nt: int, nz: int, sample_idx) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def get_dQ_arrays(
+    base_value: xr.DataArray,
+    nudging_tendency: xr.DataArray,
+    timestep_seconds: float,
+    n_total_samples: int,
+    nt: int,
+    nz: int,
+    sample_idx,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     # T and Q1 used here only as example, this is used equivalently for e.g. q, dQ2
     if base_value.shape != nudging_tendency.shape:
         raise ValueError(
@@ -46,7 +54,9 @@ def get_dQ_arrays(base_value: xr.DataArray, nudging_tendency: xr.DataArray, time
         )
     T = base_value.values.reshape([n_total_samples, nt, nz])[sample_idx, :, :]
     dQ1_total = np.diff(T, axis=1) / timestep_seconds
-    dQ1_nudging = nudging_tendency.values.reshape([n_total_samples, nt, nz])[sample_idx, :, :]
+    dQ1_nudging = nudging_tendency.values.reshape([n_total_samples, nt, nz])[
+        sample_idx, :, :
+    ]
     dQ1_base = np.zeros_like(T)
     # before operating ML at each timestep, add the physics tendency from the last timestep
     # this is "parallel" in that the ML and the physics operate on the same state
@@ -96,7 +106,9 @@ def get_packed_array(
         elif len(dataset[name].dims) == 5:  # assume z dimension is atmospheric vertical
             _ensure_no_nones(n_total_samples, nt, nz)
             array_list.append(
-                dataset[name].values.reshape([n_total_samples, nt, nz])[sample_idx, :, :]
+                dataset[name].values.reshape([n_total_samples, nt, nz])[
+                    sample_idx, :, :
+                ]
             )
             features_list.append(nz)
         else:
@@ -141,12 +153,10 @@ def open_nudge(input_names) -> Iterable["TrainingArrays"]:
     # state is available on twice the timestep as nudging. On the second timestep,
     # it corresponds to the state after the first data point of nudging has been applied
     state = open_zarr(state_url)
-    state = state.isel(
-        time=range(1, len(state["time"]), 2)
-    ).transpose(
-        *dim_order
-    ).rename_vars(
-        {"longitude": "lon", "latitude": "lat"}
+    state = (
+        state.isel(time=range(1, len(state["time"]), 2))
+        .transpose(*dim_order)
+        .rename_vars({"longitude": "lon", "latitude": "lat"})
     )
     state = vcm.DerivedMapping(state).dataset(
         list(state.data_vars.keys()) + ["cos_zenith_angle"]
@@ -157,8 +167,8 @@ def open_nudge(input_names) -> Iterable["TrainingArrays"]:
     nz = state["air_temperature"].shape[4]
 
     for i_start in range(0, nt - nt_window, nt_between_window):
-        state_window = state.isel(time=slice(i_start, i_start+nt_window))
-        nudge_window = nudge.isel(time=slice(i_start, i_start+nt_window))
+        state_window = state.isel(time=slice(i_start, i_start + nt_window))
+        nudge_window = nudge.isel(time=slice(i_start, i_start + nt_window))
 
         sample_idx = get_random_indices(n_samples, n_total_samples)
 
@@ -185,8 +195,12 @@ def open_nudge(input_names) -> Iterable["TrainingArrays"]:
         X_in, input_features = get_packed_array(
             state_window, input_names, n_total_samples, nt_window, nz, sample_idx
         )
-        lat = state_window["lat"].values.reshape([n_total_samples, nt_window])[sample_idx, 0]
-        lon = state_window["lat"].values.reshape([n_total_samples, nt_window])[sample_idx, 0]
+        lat = state_window["lat"].values.reshape([n_total_samples, nt_window])[
+            sample_idx, 0
+        ]
+        lon = state_window["lon"].values.reshape([n_total_samples, nt_window])[
+            sample_idx, 0
+        ]
 
         yield TrainingArrays(
             inputs_baseline=X_in,
@@ -235,7 +249,6 @@ class TrainingArrays:
     prognostic_reference: np.ndarray
     """the prognostic state of the reference model used as a target"""
 
-
     def __init__(
         self,
         inputs_baseline: np.ndarray,
@@ -269,15 +282,15 @@ class TrainingArrays:
     def dump(self, f):
         np.savez(
             f,
-            inputs_baseline = self.inputs_baseline,
-            given_tendency = self.given_tendency,
-            nudging_tendency = self.nudging_tendency,
-            prognostic_baseline = self.prognostic_baseline,
-            prognostic_reference = self.prognostic_reference,
-            input_names = self.input_names,
-            input_features = self.input_features,
+            inputs_baseline=self.inputs_baseline,
+            given_tendency=self.given_tendency,
+            nudging_tendency=self.nudging_tendency,
+            prognostic_baseline=self.prognostic_baseline,
+            prognostic_reference=self.prognostic_reference,
+            input_names=self.input_names,
+            input_features=self.input_features,
             latitude=self.latitude,
-            longitude=self.longitude
+            longitude=self.longitude,
         )
 
     @classmethod
@@ -292,7 +305,7 @@ class TrainingArrays:
             data["latitude"],
             data["longitude"],
             tuple(str(name) for name in data["input_names"]),
-            tuple(int(n) for n in data["input_features"])
+            tuple(int(n) for n in data["input_features"]),
         )
 
 
