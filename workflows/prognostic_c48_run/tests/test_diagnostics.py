@@ -2,10 +2,11 @@ from datetime import timedelta
 from cftime import DatetimeJulian as datetime
 from unittest.mock import Mock
 
+import fv3config
 import pytest
 import xarray as xr
 
-from runtime.diagnostics.fortran import FortranFileConfig
+from runtime.diagnostics.fortran import FortranFileConfig, FortranVariableNameSpec
 from runtime.diagnostics.manager import DiagnosticFileConfig, DiagnosticFile, get_chunks
 from runtime.diagnostics.time import (
     TimeConfig,
@@ -251,3 +252,37 @@ def test_TimeConfig_interval_average_endpoint():
 def test_get_chunks(fortran_diagnostics, diagnostics, expected_chunks):
     chunks = get_chunks(fortran_diagnostics + diagnostics)
     assert chunks == expected_chunks
+
+
+@pytest.mark.parametrize(
+    "time_config,expected_frequency,expected_reduction_method,raises_error",
+    [
+        (TimeConfig(kind="every"), 0, "none", False),
+        (TimeConfig(kind="interval", frequency=900), 900, "none", False),
+        (TimeConfig(kind="interval-average", frequency=900), 900, "average", False),
+        (TimeConfig(kind="selected"), 0, "none", True),
+    ],
+)
+def test_to_fv3config_diag_file_config(
+    time_config, expected_frequency, expected_reduction_method, raises_error
+):
+    fortran_file_config = FortranFileConfig(
+        "atmos_8xdaily.zarr",
+        {"time": 2},
+        variables=[FortranVariableNameSpec("dynamics", "ta", "air_temperature")],
+        times=time_config,
+    )
+    if raises_error:
+        with pytest.raises(NotImplementedError):
+            fortran_file_config.to_fv3config_diag_file_config()
+    else:
+        field = fv3config.DiagFieldConfig(
+            "dynamics",
+            "ta",
+            "air_temperature",
+            reduction_method=expected_reduction_method,
+        )
+        expected_config = fv3config.DiagFileConfig(
+            "atmos_8xdaily", expected_frequency, "seconds", [field],
+        )
+        assert fortran_file_config.to_fv3config_diag_file_config() == expected_config
