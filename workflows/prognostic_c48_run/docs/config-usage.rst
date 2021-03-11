@@ -147,8 +147,7 @@ being saved.
         time: 4
       times:
         kind: interval-average
-        # 3 hours = 10800 seconds
-        frequency: 10800
+        frequency: 10800  # 3 hours = 10800 seconds
       variables:
         - tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics
         - storage_of_specific_humidity_path_due_to_fv3_physics
@@ -172,18 +171,14 @@ Diagnostic to be output by the Fortran model are specified in the
         kind: interval
         frequency: 900
       variables:
-        - PWAT
-        - h500
-        - TMPlowest
-        - TMP850
-        - TMP200
+        - {module_name: "dynamics", field_name: "tq", output_name: "PWAT"}
+        - {module_name: "dynamics", field_name: "z500", output_name: "h500"}
+        - {module_name: "dynamics", field_name: "tb", output_name: "TMPlowest"}
+        - {module_name: "dynamics", field_name: "t850", output_name: "TMP850"
 
 Only ``interval``, ``interval-average`` and ``every`` are allowed as the
-``times`` ``kind``. The Fortran diag_table is generated from the
-``fortran_diagnostics`` section. This requires knowing what module and
-Fortran name to use for each diagnostic listed in the variables. This
-enformation is encoded in ``MODULE_FIELD_NAME_TABLE``. See API page for
-details of available Fortran diagnostics.
+``times.kind`` for Fortran diagnostics. The Fortran ``diag_table`` is generated from the
+``fortran_diagnostics`` section.
 
 .. _fv3config: https://fv3config.readthedocs.io/en/latest/
 .. _fv3fit: https://vulcanclimatemodeling.com/docs/fv3fit/
