@@ -255,7 +255,7 @@ def load_3d(url: str, verification_entries: Sequence[str], catalog: intake.Catal
     if len(verification_c48.data_vars) == 0:
         for var in ds_interp:
             verification_c48[var] = xr.full_like(ds_interp[var], np.nan)
-            
+    verification_c48[var].attrs = ds_interp[var].attrs
     return ds_interp, verification_c48, grid_c48
 
 
