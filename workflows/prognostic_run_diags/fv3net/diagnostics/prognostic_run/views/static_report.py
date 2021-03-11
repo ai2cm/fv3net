@@ -373,6 +373,7 @@ def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
         ylabel="Pressure [Pa]",
     )
 
+
 @zonal_pressure_plot_manager.register
 def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     return plot_2d(
@@ -446,7 +447,13 @@ def main(args):
     # load diagnostics
     diags = load_diags(bucket, rundirs)
     # keep all vars that have only these dimensions
-    dim_sets = [{"time"}, {"local_time"}, {"latitude"}, {"time", "latitude"}, {"pressure", "latitude"}]
+    dim_sets = [
+        {"time"},
+        {"local_time"},
+        {"latitude"},
+        {"time", "latitude"},
+        {"pressure", "latitude"},
+    ]
     diagnostics = [
         xr.merge([get_variables_with_dims(ds, dim) for dim in dim_sets]).assign_attrs(
             run=key, **run_table_lookup.loc[key]
