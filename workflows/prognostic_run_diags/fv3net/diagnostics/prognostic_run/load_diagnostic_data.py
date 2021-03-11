@@ -9,7 +9,6 @@ import fsspec
 import vcm
 from vcm.cloud import get_fs
 from vcm.fv3 import standardize_fv3_diagnostics
-
 from fv3net.diagnostics.prognostic_run import add_derived
 from fv3net.diagnostics.prognostic_run.constants import DiagArg
 
@@ -90,7 +89,7 @@ def load_3d(
 
     # open grid
     logger.info("Opening Grid Spec")
-    grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
+    grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
 
     # open prognostic run data
     fs = get_fs(url)
