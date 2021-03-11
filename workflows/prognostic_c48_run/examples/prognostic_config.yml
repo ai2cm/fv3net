@@ -1,8 +1,8 @@
 base_version: v0.5
 namelist:
   coupler_nml:
-    days: 0 # total length
-    hours: 4
+    days: 10 # total length
+    hours: 0
     minutes: 0
     seconds: 0
     dt_atmos: 900 # seconds
@@ -14,10 +14,5 @@ namelist:
     fhzero: 0.25 # hours - frequency at which precip is set back to zero
   fv_core_nml:
     n_split: 6 # num dynamics steps per physics step
-prephysics:
-  model:
-    - gs://vcm-ml-experiments/2021-03-01-predict-surface-radiative-flux/static-t-q/trained_model
-  output_standard_names:
-    total_sky_downward_shortwave_flux_at_surface_override: DSWRFsfc_verif
-    total_sky_net_shortwave_flux_at_surface_override: NSWRFsfc_verif
-    total_sky_downward_longwave_flux_at_surface_override: DLWRFsfc_verif
+
+  

@@ -363,25 +363,23 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         if stepper is None:
             diagnostics: Diagnostics = {}
         else:
+            self._log_debug("Computing prephysics updates")
             _, diagnostics, state_updates = stepper(self._state.time, self._state)
             self._state_updates.update(state_updates)
-        self._log_debug(
-            f"Computing prephysics state updates for {list(self._state_updates.keys())}"
-        )
         return diagnostics
 
     def _apply_prephysics(self):
-        radiative_fluxes = [
+        prephysics_overrides = [
             "total_sky_downward_shortwave_flux_at_surface_override",
             "total_sky_net_shortwave_flux_at_surface_override",
             "total_sky_downward_longwave_flux_at_surface_override",
         ]
         state_updates = {
-            k: v for k, v in self._state_updates.items() if k in radiative_fluxes
+            k: v for k, v in self._state_updates.items() if k in prephysics_overrides
         }
-        self._state_updates = dissoc(self._state_updates, *radiative_fluxes)
+        self._state_updates = dissoc(self._state_updates, *prephysics_overrides)
         self._log_debug(
-            f"Applying prephysics state updates for {list(state_updates.keys())}"
+            f"Applying prephysics state updates for: {list(state_updates.keys())}"
         )
         updated_state = override_state(self._state, state_updates)
         self._state.update_mass_conserving(updated_state)
