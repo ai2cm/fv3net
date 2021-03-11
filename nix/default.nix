@@ -82,7 +82,7 @@ let
   # Hash obtained using `nix-prefetch-url --unpack <url>`
   sha256 = "1wg61h4gndm3vcprdcg7rc4s1v3jkm5xd7lw8r2f67w502y94gcy";
 }) {overlays = [overlay];};
-  py = nixpkgs.python3.withPackages (ps: [ ps.pip ps.setuptools ps.numpy]);
+  py = nixpkgs.python3.withPackages (ps: [ ps.pip ps.setuptools ps.numpy ps.wrapper ]);
   shell = with nixpkgs; mkShell {
   buildInputs = [
           pkg-config

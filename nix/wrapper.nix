@@ -49,9 +49,7 @@ buildPythonPackage rec {
       preBuild = ''
       echo "RUNNING"
       make -C lib
-    #   export LDFLAGS="-L${fms}/lib -L${netcdf}/lib -L${netcdffortran}/lib -L${lapack}/lib -L${blas}/lib -L${esmf}/lib -L${mpi4py.mpi}/lib"
-      export LDFLAGS="-shared"
-      export LDSHARED=ld
+      export CC="${gfortran}/bin/gcc";
       '';
 
       propagatedBuildInputs = [
