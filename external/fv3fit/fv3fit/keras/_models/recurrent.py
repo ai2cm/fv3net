@@ -5,7 +5,6 @@ import xarray as xr
 import os
 from ..._shared import Predictor, ArrayPacker, StandardScaler, io
 from ._filesystem import get_dir, put_dir
-import xarray as xr
 import copy
 import yaml
 
@@ -63,14 +62,6 @@ class ExternalModel(Predictor):
         self.input_scaler = input_scaler
         self.prognostic_scaler = prognostic_scaler
 
-    def predict(self, X: xr.Dataset) -> xr.Dataset:
-        """Predict an output xarray dataset from an input xarray dataset."""
-        sample_coord = X[self.sample_dim_name]
-        ds_pred = self.y_packer.to_dataset(
-            self.model.predict(self.X_packer.to_array(X))
-        )
-        return ds_pred.assign_coords({self.sample_dim_name: sample_coord})
-
     def dump(self, path: str) -> None:
         with put_dir(path) as path:
             if self.model is not None:
@@ -80,41 +71,43 @@ class ExternalModel(Predictor):
                 self.input_packer.dump(f)
             with open(os.path.join(path, self._PROGNOSTIC_PACKER_FILENAME), "w") as f:
                 self.prognostic_packer.dump(f)
-            with open(os.path.join(path, self._INPUT_SCALER_FILENAME), "wb") as f:
-                self.input_scaler.dump(f)
-            with open(os.path.join(path, self._PROGNOSTIC_SCALER_FILENAME), "wb") as f:
-                self.prognostic_scaler.dump(f)
+            with open(os.path.join(path, self._INPUT_SCALER_FILENAME), "wb") as f_bin:
+                self.input_scaler.dump(f_bin)
+            with open(
+                os.path.join(path, self._PROGNOSTIC_SCALER_FILENAME), "wb"
+            ) as f_bin:
+                self.prognostic_scaler.dump(f_bin)
 
-    @classmethod
-    def load(cls, path: str) -> "ExternalModel":
-        """Load a serialized model from a directory."""
-        with get_dir(path) as path:
-            with open(os.path.join(path, cls._INPUT_PACKER_FILENAME), "r") as f:
-                input_packer = ArrayPacker.load(f)
-            with open(os.path.join(path, cls._PROGNOSTIC_PACKER_FILENAME), "r") as f:
-                prognostic_packer = ArrayPacker.load(f)
-            # currently only supports standard scaler, need to change dump and load
-            # to save scaler type to support other scalers
-            with open(os.path.join(path, cls._INPUT_SCALER_FILENAME), "r") as f:
-                input_scaler = StandardScaler.load(f)
-            with open(os.path.join(path, cls._PROGNOSTIC_SCALER_FILENAME), "r") as f:
-                prognostic_scaler = StandardScaler.load(f)
-            model_filename = os.path.join(path, cls._MODEL_FILENAME)
-            if os.path.exists(model_filename):
-                model = tf.keras.models.load_model(
-                    model_filename, custom_objects=cls.custom_objects
-                )
-            obj = cls(
-                input_packer.sample_dim_name,
-                input_packer.pack_names,
-                prognostic_packer.pack_names,
-                model,
-                input_packer,
-                prognostic_packer,
-                input_scaler,
-                prognostic_scaler,
-            )
-            return obj
+    # @classmethod
+    # def load(cls, path: str) -> "ExternalModel":
+    #     """Load a serialized model from a directory."""
+    #     with get_dir(path) as path:
+    #         with open(os.path.join(path, cls._INPUT_PACKER_FILENAME), "r") as f:
+    #             input_packer = ArrayPacker.load(f)
+    #         with open(os.path.join(path, cls._PROGNOSTIC_PACKER_FILENAME), "r") as f:
+    #             prognostic_packer = ArrayPacker.load(f)
+    #         # currently only supports standard scaler, need to change dump and load
+    #         # to save scaler type to support other scalers
+    #         with open(os.path.join(path, cls._INPUT_SCALER_FILENAME), "r") as f:
+    #             input_scaler = StandardScaler.load(f)
+    #         with open(os.path.join(path, cls._PROGNOSTIC_SCALER_FILENAME), "r") as f:
+    #             prognostic_scaler = StandardScaler.load(f)
+    #         model_filename = os.path.join(path, cls._MODEL_FILENAME)
+    #         if os.path.exists(model_filename):
+    #             model = tf.keras.models.load_model(
+    #                 model_filename, custom_objects=cls.custom_objects
+    #             )
+    #         obj = cls(
+    #             input_packer.sample_dim_name,
+    #             input_packer.pack_names,
+    #             prognostic_packer.pack_names,
+    #             model,
+    #             input_packer,
+    #             prognostic_packer,
+    #             input_scaler,
+    #             prognostic_scaler,
+    #         )
+    #         return obj
 
 
 @io.register("recurrent-keras")
@@ -194,10 +187,12 @@ class RecurrentModel(ExternalModel):
                 prognostic_packer = ArrayPacker.load(f)
             # currently only supports standard scaler, need to change dump and load
             # to save scaler type to support other scalers
-            with open(os.path.join(path, cls._INPUT_SCALER_FILENAME), "rb") as f:
-                input_scaler = StandardScaler.load(f)
-            with open(os.path.join(path, cls._PROGNOSTIC_SCALER_FILENAME), "rb") as f:
-                prognostic_scaler = StandardScaler.load(f)
+            with open(os.path.join(path, cls._INPUT_SCALER_FILENAME), "rb") as f_bin:
+                input_scaler = StandardScaler.load(f_bin)
+            with open(
+                os.path.join(path, cls._PROGNOSTIC_SCALER_FILENAME), "rb"
+            ) as f_bin:
+                prognostic_scaler = StandardScaler.load(f_bin)
             model_filename = os.path.join(path, cls._MODEL_FILENAME)
             if os.path.exists(model_filename):
                 model = tf.keras.models.load_model(

@@ -1,16 +1,16 @@
 from typing import Iterable, Hashable, Tuple
 import numpy as np
 import xarray as xr
-import tensorflow as tf
-import numpy as np
 import os
 import vcm
-import dataclasses
 import argparse
 
 # data directory and ML input names are currently hard-coded as constants
 
-COARSE_OUTPUT_URL = "/Volumes/OWC Envoy Pro EX/gs/vcm-ml-experiments/2021-01-22-nudge-to-fine-3hr-averages"
+COARSE_OUTPUT_URL = (
+    "/Volumes/OWC Envoy Pro EX/gs/vcm-ml-experiments/"
+    "2021-01-22-nudge-to-fine-3hr-averages"
+)
 # COARSE_OUTPUT_URL = "gs://vcm-ml-experiments/2021-01-22-nudge-to-fine-3hr-averages"
 
 INPUT_NAMES = ["surface_geopotential", "cos_zenith_angle", "land_sea_mask"]
@@ -49,7 +49,8 @@ def get_dQ_arrays(
         sample_idx, :, :
     ]
     dQ1_base = np.zeros_like(T)
-    # before operating ML at each timestep, add the physics tendency from the last timestep
+    # before operating ML at each timestep, add the physics tendency
+    # from the last timestep
     # this is "parallel" in that the ML and the physics operate on the same state
     dQ1_base[:, 1:, :] = dQ1_total - dQ1_nudging[:, 1:, :]
     return T[:, :, :], dQ1_base, dQ1_nudging
@@ -198,7 +199,8 @@ def open_nudge(input_names) -> Iterable["TrainingArrays"]:
             given_tendency=np.concatenate([dQ1_given, dQ2_given], axis=2),
             nudging_tendency=np.concatenate([dQ1_nudge, dQ2_nudge], axis=2),
             prognostic_baseline=np.concatenate([Q1_base, Q2_base], axis=2),
-            # temporary work-around for not having reference data in run, use baseline as reference data
+            # temporary work-around for not having reference data in run,
+            # use baseline as reference data
             prognostic_reference=np.concatenate([Q1_base, Q2_base], axis=2),
             latitude=lat,
             longitude=lon,
@@ -258,7 +260,8 @@ class TrainingArrays:
         if prognostic_baseline.shape != prognostic_reference.shape:
             raise ValueError(
                 "expected y_base and y_reference to have the same shape, "
-                f"but received shapes {prognostic_baseline.shape} and {prognostic_reference.shape}"
+                f"but received shapes {prognostic_baseline.shape} and "
+                f"{prognostic_reference.shape}"
             )
         self.inputs_baseline = inputs_baseline
         self.given_tendency = given_tendency

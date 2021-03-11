@@ -165,32 +165,58 @@ if __name__ == "__main__":
     print(f"r2 air_temperature: {r2_air_temperature}")
     print(f"r2 specific_humidity: {r2_specific_humidity}")
 
-    # # plt.figure()
-    # # print(profile_out[0, :, :79].min(), profile_out[0, :, :79].max())
-    # # print(profile_out[0, :, 79:].min(), profile_out[0, :, 79:].max())
-    # # im = plt.pcolormesh(profile_out[0, :, :].T)
-    # # plt.colorbar(im)
-    # # plt.show()
+    # plt.figure()
+    # print(profile_out[0, :, :79].min(), profile_out[0, :, :79].max())
+    # print(profile_out[0, :, 79:].min(), profile_out[0, :, 79:].max())
+    # im = plt.pcolormesh(profile_out[0, :, :].T)
+    # plt.colorbar(im)
+    # plt.show()
 
     # val_initial_state = val_given_tendency[:, 0, :] * timestep_seconds
-    # val_first_output = loaded.model.predict([val_inputs[:, 0, :], val_given_tendency[:, 0, :] * timestep_seconds])
+    # val_first_output = loaded.model.predict(
+    #     [val_inputs[:, 0, :], val_given_tendency[:, 0, :] * timestep_seconds]
+    # )
     # val_first_tendency = val_first_output - val_initial_state
-    # target_first_tendency = tendency_scaler.normalize(arrays.nudging_tendency)[:, 0, :]
-    # first_tendency_loss = np.mean(loss(val_first_tendency, target_first_tendency * timestep_seconds))
+    # target_first_tendency = tendency_scaler.normalize(
+    #     arrays.nudging_tendency
+    # )[:, 0, :]
+    # first_tendency_loss = np.mean(
+    #     loss(val_first_tendency, target_first_tendency * timestep_seconds)
+    # )
     # print(f"first tendency loss: {first_tendency_loss}")
     # print(f"first tendency std: {np.std(target_first_tendency * timestep_seconds)}")
 
     # n_samples = val_inputs.shape[0] * val_inputs.shape[1]
-    # ds_target = prognostic_packer.to_dataset(prognostic_scaler.denormalize(val_target_out.reshape([n_samples, val_target_out.shape[2]])))
-    # ds_norm_target = prognostic_packer.to_dataset(val_target_out.reshape([n_samples, val_target_out.shape[2]]))
-    # # ds_input = input_packer.to_dataset(input_scaler.denormalize(val_inputs.reshape([n_samples, val_inputs.shape[2]])))
-    # ds_output = prognostic_packer.to_dataset(prognostic_scaler.denormalize(val_out.reshape([n_samples, profile_out.shape[2]])))
-    # ds_norm_output = prognostic_packer.to_dataset(val_out.reshape([n_samples, profile_out.shape[2]]))
-    # ds_baseline_out = prognostic_packer.to_dataset(prognostic_scaler.denormalize(baseline_out.reshape([n_samples, profile_out.shape[2]])))
-    # ds_norm_baseline_out = prognostic_packer.to_dataset(baseline_out.reshape([n_samples, profile_out.shape[2]]))
+    # ds_target = prognostic_packer.to_dataset(
+    #     prognostic_scaler.denormalize(
+    #         val_target_out.reshape([n_samples, val_target_out.shape[2]])
+    #     )
+    # )
+    # ds_norm_target = prognostic_packer.to_dataset(
+    #     val_target_out.reshape([n_samples, val_target_out.shape[2]])
+    # )
+    # ds_input = input_packer.to_dataset(
+    #     input_scaler.denormalize(val_inputs.reshape([n_samples, val_inputs.shape[2]]))
+    # )
+    # ds_output = prognostic_packer.to_dataset(
+    #     prognostic_scaler.denormalize(
+    #         val_out.reshape([n_samples, profile_out.shape[2]])
+    #     )
+    # )
+    # ds_norm_output = prognostic_packer.to_dataset(
+    #     val_out.reshape([n_samples, profile_out.shape[2]])
+    # )
+    # ds_baseline_out = prognostic_packer.to_dataset(
+    #     prognostic_scaler.denormalize(
+    #         baseline_out.reshape([n_samples, profile_out.shape[2]])
+    #     )
+    # )
+    # ds_norm_baseline_out = prognostic_packer.to_dataset(
+    #     baseline_out.reshape([n_samples, profile_out.shape[2]])
+    # )
     # ds_target.to_netcdf("ds_target.nc")
     # ds_norm_target.to_netcdf("ds_norm_target.nc")
-    # # ds_input.to_netcdf("ds_input.nc")
+    # ds_input.to_netcdf("ds_input.nc")
     # ds_output.to_netcdf("ds_output.nc")
     # ds_norm_output.to_netcdf("ds_norm_output.nc")
     # ds_baseline_out.to_netcdf("ds_baseline_out.nc")
@@ -199,16 +225,34 @@ if __name__ == "__main__":
     # model_out = np.zeros_like(val_target_out)
     # model_offline_out = np.zeros_like(val_target_out)
     # nudging_tendency = tendency_scaler.normalize(validation_arrays.nudging_tendency)
-    # before_nudging_state = val_target_out[:, :, :] - timestep_seconds * nudging_tendency[:, :, :]
+    # before_nudging_state = (
+    #     val_target_out[:, :, :] - timestep_seconds * nudging_tendency[:, :, :]
+    # )
     # for i in range(val_out.shape[1]):
-    #     model_offline_out[:, i, :] = loaded.model.predict([val_inputs[:, i, :], val_target_out[:, i, :]])
-    #     model_out[:, i, :] = loaded.model.predict([val_inputs[:, i, :], before_nudging_state[:, i, :]])
-    # model_tendency = tendency_scaler.denormalize((model_out - before_nudging_state) / timestep_seconds)
-    # model_offline_tendency = tendency_scaler.denormalize((model_offline_out - val_target_out) / timestep_seconds)
+    #     model_offline_out[:, i, :] = loaded.model.predict(
+    #         [val_inputs[:, i, :], val_target_out[:, i, :]]
+    #     )
+    #     model_out[:, i, :] = loaded.model.predict(
+    #         [val_inputs[:, i, :], before_nudging_state[:, i, :]]
+    #     )
+    # model_tendency = tendency_scaler.denormalize(
+    #     (model_out - before_nudging_state) / timestep_seconds
+    # )
+    # model_offline_tendency = tendency_scaler.denormalize(
+    #     (model_offline_out - val_target_out) / timestep_seconds
+    # )
     # target_tendency = validation_arrays.nudging_tendency
-    # prognostic_packer.to_dataset(model_tendency.reshape([n_samples, 2*nz])).to_netcdf("model_tendency.nc")
-    # prognostic_packer.to_dataset(model_offline_tendency.reshape([n_samples, 2*nz])).to_netcdf("model_offline_tendency.nc")
-    # prognostic_packer.to_dataset(target_tendency.reshape([n_samples, 2*nz])).to_netcdf("target_tendency.nc")
+    # prognostic_packer.to_dataset(
+    #     model_tendency.reshape([n_samples, 2 * nz])
+    # ).to_netcdf(
+    #     "model_tendency.nc"
+    # )
+    # prognostic_packer.to_dataset(
+    #     model_offline_tendency.reshape([n_samples, 2 * nz])
+    # ).to_netcdf("model_offline_tendency.nc")
+    # prognostic_packer.to_dataset(
+    #     target_tendency.reshape([n_samples, 2 * nz])
+    # ).to_netcdf("target_tendency.nc")
 
     # i = 0
     # for i in np.random.randint(0, high=val_base_out.shape[0], size=5):

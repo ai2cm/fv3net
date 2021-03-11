@@ -1,3 +1,4 @@
+from typing import Dict
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
@@ -30,7 +31,7 @@ class GCMCell(tf.keras.layers.AbstractRNNCell):
         but the GCMCell state is allowed to diverge from the input state.
         """
         self.use_spectral_normalization = use_spectral_normalization
-        self.us = {}
+        self.us: Dict[str, tf.Variable] = {}
         super().__init__(**kwargs)
 
     @property

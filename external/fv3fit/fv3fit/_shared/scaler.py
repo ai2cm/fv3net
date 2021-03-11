@@ -50,8 +50,8 @@ class StandardScaler(NormalizeTransform):
                 that are constant across samples) are unable to be scaled due to
                 having zero standard deviation. Defaults to 1e-12.
         """
-        self.mean = None
-        self.std = None
+        self.mean: np.ndarray = None
+        self.std: np.ndarray = None
         self.std_epsilon: np.float32 = std_epsilon
 
     def fit(self, data: np.ndarray):
