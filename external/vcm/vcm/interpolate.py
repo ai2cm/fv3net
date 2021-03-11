@@ -110,15 +110,18 @@ def interpolate_1d(
                 data_vars[v] = interpolate_1d(xp, x, field[v], dim=dim)
             else:
                 data_vars[v] = field[v]
+            data_vars[v].attrs = v.attrs
         return xr.Dataset(data_vars)
     elif isinstance(field, xr.DataArray):
         if xp.ndim == 1:
             if dim is None:
                 raise ValueError(f"dim argument needed for 1D xp")
             else:
-                return _interpolate_1d_constant_output_levels(xp, x, field, dim)
+                interp = _interpolate_1d_constant_output_levels(xp, x, field, dim)
         else:
-            return _interpolate_1d_variable_output_levels(xp, x, field)
+            interp = _interpolate_1d_variable_output_levels(xp, x, field)
+        interp.attrs = field.attrs
+        return interp
 
 
 def _interpolate_1d_constant_output_levels(
