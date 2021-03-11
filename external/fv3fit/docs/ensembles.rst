@@ -3,7 +3,7 @@
 Ensembles
 =========
 
-Ensemble models can be defined manually, by writing a configuration yaml named ``ensemble_model.yaml`` and a ``name`` file to a directory. The models used much each have the same output variables, but they may have different input variables. They also must each use the same sample dimension name (``model.sample_dim_name``).
+Ensemble models can be defined manually, by writing a configuration yaml named ``ensemble_model.yaml`` and a ``name`` file to a directory. The models used must each have the same output variables, but they may have different input variables. They also must each use the same sample dimension name (``model.sample_dim_name``).
 
 .. code-block:: yaml
 
