@@ -282,8 +282,6 @@ def zonal_means_3d(prognostic, verification, grid):
 def zonal_bias_3d(prognostic, verification, grid):
     logger.info("Preparing zonal mean bias (3d)")
     zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
-    logger.info("3d zonal bias datasets: ")
-    logger.info((prognostic - verification))
     return time_mean(zonal_mean_bias)
 
 
