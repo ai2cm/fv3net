@@ -10,8 +10,10 @@ Usage:
 
 """
 from typing import Callable, Mapping
+import numpy as np
 import xarray as xr
 from toolz import curry
+from .constants import HORIZONTAL_DIMS
 import json
 
 _METRICS = []
@@ -119,6 +121,19 @@ def time_mean_bias(diags):
         orig_unit = global_mean_bias[variable].attrs["units"]
         time_and_global_mean_bias[variable].attrs["units"] = orig_unit
     return time_and_global_mean_bias
+
+
+@add_to_metrics("rmse_of_time_mean")
+def rmse_time_mean(diags):
+    time_mean_bias = grab_diag(diags, "time_mean_bias")
+    area = diags["area"]
+    rms_of_time_mean_bias = np.sqrt(
+        (time_mean_bias ** 2 * area).sum(HORIZONTAL_DIMS) / area.sum(HORIZONTAL_DIMS)
+    )
+    for variable in rms_of_time_mean_bias:
+        orig_unit = time_mean_bias[variable].attrs["units"]
+        rms_of_time_mean_bias[variable].attrs["units"] = orig_unit
+    return rms_of_time_mean_bias
 
 
 def register_parser(subparsers):

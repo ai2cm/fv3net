@@ -2,7 +2,7 @@ import xarray as xr
 import numpy as np
 import pytest
 
-from vcm.safe import _validate_stack_dims
+from vcm.safe import _validate_stack_dims, warn_if_intersecting
 
 
 def test__validate_stack_dims_ok():
@@ -22,3 +22,32 @@ def test__validate_stack_dims_not_ok():
         _validate_stack_dims(ds, ["x", "y", "z"])
 
     _validate_stack_dims(ds, ["x", "y", "z"], allowed_broadcast_dims=["z"])
+
+
+def test_warn_if_intersecting_duplicates():
+
+    old = {"key"}
+    new = ["duplicate", "duplicate"]
+    with pytest.warns(UserWarning):
+        warn_if_intersecting(old, new)
+
+
+def test_warn_if_intersecting_overlap():
+
+    old = {"key"}
+    new = ["key", "duplicate"]
+    with pytest.warns(UserWarning):
+        warn_if_intersecting(old, new)
+
+
+def test_warn_if_intersecting_no_warning():
+
+    old = {"key"}
+    new = {"new_key"}
+
+    with pytest.warns(None) as records:
+        warn_if_intersecting(old, new)
+
+    # ignore deprecation warnings
+    for warning in records:
+        assert not isinstance(warning, UserWarning), warning
