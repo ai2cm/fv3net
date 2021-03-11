@@ -37,6 +37,7 @@ FV3CONFIG_KEYS = {
     "patch_files",
     "gfs_analysis_data",
 }
+FORTRAN_PHYSICS_MODULES = ["gfs_phys", "gfs_sfc"]
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -237,18 +238,14 @@ def _physics_frequency_overlay(
     physics_frequencies = set()
     for diagnostic_config in diagnostics:
         for variable in diagnostic_config.variables:
-            if variable.module_name in ["gfs_phys", "gfs_sfc"]:
+            if variable.module_name in FORTRAN_PHYSICS_MODULES:
                 if diagnostic_config.times.kind == "every":
                     physics_frequencies.add(physics_timestep)
                 elif diagnostic_config.times.frequency is not None:
                     physics_frequencies.add(diagnostic_config.times.frequency)
     if len(physics_frequencies) == 0:
         return {}
-    elif len(physics_frequencies) > 1:
-        raise NotImplementedError(
-            "Cannot output physics diagnostics at multiple frequencies."
-        )
-    else:
+    elif len(physics_frequencies) == 1:
         physics_output_frequency_in_hours = list(physics_frequencies)[0] / 3600.0
         return {
             "namelist": {
@@ -256,6 +253,10 @@ def _physics_frequency_overlay(
                 "gfs_physics_nml": {"fhzero": physics_output_frequency_in_hours},
             }
         }
+    else:
+        raise NotImplementedError(
+            "Cannot output physics diagnostics at multiple frequencies."
+        )
 
 
 def prepare_config(args):
@@ -298,10 +299,10 @@ def _prepare_config_from_parsed_config(
         fv3kube.c48_initial_conditions_overlay(
             args.initial_condition_url, args.ic_timestep
         ),
-        _diag_table_overlay(user_config.fortran_diagnostics),
         SUPPRESS_RANGE_WARNINGS,
         dataclasses.asdict(user_config),
         fv3_config,
+        _diag_table_overlay(user_config.fortran_diagnostics),
         _physics_frequency_overlay(user_config.fortran_diagnostics, physics_timestep),
     ]
 
