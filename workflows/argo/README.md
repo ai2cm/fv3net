@@ -100,6 +100,19 @@ claim for volumes that are ultimately mounted and used by `run-fv3gfs`. See the
 `volumes` section of the `prognostic-run` workflow for an example of the volume claims 
 necessary to use `run-fv3gfs`.
 
+#### Restarting prognostic runs
+
+Once a prognostic run has finished running, it is possible to extend the run using the 
+`restart-prognostic-run` workflow. Note it is not possible to change any aspects of the
+configuration when restarting runs.
+
+| Parameter       | Description                                                  |
+|-----------------|--------------------------------------------------------------|
+| `url`           | Location of existing prognostic run.                         |
+| `segment-count` | (optional) Number of additional segments to run; default "1" |
+| `cpu`           | (optional) Number of cpus to request; default "6"            |
+| `memory`        | (optional) Amount of memory to request; default 6Gi          |
+
 ### Prognostic run report
 
 The `prognostic-run-diags` workflow template will generate reports for
@@ -230,11 +243,17 @@ python -m offline_ml_diags.create_report \
 This workflow template runs the `training`, `offline-diags`, `prognostic-run` and
 `prognostic-run-diags.diagnostics-step` workflow templates in sequence.
 
+This workflow takes a `training-configs` parameter which is the string representation of a JSON file that should be
+formatted as `[{name: model_name, config: model_config}, ...]`, and where the individal model config values are
+as for the `training` workflow.  In practice it may be easiest to write this as a YAML file and then converted to
+JSON format using `yq . config.yml` in a submission script.
+
 | Parameter               | Description                                                           |
 |-------------------------|-----------------------------------------------------------------------|
 | `root`                  | URL for the outputs from this workflow                                |
 | `train-test-data`       | `input` for `training` workflow                                       |
-| `training-config`       | `config` for `training` workflow                                      |
+| `training-configs`      | List of dicts with keys `name`, `config`, where `config` is the 
+                            config used for `training` workflow                                   |
 | `train-times`           | `times` for `training` workflow                                       |
 | `test-times`            | `times` for `offline-diags` workflow                                  |
 | `public-report-output`  | `report-output` for `offline-diags` workflow                          |
@@ -249,14 +268,6 @@ This workflow template runs the `training`, `offline-diags`, `prognostic-run` an
 | `memory-offline-diags`  | (optional) `memory` for `offline-diags` workflow; default 6Gi         |
 | `training-flags`        | (optional) `flags` for `training` workflow                            |
 
-### train-diags-prog-multiple-models workflow template
-
-This is similar to the above `train-diags-prog` workflow, but trains and runs offline diagnostics for multiple
-ML models and then uses all trained models in the prognostic run. 
-
-The parameters are the same as for the `train-diags-prog` workflow except this workflow takes a `training-configs` parameter instead of `training-config`. This new parameter is the string representation of a JSON file, which should be formatted as `[{name: model_name, config: model_config}, ...]`, and where the individal model config values are
-as for the `training` workflow.  In practice it may be easiest to write this as a YAML file and then converted to
-JSON format using `yq . config.yml` in a submission script.
 
 ### Cubed-sphere to lat-lon interpolation workflow
 
