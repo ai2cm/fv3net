@@ -82,6 +82,14 @@ def _get_coarsening_args(
     return grid_entries[input_res], coarsening_factor
 
 
+def _load_prognostic_run_3d_output(url: str):
+    fs = get_fs(url)
+    zarr_name = os.path.basename(fs.glob(os.path.join(url, "atmos_*xdaily.zarr"))[0])
+    path = os.path.join(url, zarr_name)
+    logger.info(f"Opening prognostic run data at {path}")
+    return _load_standardized(path)
+
+
 def load_3d(
     url: str, verification_entries: Sequence[str], catalog: intake.Catalog
 ) -> DiagArg:
@@ -92,11 +100,7 @@ def load_3d(
     grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
 
     # open prognostic run data
-    fs = get_fs(url)
-    zarr_name = os.path.basename(fs.glob(os.path.join(url, "atmos_*xdaily.zarr"))[0])
-    path = os.path.join(url, zarr_name)
-    logger.info(f"Opening prognostic run data at {path}")
-    ds = _load_standardized(path)
+    ds = _load_prognostic_run_3d_output(url)
     input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
     area = catalog[input_grid].to_dask()["area"]
     ds = _coarsen(ds, area, coarsening_factor)
@@ -111,7 +115,7 @@ def load_3d(
     }
     ds = ds.rename(renamed)
 
-    # interpolate 3d fields to pressure levels
+    # interpolate 3d prognostic fields to pressure levels
     ds_interp = xr.Dataset()
     for var in renamed.values():
         ds_interp[var] = vcm.interpolate_to_pressure_levels(
