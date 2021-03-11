@@ -1,6 +1,4 @@
 
-PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run
-
 build:
 	docker-compose build fv3fit prognostic_run
 
