@@ -19,7 +19,6 @@ from runtime.diagnostics.manager import (
 from runtime.steppers.nudging import NudgingConfig
 from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
-from runtime.diagnostics.fortran import MODULE_FIELD_NAME_TABLE
 
 
 logger = logging.getLogger(__name__)
@@ -238,7 +237,7 @@ def _physics_frequency_overlay(
     physics_frequencies = set()
     for diagnostic_config in diagnostics:
         for variable in diagnostic_config.variables:
-            if MODULE_FIELD_NAME_TABLE[variable][0] in ["gfs_phys", "gfs_sfc"]:
+            if variable.module_name in ["gfs_phys", "gfs_sfc"]:
                 if diagnostic_config.times.kind == "every":
                     physics_frequencies.add(physics_timestep)
                 elif diagnostic_config.times.frequency is not None:
