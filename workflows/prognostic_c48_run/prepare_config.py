@@ -3,7 +3,7 @@ import argparse
 import yaml
 import logging
 from datetime import datetime
-from typing import List, Mapping, Sequence
+from typing import List, Mapping, Optional, Sequence
 
 import dacite
 
@@ -97,7 +97,7 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
     nudge_to_observations = (
         config_dict.get("namelist", {}).get("fv_core_nml", {}).get("nudge", False)
     )
-
+    nudging: Optional[NudgingConfig]
     if "nudging" in config_dict:
         config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
             "restarts_path", args.initial_condition_url
@@ -150,7 +150,7 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
 
 
 def _default_diagnostics(
-    nudging: NudgingConfig,
+    nudging: Optional[NudgingConfig],
     scikit_learn: MachineLearningConfig,
     nudge_to_obs: bool,
     frequency_minutes: int,
