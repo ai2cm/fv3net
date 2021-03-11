@@ -35,6 +35,7 @@ function usage {
     echo ""
 }
 
+
 function createRun {
     url="$1"
     fv3config="$2"
@@ -55,17 +56,32 @@ function createRun {
 }
 
 function readRunConfig {
-    url="$1"
-    gsutil cat "$runURL/fv3config.yml"
+    echo $gsutil
+    # gsutil can't cat local files
+    if [ ${runURL:0:3} == "gs:" ]; then
+        gsutil cat "$runURL/fv3config.yml"
+    else
+        cat "$runURL/fv3config.yml"
+    fi
 }
 
 function readRunLastSegment {
     url="$1"
-    segments=($(gsutil ls "$runURL/artifacts" 2> /dev/null || echo "" ))
+    # gsutil can't ls local files
+    if [ ${runURL:0:3} == "gs:" ]; then
+        segments=($(gsutil ls "$runURL/artifacts" 2> /dev/null || echo "" ))
+    else
+        # need -p to get trailing slash, similar to gsutil ls
+        segments=($(ls -p "$runURL/artifacts" 2> /dev/null || echo "" ))
+    fi
     len="${#segments[@]}"
     if [[ $len -gt 0 ]]
     then
-        printf "%s" "${segments[-1]}"
+        if [ ${runURL:0:3} == "gs:" ]; then
+            printf "%s" "${segments[-1]}"
+        else
+            printf "%s" "$runURL/artifacts/${segments[-1]}"
+        fi
     fi
 }
 
