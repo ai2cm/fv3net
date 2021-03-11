@@ -1,5 +1,6 @@
 import intake
 import logging
+import numpy as np
 import warnings
 import os
 import xarray as xr
@@ -170,7 +171,6 @@ def load_verification(catalog_keys: List[str], catalog: intake.Catalog,) -> xr.D
         ds = catalog[dataset_key].to_dask()
         ds = standardize_gfsphysics_diagnostics(ds)
         verif_data.append(ds)
-
     return xr.merge(verif_data, join="outer")
 
 
@@ -219,10 +219,6 @@ def load_3d(url: str, verification_entries: Sequence[str], catalog: intake.Catal
     logger.info("Opening Grid Spec")
     grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
 
-    # open verification
-    logger.info("Opening verification data")
-    verification_c48 = load_verification(verification_entries, catalog)
-
     # open prognostic run data
     fs = get_fs(url)
     zarr_name = os.path.basename(fs.glob(os.path.join(url, "atmos_*xdaily.zarr"))[0])
@@ -233,13 +229,33 @@ def load_3d(url: str, verification_entries: Sequence[str], catalog: intake.Catal
     area = catalog[input_grid].to_dask()["area"]
     ds = _coarsen(ds, area, coarsening_factor)
 
+    # rename to common variable names
+    renamed = {
+        "temp": "air_temperature",
+        "w": "vertical_wind",
+        "sphum": "specific_humidity",
+        "ucomp": "eastward_wind",
+        "vcomp": "northward_wind"
+    }
+    ds = ds.rename(renamed)
+
     # interpolate 3d fields to pressure levels
-    pressure_level_data = ["temp", "w", "sphum", "ucomp", "vcomp"]
     ds_interp = xr.Dataset()
-    for var in pressure_level_data:
+    for var in renamed.values():
         ds_interp[var] = vcm.interpolate_to_pressure_levels(
             field=ds[var], delp=ds["delp"]
         )
+
+    # open verification
+    logger.info("Opening verification data")
+    verification_c48 = load_verification(verification_entries, catalog)
+
+    # Not all verification datasets have 3D variables saved,
+    # if not available fill with NaNs
+    if len(verification_c48.data_vars) == 0:
+        for var in ds_interp:
+            verification_c48[var] = xr.full_like(ds_interp[var], np.nan)
+            
     return ds_interp, verification_c48, grid_c48
 
 
