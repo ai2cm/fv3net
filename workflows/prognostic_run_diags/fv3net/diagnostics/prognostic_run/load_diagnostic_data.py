@@ -212,7 +212,9 @@ def _get_coarsening_args(
     return grid_entries[input_res], coarsening_factor
 
 
-def load_3d(url: str, verification_entries: Sequence[str], catalog: intake.Catalog) -> DiagArg:
+def load_3d(
+    url: str, verification_entries: Sequence[str], catalog: intake.Catalog
+) -> DiagArg:
     logger.info(f"Processing 3d data from run directory at {url}")
 
     # open grid
@@ -235,7 +237,7 @@ def load_3d(url: str, verification_entries: Sequence[str], catalog: intake.Catal
         "w": "vertical_wind",
         "sphum": "specific_humidity",
         "ucomp": "eastward_wind",
-        "vcomp": "northward_wind"
+        "vcomp": "northward_wind",
     }
     ds = ds.rename(renamed)
 
@@ -245,7 +247,7 @@ def load_3d(url: str, verification_entries: Sequence[str], catalog: intake.Catal
         ds_interp[var] = vcm.interpolate_to_pressure_levels(
             field=ds[var], delp=ds["delp"]
         )
-
+        
     # open verification
     logger.info("Opening verification data")
     verification_c48 = load_verification(verification_entries, catalog)
@@ -255,7 +257,7 @@ def load_3d(url: str, verification_entries: Sequence[str], catalog: intake.Catal
     if len(verification_c48.data_vars) == 0:
         for var in ds_interp:
             verification_c48[var] = xr.full_like(ds_interp[var], np.nan)
-    verification_c48[var].attrs = ds_interp[var].attrs
+            verification_c48[var].attrs = ds_interp[var].attrs
     return ds_interp, verification_c48, grid_c48
 
 
