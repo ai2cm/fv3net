@@ -43,7 +43,7 @@ class _Register:
 
     @staticmethod
     def _get_mapper_name(path: str) -> str:
-        return fsspec.get_mapper(path)[_NAME_PATH].decode(_NAME_ENCODING)
+        return fsspec.get_mapper(path)[_NAME_PATH].decode(_NAME_ENCODING).strip()
 
     def _set_mapper_name(self, obj: Predictor, path: str):
         mapper = fsspec.get_mapper(path)
