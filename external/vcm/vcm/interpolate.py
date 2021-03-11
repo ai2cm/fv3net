@@ -110,7 +110,7 @@ def interpolate_1d(
                 data_vars[v] = interpolate_1d(xp, x, field[v], dim=dim)
             else:
                 data_vars[v] = field[v]
-            data_vars[v].attrs = v.attrs
+            data_vars[v].attrs = field[v].attrs
         return xr.Dataset(data_vars)
     elif isinstance(field, xr.DataArray):
         if xp.ndim == 1:
