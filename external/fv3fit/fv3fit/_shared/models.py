@@ -23,11 +23,17 @@ class EnsembleModel(Predictor):
         input_variables: Set[Hashable] = set()
         output_variables: Set[Hashable] = set()
         sample_dim_name = self._models[0].sample_dim_name
+        outputs = set(self._models[0].output_variables)
         for model in self._models:
             if model.sample_dim_name != sample_dim_name:
                 raise ValueError(
                     "all models in ensemble must have same sample_dim_name, "
                     f"got {sample_dim_name} and {model.sample_dim_name}"
+                )
+            if set(model.output_variables) != outputs:
+                raise ValueError(
+                    "all models in ensemble must have same outputs, "
+                    f"got {outputs} and {set(model.output_variables)}"
                 )
             input_variables.update(model.input_variables)
             output_variables.update(model.output_variables)
