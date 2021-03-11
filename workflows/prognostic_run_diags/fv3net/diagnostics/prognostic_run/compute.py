@@ -27,7 +27,9 @@ from toolz import curry
 from collections import defaultdict
 from typing import Dict, Callable, Mapping, Union
 
-import vcm.catalog
+from joblib import Parallel, delayed
+
+import vcm
 
 from fv3net.diagnostics.prognostic_run import load_diagnostic_data as load_diags
 from fv3net.diagnostics.prognostic_run import config
@@ -51,6 +53,21 @@ logger = logging.getLogger("SaveDiags")
 _DIAG_FNS = defaultdict(list)
 
 DiagDict = Mapping[str, xr.DataArray]
+
+
+def _start_logger_if_necessary():
+    # workaround for joblib.Parallel logging from
+    # https://github.com/joblib/joblib/issues/1017
+    logger = logging.getLogger("SaveDiags")
+    if len(logger.handlers) == 0:
+        logger.setLevel(logging.INFO)
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter("%(asctime)s %(levelname)-8s %(message)s"))
+        fh = logging.FileHandler("out.log", mode="w")
+        fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)-8s %(message)s"))
+        logger.addHandler(sh)
+        logger.addHandler(fh)
+    return logger
 
 
 def _prepare_diag_dict(
@@ -143,18 +160,31 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
 
     diags = {}
     logger.info("Computing all diagnostics")
+    single_diags = Parallel(n_jobs=-1, verbose=True)(
+        delayed(_apply_and_load)(diag_func, data, verification, grid)
+        for diag_func, (data, verification, grid) in _generate_diag_functions(
+            input_datasets
+        )
+    )
 
-    for key, input_args in input_datasets.items():
-
-        if key not in _DIAG_FNS:
-            raise KeyError(f"No target diagnostics found for input data group: {key}")
-
-        for func in _DIAG_FNS[key]:
-            current_diags = func(*input_args)
-            load_diags.warn_on_overwrite(diags.keys(), current_diags.keys())
-            diags.update(current_diags)
+    for single_diag in single_diags:
+        vcm.safe.warn_if_intersecting(diags.keys(), single_diag.keys())
+        diags.update(single_diag)
 
     return diags
+
+
+def _apply_and_load(func, data, verification, grid):
+    _start_logger_if_necessary()
+    return {key: diag.load() for key, diag in func(data, verification, grid).items()}
+
+
+def _generate_diag_functions(input_datasets):
+    for key, input_args in input_datasets.items():
+        if key not in _DIAG_FNS:
+            raise KeyError(f"No target diagnostics found for input data group: {key}")
+        for func in _DIAG_FNS[key]:
+            yield func, input_args
 
 
 def rms(x, y, w, dims):

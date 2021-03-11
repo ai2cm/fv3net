@@ -19,7 +19,8 @@ Catalog entries
 
 Computing diagnostics requires certain entries in an intake catalog. By default,
 the ``vcm`` catalog is used. The catalog is assumed to
-contain the entries ``grid/c48``, ``grid/c96``, and ``landseamask/c48``.
+contain the entries ``grid/c{N}``, ``landseamask/c{N}`` where ``N`` is 48, 96
+and 384.
 
 Custom verification data can be added to the catalog. The entries should include
 the following metadata items:

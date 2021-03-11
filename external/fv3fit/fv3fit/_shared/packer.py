@@ -10,15 +10,32 @@ from typing import (
 )
 import numpy as np
 import xarray as xr
+import pandas as pd
 import yaml
 
 
-def _unique_dim_name(data):
-    return "".join(data.dims)
+def _feature_dims(data: xr.Dataset, sample_dim: str) -> Sequence[str]:
+    return [str(dim) for dim in data.dims.keys() if dim != sample_dim]
 
 
-def pack(data, sample_dim):
-    feature_dim_name = _unique_dim_name(data)
+def _unique_dim_name(
+    data: xr.Dataset, sample_dim: str, feature_dim_name_2d_var: str = "feature"
+) -> str:
+    feature_dims = _feature_dims(data, sample_dim)
+    if len(feature_dims) > 0:
+        feature_dim_name = "_".join(["feature"] + list(feature_dims))
+    else:
+        feature_dim_name = feature_dim_name_2d_var
+    if sample_dim == feature_dim_name:
+        raise ValueError(
+            f"The sample dim name ({sample_dim}) cannot be the same "
+            f"as the feature dim name ({feature_dim_name})"
+        )
+    return feature_dim_name
+
+
+def pack(data: xr.Dataset, sample_dim: str) -> Tuple[np.ndarray, pd.MultiIndex]:
+    feature_dim_name = _unique_dim_name(data, sample_dim)
     stacked = data.to_stacked_array(feature_dim_name, sample_dims=[sample_dim])
     return (
         stacked.transpose(sample_dim, feature_dim_name).data,
@@ -26,7 +43,11 @@ def pack(data, sample_dim):
     )
 
 
-def unpack(data: np.ndarray, sample_dim, feature_index):
+def unpack(
+    data: np.ndarray, sample_dim: str, feature_index: pd.MultiIndex
+) -> xr.Dataset:
+    if len(data.shape) == 1:
+        data = data[:, None]
     da = xr.DataArray(
         data, dims=[sample_dim, "feature"], coords={"feature": feature_index}
     )

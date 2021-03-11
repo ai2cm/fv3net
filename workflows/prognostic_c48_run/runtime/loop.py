@@ -19,7 +19,7 @@ from runtime.diagnostics.machine_learning import (
     precipitation_rate,
     precipitation_sum,
 )
-from runtime.steppers.machine_learning import PureMLStepper, open_model
+from runtime.steppers.machine_learning import PureMLStepper, open_model, download_model
 from runtime.steppers.nudging import PureNudger
 from runtime.types import Diagnostics, State, Tendencies
 from runtime.names import TENDENCY_TO_STATE_NAME
@@ -194,10 +194,16 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
     def _get_stepper(self, config: UserConfig) -> Optional[Stepper]:
         if config.scikit_learn.model:
             self._log_info("Using MLStepper")
-            # download the model
             self._log_info("Downloading ML Model")
+            if self.rank == 0:
+                local_model_paths = download_model(config.scikit_learn, "ml_model")
+            else:
+                local_model_paths = None  # type: ignore
+            local_model_paths = self.comm.bcast(local_model_paths, root=0)
+            setattr(config.scikit_learn, "model", local_model_paths)
+            self._log_info("Model Downloaded From Remote")
             model = open_model(config.scikit_learn)
-            self._log_info("Model Downloaded")
+            self._log_info("Model Loaded")
             return PureMLStepper(model, self._timestep)
         elif config.nudging:
             self._log_info("Using NudgingStepper")

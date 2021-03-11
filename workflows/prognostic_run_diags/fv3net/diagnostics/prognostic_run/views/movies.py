@@ -1,7 +1,9 @@
 import logging
 import os
 from multiprocessing import get_context
-from typing import Sequence, Tuple
+import subprocess
+import tempfile
+from typing import Mapping, Sequence, Tuple
 
 import dask
 
@@ -19,27 +21,28 @@ from fv3net.diagnostics.prognostic_run import config
 import fv3net.diagnostics.prognostic_run.load_diagnostic_data as load_diags
 
 dask.config.set(sheduler="single-threaded")
+logger = logging.getLogger(__name__)
 
 
 MovieArg = Tuple[xr.Dataset, str]
-FIG_SUFFIX = "_{t:05}.png"
+FIG_SUFFIX = "_%05d.png"
 
 COORD_NAMES = {
     "coord_x_center": "x",
     "coord_y_center": "y",
-    "coord_x_outer": "xb",
-    "coord_y_outer": "yb",
+    "coord_x_outer": "x_interface",
+    "coord_y_outer": "y_interface",
 }
 
 _COORD_VARS = {
-    "lonb": ["yb", "xb", "tile"],
-    "latb": ["yb", "xb", "tile"],
+    "lonb": ["y_interface", "x_interface", "tile"],
+    "latb": ["y_interface", "x_interface", "tile"],
     "lon": ["y", "x", "tile"],
     "lat": ["y", "x", "tile"],
 }
 
 GRID_VARS = ["area", "lonb", "latb", "lon", "lat"]
-INTERFACE_DIMS = ["xb", "yb"]
+INTERFACE_DIMS = ["x_interface", "y_interface"]
 
 HEATING_MOISTENING_PLOT_KWARGS = {
     "column_integrated_pQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
@@ -126,23 +129,67 @@ def _movie_specs():
     }
 
 
+def _create_movie(name: str, spec: Mapping, ds: xr.Dataset, output: str, n_jobs: int):
+    fs = vcm.cloud.get_fs(output)
+    func = spec["plotting_function"]
+    required_variables = spec["required_variables"]
+    logger.info(f"Forcing load for required variables for {name} movie")
+    data = ds[GRID_VARS + required_variables].load()
+    T = data.sizes["time"]
+    if _non_zero(data, required_variables):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            logger.info(f"Saving {T} still images for {name} movie to {tmpdir}")
+            filename = os.path.join(tmpdir, name + FIG_SUFFIX)
+            func_args = [(data.isel(time=t), filename % t) for t in range(T)]
+            with get_context("spawn").Pool(n_jobs) as p:
+                p.map(func, func_args)
+            movie_path = _stitch_movie_stills(filename)
+            fs.put(movie_path, os.path.join(output, f"{name}.mp4"))
+    else:
+        logger.info(f"Skipping {name} movie since all plotted variables are zero")
+
+
+def _get_ffpmeg_args(input_: str, output: str) -> Sequence[str]:
+    return [
+        "ffmpeg",
+        "-y",
+        "-r",
+        "15",
+        "-i",
+        input_,
+        "-vf",
+        "fps=15",
+        "-pix_fmt",
+        "yuv420p",
+        "-s:v",
+        "1920x1080",
+        output,
+    ]
+
+
+def _stitch_movie_stills(input_path):
+    output_path = input_path[: -len(FIG_SUFFIX)] + ".mp4"
+    ffmpeg_args = _get_ffpmeg_args(input_path, output_path)
+    subprocess.check_call(ffmpeg_args)
+    return output_path
+
+
 def register_parser(subparsers):
-    parser = subparsers.add_parser("movie", help="generate movie stills.")
-    parser.add_argument("url", help="Path to rundir")
-    parser.add_argument("output", help="Output location for movie stills")
+    parser = subparsers.add_parser("movie", help="Generate movies from prognostic run.")
+    parser.add_argument("url", help="Path to rundir.")
+    parser.add_argument("output", help="Output location for movies.")
     parser.add_argument("--n_jobs", default=8, type=int, help="Number of workers.")
     parser.add_argument(
         "--n_timesteps",
         default=None,
         type=int,
-        help="Number of timesteps for which stills are generated.",
+        help="Number of timesteps to use in movie. If not provided all times are used.",
     )
     parser.add_argument("--catalog", default=vcm.catalog.catalog_path)
     parser.set_defaults(func=main)
 
 
 def main(args):
-    logger = logging.getLogger(__name__)
     logging.basicConfig(level=logging.INFO)
 
     if vcm.cloud.get_protocol(args.output) == "file":
@@ -163,18 +210,6 @@ def main(args):
 
     if args.n_timesteps:
         prognostic = prognostic.isel(time=slice(None, args.n_timesteps))
-    T = prognostic.sizes["time"]
 
     for name, movie_spec in _movie_specs().items():
-        func = movie_spec["plotting_function"]
-        required_variables = movie_spec["required_variables"]
-        logger.info(f"Forcing load for required variables for {name} movie")
-        movie_data = prognostic[GRID_VARS + required_variables].load()
-        filename = os.path.join(args.output, name + FIG_SUFFIX)
-        func_args = [(movie_data.isel(time=t), filename.format(t=t)) for t in range(T)]
-        if _non_zero(movie_data, required_variables):
-            logger.info(f"Saving {T} still images for {name} movie to {args.output}")
-            with get_context("spawn").Pool(args.n_jobs) as p:
-                p.map(func, func_args)
-        else:
-            logger.info(f"Skipping {name} movie since all plotted variables are zero")
+        _create_movie(name, movie_spec, prognostic, args.output, args.n_jobs)
