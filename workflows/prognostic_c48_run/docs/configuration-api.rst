@@ -59,10 +59,6 @@ Fortran Diagnostics
 
 .. py:module:: runtime.diagnostics.fortran
 .. autoclass:: FortranFileConfig
-
-.. literalinclude:: ../runtime/diagnostics.fortran.py
-   :language: python
-   :linenos:
-   :lines: 9-116
+.. autoclass:: FortranVariableNameSpec
 
 .. _dataclasses: https://docs.python.org/3/library/dataclasses.html
