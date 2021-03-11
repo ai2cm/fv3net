@@ -268,12 +268,23 @@ def zonal_means_physics(prognostic, verification, grid):
 
 
 @add_to_diags("3d")
-@diag_finalizer("zonal_and_time_mean")
+@diag_finalizer("pressure_level_zonal_time_mean")
 @transform.apply("resample_time", "1H")
 def zonal_means_3d(prognostic, verification, grid):
     logger.info("Preparing zonal+time means (3d)")
     zonal_means = zonal_mean(prognostic, grid.lat)
     return time_mean(zonal_means)
+
+
+@add_to_diags("3d")
+@diag_finalizer("pressure_level_zonal_bias")
+@transform.apply("resample_time", "1H")
+def zonal_bias_3d(prognostic, verification, grid):
+    logger.info("Preparing zonal mean bias (3d)")
+    zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
+    logger.info("3d zonal bias datasets: ")
+    logger.info((prognostic - verification))
+    return time_mean(zonal_mean_bias)
 
 
 @add_to_diags("dycore")
@@ -511,7 +522,7 @@ def main(args):
     input_data = {
         "dycore": load_diags.load_dycore(args.url, verif_entries["dycore"], catalog),
         "physics": load_diags.load_physics(args.url, verif_entries["physics"], catalog),
-        "3d": load_diags.load_3d(args.url, verif_entries["dycore"], catalog),
+        "3d": load_diags.load_3d(args.url, verif_entries["3d"], catalog),
     }
 
     # begin constructing diags
