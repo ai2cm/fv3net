@@ -32,6 +32,7 @@ fv3config.yaml: prognostic_base.yaml
 		gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts \
 		20160805.000000 \
 		--model_url $(shell pwd)/model \
+		--model_url gs://vcm-ml-experiments/2021-01-26-c3072-nn/l2/winds-seed-0/trained_model \
     	> fv3config.yaml
 
 prognostic_run: fv3config.yaml

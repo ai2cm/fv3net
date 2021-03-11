@@ -50,48 +50,6 @@ def get_packed_array(
     return np.concatenate(array_list, axis=-1), tuple(features_list)
 
 
-class DatasetTransformer:
-    """Transforms a dataset representing a snapshot in time into normalized ML arrays needed for prediction."""
-
-    def __init__(self, ds: xr.Dataset) -> None:
-        # fitting is done here, to avoid initialize-then-call antipattern
-        # this is because we always fit and always fit once.
-        pass
-
-    def transform_snapshot(
-        self, ds: xr.Dataset, z_dim_name=fv3gfs.util.Z_DIM
-    ) -> Tuple["SnapshotArrays", str]:
-        pass
-
-    def inverse_transform_tendencies(
-        self, y: np.ndarray, sample_dim_name: str
-    ) -> xr.Dataset:
-        pass
-
-    def dump(self, f):
-        pass
-
-    @classmethod
-    def load(cls, f):
-        pass
-
-
-@dataclasses.dataclass
-class SnapshotArrays:
-    """Normalized numpy arrays to provide directly to Keras model routines.
-    Dimensionality of each array is [sample, time, feature/height]
-    (used for training) or [sample, feature/height] (used prognostically)."""
-
-    # transformer: "DatasetTransformer"
-    # """Object to transform data between dataset and normalized Keras array formats"""
-
-    inputs: np.ndarray
-    """Non-prognostic inputs for the machine learning model, as [sample, feature] array."""
-
-    prognostic: np.ndarray
-    """Prognostic inputs for the machine learning model, as [sample, feature] array."""
-
-
 def unpack_array(
     array: np.ndarray,
     names: Iterable[Hashable],
@@ -121,56 +79,6 @@ def unpack_array(
             )
         i_feature += n_features
     return xr.Dataset(data_arrays)
-
-
-# class StepwisePrognosticModel(fv3fit.Predictor):
-#     """
-#     Does timestep-at-a-time evolution of xarray datasets.
-
-#     Used in prognostic runs.
-#     """
-
-#     def __init__(
-#         self,
-#         sample_dim_name: str,
-#         input_variables: Iterable[Hashable],
-#         output_variables: Iterable[Hashable],
-#         transformer: DatasetTransformer,
-#         keras_model: tf.keras.Model,
-#     ):
-#         """Initialize the predictor
-
-#         Args:
-#             sample_dim_name: name of sample dimension
-#             input_variables: names of input variables
-#             output_variables: names of output variables
-
-#         """
-#         super().__init__(sample_dim_name, input_variables, output_variables)
-#         self.transformer = transformer
-#         self.keras_model = keras_model
-
-#     def predict(self, ds: xr.Dataset):
-#         """Predict an output xarray dataset from an input xarray dataset.
-
-#         This object has internal memory of previously passed states,
-#         and assumes that the X given represents the timestep after the
-#         last one given (if it has been called before).
-#         """
-#         arrays, sample_dim_name = self.transformer.transform_snapshot(ds)
-#         tendency_array = self.keras_model.predict(arrays.input, arrays.prognostic)
-#         return self.transformer.inverse_transform_tendencies(
-#             tendency_array, sample_dim_name
-#         )
-
-#     def dump(self, path: str) -> object:
-#         """Seralize model and output it to a directory."""
-#         pass
-
-#     @classmethod
-#     def load(cls, path: str) -> object:
-#         """Load a serialized model from a directory."""
-#         pass
 
 
 def build_model(
@@ -404,25 +312,23 @@ if __name__ == "__main__":
     # batch size to use for training
     batch_size = 48
 
-    # loss = tf.keras.losses.mse
     weight = np.zeros_like(prognostic_scaler.std)
     weight[:nz] = 0.5 * prognostic_scaler.std[:nz] / np.sum(prognostic_scaler.std[:nz])
     weight[nz:] = 0.5 * prognostic_scaler.std[nz:] / np.sum(prognostic_scaler.std[nz:])
     weight = tf.constant(weight.astype(np.float32), dtype=tf.float32)
 
-    def custom_loss(y_true, y_pred):
+    def loss(y_true, y_pred):
         return tf.math.reduce_sum(
             tf.reduce_mean(
                 (weight[None, None, :] * tf.math.square(y_pred - y_true)), axis=(0, 1)
             )
         )
 
-    loss = penalize_negative_water(
-        custom_loss,
-        1.0,
-        -1.0 * prognostic_scaler.mean[nz:] / prognostic_scaler.std[nz:],
-    )
-    # loss = penalize_negative_water(loss, 1.0)
+    # loss = penalize_negative_water(
+    #     loss,
+    #     1.0,
+    #     -1.0 * prognostic_scaler.mean[nz:] / prognostic_scaler.std[nz:],
+    # )
     optimizer = tf.keras.optimizers.Adam(lr=0.001, amsgrad=True, clipnorm=1.0)
 
     # this model does not normalize, it acts on normalized data

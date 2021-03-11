@@ -8,21 +8,12 @@ import vcm
 import dataclasses
 import argparse
 
+# data directory and ML input names are currently hard-coded as constants
+
 COARSE_OUTPUT_URL = "/Volumes/OWC Envoy Pro EX/gs/vcm-ml-experiments/2021-01-22-nudge-to-fine-3hr-averages"
-# COARSE_OUTPUT_URL = "/Volumes/OWC Envoy Pro EX/gs/vcm-ml-experiments/2021-01-22-nudge-to-fine-3hr/merged.zarr"
+# COARSE_OUTPUT_URL = "gs://vcm-ml-experiments/2021-01-22-nudge-to-fine-3hr-averages"
 
 INPUT_NAMES = ["surface_geopotential", "cos_zenith_angle", "land_sea_mask"]
-
-# notebook using the output data:
-# https://github.com/VulcanClimateModeling/explore/blob/master/noahb/2021-01-26-average-nudging-ml.ipynb
-# url = "gs://vcm-ml-experiments/2021-01-22-nudge-to-fine-3hr-averages"
-# restarts_path: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
-# mapper = open_nudge(url)
-# diagnostics configuration:
-# https://github.com/VulcanClimateModeling/vcm-workflow-control/blob/experiments/2021-01-21-nudge-to-fine-3hr-averages-working/examples/nudge-to-fine-run/baseline-config.yaml
-# remember tendencies are stored in units per second, so multiply by timestep
-# maybe have timestep as input for the ML model
-# total_sky_downward_longwave_flux_at_surface, total_sky_downward_shortwave_flux_at_surface, total_sky_upward_longwave_flux_at_surface, total_sky_upward_shortwave_flux_at_surface
 
 
 def open_zarr(url: str) -> xr.Dataset:
@@ -314,31 +305,6 @@ def get_parser():
     parser.add_argument(
         "output_data_path", type=str, help="directory to output array data"
     )
-    # parser.add_argument(
-    #     "config_file", type=str, help="Local path for training configuration yaml file",
-    # )
-    # parser.add_argument(
-    #     "output_data_path", type=str, help="Location to save config and trained model."
-    # )
-    # parser.add_argument(
-    #     "--timesteps-file",
-    #     type=str,
-    #     default=None,
-    #     help="json file containing a list of timesteps in YYYYMMDD.HHMMSS format",
-    # )
-    # parser.add_argument(
-    #     "--validation-timesteps-file",
-    #     type=str,
-    #     default=None,
-    #     help="Json file containing a list of validation timesteps in "
-    #     "YYYYMMDD.HHMMSS format. Only relevant for keras training",
-    # )
-    # parser.add_argument(
-    #     "--local-download-path",
-    #     type=str,
-    #     help="Optional path for downloading data before training. If not provided, "
-    #     "will read from remote every epoch. Local download greatly speeds training.",
-    # )
     return parser
 
 
