@@ -84,10 +84,10 @@ def _get_coarsening_args(
 
 def _load_prognostic_run_3d_output(url: str):
     fs = get_fs(url)
-    logger.info(
-        f'3d prognostic output: {fs.glob(os.path.join(url, "atmos_*xdaily.zarr"))}'
-    )
-    zarr_name = os.path.basename(fs.glob(os.path.join(url, "atmos_*xdaily.zarr"))[0])
+    prognostic_3d_output = [
+        item for item in fs.ls(url) if item.endswith("xdaily.zarr")
+    ][0]
+    zarr_name = os.path.basename(prognostic_3d_output)
     path = os.path.join(url, zarr_name)
     return _load_standardized(path)
 
