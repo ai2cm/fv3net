@@ -158,7 +158,7 @@ being saved.
 Fortran diagnostics
 ^^^^^^^^^^^^^^^^^^^
 
-Diagnostic to be output by the Fortran model are specified in the
+Diagnostics to be output by the Fortran model are specified in the
 ``fortran_diagnostics`` section. For example:
 
 .. code-block:: yaml
@@ -174,11 +174,18 @@ Diagnostic to be output by the Fortran model are specified in the
         - {module_name: "dynamics", field_name: "tq", output_name: "PWAT"}
         - {module_name: "dynamics", field_name: "z500", output_name: "h500"}
         - {module_name: "dynamics", field_name: "tb", output_name: "TMPlowest"}
-        - {module_name: "dynamics", field_name: "t850", output_name: "TMP850"
+        - {module_name: "dynamics", field_name: "t850", output_name: "TMP850"}
 
 Only ``interval``, ``interval-average`` and ``every`` are allowed as the
 ``times.kind`` for Fortran diagnostics. The Fortran ``diag_table`` is generated from the
 ``fortran_diagnostics`` section.
+
+.. note::
+
+    Fortran diagnostics from the "gfs_phys" or "gfs_sfc" modules must all use the same
+    output interval frequency. Furthermore, these outputs will be the same whether the
+    time kind is ``interval`` or ``interval-average`` since their time-averaging is
+    handled by the GFS physics code instead of the FMS diagnostics manager.
 
 .. _fv3config: https://fv3config.readthedocs.io/en/latest/
 .. _fv3fit: https://vulcanclimatemodeling.com/docs/fv3fit/
