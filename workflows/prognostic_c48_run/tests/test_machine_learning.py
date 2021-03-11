@@ -1,5 +1,5 @@
-from runtime.steppers.machine_learning import PureMLStepper
-from machine_learning_mocks import get_mock_sklearn_model
+from runtime.steppers.machine_learning import PureMLStepper, MLStateStepper
+from machine_learning_mocks import get_mock_sklearn_model, get_mock_rad_flux_model
 import requests
 import xarray as xr
 import joblib
@@ -26,12 +26,37 @@ def state(tmp_path_factory):
     return xr.open_dataset(str(lpath))
 
 
-def test_PureMLStepper_schema_unchanged(state, regtest):
-    model = get_mock_sklearn_model()
+@pytest.fixture(params=["PureMLStepper", "MLStateStepper"])
+def ml_stepper_name(request):
+    return request.param
+
+
+@pytest.fixture
+def mock_model(ml_stepper_name):
+    if ml_stepper_name == "PureMLStepper":
+        model = get_mock_sklearn_model()
+    elif ml_stepper_name == "MLStateStepper":
+        model = get_mock_rad_flux_model()
+    else:
+        raise ValueError("ML Stepper name not defined.")
+    return model
+
+
+@pytest.fixture
+def ml_stepper(ml_stepper_name, mock_model):
     timestep = 900
-    (tendencies, diagnostics, _,) = PureMLStepper(model, timestep)(None, state)
+    if ml_stepper_name == "PureMLStepper":
+        stepper = PureMLStepper(mock_model, timestep)
+    elif ml_stepper_name == "MLStateStepper":
+        stepper = MLStateStepper(mock_model, timestep)
+    return stepper
+
+
+def test_MLStepper_schema_unchanged(state, ml_stepper, regtest):
+    (tendencies, diagnostics, states) = ml_stepper(None, state)
     xr.Dataset(diagnostics).info(regtest)
     xr.Dataset(tendencies).info(regtest)
+    xr.Dataset(states).info(regtest)
 
 
 def test_state_regression(state, regtest):
@@ -39,14 +64,13 @@ def test_state_regression(state, regtest):
     print(checksum, file=regtest)
 
 
-def test_PureMLStepper_regression_checksum(state, regtest):
-    model = get_mock_sklearn_model()
-    timestep = 900
-    (tendencies, diagnostics, _,) = PureMLStepper(model, timestep)(None, state)
+def test_MLStepper_regression_checksum(state, ml_stepper, regtest):
+    (tendencies, diagnostics, states) = ml_stepper(None, state)
     checksums = yaml.safe_dump(
         [
             ("tendencies", checksum_xarray_dict(tendencies)),
             ("diagnostics", checksum_xarray_dict(diagnostics)),
+            ("states", checksum_xarray_dict(states)),
         ]
     )
 

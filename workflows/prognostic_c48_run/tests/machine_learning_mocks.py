@@ -27,6 +27,26 @@ def _model_dataset() -> xr.Dataset:
     return data
 
 
+def _rad_model_dataset() -> xr.Dataset:
+
+    arr = np.zeros((1,))
+    dims = [
+        "sample",
+    ]
+
+    data = xr.Dataset(
+        {
+            "specific_humidity": (dims, arr),
+            "air_temperature": (dims, arr),
+            "downward_shortwave": (dims, arr),
+            "net_shortwave": (dims, arr),
+            "downward_longwave": (dims, arr),
+        }
+    )
+
+    return data
+
+
 def get_mock_sklearn_model() -> fv3fit.Predictor:
 
     data = _model_dataset()
@@ -52,6 +72,33 @@ def get_mock_sklearn_model() -> fv3fit.Predictor:
         "sample",
         ["specific_humidity", "air_temperature"],
         ["dQ1", "dQ2", "dQu", "dQv"],
+        estimator,
+    )
+
+    # needed to avoid sklearn.exceptions.NotFittedError
+    model.fit([data])
+    return model
+
+
+def get_mock_rad_flux_model() -> fv3fit.Predictor:
+
+    data = _rad_model_dataset()
+
+    n_sample = data.sizes["sample"]
+    downward_shortwave = np.full(n_sample, 300.0)
+    net_shortwave = np.full(n_sample, 250.0)
+    downward_longwave = np.full(n_sample, 400.0)
+    constant = np.concatenate(
+        [[downward_shortwave], [net_shortwave], [downward_longwave]]
+    )
+    estimator = RegressorEnsemble(
+        DummyRegressor(strategy="constant", constant=constant)
+    )
+
+    model = SklearnWrapper(
+        "sample",
+        ["air_temperature", "specific_humidity"],
+        ["downward_shortwave", "net_shortwave", "downward_longwave"],
         estimator,
     )
 
