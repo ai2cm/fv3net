@@ -14,5 +14,3 @@ namelist:
     fhzero: 0.25 # hours - frequency at which precip is set back to zero
   fv_core_nml:
     n_split: 6 # num dynamics steps per physics step
-
-  
