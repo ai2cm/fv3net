@@ -38,7 +38,6 @@ from .select import mask_to_surface_type, RegionOfInterest
 from .xarray_loaders import open_tiles, open_delayed, open_remote_nc, dump_nc
 from .sampling import train_test_split_sample
 from .derived_mapping import DerivedMapping
-from . import metadata
 from .cloud import get_fs
 
 
