@@ -82,7 +82,7 @@ let
   # Hash obtained using `nix-prefetch-url --unpack <url>`
   sha256 = "1wg61h4gndm3vcprdcg7rc4s1v3jkm5xd7lw8r2f67w502y94gcy";
 }) {overlays = [overlay];};
-  py = nixpkgs.python3.withPackages (ps: [ ps.pip ps.setuptools ]);
+  py = nixpkgs.python3.withPackages (ps: [ ps.pip ps.setuptools ps.numpy]);
   shell = with nixpkgs; mkShell {
   buildInputs = [
           pkg-config
@@ -119,10 +119,11 @@ let
   shellHook = ''
     # Tells pip to put packages into $PIP_PREFIX instead of the usual locations.
     # See https://pip.pypa.io/en/stable/user_guide/#environment-variables.
-    # export PIP_PREFIX=$(pwd)/_build/pip_packages
-    # export PYTHONPATH="$PIP_PREFIX/${pkgs.python3.sitePackages}:$PYTHONPATH"
-    # export PATH="$PIP_PREFIX/bin:$PATH"
-    # unset SOURCE_DATE_EPOCH
+    export PIP_PREFIX=$(pwd)/_build/pip_packages
+    export PYTHONPATH="$PIP_PREFIX/${pkgs.python3.sitePackages}:$PYTHONPATH"
+    export PATH="$PIP_PREFIX/bin:$PATH"
+    unset SOURCE_DATE_EPOCH
+
     export PIP_CONSTRAINT=$(pwd)/constraints.txt
     export PIP_NO_BINARY=shapely,cartopy,mpi4py
     export GEOS_CONFIG=geos-config
@@ -131,7 +132,7 @@ let
     # need this for shapely to work
     export DYLD_LIBRARY_PATH=${geos}/lib
     export CC=${gfortran.cc}/bin/gcc
-    source .env/bin/activate
+    # source .env/bin/activate
   '';
 };
 in shell
