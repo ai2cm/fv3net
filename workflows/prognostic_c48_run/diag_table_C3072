@@ -131,13 +131,13 @@
  "dynamics",  "omg200_coarse",  "omg200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
  "dynamics",  "omg50_coarse",  "omg50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
 
- "dynamics",  "z1000_coarse",  "z1000_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "z925_coarse",  "z925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "z850_coarse",  "z850_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "z700_coarse",  "z700_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "z500_coarse",  "z500_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "z200_coarse",  "z200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "z50_coarse",  "z50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "z1000_coarse",  "h1000_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "z925_coarse",  "h925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "z850_coarse",  "h850_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "z700_coarse",  "h700_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "z500_coarse",  "h500_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "z200_coarse",  "h200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "z50_coarse",  "h50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
 
  "dynamics",  "q1000_coarse",  "q1000_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
  "dynamics",  "q925_coarse",  "q925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
@@ -147,21 +147,21 @@
  "dynamics",  "q200_coarse",  "q200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
  "dynamics",  "q50_coarse",  "q50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
 
- "dynamics",  "u1000_coarse",  "u1000_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "u925_coarse",  "u925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "u850_coarse",  "u850_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "u700_coarse",  "u700_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "u500_coarse",  "u500_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "u200_coarse",  "u200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "u50_coarse",  "u50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "us_coarse",  "UGRDlowest_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "u925_coarse",  "UGRD925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "u850_coarse",  "UGRD850_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "u700_coarse",  "UGRD700_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "u500_coarse",  "UGRD500_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "u200_coarse",  "UGRD200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "u50_coarse",  "UGRD50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
 
- "dynamics",  "v1000_coarse",  "v1000_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "v925_coarse",  "v925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "v850_coarse",  "v850_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "v700_coarse",  "v700_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "v500_coarse",  "v500_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "v200_coarse",  "v200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "v50_coarse",  "v50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "vs_coarse",  "VGRDlowest_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "v925_coarse",  "VGRD925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "v850_coarse",  "VGRD850_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "v700_coarse",  "VGRD700_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "v500_coarse",  "VGRD500_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "v200_coarse",  "VGRD200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "v50_coarse",  "VGRD50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
 
  "dynamics",  "w1000_coarse",  "w1000_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
  "dynamics",  "w925_coarse",  "w925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
@@ -171,13 +171,13 @@
  "dynamics",  "w200_coarse",  "w200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
  "dynamics",  "w50_coarse",  "w50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
 
- "dynamics",  "temp1000_coarse",  "temp1000_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "temp925_coarse",  "temp925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "temp850_coarse",  "temp850_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "temp700_coarse",  "temp700_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "temp500_coarse",  "temp500_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "temp200_coarse",  "temp200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
- "dynamics",  "temp50_coarse",  "temp50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "tb_coarse",  "TMPlowest_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "temp925_coarse",  "TMP925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "temp850_coarse",  "TMP850_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "temp700_coarse",  "TMP700_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "temp500_coarse",  "TMP500_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "temp200_coarse",  "TMP200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "temp50_coarse",  "TMP50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
 
 ###Full-resolution 2D variables (6 hours during main segments, <= hourly during IOP)
 
@@ -439,4 +439,3 @@
 #         = 2  float
 #         = 4  packed 16-bit integers
 #         = 8  packed 1-byte (not tested?)
-
