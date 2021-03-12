@@ -9,7 +9,7 @@ def enable_nudge_to_observations(
     duration: timedelta,
     current_date: Sequence[int],
     nudge_filename_pattern: str = "%Y%m%d_%HZ_T85LR.nc",
-    nudge_url: str = "gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
+    nudge_url: str = "gs://vcm-ml-raw-flexible-retention/2019-12-02-year-2016-T85-nudging-data",
     copy_method: str = "copy",
 ) -> Mapping:
     """Return config overlay for a nudged to observation run

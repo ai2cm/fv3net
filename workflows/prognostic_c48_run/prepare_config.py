@@ -245,7 +245,7 @@ def _prepare_config_from_parsed_config(
             fv3kube.enable_nudge_to_observations(
                 duration,
                 current_date,
-                nudge_url="gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
+                nudge_url="gs://vcm-ml-raw-flexible-retention/2019-12-02-year-2016-T85-nudging-data",
             )
         )
 

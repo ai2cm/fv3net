@@ -4,7 +4,7 @@ diag_table: /mnt/data/diag_table
 experiment_name: nudged-40day
 initial_conditions: gs://vcm-fv3config/data/initial_conditions/gfs_initial_conditions/v1.0
 gfs_analysis_data:
-  url: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
+  url: gs://vcm-ml-raw-flexible-retention/2019-12-02-year-2016-T85-nudging-data
   filename_pattern: '%Y%m%d_%HZ_T85LR.nc'
 namelist:
   atmos_model_nml:

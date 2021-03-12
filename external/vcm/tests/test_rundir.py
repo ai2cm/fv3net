@@ -26,7 +26,7 @@ FINAL = "RESTART"
 INIT = "INPUT"
 
 OUTPUT_URL = (
-    "gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/"
+    "gs://vcm-ml-intermediate/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/"
     "one_step_output/C48/20160801.001500"
 )
 

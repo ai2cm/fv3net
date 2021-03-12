@@ -18,7 +18,7 @@ def parse_args():
         "--nudge-url",
         type=str,
         help="path to GFS analysis files",
-        default="gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
+        default="gs://vcm-ml-raw-flexible-retention/2019-12-02-year-2016-T85-nudging-data",
     )
     parser.add_argument(
         "--segment-count",
