@@ -29,6 +29,8 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _column_dqv,
         _column_nq1,
         _column_nq2,
+        _column_dq1_or_nq1,
+        _column_dq2_or_nq2,
     ]:
         try:
             arrays.append(func(ds))
@@ -194,3 +196,33 @@ def _total_precip_to_surface(ds: xr.Dataset) -> xr.DataArray:
         "units": "mm/day",
     }
     return total_precip_to_surface.rename("total_precip_to_surface")
+
+
+def _column_dq1_or_nq1(ds: xr.Dataset, tol=1.0e-12) -> xr.DataArray:
+    """<dQ1>+<nQ1> with appropriate long name if either is zero-valued. Useful for movies."""
+    column_dq1 = _column_dq1(ds)
+    column_nq1 = _column_nq1(ds)
+    column_dq1_or_nq1 = column_dq1 + column_nq1
+    if abs(column_nq1).max() < tol:
+        long_name = "<dQ1> column integrated moistening from ML"
+    elif abs(column_dq1).max() < tol:
+        long_name = "<nQ1> column integrated moistening from nudging"
+    else:
+        long_name = "<dQ1> + <nQ1> column integrated moistening from ML + nudging"
+    column_dq1_or_nq1.attrs = {"long_name": long_name, "units": "mm/day"}
+    return column_dq1_or_nq1.rename("column_integrated_dQ1_or_nQ1")
+
+
+def _column_dq2_or_nq2(ds: xr.Dataset, tol=1.0e-12) -> xr.DataArray:
+    """<dQ2>+<nQ2> with appropriate long name if either is zero-valued. Useful for movies."""
+    column_dq2 = _column_dq2(ds)
+    column_nq2 = _column_nq2(ds)
+    column_dq2_or_nq2 = column_dq2 + column_nq2
+    if abs(column_nq2).max() < tol:
+        long_name = "<dQ2> column integrated moistening from ML"
+    elif abs(column_dq2).max() < tol:
+        long_name = "<nQ2> column integrated moistening from nudging"
+    else:
+        long_name = "<dQ2> + <nQ2> column integrated moistening from ML + nudging"
+    column_dq2_or_nq2.attrs = {"long_name": long_name, "units": "mm/day"}
+    return column_dq2_or_nq2.rename("column_integrated_dQ2_or_nQ2")
