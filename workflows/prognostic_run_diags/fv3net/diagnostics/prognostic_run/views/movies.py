@@ -46,10 +46,10 @@ INTERFACE_DIMS = ["x_interface", "y_interface"]
 
 HEATING_MOISTENING_PLOT_KWARGS = {
     "column_integrated_pQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
-    "column_integrated_dQ1_or_nQ1": {"vmin": -150, "vmax": 150, "cmap": "RdBu_r"},
+    "column_integrated_dQ1_or_nQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
     "column_integrated_Q1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
     "column_integrated_pQ2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
-    "column_integrated_dQ2_or_nQ2": {"vmin": -5, "vmax": 5, "cmap": "RdBu_r"},
+    "column_integrated_dQ2_or_nQ2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
     "column_integrated_Q2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
 }
 
@@ -118,10 +118,10 @@ def _movie_specs():
         and a path for where func should save the figure it generates.
     """
     return {
-        # "column_ML_wind_tendencies": {
-        #    "plotting_function": _save_wind_tendency_fig,
-        #    "required_variables": list(WIND_TENDENCY_PLOT_KWARGS.keys()),
-        # },
+        "column_ML_wind_tendencies": {
+            "plotting_function": _save_wind_tendency_fig,
+            "required_variables": list(WIND_TENDENCY_PLOT_KWARGS.keys()),
+        },
         "column_heating_moistening": {
             "plotting_function": _save_heating_moistening_fig,
             "required_variables": list(HEATING_MOISTENING_PLOT_KWARGS.keys()),
