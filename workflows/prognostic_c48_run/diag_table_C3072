@@ -273,7 +273,7 @@
  "gfs_phys",  "hpbl_coarse",            "HPBLsfc_coarse",          "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
  "gfs_phys",  "u10m_coarse",            "UGRD10m_coarse",          "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
  "gfs_phys",  "v10m_coarse",            "VGRD10m_coarse",          "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
- "gfs_phys",  "soilm_coarse",        "soilm_coarse",        "pire_atmos_phys_3h_coarse",  "all",  .false.,  "none",  2
+ "gfs_phys",  "soilm_coarse",        "SOILM_coarse",        "pire_atmos_phys_3h_coarse",  "all",  .false.,  "none",  2
  "gfs_sfc",   "SLMSKsfc_coarse",     "mask_coarse",         "pire_atmos_phys_3h_coarse",  "all",  .false.,  "none",  2
  "gfs_phys",  "TCDCclm_coarse",        "clt_coarse",        "pire_atmos_phys_3h_coarse",  "all",  .false.,  "none",  2
  "gfs_phys",  "TCDChcl_coarse",        "clh_coarse",        "pire_atmos_phys_3h_coarse",  "all",  .false.,  "none",  2
