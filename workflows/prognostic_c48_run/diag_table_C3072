@@ -1,0 +1,442 @@
+#output files
+
+"grid_spec",              -1,  "months",   1, "days",  "time"
+ "dynamics", "grid_lon", "grid_lon", "grid_spec", "all", .false.,  "none", 2,
+ "dynamics", "grid_lat", "grid_lat", "grid_spec", "all", .false.,  "none", 2,
+ "dynamics", "grid_lont", "grid_lont", "grid_spec", "all", .false.,  "none", 2,
+ "dynamics", "grid_latt", "grid_latt", "grid_spec", "all", .false.,  "none", 2,
+ "dynamics", "area",     "area",     "grid_spec", "all", .false.,  "none", 2,
+
+### grid_spec_coarse
+ "grid_spec_coarse",       -1,  "months",   1, "days",  "time"
+ "dynamics", "grid_lon_coarse",  "grid_lon_coarse",  "grid_spec_coarse", "all", .false.,  "none", 2,
+ "dynamics", "grid_lat_coarse",  "grid_lat_coarse",  "grid_spec_coarse", "all", .false.,  "none", 2,
+ "dynamics", "grid_lont_coarse", "grid_lont_coarse", "grid_spec_coarse", "all", .false.,  "none", 2,
+ "dynamics", "grid_latt_coarse", "grid_latt_coarse", "grid_spec_coarse", "all", .false.,  "none", 2,
+ "dynamics", "area_coarse",      "area_coarse",      "grid_spec_coarse", "all", .false.,  "none", 2,
+ "dynamics", "dx_coarse",        "dx_coarse",        "grid_spec_coarse", "all", .false.,  "none", 2,
+ "dynamics", "dy_coarse",        "dy_coarse",        "grid_spec_coarse", "all", .false.,  "none", 2,
+
+### atmosphere static data
+"pire_atmos_static",           -1,  "hours",    1, "hours", "time"
+ "dynamics",      "pk",          "pk",           "pire_atmos_static",      "all", .false.,  "none", 2
+ "dynamics",      "bk",          "bk",           "pire_atmos_static",      "all", .false.,  "none", 2
+ "dynamics",      "zsurf",       "HGTsfc",          "pire_atmos_static",      "all", .false.,  "none", 2
+
+### coarsened 3D Variables, pressure levels
+# "pire_atmos_3h_ua_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "ucomp_coarse",        "ua_coarse",        "pire_atmos_3h_ua_coarse",  "all",  .false.,  "none",  2
+# "pire_atmos_3h_va_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "vcomp_coarse",        "va_coarse",        "pire_atmos_3h_va_coarse",  "all",  .false.,  "none",  2
+# "pire_atmos_3h_w_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "w_coarse",        "w_coarse",        "pire_atmos_3h_w_coarse",  "all",  .false.,  "none",  2
+# "pire_atmos_3h_delp_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "delp_coarse",        "delp_coarse",        "pire_atmos_3h_delp_coarse",  "all",  .false.,  "none",  2
+# "pire_atmos_3h_delz_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "delz_coarse",        "delz_coarse",        "pire_atmos_3h_delz_coarse",  "all",  .false.,  "none",  2
+# "pire_atmos_3h_ta_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "temp_coarse",        "ta_coarse",        "pire_atmos_3h_ta_coarse",  "all",  .false.,  "none",  2
+# "pire_atmos_3h_pressure_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "pfnh_coarse",        "pressure_coarse",        "pire_atmos_3h_pressure_coarse",  "all",  .false.,  "none",  2
+# "pire_atmos_3h_specific_humidity_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "sphum_coarse",        "specific_humidity_coarse",        "pire_atmos_3h_specific_humidity_coarse",  "all",  .false.,  "none",  2
+# "pire_atmos_3h_clw_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "liq_wat_coarse",        "clw_coarse",        "pire_atmos_3h_clw_coarse",  "all",  .false.,  "none",  2
+# "pire_atmos_3h_cli_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "ice_wat_coarse",        "cli_coarse",        "pire_atmos_3h_cli_coarse",  "all",  .false.,  "none",  2
+# "pire_atmos_3h_geopotential_height_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "hght_coarse",        "geopotential_height_coarse",        "pire_atmos_3h_geopotential_height_coarse",  "all",  .false.,  "none",  2
+# "pire_atmos_3h_rainwat_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "rainwat_coarse",        "rainwat_coarse",        "pire_atmos_3h_rainwat_coarse",  "all",  .false.,  "none",  2
+# "pire_atmos_3h_snowwat_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "snowwat_coarse",        "snowwat_coarse",        "pire_atmos_3h_snowwat_coarse",  "all",  .false.,  "none",  2
+# "pire_atmos_3h_graupel_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "graupel_coarse",        "graupel_coarse",        "pire_atmos_3h_graupel_coarse",  "all",  .false.,  "none",  2
+# "pire_atmos_3h_o3mr_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "o3mr_coarse",        "o3mr_coarse",        "pire_atmos_3h_o3mr_coarse",  "all",  .false.,  "none",  2
+# "pire_atmos_3h_sgs_tke_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "sgs_tke_coarse",        "sgs_tke_coarse",        "pire_atmos_3h_sgs_tke_coarse",  "all",  .false.,  "none",  2
+# "atmos_3h_pbl_clock_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "pbl_clock_coarse",        "pbl_clock_coarse",        "atmos_3h_pbl_clock_coarse",  "all",  .false.,  "none",  2
+# "atmos_3h_tro_pbl_clock_coarse",          3,  "hours",  1, "hours",  "time"
+#  "dynamics",  "tro_pbl_clock_coarse",        "tro_pbl_clock_coarse",        "atmos_3h_tro_pbl_clock_coarse",  "all",  .false.,  "none",  2
+
+
+### Full-resolution 3D variables, native levels --- only for IOP
+ #"pire_atmos_3h_ua",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "ucomp",        "ua",        "pire_atmos_3h_ua",  "all",  .false.,  "none",  2
+ #"pire_atmos_3h_va",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "vcomp",        "va",        "pire_atmos_3h_va",  "all",  .false.,  "none",  2
+ #"pire_atmos_3h_w",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "w",        "w",        "pire_atmos_3h_w",  "all",  .false.,  "none",  2
+ #"pire_atmos_3h_delp",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "delp",        "delp",        "pire_atmos_3h_delp",  "all",  .false.,  "none",  2
+ #"pire_atmos_3h_delz",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "delz",        "delz",        "pire_atmos_3h_delz",  "all",  .false.,  "none",  2
+ #"pire_atmos_3h_ta",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "temp",        "ta",        "pire_atmos_3h_ta",  "all",  .false.,  "none",  2
+ #"pire_atmos_3h_pressure",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "pfnh",        "pressure",        "pire_atmos_3h_pressure",  "all",  .false.,  "none",  2
+ #"pire_atmos_3h_specific_humidity",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "sphum",        "specific_humidity",        "pire_atmos_3h_specific_humidity",  "all",  .false.,  "none",  2
+ #"pire_atmos_3h_clw",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "liq_wat",        "clw",        "pire_atmos_3h_clw",  "all",  .false.,  "none",  2
+ #"pire_atmos_3h_cli",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "ice_wat",        "cli",        "pire_atmos_3h_cli",  "all",  .false.,  "none",  2
+ #"pire_atmos_3h_geopotential_height",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "hght",        "geopotential_height",        "pire_atmos_3h_geopotential_height",  "all",  .false.,  "none",  2
+ #"pire_atmos_3h_rainwat",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "rainwat",        "rainwat",        "pire_atmos_3h_rainwat",  "all",  .false.,  "none",  2
+ #"pire_atmos_3h_snowwat",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "snowwat",        "snowwat",        "pire_atmos_3h_snowwat",  "all",  .false.,  "none",  2
+ #"pire_atmos_3h_graupel",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "graupel",        "graupel",        "pire_atmos_3h_graupel",  "all",  .false.,  "none",  2
+ #"pire_atmos_3h_o3mr",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "o3mr",        "o3mr",        "pire_atmos_3h_o3mr",  "all",  .false.,  "none",  2
+ #"pire_atmos_3h_sgs_tke",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "sgs_tke",        "sgs_tke",        "pire_atmos_3h_sgs_tke",  "all",  .false.,  "none",  2
+ #"atmos_3h_pbl_clock",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "pbl_clock",        "pbl_clock",        "atmos_3h_pbl_clock",  "all",  .false.,  "none",  2
+ #"atmos_3h_tro_pbl_clock",          3,  "hours",  1, "hours",  "time"
+ # "dynamics",  "tro_pbl_clock",        "tro_pbl_clock",        "atmos_3h_tro_pbl_clock",  "all",  .false.,  "none",  2
+
+###Full-resolution plev variables (3 hrs during IOP; not needed during segments)
+
+ # "pire_atmos_dyn_zg_plev_3h",          3,   "hours",  1, "hours",  "time"
+ #  "dynamics",  "h_plev",        "zg_plev",        "pire_atmos_dyn_zg_plev_3h",  "all",  .false.,  "none",  2
+ # "pire_atmos_dyn_ua_plev_3h",          3,   "hours",  1, "hours",  "time"
+ #  "dynamics",  "u_plev",        "ua_plev",        "pire_atmos_dyn_ua_plev_3h",  "all",  .false.,  "none",  2
+ # "pire_atmos_dyn_va_plev_3h",          3,   "hours",  1, "hours",  "time"
+ #  "dynamics",  "v_plev",        "va_plev",        "pire_atmos_dyn_va_plev_3h",  "all",  .false.,  "none",  2
+ # "pire_atmos_dyn_ta_plev_3h",          3,   "hours",  1, "hours",  "time"
+ #  "dynamics",  "t_plev",        "ta_plev",        "pire_atmos_dyn_ta_plev_3h",  "all",  .false.,  "none",  2
+ # "pire_atmos_dyn_rh_plev_3h",          3,   "hours",  1, "hours",  "time"
+ #  "dynamics",  "rh200",        "rh200",        "pire_atmos_dyn_rh_plev_3h",  "all",  .false.,  "none",  2
+ #  "dynamics",  "rh500",        "rh500",        "pire_atmos_dyn_rh_plev_3h",  "all",  .false.,  "none",  2
+ #  "dynamics",  "rh700",        "rh700",        "pire_atmos_dyn_rh_plev_3h",  "all",  .false.,  "none",  2
+ #  "dynamics",  "rh850",        "rh850",        "pire_atmos_dyn_rh_plev_3h",  "all",  .false.,  "none",  2
+ # "pire_atmos_dyn_w_plev_3h",          3,   "hours",  1, "hours",  "time"
+ #  "dynamics",  "w200",        "w200",        "pire_atmos_dyn_w_plev_3h",  "all",  .false.,  "none",  2
+ #  "dynamics",  "w500",        "w500",        "pire_atmos_dyn_w_plev_3h",  "all",  .false.,  "none",  2
+ #  "dynamics",  "w700",        "w700",        "pire_atmos_dyn_w_plev_3h",  "all",  .false.,  "none",  2
+ #  "dynamics",  "w850",        "w850",        "pire_atmos_dyn_w_plev_3h",  "all",  .false.,  "none",  2
+
+###Coarse-resolution plev variables
+"pire_atmos_dyn_plev_coarse_3h",     3,   "hours",  1, "hours",  "time"
+ "dynamics",  "omg1000_coarse",  "omg1000_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "omg925_coarse",  "omg925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "omg850_coarse",  "omg850_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "omg700_coarse",  "omg700_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "omg500_coarse",  "omg500_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "omg200_coarse",  "omg200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "omg50_coarse",  "omg50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+
+ "dynamics",  "z1000_coarse",  "z1000_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "z925_coarse",  "z925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "z850_coarse",  "z850_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "z700_coarse",  "z700_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "z500_coarse",  "z500_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "z200_coarse",  "z200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "z50_coarse",  "z50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+
+ "dynamics",  "q1000_coarse",  "q1000_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "q925_coarse",  "q925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "q850_coarse",  "q850_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "q700_coarse",  "q700_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "q500_coarse",  "q500_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "q200_coarse",  "q200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "q50_coarse",  "q50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+
+ "dynamics",  "u1000_coarse",  "u1000_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "u925_coarse",  "u925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "u850_coarse",  "u850_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "u700_coarse",  "u700_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "u500_coarse",  "u500_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "u200_coarse",  "u200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "u50_coarse",  "u50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+
+ "dynamics",  "v1000_coarse",  "v1000_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "v925_coarse",  "v925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "v850_coarse",  "v850_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "v700_coarse",  "v700_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "v500_coarse",  "v500_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "v200_coarse",  "v200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "v50_coarse",  "v50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+
+ "dynamics",  "w1000_coarse",  "w1000_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "w925_coarse",  "w925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "w850_coarse",  "w850_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "w700_coarse",  "w700_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "w500_coarse",  "w500_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "w200_coarse",  "w200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "w50_coarse",  "w50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+
+ "dynamics",  "temp1000_coarse",  "temp1000_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "temp925_coarse",  "temp925_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "temp850_coarse",  "temp850_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "temp700_coarse",  "temp700_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "temp500_coarse",  "temp500_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "temp200_coarse",  "temp200_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+ "dynamics",  "temp50_coarse",  "temp50_coarse", "pire_atmos_dyn_plev_coarse_3h", "all",  .false.,  "none",  2
+
+###Full-resolution 2D variables (6 hours during main segments, <= hourly during IOP)
+
+#Variables for TC tracking
+"pire_atmos_dyn_6h",  6,  "hours",  1, "hours",  "time"
+ "dynamics",  "slp",  "psl",        "pire_atmos_dyn_6h",  "all",  .false.,  "none",  2 #For TC tracking
+ "dynamics",  "tm",   "TMP500_300", "pire_atmos_dyn_6h",  "all",  .false.,  "none",  2 #For TC tracking
+ "dynamics",  "vort850", "VORT850",  "pire_atmos_dyn_6h",  "all",  .false.,  "none",  2
+
+"pire_atmos_dyn_6h_ave", 6,  "hours",  1, "hours",  "time"
+ "dynamics",  "CAPE",    "CAPE",        "pire_atmos_dyn_6h_ave", "all", max,  "none",  2
+ "dynamics",  "CIN",     "CIN",         "pire_atmos_dyn_6h_ave", "all", max,  "none",  2
+ "dynamics",  "uh25",    "MXUPHL2_5km", "pire_atmos_dyn_6h_ave", "all", max, "none", 2
+ "dynamics",  "uh25",    "MNUPHL2_5km", "pire_atmos_dyn_6h_ave", "all", min, "none", 2
+ "dynamics",  "wmaxup",  "MAXUVV",      "pire_atmos_dyn_6h_ave", "all", max, "none", 2
+ "dynamics",  "wmaxdn",  "MAXDVV",      "pire_atmos_dyn_6h_ave", "all", min, "none", 2
+
+"pire_atmos_phys_3h",          3,   "hours",  1, "hours",  "time" #these are three-hourly for diurnal cycle analysis
+ "gfs_phys", "totprcp",        "pr",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+ "gfs_sfc",  "t2m",        "tas",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+ "gfs_sfc",  "q2m",        "qas",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+
+"pire_atmos_phys_6h",          6,   "hours",  1, "hours",  "time" #these are six-hourly for TC tracking
+ "gfs_phys",  "u10m",        "uas",        "pire_atmos_phys_6h",  "all",  .false.,  "none",  2
+ "gfs_phys",  "v10m",        "vas",        "pire_atmos_phys_6h",  "all",  .false.,  "none",  2
+
+"pire_atmos_phys_daily",          24,   "hours",  1, "hours",  "time" #these are daily since they don't evolve quickly
+ "gfs_sfc",  "snowd",         "snowd",        "pire_atmos_phys_daily",  "all",  .false.,  "none",  2
+ "gfs_phys",  "snowca",        "snowca",        "pire_atmos_phys_daily",  "all",  .false.,  "none",  2
+ "gfs_phys",  "soilm",        "soilm",        "pire_atmos_phys_daily",  "all",  .false.,  "none",  2 #coarse-graining doesn't quite work right
+
+"pire_atmos_phys_static",          -1,  "minutes",  1, "hours",  "time"
+ "gfs_sfc",  "ZORLsfc",        "sfc_rough",        "pire_atmos_phys_static",  "all",  .false.,  "none",  2
+
+###Optional full-resolution plev variables (only for IOP)
+#These are variables that are either being coarse-grained or are not important
+#  for a year-round run
+  # "dynamics",  "ps",   "ps",         "pire_atmos_dyn_3h",  "all",  .false.,  "none",  2
+  # "dynamics",  "intqv",   "prw",      "pire_atmos_dyn_3h",  "all",  .false.,  "none",  2
+  # "dynamics",  "intql",   "cllvi",    "pire_atmos_dyn_3h",  "all",  .false.,  "none",  2
+  # "dynamics",  "intqi",   "clivi",    "pire_atmos_dyn_3h",  "all",  .false.,  "none",  2
+  # "dynamics",  "intqr",   "qrvi",     "pire_atmos_dyn_3h",  "all",  .false.,  "none",  2
+  # "dynamics",  "intqs",   "qsvi",     "pire_atmos_dyn_3h",  "all",  .false.,  "none",  2
+  # "dynamics",  "intqg",   "qgvi",     "pire_atmos_dyn_3h",  "all",  .false.,  "none",  2
+  # "dynamics",  "vort500", "VORT500",  "pire_atmos_dyn_3h",  "all",  .false.,  "none",  2
+  # "dynamics",  "vort200", "VORT200",  "pire_atmos_dyn_3h",  "all",  .false.,  "none",  2
+  # "dynamics",  "ctt",     "TMPctp",   "pire_atmos_dyn_3h",  "all",  .false.,  "none",  2
+  # "dynamics",  "ctz" ,    "HGTctp",   "pire_atmos_dyn_3h",  "all",  .false.,  "none",  2
+  # "dynamics",  "ctp",  "PRESctp",    "pire_atmos_dyn_3h",  "all",  .false.,  "none",  2 #Makes a nice animation
+
+  # "gfs_phys",  "DSWRFtoa",        "rsdt",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+  # "gfs_phys",  "USWRFtoa",        "rsut",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+  # "gfs_phys",  "ULWRFtoa",        "rlut",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+  # "gfs_phys",  "DSWRFsfc",        "rsds",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+  # "gfs_phys",  "USWRFsfc",        "rsus",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+  # "gfs_phys",  "DLWRFsfc",        "rlds",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+  # "gfs_phys",  "ULWRFsfc",        "rlus",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+  # "gfs_phys",  "dqsfc",        "hfls",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2 
+  # "gfs_phys",  "dtsfc",        "hfss",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+  # "gfs_phys",  "TCDCclm",        "clt",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2 #need coarse-grained values
+  # "gfs_phys",  "TCDChcl",        "clh",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+  # "gfs_phys",  "TCDCmcl",        "clm",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+  # "gfs_phys",  "TCDClcl",        "cll",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+  # "gfs_phys",  "dusfc",        "tauu",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+  # "gfs_phys",  "dvsfc",        "tauv",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+  # "gfs_sfc",  "tsfc",        "ts",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2
+  # "gfs_phys",  "soilm",        "soilm",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2 #needs coarse-grained value too
+  # "gfs_sfc",  "SLMSKsfc",     "mask",        "pire_atmos_phys_3h",  "all",  .false.,  "none",  2  #also needs coarse graining
+
+################
+#Vulcan coarse-grained diagnostics
+################
+
+# gfs physics output interval controlled by a separate namelist flag
+ "pire_atmos_phys_3h_coarse", 0,  "minutes",    1, "minutes",  "time"
+# All-sky radiative flux diagnostics
+ "gfs_phys",  "DLWRFsfc_coarse",    "DLWRFsfc_coarse",     "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "DSWRFsfc_coarse",    "DSWRFsfc_coarse",     "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "ULWRFsfc_coarse",    "ULWRFsfc_coarse",     "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "USWRFsfc_coarse",    "USWRFsfc_coarse",     "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "DSWRFtoa_coarse",    "DSWRFtoa_coarse",     "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "USWRFtoa_coarse",    "USWRFtoa_coarse",     "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "ULWRFtoa_coarse",    "ULWRFtoa_coarse",     "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+
+# Surface temperature for reference
+ "gfs_sfc",   "tsfc_coarse",            "tsfc_coarse",             "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "dqsfc_coarse",           "LHTFLsfc_coarse",         "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "dtsfc_coarse",           "SHTFLsfc_coarse",         "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "totprcp_coarse",         "PRATEsfc_coarse",         "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "cnvprcp_coarse",         "CPRATEsfc_coarse",        "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "dusfc_coarse",           "uflx_coarse",             "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "dvsfc_coarse",           "vflx_coarse",             "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "hpbl_coarse",            "HPBLsfc_coarse",          "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "u10m_coarse",            "UGRD10m_coarse",          "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "v10m_coarse",            "VGRD10m_coarse",          "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_phys",  "soilm_coarse",        "soilm_coarse",        "pire_atmos_phys_3h_coarse",  "all",  .false.,  "none",  2
+ "gfs_sfc",   "SLMSKsfc_coarse",     "mask_coarse",         "pire_atmos_phys_3h_coarse",  "all",  .false.,  "none",  2
+ "gfs_phys",  "TCDCclm_coarse",        "clt_coarse",        "pire_atmos_phys_3h_coarse",  "all",  .false.,  "none",  2
+ "gfs_phys",  "TCDChcl_coarse",        "clh_coarse",        "pire_atmos_phys_3h_coarse",  "all",  .false.,  "none",  2
+ "gfs_phys",  "TCDCmcl_coarse",        "clm_coarse",        "pire_atmos_phys_3h_coarse",  "all",  .false.,  "none",  2
+ "gfs_phys",  "TCDClcl_coarse",        "cll_coarse",        "pire_atmos_phys_3h_coarse",  "all",  .false.,  "none",  2
+
+ "gfs_phys",  "MLD_coarse",        "mld_coarse",        "pire_atmos_phys_3h_coarse",  "all",  .false.,  "none",  2
+ "gfs_phys",  "qflux_restore_coarse", "qflux_restore_coarse", "pire_atmos_phys_3h_coarse",  "all",  .false.,  "none",  2
+
+###
+# pire_atmos_dyn_3h_coarse_inst
+###
+"pire_atmos_dyn_3h_coarse_inst", 3, "hours",    1, "minutes",  "time"
+
+# Corrected omega diagnostic and eddy flux diagnostics
+ "dynamics", "ps_coarse",  "ps_coarse", "pire_atmos_dyn_3h_coarse_inst", "all", .false., "none", 2 #this is useful
+ "dynamics", "tq_coarse",  "PWAT_coarse", "pire_atmos_dyn_3h_coarse_inst", "all", .false., "none", 2 #this is useful
+ "dynamics", "lw_coarse",  "VIL_coarse", "pire_atmos_dyn_3h_coarse_inst", "all", .false., "none", 2 #this is useful
+ "dynamics", "iw_coarse",  "iw_coarse", "pire_atmos_dyn_3h_coarse_inst", "all", .false., "none", 2 #this is useful
+
+###
+# Coarse-resolution total diagnostics
+###
+"pire_atmos_phys_3h_coarse_ave",  3, "hours",    1, "minutes",  "time"
+
+# Total accumulated physics tendencies
+ "dynamics", "qv_dt_phys_coarse",      "qv_dt_phys_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "liq_wat_dt_phys_coarse", "liq_wat_dt_phys_coarse",  "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "ice_wat_dt_phys_coarse", "ice_wat_dt_phys_coarse",  "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "qr_dt_phys_coarse",      "qr_dt_phys_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "qs_dt_phys_coarse",      "qs_dt_phys_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "qg_dt_phys_coarse",      "qg_dt_phys_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "t_dt_phys_coarse",       "t_dt_phys_coarse",        "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "u_dt_phys_coarse",       "u_dt_phys_coarse",        "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "v_dt_phys_coarse",       "v_dt_phys_coarse",        "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+
+# Accumulated in-line microphysics tendencies
+ "dynamics",  "qv_dt_gfdlmp_coarse",      "qv_dt_gfdlmp_coarse",      "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics",  "liq_wat_dt_gfdlmp_coarse", "liq_wat_dt_gfdlmp_coarse", "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics",  "ice_wat_dt_gfdlmp_coarse", "ice_wat_dt_gfdlmp_coarse", "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics",  "qr_dt_gfdlmp_coarse",      "qr_dt_gfdlmp_coarse",      "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics",  "qg_dt_gfdlmp_coarse",      "qg_dt_gfdlmp_coarse",      "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics",  "qs_dt_gfdlmp_coarse",      "qs_dt_gfdlmp_coarse",      "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics",  "t_dt_gfdlmp_coarse",       "t_dt_gfdlmp_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics",  "u_dt_gfdlmp_coarse",       "u_dt_gfdlmp_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics",  "v_dt_gfdlmp_coarse",       "v_dt_gfdlmp_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+
+# Accumulated 2dz filter tendencies
+ "dynamics",  "t_dt_sg_coarse",       "t_dt_sg_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics",  "u_dt_sg_coarse",       "u_dt_sg_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics",  "v_dt_sg_coarse",       "v_dt_sg_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+
+"pire_atmos_dyn_3h_coarse_ave",  3, "hours",    1, "minutes",  "time"
+# Corrected omega diagnostic and eddy flux diagnostics
+ "dynamics", "lagrangian_tendency_of_hydrostatic_pressure_coarse", "ptend_coarse", "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "temp_coarse", "temp_coarse", "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "sphum_coarse", "sphum_coarse", "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "liq_wat_coarse", "liq_wat_coarse", "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "ice_wat_coarse", "ice_wat_coarse", "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "rainwat_coarse", "rainwat_coarse", "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "snowwat_coarse", "snowwat_coarse", "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "graupel_coarse", "graupel_coarse", "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "vertical_eddy_flux_of_temperature_coarse",           "omT_coarse",   "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "vertical_eddy_flux_of_specific_humidity_coarse",     "omqv_coarse",  "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "vertical_eddy_flux_of_liquid_water_coarse",          "omql_coarse",  "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "vertical_eddy_flux_of_ice_water_coarse",             "omqi_coarse",  "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "vertical_eddy_flux_of_rain_water_coarse",            "omqr_coarse",  "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "vertical_eddy_flux_of_snow_water_coarse",            "omqs_coarse",  "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "vertical_eddy_flux_of_graupel_coarse",               "omqg_coarse",  "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2 
+ "dynamics", "delp_coarse",                                        "delp_coarse",  "pire_atmos_dyn_3h_coarse_ave",  "all",  .true.,  "none",  2
+ "dynamics", "ps_coarse",                                          "ps_coarse",    "pire_atmos_dyn_3h_coarse_ave", "all", .true., "none", 2
+
+# Vertically integrated total accumulated physics tendencies
+  "dynamics",  "int_qv_dt_phys_coarse",      "int_qv_dt_phys_coarse",      "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_liq_wat_dt_phys_coarse", "int_liq_wat_dt_phys_coarse", "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_ice_wat_dt_phys_coarse", "int_ice_wat_dt_phys_coarse", "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_qr_dt_phys_coarse",      "int_qr_dt_phys_coarse",      "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_qs_dt_phys_coarse",      "int_qs_dt_phys_coarse",      "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_qg_dt_phys_coarse",      "int_qg_dt_phys_coarse",      "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_t_dt_phys_coarse",       "int_t_dt_phys_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_u_dt_phys_coarse",       "int_u_dt_phys_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_v_dt_phys_coarse",       "int_v_dt_phys_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+
+# Vertically-integrated in-line microphysics tendencies
+  "dynamics",  "int_qv_dt_gfdlmp_coarse",      "int_qv_dt_gfdlmp_coarse",      "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_liq_wat_dt_gfdlmp_coarse", "int_liq_wat_dt_gfdlmp_coarse", "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_ice_wat_dt_gfdlmp_coarse", "int_ice_wat_dt_gfdlmp_coarse", "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_qr_dt_gfdlmp_coarse",      "int_qr_dt_gfdlmp_coarse",      "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_qg_dt_gfdlmp_coarse",      "int_qg_dt_gfdlmp_coarse",      "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_qs_dt_gfdlmp_coarse",      "int_qs_dt_gfdlmp_coarse",      "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_t_dt_gfdlmp_coarse",       "int_t_dt_gfdlmp_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_u_dt_gfdlmp_coarse",       "int_u_dt_gfdlmp_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+  "dynamics",  "int_v_dt_gfdlmp_coarse",       "int_v_dt_gfdlmp_coarse",       "pire_atmos_phys_3h_coarse_ave",  "all",  .true.,  "none",  2
+
+#Partitioned heating rate tendencies
+"pire_tend_3h_crs_ave", 3, "hours", 1, "minutes", "time"
+"gfs_phys","tendency_of_air_temperature_due_to_longwave_heating_coarse","tendency_of_air_temperature_due_to_longwave_heating_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","tendency_of_air_temperature_due_to_shortwave_heating_coarse","tendency_of_air_temperature_due_to_shortwave_heating_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","tendency_of_air_temperature_due_to_turbulence_coarse","tendency_of_air_temperature_due_to_turbulence_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+#"gfs_phys","tendency_of_air_temperature_due_to_deep_convection_coarse","tendency_of_air_temperature_due_to_deep_convection_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","tendency_of_air_temperature_due_to_shallow_convection_coarse","tendency_of_air_temperature_due_to_shallow_convection_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+#"gfs_phys","tendency_of_air_temperature_due_to_microphysics_coarse","tendency_of_air_temperature_due_to_microphysics_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","tendency_of_air_temperature_due_to_dissipation_of_gravity_waves_coarse","tendency_of_air_temperature_due_to_dissipation_of_gravity_waves_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky_coarse","tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky_coarse","tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","tendency_of_specific_humidity_due_to_turbulence_coarse","tendency_of_specific_humidity_due_to_turbulence_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+#"gfs_phys","tendency_of_specific_humidity_due_to_deep_convection_coarse","tendency_of_specific_humidity_due_to_deep_convection_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","tendency_of_specific_humidity_due_to_shallow_convection_coarse","tendency_of_specific_humidity_due_to_shallow_convection_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+#"gfs_phys","tendency_of_specific_humidity_due_to_microphysics_coarse","tendency_of_specific_humidity_due_to_microphysics_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","tendency_of_specific_humidity_due_to_change_in_atmosphere_mass_coarse","tendency_of_specific_humidity_due_to_change_in_atmosphere_mass_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+
+"gfs_phys","vertically_integrated_tendency_of_air_temperature_due_to_longwave_heating_coarse","int_tendency_of_air_temperature_due_to_longwave_heating_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","vertically_integrated_tendency_of_air_temperature_due_to_shortwave_heating_coarse","int_tendency_of_air_temperature_due_to_shortwave_heating_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","vertically_integrated_tendency_of_air_temperature_due_to_turbulence_coarse","int_tendency_of_air_temperature_due_to_turbulence_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+#"gfs_phys","vertically_integrated_tendency_of_air_temperature_due_to_deep_convection_coarse","int_tendency_of_air_temperature_due_to_deep_convection_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","vertically_integrated_tendency_of_air_temperature_due_to_shallow_convection_coarse","int_tendency_of_air_temperature_due_to_shallow_convection_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+#"gfs_phys","vertically_integrated_tendency_of_air_temperature_due_to_microphysics_coarse","int_tendency_of_air_temperature_due_to_microphysics_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","vertically_integrated_tendency_of_air_temperature_due_to_dissipation_of_gravity_waves_coarse","int_tendency_of_air_temperature_due_to_dissipation_of_gravity_waves_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","vertically_integrated_tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky_coarse","int_tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","vertically_integrated_tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky_coarse","int_tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","vertically_integrated_tendency_of_specific_humidity_due_to_turbulence_coarse","int_tendency_of_specific_humidity_due_to_turbulence_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+#"gfs_phys","vertically_integrated_tendency_of_specific_humidity_due_to_deep_convection_coarse","int_tendency_of_specific_humidity_due_to_deep_convection_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","vertically_integrated_tendency_of_specific_humidity_due_to_shallow_convection_coarse","int_tendency_of_specific_humidity_due_to_shallow_convection_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+#"gfs_phys","vertically_integrated_tendency_of_specific_humidity_due_to_microphysics_coarse","int_tendency_of_specific_humidity_due_to_microphysics_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+"gfs_phys","vertically_integrated_tendency_of_specific_humidity_due_to_change_in_atmosphere_mass_coarse","int_tendency_of_specific_humidity_due_to_change_in_atmosphere_mass_coarse","pire_tend_3h_crs_ave","all",.true.,"none",2
+
+
+### atmosphere static data
+"pire_atmos_static_coarse",           -1,  "hours",    1, "hours", "time"
+ "dynamics",      "zsurf_coarse",       "zsurf_coarse",          "pire_atmos_static_coarse",      "all", .false.,  "none", 2
+
+
+#=============================================================================================
+#
+#====> This file can be used with diag_manager/v2.0a (or higher) <====
+#
+#
+#  FORMATS FOR FILE ENTRIES (not all input values are used)
+#  ------------------------
+#
+#"file_name", output_freq, "output_units", format, "time_units", "long_name",
+#
+#
+#output_freq:  > 0  output frequency in "output_units"
+#              = 0  output frequency every time step
+#              =-1  output frequency at end of run
+#
+#output_units = units used for output frequency
+#               (years, months, days, minutes, hours, seconds)
+#
+#time_units   = units used to label the time axis
+#               (days, minutes, hours, seconds)
+#
+#
+#  FORMAT FOR FIELD ENTRIES (not all input values are used)
+#  ------------------------
+#
+#"module_name", "field_name", "output_name", "file_name" "time_sampling", time_avg, "other_opts", packing
+#
+#time_avg = .true. or .false.
+#
+#packing  = 1  double precision
+#         = 2  float
+#         = 4  packed 16-bit integers
+#         = 8  packed 1-byte (not tested?)
+
