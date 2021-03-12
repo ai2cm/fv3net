@@ -84,9 +84,7 @@ def _get_coarsening_args(
 
 def _load_prognostic_run_3d_output(url: str):
     fs = get_fs(url)
-    prognostic_3d_output = [
-        item for item in fs.ls(url) if item.endswith("xdaily.zarr")
-    ]
+    prognostic_3d_output = [item for item in fs.ls(url) if item.endswith("xdaily.zarr")]
     if len(prognostic_3d_output) > 0:
         zarr_name = os.path.basename(prognostic_3d_output[0])
         path = os.path.join(url, zarr_name)
