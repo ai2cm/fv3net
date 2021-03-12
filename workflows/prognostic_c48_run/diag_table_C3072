@@ -263,7 +263,7 @@
  "gfs_phys",  "ULWRFtoa_coarse",    "ULWRFtoa_coarse",     "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
 
 # Surface temperature for reference
- "gfs_sfc",   "tsfc_coarse",            "tsfc_coarse",             "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
+ "gfs_sfc",   "tsfc_coarse",            "TMPsfc_coarse",             "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
  "gfs_phys",  "dqsfc_coarse",           "LHTFLsfc_coarse",         "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
  "gfs_phys",  "dtsfc_coarse",           "SHTFLsfc_coarse",         "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
  "gfs_phys",  "totprcp_coarse",         "PRATEsfc_coarse",         "pire_atmos_phys_3h_coarse", "all", .true.,  "none", 2
