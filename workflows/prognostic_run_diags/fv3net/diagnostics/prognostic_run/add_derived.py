@@ -199,7 +199,7 @@ def _total_precip_to_surface(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_dq1_or_nq1(ds: xr.Dataset, tol=1.0e-12) -> xr.DataArray:
-    """<dQ1>+<nQ1> with appropriate long name if either is zero-valued. Useful for movies."""
+    """<dQ1>+<nQ1> with appropriate long name if either is zero. Useful for movies."""
     column_dq1 = _column_dq1(ds)
     column_nq1 = _column_nq1(ds)
     column_dq1_or_nq1 = column_dq1 + column_nq1
@@ -214,7 +214,7 @@ def _column_dq1_or_nq1(ds: xr.Dataset, tol=1.0e-12) -> xr.DataArray:
 
 
 def _column_dq2_or_nq2(ds: xr.Dataset, tol=1.0e-12) -> xr.DataArray:
-    """<dQ2>+<nQ2> with appropriate long name if either is zero-valued. Useful for movies."""
+    """<dQ2>+<nQ2> with appropriate long name if either is zero. Useful for movies."""
     column_dq2 = _column_dq2(ds)
     column_nq2 = _column_nq2(ds)
     column_dq2_or_nq2 = column_dq2 + column_nq2
