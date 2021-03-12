@@ -40,6 +40,9 @@ Python "Physics"
 .. py:module:: runtime.nudging
 .. autoclass:: NudgingConfig
 
+.. py:module:: runtime.steppers.prephysics
+.. autoclass:: PrephysicsConfig
+
 
 Diagnostics
 ~~~~~~~~~~~
