@@ -73,7 +73,7 @@ fortran_diagnostics:
 gfs_analysis_data:
   copy_method: copy
   filename_pattern: '%Y%m%d_%HZ_T85LR.nc'
-  url: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
+  url: gs://vcm-ml-raw-flexible-retention/2019-12-02-year-2016-T85-nudging-data
 initial_conditions:
 - copy_method: copy
   source_location: gs://ic-bucket/20160805.000000
