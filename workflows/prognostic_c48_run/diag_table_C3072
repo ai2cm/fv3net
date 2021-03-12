@@ -289,7 +289,8 @@
 "pire_atmos_dyn_3h_coarse_inst", 3, "hours",    1, "minutes",  "time"
 
 # Corrected omega diagnostic and eddy flux diagnostics
- "dynamics", "ps_coarse",  "ps_coarse", "pire_atmos_dyn_3h_coarse_inst", "all", .false., "none", 2 #this is useful
+ "dynamics", "ps_coarse",  "PRESsfc_coarse", "pire_atmos_dyn_3h_coarse_inst", "all", .false., "none", 2 #this is useful
+  "dynamics", "slp_coarse",  "PRMSLsfc_coarse", "pire_atmos_dyn_3h_coarse_inst", "all", .false., "none", 2 #this is useful
  "dynamics", "tq_coarse",  "PWAT_coarse", "pire_atmos_dyn_3h_coarse_inst", "all", .false., "none", 2 #this is useful
  "dynamics", "lw_coarse",  "VIL_coarse", "pire_atmos_dyn_3h_coarse_inst", "all", .false., "none", 2 #this is useful
  "dynamics", "iw_coarse",  "iw_coarse", "pire_atmos_dyn_3h_coarse_inst", "all", .false., "none", 2 #this is useful
