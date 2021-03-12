@@ -46,10 +46,10 @@ INTERFACE_DIMS = ["x_interface", "y_interface"]
 
 HEATING_MOISTENING_PLOT_KWARGS = {
     "column_integrated_pQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
-    "column_integrated_dQ1_or_nQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
+    "column_integrated_dQ1_or_nQ1": {"vmin": -300, "vmax": 300, "cmap": "RdBu_r"},
     "column_integrated_Q1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
     "column_integrated_pQ2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
-    "column_integrated_dQ2_or_nQ2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
+    "column_integrated_dQ2_or_nQ2": {"vmin": -10, "vmax": 10, "cmap": "RdBu_r"},
     "column_integrated_Q2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
 }
 
