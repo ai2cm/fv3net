@@ -269,6 +269,7 @@ def zonal_means_physics(prognostic, verification, grid):
 
 @add_to_diags("3d")
 @diag_finalizer("pressure_level_zonal_time_mean")
+@transform.apply("insert_absent_3d_output_placeholder")
 @transform.apply("resample_time", "1H")
 def zonal_means_3d(prognostic, verification, grid):
     logger.info("Preparing zonal+time means (3d)")
@@ -278,6 +279,7 @@ def zonal_means_3d(prognostic, verification, grid):
 
 @add_to_diags("3d")
 @diag_finalizer("pressure_level_zonal_bias")
+@transform.apply("insert_absent_3d_output_placeholder")
 @transform.apply("resample_time", "1H")
 def zonal_bias_3d(prognostic, verification, grid):
     logger.info("Preparing zonal mean bias (3d)")

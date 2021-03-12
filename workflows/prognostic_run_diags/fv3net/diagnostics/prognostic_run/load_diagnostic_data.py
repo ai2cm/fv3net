@@ -86,10 +86,13 @@ def _load_prognostic_run_3d_output(url: str):
     fs = get_fs(url)
     prognostic_3d_output = [
         item for item in fs.ls(url) if item.endswith("xdaily.zarr")
-    ][0]
-    zarr_name = os.path.basename(prognostic_3d_output)
-    path = os.path.join(url, zarr_name)
-    return _load_standardized(path)
+    ]
+    if len(prognostic_3d_output) > 0:
+        zarr_name = os.path.basename(prognostic_3d_output[0])
+        path = os.path.join(url, zarr_name)
+        return _load_standardized(path)
+    else:
+        return None
 
 
 def load_3d(
@@ -97,44 +100,48 @@ def load_3d(
 ) -> DiagArg:
     logger.info(f"Processing 3d data from run directory at {url}")
 
-    # open grid
-    logger.info("Opening Grid Spec")
-    grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
-
-    # open prognostic run data
+    # open prognostic run data. If 3d data not saved, return empty datasets.
     ds = _load_prognostic_run_3d_output(url)
-    input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
-    area = catalog[input_grid].to_dask()["area"]
-    ds = _coarsen(ds, area, coarsening_factor)
+    if ds is None:
+        return xr.Dataset(), xr.Dataset(), xr.Dataset()
 
-    # rename to common variable names
-    renamed = {
-        "temp": "air_temperature",
-        "w": "vertical_wind",
-        "sphum": "specific_humidity",
-        "ucomp": "eastward_wind",
-        "vcomp": "northward_wind",
-    }
-    ds = ds.rename(renamed)
+    else:
+        input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
+        area = catalog[input_grid].to_dask()["area"]
+        ds = _coarsen(ds, area, coarsening_factor)
 
-    # interpolate 3d prognostic fields to pressure levels
-    ds_interp = xr.Dataset()
-    for var in renamed.values():
-        ds_interp[var] = vcm.interpolate_to_pressure_levels(
-            field=ds[var], delp=ds["delp"]
-        )
+        # open grid
+        logger.info("Opening Grid Spec")
+        grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
 
-    # open verification
-    logger.info("Opening verification data")
-    verification_c48 = load_verification(verification_entries, catalog)
+        # rename to common variable names
+        renamed = {
+            "temp": "air_temperature",
+            "w": "vertical_wind",
+            "sphum": "specific_humidity",
+            "ucomp": "eastward_wind",
+            "vcomp": "northward_wind",
+        }
+        ds = ds.rename(renamed)
 
-    # Not all verification datasets have 3D variables saved,
-    # if not available fill with NaNs
-    if len(verification_c48.data_vars) == 0:
-        for var in ds_interp:
-            verification_c48[var] = xr.full_like(ds_interp[var], np.nan)
-            verification_c48[var].attrs = ds_interp[var].attrs
-    return ds_interp, verification_c48, grid_c48
+        # interpolate 3d prognostic fields to pressure levels
+        ds_interp = xr.Dataset()
+        for var in renamed.values():
+            ds_interp[var] = vcm.interpolate_to_pressure_levels(
+                field=ds[var], delp=ds["delp"]
+            )
+
+        # open verification
+        logger.info("Opening verification data")
+        verification_c48 = load_verification(verification_entries, catalog)
+
+        # Not all verification datasets have 3D variables saved,
+        # if not available fill with NaNs
+        if len(verification_c48.data_vars) == 0:
+            for var in ds_interp:
+                verification_c48[var] = xr.full_like(ds_interp[var], np.nan)
+                verification_c48[var].attrs = ds_interp[var].attrs
+        return ds_interp, verification_c48, grid_c48
 
 
 def load_dycore(
