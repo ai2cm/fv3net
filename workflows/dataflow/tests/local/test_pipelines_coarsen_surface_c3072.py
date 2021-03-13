@@ -44,7 +44,7 @@ def test_CombineSubtilesByKey(tmpdir):
 def test__name():
     key = {"tile": 3, "name": "a"}
     path = coarsen_surface_c3072._name(key)
-    #TODO Update
+    # TODO Update
     assert (
         path == f"gs://vcm-ml-data/"
         "2019-11-06-X-SHiELD-gfsphysics-diagnostics-coarsened/C384/a.tile3.nc"

@@ -2,6 +2,7 @@ from fv3net.pipelines.restarts_to_zarr.funcs import main
 
 import pytest
 
+
 @pytest.mark.regression
 def test_restarts_to_zarr(tmpdir):
     output = tmpdir.join("out")
