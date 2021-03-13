@@ -87,7 +87,7 @@ def test__parse_category_fails_with_ambiguous_category():
     [
         (
             OUTPUT_URL,
-            "vcm-ml-data/"
+            "vcm-ml-intermediate/"
             "2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/"
             "one_step_output/C48/20160801.001500/input.nml",
         )
