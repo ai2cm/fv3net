@@ -112,7 +112,41 @@ sources:
       storage_options:
         project: 'vcm-ml'
         access: read_only
-      urlpath: "gs://vcm-ml-experiments/2020-06-17-triad-round-1/coarsen-c384-diagnostics/coarsen_diagnostics/gfsphysics_15min_coarse.zarr"
+      urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/gfsphysics_15min_coarse.zarr"
+      consolidated: True
+
+  40day_c48_atmos_8xdaily_may2020:
+    description: 2D dynamical core diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution.
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 40day_may2020
+      category: dycore
+      variables:
+        - PRESctp
+        - PRESsfc
+        - PRMSL
+        - PWAT
+        - REFC
+        - TB
+        - TMP500_300
+        - UGRDlowest
+        - VGRDlowest
+        - VIL
+        - VORT200
+        - VORT500
+        - VORT850
+        - VVEL5km
+        - h500
+        - iw
+        - u200
+        - v200
+        - w500
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/atmos_8xdaily_C3072_to_C384.zarr"
       consolidated: True
 
   GFS_analysis_T85_2015_2016:
