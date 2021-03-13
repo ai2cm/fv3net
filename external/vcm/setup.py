@@ -19,7 +19,6 @@ install_requirements = [
     "scipy",
     "scikit-image",
     "metpy",
-    "pooch==1.1.1",
     "intake",
     "gcsfs",
     "zarr",

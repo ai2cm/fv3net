@@ -5,8 +5,67 @@ let
   # callPackage = path: overrides:
   #   let f = import path;
   #   in f ((builtins.intersectAttrs (builtins.functionArgs f) allPkgs) // overrides);
-  packageOverrides = mpi: fv3: self: super: rec {
-    wrapper = super.callPackage ./wrapper.nix {inherit fv3;};
+  packageOverrides = nixpkgs: mpi: fv3: self: super: rec {
+
+    apache-beam = self.callPackage ./packages/apache-beam { };
+
+    bump2version = self.callPackage ./packages/bump2version { };
+
+    conda-lock = self.callPackage ./packages/conda-lock { };
+
+    dacite = self.callPackage ./packages/dacite { };
+
+    ensureconda = self.callPackage ./packages/ensureconda { };
+
+    f90nml = self.callPackage ./packages/f90nml { };
+
+    fastavro = self.callPackage ./packages/fastavro { };
+
+    flatbuffers = self.callPackage ./packages/flatbuffers { };
+
+    fv3config = self.callPackage ./packages/fv3config { };
+
+    gcsfs = self.callPackage ./packages/gcsfs { };
+
+    google-apitools = self.callPackage ./packages/google-apitools { };
+
+    google-cloud-build = self.callPackage ./packages/google-cloud-build { };
+
+    hdfs = self.callPackage ./packages/hdfs { };
+
+    intake-xarray = self.callPackage ./packages/intake-xarray { };
+
+    metpy = self.callPackage ./packages/metpy { };
+
+    nc-time-axis = self.callPackage ./packages/nc-time-axis { };
+
+    pytest-regtest = self.callPackage ./packages/pytest-regtest { };
+
+    sphinx-gallery = self.callPackage ./packages/sphinx-gallery { };
+
+    xgcm = self.callPackage ./packages/xgcm { };
+
+    yq = self.callPackage ./packages/yq { };
+    
+    wrapper = self.callPackage ./wrapper.nix {inherit fv3;};
+
+    # this test was very slow
+    intake = super.intake.overrideAttrs (oldAttrs: {disabledTests = oldAttrs.disabledTests + ''"test_conf_auth"'';});
+
+    # skimage 0.17.2 tries to write to a read-only directory
+    # use lower version
+    scikitimage = super.scikitimage.overrideAttrs (oldAttrs : rec {
+      
+      version = "0.16.2"; 
+      pname = "scikit-image";
+
+      src = self.fetchPypi {
+        inherit pname version;
+        sha256 = "13060l9vnaifw705s7z6rrk7jvpi67vlan61gnbfkm3lv8rbszyx";
+      };
+    
+      });
+
     mpi4py = super.mpi4py.override {inherit mpi;};
     cftime = super.cftime.overrideAttrs (oldAttrs: {
         pname = "cftime";
@@ -25,52 +84,80 @@ let
         "test_bytes"
       ];
     });
-    fv3gfs-util = super.buildPythonPackage {
+
+    fv3gfs-util = self.buildPythonPackage {
       version = "0.1.0";
       pname = "fv3gfs-wrapper";
       src = ../external/fv3gfs-util;
-      propagatedBuildInputs = [
-        super.fsspec
-        super.xarray
-        super.zarr
-        super.typing-extensions
+      propagatedBuildInputs = with self; [
+        fsspec
+        xarray
+        zarr
+        typing-extensions
         cftime
       ];
-
     };
-    fv3config = super.buildPythonPackage rec {
-      pname = "fv3config";
-      version = "0.6.1";
 
-      src = super.fetchPypi {
-        inherit pname version;
-        sha256 = "00f0c1c1lnbhwmyg1kjvp0yxbj1kj3pls7jh2zywb0l0fs72n2px";
-      };
+    fv3kube = self.buildPythonPackage {
+          pname = "fv3kube";
+          version = "na";
+          src = ../external/fv3kube;
 
-      doCheck = false;
+          FV3CONFIG_CACHE_DIR = ".";
+          checkInputs = [ self.pytestCheckHook pytest-regtest ];
+          propagatedBuildInputs = with self; [
+            kubernetes
+            fv3config
+          ];
+        };
 
-      propagatedBuildInputs = [
-        super.fsspec
-        super.backoff
-        super.pyyaml
-        super.appdirs
-        # gcsfs
-        # f90nml
-        # dacite
-      ];
-    };
-    # gcsfs = super.callPackage ../pynixify/packages/gcsfs {} ;
-    # dacite = super.callPackage ../pynixify/packages/dacite {} ;
-    # f90nml = super.callPackage ../pynixify/packages/f90nml {} ;
+    vcm = self.buildPythonPackage {
+          pname = "fv3kube";
+          version = "na";
+          src = ../external/vcm;
+
+        doCheck = false;
+          checkInputs = [  pytest-regtest ];
+          nativeBuildInputs = [ 
+            nixpkgs.gfortran
+          ];
+          propagatedBuildInputs = with self; [
+            click
+            f90nml
+            appdirs
+            requests
+            h5py
+            dask
+            xarray
+            toolz
+            scipy
+            scikitimage
+            metpy
+            pooch
+            intake
+            gcsfs
+            zarr
+            xgcm
+            cftime
+            google_cloud_storage
+            google_api_core
+            h5netcdf
+            docrep
+            pytest-regtest
+            intake-xarray
+          ];
+        };
+
   };
   overlay = self: super: with nixpkgs; rec {
     # ensure that everything uses mpich for mpi
-    fms = super.callPackage ./fms { };
-    esmf = super.callPackage ./esmf { };
-    nceplibs = super.callPackage ./nceplibs { };
-    fv3 = super.callPackage ./fv3 { };
+
+    fms = self.callPackage ./fms { };
+    esmf = self.callPackage ./esmf { };
+    nceplibs = self.callPackage ./nceplibs { };
+    fv3 = self.callPackage ./fv3 { };
     python3 = super.python3.override {
-      packageOverrides = packageOverrides mpich fv3;
+      packageOverrides = packageOverrides self mpich fv3;
     };
     wrapper = python.pkgs.wrapper;
   };
@@ -82,7 +169,9 @@ let
   # Hash obtained using `nix-prefetch-url --unpack <url>`
   sha256 = "1wg61h4gndm3vcprdcg7rc4s1v3jkm5xd7lw8r2f67w502y94gcy";
 }) {overlays = [overlay];};
-  py = nixpkgs.python3.withPackages (ps: [ ps.pip ps.setuptools ps.numpy ps.wrapper ]);
+  loaders_reqs = (ps: with ps; [joblib intake]);
+  fv3fit_reqs = (ps: with ps; []);
+  py = nixpkgs.python3.withPackages (ps: with ps; [ pip setuptools numpy wrapper fv3config pytest dask scikitimage xgcm metpy tox fv3kube vcm] ++ loaders_reqs ps ++ fv3fit_reqs ps);
   shell = with nixpkgs; mkShell {
   buildInputs = [
           pkg-config
@@ -106,7 +195,7 @@ let
           # for cartopy
           geos 
           proj_5
-    ];
+    ] ++ nixpkgs.python3.pkgs.tensorflow_2.propagatedBuildInputs;
 
     MPI="mpich";
     FC="gfortran";
@@ -124,7 +213,7 @@ let
     export PATH="$PIP_PREFIX/bin:$PATH"
     unset SOURCE_DATE_EPOCH
 
-    export PIP_CONSTRAINT=$(pwd)/constraints.txt
+    # export PIP_CONSTRAINT=$(pwd)/constraints.txt
     export PIP_NO_BINARY=shapely,cartopy,mpi4py
     export GEOS_CONFIG=geos-config
 
@@ -132,6 +221,11 @@ let
     # need this for shapely to work
     export DYLD_LIBRARY_PATH=${geos}/lib
     export CC=${gfortran.cc}/bin/gcc
+
+    # local packages
+    export PYTHONPATH=$(pwd)/external/vcm:$(pwd)/external/loaders:$(pwd)/external/synth:$(pwd)/external/fv3fit:$PYTHONPATH
+
+
     # source .env/bin/activate
   '';
 };
