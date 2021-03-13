@@ -6,7 +6,10 @@ import pytest
 @pytest.mark.regression
 def test_restarts_to_zarr(tmpdir):
     output = tmpdir.join("out")
-    url = "gs://vcm-ml-intermediate/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files"
+    url = (
+        "gs://vcm-ml-intermediate/"
+        "2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files"
+    )
 
     argv = [
         url,
