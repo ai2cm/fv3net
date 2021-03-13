@@ -1,4 +1,5 @@
 """
+Note data has been since deleted in place of May 2020 data
 >>> from merge_restarts_and_diags import *
 >>> restart_url = "gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files.zarr/"
 >>> url = "gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr/"

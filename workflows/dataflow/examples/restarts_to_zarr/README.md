@@ -8,8 +8,8 @@ This workflow converts a raw directory of restart netCDF files as uploaded from 
 NUM_WORKERS=1
 
 python -m fv3net.pipelines.restarts_to_zarr  \
-    gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files \
-    gs://vcm-ml-data/testing-noah/big_local.zarr \
+    gs://vcm-ml-intermediate/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files \
+    gs://vcm-ml-scratch/testing-noah/big_local.zarr \
     --runner Direct \
     --num_workers $NUM_WORKERS \
     --n-steps 1  \
@@ -22,8 +22,8 @@ NUM_WORKERS=256
 
 
 python -m fv3net.pipelines.restarts_to_zarr  \
-    gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files \
-    gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files.zarr \
+    gs://vcm-ml-intermediate/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files \
+    gs://vcm-ml-intermediate/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files.zarr \
     --setup $(pwd)/setup.py \
     --job_name test-$(uuid) \
     --project vcm-ml \
