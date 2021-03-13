@@ -125,7 +125,7 @@ def test__get_current_date(fs, test_config):
     [
         (
             (
-                "vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
+                "vcm-ml-intermediate/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
                 "one_step_output/C48/20160801.003000/INPUT/coupler.res"
             ),
             [2016, 8, 1, 0, 30, 0],

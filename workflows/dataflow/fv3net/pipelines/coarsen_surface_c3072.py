@@ -14,6 +14,7 @@ from fv3net.pipelines import common
 logger = logging.getLogger(__name__)
 
 
+# Note the old vcm-ml-data path is in coldline now, don't run unless moved
 INPUT = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics"
 OUTPUT = "gs://vcm-ml-data/2019-11-06-X-SHiELD-gfsphysics-diagnostics-coarsened"
 ORIGINAL_RESOLUTION = 3072

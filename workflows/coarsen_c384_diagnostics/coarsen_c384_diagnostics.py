@@ -24,7 +24,7 @@ handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logging.basicConfig(level=logging.INFO)
 
-GRID_SPEC_C384 = "gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy.zarr"
+GRID_SPEC_C384 = "gs://vcm-ml-intermediate/2020-01-06-C384-grid-spec-with-area-dx-dy.zarr"
 DIM_RENAME = {
     "grid_xt_coarse": COORD_X_CENTER,
     "grid_yt_coarse": COORD_Y_CENTER,
