@@ -108,22 +108,6 @@ It can be used multiple times to specify multiple models. For example::
         --model_url path/to/model
         --model_url path/to_another/model
         > fv3config.yaml
- 
-Prephysics
-~~~~~~~~~~
-
-If prephysics computations (currently, only setting radiative fluxes) are needed,
-they can be configured by setting the :py:attr:`UserConfig.prephysics` section,
-following what is required by :py:class:`runtime.steppers.prephysics.PrephysicsConfig`.
-Its `config` attribute may either specify setting values via an ML model, following
-:py:class:`runtime.steppers.machine_learning.MachineLearningConfig` specs, or 
-setting values directly via an external source (not yet implemented). See example
-for setting values via an ML model::
-
-    prephysics:
-        config:
-            model: ["path/to/model"]
-
 
 Diagnostics
 ~~~~~~~~~~~

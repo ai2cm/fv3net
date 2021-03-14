@@ -33,16 +33,11 @@ Top-level
 Python "Physics"
 ~~~~~~~~~~~~~~~~
 
-
 .. py:module:: runtime.steppers.machine_learning
 .. autoclass:: MachineLearningConfig
 
 .. py:module:: runtime.nudging
 .. autoclass:: NudgingConfig
-
-.. py:module:: runtime.steppers.prephysics
-.. autoclass:: PrephysicsConfig
-
 
 Diagnostics
 ~~~~~~~~~~~

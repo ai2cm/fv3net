@@ -36,7 +36,6 @@ from runtime.steppers.machine_learning import (
     MLStateStepper,
 )
 from runtime.steppers.nudging import PureNudger
-from runtime.steppers.prephysics import Prescriber, PrescriberConfig
 from runtime.types import Diagnostics, State, Tendencies
 from runtime.names import TENDENCY_TO_STATE_NAME
 from toolz import dissoc
@@ -223,22 +222,11 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         steppers: MutableMapping[str, Optional[Stepper]] = {}
 
         if config.prephysics is not None and isinstance(
-            config.prephysics.config, MachineLearningConfig
+            config.prephysics, MachineLearningConfig
         ):
             self._log_info("Using MLStateStepper for prephysics")
-            model = self._open_model(config.prephysics.config, "_compute_prephysics")
+            model = self._open_model(config.prephysics, "_compute_prephysics")
             steppers["_compute_prephysics"] = MLStateStepper(model, self._timestep)
-        elif config.prephysics is not None and isinstance(
-            config.prephysics.config, PrescriberConfig
-        ):
-            self._log_info("Using Prescriber for prephysics")
-            partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
-                get_namelist()
-            )
-            communicator = fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
-            steppers["_compute_prephysics"] = Prescriber(
-                config.prephysics.config, communicator
-            )
         else:
             self._log_info("No prephysics computations")
             steppers["_compute_prephysics"] = None
