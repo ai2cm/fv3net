@@ -283,8 +283,7 @@ def zonal_means_3d(prognostic, verification, grid):
 @transform.apply("resample_time", "1H")
 def zonal_bias_3d(prognostic, verification, grid):
     logger.info("Preparing zonal mean bias (3d)")
-    with xr.set_options(keep_attrs=True):
-        zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
+    zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
     return time_mean(zonal_mean_bias)
 
 
