@@ -9,7 +9,7 @@ batch_kwargs:
   timesteps: ['20160805.084500']
 sources:
   nudging_tendencies: 
-    path: gs://vcm-ml-data/mcgibbon-testing
+    path: gs://vcm-ml-scratch/mcgibbon-testing
     mapping_function: open_merged_nudged_full_tendencies
     mapping_kwargs:
       open_checkpoints_kwargs: 
