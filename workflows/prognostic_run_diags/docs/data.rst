@@ -26,7 +26,7 @@ Custom verification data can be added to the catalog. The entries should include
 the following metadata items:
 
 #. ``simulation``, a short unique tag
-#. ``category``, which should be either ``dycore`` or ``physics`` depending on which set of diagnostics the catalog entry 
+#. ``category``, which should be either ``dycore``, ``physics``, or ``3d`` depending on which set of diagnostics the catalog entry 
    corresponds to, and
 #. ``grid`` which must be ``c48``.
 
@@ -60,3 +60,15 @@ verification. These catalog entries are shown below as examples::
         access: read_only
       urlpath: "gs://vcm-ml-experiments/2020-06-17-triad-round-1/coarsen-c384-diagnostics/coarsen_diagnostics/atmos_8xdaily_C3072_to_C384.zarr"
       consolidated: True
+
+
+Optional: 3D outputs and verification
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+If 3D outputs are saved, the prognostic report page ``Time-mean zonal-pressure profiles`` will include figures showing the time and zonal mean values and biases.
+The 3D prognostic data can either be saved by the Fortran diagnostics (``atmos_*xdaily.zarr``) or the python wrapper (``3d.zarr``). 
+The ``3d`` verification entry is optional: if it is not in the catalog for a verification simulation, the 3D zonal mean bias plot will be empty. 
+In order for 3D biases to be computed, please make sure that the verification dataset
+
+#. has an entry with category ``3d`` in the catalog
+#. has variable names corresponding to the 3D variables saved from the prognostic run- this may differ depending on whether they are saved via the wrapper or the Fortran diagnostics
+#. is interpolated to pressure levels, i.e. use ``vcm.interpolate_to_pressure_levels`` with the default interpolation levels before saving diagnostic data.
