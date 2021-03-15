@@ -312,6 +312,7 @@ def get_parser():
 
 
 if __name__ == "__main__":
+    np.random.seed(0)
     parser = get_parser()
     args = parser.parse_args()
     fs = vcm.get_fs(args.output_data_path)

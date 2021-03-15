@@ -150,7 +150,10 @@ class RecurrentModel(ExternalModel):
         self.tendency_scaler.mean[:] = 0.0  # don't remove mean for tendencies
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
-        sample_coord = X[self.sample_dim_name]
+        if self.sample_dim_name in X:
+            sample_coord = X[self.sample_dim_name]
+        else:
+            sample_coord = None
         forcing = self.input_packer.to_array(X)
         state_in = self.prognostic_packer.to_array(X)
         norm_forcing = self.input_scaler.normalize(forcing)
@@ -165,7 +168,9 @@ class RecurrentModel(ExternalModel):
         ds_pred = xr.Dataset({})
         ds_pred["dQ1"] = ds_tendency["air_temperature"]
         ds_pred["dQ2"] = ds_tendency["specific_humidity"]
-        return ds_pred.assign_coords({self.sample_dim_name: sample_coord})
+        if sample_coord is not None:
+            ds_pred = ds_pred.assign_coords({self.sample_dim_name: sample_coord})
+        return ds_pred
 
     def dump(self, path: str) -> None:
         super().dump(path)

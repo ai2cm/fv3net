@@ -5,6 +5,7 @@ import fv3fit
 import vcm
 from preprocessing import TrainingArrays
 from train import prepare_keras_arrays
+import xarray as xr
 
 
 def get_parser():
@@ -24,6 +25,26 @@ def get_vmin_vmax(*arrays):
     return vmin, vmax
 
 
+SAMPLE_DIM_NAME = "column"
+
+def arrays_to_dataset(arrays):
+    inputs = arrays.inputs_baseline
+    prognostic = arrays.prognostic_baseline
+    nudging = arrays.nudging_tendency
+
+
+    data_vars = {}
+    for i, name in enumerate(arrays.input_names):
+        data_vars[name] = xr.DataArray(inputs[:, :, i], dims=[SAMPLE_DIM_NAME, "time"])
+    data_vars["air_temperature"] = xr.DataArray(prognostic[:, :, :79], dims=[SAMPLE_DIM_NAME, "time", "z"])
+    data_vars["specific_humidity"] = xr.DataArray(prognostic[:, :, 79:], dims=[SAMPLE_DIM_NAME, "time", "z"])
+    data_vars["pQ1"] = xr.DataArray(arrays.given_tendency[:, :, :79], dims=[SAMPLE_DIM_NAME, "time", "z"])
+    data_vars["pQ2"] = xr.DataArray(arrays.given_tendency[:, :, 79:], dims=[SAMPLE_DIM_NAME, "time", "z"])
+    data_vars["nQ1"] = xr.DataArray(nudging[:, :, :79], dims=[SAMPLE_DIM_NAME, "time", "z"])
+    data_vars["nQ2"] = xr.DataArray(nudging[:, :, 79:], dims=[SAMPLE_DIM_NAME, "time", "z"])
+    return xr.Dataset(data_vars)
+
+
 if __name__ == "__main__":
     timestep_seconds = 3 * 60 * 60
     parser = get_parser()
@@ -35,6 +56,81 @@ if __name__ == "__main__":
     last_filename = sorted(fs.listdir(args.arrays_dir, detail=False))[-1]
     with open(last_filename, "rb") as f:
         arrays = TrainingArrays.load(f)
+
+    ds = arrays_to_dataset(arrays)
+
+    state_ds = ds.isel(time=1)
+    state_out_list = []
+    n_timesteps = len(ds["time"])
+    for i in range(n_timesteps):
+        print(f"Step {i+1} of {n_timesteps}")
+        forcing_ds = ds.isel(time=i)
+        state_ds = state_ds.assign({
+            name: forcing_ds[name] for name in arrays.input_names
+        })
+        tendency_ds = model.predict_columnwise(state_ds, sample_dims=(SAMPLE_DIM_NAME,))
+        assert not np.any(np.isnan(state_ds["air_temperature"].values))
+        state_ds["air_temperature"] += (forcing_ds["pQ1"] + tendency_ds["dQ1"]) * timestep_seconds
+        state_ds["specific_humidity"] += (forcing_ds["pQ2"] + tendency_ds["dQ2"]) * timestep_seconds
+        state_ds = state_ds.assign({
+            "nQ1": forcing_ds["nQ1"],
+            "nQ2": forcing_ds["nQ1"],
+            "air_temperature_reference": forcing_ds["air_temperature"],
+            "specific_humidity_reference": forcing_ds["specific_humidity"],
+            **tendency_ds.data_vars
+        })
+        state_out_list.append(state_ds)
+    state_out = xr.concat(state_out_list, dim="time")
+    print(state_out)
+
+    def plot_single(predicted, reference, label, ax):
+        vmin, vmax = get_vmin_vmax(predicted, reference)
+        im = ax[0].pcolormesh(predicted.T, vmin=vmin, vmax=vmax)
+        plt.colorbar(im, ax=ax[0])
+        ax[0].set_title(f"predicted {label}")
+        im = ax[1].pcolormesh(reference.T, vmin=vmin, vmax=vmax)
+        ax[1].set_title(f"reference {label}")
+        plt.colorbar(im, ax=ax[1])
+
+    i = 0
+    seconds_in_day = 60 * 60 * 24
+    fig, ax = plt.subplots(4, 1, figsize=(12, 8))
+
+    plot_single(
+        state_out["dQ1"][:, i, :].values * seconds_in_day,
+        state_out["nQ1"][:, i, :].values * seconds_in_day,
+        "air_temperature (K/day)",
+        ax[:2],
+    )
+    plot_single(
+        state_out["air_temperature"][:, i, :].values,
+        state_out["air_temperature_reference"][:, i, :].values,
+        "air_temperature (K)",
+        ax[2:],
+    )
+    lat = arrays.latitude[i] * 180.0 / np.pi
+    lon = arrays.longitude[i] * 180.0 / np.pi
+    plt.suptitle(f"lat: {lat}, lon: {lon}")
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    # plot_single(
+    #     state_out["dQ2"][:, i, :].values * seconds_in_day,
+    #     state_out["nQ2"][:, i, :].values * seconds_in_day,
+    #     "specific_humidity (kg/kg/day)",
+    #     ax[:2],
+    # )
+    # plot_single(
+    #     state_out["specific_humidity"][:, i, :].values,
+    #     state_out["specific_humidity_reference"][:, i, :].values,
+    #     "specific_humidity (kg/kg)",
+    #     ax[2:],
+    # )
+    lat = arrays.latitude[i] * 180.0 / np.pi
+    lon = arrays.longitude[i] * 180.0 / np.pi
+    plt.suptitle(f"lat: {lat}, lon: {lon}")
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.show()
+
+    assert False, state_out
 
     val_inputs, val_given_tendency, val_target_out = prepare_keras_arrays(
         arrays,
@@ -53,17 +149,15 @@ if __name__ == "__main__":
     profile_out[:, 0, :] = model.prognostic_scaler.denormalize(val_out[:, 0, :])
     baseline_out[:, 0, :] = profile_out[:, 0, :]
     for i in range(1, val_base_out.shape[1]):
-        val_out[:, i, :] = (
-            val_out[:, i - 1, :] + timestep_seconds * val_given_tendency[:, i, :]
-        )
         baseline_out[:, i, :] = (
             baseline_out[:, i - 1, :] + timestep_seconds * val_given_tendency[:, i, :]
         )
-        new_state = model.model.predict([val_inputs[:, i, :], val_out[:, i, :]])
+        new_state = model.model.predict([val_inputs[:, i, :], val_out[:, i - 1, :]])
         tendency_out[:, i, :] = (
-            model.tendency_scaler.denormalize(new_state - val_out[:, i, :])
+            model.tendency_scaler.denormalize(new_state - val_out[:, i - 1, :])
             / timestep_seconds
         )
+        val_out[:, i, :] = new_state + timestep_seconds * val_given_tendency[:, i, :]
         val_out[:, i, :] = new_state
         profile_out[:, i, :] = model.prognostic_scaler.denormalize(val_out[:, i, :])
 
@@ -97,7 +191,7 @@ if __name__ == "__main__":
         tendency_out[antarctica, 1, nz - 1].mean(),
         arrays.nudging_tendency[antarctica, 1, nz - 1].mean(),
     )
-    # for i in np.argwhere(antarctica).flatten()[:5]:
+    # for i in np.argwhere(antarctica).flatten()[:3]:
     for i in np.random.randint(0, tendency_out.shape[0], size=3):
         fig, ax = plt.subplots(4, 1, figsize=(12, 8))
         # first time is "setup" (ML tendency is 0, model creates the initial state)
@@ -119,9 +213,34 @@ if __name__ == "__main__":
         )
         lat = arrays.latitude[i] * 180.0 / np.pi
         lon = arrays.longitude[i] * 180.0 / np.pi
-        plt.title(f"lat: {lat}, lon: {lon}")
-        plt.tight_layout()
+        plt.suptitle(f"lat: {lat}, lon: {lon}")
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
+        fig, ax = plt.subplots(4, 1, figsize=(12, 8))
+        plot_single(
+            profile_out[i, 1:, :nz] - model.prognostic_scaler.mean[:nz],
+            arrays.prognostic_reference[i, 1:, :nz] - model.prognostic_scaler.mean[:nz],
+            "air_temperature minus mean (K)",
+            ax[:2],
+        )
+        plot_single(
+            profile_out[i, 1:, nz:] - model.prognostic_scaler.mean[nz:],
+            arrays.prognostic_reference[i, 1:, nz:] - model.prognostic_scaler.mean[nz:],
+            "specific_humidity (kg/kg)",
+            ax[2:],
+        )
+        plt.suptitle(f"lat: {lat}, lon: {lon}")
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
         plt.show()
+
+    print("all times, profiles:")
+    r2_air_temperature = 1 - np.std(
+        arrays.prognostic_reference[:, 1:, :nz] - profile_out[:, 1:, :nz]
+    , axis=(0, 1)) / np.std(arrays.prognostic_reference[:, 1:, :nz])
+    r2_specific_humidity = 1 - np.std(
+        arrays.prognostic_reference[:, 1:, nz:] - profile_out[:, 1:, nz:]
+    , axis=(0, 1)) / np.std(arrays.prognostic_reference[:, 1:, nz:], axis=(0, 1))
+    print(f"r2 air_temperature: {r2_air_temperature}")
+    print(f"r2 specific_humidity: {r2_specific_humidity}")
 
     print("all times:")
     r2_air_temperature = 1 - np.std(

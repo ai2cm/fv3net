@@ -237,7 +237,7 @@ def get_parser():
     return parser
 
 
-def get_stepwise_model(recurrent_model):
+def get_stepwise_model(recurrent_model, n_input, n_state):
     forcing_input = tf.keras.layers.Input(shape=[n_input])
     state_input = tf.keras.layers.Input(shape=[n_state])
     # tendency is already incorporated into passed state
@@ -263,54 +263,39 @@ def prepare_keras_arrays(
     return norm_input, norm_given_tendency, norm_prognostic_reference
 
 
-if __name__ == "__main__":
-    np.random.seed(0)
-    random.seed(1)
-    tf.random.set_seed(2)
-    parser = get_parser()
-    args = parser.parse_args()
-    fs = vcm.get_fs(args.arrays_dir)
-    first_filename = fs.listdir(args.arrays_dir, detail=False)[0]
-    with open(first_filename, "rb") as f:
-        arrays = TrainingArrays.load(f)
-        n_input, n_state, n_window = get_dim_lengths(arrays)
-        prognostic_scaler = fv3fit.StandardScaler()
-        prognostic_scaler.fit(arrays.prognostic_baseline)
-        # do not remove mean for tendency scaling
-        tendency_scaler = copy.deepcopy(prognostic_scaler)
-        tendency_scaler.mean[:] = 0.0
-        assert not np.all(prognostic_scaler.mean[:] == 0.0)
-        input_scaler = fv3fit.StandardScaler()
-        input_scaler.fit(arrays.inputs_baseline)
-        input_packer = fv3fit.ArrayPacker(
-            sample_dim_name=SAMPLE_DIM_NAME, pack_names=arrays.input_names,
-        )
-        # we have a hard-coded assumption that output state is
-        # [specific_humidity, air_temperature] and that both have the same nz
-        nz = int(arrays.prognostic_baseline.shape[2] / 2.0)
-        prognostic_packer = fv3fit.ArrayPacker(
-            sample_dim_name=SAMPLE_DIM_NAME,
-            pack_names=("air_temperature", "specific_humidity"),
-        )
-        prognostic_packer._n_features = {
-            "air_temperature": nz,
-            "specific_humidity": nz,
-        }
-        prognostic_packer._dims = {
-            "air_temperature": (SAMPLE_DIM_NAME, fv3gfs.util.Z_DIM),
-            "specific_humidity": (SAMPLE_DIM_NAME, fv3gfs.util.Z_DIM),
-        }
-        input_names = arrays.input_names
+def get_packers_and_scalers(arrays):
+    prognostic_scaler = fv3fit.StandardScaler()
+    prognostic_scaler.fit(arrays.prognostic_baseline)
+    # do not remove mean for tendency scaling
+    tendency_scaler = copy.deepcopy(prognostic_scaler)
+    tendency_scaler.mean[:] = 0.0
+    assert not np.all(prognostic_scaler.mean[:] == 0.0)
+    input_scaler = fv3fit.StandardScaler()
+    input_scaler.fit(arrays.inputs_baseline)
+    input_packer = fv3fit.ArrayPacker(
+        sample_dim_name=SAMPLE_DIM_NAME, pack_names=arrays.input_names,
+    )
+    # we have a hard-coded assumption that output state is
+    # [specific_humidity, air_temperature] and that both have the same nz
+    nz = int(arrays.prognostic_baseline.shape[2] / 2.0)
+    prognostic_packer = fv3fit.ArrayPacker(
+        sample_dim_name=SAMPLE_DIM_NAME,
+        pack_names=("air_temperature", "specific_humidity"),
+    )
+    prognostic_packer._n_features = {
+        "air_temperature": nz,
+        "specific_humidity": nz,
+    }
+    prognostic_packer._dims = {
+        "air_temperature": (SAMPLE_DIM_NAME, fv3gfs.util.Z_DIM),
+        "specific_humidity": (SAMPLE_DIM_NAME, fv3gfs.util.Z_DIM),
+    }
+    return input_packer, input_scaler, prognostic_packer, prognostic_scaler, tendency_scaler
 
-    units = 32
-    n_hidden_layers = 3
-    tendency_ratio = 0.2  # scaling between values and their tendencies
-    kernel_regularizer = tf.keras.regularizers.l2(0.001)
-    timestep_seconds = 3 * 60 * 60
-    # batch size to use for training
-    batch_size = 48
 
+def compile_model(model, prognostic_scaler):
     weight = np.zeros_like(prognostic_scaler.std)
+    nz = int(prognostic_scaler.std.shape[0] / 2.)
     weight[:nz] = 0.5 * prognostic_scaler.std[:nz] / np.sum(prognostic_scaler.std[:nz])
     weight[nz:] = 0.5 * prognostic_scaler.std[nz:] / np.sum(prognostic_scaler.std[nz:])
     weight = tf.constant(weight.astype(np.float32), dtype=tf.float32)
@@ -328,6 +313,34 @@ if __name__ == "__main__":
     #     -1.0 * prognostic_scaler.mean[nz:] / prognostic_scaler.std[nz:],
     # )
     optimizer = tf.keras.optimizers.Adam(lr=0.001, amsgrad=True, clipnorm=1.0)
+    model.compile(
+        optimizer=optimizer, loss=loss,
+    )
+
+
+if __name__ == "__main__":
+    np.random.seed(0)
+    random.seed(1)
+    tf.random.set_seed(2)
+    parser = get_parser()
+    args = parser.parse_args()
+    fs = vcm.get_fs(args.arrays_dir)
+    first_filename = fs.listdir(args.arrays_dir, detail=False)[0]
+    with open(first_filename, "rb") as f:
+        arrays = TrainingArrays.load(f)
+        (
+            input_packer, input_scaler, prognostic_packer, prognostic_scaler,
+            tendency_scaler
+        ) = get_packers_and_scalers(arrays)
+        n_input, n_state, n_window = get_dim_lengths(arrays)
+
+    units = 32
+    n_hidden_layers = 3
+    tendency_ratio = 0.2  # scaling between values and their tendencies
+    kernel_regularizer = tf.keras.regularizers.l2(0.001)
+    timestep_seconds = 3 * 60 * 60
+    # batch size to use for training
+    batch_size = 48
 
     # this model does not normalize, it acts on normalized data
     model = build_model(
@@ -340,9 +353,7 @@ if __name__ == "__main__":
         kernel_regularizer,
         timestep_seconds,
     )
-    model.compile(
-        optimizer=optimizer, loss=loss,
-    )
+    compile_model(model, prognostic_scaler)
 
     filenames = fs.listdir(args.arrays_dir, detail=False)
     train_filenames = filenames[:-4]
@@ -361,7 +372,7 @@ if __name__ == "__main__":
     )
     val_base_out = timestep_seconds * np.cumsum(val_given_tendency, axis=1)
     baseline_loss = np.mean(
-        loss(val_base_out.astype(np.float32), val_target_out.astype(np.float32))
+        model.loss(val_base_out.astype(np.float32), val_target_out.astype(np.float32))
     )
     print(f"baseline loss {baseline_loss}")
 
@@ -390,16 +401,16 @@ if __name__ == "__main__":
             )
         val_out = model.predict([val_inputs, val_given_tendency])
         val_loss = np.mean(
-            loss(val_out.astype(np.float32), val_target_out.astype(np.float32))
+            model.loss(val_out.astype(np.float32), val_target_out.astype(np.float32))
         )
         print(f"validation loss: {val_loss}")
-    stepwise_model = get_stepwise_model(model)
+    stepwise_model = get_stepwise_model(model, n_input, n_state)
     stepwise_model.compile(
-        optimizer=optimizer, loss=loss,
+        optimizer=model.optimizer, loss=tf.keras.losses.MSE,
     )
     recurrent = fv3fit.keras.RecurrentModel(
         SAMPLE_DIM_NAME,
-        input_variables=list(input_names),
+        input_variables=list(arrays.input_names),
         model=stepwise_model,
         input_packer=input_packer,
         prognostic_packer=prognostic_packer,
