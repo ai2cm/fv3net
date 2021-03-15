@@ -458,15 +458,6 @@ sources:
       urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-4K/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr"
       consolidated: True
 
-  ## Local Data Intake ##
-  # TODO: Could this be replicated with intake caching? Or switch to an ignored file?
-  local_2019-09-24-GFDL-SHiELD-15-minute-2-days_regrid_1degree:
-    description: Local version of 2D and 3D SHieLD data at 1 degree resolution
-    driver: zarr
-    args:
-      urlpath: '{{ CATALOG_DIR }}/data/interim/2019-09-24_GFDL-SHiELD-15-minute-2-days_regrid_1degree.zarr'
-
-
   # Regression testing data. Do not use for analysis, values are randomized.
   grid/c8_random_values:
     description: FOR REGRESSION TESTING ONLY. Lat, lon, and area of C48 data
