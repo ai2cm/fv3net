@@ -12,8 +12,8 @@ def get_verification_entries(
         catalog: Catalog to search for verification data.
         
     Returns:
-        Mapping from category name ('physics', 'dycore', or '3d') to sequence of catalog keys
-        representing given diagnostics for specified simulation.
+        Mapping from category name ('physics', 'dycore', or '3d') to sequence
+        of catalog keys representing given diagnostics for specified simulation.
     """
     entries = {"physics": [], "dycore": [], "3d": []}
     for item in catalog:
