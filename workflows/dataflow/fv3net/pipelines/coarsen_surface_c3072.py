@@ -14,8 +14,11 @@ from fv3net.pipelines import common
 logger = logging.getLogger(__name__)
 
 
-INPUT = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics"
-OUTPUT = "gs://vcm-ml-data/2019-11-06-X-SHiELD-gfsphysics-diagnostics-coarsened"
+# Note the old vcm-ml-data path is in coldline now, don't run unless moved
+# INPUT = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics"
+# OUTPUT = "gs://vcm-ml-data/2019-11-06-X-SHiELD-gfsphysics-diagnostics-coarsened"
+INPUT = "gs://vcm-ml-intermediate/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics"
+OUTPUT = "gs://vcm-ml-intermediate/2019-11-06-X-SHiELD-gfsphysics-diagnostics-coarsened"
 ORIGINAL_RESOLUTION = 3072
 COARSENING = 8
 PREFIX_DATA = "gfsphysics_15min_fine"

@@ -10,8 +10,11 @@ from .core import coarsen_and_upload_surface, output_names
 
 logging.basicConfig(level=logging.INFO)
 
+# Note data is in vcm-ml-data but coldline, so I added a broken link so we don't
+# try to access
 bucket = (
-    "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/C3702/"
+    "gs://vcm-ml-intermediate/"
+    "2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/C3702/"
 )
 coarsenings = (8, 16, 32, 64)
 
