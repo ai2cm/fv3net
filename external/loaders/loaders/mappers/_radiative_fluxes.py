@@ -48,22 +48,11 @@ def open_n2f_radiative_flux_biases(
         CATALOG, verification
     )
     verif_dswrf_sfc_mean = verif_dswrf_sfc.mean(dim="time")
-    surface_albedo = (
-        verif_dswrf_sfc_mean - verif_swnetrf_sfc.mean(dim="time")
-    ) / verif_dswrf_sfc_mean
-    mean_albedo = surface_albedo.mean().values
-    surface_albedo = (
-        surface_albedo.fillna(mean_albedo)
-        .broadcast_like(verif_dswrf_sfc)
-        .assign_attrs({"long_name": "surface albedo (coarse)", "units": "-"})
-        .load()
-    )
     sfc_biases_ds = xr.Dataset(
         {
             "DSWRFsfc_verif": verif_dswrf_sfc,
             "NSWRFsfc_verif": verif_swnetrf_sfc,
             "DLWRFsfc_verif": verif_dlwrf_sfc,
-            "surface_albedo": surface_albedo,
         }
     )
     sfc_biases_mapper = LongRunMapper(sfc_biases_ds)
