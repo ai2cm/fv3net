@@ -84,9 +84,7 @@ def _get_coarsening_args(
 
 def _load_prognostic_run_3d_output(url: str):
     fs = get_fs(url)
-    prognostic_3d_output = [
-        item for item in fs.ls(url) if item.endswith("xdaily.zarr")
-    ] + [item for item in fs.ls(url) if item.endswith("3d.zarr")]
+    prognostic_3d_output = [item for item in fs.ls(url) if item.endswith("3d.zarr")]
     if len(prognostic_3d_output) > 0:
         zarr_name = os.path.basename(prognostic_3d_output[0])
         path = os.path.join(url, zarr_name)
@@ -116,14 +114,10 @@ def load_3d(
 
         # interpolate 3d prognostic fields to pressure levels
         ds_interp = xr.Dataset()
-        pressure_vars = [
-            var
-            for var in ds.data_vars
-            if "pfull" in ds[var].dims or "z" in ds[var].dims
-        ]
+        pressure_vars = [var for var in ds.data_vars if "z" in ds[var].dims]
         for var in pressure_vars:
             ds_interp[var] = vcm.interpolate_to_pressure_levels(
-                field=ds[var], delp=ds["delp"]
+                field=ds[var], delp=ds["pressure_thickness_of_atmospheric_layer"]
             )
 
         # open verification

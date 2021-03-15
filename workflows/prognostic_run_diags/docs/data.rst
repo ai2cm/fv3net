@@ -65,10 +65,10 @@ verification. These catalog entries are shown below as examples::
 Optional: 3D outputs and verification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 If 3D outputs are saved, the prognostic report page ``Time-mean zonal-pressure profiles`` will include figures showing the time and zonal mean values and biases.
-The 3D prognostic data can either be saved by the Fortran diagnostics (``atmos_*xdaily.zarr``) or the python wrapper (``3d.zarr``). 
+The 3D prognostic data should be saved by the python wrapper (``3d.zarr``). If it is not saved, the report will still be created but the 3D figures page will contain blank figures.
 The ``3d`` verification entry is optional: if it is not in the catalog for a verification simulation, the 3D zonal mean bias plot will be empty. 
-In order for 3D biases to be computed, please make sure that the verification dataset
+In order for 3D biases to be added to the report, please make sure that the verification dataset
 
 #. has an entry with category ``3d`` in the catalog
-#. has variable names corresponding to the 3D variables saved from the prognostic run- this may differ depending on whether they are saved via the wrapper or the Fortran diagnostics
+#. has variable names corresponding to the 3D variables saved from the prognostic run
 #. is interpolated to pressure levels, i.e. use ``vcm.interpolate_to_pressure_levels`` with the default interpolation levels before saving diagnostic data.
