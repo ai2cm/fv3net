@@ -199,8 +199,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._prephysics_only_diagnostic_ml: bool = getattr(
             getattr(config, "prephysics"), "diagnostic_ml", False
         )
-        print(f"_prephysics_only_diagnostic_ml: {self._prephysics_only_diagnostic_ml}")
-
         self._postphysics_only_diagnostic_ml: bool = config.scikit_learn.diagnostic_ml
         self._tendencies: Tendencies = {}
         self._state_updates: State = {}

@@ -1,5 +1,5 @@
 from runtime.steppers.machine_learning import PureMLStepper, MLStateStepper
-from machine_learning_mocks import get_mock_sklearn_model, get_mock_rad_flux_model
+from machine_learning_mocks import get_mock_sklearn_model
 import requests
 import xarray as xr
 import joblib
@@ -32,27 +32,18 @@ def ml_stepper_name(request):
 
 
 @pytest.fixture
-def mock_model(ml_stepper_name):
-    if ml_stepper_name == "PureMLStepper":
-        model = get_mock_sklearn_model()
-    elif ml_stepper_name == "MLStateStepper":
-        model = get_mock_rad_flux_model()
-    else:
-        raise ValueError("ML Stepper name not defined.")
-    return model
-
-
-@pytest.fixture
-def ml_stepper(ml_stepper_name, mock_model):
+def ml_stepper(ml_stepper_name):
     timestep = 900
     if ml_stepper_name == "PureMLStepper":
-        stepper = PureMLStepper(mock_model, timestep)
+        mock_model = get_mock_sklearn_model("tendencies")
+        ml_stepper = PureMLStepper(mock_model, timestep)
     elif ml_stepper_name == "MLStateStepper":
-        stepper = MLStateStepper(mock_model, timestep)
-    return stepper
+        mock_model = get_mock_sklearn_model("rad_fluxes")
+        ml_stepper = MLStateStepper(mock_model, timestep)
+    return ml_stepper
 
 
-def test_MLStepper_schema_unchanged(state, ml_stepper, regtest):
+def test_ml_steppers_schema_unchanged(state, ml_stepper, regtest):
     (tendencies, diagnostics, states) = ml_stepper(None, state)
     xr.Dataset(diagnostics).info(regtest)
     xr.Dataset(tendencies).info(regtest)
@@ -64,7 +55,7 @@ def test_state_regression(state, regtest):
     print(checksum, file=regtest)
 
 
-def test_MLStepper_regression_checksum(state, ml_stepper, regtest):
+def test_ml_steppers_regression_checksum(state, ml_stepper, regtest):
     (tendencies, diagnostics, states) = ml_stepper(None, state)
     checksums = yaml.safe_dump(
         [
