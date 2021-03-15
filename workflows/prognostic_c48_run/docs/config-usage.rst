@@ -108,7 +108,7 @@ It can be used multiple times to specify multiple models. For example::
         --model_url path/to/model
         --model_url path/to_another/model
         > fv3config.yaml
-
+ 
 Diagnostics
 ~~~~~~~~~~~
 

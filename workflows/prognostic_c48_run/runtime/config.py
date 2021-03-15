@@ -21,7 +21,6 @@ class UserConfig:
     """The top-level object for python runtime configurations
 
     Attributes:
-
         diagnostics: list of diagnostic file configurations
         fortran_diagnostics: list of Fortran diagnostic outputs. Currently only used by
             post-processing and so only name and chunks items need to be specified.
