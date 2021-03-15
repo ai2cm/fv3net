@@ -529,7 +529,7 @@ def main(args):
         ),
         "zonal_pressure.html": create_html(
             title="Pressure versus latitude plots",
-            metadata={**run_urls},
+            metadata={**verification_label, **run_urls},
             sections=sections_zonal_pressure,
             html_header=get_html_header(),
         ),
