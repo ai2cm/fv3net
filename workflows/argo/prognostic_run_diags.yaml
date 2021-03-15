@@ -178,8 +178,7 @@ spec:
       command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - |
-        prognostic_run_diags movie {{inputs.parameters.run}} /tmp/movie_stills
-        stitch_movie_stills.sh /tmp/movie_stills {{inputs.parameters.output}}
+        prognostic_run_diags movie {{inputs.parameters.run}} {{inputs.parameters.output}}
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS

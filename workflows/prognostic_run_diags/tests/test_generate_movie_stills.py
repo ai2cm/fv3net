@@ -1,6 +1,6 @@
 import numpy as np
 import xarray as xr
-from fv3net.diagnostics.prognostic_run.views.movie_stills import _movie_specs, _non_zero
+from fv3net.diagnostics.prognostic_run.views.movies import _movie_specs, _non_zero
 
 
 def test__movie_specs():
