@@ -8,7 +8,7 @@ spec:
     - name: source_prefix
       value: gs://vcm-ml-data/2019-11-12-fv3gfs-C48-five-day-nudged-run/nudge_rundir/sfc_dt_atmos
     - name: output_bucket
-      value: gs://vcm-ml-data/2019-11-12-fv3gfs-C48-five-day-nudged-run/nLat180_nLon360/sfc_dt_atmos.nc
+      value: gs://vcm-ml-intermediate/2019-11-12-fv3gfs-C48-five-day-nudged-run/nLat180_nLon360/sfc_dt_atmos.nc
     - name: resolution
       value: C48
     - name: fields
