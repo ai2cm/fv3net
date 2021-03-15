@@ -29,7 +29,7 @@ from runtime.diagnostics.machine_learning import (
 )
 from runtime.steppers.machine_learning import (
     PureMLStepper,
-    load_adapted_model,
+    open_model,
     download_model,
     MachineLearningConfig,
     MLStateStepper,
@@ -196,7 +196,12 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._timestep = timestep
         self._log_info(f"Timestep: {timestep}")
 
-        self._do_only_diagnostic_ml = config.scikit_learn.diagnostic_ml
+        self._prephysics_only_diagnostic_ml: bool = getattr(
+            getattr(config, "prephysics"), "diagnostic_ml", False
+        )
+        print(f"_prephysics_only_diagnostic_ml: {self._prephysics_only_diagnostic_ml}")
+
+        self._postphysics_only_diagnostic_ml: bool = config.scikit_learn.diagnostic_ml
         self._tendencies: Tendencies = {}
         self._state_updates: State = {}
 
@@ -257,7 +262,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         local_model_paths = self.comm.bcast(local_model_paths, root=0)
         setattr(ml_config, "model", local_model_paths)
         self._log_info("Model Downloaded From Remote")
-        model = load_adapted_model(ml_config)
+        model = open_model(ml_config)
         self._log_info("Model Loaded")
         return model
 
@@ -350,7 +355,10 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             _, diagnostics, state_updates = self._prephysics_stepper(
                 self._state.time, self._state
             )
-            self._state_updates.update(state_updates)
+            if self._prephysics_only_diagnostic_ml:
+                rename_diagnostics(diagnostics)
+            else:
+                self._state_updates.update(state_updates)
         return diagnostics
 
     def _apply_prephysics(self):
@@ -384,7 +392,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             diagnostics = self._postphysics_stepper.get_momentum_diagnostics(
                 self._state, tendency
             )
-            if self._do_only_diagnostic_ml:
+            if self._postphysics_only_diagnostic_ml:
                 rename_diagnostics(diagnostics)
             else:
                 updated_state = add_tendency(self._state, tendency, dt=self._timestep)
@@ -429,7 +437,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             diagnostics = self._postphysics_stepper.get_diagnostics(
                 self._state, tendency
             )
-            if self._do_only_diagnostic_ml:
+            if self._postphysics_only_diagnostic_ml:
                 rename_diagnostics(diagnostics)
             else:
                 updated_state = add_tendency(self._state, tendency, dt=self._timestep)
