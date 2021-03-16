@@ -167,6 +167,13 @@ class FortranTimeConfig:
     Attributes:
         kind: one of "interval", "interval-average" or "every"
         frequency: frequency in seconds, used for "interval" or "interval-average"
+
+    Note:
+        Fortran diagnostics from the "gfs_phys" or "gfs_sfc" modules must all use the
+        same output interval frequency. Furthermore, these outputs will be the same
+        whether the time kind is ``interval`` or ``interval-average`` since their
+        time-averaging is handled by the GFS physics code instead of the FMS
+        diagnostics manager.
     """
 
     kind: str = "every"

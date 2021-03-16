@@ -6,6 +6,7 @@ import fv3config
 
 from .time import FortranTimeConfig
 
+# the Fortran model handles diagnostics from these modules in a special way
 FORTRAN_PHYSICS_MODULES = ["gfs_phys", "gfs_sfc"]
 
 
@@ -37,6 +38,19 @@ class FortranFileConfig:
         variables: sequence of FortranVariableNameSpecs
         times: time configuration. Only kinds 'interval', 'interval-average' or 'every'
             are allowed.
+
+    Example:
+        name: dycore_diags.zarr
+        chunks:
+            time: 96
+        times:
+            kind: interval
+            frequency: 900
+        variables:
+            - {module_name: "dynamics", field_name: "tq", output_name: "PWAT"}
+            - {module_name: "dynamics", field_name: "z500", output_name: "h500"}
+            - {module_name: "dynamics", field_name: "tb", output_name: "TMPlowest"}
+            - {module_name: "dynamics", field_name: "t850", output_name: "TMP850"}
     """
 
     name: str
