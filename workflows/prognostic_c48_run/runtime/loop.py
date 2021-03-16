@@ -272,13 +272,13 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
     def _substeps(self) -> Sequence[Callable[..., Diagnostics]]:
         return [
             self._step_dynamics,
-            self._compute_emulator,
+            # self._compute_emulator,
             self._compute_physics,
-            # self._apply_python_to_physics_state,
+            self._apply_python_to_physics_state,
             self._apply_physics,
-            self._apply_emulator,
-            # self._compute_python_updates,
-            # self._apply_python_to_dycore_state,
+            # self._apply_emulator,
+            self._compute_python_updates,
+            self._apply_python_to_dycore_state,
         ]
 
     def _compute_emulator(self):
