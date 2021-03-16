@@ -1,17 +1,12 @@
 from typing import (
-    Union,
     Sequence,
-    Callable,
     MutableMapping,
     Mapping,
     Hashable,
 )
 import dataclasses
-from functools import partial
 import warnings
 import xarray as xr
-import cftime
-from runtime.steppers.machine_learning import MachineLearningConfig
 from runtime.types import State, Diagnostics
 import fv3gfs.util
 from vcm.catalog import catalog as CATALOG
@@ -38,7 +33,7 @@ class PrescriberConfig:
     """
 
     variables: Sequence[str]
-    data_source: str
+    catalog_entry: str
     rename: Mapping[str, str]
 
 
@@ -53,24 +48,19 @@ class Prescriber:
         self,
         config: PrescriberConfig,
         communicator: fv3gfs.util.CubedSphereCommunicator,
+        rename: Mapping[str, str],
     ):
 
-        self._prescribed_variables: Sequence[str] = list(config.variables)
-        self._data_source: str = config.data_source
-        self._rename: Mapping[str, str] = config.rename
-        self._communicator = communicator
-        self._load_external_states: Callable[[cftime.DatetimeJulian], State] = partial(
-            load_external_states,
-            self._data_source,
-            self._prescribed_variables,
-            self._communicator,
+        self._rename = config.rename
+        self._dataset: xr.Dataset = setup_dataset(
+            config.catalog_entry, list(config.variables), communicator
         )
 
     def __call__(self, time, state):
 
         diagnostics: Diagnostics = {}
-        state_updates: State = DerivedExternalState(
-            self._load_external_states(time), self._rename
+        state_updates: State = DerivedExternalDataset(
+            self._dataset.sel(time=time), self._rename
         )
 
         for name in state_updates.keys():
@@ -86,46 +76,30 @@ class Prescriber:
         return {}
 
 
-@dataclasses.dataclass
-class PrephysicsConfig:
-    """Configuration of pre-physics computations
-    
-    Attributes:
-        config: can be either a MachineLearningConfig or a
-            PrescriberConfig, as these are the allowed pre-physics computations
-        
-    """
+class DerivedExternalDataset(Mapping[str, xr.DataArray]):
+    def __init__(self, input_ds: xr.Dataset, rename: Mapping[str, str]):
+        self._dataset: xr.Dataset = self._rename_ds(input_ds, rename)
 
-    config: Union[PrescriberConfig, MachineLearningConfig]
-
-
-class DerivedExternalState(Mapping[str, xr.DataArray]):
-    def __init__(self, input_state: State, rename: Mapping[str, str]):
-        self._state = input_state
-        self._rename = rename
-
-    @staticmethod
-    def _rename_state(state: State, rename: Mapping[str, str]) -> State:
-        new_state: State = {}
-        for name in state.keys():
-            new_name = rename.get(str(name))
-            if new_name:
-                new_state[new_name] = state[name]
-            else:
-                new_state[name] = state[name]
-        return new_state
+    def _rename_ds(self, ds: xr.Dataset, rename: Mapping[str, str]) -> xr.Dataset:
+        new_rename = {}
+        for name in ds.data_vars:
+            if name in rename.keys():
+                new_rename[name] = rename[name]
+        return ds.rename(new_rename)
 
     def __getitem__(self, key: Hashable) -> xr.DataArray:
-        if key in self._rename_state(self._state, self._rename).keys():
-            item = self._rename_state(self._state, self._rename)[key]
+        if key in self._dataset.keys():
+            item = self._dataset[key]
         elif key == "total_sky_net_shortwave_flux_at_surface_override":
-            item = self._state["DSWRFsfc"] - self._state["USWRFsfc"]
+            item = self._dataset["DSWRFsfc"] - self._dataset["USWRFsfc"]
             item = item.assign_attrs(
                 {
                     "long_name": "net shortwave radiative flux at surface (downward)",
                     "units": "W/m^2",
                 }
             )
+        else:
+            raise KeyError(f"Requested value not in derived external dataset: {key}")
         return item
 
     def __iter__(self):
@@ -135,25 +109,23 @@ class DerivedExternalState(Mapping[str, xr.DataArray]):
         return len(self.keys())
 
     def keys(self):
-        return set(
-            name for name in self._rename_state(self._state, self._rename).keys()
-        ) | {"total_sky_net_shortwave_flux_at_surface_override"}
+        return set(name for name in self._dataset.keys()) | {
+            "total_sky_net_shortwave_flux_at_surface_override"
+        }
 
 
-def load_external_states(
+def setup_dataset(
     catalog_entry: str,
     variables: Sequence[str],
-    communicator: fv3gfs.util.CubedSphereCommunicator,
-    time: cftime.DatetimeJulian,
-    consolidated: bool = True,
-) -> State:
+    communicator: fv3gfs.util.CubedSphereCommunicator
+) -> xr.Dataset:
     catalog_ds = _catalog_ds(catalog_entry)
-    requested_ds = _requested_ds(catalog_ds, variables, time)
+    requested_ds = _requested_ds(catalog_ds, variables)
     tile_ds = _tile_ds(requested_ds, communicator)
-    state = _quantity_state_to_state(
+    ds = _quantity_state_to_ds(
         communicator.tile.scatter_state(_ds_to_quantity_state(tile_ds))
     )
-    return state
+    return ds
 
 
 def _catalog_ds(catalog_entry: str) -> xr.Dataset:
@@ -164,9 +136,7 @@ def _catalog_ds(catalog_entry: str) -> xr.Dataset:
     return catalog_ds
 
 
-def _requested_ds(
-    ds: xr.Dataset, variables: Sequence[str], time: cftime.DatetimeJulian
-) -> xr.Dataset:
+def _requested_ds(ds: xr.Dataset, variables: Sequence[str]) -> xr.Dataset:
 
     ds = (
         ds.pipe(metadata._rename_dims)
@@ -177,10 +147,6 @@ def _requested_ds(
     # this is because vcm.round_time doesn't work in the prognostic_run container
     # which uses python 3.6.9, since singledispatch requires 3.7
     ds = ds.assign_coords({"time": [round_time(time.item()) for time in ds["time"]]})
-    try:
-        ds = ds.sel(time=time)
-    except KeyError:
-        raise KeyError(f"Requested time ({time}) not in dataset.")
     return ds
 
 
@@ -213,10 +179,12 @@ def _ds_to_quantity_state(
     }
 
 
-def _quantity_state_to_state(
+def _quantity_state_to_ds(
     quantity_state: MutableMapping[str, fv3gfs.util.Quantity]
-) -> State:
-    return {
-        variable: quantity_state[variable].data_array
-        for variable in quantity_state.keys()
-    }
+) -> xr.Dataset:
+    return xr.Dataset(
+        {
+            variable: quantity_state[variable].data_array
+            for variable in quantity_state.keys()
+        }
+    )
