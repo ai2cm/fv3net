@@ -32,7 +32,7 @@ def _model_dataset() -> xr.Dataset:
     return data
 
 
-def get_mock_sklearn_model(model_predictands: str) -> fv3fit.Predictor:
+def get_mock_sklearn_model(model_predictands: str = "tendencies") -> fv3fit.Predictor:
 
     data = _model_dataset()
 

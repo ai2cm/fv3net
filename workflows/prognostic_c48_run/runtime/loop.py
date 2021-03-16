@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import tempfile
 import logging
 from typing import (
     Any,
@@ -162,8 +163,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
     Each time step of the model evolutions proceeds like this::
 
         step_dynamics,
-        compute_prephysics,
-        apply_prephysics,
+        step_prephysics,
         compute_physics,
         apply_postphysics_to_physics_state,
         apply_physics,
@@ -172,7 +172,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
     The time loop relies on objects implementing the :py:class:`Stepper`
     interface to enable ML and other updates. The steppers compute their
-    updates in ``_compute_prephysics`` and ``_compute_postphysics``. The
+    updates in ``_step_prephysics`` and ``_compute_postphysics``. The
     ``TimeLoop`` controls when and how to apply these updates to the FV3 state.
     """
 
@@ -225,7 +225,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             config.prephysics, MachineLearningConfig
         ):
             self._log_info("Using MLStateStepper for prephysics")
-            model = self._open_model(config.prephysics, "_compute_prephysics")
+            model = self._open_model(config.prephysics, "_prephysics")
             stepper: Optional[Stepper] = MLStateStepper(model, self._timestep)
         else:
             self._log_info("No prephysics computations")
@@ -235,7 +235,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
     def _get_postphysics_stepper(self, config: UserConfig) -> Optional[Stepper]:
         if config.scikit_learn.model:
             self._log_info("Using MLStepper for postphysics updates")
-            model = self._open_model(config.scikit_learn, "_compute_postphysics")
+            model = self._open_model(config.scikit_learn, "_postphysics")
             stepper: Optional[Stepper] = PureMLStepper(model, self._timestep)
         elif config.nudging:
             self._log_info("Using NudgingStepper for postphysics updates")
@@ -251,16 +251,17 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
     def _open_model(self, ml_config: MachineLearningConfig, step: str):
         self._log_info("Downloading ML Model")
-        if self.rank == 0:
-            local_model_paths = download_model(
-                ml_config, os.path.join(step, "ml_model")
-            )
-        else:
-            local_model_paths = None  # type: ignore
-        local_model_paths = self.comm.bcast(local_model_paths, root=0)
-        setattr(ml_config, "model", local_model_paths)
-        self._log_info("Model Downloaded From Remote")
-        model = open_model(ml_config)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            if self.rank == 0:
+                local_model_paths = download_model(
+                    ml_config, os.path.join(tmpdir, step)
+                )
+            else:
+                local_model_paths = None  # type: ignore
+            local_model_paths = self.comm.bcast(local_model_paths, root=0)
+            setattr(ml_config, "model", local_model_paths)
+            self._log_info("Model Downloaded From Remote")
+            model = open_model(ml_config)
         self._log_info("Model Loaded")
         return model
 
@@ -336,8 +337,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
     def _substeps(self) -> Sequence[Callable[..., Diagnostics]]:
         return [
             self._step_dynamics,
-            self._compute_prephysics,
-            self._apply_prephysics,
+            self._step_prephysics,
             self._compute_physics,
             self._apply_postphysics_to_physics_state,
             self._apply_physics,
@@ -345,7 +345,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             self._apply_postphysics_to_dycore_state,
         ]
 
-    def _compute_prephysics(self) -> Diagnostics:
+    def _step_prephysics(self) -> Diagnostics:
+
         if self._prephysics_stepper is None:
             diagnostics: Diagnostics = {}
         else:
@@ -357,9 +358,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 rename_diagnostics(diagnostics)
             else:
                 self._state_updates.update(state_updates)
-        return diagnostics
-
-    def _apply_prephysics(self):
         prephysics_overrides = [
             "total_sky_downward_shortwave_flux_at_surface_override",
             "total_sky_net_shortwave_flux_at_surface_override",
@@ -374,7 +372,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         )
         updated_state = assign_attrs_from(self._state, state_updates)
         self._state.update_mass_conserving(updated_state)
-        return {}
+
+        return diagnostics
 
     def _apply_postphysics_to_physics_state(self) -> Diagnostics:
         """Apply computed tendencies and state updates to the physics state
