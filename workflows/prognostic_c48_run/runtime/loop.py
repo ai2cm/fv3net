@@ -216,7 +216,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._log_debug(f"Physics Step (compute)")
         self._fv3gfs.compute_physics()
         # no diagnostics are computed by default
-        return {}
+        return {"area": self._state[AREA]}
 
     @property
     def _water_species(self) -> List[str]:
@@ -427,6 +427,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             for substep in self._substeps:
                 with self._timer.clock(substep.__name__):
                     diagnostics.update(substep())
+                self._log_debug(f"{substep.__name__}: {diagnostics.keys()}")
             yield self._state.time, diagnostics
 
 
@@ -507,7 +508,7 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
         self._tendency_variables = list(tendency_variables)
         self._storage_variables = list(storage_variables)
 
-    _apply_physics = monitor("fv3_physics_diagnostic", TimeLoop._apply_physics)
+    _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
     _apply_python_to_dycore_state = monitor(
         "python", TimeLoop._apply_python_to_dycore_state
     )
