@@ -1,9 +1,4 @@
-from typing import (
-    Sequence,
-    MutableMapping,
-    Mapping,
-    Hashable,
-)
+from typing import Sequence, MutableMapping, Mapping, Hashable, Optional
 import dataclasses
 import warnings
 import xarray as xr
@@ -20,20 +15,20 @@ class PrescriberConfig:
     """Configuration for prescribing states in the model from an external source
 
     Attributes:
+        catalog_entry: vcm catalog key of catalog dataset containing variables
         variables: list variable names to prescribe
-        data_source: vcm catalog entry containing variables to prescribe
 
     Example::
 
         PrescriberConfig(
-            variables=['']
-            data_source=""
+            variables=["DSWRFsfc", "USWRFsfc", "DLWRFsfc"]
+            catalog_entry="40day_c48_gfsphysics_15min_may2020"
         )
 
     """
 
-    variables: Sequence[str]
     catalog_entry: str
+    variables: Sequence[str]
     rename: Mapping[str, str]
 
 
@@ -48,13 +43,15 @@ class Prescriber:
         self,
         config: PrescriberConfig,
         communicator: fv3gfs.util.CubedSphereCommunicator,
-        rename: Mapping[str, str],
+        rename: Optional[Mapping[str, str]] = None,
     ):
 
-        self._rename = config.rename
+        self._rename = config.rename if config.rename else {}
         self._dataset: xr.Dataset = setup_dataset(
             config.catalog_entry, list(config.variables), communicator
         )
+
+    #         print(f"Prescriber, self._dataset: {self._dataset}")
 
     def __call__(self, time, state):
 
@@ -81,11 +78,11 @@ class DerivedExternalDataset(Mapping[str, xr.DataArray]):
         self._dataset: xr.Dataset = self._rename_ds(input_ds, rename)
 
     def _rename_ds(self, ds: xr.Dataset, rename: Mapping[str, str]) -> xr.Dataset:
-        new_rename = {}
+        new_rename: MutableMapping[str, str] = {}
         for name in ds.data_vars:
             if name in rename.keys():
-                new_rename[name] = rename[name]
-        return ds.rename(new_rename)
+                new_rename[str(name)] = rename[str(name)]
+        return ds.rename(new_rename)  # type: ignore
 
     def __getitem__(self, key: Hashable) -> xr.DataArray:
         if key in self._dataset.keys():
@@ -117,7 +114,7 @@ class DerivedExternalDataset(Mapping[str, xr.DataArray]):
 def setup_dataset(
     catalog_entry: str,
     variables: Sequence[str],
-    communicator: fv3gfs.util.CubedSphereCommunicator
+    communicator: fv3gfs.util.CubedSphereCommunicator,
 ) -> xr.Dataset:
     catalog_ds = _catalog_ds(catalog_entry)
     requested_ds = _requested_ds(catalog_ds, variables)

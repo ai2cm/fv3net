@@ -2,7 +2,7 @@ import dataclasses
 import argparse
 import yaml
 import logging
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import dacite
 
@@ -17,7 +17,7 @@ from runtime.diagnostics.manager import (
 from runtime.steppers.nudging import NudgingConfig
 from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
-from runtime.steppers.prephysics import PrephysicsConfig
+from runtime.steppers.prephysics import PrescriberConfig
 
 
 logger = logging.getLogger(__name__)
@@ -97,9 +97,19 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
         config_dict.get("namelist", {}).get("fv_core_nml", {}).get("nudge", False)
     )
 
-    prephysics: Optional[Union[MachineLearningConfig, PrephysicsConfig]]
+    prephysics: Optional[Union[MachineLearningConfig, PrescriberConfig]]
     if "prephysics" in config_dict:
-        prephysics = dacite.from_dict(Union[MachineLearningConfig, PrephysicsConfig], config_dict["prephysics"])
+        if "model" in config_dict["prephysics"]:
+            prephysics = dacite.from_dict(
+                MachineLearningConfig, config_dict["prephysics"]
+            )
+        elif "catalog_entry" in config_dict["prephysics"]:
+            prephysics = dacite.from_dict(PrescriberConfig, config_dict["prephysics"])
+        else:
+            raise ValueError(
+                "Invalid prephysics configuration, must specify either an ML model"
+                " or a prescriber catalog entry."
+            )
     else:
         prephysics = None
 

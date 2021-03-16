@@ -229,16 +229,14 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             model = self._open_model(config.prephysics, "_prephysics")
             stepper: Optional[Stepper] = MLStateStepper(model, self._timestep)
         elif config.prephysics is not None and isinstance(
-            config.prephysics.config, PrescriberConfig
+            config.prephysics, PrescriberConfig
         ):
             self._log_info("Using Prescriber for prephysics")
             partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
                 get_namelist()
             )
             communicator = fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
-            stepper = Prescriber(
-                config.prephysics.config, communicator
-            )
+            stepper = Prescriber(config.prephysics, communicator)
         else:
             self._log_info("No prephysics computations")
             stepper = None
@@ -370,6 +368,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 rename_diagnostics(diagnostics)
             else:
                 self._state_updates.update(state_updates)
+        # self._log_debug(f"_prephysics_state_updates: {list(state_updates.keys())}")
         prephysics_overrides = [
             "total_sky_downward_shortwave_flux_at_surface_override",
             "total_sky_net_shortwave_flux_at_surface_override",
