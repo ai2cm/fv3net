@@ -273,8 +273,9 @@ def zonal_means_physics(prognostic, verification, grid):
 @transform.apply("resample_time", "3H")
 def zonal_means_3d(prognostic, verification, grid):
     logger.info("Preparing zonal+time means (3d)")
-    zonal_means = zonal_mean(prognostic, grid.lat)
-    return time_mean(zonal_means)
+    with xr.set_options(keep_attrs=True):
+        zonal_means = zonal_mean(prognostic, grid.lat)
+        return time_mean(zonal_means)
 
 
 @add_to_diags("3d")
@@ -283,8 +284,9 @@ def zonal_means_3d(prognostic, verification, grid):
 @transform.apply("resample_time", "3H")
 def zonal_bias_3d(prognostic, verification, grid):
     logger.info("Preparing zonal mean bias (3d)")
-    zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
-    return time_mean(zonal_mean_bias)
+    with xr.set_options(keep_attrs=True):
+        zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
+        return time_mean(zonal_mean_bias)
 
 
 @add_to_diags("dycore")
@@ -293,6 +295,7 @@ def zonal_bias_3d(prognostic, verification, grid):
 @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
 def zonal_and_time_mean_biases_dycore(prognostic, verification, grid):
     logger.info("Preparing zonal+time mean biases (dycore)")
+
     zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
     return time_mean(zonal_mean_bias)
 

@@ -136,20 +136,26 @@ def insert_absent_3d_output_placeholder(arg: DiagArg) -> DiagArg:
     if len(prognostic) > 0:
         return prognostic, verification, grid
     else:
-        dims = ["lat", "pressure", "x", "time"]
+        dims = ["pressure", "x", "time"]
         coords = {
-            "lat": [1],
-            "pressure": [1],
-            "x": [1],
+            "pressure": [1, 2],
+            "x": [1, 2],
             "time": [
                 cftime.DatetimeJulian(2020, 1, 1, 12),
-                cftime.DatetimeJulian(2020, 1, 2, 12),
+                cftime.DatetimeJulian(2020, 1, 1, 15, 30),
             ],
         }
+        
         placeholder = xr.Dataset(
-            {"placeholder": xr.DataArray(np.NaN, dims=dims, coords=coords)}
+            {
+                "placeholder": xr.DataArray(np.NaN, dims=dims, coords=coords),
+                
+            }
         )
-        return placeholder, placeholder, placeholder
+        grid = xr.Dataset({"lat": xr.DataArray(1., dims=["x"], coords={"x": [1, 2]}) })
+        for var in placeholder:
+            placeholder[var].attrs = {"long_name": "empty", "units": "na"}
+        return placeholder, placeholder, grid
 
 
 @add_to_input_transform_fns
