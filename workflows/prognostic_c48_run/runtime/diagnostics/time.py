@@ -158,3 +158,44 @@ class TimeConfig:
             )
         else:
             raise NotImplementedError(f"Time {self.kind} not implemented.")
+
+
+@dataclasses.dataclass
+class FortranTimeConfig:
+    """Configuration for output times from Fortran diagnostics.
+
+    Attributes:
+        kind: one of "interval", "interval-average" or "every"
+        frequency: frequency in seconds, used for "interval" or "interval-average"
+    """
+
+    kind: str = "every"
+    frequency: Optional[float] = None
+
+    def time_container(self, initial_time: cftime.DatetimeJulian) -> TimeContainer:
+        if self.kind == "interval" and self.frequency:
+            return TimeContainer(IntervalTimes(self.frequency, initial_time))
+        elif self.kind == "every":
+            return TimeContainer(All())
+        elif self.kind == "interval-average" and self.frequency:
+            return IntervalAveragedTimes(
+                datetime.timedelta(seconds=self.frequency), initial_time, False,
+            )
+        else:
+            raise NotImplementedError(f"Time {self.kind} not implemented.")
+
+    def to_frequency(self, units="seconds") -> float:
+        if self.kind == "every":
+            return 0.0
+        elif self.kind.startswith("interval") and self.frequency:
+            one_second_duration = datetime.timedelta(seconds=1)
+            unit_conversion = one_second_duration / datetime.timedelta(**{units: 1})
+            return self.frequency * unit_conversion
+        else:
+            raise NotImplementedError(f"Time {self.kind} not implemented.")
+
+    def reduction_method(self) -> str:
+        if self.kind == "interval-average":
+            return "average"
+        else:
+            return "none"

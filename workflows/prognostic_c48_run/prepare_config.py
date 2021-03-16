@@ -37,7 +37,6 @@ FV3CONFIG_KEYS = {
     "patch_files",
     "gfs_analysis_data",
 }
-FORTRAN_PHYSICS_MODULES = ["gfs_phys", "gfs_sfc"]
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -231,26 +230,28 @@ def _diag_table_overlay(
 
 
 def _physics_frequency_overlay(
-    diagnostics: Sequence[FortranFileConfig], physics_timestep: float
+    diagnostics: Sequence[FortranFileConfig], physics_timestep_in_seconds: float
 ) -> Mapping[str, Mapping]:
     """Return overlay for physics output frequency configuration if any physics
     diagnostics are specified in given sequence of FortranFileConfig's."""
     physics_frequencies = set()
     for diagnostic_config in diagnostics:
         for variable in diagnostic_config.variables:
-            if variable.module_name in FORTRAN_PHYSICS_MODULES:
-                if diagnostic_config.times.kind == "every":
-                    physics_frequencies.add(physics_timestep)
-                elif diagnostic_config.times.frequency is not None:
-                    physics_frequencies.add(diagnostic_config.times.frequency)
+            if variable.in_physics_module():
+                variable_frequency = diagnostic_config.times.to_frequency(units="hours")
+                physics_frequencies.add(variable_frequency)
+
     if len(physics_frequencies) == 0:
         return {}
     elif len(physics_frequencies) == 1:
-        physics_output_frequency_in_hours = list(physics_frequencies)[0] / 3600.0
+        physics_frequency_in_hours = list(physics_frequencies)[0]
+        if physics_frequency_in_hours == 0.0:
+            # handle case of outputting diagnostics on every physics timestep
+            physics_frequency_in_hours = physics_timestep_in_seconds / 3600.0
         return {
             "namelist": {
-                "atmos_model_nml": {"fhout": physics_output_frequency_in_hours},
-                "gfs_physics_nml": {"fhzero": physics_output_frequency_in_hours},
+                "atmos_model_nml": {"fhout": physics_frequency_in_hours},
+                "gfs_physics_nml": {"fhzero": physics_frequency_in_hours},
             }
         }
     else:

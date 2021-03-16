@@ -263,7 +263,7 @@ diag_table:
       regional_section: none
       time_sampling: all
     file_format: 1
-    frequency: 0
+    frequency: 0.0
     frequency_units: seconds
     name: sfc_dt_atmos
     time_axis_name: time
@@ -599,7 +599,7 @@ diag_table:
       regional_section: none
       time_sampling: all
     file_format: 1
-    frequency: 0
+    frequency: 0.0
     frequency_units: seconds
     name: atmos_dt_atmos
     time_axis_name: time
@@ -746,7 +746,7 @@ diag_table:
       regional_section: none
       time_sampling: all
     file_format: 1
-    frequency: 0
+    frequency: 0.0
     frequency_units: seconds
     name: atmos_8xdaily
     time_axis_name: time
@@ -781,9 +781,7 @@ fortran_diagnostics:
   name: sfc_dt_atmos.zarr
   times:
     frequency: null
-    includes_lower: false
     kind: every
-    times: null
   variables:
   - field_name: grid_lont
     module_name: dynamics
@@ -901,9 +899,7 @@ fortran_diagnostics:
   name: atmos_dt_atmos.zarr
   times:
     frequency: null
-    includes_lower: false
     kind: every
-    times: null
   variables:
   - field_name: grid_lont
     module_name: dynamics
@@ -1051,9 +1047,7 @@ fortran_diagnostics:
   name: atmos_8xdaily.zarr
   times:
     frequency: null
-    includes_lower: false
     kind: every
-    times: null
   variables:
   - field_name: grid_lont
     module_name: dynamics

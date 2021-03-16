@@ -4,7 +4,9 @@ import os
 
 import fv3config
 
-from .time import TimeConfig
+from .time import FortranTimeConfig
+
+FORTRAN_PHYSICS_MODULES = ["gfs_phys", "gfs_sfc"]
 
 
 @dataclasses.dataclass
@@ -20,6 +22,9 @@ class FortranVariableNameSpec:
     module_name: str
     field_name: str
     output_name: str
+
+    def in_physics_module(self) -> bool:
+        return self.module_name in FORTRAN_PHYSICS_MODULES
 
 
 @dataclasses.dataclass
@@ -37,32 +42,22 @@ class FortranFileConfig:
     name: str
     chunks: Mapping[str, int]
     variables: Sequence[FortranVariableNameSpec] = ()
-    times: TimeConfig = dataclasses.field(default_factory=lambda: TimeConfig())
+    times: FortranTimeConfig = dataclasses.field(
+        default_factory=lambda: FortranTimeConfig()
+    )
 
     def to_dict(self) -> Dict:
         return dataclasses.asdict(self)
 
     def to_fv3config_diag_file_config(self) -> fv3config.DiagFileConfig:
-        if self.times.kind in ["interval", "interval-average"]:
-            frequency = self.times.frequency
-            frequency_units = "seconds"
-        elif self.times.kind == "every":
-            frequency = 0
-            frequency_units = "seconds"
-        else:
-            raise NotImplementedError(
-                "Fortran diagnostics can only use a times 'kind' that is one of "
-                "'interval', 'interval-average' or 'every'."
-            )
-        reduction_method = (
-            "average" if self.times.kind == "interval-average" else "none"
-        )
+        frequency_units = "seconds"
+        frequency = self.times.to_frequency(units=frequency_units)
         field_configs = [
             fv3config.DiagFieldConfig(
                 variable.module_name,
                 variable.field_name,
                 variable.output_name,
-                reduction_method=reduction_method,
+                reduction_method=self.times.reduction_method(),
             )
             for variable in self.variables
         ]

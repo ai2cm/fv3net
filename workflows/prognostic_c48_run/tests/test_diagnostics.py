@@ -9,6 +9,7 @@ import xarray as xr
 from runtime.diagnostics.fortran import FortranFileConfig, FortranVariableNameSpec
 from runtime.diagnostics.manager import DiagnosticFileConfig, DiagnosticFile, get_chunks
 from runtime.diagnostics.time import (
+    FortranTimeConfig,
     TimeConfig,
     All,
     TimeContainer,
@@ -255,16 +256,15 @@ def test_get_chunks(fortran_diagnostics, diagnostics, expected_chunks):
 
 
 @pytest.mark.parametrize(
-    "time_config,expected_frequency,expected_reduction_method,raises_error",
+    "time_config, expected_frequency, expected_reduction_method",
     [
-        (TimeConfig(kind="every"), 0, "none", False),
-        (TimeConfig(kind="interval", frequency=900), 900, "none", False),
-        (TimeConfig(kind="interval-average", frequency=900), 900, "average", False),
-        (TimeConfig(kind="selected"), 0, "none", True),
+        (FortranTimeConfig(kind="every"), 0, "none"),
+        (FortranTimeConfig(kind="interval", frequency=900), 900, "none"),
+        (FortranTimeConfig(kind="interval-average", frequency=900), 900, "average"),
     ],
 )
 def test_to_fv3config_diag_file_config(
-    time_config, expected_frequency, expected_reduction_method, raises_error
+    time_config, expected_frequency, expected_reduction_method
 ):
     fortran_file_config = FortranFileConfig(
         "atmos_8xdaily.zarr",
@@ -272,17 +272,30 @@ def test_to_fv3config_diag_file_config(
         variables=[FortranVariableNameSpec("dynamics", "ta", "air_temperature")],
         times=time_config,
     )
+    field = fv3config.DiagFieldConfig(
+        "dynamics", "ta", "air_temperature", reduction_method=expected_reduction_method,
+    )
+    expected_config = fv3config.DiagFileConfig(
+        "atmos_8xdaily", expected_frequency, "seconds", [field],
+    )
+    assert fortran_file_config.to_fv3config_diag_file_config() == expected_config
+
+
+@pytest.mark.parametrize(
+    "time_config, units, expected_frequency, raises_error",
+    [
+        (FortranTimeConfig(kind="every"), "seconds", 0, False),
+        (FortranTimeConfig(kind="interval", frequency=900), "seconds", 900, False),
+        (FortranTimeConfig(kind="interval", frequency=900), "hours", 0.25, False),
+        (FortranTimeConfig(kind="interval", frequency=7200), "hours", 2, False),
+        (FortranTimeConfig(kind="selected"), "seconds", 0, True),
+    ],
+)
+def test_fortran_time_config_to_frequency(
+    time_config, units, expected_frequency, raises_error
+):
     if raises_error:
         with pytest.raises(NotImplementedError):
-            fortran_file_config.to_fv3config_diag_file_config()
+            time_config.to_frequency(units=units)
     else:
-        field = fv3config.DiagFieldConfig(
-            "dynamics",
-            "ta",
-            "air_temperature",
-            reduction_method=expected_reduction_method,
-        )
-        expected_config = fv3config.DiagFileConfig(
-            "atmos_8xdaily", expected_frequency, "seconds", [field],
-        )
-        assert fortran_file_config.to_fv3config_diag_file_config() == expected_config
+        assert time_config.to_frequency(units=units) == expected_frequency
