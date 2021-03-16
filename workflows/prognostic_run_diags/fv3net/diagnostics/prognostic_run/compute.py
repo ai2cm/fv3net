@@ -146,7 +146,9 @@ def add_to_diags(
     return func
 
 
-def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
+def compute_all_diagnostics(
+    input_datasets: Dict[str, DiagArg], n_jobs: int = -1
+) -> DiagDict:
     """
     Compute all diagnostics for input data.
 
@@ -160,7 +162,7 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
 
     diags = {}
     logger.info("Computing all diagnostics")
-    single_diags = Parallel(n_jobs=-1, verbose=True)(
+    single_diags = Parallel(n_jobs=n_jobs, verbose=True)(
         delayed(_apply_and_load)(diag_func, data, verification, grid)
         for diag_func, (data, verification, grid) in _generate_diag_functions(
             input_datasets
@@ -508,6 +510,15 @@ def register_parser(subparsers):
         "'simulation' metadata from intake catalog.",
         default="40day_may2020",
     )
+    parser.add_argument(
+        "--n-jobs",
+        type=int,
+        help="Parallelism for the computation of diagnostics. "
+        "Defaults to using all available cores. Can set to a lower fixed value "
+        "if you are often running  into read errors when multiple processes "
+        "access data concurrently.",
+        default=-1,
+    )
     parser.set_defaults(func=main)
 
 
@@ -536,7 +547,7 @@ def main(args):
     diags["pwat_run_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
     diags["pwat_verification_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
 
-    diags.update(compute_all_diagnostics(input_data))
+    diags.update(compute_all_diagnostics(input_data, n_jobs=args.n_jobs))
 
     # add grid vars
     diags = xr.Dataset(diags, attrs=attrs)
