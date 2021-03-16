@@ -509,9 +509,9 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
         self._storage_variables = list(storage_variables)
 
     _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
-    _apply_python_to_dycore_state = monitor(
-        "python", TimeLoop._apply_python_to_dycore_state
-    )
+    # _apply_python_to_dycore_state = monitor(
+    #     "python", TimeLoop._apply_python_to_dycore_state
+    # )
 
 
 def globally_average_2d_diagnostics(
