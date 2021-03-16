@@ -147,7 +147,7 @@ def insert_absent_3d_output_placeholder(arg: DiagArg) -> DiagArg:
         }
 
         placeholder = xr.Dataset(
-            {"placeholder": xr.DataArray(np.NaN, dims=dims, coords=coords),}
+            {"placeholder": xr.DataArray(np.NaN, dims=dims, coords=coords)}
         )
         grid = xr.Dataset({"lat": xr.DataArray(1.0, dims=["x"], coords={"x": [1, 2]})})
         for var in placeholder:
