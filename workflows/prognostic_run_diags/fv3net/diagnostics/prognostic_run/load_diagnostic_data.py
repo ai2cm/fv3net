@@ -90,9 +90,12 @@ def _load_prognostic_run_3d_output(url: str):
         if item.endswith("3d.zarr") or item.endswith("state_after_timestep.zarr")
     ]
     if len(prognostic_3d_output) > 0:
-        zarr_name = os.path.basename(prognostic_3d_output[0])
-        path = os.path.join(url, zarr_name)
-        return _load_standardized(path)
+        outputs = []
+        for item in prognostic_3d_output:
+            zarr_name = os.path.basename(item)
+            path = os.path.join(url, zarr_name)
+            outputs.append(_load_standardized(path))
+        return xr.merge(outputs)
     else:
         return None
 
