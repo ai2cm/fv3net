@@ -7,5 +7,5 @@ copy_gfs_analysis_to_pvc:
 	argo submit fv3net/workflows/argo/copy-data-to-read-only-pvc.yaml \
 		-p size="200Gi" \
 		-p pvc-name="gfs-analysis-read-only" \
-		-p source="gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data/*" \
+		-p source="gs://vcm-ml-raw-flexible-retention/2019-12-02-year-2016-T85-nudging-data/*" \
 		-p destination="gfs-analysis-T85"

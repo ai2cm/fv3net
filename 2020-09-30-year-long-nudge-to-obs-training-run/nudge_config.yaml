@@ -8,7 +8,7 @@ memory: 20Gi
 nudging-config: |
   base_version: v0.3
   diag_table: gs://vcm-ml-experiments/diag_tables/nudge_to_obs_5h/v1.0/diag_table
-  initial_conditions: gs://vcm-ml-data/2019-12-03-C48-20160101.00Z_IC
+  initial_conditions: gs://vcm-ml-intermediate/2019-12-03-C48-20160101.00Z_IC
   orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
   namelist:
     atmos_model_nml:

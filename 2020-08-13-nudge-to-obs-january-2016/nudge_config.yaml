@@ -6,9 +6,9 @@ nudging-config: |
   base_version: v0.3
   diag_table: /mnt/data/diag_table
   experiment_name: nudge-to-obs
-  initial_conditions: gs://vcm-ml-data/2019-12-03-C48-20160101.00Z_IC
+  initial_conditions: gs://vcm-ml-raw-flexible-retention/2019-12-03-C48-20160101.00Z_IC
   gfs_analysis_data:
-    url: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
+    url: gs://vcm-ml-raw-flexible-retention/2019-12-02-year-2016-T85-nudging-data
     filename_pattern: '%Y%m%d_%HZ_T85LR.nc'
   namelist:
     atmos_model_nml:
