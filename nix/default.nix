@@ -43,10 +43,6 @@ let
 
     sphinx-gallery = self.callPackage ./packages/sphinx-gallery { };
 
-    tensorflow = self.callPackage ./packages/tensorflow/2/bin.nix { };
-
-    tensorflow-addons = self.callPackage ./packages/tensorflow-addons { };
-
     xgcm = self.callPackage ./packages/xgcm { };
 
     yq = self.callPackage ./packages/yq { };
@@ -160,7 +156,7 @@ let
     esmf = self.callPackage ./esmf { };
     nceplibs = self.callPackage ./nceplibs { };
     fv3 = self.callPackage ./fv3 { };
-    python37 = super.python37.override {
+    python3 = super.python3.override {
       packageOverrides = packageOverrides self mpich fv3;
     };
     wrapper = python.pkgs.wrapper;
@@ -174,8 +170,8 @@ let
   sha256 = "1wg61h4gndm3vcprdcg7rc4s1v3jkm5xd7lw8r2f67w502y94gcy";
 }) {overlays = [overlay];};
   loaders_reqs = (ps: with ps; [joblib intake]);
-  fv3fit_reqs = (ps: with ps; [ tensorflow tensorflow-addons scikitlearn fsspec pyyaml vcm numpy xarray typing-extensions ]);
-  py = nixpkgs.python37.withPackages (ps: with ps; [ pip setuptools numpy wrapper fv3config pytest dask scikitimage xgcm metpy tox fv3kube vcm] ++ loaders_reqs ps ++ fv3fit_reqs ps);
+  fv3fit_reqs = (ps: with ps; []);
+  py = nixpkgs.python3.withPackages (ps: with ps; [ pip setuptools numpy wrapper fv3config pytest dask scikitimage xgcm metpy tox fv3kube vcm] ++ loaders_reqs ps ++ fv3fit_reqs ps);
   shell = with nixpkgs; mkShell {
   buildInputs = [
           pkg-config
@@ -199,7 +195,7 @@ let
           # for cartopy
           geos 
           proj_5
-    ];
+    ] ++ nixpkgs.python3.pkgs.tensorflow_2.propagatedBuildInputs;
 
     MPI="mpich";
     FC="gfortran";
@@ -233,5 +229,4 @@ let
     # source .env/bin/activate
   '';
 };
-# in shell
 in shell
