@@ -2,6 +2,7 @@ import dataclasses
 import argparse
 import yaml
 import logging
+import sys
 from datetime import datetime, timedelta
 from typing import List, Mapping, Optional, Sequence
 
@@ -241,7 +242,7 @@ def prepare_config(args):
     final = _prepare_config_from_parsed_config(
         user_config, fv3config_config, dict_["base_version"], args
     )
-    print(fv3config.dump(final))
+    fv3config.dump(final, sys.stdout)
 
 
 def _prepare_config_from_parsed_config(
