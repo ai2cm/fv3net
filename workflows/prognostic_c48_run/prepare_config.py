@@ -241,10 +241,7 @@ def prepare_config(args):
     final = _prepare_config_from_parsed_config(
         user_config, fv3config_config, dict_["base_version"], args
     )
-    # TODO: replace with print(fv3config.dump(final)) once fv3config version bumped
-    if isinstance(final["diag_table"], fv3config.DiagTable):
-        final["diag_table"] = final["diag_table"].asdict()
-    print(yaml.safe_dump(final))
+    print(fv3config.dump(final))
 
 
 def _prepare_config_from_parsed_config(
