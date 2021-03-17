@@ -6,8 +6,6 @@ import yaml
 import pytest
 import vcm.testing
 
-# TODO fix this import
-
 
 @pytest.fixture(scope="session")
 def state(tmp_path_factory):
