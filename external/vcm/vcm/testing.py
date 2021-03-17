@@ -1,5 +1,9 @@
+from typing import Hashable, List, Tuple, Mapping
 import contextlib
 import pytest
+import numpy as np
+import joblib
+import xarray
 
 
 @contextlib.contextmanager
@@ -28,3 +32,21 @@ def no_warning(*args):
         yield
 
     assert len(record) == 0
+
+
+def checksum_dataarray(xobj) -> str:
+    return joblib.hash(np.asarray(xobj))
+
+
+def checksum_dataarray_mapping(
+    d: Mapping[Hashable, xarray.DataArray]
+) -> List[Tuple[Hashable, str]]:
+    """Checksum a mapping of datarrays
+
+    Returns:
+        sorted list of (key, hash) combinations. This is sorted to simplify
+        regression testing.
+    
+    """
+    sorted_keys = sorted(d.keys())
+    return [(key, checksum_dataarray(d[key])) for key in sorted_keys]
