@@ -18,6 +18,7 @@ install_requirements = [
     "toolz",
     "scipy",
     "metpy",
+    "joblib",
     "intake",
     "gcsfs",
     "zarr",
