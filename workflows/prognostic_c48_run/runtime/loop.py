@@ -368,21 +368,22 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 rename_diagnostics(diagnostics)
             else:
                 self._state_updates.update(state_updates)
-        # self._log_debug(f"_prephysics_state_updates: {list(state_updates.keys())}")
-        prephysics_overrides = [
-            "total_sky_downward_shortwave_flux_at_surface_override",
-            "total_sky_net_shortwave_flux_at_surface_override",
-            "total_sky_downward_longwave_flux_at_surface_override",
-        ]
-        state_updates = {
-            k: v for k, v in self._state_updates.items() if k in prephysics_overrides
-        }
-        self._state_updates = dissoc(self._state_updates, *prephysics_overrides)
-        self._log_debug(
-            f"Applying prephysics state updates for: {list(state_updates.keys())}"
-        )
-        updated_state = assign_attrs_from(self._state, state_updates)
-        self._state.update_mass_conserving(updated_state)
+            prephysics_overrides = [
+                "total_sky_downward_shortwave_flux_at_surface_override",
+                "total_sky_net_shortwave_flux_at_surface_override",
+                "total_sky_downward_longwave_flux_at_surface_override",
+            ]
+            state_updates = {
+                k: v
+                for k, v in self._state_updates.items()
+                if k in prephysics_overrides
+            }
+            self._state_updates = dissoc(self._state_updates, *prephysics_overrides)
+            self._log_debug(
+                f"Applying prephysics state updates for: {list(state_updates.keys())}"
+            )
+            updated_state = assign_attrs_from(self._state, state_updates)
+            self._state.update_mass_conserving(updated_state)
 
         return diagnostics
 

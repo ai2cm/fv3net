@@ -2,7 +2,7 @@ import dataclasses
 import argparse
 import yaml
 import logging
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import dacite
 
@@ -97,13 +97,9 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
         config_dict.get("namelist", {}).get("fv_core_nml", {}).get("nudge", False)
     )
 
-    prephysics: Optional[Union[MachineLearningConfig, PrescriberConfig]]
+    prephysics: Optional[PrescriberConfig]
     if "prephysics" in config_dict:
-        if "model" in config_dict["prephysics"]:
-            prephysics = dacite.from_dict(
-                MachineLearningConfig, config_dict["prephysics"]
-            )
-        elif "catalog_entry" in config_dict["prephysics"]:
+        if "catalog_entry" in config_dict["prephysics"]:
             prephysics = dacite.from_dict(PrescriberConfig, config_dict["prephysics"])
         else:
             raise ValueError(
