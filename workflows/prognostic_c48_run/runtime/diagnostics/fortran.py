@@ -113,7 +113,7 @@ class FortranFileConfig:
 
     def to_fv3config_diag_file_config(self) -> fv3config.DiagFileConfig:
         frequency_units = "seconds"
-        frequency = self.times.to_frequency().total_seconds()
+        frequency = int(self.times.to_frequency().total_seconds())
         field_configs = [
             fv3config.DiagFieldConfig(
                 variable.module_name,
