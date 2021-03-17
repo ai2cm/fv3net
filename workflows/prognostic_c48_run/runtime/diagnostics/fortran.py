@@ -6,7 +6,7 @@ import os
 import cftime
 import fv3config
 
-from .time import All, IntervalTimes, TimeContainer
+from .time import All, IntervalAveragedTimes, IntervalTimes, TimeContainer
 
 # the Fortran model handles diagnostics from these modules in a special way
 FORTRAN_PHYSICS_MODULES = ["gfs_phys", "gfs_sfc"]

@@ -4,11 +4,6 @@ import dacite
 import dataclasses
 from runtime.config import UserConfig
 from runtime.diagnostics.manager import TimeConfig
-from runtime.diagnostics.fortran import (
-    FortranFileConfig,
-    FortranTimeConfig,
-    FortranVariableNameSpec,
-)
 
 MODEL_URL = "gs://ml-model"
 IC_URL = "gs://ic-bucket"
