@@ -263,7 +263,7 @@ diag_table:
       regional_section: none
       time_sampling: all
     file_format: 1
-    frequency: 0.0
+    frequency: 0
     frequency_units: seconds
     name: sfc_dt_atmos
     time_axis_name: time
@@ -599,7 +599,7 @@ diag_table:
       regional_section: none
       time_sampling: all
     file_format: 1
-    frequency: 0.0
+    frequency: 0
     frequency_units: seconds
     name: atmos_dt_atmos
     time_axis_name: time
@@ -746,7 +746,7 @@ diag_table:
       regional_section: none
       time_sampling: all
     file_format: 1
-    frequency: 0.0
+    frequency: 0
     frequency_units: seconds
     name: atmos_8xdaily
     time_axis_name: time
