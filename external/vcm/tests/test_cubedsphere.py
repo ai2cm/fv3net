@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 import xarray as xr
-from skimage.measure import block_reduce as skimage_block_reduce
 import xgcm
 
 from vcm.cubedsphere.coarsen import (
@@ -30,6 +29,7 @@ from vcm.cubedsphere.constants import (
 from vcm.cubedsphere.io import all_filenames
 from vcm.cubedsphere import create_fv3_grid
 from vcm.xarray_utils import assert_identical_including_dtype
+import vcm.testing
 
 
 def remove_duplicate_coords(ds):
@@ -260,27 +260,16 @@ def input_dataset(input_dataarray):
 
 @pytest.mark.parametrize("reduction_function", [np.mean, np.median])
 @pytest.mark.parametrize("use_dask", [False, True])
-def test_xarray_block_reduce_dataarray(reduction_function, use_dask, input_dataarray):
-    block_size = (2, 2, 1)
-    expected_data = skimage_block_reduce(
-        input_dataarray.values, block_size=block_size, func=reduction_function
-    )
-    expected = xr.DataArray(
-        expected_data,
-        dims=input_dataarray.dims,
-        coords=None,
-        name="foo",
-        attrs={"units": "m"},
-    )
-
+def test_xarray_block_reduce_dataarray(
+    reduction_function, use_dask, input_dataarray, regtest
+):
     if use_dask:
         input_dataarray = input_dataarray.chunk({"x": 2, "y": 2, "z": -1})
-
     block_sizes = {"x": 2, "y": 2}
     result = _xarray_block_reduce_dataarray(
         input_dataarray, block_sizes, reduction_function
     )
-    assert_identical_including_dtype(result, expected)
+    print(vcm.testing.checksum_dataarray(result), file=regtest)
 
 
 def test_xarray_block_reduce_dataarray_bad_chunk_size(input_dataarray):
