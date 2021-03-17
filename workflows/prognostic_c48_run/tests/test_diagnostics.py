@@ -6,10 +6,14 @@ import fv3config
 import pytest
 import xarray as xr
 
-from runtime.diagnostics.fortran import FortranFileConfig, FortranVariableNameSpec
+from runtime.diagnostics.fortran import (
+    FortranFileConfig,
+    FortranVariableNameSpec,
+    FortranTimeConfig,
+    file_configs_to_namelist_settings,
+)
 from runtime.diagnostics.manager import DiagnosticFileConfig, DiagnosticFile, get_chunks
 from runtime.diagnostics.time import (
-    FortranTimeConfig,
     TimeConfig,
     All,
     TimeContainer,
@@ -282,20 +286,76 @@ def test_to_fv3config_diag_file_config(
 
 
 @pytest.mark.parametrize(
-    "time_config, units, expected_frequency, raises_error",
+    "time_config, expected_frequency, raises_error",
     [
-        (FortranTimeConfig(kind="every"), "seconds", 0, False),
-        (FortranTimeConfig(kind="interval", frequency=900), "seconds", 900, False),
-        (FortranTimeConfig(kind="interval", frequency=900), "hours", 0.25, False),
-        (FortranTimeConfig(kind="interval", frequency=7200), "hours", 2, False),
-        (FortranTimeConfig(kind="selected"), "seconds", 0, True),
+        (FortranTimeConfig(kind="every"), timedelta(seconds=0), False),
+        (
+            FortranTimeConfig(kind="interval", frequency=900),
+            timedelta(seconds=900),
+            False,
+        ),
+        (FortranTimeConfig(kind="interval", frequency=7200), timedelta(hours=2), False),
+        (FortranTimeConfig(kind="selected"), 0, True),
     ],
 )
 def test_fortran_time_config_to_frequency(
-    time_config, units, expected_frequency, raises_error
+    time_config, expected_frequency, raises_error
 ):
     if raises_error:
         with pytest.raises(NotImplementedError):
-            time_config.to_frequency(units=units)
+            time_config.to_frequency()
     else:
-        assert time_config.to_frequency(units=units) == expected_frequency
+        assert time_config.to_frequency() == expected_frequency
+
+
+def test_file_configs_to_namelist_settings_raises_error():
+    diagnostics = [
+        FortranFileConfig(
+            "physics_3hourly.zarr",
+            {"time": 1},
+            [FortranVariableNameSpec("gfs_phys", "totprcpb_ave", "PRATEsfc")],
+            FortranTimeConfig("interval", 10800),
+        ),
+        FortranFileConfig(
+            "physics_hourly.zarr",
+            {"time": 1},
+            [FortranVariableNameSpec("gfs_sfc", "t2m", "TMP2m")],
+            FortranTimeConfig("interval", 3600),
+        ),
+    ]
+    with pytest.raises(NotImplementedError):
+        file_configs_to_namelist_settings(diagnostics, 900)
+
+
+@pytest.mark.parametrize(
+    "time_config, expected_frequency_in_hours",
+    [
+        (FortranTimeConfig(kind="every"), 0.25),
+        (FortranTimeConfig(kind="interval", frequency=900), 0.25),
+        (FortranTimeConfig(kind="interval", frequency=3600), 1),
+    ],
+)
+def test_file_configs_to_namelist_settings(time_config, expected_frequency_in_hours):
+    diagnostics = [
+        FortranFileConfig(
+            "physics_3hourly.zarr",
+            {"time": 1},
+            [
+                FortranVariableNameSpec("gfs_phys", "totprcpb_ave", "PRATEsfc"),
+                FortranVariableNameSpec("gfs_sfc", "t2m", "TMP2m"),
+            ],
+            time_config,
+        ),
+    ]
+    overlay = file_configs_to_namelist_settings(diagnostics, timedelta(seconds=900))
+    expected_overlay = {
+        "namelist": {
+            "atmos_model_nml": {"fhout": expected_frequency_in_hours},
+            "gfs_physics_nml": {"fhzero": expected_frequency_in_hours},
+        }
+    }
+    assert overlay == expected_overlay
+
+
+def test_file_configs_to_namelist_settings_empty_diagnostics():
+    assert file_configs_to_namelist_settings([], timedelta(seconds=900)) == {}

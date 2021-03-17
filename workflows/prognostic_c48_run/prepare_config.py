@@ -2,7 +2,7 @@ import dataclasses
 import argparse
 import yaml
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Mapping, Optional, Sequence
 
 import dacite
@@ -16,6 +16,7 @@ from runtime.diagnostics.manager import (
     DiagnosticFileConfig,
     TimeConfig,
 )
+from runtime.diagnostics.fortran import file_configs_to_namelist_settings
 from runtime.steppers.nudging import NudgingConfig
 from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
@@ -229,37 +230,6 @@ def _diag_table_overlay(
     return {"diag_table": diag_table}
 
 
-def _physics_frequency_overlay(
-    diagnostics: Sequence[FortranFileConfig], physics_timestep_in_seconds: float
-) -> Mapping[str, Mapping]:
-    """Return overlay for physics output frequency configuration if any physics
-    diagnostics are specified in given sequence of FortranFileConfig's."""
-    physics_frequencies = set()
-    for diagnostic_config in diagnostics:
-        for variable in diagnostic_config.variables:
-            if variable.in_physics_module():
-                variable_frequency = diagnostic_config.times.to_frequency(units="hours")
-                physics_frequencies.add(variable_frequency)
-
-    if len(physics_frequencies) == 0:
-        return {}
-    elif len(physics_frequencies) == 1:
-        physics_frequency_in_hours = list(physics_frequencies)[0]
-        if physics_frequency_in_hours == 0.0:
-            # handle case of outputting diagnostics on every physics timestep
-            physics_frequency_in_hours = physics_timestep_in_seconds / 3600.0
-        return {
-            "namelist": {
-                "atmos_model_nml": {"fhout": physics_frequency_in_hours},
-                "gfs_physics_nml": {"fhzero": physics_frequency_in_hours},
-            }
-        }
-    else:
-        raise NotImplementedError(
-            "Cannot output physics diagnostics at multiple frequencies."
-        )
-
-
 def prepare_config(args):
     # Get model config with prognostic run updates
     with open(args.user_config, "r") as f:
@@ -287,9 +257,11 @@ def _prepare_config_from_parsed_config(
             "argument."
         )
 
-    physics_timestep = fv3kube.merge_fv3config_overlays(
-        fv3kube.get_base_fv3config(base_version), fv3_config
-    )["namelist"]["coupler_nml"]["dt_atmos"]
+    physics_timestep = timedelta(
+        seconds=fv3kube.merge_fv3config_overlays(
+            fv3kube.get_base_fv3config(base_version), fv3_config
+        )["namelist"]["coupler_nml"]["dt_atmos"]
+    )
 
     # To simplify the configuration flow, updates should be implemented as
     # overlays (i.e. diffs) requiring only a small number of inputs. In
@@ -304,7 +276,9 @@ def _prepare_config_from_parsed_config(
         dataclasses.asdict(user_config),
         fv3_config,
         _diag_table_overlay(user_config.fortran_diagnostics),
-        _physics_frequency_overlay(user_config.fortran_diagnostics, physics_timestep),
+        file_configs_to_namelist_settings(
+            user_config.fortran_diagnostics, physics_timestep
+        ),
     ]
 
     return fv3kube.merge_fv3config_overlays(*overlays)
