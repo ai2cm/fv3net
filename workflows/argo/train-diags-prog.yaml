@@ -110,6 +110,17 @@ spec:
                 value: "{{inputs.parameters.cpu-prog}}"
               - name: memory
                 value: "{{inputs.parameters.memory-prog}}"
+      - name: online-diags
+        dependencies: [prognostic-run]
+        templateRef:
+          name: prognostic-run-diags
+          template: diagnostics
+        arguments:
+          parameters:
+              - name: run
+                value: "{{inputs.parameters.root}}/prognostic_run"
+              - name: output
+                value: "{{inputs.parameters.root}}/prognostic_run_diags"
   - name: construct-full-flags
     inputs:
       parameters:
