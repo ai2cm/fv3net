@@ -6,8 +6,6 @@ set -e
 # under output-url after debugging configuration
 EXPERIMENT=fill_in_here
 
-gsutil cp diag_table gs://vcm-ml-experiments/diag_tables/nudge_to_obs_3h/v1.2/diag_table
-
 argo submit \
     --from workflowtemplate/prognostic-run \
     -p output=gs://vcm-ml-scratch/$EXPERIMENT \

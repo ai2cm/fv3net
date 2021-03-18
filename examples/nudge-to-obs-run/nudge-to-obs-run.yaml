@@ -1,5 +1,4 @@
 base_version: v0.6
-diag_table: gs://vcm-ml-experiments/diag_tables/nudge_to_obs_3h/v1.2/diag_table
 initial_conditions: gs://vcm-ml-intermediate/2019-12-03-C48-20160101.00Z_IC
 gfs_analysis_data:
   url: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
@@ -61,15 +60,170 @@ fortran_diagnostics:
   - name: atmos_dt_atmos.zarr
     chunks:
       time: 80
+    times:
+      frequency: 10800
+      kind: interval
+    variables:
+    - {module_name: dynamics, field_name: grid_lont, output_name: lon}
+    - {module_name: dynamics, field_name: grid_latt, output_name: lat}
+    - {module_name: dynamics, field_name: grid_lon, output_name: lonb}
+    - {module_name: dynamics, field_name: grid_lat, output_name: latb}
+    - {module_name: dynamics, field_name: area, output_name: area}
+    - {module_name: dynamics, field_name: us, output_name: UGRDlowest}
+    - {module_name: dynamics, field_name: u850, output_name: UGRD850}
+    - {module_name: dynamics, field_name: u500, output_name: UGRD500}
+    - {module_name: dynamics, field_name: u200, output_name: UGRD200}
+    - {module_name: dynamics, field_name: u50, output_name: UGRD50}
+    - {module_name: dynamics, field_name: vs, output_name: VGRDlowest}
+    - {module_name: dynamics, field_name: v850, output_name: VGRD850}
+    - {module_name: dynamics, field_name: v500, output_name: VGRD500}
+    - {module_name: dynamics, field_name: v200, output_name: VGRD200}
+    - {module_name: dynamics, field_name: v50, output_name: VGRD50}
+    - {module_name: dynamics, field_name: tm, output_name: TMP500_300}
+    - {module_name: dynamics, field_name: tb, output_name: TMPlowest}
+    - {module_name: dynamics, field_name: t850, output_name: TMP850}
+    - {module_name: dynamics, field_name: t500, output_name: TMP500}
+    - {module_name: dynamics, field_name: t200, output_name: TMP200}
+    - {module_name: dynamics, field_name: w850, output_name: w850}
+    - {module_name: dynamics, field_name: w500, output_name: w500}
+    - {module_name: dynamics, field_name: w200, output_name: w200}
+    - {module_name: dynamics, field_name: w50, output_name: w50}
+    - {module_name: dynamics, field_name: vort850, output_name: VORT850}
+    - {module_name: dynamics, field_name: vort500, output_name: VORT500}
+    - {module_name: dynamics, field_name: vort200, output_name: VORT200}
+    - {module_name: dynamics, field_name: z850, output_name: h850}
+    - {module_name: dynamics, field_name: z500, output_name: h500}
+    - {module_name: dynamics, field_name: z200, output_name: h200}
+    - {module_name: dynamics, field_name: rh1000, output_name: RH1000}
+    - {module_name: dynamics, field_name: rh925, output_name: RH925}
+    - {module_name: dynamics, field_name: rh850, output_name: RH850}
+    - {module_name: dynamics, field_name: rh700, output_name: RH700}
+    - {module_name: dynamics, field_name: rh500, output_name: RH500}
+    - {module_name: dynamics, field_name: q1000, output_name: q1000}
+    - {module_name: dynamics, field_name: q925, output_name: q925}
+    - {module_name: dynamics, field_name: q850, output_name: q850}
+    - {module_name: dynamics, field_name: q700, output_name: q700}
+    - {module_name: dynamics, field_name: q500, output_name: q500}
+    - {module_name: dynamics, field_name: slp, output_name: PRMSL}
+    - {module_name: dynamics, field_name: ps, output_name: PRESsfc}
+    - {module_name: dynamics, field_name: tq, output_name: PWAT}
+    - {module_name: dynamics, field_name: lw, output_name: VIL}
+    - {module_name: dynamics, field_name: iw, output_name: iw}
+    - {module_name: dynamics, field_name: ke, output_name: kinetic_energy}
+    - {module_name: dynamics, field_name: te, output_name: total_energy}
   - name: sfc_dt_atmos.zarr
     chunks:
       time: 80
+    times:
+      frequency: 10800
+      kind: interval
+    variables:
+    - {module_name: dynamics, field_name: grid_lont, output_name: lon}
+    - {module_name: dynamics, field_name: grid_latt, output_name: lat}
+    - {module_name: dynamics, field_name: grid_lon, output_name: lonb}
+    - {module_name: dynamics, field_name: grid_lat, output_name: latb}
+    - {module_name: dynamics, field_name: area, output_name: area}
+    - {module_name: gfs_phys, field_name: dusfci, output_name: uflx}
+    - {module_name: gfs_phys, field_name: dvsfci, output_name: vflx}
+    - {module_name: gfs_phys, field_name: cnvprcpb_ave, output_name: CPRATsfc}
+    - {module_name: gfs_phys, field_name: totprcpb_ave, output_name: PRATEsfc}
+    - {module_name: gfs_phys, field_name: toticeb_ave, output_name: ICEsfc}
+    - {module_name: gfs_phys, field_name: totsnwb_ave, output_name: SNOWsfc}
+    - {module_name: gfs_phys, field_name: totgrpb_ave, output_name: GRAUPELsfc}
+    - {module_name: gfs_phys, field_name: DSWRF, output_name: DSWRFsfc}
+    - {module_name: gfs_phys, field_name: USWRF, output_name: USWRFsfc}
+    - {module_name: gfs_phys, field_name: DSWRFtoa, output_name: DSWRFtoa}
+    - {module_name: gfs_phys, field_name: USWRFtoa, output_name: USWRFtoa}
+    - {module_name: gfs_phys, field_name: ULWRFtoa, output_name: ULWRFtoa}
+    - {module_name: gfs_phys, field_name: ULWRF, output_name: ULWRFsfc}
+    - {module_name: gfs_phys, field_name: DLWRF, output_name: DLWRFsfc}
+    - {module_name: gfs_phys, field_name: lhtfl_ave, output_name: LHTFLsfc}
+    - {module_name: gfs_phys, field_name: shtfl_ave, output_name: SHTFLsfc}
+    - {module_name: gfs_phys, field_name: hpbl, output_name: HPBLsfc}
+    - {module_name: gfs_sfc, field_name: fice, output_name: ICECsfc}
+    - {module_name: gfs_sfc, field_name: SLMSKsfc, output_name: SLMSKsfc}
+    - {module_name: gfs_sfc, field_name: q2m, output_name: SPFH2m}
+    - {module_name: gfs_sfc, field_name: t2m, output_name: TMP2m}
+    - {module_name: gfs_sfc, field_name: tsfc, output_name: TMPsfc}
+    - {module_name: gfs_phys, field_name: dpt2m, output_name: DPT2m}
+    - {module_name: gfs_phys, field_name: u10m, output_name: UGRD10m}
+    - {module_name: gfs_phys, field_name: v10m, output_name: VGRD10m}
+    - {module_name: gfs_phys, field_name: tmpmax2m, output_name: TMAX2m}
+    - {module_name: gfs_phys, field_name: wind10mmax, output_name: MAXWIND10m}
+    - {module_name: gfs_phys, field_name: soilm, output_name: SOILM}
+    - {module_name: gfs_sfc, field_name: SOILT1, output_name: SOILT1}
+    - {module_name: gfs_sfc, field_name: SOILT2, output_name: SOILT2}
+    - {module_name: gfs_sfc, field_name: SOILT3, output_name: SOILT3}
+    - {module_name: gfs_sfc, field_name: SOILT4, output_name: SOILT4}
   - name: physics_tendency_components.zarr
     chunks:
       time: 1
+    times:
+      frequency: 10800
+      kind: interval
+    variables:
+    - {module_name: dynamics, field_name: grid_lont, output_name: lon}
+    - {module_name: dynamics, field_name: grid_latt, output_name: lat}
+    - {module_name: dynamics, field_name: grid_lon, output_name: lonb}
+    - {module_name: dynamics, field_name: grid_lat, output_name: latb}
+    - {module_name: dynamics, field_name: area, output_name: area}
+    - module_name: gfs_phys
+      field_name: tendency_of_air_temperature_due_to_longwave_heating
+      output_name: tendency_of_air_temperature_due_to_longwave_heating
+    - module_name: gfs_phys
+      field_name: tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky
+      output_name: tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky
+    - module_name: gfs_phys
+      field_name: tendency_of_air_temperature_due_to_shortwave_heating
+      output_name: tendency_of_air_temperature_due_to_shortwave_heating
+    - module_name: gfs_phys
+      field_name: tendency_of_air_temperature_due_to_turbulence
+      output_name: tendency_of_air_temperature_due_to_turbulence
+    - module_name: gfs_phys
+      field_name: tendency_of_air_temperature_due_to_deep_convection
+      output_name: tendency_of_air_temperature_due_to_deep_convection
+    - module_name: gfs_phys
+      field_name: tendency_of_air_temperature_due_to_shallow_convection
+      output_name: tendency_of_air_temperature_due_to_shallow_convection
+    - module_name: gfs_phys
+      field_name: tendency_of_air_temperature_due_to_microphysics
+      output_name: tendency_of_air_temperature_due_to_microphysics
+    - module_name: gfs_phys
+      field_name: tendency_of_air_temperature_due_to_dissipation_of_gravity_waves
+      output_name: tendency_of_air_temperature_due_to_dissipation_of_gravity_waves
+    - module_name: gfs_phys
+      field_name: tendency_of_specific_humidity_due_to_turbulence
+      output_name: tendency_of_specific_humidity_due_to_turbulence
+    - module_name: gfs_phys
+      field_name: tendency_of_specific_humidity_due_to_deep_convection
+      output_name: tendency_of_specific_humidity_due_to_deep_convection
+    - module_name: gfs_phys
+      field_name: tendency_of_specific_humidity_due_to_shallow_convection
+      output_name: tendency_of_specific_humidity_due_to_shallow_convection
+    - module_name: gfs_phys
+      field_name: tendency_of_specific_humidity_due_to_microphysics
+      output_name: tendency_of_specific_humidity_due_to_microphysics
+    - module_name: gfs_phys
+      field_name: tendency_of_specific_humidity_due_to_change_in_atmosphere_mass
+      output_name: tendency_of_specific_humidity_due_to_change_in_atmosphere_mass
   - name: nudging_tendencies.zarr
     chunks:
       time: 1
+    times:
+      frequency: 18000
+      kind: interval
+    variables:
+    - {module_name: dynamics, field_name: grid_lont, output_name: lon}
+    - {module_name: dynamics, field_name: grid_latt, output_name: lat}
+    - {module_name: dynamics, field_name: grid_lon, output_name: lonb}
+    - {module_name: dynamics, field_name: grid_lat, output_name: latb}
+    - {module_name: dynamics, field_name: area, output_name: area}
+    - {module_name: dynamics, field_name: u_dt_nudge, output_name: u_dt_nudge}
+    - {module_name: dynamics, field_name: v_dt_nudge, output_name: v_dt_nudge}
+    - {module_name: dynamics, field_name: delp_dt_nudge, output_name: delp_dt_nudge}
+    - {module_name: dynamics, field_name: ps_dt_nudge, output_name: ps_dt_nudge}
+    - {module_name: dynamics, field_name: t_dt_nudge, output_name: t_dt_nudge}
+    - {module_name: dynamics, field_name: q_dt_nudge, output_name: q_dt_nudge}
 diagnostics:
   - name: physics_tendencies.zarr
     times:
