@@ -112,8 +112,14 @@ It can be used multiple times to specify multiple models. For example::
 Diagnostics
 ~~~~~~~~~~~
 
-Default diagnostics are computed and saved to .zarrs depending on whether ML,
-nudge-to-fine, nudge-to-obs, or baseline runs are chosen. To save additional
+Python diagnostics
+^^^^^^^^^^^^^^^^^^
+
+If no :py:attr:`UserConfig.diagnostics` section is provided in the ``minimal.yaml``,
+default diagnostics
+are configured depending on whether ML, nudge-to-fine, nudge-to-obs, or baseline runs
+are chosen. To save custom diagnostics, provide a ``diagnostics`` section. To save 
+additional
 tendencies and storages across physics and nudging/ML time steps, add
 :py:attr:`UserConfig.step_tendency_variables` and
 :py:attr:`UserConfig.step_storage_variables` entries to specify these
@@ -141,9 +147,8 @@ being saved.
       chunks:
         time: 4
       times:
-        kind: interval
-        # 3 hours = 10800 seconds
-        frequency: 10800
+        kind: interval-average
+        frequency: 10800  # 3 hours = 10800 seconds
       variables:
         - tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics
         - storage_of_specific_humidity_path_due_to_fv3_physics
@@ -151,5 +156,13 @@ being saved.
         - storage_of_specific_humidity_path_due_to_python
 
 
+Fortran diagnostics
+^^^^^^^^^^^^^^^^^^^
+
+Diagnostics to be output by the Fortran model are specified in the
+:py:attr:`UserConfig.fortran_diagnostics` section. This section will be converted
+to the Fortran ``diag_table`` representation of diagnostics (see fv3config_ docs).
+
+
 .. _fv3config: https://fv3config.readthedocs.io/en/latest/
-.. _fv3fit: broken link
+.. _fv3fit: https://vulcanclimatemodeling.com/docs/fv3fit/
