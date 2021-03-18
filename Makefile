@@ -61,14 +61,6 @@ deploy_docs_fv3net:
 	gsutil -m rsync -R fv3net_docs gs://vulcanclimatemodeling-com-static/docs
 	rm -rf fv3net_docs
 
-## Deploy documentation for fv3fit to vulcanclimatemodeling.com
-deploy_docs_fv3fit:
-	mkdir html
-	# use tar to grab docs from inside the docker image and extract them to "./html"
-	docker run --entrypoint="tar" us.gcr.io/vcm-ml/fv3fit:$(VERSION) -C /fv3fit/docs/_build/html  -c . | tar -C html -x
-	gsutil -m rsync -R html gs://vulcanclimatemodeling-com-static/docs/fv3fit
-	rm -rf html
-
 ## Deploy documentation for prognostic run to vulcanclimatemodeling.com
 deploy_docs_prognostic_run:
 	mkdir html
@@ -103,7 +95,7 @@ test_prognostic_run_report:
 test_%:
 	cd external/$* && tox
 
-test_unit: test_fv3kube test_vcm
+test_unit: test_fv3kube test_vcm test_fv3fit
 	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
 
 test_regression:
@@ -155,7 +147,6 @@ lock_pip:
 	--no-annotate \
 	external/vcm/setup.py \
 	pip-requirements.txt \
-	external/fv3fit/requirements.txt \
 	external/fv3kube/setup.py \
 	workflows/post_process_run/requirements.txt \
 	workflows/prognostic_c48_run/requirements.in \
