@@ -270,6 +270,10 @@ def test_xarray_block_reduce_dataarray(
         input_dataarray, block_sizes, reduction_function
     )
     print(vcm.testing.checksum_dataarray(result), file=regtest)
+    for coord in result.coords:
+        print(np.asarray(result[coord]), file=regtest)
+    # This ensures the metadata is correct
+    result.to_dataset(name="a").info(regtest)
 
 
 def test_xarray_block_reduce_dataarray_bad_chunk_size(input_dataarray):

@@ -5,6 +5,8 @@ import numpy as np
 import joblib
 import xarray
 
+import io
+
 
 @contextlib.contextmanager
 def no_warning(*args):
@@ -50,3 +52,20 @@ def checksum_dataarray_mapping(
     """
     sorted_keys = sorted(d.keys())
     return [(key, checksum_dataarray(d[key])) for key in sorted_keys]
+
+
+def regression_data(
+    array: xarray.DataArray, attrs: bool = True, coords: bool = True
+) -> str:
+    f = io.StringIO()
+    print("Array hash:", file=f)
+    print(checksum_dataarray(array), file=f)
+    if coords:
+        print("Coordinate info:", file=f)
+        for coord in array.coords:
+            print("Coordinate ", coord, ":", np.asarray(array[coord]), file=f)
+    if attrs:
+        print("CDL Description of Data:")
+        # This ensures the metadata is correct
+        array.to_dataset(name="a").info(f)
+    return f.getvalue()
