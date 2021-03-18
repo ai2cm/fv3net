@@ -125,7 +125,7 @@ jobs:
       - image: circleci/python:3.7
     steps:
       - checkout
-      - run: sudo pip install -c constraints.txt mypy==0.770 xarray
+      - run: sudo pip install mypy==0.770 xarray
       - run: make typecheck
   lint:
     docker:
