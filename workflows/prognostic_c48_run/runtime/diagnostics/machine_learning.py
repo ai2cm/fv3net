@@ -59,15 +59,15 @@ def compute_ml_diagnostics(state: State, ml_tendency: State) -> Diagnostics:
     delp = state[DELP]
     dQ1 = ml_tendency.get("dQ1", xr.zeros_like(delp))
     dQ2 = ml_tendency.get("dQ2", xr.zeros_like(delp))
-    dQu = ml_tendency.get("dQu", xr.zeros_like(delp))
-    dQv = ml_tendency.get("dQv", xr.zeros_like(delp))
     net_moistening = (dQ2 * delp / gravity).sum("z")
 
     return dict(
-        dQ1=dQ1,
-        dQ2=dQ2,
-        dQu=dQu,
-        dQv=dQv,
+        dQ1=dQ1.assign_attrs(units="K/s").assign_attrs(
+            description="air temperature tendency due to ML"
+        ),
+        dQ2=dQ2.assign_attrs(units="kg/kg/s").assign_attrs(
+            description="specific humidity tendency due to ML"
+        ),
         air_temperature=state[TEMP],
         specific_humidity=state[SPHUM],
         pressure_thickness_of_atmospheric_layer=delp,
@@ -98,6 +98,12 @@ def compute_ml_momentum_diagnostics(state: State, tendency: State) -> Diagnostic
     column_integrated_dQu = _mass_average(dQu, delp, "z")
     column_integrated_dQv = _mass_average(dQv, delp, "z")
     return dict(
+        dQu=dQu.assign_attrs(units="m s^-2").assign_attrs(
+            description="zonal wind tendency due to ML"
+        ),
+        dQv=dQv.assign_attrs(units="m s^-2").assign_attrs(
+            description="meridional wind tendency due to ML"
+        ),
         column_integrated_dQu=column_integrated_dQu.assign_attrs(
             units="m s^-2",
             description="column integrated zonal wind tendency due to ML",
