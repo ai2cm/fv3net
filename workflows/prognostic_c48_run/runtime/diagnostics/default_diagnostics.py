@@ -1,7 +1,6 @@
 from .manager import DiagnosticFileConfig
 from .fortran import FortranFileConfig, FortranVariableNameSpec
 
-
 ml_diagnostics = DiagnosticFileConfig(
     name="diags.zarr",
     chunks={"time": 96},
