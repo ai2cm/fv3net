@@ -36,7 +36,7 @@ spec:
       - {name: memory-training, value: 6Gi}
       - {name: memory-offline-diags, value: 6Gi}
       - {name: training-flags, value: " "}
-      - {name: prognostic-report-flags, value: " "}
+      - {name: online-diags-flags, value: " "}
     dag:
       tasks:
       - name: train-model
@@ -123,7 +123,7 @@ spec:
               - name: output
                 value: "{{inputs.parameters.root}}/prognostic_run_diags"
               - name: flags
-                value: "{{inputs.parameters.prognostic-report-flags}}"
+                value: "{{inputs.parameters.online-diags-flags}}"
   - name: construct-full-flags
     inputs:
       parameters:
