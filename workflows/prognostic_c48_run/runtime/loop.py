@@ -290,6 +290,21 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
              diagnostics,
              self._state_updates,
              ) = self.stepper(self._state.time, self._state)
+             
+            try:
+                rank_updated_points = diagnostics["rank_updated_points"]
+            except KeyError:
+                pass
+            else:
+                updated_points = self.comm.reduce(rank_updated_points, root=0)
+                if self.comm.rank == 0:
+                    level_updates = {
+                        i: int(value)
+                        for i, value in enumerate(updated_points.sum(["x", "y"]).values)
+                    }
+                    logger.info(
+                        f"specific_humidity_limiter_updates_per_level: {level_updates}"
+                    )
 
         self._state_to_apply_after_physics = add_tendency(
             self._state, self._tendencies, dt=self._timestep
