@@ -127,6 +127,9 @@ variables. Then add an additional output .zarr which includes among its
 variables the desired tendencies and/or path storages of these variables due
 to physics (``_due_to_fv3_physics``) and/or ML/nudging (``_due_to_python``).
 
+Note that the diagnostic output named ``state_after_timestep.zarr`` is a special case;
+it can only be used to save variables that have getters in the wrapper.
+
 This example configures a run with stepwise tendency outputs for several
 variables. These tendencies are averaged online over 3 hour intervals before
 being saved.
