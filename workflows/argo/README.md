@@ -249,7 +249,7 @@ as for the `training` workflow.  In practice it may be easiest to write this as 
 JSON format using `yq . config.yml` in a submission script.
 
 The default behavior for the final `prognostic-run-diags.diagnostics-step` is to use the default verifcation dataset
-(`40day_may2020`) to calculate the metrics. If this is not the appropriate verification data to use, make sure to specifiy
+(`40day_may2020`) to calculate the metrics. If this is not the appropriate verification data to use, make sure to specify
 the appropriate verification using the `online-diags-flags` parameter, e.g. `-p online-diags-flags="--verification <name>"`.
 
 
