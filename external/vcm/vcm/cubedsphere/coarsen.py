@@ -18,7 +18,7 @@ import dask.array as dask_array
 import numpy as np
 import scipy.stats
 import xarray as xr
-from skimage.measure import block_reduce as skimage_block_reduce
+from ._skimage import block_reduce as skimage_block_reduce
 
 from .. import xarray_utils
 from vcm.cubedsphere.constants import COORD_X_OUTER, COORD_Y_OUTER
