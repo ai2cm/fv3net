@@ -2,10 +2,13 @@ import dataclasses
 import argparse
 import yaml
 import logging
-from typing import List, Optional
+import sys
+from datetime import datetime, timedelta
+from typing import List, Mapping, Optional, Sequence
 
 import dacite
 
+import fv3config
 import fv3kube
 
 from runtime import default_diagnostics
@@ -14,6 +17,7 @@ from runtime.diagnostics.manager import (
     DiagnosticFileConfig,
     TimeConfig,
 )
+from runtime.diagnostics.fortran import file_configs_to_namelist_settings
 from runtime.steppers.nudging import NudgingConfig
 from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
@@ -214,6 +218,19 @@ def _update_times(
     return diagnostic_files
 
 
+def _diag_table_overlay(
+    fortran_diagnostics: Sequence[FortranFileConfig],
+    name: str = "prognostic_run",
+    base_time: datetime = datetime(2000, 1, 1),
+) -> Mapping[str, fv3config.DiagTable]:
+    file_configs = [
+        fortran_diagnostic.to_fv3config_diag_file_config()
+        for fortran_diagnostic in fortran_diagnostics
+    ]
+    diag_table = fv3config.DiagTable(name, base_time, file_configs)
+    return {"diag_table": diag_table}
+
+
 def prepare_config(args):
     # Get model config with prognostic run updates
     with open(args.user_config, "r") as f:
@@ -225,7 +242,7 @@ def prepare_config(args):
     final = _prepare_config_from_parsed_config(
         user_config, fv3config_config, dict_["base_version"], args
     )
-    print(yaml.dump(final))
+    fv3config.dump(final, sys.stdout)
 
 
 def _prepare_config_from_parsed_config(
@@ -238,6 +255,12 @@ def _prepare_config_from_parsed_config(
             "argument."
         )
 
+    physics_timestep = timedelta(
+        seconds=fv3kube.merge_fv3config_overlays(
+            fv3kube.get_base_fv3config(base_version), fv3_config
+        )["namelist"]["coupler_nml"]["dt_atmos"]
+    )
+
     # To simplify the configuration flow, updates should be implemented as
     # overlays (i.e. diffs) requiring only a small number of inputs. In
     # particular, overlays should not require access to the full configuration
@@ -247,10 +270,13 @@ def _prepare_config_from_parsed_config(
         fv3kube.c48_initial_conditions_overlay(
             args.initial_condition_url, args.ic_timestep
         ),
-        {"diag_table": PROGNOSTIC_DIAG_TABLE},
         SUPPRESS_RANGE_WARNINGS,
         dataclasses.asdict(user_config),
         fv3_config,
+        _diag_table_overlay(user_config.fortran_diagnostics),
+        file_configs_to_namelist_settings(
+            user_config.fortran_diagnostics, physics_timestep
+        ),
     ]
 
     return fv3kube.merge_fv3config_overlays(*overlays)

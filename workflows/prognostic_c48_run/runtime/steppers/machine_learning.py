@@ -38,7 +38,7 @@ class MachineLearningConfig:
     Example::
 
         MachineLearningConfig(
-            model=["gs://vcm-ml-data/test-annak/ml-pipeline-output"],
+            model=["gs://vcm-ml-scratch/test-annak/ml-pipeline-output"],
             diagnostic_ml=False,
             input_standard_names={},
             output_standard_names={},

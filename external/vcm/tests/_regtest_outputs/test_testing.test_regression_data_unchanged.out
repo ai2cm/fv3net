@@ -1,0 +1,15 @@
+Array hash:
+a9aa230ec5c5bf71f92e77753b13023d
+Coordinate info:
+Coordinate  x : [1]
+xarray.Dataset {
+dimensions:
+	x = 1 ;
+
+variables:
+	int64 x(x) ;
+	int64 a(x) ;
+		a:hello = world ;
+
+// global attributes:
+}
