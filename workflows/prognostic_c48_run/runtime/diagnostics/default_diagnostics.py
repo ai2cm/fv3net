@@ -1,18 +1,6 @@
 from .manager import DiagnosticFileConfig
 from .fortran import FortranFileConfig, FortranVariableNameSpec
-from .time import TimeConfig
 
-ml_diagnostics_3d = DiagnosticFileConfig(
-    name="diags_3d.zarr",
-    chunks={"time": 8},
-    times=TimeConfig(kind="interval", frequency=10800),
-    variables=[
-        "dQ1",
-        "dQ2",
-        "dQu",
-        "dQv",
-    ],
-)
 
 ml_diagnostics = DiagnosticFileConfig(
     name="diags.zarr",
