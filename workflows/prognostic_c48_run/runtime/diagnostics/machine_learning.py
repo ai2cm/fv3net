@@ -59,9 +59,15 @@ def compute_ml_diagnostics(state: State, ml_tendency: State) -> Diagnostics:
     delp = state[DELP]
     dQ1 = ml_tendency.get("dQ1", xr.zeros_like(delp))
     dQ2 = ml_tendency.get("dQ2", xr.zeros_like(delp))
+    dQu = ml_tendency.get("dQu", xr.zeros_like(delp))
+    dQv = ml_tendency.get("dQv", xr.zeros_like(delp))
     net_moistening = (dQ2 * delp / gravity).sum("z")
 
     return dict(
+        dQ1=dQ1,
+        dQ2=dQ2,
+        dQu=dQu,
+        dQv=dQv,
         air_temperature=state[TEMP],
         specific_humidity=state[SPHUM],
         pressure_thickness_of_atmospheric_layer=delp,

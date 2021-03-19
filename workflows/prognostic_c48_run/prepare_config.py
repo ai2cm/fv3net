@@ -161,6 +161,7 @@ def _default_diagnostics(
 
     if scikit_learn.model:
         diagnostic_files.append(default_diagnostics.ml_diagnostics)
+        diagnostic_files.append(default_diagnostics.ml_diagnostics_3d)
     elif nudging or nudge_to_obs:
         diagnostic_files.append(default_diagnostics.state_after_timestep)
         diagnostic_files.append(default_diagnostics.physics_tendencies)
