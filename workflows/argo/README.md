@@ -248,6 +248,11 @@ formatted as `[{name: model_name, config: model_config}, ...]`, and where the in
 as for the `training` workflow.  In practice it may be easiest to write this as a YAML file and then converted to
 JSON format using `yq . config.yml` in a submission script.
 
+The default behavior for the final `prognostic-run-diags.diagnostics-step` is to use the default verifcation dataset
+(`40day_may2020`) to calculate the metrics. If this is not the appropriate verification data to use, make sure to specifiy
+the appropriate verification using the `online-diags-flags` parameter, e.g. `-p online-diags-flags="--verification <name>"`.
+
+
 | Parameter               | Description                                                           |
 |-------------------------|-----------------------------------------------------------------------|
 | `root`                  | URL for the outputs from this workflow                                |
@@ -267,7 +272,7 @@ JSON format using `yq . config.yml` in a submission script.
 | `memory-training`       | (optional) `memory` for `training` workflow; default 6Gi              |
 | `memory-offline-diags`  | (optional) `memory` for `offline-diags` workflow; default 6Gi         |
 | `training-flags`        | (optional) `flags` for `training` workflow                            |
-
+| `online-diags-flags`    | (optional) `flags` for `prognostic-run-diags` workflow                |
 
 ### Cubed-sphere to lat-lon interpolation workflow
 
