@@ -214,9 +214,15 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
     def _compute_physics(self) -> Diagnostics:
         self._log_debug(f"Physics Step (compute)")
+        before_phys_diags = {
+            key: self._state[key]
+            for key in self._states_to_output
+            if "_input" in key
+        }
         self._fv3gfs.compute_physics()
         # no diagnostics are computed by default
-        return {"area": self._state[AREA]}
+        before_phys_diags["area"] = self._state[AREA]
+        return before_phys_diags
 
     @property
     def _water_species(self) -> List[str]:
@@ -427,7 +433,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             for substep in self._substeps:
                 with self._timer.clock(substep.__name__):
                     diagnostics.update(substep())
-                self._log_debug(f"{substep.__name__}: {diagnostics.keys()}")
             yield self._state.time, diagnostics
 
 
