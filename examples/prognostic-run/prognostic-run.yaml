@@ -110,33 +110,6 @@ fortran_diagnostics:
   - {module_name: dynamics, field_name: iw, output_name: iw}
   - {module_name: dynamics, field_name: ke, output_name: kinetic_energy}
   - {module_name: dynamics, field_name: te, output_name: total_energy}
-- name: atmos_8xdaily.zarr
-  chunks:
-    time: 8
-  times:
-    frequency: 10800
-    kind: interval
-  variables:
-  - {module_name: dynamics, field_name: grid_lont, output_name: lon}
-  - {module_name: dynamics, field_name: grid_latt, output_name: lat}
-  - {module_name: dynamics, field_name: grid_lon, output_name: lonb}
-  - {module_name: dynamics, field_name: grid_lat, output_name: latb}
-  - {module_name: dynamics, field_name: area, output_name: area}
-  - {module_name: dynamics, field_name: ucomp, output_name: ucomp}
-  - {module_name: dynamics, field_name: vcomp, output_name: vcomp}
-  - {module_name: dynamics, field_name: temp, output_name: temp}
-  - {module_name: dynamics, field_name: delp, output_name: delp}
-  - {module_name: dynamics, field_name: sphum, output_name: sphum}
-  - {module_name: dynamics, field_name: pfnh, output_name: nhpres}
-  - {module_name: dynamics, field_name: w, output_name: w}
-  - {module_name: dynamics, field_name: delz, output_name: delz}
-  - {module_name: dynamics, field_name: ps, output_name: ps}
-  - {module_name: dynamics, field_name: reflectivity, output_name: reflectivity}
-  - {module_name: dynamics, field_name: liq_wat, output_name: liq_wat}
-  - {module_name: dynamics, field_name: ice_wat, output_name: ice_wat}
-  - {module_name: dynamics, field_name: rainwat, output_name: rainwat}
-  - {module_name: dynamics, field_name: snowwat, output_name: snowwat}
-  - {module_name: dynamics, field_name: graupel, output_name: graupel}
 diagnostics:
 - name: diags.zarr
   chunks:
@@ -152,6 +125,63 @@ diagnostics:
   - physics_precip
   - column_integrated_dQu
   - column_integrated_dQv
+- name: diags_3d.zarr
+  times:
+    kind: interval
+    frequency: 10800
+  chunks:
+    time: 8
+  variables:
+  - dQ1
+  - dQ2
+  - dQu
+  - dQv
+  - tendency_of_air_temperature_due_to_fv3_physics
+  - tendency_of_specific_humidity_due_to_fv3_physics
+  - tendency_of_eastward_wind_due_to_fv3_physics
+  - tendency_of_northward_wind_due_to_fv3_physics
+- name: state_after_timestep.zarr
+  times:
+    kind: interval
+    frequency: 10800
+  chunks:
+    time: 8
+  variables:
+  - eastward_wind
+  - northward_wind
+  - vertical_wind
+  - air_temperature
+  - specific_humidity
+  - pressure_thickness_of_atmospheric_layer
+  - vertical_thickness_of_atmospheric_layer
+  - land_sea_mask
+  - surface_temperature
+  - surface_geopotential
+  - sensible_heat_flux
+  - latent_heat_flux
+  - total_precipitation
+  - surface_precipitation_rate
+  - total_soil_moisture
+  - total_sky_downward_shortwave_flux_at_surface
+  - total_sky_upward_shortwave_flux_at_surface
+  - total_sky_downward_longwave_flux_at_surface
+  - total_sky_upward_longwave_flux_at_surface
+  - total_sky_downward_shortwave_flux_at_top_of_atmosphere
+  - total_sky_upward_shortwave_flux_at_top_of_atmosphere
+  - total_sky_upward_longwave_flux_at_top_of_atmosphere
+  - clear_sky_downward_shortwave_flux_at_surface
+  - clear_sky_upward_shortwave_flux_at_surface
+  - clear_sky_downward_longwave_flux_at_surface
+  - clear_sky_upward_longwave_flux_at_surface
+  - clear_sky_upward_shortwave_flux_at_top_of_atmosphere
+  - clear_sky_upward_longwave_flux_at_top_of_atmosphere
+  - latitude
+  - longitude
+  - cloud_water_mixing_ratio
+  - cloud_ice_mixing_ratio 
+  - rain_mixing_ratio
+  - snow_mixing_ratio
+  - graupel_mixing_ratio
 step_storage_variables:
 - specific_humidity
 - total_water
