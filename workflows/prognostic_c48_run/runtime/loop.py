@@ -302,7 +302,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                         i: int(value)
                         for i, value in enumerate(updated_points.sum(["x", "y"]).values)
                     }
-                    logger.info(
+                    self._log_info(
                         f"specific_humidity_limiter_updates_per_level: {level_updates}"
                     )
 

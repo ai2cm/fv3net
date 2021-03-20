@@ -251,16 +251,17 @@ class EmulatorStepper:
         try:
             del state2["time"]
         except KeyError:
-            pass        
+            pass
 
-        dQ1_initial = tendency.get("dQ1", xr.zeros_like(state[SPHUM]))
-        dQ2_initial = tendency.get("dQ2", xr.zeros_like(state[SPHUM]))
+        dQ1_name = "tendency_of_air_temperature_due_to_fv3_physics"
+        dQ2_name = "tendency_of_specific_humidity_due_to_fv3_physics"       
+
+        dQ1_initial = tendency.get(dQ1_name, xr.zeros_like(state[SPHUM]))
+        dQ2_initial = tendency.get(dQ2_name, xr.zeros_like(state[SPHUM]))
 
         dQ1_updated, dQ2_updated = non_negative_sphum(
             state[SPHUM], dQ1_initial, dQ2_initial, dt=self.timestep,
         )
-        dQ1_name = "tendency_of_air_temperature_due_to_fv3_physics"
-        dQ2_name = "tendency_of_specific_humidity_due_to_fv3_physics"
 
         diags = {}
 
@@ -269,19 +270,19 @@ class EmulatorStepper:
             diags.update(
                 {"column_integrated_dQ1_change_non_neg_sphum_constraint": (diag)}
             )
-            tendency.update({"dQ1": dQ1_updated})
+            tendency.update({dQ1_name: dQ1_updated})
         if dQ2_name in tendency:
             diag = thermo.mass_integrate(dQ2_updated - tendency[dQ2_name], delp, dim="z")
             diag = diag.assign_attrs({"units": "kg/m^2/s"})
             diags.update(
                 {"column_integrated_dQ2_change_non_neg_sphum_constraint": (diag)}
             )
-            tendency.update({"dQ2": dQ2_updated})
+            tendency.update({dQ2_name: dQ2_updated})
 
         diags["rank_updated_points"] = xr.where(dQ2_initial != dQ2_updated, 1, 0)
         
         state_updates = add_tendency(state2, tendency, dt=self.timestep)
-        diags = {f"{key}_input": value for key, value in state2.items()}
+        diags.update({f"{key}_input": value for key, value in state2.items()})
         
         return tendency, diags, state_updates
 
