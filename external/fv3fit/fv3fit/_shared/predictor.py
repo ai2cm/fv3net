@@ -62,7 +62,6 @@ class Predictor(abc.ABC):
             feature_dim: If provided, the sample_dims will be inferred from this
                 value
 
-
         Returns:
             the predictions defined on the same dimensions as X
         """
@@ -76,12 +75,12 @@ class Predictor(abc.ABC):
 
         stacked = safe.stack_once(
             inputs_,
-            "sample",
+            self.sample_dim_name,
             dims=sample_dims,
             allowed_broadcast_dims=[DATASET_DIM_NAME],
         )
-        transposed = stacked.transpose("sample", ...)
-        output = self.predict(transposed).unstack("sample")
+        transposed = stacked.transpose(self.sample_dim_name, ...)
+        output = self.predict(transposed).unstack(self.sample_dim_name)
 
         # ensure the output coords are the same
         # stack/unstack adds coordinates if none exist before

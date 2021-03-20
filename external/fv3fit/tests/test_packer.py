@@ -1,6 +1,13 @@
 from fv3fit._shared import ArrayPacker
 from typing import Iterable
-from fv3fit._shared.packer import unpack_matrix, pack, unpack, _unique_dim_name
+from fv3fit._shared.packer import (
+    unpack_matrix,
+    pack,
+    unpack,
+    Unpack,
+    _unique_dim_name,
+    count_features,
+)
 import pytest
 import numpy as np
 import xarray as xr
@@ -80,11 +87,58 @@ def test_to_array(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray):
     np.testing.assert_array_equal(result, array)
 
 
+@pytest.mark.parametrize(
+    "dims_list", ["two_2d_vars", "1d_and_2d", "five_vars"], indirect=True
+)
+def test_pack_layer(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray):
+    inputs = [dataset[name].values for name in packer.pack_names]
+    for i, value in enumerate(inputs):
+        if len(value.shape) == 1:
+            inputs[i] = value[:, None]
+    result = packer.pack_layer()(inputs)
+    np.testing.assert_array_equal(result, array)
+
+
 def test_to_dataset(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray):
     packer.to_array(dataset)  # must pack first to know dimension lengths
     result = packer.to_dataset(array)
     # to_dataset does not preserve coordinates
     xr.testing.assert_equal(result, dataset.drop(dataset.coords.keys()))
+
+
+@pytest.mark.parametrize(
+    "dims_list", ["two_2d_vars", "1d_and_2d", "five_vars"], indirect=True
+)
+def test_packer_unpack_layer(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray):
+    packer.to_array(dataset)  # must pack first to know dimension lengths
+    result = packer.unpack_layer(feature_dim=1)(array)
+    # to_dataset does not preserve coordinates
+    for name, array in zip(packer.pack_names, result):
+        if array.shape[1] == 1:
+            array = array[:, 0]
+        np.testing.assert_array_equal(array, dataset[name])
+
+
+
+
+# class Unpack(tf.keras.layers.Layer):
+#     def __init__(
+#         self,
+#         *,
+#         pack_names: Sequence[str],
+#         n_features: Mapping[str, int],
+#         feature_dim: int,
+#     ):
+def test_direct_unpack_layer():
+    names = ["a", "b"]
+    n_features = {"a": 4, "b": 4}
+    packed = np.random.randn(3, 8)
+    a = packed[:, :4]
+    b = packed[:, 4:]
+    unpack_layer = Unpack(pack_names=names, n_features=n_features, feature_dim=1)
+    unpacked = unpack_layer(packed)
+    np.testing.assert_array_almost_equal(unpacked[0], a)
+    np.testing.assert_array_almost_equal(unpacked[1], b)
 
 
 def test_unpack_before_pack_raises(packer: ArrayPacker, array: np.ndarray):
@@ -142,3 +196,67 @@ def test_sklearn_unpack(dataset: xr.Dataset):
     packed_array, feature_index = pack(dataset, "sample")
     unpacked_dataset = unpack(packed_array, "sample", feature_index)
     xr.testing.assert_allclose(unpacked_dataset, dataset)
+
+
+# def count_features(
+#     quantity_names: Iterable[str], dataset: xr.Dataset, sample_dim_name: str
+# )
+
+
+def test_count_features_2d():
+    SAMPLE_DIM_NAME = "axy"
+    ds = xr.Dataset(
+        data_vars={
+            "a": xr.DataArray(np.zeros([10]), dims=[SAMPLE_DIM_NAME]),
+            "b": xr.DataArray(np.zeros([10, 1]), dims=[SAMPLE_DIM_NAME, "b_dim"]),
+            "c": xr.DataArray(np.zeros([10, 5]), dims=[SAMPLE_DIM_NAME, "c_dim"]),
+        }
+    )
+    names = list(ds.data_vars.keys())
+    assert len(names) == 3
+    out = count_features(names, ds, sample_dim_name=SAMPLE_DIM_NAME)
+    assert len(out) == len(names)
+    for name in names:
+        assert name in out
+    assert out["a"] == 1
+    assert out["b"] == 1
+    assert out["c"] == 5
+
+
+def get_3d_dataset(sample_dim_name):
+    TIME_DIM_NAME = "fhds"
+    ds = xr.Dataset(
+        data_vars={
+            "a": xr.DataArray(np.zeros([10, 2]), dims=[sample_dim_name, TIME_DIM_NAME]),
+            "b": xr.DataArray(
+                np.zeros([10, 2, 1]), dims=[sample_dim_name, TIME_DIM_NAME, "b_dim"]
+            ),
+            "c": xr.DataArray(
+                np.zeros([10, 2, 5]), dims=[sample_dim_name, TIME_DIM_NAME, "c_dim"]
+            ),
+        }
+    )
+    return ds
+
+
+def test_count_features_3d():
+    SAMPLE_DIM_NAME = "axy"
+    ds = get_3d_dataset(SAMPLE_DIM_NAME)
+    names = list(ds.data_vars.keys())
+    assert len(names) == 3
+    out = count_features(names, ds, sample_dim_name=SAMPLE_DIM_NAME)
+    assert len(out) == len(names)
+    for name in names:
+        assert name in out
+    assert out["a"] == 1
+    assert out["b"] == 1
+    assert out["c"] == 5
+
+
+def test_repack_3d_array():
+    # don't need to handle data with singleton feature dimensions, at the moment
+    dataset = get_3d_dataset(SAMPLE_DIM).drop_vars("b")
+    packer = ArrayPacker(SAMPLE_DIM, ["a", "c"])
+    array = packer.to_array(dataset)  # must pack first to know dimension lengths
+    with pytest.raises(NotImplementedError):
+        packer.to_dataset(array)

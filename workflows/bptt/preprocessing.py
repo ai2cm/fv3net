@@ -14,6 +14,7 @@ COARSE_OUTPUT_URL = (
 # COARSE_OUTPUT_URL = "gs://vcm-ml-experiments/2021-01-22-nudge-to-fine-3hr-averages"
 
 INPUT_NAMES = ["surface_geopotential", "cos_zenith_angle", "land_sea_mask"]
+SAMPLE_DIM_NAME = "sample"
 
 
 def open_zarr(url: str) -> xr.Dataset:

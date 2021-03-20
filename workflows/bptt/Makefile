@@ -8,14 +8,14 @@ dev:
 dev_prognostic_run:
 	docker-compose run prognostic_run bash
 
-arrays:
-	python3 preprocessing.py arrays
+dataset:
+	python3 download.py dataset
 
 model:
-	python3 train.py arrays model
+	python3 train.py dataset model
 
 evaluate:
-	python3 evaluate.py arrays model
+	python3 evaluate.py dataset model
 
 offline_diags: 
 	python -m offline_ml_diags.compute_diags model offline_diags --config-yml offline_diags.yaml
@@ -37,4 +37,4 @@ prognostic_run: fv3config.yaml
 	runfv3 create prognostic_run fv3config.yaml ../prognostic_c48_run/sklearn_runfile.py
 	runfv3 append prognostic_run
 
-.PHONY: dev test arrays model evaluate offline_diags offline_report prognostic_run
+.PHONY: dev test dataset model evaluate offline_diags offline_report prognostic_run
