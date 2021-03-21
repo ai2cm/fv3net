@@ -124,7 +124,9 @@ def load_3d(
         pressure_vars = [var for var in ds.data_vars if "z" in ds[var].dims]
         for var in pressure_vars:
             ds_interp[var] = vcm.interpolate_to_pressure_levels(
-                field=ds[var], delp=ds["pressure_thickness_of_atmospheric_layer"]
+                field=ds[var],
+                delp=ds["pressure_thickness_of_atmospheric_layer"],
+                dim="z",
             )
 
         # open verification
