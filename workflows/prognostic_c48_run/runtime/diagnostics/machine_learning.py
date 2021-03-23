@@ -111,9 +111,9 @@ def rename_diagnostics(diags: Diagnostics):
         "net_heating",
         "column_integrated_dQu",
         "column_integrated_dQv",
-        "total_sky_downward_shortwave_flux_at_surface_override",
-        "total_sky_net_shortwave_flux_at_surface_override",
-        "total_sky_downward_longwave_flux_at_surface_override",
+        "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
+        "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface",
+        "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface",
     }
     ml_tendencies_in_diags = ml_tendencies & set(diags)
     for variable in ml_tendencies_in_diags:
