@@ -1,0 +1,17 @@
+- - tendencies
+  - []
+- - diagnostics
+  - - - downward_longwave
+      - 8b886991eea4c48475709bca29505185
+    - - downward_shortwave
+      - 47735602b45938d453a31013ef9410ba
+    - - net_shortwave
+      - 01b249036fc7c5eec78879aa849ec524
+- - states
+  - - - downward_longwave
+      - 8b886991eea4c48475709bca29505185
+    - - downward_shortwave
+      - 47735602b45938d453a31013ef9410ba
+    - - net_shortwave
+      - 01b249036fc7c5eec78879aa849ec524
+
