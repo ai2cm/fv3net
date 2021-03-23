@@ -1,8 +1,7 @@
 import datetime
 import json
 import os
-
-# import tempfile
+import tempfile
 import logging
 from typing import (
     Any,
@@ -252,22 +251,18 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
     def _open_model(self, ml_config: MachineLearningConfig, step: str):
         self._log_info("Downloading ML Model")
-        #         with tempfile.TemporaryDirectory() as tmpdir:
-        #         self._log_info(f"Model Downloading to {tmpdir}")
-        self._log_info(f"Model Downloading to {step}")
-        self._log_info(f"current working directory {os.getcwd()}")
-        if self.rank == 0:
-            local_model_paths = download_model(
-                #                 ml_config, os.path.join(tmpdir, step)
-                ml_config,
-                step,
-            )
-        else:
-            local_model_paths = None  # type: ignore
-        local_model_paths = self.comm.bcast(local_model_paths, root=0)
-        setattr(ml_config, "model", local_model_paths)
-        self._log_info("Model Downloaded From Remote")
-        model = open_model(ml_config)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            if self.rank == 0:
+                local_model_paths = download_model(
+                    ml_config, os.path.join(tmpdir, step)
+                )
+            else:
+                local_model_paths = None  # type: ignore
+            local_model_paths = self.comm.bcast(local_model_paths, root=0)
+            setattr(ml_config, "model", local_model_paths)
+            self._log_info("Model Downloaded From Remote")
+            model = open_model(ml_config)
+            MPI.COMM_WORLD.barrier()
         self._log_info("Model Loaded")
         return model
 
