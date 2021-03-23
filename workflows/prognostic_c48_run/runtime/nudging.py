@@ -238,24 +238,15 @@ def get_nudging_tendency(
 
 def get_reference_surface_temperatures(state: State, reference: State) -> State:
     """
-    Set the sea surface and surface temperatures in a model state to values in
-    a reference state. Useful for maintaining consistency between a nudged run
-    and reference state.
+    Set the sea surface temperature model state to values in a reference state.
+    Useful for maintaining consistency between a nudged run and reference state.
     """
     state = {
         SST_NAME: _sst_from_reference(
             reference[TSFC_NAME], state[SST_NAME], state[MASK_NAME]
         ),
-        TSFC_NAME: _sst_from_reference(
-            reference[TSFC_NAME], state[TSFC_NAME], state[MASK_NAME]
-        ),
     }
     return state
-    # TODO fix this bug in a follow-up non-refactor PR
-    # this logic replicates a bug in the previous nudged run
-    # the SSTs were never actually applied to the fv3gfs-wrapper state
-    # This bug could be scientifically significant.
-    # return {}
 
 
 def _sst_from_reference(
