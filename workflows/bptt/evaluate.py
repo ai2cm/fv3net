@@ -4,6 +4,7 @@ import numpy as np
 import fv3fit
 import vcm
 import xarray as xr
+from fv3fit.keras._models.recurrent import integrate_stepwise
 
 
 def get_parser():
@@ -24,6 +25,46 @@ def get_vmin_vmax(*arrays):
 
 
 
+# def integrate_stepwise(ds, model):
+#     ds = ds.rename({
+#         "air_temperature_tendency_due_to_nudging": "nQ1",
+#         "specific_humidity_tendency_due_to_nudging": "nQ2",
+#         "air_temperature_tendency_due_to_model": "pQ1",
+#         "specific_humidity_tendency_due_to_model": "pQ2",
+#     })
+
+#     state = {
+#         "air_temperature": ds["air_temperature"].isel(time=0),
+#         "specific_humidity": ds["specific_humidity"].isel(time=0),
+#     }
+#     state_out_list = []
+#     n_timesteps = len(ds["time"] - 1)
+#     for i in range(n_timesteps):
+#         print(f"Step {i+1} of {n_timesteps}")
+#         forcing_ds = ds.isel(time=i)
+#         ref_data = {
+#             "nQ1": forcing_ds["nQ1"],
+#             "nQ2": forcing_ds["nQ2"],
+#             "air_temperature_reference": ds["air_temperature"].isel(time=i+1),
+#             "specific_humidity_reference": ds["specific_humidity"].isel(time=i+1),
+#         }
+#         forcing_ds.assign(**state)
+#         tendency_ds = model.predict(forcing_ds)
+#         assert not np.any(np.isnan(state["air_temperature"].values))
+#         state["air_temperature"] = state["air_temperature"] + (
+#             forcing_ds["pQ1"] + tendency_ds["dQ1"]
+#         ) * timestep_seconds
+#         state["specific_humidity"] = state["specific_humidity"] + (
+#             forcing_ds["pQ2"] + tendency_ds["dQ2"]
+#         ) * timestep_seconds
+#         tendency_data = {
+#             "dQ1": tendency_ds["dQ1"],
+#             "dQ2": tendency_ds["dQ2"],
+#         }
+#         timestep_ds = xr.Dataset(data_vars={**state, **ref_data, **tendency_data})
+#         state_out_list.append(timestep_ds)
+#     return xr.concat(state_out_list, dim="time")
+
 
 if __name__ == "__main__":
     timestep_seconds = 3 * 60 * 60
@@ -33,53 +74,13 @@ if __name__ == "__main__":
     model = fv3fit.load(args.model_dir)
 
     fs = vcm.get_fs(args.arrays_dir)
-    last_filename = sorted(fs.listdir(args.arrays_dir, detail=False))[-1]
-    with open(last_filename, "rb") as f:
-        ds = xr.open_dataset(last_filename)
+    filename = sorted(fs.listdir(args.arrays_dir, detail=False))[0]
+    print(filename)
+    with open(filename, "rb") as f:
+        ds = xr.open_dataset(filename).isel(sample=slice(0, 64))
+        ds.load()
     
-    ds = ds.rename({
-        "air_temperature_tendency_due_to_nudging": "nQ1",
-        "specific_humidity_tendency_due_to_nudging": "nQ2",
-        "air_temperature_tendency_due_to_model": "pQ1",
-        "specific_humidity_tendency_due_to_model": "pQ2",
-    })
-
-    state_ds = ds.isel(time=0)
-    state_out_list = []
-    n_timesteps = len(ds["time"])
-    prognostic_variables = ["air_temperature", "specific_humidity"]
-    for i in range(10):
-        print(f"Step {i+1} of {n_timesteps}")
-        forcing_ds = ds.isel(time=i)
-        state_ds = state_ds.assign(
-            {
-                "nQ1": forcing_ds["nQ1"],
-                "nQ2": forcing_ds["nQ2"],
-                "air_temperature_reference": forcing_ds["air_temperature"],
-                "specific_humidity_reference": forcing_ds["specific_humidity"],
-            }
-        )
-        state_ds = state_ds.assign(
-            {name: forcing_ds[name] for name in list(model.input_variables) if name not in prognostic_variables}
-        )
-        tendency_ds = model.predict(state_ds)
-        assert not np.any(np.isnan(state_ds["air_temperature"].values))
-        state_ds["air_temperature"] += (
-            forcing_ds["pQ1"] + tendency_ds["dQ1"]
-        ) * timestep_seconds  # (forcing_ds["pQ1"] + tendency_ds["dQ1"]) * timestep_seconds
-        state_ds["specific_humidity"] += (
-            forcing_ds["pQ2"] + tendency_ds["dQ2"]
-        ) * timestep_seconds  # (forcing_ds["pQ2"] + tendency_ds["dQ2"]) * timestep_seconds
-        # state_ds["air_temperature"] += (
-        #     forcing_ds["air_temperature_tendency_due_to_model"]* timestep_seconds
-        # )
-        # state_ds["specific_humidity"] += (
-        #     forcing_ds["air_temperature_tendency_due_to_model"] * timestep_seconds
-        # )
-        state_ds = state_ds.assign(**tendency_ds.data_vars)
-        state_out_list.append(state_ds)
-    state_out = xr.concat(state_out_list, dim="time")
-    print(state_out)
+    state_out = integrate_stepwise(ds, model)
 
     def plot_single(predicted, reference, label, ax):
         vmin, vmax = get_vmin_vmax(predicted, reference)
@@ -94,42 +95,52 @@ if __name__ == "__main__":
     seconds_in_day = 60 * 60 * 24
     fig, ax = plt.subplots(4, 1, figsize=(12, 8))
 
+    print("stds")
+    print(np.std(state_out["air_temperature"] - state_out["air_temperature_reference"]))
+    print(np.mean(np.var(state_out["air_temperature_reference"], axis=(0, 1)))**0.5)
+    print(np.std(state_out["specific_humidity"] - state_out["specific_humidity_reference"]))
+    print(np.mean(np.var(state_out["specific_humidity_reference"], axis=(0, 1)))**0.5)
+
     plot_single(
-        state_out["dQ1"][:, i, :].values * seconds_in_day,
-        state_out["nQ1"][:, i, :].values * seconds_in_day,
+        state_out["dQ1"][i, :, :].values * seconds_in_day,
+        state_out["air_temperature_tendency_due_to_nudging"][i, :, :].values * seconds_in_day,
         "air_temperature (K/day)",
         ax[:2],
     )
     plot_single(
-        state_out["air_temperature"][:, i, :].values,
-        state_out["air_temperature_reference"][:, i, :].values,
+        state_out["air_temperature"][i, :, :].values,
+        state_out["air_temperature_reference"][i, :, :].values,
         "air_temperature (K)",
         ax[2:],
     )
     # lat = arrays.latitude[i] * 180.0 / np.pi
     # lon = arrays.longitude[i] * 180.0 / np.pi
     # plt.suptitle(f"lat: {lat}, lon: {lon}")
+    for a in ax:
+        a.set_ylim(a.get_ylim()[::-1])
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     fig, ax = plt.subplots(4, 1, figsize=(12, 8))
     plot_single(
-        state_out["dQ2"][:, i, :].values * seconds_in_day,
-        state_out["nQ2"][:, i, :].values * seconds_in_day,
+        state_out["dQ2"][i, :, :].values * seconds_in_day,
+        state_out["specific_humidity_tendency_due_to_nudging"][i, :, :].values * seconds_in_day,
         "specific_humidity (kg/kg/day)",
         ax[:2],
     )
     plot_single(
-        state_out["specific_humidity"][:, i, :].values,
-        state_out["specific_humidity_reference"][:, i, :].values,
+        state_out["specific_humidity"][i, :, :].values,
+        state_out["specific_humidity_reference"][i, :, :].values,
         "specific_humidity (kg/kg)",
         ax[2:],
     )
     # lat = arrays.latitude[i] * 180.0 / np.pi
     # lon = arrays.longitude[i] * 180.0 / np.pi
     # plt.suptitle(f"lat: {lat}, lon: {lon}")
+    for a in ax:
+        a.set_ylim(a.get_ylim()[::-1])
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.show()
 
-    assert False, state_out
+    assert False
 
     val_inputs, val_given_tendency, val_target_out = prepare_keras_arrays(
         arrays,

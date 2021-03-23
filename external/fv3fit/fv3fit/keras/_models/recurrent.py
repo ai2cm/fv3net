@@ -11,219 +11,6 @@ import yaml
 import numpy as np
 
 
-class ExternalModel(Predictor):
-    """Model initialized using pre-trained objects."""
-
-    _MODEL_FILENAME = "model.tf"
-    _INPUT_PACKER_FILENAME = "input_packer.json"
-    _PROGNOSTIC_PACKER_FILENAME = "prognostic_packer.json"
-    _INPUT_SCALER_FILENAME = "input_scaler"
-    _PROGNOSTIC_SCALER_FILENAME = "prognostic_scaler"
-    custom_objects: Dict[str, Any] = {}
-
-    def __init__(
-        self,
-        sample_dim_name: str,
-        input_variables: Iterable[Hashable],
-        output_variables: Iterable[Hashable],
-        model: tf.keras.Model,
-        input_packer: ArrayPacker,
-        prognostic_packer: ArrayPacker,
-        # IO only set up for StandardScaler right now, need to save class info to
-        # support other scaler classes
-        input_scaler: StandardScaler,
-        prognostic_scaler: StandardScaler,
-    ):
-        """Initialize the predictor
-        
-        Args:
-            sample_dim_name: name of sample dimension
-            input_variables: names of input variables
-            output_variables: names of output variables
-        
-        """
-        if input_packer.sample_dim_name != sample_dim_name:
-            raise ValueError(
-                f"must provide sample_dim_name compatible with "
-                "X_packer.sample_dim_name, got "
-                f"{sample_dim_name} and {input_packer.sample_dim_name}"
-            )
-        if prognostic_packer.sample_dim_name != sample_dim_name:
-            raise ValueError(
-                f"must provide sample_dim_name compatible with "
-                "y_packer.sample_dim_name, got "
-                f"{sample_dim_name} and {prognostic_packer.sample_dim_name}"
-            )
-        super().__init__(sample_dim_name, input_variables, output_variables)
-        self.sample_dim_name = sample_dim_name
-        self.input_variables = input_variables
-        self.output_variables = output_variables
-        self.model = model
-        self.input_packer = input_packer
-        self.prognostic_packer = prognostic_packer
-        self.input_scaler = input_scaler
-        self.prognostic_scaler = prognostic_scaler
-
-    def dump(self, path: str) -> None:
-        with put_dir(path) as path:
-            if self.model is not None:
-                model_filename = os.path.join(path, self._MODEL_FILENAME)
-                self.model.save(model_filename)
-            with open(os.path.join(path, self._INPUT_PACKER_FILENAME), "w") as f:
-                self.input_packer.dump(f)
-            with open(os.path.join(path, self._PROGNOSTIC_PACKER_FILENAME), "w") as f:
-                self.prognostic_packer.dump(f)
-            with open(os.path.join(path, self._INPUT_SCALER_FILENAME), "wb") as f_bin:
-                self.input_scaler.dump(f_bin)
-            with open(
-                os.path.join(path, self._PROGNOSTIC_SCALER_FILENAME), "wb"
-            ) as f_bin:
-                self.prognostic_scaler.dump(f_bin)
-
-    # @classmethod
-    # def load(cls, path: str) -> "ExternalModel":
-    #     """Load a serialized model from a directory."""
-    #     with get_dir(path) as path:
-    #         with open(os.path.join(path, cls._INPUT_PACKER_FILENAME), "r") as f:
-    #             input_packer = ArrayPacker.load(f)
-    #         with open(os.path.join(path, cls._PROGNOSTIC_PACKER_FILENAME), "r") as f:
-    #             prognostic_packer = ArrayPacker.load(f)
-    #         # currently only supports standard scaler, need to change dump and load
-    #         # to save scaler type to support other scalers
-    #         with open(os.path.join(path, cls._INPUT_SCALER_FILENAME), "r") as f:
-    #             input_scaler = StandardScaler.load(f)
-    #         with open(os.path.join(path, cls._PROGNOSTIC_SCALER_FILENAME), "r") as f:
-    #             prognostic_scaler = StandardScaler.load(f)
-    #         model_filename = os.path.join(path, cls._MODEL_FILENAME)
-    #         if os.path.exists(model_filename):
-    #             model = tf.keras.models.load_model(
-    #                 model_filename, custom_objects=cls.custom_objects
-    #             )
-    #         obj = cls(
-    #             input_packer.sample_dim_name,
-    #             input_packer.pack_names,
-    #             prognostic_packer.pack_names,
-    #             model,
-    #             input_packer,
-    #             prognostic_packer,
-    #             input_scaler,
-    #             prognostic_scaler,
-    #         )
-    #         return obj
-
-
-@io.register("recurrent-keras")
-class RecurrentModel(ExternalModel):
-
-    _CONFIG_FILENAME = "recurrent_model.yaml"
-    custom_objects: Dict[str, Any] = {
-        "custom_loss": tf.keras.losses.mse,
-        "GCMCell": GCMCell,
-    }
-
-    def __init__(
-        self,
-        sample_dim_name: str,
-        input_variables: Iterable[Hashable],
-        model: tf.keras.Model,
-        input_packer: ArrayPacker,
-        prognostic_packer: ArrayPacker,
-        input_scaler: StandardScaler,
-        prognostic_scaler: StandardScaler,
-        train_timestep_seconds: int,
-    ):
-        output_variables = ["dQ1", "dQ2"]
-        input_variables = list(input_variables) + [
-            "air_temperature",
-            "specific_humidity",
-        ]
-        super(RecurrentModel, self).__init__(
-            sample_dim_name,
-            input_variables,
-            output_variables,
-            model,
-            input_packer,
-            prognostic_packer,
-            input_scaler,
-            prognostic_scaler,
-        )
-        self.train_timestep_seconds = train_timestep_seconds
-        self.tendency_scaler = copy.deepcopy(prognostic_scaler)
-        self.tendency_scaler.mean[:] = 0.0  # don't remove mean for tendencies
-
-    def _get_inputs(self, X: xr.Dataset) -> Tuple[np.ndarray, np.ndarray]:
-        forcing = self.input_packer.to_array(X)
-        state_in = self.prognostic_packer.to_array(X)
-        norm_forcing = self.input_scaler.normalize(forcing)
-        norm_state_in = self.prognostic_scaler.normalize(state_in)
-        return norm_forcing, norm_state_in
-
-    def predict(self, X: xr.Dataset) -> xr.Dataset:
-        if self.sample_dim_name in X:
-            sample_coord = X[self.sample_dim_name]
-        else:
-            sample_coord = None
-        norm_forcing, norm_state_in = self._get_inputs(X)
-        norm_state_out = self.model.predict([norm_forcing, norm_state_in])
-        tendency_out = (
-            self.tendency_scaler.denormalize(norm_state_out - norm_state_in)
-            / self.train_timestep_seconds
-        )  # divide difference by timestep to get s^-1 units
-        # assert False
-        ds_tendency = self.prognostic_packer.to_dataset(tendency_out)
-        ds_pred = xr.Dataset({})
-        ds_pred["dQ1"] = ds_tendency["air_temperature"]
-        ds_pred["dQ2"] = ds_tendency["specific_humidity"]
-        if sample_coord is not None:
-            ds_pred = ds_pred.assign_coords({self.sample_dim_name: sample_coord})
-        return ds_pred
-
-    def dump(self, path: str) -> None:
-        super().dump(path)
-        with put_dir(path) as path:
-            with open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
-                f.write(
-                    yaml.safe_dump(
-                        {"train_timestep_seconds": self.train_timestep_seconds}
-                    )
-                )
-
-    @classmethod
-    def load(cls, path: str) -> "RecurrentModel":
-        """Load a serialized model from a directory."""
-        with get_dir(path) as path:
-            with open(os.path.join(path, cls._INPUT_PACKER_FILENAME), "r") as f:
-                input_packer = ArrayPacker.load(f)
-            with open(os.path.join(path, cls._PROGNOSTIC_PACKER_FILENAME), "r") as f:
-                prognostic_packer = ArrayPacker.load(f)
-            # currently only supports standard scaler, need to change dump and load
-            # to save scaler type to support other scalers
-            with open(os.path.join(path, cls._INPUT_SCALER_FILENAME), "rb") as f_bin:
-                input_scaler = StandardScaler.load(f_bin)
-            with open(
-                os.path.join(path, cls._PROGNOSTIC_SCALER_FILENAME), "rb"
-            ) as f_bin:
-                prognostic_scaler = StandardScaler.load(f_bin)
-            model_filename = os.path.join(path, cls._MODEL_FILENAME)
-            if os.path.exists(model_filename):
-                model = tf.keras.models.load_model(
-                    model_filename, custom_objects=cls.custom_objects
-                )
-            with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
-                train_timestep_seconds = yaml.safe_load(f)["train_timestep_seconds"]
-            obj = cls(
-                input_packer.sample_dim_name,
-                input_packer.pack_names,
-                model,
-                input_packer,
-                prognostic_packer,
-                input_scaler,
-                prognostic_scaler,
-                train_timestep_seconds,
-            )
-            return obj
-
-
 class BPTTModel(Predictor):
 
     TIME_DIM_NAME = "time"
@@ -264,6 +51,9 @@ class BPTTModel(Predictor):
         self.train_batch_size = train_batch_size
         self.optimizer = optimizer
         self.activation = "relu"
+        self.train_model = None
+        self.train_tendency_model = None
+        self.predict_model = None
 
     def build_for(self, X: xr.Dataset):
         """
@@ -271,6 +61,8 @@ class BPTTModel(Predictor):
         containing data in sample windows, fit the scalers and packers
         and define the keras model (e.g. with the given window length).
         """
+        if self.train_model is not None:
+            raise RuntimeError("cannot build, model is already built!")
         inputs = self.input_packer.to_array(X, force_3d=True)
         state = self.prognostic_packer.to_array(X, force_3d=True)
         self.input_scaler.fit(inputs)
@@ -281,7 +73,9 @@ class BPTTModel(Predictor):
         self._train_timestep_seconds = (
             time[1].values.item() - time[0].values.item()
         ).total_seconds()
-        self.train_model, self.predict_model = self.build(len(time) - 1)
+        self.train_model, self.train_tendency_model, self.predict_model = self.build(
+            len(time) - 1
+        )
 
     @property
     def losses(self):
@@ -292,18 +86,11 @@ class BPTTModel(Predictor):
         std = self.prognostic_packer.to_dataset(self.prognostic_scaler.std[None, :])
 
         air_temperature_factor = tf.constant(
-            0.5 / np.mean(std["air_temperature"].values) ** 2, dtype=tf.float32
+            0.5 / np.mean(std["air_temperature"].values ** 2), dtype=tf.float32
         )
         specific_humidity_factor = tf.constant(
-            0.5 / np.mean(std["specific_humidity"].values) ** 2, dtype=tf.float32
+            0.5 / np.mean(std["specific_humidity"].values ** 2), dtype=tf.float32
         )
-
-        # air_temperature_factor = tf.constant(
-        #     1.0, dtype=tf.float32
-        # )
-        # specific_humidity_factor = tf.constant(
-        #     1e3, dtype=tf.float32
-        # )
 
         def air_temperature_loss(y_true, y_pred):
             return tf.math.multiply(
@@ -316,8 +103,6 @@ class BPTTModel(Predictor):
             )
 
         return air_temperature_loss, specific_humidity_loss
-
-
 
     def build(self, n_window):
         def get_vector(packer, scaler, series=True):
@@ -335,18 +120,18 @@ class BPTTModel(Predictor):
                     tf.keras.layers.Input(shape=[n_features])
                     for n_features in features
                 ]
-            input_vector = scaler.normalize_layer(
-                packer.pack_layer()(input_layers)
-            )
-            return input_layers, input_vector
+            packed = packer.pack_layer()(input_layers)
+            if scaler is not None:
+                packed = scaler.normalize_layer(packed)
+            return input_layers, packed
         input_series_layers, forcing_series_input = get_vector(
             self.input_packer, self.input_scaler, series=True
         )
         state_layers, state_input = get_vector(
-            self.prognostic_packer, self.prognostic_scaler, series=False
+            self.prognostic_packer, None, series=False
         )
         given_tendency_series_layers, given_tendency_series_input = get_vector(
-            self.prognostic_packer, self.tendency_scaler, series=True
+            self.prognostic_packer, None, series=True
         )
         
         def prepend_forcings(state, i):
@@ -371,8 +156,8 @@ class BPTTModel(Predictor):
             )
             for i in range(self.n_hidden_layers)
         ]
-        output_layer = tf.keras.layers.Dense(state_input.shape[-1])
-        train_timestep = np.asarray(self._train_timestep_seconds, dtype=np.float32)
+        output_layer = tf.keras.layers.Dense(state_input.shape[-1], name="tendency_output")
+        train_timestep = np.asarray(self._train_timestep_seconds, dtype=np.float64)
         timestep_divide_layer = tf.keras.layers.Lambda(
             lambda x: x / train_timestep, name="timestep_divide",
         )
@@ -380,8 +165,10 @@ class BPTTModel(Predictor):
         def get_predicted_tendency(x):
             for layer in dense_layers:
                 x = layer(x)
-            return timestep_divide_layer(output_layer(x))
-            # return output_layer(x)
+            x = output_layer(x)
+            x = timestep_divide_layer(x)
+            x = self.tendency_scaler.denormalize_layer(x)
+            return x
 
         tendency_add_layer = tf.keras.layers.Add(name="tendency_add")
         state_add_layer = tf.keras.layers.Add(name="state_add")
@@ -391,51 +178,46 @@ class BPTTModel(Predictor):
         add_time_dim_layer = tf.keras.layers.Lambda(lambda x: x[:, None, :])
 
         state_outputs_list = []
+        tendency_outputs_list = []
         state = state_input
         for i in range(n_window):
-            x = prepend_forcings(state, i)
+            norm_state = self.prognostic_scaler.normalize(state)
+            x = prepend_forcings(norm_state, i)
             predicted_tendency = get_predicted_tendency(x)
+            tendency_outputs_list.append(add_time_dim_layer(predicted_tendency))
             given_tendency = get_given_tendency(i)
             total_tendency = tendency_add_layer([predicted_tendency, given_tendency])
             state_update = timestep_multiply_layer(total_tendency)
             state = state_add_layer([state, state_update])
             state_outputs_list.append(add_time_dim_layer(state))
 
-        norm_state_output = tf.keras.layers.concatenate(state_outputs_list, axis=1)
+        state_output = tf.keras.layers.concatenate(state_outputs_list, axis=1)
         state_outputs = self.prognostic_packer.unpack_layer(feature_dim=2)(
-            self.prognostic_scaler.denormalize_layer(norm_state_output)
+            state_output
         )
+        tendency_output = tf.keras.layers.concatenate(tendency_outputs_list, axis=1)
+        tendency_outputs = self.prognostic_packer.unpack_layer(feature_dim=2)(tendency_output)
 
         train_model = tf.keras.Model(
             inputs=input_series_layers + state_layers + given_tendency_series_layers,
             outputs=state_outputs,
         )
-
-        features = [
-            self.input_packer.feature_counts[name]
-            for name in self.input_packer.pack_names
-        ]
-        input_layers = [
-            tf.keras.layers.Input(shape=[n_features]) for n_features in features
-        ]
-        features = [
-            self.prognostic_packer.feature_counts[name]
-            for name in self.prognostic_packer.pack_names
-        ]
-        state_layers = [
-            tf.keras.layers.Input(shape=[n_features]) for n_features in features
-        ]
-        forcing_input = self.input_scaler.normalize_layer(
-            self.input_packer.pack_layer()(input_layers)
+        train_tendency_model = tf.keras.Model(
+            inputs=input_series_layers + state_layers + given_tendency_series_layers,
+            outputs=tendency_outputs,
         )
-        state_input = self.prognostic_scaler.normalize_layer(
-            self.prognostic_packer.pack_layer()(state_layers)
+
+        input_layers, forcing_input = get_vector(
+            self.input_packer, self.input_scaler, series=False
+        )
+        state_layers, state_input = get_vector(
+            self.prognostic_packer, self.prognostic_scaler, series=False
         )
         x = tf.keras.layers.concatenate([forcing_input, state_input])
         predicted_tendency = get_predicted_tendency(x)
 
         tendency_outputs = self.prognostic_packer.unpack_layer(feature_dim=1)(
-            self.tendency_scaler.denormalize_layer(predicted_tendency)
+            predicted_tendency
         )
 
         predict_model = tf.keras.Model(
@@ -443,9 +225,8 @@ class BPTTModel(Predictor):
         )
 
         train_model.compile(optimizer=self.optimizer, loss=self.losses)
-        predict_model.compile(optimizer=self.optimizer, loss=tf.keras.losses.mse)
 
-        return train_model, predict_model
+        return train_model, train_tendency_model, predict_model
 
     def fit(self, X: xr.Dataset, *, epochs=1):
         """
@@ -622,3 +403,43 @@ class AllKerasModel(Predictor):
                         }
                     )
                 )
+
+
+def integrate_stepwise(ds, model: AllKerasModel):
+    time = ds["time"]
+    timestep_seconds = (
+        time[1].values.item() - time[0].values.item()
+    ).total_seconds()
+
+    state = {
+        "air_temperature": ds["air_temperature"].isel(time=0).values,
+        "specific_humidity": ds["specific_humidity"].isel(time=0).values,
+    }
+    state_out_list = []
+    n_timesteps = len(ds["time"]) - 1
+    for i in range(n_timesteps):
+        print(f"Step {i+1} of {n_timesteps}")
+        input_ds = ds.isel(time=i)
+        input_ds["air_temperature"] = xr.DataArray(state["air_temperature"], dims=[model.sample_dim_name, "z"], attrs={"units": ds["air_temperature"].units})
+        input_ds["specific_humidity"] = xr.DataArray(state["specific_humidity"], dims=[model.sample_dim_name, "z"], attrs={"units": ds["specific_humidity"].units})
+        tendency_ds = model.predict(input_ds)
+        state["air_temperature"] = state["air_temperature"] + (
+            tendency_ds["dQ1"].values + input_ds["air_temperature_tendency_due_to_model"].values
+        ) * timestep_seconds
+        state["specific_humidity"] = state["specific_humidity"] + (
+            tendency_ds["dQ2"] + input_ds["specific_humidity_tendency_due_to_model"].values
+        ) * timestep_seconds
+        data_vars = {}
+        for name, value in state.items():
+            data_vars[name] = ([model.sample_dim_name, "z"], value)
+        for name in ("air_temperature_tendency_due_to_model", "specific_humidity_tendency_due_to_model", "air_temperature_tendency_due_to_nudging", "specific_humidity_tendency_due_to_nudging"):
+            data_vars[name] = input_ds[name]
+        for name in state.keys():
+            data_vars[f"{name}_reference"] = ds[name].isel(time=i+1).reset_coords(drop=True)
+        for name in ("dQ1", "dQ2"):
+            data_vars[name] = tendency_ds[name]
+        timestep_ds = xr.Dataset(
+            data_vars=data_vars
+        )
+        state_out_list.append(timestep_ds)
+    return xr.concat(state_out_list, dim="time").transpose(model.sample_dim_name, "time", "z")

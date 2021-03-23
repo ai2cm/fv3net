@@ -1,5 +1,14 @@
 import xarray as xr
-import xgcm
+import numba
+
+try:
+    import xgcm
+
+    Grid = xgcm.Grid
+except (ImportError, numba.errors.TypingError) as err:
+    xgcm = None
+    Grid = None
+    XGCM_IMPORT_ERR = err
 from . import constants
 
 # none of the connecitons are "reversed" in the xgcm parlance
@@ -48,7 +57,7 @@ def create_fv3_grid(
     x_outer: str = constants.COORD_X_OUTER,
     y_center: str = constants.COORD_Y_CENTER,
     y_outer: str = constants.COORD_Y_OUTER,
-) -> xgcm.Grid:
+) -> Grid:
     """Create an XGCM_ grid from a dataset of FV3 tile data
 
 
@@ -83,4 +92,7 @@ def create_fv3_grid(
         "x": {"center": x_center, "outer": x_outer},
         "y": {"center": y_center, "outer": y_outer},
     }
-    return xgcm.Grid(ds, coords=coords, face_connections=FV3_FACE_CONNECTIONS)
+    if xgcm is not None:
+        return xgcm.Grid(ds, coords=coords, face_connections=FV3_FACE_CONNECTIONS)
+    else:
+        raise XGCM_IMPORT_ERR

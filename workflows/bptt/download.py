@@ -40,7 +40,7 @@ def open_zarr(url: str) -> xr.Dataset:
 def get_random_indices(n: int, i_max: int):
     batch_indices = np.arange(i_max)
     np.random.shuffle(batch_indices)
-    return np.arange(i_max)  # batch_indices[:n]
+    return batch_indices[:n]
 
 
 def open_nudge() -> Iterable[xr.Dataset]:
@@ -74,11 +74,10 @@ def _open_nudge(state, nudge) -> Iterable[xr.Dataset]:
         list(state.data_vars.keys()) + ["cos_zenith_angle"]
     )
     assert nudge["time"][0] < state["time"][0]
+    nudge = nudge.isel(time=slice(1, None))
 
     time = state["time"]
     timestep_seconds = (time[1].values.item() - time[0].values.item()).total_seconds()
-
-    nudge = nudge.isel(time=slice(1, None))
 
     T_tendency = (
         state["air_temperature"].isel(time=slice(1, None)).values
