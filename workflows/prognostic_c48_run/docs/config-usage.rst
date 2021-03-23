@@ -63,6 +63,15 @@ Notice how these configurations correspond with
 :py:attr:`runtime.config.UserConfig.nudging`. Refer to those docs as a
 reference.
 
+In addition to the above settings, to prescribe the sea surface temperatures to
+the values in the reference restart files, the
+``gfs_physics_nml.use_climatological_sst`` namelist parameter must be set to
+``false``::
+
+    namelist:
+        gfs_physics_nml:
+            use_climatological_sst: false
+
 .. _nudge to obs:
 
 Nudge to obs
