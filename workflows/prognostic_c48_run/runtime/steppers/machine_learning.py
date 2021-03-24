@@ -155,7 +155,7 @@ def download_model(config: MachineLearningConfig, path: str) -> Sequence[str]:
 
 
 def predict(model: MultiModelAdapter, state: State) -> State:
-    """Given ML model and state, return tendency prediction."""
+    """Given ML model and state, return prediction"""
     state_loaded = {key: state[key] for key in model.input_variables}
     ds = xr.Dataset(state_loaded)  # type: ignore
     output = model.predict_columnwise(ds, feature_dim="z")
@@ -212,3 +212,20 @@ class PureMLStepper:
 
     def get_momentum_diagnostics(self, state, tendency):
         return runtime.compute_ml_momentum_diagnostics(state, tendency)
+
+
+class MLStateStepper(PureMLStepper):
+    def __call__(self, time, state):
+
+        diagnostics: Diagnostics = {}
+        state_updates: State = predict(self.model, state)
+
+        for name in state_updates.keys():
+            diagnostics[name] = state_updates[name]
+
+        tendency = {}
+        return (
+            tendency,
+            diagnostics,
+            state_updates,
+        )

@@ -99,6 +99,13 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
     nudge_to_observations = (
         config_dict.get("namelist", {}).get("fv_core_nml", {}).get("nudge", False)
     )
+
+    prephysics: Optional[MachineLearningConfig]
+    if "prephysics" in config_dict:
+        prephysics = dacite.from_dict(MachineLearningConfig, config_dict["prephysics"])
+    else:
+        prephysics = None
+
     nudging: Optional[NudgingConfig]
     if "nudging" in config_dict:
         config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
@@ -138,6 +145,7 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
         )
 
     return UserConfig(
+        prephysics=prephysics,
         nudging=nudging,
         diagnostics=diagnostics,
         fortran_diagnostics=fortran_diagnostics,

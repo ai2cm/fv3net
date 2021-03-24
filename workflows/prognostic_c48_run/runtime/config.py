@@ -24,6 +24,8 @@ class UserConfig:
         diagnostics: list of diagnostic file configurations
         fortran_diagnostics: list of Fortran diagnostic outputs. Currently only used by
             post-processing and so only name and chunks items need to be specified.
+        prephysics: optional configuration of computations prior to physics,
+            specified by a machine learning configuation
         scikit_learn: a machine learning configuration
         nudging: nudge2fine configuration. Cannot be used if any scikit_learn model
             urls are specified.
@@ -36,6 +38,7 @@ class UserConfig:
 
     diagnostics: List[DiagnosticFileConfig]
     fortran_diagnostics: List[FortranFileConfig]
+    prephysics: Optional[MachineLearningConfig] = None
     scikit_learn: MachineLearningConfig = MachineLearningConfig()
     nudging: Optional[NudgingConfig] = None
     step_tendency_variables: List[str] = dataclasses.field(
