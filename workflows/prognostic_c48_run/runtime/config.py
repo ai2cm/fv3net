@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 import dataclasses
 import yaml
 import f90nml
@@ -40,7 +40,7 @@ class UserConfig:
 
     diagnostics: List[DiagnosticFileConfig]
     fortran_diagnostics: List[FortranFileConfig]
-    prephysics: Optional[PrescriberConfig] = None
+    prephysics: Optional[Union[PrescriberConfig, MachineLearningConfig]] = None
     scikit_learn: MachineLearningConfig = MachineLearningConfig()
     nudging: Optional[NudgingConfig] = None
     step_tendency_variables: List[str] = dataclasses.field(

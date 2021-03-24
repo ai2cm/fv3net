@@ -1,5 +1,7 @@
 import datetime
 import json
+import os
+import tempfile
 import logging
 from typing import (
     Any,
@@ -259,14 +261,18 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
     def _open_model(self, ml_config: MachineLearningConfig, step: str):
         self._log_info("Downloading ML Model")
-        if self.rank == 0:
-            local_model_paths = download_model(ml_config, step)
-        else:
-            local_model_paths = None  # type: ignore
-        local_model_paths = self.comm.bcast(local_model_paths, root=0)
-        setattr(ml_config, "model", local_model_paths)
-        self._log_info("Model Downloaded From Remote")
-        model = open_model(ml_config)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            if self.rank == 0:
+                local_model_paths = download_model(
+                    ml_config, os.path.join(tmpdir, step)
+                )
+            else:
+                local_model_paths = None  # type: ignore
+            local_model_paths = self.comm.bcast(local_model_paths, root=0)
+            setattr(ml_config, "model", local_model_paths)
+            self._log_info("Model Downloaded From Remote")
+            model = open_model(ml_config)
+            MPI.COMM_WORLD.barrier()
         self._log_info("Model Loaded")
         return model
 
@@ -363,22 +369,20 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 rename_diagnostics(diagnostics)
             else:
                 self._state_updates.update(state_updates)
-            prephysics_overrides = [
-                "total_sky_downward_shortwave_flux_at_surface_override",
-                "total_sky_net_shortwave_flux_at_surface_override",
-                "total_sky_downward_longwave_flux_at_surface_override",
-            ]
-            state_updates = {
-                k: v
-                for k, v in self._state_updates.items()
-                if k in prephysics_overrides
-            }
-            self._state_updates = dissoc(self._state_updates, *prephysics_overrides)
-            self._log_debug(
-                f"Applying prephysics state updates for: {list(state_updates.keys())}"
-            )
-            updated_state = assign_attrs_from(self._state, state_updates)
-            self._state.update_mass_conserving(updated_state)
+        prephysics_overrides = [
+            "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
+            "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface",
+            "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface",
+        ]
+        state_updates = {
+            k: v for k, v in self._state_updates.items() if k in prephysics_overrides
+        }
+        self._state_updates = dissoc(self._state_updates, *prephysics_overrides)
+        self._log_debug(
+            f"Applying prephysics state updates for: {list(state_updates.keys())}"
+        )
+        updated_state = assign_attrs_from(self._state, state_updates)
+        self._state.update_mass_conserving(updated_state)
 
         return diagnostics
 

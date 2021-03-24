@@ -23,7 +23,7 @@ spec:
           - {name: memory, value: 6Gi}
           - {name: flags, value: " "}
       container:
-        image: us.gcr.io/vcm-ml/fv3fit
+        image: us.gcr.io/vcm-ml/prognostic_run
         command: ["bash", "-c", "-x"]
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -47,7 +47,7 @@ spec:
             echo "Configuration:"
             cat config.yaml
                 
-            python -m fv3fit.train \
+            python3 -m fv3fit.train \
               {{inputs.parameters.input}} \
               config.yaml \
               {{inputs.parameters.output}} \

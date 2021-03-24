@@ -61,7 +61,6 @@ partd
 Pillow
 Pint
 pluggy
-pooch
 py
 pyarrow
 pyasn1
@@ -73,7 +72,6 @@ PyWavelets
 requests
 requests-oauthlib
 rsa
-scikit-image
 scipy >= 1.5.0
 six
 traitlets
