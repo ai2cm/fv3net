@@ -95,7 +95,14 @@ def _load_prognostic_run_3d_output(url: str):
             zarr_name = os.path.basename(item)
             path = os.path.join(url, zarr_name)
             outputs.append(_load_standardized(path))
-        return xr.merge(outputs)
+        merged = xr.merge(outputs)
+        centered_vars = [
+            var
+            for var in merged
+            if "x_interface" not in merged[var].dims
+            and "y_interface" not in merged[var].dims
+        ]
+        return merged[centered_vars]
     else:
         return None
 
