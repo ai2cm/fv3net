@@ -26,31 +26,42 @@ DIM_RENAME_INVERSE_MAP = {
 
 @dataclasses.dataclass
 class PrescriberConfig:
-    """Configuration for prescribing states in the model from an external source
+    """Configuration for a prescriber object to set states in the model from an external source
 
     Attributes:
-        catalog_entry: vcm catalog key of catalog dataset containing variables
-        variables: list variable names to prescribe
+        dataset_key (str): location of the dataset that provides prescribe values;
+            the routine first will try `dataset_key` as a `vcm.catalog` key, and if
+            not present it will attempt to use it as a (local or remote) path to
+            a zarr dataset
+        variables (Sequence[str]): list "standardized" ("_coarse" suffix removed)
+            variable names to prescribe
+        rename (Mapping[Hashable, Hashable]): mapping of "standardized" ("_coarse"
+            suffix removed) names in the external dataset to variable names desired
+            for the runfile
+        consolidated (bool): whether desired dataset has consolidated metadata,
+            defaults to True
 
     Example::
 
         PrescriberConfig(
-            variables=["DSWRFsfc", "USWRFsfc", "DLWRFsfc"]
-            catalog_entry="40day_c48_gfsphysics_15min_may2020"
+            dataset_key="40day_c48_gfsphysics_15min_may2020"
+            variables=["DSWRFsfc", "USWRFsfc", "DLWRFsfc"],
+            rename={
+                'DSWRFsfc': 'override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface',
+                'DLWRFsfc': 'override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface',
+                'NSWRFsfc': 'override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface'
+            }
         )
 
-    """
+    """  # noqa
 
-    catalog_entry: str
+    dataset_key: str
     variables: Sequence[str]
     rename: Mapping[Hashable, Hashable]
     consolidated: bool = True
 
 
 class Prescriber:
-    """A pre-physics stepper which obtains prescribed values from an external source
-    
-    """
 
     net_moistening = "net_moistening"
 
@@ -71,7 +82,7 @@ class Prescriber:
         time_coord: Optional[xr.DataArray]
         if self._communicator.rank == 0:
             prescribed_ds, time_coord = _get_prescribed_ds(
-                self._config.catalog_entry,
+                self._config.dataset_key,
                 list(self._config.variables),
                 self._config.consolidated,
             )
@@ -115,10 +126,10 @@ class Prescriber:
 
 
 def _get_prescribed_ds(
-    catalog_entry: str, variables: Sequence[str], consolidated: bool = True
+    dataset_key: str, variables: Sequence[str], consolidated: bool = True
 ) -> Tuple[xr.Dataset, xr.DataArray]:
-    logger.info(f"Setting up catalog dataset for state setting: {catalog_entry}")
-    ds = _catalog_ds(catalog_entry, consolidated)
+    logger.info(f"Setting up dataset for state setting: {dataset_key}")
+    ds = _open_ds(dataset_key, consolidated)
     time_coord = ds.coords["time"]
     ds = _remove_name_suffix(ds)
     ds = get_variables(ds, variables)
@@ -128,15 +139,12 @@ def _get_prescribed_ds(
     return ds.drop_vars(names="time").load(), time_coord
 
 
-def _catalog_ds(catalog_entry: str, consolidated: bool) -> xr.Dataset:
+def _open_ds(dataset_key: str, consolidated: bool) -> xr.Dataset:
     try:
-        catalog_entry_path = CATALOG[catalog_entry].urlpath
+        zarr_path = CATALOG[dataset_key].urlpath
     except KeyError:
-        raise KeyError(f"Invalid catalog entry provided: {catalog_entry}")
-    catalog_ds = intake.open_zarr(
-        catalog_entry_path, consolidated=consolidated
-    ).to_dask()
-    return catalog_ds
+        zarr_path = dataset_key
+    return intake.open_zarr(zarr_path, consolidated=consolidated).to_dask()
 
 
 def _rename_dims(

@@ -4,7 +4,7 @@ import yaml
 import logging
 import sys
 from datetime import datetime, timedelta
-from typing import List, Mapping, Optional, Sequence, Union
+from typing import List, Mapping, Optional, Sequence
 
 import dacite
 
@@ -21,7 +21,6 @@ from runtime.diagnostics.fortran import file_configs_to_namelist_settings
 from runtime.steppers.nudging import NudgingConfig
 from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
-from runtime.steppers.prescriber import PrescriberConfig
 
 
 logger = logging.getLogger(__name__)
@@ -101,23 +100,6 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
         config_dict.get("namelist", {}).get("fv_core_nml", {}).get("nudge", False)
     )
 
-    prephysics: Optional[Union[PrescriberConfig, MachineLearningConfig]]
-    if "prephysics" in config_dict:
-        if "catalog_entry" in config_dict["prephysics"]:
-            prephysics = dacite.from_dict(PrescriberConfig, config_dict["prephysics"])
-        elif "model" in config_dict["prephysics"]:
-            prephysics = dacite.from_dict(
-                MachineLearningConfig, config_dict["prephysics"]
-            )
-        else:
-            raise ValueError(
-                "Invalid prephysics configuration, must specify either an ML model"
-                " or a prescriber catalog entry."
-            )
-
-    else:
-        prephysics = None
-
     nudging: Optional[NudgingConfig]
     if "nudging" in config_dict:
         config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
@@ -157,7 +139,7 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
         )
 
     return UserConfig(
-        prephysics=prephysics,
+        prephysics=config_dict.get("prephysics"),
         nudging=nudging,
         diagnostics=diagnostics,
         fortran_diagnostics=fortran_diagnostics,
