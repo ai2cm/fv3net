@@ -2,6 +2,7 @@ import pytest
 from datetime import timedelta
 import cftime
 import xarray as xr
+import numpy as np
 
 from fv3net.diagnostics.prognostic_run import transform
 
@@ -86,3 +87,18 @@ def test_daily_mean_split_short_input(input_args):
 def test__mask_array_global(input_args, region):
     ds, _, grid = input_args
     transform._mask_array(region, grid.area, grid.lat, grid.land_sea_mask)
+
+
+def test__mask_extrapolations_below_sfc():
+    ds = xr.Dataset(
+        data_vars={
+            "psfc": (["x"], [100000.0, 50000.0]),
+            "var850": (["x"], [1.0, 2.0]),
+        },
+        coords={"x": [0, 1]},
+    )
+    ds_masked = transform._mask_extrapolations_below_sfc(
+        ds, mask_at_pressure={"var850": 85000.0}, psfc="psfc"
+    )
+    assert ds_masked.sel(x=0)["var850"] == 1.0
+    assert np.isnan(ds_masked.sel(x=1)["var850"].values)
