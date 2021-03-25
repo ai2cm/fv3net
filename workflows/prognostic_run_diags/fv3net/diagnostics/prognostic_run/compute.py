@@ -44,6 +44,7 @@ from fv3net.diagnostics.prognostic_run.constants import (
     DIURNAL_CYCLE_VARS,
     TIME_MEAN_VARS,
     RMSE_VARS,
+    PRESSURE_INTERPOLATED_VARS,
 )
 
 import logging
@@ -271,6 +272,7 @@ def zonal_means_physics(prognostic, verification, grid):
 
 @add_to_diags("3d")
 @diag_finalizer("pressure_level_zonal_time_mean")
+@transform.apply("subset_variables", PRESSURE_INTERPOLATED_VARS)
 @transform.apply("insert_absent_3d_output_placeholder")
 @transform.apply("resample_time", "3H")
 def zonal_means_3d(prognostic, verification, grid):
@@ -282,6 +284,7 @@ def zonal_means_3d(prognostic, verification, grid):
 
 @add_to_diags("3d")
 @diag_finalizer("pressure_level_zonal_bias")
+@transform.apply("subset_variables", PRESSURE_INTERPOLATED_VARS)
 @transform.apply("insert_absent_3d_output_placeholder")
 @transform.apply("resample_time", "3H")
 def zonal_bias_3d(prognostic, verification, grid):
