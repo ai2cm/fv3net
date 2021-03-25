@@ -110,7 +110,7 @@ class ArrayPacker:
         self._pack_names = list(pack_names)
         self._n_features: Dict[str, int] = {}
         self._sample_dim_name = sample_dim_name
-        self._dims: Dict[str, Iterable[str]] = {}
+        self._dims: Dict[str, Sequence[str]] = {}
 
     @property
     def pack_names(self) -> List[str]:
@@ -279,6 +279,7 @@ def to_array(
     total_features = sum(feature_counts[name] for name in pack_names)
 
     if is_3d:
+        max_dims = 3
         # can assume all variables have [sample, time] dimensions
         n_times = dataset[pack_names[0]].shape[1]
         array = np.empty([n_samples, n_times, total_features])
@@ -305,7 +306,7 @@ def to_array(
 def to_dataset(
     array: np.ndarray,
     pack_names: Iterable[str],
-    dimensions: Mapping[str, Iterable[str]],
+    dimensions: Mapping[str, Sequence[str]],
     feature_counts: Mapping[str, int],
 ):
     """Restore a dataset from a 2D [sample, feature] array.

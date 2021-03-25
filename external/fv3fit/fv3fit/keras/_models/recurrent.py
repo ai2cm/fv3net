@@ -16,7 +16,7 @@ class BPTTModel(Predictor):
     def __init__(
         self,
         sample_dim_name: str,
-        input_variables: Iterable[Hashable],
+        input_variables: Iterable[str],
         n_units: int,
         n_hidden_layers: int,
         kernel_regularizer,

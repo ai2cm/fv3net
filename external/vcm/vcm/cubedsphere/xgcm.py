@@ -3,10 +3,8 @@ import numba
 
 try:
     import xgcm
-    Grid = xgcm.Grid
 except (ImportError, numba.errors.TypingError) as err:
     xgcm = None
-    Grid = None
     XGCM_IMPORT_ERR = err
 from . import constants
 
@@ -56,7 +54,7 @@ def create_fv3_grid(
     x_outer: str = constants.COORD_X_OUTER,
     y_center: str = constants.COORD_Y_CENTER,
     y_outer: str = constants.COORD_Y_OUTER,
-) -> Grid:
+) -> xgcm.Grid:
     """Create an XGCM_ grid from a dataset of FV3 tile data
 
 

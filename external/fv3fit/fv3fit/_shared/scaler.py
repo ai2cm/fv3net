@@ -1,7 +1,7 @@
 import abc
 from copy import copy
 import numpy as np
-from typing import Mapping, BinaryIO, Type, Sequence, Iterable
+from typing import Mapping, BinaryIO, Type, Sequence, Iterable, Tuple, Union
 import xarray as xr
 import io
 import yaml
@@ -55,6 +55,7 @@ class StandardScaler(NormalizeTransform):
         self.std_epsilon: np.float64 = std_epsilon
 
     def fit(self, data: np.ndarray):
+        axes_to_avg: Union[int, Tuple[int, int]]
         if len(data.shape) == 2:
             axes_to_avg = 0
         elif len(data.shape) == 3:
