@@ -91,9 +91,7 @@ if __name__ == "__main__":
         ax[1].set_title(f"reference {label}")
         plt.colorbar(im, ax=ax[1])
 
-    i = 0
     seconds_in_day = 60 * 60 * 24
-    fig, ax = plt.subplots(4, 1, figsize=(12, 8))
 
     print("stds")
     print(np.std(state_out["air_temperature"] - state_out["air_temperature_reference"]))
@@ -101,43 +99,39 @@ if __name__ == "__main__":
     print(np.std(state_out["specific_humidity"] - state_out["specific_humidity_reference"]))
     print(np.mean(np.var(state_out["specific_humidity_reference"], axis=(0, 1)))**0.5)
 
-    plot_single(
-        state_out["dQ1"][i, :, :].values * seconds_in_day,
-        state_out["air_temperature_tendency_due_to_nudging"][i, :, :].values * seconds_in_day,
-        "air_temperature (K/day)",
-        ax[:2],
-    )
-    plot_single(
-        state_out["air_temperature"][i, :, :].values,
-        state_out["air_temperature_reference"][i, :, :].values,
-        "air_temperature (K)",
-        ax[2:],
-    )
-    # lat = arrays.latitude[i] * 180.0 / np.pi
-    # lon = arrays.longitude[i] * 180.0 / np.pi
-    # plt.suptitle(f"lat: {lat}, lon: {lon}")
-    for a in ax:
-        a.set_ylim(a.get_ylim()[::-1])
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
-    fig, ax = plt.subplots(4, 1, figsize=(12, 8))
-    plot_single(
-        state_out["dQ2"][i, :, :].values * seconds_in_day,
-        state_out["specific_humidity_tendency_due_to_nudging"][i, :, :].values * seconds_in_day,
-        "specific_humidity (kg/kg/day)",
-        ax[:2],
-    )
-    plot_single(
-        state_out["specific_humidity"][i, :, :].values,
-        state_out["specific_humidity_reference"][i, :, :].values,
-        "specific_humidity (kg/kg)",
-        ax[2:],
-    )
-    # lat = arrays.latitude[i] * 180.0 / np.pi
-    # lon = arrays.longitude[i] * 180.0 / np.pi
-    # plt.suptitle(f"lat: {lat}, lon: {lon}")
-    for a in ax:
-        a.set_ylim(a.get_ylim()[::-1])
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    for i in range(4):
+        fig, ax = plt.subplots(4, 2, figsize=(12, 8))
+        print(ax.shape)
+        plot_single(
+            state_out["dQ1"][i, :, :].values * seconds_in_day,
+            state_out["air_temperature_tendency_due_to_nudging"][i, :, :].values * seconds_in_day,
+            "air_temperature (K/day)",
+            ax[:2, 0],
+        )
+        plot_single(
+            state_out["air_temperature"][i, :, :].values,
+            state_out["air_temperature_reference"][i, :, :].values,
+            "air_temperature (K)",
+            ax[2:, 0],
+        )
+        plot_single(
+            state_out["dQ2"][i, :, :].values * seconds_in_day,
+            state_out["specific_humidity_tendency_due_to_nudging"][i, :, :].values * seconds_in_day,
+            "specific_humidity (kg/kg/day)",
+            ax[:2, 1],
+        )
+        plot_single(
+            state_out["specific_humidity"][i, :, :].values,
+            state_out["specific_humidity_reference"][i, :, :].values,
+            "specific_humidity (kg/kg)",
+            ax[2:, 1],
+        )
+        lat = ds["lat"][i, 0].values.item() * 180.0 / np.pi
+        lon = ds["lon"][i, 0].values.item() * 180.0 / np.pi
+        plt.suptitle(f"lat: {lat}, lon: {lon}")
+        for a in ax.flatten():
+            a.set_ylim(a.get_ylim()[::-1])
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.show()
 
     assert False
