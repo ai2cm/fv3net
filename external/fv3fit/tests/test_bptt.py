@@ -60,7 +60,7 @@ def train_dataset(sample_dim_name, dt):
                 np.random.randn(n_samples, n_times), dims=[sample_dim_name, "time"],
             ),
         },
-        coords={"time": np.asarray([t_start + i * dt for i in range(n_times)]),},
+        coords={"time": np.asarray([t_start + i * dt for i in range(n_times)])},
     )
     return ds
 

@@ -33,7 +33,7 @@ class BPTTModel(Predictor):
             input_variables: non-prognostic variables to use as inputs
             n_units: number of neurons in each hidden layer
             n_hidden_layers: number of hidden layers
-            kernel_regularizer: if given, use for regularizing 
+            kernel_regularizer: if given, use for regularizing
                 hidden layer kernels
             train_batch_size: batch size to use for keras model training
             optimizer: optimizer for keras training
@@ -120,7 +120,9 @@ class BPTTModel(Predictor):
 
         return air_temperature_loss, specific_humidity_loss
 
-    def build(self, n_window: int) -> Tuple[tf.keras.Model, tf.keras.Model, tf.keras.Model]:
+    def build(
+        self, n_window: int
+    ) -> Tuple[tf.keras.Model, tf.keras.Model, tf.keras.Model]:
         """
         Define models to use for training and prediction.
 
@@ -135,6 +137,7 @@ class BPTTModel(Predictor):
             predict_model: model which predicts tendencies at a specific point in time,
                 and shares weights with the training model
         """
+
         def get_vector(packer, scaler, series=True):
             features = [packer.feature_counts[name] for name in packer.pack_names]
             if series:
@@ -295,6 +298,7 @@ class BPTTModel(Predictor):
         """
         Return numpy arrays to be passed in to the Keras training model.
         """
+
         def get_inputs(X):
             return get_keras_arrays(X, self.input_packer.pack_names, slice(0, -1))
 

@@ -1,4 +1,4 @@
-from typing import Sequence, Callable, Any, Iterator
+from typing import Sequence, Callable, Any
 import collections.abc
 import random
 import concurrent.futures
@@ -10,7 +10,10 @@ class Preloaded(collections.abc.Iterator):
     """
 
     def __init__(
-        self, filenames: Sequence[str], loader_function: Callable[[str], Any], shuffle: bool=True,
+        self,
+        filenames: Sequence[str],
+        loader_function: Callable[[str], Any],
+        shuffle: bool = True,
     ):
         """
         Args:

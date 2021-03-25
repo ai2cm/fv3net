@@ -6,14 +6,12 @@ import time
 
 
 class CallRecord:
-
     def __init__(self, args, kwargs):
         self.args: Tuple[Any] = args
         self.kwargs: Dict[str, Any] = kwargs
 
 
 class DummyFunction:
-
     def __init__(self):
         self.call_history: Sequence[CallRecord] = []
 

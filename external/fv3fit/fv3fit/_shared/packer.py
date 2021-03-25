@@ -7,7 +7,6 @@ from typing import (
     cast,
     Mapping,
     Sequence,
-    Optional,
 )
 import numpy as np
 import xarray as xr
@@ -279,7 +278,6 @@ def to_array(
     total_features = sum(feature_counts[name] for name in pack_names)
 
     if is_3d:
-        max_dims = 3
         # can assume all variables have [sample, time] dimensions
         n_times = dataset[pack_names[0]].shape[1]
         array = np.empty([n_samples, n_times, total_features])

@@ -244,6 +244,8 @@ def test_repack_3d_array():
     # don't need to handle data with singleton feature dimensions, at the moment
     dataset = get_3d_dataset(SAMPLE_DIM).drop_vars("b")
     packer = ArrayPacker(SAMPLE_DIM, ["a", "c"])
-    array = packer.to_array(dataset, is_3d=True)  # must pack first to know dimension lengths
+    array = packer.to_array(
+        dataset, is_3d=True
+    )  # must pack first to know dimension lengths
     with pytest.raises(NotImplementedError):
         packer.to_dataset(array)

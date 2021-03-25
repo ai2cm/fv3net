@@ -1,13 +1,9 @@
-from typing import Iterable, Hashable, Sequence, Tuple
-import fv3gfs.util
 import numpy as np
 import fv3fit
 import xarray as xr
 import tensorflow as tf
 import argparse
-import concurrent.futures
 from download import INPUT_NAMES
-import copy
 import random
 import vcm
 
@@ -49,7 +45,7 @@ if __name__ == "__main__":
         )
         model.build_for(ds)
 
-    training_datasets = PreloadedIterator(filenames, loader_function=xr.open_dataset)
+    training_datasets = vcm.Preloaded(filenames, loader_function=xr.open_dataset)
 
     base_epoch = 0
     for i_epoch in range(50):
