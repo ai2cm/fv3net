@@ -87,7 +87,7 @@ def _load_prognostic_run_3d_output(url: str):
     prognostic_3d_output = [
         item
         for item in fs.ls(url)
-        if item.endswith("3d.zarr") or item.endswith("state_after_timestep.zarr")
+        if item.endswith("diags_3d.zarr") or item.endswith("state_after_timestep.zarr")
     ]
     if len(prognostic_3d_output) > 0:
         outputs = []
@@ -96,13 +96,20 @@ def _load_prognostic_run_3d_output(url: str):
             path = os.path.join(url, zarr_name)
             outputs.append(_load_standardized(path))
         merged = xr.merge(outputs)
-        centered_vars = [
-            var
-            for var in merged
-            if "x_interface" not in merged[var].dims
-            and "y_interface" not in merged[var].dims
+        # interpolation is slow, so only keep a subset of 3D outputs
+        keep_vars = [
+            "air_temperature",
+            "specific_humidity",
+            "eastward_wind",
+            "northward_wind",
+            "vertical_wind",
+            "dQ1",
+            "dQ2",
+            "dQu",
+            "dQv",
         ]
-        return merged[centered_vars]
+        available_vars = [var for var in keep_vars if var in merged]
+        return merged[available_vars]
     else:
         return None
 
