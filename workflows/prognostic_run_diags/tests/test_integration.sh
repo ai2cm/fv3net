@@ -7,7 +7,7 @@ set -xe
 RUN=gs://vcm-ml-code-testing-data/sample-prognostic-run-output
 
 random=$(openssl rand --hex 6)
-OUTPUT=gs://vcm-ml-scratch/annak/2021-03-07-test-3d-verification-data/prog-diags-output5
+OUTPUT=gs://vcm-ml-scratch/test-prognostic-report/$random
 
 cd workflows/prognostic_run_diags
 
