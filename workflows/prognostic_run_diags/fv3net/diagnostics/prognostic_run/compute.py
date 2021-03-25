@@ -240,6 +240,7 @@ def dump_nc(ds: xr.Dataset, f):
 @add_to_diags("dycore")
 @diag_finalizer("rms_global")
 @transform.apply("resample_time", "3H", inner_join=True)
+@transform.apply("mask_values_below_sfc")
 @transform.apply("daily_mean", datetime.timedelta(days=10))
 @transform.apply("subset_variables", RMSE_VARS)
 def rms_errors(prognostic, verification_c48, grid):
@@ -252,6 +253,7 @@ def rms_errors(prognostic, verification_c48, grid):
 @add_to_diags("dycore")
 @diag_finalizer("zonal_and_time_mean")
 @transform.apply("resample_time", "1H")
+@transform.apply("mask_values_below_sfc")
 @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
 def zonal_means_dycore(prognostic, verification, grid):
     logger.info("Preparing zonal+time means (dycore)")
@@ -294,6 +296,7 @@ def zonal_bias_3d(prognostic, verification, grid):
 @add_to_diags("dycore")
 @diag_finalizer("zonal_bias")
 @transform.apply("resample_time", "1H")
+@transform.apply("mask_values_below_sfc")
 @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
 def zonal_and_time_mean_biases_dycore(prognostic, verification, grid):
     logger.info("Preparing zonal+time mean biases (dycore)")
