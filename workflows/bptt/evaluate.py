@@ -24,7 +24,6 @@ def get_vmin_vmax(*arrays):
     return vmin, vmax
 
 
-
 # def integrate_stepwise(ds, model):
 #     ds = ds.rename({
 #         "air_temperature_tendency_due_to_nudging": "nQ1",
@@ -79,7 +78,7 @@ if __name__ == "__main__":
     with open(filename, "rb") as f:
         ds = xr.open_dataset(filename).isel(sample=slice(0, 64))
         ds.load()
-    
+
     state_out = integrate_stepwise(ds, model)
 
     def plot_single(predicted, reference, label, ax):
@@ -95,16 +94,21 @@ if __name__ == "__main__":
 
     print("stds")
     print(np.std(state_out["air_temperature"] - state_out["air_temperature_reference"]))
-    print(np.mean(np.var(state_out["air_temperature_reference"], axis=(0, 1)))**0.5)
-    print(np.std(state_out["specific_humidity"] - state_out["specific_humidity_reference"]))
-    print(np.mean(np.var(state_out["specific_humidity_reference"], axis=(0, 1)))**0.5)
+    print(np.mean(np.var(state_out["air_temperature_reference"], axis=(0, 1))) ** 0.5)
+    print(
+        np.std(
+            state_out["specific_humidity"] - state_out["specific_humidity_reference"]
+        )
+    )
+    print(np.mean(np.var(state_out["specific_humidity_reference"], axis=(0, 1))) ** 0.5)
 
     for i in range(4):
         fig, ax = plt.subplots(4, 2, figsize=(12, 8))
         print(ax.shape)
         plot_single(
             state_out["dQ1"][i, :, :].values * seconds_in_day,
-            state_out["air_temperature_tendency_due_to_nudging"][i, :, :].values * seconds_in_day,
+            state_out["air_temperature_tendency_due_to_nudging"][i, :, :].values
+            * seconds_in_day,
             "air_temperature (K/day)",
             ax[:2, 0],
         )
@@ -116,7 +120,8 @@ if __name__ == "__main__":
         )
         plot_single(
             state_out["dQ2"][i, :, :].values * seconds_in_day,
-            state_out["specific_humidity_tendency_due_to_nudging"][i, :, :].values * seconds_in_day,
+            state_out["specific_humidity_tendency_due_to_nudging"][i, :, :].values
+            * seconds_in_day,
             "specific_humidity (kg/kg/day)",
             ax[:2, 1],
         )

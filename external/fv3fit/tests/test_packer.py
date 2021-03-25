@@ -109,7 +109,9 @@ def test_to_dataset(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray)
 @pytest.mark.parametrize(
     "dims_list", ["two_2d_vars", "1d_and_2d", "five_vars"], indirect=True
 )
-def test_packer_unpack_layer(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray):
+def test_packer_unpack_layer(
+    packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray
+):
     packer.to_array(dataset)  # must pack first to know dimension lengths
     result = packer.unpack_layer(feature_dim=1)(array)
     # to_dataset does not preserve coordinates
@@ -119,16 +121,6 @@ def test_packer_unpack_layer(packer: ArrayPacker, dataset: xr.Dataset, array: np
         np.testing.assert_array_equal(array, dataset[name])
 
 
-
-
-# class Unpack(tf.keras.layers.Layer):
-#     def __init__(
-#         self,
-#         *,
-#         pack_names: Sequence[str],
-#         n_features: Mapping[str, int],
-#         feature_dim: int,
-#     ):
 def test_direct_unpack_layer():
     names = ["a", "b"]
     n_features = {"a": 4, "b": 4}
@@ -198,11 +190,6 @@ def test_sklearn_unpack(dataset: xr.Dataset):
     xr.testing.assert_allclose(unpacked_dataset, dataset)
 
 
-# def count_features(
-#     quantity_names: Iterable[str], dataset: xr.Dataset, sample_dim_name: str
-# )
-
-
 def test_count_features_2d():
     SAMPLE_DIM_NAME = "axy"
     ds = xr.Dataset(
@@ -244,7 +231,7 @@ def test_count_features_3d():
     ds = get_3d_dataset(SAMPLE_DIM_NAME)
     names = list(ds.data_vars.keys())
     assert len(names) == 3
-    out = count_features(names, ds, sample_dim_name=SAMPLE_DIM_NAME)
+    out = count_features(names, ds, sample_dim_name=SAMPLE_DIM_NAME, is_3d=True)
     assert len(out) == len(names)
     for name in names:
         assert name in out
@@ -257,6 +244,6 @@ def test_repack_3d_array():
     # don't need to handle data with singleton feature dimensions, at the moment
     dataset = get_3d_dataset(SAMPLE_DIM).drop_vars("b")
     packer = ArrayPacker(SAMPLE_DIM, ["a", "c"])
-    array = packer.to_array(dataset)  # must pack first to know dimension lengths
+    array = packer.to_array(dataset, is_3d=True)  # must pack first to know dimension lengths
     with pytest.raises(NotImplementedError):
         packer.to_dataset(array)

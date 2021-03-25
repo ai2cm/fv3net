@@ -3,7 +3,6 @@ import numba
 
 try:
     import xgcm
-
     Grid = xgcm.Grid
 except (ImportError, numba.errors.TypingError) as err:
     xgcm = None

@@ -1,5 +1,12 @@
 from preprocessing import open_nudge, TrainingArrays, SAMPLE_DIM_NAME
-from train import prepare_keras_arrays, build_model, compile_model, get_dim_lengths, get_stepwise_model, get_packers_and_scalers
+from train import (
+    prepare_keras_arrays,
+    build_model,
+    compile_model,
+    get_dim_lengths,
+    get_stepwise_model,
+    get_packers_and_scalers,
+)
 from evaluate import arrays_to_dataset
 import xarray as xr
 import numpy as np
@@ -17,14 +24,33 @@ def test_datasets_integrate():
         print(f"Step {i+1} of {n_timesteps}")
         forcing_ds = ds.isel(time=i)
         # state at start of timestep should match forcing dataset state
-        np.testing.assert_array_almost_equal(state_ds["air_temperature"].values, forcing_ds["air_temperature"].values)
-        np.testing.assert_array_almost_equal(state_ds["specific_humidity"].values, forcing_ds["specific_humidity"].values)
-        assert np.sum(np.isnan(forcing_ds["air_temperature_tendency_due_to_model"].values)) == 0
-        assert np.sum(np.isnan(forcing_ds["air_temperature_tendency_due_to_nudging"].values)) == 0
-        state_ds["air_temperature"].values[:] += (forcing_ds["air_temperature_tendency_due_to_model"].values + forcing_ds["air_temperature_tendency_due_to_nudging"].values) * timestep_seconds
-        state_ds["specific_humidity"].values[:] += (forcing_ds["specific_humidity_tendency_due_to_model"].values + forcing_ds["specific_humidity_tendency_due_to_nudging"].values) * timestep_seconds
+        np.testing.assert_array_almost_equal(
+            state_ds["air_temperature"].values, forcing_ds["air_temperature"].values
+        )
+        np.testing.assert_array_almost_equal(
+            state_ds["specific_humidity"].values, forcing_ds["specific_humidity"].values
+        )
+        assert (
+            np.sum(np.isnan(forcing_ds["air_temperature_tendency_due_to_model"].values))
+            == 0
+        )
+        assert (
+            np.sum(
+                np.isnan(forcing_ds["air_temperature_tendency_due_to_nudging"].values)
+            )
+            == 0
+        )
+        state_ds["air_temperature"].values[:] += (
+            forcing_ds["air_temperature_tendency_due_to_model"].values
+            + forcing_ds["air_temperature_tendency_due_to_nudging"].values
+        ) * timestep_seconds
+        state_ds["specific_humidity"].values[:] += (
+            forcing_ds["specific_humidity_tendency_due_to_model"].values
+            + forcing_ds["specific_humidity_tendency_due_to_nudging"].values
+        ) * timestep_seconds
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     np.random.seed(0)
     tf.random.set_seed(1)
     test_datasets_integrate()

@@ -4,7 +4,7 @@ import tensorflow as tf
 import numpy as np
 from datetime import timedelta
 from cftime import DatetimeProlepticGregorian as datetime
-from fv3fit.keras._models.recurrent import BPTTModel, integrate_stepwise
+from fv3fit.keras._models.recurrent import BPTTModel
 import tempfile
 import fv3fit
 
@@ -12,6 +12,7 @@ import fv3fit
 @pytest.fixture
 def sample_dim_name():
     return "sample"
+
 
 @pytest.fixture
 def dt():
@@ -29,12 +30,12 @@ def train_dataset(sample_dim_name, dt):
             "air_temperature": xr.DataArray(
                 np.random.randn(n_samples, n_times, n_z),
                 dims=[sample_dim_name, "time", "z"],
-                attrs={"units": "K"}
+                attrs={"units": "K"},
             ),
             "specific_humidity": xr.DataArray(
                 np.random.randn(n_samples, n_times, n_z),
                 dims=[sample_dim_name, "time", "z"],
-                attrs={"units": "kg/kg"}
+                attrs={"units": "kg/kg"},
             ),
             "air_temperature_tendency_due_to_model": xr.DataArray(
                 np.random.randn(n_samples, n_times, n_z),
@@ -53,22 +54,20 @@ def train_dataset(sample_dim_name, dt):
                 dims=[sample_dim_name, "time", "z"],
             ),
             "a": xr.DataArray(
-                np.random.randn(n_samples, n_times),
-                dims=[sample_dim_name, "time"],
+                np.random.randn(n_samples, n_times), dims=[sample_dim_name, "time"],
             ),
             "b": xr.DataArray(
-                np.random.randn(n_samples, n_times),
-                dims=[sample_dim_name, "time"],
+                np.random.randn(n_samples, n_times), dims=[sample_dim_name, "time"],
             ),
         },
-        coords = {
-            "time": np.asarray([t_start + i * dt for i in range(n_times)]),
-        }
+        coords={"time": np.asarray([t_start + i * dt for i in range(n_times)]),},
     )
     return ds
 
 
-def test_predict_model_gives_tendency_of_train_model(train_dataset, sample_dim_name, dt):
+def test_predict_model_gives_tendency_of_train_model(
+    train_dataset, sample_dim_name, dt
+):
     np.random.seed(0)
     tf.random.set_seed(1)
     model = BPTTModel(
@@ -82,10 +81,10 @@ def test_predict_model_gives_tendency_of_train_model(train_dataset, sample_dim_n
     )
     model.build_for(train_dataset)
 
-    train_dataset["air_temperature_tendency_due_to_model"][:] = 0.
-    train_dataset["specific_humidity_tendency_due_to_model"][:] = 0.
+    train_dataset["air_temperature_tendency_due_to_model"][:] = 0.0
+    train_dataset["specific_humidity_tendency_due_to_model"][:] = 0.0
 
-    air_temperature, specific_humidity = model.train_model.predict(
+    air_temperature, specific_humidity = model.train_keras_model.predict(
         x=model.get_keras_inputs(train_dataset)
     )
     dQ1, dQ2 = model.train_tendency_model.predict(
@@ -95,8 +94,12 @@ def test_predict_model_gives_tendency_of_train_model(train_dataset, sample_dim_n
     tendency_ds = model.predictor_model.predict(train_dataset.isel(time=0))
 
     # take difference of first output from initial input state
-    Q1_train_tendency = (air_temperature[:, 0, :] - train_dataset["air_temperature"][:, 0, :]) / (dt.total_seconds())
-    Q2_train_tendency = (specific_humidity[:, 0, :] - train_dataset["specific_humidity"][:, 0, :]) / (dt.total_seconds())
+    Q1_train_tendency = (
+        air_temperature[:, 0, :] - train_dataset["air_temperature"][:, 0, :]
+    ) / (dt.total_seconds())
+    Q2_train_tendency = (
+        specific_humidity[:, 0, :] - train_dataset["specific_humidity"][:, 0, :]
+    ) / (dt.total_seconds())
 
     np.testing.assert_allclose(dQ1[:, 0, :], tendency_ds["dQ1"].values, atol=1e-6)
     np.testing.assert_allclose(dQ2[:, 0, :], tendency_ds["dQ2"].values, atol=1e-6)
@@ -118,9 +121,11 @@ def test_train_model_uses_correct_given_tendency(train_dataset, sample_dim_name,
     )
     model.build_for(train_dataset)
 
-    assert not np.all(train_dataset["air_temperature_tendency_due_to_model"].values == 0.)
+    assert not np.all(
+        train_dataset["air_temperature_tendency_due_to_model"].values == 0.0
+    )
 
-    air_temperature, specific_humidity = model.train_model.predict(
+    air_temperature, specific_humidity = model.train_keras_model.predict(
         x=model.get_keras_inputs(train_dataset)
     )
     dQ1, dQ2 = model.train_tendency_model.predict(
@@ -128,18 +133,42 @@ def test_train_model_uses_correct_given_tendency(train_dataset, sample_dim_name,
     )
 
     # take difference of first output from initial input state
-    Q1_train_tendency = (air_temperature[:, 0, :] - train_dataset["air_temperature"][:, 0, :]) / (dt.total_seconds())
-    Q2_train_tendency = (specific_humidity[:, 0, :] - train_dataset["specific_humidity"][:, 0, :]) / (dt.total_seconds())
+    Q1_train_tendency = (
+        air_temperature[:, 0, :] - train_dataset["air_temperature"][:, 0, :]
+    ) / (dt.total_seconds())
+    Q2_train_tendency = (
+        specific_humidity[:, 0, :] - train_dataset["specific_humidity"][:, 0, :]
+    ) / (dt.total_seconds())
 
-    np.testing.assert_allclose(Q1_train_tendency - dQ1[:, 0, :], train_dataset["air_temperature_tendency_due_to_model"][:, 0, :].values, atol=1e-6)
-    np.testing.assert_allclose(Q2_train_tendency - dQ2[:, 0, :], train_dataset["specific_humidity_tendency_due_to_model"][:, 0, :].values, atol=1e-6)
+    np.testing.assert_allclose(
+        Q1_train_tendency - dQ1[:, 0, :],
+        train_dataset["air_temperature_tendency_due_to_model"][:, 0, :].values,
+        atol=1e-6,
+    )
+    np.testing.assert_allclose(
+        Q2_train_tendency - dQ2[:, 0, :],
+        train_dataset["specific_humidity_tendency_due_to_model"][:, 0, :].values,
+        atol=1e-6,
+    )
 
     # check for second timestep also
-    Q1_train_tendency = (air_temperature[:, 1, :] - air_temperature[:, 0, :]) / (dt.total_seconds())
-    Q2_train_tendency = (specific_humidity[:, 1, :] - specific_humidity[:, 0, :]) / (dt.total_seconds())
+    Q1_train_tendency = (air_temperature[:, 1, :] - air_temperature[:, 0, :]) / (
+        dt.total_seconds()
+    )
+    Q2_train_tendency = (specific_humidity[:, 1, :] - specific_humidity[:, 0, :]) / (
+        dt.total_seconds()
+    )
 
-    np.testing.assert_allclose(Q1_train_tendency - dQ1[:, 1, :], train_dataset["air_temperature_tendency_due_to_model"][:, 1, :].values, atol=1e-6)
-    np.testing.assert_allclose(Q2_train_tendency - dQ2[:, 1, :], train_dataset["specific_humidity_tendency_due_to_model"][:, 1, :].values, atol=1e-6)
+    np.testing.assert_allclose(
+        Q1_train_tendency - dQ1[:, 1, :],
+        train_dataset["air_temperature_tendency_due_to_model"][:, 1, :].values,
+        atol=1e-6,
+    )
+    np.testing.assert_allclose(
+        Q2_train_tendency - dQ2[:, 1, :],
+        train_dataset["specific_humidity_tendency_due_to_model"][:, 1, :].values,
+        atol=1e-6,
+    )
 
 
 def test_predict_model_gives_different_tendencies(train_dataset, sample_dim_name, dt):
@@ -170,7 +199,7 @@ def test_train_model_gives_different_outputs(train_dataset, sample_dim_name):
     )
     model.build_for(train_dataset)
 
-    air_temperature, specific_humidity = model.train_model.predict(
+    air_temperature, specific_humidity = model.train_keras_model.predict(
         x=model.get_keras_inputs(train_dataset)
     )
     assert not np.all(air_temperature == specific_humidity)
@@ -190,16 +219,32 @@ def test_integrate_stepwise(train_dataset, sample_dim_name):
     )
     model.build_for(train_dataset)
 
-    air_temperature, specific_humidity = model.train_model.predict(
+    air_temperature, specific_humidity = model.train_keras_model.predict(
         x=model.get_keras_inputs(train_dataset)
     )
-    out_ds = integrate_stepwise(train_dataset, model.predictor_model)
-    np.testing.assert_allclose(out_ds["air_temperature"].values[:, 0, :], air_temperature[:, 0, :], atol=1e-6)
-    np.testing.assert_allclose(out_ds["specific_humidity"].values[:, 0, :], specific_humidity[:, 0, :], atol=1e-6)
-    np.testing.assert_allclose(out_ds["air_temperature"].values[:, 1, :], air_temperature[:, 1, :], atol=1e-6)
-    np.testing.assert_allclose(out_ds["specific_humidity"].values[:, 1, :], specific_humidity[:, 1, :], atol=1e-6)
-    np.testing.assert_allclose(out_ds["air_temperature"].values, air_temperature, atol=1e-5)
-    np.testing.assert_allclose(out_ds["specific_humidity"].values, specific_humidity, atol=1e-5)
+    out_ds = model.predictor_model.integrate_stepwise(train_dataset)
+    np.testing.assert_allclose(
+        out_ds["air_temperature"].values[:, 0, :], air_temperature[:, 0, :], atol=1e-6
+    )
+    np.testing.assert_allclose(
+        out_ds["specific_humidity"].values[:, 0, :],
+        specific_humidity[:, 0, :],
+        atol=1e-6,
+    )
+    np.testing.assert_allclose(
+        out_ds["air_temperature"].values[:, 1, :], air_temperature[:, 1, :], atol=1e-6
+    )
+    np.testing.assert_allclose(
+        out_ds["specific_humidity"].values[:, 1, :],
+        specific_humidity[:, 1, :],
+        atol=1e-6,
+    )
+    np.testing.assert_allclose(
+        out_ds["air_temperature"].values, air_temperature, atol=1e-5
+    )
+    np.testing.assert_allclose(
+        out_ds["specific_humidity"].values, specific_humidity, atol=1e-5
+    )
     assert not np.all(air_temperature == specific_humidity)
 
 
@@ -218,7 +263,7 @@ def test_reloaded_model_gives_same_outputs(train_dataset, sample_dim_name):
     with tempfile.TemporaryDirectory() as tmpdir:
         fv3fit.dump(model.predictor_model, tmpdir)
         loaded = fv3fit.load(tmpdir)
-    
+
     first_timestep = train_dataset.isel(time=0)
     reference_output = model.predictor_model.predict(first_timestep)
     # test that loaded model gives the same predictions

@@ -41,7 +41,7 @@ class StandardScaler(NormalizeTransform):
 
     kind: str = "standard"
 
-    def __init__(self, std_epsilon: np.float64 = 1e-12, fit_mean: bool = True):
+    def __init__(self, std_epsilon: np.float64 = 1e-12):
         """Standard scaler normalizer: normalizes via (x-mean)/std
 
         Args:
@@ -49,30 +49,20 @@ class StandardScaler(NormalizeTransform):
                 of each variable to be scaled, such that no variables (even those
                 that are constant across samples) are unable to be scaled due to
                 having zero standard deviation. Defaults to 1e-12.
-            fit_mean: if False, use a mean of zero. Useful for normalizing differences
-                of values such as tendencies
         """
         self.mean: np.ndarray = None
         self.std: np.ndarray = None
         self.std_epsilon: np.float64 = std_epsilon
-        self._fit_mean = fit_mean
 
     def fit(self, data: np.ndarray):
         if len(data.shape) == 2:
-            if self._fit_mean:
-                self.mean = data.mean(axis=0).astype(np.float64)
-            else:
-                self.mean = 0.0
-            self.std = data.std(axis=0).astype(np.float64)
+            axes_to_avg = 0
         elif len(data.shape) == 3:
-            if self._fit_mean:
-                self.mean = data.mean(axis=(0, 1)).astype(np.float64)
-            else:
-                self.mean = 0.0
-            self.std = data.std(axis=(0, 1)).astype(np.float64)
+            axes_to_avg = (0, 1)
         else:
             raise NotImplementedError()
-        self.std += self.std_epsilon
+        self.mean = data.mean(axis=axes_to_avg).astype(np.float64)
+        self.std = data.std(axis=axes_to_avg).astype(np.float64) + self.std_epsilon
 
     def normalize(self, data):
         if self.mean is None or self.std is None:

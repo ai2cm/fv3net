@@ -1,6 +1,7 @@
 from .combining import combine_array_sequence
 from . import cubedsphere
 from .extract import extract_tarball_to_path
+from ._preloaded import Preloaded
 from .fv3_restarts import (
     open_restarts,
     open_restarts_with_time_coordinates,
