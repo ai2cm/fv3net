@@ -95,22 +95,7 @@ def _load_prognostic_run_3d_output(url: str):
             zarr_name = os.path.basename(item)
             path = os.path.join(url, zarr_name)
             outputs.append(_load_standardized(path))
-        merged = xr.merge(outputs)
-        # interpolation is slow, so only keep a subset of 3D outputs
-        keep_vars = [
-            "air_temperature",
-            "specific_humidity",
-            "eastward_wind",
-            "northward_wind",
-            "vertical_wind",
-            "dQ1",
-            "dQ2",
-            "dQu",
-            "dQv",
-            "pressure_thickness_of_atmospheric_layer",
-        ]
-        available_vars = [var for var in keep_vars if var in merged]
-        return merged[available_vars]
+        return xr.merge(outputs)
     else:
         return None
 
