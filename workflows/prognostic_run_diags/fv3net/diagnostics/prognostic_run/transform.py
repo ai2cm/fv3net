@@ -228,6 +228,27 @@ def _mask_vars_with_horiz_dims(ds, surface_type, latitude, land_sea_mask):
     return masked.update(ds[non_spatial_varnames])
 
 
+def _mask_extrapolations_below_sfc(ds: xr.Dataset, mask_at_pressure: dict, psfc: str):
+    """Mask values of pressure level data if they were extrapolated below the surface.
+
+    Args:
+        ds: dataset
+        mask_at_pressure: keys are the variables to mask, and values are the surface
+            pressure below which they will be masked
+        psfc: name of surface pressure variable
+    """
+    mask_vars = {var: pressure_level for var, pressure_level in mask_at_pressure.items() if var in ds}
+    if psfc not in ds and len(mask_vars) > 0:
+        raise KeyError(f"Surface pressure variable {psfc} missing from dataset. "
+        "It is needed in order to mask pressure-level quantities that are "
+        "extrapolated below surface.")
+    for var, pressure_level in mask_vars.items():
+        if var in ds:
+            ds[var] = ds[var].where(ds[psfc] >= pressure_level)
+    return ds
+
+
+
 @add_to_input_transform_fns
 def mask_values_below_sfc(arg: DiagArg) -> DiagArg:
     """ Mask values of pressure level variables that lie below the surface.
@@ -239,18 +260,9 @@ def mask_values_below_sfc(arg: DiagArg) -> DiagArg:
         arg: input arguments to transform prior to the diagnostic calculation
     """
     prognostic, verification, grid = arg
-    psfc = "PRESsfc"
-    for ds in [prognostic]: #, verification]:
-        if psfc not in ds:
-            raise KeyError(f"Surface pressure variable {psfc} missing from dataset. "
-            "It is needed in order to mask pressure-level quantities that are "
-            "extrapolated below surface.")
-        for var, pressure_level in MASK_BELOW_SURFACE.items():
-            if var in ds:
-                print(f"before mask: {var} global mean {prognostic.isel(time=0)[var].mean()}")
-                ds[var] = ds[var].where(ds[psfc] >= pressure_level)
-                print(f"after mask: {var} global mean {prognostic.isel(time=0)[var].mean()}")
-    return prognostic, verification, grid
+    prognostic_masked = _mask_extrapolations_below_sfc(prognostic, MASK_BELOW_SURFACE, "PRESsfc")
+    verification_masked = _mask_extrapolations_below_sfc(verification, MASK_BELOW_SURFACE, "PRESsfc")
+    return prognostic_masked, verification_masked, grid
 
 
 @add_to_input_transform_fns
