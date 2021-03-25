@@ -4,7 +4,6 @@ import numpy as np
 import fv3fit
 import vcm
 import xarray as xr
-from fv3fit.keras._models.recurrent import integrate_stepwise
 
 
 def get_parser():
@@ -35,10 +34,10 @@ if __name__ == "__main__":
     filename = sorted(fs.listdir(args.arrays_dir, detail=False))[0]
     print(filename)
     with open(filename, "rb") as f:
-        ds = xr.open_dataset(filename).isel(sample=slice(0, 64))
+        ds = xr.open_dataset(filename)#.isel(sample=slice(0, 64))
         ds.load()
 
-    state_out = integrate_stepwise(ds, model)
+    state_out = model.integrate_stepwise(ds)
 
     def plot_single(predicted, reference, label, ax):
         vmin, vmax = get_vmin_vmax(predicted, reference)
@@ -61,7 +60,15 @@ if __name__ == "__main__":
     )
     print(np.mean(np.var(state_out["specific_humidity_reference"], axis=(0, 1))) ** 0.5)
 
-    for i in range(4):
+    lat = ds["lat"].isel(time=0).values
+    lon = ds["lon"].isel(time=0).values
+
+    antarctica_idx = np.argwhere(
+        (15 + 180. < lon < 60. + 180.) &
+        (-82 < lat < -75)
+    )
+
+    for i in antarctica_idx[:4]:
         fig, ax = plt.subplots(4, 2, figsize=(12, 8))
         print(ax.shape)
         plot_single(

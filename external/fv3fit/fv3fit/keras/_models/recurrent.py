@@ -294,7 +294,7 @@ class BPTTModel(Predictor):
             shuffle=True,
         )
 
-    def get_keras_inputs(self, X) -> Sequence[np.ndarrays]:
+    def get_keras_inputs(self, X) -> Sequence[np.ndarray]:
         """
         Return numpy arrays to be passed in to the Keras training model.
         """
