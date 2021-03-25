@@ -328,6 +328,7 @@ for variable_set in ["dycore", "physics"]:
     @add_to_diags(variable_set)
     @diag_finalizer("zonal_mean_value")
     @transform.apply("resample_time", "3H", inner_join=True)
+    @transform.apply("mask_values_below_sfc")
     @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", subset_variables)
     def zonal_mean_hovmoller(prognostic, verification, grid):
@@ -337,6 +338,7 @@ for variable_set in ["dycore", "physics"]:
     @add_to_diags(variable_set)
     @diag_finalizer("zonal_mean_bias")
     @transform.apply("resample_time", "3H", inner_join=True)
+    @transform.apply("mask_values_below_sfc")
     @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", subset_variables)
     def zonal_mean_bias_hovmoller(prognostic, verification, grid):
@@ -356,6 +358,7 @@ for var_set in ["dycore", "physics"]:
         @diag_finalizer(f"spatial_min_{var_set}_{mask_type}")
         @transform.apply("mask_area", mask_type)
         @transform.apply("resample_time", "3H")
+        @transform.apply("mask_values_below_sfc")
         @transform.apply("daily_mean", datetime.timedelta(days=10))
         @transform.apply("subset_variables", subset_variables)
         def spatial_min(prognostic, verification, grid, mask_type=mask_type):
@@ -376,6 +379,7 @@ for var_set in ["dycore", "physics"]:
         @diag_finalizer(f"spatial_max_{var_set}_{mask_type}")
         @transform.apply("mask_area", mask_type)
         @transform.apply("resample_time", "3H")
+        @transform.apply("mask_values_below_sfc")
         @transform.apply("daily_mean", datetime.timedelta(days=10))
         @transform.apply("subset_variables", subset_variables)
         def spatial_max(prognostic, verification, grid, mask_type=mask_type):
@@ -390,6 +394,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @diag_finalizer(f"spatial_mean_dycore_{mask_type}")
     @transform.apply("mask_area", mask_type)
     @transform.apply("resample_time", "3H")
+    @transform.apply("mask_values_below_sfc")
     @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
     def global_averages_dycore(prognostic, verification, grid, mask_type=mask_type):
@@ -439,6 +444,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @diag_finalizer(f"mean_bias_dycore_{mask_type}")
     @transform.apply("mask_area", mask_type)
     @transform.apply("resample_time", "3H", inner_join=True)
+    @transform.apply("mask_values_below_sfc")
     @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
     def global_biases_dycore(prognostic, verification, grid, mask_type=mask_type):
@@ -469,18 +475,20 @@ def time_mean_biases_physics(prognostic, verification, grid):
 @add_to_diags("dycore")
 @diag_finalizer("time_mean_value")
 @transform.apply("resample_time", "1H", inner_join=True)
+@transform.apply("mask_values_below_sfc")
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_means_dycore(prognostic, verification, grid):
-    logger.info("Preparing time means for physics variables")
+    logger.info("Preparing time means for dycore variables")
     return time_mean(prognostic)
 
 
 @add_to_diags("dycore")
 @diag_finalizer("time_mean_bias")
 @transform.apply("resample_time", "1H", inner_join=True)
+@transform.apply("mask_values_below_sfc")
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_mean_biases_dycore(prognostic, verification, grid):
-    logger.info("Preparing time mean biases for physics variables")
+    logger.info("Preparing time mean biases for dycore variables")
     return time_mean(prognostic - verification)
 
 
@@ -521,7 +529,7 @@ def register_parser(subparsers):
         type=int,
         help="Parallelism for the computation of diagnostics. "
         "Defaults to using all available cores. Can set to a lower fixed value "
-        "if you are often running  into read errors when multiple processes "
+        "if you are often running into read errors when multiple processes "
         "access data concurrently.",
         default=-1,
     )
