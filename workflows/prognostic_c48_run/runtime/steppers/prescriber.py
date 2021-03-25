@@ -1,7 +1,9 @@
 from typing import Sequence, MutableMapping, Mapping, Hashable, Tuple, Set, Optional
 import dataclasses
+from datetime import timedelta
 import logging
 import intake
+import cftime
 import xarray as xr
 import numpy as np
 from runtime.types import State, Diagnostics, Tendencies
@@ -24,6 +26,26 @@ DIM_RENAME_INVERSE_MAP = {
 }
 
 
+def get_timesteps(
+    init_time: cftime.DatetimeJulian, timestep_seconds: float, n_timesteps: int
+) -> Sequence[cftime.DatetimeJulian]:
+    """Get sequence of model timesteps
+    
+    Args
+        init_time (cftime.DatetimeJulian): model run start time
+        timestep_seconds (float): model timestep
+        n_timesteps: number of timesteps in model run
+    
+    Returns: Sequence of cftime.DatetimeJulian objects corresponding to beginnings
+        of model run timesteps
+    
+    """
+    return [
+        init_time + timedelta(seconds=timestep_seconds * i)
+        for i in range(1, n_timesteps + 1)
+    ]
+
+
 @dataclasses.dataclass
 class PrescriberConfig:
     """Configuration for a prescriber object to set states in the model from an external source
@@ -33,12 +55,12 @@ class PrescriberConfig:
             the routine first will try `dataset_key` as a `vcm.catalog` key, and if
             not present it will attempt to use it as a (local or remote) path to
             a zarr dataset
-        variables (Sequence[str]): list "standardized" ("_coarse" suffix removed)
+        variables (Sequence[str]): sequence of "standardized" ("_coarse" suffix removed)
             variable names to prescribe
         rename (Mapping[Hashable, Hashable]): mapping of "standardized" ("_coarse"
             suffix removed) names in the external dataset to variable names desired
             for the runfile
-        consolidated (bool): whether desired dataset has consolidated metadata,
+        consolidated (bool): optional, whether desired dataset has consolidated metadata;
             defaults to True
 
     Example::
@@ -69,14 +91,24 @@ class Prescriber:
         self,
         config: PrescriberConfig,
         communicator: fv3gfs.util.CubedSphereCommunicator,
+        timesteps: Optional[Sequence[cftime.DatetimeJulian]] = None,
     ):
+        """Create a Prescriber object
+        
+        Args:
+            config (PrescriberConfig),
+            communicator (fv3gfs.util.CubedSphereCommunicator),
+            timesteps (Sequence[cftime.DatetimeJulian]): optional sequence specifying
+                all wrapper timesteps for which data is required; if not supplied,
+                defaults to downloading entire time dimension of `dataset_key`
+        """
         self._config = config
         self._communicator = communicator
         self._rename: Mapping[
             Hashable, Hashable
         ] = config.rename if config.rename else {}
-        prescribed_ds = self._scatter_prescribed_ds()
-        self._prescribed_ds: xr.Dataset = _round_time_coord(prescribed_ds)
+        self._timesteps = timesteps
+        self._prescribed_ds: xr.Dataset = self._scatter_prescribed_ds()
 
     def _scatter_prescribed_ds(self):
         time_coord: Optional[xr.DataArray]
@@ -84,6 +116,7 @@ class Prescriber:
             prescribed_ds, time_coord = _get_prescribed_ds(
                 self._config.dataset_key,
                 list(self._config.variables),
+                self._timesteps,
                 self._config.consolidated,
             )
             prescribed_ds = _quantity_state_to_ds(
@@ -98,8 +131,8 @@ class Prescriber:
 
     def __call__(self, time, state):
         diagnostics: Diagnostics = {}
-        prescribed_timestep: xr.Dataset = _add_net_shortwave(
-            self._prescribed_ds.sel(time=time)
+        prescribed_timestep: xr.Dataset = _cast_to_double(
+            _add_net_shortwave(self._prescribed_ds.sel(time=time))
         )
         state_updates: State = self._rename_state(
             {name: prescribed_timestep[name] for name in prescribed_timestep.data_vars}
@@ -126,16 +159,21 @@ class Prescriber:
 
 
 def _get_prescribed_ds(
-    dataset_key: str, variables: Sequence[str], consolidated: bool = True
+    dataset_key: str,
+    variables: Sequence[str],
+    timesteps: Optional[Sequence[cftime.DatetimeJulian]],
+    consolidated: bool = True,
 ) -> Tuple[xr.Dataset, xr.DataArray]:
     logger.info(f"Setting up dataset for state setting: {dataset_key}")
     ds = _open_ds(dataset_key, consolidated)
-    time_coord = ds.coords["time"]
     ds = _remove_name_suffix(ds)
     ds = get_variables(ds, variables)
     ds = _rename_dims(ds)
     ds = _set_missing_units_attr(ds)
-    ds = _cast_to_double(ds)
+    ds = _round_time_coord(ds)
+    if timesteps is not None:
+        ds = ds.sel(time=timesteps)
+    time_coord = ds.coords["time"]
     return ds.drop_vars(names="time").load(), time_coord
 
 
