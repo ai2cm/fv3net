@@ -107,6 +107,7 @@ def _load_prognostic_run_3d_output(url: str):
             "dQ2",
             "dQu",
             "dQv",
+            "pressure_thickness_of_atmospheric_layer",
         ]
         available_vars = [var for var in keep_vars if var in merged]
         return merged[available_vars]
