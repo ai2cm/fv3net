@@ -36,7 +36,7 @@ from runtime.steppers.machine_learning import (
     MLStateStepper,
 )
 from runtime.steppers.nudging import PureNudger
-from runtime.steppers.prephysics import Prescriber, PrescriberConfig
+from runtime.steppers.prescriber import Prescriber, PrescriberConfig
 from runtime.types import Diagnostics, State, Tendencies
 from runtime.names import TENDENCY_TO_STATE_NAME
 from toolz import dissoc

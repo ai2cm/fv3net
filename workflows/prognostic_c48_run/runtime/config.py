@@ -12,7 +12,7 @@ from runtime.diagnostics.manager import (
 )
 from runtime.steppers.nudging import NudgingConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
-from runtime.steppers.prephysics import PrescriberConfig
+from runtime.steppers.prescriber import PrescriberConfig
 
 FV3CONFIG_FILENAME = "fv3config.yml"
 
