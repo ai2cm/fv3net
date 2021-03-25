@@ -123,12 +123,15 @@ def rename_diagnostics(diags: Diagnostics):
         "net_heating",
         "column_integrated_dQu",
         "column_integrated_dQv",
+        "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
+        "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface",
+        "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface",
     }
     ml_tendencies_in_diags = ml_tendencies & set(diags)
     for variable in ml_tendencies_in_diags:
         attrs = diags[variable].attrs
         diags[f"{variable}_diagnostic"] = diags[variable].assign_attrs(
-            description=attrs["description"] + " (diagnostic only)"
+            description=attrs.get("description", "") + " (diagnostic only)"
         )
         diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
 
