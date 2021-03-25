@@ -22,7 +22,15 @@ _TRANSFORM_FNS = {}
 logger = logging.getLogger(__name__)
 
 SURFACE_TYPE_CODES = {"sea": (0, 2), "land": (1,), "seaice": (2,)}
-
+MASK_BELOW_SURFACE = {
+    "q1000": 100000.,
+    "RH1000": 100000.,
+    "TMP850": 85000.,
+    "UGRD850": 85000.,
+    "VGRD850": 85000.,
+    "RH850": 85000.,
+    "VORT850": 85000.,
+}
 
 def add_to_input_transform_fns(func):
 
@@ -218,6 +226,31 @@ def _mask_vars_with_horiz_dims(ds, surface_type, latitude, land_sea_mask):
     non_spatial_varnames = list(set(ds.data_vars) - set(spatial_ds_varnames))
 
     return masked.update(ds[non_spatial_varnames])
+
+
+@add_to_input_transform_fns
+def mask_values_below_sfc(arg: DiagArg) -> DiagArg:
+    """ Mask values of pressure level variables that lie below the surface.
+    This can happen in fortran diagnostic output where quantities (ex. q1000)
+    are extrapolated if the lowest model level pressure is less than the variable's
+    pressure level.
+
+    Args:
+        arg: input arguments to transform prior to the diagnostic calculation
+    """
+    prognostic, verification, grid = arg
+    psfc = "PRESsfc"
+    for ds in [prognostic]: #, verification]:
+        if psfc not in ds:
+            raise KeyError(f"Surface pressure variable {psfc} missing from dataset. "
+            "It is needed in order to mask pressure-level quantities that are "
+            "extrapolated below surface.")
+        for var, pressure_level in MASK_BELOW_SURFACE.items():
+            if var in ds:
+                print(f"before mask: {var} global mean {prognostic.isel(time=0)[var].mean()}")
+                ds[var] = ds[var].where(ds[psfc] >= pressure_level)
+                print(f"after mask: {var} global mean {prognostic.isel(time=0)[var].mean()}")
+    return prognostic, verification, grid
 
 
 @add_to_input_transform_fns
