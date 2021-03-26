@@ -239,7 +239,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             timesteps = get_timesteps(
                 self.time, self._timestep, self._fv3gfs.get_step_count()
             )
-            self._log_debug(f"timesteps: {timesteps}")
             stepper = Prescriber(config.prephysics, communicator, timesteps=timesteps)
         else:
             self._log_info("No prephysics computations")

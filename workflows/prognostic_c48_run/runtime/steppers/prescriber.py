@@ -36,7 +36,7 @@ def get_timesteps(
         timestep_seconds (float): model timestep
         n_timesteps: number of timesteps in model run
     
-    Returns: Sequence of cftime.DatetimeJulian objects corresponding to beginnings
+    Returns: Sequence of cftime.DatetimeJulian objects corresponding to ends
         of model run timesteps
     
     """
@@ -271,4 +271,4 @@ def _add_net_shortwave(ds: xr.Dataset) -> xr.Dataset:
         }
     )
     ds["NSWRFsfc"] = net_shortwave
-    return ds
+    return ds.drop_vars("USWRFsfc")
