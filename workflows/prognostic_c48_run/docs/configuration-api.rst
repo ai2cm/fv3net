@@ -30,7 +30,7 @@ Top-level
 
 .. autoclass:: UserConfig
 
-Python "Physics"
+Python "prephysics and postphysics"
 ~~~~~~~~~~~~~~~~
 
 
@@ -39,6 +39,9 @@ Python "Physics"
 
 .. py:module:: runtime.nudging
 .. autoclass:: NudgingConfig
+
+.. py:module:: runtime.steppers.prescriber
+.. autoclass:: PrescriberConfig
 
 
 Diagnostics
