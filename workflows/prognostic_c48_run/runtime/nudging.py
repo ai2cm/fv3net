@@ -242,11 +242,11 @@ def get_reference_surface_temperatures(state: State, reference: State) -> State:
     Useful for maintaining consistency between a nudged run and reference state.
     """
     state = {
-        TSFC_NAME: _sst_from_reference(
-            reference[TSFC_NAME], state[TSFC_NAME], state[MASK_NAME]
-        ),
         SST_NAME: _sst_from_reference(
             reference[TSFC_NAME], state[SST_NAME], state[MASK_NAME]
+        ),
+        TSFC_NAME: _sst_from_reference(
+            reference[TSFC_NAME], state[TSFC_NAME], state[MASK_NAME]
         ),
     }
     return state
