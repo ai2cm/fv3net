@@ -47,8 +47,6 @@ spec:
               minutes: 30
             fv_core_nml:
               do_sat_adj: false
-            gfs_physics_nml:
-              use_climatological_sst: false
             gfdl_cloud_microphysics_nml:
               fast_sat_adj: false
           fortran_diagnostics:
