@@ -1,3 +1,4 @@
+DATA_DIR=dataset
 
 build:
 	docker-compose build fv3fit prognostic_run
@@ -9,13 +10,13 @@ dev_prognostic_run:
 	docker-compose run prognostic_run bash
 
 dataset:
-	python3 download.py dataset
+	python3 download.py $(DATA_DIR)
 
 model:
-	python3 train.py dataset model
+	python3 train.py $(DATA_DIR) base_trial_config/training.yaml model
 
 evaluate:
-	python3 evaluate.py dataset model
+	python3 evaluate.py $(DATA_DIR) model
 
 offline_diags: 
 	python -m offline_ml_diags.compute_diags model offline_diags --config-yml offline_diags.yaml
@@ -37,4 +38,8 @@ prognostic_run: fv3config.yaml
 	runfv3 create prognostic_run fv3config.yaml ../prognostic_c48_run/sklearn_runfile.py
 	runfv3 append prognostic_run
 
-.PHONY: dev test dataset model evaluate offline_diags offline_report prognostic_run
+sherpa:
+	mkdir -p sherpa_models
+	python3 serial_runner.py sherpa_config.yaml $(DATA_DIR) sherpa_models
+
+.PHONY: dev test dataset model sherpa evaluate offline_diags offline_report prognostic_run

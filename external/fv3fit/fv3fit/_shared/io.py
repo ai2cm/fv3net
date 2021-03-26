@@ -33,13 +33,21 @@ class _Register:
         return self._model_types[name].load(path)  # type: ignore
 
     def _get_name(self, obj: Predictor) -> str:
+        return_name = None
+        name_cls = None
         for name, cls in self._model_types.items():
             if isinstance(obj, cls):
-                return name
-        raise ValueError(
-            f"{type(obj)} is not registered. "
-            'Consider decorating with @fv3fit._shared.io.register("name")'
-        )
+                # always return the most specific class name / deepest subclass
+                if name_cls is None or issubclass(cls, name_cls):
+                    return_name = name
+                    name_cls = cls
+        if return_name is None:
+            raise ValueError(
+                f"{type(obj)} is not registered. "
+                'Consider decorating with @fv3fit._shared.io.register("name")'
+            )
+        else:
+            return return_name
 
     @staticmethod
     def _get_mapper_name(path: str) -> str:

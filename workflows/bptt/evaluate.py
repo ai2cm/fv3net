@@ -34,7 +34,19 @@ if __name__ == "__main__":
     filename = sorted(fs.listdir(args.arrays_dir, detail=False))[0]
     print(filename)
     with open(filename, "rb") as f:
-        ds = xr.open_dataset(filename)#.isel(sample=slice(0, 64))
+        ds = xr.open_dataset(filename)
+        # lat = ds["lat"].isel(time=0).values
+        # lon = ds["lon"].isel(time=0).values
+        # antarctica_idx = np.argwhere(
+        #     np.logical_and(
+        #         (195. * np.pi / 180. < lon) & (lon < 240. * np.pi / 180.),
+        #         (-82 * np.pi / 180. < lat) & (lat < -75 * np.pi / 180.)
+        #     )
+        # )
+        # print(f"{len(antarctica_idx)} antarctica samples found")
+        # assert len(antarctica_idx) > 0
+        # ds = ds.isel(sample=list(antarctica_idx.flatten()))
+        # ds = ds.isel(sample=slice(0, 64))
         ds.load()
 
     state_out = model.integrate_stepwise(ds)
@@ -60,22 +72,76 @@ if __name__ == "__main__":
     )
     print(np.mean(np.var(state_out["specific_humidity_reference"], axis=(0, 1))) ** 0.5)
 
-    lat = ds["lat"].isel(time=0).values
-    lon = ds["lon"].isel(time=0).values
 
-    antarctica_idx = np.argwhere(
-        (15 + 180. < lon < 60. + 180.) &
-        (-82 < lat < -75)
-    )
 
-    for i in antarctica_idx[:4]:
+    def get_r2(predict, reference):
+        ref_variance = np.var(reference.values, axis=(0, 1))
+        mse = np.var(predict - reference, axis=0)
+        return (ref_variance[None, :] - mse) / ref_variance[None, :]
+
+
+    def get_std(predict, reference):
+        return np.std(predict - reference, axis=0)
+
+    def plot_2d(ax, data_func, label: str, vmin=None, vmax=None, cmap="viridis"):
+        data = {}
+        for name in ("specific_humidity", "air_temperature"):
+            data[name] = data_func(state_out[name], reference=state_out[f"{name}_reference"])
+        data["air_temperature_tendency"] = data_func(state_out["dQ1"], state_out["air_temperature_tendency_due_to_nudging"])
+        data["specific_humidity_tendency"] = data_func(state_out["dQ2"], state_out["specific_humidity_tendency_due_to_nudging"])
+        for i, name in enumerate(sorted(list(data.keys()))):
+            if isinstance(vmin, tuple):
+                vmin_i = vmin[i]
+            else:
+                vmin_i = vmin
+            if isinstance(vmax, tuple):
+                vmax_i = vmax[i]
+            else:
+                vmax_i = vmax
+            im = ax[i].pcolormesh(data[name].T, vmin=vmin_i, vmax=vmax_i, cmap=cmap)
+            plt.colorbar(im, ax=ax[i])
+            for a in ax.flatten():
+                a.set_ylim((79, 0))
+            ax[i].set_title(f"{name} {label}")
+
+    fig, ax = plt.subplots(4, 1, figsize=(8, 8))
+    plot_2d(ax, get_r2, "R2", vmin=-1, vmax=1, cmap="RdBu")
+    plt.tight_layout()
+    fig, ax = plt.subplots(4, 1, figsize=(8, 8))
+    plot_2d(ax, get_std, "std err")
+    plt.tight_layout()
+
+    # plt.show()
+
+    def get_r2(predict, reference):
+        ref_variance = np.var(reference, axis=0)
+        mse = np.var(predict - reference, axis=0)
+        return np.mean((ref_variance - mse) / ref_variance, axis=-1)
+
+    r2 = {}
+    for name in ("specific_humidity", "air_temperature"):
+        r2[name] = get_r2(state_out[name], reference=state_out[f"{name}_reference"])
+    r2["air_temperature_tendency"] = get_r2(state_out["dQ1"], state_out["air_temperature_tendency_due_to_nudging"])
+    r2["specific_humidity_tendency"] = get_r2(state_out["dQ2"], state_out["specific_humidity_tendency_due_to_nudging"])
+
+    fig, ax = plt.subplots(4, 1, figsize=(8, 8))
+    for i, name in enumerate(sorted(list(r2.keys()))):
+        ax[i].plot(r2[name])
+        ax[i].set_ylim(-1, 1)
+        ax[i].set_xlim(0, None)
+        ax[i].set_title(f"{name} R2")
+    plt.tight_layout()
+    # plt.show()
+
+
+
+    for i in range(0):
         fig, ax = plt.subplots(4, 2, figsize=(12, 8))
-        print(ax.shape)
         plot_single(
             state_out["dQ1"][i, :, :].values * seconds_in_day,
             state_out["air_temperature_tendency_due_to_nudging"][i, :, :].values
             * seconds_in_day,
-            "air_temperature (K/day)",
+            "tendency of air_temperature (K/day)",
             ax[:2, 0],
         )
         plot_single(
@@ -88,7 +154,7 @@ if __name__ == "__main__":
             state_out["dQ2"][i, :, :].values * seconds_in_day,
             state_out["specific_humidity_tendency_due_to_nudging"][i, :, :].values
             * seconds_in_day,
-            "specific_humidity (kg/kg/day)",
+            "tendency of specific_humidity (kg/kg/day)",
             ax[:2, 1],
         )
         plot_single(

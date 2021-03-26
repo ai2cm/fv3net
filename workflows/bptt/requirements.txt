@@ -1,0 +1,1 @@
+parameter-sherpa==1.0.6
