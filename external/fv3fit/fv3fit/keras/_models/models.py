@@ -55,7 +55,7 @@ class PackedKerasModel(Estimator):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
-        weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
+        weights: Optional[Mapping[str, Union[int, float, np.ndarray, str]]] = None,
         normalize_loss: bool = True,
         optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
         kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
@@ -77,9 +77,10 @@ class PackedKerasModel(Estimator):
             input_variables: names of input variables
             output_variables: names of output variables
             weights: loss function weights, defined as a dict whose keys are
-                variable names and values are either a scalar referring to the total
-                weight of the variable, or a vector referring to the weight for each
-                feature of the variable. Default is a total weight of 1
+                variable names and values are either a scalar referring to the
+                weight of the variable, a vector referring to the weight for each
+                total feature of the variable, or a string refering to a variable present in 
+                the data by which to weight (ex. "dQ2": "delp"). Default is a total weight of 1
                 for each variable.
             normalize_loss: if True (default), normalize outputs by their standard
                 deviation before computing the loss function
@@ -101,9 +102,10 @@ class PackedKerasModel(Estimator):
         self.y_scaler = LayerStandardScaler()
         self.train_history = {"loss": [], "val_loss": []}  # type: Mapping[str, List]
         if weights is None:
-            self.weights: Mapping[str, Union[int, float, np.ndarray]] = {}
+            self.weights: Mapping[str, Union[int, float, np.ndarray, str]] = {}
         else:
             self.weights = weights
+        self._loss_weights = copy.copy(weights)
         self._normalize_loss = normalize_loss
         self._optimizer = optimizer
         self._loss = loss
@@ -193,6 +195,9 @@ class PackedKerasModel(Estimator):
             n_features_in, n_features_out = X.shape[-1], y.shape[-1]
             self._fit_normalization(X, y)
             self._model = self.get_model(n_features_in, n_features_out)
+            
+            loss_weights_from_data = self._get_loss_weights_from_data(data=batches[0])
+            self._loss_weights.update(loss_weights_from_data)
 
         validation_data: Optional[Tuple[np.ndarray, np.ndarray]]
         validation_dataset = (
@@ -320,7 +325,7 @@ class PackedKerasModel(Estimator):
             std[:] = 1.0
         if self._loss in self._LOSS_OPTIONS:
             loss_getter = self._LOSS_OPTIONS[self._loss]
-            return loss_getter(self.y_packer, std, **self.weights)
+            return loss_getter(self.y_packer, std, **self.loss_weights)
         else:
             raise ValueError(
                 f"Invalid loss {self._loss} provided. "
@@ -391,6 +396,20 @@ class PackedKerasModel(Estimator):
 
         J = g.jacobian(y, mean_tf)[0, :, 0, :].numpy()
         return unpack_matrix(self.X_packer, self.y_packer, J)
+
+    def _get_loss_weights_from_data(self, data: xr.Dataset):
+        loss_weights_from_data = {}
+        for output_var, weight in self.weights.items():
+            if isinstance(weight, str):
+                if weight not in data:
+                    raise ValueError(
+                        f"In 'weights' arg provided at model initialization, "
+                        f"weight variable {weight} is not present in the data."
+                    )
+                loss_weights_from_data[output_var] = (
+                    data[weight].mean(dim=self.sample_dim_name).values
+                )
+        return loss_weights_from_data
 
 
 @io.register("packed-keras")
