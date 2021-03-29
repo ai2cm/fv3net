@@ -1,4 +1,5 @@
-DATA_DIR=dataset
+DATA_DIR?=dataset
+MODEL_DIR?=model
 
 build:
 	docker-compose build fv3fit prognostic_run
@@ -13,13 +14,15 @@ dataset:
 	python3 download.py $(DATA_DIR)
 
 model:
-	python3 train.py $(DATA_DIR) base_trial_config/training.yaml model
+	mkdir -p $(MODEL_DIR)
+	cp base_trial_config/training.yaml $(MODEL_DIR)/training.yaml
+	python3 train.py $(DATA_DIR) base_trial_config/training.yaml $(MODEL_DIR)
 
 evaluate:
-	python3 evaluate.py $(DATA_DIR) model
+	python3 evaluate.py $(DATA_DIR) $(MODEL_DIR)
 
 offline_diags: 
-	python -m offline_ml_diags.compute_diags model offline_diags --config-yml offline_diags.yaml
+	python -m offline_ml_diags.compute_diags $(MODEL_DIR) offline_diags --config-yml offline_diags.yaml
 
 offline_report:
 	$(RM) -r offline_report
@@ -30,7 +33,7 @@ fv3config.yaml: prognostic_base.yaml
 		prognostic_base.yaml \
 		gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts \
 		20160805.000000 \
-		--model_url $(shell pwd)/model \
+		--model_url $(shell pwd)/$(MODEL_DIR) \
 		--model_url gs://vcm-ml-experiments/2021-01-26-c3072-nn/l2/winds-seed-0/trained_model \
     	> fv3config.yaml
 
