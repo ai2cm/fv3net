@@ -1,9 +1,13 @@
 import xarray as xr
-import numba
+try:
+    import numba
+    TypingError = numba.errors.TypingError
+except ModuleNotFoundError:
+    TypingError = ImportError
 
 try:
     import xgcm
-except (ImportError, numba.errors.TypingError) as err:
+except (ImportError, TypingError) as err:
     xgcm = None
     XGCM_IMPORT_ERR = err
 from . import constants
