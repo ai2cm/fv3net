@@ -13,7 +13,11 @@ MAX_PARAMETER_CHARS_IN_NAME = 16
 
 VAL_LOSS_PATTERN = re.compile(r"val_loss: ([0-9]+\.[0-9]+)")
 
-TrainArgs = namedtuple("TrainArgs", "train_data_path train_config_file output_data_path timesteps_file validation_timesteps_file")
+TrainArgs = namedtuple(
+    "TrainArgs",
+    "train_data_path train_config_file output_data_path timesteps_file validation_timesteps_file",
+)
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -36,12 +40,17 @@ def update_config_from_parameters(config, parameters):
     config["training"]["optimizer"]["kwargs"]["learning_rate"] = float(
         parameters.get("learning_rate", 1e-3)
     )
-    config["training"]["hyperparameters"]["n_units"] = int(parameters.get("n_units", 128))
-    config["training"]["hyperparameters"]["n_hidden_layers"] = int(parameters.get("n_hidden_layers", 3))
+    config["training"]["hyperparameters"]["n_units"] = int(
+        parameters.get("n_units", 128)
+    )
+    config["training"]["hyperparameters"]["n_hidden_layers"] = int(
+        parameters.get("n_hidden_layers", 3)
+    )
     config["training"]["regularizer"]["kwargs"]["l"] = float(parameters.get("l2", 0.01))
-    config["training"]["decreased_learning_rate"] = float(
-        parameters.get("lr_reduction", 1e-1)
-    ) * config["training"]["optimizer"]["kwargs"]["learning_rate"]
+    config["training"]["decreased_learning_rate"] = (
+        float(parameters.get("lr_reduction", 1e-1))
+        * config["training"]["optimizer"]["kwargs"]["learning_rate"]
+    )
 
 
 CWD = os.path.dirname(os.path.abspath(__file__))
@@ -117,24 +126,20 @@ if __name__ == "__main__":
         # python3 -m fv3fit.keras --timesteps-file $(TRAIN_TIMESTEPS_FILENAME) $(DATA_ROOT)/$(DATA) $(CWD)/$(TRAIN_CONFIG) $(OUTPUT_PATH)/train
         lines = []
         command = [
-                "python3",
-                "train.py",
-                args.datadir,
-                os.path.join(outdir, TRAIN_CONFIG_FILENAME),
-                outdir,
-            ]
-        print(' '.join(command))
+            "python3",
+            "train.py",
+            args.datadir,
+            os.path.join(outdir, TRAIN_CONFIG_FILENAME),
+            outdir,
+        ]
+        print(" ".join(command))
         # train_args = TrainArgs(
         #     DATA_PATH, os.path.join(outdir, TRAIN_CONFIG_FILENAME), outdir, None, None
         # )
         # old_stdout = sys.stdout
         # result = StringIO()
         # fv3fit_main(train_args)
-        process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            encoding="utf-8",
-        )
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, encoding="utf-8",)
         i_observation = 0
         for line in iter(process.stdout.readline, ""):
             match = re.search(VAL_LOSS_PATTERN, line)
@@ -145,9 +150,7 @@ if __name__ == "__main__":
                 i_observation += 1
         if process.returncode not in (0, None):
             # raise subprocess.SubprocessError(
-            print(
-                f"Process exited with non-zero return code {process.returncode}"
-            )
+            print(f"Process exited with non-zero return code {process.returncode}")
         study.finalize(trial)
         study.save()
     print(f"Best results: {study.get_best_result()}")

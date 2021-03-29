@@ -12,6 +12,7 @@ COARSE_OUTPUT_URL = (
     "/Volumes/OWC Envoy Pro EX/gs/vcm-ml-experiments/"
     "2021-01-22-nudge-to-fine-3hr-averages"
 )
+REFERENCE_URL = "gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts"
 # COARSE_OUTPUT_URL = "gs://vcm-ml-experiments/2021-01-22-nudge-to-fine-3hr-averages"
 
 INPUT_NAMES = ["surface_geopotential", "cos_zenith_angle", "land_sea_mask"]
@@ -67,9 +68,12 @@ def _open_nudge(state, nudge) -> Iterable[xr.Dataset]:
 
     # state is available on twice the timestep as nudging. On the second timestep,
     # it corresponds to the state after the first data point of nudging has been applied
-    state = state.isel(time=range(1, len(state["time"]), 2)).rename_vars(
-        {"longitude": "lon", "latitude": "lat"}
-    )
+    state = state.isel(time=range(1, len(state["time"]), 2))
+    state["lat"] = state["latitude"] * 180.0 / np.pi
+    state["lat"].attrs["units"] = "degrees"
+    state["lon"] = state["longitude"] * 180.0 / np.pi
+    state["lon"].attrs["units"] = "degrees"
+    state = state.drop_vars(["latitude", "longitude"])
     state = vcm.DerivedMapping(state).dataset(
         list(state.data_vars.keys()) + ["cos_zenith_angle"]
     )
