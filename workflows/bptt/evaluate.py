@@ -72,13 +72,10 @@ if __name__ == "__main__":
     )
     print(np.mean(np.var(state_out["specific_humidity_reference"], axis=(0, 1))) ** 0.5)
 
-
-
     def get_r2(predict, reference):
         ref_variance = np.var(reference.values, axis=(0, 1))
         mse = np.var(predict - reference, axis=0)
         return (ref_variance[None, :] - mse) / ref_variance[None, :]
-
 
     def get_std(predict, reference):
         return np.std(predict - reference, axis=0)
@@ -86,9 +83,15 @@ if __name__ == "__main__":
     def plot_2d(ax, data_func, label: str, vmin=None, vmax=None, cmap="viridis"):
         data = {}
         for name in ("specific_humidity", "air_temperature"):
-            data[name] = data_func(state_out[name], reference=state_out[f"{name}_reference"])
-        data["air_temperature_tendency"] = data_func(state_out["dQ1"], state_out["air_temperature_tendency_due_to_nudging"])
-        data["specific_humidity_tendency"] = data_func(state_out["dQ2"], state_out["specific_humidity_tendency_due_to_nudging"])
+            data[name] = data_func(
+                state_out[name], reference=state_out[f"{name}_reference"]
+            )
+        data["air_temperature_tendency"] = data_func(
+            state_out["dQ1"], state_out["air_temperature_tendency_due_to_nudging"]
+        )
+        data["specific_humidity_tendency"] = data_func(
+            state_out["dQ2"], state_out["specific_humidity_tendency_due_to_nudging"]
+        )
         for i, name in enumerate(sorted(list(data.keys()))):
             if isinstance(vmin, tuple):
                 vmin_i = vmin[i]
@@ -121,8 +124,12 @@ if __name__ == "__main__":
     r2 = {}
     for name in ("specific_humidity", "air_temperature"):
         r2[name] = get_r2(state_out[name], reference=state_out[f"{name}_reference"])
-    r2["air_temperature_tendency"] = get_r2(state_out["dQ1"], state_out["air_temperature_tendency_due_to_nudging"])
-    r2["specific_humidity_tendency"] = get_r2(state_out["dQ2"], state_out["specific_humidity_tendency_due_to_nudging"])
+    r2["air_temperature_tendency"] = get_r2(
+        state_out["dQ1"], state_out["air_temperature_tendency_due_to_nudging"]
+    )
+    r2["specific_humidity_tendency"] = get_r2(
+        state_out["dQ2"], state_out["specific_humidity_tendency_due_to_nudging"]
+    )
 
     fig, ax = plt.subplots(4, 1, figsize=(8, 8))
     for i, name in enumerate(sorted(list(r2.keys()))):
@@ -132,8 +139,6 @@ if __name__ == "__main__":
         ax[i].set_title(f"{name} R2")
     plt.tight_layout()
     # plt.show()
-
-
 
     for i in range(0):
         fig, ax = plt.subplots(4, 2, figsize=(12, 8))
