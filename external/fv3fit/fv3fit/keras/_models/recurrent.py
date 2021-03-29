@@ -293,7 +293,7 @@ class BPTTModel(Predictor):
             epochs=epochs,
             shuffle=True,
         )
-    
+
     def loss(self, X: xr.Dataset):
         """
         Return the loss on a sequence dataset.
@@ -303,11 +303,10 @@ class BPTTModel(Predictor):
         output = self.train_keras_model.predict(self.get_keras_inputs(X))
         target = self.get_target_state(X)
         loss = sum(
-            np.mean(f(truth, pred)) for f, truth, pred in zip(self.losses, target, output)
+            np.mean(f(truth, pred))
+            for f, truth, pred in zip(self.losses, target, output)
         )
         return loss
-
-        
 
     def get_keras_inputs(self, X) -> Sequence[np.ndarray]:
         """
