@@ -30,9 +30,6 @@ def load_dataset(path):
 
 
 if __name__ == "__main__":
-    np.random.seed(0)
-    random.seed(1)
-    tf.random.set_seed(2)
     # tf.config.experimental.enable_mlir_graph_optimization()
     parser = get_parser()
     args = parser.parse_args()
@@ -43,13 +40,17 @@ if __name__ == "__main__":
 
     with open(args.config, "rb") as f:
         config = yaml.safe_load(f)
+    np.random.seed(config.get("random_seed", 0))
+    random.seed(config.get("random_seed", 0) + 1)
+    tf.random.set_seed(config.get("random_seed", 0) + 2)
 
-    regularizer = getattr(tf.keras.regularizers, config["regularizer"]["name"])(**config["regularizer"]["kwargs"])
+    regularizer = getattr(tf.keras.regularizers, config["regularizer"]["name"])(
+        **config["regularizer"]["kwargs"]
+    )
     optimizer_class = getattr(tf.keras.optimizers, config["optimizer"]["name"])
     optimizer_kwargs = config["optimizer"]["kwargs"]
     optimizer = optimizer_class(**optimizer_kwargs)
     input_names = config["input_variables"]
-
 
     with open(first_filename, "rb") as f:
         ds = xr.open_dataset(f)
@@ -73,13 +74,14 @@ if __name__ == "__main__":
         if i_epoch == 40:
             optimizer_kwargs["lr"] = config["decreased_learning_rate"]
             model.train_keras_model.compile(
-                optimizer=optimizer_class(**optimizer_kwargs),
-                loss=model.losses
+                optimizer=optimizer_class(**optimizer_kwargs), loss=model.losses
             )
         for i, ds in enumerate(training_datasets):
             model.fit(ds, epochs=1)
         val_loss = model.loss(validation)
         print(f"val_loss: {val_loss}")
-        dirname = os.path.join(args.model_output_dir, f"model-epoch_{epoch:03d}-loss_{val_loss:.04f}")
+        dirname = os.path.join(
+            args.model_output_dir, f"model-epoch_{epoch:03d}-loss_{val_loss:.04f}"
+        )
         os.makedirs(dirname, exist_ok=True)
         fv3fit.dump(model.predictor_model, dirname)
