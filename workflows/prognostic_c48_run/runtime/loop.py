@@ -222,15 +222,15 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         return states_to_output
 
     def _get_prephysics_stepper(self, config: UserConfig) -> Optional[Stepper]:
-        if config.prephysics is not None and isinstance(
-            config.prephysics, MachineLearningConfig
-        ):
+        stepper: Optional[Stepper]
+        if config.prephysics is None:
+            self._log_info("No prephysics computations")
+            stepper = None
+        elif isinstance(config.prephysics, MachineLearningConfig):
             self._log_info("Using MLStateStepper for prephysics")
             model = self._open_model(config.prephysics, "_prephysics")
-            stepper: Optional[Stepper] = MLStateStepper(model, self._timestep)
-        elif config.prephysics is not None and isinstance(
-            config.prephysics, PrescriberConfig
-        ):
+            stepper = MLStateStepper(model, self._timestep)
+        elif isinstance(config.prephysics, PrescriberConfig):
             self._log_info("Using Prescriber for prephysics")
             partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
                 get_namelist()
@@ -240,9 +240,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 self.time, self._timestep, self._fv3gfs.get_step_count()
             )
             stepper = Prescriber(config.prephysics, communicator, timesteps=timesteps)
-        else:
-            self._log_info("No prephysics computations")
-            stepper = None
         return stepper
 
     def _get_postphysics_stepper(self, config: UserConfig) -> Optional[Stepper]:

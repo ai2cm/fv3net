@@ -14,6 +14,7 @@ time_5 = cftime.DatetimeJulian(2016, 8, 1, 1, 15, 0)
 
 NXY = 8
 NTILE = 6
+TIME_COORD = [cftime.DatetimeJulian(2016, 8, 1, 0, 15, 0)]
 
 
 @pytest.mark.parametrize(
@@ -50,19 +51,24 @@ def get_dataset(vars_, sizes, time_coord):
 
 
 def get_dataarray(y, x, value, coords):
-    return xr.DataArray(
+    da = xr.DataArray(
         np.full([NTILE, 1, y[1], x[1]], value),
         dims=["tile", "time", y[0], x[0]],
         coords=coords,
     )
+    da.attrs["units"] = "some_units"
+    return da
 
 
 @pytest.fixture(scope="module")
 def external_dataset_path(tmpdir_factory):
-    time_coord = [cftime.DatetimeJulian(2016, 8, 1, 0, 15, 0, 26)]
-    vars_ = {"DSWRFsfc_coarse": 10.0, "DLWRFsfc_coarse": 5.0, "USWRFsfc_coarse": 2.0}
-    sizes = {"grid_yt": NXY, "grid_xt": NXY}
-    ds = get_dataset(vars_, sizes, time_coord)
+    vars_ = {
+        "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface": 10.0,
+        "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": 5.0,
+        "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": 8.0,
+    }
+    sizes = {"y": NXY, "x": NXY}
+    ds = get_dataset(vars_, sizes, TIME_COORD)
     path = str(tmpdir_factory.mktemp("external_dataset.zarr"))
     ds.to_zarr(path, consolidated=True)
     return path
@@ -71,18 +77,11 @@ def external_dataset_path(tmpdir_factory):
 def get_prescriber_config(external_dataset_path):
     return PrescriberConfig(
         dataset_key=external_dataset_path,
-        variables=["DSWRFsfc", "USWRFsfc", "DLWRFsfc"],
-        rename={
-            "DSWRFsfc": (
-                "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface"  # noqa
-            ),
-            "DLWRFsfc": (
-                "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface"
-            ),
-            "NSWRFsfc": (
-                "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface"
-            ),
-        },
+        variables=[
+            "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
+            "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface",
+            "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface",
+        ],
     )
 
 
@@ -117,15 +116,12 @@ def get_prescribers(external_dataset_path, layout):
     return prescriber_list
 
 
-CALL_TIME = cftime.DatetimeJulian(2016, 8, 1, 0, 15, 0)
-
-
 @pytest.fixture(scope="module")
 def prescriber_output(external_dataset_path, layout):
     prescriber_list = get_prescribers(external_dataset_path, layout)
     state_updates_list, tendencies_list = [], []
     for prescriber in prescriber_list:
-        tendencies, _, state_updates = prescriber(CALL_TIME, {})
+        tendencies, _, state_updates = prescriber(TIME_COORD[0], {})
         state_updates_list.append(state_updates)
         tendencies_list.append(tendencies)
     return state_updates_list, tendencies_list
@@ -138,11 +134,9 @@ def get_expected_state_updates(layout):
         "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": 8.0,
     }
     sizes = {"y": NXY // layout[0], "x": NXY // layout[1]}
-    ds = get_dataset(vars_, sizes, [CALL_TIME])
-    ds = ds.sel(time=CALL_TIME, tile=0).drop_vars(["tile", "y", "x"])
-    state_updates = {
-        name: ds[name].assign_attrs({"units": "some_units"}) for name in ds.data_vars
-    }
+    ds = get_dataset(vars_, sizes, TIME_COORD)
+    ds = ds.sel(time=TIME_COORD[0], tile=0).drop_vars(["tile", "y", "x"])
+    state_updates = {name: ds[name] for name in ds.data_vars}
     return state_updates
 
 
