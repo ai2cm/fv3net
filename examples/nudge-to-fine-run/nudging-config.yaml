@@ -50,13 +50,6 @@ diagnostics:
   - total_precipitation
   - surface_precipitation_rate
   - total_soil_moisture
-  - total_sky_downward_shortwave_flux_at_surface
-  - total_sky_upward_shortwave_flux_at_surface
-  - total_sky_downward_longwave_flux_at_surface
-  - total_sky_upward_longwave_flux_at_surface
-  - total_sky_downward_shortwave_flux_at_top_of_atmosphere
-  - total_sky_upward_shortwave_flux_at_top_of_atmosphere
-  - total_sky_upward_longwave_flux_at_top_of_atmosphere
   - clear_sky_downward_shortwave_flux_at_surface
   - clear_sky_upward_shortwave_flux_at_surface
   - clear_sky_downward_longwave_flux_at_surface
@@ -134,12 +127,15 @@ fortran_diagnostics:
   - {module_name: gfs_phys, field_name: totsnwb_ave, output_name: SNOWsfc}
   - {module_name: gfs_phys, field_name: totgrpb_ave, output_name: GRAUPELsfc}
   - {module_name: gfs_phys, field_name: DSWRF, output_name: DSWRFsfc}
+  - {module_name: gfs_phys, field_name: DSWRF_from_rrtmg, output_name: DSWRFsfc_from_RRTMG}
   - {module_name: gfs_phys, field_name: USWRF, output_name: USWRFsfc}
+  - {module_name: gfs_phys, field_name: USWRF_from_rrtmg, output_name: USWRFsfc_from_RRTMG}
   - {module_name: gfs_phys, field_name: DSWRFtoa, output_name: DSWRFtoa}
   - {module_name: gfs_phys, field_name: USWRFtoa, output_name: USWRFtoa}
   - {module_name: gfs_phys, field_name: ULWRFtoa, output_name: ULWRFtoa}
   - {module_name: gfs_phys, field_name: ULWRF, output_name: ULWRFsfc}
   - {module_name: gfs_phys, field_name: DLWRF, output_name: DLWRFsfc}
+  - {module_name: gfs_phys, field_name: DLWRF_from_rrtmg, output_name: DLWRFsfc_from_RRTMG}
   - {module_name: gfs_phys, field_name: lhtfl_ave, output_name: LHTFLsfc}
   - {module_name: gfs_phys, field_name: shtfl_ave, output_name: SHTFLsfc}
   - {module_name: gfs_phys, field_name: hpbl, output_name: HPBLsfc}
