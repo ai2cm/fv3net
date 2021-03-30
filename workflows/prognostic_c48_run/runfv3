@@ -16,9 +16,10 @@
 
 
 function usage {
-    echo "A segmented run is currently a location on Google Cloud Storage."
     echo "This script can create segmented runs and appending segments to them."
     echo "It also provides low level commands used for debugging."
+    echo "A segmented run can be local or on Google Cloud Storage."
+    echo "Google Cloud Storage locations should start with 'gs:'."
     echo ""
     echo "Usage:"
     echo " runfv3 create <outputUrl> <fv3configFile> <runFile>" > /dev/stderr 
@@ -56,7 +57,6 @@ function createRun {
 }
 
 function readRunConfig {
-    echo $gsutil
     # gsutil can't cat local files
     if [ ${runURL:0:3} == "gs:" ]; then
         gsutil cat "$runURL/fv3config.yml"
