@@ -37,7 +37,7 @@ def test_registering_subclass_get_name():
         pass
 
     @register("mock-subclass")
-    class MockSubclass:
+    class MockSubclass(Mock):
         pass
 
     mock = MockSubclass()
