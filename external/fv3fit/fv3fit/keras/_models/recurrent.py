@@ -1,4 +1,4 @@
-from typing import Dict, Any, Iterable, Hashable, Optional, Sequence, Tuple, Mapping
+from typing import Dict, Any, Iterable, Hashable, Optional, Sequence, Tuple, List
 import tensorflow as tf
 import xarray as xr
 import os
@@ -7,7 +7,6 @@ from ._filesystem import get_dir, put_dir
 from .normalizer import LayerStandardScaler
 import yaml
 import numpy as np
-import dataclasses
 
 
 class BPTTModel(Predictor):
@@ -77,7 +76,7 @@ class BPTTModel(Predictor):
         self.predict_keras_model: Optional[tf.keras.Model] = None
         self.use_moisture_limiter = use_moisture_limiter
         self.state_noise = state_noise
-        self._stepwise_output_metadata: Sequence[DataArrayMetadata] = []
+        self._stepwise_output_metadata: List[DataArrayMetadata] = []
 
     def build_for(self, X: xr.Dataset):
         """
@@ -108,12 +107,8 @@ class BPTTModel(Predictor):
         for name in ("air_temperature", "specific_humidity"):
             # remove time dimension from stepwise output metadata
             dims = X[name].dims[:1] + X[name].dims[2:]
-            coords = {dim_name: X[name].coords[dim_name] for dim_name in dims if dim_name in X[name].coords}
             self._stepwise_output_metadata.append(
-                DataArrayMetadata(
-                    dims=dims,
-                    units=X[name].units + " / s"
-                )
+                DataArrayMetadata(dims=dims, units=X[name].units + " / s")
             )
 
     @property
@@ -174,12 +169,14 @@ class BPTTModel(Predictor):
         def get_vector(packer, scaler, series=True):
             features = [packer.feature_counts[name] for name in packer.pack_names]
             if series:
-                layer_shape=[n_window, n_features]
+                input_layers = [
+                    tf.keras.layers.Input(shape=[n_window, n_features])
+                    for n_features in features
+                ]
             else:
-                layer_shape=[n_features]
-            input_layers = [
-                tf.keras.layers.Input(shape=layer_shape) for n_features in features
-            ]
+                input_layers = [
+                    tf.keras.layers.Input(shape=[n_features]) for n_features in features
+                ]
             packed = packer.pack_layer()(input_layers)
             if scaler is not None:
                 packed = scaler.normalize_layer(packed)
@@ -422,21 +419,10 @@ def get_keras_arrays(X, names, time_index):
             raise ValueError(X[name].shape)
     return return_list
 
-class Monster(yaml.YAMLObject):
-    yaml_tag = u'!Monster'
-    def __init__(self, name, hp, ac, attacks):
-        self.name = name
-        self.hp = hp
-        self.ac = ac
-        self.attacks = attacks
-    def __repr__(self):
-        return "%s(name=%r, hp=%r, ac=%r, attacks=%r)" % (
-            self.__class__.__name__, self.name, self.hp, self.ac, self.attacks)
-    
 
 class DataArrayMetadata(yaml.YAMLObject):
-    yaml_tag = u"!DataArrayMetadata"
-    
+    yaml_tag = "!DataArrayMetadata"
+
     def __init__(self, dims: Sequence[Hashable], units: str):
         self.dims = dims
         self.units = units
@@ -513,11 +499,11 @@ class AllKerasModel(Predictor):
             return xr.Dataset(
                 data_vars={
                     name: xr.DataArray(
-                        value,
-                        dims=metadata.dims,
-                        attrs={"units": metadata.units}
+                        value, dims=metadata.dims, attrs={"units": metadata.units}
                     )
-                    for name, value, metadata in zip(self.output_variables, outputs, self._output_metadata)
+                    for name, value, metadata in zip(
+                        self.output_variables, outputs, self._output_metadata
+                    )
                 }
             )
         else:
