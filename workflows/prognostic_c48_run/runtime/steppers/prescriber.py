@@ -1,4 +1,4 @@
-from typing import Sequence, MutableMapping, Mapping, Hashable, Tuple, Optional
+from typing import Sequence, MutableMapping, Hashable, Tuple, Optional
 import dataclasses
 from datetime import timedelta
 import logging
@@ -45,11 +45,7 @@ class PrescriberConfig:
             the routine first will try `dataset_key` as a `vcm.catalog` key, and if
             not present it will attempt to use it as a (local or remote) path to
             a zarr dataset
-        variables (Sequence[str]): sequence of "standardized" ("_coarse" suffix removed)
-            variable names to prescribe
-        rename (Mapping[Hashable, Hashable]): mapping of "standardized" ("_coarse"
-            suffix removed) names in the external dataset to variable names desired
-            for the runfile
+        variables (Sequence[str]): sequence of variable names in the dataset to prescribe
         consolidated (bool): optional, whether desired dataset has consolidated metadata;
             defaults to True
 
@@ -68,7 +64,6 @@ class PrescriberConfig:
 
     dataset_key: str
     variables: Sequence[str]
-    rename: Optional[Mapping[Hashable, Hashable]] = None
     consolidated: bool = True
 
 
@@ -93,9 +88,6 @@ class Prescriber:
         """
         self._config = config
         self._communicator = communicator
-        self._rename: Mapping[
-            Hashable, Hashable
-        ] = config.rename if config.rename else {}
         self._timesteps = timesteps
         prescribed_ds, time_coord = self._load_prescribed_ds()
         self._prescribed_ds: xr.Dataset = self._scatter_prescribed_ds(
@@ -134,19 +126,13 @@ class Prescriber:
     def __call__(self, time, state):
         diagnostics: Diagnostics = {}
         prescribed_timestep: xr.Dataset = self._prescribed_ds.sel(time=time)
-        state_updates: State = self._rename_state(
-            {name: prescribed_timestep[name] for name in prescribed_timestep.data_vars}
-        )
+        state_updates: State = {
+            name: prescribed_timestep[name] for name in prescribed_timestep.data_vars
+        }
         for name in state_updates.keys():
             diagnostics[name] = state_updates[name]
         tendency: Tendencies = {}
         return tendency, diagnostics, state_updates
-
-    def _rename_state(self, state: State) -> State:
-        new_state: State = {}
-        for name in state.keys():
-            new_state[self._rename.get(name, name)] = state[name]
-        return new_state
 
     def get_diagnostics(self, state, tendency):
         return {}
