@@ -148,7 +148,7 @@ function runSegment {
     (
         cd "$rundir"
         NUM_PROC=$(yq '.namelist.fv_core_nml.layout | .[0] *.[1] * 6' "$fv3config")
-        mpirun -n "$NUM_PROC" python3 "$runfile" |& tee -a "$rundir/logs.txt"
+        mpirun -n "$NUM_PROC" python3 -m mpi4py "$runfile" |& tee -a "$rundir/logs.txt"
     )
 }
 

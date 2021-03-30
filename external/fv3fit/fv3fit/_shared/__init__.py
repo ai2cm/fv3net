@@ -10,3 +10,4 @@ from .scaler import (
 )
 from .predictor import Predictor, Estimator
 from .utils import parse_data_path
+from .models import EnsembleModel

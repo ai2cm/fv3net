@@ -9,14 +9,14 @@ logging.basicConfig(level=logging.INFO)
 
 def download_big(i):
     gsutil.copy(i, "local")
-    logging.info(gsutil.list_matches("gs://vcm-ml-data/"))
+    logging.info(gsutil.list_matches("gs://vcm-ml-intermediate/"))
 
 
 def run(beam_options):
     timesteps = [1]
     print(f"Processing {len(timesteps)} points")
     big_file = (
-        "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics/"
+        "gs://vcm-ml-intermediate/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics/"
         "gfsphysics_15min_fine.tile1.nc.0000"
     )
     with beam.Pipeline(options=beam_options) as p:

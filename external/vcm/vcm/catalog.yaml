@@ -2,154 +2,6 @@ plugins:
   source:
     - module: intake_xarray
 sources:
-  2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute_2d:
-    description: Initial data sample provided by Lucas Harris. 1 day of 2D fields sampled every 15 minutes.
-    driver: zarr
-    args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
-      urlpath: 'gcs://vcm-ml-data/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute/2d.zarr'
-
-  2019-08-12-james-huff-additional-gfdl-fields:
-    description: Vertical coordinate information provided on 2019-08-12 by James Huff.
-    driver: zarr
-    args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
-      urlpath: 'gcs://vcm-ml-data/2019-08-12-james-huff-additional-gfdl-fields.zarr'
-
-
-  2019-07-17-GFDL_FV3_DYAMOND_0.25deg_3hr_3d:
-    description: Initial data sample provided by Lucas Harris. 1 day of 3D fields sampled every 3 hours.
-    driver: zarr
-    args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
-      urlpath: 'gcs://vcm-ml-data/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute/3d.zarr'
-
-  marat_sam_tend:
-    description: Initial data sample provided by Lucas Harris. 1 day of 3D fields sampled every 3 hours.
-    driver: netcdf
-    args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
-      urlpath: 'gcs://vcm-ml-data/2019-08-02-MaratGlobalSAM/TEND/*.nc'
-
-  2019-09-10-GFDL-SHiELD-15-minute-2-days:
-    description: 2D and 3D data sampled every 15 minutes from a 2-day 3-km simulation, regridded to a roughly 0.25 degree x 0.25 degree regular lat-lon grid.
-    driver: zarr
-    metadata:
-      data_transforms:
-        - _rename_SHiELD_varnames_to_orig
-    args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
-      urlpath: 'gcs://vcm-ml-data/2019-09-10-GFDL-SHiELD-15-minute-2-days.zarr'
-
-  2019-09-24-GFDL-SHiELD-15-minute-2-days_regrid_1degree:
-    description: 2D and 3D data sampled every 15 minutes from a 2-day 3-km simulation, regridded to a roughly 1.0 degree x 1.0 degree regular lat-lon grid.
-    driver: zarr
-    args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
-      urlpath: 'gcs://vcm-ml-data/2019-09-24_GFDL-SHiELD-15-minute-2-days_regrid_1degree.zarr'
-
-  2019-10-09-SAM-SOCRATES_tend_9216x4608x74_7.5s_4km_nudge24h:
-    description: 5 day forecast for SOCRATES with 24 hour nudging to ERA5, with bug fixes for tendency calculations, from Marat Khairoutdinov.
-    driver: zarr
-    args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
-      urlpath: 'gcs://vcm-ml-data/2019-10-09-SAM-SOCRATES_tend_9216x4608x74_7.5s_4km_nudge24h.zarr'
-
-  40day_c384_diags_time_avg:
-    description: Time-averaged diagnostics for 40-day nudged simulation at C384 resolution
-    driver: zarr
-    args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
-      urlpath: 'gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/gfsphysics_15min_coarse.zarr/'
-
-  40day_c384_diag_atmos_avg:
-    description: Time-averaged atmos diagnostics from the 40-day nudged simulation
-    driver: zarr
-    args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
-      urlpath: 'gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr/'
-
-  40day_1deg_atmos_8xdaily:
-    description: Instantaneous 8x daily atmospheric diagnostics from the 40 day run on a lat lon grid
-    driver: zarr
-    metadata:
-      simulation: 40day
-      grid: "1deg"
-      variables:
-        - PRESctp
-        - PRESsfc
-        - PRMSL
-        - PWAT
-        - REFC
-        - TB
-        - TMP500_300
-        - UGRDlowest
-        - VGRDlowest
-        - VIL
-        - VORT200
-        - VORT500
-        - VORT850
-        - VVEL5km
-        - h500
-        - iw
-        - u200
-        - v200
-    args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
-      urlpath: 'gs://vcm-ml-data/2019-12-12-40-day-X-SHiELD-simulation-regridded-diagnostics/atmos_8xdaily_1_degree.zarr/'
-
-
-  40day_c384_atmos_8xdaily:
-    description: Instantaneous 8x daily atmospheric diagnostics from the 40 day run on a C384 grid
-    driver: zarr
-    metadata:
-      grid: c384
-      simulation: 40day
-      variables:
-        - PRESctp
-        - PRESsfc
-        - PRMSL
-        - PWAT
-        - REFC
-        - TB
-        - TMP500_300
-        - UGRDlowest
-        - VGRDlowest
-        - VIL
-        - VORT200
-        - VORT500
-        - VORT850
-        - VVEL5km
-        - h500
-        - iw
-        - u200
-        - v200
-    args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
-      urlpath: "gs://vcm-ml-data/2020-02-25-additional-november-C3072-simulation-C384-diagnostics/atmos_8xdaily_C3072_to_C384.zarr"
-
   40day_c384_diags_time_avg_may2020:
     description: Time-averaged diagnostics for 40-day nudged simulation at C384 resolution (May 27 2020 SHiELD)
     driver: zarr
@@ -257,8 +109,31 @@ sources:
         - uflx_coarse
         - vflx_coarse
     args:
-      urlpath: "gs://vcm-ml-experiments/2020-06-17-triad-round-1/coarsen-c384-diagnostics/coarsen_diagnostics/gfsphysics_15min_coarse.zarr"
+      urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/gfsphysics_15min_coarse.zarr"
       consolidated: True
+
+  40day_c48_pressure_interpolated_may2020:
+    description: >-
+      3D dynamical core diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution and interpolated to pressure levels. 
+      Generated with https://github.com/VulcanClimateModeling/explore/blob/master/annak/2021-03-23-save-c3072-verification.ipynb
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 40day_may2020
+      category: 3d
+      variables:
+        - air_temperature
+        - specific_humidity
+        - eastward_wind
+        - northward_wind
+        - vertical_wind
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/pressure-interpolated.zarr"
+      consolidated: True
+
 
   40day_c48_atmos_8xdaily_may2020:
     description: 2D dynamical core diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution.
@@ -288,7 +163,32 @@ sources:
         - v200
         - w500
     args:
-      urlpath: "gs://vcm-ml-experiments/2020-06-17-triad-round-1/coarsen-c384-diagnostics/coarsen_diagnostics/atmos_8xdaily_C3072_to_C384.zarr"
+      urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/atmos_8xdaily_C3072_to_C384.zarr"
+      consolidated: True
+
+  40day_c48_atmos_8xdaily_additional_vars_may2020:
+    description: >-
+      Additional pressure level 2D dynamical core diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution.
+      Generated with https://github.com/VulcanClimateModeling/explore/blob/master/annak/2021-03-23-save-c3072-2d-vars.ipynb
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 40day_may2020
+      category: dycore
+      variables:
+        - q1000
+        - q850
+        - q500
+        - TMP850
+        - TMP500
+        - TMP200
+        - UGRD850
+        - UGRD200
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/atmos_8xdaily_add_vars.zarr"
       consolidated: True
 
   GFS_analysis_T85_2015_2016:
@@ -298,7 +198,7 @@ sources:
       storage_options:
         project: 'vcm-ml'
         access: read_only
-      urlpath: "gs://vcm-ml-data/2020-03-27-T85-GFS-nudging-data-as-zarr/nudging_data_2015-2016.zarr"
+      urlpath: "gs://vcm-ml-intermediate/2020-03-27-T85-GFS-nudging-data-as-zarr/nudging_data_2015-2016.zarr"
 
   GFS_analysis_T85_2015_2016_1M_mean:
     description: Monthly mean GFS analysis data at approximately 2deg resolution. Spans 2015-01 to 2016-12.
@@ -307,7 +207,7 @@ sources:
       storage_options:
         project: 'vcm-ml'
         access: read_only
-      urlpath: "gs://vcm-ml-data/2020-03-27-T85-GFS-nudging-data-as-zarr/nudging_data_mean_1M.zarr"
+      urlpath: "gs://vcm-ml-intermediate/2020-03-27-T85-GFS-nudging-data-as-zarr/nudging_data_mean_1M.zarr"
 
   grid/c48:
     description: Lat, lon, and area of C48 data
@@ -321,7 +221,7 @@ sources:
         - lon
         - lonb
     args:
-      urlpath: "gs://vcm-ml-data/latLonArea/c48/c48.zarr/"
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c48/c48.zarr/"
       consolidated: true
 
   landseamask/c48:
@@ -332,7 +232,7 @@ sources:
       variables:
         - land_sea_mask
     args:
-      urlpath: "gs://vcm-ml-data/latLonArea/c48/land_sea_mask.zarr/"
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c48/land_sea_mask.zarr/"
       consolidated: true
 
   wind_rotation/c48:
@@ -350,7 +250,7 @@ sources:
         - lat_unit_vector
         - lon_unit_vector
     args:
-      urlpath: "gs://vcm-ml-data/latLonArea/c48/wind_rotation_matrix.zarr/"
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c48/wind_rotation_matrix.zarr/"
       consolidated: true
 
 
@@ -369,7 +269,7 @@ sources:
       storage_options:
         project: 'vcm-ml'
         access: read_only
-      urlpath: "gs://vcm-ml-data/latLonArea/c96/grid_spec.zarr/"
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c96/grid_spec.zarr/"
       consolidated: true
 
   landseamask/c96:
@@ -383,7 +283,7 @@ sources:
       storage_options:
         project: 'vcm-ml'
         access: read_only
-      urlpath: "gs://vcm-ml-data/latLonArea/c96/land_sea_mask.zarr"
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c96/land_sea_mask.zarr"
       consolidated: true
 
   wind_rotation/c96:
@@ -404,7 +304,7 @@ sources:
       storage_options:
         project: 'vcm-ml'
         access: read_only
-      urlpath: "gs://vcm-ml-data/latLonArea/c96/wind_rotation_matrix.zarr"
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c96/wind_rotation_matrix.zarr"
       consolidated: true
 
   grid/c384:
@@ -422,7 +322,7 @@ sources:
       storage_options:
         project: 'vcm-ml'
         access: read_only
-      urlpath: "gs://vcm-ml-data/latLonArea/c384/grid_spec.zarr"
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c384/grid_spec.zarr"
       consolidated: true
 
   landseamask/c384:
@@ -436,7 +336,7 @@ sources:
       storage_options:
         project: 'vcm-ml'
         access: read_only
-      urlpath: "gs://vcm-ml-data/latLonArea/c384/land_sea_mask.zarr"
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c384/land_sea_mask.zarr"
       consolidated: true
 
   2016_c48_nudged_fv3gfs_physics_output:
@@ -507,66 +407,6 @@ sources:
       urlpath: gs://vcm-ml-raw/2020-11-10-C3072-to-C384-exposed-area.zarr
       consolidated: true
 
-  ## Local Data Intake ##
-  # TODO: Could this be replicated with intake caching? Or switch to an ignored file?
-  local_2019-09-24-GFDL-SHiELD-15-minute-2-days_regrid_1degree:
-    description: Local version of 2D and 3D SHieLD data at 1 degree resolution
-    driver: zarr
-    args:
-      urlpath: '{{ CATALOG_DIR }}/data/interim/2019-09-24_GFDL-SHiELD-15-minute-2-days_regrid_1degree.zarr'
-
-
-  # Regression testing data. Do not use for analysis, values are randomized.
-  grid/c8_random_values:
-    description: FOR REGRESSION TESTING ONLY. Lat, lon, and area of C48 data
-    driver: zarr
-    metadata:
-      grid: c8
-      variables:
-        - area
-        - lat
-        - latb
-        - lon
-        - lonb
-    args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
-      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/grid.zarr/"
-      consolidated: true
-
-  wind_rotation/c8_random_values:
-    description: FOR REGRESSION TESTING ONLY. 
-      Rotation matrix components transforming x/y components to lat/lon 
-    driver: zarr
-    metadata:
-      grid: c8
-      variables:
-        - eastward_wind_u_coeff
-        - eastward_wind_v_coeff
-        - northward_wind_u_coeff
-        - northward_wind_v_coeff
-    args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
-      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/wind_rotation.zarr/"
-      consolidated: true
-
-  landseamask/c8_random_values:
-    description: FOR REGRESSION TESTING ONLY. land_sea_mask of C8 data
-    driver: zarr
-    metadata:
-      grid: c8
-      variables:
-        - land_sea_mask
-    args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
-      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/landseamask.zarr/"
-      consolidated: true
-
   free_minus_4K_ssts_c384_fv3gfs_20170801_20190801_physics_output:
     description: 2D physics diagnostics variables from two-year free-running C384 FV3GFS simulation with minus 4K SSTs (January 9, 2021)
     driver: zarr
@@ -623,6 +463,23 @@ sources:
       urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/unperturbed/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr"
       consolidated: True
 
+  free_unperturbed_ssts_c384_fv3gfs_20170801_20190801_pressure_interpolated_output:
+    description: >-
+      3D pressure interpolated dynamical core diagnostics variables from two-year free-running C384 FV3GFS simulation with unperturbed SSTs (January 9, 2021)
+      Generated with https://github.com/VulcanClimateModeling/explore/blob/master/annak/2021-03-04-save-c384-3d-verif/save_verification.py
+    driver: zarr
+    args:
+      metadata:
+        grid: c48
+        simulation: free_unperturbed_ssts_c384_fv3gfs_20170801_20190801
+        category: 3d
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/unperturbed/C384-to-C48-diagnostics/pressure-interpolated.zarr"
+      consolidated: True
+
+
   free_plus_4K_ssts_c384_fv3gfs_20170801_20190801_physics_output:
     description: 2D physics diagnostics variables from two-year free-running C384 FV3GFS simulation with plus 4K SSTs (January 9, 2021)
     driver: zarr
@@ -650,3 +507,70 @@ sources:
         access: read_only
       urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-4K/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr"
       consolidated: True
+
+  free_plus_4K_ssts_c384_fv3gfs_20170801_20190801_pressure_interpolated_output:
+    description: >-
+      3D pressure interpolated dynamical core diagnostics variables from two-year free-running C384 FV3GFS simulation with plus 4K SSTs (January 9, 2021)
+      Generated with https://github.com/VulcanClimateModeling/explore/blob/master/annak/2021-03-04-save-c384-3d-verif/save_verification.py
+    driver: zarr
+    args:
+      metadata:
+        grid: c48
+        simulation: free_plus_4K_ssts_c384_fv3gfs_20170801_20190801
+        category: 3d
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-4K/C384-to-C48-diagnostics/pressure-interpolated.zarr"
+      consolidated: True
+
+  # Regression testing data. Do not use for analysis, values are randomized.
+  grid/c8_random_values:
+    description: FOR REGRESSION TESTING ONLY. Lat, lon, and area of C48 data
+    driver: zarr
+    metadata:
+      grid: c8
+      variables:
+        - area
+        - lat
+        - latb
+        - lon
+        - lonb
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/grid.zarr/"
+      consolidated: true
+
+  wind_rotation/c8_random_values:
+    description: FOR REGRESSION TESTING ONLY. 
+      Rotation matrix components transforming x/y components to lat/lon 
+    driver: zarr
+    metadata:
+      grid: c8
+      variables:
+        - eastward_wind_u_coeff
+        - eastward_wind_v_coeff
+        - northward_wind_u_coeff
+        - northward_wind_v_coeff
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/wind_rotation.zarr/"
+      consolidated: true
+
+  landseamask/c8_random_values:
+    description: FOR REGRESSION TESTING ONLY. land_sea_mask of C8 data
+    driver: zarr
+    metadata:
+      grid: c8
+      variables:
+        - land_sea_mask
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/landseamask.zarr/"
+      consolidated: true

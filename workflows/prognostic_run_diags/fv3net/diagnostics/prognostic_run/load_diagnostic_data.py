@@ -1,13 +1,14 @@
 import intake
 import logging
+import numpy as np
 import os
 import xarray as xr
 from typing import List, Mapping, Sequence
 
 import fsspec
 import vcm
+from vcm.cloud import get_fs
 from vcm.fv3 import standardize_fv3_diagnostics
-
 from fv3net.diagnostics.prognostic_run import add_derived
 from fv3net.diagnostics.prognostic_run.constants import DiagArg
 
@@ -35,7 +36,6 @@ def load_verification(catalog_keys: List[str], catalog: intake.Catalog,) -> xr.D
         ds = catalog[dataset_key].to_dask()
         ds = standardize_fv3_diagnostics(ds)
         verif_data.append(ds)
-
     return xr.merge(verif_data, join="outer")
 
 
@@ -80,6 +80,66 @@ def _get_coarsening_args(
     if input_res not in grid_entries:
         raise KeyError(f"No grid defined in catalog for c{input_res} resolution")
     return grid_entries[input_res], coarsening_factor
+
+
+def _load_prognostic_run_3d_output(url: str):
+    fs = get_fs(url)
+    prognostic_3d_output = [
+        item
+        for item in fs.ls(url)
+        if item.endswith("diags_3d.zarr") or item.endswith("state_after_timestep.zarr")
+    ]
+    if len(prognostic_3d_output) > 0:
+        outputs = []
+        for item in prognostic_3d_output:
+            zarr_name = os.path.basename(item)
+            path = os.path.join(url, zarr_name)
+            outputs.append(_load_standardized(path))
+        return xr.merge(outputs)
+    else:
+        return None
+
+
+def load_3d(
+    url: str, verification_entries: Sequence[str], catalog: intake.Catalog
+) -> DiagArg:
+    logger.info(f"Processing 3d data from run directory at {url}")
+
+    # open prognostic run data. If 3d data not saved, return empty datasets.
+    ds = _load_prognostic_run_3d_output(url)
+    if ds is None:
+        return xr.Dataset(), xr.Dataset(), xr.Dataset()
+
+    else:
+        input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
+        area = catalog[input_grid].to_dask()["area"]
+        ds = _coarsen(ds, area, coarsening_factor)
+
+        # open grid
+        logger.info("Opening Grid Spec")
+        grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
+
+        # interpolate 3d prognostic fields to pressure levels
+        ds_interp = xr.Dataset()
+        pressure_vars = [var for var in ds.data_vars if "z" in ds[var].dims]
+        for var in pressure_vars:
+            ds_interp[var] = vcm.interpolate_to_pressure_levels(
+                field=ds[var],
+                delp=ds["pressure_thickness_of_atmospheric_layer"],
+                dim="z",
+            )
+
+        # open verification
+        logger.info("Opening verification data")
+        verification_c48 = load_verification(verification_entries, catalog)
+
+        # Not all verification datasets have 3D variables saved,
+        # if not available fill with NaNs
+        if len(verification_c48.data_vars) == 0:
+            for var in ds_interp:
+                verification_c48[var] = xr.full_like(ds_interp[var], np.nan)
+                verification_c48[var].attrs = ds_interp[var].attrs
+        return ds_interp, verification_c48, grid_c48
 
 
 def load_dycore(
