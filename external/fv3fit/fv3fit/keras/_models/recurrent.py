@@ -174,14 +174,12 @@ class BPTTModel(Predictor):
         def get_vector(packer, scaler, series=True):
             features = [packer.feature_counts[name] for name in packer.pack_names]
             if series:
-                input_layers = [
-                    tf.keras.layers.Input(shape=[n_window, n_features])
-                    for n_features in features
-                ]
+                layer_shape=[n_window, n_features]
             else:
-                input_layers = [
-                    tf.keras.layers.Input(shape=[n_features]) for n_features in features
-                ]
+                layer_shape=[n_features]
+            input_layers = [
+                tf.keras.layers.Input(shape=layer_shape) for n_features in features
+            ]
             packed = packer.pack_layer()(input_layers)
             if scaler is not None:
                 packed = scaler.normalize_layer(packed)
