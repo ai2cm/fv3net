@@ -1,0 +1,25 @@
+regularizer:
+  name: l2
+  kwargs:
+    l: 0.0001
+optimizer:
+  name: Adam
+  kwargs:
+    learning_rate: 0.001
+    amsgrad: True
+    clipnorm: 1.0
+hyperparameters:
+  n_hidden_layers: 3
+  n_units: 256
+  train_batch_size: 48
+  use_moisture_limiter: true
+  state_noise: 0.25
+input_variables:
+  - land_sea_mask
+  - surface_geopotential
+  - cos_zenith_angle
+  - lat
+decrease_learning_rate_epoch: 40
+decreased_learning_rate: 0.0001
+total_epochs: 42
+random_seed: 2

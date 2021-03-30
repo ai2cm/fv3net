@@ -22,6 +22,8 @@ class BPTTModel(Predictor):
         kernel_regularizer,
         train_batch_size: int = 512,
         optimizer="adam",
+        use_moisture_limiter: bool = False,
+        state_noise: float = 0.
     ):
         """
         Prognostic variables are air_temperature and specific_humidity.
@@ -37,6 +39,12 @@ class BPTTModel(Predictor):
                 hidden layer kernels
             train_batch_size: batch size to use for keras model training
             optimizer: optimizer for keras training
+            use_moisture_limiter: if True, prevent the moisture tendency from
+                depleting all moisture on its own in one training timestep.
+                Moisture can still go negative if there is a negative
+                physics tendency of moisture.
+            state_noise: amount of Gaussian noise to add to model prognostic state
+                before using it to predict tendencies
         """
         prognostic_variables = (
             "air_temperature",
@@ -66,6 +74,8 @@ class BPTTModel(Predictor):
         self.train_keras_model: Optional[tf.keras.Model] = None
         self.train_tendency_model: Optional[tf.keras.Model] = None
         self.predict_keras_model: Optional[tf.keras.Model] = None
+        self.use_moisture_limiter = use_moisture_limiter
+        self.state_noise = state_noise
 
     def build_for(self, X: xr.Dataset):
         """
@@ -194,12 +204,26 @@ class BPTTModel(Predictor):
             lambda x: x / train_timestep, name="timestep_divide",
         )
 
-        def get_predicted_tendency(x):
+        def moisture_tendency_limiter(tendency, state):
+            unpack = self.prognostic_packer.unpack_layer(feature_dim=1)
+            pack = self.prognostic_packer.pack_layer()
+            dQ1, dQ2 = unpack(tendency)
+            _, Q2 = unpack(state)
+            def limit(args):
+                delta_q, q = args
+                min_delta_q = - q
+                return tf.where(delta_q > min_delta_q, delta_q, min_delta_q)
+            dQ2 = tf.keras.layers.Lambda(limit)([dQ2, Q2])
+            return pack([dQ1, dQ2])
+    
+        def get_predicted_tendency(x, state):
             for layer in dense_layers:
                 x = layer(x)
             x = output_layer(x)
-            x = timestep_divide_layer(x)
             x = self.tendency_scaler.denormalize_layer(x)
+            if self.use_moisture_limiter:
+                x = moisture_tendency_limiter(x, state)
+            x = timestep_divide_layer(x)
             return x
 
         tendency_add_layer = tf.keras.layers.Add(name="tendency_add")
@@ -214,8 +238,10 @@ class BPTTModel(Predictor):
         state = state_input
         for i in range(n_window):
             norm_state = self.prognostic_scaler.normalize(state)
+            if self.state_noise > 0.:
+                norm_state = tf.keras.layers.GaussianNoise(self.state_noise)(norm_state)
             x = prepend_forcings(norm_state, i)
-            predicted_tendency = get_predicted_tendency(x)
+            predicted_tendency = get_predicted_tendency(x, state)
             tendency_outputs_list.append(add_time_dim_layer(predicted_tendency))
             given_tendency = get_given_tendency(i)
             total_tendency = tendency_add_layer([predicted_tendency, given_tendency])
@@ -246,7 +272,7 @@ class BPTTModel(Predictor):
             self.prognostic_packer, self.prognostic_scaler, series=False
         )
         x = tf.keras.layers.concatenate([forcing_input, state_input])
-        predicted_tendency = get_predicted_tendency(x)
+        predicted_tendency = get_predicted_tendency(x, state_input)
 
         tendency_outputs = self.prognostic_packer.unpack_layer(feature_dim=1)(
             predicted_tendency

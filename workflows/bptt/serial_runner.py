@@ -41,16 +41,23 @@ def update_config_from_parameters(config, parameters):
         parameters.get("learning_rate", 1e-3)
     )
     config["training"]["hyperparameters"]["n_units"] = int(
-        parameters.get("n_units", 128)
+        parameters.get("n_units", 256)
     )
     config["training"]["hyperparameters"]["n_hidden_layers"] = int(
         parameters.get("n_hidden_layers", 3)
     )
-    config["training"]["regularizer"]["kwargs"]["l"] = float(parameters.get("l2", 0.01))
+    config["training"]["hyperparameters"]["state_noise"] = float(
+        parameters.get("state_noise", 0.)
+    )
+    config["training"]["hyperparameters"]["use_moisture_limiter"] = bool(
+        parameters.get("use_q_limiter", False)
+    )
+    config["training"]["regularizer"]["kwargs"]["l"] = float(parameters.get("l2", 1e-4))
     config["training"]["decreased_learning_rate"] = (
         float(parameters.get("lr_reduction", 1e-1))
         * config["training"]["optimizer"]["kwargs"]["learning_rate"]
     )
+    config["training"]["random_seed"] = int(parameters.get("random_seed", 0))
 
 
 CWD = os.path.dirname(os.path.abspath(__file__))

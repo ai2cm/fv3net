@@ -23,33 +23,99 @@ def get_vmin_vmax(*arrays):
     return vmin, vmax
 
 
+def integrate_stepwise(model, ds):
+    time = ds["time"]
+    timestep_seconds = (time[1].values.item() - time[0].values.item()).total_seconds()
+
+    state = {
+        "air_temperature": ds["air_temperature"].isel(time=0).values,
+        "specific_humidity": ds["specific_humidity"].isel(time=0).values,
+    }
+    state_out_list = []
+    n_timesteps = len(ds["time"]) - 1
+    for i in range(n_timesteps):
+        print(f"Step {i+1} of {n_timesteps}")
+        input_ds = ds.isel(time=i)
+        input_ds["air_temperature"] = xr.DataArray(
+            state["air_temperature"],
+            dims=[model.sample_dim_name, "z"],
+            attrs={"units": ds["air_temperature"].units},
+        )
+        input_ds["specific_humidity"] = xr.DataArray(
+            state["specific_humidity"],
+            dims=[model.sample_dim_name, "z"],
+            attrs={"units": ds["specific_humidity"].units},
+        )
+        tendency_ds = model.predict(input_ds)
+        state["air_temperature"] = (
+            state["air_temperature"]
+            + (
+                tendency_ds["dQ1"].values
+                + input_ds["air_temperature_tendency_due_to_model"].values
+            )
+            * timestep_seconds
+        )
+        state["specific_humidity"] = (
+            state["specific_humidity"]
+            + (
+                tendency_ds["dQ2"]
+                + input_ds["specific_humidity_tendency_due_to_model"].values
+            )
+            * timestep_seconds
+        )
+        data_vars = {}
+        for name, value in state.items():
+            data_vars[name] = ([model.sample_dim_name, "z"], value)
+        for name in (
+            "air_temperature_tendency_due_to_model",
+            "specific_humidity_tendency_due_to_model",
+            "air_temperature_tendency_due_to_nudging",
+            "specific_humidity_tendency_due_to_nudging",
+        ):
+            data_vars[name] = input_ds[name]
+        for name in state.keys():
+            data_vars[f"{name}_reference"] = (
+                ds[name].isel(time=i + 1).reset_coords(drop=True)
+            )
+        for name in ("dQ1", "dQ2"):
+            data_vars[name] = tendency_ds[name]
+        timestep_ds = xr.Dataset(data_vars=data_vars)
+        state_out_list.append(timestep_ds)
+    return xr.concat(state_out_list, dim="time").transpose(
+        model.sample_dim_name, "time", "z"
+    )
+
+
 if __name__ == "__main__":
     timestep_seconds = 3 * 60 * 60
     parser = get_parser()
     args = parser.parse_args()
 
-    model = fv3fit.load(args.model_dir)
+    # model = fv3fit.load(args.model_dir)
+    model = fv3fit.load(
+        "gs://vcm-ml-experiments/2021-01-26-c3072-nn/l2/tq-seed-0/trained_model"
+    )
 
     fs = vcm.get_fs(args.arrays_dir)
     filename = sorted(fs.listdir(args.arrays_dir, detail=False))[0]
     print(filename)
     with open(filename, "rb") as f:
         ds = xr.open_dataset(filename)
-        # lat = ds["lat"].isel(time=0).values
-        # lon = ds["lon"].isel(time=0).values
-        # antarctica_idx = np.argwhere(
-        #     np.logical_and(
-        #         (195. * np.pi / 180. < lon) & (lon < 240. * np.pi / 180.),
-        #         (-82 * np.pi / 180. < lat) & (lat < -75 * np.pi / 180.)
-        #     )
-        # )
-        # print(f"{len(antarctica_idx)} antarctica samples found")
-        # assert len(antarctica_idx) > 0
-        # ds = ds.isel(sample=list(antarctica_idx.flatten()))
-        # ds = ds.isel(sample=slice(0, 64))
+        lat = ds["lat"].isel(time=0).values
+        lon = ds["lon"].isel(time=0).values
+        antarctica_idx = np.argwhere(
+            np.logical_and(
+                (195.0 * np.pi / 180.0 < lon) & (lon < 240.0 * np.pi / 180.0),
+                (-82 * np.pi / 180.0 < lat) & (lat < -75 * np.pi / 180.0),
+            )
+        )
+        print(f"{len(antarctica_idx)} antarctica samples found")
+        assert len(antarctica_idx) > 0
+        ds = ds.isel(sample=list(antarctica_idx.flatten()))
+        ds = ds.isel(sample=slice(0, 64))
         ds.load()
 
-    state_out = model.integrate_stepwise(ds)
+    state_out = integrate_stepwise(model, ds)
 
     def plot_single(predicted, reference, label, ax):
         vmin, vmax = get_vmin_vmax(predicted, reference)
@@ -140,7 +206,7 @@ if __name__ == "__main__":
     plt.tight_layout()
     # plt.show()
 
-    for i in range(0):
+    for i in range(4):
         fig, ax = plt.subplots(4, 2, figsize=(12, 8))
         plot_single(
             state_out["dQ1"][i, :, :].values * seconds_in_day,
