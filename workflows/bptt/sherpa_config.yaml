@@ -1,0 +1,49 @@
+algorithm:
+  name: RandomSearch
+parameters:
+  # - name: n_units
+  #   type: discrete
+  #   range: 
+  #     - 64
+  #     - 256
+  #   scale: log
+  - name: state_noise
+    type: choice
+    range: 
+      - 0.
+      - 0.25
+  - name: use_q_limiter
+    type: choice
+    range: 
+      - true
+      - false
+  - name: random_seed
+    type: discrete
+    range:
+      - 0.
+      - 5.
+    scale: linear
+  # - name: n_hidden_layers
+  #   type: discrete
+  #   range: 
+  #     - 3
+  #     - 8
+  #   scale: linear
+  # - name: learning_rate
+  #   type: continuous
+  #   range: 
+  #     - 0.001
+  #     - 0.0001
+  #   scale: log
+  # - name: lr_reduction
+  #   type: continuous
+  #   range: 
+  #     - 0.1
+  #     - 0.01
+  #   scale: log
+  # - name: l2
+  #   type: continuous
+  #   range: 
+  #     - 0.0001
+  #     - 0.00001
+  #   scale: log
