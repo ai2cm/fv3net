@@ -1,4 +1,4 @@
-from typing import Dict, Any, Iterable, Hashable, Optional, Sequence, Tuple
+from typing import Dict, Any, Iterable, Hashable, Optional, Sequence, Tuple, Mapping
 import tensorflow as tf
 import xarray as xr
 import os
@@ -7,6 +7,7 @@ from ._filesystem import get_dir, put_dir
 from .normalizer import LayerStandardScaler
 import yaml
 import numpy as np
+import dataclasses
 
 
 class BPTTModel(Predictor):
@@ -76,6 +77,7 @@ class BPTTModel(Predictor):
         self.predict_keras_model: Optional[tf.keras.Model] = None
         self.use_moisture_limiter = use_moisture_limiter
         self.state_noise = state_noise
+        self._stepwise_output_metadata: Sequence[DataArrayMetadata] = []
 
     def build_for(self, X: xr.Dataset):
         """
@@ -102,6 +104,17 @@ class BPTTModel(Predictor):
             self.train_tendency_model,
             self.predict_keras_model,
         ) = self.build(len(time) - 1)
+        self._stepwise_output_metadata.clear()
+        for name in ("air_temperature", "specific_humidity"):
+            # remove time dimension from stepwise output metadata
+            dims = X[name].dims[:1] + X[name].dims[2:]
+            coords = {dim_name: X[name].coords[dim_name] for dim_name in dims if dim_name in X[name].coords}
+            self._stepwise_output_metadata.append(
+                DataArrayMetadata(
+                    dims=dims,
+                    units=X[name].units + " / s"
+                )
+            )
 
     @property
     def losses(self):
@@ -111,6 +124,16 @@ class BPTTModel(Predictor):
         )
         std = self.prognostic_packer.to_dataset(self.prognostic_scaler.std[None, :])
 
+        # we want air temperature and humidity to contribute equally, so for a
+        # mean squared error loss we need to normalize by the variance of
+        # each one
+        # we want layers to have importance which is proportional to how much
+        # variance there is in that layer, so the variance we use should be
+        # constant across layers
+        # we need to compute the variance independently for each layer and then
+        # average them, so that we don't include variance in the mean profile
+        # we use a 0.5 scale for each one, so the total expected loss is 1.0 if
+        # we have zero skill
         air_temperature_factor = tf.constant(
             0.5 / np.mean(std["air_temperature"].values ** 2), dtype=tf.float32
         )
@@ -379,6 +402,7 @@ class BPTTModel(Predictor):
             tuple(self.input_packer.pack_names)
             + tuple(self.prognostic_packer.pack_names),
             self.output_variables,
+            self._stepwise_output_metadata,
             self.predict_keras_model,
         )
         return predictor_model
@@ -400,6 +424,39 @@ def get_keras_arrays(X, names, time_index):
             raise ValueError(X[name].shape)
     return return_list
 
+class Monster(yaml.YAMLObject):
+    yaml_tag = u'!Monster'
+    def __init__(self, name, hp, ac, attacks):
+        self.name = name
+        self.hp = hp
+        self.ac = ac
+        self.attacks = attacks
+    def __repr__(self):
+        return "%s(name=%r, hp=%r, ac=%r, attacks=%r)" % (
+            self.__class__.__name__, self.name, self.hp, self.ac, self.attacks)
+    
+
+class DataArrayMetadata(yaml.YAMLObject):
+    yaml_tag = u"!DataArrayMetadata"
+    
+    def __init__(self, dims: Sequence[Hashable], units: str):
+        self.dims = dims
+        self.units = units
+        super().__init__()
+
+    def __repr__(self):
+        return "{!s}(dims={!r}, units={!r})".format(
+            self.__class__.__name__, self.dims, self.units
+        )
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        """
+        Convert a representation node to a Python object.
+        """
+        arg_dict = loader.construct_mapping(node, deep=True)
+        return cls(**arg_dict)
+
 
 @io.register("all-keras")
 class AllKerasModel(Predictor):
@@ -414,6 +471,7 @@ class AllKerasModel(Predictor):
         sample_dim_name: str,
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
+        output_metadata: Iterable[DataArrayMetadata],
         model: tf.keras.Model,
     ):
         """Initialize the predictor
@@ -422,12 +480,12 @@ class AllKerasModel(Predictor):
             sample_dim_name: name of sample dimension
             input_variables: names of input variables
             output_variables: names of output variables
-        
         """
         super().__init__(sample_dim_name, input_variables, output_variables)
         self.sample_dim_name = sample_dim_name
         self.input_variables = input_variables
         self.output_variables = output_variables
+        self._output_metadata = output_metadata
         self.model = model
 
     @classmethod
@@ -439,11 +497,12 @@ class AllKerasModel(Predictor):
                 model_filename, custom_objects=cls.custom_objects
             )
             with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
-                config = yaml.safe_load(f)
+                config = yaml.load(f, Loader=yaml.Loader)
             obj = cls(
                 config["sample_dim_name"],
                 config["input_variables"],
                 config["output_variables"],
+                config.get("output_metadata", None),
                 model,
             )
             return obj
@@ -451,23 +510,37 @@ class AllKerasModel(Predictor):
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
         inputs = [X[name].values for name in self.input_variables]
-        dQ1, dQ2 = self.model.predict(inputs)
-        return xr.Dataset(
-            data_vars={
-                "dQ1": xr.DataArray(
-                    dQ1,
-                    dims=X["air_temperature"].dims,
-                    coords=X["air_temperature"].coords,
-                    attrs={"units": X["air_temperature"].units + " / s"},
-                ),
-                "dQ2": xr.DataArray(
-                    dQ2,
-                    dims=X["specific_humidity"].dims,
-                    coords=X["specific_humidity"].coords,
-                    attrs={"units": X["specific_humidity"].units + " / s"},
-                ),
-            }
-        )
+        outputs = self.model.predict(inputs)
+        if self._output_metadata is not None:
+            return xr.Dataset(
+                data_vars={
+                    name: xr.DataArray(
+                        value,
+                        dims=metadata.dims,
+                        attrs={"units": metadata.units}
+                    )
+                    for name, value, metadata in zip(self.output_variables, outputs, self._output_metadata)
+                }
+            )
+        else:
+            # workaround for saved datasets which do not have output metadata
+            # from an initial version of the BPTT code. Can be removed
+            # eventually
+            dQ1, dQ2 = outputs
+            return xr.Dataset(
+                data_vars={
+                    "dQ1": xr.DataArray(
+                        dQ1,
+                        dims=X["air_temperature"].dims,
+                        attrs={"units": X["air_temperature"].units + " / s"},
+                    ),
+                    "dQ2": xr.DataArray(
+                        dQ2,
+                        dims=X["specific_humidity"].dims,
+                        attrs={"units": X["specific_humidity"].units + " / s"},
+                    ),
+                }
+            )
 
     def dump(self, path: str) -> None:
         with put_dir(path) as path:
@@ -476,11 +549,12 @@ class AllKerasModel(Predictor):
                 self.model.save(model_filename)
             with open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
                 f.write(
-                    yaml.safe_dump(
+                    yaml.dump(
                         {
                             "sample_dim_name": self.sample_dim_name,
                             "input_variables": self.input_variables,
                             "output_variables": self.output_variables,
+                            "output_metadata": self._output_metadata,
                         }
                     )
                 )
