@@ -100,63 +100,39 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
         config_dict.get("namelist", {}).get("fv_core_nml", {}).get("nudge", False)
     )
 
-    prephysics: Optional[MachineLearningConfig]
-    if "prephysics" in config_dict:
-        prephysics = dacite.from_dict(MachineLearningConfig, config_dict["prephysics"])
-    else:
-        prephysics = None
-
-    nudging: Optional[NudgingConfig]
     if "nudging" in config_dict:
         config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
             "restarts_path", args.initial_condition_url
         )
-        nudging = dacite.from_dict(NudgingConfig, config_dict["nudging"])
-    else:
-        nudging = None
 
-    scikit_learn = MachineLearningConfig(
-        model=list(args.model_url or []), diagnostic_ml=args.diagnostic_ml
-    )
+    user_config = dacite.from_dict(UserConfig, config_dict)
 
-    if "diagnostics" in config_dict:
-        diagnostics = [
-            dacite.from_dict(DiagnosticFileConfig, diag)
-            for diag in config_dict["diagnostics"]
-        ]
-    else:
-        diagnostics = _default_diagnostics(
-            nudging, scikit_learn, nudge_to_observations, args.output_frequency,
+    # insert defaults and command line option overrides
+    if len(user_config.diagnostics) == 0:
+        user_config.diagnostics = _default_diagnostics(
+            user_config.nudging,
+            user_config.scikit_learn,
+            nudge_to_observations,
+            args.output_frequency,
         )
 
-    if "fortran_diagnostics" in config_dict:
-        fortran_diagnostics = [
-            dacite.from_dict(FortranFileConfig, diag)
-            for diag in config_dict["fortran_diagnostics"]
-        ]
-    else:
-        fortran_diagnostics = _default_fortran_diagnostics(nudge_to_observations)
+    if len(user_config.fortran_diagnostics) == 0:
+        user_config.fortran_diagnostics = _default_fortran_diagnostics(
+            nudge_to_observations
+        )
 
-    default = UserConfig(diagnostics=[], fortran_diagnostics=[])
+    if args.model_url:
+        user_config.scikit_learn.model = list(args.model_url)
 
-    if nudging and len(scikit_learn.model):
+    if args.diagnostic_ml:
+        user_config.scikit_learn.diagnostic_ml = args.diagnostic_ml
+
+    if user_config.nudging and len(user_config.scikit_learn.model):
         raise NotImplementedError(
             "Nudging and machine learning cannot currently be run at the same time."
         )
 
-    return UserConfig(
-        prephysics=prephysics,
-        nudging=nudging,
-        diagnostics=diagnostics,
-        fortran_diagnostics=fortran_diagnostics,
-        scikit_learn=scikit_learn,
-        step_storage_variables=config_dict.get(
-            "step_storage_variables", default.step_storage_variables
-        ),
-        step_tendency_variables=config_dict.get(
-            "step_tendency_variables", default.step_tendency_variables
-        ),
-    )
+    return user_config
 
 
 def _default_diagnostics(
