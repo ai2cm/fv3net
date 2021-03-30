@@ -35,8 +35,9 @@ class InOutPredictor(Predictor):
 
 
 @pytest.mark.parametrize("sample_dims", [("x", "y"), ("y", "x")])
-def test__Predictor_predict_columnwise_dims_same_order(sample_dims,):
-    model = IdentityPredictor2D("sample", ["a"], ["a"])
+@pytest.mark.parametrize("sample_dim_name", ["sample", "asdf"])
+def test__Predictor_predict_columnwise_dims_same_order(sample_dims, sample_dim_name):
+    model = IdentityPredictor2D(sample_dim_name, ["a"], ["a"])
     X = xr.Dataset({"a": (["x", "y", "z"], np.ones((3, 4, 5)))})
     ans = model.predict_columnwise(X, sample_dims=sample_dims)
     assert ans.a.dims == ("x", "y", "z")
