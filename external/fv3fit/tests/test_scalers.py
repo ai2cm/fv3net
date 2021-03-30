@@ -43,32 +43,34 @@ def test_standard_scaler_constant_scaling(std_epsilon):
     assert denormed_sample[2] == const * 2.0
 
 
-@pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
-def test_standard_scaler_normalize_then_denormalize(n_samples, n_features):
+@pytest.mark.parametrize("shape", [(10, 1), (10, 5), (3, 4, 5)])
+def test_standard_scaler_normalize_then_denormalize(shape):
     scaler = StandardScaler()
     np.random.seed(SEED)
-    X = np.random.uniform(0, 10, size=[n_samples, n_features])
+    X = np.random.uniform(0, 10, size=shape)
     scaler.fit(X)
     result = scaler.denormalize(scaler.normalize(X))
     np.testing.assert_almost_equal(result, X)
 
 
-@pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
-def test_standard_scaler_normalize(n_samples, n_features):
+@pytest.mark.parametrize("shape", [(10, 1), (10, 5), (3, 4, 5)])
+def test_standard_scaler_normalize(shape):
     np.random.seed(SEED)
     scaler = StandardScaler()
-    X = np.random.uniform(0, 10, size=[n_samples, n_features])
+    X = np.random.uniform(0, 10, size=shape)
     scaler.fit(X)
     result = scaler.normalize(X)
-    np.testing.assert_almost_equal(np.mean(result, axis=0), 0)
-    np.testing.assert_almost_equal(np.std(result, axis=0), 1)
+    np.testing.assert_almost_equal(
+        np.mean(result, axis=tuple(range(len(shape) - 1))), 0
+    )
+    np.testing.assert_almost_equal(np.std(result, axis=tuple(range(len(shape) - 1))), 1)
 
 
-@pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
-def test_normalize_then_denormalize_on_reloaded_scaler(n_samples, n_features):
+@pytest.mark.parametrize("shape", [(10, 1), (10, 5), (3, 4, 5)])
+def test_normalize_then_denormalize_on_reloaded_scaler(shape):
     np.random.seed(SEED)
     scaler = StandardScaler()
-    X = np.random.uniform(0, 10, size=[n_samples, n_features])
+    X = np.random.uniform(0, 10, size=shape)
     scaler.fit(X)
     result = scaler.normalize(X)
     with tempfile.NamedTemporaryFile() as f_write:

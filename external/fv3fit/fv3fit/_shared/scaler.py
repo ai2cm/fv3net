@@ -1,7 +1,7 @@
 import abc
 from copy import copy
 import numpy as np
-from typing import Mapping, BinaryIO, Type, Sequence, Iterable
+from typing import Mapping, BinaryIO, Type, Sequence, Iterable, Tuple, Union
 import xarray as xr
 import io
 import yaml
@@ -50,13 +50,20 @@ class StandardScaler(NormalizeTransform):
                 that are constant across samples) are unable to be scaled due to
                 having zero standard deviation. Defaults to 1e-12.
         """
-        self.mean = None
-        self.std = None
-        self.std_epsilon: np.float64 = std_epsilon
+        self.mean: np.ndarray = None
+        self.std: np.ndarray = None
+        self.std_epsilon: np.float32 = std_epsilon
 
     def fit(self, data: np.ndarray):
-        self.mean = data.mean(axis=0).astype(np.float64)
-        self.std = data.std(axis=0).astype(np.float64) + self.std_epsilon
+        axes_to_avg: Union[int, Tuple[int, int]]
+        if len(data.shape) == 2:
+            axes_to_avg = 0
+        elif len(data.shape) == 3:
+            axes_to_avg = (0, 1)
+        else:
+            raise NotImplementedError()
+        self.mean = data.mean(axis=axes_to_avg).astype(np.float64)
+        self.std = data.std(axis=axes_to_avg).astype(np.float64) + self.std_epsilon
 
     def normalize(self, data):
         if self.mean is None or self.std is None:
