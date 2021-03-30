@@ -4,7 +4,7 @@ import yaml
 import logging
 import sys
 from datetime import datetime, timedelta
-from typing import List, Mapping, Optional, Sequence
+from typing import List, Mapping, Optional, Sequence, Union
 
 import dacite
 
@@ -21,6 +21,7 @@ from runtime.diagnostics.fortran import file_configs_to_namelist_settings
 from runtime.steppers.nudging import NudgingConfig
 from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
+from runtime.steppers.prescriber import PrescriberConfig
 
 
 logger = logging.getLogger(__name__)
@@ -100,11 +101,17 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
         config_dict.get("namelist", {}).get("fv_core_nml", {}).get("nudge", False)
     )
 
-    prephysics: Optional[MachineLearningConfig]
-    if "prephysics" in config_dict:
-        prephysics = dacite.from_dict(MachineLearningConfig, config_dict["prephysics"])
-    else:
+    prephysics: Optional[Union[MachineLearningConfig, PrescriberConfig]]
+    if "prephysics" not in config_dict:
         prephysics = None
+    elif "model" in config_dict["prephysics"]:
+        prephysics = dacite.from_dict(MachineLearningConfig, config_dict["prephysics"])
+    elif "dataset_key" in config_dict["prephysics"]:
+        prephysics = dacite.from_dict(PrescriberConfig, config_dict["prephysics"])
+    else:
+        raise ValueError(
+            "Misconfigured prephysics section, must contain 'model' or 'dataset_key.'"
+        )
 
     nudging: Optional[NudgingConfig]
     if "nudging" in config_dict:
