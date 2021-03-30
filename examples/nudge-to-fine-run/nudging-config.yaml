@@ -1,4 +1,10 @@
 base_version: v0.5
+prephysics:
+  dataset_key: "gs://vcm-ml-intermediate/2021-03-fine-res-surface-radiative-fluxes/fine-res-surface-radiative-fluxes.zarr"
+  variables:
+    - override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface
+    - override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface
+    - override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface
 nudging:
   timescale_hours:
     air_temperature: 3
@@ -18,7 +24,7 @@ namelist:
   fv_core_nml:
     do_sat_adj: false
   gfs_physics_nml:
-    use_climatological_sst: false
+    override_surface_radiative_fluxes: true
 diagnostics:
 - name: state_after_timestep.zarr
   chunks:
