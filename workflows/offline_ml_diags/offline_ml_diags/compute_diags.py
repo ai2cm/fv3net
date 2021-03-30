@@ -192,12 +192,14 @@ def _compute_summary(ds: xr.Dataset, variables: Sequence[str]) -> xr.Dataset:
                 derivation="target"
             )
 
+    print(-ds["column_integrated_Q2"])
     summary = utils.reduce_to_diagnostic(
         ds,
         ds,
-        net_precipitation=-ds["column_integrated_Q2"].sel(  # type: ignore
-            derivation="target"
-        ),
+        net_precipitation=-ds["column_integrated_Q2"],
+        # net_precipitation=-ds["column_integrated_Q2"].sel(  # type: ignore
+        #     derivation="target"
+        # ),
         primary_vars=variables
     )
     return summary

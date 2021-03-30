@@ -208,20 +208,20 @@ if __name__ == "__main__":
 
     # column integrated quantity diurnal cycles
 
-    diurnal_groups = []
-    diurnal_groups.append(("Q1_components", [
+    diurnal_groups = {}
+    diurnal_groups["Q1_components"] = [
         var for var in ds_diurnal.data_vars if "Q1" in var
-    ]))
-    diurnal_groups.append(("Q2_components", [
+    ]
+    diurnal_groups["Q2_components"] = [
         var for var in ds_diurnal.data_vars if "Q2" in var
-    ]))
-    diurnal_groups.append(("other_components", list(
+    ]
+    diurnal_groups["other_components"] = list(
         set(ds_diurnal.data_vars)
         - set(diurnal_groups["Q1_components"])
         - set(diurnal_groups["Q2_components"])
-    )))
+    )
 
-    for tag, var_group in diurnal_groups:
+    for tag, var_group in diurnal_groups.items():
         fig = diagplot.plot_diurnal_cycles(
             ds_diurnal,
             vars_=var_group,

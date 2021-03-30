@@ -44,7 +44,7 @@ def open_n2f_radiative_flux_biases(
     Returns:
         mapper to LW and SW surface radiative flux biases and model state data
     """
-    verif_dswrf_sfc, verif_swnetrf_sfc, verif_dlwrf_sfc = _get_verification_fluxes(
+    verif_dswrf_sfc, verif_swnetrf_sfc, verif_dlwrf_sfc, verif_prate_sfc = _get_verification_fluxes(
         CATALOG, verification
     )
     verif_dswrf_sfc_mean = verif_dswrf_sfc.mean(dim="time")
@@ -53,8 +53,10 @@ def open_n2f_radiative_flux_biases(
             "DSWRFsfc_verif": verif_dswrf_sfc,
             "NSWRFsfc_verif": verif_swnetrf_sfc,
             "DLWRFsfc_verif": verif_dlwrf_sfc,
+            "PRATEsfc_verif": verif_prate_sfc
         }
     )
+    print(sfc_biases_ds.time.sel(time="2016-09-02T11"))
     sfc_biases_mapper = LongRunMapper(sfc_biases_ds)
     nudge_to_fine_mapper = open_nudge_to_fine(
         url, **open_nudge_to_fine_kwargs, consolidated=consolidated
@@ -68,7 +70,7 @@ def _get_verification_fluxes(catalog: intake.catalog, verification: str) -> xr.D
     swnetrf_sfc = (ds["DSWRFsfc"] - ds["USWRFsfc"]).assign_attrs(
         {"long_name": "net shortwave surface flux (down minus up)", "units": "W/m^2"}
     )
-    return ds["DSWRFsfc"], swnetrf_sfc, ds["DLWRFsfc"]
+    return ds["DSWRFsfc"], swnetrf_sfc, ds["DLWRFsfc"], ds["PRATEsfc"]
 
 
 # note that the below is cut/pasted from prognostic_run_diags workflow
