@@ -8,8 +8,8 @@ class StandardNormalize(layers.Layer):
 
     def __init__(self, *, mean, std):
         super().__init__()
-        self.mean = tf.constant(mean)
-        self.std = tf.constant(std)
+        self.mean = tf.constant(mean, dtype=tf.float64)
+        self.std = tf.constant(std, dtype=tf.float64)
 
     def call(self, inputs):
         return tf.transpose(
@@ -30,8 +30,8 @@ class StandardDenormalize(layers.Layer):
 
     def __init__(self, *, mean, std):
         super().__init__()
-        self.mean = tf.constant(mean)
-        self.std = tf.constant(std)
+        self.mean = tf.constant(mean, dtype=tf.float64)
+        self.std = tf.constant(std, dtype=tf.float64)
 
     def call(self, inputs):
         return tf.transpose(
@@ -46,8 +46,8 @@ class StandardDenormalize(layers.Layer):
 
 
 class LayerStandardScaler(StandardScaler):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._normalize_layer = None
         self._denormalize_layer = None
 
