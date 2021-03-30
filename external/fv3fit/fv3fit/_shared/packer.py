@@ -186,7 +186,6 @@ class ArrayPacker:
             )
             for name in self.pack_names:
                 self._dims[name] = cast(Tuple[str], dataset[name].dims)
-            self._coords = cast(Mapping[str, xr.IndexVariable], dataset.coords)
         for var in self.pack_names:
             if dataset[var].dims[0] != self.sample_dim_name:
                 dataset[var] = dataset[var].transpose()

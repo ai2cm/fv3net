@@ -41,7 +41,7 @@ class StandardScaler(NormalizeTransform):
 
     kind: str = "standard"
 
-    def __init__(self, std_epsilon: np.float64 = 1e-12):
+    def __init__(self, std_epsilon: np.float32 = 1e-12):
         """Standard scaler normalizer: normalizes via (x-mean)/std
 
         Args:
@@ -52,7 +52,7 @@ class StandardScaler(NormalizeTransform):
         """
         self.mean: np.ndarray = None
         self.std: np.ndarray = None
-        self.std_epsilon: np.float64 = std_epsilon
+        self.std_epsilon: np.float32 = std_epsilon
 
     def fit(self, data: np.ndarray):
         axes_to_avg: Union[int, Tuple[int, int]]
@@ -62,8 +62,8 @@ class StandardScaler(NormalizeTransform):
             axes_to_avg = (0, 1)
         else:
             raise NotImplementedError()
-        self.mean = data.mean(axis=axes_to_avg).astype(np.float64)
-        self.std = data.std(axis=axes_to_avg).astype(np.float64) + self.std_epsilon
+        self.mean = data.mean(axis=axes_to_avg).astype(np.float32)
+        self.std = data.std(axis=axes_to_avg).astype(np.float32) + self.std_epsilon
 
     def normalize(self, data):
         if self.mean is None or self.std is None:
