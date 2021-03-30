@@ -58,7 +58,7 @@ def create_fv3_grid(
     x_outer: str = constants.COORD_X_OUTER,
     y_center: str = constants.COORD_Y_CENTER,
     y_outer: str = constants.COORD_Y_OUTER,
-) -> xgcm.Grid:
+):
     """Create an XGCM_ grid from a dataset of FV3 tile data
 
 
