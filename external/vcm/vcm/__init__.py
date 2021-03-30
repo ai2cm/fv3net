@@ -1,6 +1,7 @@
 from .combining import combine_array_sequence
 from . import cubedsphere
 from .extract import extract_tarball_to_path
+from ._preloaded import Preloaded
 from .fv3_restarts import (
     open_restarts,
     open_restarts_with_time_coordinates,
@@ -38,6 +39,7 @@ from .select import mask_to_surface_type, RegionOfInterest
 from .xarray_loaders import open_tiles, open_delayed, open_remote_nc, dump_nc
 from .sampling import train_test_split_sample
 from .derived_mapping import DerivedMapping
+from .cloud import get_fs
 
 
 __all__ = [item for item in dir() if not item.startswith("_")]
