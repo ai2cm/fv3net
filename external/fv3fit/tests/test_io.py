@@ -29,6 +29,21 @@ def test_registering_twice_fails():
             pass
 
 
+def test_registering_subclass_get_name():
+    register = _Register()
+
+    @register("mock")
+    class Mock:
+        pass
+
+    @register("mock-subclass")
+    class MockSubclass:
+        pass
+
+    mock = MockSubclass()
+    assert register._get_name(mock) == "mock-subclass"
+
+
 def test_register_dump_load(tmpdir):
 
     register = _Register()
