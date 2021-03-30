@@ -18,8 +18,8 @@ def get_parser():
 
 
 def get_vmin_vmax(*arrays):
-    vmin = min(np.min(a) for a in arrays)
-    vmax = max(np.max(a) for a in arrays)
+    vmin = min(np.nanmin(a) for a in arrays)
+    vmax = max(np.nanmax(a) for a in arrays)
     return vmin, vmax
 
 
@@ -91,28 +91,28 @@ if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
 
-    # model = fv3fit.load(args.model_dir)
-    model = fv3fit.load(
-        "gs://vcm-ml-experiments/2021-01-26-c3072-nn/l2/tq-seed-0/trained_model"
-    )
+    model = fv3fit.load(args.model_dir)
+    # model = fv3fit.load(
+    #     "gs://vcm-ml-experiments/2021-01-26-c3072-nn/l2/tq-seed-0/trained_model"
+    # )
 
     fs = vcm.get_fs(args.arrays_dir)
     filename = sorted(fs.listdir(args.arrays_dir, detail=False))[0]
     print(filename)
     with open(filename, "rb") as f:
         ds = xr.open_dataset(filename)
-        lat = ds["lat"].isel(time=0).values
-        lon = ds["lon"].isel(time=0).values
-        antarctica_idx = np.argwhere(
-            np.logical_and(
-                (195.0 * np.pi / 180.0 < lon) & (lon < 240.0 * np.pi / 180.0),
-                (-82 * np.pi / 180.0 < lat) & (lat < -75 * np.pi / 180.0),
-            )
-        )
-        print(f"{len(antarctica_idx)} antarctica samples found")
-        assert len(antarctica_idx) > 0
-        ds = ds.isel(sample=list(antarctica_idx.flatten()))
-        ds = ds.isel(sample=slice(0, 64))
+        # lat = ds["lat"].isel(time=0).values
+        # lon = ds["lon"].isel(time=0).values
+        # antarctica_idx = np.argwhere(
+        #     np.logical_and(
+        #         (195.0 < lon) & (lon < 240.0 ),
+        #         (-82 < lat) & (lat < -75),
+        #     )
+        # )
+        # print(f"{len(antarctica_idx)} antarctica samples found")
+        # assert len(antarctica_idx) > 0
+        # ds = ds.isel(sample=list(antarctica_idx.flatten()))
+        # ds = ds.isel(sample=slice(0, 64))
         ds.load()
 
     state_out = integrate_stepwise(model, ds)
@@ -196,6 +196,7 @@ if __name__ == "__main__":
     r2["specific_humidity_tendency"] = get_r2(
         state_out["dQ2"], state_out["specific_humidity_tendency_due_to_nudging"]
     )
+    print(state_out["dQ2"])
 
     fig, ax = plt.subplots(4, 1, figsize=(8, 8))
     for i, name in enumerate(sorted(list(r2.keys()))):
@@ -234,8 +235,8 @@ if __name__ == "__main__":
             "specific_humidity (kg/kg)",
             ax[2:, 1],
         )
-        lat = ds["lat"][i, 0].values.item() * 180.0 / np.pi
-        lon = ds["lon"][i, 0].values.item() * 180.0 / np.pi
+        lat = ds["lat"][i, 0].values.item()
+        lon = ds["lon"][i, 0].values.item()
         plt.suptitle(f"lat: {lat}, lon: {lon}")
         for a in ax.flatten():
             a.set_ylim(a.get_ylim()[::-1])

@@ -15,7 +15,8 @@ VAL_LOSS_PATTERN = re.compile(r"val_loss: ([0-9]+\.[0-9]+)")
 
 TrainArgs = namedtuple(
     "TrainArgs",
-    "train_data_path train_config_file output_data_path timesteps_file validation_timesteps_file",
+    "train_data_path train_config_file output_data_path timesteps_file "
+    "validation_timesteps_file",
 )
 
 
@@ -47,7 +48,7 @@ def update_config_from_parameters(config, parameters):
         parameters.get("n_hidden_layers", 3)
     )
     config["training"]["hyperparameters"]["state_noise"] = float(
-        parameters.get("state_noise", 0.)
+        parameters.get("state_noise", 0.0)
     )
     config["training"]["hyperparameters"]["use_moisture_limiter"] = bool(
         parameters.get("use_q_limiter", False)
@@ -130,7 +131,6 @@ if __name__ == "__main__":
         outdir = os.path.join(os.path.abspath(args.outdir), experiment_name)
         os.makedirs(outdir, exist_ok=True)
         write_config_dir(config, outdir)
-        # python3 -m fv3fit.keras --timesteps-file $(TRAIN_TIMESTEPS_FILENAME) $(DATA_ROOT)/$(DATA) $(CWD)/$(TRAIN_CONFIG) $(OUTPUT_PATH)/train
         lines = []
         command = [
             "python3",

@@ -1,6 +1,8 @@
 import xarray as xr
+
 try:
     import numba
+
     TypingError = numba.errors.TypingError
 except ModuleNotFoundError:
     TypingError = ImportError

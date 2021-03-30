@@ -23,7 +23,7 @@ class BPTTModel(Predictor):
         train_batch_size: int = 512,
         optimizer="adam",
         use_moisture_limiter: bool = False,
-        state_noise: float = 0.
+        state_noise: float = 0.0,
     ):
         """
         Prognostic variables are air_temperature and specific_humidity.
@@ -209,13 +209,15 @@ class BPTTModel(Predictor):
             pack = self.prognostic_packer.pack_layer()
             dQ1, dQ2 = unpack(tendency)
             _, Q2 = unpack(state)
+
             def limit(args):
                 delta_q, q = args
-                min_delta_q = - q
+                min_delta_q = tf.where(q > 0, -q, 0.0)
                 return tf.where(delta_q > min_delta_q, delta_q, min_delta_q)
+
             dQ2 = tf.keras.layers.Lambda(limit)([dQ2, Q2])
             return pack([dQ1, dQ2])
-    
+
         def get_predicted_tendency(x, state):
             for layer in dense_layers:
                 x = layer(x)
@@ -238,7 +240,7 @@ class BPTTModel(Predictor):
         state = state_input
         for i in range(n_window):
             norm_state = self.prognostic_scaler.normalize(state)
-            if self.state_noise > 0.:
+            if self.state_noise > 0.0:
                 norm_state = tf.keras.layers.GaussianNoise(self.state_noise)(norm_state)
             x = prepend_forcings(norm_state, i)
             predicted_tendency = get_predicted_tendency(x, state)
@@ -271,8 +273,9 @@ class BPTTModel(Predictor):
         state_layers, state_input = get_vector(
             self.prognostic_packer, self.prognostic_scaler, series=False
         )
+        denormalized_state = self.prognostic_packer.pack_layer()(state_layers)
         x = tf.keras.layers.concatenate([forcing_input, state_input])
-        predicted_tendency = get_predicted_tendency(x, state_input)
+        predicted_tendency = get_predicted_tendency(x, denormalized_state)
 
         tendency_outputs = self.prognostic_packer.unpack_layer(feature_dim=1)(
             predicted_tendency
@@ -326,13 +329,16 @@ class BPTTModel(Predictor):
 
         Useful for getting validation loss.
         """
-        output = self.train_keras_model.predict(self.get_keras_inputs(X))
-        target = self.get_target_state(X)
-        loss = sum(
-            np.mean(f(truth, pred))
-            for f, truth, pred in zip(self.losses, target, output)
-        )
-        return loss
+        if self.train_keras_model is None:
+            raise RuntimeError("must build model before loss can be calculated")
+        else:
+            output = self.train_keras_model.predict(self.get_keras_inputs(X))
+            target = self.get_target_state(X)
+            loss = sum(
+                np.mean(f(truth, pred))
+                for f, truth, pred in zip(self.losses, target, output)
+            )
+            return loss
 
     def get_keras_inputs(self, X) -> Sequence[np.ndarray]:
         """

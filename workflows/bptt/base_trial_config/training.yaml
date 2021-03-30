@@ -19,7 +19,7 @@ input_variables:
   - surface_geopotential
   - cos_zenith_angle
   - lat
-decrease_learning_rate_epoch: 40
+decrease_learning_rate_epoch: 50
 decreased_learning_rate: 0.0001
-total_epochs: 42
-random_seed: 2
+total_epochs: 52
+random_seed: 0
