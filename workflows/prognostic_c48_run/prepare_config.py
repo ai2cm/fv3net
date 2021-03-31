@@ -148,7 +148,7 @@ def _default_diagnostics(
 ) -> List[DiagnosticFileConfig]:
     diagnostic_files: List[DiagnosticFileConfig] = []
 
-    if scikit_learn:
+    if scikit_learn is not None:
         diagnostic_files.append(default_diagnostics.ml_diagnostics)
     elif nudging or nudge_to_obs:
         diagnostic_files.append(default_diagnostics.state_after_timestep)
