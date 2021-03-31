@@ -519,13 +519,13 @@ class AllKerasModel(Predictor):
                     "dQ1": xr.DataArray(
                         dQ1,
                         dims=X["air_temperature"].dims,
-                        coords={name: X.coords[name] for name in metadata.dims},
+                        coords=X["air_temperature"].coords,
                         attrs={"units": X["air_temperature"].units + " / s"},
                     ),
                     "dQ2": xr.DataArray(
                         dQ2,
                         dims=X["specific_humidity"].dims,
-                        coords={name: X.coords[name] for name in metadata.dims},
+                        coords=X["specific_humidity"].coords,
                         attrs={"units": X["specific_humidity"].units + " / s"},
                     ),
                 }
