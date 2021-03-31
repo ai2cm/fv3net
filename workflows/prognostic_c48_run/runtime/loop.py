@@ -200,7 +200,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._prephysics_only_diagnostic_ml: bool = getattr(
             getattr(config, "prephysics"), "diagnostic_ml", False
         )
-        self._postphysics_only_diagnostic_ml: bool = config.scikit_learn.diagnostic_ml
+        self._postphysics_only_diagnostic_ml: bool = getattr(
+            getattr(config, "scikit_learn"), "diagnostic_ml", False
+        )
         self._tendencies: Tendencies = {}
         self._state_updates: State = {}
 
@@ -243,7 +245,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         return stepper
 
     def _get_postphysics_stepper(self, config: UserConfig) -> Optional[Stepper]:
-        if config.scikit_learn.model:
+        if config.scikit_learn:
             self._log_info("Using MLStepper for postphysics updates")
             model = self._open_model(config.scikit_learn, "_postphysics")
             stepper: Optional[Stepper] = PureMLStepper(model, self._timestep)

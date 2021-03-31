@@ -107,7 +107,19 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
 
     user_config = dacite.from_dict(UserConfig, config_dict)
 
-    # insert defaults and command line option overrides
+    # insert command line option overrides
+    if user_config.scikit_learn is None:
+        if args.model_url:
+            user_config.scikit_learn = MachineLearningConfig(
+                model=list(args.model_url), diagnostic_ml=args.diagnostic_ml
+            )
+    else:
+        if args.model_url:
+            user_config.scikit_learn.model = list(args.model_url)
+        if args.diagnostic_ml:
+            user_config.scikit_learn.diagnostic_ml = args.diagnostic_ml
+
+    # insert custom default diagnostics
     if len(user_config.diagnostics) == 0:
         user_config.diagnostics = _default_diagnostics(
             user_config.nudging,
@@ -115,19 +127,12 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
             nudge_to_observations,
             args.output_frequency,
         )
-
     if len(user_config.fortran_diagnostics) == 0:
         user_config.fortran_diagnostics = _default_fortran_diagnostics(
             nudge_to_observations
         )
 
-    if args.model_url:
-        user_config.scikit_learn.model = list(args.model_url)
-
-    if args.diagnostic_ml:
-        user_config.scikit_learn.diagnostic_ml = args.diagnostic_ml
-
-    if user_config.nudging and len(user_config.scikit_learn.model):
+    if user_config.nudging and user_config.scikit_learn:
         raise NotImplementedError(
             "Nudging and machine learning cannot currently be run at the same time."
         )
@@ -137,13 +142,13 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
 
 def _default_diagnostics(
     nudging: Optional[NudgingConfig],
-    scikit_learn: MachineLearningConfig,
+    scikit_learn: Optional[MachineLearningConfig],
     nudge_to_obs: bool,
     frequency_minutes: int,
 ) -> List[DiagnosticFileConfig]:
     diagnostic_files: List[DiagnosticFileConfig] = []
 
-    if scikit_learn.model:
+    if scikit_learn:
         diagnostic_files.append(default_diagnostics.ml_diagnostics)
     elif nudging or nudge_to_obs:
         diagnostic_files.append(default_diagnostics.state_after_timestep)
