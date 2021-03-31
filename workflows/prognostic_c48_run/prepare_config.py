@@ -4,7 +4,7 @@ import yaml
 import logging
 import sys
 from datetime import datetime, timedelta
-from typing import List, Mapping, Optional, Sequence, Union
+from typing import List, Mapping, Optional, Sequence
 
 import dacite
 
@@ -21,7 +21,6 @@ from runtime.diagnostics.fortran import file_configs_to_namelist_settings
 from runtime.steppers.nudging import NudgingConfig
 from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
-from runtime.steppers.prescriber import PrescriberConfig
 
 
 logger = logging.getLogger(__name__)
