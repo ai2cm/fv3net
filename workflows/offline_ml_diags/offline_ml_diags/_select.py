@@ -23,10 +23,12 @@ def plot_transect(
     xaxis: str = "lat",
     yaxis: str = "pressure",
     column_dim: str = "derivation",
+    dataset_dim: str = "dataset",
     figsize: Tuple[int, int] = (10, 4),
 ):
+    row_dim = dataset_dim if dataset_dim in data.dims else None
     facetgrid = data.plot(
-        y=yaxis, x=xaxis, yincrease=False, col=column_dim, figsize=figsize, robust=True
+        y=yaxis, x=xaxis, yincrease=False, col=column_dim, row=row_dim, figsize=figsize, robust=True
     )
     facetgrid.set_ylabels("Pressure [Pa]")
     facetgrid.set_xlabels("Latitude [deg]")
