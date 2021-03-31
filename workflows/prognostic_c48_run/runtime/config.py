@@ -38,11 +38,9 @@ class UserConfig:
             diagnostics.
     """
 
-    diagnostics: List[DiagnosticFileConfig] = dataclasses.field(
-        default_factory=lambda: []
-    )
+    diagnostics: List[DiagnosticFileConfig] = dataclasses.field(default_factory=list)
     fortran_diagnostics: List[FortranFileConfig] = dataclasses.field(
-        default_factory=lambda: []
+        default_factory=list
     )
     prephysics: Optional[Union[PrescriberConfig, MachineLearningConfig]] = None
     scikit_learn: MachineLearningConfig = MachineLearningConfig()
