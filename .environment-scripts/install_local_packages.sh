@@ -6,7 +6,7 @@ source activate $CONDA_ENV
 
 # we want to force a rebuild in case numpy version changes
 # this doesn't rebuild automatically when dependencies change version
-rm -f external/vcm/vcm/mappm.*.so
+rm -f "external/vcm/vcm/mappm.*.so"
 rm -rf external/vcm/build
 
 local_packages_to_install=( 
