@@ -107,6 +107,26 @@ def test_predict_model_gives_tendency_of_train_model(
     np.testing.assert_allclose(dQ2[:, 0, :], Q2_train_tendency, atol=1e-6)
 
 
+def test_predict_model_can_predict_columnwise(train_dataset, sample_dim_name, dt):
+    np.random.seed(0)
+    tf.random.set_seed(1)
+    model = BPTTModel(
+        sample_dim_name,
+        ["a", "b"],
+        n_units=32,
+        n_hidden_layers=4,
+        kernel_regularizer=None,
+        train_batch_size=48,
+        optimizer="adam",
+    )
+    model.build_for(train_dataset)
+
+    assert sample_dim_name != "different_sample_dim_name"
+    test_dataset = train_dataset.rename({sample_dim_name: "different_sample_dim_name"})
+
+    model.predictor_model.predict_columnwise(test_dataset.isel(time=0), feature_dim="z")
+
+
 def test_train_model_uses_correct_given_tendency(train_dataset, sample_dim_name, dt):
     np.random.seed(0)
     tf.random.set_seed(1)
