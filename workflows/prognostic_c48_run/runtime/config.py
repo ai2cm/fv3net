@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 import dataclasses
 import yaml
 import f90nml
@@ -12,6 +12,7 @@ from runtime.diagnostics.manager import (
 )
 from runtime.steppers.nudging import NudgingConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
+from runtime.steppers.prescriber import PrescriberConfig
 
 FV3CONFIG_FILENAME = "fv3config.yml"
 
@@ -25,7 +26,8 @@ class UserConfig:
         fortran_diagnostics: list of Fortran diagnostic outputs. Currently only used by
             post-processing and so only name and chunks items need to be specified.
         prephysics: optional configuration of computations prior to physics,
-            specified by a machine learning configuation
+            specified by either a machine learning configuation or a prescriber
+            configuration
         scikit_learn: a machine learning configuration
         nudging: nudge2fine configuration. Cannot be used if any scikit_learn model
             urls are specified.
@@ -42,7 +44,7 @@ class UserConfig:
     fortran_diagnostics: List[FortranFileConfig] = dataclasses.field(
         default_factory=lambda: []
     )
-    prephysics: Optional[MachineLearningConfig] = None
+    prephysics: Optional[Union[PrescriberConfig, MachineLearningConfig]] = None
     scikit_learn: MachineLearningConfig = MachineLearningConfig()
     nudging: Optional[NudgingConfig] = None
     step_tendency_variables: List[str] = dataclasses.field(
