@@ -204,7 +204,7 @@ class PureMLStepper:
 
         state_updates = {}
 
-        if diagnostic_ml:
+        if self.diagnostic_ml:
             rename_diagnostics(diagnostics)
             tendency = {}
 
