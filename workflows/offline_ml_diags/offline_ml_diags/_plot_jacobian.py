@@ -16,7 +16,7 @@ def _separate_dimensions(jacobian_dict, dims):
     for (input, output) in jacobian_dict.data_vars:
         if jacobian_dict.sizes[input] == 1 or jacobian_dict.sizes[output] == 1:
             pairs_2d.append((input, output))
-        else:
+        elif jacobian_dict.sizes[input] > 1 and jacobian_dict.sizes[output] > 1:
             pairs_3d.append((input, output))
     return pairs_2d, pairs_3d
 
@@ -52,7 +52,7 @@ def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
         plt.tight_layout()
         with fsspec.open(os.path.join(output_dir, MATRIX_NAME), "wb") as f:
             fig.savefig(f)
-            
+
     if len(pairs_2d) > 0:
         fig, axs = plt.subplots(
             len(inputs_2d), len(outputs_2d), figsize=(12, 12), squeeze=False
