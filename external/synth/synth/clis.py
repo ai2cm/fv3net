@@ -2,7 +2,7 @@ import argparse
 from . import core
 
 
-def read_schema():
+def save_schema():
     parser = argparse.ArgumentParser(
         description="Save schema for a directory of zarrs to another directory"
     )

@@ -14,7 +14,7 @@ setup(
     package_data={
         "synth": ["_dataset_fixtures/*.json", "_dataset_fixtures/nudge_to_fine/*.json"]
     },
-    entry_points={"console_scripts": ["synth-read-schema=synth.clis:read_schema"]},
+    entry_points={"console_scripts": ["synth-save-schema=synth.clis:save_schema"]},
     install_requires=[
         "dask==2.*,>=2.15.0",
         "fsspec==0.*,>=0.7.3",
