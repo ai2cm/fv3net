@@ -18,7 +18,7 @@ from ._helpers import (
     open_diagnostics_outputs,
     copy_outputs,
     tidy_title,
-    units_from_Q_name,
+    units_from_name,
     column_integrated_metric_names,
     insert_dataset_r2,
     insert_scalar_metrics_r2,
@@ -233,7 +233,7 @@ if __name__ == "__main__":
         values = {
             "r2": get_metric_string(metrics, "r2", var),
             "bias": " ".join(
-                [get_metric_string(metrics, "bias", var), units_from_Q_name(var)]
+                [get_metric_string(metrics, "bias", var), units_from_name(var)]
             ),
         }
         metrics_formatted.append((var.replace("_", " "), values))
