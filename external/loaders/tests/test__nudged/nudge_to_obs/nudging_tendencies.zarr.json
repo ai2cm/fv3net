@@ -8,12 +8,12 @@
                     "time"
                 ],
                 "value": [
-                    97,
-                    430
+                    0,
+                    15
                 ],
                 "attrs": {
                     "calendar": "julian",
-                    "units": "minutes since 2016-08-01 00:30:00.000000"
+                    "units": "minutes since 2016-08-01 00:15:00.000000"
                 }
             }
         },

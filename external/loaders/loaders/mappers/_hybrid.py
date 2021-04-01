@@ -2,7 +2,7 @@ from typing import Mapping, List
 import xarray as xr
 
 from ._base import GeoMapper
-from ._nudged import open_merged_nudged_full_tendencies
+from ._nudged import open_nudge_to_fine
 from ._fine_resolution_budget import (
     FineResolutionSources,
     open_fine_res_apparent_sources,
@@ -76,7 +76,7 @@ def _open_fine_resolution_nudging_hybrid(
                 "fine res kwargs."
             )
 
-    nudged = open_merged_nudged_full_tendencies(**nudging)
+    nudged = open_nudge_to_fine(**nudging)
     fine_res = open_fine_res_apparent_sources(offset_seconds=offset_seconds, **fine_res)
     return mapper(nudged, fine_res, **kwargs)
 
