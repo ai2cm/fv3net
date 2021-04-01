@@ -1,7 +1,22 @@
 {
     "version": "v3",
     "schema": {
-        "coords": {},
+        "coords": {
+            "time": {
+                "name": "time",
+                "dims": [
+                    "time"
+                ],
+                "value": [
+                    0,
+                    15
+                ],
+                "attrs": {
+                    "calendar": "proleptic_gregorian",
+                    "units": "minutes since 2016-08-01 00:15:00"
+                }
+            }
+        },
         "variables": {
             "air_temperature": {
                 "name": "air_temperature",
@@ -23,7 +38,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         19,
                         8,
                         8
@@ -31,198 +46,6 @@
                 },
                 "attrs": {
                     "units": "degK"
-                }
-            },
-            "clear_sky_downward_longwave_flux_at_surface": {
-                "name": "clear_sky_downward_longwave_flux_at_surface",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "W/m^2"
-                }
-            },
-            "clear_sky_downward_shortwave_flux_at_surface": {
-                "name": "clear_sky_downward_shortwave_flux_at_surface",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "W/m^2"
-                }
-            },
-            "clear_sky_upward_longwave_flux_at_surface": {
-                "name": "clear_sky_upward_longwave_flux_at_surface",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "W/m^2"
-                }
-            },
-            "clear_sky_upward_longwave_flux_at_top_of_atmosphere": {
-                "name": "clear_sky_upward_longwave_flux_at_top_of_atmosphere",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "W/m^2"
-                }
-            },
-            "clear_sky_upward_shortwave_flux_at_surface": {
-                "name": "clear_sky_upward_shortwave_flux_at_surface",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "W/m^2"
-                }
-            },
-            "clear_sky_upward_shortwave_flux_at_top_of_atmosphere": {
-                "name": "clear_sky_upward_shortwave_flux_at_top_of_atmosphere",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "W/m^2"
-                }
-            },
-            "eastward_wind": {
-                "name": "eastward_wind",
-                "dims": [
-                    "time",
-                    "tile",
-                    "z",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        19,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        19,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "m/s"
                 }
             },
             "land_sea_mask": {
@@ -243,7 +66,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         8,
                         8
                     ]
@@ -270,97 +93,13 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "W/m**2"
-                }
-            },
-            "latitude": {
-                "name": "latitude",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
                         1,
-                        6,
                         8,
                         8
                     ]
                 },
                 "attrs": {
-                    "units": "radians"
-                }
-            },
-            "longitude": {
-                "name": "longitude",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "radians"
-                }
-            },
-            "northward_wind": {
-                "name": "northward_wind",
-                "dims": [
-                    "time",
-                    "tile",
-                    "z",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        19,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        19,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "m/s"
+                    "units": "W/m^2"
                 }
             },
             "pressure_thickness_of_atmospheric_layer": {
@@ -383,7 +122,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         19,
                         8,
                         8
@@ -411,7 +150,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         8,
                         8
                     ]
@@ -440,7 +179,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         19,
                         8,
                         8
@@ -468,7 +207,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         8,
                         8
                     ]
@@ -495,7 +234,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         8,
                         8
                     ]
@@ -522,32 +261,13 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         8,
                         8
                     ]
                 },
                 "attrs": {
                     "units": "degK"
-                }
-            },
-            "time": {
-                "name": "time",
-                "dims": [
-                    "time"
-                ],
-                "array": {
-                    "shape": [
-                        2
-                    ],
-                    "dtype": "<i8",
-                    "chunks": [
-                        2
-                    ]
-                },
-                "attrs": {
-                    "calendar": "julian",
-                    "units": "minutes since 2016-08-01 00:30:00.000000"
                 }
             },
             "total_precipitation": {
@@ -568,7 +288,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         8,
                         8
                     ]
@@ -595,7 +315,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         8,
                         8
                     ]
@@ -622,7 +342,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         8,
                         8
                     ]
@@ -649,7 +369,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         8,
                         8
                     ]
@@ -676,7 +396,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         8,
                         8
                     ]
@@ -703,7 +423,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         8,
                         8
                     ]
@@ -730,7 +450,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         8,
                         8
                     ]
@@ -757,7 +477,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         8,
                         8
                     ]
@@ -786,7 +506,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         19,
                         8,
                         8
@@ -816,7 +536,7 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         19,
                         8,
                         8
@@ -846,9 +566,9 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         19,
-                        9,
+                        8,
                         8
                     ]
                 },
@@ -876,10 +596,10 @@
                     "dtype": "<f8",
                     "chunks": [
                         1,
-                        6,
+                        1,
                         19,
                         8,
-                        9
+                        8
                     ]
                 },
                 "attrs": {
