@@ -4,34 +4,31 @@ import random
 import concurrent.futures
 
 
-class Preloaded(collections.abc.Iterator):
+class OneAheadIterator(collections.abc.Iterator):
     """
-    Iterator for data which asynchronously pre-loads the next set of output.
+    Iterator which asynchronously pre-computes the next output in a thread.
     """
 
     def __init__(
         self,
-        filenames: Sequence[str],
-        loader_function: Callable[[str], Any],
-        shuffle: bool = True,
+        args: Sequence[str],
+        loader_function: Callable[[Any], Any],
     ):
         """
         Args:
-            filenames: sequence to be passed to loader function
-            shuffle: if True, return items in random order
+            args: sequence to be passed to loader function
+            function: single-argument function to receive arguments
         """
         self.loader_function = loader_function
-        self._filenames = list(filenames)
-        self._shuffle = shuffle
-        self._maybe_shuffle()
+        self._args = args
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         self._idx = 0
         self._load_thread = None
 
     def _start_load(self):
-        if self._idx < len(self._filenames):
+        if self._idx < len(self._args):
             self._load_thread = self._executor.submit(
-                self.loader_function, self._filenames[self._idx],
+                self.loader_function, self._args[self._idx],
             )
 
     def __next__(self):
@@ -45,17 +42,15 @@ class Preloaded(collections.abc.Iterator):
                 self._start_load()
             return arrays
 
-    def _maybe_shuffle(self):
-        if self._shuffle:
-            # new shuffled order each time we iterate
-            random.shuffle(self._filenames)
-
-    def __iter__(self) -> "Preloaded":
+    def __iter__(self) -> "OneAheadIterator":
         self._idx = 0
-        self._maybe_shuffle()
         if self._load_thread is None:
             self._start_load()
         return self
 
     def __len__(self):
-        return len(self._filenames)
+        return len(self._args)
+
+    def __del__(self):
+        self._executor.shutdown(wait=True)
+        super().__del__()
