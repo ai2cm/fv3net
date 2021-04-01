@@ -3,6 +3,7 @@ import os
 import xarray as xr
 import synth
 from loaders.mappers._nudged._nudged import open_nudge_to_fine, open_nudge_to_obs
+from loaders.mappers import open_fine_resolution_nudging_hybrid
 
 
 def save_data_dir(datadir_module, outpath, nudge_schema_path):
@@ -215,3 +216,40 @@ def test_open_nudge_to_obs_subtract_nudging_tendency(
         ).isel(time=0)
         key = sorted(list(mapper.keys()))[0]
         xr.testing.assert_allclose(mapper[key][physics_tendency_name], physics_tendency)
+
+
+timestep1 = "20160801.000730"
+timestep1_end = "20160801.001500"
+timestep2 = "20160801.002230"
+times_centered_str = [timestep1, timestep2]
+
+
+@pytest.fixture
+def fine_url(tmpdir):
+    fine_url = str(tmpdir.mkdir("fine_res"))
+    synth.generate_fine_res(fine_url, times_centered_str)
+    return fine_url
+
+
+@pytest.mark.parametrize("kind", ["data_paths", "dicts"])
+def test_open_fine_resolution_nudging_hybrid(nudge_to_fine_data_dir, fine_url, kind):
+    def _get_kwargs(kind):
+        if kind == "data_paths":
+            return dict(
+                data_paths=None,
+                nudging={
+                    "url": nudge_to_fine_data_dir,
+                    "nudging_variables": NUDGE_TO_FINE_VARIABLES,
+                },
+                fine_res={"fine_res_url": fine_url},
+            )
+        else:
+            return dict(
+                data_paths=[nudge_to_fine_data_dir, fine_url],
+                nudging=dict(nudging_variables=NUDGE_TO_FINE_VARIABLES),
+                fine_res={},
+            )
+
+    kwargs = _get_kwargs(kind)
+    data = open_fine_resolution_nudging_hybrid(**kwargs)
+    data[timestep1_end]
