@@ -11,22 +11,29 @@ MATRIX_NAME = "jacobian_matrices.png"
 LINE_NAME = "jacobian_lines.png"
 
 
+def _separate_dimensions(jacobian_dict, dims):
+    pairs_2d, pairs_3d = [], []
+    for (input, output) in jacobian_dict.data_vars:
+        if jacobian_dict.sizes[input] == 1 or jacobian_dict.sizes[output] == 1:
+            pairs_2d.append((input, output))
+        else:
+            pairs_3d.append((input, output))
+    return pairs_2d, pairs_3d
+
+
 def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
     jacobian_dict = model.jacobian()
 
-    data_vars: Tuple[str, str] = jacobian_dict.data_vars  # type: ignore
+    pairs_2d, pairs_3d = _separate_dimensions(jacobian_dict, 2)
+    inputs_2d, outputs_2d = {in_name for in_name, out_name in pairs_2d}, {out_name for in_name, out_name in pairs_2d}
+    inputs_3d, outputs_3d = {in_name for in_name, out_name in pairs_3d}, {out_name for in_name, out_name in pairs_3d}
 
-    inputs = {in_name for in_name, out_name in data_vars}
-    outputs = {out_name for in_name, out_name in data_vars}
-    variables_3d = [var_ for var_ in inputs if jacobian_dict.sizes[var_] > 1]
-    variables_2d = [var_ for var_ in inputs if jacobian_dict.sizes[var_] == 1]
-
-    if len(variables_3d) > 0:
+    if len(pairs_3d) > 0:
         fig, axs = plt.subplots(
-            len(variables_3d), len(outputs), figsize=(12, 12), squeeze=False
+            len(pairs_3d), len(outputs_3d), figsize=(12, 12), squeeze=False
         )
-        for i, in_name in enumerate(variables_3d):
-            for j, out_name in enumerate(outputs):
+        for i, in_name in enumerate(inputs_3d):
+            for j, out_name in enumerate(outputs_3d):
                 logging.debug(f"{in_name}_{out_name}")
                 pane = jacobian_dict[(in_name, out_name)]
                 im = pane.rename(f"{out_name}_from_{in_name}").plot.imshow(
@@ -45,12 +52,13 @@ def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
         plt.tight_layout()
         with fsspec.open(os.path.join(output_dir, MATRIX_NAME), "wb") as f:
             fig.savefig(f)
-    if len(variables_2d) > 0:
+            
+    if len(pairs_2d) > 0:
         fig, axs = plt.subplots(
-            len(variables_2d), len(outputs), figsize=(12, 12), squeeze=False
+            len(inputs_2d), len(outputs_2d), figsize=(12, 12), squeeze=False
         )
-        for i, in_name in enumerate(variables_2d):
-            for j, out_name in enumerate(outputs):
+        for i, in_name in enumerate(inputs_2d):
+            for j, out_name in enumerate(outputs_2d):
                 pane = np.asarray(jacobian_dict[(in_name, out_name)])
                 axs[i, j].plot(pane.ravel(), np.arange(pane.size))
                 axs[i, j].set_xlabel(out_name)
@@ -59,3 +67,4 @@ def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
         plt.tight_layout()
         with fsspec.open(os.path.join(output_dir, LINE_NAME), "wb") as f:
             fig.savefig(f)
+    
