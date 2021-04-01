@@ -320,12 +320,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         diagnostics.update(
             self.stepper.get_momentum_diagnostics(self._state, self._tendencies)
         )
-        updated_state[TOTAL_PRECIP] = precipitation_sum(
-            self._state[TOTAL_PRECIP],
-            diagnostics[self.stepper.net_moistening],
-            self._timestep,
-        )
-        diagnostics[TOTAL_PRECIP] = updated_state[TOTAL_PRECIP]
 
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
         diagnostics.update({
