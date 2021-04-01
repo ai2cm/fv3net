@@ -12,7 +12,7 @@ def load_schema(name: str) -> DatasetSchema:
         return load(f)
 
 
-def load_schema_directory(name: str) -> DatasetSchema:
+def load_directory_schema_from_library(name: str) -> DatasetSchema:
     """Load a schema by name from the current library"""
     path = os.path.join(CURRENT_DIR, "_dataset_fixtures", name)
     return load_directory_schema(path)
