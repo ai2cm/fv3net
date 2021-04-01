@@ -6,11 +6,6 @@ from loaders.mappers._fine_resolution_budget import (
     FineResolutionSources,
 )
 from loaders.mappers._transformations import SubsetTimes
-from loaders.mappers._nudged._legacy import (
-    MergeNudged,
-    NudgedStateCheckpoints,
-    NudgedFullTendencies,
-)
 from loaders.mappers._merged import MergeOverlappingData
 from loaders._utils import get_sample_dataset
 from vcm import cast_to_datetime
@@ -23,10 +18,7 @@ geo_mapper_subclasses = [
     FineResolutionBudgetTiles,
     GroupByTime,
     FineResolutionSources,
-    MergeNudged,
-    NudgedStateCheckpoints,
     SubsetTimes,
-    NudgedFullTendencies,
     MergeOverlappingData,
 ]
 
@@ -45,7 +37,7 @@ def test_GeoMapper_subclass(geo_mapper_subclass):
     assert callable(getattr(geo_mapper_subclass, "keys", None))
 
 
-long_run_mapper_subclasses = [LongRunMapper, MergeNudged]
+long_run_mapper_subclasses = [LongRunMapper]
 
 
 @pytest.fixture(params=long_run_mapper_subclasses)
