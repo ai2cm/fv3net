@@ -191,18 +191,24 @@ def read_directory_schema(rundir: str) -> Mapping[str, DatasetSchema]:
     }
 
 
+def _write_dataset(ds: xr.Dataset, outpath):
+    _, ext = os.path.splitext(outpath)
+    if ext == '.zarr':
+        ds.to_zarr(outpath, consolidated=True)
+    elif ext =='.nc':
+        ds.to_netcdf(outpath, engine='h5netcdf')
+    else:
+        raise NotImplementedError("Extension {ext} is not supported.")
+
+
 def write_directory_schema(
     directory: str, schema: Mapping[str, DatasetSchema], ranges
 ):
     for relpath, schema in schema.items():
+
+        ds = generate(schema, ranges)
         outpath = os.path.join(directory, relpath)
-        (
-            generate(schema, ranges)
-            .to_zarr(outpath, consolidated=True)
-        )
-
-
-
+        _write_dataset(ds, outpath)
 
 
 def dump_directory_schema_to_disk(zarrs: Mapping[str, DatasetSchema], path: str):
