@@ -198,7 +198,7 @@ def _write_dataset(ds: xr.Dataset, outpath):
     elif ext == ".nc":
         ds.to_netcdf(outpath, engine="h5netcdf")
     else:
-        raise NotImplementedError("Extension {ext} is not supported.")
+        raise NotImplementedError(f"Extension {ext} is not supported.")
 
 
 def write_directory_schema(
