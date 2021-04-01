@@ -204,15 +204,16 @@ def _compute_diagnostics(
     diagnostic_vars = list(
         set(list(predicted_vars) + ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"])
     )
+    #diagnostic_vars = ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"]
     metric_vars = copy(predicted_vars)
     if "dQ1" in predicted_vars and "dQ2" in predicted_vars:
         metric_vars += ["Q1", "Q2"]
 
     # for each batch...
     for i, ds in enumerate(batches):
-
         logger.info(f"Processing batch {i+1}/{len(batches)}")
         ds = _fill_empty_dQ1_dQ2(ds, predicted_vars)
+
         # ...insert additional variables
         ds = (
             ds.pipe(utils.insert_total_apparent_sources)
@@ -222,8 +223,8 @@ def _compute_diagnostics(
         )
         ds.update(grid)
 
-        ds_summary = _compute_summary(ds, diagnostic_vars)
-
+        diagnostic_vars_3d = [var for var in diagnostic_vars if "z" in ds[var].dims]
+        ds_summary = _compute_summary(ds, diagnostic_vars_3d)
         if DATASET_DIM_NAME in ds.dims:
             sample_dims = ("time", DATASET_DIM_NAME)
         else:
@@ -420,7 +421,8 @@ def main(args):
     snapshot_time = args.snapshot_time or sorted(timesteps)[0]
     snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
     ds_snapshot = pred_mapper[snapshot_key]
-    ds_transect = _get_transect(ds_snapshot, grid, config.output_variables)
+    transect_vertical_vars = [var for var in config.output_variables if "z" in ds_snapshot[var].dims]
+    ds_transect = _get_transect(ds_snapshot, grid, transect_vertical_vars)
 
     # write diags and diurnal datasets
     _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
