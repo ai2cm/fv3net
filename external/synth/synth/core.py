@@ -110,6 +110,9 @@ class DatasetSchema:
     variables: Mapping[str, VariableSchema]
 
 
+DirectorySchema = Mapping[str, DatasetSchema]
+
+
 @singledispatch
 def generate(_):
     pass
@@ -167,7 +170,7 @@ def read_schema_from_zarr(
     return DatasetSchema(coord_schemes, variables)
 
 
-def read_directory_schema(rundir: str) -> Mapping[str, DatasetSchema]:
+def read_directory_schema(rundir: str) -> DirectorySchema:
     """Read schema from a directory
 
     Does not support recursive directories or files other than zarr
@@ -203,7 +206,7 @@ def _write_dataset(ds: xr.Dataset, outpath):
 
 def write_directory_schema(
     directory: str,
-    schema: Mapping[str, DatasetSchema],
+    schema: DirectorySchema,
     ranges: Optional[Mapping[str, Range]] = None,
 ):
     """Write a directory schema to a path
@@ -224,7 +227,7 @@ def write_directory_schema(
         _write_dataset(ds, outpath)
 
 
-def dump_directory_schema_to_disk(zarrs: Mapping[str, DatasetSchema], path: str):
+def dump_directory_schema_to_disk(zarrs: DirectorySchema, path: str):
     """Dumps the schema for a mapping from strings to DatasetSchema to a
     directory
 
@@ -250,7 +253,7 @@ def dump_directory_schema_to_disk(zarrs: Mapping[str, DatasetSchema], path: str)
         mapper[rel_path + ".json"] = dumps(schema).encode()
 
 
-def load_directory_schema(path: str) -> DatasetSchema:
+def load_directory_schema(path: str) -> DirectorySchema:
     """Load the schema contained in a local directory"""
     files = os.listdir(path)
 
