@@ -1616,11 +1616,7 @@ nudging:
     y_wind: 12
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
-scikit_learn:
-  diagnostic_ml: false
-  input_standard_names: {}
-  model: []
-  output_standard_names: {}
+scikit_learn: null
 step_storage_variables:
 - specific_humidity
 - total_water

@@ -5,26 +5,19 @@ from loaders.mappers import (
 )
 import pytest
 import synth
-import numpy as np
 
 
 # timestep info
 timestep1 = "20160801.000730"
 timestep1_end = "20160801.001500"
-timestep1_npdatetime_fmt = "2016-08-01T00:15:00"
 timestep2 = "20160801.002230"
-timestep2_npdatetime_fmt = "2016-08-01T00:30:00"
-times_numpy = [
-    np.datetime64(timestep1_npdatetime_fmt),
-    np.datetime64(timestep2_npdatetime_fmt),
-]
 times_centered_str = [timestep1, timestep2]
 
 
 @pytest.fixture
 def nudging_url(tmpdir):
     nudging_url = str(tmpdir.mkdir("nudging"))
-    synth.generate_nudging(nudging_url, times_numpy)
+    synth.generate_nudging(nudging_url)
     return nudging_url
 
 
