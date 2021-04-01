@@ -143,7 +143,7 @@ def _(self: DatasetSchema, ranges: Optional[Mapping[str, Range]] = None):
 # TODO test this function
 def read_schema_from_zarr(
     group: zarr.Group,
-    coords=("forecast_time", "initial_time", "tile", "step", "z", "y", "x"),
+    coords=("forecast_time", "time", "initial_time", "tile", "step", "z", "y", "x"),
 ) -> DatasetSchema:
 
     variables = {}
