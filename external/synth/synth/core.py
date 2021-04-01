@@ -202,7 +202,7 @@ def _write_dataset(ds: xr.Dataset, outpath):
 
 
 def write_directory_schema(
-    directory: str, schema: Mapping[str, DatasetSchema], ranges
+    directory: str, schema: Mapping[str, DatasetSchema], ranges=None
 ):
     for relpath, schema in schema.items():
 

@@ -31,7 +31,7 @@ def nudging_url(tmpdir):
 @pytest.fixture
 def fine_url(tmpdir):
     fine_url = str(tmpdir.mkdir("fine_res"))
-    synth.generate_fine_res(fine_url, ["20160801.0022300", "20160801.0037300"])
+    synth.generate_fine_res(fine_url)
     return fine_url, "20160801.003000"
 
 
