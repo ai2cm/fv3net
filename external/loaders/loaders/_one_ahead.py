@@ -1,6 +1,5 @@
 from typing import Sequence, Callable, Any
 import collections.abc
-import random
 import concurrent.futures
 
 
@@ -10,16 +9,14 @@ class OneAheadIterator(collections.abc.Iterator):
     """
 
     def __init__(
-        self,
-        args: Sequence[str],
-        loader_function: Callable[[Any], Any],
+        self, args: Sequence[str], function: Callable[[Any], Any],
     ):
         """
         Args:
             args: sequence to be passed to loader function
             function: single-argument function to receive arguments
         """
-        self.loader_function = loader_function
+        self.function = function
         self._args = args
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         self._idx = 0
@@ -28,7 +25,7 @@ class OneAheadIterator(collections.abc.Iterator):
     def _start_load(self):
         if self._idx < len(self._args):
             self._load_thread = self._executor.submit(
-                self.loader_function, self._args[self._idx],
+                self.function, self._args[self._idx],
             )
 
     def __next__(self):
@@ -52,5 +49,7 @@ class OneAheadIterator(collections.abc.Iterator):
         return len(self._args)
 
     def __del__(self):
-        self._executor.shutdown(wait=True)
+        # check necessary in case exceptions occur before this is defined
+        if hasattr(self, "_executor"):
+            self._executor.shutdown(wait=True)
         super().__del__()
