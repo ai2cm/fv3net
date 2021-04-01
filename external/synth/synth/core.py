@@ -213,7 +213,9 @@ def write_directory_schema(
         schema: mapping from relative file paths to DatasetSchema.
             items with keys ending in ".zarr"/".nc" will be saved to zarr
             files or netCDF files, respectively.
-    
+        ranges: mapping from variable names to data ranges. If specifed,
+            variables will be generated within ranges satisfying these
+            constraint.
     """
     for relpath, schema in schema.items():
 
