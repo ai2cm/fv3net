@@ -4,6 +4,7 @@ import xarray as xr
 from ._base import GeoMapper
 from ._nudged import (
     open_merged_nudged_full_tendencies,
+    open_nudge_to_fine,
     open_nudged_to_obs_prognostic,
 )
 from ._fine_resolution_budget import (
@@ -126,7 +127,7 @@ def _open_fine_resolution_nudging_hybrid(
         a mapper
     """
     nudging, fine_res = _inject_data_paths(data_paths, nudging, fine_res)
-    nudged = open_merged_nudged_full_tendencies(**nudging)
+    nudged = open_nudge_to_fine(**nudging)
     offset_seconds = fine_res.pop("offset_seconds", 450)
     fine_res = open_fine_res_apparent_sources(offset_seconds=offset_seconds, **fine_res)
     return mapper(nudged, fine_res, **kwargs)

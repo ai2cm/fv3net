@@ -17,7 +17,6 @@ def _generate(
         outpath = os.path.join(directory, relpath)
         (
             generate(schema, ranges)
-            .assign_coords(time=times)
             .to_zarr(outpath, consolidated=True)
         )
 

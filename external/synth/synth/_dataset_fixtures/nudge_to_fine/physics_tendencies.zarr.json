@@ -18,8 +18,8 @@
             }
         },
         "variables": {
-            "air_temperature_tendency_due_to_nudging": {
-                "name": "air_temperature_tendency_due_to_nudging",
+            "tendency_of_air_temperature_due_to_fv3_physics": {
+                "name": "tendency_of_air_temperature_due_to_fv3_physics",
                 "dims": [
                     "time",
                     "tile",
@@ -45,11 +45,11 @@
                     ]
                 },
                 "attrs": {
-                    "units": "degK s^-1"
+                    "units": "unknown"
                 }
             },
-            "pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging": {
-                "name": "pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging",
+            "tendency_of_eastward_wind_due_to_fv3_physics": {
+                "name": "tendency_of_eastward_wind_due_to_fv3_physics",
                 "dims": [
                     "time",
                     "tile",
@@ -75,11 +75,11 @@
                     ]
                 },
                 "attrs": {
-                    "units": "Pa s^-1"
+                    "units": "unknown"
                 }
             },
-            "specific_humidity_tendency_due_to_nudging": {
-                "name": "specific_humidity_tendency_due_to_nudging",
+            "tendency_of_northward_wind_due_to_fv3_physics": {
+                "name": "tendency_of_northward_wind_due_to_fv3_physics",
                 "dims": [
                     "time",
                     "tile",
@@ -105,16 +105,16 @@
                     ]
                 },
                 "attrs": {
-                    "units": "kg/kg s^-1"
+                    "units": "unknown"
                 }
             },
-            "x_wind_tendency_due_to_nudging": {
-                "name": "x_wind_tendency_due_to_nudging",
+            "tendency_of_specific_humidity_due_to_fv3_physics": {
+                "name": "tendency_of_specific_humidity_due_to_fv3_physics",
                 "dims": [
                     "time",
                     "tile",
                     "z",
-                    "y_interface",
+                    "y",
                     "x"
                 ],
                 "array": {
@@ -122,7 +122,7 @@
                         2,
                         6,
                         19,
-                        9,
+                        8,
                         8
                     ],
                     "dtype": "<f8",
@@ -130,42 +130,12 @@
                         1,
                         6,
                         19,
-                        9,
+                        8,
                         8
                     ]
                 },
                 "attrs": {
-                    "units": "m/s s^-1"
-                }
-            },
-            "y_wind_tendency_due_to_nudging": {
-                "name": "y_wind_tendency_due_to_nudging",
-                "dims": [
-                    "time",
-                    "tile",
-                    "z",
-                    "y",
-                    "x_interface"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        19,
-                        8,
-                        9
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        19,
-                        8,
-                        9
-                    ]
-                },
-                "attrs": {
-                    "units": "m/s s^-1"
+                    "units": "unknown"
                 }
             }
         }
