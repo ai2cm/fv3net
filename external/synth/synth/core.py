@@ -168,7 +168,7 @@ def read_schema_from_zarr(
 
 
 def read_directory_schema(rundir: str) -> Mapping[str, DatasetSchema]:
-    """Read schema from a directories
+    """Read schema from a directory
 
     Does not support recursive directories or files other than zarr
 
