@@ -13,6 +13,7 @@ from synth import (
     read_schema_from_zarr,
     read_directory_schema,
     dump_directory_schema_to_disk,
+    write_directory_schema,
     Array,
     ChunkedArray,
     CoordinateSchema,
@@ -288,9 +289,20 @@ def test_directory_schema_integrations(tmpdir):
     schema_dir = tmpdir.join("schema")
     dump_directory_schema_to_disk(schema, str(schema_dir))
 
-    # now try loading the schema
     loaded = load_directory_schema(str(schema_dir))
     assert loaded == schema
+
+
+def test_directory_schema_read_write_read_roundtriped(tmpdir):
+    ds = xr.DataArray(name="zaxis_1", dims=["zaxis_1"], data=[1.0]).to_dataset(name="a")
+    ds.to_zarr(str(tmpdir.join("a.zarr")))
+
+    generated_data_path = str(tmpdir.join("generated"))
+
+    schema = read_directory_schema(str(tmpdir))
+    write_directory_schema(generated_data_path, schema)
+    read2 = read_directory_schema(generated_data_path)
+    assert read2 == schema
 
 
 def test_dump_directory_schema(tmpdir):
