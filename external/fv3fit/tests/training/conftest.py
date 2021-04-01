@@ -29,13 +29,7 @@ def output_variables() -> Iterable[str]:
     return ["dQ1", "dQ2"]
 
 
-@pytest.fixture()
-def batch_function(model_type: str) -> str:
-    return "batches_from_geodata"
-
-
-@pytest.fixture()
-def batch_kwargs(data_source_name: str) -> dict:  # noqa: F811
+def get_batch_kwargs(data_source_name: str) -> dict:  # noqa: F811
     if data_source_name == "nudging_tendencies":
         return {
             "needs_grid": False,
@@ -75,8 +69,7 @@ def train_config(
     hyperparameters: dict,
     input_variables: Iterable[str],
     output_variables: Iterable[str],
-    batch_function: str,
-    batch_kwargs: dict,
+    data_source_name,
     validation_timesteps: Optional[Sequence[str]],
 ) -> ModelTrainingConfig:
     return ModelTrainingConfig(
@@ -85,8 +78,8 @@ def train_config(
         hyperparameters=hyperparameters,
         input_variables=input_variables,
         output_variables=output_variables,
-        batch_function=batch_function,
-        batch_kwargs=batch_kwargs,
+        batch_function="batches_from_geodata",
+        batch_kwargs=get_batch_kwargs(data_source_name),
         scaler_type="standard",
         scaler_kwargs={},
         additional_variables=None,
@@ -97,37 +90,15 @@ def train_config(
 
 @pytest.fixture
 def train_config_filename(
-    model_type: str,
-    hyperparameters: dict,
-    input_variables: Iterable[str],
-    output_variables: Iterable[str],
-    batch_function: str,
-    batch_kwargs: dict,
-    validation_timesteps: Optional[Sequence[str]],
+    train_config
 ) -> str:
     with tempfile.NamedTemporaryFile(mode="w") as f:
-        yaml.dump(
-            {
-                "model_type": model_type,
-                "hyperparameters": hyperparameters,
-                "input_variables": input_variables,
-                "output_variables": output_variables,
-                "batch_function": batch_function,
-                "batch_kwargs": batch_kwargs,
-                "scaler_type": "standard",
-                "scaler_kwargs": {},
-                "additional_variables": None,
-                "random_seed": 0,
-                "validation_timesteps": validation_timesteps,
-            },
-            f,
-        )
+        yaml.dump(train_config.asdict(), f)
         yield f.name
 
 
 @pytest.fixture
 def training_batches(
-    data_source_name: str,  # noqa: F811
     data_source_path: str,  # noqa: F811
     train_config: ModelTrainingConfig,
 ) -> Sequence[xr.Dataset]:
