@@ -14,11 +14,7 @@ from ._nudged import (
 )
 from ._transformations import ValMap, KeyMap, SubsetTimes
 from ._local import LocalMapper, mapper_to_local
-from ._hybrid import (
-    open_fine_resolution_nudging_hybrid,
-    open_fine_resolution_nudging_hybrid_clouds_off,
-    open_fine_resolution_nudging_to_obs_hybrid,
-)
+from ._hybrid import open_fine_resolution_nudging_hybrid
 
 # additional open mapper functions
 from ._high_res_diags import open_high_res_diags
