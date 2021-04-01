@@ -25,6 +25,10 @@ import cftime
 import datetime
 from functools import singledispatch
 
+from toolz import compose
+import os
+import fsspec
+
 logger = logging.getLogger(__file__)
 
 SCHEMA_VERSION = "v3"
@@ -161,6 +165,70 @@ def read_schema_from_zarr(
             variables[variable] = scheme
 
     return DatasetSchema(coord_schemes, variables)
+
+
+def read_directory_schema(rundir: str) -> Mapping[str, DatasetSchema]:
+    """Read schema from a directories
+
+    Does not support recursive directories or files other than zarr
+
+    See Also:
+
+        dump_directory_schema_to_disk
+
+    """
+    import fsspec
+
+    fs, _, (path_with_no_prefix,) = fsspec.get_fs_token_paths(rundir)
+    files = fs.ls(path_with_no_prefix)
+
+    read_schema = compose(read_schema_from_zarr, zarr.open_group, fs.get_mapper)
+
+    return {
+        os.path.relpath(file, path_with_no_prefix): read_schema(file)
+        for file in files
+        if file.endswith(".zarr")
+    }
+
+
+def dump_directory_schema_to_disk(zarrs: Mapping[str, DatasetSchema], path: str):
+    """Dumps the schema for a mapping from strings to DatasetSchema to a
+    directory
+
+    Example:
+
+        >>> import synth
+        >>> url = "gs://vcm-ml-scratch/test-end-to-end-integration/integration-test-cf6e957cea82/nudge_to_fine_run/" # noqa
+        >>> schema = synth.read_directory_schema(url)
+        >>> synth.dump_directory_schema_to_disk(schema, "nudge_to_fine_schema")
+        >>> import os
+        >>> import pprint
+        >>> pprint.pprint(os.listdir("nudge_to_fine_schema"))
+        ['atmos_dt_atmos.zarr.json',
+        'physics_tendencies.zarr.json',
+        'diags.zarr.json',
+        'state_after_timestep.zarr.json',
+        'nudging_tendencies.zarr.json',
+        'sfc_dt_atmos.zarr.json']
+
+    """
+    mapper = fsspec.get_mapper(path)
+    for rel_path, schema in zarrs.items():
+        mapper[rel_path + ".json"] = dumps(schema).encode()
+
+
+def load_directory_schema(path: str) -> DatasetSchema:
+    """Load the schema contained in a local directory"""
+    files = os.listdir(path)
+
+    out = {}
+    for file in files:
+        base, ext = os.path.splitext(file)
+        abspath = os.path.join(path, file)
+        if ext == ".json":
+            with open(abspath) as f:
+                out[base] = load(f)
+    return out
 
 
 def read_schema_from_dataset(dataset: xr.Dataset) -> DatasetSchema:
