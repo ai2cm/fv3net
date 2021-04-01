@@ -1,7 +1,22 @@
 {
     "version": "v3",
     "schema": {
-        "coords": {},
+        "coords": {
+            "time": {
+                "name": "time",
+                "dims": [
+                    "time"
+                ],
+                "value": [
+                    97,
+                    430
+                ],
+                "attrs": {
+                    "calendar": "julian",
+                    "units": "minutes since 2016-08-01 00:30:00.000000"
+                }
+            }
+        },
         "variables": {
             "air_temperature": {
                 "name": "air_temperature",
@@ -529,25 +544,6 @@
                 },
                 "attrs": {
                     "units": "degK"
-                }
-            },
-            "time": {
-                "name": "time",
-                "dims": [
-                    "time"
-                ],
-                "array": {
-                    "shape": [
-                        2
-                    ],
-                    "dtype": "<i8",
-                    "chunks": [
-                        2
-                    ]
-                },
-                "attrs": {
-                    "calendar": "julian",
-                    "units": "minutes since 2016-08-01 00:30:00.000000"
                 }
             },
             "total_precipitation": {

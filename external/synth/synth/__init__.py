@@ -28,6 +28,7 @@ from .core import (
     read_directory_schema,
     load_directory_schema,
     dump_directory_schema_to_disk,
+    write_directory_schema,
 )
 
 __version__ = "0.1.0"
