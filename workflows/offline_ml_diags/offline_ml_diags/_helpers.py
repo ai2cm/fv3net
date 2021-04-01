@@ -14,6 +14,23 @@ from vcm import safe
 from vcm.cloud import gsutil
 from vcm.catalog import catalog
 
+UNITS = {
+    "column_integrated_dq1": "[W/m^2]",
+    "column_integrated_dq2": "[mm/day]",
+    "column_integrated_q1": "[W/m^2]",
+    "column_integrated_q2": "[mm/day]",
+    "column_integrated_dqu": "[Pa]",
+    "column_integrated_dqv": "[Pa]",
+    "dq1": "[K/s]",
+    "pq1": "[K/s]",
+    "q1": "[K/s]",
+    "dq2": "[kg/kg/s]",
+    "pq2": "[kg/kg/s]",
+    "q2": "[kg/kg/s]",
+    "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface": "[W/m^2]",
+    "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": "[W/m^2]",
+    "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": "[W/m^2",
+}
 
 GRID_INFO_VARS = [
     "eastward_wind_u_coeff",
@@ -169,27 +186,19 @@ def get_metric_string(
 
 def column_integrated_metric_names(metrics):
     names = set([key.split("/")[2] for key in metrics.keys()])
-    return [name for name in names if "column_integrated" in name]
+    names = []
+    for key in metrics:
+        if key.split("/")[0] == "scalar":
+            names.append(key.split("/")[2])
+    return list(set(names))
 
 
-def units_from_Q_name(var):
-    if "q1" in var.lower():
-        if "column_integrated" in var:
-            return "[W/m^2]"
-        else:
-            return "[K/s]"
-    elif "q2" in var.lower():
-        if "column_integrated" in var:
-            return "[mm/day]"
-        else:
-            return "[kg/kg/s]"
-    elif "qu" in var.lower() or "qv" in var.lower():
-        if "column_integrated" in var:
-            return "[Pa]"
-        else:
-            return "[m/s^2]"
+def units_from_name(var):
+    key = var.lower()
+    if key in UNITS:
+        return UNITS[key]
     else:
-        return None
+        return "[units unavailable]"
 
 
 def _shorten_coordinate_label(coord: str):
