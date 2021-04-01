@@ -191,6 +191,20 @@ def read_directory_schema(rundir: str) -> Mapping[str, DatasetSchema]:
     }
 
 
+def write_directory_schema(
+    directory: str, schema: Mapping[str, DatasetSchema], ranges
+):
+    for relpath, schema in schema.items():
+        outpath = os.path.join(directory, relpath)
+        (
+            generate(schema, ranges)
+            .to_zarr(outpath, consolidated=True)
+        )
+
+
+
+
+
 def dump_directory_schema_to_disk(zarrs: Mapping[str, DatasetSchema], path: str):
     """Dumps the schema for a mapping from strings to DatasetSchema to a
     directory
