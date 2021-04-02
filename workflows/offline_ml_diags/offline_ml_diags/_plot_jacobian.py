@@ -1,6 +1,5 @@
 import fsspec
 import matplotlib.pyplot as plt
-from typing import Tuple, List
 import numpy as np
 import os
 import fv3fit.keras._models

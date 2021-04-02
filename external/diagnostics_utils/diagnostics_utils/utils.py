@@ -13,9 +13,9 @@ from typing import Sequence, Mapping, Union, Tuple
 logger = logging.getLogger(__name__)
 
 UNITS = {
-    "column_integrated_dq1": "[W/m^2]",
+    "column_integrated_dq1": "[W/m2]",
     "column_integrated_dq2": "[mm/day]",
-    "column_integrated_q1": "[W/m^2]",
+    "column_integrated_q1": "[W/m2]",
     "column_integrated_q2": "[mm/day]",
     "column_integrated_dqu": "[Pa]",
     "column_integrated_dqv": "[Pa]",
@@ -25,9 +25,9 @@ UNITS = {
     "dq2": "[kg/kg/s]",
     "pq2": "[kg/kg/s]",
     "q2": "[kg/kg/s]",
-    "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface": "[W/m^2]",
-    "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": "[W/m^2]",
-    "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": "[W/m^2",
+    "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface": "[W/m2]",
+    "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": "[W/m2]",
+    "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": "[W/m2]",
 }
 
 
