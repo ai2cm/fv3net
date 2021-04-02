@@ -5,9 +5,46 @@ import pytest
 import tempfile
 import subprocess
 import os
+import numpy as np
+import xarray
+import cftime
+
+
+@pytest.fixture
+def data_info(tmpdir):
+
+    # size needs to be 48 or an error happens. Is there a hardcode in fv3fit
+    # someplace?...maybe where the grid data is loaded?
+    x, y, z, tile, time = (48, 48, 79, 6, 2)
+    arr = np.zeros((time, tile, z, y, x))
+    arr_surf = np.zeros((time, tile, y, x))
+    dims = ["time", "tile", "z", "y", "x"]
+    dims_surf = ["time", "tile", "y", "x"]
+
+    data = xarray.Dataset(
+        {
+            "specific_humidity": (dims, arr),
+            "air_temperature": (dims, arr),
+            "downward_shortwave": (dims_surf, arr_surf),
+            "net_shortwave": (dims_surf, arr_surf),
+            "downward_longwave": (dims_surf, arr_surf),
+            "dQ1": (dims, arr),
+            "dQ2": (dims, arr),
+            "dQu": (dims, arr),
+            "dQv": (dims, arr),
+        },
+        coords={"time": [
+            cftime.DatetimeJulian(2016, 8, 1),
+            cftime.DatetimeJulian(2016, 8, 2),
+        ]}
+    )
+
+    data.to_zarr(str(tmpdir), consolidated=True)
+    return dict(data_path=str(tmpdir), batch_kwargs=dict(mapping_function="open_zarr",  timesteps=["20160801.000000"]), validation_timesteps=["20160802.000000"])
 
 
 def _get_model_config(model_info, validation_timesteps, data_info):
+
     return ModelTrainingConfig(
         data_path=data_info["data_path"],
         model_type=model_info["model_type"],
@@ -20,7 +57,7 @@ def _get_model_config(model_info, validation_timesteps, data_info):
         scaler_kwargs={},
         additional_variables=None,
         random_seed=0,
-        validation_timesteps=validation_timesteps,
+        validation_timesteps=data_info['validation_timesteps'] if validation_timesteps else None
     )
 
 
@@ -42,7 +79,7 @@ def _get_model_config(model_info, validation_timesteps, data_info):
     ],
 )
 @pytest.mark.parametrize(
-    "validation_timesteps", [["20160801.003000"], None,],
+    "validation_timesteps", [True, False],
 )
 def test_training_integration(
     model_info, data_info, validation_timesteps, tmp_path: str,
