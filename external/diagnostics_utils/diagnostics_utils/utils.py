@@ -12,6 +12,24 @@ from typing import Sequence, Mapping, Union, Tuple
 
 logger = logging.getLogger(__name__)
 
+UNITS = {
+    "column_integrated_dq1": "[W/m^2]",
+    "column_integrated_dq2": "[mm/day]",
+    "column_integrated_q1": "[W/m^2]",
+    "column_integrated_q2": "[mm/day]",
+    "column_integrated_dqu": "[Pa]",
+    "column_integrated_dqv": "[Pa]",
+    "dq1": "[K/s]",
+    "pq1": "[K/s]",
+    "q1": "[K/s]",
+    "dq2": "[kg/kg/s]",
+    "pq2": "[kg/kg/s]",
+    "q2": "[kg/kg/s]",
+    "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface": "[W/m^2]",
+    "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": "[W/m^2]",
+    "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": "[W/m^2",
+}
+
 
 def reduce_to_diagnostic(
     ds: xr.Dataset,
@@ -283,26 +301,12 @@ def snap_mask_to_type(
     return types
 
 
-def _units_from_Q_name(var):
-    if "r2" in var.lower():
-        return ""
-    if "q1" in var.lower():
-        if "column_integrated" in var:
-            return "[W/m^2]"
-        else:
-            return "[K/s]"
-    elif "q2" in var.lower():
-        if "column_integrated" in var:
-            return "[mm/day]"
-        else:
-            return "[kg/kg/s]"
-    elif "qu" in var.lower() or "qv" in var.lower():
-        if "column_integrated" in var:
-            return "[Pa]"
-        else:
-            return "[m/s^2]"
+def units_from_name(var):
+    key = var.lower()
+    if key in UNITS:
+        return UNITS[key]
     else:
-        return None
+        return "[units unavailable]"
 
 
 def snap_net_precipitation_to_type(
