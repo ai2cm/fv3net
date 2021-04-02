@@ -189,11 +189,16 @@ def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
 
 
 def _fill_empty_dQ1_dQ2(ds: xr.Dataset, predicted_vars: Sequence[str]):
-    template_vars = [var for var in predicted_vars if "z" in ds[var].dims]
-    fill_template = ds[template_vars[0]]
+    dims = ["x", "y", "tile", "z", "derivation", "time"]
+    coords = {dim: ds.coords[dim] for dim in dims}
+    fill_template = xr.DataArray(
+        0.,
+        dims = dims,
+        coords = coords
+    )
     for tendency in ["dQ1", "dQ2"]:
         if tendency not in ds.data_vars:
-            ds[tendency] = xr.zeros_like(fill_template)
+            ds[tendency] = fill_template  #xr.zeros_like(fill_template)
     return ds
 
 
@@ -204,7 +209,6 @@ def _compute_diagnostics(
     diagnostic_vars = list(
         set(list(predicted_vars) + ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"])
     )
-    #diagnostic_vars = ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"]
     metric_vars = copy(predicted_vars)
     if "dQ1" in predicted_vars and "dQ2" in predicted_vars:
         metric_vars += ["Q1", "Q2"]

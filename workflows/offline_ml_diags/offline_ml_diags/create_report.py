@@ -215,16 +215,17 @@ if __name__ == "__main__":
         )
 
     # transect of predicted fields at lon=0
-    transect_time = ds_transect.time.item()
-    for var in sorted(ds_transect.data_vars):
-        fig = plot_transect(ds_transect[var])
-        insert_report_figure(
-            report_sections,
-            fig,
-            filename=f"transect_lon0_{var}.png",
-            section_name=f"Transect snapshot at lon=0 deg, {transect_time}",
-            output_dir=temp_output_dir.name,
-        )
+    if len(ds_transect) > 0:
+        transect_time = ds_transect.time.item()
+        for var in sorted(ds_transect.data_vars):
+            fig = plot_transect(ds_transect[var])
+            insert_report_figure(
+                report_sections,
+                fig,
+                filename=f"transect_lon0_{var}.png",
+                section_name=f"Transect snapshot at lon=0 deg, {transect_time}",
+                output_dir=temp_output_dir.name,
+            )
 
     # scalar metrics for RMSE and bias
     metrics_formatted = []
