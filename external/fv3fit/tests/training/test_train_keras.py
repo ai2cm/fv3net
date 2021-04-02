@@ -164,14 +164,13 @@ hyperparams_with_fit_kwargs = {
 def test_training_integration(
     hyperparameters,
     validation_timesteps,
-    data_source_path: str,
-    train_config_filename: str,
+    data_and_config,
     tmp_path: str,
-    data_source_name: str,
 ):
     """
     Test the bash endpoint for training the model produces the expected output files.
     """
+    data_source_path, train_config_filename = data_and_config
     subprocess.check_call(
         [
             "python",

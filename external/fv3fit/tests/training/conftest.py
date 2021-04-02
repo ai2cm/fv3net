@@ -89,12 +89,12 @@ def train_config(
 
 
 @pytest.fixture
-def train_config_filename(
-    train_config
+def data_and_config(
+    data_source_path, train_config
 ) -> str:
     with tempfile.NamedTemporaryFile(mode="w") as f:
         yaml.dump(train_config.asdict(), f)
-        yield f.name
+        yield data_source_path, f.name
 
 
 @pytest.fixture
