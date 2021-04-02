@@ -16,6 +16,8 @@ prognostic_run_report: deploy
 train_evaluate_prognostic_run: deploy
 	cd train-evaluate-prognostic-run; ./run.sh
 
+restart_prognostic_run: deploy
+	cd restart-prognostic-run; ./run.sh
 
 deploy: kustomize
 	./kustomize build . | kubectl apply -f -
