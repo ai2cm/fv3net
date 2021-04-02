@@ -39,27 +39,23 @@ def hyperparameters(request, model_type, loss) -> dict:
 
 @pytest.fixture
 def model(
-    model_type: str,
-    input_variables: Iterable[str],
-    output_variables: Iterable[str],
     hyperparameters: dict,
+    train_config,
 ) -> fv3fit.Estimator:
     fit_kwargs = hyperparameters.pop("fit_kwargs", {})
     return fv3fit.keras.get_model(
-        model_type,
+        train_config.model_type,
         loaders.SAMPLE_DIM_NAME,
-        input_variables,
-        output_variables,
-        **hyperparameters,
+        train_config.input_variables,
+        train_config.output_variables,
+        **train_config.hyperparameters,
         **fit_kwargs,
     )
 
 
 def test_reproducibility(
-    input_variables,
-    hyperparameters,
+    train_config,
     training_batches: Sequence[xr.Dataset],
-    output_variables: Iterable[str],
 ):
     batch_dataset_test = training_batches[0]
     fit_kwargs = {"batch_size": 384, "validation_samples": 384}
@@ -67,10 +63,10 @@ def test_reproducibility(
     model_0 = fv3fit.keras.get_model(
         "DenseModel",
         loaders.SAMPLE_DIM_NAME,
-        input_variables,
-        output_variables,
+        train_config.input_variables,
+        train_config.output_variables,
         fit_kwargs=copy.deepcopy(fit_kwargs),
-        **hyperparameters,
+        **train_config.hyperparameters,
     )
     model_0.fit(training_batches)
     result_0 = model_0.predict(batch_dataset_test)
@@ -79,10 +75,10 @@ def test_reproducibility(
     model_1 = fv3fit.keras.get_model(
         "DenseModel",
         loaders.SAMPLE_DIM_NAME,
-        input_variables,
-        output_variables,
+        train_config.input_variables,
+        train_config.output_variables,
         fit_kwargs=copy.deepcopy(fit_kwargs),
-        **hyperparameters,
+        **train_config.hyperparameters,
     )
     model_1.fit(training_batches)
     result_1 = model_1.predict(batch_dataset_test)
