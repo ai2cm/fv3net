@@ -6,12 +6,9 @@ import loaders
 import fv3fit
 import numpy as np
 import tempfile
-import subprocess
-import os
 import copy
 
 from fv3fit.keras._training import set_random_seed
-
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +35,7 @@ def hyperparameters(request, model_type, loss) -> dict:
 
 
 @pytest.fixture
-def model(
-    hyperparameters: dict,
-    train_config,
-) -> fv3fit.Estimator:
+def model(hyperparameters: dict, train_config,) -> fv3fit.Estimator:
     fit_kwargs = hyperparameters.pop("fit_kwargs", {})
     return fv3fit.keras.get_model(
         train_config.model_type,
@@ -54,8 +48,7 @@ def model(
 
 
 def test_reproducibility(
-    train_config,
-    training_batches: Sequence[xr.Dataset],
+    train_config, training_batches: Sequence[xr.Dataset],
 ):
     batch_dataset_test = training_batches[0]
     fit_kwargs = {"batch_size": 384, "validation_samples": 384}
@@ -140,46 +133,6 @@ def test_dump_and_load_maintains_prediction(
     validate_dataset_result(loaded_result, batch_dataset, output_variables)
     original_result = model.predict(batch_dataset)
     xr.testing.assert_equal(loaded_result, original_result)
-
-
-hyperparams_with_fit_kwargs = {
-    "width": 4,
-    "depth": 3,
-    "fit_kwargs": {"batch_size": 100, "validation_samples": 384},
-}
-
-
-@pytest.mark.parametrize(
-    "hyperparameters, validation_timesteps",
-    [
-        (hyperparams_with_fit_kwargs, ["20160801.003000"]),
-        (hyperparams_with_fit_kwargs, None),
-    ],
-    indirect=["hyperparameters", "validation_timesteps"],
-)
-def test_training_integration(
-    hyperparameters,
-    validation_timesteps,
-    data_and_config,
-    tmp_path: str,
-):
-    """
-    Test the bash endpoint for training the model produces the expected output files.
-    """
-    data_source_path, train_config_filename = data_and_config
-    subprocess.check_call(
-        [
-            "python",
-            "-m",
-            "fv3fit.train",
-            data_source_path,
-            train_config_filename,
-            tmp_path,
-        ]
-    )
-    required_names = ["model_data", "training_config.yml"]
-    missing_names = set(required_names).difference(os.listdir(tmp_path))
-    assert len(missing_names) == 0
 
 
 @pytest.mark.parametrize(
