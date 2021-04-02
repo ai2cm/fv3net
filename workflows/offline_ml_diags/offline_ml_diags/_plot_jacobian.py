@@ -25,8 +25,8 @@ def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
     jacobian_dict = model.jacobian()
 
     pairs_2d, pairs_3d = _separate_dimensions(jacobian_dict)
-    inputs_2d, outputs_2d = map(set, zip(*pairs_2d))
-    inputs_3d, outputs_3d = map(set, zip(*pairs_3d))
+    inputs_2d, outputs_2d = map(set, zip(*pairs_2d)) if pairs_2d else [], []
+    inputs_3d, outputs_3d = map(set, zip(*pairs_3d)) if pairs_3d else [], []
 
     if pairs_3d:
         fig, axs = plt.subplots(
