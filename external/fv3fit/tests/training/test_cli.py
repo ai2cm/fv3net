@@ -4,43 +4,6 @@ import yaml
 import pytest
 import tempfile
 import subprocess
-import os
-import numpy as np
-import xarray
-import cftime
-
-
-@pytest.fixture
-def data_info(tmpdir):
-
-    # size needs to be 48 or an error happens. Is there a hardcode in fv3fit
-    # someplace?...maybe where the grid data is loaded?
-    x, y, z, tile, time = (48, 48, 79, 6, 2)
-    arr = np.zeros((time, tile, z, y, x))
-    arr_surf = np.zeros((time, tile, y, x))
-    dims = ["time", "tile", "z", "y", "x"]
-    dims_surf = ["time", "tile", "y", "x"]
-
-    data = xarray.Dataset(
-        {
-            "specific_humidity": (dims, arr),
-            "air_temperature": (dims, arr),
-            "downward_shortwave": (dims_surf, arr_surf),
-            "net_shortwave": (dims_surf, arr_surf),
-            "downward_longwave": (dims_surf, arr_surf),
-            "dQ1": (dims, arr),
-            "dQ2": (dims, arr),
-            "dQu": (dims, arr),
-            "dQv": (dims, arr),
-        },
-        coords={"time": [
-            cftime.DatetimeJulian(2016, 8, 1),
-            cftime.DatetimeJulian(2016, 8, 2),
-        ]}
-    )
-
-    data.to_zarr(str(tmpdir), consolidated=True)
-    return dict(data_path=str(tmpdir), batch_kwargs=dict(mapping_function="open_zarr",  timesteps=["20160801.000000"]), validation_timesteps=["20160802.000000"])
 
 
 def _get_model_config(model_info, validation_timesteps, data_info):
@@ -57,7 +20,9 @@ def _get_model_config(model_info, validation_timesteps, data_info):
         scaler_kwargs={},
         additional_variables=None,
         random_seed=0,
-        validation_timesteps=data_info['validation_timesteps'] if validation_timesteps else None
+        validation_timesteps=data_info["validation_timesteps"]
+        if validation_timesteps
+        else None,
     )
 
 
@@ -93,7 +58,7 @@ def test_training_integration(
         yaml.dump(config.asdict(), f)
 
         subprocess.check_call(
-            ["python", "-m", "fv3fit.train", config.data_path, f.name, tmp_path,]
+            ["python", "-m", "fv3fit.train", config.data_path, f.name, tmp_path]
         )
         fv3fit.load(str(tmp_path))
         fv3fit.load_training_config(str(tmp_path))
