@@ -1,6 +1,6 @@
 import fsspec
 import matplotlib.pyplot as plt
-from typing import Tuple
+from typing import Tuple, List
 import numpy as np
 import os
 import fv3fit.keras._models
@@ -25,8 +25,14 @@ def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
     jacobian_dict = model.jacobian()
 
     pairs_2d, pairs_3d = _separate_dimensions(jacobian_dict)
-    inputs_2d, outputs_2d = map(set, zip(*pairs_2d)) if pairs_2d else [], []
-    inputs_3d, outputs_3d = map(set, zip(*pairs_3d)) if pairs_3d else [], []
+    inputs_2d, outputs_2d = (
+        {in_name for in_name, out_name in pairs_2d},
+        {out_name for in_name, out_name in pairs_2d},
+    )
+    inputs_3d, outputs_3d = (
+        {in_name for in_name, out_name in pairs_3d},
+        {out_name for in_name, out_name in pairs_3d},
+    )
 
     if pairs_3d:
         fig, axs = plt.subplots(

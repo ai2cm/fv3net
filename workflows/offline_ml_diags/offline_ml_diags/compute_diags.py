@@ -188,7 +188,9 @@ def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
 
 def _fill_empty_dQ1_dQ2(ds: xr.Dataset):
     dims = ["x", "y", "tile", "z", "derivation", "time"]
-    coords = {dim: ds.coords[dim] for dim in dims}  # type: Mapping[Hashable, xr.DataArray]
+    coords = {
+        dim: ds.coords[dim] for dim in dims
+    }  # type: Mapping[Hashable, xr.DataArray]
     fill_template = xr.DataArray(0.0, dims=dims, coords=coords)
     for tendency in ["dQ1", "dQ2"]:
         if tendency not in ds.data_vars:
