@@ -10,7 +10,7 @@ import sys
 from tempfile import NamedTemporaryFile
 import xarray as xr
 import yaml
-from typing import Mapping, Sequence, Tuple, List
+from typing import Mapping, Sequence, Tuple, List, Hashable
 from toolz import dissoc
 
 import diagnostics_utils as utils
@@ -188,7 +188,7 @@ def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
 
 def _fill_empty_dQ1_dQ2(ds: xr.Dataset):
     dims = ["x", "y", "tile", "z", "derivation", "time"]
-    coords = {dim: ds.coords[dim] for dim in dims}
+    coords = {dim: ds.coords[dim] for dim in dims}  # type: Mapping[Hashable, xr.DataArray]
     fill_template = xr.DataArray(0.0, dims=dims, coords=coords)
     for tendency in ["dQ1", "dQ2"]:
         if tendency not in ds.data_vars:
@@ -212,7 +212,7 @@ def _compute_diagnostics(
     for i, ds in enumerate(batches):
         logger.info(f"Processing batch {i+1}/{len(batches)}")
 
-        ds = _fill_empty_dQ1_dQ2(ds, predicted_vars)
+        ds = _fill_empty_dQ1_dQ2(ds)
 
         # ...insert additional variables
         ds = utils.insert_total_apparent_sources(ds)
