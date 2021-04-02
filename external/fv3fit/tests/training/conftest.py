@@ -94,3 +94,10 @@ def training_batches(
 ) -> Sequence[xr.Dataset]:
     batched_data = load_data_sequence(data_source_path, train_config)
     return batched_data
+
+
+@pytest.fixture
+def data_info(data_source_path, data_source_name):
+    return dict(
+        data_path=data_source_path, batch_kwargs=get_batch_kwargs(data_source_name)
+    )

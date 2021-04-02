@@ -1,6 +1,5 @@
 from fv3fit._shared import ModelTrainingConfig
 import fv3fit
-from conftest import get_batch_kwargs
 import yaml
 import pytest
 import tempfile
@@ -8,15 +7,15 @@ import subprocess
 import os
 
 
-def _get_model_config(model_info, validation_timesteps, data_source_name):
+def _get_model_config(model_info, validation_timesteps, data_info):
     return ModelTrainingConfig(
-        data_path="train_data_path",
+        data_path=data_info["data_path"],
         model_type=model_info["model_type"],
         hyperparameters=model_info["hyperparameters"],
         input_variables=["air_temperature", "specific_humidity"],
         output_variables=["dQ1", "dQ2"],
         batch_function="batches_from_geodata",
-        batch_kwargs=get_batch_kwargs(data_source_name),
+        batch_kwargs=data_info["batch_kwargs"],
         scaler_type="standard",
         scaler_kwargs={},
         additional_variables=None,
@@ -46,18 +45,18 @@ def _get_model_config(model_info, validation_timesteps, data_source_name):
     "validation_timesteps", [["20160801.003000"], None,],
 )
 def test_training_integration(
-    model_info, data_source_path, data_source_name, validation_timesteps, tmp_path: str,
+    model_info, data_info, validation_timesteps, tmp_path: str,
 ):
     """
     Test the bash endpoint for training the model produces the expected output files.
     """
-    config = _get_model_config(model_info, validation_timesteps, data_source_name)
+    config = _get_model_config(model_info, validation_timesteps, data_info)
 
     with tempfile.NamedTemporaryFile(mode="w") as f:
         yaml.dump(config.asdict(), f)
 
         subprocess.check_call(
-            ["python", "-m", "fv3fit.train", data_source_path, f.name, tmp_path,]
+            ["python", "-m", "fv3fit.train", config.data_path, f.name, tmp_path,]
         )
         fv3fit.load(str(tmp_path))
         fv3fit.load_training_config(str(tmp_path))
