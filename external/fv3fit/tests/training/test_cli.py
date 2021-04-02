@@ -8,24 +8,11 @@ import subprocess
 import os
 
 
-@pytest.mark.parametrize(
-    "validation_timesteps", [["20160801.003000"], None,],
-)
-def test_training_integration(
-    data_source_path, data_source_name, validation_timesteps, tmp_path: str,
-):
-    """
-    Test the bash endpoint for training the model produces the expected output files.
-    """
-
-    config = ModelTrainingConfig(
+def _get_model_config(model_info, validation_timesteps, data_source_name):
+    return ModelTrainingConfig(
         data_path="train_data_path",
-        model_type="DenseModel",
-        hyperparameters={
-            "width": 4,
-            "depth": 3,
-            "fit_kwargs": {"batch_size": 100, "validation_samples": 384},
-        },
+        model_type=model_info["model_type"],
+        hyperparameters=model_info["hyperparameters"],
         input_variables=["air_temperature", "specific_humidity"],
         output_variables=["dQ1", "dQ2"],
         batch_function="batches_from_geodata",
@@ -36,6 +23,31 @@ def test_training_integration(
         random_seed=0,
         validation_timesteps=validation_timesteps,
     )
+
+
+@pytest.mark.parametrize(
+    "model_info",
+    [
+        dict(
+            model_type="DenseModel",
+            hyperparameters={
+                "width": 4,
+                "depth": 3,
+                "fit_kwargs": {"batch_size": 100, "validation_samples": 384},
+            },
+        )
+    ],
+)
+@pytest.mark.parametrize(
+    "validation_timesteps", [["20160801.003000"], None,],
+)
+def test_training_integration(
+    model_info, data_source_path, data_source_name, validation_timesteps, tmp_path: str,
+):
+    """
+    Test the bash endpoint for training the model produces the expected output files.
+    """
+    config = _get_model_config(model_info, validation_timesteps, data_source_name)
 
     with tempfile.NamedTemporaryFile(mode="w") as f:
         yaml.dump(config.asdict(), f)
