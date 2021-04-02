@@ -89,18 +89,8 @@ def train_config(
 
 
 @pytest.fixture
-def data_and_config(
-    data_source_path, train_config
-) -> str:
-    with tempfile.NamedTemporaryFile(mode="w") as f:
-        yaml.dump(train_config.asdict(), f)
-        yield data_source_path, f.name
-
-
-@pytest.fixture
 def training_batches(
-    data_source_path: str,  # noqa: F811
-    train_config: ModelTrainingConfig,
+    data_source_path: str, train_config: ModelTrainingConfig,  # noqa: F811
 ) -> Sequence[xr.Dataset]:
     batched_data = load_data_sequence(data_source_path, train_config)
     return batched_data
