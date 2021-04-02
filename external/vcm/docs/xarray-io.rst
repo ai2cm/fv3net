@@ -5,3 +5,9 @@ Loading data into xarray
    :members:
    :undoc-members:
    :show-inheritance:
+
+
+Writing data to xarray
+======================
+
+.. autoclass:: vcm.ZarrMapping
