@@ -47,6 +47,13 @@ GRID_INFO_VARS = [
 ScalarMetrics = Dict[str, Mapping[str, float]]
 
 
+def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
+    if vertical_dim in da.dims:
+        return True
+    else:
+        return False
+
+
 def insert_scalar_metrics_r2(
     metrics: ScalarMetrics,
     predicted: Sequence[str],

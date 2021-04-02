@@ -25,6 +25,7 @@ from ._mapper import PredictionMapper
 from ._helpers import (
     load_grid_info,
     sample_outside_train_range,
+    is_3d,
 )
 from ._select import meridional_transect, nearest_time
 
@@ -185,13 +186,13 @@ def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
     return summary
 
 
-def _fill_empty_dQ1_dQ2(ds: xr.Dataset, predicted_vars: Sequence[str]):
+def _fill_empty_dQ1_dQ2(ds: xr.Dataset):
     dims = ["x", "y", "tile", "z", "derivation", "time"]
     coords = {dim: ds.coords[dim] for dim in dims}
     fill_template = xr.DataArray(0.0, dims=dims, coords=coords)
     for tendency in ["dQ1", "dQ2"]:
         if tendency not in ds.data_vars:
-            ds[tendency] = fill_template  # xr.zeros_like(fill_template)
+            ds[tendency] = fill_template
     return ds
 
 
@@ -215,7 +216,7 @@ def _compute_diagnostics(
 
         # ...insert additional variables
         ds = utils.insert_total_apparent_sources(ds)
-        diagnostic_vars_3d = [var for var in diagnostic_vars if "z" in ds[var].dims]
+        diagnostic_vars_3d = [var for var in diagnostic_vars if is_3d(ds[var])]
 
         ds = (
             ds.pipe(utils.insert_column_integrated_vars, diagnostic_vars_3d)
@@ -420,7 +421,7 @@ def main(args):
     snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
     ds_snapshot = pred_mapper[snapshot_key]
     transect_vertical_vars = [
-        var for var in config.output_variables if "z" in ds_snapshot[var].dims
+        var for var in config.output_variables if is_3d(ds_snapshot[var])
     ]
     ds_transect = _get_transect(ds_snapshot, grid, transect_vertical_vars)
 

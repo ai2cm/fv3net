@@ -8,6 +8,7 @@ from vcm import safe, interpolate_to_pressure_levels
 from vcm.select import zonal_average_approximate
 import copy
 
+from ._helpers import is_3d
 
 logging.getLogger(__name__)
 
@@ -50,8 +51,8 @@ def compute_metrics(
     variables, assumed to include variables in
     list arg predicted as well as area and delp
     """
-    predicted_3d_vars = [var for var in predicted_vars if "z" in ds[var].dims]
-    predicted_2d_vars = [var for var in predicted_vars if "z" not in ds[var].dims] + [
+    predicted_3d_vars = [var for var in predicted_vars if is_3d(ds[var])]
+    predicted_2d_vars = [var for var in predicted_vars if not is_3d(ds[var])] + [
         f"column_integrated_{name}" for name in predicted_3d_vars
     ]
 
