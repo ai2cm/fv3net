@@ -192,7 +192,6 @@ def get_metric_string(
 
 
 def column_integrated_metric_names(metrics):
-    names = set([key.split("/")[2] for key in metrics.keys()])
     names = []
     for key in metrics:
         if key.split("/")[0] == "scalar":
