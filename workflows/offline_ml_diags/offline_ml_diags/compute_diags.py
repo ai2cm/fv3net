@@ -41,14 +41,6 @@ logger = logging.getLogger("offline_diags")
 # variables that are needed in addition to the model features
 ADDITIONAL_VARS = ["pressure_thickness_of_atmospheric_layer", "pQ1", "pQ2"]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
-DIURNAL_VARS = [
-    "column_integrated_dQ1",
-    "column_integrated_dQ2",
-    "column_integrated_pQ1",
-    "column_integrated_pQ2",
-    "column_integrated_Q1",
-    "column_integrated_Q2",
-]
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
 TRANSECT_NC_NAME = "transect_lon0.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
@@ -170,8 +162,9 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
 
 
 def _compute_diurnal_cycle(ds: xr.Dataset) -> xr.Dataset:
+    diurnal_vars = [var for var in ds if {"tile", "x", "y", "sample", "derivation"}==set(ds[var].dims)]
     return utils.create_diurnal_cycle_dataset(
-        ds, ds["lon"], ds["land_sea_mask"], DIURNAL_VARS,
+        ds, ds["lon"], ds["land_sea_mask"], diurnal_vars,
     )
 
 
@@ -209,6 +202,7 @@ def _compute_diagnostics(
     diagnostic_vars = list(
         set(list(predicted_vars) + ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"])
     )
+
     metric_vars = copy(predicted_vars)
     if "dQ1" in predicted_vars and "dQ2" in predicted_vars:
         metric_vars += ["Q1", "Q2"]
@@ -216,18 +210,19 @@ def _compute_diagnostics(
     # for each batch...
     for i, ds in enumerate(batches):
         logger.info(f"Processing batch {i+1}/{len(batches)}")
+
         ds = _fill_empty_dQ1_dQ2(ds, predicted_vars)
 
         # ...insert additional variables
-        ds = (
-            ds.pipe(utils.insert_total_apparent_sources)
-            .pipe(utils.insert_column_integrated_vars, diagnostic_vars)
+        ds = utils.insert_total_apparent_sources(ds)
+        diagnostic_vars_3d = [var for var in diagnostic_vars if "z" in ds[var].dims]
+
+        ds = (ds
+            .pipe(utils.insert_column_integrated_vars, diagnostic_vars_3d) 
             .pipe(utils.insert_net_terms_as_Qs)
             .load()
         )
-        ds.update(grid)
-
-        diagnostic_vars_3d = [var for var in diagnostic_vars if "z" in ds[var].dims]
+        ds.update(grid) 
         ds_summary = _compute_summary(ds, diagnostic_vars_3d)
         if DATASET_DIM_NAME in ds.dims:
             sample_dims = ("time", DATASET_DIM_NAME)
@@ -243,7 +238,6 @@ def _compute_diagnostics(
             stacked["pressure_thickness_of_atmospheric_layer"],
             predicted_vars=metric_vars,
         )
-
         batches_summary.append(ds_summary.load())
         batches_diurnal.append(ds_diurnal.load())
         batches_metrics.append(ds_metrics.load())

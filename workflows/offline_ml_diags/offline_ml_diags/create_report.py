@@ -196,20 +196,20 @@ if __name__ == "__main__":
             output_dir=temp_output_dir.name,
         )
 
-    # column integrated quantity diurnal cycles
-    for tag, var_group in [
-        ("Q1_components", ["column_integrated_dQ1", "column_integrated_Q1"]),
-        ("Q2_components", ["column_integrated_dQ2", "column_integrated_Q2"]),
-    ]:
+    # 2d quantity diurnal cycles
+
+    q1_q2_components = ["column_integrated_dQ1", "column_integrated_Q1", "column_integrated_dQ2", "column_integrated_Q2"]
+    other_2d_predicted = [var for var in ds_diurnal if "column_integrated" not in var]
+    for var in (q1_q2_components + other_2d_predicted):
         fig = diagplot.plot_diurnal_cycles(
             ds_diurnal,
-            vars=var_group,
+            var=var,
             derivation_plot_coords=ds_diurnal[DERIVATION_DIM].values,
         )
         insert_report_figure(
             report_sections,
             fig,
-            filename=f"{tag}.png",
+            filename=f"{var}.png",
             section_name="Diurnal cycles of column integrated quantities",
             output_dir=temp_output_dir.name,
         )
