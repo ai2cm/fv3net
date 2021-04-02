@@ -50,13 +50,15 @@ following information in a configuration file.
 
 If a separate configuration YAML file is used via the optional `--config-yml` flag, it must provide
 the following information as top level keys:
-- `batch_function`: must be `batches_from_geodata`
+- `batch_function`: for example `batches_from_geodata`
 - `batch_kwargs`: kwargs passed to the batch loading function `loaders.<batch_function>`
 specified above, see [loaders]<link to loaders docs> for details.
 - `input_variables`: variable names of ML model features
 - `output_variables`: ML model target variables
 - (optional) `data_path`: location of the test dataset; if not present in the configuration
 file it must be provided via the command line arg `--data-path`
+- `model_type`: string required for the code to initialize a ModelTrainingConfig, can be empty
+- `hyperparameters`: mapping required for code to initialize a ModelTrainingConfig, can be empty
 
 ### Outputs
 This workflow generates the following outputs:

@@ -109,9 +109,6 @@ sources:
         - uflx_coarse
         - vflx_coarse
     args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
       urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/gfsphysics_15min_coarse.zarr"
       consolidated: True
 
@@ -166,9 +163,6 @@ sources:
         - v200
         - w500
     args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
       urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/atmos_8xdaily_C3072_to_C384.zarr"
       consolidated: True
 
@@ -227,9 +221,6 @@ sources:
         - lon
         - lonb
     args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
       urlpath: "gs://vcm-ml-intermediate/latLonArea/c48/c48.zarr/"
       consolidated: true
 
@@ -241,9 +232,6 @@ sources:
       variables:
         - land_sea_mask
     args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
       urlpath: "gs://vcm-ml-intermediate/latLonArea/c48/land_sea_mask.zarr/"
       consolidated: true
 
@@ -262,9 +250,6 @@ sources:
         - lat_unit_vector
         - lon_unit_vector
     args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
       urlpath: "gs://vcm-ml-intermediate/latLonArea/c48/wind_rotation_matrix.zarr/"
       consolidated: true
 
