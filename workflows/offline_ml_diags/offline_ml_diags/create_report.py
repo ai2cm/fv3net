@@ -198,9 +198,14 @@ if __name__ == "__main__":
 
     # 2d quantity diurnal cycles
 
-    q1_q2_components = ["column_integrated_dQ1", "column_integrated_Q1", "column_integrated_dQ2", "column_integrated_Q2"]
+    q1_q2_components = [
+        "column_integrated_dQ1",
+        "column_integrated_Q1",
+        "column_integrated_dQ2",
+        "column_integrated_Q2",
+    ]
     other_2d_predicted = [var for var in ds_diurnal if "column_integrated" not in var]
-    for var in (q1_q2_components + other_2d_predicted):
+    for var in q1_q2_components + other_2d_predicted:
         fig = diagplot.plot_diurnal_cycles(
             ds_diurnal,
             var=var,

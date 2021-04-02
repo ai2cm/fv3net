@@ -83,11 +83,8 @@ def plot_diurnal_cycles(
 ):
     ds_diurnal = ds_diurnal.sel(derivation=derivation_plot_coords)
 
-    facetgrid = (
-        ds_diurnal[var]
-        .squeeze()
-        .plot(hue="derivation", col="surface_type"))
-    
+    facetgrid = ds_diurnal[var].squeeze().plot(hue="derivation", col="surface_type")
+
     facetgrid.set_titles(template="{value}", maxchar=40)
     f = facetgrid.fig
     axes = facetgrid.axes

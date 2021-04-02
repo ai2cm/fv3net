@@ -162,7 +162,11 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
 
 
 def _compute_diurnal_cycle(ds: xr.Dataset) -> xr.Dataset:
-    diurnal_vars = [var for var in ds if {"tile", "x", "y", "sample", "derivation"}==set(ds[var].dims)]
+    diurnal_vars = [
+        var
+        for var in ds
+        if {"tile", "x", "y", "sample", "derivation"} == set(ds[var].dims)
+    ]
     return utils.create_diurnal_cycle_dataset(
         ds, ds["lon"], ds["land_sea_mask"], diurnal_vars,
     )
@@ -184,14 +188,10 @@ def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
 def _fill_empty_dQ1_dQ2(ds: xr.Dataset, predicted_vars: Sequence[str]):
     dims = ["x", "y", "tile", "z", "derivation", "time"]
     coords = {dim: ds.coords[dim] for dim in dims}
-    fill_template = xr.DataArray(
-        0.,
-        dims = dims,
-        coords = coords
-    )
+    fill_template = xr.DataArray(0.0, dims=dims, coords=coords)
     for tendency in ["dQ1", "dQ2"]:
         if tendency not in ds.data_vars:
-            ds[tendency] = fill_template  #xr.zeros_like(fill_template)
+            ds[tendency] = fill_template  # xr.zeros_like(fill_template)
     return ds
 
 
@@ -217,12 +217,12 @@ def _compute_diagnostics(
         ds = utils.insert_total_apparent_sources(ds)
         diagnostic_vars_3d = [var for var in diagnostic_vars if "z" in ds[var].dims]
 
-        ds = (ds
-            .pipe(utils.insert_column_integrated_vars, diagnostic_vars_3d) 
+        ds = (
+            ds.pipe(utils.insert_column_integrated_vars, diagnostic_vars_3d)
             .pipe(utils.insert_net_terms_as_Qs)
             .load()
         )
-        ds.update(grid) 
+        ds.update(grid)
         ds_summary = _compute_summary(ds, diagnostic_vars_3d)
         if DATASET_DIM_NAME in ds.dims:
             sample_dims = ("time", DATASET_DIM_NAME)
@@ -419,7 +419,9 @@ def main(args):
     snapshot_time = args.snapshot_time or sorted(timesteps)[0]
     snapshot_key = nearest_time(snapshot_time, list(pred_mapper.keys()))
     ds_snapshot = pred_mapper[snapshot_key]
-    transect_vertical_vars = [var for var in config.output_variables if "z" in ds_snapshot[var].dims]
+    transect_vertical_vars = [
+        var for var in config.output_variables if "z" in ds_snapshot[var].dims
+    ]
     ds_transect = _get_transect(ds_snapshot, grid, transect_vertical_vars)
 
     # write diags and diurnal datasets

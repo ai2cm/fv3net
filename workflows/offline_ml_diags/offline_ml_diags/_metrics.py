@@ -51,7 +51,9 @@ def compute_metrics(
     list arg predicted as well as area and delp
     """
     predicted_3d_vars = [var for var in predicted_vars if "z" in ds[var].dims]
-    predicted_2d_vars = [var for var in predicted_vars if "z" not in ds[var].dims] + [f"column_integrated_{name}" for name in predicted_3d_vars]
+    predicted_2d_vars = [var for var in predicted_vars if "z" not in ds[var].dims] + [
+        f"column_integrated_{name}" for name in predicted_3d_vars
+    ]
 
     vertical_bias_vars = [var for var in predicted_3d_vars if var not in ["Q1", "Q2"]]
 
@@ -72,7 +74,6 @@ def compute_metrics(
             "weights": [area_weights],
             "mean_dim_vars": None,
         },
-        
         "pressure_level_metrics": {
             "ds": ds_regrid_z,
             "dim_tag": "pressure_level",

@@ -25,8 +25,14 @@ def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
     jacobian_dict = model.jacobian()
 
     pairs_2d, pairs_3d = _separate_dimensions(jacobian_dict, 2)
-    inputs_2d, outputs_2d = {in_name for in_name, out_name in pairs_2d}, {out_name for in_name, out_name in pairs_2d}
-    inputs_3d, outputs_3d = {in_name for in_name, out_name in pairs_3d}, {out_name for in_name, out_name in pairs_3d}
+    inputs_2d, outputs_2d = (
+        {in_name for in_name, out_name in pairs_2d},
+        {out_name for in_name, out_name in pairs_2d},
+    )
+    inputs_3d, outputs_3d = (
+        {in_name for in_name, out_name in pairs_3d},
+        {out_name for in_name, out_name in pairs_3d},
+    )
 
     if len(pairs_3d) > 0:
         fig, axs = plt.subplots(
@@ -67,4 +73,3 @@ def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
         plt.tight_layout()
         with fsspec.open(os.path.join(output_dir, LINE_NAME), "wb") as f:
             fig.savefig(f)
-    
