@@ -5,6 +5,7 @@ import logging
 import intake
 import cftime
 import xarray as xr
+from runtime.interpolate import time_interpolate_func
 from runtime.types import State, Diagnostics, Tendencies
 import fv3gfs.util
 from vcm.catalog import catalog as CATALOG
@@ -93,6 +94,8 @@ class Prescriber:
         self._prescribed_ds: xr.Dataset = self._scatter_prescribed_ds(
             prescribed_ds, time_coord
         )
+        self._reference_initial_time = time_coord.sortby("time").isel(time=0).item()
+        self._reference_frequency_seconds = _get_time_interval_seconds(time_coord)
 
     def _load_prescribed_ds(
         self,
@@ -125,10 +128,7 @@ class Prescriber:
 
     def __call__(self, time, state):
         diagnostics: Diagnostics = {}
-        prescribed_timestep: xr.Dataset = self._prescribed_ds.sel(time=time)
-        state_updates: State = {
-            name: prescribed_timestep[name] for name in prescribed_timestep.data_vars
-        }
+        state_updates = self._get_time_interpolated_state_updates(time)
         for name in state_updates.keys():
             diagnostics[name] = state_updates[name]
         tendency: Tendencies = {}
@@ -139,7 +139,21 @@ class Prescriber:
 
     def get_momentum_diagnostics(self, state, tendency):
         return {}
+    
+    def _get_time_interpolated_state_updates(self, time):
+        return time_interpolate_func(
+            self._get_state_update,
+            initial_time=self._reference_initial_time,
+            frequency=self._reference_frequency_seconds,
+        )
 
+    def _get_state_updates(self, time):
+        prescribed_timestep: xr.Dataset = self._prescribed_ds.sel(time=time)
+        state_updates: State = {
+            name: prescribed_timestep[name] for name in prescribed_timestep.data_vars
+        }
+        return state_updates
+        
 
 def _get_prescribed_ds(
     dataset_key: str,
@@ -180,3 +194,9 @@ def _quantity_state_to_ds(quantity_state: QuantityState) -> xr.Dataset:
         }
     )
     return ds
+
+
+def _get_time_interval_seconds(time_coord: xr.DataArray) -> float:
+    times = time_coord.sortby("time").isel(time=[0, 1]).values
+    return (times[1]-times[0]).total_seconds()
+
