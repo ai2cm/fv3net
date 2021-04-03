@@ -48,170 +48,8 @@
                     "units": "degK"
                 }
             },
-            "clear_sky_downward_longwave_flux_at_surface": {
-                "name": "clear_sky_downward_longwave_flux_at_surface",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "W/m^2"
-                }
-            },
-            "clear_sky_downward_shortwave_flux_at_surface": {
-                "name": "clear_sky_downward_shortwave_flux_at_surface",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "W/m^2"
-                }
-            },
-            "clear_sky_upward_longwave_flux_at_surface": {
-                "name": "clear_sky_upward_longwave_flux_at_surface",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "W/m^2"
-                }
-            },
-            "clear_sky_upward_longwave_flux_at_top_of_atmosphere": {
-                "name": "clear_sky_upward_longwave_flux_at_top_of_atmosphere",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "W/m^2"
-                }
-            },
-            "clear_sky_upward_shortwave_flux_at_surface": {
-                "name": "clear_sky_upward_shortwave_flux_at_surface",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "W/m^2"
-                }
-            },
-            "clear_sky_upward_shortwave_flux_at_top_of_atmosphere": {
-                "name": "clear_sky_upward_shortwave_flux_at_top_of_atmosphere",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "W/m^2"
-                }
-            },
-            "eastward_wind": {
-                "name": "eastward_wind",
+            "dQ1": {
+                "name": "dQ1",
                 "dims": [
                     "time",
                     "tile",
@@ -237,7 +75,37 @@
                     ]
                 },
                 "attrs": {
-                    "units": "m/s"
+                    "units": "degK s^-1"
+                }
+            },
+            "dQ2": {
+                "name": "dQ2",
+                "dims": [
+                    "time",
+                    "tile",
+                    "z",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        1,
+                        6,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "units": "kg/kg s^-1"
                 }
             },
             "land_sea_mask": {
@@ -291,91 +159,7 @@
                     ]
                 },
                 "attrs": {
-                    "units": "W/m**2"
-                }
-            },
-            "latitude": {
-                "name": "latitude",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "radians"
-                }
-            },
-            "longitude": {
-                "name": "longitude",
-                "dims": [
-                    "time",
-                    "tile",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "radians"
-                }
-            },
-            "northward_wind": {
-                "name": "northward_wind",
-                "dims": [
-                    "time",
-                    "tile",
-                    "z",
-                    "y",
-                    "x"
-                ],
-                "array": {
-                    "shape": [
-                        2,
-                        6,
-                        19,
-                        8,
-                        8
-                    ],
-                    "dtype": "<f8",
-                    "chunks": [
-                        1,
-                        6,
-                        19,
-                        8,
-                        8
-                    ]
-                },
-                "attrs": {
-                    "units": "m/s"
+                    "units": "W/m^2"
                 }
             },
             "pressure_thickness_of_atmospheric_layer": {
@@ -406,6 +190,36 @@
                 },
                 "attrs": {
                     "units": "Pa"
+                }
+            },
+            "pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging": {
+                "name": "pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging",
+                "dims": [
+                    "time",
+                    "tile",
+                    "z",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        1,
+                        6,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "units": "Pa s^-1"
                 }
             },
             "sensible_heat_flux": {
@@ -844,12 +658,42 @@
                         1,
                         6,
                         19,
-                        9,
+                        8,
                         8
                     ]
                 },
                 "attrs": {
                     "units": "m/s"
+                }
+            },
+            "x_wind_tendency_due_to_nudging": {
+                "name": "x_wind_tendency_due_to_nudging",
+                "dims": [
+                    "time",
+                    "tile",
+                    "z",
+                    "y_interface",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        9,
+                        8
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        1,
+                        6,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "units": "m/s s^-1"
                 }
             },
             "y_wind": {
@@ -875,11 +719,41 @@
                         6,
                         19,
                         8,
-                        9
+                        8
                     ]
                 },
                 "attrs": {
                     "units": "m/s"
+                }
+            },
+            "y_wind_tendency_due_to_nudging": {
+                "name": "y_wind_tendency_due_to_nudging",
+                "dims": [
+                    "time",
+                    "tile",
+                    "z",
+                    "y",
+                    "x_interface"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        9
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        1,
+                        6,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "units": "m/s s^-1"
                 }
             }
         }

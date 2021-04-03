@@ -258,31 +258,3 @@ def assign_net_physics_terms(ds: xr.Dataset) -> xr.DataArray:
         "net_precipitation": net_precipitation_from_physics(ds),
     }
     return ds.assign(net_terms)
-
-
-def compute_clouds_off_pQ1(ds: xr.Dataset) -> xr.DataArray:
-    """Compute the clouds off tendency of temperature.
-
-    The input Dataset must contain the physics tendency component
-    diagnostics as output by the fortran model.
-
-    Args:
-        ds: input Dataset
-    Returns:
-        A DataArray with the clouds off temperature tendency
-    """
-    return sum([ds[variable] for variable in CLOUDS_OFF_TEMP_TENDENCIES])
-
-
-def compute_clouds_off_pQ2(ds: xr.Dataset) -> xr.DataArray:
-    """Compute the clouds off tendency of specific humidity.
-    
-    The input Dataset must contain the physics tendency component
-    diagnostics as output by the fortran model.
-
-    Args:
-        ds: input Dataset
-    Returns:
-        A DataArray with the clouds off specific humidity tendency
-    """
-    return sum([ds[variable] for variable in CLOUDS_OFF_SPHUM_TENDENCIES])
