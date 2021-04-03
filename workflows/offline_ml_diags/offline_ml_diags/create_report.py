@@ -57,7 +57,7 @@ def _drop_temperature_humidity_tendencies_if_not_predicted(ds: xr.Dataset):
     tendencies = ["Q1", "Q2"]
     for var in ds:
         for tendency in tendencies:
-            if tendency in var and ds[var].mean().item() == 0.:
+            if tendency in var and ds[var].mean().item() == 0.0:
                 ds = ds.drop(var)
     return ds
 
@@ -118,7 +118,7 @@ if __name__ == "__main__":
         config_name="config.yaml",
     )
     ds_diags = ds_diags.pipe(insert_dataset_r2).pipe(mse_to_rmse)
-    
+
     # omit physics tendencies from report plots
     ds_diags = _drop_physics_vars(ds_diags)
     ds_diurnal = _drop_physics_vars(ds_diurnal)
@@ -195,9 +195,9 @@ if __name__ == "__main__":
 
     # time averaged quantity vertical profiles over land/sea, pos/neg net precip
     profiles = [
-        var for var in ds_diags.data_vars
-        if ("Q1" in var or "Q2" in var)
-        and is_3d(ds_diags[var])
+        var
+        for var in ds_diags.data_vars
+        if ("Q1" in var or "Q2" in var) and is_3d(ds_diags[var])
     ]
     for var in sorted(profiles):
         fig = diagplot.plot_profile_var(
