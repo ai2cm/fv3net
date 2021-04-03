@@ -1,4 +1,4 @@
-from runtime.steppers.prescriber import PrescriberConfig, Prescriber, get_timesteps
+from runtime.steppers.prescriber import PrescriberConfig, Prescriber, get_timesteps, _get_time_interval_seconds
 from fv3gfs.util.testing import DummyComm
 import fv3gfs.util
 import numpy as np
@@ -154,3 +154,9 @@ def test_no_tendencies(prescriber_output):
     tendencies_list = prescriber_output[1]
     for tendencies in tendencies_list:
         assert not tendencies
+
+
+def test__get_time_interval_seconds():
+    times = [init_time, time_2]
+    time_coord = xr.DataArray(times, dims=["time"], coords={"time": times})
+    assert _get_time_interval_seconds(time_coord) == 900.
