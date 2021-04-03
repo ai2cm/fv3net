@@ -224,16 +224,14 @@ def conditional_average(
         xr dataarray or dataset of conditionally averaged variables
     """
 
-    all_types = list(np.unique(cell_type_array))
-
     if category == "global":
         area_masked = area
-    elif category in all_types:
+    elif category in DOMAINS:
         area_masked = area.where(cell_type_array == category)
     else:
         raise ValueError(
             f"surface type {category} not in provided surface type array "
-            f"with types {all_types}."
+            f"with types {DOMAINS}."
         )
 
     return weighted_average(ds, area_masked, dims)
