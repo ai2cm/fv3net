@@ -5,6 +5,7 @@ import logging
 import sys
 import tempfile
 from typing import MutableMapping, Sequence, List
+import xarray as xr
 
 import fv3viz
 import numpy as np
@@ -23,6 +24,7 @@ from ._helpers import (
     insert_dataset_r2,
     insert_scalar_metrics_r2,
     mse_to_rmse,
+    is_3d,
 )
 from ._select import plot_transect
 
@@ -42,6 +44,22 @@ handler.setFormatter(
 handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags_report")
+
+
+def _drop_physics_vars(ds: xr.Dataset):
+    physics_vars = [var for var in ds if "pQ" in var]
+    for var in physics_vars:
+        ds = ds.drop(var)
+    return ds
+
+
+def _drop_temperature_humidity_tendencies_if_not_predicted(ds: xr.Dataset):
+    tendencies = ["Q1", "Q2"]
+    for var in ds:
+        for tendency in tendencies:
+            if tendency in var and ds[var].mean().item() == 0.:
+                ds = ds.drop(var)
+    return ds
 
 
 def copy_pngs_to_report(input: str, output: str) -> List[str]:
@@ -100,6 +118,16 @@ if __name__ == "__main__":
         config_name="config.yaml",
     )
     ds_diags = ds_diags.pipe(insert_dataset_r2).pipe(mse_to_rmse)
+    
+    # omit physics tendencies from report plots
+    ds_diags = _drop_physics_vars(ds_diags)
+    ds_diurnal = _drop_physics_vars(ds_diurnal)
+
+    # diagnostics_utils currently fill dQ1/2 with zeros if not predicted
+    # exclude these from the report if they are not model outputs.
+    ds_diags = _drop_temperature_humidity_tendencies_if_not_predicted(ds_diags)
+    ds_diurnal = _drop_temperature_humidity_tendencies_if_not_predicted(ds_diurnal)
+
     config.pop("mapping_kwargs", None)  # this item clutters the report
     if args.commit_sha:
         config["commit"] = args.commit_sha
@@ -167,8 +195,10 @@ if __name__ == "__main__":
 
     # time averaged quantity vertical profiles over land/sea, pos/neg net precip
     profiles = [
-        var for var in ds_diags.data_vars if "dQ" in var and "z" in ds_diags[var].dims
-    ] + ["Q1", "Q2"]
+        var for var in ds_diags.data_vars
+        if ("Q1" in var or "Q2" in var)
+        and is_3d(ds_diags[var])
+    ]
     for var in sorted(profiles):
         fig = diagplot.plot_profile_var(
             ds_diags, var, derivation_dim=DERIVATION_DIM, domain_dim=DOMAIN_DIM,
@@ -197,15 +227,7 @@ if __name__ == "__main__":
         )
 
     # 2d quantity diurnal cycles
-
-    q1_q2_components = [
-        "column_integrated_dQ1",
-        "column_integrated_Q1",
-        "column_integrated_dQ2",
-        "column_integrated_Q2",
-    ]
-    other_2d_predicted = [var for var in ds_diurnal if "column_integrated" not in var]
-    for var in q1_q2_components + other_2d_predicted:
+    for var in ds_diurnal:
         fig = diagplot.plot_diurnal_cycles(
             ds_diurnal,
             var=var,
