@@ -47,7 +47,7 @@ logger = logging.getLogger("offline_diags_report")
 
 
 def _drop_physics_vars(ds: xr.Dataset):
-    physics_vars = [var for var in ds if "pQ" in var]
+    physics_vars = [var for var in ds if "pQ" in str(var)]
     for var in physics_vars:
         ds = ds.drop(var)
     return ds
@@ -57,7 +57,7 @@ def _drop_temperature_humidity_tendencies_if_not_predicted(ds: xr.Dataset):
     tendencies = ["Q1", "Q2"]
     for var in ds:
         for tendency in tendencies:
-            if tendency in var and ds[var].mean().item() == 0.0:
+            if tendency in str(var) and ds[var].mean().item() == 0.0:
                 ds = ds.drop(var)
     return ds
 
