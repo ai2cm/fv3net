@@ -28,8 +28,6 @@ def test__sst_from_reference():
     )
 
 
-
-
 def test__time_to_label():
     time, label = cftime.DatetimeJulian(2015, 1, 20, 6, 30, 0), "20150120.063000"
     result = _time_to_label(time)

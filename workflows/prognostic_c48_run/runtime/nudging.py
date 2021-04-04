@@ -165,7 +165,6 @@ def _label_to_time(time: str) -> cftime.DatetimeJulian:
     )
 
 
-
 def get_nudging_tendency(
     state: State, reference_state: State, nudging_timescales: Mapping[str, timedelta]
 ) -> State:

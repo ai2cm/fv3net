@@ -94,8 +94,12 @@ class Prescriber:
         self._prescribed_ds: xr.Dataset = self._scatter_prescribed_ds(
             prescribed_ds, time_coord
         )
-        self._reference_initial_time = time_coord.sortby("time").isel(time=0).item()
-        self._reference_frequency_seconds = _get_time_interval_seconds(time_coord)
+        self._reference_initial_time = (
+            self._prescribed_ds["time"].sortby("time").isel(time=0).item()
+        )
+        self._reference_frequency_seconds = _get_time_interval_seconds(
+            self._prescribed_ds["time"]
+        )
 
     def _load_prescribed_ds(
         self,
@@ -139,7 +143,7 @@ class Prescriber:
 
     def get_momentum_diagnostics(self, state, tendency):
         return {}
-    
+
     def _get_time_interpolated_state_updates(self, time):
         return time_interpolate_func(
             self._get_state_update,
@@ -153,7 +157,7 @@ class Prescriber:
             name: prescribed_timestep[name] for name in prescribed_timestep.data_vars
         }
         return state_updates
-        
+
 
 def _get_prescribed_ds(
     dataset_key: str,
@@ -198,5 +202,4 @@ def _quantity_state_to_ds(quantity_state: QuantityState) -> xr.Dataset:
 
 def _get_time_interval_seconds(time_coord: xr.DataArray) -> float:
     times = time_coord.sortby("time").isel(time=[0, 1]).values
-    return (times[1]-times[0]).total_seconds()
-
+    return (times[1] - times[0]).total_seconds()
