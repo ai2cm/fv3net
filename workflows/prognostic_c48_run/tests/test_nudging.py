@@ -1,6 +1,5 @@
 from runtime.nudging import (
     _sst_from_reference,
-    _time_interpolate_func,
     _time_to_label,
     _label_to_time,
     get_nudging_tendency,
