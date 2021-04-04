@@ -145,11 +145,14 @@ class Prescriber:
         return {}
 
     def _get_time_interpolated_state_updates(self, time):
-        return time_interpolate_func(
-            self._get_state_update,
-            initial_time=self._reference_initial_time,
-            frequency=self._reference_frequency_seconds,
-        )
+        if self._reference_frequency_seconds:
+            return time_interpolate_func(
+                self._get_state_update,
+                initial_time=self._reference_initial_time,
+                frequency=self._reference_frequency_seconds,
+            )
+        else:
+            return self._get_state_updates(time)
 
     def _get_state_updates(self, time):
         prescribed_timestep: xr.Dataset = self._prescribed_ds.sel(time=time)
@@ -200,6 +203,9 @@ def _quantity_state_to_ds(quantity_state: QuantityState) -> xr.Dataset:
     return ds
 
 
-def _get_time_interval_seconds(time_coord: xr.DataArray) -> float:
-    times = time_coord.sortby("time").isel(time=[0, 1]).values
-    return (times[1] - times[0]).total_seconds()
+def _get_time_interval_seconds(time_coord: xr.DataArray) -> Optional[float]:
+    if len(time_coord) > 1:
+        times = time_coord.sortby("time").isel(time=[0, 1]).values
+        return (times[1] - times[0]).total_seconds()
+    else: 
+        return None
