@@ -161,7 +161,9 @@ def test_no_tendencies(prescriber_output):
         assert not tendencies
 
 
-def test__get_time_interval_seconds():
-    times = [init_time, time_2]
+@pytest.mark.parametrize(
+    "times, expected",
+    [([init_time, time_2], 900.), ([init_time], None)])
+def test__get_time_interval_seconds(times, expected):
     time_coord = xr.DataArray(times, dims=["time"], coords={"time": times})
-    assert _get_time_interval_seconds(time_coord) == 900.0
+    assert _get_time_interval_seconds(time_coord) == expected
