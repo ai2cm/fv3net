@@ -150,7 +150,7 @@ class Prescriber:
                 self._get_state_updates,
                 initial_time=self._reference_initial_time,
                 frequency=self._reference_frequency_seconds,
-            )
+            )(time)
         else:
             return self._get_state_updates(time)
 
