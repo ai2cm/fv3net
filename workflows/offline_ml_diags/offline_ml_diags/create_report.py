@@ -53,11 +53,13 @@ def _drop_physics_vars(ds: xr.Dataset):
     return ds
 
 
-def _drop_temperature_humidity_tendencies_if_not_predicted(ds: xr.Dataset):
+def _drop_temperature_humidity_tendencies_if_not_predicted(
+    ds: xr.Dataset, ml_outputs: List[str]
+):
     tendencies = ["Q1", "Q2"]
     for var in ds:
         for tendency in tendencies:
-            if tendency in str(var) and ds[var].mean().item() == 0.0:
+            if tendency in str(var) and tendency not in ml_outputs:
                 ds = ds.drop(var)
     return ds
 
@@ -125,8 +127,12 @@ if __name__ == "__main__":
 
     # diagnostics_utils currently fill dQ1/2 with zeros if not predicted
     # exclude these from the report if they are not model outputs.
-    ds_diags = _drop_temperature_humidity_tendencies_if_not_predicted(ds_diags)
-    ds_diurnal = _drop_temperature_humidity_tendencies_if_not_predicted(ds_diurnal)
+    ds_diags = _drop_temperature_humidity_tendencies_if_not_predicted(
+        ds_diags, config["output_variables"]
+    )
+    ds_diurnal = _drop_temperature_humidity_tendencies_if_not_predicted(
+        ds_diurnal, config["output_variables"]
+    )
 
     config.pop("mapping_kwargs", None)  # this item clutters the report
     if args.commit_sha:
