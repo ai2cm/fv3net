@@ -145,21 +145,25 @@ class Prescriber:
         return {}
 
     def _get_time_interpolated_state_updates(self, time):
+        prescribed_timestep: xr.Dataset = self._prescribed_ds.sel(time=time)
+
+        def _get_state_updates(time):
+            state_updates: State = {
+                name: prescribed_timestep[name] for name in prescribed_timestep.data_vars
+            }
+            return state_updates
         if self._reference_frequency_seconds:
-            return time_interpolate_func(
-                self._get_state_updates,
+            interpolated = time_interpolate_func(
+                _get_state_updates,
                 initial_time=self._reference_initial_time,
                 frequency=self._reference_frequency_seconds,
             )(time)
+            logger.info(f"Interpolating state for time {time}: {interpolated}")
+            return interpolated
         else:
-            return self._get_state_updates(time)
+            return _get_state_updates(time)
 
-    def _get_state_updates(self, time):
-        prescribed_timestep: xr.Dataset = self._prescribed_ds.sel(time=time)
-        state_updates: State = {
-            name: prescribed_timestep[name] for name in prescribed_timestep.data_vars
-        }
-        return state_updates
+
 
 
 def _get_prescribed_ds(
