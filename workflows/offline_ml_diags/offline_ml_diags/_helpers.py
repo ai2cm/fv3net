@@ -48,10 +48,7 @@ ScalarMetrics = Dict[str, Mapping[str, float]]
 
 
 def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
-    if vertical_dim in da.dims:
-        return True
-    else:
-        return False
+    return vertical_dim in da.dims:
 
 
 def insert_scalar_metrics_r2(
