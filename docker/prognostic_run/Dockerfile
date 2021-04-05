@@ -16,6 +16,7 @@ COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4
 # build/install the fortran model
 COPY external/fv3gfs-fortran/ /tmp/fortran-build
 RUN cd /tmp/fortran-build/FV3 && \
+    ./configure gnu_docker && \
     make -j 8 && \
     PREFIX=/usr/local make install
 
