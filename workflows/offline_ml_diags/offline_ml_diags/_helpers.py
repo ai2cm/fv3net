@@ -197,7 +197,7 @@ def column_integrated_metric_names(metrics):
 
 
 def units_from_name(var):
-    key = var.lower()
+    return UNITS.get(var.lower(), "[units unavailable]")
     if key in UNITS:
         return UNITS[key]
     else:
