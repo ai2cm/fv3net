@@ -301,10 +301,6 @@ def snap_mask_to_type(
 
 def units_from_name(var):
     return UNITS.get(var.lower(), "[units unavailable]")
-    if key in UNITS:
-        return UNITS[key]
-    else:
-        return "[units unavailable]"
 
 
 def snap_net_precipitation_to_type(

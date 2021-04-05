@@ -198,10 +198,6 @@ def column_integrated_metric_names(metrics):
 
 def units_from_name(var):
     return UNITS.get(var.lower(), "[units unavailable]")
-    if key in UNITS:
-        return UNITS[key]
-    else:
-        return "[units unavailable]"
 
 
 def _shorten_coordinate_label(coord: str):
