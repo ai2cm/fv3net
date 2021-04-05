@@ -8,6 +8,7 @@ from vcm import safe, interpolate_to_pressure_levels
 from vcm.select import zonal_average_approximate
 import copy
 
+from ._helpers import is_3d
 
 logging.getLogger(__name__)
 
@@ -50,8 +51,12 @@ def compute_metrics(
     variables, assumed to include variables in
     list arg predicted as well as area and delp
     """
-    column_integrated_vars = [f"column_integrated_{name}" for name in predicted_vars]
-    vertical_bias_vars = [var for var in predicted_vars if var not in ["Q1", "Q2"]]
+    predicted_3d_vars = [var for var in predicted_vars if is_3d(ds[var])]
+    predicted_2d_vars = [var for var in predicted_vars if not is_3d(ds[var])] + [
+        f"column_integrated_{name}" for name in predicted_3d_vars
+    ]
+
+    vertical_bias_vars = [var for var in predicted_3d_vars if var not in ["Q1", "Q2"]]
 
     derivation_kwargs = {
         "predict_coord": predict_coord,
@@ -60,28 +65,20 @@ def compute_metrics(
     }
 
     area_weights = area / (area.mean())
-    delp_weights = delp / delp.mean(vertical_dim)
     ds_regrid_z = _regrid_dataset_zdim(ds, vertical_dim, **derivation_kwargs)
 
     metric_sets = {
         "scalar_metrics_column_integrated_vars": {
             "ds": ds,
             "dim_tag": "scalar",
-            "vars": column_integrated_vars,
+            "vars": predicted_2d_vars,
             "weights": [area_weights],
-            "mean_dim_vars": None,
-        },
-        "scalar_column_integrated_metrics": {
-            "ds": ds,
-            "dim_tag": "scalar",
-            "vars": predicted_vars,
-            "weights": [area_weights, delp_weights],
             "mean_dim_vars": None,
         },
         "pressure_level_metrics": {
             "ds": ds_regrid_z,
             "dim_tag": "pressure_level",
-            "vars": predicted_vars,
+            "vars": predicted_3d_vars,
             "weights": [area_weights],
             "mean_dim_vars": vertical_profile_mean_dims,
         },
@@ -105,7 +102,7 @@ def compute_metrics(
         metrics.append(metrics_)
 
     zonal_error = []
-    for var in predicted_vars:
+    for var in predicted_3d_vars:
         mse_zonal, variance_zonal = _zonal_avg_mse_variance(
             target=ds_regrid_z[var].sel({derivation_dim: target_coord}),
             predict=ds_regrid_z[var].sel({derivation_dim: predict_coord}),
