@@ -58,7 +58,7 @@ def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
         with fsspec.open(os.path.join(output_dir, MATRIX_NAME), "wb") as f:
             fig.savefig(f)
 
-    if pairs_2d > 0:
+    if len(pairs_2d) > 0:
         fig, axs = plt.subplots(
             len(inputs_2d), len(outputs_2d), figsize=(12, 12), squeeze=False
         )
