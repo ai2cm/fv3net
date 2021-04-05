@@ -300,7 +300,7 @@ def snap_mask_to_type(
 
 
 def units_from_name(var):
-    key = var.lower()
+    return UNITS.get(var.lower(), "[units unavailable]")
     if key in UNITS:
         return UNITS[key]
     else:
