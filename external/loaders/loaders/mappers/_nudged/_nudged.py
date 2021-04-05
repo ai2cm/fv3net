@@ -145,6 +145,7 @@ def open_nudge_to_fine(
                 "state_after_timestep.zarr",
             ],
             consolidated=consolidated,
+            join="inner",
         ).values()
     )
 
