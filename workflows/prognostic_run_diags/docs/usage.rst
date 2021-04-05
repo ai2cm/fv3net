@@ -20,8 +20,7 @@ Movies of the prognostic run can be saved to a given directory with:
 
 .. code-block:: bash
 
-   prognostic_run_diags movie gs://bucket/prognostic-run /tmp/movie_stills
-   stitch_movie_stills.sh /tmp/movie_stills output_directory
+   prognostic_run_diags movie gs://bucket/prognostic-run output_directory
 
 Once the diagnostics and metrics (and optionally movies) for two or more runs
 have been computed and saved in the following structure:

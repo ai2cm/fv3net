@@ -41,10 +41,7 @@ setup(
         "Programming Language :: Python :: 3.7",
     ],
     description="Prognostic run diagnostics",
-    scripts=[
-        "scripts/stitch_movie_stills.sh",
-        "scripts/memoized_compute_diagnostics.sh",
-    ],
+    scripts=["scripts/memoized_compute_diagnostics.sh"],
     entry_points={
         "console_scripts": [
             "prognostic_run_diags=fv3net.diagnostics.prognostic_run.cli:main"

@@ -75,13 +75,16 @@ class ModelTrainingConfig:
                 self.additional_variables.append(DELP)
         self.model_path = model_path
 
-    def dump(self, path: str, filename: str = None) -> None:
+    def asdict(self):
         attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
-        dict_ = {
+        return {
             key: value
             for key, value in attributes
             if not (key.startswith("__") and key.endswith("__"))
         }
+
+    def dump(self, path: str, filename: str = None) -> None:
+        dict_ = self.asdict()
         if filename is None:
             filename = MODEL_CONFIG_FILENAME
         with fsspec.open(os.path.join(path, filename), "w") as f:

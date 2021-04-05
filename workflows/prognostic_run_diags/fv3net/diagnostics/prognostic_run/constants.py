@@ -65,6 +65,8 @@ GLOBAL_AVERAGE_PHYSICS_VARS = [
     "PRATEsfc",
     "LHTFLsfc",
     "SHTFLsfc",
+    "DSWRFsfc",
+    "DLWRFsfc",
     "USWRFtoa",
     "ULWRFtoa",
     "TMPsfc",
@@ -111,4 +113,16 @@ TIME_MEAN_VARS = [
     "TMP850",
     "TMP200",
     "h500",
+]
+
+PRESSURE_INTERPOLATED_VARS = [
+    "air_temperature",
+    "specific_humidity",
+    "eastward_wind",
+    "northward_wind",
+    "vertical_wind",
+    "dQ1",
+    "dQ2",
+    "dQu",
+    "dQv",
 ]

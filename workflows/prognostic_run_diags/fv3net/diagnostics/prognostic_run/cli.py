@@ -1,9 +1,6 @@
 import argparse
 from fv3net.diagnostics.prognostic_run import metrics, compute
-from fv3net.diagnostics.prognostic_run.views import (
-    movie_stills,
-    static_report,
-)  # ignore: E402
+from fv3net.diagnostics.prognostic_run.views import movies, static_report
 
 
 def dissoc(namespace, key):
@@ -18,7 +15,7 @@ def get_parser():
 
     compute.register_parser(subparsers)
     metrics.register_parser(subparsers)
-    movie_stills.register_parser(subparsers)
+    movies.register_parser(subparsers)
     static_report.register_parser(subparsers)
     return parser
 

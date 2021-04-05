@@ -2,6 +2,7 @@
 """
 import dataclasses
 import logging
+import os
 from typing import Hashable, Iterable, Mapping, Sequence, Set, Tuple, cast
 
 import fv3fit
@@ -10,6 +11,7 @@ import xarray as xr
 from runtime.names import DELP, SPHUM
 from runtime.types import Diagnostics, State
 from vcm import thermo
+import vcm
 
 __all__ = ["MachineLearningConfig", "PureMLStepper", "open_model"]
 
@@ -36,7 +38,7 @@ class MachineLearningConfig:
     Example::
 
         MachineLearningConfig(
-            model=["gs://vcm-ml-data/test-annak/ml-pipeline-output"],
+            model=["gs://vcm-ml-scratch/test-annak/ml-pipeline-output"],
             diagnostic_ml=False,
             input_standard_names={},
             output_standard_names={},
@@ -139,8 +141,21 @@ def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
     return MultiModelAdapter(models)
 
 
+def download_model(config: MachineLearningConfig, path: str) -> Sequence[str]:
+    """Download models to local path and return the local paths"""
+    remote_model_paths = config.model
+    local_model_paths = []
+    for i, remote_path in enumerate(remote_model_paths):
+        local_path = os.path.join(path, str(i))
+        os.makedirs(local_path)
+        fs = vcm.cloud.get_fs(remote_path)
+        fs.get(remote_path, local_path, recursive=True)
+        local_model_paths.append(local_path)
+    return local_model_paths
+
+
 def predict(model: MultiModelAdapter, state: State) -> State:
-    """Given ML model and state, return tendency prediction."""
+    """Given ML model and state, return prediction"""
     state_loaded = {key: state[key] for key in model.input_variables}
     ds = xr.Dataset(state_loaded)  # type: ignore
     output = model.predict_columnwise(ds, feature_dim="z")
@@ -197,3 +212,20 @@ class PureMLStepper:
 
     def get_momentum_diagnostics(self, state, tendency):
         return runtime.compute_ml_momentum_diagnostics(state, tendency)
+
+
+class MLStateStepper(PureMLStepper):
+    def __call__(self, time, state):
+
+        diagnostics: Diagnostics = {}
+        state_updates: State = predict(self.model, state)
+
+        for name in state_updates.keys():
+            diagnostics[name] = state_updates[name]
+
+        tendency = {}
+        return (
+            tendency,
+            diagnostics,
+            state_updates,
+        )

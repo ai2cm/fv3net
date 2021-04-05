@@ -11,14 +11,7 @@ from ._nudging import generate_nudging
 from .core import Range, generate, load
 
 timestep1 = "20160801.001500"
-timestep1_npdatetime_fmt = "2016-08-01T00:15:00"
 timestep2 = "20160801.003000"
-timestep2_npdatetime_fmt = "2016-08-01T00:30:00"
-
-times_numpy = [
-    np.datetime64(timestep1_npdatetime_fmt),
-    np.datetime64(timestep2_npdatetime_fmt),
-]
 times_centered_str = [timestep1, timestep2]
 
 
@@ -45,7 +38,7 @@ def data_source_name(request):
 @pytest.fixture(scope="module")
 def nudging_dataset_path():
     with tempfile.TemporaryDirectory() as nudging_dir:
-        generate_nudging(nudging_dir, times_numpy)
+        generate_nudging(nudging_dir)
         yield nudging_dir
 
 
@@ -60,7 +53,7 @@ def fine_res_dataset_path():
 def data_source_path(dataset_fixtures_dir, data_source_name):
     with tempfile.TemporaryDirectory() as data_dir:
         if data_source_name == "nudging_tendencies":
-            generate_nudging(data_dir, times_numpy)
+            generate_nudging(data_dir)
         elif data_source_name == "fine_res_apparent_sources":
             generate_fine_res(data_dir, times_centered_str)
         else:

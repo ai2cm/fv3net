@@ -16,9 +16,10 @@
 
 
 function usage {
-    echo "A segmented run is currently a location on Google Cloud Storage."
     echo "This script can create segmented runs and appending segments to them."
     echo "It also provides low level commands used for debugging."
+    echo "A segmented run can be local or on Google Cloud Storage."
+    echo "Google Cloud Storage locations should start with 'gs:'."
     echo ""
     echo "Usage:"
     echo " runfv3 create <outputUrl> <fv3configFile> <runFile>" > /dev/stderr 
@@ -34,6 +35,7 @@ function usage {
     echo "              testing/debugging."
     echo ""
 }
+
 
 function createRun {
     url="$1"
@@ -55,17 +57,31 @@ function createRun {
 }
 
 function readRunConfig {
-    url="$1"
-    gsutil cat "$runURL/fv3config.yml"
+    # gsutil can't cat local files
+    if [ ${runURL:0:3} == "gs:" ]; then
+        gsutil cat "$runURL/fv3config.yml"
+    else
+        cat "$runURL/fv3config.yml"
+    fi
 }
 
 function readRunLastSegment {
     url="$1"
-    segments=($(gsutil ls "$runURL/artifacts" 2> /dev/null || echo "" ))
+    # gsutil can't ls local files
+    if [ ${runURL:0:3} == "gs:" ]; then
+        segments=($(gsutil ls "$runURL/artifacts" 2> /dev/null || echo "" ))
+    else
+        # need -p to get trailing slash, similar to gsutil ls
+        segments=($(ls -p "$runURL/artifacts" 2> /dev/null || echo "" ))
+    fi
     len="${#segments[@]}"
     if [[ $len -gt 0 ]]
     then
-        printf "%s" "${segments[-1]}"
+        if [ ${runURL:0:3} == "gs:" ]; then
+            printf "%s" "${segments[-1]}"
+        else
+            printf "%s" "$runURL/artifacts/${segments[-1]}"
+        fi
     fi
 }
 
@@ -132,7 +148,7 @@ function runSegment {
     (
         cd "$rundir"
         NUM_PROC=$(yq '.namelist.fv_core_nml.layout | .[0] *.[1] * 6' "$fv3config")
-        mpirun -n "$NUM_PROC" python3 "$runfile" |& tee -a "$rundir/logs.txt"
+        mpirun -n "$NUM_PROC" python3 -m mpi4py "$runfile" |& tee -a "$rundir/logs.txt"
     )
 }
 

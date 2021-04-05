@@ -30,7 +30,7 @@ Top-level
 
 .. autoclass:: UserConfig
 
-Python "Physics"
+Python "prephysics and postphysics"
 ~~~~~~~~~~~~~~~~
 
 
@@ -40,14 +40,28 @@ Python "Physics"
 .. py:module:: runtime.nudging
 .. autoclass:: NudgingConfig
 
+.. py:module:: runtime.steppers.prescriber
+.. autoclass:: PrescriberConfig
+
 
 Diagnostics
 ~~~~~~~~~~~
 
 .. py:module:: runtime.diagnostics.manager
+.. autoclass:: TimeConfig
 
+Python Diagnostics
+^^^^^^^^^^^^^^^^^^
+
+.. py:module:: runtime.diagnostics.manager
 .. autoclass:: DiagnosticFileConfig
 
-.. autoclass:: TimeConfig
+
+Fortran Diagnostics
+^^^^^^^^^^^^^^^^^^^
+
+.. py:module:: runtime.diagnostics.fortran
+.. autoclass:: FortranFileConfig
+.. autoclass:: FortranVariableNameSpec
 
 .. _dataclasses: https://docs.python.org/3/library/dataclasses.html

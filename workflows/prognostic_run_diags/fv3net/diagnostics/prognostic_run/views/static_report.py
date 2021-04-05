@@ -233,6 +233,7 @@ def plot_2d(
             hmap[(long_name_and_units, run)] = hv.QuadMesh(
                 v, dims, varname, label=varfilter
             )
+
     return HVPlot(hmap.opts(colorbar=True, width=850, height=300, **opts))
 
 
@@ -313,7 +314,9 @@ def diurnal_component_plot(
 timeseries_plot_manager = PlotManager()
 zonal_mean_plot_manager = PlotManager()
 hovmoller_plot_manager = PlotManager()
+zonal_pressure_plot_manager = PlotManager()
 diurnal_plot_manager = PlotManager()
+
 # this will be passed the data from the metrics.json files
 metrics_plot_manager = PlotManager()
 
@@ -359,6 +362,31 @@ def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot
     )
 
 
+@zonal_pressure_plot_manager.register
+def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_2d(
+        diagnostics,
+        "pressure_level_zonal_time_mean",
+        dims=["latitude", "pressure"],
+        cmap="viridis",
+        invert_yaxis=True,
+        ylabel="Pressure [Pa]",
+    )
+
+
+@zonal_pressure_plot_manager.register
+def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_2d(
+        diagnostics,
+        "pressure_level_zonal_bias",
+        dims=["latitude", "pressure"],
+        symmetric=True,
+        cmap="RdBu_r",
+        invert_yaxis=True,
+        ylabel="Pressure [Pa]",
+    )
+
+
 @diurnal_plot_manager.register
 def diurnal_cycle_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     return plot_1d_with_region_bar(diagnostics, varfilter="diurnal")
@@ -377,8 +405,13 @@ def time_mean_bias_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
 
 
 @metrics_plot_manager.register
-def rmse_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "rmse")
+def rmse_time_mean_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+    return generic_metric_plot(metrics, "rmse_of_time_mean")
+
+
+@metrics_plot_manager.register
+def rmse_3day_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+    return generic_metric_plot(metrics, "rmse_3day")
 
 
 @metrics_plot_manager.register
@@ -419,7 +452,13 @@ def main(args):
     # load diagnostics
     diags = load_diags(bucket, rundirs)
     # keep all vars that have only these dimensions
-    dim_sets = [{"time"}, {"local_time"}, {"latitude"}, {"time", "latitude"}]
+    dim_sets = [
+        {"time"},
+        {"local_time"},
+        {"latitude"},
+        {"time", "latitude"},
+        {"pressure", "latitude"},
+    ]
     diagnostics = [
         xr.merge([get_variables_with_dims(ds, dim) for dim in dim_sets]).assign_attrs(
             run=key, **run_table_lookup.loc[key]
@@ -444,6 +483,7 @@ def main(args):
         "2D plots": [
             Link("Latitude versus time hovmoller", "hovmoller.html"),
             Link("Time-mean maps (not implemented yet)", "maps.html"),
+            Link("Time-mean zonal-pressure profiles", "zonal_pressure.html"),
         ],
         "Timeseries": list(timeseries_plot_manager.make_plots(diagnostics)),
         "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
@@ -453,6 +493,11 @@ def main(args):
         "Zonal mean value and bias": list(
             hovmoller_plot_manager.make_plots(diagnostics)
         ),
+    }
+    sections_zonal_pressure = {
+        "Zonal mean values at pressure levels": list(
+            zonal_pressure_plot_manager.make_plots(diagnostics)
+        )
     }
     if not metric_table.empty:
         metrics = pd.merge(run_table, metric_table, on="run")
@@ -480,6 +525,12 @@ def main(args):
             title="Latitude versus time hovmoller plots",
             metadata={**verification_label, **run_urls},
             sections=sections_hovmoller,
+            html_header=get_html_header(),
+        ),
+        "zonal_pressure.html": create_html(
+            title="Pressure versus latitude plots",
+            metadata={**verification_label, **run_urls},
+            sections=sections_zonal_pressure,
             html_header=get_html_header(),
         ),
     }

@@ -1,0 +1,37 @@
+# vim: set sts=2 ts=2 tw=2 sw=2 :
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: restart-prognostic-run
+spec:
+  entrypoint: restart-prognostic-run
+  volumes:
+    - name: workdir
+      emptyVol: {}
+    - name: dshm
+      emptyDir:
+        medium: Memory
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+    - name: restart-prognostic-run
+      inputs:
+        parameters:
+          - {name: url}
+          - {name: segment-count, value: "1"}
+          - {name: cpu, value: "6"}
+          - {name: memory, value: 6Gi}
+      steps:
+      - - name: restart-run
+          templateRef:
+            name: run-fv3gfs
+            template: run-all-segments
+          arguments:
+            parameters:
+              - {name: output-url, value: "{{inputs.parameters.url}}"}
+              - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
+              - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+              - {name: memory, value: "{{inputs.parameters.memory}}"}
+              - {name: segment, value: 0}
