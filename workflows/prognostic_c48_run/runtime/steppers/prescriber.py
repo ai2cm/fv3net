@@ -203,9 +203,9 @@ def _quantity_state_to_ds(quantity_state: QuantityState) -> xr.Dataset:
     return ds
 
 
-def _get_time_interval_seconds(time_coord: xr.DataArray) -> Optional[float]:
+def _get_time_interval_seconds(time_coord: xr.DataArray) -> Optional[timedelta]:
     if len(time_coord) > 1:
         times = time_coord.sortby("time").isel(time=[0, 1]).values
-        return (times[1] - times[0]).total_seconds()
+        return times[1] - times[0]
     else:
         return None
