@@ -63,7 +63,7 @@ def cast_time(ds):
 def parse_rundir(walker, skip=()):
     """
     Args:
-        walker: output of top-down os.walk
+        walker: output of os.walk
         skip: sequence of files to ignore
     Returns:
         tiles, zarrs, other
@@ -184,8 +184,8 @@ def post_process(rundir: str, destination: str, chunks: str, skip: str):
         if not destination.startswith("gs://"):
             d_out = destination
 
-        skip = [os.path.join(d_in, file_) for file_ in skip]
-        tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True), skip=skip)
+        skip_abs = [os.path.join(d_in, file_) for file_ in skip]
+        tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True), skip=skip_abs)
 
         for item in chain(open_tiles(tiles, d_in, chunks), open_zarrs(zarrs), other):
             process_item(item, d_in, d_out, chunks)

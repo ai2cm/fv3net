@@ -87,7 +87,7 @@ def write_chunks(config: UserConfig):
 
 
 def write_existing_rundir_items(filename: str = "existing_files.yaml"):
-    """Write list of files which currently exist in rundir. Ignores ./logs.txt.
+    """Write list of files which currently exist in rundir. Ignores 'logs.txt'.
     
     .. warning::
         Only valid at runtime
@@ -96,7 +96,8 @@ def write_existing_rundir_items(filename: str = "existing_files.yaml"):
     for root, dirs, files in os.walk("."):
         for name in files:
             items.append(os.path.join(root, name))
-    if "./logs.txt" in items:
-        items.remove("./logs.txt")
+    items = [os.path.relpath(item, ".") for item in items]
+    if "logs.txt" in items:
+        items.remove("logs.txt")
     with open(filename, "w") as f:
         yaml.safe_dump(items, f)
