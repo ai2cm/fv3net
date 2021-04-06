@@ -5,7 +5,6 @@ import logging
 import sys
 import tempfile
 from typing import MutableMapping, Sequence, List
-import xarray as xr
 
 import fv3viz
 import numpy as np
