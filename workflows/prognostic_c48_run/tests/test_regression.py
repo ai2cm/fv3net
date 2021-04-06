@@ -489,8 +489,8 @@ def test_chunks_present(completed_rundir):
 def test_existing_files(completed_rundir):
     with open(completed_rundir.join(EXISTING_FILES_PATH)) as f:
         existing_files = yaml.safe_load(f)
-    assert "./logs.txt" not in existing_files
-    assert "./grb/seaice_newland.grb" in existing_files
+    assert "logs.txt" not in existing_files
+    assert "grb/seaice_newland.grb" in existing_files
 
 
 def test_fv3run_diagnostic_outputs(completed_rundir, configuration):
