@@ -110,11 +110,9 @@ if __name__ == "__main__":
 
     # diagnostics_utils currently fill dQ1/2 with zeros if not predicted
     # exclude these from the report if they are not model outputs.
-    print(ds_diags)
     ds_diags = drop_temperature_humidity_tendencies_if_not_predicted(
         ds_diags, config["output_variables"]
     )
-    print(ds_diags)
     ds_diurnal = drop_temperature_humidity_tendencies_if_not_predicted(
         ds_diurnal, config["output_variables"]
     )
