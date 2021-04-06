@@ -86,8 +86,8 @@ def write_chunks(config: UserConfig):
         yaml.safe_dump(chunks, f)
 
 
-def write_existing_rundir_items(filename: str = "existing_files.yaml"):
-    """Write list of files which currently exist in rundir. Ignores 'logs.txt'.
+def get_existing_rundir_items(ignore: Sequence[str]) -> Sequence[str]:
+    """Return list of files that exist in rundir except those listed in ignore.
     
     .. warning::
         Only valid at runtime
@@ -97,7 +97,21 @@ def write_existing_rundir_items(filename: str = "existing_files.yaml"):
         for name in files:
             items.append(os.path.join(root, name))
     items = [os.path.relpath(item, ".") for item in items]
-    if "logs.txt" in items:
-        items.remove("logs.txt")
+    for item in ignore:
+        if item in items:
+            items.remove(item)
+    return items
+
+
+def write_existing_rundir_items(
+    filename: str = "existing_files.yaml",
+    ignore: Sequence[str] = ("time_stamp.out", "logs.txt", "fv3config.yml"),
+):
+    """Write list of files which currently exist in rundir except those listed in 'ignore'.
+    
+    .. warning::
+        Only valid at runtime
+    """
+    items = get_existing_rundir_items(ignore)
     with open(filename, "w") as f:
         yaml.safe_dump(items, f)
