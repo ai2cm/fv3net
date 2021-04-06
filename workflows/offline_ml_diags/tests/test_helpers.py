@@ -1,5 +1,57 @@
 import pytest
-from offline_ml_diags._helpers import sample_outside_train_range
+import xarray as xr
+
+from offline_ml_diags._helpers import (
+    sample_outside_train_range,
+    drop_temperature_humidity_tendencies_if_not_predicted,
+    _tendency_in_predictions,
+)
+
+
+@pytest.mark.parametrize(
+    "tendency, output_variables, expected",
+    [
+        ("Q1", ["dQ1", "dQ2"], True),
+        ("dQ1", ["dQ1", "dQ2"], True),
+        ("Q1", ["dQu", "dQv"], False),
+    ],
+)
+def test__tendency_in_predictions(tendency, output_variables, expected):
+    assert _tendency_in_predictions(tendency, output_variables) == expected
+
+
+@pytest.mark.parametrize(
+    "vars, output_variables, vars_after_drop",
+    [
+        (
+            [
+                "dQ1",
+                "column_integrated_dQ1",
+                "dQ2",
+                "Q1",
+                "Q2",
+                "dQu",
+                "column_integrated_dQu",
+            ],
+            ["dQ1", "dQu"],
+            ["dQ1", "column_integrated_dQ1", "Q1", "dQu", "column_integrated_dQu"],
+        ),
+        (
+            ["dQ1", "column_integrated_dQ1", "dQ2", "Q1", "Q2"],
+            ["dQ1"],
+            ["dQ1", "column_integrated_dQ1", "Q1"],
+        ),
+    ],
+)
+def test_drop_temperature_humidity_tendencies_if_not_predicted(
+    vars, output_variables, vars_after_drop
+):
+    da = xr.DataArray(0.0, dims=["x"], coords={"x": range(2)})
+    ds = xr.Dataset({var: da for var in vars})
+    ds_after_drop = drop_temperature_humidity_tendencies_if_not_predicted(
+        ds, output_variables
+    )
+    assert set(ds_after_drop.data_vars) == set(vars_after_drop)
 
 
 @pytest.mark.parametrize(

@@ -25,6 +25,8 @@ from ._helpers import (
     insert_scalar_metrics_r2,
     mse_to_rmse,
     is_3d,
+    drop_physics_vars,
+    drop_temperature_humidity_tendencies_if_not_predicted,
 )
 from ._select import plot_transect
 
@@ -44,24 +46,6 @@ handler.setFormatter(
 handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags_report")
-
-
-def _drop_physics_vars(ds: xr.Dataset):
-    physics_vars = [var for var in ds if "pQ" in str(var)]
-    for var in physics_vars:
-        ds = ds.drop(var)
-    return ds
-
-
-def _drop_temperature_humidity_tendencies_if_not_predicted(
-    ds: xr.Dataset, ml_outputs: List[str]
-):
-    tendencies = ["Q1", "Q2"]
-    for var in ds:
-        for tendency in tendencies:
-            if tendency in str(var) and tendency not in ml_outputs:
-                ds = ds.drop(var)
-    return ds
 
 
 def copy_pngs_to_report(input: str, output: str) -> List[str]:
@@ -122,15 +106,17 @@ if __name__ == "__main__":
     ds_diags = ds_diags.pipe(insert_dataset_r2).pipe(mse_to_rmse)
 
     # omit physics tendencies from report plots
-    ds_diags = _drop_physics_vars(ds_diags)
-    ds_diurnal = _drop_physics_vars(ds_diurnal)
+    ds_diags = drop_physics_vars(ds_diags)
+    ds_diurnal = drop_physics_vars(ds_diurnal)
 
     # diagnostics_utils currently fill dQ1/2 with zeros if not predicted
     # exclude these from the report if they are not model outputs.
-    ds_diags = _drop_temperature_humidity_tendencies_if_not_predicted(
+    print(ds_diags)
+    ds_diags = drop_temperature_humidity_tendencies_if_not_predicted(
         ds_diags, config["output_variables"]
     )
-    ds_diurnal = _drop_temperature_humidity_tendencies_if_not_predicted(
+    print(ds_diags)
+    ds_diurnal = drop_temperature_humidity_tendencies_if_not_predicted(
         ds_diurnal, config["output_variables"]
     )
 
