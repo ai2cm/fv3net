@@ -173,6 +173,8 @@ def post_process(rundir: str, destination: str, chunks: str, skip: str):
     if skip:
         with open(skip) as f:
             skip = yaml.safe_load(f)
+    else:
+        skip = []
 
     with tempfile.TemporaryDirectory() as d_in, tempfile.TemporaryDirectory() as d_out:
 
