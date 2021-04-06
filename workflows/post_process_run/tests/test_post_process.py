@@ -10,12 +10,14 @@ from fv3post.post_process import (
 )
 import tempfile
 from datetime import datetime
+import pytest
 
 TEST_CHUNKS = {"a.zarr": {"time": 5}}
 
 
-def test_parse_rundir_mocked_walker():
-    walker = [
+@pytest.fixture
+def walker():
+    return [
         (
             ".",
             ["diags.zarr", "INPUT", "OUTPUT"],
@@ -25,11 +27,23 @@ def test_parse_rundir_mocked_walker():
         ("./diags.zarr/a", [], ["0", "1", ".zattrs"],),
         ("./INPUT", [], ["restart.nc"],),
     ]
+
+
+def test_parse_rundir_mocked_walker(walker):
     tiles, zarrs, other = parse_rundir(walker)
 
     assert tiles == ["./a.tile1.nc", "./a.tile2.nc", "./a.tile3.nc"]
     assert zarrs == ["./diags.zarr"]
     assert set(other) == {"./INPUT/restart.nc", "./randomfile"}
+
+
+def test_parse_rundir_mocked_walker_skip(walker):
+    skip_files = ["./a.tile1.nc", "./diags.zarr", "./randomfile"]
+    tiles, zarrs, other = parse_rundir(walker, skip=skip_files)
+
+    assert tiles == ["./a.tile2.nc", "./a.tile3.nc"]
+    assert len(zarrs) == 0
+    assert set(other) == {"./INPUT/restart.nc"}
 
 
 def test_parse_rundir_os_walk_integration(tmpdir):
@@ -43,10 +57,12 @@ def test_parse_rundir_os_walk_integration(tmpdir):
     tmpdir.join("a.tile2.nc").write("")
     tmpdir.join("a.tile3.nc").write("")
     tmpdir.join("randomfile").write("")
+    tmpdir.join("filetoskip").write("")
 
     input_.join("restart.nc").write("")
 
-    tiles, zarrs, other = parse_rundir(os.walk(str(tmpdir)))
+    skip_files = [os.path.join(str(tmpdir), "filetoskip")]
+    tiles, zarrs, other = parse_rundir(os.walk(str(tmpdir)), skip=skip_files)
 
     assert set(tiles) == {
         f"{tmpdir}/a.tile1.nc",

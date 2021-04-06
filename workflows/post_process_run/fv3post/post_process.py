@@ -60,10 +60,11 @@ def cast_time(ds):
     return ds
 
 
-def parse_rundir(walker):
+def parse_rundir(walker, skip=()):
     """
     Args:
-        walker: output of os.walk
+        walker: output of top-down os.walk
+        skip: sequence of files to ignore
     Returns:
         tiles, zarrs, other
     """
@@ -73,17 +74,19 @@ def parse_rundir(walker):
     for root, dirs, files in walker:
         for file_ in files:
             full_name = os.path.join(root, file_)
-            if re.search(r"tile\d\.nc", file_):
-                tiles.append(full_name)
-            elif ".zarr" in root:
-                pass
-            else:
-                other.append(full_name)
+            if full_name not in skip:
+                if re.search(r"tile\d\.nc", file_):
+                    tiles.append(full_name)
+                elif ".zarr" in root:
+                    pass
+                else:
+                    other.append(full_name)
 
         search_path = []
         for dir_ in dirs:
-            if dir_.endswith(".zarr"):
-                zarrs.append(os.path.join(root, dir_))
+            full_name = os.path.join(root, dir_)
+            if dir_.endswith(".zarr") and full_name not in skip:
+                zarrs.append(full_name)
             else:
                 search_path.append(dir_)
         # only recurse into non-zarrs
@@ -147,7 +150,10 @@ def process_item(
 @click.option(
     "--chunks", type=click.Path(), help="path to yaml file containing chunk information"
 )
-def post_process(rundir: str, destination: str, chunks: str):
+@click.option(
+    "--skip", type=click.Path(), help="path to yaml file listing files to skip."
+)
+def post_process(rundir: str, destination: str, chunks: str, skip: str):
     """Post-process the fv3gfs output located RUNDIR and save to DESTINATION
 
     RUNDIR and DESTINATION may be local or GCS paths.
@@ -164,6 +170,10 @@ def post_process(rundir: str, destination: str, chunks: str):
     else:
         chunks = {}
 
+    if skip:
+        with open(skip) as f:
+            skip = yaml.safe_load(f)
+
     with tempfile.TemporaryDirectory() as d_in, tempfile.TemporaryDirectory() as d_out:
 
         if rundir.startswith("gs://"):
@@ -174,7 +184,8 @@ def post_process(rundir: str, destination: str, chunks: str):
         if not destination.startswith("gs://"):
             d_out = destination
 
-        tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True))
+        skip = [os.path.join(d_in, file_) for file_ in skip]
+        tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True), skip=skip)
 
         for item in chain(open_tiles(tiles, d_in, chunks), open_zarrs(zarrs), other):
             process_item(item, d_in, d_out, chunks)

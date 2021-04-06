@@ -22,6 +22,7 @@ FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
 LOG_PATH = "statistics.txt"
 RUNFILE_PATH = "runfile.py"
 CHUNKS_PATH = "chunks.yaml"
+EXISTING_FILES_PATH = "existing_files.yaml"
 DIAGNOSTICS = [
     {
         "name": "diags.zarr",
@@ -483,6 +484,13 @@ def test_runfile_script_present(completed_rundir):
 
 def test_chunks_present(completed_rundir):
     assert completed_rundir.join(CHUNKS_PATH).exists()
+
+
+def test_existing_files(completed_rundir):
+    with open(completed_rundir.join(EXISTING_FILES_PATH)) as f:
+        existing_files = yaml.safe_load(f)
+    assert "./logs.txt" not in existing_files
+    assert "./grb/seaice_newland.grb" in existing_files
 
 
 def test_fv3run_diagnostic_outputs(completed_rundir, configuration):

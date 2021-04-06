@@ -1,3 +1,4 @@
+import os
 from typing import List, Optional, Union
 import dataclasses
 import yaml
@@ -83,3 +84,19 @@ def write_chunks(config: UserConfig):
     chunks = get_chunks(diagnostic_file_configs)
     with open("chunks.yaml", "w") as f:
         yaml.safe_dump(chunks, f)
+
+
+def write_existing_rundir_items(filename: str = "existing_files.yaml"):
+    """Write list of files which currently exist in rundir. Ignores ./logs.txt.
+    
+    .. warning::
+        Only valid at runtime
+    """
+    items = []
+    for root, dirs, files in os.walk("."):
+        for name in files:
+            items.append(os.path.join(root, name))
+    if "./logs.txt" in items:
+        items.remove("./logs.txt")
+    with open(filename, "w") as f:
+        yaml.safe_dump(items, f)
