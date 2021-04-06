@@ -4,7 +4,7 @@ import numpy as np
 import os
 import random
 import shutil
-from typing import Mapping, Sequence, Dict
+from typing import Mapping, Sequence, Dict, List
 import warnings
 import xarray as xr
 import yaml
@@ -45,6 +45,33 @@ GRID_INFO_VARS = [
     "area",
 ]
 ScalarMetrics = Dict[str, Mapping[str, float]]
+
+
+def drop_physics_vars(ds: xr.Dataset):
+    physics_vars = [var for var in ds if "pQ" in str(var)]
+    for var in physics_vars:
+        ds = ds.drop(var)
+    return ds
+
+
+def _tendency_in_predictions(tendency: str, predicted_vars: List[str]):
+    for predicted_var in predicted_vars:
+        if tendency in predicted_var:
+            return True
+    return False
+
+
+def drop_temperature_humidity_tendencies_if_not_predicted(
+    ds: xr.Dataset, ml_outputs: List[str]
+):
+    tendencies = ["Q1", "Q2"]
+    for var in ds:
+        for tendency in tendencies:
+            if tendency in str(var) and not _tendency_in_predictions(
+                tendency, ml_outputs
+            ):
+                ds = ds.drop(var)
+    return ds
 
 
 def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
