@@ -1,4 +1,4 @@
-from .config import get_namelist, get_config, write_chunks, write_existing_rundir_items
+from .config import get_namelist, get_config, write_chunks
 from .capture import capture_stream, capture_stream_mpi, capture_fv3gfs_funcs
 from .diagnostics import (
     get_chunks,

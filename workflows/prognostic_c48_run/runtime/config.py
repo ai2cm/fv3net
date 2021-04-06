@@ -84,34 +84,3 @@ def write_chunks(config: UserConfig):
     chunks = get_chunks(diagnostic_file_configs)
     with open("chunks.yaml", "w") as f:
         yaml.safe_dump(chunks, f)
-
-
-def get_existing_rundir_items(ignore: Sequence[str]) -> Sequence[str]:
-    """Return list of files that exist in rundir except those listed in ignore.
-    
-    .. warning::
-        Only valid at runtime
-    """
-    items = []
-    for root, dirs, files in os.walk("."):
-        for name in files:
-            items.append(os.path.join(root, name))
-    items = [os.path.relpath(item, ".") for item in items]
-    for item in ignore:
-        if item in items:
-            items.remove(item)
-    return items
-
-
-def write_existing_rundir_items(
-    filename: str = "existing_files.yaml",
-    ignore: Sequence[str] = ("time_stamp.out", "logs.txt", "fv3config.yml"),
-):
-    """Write list of files which currently exist in rundir except those listed in 'ignore'.
-    
-    .. warning::
-        Only valid at runtime
-    """
-    items = get_existing_rundir_items(ignore)
-    with open(filename, "w") as f:
-        yaml.safe_dump(items, f)

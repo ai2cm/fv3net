@@ -30,9 +30,6 @@ logger = logging.getLogger(__name__)
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
-    if comm.rank == 0:
-        runtime.write_existing_rundir_items()
-
     config = runtime.get_config()
     partitioner = util.CubedSpherePartitioner.from_namelist(runtime.get_namelist())
     setup_metrics_logger()

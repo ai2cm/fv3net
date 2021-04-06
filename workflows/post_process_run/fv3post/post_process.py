@@ -194,5 +194,17 @@ def post_process(rundir: str, destination: str, chunks: str, skip: str):
             upload_dir(d_out, destination)
 
 
+@click.command()
+@click.argument("rundir")
+def list_rundir(rundir: str):
+    """Print contents of local RUNDIR to console as yaml"""
+    items = []
+    for root, dirs, files in os.walk(rundir):
+        for name in files:
+            items.append(os.path.join(root, name))
+    items = [os.path.relpath(item, rundir) for item in items]
+    print(yaml.dump(items))
+
+
 if __name__ == "__main__":
     post_process()
