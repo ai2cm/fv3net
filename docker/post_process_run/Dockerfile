@@ -28,7 +28,7 @@ RUN git config --global http.sslverify false && \
     cd FRE-NCtools && \
     git checkout f5d700467f100b63bf5bf92d69c76be989dd2924 && \
     export CFLAGS=-Wno-traditional NETCDF_LDFLAGS=-lm && \
-    \autoreconf -i && ./configure && make && make install && \
+    autoreconf -i && ./configure && make && make install && \
     cd .. && rm -r FRE-NCtools
 
 # install gcloud
