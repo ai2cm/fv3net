@@ -20,10 +20,16 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     python3-pip
 
-# install FRE-NCtools including fregrid
-COPY external/FRE-NCtools /FRE-NCtools
-RUN cd FRE-NCtools && export CFLAGS=-Wno-traditional NETCDF_LDFLAGS=-lm && \
-    \autoreconf -i && ./configure && make && make install
+# install FRE-NCtools including fregrid. Ideally we would download a
+# tarball of the latest versioned tag (v2.18.0) but v2.18.0 fails
+# to build whereas this more recent commit is successful.
+RUN git config --global http.sslverify false && \
+    git clone https://github.com/NOAA-GFDL/FRE-NCtools.git && \
+    cd FRE-NCtools && \
+    git checkout f5d700467f100b63bf5bf92d69c76be989dd2924 && \
+    export CFLAGS=-Wno-traditional NETCDF_LDFLAGS=-lm && \
+    \autoreconf -i && ./configure && make && make install && \
+    cd .. && rm -r FRE-NCtools
 
 # install gcloud
 RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext
