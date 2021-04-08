@@ -416,11 +416,10 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         if self._postphysics_stepper is None:
             return {}
         else:
-            (
-                self._tendencies,
-                diagnostics,
-                self._state_updates,
-            ) = self._postphysics_stepper(self._state.time, self._state)
+            (self._tendencies, diagnostics, state_updates,) = self._postphysics_stepper(
+                self._state.time, self._state
+            )
+            self._state_updates.update(state_updates)
             try:
                 rank_updated_points = diagnostics["rank_updated_points"]
             except KeyError:
