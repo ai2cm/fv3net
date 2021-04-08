@@ -117,6 +117,8 @@ function appendSegment {
     fv3ExitCode=$?
     set -e
 
+    echo "Skipping upload of following files:"
+    cat "$rundir/preexisting_files.txt"
     post_process_run --chunks "$rundir/chunks.yaml" \
         --skip "$rundir/preexisting_files.txt" \
         "$rundir" "$postProcessedOut"
