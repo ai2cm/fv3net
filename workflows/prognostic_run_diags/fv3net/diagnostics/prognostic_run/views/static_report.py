@@ -1,19 +1,18 @@
 #!/usr/bin/env python
 
-import json
 from typing import Iterable, Sequence
 import os
-import numpy as np
 import xarray as xr
 import fsspec
 import pandas as pd
-from pathlib import Path
 import holoviews as hv
+
+from fv3net.diagnostics.prognostic_run.rundirs import ComputedDiagnosticsList
+
 from report import create_html, Link
 from report.holoviews import HVPlot, get_html_header
 
 hv.extension("bokeh")
-PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
 
 
 def upload(html: str, url: str, content_type: str = "text/html"):
@@ -58,93 +57,6 @@ class PlotManager:
     def make_plots(self, data) -> Iterable:
         for func in self._diags:
             yield func(data)
-
-
-def get_variables_with_dims(ds, dims):
-    return ds.drop([key for key in ds if set(ds[key].dims) != set(dims)])
-
-
-def convert_time_index_to_datetime(ds, dim):
-    return ds.assign_coords({dim: ds.indexes[dim].to_datetimeindex()})
-
-
-def detect_rundirs(bucket: str, fs: fsspec.AbstractFileSystem):
-    diag_ncs = fs.glob(os.path.join(bucket, "*", "diags.nc"))
-    if len(diag_ncs) < 2:
-        raise ValueError(
-            "Plots require more than 1 diagnostic directory in"
-            f" {bucket} for holoviews plots to display correctly."
-        )
-    return [Path(url).parent.name for url in diag_ncs]
-
-
-def load_diags(bucket, rundirs):
-    metrics = {}
-    for rundir in rundirs:
-        path = os.path.join(bucket, rundir, "diags.nc")
-        with fsspec.open(path, "rb") as f:
-            metrics[rundir] = xr.open_dataset(f, engine="h5netcdf").compute()
-    return metrics
-
-
-def _yield_metric_rows(metrics):
-    """yield rows to be combined into a dataframe
-    """
-    for run in metrics:
-        for name in metrics[run]:
-            yield {
-                "run": run,
-                "metric": name,
-                "value": metrics[run][name]["value"],
-                "units": metrics[run][name]["units"],
-            }
-
-
-def _parse_metadata(run: str):
-    baseline_s = "-baseline"
-
-    if run.endswith(baseline_s):
-        baseline = True
-    else:
-        baseline = False
-
-    return {"run": run, "baseline": baseline}
-
-
-def load_metrics(bucket, rundirs):
-    metrics = {}
-    for rundir in rundirs:
-        path = os.path.join(bucket, rundir, "metrics.json")
-        with fsspec.open(path, "rb") as f:
-            metrics[rundir] = json.load(f)
-
-    return metrics
-
-
-def get_movie_links(bucket, rundirs, fs, domain=PUBLIC_GCS_DOMAIN):
-    movie_links = {}
-    for rundir in rundirs:
-        movie_paths = fs.glob(os.path.join(bucket, rundir, "*.mp4"))
-        for gcs_path in movie_paths:
-            movie_name = os.path.basename(gcs_path)
-            if movie_name not in movie_links:
-                movie_links[movie_name] = ""
-            public_url = os.path.join(domain, gcs_path)
-            movie_links[movie_name] += " " + _html_link(public_url, rundir)
-    return movie_links
-
-
-def _html_link(url, tag):
-    return f"<a href='{url}'>{tag}</a>"
-
-
-def _longest_run(diagnostics: Iterable[xr.Dataset]) -> xr.Dataset:
-    max_length = 0
-    for ds in diagnostics:
-        if ds.sizes["time"] > max_length:
-            longest_ds = ds
-            max_length = ds.sizes["time"]
-    return longest_ds
 
 
 def plot_1d(
@@ -253,38 +165,6 @@ def _parse_diurnal_component_fields(varname: str):
     surface_type = tokens[-1]
 
     return short_varname, surface_type
-
-
-def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
-    """Back out verification timeseries from prognostic run value and bias"""
-    verif_diagnostics = {}
-    verif_attrs = {"run": "verification", "baseline": True}
-    mean_bias_pairs = {
-        "spatial_mean": "mean_bias",
-        "diurn_component": "diurn_bias",
-        "zonal_and_time_mean": "zonal_bias",
-        "zonal_mean_value": "zonal_mean_bias",
-    }
-    for mean_filter, bias_filter in mean_bias_pairs.items():
-        mean_vars = [var for var in ds if mean_filter in var]
-        for var in mean_vars:
-            matching_bias_var = var.replace(mean_filter, bias_filter)
-            if matching_bias_var in ds:
-                # verification = prognostic - bias
-                verif_diagnostics[var] = ds[var] - ds[matching_bias_var]
-                verif_diagnostics[var].attrs = ds[var].attrs
-    return xr.Dataset(verif_diagnostics, attrs=verif_attrs)
-
-
-def _fill_missing_variables_with_nans(diagnostics: Sequence[xr.Dataset]):
-    """Ensure all datasets within given sequence contain same data variables. Fills
-    missing variables with NaNs as necessary. Operates in place."""
-    all_variables = {varname: ds for ds in diagnostics for varname in ds.data_vars}
-    for ds in diagnostics:
-        missing_variables = set(all_variables) - set(ds.data_vars)
-        for varname in missing_variables:
-            ds_with_varname = all_variables[varname]
-            ds[varname] = xr.full_like(ds_with_varname[varname], np.nan)
 
 
 def diurnal_component_plot(
@@ -433,52 +313,7 @@ def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
         return HVPlot(hmap.opts(**bar_opts))
 
 
-def register_parser(subparsers):
-    parser = subparsers.add_parser("report", help="Generate a static html report.")
-    parser.add_argument("input", help="Directory containing multiple run diagnostics.")
-    parser.add_argument("output", help="Location to save report html files.")
-    parser.set_defaults(func=main)
-
-
-def main(args):
-    bucket = args.input
-
-    # get run information
-    fs, _, _ = fsspec.get_fs_token_paths(bucket)
-    rundirs = detect_rundirs(bucket, fs)
-    run_table = pd.DataFrame.from_records(_parse_metadata(run) for run in rundirs)
-    run_table_lookup = run_table.set_index("run")
-
-    # load diagnostics
-    diags = load_diags(bucket, rundirs)
-    # keep all vars that have only these dimensions
-    dim_sets = [
-        {"time"},
-        {"local_time"},
-        {"latitude"},
-        {"time", "latitude"},
-        {"pressure", "latitude"},
-    ]
-    diagnostics = [
-        xr.merge([get_variables_with_dims(ds, dim) for dim in dim_sets]).assign_attrs(
-            run=key, **run_table_lookup.loc[key]
-        )
-        for key, ds in diags.items()
-    ]
-    diagnostics = [convert_time_index_to_datetime(ds, "time") for ds in diagnostics]
-
-    # hack to add verification data from longest set of diagnostics as new run
-    # TODO: generate separate diags.nc file for verification data and load that in here
-    longest_run_ds = _longest_run(diagnostics)
-    diagnostics.append(_get_verification_diagnostics(longest_run_ds))
-
-    _fill_missing_variables_with_nans(diagnostics)
-
-    # load metrics
-    nested_metrics = load_metrics(bucket, rundirs)
-    metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
-
-    # generate all plots
+def render_index(metadata, diagnostics, metrics, movie_links):
     sections_index = {
         "2D plots": [
             Link("Latitude versus time hovmoller", "hovmoller.html"),
@@ -489,51 +324,84 @@ def main(args):
         "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
         "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
     }
+
+    if not metrics.empty:
+        sections_index["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
+    return create_html(
+        title="Prognostic run report",
+        metadata={**metadata, **render_links(movie_links)},
+        sections=sections_index,
+        html_header=get_html_header(),
+    )
+
+
+def render_hovmollers(metadata, diagnostics):
     sections_hovmoller = {
         "Zonal mean value and bias": list(
             hovmoller_plot_manager.make_plots(diagnostics)
         ),
     }
+    return create_html(
+        title="Latitude versus time hovmoller plots",
+        metadata=metadata,
+        sections=sections_hovmoller,
+        html_header=get_html_header(),
+    )
+
+
+def render_zonal_pressures(metadata, diagnostics):
     sections_zonal_pressure = {
         "Zonal mean values at pressure levels": list(
             zonal_pressure_plot_manager.make_plots(diagnostics)
         )
     }
-    if not metric_table.empty:
-        metrics = pd.merge(run_table, metric_table, on="run")
-        sections_index["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
+    return create_html(
+        title="Pressure versus latitude plots",
+        metadata=metadata,
+        sections=sections_zonal_pressure,
+        html_header=get_html_header(),
+    )
 
-    # get metadata
-    run_urls = {key: ds.attrs["url"] for key, ds in diags.items()}
-    verification_datasets = [ds.attrs["verification"] for ds in diags.values()]
-    if any([verification_datasets[0] != item for item in verification_datasets]):
-        raise ValueError(
-            "Report cannot be generated with diagnostics computed against "
-            "different verification datasets."
-        )
-    verification_label = {"verification dataset": verification_datasets[0]}
-    movie_links = get_movie_links(bucket, rundirs, fs)
+
+def _html_link(url, tag):
+    return f"<a href='{url}'>{tag}</a>"
+
+
+def render_links(link_dict):
+    """Render links to html
+
+    Args:
+        link_dict: dict where keys are names, and values are lists (url,
+            text_to_display). For example::
+
+                {"column_moistening.mp4": [(url_to_qv, "specific humidity"), ...]}
+    """
+    return {
+        key: " ".join([_html_link(url, tag) for (url, tag) in links])
+        for key, links in link_dict.items()
+    }
+
+
+def register_parser(subparsers):
+    parser = subparsers.add_parser("report", help="Generate a static html report.")
+    parser.add_argument("input", help="Directory containing multiple run diagnostics.")
+    parser.add_argument("output", help="Location to save report html files.")
+    parser.set_defaults(func=main)
+
+
+def main(args):
+
+    computed_diagnostics = ComputedDiagnosticsList(url=args.input)
+    metrics = computed_diagnostics.load_metrics()
+    movie_links = computed_diagnostics.find_movie_links()
+    metadata, diagnostics = computed_diagnostics.load_diagnostics()
 
     pages = {
-        "index.html": create_html(
-            title="Prognostic run report",
-            metadata={**verification_label, **run_urls, **movie_links},
-            sections=sections_index,
-            html_header=get_html_header(),
-        ),
-        "hovmoller.html": create_html(
-            title="Latitude versus time hovmoller plots",
-            metadata={**verification_label, **run_urls},
-            sections=sections_hovmoller,
-            html_header=get_html_header(),
-        ),
-        "zonal_pressure.html": create_html(
-            title="Pressure versus latitude plots",
-            metadata={**verification_label, **run_urls},
-            sections=sections_zonal_pressure,
-            html_header=get_html_header(),
-        ),
+        "index.html": render_index(metadata, diagnostics, metrics, movie_links),
+        "hovmoller.html": render_hovmollers(metadata, diagnostics),
+        "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
     }
+
     for filename, html in pages.items():
         upload(html, os.path.join(args.output, filename))
 
