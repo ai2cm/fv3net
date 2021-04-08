@@ -60,11 +60,10 @@ def cast_time(ds):
     return ds
 
 
-def parse_rundir(walker, skip=()):
+def parse_rundir(walker):
     """
     Args:
         walker: output of os.walk
-        skip: sequence of files to ignore
     Returns:
         tiles, zarrs, other
     """
@@ -74,19 +73,17 @@ def parse_rundir(walker, skip=()):
     for root, dirs, files in walker:
         for file_ in files:
             full_name = os.path.join(root, file_)
-            if full_name not in skip:
-                if re.search(r"tile\d\.nc", file_):
-                    tiles.append(full_name)
-                elif ".zarr" in root:
-                    pass
-                else:
-                    other.append(full_name)
+            if re.search(r"tile\d\.nc", file_):
+                tiles.append(full_name)
+            elif ".zarr" in root:
+                pass
+            else:
+                other.append(full_name)
 
         search_path = []
         for dir_ in dirs:
-            full_name = os.path.join(root, dir_)
-            if dir_.endswith(".zarr") and full_name not in skip:
-                zarrs.append(full_name)
+            if dir_.endswith(".zarr"):
+                zarrs.append(os.path.join(root, dir_))
             else:
                 search_path.append(dir_)
         # only recurse into non-zarrs
@@ -172,11 +169,12 @@ def post_process(rundir: str, destination: str, chunks: str, skip: str):
 
     if skip:
         with open(skip) as f:
-            skip = yaml.safe_load(f)
+            files_to_skip = yaml.safe_load(f)
     else:
-        skip = []
+        files_to_skip = []
 
     with tempfile.TemporaryDirectory() as d_in, tempfile.TemporaryDirectory() as d_out:
+        files_to_skip = [os.path.join(d_in, file_) for file_ in files_to_skip]
 
         if rundir.startswith("gs://"):
             download_directory(rundir, d_in)
@@ -186,8 +184,9 @@ def post_process(rundir: str, destination: str, chunks: str, skip: str):
         if not destination.startswith("gs://"):
             d_out = destination
 
-        skip_abs = [os.path.join(d_in, file_) for file_ in skip]
-        tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True), skip=skip_abs)
+        tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True))
+        tiles = set(tiles) - set(files_to_skip)
+        other = set(other) - set(files_to_skip)
 
         for item in chain(open_tiles(tiles, d_in, chunks), open_zarrs(zarrs), other):
             process_item(item, d_in, d_out, chunks)
