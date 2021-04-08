@@ -11,7 +11,6 @@ import dacite
 import fv3config
 import fv3kube
 
-from validate_config import validate_chunks
 from runtime import default_diagnostics
 from runtime.diagnostics.manager import (
     FortranFileConfig,
@@ -232,7 +231,6 @@ def prepare_config(args):
     final = _prepare_config_from_parsed_config(
         user_config, fv3config_config, dict_["base_version"], args
     )
-    validate_chunks(final)
     fv3config.dump(final, sys.stdout)
 
 

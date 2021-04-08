@@ -2,7 +2,7 @@ from datetime import timedelta
 import cftime
 import pytest
 import runtime
-import validate_config
+from runtime.validate import _validate_time_chunks, ConfigValidationError
 
 
 @pytest.fixture
@@ -56,7 +56,7 @@ def run_duration():
         ),
     ],
 )
-def test__validate_python_diagnostic_chunks(
+def test__validate_time_chunks(
     initial_time, timestep, run_duration, times, chunks, should_validate
 ):
     diag_file_config = runtime.config.DiagnosticFileConfig(
@@ -64,11 +64,9 @@ def test__validate_python_diagnostic_chunks(
     )
 
     if should_validate:
-        validate_config._validate_time_chunks(
-            diag_file_config, initial_time, timestep, run_duration
-        )
+        _validate_time_chunks(diag_file_config, initial_time, timestep, run_duration)
     else:
-        with pytest.raises(validate_config.ConfigValidationError):
-            validate_config._validate_time_chunks(
+        with pytest.raises(ConfigValidationError):
+            _validate_time_chunks(
                 diag_file_config, initial_time, timestep, run_duration
             )
