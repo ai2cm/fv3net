@@ -13,6 +13,7 @@ local_packages_to_install=(
   external/vcm
   external/loaders
   external/fv3fit
+  external/fv3gfs-util
 )
 set -e
 for package  in "${local_packages_to_install[@]}"

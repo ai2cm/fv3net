@@ -4,7 +4,6 @@ from loaders import mappers
 
 training_mapper_names = [
     "FineResolutionSources",
-    "SubsetTimes",
 ]
 
 
@@ -15,11 +14,9 @@ def training_mapper_name(request):
 
 @pytest.fixture
 def training_mapper_data_source_path(
-    training_mapper_name, nudging_dataset_path, fine_res_dataset_path,
+    training_mapper_name, fine_res_dataset_path,
 ):
-    if training_mapper_name == "SubsetTimes":
-        return nudging_dataset_path
-    elif training_mapper_name == "FineResolutionSources":
+    if training_mapper_name == "FineResolutionSources":
         return fine_res_dataset_path
     else:
         raise NotImplementedError(training_mapper_name)
@@ -31,16 +28,7 @@ def training_mapper(
 ):
     path = training_mapper_data_source_path
 
-    if training_mapper_name == "SubsetTimes":
-        return mappers.open_merged_nudged(path)
-    elif training_mapper_name == "NudgedFullTendencies":
-        return mappers.open_merged_nudged_full_tendencies(
-            path,
-            open_checkpoints_kwargs={
-                "checkpoint_files": ("after_dynamics.zarr", "after_physics.zarr")
-            },
-        )
-    elif training_mapper_name == "FineResolutionSources":
+    if training_mapper_name == "FineResolutionSources":
         return mappers.open_fine_res_apparent_sources(
             path,
             rename_vars={
