@@ -10,7 +10,6 @@ from fv3post.post_process import (
 )
 import tempfile
 from datetime import datetime
-import pytest
 
 TEST_CHUNKS = {"a.zarr": {"time": 5}}
 
@@ -47,7 +46,6 @@ def test_parse_rundir_os_walk_integration(tmpdir):
 
     input_.join("restart.nc").write("")
 
-    skip_files = [os.path.join(str(tmpdir), "filetoskip")]
     tiles, zarrs, other = parse_rundir(os.walk(str(tmpdir)))
 
     assert set(tiles) == {
