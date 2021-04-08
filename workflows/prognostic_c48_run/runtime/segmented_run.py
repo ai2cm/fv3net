@@ -1,13 +1,22 @@
 import logging
 import os
+import shutil
 
 import click
 import fv3config
+import fsspec
 
 import vcm
 from .validate import validate_config
 
 logger = logging.getLogger(__name__)
+
+
+def copy(source: str, destination: str):
+    """Copy between any two 'filesystems'. Do not use for large files."""
+    with fsspec.open(source) as f_source:
+        with fsspec.open(destination, "wb") as f_destination:
+            shutil.copyfileobj(f_source, f_destination)
 
 
 @click.command()
@@ -24,9 +33,9 @@ def create_run(url: str, fv3config_path: str, runfile_path: str):
             "everything under output url and resubmit."
         )
 
-    with fs.open(fv3config_path) as f:
+    with fsspec.open(fv3config_path) as f:
         fv3config_dict = fv3config.load(f)
     validate_config(fv3config_dict)
 
-    fs.put(fv3config_path, os.path.join(url, "fv3config.yml"))
-    fs.put(runfile_path, os.path.join(url, "runfile.py"))
+    copy(fv3config_path, os.path.join(url, "fv3config.yml"))
+    copy(runfile_path, os.path.join(url, "runfile.py"))
