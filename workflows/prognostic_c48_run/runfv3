@@ -42,18 +42,7 @@ function createRun {
     fv3config="$2"
     runfile="$3"
 
-
-    if [[ $# != 3 ]]
-    then 
-        usage
-        exit 1
-    fi
-
-    verifyUrlEmpty "$url"
-
-    echo "Setting up iterations"
-    gsutil cp "$fv3config" "$url/fv3config.yml"
-    gsutil cp "$runfile" "$url/runfile.py"
+    create_run $url $fv3config $runfile
 }
 
 function readRunConfig {
