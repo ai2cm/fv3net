@@ -14,6 +14,7 @@ local_packages_to_install=(
   external/loaders
   external/fv3fit
   external/fv3gfs-util
+  external/xpartition
 )
 set -e
 for package  in "${local_packages_to_install[@]}"
