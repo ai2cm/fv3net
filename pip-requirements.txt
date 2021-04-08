@@ -24,6 +24,10 @@ zarr>=2.5.0
 # this version has wheels = faster installs
 numcodecs>=0.7.2
 
+# xpartition needs >=0.16.2 for region feature of to_zarr
+# pip-compile doesn't work with setup.cfg
+xarray >= 0.16.2, <0.17.0 # 0.17 is python37 only, but we usually run pip-compile on 36 :(
+
 # developer tools
 conda-lock
 pip-tools
