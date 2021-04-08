@@ -2,7 +2,6 @@ import logging
 import os
 
 import click
-import fsspec
 import fv3config
 
 import vcm
