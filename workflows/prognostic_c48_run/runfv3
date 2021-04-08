@@ -118,7 +118,7 @@ function appendSegment {
     set -e
 
     post_process_run --chunks "$rundir/chunks.yaml" \
-        --skip "$rundir/preexisting_files.yaml" \
+        --skip "$rundir/preexisting_files.txt" \
         "$rundir" "$postProcessedOut"
     append_run --no-copy "$postProcessedOut" "$runURL"
 
@@ -147,9 +147,9 @@ function runSegment {
     write_run_directory "$fv3config" "$rundir"
     mkdir -p "$rundir"
     cp "$runfile" "$rundir/runfile.py"
-    list_rundir "$rundir" > "$rundir/preexisting_files.yaml"
     (
         cd "$rundir"
+        find . > preexisting_files.txt
         NUM_PROC=$(yq '.namelist.fv_core_nml.layout | .[0] *.[1] * 6' "$fv3config")
         mpirun -n "$NUM_PROC" python3 -m mpi4py "$runfile" |& tee -a "$rundir/logs.txt"
     )

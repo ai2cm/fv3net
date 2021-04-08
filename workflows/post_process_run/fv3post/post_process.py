@@ -148,7 +148,7 @@ def process_item(
     "--chunks", type=click.Path(), help="path to yaml file containing chunk information"
 )
 @click.option(
-    "--skip", type=click.Path(), help="path to yaml file listing files to skip."
+    "--skip", type=click.Path(), help="path to text file listing files to skip."
 )
 def post_process(rundir: str, destination: str, chunks: str, skip: str):
     """Post-process the fv3gfs output located RUNDIR and save to DESTINATION
@@ -169,12 +169,13 @@ def post_process(rundir: str, destination: str, chunks: str, skip: str):
 
     if skip:
         with open(skip) as f:
-            files_to_skip = yaml.safe_load(f)
+            files_to_skip = [line.strip() for line in f.readlines()]
     else:
         files_to_skip = []
 
     with tempfile.TemporaryDirectory() as d_in, tempfile.TemporaryDirectory() as d_out:
         files_to_skip = [os.path.join(d_in, file_) for file_ in files_to_skip]
+        files_to_skip = [os.path.normpath(path) for path in files_to_skip]
 
         if rundir.startswith("gs://"):
             download_directory(rundir, d_in)
