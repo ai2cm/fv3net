@@ -174,9 +174,6 @@ def post_process(rundir: str, destination: str, chunks: str, skip: str):
         files_to_skip = []
 
     with tempfile.TemporaryDirectory() as d_in, tempfile.TemporaryDirectory() as d_out:
-        files_to_skip = [os.path.join(d_in, file_) for file_ in files_to_skip]
-        files_to_skip = [os.path.normpath(path) for path in files_to_skip]
-
         if rundir.startswith("gs://"):
             download_directory(rundir, d_in)
         else:
@@ -185,12 +182,12 @@ def post_process(rundir: str, destination: str, chunks: str, skip: str):
         if not destination.startswith("gs://"):
             d_out = destination
 
-        print("FILES_TO_SKIP: " + sorted(files_to_skip))
         tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True))
-        print("OTHER_FILES_BEFORE_FILTER: " + sorted(other))
+
+        files_to_skip = [os.path.join(d_in, file_) for file_ in files_to_skip]
+        files_to_skip = [os.path.normpath(path) for path in files_to_skip]
         tiles = set(tiles) - set(files_to_skip)
         other = set(other) - set(files_to_skip)
-        print("OTHER_FILES_AFTER_FILTER: " + sorted(other))
 
         for item in chain(open_tiles(tiles, d_in, chunks), open_zarrs(zarrs), other):
             process_item(item, d_in, d_out, chunks)
