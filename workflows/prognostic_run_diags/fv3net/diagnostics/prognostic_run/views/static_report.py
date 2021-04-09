@@ -327,13 +327,17 @@ def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
         return HVPlot(hmap.opts(**bar_opts))
 
 
+navigation = [
+    Link("Home", "index.html"),
+    Link("Latitude versus time hovmoller", "hovmoller.html"),
+    Link("Time-mean maps (not implemented yet)", "maps.html"),
+    Link("Time-mean zonal-pressure profiles", "zonal_pressure.html"),
+]
+
+
 def render_index(metadata, diagnostics, metrics, movie_links):
     sections_index = {
-        "2D plots": [
-            Link("Latitude versus time hovmoller", "hovmoller.html"),
-            Link("Time-mean maps (not implemented yet)", "maps.html"),
-            Link("Time-mean zonal-pressure profiles", "zonal_pressure.html"),
-        ],
+        "Links": navigation,
         "Timeseries": list(timeseries_plot_manager.make_plots(diagnostics)),
         "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
         "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
@@ -351,6 +355,7 @@ def render_index(metadata, diagnostics, metrics, movie_links):
 
 def render_hovmollers(metadata, diagnostics):
     sections_hovmoller = {
+        "Links": navigation,
         "Zonal mean value and bias": list(
             hovmoller_plot_manager.make_plots(diagnostics)
         ),
@@ -365,9 +370,10 @@ def render_hovmollers(metadata, diagnostics):
 
 def render_zonal_pressures(metadata, diagnostics):
     sections_zonal_pressure = {
+        "Links": navigation,
         "Zonal mean values at pressure levels": list(
             zonal_pressure_plot_manager.make_plots(diagnostics)
-        )
+        ),
     }
     return create_html(
         title="Pressure versus latitude plots",
