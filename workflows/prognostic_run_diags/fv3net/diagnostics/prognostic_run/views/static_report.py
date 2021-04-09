@@ -23,6 +23,7 @@ import warnings
 warnings.filterwarnings(
     "ignore", message="Creating an ndarray from ragged nested sequences"
 )
+warnings.filterwarnings("ignore", message="All-NaN slice encountered")
 
 logging.basicConfig(level=logging.INFO)
 
