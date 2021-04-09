@@ -13,6 +13,11 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
 
 from report import create_html, Link
 from report.holoviews import HVPlot, get_html_header
+from .matplotlib import plot_2d_matplotlib
+
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 hv.extension("bokeh")
 
@@ -246,7 +251,7 @@ def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot
 
 @zonal_pressure_plot_manager.register
 def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d(
+    return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_time_mean",
         dims=["latitude", "pressure"],
@@ -258,7 +263,7 @@ def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 @zonal_pressure_plot_manager.register
 def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d(
+    return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_bias",
         dims=["latitude", "pressure"],
