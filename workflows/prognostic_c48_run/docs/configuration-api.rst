@@ -44,24 +44,20 @@ Python "prephysics and postphysics"
 .. autoclass:: PrescriberConfig
 
 
-Diagnostics
-~~~~~~~~~~~
-
-.. py:module:: runtime.diagnostics.manager
-.. autoclass:: TimeConfig
-
 Python Diagnostics
-^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~
 
 .. py:module:: runtime.diagnostics.manager
 .. autoclass:: DiagnosticFileConfig
+.. autoclass:: TimeConfig
 
 
 Fortran Diagnostics
-^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~
 
 .. py:module:: runtime.diagnostics.fortran
 .. autoclass:: FortranFileConfig
+.. autoclass:: FortranTimeConfig
 .. autoclass:: FortranVariableNameSpec
 
 .. _dataclasses: https://docs.python.org/3/library/dataclasses.html

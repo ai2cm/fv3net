@@ -2,20 +2,23 @@
 
 """
 import json
-from typing import Iterable, Sequence
+from typing import Iterable, Hashable, Sequence, Tuple, Any, Set
 import os
-import numpy as np
 import xarray as xr
+import numpy as np
 import fsspec
 import pandas as pd
 from pathlib import Path
 from dataclasses import dataclass
 
 
-__all__ = ["ComputedDiagnosticsList"]
+__all__ = ["ComputedDiagnosticsList", "RunDiagnostics"]
 
 
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
+
+Diagnostics = Iterable[xr.Dataset]
+Metadata = Any
 
 
 @dataclass
@@ -37,11 +40,53 @@ class ComputedDiagnosticsList:
     def load_metrics(self):
         return load_metrics(self._get_fs(), self.url)
 
-    def load_diagnostics(self):
+    def load_diagnostics(self) -> Tuple[Metadata, Diagnostics]:
         return load_diagnostics(self._get_fs(), self.url)
 
     def find_movie_links(self):
         return find_movie_links(self._get_fs(), self.url)
+
+
+@dataclass
+class RunDiagnostics:
+    """A collection of diagnostics from different runs, not all of which have
+    the same variables
+    
+    """
+
+    diagnostics: Diagnostics
+
+    @property
+    def runs(self) -> Sequence[str]:
+        """The available runs"""
+        return [d.run for d in self.diagnostics]
+
+    @property
+    def variables(self) -> Set[str]:
+        """The available variables"""
+        return set.union(*[set(d) for d in self.diagnostics])
+
+    def get_variable(self, run: str, varname: Hashable) -> xr.DataArray:
+        """Query a collection of diagnostics for a given run and variable
+
+        Args:
+            diagnostics: list of xarray datasets, each with a "run" attribute
+            varname: variable to exctract from the expected run
+
+        Returns:
+            varname of run if present, otherwise nans with the expected
+            metadata
+
+        """
+        diagnostics_dict = {d.run: d[varname] for d in self.diagnostics if varname in d}
+        try:
+            return diagnostics_dict[run]
+        except KeyError:
+            template = next(iter(diagnostics_dict.values()))
+            return xr.full_like(template, np.nan)
+
+    def is_baseline(self, run: str) -> bool:
+        return [d.attrs["baseline"] for d in self.diagnostics if d.run == run][0]
 
 
 def load_metrics(fs, bucket) -> pd.DataFrame:
@@ -53,33 +98,21 @@ def load_metrics(fs, bucket) -> pd.DataFrame:
     return pd.merge(run_table, metric_table, on="run")
 
 
-def load_diagnostics(fs, bucket):
+def load_diagnostics(fs, bucket) -> Tuple[Metadata, Diagnostics]:
     """Load metadata and merged diagnostics from a bucket"""
     rundirs = detect_rundirs(bucket, fs)
     diags = _load_diags(bucket, rundirs)
     run_table_lookup = parse_rundirs(rundirs)
-
-    # keep all vars that have only these dimensions
-    dim_sets = [
-        {"time"},
-        {"local_time"},
-        {"latitude"},
-        {"time", "latitude"},
-        {"pressure", "latitude"},
-    ]
     diagnostics = [
-        xr.merge([get_variables_with_dims(ds, dim) for dim in dim_sets]).assign_attrs(
-            run=key, **run_table_lookup.loc[key]
-        )
+        ds.assign_attrs(run=key, **run_table_lookup.loc[key])
         for key, ds in diags.items()
     ]
-    diagnostics = [convert_time_index_to_datetime(ds, "time") for ds in diagnostics]
+    diagnostics = [convert_index_to_datetime(ds, "time") for ds in diagnostics]
 
     # hack to add verification data from longest set of diagnostics as new run
     # TODO: generate separate diags.nc file for verification data and load that in here
     longest_run_ds = _longest_run(diagnostics)
     diagnostics.append(_get_verification_diagnostics(longest_run_ds))
-    _fill_missing_variables_with_nans(diagnostics)
     return get_metadata(diags), diagnostics
 
 
@@ -192,17 +225,6 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
     return xr.Dataset(verif_diagnostics, attrs=verif_attrs)
 
 
-def _fill_missing_variables_with_nans(diagnostics: Sequence[xr.Dataset]):
-    """Ensure all datasets within given sequence contain same data variables. Fills
-    missing variables with NaNs as necessary. Operates in place."""
-    all_variables = {varname: ds for ds in diagnostics for varname in ds.data_vars}
-    for ds in diagnostics:
-        missing_variables = set(all_variables) - set(ds.data_vars)
-        for varname in missing_variables:
-            ds_with_varname = all_variables[varname]
-            ds[varname] = xr.full_like(ds_with_varname[varname], np.nan)
-
-
 def get_metadata(diags):
     run_urls = {key: ds.attrs["url"] for key, ds in diags.items()}
     verification_datasets = [ds.attrs["verification"] for ds in diags.values()]
@@ -215,9 +237,5 @@ def get_metadata(diags):
     return {**verification_label, **run_urls}
 
 
-def get_variables_with_dims(ds, dims):
-    return ds.drop([key for key in ds if set(ds[key].dims) != set(dims)])
-
-
-def convert_time_index_to_datetime(ds, dim):
+def convert_index_to_datetime(ds, dim):
     return ds.assign_coords({dim: ds.indexes[dim].to_datetimeindex()})

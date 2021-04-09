@@ -1,15 +1,16 @@
+import os
+
+import fsspec
+import numpy as np
+import pytest
+import xarray
+
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     ComputedDiagnosticsList,
     _parse_metadata,
     detect_rundirs,
-    _fill_missing_variables_with_nans,
+    RunDiagnostics,
 )
-
-import pytest
-import fsspec
-import os
-import numpy as np
-import xarray as xr
 
 
 def test__parse_metadata():
@@ -65,15 +66,33 @@ def test_get_movie_links(tmpdir):
     )
 
 
-def test__fill_missing_variables_with_nans():
-    da1 = xr.DataArray(np.zeros(5), dims="x")
-    da2 = xr.DataArray(np.zeros((5, 6)), dims=["x", "y"])
-    ds1 = xr.Dataset({"var1": da1, "var2": da1, "var3": da2})
-    ds2 = xr.Dataset({"var1": da1})
-    ds3 = xr.Dataset({"var3": da1})
-    ds1_copy = ds1.copy(deep=True)
-    _fill_missing_variables_with_nans([ds1, ds2, ds3])
-    assert set(ds1) == set(ds2)
-    assert set(ds2) == set(ds3)
-    assert ds2["var2"].shape == ds1["var2"].shape
-    xr.testing.assert_identical(ds1, ds1_copy)
+one_run = xarray.Dataset({"a": ([], 1,), "b": ([], 2)}, attrs=dict(run="one-run"))
+
+
+@pytest.mark.parametrize("varname", ["a", "b"])
+@pytest.mark.parametrize("run", ["one-run", "another-run"])
+def test_RunDiagnostics_get_variable(run, varname):
+    another_run = one_run.assign_attrs(run="another-run")
+    arr = RunDiagnostics([one_run, another_run]).get_variable(run, varname)
+    xarray.testing.assert_equal(arr, one_run[varname])
+
+
+def test_RunDiagnostics_get_variable_missing_variable():
+    another_run = one_run.assign_attrs(run="another-run").drop("a")
+    run = "another-run"
+    varname = "a"
+
+    arr = RunDiagnostics([one_run, another_run]).get_variable(run, varname)
+    xarray.testing.assert_equal(arr, xarray.full_like(one_run[varname], np.nan))
+
+
+def test_RunDiagnostics_runs():
+    runs = ["a", "b", "c"]
+    diagnostics = RunDiagnostics([one_run.assign_attrs(run=run) for run in runs])
+    assert diagnostics.runs == runs
+
+
+def test_RunDiagnostics_list_variables():
+    ds = xarray.Dataset({})
+    diagnostics = RunDiagnostics([ds.assign(a=1, b=1), ds.assign(b=1), ds.assign(c=1)])
+    assert diagnostics.variables == {"a", "b", "c"}
