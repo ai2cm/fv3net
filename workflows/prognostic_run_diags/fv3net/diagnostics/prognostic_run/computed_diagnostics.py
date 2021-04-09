@@ -40,8 +40,9 @@ class ComputedDiagnosticsList:
     def load_metrics(self):
         return load_metrics(self._get_fs(), self.url)
 
-    def load_diagnostics(self) -> Tuple[Metadata, Diagnostics]:
-        return load_diagnostics(self._get_fs(), self.url)
+    def load_diagnostics(self) -> Tuple[Metadata, "RunDiagnostics"]:
+        metrics, xarray_diags = load_diagnostics(self._get_fs(), self.url)
+        return metrics, RunDiagnostics(xarray_diags)
 
     def find_movie_links(self):
         return find_movie_links(self._get_fs(), self.url)
@@ -56,15 +57,24 @@ class RunDiagnostics:
 
     diagnostics: Diagnostics
 
+    def __post_init__(self):
+        # indexes for faster lookup
+        self._attrs = {ds.run: ds.attrs for ds in self.diagnostics}
+        self._varnames = {ds.run: set(ds) for ds in self.diagnostics}
+        self._run_index = {ds.run: k for k, ds in enumerate(self.diagnostics)}
+
     @property
     def runs(self) -> Sequence[str]:
         """The available runs"""
-        return [d.run for d in self.diagnostics]
+        return list(self._run_index)
 
     @property
     def variables(self) -> Set[str]:
         """The available variables"""
         return set.union(*[set(d) for d in self.diagnostics])
+
+    def _get_run(self, run: str) -> xr.Dataset:
+        return self.diagnostics[self._run_index[run]]
 
     def get_variable(self, run: str, varname: Hashable) -> xr.DataArray:
         """Query a collection of diagnostics for a given run and variable
@@ -78,15 +88,17 @@ class RunDiagnostics:
             metadata
 
         """
-        diagnostics_dict = {d.run: d[varname] for d in self.diagnostics if varname in d}
-        try:
-            return diagnostics_dict[run]
-        except KeyError:
-            template = next(iter(diagnostics_dict.values()))
-            return xr.full_like(template, np.nan)
+        if varname in self._varnames[run]:
+            return self._get_run(run)[varname]
+        else:
+            for run in self._varnames:
+                if varname in self._varnames[run]:
+                    template = self._get_run(run)[varname]
+                    return xr.full_like(template, np.nan)
+            raise ValueError(f"{varname} not found.")
 
     def is_baseline(self, run: str) -> bool:
-        return [d.attrs["baseline"] for d in self.diagnostics if d.run == run][0]
+        return self._attrs[run]["baseline"]
 
 
 def load_metrics(fs, bucket) -> pd.DataFrame:

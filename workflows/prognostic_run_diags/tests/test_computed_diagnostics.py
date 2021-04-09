@@ -94,5 +94,11 @@ def test_RunDiagnostics_runs():
 
 def test_RunDiagnostics_list_variables():
     ds = xarray.Dataset({})
-    diagnostics = RunDiagnostics([ds.assign(a=1, b=1), ds.assign(b=1), ds.assign(c=1)])
+    diagnostics = RunDiagnostics(
+        [
+            ds.assign(a=1, b=1).assign_attrs(run="1"),
+            ds.assign(b=1).assign_attrs(run="2"),
+            ds.assign(c=1).assign_attrs(run="3"),
+        ]
+    )
     assert diagnostics.variables == {"a", "b", "c"}

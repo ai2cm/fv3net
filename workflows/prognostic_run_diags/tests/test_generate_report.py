@@ -1,17 +1,18 @@
+import uuid
+
+import numpy as np
+import pytest
+import xarray
+from google.cloud.storage.client import Client
+
+from fv3net.diagnostics.prognostic_run.computed_diagnostics import RunDiagnostics
+from fv3net.diagnostics.prognostic_run.views.matplotlib import plot_2d_matplotlib
 from fv3net.diagnostics.prognostic_run.views.static_report import (
-    upload,
     _html_link,
     plot_2d,
+    render_links,
+    upload,
 )
-from fv3net.diagnostics.prognostic_run.views.static_report import render_links
-
-import pytest
-import uuid
-from google.cloud.storage.client import Client
-import xarray
-import numpy as np
-
-from fv3net.diagnostics.prognostic_run.views.matplotlib import plot_2d_matplotlib
 
 
 @pytest.fixture()
@@ -87,7 +88,7 @@ def test_plot_2d(opts, plot_2d):
     )
 
     out = plot_2d(
-        [diagnostics, diagnostics.assign_attrs(run="k")],
+        RunDiagnostics([diagnostics, diagnostics.assign_attrs(run="k")]),
         "somefilter",
         dims=["x", "y"],
         cmap="viridis",

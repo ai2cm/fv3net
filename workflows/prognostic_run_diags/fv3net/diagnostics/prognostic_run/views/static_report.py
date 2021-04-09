@@ -75,13 +75,12 @@ class PlotManager:
 
 
 def plot_1d(
-    diagnostics: Iterable[xr.Dataset], varfilter: str, run_attr_name: str = "run",
+    run_diags: RunDiagnostics, varfilter: str, run_attr_name: str = "run",
 ) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "run"])
-    run_diags = RunDiagnostics(diagnostics)
     vars_to_plot = set(v for v in run_diags.variables if varfilter in v)
     for run in run_diags.runs:
         for varname in vars_to_plot:
@@ -95,7 +94,7 @@ def plot_1d(
 
 
 def plot_1d_min_max_with_region_bar(
-    diagnostics: Iterable[xr.Dataset],
+    run_diags: RunDiagnostics,
     varfilter_min: str,
     varfilter_max: str,
     run_attr_name: str = "run",
@@ -104,32 +103,33 @@ def plot_1d_min_max_with_region_bar(
     All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
-    for ds in diagnostics:
-        for varname in ds:
-            if varfilter_min in varname:
-                vmin = ds[varname].rename("min")
-                vmax = ds[varname.replace(varfilter_min, varfilter_max)].rename("max")
-                style = "solid" if ds.attrs["baseline"] else "dashed"
-                run = ds.attrs[run_attr_name]
-                long_name = ds[varname].long_name
-                region = varname.split("_")[-1]
-                # Area plot doesn't automatically add correct y label
-                ylabel = f'{vmin.attrs["long_name"]} {vmin.attrs["units"]}'
-                hmap[(long_name, region, run)] = hv.Area(
-                    (vmin.time, vmin, vmax), label="Min/max", vdims=["y", "y2"]
-                ).options(line_dash=style, color=p, alpha=0.6, ylabel=ylabel)
+
+    variables_to_plot = [v for v in run_diags.variables if varfilter_min in v]
+
+    for run in run_diags.runs:
+        for min_var in variables_to_plot:
+            max_var = min_var.replace(varfilter_min, varfilter_max)
+            vmin = run_diags.get_variable(run, min_var).rename("min")
+            vmax = run_diags.get_variable(run, max_var).rename("max")
+            style = "solid" if run_diags.is_baseline(run) else "dashed"
+            long_name = vmin.long_name
+            region = min_var.split("_")[-1]
+            # Area plot doesn't automatically add correct y label
+            ylabel = f'{vmin.attrs["long_name"]} {vmin.attrs["units"]}'
+            hmap[(long_name, region, run)] = hv.Area(
+                (vmin.time, vmin, vmax), label="Min/max", vdims=["y", "y2"]
+            ).options(line_dash=style, color=p, alpha=0.6, ylabel=ylabel)
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
 def plot_1d_with_region_bar(
-    diagnostics: Iterable[xr.Dataset], varfilter: str, run_attr_name: str = "run"
+    run_diags: RunDiagnostics, varfilter: str, run_attr_name: str = "run"
 ) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     Region will be selectable through a drop-down bar. Region is assumed to be part of
     variable name after last underscore. All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
-    run_diags = RunDiagnostics(diagnostics)
     vars_to_plot = set(v for v in run_diags.variables if varfilter in v)
     for run in run_diags.runs:
         for varname in vars_to_plot:
@@ -144,16 +144,17 @@ def plot_1d_with_region_bar(
 
 
 def plot_2d(
-    diagnostics: Iterable[xr.Dataset], varfilter: str, dims: Sequence = None, **opts
+    run_diags: RunDiagnostics, varfilter: str, dims: Sequence = None, **opts
 ) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 2D and have the same dimensions."""
     hmap = hv.HoloMap(kdims=["variable", "run"])
-    for ds in diagnostics:
-        run = ds.attrs["run"]
-        variables_to_plot = [varname for varname in ds if varfilter in varname]
+    variables_to_plot = [
+        varname for varname in run_diags.variables if varfilter in varname
+    ]
+    for run in run_diags.runs:
         for varname in variables_to_plot:
-            v = ds[varname].rename("value")
+            v = run_diags.get_variable(run, varname).rename("value")
             if dims is None:
                 dims = list(v.dims)
             long_name_and_units = f"{v.long_name} [{v.units}]"
@@ -183,7 +184,7 @@ def _parse_diurnal_component_fields(varname: str):
 
 
 def diurnal_component_plot(
-    diagnostics: Iterable[xr.Dataset],
+    run_diags: RunDiagnostics,
     run_attr_name="run",
     diurnal_component_name="diurn_component",
 ) -> HVPlot:
@@ -191,16 +192,14 @@ def diurnal_component_plot(
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["run", "surface_type", "short_varname"])
 
-    for ds in diagnostics:
-        for varname in ds:
+    for run in run_diags.runs:
+        for varname in run_diags.variables:
             if diurnal_component_name in varname:
-                v = ds[varname].rename("value")
+                v = run_diags.get_variable(run, varname).rename("value")
                 short_vname, surface_type = _parse_diurnal_component_fields(varname)
-                run = ds.attrs[run_attr_name]
                 hmap[(run, surface_type, short_vname)] = hv.Curve(
                     v, label=diurnal_component_name
                 ).options(color=p)
-
     return HVPlot(_set_opts_and_overlay(hmap, overlay="short_varname"))
 
 

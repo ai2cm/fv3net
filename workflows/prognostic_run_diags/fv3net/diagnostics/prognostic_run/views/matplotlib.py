@@ -3,11 +3,10 @@ import dataclasses
 import io
 import logging
 from collections import defaultdict
-from typing import Iterable, Sequence
+from typing import Sequence
 
 import jinja2
 import matplotlib.pyplot as plt
-import xarray as xr
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import RunDiagnostics
 
 
@@ -53,14 +52,12 @@ template = jinja2.Template(
 
 
 def plot_2d_matplotlib(
-    diagnostics: Iterable[xr.Dataset], varfilter: str, dims: Sequence = None, **opts
+    run_diags: RunDiagnostics, varfilter: str, dims: Sequence = None, **opts
 ) -> str:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 2D and have the same dimensions."""
 
     data = defaultdict(dict)
-
-    run_diags = RunDiagnostics(diagnostics)
 
     # kwargs handling
     ylabel = opts.pop("ylabel", "")
