@@ -117,7 +117,11 @@ function appendSegment {
     fv3ExitCode=$?
     set -e
 
-    post_process_run --chunks "$rundir/chunks.yaml" "$rundir" "$postProcessedOut"
+    echo "Skipping upload of following files:"
+    cat "$rundir/preexisting_files.txt"
+    post_process_run --chunks "$rundir/chunks.yaml" \
+        --skip "$rundir/preexisting_files.txt" \
+        "$rundir" "$postProcessedOut"
     append_run --no-copy "$postProcessedOut" "$runURL"
 
     echo "Cleaning up working directory"
@@ -147,6 +151,7 @@ function runSegment {
     cp "$runfile" "$rundir/runfile.py"
     (
         cd "$rundir"
+        find . > preexisting_files.txt
         NUM_PROC=$(yq '.namelist.fv_core_nml.layout | .[0] *.[1] * 6' "$fv3config")
         mpirun -n "$NUM_PROC" python3 -m mpi4py "$runfile" |& tee -a "$rundir/logs.txt"
     )
