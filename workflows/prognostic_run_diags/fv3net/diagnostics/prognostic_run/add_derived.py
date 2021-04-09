@@ -209,7 +209,7 @@ def _column_dq1_or_nq1(ds: xr.Dataset, tol=1.0e-12) -> xr.DataArray:
         long_name = "<nQ1> column integrated moistening from nudging"
     else:
         long_name = "<dQ1> + <nQ1> column integrated moistening from ML + nudging"
-    column_dq1_or_nq1.attrs = {"long_name": long_name, "units": "mm/day"}
+    column_dq1_or_nq1.attrs = {"long_name": long_name, "units": "W/m^2"}
     return column_dq1_or_nq1.rename("column_integrated_dQ1_or_nQ1")
 
 
