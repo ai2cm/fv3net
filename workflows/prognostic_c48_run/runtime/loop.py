@@ -130,15 +130,6 @@ def add_tendency(state: Any, tendency: State, dt: float) -> State:
     return updated  # type: ignore
 
 
-def assign_attrs_from(src: Any, dst: State) -> State:
-    """Given src state and a dst state, return dst state with src attrs
-    """
-    updated = {}
-    for name in dst:
-        updated[name] = dst[name].assign_attrs(src[name].attrs)
-    return updated  # type: ignore
-
-
 class LoggingMixin:
 
     rank: int
@@ -383,8 +374,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._log_debug(
             f"Applying prephysics state updates for: {list(state_updates.keys())}"
         )
-        updated_state = assign_attrs_from(self._state, state_updates)
-        self._state.update_mass_conserving(updated_state)
+        self._state.update_mass_conserving(state_updates)
 
         return diagnostics
 
@@ -449,14 +439,16 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             if self._postphysics_only_diagnostic_ml:
                 rename_diagnostics(diagnostics)
             else:
-                updated_state = add_tendency(self._state, tendency, dt=self._timestep)
-                updated_state[TOTAL_PRECIP] = precipitation_sum(
+                updated_state_from_tendency = add_tendency(
+                    self._state, tendency, dt=self._timestep
+                )
+                updated_state_from_tendency[TOTAL_PRECIP] = precipitation_sum(
                     self._state[TOTAL_PRECIP],
                     diagnostics[self._postphysics_stepper.net_moistening],
                     self._timestep,
                 )
-                diagnostics[TOTAL_PRECIP] = updated_state[TOTAL_PRECIP]
-                self._state.update_mass_conserving(updated_state)
+                diagnostics[TOTAL_PRECIP] = updated_state_from_tendency[TOTAL_PRECIP]
+                self._state.update_mass_conserving(updated_state_from_tendency)
                 self._state.update_mass_conserving(self._state_updates)
 
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
