@@ -1,6 +1,7 @@
 from pathlib import Path
 import json
 import fv3config
+import fv3fit
 import runtime.metrics
 import tempfile
 import numpy as np
@@ -443,11 +444,11 @@ def completed_rundir(configuration, tmpdir_factory):
 
     if configuration == ConfigEnum.sklearn:
         model = get_mock_sklearn_model()
-        model.dump(str(model_path))
+        fv3fit.dump(model, str(model_path))
         config = get_ml_config(model_path)
     elif configuration == ConfigEnum.keras:
         model = get_mock_keras_model()
-        model.dump(str(model_path))
+        fv3fit.dump(model, str(model_path))
         config = get_ml_config(model_path)
     elif configuration == ConfigEnum.nudging:
         config = get_nudging_config()

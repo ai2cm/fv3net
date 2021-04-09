@@ -2,10 +2,13 @@ import dataclasses
 import argparse
 import yaml
 import logging
-from typing import List, Optional
+import sys
+from datetime import datetime, timedelta
+from typing import List, Mapping, Optional, Sequence
 
 import dacite
 
+import fv3config
 import fv3kube
 
 from runtime import default_diagnostics
@@ -14,6 +17,7 @@ from runtime.diagnostics.manager import (
     DiagnosticFileConfig,
     TimeConfig,
 )
+from runtime.diagnostics.fortran import file_configs_to_namelist_settings
 from runtime.steppers.nudging import NudgingConfig
 from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
@@ -95,67 +99,56 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
     nudge_to_observations = (
         config_dict.get("namelist", {}).get("fv_core_nml", {}).get("nudge", False)
     )
-    nudging: Optional[NudgingConfig]
+
     if "nudging" in config_dict:
         config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
             "restarts_path", args.initial_condition_url
         )
-        nudging = dacite.from_dict(NudgingConfig, config_dict["nudging"])
-    else:
-        nudging = None
 
-    scikit_learn = MachineLearningConfig(
-        model=list(args.model_url or []), diagnostic_ml=args.diagnostic_ml
-    )
+    user_config = dacite.from_dict(UserConfig, config_dict)
 
-    if "diagnostics" in config_dict:
-        diagnostics = [
-            dacite.from_dict(DiagnosticFileConfig, diag)
-            for diag in config_dict["diagnostics"]
-        ]
+    # insert command line option overrides
+    if user_config.scikit_learn is None:
+        if args.model_url:
+            user_config.scikit_learn = MachineLearningConfig(
+                model=list(args.model_url), diagnostic_ml=args.diagnostic_ml
+            )
     else:
-        diagnostics = _default_diagnostics(
-            nudging, scikit_learn, nudge_to_observations, args.output_frequency,
+        if args.model_url:
+            user_config.scikit_learn.model = list(args.model_url)
+        if args.diagnostic_ml:
+            user_config.scikit_learn.diagnostic_ml = args.diagnostic_ml
+
+    # insert custom default diagnostics
+    if len(user_config.diagnostics) == 0:
+        user_config.diagnostics = _default_diagnostics(
+            user_config.nudging,
+            user_config.scikit_learn,
+            nudge_to_observations,
+            args.output_frequency,
+        )
+    if len(user_config.fortran_diagnostics) == 0:
+        user_config.fortran_diagnostics = _default_fortran_diagnostics(
+            nudge_to_observations
         )
 
-    if "fortran_diagnostics" in config_dict:
-        fortran_diagnostics = [
-            dacite.from_dict(FortranFileConfig, diag)
-            for diag in config_dict["fortran_diagnostics"]
-        ]
-    else:
-        fortran_diagnostics = _default_fortran_diagnostics(nudge_to_observations)
-
-    default = UserConfig(diagnostics=[], fortran_diagnostics=[])
-
-    if nudging and len(scikit_learn.model):
+    if user_config.nudging and user_config.scikit_learn:
         raise NotImplementedError(
             "Nudging and machine learning cannot currently be run at the same time."
         )
 
-    return UserConfig(
-        nudging=nudging,
-        diagnostics=diagnostics,
-        fortran_diagnostics=fortran_diagnostics,
-        scikit_learn=scikit_learn,
-        step_storage_variables=config_dict.get(
-            "step_storage_variables", default.step_storage_variables
-        ),
-        step_tendency_variables=config_dict.get(
-            "step_tendency_variables", default.step_tendency_variables
-        ),
-    )
+    return user_config
 
 
 def _default_diagnostics(
     nudging: Optional[NudgingConfig],
-    scikit_learn: MachineLearningConfig,
+    scikit_learn: Optional[MachineLearningConfig],
     nudge_to_obs: bool,
     frequency_minutes: int,
 ) -> List[DiagnosticFileConfig]:
     diagnostic_files: List[DiagnosticFileConfig] = []
 
-    if scikit_learn.model:
+    if scikit_learn is not None:
         diagnostic_files.append(default_diagnostics.ml_diagnostics)
     elif nudging or nudge_to_obs:
         diagnostic_files.append(default_diagnostics.state_after_timestep)
@@ -214,6 +207,19 @@ def _update_times(
     return diagnostic_files
 
 
+def _diag_table_overlay(
+    fortran_diagnostics: Sequence[FortranFileConfig],
+    name: str = "prognostic_run",
+    base_time: datetime = datetime(2000, 1, 1),
+) -> Mapping[str, fv3config.DiagTable]:
+    file_configs = [
+        fortran_diagnostic.to_fv3config_diag_file_config()
+        for fortran_diagnostic in fortran_diagnostics
+    ]
+    diag_table = fv3config.DiagTable(name, base_time, file_configs)
+    return {"diag_table": diag_table}
+
+
 def prepare_config(args):
     # Get model config with prognostic run updates
     with open(args.user_config, "r") as f:
@@ -225,7 +231,7 @@ def prepare_config(args):
     final = _prepare_config_from_parsed_config(
         user_config, fv3config_config, dict_["base_version"], args
     )
-    print(yaml.dump(final))
+    fv3config.dump(final, sys.stdout)
 
 
 def _prepare_config_from_parsed_config(
@@ -238,6 +244,12 @@ def _prepare_config_from_parsed_config(
             "argument."
         )
 
+    physics_timestep = timedelta(
+        seconds=fv3kube.merge_fv3config_overlays(
+            fv3kube.get_base_fv3config(base_version), fv3_config
+        )["namelist"]["coupler_nml"]["dt_atmos"]
+    )
+
     # To simplify the configuration flow, updates should be implemented as
     # overlays (i.e. diffs) requiring only a small number of inputs. In
     # particular, overlays should not require access to the full configuration
@@ -247,10 +259,13 @@ def _prepare_config_from_parsed_config(
         fv3kube.c48_initial_conditions_overlay(
             args.initial_condition_url, args.ic_timestep
         ),
-        {"diag_table": PROGNOSTIC_DIAG_TABLE},
         SUPPRESS_RANGE_WARNINGS,
         dataclasses.asdict(user_config),
         fv3_config,
+        _diag_table_overlay(user_config.fortran_diagnostics),
+        file_configs_to_namelist_settings(
+            user_config.fortran_diagnostics, physics_timestep
+        ),
     ]
 
     return fv3kube.merge_fv3config_overlays(*overlays)

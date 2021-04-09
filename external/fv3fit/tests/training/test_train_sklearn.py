@@ -4,12 +4,10 @@ import pytest
 import logging
 from fv3fit._shared import ModelTrainingConfig
 import numpy as np
-import subprocess
 import copy
 
 
 from fv3fit.sklearn._train import get_model
-import fv3fit.sklearn
 
 logger = logging.getLogger(__name__)
 
@@ -86,26 +84,3 @@ def test_reproducibility(
     result_1 = model_1.predict(batch_dataset)
 
     xr.testing.assert_allclose(result_0, result_1)
-
-
-def test_training_integration(
-    data_source_path: str,
-    train_config_filename: str,
-    tmp_path: str,
-    data_source_name: str,
-):
-    """
-    Test the bash endpoint for training the model produces the expected output files.
-    """
-    subprocess.check_call(
-        [
-            "python",
-            "-m",
-            "fv3fit.train",
-            data_source_path,
-            train_config_filename,
-            tmp_path,
-        ]
-    )
-
-    fv3fit.sklearn.SklearnWrapper.load(str(tmp_path))

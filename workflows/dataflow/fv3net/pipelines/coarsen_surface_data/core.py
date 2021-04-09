@@ -33,7 +33,7 @@ def output_names(key) -> dict:
     urls = {}
     for coarsening in coarsenings:
         output_file_name = (
-            f"gs://vcm-ml-data/"
+            f"gs://vcm-ml-intermediate/"
             "2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
             "coarsened/C{res}/{timestep}/{category}.nc"
         )

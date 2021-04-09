@@ -248,6 +248,11 @@ formatted as `[{name: model_name, config: model_config}, ...]`, and where the in
 as for the `training` workflow.  In practice it may be easiest to write this as a YAML file and then converted to
 JSON format using `yq . config.yml` in a submission script.
 
+The default behavior for the final `prognostic-run-diags.diagnostics-step` is to use the default verification dataset
+(`40day_may2020`) to calculate the metrics. If this is not the appropriate verification data to use, make sure to specify
+the appropriate verification using the `online-diags-flags` parameter, e.g. `-p online-diags-flags="--verification <name>"`.
+
+
 | Parameter               | Description                                                           |
 |-------------------------|-----------------------------------------------------------------------|
 | `root`                  | URL for the outputs from this workflow                                |
@@ -267,7 +272,7 @@ JSON format using `yq . config.yml` in a submission script.
 | `memory-training`       | (optional) `memory` for `training` workflow; default 6Gi              |
 | `memory-offline-diags`  | (optional) `memory` for `offline-diags` workflow; default 6Gi         |
 | `training-flags`        | (optional) `flags` for `training` workflow                            |
-
+| `online-diags-flags`    | (optional) `flags` for `prognostic-run-diags` workflow                |
 
 ### Cubed-sphere to lat-lon interpolation workflow
 
@@ -278,7 +283,7 @@ for the regridded outputs, and a comma separated list of variables to regrid fro
 | Parameter       | Description                                                              | Example                         |
 |-----------------|--------------------------------------------------------------------------|---------------------------------|
 | `source_prefix` | Prefix of the source data in GCS (everything but .tile1.nc)              | gs://path/to/sfc_data (no tile) |
-| `output-bucket` | URL to output file in GCS                                                | gs://vcm-ml-data/output.nc      |
+| `output-bucket` | URL to output file in GCS                                                | gs://vcm-ml-scratch/output.nc      |
 | `resolution`    | Resolution of input data (defaults to C48)                               | one of 'C48', 'C96', or 'C384'  |
 | `fields`        | Comma-separated list of variables to regrid                              | PRATEsfc,LHTFLsfc,SHTFLsfc      |
 | `extra_args`    | Extra arguments to pass to fregrid. Typically used for target resolution | --nlat 180 --nlon 360           |

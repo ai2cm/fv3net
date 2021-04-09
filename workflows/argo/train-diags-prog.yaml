@@ -36,6 +36,7 @@ spec:
       - {name: memory-training, value: 6Gi}
       - {name: memory-offline-diags, value: 6Gi}
       - {name: training-flags, value: " "}
+      - {name: online-diags-flags, value: " "}
     dag:
       tasks:
       - name: train-model
@@ -72,7 +73,7 @@ spec:
               - name: offline-diags-output
                 value: "{{inputs.parameters.root}}/offline_diags/{{item.name}}"
               - name: report-output
-                value: "{{inputs.parameters.public-report-output}}"
+                value: "{{inputs.parameters.public-report-output}}/{{item.name}}"
               - name: memory
                 value: "{{inputs.parameters.memory-offline-diags}}"
       - name: construct-full-flags
@@ -110,6 +111,19 @@ spec:
                 value: "{{inputs.parameters.cpu-prog}}"
               - name: memory
                 value: "{{inputs.parameters.memory-prog}}"
+      - name: online-diags
+        dependencies: [prognostic-run]
+        templateRef:
+          name: prognostic-run-diags
+          template: diagnostics
+        arguments:
+          parameters:
+              - name: run
+                value: "{{inputs.parameters.root}}/prognostic_run"
+              - name: output
+                value: "{{inputs.parameters.root}}/prognostic_run_diags"
+              - name: flags
+                value: "{{inputs.parameters.online-diags-flags}}"
   - name: construct-full-flags
     inputs:
       parameters:

@@ -18,11 +18,14 @@ from ._helpers import (
     open_diagnostics_outputs,
     copy_outputs,
     tidy_title,
-    units_from_Q_name,
+    units_from_name,
     column_integrated_metric_names,
     insert_dataset_r2,
     insert_scalar_metrics_r2,
     mse_to_rmse,
+    is_3d,
+    drop_physics_vars,
+    drop_temperature_humidity_tendencies_if_not_predicted,
 )
 from ._select import plot_transect
 
@@ -100,6 +103,20 @@ if __name__ == "__main__":
         config_name="config.yaml",
     )
     ds_diags = ds_diags.pipe(insert_dataset_r2).pipe(mse_to_rmse)
+
+    # omit physics tendencies from report plots
+    ds_diags = drop_physics_vars(ds_diags)
+    ds_diurnal = drop_physics_vars(ds_diurnal)
+
+    # diagnostics_utils currently fill dQ1/2 with zeros if not predicted
+    # exclude these from the report if they are not model outputs.
+    ds_diags = drop_temperature_humidity_tendencies_if_not_predicted(
+        ds_diags, config["output_variables"]
+    )
+    ds_diurnal = drop_temperature_humidity_tendencies_if_not_predicted(
+        ds_diurnal, config["output_variables"]
+    )
+
     config.pop("mapping_kwargs", None)  # this item clutters the report
     if args.commit_sha:
         config["commit"] = args.commit_sha
@@ -167,8 +184,10 @@ if __name__ == "__main__":
 
     # time averaged quantity vertical profiles over land/sea, pos/neg net precip
     profiles = [
-        var for var in ds_diags.data_vars if "dQ" in var and "z" in ds_diags[var].dims
-    ] + ["Q1", "Q2"]
+        var
+        for var in ds_diags.data_vars
+        if ("Q1" in var or "Q2" in var) and is_3d(ds_diags[var])
+    ]
     for var in sorted(profiles):
         fig = diagplot.plot_profile_var(
             ds_diags, var, derivation_dim=DERIVATION_DIM, domain_dim=DOMAIN_DIM,
@@ -196,35 +215,33 @@ if __name__ == "__main__":
             output_dir=temp_output_dir.name,
         )
 
-    # column integrated quantity diurnal cycles
-    for tag, var_group in [
-        ("Q1_components", ["column_integrated_dQ1", "column_integrated_Q1"]),
-        ("Q2_components", ["column_integrated_dQ2", "column_integrated_Q2"]),
-    ]:
+    # 2d quantity diurnal cycles
+    for var in ds_diurnal:
         fig = diagplot.plot_diurnal_cycles(
             ds_diurnal,
-            vars=var_group,
+            var=var,
             derivation_plot_coords=ds_diurnal[DERIVATION_DIM].values,
         )
         insert_report_figure(
             report_sections,
             fig,
-            filename=f"{tag}.png",
+            filename=f"{var}.png",
             section_name="Diurnal cycles of column integrated quantities",
             output_dir=temp_output_dir.name,
         )
 
     # transect of predicted fields at lon=0
-    transect_time = ds_transect.time.item()
-    for var in sorted(ds_transect.data_vars):
-        fig = plot_transect(ds_transect[var])
-        insert_report_figure(
-            report_sections,
-            fig,
-            filename=f"transect_lon0_{var}.png",
-            section_name=f"Transect snapshot at lon=0 deg, {transect_time}",
-            output_dir=temp_output_dir.name,
-        )
+    if len(ds_transect) > 0:
+        transect_time = ds_transect.time.item()
+        for var in sorted(ds_transect.data_vars):
+            fig = plot_transect(ds_transect[var])
+            insert_report_figure(
+                report_sections,
+                fig,
+                filename=f"transect_lon0_{var}.png",
+                section_name=f"Transect snapshot at lon=0 deg, {transect_time}",
+                output_dir=temp_output_dir.name,
+            )
 
     # scalar metrics for RMSE and bias
     metrics_formatted = []
@@ -233,7 +250,7 @@ if __name__ == "__main__":
         values = {
             "r2": get_metric_string(metrics, "r2", var),
             "bias": " ".join(
-                [get_metric_string(metrics, "bias", var), units_from_Q_name(var)]
+                [get_metric_string(metrics, "bias", var), units_from_name(var)]
             ),
         }
         metrics_formatted.append((var.replace("_", " "), values))

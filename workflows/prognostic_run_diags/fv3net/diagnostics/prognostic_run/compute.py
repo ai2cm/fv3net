@@ -44,6 +44,7 @@ from fv3net.diagnostics.prognostic_run.constants import (
     DIURNAL_CYCLE_VARS,
     TIME_MEAN_VARS,
     RMSE_VARS,
+    PRESSURE_INTERPOLATED_VARS,
 )
 
 import logging
@@ -146,7 +147,9 @@ def add_to_diags(
     return func
 
 
-def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
+def compute_all_diagnostics(
+    input_datasets: Dict[str, DiagArg], n_jobs: int = -1
+) -> DiagDict:
     """
     Compute all diagnostics for input data.
 
@@ -160,7 +163,7 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
 
     diags = {}
     logger.info("Computing all diagnostics")
-    single_diags = Parallel(n_jobs=-1, verbose=True)(
+    single_diags = Parallel(n_jobs=n_jobs, verbose=True)(
         delayed(_apply_and_load)(diag_func, data, verification, grid)
         for diag_func, (data, verification, grid) in _generate_diag_functions(
             input_datasets
@@ -267,12 +270,37 @@ def zonal_means_physics(prognostic, verification, grid):
     return time_mean(zonal_means)
 
 
+@add_to_diags("3d")
+@diag_finalizer("pressure_level_zonal_time_mean")
+@transform.apply("subset_variables", PRESSURE_INTERPOLATED_VARS)
+@transform.apply("insert_absent_3d_output_placeholder")
+@transform.apply("resample_time", "3H")
+def zonal_means_3d(prognostic, verification, grid):
+    logger.info("Preparing zonal+time means (3d)")
+    with xr.set_options(keep_attrs=True):
+        zonal_means = zonal_mean(prognostic, grid.lat)
+        return time_mean(zonal_means)
+
+
+@add_to_diags("3d")
+@diag_finalizer("pressure_level_zonal_bias")
+@transform.apply("subset_variables", PRESSURE_INTERPOLATED_VARS)
+@transform.apply("insert_absent_3d_output_placeholder")
+@transform.apply("resample_time", "3H")
+def zonal_bias_3d(prognostic, verification, grid):
+    logger.info("Preparing zonal mean bias (3d)")
+    with xr.set_options(keep_attrs=True):
+        zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
+        return time_mean(zonal_mean_bias)
+
+
 @add_to_diags("dycore")
 @diag_finalizer("zonal_bias")
 @transform.apply("resample_time", "1H")
 @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
 def zonal_and_time_mean_biases_dycore(prognostic, verification, grid):
     logger.info("Preparing zonal+time mean biases (dycore)")
+
     zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
     return time_mean(zonal_mean_bias)
 
@@ -485,6 +513,15 @@ def register_parser(subparsers):
         "'simulation' metadata from intake catalog.",
         default="40day_may2020",
     )
+    parser.add_argument(
+        "--n-jobs",
+        type=int,
+        help="Parallelism for the computation of diagnostics. "
+        "Defaults to using all available cores. Can set to a lower fixed value "
+        "if you are often running  into read errors when multiple processes "
+        "access data concurrently.",
+        default=-1,
+    )
     parser.set_defaults(func=main)
 
 
@@ -502,6 +539,7 @@ def main(args):
     input_data = {
         "dycore": load_diags.load_dycore(args.url, verif_entries["dycore"], catalog),
         "physics": load_diags.load_physics(args.url, verif_entries["physics"], catalog),
+        "3d": load_diags.load_3d(args.url, verif_entries["3d"], catalog),
     }
 
     # begin constructing diags
@@ -512,7 +550,7 @@ def main(args):
     diags["pwat_run_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
     diags["pwat_verification_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
 
-    diags.update(compute_all_diagnostics(input_data))
+    diags.update(compute_all_diagnostics(input_data, n_jobs=args.n_jobs))
 
     # add grid vars
     diags = xr.Dataset(diags, attrs=attrs)
