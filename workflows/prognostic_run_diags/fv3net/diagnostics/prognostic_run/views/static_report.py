@@ -9,6 +9,7 @@ import holoviews as hv
 
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     ComputedDiagnosticsList,
+    RunDiagnostics,
 )
 
 from report import create_html, Link
@@ -73,16 +74,16 @@ def plot_1d(
     All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "run"])
-    for ds in diagnostics:
-        for varname in ds:
-            if varfilter in varname:
-                v = ds[varname].rename("value")
-                style = "solid" if ds.attrs["baseline"] else "dashed"
-                run = ds.attrs[run_attr_name]
-                long_name = ds[varname].long_name
-                hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
-                    line_dash=style, color=p
-                )
+    run_diags = RunDiagnostics(diagnostics)
+    vars_to_plot = set(v for v in run_diags.variables if varfilter in v)
+    for run in run_diags.runs:
+        for varname in vars_to_plot:
+            v = run_diags.get_variable(run, varname).rename("value")
+            style = "solid" if run_diags.is_baseline(run) else "dashed"
+            long_name = v.long_name
+            hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
+                line_dash=style, color=p
+            )
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
@@ -121,17 +122,17 @@ def plot_1d_with_region_bar(
     variable name after last underscore. All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
-    for ds in diagnostics:
-        for varname in ds:
-            if varfilter in varname:
-                v = ds[varname].rename("value")
-                style = "solid" if ds.attrs["baseline"] else "dashed"
-                run = ds.attrs[run_attr_name]
-                long_name = ds[varname].long_name
-                region = varname.split("_")[-1]
-                hmap[(long_name, region, run)] = hv.Curve(v, label=varfilter,).options(
-                    line_dash=style, color=p
-                )
+    run_diags = RunDiagnostics(diagnostics)
+    vars_to_plot = set(v for v in run_diags.variables if varfilter in v)
+    for run in run_diags.runs:
+        for varname in vars_to_plot:
+            v = run_diags.get_variable(run, varname).rename("value")
+            style = "solid" if run_diags.is_baseline(run) else "dashed"
+            long_name = v.long_name
+            region = varname.split("_")[-1]
+            hmap[(long_name, region, run)] = hv.Curve(v, label=varfilter,).options(
+                line_dash=style, color=p
+            )
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
