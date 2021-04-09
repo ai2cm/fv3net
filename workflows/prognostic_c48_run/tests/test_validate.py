@@ -5,21 +5,6 @@ import runtime
 from runtime.validate import _validate_time_chunks, ConfigValidationError
 
 
-@pytest.fixture
-def initial_time():
-    return cftime.DatetimeJulian(2016, 8, 1)
-
-
-@pytest.fixture
-def timestep():
-    return timedelta(minutes=15)
-
-
-@pytest.fixture
-def run_duration():
-    return timedelta(hours=12)
-
-
 @pytest.mark.parametrize(
     "times, chunks, should_validate",
     [
@@ -56,9 +41,10 @@ def run_duration():
         ),
     ],
 )
-def test__validate_time_chunks(
-    initial_time, timestep, run_duration, times, chunks, should_validate
-):
+def test__validate_time_chunks(times, chunks, should_validate):
+    initial_time = cftime.DatetimeJulian(2016, 8, 1)
+    timestep = timedelta(minutes=15)
+    run_duration = timedelta(hours=12)
     diag_file_config = runtime.config.DiagnosticFileConfig(
         "diags.zarr", variables=["air_temperature"], times=times, chunks=chunks,
     )
