@@ -7,7 +7,7 @@ import fv3config
 import fsspec
 
 import vcm
-from .validate import validate_config
+from .validate import validate_chunks
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ def create(url: str, fv3config_path: str, runfile_path: str):
 
     with fsspec.open(fv3config_path) as f:
         fv3config_dict = fv3config.load(f)
-    validate_config(fv3config_dict)
+    validate_chunks(fv3config_dict)
 
     copy(fv3config_path, os.path.join(url, "fv3config.yml"))
     copy(runfile_path, os.path.join(url, "runfile.py"))

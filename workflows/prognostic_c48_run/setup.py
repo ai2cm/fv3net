@@ -22,6 +22,6 @@ setup(
     tests_require=test_requirements,
     extras_require={"docs": ["sphinx >=3.2", "sphinx-rtd-theme>=0.5.0"]},
     entry_points={
-        "console_scripts": ["segmented-run-create=runtime.segmented_run:create"]
+        "console_scripts": ["segmented-run-create=runtime.segmented_run.cli:create"]
     },
 )

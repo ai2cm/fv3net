@@ -2,7 +2,7 @@ from datetime import timedelta
 import cftime
 import pytest
 import runtime
-from runtime.validate import _validate_time_chunks, ConfigValidationError
+from runtime.segmented_run.validate import _validate_time_chunks, ConfigValidationError
 
 
 @pytest.mark.parametrize(

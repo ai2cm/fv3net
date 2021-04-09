@@ -3,17 +3,12 @@ from typing import Any, Mapping, Union
 
 import dacite
 import fv3config
-from .config import UserConfig, DiagnosticFileConfig
-from .diagnostics.fortran import FortranFileConfig
+from ..config import UserConfig, DiagnosticFileConfig
+from ..diagnostics.fortran import FortranFileConfig
 
 
 class ConfigValidationError(ValueError):
     pass
-
-
-def validate_config(config_dict: Mapping[str, Any]):
-    """Validate configuration for segmented runs. Currently just validates chunks."""
-    validate_chunks(config_dict)
 
 
 def validate_chunks(config_dict: Mapping[str, Any]):
