@@ -185,9 +185,12 @@ def post_process(rundir: str, destination: str, chunks: str, skip: str):
         if not destination.startswith("gs://"):
             d_out = destination
 
+        print("FILES_TO_SKIP: " + sorted(files_to_skip))
         tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True))
+        print("OTHER_FILES_BEFORE_FILTER: " + sorted(other))
         tiles = set(tiles) - set(files_to_skip)
         other = set(other) - set(files_to_skip)
+        print("OTHER_FILES_AFTER_FILTER: " + sorted(other))
 
         for item in chain(open_tiles(tiles, d_in, chunks), open_zarrs(zarrs), other):
             process_item(item, d_in, d_out, chunks)
