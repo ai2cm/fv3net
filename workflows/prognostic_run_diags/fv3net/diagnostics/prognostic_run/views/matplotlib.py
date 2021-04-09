@@ -8,6 +8,7 @@ from typing import Iterable, Sequence
 import jinja2
 import matplotlib.pyplot as plt
 import xarray as xr
+from fv3net.diagnostics.prognostic_run.computed_diagnostics import RunDiagnostics
 
 
 def fig_to_b64(fig, format="png"):
@@ -33,14 +34,15 @@ template = jinja2.Template(
 
 <tr>
 {% for run in runs %}
-<td><center> {{ run }} </center></td>
+<th><center> {{ run }} </center></th>
 {% endfor %}
 </tr>
 
-{% for varname, runs in diagnostics.items() %}
-{% for run, src in runs.items() %}
+{% for varname in variables_to_plot %}
+<tr>
+{% for run in runs %}
 <td>
-<img src="{{src}}" width="500px" />
+<img src="{{ image_data[varname][run] }}" width="500px" />
 </td>
 {% endfor %}
 </tr>
@@ -58,27 +60,39 @@ def plot_2d_matplotlib(
 
     data = defaultdict(dict)
 
+    run_diags = RunDiagnostics(diagnostics)
+
+    # kwargs handling
     ylabel = opts.pop("ylabel", "")
     invert_yaxis = opts.pop("invert_yaxis", False)
     # ignore the symmetric option
     opts.pop("symmetric", None)
     x, y = dims
-    runs = set()
 
-    for ds in diagnostics:
-        run = ds.attrs["run"]
-        runs.add(run)
-        variables_to_plot = [varname for varname in ds if varfilter in varname]
+    variables_to_plot = [
+        varname for varname in run_diags.variables if varfilter in varname
+    ]
+
+    for run in run_diags.runs:
         for varname in variables_to_plot:
             logging.info(f"plotting {varname} in {run}")
-            v = ds[varname].rename("value")
+            v = run_diags.get_variable(run, varname).rename("value")
             if dims is None:
                 dims = list(v.dims)
             long_name_and_units = f"{v.long_name} [{v.units}]"
             fig, ax = plt.subplots()
             v.plot(ax=ax, x=x, y=y, yincrease=not invert_yaxis, **opts)
-            ax.set_ylabel(ylabel)
+            if ylabel:
+                ax.set_ylabel(ylabel)
             ax.set_title(long_name_and_units)
+            plt.tight_layout()
             data[varname][run] = fig_to_b64(fig)
             plt.close(fig)
-    return raw_html(template.render(diagnostics=data, runs=runs, varfilter=varfilter))
+    return raw_html(
+        template.render(
+            image_data=data,
+            runs=sorted(run_diags.runs),
+            variables_to_plot=variables_to_plot,
+            varfilter=varfilter,
+        )
+    )
