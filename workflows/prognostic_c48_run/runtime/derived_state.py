@@ -6,6 +6,7 @@ import xarray as xr
 import fv3gfs.util
 from vcm import DerivedMapping
 from runtime.names import DELP
+from runtime.types import State
 
 import fv3gfs.wrapper._properties
 import fv3gfs.wrapper
@@ -93,7 +94,7 @@ class DerivedFV3State(MutableMapping):
         return self._mapper.keys()
 
     def update_mass_conserving(
-        self, items: Mapping[Hashable, xr.DataArray],
+        self, items: State,
     ):
         """Update state from another mapping
 
@@ -101,18 +102,26 @@ class DerivedFV3State(MutableMapping):
         
         All states except for pressure thicknesses are set in a mass-conserving fashion.
         """
-        if DELP in items:
+        items_with_attrs = self._assign_attrs_from_mapper(items)
+
+        if DELP in items_with_attrs:
             self._getter.set_state(
-                {DELP: fv3gfs.util.Quantity.from_data_array(items[DELP])}
+                {DELP: fv3gfs.util.Quantity.from_data_array(items_with_attrs[DELP])}
             )
 
-        not_pressure = dissoc(items, DELP)
+        not_pressure = dissoc(items_with_attrs, DELP)
         self._getter.set_state_mass_conserving(
             {
                 key: fv3gfs.util.Quantity.from_data_array(value)
                 for key, value in not_pressure.items()
             }
         )
+
+    def _assign_attrs_from_mapper(self, dst: State) -> State:
+        updated = {}
+        for name in dst:
+            updated[name] = dst[name].assign_attrs(self._mapper[name].attrs)
+        return updated
 
     def __delitem__(self):
         raise NotImplementedError()

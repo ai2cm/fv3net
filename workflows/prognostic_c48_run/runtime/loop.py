@@ -130,15 +130,6 @@ def add_tendency(state: Any, tendency: State, dt: float) -> State:
     return updated  # type: ignore
 
 
-def assign_attrs_from(src: Any, dst: State) -> State:
-    """Given src state and a dst state, return dst state with src attrs
-    """
-    updated = {}
-    for name in dst:
-        updated[name] = dst[name].assign_attrs(src[name].attrs)
-    return updated  # type: ignore
-
-
 class LoggingMixin:
 
     rank: int
@@ -383,8 +374,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._log_debug(
             f"Applying prephysics state updates for: {list(state_updates.keys())}"
         )
-        updated_state = assign_attrs_from(self._state, state_updates)
-        self._state.update_mass_conserving(updated_state)
+        self._state.update_mass_conserving(state_updates)
 
         return diagnostics
 
@@ -459,8 +449,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 )
                 diagnostics[TOTAL_PRECIP] = updated_state_from_tendency[TOTAL_PRECIP]
                 self._state.update_mass_conserving(updated_state_from_tendency)
-                updated_state = assign_attrs_from(self._state, self._state_updates)
-                self._state.update_mass_conserving(updated_state)
+                self._state.update_mass_conserving(self._state_updates)
 
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
         diagnostics.update(
