@@ -42,7 +42,7 @@ function createRun {
     fv3config="$2"
     runfile="$3"
 
-    create_run $url $fv3config $runfile
+    segmented-run-create $url $fv3config $runfile
 }
 
 function readRunConfig {

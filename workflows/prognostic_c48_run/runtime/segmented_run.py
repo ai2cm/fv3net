@@ -23,7 +23,7 @@ def copy(source: str, destination: str):
 @click.argument("url")
 @click.argument("fv3config_path")
 @click.argument("runfile_path")
-def create_run(url: str, fv3config_path: str, runfile_path: str):
+def create(url: str, fv3config_path: str, runfile_path: str):
     """Initialize segmented run at URL given FV3CONFIG_PATH and RUNFILE_PATH."""
     logger.info(f"Setting up segmented run at {url}")
     fs = vcm.cloud.get_fs(url)
