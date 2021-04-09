@@ -9,10 +9,23 @@ import holoviews as hv
 
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     ComputedDiagnosticsList,
+    RunDiagnostics,
 )
 
 from report import create_html, Link
 from report.holoviews import HVPlot, get_html_header
+from .matplotlib import plot_2d_matplotlib
+
+import logging
+
+import warnings
+
+warnings.filterwarnings(
+    "ignore", message="Creating an ndarray from ragged nested sequences"
+)
+warnings.filterwarnings("ignore", message="All-NaN slice encountered")
+
+logging.basicConfig(level=logging.INFO)
 
 hv.extension("bokeh")
 
@@ -68,16 +81,16 @@ def plot_1d(
     All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "run"])
-    for ds in diagnostics:
-        for varname in ds:
-            if varfilter in varname:
-                v = ds[varname].rename("value")
-                style = "solid" if ds.attrs["baseline"] else "dashed"
-                run = ds.attrs[run_attr_name]
-                long_name = ds[varname].long_name
-                hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
-                    line_dash=style, color=p
-                )
+    run_diags = RunDiagnostics(diagnostics)
+    vars_to_plot = set(v for v in run_diags.variables if varfilter in v)
+    for run in run_diags.runs:
+        for varname in vars_to_plot:
+            v = run_diags.get_variable(run, varname).rename("value")
+            style = "solid" if run_diags.is_baseline(run) else "dashed"
+            long_name = v.long_name
+            hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
+                line_dash=style, color=p
+            )
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
@@ -116,17 +129,17 @@ def plot_1d_with_region_bar(
     variable name after last underscore. All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
-    for ds in diagnostics:
-        for varname in ds:
-            if varfilter in varname:
-                v = ds[varname].rename("value")
-                style = "solid" if ds.attrs["baseline"] else "dashed"
-                run = ds.attrs[run_attr_name]
-                long_name = ds[varname].long_name
-                region = varname.split("_")[-1]
-                hmap[(long_name, region, run)] = hv.Curve(v, label=varfilter,).options(
-                    line_dash=style, color=p
-                )
+    run_diags = RunDiagnostics(diagnostics)
+    vars_to_plot = set(v for v in run_diags.variables if varfilter in v)
+    for run in run_diags.runs:
+        for varname in vars_to_plot:
+            v = run_diags.get_variable(run, varname).rename("value")
+            style = "solid" if run_diags.is_baseline(run) else "dashed"
+            long_name = v.long_name
+            region = varname.split("_")[-1]
+            hmap[(long_name, region, run)] = hv.Curve(v, label=varfilter,).options(
+                line_dash=style, color=p
+            )
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
@@ -228,14 +241,14 @@ def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 @hovmoller_plot_manager.register
 def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d(
+    return plot_2d_matplotlib(
         diagnostics, "zonal_mean_value", dims=["time", "latitude"], cmap="viridis"
     )
 
 
 @hovmoller_plot_manager.register
 def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d(
+    return plot_2d_matplotlib(
         diagnostics,
         "zonal_mean_bias",
         dims=["time", "latitude"],
@@ -246,7 +259,7 @@ def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot
 
 @zonal_pressure_plot_manager.register
 def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d(
+    return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_time_mean",
         dims=["latitude", "pressure"],
@@ -258,7 +271,7 @@ def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 @zonal_pressure_plot_manager.register
 def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d(
+    return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_bias",
         dims=["latitude", "pressure"],
@@ -315,13 +328,17 @@ def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
         return HVPlot(hmap.opts(**bar_opts))
 
 
+navigation = [
+    Link("Home", "index.html"),
+    Link("Latitude versus time hovmoller", "hovmoller.html"),
+    Link("Time-mean maps (not implemented yet)", "maps.html"),
+    Link("Time-mean zonal-pressure profiles", "zonal_pressure.html"),
+]
+
+
 def render_index(metadata, diagnostics, metrics, movie_links):
     sections_index = {
-        "2D plots": [
-            Link("Latitude versus time hovmoller", "hovmoller.html"),
-            Link("Time-mean maps (not implemented yet)", "maps.html"),
-            Link("Time-mean zonal-pressure profiles", "zonal_pressure.html"),
-        ],
+        "Links": navigation,
         "Timeseries": list(timeseries_plot_manager.make_plots(diagnostics)),
         "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
         "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
@@ -339,6 +356,7 @@ def render_index(metadata, diagnostics, metrics, movie_links):
 
 def render_hovmollers(metadata, diagnostics):
     sections_hovmoller = {
+        "Links": navigation,
         "Zonal mean value and bias": list(
             hovmoller_plot_manager.make_plots(diagnostics)
         ),
@@ -353,9 +371,10 @@ def render_hovmollers(metadata, diagnostics):
 
 def render_zonal_pressures(metadata, diagnostics):
     sections_zonal_pressure = {
+        "Links": navigation,
         "Zonal mean values at pressure levels": list(
             zonal_pressure_plot_manager.make_plots(diagnostics)
-        )
+        ),
     }
     return create_html(
         title="Pressure versus latitude plots",

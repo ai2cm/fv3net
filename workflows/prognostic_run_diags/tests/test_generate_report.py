@@ -1,12 +1,17 @@
 from fv3net.diagnostics.prognostic_run.views.static_report import (
     upload,
     _html_link,
+    plot_2d,
 )
 from fv3net.diagnostics.prognostic_run.views.static_report import render_links
 
 import pytest
 import uuid
 from google.cloud.storage.client import Client
+import xarray
+import numpy as np
+
+from fv3net.diagnostics.prognostic_run.views.matplotlib import plot_2d_matplotlib
 
 
 @pytest.fixture()
@@ -62,3 +67,32 @@ def test_render_links(regtest):
     for val in output.values():
         assert isinstance(val, str)
     print(output, file=regtest)
+
+
+@pytest.mark.parametrize(
+    "opts", [dict(invert_yaxis=True), dict(), dict(symmetric=True)]
+)
+@pytest.mark.parametrize("plot_2d", [plot_2d, plot_2d_matplotlib])
+def test_plot_2d(opts, plot_2d):
+    diagnostics = xarray.Dataset(
+        {
+            "a_somefilter": (
+                ["x", "y"],
+                np.arange(50).reshape((10, 5)),
+                dict(long_name="longlongname", units="parsec/year"),
+            ),
+            "a_not": (["x", "y"], np.zeros((10, 5))),
+        },
+        attrs=dict(run="one-run"),
+    )
+
+    out = plot_2d(
+        [diagnostics, diagnostics.assign_attrs(run="k")],
+        "somefilter",
+        dims=["x", "y"],
+        cmap="viridis",
+        ylabel="y",
+    )
+
+    # make sure no errors are raised
+    repr(out)
