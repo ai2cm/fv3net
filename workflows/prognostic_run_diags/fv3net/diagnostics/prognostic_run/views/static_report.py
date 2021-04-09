@@ -7,7 +7,9 @@ import fsspec
 import pandas as pd
 import holoviews as hv
 
-from fv3net.diagnostics.prognostic_run.rundirs import ComputedDiagnosticsList
+from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
+    ComputedDiagnosticsList,
+)
 
 from report import create_html, Link
 from report.holoviews import HVPlot, get_html_header

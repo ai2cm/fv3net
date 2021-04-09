@@ -1,4 +1,4 @@
-from fv3net.diagnostics.prognostic_run.rundirs import (
+from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     ComputedDiagnosticsList,
     _parse_metadata,
     detect_rundirs,
