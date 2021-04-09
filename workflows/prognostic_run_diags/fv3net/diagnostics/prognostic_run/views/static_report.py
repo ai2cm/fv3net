@@ -18,6 +18,12 @@ from .matplotlib import plot_2d_matplotlib
 
 import logging
 
+import warnings
+
+warnings.filterwarnings(
+    "ignore", message="Creating an ndarray from ragged nested sequences"
+)
+
 logging.basicConfig(level=logging.INFO)
 
 hv.extension("bokeh")
