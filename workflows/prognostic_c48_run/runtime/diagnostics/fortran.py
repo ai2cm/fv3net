@@ -95,9 +95,7 @@ class FortranFileConfig:
             times={"kind": "interval", "frequency": 900},
             variables=[
                 {"module_name": "dynamics", "field_name": "tq", "output_name": "PWAT"},
-                {"module_name": "dynamics", "field_name": "z500", "output_name": "h500"},
-                {"module_name": "dynamics", "field_name": "tb", "output_name": "TMPlowest"},
-                {"module_name": "dynamics", "field_name": "t850", "output_name": "TMP850"},
+                {"module_name": "dynamics", "field_name": "z500", "output_name": "h500"}
             ],
         )
     """
