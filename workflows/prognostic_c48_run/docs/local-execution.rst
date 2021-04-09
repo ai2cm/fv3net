@@ -79,6 +79,13 @@ the end of the previous one will be appended. For example, the following for loo
 
         runfv3 append gs://path/to/failing/run
 
+.. warning::
+
+    For segmented runs, there is a requirement that the chunk size along the
+    time dimension evenly divide the length of the time dimension for each diagnostic
+    output file. Segmented runs will raise an exception during initialization
+    if this requirement is not met.
+
 Low-level usage
 ~~~~~~~~~~~~~~~
 
