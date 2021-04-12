@@ -1,4 +1,5 @@
 import cftime
+import numpy as np
 from typing import Mapping, MutableMapping, Hashable
 from toolz import dissoc
 import xarray as xr
@@ -102,7 +103,7 @@ class DerivedFV3State(MutableMapping):
         
         All states except for pressure thicknesses are set in a mass-conserving fashion.
         """
-        items_with_attrs = self._assign_attrs_from_mapper(items)
+        items_with_attrs = _cast_single_to_double(self._assign_attrs_from_mapper(items))
 
         if DELP in items_with_attrs:
             self._getter.set_state(
@@ -131,3 +132,18 @@ class DerivedFV3State(MutableMapping):
 
     def __len__(self):
         return len(self.keys())
+
+
+def _cast_single_to_double(state: State) -> State:
+    # wrapper state variables must be in double precision
+    cast_state = {}
+    for name in state:
+        if state[name].values.dtype == np.float32:
+            cast_state[name] = (
+                state[name]
+                .astype(np.float64, casting="same_kind")
+                .assign_attrs(state[name].attrs)
+            )
+        else:
+            cast_state[name] = state[name]
+    return cast_state
