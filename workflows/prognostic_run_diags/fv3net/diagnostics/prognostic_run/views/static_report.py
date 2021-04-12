@@ -186,7 +186,6 @@ def diurnal_component_plot(
 timeseries_plot_manager = PlotManager()
 zonal_mean_plot_manager = PlotManager()
 hovmoller_plot_manager = PlotManager()
-horizontal_maps_plot_manager = PlotManager()
 zonal_pressure_plot_manager = PlotManager()
 diurnal_plot_manager = PlotManager()
 
