@@ -112,13 +112,14 @@ def drift_3day(diags):
 
 
 @add_to_metrics("time_and_global_mean_bias")
-def time_mean_bias(diags):
-    global_mean_bias = grab_diag(diags, "mean_bias_physics_global")
-
-    time_and_global_mean_bias = global_mean_bias.mean("time")
-
-    for variable in global_mean_bias:
-        orig_unit = global_mean_bias[variable].attrs["units"]
+def time_and_global_mean_bias(diags):
+    time_mean_bias = grab_diag(diags, "time_mean_bias")
+    area = diags["area"]
+    time_and_global_mean_bias = (time_mean_bias * area).sum(HORIZONTAL_DIMS) / area.sum(
+        HORIZONTAL_DIMS
+    )
+    for variable in time_mean_bias:
+        orig_unit = time_mean_bias[variable].attrs["units"]
         time_and_global_mean_bias[variable].attrs["units"] = orig_unit
     return time_and_global_mean_bias
 
