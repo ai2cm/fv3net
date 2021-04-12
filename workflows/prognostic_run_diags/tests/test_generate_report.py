@@ -9,7 +9,6 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import RunDiagnostic
 from fv3net.diagnostics.prognostic_run.views.matplotlib import plot_2d_matplotlib
 from fv3net.diagnostics.prognostic_run.views.static_report import (
     _html_link,
-    plot_2d,
     render_links,
     upload,
 )
@@ -68,3 +67,28 @@ def test_render_links(regtest):
     for val in output.values():
         assert isinstance(val, str)
     print(output, file=regtest)
+
+
+def test_plot_2d_matplotlib():
+    diagnostics = xarray.Dataset(
+        {
+            "a_somefilter": (
+                ["x", "y"],
+                np.arange(50).reshape((10, 5)),
+                dict(long_name="longlongname", units="parsec/year"),
+            ),
+            "a_not": (["x", "y"], np.zeros((10, 5))),
+        },
+        attrs=dict(run="one-run"),
+    )
+
+    out = plot_2d_matplotlib(
+        RunDiagnostics([diagnostics, diagnostics.assign_attrs(run="k")]),
+        "somefilter",
+        dims=["x", "y"],
+        cmap="viridis",
+        ylabel="y",
+    )
+
+    # make sure no errors are raised
+    repr(out)
