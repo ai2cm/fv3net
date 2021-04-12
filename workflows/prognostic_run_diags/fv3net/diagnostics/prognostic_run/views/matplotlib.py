@@ -126,7 +126,6 @@ def plot_cube_matplotlib(run_diags: RunDiagnostics, varfilter: str, **opts) -> s
             logging.info(f"plotting {varname} in {run}")
             v = run_diags.get_variable(run, varname)
             ds = xr.merge([lat_lon_coords, v])
-            long_name_and_units = f"{v.long_name} [{v.units}]"
             fig, ax = plt.subplots(
                 figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()}
             )

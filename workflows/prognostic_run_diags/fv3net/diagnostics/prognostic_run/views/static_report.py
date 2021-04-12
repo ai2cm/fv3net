@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from typing import Iterable, Sequence
+from typing import Iterable
 import os
 import xarray as xr
 import fsspec
