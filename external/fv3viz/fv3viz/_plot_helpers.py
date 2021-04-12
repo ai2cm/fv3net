@@ -20,10 +20,14 @@ def _min_max_from_percentiles(x, min_percentile=2, max_percentile=98):
         max_percentile: upper percentile to use instead of absolute max
 
     Returns:
-
+        Tuple of values at min_percentile, max_percentile
     """
     x = x[~np.isnan(x)]
-    xmin, xmax = np.percentile(x, [min_percentile, max_percentile])
+    if len(x) == 0:
+        # all values of x are equal to np.nan
+        xmin, xmax = np.nan, np.nan
+    else:
+        xmin, xmax = np.percentile(x, [min_percentile, max_percentile])
     return xmin, xmax
 
 

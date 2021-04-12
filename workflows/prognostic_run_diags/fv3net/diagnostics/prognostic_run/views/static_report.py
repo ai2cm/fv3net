@@ -14,7 +14,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
 
 from report import create_html, Link
 from report.holoviews import HVPlot, get_html_header
-from .matplotlib import plot_2d_matplotlib
+from .matplotlib import plot_2d_matplotlib, plot_cube_matplotlib
 
 import logging
 
@@ -143,28 +143,6 @@ def plot_1d_with_region_bar(
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
-def plot_2d(
-    run_diags: RunDiagnostics, varfilter: str, dims: Sequence = None, **opts
-) -> HVPlot:
-    """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
-    All matching diagnostics must be 2D and have the same dimensions."""
-    hmap = hv.HoloMap(kdims=["variable", "run"])
-    variables_to_plot = [
-        varname for varname in run_diags.variables if varfilter in varname
-    ]
-    for run in run_diags.runs:
-        for varname in variables_to_plot:
-            v = run_diags.get_variable(run, varname).rename("value")
-            if dims is None:
-                dims = list(v.dims)
-            long_name_and_units = f"{v.long_name} [{v.units}]"
-            hmap[(long_name_and_units, run)] = hv.QuadMesh(
-                v, dims, varname, label=varfilter
-            )
-
-    return HVPlot(hmap.opts(colorbar=True, width=850, height=300, **opts))
-
-
 def _set_opts_and_overlay(hmap, overlay="run"):
     return (
         hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
@@ -208,6 +186,7 @@ def diurnal_component_plot(
 timeseries_plot_manager = PlotManager()
 zonal_mean_plot_manager = PlotManager()
 hovmoller_plot_manager = PlotManager()
+horizontal_maps_plot_manager = PlotManager()
 zonal_pressure_plot_manager = PlotManager()
 diurnal_plot_manager = PlotManager()
 
@@ -248,12 +227,18 @@ def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 @hovmoller_plot_manager.register
 def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     return plot_2d_matplotlib(
-        diagnostics,
-        "zonal_mean_bias",
-        dims=["time", "latitude"],
-        symmetric=True,
-        cmap="RdBu_r",
+        diagnostics, "zonal_mean_bias", dims=["time", "latitude"], cmap="RdBu_r",
     )
+
+
+@horizontal_maps_plot_manager.register
+def time_mean_map_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_cube_matplotlib(diagnostics, "time_mean_value")
+
+
+@horizontal_maps_plot_manager.register
+def time_mean_bias_map_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_cube_matplotlib(diagnostics, "time_mean_bias")
 
 
 @zonal_pressure_plot_manager.register
@@ -263,7 +248,7 @@ def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
         "pressure_level_zonal_time_mean",
         dims=["latitude", "pressure"],
         cmap="viridis",
-        invert_yaxis=True,
+        yincrease=False,
         ylabel="Pressure [Pa]",
     )
 
@@ -274,9 +259,8 @@ def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
         diagnostics,
         "pressure_level_zonal_bias",
         dims=["latitude", "pressure"],
-        symmetric=True,
         cmap="RdBu_r",
-        invert_yaxis=True,
+        yincrease=False,
         ylabel="Pressure [Pa]",
     )
 
@@ -330,7 +314,7 @@ def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
 navigation = [
     Link("Home", "index.html"),
     Link("Latitude versus time hovmoller", "hovmoller.html"),
-    Link("Time-mean maps (not implemented yet)", "maps.html"),
+    Link("Time-mean maps", "maps.html"),
     Link("Time-mean zonal-pressure profiles", "zonal_pressure.html"),
 ]
 
@@ -364,6 +348,21 @@ def render_hovmollers(metadata, diagnostics):
         title="Latitude versus time hovmoller plots",
         metadata=metadata,
         sections=sections_hovmoller,
+        html_header=get_html_header(),
+    )
+
+
+def render_horizontal_maps(metadata, diagnostics):
+    sections = {
+        "Links": navigation,
+        "Time mean value and bias": list(
+            horizontal_maps_plot_manager.make_plots(diagnostics)
+        ),
+    }
+    return create_html(
+        title="Time mean maps",
+        metadata=metadata,
+        sections=sections,
         html_header=get_html_header(),
     )
 
@@ -419,6 +418,7 @@ def main(args):
     pages = {
         "index.html": render_index(metadata, diagnostics, metrics, movie_links),
         "hovmoller.html": render_hovmollers(metadata, diagnostics),
+        "maps.html": render_horizontal_maps(metadata, diagnostics),
         "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
     }
 

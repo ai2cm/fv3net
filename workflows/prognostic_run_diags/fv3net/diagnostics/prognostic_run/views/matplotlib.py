@@ -5,9 +5,26 @@ import logging
 from collections import defaultdict
 from typing import Sequence
 
+import cartopy.crs as ccrs
 import jinja2
 import matplotlib.pyplot as plt
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import RunDiagnostics
+import fv3viz
+import xarray as xr
+
+COORD_NAMES = {
+    "coord_x_center": "x",
+    "coord_y_center": "y",
+    "coord_x_outer": "x_interface",
+    "coord_y_outer": "y_interface",
+}
+
+_COORD_VARS = {
+    "lonb": ["y_interface", "x_interface", "tile"],
+    "latb": ["y_interface", "x_interface", "tile"],
+    "lon": ["y", "x", "tile"],
+    "lat": ["y", "x", "tile"],
+}
 
 
 def fig_to_b64(fig, format="png"):
@@ -52,7 +69,7 @@ template = jinja2.Template(
 
 
 def plot_2d_matplotlib(
-    run_diags: RunDiagnostics, varfilter: str, dims: Sequence = None, **opts
+    run_diags: RunDiagnostics, varfilter: str, dims: Sequence, **opts
 ) -> str:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 2D and have the same dimensions."""
@@ -61,9 +78,6 @@ def plot_2d_matplotlib(
 
     # kwargs handling
     ylabel = opts.pop("ylabel", "")
-    invert_yaxis = opts.pop("invert_yaxis", False)
-    # ignore the symmetric option
-    opts.pop("symmetric", None)
     x, y = dims
 
     variables_to_plot = [
@@ -73,16 +87,53 @@ def plot_2d_matplotlib(
     for run in run_diags.runs:
         for varname in variables_to_plot:
             logging.info(f"plotting {varname} in {run}")
-            v = run_diags.get_variable(run, varname).rename("value")
-            if dims is None:
-                dims = list(v.dims)
+            v = run_diags.get_variable(run, varname)
             long_name_and_units = f"{v.long_name} [{v.units}]"
             fig, ax = plt.subplots()
-            v.plot(ax=ax, x=x, y=y, yincrease=not invert_yaxis, **opts)
+            v.plot(ax=ax, x=x, y=y, **opts)
             if ylabel:
                 ax.set_ylabel(ylabel)
             ax.set_title(long_name_and_units)
             plt.tight_layout()
+            data[varname][run] = fig_to_b64(fig)
+            plt.close(fig)
+    return raw_html(
+        template.render(
+            image_data=data,
+            runs=sorted(run_diags.runs),
+            variables_to_plot=variables_to_plot,
+            varfilter=varfilter,
+        )
+    )
+
+
+def plot_cube_matplotlib(run_diags: RunDiagnostics, varfilter: str, **opts) -> str:
+    """Plot horizontal maps of cubed-sphere data for all diagnostics whose name includes
+    varfilter. All matching diagnostics must have tile, x and y dimensions
+    and each dataset in run_diags must include lat/lon/latb/lonb coordinates."""
+
+    data = defaultdict(dict)
+
+    variables_to_plot = [
+        varname for varname in run_diags.variables if varfilter in varname
+    ]
+
+    for run in run_diags.runs:
+        lat_lon_coords = xr.merge(
+            [run_diags.get_variable(run, varname) for varname in _COORD_VARS]
+        )
+        for varname in variables_to_plot:
+            logging.info(f"plotting {varname} in {run}")
+            v = run_diags.get_variable(run, varname)
+            ds = xr.merge([lat_lon_coords, v])
+            long_name_and_units = f"{v.long_name} [{v.units}]"
+            fig, ax = plt.subplots(
+                figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()}
+            )
+            mv = fv3viz.mappable_var(ds, varname, coord_vars=_COORD_VARS, **COORD_NAMES)
+            fv3viz.plot_cube(mv, ax=ax, **opts)
+            ax.set_title(f"Mean: [TODO], RMS: [TODO]")
+            plt.subplots_adjust(left=0.01, right=0.8, bottom=0.02)
             data[varname][run] = fig_to_b64(fig)
             plt.close(fig)
     return raw_html(

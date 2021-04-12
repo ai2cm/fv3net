@@ -16,6 +16,7 @@ __all__ = ["ComputedDiagnosticsList", "RunDiagnostics"]
 
 
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
+GRID_VARS = ["area", "lonb", "latb", "lon", "lat"]
 
 Diagnostics = Iterable[xr.Dataset]
 Metadata = Any
@@ -225,6 +226,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
         "diurn_component": "diurn_bias",
         "zonal_and_time_mean": "zonal_bias",
         "zonal_mean_value": "zonal_mean_bias",
+        "time_mean_value": "time_mean_bias",
     }
     for mean_filter, bias_filter in mean_bias_pairs.items():
         mean_vars = [var for var in ds if mean_filter in var]
@@ -234,7 +236,8 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
                 # verification = prognostic - bias
                 verif_diagnostics[var] = ds[var] - ds[matching_bias_var]
                 verif_diagnostics[var].attrs = ds[var].attrs
-    return xr.Dataset(verif_diagnostics, attrs=verif_attrs)
+    verif_dataset = xr.Dataset(verif_diagnostics)
+    return xr.merge([ds[GRID_VARS], verif_dataset]).assign_attrs(verif_attrs)
 
 
 def get_metadata(diags):
