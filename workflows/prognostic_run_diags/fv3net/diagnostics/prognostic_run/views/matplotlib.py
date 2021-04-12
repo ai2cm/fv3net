@@ -102,7 +102,7 @@ def plot_2d_matplotlib(
         template.render(
             image_data=data,
             runs=sorted(run_diags.runs),
-            variables_to_plot=variables_to_plot,
+            variables_to_plot=sorted(variables_to_plot),
             varfilter=varfilter,
         )
     )
@@ -153,7 +153,7 @@ def plot_cube_matplotlib(
         template.render(
             image_data=data,
             runs=sorted(run_diags.runs),
-            variables_to_plot=variables_to_plot,
+            variables_to_plot=sorted(variables_to_plot),
             varfilter=varfilter,
         )
     )
