@@ -87,9 +87,8 @@ class DerivedFV3State(MutableMapping):
         return self._mapper[key]
 
     def __setitem__(self, key: str, value: xr.DataArray):
-        self._getter.set_state_mass_conserving(
-            {key: fv3gfs.util.Quantity.from_data_array(value)}
-        )
+        state_update = _cast_single_to_double({key: value})
+        self._getter.set_state_mass_conserving(_data_arrays_to_quantities(state_update))
 
     def keys(self):
         return self._mapper.keys()
@@ -107,16 +106,11 @@ class DerivedFV3State(MutableMapping):
 
         if DELP in items_with_attrs:
             self._getter.set_state(
-                {DELP: fv3gfs.util.Quantity.from_data_array(items_with_attrs[DELP])}
+                _data_arrays_to_quantities({DELP: items_with_attrs[DELP]})
             )
 
         not_pressure = dissoc(items_with_attrs, DELP)
-        self._getter.set_state_mass_conserving(
-            {
-                key: fv3gfs.util.Quantity.from_data_array(value)
-                for key, value in not_pressure.items()
-            }
-        )
+        self._getter.set_state_mass_conserving(_data_arrays_to_quantities(not_pressure))
 
     def _assign_attrs_from_mapper(self, dst: State) -> State:
         updated = {}
@@ -147,3 +141,9 @@ def _cast_single_to_double(state: State) -> State:
         else:
             cast_state[name] = state[name]
     return cast_state
+
+
+def _data_arrays_to_quantities(state: State) -> Mapping[Hashable, fv3gfs.util.Quantity]:
+    return {
+        key: fv3gfs.util.Quantity.from_data_array(value) for key, value in state.items()
+    }
