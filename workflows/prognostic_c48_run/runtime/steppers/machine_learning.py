@@ -2,6 +2,7 @@
 """
 import dataclasses
 import logging
+import numpy as np
 import os
 from typing import Hashable, Iterable, Mapping, Sequence, Set, Tuple, cast
 
@@ -19,6 +20,8 @@ __all__ = ["MachineLearningConfig", "PureMLStepper", "open_model"]
 logger = logging.getLogger(__name__)
 
 NameDict = Mapping[Hashable, Hashable]
+
+
 
 
 @dataclasses.dataclass
@@ -202,9 +205,9 @@ class PureMLStepper:
 
         state_updates = {}
         return (
-            tendency,
-            diagnostics,
-            state_updates,
+            _cast_values_to_double(tendency),
+            _cast_values_to_double(diagnostics),
+            _cast_values_to_double(state_updates),
         )
 
     def get_diagnostics(self, state, tendency):
@@ -225,7 +228,22 @@ class MLStateStepper(PureMLStepper):
 
         tendency = {}
         return (
-            tendency,
-            diagnostics,
-            state_updates,
+            _cast_values_to_double(tendency),
+            _cast_values_to_double(diagnostics),
+            _cast_values_to_double(state_updates),
         )
+
+
+def _cast_values_to_double(data: Mapping[str, xr.DataArray]) -> Mapping[str, xr.DataArray]:
+    # wrapper state variables must be in double precision
+    cast_data = {}
+    for name in data:
+        if data[name].values.dtype != np.float64:
+            cast_data[name] = (
+                data[name]
+                .astype(np.float64, casting="same_kind")
+                .assign_attrs(data[name].attrs)
+            )
+        else:
+            cast_data[name] = data[name]
+    return cast_data
