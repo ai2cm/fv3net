@@ -113,6 +113,7 @@ TIME_MEAN_VARS = [
     "TMP850",
     "TMP200",
     "h500",
+    "PRESsfc",
 ]
 
 PRESSURE_INTERPOLATED_VARS = [

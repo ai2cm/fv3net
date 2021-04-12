@@ -45,6 +45,10 @@ def prepend_to_key(d, prefix):
     return {prefix + key: val for key, val in d.items()}
 
 
+def weighted_mean(ds, w, dims=HORIZONTAL_DIMS):
+    return (ds * w).sum(dims) / w.sum(dims)
+
+
 @curry
 def add_to_metrics(metricname: str, func: Callable[[xr.Dataset], xr.Dataset]):
     """Register a function to be used for computing metrics
@@ -111,13 +115,22 @@ def drift_3day(diags):
     return drift
 
 
+@add_to_metrics("time_and_global_mean_value")
+def time_and_global_mean_value(diags):
+    time_mean_value = grab_diag(diags, "time_mean_value")
+    area = diags["area"]
+    time_and_global_mean_value = weighted_mean(time_mean_value, area)
+    for variable in time_mean_value:
+        orig_unit = time_mean_value[variable].attrs["units"]
+        time_and_global_mean_value[variable].attrs["units"] = orig_unit
+    return time_and_global_mean_value
+
+
 @add_to_metrics("time_and_global_mean_bias")
 def time_and_global_mean_bias(diags):
     time_mean_bias = grab_diag(diags, "time_mean_bias")
     area = diags["area"]
-    time_and_global_mean_bias = (time_mean_bias * area).sum(HORIZONTAL_DIMS) / area.sum(
-        HORIZONTAL_DIMS
-    )
+    time_and_global_mean_bias = weighted_mean(time_mean_bias, area)
     for variable in time_mean_bias:
         orig_unit = time_mean_bias[variable].attrs["units"]
         time_and_global_mean_bias[variable].attrs["units"] = orig_unit
@@ -128,9 +141,7 @@ def time_and_global_mean_bias(diags):
 def rmse_time_mean(diags):
     time_mean_bias = grab_diag(diags, "time_mean_bias")
     area = diags["area"]
-    rms_of_time_mean_bias = np.sqrt(
-        (time_mean_bias ** 2 * area).sum(HORIZONTAL_DIMS) / area.sum(HORIZONTAL_DIMS)
-    )
+    rms_of_time_mean_bias = np.sqrt(weighted_mean(time_mean_bias ** 2, area))
     for variable in rms_of_time_mean_bias:
         orig_unit = time_mean_bias[variable].attrs["units"]
         rms_of_time_mean_bias[variable].attrs["units"] = orig_unit
