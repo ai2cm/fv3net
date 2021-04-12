@@ -230,7 +230,6 @@ def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot
     )
 
 
-# requires two inputs, so can't use PlotManager class
 def time_mean_map_plots(
     diagnostics: Iterable[xr.Dataset], metrics: pd.DataFrame
 ) -> HVPlot:
@@ -242,7 +241,6 @@ def time_mean_map_plots(
     )
 
 
-# requires two inputs, so can't use PlotManager class
 def time_mean_bias_map_plots(
     diagnostics: Iterable[xr.Dataset], metrics: pd.DataFrame
 ) -> HVPlot:
@@ -367,6 +365,7 @@ def render_hovmollers(metadata, diagnostics):
 
 
 def render_horizontal_maps(metadata, diagnostics, metrics):
+    # the plotting functions here require two inputs so can't use a PlotManager
     sections = {
         "Links": navigation,
         "Time-mean maps": [
@@ -375,7 +374,7 @@ def render_horizontal_maps(metadata, diagnostics, metrics):
         ],
     }
     return create_html(
-        title="Time mean maps",
+        title="Time-mean maps",
         metadata=metadata,
         sections=sections,
         html_header=get_html_header(),
