@@ -235,7 +235,12 @@ def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot
 def time_mean_map_plots(
     diagnostics: Iterable[xr.Dataset], metrics: pd.DataFrame
 ) -> HVPlot:
-    return plot_cube_matplotlib(diagnostics, metrics, "time_mean_value")
+    return plot_cube_matplotlib(
+        diagnostics,
+        metrics,
+        "time_mean_value",
+        mean_metric_filter="time_and_global_mean_value",
+    )
 
 
 # requires two inputs, so can't use PlotManager class
