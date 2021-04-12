@@ -231,14 +231,24 @@ def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot
     )
 
 
-@horizontal_maps_plot_manager.register
-def time_mean_map_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_cube_matplotlib(diagnostics, "time_mean_value")
+# requires two inputs, so can't use PlotManager class
+def time_mean_map_plots(
+    diagnostics: Iterable[xr.Dataset], metrics: pd.DataFrame
+) -> HVPlot:
+    return plot_cube_matplotlib(diagnostics, metrics, "time_mean_value")
 
 
-@horizontal_maps_plot_manager.register
-def time_mean_bias_map_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_cube_matplotlib(diagnostics, "time_mean_bias")
+# requires two inputs, so can't use PlotManager class
+def time_mean_bias_map_plots(
+    diagnostics: Iterable[xr.Dataset], metrics: pd.DataFrame
+) -> HVPlot:
+    return plot_cube_matplotlib(
+        diagnostics,
+        metrics,
+        "time_mean_bias",
+        mean_metric_filter="time_and_global_mean_bias",
+        rmse_metric_filter="rmse_of_time_mean",
+    )
 
 
 @zonal_pressure_plot_manager.register
@@ -352,12 +362,13 @@ def render_hovmollers(metadata, diagnostics):
     )
 
 
-def render_horizontal_maps(metadata, diagnostics):
+def render_horizontal_maps(metadata, diagnostics, metrics):
     sections = {
         "Links": navigation,
-        "Time mean value and bias": list(
-            horizontal_maps_plot_manager.make_plots(diagnostics)
-        ),
+        "Time-mean maps": [
+            time_mean_map_plots(diagnostics, metrics),
+            time_mean_bias_map_plots(diagnostics, metrics),
+        ],
     }
     return create_html(
         title="Time mean maps",
@@ -418,7 +429,7 @@ def main(args):
     pages = {
         "index.html": render_index(metadata, diagnostics, metrics, movie_links),
         "hovmoller.html": render_hovmollers(metadata, diagnostics),
-        "maps.html": render_horizontal_maps(metadata, diagnostics),
+        "maps.html": render_horizontal_maps(metadata, diagnostics, metrics),
         "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
     }
 

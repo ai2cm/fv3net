@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import RunDiagnostics
 import fv3viz
 import xarray as xr
+import pandas as pd
 
 COORD_NAMES = {
     "coord_x_center": "x",
@@ -107,7 +108,14 @@ def plot_2d_matplotlib(
     )
 
 
-def plot_cube_matplotlib(run_diags: RunDiagnostics, varfilter: str, **opts) -> str:
+def plot_cube_matplotlib(
+    run_diags: RunDiagnostics,
+    run_metrics: pd.DataFrame,
+    varfilter: str,
+    mean_metric_filter: str = None,
+    rmse_metric_filter: str = None,
+    **opts,
+) -> str:
     """Plot horizontal maps of cubed-sphere data for all diagnostics whose name includes
     varfilter. All matching diagnostics must have tile, x and y dimensions
     and each dataset in run_diags must include lat/lon/latb/lonb coordinates."""
@@ -119,20 +127,26 @@ def plot_cube_matplotlib(run_diags: RunDiagnostics, varfilter: str, **opts) -> s
     ]
 
     for run in run_diags.runs:
-        lat_lon_coords = xr.merge(
+        grid_ds = xr.merge(
             [run_diags.get_variable(run, varname) for varname in _COORD_VARS]
         )
         for varname in variables_to_plot:
             logging.info(f"plotting {varname} in {run}")
             v = run_diags.get_variable(run, varname)
-            ds = xr.merge([lat_lon_coords, v])
+            ds = xr.merge([grid_ds, v])
+            plot_title = _get_map_title(
+                run_metrics[run_metrics.run == run],
+                varname,
+                mean_metric_filter,
+                rmse_metric_filter,
+            )
             fig, ax = plt.subplots(
                 figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()}
             )
             mv = fv3viz.mappable_var(ds, varname, coord_vars=_COORD_VARS, **COORD_NAMES)
             fv3viz.plot_cube(mv, ax=ax, **opts)
-            ax.set_title(f"Mean: [TODO], RMS: [TODO]")
-            plt.subplots_adjust(left=0.01, right=0.8, bottom=0.02)
+            ax.set_title(plot_title)
+            plt.subplots_adjust(left=0.01, right=0.75, bottom=0.02)
             data[varname][run] = fig_to_b64(fig)
             plt.close(fig)
     return raw_html(
@@ -143,3 +157,25 @@ def plot_cube_matplotlib(run_diags: RunDiagnostics, varfilter: str, **opts) -> s
             varfilter=varfilter,
         )
     )
+
+
+def _get_map_title(
+    metrics: pd.DataFrame, varname: str, mean_metric_filter, rmse_metric_filter,
+) -> str:
+    shortname = varname.split("_")[0]
+    title_parts = []
+    if mean_metric_filter is not None:
+        metric_name = f"{mean_metric_filter}/{shortname}"
+        metric = metrics[metrics.metric == metric_name]
+        if metric.empty:
+            title_parts.append("Mean: [missing]")
+        else:
+            title_parts.append(f"Mean: {metric.value.item():.3f}{metric.units.item()}")
+    if rmse_metric_filter is not None:
+        metric_name = f"{rmse_metric_filter}/{shortname}"
+        metric = metrics[metrics.metric == metric_name]
+        if metric.empty:
+            title_parts.append("RMSE: [missing]")
+        else:
+            title_parts.append(f"RMSE: {metric.value.item():.3f}{metric.units.item()}")
+    return ", ".join(title_parts)
