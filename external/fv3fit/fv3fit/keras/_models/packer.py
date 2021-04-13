@@ -4,6 +4,9 @@ import tensorflow as tf
 
 
 class Unpack(tf.keras.layers.Layer):
+    """
+    Layer which unpacks a stacked tensor into a sequence of unstacked tensors
+    """
     def __init__(
         self,
         *,
@@ -11,6 +14,12 @@ class Unpack(tf.keras.layers.Layer):
         n_features: Mapping[str, int],
         feature_dim: int,
     ):
+        """
+        Args:
+            pack_names: variable names in order
+            n_features: indicates the length of the feature dimension for each variable
+            feature_dim: the axis of the feature dimension, must be 1 or 2
+        """
         super().__init__()
         self.pack_names = pack_names
         self.n_features = n_features
