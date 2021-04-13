@@ -32,7 +32,7 @@ class _Register:
     def _load_by_name(self, name: str, path: str) -> Predictor:
         return self._model_types[name].load(path)  # type: ignore
 
-    def _get_name(self, obj: Predictor) -> str:
+    def get_name(self, obj: Predictor) -> str:
         return_name = None
         name_cls = None
         for name, cls in self._model_types.items():
@@ -55,7 +55,7 @@ class _Register:
 
     def _set_mapper_name(self, obj: Predictor, path: str):
         mapper = fsspec.get_mapper(path)
-        name = self._get_name(obj)
+        name = self.get_name(obj)
         mapper[_NAME_PATH] = name.encode(_NAME_ENCODING)
 
     def load(self, path: str) -> Predictor:
