@@ -161,12 +161,12 @@ def _get_map_title(
     metric_names = {} if metric_names is None else metric_names
     shortname = varname.split("_")[0]
     title_parts = []
-    for title_name, metric_filter in metric_names.items():
-        metric_name = f"{metric_filter}/{shortname}"
-        metric = metrics[metrics.metric == metric_name]
-        if metric.empty:
+    for name_in_figure_title, metric_prefix in metric_names.items():
+        metric_name = f"{metric_prefix}/{shortname}"
+        m = metrics[metrics.metric == metric_name]
+        if m.empty:
             metric_str = "[missing]"
         else:
-            metric_str = f"{metric.value.item():.3f}{metric.units.item()}"
+            metric_str = f"{m.value.item():.3f}{m.units.item()}"
         title_parts.append(f"{title_name}: {metric_str}")
     return ", ".join(title_parts)
