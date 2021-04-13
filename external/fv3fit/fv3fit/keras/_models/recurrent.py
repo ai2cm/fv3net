@@ -613,14 +613,14 @@ class StepwiseModel(PureKerasModel):
                 "air_temperature_tendency_due_to_nudging",
                 "specific_humidity_tendency_due_to_nudging",
             ):
-                data_vars[name] = input_ds[name]
+                data_vars[name] = input_ds[name]  # type: ignore
             for name in state.keys():
                 data_vars[f"{name}_reference"] = (
-                    ds[name].isel(time=i + 1).reset_coords(drop=True)
+                    ds[name].isel(time=i + 1).reset_coords(drop=True)  # type: ignore
                 )
             for name in ("dQ1", "dQ2"):
-                data_vars[name] = tendency_ds[name]
-            timestep_ds = xr.Dataset(data_vars=data_vars)
+                data_vars[name] = tendency_ds[name]  # type: ignore
+            timestep_ds = xr.Dataset(data_vars=data_vars)  # type: ignore
             state_out_list.append(timestep_ds)
         return xr.concat(state_out_list, dim="time").transpose(
             self.sample_dim_name, "time", "z"
