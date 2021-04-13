@@ -118,6 +118,7 @@ keyring==20.0.1
 kiwisolver==1.2.0
 kubernetes==11.0.0
 libcst==0.3.16
+llvmlite==0.36.0
 locket==0.2.0
 lockfile==0.12.2
 markdown==3.1.1
@@ -140,6 +141,7 @@ nc-time-axis==1.2.0
 nest-asyncio==1.5.1
 netcdf4==1.5.5
 notebook==6.2.0
+numba==0.53.1
 numcodecs==0.7.2
 numpy==1.19.4
 oauth2client==4.1.3
