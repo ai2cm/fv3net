@@ -124,7 +124,7 @@ class ArrayPacker:
         """
         if len(self._n_features) == 0:
             self._n_features.update(
-                count_features(
+                _count_features(
                     self.pack_names, dataset, self._sample_dim_name, is_3d=is_3d
                 )
             )
@@ -133,7 +133,11 @@ class ArrayPacker:
         for var in self.pack_names:
             if dataset[var].dims[0] != self.sample_dim_name:
                 dataset[var] = dataset[var].transpose()
-        array = to_array(dataset, self.pack_names, self.feature_counts, is_3d=is_3d)
+        if is_3d:
+            to_array = _to_array_3d
+        else:
+            to_array = _to_array_2d
+        array = to_array(dataset, self.pack_names, self.feature_counts)
         return array
 
     def to_dataset(self, array: np.ndarray) -> xr.Dataset:
@@ -188,30 +192,22 @@ class ArrayPacker:
         return packer
 
 
-def to_array(
+def _to_array_2d(
     dataset: xr.Dataset,
     pack_names: Sequence[str],
     feature_counts: Mapping[str, int],
-    is_3d: bool = False,
 ):
     """
-    Convert dataset into a 2D array with [sample, feature] dimensions
-    or 3D array with [sample, time, feature] dimensions.
-
-    2D or 3D is selected based on whether any packed variables have multiple non-sample
-    dimensions.
+    Convert dataset into a 2D array with [sample, feature] dimensions.
 
     The first dimension of each variable to pack is assumed to be the sample dimension,
     and the second (if it exists) is assumed to be the feature dimension.
     Each variable must be 1D or 2D.
     
     Args:
-        dataset: dataset containing variables in self.pack_names to pack,
-            dimensionality must match value of is_3d
+        dataset: dataset containing variables in self.pack_names to pack
         pack_names: names of variables to pack
         feature_counts: number of features for each variable
-        is_3d: if True, output a 3D array. Useful when packing
-            only scalars to avoid the time dimension being treated as feature
 
     Returns:
         array: 2D [sample, feature] array with data from the dataset
@@ -220,26 +216,55 @@ def to_array(
     n_samples = dataset[pack_names[0]].shape[0]
     total_features = sum(feature_counts[name] for name in pack_names)
 
-    if is_3d:
-        # can assume all variables have [sample, time] dimensions
-        n_times = dataset[pack_names[0]].shape[1]
-        array = np.empty([n_samples, n_times, total_features])
-    else:
-        array = np.empty([n_samples, total_features])
+    array = np.empty([n_samples, total_features])
 
     i_start = 0
     for name in pack_names:
         n_features = feature_counts[name]
-        if is_3d:  # assume sample, time, feature arrays
-            if n_features > 1:
-                array[:, :, i_start : i_start + n_features] = dataset[name]
-            else:
-                array[:, :, i_start] = dataset[name]
-        else:  # assume sample, feature arrays
-            if n_features > 1:
-                array[:, i_start : i_start + n_features] = dataset[name]
-            else:
-                array[:, i_start] = dataset[name]
+        if n_features > 1:
+            array[:, i_start : i_start + n_features] = dataset[name]
+        else:
+            array[:, i_start] = dataset[name]
+        i_start += n_features
+    return array
+
+
+def _to_array_3d(
+    dataset: xr.Dataset,
+    pack_names: Sequence[str],
+    feature_counts: Mapping[str, int]
+):
+    """
+    Convert dataset into a 3D array with [sample, time, feature] dimensions.
+
+    The first dimension of each variable to pack is assumed to be the sample dimension,
+    and the second (if it exists) is assumed to be the feature dimension.
+    Each variable must be 2D or 3D.
+    
+    Args:
+        dataset: dataset containing variables in self.pack_names to pack
+        pack_names: names of variables to pack
+        feature_counts: number of features for each variable
+
+    Returns:
+        array: 3D [sample, time, feature] array with data from the dataset
+    """
+    # we can assume here that the first dimension is the sample dimension
+    n_samples = dataset[pack_names[0]].shape[0]
+    total_features = sum(feature_counts[name] for name in pack_names)
+
+    # can assume all variables have [sample, time] dimensions
+    n_times = dataset[pack_names[0]].shape[1]
+    array = np.empty([n_samples, n_times, total_features])
+
+    i_start = 0
+    for name in pack_names:
+        n_features = feature_counts[name]
+        # assume sample, time, feature arrays
+        if n_features > 1:
+            array[:, :, i_start : i_start + n_features] = dataset[name]
+        else:
+            array[:, :, i_start] = dataset[name]
         i_start += n_features
     return array
 
@@ -270,7 +295,6 @@ def to_dataset(
     for name in pack_names:
         n_features = feature_counts[name]
         if n_features > 1:
-            assert len(dimensions[name]) == 2, (name, dimensions[name])
             data_vars[name] = (
                 dimensions[name],
                 array[:, i_start : i_start + n_features],
@@ -281,7 +305,7 @@ def to_dataset(
     return xr.Dataset(data_vars)  # type: ignore
 
 
-def count_features(
+def _count_features(
     quantity_names: Iterable[str],
     dataset: xr.Dataset,
     sample_dim_name: str,

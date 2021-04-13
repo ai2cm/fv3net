@@ -4,10 +4,10 @@ from fv3fit._shared.packer import (
     unpack_matrix,
     pack,
     unpack,
-    Unpack,
     _unique_dim_name,
-    count_features,
+    _count_features,
 )
+from fv3fit.keras._models.packer import Unpack, LayerPacker
 import pytest
 import numpy as np
 import xarray as xr
@@ -82,7 +82,8 @@ def packer(names: Iterable[str]) -> ArrayPacker:
     return ArrayPacker(SAMPLE_DIM, names)
 
 
-def test_to_array(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray):
+def test_to_array(names, dataset: xr.Dataset, array: np.ndarray):
+    packer = ArrayPacker(SAMPLE_DIM, names)
     result = packer.to_array(dataset)
     np.testing.assert_array_equal(result, array)
 
@@ -90,7 +91,8 @@ def test_to_array(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray):
 @pytest.mark.parametrize(
     "dims_list", ["two_2d_vars", "1d_and_2d", "five_vars"], indirect=True
 )
-def test_pack_layer(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray):
+def test_pack_layer(names, dataset: xr.Dataset, array: np.ndarray):
+    packer = LayerPacker(SAMPLE_DIM, names)
     inputs = [dataset[name].values for name in packer.pack_names]
     for i, value in enumerate(inputs):
         if len(value.shape) == 1:
@@ -99,7 +101,8 @@ def test_pack_layer(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray)
     np.testing.assert_array_equal(result, array)
 
 
-def test_to_dataset(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray):
+def test_to_dataset(names, dataset: xr.Dataset, array: np.ndarray):
+    packer = ArrayPacker(SAMPLE_DIM, names)
     packer.to_array(dataset)  # must pack first to know dimension lengths
     result = packer.to_dataset(array)
     # to_dataset does not preserve coordinates
@@ -110,8 +113,9 @@ def test_to_dataset(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray)
     "dims_list", ["two_2d_vars", "1d_and_2d", "five_vars"], indirect=True
 )
 def test_packer_unpack_layer(
-    packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray
+    names, dataset: xr.Dataset, array: np.ndarray
 ):
+    packer = LayerPacker(SAMPLE_DIM, names)
     packer.to_array(dataset)  # must pack first to know dimension lengths
     result = packer.unpack_layer(feature_dim=1)(array)
     # to_dataset does not preserve coordinates
@@ -133,12 +137,14 @@ def test_direct_unpack_layer():
     np.testing.assert_array_almost_equal(unpacked[1], b)
 
 
-def test_unpack_before_pack_raises(packer: ArrayPacker, array: np.ndarray):
+def test_unpack_before_pack_raises(names, array: np.ndarray):
+    packer = ArrayPacker(SAMPLE_DIM, names)
     with pytest.raises(RuntimeError):
         packer.to_dataset(array)
 
 
-def test_repack_array(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray):
+def test_repack_array(names, dataset: xr.Dataset, array: np.ndarray):
+    packer = ArrayPacker(SAMPLE_DIM, names)
     packer.to_array(dataset)  # must pack first to know dimension lengths
     result = packer.to_array(packer.to_dataset(array))
     np.testing.assert_array_equal(result, array)
@@ -201,7 +207,7 @@ def test_count_features_2d():
     )
     names = list(ds.data_vars.keys())
     assert len(names) == 3
-    out = count_features(names, ds, sample_dim_name=SAMPLE_DIM_NAME)
+    out = _count_features(names, ds, sample_dim_name=SAMPLE_DIM_NAME)
     assert len(out) == len(names)
     for name in names:
         assert name in out
@@ -231,7 +237,7 @@ def test_count_features_3d():
     ds = get_3d_dataset(SAMPLE_DIM_NAME)
     names = list(ds.data_vars.keys())
     assert len(names) == 3
-    out = count_features(names, ds, sample_dim_name=SAMPLE_DIM_NAME, is_3d=True)
+    out = _count_features(names, ds, sample_dim_name=SAMPLE_DIM_NAME, is_3d=True)
     assert len(out) == len(names)
     for name in names:
         assert name in out
@@ -240,7 +246,29 @@ def test_count_features_3d():
     assert out["c"] == 5
 
 
-def test_repack_3d_array():
+def test_3d_to_array():
+    TIME_DIM_NAME = "fhds"
+    dataset = xr.Dataset(
+        data_vars={
+            "a": xr.DataArray(np.random.randn(10, 2), dims=[SAMPLE_DIM, TIME_DIM_NAME]),
+            "b": xr.DataArray(
+                np.random.randn(10, 2, 1), dims=[SAMPLE_DIM, TIME_DIM_NAME, "b_dim"]
+            ),
+            "c": xr.DataArray(
+                np.random.randn(10, 2, 5), dims=[SAMPLE_DIM, TIME_DIM_NAME, "c_dim"]
+            ),
+        }
+    )
+    packer = ArrayPacker(SAMPLE_DIM, ["a", "c"])
+    array = packer.to_array(
+        dataset, is_3d=True
+    )
+    assert len(array.shape) == 3
+    np.testing.assert_array_equal(array[:, :, 0], dataset["a"].values)
+    np.testing.assert_array_equal(array[:, :, 1:], dataset["c"].values)
+
+
+def test_cannot_convert_3d_array_to_dataset():
     # don't need to handle data with singleton feature dimensions, at the moment
     dataset = get_3d_dataset(SAMPLE_DIM).drop_vars("b")
     packer = ArrayPacker(SAMPLE_DIM, ["a", "c"])
