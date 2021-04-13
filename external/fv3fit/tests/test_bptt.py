@@ -96,7 +96,8 @@ def test_predict_model_gives_tendency_of_train_model(
     tf.random.set_seed(1)
     train_dataset = get_train_dataset(sample_dim_name, dt)
     model = get_model(sample_dim_name, use_moisture_limiter)
-    model.build_for(train_dataset)
+    model.fit_statistics(train_dataset)
+    model.fit(train_dataset)
 
     train_dataset["air_temperature_tendency_due_to_model"][:] = 0.0
     train_dataset["specific_humidity_tendency_due_to_model"][:] = 0.0
@@ -122,24 +123,6 @@ def test_predict_model_gives_tendency_of_train_model(
     np.testing.assert_allclose(dQ2[:, 0, :], tendency_ds["dQ2"].values, atol=1e-6)
     np.testing.assert_allclose(dQ1[:, 0, :], Q1_train_tendency, atol=1e-6)
     np.testing.assert_allclose(dQ2[:, 0, :], Q2_train_tendency, atol=1e-6)
-
-
-def test_fit(sample_dim_name, dt):
-    """test that BPTTModel.fit does not produce exceptions"""
-    train_dataset = get_train_dataset(sample_dim_name, dt)
-    np.random.seed(0)
-    tf.random.set_seed(1)
-    model = BPTTModel(
-        sample_dim_name,
-        ["a", "b"],
-        n_units=32,
-        n_hidden_layers=4,
-        kernel_regularizer=None,
-        train_batch_size=48,
-        optimizer="adam",
-    )
-    model.build_for(train_dataset)
-    model.fit(train_dataset)
 
 
 def test_fit_bptt(sample_dim_name, dt):
@@ -173,7 +156,7 @@ random_seed: 0
     with tempfile.TemporaryDirectory() as tmpdir:
         arrays_dir = os.path.join(tmpdir, "arrays")
         os.mkdir(arrays_dir)
-        for i in range(2):
+        for i in range(3):
             filename = os.path.join(arrays_dir, f"arrays_{i}.nc")
             training_dataset.to_netcdf(filename)
         config_filename = os.path.join(tmpdir, "config.yaml")
@@ -208,7 +191,8 @@ def test_predict_model_can_predict_columnwise(sample_dim_name, dt):
         train_batch_size=48,
         optimizer="adam",
     )
-    model.build_for(train_dataset)
+    model.fit_statistics(train_dataset)
+    model.fit(train_dataset)
 
     assert sample_dim_name != "different_sample_dim_name"
     test_dataset = train_dataset.rename({sample_dim_name: "different_sample_dim_name"})
@@ -229,7 +213,8 @@ def test_train_model_uses_correct_given_tendency(sample_dim_name, dt):
         train_batch_size=48,
         optimizer="adam",
     )
-    model.build_for(train_dataset)
+    model.fit_statistics(train_dataset)
+    model.fit(train_dataset)
 
     assert not np.all(
         train_dataset["air_temperature_tendency_due_to_model"].values == 0.0
@@ -292,7 +277,8 @@ def test_predict_model_gives_different_tendencies(sample_dim_name, dt):
         train_batch_size=48,
         optimizer="adam",
     )
-    model.build_for(train_dataset)
+    model.fit_statistics(train_dataset)
+    model.fit(train_dataset)
 
     tendency_ds = model.predictor_model.predict(train_dataset.isel(time=0))
     assert not np.all(tendency_ds["dQ1"].values == tendency_ds["dQ2"].values)
@@ -309,7 +295,8 @@ def test_train_model_gives_different_outputs(sample_dim_name, dt):
         train_batch_size=48,
         optimizer="adam",
     )
-    model.build_for(train_dataset)
+    model.fit_statistics(train_dataset)
+    model.fit(train_dataset)
 
     air_temperature, specific_humidity = model.train_keras_model.predict(
         x=model.get_keras_inputs(train_dataset)
@@ -330,7 +317,8 @@ def test_integrate_stepwise(sample_dim_name, dt):
         train_batch_size=48,
         optimizer="adam",
     )
-    model.build_for(train_dataset)
+    model.fit_statistics(train_dataset)
+    model.fit(train_dataset)
 
     air_temperature, specific_humidity = model.train_keras_model.predict(
         x=model.get_keras_inputs(train_dataset)
@@ -372,7 +360,8 @@ def test_reloaded_model_gives_same_outputs(sample_dim_name, dt):
         train_batch_size=48,
         optimizer="adam",
     )
-    model.build_for(train_dataset)
+    model.fit_statistics(train_dataset)
+    model.fit(train_dataset)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         fv3fit.dump(model.predictor_model, tmpdir)

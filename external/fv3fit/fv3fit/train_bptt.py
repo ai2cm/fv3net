@@ -13,9 +13,16 @@ import os
 
 
 def get_parser():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Trains model using backpropagation through time."
+    )
     parser.add_argument(
-        "arrays_dir", type=str, help="directory containing TrainingArrays data"
+        "arrays_dir",
+        type=str,
+        help=(
+            "directory containing TrainingArrays data, "
+            "last file is used for validation"
+        )
     )
     parser.add_argument(
         "config", type=str, help="yaml file with training configuration"
@@ -71,9 +78,9 @@ if __name__ == "__main__":
             optimizer=optimizer,
             **config["hyperparameters"],
         )
-        model.build_for(ds)
+        model.fit_statistics(ds)
 
-    train_filenames = filenames[:-3]
+    train_filenames = filenames[:-1]
     validation = xr.open_dataset(filenames[-1])
 
     base_epoch = 0

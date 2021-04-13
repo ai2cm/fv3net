@@ -85,8 +85,9 @@ class _BPTTModel:
         self.use_moisture_limiter = use_moisture_limiter
         self.state_noise = state_noise
         self._stepwise_output_metadata: List[DataArrayMetadata] = []
+        self._statistics_are_fit = False
 
-    def build_for(self, X: xr.Dataset):
+    def fit_statistics(self, X: xr.Dataset):
         """
         Given a dataset with [sample, time, z] and [sample, time] arrays
         containing data in sample windows, fit the scalers and packers
@@ -112,11 +113,6 @@ class _BPTTModel:
             self._train_timestep_seconds = (
                 time[1].values.item() - time[0].values.item()
             )
-        (
-            self.train_keras_model,
-            self.train_tendency_model,
-            self.predict_keras_model,
-        ) = self.build(len(time) - 1)
         self._stepwise_output_metadata.clear()
         for name in ("air_temperature", "specific_humidity"):
             # remove time dimension from stepwise output metadata
@@ -124,6 +120,7 @@ class _BPTTModel:
             self._stepwise_output_metadata.append(
                 DataArrayMetadata(dims=dims, units=X[name].units + " / s")
             )
+        self._statistics_are_fit = True
 
     @property
     def losses(self):
@@ -328,8 +325,14 @@ class _BPTTModel:
             epochs: how many epochs to train. default is 1 for the case when X
                 contains one batch at a time
         """
+        if not self._statistics_are_fit:
+            raise RuntimeError("Must call `fit_statistics` method before calling fit")
         if self.train_keras_model is None:
-            raise RuntimeError("Must call `build_for` method before calling fit")
+            (
+                self.train_keras_model,
+                self.train_tendency_model,
+                self.predict_keras_model,
+            ) = self.build(len(X[_BPTTModel.TIME_DIM_NAME]) - 1)
         if tuple(self.prognostic_packer.pack_names) != (
             "air_temperature",
             "specific_humidity",
