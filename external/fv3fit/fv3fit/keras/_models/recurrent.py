@@ -2,7 +2,8 @@ from typing import Dict, Any, Iterable, Hashable, Optional, Sequence, Tuple, Lis
 import tensorflow as tf
 import xarray as xr
 import os
-from ..._shared import Predictor, ArrayPacker, io
+from ..._shared import Predictor, io
+from .packer import LayerPacker
 from ._filesystem import get_dir, put_dir
 from .normalizer import LayerStandardScaler
 import yaml
@@ -67,8 +68,8 @@ class _BPTTModel:
         )
         self.output_variables = ["dQ1", "dQ2"]
         self.sample_dim_name = sample_dim_name
-        self.input_packer = ArrayPacker(sample_dim_name, input_variables)
-        self.prognostic_packer = ArrayPacker(sample_dim_name, prognostic_variables)
+        self.input_packer = LayerPacker(sample_dim_name, input_variables)
+        self.prognostic_packer = LayerPacker(sample_dim_name, prognostic_variables)
         self.train_timestep_seconds: Optional[float] = None
         self.input_scaler = LayerStandardScaler()
         self.prognostic_scaler = LayerStandardScaler()

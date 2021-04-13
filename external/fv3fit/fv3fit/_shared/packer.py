@@ -12,7 +12,6 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import yaml
-import tensorflow as tf
 
 
 def _feature_dims(data: xr.Dataset, sample_dim: str) -> Sequence[str]:
@@ -55,43 +54,6 @@ def unpack(
     return da.to_unstacked_dataset("feature")
 
 
-class Unpack(tf.keras.layers.Layer):
-    def __init__(
-        self,
-        *,
-        pack_names: Sequence[str],
-        n_features: Mapping[str, int],
-        feature_dim: int,
-    ):
-        super().__init__()
-        self.pack_names = pack_names
-        self.n_features = n_features
-        self.feature_dim = feature_dim
-        if feature_dim not in (1, 2):
-            raise NotImplementedError(self.feature_dim)
-
-    def call(self, inputs):
-        i = 0
-        return_tensors = []
-        for name in self.pack_names:
-            features = self.n_features[name]
-            if self.feature_dim == 1:
-                return_tensors.append(inputs[:, i : i + features])
-            elif self.feature_dim == 2:
-                return_tensors.append(inputs[:, :, i : i + features])
-            else:
-                raise NotImplementedError(self.feature_dim)
-            i += features
-        return return_tensors
-
-    def get_config(self):
-        return {
-            "pack_names": self.pack_names,
-            "n_features": self.n_features,
-            "feature_dim": self.feature_dim,
-        }
-
-
 class ArrayPacker:
     """
     A class to handle converting xarray datasets to and from numpy arrays.
@@ -128,24 +90,6 @@ class ArrayPacker:
     @property
     def _total_features(self):
         return sum(self._n_features[name] for name in self._pack_names)
-
-    def pack_layer(self):
-        if len(self.pack_names) > 1:
-            return tf.keras.layers.Concatenate()
-        else:
-            raise NotImplementedError(
-                "pack layer only implemented for multiple pack variables, "
-                "avoid adding a pack layer when len(obj.pack_names) is 1"
-            )
-
-    def unpack_layer(self, feature_dim: int):
-        # have to store this as a local scope variable
-        # so that serialization does not cause self to be serialized
-        return Unpack(
-            pack_names=self.pack_names,
-            n_features=self._n_features,
-            feature_dim=feature_dim,
-        )
 
     def to_array(self, dataset: xr.Dataset, is_3d: bool = False) -> np.ndarray:
         """Convert dataset into a 2D array with [sample, feature] dimensions or
