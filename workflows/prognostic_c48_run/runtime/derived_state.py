@@ -1,4 +1,5 @@
 import cftime
+import numpy as np
 from typing import Mapping, MutableMapping, Hashable
 from toolz import dissoc
 import xarray as xr
@@ -86,9 +87,8 @@ class DerivedFV3State(MutableMapping):
         return self._mapper[key]
 
     def __setitem__(self, key: str, value: xr.DataArray):
-        self._getter.set_state_mass_conserving(
-            {key: fv3gfs.util.Quantity.from_data_array(value)}
-        )
+        state_update = _cast_single_to_double({key: value})
+        self._getter.set_state_mass_conserving(_data_arrays_to_quantities(state_update))
 
     def keys(self):
         return self._mapper.keys()
@@ -102,20 +102,15 @@ class DerivedFV3State(MutableMapping):
         
         All states except for pressure thicknesses are set in a mass-conserving fashion.
         """
-        items_with_attrs = self._assign_attrs_from_mapper(items)
+        items_with_attrs = _cast_single_to_double(self._assign_attrs_from_mapper(items))
 
         if DELP in items_with_attrs:
             self._getter.set_state(
-                {DELP: fv3gfs.util.Quantity.from_data_array(items_with_attrs[DELP])}
+                _data_arrays_to_quantities({DELP: items_with_attrs[DELP]})
             )
 
         not_pressure = dissoc(items_with_attrs, DELP)
-        self._getter.set_state_mass_conserving(
-            {
-                key: fv3gfs.util.Quantity.from_data_array(value)
-                for key, value in not_pressure.items()
-            }
-        )
+        self._getter.set_state_mass_conserving(_data_arrays_to_quantities(not_pressure))
 
     def _assign_attrs_from_mapper(self, dst: State) -> State:
         updated = {}
@@ -131,3 +126,24 @@ class DerivedFV3State(MutableMapping):
 
     def __len__(self):
         return len(self.keys())
+
+
+def _cast_single_to_double(state: State) -> State:
+    # wrapper state variables must be in double precision
+    cast_state = {}
+    for name in state:
+        if state[name].values.dtype == np.float32:
+            cast_state[name] = (
+                state[name]
+                .astype(np.float64, casting="same_kind")
+                .assign_attrs(state[name].attrs)
+            )
+        else:
+            cast_state[name] = state[name]
+    return cast_state
+
+
+def _data_arrays_to_quantities(state: State) -> Mapping[Hashable, fv3gfs.util.Quantity]:
+    return {
+        key: fv3gfs.util.Quantity.from_data_array(value) for key, value in state.items()
+    }
