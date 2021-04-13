@@ -84,7 +84,7 @@ class _BPTTModel:
         self.predict_keras_model: Optional[tf.keras.Model] = None
         self.use_moisture_limiter = use_moisture_limiter
         self.state_noise = state_noise
-        self._stepwise_output_metadata: List[DataArrayMetadata] = []
+        self._stepwise_output_metadata: List[Dict[str, Any]] = []
         self._statistics_are_fit = False
 
     def fit_statistics(self, X: xr.Dataset):
@@ -118,7 +118,7 @@ class _BPTTModel:
             # remove time dimension from stepwise output metadata
             dims = X[name].dims[:1] + X[name].dims[2:]
             self._stepwise_output_metadata.append(
-                DataArrayMetadata(dims=dims, units=X[name].units + " / s")
+                {"dims": dims, "units": X[name].units + " / s"}
             )
         self._statistics_are_fit = True
 
@@ -437,30 +437,8 @@ def get_keras_arrays(X, names, time_index):
     return return_list
 
 
-class DataArrayMetadata(yaml.YAMLObject):
-    yaml_tag = "!DataArrayMetadata"
-
-    def __init__(self, dims: Sequence[Hashable], units: str):
-        self.dims = dims
-        self.units = units
-        super().__init__()
-
-    def __repr__(self):
-        return "{!s}(dims={!r}, units={!r})".format(
-            self.__class__.__name__, self.dims, self.units
-        )
-
-    @classmethod
-    def from_yaml(cls, loader, node):
-        """
-        Convert a representation node to a Python object.
-        """
-        arg_dict = loader.construct_mapping(node, deep=True)
-        return cls(**arg_dict)
-
-
 @io.register("all-keras")
-class AllKerasModel(Predictor):
+class PureKerasModel(Predictor):
     """Model which uses Keras for packing and normalization"""
 
     _MODEL_FILENAME = "model.tf"
@@ -472,7 +450,7 @@ class AllKerasModel(Predictor):
         sample_dim_name: str,
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
-        output_metadata: Iterable[DataArrayMetadata],
+        output_metadata: Iterable[Dict[str, Any]],
         model: tf.keras.Model,
     ):
         """Initialize the predictor
@@ -490,7 +468,7 @@ class AllKerasModel(Predictor):
         self.model = model
 
     @classmethod
-    def load(cls, path: str) -> "AllKerasModel":
+    def load(cls, path: str) -> "PureKerasModel":
         """Load a serialized model from a directory."""
         with get_dir(path) as path:
             model_filename = os.path.join(path, cls._MODEL_FILENAME)
@@ -517,9 +495,9 @@ class AllKerasModel(Predictor):
                 data_vars={
                     name: xr.DataArray(
                         value,
-                        dims=metadata.dims,
-                        coords={name: X.coords[name] for name in metadata.dims},
-                        attrs={"units": metadata.units},
+                        dims=metadata["dims"],
+                        coords={name: X.coords[name] for name in metadata["dims"]},
+                        attrs={"units": metadata["units"]},
                     )
                     for name, value, metadata in zip(
                         self.output_variables, outputs, self._output_metadata
@@ -567,7 +545,7 @@ class AllKerasModel(Predictor):
 
 
 @io.register("stepwise-keras")
-class StepwiseModel(AllKerasModel):
+class StepwiseModel(PureKerasModel):
     def integrate_stepwise(self, ds):
         time = ds["time"]
         timestep_seconds = (
