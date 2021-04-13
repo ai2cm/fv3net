@@ -52,18 +52,11 @@ class StandardScaler(NormalizeTransform):
         """
         self.mean: np.ndarray = None
         self.std: np.ndarray = None
-        self.std_epsilon: np.float32 = std_epsilon
+        self.std_epsilon = std_epsilon
 
     def fit(self, data: np.ndarray):
-        axes_to_avg: Union[int, Tuple[int, int]]
-        if len(data.shape) == 2:
-            axes_to_avg = 0
-        elif len(data.shape) == 3:
-            axes_to_avg = (0, 1)
-        else:
-            raise NotImplementedError()
-        self.mean = data.mean(axis=axes_to_avg).astype(np.float64)
-        self.std = data.std(axis=axes_to_avg).astype(np.float64) + self.std_epsilon
+        self.mean = data.mean(axis=0).astype(np.float64)
+        self.std = data.std(axis=0).astype(np.float64) + self.std_epsilon
 
     def normalize(self, data):
         if self.mean is None or self.std is None:

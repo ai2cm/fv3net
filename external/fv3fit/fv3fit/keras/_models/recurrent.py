@@ -8,6 +8,17 @@ from .normalizer import LayerStandardScaler
 import yaml
 import numpy as np
 
+def _flatten_sample_dims(array: np.ndarray) -> np.ndarray:
+    """
+    flatten the first two dimensions of an array
+    
+    this corresponds to flattening the sample and time dimensions
+    of a [sample, time, feature] array so that the result can be used
+    to fit scalers, which expect [sample, feature] arrays
+    """
+    n = array.shape[0] * array.shape[1]
+    return array.reshape([n] + list(array.shape[2:]))
+
 
 class _BPTTModel:
 
@@ -87,8 +98,8 @@ class _BPTTModel:
             raise RuntimeError("cannot build, model is already built!")
         inputs = self.input_packer.to_array(X, is_3d=True)
         state = self.prognostic_packer.to_array(X, is_3d=True)
-        self.input_scaler.fit(inputs)
-        self.prognostic_scaler.fit(state)
+        self.input_scaler.fit(_flatten_sample_dims(inputs))
+        self.prognostic_scaler.fit(_flatten_sample_dims(state))
         self.tendency_scaler.std = self.prognostic_scaler.std
         self.tendency_scaler.mean = np.zeros_like(self.prognostic_scaler.mean)
         time = X[_BPTTModel.TIME_DIM_NAME]
