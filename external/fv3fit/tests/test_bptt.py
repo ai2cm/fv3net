@@ -371,5 +371,4 @@ def test_reloaded_model_gives_same_outputs(sample_dim_name, dt):
     reference_output = model.predictor_model.predict(first_timestep)
     # test that loaded model gives the same predictions
     loaded_output = loaded.predict(first_timestep)
-    for name in reference_output.data_vars.keys():
-        xr.testing.assert_equal(reference_output[name], loaded_output[name])
+    xr.testing.assert_equal(reference_output, loaded_output)
