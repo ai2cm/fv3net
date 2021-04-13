@@ -168,5 +168,5 @@ def _get_map_title(
             metric_str = "[missing]"
         else:
             metric_str = f"{m.value.item():.3f}{m.units.item()}"
-        title_parts.append(f"{title_name}: {metric_str}")
+        title_parts.append(f"{name_in_figure_title}: {metric_str}")
     return ", ".join(title_parts)
