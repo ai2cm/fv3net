@@ -192,9 +192,14 @@ def lat():
     )
 
 
+@pytest.fixture(params=[False, True])
+def fill_with_nans(request):
+    return request.param
+
+
 @pytest.fixture()
-def t2m():
-    return np.array(
+def t2m(fill_with_nans):
+    arr = np.array(
         [
             [
                 [[285.24548, 285.91785], [286.58337, 286.31308]],
@@ -215,6 +220,9 @@ def t2m():
         ],
         dtype=np.float32,
     )
+    if fill_with_nans:
+        arr = np.full_like(arr, np.nan)
+    return arr
 
 
 @pytest.fixture()
