@@ -546,7 +546,23 @@ class PureKerasModel(Predictor):
 
 @io.register("stepwise-keras")
 class StepwiseModel(PureKerasModel):
-    def integrate_stepwise(self, ds):
+    """
+    Subclass of PureKerasModel which makes additional assumptions to
+    provide a routine that integrates model output forward in time.
+
+    Requires the model outputs include dQ1 and dQ2, and that the inputs
+    include air_temperature and specific_humidity
+    """
+
+    def integrate_stepwise(self, ds: xr.Dataset):
+        """
+        Args:
+            ds: dataset containing model inputs, as well as
+                air_temperature_tendency_due_to_model,
+                air_temperature_tendency_due_to_nudging,
+                specific_humidity_tendency_due_to_model, and
+                specific_humidity_tendency_due_to_nudging
+        """
         time = ds["time"]
         timestep_seconds = (
             time[1].values.item() - time[0].values.item()
