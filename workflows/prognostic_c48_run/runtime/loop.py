@@ -284,11 +284,12 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
     def _compute_emulator(self):
         self._log_debug("Computing emulator tendencies")
         if self.stepper is None:
-            return {}
+            state_updates = {}
+            diagnostics = {}
         else:
             (self._tendencies,
              diagnostics,
-             self._state_updates,
+             state_updates,
              ) = self.stepper(self._state.time, self._state)
              
             try:
@@ -306,25 +307,25 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                         f"specific_humidity_limiter_updates_per_level: {level_updates}"
                     )
 
-        self._state_to_apply_after_physics = add_tendency(
-            self._state, self._tendencies, dt=self._timestep
-        )
+        self._state_to_apply_after_physics = state_updates
         return diagnostics
 
     def _apply_emulator(self):
-        self._log_debug("Overwriting state with emulated updates")
+        if self.stepper is None:
+            diagnostics = {}
+        else:
+            self._log_debug("Overwriting state with emulated updates")
+            updated_state = self._state_to_apply_after_physics
+            self._state.update_mass_conserving(updated_state)
+            diagnostics = self.stepper.get_diagnostics(self._state, self._tendencies)
+            diagnostics.update(
+                self.stepper.get_momentum_diagnostics(self._state, self._tendencies)
+            )
 
-        updated_state = self._state_to_apply_after_physics
-        self._state.update_mass_conserving(updated_state)
-        diagnostics = self.stepper.get_diagnostics(self._state, self._tendencies)
-        diagnostics.update(
-            self.stepper.get_momentum_diagnostics(self._state, self._tendencies)
-        )
-
-        diagnostics.update({name: self._state[name] for name in self._states_to_output})
-        diagnostics.update({
-            name: tendency for name, tendency in self._tendencies.items()
-        })
+            diagnostics.update({name: self._state[name] for name in self._states_to_output})
+            diagnostics.update({
+                name: tendency for name, tendency in self._tendencies.items()
+            })
         diagnostics.update(
             {
                 "area": self._state[AREA],
