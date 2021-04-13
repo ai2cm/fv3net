@@ -9,7 +9,7 @@ import yaml
 import numpy as np
 
 
-class BPTTModel(Predictor):
+class _BPTTModel:
 
     TIME_DIM_NAME = "time"
 
@@ -54,10 +54,8 @@ class BPTTModel(Predictor):
             "air_temperature_tendency_due_to_model",
             "specific_humidity_tendency_due_to_model",
         )
-        output_variables = ["dQ1", "dQ2"]
-        super(BPTTModel, self).__init__(
-            sample_dim_name, input_variables, output_variables,
-        )
+        self.output_variables = ["dQ1", "dQ2"]
+        self.sample_dim_name = sample_dim_name
         self.input_packer = ArrayPacker(sample_dim_name, input_variables)
         self.prognostic_packer = ArrayPacker(sample_dim_name, prognostic_variables)
         self.train_timestep_seconds: Optional[float] = None
@@ -66,7 +64,6 @@ class BPTTModel(Predictor):
         self.tendency_scaler = LayerStandardScaler()
         self.n_units = n_units
         self.n_hidden_layers = n_hidden_layers
-        # self.tendency_ratio = tendency_ratio
         self.kernel_regularizer = kernel_regularizer
         self.train_batch_size = train_batch_size
         self.optimizer = optimizer
@@ -94,10 +91,16 @@ class BPTTModel(Predictor):
         self.prognostic_scaler.fit(state)
         self.tendency_scaler.std = self.prognostic_scaler.std
         self.tendency_scaler.mean = np.zeros_like(self.prognostic_scaler.mean)
-        time = X[BPTTModel.TIME_DIM_NAME]
-        self._train_timestep_seconds = (
-            time[1].values.item() - time[0].values.item()
-        ).total_seconds()
+        time = X[_BPTTModel.TIME_DIM_NAME]
+        try:
+            self._train_timestep_seconds = (
+                time[1].values.item() - time[0].values.item()
+            ).total_seconds()
+        except AttributeError:  # time is datetime64 and has no total_seconds attribute
+            time = time.astype(dtype="datetime64[s]")
+            self._train_timestep_seconds = (
+                time[1].values.item() - time[0].values.item()
+            )
         (
             self.train_keras_model,
             self.train_tendency_model,
@@ -331,7 +334,7 @@ class BPTTModel(Predictor):
         for name in list(self.input_packer.pack_names) + list(
             self.prognostic_packer.pack_names
         ):
-            assert X[name].dims[1] == BPTTModel.TIME_DIM_NAME
+            assert X[name].dims[1] == _BPTTModel.TIME_DIM_NAME
 
         self.train_keras_model.fit(
             x=self.get_keras_inputs(X),
