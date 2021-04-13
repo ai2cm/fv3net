@@ -237,7 +237,7 @@ def time_mean_map_plots(
         diagnostics,
         metrics,
         "time_mean_value",
-        mean_metric_filter="time_and_global_mean_value",
+        metric_names={"Mean": "time_and_global_mean_value"},
     )
 
 
@@ -248,8 +248,7 @@ def time_mean_bias_map_plots(
         diagnostics,
         metrics,
         "time_mean_bias",
-        mean_metric_filter="time_and_global_mean_bias",
-        rmse_metric_filter="rmse_of_time_mean",
+        metric_names={"Mean": "time_and_global_mean_bias", "RMSE": "rmse_of_time_mean"},
     )
 
 

@@ -3,7 +3,7 @@ import dataclasses
 import io
 import logging
 from collections import defaultdict
-from typing import Sequence
+from typing import Mapping, Sequence
 
 import cartopy.crs as ccrs
 import jinja2
@@ -112,8 +112,7 @@ def plot_cube_matplotlib(
     run_diags: RunDiagnostics,
     run_metrics: pd.DataFrame,
     varfilter: str,
-    mean_metric_filter: str = None,
-    rmse_metric_filter: str = None,
+    metric_names: Mapping[str, str] = None,
     **opts,
 ) -> str:
     """Plot horizontal maps of cubed-sphere data for all diagnostics whose name includes
@@ -135,10 +134,7 @@ def plot_cube_matplotlib(
             v = run_diags.get_variable(run, varname)
             ds = xr.merge([grid_ds, v])
             plot_title = _get_map_title(
-                run_metrics[run_metrics.run == run],
-                varname,
-                mean_metric_filter,
-                rmse_metric_filter,
+                run_metrics[run_metrics.run == run], varname, metric_names
             )
             fig, ax = plt.subplots(
                 figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()}
@@ -160,22 +156,17 @@ def plot_cube_matplotlib(
 
 
 def _get_map_title(
-    metrics: pd.DataFrame, varname: str, mean_metric_filter, rmse_metric_filter,
+    metrics: pd.DataFrame, varname: str, metric_names: Mapping[str, str],
 ) -> str:
+    metric_names = {} if metric_names is None else metric_names
     shortname = varname.split("_")[0]
     title_parts = []
-    if mean_metric_filter is not None:
-        metric_name = f"{mean_metric_filter}/{shortname}"
+    for title_name, metric_filter in metric_names.items():
+        metric_name = f"{metric_filter}/{shortname}"
         metric = metrics[metrics.metric == metric_name]
         if metric.empty:
-            title_parts.append("Mean: [missing]")
+            metric_str = "[missing]"
         else:
-            title_parts.append(f"Mean: {metric.value.item():.3f}{metric.units.item()}")
-    if rmse_metric_filter is not None:
-        metric_name = f"{rmse_metric_filter}/{shortname}"
-        metric = metrics[metrics.metric == metric_name]
-        if metric.empty:
-            title_parts.append("RMSE: [missing]")
-        else:
-            title_parts.append(f"RMSE: {metric.value.item():.3f}{metric.units.item()}")
+            metric_str = f"{metric.value.item():.3f}{metric.units.item()}"
+        title_parts.append(f"{title_name}: {metric_str}")
     return ", ".join(title_parts)
