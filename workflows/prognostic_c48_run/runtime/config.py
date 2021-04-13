@@ -23,8 +23,7 @@ class UserConfig:
 
     Attributes:
         diagnostics: list of diagnostic file configurations
-        fortran_diagnostics: list of Fortran diagnostic outputs. Currently only used by
-            post-processing and so only name and chunks items need to be specified.
+        fortran_diagnostics: list of Fortran diagnostic file configurations
         prephysics: optional configuration of computations prior to physics,
             specified by either a machine learning configuation or a prescriber
             configuration

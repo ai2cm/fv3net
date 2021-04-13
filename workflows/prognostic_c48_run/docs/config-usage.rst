@@ -170,11 +170,12 @@ to the Fortran ``diag_table`` representation of diagnostics (see fv3config_ docs
 Chunking
 ^^^^^^^^
 
-The desired chunking can be specified for each diagnostic file to be output. For
-segmented runs (:ref:`segmented-run-cli`) there is a requirement that the chunk size
-along the time dimension evenly divide the length of the time dimension for the
-given output. Segmented runs will raise an exception during initialization if this
-requirement is not met.
+The desired chunking can be specified for each diagnostic file to be output. 
+
+.. warning::
+
+    Segmented runs have specific requirements for chunks. See 
+    :ref:`segmented-run-cli` for details.
 
 
 .. _fv3config: https://fv3config.readthedocs.io/en/latest/
