@@ -39,14 +39,13 @@ def load_dataset(path):
     return ds
 
 
-def shuffled(values: Iterable[Any]) -> Tuple[Any]:
+def shuffled(values: Iterable[Any]) -> Tuple[Any, ...]:
     values = list(values)
     random.shuffle(values)
     return tuple(values)
 
 
 if __name__ == "__main__":
-    # tf.config.experimental.enable_mlir_graph_optimization()
     parser = get_parser()
     args = parser.parse_args()
 
@@ -87,11 +86,6 @@ if __name__ == "__main__":
     for i_epoch in range(config["total_epochs"]):
         epoch = base_epoch + i_epoch
         print(f"starting epoch {epoch}")
-        if i_epoch == 40:
-            optimizer_kwargs["lr"] = config["decreased_learning_rate"]
-            model.train_keras_model.compile(
-                optimizer=optimizer_class(**optimizer_kwargs), loss=model.losses
-            )
         for i, ds in enumerate(loaders.OneAheadIterator(shuffled(train_filenames), function=load_dataset)):
             model.fit(ds, epochs=1)
         val_loss = model.loss(validation)
@@ -100,4 +94,13 @@ if __name__ == "__main__":
             args.model_output_dir, f"model-epoch_{epoch:03d}-loss_{val_loss:.04f}"
         )
         os.makedirs(dirname, exist_ok=True)
-        fv3fit.dump(model.predictor_model, dirname)
+        # dump doesn't need an estimator's fit methods, it only needs .dump to exist
+        # which predictor_model has defined
+        fv3fit.dump(model.predictor_model, dirname)  # type: ignore
+        if i_epoch == config["decrease_learning_rate_epoch"] - 1:
+            optimizer_kwargs["lr"] = config["decreased_learning_rate"]
+            # train_keras_model will not be None because we call fit above
+            # (assuming there is any training data)
+            model.train_keras_model.compile(  # type: ignore
+                optimizer=optimizer_class(**optimizer_kwargs), loss=model.losses
+            )
