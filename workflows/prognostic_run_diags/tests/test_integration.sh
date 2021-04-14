@@ -2,7 +2,7 @@
 
 set -xe
 
-#[[ -n $GOOGLE_APPLICATION_CREDENTIALS ]] && gcloud auth activate-service-account --key-file $GOOGLE_APPLICATION_CREDENTIALS
+[[ -n $GOOGLE_APPLICATION_CREDENTIALS ]] && gcloud auth activate-service-account --key-file $GOOGLE_APPLICATION_CREDENTIALS
 
 RUN=gs://vcm-ml-code-testing-data/sample-prognostic-run-output
 
