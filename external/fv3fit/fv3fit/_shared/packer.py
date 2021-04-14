@@ -193,9 +193,7 @@ class ArrayPacker:
 
 
 def _to_array_2d(
-    dataset: xr.Dataset,
-    pack_names: Sequence[str],
-    feature_counts: Mapping[str, int],
+    dataset: xr.Dataset, pack_names: Sequence[str], feature_counts: Mapping[str, int],
 ):
     """
     Convert dataset into a 2D array with [sample, feature] dimensions.
@@ -230,9 +228,7 @@ def _to_array_2d(
 
 
 def _to_array_3d(
-    dataset: xr.Dataset,
-    pack_names: Sequence[str],
-    feature_counts: Mapping[str, int]
+    dataset: xr.Dataset, pack_names: Sequence[str], feature_counts: Mapping[str, int]
 ):
     """
     Convert dataset into a 3D array with [sample, time, feature] dimensions.

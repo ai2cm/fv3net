@@ -1,7 +1,7 @@
 import abc
 from copy import copy
 import numpy as np
-from typing import Mapping, BinaryIO, Type, Sequence, Iterable, Tuple, Union
+from typing import Mapping, BinaryIO, Type, Sequence, Iterable
 import xarray as xr
 import io
 import yaml

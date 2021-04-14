@@ -7,6 +7,7 @@ class Unpack(tf.keras.layers.Layer):
     """
     Layer which unpacks a stacked tensor into a sequence of unstacked tensors
     """
+
     def __init__(
         self,
         *,
@@ -50,7 +51,6 @@ class Unpack(tf.keras.layers.Layer):
 
 
 class LayerPacker(ArrayPacker):
-
     def pack_layer(self):
         if len(self.pack_names) > 1:
             return tf.keras.layers.Concatenate()

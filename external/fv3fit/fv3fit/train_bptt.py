@@ -1,4 +1,4 @@
-from typing import *
+from typing import Iterable, Any, Tuple
 import numpy as np
 import fv3fit
 import fv3fit.keras._models.recurrent
@@ -22,7 +22,7 @@ def get_parser():
         help=(
             "directory containing TrainingArrays data, "
             "last file is used for validation"
-        )
+        ),
     )
     parser.add_argument(
         "config", type=str, help="yaml file with training configuration"
@@ -86,7 +86,9 @@ if __name__ == "__main__":
     for i_epoch in range(config["total_epochs"]):
         epoch = base_epoch + i_epoch
         print(f"starting epoch {epoch}")
-        for i, ds in enumerate(loaders.OneAheadIterator(shuffled(train_filenames), function=load_dataset)):
+        for i, ds in enumerate(
+            loaders.OneAheadIterator(shuffled(train_filenames), function=load_dataset)
+        ):
             model.fit(ds, epochs=1)
         val_loss = model.loss(validation)
         print(f"val_loss: {val_loss}")

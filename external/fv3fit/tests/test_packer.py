@@ -112,9 +112,7 @@ def test_to_dataset(names, dataset: xr.Dataset, array: np.ndarray):
 @pytest.mark.parametrize(
     "dims_list", ["two_2d_vars", "1d_and_2d", "five_vars"], indirect=True
 )
-def test_packer_unpack_layer(
-    names, dataset: xr.Dataset, array: np.ndarray
-):
+def test_packer_unpack_layer(names, dataset: xr.Dataset, array: np.ndarray):
     packer = LayerPacker(SAMPLE_DIM, names)
     packer.to_array(dataset)  # must pack first to know dimension lengths
     result = packer.unpack_layer(feature_dim=1)(array)
@@ -260,9 +258,7 @@ def test_3d_to_array():
         }
     )
     packer = ArrayPacker(SAMPLE_DIM, ["a", "c"])
-    array = packer.to_array(
-        dataset, is_3d=True
-    )
+    array = packer.to_array(dataset, is_3d=True)
     assert len(array.shape) == 3
     np.testing.assert_array_equal(array[:, :, 0], dataset["a"].values)
     np.testing.assert_array_equal(array[:, :, 1:], dataset["c"].values)

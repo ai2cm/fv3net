@@ -164,14 +164,7 @@ random_seed: 0
             f.write(config_text)
         outdir = os.path.join(tmpdir, "output")
         subprocess.check_call(
-            [
-                "python",
-                "-m",
-                "fv3fit.train_bptt",
-                arrays_dir,
-                config_filename,
-                outdir
-            ]
+            ["python", "-m", "fv3fit.train_bptt", arrays_dir, config_filename, outdir]
         )
         # as a minimum, test that output exists
         assert os.path.isdir(outdir)

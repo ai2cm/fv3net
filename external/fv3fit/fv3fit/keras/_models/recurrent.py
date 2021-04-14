@@ -9,6 +9,7 @@ from .normalizer import LayerStandardScaler
 import yaml
 import numpy as np
 
+
 def _flatten_sample_dims(array: np.ndarray) -> np.ndarray:
     """
     flatten the first two dimensions of an array
@@ -111,9 +112,7 @@ class _BPTTModel:
             ).total_seconds()
         except AttributeError:  # time is datetime64 and has no total_seconds attribute
             time = time.astype(dtype="datetime64[s]")
-            self._train_timestep_seconds = (
-                time[1].values.item() - time[0].values.item()
-            )
+            self._train_timestep_seconds = time[1].values.item() - time[0].values.item()
         self._stepwise_output_metadata.clear()
         for name in ("air_temperature", "specific_humidity"):
             # remove time dimension from stepwise output metadata
