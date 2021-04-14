@@ -5,20 +5,12 @@
 
 from setuptools import setup, find_packages
 
-with open("README.md") as readme_file:
-    readme = readme_file.read()
-
-with open("HISTORY.md") as history_file:
-    history = history_file.read()
-
 requirements = [
     "xarray>=0.14",
     "numpy>=1.11",
     "scikit-learn>=0.22",
-    "loaders",
     "fsspec>=0.6.2",
     "pyyaml>=5.1.2",
-    "vcm",
     "tensorflow>=2.2.0",
     "tensorflow-addons>=0.11.2",
     "typing_extensions>=3.7.4.3",
@@ -43,9 +35,10 @@ setup(
     ],
     description="FV3Fit is used to train machine learning models.",
     install_requires=requirements,
+    dependency_links=["../loaders/", "../vcm/"],
     extras_require={},
     license="BSD license",
-    long_description=readme + "\n\n" + history,
+    long_description="FV3Fit is used to train machine learning models.",
     include_package_data=True,
     keywords="fv3fit",
     name="fv3fit",

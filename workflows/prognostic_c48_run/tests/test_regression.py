@@ -9,6 +9,7 @@ import pytest
 import xarray as xr
 import datetime
 import yaml
+import vcm.testing
 from machine_learning_mocks import get_mock_sklearn_model, get_mock_keras_model
 
 import subprocess
@@ -25,14 +26,6 @@ CHUNKS_PATH = "chunks.yaml"
 DIAGNOSTICS = [
     {
         "name": "diags.zarr",
-        "output_variables": [
-            "net_moistening",
-            "net_heating",
-            "water_vapor_path",
-            "physics_precip",
-            "column_integrated_dQu",
-            "column_integrated_dQv",
-        ],
         "times": {"kind": "interval", "frequency": 900, "times": None},
     },
 ]
@@ -485,29 +478,21 @@ def test_chunks_present(completed_rundir):
     assert completed_rundir.join(CHUNKS_PATH).exists()
 
 
-def test_fv3run_diagnostic_outputs(completed_rundir, configuration):
+def test_fv3run_diagnostic_outputs_check_variables(regtest, completed_rundir):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
     the base class in the fv3fit test suite.
     """
-    if configuration == ConfigEnum.nudging:
-        pytest.skip()
-
     diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
-    dims = ("time", "tile", "y", "x")
-
-    for variable in [
-        "net_heating",
-        "net_moistening",
-        "physics_precip",
-        "water_vapor_path",
-        "column_integrated_dQu",
-        "column_integrated_dQv",
-    ]:
-        assert diagnostics[variable].dims == dims
+    for variable in sorted(diagnostics):
         assert np.sum(np.isnan(diagnostics[variable].values)) == 0
+        checksum = vcm.testing.checksum_dataarray(diagnostics[variable])
+        print(f"{variable}: " + checksum, file=regtest)
 
-    assert len(diagnostics.time) == 2
+
+def test_fv3run_diagnostic_outputs_schema(regtest, completed_rundir):
+    diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
+    diagnostics.info(regtest)
 
 
 def test_fv3run_python_mass_conserving(completed_rundir, configuration):

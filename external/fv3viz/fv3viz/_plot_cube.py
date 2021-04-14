@@ -517,6 +517,11 @@ def plot_cube_axes(
     if "vmax" not in kwargs:
         kwargs["vmax"] = np.nanmax(array)
 
+    if np.isnan(kwargs["vmin"]):
+        kwargs["vmin"] = -0.1
+    if np.isnan(kwargs["vmax"]):
+        kwargs["vmax"] = 0.1
+
     if plotting_function != "pcolormesh":
         if "levels" not in kwargs:
             kwargs["n_levels"] = 11 if "n_levels" not in kwargs else kwargs["n_levels"]

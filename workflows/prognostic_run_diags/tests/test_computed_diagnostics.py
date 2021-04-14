@@ -2,6 +2,7 @@ import os
 
 import fsspec
 import numpy as np
+import pandas as pd
 import pytest
 import xarray
 
@@ -10,6 +11,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     _parse_metadata,
     detect_rundirs,
     RunDiagnostics,
+    RunMetrics,
 )
 
 
@@ -102,3 +104,49 @@ def test_RunDiagnostics_list_variables():
         ]
     )
     assert diagnostics.variables == {"a", "b", "c"}
+
+
+metrics_df = pd.DataFrame(
+    {
+        "run": ["run1", "run1", "run2", "run2"],
+        "baseline": [False, False, True, True],
+        "metric": [
+            "rmse_of_time_mean/precip",
+            "rmse_of_time_mean/h500",
+            "rmse_of_time_mean/precip",
+            "time_and_global_mean_bias/precip",
+        ],
+        "value": [-1, 2, 1, 0],
+        "units": ["mm/day", "m", "mm/day", "mm/day"],
+    }
+)
+
+
+def test_RunMetrics_runs():
+    metrics = RunMetrics(metrics_df)
+    assert metrics.runs == ["run1", "run2"]
+
+
+def test_RunMetrics_types():
+    metrics = RunMetrics(metrics_df)
+    assert metrics.types == {"rmse_of_time_mean", "time_and_global_mean_bias"}
+
+
+def test_RunMetrics_get_metric_variables():
+    metrics = RunMetrics(metrics_df)
+    assert metrics.get_metric_variables("rmse_of_time_mean") == {"precip", "h500"}
+
+
+def test_RunMetrics_get_metric_value():
+    metrics = RunMetrics(metrics_df)
+    assert metrics.get_metric_value("rmse_of_time_mean", "precip", "run1") == -1
+
+
+def test_RunMetrics_get_metric_value_missing():
+    metrics = RunMetrics(metrics_df)
+    assert np.isnan(metrics.get_metric_value("rmse_of_time_mean", "h500", "run2"))
+
+
+def test_RunMetrics_get_metric_units():
+    metrics = RunMetrics(metrics_df)
+    assert metrics.get_metric_units("rmse_of_time_mean", "precip", "run1") == "mm/day"
