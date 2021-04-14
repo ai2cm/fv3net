@@ -167,5 +167,16 @@ Diagnostics to be output by the Fortran model are specified in the
 to the Fortran ``diag_table`` representation of diagnostics (see fv3config_ docs).
 
 
+Chunking
+^^^^^^^^
+
+The desired chunking can be specified for each diagnostic file to be output. 
+
+.. warning::
+
+    Segmented runs have specific requirements for chunks. See 
+    :ref:`segmented-run-cli` for details.
+
+
 .. _fv3config: https://fv3config.readthedocs.io/en/latest/
 .. _fv3fit: https://vulcanclimatemodeling.com/docs/fv3fit/

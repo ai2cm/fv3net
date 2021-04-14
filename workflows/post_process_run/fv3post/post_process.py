@@ -147,7 +147,10 @@ def process_item(
 @click.option(
     "--chunks", type=click.Path(), help="path to yaml file containing chunk information"
 )
-def post_process(rundir: str, destination: str, chunks: str):
+@click.option(
+    "--skip", type=click.Path(), help="path to text file listing files to skip."
+)
+def post_process(rundir: str, destination: str, chunks: str, skip: str):
     """Post-process the fv3gfs output located RUNDIR and save to DESTINATION
 
     RUNDIR and DESTINATION may be local or GCS paths.
@@ -164,8 +167,13 @@ def post_process(rundir: str, destination: str, chunks: str):
     else:
         chunks = {}
 
-    with tempfile.TemporaryDirectory() as d_in, tempfile.TemporaryDirectory() as d_out:
+    if skip:
+        with open(skip) as f:
+            files_to_skip = [line.strip() for line in f.readlines()]
+    else:
+        files_to_skip = []
 
+    with tempfile.TemporaryDirectory() as d_in, tempfile.TemporaryDirectory() as d_out:
         if rundir.startswith("gs://"):
             download_directory(rundir, d_in)
         else:
@@ -175,6 +183,11 @@ def post_process(rundir: str, destination: str, chunks: str):
             d_out = destination
 
         tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True))
+
+        files_to_skip = [os.path.join(d_in, file_) for file_ in files_to_skip]
+        files_to_skip = [os.path.normpath(path) for path in files_to_skip]
+        tiles = set(tiles) - set(files_to_skip)
+        other = set(other) - set(files_to_skip)
 
         for item in chain(open_tiles(tiles, d_in, chunks), open_zarrs(zarrs), other):
             process_item(item, d_in, d_out, chunks)

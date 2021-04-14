@@ -1372,11 +1372,11 @@ namelist:
     - 0
     - 15
     - 0
-    days: 0
+    days: 1
     dt_atmos: 900
     dt_ocean: 900
     force_date_from_namelist: true
-    hours: 4
+    hours: 0
     memuse_verbose: true
     minutes: 0
     months: 0
@@ -1616,11 +1616,7 @@ nudging:
     y_wind: 12
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
-scikit_learn:
-  diagnostic_ml: false
-  input_standard_names: {}
-  model: []
-  output_standard_names: {}
+scikit_learn: null
 step_storage_variables:
 - specific_humidity
 - total_water
