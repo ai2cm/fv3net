@@ -26,17 +26,6 @@ CHUNKS_PATH = "chunks.yaml"
 DIAGNOSTICS = [
     {
         "name": "diags.zarr",
-        "output_variables": [
-            "net_moistening",
-            "net_heating",
-            "water_vapor_path",
-            "physics_precip",
-            "column_integrated_dQu",
-            "column_integrated_dQv",
-            "cnvprcp_after_python",
-            "area",
-            "total_precipitation_rate",
-        ],
         "times": {"kind": "interval", "frequency": 900, "times": None},
     },
 ]
