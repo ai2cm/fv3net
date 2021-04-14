@@ -304,10 +304,11 @@ def test_plot_cube_on_axis(sample_dataset, plotting_function):
     [("pcolormesh"), ("contourf"), pytest.param("contour", marks=pytest.mark.xfail)],
 )
 def test_plot_cube_with_all_nans(sample_dataset, plotting_function):
-    sample_dataset["t2m"][:] = np.nan
+    dataset_copy = sample_dataset.copy(deep=True)
+    dataset_copy["t2m"][:] = np.nan
     ax = plt.axes(projection=ccrs.Robinson())
     f, axes, hs, cbar, facet_grid = plot_cube(
-        mappable_var(sample_dataset, "t2m").isel(time=0),
+        mappable_var(dataset_copy, "t2m").isel(time=0),
         plotting_function=plotting_function,
         ax=ax,
     )
