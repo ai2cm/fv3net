@@ -447,10 +447,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                     diagnostics[self._postphysics_stepper.net_moistening],
                     self._timestep,
                 )
-                diagnostics[TOTAL_PRECIP] = updated_state_from_tendency[TOTAL_PRECIP]
                 self._state.update_mass_conserving(updated_state_from_tendency)
                 self._state.update_mass_conserving(self._state_updates)
-
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
         diagnostics.update(
             {
@@ -463,12 +461,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 ),
             }
         )
-
-        try:
-            del diagnostics[TOTAL_PRECIP]
-        except KeyError:
-            pass
-
         return diagnostics
 
     def __iter__(self):
