@@ -192,14 +192,9 @@ def lat():
     )
 
 
-@pytest.fixture(params=[False, True])
-def fill_with_nans(request):
-    return request.param
-
-
 @pytest.fixture()
-def t2m(fill_with_nans):
-    arr = np.array(
+def t2m():
+    return np.array(
         [
             [
                 [[285.24548, 285.91785], [286.58337, 286.31308]],
@@ -220,9 +215,6 @@ def t2m(fill_with_nans):
         ],
         dtype=np.float32,
     )
-    if fill_with_nans:
-        arr = np.full_like(arr, np.nan)
-    return arr
 
 
 @pytest.fixture()
@@ -299,6 +291,20 @@ def test_plot_cube_with_facets(sample_dataset, plotting_function):
     "plotting_function", [("pcolormesh"), ("contour"), ("contourf")]
 )
 def test_plot_cube_on_axis(sample_dataset, plotting_function):
+    ax = plt.axes(projection=ccrs.Robinson())
+    f, axes, hs, cbar, facet_grid = plot_cube(
+        mappable_var(sample_dataset, "t2m").isel(time=0),
+        plotting_function=plotting_function,
+        ax=ax,
+    )
+
+
+@pytest.mark.parametrize(
+    "plotting_function",
+    [("pcolormesh"), ("contourf"), pytest.param("contour", marks=pytest.mark.xfail)],
+)
+def test_plot_cube_with_all_nans(sample_dataset, plotting_function):
+    sample_dataset["t2m"][:] = np.nan
     ax = plt.axes(projection=ccrs.Robinson())
     f, axes, hs, cbar, facet_grid = plot_cube(
         mappable_var(sample_dataset, "t2m").isel(time=0),
