@@ -169,5 +169,5 @@ def _render_map_title(
     for name_in_figure_title, metric_type in metrics_for_title.items():
         metric_value = metrics.get_metric_value(metric_type, variable, run)
         metric_units = metrics.get_metric_units(metric_type, variable, run)
-        title_parts.append(f"{name_in_figure_title}: {metric_value:.3f}{metric_units}")
+        title_parts.append(f"{name_in_figure_title}: {metric_value:.3f} {metric_units}")
     return ", ".join(title_parts)
