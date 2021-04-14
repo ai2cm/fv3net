@@ -138,7 +138,7 @@ def plot_cubed_sphere_map(
     for run in run_diags.runs:
         for varname in variables_to_plot:
             logging.info(f"plotting {varname} in {run}")
-            shortname = varname.split("_")[0]
+            shortname = varname.split(varfilter)[0][:-1]
             ds = run_diags.get_variables(run, list(_COORD_VARS) + [varname])
             plot_title = _render_map_title(
                 run_metrics, shortname, run, metrics_for_title
