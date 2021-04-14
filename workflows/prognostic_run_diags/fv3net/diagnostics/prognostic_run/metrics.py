@@ -45,7 +45,7 @@ def prepend_to_key(d, prefix):
     return {prefix + key: val for key, val in d.items()}
 
 
-def weighted_mean(ds, w, dims=HORIZONTAL_DIMS):
+def weighted_mean(ds, w, dims):
     return (ds * w).sum(dims) / w.sum(dims)
 
 
@@ -86,13 +86,7 @@ def rmse_3day(diags):
     except IndexError:  # don't compute metric if run didn't make it to 3 days
         rms_at_day_3 = xr.Dataset()
 
-    for variable in rms_at_day_3:
-        try:
-            orig_unit = rms_global[variable].attrs["units"]
-        except KeyError:
-            raise KeyError(f"{variable} does not have units")
-
-        rms_at_day_3[variable].attrs["units"] = orig_unit
+    restore_units(rms_globa, rms_at_day_3)
     return rms_at_day_3
 
 
@@ -119,10 +113,8 @@ def drift_3day(diags):
 def time_and_global_mean_value(diags):
     time_mean_value = grab_diag(diags, "time_mean_value")
     area = diags["area"]
-    time_and_global_mean_value = weighted_mean(time_mean_value, area)
-    for variable in time_mean_value:
-        orig_unit = time_mean_value[variable].attrs["units"]
-        time_and_global_mean_value[variable].attrs["units"] = orig_unit
+    time_and_global_mean_value = weighted_mean(time_mean_value, area, HORIZONTAL_DIMS)
+    restore_units(time_mean_value, time_and_global_mean_value)
     return time_and_global_mean_value
 
 
@@ -130,10 +122,8 @@ def time_and_global_mean_value(diags):
 def time_and_global_mean_bias(diags):
     time_mean_bias = grab_diag(diags, "time_mean_bias")
     area = diags["area"]
-    time_and_global_mean_bias = weighted_mean(time_mean_bias, area)
-    for variable in time_mean_bias:
-        orig_unit = time_mean_bias[variable].attrs["units"]
-        time_and_global_mean_bias[variable].attrs["units"] = orig_unit
+    time_and_global_mean_bias = weighted_mean(time_mean_bias, area, HORIZONTAL_DIMS)
+    restore_units(time_mean_bias, time_and_global_mean_bias)
     return time_and_global_mean_bias
 
 
@@ -141,11 +131,16 @@ def time_and_global_mean_bias(diags):
 def rmse_time_mean(diags):
     time_mean_bias = grab_diag(diags, "time_mean_bias")
     area = diags["area"]
-    rms_of_time_mean_bias = np.sqrt(weighted_mean(time_mean_bias ** 2, area))
-    for variable in rms_of_time_mean_bias:
-        orig_unit = time_mean_bias[variable].attrs["units"]
-        rms_of_time_mean_bias[variable].attrs["units"] = orig_unit
+    rms_of_time_mean_bias = np.sqrt(
+        weighted_mean(time_mean_bias ** 2, area, HORIZONTAL_DIMS)
+    )
+    restore_units(time_mean_bias, rms_of_time_mean_bias)
     return rms_of_time_mean_bias
+
+
+def restore_units(source, target):
+    for variable in target:
+        target[variable].attrs["units"] = source[variable].attrs["units"]
 
 
 def register_parser(subparsers):

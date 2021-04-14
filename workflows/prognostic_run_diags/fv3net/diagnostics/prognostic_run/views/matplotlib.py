@@ -81,9 +81,7 @@ def plot_2d_matplotlib(
     ylabel = opts.pop("ylabel", "")
     x, y = dims
 
-    variables_to_plot = [
-        varname for varname in run_diags.variables if varfilter in varname
-    ]
+    variables_to_plot = run_diags.matching_variables(varfilter)
 
     for run in run_diags.runs:
         for varname in variables_to_plot:
@@ -108,7 +106,7 @@ def plot_2d_matplotlib(
     )
 
 
-def plot_cube_matplotlib(
+def plot_cubed_sphere_map(
     run_diags: RunDiagnostics,
     run_metrics: pd.DataFrame,
     varfilter: str,
@@ -121,9 +119,7 @@ def plot_cube_matplotlib(
 
     data = defaultdict(dict)
 
-    variables_to_plot = [
-        varname for varname in run_diags.variables if varfilter in varname
-    ]
+    variables_to_plot = run_diags.matching_variables(varfilter)
 
     for run in run_diags.runs:
         grid_ds = xr.merge(
@@ -133,7 +129,7 @@ def plot_cube_matplotlib(
             logging.info(f"plotting {varname} in {run}")
             v = run_diags.get_variable(run, varname)
             ds = xr.merge([grid_ds, v])
-            plot_title = _get_map_title(
+            plot_title = _render_map_title(
                 run_metrics[run_metrics.run == run], varname, metric_names
             )
             fig, ax = plt.subplots(
@@ -155,7 +151,7 @@ def plot_cube_matplotlib(
     )
 
 
-def _get_map_title(
+def _render_map_title(
     metrics: pd.DataFrame, varname: str, metric_names: Mapping[str, str],
 ) -> str:
     metric_names = {} if metric_names is None else metric_names

@@ -98,6 +98,10 @@ class RunDiagnostics:
                     return xr.full_like(template, np.nan)
             raise ValueError(f"{varname} not found.")
 
+    def matching_variables(self, varfilter: str) -> Set[str]:
+        """The available variabes that include varfilter in their names."""
+        return set(v for v in self.variables if varfilter in v)
+
     def is_baseline(self, run: str) -> bool:
         return self._attrs[run]["baseline"]
 

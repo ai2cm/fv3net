@@ -14,7 +14,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
 
 from report import create_html, Link
 from report.holoviews import HVPlot, get_html_header
-from .matplotlib import plot_2d_matplotlib, plot_cube_matplotlib
+from .matplotlib import plot_2d_matplotlib, plot_cubed_sphere_map
 
 import logging
 
@@ -81,7 +81,7 @@ def plot_1d(
     All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "run"])
-    vars_to_plot = set(v for v in run_diags.variables if varfilter in v)
+    vars_to_plot = variables_to_plot = run_diags.matching_variables(varfilter)
     for run in run_diags.runs:
         for varname in vars_to_plot:
             v = run_diags.get_variable(run, varname).rename("value")
@@ -104,7 +104,7 @@ def plot_1d_min_max_with_region_bar(
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
 
-    variables_to_plot = [v for v in run_diags.variables if varfilter_min in v]
+    variables_to_plot = variables_to_plot = run_diags.matching_variables(varfilter_min)
 
     for run in run_diags.runs:
         for min_var in variables_to_plot:
@@ -130,7 +130,7 @@ def plot_1d_with_region_bar(
     variable name after last underscore. All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
-    vars_to_plot = set(v for v in run_diags.variables if varfilter in v)
+    vars_to_plot = variables_to_plot = run_diags.matching_variables(varfilter)
     for run in run_diags.runs:
         for varname in vars_to_plot:
             v = run_diags.get_variable(run, varname).rename("value")
@@ -169,15 +169,15 @@ def diurnal_component_plot(
 
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["run", "surface_type", "short_varname"])
+    variables_to_plot = run_diags.matching_variables(diurnal_component_name)
 
     for run in run_diags.runs:
-        for varname in run_diags.variables:
-            if diurnal_component_name in varname:
-                v = run_diags.get_variable(run, varname).rename("value")
-                short_vname, surface_type = _parse_diurnal_component_fields(varname)
-                hmap[(run, surface_type, short_vname)] = hv.Curve(
-                    v, label=diurnal_component_name
-                ).options(color=p)
+        for varname in variables_to_plot:
+            v = run_diags.get_variable(run, varname).rename("value")
+            short_vname, surface_type = _parse_diurnal_component_fields(varname)
+            hmap[(run, surface_type, short_vname)] = hv.Curve(
+                v, label=diurnal_component_name
+            ).options(color=p)
     return HVPlot(_set_opts_and_overlay(hmap, overlay="short_varname"))
 
 
@@ -230,10 +230,10 @@ def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot
     )
 
 
-def time_mean_map_plots(
+def time_mean_cubed_sphere_maps(
     diagnostics: Iterable[xr.Dataset], metrics: pd.DataFrame
 ) -> HVPlot:
-    return plot_cube_matplotlib(
+    return plot_cubed_sphere_map(
         diagnostics,
         metrics,
         "time_mean_value",
@@ -241,10 +241,10 @@ def time_mean_map_plots(
     )
 
 
-def time_mean_bias_map_plots(
+def time_mean_bias_cubed_sphere_maps(
     diagnostics: Iterable[xr.Dataset], metrics: pd.DataFrame
 ) -> HVPlot:
-    return plot_cube_matplotlib(
+    return plot_cubed_sphere_map(
         diagnostics,
         metrics,
         "time_mean_bias",
@@ -363,13 +363,13 @@ def render_hovmollers(metadata, diagnostics):
     )
 
 
-def render_horizontal_maps(metadata, diagnostics, metrics):
+def render_maps(metadata, diagnostics, metrics):
     # the plotting functions here require two inputs so can't use a PlotManager
     sections = {
         "Links": navigation,
         "Time-mean maps": [
-            time_mean_map_plots(diagnostics, metrics),
-            time_mean_bias_map_plots(diagnostics, metrics),
+            time_mean_cubed_sphere_maps(diagnostics, metrics),
+            time_mean_bias_cubed_sphere_maps(diagnostics, metrics),
         ],
     }
     return create_html(
@@ -431,7 +431,7 @@ def main(args):
     pages = {
         "index.html": render_index(metadata, diagnostics, metrics, movie_links),
         "hovmoller.html": render_hovmollers(metadata, diagnostics),
-        "maps.html": render_horizontal_maps(metadata, diagnostics, metrics),
+        "maps.html": render_maps(metadata, diagnostics, metrics),
         "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
     }
 
