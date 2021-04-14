@@ -8,10 +8,11 @@ from typing import Mapping, Sequence
 import cartopy.crs as ccrs
 import jinja2
 import matplotlib.pyplot as plt
-from fv3net.diagnostics.prognostic_run.computed_diagnostics import RunDiagnostics
+from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
+    RunDiagnostics,
+    RunMetrics,
+)
 import fv3viz
-import xarray as xr
-import pandas as pd
 
 COORD_NAMES = {
     "coord_x_center": "x",
@@ -108,29 +109,39 @@ def plot_2d_matplotlib(
 
 def plot_cubed_sphere_map(
     run_diags: RunDiagnostics,
-    run_metrics: pd.DataFrame,
+    run_metrics: RunMetrics,
     varfilter: str,
-    metric_names: Mapping[str, str] = None,
+    metrics_for_title: Mapping[str, str] = None,
     **opts,
 ) -> str:
-    """Plot horizontal maps of cubed-sphere data for all diagnostics whose name includes
-    varfilter. All matching diagnostics must have tile, x and y dimensions
-    and each dataset in run_diags must include lat/lon/latb/lonb coordinates."""
+    """Plot horizontal maps of cubed-sphere data for diagnostics which match varfilter.
+    
+    Args:
+        run_diags: the run diagnostics
+        run_metrics: the run metrics, which can be used to annotate plots
+        varfilter: pattern to filter variable names
+        metrics_for_title: metrics to put in plot title. Mapping from label to use in
+            plot title to metric_type.
+        opts: additional kwargs to pass to fv3viz.plot_cube
+
+    Note:
+        All matching diagnostics must have tile, x and y dimensions and each dataset in
+        run_diags must include lat/lon/latb/lonb coordinates.
+    """
 
     data = defaultdict(dict)
+    if metrics_for_title is None:
+        metrics_for_title = {}
 
     variables_to_plot = run_diags.matching_variables(varfilter)
 
     for run in run_diags.runs:
-        grid_ds = xr.merge(
-            [run_diags.get_variable(run, varname) for varname in _COORD_VARS]
-        )
         for varname in variables_to_plot:
             logging.info(f"plotting {varname} in {run}")
-            v = run_diags.get_variable(run, varname)
-            ds = xr.merge([grid_ds, v])
+            shortname = varname.split("_")[0]
+            ds = run_diags.get_variables(run, list(_COORD_VARS) + [varname])
             plot_title = _render_map_title(
-                run_metrics[run_metrics.run == run], varname, metric_names
+                run_metrics, shortname, run, metrics_for_title
             )
             fig, ax = plt.subplots(
                 figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()}
@@ -152,17 +163,11 @@ def plot_cubed_sphere_map(
 
 
 def _render_map_title(
-    metrics: pd.DataFrame, varname: str, metric_names: Mapping[str, str],
+    metrics: RunMetrics, variable: str, run: str, metrics_for_title: Mapping[str, str],
 ) -> str:
-    metric_names = {} if metric_names is None else metric_names
-    shortname = varname.split("_")[0]
     title_parts = []
-    for name_in_figure_title, metric_prefix in metric_names.items():
-        metric_name = f"{metric_prefix}/{shortname}"
-        m = metrics[metrics.metric == metric_name]
-        if m.empty:
-            metric_str = "[missing]"
-        else:
-            metric_str = f"{m.value.item():.3f}{m.units.item()}"
-        title_parts.append(f"{name_in_figure_title}: {metric_str}")
+    for name_in_figure_title, metric_type in metrics_for_title.items():
+        metric_value = metrics.get_metric_value(metric_type, variable, run)
+        metric_units = metrics.get_metric_units(metric_type, variable, run)
+        title_parts.append(f"{name_in_figure_title}: {metric_value:.3f}{metric_units}")
     return ", ".join(title_parts)

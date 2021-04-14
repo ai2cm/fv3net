@@ -10,6 +10,7 @@ import holoviews as hv
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     ComputedDiagnosticsList,
     RunDiagnostics,
+    RunMetrics,
 )
 
 from report import create_html, Link
@@ -81,7 +82,7 @@ def plot_1d(
     All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "run"])
-    vars_to_plot = variables_to_plot = run_diags.matching_variables(varfilter)
+    vars_to_plot = run_diags.matching_variables(varfilter)
     for run in run_diags.runs:
         for varname in vars_to_plot:
             v = run_diags.get_variable(run, varname).rename("value")
@@ -104,7 +105,7 @@ def plot_1d_min_max_with_region_bar(
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
 
-    variables_to_plot = variables_to_plot = run_diags.matching_variables(varfilter_min)
+    variables_to_plot = run_diags.matching_variables(varfilter_min)
 
     for run in run_diags.runs:
         for min_var in variables_to_plot:
@@ -130,7 +131,7 @@ def plot_1d_with_region_bar(
     variable name after last underscore. All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
-    vars_to_plot = variables_to_plot = run_diags.matching_variables(varfilter)
+    vars_to_plot = run_diags.matching_variables(varfilter)
     for run in run_diags.runs:
         for varname in vars_to_plot:
             v = run_diags.get_variable(run, varname).rename("value")
@@ -237,7 +238,7 @@ def time_mean_cubed_sphere_maps(
         diagnostics,
         metrics,
         "time_mean_value",
-        metric_names={"Mean": "time_and_global_mean_value"},
+        metrics_for_title={"Mean": "time_and_global_mean_value"},
     )
 
 
@@ -248,7 +249,10 @@ def time_mean_bias_cubed_sphere_maps(
         diagnostics,
         metrics,
         "time_mean_bias",
-        metric_names={"Mean": "time_and_global_mean_bias", "RMSE": "rmse_of_time_mean"},
+        metrics_for_title={
+            "Mean": "time_and_global_mean_bias",
+            "RMSE": "rmse_of_time_mean",
+        },
     )
 
 
@@ -289,36 +293,34 @@ def diurnal_cycle_component_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 # Routines for plotting the "metrics"
 # New plotting routines can be registered here.
 @metrics_plot_manager.register
-def time_mean_bias_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+def time_mean_bias_metrics(metrics: RunMetrics) -> hv.HoloMap:
     return generic_metric_plot(metrics, "time_and_global_mean_bias")
 
 
 @metrics_plot_manager.register
-def rmse_time_mean_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+def rmse_time_mean_metrics(metrics: RunMetrics) -> hv.HoloMap:
     return generic_metric_plot(metrics, "rmse_of_time_mean")
 
 
 @metrics_plot_manager.register
-def rmse_3day_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+def rmse_3day_metrics(metrics: RunMetrics) -> hv.HoloMap:
     return generic_metric_plot(metrics, "rmse_3day")
 
 
 @metrics_plot_manager.register
-def drift_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+def drift_metrics(metrics: RunMetrics) -> hv.HoloMap:
     return generic_metric_plot(metrics, "drift")
 
 
-def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
+def generic_metric_plot(metrics: RunMetrics, metric_type: str) -> hv.HoloMap:
     hmap = hv.HoloMap(kdims=["metric"])
     bar_opts = dict(norm=dict(framewise=True), plot=dict(width=600))
-    metrics_contains_name = False
-    for metric in metrics.metric.unique():
-        if metric.startswith(name):
-            metrics_contains_name = True
-            s = metrics[metrics.metric == metric]
-            bars = hv.Bars((s.run, s.value), hv.Dimension("Run"), s.units.iloc[0])
-            hmap[metric] = bars
-    if metrics_contains_name:
+    variables = metrics.get_metric_variables(metric_type)
+    for varname in variables:
+        s = metrics.get_metric_all_runs(metric_type, varname)
+        bars = hv.Bars((s.run, s.value), hv.Dimension("Run"), s.units.iloc[0])
+        hmap[metrics.metric_name(metric_type, varname)] = bars
+    if len(variables) > 0:
         return HVPlot(hmap.opts(**bar_opts))
 
 
