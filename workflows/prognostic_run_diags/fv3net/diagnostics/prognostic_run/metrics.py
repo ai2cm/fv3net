@@ -86,7 +86,7 @@ def rmse_3day(diags):
     except IndexError:  # don't compute metric if run didn't make it to 3 days
         rms_at_day_3 = xr.Dataset()
 
-    restore_units(rms_globa, rms_at_day_3)
+    restore_units(rms_global, rms_at_day_3)
     return rms_at_day_3
 
 
