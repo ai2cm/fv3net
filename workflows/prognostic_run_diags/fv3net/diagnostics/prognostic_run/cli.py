@@ -11,7 +11,9 @@ def dissoc(namespace, key):
 
 def get_parser():
     parser = argparse.ArgumentParser(description="Prognostic run diagnostics")
-    subparsers = parser.add_subparsers(help="Prognostic run diagnostics")
+    subparsers = parser.add_subparsers(
+        help="Prognostic run diagnostics", required=True, dest="command"
+    )
 
     compute.register_parser(subparsers)
     metrics.register_parser(subparsers)
