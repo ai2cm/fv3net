@@ -59,7 +59,7 @@ template_faceted = jinja2.Template(
 <table>
 {% for varname in variables_to_plot %}
 <tr>
-<img src="{{ image_data[varname] }}" width="1500px" />
+<img src="{{ image_data[varname] }}" width="{{ width_px }}px" />
 </tr>
 {% endfor %}
 </table>
@@ -126,9 +126,10 @@ def plot_2d_contours_matplotlib(
         plt.suptitle(long_name_and_units, y=1.04)
         data[varname] = fig_to_b64(faceted.fig)
         plt.close(faceted.fig)
+    width_px = 500 * len(da.run)
     return raw_html(
         template_faceted.render(
-            image_data=data, variables_to_plot=variables_to_plot, varfilter=varfilter,
+            image_data=data, variables_to_plot=variables_to_plot, varfilter=varfilter, width_px=width_px
         )
     )
 
