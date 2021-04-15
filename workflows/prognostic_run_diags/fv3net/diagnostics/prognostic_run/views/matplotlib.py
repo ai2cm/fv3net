@@ -90,9 +90,10 @@ def plot_2d_matplotlib_groupby_run(
     dims: Sequence = None,
     **opts,
 ):
-    """Plot all diagnostics whose name includes varfilter. Runs containing the variable 
-    of interest are combined into a facet plot with a common color scale.
-    All matching diagnostics must be 2D and have the same dimensions."""
+    """Plot all diagnostics whose name includes varfilter. Runs containing
+    the variable  of interest are combined into a facet plot with a common
+    color scale. All matching diagnostics must be 2D and have the
+    same dimensions."""
     data = defaultdict(dict)
 
     # kwargs handling
