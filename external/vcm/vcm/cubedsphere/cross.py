@@ -77,21 +77,20 @@ def to_cross(
     tiles = []
     dims = [y, x]
 
+    rotation_plan = {
+        (spec.x, spec.y): (spec.origin, tile_num) for tile_num, spec in TOPOLOGY.items()
+    }
+
     data = data.drop_vars(dims + [tile], errors="ignore").transpose(..., tile, y, x)
     null = xr.full_like(data.isel({tile: 0}), np.nan)
     for j in range(3):
         row = []
         for i in range(4):
-            for tile_num, spec in TOPOLOGY.items():
-                if spec.y == j and spec.x == i:
-                    arr = rotate(
-                        data.isel({tile: tile_num}), spec.origin, SW, dims=dims
-                    )
-                    row.append(arr)
-                    break
+            if (i, j) in rotation_plan:
+                origin, tile_num = rotation_plan[(i, j)]
+                arr = rotate(data.isel({tile: tile_num}), origin, SW, dims=dims)
             else:
                 arr = null
-                row.append(arr)
-
+            row.append(arr)
         tiles.append(row)
     return xr.combine_nested(tiles, concat_dim=dims)
