@@ -840,4 +840,4 @@ def test_to_cross(transpose, tile_dim, x_dim, y_dim):
 
     # manually hardcode the hash since it is shared across all parameterize
     # statements
-    assert joblib.hash(one_tile.values) == "77b919b5968584e9de056663979cb60e"
+    assert joblib.hash(one_tile.values) == "04eddd324d0f3150a02499c788ec675d"

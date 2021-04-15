@@ -75,7 +75,7 @@ def to_cross(
 
     """
     tiles = []
-    dims = [x, y]
+    dims = [y, x]
 
     data = data.drop_vars(dims + [tile], errors="ignore").transpose(..., tile, y, x)
     null = xr.full_like(data.isel({tile: 0}), np.nan)
