@@ -3,7 +3,8 @@
 ==========================
 
 The routine ``vcm.cubedsphere.to_cross`` is useful for quick plots when
-cartopy may not be installed.
+cartopy may not be installed and/or latitude and longitude coordinates
+are not easily available.
 """
 
 import vcm
