@@ -3,7 +3,10 @@ import dataclasses
 import io
 import logging
 from collections import defaultdict
+import numpy as np
 from typing import Sequence
+import xarray as xr
+import textwrap
 
 import jinja2
 import matplotlib.pyplot as plt
@@ -12,7 +15,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import RunDiagnostic
 
 def fig_to_b64(fig, format="png"):
     pic_IObytes = io.BytesIO()
-    fig.savefig(pic_IObytes, format=format)
+    fig.savefig(pic_IObytes, format=format, bbox_inches='tight')
     pic_IObytes.seek(0)
     pic_hash = base64.b64encode(pic_IObytes.read())
     return f"data:image/png;base64, " + pic_hash.decode()
@@ -49,6 +52,85 @@ template = jinja2.Template(
 </table>
 """
 )
+
+template_faceted = jinja2.Template(
+    """
+<h2> {{varfilter}} </h2>
+<table>
+{% for varname in variables_to_plot %}
+<tr>
+<img src="{{ image_data[varname] }}" width="1500px" />
+</tr>
+{% endfor %}
+</table>
+"""
+)
+
+
+CBAR_RANGE = {
+    "eastward_wind_pressure_level_zonal_bias": 30,
+    "northward_wind_pressure_level_zonal_bias": 3,
+    "air_temperature_pressure_level_zonal_bias": 15,
+    "specific_humidity_pressure_level_zonal_bias": 1e-3,
+    "vertical_wind_pressure_level_zonal_bias": 0.02,
+}
+
+
+def _data_array_from_run_diags(run_diags, var):
+    values, run_coords = [], []
+    for run in run_diags.runs:
+        da = run_diags.get_variable(run, var)
+        if not np.isnan(da.mean(skipna=True)):
+            values.append(da)
+            run_coords.append(run)
+    return xr.concat(values, dim="run").assign_coords({"run": run_coords})
+
+
+def plot_2d_contours_matplotlib(run_diags: RunDiagnostics, varfilter: str, dims: Sequence = None, **opts): 
+    data = defaultdict(dict)
+
+    # kwargs handling
+    levels = opts.pop("levels", 75)
+
+    # ignore the symmetric option
+    opts.pop("symmetric", None)
+    x, y = dims
+    variables_to_plot = [
+        varname for varname in run_diags.variables if varfilter in varname
+    ]
+
+    for varname in variables_to_plot:
+        logging.info(f"plotting {varname}")
+        da = _data_array_from_run_diags(run_diags, varname)
+        figsize = (len(da.run) * 4.5, 4)
+
+        long_name_and_units = f"{da.long_name} [{da.units}]"
+
+        vmax = CBAR_RANGE.get(varname)
+        robust = True if vmax else False
+        faceted = da.plot.contour(
+            x=x,
+            y=y,
+            col="run",
+            levels=levels,
+            add_colorbar=True,
+            figsize=figsize,
+            vmax=vmax,
+            robust=robust,
+            **opts
+        )
+        for i, ax in enumerate(faceted.axes.flat):
+            ax.set_title('\n'.join(textwrap.wrap(da.run.values[i], 35)))
+        plt.suptitle(long_name_and_units, y=1.04)
+        data[varname] = fig_to_b64(faceted.fig)
+        plt.close(faceted.fig)
+    return raw_html(
+        template_faceted.render(
+            image_data=data,
+            variables_to_plot=variables_to_plot,
+            varfilter=varfilter,
+        )
+    )
 
 
 def plot_2d_matplotlib(

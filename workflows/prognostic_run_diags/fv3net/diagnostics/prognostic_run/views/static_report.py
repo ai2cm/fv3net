@@ -14,7 +14,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
 
 from report import create_html, Link
 from report.holoviews import HVPlot, get_html_header
-from .matplotlib import plot_2d_matplotlib
+from .matplotlib import plot_2d_matplotlib, plot_2d_contours_matplotlib
 
 import logging
 
@@ -270,14 +270,13 @@ def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 @zonal_pressure_plot_manager.register
 def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d_matplotlib(
+    return plot_2d_contours_matplotlib(
         diagnostics,
         "pressure_level_zonal_bias",
         dims=["latitude", "pressure"],
         symmetric=True,
         cmap="RdBu_r",
-        invert_yaxis=True,
-        ylabel="Pressure [Pa]",
+        yincrease=False,
     )
 
 
