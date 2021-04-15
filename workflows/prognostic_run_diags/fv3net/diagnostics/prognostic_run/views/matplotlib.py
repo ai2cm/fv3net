@@ -29,7 +29,7 @@ class raw_html:
         return self.contents
 
 
-template = jinja2.Template(
+template_image_table = jinja2.Template(
     """
 <h2> {{varfilter}} </h2>
 <table>
@@ -53,14 +53,11 @@ template = jinja2.Template(
 """
 )
 
-template_faceted = jinja2.Template(
+template_single_image_per_row = jinja2.Template(
     """
 <h2> {{varfilter}} </h2>
-<table>
 {% for varname in variables_to_plot %}
-<tr>
-<img src="{{ image_data[varname] }}" width="{{ width_px }}px" />
-</tr>
+<img src="{{ image_data[varname] }}" >
 {% endfor %}
 </table>
 """
@@ -86,9 +83,16 @@ def _data_array_from_run_diags(run_diags, var):
     return xr.concat(values, dim="run").assign_coords({"run": run_coords})
 
 
-def plot_2d_contours_matplotlib(
-    run_diags: RunDiagnostics, varfilter: str, dims: Sequence = None, **opts
+def plot_2d_matplotlib_groupby_run(
+    run_diags: RunDiagnostics,
+    varfilter: str,
+    contours: bool = False,
+    dims: Sequence = None,
+    **opts,
 ):
+    """Plot all diagnostics whose name includes varfilter. Runs containing the variable 
+    of interest are combined into a facet plot with a common color scale.
+    All matching diagnostics must be 2D and have the same dimensions."""
     data = defaultdict(dict)
 
     # kwargs handling
@@ -110,31 +114,42 @@ def plot_2d_contours_matplotlib(
 
         vmax = CBAR_RANGE.get(varname)
         robust = True if vmax else False
-        faceted = da.plot.contour(
-            x=x,
-            y=y,
-            col="run",
-            levels=levels,
-            add_colorbar=True,
-            figsize=figsize,
-            vmax=vmax,
-            robust=robust,
-            **opts,
-        )
+        if contours:
+            faceted = da.plot.contour(
+                x=x,
+                y=y,
+                col="run",
+                levels=levels,
+                add_colorbar=True,
+                figsize=figsize,
+                vmax=vmax,
+                robust=robust,
+                **opts,
+            )
+        else:
+            faceted = da.plot(
+                x=x,
+                y=y,
+                col="run",
+                add_colorbar=True,
+                figsize=figsize,
+                vmax=vmax,
+                robust=robust,
+                **opts,
+            )
         for i, ax in enumerate(faceted.axes.flat):
             ax.set_title("\n".join(textwrap.wrap(da.run.values[i], 35)))
         plt.suptitle(long_name_and_units, y=1.04)
         data[varname] = fig_to_b64(faceted.fig)
         plt.close(faceted.fig)
-    width_px = 500 * len(da.run)
     return raw_html(
-        template_faceted.render(
-            image_data=data, variables_to_plot=variables_to_plot, varfilter=varfilter, width_px=width_px
+        template_single_image_per_row.render(
+            image_data=data, variables_to_plot=variables_to_plot, varfilter=varfilter,
         )
     )
 
 
-def plot_2d_matplotlib(
+def plot_2d_matplotlib_individual_runs(
     run_diags: RunDiagnostics, varfilter: str, dims: Sequence = None, **opts
 ) -> str:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
@@ -169,7 +184,7 @@ def plot_2d_matplotlib(
             data[varname][run] = fig_to_b64(fig)
             plt.close(fig)
     return raw_html(
-        template.render(
+        template_image_table.render(
             image_data=data,
             runs=sorted(run_diags.runs),
             variables_to_plot=variables_to_plot,
