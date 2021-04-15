@@ -15,7 +15,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import RunDiagnostic
 
 def fig_to_b64(fig, format="png"):
     pic_IObytes = io.BytesIO()
-    fig.savefig(pic_IObytes, format=format, bbox_inches='tight')
+    fig.savefig(pic_IObytes, format=format, bbox_inches="tight")
     pic_IObytes.seek(0)
     pic_hash = base64.b64encode(pic_IObytes.read())
     return f"data:image/png;base64, " + pic_hash.decode()
@@ -86,7 +86,9 @@ def _data_array_from_run_diags(run_diags, var):
     return xr.concat(values, dim="run").assign_coords({"run": run_coords})
 
 
-def plot_2d_contours_matplotlib(run_diags: RunDiagnostics, varfilter: str, dims: Sequence = None, **opts): 
+def plot_2d_contours_matplotlib(
+    run_diags: RunDiagnostics, varfilter: str, dims: Sequence = None, **opts
+):
     data = defaultdict(dict)
 
     # kwargs handling
@@ -117,18 +119,16 @@ def plot_2d_contours_matplotlib(run_diags: RunDiagnostics, varfilter: str, dims:
             figsize=figsize,
             vmax=vmax,
             robust=robust,
-            **opts
+            **opts,
         )
         for i, ax in enumerate(faceted.axes.flat):
-            ax.set_title('\n'.join(textwrap.wrap(da.run.values[i], 35)))
+            ax.set_title("\n".join(textwrap.wrap(da.run.values[i], 35)))
         plt.suptitle(long_name_and_units, y=1.04)
         data[varname] = fig_to_b64(faceted.fig)
         plt.close(faceted.fig)
     return raw_html(
         template_faceted.render(
-            image_data=data,
-            variables_to_plot=variables_to_plot,
-            varfilter=varfilter,
+            image_data=data, variables_to_plot=variables_to_plot, varfilter=varfilter,
         )
     )
 
