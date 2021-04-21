@@ -281,7 +281,7 @@ class EmulatorStepper:
 
         diags["rank_updated_points"] = xr.where(dQ2_initial != dQ2_updated, 1, 0)
         
-        state_updates = add_tendency(state2, tendency, dt=self.timestep)
+        state_updates = add_tendency(state, tendency, dt=self.timestep)
         diags.update({f"{key}_input": value for key, value in state2.items()})
         
         return tendency, diags, state_updates
