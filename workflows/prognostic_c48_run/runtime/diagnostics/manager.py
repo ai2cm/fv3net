@@ -38,7 +38,7 @@ class DiagnosticFileConfig:
     name: str
     variables: Optional[Container] = None
     times: TimeConfig = dataclasses.field(default_factory=lambda: TimeConfig())
-    chunks: Optional[Mapping[str, int]] = None
+    chunks: Mapping[str, int] = dataclasses.field(default_factory=dict)
 
     def to_dict(self) -> Dict:
         return dataclasses.asdict(self)
