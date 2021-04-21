@@ -38,3 +38,7 @@ outdir/
 workflows/argo
 **/.tox/
 **/.env/
+*.o
+*.mod
+*.so
+*.a
