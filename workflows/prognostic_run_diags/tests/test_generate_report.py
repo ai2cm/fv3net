@@ -6,10 +6,7 @@ import xarray
 from google.cloud.storage.client import Client
 
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import RunDiagnostics
-from fv3net.diagnostics.prognostic_run.views.matplotlib import (
-    plot_2d_matplotlib_groupby_run,
-    plot_2d_matplotlib_individual_runs,
-)
+from fv3net.diagnostics.prognostic_run.views.matplotlib import plot_2d_matplotlib
 from fv3net.diagnostics.prognostic_run.views.static_report import (
     _html_link,
     plot_2d,
@@ -73,17 +70,11 @@ def test_render_links(regtest):
     print(output, file=regtest)
 
 
-@pytest.mark.parametrize("opts", [dict(yincrease=True), dict(), dict(symmetric=True)])
 @pytest.mark.parametrize(
-    "plot_2d, func_specific_opts",
-    (
-        [plot_2d, {"ylabel": "y"}],
-        [plot_2d_matplotlib_groupby_run, {}],
-        [plot_2d_matplotlib_groupby_run, {"contours": True}],
-        [plot_2d_matplotlib_individual_runs, {}],
-    ),
+    "opts", [dict(invert_yaxis=True), dict(), dict(symmetric=True)]
 )
-def test_plot_2d(opts, plot_2d, func_specific_opts):
+@pytest.mark.parametrize("plot_2d", [plot_2d, plot_2d_matplotlib])
+def test_plot_2d(opts, plot_2d):
     diagnostics = xarray.Dataset(
         {
             "a_somefilter": (
@@ -101,7 +92,7 @@ def test_plot_2d(opts, plot_2d, func_specific_opts):
         "somefilter",
         dims=["x", "y"],
         cmap="viridis",
-        **func_specific_opts,
+        ylabel="y",
     )
 
     # make sure no errors are raised
