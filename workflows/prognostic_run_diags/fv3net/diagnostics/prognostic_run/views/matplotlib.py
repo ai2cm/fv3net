@@ -4,7 +4,7 @@ import io
 import logging
 from collections import defaultdict
 import numpy as np
-from typing import Sequence
+from typing import Sequence, Mapping
 import xarray as xr
 
 import cartopy.crs as ccrs
@@ -47,7 +47,7 @@ class raw_html:
         return self.contents
 
 
-template_image_table = jinja2.Template(
+template = jinja2.Template(
     """
 <h2> {{varfilter}} </h2>
 <table cellpadding="0" cellspacing="0">
@@ -80,16 +80,6 @@ CBAR_RANGE = {
 }
 
 
-def _data_array_from_run_diags(run_diags, var):
-    values, run_coords = [], []
-    for run in run_diags.runs:
-        da = run_diags.get_variable(run, var)
-        if not np.isnan(da.mean(skipna=True)):
-            values.append(da)
-            run_coords.append(run)
-    return xr.concat(values, dim="run").assign_coords({"run": run_coords})
-
-
 def plot_2d_matplotlib(
     run_diags: RunDiagnostics,
     varfilter: str,
@@ -116,11 +106,9 @@ def plot_2d_matplotlib(
             long_name_and_units = f"{v.long_name} [{v.units}]"
             fig, ax = plt.subplots()
             if contour:
-                xr.plot.contourf(
-                    v, ax=ax, x=x, y=y, yincrease=not invert_yaxis, vmax=vmax, **opts
-                )
+                xr.plot.contourf(v, ax=ax, x=x, y=y, vmax=vmax, **opts)
             else:
-                v.plot(ax=ax, x=x, y=y, yincrease=not invert_yaxis, vmax=vmax, **opts)
+                v.plot(ax=ax, x=x, y=y, vmax=vmax, **opts)
             if ylabel:
                 ax.set_ylabel(ylabel)
             ax.set_title(long_name_and_units)
@@ -128,7 +116,7 @@ def plot_2d_matplotlib(
             data[varname][run] = fig_to_b64(fig)
             plt.close(fig)
     return raw_html(
-        template_image_table.render(
+        template.render(
             image_data=data,
             runs=sorted(run_diags.runs),
             variables_to_plot=sorted(variables_to_plot),
