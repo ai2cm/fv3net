@@ -4,7 +4,7 @@ import numpy as np
 import os
 import random
 import shutil
-from typing import Mapping, Sequence, Dict
+from typing import Mapping, Sequence, Dict, List
 import warnings
 import xarray as xr
 import yaml
@@ -14,6 +14,23 @@ from vcm import safe
 from vcm.cloud import gsutil
 from vcm.catalog import catalog
 
+UNITS = {
+    "column_integrated_dq1": "[W/m2]",
+    "column_integrated_dq2": "[mm/day]",
+    "column_integrated_q1": "[W/m2]",
+    "column_integrated_q2": "[mm/day]",
+    "column_integrated_dqu": "[Pa]",
+    "column_integrated_dqv": "[Pa]",
+    "dq1": "[K/s]",
+    "pq1": "[K/s]",
+    "q1": "[K/s]",
+    "dq2": "[kg/kg/s]",
+    "pq2": "[kg/kg/s]",
+    "q2": "[kg/kg/s]",
+    "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface": "[W/m2]",
+    "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": "[W/m2]",
+    "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": "[W/m2]",
+}
 
 GRID_INFO_VARS = [
     "eastward_wind_u_coeff",
@@ -28,6 +45,37 @@ GRID_INFO_VARS = [
     "area",
 ]
 ScalarMetrics = Dict[str, Mapping[str, float]]
+
+
+def drop_physics_vars(ds: xr.Dataset):
+    physics_vars = [var for var in ds if "pQ" in str(var)]
+    for var in physics_vars:
+        ds = ds.drop(var)
+    return ds
+
+
+def _tendency_in_predictions(tendency: str, predicted_vars: List[str]):
+    for predicted_var in predicted_vars:
+        if tendency in predicted_var:
+            return True
+    return False
+
+
+def drop_temperature_humidity_tendencies_if_not_predicted(
+    ds: xr.Dataset, ml_outputs: List[str]
+):
+    tendencies = ["Q1", "Q2"]
+    for var in ds:
+        for tendency in tendencies:
+            if tendency in str(var) and not _tendency_in_predictions(
+                tendency, ml_outputs
+            ):
+                ds = ds.drop(var)
+    return ds
+
+
+def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
+    return vertical_dim in da.dims
 
 
 def insert_scalar_metrics_r2(
@@ -168,28 +216,15 @@ def get_metric_string(
 
 
 def column_integrated_metric_names(metrics):
-    names = set([key.split("/")[2] for key in metrics.keys()])
-    return [name for name in names if "column_integrated" in name]
+    names = []
+    for key in metrics:
+        if key.split("/")[0] == "scalar":
+            names.append(key.split("/")[2])
+    return list(set(names))
 
 
-def units_from_Q_name(var):
-    if "q1" in var.lower():
-        if "column_integrated" in var:
-            return "[W/m^2]"
-        else:
-            return "[K/s]"
-    elif "q2" in var.lower():
-        if "column_integrated" in var:
-            return "[mm/day]"
-        else:
-            return "[kg/kg/s]"
-    elif "qu" in var.lower() or "qv" in var.lower():
-        if "column_integrated" in var:
-            return "[Pa]"
-        else:
-            return "[m/s^2]"
-    else:
-        return None
+def units_from_name(var):
+    return UNITS.get(var.lower(), "[units unavailable]")
 
 
 def _shorten_coordinate_label(coord: str):

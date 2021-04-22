@@ -16,9 +16,14 @@ tox
 tensorflow>=2.3
 tensorflow-addons
 fv3config
+numba
 
-# This version of gcsfs breaks logging
-gcsfs!=0.7.0
+# Hope for more stable performance with these versions
+gcsfs>=0.8.0
+fsspec>=0.9.0
+
+# faster async
+zarr>=2.5.0
 
 # this version has wheels = faster installs
 numcodecs>=0.7.2

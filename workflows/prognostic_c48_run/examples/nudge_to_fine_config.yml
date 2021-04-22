@@ -15,8 +15,8 @@ namelist:
     - 0
     - 15
     - 0
-    days: 0
-    hours: 4
+    days: 1
+    hours: 0
     minutes: 0
     months: 0
     seconds: 0

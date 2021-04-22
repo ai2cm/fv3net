@@ -15,5 +15,6 @@ from .rotate import center_and_rotate_xy_winds, rotate_xy_winds
 from .xgcm import create_fv3_grid
 from .coarsen_restarts import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
 from .regridz import regrid_vertical
+from .cross import to_cross
 
 __all__ = [item for item in dir() if not item.startswith("_")]

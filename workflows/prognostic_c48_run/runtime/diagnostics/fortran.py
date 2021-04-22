@@ -87,18 +87,17 @@ class FortranFileConfig:
         times: time configuration. Only kinds 'interval', 'interval-average' or 'every'
             are allowed.
 
-    Example:
-        name: dycore_diags.zarr
-        chunks:
-            time: 96
-        times:
-            kind: interval
-            frequency: 900
-        variables:
-            - {module_name: "dynamics", field_name: "tq", output_name: "PWAT"}
-            - {module_name: "dynamics", field_name: "z500", output_name: "h500"}
-            - {module_name: "dynamics", field_name: "tb", output_name: "TMPlowest"}
-            - {module_name: "dynamics", field_name: "t850", output_name: "TMP850"}
+    Example::
+
+        FortranFileConfig(
+            name="dycore_diags.zarr",
+            chunks={"time": 96},
+            times={"kind": "interval", "frequency": 900},
+            variables=[
+                {"module_name": "dynamics", "field_name": "tq", "output_name": "PWAT"},
+                {"module_name": "dynamics", "field_name": "z500", "output_name": "h500"}
+            ],
+        )
     """
 
     name: str
