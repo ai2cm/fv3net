@@ -14,7 +14,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
 
 from report import create_html, Link
 from report.holoviews import HVPlot, get_html_header
-from .matplotlib import plot_2d_matplotlib_groupby_run
+from .matplotlib import plot_2d_matplotlib, raw_html
 
 import logging
 
@@ -239,15 +239,15 @@ def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 
 @hovmoller_plot_manager.register
-def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d_matplotlib_groupby_run(
+def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+    return plot_2d_matplotlib(
         diagnostics, "zonal_mean_value", dims=["time", "latitude"], cmap="viridis"
     )
 
 
 @hovmoller_plot_manager.register
-def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d_matplotlib_groupby_run(
+def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+    return plot_2d_matplotlib(
         diagnostics,
         "zonal_mean_bias",
         dims=["time", "latitude"],
@@ -257,26 +257,27 @@ def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot
 
 
 @zonal_pressure_plot_manager.register
-def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d_matplotlib_groupby_run(
+def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+    return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_time_mean",
         dims=["latitude", "pressure"],
         cmap="viridis",
-        yincrease=False,
+        invert_yaxis=True,
     )
 
 
 @zonal_pressure_plot_manager.register
-def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d_matplotlib_groupby_run(
+def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+    return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_bias",
-        contours=True,
+        contour=True,
         dims=["latitude", "pressure"],
         symmetric=True,
         cmap="RdBu_r",
-        yincrease=False,
+        invert_yaxis=True,
+        levels=60,
     )
 
 
