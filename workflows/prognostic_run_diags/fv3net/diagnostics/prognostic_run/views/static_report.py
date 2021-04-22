@@ -277,7 +277,6 @@ def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
         symmetric=True,
         cmap="RdBu_r",
         invert_yaxis=True,
-        levels=60,
     )
 
 
