@@ -3,7 +3,6 @@ import dataclasses
 import io
 import logging
 from collections import defaultdict
-import numpy as np
 from typing import Sequence, Mapping
 import xarray as xr
 
