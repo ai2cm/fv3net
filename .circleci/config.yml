@@ -132,7 +132,7 @@ jobs:
       - image: circleci/python:3.7
     steps:
       - checkout
-      - run: sudo pip install -c contraints.txt pre-commit
+      - run: sudo pip install -c constraints.txt pre-commit
       - run: make lint
 
   integration_tests:
