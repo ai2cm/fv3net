@@ -1,18 +1,14 @@
 apache-beam[gcp]
 zarr
-poetry
 nc-time-axis
 bump2version
 yq
 pytest-regtest
-conda-lock
-pip-tools
 recommonmark
 sphinx>=1.4
 sphinx-argparse
 sphinx_rtd_theme
 sphinx-gallery
-tox
 tensorflow>=2.3
 tensorflow-addons
 fv3config
@@ -27,3 +23,10 @@ zarr>=2.5.0
 
 # this version has wheels = faster installs
 numcodecs>=0.7.2
+
+# developer tools
+conda-lock
+pip-tools
+poetry
+tox
+pre-commit
