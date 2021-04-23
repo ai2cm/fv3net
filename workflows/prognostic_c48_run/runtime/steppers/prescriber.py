@@ -178,7 +178,8 @@ def _get_prescribed_ds(
     if timesteps is not None:
         argmin, argmax = _get_time_range_indices(ds.time.values, timesteps)
         logger.info(
-            f"Using timestep range in prescriber: {ds.isel(time=argmin).time.item(), ds.isel(time=argmax).time.item()}"
+            "Using timestep range in prescriber: "
+            f"{ds.isel(time=argmin).time.item(), ds.isel(time=argmax).time.item()}"
         )
         ds = ds.isel(time=slice(argmin, argmax))
     time_coord = ds.coords["time"]
@@ -187,7 +188,7 @@ def _get_prescribed_ds(
 
 def _get_time_range_indices(
     data_times: np.ndarray, timesteps: Sequence[cftime.DatetimeJulian]
-) -> int:
+) -> Sequence[int]:
     argmin = max(0, np.argwhere(data_times >= min(timesteps)).flatten()[0] - 1)
     argmax = min(
         len(data_times), np.argwhere(data_times <= max(timesteps)).flatten()[-1] + 1
