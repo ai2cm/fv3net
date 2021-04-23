@@ -163,7 +163,8 @@ def test_no_tendencies(prescriber_output):
 
 
 @pytest.mark.parametrize(
-    "times, expected", [([init_time, time_2], timedelta(seconds=900.0)), ([init_time], None)]
+    "times, expected",
+    [([init_time, time_2], timedelta(seconds=900.0)), ([init_time], None)],
 )
 def test__get_time_interval_seconds(times, expected):
     time_coord = xr.DataArray(times, dims=["time"], coords={"time": times})

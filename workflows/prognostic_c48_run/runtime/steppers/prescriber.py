@@ -4,6 +4,7 @@ from datetime import timedelta
 import logging
 import intake
 import cftime
+import numpy as np
 import xarray as xr
 from runtime.interpolate import time_interpolate_func
 from runtime.types import State, Diagnostics, Tendencies
@@ -145,13 +146,14 @@ class Prescriber:
         return {}
 
     def _get_time_interpolated_state_updates(self, time):
-        prescribed_timestep: xr.Dataset = self._prescribed_ds.sel(time=time)
-
         def _get_state_updates(time):
+            prescribed_timestep: xr.Dataset = self._prescribed_ds.sel(time=time)
             state_updates: State = {
-                name: prescribed_timestep[name] for name in prescribed_timestep.data_vars
+                name: prescribed_timestep[name]
+                for name in prescribed_timestep.data_vars
             }
             return state_updates
+
         if self._reference_frequency_seconds:
             interpolated = time_interpolate_func(
                 _get_state_updates,
@@ -164,8 +166,6 @@ class Prescriber:
             return _get_state_updates(time)
 
 
-
-
 def _get_prescribed_ds(
     dataset_key: str,
     variables: Sequence[str],
@@ -174,11 +174,25 @@ def _get_prescribed_ds(
 ) -> Tuple[xr.Dataset, xr.DataArray]:
     logger.info(f"Setting up dataset for state setting: {dataset_key}")
     ds = _open_ds(dataset_key, consolidated)
-    ds = get_variables(ds, variables)
+    ds = get_variables(ds, variables).sortby("time")
     if timesteps is not None:
-        ds = ds.sel(time=timesteps)
+        argmin, argmax = _get_time_range_indices(ds.time.values, timesteps)
+        logger.info(
+            f"Using timestep range in prescriber: {ds.isel(time=argmin).time.item(), ds.isel(time=argmax).time.item()}"
+        )
+        ds = ds.isel(time=slice(argmin, argmax))
     time_coord = ds.coords["time"]
     return ds.drop_vars(names="time").load(), time_coord
+
+
+def _get_time_range_indices(
+    data_times: np.ndarray, timesteps: Sequence[cftime.DatetimeJulian]
+) -> int:
+    argmin = max(0, np.argwhere(data_times >= min(timesteps)).flatten()[0] - 1)
+    argmax = min(
+        len(data_times), np.argwhere(data_times <= max(timesteps)).flatten()[-1] + 1
+    )
+    return argmin, argmax
 
 
 def _open_ds(dataset_key: str, consolidated: bool) -> xr.Dataset:
