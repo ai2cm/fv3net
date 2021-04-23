@@ -180,7 +180,7 @@ setup-hooks:
 typecheck:
 	./check_types.sh
 
-lint: check_file_size
+lint:
 	pre-commit run --all-files
 	@echo "LINTING SUCCESSFUL"
 
