@@ -95,6 +95,9 @@ test_prognostic_run_report:
 test_%:
 	cd external/$* && tox
 
+test_xpartition:
+	cd external/xpartition && tox -e py37
+
 test_unit: test_fv3kube test_vcm test_fv3fit test_xpartition
 	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
 
