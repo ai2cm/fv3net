@@ -35,8 +35,8 @@ def func(iData):
 
 def open_partitioner(restart_url, physics_url, gfsphysics_url, area_url, output_dir):
     data = open_merged(restart_url, physics_url, gfsphysics_url, area_url)
-    dims = ["time", "tile"]
-    ranks = len(data.time) * len(data.tile)
+    dims = ["time"]
+    ranks = len(data.time)
     mapper = data.delp.isel(step=0).partition.map(
         fsspec.get_mapper(output_dir), ranks, dims, func, data
     )
