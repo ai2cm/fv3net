@@ -3,7 +3,8 @@ import dataclasses
 import io
 import logging
 from collections import defaultdict
-from typing import Mapping, Sequence
+from typing import Sequence, Mapping
+import xarray as xr
 
 import cartopy.crs as ccrs
 import jinja2
@@ -31,7 +32,7 @@ _COORD_VARS = {
 
 def fig_to_b64(fig, format="png"):
     pic_IObytes = io.BytesIO()
-    fig.savefig(pic_IObytes, format=format)
+    fig.savefig(pic_IObytes, format=format, bbox_inches="tight")
     pic_IObytes.seek(0)
     pic_hash = base64.b64encode(pic_IObytes.read())
     return f"data:image/png;base64, " + pic_hash.decode()
@@ -48,7 +49,7 @@ class raw_html:
 template = jinja2.Template(
     """
 <h2> {{varfilter}} </h2>
-<table>
+<table cellpadding="0" cellspacing="0">
 
 <tr>
 {% for run in runs %}
@@ -69,10 +70,22 @@ template = jinja2.Template(
 """
 )
 
+CBAR_RANGE = {
+    "eastward_wind_pressure_level_zonal_bias": 30,
+    "northward_wind_pressure_level_zonal_bias": 3,
+    "air_temperature_pressure_level_zonal_bias": 15,
+    "specific_humidity_pressure_level_zonal_bias": 1e-3,
+    "vertical_wind_pressure_level_zonal_bias": 0.02,
+}
+
 
 def plot_2d_matplotlib(
-    run_diags: RunDiagnostics, varfilter: str, dims: Sequence, **opts
-) -> str:
+    run_diags: RunDiagnostics,
+    varfilter: str,
+    dims: Sequence = None,
+    contour=False,
+    **opts,
+) -> raw_html:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 2D and have the same dimensions."""
 
@@ -86,11 +99,15 @@ def plot_2d_matplotlib(
 
     for run in run_diags.runs:
         for varname in variables_to_plot:
+            vmax = CBAR_RANGE.get(varname)
             logging.info(f"plotting {varname} in {run}")
             v = run_diags.get_variable(run, varname)
             long_name_and_units = f"{v.long_name} [{v.units}]"
             fig, ax = plt.subplots()
-            v.plot(ax=ax, x=x, y=y, **opts)
+            if contour:
+                xr.plot.contourf(v, ax=ax, x=x, y=y, vmax=vmax, **opts)
+            else:
+                v.plot(ax=ax, x=x, y=y, vmax=vmax, **opts)
             if ylabel:
                 ax.set_ylabel(ylabel)
             ax.set_title(long_name_and_units)

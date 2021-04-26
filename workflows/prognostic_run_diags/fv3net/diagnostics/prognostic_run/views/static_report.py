@@ -15,7 +15,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
 
 from report import create_html, Link
 from report.holoviews import HVPlot, get_html_header
-from .matplotlib import plot_2d_matplotlib, plot_cubed_sphere_map
+from .matplotlib import plot_2d_matplotlib, plot_cubed_sphere_map, raw_html
 
 import logging
 
@@ -218,14 +218,14 @@ def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 
 @hovmoller_plot_manager.register
-def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
     return plot_2d_matplotlib(
         diagnostics, "zonal_mean_value", dims=["time", "latitude"], cmap="viridis"
     )
 
 
 @hovmoller_plot_manager.register
-def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
     return plot_2d_matplotlib(
         diagnostics, "zonal_mean_bias", dims=["time", "latitude"], cmap="RdBu_r",
     )
@@ -257,7 +257,7 @@ def time_mean_bias_cubed_sphere_maps(
 
 
 @zonal_pressure_plot_manager.register
-def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
     return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_time_mean",
@@ -269,10 +269,11 @@ def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 
 @zonal_pressure_plot_manager.register
-def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
     return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_bias",
+        contour=True,
         dims=["latitude", "pressure"],
         cmap="RdBu_r",
         yincrease=False,
