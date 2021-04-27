@@ -14,6 +14,7 @@ dependencies = [
     "numba",
     "cftime==1.1.1.2",
     "vcm",
+    "xpartition",
 ]
 
 setup(
