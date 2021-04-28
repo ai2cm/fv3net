@@ -40,7 +40,6 @@ spec:
               - {name: bucket, value: "{{inputs.parameters.bucket}}"}
               - {name: project, value: "{{inputs.parameters.project}}"}
               - {name: tag, value: "{{inputs.parameters.tag}}"}
-              - {name: step, value: "{{inputs.parameters.step}}"}
       - - name: prepare-config
           template: prepare-config
           arguments:
@@ -58,7 +57,7 @@ spec:
               - {name: fv3config, from: "{{steps.prepare-config.outputs.artifacts.fv3config}}"}
               - {name: runfile, from: "{{steps.prepare-config.outputs.artifacts.runfile}}"}
             parameters:
-              - {name: output-url, value: "{{steps.resolve-output-url.outputs.result}}"}
+              - {name: output-url, value: "{{steps.resolve-output-url.outputs.result}}/{{inputs.parameters.step}}"}
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
