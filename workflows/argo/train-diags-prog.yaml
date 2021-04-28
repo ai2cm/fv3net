@@ -19,7 +19,7 @@ spec:
   - name: train-diags-prog
     inputs:
       parameters:
-      - name: root
+      - name: tag
       - name: train-test-data
       - name: training-configs  # used in withParam
       - name: train-times
@@ -30,6 +30,8 @@ spec:
         value: " "
       - name: test-times
       - name: public-report-output
+      - {name: bucket, value: "vcm-ml-experiments"}
+      - {name: project, value: "default"}
       - {name: segment-count, value: "1"}
       - {name: cpu-prog, value: "6"}
       - {name: memory-prog, value: 6Gi}
@@ -39,6 +41,18 @@ spec:
       - {name: online-diags-flags, value: " "}
     dag:
       tasks:
+      - name: resolve-output-url
+        templateRef:
+          name: resolve-output-url
+          template: resolve-output-url
+        arguments:
+          parameters:
+            - name: bucket
+              value: "{{inputs.parameters.bucket}}"
+            - name: project
+              value: "{{inputs.parameters.project}}"
+            - name: tag
+              value: "{{inputs.parameters.tag}}"
       - name: train-model
         templateRef:
           name: training
@@ -53,7 +67,7 @@ spec:
             - name: times
               value: "{{inputs.parameters.train-times}}"
             - name: output
-              value: "{{inputs.parameters.root}}/trained_models/{{item.name}}"
+              value: "{{steps.resolve-output-url.outputs.result}}/trained_models/{{item.name}}"
             - name: memory
               value: "{{inputs.parameters.memory-training}}"
             - name: flags
@@ -67,11 +81,11 @@ spec:
         arguments:
           parameters:
               - name: ml-model
-                value: "{{inputs.parameters.root}}/trained_models/{{item.name}}"
+                value: "{{steps.resolve-output-url.outputs.result}}/trained_models/{{item.name}}"
               - name: times
                 value: "{{inputs.parameters.test-times}}"
               - name: offline-diags-output
-                value: "{{inputs.parameters.root}}/offline_diags/{{item.name}}"
+                value: "{{steps.resolve-output-url.outputs.result}}/offline_diags/{{item.name}}"
               - name: report-output
                 value: "{{inputs.parameters.public-report-output}}/{{item.name}}"
               - name: memory
@@ -81,7 +95,7 @@ spec:
         arguments:
           parameters:
               - name: root
-                value: "{{inputs.parameters.root}}"
+                value: "{{steps.resolve-output-url.outputs.result}}"
               - name: training-configs
                 value: "{{inputs.parameters.training-configs}}"
               - name: flags
@@ -99,12 +113,16 @@ spec:
                 value: "{{inputs.parameters.prognostic-run-config}}"
               - name: reference-restarts
                 value: "{{inputs.parameters.reference-restarts}}"
-              - name: output
-                value: "{{inputs.parameters.root}}/prognostic_run"
+              - name: bucket
+                value: "{{inputs.parameters.bucket}}"
+              - name: project
+                value: "{{inputs.parameters.project}}"
+              - name: tag
+                value: "{{inputs.parameters.tag}}"
               - name: flags
                 value: "{{tasks.construct-full-flags.outputs.parameters.prognostic-flags}}"
               - name: models-dir
-                value: "{{inputs.parameters.root}}/trained_models"
+                value: "{{steps.resolve-output-url.outputs.result}}/trained_models"
               - name: segment-count
                 value: "{{inputs.parameters.segment-count}}"
               - name: cpu
@@ -119,9 +137,9 @@ spec:
         arguments:
           parameters:
               - name: run
-                value: "{{inputs.parameters.root}}/prognostic_run"
+                value: "{{steps.resolve-output-url.outputs.result}}/prognostic_run"
               - name: output
-                value: "{{inputs.parameters.root}}/prognostic_run_diags"
+                value: "{{steps.resolve-output-url.outputs.result}}/prognostic_run_diags"
               - name: flags
                 value: "{{inputs.parameters.online-diags-flags}}"
   - name: construct-full-flags
