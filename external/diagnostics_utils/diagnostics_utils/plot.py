@@ -72,7 +72,8 @@ def plot_column_integrated_var(
         vmax=vmax,
     )
     facet_grid.set_titles(template="{value} ", maxchar=40)
-    f.set_size_inches([14, 3.5])
+    num_datasets = len(ds[dataset_dim]) if dataset_dim in ds.dims else 1
+    f.set_size_inches([14, 3.5 * num_datasets])
     f.set_dpi(dpi)
     f.suptitle(f'{var.replace("_", " ")} {units_from_name(var)}')
     return f

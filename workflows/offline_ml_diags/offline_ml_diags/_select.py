@@ -24,9 +24,10 @@ def plot_transect(
     yaxis: str = "pressure",
     column_dim: str = "derivation",
     dataset_dim: str = "dataset",
-    figsize: Tuple[int, int] = (10, 4),
 ):
     row_dim = dataset_dim if dataset_dim in data.dims else None
+    num_datasets = len(data[dataset_dim]) if dataset_dim in data.dims else 1
+    figsize = (10, 4 * num_datasets)
     facetgrid = data.plot(
         y=yaxis,
         x=xaxis,
