@@ -1,0 +1,22 @@
+# vim: set sts=2 ts=2 tw=2 sw=2 :
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: resolve-output-url
+spec:
+  templates:
+    - name: resolve-output-url
+      inputs:
+        parameters:
+          - name: bucket
+          - name: project
+          - name: tag
+          - name: step
+      script:
+        image: debian:9.4
+        command: [bash]
+        source: |
+          set -e
+          DATE=$(date +'%F')
+          echo "gs://{{inputs.parameters.bucket}}/{{inputs.parameters.project}}/\
+          ${DATE}/{{inputs.parameters.tag}}/{{inputs.parameters.step}}"
