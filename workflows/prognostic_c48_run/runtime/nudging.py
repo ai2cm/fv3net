@@ -262,4 +262,4 @@ def _sst_from_reference(
         land_sea_mask.values.round().astype("int") == 0,
         reference_surface_temperature,
         surface_temperature,
-    ).assign_attrs(units=reference_surface_temperature.units)
+    ).assign_attrs(units=surface_temperature.units)
