@@ -21,7 +21,7 @@ import numpy as np
 import xarray as xr
 from mpi4py import MPI
 from runtime import DerivedFV3State
-from runtime.config import UserConfig, get_namelist
+from runtime.config import UserConfig, DiagnosticFileConfig, get_namelist
 from runtime.diagnostics.machine_learning import (
     compute_baseline_diagnostics,
     rename_diagnostics,
@@ -528,22 +528,44 @@ def monitor(name: str, func):
 
 class MonitoredPhysicsTimeLoop(TimeLoop):
     def __init__(
-        self,
-        tendency_variables: Sequence[str],
-        storage_variables: Sequence[str],
-        *args,
-        **kwargs,
+        self, config: UserConfig, *args, **kwargs,
     ):
         """
 
         Args:
-            tendency_variables: a list of variables to compute the physics
-                tendencies of.
+            config: UserConfig for loop.
 
         """
-        super().__init__(*args, **kwargs)
-        self._tendency_variables = list(tendency_variables)
-        self._storage_variables = list(storage_variables)
+        super().__init__(config, *args, **kwargs)
+        (
+            self._tendency_variables,
+            self._storage_variables,
+        ) = self._get_monitored_variable_names(config.diagnostics)
+
+    @staticmethod
+    def _get_monitored_variable_names(
+        diagnostics: Sequence[DiagnosticFileConfig],
+    ) -> Sequence[str]:
+        diag_file_configs_with_explicit_variables = [
+            diag_file_config
+            for diag_file_config in diagnostics
+            if diag_file_config.variables is not None
+        ]
+        all_variables = [
+            varname
+            for diag_file_config in diag_file_configs_with_explicit_variables
+            for varname in diag_file_config.variables
+            if diag_file_config.variables is not None
+        ]
+        tendency_variables = [v for v in all_variables if v.startswith("tendency_of_")]
+        tendency_variables = [
+            v.split("_due_to_")[0][len("tendency_of_") :] for v in tendency_variables
+        ]
+        storage_variables = [v for v in all_variables if v.startswith("storage_of_")]
+        storage_variables = [
+            v.split("_path_due_to_")[0][len("storage_of_") :] for v in storage_variables
+        ]
+        return tendency_variables, storage_variables
 
     _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
     _apply_postphysics_to_dycore_state = monitor(

@@ -28,6 +28,24 @@ DIAGNOSTICS = [
         "name": "diags.zarr",
         "times": {"kind": "interval", "frequency": 900, "times": None},
     },
+    {
+        "name": "monitored_tendencies_and_storages.zarr",
+        "times": {"kind": "interval", "frequency": 900, "times": None},
+        "variables": [
+            "storage_of_specific_humidity_path_due_to_fv3_physics",
+            "storage_of_specific_humidity_path_due_to_python",
+            "storage_of_total_water_path_due_to_fv3_physics",
+            "storage_of_total_water_path_due_to_python",
+            "tendency_of_air_temperature_due_to_fv3_physics",
+            "tendency_of_air_temperature_due_to_python",
+            "tendency_of_eastward_wind_due_to_fv3_physics",
+            "tendency_of_eastward_wind_due_to_python",
+            "tendency_of_northward_wind_due_to_fv3_physics",
+            "tendency_of_northward_wind_due_to_python",
+            "tendency_of_specific_humidity_due_to_fv3_physics",
+            "tendency_of_specific_humidity_due_to_python",
+        ],
+    },
 ]
 
 
@@ -414,8 +432,7 @@ def get_ml_config(model_path):
     config = yaml.safe_load(default_fv3config)
     config["diagnostics"] = DIAGNOSTICS
     config["fortran_diagnostics"] = []
-    config["scikit_learn"] = {"model": [model_path], "zarr_output": "diags.zarr"}
-    config["step_storage_variables"] = ["specific_humidity", "total_water"]
+    config["scikit_learn"] = {"model": [model_path]}
     # use local paths in prognostic_run image. fv3config
     # downloads data. We should change this once the fixes in
     # https://github.com/VulcanClimateModeling/fv3gfs-python/pull/78 propagates

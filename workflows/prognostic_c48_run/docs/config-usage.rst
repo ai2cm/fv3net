@@ -119,13 +119,11 @@ If no :py:attr:`UserConfig.diagnostics` section is provided in the ``minimal.yam
 default diagnostics
 are configured depending on whether ML, nudge-to-fine, nudge-to-obs, or baseline runs
 are chosen. To save custom diagnostics, provide a ``diagnostics`` section. To save 
-additional
-tendencies and storages across physics and nudging/ML time steps, add
-:py:attr:`UserConfig.step_tendency_variables` and
-:py:attr:`UserConfig.step_storage_variables` entries to specify these
-variables. Then add an additional output .zarr which includes among its
-variables the desired tendencies and/or path storages of these variables due
-to physics (``_due_to_fv3_physics``) and/or ML/nudging (``_due_to_python``).
+additional tendencies and storages across physics and nudging/ML time steps, include 
+variables named like ``tendency_of_{variable}_due_to_{step_name}`` or 
+``storage_of_{variable}_path_due_to_{step_name}`` where ``variable`` is the name
+of a state variable and ``step_name`` can be either ``fv3_physics`` or ``_python``
+(i.e. ML or nudging).
 
 Note that the diagnostic output named ``state_after_timestep.zarr`` is a special case;
 it can only be used to save variables that have getters in the wrapper.
@@ -136,15 +134,6 @@ being saved.
 
 .. code-block:: yaml
 
-    step_tendency_variables: 
-        - air_temperature
-        - specific_humidity
-        - eastward_wind
-        - northward_wind
-        - cloud_water_mixing_ratio
-    step_storage_variables: 
-        - specific_humidity
-        - cloud_water_mixing_ratio
     diagnostics:
     - name: step_diags.zarr
       chunks:
