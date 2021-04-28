@@ -2,95 +2,25 @@ import pytest
 import os
 import xarray as xr
 import synth
-from loaders import TIME_NAME
 from loaders.mappers._nudged._nudged import open_nudge_to_fine, open_nudge_to_obs
+from loaders.mappers import open_fine_resolution_nudging_hybrid
 
-NTIMES = 2
 
-
-@pytest.fixture(scope="module")
-def state_after_timestep(datadir_module):
-    nudge_data_schema = datadir_module.join(f"state_after_timestep.json")
-    with open(nudge_data_schema) as f:
-        schema = synth.load(f)
-
-    data = synth.generate(schema)
-
-    return data.isel({TIME_NAME: slice(0, NTIMES)})
+def save_data_dir(datadir_module, outpath, nudge_schema_path):
+    output = os.path.join(datadir_module, outpath)
+    schema = synth.load_directory_schema(str(datadir_module.join(nudge_schema_path)))
+    synth.write_directory_schema(output, schema)
+    return output
 
 
 @pytest.fixture(scope="module")
-def nudge_to_fine_tendencies(datadir_module):
-    nudge_to_fine_tendencies_schema = datadir_module.join(
-        f"nudge_to_fine_tendencies.json"
-    )
-    with open(nudge_to_fine_tendencies_schema) as f:
-        schema = synth.load(f)
-
-    nudge_to_fine_tendencies = synth.generate(schema)
-
-    return nudge_to_fine_tendencies.isel({TIME_NAME: slice(0, NTIMES)})
+def nudge_to_fine_data_dir(datadir_module):
+    return save_data_dir(datadir_module, "nudge_to_fine_data", "nudge_to_fine")
 
 
 @pytest.fixture(scope="module")
-def nudge_to_obs_tendencies(datadir_module):
-    nudge_to_fine_tendencies_schema = datadir_module.join(
-        f"nudge_to_obs_tendencies.json"
-    )
-    with open(nudge_to_fine_tendencies_schema) as f:
-        schema = synth.load(f)
-
-    nudge_to_obs_tendencies = synth.generate(schema)
-
-    return nudge_to_obs_tendencies.isel({TIME_NAME: slice(0, NTIMES)})
-
-
-@pytest.fixture(scope="module")
-def physics_tendencies(datadir_module):
-    physics_tendencies_schema = datadir_module.join(f"physics_tendencies.json")
-    with open(physics_tendencies_schema) as f:
-        schema = synth.load(f)
-
-    physics_tendencies = synth.generate(schema)
-
-    return physics_tendencies.isel({TIME_NAME: slice(0, NTIMES)})
-
-
-@pytest.fixture(scope="module")
-def nudge_to_fine_data_dir(
-    datadir_module, state_after_timestep, physics_tendencies, nudge_to_fine_tendencies,
-):
-    all_data = {"physics_tendencies": physics_tendencies}
-    all_data.update({"nudging_tendencies": nudge_to_fine_tendencies})
-    all_data.update({"state_after_timestep": state_after_timestep})
-
-    nudge_to_fine_path = os.path.join(datadir_module, "nudge_to_fine")
-
-    for filestem, ds in all_data.items():
-        filepath = os.path.join(nudge_to_fine_path, f"{filestem}.zarr")
-        ds.to_zarr(filepath)
-
-    return str(nudge_to_fine_path)
-
-
-@pytest.fixture(scope="module")
-def nudge_to_obs_data_dir(
-    datadir_module, state_after_timestep, physics_tendencies, nudge_to_obs_tendencies,
-):
-    nudge_to_obs_tendencies = nudge_to_obs_tendencies.assign_coords(
-        {"time": state_after_timestep.time}
-    )
-    all_data = {"physics_tendencies": physics_tendencies}
-    all_data.update({"nudging_tendencies": nudge_to_obs_tendencies})
-    all_data.update({"state_after_timestep": state_after_timestep})
-
-    nudge_to_obs_path = os.path.join(datadir_module, "nudge_to_obs")
-
-    for filestem, ds in all_data.items():
-        filepath = os.path.join(nudge_to_obs_path, f"{filestem}.zarr")
-        ds.to_zarr(filepath)
-
-    return str(nudge_to_obs_path)
+def nudge_to_obs_data_dir(datadir_module):
+    return save_data_dir(datadir_module, "nudge_to_obs_data", "nudge_to_obs")
 
 
 NUDGE_TO_FINE_VARIABLES = [
@@ -286,3 +216,40 @@ def test_open_nudge_to_obs_subtract_nudging_tendency(
         ).isel(time=0)
         key = sorted(list(mapper.keys()))[0]
         xr.testing.assert_allclose(mapper[key][physics_tendency_name], physics_tendency)
+
+
+timestep1 = "20160801.000730"
+timestep1_end = "20160801.001500"
+timestep2 = "20160801.002230"
+times_centered_str = [timestep1, timestep2]
+
+
+@pytest.fixture
+def fine_url(tmpdir):
+    fine_url = str(tmpdir.mkdir("fine_res"))
+    synth.generate_fine_res(fine_url, times_centered_str)
+    return fine_url
+
+
+@pytest.mark.parametrize("kind", ["data_paths", "dicts"])
+def test_open_fine_resolution_nudging_hybrid(nudge_to_fine_data_dir, fine_url, kind):
+    def _get_kwargs(kind):
+        if kind == "data_paths":
+            return dict(
+                data_paths=None,
+                nudging={
+                    "url": nudge_to_fine_data_dir,
+                    "nudging_variables": NUDGE_TO_FINE_VARIABLES,
+                },
+                fine_res={"fine_res_url": fine_url},
+            )
+        else:
+            return dict(
+                data_paths=[nudge_to_fine_data_dir, fine_url],
+                nudging=dict(nudging_variables=NUDGE_TO_FINE_VARIABLES),
+                fine_res={},
+            )
+
+    kwargs = _get_kwargs(kind)
+    data = open_fine_resolution_nudging_hybrid(**kwargs)
+    data[timestep1_end]

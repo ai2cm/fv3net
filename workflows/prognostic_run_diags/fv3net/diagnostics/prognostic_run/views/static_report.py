@@ -1,19 +1,34 @@
 #!/usr/bin/env python
 
-import json
-from typing import Iterable, Sequence
+from typing import Iterable
 import os
-import numpy as np
 import xarray as xr
 import fsspec
 import pandas as pd
-from pathlib import Path
 import holoviews as hv
+
+from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
+    ComputedDiagnosticsList,
+    RunDiagnostics,
+    RunMetrics,
+)
+
 from report import create_html, Link
 from report.holoviews import HVPlot, get_html_header
+from .matplotlib import plot_2d_matplotlib, plot_cubed_sphere_map, raw_html
+
+import logging
+
+import warnings
+
+warnings.filterwarnings(
+    "ignore", message="Creating an ndarray from ragged nested sequences"
+)
+warnings.filterwarnings("ignore", message="All-NaN slice encountered")
+
+logging.basicConfig(level=logging.INFO)
 
 hv.extension("bokeh")
-PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
 
 
 def upload(html: str, url: str, content_type: str = "text/html"):
@@ -60,115 +75,27 @@ class PlotManager:
             yield func(data)
 
 
-def get_variables_with_dims(ds, dims):
-    return ds.drop([key for key in ds if set(ds[key].dims) != set(dims)])
-
-
-def convert_time_index_to_datetime(ds, dim):
-    return ds.assign_coords({dim: ds.indexes[dim].to_datetimeindex()})
-
-
-def detect_rundirs(bucket: str, fs: fsspec.AbstractFileSystem):
-    diag_ncs = fs.glob(os.path.join(bucket, "*", "diags.nc"))
-    if len(diag_ncs) < 2:
-        raise ValueError(
-            "Plots require more than 1 diagnostic directory in"
-            f" {bucket} for holoviews plots to display correctly."
-        )
-    return [Path(url).parent.name for url in diag_ncs]
-
-
-def load_diags(bucket, rundirs):
-    metrics = {}
-    for rundir in rundirs:
-        path = os.path.join(bucket, rundir, "diags.nc")
-        with fsspec.open(path, "rb") as f:
-            metrics[rundir] = xr.open_dataset(f, engine="h5netcdf").compute()
-    return metrics
-
-
-def _yield_metric_rows(metrics):
-    """yield rows to be combined into a dataframe
-    """
-    for run in metrics:
-        for name in metrics[run]:
-            yield {
-                "run": run,
-                "metric": name,
-                "value": metrics[run][name]["value"],
-                "units": metrics[run][name]["units"],
-            }
-
-
-def _parse_metadata(run: str):
-    baseline_s = "-baseline"
-
-    if run.endswith(baseline_s):
-        baseline = True
-    else:
-        baseline = False
-
-    return {"run": run, "baseline": baseline}
-
-
-def load_metrics(bucket, rundirs):
-    metrics = {}
-    for rundir in rundirs:
-        path = os.path.join(bucket, rundir, "metrics.json")
-        with fsspec.open(path, "rb") as f:
-            metrics[rundir] = json.load(f)
-
-    return metrics
-
-
-def get_movie_links(bucket, rundirs, fs, domain=PUBLIC_GCS_DOMAIN):
-    movie_links = {}
-    for rundir in rundirs:
-        movie_paths = fs.glob(os.path.join(bucket, rundir, "*.mp4"))
-        for gcs_path in movie_paths:
-            movie_name = os.path.basename(gcs_path)
-            if movie_name not in movie_links:
-                movie_links[movie_name] = ""
-            public_url = os.path.join(domain, gcs_path)
-            movie_links[movie_name] += " " + _html_link(public_url, rundir)
-    return movie_links
-
-
-def _html_link(url, tag):
-    return f"<a href='{url}'>{tag}</a>"
-
-
-def _longest_run(diagnostics: Iterable[xr.Dataset]) -> xr.Dataset:
-    max_length = 0
-    for ds in diagnostics:
-        if ds.sizes["time"] > max_length:
-            longest_ds = ds
-            max_length = ds.sizes["time"]
-    return longest_ds
-
-
 def plot_1d(
-    diagnostics: Iterable[xr.Dataset], varfilter: str, run_attr_name: str = "run",
+    run_diags: RunDiagnostics, varfilter: str, run_attr_name: str = "run",
 ) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "run"])
-    for ds in diagnostics:
-        for varname in ds:
-            if varfilter in varname:
-                v = ds[varname].rename("value")
-                style = "solid" if ds.attrs["baseline"] else "dashed"
-                run = ds.attrs[run_attr_name]
-                long_name = ds[varname].long_name
-                hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
-                    line_dash=style, color=p
-                )
+    vars_to_plot = run_diags.matching_variables(varfilter)
+    for run in run_diags.runs:
+        for varname in vars_to_plot:
+            v = run_diags.get_variable(run, varname).rename("value")
+            style = "solid" if run_diags.is_baseline(run) else "dashed"
+            long_name = v.long_name
+            hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
+                line_dash=style, color=p
+            )
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
 def plot_1d_min_max_with_region_bar(
-    diagnostics: Iterable[xr.Dataset],
+    run_diags: RunDiagnostics,
     varfilter_min: str,
     varfilter_max: str,
     run_attr_name: str = "run",
@@ -177,63 +104,44 @@ def plot_1d_min_max_with_region_bar(
     All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
-    for ds in diagnostics:
-        for varname in ds:
-            if varfilter_min in varname:
-                vmin = ds[varname].rename("min")
-                vmax = ds[varname.replace(varfilter_min, varfilter_max)].rename("max")
-                style = "solid" if ds.attrs["baseline"] else "dashed"
-                run = ds.attrs[run_attr_name]
-                long_name = ds[varname].long_name
-                region = varname.split("_")[-1]
-                # Area plot doesn't automatically add correct y label
-                ylabel = f'{vmin.attrs["long_name"]} {vmin.attrs["units"]}'
-                hmap[(long_name, region, run)] = hv.Area(
-                    (vmin.time, vmin, vmax), label="Min/max", vdims=["y", "y2"]
-                ).options(line_dash=style, color=p, alpha=0.6, ylabel=ylabel)
+
+    variables_to_plot = run_diags.matching_variables(varfilter_min)
+
+    for run in run_diags.runs:
+        for min_var in variables_to_plot:
+            max_var = min_var.replace(varfilter_min, varfilter_max)
+            vmin = run_diags.get_variable(run, min_var).rename("min")
+            vmax = run_diags.get_variable(run, max_var).rename("max")
+            style = "solid" if run_diags.is_baseline(run) else "dashed"
+            long_name = vmin.long_name
+            region = min_var.split("_")[-1]
+            # Area plot doesn't automatically add correct y label
+            ylabel = f'{vmin.attrs["long_name"]} {vmin.attrs["units"]}'
+            hmap[(long_name, region, run)] = hv.Area(
+                (vmin.time, vmin, vmax), label="Min/max", vdims=["y", "y2"]
+            ).options(line_dash=style, color=p, alpha=0.6, ylabel=ylabel)
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
 def plot_1d_with_region_bar(
-    diagnostics: Iterable[xr.Dataset], varfilter: str, run_attr_name: str = "run"
+    run_diags: RunDiagnostics, varfilter: str, run_attr_name: str = "run"
 ) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     Region will be selectable through a drop-down bar. Region is assumed to be part of
     variable name after last underscore. All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
-    for ds in diagnostics:
-        for varname in ds:
-            if varfilter in varname:
-                v = ds[varname].rename("value")
-                style = "solid" if ds.attrs["baseline"] else "dashed"
-                run = ds.attrs[run_attr_name]
-                long_name = ds[varname].long_name
-                region = varname.split("_")[-1]
-                hmap[(long_name, region, run)] = hv.Curve(v, label=varfilter,).options(
-                    line_dash=style, color=p
-                )
-    return HVPlot(_set_opts_and_overlay(hmap))
-
-
-def plot_2d(
-    diagnostics: Iterable[xr.Dataset], varfilter: str, dims: Sequence = None, **opts
-) -> HVPlot:
-    """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
-    All matching diagnostics must be 2D and have the same dimensions."""
-    hmap = hv.HoloMap(kdims=["variable", "run"])
-    for ds in diagnostics:
-        run = ds.attrs["run"]
-        variables_to_plot = [varname for varname in ds if varfilter in varname]
-        for varname in variables_to_plot:
-            v = ds[varname].rename("value")
-            if dims is None:
-                dims = list(v.dims)
-            long_name_and_units = f"{v.long_name} [{v.units}]"
-            hmap[(long_name_and_units, run)] = hv.QuadMesh(
-                v, dims, varname, label=varfilter
+    vars_to_plot = run_diags.matching_variables(varfilter)
+    for run in run_diags.runs:
+        for varname in vars_to_plot:
+            v = run_diags.get_variable(run, varname).rename("value")
+            style = "solid" if run_diags.is_baseline(run) else "dashed"
+            long_name = v.long_name
+            region = varname.split("_")[-1]
+            hmap[(long_name, region, run)] = hv.Curve(v, label=varfilter,).options(
+                line_dash=style, color=p
             )
-    return HVPlot(hmap.opts(colorbar=True, width=850, height=300, **opts))
+    return HVPlot(_set_opts_and_overlay(hmap))
 
 
 def _set_opts_and_overlay(hmap, overlay="run"):
@@ -254,57 +162,23 @@ def _parse_diurnal_component_fields(varname: str):
     return short_varname, surface_type
 
 
-def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
-    """Back out verification timeseries from prognostic run value and bias"""
-    verif_diagnostics = {}
-    verif_attrs = {"run": "verification", "baseline": True}
-    mean_bias_pairs = {
-        "spatial_mean": "mean_bias",
-        "diurn_component": "diurn_bias",
-        "zonal_and_time_mean": "zonal_bias",
-        "zonal_mean_value": "zonal_mean_bias",
-    }
-    for mean_filter, bias_filter in mean_bias_pairs.items():
-        mean_vars = [var for var in ds if mean_filter in var]
-        for var in mean_vars:
-            matching_bias_var = var.replace(mean_filter, bias_filter)
-            if matching_bias_var in ds:
-                # verification = prognostic - bias
-                verif_diagnostics[var] = ds[var] - ds[matching_bias_var]
-                verif_diagnostics[var].attrs = ds[var].attrs
-    return xr.Dataset(verif_diagnostics, attrs=verif_attrs)
-
-
-def _fill_missing_variables_with_nans(diagnostics: Sequence[xr.Dataset]):
-    """Ensure all datasets within given sequence contain same data variables. Fills
-    missing variables with NaNs as necessary. Operates in place."""
-    all_variables = {varname: ds for ds in diagnostics for varname in ds.data_vars}
-    for ds in diagnostics:
-        missing_variables = set(all_variables) - set(ds.data_vars)
-        for varname in missing_variables:
-            ds_with_varname = all_variables[varname]
-            ds[varname] = xr.full_like(ds_with_varname[varname], np.nan)
-
-
 def diurnal_component_plot(
-    diagnostics: Iterable[xr.Dataset],
+    run_diags: RunDiagnostics,
     run_attr_name="run",
     diurnal_component_name="diurn_component",
 ) -> HVPlot:
 
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["run", "surface_type", "short_varname"])
+    variables_to_plot = run_diags.matching_variables(diurnal_component_name)
 
-    for ds in diagnostics:
-        for varname in ds:
-            if diurnal_component_name in varname:
-                v = ds[varname].rename("value")
-                short_vname, surface_type = _parse_diurnal_component_fields(varname)
-                run = ds.attrs[run_attr_name]
-                hmap[(run, surface_type, short_vname)] = hv.Curve(
-                    v, label=diurnal_component_name
-                ).options(color=p)
-
+    for run in run_diags.runs:
+        for varname in variables_to_plot:
+            v = run_diags.get_variable(run, varname).rename("value")
+            short_vname, surface_type = _parse_diurnal_component_fields(varname)
+            hmap[(run, surface_type, short_vname)] = hv.Curve(
+                v, label=diurnal_component_name
+            ).options(color=p)
     return HVPlot(_set_opts_and_overlay(hmap, overlay="short_varname"))
 
 
@@ -313,7 +187,9 @@ def diurnal_component_plot(
 timeseries_plot_manager = PlotManager()
 zonal_mean_plot_manager = PlotManager()
 hovmoller_plot_manager = PlotManager()
+zonal_pressure_plot_manager = PlotManager()
 diurnal_plot_manager = PlotManager()
+
 # this will be passed the data from the metrics.json files
 metrics_plot_manager = PlotManager()
 
@@ -342,20 +218,66 @@ def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 
 @hovmoller_plot_manager.register
-def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d(
+def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+    return plot_2d_matplotlib(
         diagnostics, "zonal_mean_value", dims=["time", "latitude"], cmap="viridis"
     )
 
 
 @hovmoller_plot_manager.register
-def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_2d(
+def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+    return plot_2d_matplotlib(
+        diagnostics, "zonal_mean_bias", dims=["time", "latitude"], cmap="RdBu_r",
+    )
+
+
+def time_mean_cubed_sphere_maps(
+    diagnostics: Iterable[xr.Dataset], metrics: pd.DataFrame
+) -> HVPlot:
+    return plot_cubed_sphere_map(
         diagnostics,
-        "zonal_mean_bias",
-        dims=["time", "latitude"],
-        symmetric=True,
+        metrics,
+        "time_mean_value",
+        metrics_for_title={"Mean": "time_and_global_mean_value"},
+    )
+
+
+def time_mean_bias_cubed_sphere_maps(
+    diagnostics: Iterable[xr.Dataset], metrics: pd.DataFrame
+) -> HVPlot:
+    return plot_cubed_sphere_map(
+        diagnostics,
+        metrics,
+        "time_mean_bias",
+        metrics_for_title={
+            "Mean": "time_and_global_mean_bias",
+            "RMSE": "rmse_of_time_mean",
+        },
+    )
+
+
+@zonal_pressure_plot_manager.register
+def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+    return plot_2d_matplotlib(
+        diagnostics,
+        "pressure_level_zonal_time_mean",
+        dims=["latitude", "pressure"],
+        cmap="viridis",
+        yincrease=False,
+        ylabel="Pressure [Pa]",
+    )
+
+
+@zonal_pressure_plot_manager.register
+def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+    return plot_2d_matplotlib(
+        diagnostics,
+        "pressure_level_zonal_bias",
+        contour=True,
+        dims=["latitude", "pressure"],
         cmap="RdBu_r",
+        yincrease=False,
+        ylabel="Pressure [Pa]",
     )
 
 
@@ -372,32 +294,127 @@ def diurnal_cycle_component_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 # Routines for plotting the "metrics"
 # New plotting routines can be registered here.
 @metrics_plot_manager.register
-def time_mean_bias_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+def time_mean_bias_metrics(metrics: RunMetrics) -> hv.HoloMap:
     return generic_metric_plot(metrics, "time_and_global_mean_bias")
 
 
 @metrics_plot_manager.register
-def rmse_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "rmse")
+def rmse_time_mean_metrics(metrics: RunMetrics) -> hv.HoloMap:
+    return generic_metric_plot(metrics, "rmse_of_time_mean")
 
 
 @metrics_plot_manager.register
-def drift_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+def rmse_3day_metrics(metrics: RunMetrics) -> hv.HoloMap:
+    return generic_metric_plot(metrics, "rmse_3day")
+
+
+@metrics_plot_manager.register
+def drift_metrics(metrics: RunMetrics) -> hv.HoloMap:
     return generic_metric_plot(metrics, "drift")
 
 
-def generic_metric_plot(metrics: pd.DataFrame, name: str) -> hv.HoloMap:
+def generic_metric_plot(metrics: RunMetrics, metric_type: str) -> hv.HoloMap:
     hmap = hv.HoloMap(kdims=["metric"])
     bar_opts = dict(norm=dict(framewise=True), plot=dict(width=600))
-    metrics_contains_name = False
-    for metric in metrics.metric.unique():
-        if metric.startswith(name):
-            metrics_contains_name = True
-            s = metrics[metrics.metric == metric]
-            bars = hv.Bars((s.run, s.value), hv.Dimension("Run"), s.units.iloc[0])
-            hmap[metric] = bars
-    if metrics_contains_name:
+    variables = metrics.get_metric_variables(metric_type)
+    for varname in variables:
+        s = metrics.get_metric_all_runs(metric_type, varname)
+        bars = hv.Bars((s.run, s.value), hv.Dimension("Run"), s.units.iloc[0])
+        hmap[metrics.metric_name(metric_type, varname)] = bars
+    if len(variables) > 0:
         return HVPlot(hmap.opts(**bar_opts))
+
+
+navigation = [
+    Link("Home", "index.html"),
+    Link("Latitude versus time hovmoller", "hovmoller.html"),
+    Link("Time-mean maps", "maps.html"),
+    Link("Time-mean zonal-pressure profiles", "zonal_pressure.html"),
+]
+
+
+def render_index(metadata, diagnostics, metrics, movie_links):
+    sections_index = {
+        "Links": navigation,
+        "Timeseries": list(timeseries_plot_manager.make_plots(diagnostics)),
+        "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
+        "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
+    }
+
+    if not metrics.empty:
+        sections_index["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
+    return create_html(
+        title="Prognostic run report",
+        metadata={**metadata, **render_links(movie_links)},
+        sections=sections_index,
+        html_header=get_html_header(),
+    )
+
+
+def render_hovmollers(metadata, diagnostics):
+    sections_hovmoller = {
+        "Links": navigation,
+        "Zonal mean value and bias": list(
+            hovmoller_plot_manager.make_plots(diagnostics)
+        ),
+    }
+    return create_html(
+        title="Latitude versus time hovmoller plots",
+        metadata=metadata,
+        sections=sections_hovmoller,
+        html_header=get_html_header(),
+    )
+
+
+def render_maps(metadata, diagnostics, metrics):
+    # the plotting functions here require two inputs so can't use a PlotManager
+    sections = {
+        "Links": navigation,
+        "Time-mean maps": [
+            time_mean_cubed_sphere_maps(diagnostics, metrics),
+            time_mean_bias_cubed_sphere_maps(diagnostics, metrics),
+        ],
+    }
+    return create_html(
+        title="Time-mean maps",
+        metadata=metadata,
+        sections=sections,
+        html_header=get_html_header(),
+    )
+
+
+def render_zonal_pressures(metadata, diagnostics):
+    sections_zonal_pressure = {
+        "Links": navigation,
+        "Zonal mean values at pressure levels": list(
+            zonal_pressure_plot_manager.make_plots(diagnostics)
+        ),
+    }
+    return create_html(
+        title="Pressure versus latitude plots",
+        metadata=metadata,
+        sections=sections_zonal_pressure,
+        html_header=get_html_header(),
+    )
+
+
+def _html_link(url, tag):
+    return f"<a href='{url}'>{tag}</a>"
+
+
+def render_links(link_dict):
+    """Render links to html
+
+    Args:
+        link_dict: dict where keys are names, and values are lists (url,
+            text_to_display). For example::
+
+                {"column_moistening.mp4": [(url_to_qv, "specific humidity"), ...]}
+    """
+    return {
+        key: " ".join([_html_link(url, tag) for (url, tag) in links])
+        for key, links in link_dict.items()
+    }
 
 
 def register_parser(subparsers):
@@ -408,81 +425,19 @@ def register_parser(subparsers):
 
 
 def main(args):
-    bucket = args.input
 
-    # get run information
-    fs, _, _ = fsspec.get_fs_token_paths(bucket)
-    rundirs = detect_rundirs(bucket, fs)
-    run_table = pd.DataFrame.from_records(_parse_metadata(run) for run in rundirs)
-    run_table_lookup = run_table.set_index("run")
-
-    # load diagnostics
-    diags = load_diags(bucket, rundirs)
-    # keep all vars that have only these dimensions
-    dim_sets = [{"time"}, {"local_time"}, {"latitude"}, {"time", "latitude"}]
-    diagnostics = [
-        xr.merge([get_variables_with_dims(ds, dim) for dim in dim_sets]).assign_attrs(
-            run=key, **run_table_lookup.loc[key]
-        )
-        for key, ds in diags.items()
-    ]
-    diagnostics = [convert_time_index_to_datetime(ds, "time") for ds in diagnostics]
-
-    # hack to add verification data from longest set of diagnostics as new run
-    # TODO: generate separate diags.nc file for verification data and load that in here
-    longest_run_ds = _longest_run(diagnostics)
-    diagnostics.append(_get_verification_diagnostics(longest_run_ds))
-
-    _fill_missing_variables_with_nans(diagnostics)
-
-    # load metrics
-    nested_metrics = load_metrics(bucket, rundirs)
-    metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
-
-    # generate all plots
-    sections_index = {
-        "2D plots": [
-            Link("Latitude versus time hovmoller", "hovmoller.html"),
-            Link("Time-mean maps (not implemented yet)", "maps.html"),
-        ],
-        "Timeseries": list(timeseries_plot_manager.make_plots(diagnostics)),
-        "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
-        "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
-    }
-    sections_hovmoller = {
-        "Zonal mean value and bias": list(
-            hovmoller_plot_manager.make_plots(diagnostics)
-        ),
-    }
-    if not metric_table.empty:
-        metrics = pd.merge(run_table, metric_table, on="run")
-        sections_index["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
-
-    # get metadata
-    run_urls = {key: ds.attrs["url"] for key, ds in diags.items()}
-    verification_datasets = [ds.attrs["verification"] for ds in diags.values()]
-    if any([verification_datasets[0] != item for item in verification_datasets]):
-        raise ValueError(
-            "Report cannot be generated with diagnostics computed against "
-            "different verification datasets."
-        )
-    verification_label = {"verification dataset": verification_datasets[0]}
-    movie_links = get_movie_links(bucket, rundirs, fs)
+    computed_diagnostics = ComputedDiagnosticsList(url=args.input)
+    metrics = computed_diagnostics.load_metrics()
+    movie_links = computed_diagnostics.find_movie_links()
+    metadata, diagnostics = computed_diagnostics.load_diagnostics()
 
     pages = {
-        "index.html": create_html(
-            title="Prognostic run report",
-            metadata={**verification_label, **run_urls, **movie_links},
-            sections=sections_index,
-            html_header=get_html_header(),
-        ),
-        "hovmoller.html": create_html(
-            title="Latitude versus time hovmoller plots",
-            metadata={**verification_label, **run_urls},
-            sections=sections_hovmoller,
-            html_header=get_html_header(),
-        ),
+        "index.html": render_index(metadata, diagnostics, metrics, movie_links),
+        "hovmoller.html": render_hovmollers(metadata, diagnostics),
+        "maps.html": render_maps(metadata, diagnostics, metrics),
+        "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
     }
+
     for filename, html in pages.items():
         upload(html, os.path.join(args.output, filename))
 

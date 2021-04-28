@@ -9,7 +9,6 @@ dependencies = [
     "google-cloud-storage",
     "intake",
     "numba",
-    "scikit-image",
     "netCDF4",
     "xarray==0.15.0",
     "partd",

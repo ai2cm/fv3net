@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 def gslist(i):
-    logging.info(gsutil.list_matches("gs://vcm-ml-data/"))
+    logging.info(gsutil.list_matches("gs://vcm-ml-intermediate/"))
 
 
 def run(beam_options):

@@ -5,7 +5,6 @@ from loaders import mappers
 
 diagnostic_mapper_names = [
     "FineResolutionSources",
-    "NudgedFullTendencies",
 ]
 
 
@@ -16,15 +15,7 @@ def diagnostic_mapper(
     C48_SHiELD_diags_dataset_path,
 ):
     path = diagnostic_mapper_data_source_path
-    if diagnostic_mapper_name == "NudgedFullTendencies":
-        return mappers.open_merged_nudged_full_tendencies(
-            path,
-            shield_diags_url=C48_SHiELD_diags_dataset_path,
-            open_checkpoints_kwargs=dict(
-                checkpoint_files=("after_dynamics.zarr", "after_physics.zarr")
-            ),
-        )
-    elif diagnostic_mapper_name == "FineResolutionSources":
+    if diagnostic_mapper_name == "FineResolutionSources":
         return mappers.open_fine_res_apparent_sources(
             path,
             shield_diags_url=C48_SHiELD_diags_dataset_path,
@@ -48,10 +39,9 @@ def diagnostic_mapper_name(request):
 
 @pytest.fixture
 def diagnostic_mapper_data_source_path(
-    diagnostic_mapper_name, nudging_dataset_path, fine_res_dataset_path,
+    diagnostic_mapper_name, fine_res_dataset_path,
 ):
-    if diagnostic_mapper_name == "NudgedFullTendencies":
-        diagnostic_mapper_data_source_path = nudging_dataset_path
-    elif diagnostic_mapper_name == "FineResolutionSources":
-        diagnostic_mapper_data_source_path = fine_res_dataset_path
-    return diagnostic_mapper_data_source_path
+    if diagnostic_mapper_name == "FineResolutionSources":
+        return fine_res_dataset_path
+    else:
+        return ValueError(f"{diagnostic_mapper_name} not implemented")

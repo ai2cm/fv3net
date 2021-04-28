@@ -1,5 +1,6 @@
-Grid operations
-===============
+Cubed-sphere grid operations
+============================
+
 
 Horizontal coarse-graining
 --------------------------
@@ -48,33 +49,7 @@ that it has the same resolution as the fine grid.
 
    .. automethod:: vcm.cubedsphere.block_upsample
 
+Other
+-----
 
-Interpolation
--------------
-
-General purpose interpolation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-   .. automethod:: vcm.interpolate.interpolate_1d
-   .. automethod:: vcm.interpolate.interpolate_unstructured
-
-
-Interpolating to globally constant pressure levels
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-   .. automethod:: vcm.interpolate.interpolate_to_pressure_levels
-
-
-Interpolation using the vertical remapping algorithm of FV3
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-   .. automethod:: vcm.cubedsphere.regrid_vertical
-
-
-Regional calculations
----------------------
-
-.. automodule:: vcm.select
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. automethod:: vcm.cubedsphere.to_cross

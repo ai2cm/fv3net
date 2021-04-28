@@ -10,7 +10,7 @@ The prognostic run can can be configured to run with the following
 #. :ref:`Nudge-to-obs <nudge to obs>`
 #. :ref:`Machine learning (prognostic) <ml config>`
 
-The prognostic run provides a command line script ``prepare_config.py`` to
+The prognostic run provides a command line script ```prepare_config.py`` <https://github.com/VulcanClimateModeling/fv3net/blob/master/workflows/prognostic_c48_run/prepare_config.py>`_ to
 minimize the boilerplate required to configure a run. This script allows
 specifying changes over the "default" configurations stored `here <https://github.com/VulcanClimateModeling/fv3net/tree/master/external/fv3kube/fv3kube/base_yamls>`_.
 
@@ -112,14 +112,23 @@ It can be used multiple times to specify multiple models. For example::
 Diagnostics
 ~~~~~~~~~~~
 
-Default diagnostics are computed and saved to .zarrs depending on whether ML,
-nudge-to-fine, nudge-to-obs, or baseline runs are chosen. To save additional
+Python diagnostics
+^^^^^^^^^^^^^^^^^^
+
+If no :py:attr:`UserConfig.diagnostics` section is provided in the ``minimal.yaml``,
+default diagnostics
+are configured depending on whether ML, nudge-to-fine, nudge-to-obs, or baseline runs
+are chosen. To save custom diagnostics, provide a ``diagnostics`` section. To save 
+additional
 tendencies and storages across physics and nudging/ML time steps, add
 :py:attr:`UserConfig.step_tendency_variables` and
 :py:attr:`UserConfig.step_storage_variables` entries to specify these
 variables. Then add an additional output .zarr which includes among its
 variables the desired tendencies and/or path storages of these variables due
 to physics (``_due_to_fv3_physics``) and/or ML/nudging (``_due_to_python``).
+
+Note that the diagnostic output named ``state_after_timestep.zarr`` is a special case;
+it can only be used to save variables that have getters in the wrapper.
 
 This example configures a run with stepwise tendency outputs for several
 variables. These tendencies are averaged online over 3 hour intervals before
@@ -141,9 +150,8 @@ being saved.
       chunks:
         time: 4
       times:
-        kind: interval
-        # 3 hours = 10800 seconds
-        frequency: 10800
+        kind: interval-average
+        frequency: 10800  # 3 hours = 10800 seconds
       variables:
         - tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics
         - storage_of_specific_humidity_path_due_to_fv3_physics
@@ -151,5 +159,24 @@ being saved.
         - storage_of_specific_humidity_path_due_to_python
 
 
+Fortran diagnostics
+^^^^^^^^^^^^^^^^^^^
+
+Diagnostics to be output by the Fortran model are specified in the
+:py:attr:`UserConfig.fortran_diagnostics` section. This section will be converted
+to the Fortran ``diag_table`` representation of diagnostics (see fv3config_ docs).
+
+
+Chunking
+^^^^^^^^
+
+The desired chunking can be specified for each diagnostic file to be output. 
+
+.. warning::
+
+    Segmented runs have specific requirements for chunks. See 
+    :ref:`segmented-run-cli` for details.
+
+
 .. _fv3config: https://fv3config.readthedocs.io/en/latest/
-.. _fv3fit: broken link
+.. _fv3fit: https://vulcanclimatemodeling.com/docs/fv3fit/

@@ -1,97 +1,61 @@
-import socket
-import datetime
-import sys
-import logging
-from typing import Iterable, Sequence, Hashable, Mapping
-from itertools import product
-import os
-import xarray as xr
-
-import apache_beam as beam
+import apache_beam
 import dask
-from apache_beam.io.filesystems import FileSystems
+import fsspec
+import xpartition  # noqa: E402 F401
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import retry
+from budget import budgets, config
+from budget.data import open_merged
 
 from fv3net.pipelines.common import FunctionSource
-
-import vcm
-
-from . import config
-from . import budgets
-from .data import open_merged
 
 dask.config.set(scheduler="single-threaded")
 
 
-logger = logging.getLogger(__file__)
-
-
-Dims = Sequence[Hashable]
-
-
-def yield_indices(merged: xr.Dataset, dims: Dims) -> Iterable[Mapping[Hashable, slice]]:
-    logger.info("Yielding Indices")
-    indexes = [merged[dim].values.tolist() for dim in dims]  # type: ignore
-    for index in product(*indexes):
-        yield dict(zip(dims, index))
-
-
 @retry.with_exponential_backoff(num_retries=7)
-def save(ds: xr.Dataset, base: str):
-    time = vcm.encode_time(ds.time.item())
-    tile = ds.tile.item()
-
-    path = os.path.join(base, f"{time}.tile{tile}.nc")
-    logger.info(f"saving data to {path}")
-
-    try:
-        FileSystems.mkdirs(base)
-    except IOError:
-        pass
-
-    with FileSystems.create(path) as f:
-        vcm.dump_nc(ds, f)
+def _write(rank, mapper):
+    return mapper.write(rank)
 
 
-class OpenTimeChunks(beam.PTransform):
-    def expand(self, merged):
+class WriteAll(apache_beam.PTransform):
+    def expand(self, mapper):
         return (
-            merged
-            | "YieldPhysicsChunk" >> beam.ParDo(yield_indices, ["time", "tile"])
-            | beam.Reshuffle()
-            | beam.Map(lambda index, ds: ds.sel(index), beam.pvalue.AsSingleton(merged))
+            mapper
+            | apache_beam.ParDo(iter)
+            | apache_beam.Reshuffle()
+            | apache_beam.Map(_write, mapper=apache_beam.pvalue.AsSingleton(mapper))
         )
+
+
+def func(iData):
+    return budgets.compute_recoarsened_budget_inputs(
+        iData, config.factor, first_moments=config.VARIABLES_TO_AVERAGE
+    ).drop(["step"])
+
+
+def open_partitioner(restart_url, physics_url, gfsphysics_url, area_url, output_dir):
+    data = open_merged(restart_url, physics_url, gfsphysics_url, area_url)
+    dims = ["time"]
+    ranks = len(data.time)
+    mapper = data.delp.isel(step=0).partition.map(
+        fsspec.get_mapper(output_dir), ranks, dims, func, data
+    )
+    return mapper
 
 
 def run(restart_url, physics_url, gfsphysics_url, area_url, output_dir, extra_args=()):
 
     options = PipelineOptions(extra_args)
-    with beam.Pipeline(options=options) as p:
-
+    with apache_beam.Pipeline(options=options) as p:
         (
             p
             | FunctionSource(
-                open_merged, restart_url, physics_url, gfsphysics_url, area_url
+                open_partitioner,
+                restart_url,
+                physics_url,
+                gfsphysics_url,
+                area_url,
+                output_dir,
             )
-            | OpenTimeChunks()
-            | "Compute Budget"
-            >> beam.Map(
-                budgets.compute_recoarsened_budget_inputs,
-                factor=config.factor,
-                first_moments=config.VARIABLES_TO_AVERAGE,
-            )
-            | "Insert metadata"
-            >> beam.Map(
-                lambda x: x.assign_attrs(
-                    history=" ".join(sys.argv),
-                    restart_url=restart_url,
-                    physics_url=physics_url,
-                    area_url=area_url,
-                    gfsphysics_url=gfsphysics_url,
-                    launching_host=socket.gethostname(),
-                    date_computed=datetime.datetime.now().isoformat(),
-                )
-            )
-            | "Save" >> beam.Map(save, base=output_dir)
+            | WriteAll()
         )

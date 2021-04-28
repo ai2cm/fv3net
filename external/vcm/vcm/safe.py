@@ -1,4 +1,5 @@
 from typing import cast, Sequence, Hashable, Iterable
+import warnings
 import xarray as xr
 
 
@@ -37,3 +38,24 @@ def stack_once(
     """Stack once raising ValueError if any unexpected broadcasting occurs"""
     _validate_stack_dims(ds, dims, allowed_broadcast_dims)
     return ds.stack({dim: dims})
+
+
+def warn_if_intersecting(old: Iterable[Hashable], new: Iterable[Hashable]):
+    """
+    Warn if renaming to new data keys will overwrite names (e.g., in a xr.Dataset)
+    via an overlap with old keys or from duplication in new keys.
+
+    Args:
+        old: Original keys to check against
+        new: Incoming keys to check for duplicates or existence in old
+    """
+    duplicates = {item for item in new if list(new).count(item) > 1}
+    overlap = set(old) & set(new)
+    overwrites = duplicates | overlap
+    if len(overwrites) > 0:
+        warnings.warn(
+            UserWarning(
+                f"Unsafe renaming of keys detected. Overlap: {overlap}"
+                f"  Duplicates: {duplicates}"
+            )
+        )

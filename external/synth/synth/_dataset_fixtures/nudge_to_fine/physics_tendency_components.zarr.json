@@ -1,0 +1,724 @@
+{
+    "version": "v3",
+    "schema": {
+        "coords": {
+            "time": {
+                "name": "time",
+                "dims": [
+                    "time"
+                ],
+                "value": [
+                    0,
+                    15
+                ],
+                "attrs": {
+                    "calendar": "proleptic_gregorian",
+                    "units": "minutes since 2016-08-01 00:15:00"
+                }
+            }
+        },
+        "variables": {
+            "area": {
+                "name": "area",
+                "dims": [
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "cell area",
+                    "units": "m**2"
+                }
+            },
+            "grid_x": {
+                "name": "grid_x",
+                "dims": [
+                    "grid_x"
+                ],
+                "array": {
+                    "shape": [
+                        9
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        9
+                    ]
+                },
+                "attrs": {
+                    "cartesian_axis": "X",
+                    "long_name": "cell corner longitude",
+                    "units": "degrees_E"
+                }
+            },
+            "grid_xt": {
+                "name": "grid_xt",
+                "dims": [
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        8
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cartesian_axis": "X",
+                    "long_name": "T-cell longitude",
+                    "units": "degrees_E"
+                }
+            },
+            "grid_y": {
+                "name": "grid_y",
+                "dims": [
+                    "grid_y"
+                ],
+                "array": {
+                    "shape": [
+                        9
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        9
+                    ]
+                },
+                "attrs": {
+                    "cartesian_axis": "Y",
+                    "long_name": "cell corner latitude",
+                    "units": "degrees_N"
+                }
+            },
+            "grid_yt": {
+                "name": "grid_yt",
+                "dims": [
+                    "grid_yt"
+                ],
+                "array": {
+                    "shape": [
+                        8
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cartesian_axis": "Y",
+                    "long_name": "T-cell latitude",
+                    "units": "degrees_N"
+                }
+            },
+            "lat": {
+                "name": "lat",
+                "dims": [
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "latitude",
+                    "units": "degrees_N"
+                }
+            },
+            "latb": {
+                "name": "latb",
+                "dims": [
+                    "tile",
+                    "grid_y",
+                    "grid_x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        9,
+                        9
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        9,
+                        9
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "latitude",
+                    "units": "degrees_N"
+                }
+            },
+            "lon": {
+                "name": "lon",
+                "dims": [
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "longitude",
+                    "units": "degrees_E"
+                }
+            },
+            "lonb": {
+                "name": "lonb",
+                "dims": [
+                    "tile",
+                    "grid_y",
+                    "grid_x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        9,
+                        9
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        9,
+                        9
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "longitude",
+                    "units": "degrees_E"
+                }
+            },
+            "pfull": {
+                "name": "pfull",
+                "dims": [
+                    "pfull"
+                ],
+                "array": {
+                    "shape": [
+                        19
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        19
+                    ]
+                },
+                "attrs": {
+                    "cartesian_axis": "Z",
+                    "edges": "phalf",
+                    "long_name": "ref full pressure level",
+                    "positive": "down",
+                    "units": "mb"
+                }
+            },
+            "phalf": {
+                "name": "phalf",
+                "dims": [
+                    "phalf"
+                ],
+                "array": {
+                    "shape": [
+                        20
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        20
+                    ]
+                },
+                "attrs": {
+                    "cartesian_axis": "Z",
+                    "long_name": "ref half pressure level",
+                    "positive": "down",
+                    "units": "mb"
+                }
+            },
+            "tendency_of_air_temperature_due_to_deep_convection": {
+                "name": "tendency_of_air_temperature_due_to_deep_convection",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "instantaneous temperature tendency due to deep convection",
+                    "units": "K/s"
+                }
+            },
+            "tendency_of_air_temperature_due_to_dissipation_of_gravity_waves": {
+                "name": "tendency_of_air_temperature_due_to_dissipation_of_gravity_waves",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "instantaneous temperature tendency due to gravity wave drag",
+                    "units": "K/s"
+                }
+            },
+            "tendency_of_air_temperature_due_to_longwave_heating": {
+                "name": "tendency_of_air_temperature_due_to_longwave_heating",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "instantaneous temperature tendency due to longwave radiation",
+                    "units": "K/s"
+                }
+            },
+            "tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky": {
+                "name": "tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "instantaneous temperature tendency due to clear sky longwave radiation",
+                    "units": "K/s"
+                }
+            },
+            "tendency_of_air_temperature_due_to_microphysics": {
+                "name": "tendency_of_air_temperature_due_to_microphysics",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "instantaneous temperature tendency due to micro-physics",
+                    "units": "K/s"
+                }
+            },
+            "tendency_of_air_temperature_due_to_shallow_convection": {
+                "name": "tendency_of_air_temperature_due_to_shallow_convection",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "instantaneous temperature tendency due to shallow convection",
+                    "units": "K/s"
+                }
+            },
+            "tendency_of_air_temperature_due_to_shortwave_heating": {
+                "name": "tendency_of_air_temperature_due_to_shortwave_heating",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "instantaneous temperature tendency due to shortwave radiation",
+                    "units": "K/s"
+                }
+            },
+            "tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky": {
+                "name": "tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "instantaneous temperature tendency due to clear sky shortwave radiation",
+                    "units": "K/s"
+                }
+            },
+            "tendency_of_air_temperature_due_to_turbulence": {
+                "name": "tendency_of_air_temperature_due_to_turbulence",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "instantaneous temperature tendency due to turbulence scheme",
+                    "units": "K/s"
+                }
+            },
+            "tendency_of_specific_humidity_due_to_change_in_atmosphere_mass": {
+                "name": "tendency_of_specific_humidity_due_to_change_in_atmosphere_mass",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "instantaneous residual water vapor tendency",
+                    "units": "kg/kg/s"
+                }
+            },
+            "tendency_of_specific_humidity_due_to_deep_convection": {
+                "name": "tendency_of_specific_humidity_due_to_deep_convection",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "instantaneous water vapor tendency due to deep convection",
+                    "units": "kg/kg/s"
+                }
+            },
+            "tendency_of_specific_humidity_due_to_microphysics": {
+                "name": "tendency_of_specific_humidity_due_to_microphysics",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "instantaneous water vapor tendency due to microphysics",
+                    "units": "kg/kg/s"
+                }
+            },
+            "tendency_of_specific_humidity_due_to_shallow_convection": {
+                "name": "tendency_of_specific_humidity_due_to_shallow_convection",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "instantaneous water vapor tendency due to shallow convection",
+                    "units": "kg/kg/s"
+                }
+            },
+            "tendency_of_specific_humidity_due_to_turbulence": {
+                "name": "tendency_of_specific_humidity_due_to_turbulence",
+                "dims": [
+                    "tile",
+                    "time",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        2,
+                        19,
+                        8,
+                        8
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "instantaneous water vapor tendency due to turbulence scheme",
+                    "units": "kg/kg/s"
+                }
+            }
+        }
+    }
+}

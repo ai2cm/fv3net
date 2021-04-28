@@ -5,7 +5,7 @@
 
 from setuptools import setup, find_packages
 
-requirements = ["fv3fit", "vcm", "jsonschema>=3.2", "dacite >= 1.6"]
+requirements = ["fv3fit", "vcm", "jsonschema>=3.2", "dacite >= 1.6", "fv3config>=0.7.1"]
 
 test_requirements = ["pytest"]
 
@@ -21,4 +21,7 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     extras_require={"docs": ["sphinx >=3.2", "sphinx-rtd-theme>=0.5.0"]},
+    entry_points={
+        "console_scripts": ["segmented-run-create=runtime.segmented_run.cli:create"]
+    },
 )
