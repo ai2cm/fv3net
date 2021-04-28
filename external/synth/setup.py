@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+from setuptools import setup
 
-readme = ""
 
 setup(
-    long_description=readme,
+    long_description="",
     name="synth",
     version="0.1.0",
     python_requires="==3.*,>=3.7.0",
@@ -15,7 +11,10 @@ setup(
     author_email="noahb@vulcan.com",
     packages=["synth"],
     package_dir={"": "."},
-    package_data={"synth": ["_dataset_fixtures/*.json"]},
+    package_data={
+        "synth": ["_dataset_fixtures/*.json", "_dataset_fixtures/nudge_to_fine/*.json"]
+    },
+    entry_points={"console_scripts": ["synth-save-schema=synth.clis:save_schema"]},
     install_requires=[
         "dask==2.*,>=2.15.0",
         "fsspec==0.*,>=0.7.3",

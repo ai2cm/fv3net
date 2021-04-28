@@ -12,7 +12,7 @@ chunks: (we need to be to generate chunked data)
 
 
 """
-from typing import Sequence, Tuple, Mapping
+from typing import Sequence, Tuple, Mapping, Optional
 import json
 from dataclasses import dataclass, asdict, field
 import zarr
@@ -24,6 +24,10 @@ import io
 import cftime
 import datetime
 from functools import singledispatch
+
+from toolz import compose
+import os
+import fsspec
 
 logger = logging.getLogger(__file__)
 
@@ -106,6 +110,9 @@ class DatasetSchema:
     variables: Mapping[str, VariableSchema]
 
 
+DirectorySchema = Mapping[str, DatasetSchema]
+
+
 @singledispatch
 def generate(_):
     pass
@@ -124,7 +131,7 @@ def _(self: VariableSchema, range: Range):
 
 
 @generate.register
-def _(self: DatasetSchema, ranges: Mapping[str, Range] = None):
+def _(self: DatasetSchema, ranges: Optional[Mapping[str, Range]] = None):
     ranges = {} if ranges is None else ranges
     default_range = Range(-1000, 1000)
     return xr.Dataset(
@@ -139,7 +146,7 @@ def _(self: DatasetSchema, ranges: Mapping[str, Range] = None):
 # TODO test this function
 def read_schema_from_zarr(
     group: zarr.Group,
-    coords=("forecast_time", "initial_time", "tile", "step", "z", "y", "x"),
+    coords=("forecast_time", "time", "initial_time", "tile", "step", "z", "y", "x"),
 ) -> DatasetSchema:
 
     variables = {}
@@ -161,6 +168,103 @@ def read_schema_from_zarr(
             variables[variable] = scheme
 
     return DatasetSchema(coord_schemes, variables)
+
+
+def read_directory_schema(rundir: str) -> DirectorySchema:
+    """Read schema from a directory
+
+    Does not support recursive directories or files other than zarr
+
+    See Also:
+
+        dump_directory_schema_to_disk
+
+    """
+    import fsspec
+
+    fs, _, (path_with_no_prefix,) = fsspec.get_fs_token_paths(rundir)
+    files = fs.ls(path_with_no_prefix)
+
+    read_schema = compose(read_schema_from_zarr, zarr.open_group, fs.get_mapper)
+
+    return {
+        os.path.relpath(file, path_with_no_prefix): read_schema(file)
+        for file in files
+        if file.endswith(".zarr")
+    }
+
+
+def _write_dataset(ds: xr.Dataset, outpath):
+    _, ext = os.path.splitext(outpath)
+    if ext == ".zarr":
+        ds.to_zarr(outpath, consolidated=True)
+    elif ext == ".nc":
+        ds.to_netcdf(outpath, engine="h5netcdf")
+    else:
+        raise NotImplementedError(f"Extension {ext} is not supported.")
+
+
+def write_directory_schema(
+    directory: str,
+    schema: DirectorySchema,
+    ranges: Optional[Mapping[str, Range]] = None,
+):
+    """Write a directory schema to a path
+
+    Args:
+        directory: the path to write to
+        schema: mapping from relative file paths to DatasetSchema.
+            items with keys ending in ".zarr"/".nc" will be saved to zarr
+            files or netCDF files, respectively.
+        ranges: mapping from variable names to data ranges. If specifed,
+            variables will be generated within ranges satisfying these
+            constraint.
+    """
+    for relpath, schema in schema.items():
+
+        ds = generate(schema, ranges)
+        outpath = os.path.join(directory, relpath)
+        _write_dataset(ds, outpath)
+
+
+def dump_directory_schema_to_disk(zarrs: DirectorySchema, path: str):
+    """Dumps the schema for a mapping from strings to DatasetSchema to a
+    directory
+
+    Example:
+
+        >>> import synth
+        >>> url = "gs://vcm-ml-scratch/test-end-to-end-integration/integration-test-cf6e957cea82/nudge_to_fine_run/" # noqa
+        >>> schema = synth.read_directory_schema(url)
+        >>> synth.dump_directory_schema_to_disk(schema, "nudge_to_fine_schema")
+        >>> import os
+        >>> import pprint
+        >>> pprint.pprint(os.listdir("nudge_to_fine_schema"))
+        ['atmos_dt_atmos.zarr.json',
+        'physics_tendencies.zarr.json',
+        'diags.zarr.json',
+        'state_after_timestep.zarr.json',
+        'nudging_tendencies.zarr.json',
+        'sfc_dt_atmos.zarr.json']
+
+    """
+    mapper = fsspec.get_mapper(path)
+    for rel_path, schema in zarrs.items():
+        mapper[rel_path + ".json"] = dumps(schema).encode()
+
+
+def load_directory_schema(path: str) -> DirectorySchema:
+    """Load the schema contained in a local directory"""
+    files = os.listdir(path)
+
+    out = {}
+    for file in files:
+        base, ext = os.path.splitext(file)
+        abspath = os.path.join(path, file)
+        if ext == ".json":
+            with open(abspath) as f:
+                out[base] = load(f)
+    return out
 
 
 def read_schema_from_dataset(dataset: xr.Dataset) -> DatasetSchema:

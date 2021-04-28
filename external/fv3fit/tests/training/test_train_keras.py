@@ -6,12 +6,9 @@ import loaders
 import fv3fit
 import numpy as np
 import tempfile
-import subprocess
-import os
 import copy
 
 from fv3fit.keras._training import set_random_seed
-
 
 logger = logging.getLogger(__name__)
 
@@ -38,28 +35,20 @@ def hyperparameters(request, model_type, loss) -> dict:
 
 
 @pytest.fixture
-def model(
-    model_type: str,
-    input_variables: Iterable[str],
-    output_variables: Iterable[str],
-    hyperparameters: dict,
-) -> fv3fit.Estimator:
+def model(hyperparameters: dict, train_config,) -> fv3fit.Estimator:
     fit_kwargs = hyperparameters.pop("fit_kwargs", {})
     return fv3fit.keras.get_model(
-        model_type,
+        train_config.model_type,
         loaders.SAMPLE_DIM_NAME,
-        input_variables,
-        output_variables,
-        **hyperparameters,
+        train_config.input_variables,
+        train_config.output_variables,
+        **train_config.hyperparameters,
         **fit_kwargs,
     )
 
 
 def test_reproducibility(
-    input_variables,
-    hyperparameters,
-    training_batches: Sequence[xr.Dataset],
-    output_variables: Iterable[str],
+    train_config, training_batches: Sequence[xr.Dataset],
 ):
     batch_dataset_test = training_batches[0]
     fit_kwargs = {"batch_size": 384, "validation_samples": 384}
@@ -67,10 +56,10 @@ def test_reproducibility(
     model_0 = fv3fit.keras.get_model(
         "DenseModel",
         loaders.SAMPLE_DIM_NAME,
-        input_variables,
-        output_variables,
+        train_config.input_variables,
+        train_config.output_variables,
         fit_kwargs=copy.deepcopy(fit_kwargs),
-        **hyperparameters,
+        **train_config.hyperparameters,
     )
     model_0.fit(training_batches)
     result_0 = model_0.predict(batch_dataset_test)
@@ -79,10 +68,10 @@ def test_reproducibility(
     model_1 = fv3fit.keras.get_model(
         "DenseModel",
         loaders.SAMPLE_DIM_NAME,
-        input_variables,
-        output_variables,
+        train_config.input_variables,
+        train_config.output_variables,
         fit_kwargs=copy.deepcopy(fit_kwargs),
-        **hyperparameters,
+        **train_config.hyperparameters,
     )
     model_1.fit(training_batches)
     result_1 = model_1.predict(batch_dataset_test)
@@ -144,47 +133,6 @@ def test_dump_and_load_maintains_prediction(
     validate_dataset_result(loaded_result, batch_dataset, output_variables)
     original_result = model.predict(batch_dataset)
     xr.testing.assert_equal(loaded_result, original_result)
-
-
-hyperparams_with_fit_kwargs = {
-    "width": 4,
-    "depth": 3,
-    "fit_kwargs": {"batch_size": 100, "validation_samples": 384},
-}
-
-
-@pytest.mark.parametrize(
-    "hyperparameters, validation_timesteps",
-    [
-        (hyperparams_with_fit_kwargs, ["20160801.003000"]),
-        (hyperparams_with_fit_kwargs, None),
-    ],
-    indirect=["hyperparameters", "validation_timesteps"],
-)
-def test_training_integration(
-    hyperparameters,
-    validation_timesteps,
-    data_source_path: str,
-    train_config_filename: str,
-    tmp_path: str,
-    data_source_name: str,
-):
-    """
-    Test the bash endpoint for training the model produces the expected output files.
-    """
-    subprocess.check_call(
-        [
-            "python",
-            "-m",
-            "fv3fit.train",
-            data_source_path,
-            train_config_filename,
-            tmp_path,
-        ]
-    )
-    required_names = ["model_data", "training_config.yml"]
-    missing_names = set(required_names).difference(os.listdir(tmp_path))
-    assert len(missing_names) == 0
 
 
 @pytest.mark.parametrize(

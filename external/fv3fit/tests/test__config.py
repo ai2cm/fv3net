@@ -1,4 +1,3 @@
-import inspect
 import os
 import tempfile
 from fv3fit._shared.config import ModelTrainingConfig
@@ -14,17 +13,8 @@ config = ModelTrainingConfig(
 )
 
 
-def _attributes_to_dict(obj):
-    attributes = inspect.getmembers(obj, lambda a: not (inspect.isroutine(a)))
-    return {
-        key: value
-        for key, value in attributes
-        if not (key.startswith("__") and key.endswith("__"))
-    }
-
-
 def test_dump_and_load_config():
     with tempfile.TemporaryDirectory() as tmpdir:
         config.dump(tmpdir)
         loaded = ModelTrainingConfig.load(os.path.join(tmpdir, "training_config.yml"))
-        assert _attributes_to_dict(config) == _attributes_to_dict(loaded)
+        assert config.asdict() == loaded.asdict()

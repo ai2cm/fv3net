@@ -10,7 +10,7 @@ The prognostic run can can be configured to run with the following
 #. :ref:`Nudge-to-obs <nudge to obs>`
 #. :ref:`Machine learning (prognostic) <ml config>`
 
-The prognostic run provides a command line script ``prepare_config.py`` to
+The prognostic run provides a command line script ```prepare_config.py`` <https://github.com/VulcanClimateModeling/fv3net/blob/master/workflows/prognostic_c48_run/prepare_config.py>`_ to
 minimize the boilerplate required to configure a run. This script allows
 specifying changes over the "default" configurations stored `here <https://github.com/VulcanClimateModeling/fv3net/tree/master/external/fv3kube/fv3kube/base_yamls>`_.
 
@@ -165,6 +165,17 @@ Fortran diagnostics
 Diagnostics to be output by the Fortran model are specified in the
 :py:attr:`UserConfig.fortran_diagnostics` section. This section will be converted
 to the Fortran ``diag_table`` representation of diagnostics (see fv3config_ docs).
+
+
+Chunking
+^^^^^^^^
+
+The desired chunking can be specified for each diagnostic file to be output. 
+
+.. warning::
+
+    Segmented runs have specific requirements for chunks. See 
+    :ref:`segmented-run-cli` for details.
 
 
 .. _fv3config: https://fv3config.readthedocs.io/en/latest/

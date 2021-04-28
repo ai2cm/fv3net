@@ -16,9 +16,10 @@
 
 
 function usage {
-    echo "A segmented run is currently a location on Google Cloud Storage."
     echo "This script can create segmented runs and appending segments to them."
     echo "It also provides low level commands used for debugging."
+    echo "A segmented run can be local or on Google Cloud Storage."
+    echo "Google Cloud Storage locations should start with 'gs:'."
     echo ""
     echo "Usage:"
     echo " runfv3 create <outputUrl> <fv3configFile> <runFile>" > /dev/stderr 
@@ -41,22 +42,10 @@ function createRun {
     fv3config="$2"
     runfile="$3"
 
-
-    if [[ $# != 3 ]]
-    then 
-        usage
-        exit 1
-    fi
-
-    verifyUrlEmpty "$url"
-
-    echo "Setting up iterations"
-    gsutil cp "$fv3config" "$url/fv3config.yml"
-    gsutil cp "$runfile" "$url/runfile.py"
+    segmented-run-create $url $fv3config $runfile
 }
 
 function readRunConfig {
-    echo $gsutil
     # gsutil can't cat local files
     if [ ${runURL:0:3} == "gs:" ]; then
         gsutil cat "$runURL/fv3config.yml"
@@ -117,7 +106,11 @@ function appendSegment {
     fv3ExitCode=$?
     set -e
 
-    post_process_run --chunks "$rundir/chunks.yaml" "$rundir" "$postProcessedOut"
+    echo "Skipping upload of following files:"
+    cat "$rundir/preexisting_files.txt"
+    post_process_run --chunks "$rundir/chunks.yaml" \
+        --skip "$rundir/preexisting_files.txt" \
+        "$rundir" "$postProcessedOut"
     append_run --no-copy "$postProcessedOut" "$runURL"
 
     echo "Cleaning up working directory"
@@ -145,10 +138,11 @@ function runSegment {
     write_run_directory "$fv3config" "$rundir"
     mkdir -p "$rundir"
     cp "$runfile" "$rundir/runfile.py"
+    NUM_PROC=$(yq '.namelist.fv_core_nml.layout | .[0] *.[1] * 6' "$fv3config")
     (
         cd "$rundir"
-        NUM_PROC=$(yq '.namelist.fv_core_nml.layout | .[0] *.[1] * 6' "$fv3config")
-        mpirun -n "$NUM_PROC" python3 -m mpi4py "$runfile" |& tee -a "$rundir/logs.txt"
+        find . > preexisting_files.txt
+        mpirun -n "$NUM_PROC" python3 -m mpi4py "runfile.py" |& tee -a "logs.txt"
     )
 }
 

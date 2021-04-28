@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 import xgcm
+import joblib
 
 from vcm.cubedsphere.coarsen import (
     _block_mode,
@@ -27,7 +28,7 @@ from vcm.cubedsphere.constants import (
     COORD_Y_OUTER,
 )
 from vcm.cubedsphere.io import all_filenames
-from vcm.cubedsphere import create_fv3_grid
+from vcm.cubedsphere import create_fv3_grid, to_cross
 from vcm.xarray_utils import assert_identical_including_dtype
 import vcm.testing
 
@@ -817,3 +818,26 @@ def test_xgcm_grid_interp(grid_dataset):
 
     grid = create_fv3_grid(grid_dataset)
     grid.interp(grid_dataset.a, "x")
+
+
+@pytest.mark.parametrize("x_dim", ["grid_xt", "x"])
+@pytest.mark.parametrize("y_dim", ["grid_yt", "y"])
+@pytest.mark.parametrize("tile_dim", ["tile", "randomname"])
+@pytest.mark.parametrize("transpose", [True, False])
+def test_to_cross(transpose, tile_dim, x_dim, y_dim):
+    extra_dim = "extra"
+    arr = xr.DataArray(
+        np.arange(2 * 2 * 6).reshape((1, 6, 2, 2)),
+        dims=(extra_dim, tile_dim, y_dim, x_dim),
+    )
+
+    if transpose:
+        arr = arr.transpose(x_dim, tile_dim, extra_dim, y_dim)
+
+    one_tile = to_cross(arr, tile=tile_dim, x=x_dim, y=y_dim)
+    one_tile = one_tile.transpose(..., y_dim, x_dim)
+    assert one_tile.dims == (extra_dim, y_dim, x_dim)
+
+    # manually hardcode the hash since it is shared across all parameterize
+    # statements
+    assert joblib.hash(one_tile.values) == "04eddd324d0f3150a02499c788ec675d"
