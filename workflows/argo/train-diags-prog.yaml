@@ -54,6 +54,7 @@ spec:
             - name: tag
               value: "{{inputs.parameters.tag}}"
       - name: train-model
+        dependencies: [resolve-output-url]
         templateRef:
           name: training
           template: training
@@ -67,7 +68,7 @@ spec:
             - name: times
               value: "{{inputs.parameters.train-times}}"
             - name: output
-              value: "{{steps.resolve-output-url.outputs.result}}/trained_models/{{item.name}}"
+              value: "{{tasks.resolve-output-url.outputs.result}}/trained_models/{{item.name}}"
             - name: memory
               value: "{{inputs.parameters.memory-training}}"
             - name: flags
@@ -81,21 +82,22 @@ spec:
         arguments:
           parameters:
               - name: ml-model
-                value: "{{steps.resolve-output-url.outputs.result}}/trained_models/{{item.name}}"
+                value: "{{tasks.resolve-output-url.outputs.result}}/trained_models/{{item.name}}"
               - name: times
                 value: "{{inputs.parameters.test-times}}"
               - name: offline-diags-output
-                value: "{{steps.resolve-output-url.outputs.result}}/offline_diags/{{item.name}}"
+                value: "{{tasks.resolve-output-url.outputs.result}}/offline_diags/{{item.name}}"
               - name: report-output
                 value: "{{inputs.parameters.public-report-output}}/{{item.name}}"
               - name: memory
                 value: "{{inputs.parameters.memory-offline-diags}}"
       - name: construct-full-flags
+        dependencies: [resolve-output-url]
         template: construct-full-flags
         arguments:
           parameters:
               - name: root
-                value: "{{steps.resolve-output-url.outputs.result}}"
+                value: "{{tasks.resolve-output-url.outputs.result}}"
               - name: training-configs
                 value: "{{inputs.parameters.training-configs}}"
               - name: flags
@@ -122,7 +124,7 @@ spec:
               - name: flags
                 value: "{{tasks.construct-full-flags.outputs.parameters.prognostic-flags}}"
               - name: models-dir
-                value: "{{steps.resolve-output-url.outputs.result}}/trained_models"
+                value: "{{tasks.resolve-output-url.outputs.result}}/trained_models"
               - name: segment-count
                 value: "{{inputs.parameters.segment-count}}"
               - name: cpu
@@ -137,9 +139,9 @@ spec:
         arguments:
           parameters:
               - name: run
-                value: "{{steps.resolve-output-url.outputs.result}}/prognostic_run"
+                value: "{{tasks.resolve-output-url.outputs.result}}/prognostic_run"
               - name: output
-                value: "{{steps.resolve-output-url.outputs.result}}/prognostic_run_diags"
+                value: "{{tasks.resolve-output-url.outputs.result}}/prognostic_run_diags"
               - name: flags
                 value: "{{inputs.parameters.online-diags-flags}}"
   - name: construct-full-flags

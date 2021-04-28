@@ -342,6 +342,18 @@ spec:
   - name: main
     dag:
       tasks:
+      - name: resolve-output-url
+        templateRef:
+          name: resolve-output-url
+          template: resolve-output-url
+        arguments:
+          parameters:
+            - name: bucket
+              value: "{{workflow.parameters.bucket}}"
+            - name: project
+              value: "{{workflow.parameters.project}}"
+            - name: tag
+              value: "{{workflow.parameters.tag}}"
       - name: nudge-to-fine-run
         templateRef:
           name: prognostic-run
@@ -354,8 +366,16 @@ spec:
             value: "{{workflow.parameters.initial-condition}}"
           - name: flags
             value: "--output-frequency {{workflow.parameters.nudge-to-fine-output-frequency}}"
-          - name: output
-            value: "{{workflow.parameters.root}}/nudge_to_fine_run"
+          - name: bucket
+            value: "{{workflow.parameters.bucket}}"
+          - name: project
+            value: "{{workflow.parameters.project}}"
+          - name: tag
+            value: "{{workflow.parameters.tag}}"
+          - name: step
+            value: "nudge_to_fine_run"
+#           - name: output
+#             value: "{{workflow.parameters.root}}/nudge_to_fine_run"
           - name: config
             value: "{{workflow.parameters.nudge-to-fine-config}}"
           - name: segment-count
@@ -371,10 +391,16 @@ spec:
           template: train-diags-prog
         arguments:
           parameters:
-          - name: root
-            value: "{{workflow.parameters.root}}"
+          - name: bucket
+            value: "{{workflow.parameters.bucket}}"
+          - name: project
+            value: "{{workflow.parameters.project}}"
+          - name: tag
+            value: "{{workflow.parameters.tag}}"
+#           - name: root
+#             value: "{{workflow.parameters.root}}"
           - name: train-test-data
-            value: "{{workflow.parameters.root}}/nudge_to_fine_run"
+            value: "{{tasks.resolve-output-url.outputs.result}}/nudge_to_fine_run"
           - name: training-configs
             value: "{{workflow.parameters.training-configs}}"
           - name: train-times
@@ -388,7 +414,7 @@ spec:
           - name: test-times
             value: "{{workflow.parameters.test-times}}"
           - name: public-report-output
-            value: "{{workflow.parameters.root}}/offline-report"
+            value: "{{tasks.resolve-output-url.outputs.result}}/offline-report"
           - name: cpu-prog
             value: "24"
           - name: memory-prog
