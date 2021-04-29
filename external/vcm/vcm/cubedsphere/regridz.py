@@ -4,15 +4,7 @@ import xarray as xr
 
 from typing import Tuple, Union
 
-try:
-    from vcm.mappm import mappm as mappm_func
-except ImportError as err:
-    MAPPM_ERR = err
-
-    def mappm_func(*args, **kwargs):
-        raise MAPPM_ERR
-
-
+import vcm.mappm
 from ..calc.thermo import pressure_at_interface
 from ..cubedsphere import edge_weighted_block_average, weighted_block_average
 from ..cubedsphere.coarsen import block_upsample_like
@@ -270,7 +262,7 @@ def _columnwise_mappm(
         p_in, f_in, p_out = _reshape_for_mappm(p_in, f_in, p_out)
         dummy_ptop = 0.0  # Not used by mappm, but required as an argument
         n_columns = p_in.shape[0]
-        return mappm_func(
+        return vcm.mappm.mappm(
             p_in, f_in, p_out, 1, n_columns, iv, kord, dummy_ptop
         ).reshape(output_shape)
 
