@@ -22,3 +22,13 @@ def test__validate_stack_dims_not_ok():
         _validate_stack_dims(ds, ["x", "y", "z"])
 
     _validate_stack_dims(ds, ["x", "y", "z"], allowed_broadcast_dims=["z"])
+
+
+def test__validate_stack_dims_ignore():
+    arr_1d = np.ones(10)
+    arr_3d = np.ones((10, 10, 2))
+    ds = xr.Dataset({"a": (["x"], arr_1d), "b": (["x", "y", "z"], arr_3d)})
+
+    _validate_stack_dims(
+        ds, ["x", "y", "z"], allowed_broadcast_dims=["z"], allowed_broadcast_vars=["a"]
+    )

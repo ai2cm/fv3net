@@ -38,6 +38,7 @@ def batch_function(model_type: str) -> str:
 def batch_kwargs(data_source_name: str) -> dict:  # noqa: F811
     if data_source_name == "nudging_tendencies":
         return {
+            "needs_grid": False,
             "res": "c8_random_values",
             "timesteps_per_batch": 1,
             "mapping_function": "open_merged_nudged",
@@ -52,6 +53,7 @@ def batch_kwargs(data_source_name: str) -> dict:  # noqa: F811
         }
     elif data_source_name == "fine_res_apparent_sources":
         return {
+            "needs_grid": False,
             "res": "c8_random_values",
             "timesteps_per_batch": 1,
             "mapping_function": "open_fine_res_apparent_sources",

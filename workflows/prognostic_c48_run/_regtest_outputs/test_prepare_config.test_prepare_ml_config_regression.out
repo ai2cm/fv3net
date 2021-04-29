@@ -4,6 +4,7 @@ diagnostics:
 - name: diags.zarr
   times:
     frequency: 900
+    includes_lower: false
     kind: interval
     times: null
   variables:

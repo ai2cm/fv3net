@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from fv3fit.keras._models._sequences import _ThreadedSequencePreLoader
-from fv3fit.keras._models.models import PackedKerasModel
+from fv3fit.keras._models.models import PackedKerasModel, _fill_default
 import tensorflow.keras
 
 
@@ -42,3 +42,19 @@ def test_PackedKerasModel_jacobian(base_state):
 
     assert jacobian[("a", "b")].dims == ("b", "a")
     np.testing.assert_allclose(np.asarray(jacobian[("a", "b")]), np.eye(5))
+
+
+@pytest.mark.parametrize(
+    "kwargs, arg, key, default, expected",
+    [
+        ({}, None, "kwarg0", 0, {"kwarg0": 0}),
+        ({"kwarg0": 0}, 0, "kwarg0", 0, {"kwarg0": 0}),
+        ({"kwarg0": 1}, 0, "kwarg0", 0, None),
+    ],
+)
+def test_fill_default(kwargs, arg, key, default, expected):
+    if expected is None:
+        with pytest.raises(ValueError):
+            _fill_default(kwargs, arg, key, default)
+    else:
+        assert _fill_default(kwargs, arg, key, default) == expected

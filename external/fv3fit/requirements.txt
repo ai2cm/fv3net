@@ -3,7 +3,7 @@ intake-xarray==0.3.1
 xarray
 numpy
 scikit-learn
-fsspec
+fsspec>=0.8.5
 pyyaml
 tensorflow>=2.3.0
 pytest

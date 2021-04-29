@@ -4,6 +4,7 @@ diagnostics:
 - name: state_after_timestep.zarr
   times:
     frequency: 900
+    includes_lower: false
     kind: interval
     times: null
   variables:
@@ -42,6 +43,7 @@ diagnostics:
 - name: physics_tendencies.zarr
   times:
     frequency: 900
+    includes_lower: false
     kind: interval
     times: null
   variables:
@@ -52,6 +54,7 @@ diagnostics:
 - name: nudging_tendencies.zarr
   times:
     frequency: 900
+    includes_lower: false
     kind: interval
     times: null
   variables:
@@ -63,6 +66,7 @@ diagnostics:
 - name: diags.zarr
   times:
     frequency: 900
+    includes_lower: false
     kind: interval
     times: null
   variables:
@@ -75,6 +79,7 @@ diagnostics:
 - name: reference_state.zarr
   times:
     frequency: 900
+    includes_lower: false
     kind: interval
     times: null
   variables:

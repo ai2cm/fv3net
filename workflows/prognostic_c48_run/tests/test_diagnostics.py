@@ -146,18 +146,22 @@ def test_TimeContainer_indicator_not_present():
 
 
 @pytest.mark.parametrize(
-    "time, expected",
+    "time, expected, includes_lower",
     [
         # points in interval centered at 1:30AM
-        (datetime(2020, 1, 1, 0), datetime(2020, 1, 1, 1, 30)),
-        (datetime(2020, 1, 1, 2, 30), datetime(2020, 1, 1, 1, 30)),
+        (datetime(2020, 1, 1, 0), datetime(2020, 1, 1, 1, 30), True),
+        (datetime(2020, 1, 1, 2, 30), datetime(2020, 1, 1, 1, 30), True),
         # points in interval centered at 4:30AM
-        (datetime(2020, 1, 1, 3), datetime(2020, 1, 1, 4, 30)),
+        (datetime(2020, 1, 1, 3), datetime(2020, 1, 1, 4, 30), True),
+        (datetime(2020, 1, 1, 3), datetime(2020, 1, 1, 1, 30), False),
+        (datetime(2020, 1, 1, 2, 30), datetime(2020, 1, 1, 1, 30), False),
     ],
 )
-def test_IntervalAveragedTimes_indicator(time, expected):
+def test_IntervalAveragedTimes_indicator(time, expected, includes_lower: bool):
     times = IntervalAveragedTimes(
-        frequency=timedelta(hours=3), initial_time=datetime(2000, 1, 1)
+        frequency=timedelta(hours=3),
+        initial_time=datetime(2000, 1, 1),
+        includes_lower=includes_lower,
     )
     assert times.indicator(time) == expected
 
@@ -209,5 +213,13 @@ def test_TimeConfig_interval_average():
     config = TimeConfig(frequency=3600, kind="interval-average")
     container = config.time_container(datetime(2020, 1, 1))
     assert container == IntervalAveragedTimes(
-        timedelta(seconds=3600), datetime(2020, 1, 1)
+        timedelta(seconds=3600), datetime(2020, 1, 1), includes_lower=False
+    )
+
+
+def test_TimeConfig_interval_average_endpoint():
+    config = TimeConfig(frequency=3600, kind="interval-average", includes_lower=True)
+    container = config.time_container(datetime(2020, 1, 1))
+    assert container == IntervalAveragedTimes(
+        timedelta(seconds=3600), datetime(2020, 1, 1), includes_lower=True
     )

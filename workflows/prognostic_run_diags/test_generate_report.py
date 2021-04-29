@@ -4,6 +4,7 @@ from generate_report import (
     detect_rundirs,
     _html_link,
     get_movie_links,
+    _fill_missing_variables_with_nans,
 )
 
 import pytest
@@ -11,6 +12,8 @@ import fsspec
 import uuid
 import os
 from google.cloud.storage.client import Client
+import numpy as np
+import xarray as xr
 
 
 @pytest.fixture()
@@ -95,3 +98,17 @@ def test_get_movie_links(tmpdir):
     assert "movie1.mp4" in result
     assert "movie2.mp4" in result
     assert os.path.join(domain, tmpdir, rdirs[0], "movie2.mp4") in result["movie2.mp4"]
+
+
+def test__fill_missing_variables_with_nans():
+    da1 = xr.DataArray(np.zeros(5), dims="x")
+    da2 = xr.DataArray(np.zeros((5, 6)), dims=["x", "y"])
+    ds1 = xr.Dataset({"var1": da1, "var2": da1, "var3": da2})
+    ds2 = xr.Dataset({"var1": da1})
+    ds3 = xr.Dataset({"var3": da1})
+    ds1_copy = ds1.copy(deep=True)
+    _fill_missing_variables_with_nans([ds1, ds2, ds3])
+    assert set(ds1) == set(ds2)
+    assert set(ds2) == set(ds3)
+    assert ds2["var2"].shape == ds1["var2"].shape
+    xr.testing.assert_identical(ds1, ds1_copy)

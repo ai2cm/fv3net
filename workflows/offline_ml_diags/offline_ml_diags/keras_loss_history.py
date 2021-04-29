@@ -1,15 +1,22 @@
+import argparse
+import fsspec
 import json
+import logging
 from matplotlib import pyplot as plt
 import numpy as np
 import os
 import shutil
 import tempfile
-from typing import Sequence
+from typing import Sequence, Union, Mapping
 
-from . import History
 from vcm.cloud import gsutil
 
-TRAINING_LOG_FILENAME = "training_history.json"
+
+logger = logging.getLogger(__name__)
+# Description of the training loss progression over epochs
+# Outer array indexes epoch, inner array indexes batch (if applicable)
+EpochLossHistory = Sequence[Sequence[Union[float, int]]]
+History = Mapping[str, EpochLossHistory]
 
 
 def _flatten(nested_list):
@@ -81,18 +88,41 @@ def _get_epoch_losses(history: History, key: str):
         return [np.mean(epoch_batch_losses) for epoch_batch_losses in history[key]]
 
 
-def save_history(history: History, output_dir: str) -> None:
+def _plot_training_history(history: History) -> Sequence[plt.Figure]:
+
     loss_at_epoch_end = _get_epoch_losses(history, "loss")
     val_loss_at_epoch_end = _get_epoch_losses(history, "val_loss")
     loss_saved_per_batch = True if len(history["loss"][0]) > 1 else False
+    epoch_loss = _plot_loss(loss_at_epoch_end, val_loss_at_epoch_end)
+    if loss_saved_per_batch:
+        batches_loss = _plot_loss_per_batch(history)
+        return [epoch_loss, batches_loss]
+    else:
+        return [epoch_loss]
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "history_path", type=str, help="Path of training history json file."
+    )
+    parser.add_argument(
+        "output_dir", type=str, help="Path for saving figures",
+    )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    with fsspec.open(args.history_path, "r") as f:
+        history = json.load(f)
+    _plot_training_history(history)
     with tempfile.TemporaryDirectory() as tmpdir:
-        with open(os.path.join(tmpdir, TRAINING_LOG_FILENAME), "w") as f:
-            json.dump(history, f)
-        _plot_loss(loss_at_epoch_end, val_loss_at_epoch_end).savefig(
-            os.path.join(tmpdir, "loss_over_epochs.png")
-        )
-        if loss_saved_per_batch:
-            _plot_loss_per_batch(history).savefig(
+        loss_figures = _plot_training_history(history)
+        loss_figures[0].savefig(os.path.join(tmpdir, "loss_over_epochs.png"))
+        if len(loss_figures) == 2:
+            loss_figures[1].savefig(
                 os.path.join(tmpdir, "epoch_losses_over_batches.png")
             )
-        _copy_outputs(tmpdir, output_dir)
+        _copy_outputs(tmpdir, args.output_dir)
+    logger.info(f"Saved keras training history figures to {args.output_dir}")

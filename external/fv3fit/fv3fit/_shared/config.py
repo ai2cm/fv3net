@@ -1,7 +1,7 @@
 import inspect
 import yaml
 import os
-from typing import Iterable, Optional, Mapping, Union, Sequence, List
+from typing import Iterable, Optional, Union, Sequence, List
 import vcm
 
 
@@ -23,7 +23,7 @@ class ModelTrainingConfig:
         batch_function: str,
         batch_kwargs: dict,
         scaler_type: str = "standard",
-        scaler_kwargs: Optional[Mapping] = None,
+        scaler_kwargs: Optional[dict] = None,
         additional_variables: Optional[List[str]] = None,
         random_seed: Union[float, int] = 0,
         validation_timesteps: Optional[Sequence[str]] = None,
@@ -36,7 +36,7 @@ class ModelTrainingConfig:
         self.batch_function = batch_function
         self.batch_kwargs = batch_kwargs
         self.scaler_type = scaler_type
-        self.scaler_kwargs: Mapping = scaler_kwargs or {}
+        self.scaler_kwargs: dict = scaler_kwargs or {}
         self.additional_variables: List[str] = additional_variables or []
         self.random_seed = random_seed
         self.validation_timesteps: Sequence[str] = validation_timesteps or []
