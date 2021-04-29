@@ -28,6 +28,7 @@ from runtime.diagnostics.machine_learning import (
     precipitation_rate,
     precipitation_sum,
 )
+from runtime.diagnostics.time import All
 from runtime.steppers.machine_learning import (
     PureMLStepper,
     open_model,
@@ -545,26 +546,21 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
     @staticmethod
     def _get_monitored_variable_names(
         diagnostics: Sequence[DiagnosticFileConfig],
-    ) -> Sequence[str]:
-        diag_file_configs_with_explicit_variables = [
-            diag_file_config
-            for diag_file_config in diagnostics
-            if diag_file_config.variables is not None
-        ]
-        all_variables = [
-            varname
-            for diag_file_config in diag_file_configs_with_explicit_variables
-            for varname in diag_file_config.variables
-            if diag_file_config.variables is not None
-        ]
-        tendency_variables = [v for v in all_variables if v.startswith("tendency_of_")]
-        tendency_variables = [
-            v.split("_due_to_")[0][len("tendency_of_") :] for v in tendency_variables
-        ]
-        storage_variables = [v for v in all_variables if v.startswith("storage_of_")]
-        storage_variables = [
-            v.split("_path_due_to_")[0][len("storage_of_") :] for v in storage_variables
-        ]
+    ) -> Tuple[Sequence[str], Sequence[str]]:
+        """Get sequences of tendency and storage variables from diagnostics config."""
+        tendency_variables = []
+        storage_variables = []
+        explicit_diagnostics = [d for d in diagnostics if d.variables is not None]
+        for diag_file_config in explicit_diagnostics:
+            assert diag_file_config.variables is not None  # needed for mypy
+            for variable in diag_file_config.variables:
+                if variable.startswith("tendency_of"):
+                    short_name = variable.split("_due_to_")[0][len("tendency_of_") :]
+                    tendency_variables.append(short_name)
+                elif variable.startswith("storage_of"):
+                    split_str = "_path_due_to_"
+                    short_name = variable.split(split_str)[0][len("storage_of_") :]
+                    storage_variables.append(short_name)
         return tendency_variables, storage_variables
 
     _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
