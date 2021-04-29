@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Sequence, Tuple
+from typing import Sequence
 import xarray as xr
 
 from vcm.select import meridional_ring
