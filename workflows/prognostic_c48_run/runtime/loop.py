@@ -28,7 +28,6 @@ from runtime.diagnostics.machine_learning import (
     precipitation_rate,
     precipitation_sum,
 )
-from runtime.diagnostics.time import All
 from runtime.steppers.machine_learning import (
     PureMLStepper,
     open_model,
