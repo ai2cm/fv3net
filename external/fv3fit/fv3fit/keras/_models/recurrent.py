@@ -218,7 +218,7 @@ class _BPTTModel:
 
         return air_temperature_loss, specific_humidity_loss
 
-    def build(
+    def _build(
         self, n_window: int
     ) -> Tuple[tf.keras.Model, tf.keras.Model, tf.keras.Model]:
         """
@@ -384,7 +384,7 @@ class _BPTTModel:
                 self.train_keras_model,
                 self.train_tendency_model,
                 self.predict_keras_model,
-            ) = self.build(len(X[_BPTTModel.TIME_DIM_NAME]) - 1)
+            ) = self._build(len(X[_BPTTModel.TIME_DIM_NAME]) - 1)
         if tuple(self.prognostic_packer.pack_names) != (
             "air_temperature",
             "specific_humidity",
