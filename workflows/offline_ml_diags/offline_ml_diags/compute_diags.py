@@ -215,7 +215,6 @@ def _compute_diagnostics(
         logger.info(f"Processing batch {i+1}/{len(batches)}")
 
         ds = _fill_empty_dQ1_dQ2(ds)
-
         # ...insert additional variables
         ds = utils.insert_total_apparent_sources(ds)
         diagnostic_vars_3d = [var for var in diagnostic_vars if is_3d(ds[var])]
