@@ -549,14 +549,12 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
         """Get sequences of tendency and storage variables from diagnostics config."""
         tendency_variables = []
         storage_variables = []
-        explicit_diagnostics = [d for d in diagnostics if d.variables is not None]
-        for diag_file_config in explicit_diagnostics:
-            assert diag_file_config.variables is not None  # needed for mypy
+        for diag_file_config in diagnostics:
             for variable in diag_file_config.variables:
-                if variable.startswith("tendency_of"):
+                if variable.startswith("tendency_of") and "_due_to_" in variable:
                     short_name = variable.split("_due_to_")[0][len("tendency_of_") :]
                     tendency_variables.append(short_name)
-                elif variable.startswith("storage_of"):
+                elif variable.startswith("storage_of") and "_path_due_to_" in variable:
                     split_str = "_path_due_to_"
                     short_name = variable.split(split_str)[0][len("storage_of_") :]
                     storage_variables.append(short_name)

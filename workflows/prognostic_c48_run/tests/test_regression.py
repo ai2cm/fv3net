@@ -23,16 +23,34 @@ FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
 LOG_PATH = "statistics.txt"
 RUNFILE_PATH = "runfile.py"
 CHUNKS_PATH = "chunks.yaml"
-DIAGNOSTICS = [
+DIAGNOSTICS_ML = [
     {
         "name": "diags.zarr",
         "times": {"kind": "interval", "frequency": 900, "times": None},
-    },
-    {
-        "name": "monitored_tendencies_and_storages.zarr",
-        "times": {"kind": "interval", "frequency": 900, "times": None},
         "variables": [
+            "air_temperature",
+            "area",
+            "cnvprcp_after_physics",
+            "cnvprcp_after_python",
+            "column_integrated_dQ1_change_non_neg_sphum_constraint",
+            "column_integrated_dQ2_change_non_neg_sphum_constraint",
+            "column_integrated_dQu",
+            "column_integrated_dQv",
+            "dQ1",
+            "dQ2",
+            "dQu",
+            "dQv",
+            "evaporation",
+            "net_heating",
+            "net_moistening",
+            "physics_precip",
+            "pressure_thickness_of_atmospheric_layer",
+            "rank_updated_points",
+            "specific_humidity",
+            "storage_of_mass_due_to_fv3_physics",
+            "storage_of_mass_due_to_python",
             "storage_of_specific_humidity_path_due_to_fv3_physics",
+            "storage_of_specific_humidity_path_due_to_microphysics",
             "storage_of_specific_humidity_path_due_to_python",
             "storage_of_total_water_path_due_to_fv3_physics",
             "storage_of_total_water_path_due_to_python",
@@ -44,8 +62,49 @@ DIAGNOSTICS = [
             "tendency_of_northward_wind_due_to_python",
             "tendency_of_specific_humidity_due_to_fv3_physics",
             "tendency_of_specific_humidity_due_to_python",
+            "total_precip_after_physics",
+            "total_precipitation_rate",
+            "water_vapor_path",
         ],
-    },
+    }
+]
+DIAGNOSTICS_NUDGING = [
+    {
+        "name": "diags.zarr",
+        "times": {"kind": "interval", "frequency": 900, "times": None},
+        "variables": [
+            "air_temperature_reference",
+            "air_temperature_tendency_due_to_nudging",
+            "area",
+            "cnvprcp_after_physics",
+            "cnvprcp_after_python",
+            "evaporation",
+            "net_heating_due_to_nudging",
+            "net_moistening_due_to_nudging",
+            "physics_precip",
+            "specific_humidity_reference",
+            "specific_humidity_tendency_due_to_nudging",
+            "storage_of_mass_due_to_fv3_physics",
+            "storage_of_mass_due_to_python",
+            "storage_of_specific_humidity_path_due_to_fv3_physics",
+            "storage_of_specific_humidity_path_due_to_microphysics",
+            "storage_of_specific_humidity_path_due_to_python",
+            "storage_of_total_water_path_due_to_fv3_physics",
+            "storage_of_total_water_path_due_to_python",
+            "surface_temperature_reference",
+            "tendency_of_air_temperature_due_to_fv3_physics",
+            "tendency_of_air_temperature_due_to_python",
+            "tendency_of_eastward_wind_due_to_fv3_physics",
+            "tendency_of_eastward_wind_due_to_python",
+            "tendency_of_northward_wind_due_to_fv3_physics",
+            "tendency_of_northward_wind_due_to_python",
+            "tendency_of_specific_humidity_due_to_fv3_physics",
+            "tendency_of_specific_humidity_due_to_python",
+            "total_precip_after_physics",
+            "total_precipitation_rate",
+            "water_vapor_path",
+        ],
+    }
 ]
 
 
@@ -423,14 +482,14 @@ def _get_nudging_config(config_yaml: str, timestamp_dir: str):
 
 def get_nudging_config():
     config = _get_nudging_config(default_fv3config, "gs://" + IC_PATH.as_posix())
-    config["diagnostics"] = DIAGNOSTICS
+    config["diagnostics"] = DIAGNOSTICS_NUDGING
     config["fortran_diagnostics"] = []
     return config
 
 
 def get_ml_config(model_path):
     config = yaml.safe_load(default_fv3config)
-    config["diagnostics"] = DIAGNOSTICS
+    config["diagnostics"] = DIAGNOSTICS_ML
     config["fortran_diagnostics"] = []
     config["scikit_learn"] = {"model": [model_path]}
     # use local paths in prognostic_run image. fv3config
