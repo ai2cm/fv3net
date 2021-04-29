@@ -1,5 +1,4 @@
 from typing import Dict, Any, Iterable, Hashable, Optional, Sequence, Tuple, List
-from numpy.lib import stride_tricks
 import tensorflow as tf
 import xarray as xr
 import os
