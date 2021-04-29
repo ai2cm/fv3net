@@ -34,12 +34,7 @@ if __name__ == "__main__":
     partitioner = util.CubedSpherePartitioner.from_namelist(runtime.get_namelist())
     setup_metrics_logger()
 
-    loop = MonitoredPhysicsTimeLoop(
-        config=config,
-        comm=comm,
-        tendency_variables=config.step_tendency_variables,
-        storage_variables=config.step_storage_variables,
-    )
+    loop = MonitoredPhysicsTimeLoop(config, comm=comm)
 
     diag_files = runtime.get_diagnostic_files(
         config.diagnostics, partitioner, comm, initial_time=loop.time

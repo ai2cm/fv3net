@@ -30,11 +30,6 @@ class UserConfig:
         scikit_learn: a machine learning configuration
         nudging: nudge2fine configuration. Cannot be used if any scikit_learn model
             urls are specified.
-        step_tendency_variables: variables to compute the tendencies of.
-            These could in principle be inferred from the requested diagnostic
-            names.
-        step_storage_variables: variables to compute the storage of. Needed for certain
-            diagnostics.
     """
 
     diagnostics: List[DiagnosticFileConfig] = dataclasses.field(default_factory=list)
@@ -44,14 +39,6 @@ class UserConfig:
     prephysics: Optional[Union[PrescriberConfig, MachineLearningConfig]] = None
     scikit_learn: Optional[MachineLearningConfig] = None
     nudging: Optional[NudgingConfig] = None
-    step_tendency_variables: List[str] = dataclasses.field(
-        default_factory=lambda: list(
-            ("specific_humidity", "air_temperature", "eastward_wind", "northward_wind",)
-        )
-    )
-    step_storage_variables: List[str] = dataclasses.field(
-        default_factory=lambda: list(("specific_humidity", "total_water"))
-    )
 
 
 def get_config() -> UserConfig:
