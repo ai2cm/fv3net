@@ -1,4 +1,5 @@
 from typing import Dict, Any, Iterable, Hashable, Optional, Sequence, Tuple, List
+from numpy.lib import stride_tricks
 import tensorflow as tf
 import xarray as xr
 import os
@@ -20,6 +21,64 @@ def _flatten_sample_dims(array: np.ndarray) -> np.ndarray:
     """
     n = array.shape[0] * array.shape[1]
     return array.reshape([n] + list(array.shape[2:]))
+
+
+def _moisture_tendency_limiter(packer, state_update, state):
+    """
+    Apply a moisture tendency limiter layer to state_update
+    which prevents state_update from removing all moisture present in state.
+
+    state_update and state are assumed to be in the same units, and
+    zero moisture in state is assumed to have a value of 0 (no bias offset).
+    """
+    unpack = packer.unpack_layer(feature_dim=1)
+    pack = packer.pack_layer()
+    dQ1, dQ2 = unpack(state_update)
+    _, Q2 = unpack(state)
+
+    def limit(args):
+        delta_q, q = args
+        min_delta_q = tf.where(q > 0, -q, 0.0)
+        return tf.where(delta_q > min_delta_q, delta_q, min_delta_q)
+
+    dQ2 = tf.keras.layers.Lambda(limit)([dQ2, Q2])
+    return pack([dQ1, dQ2])
+
+
+def _get_input_vector(
+    packer: LayerPacker,
+    scaler: Optional[LayerStandardScaler],
+    n_window: Optional[int] = None,
+    series: bool = True,
+):
+    """
+    Given a packer and scaler, return a list of input layers with one layer
+    for each input used by the packer, and a list of output tensors which are
+    the result of packing and (optionally) scaling those input layers.
+
+    Args:
+        packer
+        scaler
+        n_window: required if series is True, number of timesteps in a sample
+        series: if True, returned inputs have shape [n_window, n_features], otherwise
+            they are 1D [n_features] arrays
+    """
+    features = [packer.feature_counts[name] for name in packer.pack_names]
+    if series:
+        if n_window is None:
+            raise TypeError("n_window is required if series is True")
+        input_layers = [
+            tf.keras.layers.Input(shape=[n_window, n_features])
+            for n_features in features
+        ]
+    else:
+        input_layers = [
+            tf.keras.layers.Input(shape=[n_features]) for n_features in features
+        ]
+    packed = packer.pack_layer()(input_layers)
+    if scaler is not None:
+        packed = scaler.normalize_layer(packed)
+    return input_layers, packed
 
 
 class _BPTTModel:
@@ -177,30 +236,63 @@ class _BPTTModel:
                 and shares weights with the training model
         """
 
-        def get_vector(packer, scaler, series=True):
-            features = [packer.feature_counts[name] for name in packer.pack_names]
-            if series:
-                input_layers = [
-                    tf.keras.layers.Input(shape=[n_window, n_features])
-                    for n_features in features
-                ]
-            else:
-                input_layers = [
-                    tf.keras.layers.Input(shape=[n_features]) for n_features in features
-                ]
-            packed = packer.pack_layer()(input_layers)
-            if scaler is not None:
-                packed = scaler.normalize_layer(packed)
-            return input_layers, packed
+        dense_layers = [
+            tf.keras.layers.Dense(
+                self.n_units,
+                activation=self.activation,
+                kernel_regularizer=self.kernel_regularizer,
+                name=f"dense_{i}",
+            )
+            for i in range(self.n_hidden_layers)
+        ]
+        output_layer = tf.keras.layers.Dense(
+            sum(self.prognostic_packer.feature_counts.values()), name="tendency_output"
+        )
+        train_timestep = np.asarray(self._train_timestep_seconds, dtype=np.float64)
+        timestep_divide_layer = tf.keras.layers.Lambda(
+            lambda x: x / train_timestep, name="timestep_divide",
+        )
+        timestep_multiply_layer = tf.keras.layers.Lambda(
+            lambda x: x * train_timestep, name="timestep_multiply",
+        )
 
-        input_series_layers, forcing_series_input = get_vector(
-            self.input_packer, self.input_scaler, series=True
+        def get_predicted_tendency(x, state):
+            """
+            Given a normalized ML input tensor x and a de-normalized state tensor,
+            return the de-normalized tendency tensor of that state.
+            """
+            for layer in dense_layers:
+                x = layer(x)
+            x = output_layer(x)
+            x = self.tendency_scaler.denormalize_layer(x)
+            if self.use_moisture_limiter:
+                x = _moisture_tendency_limiter(self.prognostic_packer, x, state)
+            x = timestep_divide_layer(x)
+            return x
+
+        train_keras_model, train_tendency_keras_model = self._build_training_models(
+            get_predicted_tendency, timestep_multiply_layer, n_window
         )
-        state_layers, state_input = get_vector(
-            self.prognostic_packer, None, series=False
+        predict_keras_model = self._build_stepwise(get_predicted_tendency)
+
+        return train_keras_model, train_tendency_keras_model, predict_keras_model
+
+    def _build_training_models(
+        self, get_predicted_tendency, timestep_multiply_layer, n_window: int
+    ):
+        """
+        Build a model used for multiple-timestep training, and an accompanying model
+        which predicts tendencies of that model used for debugging and testing
+        purposes.
+        """
+        input_series_layers, forcing_series_input = _get_input_vector(
+            self.input_packer, self.input_scaler, n_window, series=True
         )
-        given_tendency_series_layers, given_tendency_series_input = get_vector(
-            self.prognostic_packer, None, series=True
+        state_layers, state_input = _get_input_vector(
+            self.prognostic_packer, None, n_window, series=False
+        )
+        given_tendency_series_layers, given_tendency_series_input = _get_input_vector(
+            self.prognostic_packer, None, n_window, series=True
         )
 
         def prepend_forcings(state, i):
@@ -216,52 +308,8 @@ class _BPTTModel:
             )
             return select(given_tendency_series_input)
 
-        dense_layers = [
-            tf.keras.layers.Dense(
-                self.n_units,
-                activation=self.activation,
-                kernel_regularizer=self.kernel_regularizer,
-                name=f"dense_{i}",
-            )
-            for i in range(self.n_hidden_layers)
-        ]
-        output_layer = tf.keras.layers.Dense(
-            state_input.shape[-1], name="tendency_output"
-        )
-        train_timestep = np.asarray(self._train_timestep_seconds, dtype=np.float64)
-        timestep_divide_layer = tf.keras.layers.Lambda(
-            lambda x: x / train_timestep, name="timestep_divide",
-        )
-
-        def moisture_tendency_limiter(tendency, state):
-            unpack = self.prognostic_packer.unpack_layer(feature_dim=1)
-            pack = self.prognostic_packer.pack_layer()
-            dQ1, dQ2 = unpack(tendency)
-            _, Q2 = unpack(state)
-
-            def limit(args):
-                delta_q, q = args
-                min_delta_q = tf.where(q > 0, -q, 0.0)
-                return tf.where(delta_q > min_delta_q, delta_q, min_delta_q)
-
-            dQ2 = tf.keras.layers.Lambda(limit)([dQ2, Q2])
-            return pack([dQ1, dQ2])
-
-        def get_predicted_tendency(x, state):
-            for layer in dense_layers:
-                x = layer(x)
-            x = output_layer(x)
-            x = self.tendency_scaler.denormalize_layer(x)
-            if self.use_moisture_limiter:
-                x = moisture_tendency_limiter(x, state)
-            x = timestep_divide_layer(x)
-            return x
-
         tendency_add_layer = tf.keras.layers.Add(name="tendency_add")
         state_add_layer = tf.keras.layers.Add(name="state_add")
-        timestep_multiply_layer = tf.keras.layers.Lambda(
-            lambda x: x * train_timestep, name="timestep_multiply",
-        )
         add_time_dim_layer = tf.keras.layers.Lambda(lambda x: x[:, None, :])
 
         state_outputs_list = []
@@ -295,11 +343,18 @@ class _BPTTModel:
             inputs=input_series_layers + state_layers + given_tendency_series_layers,
             outputs=tendency_outputs,
         )
+        train_keras_model.compile(optimizer=self.optimizer, loss=self.losses)
+        return train_keras_model, train_tendency_keras_model
 
-        input_layers, forcing_input = get_vector(
+    def _build_stepwise(self, get_predicted_tendency):
+        """
+        Build a model which predicts the tendency for a single timestep, used for
+        prediction.
+        """
+        input_layers, forcing_input = _get_input_vector(
             self.input_packer, self.input_scaler, series=False
         )
-        state_layers, state_input = get_vector(
+        state_layers, state_input = _get_input_vector(
             self.prognostic_packer, self.prognostic_scaler, series=False
         )
         denormalized_state = self.prognostic_packer.pack_layer()(state_layers)
@@ -313,10 +368,7 @@ class _BPTTModel:
         predict_keras_model = tf.keras.Model(
             inputs=input_layers + state_layers, outputs=tendency_outputs
         )
-
-        train_keras_model.compile(optimizer=self.optimizer, loss=self.losses)
-
-        return train_keras_model, train_tendency_keras_model, predict_keras_model
+        return predict_keras_model
 
     def fit(self, X: xr.Dataset, *, epochs=1):
         """
@@ -544,6 +596,81 @@ class PureKerasModel(Predictor):
                 )
 
 
+def _update_ds_with_state(ds, state, sample_dim_name):
+    ds["air_temperature"] = xr.DataArray(
+        state["air_temperature"],
+        dims=[sample_dim_name, "z"],
+        attrs={"units": ds["air_temperature"].units},
+    )
+    ds["specific_humidity"] = xr.DataArray(
+        state["specific_humidity"],
+        dims=[sample_dim_name, "z"],
+        attrs={"units": ds["specific_humidity"].units},
+    )
+
+
+def _update_state_with_tendency_and_forcings(
+    state, tendency_ds, forcing_ds, timestep_seconds: float
+):
+    """
+    From the tendency_ds apply dQ1 and dQ2, from the forcing_ds apply
+    {}_tendency_due_to_model.
+    """
+
+    state["air_temperature"] = (
+        state["air_temperature"]
+        + (
+            tendency_ds["dQ1"].values
+            + forcing_ds["air_temperature_tendency_due_to_model"].values
+        )
+        * timestep_seconds
+    )
+    state["specific_humidity"] = (
+        state["specific_humidity"]
+        + (
+            tendency_ds["dQ2"]
+            + forcing_ds["specific_humidity_tendency_due_to_model"].values
+        )
+        * timestep_seconds
+    )
+
+
+def _get_output_timestep_ds(
+    state, forcing_ds, tendency_ds, reference_ds, sample_dim_name: str
+) -> xr.Dataset:
+    """
+    Args:
+        state: model output state from current timstep
+        forcing_ds: forcings for current timestep
+        tendency_ds: tendencies predicted for current timestep
+        reference_ds: state with reference output for current timestep, i.e. model
+            state at the start of the next timestep
+        sample_dim_name: name for sample dimension in output dataset
+    
+    Returns:
+        timestep_output_ds: dataset with outputs for current timestep
+    """
+    data_vars = {}
+    for name, value in state.items():
+        data_vars[name] = ([sample_dim_name, "z"], value)
+    for name in (
+        "air_temperature_tendency_due_to_model",
+        "specific_humidity_tendency_due_to_model",
+        "air_temperature_tendency_due_to_nudging",
+        "specific_humidity_tendency_due_to_nudging",
+    ):
+        data_vars[name] = forcing_ds[name]  # type: ignore
+    for name in state.keys():
+        # must reset coords because reference_ds could correspond
+        # to the next timestep, and xarray doesn't like that
+        data_vars[f"{name}_reference"] = reference_ds[name].reset_coords(
+            drop=True
+        )  # type: ignore
+    for name in ("dQ1", "dQ2"):
+        data_vars[name] = tendency_ds[name]  # type: ignore
+    return xr.Dataset(data_vars=data_vars)  # type: ignore
+
+
 @io.register("stepwise-keras")
 class StepwiseModel(PureKerasModel):
     """
@@ -577,50 +704,14 @@ class StepwiseModel(PureKerasModel):
         for i in range(n_timesteps):
             print(f"Step {i+1} of {n_timesteps}")
             input_ds = ds.isel(time=i)
-            input_ds["air_temperature"] = xr.DataArray(
-                state["air_temperature"],
-                dims=[self.sample_dim_name, "z"],
-                attrs={"units": ds["air_temperature"].units},
-            )
-            input_ds["specific_humidity"] = xr.DataArray(
-                state["specific_humidity"],
-                dims=[self.sample_dim_name, "z"],
-                attrs={"units": ds["specific_humidity"].units},
-            )
+            _update_ds_with_state(input_ds, state, self.sample_dim_name)
             tendency_ds = self.predict(input_ds)
-            state["air_temperature"] = (
-                state["air_temperature"]
-                + (
-                    tendency_ds["dQ1"].values
-                    + input_ds["air_temperature_tendency_due_to_model"].values
-                )
-                * timestep_seconds
+            _update_state_with_tendency_and_forcings(
+                state, tendency_ds, input_ds, timestep_seconds
             )
-            state["specific_humidity"] = (
-                state["specific_humidity"]
-                + (
-                    tendency_ds["dQ2"]
-                    + input_ds["specific_humidity_tendency_due_to_model"].values
-                )
-                * timestep_seconds
+            timestep_ds = _get_output_timestep_ds(
+                state, input_ds, tendency_ds, ds.isel(time=i + 1), self.sample_dim_name
             )
-            data_vars = {}
-            for name, value in state.items():
-                data_vars[name] = ([self.sample_dim_name, "z"], value)
-            for name in (
-                "air_temperature_tendency_due_to_model",
-                "specific_humidity_tendency_due_to_model",
-                "air_temperature_tendency_due_to_nudging",
-                "specific_humidity_tendency_due_to_nudging",
-            ):
-                data_vars[name] = input_ds[name]  # type: ignore
-            for name in state.keys():
-                data_vars[f"{name}_reference"] = (
-                    ds[name].isel(time=i + 1).reset_coords(drop=True)  # type: ignore
-                )
-            for name in ("dQ1", "dQ2"):
-                data_vars[name] = tendency_ds[name]  # type: ignore
-            timestep_ds = xr.Dataset(data_vars=data_vars)  # type: ignore
             state_out_list.append(timestep_ds)
         return xr.concat(state_out_list, dim="time").transpose(
             self.sample_dim_name, "time", "z"

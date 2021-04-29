@@ -51,6 +51,10 @@ class Unpack(tf.keras.layers.Layer):
 
 
 class LayerPacker(ArrayPacker):
+    @property
+    def n_features(self):
+        return self._n_features
+
     def pack_layer(self):
         if len(self.pack_names) > 1:
             return tf.keras.layers.Concatenate()
