@@ -21,7 +21,7 @@ import numpy as np
 import xarray as xr
 from mpi4py import MPI
 from runtime import DerivedFV3State
-from runtime.config import UserConfig, get_namelist
+from runtime.config import UserConfig, DiagnosticFileConfig, get_namelist
 from runtime.diagnostics.machine_learning import (
     compute_baseline_diagnostics,
     rename_diagnostics,
@@ -528,22 +528,37 @@ def monitor(name: str, func):
 
 class MonitoredPhysicsTimeLoop(TimeLoop):
     def __init__(
-        self,
-        tendency_variables: Sequence[str],
-        storage_variables: Sequence[str],
-        *args,
-        **kwargs,
+        self, config: UserConfig, *args, **kwargs,
     ):
         """
 
         Args:
-            tendency_variables: a list of variables to compute the physics
-                tendencies of.
+            config: UserConfig for loop.
 
         """
-        super().__init__(*args, **kwargs)
-        self._tendency_variables = list(tendency_variables)
-        self._storage_variables = list(storage_variables)
+        super().__init__(config, *args, **kwargs)
+        (
+            self._tendency_variables,
+            self._storage_variables,
+        ) = self._get_monitored_variable_names(config.diagnostics)
+
+    @staticmethod
+    def _get_monitored_variable_names(
+        diagnostics: Sequence[DiagnosticFileConfig],
+    ) -> Tuple[Sequence[str], Sequence[str]]:
+        """Get sequences of tendency and storage variables from diagnostics config."""
+        tendency_variables = []
+        storage_variables = []
+        for diag_file_config in diagnostics:
+            for variable in diag_file_config.variables:
+                if variable.startswith("tendency_of") and "_due_to_" in variable:
+                    short_name = variable.split("_due_to_")[0][len("tendency_of_") :]
+                    tendency_variables.append(short_name)
+                elif variable.startswith("storage_of") and "_path_due_to_" in variable:
+                    split_str = "_path_due_to_"
+                    short_name = variable.split(split_str)[0][len("storage_of_") :]
+                    storage_variables.append(short_name)
+        return tendency_variables, storage_variables
 
     _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
     _apply_postphysics_to_dycore_state = monitor(
