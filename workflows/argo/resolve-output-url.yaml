@@ -16,9 +16,14 @@ spec:
         command: [bash]
         source: |
           set -e
+          remove_slashes () {
+              echo $(echo $1 | sed -e 's~/~-~')
+          }
           DATE=$(date +'%F')
-          echo "gs://{{inputs.parameters.bucket}}/{{inputs.parameters.project}}/\
-          ${DATE}/{{inputs.parameters.tag}}"
+          BUCKET=$(remove_slashes {{inputs.parameters.bucket}})
+          PROJECT=$(remove_slashes {{inputs.parameters.project}})
+          TAG=$(remove_slashes {{inputs.parameters.tag}})
+          echo "gs://${BUCKET}/${PROJECT}/${DATE}/${TAG}"
     - name: write-config-sha1
       inputs:
         parameters:
