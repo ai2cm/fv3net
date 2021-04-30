@@ -44,12 +44,7 @@ elif [[ "$OSTYPE" == darwin* ]]; then
   opsys=darwin
 fi
 
-curl -s https://api.github.com/repos/kubernetes-sigs/kustomize/releases |\
-  grep browser_download |\
-  grep $opsys |\
-  cut -d '"' -f 4 |\
-  grep /kustomize/$version.*amd64 |\
-  sort | xargs curl -sLO
+curl -sLO https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/${version}/kustomize_${version}_${opsys}_amd64.tar.gz
 
 if [ -e ./kustomize_v*_${opsys}_amd64.tar.gz ]; then
     tar xzf ./kustomize_v*_${opsys}_amd64.tar.gz
