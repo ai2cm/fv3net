@@ -374,8 +374,6 @@ spec:
             value: "{{workflow.parameters.tag}}"
           - name: step
             value: "nudge_to_fine_run"
-#           - name: output
-#             value: "{{workflow.parameters.root}}/nudge_to_fine_run"
           - name: config
             value: "{{workflow.parameters.nudge-to-fine-config}}"
           - name: segment-count
@@ -397,8 +395,6 @@ spec:
             value: "{{workflow.parameters.project}}"
           - name: tag
             value: "{{workflow.parameters.tag}}"
-#           - name: root
-#             value: "{{workflow.parameters.root}}"
           - name: train-test-data
             value: "{{tasks.resolve-output-url.outputs.result}}/nudge_to_fine_run"
           - name: training-configs

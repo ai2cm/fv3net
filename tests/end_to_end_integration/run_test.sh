@@ -57,7 +57,7 @@ function waitForComplete {
 function deployWorkflows {
 
     registry="$1"
-    tag="$2"
+    commit="$2"
 
     cat << EOF > kustomization.yaml
 resources:
@@ -65,27 +65,24 @@ resources:
 EOF
 
     kustomize edit set image \
-        us.gcr.io/vcm-ml/prognostic_run="$registry/prognostic_run:$tag" \
-        us.gcr.io/vcm-ml/fv3net="$registry/fv3net:$tag" \
-        us.gcr.io/vcm-ml/post_process_run="$registry/post_process_run:$tag"
+        us.gcr.io/vcm-ml/prognostic_run="$registry/prognostic_run:$commit" \
+        us.gcr.io/vcm-ml/fv3net="$registry/fv3net:$commit" \
+        us.gcr.io/vcm-ml/post_process_run="$registry/post_process_run:$commit"
 
     kustomize build . | kubectl apply -f -
 }
 
 registry="$1"
-tag="$2"
-fv3net="$PWD"
-# random="$(openssl rand --hex 6)"
-# name="integration-test-$random"
-name="integration-test-${tag}"
+commit="$2"
+random="$(openssl rand --hex 2)"
+name="integration-test-${commit}-${random}"
 bucket="vcm-ml-scratch"
 project="test-end-to-end-integration"
-# GCS_OUTPUT_URL="gs://vcm-ml-scratch/test-end-to-end-integration/$name"
 
 cd tests/end_to_end_integration
-deployWorkflows "$registry" "$tag"
+deployWorkflows "$registry" "$commit"
 argo submit argo.yaml -p bucket="${bucket}" -p project="${project}" \
-    -p tag="${tag}" --name "$name"
+    -p tag="${commit}-${random}" --name "$name"
 
 trap "argo logs \"$name\" | tail -n 100" EXIT
 
