@@ -72,6 +72,7 @@ sequential segments.
 | `segment-count`      | (optional) Number of prognostic run segments; default "1"                     |
 | `cpu`                | (optional) Number of cpus to request; default "6"                             |
 | `memory`             | (optional) Amount of memory to request; default 6Gi                           |
+| `config-sha1`        | (optional) Config commit of workflow run to write to output; not written by default |
 
 #### Command line interfaces used by workflow
 This workflow first resolves the output location for the run according to:
@@ -279,6 +280,7 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 | `memory-offline-diags`  | (optional) `memory` for `offline-diags` workflow; default 6Gi         |
 | `training-flags`        | (optional) `flags` for `training` workflow                            |
 | `online-diags-flags`    | (optional) `flags` for `prognostic-run-diags` workflow                |
+| `config-sha1`           | (optional) Config commit of workflow run to write to output; not written by default |
 
 Output for the various steps will be written to `gs://{bucket}/{project}/$(date +%F)/{tag}`.
 
