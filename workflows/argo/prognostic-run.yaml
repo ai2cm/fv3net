@@ -30,6 +30,7 @@ spec:
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 6Gi}
+          - {name: config-sha1, value: ""}
       steps:
       - - name: resolve-output-url
           templateRef:
@@ -61,6 +62,14 @@ spec:
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
+      - - name: write-config-sha1
+          templateRef:
+            name: resolve-output-url
+            template: write-config-sha1
+          arguments:
+            parameters:
+              - {name: output-url, value: "{{steps.resolve-output-url.outputs.result}}/{{inputs.parameters.step}}"}
+              - {name: config-sha1, value: "{{inputs.parameters.config-sha1}}"}
     - name: prepare-config
       inputs:
         parameters:

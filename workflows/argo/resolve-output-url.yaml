@@ -19,3 +19,19 @@ spec:
           DATE=$(date +'%F')
           echo "gs://{{inputs.parameters.bucket}}/{{inputs.parameters.project}}/\
           ${DATE}/{{inputs.parameters.tag}}"
+    - name: write-config-sha1
+      inputs:
+        parameters:
+          - name: output-url
+          - {name: config-sha1, value: ""}
+      script:
+        image: us.gcr.io/vcm-ml/prognostic_run
+        command: [bash]
+        source: |
+          set -e
+          if [[ -n "{{inputs.parameters.config-sha1}}" ]]; then
+            echo "{{inputs.parameters.config-sha1}}" >> config-sha1.txt
+            gsutil cp config-sha1.txt "{{inputs.parameters.output-url}}/config-sha1.txt"
+          fi
+          
+          

@@ -39,6 +39,7 @@ spec:
       - {name: memory-offline-diags, value: 6Gi}
       - {name: training-flags, value: " "}
       - {name: online-diags-flags, value: " "}
+      - {name: config-sha1, value: ""}
     dag:
       tasks:
       - name: resolve-output-url
@@ -53,6 +54,15 @@ spec:
               value: "{{inputs.parameters.project}}"
             - name: tag
               value: "{{inputs.parameters.tag}}"
+      - name: write-config-sha1
+        dependencies: [resolve-output-url]
+        templateRef:
+          name: resolve-output-url
+          template: write-config-sha1
+        arguments:
+          parameters:
+            - {name: output-url, value: "{{tasks.resolve-output-url.outputs.result}}"}
+            - {name: config-sha1, value: "{{inputs.parameters.config-sha1}}"}
       - name: train-model
         dependencies: [resolve-output-url]
         templateRef:
