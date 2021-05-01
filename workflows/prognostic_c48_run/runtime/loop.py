@@ -274,11 +274,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             self._step_dynamics,
             self._compute_emulator,
             self._compute_physics,
-            # self._apply_python_to_physics_state,
             self._apply_physics,
             self._apply_emulator,
-            # self._compute_python_updates,
-            # self._apply_python_to_dycore_state,
         ]
 
     def _compute_emulator(self):
@@ -321,11 +318,12 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             diagnostics.update(
                 self.stepper.get_momentum_diagnostics(self._state, self._tendencies)
             )
-
-            diagnostics.update({name: self._state[name] for name in self._states_to_output})
             diagnostics.update({
                 name: tendency for name, tendency in self._tendencies.items()
             })
+        
+
+        diagnostics.update({name: self._state[name] for name in self._states_to_output})
         diagnostics.update(
             {
                 "area": self._state[AREA],
