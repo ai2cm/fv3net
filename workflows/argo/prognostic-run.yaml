@@ -26,7 +26,6 @@ spec:
           - {name: flags, value: ""}
           - {name: bucket, value: "vcm-ml-experiments"}
           - {name: project, value: "default"}
-          - {name: step, value: "prognostic_run"}
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 6Gi}
@@ -58,7 +57,7 @@ spec:
               - {name: fv3config, from: "{{steps.prepare-config.outputs.artifacts.fv3config}}"}
               - {name: runfile, from: "{{steps.prepare-config.outputs.artifacts.runfile}}"}
             parameters:
-              - {name: output-url, value: "{{steps.resolve-output-url.outputs.result}}/{{inputs.parameters.step}}"}
+              - {name: output-url, value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run"}
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}

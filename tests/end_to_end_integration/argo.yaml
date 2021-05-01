@@ -353,7 +353,7 @@ spec:
             - name: project
               value: "{{workflow.parameters.project}}"
             - name: tag
-              value: "{{workflow.parameters.tag}}"
+              value: "{{workflow.parameters.tag}}-nudge-to-fine-run"
       - name: nudge-to-fine-run
         templateRef:
           name: prognostic-run
@@ -371,9 +371,7 @@ spec:
           - name: project
             value: "{{workflow.parameters.project}}"
           - name: tag
-            value: "{{workflow.parameters.tag}}"
-          - name: step
-            value: "nudge_to_fine_run"
+            value: "{{workflow.parameters.tag}}-nudge-to-fine-run"
           - name: config
             value: "{{workflow.parameters.nudge-to-fine-config}}"
           - name: segment-count
@@ -394,9 +392,9 @@ spec:
           - name: project
             value: "{{workflow.parameters.project}}"
           - name: tag
-            value: "{{workflow.parameters.tag}}"
+            value: "{{workflow.parameters.tag}}-train-diags-prog"
           - name: train-test-data
-            value: "{{tasks.resolve-output-url.outputs.result}}/nudge_to_fine_run"
+            value: "{{tasks.resolve-output-url.outputs.result}}/fv3gfs_run"
           - name: training-configs
             value: "{{workflow.parameters.training-configs}}"
           - name: train-times
