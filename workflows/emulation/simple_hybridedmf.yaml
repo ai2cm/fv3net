@@ -1,7 +1,0 @@
-source_path: gs://vcm-ml-scratch/andrep/all-physics-emu/training-simple-phys-hybridedmf-10day/
-destination_path: /tmp/delete_me
-init_times: 
-  - "20160101.000000"
-variables: 
-  - eastward_wind
-  - cos_day

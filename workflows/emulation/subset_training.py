@@ -1,10 +1,12 @@
-import yaml
 import argparse
+import fsspec
+import yaml
+import logging
 import os
 import tempfile
-from dataclasses import dataclass
-from typing import List
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, asdict
+from typing import List
 
 from loaders.mappers import open_phys_emu_training
 from loaders.batches import batches_from_mapper
@@ -17,6 +19,10 @@ and our ML configurations.
 
 Batch is defined as what the mapper loads for a single item.
 """
+
+
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class SubsetConfig:
@@ -36,7 +42,7 @@ class SubsetConfig:
     init_times: List[str]
     variables: List[str]
     subsample_size: int = 2560
-    num_workers: int = 12
+    num_workers: int = 10
 
 
 def subsample_batch(batches, item_idx):
@@ -55,13 +61,22 @@ def run_subsample_threaded(num_workers, outdir, batches, template="window_{idx:0
         for future in as_completed(futures):
             item_idx, data = future.result()
             out_path = os.path.join(outdir, template.format(idx=item_idx))
-            data.to_netcdf(out_path)
-            print(f"Completed subsetting item #{item_idx}")
+            data.reset_index("sample").to_netcdf(out_path)
+            logger.info(f"Completed subsetting item #{item_idx}")
 
-    print("Subsetting complete")
+    logger.info("Subsetting complete")
+
+
+def save_to_destination(source, destination):
+
+    fs = fsspec.get_fs_token_paths(destination)[0]
+    fs.makedirs(destination, exist_ok=True)
+    fs.put(source, destination, recursive=True)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "config_file",
@@ -82,4 +97,9 @@ if __name__ == "__main__":
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
+
+        with open(os.path.join(tmpdir, "subset_config.yaml"), "w") as f:
+            f.write(yaml.dump(asdict(config)))
+        
         run_subsample_threaded(config.num_workers, tmpdir, batches)
+        save_to_destination(tmpdir, config.destination_path)
