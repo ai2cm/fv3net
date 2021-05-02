@@ -182,6 +182,7 @@ def _group_by_z_dim(
     Cannot stack a dataset with multiple z dimensions. So we'll divide
     and conquer.
     """
+    # TODO: Handle case where no_vertical is a single sample variable (e.g. cos day)
     groups = {}
     for varname, da in ds.items():
         da_item = (varname, da)
