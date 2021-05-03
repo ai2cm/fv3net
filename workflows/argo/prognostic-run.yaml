@@ -29,7 +29,6 @@ spec:
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 6Gi}
-          - {name: image-tags, value: ""}
       steps:
       - - name: resolve-output-url
           templateRef:
@@ -61,14 +60,6 @@ spec:
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
-      - - name: write-image-tags
-          templateRef:
-            name: resolve-output-url
-            template: write-image-tags
-          arguments:
-            parameters:
-              - {name: output-url, value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run"}
-              - {name: image-tags, value: "{{inputs.parameters.image-tags}}"}
     - name: prepare-config
       inputs:
         parameters:

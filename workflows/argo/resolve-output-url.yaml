@@ -16,29 +16,15 @@ spec:
         command: [bash]
         source: |
           set -e
-          remove_slashes () {
-              echo $(echo $1 | sed -e 's~/~-~')
+          fail_on_slash () {
+            if [[ "$1" == *"/"* ]]; then
+              echo "Slashes not permitted in bucket, project, and tag: $1"
+              exit 1
+            fi
           }
           DATE=$(date +'%F')
-          BUCKET=$(remove_slashes {{inputs.parameters.bucket}})
-          PROJECT=$(remove_slashes {{inputs.parameters.project}})
-          TAG=$(remove_slashes {{inputs.parameters.tag}})
-          echo "gs://${BUCKET}/${PROJECT}/${DATE}/${TAG}"
-    - name: write-image-tags
-      inputs:
-        parameters:
-          - name: output-url
-          - {name: image-tags, value: ""}
-      script:
-        image: us.gcr.io/vcm-ml/prognostic_run
-        command: [bash]
-        source: |
-          set -e
-          cat << EOF > image-tags.yaml
-          {{inputs.parameters.image-tags}}
-          EOF
-          if [[ -n "{{inputs.parameters.image-tags}}" ]]; then
-            gsutil cp image-tags.yaml "{{inputs.parameters.output-url}}/image-tags.yaml"
-          fi
-          
+          fail_on_slash {{inputs.parameters.bucket}}
+          fail_on_slash {{inputs.parameters.project}}
+          fail_on_slash {{inputs.parameters.tag}}
+          echo "gs://{{inputs.parameters.bucket}}/{{inputs.parameters.project}}/${DATE}/{{inputs.parameters.tag}}"
           
