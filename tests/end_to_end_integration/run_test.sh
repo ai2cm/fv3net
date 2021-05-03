@@ -82,7 +82,7 @@ project="test-end-to-end-integration"
 cd tests/end_to_end_integration
 deployWorkflows "$registry" "$commit"
 argo submit argo.yaml -p bucket="${bucket}" -p project="${project}" \
-    -p tag="${commit}-${random}" --name "$name"
+    -p tag="${commit}-${random}" -p image-tags="{commit: ${commit}}" --name "$name"
 
 trap "argo logs \"$name\" | tail -n 100" EXIT
 

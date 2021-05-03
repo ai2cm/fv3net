@@ -376,6 +376,8 @@ spec:
             value: "{{workflow.parameters.nudge-to-fine-config}}"
           - name: segment-count
             value: "{{workflow.parameters.nudge-to-fine-segment-count}}"
+          - name: image-tags
+            value: "{{workflow.parameters.image-tags}}"
           - name: cpu
             value: 6000m
           - name: memory
@@ -409,6 +411,8 @@ spec:
             value: "{{workflow.parameters.test-times}}"
           - name: public-report-output
             value: "{{tasks.resolve-output-url.outputs.result}}/offline-report"
+          - name: image-tags
+            value: "{{workflow.parameters.image-tags}}"
           - name: cpu-prog
             value: "24"
           - name: memory-prog

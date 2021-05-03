@@ -24,19 +24,21 @@ spec:
           PROJECT=$(remove_slashes {{inputs.parameters.project}})
           TAG=$(remove_slashes {{inputs.parameters.tag}})
           echo "gs://${BUCKET}/${PROJECT}/${DATE}/${TAG}"
-    - name: write-config-sha1
+    - name: write-image-tags
       inputs:
         parameters:
           - name: output-url
-          - {name: config-sha1, value: ""}
+          - {name: image-tags, value: ""}
       script:
         image: us.gcr.io/vcm-ml/prognostic_run
         command: [bash]
         source: |
           set -e
-          if [[ -n "{{inputs.parameters.config-sha1}}" ]]; then
-            echo "{{inputs.parameters.config-sha1}}" >> config-sha1.txt
-            gsutil cp config-sha1.txt "{{inputs.parameters.output-url}}/config-sha1.txt"
+          cat << EOF > image-tags.yaml
+          {{inputs.parameters.image-tags}}
+          EOF
+          if [[ -n "{{inputs.parameters.image-tags}}" ]]; then
+            gsutil cp image-tags.yaml "{{inputs.parameters.output-url}}/image-tags.yaml"
           fi
           
           

@@ -64,20 +64,19 @@ sequential segments.
 | `initial-condition`  | Timestamp string for time at which to begin the prognostic run                |
 | `config`             | String representation of base config YAML file; supplied to prepare_config.py |
 | `reference-restarts` | Location of restart data for initializing the prognostic run                  |
-| `tag`                | Experiment tag                                                                |
-| `flags`              | (optional) extra command line flags for prepare_config.py                     |
+| `tag`                | Tag which describes the run and is used in its storage location               | 
+| `flags`              | (optional) Extra command line flags for prepare_config.py                     |
 | `bucket`             | (optional) Bucket to save run output data; default 'vcm-ml-experiments'       |
 | `project`            | (optional) Project directory to save run output data; default 'default'       |
-| `step`               | (optional) Run step name within experiment; default 'prognostic_run'          |
 | `segment-count`      | (optional) Number of prognostic run segments; default "1"                     |
 | `cpu`                | (optional) Number of cpus to request; default "6"                             |
 | `memory`             | (optional) Amount of memory to request; default 6Gi                           |
-| `config-sha1`        | (optional) Config commit of workflow run to write to output; not written by default |
+| `image-tags`         | (optional) Commit tags written to image-tags.yaml; not written by default     |
 
 #### Command line interfaces used by workflow
 This workflow first resolves the output location for the run according to:
 ```
-output="gs://{bucket}/{project}/$(date +%F)/{tag}/{step}"
+output="gs://{bucket}/{project}/$(date +%F)/{tag}/fv3gfs_run"
 ```
 
 And then calls:
@@ -261,7 +260,7 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 
 | Parameter               | Description                                                           |
 |-------------------------|-----------------------------------------------------------------------|
-| `tag`                   | Experiment tag                                                        |
+| `tag`                   | Tag which describes the experiment and is used in its storage location| 
 | `train-test-data`       | `input` for `training` workflow                                       |
 | `training-configs`      | List of dicts of type `{name: config}`, where `config` is the config used for `training` workflow |
 | `train-times`           | `times` for `training` workflow                                       |
@@ -280,7 +279,7 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 | `memory-offline-diags`  | (optional) `memory` for `offline-diags` workflow; default 6Gi         |
 | `training-flags`        | (optional) `flags` for `training` workflow                            |
 | `online-diags-flags`    | (optional) `flags` for `prognostic-run-diags` workflow                |
-| `config-sha1`           | (optional) Config commit of workflow run to write to output; not written by default |
+| `image-tags`            | (optional) Commit tags written to image-tags.yaml; not written by default |
 
 Output for the various steps will be written to `gs://{bucket}/{project}/$(date +%F)/{tag}`.
 
