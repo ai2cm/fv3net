@@ -71,15 +71,14 @@ sequential segments.
 | `segment-count`      | (optional) Number of prognostic run segments; default "1"                     |
 | `cpu`                | (optional) Number of cpus to request; default "6"                             |
 | `memory`             | (optional) Amount of memory to request; default 6Gi                           |
-| `image-tags`         | (optional) Commit tags written to image-tags.yaml; not written by default     |
 
 #### Command line interfaces used by workflow
 This workflow first resolves the output location for the run according to:
 ```
 output="gs://{bucket}/{project}/$(date +%F)/{tag}/fv3gfs_run"
 ```
-Any slashes in `bucket`, `project` and `tag` will be converted to a dash (`-`) to
-preserve the depth of this directory structure.
+Slashes (`/`) are not permitted in `bucket`, `project` and `tag` to preserve the depth 
+of this directory structure.
 
 And then calls:
 ```
@@ -281,11 +280,10 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 | `memory-offline-diags`  | (optional) `memory` for `offline-diags` workflow; default 6Gi         |
 | `training-flags`        | (optional) `flags` for `training` workflow                            |
 | `online-diags-flags`    | (optional) `flags` for `prognostic-run-diags` workflow                |
-| `image-tags`            | (optional) Commit tags written to image-tags.yaml; not written by default |
 
 Output for the various steps will be written to `gs://{bucket}/{project}/$(date +%F)/{tag}`.
-Any slashes in `bucket`, `project` and `tag` will be converted to a dash (`-`) to
-preserve the depth of this directory structure.
+Slashes (`/`) are not permitted in `bucket`, `project` and `tag` to preserve the depth 
+of this directory structure.
 
 ### Cubed-sphere to lat-lon interpolation workflow
 

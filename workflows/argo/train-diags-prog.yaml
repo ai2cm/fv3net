@@ -141,7 +141,7 @@ spec:
               - name: run
                 value: "{{tasks.resolve-output-url.outputs.result}}/fv3gfs_run"
               - name: output
-                value: "{{tasks.resolve-output-url.outputs.result}}/fv3gfs_run_diags"
+                value: "{{tasks.resolve-output-url.outputs.result}}/fv3gfs_run_diagnostics"
               - name: flags
                 value: "{{inputs.parameters.online-diags-flags}}"
   - name: construct-full-flags
