@@ -6,11 +6,12 @@ import pickle
 import yaml
 import tensorflow as tf
 import xarray as xr
+from dataclasses import dataclass
 from toolz.functoolz import compose_left
-from dataclasses import dataclass, asdict
+from typing import List, Mapping, Union
 
 from fv3fit._shared._transforms import (
-    ArrayStacker, extract_ds_arrays, stack_io, standardize, unstandardize
+    ArrayStacker, extract_ds_arrays, stack_io, standardize
 )
 from loaders.batches import shuffle
 from loaders.batches._sequences import Map
@@ -24,7 +25,7 @@ class TrainingConfig:
     input_variables: List[str]
     output_variables: List[str]
     save_path: str
-    vertical_subselections: Mapping[str, List[int]] = None
+    vertical_subselections: Union[Mapping[str, List[int]], None] = None
 
 
 logger = logging.getLogger(__name__)
@@ -172,7 +173,6 @@ def save_model(config, model):
             ),
             f
         )
-
 
 
 if __name__ == "__main__":
