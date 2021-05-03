@@ -149,9 +149,9 @@ spec:
         arguments:
           parameters:
               - name: run
-                value: "{{tasks.resolve-output-url.outputs.result}}/prognostic_run"
+                value: "{{tasks.resolve-output-url.outputs.result}}/fv3gfs_run"
               - name: output
-                value: "{{tasks.resolve-output-url.outputs.result}}/prognostic_run_diags"
+                value: "{{tasks.resolve-output-url.outputs.result}}/fv3gfs_run_diags"
               - name: flags
                 value: "{{inputs.parameters.online-diags-flags}}"
   - name: construct-full-flags

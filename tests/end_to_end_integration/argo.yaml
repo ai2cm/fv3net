@@ -381,7 +381,7 @@ spec:
           - name: memory
             value: 6Gi
       - name: train-offline-diags-prognostic
-        dependencies: [nudge-to-fine-run]
+        dependencies: [nudge-to-fine-run, resolve-output-url]
         templateRef:
           name: train-diags-prog
           template: train-diags-prog

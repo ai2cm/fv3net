@@ -67,7 +67,7 @@ spec:
             template: write-config-sha1
           arguments:
             parameters:
-              - {name: output-url, value: "{{steps.resolve-output-url.outputs.result}}/{{inputs.parameters.step}}"}
+              - {name: output-url, value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run"}
               - {name: config-sha1, value: "{{inputs.parameters.config-sha1}}"}
     - name: prepare-config
       inputs:
