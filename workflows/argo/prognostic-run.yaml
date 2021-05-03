@@ -81,7 +81,6 @@ spec:
           - {name: fv3config, path: /tmp/fv3config.yaml}
           - name: runfile
             path: /tmp/runfile.py
-          - {name: output-url, path: /tmp/}
       container:
         image: us.gcr.io/vcm-ml/prognostic_run
         command: ["bash", "-c", "-x", "-e"]
