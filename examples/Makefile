@@ -7,6 +7,9 @@ nudge_to_obs_run: deploy
 prognostic_run: deploy
 	cd prognostic-run; ./run.sh
 
+fine_res_budget:
+	kubectl apply -f fine-res-budget/pod.yaml
+
 prognostic_run_report: deploy
 	cd prognostic-run-report && ./run.sh
 
