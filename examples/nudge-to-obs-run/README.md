@@ -3,6 +3,10 @@
 This directory contains an example workflow for doing an FV3GFS run
 that is nudged towards GFS analysis.
 
+Configuration is similar to that of the nudge-to-fine run.
+
+Output will be written to "gs://{bucket}/{project}/$(date +%F)/{tag}/fv3gfs_run".
+
 Some unique aspects of the given example:
 - initialized 1 January 2016 from GFS analysis
 - runs on 24 cores

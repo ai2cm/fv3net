@@ -17,6 +17,8 @@ a list of dicts, each with entries `name` and `config`. If only one model is to 
 and used, just provide a list of length one.
 3. `run.sh` contains other configurations, such as the output location,
    timestep selection, etc.
+   
+Output from the steps will be written to "gs://{bucket}/{project}/$(date +%F)/{tag}".
 
 
 ## Recommended workflow
