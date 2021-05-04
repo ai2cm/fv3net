@@ -3,12 +3,13 @@ import fsspec
 import logging
 import os
 import pickle
+import tempfile
 import yaml
 import tensorflow as tf
 import xarray as xr
 from dataclasses import dataclass
 from toolz.functoolz import compose_left
-from typing import List, Mapping, Union
+from typing import Any, List, Mapping, MutableMapping, Union
 
 from fv3fit._shared._transforms import (
     ArrayStacker, extract_ds_arrays, stack_io, standardize
@@ -26,6 +27,7 @@ class TrainingConfig:
     output_variables: List[str]
     save_path: str
     vertical_subselections: Union[Mapping[str, List[int]], None] = None
+    fit_kwargs: Union[MutableMapping[str, Any], None] = None
 
 
 logger = logging.getLogger(__name__)
@@ -56,6 +58,15 @@ def process_vert_subselect_config(config):
     return config
 
 
+def load_config(config_path):
+
+    with fsspec.open(config_path, "rb") as f:
+        config_yaml = yaml.safe_load(f)
+
+    config_yaml = process_vert_subselect_config(config_yaml)
+    return TrainingConfig(**config_yaml)
+
+
 def _get_std_info(batches):
     # Currently uses profile max std as the scaling factor
     ignore_vars = ["cos_day", "sin_day", "cos_month", "sin_month"]
@@ -71,17 +82,6 @@ def _get_std_info(batches):
         std_info[var] = (mean, std)
 
     return std_info
-
-
-def _save_preprocessing(path, X_stacker, y_stacker, std_info):
-    if not os.path.exists(path):
-        os.makedirs(path)
-    with open(os.path.join(path, "X_stacker.yaml"), "w") as f:
-        X_stacker.dump(f)
-    with open(os.path.join(path, "y_stacker.yaml"), "w") as f:
-        y_stacker.dump(f)
-    with open(os.path.join(path, "standardization_info.pkl"), "wb") as f:
-        pickle.dump(std_info, f)
 
 
 def load_batch_preprocessing_chain(config: TrainingConfig, batches):
@@ -104,9 +104,9 @@ def load_batch_preprocessing_chain(config: TrainingConfig, batches):
     std_func = standardize(std_info)
     preproc = compose_left(extract_ds_arrays, std_func, stack_func)
 
-    _save_preprocessing(config.save_path, X_stacker, y_stacker, std_info)
+    save_info = dict(X_stacker=X_stacker, y_stacker=y_stacker, std_info=std_info)
 
-    return preproc
+    return preproc, save_info
 
 
 def get_batch_generator_constructer(preproc_func, batches):
@@ -138,6 +138,19 @@ def batches_to_tf_dataset(preproc_func, batches):
     return tf_ds.prefetch(tf.data.AUTOTUNE).interleave(lambda x: x)
 
 
+def get_fit_kwargs(config):
+    # awkward right now because need batch size for tf_dataset
+    if config.fit_kwargs is None:
+        fit_kwargs = {}
+    else:
+        # TODO: should this be copy/deep copy?
+        fit_kwargs = dict(**config.fit_kwargs)
+
+    batch_size = fit_kwargs.pop("batch_size", 128)
+
+    return batch_size,  fit_kwargs
+
+
 def get_emu_model(X, y):
     # TODO: Just replicate notebook for now
     inputs = tf.keras.layers.Input(X.shape[-1])
@@ -156,23 +169,47 @@ def get_emu_model(X, y):
     return model
 
 
-def save_model(config, model):
+def fit_model(config, model):
+
+    batch_size, fit_kwargs = get_fit_kwargs(config)
+    
+    model.fit(
+        train_ds.shuffle(100000).batch(batch_size),
+        validation_data=test_ds.batch(batch_size),
+        **fit_kwargs
+    )
+
+    return model
+
+
+def _save_model(path, model, X_stacker, y_stacker, std_info):
+    with open(os.path.join(path, "X_stacker.yaml"), "w") as f:
+        X_stacker.dump(f)
+    with open(os.path.join(path, "y_stacker.yaml"), "w") as f:
+        y_stacker.dump(f)
+    with open(os.path.join(path, "standardization_info.pkl"), "wb") as f:
+        pickle.dump(std_info, f)
     
     # Remove compiled specialized metrics because these bork loading
     model.optimizer = None
     model.compiled_loss = None
     model.compiled_metrics = None
 
-    model.save(os.path.join(config.save_path, "model.tf"), save_format="tf")
-    with open(os.path.join(config.save_path, "model_options.yaml"), "w") as f:
-        yaml.dump(
-            dict(
-                input_variables=config.input_variables,
-                output_variables=config.output_variables,
-                sample_dim_name="sample"
-            ),
-            f
-        )
+    model.save(os.path.join(path, "model.tf"), save_format="tf")
+
+
+def _save_to_destination(source, destination):
+
+    fs = fsspec.get_fs_token_paths(destination)[0]
+    fs.makedirs(destination, exist_ok=True)
+    fs.put(source, destination, recursive=True)
+
+
+def save(path, model, X_stacker, y_stacker, std_info):
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        _save_model(tmpdir, model, X_stacker, y_stacker, std_info)
+        _save_to_destination(tmpdir, path)
 
 
 if __name__ == "__main__":
@@ -183,28 +220,17 @@ if __name__ == "__main__":
     parser.add_argument("train_config", type=str)
     args = parser.parse_args()
 
-    with open(args.train_config, "rb") as f:
-        config_yaml = yaml.safe_load(f)
-
-    config_yaml = process_vert_subselect_config(config_yaml)
-    config = TrainingConfig(**config_yaml)
+    config = load_config(args.train_config)
 
     train_batches = get_subsampled_batches(config.train_data_path)
     test_batches = get_subsampled_batches(config.test_data_path)
-    preproc_chain = load_batch_preprocessing_chain(config, train_batches)
-
+    preproc_chain, preproc_save_info = \
+        load_batch_preprocessing_chain(config, train_batches)
     train_ds = batches_to_tf_dataset(preproc_chain, train_batches)
     test_ds = batches_to_tf_dataset(preproc_chain, test_batches)
 
     X, y = preproc_chain(train_batches[0])
     model = get_emu_model(X, y)
+    fit_model(config, model)
 
-    model.fit(
-        train_ds.shuffle(100000).batch(128),
-        epochs=50,
-        validation_data=test_ds.batch(128),
-        validation_freq=5,
-        verbose=2,
-    )
-
-    save_model(config, model)
+    save(config.save_path, model, **preproc_save_info)

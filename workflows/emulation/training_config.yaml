@@ -30,5 +30,9 @@ vertical_subselections:
     cloud_water_mixing_ratio: [25, null]
     tendency_of_specific_humidity_due_to_fv3_physics: [20, null]
     tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics: [25, null]
-
-dump_path: /home/andrep/scratch/trained_emulators/test_emu
+save_path: gs://vcm-ml-scratch/andrep/test-emu-model-delete
+fit_kwargs:
+  epochs: 1
+  validation_freq: 5
+  batch_size: 64
+  verbose: 2
