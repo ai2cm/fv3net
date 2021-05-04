@@ -49,9 +49,9 @@ logger = logging.getLogger(__name__)
 gravity = 9.81
 
 
-def setup_metrics_logger():
-    logger = logging.getLogger("statistics")
-    fh = logging.FileHandler("statistics.txt")
+def setup_logger(name):
+    logger = logging.getLogger(name)
+    fh = logging.FileHandler(f"{name}.txt")
     fh.setLevel(logging.INFO)
     ch = logging.StreamHandler()
     ch.setLevel(logging.INFO)
@@ -59,6 +59,11 @@ def setup_metrics_logger():
 
     logger.addHandler(fh)
     logger.addHandler(ch)
+
+
+def setup_loggers():
+    setup_logger("statistics")
+    setup_logger("profiles")
 
 
 def log_scalar(time, scalars):
@@ -69,6 +74,17 @@ def log_scalar(time, scalars):
     logging.getLogger("statistics").info(msg)
 
 
+def log_profiles(time, profiles: Mapping[str, xr.DataArray]):
+    dt = datetime.datetime(
+        time.year, time.month, time.day, time.hour, time.minute, time.second
+    )
+    serializable_profiles = {}
+    for v in profiles:
+        serializable_profiles[v] = list(profiles[v].astype(float).values)
+    msg = json.dumps({"time": dt.isoformat(), **serializable_profiles})
+    logging.getLogger("profiles").info(msg)
+
+
 def global_average(comm, array: xr.DataArray, area: xr.DataArray) -> float:
     ans = comm.reduce((area * array).sum().item(), root=0)
     area_all = comm.reduce(area.sum().item(), root=0)
@@ -76,6 +92,14 @@ def global_average(comm, array: xr.DataArray, area: xr.DataArray) -> float:
         return float(ans / area_all)
     else:
         return -1
+
+
+def global_horizontal_sum(comm, array: xr.DataArray) -> xr.DataArray:
+    ans = comm.reduce(array, root=0)
+    if comm.rank == 0:
+        return ans.sum(["x", "y"])
+    else:
+        return xr.DataArray([-1], dims="z")
 
 
 class Stepper(Protocol):
@@ -410,20 +434,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 self._state.time, self._state
             )
             self._state_updates.update(state_updates)
-            try:
-                rank_updated_points = diagnostics["rank_updated_points"]
-            except KeyError:
-                pass
-            else:
-                updated_points = self.comm.reduce(rank_updated_points, root=0)
-                if self.comm.rank == 0:
-                    level_updates = {
-                        i: int(value)
-                        for i, value in enumerate(updated_points.sum(["x", "y"]).values)
-                    }
-                    logger.info(
-                        f"specific_humidity_limiter_updates_per_level: {level_updates}"
-                    )
             return diagnostics
 
     def _apply_postphysics_to_dycore_state(self) -> Diagnostics:
@@ -577,3 +587,13 @@ def globally_average_2d_diagnostics(
         if (set(diagnostics[v].dims) == {"x", "y"}) and (v not in exclude):
             averages[v] = global_average(comm, diagnostics[v], diagnostics["area"])
     return averages
+
+
+def globally_sum_3d_diagnostics(
+    comm, diagnostics: Mapping[str, xr.DataArray], include: Sequence[str],
+) -> Mapping[str, xr.DataArray]:
+    sums = {}
+    for v in diagnostics:
+        if set(diagnostics[v].dims) == {"x", "y", "z"} and v in include:
+            sums[f"{v}_global_sum"] = global_horizontal_sum(comm, diagnostics[v])
+    return sums

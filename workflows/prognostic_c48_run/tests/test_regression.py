@@ -20,7 +20,9 @@ IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
 )
 ORO_PATH = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
 FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
-LOG_PATH = "statistics.txt"
+LOG_PATH = "logs.txt"
+STATISTICS_PATH = "statistics.txt"
+PROFILES_PATH = "profiles.txt"
 RUNFILE_PATH = "runfile.py"
 CHUNKS_PATH = "chunks.yaml"
 
@@ -465,8 +467,8 @@ def get_ml_config(model_path):
                 "net_moistening",
                 "physics_precip",
                 "pressure_thickness_of_atmospheric_layer",
-                "rank_updated_points",
                 "specific_humidity",
+                "specific_humidity_limiter_active",
                 "storage_of_mass_due_to_fv3_physics",
                 "storage_of_mass_due_to_python",
                 "storage_of_specific_humidity_path_due_to_fv3_physics",
@@ -540,8 +542,9 @@ def test_fv3run_checksum_restarts(completed_rundir, regtest):
     print(fv_core.computehash(), file=regtest)
 
 
-def test_fv3run_logs_present(completed_rundir):
-    assert completed_rundir.join(LOG_PATH).exists()
+@pytest.mark.parametrize("path", [LOG_PATH, STATISTICS_PATH, PROFILES_PATH])
+def test_fv3run_logs_present(completed_rundir, path):
+    assert completed_rundir.join(path).exists()
 
 
 def test_runfile_script_present(completed_rundir):
@@ -573,7 +576,7 @@ def test_fv3run_python_mass_conserving(completed_rundir, configuration):
     if configuration == ConfigEnum.nudging:
         pytest.skip()
 
-    path = str(completed_rundir.join(LOG_PATH))
+    path = str(completed_rundir.join(STATISTICS_PATH))
 
     # read python mass conservation info
     with open(path) as f:

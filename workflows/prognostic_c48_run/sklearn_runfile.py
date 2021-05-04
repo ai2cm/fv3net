@@ -10,8 +10,10 @@ wrapper.initialize()  # noqa: E402
 from runtime.loop import (
     MonitoredPhysicsTimeLoop,
     globally_average_2d_diagnostics,
-    setup_metrics_logger,
+    globally_sum_3d_diagnostics,
+    setup_loggers,
     log_scalar,
+    log_profiles,
 )
 import fv3gfs.util as util
 import runtime
@@ -32,7 +34,7 @@ if __name__ == "__main__":
 
     config = runtime.get_config()
     partitioner = util.CubedSpherePartitioner.from_namelist(runtime.get_namelist())
-    setup_metrics_logger()
+    setup_loggers()
 
     loop = MonitoredPhysicsTimeLoop(config, comm=comm)
 
@@ -50,8 +52,12 @@ if __name__ == "__main__":
         averages = globally_average_2d_diagnostics(
             comm, diagnostics, exclude=loop._states_to_output
         )
+        profiles = globally_sum_3d_diagnostics(
+            comm, diagnostics, ["specific_humidity_limiter_active"]
+        )
         if comm.rank == 0:
             log_scalar(time, averages)
+            log_profiles(time, profiles)
 
         for diag_file in diag_files:
             diag_file.observe(time, diagnostics)
