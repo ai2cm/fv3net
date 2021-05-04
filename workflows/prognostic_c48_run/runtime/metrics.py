@@ -47,9 +47,10 @@ def globally_average_2d_diagnostics(
 
 def globally_sum_3d_diagnostics(
     comm, diagnostics: Mapping[str, xr.DataArray], include: Sequence[str],
-) -> Mapping[str, xr.DataArray]:
+) -> Mapping[str, Sequence[float]]:
     sums = {}
     for v in diagnostics:
         if set(diagnostics[v].dims) == {"x", "y", "z"} and v in include:
-            sums[f"{v}_global_sum"] = global_horizontal_sum(comm, diagnostics[v])
+            global_sum = global_horizontal_sum(comm, diagnostics[v])
+            sums[f"{v}_global_sum"] = list(global_sum.astype(float).values)
     return sums

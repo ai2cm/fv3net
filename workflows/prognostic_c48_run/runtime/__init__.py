@@ -15,9 +15,8 @@ from .logs import (
     capture_stream,
     capture_stream_mpi,
     capture_fv3gfs_funcs,
-    setup_loggers,
-    log_scalar,
-    log_profiles,
+    setup_file_logger,
+    log_mapping,
 )
 from .metrics import globally_average_2d_diagnostics, globally_sum_3d_diagnostics
 from .nudging import (

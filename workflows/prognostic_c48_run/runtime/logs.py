@@ -85,7 +85,8 @@ def capture_fv3gfs_funcs():
         setattr(wrapper, func, captured_stream(getattr(wrapper, func)))
 
 
-def setup_logger(name):
+def setup_file_logger(name):
+    """Configure a logger which streams to name.txt as well as stderr."""
     logger = logging.getLogger(name)
     fh = logging.FileHandler(f"{name}.txt")
     fh.setLevel(logging.INFO)
@@ -97,28 +98,17 @@ def setup_logger(name):
     logger.addHandler(ch)
 
 
-def setup_loggers():
-    setup_logger("statistics")
-    setup_logger("profiles")
-
-
-def log_scalar(time, scalars):
+def log_mapping(time, content, logger_name):
+    """Serialize a mapping 'content' to logger_name using JSON.
+    
+    Warning:
+        content must be a mapping whose keys and values are serializable by JSON.
+    """
     dt = datetime.datetime(
         time.year, time.month, time.day, time.hour, time.minute, time.second
     )
-    msg = json.dumps({"time": dt.isoformat(), **scalars})
-    logging.getLogger("statistics").info(msg)
-
-
-def log_profiles(time, profiles):
-    dt = datetime.datetime(
-        time.year, time.month, time.day, time.hour, time.minute, time.second
-    )
-    serializable_profiles = {}
-    for v in profiles:
-        serializable_profiles[v] = list(profiles[v].astype(float).values)
-    msg = json.dumps({"time": dt.isoformat(), **serializable_profiles})
-    logging.getLogger("profiles").info(msg)
+    msg = json.dumps({"time": dt.isoformat(), **content})
+    logging.getLogger(logger_name).info(msg)
 
 
 if __name__ == "__main__":

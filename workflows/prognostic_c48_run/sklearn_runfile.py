@@ -27,7 +27,8 @@ if __name__ == "__main__":
 
     config = runtime.get_config()
     partitioner = util.CubedSpherePartitioner.from_namelist(runtime.get_namelist())
-    runtime.setup_loggers()
+    for name in ["statistics", "profiles"]:
+        runtime.setup_file_logger(name)
 
     loop = MonitoredPhysicsTimeLoop(config, comm=comm)
 
@@ -49,8 +50,8 @@ if __name__ == "__main__":
             comm, diagnostics, ["specific_humidity_limiter_active"]
         )
         if comm.rank == 0:
-            runtime.log_scalar(time, averages)
-            runtime.log_profiles(time, profiles)
+            runtime.log_mapping(time, averages, "statistics")
+            runtime.log_mapping(time, profiles, "profiles")
 
         for diag_file in diag_files:
             diag_file.observe(time, diagnostics)
