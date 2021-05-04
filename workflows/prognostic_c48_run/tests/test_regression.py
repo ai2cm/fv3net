@@ -595,13 +595,16 @@ def test_fv3run_python_mass_conserving(completed_rundir, configuration):
         )
 
 
-def test_fv3run_vertical_profile_statistics(completed_rundir):
+def test_fv3run_vertical_profile_statistics(completed_rundir, configuration):
+    if configuration == ConfigEnum.nudging:
+        # no specific humidity limiter for nudging run
+        pytest.skip()
     path = str(completed_rundir.join(PROFILES_PATH))
     npz = yaml.safe_load(default_fv3config)["namelist"]["fv_core_nml"]["npz"]
     with open(path) as f:
         lines = f.readlines()
 
-    for profiles in lines[:2]:
-        profiles = json.loads(profiles)
+    for line in lines:
+        profiles = json.loads(line)
+        assert "time" in profiles
         assert len(profiles["specific_humidity_limiter_active_global_sum"]) == npz
-

@@ -7,14 +7,7 @@ import fv3gfs.wrapper as wrapper
 # with openmpi
 wrapper.initialize()  # noqa: E402
 
-from runtime.loop import (
-    MonitoredPhysicsTimeLoop,
-    globally_average_2d_diagnostics,
-    globally_sum_3d_diagnostics,
-    setup_loggers,
-    log_scalar,
-    log_profiles,
-)
+from runtime.loop import MonitoredPhysicsTimeLoop
 import fv3gfs.util as util
 import runtime
 
@@ -34,7 +27,7 @@ if __name__ == "__main__":
 
     config = runtime.get_config()
     partitioner = util.CubedSpherePartitioner.from_namelist(runtime.get_namelist())
-    setup_loggers()
+    runtime.setup_loggers()
 
     loop = MonitoredPhysicsTimeLoop(config, comm=comm)
 
@@ -49,15 +42,15 @@ if __name__ == "__main__":
         if comm.rank == 0:
             logger.info(f"diags: {list(diagnostics.keys())}")
 
-        averages = globally_average_2d_diagnostics(
+        averages = runtime.globally_average_2d_diagnostics(
             comm, diagnostics, exclude=loop._states_to_output
         )
-        profiles = globally_sum_3d_diagnostics(
+        profiles = runtime.globally_sum_3d_diagnostics(
             comm, diagnostics, ["specific_humidity_limiter_active"]
         )
         if comm.rank == 0:
-            log_scalar(time, averages)
-            log_profiles(time, profiles)
+            runtime.log_scalar(time, averages)
+            runtime.log_profiles(time, profiles)
 
         for diag_file in diag_files:
             diag_file.observe(time, diagnostics)

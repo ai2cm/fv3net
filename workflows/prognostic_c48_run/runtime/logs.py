@@ -1,3 +1,5 @@
+import datetime
+import json
 import logging
 import contextlib
 import tempfile
@@ -81,6 +83,42 @@ def capture_fv3gfs_funcs():
 
     for func in ["step_dynamics", "step_physics", "initialize", "cleanup"]:
         setattr(wrapper, func, captured_stream(getattr(wrapper, func)))
+
+
+def setup_logger(name):
+    logger = logging.getLogger(name)
+    fh = logging.FileHandler(f"{name}.txt")
+    fh.setLevel(logging.INFO)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    ch.setFormatter(logging.Formatter(fmt="%(levelname)s:%(name)s:%(message)s"))
+
+    logger.addHandler(fh)
+    logger.addHandler(ch)
+
+
+def setup_loggers():
+    setup_logger("statistics")
+    setup_logger("profiles")
+
+
+def log_scalar(time, scalars):
+    dt = datetime.datetime(
+        time.year, time.month, time.day, time.hour, time.minute, time.second
+    )
+    msg = json.dumps({"time": dt.isoformat(), **scalars})
+    logging.getLogger("statistics").info(msg)
+
+
+def log_profiles(time, profiles):
+    dt = datetime.datetime(
+        time.year, time.month, time.day, time.hour, time.minute, time.second
+    )
+    serializable_profiles = {}
+    for v in profiles:
+        serializable_profiles[v] = list(profiles[v].astype(float).values)
+    msg = json.dumps({"time": dt.isoformat(), **serializable_profiles})
+    logging.getLogger("profiles").info(msg)
 
 
 if __name__ == "__main__":

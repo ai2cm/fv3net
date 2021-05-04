@@ -1,4 +1,3 @@
-import datetime
 import json
 import os
 import tempfile
@@ -47,59 +46,6 @@ from .names import AREA, DELP, TOTAL_PRECIP
 logger = logging.getLogger(__name__)
 
 gravity = 9.81
-
-
-def setup_logger(name):
-    logger = logging.getLogger(name)
-    fh = logging.FileHandler(f"{name}.txt")
-    fh.setLevel(logging.INFO)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    ch.setFormatter(logging.Formatter(fmt="%(levelname)s:%(name)s:%(message)s"))
-
-    logger.addHandler(fh)
-    logger.addHandler(ch)
-
-
-def setup_loggers():
-    setup_logger("statistics")
-    setup_logger("profiles")
-
-
-def log_scalar(time, scalars):
-    dt = datetime.datetime(
-        time.year, time.month, time.day, time.hour, time.minute, time.second
-    )
-    msg = json.dumps({"time": dt.isoformat(), **scalars})
-    logging.getLogger("statistics").info(msg)
-
-
-def log_profiles(time, profiles: Mapping[str, xr.DataArray]):
-    dt = datetime.datetime(
-        time.year, time.month, time.day, time.hour, time.minute, time.second
-    )
-    serializable_profiles = {}
-    for v in profiles:
-        serializable_profiles[v] = list(profiles[v].astype(float).values)
-    msg = json.dumps({"time": dt.isoformat(), **serializable_profiles})
-    logging.getLogger("profiles").info(msg)
-
-
-def global_average(comm, array: xr.DataArray, area: xr.DataArray) -> float:
-    ans = comm.reduce((area * array).sum().item(), root=0)
-    area_all = comm.reduce(area.sum().item(), root=0)
-    if comm.rank == 0:
-        return float(ans / area_all)
-    else:
-        return -1
-
-
-def global_horizontal_sum(comm, array: xr.DataArray) -> xr.DataArray:
-    ans = comm.reduce(array, root=0)
-    if comm.rank == 0:
-        return ans.sum(["x", "y"])
-    else:
-        return xr.DataArray([-1], dims="z")
 
 
 class Stepper(Protocol):
@@ -574,26 +520,3 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
     _apply_postphysics_to_dycore_state = monitor(
         "python", TimeLoop._apply_postphysics_to_dycore_state
     )
-
-
-def globally_average_2d_diagnostics(
-    comm,
-    diagnostics: Mapping[str, xr.DataArray],
-    exclude: Optional[Sequence[str]] = None,
-) -> Mapping[str, float]:
-    averages = {}
-    exclude = exclude or []
-    for v in diagnostics:
-        if (set(diagnostics[v].dims) == {"x", "y"}) and (v not in exclude):
-            averages[v] = global_average(comm, diagnostics[v], diagnostics["area"])
-    return averages
-
-
-def globally_sum_3d_diagnostics(
-    comm, diagnostics: Mapping[str, xr.DataArray], include: Sequence[str],
-) -> Mapping[str, xr.DataArray]:
-    sums = {}
-    for v in diagnostics:
-        if set(diagnostics[v].dims) == {"x", "y", "z"} and v in include:
-            sums[f"{v}_global_sum"] = global_horizontal_sum(comm, diagnostics[v])
-    return sums
