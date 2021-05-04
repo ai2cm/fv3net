@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import fsspec
 import logging
 import os
@@ -106,7 +107,7 @@ def load_batch_preprocessing_chain(config: TrainingConfig, batches):
 
     save_info = dict(X_stacker=X_stacker, y_stacker=y_stacker, std_info=std_info)
 
-    return preproc, save_info
+    return preproc, save_info, y_stacker._stacked_feature_indices
 
 
 def get_batch_generator_constructer(preproc_func, batches):
@@ -151,8 +152,33 @@ def get_fit_kwargs(config):
     return batch_size,  fit_kwargs
 
 
-def get_emu_model(X, y):
+class ByVariableMSE(tf.keras.metrics.MeanSquaredError, tf.keras.metrics.Metric):
+    
+    def __init__(self, name, var_slice, **kwargs):
+        super().__init__(name=name, **kwargs)
+        self._slice = var_slice
+        
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_true = y_true[..., self._slice]
+        y_pred = y_pred[..., self._slice]
+        if sample_weight is not None:
+            sample_weight = sample_weight[..., self._slice]
+            
+        super().update_state(y_true, y_pred, sample_weight=sample_weight)
+        
+        
+def create_by_var_mse(var_slices):
+    
+    metrics = [
+        ByVariableMSE(varname, vslice)
+        for varname, vslice in var_slices.items()
+    ]
+    return metrics
+
+
+def get_emu_model(X, y, y_feature_indices=None):
     # TODO: Just replicate notebook for now
+
     inputs = tf.keras.layers.Input(X.shape[-1])
     hidden_layer = tf.keras.layers.Dense(
         250, activation=tf.keras.activations.tanh
@@ -164,22 +190,38 @@ def get_emu_model(X, y):
         [20000, 300000], [1e-3, 1e-4, 1e-5]
     )
     optimizer = tf.optimizers.Adam(learning_rate=lr_schedule)
-    model.compile(optimizer=optimizer, loss="mse", metrics=["mae"])
+
+    if y_feature_indices is not None:
+        extra_metrics = create_by_var_mse(y_feature_indices)
+    else:
+        extra_metrics = []
+
+    model.compile(optimizer=optimizer, loss="mse", metrics=["mae"]+extra_metrics)
 
     return model
 
 
 def fit_model(config, model):
+    tmpdir = tempfile.TemporaryDirectory()
+    log_dir = os.path.join(
+        tmpdir.name,
+        "tensorboard_log-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),
+    )
+
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(
+        log_dir=log_dir, histogram_freq=1, update_freq=1000
+    )
 
     batch_size, fit_kwargs = get_fit_kwargs(config)
     
     model.fit(
         train_ds.shuffle(100000).batch(batch_size),
         validation_data=test_ds.batch(batch_size),
+        callbacks=[tensorboard_callback],
         **fit_kwargs
     )
 
-    return model
+    return tmpdir
 
 
 def _save_model(path, model, X_stacker, y_stacker, std_info):
@@ -205,9 +247,10 @@ def _save_to_destination(source, destination):
     fs.put(source, destination, recursive=True)
 
 
-def save(path, model, X_stacker, y_stacker, std_info):
+def save(path, model, logdir, X_stacker, y_stacker, std_info):
 
     with tempfile.TemporaryDirectory() as tmpdir:
+        _save_to_destination(logdir, tmpdir)
         _save_model(tmpdir, model, X_stacker, y_stacker, std_info)
         _save_to_destination(tmpdir, path)
 
@@ -224,13 +267,13 @@ if __name__ == "__main__":
 
     train_batches = get_subsampled_batches(config.train_data_path)
     test_batches = get_subsampled_batches(config.test_data_path)
-    preproc_chain, preproc_save_info = \
+    preproc_chain, preproc_save_info, y_features = \
         load_batch_preprocessing_chain(config, train_batches)
     train_ds = batches_to_tf_dataset(preproc_chain, train_batches)
     test_ds = batches_to_tf_dataset(preproc_chain, test_batches)
 
     X, y = preproc_chain(train_batches[0])
-    model = get_emu_model(X, y)
-    fit_model(config, model)
+    model = get_emu_model(X, y, y_feature_indices=y_features)
+    fit_logdir = fit_model(config, model)
 
-    save(config.save_path, model, **preproc_save_info)
+    save(config.save_path, model, fit_logdir, **preproc_save_info)
