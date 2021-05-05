@@ -189,24 +189,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                     states_to_output = diagnostic.variables  # type: ignore
         return states_to_output
 
-    @staticmethod
-    def _get_monitored_variable_names(
-        diagnostics: Sequence[DiagnosticFileConfig],
-    ) -> Tuple[Sequence[str], Sequence[str]]:
-        """Get sequences of tendency and storage variables from diagnostics config."""
-        tendency_variables = []
-        storage_variables = []
-        for diag_file_config in diagnostics:
-            for variable in diag_file_config.variables:
-                if variable.startswith("tendency_of") and "_due_to_" in variable:
-                    short_name = variable.split("_due_to_")[0][len("tendency_of_") :]
-                    tendency_variables.append(short_name)
-                elif variable.startswith("storage_of") and "_path_due_to_" in variable:
-                    split_str = "_path_due_to_"
-                    short_name = variable.split(split_str)[0][len("storage_of_") :]
-                    storage_variables.append(short_name)
-        return tendency_variables, storage_variables
-
     def _get_prephysics_stepper(self, config: UserConfig) -> Optional[Stepper]:
         stepper: Optional[Stepper]
         if config.prephysics is None:
@@ -336,11 +318,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             self._step_prephysics,
             self._compute_physics,
             self._apply_postphysics_to_physics_state,
-            self.monitor("fv3_physics", self._apply_physics),  # self._apply_physics,  #
+            self.monitor("fv3_physics", self._apply_physics),
             self._compute_postphysics,
-            self.monitor(
-                "python", self._apply_postphysics_to_dycore_state
-            ),  # self._apply_postphysics_to_dycore_state,  #
+            self.monitor("python", self._apply_postphysics_to_dycore_state),
         ]
 
     def _step_prephysics(self) -> Diagnostics:
@@ -503,3 +483,21 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         # ensure monitored function has same name as original
         step.__name__ = func.__name__
         return step
+
+    @staticmethod
+    def _get_monitored_variable_names(
+        diagnostics: Sequence[DiagnosticFileConfig],
+    ) -> Tuple[Sequence[str], Sequence[str]]:
+        """Get sequences of tendency and storage variables from diagnostics config."""
+        tendency_variables = []
+        storage_variables = []
+        for diag_file_config in diagnostics:
+            for variable in diag_file_config.variables:
+                if variable.startswith("tendency_of") and "_due_to_" in variable:
+                    short_name = variable.split("_due_to_")[0][len("tendency_of_") :]
+                    tendency_variables.append(short_name)
+                elif variable.startswith("storage_of") and "_path_due_to_" in variable:
+                    split_str = "_path_due_to_"
+                    short_name = variable.split(split_str)[0][len("storage_of_") :]
+                    storage_variables.append(short_name)
+        return tendency_variables, storage_variables
