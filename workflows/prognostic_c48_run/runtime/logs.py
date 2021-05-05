@@ -5,6 +5,8 @@ import contextlib
 import tempfile
 import sys
 import os
+from typing import Any, Mapping, Union
+import cftime
 
 
 @contextlib.contextmanager
@@ -85,7 +87,7 @@ def capture_fv3gfs_funcs():
         setattr(wrapper, func, captured_stream(getattr(wrapper, func)))
 
 
-def setup_file_logger(name):
+def setup_file_logger(name: str):
     """Configure a logger which streams to name.txt as well as stderr."""
     logger = logging.getLogger(name)
     fh = logging.FileHandler(f"{name}.txt")
@@ -98,7 +100,11 @@ def setup_file_logger(name):
     logger.addHandler(ch)
 
 
-def log_mapping(time, content, logger_name):
+def log_mapping(
+    time: Union[datetime.datetime, cftime.DatetimeJulian],
+    content: Mapping[str, Any],
+    logger_name: str,
+):
     """Serialize a mapping 'content' to logger_name using JSON.
     
     Warning:
