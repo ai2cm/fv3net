@@ -34,7 +34,7 @@ class TrainingConfig:
 logger = logging.getLogger(__name__)
 
 
-# TODO use batch_func, batch_kwargs
+# TODO use batch_func, batch_kwargs from usual training config?
 def get_subsampled_batches(path):
     fs = fsspec.get_fs_token_paths(path)[0]
     files = fs.glob(os.path.join(path, "*.nc"))
