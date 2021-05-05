@@ -50,25 +50,9 @@ class Unpack(tf.keras.layers.Layer):
         }
 
 
-class LayerPacker(ArrayPacker):
-    @property
-    def n_features(self):
-        return self._n_features
-
-    def pack_layer(self):
-        if len(self.pack_names) > 1:
-            return tf.keras.layers.Concatenate()
-        else:
-            raise NotImplementedError(
-                "pack layer only implemented for multiple pack variables, "
-                "avoid adding a pack layer when len(obj.pack_names) is 1"
-            )
-
-    def unpack_layer(self, feature_dim: int):
-        # have to store this as a local scope variable
-        # so that serialization does not cause self to be serialized
-        return Unpack(
-            pack_names=self.pack_names,
-            n_features=self._n_features,
-            feature_dim=feature_dim,
-        )
+def get_unpack_layer(array_packer: ArrayPacker, feature_dim: int):
+    return Unpack(
+        pack_names=array_packer.pack_names,
+        n_features=array_packer.feature_counts,
+        feature_dim=feature_dim,
+    )

@@ -2,24 +2,31 @@ from typing import Dict, Any, Iterable, Hashable, Optional, Sequence, Tuple, Lis
 import tensorflow as tf
 import xarray as xr
 import os
-from ..._shared import Predictor, io
-from .packer import LayerPacker
+from ..._shared import Predictor, io, ArrayPacker
+from .packer import get_unpack_layer
 from ._filesystem import get_dir, put_dir
 from .normalizer import LayerStandardScaler
 import yaml
 import numpy as np
+import vcm.safe
+from fv3gfs.util import Z_DIMS
 
 
-def _flatten_sample_dims(array: np.ndarray) -> np.ndarray:
+def stack_non_vertical(ds: xr.Dataset, sample_dim_name) -> xr.Dataset:
     """
-    flatten the first two dimensions of an array
-    
-    this corresponds to flattening the sample and time dimensions
-    of a [sample, time, feature] array so that the result can be used
-    to fit scalers, which expect [sample, feature] arrays
+    Stack all dimensions except for the Z dimensions into a sample
+
+    Args:
+        ds: dataset with geospatial dimensions
+        sample_dim_name: name for new sampling dimension
     """
-    n = array.shape[0] * array.shape[1]
-    return array.reshape([n] + list(array.shape[2:]))
+    stack_dims = [dim for dim in ds.dims if dim not in Z_DIMS]
+    if len(set(ds.dims).intersection(Z_DIMS)) > 1:
+        raise ValueError("Data cannot have >1 feature dimension in {Z_DIMS}.")
+    ds_stacked = vcm.safe.stack_once(
+        ds, sample_dim_name, stack_dims, allowed_broadcast_dims=Z_DIMS,
+    )
+    return ds_stacked.transpose()
 
 
 def _moisture_tendency_limiter(packer, state_update, state):
@@ -30,8 +37,8 @@ def _moisture_tendency_limiter(packer, state_update, state):
     state_update and state are assumed to be in the same units, and
     zero moisture in state is assumed to have a value of 0 (no bias offset).
     """
-    unpack = packer.unpack_layer(feature_dim=1)
-    pack = packer.pack_layer()
+    unpack = get_unpack_layer(packer, feature_dim=1)
+    pack = tf.keras.layers.Concatenate()
     dQ1, dQ2 = unpack(state_update)
     _, Q2 = unpack(state)
 
@@ -45,7 +52,7 @@ def _moisture_tendency_limiter(packer, state_update, state):
 
 
 def _get_input_vector(
-    packer: LayerPacker,
+    packer: ArrayPacker,
     scaler: Optional[LayerStandardScaler],
     n_window: Optional[int] = None,
     series: bool = True,
@@ -74,7 +81,7 @@ def _get_input_vector(
         input_layers = [
             tf.keras.layers.Input(shape=[n_features]) for n_features in features
         ]
-    packed = packer.pack_layer()(input_layers)
+    packed = tf.keras.layers.Concatenate()(input_layers)
     if scaler is not None:
         packed = scaler.normalize_layer(packed)
     return input_layers, packed
@@ -127,8 +134,8 @@ class _BPTTModel:
         )
         self.output_variables = ["dQ1", "dQ2"]
         self.sample_dim_name = sample_dim_name
-        self.input_packer = LayerPacker(sample_dim_name, input_variables)
-        self.prognostic_packer = LayerPacker(sample_dim_name, prognostic_variables)
+        self.input_packer = ArrayPacker(sample_dim_name, input_variables)
+        self.prognostic_packer = ArrayPacker(sample_dim_name, prognostic_variables)
         self.train_timestep_seconds: Optional[float] = None
         self.input_scaler = LayerStandardScaler()
         self.prognostic_scaler = LayerStandardScaler()
@@ -157,10 +164,16 @@ class _BPTTModel:
         """
         if self.train_keras_model is not None:
             raise RuntimeError("cannot build, model is already built!")
-        inputs = self.input_packer.to_array(X, is_3d=True)
-        state = self.prognostic_packer.to_array(X, is_3d=True)
-        self.input_scaler.fit(_flatten_sample_dims(inputs))
-        self.prognostic_scaler.fit(_flatten_sample_dims(state))
+        temporary_sample_dim = self.sample_dim_name + "_tmp"
+        if self.sample_dim_name in X.dims:
+            X_tmp = X.rename({self.sample_dim_name: temporary_sample_dim})
+        else:
+            X_tmp = X
+        dataset_2d = stack_non_vertical(X_tmp, self.sample_dim_name)
+        inputs = self.input_packer.to_array(dataset_2d)
+        state = self.prognostic_packer.to_array(dataset_2d)
+        self.input_scaler.fit(inputs)
+        self.prognostic_scaler.fit(state)
         self.tendency_scaler.std = self.prognostic_scaler.std
         self.tendency_scaler.mean = np.zeros_like(self.prognostic_scaler.mean)
         time = X[_BPTTModel.TIME_DIM_NAME]
@@ -328,9 +341,11 @@ class _BPTTModel:
             state_outputs_list.append(add_time_dim_layer(state))
 
         state_output = tf.keras.layers.concatenate(state_outputs_list, axis=1)
-        state_outputs = self.prognostic_packer.unpack_layer(feature_dim=2)(state_output)
+        state_outputs = get_unpack_layer(self.prognostic_packer, feature_dim=2)(
+            state_output
+        )
         tendency_output = tf.keras.layers.concatenate(tendency_outputs_list, axis=1)
-        tendency_outputs = self.prognostic_packer.unpack_layer(feature_dim=2)(
+        tendency_outputs = get_unpack_layer(self.prognostic_packer, feature_dim=2)(
             tendency_output
         )
 
@@ -356,11 +371,11 @@ class _BPTTModel:
         state_layers, state_input = _get_input_vector(
             self.prognostic_packer, self.prognostic_scaler, series=False
         )
-        denormalized_state = self.prognostic_packer.pack_layer()(state_layers)
+        denormalized_state = tf.keras.layers.Concatenate()(state_layers)
         x = tf.keras.layers.concatenate([forcing_input, state_input])
         predicted_tendency = get_predicted_tendency(x, denormalized_state)
 
-        tendency_outputs = self.prognostic_packer.unpack_layer(feature_dim=1)(
+        tendency_outputs = get_unpack_layer(self.prognostic_packer, feature_dim=1)(
             predicted_tendency
         )
 

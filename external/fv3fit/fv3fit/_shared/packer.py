@@ -124,20 +124,14 @@ class ArrayPacker:
         """
         if len(self._n_features) == 0:
             self._n_features.update(
-                _count_features(
-                    self.pack_names, dataset, self._sample_dim_name, is_3d=is_3d
-                )
+                _count_features_2d(self.pack_names, dataset, self._sample_dim_name)
             )
             for name in self.pack_names:
                 self._dims[name] = cast(Tuple[str], dataset[name].dims)
         for var in self.pack_names:
             if dataset[var].dims[0] != self.sample_dim_name:
                 dataset[var] = dataset[var].transpose()
-        if is_3d:
-            to_array = _to_array_3d
-        else:
-            to_array = _to_array_2d
-        array = to_array(dataset, self.pack_names, self.feature_counts)
+        array = _to_array_2d(dataset, self.pack_names, self.feature_counts)
         return array
 
     def to_dataset(self, array: np.ndarray) -> xr.Dataset:
@@ -227,44 +221,6 @@ def _to_array_2d(
     return array
 
 
-def _to_array_3d(
-    dataset: xr.Dataset, pack_names: Sequence[str], feature_counts: Mapping[str, int]
-):
-    """
-    Convert dataset into a 3D array with [sample, time, feature] dimensions.
-
-    The first dimension of each variable to pack is assumed to be the sample dimension,
-    and the second (if it exists) is assumed to be the feature dimension.
-    Each variable must be 2D or 3D.
-    
-    Args:
-        dataset: dataset containing variables in self.pack_names to pack
-        pack_names: names of variables to pack
-        feature_counts: number of features for each variable
-
-    Returns:
-        array: 3D [sample, time, feature] array with data from the dataset
-    """
-    # we can assume here that the first dimension is the sample dimension
-    n_samples = dataset[pack_names[0]].shape[0]
-    total_features = sum(feature_counts[name] for name in pack_names)
-
-    # can assume all variables have [sample, time] dimensions
-    n_times = dataset[pack_names[0]].shape[1]
-    array = np.empty([n_samples, n_times, total_features])
-
-    i_start = 0
-    for name in pack_names:
-        n_features = feature_counts[name]
-        # assume sample, time, feature arrays
-        if n_features > 1:
-            array[:, :, i_start : i_start + n_features] = dataset[name]
-        else:
-            array[:, :, i_start] = dataset[name]
-        i_start += n_features
-    return array
-
-
 def to_dataset(
     array: np.ndarray,
     pack_names: Iterable[str],
@@ -301,48 +257,19 @@ def to_dataset(
     return xr.Dataset(data_vars)  # type: ignore
 
 
-def _count_features(
-    quantity_names: Iterable[str],
-    dataset: xr.Dataset,
-    sample_dim_name: str,
-    is_3d: bool = False,
-) -> Mapping[str, int]:
-    """Count the number of ML outputs corresponding to a set of quantities in a dataset.
-
-    The first dimension of all variables indicated must be the sample dimension,
-    and they must have at most one other dimension (treated as the "feature" dimension).
-
-    Args:
-        quantity_names: names of variables to include in the count
-        dataset: a dataset containing the indicated variables,
-            dimensionality must match value of is_3d
-        sample_dim_name: dimension to treat as the "sample" dimension, any other
-            dimensions are treated as a "feature" dimension.
-        is_3d: pass as True if the dataset contains a time dimension
-            [sample, time, feature]
-    """
-    for name in quantity_names:
-        if len(dataset[name].dims) > 3:
-            value = dataset[name]
-            raise ValueError(
-                "can only pack 1D/2D (sample[, z]) or 2D/3D (sample, time[, z]) "
-                f"variables, recieved value for {name} with dimensions {value.dims}"
-            )
-    if is_3d:
-        return _count_features_3d(quantity_names, dataset, sample_dim_name)
-    elif any(len(dataset[name].dims) == 3 for name in quantity_names):
-        # for safety, we want users to explicitly state they want to work on 3D
-        raise ValueError("passed dataset has 3D variables, but is_3d is False")
-    else:
-        return _count_features_2d(quantity_names, dataset, sample_dim_name)
-
-
 def _count_features_2d(
     quantity_names: Iterable[str], dataset: xr.Dataset, sample_dim_name: str
 ) -> Mapping[str, int]:
     """
     count features for (sample[, z]) arrays
     """
+    for name in quantity_names:
+        if len(dataset[name].dims) > 2:
+            value = dataset[name]
+            raise ValueError(
+                "can only pack 1D/2D (sample[, z]) "
+                f"variables, recieved value for {name} with dimensions {value.dims}"
+            )
     return_dict = {}
     for name in quantity_names:
         value = dataset[name]
@@ -355,27 +282,6 @@ def _count_features_2d(
             )
         else:
             return_dict[name] = value.shape[1]
-    return return_dict
-
-
-def _count_features_3d(
-    quantity_names: Iterable[str], dataset: xr.Dataset, sample_dim_name: str
-) -> Mapping[str, int]:
-    """
-    count features for (sample, time[, z]) arrays
-    """
-    return_dict = {}
-    for name in quantity_names:
-        value = dataset[name]
-        if len(value.dims) == 2 and value.dims[0] == sample_dim_name:
-            return_dict[name] = 1
-        elif value.dims[0] != sample_dim_name:
-            raise ValueError(
-                f"cannot pack value for {name} whose first dimension is not the "
-                f"sample dimension ({sample_dim_name}), has dims {value.dims}"
-            )
-        else:
-            return_dict[name] = value.shape[2]
     return return_dict
 
 
