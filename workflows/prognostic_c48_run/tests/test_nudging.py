@@ -33,15 +33,17 @@ def test__sst_from_reference():
 def test__time_interpolate_func_has_correct_value(fraction):
     initial_time = cftime.DatetimeJulian(2016, 1, 1)
     frequency = timedelta(hours=3)
+    attrs = {"units": "foo"}
 
     def func(time):
         value = float(time - initial_time > timedelta(hours=1.5))
-        return {"a": xr.DataArray(data=np.array([value]), dims=["x"])}
+        return {"a": xr.DataArray(data=np.array([value]), dims=["x"], attrs=attrs)}
 
     myfunc = _time_interpolate_func(func, frequency, initial_time)
     ans = myfunc(initial_time + frequency * fraction)
     assert isinstance(ans["a"], xr.DataArray)
     assert float(ans["a"].values) == pytest.approx(fraction)
+    assert ans["a"].attrs == attrs
 
 
 def test__time_interpolate_func_only_grabs_correct_points():

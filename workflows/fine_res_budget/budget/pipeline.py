@@ -27,10 +27,17 @@ class WriteAll(apache_beam.PTransform):
         )
 
 
+def as_one_chunk(ds):
+    chunks = {dim: ds.sizes[dim] for dim in ds.dims}
+    return ds.chunk(chunks)
+
+
 def func(iData):
-    return budgets.compute_recoarsened_budget_inputs(
+    dims = ["time", "tile", "pfull", "grid_yt", "grid_xt"]
+    ds = budgets.compute_recoarsened_budget_inputs(
         iData, config.factor, first_moments=config.VARIABLES_TO_AVERAGE
-    ).drop(["step"])
+    )
+    return ds.drop(["step"]).transpose(*dims).pipe(as_one_chunk)
 
 
 def open_partitioner(restart_url, physics_url, gfsphysics_url, area_url, output_dir):

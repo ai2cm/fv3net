@@ -200,9 +200,10 @@ def _average_states(state_0: State, state_1: State, weight: float) -> State:
     out = {}
     for key in common_keys:
         if isinstance(state_1[key], xr.DataArray):
-            out[key] = (
-                state_0[key] * weight + (1 - weight) * state_1[key]  # type: ignore
-            )
+            with xr.set_options(keep_attrs=True):
+                out[key] = (
+                    state_0[key] * weight + (1 - weight) * state_1[key]  # type: ignore
+                )
     return out
 
 
