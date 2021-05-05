@@ -91,14 +91,8 @@ class ArrayPacker:
     def _total_features(self):
         return sum(self._n_features[name] for name in self._pack_names)
 
-    def to_array(self, dataset: xr.Dataset, is_3d: bool = False) -> np.ndarray:
-        """Convert dataset into a 2D array with [sample, feature] dimensions or
-        3D array with [sample, time, feature] dimensions.
-
-        Dimensions are inferred from non-sample dimensions, and assumes all
-        arrays in the dataset have a shape of (sample) and (sample, feature)
-        or all arrays in the dataset have a shape of (sample, time) or
-        (sample, time, feature).
+    def to_array(self, dataset: xr.Dataset) -> np.ndarray:
+        """Convert dataset into a 2D array with [sample, feature] dimensions.
 
         Variable names inserted into the array are passed on initialization of this
         object. Each of those variables in the dataset must have the sample
@@ -114,10 +108,7 @@ class ArrayPacker:
         [sample, feature] arrays.
         
         Args:
-            dataset: dataset containing variables in self.pack_names to pack,
-                dimensionality must match value of is_3d
-            is_3d: if True, pack to a 3D array. This can't be detected automatically
-                because sometimes all packed variables are scalars
+            dataset: dataset containing variables in self.pack_names to pack
 
         Returns:
             array: 2D [sample, feature] array with data from the dataset
@@ -154,17 +145,7 @@ class ArrayPacker:
                 "must pack at least once before unpacking, "
                 "so dimension lengths are known"
             )
-        all_dims = {}
-        for name, dims in self._dims.items():
-            if len(dims) <= 2:
-                all_dims[name] = dims
-            elif len(dims) == 3:
-                # relevant when we to_array on a 3D dataset and want to restore a slice
-                # of it (time snapshot) to a 2D dataset
-                all_dims[name] = [dims[0], dims[2]]  # no time dimension
-            else:
-                raise RuntimeError(dims)
-        return to_dataset(array, self.pack_names, all_dims, self.feature_counts)
+        return to_dataset(array, self.pack_names, self._dims, self.feature_counts)
 
     def dump(self, f: TextIO):
         return yaml.safe_dump(
