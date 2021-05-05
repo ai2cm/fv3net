@@ -125,8 +125,7 @@ def test_predict_model_gives_tendency_of_train_model(
     np.testing.assert_allclose(dQ2[:, 0, :], Q2_train_tendency, atol=1e-6)
 
 
-def test_fit_bptt(sample_dim_name, dt):
-    """test that fv3fit.train_bptt does not produce exceptions"""
+def test_fit_bptt_command_line(sample_dim_name, dt):
     config_text = """
 regularizer:
   name: l2
@@ -169,6 +168,14 @@ random_seed: 0
         # as a minimum, test that output exists
         assert os.path.isdir(outdir)
         assert len(os.listdir(outdir)) > 0
+
+        # one model per epoch is saved
+        for sample_model_dir in os.listdir(outdir):
+            loaded = fv3fit.load(os.path.join(outdir, sample_model_dir))
+
+            first_timestep = training_dataset.isel(time=0)
+            loaded_output = loaded.predict(first_timestep)
+            assert isinstance(loaded_output, xr.Dataset)
 
 
 def test_predict_model_can_predict_columnwise(sample_dim_name, dt):
