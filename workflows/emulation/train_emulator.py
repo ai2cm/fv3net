@@ -276,4 +276,4 @@ if __name__ == "__main__":
     model = get_emu_model(X, y, y_feature_indices=y_features)
     fit_logdir = fit_model(config, model)
 
-    save(config.save_path, model, fit_logdir, **preproc_save_info)
+    save(config.save_path, model, fit_logdir.name, **preproc_save_info)
