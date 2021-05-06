@@ -7,7 +7,7 @@ import fv3gfs.wrapper as wrapper
 # with openmpi
 wrapper.initialize()  # noqa: E402
 
-from runtime.loop import MonitoredPhysicsTimeLoop
+from runtime.loop import TimeLoop
 import fv3gfs.util as util
 import runtime
 
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     for name in ["statistics", "profiles"]:
         runtime.setup_file_logger(name)
 
-    loop = MonitoredPhysicsTimeLoop(config, comm=comm)
+    loop = TimeLoop(config, comm=comm)
 
     diag_files = runtime.get_diagnostic_files(
         config.diagnostics, partitioner, comm, initial_time=loop.time
