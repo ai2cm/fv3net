@@ -244,6 +244,7 @@ wrapt==1.12.1
 xarray==0.16.2
 xgcm==0.3.0
 xmltodict==0.12.0
+xpartition==0.2.0
 yarl==1.6.3
 yq==2.11.0
 zarr==2.7.0

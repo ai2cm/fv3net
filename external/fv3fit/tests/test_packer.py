@@ -57,6 +57,10 @@ def names(dims_list: Iterable[str]):
 
 @pytest.fixture
 def dataset(names: Iterable[str], dims_list: Iterable[str]) -> xr.Dataset:
+    return get_dataset(names, dims_list)
+
+
+def get_dataset(names: Iterable[str], dims_list: Iterable[str]) -> xr.Dataset:
     data_vars = {}
     for i, (name, dims) in enumerate(zip(names, dims_list)):
         data_vars[name] = xr.DataArray(get_array(dims, i), dims=dims)
@@ -82,13 +86,15 @@ def packer(names: Iterable[str]) -> ArrayPacker:
     return ArrayPacker(SAMPLE_DIM, names)
 
 
-def test_to_array(names, dataset: xr.Dataset, array: np.ndarray):
+def test_to_array(names, dims_list, array: np.ndarray):
+    dataset = get_dataset(names, dims_list)
     packer = ArrayPacker(SAMPLE_DIM, names)
     result = packer.to_array(dataset)
     np.testing.assert_array_equal(result, array)
 
 
-def test_to_dataset(names, dataset: xr.Dataset, array: np.ndarray):
+def test_to_dataset(names, dims_list, array: np.ndarray):
+    dataset = get_dataset(names, dims_list)
     packer = ArrayPacker(SAMPLE_DIM, names)
     packer.to_array(dataset)  # must pack first to know dimension lengths
     result = packer.to_dataset(array)
@@ -97,9 +103,10 @@ def test_to_dataset(names, dataset: xr.Dataset, array: np.ndarray):
 
 
 @pytest.mark.parametrize(
-    "dims_list", ["two_2d_vars", "1d_and_2d", "five_vars"], indirect=True
+    "dims_list", ["two_2d_vars", "1d_and_2d", "five_vars"]
 )
-def test_get_unpack_layer(names, dataset: xr.Dataset, array: np.ndarray):
+def test_get_unpack_layer(names, dims_list, array: np.ndarray):
+    dataset = get_dataset(names, dims_list)
     packer = ArrayPacker(SAMPLE_DIM, names)
     packer.to_array(dataset)  # must pack first to know dimension lengths
     result = get_unpack_layer(packer, feature_dim=1)(array)
@@ -128,7 +135,8 @@ def test_unpack_before_pack_raises(names, array: np.ndarray):
         packer.to_dataset(array)
 
 
-def test_repack_array(names, dataset: xr.Dataset, array: np.ndarray):
+def test_repack_array(names, dims_list, array: np.ndarray):
+    dataset = get_dataset(names, dims_list)
     packer = ArrayPacker(SAMPLE_DIM, names)
     packer.to_array(dataset)  # must pack first to know dimension lengths
     result = packer.to_array(packer.to_dataset(array))
