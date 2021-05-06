@@ -20,6 +20,8 @@ for package  in "${local_packages_to_install[@]}"
 do
   pip install -c constraints.txt -e "$package"
 done
+
+pip install --no-deps --upgrade external/gcsfs
 set +e
 
   

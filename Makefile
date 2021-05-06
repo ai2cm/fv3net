@@ -148,6 +148,7 @@ lock_pip:
 	external/vcm/setup.py \
 	pip-requirements.txt \
 	external/fv3kube/setup.py \
+	external/fv3fit/setup.py \
 	workflows/post_process_run/requirements.txt \
 	workflows/prognostic_c48_run/requirements.in \
 	docker/prognostic_run/requirements/*.txt \
@@ -172,20 +173,15 @@ create_environment:
 # Linting
 ############################################################
 
-PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
-PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
-
-check_file_size:
-	./tests/check_for_large_files.sh
+setup-hooks:
+	pip install -c constraints.txt pre-commit
+	pre-commit install
 
 typecheck:
 	./check_types.sh
 
-lint: check_file_size
-	black --diff --check $(PYTHON_FILES) $(PYTHON_INIT_FILES)
-	flake8 $(PYTHON_FILES)
-	# ignore unused import error in __init__.py files
-	flake8 --ignore=F401 E203 $(PYTHON_INIT_FILES)
+lint:
+	pre-commit run --all-files
 	@echo "LINTING SUCCESSFUL"
 
 reformat:

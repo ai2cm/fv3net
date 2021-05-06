@@ -1,4 +1,3 @@
-import datetime
 import json
 import os
 import tempfile
@@ -21,7 +20,7 @@ import numpy as np
 import xarray as xr
 from mpi4py import MPI
 from runtime import DerivedFV3State
-from runtime.config import UserConfig, get_namelist
+from runtime.config import UserConfig, DiagnosticFileConfig, get_namelist
 from runtime.diagnostics.machine_learning import (
     compute_baseline_diagnostics,
     rename_diagnostics,
@@ -47,35 +46,6 @@ from .names import AREA, DELP, TOTAL_PRECIP
 logger = logging.getLogger(__name__)
 
 gravity = 9.81
-
-
-def setup_metrics_logger():
-    logger = logging.getLogger("statistics")
-    fh = logging.FileHandler("statistics.txt")
-    fh.setLevel(logging.INFO)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    ch.setFormatter(logging.Formatter(fmt="%(levelname)s:%(name)s:%(message)s"))
-
-    logger.addHandler(fh)
-    logger.addHandler(ch)
-
-
-def log_scalar(time, scalars):
-    dt = datetime.datetime(
-        time.year, time.month, time.day, time.hour, time.minute, time.second
-    )
-    msg = json.dumps({"time": dt.isoformat(), **scalars})
-    logging.getLogger("statistics").info(msg)
-
-
-def global_average(comm, array: xr.DataArray, area: xr.DataArray) -> float:
-    ans = comm.reduce((area * array).sum().item(), root=0)
-    area_all = comm.reduce(area.sum().item(), root=0)
-    if comm.rank == 0:
-        return float(ans / area_all)
-    else:
-        return -1
 
 
 class Stepper(Protocol):
@@ -127,15 +97,6 @@ def add_tendency(state: Any, tendency: State, dt: float) -> State:
         for name in tendency:
             state_name = TENDENCY_TO_STATE_NAME.get(name, name)
             updated[state_name] = state[state_name] + tendency[name] * dt
-    return updated  # type: ignore
-
-
-def assign_attrs_from(src: Any, dst: State) -> State:
-    """Given src state and a dst state, return dst state with src attrs
-    """
-    updated = {}
-    for name in dst:
-        updated[name] = dst[name].assign_attrs(src[name].attrs)
     return updated  # type: ignore
 
 
@@ -383,8 +344,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._log_debug(
             f"Applying prephysics state updates for: {list(state_updates.keys())}"
         )
-        updated_state = assign_attrs_from(self._state, state_updates)
-        self._state.update_mass_conserving(updated_state)
+        self._state.update_mass_conserving(state_updates)
 
         return diagnostics
 
@@ -420,20 +380,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 self._state.time, self._state
             )
             self._state_updates.update(state_updates)
-            try:
-                rank_updated_points = diagnostics["rank_updated_points"]
-            except KeyError:
-                pass
-            else:
-                updated_points = self.comm.reduce(rank_updated_points, root=0)
-                if self.comm.rank == 0:
-                    level_updates = {
-                        i: int(value)
-                        for i, value in enumerate(updated_points.sum(["x", "y"]).values)
-                    }
-                    logger.info(
-                        f"specific_humidity_limiter_updates_per_level: {level_updates}"
-                    )
             return diagnostics
 
     def _apply_postphysics_to_dycore_state(self) -> Diagnostics:
@@ -449,16 +395,16 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             if self._postphysics_only_diagnostic_ml:
                 rename_diagnostics(diagnostics)
             else:
-                updated_state = add_tendency(self._state, tendency, dt=self._timestep)
-                updated_state[TOTAL_PRECIP] = precipitation_sum(
+                updated_state_from_tendency = add_tendency(
+                    self._state, tendency, dt=self._timestep
+                )
+                updated_state_from_tendency[TOTAL_PRECIP] = precipitation_sum(
                     self._state[TOTAL_PRECIP],
                     diagnostics[self._postphysics_stepper.net_moistening],
                     self._timestep,
                 )
-                diagnostics[TOTAL_PRECIP] = updated_state[TOTAL_PRECIP]
-                self._state.update_mass_conserving(updated_state)
+                self._state.update_mass_conserving(updated_state_from_tendency)
                 self._state.update_mass_conserving(self._state_updates)
-
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
         diagnostics.update(
             {
@@ -471,12 +417,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 ),
             }
         )
-
-        try:
-            del diagnostics[TOTAL_PRECIP]
-        except KeyError:
-            pass
-
         return diagnostics
 
     def __iter__(self):
@@ -544,37 +484,39 @@ def monitor(name: str, func):
 
 class MonitoredPhysicsTimeLoop(TimeLoop):
     def __init__(
-        self,
-        tendency_variables: Sequence[str],
-        storage_variables: Sequence[str],
-        *args,
-        **kwargs,
+        self, config: UserConfig, *args, **kwargs,
     ):
         """
 
         Args:
-            tendency_variables: a list of variables to compute the physics
-                tendencies of.
+            config: UserConfig for loop.
 
         """
-        super().__init__(*args, **kwargs)
-        self._tendency_variables = list(tendency_variables)
-        self._storage_variables = list(storage_variables)
+        super().__init__(config, *args, **kwargs)
+        (
+            self._tendency_variables,
+            self._storage_variables,
+        ) = self._get_monitored_variable_names(config.diagnostics)
+
+    @staticmethod
+    def _get_monitored_variable_names(
+        diagnostics: Sequence[DiagnosticFileConfig],
+    ) -> Tuple[Sequence[str], Sequence[str]]:
+        """Get sequences of tendency and storage variables from diagnostics config."""
+        tendency_variables = []
+        storage_variables = []
+        for diag_file_config in diagnostics:
+            for variable in diag_file_config.variables:
+                if variable.startswith("tendency_of") and "_due_to_" in variable:
+                    short_name = variable.split("_due_to_")[0][len("tendency_of_") :]
+                    tendency_variables.append(short_name)
+                elif variable.startswith("storage_of") and "_path_due_to_" in variable:
+                    split_str = "_path_due_to_"
+                    short_name = variable.split(split_str)[0][len("storage_of_") :]
+                    storage_variables.append(short_name)
+        return tendency_variables, storage_variables
 
     _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
     _apply_postphysics_to_dycore_state = monitor(
         "python", TimeLoop._apply_postphysics_to_dycore_state
     )
-
-
-def globally_average_2d_diagnostics(
-    comm,
-    diagnostics: Mapping[str, xr.DataArray],
-    exclude: Optional[Sequence[str]] = None,
-) -> Mapping[str, float]:
-    averages = {}
-    exclude = exclude or []
-    for v in diagnostics:
-        if (set(diagnostics[v].dims) == {"x", "y"}) and (v not in exclude):
-            averages[v] = global_average(comm, diagnostics[v], diagnostics["area"])
-    return averages
