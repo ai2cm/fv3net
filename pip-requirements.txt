@@ -14,6 +14,10 @@ tensorflow-addons
 fv3config
 numba
 
+# prognostic run diagnostics requirements
+# this file depends on vcm, so pip-tools cannot lock it
+holoviews
+
 # Hope for more stable performance with these versions
 gcsfs>=2021.04.0
 
