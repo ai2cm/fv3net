@@ -88,6 +88,7 @@ def _get_input_vector(
     return input_layers, packed
 
 
+# TODO: rename to Builder?
 class _BPTTModel:
 
     TIME_DIM_NAME = "time"
@@ -321,6 +322,9 @@ class _BPTTModel:
             )
             return select(given_tendency_series_input)
 
+        # TODO this code is somewhat complex. Would be cleaner with keras'
+        # functional interface or tensorflow/pytorch's imperative code
+        # Do we have adequate regression coverage here to enable future refactors?
         tendency_add_layer = tf.keras.layers.Add(name="tendency_add")
         state_add_layer = tf.keras.layers.Add(name="state_add")
         add_time_dim_layer = tf.keras.layers.Lambda(lambda x: x[:, None, :])
@@ -358,6 +362,7 @@ class _BPTTModel:
             inputs=input_series_layers + state_layers + given_tendency_series_layers,
             outputs=tendency_outputs,
         )
+        # TODO does keras add the losses added when optimizing?
         train_keras_model.compile(optimizer=self.optimizer, loss=self.losses)
         return train_keras_model, train_tendency_keras_model
 
@@ -453,6 +458,7 @@ class _BPTTModel:
         def get_initial_state(X):
             return get_keras_arrays(X, self.prognostic_packer.pack_names, 0)
 
+        # TODO prefer "baseline" or "prescribed" over "given".
         def get_given_tendency(X):
             return get_keras_arrays(X, self.given_tendency_names, slice(0, -1))
 
@@ -461,6 +467,7 @@ class _BPTTModel:
     def get_target_state(self, X):
         return get_keras_arrays(X, self.prognostic_packer.pack_names, slice(1, None))
 
+    # TODO: delete these methods?
     @classmethod
     def load(cls, path):
         raise NotImplementedError(
@@ -696,6 +703,7 @@ class StepwiseModel(PureKerasModel):
     include air_temperature and specific_humidity
     """
 
+    # TODO typehint
     def integrate_stepwise(self, ds: xr.Dataset):
         """
         Args:
