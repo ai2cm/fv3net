@@ -463,17 +463,17 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
             # Compute statistics
             for variable in self._tendency_variables:
-                diags[f"tendency_of_{variable}_due_to_{name}"] = (
-                    after[variable] - before[variable]
-                ) / self._timestep
+                diag_name = f"tendency_of_{variable}_due_to_{name}"
+                diags[diag_name] = (after[variable] - before[variable]) / self._timestep
+                diags[diag_name].attrs["units"] = before[variable].units + "/s"
 
             for variable in self._storage_variables:
                 path_before = (before[variable] * delp_before).sum("z") / gravity
                 path_after = (after[variable] * delp_after).sum("z") / gravity
 
-                diags[f"storage_of_{variable}_path_due_to_{name}"] = (
-                    path_after - path_before
-                ) / self._timestep
+                diag_name = f"storage_of_{variable}_path_due_to_{name}"
+                diags[diag_name] = (path_after - path_before) / self._timestep
+                diags[diag_name].attrs["units"] = before[variable].units + " kg/m**2/s"
 
             mass_change = (delp_after - delp_before).sum("z") / self._timestep
             mass_change.attrs["units"] = "Pa/s"
