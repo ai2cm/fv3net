@@ -684,15 +684,21 @@ class StepwiseModel(PureKerasModel):
     include air_temperature and specific_humidity
     """
 
-    # TODO typehint
-    def integrate_stepwise(self, ds: xr.Dataset):
-        """
+    def integrate_stepwise(self, ds: xr.Dataset) -> xr.Dataset:
+        """Perform an identical integration to the one used to train the
+        model.
+        
         Args:
-            ds: dataset containing model inputs, as well as
+            ds: dataset containing time series of model inputs, as well as
                 air_temperature_tendency_due_to_model,
                 air_temperature_tendency_due_to_nudging,
                 specific_humidity_tendency_due_to_model, and
                 specific_humidity_tendency_due_to_nudging
+
+        Returns:
+            integated_dataset: simulated time series with applied
+                "<variable>_tendency_due_to_model" and predicted ML
+                tendencies from ``self.model``. 
         """
         time = ds["time"]
         timestep_seconds = (
