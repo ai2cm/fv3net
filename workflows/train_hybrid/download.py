@@ -93,7 +93,7 @@ def apparent_moistening(data: FineResBudget):
 
 fs = fsspec.filesystem("gs")
 output_location = (
-    "/Users/noah/data/noahb/hybrid-fine-res/2021-05-05-hybrid-training.zarr"
+    "/Users/noah/data/gs/vcm-ml-archive/noahb/hybrid-fine-res/2021-05-05-hybrid-training.zarr"
 )
 
 # created by this commit:
