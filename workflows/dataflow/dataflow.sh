@@ -12,7 +12,6 @@ vcmPackages=(
   "${ROOT}/workflows/dataflow"
   "${ROOT}/external/vcm"
   "${ROOT}/workflows/fine_res_budget"
-  "${ROOT}/external/xpartition"
   "${ROOT}/external/gcsfs"
 )
 
@@ -43,7 +42,6 @@ function checkInstallation {
   pip install apache_beam
   pip install dists/vcm*.tar.gz
   pip install dists/budget*.tar.gz
-  pip install dists/xpartition*.tar.gz
   pip install dists/gcsfs*.tar.gz
 }
 
@@ -54,7 +52,6 @@ function runRemote {
   --extra_package dists/vcm*.tar.gz \
   --extra_package dists/fv3net*.tar.gz \
   --extra_package dists/budget*.tar.gz \
-  --extra_package dists/xpartition*.tar.gz \
   --extra_package dists/gcsfs*.tar.gz \
   "
   
