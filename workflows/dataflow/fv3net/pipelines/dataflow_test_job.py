@@ -23,7 +23,7 @@ def fake_data(_):
     # simple import to make sure it work
     logging.info("Package Info " + get_package_info())
     vcm.net_heating
-    xpartition.DataArrayAccessor
+    xpartition.PartitionDataArrayAccessor
     return xr.Dataset({"a": (["x"], np.ones(10))})
 
 
