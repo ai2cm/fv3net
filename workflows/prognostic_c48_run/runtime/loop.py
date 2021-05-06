@@ -312,6 +312,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             )
         self._log_info(f"python_timing:{json.dumps(reduced)}")
 
+    @property
     def _substeps(self) -> Sequence[Callable[..., Diagnostics]]:
         return [
             self._step_dynamics,
@@ -426,7 +427,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
     def __iter__(self):
         for i in range(self._fv3gfs.get_step_count()):
             diagnostics = {}
-            for substep in self._substeps():
+            for substep in self._substeps:
                 with self._timer.clock(substep.__name__):
                     diagnostics.update(substep())
             yield self._state.time, diagnostics
