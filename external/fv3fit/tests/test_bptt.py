@@ -1,7 +1,6 @@
 import pytest
 import xarray as xr
 import tensorflow as tf
-import joblib
 import numpy as np
 from datetime import timedelta
 from cftime import DatetimeProlepticGregorian as datetime
