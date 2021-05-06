@@ -697,7 +697,7 @@ class StepwiseModel(PureKerasModel):
         Returns:
             integated_dataset: simulated time series with applied
                 "<variable>_tendency_due_to_model" and predicted ML
-                tendencies from ``self.model``. 
+                tendencies from ``self.model``.
         """
         time = ds["time"]
         timestep_seconds = (
