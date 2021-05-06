@@ -4,7 +4,7 @@ import tensorflow as tf
 import numpy as np
 from datetime import timedelta
 from cftime import DatetimeProlepticGregorian as datetime
-from fv3fit.keras._models.recurrent import _BPTTModel as BPTTModel
+from fv3fit.keras._models.recurrent import _BPTTTrainer as _BPTTTrainer
 import tempfile
 import fv3fit
 import os
@@ -77,7 +77,7 @@ def get_train_dataset(sample_dim_name, dt):
 
 
 def get_model(sample_dim_name, use_moisture_limiter):
-    return BPTTModel(
+    return _BPTTTrainer(
         sample_dim_name,
         ["a", "b"],
         n_units=32,
@@ -182,7 +182,7 @@ def test_predict_model_can_predict_columnwise(sample_dim_name, dt):
     train_dataset = get_train_dataset(sample_dim_name, dt)
     np.random.seed(0)
     tf.random.set_seed(1)
-    model = BPTTModel(
+    model = _BPTTTrainer(
         sample_dim_name,
         ["a", "b"],
         n_units=32,
@@ -204,7 +204,7 @@ def test_train_model_uses_correct_given_tendency(sample_dim_name, dt):
     train_dataset = get_train_dataset(sample_dim_name, dt)
     np.random.seed(0)
     tf.random.set_seed(1)
-    model = BPTTModel(
+    model = _BPTTTrainer(
         sample_dim_name,
         ["a", "b"],
         n_units=32,
@@ -268,7 +268,7 @@ def test_train_model_uses_correct_given_tendency(sample_dim_name, dt):
 
 def test_predict_model_gives_different_tendencies(sample_dim_name, dt):
     train_dataset = get_train_dataset(sample_dim_name, dt)
-    model = BPTTModel(
+    model = _BPTTTrainer(
         sample_dim_name,
         ["a", "b"],
         n_units=32,
@@ -286,7 +286,7 @@ def test_predict_model_gives_different_tendencies(sample_dim_name, dt):
 
 def test_train_model_gives_different_outputs(sample_dim_name, dt):
     train_dataset = get_train_dataset(sample_dim_name, dt)
-    model = BPTTModel(
+    model = _BPTTTrainer(
         sample_dim_name,
         ["a", "b"],
         n_units=32,
@@ -320,7 +320,7 @@ def test_integrate_stepwise(sample_dim_name, dt):
     train_dataset = get_train_dataset(sample_dim_name, dt)
     np.random.seed(0)
     tf.random.set_seed(1)
-    model = BPTTModel(
+    model = _BPTTTrainer(
         sample_dim_name,
         ["a", "b"],
         n_units=32,
@@ -363,7 +363,7 @@ def test_integrate_stepwise(sample_dim_name, dt):
 
 def test_reloaded_model_gives_same_outputs(sample_dim_name, dt):
     train_dataset = get_train_dataset(sample_dim_name, dt)
-    model = BPTTModel(
+    model = _BPTTTrainer(
         sample_dim_name,
         ["a", "b"],
         n_units=32,

@@ -88,8 +88,7 @@ def _get_input_vector(
     return input_layers, packed
 
 
-# TODO: rename to Builder?
-class _BPTTModel:
+class _BPTTTrainer:
 
     TIME_DIM_NAME = "time"
 
@@ -178,7 +177,7 @@ class _BPTTModel:
         self.prognostic_scaler.fit(state)
         self.tendency_scaler.std = self.prognostic_scaler.std
         self.tendency_scaler.mean = np.zeros_like(self.prognostic_scaler.mean)
-        time = X[_BPTTModel.TIME_DIM_NAME]
+        time = X[_BPTTTrainer.TIME_DIM_NAME]
         try:
             self._train_timestep_seconds = (
                 time[1].values.item() - time[0].values.item()
@@ -404,7 +403,7 @@ class _BPTTModel:
                 self.train_keras_model,
                 self.train_tendency_model,
                 self.predict_keras_model,
-            ) = self._build(len(X[_BPTTModel.TIME_DIM_NAME]) - 1)
+            ) = self._build(len(X[_BPTTTrainer.TIME_DIM_NAME]) - 1)
         if tuple(self.prognostic_packer.pack_names) != (
             "air_temperature",
             "specific_humidity",
@@ -420,7 +419,7 @@ class _BPTTModel:
         for name in list(self.input_packer.pack_names) + list(
             self.prognostic_packer.pack_names
         ):
-            assert X[name].dims[1] == _BPTTModel.TIME_DIM_NAME
+            assert X[name].dims[1] == _BPTTTrainer.TIME_DIM_NAME
 
         self.train_keras_model.fit(
             x=self.get_keras_inputs(X),

@@ -70,7 +70,7 @@ if __name__ == "__main__":
     with open(first_filename, "rb") as f:
         ds = xr.open_dataset(f)
         sample_dim_name = ds["air_temperature"].dims[0]
-        model = fv3fit.keras._models.recurrent._BPTTModel(
+        model = fv3fit.keras._models.recurrent._BPTTTrainer(
             sample_dim_name,
             input_names,
             kernel_regularizer=regularizer,
