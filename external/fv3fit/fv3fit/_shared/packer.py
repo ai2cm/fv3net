@@ -1,4 +1,13 @@
-from typing import Iterable, TextIO, List, Dict, Tuple, cast, Mapping, Sequence
+from typing import (
+    Iterable,
+    TextIO,
+    List,
+    Dict,
+    Tuple,
+    cast,
+    Mapping,
+    Sequence,
+)
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -62,7 +71,7 @@ class ArrayPacker:
         self._pack_names = list(pack_names)
         self._n_features: Dict[str, int] = {}
         self._sample_dim_name = sample_dim_name
-        self._dims: Dict[str, Iterable[str]] = {}
+        self._dims: Dict[str, Sequence[str]] = {}
 
     @property
     def pack_names(self) -> List[str]:
@@ -106,14 +115,14 @@ class ArrayPacker:
         """
         if len(self._n_features) == 0:
             self._n_features.update(
-                count_features(self.pack_names, dataset, self._sample_dim_name)
+                _count_features_2d(self.pack_names, dataset, self._sample_dim_name)
             )
             for name in self.pack_names:
                 self._dims[name] = cast(Tuple[str], dataset[name].dims)
         for var in self.pack_names:
             if dataset[var].dims[0] != self.sample_dim_name:
                 dataset[var] = dataset[var].transpose()
-        array = to_array(dataset, self.pack_names, self.feature_counts)
+        array = _to_array_2d(dataset, self.pack_names, self.feature_counts)
         return array
 
     def to_dataset(self, array: np.ndarray) -> xr.Dataset:
@@ -129,6 +138,8 @@ class ArrayPacker:
         Returns:
             dataset: xarray dataset with data from the given array
         """
+        if len(array.shape) > 2:
+            raise NotImplementedError("can only restore 2D arrays to datasets")
         if len(self._n_features) == 0:
             raise RuntimeError(
                 "must pack at least once before unpacking, "
@@ -156,10 +167,11 @@ class ArrayPacker:
         return packer
 
 
-def to_array(
-    dataset: xr.Dataset, pack_names: Sequence[str], feature_counts: Mapping[str, int]
+def _to_array_2d(
+    dataset: xr.Dataset, pack_names: Sequence[str], feature_counts: Mapping[str, int],
 ):
-    """Convert dataset into a 2D array with [sample, feature] dimensions.
+    """
+    Convert dataset into a 2D array with [sample, feature] dimensions.
 
     The first dimension of each variable to pack is assumed to be the sample dimension,
     and the second (if it exists) is assumed to be the feature dimension.
@@ -176,7 +188,9 @@ def to_array(
     # we can assume here that the first dimension is the sample dimension
     n_samples = dataset[pack_names[0]].shape[0]
     total_features = sum(feature_counts[name] for name in pack_names)
+
     array = np.empty([n_samples, total_features])
+
     i_start = 0
     for name in pack_names:
         n_features = feature_counts[name]
@@ -191,7 +205,7 @@ def to_array(
 def to_dataset(
     array: np.ndarray,
     pack_names: Iterable[str],
-    dimensions: Mapping[str, Iterable[str]],
+    dimensions: Mapping[str, Sequence[str]],
     feature_counts: Mapping[str, int],
 ):
     """Restore a dataset from a 2D [sample, feature] array.
@@ -224,31 +238,24 @@ def to_dataset(
     return xr.Dataset(data_vars)  # type: ignore
 
 
-def count_features(
+def _count_features_2d(
     quantity_names: Iterable[str], dataset: xr.Dataset, sample_dim_name: str
 ) -> Mapping[str, int]:
-    """Count the number of ML outputs corresponding to a set of quantities in a dataset.
-
-    The first dimension of all variables indicated must be the sample dimension,
-    and they must have at most one other dimension (treated as the "feature" dimension).
-
-    Args:
-        quantity_names: names of variables to include in the count
-        dataset: a dataset containing the indicated variables
-        sample_dim_name: dimension to treat as the "sample" dimension, any other
-            dimensions are treated as a "feature" dimension.
     """
-
+    count features for (sample[, z]) arrays
+    """
+    for name in quantity_names:
+        if len(dataset[name].dims) > 2:
+            value = dataset[name]
+            raise ValueError(
+                "can only pack 1D/2D (sample[, z]) "
+                f"variables, recieved value for {name} with dimensions {value.dims}"
+            )
     return_dict = {}
     for name in quantity_names:
         value = dataset[name]
         if len(value.dims) == 1 and value.dims[0] == sample_dim_name:
             return_dict[name] = 1
-        elif len(value.dims) > 2:
-            raise ValueError(
-                "can only pack 1D or 2D variables, recieved value "
-                f"for {name} with dimensions {value.dims}"
-            )
         elif value.dims[0] != sample_dim_name:
             raise ValueError(
                 f"cannot pack value for {name} whose first dimension is not the "
