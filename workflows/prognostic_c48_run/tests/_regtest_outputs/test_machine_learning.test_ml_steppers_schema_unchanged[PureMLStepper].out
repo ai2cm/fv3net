@@ -10,7 +10,7 @@ variables:
 		column_integrated_dQ1_change_non_neg_sphum_constraint:units = W/m**2 ;
 	float64 column_integrated_dQ2_change_non_neg_sphum_constraint(y, x) ;
 		column_integrated_dQ2_change_non_neg_sphum_constraint:units = kg/m^2/s ;
-	int64 rank_updated_points(z, y, x) ;
+	int64 specific_humidity_limiter_active(z, y, x) ;
 
 // global attributes:
 }xarray.Dataset {

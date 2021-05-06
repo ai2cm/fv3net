@@ -1,4 +1,3 @@
-import datetime
 import json
 import os
 import tempfile
@@ -47,35 +46,6 @@ from .names import AREA, DELP, TOTAL_PRECIP
 logger = logging.getLogger(__name__)
 
 gravity = 9.81
-
-
-def setup_metrics_logger():
-    logger = logging.getLogger("statistics")
-    fh = logging.FileHandler("statistics.txt")
-    fh.setLevel(logging.INFO)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    ch.setFormatter(logging.Formatter(fmt="%(levelname)s:%(name)s:%(message)s"))
-
-    logger.addHandler(fh)
-    logger.addHandler(ch)
-
-
-def log_scalar(time, scalars):
-    dt = datetime.datetime(
-        time.year, time.month, time.day, time.hour, time.minute, time.second
-    )
-    msg = json.dumps({"time": dt.isoformat(), **scalars})
-    logging.getLogger("statistics").info(msg)
-
-
-def global_average(comm, array: xr.DataArray, area: xr.DataArray) -> float:
-    ans = comm.reduce((area * array).sum().item(), root=0)
-    area_all = comm.reduce(area.sum().item(), root=0)
-    if comm.rank == 0:
-        return float(ans / area_all)
-    else:
-        return -1
 
 
 class Stepper(Protocol):
@@ -410,20 +380,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 self._state.time, self._state
             )
             self._state_updates.update(state_updates)
-            try:
-                rank_updated_points = diagnostics["rank_updated_points"]
-            except KeyError:
-                pass
-            else:
-                updated_points = self.comm.reduce(rank_updated_points, root=0)
-                if self.comm.rank == 0:
-                    level_updates = {
-                        i: int(value)
-                        for i, value in enumerate(updated_points.sum(["x", "y"]).values)
-                    }
-                    logger.info(
-                        f"specific_humidity_limiter_updates_per_level: {level_updates}"
-                    )
             return diagnostics
 
     def _apply_postphysics_to_dycore_state(self) -> Diagnostics:
@@ -564,16 +520,3 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
     _apply_postphysics_to_dycore_state = monitor(
         "python", TimeLoop._apply_postphysics_to_dycore_state
     )
-
-
-def globally_average_2d_diagnostics(
-    comm,
-    diagnostics: Mapping[str, xr.DataArray],
-    exclude: Optional[Sequence[str]] = None,
-) -> Mapping[str, float]:
-    averages = {}
-    exclude = exclude or []
-    for v in diagnostics:
-        if (set(diagnostics[v].dims) == {"x", "y"}) and (v not in exclude):
-            averages[v] = global_average(comm, diagnostics[v], diagnostics["area"])
-    return averages

@@ -1,8 +1,12 @@
+import datetime
+import json
 import logging
 import contextlib
 import tempfile
 import sys
 import os
+from typing import Any, Mapping, Union
+import cftime
 
 
 @contextlib.contextmanager
@@ -81,6 +85,36 @@ def capture_fv3gfs_funcs():
 
     for func in ["step_dynamics", "step_physics", "initialize", "cleanup"]:
         setattr(wrapper, func, captured_stream(getattr(wrapper, func)))
+
+
+def setup_file_logger(name: str):
+    """Configure a logger which streams to name.txt as well as stderr."""
+    logger = logging.getLogger(name)
+    fh = logging.FileHandler(f"{name}.txt")
+    fh.setLevel(logging.INFO)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    ch.setFormatter(logging.Formatter(fmt="%(levelname)s:%(name)s:%(message)s"))
+
+    logger.addHandler(fh)
+    logger.addHandler(ch)
+
+
+def log_mapping(
+    time: Union[datetime.datetime, cftime.DatetimeJulian],
+    content: Mapping[str, Any],
+    logger_name: str,
+):
+    """Serialize a mapping 'content' to logger_name using JSON.
+    
+    Warning:
+        content must be a mapping whose keys and values are serializable by JSON.
+    """
+    dt = datetime.datetime(
+        time.year, time.month, time.day, time.hour, time.minute, time.second
+    )
+    msg = json.dumps({"time": dt.isoformat(), **content})
+    logging.getLogger(logger_name).info(msg)
 
 
 if __name__ == "__main__":
