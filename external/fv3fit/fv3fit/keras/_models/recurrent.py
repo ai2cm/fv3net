@@ -454,7 +454,6 @@ class _BPTTTrainer:
         def get_initial_state(X):
             return get_keras_arrays(X, self.prognostic_packer.pack_names, 0)
 
-        # TODO prefer "baseline" or "prescribed" over "given".
         def get_given_tendency(X):
             return get_keras_arrays(X, self.given_tendency_names, slice(0, -1))
 
