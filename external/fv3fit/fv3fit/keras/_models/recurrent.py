@@ -321,9 +321,7 @@ class _BPTTTrainer:
             )
             return select(given_tendency_series_input)
 
-        # TODO this code is somewhat complex. Would be cleaner with keras'
-        # functional interface or tensorflow/pytorch's imperative code
-        # Do we have adequate regression coverage here to enable future refactors?
+        # TODO add checksum test to test_bptt
         tendency_add_layer = tf.keras.layers.Add(name="tendency_add")
         state_add_layer = tf.keras.layers.Add(name="state_add")
         add_time_dim_layer = tf.keras.layers.Lambda(lambda x: x[:, None, :])
@@ -361,7 +359,6 @@ class _BPTTTrainer:
             inputs=input_series_layers + state_layers + given_tendency_series_layers,
             outputs=tendency_outputs,
         )
-        # TODO does keras add the losses added when optimizing?
         train_keras_model.compile(optimizer=self.optimizer, loss=self.losses)
         return train_keras_model, train_tendency_keras_model
 
@@ -465,20 +462,6 @@ class _BPTTTrainer:
 
     def get_target_state(self, X):
         return get_keras_arrays(X, self.prognostic_packer.pack_names, slice(1, None))
-
-    # TODO: delete these methods?
-    @classmethod
-    def load(cls, path):
-        raise NotImplementedError(
-            "class meant for training only, "
-            "should be using self.predictor_model to load/predict"
-        )
-
-    def predict(self, *args, **kwargs):
-        raise NotImplementedError(
-            "class meant for training only, "
-            "should be using self.predictor_model to load/predict"
-        )
 
     @property
     def predictor_model(self) -> "StepwiseModel":
