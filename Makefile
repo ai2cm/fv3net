@@ -185,7 +185,7 @@ lint:
 	@echo "LINTING SUCCESSFUL"
 
 reformat:
-	black $(PYTHON_FILES) $(PYTHON_INIT_FILES)
+	pre-commit run --all-files black
 
 #################################################################################
 # Self Documenting Commands                                                     #
