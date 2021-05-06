@@ -4,16 +4,24 @@ CONDA_ENV=$1
 
 source activate $CONDA_ENV
 
+# we want to force a rebuild in case numpy version changes
+# this doesn't rebuild automatically when dependencies change version
+rm -f "external/vcm/vcm/mappm.*.so"
+rm -rf external/vcm/build
+
 local_packages_to_install=( 
   external/vcm
   external/loaders
   external/fv3fit
+  external/fv3gfs-util
 )
 set -e
 for package  in "${local_packages_to_install[@]}"
 do
   pip install -c constraints.txt -e "$package"
 done
+
+pip install --no-deps --upgrade external/gcsfs
 set +e
 
   

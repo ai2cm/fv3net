@@ -1,7 +1,7 @@
 FROM jupyter/base-notebook as build
 
 # Manually increment this string to invalidate the cache
-ENV MANUAL_CACHE_STRING 1
+ENV MANUAL_CACHE_STRING 2
 
 # Install dependencies (slow)
 USER root
@@ -69,12 +69,14 @@ RUN fix-permissions $FV3NET/docs
 USER $NB_UID
 RUN make -C $FV3NET/docs html
 RUN make -C $FV3NET/external/fv3viz/docs html
+RUN make -C $FV3NET/external/fv3fit/docs html
 RUN make -C $FV3NET/external/loaders/docs html
 RUN make -C $FV3NET/workflows/prognostic_run_diags/docs html
 RUN make -C $FV3NET/external/vcm/docs html
 RUN mkdir fv3net_docs
 RUN cp -r $FV3NET/docs/_build/html fv3net_docs/fv3net
 RUN cp -r $FV3NET/external/fv3viz/docs/_build/html fv3net_docs/fv3viz
+RUN cp -r $FV3NET/external/fv3fit/docs/_build/html fv3net_docs/fv3fit
 RUN cp -r $FV3NET/external/loaders/docs/_build/html fv3net_docs/loaders
 RUN cp -r $FV3NET/workflows/prognostic_run_diags/docs/_build/html fv3net_docs/prognostic_run_diags
 RUN cp -r $FV3NET/external/vcm/docs/_build/html fv3net_docs/vcm

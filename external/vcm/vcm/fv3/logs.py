@@ -90,6 +90,8 @@ def loads(log: str) -> FV3Log:
         graupel max =   1.3989445E-02  min =  -4.0843832E-05
         o3mr max =   1.7852419E-05  min =   2.2205915E-09
         sgs_tke max =    130.6761      min =   9.8705533E-10
+        cld_amt max =    1.0000000000000000       min =    0.0000000000000000
+        Max_cld GB_NH_SH_EQ  0.38806349956593428       0.34442529145606493       ...
 
     Currently it only supports the min/max and total statistics.
 
@@ -101,6 +103,7 @@ def loads(log: str) -> FV3Log:
     lines = log.splitlines()
     min_max_regex = re.compile(r"(.*)max *= *([0-9E\-\.]+) *min = *([0-9E\-\+\.]+)")
     zs_regexp = re.compile(r"ZS *([0-9E\-\.]+) +([0-9E\-\.]+) +([0-9E\-\+\.]+)")
+    end_stats_block_regexp = re.compile(r"Max_cld GB_NH_SH_EQ")
     totals = defaultdict(list)
     min_max = defaultdict(list)
     dates = []
@@ -117,6 +120,7 @@ def loads(log: str) -> FV3Log:
     }
 
     date = None
+    in_stats_block = False
     for line in lines:
 
         if "fv_restart_end" in line:
@@ -140,16 +144,21 @@ def loads(log: str) -> FV3Log:
             #         2016           8           2           8           0           0
             #  ZS      6849.180      -412.0000       231.8707
             dates.append(date)
+            in_stats_block = True
 
-        match = min_max_regex.search(line)
-        if match:
-            name, max_, min_ = match.groups()
-            name = name.strip()
-            min_max[name].append((float(min_), float(max_)))
+        if in_stats_block:
+            match = min_max_regex.search(line)
+            if match:
+                name, max_, min_ = match.groups()
+                name = name.strip()
+                min_max[name].append((float(min_), float(max_)))
 
-        for variable, parser in mean_patterns.items():
-            val = parser(line)
-            if val is not None:
-                totals[variable].append(val)
+            if end_stats_block_regexp.search(line):
+                in_stats_block = False
+
+            for variable, parser in mean_patterns.items():
+                val = parser(line)
+                if val is not None:
+                    totals[variable].append(val)
 
     return FV3Log(set_initial_date(dates), dict(totals), dict(min_max))

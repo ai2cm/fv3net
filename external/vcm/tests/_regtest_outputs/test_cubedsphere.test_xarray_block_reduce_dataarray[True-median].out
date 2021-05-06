@@ -1,0 +1,13 @@
+919ca49721b5b0a8628f273067a8fb4f
+xarray.Dataset {
+dimensions:
+	x = 2 ;
+	y = 2 ;
+	z = 2 ;
+
+variables:
+	float32 a(x, y, z) ;
+		a:units = m ;
+
+// global attributes:
+}

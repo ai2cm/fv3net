@@ -99,7 +99,7 @@ jobs:
       image:
         default: fv3net
         type: enum
-        enum: ["prognostic_run", "post_process_run", "fv3net", "fv3fit"]
+        enum: ["prognostic_run", "post_process_run", "fv3net"]
     machine: 
       image: ubuntu-1604:202007-01
     environment:
@@ -132,7 +132,7 @@ jobs:
       - image: circleci/python:3.7
     steps:
       - checkout
-      - run: sudo pip install black==19.10b0 flake8==3.7.9
+      - run: sudo pip install -c constraints.txt pre-commit
       - run: make lint
 
   integration_tests:
@@ -223,7 +223,7 @@ workflows:
       - build_default:
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run", "fv3fit"]
+              image: ["prognostic_run", "fv3net", "post_process_run"]
       - integration_tests:
           requires:
             - build_default
@@ -244,7 +244,7 @@ workflows:
       - build_default:
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run", "fv3fit"]
+              image: ["prognostic_run", "fv3net", "post_process_run"]
           filters:
             tags:
               only: /^v.*/

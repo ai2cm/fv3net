@@ -200,9 +200,10 @@ def _average_states(state_0: State, state_1: State, weight: float) -> State:
     out = {}
     for key in common_keys:
         if isinstance(state_1[key], xr.DataArray):
-            out[key] = (
-                state_0[key] * weight + (1 - weight) * state_1[key]  # type: ignore
-            )
+            with xr.set_options(keep_attrs=True):
+                out[key] = (
+                    state_0[key] * weight + (1 - weight) * state_1[key]  # type: ignore
+                )
     return out
 
 
@@ -250,11 +251,7 @@ def get_reference_surface_temperatures(state: State, reference: State) -> State:
             reference[TSFC_NAME], state[TSFC_NAME], state[MASK_NAME]
         ),
     }
-    # TODO fix this bug in a follow-up non-refactor PR
-    # this logic replicates a bug in the previous nudged run
-    # the SSTs were never actually applied to the fv3gfs-wrapper state
-    # This bug could be scientifically significant.
-    return {}
+    return state
 
 
 def _sst_from_reference(
@@ -266,4 +263,4 @@ def _sst_from_reference(
         land_sea_mask.values.round().astype("int") == 0,
         reference_surface_temperature,
         surface_temperature,
-    ).assign_attrs(units=reference_surface_temperature.units)
+    ).assign_attrs(units=surface_temperature.units)

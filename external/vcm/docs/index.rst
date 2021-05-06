@@ -22,9 +22,9 @@ It is licensed under a BSD License.
    sampling
    derived-mapping
    grid-operations
-   xarray-loaders
+   interpolation
+   xarray-io
    xarray-tools
-   metadata
    thermodynamics
    times
 

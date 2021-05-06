@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 import xarray as xr
-from skimage.measure import block_reduce as skimage_block_reduce
 import xgcm
+import joblib
 
 from vcm.cubedsphere.coarsen import (
     _block_mode,
@@ -28,8 +28,9 @@ from vcm.cubedsphere.constants import (
     COORD_Y_OUTER,
 )
 from vcm.cubedsphere.io import all_filenames
-from vcm.cubedsphere import create_fv3_grid
+from vcm.cubedsphere import create_fv3_grid, to_cross
 from vcm.xarray_utils import assert_identical_including_dtype
+import vcm.testing
 
 
 def remove_duplicate_coords(ds):
@@ -260,27 +261,20 @@ def input_dataset(input_dataarray):
 
 @pytest.mark.parametrize("reduction_function", [np.mean, np.median])
 @pytest.mark.parametrize("use_dask", [False, True])
-def test_xarray_block_reduce_dataarray(reduction_function, use_dask, input_dataarray):
-    block_size = (2, 2, 1)
-    expected_data = skimage_block_reduce(
-        input_dataarray.values, block_size=block_size, func=reduction_function
-    )
-    expected = xr.DataArray(
-        expected_data,
-        dims=input_dataarray.dims,
-        coords=None,
-        name="foo",
-        attrs={"units": "m"},
-    )
-
+def test_xarray_block_reduce_dataarray(
+    reduction_function, use_dask, input_dataarray, regtest
+):
     if use_dask:
         input_dataarray = input_dataarray.chunk({"x": 2, "y": 2, "z": -1})
-
     block_sizes = {"x": 2, "y": 2}
     result = _xarray_block_reduce_dataarray(
         input_dataarray, block_sizes, reduction_function
     )
-    assert_identical_including_dtype(result, expected)
+    print(vcm.testing.checksum_dataarray(result), file=regtest)
+    for coord in result.coords:
+        print(np.asarray(result[coord]), file=regtest)
+    # This ensures the metadata is correct
+    result.to_dataset(name="a").info(regtest)
 
 
 def test_xarray_block_reduce_dataarray_bad_chunk_size(input_dataarray):
@@ -824,3 +818,26 @@ def test_xgcm_grid_interp(grid_dataset):
 
     grid = create_fv3_grid(grid_dataset)
     grid.interp(grid_dataset.a, "x")
+
+
+@pytest.mark.parametrize("x_dim", ["grid_xt", "x"])
+@pytest.mark.parametrize("y_dim", ["grid_yt", "y"])
+@pytest.mark.parametrize("tile_dim", ["tile", "randomname"])
+@pytest.mark.parametrize("transpose", [True, False])
+def test_to_cross(transpose, tile_dim, x_dim, y_dim):
+    extra_dim = "extra"
+    arr = xr.DataArray(
+        np.arange(2 * 2 * 6).reshape((1, 6, 2, 2)),
+        dims=(extra_dim, tile_dim, y_dim, x_dim),
+    )
+
+    if transpose:
+        arr = arr.transpose(x_dim, tile_dim, extra_dim, y_dim)
+
+    one_tile = to_cross(arr, tile=tile_dim, x=x_dim, y=y_dim)
+    one_tile = one_tile.transpose(..., y_dim, x_dim)
+    assert one_tile.dims == (extra_dim, y_dim, x_dim)
+
+    # manually hardcode the hash since it is shared across all parameterize
+    # statements
+    assert joblib.hash(one_tile.values) == "04eddd324d0f3150a02499c788ec675d"

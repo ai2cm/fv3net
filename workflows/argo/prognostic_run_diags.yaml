@@ -136,7 +136,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: us.gcr.io/vcm-ml/fv3net
+      image: us.gcr.io/vcm-ml/fv3net:90d6b7d28fd5a879a51ff3c25df6b7d4feb21480
       command:
       - memoized_compute_diagnostics.sh
       - "{{inputs.parameters.run}}"
@@ -174,12 +174,11 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: us.gcr.io/vcm-ml/fv3net
+      image: us.gcr.io/vcm-ml/fv3net:90d6b7d28fd5a879a51ff3c25df6b7d4feb21480
       command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - |
-        prognostic_run_diags movie {{inputs.parameters.run}} /tmp/movie_stills
-        stitch_movie_stills.sh /tmp/movie_stills {{inputs.parameters.output}}
+        prognostic_run_diags movie {{inputs.parameters.run}} {{inputs.parameters.output}}
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS

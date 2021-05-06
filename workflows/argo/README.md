@@ -28,7 +28,6 @@ This job can be monitored by running
 
 These workflows currently refer to following images without using any tags:
 1. us.gcr.io/vcm-ml/fv3net
-1. us.gcr.io/vcm-ml/fv3fit
 1. us.gcr.io/vcm-ml/prognostic_run
 1. us.gcr.io/vcm-ml/post_process_run
 
@@ -42,8 +41,6 @@ resources:
 - <path/to/fv3net/workflows/argo>
 kind: Kustomization
 images:
-- name: us.gcr.io/vcm-ml/fv3fit
-  newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
 - name: us.gcr.io/vcm-ml/fv3net
   newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
 - name: us.gcr.io/vcm-ml/post_process_run
@@ -67,14 +64,23 @@ sequential segments.
 | `initial-condition`  | Timestamp string for time at which to begin the prognostic run                |
 | `config`             | String representation of base config YAML file; supplied to prepare_config.py |
 | `reference-restarts` | Location of restart data for initializing the prognostic run                  |
-| `output`             | Location to save prognostic run output                                        |
-| `flags`              | (optional) extra command line flags for prepare_config.py                     |
+| `tag`                | Tag which describes the run and is used in its storage location               | 
+| `flags`              | (optional) Extra command line flags for prepare_config.py                     |
+| `bucket`             | (optional) Bucket to save run output data; default 'vcm-ml-experiments'       |
+| `project`            | (optional) Project directory to save run output data; default 'default'       |
 | `segment-count`      | (optional) Number of prognostic run segments; default "1"                     |
 | `cpu`                | (optional) Number of cpus to request; default "6"                             |
 | `memory`             | (optional) Amount of memory to request; default 6Gi                           |
 
 #### Command line interfaces used by workflow
-This workflow calls:
+This workflow first resolves the output location for the run according to:
+```
+output="gs://{bucket}/{project}/$(date +%F)/{tag}/fv3gfs_run"
+```
+Slashes (`/`) are not permitted in `bucket`, `project` and `tag` to preserve the depth 
+of this directory structure.
+
+And then calls:
 ```
 python3 /fv3net/workflows/prognostic_c48_run/prepare_config.py \
         {{inputs.parameters.flags}} \
@@ -85,11 +91,11 @@ python3 /fv3net/workflows/prognostic_c48_run/prepare_config.py \
 ```
 And then
 ```
-runfv3 create {{inputs.parameters.output}} /tmp/fv3config.yaml /fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
+runfv3 create {output} /tmp/fv3config.yaml /fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
 ```
 Followed by `segment-count` iterations of
 ```
-runfv3 append {{inputs.parameters.output}}
+runfv3 append {output}
 ```
 
 #### Volumes used by run-fv3gfs template
@@ -99,6 +105,19 @@ some limitations of argo, it is necessary that the entrypoint workflow makes a
 claim for volumes that are ultimately mounted and used by `run-fv3gfs`. See the
 `volumes` section of the `prognostic-run` workflow for an example of the volume claims 
 necessary to use `run-fv3gfs`.
+
+#### Restarting prognostic runs
+
+Once a prognostic run has finished running, it is possible to extend the run using the 
+`restart-prognostic-run` workflow. Note it is not possible to change any aspects of the
+configuration when restarting runs.
+
+| Parameter       | Description                                                  |
+|-----------------|--------------------------------------------------------------|
+| `url`           | Location of existing prognostic run.                         |
+| `segment-count` | (optional) Number of additional segments to run; default "1" |
+| `cpu`           | (optional) Number of cpus to request; default "6"            |
+| `memory`        | (optional) Amount of memory to request; default 6Gi          |
 
 ### Prognostic run report
 
@@ -184,7 +203,7 @@ This workflow trains machine learning models.
 | `input`                | Location of dataset for training data                |
 | `config`               | Model training config yaml                           |
 | `times`                | JSON-encoded list of timestamps to use for test data |
-| `offline-diags-output` | Where to save offline diagnsostics                   |
+| `offline-diags-output` | Where to save offline diagnostics                    |
 | `report-output`        | Where to save report                                 |
 | `memory`               | (optional) memory for workflow. Defaults to 6Gi.     |
 
@@ -230,17 +249,29 @@ python -m offline_ml_diags.create_report \
 This workflow template runs the `training`, `offline-diags`, `prognostic-run` and
 `prognostic-run-diags.diagnostics-step` workflow templates in sequence.
 
+This workflow takes a `training-configs` parameter which is the string representation of a JSON file that should be
+formatted as `[{name: model_name, config: model_config}, ...]`, and where the individal model config values are
+as for the `training` workflow.  In practice it may be easiest to write this as a YAML file and then converted to
+JSON format using `yq . config.yml` in a submission script.
+
+The default behavior for the final `prognostic-run-diags.diagnostics-step` is to use the default verification dataset
+(`40day_may2020`) to calculate the metrics. If this is not the appropriate verification data to use, make sure to specify
+the appropriate verification using the `online-diags-flags` parameter, e.g. `-p online-diags-flags="--verification <name>"`.
+
+
 | Parameter               | Description                                                           |
 |-------------------------|-----------------------------------------------------------------------|
-| `root`                  | URL for the outputs from this workflow                                |
+| `tag`                   | Tag which describes the experiment and is used in its storage location| 
 | `train-test-data`       | `input` for `training` workflow                                       |
-| `training-config`       | `config` for `training` workflow                                      |
+| `training-configs`      | List of dicts of type `{name: config}`, where `config` is the config used for `training` workflow |
 | `train-times`           | `times` for `training` workflow                                       |
 | `test-times`            | `times` for `offline-diags` workflow                                  |
 | `public-report-output`  | `report-output` for `offline-diags` workflow                          |
 | `initial-condition`     | `initial-condition` for `prognostic-run` workflow                     |
 | `prognostic-run-config` | `config` for `prognostic-run` workflow                                |
 | `reference-restarts`    | `reference-restarts` for `prognostic-run` workflow                    |
+| `bucket`                | (optional) Bucket to save output data; default 'vcm-ml-experiments'   |
+| `project`               | (optional) Project directory to save output data; default 'default'   |
 | `flags`                 | (optional) `flags` for `prognostic-run` workflow                      |
 | `segment-count`         | (optional) `segment-count` for `prognostic-run` workflow; default "1" |
 | `cpu-prog`              | (optional) `cpu` for `prognostic-run` workflow; default "6"           |
@@ -248,15 +279,11 @@ This workflow template runs the `training`, `offline-diags`, `prognostic-run` an
 | `memory-training`       | (optional) `memory` for `training` workflow; default 6Gi              |
 | `memory-offline-diags`  | (optional) `memory` for `offline-diags` workflow; default 6Gi         |
 | `training-flags`        | (optional) `flags` for `training` workflow                            |
+| `online-diags-flags`    | (optional) `flags` for `prognostic-run-diags` workflow                |
 
-### train-diags-prog-multiple-models workflow template
-
-This is similar to the above `train-diags-prog` workflow, but trains and runs offline diagnostics for multiple
-ML models and then uses all trained models in the prognostic run. 
-
-The parameters are the same as for the `train-diags-prog` workflow except this workflow takes a `training-configs` parameter instead of `training-config`. This new parameter is the string representation of a JSON file, which should be formatted as `[{name: model_name, config: model_config}, ...]`, and where the individal model config values are
-as for the `training` workflow.  In practice it may be easiest to write this as a YAML file and then converted to
-JSON format using `yq . config.yml` in a submission script.
+Output for the various steps will be written to `gs://{bucket}/{project}/$(date +%F)/{tag}`.
+Slashes (`/`) are not permitted in `bucket`, `project` and `tag` to preserve the depth 
+of this directory structure.
 
 ### Cubed-sphere to lat-lon interpolation workflow
 
@@ -267,7 +294,7 @@ for the regridded outputs, and a comma separated list of variables to regrid fro
 | Parameter       | Description                                                              | Example                         |
 |-----------------|--------------------------------------------------------------------------|---------------------------------|
 | `source_prefix` | Prefix of the source data in GCS (everything but .tile1.nc)              | gs://path/to/sfc_data (no tile) |
-| `output-bucket` | URL to output file in GCS                                                | gs://vcm-ml-data/output.nc      |
+| `output-bucket` | URL to output file in GCS                                                | gs://vcm-ml-scratch/output.nc      |
 | `resolution`    | Resolution of input data (defaults to C48)                               | one of 'C48', 'C96', or 'C384'  |
 | `fields`        | Comma-separated list of variables to regrid                              | PRATEsfc,LHTFLsfc,SHTFLsfc      |
 | `extra_args`    | Extra arguments to pass to fregrid. Typically used for target resolution | --nlat 180 --nlon 360           |
