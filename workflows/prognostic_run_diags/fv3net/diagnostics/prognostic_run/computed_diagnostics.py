@@ -16,6 +16,7 @@ __all__ = ["ComputedDiagnosticsList", "RunDiagnostics"]
 
 
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
+GRID_VARS = ["area", "lonb", "latb", "lon", "lat"]
 
 Diagnostics = Iterable[xr.Dataset]
 Metadata = Any
@@ -37,12 +38,12 @@ class ComputedDiagnosticsList:
         fs, _, _ = fsspec.get_fs_token_paths(self.url)
         return fs
 
-    def load_metrics(self):
-        return load_metrics(self._get_fs(), self.url)
+    def load_metrics(self) -> "RunMetrics":
+        return RunMetrics(load_metrics(self._get_fs(), self.url))
 
     def load_diagnostics(self) -> Tuple[Metadata, "RunDiagnostics"]:
-        metrics, xarray_diags = load_diagnostics(self._get_fs(), self.url)
-        return metrics, RunDiagnostics(xarray_diags)
+        metadata, xarray_diags = load_diagnostics(self._get_fs(), self.url)
+        return metadata, RunDiagnostics(xarray_diags)
 
     def find_movie_links(self):
         return find_movie_links(self._get_fs(), self.url)
@@ -97,8 +98,81 @@ class RunDiagnostics:
                     return xr.full_like(template, np.nan)
             raise ValueError(f"{varname} not found.")
 
+    def get_variables(self, run: str, varnames: Sequence[Hashable]) -> xr.Dataset:
+        """Query a collection of diagnostics and return dataset of variables."""
+        variables = [self.get_variable(run, v) for v in varnames]
+        return xr.merge(variables)
+
+    def matching_variables(self, varfilter: str) -> Set[str]:
+        """The available variabes that include varfilter in their names."""
+        return set(v for v in self.variables if varfilter in v)
+
     def is_baseline(self, run: str) -> bool:
         return self._attrs[run]["baseline"]
+
+
+@dataclass
+class RunMetrics:
+    """A collection of metrics from different runs, not all of which have the
+    same metrics"""
+
+    metrics: pd.DataFrame
+
+    @property
+    def empty(self) -> bool:
+        return self.metrics.empty
+
+    @property
+    def runs(self) -> Sequence[str]:
+        """The available runs"""
+        return list(self.metrics.run.unique())
+
+    @property
+    def types(self) -> Set[str]:
+        """The available types of metrics"""
+        metric_names = [self._prefix(m) for m in self.metrics.metric]
+        return set(metric_names)
+
+    def get_metric_variables(self, metric_type: str) -> Set[str]:
+        """The available variables for given metric_type"""
+        metric_names = [
+            m for m in self.metrics.metric if self._prefix(m) == metric_type
+        ]
+        return set([self._suffix(m) for m in metric_names])
+
+    def get_metric_value(self, metric_type: str, variable: str, run: str) -> float:
+        m = self._get_metric(metric_type, variable, run)
+        if m.empty:
+            return np.nan
+        else:
+            return m.value.item()
+
+    def get_metric_units(self, metric_type: str, variable: str, run: str) -> str:
+        m = self._get_metric(metric_type, variable, run)
+        if m.empty:
+            return ""
+        else:
+            return m.units.item()
+
+    def get_metric_all_runs(self, metric_type: str, variable: str) -> pd.Series:
+        metric_name = self.metric_name(metric_type, variable)
+        return self.metrics[self.metrics.metric == metric_name]
+
+    @staticmethod
+    def _prefix(metric: str) -> str:
+        return metric.split("/")[0]
+
+    @staticmethod
+    def _suffix(metric: str) -> str:
+        return metric.split("/")[1]
+
+    @staticmethod
+    def metric_name(metric_type: str, variable: str) -> str:
+        return f"{metric_type}/{variable}"
+
+    def _get_metric(self, metric_type: str, variable: str, run: str) -> pd.Series:
+        _metrics = self.get_metric_all_runs(metric_type, variable)
+        return _metrics[_metrics.run == run]
 
 
 def load_metrics(fs, bucket) -> pd.DataFrame:
@@ -225,6 +299,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
         "diurn_component": "diurn_bias",
         "zonal_and_time_mean": "zonal_bias",
         "zonal_mean_value": "zonal_mean_bias",
+        "time_mean_value": "time_mean_bias",
     }
     for mean_filter, bias_filter in mean_bias_pairs.items():
         mean_vars = [var for var in ds if mean_filter in var]
@@ -234,7 +309,8 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
                 # verification = prognostic - bias
                 verif_diagnostics[var] = ds[var] - ds[matching_bias_var]
                 verif_diagnostics[var].attrs = ds[var].attrs
-    return xr.Dataset(verif_diagnostics, attrs=verif_attrs)
+    verif_dataset = xr.Dataset(verif_diagnostics)
+    return xr.merge([ds[GRID_VARS], verif_dataset]).assign_attrs(verif_attrs)
 
 
 def get_metadata(diags):

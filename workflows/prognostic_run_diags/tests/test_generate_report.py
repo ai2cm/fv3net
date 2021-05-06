@@ -9,7 +9,6 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import RunDiagnostic
 from fv3net.diagnostics.prognostic_run.views.matplotlib import plot_2d_matplotlib
 from fv3net.diagnostics.prognostic_run.views.static_report import (
     _html_link,
-    plot_2d,
     render_links,
     upload,
 )
@@ -70,11 +69,7 @@ def test_render_links(regtest):
     print(output, file=regtest)
 
 
-@pytest.mark.parametrize(
-    "opts", [dict(invert_yaxis=True), dict(), dict(symmetric=True)]
-)
-@pytest.mark.parametrize("plot_2d", [plot_2d, plot_2d_matplotlib])
-def test_plot_2d(opts, plot_2d):
+def test_plot_2d_matplotlib():
     diagnostics = xarray.Dataset(
         {
             "a_somefilter": (
@@ -87,7 +82,7 @@ def test_plot_2d(opts, plot_2d):
         attrs=dict(run="one-run"),
     )
 
-    out = plot_2d(
+    out = plot_2d_matplotlib(
         RunDiagnostics([diagnostics, diagnostics.assign_attrs(run="k")]),
         "somefilter",
         dims=["x", "y"],

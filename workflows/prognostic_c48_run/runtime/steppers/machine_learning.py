@@ -198,7 +198,9 @@ class PureMLStepper:
             )
             tendency.update({"dQ2": dQ2_updated})
 
-        diagnostics["rank_updated_points"] = xr.where(dQ2_initial != dQ2_updated, 1, 0)
+        diagnostics["specific_humidity_limiter_active"] = xr.where(
+            dQ2_initial != dQ2_updated, 1, 0
+        )
 
         state_updates = {}
         return (
