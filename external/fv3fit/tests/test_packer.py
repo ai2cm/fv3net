@@ -102,7 +102,7 @@ def test_to_dataset(names, dims_list, array: np.ndarray):
     xr.testing.assert_equal(result, dataset.drop(dataset.coords.keys()))
 
 
-@pytest.mark.parametrize("dims_list", ["two_2d_vars", "1d_and_2d", "five_vars"])
+@pytest.mark.parametrize("dims_list", ["two_2d_vars", "1d_and_2d", "five_vars"], indirect=True)
 def test_get_unpack_layer(names, dims_list, array: np.ndarray):
     dataset = get_dataset(names, dims_list)
     packer = ArrayPacker(SAMPLE_DIM, names)
