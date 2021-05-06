@@ -4,6 +4,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 import numpy as np
 import subprocess
 import logging
+import xpartition
 
 import vcm
 
@@ -22,6 +23,7 @@ def fake_data(_):
     # simple import to make sure it work
     logging.info("Package Info " + get_package_info())
     vcm.net_heating
+    xpartition.DataArrayAccessor
     return xr.Dataset({"a": (["x"], np.ones(10))})
 
 
