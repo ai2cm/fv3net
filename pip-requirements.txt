@@ -23,6 +23,12 @@ zarr>=2.5.0
 # this version has wheels = faster installs
 numcodecs>=0.7.2
 
+# include this here, because dataflow dependencies are managed separately from
+# the rest of fv3net. Google controls the dataflow runtime environment, so it
+# is too hard to ensure that local fv3net matches the installed dependencies of
+# dataflow workers.
+xpartition>=0.2.0
+
 # xpartition needs >=0.16.2 for region feature of to_zarr
 # pip-compile doesn't work with setup.cfg
 xarray >= 0.16.2, <0.17.0 # 0.17 is python37 only, but we usually run pip-compile on 36 :(
