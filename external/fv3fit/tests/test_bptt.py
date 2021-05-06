@@ -305,6 +305,18 @@ def test_train_model_gives_different_outputs(sample_dim_name, dt):
 
 
 def test_integrate_stepwise(sample_dim_name, dt):
+    """
+    We need an integrate_stepwise routine for scripts that evaluate the model
+    timeseries, since the saved model operates on a single timestep. This code
+    is hard to write for a variety of reasons.
+    
+    The test here makes sure that the integration code performs an identical
+    integration to the one used to train the model.
+    
+    train_keras_model does this by predicting a timeseries
+    directly, while integrate_stepwise integrates the stepwise model over
+    many timesteps.
+    """
     train_dataset = get_train_dataset(sample_dim_name, dt)
     np.random.seed(0)
     tf.random.set_seed(1)
