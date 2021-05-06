@@ -321,7 +321,6 @@ class _BPTTTrainer:
             )
             return select(given_tendency_series_input)
 
-        # TODO add checksum test to test_bptt
         tendency_add_layer = tf.keras.layers.Add(name="tendency_add")
         state_add_layer = tf.keras.layers.Add(name="state_add")
         add_time_dim_layer = tf.keras.layers.Lambda(lambda x: x[:, None, :])

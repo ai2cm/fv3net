@@ -1,6 +1,7 @@
 import pytest
 import xarray as xr
 import tensorflow as tf
+import joblib
 import numpy as np
 from datetime import timedelta
 from cftime import DatetimeProlepticGregorian as datetime
@@ -125,7 +126,7 @@ def test_predict_model_gives_tendency_of_train_model(
     np.testing.assert_allclose(dQ2[:, 0, :], Q2_train_tendency, atol=1e-6)
 
 
-def test_fit_bptt_command_line(sample_dim_name, dt):
+def test_fit_bptt_command_line(regtest, sample_dim_name, dt):
     config_text = """
 regularizer:
   name: l2
@@ -151,6 +152,7 @@ decreased_learning_rate: 0.0001
 total_epochs: 2
 random_seed: 0
 """
+    np.random.seed(0)
     training_dataset = get_train_dataset(sample_dim_name, dt)
     with tempfile.TemporaryDirectory() as tmpdir:
         arrays_dir = os.path.join(tmpdir, "arrays")
@@ -170,11 +172,21 @@ random_seed: 0
         assert len(os.listdir(outdir)) > 0
 
         # one model per epoch is saved
-        for sample_model_dir in os.listdir(outdir):
+        for sample_model_dir in sorted(os.listdir(outdir)):
             loaded = fv3fit.load(os.path.join(outdir, sample_model_dir))
 
             first_timestep = training_dataset.isel(time=0)
             loaded_output = loaded.predict(first_timestep)
+
+            # checksum the outputs
+            for name in sorted(loaded_output):
+                print(
+                    name,
+                    sample_model_dir,
+                    joblib.hash(loaded_output[name].values),
+                    file=regtest,
+                )
+
             assert isinstance(loaded_output, xr.Dataset)
 
 
