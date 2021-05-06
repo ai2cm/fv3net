@@ -157,7 +157,7 @@ random_seed: 0
     with tempfile.TemporaryDirectory() as tmpdir:
         arrays_dir = os.path.join(tmpdir, "arrays")
         os.mkdir(arrays_dir)
-        for i in range(3):
+        for i in range(5):
             filename = os.path.join(arrays_dir, f"arrays_{i}.nc")
             training_dataset.to_netcdf(filename)
         config_filename = os.path.join(tmpdir, "config.yaml")
@@ -177,15 +177,6 @@ random_seed: 0
 
             first_timestep = training_dataset.isel(time=0)
             loaded_output = loaded.predict(first_timestep)
-
-            # checksum the outputs
-            for name in sorted(loaded_output):
-                print(
-                    name,
-                    sample_model_dir,
-                    joblib.hash(loaded_output[name].values),
-                    file=regtest,
-                )
 
             assert isinstance(loaded_output, xr.Dataset)
 
