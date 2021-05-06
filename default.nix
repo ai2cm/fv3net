@@ -6,6 +6,57 @@ let
 
   packageOverrides = self: super: {
 
+    metpy = self.buildPythonPackage rec {
+      pname = "MetPy";
+      version = "1.0.1";
+      src = self.fetchPypi {
+        inherit pname version;
+        sha256 = "sha256-FvqYBvrMJPMfRUuJh0HsVjmnK6nU/4oZrQ6UYp2Ty5U=";
+      };
+      propagatedBuildInputs = with self; [
+        matplotlib
+        numpy
+        pandas
+        pint
+        pooch
+        pyproj
+        scipy
+        traitlets
+        xarray
+        importlib-resources
+        importlib-metadata
+      ];
+      # The setuptools checks try to use the network which isn't allowed
+      # during the Nix build. Disabling them for now.
+      doCheck = false;
+    };
+
+    old_docrep = self.buildPythonPackage rec {
+      pname = "docrep";
+      version = "0.2.7";
+      src = self.fetchPypi {
+        inherit pname version;
+        sha256 = "sha256-xIk5rhTXkXKDmlu69aVwrdR/bMRNLBj2sfrI8cON7E0=";
+      };
+      propagatedBuildInputs = [ self.six ];
+      # The setuptools checks try to use the network which isn't allowed
+      # during the Nix build. Disabling them for now.
+      doCheck = false;
+    };
+
+    xgcm = self.buildPythonPackage rec {
+      pname = "xgcm";
+      version = "0.5.1";
+      src = self.fetchPypi {
+        inherit pname version;
+        sha256 = "sha256-eSPrbbziWCSboaf5FJ8qDn/1372CCR4tz56E4aOjCLM=";
+      };
+      propagatedBuildInputs =
+        [ self.xarray self.future self.dask self.old_docrep ];
+      # doesn't find pytest, not sure why, disabling tests for now.
+      doCheck = false;
+    };
+
     dacite = self.buildPythonPackage rec {
       pname = "dacite";
       version = "1.6.0";
@@ -38,6 +89,9 @@ let
       # doesn't find pytest, not sure why, disabling tests for now.
       doCheck = false;
     };
+
+
+    intake = super.intake.overrideAttrs (oldAttrs: { doCheck = false; });
 
     f90nml = self.buildPythonPackage rec {
       pname = "f90nml";
@@ -107,5 +161,33 @@ let
   };
   python3 = pkgs.python3.override { inherit packageOverrides; };
 
-  my_python = python3.withPackages (pkgs: with pkgs; [ wrapper ]);
-in with pkgs; mkShell { buildInputs = [ pkgs.fv3 my_python ]; }
+
+  my_python = python3.withPackages (pkgs:
+    with pkgs; [
+      wrapper
+      f90nml
+      fv3config
+      dacite
+      pytest
+      dask
+      xgcm
+      numpy
+      metpy
+      joblib
+      intake
+    ]);
+  prog_run = with pkgs;
+    mkShell {
+      buildInputs = [ fv3 my_python gfortran ];
+
+      venvDir = "./.venv-prog-run";
+
+      shellHook = ''
+        export PYTHONPATH=$(pwd)/external/fv3fit:$PYTHONPATH
+        export PYTHONPATH=$(pwd)/external/loaders:$PYTHONPATH
+        export PYTHONPATH=$(pwd)/external/vcm:$PYTHONPATH
+      '';
+
+    };
+
+in prog_run
