@@ -9,7 +9,8 @@ from .normalizer import LayerStandardScaler
 import yaml
 import numpy as np
 import vcm.safe
-from fv3gfs.util import Z_DIMS
+
+Z_DIMS = ["z", "z_interface"]
 
 
 def stack_non_vertical(ds: xr.Dataset, sample_dim_name) -> xr.Dataset:
