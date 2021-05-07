@@ -62,7 +62,6 @@ fsspec==2021.4.0
 future==0.18.2
 fv3config==0.7.1
 gast==0.3.3
-gcsfs==2021.4.0
 google-api-core==1.22.2
 google-apitools==0.5.31
 google-auth-oauthlib==0.4.1
