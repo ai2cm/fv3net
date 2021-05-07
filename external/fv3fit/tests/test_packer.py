@@ -7,6 +7,7 @@ from fv3fit._shared.packer import (
     _unique_dim_name,
     _count_features_2d,
 )
+from fv3fit.keras._models.packer import get_unpack_layer, Unpack
 import pytest
 import numpy as np
 import xarray as xr
@@ -99,6 +100,33 @@ def test_to_dataset(names, dims_list, array: np.ndarray):
     result = packer.to_dataset(array)
     # to_dataset does not preserve coordinates
     xr.testing.assert_equal(result, dataset.drop(dataset.coords.keys()))
+
+
+@pytest.mark.parametrize(
+    "dims_list", ["two_2d_vars", "1d_and_2d", "five_vars"], indirect=True
+)
+def test_get_unpack_layer(names, dims_list, array: np.ndarray):
+    dataset = get_dataset(names, dims_list)
+    packer = ArrayPacker(SAMPLE_DIM, names)
+    packer.to_array(dataset)  # must pack first to know dimension lengths
+    result = get_unpack_layer(packer, feature_dim=1)(array)
+    # to_dataset does not preserve coordinates
+    for name, array in zip(packer.pack_names, result):
+        if array.shape[1] == 1:
+            array = array[:, 0]
+        np.testing.assert_array_equal(array, dataset[name])
+
+
+def test_direct_unpack_layer():
+    names = ["a", "b"]
+    n_features = {"a": 4, "b": 4}
+    packed = np.random.randn(3, 8)
+    a = packed[:, :4]
+    b = packed[:, 4:]
+    unpack_layer = Unpack(pack_names=names, n_features=n_features, feature_dim=1)
+    unpacked = unpack_layer(packed)
+    np.testing.assert_array_almost_equal(unpacked[0], a)
+    np.testing.assert_array_almost_equal(unpacked[1], b)
 
 
 def test_unpack_before_pack_raises(names, array: np.ndarray):
