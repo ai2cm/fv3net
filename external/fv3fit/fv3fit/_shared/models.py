@@ -1,4 +1,5 @@
 from typing import Iterable, Set, Hashable
+import fsspec
 import yaml
 import os
 import xarray as xr
@@ -17,7 +18,7 @@ class EnsembleModel(Predictor):
             raise ValueError("at least one model must be given")
         if reduction.lower() not in ("mean", "median"):
             raise NotImplementedError(
-                f"only supported reductions are mean and median, got {reduction}"
+                f"Got reduction {reduction}: only mean, median supported"
             )
         self._reduction = reduction
         input_variables: Set[Hashable] = set()
@@ -39,8 +40,8 @@ class EnsembleModel(Predictor):
             output_variables.update(model.output_variables)
         super().__init__(
             sample_dim_name,
-            input_variables=tuple(input_variables),
-            output_variables=tuple(output_variables),
+            input_variables=tuple(sorted(input_variables)),
+            output_variables=tuple(sorted(output_variables)),
         )
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
@@ -55,7 +56,7 @@ class EnsembleModel(Predictor):
     @classmethod
     def load(cls, path: str) -> "EnsembleModel":
         """Load a serialized model from a directory."""
-        with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+        with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
             config = yaml.safe_load(f)
         models = [io.load(path) for path in config["models"]]
         reduction = config["reduction"]
