@@ -90,9 +90,6 @@ let
       doCheck = false;
     };
 
-
-    intake = super.intake.overrideAttrs (oldAttrs: { doCheck = false; });
-
     f90nml = self.buildPythonPackage rec {
       pname = "f90nml";
       version = "1.2";
@@ -136,9 +133,9 @@ let
       version = "0.6.0";
       src = pkgs.fetchFromGitHub {
         owner = "VulcanClimateModeling";
-        rev = "v${version}";
+        rev = "76b69643686d1b7e6132e978aa1f1250c6a7d866";
         repo = pname;
-        sha256 = "sha256-iWc7ti6gpWvdYvw6m4t50KukBDQXnsW+avH4CyYagGA=";
+        sha256 = "sha256-TGyvaSYW3KKAJLcjxsG0pklmKG9v/+6POqd7I7CTdCY=";
       };
       propagatedBuildInputs = with self; [
         zarr
@@ -156,36 +153,72 @@ let
     mpi4py = (super.mpi4py.override { mpi = pkgs.mpich; }).overridePythonAttrs {
       doCheck = false;
     };
+
+    pytest-regtest = self.buildPythonPackage rec {
+      pname = "pytest-regtest";
+      version = "1.4.5";
+      src = super.fetchPypi {
+        inherit pname version;
+        sha256 = "sha256-oeTofUg+ST2b9tFacaRt7azLbKq3n6gGb0eo6z5vhuM=";
+      };
+      propagatedBuildInputs = with self; [
+        pytest
+      ];
+      doCheck = false;
+
+    };
+
     wrapper = self.callPackage ./wrapper.nix { };
 
   };
   python3 = pkgs.python3.override { inherit packageOverrides; };
 
-
-  my_python = python3.withPackages (pkgs:
-    with pkgs; [
+  my_python = with python3.pkgs; [
       wrapper
-      f90nml
       fv3config
       dacite
       pytest
       dask
-      xgcm
       numpy
       metpy
       joblib
-      intake
-    ]);
+      cftime
+      fv3config
+
+      # fv3fit
+
+      # fv3kube
+      kubernetes
+
+      # vcm
+      xarray
+      appdirs
+      click
+      xgcm
+      f90nml
+      gcsfs
+      google-api-core
+
+      # prog run
+      pytest-regtest
+      jsonschema
+
+    ];
   prog_run = with pkgs;
     mkShell {
-      buildInputs = [ fv3 my_python gfortran ];
+      buildInputs = [ fv3 my_python gfortran python3.pkgs.venvShellHook ];
 
       venvDir = "./.venv-prog-run";
 
-      shellHook = ''
+      postShellHook = ''
         export PYTHONPATH=$(pwd)/external/fv3fit:$PYTHONPATH
         export PYTHONPATH=$(pwd)/external/loaders:$PYTHONPATH
         export PYTHONPATH=$(pwd)/external/vcm:$PYTHONPATH
+        export PYTHONPATH=$(pwd)/external/fv3kube:$PYTHONPATH
+        export PYTHONPATH=$(pwd)/external/synth:$PYTHONPATH
+        export PYTHONPATH=$(pwd)/workflows/prognostic_c48_run:$PYTHONPATH
+
+        pip install tensorflow tensorflow_addons sklearn intake intake-xarray
       '';
 
     };
