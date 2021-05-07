@@ -17,7 +17,7 @@ import weakref
 from fsspec.asyn import sync_wrapper, sync, AsyncFileSystem
 from fsspec.utils import stringify_path, setup_logging
 from fsspec.implementations.http import get_client
-from .retry import retry_request, validate_response
+from .utils import retry_request, validate_response
 from .checkers import get_consistency_checker
 from .credentials import GoogleCredentials
 from . import __version__ as version

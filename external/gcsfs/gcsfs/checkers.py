@@ -2,7 +2,7 @@ from base64 import b64encode
 import base64
 from typing import Optional
 from hashlib import md5
-from .retry import ChecksumError
+from .utils import ChecksumError
 
 
 try:
