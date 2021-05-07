@@ -4,6 +4,8 @@ import synth
 import xarray as xr
 import numpy as np
 import loaders
+import loaders.mappers
+import cftime
 from loaders.batches._batch import (
     batches_from_mapper,
     _get_batch,
@@ -116,3 +118,23 @@ def test_diagnostic_batches_from_mapper(mapper):
     for i, batch in enumerate(batched_data_sequence):
         assert len(batch["z"]) == Z_DIM_SIZE
         assert set(batch.data_vars) == set(DATA_VARS)
+
+
+@pytest.mark.parametrize(
+    "tiles",
+    [
+        pytest.param([1, 2, 3, 4, 5, 6], id="one-indexed"),
+        pytest.param([0, 1, 2, 3, 4, 5], id="zero-indexed"),
+    ],
+)
+def test_baches_from_mappper_different_indexing_conventions(tiles):
+    n = 48
+    ds = xr.Dataset(
+        {"a": (["time", "tile", "y", "x"], np.zeros((1, 6, n, n)))},
+        coords={"time": [cftime.DatetimeJulian(2016, 8, 1)], "tile": tiles},
+    )
+    mapper = loaders.mappers.XarrayMapper(ds)
+    seq = batches_from_mapper(mapper, ["a", "lon"], res=f"c{n}")
+
+    assert len(seq) == 1
+    assert ds.a[0].size == seq[0].a.size
