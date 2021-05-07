@@ -7,7 +7,8 @@ import versioneer
 
 setup(
     name="gcsfs",
-    version='2021.4.0',
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     description="Convenient Filesystem interface over GCS",
     url="https://github.com/dask/gcsfs",
     maintainer="Martin Durant",

@@ -17,7 +17,7 @@ import weakref
 from fsspec.asyn import sync_wrapper, sync, AsyncFileSystem
 from fsspec.utils import stringify_path, setup_logging
 from fsspec.implementations.http import get_client
-from .utils import retry_request, validate_response
+from .retry import retry_request, validate_response
 from .checkers import get_consistency_checker
 from .credentials import GoogleCredentials
 from . import __version__ as version
@@ -225,11 +225,10 @@ class GCSFileSystem(AsyncFileSystem):
         self.consistency = consistency
         self.cache_timeout = cache_timeout or kwargs.pop("listings_expiry_time", None)
         self.requests_timeout = requests_timeout
-        self.check_credentials = check_connection
         self.timeout = timeout
         self._session = None
 
-        self.credentials = GoogleCredentials(project, access, token)
+        self.credentials = GoogleCredentials(project, access, token, check_connection)
 
         if not self.asynchronous:
             self._session = sync(self.loop, get_client, timeout=self.timeout)

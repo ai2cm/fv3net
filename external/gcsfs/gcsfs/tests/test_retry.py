@@ -4,7 +4,7 @@ from requests.exceptions import ProxyError
 import pytest
 
 from gcsfs.tests.settings import TEST_BUCKET
-from gcsfs.utils import HttpError, is_retriable, validate_response
+from gcsfs.retry import HttpError, is_retriable, validate_response
 from gcsfs.tests.utils import tmpfile, my_vcr, gcs_maker
 
 
