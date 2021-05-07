@@ -203,6 +203,9 @@ let
       pytest-regtest
       jsonschema
 
+      # development
+      pip-tools
+      ipython
     ];
   prog_run = with pkgs;
     mkShell {
@@ -218,7 +221,7 @@ let
         export PYTHONPATH=$(pwd)/external/synth:$PYTHONPATH
         export PYTHONPATH=$(pwd)/workflows/prognostic_c48_run:$PYTHONPATH
 
-        pip install tensorflow tensorflow_addons sklearn intake intake-xarray
+        python -m pip install -r requirements_prog_run.txt
       '';
 
     };
