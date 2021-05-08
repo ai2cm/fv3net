@@ -3,7 +3,6 @@ import xarray
 import numpy
 from datetime import timedelta
 from typing_extensions import Protocol
-import xpartition
 
 from loaders.mappers._fine_resolution_budget import eddy_flux_coarse, convergence
 from vcm.fv3.metadata import gfdl_to_standard
@@ -82,8 +81,8 @@ def apparent_moistening(data: FineResBudget):
             units="kg/kg/s",
             long_name="apparent moistening from high resolution data",
             description=(
-                "Apparent moistening due to physics and sub-grid-scale advection. Given "
-                "by "
+                "Apparent moistening due to physics and sub-grid-scale advection. "
+                "Given by "
                 "sat adjustment (dycore) + physics tendency  - eddy-flux-convergence"
             ),
         )
@@ -92,14 +91,12 @@ def apparent_moistening(data: FineResBudget):
 
 
 fs = fsspec.filesystem("gs")
-output_location = (
-    "/Users/noah/data/gs/vcm-ml-archive/noahb/hybrid-fine-res/2021-05-05-hybrid-training.zarr"
-)
+output_location = "/Users/noah/data/gs/vcm-ml-archive/noahb/hybrid-fine-res/2021-05-05-hybrid-training.zarr"  # noqa: E501
 
 # created by this commit:
 # https://github.com/VulcanClimateModeling/vcm-workflow-control/commit/3c852d0e4f8b86c4e88db9f29f0b8e484aeb77a1
 # I manually consolidated the metadata with zarr.consolidate_metadata
-fine_url = "gs://vcm-ml-experiments/default/2021-04-27/2020-05-27-40-day-X-SHiELD-simulation/fine-res-budget.zarr"
+fine_url = "gs://vcm-ml-experiments/default/2021-04-27/2020-05-27-40-day-X-SHiELD-simulation/fine-res-budget.zarr"  # noqa: E501
 fine = open_zarr(fine_url, consolidated=True)
 # compute apparent sources
 fine["Q1"] = apparent_heating(fine)
@@ -109,7 +106,7 @@ fine_shifted = fine.assign(time=fine.time - timedelta(minutes=7, seconds=30))
 
 # created by this commit
 # https://github.com/VulcanClimateModeling/vcm-workflow-control/commit/dd4498bcf3143d05095bf9ff4ca3f1341ba25330
-nudge_url = "gs://vcm-ml-experiments/2021-04-13-n2f-c3072/3-hrly-ave-rad-precip-setting-30-min-rad-timestep-shifted-start-tke-edmf"
+nudge_url = "gs://vcm-ml-experiments/2021-04-13-n2f-c3072/3-hrly-ave-rad-precip-setting-30-min-rad-timestep-shifted-start-tke-edmf"  # noqa: E501
 nudge_physics_tendencies = open_zarr(
     nudge_url + "/physics_tendencies.zarr", consolidated=True
 )
@@ -127,8 +124,8 @@ merged["dQ1"] = merged["Q1"] - merged["tendency_of_air_temperature_due_to_fv3_ph
 merged["dQ2"] = (
     merged["Q2"] - merged["tendency_of_specific_humidity_due_to_fv3_physics"]
 )
-merged["dQu"] = nudge_tends.x_wind_tendency_due_to_nudging
-merged["dQv"] = nudge_tends.y_wind_tendency_due_to_nudging
+merged["dQxwind"] = nudge_tends.x_wind_tendency_due_to_nudging
+merged["dQywind"] = nudge_tends.y_wind_tendency_due_to_nudging
 
 
 # Select the data we want to save
@@ -136,8 +133,8 @@ output = xarray.merge(
     [
         merged.dQ1,
         merged.dQ2,
-        merged.dQu,
-        merged.dQv,
+        merged.dQxwind,
+        merged.dQywind,
         merged.specific_humidity,
         merged.pressure_thickness_of_atmospheric_layer,
         merged.air_temperature,
