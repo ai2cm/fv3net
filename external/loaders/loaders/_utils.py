@@ -88,7 +88,8 @@ def _load_grid(res: str) -> xr.Dataset:
     grid = catalog[f"grid/{res}"].to_dask()
     land_sea_mask = catalog[f"landseamask/{res}"].to_dask()
     grid = grid.assign({"land_sea_mask": land_sea_mask["land_sea_mask"]})
-    return safe.get_variables(grid, ["lat", "lon", "land_sea_mask"])
+    # drop the tiles so that this is compatible with other indexing conventions
+    return safe.get_variables(grid, ["lat", "lon", "land_sea_mask"]).drop("tile")
 
 
 def _load_wind_rotation_matrix(res: str) -> xr.Dataset:
