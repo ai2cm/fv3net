@@ -52,4 +52,3 @@ class OneAheadIterator(collections.abc.Iterator):
         # check necessary in case exceptions occur before this is defined
         if hasattr(self, "_executor"):
             self._executor.shutdown(wait=True)
-        super().__del__()

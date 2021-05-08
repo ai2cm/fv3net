@@ -11,8 +11,12 @@ sphinx_rtd_theme
 sphinx-gallery
 tensorflow>=2.3
 tensorflow-addons
-fv3config
+fv3config>=0.8.0
 numba
+
+# prognostic run diagnostics requirements
+# this file depends on vcm, so pip-tools cannot lock it
+holoviews
 
 # Hope for more stable performance with these versions
 gcsfs>=2021.04.0
