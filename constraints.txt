@@ -22,7 +22,6 @@ attrs==19.3.0
 avro-python3==1.9.2.1
 babel==2.8.0
 backcall==0.2.0
-backoff==1.10.0
 bleach==3.3.0
 bokeh==2.2.3
 bump2version==1.0.0
@@ -60,7 +59,7 @@ filelock==3.0.12
 flatbuffers==1.12
 fsspec==2021.4.0
 future==0.18.2
-fv3config==0.7.1
+fv3config==0.8.0
 gast==0.3.3
 gcsfs==2021.4.0
 google-api-core==1.22.2
