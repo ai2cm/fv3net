@@ -38,8 +38,11 @@ def nonderived_variables(requested: Sequence[str], available: Sequence[str]):
     nonderived = [var for var in requested if var in available]
     # if E/N winds not in underlying data, need to load x/y wind
     # tendencies to derive them
+    # TODO move to derived_mapping?
     if any(var in derived for var in EAST_NORTH_WIND_TENDENCIES):
         nonderived += X_Y_WIND_TENDENCIES
+    if any(var in derived for var in ["eastward_wind", "northward_wind"]):
+        nonderived += ["x_wind", "y_wind"]
     return nonderived
 
 
