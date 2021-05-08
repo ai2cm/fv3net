@@ -60,8 +60,7 @@ def test_horizontal_wind_tendency_parallel_to_horizontal_wind(
     )
 
 
-def test_wind_tendency_derived():
-    # dQu/dQv must be calculated from dQxwind, dQywind
+def _dataset_with_d_grid_winds_and_tendencies():
     rotation = {
         var: xr.DataArray(np.zeros((ny, nx)), dims=["y", "x"])
         for var in [
@@ -75,15 +74,19 @@ def test_wind_tendency_derived():
         {
             "dQxwind": xr.DataArray(np.ones((ny + 1, nx)), dims=["y_interface", "x"]),
             "dQywind": xr.DataArray(np.ones((ny, nx + 1)), dims=["y", "x_interface"]),
+            "x_wind": xr.DataArray(np.ones((ny + 1, nx)), dims=["y_interface", "x"]),
+            "y_wind": xr.DataArray(np.ones((ny, nx + 1)), dims=["y", "x_interface"]),
             **rotation,
         }
     )
+    return data
 
+
+@pytest.mark.parametrize("variable", ["dQu", "dQv", "eastward_wind", "northward_wind"])
+def test_rotated_winds(variable):
+    data = _dataset_with_d_grid_winds_and_tendencies()
     derived_mapping = DerivedMapping(data)
-    dQu = derived_mapping["dQu"]
-    dQv = derived_mapping["dQv"]
-    np.testing.assert_array_almost_equal(dQu, 0.0)
-    np.testing.assert_array_almost_equal(dQv, 0.0)
+    np.testing.assert_array_almost_equal(0.0, derived_mapping[variable])
 
 
 def test_wind_tendency_nonderived():
