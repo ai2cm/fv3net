@@ -1,5 +1,5 @@
+import dataclasses
 import fsspec
-import inspect
 import yaml
 import os
 from typing import Optional, Union, Sequence, List
@@ -9,79 +9,56 @@ DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
 
 
+@dataclasses.dataclass
 class ModelTrainingConfig:
     """Convenience wrapper for model training parameters and file info
+
+    Attrs:
+        model_type: sklearn model type or keras model class to initialize
+        hyperparameters: arguments to pass to model class at initialization
+            time
+        input_variables: variables used as features
+        output_variables: variables to predict
+        batch_function: name of function from `fv3fit.batches` to use for
+            loading batched data
+        batch_kwargs: keyword arguments to pass to batch function
+        data_path: location of training data to be loaded by batch function
+        scaler_type: scaler to use for training
+        scaler_kwargs: keyword arguments to pass to scaler initialization
+        additional_variables: list of needed variables which are not inputs
+            or outputs (e.g. pressure thickness if needed for scaling)
+        random_seed: value to use to initialize randomness
+        validation_timesteps: timestamps to use as validation samples
+        save_model_checkpoints: whether to save a copy of the model at
+            each epoch
+        model_path: output location for final model
+        timesteps_source: one of "timesteps_file",
+            "sampled_outside_input_config", "input_config", "all_mapper_times"
     """
 
-    def __init__(
-        self,
-        model_type: str,
-        hyperparameters: dict,
-        input_variables: List[str],
-        output_variables: List[str],
-        batch_function: str,
-        batch_kwargs: dict,
-        data_path: Optional[str] = None,
-        scaler_type: str = "standard",
-        scaler_kwargs: Optional[dict] = None,
-        additional_variables: Optional[List[str]] = None,
-        random_seed: Union[float, int] = 0,
-        validation_timesteps: Optional[Sequence[str]] = None,
-        save_model_checkpoints: Optional[bool] = False,
-        model_path: Optional[str] = None,
-        timesteps_source: Optional[str] = None,
-    ):
-        """
-            Initialize the configuration class.
+    model_type: str
+    hyperparameters: dict
+    input_variables: List[str]
+    output_variables: List[str]
+    batch_function: str
+    batch_kwargs: dict
+    data_path: Optional[str] = None
+    scaler_type: str = "standard"
+    scaler_kwargs: dict = dataclasses.field(default_factory=dict)
+    additional_variables: List[str] = dataclasses.field(default_factory=list)
+    random_seed: Union[float, int] = 0
+    validation_timesteps: Sequence[str] = dataclasses.field(default_factory=list)
+    save_model_checkpoints: bool = False
+    model_path: str = ""
+    timesteps_source: str = "timesteps_file"
 
-            Args:
-                model_type: sklearn model type or keras model class to initialize
-                hyperparameters: arguments to pass to model class at initialization
-                    time
-                input_variables: variables used as features
-                output_variables: variables to predict
-                batch_function: name of function from `fv3fit.batches` to use for
-                    loading batched data
-                batch_kwargs: keyword arguments to pass to batch function
-                data_path: location of training data to be loaded by batch function
-                scaler_type: scaler to use for training
-                scaler_kwargs: keyword arguments to pass to scaler initialization
-                additional_variables: list of needed variables which are not inputs
-                    or outputs (e.g. pressure thickness if needed for scaling)
-                random_seed: value to use to initialize randomness
-                validation_timesteps: timestamps to use as validation samples
-                save_model_checkpoints: whether to save a copy of the model at
-                    each epoch
-                model_path: output location for final model
-                timesteps_source: one of "timesteps_file",
-                    "sampled_outside_input_config", "input_config", "all_mapper_times"
-        """
-        self.data_path = data_path
-        self.model_type = model_type
-        self.hyperparameters = hyperparameters
-        self.input_variables = input_variables
-        self.output_variables = output_variables
-        self.batch_function = batch_function
-        self.batch_kwargs = batch_kwargs
-        self.scaler_type = scaler_type
-        self.scaler_kwargs: dict = scaler_kwargs or {}
-        self.additional_variables: List[str] = additional_variables or []
-        self.random_seed = random_seed
-        self.validation_timesteps: Sequence[str] = validation_timesteps or []
-        self.save_model_checkpoints = save_model_checkpoints
-        self.timesteps_source = timesteps_source
+    def __post_init__(self):
         if self.scaler_type == "mass":
             if DELP not in self.additional_variables:
                 self.additional_variables.append(DELP)
-        self.model_path = model_path
 
     def asdict(self):
-        attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
-        return {
-            key: value
-            for key, value in attributes
-            if not (key.startswith("__") and key.endswith("__"))
-        }
+        return dataclasses.asdict(self)
 
     def dump(self, path: str, filename: str = None) -> None:
         dict_ = self.asdict()
