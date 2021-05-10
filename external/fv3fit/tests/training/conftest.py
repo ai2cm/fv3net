@@ -87,7 +87,7 @@ def train_config(
         batch_kwargs=data_info["batch_kwargs"],
         scaler_type="standard",
         scaler_kwargs={},
-        additional_variables=None,
+        additional_variables=[],
         random_seed=0,
         validation_timesteps=validation_timesteps,
     )
