@@ -52,7 +52,7 @@ def _moisture_tendency_limiter(packer, state_update, state):
     return pack([dQ1, dQ2])
 
 
-def _get_input_vector(
+def get_input_vector(
     packer: ArrayPacker,
     scaler: Optional[LayerStandardScaler],
     n_window: Optional[int] = None,
@@ -298,13 +298,13 @@ class _BPTTTrainer:
         which predicts tendencies of that model used for debugging and testing
         purposes.
         """
-        input_series_layers, forcing_series_input = _get_input_vector(
+        input_series_layers, forcing_series_input = get_input_vector(
             self.input_packer, self.input_scaler, n_window, series=True
         )
-        state_layers, state_input = _get_input_vector(
+        state_layers, state_input = get_input_vector(
             self.prognostic_packer, None, n_window, series=False
         )
-        given_tendency_series_layers, given_tendency_series_input = _get_input_vector(
+        given_tendency_series_layers, given_tendency_series_input = get_input_vector(
             self.prognostic_packer, None, n_window, series=True
         )
 
@@ -366,10 +366,10 @@ class _BPTTTrainer:
         Build a model which predicts the tendency for a single timestep, used for
         prediction.
         """
-        input_layers, forcing_input = _get_input_vector(
+        input_layers, forcing_input = get_input_vector(
             self.input_packer, self.input_scaler, series=False
         )
-        state_layers, state_input = _get_input_vector(
+        state_layers, state_input = get_input_vector(
             self.prognostic_packer, self.prognostic_scaler, series=False
         )
         denormalized_state = tf.keras.layers.Concatenate()(state_layers)

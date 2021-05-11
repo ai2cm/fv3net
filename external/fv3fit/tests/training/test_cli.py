@@ -38,6 +38,14 @@ def _get_model_config(model_info, validation_timesteps, data_info):
             },
         ),
         dict(
+            model_type="PrecipitativeModel",
+            hyperparameters={
+                "width": 4,
+                "depth": 3,
+                "fit_kwargs": {"batch_size": 100, "validation_samples": 384},
+            },
+        ),
+        dict(
             model_type="sklearn_random_forest",
             hyperparameters={"max_depth": 4, "n_estimators": 2},
         ),

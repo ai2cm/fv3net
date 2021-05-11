@@ -13,7 +13,7 @@ from fv3fit.keras._training import set_random_seed
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture(params=["DenseModel"])
+@pytest.fixture(params=["DenseModel", "PrecipitativeModel"])
 def model_type(request) -> str:
     return request.param
 
@@ -26,10 +26,12 @@ def loss(request) -> str:
 @pytest.fixture(params=[{"width": 4, "depth": 3}])
 def hyperparameters(request, model_type, loss) -> dict:
     if model_type == "DenseModel":
-        hyperparameters = request.param
+        hyperparameters = {**request.param}
         if loss:
             hyperparameters["loss"] = loss
         return hyperparameters
+    elif model_type == "PrecipitativeModel":
+        return {**request.param}
     else:
         raise NotImplementedError(model_type)
 
@@ -90,20 +92,6 @@ def test_training(
     validate_dataset_result(result, batch_dataset, output_variables)
 
 
-def test_dump_and_load_before_training(
-    model: fv3fit.Estimator,
-    training_batches: Sequence[xr.Dataset],
-    output_variables: Iterable[str],
-):
-    with tempfile.TemporaryDirectory() as tmpdir:
-        model.dump(tmpdir)
-        model = model.__class__.load(tmpdir)
-    model.fit(training_batches)
-    batch_dataset = training_batches[0]
-    result = model.predict(batch_dataset)
-    validate_dataset_result(result, batch_dataset, output_variables)
-
-
 def validate_dataset_result(
     result: xr.Dataset, batch_dataset: xr.Dataset, output_variables: Iterable[str]
 ):
@@ -143,6 +131,7 @@ def test_dump_and_load_maintains_prediction(
     ),
     indirect=["loss", "hyperparameters"],
 )
+@pytest.mark.parametrize("model_type", ["DenseModel"], indirect=True)
 def test_dump_and_load_loss_info(loss, hyperparameters, expected_loss, model):
     with tempfile.TemporaryDirectory() as tmpdir:
         model.dump(tmpdir)

@@ -15,19 +15,21 @@ def validation_timesteps(request) -> Optional[Sequence[str]]:
 
 @pytest.fixture
 def input_variables() -> Iterable[str]:
-    return ["air_temperature", "specific_humidity"]
+    return [
+        "air_temperature",
+        "specific_humidity",
+        "pressure_thickness_of_atmospheric_layer",
+    ]
 
 
 @pytest.fixture
 def output_variables() -> Iterable[str]:
-    return ["dQ1", "dQ2"]
+    return ["dQ1", "dQ2", "total_precipitation_rate"]
 
 
 @pytest.fixture
 def data_info(tmpdir):
 
-    # size needs to be 48 or an error happens. Is there a hardcode in fv3fit
-    # someplace?...maybe where the grid data is loaded?
     x, y, z, tile, time = (8, 8, 79, 6, 2)
     arr = np.zeros((time, tile, z, y, x))
     arr_surf = np.zeros((time, tile, y, x))
@@ -41,6 +43,8 @@ def data_info(tmpdir):
             "downward_shortwave": (dims_surf, arr_surf),
             "net_shortwave": (dims_surf, arr_surf),
             "downward_longwave": (dims_surf, arr_surf),
+            "total_precipitation_rate": (dims_surf, arr_surf),
+            "pressure_thickness_of_atmospheric_layer": (dims_surf, arr_surf),
             "dQ1": (dims, arr),
             "dQ2": (dims, arr),
             "dQu": (dims, arr),
