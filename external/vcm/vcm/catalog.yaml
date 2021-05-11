@@ -250,7 +250,7 @@ sources:
         - lat_unit_vector
         - lon_unit_vector
     args:
-      urlpath: "gs://vcm-ml-intermediate/latLonArea/c48/wind_rotation_matrix.zarr/"
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c48/wind_rotation_matrix_correct_factor.zarr/"
       consolidated: true
 
 
@@ -304,7 +304,7 @@ sources:
       storage_options:
         project: 'vcm-ml'
         access: read_only
-      urlpath: "gs://vcm-ml-intermediate/latLonArea/c96/wind_rotation_matrix.zarr"
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c96/wind_rotation_matrix_correct_factor.zarr"
       consolidated: true
 
   grid/c384:
