@@ -6,7 +6,7 @@ import pytest
 import xarray as xr
 import joblib
 
-from fv3fit.sklearn._wrapper import RegressorEnsemble, pack, SklearnWrapper
+from fv3fit.sklearn._wrapper import RegressorEnsemble, pack, SklearnWrapper, select
 from fv3fit._shared.scaler import ManualScaler
 
 
@@ -215,3 +215,20 @@ def test_predict_columnwise_is_deterministic(regtest):
 
     output = wrapper.predict_columnwise(data, feature_dim="z")
     print(joblib.hash(np.asarray(output["b"])), file=regtest)
+
+
+def test_select_all():
+    idx = [("u", 0)]
+    data = np.array([[0]])
+    np.testing.assert_equal(data, select(idx, data, "all"))
+
+
+def test_select_lower():
+    v = "northward_wind"
+    qv = "specific_humidity"
+    t = "air_temperature"
+    idx = [(t, 19), (t, 20), (qv, 29), (qv, 30), (v, 9), (v, 10), ("u", 0)]
+    data = np.array([["t_19", "t_20", "qv_29", "qv_30", "v_9", "v_10", "u_0"]])
+
+    expected = np.array([["t_20", "qv_30", "v_10", "u_0"]])
+    np.testing.assert_equal(select(idx, data, "lower"), expected)

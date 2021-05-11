@@ -12,8 +12,11 @@ from .. import _shared
 from .._shared import scaler
 import sklearn.base
 
-from typing import Optional, Iterable, Sequence
+from typing import Optional, Iterable, Sequence, List, Tuple
 import yaml
+
+
+logger = logging.getLogger("SklearnWrapper")
 
 
 def _multiindex_to_tuple(index: pd.MultiIndex) -> tuple:
@@ -93,6 +96,27 @@ class RegressorEnsemble:
         return obj
 
 
+def _is_feature(x):
+    name, i = x
+    if name == "specific_humidity":
+        return i >= 30
+    elif name == "air_temperature":
+        return i >= 20
+    elif name == "northward_wind":
+        return i >= 10
+    else:
+        return True
+
+
+def select(idx: List[Tuple[str, int]], data: np.ndarray, strategy):
+    if strategy == "all":
+        return data
+    elif strategy == "lower":
+        return data[:, [_is_feature(i) for i in idx]]
+    else:
+        raise NotImplementedError(f"{strategy} not implemented")
+
+
 @_shared.io.register("sklearn")
 class SklearnWrapper(Estimator):
     """Wrap a SkLearn model for use with xarray
@@ -102,6 +126,7 @@ class SklearnWrapper(Estimator):
     _PICKLE_NAME = "sklearn.pkl"
     _SCALER_NAME = "scaler.bin"
     _METADATA_NAME = "metadata.bin"
+    _SELECT_LEVELS = "select_levels"
 
     def __init__(
         self,
@@ -113,6 +138,7 @@ class SklearnWrapper(Estimator):
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
         target_scaler: Optional[scaler.NormalizeTransform] = None,
+        select_levels="all",
         n_jobs: int = 1,
     ) -> None:
         """
@@ -123,6 +149,7 @@ class SklearnWrapper(Estimator):
             input_variables: list of input variables
             output_variables: list of output variables
             model: a scikit learn regression model
+            select_levels: "all" or "lower"
         """
         self._sample_dim_name = sample_dim_name
         self._input_variables = input_variables
@@ -134,13 +161,19 @@ class SklearnWrapper(Estimator):
         self.scaler_type = scaler_type
         self.scaler_kwargs = scaler_kwargs or {}
         self.target_scaler: Optional[scaler.NormalizeTransform] = target_scaler
+        self.select_levels = select_levels
+        logger.info(f"Initialized {self}")
 
     def __repr__(self):
-        return "SklearnWrapper(\n%s)" % repr(self.model)
+        return f"SklearnWrapper({vars(self)})"
+
+    def _pack_inputs(self, data):
+        x, index = pack(data[self.input_variables], self.sample_dim_name)
+        return select(list(index), x, self.select_levels)
 
     def _fit_batch(self, data: xr.Dataset):
+        x = self._pack_inputs(data)
         # TODO the sample_dim can change so best to use feature dim to flatten
-        x, _ = pack(data[self.input_variables], self.sample_dim_name)
         y, self.output_features_ = pack(
             data[self.output_variables], self.sample_dim_name
         )
@@ -161,14 +194,13 @@ class SklearnWrapper(Estimator):
         )
 
     def fit(self, batches: Sequence[xr.Dataset]):
-        logger = logging.getLogger("SklearnWrapper")
         for i, batch in enumerate(batches):
             logger.info(f"Fitting batch {i}/{len(batches)}")
             self._fit_batch(batch)
             logger.info(f"Batch {i} done fitting.")
 
     def predict(self, data):
-        x, _ = pack(data[self.input_variables], self.sample_dim_name)
+        x = self._pack_inputs(data)
         with joblib.parallel_backend(self.parallel_backend, n_jobs=self.n_jobs):
             y = self.model.predict(x)
 
@@ -204,6 +236,7 @@ class SklearnWrapper(Estimator):
         ]
 
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
+        mapper[self._SELECT_LEVELS] = self.select_levels.encode("UTF-8")
 
     @classmethod
     def load(cls, path: str) -> "SklearnWrapper":
@@ -232,6 +265,7 @@ class SklearnWrapper(Estimator):
             output_variables,
             model,
             target_scaler=scaler_obj,
+            select_levels=mapper.get(cls._SELECT_LEVELS, b"all").decode(),
         )
         obj.output_features_ = output_features_
 
