@@ -136,7 +136,7 @@ def load_grid_info(res: str = "c48"):
     wind_rotation = catalog[f"wind_rotation/{res}"].read()
     land_sea_mask = catalog[f"landseamask/{res}"].read()
     grid_info = xr.merge([grid, wind_rotation, land_sea_mask])
-    return safe.get_variables(grid_info, GRID_INFO_VARS)
+    return safe.get_variables(grid_info, GRID_INFO_VARS).drop("tile")
 
 
 def write_report(
