@@ -41,6 +41,7 @@ def get_model(
     output_variables: Iterable[str],
     scaler_type: str,
     scaler_kwargs: dict,
+    select_levels="all",
     **hyperparameters,
 ) -> SklearnWrapper:
     base_regressor = _get_regressor(model_type, hyperparameters)
@@ -52,5 +53,6 @@ def get_model(
         batch_regressor,
         scaler_type=scaler_type,
         scaler_kwargs=scaler_kwargs,
+        select_levels=select_levels
     )
     return model_wrapper
