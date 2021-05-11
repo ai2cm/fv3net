@@ -238,7 +238,6 @@ def _get_batch(
     (i.e., not added in derived step), converts time strings to time, and combines
     into a single dataset.
     """
-
     time_coords = [parse_datetime_from_str(key) for key in keys]
     ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))
     nonderived_vars = nonderived_variables(data_vars, ds.data_vars)
