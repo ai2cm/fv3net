@@ -22,6 +22,7 @@ It is licensed under a BSD License.
    sampling
    derived-mapping
    grid-operations
+   interpolation
    xarray-io
    xarray-tools
    thermodynamics

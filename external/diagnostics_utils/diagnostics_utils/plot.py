@@ -4,7 +4,7 @@ from typing import Sequence, Union, Mapping
 import xarray as xr
 
 import fv3viz as visualize
-from .utils import _units_from_Q_name
+from .utils import units_from_name
 
 # grid info for the plot_cube function
 MAPPABLE_VAR_KWARGS = {
@@ -27,10 +27,13 @@ def plot_profile_var(
     dpi: int = 100,
     derivation_dim: str = "derivation",
     domain_dim: str = "domain",
+    dataset_dim: str = "dataset",
     derivation_plot_coords: Sequence[str] = ("target", "predict"),
     xlim: Sequence[float] = None,
     xticks: Union[Sequence[float], np.ndarray] = None,
 ):
+    if dataset_dim in ds[var].dims:
+        ds[var] = ds[var].mean("dataset")
     if derivation_dim in ds[var].dims:
         facet_grid = (
             ds[var]
@@ -42,7 +45,7 @@ def plot_profile_var(
     for ax in facet_grid.axes.flatten():
         ax.invert_yaxis()
         ax.plot([0, 0], [1, 79], "k-")
-        ax.set_xlabel(f"{var} {_units_from_Q_name(var)}")
+        ax.set_xlabel(f"{var} {units_from_name(var)}")
         if xlim:
             ax.set_xlim(xlim)
     f.set_size_inches([17, 3.5])
@@ -56,50 +59,48 @@ def plot_column_integrated_var(
     var: str,
     derivation_plot_coords: Sequence[str],
     derivation_dim: str = "derivation",
-    data_source_dim: str = None,
+    dataset_dim: str = "dataset",
     dpi: int = 100,
     vmax: Union[int, float] = None,
 ):
-
     f, _, _, _, facet_grid = visualize.plot_cube(
         visualize.mappable_var(
             ds.sel(derivation=derivation_plot_coords), var, **MAPPABLE_VAR_KWARGS
         ),
         col=derivation_dim,
-        row=data_source_dim,
+        row=dataset_dim if dataset_dim in ds.dims else None,
         vmax=vmax,
     )
     facet_grid.set_titles(template="{value} ", maxchar=40)
-    f.set_size_inches([14, 3.5])
+    num_datasets = len(ds[dataset_dim]) if dataset_dim in ds.dims else 1
+    f.set_size_inches([14, 3.5 * num_datasets])
     f.set_dpi(dpi)
-    f.suptitle(f'{var.replace("_", " ")} {_units_from_Q_name(var)}')
+    f.suptitle(f'{var.replace("_", " ")} {units_from_name(var)}')
     return f
 
 
 def plot_diurnal_cycles(
     ds_diurnal: xr.Dataset,
-    vars: Sequence[str],
+    var: str,
     derivation_plot_coords: Sequence[str],
     dpi: int = 100,
 ):
     ds_diurnal = ds_diurnal.sel(derivation=derivation_plot_coords)
-    facetgrid = (
-        ds_diurnal[vars]
-        .squeeze()
-        .to_array()
-        .plot(hue="derivation", row="variable", col="surface_type")
-    )
+
+    facetgrid = ds_diurnal[var].squeeze().plot(hue="derivation", col="surface_type")
+
     facetgrid.set_titles(template="{value}", maxchar=40)
     f = facetgrid.fig
     axes = facetgrid.axes
     for ax in axes.flatten():
         ax.grid(axis="y")
         ax.set_xlabel("local_time [hrs]")
-        ax.set_ylabel(_units_from_Q_name(vars[0]))
+        ax.set_ylabel(units_from_name(var))
         ax.set_xlim([0, 23])
         ax.set_xticks(np.linspace(0, 24, 13))
-    f.set_size_inches([12, 4 * len(vars)])
+    f.set_size_inches([12, 4])
     f.set_dpi(dpi)
+    f.suptitle(var)
     f.tight_layout()
     return f
 
@@ -120,7 +121,7 @@ def _plot_generic_data_array(
         plt.xlim(xlim)
     if ylim:
         plt.ylim(ylim)
-    units = _units_from_Q_name(da.name) or ""
+    units = units_from_name(da.name) or ""
     ylabel = ylabel or units
     title = title or " ".join([da.name.replace("_", " ").replace("-", ",")])
     plt.ylabel(ylabel)
@@ -136,7 +137,7 @@ def plot_zonal_average(
     plot_kwargs: Mapping = None,
 ):
     fig = plt.figure()
-    units = _units_from_Q_name(data.name) or ""
+    units = units_from_name(data.name) or ""
     title = f"{title or data.name} {units}"
     plot_kwargs = plot_kwargs or {}
     rename_axes = rename_axes or {

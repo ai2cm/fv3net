@@ -38,8 +38,11 @@ def nonderived_variables(requested: Sequence[str], available: Sequence[str]):
     nonderived = [var for var in requested if var in available]
     # if E/N winds not in underlying data, need to load x/y wind
     # tendencies to derive them
+    # TODO move to derived_mapping?
     if any(var in derived for var in EAST_NORTH_WIND_TENDENCIES):
         nonderived += X_Y_WIND_TENDENCIES
+    if any(var in derived for var in ["eastward_wind", "northward_wind"]):
+        nonderived += ["x_wind", "y_wind"]
     return nonderived
 
 
@@ -88,7 +91,8 @@ def _load_grid(res: str) -> xr.Dataset:
     grid = catalog[f"grid/{res}"].to_dask()
     land_sea_mask = catalog[f"landseamask/{res}"].to_dask()
     grid = grid.assign({"land_sea_mask": land_sea_mask["land_sea_mask"]})
-    return safe.get_variables(grid, ["lat", "lon", "land_sea_mask"])
+    # drop the tiles so that this is compatible with other indexing conventions
+    return safe.get_variables(grid, ["lat", "lon", "land_sea_mask"]).drop("tile")
 
 
 def _load_wind_rotation_matrix(res: str) -> xr.Dataset:

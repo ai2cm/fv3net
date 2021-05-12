@@ -7,7 +7,7 @@ ENV FV3GFS_FORTRAN_DIR=/external/fv3gfs-fortran
 ENV ESMF_INC="-I${ESMF_DIR}/include -I${ESMF_DIR}/mod/modO3/Linux.gfortran.64.mpiuni.default/"
 
 ENV FMS_LIB=${FMS_DIR}/libFMS/.libs/
-ENV ESMF_LIB=${ESMF_DIR}/lib/libO3/Linux.gfortran.64.mpiuni.default/
+ENV ESMF_LIB=${ESMF_DIR}/lib
 ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}
 
 COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4fd9efd898ad7b9fa3b391e5ede63cf5 /esmf ${ESMF_DIR}
@@ -16,6 +16,7 @@ COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4
 # build/install the fortran model
 COPY external/fv3gfs-fortran/ /tmp/fortran-build
 RUN cd /tmp/fortran-build/FV3 && \
+    ./configure gnu_docker && \
     make -j 8 && \
     PREFIX=/usr/local make install
 
@@ -46,6 +47,15 @@ RUN pip3 install wheel && \
     pip3 install --upgrade pip==20.2.4 setuptools==40.1.0 && \
     ln -s /bin/python3 /bin/python && \
     ln -s /bin/pip3 /bin/pip
+
+# Install the latest version of gcsfs through our local
+# subtree.
+COPY external/gcsfs /fv3net/external/gcsfs
+# install gcsfs deps
+# temporary hack to remove gcsfs from constraints.txt
+# TODO remove once a new release of gcsfs is included
+RUN sed -i.bak 's/gcsfs.*//g' ${PIP_CONSTRAINT}
+RUN pip3 install /fv3net/external/gcsfs
 
 # Build the wrapper
 RUN apt-get install -y pkg-config

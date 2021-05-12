@@ -1,7 +1,6 @@
 from typing import (
     Any,
     Sequence,
-    Container,
     Mapping,
     List,
     Union,
@@ -17,7 +16,7 @@ import xarray as xr
 import dataclasses
 
 from .fortran import FortranFileConfig
-from .time import TimeConfig, TimeContainer, All
+from .time import TimeConfig, TimeContainer
 
 logger = logging.getLogger(__name__)
 
@@ -29,16 +28,16 @@ class DiagnosticFileConfig:
     Attributes:
         name: filename of a zarr to store the data in, e.g., 'diags.zarr'.
             Paths are relative to the run-directory root.
-        variables: the variables to save. By default all available diagnostics
+        variables: the variables to save. By default no diagnostics
             are stored. Example: ``["air_temperature", "cos_zenith_angle"]``.
         times: the time configuration
         chunks: mapping of dimension names to chunk sizes
     """
 
     name: str
-    variables: Optional[Container] = None
+    variables: Sequence[str] = dataclasses.field(default_factory=list)
     times: TimeConfig = dataclasses.field(default_factory=lambda: TimeConfig())
-    chunks: Optional[Mapping[str, int]] = None
+    chunks: Mapping[str, int] = dataclasses.field(default_factory=dict)
 
     def to_dict(self) -> Dict:
         return dataclasses.asdict(self)
@@ -50,7 +49,7 @@ class DiagnosticFileConfig:
         comm: Any,
     ) -> "DiagnosticFile":
         return DiagnosticFile(
-            variables=self.variables if self.variables else All(),
+            variables=self.variables,
             times=self.times.time_container(initial_time),
             monitor=fv3gfs.util.ZarrMonitor(self.name, partitioner, mpi_comm=comm),
         )
@@ -73,7 +72,7 @@ class DiagnosticFile:
 
     def __init__(
         self,
-        variables: Container,
+        variables: Sequence[str],
         monitor: fv3gfs.util.ZarrMonitor,
         times: TimeContainer,
     ):
@@ -81,10 +80,9 @@ class DiagnosticFile:
 
         Note:
 
-            The containers used for times and variables do not need to be
-            concrete lists or python sequences. They only need to satisfy the
-            abstract ``Container`` interface. Please see the special
-            containers for outputing times above:
+            The container used for times does not need to be a concrete list or python
+            sequence. It only need to satisfy the abstract ``Container`` interface.
+            Please see the special containers for outputting times above:
 
             - ``IntervalTimes``
             - ``SelectedTimes``
@@ -157,8 +155,8 @@ def get_diagnostic_files(
     initial_time: cftime.DatetimeJulian,
 ) -> List[DiagnosticFile]:
     """Initialize a list of diagnostic file objects from a configuration dictionary
-    Note- the default here is to save all the variables in the diagnostics.
-    The default set of variables can be overwritten by inserting a default diagnostics
+    Note- the default here is to save no variables in the diagnostics. This
+    can be overwritten by inserting a default diagnostics
     config entry for each runfile, e.g. ../prepare_config.py does this for
     the sklearn runfile.
 

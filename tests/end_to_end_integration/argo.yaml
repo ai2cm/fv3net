@@ -259,6 +259,69 @@ spec:
               nudge_virt: false
               nudge_winds: false
               nudge_q: false
+          fortran_diagnostics:
+            - name: atmos_dt_atmos.zarr
+              chunks:
+                time: 16
+              times:
+                frequency: 900
+                kind: interval
+              variables:
+              - {module_name: dynamics, field_name: grid_lont, output_name: lon}
+              - {module_name: dynamics, field_name: grid_latt, output_name: lat}
+              - {module_name: dynamics, field_name: grid_lon, output_name: lonb}
+              - {module_name: dynamics, field_name: grid_lat, output_name: latb}
+              - {module_name: dynamics, field_name: area, output_name: area}
+              - {module_name: dynamics, field_name: tb, output_name: TMPlowest}
+              - {module_name: dynamics, field_name: t850, output_name: TMP850}
+              - {module_name: dynamics, field_name: t500, output_name: TMP500}
+              - {module_name: dynamics, field_name: t200, output_name: TMP200}
+              - {module_name: dynamics, field_name: w500, output_name: w500}
+              - {module_name: dynamics, field_name: vort500, output_name: VORT500}
+              - {module_name: dynamics, field_name: z500, output_name: h500}
+              - {module_name: dynamics, field_name: rh850, output_name: RH850}
+              - {module_name: dynamics, field_name: q500, output_name: q500}
+              - {module_name: dynamics, field_name: ps, output_name: PRESsfc}
+              - {module_name: dynamics, field_name: tq, output_name: PWAT}
+              - {module_name: dynamics, field_name: lw, output_name: VIL}
+            - name: sfc_dt_atmos.zarr
+              chunks:
+                time: 16
+              times:
+                frequency: 900
+                kind: interval
+              variables:
+              - {module_name: dynamics, field_name: grid_lont, output_name: lon}
+              - {module_name: dynamics, field_name: grid_latt, output_name: lat}
+              - {module_name: dynamics, field_name: grid_lon, output_name: lonb}
+              - {module_name: dynamics, field_name: grid_lat, output_name: latb}
+              - {module_name: dynamics, field_name: area, output_name: area}
+              - {module_name: gfs_phys, field_name: dusfci, output_name: uflx}
+              - {module_name: gfs_phys, field_name: dvsfci, output_name: vflx}
+              - {module_name: gfs_phys, field_name: cnvprcpb_ave, output_name: CPRATsfc}
+              - {module_name: gfs_phys, field_name: totprcpb_ave, output_name: PRATEsfc}
+              - {module_name: gfs_phys, field_name: DSWRF, output_name: DSWRFsfc}
+              - {module_name: gfs_phys, field_name: USWRF, output_name: USWRFsfc}
+              - {module_name: gfs_phys, field_name: DSWRFtoa, output_name: DSWRFtoa}
+              - {module_name: gfs_phys, field_name: USWRFtoa, output_name: USWRFtoa}
+              - {module_name: gfs_phys, field_name: ULWRFtoa, output_name: ULWRFtoa}
+              - {module_name: gfs_phys, field_name: ULWRF, output_name: ULWRFsfc}
+              - {module_name: gfs_phys, field_name: DLWRF, output_name: DLWRFsfc}
+              - {module_name: gfs_phys, field_name: lhtfl_ave, output_name: LHTFLsfc}
+              - {module_name: gfs_phys, field_name: shtfl_ave, output_name: SHTFLsfc}
+          diagnostics:
+            - name: diags.zarr
+              chunks:
+                time: 16           
+              times:
+                frequency: 900
+                kind: interval
+              variables:
+              - net_moistening
+              - net_heating
+              - total_precipitation_rate
+              - water_vapor_path
+              - physics_precip
   serviceAccountName: integration-tests
   tolerations:
     - effect: NoSchedule
@@ -279,6 +342,18 @@ spec:
   - name: main
     dag:
       tasks:
+      - name: resolve-output-url
+        templateRef:
+          name: resolve-output-url
+          template: resolve-output-url
+        arguments:
+          parameters:
+            - name: bucket
+              value: "{{workflow.parameters.bucket}}"
+            - name: project
+              value: "{{workflow.parameters.project}}"
+            - name: tag
+              value: "{{workflow.parameters.tag}}-nudge-to-fine-run"
       - name: nudge-to-fine-run
         templateRef:
           name: prognostic-run
@@ -291,8 +366,12 @@ spec:
             value: "{{workflow.parameters.initial-condition}}"
           - name: flags
             value: "--output-frequency {{workflow.parameters.nudge-to-fine-output-frequency}}"
-          - name: output
-            value: "{{workflow.parameters.root}}/nudge_to_fine_run"
+          - name: bucket
+            value: "{{workflow.parameters.bucket}}"
+          - name: project
+            value: "{{workflow.parameters.project}}"
+          - name: tag
+            value: "{{workflow.parameters.tag}}-nudge-to-fine-run"
           - name: config
             value: "{{workflow.parameters.nudge-to-fine-config}}"
           - name: segment-count
@@ -302,16 +381,20 @@ spec:
           - name: memory
             value: 6Gi
       - name: train-offline-diags-prognostic
-        dependencies: [nudge-to-fine-run]
+        dependencies: [nudge-to-fine-run, resolve-output-url]
         templateRef:
           name: train-diags-prog
           template: train-diags-prog
         arguments:
           parameters:
-          - name: root
-            value: "{{workflow.parameters.root}}"
+          - name: bucket
+            value: "{{workflow.parameters.bucket}}"
+          - name: project
+            value: "{{workflow.parameters.project}}"
+          - name: tag
+            value: "{{workflow.parameters.tag}}-train-diags-prog"
           - name: train-test-data
-            value: "{{workflow.parameters.root}}/nudge_to_fine_run"
+            value: "{{tasks.resolve-output-url.outputs.result}}/fv3gfs_run"
           - name: training-configs
             value: "{{workflow.parameters.training-configs}}"
           - name: train-times
@@ -325,7 +408,7 @@ spec:
           - name: test-times
             value: "{{workflow.parameters.test-times}}"
           - name: public-report-output
-            value: "{{workflow.parameters.root}}/offline-report"
+            value: "{{tasks.resolve-output-url.outputs.result}}/offline-report"
           - name: cpu-prog
             value: "24"
           - name: memory-prog

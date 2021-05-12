@@ -1,0 +1,73 @@
+xarray.Dataset {
+dimensions:
+	tile = 6 ;
+	time = 2 ;
+	x = 12 ;
+	y = 12 ;
+	z = 63 ;
+
+variables:
+	float64 air_temperature_reference(time, tile, z, y, x) ;
+		air_temperature_reference:units = degK ;
+	float64 air_temperature_tendency_due_to_nudging(time, tile, z, y, x) ;
+		air_temperature_tendency_due_to_nudging:units = degK s^-1 ;
+	float64 area(time, tile, y, x) ;
+		area:units = m^2 ;
+	float64 cnvprcp_after_physics(time, tile, y, x) ;
+		cnvprcp_after_physics:units = kg/m**2/s ;
+	float64 cnvprcp_after_python(time, tile, y, x) ;
+		cnvprcp_after_python:units = kg/m**2/s ;
+	float64 evaporation(time, tile, y, x) ;
+		evaporation:units = unknown ;
+	float64 net_heating_due_to_nudging(time, tile, y, x) ;
+		net_heating_due_to_nudging:units = W/m^2 ;
+	float64 net_moistening_due_to_nudging(time, tile, y, x) ;
+		net_moistening_due_to_nudging:units = kg/m^2/s ;
+	float64 physics_precip(time, tile, y, x) ;
+		physics_precip:units = kg/m^2/s ;
+	float64 specific_humidity_reference(time, tile, z, y, x) ;
+		specific_humidity_reference:units = kg/kg ;
+	float64 specific_humidity_tendency_due_to_nudging(time, tile, z, y, x) ;
+		specific_humidity_tendency_due_to_nudging:units = kg/kg s^-1 ;
+	float64 storage_of_mass_due_to_fv3_physics(time, tile, y, x) ;
+		storage_of_mass_due_to_fv3_physics:units = Pa/s ;
+	float64 storage_of_mass_due_to_python(time, tile, y, x) ;
+		storage_of_mass_due_to_python:units = Pa/s ;
+	float64 storage_of_specific_humidity_path_due_to_fv3_physics(time, tile, y, x) ;
+		storage_of_specific_humidity_path_due_to_fv3_physics:units = kg/kg kg/m**2/s ;
+	float64 storage_of_specific_humidity_path_due_to_microphysics(time, tile, y, x) ;
+		storage_of_specific_humidity_path_due_to_microphysics:units = unknown ;
+	float64 storage_of_specific_humidity_path_due_to_python(time, tile, y, x) ;
+		storage_of_specific_humidity_path_due_to_python:units = kg/kg kg/m**2/s ;
+	float64 storage_of_total_water_path_due_to_fv3_physics(time, tile, y, x) ;
+		storage_of_total_water_path_due_to_fv3_physics:units = unknown ;
+	float64 storage_of_total_water_path_due_to_python(time, tile, y, x) ;
+		storage_of_total_water_path_due_to_python:units = unknown ;
+	float64 surface_temperature_reference(time, tile, y, x) ;
+		surface_temperature_reference:units = degK ;
+	float64 tendency_of_air_temperature_due_to_fv3_physics(time, tile, z, y, x) ;
+		tendency_of_air_temperature_due_to_fv3_physics:units = degK/s ;
+	float64 tendency_of_air_temperature_due_to_python(time, tile, z, y, x) ;
+		tendency_of_air_temperature_due_to_python:units = degK/s ;
+	float64 tendency_of_eastward_wind_due_to_fv3_physics(time, tile, z, y, x) ;
+		tendency_of_eastward_wind_due_to_fv3_physics:units = m/s/s ;
+	float64 tendency_of_eastward_wind_due_to_python(time, tile, z, y, x) ;
+		tendency_of_eastward_wind_due_to_python:units = m/s/s ;
+	float64 tendency_of_northward_wind_due_to_fv3_physics(time, tile, z, y, x) ;
+		tendency_of_northward_wind_due_to_fv3_physics:units = m/s/s ;
+	float64 tendency_of_northward_wind_due_to_python(time, tile, z, y, x) ;
+		tendency_of_northward_wind_due_to_python:units = m/s/s ;
+	float64 tendency_of_specific_humidity_due_to_fv3_physics(time, tile, z, y, x) ;
+		tendency_of_specific_humidity_due_to_fv3_physics:units = kg/kg/s ;
+	float64 tendency_of_specific_humidity_due_to_python(time, tile, z, y, x) ;
+		tendency_of_specific_humidity_due_to_python:units = kg/kg/s ;
+	object time(time) ;
+	float64 total_precip_after_physics(time, tile, y, x) ;
+		total_precip_after_physics:units = m ;
+	float64 total_precipitation_rate(time, tile, y, x) ;
+		total_precipitation_rate:units = kg/m^2/s ;
+	float64 water_vapor_path(time, tile, y, x) ;
+		water_vapor_path:units = mm ;
+
+// global attributes:
+}
