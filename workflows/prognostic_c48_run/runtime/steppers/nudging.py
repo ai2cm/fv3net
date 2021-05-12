@@ -2,7 +2,10 @@ import functools
 
 import fv3gfs.util
 import fv3gfs.wrapper
-from runtime.diagnostics.machine_learning import compute_nudging_diagnostics
+from runtime.diagnostics.machine_learning import (
+    compute_baseline_diagnostics,
+    compute_nudging_diagnostics,
+)
 from runtime.nudging import (
     NudgingConfig,
     get_nudging_tendency,
@@ -50,7 +53,10 @@ class PureNudger:
         return tendencies, reference, ssts
 
     def get_diagnostics(self, state: State, tendency: State) -> Diagnostics:
-        return compute_nudging_diagnostics(state, tendency)
+        diags = {}
+        diags.update(compute_baseline_diagnostics(state))
+        diags.update(compute_nudging_diagnostics(state, tendency))
+        return diags
 
     def get_momentum_diagnostics(self, state: State, tendency: State) -> Diagnostics:
         return {}

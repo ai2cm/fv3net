@@ -1,13 +1,10 @@
 import xarray as xr
 import logging
 from runtime.types import State, Diagnostics
+from runtime.names import TEMP, SPHUM, DELP, PRECIP_RATE
 
 logger = logging.getLogger(__name__)
 
-TEMP = "air_temperature"
-SPHUM = "specific_humidity"
-DELP = "pressure_thickness_of_atmospheric_layer"
-PRECIP_RATE = "surface_precipitation_rate"
 cp = 1004
 gravity = 9.81
 
@@ -54,8 +51,6 @@ def precipitation_rate(
 
 
 def compute_ml_diagnostics(state: State, ml_tendency: State) -> Diagnostics:
-
-    physics_precip = state[PRECIP_RATE]
     delp = state[DELP]
     dQ1 = ml_tendency.get("dQ1", xr.zeros_like(delp))
     dQ2 = ml_tendency.get("dQ2", xr.zeros_like(delp))
@@ -78,15 +73,6 @@ def compute_ml_diagnostics(state: State, ml_tendency: State) -> Diagnostics:
         .sum("z")
         .assign_attrs(units="W/m^2")
         .assign_attrs(description="column integrated ML model heating"),
-        water_vapor_path=(state[SPHUM] * delp / gravity)
-        .sum("z")
-        .assign_attrs(units="mm")
-        .assign_attrs(description="column integrated water vapor"),
-        physics_precip=(physics_precip)
-        .assign_attrs(units="kg/m^2/s")
-        .assign_attrs(
-            description="surface precipitation rate due to parameterized physics"
-        ),
     )
 
 
@@ -156,26 +142,11 @@ def compute_nudging_diagnostics(
         .assign_attrs(units="W/m^2")
         .assign_attrs(description="column integrated heating due to nudging")
     )
-    water_vapor_path = (
-        (state[SPHUM] * state[DELP] / gravity)
-        .sum("z")
-        .assign_attrs(units="mm")
-        .assign_attrs(description="column integrated water vapor")
-    )
-    physics_precip = (
-        state[PRECIP_RATE]
-        .assign_attrs(units="kg/m^2/s")
-        .assign_attrs(
-            description="surface precipitation rate due to parameterized physics"
-        )
-    )
 
     diags.update(
         {
             "net_moistening_due_to_nudging": net_moistening,
             "net_heating_due_to_nudging": net_heating,
-            "water_vapor_path": water_vapor_path,
-            "physics_precip": physics_precip,
         }
     )
 

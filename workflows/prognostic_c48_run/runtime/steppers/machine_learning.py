@@ -210,7 +210,10 @@ class PureMLStepper:
         )
 
     def get_diagnostics(self, state, tendency):
-        return runtime.compute_ml_diagnostics(state, tendency)
+        diags = {}
+        diags.update(runtime.compute_baseline_diagnostics(state))
+        diags.update(runtime.compute_ml_diagnostics(state, tendency))
+        return diags
 
     def get_momentum_diagnostics(self, state, tendency):
         return runtime.compute_ml_momentum_diagnostics(state, tendency)
