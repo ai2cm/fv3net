@@ -6,7 +6,6 @@ import os
 from typing import Hashable, Iterable, Mapping, Sequence, Set, Tuple, cast
 
 import fv3fit
-import runtime
 import xarray as xr
 from runtime.names import DELP, SPHUM
 from runtime.types import Diagnostics, State
@@ -164,7 +163,7 @@ def predict(model: MultiModelAdapter, state: State) -> State:
 
 class PureMLStepper:
 
-    net_moistening = "net_moistening"
+    label = "ml"
 
     def __init__(self, model: MultiModelAdapter, timestep: float):
         self.model = model
@@ -208,15 +207,6 @@ class PureMLStepper:
             diagnostics,
             state_updates,
         )
-
-    def get_diagnostics(self, state, tendency):
-        diags = {}
-        diags.update(runtime.compute_baseline_diagnostics(state))
-        diags.update(runtime.compute_ml_diagnostics(state, tendency))
-        return diags
-
-    def get_momentum_diagnostics(self, state, tendency):
-        return runtime.compute_ml_momentum_diagnostics(state, tendency)
 
 
 class MLStateStepper(PureMLStepper):

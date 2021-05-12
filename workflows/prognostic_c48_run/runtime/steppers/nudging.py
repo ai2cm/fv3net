@@ -2,10 +2,6 @@ import functools
 
 import fv3gfs.util
 import fv3gfs.wrapper
-from runtime.diagnostics.machine_learning import (
-    compute_baseline_diagnostics,
-    compute_nudging_diagnostics,
-)
 from runtime.nudging import (
     NudgingConfig,
     get_nudging_tendency,
@@ -13,13 +9,12 @@ from runtime.nudging import (
     nudging_timescales_from_dict,
     setup_get_reference_state,
 )
-from runtime.types import Diagnostics, State
 from runtime.names import SST, TSFC
 
 
 class PureNudger:
 
-    net_moistening = "net_moistening_due_to_nudging"
+    label = "nudging"
 
     def __init__(
         self, config: NudgingConfig, communicator: fv3gfs.util.CubedSphereCommunicator,
@@ -48,12 +43,3 @@ class PureNudger:
             for key, reference_state in reference.items()
         }
         return tendencies, reference, ssts
-
-    def get_diagnostics(self, state: State, tendency: State) -> Diagnostics:
-        diags = {}
-        diags.update(compute_baseline_diagnostics(state))
-        diags.update(compute_nudging_diagnostics(state, tendency))
-        return diags
-
-    def get_momentum_diagnostics(self, state: State, tendency: State) -> Diagnostics:
-        return {}

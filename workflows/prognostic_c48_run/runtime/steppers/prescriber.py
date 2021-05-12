@@ -69,7 +69,7 @@ class PrescriberConfig:
 
 class Prescriber:
 
-    net_moistening = "net_moistening"
+    label = "prescriber"
 
     def __init__(
         self,
@@ -133,12 +133,6 @@ class Prescriber:
             diagnostics[name] = state_updates[name]
         tendency: Tendencies = {}
         return tendency, diagnostics, state_updates
-
-    def get_diagnostics(self, state, tendency):
-        return {}
-
-    def get_momentum_diagnostics(self, state, tendency):
-        return {}
 
 
 def _get_prescribed_ds(
