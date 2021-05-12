@@ -9,6 +9,9 @@ TOTAL_PRECIP = "total_precipitation"  # has units of m
 AREA = "area_of_grid_cell"
 EAST_WIND = "eastward_wind_after_physics"
 NORTH_WIND = "northward_wind_after_physics"
+SST = "ocean_surface_temperature"
+TSFC = "surface_temperature"
+MASK = "land_sea_mask"
 
 # following variables are required no matter what feature set is being used
 TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {

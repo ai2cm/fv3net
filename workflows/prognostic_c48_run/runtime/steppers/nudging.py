@@ -14,10 +14,7 @@ from runtime.nudging import (
     setup_get_reference_state,
 )
 from runtime.types import Diagnostics, State
-
-SST_NAME = "ocean_surface_temperature"
-TSFC_NAME = "surface_temperature"
-MASK_NAME = "land_sea_mask"
+from runtime.names import SST, TSFC
 
 
 class PureNudger:
@@ -31,7 +28,7 @@ class PureNudger:
         variables_to_nudge = list(config.timescale_hours)
         self._get_reference_state = setup_get_reference_state(
             config,
-            variables_to_nudge + [SST_NAME, TSFC_NAME],
+            variables_to_nudge + [SST, TSFC],
             fv3gfs.wrapper.get_tracer_metadata(),
             communicator,
         )
