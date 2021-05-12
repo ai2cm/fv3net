@@ -1,0 +1,24 @@
+model_type: sklearn_random_forest
+hyperparameters:
+  max_depth: 13
+  n_estimators: 1
+  select_levels: "lower"
+input_variables:
+  - air_temperature
+  - specific_humidity
+  - cos_zenith_angle
+  - surface_geopotential
+  - land_sea_mask
+  - eastward_wind
+  - northward_wind
+output_variables:
+  - dQ1  # hybrid full physics
+  - dQ2  # hybrid full physics
+  - dQu  # nudging
+  - dQv  # nudging
+batch_function: batches_from_geodata
+batch_kwargs:
+  timesteps_per_batch: 10
+  mapping_function: open_zarr
+  mapping_kwargs:
+    consolidated: False
