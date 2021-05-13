@@ -150,3 +150,31 @@ def test_RunMetrics_get_metric_value_missing():
 def test_RunMetrics_get_metric_units():
     metrics = RunMetrics(metrics_df)
     assert metrics.get_metric_units("rmse_of_time_mean", "precip", "run1") == "mm/day"
+
+
+@pytest.fixture()
+def url():
+    # this data might get out of date if it does we should replace it with synth
+    # data
+    return "gs://vcm-ml-public/argo/2021-05-05-compare-n2o-resolution-a8290d64ce4f/"
+
+
+@pytest.mark.network
+def test_ComputeDiagnosticsList_load_diagnostics(url):
+    diags = ComputedDiagnosticsList(url)
+    meta, diags = diags.load_diagnostics()
+    assert isinstance(diags, RunDiagnostics)
+
+
+@pytest.mark.network
+def test_ComputeDiagnosticsList_load_metrics(url):
+    diags = ComputedDiagnosticsList(url)
+    meta = diags.load_metrics()
+    assert isinstance(meta, RunMetrics)
+
+
+@pytest.mark.network
+def test_ComputeDiagnosticsList_find_movie_links(url):
+    diags = ComputedDiagnosticsList(url)
+    meta = diags.find_movie_links()
+    assert len(meta) == 0
