@@ -21,7 +21,7 @@ import xarray as xr
 from mpi4py import MPI
 from runtime import DerivedFV3State
 from runtime.config import UserConfig, DiagnosticFileConfig, get_namelist
-from runtime.diagnostics.machine_learning import (
+from runtime.diagnostics.compute import (
     compute_baseline_diagnostics,
     compute_diagnostics,
     compute_ml_momentum_diagnostics,
