@@ -12,6 +12,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     detect_rundirs,
     RunDiagnostics,
     RunMetrics,
+    DiagnosticFolder,
 )
 
 
@@ -36,6 +37,7 @@ def test_detect_rundirs(tmpdir):
     assert len(result) == 2
     for found_dir in result:
         assert found_dir in rundirs
+        assert isinstance(result[found_dir], DiagnosticFolder)
 
 
 def test_detect_rundirs_fail_less_than_2(tmpdir):

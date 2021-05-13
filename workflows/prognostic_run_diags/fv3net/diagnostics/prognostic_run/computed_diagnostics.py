@@ -2,7 +2,7 @@
 
 """
 import json
-from typing import Iterable, Hashable, Sequence, Tuple, Any, Set
+from typing import Iterable, Hashable, Sequence, Tuple, Any, Set, Mapping
 import os
 import xarray as xr
 import numpy as np
@@ -179,7 +179,7 @@ class RunMetrics:
 def load_metrics(fs, bucket) -> pd.DataFrame:
     """Load the metrics from a bucket"""
     rundirs = detect_rundirs(bucket, fs)
-    metrics = _load_metrics(bucket, rundirs)
+    metrics = _load_metrics(rundirs)
     metric_table = pd.DataFrame.from_records(_yield_metric_rows(metrics))
     run_table = parse_rundirs(rundirs)
     return pd.merge(run_table, metric_table, on="run")
@@ -188,7 +188,7 @@ def load_metrics(fs, bucket) -> pd.DataFrame:
 def load_diagnostics(fs, bucket) -> Tuple[Metadata, Diagnostics]:
     """Load metadata and merged diagnostics from a bucket"""
     rundirs = detect_rundirs(bucket, fs)
-    diags = _load_diags(bucket, rundirs)
+    diags = _load_diags(rundirs)
     run_table_lookup = parse_rundirs(rundirs)
     diagnostics = [
         ds.assign_attrs(run=key, **run_table_lookup.loc[key])
@@ -213,14 +213,13 @@ def find_movie_links(fs, bucket, domain=PUBLIC_GCS_DOMAIN):
 
     # TODO refactor to split out I/O from html generation
     movie_links = {}
-    for rundir in rundirs:
-        movie_paths = fs.glob(os.path.join(bucket, rundir, "*.mp4"))
-        for gcs_path in movie_paths:
+    for name, folder in rundirs.items():
+        for movie_name, gcs_path in folder.movie_links:
             movie_name = os.path.basename(gcs_path)
             if movie_name not in movie_links:
                 movie_links[movie_name] = []
             public_url = os.path.join(domain, gcs_path)
-            movie_links[movie_name].append((public_url, rundir))
+            movie_links[movie_name].append((public_url, name))
     return movie_links
 
 
@@ -233,24 +232,53 @@ def _longest_run(diagnostics: Iterable[xr.Dataset]) -> xr.Dataset:
     return longest_ds
 
 
-def detect_rundirs(bucket: str, fs: fsspec.AbstractFileSystem):
+@dataclass
+class DiagnosticFolder:
+    """Represents the output of compute diagnostics"""
+
+    fs: fsspec.AbstractFileSystem
+    path: str
+
+    @property
+    def metrics(self):
+        path = os.path.join(self.path, "metrics.json")
+        return json.loads(self.fs.cat(path))
+
+    @property
+    def diagnostics(self) -> xr.Dataset:
+        path = os.path.join(self.path, "diags.nc")
+        with tempfile.NamedTemporaryFile() as f:
+            self.fs.get(path, f.name)
+            return xr.open_dataset(f.name, engine="h5netcdf").compute()
+
+    @property
+    def movie_links(self, domain=PUBLIC_GCS_DOMAIN):
+        movie_paths = self.fs.glob(os.path.join(self.path, "*.mp4"))
+        for gcs_path in movie_paths:
+            movie_name = os.path.basename(gcs_path)
+            public_url = os.path.join(domain, gcs_path)
+            yield movie_name, public_url
+
+
+def detect_rundirs(
+    bucket: str, fs: fsspec.AbstractFileSystem
+) -> Mapping[str, DiagnosticFolder]:
     diag_ncs = fs.glob(os.path.join(bucket, "*", "diags.nc"))
     if len(diag_ncs) < 2:
         raise ValueError(
             "Plots require more than 1 diagnostic directory in"
             f" {bucket} for holoviews plots to display correctly."
         )
-    return [Path(url).parent.name for url in diag_ncs]
+    return {
+        Path(url).parent.name: DiagnosticFolder(fs, Path(url).parent.as_posix())
+        for url in diag_ncs
+    }
 
 
-def _load_diags(bucket, rundirs):
+def _load_diags(rundirs: Mapping[str, DiagnosticFolder]):
     metrics = {}
-    for rundir in rundirs:
-        path = os.path.join(bucket, rundir, "diags.nc")
-        fs = fsspec.get_fs_token_paths(bucket)[0]
-        with tempfile.NamedTemporaryFile() as f:
-            fs.get(path, f.name)
-            metrics[rundir] = xr.open_dataset(f.name, engine="h5netcdf").compute()
+    for rundir, diag_folder in rundirs.items():
+        metrics[rundir] = diag_folder.diagnostics
     return metrics
 
 
@@ -267,13 +295,10 @@ def _yield_metric_rows(metrics):
             }
 
 
-def _load_metrics(bucket, rundirs):
+def _load_metrics(rundirs):
     metrics = {}
-    for rundir in rundirs:
-        path = os.path.join(bucket, rundir, "metrics.json")
-        with fsspec.open(path, "rb") as f:
-            metrics[rundir] = json.load(f)
-
+    for rundir, diag_folder in rundirs.items():
+        metrics[rundir] = diag_folder.metrics
     return metrics
 
 
