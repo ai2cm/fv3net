@@ -15,20 +15,22 @@ import logging
 logger = logging.getLogger(__file__)
 
 LV = 2.5e6  # Latent heat of evaporation [J/kg]
-WATER_DENSITY = 997  # kg/m^3
 CPD = 1004.6  # Specific heat capacity of dry air at constant pressure [J/kg/deg]
 GRAVITY = 9.80665  # m /s2
-KG_M2_TO_MM = 1000.0 / WATER_DENSITY  # mm/m / (kg/m^3) = mm / (kg/m^2)
+# WATER_DENSITY = 997  # kg/m^3
+# KG_M2_TO_MM = 1000.0 / WATER_DENSITY  # mm/m / (kg/m^3) = mm / (kg/m^2)
 
 
 def integrate_precip(args):
     dQ2, delp = args  # layers seem to take in a single argument
+    # precip = kg/kg/s * Pa / (m/s^2) = (kg/(m*s^2)) / (m/s^2) = kg/m^2/s
     return tf.math.scalar_mul(
-        KG_M2_TO_MM / GRAVITY, tf.math.reduce_sum(tf.math.multiply(dQ2, delp), axis=-1)
+        1.0 / GRAVITY, tf.math.reduce_sum(tf.math.multiply(dQ2, delp), axis=-1)
     )
 
 
-def evaporative_heating(dQ2):
+def condensation_heating(dQ2):
+    # heating = J/kg / (J/kg/degK) * kg/kg/s = degK/s
     return tf.math.scalar_mul(tf.constant(LV / CPD), dQ2)
 
 
@@ -57,9 +59,9 @@ def get_losses(output_packer, output_scaler):
     loss_list = []
     for name in output_packer.pack_names:
         factor = tf.constant(
-            1.0 / n_outputs / np.mean(std[name].values ** 2), dtype=tf.float32
+            1.0 / n_outputs / np.mean(std[name].values), dtype=tf.float32
         )
-        loss_list.append(multiply_loss_by_factor(tf.losses.mse, factor))
+        loss_list.append(multiply_loss_by_factor(tf.losses.mae, factor))
 
     return loss_list
 
@@ -126,7 +128,8 @@ class PrecipitativeModel(Estimator):
         self.prognostic_packer = ArrayPacker(
             sample_dim_name, [self._T_NAME, self._Q_NAME]
         )
-        self.humidity_packer = ArrayPacker(sample_dim_name, [self._Q_NAME])
+        # normalize precipitation based on dQ2, not based on specific humidity
+        self.precip_packer = ArrayPacker(sample_dim_name, [self._Q_TENDENCY_NAME])
         output_without_precip = (n for n in output_variables if n != self._PRECIP_NAME)
         self.output_packer = ArrayPacker(sample_dim_name, self.output_variables)
         self.output_without_precip_packer = ArrayPacker(
@@ -136,7 +139,7 @@ class PrecipitativeModel(Estimator):
         self.prognostic_scaler = LayerStandardScaler()
         self.output_scaler = LayerStandardScaler()
         self.output_without_precip_scaler = LayerStandardScaler()
-        self.humidity_scaler = LayerStandardScaler()
+        self.precip_scaler = LayerStandardScaler()
         self._train_model: Optional[tf.keras.Model] = None
         self._predict_model: Optional[tf.keras.Model] = None
         self._epochs = epochs
@@ -199,12 +202,13 @@ class PrecipitativeModel(Estimator):
         state = self.prognostic_packer.to_array(X)
         outputs = self.output_packer.to_array(X)
         outputs_without_precip = self.output_without_precip_packer.to_array(X)
-        humidity = self.humidity_packer.to_array(X)
+        dQ2 = self.precip_packer.to_array(X)
         self.input_scaler.fit(inputs)
         self.prognostic_scaler.fit(state)
         self.output_scaler.fit(outputs)
         self.output_without_precip_scaler.fit(outputs_without_precip)
-        self.humidity_scaler.fit(humidity)
+        self.precip_scaler.fit(dQ2)
+        self.precip_scaler.std = np.zeros_like(self.precip_scaler.std)
         self._statistics_are_fit = True
 
     def _build_model(self):
@@ -226,7 +230,7 @@ class PrecipitativeModel(Estimator):
         output_vector = tf.keras.layers.Dense(
             output_features,
             activation="linear",
-            activity_regularizer=self.dynamics_regularizer,
+            activity_regularizer=self._dynamics_regularizer,
         )(x)
         denormalized_output = self.output_without_precip_scaler.denormalize_layer(
             output_vector
@@ -235,15 +239,20 @@ class PrecipitativeModel(Estimator):
             self.output_without_precip_packer, feature_dim=1
         )(denormalized_output)
         q_tendency = unpacked_output[0]
+        scale_q = tf.keras.layers.Lambda(lambda x: x ** 5)
+        q_tendency = scale_q(q_tendency)
         T_tendency = unpacked_output[1]
 
         column_precip_vector = tf.keras.layers.Dense(
-            self.humidity_packer.feature_counts[self._Q_NAME], activation="relu"
-        )(x)
-        column_precip = self.humidity_scaler.denormalize_layer(column_precip_vector)
-        column_heating = tf.keras.layers.Lambda(evaporative_heating)(column_precip)
+            self.precip_packer.feature_counts[self._Q_TENDENCY_NAME], activation="relu"
+        )(
+            x
+        )  # positive precipitation only
+        column_precip_vector = scale_q(column_precip_vector)
+        column_precip = self.precip_scaler.denormalize_layer(column_precip_vector)
+        column_heating = tf.keras.layers.Lambda(condensation_heating)(column_precip)
         T_tendency = tf.keras.layers.Add()([T_tendency, column_heating])
-        q_tendency = tf.keras.layers.Subtract()([q_tendency, column_precip])
+        q_tendency = tf.keras.layers.Subtract()([q_tendency, column_precip_vector])
         surface_precip = tf.keras.layers.Lambda(integrate_precip)([column_precip, delp])
         train_model = tf.keras.Model(
             inputs=input_layers,

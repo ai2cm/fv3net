@@ -98,7 +98,9 @@ def _get_model(config: ModelTrainingConfig) -> Estimator:
 def _keras_fit_kwargs(config: ModelTrainingConfig) -> dict:
     # extra args specific to keras training
     fit_kwargs = config.hyperparameters.pop("fit_kwargs", {})
-    fit_kwargs["validation_dataset"] = validation_dataset(data_path, train_config)
+    val = validation_dataset(data_path, train_config)
+    if val is not None:
+        fit_kwargs["validation_dataset"] = val
     return fit_kwargs
 
 
@@ -123,10 +125,12 @@ if __name__ == "__main__":
 
     train_config.dump(args.output_data_path)
     set_random_seed(train_config.random_seed)
-
-    batches = load_data_sequence(data_path, train_config)
-    if args.local_download_path:
-        batches = batches.local(args.local_download_path)  # type: ignore
+    if len(os.listdir(args.local_download_path)) > 0:
+        batches = loaders.batches.Local(args.local_download_path)
+    else:
+        batches = load_data_sequence(data_path, train_config)
+        if args.local_download_path:
+            batches = batches.local(args.local_download_path)  # type: ignore
 
     model = _get_model(train_config)
     model.fit(batches)
