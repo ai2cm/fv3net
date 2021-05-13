@@ -115,6 +115,7 @@ def open_nudge_to_fine(
     nudging_variables: Sequence[str],
     physics_timestep_seconds: float = 900.0,
     consolidated: bool = True,
+    extra_zarrs: Optional[Sequence[str]] = None,
 ) -> XarrayMapper:
     """
     Load nudge-to-fine data mapper for use with training. Merges
@@ -130,12 +131,15 @@ def open_nudge_to_fine(
         physics_timestep_seconds (float): physics timestep, i.e., dt_atmos; defaults
             to 900.0
         consolidated (bool): whether zarrs to open have consolidated metadata
+        extra_zarrs: if given, include data in these zarrs under the
+            given url in the mapper
         
     Returns:
         mapper to dataset containing nudging tendencies, physics tendencies,
             and model state data
     """
-
+    if extra_zarrs is None:
+        extra_zarrs = []
     ds = xr.merge(
         _get_datasets(
             url,
@@ -143,7 +147,8 @@ def open_nudge_to_fine(
                 "physics_tendencies.zarr",
                 "nudging_tendencies.zarr",
                 "state_after_timestep.zarr",
-            ],
+            ]
+            + list(extra_zarrs),
             consolidated=consolidated,
         ).values(),
         join="inner",
