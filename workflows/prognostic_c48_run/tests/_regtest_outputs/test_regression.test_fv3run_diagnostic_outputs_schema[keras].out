@@ -33,10 +33,10 @@ variables:
 		dQv:units = m s^-2 ;
 	float64 evaporation(time, tile, y, x) ;
 		evaporation:units = unknown ;
-	float64 net_heating_due_to_ml(time, tile, y, x) ;
-		net_heating_due_to_ml:units = W/m^2 ;
-	float64 net_moistening_due_to_ml(time, tile, y, x) ;
-		net_moistening_due_to_ml:units = kg/m^2/s ;
+	float64 net_heating_due_to_machine_learning(time, tile, y, x) ;
+		net_heating_due_to_machine_learning:units = W/m^2 ;
+	float64 net_moistening_due_to_machine_learning(time, tile, y, x) ;
+		net_moistening_due_to_machine_learning:units = kg/m^2/s ;
 	float64 physics_precip(time, tile, y, x) ;
 		physics_precip:units = kg/m^2/s ;
 	float64 pressure_thickness_of_atmospheric_layer(time, tile, z, y, x) ;

@@ -52,7 +52,7 @@ def precipitation_rate(
 
 def compute_diagnostics(state: State, tendency: State, label: str) -> Diagnostics:
     delp = state[DELP]
-    if label == "ml":
+    if label == "machine_learning":
         temperature_tendency_name = "dQ1"
         humidity_tendency_name = "dQ2"
     elif label == "nudging":
@@ -89,7 +89,7 @@ def compute_diagnostics(state: State, tendency: State, label: str) -> Diagnostic
     # add 3D tendencies to diagnostics
     if label == "nudging":
         diags_3d = _append_key_label(tendency, "_tendency_due_to_nudging")
-    elif label == "ml":
+    elif label == "machine_learning":
         diags_3d = {
             "dQ1": temperature_tendency.assign_attrs(units="K/s").assign_attrs(
                 description=f"air temperature tendency due to {label}"
@@ -135,8 +135,8 @@ def rename_diagnostics(diags: Diagnostics):
     """Postfix ML output names with _diagnostic and create zero-valued outputs in
     their stead. Function operates in place."""
     ml_tendencies = {
-        "net_moistening_due_to_ml",
-        "net_heating_due_to_ml",
+        "net_moistening_due_to_machine_learning",
+        "net_heating_due_to_machine_learning",
         "column_integrated_dQu",
         "column_integrated_dQv",
         "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",

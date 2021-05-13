@@ -163,7 +163,7 @@ def predict(model: MultiModelAdapter, state: State) -> State:
 
 class PureMLStepper:
 
-    label = "ml"
+    label = "machine_learning"
 
     def __init__(self, model: MultiModelAdapter, timestep: float):
         self.model = model
