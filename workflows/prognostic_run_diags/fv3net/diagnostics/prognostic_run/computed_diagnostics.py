@@ -10,6 +10,7 @@ import fsspec
 import pandas as pd
 from pathlib import Path
 from dataclasses import dataclass
+import tempfile
 
 
 __all__ = ["ComputedDiagnosticsList", "RunDiagnostics"]
@@ -246,8 +247,10 @@ def _load_diags(bucket, rundirs):
     metrics = {}
     for rundir in rundirs:
         path = os.path.join(bucket, rundir, "diags.nc")
-        with fsspec.open(path, "rb") as f:
-            metrics[rundir] = xr.open_dataset(f, engine="h5netcdf").compute()
+        fs = fsspec.get_fs_token_paths(bucket)[0]
+        with tempfile.NamedTemporaryFile() as f:
+            fs.get(path, f.name)
+            metrics[rundir] = xr.open_dataset(f.name, engine="h5netcdf").compute()
     return metrics
 
 
