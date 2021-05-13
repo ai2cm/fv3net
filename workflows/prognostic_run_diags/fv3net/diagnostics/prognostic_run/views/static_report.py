@@ -426,7 +426,7 @@ def register_parser(subparsers):
 
 def main(args):
 
-    computed_diagnostics = ComputedDiagnosticsList(url=args.input)
+    computed_diagnostics = ComputedDiagnosticsList.from_url(args.input)
     metrics = computed_diagnostics.load_metrics()
     movie_links = computed_diagnostics.find_movie_links()
     metadata, diagnostics = computed_diagnostics.load_diagnostics()

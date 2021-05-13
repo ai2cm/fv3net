@@ -28,26 +28,28 @@ class ComputedDiagnosticsList:
     """Represents a list of computed diagnostics
 
     Attrs:
+        folder: Mapping[str]
         url: URL to directory containing rundirs as subdirectories.
             "rundirs". rundirs are subdirectories of this bucket. They each
             contain diags.nc, metrics.json, and .mp4 files.
     """
 
-    url: str
+    folders: Mapping[str, "DiagnosticFolder"]
 
-    def _get_fs(self):
-        fs, _, _ = fsspec.get_fs_token_paths(self.url)
-        return fs
+    @staticmethod
+    def from_url(url: str) -> "ComputedDiagnosticsList":
+        fs, _, _ = fsspec.get_fs_token_paths(url)
+        return ComputedDiagnosticsList(detect_folders(url, fs))
 
     def load_metrics(self) -> "RunMetrics":
-        return RunMetrics(load_metrics(self._get_fs(), self.url))
+        return RunMetrics(load_metrics(self.folders))
 
     def load_diagnostics(self) -> Tuple[Metadata, "RunDiagnostics"]:
-        metadata, xarray_diags = load_diagnostics(self._get_fs(), self.url)
+        metadata, xarray_diags = load_diagnostics(self.folders)
         return metadata, RunDiagnostics(xarray_diags)
 
     def find_movie_links(self):
-        return find_movie_links(self._get_fs(), self.url)
+        return find_movie_links(self.folders)
 
 
 @dataclass
@@ -176,18 +178,16 @@ class RunMetrics:
         return _metrics[_metrics.run == run]
 
 
-def load_metrics(fs, bucket) -> pd.DataFrame:
+def load_metrics(rundirs) -> pd.DataFrame:
     """Load the metrics from a bucket"""
-    rundirs = detect_rundirs(bucket, fs)
     metrics = _load_metrics(rundirs)
     metric_table = pd.DataFrame.from_records(_yield_metric_rows(metrics))
     run_table = parse_rundirs(rundirs)
     return pd.merge(run_table, metric_table, on="run")
 
 
-def load_diagnostics(fs, bucket) -> Tuple[Metadata, Diagnostics]:
+def load_diagnostics(rundirs) -> Tuple[Metadata, Diagnostics]:
     """Load metadata and merged diagnostics from a bucket"""
-    rundirs = detect_rundirs(bucket, fs)
     diags = _load_diags(rundirs)
     run_table_lookup = parse_rundirs(rundirs)
     diagnostics = [
@@ -203,13 +203,12 @@ def load_diagnostics(fs, bucket) -> Tuple[Metadata, Diagnostics]:
     return get_metadata(diags), diagnostics
 
 
-def find_movie_links(fs, bucket, domain=PUBLIC_GCS_DOMAIN):
+def find_movie_links(rundirs, domain=PUBLIC_GCS_DOMAIN):
     """Get the movie links from a bucket
 
     Returns:
         A dictionary of (public_url, rundir) tuples
     """
-    rundirs = detect_rundirs(bucket, fs)
 
     # TODO refactor to split out I/O from html generation
     movie_links = {}
@@ -260,8 +259,8 @@ class DiagnosticFolder:
             yield movie_name, public_url
 
 
-def detect_rundirs(
-    bucket: str, fs: fsspec.AbstractFileSystem
+def detect_folders(
+    bucket: str, fs: fsspec.AbstractFileSystem,
 ) -> Mapping[str, DiagnosticFolder]:
     diag_ncs = fs.glob(os.path.join(bucket, "*", "diags.nc"))
     if len(diag_ncs) < 2:
