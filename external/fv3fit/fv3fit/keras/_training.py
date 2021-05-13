@@ -4,8 +4,8 @@ import numpy as np
 import os
 import random
 import tensorflow as tf
-from . import _models
 from .._shared.predictor import Estimator
+from .._shared.config import get_keras_model
 
 logger = logging.getLogger(__file__)
 
@@ -30,7 +30,7 @@ def get_model(
     Returns:
         model
     """
-    return get_model_class(model_type)(  # type: ignore
+    return get_keras_model(model_type)(  # type: ignore
         sample_dim_name, input_variables, output_variables, **hyperparameters
     )
 
@@ -44,7 +44,7 @@ def get_model_class(model_type: str) -> Type[Estimator]:
     Returns:
         model_class: a subclass of Estimator corresponding to the model type
     """
-    return getattr(_models, model_type)
+    return get_keras_model(model_type)
 
 
 def get_optimizer(hyperparameters: dict = None):

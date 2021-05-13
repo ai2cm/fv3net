@@ -2,7 +2,7 @@ from typing import Iterable, Sequence
 import xarray as xr
 import pytest
 import logging
-from fv3fit._shared import ModelTrainingConfig
+from fv3fit._shared import _ModelTrainingConfig as ModelTrainingConfig
 import numpy as np
 import copy
 

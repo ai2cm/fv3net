@@ -1,32 +1,24 @@
 import argparse
-import inspect
 import loaders
 import logging
 import os
-import yaml
+import xarray as xr
+from typing import Sequence, Optional
 
-from ._shared import (
+from fv3fit._shared import (
     parse_data_path,
     load_data_sequence,
-    ModelTrainingConfig,
     io,
     Estimator,
 )
+import fv3fit._shared.config
 from .keras._training import get_regularizer, get_optimizer, set_random_seed
-from .keras._validation_data import validation_dataset
 import fv3fit.keras
 import fv3fit.sklearn
+import fv3fit
 
 
 KERAS_CHECKPOINT_PATH = "model_checkpoints"
-KERAS_MODEL_TYPES = [
-    m[0] for m in inspect.getmembers(fv3fit.keras._models, inspect.isclass)
-]
-SKLEARN_MODEL_TYPES = ["sklearn", "rf", "random_forest", "sklearn_random_forest"]
-ROUTINE_LOOKUP = {
-    **{model: "keras" for model in KERAS_MODEL_TYPES},
-    **{model: "sklearn" for model in SKLEARN_MODEL_TYPES},
-}
 
 
 def get_parser():
@@ -62,9 +54,8 @@ def get_parser():
     return parser
 
 
-def _get_model(config: ModelTrainingConfig) -> Estimator:
-    routine = ROUTINE_LOOKUP[config.model_type]
-    if routine == "sklearn":
+def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
+    if isinstance(config, fv3fit.SklearnTrainingConfig):
         return fv3fit.sklearn.get_model(
             model_type=config.model_type,
             input_variables=config.input_variables,
@@ -73,8 +64,7 @@ def _get_model(config: ModelTrainingConfig) -> Estimator:
             scaler_kwargs=config.scaler_kwargs,
             **config.hyperparameters,
         )
-    elif routine == "keras":
-        fit_kwargs = _keras_fit_kwargs(config)
+    elif isinstance(config, fv3fit.KerasTrainingConfig):
         checkpoint_path = (
             os.path.join(args.output_data_path, KERAS_CHECKPOINT_PATH)
             if config.save_model_checkpoints
@@ -88,18 +78,10 @@ def _get_model(config: ModelTrainingConfig) -> Estimator:
             optimizer=get_optimizer(config.hyperparameters),
             kernel_regularizer=get_regularizer(config.hyperparameters),
             checkpoint_path=checkpoint_path,
-            fit_kwargs=fit_kwargs,
             **config.hyperparameters,
         )
     else:
         raise NotImplementedError(f"Model type {config.model_type} is not implemented.")
-
-
-def _keras_fit_kwargs(config: ModelTrainingConfig) -> dict:
-    # extra args specific to keras training
-    fit_kwargs = config.hyperparameters.pop("fit_kwargs", {})
-    fit_kwargs["validation_dataset"] = validation_dataset(data_path, train_config)
-    return fit_kwargs
 
 
 if __name__ == "__main__":
@@ -107,28 +89,40 @@ if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
     data_path = parse_data_path(args.data_path)
-    train_config = ModelTrainingConfig.load(args.config_file)
-    train_config.data_path = args.data_path
-
-    if args.timesteps_file:
-        with open(args.timesteps_file, "r") as f:
-            timesteps = yaml.safe_load(f)
-        train_config.batch_kwargs["timesteps"] = timesteps
-        train_config.timesteps_source = "timesteps_file"
-
-    if args.validation_timesteps_file:
-        with open(args.validation_timesteps_file, "r") as f:
-            val_timesteps = yaml.safe_load(f)
-        train_config.validation_timesteps = val_timesteps
-
-    train_config.dump(args.output_data_path)
+    (
+        legacy_config,
+        train_config,
+        train_data_config,
+        val_data_config,
+    ) = fv3fit.load_configs(
+        args.config_file,
+        data_path=data_path,
+        output_data_path=args.output_data_path,
+        timesteps_file=args.timesteps_file,
+        validation_timesteps_file=args.validation_timesteps_file,
+    )
     set_random_seed(train_config.random_seed)
 
-    batches = load_data_sequence(data_path, train_config)
+    train_config.dump(os.path.join(args.output_data_path, "train.yaml"))
+    train_data_config.dump(os.path.join(args.output_data_path, "training_data.yml"))
+    train_batches = load_data_sequence(train_data_config)
+    if val_data_config is not None:
+        val_data_config.dump(os.path.join(args.output_data_path, "validation_data.yml"))
+        val_batches: Optional[Sequence[xr.Dataset]] = load_data_sequence(
+            val_data_config
+        )
+    else:
+        val_batches = None
+
     if args.local_download_path:
-        batches = batches.local(args.local_download_path)  # type: ignore
+        train_batches = train_batches.local(
+            os.path.join(args.local_download_path, "train")
+        )
+        val_batches = train_batches.local(
+            os.path.join(args.local_download_path, "validation")
+        )
 
     model = _get_model(train_config)
-    model.fit(batches)
+    model.fit(train_batches)
     train_config.model_path = args.output_data_path
     io.dump(model, args.output_data_path)

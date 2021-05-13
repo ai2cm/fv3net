@@ -1,4 +1,4 @@
-from fv3fit._shared import ModelTrainingConfig
+from fv3fit._shared import _ModelTrainingConfig as ModelTrainingConfig
 import fv3fit
 import yaml
 import pytest
@@ -56,4 +56,4 @@ def test_training_integration(
             ["python", "-m", "fv3fit.train", config.data_path, f.name, tmp_path]
         )
         fv3fit.load(str(tmp_path))
-        fv3fit.load_training_config(str(tmp_path))
+        fv3fit._shared.config.load_training_config(str(tmp_path))

@@ -1,6 +1,6 @@
 import os
 import tempfile
-from fv3fit._shared.config import ModelTrainingConfig
+from fv3fit._shared.config import _ModelTrainingConfig as ModelTrainingConfig
 
 import pytest
 
