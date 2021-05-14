@@ -7,12 +7,13 @@ from ._sequences import _XyArraySequence
 from ._filesystem import get_dir, put_dir
 from ..._shared.packer import ArrayPacker
 from ..._shared.predictor import Estimator
-from ..._shared import io
+from ..._shared import io, register_keras_trainer
 
 logger = logging.getLogger(__file__)
 
 
 @io.register("dummy")
+@register_keras_trainer("DummyModel")
 class DummyModel(Estimator):
     """
     A dummy keras model for testing, whose `fit` method learns only the input and
