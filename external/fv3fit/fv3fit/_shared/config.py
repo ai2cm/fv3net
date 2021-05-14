@@ -2,7 +2,7 @@ import dataclasses
 import fsspec
 import yaml
 import os
-from typing import Optional, Tuple, Union, Sequence, List, TypeVar, Type
+from typing import Optional, Tuple, Union, Sequence, List, TypeVar, Type, Dict
 import xarray as xr
 
 from loaders import batches
@@ -16,7 +16,7 @@ DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
 
 
-KERAS_MODELS = {}
+KERAS_MODELS: Dict[str, type] = {}
 SKLEARN_MODEL_TYPES = ["sklearn", "rf", "random_forest", "sklearn_random_forest"]
 
 
@@ -44,7 +44,7 @@ class Loadable:
     def load(cls: Type[T], filename: str) -> T:
         with fsspec.open(filename, "r") as f:
             config_dict = yaml.safe_load(f)
-        return cls(**config_dict)
+        return cls(**config_dict)  # type: ignore
 
 
 @dataclasses.dataclass
@@ -193,7 +193,7 @@ def load_configs(
     output_data_path: str,
     timesteps_file=None,
     validation_timesteps_file=None,
-) -> Tuple[TrainingConfig, DataConfig, Optional[DataConfig]]:
+) -> Tuple[_ModelTrainingConfig, TrainingConfig, DataConfig, Optional[DataConfig]]:
     """Load training configuration information from a legacy yaml config path.
     """
     # TODO: remove output_data_path argument, we need it here at the moment
@@ -216,7 +216,7 @@ def load_configs(
             "scaler_type",
             "scaler_kwargs",
         ]
-        config_cls = SklearnTrainingConfig
+        config_cls: Type[TrainingConfig] = SklearnTrainingConfig
     elif legacy_config.model_type in KERAS_MODELS:
         keys = [
             "model_type",
@@ -266,7 +266,7 @@ def load_configs(
         with open(validation_timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
         validation_batch_kwargs["timesteps"] = timesteps
-        validation_data_config = DataConfig(
+        validation_data_config: Optional[DataConfig] = DataConfig(
             variables=variables,
             data_path=data_path,
             batch_function=batch_function,
