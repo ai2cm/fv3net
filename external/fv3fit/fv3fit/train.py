@@ -94,7 +94,7 @@ if __name__ == "__main__":
         train_config,
         train_data_config,
         val_data_config,
-    ) = fv3fit.load_configs(
+    ) = fv3fit._shared.config.load_configs(
         args.config_file,
         data_path=data_path,
         output_data_path=args.output_data_path,
@@ -118,6 +118,10 @@ if __name__ == "__main__":
         train_batches = train_batches.local(
             os.path.join(args.local_download_path, "train")
         )
+        # TODO: currently, validation data is actually ignored except for Keras
+        # where it is handled in an odd way during configuration setup. Refactor
+        # model fitting to take in validation data directly, so this val_batches
+        # (or val_dataset if you need to refactor it to one) is actually used
         val_batches = train_batches.local(
             os.path.join(args.local_download_path, "validation")
         )

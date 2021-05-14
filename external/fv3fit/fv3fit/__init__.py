@@ -6,7 +6,6 @@ from ._shared.config import (
     SklearnTrainingConfig,
     KerasTrainingConfig,
     DataConfig,
-    load_configs,
     load_training_config,
 )
 from . import keras

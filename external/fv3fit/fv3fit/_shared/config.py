@@ -304,6 +304,8 @@ def validation_timesteps_config(train_config):
     return val_config
 
 
+# TODO: refactor all tests and code using this to create DataConfig from the beginning
+# and delete this helper routine
 def legacy_config_to_data_config(legacy_config):
     return DataConfig(
         variables=legacy_config.input_variables
