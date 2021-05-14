@@ -79,6 +79,7 @@ def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
     else:
         # assume given dataset is for a baseline or verification run
         column_dq1 = xr.zeros_like(ds.PRATEsfc)
+    column_dq1 = 719 / 1004 * column_dq1  # use cv instead of cp for <dQ1>
     column_dq1.attrs = {
         "long_name": "<dQ1> column integrated heating from ML",
         "units": "W/m^2",

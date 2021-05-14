@@ -134,6 +134,12 @@ class Prescriber:
         tendency: Tendencies = {}
         return tendency, diagnostics, state_updates
 
+    def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
+        return {}, xr.DataArray()
+
+    def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
+        return {}
+
 
 def _get_prescribed_ds(
     dataset_key: str,

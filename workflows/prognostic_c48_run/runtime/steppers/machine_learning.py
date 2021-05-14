@@ -7,6 +7,7 @@ from typing import Hashable, Iterable, Mapping, Sequence, Set, Tuple, cast
 
 import fv3fit
 import xarray as xr
+from runtime.diagnostics import compute_diagnostics, compute_ml_momentum_diagnostics
 from runtime.names import DELP, SPHUM
 from runtime.types import Diagnostics, State
 from vcm import thermo
@@ -207,6 +208,13 @@ class PureMLStepper:
             diagnostics,
             state_updates,
         )
+
+    def get_diagnostics(self, state, tendency):
+        diags = compute_diagnostics(state, tendency, self.label)
+        return diags, diags[f"net_moistening_due_to_{self.label}"]
+
+    def get_momentum_diagnostics(self, state, tendency):
+        return compute_ml_momentum_diagnostics(state, tendency)
 
 
 class MLStateStepper(PureMLStepper):

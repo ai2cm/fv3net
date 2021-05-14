@@ -9,6 +9,7 @@ from runtime.nudging import (
     nudging_timescales_from_dict,
     setup_get_reference_state,
 )
+from runtime.diagnostics import compute_diagnostics
 from runtime.names import SST, TSFC
 
 
@@ -43,3 +44,10 @@ class PureNudger:
             for key, reference_state in reference.items()
         }
         return tendencies, reference, ssts
+
+    def get_diagnostics(self, state, tendency):
+        diags = compute_diagnostics(state, tendency, self.label)
+        return diags, diags[f"net_moistening_due_to_{self.label}"]
+
+    def get_momentum_diagnostics(self, state, tendency):
+        return {}
