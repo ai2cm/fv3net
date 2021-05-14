@@ -48,7 +48,7 @@ To make a report from runs that are not in a combined folder like
 
    prognostic_run_diags report-from-urls \
       -o <output_path> \
-      path/to/baseline_run_reports/ \
-      path/to/prognostic_run_reports
+      path/to/baseline_run_diags \
+      path/to/prognostic_run_diags
 
 See :ref:`cli` for details about the options available for the above commands.
