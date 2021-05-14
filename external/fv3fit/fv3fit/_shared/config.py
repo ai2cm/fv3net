@@ -48,7 +48,7 @@ class Loadable:
 
 
 @dataclasses.dataclass
-class DataConfig(Dumpable):
+class DataConfig(Dumpable, Loadable):
     """Convenience wrapper for model training data
 
     Attrs:
@@ -69,7 +69,7 @@ class DataConfig(Dumpable):
 
 
 @dataclasses.dataclass
-class TrainingConfig(Dumpable):
+class TrainingConfig(Dumpable, Loadable):
     """Convenience wrapper for model training parameters and file info
 
     Attrs:
@@ -103,6 +103,17 @@ class TrainingConfig(Dumpable):
     random_seed: Union[float, int] = 0
     model_path: str = ""
 
+    @classmethod
+    def from_dict(cls, kwargs) -> "TrainingConfig":
+        model_type = kwargs["model_type"]
+        if model_type in SKLEARN_MODEL_TYPES:
+            subclass = SklearnTrainingConfig
+        elif model_type in KERAS_MODELS:
+            subclass = KerasTrainingConfig
+        else:
+            subclass = TrainingConfig
+        return subclass(**kwargs)
+
 
 @dataclasses.dataclass
 class KerasTrainingConfig(TrainingConfig):
@@ -117,6 +128,7 @@ class SklearnTrainingConfig(TrainingConfig):
     scaler_kwargs: dict = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
+        # TODO: turn this into an exception if DELP is not present
         if self.scaler_type == "mass":
             if DELP not in self.additional_variables:
                 self.additional_variables.append(DELP)
@@ -216,7 +228,6 @@ def load_configs(
             "scaler_type",
             "scaler_kwargs",
         ]
-        config_cls: Type[TrainingConfig] = SklearnTrainingConfig
     elif legacy_config.model_type in KERAS_MODELS:
         keys = [
             "model_type",
@@ -228,7 +239,6 @@ def load_configs(
             "model_path",
             "save_model_checkpoints",
         ]
-        config_cls = KerasTrainingConfig
         fit_kwargs = legacy_config.hyperparameters.pop("fit_kwargs", {})
         fit_kwargs["validation_dataset"] = validation_dataset(legacy_config)
         legacy_config.hyperparameters["fit_kwargs"] = fit_kwargs
@@ -236,8 +246,8 @@ def load_configs(
         raise NotImplementedError(f"unknown model type {legacy_config.model_type}")
     with fsspec.open(config_path, "r") as f:
         config_dict = yaml.safe_load(f)
-    training_config = config_cls(
-        **{key: config_dict[key] for key in keys if key in config_dict}
+    training_config = TrainingConfig.from_dict(
+        {key: config_dict[key] for key in keys if key in config_dict}
     )
 
     variables = (
