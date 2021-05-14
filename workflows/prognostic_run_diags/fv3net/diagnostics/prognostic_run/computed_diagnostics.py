@@ -194,11 +194,7 @@ def load_diagnostics(fs, bucket) -> Tuple[Metadata, Diagnostics]:
         for key, ds in diags.items()
     ]
     diagnostics = [convert_index_to_datetime(ds, "time") for ds in diagnostics]
-
-    # hack to add verification data from longest set of diagnostics as new run
-    # TODO: generate separate diags.nc file for verification data and load that in here
-    longest_run_ds = _longest_run(diagnostics)
-    diagnostics.append(_get_verification_diagnostics(longest_run_ds))
+    diagnostics.append(_get_verification_diagnostics(diagnostics))
     return get_metadata(diags), diagnostics
 
 
@@ -221,15 +217,6 @@ def find_movie_links(fs, bucket, domain=PUBLIC_GCS_DOMAIN):
             public_url = os.path.join(domain, gcs_path)
             movie_links[movie_name].append((public_url, rundir))
     return movie_links
-
-
-def _longest_run(diagnostics: Iterable[xr.Dataset]) -> xr.Dataset:
-    max_length = 0
-    for ds in diagnostics:
-        if ds.sizes["time"] > max_length:
-            longest_ds = ds
-            max_length = ds.sizes["time"]
-    return longest_ds
 
 
 def detect_rundirs(bucket: str, fs: fsspec.AbstractFileSystem):
@@ -290,7 +277,15 @@ def _parse_metadata(run: str):
     return {"run": run, "baseline": baseline}
 
 
-def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
+def _get_verification_diagnostics(diagnostics: Sequence[xr.Dataset]) -> xr.Dataset:
+    """Compile a verification dataset from the individual runs diagnostics"""
+    verification_diags = []
+    for run_diagnostics in diagnostics:
+        verification_diags.append(_get_run_verification_diagnostics(run_diagnostics))
+    return xr.merge(verification_diags, combine_attrs="identical")
+
+
+def _get_run_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
     """Back out verification timeseries from prognostic run value and bias"""
     verif_diagnostics = {}
     verif_attrs = {"run": "verification", "baseline": True}
