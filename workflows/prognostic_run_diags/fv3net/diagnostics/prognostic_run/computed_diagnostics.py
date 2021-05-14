@@ -318,9 +318,11 @@ def _parse_metadata(run: str):
 def _get_verification_diagnostics(diagnostics: Sequence[xr.Dataset]) -> xr.Dataset:
     """Compile a verification dataset from the individual runs diagnostics"""
     verification_diags = []
-    for run_diagnostics in diagnostics:
+    for i, run_diagnostics in enumerate(diagnostics):
         verification_diags.append(_get_run_verification_diagnostics(run_diagnostics))
-    return xr.merge(verification_diags, combine_attrs="identical")
+    return xr.concat(verification_diags, dim="run", combine_attrs="identical").mean(
+        dim="run", keep_attrs=True
+    )
 
 
 def _get_run_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
