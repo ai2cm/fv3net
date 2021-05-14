@@ -433,12 +433,14 @@ def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
         upload(html, os.path.join(output, filename))
 
 
-def register_parser(subparsers):
+def _register_report(subparsers):
     parser = subparsers.add_parser("report", help="Generate a static html report.")
     parser.add_argument("input", help="Directory containing multiple run diagnostics.")
     parser.add_argument("output", help="Location to save report html files.")
     parser.set_defaults(func=main)
 
+
+def _register_report_from_urls(subparsers):
     parser = subparsers.add_parser(
         "report-from-urls",
         help="Generate a static html report from list of diagnostics.",
@@ -449,8 +451,15 @@ def register_parser(subparsers):
         "increasing numbers in report.",
         nargs="+",
     )
-    parser.add_argument("-o", "--output", help="Location to save report html files.")
+    parser.add_argument(
+        "-o", "--output", help="Location to save report html files.", required=True
+    )
     parser.set_defaults(func=main_new)
+
+
+def register_parser(subparsers):
+    _register_report(subparsers)
+    _register_report_from_urls(subparsers)
 
 
 def main(args):
