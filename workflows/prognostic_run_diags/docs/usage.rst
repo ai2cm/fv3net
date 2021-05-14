@@ -43,4 +43,12 @@ The report can be generated with
 
    prognostic_run_diags report report_data output_report_location
 
+To make a report from runs that are not in a combined folder like
+``report_data`` above, you can use the alternative command::
+
+   prognostic_run_diags report-from-urls \
+      -o <output_path> \
+      path/to/baseline_run_reports/ \
+      path/to/prognostic_run_reports
+
 See :ref:`cli` for details about the options available for the above commands.
