@@ -7,7 +7,6 @@ from typing import List, Mapping, Sequence
 
 import fsspec
 import vcm
-from vcm.cloud import get_fs
 from vcm.fv3 import standardize_fv3_diagnostics
 from fv3net.diagnostics.prognostic_run import add_derived
 from fv3net.diagnostics.prognostic_run.constants import DiagArg
@@ -41,20 +40,20 @@ def load_verification(
     return xr.merge(verif_data, join="outer")
 
 
-def _load_standardized(path):
+def _load_standardized(fs: fsspec.AbstractFileSystem, path):
     logger.info(f"Loading and standardizing {path}")
-    m = fsspec.get_mapper(path)
+    m = fs.get_mapper(path)
     ds = xr.open_zarr(m, consolidated=True, decode_times=False)
     return standardize_fv3_diagnostics(ds)
 
 
-def _load_prognostic_run_physics_output(url):
+def _load_prognostic_run_physics_output(fs: fsspec.AbstractFileSystem, url):
     """Load, standardize and merge prognostic run physics outputs"""
     diags_url = os.path.join(url, "diags.zarr")
     sfc_dt_atmos_url = os.path.join(url, "sfc_dt_atmos.zarr")
-    diagnostic_data = [_load_standardized(sfc_dt_atmos_url)]
+    diagnostic_data = [_load_standardized(fs, sfc_dt_atmos_url)]
     try:
-        diags_ds = _load_standardized(diags_url)
+        diags_ds = _load_standardized(fs, diags_url)
     except (FileNotFoundError, KeyError):
         # don't fail if diags.zarr doesn't exist (fsspec raises KeyError)
         pass
@@ -84,8 +83,7 @@ def _get_coarsening_args(
     return grid_entries[input_res], coarsening_factor
 
 
-def _load_prognostic_run_3d_output(url: str):
-    fs = get_fs(url)
+def _load_prognostic_run_3d_output(fs: fsspec.AbstractFileSystem, url: str):
     prognostic_3d_output = [
         item
         for item in fs.ls(url)
@@ -96,19 +94,22 @@ def _load_prognostic_run_3d_output(url: str):
         for item in prognostic_3d_output:
             zarr_name = os.path.basename(item)
             path = os.path.join(url, zarr_name)
-            outputs.append(_load_standardized(path))
+            outputs.append(_load_standardized(fs, path))
         return xr.merge(outputs)
     else:
         return None
 
 
 def load_3d(
-    url: str, verification_entries: Sequence[str], catalog: intake.Catalog
+    fs: fsspec.AbstractFileSystem,
+    url: str,
+    verification_entries: Sequence[str],
+    catalog: intake.catalog.Catalog,
 ) -> DiagArg:
     logger.info(f"Processing 3d data from run directory at {url}")
 
     # open prognostic run data. If 3d data not saved, return empty datasets.
-    ds = _load_prognostic_run_3d_output(url)
+    ds = _load_prognostic_run_3d_output(fs, url)
     if ds is None:
         return xr.Dataset(), xr.Dataset(), xr.Dataset()
 
@@ -177,7 +178,7 @@ def load_dycore(
     # open prognostic run data
     path = os.path.join(url, "atmos_dt_atmos.zarr")
     logger.info(f"Opening prognostic run data at {path}")
-    ds = _load_standardized(path)
+    ds = _load_standardized(fs, path)
     input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
     area = catalog[input_grid].to_dask()["area"]
     ds = _coarsen(ds, area, coarsening_factor)
@@ -217,7 +218,7 @@ def load_physics(
 
     # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
-    prognostic_output = _load_prognostic_run_physics_output(url)
+    prognostic_output = _load_prognostic_run_physics_output(fs, url)
     input_grid, coarsening_factor = _get_coarsening_args(prognostic_output, 48)
     area = catalog[input_grid].to_dask()["area"]
     prognostic_output = _coarsen(prognostic_output, area, coarsening_factor)

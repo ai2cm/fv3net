@@ -19,6 +19,7 @@ import datetime
 import tempfile
 import intake
 import numpy as np
+from vcm.cloud.fsspec import cached_fs
 import xarray as xr
 import shutil
 from dask.diagnostics import ProgressBar
@@ -46,7 +47,6 @@ from fv3net.diagnostics.prognostic_run.constants import (
     RMSE_VARS,
     PRESSURE_INTERPOLATED_VARS,
 )
-
 import logging
 
 logger = logging.getLogger("SaveDiags")
@@ -528,6 +528,8 @@ def register_parser(subparsers):
 def main(args):
 
     logging.basicConfig(level=logging.INFO)
+    logging.getLogger("vcm.cloud.fsspec").setLevel(logging.DEBUG)
+
     attrs = vars(args)
     attrs["history"] = " ".join(sys.argv)
 
@@ -536,29 +538,34 @@ def main(args):
     # get catalog entries for specified verification data
     verif_entries = config.get_verification_entries(args.verification, catalog)
 
-    input_data = {
-        "dycore": load_diags.load_dycore(args.url, verif_entries["dycore"], catalog),
-        "physics": load_diags.load_physics(args.url, verif_entries["physics"], catalog),
-        "3d": load_diags.load_3d(args.url, verif_entries["3d"], catalog),
-    }
+    with cached_fs(args.url) as fs:
+        input_data = {
+            "dycore": load_diags.load_dycore(
+                fs, args.url, verif_entries["dycore"], catalog
+            ),
+            "physics": load_diags.load_physics(
+                fs, args.url, verif_entries["physics"], catalog
+            ),
+            "3d": load_diags.load_3d(fs, args.url, verif_entries["3d"], catalog),
+        }
 
-    # begin constructing diags
-    diags = {}
+        # begin constructing diags
+        diags = {}
 
-    # maps
-    diags["pwat_run_initial"] = input_data["dycore"][0].PWAT.isel(time=0)
-    diags["pwat_run_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
-    diags["pwat_verification_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
+        # maps
+        diags["pwat_run_initial"] = input_data["dycore"][0].PWAT.isel(time=0)
+        diags["pwat_run_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
+        diags["pwat_verification_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
 
-    diags.update(compute_all_diagnostics(input_data, n_jobs=args.n_jobs))
+        diags.update(compute_all_diagnostics(input_data, n_jobs=args.n_jobs))
 
-    # add grid vars
-    diags = xr.Dataset(diags, attrs=attrs)
-    diags = diags.merge(input_data["dycore"][2])
+        # add grid vars
+        diags = xr.Dataset(diags, attrs=attrs)
+        diags = diags.merge(input_data["dycore"][2])
 
-    logger.info("Forcing computation.")
-    with ProgressBar():
-        diags = diags.load()
+        logger.info("Forcing computation.")
+        with ProgressBar():
+            diags = diags.load()
 
     logger.info(f"Saving data to {args.output}")
     diags.to_netcdf(args.output)
