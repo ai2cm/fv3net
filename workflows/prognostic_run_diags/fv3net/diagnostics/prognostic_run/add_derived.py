@@ -71,11 +71,15 @@ def _column_pq2(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
-    if "net_heating" in ds:
+    if "net_heating_due_to_machine_learning" in ds:
+        column_dq1 = ds.net_heating_due_to_machine_learning
+    elif "net_heating" in ds:
+        # for backwards compatibility
         column_dq1 = ds.net_heating
     else:
         # assume given dataset is for a baseline or verification run
         column_dq1 = xr.zeros_like(ds.PRATEsfc)
+    column_dq1 = 719 / 1004 * column_dq1  # use cv instead of cp for <dQ1>
     column_dq1.attrs = {
         "long_name": "<dQ1> column integrated heating from ML",
         "units": "W/m^2",
@@ -84,7 +88,10 @@ def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_dq2(ds: xr.Dataset) -> xr.DataArray:
-    if "net_moistening" in ds:
+    if "net_moistening_due_to_machine_learning" in ds:
+        column_dq2 = SECONDS_PER_DAY * ds.net_moistening_due_to_machine_learning
+    elif "net_moistening" in ds:
+        # for backwards compatibility
         column_dq2 = SECONDS_PER_DAY * ds.net_moistening
     else:
         # assume given dataset is for a baseline or verification run
