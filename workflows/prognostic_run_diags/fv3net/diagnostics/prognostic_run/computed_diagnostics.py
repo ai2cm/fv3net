@@ -25,24 +25,25 @@ Metadata = Any
 
 @dataclass
 class ComputedDiagnosticsList:
-    """Represents a list of computed diagnostics
-
-    Attrs:
-        folder: Mapping[str]
-        url: URL to directory containing rundirs as subdirectories.
-            "rundirs". rundirs are subdirectories of this bucket. They each
-            contain diags.nc, metrics.json, and .mp4 files.
-    """
-
     folders: Mapping[str, "DiagnosticFolder"]
 
     @staticmethod
-    def from_url(url: str) -> "ComputedDiagnosticsList":
+    def from_directory(url: str) -> "ComputedDiagnosticsList":
+        """Open a directory of computed diagnostics
+
+        Args:
+            url: URL to directory containing rundirs as subdirectories.
+                "rundirs". rundirs are subdirectories of this bucket. They each
+                contain diags.nc, metrics.json, and .mp4 files.
+        """
         fs, _, _ = fsspec.get_fs_token_paths(url)
         return ComputedDiagnosticsList(detect_folders(url, fs))
 
     @staticmethod
     def from_urls(urls: Sequence[str]) -> "ComputedDiagnosticsList":
+        """Open computed diagnostics at the specified urls
+        """
+
         def url_to_folder(url):
             fs, _, path = fsspec.get_fs_token_paths(url)
             return DiagnosticFolder(fs, path[0])

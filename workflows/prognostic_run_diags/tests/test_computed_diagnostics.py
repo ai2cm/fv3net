@@ -74,7 +74,7 @@ def test_get_movie_links(tmpdir):
 
     tmpdir.join(rdirs[0]).join("movie2.mp4").write("foobar")
 
-    result = ComputedDiagnosticsList.from_url(str(tmpdir)).find_movie_links()
+    result = ComputedDiagnosticsList.from_directory(str(tmpdir)).find_movie_links()
 
     assert "movie1.mp4" in result
     assert "movie2.mp4" in result
@@ -176,20 +176,20 @@ def url():
 
 @pytest.mark.network
 def test_ComputeDiagnosticsList_load_diagnostics(url):
-    diags = ComputedDiagnosticsList.from_url(url)
+    diags = ComputedDiagnosticsList.from_directory(url)
     meta, diags = diags.load_diagnostics()
     assert isinstance(diags, RunDiagnostics)
 
 
 @pytest.mark.network
 def test_ComputeDiagnosticsList_load_metrics(url):
-    diags = ComputedDiagnosticsList.from_url(url)
+    diags = ComputedDiagnosticsList.from_directory(url)
     meta = diags.load_metrics()
     assert isinstance(meta, RunMetrics)
 
 
 @pytest.mark.network
 def test_ComputeDiagnosticsList_find_movie_links(url):
-    diags = ComputedDiagnosticsList.from_url(url)
+    diags = ComputedDiagnosticsList.from_directory(url)
     meta = diags.find_movie_links()
     assert len(meta) == 0

@@ -454,7 +454,7 @@ def register_parser(subparsers):
 
 
 def main(args):
-    computed_diagnostics = ComputedDiagnosticsList.from_url(args.input)
+    computed_diagnostics = ComputedDiagnosticsList.from_directory(args.input)
     make_report(computed_diagnostics, args.output)
 
 
