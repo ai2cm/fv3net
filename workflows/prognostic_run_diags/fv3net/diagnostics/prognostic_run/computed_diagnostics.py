@@ -41,6 +41,16 @@ class ComputedDiagnosticsList:
         fs, _, _ = fsspec.get_fs_token_paths(url)
         return ComputedDiagnosticsList(detect_folders(url, fs))
 
+    @staticmethod
+    def from_urls(urls: Sequence[str]) -> "ComputedDiagnosticsList":
+        def url_to_folder(url):
+            fs, _, path = fsspec.get_fs_token_paths(url)
+            return DiagnosticFolder(fs, path[0])
+
+        return ComputedDiagnosticsList(
+            {str(k): url_to_folder(url) for k, url in enumerate(urls)}
+        )
+
     def load_metrics(self) -> "RunMetrics":
         return RunMetrics(load_metrics(self.folders))
 

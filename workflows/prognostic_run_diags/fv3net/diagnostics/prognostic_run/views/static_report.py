@@ -417,16 +417,7 @@ def render_links(link_dict):
     }
 
 
-def register_parser(subparsers):
-    parser = subparsers.add_parser("report", help="Generate a static html report.")
-    parser.add_argument("input", help="Directory containing multiple run diagnostics.")
-    parser.add_argument("output", help="Location to save report html files.")
-    parser.set_defaults(func=main)
-
-
-def main(args):
-
-    computed_diagnostics = ComputedDiagnosticsList.from_url(args.input)
+def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
     metrics = computed_diagnostics.load_metrics()
     movie_links = computed_diagnostics.find_movie_links()
     metadata, diagnostics = computed_diagnostics.load_diagnostics()
@@ -439,7 +430,37 @@ def main(args):
     }
 
     for filename, html in pages.items():
-        upload(html, os.path.join(args.output, filename))
+        upload(html, os.path.join(output, filename))
+
+
+def register_parser(subparsers):
+    parser = subparsers.add_parser("report", help="Generate a static html report.")
+    parser.add_argument("input", help="Directory containing multiple run diagnostics.")
+    parser.add_argument("output", help="Location to save report html files.")
+    parser.set_defaults(func=main)
+
+    parser = subparsers.add_parser(
+        "report-from-urls",
+        help="Generate a static html report from list of diagnostics.",
+    )
+    parser.add_argument(
+        "inputs",
+        help="Folders containing diags.nc. Will be labeled with "
+        "increasing numbers in report.",
+        nargs="+",
+    )
+    parser.add_argument("-o", "--output", help="Location to save report html files.")
+    parser.set_defaults(func=main_new)
+
+
+def main(args):
+    computed_diagnostics = ComputedDiagnosticsList.from_url(args.input)
+    make_report(computed_diagnostics, args.output)
+
+
+def main_new(args):
+    computed_diagnostics = ComputedDiagnosticsList.from_urls(args.inputs)
+    make_report(computed_diagnostics, args.output)
 
 
 if __name__ == "__main__":

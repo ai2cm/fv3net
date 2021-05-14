@@ -40,6 +40,19 @@ def test_detect_folders(tmpdir):
         assert isinstance(result[found_dir], DiagnosticFolder)
 
 
+def test_ComputedDiagnosticsList_from_urls(tmpdir):
+
+    rundirs = ["rundir1", "rundir2"]
+    for rdir in rundirs:
+        tmpdir.mkdir(rdir).join("diags.nc").write("foobar")
+
+    result = ComputedDiagnosticsList.from_urls(rundirs)
+
+    assert len(result.folders) == 2
+    assert isinstance(result.folders["0"], DiagnosticFolder)
+    assert isinstance(result.folders["1"], DiagnosticFolder)
+
+
 def test_detect_folders_fail_less_than_2(tmpdir):
 
     fs = fsspec.filesystem("file")
