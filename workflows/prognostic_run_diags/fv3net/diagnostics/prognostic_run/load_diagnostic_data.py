@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 GRID_ENTRIES = {48: "grid/c48", 96: "grid/c96", 384: "grid/c384"}
 
 
-def load_verification(catalog_keys: List[str], catalog: intake.Catalog,) -> xr.Dataset:
+def load_verification(
+    catalog_keys: List[str], catalog: intake.catalog.Catalog
+) -> xr.Dataset:
 
     """
     Load verification data sources from a catalog and combine for reporting.
@@ -143,7 +145,10 @@ def load_3d(
 
 
 def load_dycore(
-    url: str, verification_entries: Sequence[str], catalog: intake.Catalog
+    fs: fsspec.AbstractFileSystem,
+    url: str,
+    verification_entries: Sequence[str],
+    catalog: intake.catalog.Catalog,
 ) -> DiagArg:
     """Open data required for dycore plots.
 
@@ -181,7 +186,10 @@ def load_dycore(
 
 
 def load_physics(
-    url: str, verification_entries: Sequence[str], catalog: intake.Catalog
+    fs: fsspec.AbstractFileSystem,
+    url: str,
+    verification_entries: Sequence[str],
+    catalog: intake.catalog.Catalog,
 ) -> DiagArg:
     """Open data required for physics plots.
 

@@ -142,8 +142,8 @@ def _interpolate_1d_constant_output_levels(
         field,
         input_core_dims=[[dim], [dim]],
         output_core_dims=[[out_dim]],
-        output_sizes={out_dim: len(output_grid)},
         dask="parallelized",
+        dask_gufunc_kwargs=dict(output_sizes={out_dim: len(output_grid)},),
         output_dtypes=[field.dtype],
     )
 

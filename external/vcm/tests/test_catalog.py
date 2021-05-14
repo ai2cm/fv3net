@@ -3,4 +3,4 @@ import vcm.catalog
 
 
 def test_catalog():
-    assert isinstance(vcm.catalog.catalog, intake.Catalog)
+    assert isinstance(vcm.catalog.catalog, intake.catalog.Catalog)
