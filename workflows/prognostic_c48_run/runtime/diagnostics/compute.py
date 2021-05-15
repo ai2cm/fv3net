@@ -1,13 +1,10 @@
 import xarray as xr
 import logging
 from runtime.types import State, Diagnostics
+from runtime.names import TEMP, SPHUM, DELP, PRECIP_RATE
 
 logger = logging.getLogger(__name__)
 
-TEMP = "air_temperature"
-SPHUM = "specific_humidity"
-DELP = "pressure_thickness_of_atmospheric_layer"
-PRECIP_RATE = "surface_precipitation_rate"
 cp = 1004
 gravity = 9.81
 
@@ -53,41 +50,60 @@ def precipitation_rate(
     return precipitation_rate
 
 
-def compute_ml_diagnostics(state: State, ml_tendency: State) -> Diagnostics:
-
-    physics_precip = state[PRECIP_RATE]
+def compute_diagnostics(state: State, tendency: State, label: str) -> Diagnostics:
     delp = state[DELP]
-    dQ1 = ml_tendency.get("dQ1", xr.zeros_like(delp))
-    dQ2 = ml_tendency.get("dQ2", xr.zeros_like(delp))
-    net_moistening = (dQ2 * delp / gravity).sum("z")
+    if label == "machine_learning":
+        temperature_tendency_name = "dQ1"
+        humidity_tendency_name = "dQ2"
+    elif label == "nudging":
+        temperature_tendency_name = TEMP
+        humidity_tendency_name = SPHUM
 
-    return dict(
-        dQ1=dQ1.assign_attrs(units="K/s").assign_attrs(
-            description="air temperature tendency due to ML"
-        ),
-        dQ2=dQ2.assign_attrs(units="kg/kg/s").assign_attrs(
-            description="specific humidity tendency due to ML"
-        ),
-        air_temperature=state[TEMP],
-        specific_humidity=state[SPHUM],
-        pressure_thickness_of_atmospheric_layer=delp,
-        net_moistening=(net_moistening)
-        .assign_attrs(units="kg/m^2/s")
-        .assign_attrs(description="column integrated ML model moisture tendency"),
-        net_heating=(dQ1 * delp / gravity * cp)
+    temperature_tendency = tendency.get(temperature_tendency_name, xr.zeros_like(delp))
+    humidity_tendency = tendency.get(humidity_tendency_name, xr.zeros_like(delp))
+
+    # compute column-integrated diagnostics
+    diags: Diagnostics = {
+        f"net_moistening_due_to_{label}": (humidity_tendency * delp / gravity)
         .sum("z")
-        .assign_attrs(units="W/m^2")
-        .assign_attrs(description="column integrated ML model heating"),
-        water_vapor_path=(state[SPHUM] * delp / gravity)
-        .sum("z")
-        .assign_attrs(units="mm")
-        .assign_attrs(description="column integrated water vapor"),
-        physics_precip=(physics_precip)
         .assign_attrs(units="kg/m^2/s")
         .assign_attrs(
-            description="surface precipitation rate due to parameterized physics"
+            description=f"column integrated moisture tendency due to {label}"
         ),
-    )
+        f"net_heating_due_to_{label}": (temperature_tendency * delp / gravity * cp)
+        .sum("z")
+        .assign_attrs(units="W/m^2")
+        .assign_attrs(description=f"column integrated heating due to {label}"),
+    }
+    if DELP in tendency:
+        net_mass_tendency = (
+            (tendency[DELP] / gravity)
+            .sum("z")
+            .assign_attrs(
+                units="kg/m^2/s",
+                description=f"column-integrated mass tendency due to {label}",
+            )
+        )
+        diags[f"net_mass_tendency_due_to_{label}"] = net_mass_tendency
+
+    # add 3D tendencies to diagnostics
+    if label == "nudging":
+        diags_3d = _append_key_label(tendency, "_tendency_due_to_nudging")
+    elif label == "machine_learning":
+        diags_3d = {
+            "dQ1": temperature_tendency.assign_attrs(units="K/s").assign_attrs(
+                description=f"air temperature tendency due to {label}"
+            ),
+            "dQ2": humidity_tendency.assign_attrs(units="kg/kg/s").assign_attrs(
+                description=f"specific humidity tendency due to {label}"
+            ),
+        }
+    diags.update(diags_3d)
+
+    # add 3D state to diagnostics for backwards compatibility
+    diags.update({TEMP: state[TEMP], SPHUM: state[SPHUM], DELP: state[DELP]})
+
+    return diags
 
 
 def compute_ml_momentum_diagnostics(state: State, tendency: State) -> Diagnostics:
@@ -119,8 +135,8 @@ def rename_diagnostics(diags: Diagnostics):
     """Postfix ML output names with _diagnostic and create zero-valued outputs in
     their stead. Function operates in place."""
     ml_tendencies = {
-        "net_moistening",
-        "net_heating",
+        "net_moistening_due_to_machine_learning",
+        "net_heating_due_to_machine_learning",
         "column_integrated_dQu",
         "column_integrated_dQv",
         "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
@@ -134,65 +150,6 @@ def rename_diagnostics(diags: Diagnostics):
             description=attrs.get("description", "") + " (diagnostic only)"
         )
         diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
-
-
-def compute_nudging_diagnostics(
-    state: State, nudging_tendency: State, label: str = "_tendency_due_to_nudging"
-) -> Diagnostics:
-    """
-    Compute diagnostic variables for nudging"""
-
-    diags: Diagnostics = {}
-
-    net_moistening = (
-        (nudging_tendency[SPHUM] * state[DELP] / gravity)
-        .sum("z")
-        .assign_attrs(units="kg/m^2/s")
-        .assign_attrs(description="column integrated moistening due to nudging")
-    )
-    net_heating = (
-        (nudging_tendency[TEMP] * state[DELP] / gravity * cp)
-        .sum("z")
-        .assign_attrs(units="W/m^2")
-        .assign_attrs(description="column integrated heating due to nudging")
-    )
-    water_vapor_path = (
-        (state[SPHUM] * state[DELP] / gravity)
-        .sum("z")
-        .assign_attrs(units="mm")
-        .assign_attrs(description="column integrated water vapor")
-    )
-    physics_precip = (
-        state[PRECIP_RATE]
-        .assign_attrs(units="kg/m^2/s")
-        .assign_attrs(
-            description="surface precipitation rate due to parameterized physics"
-        )
-    )
-
-    diags.update(
-        {
-            "net_moistening_due_to_nudging": net_moistening,
-            "net_heating_due_to_nudging": net_heating,
-            "water_vapor_path": water_vapor_path,
-            "physics_precip": physics_precip,
-        }
-    )
-
-    if DELP in nudging_tendency.keys():
-        net_mass_tendency = (
-            (nudging_tendency[DELP] / gravity)
-            .sum("z")
-            .assign_attrs(
-                units="kg/m^2/s",
-                description="column-integrated mass tendency due to nudging",
-            )
-        )
-        diags["net_mass_tendency_due_to_nudging"] = net_mass_tendency
-
-    diags.update(_append_key_label(nudging_tendency, label))
-
-    return diags
 
 
 def _append_key_label(d: Diagnostics, suffix: str) -> Diagnostics:
