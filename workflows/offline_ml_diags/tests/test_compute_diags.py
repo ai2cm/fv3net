@@ -10,6 +10,9 @@ from synth import (  # noqa: F401
     dataset_fixtures_dir,
 )
 from fv3fit._shared import load_data_sequence
+
+# TODO: refactor this code to use the public TrainingConfig and DataConfig
+# classes from fv3fit instead of _ModelTrainingConfig
 from fv3fit._shared.config import (
     _ModelTrainingConfig as ModelTrainingConfig,
     legacy_config_to_data_config,

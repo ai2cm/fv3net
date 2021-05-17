@@ -86,6 +86,11 @@ def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
         raise NotImplementedError(f"Model type {config.model_type} is not implemented.")
 
 
+def dump_dataclass(obj, yaml_filename):
+    with open(yaml_filename, "w") as f:
+        yaml.safe_dump(dataclasses.as_dict(obj), f)
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     parser = get_parser()
@@ -105,15 +110,15 @@ if __name__ == "__main__":
     )
     set_random_seed(train_config.random_seed)
 
-    with open(os.path.join(args.output_data_path, "train.yaml"), "w") as f:
-        yaml.safe_dump(dataclasses.asdict(train_config), f)
-    with open(os.path.join(args.output_data_path, "training_data.yaml"), "w") as f:
-        yaml.safe_dump(dataclasses.asdict(train_data_config), f)
+    dump_dataclass(train_config, os.path.join(args.output_data_path, "train.yaml"))
+    dump_dataclass(
+        train_data_config, os.path.join(args.output_data_path, "training_data.yaml")
+    )
 
     train_batches = load_data_sequence(train_data_config)
     if val_data_config is not None:
-        val_data_config.dump(
-            os.path.join(args.output_data_path, "validation_data.yaml")
+        dump_dataclass(
+            val_data_config, os.path.join(args.output_data_path, "validation_data.yaml")
         )
         val_batches: Optional[Sequence[xr.Dataset]] = load_data_sequence(
             val_data_config

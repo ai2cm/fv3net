@@ -12,6 +12,9 @@ import xarray as xr
 import yaml
 from typing import Mapping, Sequence, Tuple, List, Hashable
 from toolz import dissoc
+
+# TODO: refactor this code to use the public TrainingConfig and DataConfig
+# classes from fv3fit instead of _ModelTrainingConfig
 from fv3fit._shared.config import _ModelTrainingConfig as ModelTrainingConfig
 
 import diagnostics_utils as utils

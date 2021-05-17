@@ -2,16 +2,12 @@ import dataclasses
 import fsspec
 import yaml
 import os
-from typing import Optional, Tuple, Union, Sequence, List, TypeVar, Type, Dict
+from typing import Optional, Tuple, Union, Sequence, List, Type, Dict
 import xarray as xr
 from .predictor import Estimator
 
 from loaders import batches
 
-
-# T used to type hint factory method according to
-# https://github.com/python/typing/issues/58#issuecomment-326240794
-T = TypeVar("T", bound="Loadable")
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
@@ -90,7 +86,7 @@ class TrainingConfig:
     def from_dict(cls, kwargs) -> "TrainingConfig":
         model_type = kwargs["model_type"]
         if model_type in SKLEARN_MODEL_TYPES:
-            subclass = SklearnTrainingConfig
+            subclass: Type[TrainingConfig] = SklearnTrainingConfig
         elif model_type in KERAS_MODELS:
             subclass = KerasTrainingConfig
         else:
