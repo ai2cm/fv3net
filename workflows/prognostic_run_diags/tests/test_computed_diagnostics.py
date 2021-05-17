@@ -9,9 +9,10 @@ import xarray
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     ComputedDiagnosticsList,
     _parse_metadata,
-    detect_rundirs,
+    detect_folders,
     RunDiagnostics,
     RunMetrics,
+    DiagnosticFolder,
 )
 
 
@@ -21,7 +22,7 @@ def test__parse_metadata():
     assert out == {"run": run, "baseline": True}
 
 
-def test_detect_rundirs(tmpdir):
+def test_detect_folders(tmpdir):
 
     fs = fsspec.filesystem("file")
 
@@ -31,21 +32,31 @@ def test_detect_rundirs(tmpdir):
 
     tmpdir.mkdir("not_a_rundir").join("useless_file.txt").write("useless!")
 
-    result = detect_rundirs(tmpdir, fs)
+    result = detect_folders(tmpdir, fs)
 
     assert len(result) == 2
     for found_dir in result:
         assert found_dir in rundirs
+        assert isinstance(result[found_dir], DiagnosticFolder)
 
 
-def test_detect_rundirs_fail_less_than_2(tmpdir):
+def test_ComputedDiagnosticsList_from_urls():
+    rundirs = ["rundir1", "rundir2"]
+    result = ComputedDiagnosticsList.from_urls(rundirs)
+
+    assert len(result.folders) == 2
+    assert isinstance(result.folders["0"], DiagnosticFolder)
+    assert isinstance(result.folders["1"], DiagnosticFolder)
+
+
+def test_detect_folders_fail_less_than_2(tmpdir):
 
     fs = fsspec.filesystem("file")
 
     tmpdir.mkdir("rundir1").join("diags.nc").write("foobar")
 
     with pytest.raises(ValueError):
-        detect_rundirs(tmpdir, fs)
+        detect_folders(tmpdir, fs)
 
 
 def test_get_movie_links(tmpdir):
@@ -59,7 +70,7 @@ def test_get_movie_links(tmpdir):
 
     tmpdir.join(rdirs[0]).join("movie2.mp4").write("foobar")
 
-    result = ComputedDiagnosticsList(str(tmpdir)).find_movie_links()
+    result = ComputedDiagnosticsList.from_directory(str(tmpdir)).find_movie_links()
 
     assert "movie1.mp4" in result
     assert "movie2.mp4" in result
@@ -150,3 +161,31 @@ def test_RunMetrics_get_metric_value_missing():
 def test_RunMetrics_get_metric_units():
     metrics = RunMetrics(metrics_df)
     assert metrics.get_metric_units("rmse_of_time_mean", "precip", "run1") == "mm/day"
+
+
+@pytest.fixture()
+def url():
+    # this data might get out of date if it does we should replace it with synth
+    # data
+    return "gs://vcm-ml-public/argo/2021-05-05-compare-n2o-resolution-a8290d64ce4f/"
+
+
+@pytest.mark.network
+def test_ComputeDiagnosticsList_load_diagnostics(url):
+    diags = ComputedDiagnosticsList.from_directory(url)
+    meta, diags = diags.load_diagnostics()
+    assert isinstance(diags, RunDiagnostics)
+
+
+@pytest.mark.network
+def test_ComputeDiagnosticsList_load_metrics(url):
+    diags = ComputedDiagnosticsList.from_directory(url)
+    meta = diags.load_metrics()
+    assert isinstance(meta, RunMetrics)
+
+
+@pytest.mark.network
+def test_ComputeDiagnosticsList_find_movie_links(url):
+    diags = ComputedDiagnosticsList.from_directory(url)
+    meta = diags.find_movie_links()
+    assert len(meta) == 0
