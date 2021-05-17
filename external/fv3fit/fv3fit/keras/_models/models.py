@@ -10,7 +10,7 @@ import tensorflow_addons as tfa
 
 from ..._shared.packer import ArrayPacker, unpack_matrix
 from ..._shared.predictor import Estimator
-from ..._shared import io
+from ..._shared import io, register_keras_estimator
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
@@ -394,6 +394,7 @@ class PackedKerasModel(Estimator):
 
 
 @io.register("packed-keras")
+@register_keras_estimator("DenseModel")
 class DenseModel(PackedKerasModel):
     """
     A simple feedforward neural network model with dense layers.

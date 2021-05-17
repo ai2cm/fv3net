@@ -2,11 +2,38 @@ import dataclasses
 import fsspec
 import yaml
 import os
-from typing import Optional, Union, Sequence, List
+from typing import Dict, Optional, Union, Sequence, List, Type
+from .predictor import Estimator
 
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
+
+
+KERAS_MODELS: Dict[str, Type[Estimator]] = {}
+SKLEARN_MODEL_TYPES = ["sklearn", "rf", "random_forest", "sklearn_random_forest"]
+
+
+def get_keras_model(name):
+    return KERAS_MODELS[name]
+
+
+def register_keras_estimator(name: str):
+    """
+    Returns a decorator that will register the given class as a keras training
+    class, which can be used in training configuration.
+    """
+    if not isinstance(name, str):
+        raise TypeError(
+            "keras trainer name must be string, remember to "
+            "pass one when decorating @register_keras_estimator(name)"
+        )
+
+    def decorator(cls):
+        KERAS_MODELS[name] = cls
+        return cls
+
+    return decorator
 
 
 @dataclasses.dataclass
