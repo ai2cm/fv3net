@@ -225,6 +225,7 @@ def load_configs(
     legacy_config = _ModelTrainingConfig.load(config_path)
     legacy_config.data_path = data_path
     legacy_config.dump(output_data_path)
+    config_dict = dataclasses.asdict(legacy_config)
     if legacy_config.model_type in SKLEARN_MODEL_TYPES:
         keys = [
             "model_type",
@@ -253,8 +254,6 @@ def load_configs(
         legacy_config.hyperparameters["fit_kwargs"] = fit_kwargs
     else:
         raise NotImplementedError(f"unknown model type {legacy_config.model_type}")
-    with fsspec.open(config_path, "r") as f:
-        config_dict = yaml.safe_load(f)
     training_config = TrainingConfig.from_dict(
         {key: config_dict[key] for key in keys if key in config_dict}
     )
