@@ -21,7 +21,7 @@ import xarray as xr
 from mpi4py import MPI
 from runtime import DerivedFV3State
 from runtime.config import UserConfig, DiagnosticFileConfig, get_namelist
-from runtime.diagnostics.machine_learning import (
+from runtime.diagnostics.compute import (
     compute_baseline_diagnostics,
     rename_diagnostics,
     precipitation_rate,
@@ -61,30 +61,20 @@ class Stepper(Protocol):
     """
 
     @property
-    def net_moistening(self) -> str:
-        """Legacy variable needed to renaming the "net_moistening" variable
-
-        This should be refactored away
+    def label(self) -> str:
+        """Label used for naming diagnostics.
         """
         pass
 
     def __call__(self, time, state) -> Tuple[Tendencies, Diagnostics, State]:
         return {}, {}, {}
 
-    def get_diagnostics(self, state, tendency) -> Diagnostics:
-        """Legacy method to provide polymorphic interface for diagnostics
-
-        This should be refactored away by merging the diagnostics code, which
-        is mostly very similar
-        """
-        return {}
+    def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
+        """Return diagnostics mapping and net moistening array."""
+        return {}, xr.DataArray()
 
     def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
-        """Legacy method to provide polymorphic interface for diagnostics
-
-        This should be refactored away by merging the diagnostics code, which
-        is mostly very similar
-        """
+        """Return diagnostics of momentum tendencies."""
         return {}
 
 
@@ -390,13 +380,13 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
     def _apply_postphysics_to_dycore_state(self) -> Diagnostics:
 
         tendency = dissoc(self._tendencies, "dQu", "dQv")
+        diagnostics = compute_baseline_diagnostics(self._state)
 
-        if self._postphysics_stepper is None:
-            diagnostics = compute_baseline_diagnostics(self._state)
-        else:
-            diagnostics = self._postphysics_stepper.get_diagnostics(
+        if self._postphysics_stepper is not None:
+            stepper_diags, net_moistening = self._postphysics_stepper.get_diagnostics(
                 self._state, tendency
             )
+            diagnostics.update(stepper_diags)
             if self._postphysics_only_diagnostic_ml:
                 rename_diagnostics(diagnostics)
             else:
@@ -404,9 +394,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                     self._state, tendency, dt=self._timestep
                 )
                 updated_state_from_tendency[TOTAL_PRECIP] = precipitation_sum(
-                    self._state[TOTAL_PRECIP],
-                    diagnostics[self._postphysics_stepper.net_moistening],
-                    self._timestep,
+                    self._state[TOTAL_PRECIP], net_moistening, self._timestep,
                 )
                 self._state.update_mass_conserving(updated_state_from_tendency)
                 self._state.update_mass_conserving(self._state_updates)

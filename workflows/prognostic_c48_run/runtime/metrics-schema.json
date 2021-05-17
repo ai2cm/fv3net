@@ -20,8 +20,8 @@
             "storage_of_mass_due_to_fv3_physics": 0.00015335531549915231,
             "area": 615379799156.7335,
             "cnvprcp_after_python": 8.388836350374921e-06,
-            "net_moistening": 0.0,
-            "net_heating": 0.0,
+            "net_moistening_due_to_machine_learning": 0.0,
+            "net_heating_due_to_machine_learning": 0.0,
             "column_integrated_dQu": 0.0,
             "column_integrated_dQv": 0.0,
             "water_vapor_path": 23.721312922082713,
@@ -110,8 +110,8 @@
                 8.388836350374921e-06
             ]
         },
-        "net_moistening": {
-            "$id": "#/properties/net_moistening",
+        "net_moistening_due_to_machine_learning": {
+            "$id": "#/properties/net_moistening_due_to_machine_learning",
             "type": "number",
             "default": 0.0,
             "units": "kg/m^2/s",
@@ -127,8 +127,8 @@
                 0.0
             ]
         },
-        "net_heating": {
-            "$id": "#/properties/net_heating",
+        "net_heating_due_to_machine_learning": {
+            "$id": "#/properties/net_heating_due_to_machine_learning",
             "type": "number",
             "units": "kg/m^2/s",
             "default": 0.0,
@@ -147,7 +147,7 @@
         "surface_temperature_reference": {
             "type": "number",
             "units": "degK",
-            "default": 300.0, 
+            "default": 300.0,
             "examples": [
                 273.0
             ]
