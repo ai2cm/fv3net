@@ -2,7 +2,8 @@ import dataclasses
 import fsspec
 import yaml
 import os
-from typing import Dict, Optional, Union, Sequence, List, Type, Estimator
+from typing import Dict, Optional, Union, Sequence, List, Type
+from .predictor import Estimator
 
 
 DELP = "pressure_thickness_of_atmospheric_layer"
