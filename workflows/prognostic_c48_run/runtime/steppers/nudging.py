@@ -2,7 +2,6 @@ import functools
 
 import fv3gfs.util
 import fv3gfs.wrapper
-from runtime.diagnostics.machine_learning import compute_nudging_diagnostics
 from runtime.nudging import (
     NudgingConfig,
     get_nudging_tendency,
@@ -10,16 +9,13 @@ from runtime.nudging import (
     nudging_timescales_from_dict,
     setup_get_reference_state,
 )
-from runtime.types import Diagnostics, State
-
-SST_NAME = "ocean_surface_temperature"
-TSFC_NAME = "surface_temperature"
-MASK_NAME = "land_sea_mask"
+from runtime.diagnostics import compute_diagnostics
+from runtime.names import SST, TSFC
 
 
 class PureNudger:
 
-    net_moistening = "net_moistening_due_to_nudging"
+    label = "nudging"
 
     def __init__(
         self, config: NudgingConfig, communicator: fv3gfs.util.CubedSphereCommunicator,
@@ -28,7 +24,7 @@ class PureNudger:
         variables_to_nudge = list(config.timescale_hours)
         self._get_reference_state = setup_get_reference_state(
             config,
-            variables_to_nudge + [SST_NAME, TSFC_NAME],
+            variables_to_nudge + [SST, TSFC],
             fv3gfs.wrapper.get_tracer_metadata(),
             communicator,
         )
@@ -49,8 +45,9 @@ class PureNudger:
         }
         return tendencies, reference, ssts
 
-    def get_diagnostics(self, state: State, tendency: State) -> Diagnostics:
-        return compute_nudging_diagnostics(state, tendency)
+    def get_diagnostics(self, state, tendency):
+        diags = compute_diagnostics(state, tendency, self.label)
+        return diags, diags[f"net_moistening_due_to_{self.label}"]
 
-    def get_momentum_diagnostics(self, state: State, tendency: State) -> Diagnostics:
+    def get_momentum_diagnostics(self, state, tendency):
         return {}

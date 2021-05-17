@@ -69,7 +69,7 @@ class PrescriberConfig:
 
 class Prescriber:
 
-    net_moistening = "net_moistening"
+    label = "prescriber"
 
     def __init__(
         self,
@@ -134,10 +134,10 @@ class Prescriber:
         tendency: Tendencies = {}
         return tendency, diagnostics, state_updates
 
-    def get_diagnostics(self, state, tendency):
-        return {}
+    def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
+        return {}, xr.DataArray()
 
-    def get_momentum_diagnostics(self, state, tendency):
+    def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
         return {}
 
 
