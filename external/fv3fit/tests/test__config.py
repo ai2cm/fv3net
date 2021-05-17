@@ -1,3 +1,4 @@
+import dataclasses
 import os
 import tempfile
 from fv3fit._shared.config import (
@@ -5,6 +6,7 @@ from fv3fit._shared.config import (
     DataConfig,
     TrainingConfig,
 )
+import yaml
 
 import pytest
 
@@ -39,12 +41,17 @@ training_config = TrainingConfig(
 
 
 @pytest.mark.parametrize("config", [data_config, training_config])
-def test_dump_and_load_config(config):
+def test_safe_dump_dataclass_config(config):
+    """
+    Test that dataclass.asdict and pyyaml can be used to save the configuration class.
+    """
     with tempfile.TemporaryDirectory() as tmpdir:
-        filename = os.path.join(tmpdir, "config.yml")
-        config.dump(filename)
-        loaded = config.__class__.load(filename)
-        assert config == loaded
+        filename = os.path.join(tmpdir, "config.yaml")
+        with open(filename, "w") as f:
+            as_dict = dataclasses.asdict(config)
+            yaml.safe_dump(as_dict, f)
+        from_dict = config.__class__(**as_dict)
+        assert config == from_dict
 
 
 @pytest.mark.parametrize(

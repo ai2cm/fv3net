@@ -4,6 +4,7 @@ import yaml
 import os
 from typing import Optional, Tuple, Union, Sequence, List, TypeVar, Type, Dict
 import xarray as xr
+from .predictor import Estimator
 
 from loaders import batches
 
@@ -16,7 +17,7 @@ DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
 
 
-KERAS_MODELS: Dict[str, type] = {}
+KERAS_MODELS: Dict[str, Type[Estimator]] = {}
 SKLEARN_MODEL_TYPES = ["sklearn", "rf", "random_forest", "sklearn_random_forest"]
 
 
@@ -32,34 +33,16 @@ def register_keras_trainer(name):
     return decorator
 
 
-class Dumpable:
-    def dump(self, filename: str) -> None:
-        dict_ = dataclasses.asdict(self)
-        with fsspec.open(filename, "w") as f:
-            yaml.safe_dump(dict_, f)
-
-
-class Loadable:
-    @classmethod
-    def load(cls: Type[T], filename: str) -> T:
-        with fsspec.open(filename, "r") as f:
-            config_dict = yaml.safe_load(f)
-        return cls(**config_dict)  # type: ignore
-
-
 @dataclasses.dataclass
-class DataConfig(Dumpable, Loadable):
+class DataConfig:
     """Convenience wrapper for model training data
 
     Attrs:
         variables: names of variables to include in dataset
+        data_path: location of training data to be loaded by batch function
         batch_function: name of function from `fv3fit.batches` to use for
             loading batched data
         batch_kwargs: keyword arguments to pass to batch function
-        data_path: location of training data to be loaded by batch function
-        validation_timesteps: timestamps to use as validation samples
-        timesteps_source: one of "timesteps_file",
-            "sampled_outside_input_config", "input_config", "all_mapper_times"
     """
 
     variables: List[str]
@@ -69,28 +52,28 @@ class DataConfig(Dumpable, Loadable):
 
 
 @dataclasses.dataclass
-class TrainingConfig(Dumpable, Loadable):
+class TrainingConfig:
     """Convenience wrapper for model training parameters and file info
 
     Attrs:
         model_type: sklearn model type or keras model class to initialize
-        hyperparameters: arguments to pass to model class at initialization
-            time
         input_variables: variables used as features
         output_variables: variables to predict
+        additional_variables: list of needed variables which are not inputs
+            or outputs (e.g. pressure thickness if needed for scaling)
+        hyperparameters: arguments to pass to model class at initialization
+            time
+        random_seed: value to use to initialize randomness
+        model_path: output location for final model
         batch_function: name of function from `fv3fit.batches` to use for
             loading batched data
         batch_kwargs: keyword arguments to pass to batch function
         data_path: location of training data to be loaded by batch function
         scaler_type: scaler to use for training
         scaler_kwargs: keyword arguments to pass to scaler initialization
-        additional_variables: list of needed variables which are not inputs
-            or outputs (e.g. pressure thickness if needed for scaling)
-        random_seed: value to use to initialize randomness
         validation_timesteps: timestamps to use as validation samples
         save_model_checkpoints: whether to save a copy of the model at
             each epoch
-        model_path: output location for final model
         timesteps_source: one of "timesteps_file",
             "sampled_outside_input_config", "input_config", "all_mapper_times"
     """
@@ -117,12 +100,40 @@ class TrainingConfig(Dumpable, Loadable):
 
 @dataclasses.dataclass
 class KerasTrainingConfig(TrainingConfig):
+    """
+    Attrs:
+        model_type: sklearn model type or keras model class to initialize
+        input_variables: variables used as features
+        output_variables: variables to predict
+        additional_variables: list of needed variables which are not inputs
+            or outputs (e.g. pressure thickness if needed for scaling)
+        hyperparameters: arguments to pass to model class at initialization
+            time
+        random_seed: value to use to initialize randomness
+        model_path: output location for final model
+        save_model_checkpoints: whether to save a copy of the model at
+            each epoch
+    """
 
     save_model_checkpoints: bool = False
 
 
 @dataclasses.dataclass
 class SklearnTrainingConfig(TrainingConfig):
+    """
+    Attrs:
+        model_type: sklearn model type or keras model class to initialize
+        input_variables: variables used as features
+        output_variables: variables to predict
+        additional_variables: list of needed variables which are not inputs
+            or outputs (e.g. pressure thickness if needed for scaling)
+        hyperparameters: arguments to pass to model class at initialization
+            time
+        random_seed: value to use to initialize randomness
+        model_path: output location for final model
+        scaler_type: scaler to use for training
+        scaler_kwargs: keyword arguments to pass to scaler initialization
+    """
 
     scaler_type: str = "standard"
     scaler_kwargs: dict = dataclasses.field(default_factory=dict)
@@ -207,6 +218,8 @@ def load_configs(
     validation_timesteps_file=None,
 ) -> Tuple[_ModelTrainingConfig, TrainingConfig, DataConfig, Optional[DataConfig]]:
     """Load training configuration information from a legacy yaml config path.
+
+    Dumps the legacy configuration class to the output_data_path.
     """
     # TODO: remove output_data_path argument, we need it here at the moment
     # to dump legacy_config before it gets a Dataset attached to it,
@@ -305,7 +318,6 @@ def check_validation_train_overlap(
 
 def validation_timesteps_config(train_config):
     val_config = legacy_config_to_data_config(train_config)
-    print(val_config.data_path)
     assert not isinstance(val_config.data_path, list)
     val_config.batch_kwargs["timesteps"] = train_config.validation_timesteps
     val_config.batch_kwargs["timesteps_per_batch"] = len(
@@ -334,7 +346,6 @@ def validation_dataset(train_config: _ModelTrainingConfig,) -> Optional[xr.Datas
         )
         validation_config = validation_timesteps_config(train_config)
         # validation config puts all data in one batch
-        print(validation_config)
         validation_dataset_sequence = load_data_sequence(validation_config)
         if len(validation_dataset_sequence) > 1:
             raise ValueError(

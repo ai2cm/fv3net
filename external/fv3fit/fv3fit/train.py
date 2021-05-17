@@ -4,6 +4,8 @@ import logging
 import os
 import xarray as xr
 from typing import Sequence, Optional
+import yaml
+import dataclasses
 
 from fv3fit._shared import (
     parse_data_path,
@@ -103,11 +105,16 @@ if __name__ == "__main__":
     )
     set_random_seed(train_config.random_seed)
 
-    train_config.dump(os.path.join(args.output_data_path, "train.yaml"))
-    train_data_config.dump(os.path.join(args.output_data_path, "training_data.yml"))
+    with open(os.path.join(args.output_data_path, "train.yaml"), "w") as f:
+        yaml.safe_dump(dataclasses.asdict(train_config), f)
+    with open(os.path.join(args.output_data_path, "training_data.yaml"), "w") as f:
+        yaml.safe_dump(dataclasses.asdict(train_data_config), f)
+
     train_batches = load_data_sequence(train_data_config)
     if val_data_config is not None:
-        val_data_config.dump(os.path.join(args.output_data_path, "validation_data.yml"))
+        val_data_config.dump(
+            os.path.join(args.output_data_path, "validation_data.yaml")
+        )
         val_batches: Optional[Sequence[xr.Dataset]] = load_data_sequence(
             val_data_config
         )
