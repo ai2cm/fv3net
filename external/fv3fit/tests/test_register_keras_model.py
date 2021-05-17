@@ -1,6 +1,6 @@
 import pytest
 
-from fv3fit._shared.config import register_keras_trainer, get_keras_model
+from fv3fit._shared.config import register_keras_estimator, get_keras_model
 
 
 def test_get_model_raises_before_registering():
@@ -9,7 +9,7 @@ def test_get_model_raises_before_registering():
 
 
 def test_get_model_returns_after_registering():
-    @register_keras_trainer("name")
+    @register_keras_estimator("name")
     class MyModel:
         pass
 
@@ -20,6 +20,6 @@ def test_get_model_returns_after_registering():
 def test_register_raises_if_no_name_given():
     with pytest.raises(TypeError, match="remember to pass one"):
 
-        @register_keras_trainer
+        @register_keras_estimator
         class MyModel:
             pass

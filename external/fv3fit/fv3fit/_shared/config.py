@@ -18,7 +18,7 @@ def get_keras_model(name):
     return KERAS_MODELS[name]
 
 
-def register_keras_trainer(name: str):
+def register_keras_estimator(name: str):
     """
     Returns a decorator that will register the given class as a keras training
     class, which can be used in training configuration.
@@ -26,7 +26,7 @@ def register_keras_trainer(name: str):
     if not isinstance(name, str):
         raise TypeError(
             "keras trainer name must be string, remember to "
-            "pass one when decorating @register_keras_trainer(name)"
+            "pass one when decorating @register_keras_estimator(name)"
         )
 
     def decorator(cls):
