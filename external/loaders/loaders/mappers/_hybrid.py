@@ -58,14 +58,14 @@ def apparent_heating(data: FineResBudget):
     )
     eddy_flux_convergence = convergence(eddy_flux, data.delp, dim="pfull")
     return (
-        (data.t_dt_fv_sat_adj_coarse + data.t_dt_phys_coarse - +eddy_flux_convergence)
+        (data.t_dt_fv_sat_adj_coarse + data.t_dt_phys_coarse + eddy_flux_convergence)
         .assign_attrs(
             units="K/s",
             long_name="apparent heating from high resolution data",
             description=(
                 "Apparent heating due to physics and sub-grid-scale advection. Given "
                 "by "
-                "sat adjustment (dycore) + physics tendency  - eddy-flux-convergence"
+                "sat adjustment (dycore) + physics tendency + eddy-flux-convergence"
             ),
         )
         .rename("Q1")
@@ -88,7 +88,7 @@ def apparent_moistening(data: FineResBudget):
             description=(
                 "Apparent moistening due to physics and sub-grid-scale advection. "
                 "Given by "
-                "sat adjustment (dycore) + physics tendency  - eddy-flux-convergence"
+                "sat adjustment (dycore) + physics tendency + eddy-flux-convergence"
             ),
         )
         .rename("Q2")
