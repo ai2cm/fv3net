@@ -3,7 +3,7 @@ from .config import (
     DataConfig,
     _ModelTrainingConfig,
     load_configs,
-    register_keras_trainer,
+    register_keras_estimator,
     load_data_sequence,
 )
 from .packer import pack, unpack, ArrayPacker, unpack_matrix

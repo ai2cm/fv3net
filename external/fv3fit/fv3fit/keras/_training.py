@@ -35,6 +35,7 @@ def get_model(
     )
 
 
+# TODO: merge this helper function with get_keras_model
 def get_model_class(model_type: str) -> Type[Estimator]:
     """Returns a class implementing the Estimator interface corresponding to the model type.
     
