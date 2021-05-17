@@ -6,6 +6,7 @@ import xarray as xr
 from typing import Sequence, Optional
 import yaml
 import dataclasses
+import fsspec
 
 from fv3fit._shared import (
     parse_data_path,
@@ -87,7 +88,7 @@ def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
 
 
 def dump_dataclass(obj, yaml_filename):
-    with open(yaml_filename, "w") as f:
+    with fsspec.open(yaml_filename, "w") as f:
         yaml.safe_dump(dataclasses.asdict(obj), f)
 
 
