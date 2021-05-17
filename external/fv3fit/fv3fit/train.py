@@ -88,7 +88,7 @@ def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
 
 def dump_dataclass(obj, yaml_filename):
     with open(yaml_filename, "w") as f:
-        yaml.safe_dump(dataclasses.as_dict(obj), f)
+        yaml.safe_dump(dataclasses.asdict(obj), f)
 
 
 if __name__ == "__main__":
