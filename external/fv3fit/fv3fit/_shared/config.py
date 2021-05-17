@@ -9,7 +9,7 @@ DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
 
 
-KERAS_MODELS: Dict[str, type] = {}
+KERAS_MODELS: Dict[str, Type[Estimator]] = {}
 SKLEARN_MODEL_TYPES = ["sklearn", "rf", "random_forest", "sklearn_random_forest"]
 
 
