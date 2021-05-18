@@ -556,6 +556,7 @@ def test_chunks_present(completed_rundir):
     assert completed_rundir.join(CHUNKS_PATH).exists()
 
 
+@pytest.mark.xfail
 def test_fv3run_diagnostic_outputs_check_variables(regtest, completed_rundir):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
@@ -568,6 +569,7 @@ def test_fv3run_diagnostic_outputs_check_variables(regtest, completed_rundir):
         print(f"{variable}: " + checksum, file=regtest)
 
 
+@pytest.mark.xfail
 def test_fv3run_diagnostic_outputs_schema(regtest, completed_rundir):
     diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
     diagnostics.info(regtest)
