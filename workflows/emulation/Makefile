@@ -21,6 +21,7 @@ get_subsampled_testing:
 	mkdir -p ${SUBSET_DESTINATION}/testing/
 	gsutil -m cp -r ${SUBSET_SOURCE} ${SUBSET_DESTINATION}/testing/
 
+get_subsampled: get_subsampled_training get_subsampled_testing
 
 train_emulator: TRAINING_CONFIG = training_config.yaml
 train_emulator:
