@@ -1,10 +1,12 @@
 base_version: v0.5
+field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.0/field_table
 prephysics:
-  dataset_key: "gs://vcm-ml-intermediate/2021-03-fine-res-surface-radiative-fluxes/fine-res-surface-radiative-fluxes.zarr"
+  dataset_key: "gs://vcm-ml-intermediate/2021-03-fine-res-surface-radiative-fluxes/C3072-surface-radiative-fluxes-precip.zarr"
   variables:
     - override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface
     - override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface
     - override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface
+    - total_precipitation
 nudging:
   timescale_hours:
     air_temperature: 3
@@ -24,13 +26,17 @@ namelist:
   fv_core_nml:
     do_sat_adj: false
   gfs_physics_nml:
+    fhlwr: 1800.0
+    fhswr: 1800.0
     override_surface_radiative_fluxes: true
+    hybedmf: false
+    satmedmf: true
 diagnostics:
 - name: state_after_timestep.zarr
   chunks:
-    time: 8
+    time: 16
   times:
-    frequency: 10800
+    frequency: 5400
     kind: interval
   variables:
   - x_wind
@@ -45,6 +51,7 @@ diagnostics:
   - land_sea_mask
   - surface_temperature
   - surface_geopotential
+  - surface_diffused_shortwave_albedo
   - sensible_heat_flux
   - latent_heat_flux
   - total_precipitation
@@ -60,9 +67,9 @@ diagnostics:
   - longitude
 - name: physics_tendencies.zarr
   chunks:
-    time: 8
+    time: 16
   times:
-    frequency: 10800
+    frequency: 5400
     kind: interval
   variables:
   - tendency_of_air_temperature_due_to_fv3_physics
@@ -74,7 +81,7 @@ diagnostics:
     time: 8
   times:
     frequency: 10800
-    kind: interval
+    kind: interval-average
   variables:
   - air_temperature_tendency_due_to_nudging
   - specific_humidity_tendency_due_to_nudging
@@ -99,7 +106,7 @@ diagnostics:
     time: 8
   times:
     frequency: 10800
-    kind: interval
+    kind: interval-average
   variables:
   - air_temperature_reference
   - specific_humidity_reference
