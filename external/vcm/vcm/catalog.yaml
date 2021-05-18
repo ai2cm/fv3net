@@ -188,7 +188,7 @@ sources:
       storage_options:
         project: 'vcm-ml'
         access: read_only
-      urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/atmos_8xdaily_add_vars.zarr"
+      urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/atmos_8xdaily_add_vars_corrected_wind.zarr"
       consolidated: True
 
   GFS_analysis_T85_2015_2016:

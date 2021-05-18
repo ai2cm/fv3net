@@ -5,4 +5,4 @@ from ._batch import (
     diagnostic_batches_from_geodata,
 )
 
-from ._sequences import Local, Take, shuffle
+from ._sequences import BaseSequence, Local, Take, shuffle

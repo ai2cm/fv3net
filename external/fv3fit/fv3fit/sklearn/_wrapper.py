@@ -163,9 +163,9 @@ class SklearnWrapper(Estimator):
     def fit(self, batches: Sequence[xr.Dataset]):
         logger = logging.getLogger("SklearnWrapper")
         for i, batch in enumerate(batches):
-            logger.info(f"Fitting batch {i}/{len(batches)}")
+            logger.info(f"Fitting batch {i+1}/{len(batches)}")
             self._fit_batch(batch)
-            logger.info(f"Batch {i} done fitting.")
+            logger.info(f"Batch {i+1} done fitting.")
 
     def predict(self, data):
         x, _ = pack(data[self.input_variables], self.sample_dim_name)
