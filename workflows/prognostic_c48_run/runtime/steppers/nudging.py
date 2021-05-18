@@ -45,8 +45,8 @@ class PureNudger:
         }
         return tendencies, reference, ssts
 
-    def get_diagnostics(self, state, tendency):
-        diags = compute_diagnostics(state, tendency, self.label)
+    def get_diagnostics(self, state, tendency, hydrostatic):
+        diags = compute_diagnostics(state, tendency, self.label, hydrostatic)
         return diags, diags[f"net_moistening_due_to_{self.label}"]
 
     def get_momentum_diagnostics(self, state, tendency):

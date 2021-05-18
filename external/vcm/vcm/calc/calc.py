@@ -8,10 +8,6 @@ specific_heat = 1004
 HOUR_PER_DEG_LONGITUDE = 1.0 / 15
 
 
-def mass_integrate(phi, dp, dim=COORD_Z_CENTER):
-    return (phi * dp / gravity).sum(dim)
-
-
 def apparent_heating(dtemp_dt, w):
     return dtemp_dt + w * gravity / specific_heat
 

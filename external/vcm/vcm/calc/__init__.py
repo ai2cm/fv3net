@@ -1,6 +1,7 @@
-from .calc import apparent_heating, apparent_source, mass_integrate, local_time
+from .calc import apparent_heating, apparent_source, local_time
 from .metrics import r2_score
 from .q_terms import compute_Q_terms
+from .thermo import mass_integrate
 from ._zenith_angle import cos_zenith_angle
 
 __all__ = [

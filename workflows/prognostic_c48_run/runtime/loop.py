@@ -69,7 +69,9 @@ class Stepper(Protocol):
     def __call__(self, time, state) -> Tuple[Tendencies, Diagnostics, State]:
         return {}, {}, {}
 
-    def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
+    def get_diagnostics(
+        self, state, tendency, hydrostatic: bool
+    ) -> Tuple[Diagnostics, xr.DataArray]:
         """Return diagnostics mapping and net moistening array."""
         return {}, xr.DataArray()
 
@@ -147,6 +149,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         timestep = namelist["coupler_nml"]["dt_atmos"]
         self._timestep = timestep
         self._log_info(f"Timestep: {timestep}")
+        self._hydrostatic = namelist["fv_core_nml"]["hydrostatic"]
 
         self._prephysics_only_diagnostic_ml: bool = getattr(
             getattr(config, "prephysics"), "diagnostic_ml", False
@@ -384,7 +387,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
         if self._postphysics_stepper is not None:
             stepper_diags, net_moistening = self._postphysics_stepper.get_diagnostics(
-                self._state, tendency
+                self._state, tendency, self._hydrostatic
             )
             diagnostics.update(stepper_diags)
             if self._postphysics_only_diagnostic_ml:

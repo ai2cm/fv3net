@@ -1,12 +1,10 @@
 import xarray as xr
 import logging
+import vcm
 from runtime.types import State, Diagnostics
 from runtime.names import TEMP, SPHUM, DELP, PRECIP_RATE
 
 logger = logging.getLogger(__name__)
-
-cp = 1004
-gravity = 9.81
 
 
 def precipitation_sum(
@@ -50,7 +48,9 @@ def precipitation_rate(
     return precipitation_rate
 
 
-def compute_diagnostics(state: State, tendency: State, label: str) -> Diagnostics:
+def compute_diagnostics(
+    state: State, tendency: State, label: str, hydrostatic: bool
+) -> Diagnostics:
     delp = state[DELP]
     if label == "machine_learning":
         temperature_tendency_name = "dQ1"
@@ -64,25 +64,25 @@ def compute_diagnostics(state: State, tendency: State, label: str) -> Diagnostic
 
     # compute column-integrated diagnostics
     diags: Diagnostics = {
-        f"net_moistening_due_to_{label}": (humidity_tendency * delp / gravity)
-        .sum("z")
+        f"net_moistening_due_to_{label}": vcm.mass_integrate(
+            humidity_tendency, delp, "z"
+        )
         .assign_attrs(units="kg/m^2/s")
         .assign_attrs(
             description=f"column integrated moisture tendency due to {label}"
         ),
-        f"net_heating_due_to_{label}": (temperature_tendency * delp / gravity * cp)
-        .sum("z")
+        f"net_heating_due_to_{label}": vcm.column_integrated_heating(
+            temperature_tendency, delp, isochoric=not hydrostatic
+        )
         .assign_attrs(units="W/m^2")
         .assign_attrs(description=f"column integrated heating due to {label}"),
     }
     if DELP in tendency:
-        net_mass_tendency = (
-            (tendency[DELP] / gravity)
-            .sum("z")
-            .assign_attrs(
-                units="kg/m^2/s",
-                description=f"column-integrated mass tendency due to {label}",
-            )
+        net_mass_tendency = vcm.mass_integrate(
+            xr.ones_like(tendency[DELP]), tendency[DELP], "z"
+        ).assign_attrs(
+            units="kg/m^2/s",
+            description=f"column-integrated mass tendency due to {label}",
         )
         diags[f"net_mass_tendency_due_to_{label}"] = net_mass_tendency
 
@@ -171,8 +171,7 @@ def _mass_average(
 def compute_baseline_diagnostics(state: State) -> Diagnostics:
 
     return dict(
-        water_vapor_path=(state[SPHUM] * state[DELP] / gravity)
-        .sum("z")
+        water_vapor_path=vcm.mass_integrate(state[SPHUM], state[DELP], "z")
         .assign_attrs(units="mm")
         .assign_attrs(description="column integrated water vapor"),
         physics_precip=(state[PRECIP_RATE])
