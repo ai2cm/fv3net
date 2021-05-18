@@ -1,6 +1,6 @@
 import numpy as np
 import xarray as xr
-from vcm.cubedsphere.constants import INIT_TIME_DIM, COORD_Z_CENTER, VAR_LON_CENTER
+from vcm.cubedsphere.constants import INIT_TIME_DIM, VAR_LON_CENTER
 
 gravity = 9.81
 specific_heat = 1004
