@@ -37,6 +37,9 @@ xpartition>=0.2.0
 # pip-compile doesn't work with setup.cfg
 xarray >= 0.16.2, <0.17.0 # 0.17 is python37 only, but we usually run pip-compile on 36 :(
 
+# prognostic_run_diags
+streamlit
+
 # developer tools
 conda-lock
 pip-tools

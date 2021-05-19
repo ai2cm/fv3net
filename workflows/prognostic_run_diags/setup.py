@@ -25,6 +25,7 @@ install_requirements = [
     # "fv3viz",
     "vcm",
     "report",
+    "streamlit",
 ]
 
 setup(
