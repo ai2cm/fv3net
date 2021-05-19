@@ -3,7 +3,6 @@ import streamlit as st
 import vcm.fv3.logs
 import fsspec
 from toolz.curried import map, compose, reduce
-import altair
 import pandas as pd
 import plotly.express as px
 import subprocess
@@ -20,14 +19,6 @@ wong_palette = [
     "#D55E00",
     "#CC79A7",
 ]
-
-
-def my_theme():
-    return {"config": {"range": {"category": wong_palette}}}
-
-
-altair.themes.register("my_theme", my_theme)
-altair.themes.enable("my_theme")
 
 
 def concat_logs(a, b):
