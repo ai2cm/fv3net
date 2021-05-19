@@ -13,6 +13,10 @@ import yaml
 from typing import Mapping, Sequence, Tuple, List, Hashable
 from toolz import dissoc
 
+# TODO: refactor this code to use the public TrainingConfig and DataConfig
+# classes from fv3fit instead of _ModelTrainingConfig
+from fv3fit._shared.config import _ModelTrainingConfig as ModelTrainingConfig
+
 import diagnostics_utils as utils
 import loaders
 from vcm import safe, interpolate_to_pressure_levels
@@ -267,7 +271,7 @@ def _consolidate_dimensioned_data(ds_summary, ds_metrics):
     return ds_diagnostics, ds_metrics.drop(metrics_arrays_vars)
 
 
-def _get_base_mapper(config: fv3fit.ModelTrainingConfig):
+def _get_base_mapper(config: ModelTrainingConfig):
     logger.info("Creating base mapper")
     base_mapping_function = getattr(
         loaders.mappers, config.batch_kwargs["mapping_function"]
@@ -283,7 +287,7 @@ def _get_base_mapper(config: fv3fit.ModelTrainingConfig):
 
 
 def _get_prediction_mapper(
-    config: fv3fit.ModelTrainingConfig,
+    config: ModelTrainingConfig,
     variables: Sequence[str],
     model: fv3fit.Predictor,
     grid: xr.Dataset,
@@ -333,7 +337,7 @@ def main(args):
         )
 
     if args.config_yml:
-        config = fv3fit.ModelTrainingConfig.load(args.config_yml)
+        config = ModelTrainingConfig.load(args.config_yml)
     else:
         config = fv3fit.load_training_config(args.model_path)
     if args.data_path:
