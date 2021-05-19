@@ -39,6 +39,7 @@ xarray >= 0.16.2, <0.17.0 # 0.17 is python37 only, but we usually run pip-compil
 
 # prognostic_run_diags
 streamlit
+plotly
 
 # developer tools
 conda-lock

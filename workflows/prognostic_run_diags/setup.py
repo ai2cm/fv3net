@@ -26,6 +26,7 @@ install_requirements = [
     "vcm",
     "report",
     "streamlit",
+    "plotly",
 ]
 
 setup(

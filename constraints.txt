@@ -171,6 +171,7 @@ pint==0.15
 pip-tools==5.3.1
 pkgconfig==1.5.1
 pkginfo==1.5.0.1
+plotly==4.14.3
 pluggy==0.13.1
 poetry==1.0.10
 pooch==1.1.1
@@ -204,6 +205,7 @@ recommonmark==0.7.1
 requests-oauthlib==1.3.0
 requests-toolbelt==0.8.0
 requests==2.24.0
+retrying==1.3.3
 rsa==4.6
 scikit-learn==0.22.1
 scipy==1.5.4
