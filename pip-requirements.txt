@@ -17,6 +17,8 @@ numba
 # prognostic run diagnostics requirements
 # this file depends on vcm, so pip-tools cannot lock it
 holoviews
+streamlit
+plotly
 
 # Hope for more stable performance with these versions
 gcsfs>=2021.04.0
@@ -36,10 +38,6 @@ xpartition>=0.2.0
 # xpartition needs >=0.16.2 for region feature of to_zarr
 # pip-compile doesn't work with setup.cfg
 xarray >= 0.16.2, <0.17.0 # 0.17 is python37 only, but we usually run pip-compile on 36 :(
-
-# prognostic_run_diags
-streamlit
-plotly
 
 # developer tools
 conda-lock

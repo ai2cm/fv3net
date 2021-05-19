@@ -1,7 +1,7 @@
 import sys
 import streamlit as st
 import vcm.fv3.logs
-import fsspec
+from vcm.cloud.fsspec import get_fs
 from toolz.curried import map, compose, reduce
 import pandas as pd
 import plotly.express as px
@@ -30,7 +30,7 @@ def concat_logs(a, b):
 
 
 def open_segmented_logs(url):
-    fs = fsspec.filesystem("gs")
+    fs = get_fs(url)
     logfiles = sorted(fs.glob(f"{url}/**/logs.txt"))
     parsed = reduce(
         concat_logs, map(compose(vcm.fv3.logs.loads, bytes.decode, fs.cat), logfiles)
@@ -51,7 +51,9 @@ def line_chart(df, url):
 
 def register_parser(subparsers):
     parser = subparsers.add_parser(
-        "log-viewer", help="Webapp for viewing segmented run logs."
+        "log-viewer",
+        help="Webapp for plotting time series information from the "
+        "standard output of segmented FV3 runs.",
     )
     parser.set_defaults(func=run_streamlit)
 
