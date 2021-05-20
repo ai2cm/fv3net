@@ -6,7 +6,7 @@ import tempfile
 import yaml
 import xarray as xr
 
-from vcm.cubedsphere import weighted_block_average
+from vcm import coarsen
 from vcm.cloud import gsutil
 from vcm.cubedsphere.constants import (
     COORD_X_CENTER,
@@ -61,7 +61,7 @@ def coarsen_c384_diagnostics(args):
     logging.info(f"Size of diagnostic data: {diags384.nbytes / 1e9:.2f} GB")
 
     # coarsen the data
-    diags_coarsened = weighted_block_average(
+    diags_coarsened = coarsen.weighted_block_average(
         diags384,
         grid384["area"],
         x_dim=COORD_X_CENTER,
