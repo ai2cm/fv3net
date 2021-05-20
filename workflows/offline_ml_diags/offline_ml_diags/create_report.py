@@ -8,13 +8,12 @@ from typing import MutableMapping, Sequence, List
 
 import fv3viz
 import numpy as np
-from report import insert_report_figure
+import report
 import vcm
 from vcm.cloud import get_fs
 import diagnostics_utils.plot as diagplot
 from ._helpers import (
     get_metric_string,
-    write_report,
     open_diagnostics_outputs,
     copy_outputs,
     tidy_title,
@@ -123,6 +122,8 @@ if __name__ == "__main__":
 
     report_sections: MutableMapping[str, Sequence[str]] = {}
 
+    # Links
+
     # histogram of timesteps used for testing
     try:
         timesteps = ds_diurnal["time"]
@@ -132,7 +133,7 @@ if __name__ == "__main__":
         timesteps = np.vectorize(vcm.cast_to_datetime)(timesteps)
         fig = fv3viz.plot_daily_and_hourly_hist(timesteps)
         fig.set_size_inches(10, 3)
-        insert_report_figure(
+        report.insert_report_figure(
             report_sections,
             fig,
             filename="timesteps_used.png",
@@ -155,7 +156,7 @@ if __name__ == "__main__":
             title=tidy_title(var),
             plot_kwargs={"vmin": vmin, "vmax": vmax},
         )
-        insert_report_figure(
+        report.insert_report_figure(
             report_sections,
             fig,
             filename=f"zonal_avg_pressure_{var}.png",
@@ -174,7 +175,7 @@ if __name__ == "__main__":
         fig = diagplot._plot_generic_data_array(
             ds_diags[var], xlabel="pressure [Pa]", ylim=ylim, title=tidy_title(var)
         )
-        insert_report_figure(
+        report.insert_report_figure(
             report_sections,
             fig,
             filename=f"{var}.png",
@@ -192,7 +193,7 @@ if __name__ == "__main__":
         fig = diagplot.plot_profile_var(
             ds_diags, var, derivation_dim=DERIVATION_DIM, domain_dim=DOMAIN_DIM,
         )
-        insert_report_figure(
+        report.insert_report_figure(
             report_sections,
             fig,
             filename=f"{var}.png",
@@ -207,7 +208,7 @@ if __name__ == "__main__":
         fig = diagplot.plot_column_integrated_var(
             ds_diags, var, derivation_plot_coords=ds_diags[DERIVATION_DIM].values,
         )
-        insert_report_figure(
+        report.insert_report_figure(
             report_sections,
             fig,
             filename=f"{var}.png",
@@ -222,7 +223,7 @@ if __name__ == "__main__":
             var=var,
             derivation_plot_coords=ds_diurnal[DERIVATION_DIM].values,
         )
-        insert_report_figure(
+        report.insert_report_figure(
             report_sections,
             fig,
             filename=f"{var}.png",
@@ -235,7 +236,7 @@ if __name__ == "__main__":
         transect_time = ds_transect.time.item()
         for var in sorted(ds_transect.data_vars):
             fig = plot_transect(ds_transect[var])
-            insert_report_figure(
+            report.insert_report_figure(
                 report_sections,
                 fig,
                 filename=f"transect_lon0_{var}.png",
@@ -258,13 +259,14 @@ if __name__ == "__main__":
     for png in copy_pngs_to_report(args.input_path, temp_output_dir.name):
         report_sections[png] = [png]
 
-    write_report(
-        temp_output_dir.name,
-        "ML offline diagnostics",
-        report_sections,
+    html_report = report.create_html(
+        sections=report_sections,
+        title="ML offline diagnostics",
         metadata=config,
-        report_metrics=dict(metrics_formatted),
+        metrics=dict(metrics_formatted),
     )
+    with open(os.path.join(temp_output_dir.name, "index.html"), "w") as f:
+        f.write(html_report)
 
     copy_outputs(temp_output_dir.name, args.output_path)
     logger.info(f"Save report to {args.output_path}")
