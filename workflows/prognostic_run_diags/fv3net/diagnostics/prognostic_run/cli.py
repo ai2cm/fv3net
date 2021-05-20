@@ -1,6 +1,7 @@
 import argparse
 from fv3net.diagnostics.prognostic_run import metrics, compute
 from fv3net.diagnostics.prognostic_run.views import movies, static_report
+from fv3net.diagnostics.prognostic_run.apps import log_viewer
 
 
 def dissoc(namespace, key):
@@ -19,6 +20,7 @@ def get_parser():
     metrics.register_parser(subparsers)
     movies.register_parser(subparsers)
     static_report.register_parser(subparsers)
+    log_viewer.register_parser(subparsers)
     return parser
 
 
