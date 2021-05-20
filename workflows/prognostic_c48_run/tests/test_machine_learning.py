@@ -26,10 +26,10 @@ def ml_stepper(ml_stepper_name):
     timestep = 900
     if ml_stepper_name == "PureMLStepper":
         mock_model = get_mock_sklearn_model("tendencies")
-        ml_stepper = PureMLStepper(mock_model, timestep, False)
+        ml_stepper = PureMLStepper(mock_model, timestep, hydrostatic=False)
     elif ml_stepper_name == "MLStateStepper":
         mock_model = get_mock_sklearn_model("rad_fluxes")
-        ml_stepper = MLStateStepper(mock_model, timestep, False)
+        ml_stepper = MLStateStepper(mock_model, timestep, hydrostatic=False)
     return ml_stepper
 
 
