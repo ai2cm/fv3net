@@ -18,6 +18,7 @@ import fv3gfs.util
 import fv3gfs.wrapper
 import numpy as np
 import xarray as xr
+import vcm
 from mpi4py import MPI
 from runtime import DerivedFV3State
 from runtime.config import UserConfig, DiagnosticFileConfig, get_namelist
@@ -44,8 +45,6 @@ from typing_extensions import Protocol
 from .names import AREA, DELP, TOTAL_PRECIP
 
 logger = logging.getLogger(__name__)
-
-gravity = 9.81
 
 
 class Stepper(Protocol):
@@ -268,10 +267,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         ).data_array
         delp = self._state[DELP]
         return {
-            "storage_of_specific_humidity_path_due_to_microphysics": (micro * delp).sum(
-                "z"
-            )
-            / gravity,
+            "storage_of_specific_humidity_path_due_to_microphysics": vcm.mass_integrate(
+                micro, delp, "z"
+            ),
             "evaporation": self._state["evaporation"],
             "cnvprcp_after_physics": self._fv3gfs.get_diagnostic_by_name(
                 "cnvprcp"
@@ -457,8 +455,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                     diags[diag_name].attrs["units"] = before[variable].units + "/s"
 
             for variable in self._storage_variables:
-                path_before = (before[variable] * delp_before).sum("z") / gravity
-                path_after = (after[variable] * delp_after).sum("z") / gravity
+                path_before = vcm.mass_integrate(before[variable], delp_before, "z")
+                path_after = vcm.mass_integrate(after[variable], delp_after, "z")
 
                 diag_name = f"storage_of_{variable}_path_due_to_{name}"
                 diags[diag_name] = (path_after - path_before) / self._timestep

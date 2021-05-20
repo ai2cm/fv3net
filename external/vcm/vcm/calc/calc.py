@@ -1,15 +1,11 @@
 import numpy as np
 import xarray as xr
-from vcm.cubedsphere.constants import INIT_TIME_DIM, COORD_Z_CENTER, VAR_LON_CENTER
+from vcm.cubedsphere.constants import INIT_TIME_DIM, VAR_LON_CENTER
 
 gravity = 9.81
 specific_heat = 1004
 
 HOUR_PER_DEG_LONGITUDE = 1.0 / 15
-
-
-def mass_integrate(phi, dp, dim=COORD_Z_CENTER):
-    return (phi * dp / gravity).sum(dim)
 
 
 def apparent_heating(dtemp_dt, w):

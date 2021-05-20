@@ -1,7 +1,6 @@
 import numpy as np
 import xarray as xr
 from ..cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
-from .calc import mass_integrate
 
 
 # following are defined as in FV3GFS model (see FV3/fms/constants/constants.f90)
@@ -25,6 +24,10 @@ _REVERSE = slice(None, None, -1)
 _SEC_PER_DAY = 86400
 _KG_M2S_TO_MM_DAY = (1e3 * 86400) / 997.0
 _KG_M2_TO_MM = 1000.0 / 997
+
+
+def mass_integrate(da, delp, dim=COORD_Z_CENTER):
+    return (da * delp / _GRAVITY).sum(dim)
 
 
 def potential_temperature(P, T):
@@ -342,9 +345,9 @@ def column_integrated_liquid_water_equivalent(
         ci_liquid_water_equivalent: DataArray of water equivalent in mm
     """
 
-    ci_liquid_water_equivalent = _KG_M2_TO_MM * (
-        (delp / _GRAVITY) * specific_humidity
-    ).sum(vertical_dimension)
+    ci_liquid_water_equivalent = _KG_M2_TO_MM * mass_integrate(
+        specific_humidity, delp, vertical_dimension
+    )
     ci_liquid_water_equivalent = ci_liquid_water_equivalent.assign_attrs(
         {"long_name": "precipitable water", "units": "mm"}
     )
@@ -409,9 +412,9 @@ def column_integrated_heat(
         column_integrated_heat: DataArray of column total heat in J/m**2
     """
 
-    column_integrated_heat = (
-        _SPECIFIC_HEAT_CONST_PRESSURE * (delp / _GRAVITY) * temperature
-    ).sum(vertical_dim)
+    column_integrated_heat = _SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
+        temperature, delp, vertical_dim
+    )
     column_integrated_heat = column_integrated_heat.assign_attrs(
         {"long_name": "column integrated heat", "units": "J/m**2"}
     )
