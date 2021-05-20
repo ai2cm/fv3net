@@ -23,7 +23,13 @@ class PureNudger:
         communicator: fv3gfs.util.CubedSphereCommunicator,
         hydrostatic: bool,
     ):
+        """A stepper for nudging towards a reference dataset.
 
+        Args:
+            config: the nudging configuration.
+            communicator: fv3gfs cubed sphere communicator.
+            hydrostatic: whether simulation is hydrostatic. For net heating diagnostic.
+        """
         variables_to_nudge = list(config.timescale_hours)
         self._get_reference_state = setup_get_reference_state(
             config,

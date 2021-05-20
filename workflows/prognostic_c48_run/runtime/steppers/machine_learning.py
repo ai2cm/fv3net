@@ -167,6 +167,13 @@ class PureMLStepper:
     label = "machine_learning"
 
     def __init__(self, model: MultiModelAdapter, timestep: float, hydrostatic: bool):
+        """A stepper for predicting machine learning tendencies.
+
+        Args:
+            model: the machine learning model.
+            timestep: physics timestep in seconds.
+            hydrostatic: whether simulation is hydrostatic. For net heating diagnostic.
+        """
         self.model = model
         self.timestep = timestep
         self.hydrostatic = hydrostatic
@@ -187,22 +194,32 @@ class PureMLStepper:
 
         if "dQ1" in tendency:
             if self.hydrostatic:
-                diag = thermo.column_integrated_heating_from_isobaric_transition(
-                    dQ1_updated - tendency["dQ1"], delp
+                heating = thermo.column_integrated_heating_from_isobaric_transition(
+                    dQ1_updated - tendency["dQ1"], delp, "z"
                 )
             else:
-                diag = thermo.column_integrated_heating_from_isochoric_transition(
-                    dQ1_updated - tendency["dQ1"], delp
+                heating = thermo.column_integrated_heating_from_isochoric_transition(
+                    dQ1_updated - tendency["dQ1"], delp, "z"
                 )
+            heating = heating.assign_attrs(
+                long_name="Change in ML column heating due to non-negative specific "
+                "humidity limiter"
+            )
             diagnostics.update(
-                {"column_integrated_dQ1_change_non_neg_sphum_constraint": (diag)}
+                {"column_integrated_dQ1_change_non_neg_sphum_constraint": heating}
             )
             tendency.update({"dQ1": dQ1_updated})
         if "dQ2" in tendency:
-            diag = thermo.mass_integrate(dQ2_updated - tendency["dQ2"], delp, dim="z")
-            diag = diag.assign_attrs({"units": "kg/m^2/s"})
+            moistening = thermo.mass_integrate(
+                dQ2_updated - tendency["dQ2"], delp, dim="z"
+            )
+            moistening = moistening.assign_attrs(
+                units="kg/m^2/s",
+                long_name="Change in ML column moistening due to non-negative specific "
+                "humidity limiter",
+            )
             diagnostics.update(
-                {"column_integrated_dQ2_change_non_neg_sphum_constraint": (diag)}
+                {"column_integrated_dQ2_change_non_neg_sphum_constraint": moistening}
             )
             tendency.update({"dQ2": dQ2_updated})
 
