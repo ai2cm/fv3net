@@ -50,7 +50,9 @@ def precipitation_rate(
     return precipitation_rate
 
 
-def compute_diagnostics(state: State, tendency: State, label: str) -> Diagnostics:
+def compute_diagnostics(
+    state: State, tendency: State, label: str, hydrostatic: bool
+) -> Diagnostics:
     delp = state[DELP]
     if label == "machine_learning":
         temperature_tendency_name = "dQ1"
@@ -63,6 +65,14 @@ def compute_diagnostics(state: State, tendency: State, label: str) -> Diagnostic
     humidity_tendency = tendency.get(humidity_tendency_name, xr.zeros_like(delp))
 
     # compute column-integrated diagnostics
+    if hydrostatic:
+        net_heating = vcm.column_integrated_heating_from_isobaric_transition(
+            temperature_tendency, delp, "z"
+        )
+    else:
+        net_heating = vcm.column_integrated_heating_from_isochoric_transition(
+            temperature_tendency, delp, "z"
+        )
     diags: Diagnostics = {
         f"net_moistening_due_to_{label}": vcm.mass_integrate(
             humidity_tendency, delp, dim="z"
@@ -71,11 +81,9 @@ def compute_diagnostics(state: State, tendency: State, label: str) -> Diagnostic
         .assign_attrs(
             description=f"column integrated moisture tendency due to {label}"
         ),
-        f"net_heating_due_to_{label}": (
-            cp * vcm.mass_integrate(temperature_tendency, delp, dim="z")
-        )
-        .assign_attrs(units="W/m^2")
-        .assign_attrs(description=f"column integrated heating due to {label}"),
+        f"net_heating_due_to_{label}": net_heating.assign_attrs(
+            units="W/m^2"
+        ).assign_attrs(description=f"column integrated heating due to {label}"),
     }
     if DELP in tendency:
         net_mass_tendency = vcm.mass_integrate(
