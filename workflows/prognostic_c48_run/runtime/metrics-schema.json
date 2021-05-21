@@ -21,7 +21,7 @@
             "area": 615379799156.7335,
             "cnvprcp_after_python": 8.388836350374921e-06,
             "net_moistening_due_to_machine_learning": 0.0,
-            "net_heating_due_to_machine_learning": 0.0,
+            "net_heating_isochoric_due_to_machine_learning": 0.0,
             "column_integrated_dQu": 0.0,
             "column_integrated_dQv": 0.0,
             "water_vapor_path": 23.721312922082713,
@@ -127,8 +127,8 @@
                 0.0
             ]
         },
-        "net_heating_due_to_machine_learning": {
-            "$id": "#/properties/net_heating_due_to_machine_learning",
+        "net_heating_isochoric_due_to_machine_learning": {
+            "$id": "#/properties/net_heating_isochoric_due_to_machine_learning",
             "type": "number",
             "units": "kg/m^2/s",
             "default": 0.0,
@@ -136,7 +136,7 @@
                 0.0
             ]
         },
-        "net_heating_due_to_nudging": {
+        "net_heating_isochoric_due_to_nudging": {
             "type": "number",
             "units": "kg/m^2/s",
             "default": 0.0,
