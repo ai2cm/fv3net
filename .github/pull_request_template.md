@@ -16,7 +16,6 @@ Requirement changes:
 - [ ] Ran `make lock_deps/lock_pip` following these [instructions](https://vulcanclimatemodeling.com/docs/fv3net/dependency_management.html#dependency-management)
 - [ ] Add PR review with license info for any additions to `constraints.txt`
   ([example](https://github.com/VulcanClimateModeling/fv3net/pull/1218#pullrequestreview-663644359))
-- [ ] Follows these [instructions](https://vulcanclimatemodeling.com/docs/fv3net/dependency_management.html#dependency-management)
 
 - [ ] Tests added
 
