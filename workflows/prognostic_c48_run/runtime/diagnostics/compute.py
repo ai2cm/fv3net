@@ -69,12 +69,10 @@ def compute_diagnostics(
         net_heating = vcm.column_integrated_heating_from_isobaric_transition(
             temperature_tendency, delp, "z"
         )
-        transition = "isobaric"
     else:
         net_heating = vcm.column_integrated_heating_from_isochoric_transition(
             temperature_tendency, delp, "z"
         )
-        transition = "isochoric"
     diags: Diagnostics = {
         f"net_moistening_due_to_{label}": vcm.mass_integrate(
             humidity_tendency, delp, dim="z"
@@ -82,7 +80,7 @@ def compute_diagnostics(
             units="kg/m^2/s",
             description=f"column integrated moisture tendency due to {label}",
         ),
-        f"net_heating_{transition}_due_to_{label}": net_heating.assign_attrs(
+        f"column_heating_due_to_{label}": net_heating.assign_attrs(
             units="W/m^2"
         ).assign_attrs(description=f"column integrated heating due to {label}"),
     }

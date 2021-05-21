@@ -77,10 +77,8 @@ def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
     elif "net_heating" in ds:
         # fix isochoric vs isobaric transition issue
         column_dq1 = 716.95 / 1004 * ds.net_heating
-    elif "net_heating_isochoric_due_to_machine_learning" in ds:
-        column_dq1 = ds.net_heating_isochoric_due_to_machine_learning
-    elif "net_heating_isobaric_due_to_machine_learning" in ds:
-        column_dq1 = ds.net_heating_isobaric_due_to_machine_learning
+    elif "column_heating_due_to_machine_learning" in ds:
+        column_dq1 = ds.column_heating_due_to_machine_learning
     else:
         # assume given dataset is for a baseline or verification run
         column_dq1 = xr.zeros_like(ds.PRATEsfc)
@@ -159,10 +157,8 @@ def _column_nq1(ds: xr.Dataset) -> xr.DataArray:
         # old name for column integrated temperature nudging in nudge-to-fine
         # fix isochoric vs isobaric transition issue
         column_nq1 = 716.95 / 1004 * ds.net_heating_due_to_nudging
-    elif "net_heating_isochoric_due_to_nudging" in ds:
-        column_nq1 = ds.net_heating_isochoric_due_to_nudging
-    elif "net_heating_isobaric_due_to_nudging" in ds:
-        column_nq1 = ds.net_heating_isobaric_due_to_nudging
+    elif "column_heating_due_to_nudging" in ds:
+        column_nq1 = ds.column_heating_due_to_nudging
     else:
         # assume given dataset is for a run without temperature nudging
         column_nq1 = xr.zeros_like(ds.PRATEsfc)

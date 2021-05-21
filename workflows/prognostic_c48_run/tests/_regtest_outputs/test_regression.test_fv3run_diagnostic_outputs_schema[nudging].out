@@ -17,10 +17,10 @@ variables:
 		cnvprcp_after_physics:units = kg/m**2/s ;
 	float64 cnvprcp_after_python(time, tile, y, x) ;
 		cnvprcp_after_python:units = kg/m**2/s ;
+	float64 column_heating_due_to_nudging(time, tile, y, x) ;
+		column_heating_due_to_nudging:units = W/m^2 ;
 	float64 evaporation(time, tile, y, x) ;
 		evaporation:units = unknown ;
-	float64 net_heating_isochoric_due_to_nudging(time, tile, y, x) ;
-		net_heating_isochoric_due_to_nudging:units = W/m^2 ;
 	float64 net_moistening_due_to_nudging(time, tile, y, x) ;
 		net_moistening_due_to_nudging:units = kg/m^2/s ;
 	float64 physics_precip(time, tile, y, x) ;
