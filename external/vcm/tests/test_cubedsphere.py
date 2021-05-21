@@ -841,3 +841,15 @@ def test_to_cross(transpose, tile_dim, x_dim, y_dim):
     # manually hardcode the hash since it is shared across all parameterize
     # statements
     assert joblib.hash(one_tile.values) == "04eddd324d0f3150a02499c788ec675d"
+
+
+def test_to_cross_with_scalar_coordinates():
+    arr = xr.DataArray(
+        np.arange(2 * 2 * 6).reshape((6, 2, 2)),
+        dims=("tile", "y", "x"),
+        coords={"time": 1},
+    )
+    result = to_cross(arr, tile="tile", x="x", y="y")
+    expected_time = xr.DataArray(1, coords={"time": 1}, name="time")
+    assert "time" in result.coords
+    xr.testing.assert_identical(result.time, expected_time)
