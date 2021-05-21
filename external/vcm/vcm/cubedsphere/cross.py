@@ -54,6 +54,8 @@ def _rotate_data_array(data, src, dest, dims=None):
     for key in data.coords:
         if set(data[key].dims) >= set(dims):
             coords[key] = rotate(data[key].variable, src, dest, dims)
+        else:
+            coords[key] = data[key]
     return xr.DataArray(variable, coords=coords)
 
 

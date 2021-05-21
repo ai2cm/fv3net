@@ -1,14 +1,17 @@
-import intake
+import json
 import logging
-import numpy as np
 import os
-import xarray as xr
 from typing import List, Mapping, Sequence
 
 import fsspec
+import intake
+import numpy as np
+import pandas as pd
 import vcm
+import xarray as xr
 from vcm.cloud import get_fs
 from vcm.fv3 import standardize_fv3_diagnostics
+
 from fv3net.diagnostics.prognostic_run import add_derived
 from fv3net.diagnostics.prognostic_run.constants import DiagArg
 
@@ -18,7 +21,9 @@ logger = logging.getLogger(__name__)
 GRID_ENTRIES = {48: "grid/c48", 96: "grid/c96", 384: "grid/c384"}
 
 
-def load_verification(catalog_keys: List[str], catalog: intake.Catalog,) -> xr.Dataset:
+def load_verification(
+    catalog_keys: List[str], catalog: intake.catalog.Catalog,
+) -> xr.Dataset:
 
     """
     Load verification data sources from a catalog and combine for reporting.
@@ -101,7 +106,7 @@ def _load_prognostic_run_3d_output(url: str):
 
 
 def load_3d(
-    url: str, verification_entries: Sequence[str], catalog: intake.Catalog
+    url: str, verification_entries: Sequence[str], catalog: intake.catalog.Catalog
 ) -> DiagArg:
     logger.info(f"Processing 3d data from run directory at {url}")
 
@@ -143,7 +148,7 @@ def load_3d(
 
 
 def load_dycore(
-    url: str, verification_entries: Sequence[str], catalog: intake.Catalog
+    url: str, verification_entries: Sequence[str], catalog: intake.catalog.Catalog
 ) -> DiagArg:
     """Open data required for dycore plots.
 
@@ -181,7 +186,7 @@ def load_dycore(
 
 
 def load_physics(
-    url: str, verification_entries: Sequence[str], catalog: intake.Catalog
+    url: str, verification_entries: Sequence[str], catalog: intake.catalog.Catalog
 ) -> DiagArg:
     """Open data required for physics plots.
 
@@ -216,3 +221,22 @@ def load_physics(
     prognostic_output = add_derived.physics_variables(prognostic_output)
 
     return prognostic_output, verification_c48, grid_c48
+
+
+def loads_stats(b: bytes):
+    lines = b.decode().splitlines(keepends=False)
+    return [json.loads(line) for line in lines]
+
+
+def open_segmented_stats(url: str) -> pd.DataFrame:
+    fs = get_fs(url)
+    logfiles = sorted(fs.glob(f"{url}/**/statistics.txt"))
+    records = sum([loads_stats(fs.cat(logfile)) for logfile in logfiles], [])
+    return pd.DataFrame.from_records(records)
+
+
+def open_segmented_logs(url: str) -> vcm.fv3.logs.FV3Log:
+    fs = get_fs(url)
+    logfiles = sorted(fs.glob(f"{url}/**/logs.txt"))
+    logs = [vcm.fv3.logs.loads(fs.cat(url).decode()) for url in logfiles]
+    return vcm.fv3.logs.concatenate(logs)
