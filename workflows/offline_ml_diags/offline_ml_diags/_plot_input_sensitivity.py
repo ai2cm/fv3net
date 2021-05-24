@@ -163,6 +163,6 @@ def _subplot_scalar_feature_importances(
         range(len(scalar_features)),
         scalar_feature_mean_importances,
         yerr=scalar_feature_std_importances,
-        tick_label=["cos_z", "land_sea_mask", "phis"],
+        tick_label=scalar_features,
     )
     return axs
