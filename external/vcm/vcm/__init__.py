@@ -26,6 +26,8 @@ from .calc.thermo import (
     potential_temperature,
     pressure_at_interface,
     surface_pressure_from_delp,
+    column_integrated_heating_from_isobaric_transition,
+    column_integrated_heating_from_isochoric_transition,
 )
 
 from .interpolate import (

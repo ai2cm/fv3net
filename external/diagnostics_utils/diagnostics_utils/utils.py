@@ -105,7 +105,9 @@ def insert_column_integrated_vars(
     for var in column_integrated_vars:
         column_integrated_name = f"column_integrated_{var}"
         if "Q1" in var:
-            da = thermo.column_integrated_heating(ds[var], ds[VARNAMES["delp"]])
+            da = thermo.column_integrated_heating_from_isochoric_transition(
+                ds[var], ds[VARNAMES["delp"]]
+            )
         elif "Q2" in var:
             da = -thermo.minus_column_integrated_moistening(
                 ds[var], ds[VARNAMES["delp"]]

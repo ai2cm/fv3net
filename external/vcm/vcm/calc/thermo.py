@@ -398,34 +398,10 @@ def liquid_ice_temperature(
     return liquid_ice_temperature
 
 
-def column_integrated_heat(
-    temperature: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
-) -> xr.DataArray:
-    """Compute vertically-integrated total heat
-    
-    Args:
-        temperature: DataArray of air temperature in K
-        delp: DataArray of pressure layer thicknesses in Pa
-        vertical_dim: Name of vertical dimension; defaults to 'z'
-          
-    Returns:
-        column_integrated_heat: DataArray of column total heat in J/m**2
-    """
-
-    column_integrated_heat = _SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
-        temperature, delp, vertical_dim
-    )
-    column_integrated_heat = column_integrated_heat.assign_attrs(
-        {"long_name": "column integrated heat", "units": "J/m**2"}
-    )
-
-    return column_integrated_heat
-
-
-def column_integrated_heating(
+def column_integrated_heating_from_isobaric_transition(
     dtemperature_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
 ) -> xr.DataArray:
-    """Compute vertically-integrated heat tendencies
+    """Compute vertically-integrated heat tendencies assuming isobaric transition.
     
     Args:
         dtemperature_dt: DataArray of air temperature tendencies in K/s
@@ -437,6 +413,30 @@ def column_integrated_heating(
     """
 
     column_integrated_heating = _SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
+        dtemperature_dt, delp, dim=vertical_dim
+    )
+    column_integrated_heating = column_integrated_heating.assign_attrs(
+        {"long_name": "column integrated heating", "units": "W/m**2"}
+    )
+
+    return column_integrated_heating
+
+
+def column_integrated_heating_from_isochoric_transition(
+    dtemperature_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
+) -> xr.DataArray:
+    """Compute vertically-integrated heat tendencies assuming isochoric transition.
+    
+    Args:
+        dtemperature_dt: DataArray of air temperature tendencies in K/s
+        delp: DataArray of pressure layer thicknesses in Pa (NOT tendencies)
+        vertical_dim: Name of vertical dimension; defaults to 'z'
+          
+    Returns:
+        column_integrated_heating: DataArray of column total heat tendencies in W/m**2
+    """
+    specific_heat = _SPECIFIC_HEAT_CONST_PRESSURE - _RDGAS
+    column_integrated_heating = specific_heat * mass_integrate(
         dtemperature_dt, delp, dim=vertical_dim
     )
     column_integrated_heating = column_integrated_heating.assign_attrs(

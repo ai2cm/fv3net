@@ -29,8 +29,8 @@ Heat
 ----
 
    .. automethod:: vcm.calc.thermo.net_heating
-   .. automethod:: vcm.calc.thermo.column_integrated_heat
-   .. automethod:: vcm.calc.thermo.column_integrated_heating
+   .. automethod:: vcm.calc.thermo.column_integrated_heating_from_isobaric_transition
+   .. automethod:: vcm.calc.thermo.column_integrated_heating_from_isochoric_transition
    .. automethod:: vcm.calc.thermo.liquid_ice_temperature
    .. automethod:: vcm.calc.thermo.latent_heat_vaporization
    .. automethod:: vcm.calc.thermo.potential_temperature
