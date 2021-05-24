@@ -6,7 +6,7 @@ from .config import (
     register_keras_estimator,
     load_data_sequence,
 )
-from .packer import pack, unpack, ArrayPacker, unpack_matrix
+from .packer import pack, unpack, ArrayPacker, unpack_matrix, count_features_2d
 from .scaler import (
     StandardScaler,
     ManualScaler,
