@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import logging
-from typing import Mapping
+from typing import Mapping, Tuple
 from fv3fit.sklearn import SklearnWrapper
 import fv3fit.keras._models
 
@@ -84,7 +84,7 @@ def plot_jacobian(model: fv3fit.keras._models.DenseModel, output_dir: str):
 
 
 def plot_rf_feature_importance(
-    input_feature_indices: Mapping[str, int],
+    input_feature_indices: Mapping[str, Tuple[int, int]],
     wrapped_model: SklearnWrapper,
     output_dir: str,
 ) -> None:
@@ -99,7 +99,7 @@ def plot_rf_feature_importance(
         [
             var
             for var in input_feature_indices
-            if (input_feature_indices[var][1] - input_feature_indices[var][0] > 1)
+            if ((input_feature_indices[var][1] - input_feature_indices[var][0]) > 1)
         ]
     )
     fig, axs = plt.subplots(
