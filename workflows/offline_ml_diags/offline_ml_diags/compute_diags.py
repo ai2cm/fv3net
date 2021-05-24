@@ -428,7 +428,11 @@ def main(args):
             input_feature_indices = get_variable_indices(
                 data=pred_mapper[timesteps[0]], variables=model._input_variables
             )
-            plot_rf_feature_importance(input_feature_indices, model, args.output_path)
+            plot_rf_feature_importance(
+                input_feature_indices,
+                model,
+                os.path.join(args.output_path, "model_sensitivity_figures"),
+            )
         except AttributeError:
             pass
 
