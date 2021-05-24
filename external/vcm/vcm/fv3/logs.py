@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import re
-from typing import Mapping, List, Tuple
+from typing import Iterable, Mapping, List, Tuple
 from collections import defaultdict
 from datetime import datetime
-from toolz import curry
+from toolz import curry, reduce
 import dataclasses
 
 
@@ -39,6 +39,23 @@ class FV3Log:
     dates: List[datetime]
     totals: Mapping[str, List[float]]
     ranges: Mapping[str, List[Tuple[float, float]]]
+
+
+def _concat_logs(a, b):
+    return FV3Log(
+        dates=a.dates + b.dates,
+        totals={
+            key: a.totals[key] + b.totals[key] for key in set(b.totals) & set(a.totals)
+        },
+        ranges={
+            key: a.ranges[key] + b.ranges[key] for key in set(b.ranges) & set(a.ranges)
+        },
+    )
+
+
+def concatenate(logs: Iterable[FV3Log]):
+    """Concatenate an iterable of FV3Logs"""
+    return reduce(_concat_logs, logs)
 
 
 def loads(log: str) -> FV3Log:

@@ -1,4 +1,5 @@
 import logging
+import warnings
 import xarray as xr
 
 import vcm
@@ -72,14 +73,28 @@ def _column_pq2(ds: xr.Dataset) -> xr.DataArray:
 
 def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
     if "net_heating_due_to_machine_learning" in ds:
-        column_dq1 = ds.net_heating_due_to_machine_learning
+        warnings.warn(
+            "'net_heating_due_to_machine_learning' is a deprecated variable name. "
+            "It will not be supported in future versions of fv3net. Use "
+            "'column_heating_due_to_machine_learning' instead.",
+            DeprecationWarning,
+        )
+        # fix isochoric vs isobaric transition issue
+        column_dq1 = 716.95 / 1004 * ds.net_heating_due_to_machine_learning
     elif "net_heating" in ds:
-        # for backwards compatibility
-        column_dq1 = ds.net_heating
+        warnings.warn(
+            "'net_heating' is a deprecated variable name. "
+            "It will not be supported in future versions of fv3net. Use "
+            "'column_heating_due_to_machine_learning' instead.",
+            DeprecationWarning,
+        )
+        # fix isochoric vs isobaric transition issue
+        column_dq1 = 716.95 / 1004 * ds.net_heating
+    elif "column_heating_due_to_machine_learning" in ds:
+        column_dq1 = ds.column_heating_due_to_machine_learning
     else:
         # assume given dataset is for a baseline or verification run
         column_dq1 = xr.zeros_like(ds.PRATEsfc)
-    column_dq1 = 719 / 1004 * column_dq1  # use cv instead of cp for <dQ1>
     column_dq1.attrs = {
         "long_name": "<dQ1> column integrated heating from ML",
         "units": "W/m^2",
@@ -92,6 +107,12 @@ def _column_dq2(ds: xr.Dataset) -> xr.DataArray:
         column_dq2 = SECONDS_PER_DAY * ds.net_moistening_due_to_machine_learning
     elif "net_moistening" in ds:
         # for backwards compatibility
+        warnings.warn(
+            "'net_moistening' is a deprecated variable name. "
+            "It will not be supported in future versions of fv3net. Use "
+            "'net_moistening_due_to_machine_learning' instead.",
+            DeprecationWarning,
+        )
         column_dq2 = SECONDS_PER_DAY * ds.net_moistening
     else:
         # assume given dataset is for a baseline or verification run
@@ -152,8 +173,17 @@ def _column_nq1(ds: xr.Dataset) -> xr.DataArray:
         # name for column integrated temperature nudging in nudge-to-obs
         column_nq1 = ds.column_heating_nudge
     elif "net_heating_due_to_nudging" in ds:
-        # name for column integrated temperature nudging in nudge-to-fine
-        column_nq1 = ds.net_heating_due_to_nudging
+        # old name for column integrated temperature nudging in nudge-to-fine
+        warnings.warn(
+            "'net_heating_due_to_nudging' is a deprecated variable name. "
+            "It will not be supported in future versions of fv3net. Use "
+            "'column_heating_due_to_nudging' instead.",
+            DeprecationWarning,
+        )
+        # fix isochoric vs isobaric transition issue
+        column_nq1 = 716.95 / 1004 * ds.net_heating_due_to_nudging
+    elif "column_heating_due_to_nudging" in ds:
+        column_nq1 = ds.column_heating_due_to_nudging
     else:
         # assume given dataset is for a run without temperature nudging
         column_nq1 = xr.zeros_like(ds.PRATEsfc)

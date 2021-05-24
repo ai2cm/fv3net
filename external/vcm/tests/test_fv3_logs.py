@@ -1,4 +1,5 @@
-from vcm.fv3.logs import loads
+import datetime
+from vcm.fv3.logs import FV3Log, concatenate, loads
 from pathlib import Path
 import pytest
 import yaml
@@ -49,3 +50,18 @@ def test_loads_with_shield_data_date(shield_log: str, regtest):
 def test_loads_shield_totals(shield_log: str, regtest, variable_name: str):
     fv3log = loads(shield_log)
     yaml.safe_dump(fv3log.totals[variable_name], regtest)
+
+
+def test_concatenate():
+    log1 = FV3Log(
+        dates=[datetime.datetime(2016, 1, 1)], totals={"a": [1.0]}, ranges={"a": (0, 1)}
+    )
+    log2 = FV3Log(
+        dates=[datetime.datetime(2016, 1, 2)], totals={"a": [1.0]}, ranges={"a": (0, 1)}
+    )
+
+    log = concatenate([log1, log2])
+
+    assert log.dates == log1.dates + log2.dates
+    assert log.totals["a"] == log1.totals["a"] + log2.totals["a"]
+    assert log.ranges["a"] == log1.ranges["a"] + log2.ranges["a"]

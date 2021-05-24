@@ -417,9 +417,12 @@ def main(args):
     ds_diagnostics["time"] = times_used
     ds_diurnal["time"] = times_used
 
-    # save jacobian
+    # save model senstivity figures: jacobian (TODO: RF feature sensitivity)
     try:
-        plot_jacobian(model, args.output_path)  # type: ignore
+        plot_jacobian(
+            model,
+            os.path.join(args.output_path, "model_sensitivity_figures"),  # type: ignore
+        )
     except AttributeError:
         try:
             input_feature_indices = get_variable_indices(

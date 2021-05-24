@@ -146,6 +146,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         timestep = namelist["coupler_nml"]["dt_atmos"]
         self._timestep = timestep
         self._log_info(f"Timestep: {timestep}")
+        hydrostatic = namelist["fv_core_nml"]["hydrostatic"]
 
         self._prephysics_only_diagnostic_ml: bool = getattr(
             getattr(config, "prephysics"), "diagnostic_ml", False
@@ -162,8 +163,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             self._storage_variables,
         ) = self._get_monitored_variable_names(config.diagnostics)
         self._log_debug(f"States to output: {self._states_to_output}")
-        self._prephysics_stepper = self._get_prephysics_stepper(config)
-        self._postphysics_stepper = self._get_postphysics_stepper(config)
+        self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
+        self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -178,7 +179,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                     states_to_output = diagnostic.variables  # type: ignore
         return states_to_output
 
-    def _get_prephysics_stepper(self, config: UserConfig) -> Optional[Stepper]:
+    def _get_prephysics_stepper(
+        self, config: UserConfig, hydrostatic: bool
+    ) -> Optional[Stepper]:
         stepper: Optional[Stepper]
         if config.prephysics is None:
             self._log_info("No prephysics computations")
@@ -186,7 +189,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         elif isinstance(config.prephysics, MachineLearningConfig):
             self._log_info("Using MLStateStepper for prephysics")
             model = self._open_model(config.prephysics, "_prephysics")
-            stepper = MLStateStepper(model, self._timestep)
+            stepper = MLStateStepper(model, self._timestep, hydrostatic)
         elif isinstance(config.prephysics, PrescriberConfig):
             self._log_info("Using Prescriber for prephysics")
             partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
@@ -199,18 +202,22 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             stepper = Prescriber(config.prephysics, communicator, timesteps=timesteps)
         return stepper
 
-    def _get_postphysics_stepper(self, config: UserConfig) -> Optional[Stepper]:
+    def _get_postphysics_stepper(
+        self, config: UserConfig, hydrostatic: bool
+    ) -> Optional[Stepper]:
         if config.scikit_learn:
             self._log_info("Using MLStepper for postphysics updates")
             model = self._open_model(config.scikit_learn, "_postphysics")
-            stepper: Optional[Stepper] = PureMLStepper(model, self._timestep)
+            stepper: Optional[Stepper] = PureMLStepper(
+                model, self._timestep, hydrostatic
+            )
         elif config.nudging:
             self._log_info("Using NudgingStepper for postphysics updates")
             partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
                 get_namelist()
             )
             communicator = fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
-            stepper = PureNudger(config.nudging, communicator)
+            stepper = PureNudger(config.nudging, communicator, hydrostatic)
         else:
             self._log_info("Performing baseline simulation")
             stepper = None

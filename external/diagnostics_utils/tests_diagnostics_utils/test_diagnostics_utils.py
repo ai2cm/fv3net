@@ -21,13 +21,10 @@ def test__inserted_column_integrated_vars():
         }
     )
 
-    expected = ds.assign(
-        {
-            "column_integrated_Q1": thermo.column_integrated_heating(
-                ds["Q1"], ds["pressure_thickness_of_atmospheric_layer"]
-            )
-        }
+    heating = thermo.column_integrated_heating_from_isochoric_transition(
+        ds["Q1"], ds["pressure_thickness_of_atmospheric_layer"]
     )
+    expected = ds.assign({"column_integrated_Q1": heating})
 
     xr.testing.assert_allclose(insert_column_integrated_vars(ds, ["Q1"]), expected)
 
