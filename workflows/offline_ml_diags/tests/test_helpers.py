@@ -5,7 +5,41 @@ from offline_ml_diags._helpers import (
     sample_outside_train_range,
     drop_temperature_humidity_tendencies_if_not_predicted,
     _tendency_in_predictions,
+    get_variable_indices,
 )
+
+
+def data_array_with_feature_dim(feature_dim: int, has_time_dim=True):
+    da = xr.DataArray(
+        [
+            [
+                [[[1 for x in range(2)] for y in range(2)] for z in range(feature_dim)]
+                for tile in range(2)
+            ]
+        ],
+        dims=["time", "tile", "z", "y", "x"],
+    )
+    if not has_time_dim:
+        da = da.isel(time=0).squeeze(drop=True)
+    if feature_dim == 1:
+        da = da.isel(z=0).squeeze(drop=True)
+    return da
+
+
+def test_get_variable_indices():
+    ds = xr.Dataset(
+        {
+            "dim_1": data_array_with_feature_dim(1, has_time_dim=True),
+            "dim_10": data_array_with_feature_dim(10, has_time_dim=True),
+            "dim_10_no_time": data_array_with_feature_dim(10, has_time_dim=False),
+        }
+    )
+    variable_indices = get_variable_indices(ds, ["dim_1", "dim_10", "dim_10_no_time"])
+    assert variable_indices == {
+        "dim_1": [0, 1],
+        "dim_10": [1, 11],
+        "dim_10_no_time": [11, 21],
+    }
 
 
 @pytest.mark.parametrize(

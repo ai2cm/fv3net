@@ -4,7 +4,7 @@ import numpy as np
 import os
 import random
 import shutil
-from typing import Mapping, Sequence, Dict, List
+from typing import Mapping, Sequence, Dict, List, Tuple
 import warnings
 import xarray as xr
 import yaml
@@ -49,13 +49,21 @@ GRID_INFO_VARS = [
 ScalarMetrics = Dict[str, Mapping[str, float]]
 
 
-def count_variable_dims(
+def get_variable_indices(
     data: xr.Dataset, variables: Sequence[str]
-) -> Mapping[str, int]:
+) -> Mapping[str, Tuple[int, int]]:
     if "time" in data.dims:
-        data = data.isel(time=0).drop("time")
+        data = data.isel(time=0).squeeze(drop=True)
     stacked = data.stack(sample=["tile", "x", "y"])
-    return count_features_2d(variables, stacked.transpose("sample", ...), "sample")
+    variable_dims = count_features_2d(
+        variables, stacked.transpose("sample", ...), "sample"
+    )
+    start = 0
+    variable_indices = {}
+    for var in variables:
+        variable_indices[var] = (start, start + variable_dims[var])
+        start += variable_dims[var]
+    return variable_indices
 
 
 def drop_physics_vars(ds: xr.Dataset):

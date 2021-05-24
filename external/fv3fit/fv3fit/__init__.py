@@ -1,4 +1,4 @@
-from ._shared import ArrayPacker, StandardScaler
+from ._shared import ArrayPacker, StandardScaler, count_features_2d
 from ._shared.predictor import Predictor, Estimator
 from ._shared.io import dump, load
 from ._shared.config import (
