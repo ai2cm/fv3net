@@ -13,6 +13,8 @@ import report
 from vcm import safe
 from vcm.cloud import gsutil
 from vcm.catalog import catalog
+from fv3fit import count_features_2d
+
 
 UNITS = {
     "column_integrated_dq1": "[W/m2]",
@@ -45,6 +47,15 @@ GRID_INFO_VARS = [
     "area",
 ]
 ScalarMetrics = Dict[str, Mapping[str, float]]
+
+
+def count_variable_dims(
+    data: xr.Dataset, variables: Sequence[str]
+) -> Mapping[str, int]:
+    if "time" in data.dims:
+        data = data.isel(time=0).drop("time")
+    stacked = data.stack(sample=["tile", "x", "y"])
+    return count_features_2d(variables, stacked.transpose("sample", ...), "sample")
 
 
 def drop_physics_vars(ds: xr.Dataset):
