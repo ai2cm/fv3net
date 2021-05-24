@@ -9,7 +9,6 @@ import warnings
 import xarray as xr
 import yaml
 
-import report
 from vcm import safe
 from vcm.cloud import gsutil
 from vcm.catalog import catalog
@@ -137,26 +136,6 @@ def load_grid_info(res: str = "c48"):
     land_sea_mask = catalog[f"landseamask/{res}"].read()
     grid_info = xr.merge([grid, wind_rotation, land_sea_mask])
     return safe.get_variables(grid_info, GRID_INFO_VARS).drop("tile")
-
-
-def write_report(
-    output_dir: str,
-    title: str,
-    sections: Mapping[str, Sequence[str]],
-    metadata: report.Metadata = None,
-    report_metrics: report.Metrics = None,
-    html_header: str = None,
-):
-    filename = "index.html"
-    html_report = report.create_html(
-        sections,
-        title,
-        metadata=metadata,
-        metrics=report_metrics,
-        html_header=html_header,
-    )
-    with open(os.path.join(output_dir, filename), "w") as f:
-        f.write(html_report)
 
 
 def open_diagnostics_outputs(
