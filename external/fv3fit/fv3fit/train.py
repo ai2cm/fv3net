@@ -8,12 +8,7 @@ import yaml
 import dataclasses
 import fsspec
 
-from fv3fit._shared import (
-    parse_data_path,
-    load_data_sequence,
-    io,
-    Estimator,
-)
+from fv3fit._shared import parse_data_path, load_data_sequence, io, Estimator, get_model
 import fv3fit._shared.config
 from .keras._training import get_regularizer, get_optimizer, set_random_seed
 import fv3fit.keras
@@ -131,7 +126,7 @@ if __name__ == "__main__":
             os.path.join(args.local_download_path, "validation")
         )
 
-    model = _get_model(train_config)
+    model = get_model(train_config)
     model.fit(train_batches)
     train_config.model_path = args.output_data_path
     io.dump(model, args.output_data_path)
