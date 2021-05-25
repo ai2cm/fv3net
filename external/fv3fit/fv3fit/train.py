@@ -21,9 +21,6 @@ import fv3fit.sklearn
 import fv3fit
 
 
-KERAS_CHECKPOINT_PATH = "model_checkpoints"
-
-
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -68,11 +65,6 @@ def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
             **config.hyperparameters,
         )
     elif isinstance(config, fv3fit.KerasTrainingConfig):
-        checkpoint_path = (
-            os.path.join(args.output_data_path, KERAS_CHECKPOINT_PATH)
-            if config.save_model_checkpoints
-            else None
-        )
         return fv3fit.keras.get_model(
             model_type=config.model_type,
             sample_dim_name=loaders.SAMPLE_DIM_NAME,
@@ -80,7 +72,7 @@ def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
             output_variables=config.output_variables,
             optimizer=get_optimizer(config.hyperparameters),
             kernel_regularizer=get_regularizer(config.hyperparameters),
-            checkpoint_path=checkpoint_path,
+            save_model_checkpoints=config.save_model_checkpoints,
             **config.hyperparameters,
         )
     else:
