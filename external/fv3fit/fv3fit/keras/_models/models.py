@@ -280,7 +280,7 @@ class PackedKerasModel(Estimator):
             self.train_history["loss"].append(loss_over_batches)
             self.train_history["val_loss"].append(val_loss_over_batches)
             if self._checkpoint_path:
-                self.dump(os.path.join(self._checkpoint_path, f"epoch_{i_epoch}"))
+                self.dump(os.path.join(self._checkpoint_path.name, f"epoch_{i_epoch}"))
                 logger.info(
                     f"Saved model checkpoint after epoch {i_epoch} "
                     f"to {self._checkpoint_path}"
@@ -304,7 +304,8 @@ class PackedKerasModel(Estimator):
                 self.model.save(model_filename)
             if self._checkpoint_path is not None:
                 shutil.copytree(
-                    self._checkpoint_path, os.path.join(path, KERAS_CHECKPOINT_PATH)
+                    self._checkpoint_path.name,
+                    os.path.join(path, KERAS_CHECKPOINT_PATH),
                 )
             with open(os.path.join(path, self._X_PACKER_FILENAME), "w") as f:
                 self.X_packer.dump(f)
