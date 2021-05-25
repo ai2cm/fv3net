@@ -279,8 +279,6 @@ class PackedKerasModel(Estimator):
                 val_loss_over_batches += history.history.get("val_loss", [np.nan])
             self.train_history["loss"].append(loss_over_batches)
             self.train_history["val_loss"].append(val_loss_over_batches)
-            if self._save_model_checkpoints:
-                self._checkpoints.append(copy.deepcopy(self))
             if self._checkpoint_path:
                 self.dump(os.path.join(self._checkpoint_path, f"epoch_{i_epoch}"))
                 logger.info(
