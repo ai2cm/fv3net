@@ -36,9 +36,9 @@ def test_get_variable_indices():
     )
     variable_indices = get_variable_indices(ds, ["dim_1", "dim_10", "dim_10_no_time"])
     assert variable_indices == {
-        "dim_1": [0, 1],
-        "dim_10": [1, 11],
-        "dim_10_no_time": [11, 21],
+        "dim_1": (0, 1),
+        "dim_10": (1, 11),
+        "dim_10_no_time": (11, 21),
     }
 
 
