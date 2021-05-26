@@ -253,7 +253,7 @@ def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> Training
             "hyperparameters",
             "input_variables",
             "output_variables",
-            "additional variables",
+            "additional_variables",
             "random_seed",
             "model_path",
             "save_model_checkpoints",
