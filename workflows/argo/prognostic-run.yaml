@@ -77,19 +77,13 @@ spec:
                   value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run_diagnostics"
                 - name: flags
                   value: "{{inputs.parameters.online-diags-flags}}"
-      - - name: exit-if-run-model-failed
-          template: exit-with-code
-          arguments:
-            parameters:
-              - name: code
-                value: "{{steps.run-model.exitCode}}"
-    - name: exit-with-code
-      inputs:
-        parameters:
-          - name: code
+      - - name: exit
+          template: exit
+          when: "{{steps.run-model.status}} == Failed"
+    - name: exit
       container:
         image: ubuntu:20.04
-        command: ["exit", "{{inputs.parameters.code}}"]
+        command: ["exit", "1"]
     - name: prepare-config
       inputs:
         parameters:
