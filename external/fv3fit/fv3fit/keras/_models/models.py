@@ -1,4 +1,4 @@
-from external.fv3fit.fv3fit._shared.config import DenseTrainingConfig
+from fv3fit._shared.config import DenseTrainingConfig
 from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, List, Any
 from typing_extensions import Literal
 import xarray as xr

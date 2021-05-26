@@ -13,8 +13,8 @@ from .._shared import (
     Estimator,
     get_scaler,
     register_estimator,
-    SklearnTrainingConfig,
 )
+from .._shared.config import SklearnTrainingConfig
 from .. import _shared
 from .._shared import scaler
 import sklearn.base

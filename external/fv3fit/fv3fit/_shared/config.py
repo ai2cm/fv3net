@@ -1,11 +1,9 @@
 import dataclasses
-from typing_extensions import Literal
 import fsspec
 import yaml
 import os
-from typing import Optional, Tuple, Union, Sequence, List, Type, Dict, Mapping
+from typing import Optional, Tuple, Union, Sequence, List, Type, Dict
 import xarray as xr
-import numpy as np
 from .predictor import Estimator
 
 from loaders import batches
@@ -13,6 +11,11 @@ from loaders import batches
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
+
+
+# TODO: delete this routine by refactoring the tests to no longer depend on it
+def get_keras_model(name):
+    return ESTIMATORS[name][0]
 
 
 @dataclasses.dataclass
@@ -107,16 +110,6 @@ class DataConfig:
     batch_kwargs: dict
 
 
-@dataclasses.dataclass
-class OptimizerConfig:
-    pass
-
-
-@dataclasses.dataclass
-class RegularizerConfig:
-    pass
-
-
 # TODO: move this class to where the Dense training is defined when config.py
 # no longer depends on it (i.e. when _ModelTrainingConfig is deleted)
 @dataclasses.dataclass
@@ -136,19 +129,7 @@ class DenseTrainingConfig(TrainingConfig):
             each epoch
     """
 
-    sample_dim_name: str = "sample"
     save_model_checkpoints: bool = False
-    optimizer: Optional[OptimizerConfig] = None
-    kernel_regularizer: Optional[RegularizerConfig] = None
-    weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None
-    normalize_loss: bool = True
-    depth: int = 3
-    width: int = 16
-    gaussian_noise: float = 0.0
-    loss: Literal["mse", "mae"] = "mse"
-    spectral_normalization: bool = False
-    checkpoint_path: Optional[str] = None
-    fit_kwargs: Optional[dict] = None
 
 
 @dataclasses.dataclass
@@ -248,6 +229,41 @@ def get_model(config: TrainingConfig):
     return model_class(**config.hyperparameters)
 
 
+def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> TrainingConfig:
+    config_dict = dataclasses.asdict(legacy_config)
+    config_class = ESTIMATORS[legacy_config.model_type][1]
+    if config_class is SklearnTrainingConfig:
+        keys = [
+            "model_type",
+            "hyperparameters",
+            "input_variables",
+            "output_variables",
+            "additional_variables",
+            "random_seed",
+            "model_path",
+            "scaler_type",
+            "scaler_kwargs",
+        ]
+        kwargs = {key: config_dict[key] for key in keys if key in config_dict}
+    elif config_class is DenseTrainingConfig:
+        keys = [
+            "model_type",
+            "input_variables",
+            "output_variables",
+            "random_seed",
+            "save_model_checkpoints",
+        ]
+        fit_kwargs = legacy_config.hyperparameters.pop("fit_kwargs", {})
+        fit_kwargs["validation_dataset"] = validation_dataset(legacy_config)
+        legacy_config.hyperparameters["fit_kwargs"] = fit_kwargs
+        kwargs = {key: config_dict[key] for key in keys if key in config_dict}
+        kwargs.update(legacy_config.hyperparameters)
+    else:
+        raise NotImplementedError(f"unknown model type {legacy_config.model_type}")
+    training_config = TrainingConfig.from_dict(kwargs)
+    return training_config
+
+
 def load_configs(
     config_path: str,
     data_path: str,
@@ -267,39 +283,8 @@ def load_configs(
     legacy_config = _ModelTrainingConfig.load(config_path)
     legacy_config.data_path = data_path
     legacy_config.dump(output_data_path)
+    training_config = legacy_config_to_new_config(legacy_config)
     config_dict = dataclasses.asdict(legacy_config)
-    config_class = ESTIMATORS[legacy_config.model_type][1]
-    if config_class is SklearnTrainingConfig:
-        keys = [
-            "model_type",
-            "hyperparameters",
-            "input_variables",
-            "output_variables",
-            "additional_variables",
-            "random_seed",
-            "model_path",
-            "scaler_type",
-            "scaler_kwargs",
-        ]
-    elif config_class is DenseTrainingConfig:
-        keys = [
-            "model_type",
-            "hyperparameters",
-            "input_variables",
-            "output_variables",
-            "additional_variables",
-            "random_seed",
-            "model_path",
-            "save_model_checkpoints",
-        ]
-        fit_kwargs = legacy_config.hyperparameters.pop("fit_kwargs", {})
-        fit_kwargs["validation_dataset"] = validation_dataset(legacy_config)
-        legacy_config.hyperparameters["fit_kwargs"] = fit_kwargs
-    else:
-        raise NotImplementedError(f"unknown model type {legacy_config.model_type}")
-    training_config = TrainingConfig.from_dict(
-        {key: config_dict[key] for key in keys if key in config_dict}
-    )
 
     variables = (
         config_dict["input_variables"]
