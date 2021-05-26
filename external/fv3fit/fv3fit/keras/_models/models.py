@@ -7,6 +7,8 @@ import copy
 import json
 import tensorflow as tf
 import tensorflow_addons as tfa
+import tempfile
+import shutil
 
 from ..._shared.packer import ArrayPacker, unpack_matrix
 from ..._shared.predictor import Estimator
@@ -23,6 +25,7 @@ import yaml
 logger = logging.getLogger(__file__)
 
 MODEL_DIRECTORY = "model_data"
+KERAS_CHECKPOINT_PATH = "model_checkpoints"
 
 # Description of the training loss progression over epochs
 # Outer array indexes epoch, inner array indexes batch (if applicable)
@@ -60,7 +63,7 @@ class PackedKerasModel(Estimator):
         optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
         kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         loss: Literal["mse", "mae"] = "mse",
-        checkpoint_path: Optional[str] = None,
+        save_model_checkpoints: bool = False,
         fit_kwargs: Optional[dict] = None,
     ):
         """Initialize the model.
@@ -86,6 +89,8 @@ class PackedKerasModel(Estimator):
             optimizer: algorithm to be used in gradient descent, must subclass
                 tf.keras.optimizers.Optimizer; defaults to tf.keras.optimizers.Adam
             loss: loss function to use. Defaults to mean squared error.
+            save_model_checkpoints: if True, save one model per epoch when
+                dumping, under a 'model_checkpoints' subdirectory
             fit_kwargs: other keyword arguments to be passed to the underlying
                 tf.keras.Model.fit() method
         """
@@ -108,7 +113,13 @@ class PackedKerasModel(Estimator):
         self._optimizer = optimizer
         self._loss = loss
         self._kernel_regularizer = kernel_regularizer
-        self._checkpoint_path = checkpoint_path
+        self._save_model_checkpoints = save_model_checkpoints
+        if save_model_checkpoints:
+            self._checkpoint_path: Optional[
+                tempfile.TemporaryDirectory
+            ] = tempfile.TemporaryDirectory()
+        else:
+            self._checkpoint_path = None
         self._fit_kwargs = fit_kwargs or {}
 
     @property
@@ -269,7 +280,7 @@ class PackedKerasModel(Estimator):
             self.train_history["loss"].append(loss_over_batches)
             self.train_history["val_loss"].append(val_loss_over_batches)
             if self._checkpoint_path:
-                self.dump(os.path.join(self._checkpoint_path, f"epoch_{i_epoch}"))
+                self.dump(os.path.join(self._checkpoint_path.name, f"epoch_{i_epoch}"))
                 logger.info(
                     f"Saved model checkpoint after epoch {i_epoch} "
                     f"to {self._checkpoint_path}"
@@ -291,6 +302,11 @@ class PackedKerasModel(Estimator):
             if self._model is not None:
                 model_filename = os.path.join(path, self._MODEL_FILENAME)
                 self.model.save(model_filename)
+            if self._checkpoint_path is not None:
+                shutil.copytree(
+                    self._checkpoint_path.name,
+                    os.path.join(path, KERAS_CHECKPOINT_PATH),
+                )
             with open(os.path.join(path, self._X_PACKER_FILENAME), "w") as f:
                 self.X_packer.dump(f)
             with open(os.path.join(path, self._Y_PACKER_FILENAME), "w") as f:
@@ -414,7 +430,7 @@ class DenseModel(PackedKerasModel):
         gaussian_noise: float = 0.0,
         loss: Literal["mse", "mae"] = "mse",
         spectral_normalization: bool = False,
-        checkpoint_path: Optional[str] = None,
+        save_model_checkpoints: bool = False,
         fit_kwargs: Optional[dict] = None,
     ):
         """Initialize the DenseModel.
@@ -446,6 +462,8 @@ class DenseModel(PackedKerasModel):
             gaussian_noise: how much gaussian noise to add before each Dense layer,
                 apart from the output layer
             loss: loss function to use. Defaults to mean squared error.
+            save_model_checkpoints: if True, save one model per epoch when
+                dumping, under a 'model_checkpoints' subdirectory
             fit_kwargs: other keyword arguments to be passed to the underlying
                 tf.keras.Model.fit() method
         """
@@ -463,7 +481,7 @@ class DenseModel(PackedKerasModel):
             optimizer=optimizer,
             kernel_regularizer=kernel_regularizer,
             loss=loss,
-            checkpoint_path=checkpoint_path,
+            save_model_checkpoints=save_model_checkpoints,
             fit_kwargs=fit_kwargs,
         )
 
