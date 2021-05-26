@@ -5,7 +5,7 @@ from ._shared.config import (
     TrainingConfig,
     DataConfig,
     SklearnTrainingConfig,
-    DenseTrainingConfig,
+    DenseHyperparameters,
     load_training_config,
 )
 from . import keras

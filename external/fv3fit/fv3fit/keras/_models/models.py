@@ -1,4 +1,3 @@
-from fv3fit._shared.config import DenseTrainingConfig
 from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, List, Any
 from typing_extensions import Literal
 import xarray as xr
@@ -14,6 +13,7 @@ import shutil
 from ..._shared.packer import ArrayPacker, unpack_matrix
 from ..._shared.predictor import Estimator
 from ..._shared import io, register_estimator
+from ..._shared.config import DenseHyperparameters, OptimizerConfig, RegularizerConfig
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
@@ -61,7 +61,7 @@ class PackedKerasModel(Estimator):
         output_variables: Iterable[str],
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
-        optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
+        optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam(),
         kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         loss: Literal["mse", "mae"] = "mse",
         save_model_checkpoints: bool = False,
@@ -411,7 +411,7 @@ class PackedKerasModel(Estimator):
 
 
 @io.register("packed-keras")
-@register_estimator("DenseModel", DenseTrainingConfig)
+@register_estimator("DenseModel", DenseHyperparameters)
 class DenseModel(PackedKerasModel):
     """
     A simple feedforward neural network model with dense layers.
@@ -424,8 +424,8 @@ class DenseModel(PackedKerasModel):
         output_variables: Iterable[str],
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
-        optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
-        kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
+        optimizer: Optional[OptimizerConfig] = None,
+        kernel_regularizer: Optional[RegularizerConfig] = None,
         depth: int = 3,
         width: int = 16,
         gaussian_noise: float = 0.0,
@@ -472,15 +472,22 @@ class DenseModel(PackedKerasModel):
         self._width = width
         self._spectral_normalization = spectral_normalization
         self._gaussian_noise = gaussian_noise
-        optimizer = optimizer or tf.keras.optimizers.Adam()
+        if optimizer is not None:
+            optimizer_instance = optimizer.instance
+        else:
+            optimizer_instance = tf.keras.optimizers.Adam()
+        if kernel_regularizer is not None:
+            regularizer_instance = kernel_regularizer.instance
+        else:
+            regularizer_instance = None
         super().__init__(
             sample_dim_name,
             input_variables,
             output_variables,
             weights=weights,
             normalize_loss=normalize_loss,
-            optimizer=optimizer,
-            kernel_regularizer=kernel_regularizer,
+            optimizer=optimizer_instance,
+            kernel_regularizer=regularizer_instance,
             loss=loss,
             save_model_checkpoints=save_model_checkpoints,
             fit_kwargs=fit_kwargs,

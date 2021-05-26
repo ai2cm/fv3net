@@ -1,10 +1,15 @@
 import dataclasses
+from typing_extensions import Literal
 import fsspec
 import yaml
 import os
-from typing import Optional, Tuple, Union, Sequence, List, Type, Dict
+from typing import Any, Mapping, Optional, Tuple, Union, Sequence, List, Type, Dict
+from fv3fit.typing import Dataclass
 import xarray as xr
 from .predictor import Estimator
+
+# TODO: move all keras configs under fv3fit.keras
+import tensorflow as tf
 
 from loaders import batches
 
@@ -46,27 +51,23 @@ class TrainingConfig:
     """
 
     model_type: str
+    sample_dim_name: str
     input_variables: List[str]
     output_variables: List[str]
-    additional_variables: List[str] = dataclasses.field(default_factory=list)
-    hyperparameters: dict = dataclasses.field(default_factory=dict)
+    hyperparameters: Dataclass
     random_seed: Union[float, int] = 0
-    model_path: str = ""
 
     @classmethod
     def from_dict(cls, kwargs) -> "TrainingConfig":
-        if cls is TrainingConfig:
-            subclass = get_config_class(kwargs["model_type"])
-            result = subclass.from_dict(kwargs)
-        else:
-            result = cls(**kwargs)
-        return result
+        hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
+        kwargs["hyperparameters"] = hyperparameter_class(**kwargs["hyperparameters"])
+        return cls(**kwargs)
 
 
-ESTIMATORS: Dict[str, Tuple[Type[Estimator], Type[TrainingConfig]]] = {}
+ESTIMATORS: Dict[str, Tuple[Type[Estimator], Type[Dataclass]]] = {}
 
 
-def get_config_class(model_type: str) -> Type[TrainingConfig]:
+def get_hyperparameter_class(model_type: str) -> Type[Dataclass]:
     if model_type in ESTIMATORS:
         _, subclass = ESTIMATORS[model_type]
     else:
@@ -113,10 +114,32 @@ class DataConfig:
     batch_kwargs: dict
 
 
+@dataclasses.dataclass
+class OptimizerConfig:
+    name: str
+    kwargs: Mapping[str, Any]
+
+    @property
+    def instance(self) -> tf.keras.optimizers.Optimizer:
+        cls = getattr(tf.keras.optimizers, self.name)
+        return cls(**self.kwargs)
+
+
+@dataclasses.dataclass
+class RegularizerConfig:
+    name: str
+    kwargs: Mapping[str, Any]
+
+    @property
+    def instance(self) -> tf.keras.regularizers.Regularizer:
+        cls = getattr(tf.keras.regularizers, self.name)
+        return cls(**self.kwargs)
+
+
 # TODO: move this class to where the Dense training is defined when config.py
 # no longer depends on it (i.e. when _ModelTrainingConfig is deleted)
 @dataclasses.dataclass
-class DenseTrainingConfig(TrainingConfig):
+class DenseHyperparameters:
     """
     Attrs:
         model_type: sklearn model type or keras model class to initialize
@@ -132,7 +155,18 @@ class DenseTrainingConfig(TrainingConfig):
             each epoch
     """
 
+    weights: Optional[Mapping[str, Union[int, float]]] = None
+    normalize_loss: bool = True
+    optimizer: Optional[OptimizerConfig] = None
+    kernel_regularizer: Optional[RegularizerConfig] = None
+    depth: int = 3
+    width: int = 16
+    gaussian_noise: float = 0.0
+    loss: Literal["mse", "mae"] = "mse"
+    spectral_normalization: bool = False
     save_model_checkpoints: bool = False
+    # TODO: remove fit_kwargs by fixing how validation data is passed
+    fit_kwargs: Optional[dict] = None
 
 
 @dataclasses.dataclass
@@ -242,17 +276,19 @@ def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> Training
             "scaler_type",
             "scaler_kwargs",
         ]
-    elif config_class is DenseTrainingConfig:
+    elif config_class is DenseHyperparameters:
         keys = [
             "model_type",
             "hyperparameters",
             "input_variables",
             "output_variables",
-            "additional_variables",
             "random_seed",
-            "model_path",
-            "save_model_checkpoints",
+            "sample_dim_name",
         ]
+        config_dict["sample_dim_name"] = "sample"
+        legacy_config.hyperparameters[
+            "save_model_checkpoints"
+        ] = legacy_config.save_model_checkpoints
         fit_kwargs = legacy_config.hyperparameters.pop("fit_kwargs", {})
         fit_kwargs["validation_dataset"] = validation_dataset(legacy_config)
         legacy_config.hyperparameters["fit_kwargs"] = fit_kwargs

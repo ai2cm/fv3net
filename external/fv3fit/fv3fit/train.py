@@ -1,5 +1,4 @@
 import argparse
-import loaders
 import logging
 import os
 import xarray as xr
@@ -9,8 +8,9 @@ import dataclasses
 import fsspec
 
 from fv3fit._shared import parse_data_path, load_data_sequence, io, Estimator
+from fv3fit._shared.config import get_estimator_class
 import fv3fit._shared.config
-from .keras._training import get_regularizer, get_optimizer, set_random_seed
+from .keras._training import set_random_seed
 import fv3fit.keras
 import fv3fit.sklearn
 import fv3fit
@@ -60,17 +60,24 @@ def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
             scaler_kwargs=config.scaler_kwargs,
             **config.hyperparameters,
         )
-    elif isinstance(config, fv3fit.DenseTrainingConfig):
-        return fv3fit.keras.get_model(
-            model_type=config.model_type,
-            sample_dim_name=loaders.SAMPLE_DIM_NAME,
+    elif config.model_type == "DenseModel":
+        cls = get_estimator_class(config.model_type)
+        return cls(
+            sample_dim_name=config.sample_dim_name,
             input_variables=config.input_variables,
             output_variables=config.output_variables,
-            optimizer=get_optimizer(config.hyperparameters),
-            kernel_regularizer=get_regularizer(config.hyperparameters),
-            save_model_checkpoints=config.save_model_checkpoints,
-            **config.hyperparameters,
+            **dataclasses.asdict(config.hyperparameters),
         )
+        # return fv3fit.keras.get_model(
+        #     model_type=config.model_type,
+        #     sample_dim_name=loaders.SAMPLE_DIM_NAME,
+        #     input_variables=config.input_variables,
+        #     output_variables=config.output_variables,
+        #     optimizer=get_optimizer(config.hyperparameters),
+        #     kernel_regularizer=get_regularizer(config.hyperparameters),
+        #     save_model_checkpoints=config.save_model_checkpoints,
+        #     **config.hyperparameters,
+        # )
     else:
         raise NotImplementedError(f"Model type {config.model_type} is not implemented.")
 
