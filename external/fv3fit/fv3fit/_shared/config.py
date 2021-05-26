@@ -74,7 +74,7 @@ def get_config_class(model_type: str) -> Type[TrainingConfig]:
     return subclass
 
 
-def get_estimator_class(model_type: str) -> Type[TrainingConfig]:
+def get_estimator_class(model_type: str) -> Type[Estimator]:
     if model_type in ESTIMATORS:
         estimator_class, _ = ESTIMATORS[model_type]
     else:
