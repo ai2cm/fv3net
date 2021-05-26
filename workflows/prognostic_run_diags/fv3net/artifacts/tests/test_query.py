@@ -19,7 +19,6 @@ def test_get_runs(exp_root):
         assert isinstance(step, Step)
 
 
-def test_cli(regtest, monkeypatch):
+def test_cli(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["artifacts", "--bucket", local_experiment_root])
-    with regtest:
-        main()
+    main()
