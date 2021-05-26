@@ -7,7 +7,6 @@ from ._shared.config import (
     SklearnTrainingConfig,
     DenseTrainingConfig,
     load_training_config,
-    get_model,
 )
 from . import keras
 from . import sklearn

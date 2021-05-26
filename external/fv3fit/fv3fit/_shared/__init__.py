@@ -5,7 +5,6 @@ from .config import (
     load_configs,
     register_estimator,
     load_data_sequence,
-    get_model,
 )
 from .packer import pack, unpack, ArrayPacker, unpack_matrix
 from .scaler import (

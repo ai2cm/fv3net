@@ -227,11 +227,6 @@ class _ModelTrainingConfig:
         return _ModelTrainingConfig(**config_dict)
 
 
-def get_model(config: TrainingConfig):
-    model_class, _ = ESTIMATORS[config.model_type]
-    return model_class(**config.hyperparameters)
-
-
 def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> TrainingConfig:
     config_dict = dataclasses.asdict(legacy_config)
     config_class = ESTIMATORS[legacy_config.model_type][1]
