@@ -19,6 +19,8 @@ __all__ = ["MachineLearningConfig", "PureMLStepper", "open_model"]
 logger = logging.getLogger(__name__)
 
 NameDict = Mapping[Hashable, Hashable]
+VERTICALLY_TAPERED_VARIABLES = ["dQu", "dQv"]
+CUTOFF_LEVEL = 45
 
 
 @dataclasses.dataclass
@@ -152,6 +154,24 @@ def download_model(config: MachineLearningConfig, path: str) -> Sequence[str]:
         fs.get(remote_path, local_path, recursive=True)
         local_model_paths.append(local_path)
     return local_model_paths
+
+
+def vertically_taper(da: xr.DataArray, cutoff_level: int) -> xr.DataArray:
+    k = xr.DataArray(range(da.sizes["z"]), dims=["z"], name="k")
+    ramp = k / cutoff_level
+    return xr.where(ramp > 1, 1, ramp) * da
+
+
+def predict(model: MultiModelAdapter, state: State) -> State:
+    """Given ML model and state, return prediction"""
+    state_loaded = {key: state[key] for key in model.input_variables}
+    ds = xr.Dataset(state_loaded)  # type: ignore
+    output = model.predict_columnwise(ds, feature_dim="z")
+    for key in output:
+        if key in VERTICALLY_TAPERED_VARIABLES:
+            logger.info(f"Vertically tapering ML-predicted {key} starting at layer {CUTOFF_LEVEL - 1}")
+            output[key] = vertically_taper(output[key], CUTOFF_LEVEL)
+    return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
 def predict(model: MultiModelAdapter, state: State) -> State:
