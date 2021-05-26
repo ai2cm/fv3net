@@ -72,7 +72,7 @@ sequential segments.
 | `cpu`                | (optional) Number of cpus to request; default "6"                             |
 | `memory`             | (optional) Amount of memory to request; default 6Gi                           |
 | `online-diags-flags` | (optional) `flags` for `prognostic-run-diags` workflow                        |
-| `online-diags`       | (optional) Run online diagostics if "true; default "true"                     | 
+| `online-diags`       | (optional) Run online diagostics if "true"; default "true"                     | 
 
 #### Command line interfaces used by workflow
 This workflow first resolves the output location for the run according to:
