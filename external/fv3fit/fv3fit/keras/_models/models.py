@@ -1,3 +1,4 @@
+from fv3fit._shared.config import DenseTrainingConfig
 from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, List, Any
 from typing_extensions import Literal
 import xarray as xr
@@ -12,7 +13,7 @@ import shutil
 
 from ..._shared.packer import ArrayPacker, unpack_matrix
 from ..._shared.predictor import Estimator
-from ..._shared import io, register_keras_estimator
+from ..._shared import io, register_estimator
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
@@ -410,7 +411,7 @@ class PackedKerasModel(Estimator):
 
 
 @io.register("packed-keras")
-@register_keras_estimator("DenseModel")
+@register_estimator("DenseModel", DenseTrainingConfig)
 class DenseModel(PackedKerasModel):
     """
     A simple feedforward neural network model with dense layers.

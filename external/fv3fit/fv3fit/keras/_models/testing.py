@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Iterable, Sequence, Optional, Any
 import logging
 import os
@@ -7,13 +8,21 @@ from ._sequences import _XyArraySequence
 from ._filesystem import get_dir, put_dir
 from ..._shared.packer import ArrayPacker
 from ..._shared.predictor import Estimator
-from ..._shared import io, register_keras_estimator
+from ..._shared import io, register_estimator
+from ..._shared.config import TrainingConfig
 
 logger = logging.getLogger(__file__)
 
 
+@dataclass
+class DummyTrainingConfig(TrainingConfig):
+
+    epochs: Optional[int] = None
+    batch_size: Optional[int] = None
+
+
 @io.register("dummy")
-@register_keras_estimator("DummyModel")
+@register_estimator("DummyModel", DummyTrainingConfig)
 class DummyModel(Estimator):
     """
     A dummy keras model for testing, whose `fit` method learns only the input and
@@ -30,6 +39,8 @@ class DummyModel(Estimator):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
+        epochs: Optional[int] = None,
+        batch_size: Optional[int] = None,
     ):
         """Initialize the DummyModel
         Args:
@@ -45,14 +56,10 @@ class DummyModel(Estimator):
         self.y_packer = ArrayPacker(
             sample_dim_name=sample_dim_name, pack_names=output_variables
         )
+        self._epochs = epochs
+        self._batch_size = batch_size
 
-    def fit(
-        self,
-        batches: Sequence[xr.Dataset],
-        epochs: Optional[int] = None,
-        batch_size: Optional[int] = None,
-        **fit_kwargs: Any
-    ) -> None:
+    def fit(self, batches: Sequence[xr.Dataset], **fit_kwargs: Any) -> None:
         # this is all we need to do to learn n output feature
         _, _ = _XyArraySequence(self.X_packer, self.y_packer, batches)[0]
 
