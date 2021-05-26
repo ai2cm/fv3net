@@ -9,7 +9,7 @@ ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_NAME = fv3net
 CACHE_TAG =latest
 
-IMAGES = fv3net fv3fit post_process_run prognostic_run
+IMAGES = fv3net post_process_run prognostic_run
 
 .PHONY: build_images push_image run_integration_tests image_name_explicit
 ############################################################
