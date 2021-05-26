@@ -4,6 +4,8 @@ from ._shared.io import dump, load
 from ._shared.config import (
     TrainingConfig,
     DataConfig,
+    SklearnTrainingConfig,
+    DenseTrainingConfig,
     load_training_config,
     get_model,
 )

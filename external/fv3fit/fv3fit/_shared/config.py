@@ -74,16 +74,19 @@ def get_config_class(model_type: str) -> Type[TrainingConfig]:
     return subclass
 
 
+def get_estimator_class(model_type: str) -> Type[TrainingConfig]:
+    if model_type in ESTIMATORS:
+        estimator_class, _ = ESTIMATORS[model_type]
+    else:
+        raise ValueError(f"unknown model_type {model_type}")
+    return estimator_class
+
+
 def register_estimator(name: str, config_class: type):
     """
     Returns a decorator that will register the given class as a keras training
     class, which can be used in training configuration.
     """
-    if not isinstance(name, str):
-        raise TypeError(
-            "keras estimator name must be string, remember to "
-            "pass one when decorating @register_estimator(name, config_class)"
-        )
 
     def decorator(cls):
         ESTIMATORS[name] = (cls, config_class)
@@ -244,23 +247,25 @@ def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> Training
             "scaler_type",
             "scaler_kwargs",
         ]
-        kwargs = {key: config_dict[key] for key in keys if key in config_dict}
     elif config_class is DenseTrainingConfig:
         keys = [
             "model_type",
+            "hyperparameters",
             "input_variables",
             "output_variables",
+            "additional variables",
             "random_seed",
+            "model_path",
             "save_model_checkpoints",
         ]
         fit_kwargs = legacy_config.hyperparameters.pop("fit_kwargs", {})
         fit_kwargs["validation_dataset"] = validation_dataset(legacy_config)
         legacy_config.hyperparameters["fit_kwargs"] = fit_kwargs
-        kwargs = {key: config_dict[key] for key in keys if key in config_dict}
-        kwargs.update(legacy_config.hyperparameters)
     else:
         raise NotImplementedError(f"unknown model type {legacy_config.model_type}")
-    training_config = TrainingConfig.from_dict(kwargs)
+    training_config = TrainingConfig.from_dict(
+        {key: config_dict[key] for key in keys if key in config_dict}
+    )
     return training_config
 
 
