@@ -1,8 +1,11 @@
 import os
+import pathlib
 import xarray as xr
 import numpy as np
 
 from coarsen_c384_diagnostics import coarsen_c384_diagnostics, _create_arg_parser
+
+workflow_path = pathlib.Path(__file__).parent.absolute()
 
 
 def grid_ds():
@@ -23,7 +26,7 @@ def c384_ds():
 def coarsen_workflow_args(input_path, grid_path, output_path):
     return [
         input_path,
-        "coarsen-c384-diagnostics.yml",
+        os.path.join(workflow_path, "coarsen-c384-diagnostics.yml"),
         "--grid_spec",
         grid_path,
         output_path,
