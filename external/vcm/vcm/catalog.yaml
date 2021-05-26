@@ -124,7 +124,7 @@ sources:
         - int_u_dt_nudge_coarse
         - int_v_dt_nudge_coarse
     args:
-      urlpath: "gs://vcm-ml-scratch/oliwm/atmos_15min_coarse_ave.zarr"
+      urlpath: "gs://vcm-ml-intermediate/2021-05-26-coarsened-fine-res-diagnostics/atmos_15min_coarse_ave.zarr"
       consolidated: True
 
   40day_c48_pressure_interpolated_may2020:
