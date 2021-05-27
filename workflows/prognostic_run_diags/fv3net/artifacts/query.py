@@ -1,4 +1,4 @@
-from typing import Optional, Container
+from typing import Optional, Container, List, Awaitable, Sequence
 import argparse
 import asyncio
 import dataclasses
@@ -29,9 +29,9 @@ class Step:
     step: str
 
 
-async def flat_gather(promises):
-    out = await asyncio.gather(*promises)
-    return sum(out, [])
+async def flat_gather(promises: Sequence[Awaitable[Step]]) -> List[Step]:
+    list_of_list_of_steps = await asyncio.gather(*promises)
+    return sum(list_of_list_of_steps, [])
 
 
 async def _get_runs_with_tag(f, tag, date, project):
