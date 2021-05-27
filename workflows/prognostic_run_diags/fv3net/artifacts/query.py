@@ -1,3 +1,4 @@
+from typing import Optional, Container
 import argparse
 import asyncio
 import dataclasses
@@ -105,11 +106,20 @@ def get_artifacts(bucket, projects):
     return ans
 
 
+def matches_step(step: Step, name: Container[str]) -> bool:
+    return step.step in name or not name
+
+
+def matches_tag(step: Step, tag: Optional[str]) -> bool:
+    if tag is None:
+        return True
+    else:
+        return tag in step.tag
+
+
 def list(args):
     for run in get_artifacts(args.bucket, args.project):
-        if (run.step in args.step or not args.step) and (
-            run.tag == args.tag or not args.tag
-        ):
+        if matches_step(run, args.step) and matches_tag(run, args.tag):
             print(
                 run.project,
                 run.date_created,

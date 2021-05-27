@@ -1,5 +1,5 @@
 import sys
-from fv3net.artifacts.query import get_artifacts, Step, main
+from fv3net.artifacts.query import get_artifacts, Step, main, matches_tag
 import pathlib
 
 import pytest
@@ -22,3 +22,23 @@ def test_get_runs(exp_root):
 def test_cli(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["artifacts", "--bucket", local_experiment_root])
     main()
+
+
+@pytest.mark.parametrize(
+    "actual_tag, searched_tag, expected",
+    [
+        ("some-run", "some-run-1", False),
+        ("superstring", "string", True),
+        ("one", "two", False),
+    ],
+)
+def test_matches_tag(actual_tag, searched_tag, expected):
+    out = Step(
+        None,
+        path=None,
+        date_created=None,
+        project="default",
+        tag=actual_tag,
+        step="fv3gfs_run",
+    )
+    assert matches_tag(out, searched_tag) == expected
