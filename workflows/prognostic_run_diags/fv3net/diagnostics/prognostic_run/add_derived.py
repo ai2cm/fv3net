@@ -172,6 +172,9 @@ def _column_nq1(ds: xr.Dataset) -> xr.DataArray:
     if "column_heating_nudge" in ds:
         # name for column integrated temperature nudging in nudge-to-obs
         column_nq1 = ds.column_heating_nudge
+    elif "int_t_dt_nudge" in ds:
+        # name for column-integrated temperature nudging in X-SHiELD runs
+        column_nq1 = ds.int_t_dt_nudge
     elif "net_heating_due_to_nudging" in ds:
         # old name for column integrated temperature nudging in nudge-to-fine
         warnings.warn(
