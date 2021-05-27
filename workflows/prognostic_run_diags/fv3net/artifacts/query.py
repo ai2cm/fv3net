@@ -29,7 +29,12 @@ async def _get_runs_with_tag(f, tag, date, project):
     out = []
     for step in await _list(f, tag):
         path = pathlib.Path(step)
-        if path.name in ["fv3gfs_run", "fv3gfs_run_diagnostics"]:
+        if path.name in [
+            "fv3gfs_run",
+            "fv3gfs_run_diagnostics",
+            "offline_diags",
+            "trained_models",
+        ]:
             out.append(
                 Step(
                     f,
