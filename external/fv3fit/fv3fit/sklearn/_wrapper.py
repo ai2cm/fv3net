@@ -1,7 +1,8 @@
-from typing import Mapping
+from typing import Mapping, Union
 import logging
 import io
 from copy import copy
+from typing_extensions import Literal
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -14,10 +15,11 @@ from .._shared import (
     get_scaler,
     register_estimator,
 )
-from .._shared.config import SklearnTrainingConfig
+from .._shared.config import RandomForestHyperparameters
 from .. import _shared
 from .._shared import scaler
 import sklearn.base
+import sklearn.ensemble
 
 from typing import Optional, Iterable, Sequence
 import yaml
@@ -30,6 +32,66 @@ def _multiindex_to_tuple(index: pd.MultiIndex) -> tuple:
 def _tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
     names, list_ = d
     return pd.MultiIndex.from_tuples(list_, names=names)
+
+
+@_shared.io.register("sklearn")
+@register_estimator("sklearn", RandomForestHyperparameters)
+@register_estimator("rf", RandomForestHyperparameters)
+@register_estimator("random_forest", RandomForestHyperparameters)
+@register_estimator("sklearn_random_forest", RandomForestHyperparameters)
+class RandomForest(Estimator):
+    def __init__(
+        self,
+        sample_dim_name: str,
+        input_variables: Iterable[str],
+        output_variables: Iterable[str],
+        scaler_type: str = "standard",
+        scaler_kwargs: Optional[Mapping] = None,
+        n_jobs: int = -1,
+        random_state: int = 0,
+        n_estimators: int = 100,
+        max_depth: int = None,
+        min_samples_split: Union[int, float] = 2,
+        min_samples_leaf: Union[int, float] = 1,
+        max_features: Union[Literal["auto", "sqrt", "log2"], int, float] = "auto",
+    ):
+        batch_regressor = RegressorEnsemble(
+            sklearn.ensemble.RandomForestRegressor(
+                n_jobs=n_jobs,
+                random_state=random_state,
+                n_estimators=n_estimators,
+                max_depth=max_depth,
+                min_samples_split=min_samples_split,
+                min_samples_leaf=min_samples_leaf,
+                max_features=max_features,
+            )
+        )
+        self._model_wrapper = SklearnWrapper(
+            sample_dim_name,
+            input_variables,
+            output_variables,
+            model=batch_regressor,
+            scaler_type=scaler_type,
+            scaler_kwargs=scaler_kwargs,
+        )
+
+    def fit(self, batches: Sequence[xr.Dataset]):
+        return self._model_wrapper.fit(batches)
+
+    def predict(self, features):
+        return self._model_wrapper.predict(features)
+
+    def dump(self, path: str) -> None:
+        """Dump data to a directory
+
+        Args:
+            path: a URL pointing to a directory
+        """
+        self._model_wrapper.dump(path)
+
+    @classmethod
+    def load(cls, path: str) -> "SklearnWrapper":
+        return SklearnWrapper.load(path)
 
 
 class RegressorEnsemble:
@@ -100,11 +162,6 @@ class RegressorEnsemble:
         return obj
 
 
-@_shared.io.register("sklearn")
-@register_estimator("sklearn", SklearnTrainingConfig)
-@register_estimator("rf", SklearnTrainingConfig)
-@register_estimator("random_forest", SklearnTrainingConfig)
-@register_estimator("sklearn_random_forest", SklearnTrainingConfig)
 class SklearnWrapper(Estimator):
     """Wrap a SkLearn model for use with xarray
 
@@ -123,8 +180,6 @@ class SklearnWrapper(Estimator):
         parallel_backend: str = "threading",
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
-        target_scaler: Optional[scaler.NormalizeTransform] = None,
-        n_jobs: int = 1,
     ) -> None:
         """
         Initialize the wrapper
@@ -140,11 +195,10 @@ class SklearnWrapper(Estimator):
         self._output_variables = output_variables
         self.model = model
 
-        self.n_jobs = n_jobs
         self.parallel_backend = parallel_backend
         self.scaler_type = scaler_type
         self.scaler_kwargs = scaler_kwargs or {}
-        self.target_scaler: Optional[scaler.NormalizeTransform] = target_scaler
+        self.target_scaler: Optional[scaler.NormalizeTransform] = None
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
@@ -180,7 +234,7 @@ class SklearnWrapper(Estimator):
 
     def predict(self, data):
         x, _ = pack(data[self.input_variables], self.sample_dim_name)
-        with joblib.parallel_backend(self.parallel_backend, n_jobs=self.n_jobs):
+        with joblib.parallel_backend(self.parallel_backend, n_jobs=1):
             y = self.model.predict(x)
 
             if self.target_scaler is not None:
@@ -237,13 +291,8 @@ class SklearnWrapper(Estimator):
 
         output_features_ = _tuple_to_multiindex(output_features_dict_)
 
-        obj = cls(
-            sample_dim_name,
-            input_variables,
-            output_variables,
-            model,
-            target_scaler=scaler_obj,
-        )
+        obj = cls(sample_dim_name, input_variables, output_variables, model)
+        obj.target_scaler = scaler_obj
         obj.output_features_ = output_features_
 
         return obj

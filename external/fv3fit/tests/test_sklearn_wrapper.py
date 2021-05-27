@@ -88,13 +88,14 @@ def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
     else:
         scaler = None
 
-    return SklearnWrapper(
+    wrapper = SklearnWrapper(
         sample_dim_name="sample",
         input_variables=["x"],
         output_variables=["y"],
         model=model,
-        target_scaler=scaler,
     )
+    wrapper.target_scaler = scaler
+    return wrapper
 
 
 def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
@@ -122,8 +123,8 @@ def test_fitting_SklearnWrapper_does_not_fit_scaler():
         input_variables=["x"],
         output_variables=["y"],
         model=model,
-        target_scaler=scaler,
     )
+    wrapper.target_scaler = scaler
 
     dims = ["sample", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
@@ -147,8 +148,8 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
         input_variables=["x"],
         output_variables=["y"],
         model=model,
-        target_scaler=scaler,
     )
+    wrapper.target_scaler = scaler
 
     # setup input data
     dims = ["sample", "z"]
@@ -170,7 +171,6 @@ def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
         input_variables=["x"],
         output_variables=["y"],
         model=model,
-        target_scaler=None,
     )
 
     # setup input data
@@ -203,7 +203,6 @@ def test_predict_columnwise_is_deterministic(regtest):
         input_variables=["a"],
         output_variables=["b"],
         model=model,
-        target_scaler=None,
     )
 
     dims = ["x", "y", "z"]

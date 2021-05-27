@@ -51,35 +51,13 @@ def get_parser():
 
 # TODO: delete this routine and use a more generic get_model() based on the registry
 def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
-    if isinstance(config, fv3fit.SklearnTrainingConfig):
-        return fv3fit.sklearn.get_model(
-            model_type=config.model_type,
-            input_variables=config.input_variables,
-            output_variables=config.output_variables,
-            scaler_type=config.scaler_type,
-            scaler_kwargs=config.scaler_kwargs,
-            **config.hyperparameters,
-        )
-    elif config.model_type == "DenseModel":
-        cls = get_estimator_class(config.model_type)
-        return cls(
-            sample_dim_name=config.sample_dim_name,
-            input_variables=config.input_variables,
-            output_variables=config.output_variables,
-            **dataclasses.asdict(config.hyperparameters),
-        )
-        # return fv3fit.keras.get_model(
-        #     model_type=config.model_type,
-        #     sample_dim_name=loaders.SAMPLE_DIM_NAME,
-        #     input_variables=config.input_variables,
-        #     output_variables=config.output_variables,
-        #     optimizer=get_optimizer(config.hyperparameters),
-        #     kernel_regularizer=get_regularizer(config.hyperparameters),
-        #     save_model_checkpoints=config.save_model_checkpoints,
-        #     **config.hyperparameters,
-        # )
-    else:
-        raise NotImplementedError(f"Model type {config.model_type} is not implemented.")
+    cls = get_estimator_class(config.model_type)
+    return cls(
+        sample_dim_name=config.sample_dim_name,
+        input_variables=config.input_variables,
+        output_variables=config.output_variables,
+        **dataclasses.asdict(config.hyperparameters),
+    )
 
 
 def dump_dataclass(obj, yaml_filename):
@@ -136,5 +114,4 @@ if __name__ == "__main__":
 
     model = _get_model(train_config)
     model.fit(train_batches)
-    train_config.model_path = args.output_data_path
     io.dump(model, args.output_data_path)

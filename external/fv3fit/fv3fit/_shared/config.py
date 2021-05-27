@@ -51,15 +51,19 @@ class TrainingConfig:
     """
 
     model_type: str
-    sample_dim_name: str
     input_variables: List[str]
     output_variables: List[str]
     hyperparameters: Dataclass
+    sample_dim_name: str = "sample"
     random_seed: Union[float, int] = 0
 
     @classmethod
     def from_dict(cls, kwargs) -> "TrainingConfig":
+        kwargs = {**kwargs}  # make a copy to avoid mutating the input
         hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
+        # can't mypy typecheck this because DataClass base class takes no inputs,
+        # but it's OK because
+        print(cls, hyperparameter_class, kwargs)
         kwargs["hyperparameters"] = hyperparameter_class(**kwargs["hyperparameters"])
         return cls(**kwargs)
 
@@ -67,7 +71,7 @@ class TrainingConfig:
 ESTIMATORS: Dict[str, Tuple[Type[Estimator], Type[Dataclass]]] = {}
 
 
-def get_hyperparameter_class(model_type: str) -> Type[Dataclass]:
+def get_hyperparameter_class(model_type: str) -> Type:
     if model_type in ESTIMATORS:
         _, subclass = ESTIMATORS[model_type]
     else:
@@ -83,14 +87,14 @@ def get_estimator_class(model_type: str) -> Type[Estimator]:
     return estimator_class
 
 
-def register_estimator(name: str, config_class: type):
+def register_estimator(name: str, hyperparameter_class: type):
     """
     Returns a decorator that will register the given class as a keras training
     class, which can be used in training configuration.
     """
 
     def decorator(cls):
-        ESTIMATORS[name] = (cls, config_class)
+        ESTIMATORS[name] = (cls, hyperparameter_class)
         return cls
 
     return decorator
@@ -170,7 +174,20 @@ class DenseHyperparameters:
 
 
 @dataclasses.dataclass
-class SklearnTrainingConfig(TrainingConfig):
+class RandomForestHyperparameters:
+    scaler_type: str = "standard"
+    scaler_kwargs: Optional[Mapping] = None
+    n_jobs: int = -1
+    random_state: int = 0
+    n_estimators: int = 100
+    max_depth: Optional[int] = None
+    min_samples_split: Union[int, float] = 2
+    min_samples_leaf: Union[int, float] = 1
+    max_features: Union[Literal["auto", "sqrt", "log2"], int, float] = "auto"
+
+
+@dataclasses.dataclass
+class SklearnHyperparameters(TrainingConfig):
     """
     Attrs:
         model_type: sklearn model type or keras model class to initialize
@@ -264,18 +281,18 @@ class _ModelTrainingConfig:
 def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> TrainingConfig:
     config_dict = dataclasses.asdict(legacy_config)
     config_class = ESTIMATORS[legacy_config.model_type][1]
-    if config_class is SklearnTrainingConfig:
+    config_dict["sample_dim_name"] = "sample"
+    if config_class is RandomForestHyperparameters:
         keys = [
             "model_type",
             "hyperparameters",
             "input_variables",
             "output_variables",
-            "additional_variables",
             "random_seed",
-            "model_path",
-            "scaler_type",
-            "scaler_kwargs",
+            "sample_dim_name",
         ]
+        for key in ("scaler_type", "scaler_kwargs"):
+            legacy_config.hyperparameters[key] = getattr(legacy_config, key)
     elif config_class is DenseHyperparameters:
         keys = [
             "model_type",
@@ -285,7 +302,6 @@ def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> Training
             "random_seed",
             "sample_dim_name",
         ]
-        config_dict["sample_dim_name"] = "sample"
         legacy_config.hyperparameters[
             "save_model_checkpoints"
         ] = legacy_config.save_model_checkpoints
