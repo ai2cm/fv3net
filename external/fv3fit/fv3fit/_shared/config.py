@@ -13,48 +13,9 @@ DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
 
 
-KERAS_MODELS: Dict[str, Type[Estimator]] = {}
-SKLEARN_MODEL_TYPES = ["sklearn", "rf", "random_forest", "sklearn_random_forest"]
-
-
+# TODO: delete this routine by refactoring the tests to no longer depend on it
 def get_keras_model(name):
-    return KERAS_MODELS[name]
-
-
-def register_keras_estimator(name: str):
-    """
-    Returns a decorator that will register the given class as a keras training
-    class, which can be used in training configuration.
-    """
-    if not isinstance(name, str):
-        raise TypeError(
-            "keras trainer name must be string, remember to "
-            "pass one when decorating @register_keras_estimator(name)"
-        )
-
-    def decorator(cls):
-        KERAS_MODELS[name] = cls
-        return cls
-
-    return decorator
-
-
-@dataclasses.dataclass
-class DataConfig:
-    """Convenience wrapper for model training data
-
-    Attrs:
-        variables: names of variables to include in dataset
-        data_path: location of training data to be loaded by batch function
-        batch_function: name of function from `fv3fit.batches` to use for
-            loading batched data
-        batch_kwargs: keyword arguments to pass to batch function
-    """
-
-    variables: List[str]
-    data_path: str
-    batch_function: str
-    batch_kwargs: dict
+    return ESTIMATORS[name][0]
 
 
 @dataclasses.dataclass
@@ -94,18 +55,68 @@ class TrainingConfig:
 
     @classmethod
     def from_dict(cls, kwargs) -> "TrainingConfig":
-        model_type = kwargs["model_type"]
-        if model_type in SKLEARN_MODEL_TYPES:
-            subclass: Type[TrainingConfig] = SklearnTrainingConfig
-        elif model_type in KERAS_MODELS:
-            subclass = KerasTrainingConfig
+        if cls is TrainingConfig:
+            subclass = get_config_class(kwargs["model_type"])
+            result = subclass.from_dict(kwargs)
         else:
-            subclass = TrainingConfig
-        return subclass(**kwargs)
+            result = cls(**kwargs)
+        return result
+
+
+ESTIMATORS: Dict[str, Tuple[Type[Estimator], Type[TrainingConfig]]] = {}
+
+
+def get_config_class(model_type: str) -> Type[TrainingConfig]:
+    if model_type in ESTIMATORS:
+        _, subclass = ESTIMATORS[model_type]
+    else:
+        raise ValueError(f"unknown model_type {model_type}")
+    return subclass
+
+
+def get_estimator_class(model_type: str) -> Type[Estimator]:
+    if model_type in ESTIMATORS:
+        estimator_class, _ = ESTIMATORS[model_type]
+    else:
+        raise ValueError(f"unknown model_type {model_type}")
+    return estimator_class
+
+
+def register_estimator(name: str, config_class: type):
+    """
+    Returns a decorator that will register the given class as a keras training
+    class, which can be used in training configuration.
+    """
+
+    def decorator(cls):
+        ESTIMATORS[name] = (cls, config_class)
+        return cls
+
+    return decorator
 
 
 @dataclasses.dataclass
-class KerasTrainingConfig(TrainingConfig):
+class DataConfig:
+    """Convenience wrapper for model training data
+
+    Attrs:
+        variables: names of variables to include in dataset
+        data_path: location of training data to be loaded by batch function
+        batch_function: name of function from `fv3fit.batches` to use for
+            loading batched data
+        batch_kwargs: keyword arguments to pass to batch function
+    """
+
+    variables: List[str]
+    data_path: str
+    batch_function: str
+    batch_kwargs: dict
+
+
+# TODO: move this class to where the Dense training is defined when config.py
+# no longer depends on it (i.e. when _ModelTrainingConfig is deleted)
+@dataclasses.dataclass
+class DenseTrainingConfig(TrainingConfig):
     """
     Attrs:
         model_type: sklearn model type or keras model class to initialize
@@ -216,6 +227,43 @@ class _ModelTrainingConfig:
         return _ModelTrainingConfig(**config_dict)
 
 
+def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> TrainingConfig:
+    config_dict = dataclasses.asdict(legacy_config)
+    config_class = ESTIMATORS[legacy_config.model_type][1]
+    if config_class is SklearnTrainingConfig:
+        keys = [
+            "model_type",
+            "hyperparameters",
+            "input_variables",
+            "output_variables",
+            "additional_variables",
+            "random_seed",
+            "model_path",
+            "scaler_type",
+            "scaler_kwargs",
+        ]
+    elif config_class is DenseTrainingConfig:
+        keys = [
+            "model_type",
+            "hyperparameters",
+            "input_variables",
+            "output_variables",
+            "additional_variables",
+            "random_seed",
+            "model_path",
+            "save_model_checkpoints",
+        ]
+        fit_kwargs = legacy_config.hyperparameters.pop("fit_kwargs", {})
+        fit_kwargs["validation_dataset"] = validation_dataset(legacy_config)
+        legacy_config.hyperparameters["fit_kwargs"] = fit_kwargs
+    else:
+        raise NotImplementedError(f"unknown model type {legacy_config.model_type}")
+    training_config = TrainingConfig.from_dict(
+        {key: config_dict[key] for key in keys if key in config_dict}
+    )
+    return training_config
+
+
 def load_configs(
     config_path: str,
     data_path: str,
@@ -235,38 +283,8 @@ def load_configs(
     legacy_config = _ModelTrainingConfig.load(config_path)
     legacy_config.data_path = data_path
     legacy_config.dump(output_data_path)
+    training_config = legacy_config_to_new_config(legacy_config)
     config_dict = dataclasses.asdict(legacy_config)
-    if legacy_config.model_type in SKLEARN_MODEL_TYPES:
-        keys = [
-            "model_type",
-            "hyperparameters",
-            "input_variables",
-            "output_variables",
-            "additional_variables",
-            "random_seed",
-            "model_path",
-            "scaler_type",
-            "scaler_kwargs",
-        ]
-    elif legacy_config.model_type in KERAS_MODELS:
-        keys = [
-            "model_type",
-            "hyperparameters",
-            "input_variables",
-            "output_variables",
-            "additional_variables",
-            "random_seed",
-            "model_path",
-            "save_model_checkpoints",
-        ]
-        fit_kwargs = legacy_config.hyperparameters.pop("fit_kwargs", {})
-        fit_kwargs["validation_dataset"] = validation_dataset(legacy_config)
-        legacy_config.hyperparameters["fit_kwargs"] = fit_kwargs
-    else:
-        raise NotImplementedError(f"unknown model type {legacy_config.model_type}")
-    training_config = TrainingConfig.from_dict(
-        {key: config_dict[key] for key in keys if key in config_dict}
-    )
 
     variables = (
         config_dict["input_variables"]
