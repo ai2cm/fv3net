@@ -89,6 +89,8 @@ def plot_rf_feature_importance(
     output_dir: str,
 ) -> None:
 
+    # TODO: After the planned removal of the fv3fit.sklearn.EnsembleRegressor
+    # is complete, this for loop is not needed.
     importances = []
     for member in wrapped_model.model.regressors:
         importances.append(member.feature_importances_)
