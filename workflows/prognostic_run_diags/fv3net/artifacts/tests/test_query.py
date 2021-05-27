@@ -30,6 +30,7 @@ def test_cli(monkeypatch):
         ("some-run", "some-run-1", False),
         ("superstring", "string", True),
         ("one", "two", False),
+        ("one", None, True),
     ],
 )
 def test_matches_tag(actual_tag, searched_tag, expected):
