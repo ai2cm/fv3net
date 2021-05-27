@@ -27,7 +27,13 @@ def extract_ds_arrays(dataset: xr.Dataset) -> ArrayDataset:
         varname: da.values.reshape(sample_size, -1)
         for varname, da in dataset.items()
     }
-  
+
+
+def select_antarctic(ds, sample_dim_name="sample"):
+    mask = ds["latitude"] < -np.deg2rad(60)
+    ds = ds.isel(sample=mask)
+    return ds
+      
 
 @curry
 def standardize(std_info: StandardizeInfo, dataset: ArrayDataset):
