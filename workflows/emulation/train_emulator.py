@@ -13,7 +13,7 @@ from toolz.functoolz import compose_left
 from typing import Any, List, Mapping, MutableMapping, Union
 
 from fv3fit._shared._transforms import (
-    ArrayStacker, extract_ds_arrays, stack_io, standardize
+    ArrayStacker, extract_ds_arrays, stack_io, standardize, select_antarctic
 )
 from loaders.batches import shuffle
 from loaders.batches._sequences import Map
@@ -28,6 +28,7 @@ class TrainingConfig:
     output_variables: List[str]
     save_path: str
     vertical_subselections: Union[Mapping[str, List[int]], None] = None
+    antarctic_only: bool = False
     fit_kwargs: Union[MutableMapping[str, Any], None] = None
 
 
@@ -103,7 +104,13 @@ def load_batch_preprocessing_chain(config: TrainingConfig, batches):
 
     stack_func = stack_io(X_stacker, y_stacker)
     std_func = standardize(std_info)
-    preproc = compose_left(extract_ds_arrays, std_func, stack_func)
+
+    if config.antarctic_only:
+        funcs = (extract_ds_arrays, select_antarctic, std_func, stack_func)
+    else:
+        funcs = (extract_ds_arrays, std_func, stack_func)
+
+    preproc = compose_left(*funcs)
 
     save_info = dict(X_stacker=X_stacker, y_stacker=y_stacker, std_info=std_info)
 
@@ -149,7 +156,7 @@ def get_fit_kwargs(config):
 
     batch_size = fit_kwargs.pop("batch_size", 128)
 
-    return batch_size,  fit_kwargs
+    return batch_size, fit_kwargs
 
 
 class ByVariableMSE(tf.keras.metrics.MeanSquaredError, tf.keras.metrics.Metric):

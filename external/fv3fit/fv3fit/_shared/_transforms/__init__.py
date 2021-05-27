@@ -3,5 +3,6 @@ from .emu_transforms import (
     standardize,
     unstandardize,
     stack_io,
+    select_antarctic,
 )
 from .stacking import ArrayStacker

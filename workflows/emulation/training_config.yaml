@@ -31,6 +31,7 @@ vertical_subselections:
     tendency_of_specific_humidity_due_to_fv3_physics: [20, null]
     tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics: [25, null]
 save_path: gs://vcm-ml-scratch/andrep/test-emu-model-delete
+antarctic_only: True
 fit_kwargs:
   epochs: 1
   validation_freq: 5
