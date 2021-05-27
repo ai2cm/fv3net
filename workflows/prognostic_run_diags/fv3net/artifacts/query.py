@@ -11,6 +11,14 @@ import fsspec
 import gcsfs
 
 
+STEPS = [
+    "fv3gfs_run",
+    "fv3gfs_run_diagnostics",
+    "offline_diags",
+    "trained_models",
+]
+
+
 @dataclasses.dataclass
 class Step:
     fs: fsspec.AbstractFileSystem
@@ -30,12 +38,7 @@ async def _get_runs_with_tag(f, tag, date, project):
     out = []
     for step in await _list(f, tag):
         path = pathlib.Path(step)
-        if path.name in [
-            "fv3gfs_run",
-            "fv3gfs_run_diagnostics",
-            "offline_diags",
-            "trained_models",
-        ]:
+        if path.name in STEPS:
             out.append(
                 Step(
                     f,
@@ -130,9 +133,7 @@ def list(args):
 
 
 def register_parser(parser):
-    parser.add_argument(
-        "step", nargs="*", help="One of fv3gfs_run, fv3gfs_run_diagnostics"
-    )
+    parser.add_argument("step", nargs="*", help="One of " + ", ".join(STEPS))
     parser.add_argument(
         "-b",
         "--bucket",
@@ -146,7 +147,13 @@ def register_parser(parser):
         action="append",
         default=[],
     )
-    parser.add_argument("-t", "--tag", help="Experiment tag", default=None)
+    parser.add_argument(
+        "-t",
+        "--tag",
+        help="Subtring of experiment tag. Any artifacts with tags containing this "
+        "will be printed.",
+        default=None,
+    )
     parser.set_defaults(func=list)
 
 
