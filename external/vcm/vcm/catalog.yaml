@@ -112,6 +112,21 @@ sources:
       urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/gfsphysics_15min_coarse.zarr"
       consolidated: True
 
+  40day_c48_column_nudging_may2020:
+    description: Column-integrated nudging tendencies from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution.
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 40day_may2020
+      category: physics
+      variables:
+        - int_t_dt_nudge_coarse
+        - int_u_dt_nudge_coarse
+        - int_v_dt_nudge_coarse
+    args:
+      urlpath: "gs://vcm-ml-intermediate/2021-05-26-coarsened-fine-res-diagnostics/atmos_15min_coarse_ave.zarr"
+      consolidated: True
+
   40day_c48_pressure_interpolated_may2020:
     description: >-
       3D dynamical core diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution and interpolated to pressure levels. 
