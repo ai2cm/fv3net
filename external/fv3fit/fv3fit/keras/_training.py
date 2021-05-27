@@ -12,6 +12,8 @@ logger = logging.getLogger(__file__)
 __all__ = ["get_model"]
 
 
+# TODO: delete this and use the unified get_model instead
+# when the tests are refactored to no longer depend on this function
 def get_model(
     model_type: str,
     sample_dim_name: str,

@@ -131,18 +131,7 @@ spec:
                 value: "{{inputs.parameters.cpu-prog}}"
               - name: memory
                 value: "{{inputs.parameters.memory-prog}}"
-      - name: online-diags
-        dependencies: [prognostic-run]
-        templateRef:
-          name: prognostic-run-diags
-          template: diagnostics
-        arguments:
-          parameters:
-              - name: run
-                value: "{{tasks.resolve-output-url.outputs.result}}/fv3gfs_run"
-              - name: output
-                value: "{{tasks.resolve-output-url.outputs.result}}/fv3gfs_run_diagnostics"
-              - name: flags
+              - name: online-diags-flags
                 value: "{{inputs.parameters.online-diags-flags}}"
   - name: construct-full-flags
     inputs:

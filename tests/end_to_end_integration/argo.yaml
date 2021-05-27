@@ -380,6 +380,8 @@ spec:
             value: 6000m
           - name: memory
             value: 6Gi
+          - name: online-diags
+            value: "false"
       - name: train-offline-diags-prognostic
         dependencies: [nudge-to-fine-run, resolve-output-url]
         templateRef:

@@ -22,6 +22,7 @@ import numpy as np
 import xarray as xr
 import shutil
 from dask.diagnostics import ProgressBar
+import fsspec
 
 from toolz import curry
 from collections import defaultdict
@@ -561,4 +562,5 @@ def main(args):
         diags = diags.load()
 
     logger.info(f"Saving data to {args.output}")
-    diags.to_netcdf(args.output)
+    with fsspec.open(args.output, "wb") as f:
+        vcm.dump_nc(diags, f)

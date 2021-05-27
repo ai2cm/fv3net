@@ -7,7 +7,14 @@ import xarray as xr
 import pandas as pd
 import fsspec
 import joblib
-from .._shared import pack, unpack, Estimator, get_scaler
+from .._shared import (
+    pack,
+    unpack,
+    Estimator,
+    get_scaler,
+    register_estimator,
+)
+from .._shared.config import SklearnTrainingConfig
 from .. import _shared
 from .._shared import scaler
 import sklearn.base
@@ -94,6 +101,10 @@ class RegressorEnsemble:
 
 
 @_shared.io.register("sklearn")
+@register_estimator("sklearn", SklearnTrainingConfig)
+@register_estimator("rf", SklearnTrainingConfig)
+@register_estimator("random_forest", SklearnTrainingConfig)
+@register_estimator("sklearn_random_forest", SklearnTrainingConfig)
 class SklearnWrapper(Estimator):
     """Wrap a SkLearn model for use with xarray
 
