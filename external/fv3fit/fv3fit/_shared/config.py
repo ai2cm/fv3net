@@ -61,9 +61,6 @@ class TrainingConfig:
     def from_dict(cls, kwargs) -> "TrainingConfig":
         kwargs = {**kwargs}  # make a copy to avoid mutating the input
         hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
-        # can't mypy typecheck this because DataClass base class takes no inputs,
-        # but it's OK because
-        print(cls, hyperparameter_class, kwargs)
         kwargs["hyperparameters"] = hyperparameter_class(**kwargs["hyperparameters"])
         return cls(**kwargs)
 
