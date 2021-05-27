@@ -5,6 +5,7 @@ import logging
 import os
 import pickle
 import tempfile
+from numpy.lib.function_base import select
 import yaml
 import tensorflow as tf
 import xarray as xr
@@ -105,12 +106,11 @@ def load_batch_preprocessing_chain(config: TrainingConfig, batches):
     stack_func = stack_io(X_stacker, y_stacker)
     std_func = standardize(std_info)
 
+    input_transforms = [extract_ds_arrays, std_func, stack_func]
     if config.antarctic_only:
-        funcs = (extract_ds_arrays, select_antarctic, std_func, stack_func)
-    else:
-        funcs = (extract_ds_arrays, std_func, stack_func)
+        input_transforms.insert(0, select_antarctic)
 
-    preproc = compose_left(*funcs)
+    preproc = compose_left(*input_transforms)
 
     save_info = dict(X_stacker=X_stacker, y_stacker=y_stacker, std_info=std_info)
 
