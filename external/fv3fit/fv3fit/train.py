@@ -49,7 +49,6 @@ def get_parser():
     return parser
 
 
-# TODO: delete this routine and use a more generic get_model() based on the registry
 def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
     cls = get_estimator_class(config.model_type)
     return cls(
