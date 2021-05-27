@@ -8,20 +8,12 @@ import yaml
 import dataclasses
 import fsspec
 
-from fv3fit._shared import (
-    parse_data_path,
-    load_data_sequence,
-    io,
-    Estimator,
-)
+from fv3fit._shared import parse_data_path, load_data_sequence, io, Estimator
 import fv3fit._shared.config
 from .keras._training import get_regularizer, get_optimizer, set_random_seed
 import fv3fit.keras
 import fv3fit.sklearn
 import fv3fit
-
-
-KERAS_CHECKPOINT_PATH = "model_checkpoints"
 
 
 def get_parser():
@@ -57,6 +49,7 @@ def get_parser():
     return parser
 
 
+# TODO: delete this routine and use a more generic get_model() based on the registry
 def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
     if isinstance(config, fv3fit.SklearnTrainingConfig):
         return fv3fit.sklearn.get_model(
@@ -67,12 +60,7 @@ def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
             scaler_kwargs=config.scaler_kwargs,
             **config.hyperparameters,
         )
-    elif isinstance(config, fv3fit.KerasTrainingConfig):
-        checkpoint_path = (
-            os.path.join(args.output_data_path, KERAS_CHECKPOINT_PATH)
-            if config.save_model_checkpoints
-            else None
-        )
+    elif isinstance(config, fv3fit.DenseTrainingConfig):
         return fv3fit.keras.get_model(
             model_type=config.model_type,
             sample_dim_name=loaders.SAMPLE_DIM_NAME,
@@ -80,7 +68,7 @@ def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
             output_variables=config.output_variables,
             optimizer=get_optimizer(config.hyperparameters),
             kernel_regularizer=get_regularizer(config.hyperparameters),
-            checkpoint_path=checkpoint_path,
+            save_model_checkpoints=config.save_model_checkpoints,
             **config.hyperparameters,
         )
     else:
