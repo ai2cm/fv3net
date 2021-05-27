@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 def open_phys_emu_training(
     url: str, init_times: Sequence[str], consolidated: bool = True,
+    dataset_names=None,
 ):
     """
     Load training data for the all-physics emulation.  Combines specified initialization
@@ -30,7 +31,9 @@ def open_phys_emu_training(
     logger.info(f"From times: {init_times}")
 
     # state_after_timestep currently constists of state after "step_dynamics"
-    dataset_names = ["physics_tendencies.zarr", "state_after_timestep.zarr"]
+    if dataset_names is None:
+        dataset_names = ["physics_tendencies.zarr", "state_after_timestep.zarr"]
+
     loaded_time_ds = []
     for init_t in init_times:
         loaded = []

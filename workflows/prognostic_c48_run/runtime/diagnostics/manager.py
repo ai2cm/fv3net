@@ -177,12 +177,16 @@ class DiagnosticFileConfig:
             Paths are relative to the run-directory root.
         variables: the variables to save. By default all available diagnostics
             are stored. Example: ``["air_temperature", "cos_zenith_angle"]``.
+        remove_suffix: suffix to potentially remove from the diagnostic key
+            before checking against variables and storing using the monitor.
+            Applied in the flush operation.
         times: the time configuration
         chunks: mapping of dimension names to chunk sizes
     """
 
     name: str
     variables: Optional[Container] = None
+    remove_suffix: Optional[str] = None
     times: TimeConfig = dataclasses.field(default_factory=lambda: TimeConfig())
     chunks: Optional[Mapping[str, int]] = None
 
@@ -199,6 +203,7 @@ class DiagnosticFileConfig:
             variables=self.variables if self.variables else All(),
             times=self.times.time_container(initial_time),
             monitor=fv3gfs.util.ZarrMonitor(self.name, partitioner, mpi_comm=comm),
+            remove_suffix=self.remove_suffix,
         )
 
 
@@ -239,8 +244,10 @@ class DiagnosticFile:
         variables: Container,
         monitor: fv3gfs.util.ZarrMonitor,
         times: TimeContainer,
+        remove_suffix: str = None,
     ):
         """
+        remove_suffix: remove end of str before storing as key in Zarr
 
         Note:
 
@@ -256,6 +263,7 @@ class DiagnosticFile:
             Universe!
         """
         self.variables = variables
+        self.suffix = remove_suffix
         self.times = times
         self._monitor = monitor
 
@@ -280,9 +288,10 @@ class DiagnosticFile:
                 self._increment_running_average(diagnostics)
 
     def _reset_running_average(self, label, diagnostics):
-        self._running_total = {
-            key: val.copy() for key, val in diagnostics.items() if key in self.variables
-        }
+        self._running_total = {}
+        for key, val in diagnostics.items():
+            if key in self.variables:
+                self._running_total[key] = val.copy()
         self._current_label = label
         self._n = 1
 
@@ -297,17 +306,24 @@ class DiagnosticFile:
             average = {key: val / self._n for key, val in self._running_total.items()}
             quantities = {
                 # need units for from_data_array to work
-                key: fv3gfs.util.Quantity.from_data_array(
+                self._maybe_remove_suffix(key): fv3gfs.util.Quantity.from_data_array(
                     average[key].assign_attrs(units=self._units[key])
                 )
                 for key in average
-                if key in self.variables
+                if key in self.variables  # isn't this always the case?
             }
 
             # patch this in manually. the ZarrMonitor needs it.
             # We should probably modify this behavior.
             quantities["time"] = self._current_label
             self._monitor.store(quantities)
+    
+    def _maybe_remove_suffix(self, key: str):
+        if self.suffix is not None:
+            if key.endswith(self.suffix):
+                key = key[:-len(self.suffix)]
+
+        return key
 
     def __del__(self):
         self.flush()

@@ -145,6 +145,28 @@ class MultiModelAdapter:
         return xr.merge(predictions)
 
 
+class AntarcticEmuAdapter(MultiModelAdapter):
+
+    def predict_columnwise(self, arg: xr.Dataset, **kwargs) -> xr.Dataset:
+        predictions = []
+        for model in self.models:
+            predictions.append(model.predict_columnwise(arg, **kwargs))
+
+        global_pred = predictions[0]
+        antarctic_pred = predictions[1]
+
+        lat_mask = arg["latitude"] < -np.deg2rad(60)
+        coords = {"x": global_pred["x"], "y": global_pred["y"]}
+        lat_mask = lat_mask.assign_coords(coords)
+        
+        new_tendencies = {}
+        for vkey, global_tendencies in global_pred.items():
+            antarctic_tendencies = antarctic_pred[vkey]
+            new_tendencies[vkey] = xr.where(lat_mask, antarctic_tendencies, global_tendencies)
+
+        return xr.Dataset(new_tendencies)
+
+
 def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
     model_paths = config.model
     models = []
@@ -153,7 +175,7 @@ def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
         rename_in = config.input_standard_names
         rename_out = config.output_standard_names
         models.append(RenamingAdapter(model, rename_in, rename_out))
-    return MultiModelAdapter(models)
+    return AntarcticEmuAdapter(models)
 
 
 def predict(model: MultiModelAdapter, state: State) -> State:
@@ -248,6 +270,7 @@ class EmulatorStepper:
         # Predict tendencies 
         state2 = {key: derived_state1[key] for key in self.model.input_variables}
         tendency = predict(self.model, state2)
+
         try:
             del state2["time"]
         except KeyError:
