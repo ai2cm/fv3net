@@ -87,9 +87,9 @@ def get_variable_indices(
     )
     start = 0
     variable_indices = {}
-    for var in variables:
-        variable_indices[var] = (start, start + variable_dims[var])
-        start += variable_dims[var]
+    for var, var_dim in variable_dims.items():
+        variable_indices[var] = (start, start + var_dim)
+        start += var_dim
     return variable_indices
 
 

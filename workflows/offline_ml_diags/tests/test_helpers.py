@@ -13,12 +13,7 @@ from offline_ml_diags._helpers import (
 
 def data_array_with_feature_dim(feature_dim: int, has_time_dim=True):
     da = xr.DataArray(
-        [
-            [
-                [[[1 for x in range(2)] for y in range(2)] for z in range(feature_dim)]
-                for tile in range(2)
-            ]
-        ],
+        data=np.arange(feature_dim * 8).reshape(1, 2, feature_dim, 2, 2),
         dims=["time", "tile", "z", "y", "x"],
     )
     if not has_time_dim:

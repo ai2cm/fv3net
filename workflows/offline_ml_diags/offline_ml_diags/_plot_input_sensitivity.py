@@ -94,7 +94,7 @@ def plot_rf_feature_importance(
         importances.append(member.feature_importances_)
     mean_importances = np.array(importances).mean(axis=0)
     std_importances = np.array(importances).std(axis=0)
-
+    """
     n_vector_features = len(
         [
             var
@@ -102,11 +102,21 @@ def plot_rf_feature_importance(
             if ((input_feature_indices[var][1] - input_feature_indices[var][0]) > 1)
         ]
     )
-    fig, axs = plt.subplots(
-        1, n_vector_features + 1, figsize=(6 * n_vector_features, 4), squeeze=False,
+    """
+    vector_features, scalar_features = {}, {}
+    for var, var_indices in input_feature_indices.items():
+        start, stop = var_indices
+        if stop - start == 1:
+            scalar_features[var] = var_indices
+        else:
+            vector_features[var] = var_indices
+
+    n_panels = (
+        len(vector_features) + 1 if len(scalar_features) > 0 else len(vector_features)
     )
+    fig, axs = plt.subplots(1, n_panels, figsize=(6 * n_panels, 4), squeeze=False,)
     axs = _subplot_vector_feature_importances(
-        axs, input_feature_indices, mean_importances, std_importances
+        axs, vector_features, mean_importances, std_importances
     )
     axs = _subplot_scalar_feature_importances(
         axs, input_feature_indices, mean_importances, std_importances
@@ -121,44 +131,32 @@ def plot_rf_feature_importance(
 
 
 def _subplot_vector_feature_importances(
-    axs, variable_indices, mean_importances, std_importances
+    axs, vector_feature_indices, mean_importances, std_importances
 ):
-    vector_features = [
-        var
-        for var in variable_indices
-        if (variable_indices[var][1] - variable_indices[var][0] > 1)
-    ]
-    for i, feature in enumerate(vector_features):
-        dim_length = variable_indices[feature][1] - variable_indices[feature][0]
+    for i, (feature, indices) in enumerate(vector_feature_indices.items()):
+        start, stop = indices
+        dim_length = stop - start
         axs[0, i].errorbar(
             range(dim_length),
-            mean_importances[
-                variable_indices[feature][0] : variable_indices[feature][1]
-            ],
-            std_importances[
-                variable_indices[feature][0] : variable_indices[feature][1]
-            ],
+            mean_importances[start:stop],
+            std_importances[start:stop],
         )
         axs[0, i].set_xlabel(f"{feature}, model level")
     return axs
 
 
 def _subplot_scalar_feature_importances(
-    axs, variable_indices, mean_importances, std_importances
+    axs, scalar_feature_indices, mean_importances, std_importances
 ):
     # Plot the scalar feature importances together in the last axes object
-    scalar_features = [
-        var
-        for var in variable_indices
-        if (variable_indices[var][1] - variable_indices[var][0] == 1)
-    ]
+    scalar_features = list(scalar_feature_indices)
 
-    scalar_feature_mean_importances = [
-        mean_importances[variable_indices[var][0]] for var in scalar_features
-    ]
-    scalar_feature_std_importances = [
-        std_importances[variable_indices[var][0]] for var in scalar_features
-    ]
+    scalar_feature_mean_importances, scalar_feature_std_importances = [], []
+    for feature, indices in scalar_feature_indices.items():
+        feature_index = indices[0]
+        scalar_feature_mean_importances.append(mean_importances[feature_index])
+        scalar_feature_std_importances.append(std_importances[feature_index])
+
     axs[0, -1].bar(
         range(len(scalar_features)),
         scalar_feature_mean_importances,
