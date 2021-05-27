@@ -1,11 +1,13 @@
 import pytest
 import xarray as xr
+import numpy as np
 
 from offline_ml_diags._helpers import (
     sample_outside_train_range,
     drop_temperature_humidity_tendencies_if_not_predicted,
     _tendency_in_predictions,
     get_variable_indices,
+    _count_features_2d,
 )
 
 
@@ -149,3 +151,23 @@ def test_sample_outside_train_range(
     else:
         with pytest.raises(ValueError):
             test = sample_outside_train_range(all, train, n)
+
+
+def test_count_features_2d():
+    SAMPLE_DIM_NAME = "axy"
+    ds = xr.Dataset(
+        data_vars={
+            "a": xr.DataArray(np.zeros([10]), dims=[SAMPLE_DIM_NAME]),
+            "b": xr.DataArray(np.zeros([10, 1]), dims=[SAMPLE_DIM_NAME, "b_dim"]),
+            "c": xr.DataArray(np.zeros([10, 5]), dims=[SAMPLE_DIM_NAME, "c_dim"]),
+        }
+    )
+    names = list(ds.data_vars.keys())
+    assert len(names) == 3
+    out = _count_features_2d(names, ds, sample_dim_name=SAMPLE_DIM_NAME)
+    assert len(out) == len(names)
+    for name in names:
+        assert name in out
+    assert out["a"] == 1
+    assert out["b"] == 1
+    assert out["c"] == 5

@@ -115,7 +115,7 @@ class ArrayPacker:
         """
         if len(self._n_features) == 0:
             self._n_features.update(
-                count_features_2d(self.pack_names, dataset, self._sample_dim_name)
+                _count_features_2d(self.pack_names, dataset, self._sample_dim_name)
             )
             for name in self.pack_names:
                 self._dims[name] = cast(Tuple[str], dataset[name].dims)
@@ -238,7 +238,7 @@ def to_dataset(
     return xr.Dataset(data_vars)  # type: ignore
 
 
-def count_features_2d(
+def _count_features_2d(
     quantity_names: Iterable[str], dataset: xr.Dataset, sample_dim_name: str
 ) -> Mapping[str, int]:
     """

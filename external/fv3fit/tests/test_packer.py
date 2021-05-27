@@ -5,7 +5,7 @@ from fv3fit._shared.packer import (
     pack,
     unpack,
     _unique_dim_name,
-    count_features_2d,
+    _count_features_2d,
 )
 from fv3fit.keras._models.packer import get_unpack_layer, Unpack
 import pytest
@@ -200,7 +200,7 @@ def test_count_features_2d():
     )
     names = list(ds.data_vars.keys())
     assert len(names) == 3
-    out = count_features_2d(names, ds, sample_dim_name=SAMPLE_DIM_NAME)
+    out = _count_features_2d(names, ds, sample_dim_name=SAMPLE_DIM_NAME)
     assert len(out) == len(names)
     for name in names:
         assert name in out
