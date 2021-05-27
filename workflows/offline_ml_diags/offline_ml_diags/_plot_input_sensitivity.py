@@ -94,15 +94,7 @@ def plot_rf_feature_importance(
         importances.append(member.feature_importances_)
     mean_importances = np.array(importances).mean(axis=0)
     std_importances = np.array(importances).std(axis=0)
-    """
-    n_vector_features = len(
-        [
-            var
-            for var in input_feature_indices
-            if ((input_feature_indices[var][1] - input_feature_indices[var][0]) > 1)
-        ]
-    )
-    """
+
     vector_features, scalar_features = {}, {}
     for var, var_indices in input_feature_indices.items():
         start, stop = var_indices
