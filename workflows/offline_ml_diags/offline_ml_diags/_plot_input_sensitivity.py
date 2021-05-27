@@ -118,9 +118,11 @@ def plot_rf_feature_importance(
     axs = _subplot_vector_feature_importances(
         axs, vector_features, mean_importances, std_importances
     )
-    axs = _subplot_scalar_feature_importances(
-        axs, input_feature_indices, mean_importances, std_importances
-    )
+    if len(scalar_features) > 0:
+        axs = _subplot_scalar_feature_importances(
+            axs, scalar_features, mean_importances, std_importances
+        )
+
     for ax in axs[0]:
         ax.set_ylim(0.0, max(mean_importances) * 1.1)
     axs[0][0].set_ylabel("feature importance")
