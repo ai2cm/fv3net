@@ -9,10 +9,10 @@ import subprocess
 @pytest.mark.parametrize(
     "model_info",
     [
-        # dict(
-        #     model_type="sklearn_random_forest",
-        #     hyperparameters={"max_depth": 4, "n_estimators": 2},
-        # ),
+        dict(
+            model_type="sklearn_random_forest",
+            hyperparameters={"max_depth": 4, "n_estimators": 2},
+        ),
         dict(
             model_type="DenseModel",
             hyperparameters={

@@ -326,7 +326,8 @@ def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> Training
             "save_model_checkpoints"
         ] = legacy_config.save_model_checkpoints
         fit_kwargs = legacy_config.hyperparameters.pop("fit_kwargs", {})
-        fit_kwargs["validation_dataset"] = validation_dataset(legacy_config)
+        if legacy_config.validation_timesteps is not None:
+            fit_kwargs["validation_dataset"] = validation_dataset(legacy_config)
         legacy_config.hyperparameters["fit_kwargs"] = fit_kwargs
     else:
         raise NotImplementedError(f"unknown model type {legacy_config.model_type}")

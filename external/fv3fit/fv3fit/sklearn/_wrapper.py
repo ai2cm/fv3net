@@ -1,8 +1,7 @@
-from typing import Mapping, Union
+from typing import Mapping
 import logging
 import io
 from copy import copy
-from typing_extensions import Literal
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -45,25 +44,17 @@ class RandomForest(Estimator):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
-        scaler_type: str = "standard",
-        scaler_kwargs: Optional[Mapping] = None,
-        n_jobs: int = -1,
-        random_state: int = 0,
-        n_estimators: int = 100,
-        max_depth: int = None,
-        min_samples_split: Union[int, float] = 2,
-        min_samples_leaf: Union[int, float] = 1,
-        max_features: Union[Literal["auto", "sqrt", "log2"], int, float] = "auto",
+        hyperparameters: RandomForestHyperparameters,
     ):
         batch_regressor = RegressorEnsemble(
             sklearn.ensemble.RandomForestRegressor(
-                n_jobs=n_jobs,
-                random_state=random_state,
-                n_estimators=n_estimators,
-                max_depth=max_depth,
-                min_samples_split=min_samples_split,
-                min_samples_leaf=min_samples_leaf,
-                max_features=max_features,
+                n_jobs=hyperparameters.n_jobs,
+                random_state=hyperparameters.random_state,
+                n_estimators=hyperparameters.n_estimators,
+                max_depth=hyperparameters.max_depth,
+                min_samples_split=hyperparameters.min_samples_split,
+                min_samples_leaf=hyperparameters.min_samples_leaf,
+                max_features=hyperparameters.max_features,
             )
         )
         self._model_wrapper = SklearnWrapper(
@@ -71,8 +62,8 @@ class RandomForest(Estimator):
             input_variables,
             output_variables,
             model=batch_regressor,
-            scaler_type=scaler_type,
-            scaler_kwargs=scaler_kwargs,
+            scaler_type=hyperparameters.scaler_type,
+            scaler_kwargs=hyperparameters.scaler_kwargs,
         )
 
     def fit(self, batches: Sequence[xr.Dataset]):

@@ -5,7 +5,11 @@ import os
 import random
 import tensorflow as tf
 from .._shared.predictor import Estimator
-from .._shared.config import get_keras_model
+from .._shared.config import (
+    get_keras_model,
+    _ModelTrainingConfig,
+    legacy_config_to_new_config,
+)
 
 logger = logging.getLogger(__file__)
 
@@ -19,7 +23,7 @@ def get_model(
     sample_dim_name: str,
     input_variables: Iterable[str],
     output_variables: Iterable[str],
-    **hyperparameters
+    legacy_config: _ModelTrainingConfig,
 ) -> Estimator:
     """Initialize and return a Estimator instance.
 
@@ -32,8 +36,9 @@ def get_model(
     Returns:
         model
     """
+    config = legacy_config_to_new_config(legacy_config)
     return get_keras_model(model_type)(  # type: ignore
-        sample_dim_name, input_variables, output_variables, **hyperparameters
+        sample_dim_name, input_variables, output_variables, config.hyperparameters
     )
 
 
