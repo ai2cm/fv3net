@@ -29,6 +29,8 @@ spec:
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 6Gi}
+          - {name: online-diags-flags, value: " "}
+          - {name: online-diags, value: "true"}
       steps:
       - - name: resolve-output-url
           templateRef:
@@ -48,6 +50,8 @@ spec:
               - {name: reference-restarts, value: "{{inputs.parameters.reference-restarts}}"}
               - {name: flags, value: "{{inputs.parameters.flags}}"}
       - - name: run-model
+          continueOn:
+            failed: true
           templateRef:
             name: run-fv3gfs
             template: run-fv3gfs
@@ -60,6 +64,26 @@ spec:
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
+      - - name: online-diags
+          when: "{{input.parameters.online-diags}} == true"
+          templateRef:
+            name: prognostic-run-diags
+            template: diagnostics
+          arguments:
+            parameters:
+                - name: run
+                  value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run"
+                - name: output
+                  value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run_diagnostics"
+                - name: flags
+                  value: "{{inputs.parameters.online-diags-flags}}"
+      - - name: exit
+          template: exit
+          when: "{{steps.run-model.status}} == Failed"
+    - name: exit
+      container:
+        image: ubuntu:20.04
+        command: ["exit", "1"]
     - name: prepare-config
       inputs:
         parameters:

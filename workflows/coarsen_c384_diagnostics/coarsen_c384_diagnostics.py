@@ -6,7 +6,7 @@ import tempfile
 import yaml
 import xarray as xr
 
-from vcm import coarsen
+from vcm.cubedsphere import weighted_block_average
 from vcm.cloud import gsutil
 from vcm.cubedsphere.constants import (
     COORD_X_CENTER,
@@ -61,7 +61,7 @@ def coarsen_c384_diagnostics(args):
     logging.info(f"Size of diagnostic data: {diags384.nbytes / 1e9:.2f} GB")
 
     # coarsen the data
-    diags_coarsened = coarsen.weighted_block_average(
+    diags_coarsened = weighted_block_average(
         diags384,
         grid384["area"],
         x_dim=COORD_X_CENTER,
@@ -78,10 +78,15 @@ def coarsen_c384_diagnostics(args):
         logging.info(f"Done rechunking dataset.")
     logging.info(f"Starting to write coarsened diagnostics locally.")
     with tempfile.TemporaryDirectory() as tmpdirname:
+        if not output_path.startswith("gs://"):
+            # write directly to output_path if it is local
+            tmpdirname = output_path
         diags_coarsened.to_zarr(tmpdirname, mode="w", consolidated=True)
         logging.info(f"Done writing coarsened diagnostics locally.")
-        gsutil.copy(tmpdirname, output_path)
-        logging.info(f"Done copy coarsened diagnostics zarr to {output_path}")
+        if output_path.startswith("gs://"):
+            # upload with gsutil if output_path is remote
+            gsutil.copy(tmpdirname, output_path)
+            logging.info(f"Done copy coarsened diagnostics zarr to {output_path}")
 
 
 def _get_config(config_path):
@@ -95,7 +100,7 @@ def _get_remote_diags(diags_path):
     return xr.open_zarr(mapper)
 
 
-if __name__ == "__main__":
+def _create_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "input_path", type=str, help="GCS location of C384 diagnostics data zarr."
@@ -116,5 +121,10 @@ if __name__ == "__main__":
         "Specifically will be saved at {output_path}/{basename(input_path)}. "
         "Unexpected behavior may occur if this path already exists.",
     )
+    return parser
+
+
+if __name__ == "__main__":
+    parser = _create_arg_parser()
     args = parser.parse_args()
     coarsen_c384_diagnostics(args)
