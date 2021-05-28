@@ -68,12 +68,16 @@ let
       doCheck = false;
     };
 
+    dask = super.dask.overridePythonAttrs (attrs: {
+      doCheck = false;
+    });
+
     gcsfs = self.buildPythonPackage rec {
       pname = "gcsfs";
-      version = "0.7.1";
+      version = "2021.4.0";
       src = super.fetchPypi {
         inherit pname version;
-        sha256 = "sha256-A2WN+/GnNNmHqrNjHgo0Kz1+JKJJmLTY0kkf3SEFNyA=";
+        sha256 = "sha256:0gq4rigpm91mfbb83i6m6z3z2b4q21862ym6pgfzv67wgafva0w5";
       };
       propagatedBuildInputs = with self; [
         crcmod
@@ -100,6 +104,17 @@ let
       doCheck = false;
 
     };
+
+    fsspec = super.fsspec.overridePythonAttrs (attrs: {
+      version = "2021.4.0";
+      src = super.fetchPypi {
+        pname = "fsspec";
+        version="2021.4.0";
+        sha256 = "sha256:19l9a8fv98lpjr39lb98fcrlr2b1p3l94hjp730ailam9246j6lb";
+      };
+
+      doCheck = false;
+    });
 
     fv3config = self.buildPythonPackage rec {
       pname = "fv3config";
@@ -150,6 +165,28 @@ let
 
     };
 
+    intake = self.buildPythonPackage rec {
+      pname = "intake";
+      version = "0.6.2";
+      src = super.fetchPypi {
+        inherit pname version;
+        sha256 = "sha256:076akkygzxx889g6v8qqzq271k6mxprwzfgcisrsq0x7hp8v3jmh";
+      };
+      propagatedBuildInputs = with self; [ entrypoints appdirs pyyaml dask ];
+      doCheck = false;
+    };
+
+    intake_xarray = self.buildPythonPackage rec {
+      pname = "intake-xarray";
+      version = "0.4.0";
+      src = super.fetchPypi {
+        inherit pname version;
+        sha256 = "sha256:0njkx2krhzgzcz9m34sl125rl7s4s7wlbcjx7mpdxn2ahnl6579i";
+      };
+      propagatedBuildInputs = with self; [ intake msgpack xarray fsspec netcdf4 zarr ];
+      doCheck = false;
+    };
+
     mpi4py = (super.mpi4py.override { mpi = pkgs.mpich; }).overridePythonAttrs {
       doCheck = false;
     };
@@ -186,11 +223,15 @@ let
       fv3config
 
       # fv3fit
+      tensorflow_2
+      scikitlearn
 
       # fv3kube
       kubernetes
 
       # vcm
+      intake
+      intake_xarray
       xarray
       appdirs
       click
@@ -202,6 +243,7 @@ let
       # prog run
       pytest-regtest
       jsonschema
+      yq
 
       # development
       pip-tools
@@ -209,19 +251,20 @@ let
     ];
   prog_run = with pkgs;
     mkShell {
-      buildInputs = [ fv3 my_python gfortran python3.pkgs.venvShellHook ];
+      buildInputs = [ fv3 my_python gfortran ];
 
-      venvDir = "./.venv-prog-run";
+      # venvDir = "./.venv-prog-run";
 
-      postShellHook = ''
+      shellHook = ''
         export PYTHONPATH=$(pwd)/external/fv3fit:$PYTHONPATH
         export PYTHONPATH=$(pwd)/external/loaders:$PYTHONPATH
         export PYTHONPATH=$(pwd)/external/vcm:$PYTHONPATH
         export PYTHONPATH=$(pwd)/external/fv3kube:$PYTHONPATH
         export PYTHONPATH=$(pwd)/external/synth:$PYTHONPATH
         export PYTHONPATH=$(pwd)/workflows/prognostic_c48_run:$PYTHONPATH
+        export GOOGLE_APPLICATION_CREDENTIALS=$HOME/keys/key.json
 
-        python -m pip install -r requirements_prog_run.txt
+        # python -m pip install -r requirements_prog_run.txt
       '';
 
     };
