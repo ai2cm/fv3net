@@ -209,33 +209,6 @@ class RandomForestHyperparameters:
 
 
 @dataclasses.dataclass
-class SklearnHyperparameters(TrainingConfig):
-    """
-    Attrs:
-        model_type: sklearn model type or keras model class to initialize
-        input_variables: variables used as features
-        output_variables: variables to predict
-        additional_variables: list of needed variables which are not inputs
-            or outputs (e.g. pressure thickness if needed for scaling)
-        hyperparameters: arguments to pass to model class at initialization
-            time
-        random_seed: value to use to initialize randomness
-        model_path: output location for final model
-        scaler_type: scaler to use for training
-        scaler_kwargs: keyword arguments to pass to scaler initialization
-    """
-
-    scaler_type: str = "standard"
-    scaler_kwargs: dict = dataclasses.field(default_factory=dict)
-
-    def __post_init__(self):
-        # TODO: turn this into an exception if DELP is not present
-        if self.scaler_type == "mass":
-            if DELP not in self.additional_variables:
-                self.additional_variables.append(DELP)
-
-
-@dataclasses.dataclass
 class _ModelTrainingConfig:
     """Convenience wrapper for model training parameters and file info
 
