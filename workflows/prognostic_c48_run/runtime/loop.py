@@ -439,6 +439,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             for substep in self._substeps:
                 with self._timer.clock(substep.__name__):
                     diagnostics.update(substep())
+            self._fv3gfs.save_intermediate_restart_if_enabled()
             yield self._state.time, diagnostics
 
 
