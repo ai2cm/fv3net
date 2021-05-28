@@ -6,7 +6,7 @@ import abc
 import copy
 import json
 import tensorflow as tf
-import tensorflow_addons as tfa
+# import tensorflow_addons as tfa
 
 from ..._shared.packer import ArrayPacker, unpack_matrix
 from ..._shared.predictor import Estimator
@@ -475,8 +475,8 @@ class DenseModel(PackedKerasModel):
                 activation=tf.keras.activations.relu,
                 kernel_regularizer=self._kernel_regularizer,
             )
-            if self._spectral_normalization:
-                hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
+            # if self._spectral_normalization:
+            #     hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
             if self._gaussian_noise > 0.0:
                 x = tf.keras.layers.GaussianNoise(self._gaussian_noise)(x)
             x = hidden_layer(x)
