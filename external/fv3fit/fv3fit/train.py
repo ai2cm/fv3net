@@ -55,7 +55,7 @@ def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
         sample_dim_name=config.sample_dim_name,
         input_variables=config.input_variables,
         output_variables=config.output_variables,
-        **dataclasses.asdict(config.hyperparameters),
+        hyperparameters=config.hyperparameters,
     )
 
 

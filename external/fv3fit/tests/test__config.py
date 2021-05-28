@@ -1,4 +1,5 @@
 import dataclasses
+from fv3fit._shared.config import OptimizerConfig
 from fv3fit._shared.predictor import Estimator
 import os
 import tempfile
@@ -21,6 +22,18 @@ legacy_config = ModelTrainingConfig(
     batch_function="batches_from_mapper",
     batch_kwargs={"timesteps_per_batch": 1},
 )
+
+
+@pytest.mark.parametrize("hyperparameters", [{}])
+def test_dense_training_config_uses_optimizer_config(hyperparameters):
+    config_dict = {
+        "model_type": "DenseModel",
+        "input_variables": [],
+        "output_variables": [],
+        "hyperparameters": hyperparameters,
+    }
+    training_config = TrainingConfig.from_dict(config_dict)
+    assert isinstance(training_config.hyperparameters.optimizer_config, OptimizerConfig)
 
 
 def test_dump_and_load_legacy_config():

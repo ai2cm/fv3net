@@ -7,6 +7,7 @@ from typing import Any, Mapping, Optional, Tuple, Union, Sequence, List, Type, D
 from fv3fit.typing import Dataclass
 import xarray as xr
 from .predictor import Estimator
+import dacite
 
 # TODO: move all keras configs under fv3fit.keras
 import tensorflow as tf
@@ -61,7 +62,9 @@ class TrainingConfig:
     def from_dict(cls, kwargs) -> "TrainingConfig":
         kwargs = {**kwargs}  # make a copy to avoid mutating the input
         hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
-        kwargs["hyperparameters"] = hyperparameter_class(**kwargs["hyperparameters"])
+        kwargs["hyperparameters"] = dacite.from_dict(
+            data_class=hyperparameter_class, data=kwargs["hyperparameters"]
+        )
         return cls(**kwargs)
 
 
@@ -118,7 +121,7 @@ class DataConfig:
 @dataclasses.dataclass
 class OptimizerConfig:
     name: str
-    kwargs: Mapping[str, Any]
+    kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
 
     @property
     def instance(self) -> tf.keras.optimizers.Optimizer:
@@ -129,7 +132,7 @@ class OptimizerConfig:
 @dataclasses.dataclass
 class RegularizerConfig:
     name: str
-    kwargs: Mapping[str, Any]
+    kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
 
     @property
     def instance(self) -> tf.keras.regularizers.Regularizer:
@@ -141,33 +144,53 @@ class RegularizerConfig:
 # no longer depends on it (i.e. when _ModelTrainingConfig is deleted)
 @dataclasses.dataclass
 class DenseHyperparameters:
-    """
-    Attrs:
-        model_type: sklearn model type or keras model class to initialize
-        input_variables: variables used as features
-        output_variables: variables to predict
-        additional_variables: list of needed variables which are not inputs
-            or outputs (e.g. pressure thickness if needed for scaling)
-        hyperparameters: arguments to pass to model class at initialization
-            time
-        random_seed: value to use to initialize randomness
-        model_path: output location for final model
-        save_model_checkpoints: whether to save a copy of the model at
-            each epoch
-    """
 
     weights: Optional[Mapping[str, Union[int, float]]] = None
+    """
+    loss function weights, defined as a dict whose keys are
+    variable names and values are either a scalar referring to the total
+    weight of the variable. Default is a total weight of 1
+    for each variable.
+    """
     normalize_loss: bool = True
-    optimizer: Optional[OptimizerConfig] = None
-    kernel_regularizer: Optional[RegularizerConfig] = None
+    """
+    if True (default), normalize outputs by their standard
+    deviation before computing the loss function
+    """
+    optimizer_config: Optional[OptimizerConfig] = OptimizerConfig("Adam")
+    """selection of algorithm to be used in gradient descent"""
+    kernel_regularizer_config: Optional[RegularizerConfig] = None
+    """
+    selection of regularizer for hidden dense layer
+    weights, by default no regularization is applied
+    """
     depth: int = 3
+    """
+    number of dense layers to use between the input and output layer.
+    The number of hidden layers will be (depth - 1)
+    """
     width: int = 16
+    """number of neurons to use on layers between the input and output layer"""
     gaussian_noise: float = 0.0
-    loss: Literal["mse", "mae"] = "mse"
+    """
+    how much gaussian noise to add before each Dense layer,
+    apart from the output layer
+    """
+    loss: str = "mse"
+    """loss function to use, should be 'mse' or 'mae'"""
     spectral_normalization: bool = False
+    """whether to apply spectral normalization to hidden layers"""
     save_model_checkpoints: bool = False
+    """
+    if True, save one model per epoch when
+    dumping, under a 'model_checkpoints' subdirectory
+    """
     # TODO: remove fit_kwargs by fixing how validation data is passed
     fit_kwargs: Optional[dict] = None
+    """
+    other keyword arguments to be passed to the underlying
+    tf.keras.Model.fit() method
+    """
 
 
 @dataclasses.dataclass
