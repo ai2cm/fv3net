@@ -157,7 +157,9 @@ class DenseHyperparameters:
     if True (default), normalize outputs by their standard
     deviation before computing the loss function
     """
-    optimizer_config: Optional[OptimizerConfig] = OptimizerConfig("Adam")
+    optimizer_config: OptimizerConfig = dataclasses.field(
+        default_factory=lambda: OptimizerConfig("Adam")
+    )
     """selection of algorithm to be used in gradient descent"""
     kernel_regularizer_config: Optional[RegularizerConfig] = None
     """
