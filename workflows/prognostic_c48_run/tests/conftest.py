@@ -1,3 +1,4 @@
 import warnings
 
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="types_pb2")
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)

@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 from .config import get_namelist, get_config, write_chunks
 from .diagnostics import (
     get_chunks,
