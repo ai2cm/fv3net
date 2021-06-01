@@ -168,7 +168,6 @@ class SklearnWrapper(Estimator):
         input_variables: Iterable[str],
         output_variables: Iterable[str],
         model: RegressorEnsemble,
-        parallel_backend: str = "threading",
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
     ) -> None:
@@ -186,7 +185,6 @@ class SklearnWrapper(Estimator):
         self._output_variables = output_variables
         self.model = model
 
-        self.parallel_backend = parallel_backend
         self.scaler_type = scaler_type
         self.scaler_kwargs = scaler_kwargs or {}
         self.target_scaler: Optional[scaler.NormalizeTransform] = None
@@ -225,13 +223,12 @@ class SklearnWrapper(Estimator):
 
     def predict(self, data):
         x, _ = pack(data[self.input_variables], self.sample_dim_name)
-        with joblib.parallel_backend(self.parallel_backend, n_jobs=1):
-            y = self.model.predict(x)
+        y = self.model.predict(x)
 
-            if self.target_scaler is not None:
-                y = self.target_scaler.denormalize(y)
-            else:
-                raise ValueError("Target scaler not present.")
+        if self.target_scaler is not None:
+            y = self.target_scaler.denormalize(y)
+        else:
+            raise ValueError("Target scaler not present.")
 
         ds = unpack(y, self.sample_dim_name, self.output_features_)
         return ds.assign_coords({self.sample_dim_name: data[self.sample_dim_name]})
