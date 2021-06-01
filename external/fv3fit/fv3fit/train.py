@@ -70,7 +70,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     data_path = parse_data_path(args.data_path)
     (
-        legacy_config,
         train_config,
         train_data_config,
         val_data_config,
@@ -83,7 +82,9 @@ if __name__ == "__main__":
     )
     set_random_seed(train_config.random_seed)
 
-    dump_dataclass(train_config, os.path.join(args.output_data_path, "train.yaml"))
+    # TODO: uncomment this line when we aren't using fit_kwargs
+    # to contain validation data
+    # dump_dataclass(train_config, os.path.join(args.output_data_path, "train.yaml"))
     dump_dataclass(
         train_data_config, os.path.join(args.output_data_path, "training_data.yaml")
     )

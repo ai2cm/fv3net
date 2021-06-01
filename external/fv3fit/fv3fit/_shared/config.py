@@ -32,23 +32,10 @@ class TrainingConfig:
         model_type: sklearn model type or keras model class to initialize
         input_variables: variables used as features
         output_variables: variables to predict
-        additional_variables: list of needed variables which are not inputs
-            or outputs (e.g. pressure thickness if needed for scaling)
-        hyperparameters: arguments to pass to model class at initialization
-            time
+        hyperparameters: model_type-specific training configuration
+        sample_dim_name: deprecated, internal name used for sample dimension
+            when training and predicting
         random_seed: value to use to initialize randomness
-        model_path: output location for final model
-        batch_function: name of function from `fv3fit.batches` to use for
-            loading batched data
-        batch_kwargs: keyword arguments to pass to batch function
-        data_path: location of training data to be loaded by batch function
-        scaler_type: scaler to use for training
-        scaler_kwargs: keyword arguments to pass to scaler initialization
-        validation_timesteps: timestamps to use as validation samples
-        save_model_checkpoints: whether to save a copy of the model at
-            each epoch
-        timesteps_source: one of "timesteps_file",
-            "sampled_outside_input_config", "input_config", "all_mapper_times"
     """
 
     model_type: str
@@ -293,9 +280,7 @@ class _ModelTrainingConfig:
 
 
 def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> TrainingConfig:
-    config_dict = dataclasses.asdict(legacy_config)
     config_class = ESTIMATORS[legacy_config.model_type][1]
-    config_dict["sample_dim_name"] = "sample"
     keys = [
         "model_type",
         "hyperparameters",
@@ -317,6 +302,8 @@ def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> Training
         legacy_config.hyperparameters["fit_kwargs"] = fit_kwargs
     else:
         raise NotImplementedError(f"unknown model type {legacy_config.model_type}")
+    config_dict = dataclasses.asdict(legacy_config)
+    config_dict["sample_dim_name"] = "sample"
     training_config = TrainingConfig.from_dict(
         {key: config_dict[key] for key in keys if key in config_dict}
     )
@@ -342,8 +329,8 @@ def load_configs(
     legacy_config = _ModelTrainingConfig.load(config_path)
     legacy_config.data_path = data_path
     legacy_config.dump(output_data_path)
-    training_config = legacy_config_to_new_config(legacy_config)
     config_dict = dataclasses.asdict(legacy_config)
+    training_config = legacy_config_to_new_config(legacy_config)
 
     variables = (
         config_dict["input_variables"]
@@ -380,7 +367,7 @@ def load_configs(
     else:
         validation_data_config = None
 
-    return legacy_config, training_config, train_data_config, validation_data_config
+    return training_config, train_data_config, validation_data_config
 
 
 # TODO: this should be made to work regardless of whether we're using

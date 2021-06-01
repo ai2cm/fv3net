@@ -318,7 +318,13 @@ class DenseModel(Estimator):
             with open(os.path.join(path, self._Y_SCALER_FILENAME), "wb") as f_binary:
                 self.y_scaler.dump(f_binary)
             with open(os.path.join(path, self._OPTIONS_FILENAME), "w") as f:
-                yaml.safe_dump(dataclasses.asdict(self._hyperparameters), f)
+                # TODO: remove this hack when we aren't
+                # putting validation data in fit_kwargs
+                options = dataclasses.asdict(self._hyperparameters)
+                fit_kwargs = options.get("fit_kwargs", {})
+                if "validation_dataset" in fit_kwargs:
+                    fit_kwargs.pop("validation_dataset")
+                yaml.safe_dump(options, f)
             with open(os.path.join(path, self._HISTORY_FILENAME), "w") as f:
                 json.dump(self.train_history, f)
 
