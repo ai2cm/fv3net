@@ -58,8 +58,8 @@ def _count_features_2d(
         if len(dataset[name].dims) > 2:
             value = dataset[name]
             raise ValueError(
-                "can only pack 1D/2D (sample[, z]) "
-                f"variables, recieved value for {name} with dimensions {value.dims}"
+                "can only count 1D/2D (sample[, z]) "
+                f"variables, recieved values for {name} with dimensions {value.dims}"
             )
     return_dict = {}
     for name in quantity_names:
@@ -68,7 +68,7 @@ def _count_features_2d(
             return_dict[name] = 1
         elif value.dims[0] != sample_dim_name:
             raise ValueError(
-                f"cannot pack value for {name} whose first dimension is not the "
+                f"cannot count values for {name} whose first dimension is not the "
                 f"sample dimension ({sample_dim_name}), has dims {value.dims}"
             )
         else:
