@@ -65,7 +65,7 @@ class TrainingConfig:
         kwargs["hyperparameters"] = dacite.from_dict(
             data_class=hyperparameter_class, data=kwargs["hyperparameters"]
         )
-        return cls(**kwargs)
+        return dacite.from_dict(data_class=cls, data=kwargs)
 
 
 ESTIMATORS: Dict[str, Tuple[Type[Estimator], Type[Dataclass]]] = {}
@@ -144,59 +144,76 @@ class RegularizerConfig:
 # no longer depends on it (i.e. when _ModelTrainingConfig is deleted)
 @dataclasses.dataclass
 class DenseHyperparameters:
+    """
+    Configuration for training a dense neural network based model.
+
+    Args:
+        weights: loss function weights, defined as a dict whose keys are
+            variable names and values are either a scalar referring to the total
+            weight of the variable. Default is a total weight of 1
+            for each variable.
+        normalize_loss: if True (default), normalize outputs by their standard
+            deviation before computing the loss function
+        optimizer_config: selection of algorithm to be used in gradient descent
+        kernel_regularizer_config: selection of regularizer for hidden dense layer
+            weights, by default no regularization is applied
+        depth: number of dense layers to use between the input and output layer.
+            The number of hidden layers will be (depth - 1)
+        width: number of neurons to use on layers between the input and output layer
+        gaussian_noise: how much gaussian noise to add before each Dense layer,
+            apart from the output layer
+        loss: loss function to use, should be 'mse' or 'mae'
+        spectral_normalization: whether to apply spectral normalization to hidden layers
+        save_model_checkpoints: if True, save one model per epoch when
+            dumping, under a 'model_checkpoints' subdirectory
+        fit_kwargs: other keyword arguments to be passed to the underlying
+            tf.keras.Model.fit() method
+    """
 
     weights: Optional[Mapping[str, Union[int, float]]] = None
-    """
-    loss function weights, defined as a dict whose keys are
-    variable names and values are either a scalar referring to the total
-    weight of the variable. Default is a total weight of 1
-    for each variable.
-    """
     normalize_loss: bool = True
-    """
-    if True (default), normalize outputs by their standard
-    deviation before computing the loss function
-    """
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")
     )
-    """selection of algorithm to be used in gradient descent"""
     kernel_regularizer_config: Optional[RegularizerConfig] = None
-    """
-    selection of regularizer for hidden dense layer
-    weights, by default no regularization is applied
-    """
     depth: int = 3
-    """
-    number of dense layers to use between the input and output layer.
-    The number of hidden layers will be (depth - 1)
-    """
     width: int = 16
-    """number of neurons to use on layers between the input and output layer"""
     gaussian_noise: float = 0.0
-    """
-    how much gaussian noise to add before each Dense layer,
-    apart from the output layer
-    """
     loss: str = "mse"
-    """loss function to use, should be 'mse' or 'mae'"""
     spectral_normalization: bool = False
-    """whether to apply spectral normalization to hidden layers"""
     save_model_checkpoints: bool = False
-    """
-    if True, save one model per epoch when
-    dumping, under a 'model_checkpoints' subdirectory
-    """
+
     # TODO: remove fit_kwargs by fixing how validation data is passed
     fit_kwargs: Optional[dict] = None
-    """
-    other keyword arguments to be passed to the underlying
-    tf.keras.Model.fit() method
-    """
 
 
 @dataclasses.dataclass
 class RandomForestHyperparameters:
+    """
+    Configuration for training a random forest based model.
+
+    Trains one random forest for each training batch provided.
+
+    For more information about these settings, see documentation for
+    `sklearn.ensemble.RandomForestRegressor`.
+
+    Args:
+        scaler_type: scaler to use for training
+        scaler_kwargs: keyword arguments to pass to scaler initialization
+        n_jobs: ???
+        random_state: random seed to use when building trees, will be
+            deterministically perturbed for each training batch
+        n_estimators: the number of trees in each forest
+        max_depth: maximum depth of each tree
+        min_samples_split: minimum number of samples required to split an internal node
+        min_samples_leaf: minimum number of samples required to be at a leaf node
+        max_features: number of features to consider when looking for the best split
+        max_samples: if bootstrap is True, number of samples to draw
+            for each base estimator
+        bootstrap: whether bootstrap samples are used when building trees.
+            If False, the whole dataset is used to build each tree.
+    """
+
     scaler_type: str = "standard"
     scaler_kwargs: Optional[Mapping] = None
     n_jobs: int = -1
@@ -206,6 +223,8 @@ class RandomForestHyperparameters:
     min_samples_split: Union[int, float] = 2
     min_samples_leaf: Union[int, float] = 1
     max_features: Union[Literal["auto", "sqrt", "log2"], int, float] = "auto"
+    max_samples: Optional[Union[int, float]] = None
+    bootstrap: bool = True
 
 
 @dataclasses.dataclass
@@ -277,26 +296,18 @@ def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> Training
     config_dict = dataclasses.asdict(legacy_config)
     config_class = ESTIMATORS[legacy_config.model_type][1]
     config_dict["sample_dim_name"] = "sample"
+    keys = [
+        "model_type",
+        "hyperparameters",
+        "input_variables",
+        "output_variables",
+        "random_seed",
+        "sample_dim_name",
+    ]
     if config_class is RandomForestHyperparameters:
-        keys = [
-            "model_type",
-            "hyperparameters",
-            "input_variables",
-            "output_variables",
-            "random_seed",
-            "sample_dim_name",
-        ]
         for key in ("scaler_type", "scaler_kwargs"):
             legacy_config.hyperparameters[key] = getattr(legacy_config, key)
     elif config_class is DenseHyperparameters:
-        keys = [
-            "model_type",
-            "hyperparameters",
-            "input_variables",
-            "output_variables",
-            "random_seed",
-            "sample_dim_name",
-        ]
         legacy_config.hyperparameters[
             "save_model_checkpoints"
         ] = legacy_config.save_model_checkpoints

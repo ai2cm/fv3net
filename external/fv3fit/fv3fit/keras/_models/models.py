@@ -357,7 +357,6 @@ class DenseModel(Estimator):
                 y_scaler = LayerStandardScaler.load(f_binary)
             with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
                 options = yaml.safe_load(f)
-            print(options)
             hyperparameters = dacite.from_dict(
                 data_class=DenseHyperparameters, data=options
             )
