@@ -39,7 +39,8 @@ def get_mock_predictor(model_predictands: str = "tendencies") -> fv3fit.Predicto
         output_variables = ["downward_shortwave", "net_shortwave", "downward_longwave"]
     outputs = {
         "dQ1": np.zeros(nz),
-        "dQ2": -np.full(nz, 1e-4 / 86400),
+        # include nonzero moistening to test for mass conservation
+        "dQ2": np.full(nz, -1e-4 / 86400),
         "dQu": np.full(nz, 1 / 86400),
         "dQv": np.full(nz, 1 / 86400),
         "downward_shortwave": 300.0,
