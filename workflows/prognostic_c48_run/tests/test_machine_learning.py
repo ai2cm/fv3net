@@ -37,8 +37,6 @@ def ml_stepper(ml_stepper_name):
 def test_mock_predictor_checksum(output_type, state, regtest):
     mock_model = get_mock_predictor("tendencies")
     predicted = mock_model.predict_columnwise(state, feature_dim="z")
-    print(predicted)
-    print(predicted["dQ2"])
     test_state_regression(predicted, regtest)
 
 
