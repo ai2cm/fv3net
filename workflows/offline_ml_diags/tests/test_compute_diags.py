@@ -50,30 +50,27 @@ batch_kwargs = {
 }
 
 
-train_config = ModelTrainingConfig(
-    model_type="DenseModel",
-    hyperparameters={"width": 3, "depth": 2},
-    input_variables=["air_temperature", "specific_humidity"],
-    output_variables=["dQ1", "dQ2"],
-    batch_function="batches_from_geodata",
-    batch_kwargs=batch_kwargs,
-    scaler_type="standard",
-    scaler_kwargs={},
-    additional_variables=[],
-    random_seed=0,
-    validation_timesteps=None,
-    data_path=None,
-)
-
-
 def model(training_batches) -> Estimator:
+    train_config = ModelTrainingConfig(
+        model_type="DenseModel",
+        hyperparameters={"width": 3, "depth": 2},
+        input_variables=["air_temperature", "specific_humidity"],
+        output_variables=["dQ1", "dQ2"],
+        batch_function="batches_from_geodata",
+        batch_kwargs=batch_kwargs,
+        scaler_type="standard",
+        scaler_kwargs={},
+        additional_variables=[],
+        random_seed=0,
+        validation_timesteps=None,
+        data_path=None,
+    )
     model = get_model(
         "DenseModel",
         "sample",
         ["air_temperature", "specific_humidity"],
         ["dQ1", "dQ2"],
-        width=3,
-        depth=2,
+        train_config,
     )
     model.fit(training_batches)
     return model
@@ -98,6 +95,20 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
     """
     Test the bash endpoint for computing offline diagnostics
     """
+    train_config = ModelTrainingConfig(
+        model_type="DenseModel",
+        hyperparameters={"width": 3, "depth": 2},
+        input_variables=["air_temperature", "specific_humidity"],
+        output_variables=["dQ1", "dQ2"],
+        batch_function="batches_from_geodata",
+        batch_kwargs=batch_kwargs,
+        scaler_type="standard",
+        scaler_kwargs={},
+        additional_variables=[],
+        random_seed=0,
+        validation_timesteps=None,
+        data_path=None,
+    )
     train_config.data_path = data_path
     training_batches = load_data_sequence(legacy_config_to_data_config(train_config))
     trained_model = model(training_batches)
