@@ -14,9 +14,6 @@ class IdentityPredictor2D(Predictor):
             assert X[variable].ndim <= 2
         return X[self.output_variables]
 
-    def dump(self, *args, **kwargs):
-        pass
-
     def load(self, *args, **kwargs):
         pass
 
@@ -32,9 +29,6 @@ class InOutPredictor(Predictor):
     def predict(self, x):
         assert x["in"].ndim == 2
         return x.rename({"in": "out"})
-
-    def dump(self, *args, **kwargs):
-        pass
 
     def load(self, *args, **kwargs):
         pass

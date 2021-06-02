@@ -45,10 +45,6 @@ class Predictor(abc.ABC):
         """Predict an output xarray dataset from an input xarray dataset."""
 
     @abc.abstractmethod
-    def dump(self, path: str) -> None:
-        """Serialize to a directory."""
-
-    @abc.abstractmethod
     def load(cls, path: str) -> object:
         """Load a serialized model from a directory."""
 
@@ -111,6 +107,11 @@ class Estimator(Predictor):
     datasets, and is trained on sequences of such datasets. Extends the predictor
     base class by defining `dump` method
     """
+
+    @abc.abstractmethod
+    def dump(self, path: str) -> None:
+        """Serialize to a directory."""
+        pass
 
     @abc.abstractmethod
     def fit(self, batches: Sequence[xr.Dataset],) -> None:
