@@ -427,6 +427,11 @@ namelist:
     fvmxl: 99999
     ldebug: false
 nudging: null
+online_emulator:
+  batch_size: 64
+  learning_rate: 0.01
+  momentum: 0.5
+  online: false
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
 scikit_learn:

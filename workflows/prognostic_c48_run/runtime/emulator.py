@@ -1,4 +1,5 @@
 import dataclasses
+from typing import Mapping, Optional
 import xarray as xr
 import tensorflow as tf
 
@@ -8,7 +9,7 @@ T = "air_temperature"
 Q = "specific_humidity"
 
 
-State = xr.Dataset
+State = Mapping[str, xr.DataArray]
 
 
 @dataclasses.dataclass
@@ -22,10 +23,10 @@ class OnlineEmulatorConfig:
 
     """
 
-    batch_size: int
-    learning_rate: float
-    momentum: float
-    online: bool = True
+    batch_size: int = 64
+    learning_rate: float = 0.01
+    momentum: float = 0.5
+    online: bool = False
 
 
 def stack(state: State, keys) -> xr.Dataset:
@@ -42,10 +43,12 @@ def to_tensors(ds: xr.Dataset):
     return to_tensor(ds[U]), to_tensor(ds[V]), to_tensor(ds[T]), to_tensor(ds[Q])
 
 
-def xarray_to_dataset(statein: xr.Dataset, stateout: xr.Dataset) -> tf.data.Dataset:
-    keys = [U, V, T, Q]
-    in_ = stack(statein, keys)
-    out = stack(stateout, keys)
+KEYS = [U, V, T, Q]
+
+
+def xarray_to_dataset(statein: State, stateout: State) -> tf.data.Dataset:
+    in_ = stack(statein, KEYS)
+    out = stack(stateout, KEYS)
     out_tensors = to_tensors(out)
     in_tensors = to_tensors(in_)
     return tf.data.Dataset.from_tensor_slices((out_tensors, in_tensors))
@@ -59,6 +62,23 @@ class OnlineEmulator:
             learning_rate=config.learning_rate, momentum=config.momentum
         )
         self.scaler_fitted: bool = False
+        self._statein: Optional[State] = None
+
+    def set_input_state(self, state: State):
+        self._statein = {key: state[key] for key in KEYS}
+
+    def observe_predict(self, state: State) -> State:
+        if self._statein is None:
+            raise ValueError("Must call `set_input_state` before this routine.")
+        else:
+            stateout = {key: state[key] for key in KEYS}
+            self.partial_fit(self._statein, stateout)
+            if self.config.online:
+                out = self.predict(self._statein)
+            else:
+                out = {}
+            self._statein = None
+            return out
 
     def partial_fit(self, statein: State, stateout: State):
 
@@ -106,8 +126,15 @@ class OnlineEmulator:
         up, vp, tp, qp = self.model(*to_tensors(in_))
         dims = ["sample", "z"]
 
+        attrs = {"units": "no one cares"}
+
         return xr.Dataset(
-            {U: (dims, up), V: (dims, vp), T: (dims, tp), Q: (dims, qp)},
+            {
+                U: (dims, up, attrs),
+                V: (dims, vp, attrs),
+                T: (dims, tp, attrs),
+                Q: (dims, qp, attrs),
+            },
             coords=in_.coords,
         ).unstack("sample")
 
@@ -174,6 +201,6 @@ def needs_restart(state) -> bool:
     return False
 
 
-def get_model(config: OnlineEmulatorConfig, state: xr.Dataset) -> tf.keras.Model:
-    n = state.eastward_wind.sizes["z"]
+def get_model(config: OnlineEmulatorConfig, state: State) -> tf.keras.Model:
+    n = state["eastward_wind"].sizes["z"]
     return UVTQSimple(n, n, n, n)

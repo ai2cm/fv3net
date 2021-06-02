@@ -12,7 +12,6 @@ from typing import (
     Sequence,
     Tuple,
 )
-
 import cftime
 import fv3gfs.util
 import fv3gfs.wrapper
@@ -39,6 +38,7 @@ from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig, get_timesteps
 from runtime.types import Diagnostics, State, Tendencies
 from runtime.names import TENDENCY_TO_STATE_NAME
+from runtime.emulator import OnlineEmulator
 from toolz import dissoc
 from typing_extensions import Protocol
 
@@ -157,6 +157,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._tendencies: Tendencies = {}
         self._state_updates: State = {}
 
+        self._online_emulator = OnlineEmulator(config.online_emulator)
+
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
         (
             self._tendency_variables,
@@ -267,7 +269,10 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
     def _apply_physics(self) -> Diagnostics:
         self._log_debug(f"Physics Step (apply)")
+
+        self._online_emulator.set_input_state(self._state)
         self._fv3gfs.apply_physics()
+        self._state.update(self._online_emulator.observe_predict(self._state))
 
         micro = self._fv3gfs.get_diagnostic_by_name(
             "tendency_of_specific_humidity_due_to_microphysics"
