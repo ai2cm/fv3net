@@ -187,3 +187,31 @@ def compute_baseline_diagnostics(state: State) -> Diagnostics:
             description="surface precipitation rate due to parameterized physics"
         ),
     )
+
+
+def compute_change(
+    before, after, tendency_variables, storage_variables, name, timestep
+):
+    diags = {}
+    delp_before = before[DELP]
+    delp_after = after[DELP]
+    # Compute statistics
+    for variable in tendency_variables:
+        diag_name = f"tendency_of_{variable}_due_to_{name}"
+        diags[diag_name] = (after[variable] - before[variable]) / timestep
+        if "units" in before[variable].attrs:
+            diags[diag_name].attrs["units"] = before[variable].units + "/s"
+
+    for variable in storage_variables:
+        path_before = vcm.mass_integrate(before[variable], delp_before, "z")
+        path_after = vcm.mass_integrate(after[variable], delp_after, "z")
+
+        diag_name = f"storage_of_{variable}_path_due_to_{name}"
+        diags[diag_name] = (path_after - path_before) / timestep
+        if "units" in before[variable].attrs:
+            diags[diag_name].attrs["units"] = before[variable].units + " kg/m**2/s"
+
+    mass_change = (delp_after - delp_before).sum("z") / timestep
+    mass_change.attrs["units"] = "Pa/s"
+    diags[f"storage_of_mass_due_to_{name}"] = mass_change
+    return diags
