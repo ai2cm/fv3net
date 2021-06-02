@@ -1,5 +1,7 @@
 # this is only for development purposes and integration with visual studio code
 version: '3.4'
+volumes:
+  runs: {}
 services:
   fv3:
     build:
@@ -10,6 +12,8 @@ services:
       args:
         # the tag doesn't matter since we bind-mount over these sources anyways
         FORTRAN_IMAGE: us.gcr.io/vcm-ml/fv3gfs-fortran-fv3net:409d6cb28057dc6b700b3b009855710899194e71
+    depends_on:
+      - tensorboard
     image: us.gcr.io/vcm-ml/prognostic_run
     entrypoint: []
     command: [ls]
@@ -17,9 +21,17 @@ services:
       - ../../external:/fv3net/external
       - .:/fv3net/workflows/prognostic_c48_run
       - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json
+      - runs:/data
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
-
+  tensorboard:
+    image: tensorflow/tensorflow
+    build: .
+    volumes:
+        - runs:/data
+    ports:
+      - 6006:6006
+    command: tensorboard --logdir=/data --bind_all
   fv3net_dev:
     image: us.gcr.io/vcm-ml/prognostic_run:ad102a241fa060338d31ec9b3503b94b82cc16d7
     entrypoint: []

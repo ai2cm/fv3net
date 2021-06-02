@@ -28,5 +28,16 @@ Use docker-compose to develop this.
     # get a shell
     docker-compose run fv3 bash
 
+Emulator
+--------
+
+Edit parameters in run.sh, and then run it.
+
+To run
+
+    docker-compose run fv3 bash run.sh
+
+
+Monitor the progress via tensorboard at http://localhost:6006
   
 See the [developer's guide](https://www.vulcanclimatemodeling.com/docs/prognostic_c48_run/development.html).
