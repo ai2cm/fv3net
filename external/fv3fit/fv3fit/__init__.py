@@ -8,7 +8,6 @@ from ._shared.config import (
     DenseTrainingConfig,
     load_training_config,
 )
-from . import keras
-from . import sklearn
+from . import keras, sklearn, testing
 
 __version__ = "0.1.0"
