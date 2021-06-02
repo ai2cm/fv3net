@@ -316,7 +316,7 @@ def load_configs(
     output_data_path: str,
     timesteps_file=None,
     validation_timesteps_file=None,
-) -> Tuple[_ModelTrainingConfig, TrainingConfig, DataConfig, Optional[DataConfig]]:
+) -> Tuple[TrainingConfig, DataConfig, Optional[DataConfig]]:
     """Load training configuration information from a legacy yaml config path.
 
     Dumps the legacy configuration class to the output_data_path.
