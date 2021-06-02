@@ -1,5 +1,5 @@
 from runtime.steppers.machine_learning import PureMLStepper, MLStateStepper
-from machine_learning_mocks import get_mock_sklearn_model
+from machine_learning_mocks import get_mock_predictor
 import requests
 import xarray as xr
 import yaml
@@ -25,12 +25,19 @@ def ml_stepper_name(request):
 def ml_stepper(ml_stepper_name):
     timestep = 900
     if ml_stepper_name == "PureMLStepper":
-        mock_model = get_mock_sklearn_model("tendencies")
+        mock_model = get_mock_predictor("tendencies")
         ml_stepper = PureMLStepper(mock_model, timestep, hydrostatic=False)
     elif ml_stepper_name == "MLStateStepper":
-        mock_model = get_mock_sklearn_model("rad_fluxes")
+        mock_model = get_mock_predictor("rad_fluxes")
         ml_stepper = MLStateStepper(mock_model, timestep, hydrostatic=False)
     return ml_stepper
+
+
+@pytest.mark.parametrize("output_type", ["tendencies", "rad_fluxes"])
+def test_mock_predictor_checksum(output_type, state, regtest):
+    mock_model = get_mock_predictor("tendencies")
+    predicted = mock_model.predict_columnwise(state, feature_dim="z")
+    test_state_regression(predicted, regtest)
 
 
 def test_ml_steppers_schema_unchanged(state, ml_stepper, regtest):
