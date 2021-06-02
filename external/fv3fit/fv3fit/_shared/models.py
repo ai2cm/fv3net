@@ -53,6 +53,9 @@ class EnsembleModel(Predictor):
         else:
             return ds.mean(dim="member")
 
+    def dump(cls, path: str) -> None:
+        raise NotImplementedError("feature not yet implemented")
+
     @classmethod
     def load(cls, path: str) -> "EnsembleModel":
         """Load a serialized model from a directory."""
