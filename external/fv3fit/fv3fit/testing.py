@@ -38,6 +38,15 @@ class ConstantOutputPredictor(Predictor):
 
     def set_outputs(self, **outputs: Union[np.ndarray, float]):
         """
+        Set the values to output for given output variables.
+
+        If scalars are given, the output will have dimensions [sample_dim_name],
+        and if a 1D array is given, the output will have dimensions
+        [sample_dim_name, z].
+
+        Only values present in the `output_variables` attribute of this
+        object will have any effect, others will be ignored silently.
+
         Args:
             outputs: column output for each name. For scalar
                 values, use float, and for column values use 1D arrays.
@@ -58,9 +67,9 @@ class ConstantOutputPredictor(Predictor):
             else:
                 array = np.full([n_samples], float(output))
                 data_vars[name] = xr.DataArray(data=array, dims=[self.sample_dim_name])
-        if self.sample_dim_name in X:
+        if self.sample_dim_name in X.coords:
             coords: Optional[Mapping[Hashable, Any]] = {
-                self.sample_dim_name: X[self.sample_dim_name]
+                self.sample_dim_name: X.coords[self.sample_dim_name]
             }
         else:
             coords = None
