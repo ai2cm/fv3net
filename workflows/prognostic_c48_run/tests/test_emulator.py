@@ -48,28 +48,6 @@ def test_OnlineEmulator_fit_predict(state):
     assert list(stateout["eastward_wind"].dims) == ["z", "y", "x"]
 
 
-@pytest.mark.parametrize("online", [False, True])
-def test_OnlineEmulator_prog_run_apis(state, online):
-    config = OnlineEmulatorConfig(
-        batch_size=32, learning_rate=0.001, momentum=0.0, online=online
-    )
-    emulator = OnlineEmulator(config)
-    emulator.set_input_state(state)
-    out = emulator.observe_predict(state)
-
-    if config.online:
-        assert isinstance(out["eastward_wind"], xr.DataArray)
-    else:
-        assert {} == out
-
-
-def test_OnlineEmulator_observe_predict_without_input_fails(state):
-    config = OnlineEmulatorConfig(batch_size=32, learning_rate=0.001, momentum=0.0)
-    emulator = OnlineEmulator(config)
-    with pytest.raises(ValueError):
-        emulator.observe_predict(state)
-
-
 def test_UVTQSimple():
     model = UVTQSimple(10, 10, 10, 10)
     shape = (3, 10)
