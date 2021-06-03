@@ -73,10 +73,7 @@ class OnlineEmulator:
         else:
             stateout = {key: state[key] for key in KEYS}
             self.partial_fit(self._statein, stateout)
-            if self.config.online:
-                out = self.predict(self._statein)
-            else:
-                out = {}
+            out = self.predict(self._statein)
             self._statein = None
             return out
 

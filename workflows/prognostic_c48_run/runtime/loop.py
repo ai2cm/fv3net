@@ -159,6 +159,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._state_updates: State = {}
 
         self._online_emulator = OnlineEmulator(config.online_emulator)
+        self._predict_with_emulator: bool = config.online_emulator.online
 
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
         (
@@ -270,25 +271,53 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
     def _apply_physics(self) -> Diagnostics:
         self._log_debug(f"Physics Step (apply)")
+        diags = {}
 
+        # TODO Dedup this with related logic in monitor
+        vars_ = list(
+            set(self._tendency_variables) | set(self._storage_variables) | {DELP}
+        )
+        before = {key: self._state[key] for key in vars_}
         self._online_emulator.set_input_state(self._state)
         self._fv3gfs.apply_physics()
-        self._state.update(self._online_emulator.observe_predict(self._state))
+        emulator_after = self._online_emulator.observe_predict(self._state)
+        emulator_after[DELP] = self._state[DELP]
+
+        # insert state variables not predicted by the emulator
+        for v in vars_:
+            if v not in emulator_after:
+                emulator_after[v] = self._state[v]
+
+        diags = compute_change(
+            before,
+            emulator_after,
+            self._tendency_variables,
+            self._storage_variables,
+            "emulator",
+            self._timestep,
+        )
+
+        if self._predict_with_emulator:
+            self._state.update(emulator_after)
 
         micro = self._fv3gfs.get_diagnostic_by_name(
             "tendency_of_specific_humidity_due_to_microphysics"
         ).data_array
         delp = self._state[DELP]
-        return {
-            "storage_of_specific_humidity_path_due_to_microphysics": vcm.mass_integrate(
-                micro, delp, "z"
-            ),
-            "evaporation": self._state["evaporation"],
-            "cnvprcp_after_physics": self._fv3gfs.get_diagnostic_by_name(
-                "cnvprcp"
-            ).data_array,
-            "total_precip_after_physics": self._state[TOTAL_PRECIP],
-        }
+        diags.update(
+            {
+                "storage_of_specific_humidity_path_due_to_microphysics": vcm.mass_integrate(  # noqa
+                    micro, delp, "z"
+                ),
+                "evaporation": self._state["evaporation"],
+                "cnvprcp_after_physics": self._fv3gfs.get_diagnostic_by_name(
+                    "cnvprcp"
+                ).data_array,
+                "total_precip_after_physics": self._state[TOTAL_PRECIP],
+            }
+        )
+
+        return diags
 
     def _print_timing(self, name, min_val, max_val, mean_val):
         self._print(f"{name:<30}{min_val:15.4f}{max_val:15.4f}{mean_val:15.4f}")
