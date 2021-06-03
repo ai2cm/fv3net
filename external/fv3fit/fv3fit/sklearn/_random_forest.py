@@ -46,7 +46,7 @@ class RandomForest(Estimator):
         output_variables: Iterable[str],
         hyperparameters: RandomForestHyperparameters,
     ):
-        batch_regressor = RegressorEnsemble(
+        batch_regressor = _RegressorEnsemble(
             sklearn.ensemble.RandomForestRegressor(
                 n_jobs=hyperparameters.n_jobs,
                 random_state=hyperparameters.random_state,
@@ -85,7 +85,7 @@ class RandomForest(Estimator):
         return SklearnWrapper.load(path)
 
 
-class RegressorEnsemble:
+class _RegressorEnsemble:
     """Ensemble of regressors that are incrementally trained in batches
 
     """
@@ -142,7 +142,7 @@ class RegressorEnsemble:
         return f.getvalue()
 
     @classmethod
-    def loads(cls, b: bytes) -> "RegressorEnsemble":
+    def loads(cls, b: bytes) -> "_RegressorEnsemble":
         f = io.BytesIO(b)
         batch_regressor_components = joblib.load(f)
         regressors: Sequence[sklearn.base.BaseEstimator] = batch_regressor_components[
@@ -167,7 +167,7 @@ class SklearnWrapper(Estimator):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
-        model: RegressorEnsemble,
+        model: _RegressorEnsemble,
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
     ) -> None:
@@ -262,7 +262,7 @@ class SklearnWrapper(Estimator):
     def load(cls, path: str) -> "SklearnWrapper":
         """Load a model from a remote path"""
         mapper = fsspec.get_mapper(path)
-        model = RegressorEnsemble.loads(mapper[cls._PICKLE_NAME])
+        model = _RegressorEnsemble.loads(mapper[cls._PICKLE_NAME])
 
         scaler_str = mapper.get(cls._SCALER_NAME, b"")
         scaler_obj: Optional[scaler.NormalizeTransform]
