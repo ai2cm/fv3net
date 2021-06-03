@@ -91,7 +91,9 @@ if __name__ == "__main__":
 
     config = SubsetConfig(**config_yaml)
 
-    data_mapping = open_phys_emu_training(config.source_path, config.init_times)
+    data_mapping = open_phys_emu_training(config.source_path, config.init_times,
+        dataset_names=["emulator_inputs.zarr", "physics_tendencies.zarr"]
+    )
     batches = batches_from_mapper(
         data_mapping, config.variables, subsample_size=config.subsample_size
     )

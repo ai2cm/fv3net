@@ -18,7 +18,6 @@ input_variables:
   - "vertical_wind"
   - "air_temperature"
   - "specific_humidity"
-  - "surface_temperature"
 output_variables:
   - "tendency_of_air_temperature_due_to_fv3_physics"
   - "tendency_of_eastward_wind_due_to_fv3_physics"
@@ -26,10 +25,10 @@ output_variables:
   - "tendency_of_specific_humidity_due_to_fv3_physics"
   - "tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics"
 vertical_subselections:
-    specific_humidity: [20, null]
-    cloud_water_mixing_ratio: [25, null]
-    tendency_of_specific_humidity_due_to_fv3_physics: [20, null]
-    tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics: [25, null]
+    specific_humidity: [15, null]
+    cloud_water_mixing_ratio: [15, null]
+    tendency_of_specific_humidity_due_to_fv3_physics: [15, null]
+    tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics: [15, null]
 save_path: gs://vcm-ml-scratch/andrep/test-emu-model-delete
 antarctic_only: True
 fit_kwargs:

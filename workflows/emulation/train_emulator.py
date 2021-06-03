@@ -231,13 +231,27 @@ def fit_model(config, model):
     return tmpdir
 
 
-def _save_model(path, model, X_stacker, y_stacker, std_info):
+def _save_model(
+    path, model,
+    X_stacker: ArrayStacker,
+    y_stacker: ArrayStacker,
+    std_info
+):
+    # TODO: currently legacy inputs from the AllPhysics .load
+    model_options = {
+        "sample_dim_name": "sample",
+        "input_variables": X_stacker._variables,
+        "output_variables": y_stacker._variables,
+    }
+
     with open(os.path.join(path, "X_stacker.yaml"), "w") as f:
         X_stacker.dump(f)
     with open(os.path.join(path, "y_stacker.yaml"), "w") as f:
         y_stacker.dump(f)
     with open(os.path.join(path, "standardization_info.pkl"), "wb") as f:
         pickle.dump(std_info, f)
+    with open(os.path.join(path, "model_options.yaml"), "w") as f:
+        f.write(yaml.dump(model_options))
     
     # Remove compiled specialized metrics because these bork loading
     model.optimizer = None
@@ -254,7 +268,7 @@ def _save_to_destination(source, destination):
     fs.put(source, destination, recursive=True)
 
 
-def save(path, model, logdir, X_stacker, y_stacker, std_info):
+def save(path, model, logdir, config, X_stacker, y_stacker, std_info):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         _save_to_destination(logdir, tmpdir)
@@ -283,4 +297,4 @@ if __name__ == "__main__":
     model = get_emu_model(X, y, y_feature_indices=y_features)
     fit_logdir = fit_model(config, model)
 
-    save(config.save_path, model, fit_logdir.name, **preproc_save_info)
+    save(config.save_path, model, fit_logdir.name, config, **preproc_save_info)
