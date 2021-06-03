@@ -1,10 +1,7 @@
 import numpy as np
 import xarray as xr
-from sklearn.dummy import DummyRegressor
 
 import fv3fit
-from fv3fit.sklearn import RegressorEnsemble, SklearnWrapper
-from fv3fit.keras import DummyModel
 
 
 def _model_dataset() -> xr.Dataset:
@@ -32,63 +29,29 @@ def _model_dataset() -> xr.Dataset:
     return data
 
 
-def get_mock_sklearn_model(model_predictands: str = "tendencies") -> fv3fit.Predictor:
+def get_mock_predictor(model_predictands: str = "tendencies") -> fv3fit.Predictor:
 
     data = _model_dataset()
-
+    nz = data.sizes["z"]
     if model_predictands == "tendencies":
-        nz = data.sizes["z"]
-        heating_constant_K_per_s = np.zeros(nz)
-        # include nonzero moistening to test for mass conservation
-        moistening_constant_per_s = -np.full(nz, 1e-4 / 86400)
-        wind_tendency_constant_m_per_s_per_s = np.full(nz, 1 / 86400)
-        constant = np.concatenate(
-            [
-                heating_constant_K_per_s,
-                moistening_constant_per_s,
-                wind_tendency_constant_m_per_s_per_s,
-                wind_tendency_constant_m_per_s_per_s,
-            ]
-        )
-        estimator = RegressorEnsemble(
-            DummyRegressor(strategy="constant", constant=constant)
-        )
-        model = SklearnWrapper(
-            "sample",
-            ["specific_humidity", "air_temperature"],
-            ["dQ1", "dQ2", "dQu", "dQv"],
-            estimator,
-        )
+        output_variables = ["dQ1", "dQ2", "dQu", "dQv"]
     elif model_predictands == "rad_fluxes":
-        n_sample = data.sizes["sample"]
-        downward_shortwave = np.full(n_sample, 300.0)
-        net_shortwave = np.full(n_sample, 250.0)
-        downward_longwave = np.full(n_sample, 400.0)
-        constant = np.concatenate(
-            [[downward_shortwave], [net_shortwave], [downward_longwave]]
-        )
-        estimator = RegressorEnsemble(
-            DummyRegressor(strategy="constant", constant=constant)
-        )
-        model = SklearnWrapper(
-            "sample",
-            ["air_temperature", "specific_humidity"],
-            ["downward_shortwave", "net_shortwave", "downward_longwave"],
-            estimator,
-        )
-    else:
-        raise ValueError(f"Undefined mock model type: {model_predictands}")
+        output_variables = ["downward_shortwave", "net_shortwave", "downward_longwave"]
+    outputs = {
+        "dQ1": np.zeros(nz),
+        # include nonzero moistening to test for mass conservation
+        "dQ2": np.full(nz, -1e-4 / 86400),
+        "dQu": np.full(nz, 1 / 86400),
+        "dQv": np.full(nz, 1 / 86400),
+        "downward_shortwave": 300.0,
+        "net_shortwave": 250.0,
+        "downward_longwave": 400.0,
+    }
+    predictor = fv3fit.testing.ConstantOutputPredictor(
+        sample_dim_name="sample",
+        input_variables=["air_temperature", "specific_humidity"],
+        output_variables=output_variables,
+    )
+    predictor.set_outputs(**outputs)
 
-    # needed to avoid sklearn.exceptions.NotFittedError
-    model.fit([data])
-    return model
-
-
-def get_mock_keras_model() -> fv3fit.Predictor:
-
-    input_variables = ["air_temperature", "specific_humidity"]
-    output_variables = ["dQ1", "dQ2"]
-
-    model = DummyModel("sample", input_variables, output_variables)
-    model.fit([_model_dataset()])
-    return model
+    return predictor

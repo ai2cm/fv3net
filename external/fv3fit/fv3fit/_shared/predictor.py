@@ -65,6 +65,10 @@ class Predictor(abc.ABC):
         Returns:
             the predictions defined on the same dimensions as X
         """
+        if len(sample_dims) == 0 and feature_dim is None:
+            raise ValueError(
+                "either feature_dim or non-empty sample_dims must be given"
+            )
 
         coords = X.coords
 
@@ -106,6 +110,7 @@ class Estimator(Predictor):
 
     @abc.abstractmethod
     def dump(self, path: str) -> None:
+        """Serialize to a directory."""
         pass
 
     @abc.abstractmethod

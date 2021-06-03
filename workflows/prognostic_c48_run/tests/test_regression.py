@@ -10,7 +10,7 @@ import xarray as xr
 import datetime
 import yaml
 import vcm.testing
-from machine_learning_mocks import get_mock_sklearn_model, get_mock_keras_model
+from machine_learning_mocks import get_mock_predictor
 
 import subprocess
 
@@ -29,8 +29,7 @@ CHUNKS_PATH = "chunks.yaml"
 
 class ConfigEnum:
     nudging = "nudging"
-    sklearn = "sklearn"
-    keras = "keras"
+    predictor = "predictor"
 
 
 default_fv3config = rf"""
@@ -499,9 +498,7 @@ def get_ml_config(model_path):
     return config
 
 
-@pytest.fixture(
-    scope="module", params=[ConfigEnum.sklearn, ConfigEnum.keras, ConfigEnum.nudging]
-)
+@pytest.fixture(scope="module", params=[ConfigEnum.predictor, ConfigEnum.nudging])
 def configuration(request):
     return request.param
 
@@ -511,12 +508,8 @@ def completed_rundir(configuration, tmpdir_factory):
 
     model_path = str(tmpdir_factory.mktemp("model"))
 
-    if configuration == ConfigEnum.sklearn:
-        model = get_mock_sklearn_model()
-        fv3fit.dump(model, str(model_path))
-        config = get_ml_config(model_path)
-    elif configuration == ConfigEnum.keras:
-        model = get_mock_keras_model()
+    if configuration == ConfigEnum.predictor:
+        model = get_mock_predictor()
         fv3fit.dump(model, str(model_path))
         config = get_ml_config(model_path)
     elif configuration == ConfigEnum.nudging:
