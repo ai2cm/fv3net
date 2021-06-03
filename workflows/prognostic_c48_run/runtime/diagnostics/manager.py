@@ -18,6 +18,7 @@ import dataclasses
 
 from .fortran import FortranFileConfig
 from .time import TimeConfig, TimeContainer
+from .tensorboard import TensorBoardSink
 
 logger = logging.getLogger(__name__)
 
@@ -35,13 +36,24 @@ class DiagnosticFileConfig:
         chunks: mapping of dimension names to chunk sizes
     """
 
-    name: str
+    name: str = ""
     variables: Sequence[str] = dataclasses.field(default_factory=list)
     times: TimeConfig = dataclasses.field(default_factory=lambda: TimeConfig())
     chunks: Mapping[str, int] = dataclasses.field(default_factory=dict)
+    tensorboard: bool = False
 
     def to_dict(self) -> Dict:
         return dataclasses.asdict(self)
+
+    def _get_sink(
+        self, partitioner: fv3gfs.util.CubedSpherePartitioner, comm: Any,
+    ) -> "Sink":
+        if self.tensorboard:
+            return TensorBoardSink()
+        else:
+            return ZarrSink(
+                fv3gfs.util.ZarrMonitor(self.name, partitioner, mpi_comm=comm)
+            )
 
     def diagnostic_file(
         self,
@@ -49,12 +61,11 @@ class DiagnosticFileConfig:
         partitioner: fv3gfs.util.CubedSpherePartitioner,
         comm: Any,
     ) -> "DiagnosticFile":
+
         return DiagnosticFile(
             variables=self.variables,
             times=self.times.time_container(initial_time),
-            sink=ZarrSink(
-                fv3gfs.util.ZarrMonitor(self.name, partitioner, mpi_comm=comm)
-            ),
+            sink=self._get_sink(partitioner, comm),
         )
 
 

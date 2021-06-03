@@ -18,6 +18,7 @@ from runtime.diagnostics.manager import (
     DiagnosticFile,
     get_chunks,
     ZarrSink,
+    TensorBoardSink,
 )
 from runtime.diagnostics.time import (
     TimeConfig,
@@ -360,10 +361,22 @@ def test_file_configs_to_namelist_settings_empty_diagnostics():
     assert file_configs_to_namelist_settings([], timedelta(seconds=900)) == {}
 
 
-def test_DiagnosticFileConfig():
-    config = DiagnosticFileConfig(name="out.zarr", variables=["a"], times=TimeConfig())
+@pytest.mark.parametrize(
+    "config, sinktype",
+    [
+        (
+            DiagnosticFileConfig(name="out.zarr", variables=["a"], times=TimeConfig()),
+            ZarrSink,
+        ),
+        (
+            DiagnosticFileConfig(variables=["a"], times=TimeConfig(), tensorboard=True),
+            TensorBoardSink,
+        ),
+    ],
+)
+def test_DiagnosticFileConfig(config, sinktype):
     diag_file = config.diagnostic_file(
         initial_time=cftime.DatetimeJulian(2016, 8, 1), partitioner=None, comm=Mock()
     )
 
-    assert isinstance(diag_file._sink, ZarrSink)
+    assert isinstance(diag_file._sink, sinktype)
