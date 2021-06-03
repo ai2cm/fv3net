@@ -50,7 +50,7 @@ if __name__ == "__main__":
                 comm, diagnostics, exclude=loop._states_to_output
             )
             profiles = runtime.globally_sum_3d_diagnostics(
-                comm, diagnostics, ["{field}_limiter_active"]
+                comm, diagnostics, ["specific_humidity_limiter_active"]
             )
             if comm.rank == 0:
                 runtime.log_mapping(time, averages, "statistics")

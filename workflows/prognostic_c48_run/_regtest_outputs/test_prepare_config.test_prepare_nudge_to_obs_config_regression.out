@@ -840,6 +840,7 @@ diagnostics:
 - chunks:
     time: 8
   name: state_after_timestep.zarr
+  tensorboard: false
   times:
     frequency: 900
     includes_lower: false
@@ -881,6 +882,7 @@ diagnostics:
 - chunks:
     time: 8
   name: physics_tendencies.zarr
+  tensorboard: false
   times:
     frequency: 900
     includes_lower: false

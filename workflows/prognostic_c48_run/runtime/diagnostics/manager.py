@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 @dataclasses.dataclass
 class DiagnosticFileConfig:
-    """Configurations for zarr Diagnostic Files
+    """Configurations for Diagnostic Files
 
     Attributes:
         name: filename of a zarr to store the data in, e.g., 'diags.zarr'.
@@ -34,6 +34,10 @@ class DiagnosticFileConfig:
             are stored. Example: ``["air_temperature", "cos_zenith_angle"]``.
         times: the time configuration
         chunks: mapping of dimension names to chunk sizes
+        tensorboard: if True, then plot the variables and log them to a
+            tensorflow summary directory at "<rundir>/tensorboard". These logs can
+            then be viewed with tensorboard. If False (the default), then the
+            variables are saved to zarr. Only supports 2D variables.
     """
 
     name: str = ""
