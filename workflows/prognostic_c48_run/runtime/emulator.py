@@ -51,7 +51,7 @@ def xarray_to_dataset(statein: State, stateout: State) -> tf.data.Dataset:
     out = stack(stateout, KEYS)
     out_tensors = to_tensors(out)
     in_tensors = to_tensors(in_)
-    return tf.data.Dataset.from_tensor_slices((out_tensors, in_tensors))
+    return tf.data.Dataset.from_tensor_slices((in_tensors, out_tensors))
 
 
 class OnlineEmulator:
@@ -63,19 +63,6 @@ class OnlineEmulator:
         )
         self.scaler_fitted: bool = False
         self._statein: Optional[State] = None
-
-    def set_input_state(self, state: State):
-        self._statein = {key: state[key] for key in KEYS}
-
-    def observe_predict(self, state: State) -> State:
-        if self._statein is None:
-            raise ValueError("Must call `set_input_state` before this routine.")
-        else:
-            stateout = {key: state[key] for key in KEYS}
-            self.partial_fit(self._statein, stateout)
-            out = self.predict(self._statein)
-            self._statein = None
-            return out
 
     def partial_fit(self, statein: State, stateout: State):
 

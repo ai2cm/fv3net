@@ -2,10 +2,12 @@
 
 cat << EOF  > config.yaml
 base_version: v0.5
+online_emulator:
+    learning_rate: 0.001
 namelist:
   coupler_nml:
-    days: 1 # total length
-    hours: 0
+    days: 0 # total length
+    hours: 12
     minutes: 0
     seconds: 0
     dt_atmos: 900 # seconds
@@ -18,10 +20,9 @@ namelist:
   fv_core_nml:
     n_split: 6 # num dynamics steps per physics step
 diagnostics:
-- name: diags.zarr
+- tensorboard: true
   times:
-    kind: interval
-    frequency: 3600
+    kind: every
   chunks:
     time: 8
   variables:
@@ -29,10 +30,10 @@ diagnostics:
   - storage_of_eastward_wind_path_due_to_fv3_physics
   - storage_of_northward_wind_path_due_to_fv3_physics
   - storage_of_air_temperature_path_due_to_fv3_physics
-  - storage_of_specific_humidity_path_due_to_online_emulator
-  - storage_of_eastward_wind_path_due_to_online_emulator
-  - storage_of_northward_wind_path_due_to_online_emulator
-  - storage_of_air_temperature_path_due_to_online_emulator
+  - storage_of_specific_humidity_path_due_to_emulator
+  - storage_of_eastward_wind_path_due_to_emulator
+  - storage_of_northward_wind_path_due_to_emulator
+  - storage_of_air_temperature_path_due_to_emulator
 EOF
 
 ROOT=/data/prognostic-runs

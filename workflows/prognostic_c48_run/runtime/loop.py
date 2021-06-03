@@ -278,10 +278,10 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             set(self._tendency_variables) | set(self._storage_variables) | {DELP}
         )
         before = {key: self._state[key] for key in vars_}
-        self._online_emulator.set_input_state(self._state)
         self._fv3gfs.apply_physics()
-        emulator_after = self._online_emulator.observe_predict(self._state)
-        emulator_after[DELP] = self._state[DELP]
+        self._online_emulator.partial_fit(before, self._state)
+        emulator_after = self._online_emulator.predict(before)
+        emulator_after[DELP] = before[DELP]
 
         # insert state variables not predicted by the emulator
         for v in vars_:
