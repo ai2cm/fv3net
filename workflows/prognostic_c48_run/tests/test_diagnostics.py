@@ -1,6 +1,7 @@
 from datetime import timedelta
 from cftime import DatetimeJulian as datetime
 from unittest.mock import Mock
+import cftime
 
 import fv3config
 import pytest
@@ -12,7 +13,12 @@ from runtime.diagnostics.fortran import (
     FortranTimeConfig,
     file_configs_to_namelist_settings,
 )
-from runtime.diagnostics.manager import DiagnosticFileConfig, DiagnosticFile, get_chunks
+from runtime.diagnostics.manager import (
+    DiagnosticFileConfig,
+    DiagnosticFile,
+    get_chunks,
+    ZarrSink,
+)
 from runtime.diagnostics.time import (
     TimeConfig,
     All,
@@ -80,18 +86,16 @@ def test_DiagnosticFile_time_selection():
     t1 = datetime(year=2016, month=8, day=1, hour=0, minute=15)
     t2 = datetime(year=2016, month=8, day=1, hour=0, minute=16)
 
-    monitor = Mock()
+    sink = Mock()
 
     # observe a few times
-    diag_file = DiagnosticFile(
-        times=TimeContainer([t1]), variables=All(), monitor=monitor
-    )
+    diag_file = DiagnosticFile(times=TimeContainer([t1]), variables=All(), sink=sink)
     diag_file.observe(t1, {})
     diag_file.observe(t2, {})
 
     # force flush to disk
     diag_file.flush()
-    monitor.store.assert_called_once()
+    sink.sink.assert_called_once()
 
 
 def test_DiagnosticFile_variable_selection():
@@ -101,17 +105,14 @@ def test_DiagnosticFile_variable_selection():
     diagnostics = {key: dataset[key] for key in dataset}
 
     class VariableCheckingMonitor:
-        def store(self, state):
-            assert "time" in state
+        def sink(self, time, state):
             assert "a" in state
             assert "b" not in state
 
-    monitor = VariableCheckingMonitor()
+    sink = VariableCheckingMonitor()
 
     # observe a few times
-    diag_file = DiagnosticFile(
-        times=TimeContainer(All()), variables=["a"], monitor=monitor
-    )
+    diag_file = DiagnosticFile(times=TimeContainer(All()), variables=["a"], sink=sink)
     diag_file.observe(datetime(2020, 1, 1), diagnostics)
     # force flush to disk
     diag_file.flush()
@@ -126,15 +127,13 @@ def test_DiagnosticFile_variable_units(attrs, expected_units):
     diagnostics = {key: dataset[key] for key in dataset}
 
     class UnitCheckingMonitor:
-        def store(self, state):
+        def sink(self, time, state):
             assert state["a"].units == expected_units
 
-    monitor = UnitCheckingMonitor()
+    sink = UnitCheckingMonitor()
 
     # observe a few times
-    diag_file = DiagnosticFile(
-        times=TimeContainer(All()), variables=All(), monitor=monitor
-    )
+    diag_file = DiagnosticFile(times=TimeContainer(All()), variables=All(), sink=sink)
     diag_file.observe(datetime(2020, 1, 1), diagnostics)
     # force flush to disk
     diag_file.flush()
@@ -187,15 +186,15 @@ def test_DiagnosticFile_with_non_snapshot_time():
         def indicator(self, time):
             return t + timedelta(hours=time.hour)
 
-    class MockMonitor:
+    class MockSink:
         data = {}
 
-        def store(self, x):
-            assert isinstance(x["time"], datetime), x
-            self.data[x["time"]] = x
+        def sink(self, time, x):
+            assert isinstance(time, datetime), time
+            self.data[time] = x
 
-    monitor = MockMonitor()
-    diag_file = DiagnosticFile(times=Hours(), variables=["a", "b"], monitor=monitor)
+    sink = MockSink()
+    diag_file = DiagnosticFile(times=Hours(), variables=["a", "b"], sink=sink)
 
     for time, x in [
         (t, one),
@@ -209,12 +208,12 @@ def test_DiagnosticFile_with_non_snapshot_time():
     diag_file.flush()
 
     # there should be only two time intervals
-    assert len(monitor.data) == 2
+    assert len(sink.data) == 2
 
-    assert monitor.data[datetime(2000, 1, 1, 0)]["a"].data.item() == pytest.approx(1.0)
-    assert monitor.data[datetime(2000, 1, 1, 1)]["a"].data.item() == pytest.approx(1.5)
-    assert monitor.data[datetime(2000, 1, 1, 0)]["b"].data.item() == pytest.approx(1.0)
-    assert monitor.data[datetime(2000, 1, 1, 1)]["b"].data.item() == pytest.approx(1.5)
+    assert sink.data[datetime(2000, 1, 1, 0)]["a"].data.item() == pytest.approx(1.0)
+    assert sink.data[datetime(2000, 1, 1, 1)]["a"].data.item() == pytest.approx(1.5)
+    assert sink.data[datetime(2000, 1, 1, 0)]["b"].data.item() == pytest.approx(1.0)
+    assert sink.data[datetime(2000, 1, 1, 1)]["b"].data.item() == pytest.approx(1.5)
 
 
 def test_TimeConfig_interval_average():
@@ -359,3 +358,12 @@ def test_file_configs_to_namelist_settings(time_config, expected_frequency_in_ho
 
 def test_file_configs_to_namelist_settings_empty_diagnostics():
     assert file_configs_to_namelist_settings([], timedelta(seconds=900)) == {}
+
+
+def test_DiagnosticFileConfig():
+    config = DiagnosticFileConfig(name="out.zarr", variables=["a"], times=TimeConfig())
+    diag_file = config.diagnostic_file(
+        initial_time=cftime.DatetimeJulian(2016, 8, 1), partitioner=None, comm=Mock()
+    )
+
+    assert isinstance(diag_file._sink, ZarrSink)
