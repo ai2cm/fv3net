@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Mapping, Optional
+from typing import Mapping, Optional, Sequence, Tuple
 import xarray as xr
 import tensorflow as tf
 
@@ -27,6 +27,11 @@ class OnlineEmulatorConfig:
     learning_rate: float = 0.01
     momentum: float = 0.5
     online: bool = False
+    extra_input_variables: Sequence[str] = (U, V, T, Q)
+
+    @property
+    def input_variables(self) -> Tuple[str]:
+        return (U, V, T, Q) + tuple(self.extra_input_variables)
 
 
 def stack(state: State, keys) -> xr.Dataset:
@@ -39,23 +44,19 @@ def to_tensor(arr: xr.DataArray) -> tf.Variable:
     return tf.cast(tf.Variable(arr), tf.float32)
 
 
-def to_tensors(ds: xr.Dataset):
-    return to_tensor(ds[U]), to_tensor(ds[V]), to_tensor(ds[T]), to_tensor(ds[Q])
+def to_tensors(ds: xr.Dataset, keys) -> Tuple[xr.DataArray]:
+    return tuple([to_tensor(ds[k]) for k in ds])
 
 
-KEYS = [U, V, T, Q]
-
-
-def xarray_to_dataset(statein: State, stateout: State) -> tf.data.Dataset:
-    in_ = stack(statein, KEYS)
-    out = stack(stateout, KEYS)
-    out_tensors = to_tensors(out)
-    in_tensors = to_tensors(in_)
-    return tf.data.Dataset.from_tensor_slices((in_tensors, out_tensors))
+def _xarray_to_tensor(state, keys):
+    in_ = stack(state, keys)
+    return to_tensors(in_, keys)
 
 
 class OnlineEmulator:
-    def __init__(self, config: OnlineEmulatorConfig):
+    def __init__(
+        self, config: OnlineEmulatorConfig,
+    ):
         self.config = config
         self.model = None
         self.optimizer = tf.optimizers.SGD(
@@ -63,6 +64,11 @@ class OnlineEmulator:
         )
         self.scaler_fitted: bool = False
         self._statein: Optional[State] = None
+        self.output_variables: Sequence[str] = (U, V, T, Q)
+
+    @property
+    def input_variables(self):
+        return self.config.input_variables
 
     def partial_fit(self, statein: State, stateout: State):
 
@@ -73,7 +79,7 @@ class OnlineEmulator:
         def step(self, in_, out):
             with tf.GradientTape() as tape:
 
-                up, vp, tp, qp = self.model(*in_)
+                up, vp, tp, qp = self.model(in_)
                 ut, vt, tt, qt = out
                 loss_u = tf.reduce_mean(tf.keras.losses.mean_squared_error(ut, up))
                 loss_v = tf.reduce_mean(tf.keras.losses.mean_squared_error(vt, vp))
@@ -92,12 +98,14 @@ class OnlineEmulator:
             tf.summary.scalar("loss", loss, step=self.step)
             self.step += 1
 
-        d = xarray_to_dataset(statein, stateout)
+        in_tensors = _xarray_to_tensor(statein, self.input_variables)
+        out_tensors = _xarray_to_tensor(stateout, self.output_variables)
+        d = tf.data.Dataset.from_tensor_slices((in_tensors, out_tensors))
 
         if self.model is not None:
             if not self.scaler_fitted:
                 self.scaler_fitted = True
-                self.model.fit_scaler(*next(iter(d.batch(len(d))))[0])
+                self.model.fit_scaler(next(iter(d.batch(len(d))))[0])
             for x, y in d.shuffle(1_000_000).batch(self.config.batch_size):
                 step(self, x, y)
 
@@ -105,9 +113,8 @@ class OnlineEmulator:
         if self.model is None:
             raise ValueError("Must call .partial_fit at least once.")
 
-        keys = [U, V, T, Q]
-        in_ = stack(state, keys)
-        up, vp, tp, qp = self.model(*to_tensors(in_))
+        in_ = stack(state, self.input_variables)
+        up, vp, tp, qp = self.model(to_tensors(in_, self.input_variables))
         dims = ["sample", "z"]
 
         attrs = {"units": "no one cares"}
@@ -150,6 +157,14 @@ class NormLayer(tf.keras.layers.Layer):
         return (tensor - self.mean) / (self.sigma + self.epsilon)
 
 
+def atleast_2d(x: tf.Variable) -> tf.Variable:
+    n = len(x.shape)
+    if n == 1:
+        return tf.reshape(x, shape=x.shape + [1])
+    else:
+        return x
+
+
 class UVTQSimple(tf.keras.layers.Layer):
     def __init__(self, u_size, v_size, t_size, q_size):
         super(UVTQSimple, self).__init__()
@@ -161,13 +176,16 @@ class UVTQSimple(tf.keras.layers.Layer):
         self.out_t = tf.keras.layers.Dense(t_size, name="out_t")
         self.out_q = tf.keras.layers.Dense(q_size, name="out_q")
 
-    def fit_scaler(self, u, v, t, q):
-        stacked = tf.concat([u, v, t, q], axis=-1)
+    def fit_scaler(self, args: Sequence[tf.Variable]):
+        args = [atleast_2d(arg) for arg in args]
+        stacked = tf.concat(args, axis=-1)
         self.norm.fit(stacked)
 
-    def call(self, u, v, t, q):
+    def call(self, args: Sequence[tf.Variable]):
         # assume has dims: batch, z
-        stacked = tf.concat([u, v, t, q], axis=-1)
+        u, v, t, q = args[:4]
+        args = [atleast_2d(arg) for arg in args]
+        stacked = tf.concat(args, axis=-1)
         hidden = self.relu(self.linear(self.norm(stacked)))
 
         return (

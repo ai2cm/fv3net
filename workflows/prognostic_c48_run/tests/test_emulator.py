@@ -7,7 +7,6 @@ from runtime.emulator import (
     OnlineEmulator,
     OnlineEmulatorConfig,
     NormLayer,
-    xarray_to_dataset,
 )
 import pytest
 
@@ -38,8 +37,29 @@ def test_OnlineEmulator_predict_raises(state):
         emulator.predict(state)
 
 
-def test_OnlineEmulator_fit_predict(state):
-    config = OnlineEmulatorConfig(batch_size=32, learning_rate=0.001, momentum=0.0,)
+def test_OnlineEmulator_fails_when_accessing_nonexistant_var(state):
+    config = OnlineEmulatorConfig(
+        batch_size=32,
+        learning_rate=0.001,
+        momentum=0.0,
+        extra_input_variables=["not a varialbe in any state 332r23r90e9d"],
+    )
+
+    emulator = OnlineEmulator(config)
+    with pytest.raises(KeyError):
+        emulator.partial_fit(state, state)
+
+
+@pytest.mark.parametrize(
+    "extra_inputs", [[], ["cos_zenith_angle", "surface_pressure"]],
+)
+def test_OnlineEmulator_fit_predict(state, extra_inputs):
+    config = OnlineEmulatorConfig(
+        batch_size=32,
+        learning_rate=0.001,
+        momentum=0.0,
+        extra_input_variables=extra_inputs,
+    )
 
     emulator = OnlineEmulator(config)
     emulator.partial_fit(state, state)
@@ -55,7 +75,7 @@ def test_UVTQSimple():
     v = tf.ones(shape)
     t = tf.ones(shape)
     q = tf.ones(shape)
-    up, vp, tp, qp = model(u, v, t, q)
+    up, vp, tp, qp = model([u, v, t, q])
 
     for v in [up, vp, tp, qp]:
         assert tuple(v.shape) == shape
@@ -88,11 +108,6 @@ def test_NormLayer_gradient_works():
     (g,) = tape.gradient(y, [u])
     expected = 1 / (layer.sigma + layer.epsilon)
     np.testing.assert_array_almost_equal(expected, g[0, :])
-
-
-def test_xarray_to_dataset(state):
-    d = xarray_to_dataset(state, state)
-    (u, v, t, p), (ut, vt, tt, pt) = next(iter(d))
 
 
 def test_tf_dataset_behaves_as_expected_for_tuples():

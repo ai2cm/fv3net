@@ -275,7 +275,10 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
         # TODO Dedup this with related logic in monitor
         vars_ = list(
-            set(self._tendency_variables) | set(self._storage_variables) | {DELP}
+            set(self._tendency_variables)
+            | set(self._storage_variables)
+            | {DELP}
+            | set(self._online_emulator.input_variables)
         )
         before = {key: self._state[key] for key in vars_}
         self._fv3gfs.apply_physics()
