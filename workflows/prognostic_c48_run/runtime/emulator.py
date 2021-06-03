@@ -1,7 +1,7 @@
 from collections import defaultdict
 import dataclasses
-from typing import Mapping, Optional, Sequence, Tuple
 from matplotlib import pyplot as plt
+from typing import Mapping, Optional, List, Tuple, Sequence
 import xarray as xr
 import tensorflow as tf
 from runtime.diagnostics.tensorboard import plot_to_image
@@ -41,7 +41,7 @@ class OnlineEmulatorConfig:
     learning_rate: float = 0.01
     momentum: float = 0.5
     online: bool = False
-    extra_input_variables: Sequence[str] = ()
+    extra_input_variables: List[str] = dataclasses.field(default_factory=list)
     q_weight: float = 1e6
     u_weight: float = 100
     t_weight: float = 100
@@ -51,9 +51,8 @@ class OnlineEmulatorConfig:
     output_path: str = ""
 
     @property
-    def input_variables(self) -> Tuple[str]:
-        return (U, V, T, Q) + tuple(self.extra_input_variables)
-
+    def input_variables(self) -> List[str]:
+        return [U, V, T, Q] + list(self.extra_input_variables)
 
 def stack(state: State, keys) -> xr.Dataset:
     ds = xr.Dataset({key: state[key] for key in keys})
