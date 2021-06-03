@@ -3,7 +3,7 @@ import contextlib
 
 from fv3fit._shared.config import (
     register_estimator,
-    get_config_class,
+    get_hyperparameter_class,
     get_estimator_class,
     TrainingConfig,
     ESTIMATORS,
@@ -45,7 +45,7 @@ def test_get_estimator_class_returns_after_registering():
 def test_get_config_class_raises_before_registering():
     with registration_context():
         with pytest.raises(ValueError):
-            get_config_class("MyModel")
+            get_hyperparameter_class("MyModel")
 
 
 def test_get_config_class_returns_after_registering():
@@ -55,7 +55,7 @@ def test_get_config_class_returns_after_registering():
         class MyModel:
             pass
 
-        cls = get_config_class("name")
+        cls = get_hyperparameter_class("name")
         assert cls == MyConfig
 
 

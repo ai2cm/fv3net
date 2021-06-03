@@ -4,8 +4,8 @@ from ._shared.io import dump, load
 from ._shared.config import (
     TrainingConfig,
     DataConfig,
-    SklearnTrainingConfig,
-    DenseTrainingConfig,
+    DenseHyperparameters,
+    RandomForestHyperparameters,
     load_training_config,
 )
 from . import keras, sklearn, testing

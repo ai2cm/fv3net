@@ -25,17 +25,20 @@ class Predictor(abc.ABC):
         sample_dim_name: str,
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
+        **kwargs,
     ):
-        """Initialize the predictor
+        """Initialize the predictor.
         
         Args:
             sample_dim_name: name of sample dimension
             input_variables: names of input variables
             output_variables: names of output variables
-        
         """
-
         super().__init__()
+        if len(kwargs.keys()) > 0:
+            raise TypeError(
+                f"received unexpected keyword arguments: {tuple(kwargs.keys())}"
+            )
         self.sample_dim_name = sample_dim_name
         self.input_variables = input_variables
         self.output_variables = output_variables

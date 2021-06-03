@@ -12,7 +12,7 @@ from offline_ml_diags._mapper import (
 from sklearn.dummy import DummyRegressor
 
 from fv3fit.keras import DummyModel
-from fv3fit.sklearn import SklearnWrapper
+from fv3fit.sklearn._random_forest import SklearnWrapper
 from vcm import safe
 
 
