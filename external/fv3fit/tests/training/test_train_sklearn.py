@@ -8,7 +8,7 @@ import numpy as np
 import copy
 
 
-from fv3fit.sklearn._wrapper import RandomForest
+from fv3fit.sklearn._random_forest import RandomForest
 
 logger = logging.getLogger(__name__)
 

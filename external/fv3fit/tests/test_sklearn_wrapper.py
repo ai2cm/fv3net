@@ -6,7 +6,7 @@ import pytest
 import xarray as xr
 import joblib
 
-from fv3fit.sklearn._wrapper import RegressorEnsemble, pack, SklearnWrapper
+from fv3fit.sklearn._random_forest import _RegressorEnsemble, pack, SklearnWrapper
 from fv3fit._shared.scaler import ManualScaler
 
 
@@ -55,7 +55,7 @@ def test_flatten_same_order():
 @pytest.fixture
 def test_regressor_ensemble():
     base_regressor = LinearRegression()
-    ensemble_regressor = RegressorEnsemble(base_regressor)
+    ensemble_regressor = _RegressorEnsemble(base_regressor)
     num_batches = 3
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
     y = np.dot(X, np.array([1, 2])) + 3
@@ -142,7 +142,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
         scaler = ManualScaler(np.array([scale_factor]))
     else:
         scaler = None
-    model = RegressorEnsemble(base_regressor=LinearRegression())
+    model = _RegressorEnsemble(base_regressor=LinearRegression())
     wrapper = SklearnWrapper(
         sample_dim_name="sample",
         input_variables=["x"],
@@ -165,7 +165,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
 
 
 def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
-    model = RegressorEnsemble(base_regressor=LinearRegression())
+    model = _RegressorEnsemble(base_regressor=LinearRegression())
     wrapper = SklearnWrapper(
         sample_dim_name="sample",
         input_variables=["x"],
@@ -195,7 +195,7 @@ def test_predict_columnwise_is_deterministic(regtest):
     If this fails, look for non-deterministic logic (e.g. converting sets to lists)
     """
     nz = 2
-    model = RegressorEnsemble(
+    model = _RegressorEnsemble(
         base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz))
     )
     wrapper = SklearnWrapper(
