@@ -487,7 +487,7 @@ for mask_type in ["global", "land", "sea"]:
     @add_to_diags("physics")
     @diag_finalizer(f"diurnal_{mask_type}")
     @transform.apply("mask_to_sfc_type", mask_type)
-    @transform.apply("resample_time", "1H", time_slice=slice(24, -1), inner_join=True)
+    @transform.apply("resample_time", "1H", inner_join=True)
     @transform.apply("subset_variables", DIURNAL_CYCLE_VARS)
     def _diurnal_func(
         prognostic, verification, grid, mask_type=mask_type
