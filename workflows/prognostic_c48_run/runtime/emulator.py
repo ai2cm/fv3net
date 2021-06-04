@@ -28,6 +28,10 @@ class OnlineEmulatorConfig:
     momentum: float = 0.5
     online: bool = False
     extra_input_variables: Sequence[str] = (U, V, T, Q)
+    q_weight: float = 1e6
+    u_weight: float = 100
+    t_weight: float = 100
+    v_weight: float = 100
 
     @property
     def input_variables(self) -> Tuple[str]:
@@ -85,7 +89,12 @@ class OnlineEmulator:
                 loss_v = tf.reduce_mean(tf.keras.losses.mean_squared_error(vt, vp))
                 loss_t = tf.reduce_mean(tf.keras.losses.mean_squared_error(tt, tp))
                 loss_q = tf.reduce_mean(tf.keras.losses.mean_squared_error(qt, qp))
-                loss = loss_u * 100 + loss_v * 100 + loss_t * 100 + loss_q * 1e6
+                loss = (
+                    loss_u * self.config.u_weight
+                    + loss_v * self.config.v_weight
+                    + loss_t * self.config.t_weight
+                    + loss_q * self.config.q_weight
+                )
 
             vars = self.model.trainable_variables
             grads = tape.gradient(loss, vars)
