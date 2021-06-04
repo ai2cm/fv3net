@@ -15,10 +15,7 @@ def plot_to_image(figure):
     returns it. The supplied figure is closed and inaccessible after this call."""
     # Save the plot to a PNG in memory.
     buf = io.BytesIO()
-    plt.savefig(buf, format="png")
-    # Closing the figure prevents it from being displayed directly inside
-    # the notebook.
-    plt.close(figure)
+    figure.savefig(buf, format="png")
     buf.seek(0)
     # Convert PNG buffer to TF image
     image = tf.image.decode_png(buf.getvalue(), channels=4)
