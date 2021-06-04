@@ -86,8 +86,6 @@ spec:
             parameters:
                 - name: diags-url
                   value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run_diagnostics"
-                - name: output-url
-                  value: "gs://vcm-ml-public/argo/{{inputs.parameters.project}}-{{workflow.creationTimestamp.%Y-%m-%d}}-{{inputs.parameters.tag}}"
       - - name: exit
           template: exit
           when: "{{steps.run-model.status}} == Failed"
