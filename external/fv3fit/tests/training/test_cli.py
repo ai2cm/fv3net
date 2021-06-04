@@ -10,6 +10,10 @@ import subprocess
     "model_info",
     [
         dict(
+            model_type="sklearn_random_forest",
+            hyperparameters={"max_depth": 4, "n_estimators": 2},
+        ),
+        dict(
             model_type="DenseModel",
             hyperparameters={
                 "width": 4,
@@ -25,10 +29,6 @@ import subprocess
                 "fit_kwargs": {"batch_size": 100, "validation_samples": 384},
             },
             save_model_checkpoints=True,
-        ),
-        dict(
-            model_type="sklearn_random_forest",
-            hyperparameters={"max_depth": 4, "n_estimators": 2},
         ),
     ],
 )

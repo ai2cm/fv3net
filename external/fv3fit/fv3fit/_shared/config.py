@@ -1,10 +1,16 @@
 import dataclasses
+from typing_extensions import Literal
 import fsspec
 import yaml
 import os
-from typing import Optional, Tuple, Union, Sequence, List, Type, Dict
+from typing import Any, Mapping, Optional, Tuple, Union, Sequence, List, Type, Dict
+from fv3fit.typing import Dataclass
 import xarray as xr
 from .predictor import Estimator
+import dacite
+
+# TODO: move all keras configs under fv3fit.keras
+import tensorflow as tf
 
 from loaders import batches
 
@@ -26,47 +32,33 @@ class TrainingConfig:
         model_type: sklearn model type or keras model class to initialize
         input_variables: variables used as features
         output_variables: variables to predict
-        additional_variables: list of needed variables which are not inputs
-            or outputs (e.g. pressure thickness if needed for scaling)
-        hyperparameters: arguments to pass to model class at initialization
-            time
+        hyperparameters: model_type-specific training configuration
+        sample_dim_name: deprecated, internal name used for sample dimension
+            when training and predicting
         random_seed: value to use to initialize randomness
-        model_path: output location for final model
-        batch_function: name of function from `fv3fit.batches` to use for
-            loading batched data
-        batch_kwargs: keyword arguments to pass to batch function
-        data_path: location of training data to be loaded by batch function
-        scaler_type: scaler to use for training
-        scaler_kwargs: keyword arguments to pass to scaler initialization
-        validation_timesteps: timestamps to use as validation samples
-        save_model_checkpoints: whether to save a copy of the model at
-            each epoch
-        timesteps_source: one of "timesteps_file",
-            "sampled_outside_input_config", "input_config", "all_mapper_times"
     """
 
     model_type: str
     input_variables: List[str]
     output_variables: List[str]
-    additional_variables: List[str] = dataclasses.field(default_factory=list)
-    hyperparameters: dict = dataclasses.field(default_factory=dict)
+    hyperparameters: Dataclass
+    sample_dim_name: str = "sample"
     random_seed: Union[float, int] = 0
-    model_path: str = ""
 
     @classmethod
     def from_dict(cls, kwargs) -> "TrainingConfig":
-        if cls is TrainingConfig:
-            subclass = get_config_class(kwargs["model_type"])
-            result = subclass.from_dict(kwargs)
-        else:
-            result = cls(**kwargs)
-        return result
+        kwargs = {**kwargs}  # make a copy to avoid mutating the input
+        hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
+        kwargs["hyperparameters"] = dacite.from_dict(
+            data_class=hyperparameter_class, data=kwargs["hyperparameters"]
+        )
+        return dacite.from_dict(data_class=cls, data=kwargs)
 
 
-ESTIMATORS: Dict[str, Tuple[Type[Estimator], Type[TrainingConfig]]] = {}
+ESTIMATORS: Dict[str, Tuple[Type[Estimator], Type[Dataclass]]] = {}
 
 
-def get_config_class(model_type: str) -> Type[TrainingConfig]:
+def get_hyperparameter_class(model_type: str) -> Type:
     if model_type in ESTIMATORS:
         _, subclass = ESTIMATORS[model_type]
     else:
@@ -82,14 +74,14 @@ def get_estimator_class(model_type: str) -> Type[Estimator]:
     return estimator_class
 
 
-def register_estimator(name: str, config_class: type):
+def register_estimator(name: str, hyperparameter_class: type):
     """
     Returns a decorator that will register the given class as a keras training
     class, which can be used in training configuration.
     """
 
     def decorator(cls):
-        ESTIMATORS[name] = (cls, config_class)
+        ESTIMATORS[name] = (cls, hyperparameter_class)
         return cls
 
     return decorator
@@ -113,53 +105,113 @@ class DataConfig:
     batch_kwargs: dict
 
 
+@dataclasses.dataclass
+class OptimizerConfig:
+    name: str
+    kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
+
+    @property
+    def instance(self) -> tf.keras.optimizers.Optimizer:
+        cls = getattr(tf.keras.optimizers, self.name)
+        return cls(**self.kwargs)
+
+
+@dataclasses.dataclass
+class RegularizerConfig:
+    name: str
+    kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
+
+    @property
+    def instance(self) -> tf.keras.regularizers.Regularizer:
+        cls = getattr(tf.keras.regularizers, self.name)
+        return cls(**self.kwargs)
+
+
 # TODO: move this class to where the Dense training is defined when config.py
 # no longer depends on it (i.e. when _ModelTrainingConfig is deleted)
 @dataclasses.dataclass
-class DenseTrainingConfig(TrainingConfig):
+class DenseHyperparameters:
     """
-    Attrs:
-        model_type: sklearn model type or keras model class to initialize
-        input_variables: variables used as features
-        output_variables: variables to predict
-        additional_variables: list of needed variables which are not inputs
-            or outputs (e.g. pressure thickness if needed for scaling)
-        hyperparameters: arguments to pass to model class at initialization
-            time
-        random_seed: value to use to initialize randomness
-        model_path: output location for final model
-        save_model_checkpoints: whether to save a copy of the model at
-            each epoch
+    Configuration for training a dense neural network based model.
+
+    Args:
+        weights: loss function weights, defined as a dict whose keys are
+            variable names and values are either a scalar referring to the total
+            weight of the variable. Default is a total weight of 1
+            for each variable.
+        normalize_loss: if True (default), normalize outputs by their standard
+            deviation before computing the loss function
+        optimizer_config: selection of algorithm to be used in gradient descent
+        kernel_regularizer_config: selection of regularizer for hidden dense layer
+            weights, by default no regularization is applied
+        depth: number of dense layers to use between the input and output layer.
+            The number of hidden layers will be (depth - 1)
+        width: number of neurons to use on layers between the input and output layer
+        gaussian_noise: how much gaussian noise to add before each Dense layer,
+            apart from the output layer
+        loss: loss function to use, should be 'mse' or 'mae'
+        spectral_normalization: whether to apply spectral normalization to hidden layers
+        save_model_checkpoints: if True, save one model per epoch when
+            dumping, under a 'model_checkpoints' subdirectory
+        fit_kwargs: other keyword arguments to be passed to the underlying
+            tf.keras.Model.fit() method
     """
 
+    weights: Optional[Mapping[str, Union[int, float]]] = None
+    normalize_loss: bool = True
+    optimizer_config: OptimizerConfig = dataclasses.field(
+        default_factory=lambda: OptimizerConfig("Adam")
+    )
+    kernel_regularizer_config: Optional[RegularizerConfig] = None
+    depth: int = 3
+    width: int = 16
+    gaussian_noise: float = 0.0
+    loss: str = "mse"
+    spectral_normalization: bool = False
     save_model_checkpoints: bool = False
+
+    # TODO: remove fit_kwargs by fixing how validation data is passed
+    fit_kwargs: Optional[dict] = None
 
 
 @dataclasses.dataclass
-class SklearnTrainingConfig(TrainingConfig):
+class RandomForestHyperparameters:
     """
-    Attrs:
-        model_type: sklearn model type or keras model class to initialize
-        input_variables: variables used as features
-        output_variables: variables to predict
-        additional_variables: list of needed variables which are not inputs
-            or outputs (e.g. pressure thickness if needed for scaling)
-        hyperparameters: arguments to pass to model class at initialization
-            time
-        random_seed: value to use to initialize randomness
-        model_path: output location for final model
+    Configuration for training a random forest based model.
+
+    Trains one random forest for each training batch provided.
+
+    For more information about these settings, see documentation for
+    `sklearn.ensemble.RandomForestRegressor`.
+
+    Args:
         scaler_type: scaler to use for training
         scaler_kwargs: keyword arguments to pass to scaler initialization
+        n_jobs: ???
+        random_state: random seed to use when building trees, will be
+            deterministically perturbed for each training batch
+        n_estimators: the number of trees in each forest
+        max_depth: maximum depth of each tree
+        min_samples_split: minimum number of samples required to split an internal node
+        min_samples_leaf: minimum number of samples required to be at a leaf node
+        max_features: number of features to consider when looking for the best split
+        max_samples: if bootstrap is True, number of samples to draw
+            for each base estimator
+        bootstrap: whether bootstrap samples are used when building trees.
+            If False, the whole dataset is used to build each tree.
     """
 
     scaler_type: str = "standard"
-    scaler_kwargs: dict = dataclasses.field(default_factory=dict)
-
-    def __post_init__(self):
-        # TODO: turn this into an exception if DELP is not present
-        if self.scaler_type == "mass":
-            if DELP not in self.additional_variables:
-                self.additional_variables.append(DELP)
+    scaler_kwargs: Optional[Mapping] = None
+    n_jobs: int = -1
+    random_state: int = 0
+    n_estimators: int = 100
+    max_depth: Optional[int] = None
+    min_samples_split: Union[int, float] = 2
+    min_samples_leaf: Union[int, float] = 1
+    max_features: Union[Literal["auto", "sqrt", "log2"], int, float] = "auto"
+    max_samples: Optional[Union[int, float]] = None
+    bootstrap: bool = True
 
 
 @dataclasses.dataclass
@@ -228,36 +280,30 @@ class _ModelTrainingConfig:
 
 
 def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> TrainingConfig:
-    config_dict = dataclasses.asdict(legacy_config)
     config_class = ESTIMATORS[legacy_config.model_type][1]
-    if config_class is SklearnTrainingConfig:
-        keys = [
-            "model_type",
-            "hyperparameters",
-            "input_variables",
-            "output_variables",
-            "additional_variables",
-            "random_seed",
-            "model_path",
-            "scaler_type",
-            "scaler_kwargs",
-        ]
-    elif config_class is DenseTrainingConfig:
-        keys = [
-            "model_type",
-            "hyperparameters",
-            "input_variables",
-            "output_variables",
-            "additional_variables",
-            "random_seed",
-            "model_path",
-            "save_model_checkpoints",
-        ]
+    keys = [
+        "model_type",
+        "hyperparameters",
+        "input_variables",
+        "output_variables",
+        "random_seed",
+        "sample_dim_name",
+    ]
+    if config_class is RandomForestHyperparameters:
+        for key in ("scaler_type", "scaler_kwargs"):
+            legacy_config.hyperparameters[key] = getattr(legacy_config, key)
+    elif config_class is DenseHyperparameters:
+        legacy_config.hyperparameters[
+            "save_model_checkpoints"
+        ] = legacy_config.save_model_checkpoints
         fit_kwargs = legacy_config.hyperparameters.pop("fit_kwargs", {})
-        fit_kwargs["validation_dataset"] = validation_dataset(legacy_config)
+        if legacy_config.validation_timesteps is not None:
+            fit_kwargs["validation_dataset"] = validation_dataset(legacy_config)
         legacy_config.hyperparameters["fit_kwargs"] = fit_kwargs
     else:
         raise NotImplementedError(f"unknown model type {legacy_config.model_type}")
+    config_dict = dataclasses.asdict(legacy_config)
+    config_dict["sample_dim_name"] = "sample"
     training_config = TrainingConfig.from_dict(
         {key: config_dict[key] for key in keys if key in config_dict}
     )
@@ -270,7 +316,7 @@ def load_configs(
     output_data_path: str,
     timesteps_file=None,
     validation_timesteps_file=None,
-) -> Tuple[_ModelTrainingConfig, TrainingConfig, DataConfig, Optional[DataConfig]]:
+) -> Tuple[TrainingConfig, DataConfig, Optional[DataConfig]]:
     """Load training configuration information from a legacy yaml config path.
 
     Dumps the legacy configuration class to the output_data_path.
@@ -283,8 +329,8 @@ def load_configs(
     legacy_config = _ModelTrainingConfig.load(config_path)
     legacy_config.data_path = data_path
     legacy_config.dump(output_data_path)
-    training_config = legacy_config_to_new_config(legacy_config)
     config_dict = dataclasses.asdict(legacy_config)
+    training_config = legacy_config_to_new_config(legacy_config)
 
     variables = (
         config_dict["input_variables"]
@@ -321,7 +367,7 @@ def load_configs(
     else:
         validation_data_config = None
 
-    return legacy_config, training_config, train_data_config, validation_data_config
+    return training_config, train_data_config, validation_data_config
 
 
 # TODO: this should be made to work regardless of whether we're using

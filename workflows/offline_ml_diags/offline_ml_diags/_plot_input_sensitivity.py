@@ -4,7 +4,7 @@ import numpy as np
 import os
 import logging
 from typing import Mapping, Tuple
-from fv3fit.sklearn import SklearnWrapper
+from fv3fit.sklearn._random_forest import SklearnWrapper
 import fv3fit.keras._models
 
 
