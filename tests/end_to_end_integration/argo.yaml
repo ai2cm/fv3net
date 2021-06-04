@@ -105,9 +105,9 @@ spec:
                 time: 1
               variables:
                 - net_moistening_due_to_nudging
-                - net_heating_due_to_nudging
+                - column_heating_due_to_nudging
                 - net_mass_tendency_due_to_nudging
-                - total_precip
+                - total_precipation_rate
                 - water_vapor_path
                 - physics_precip
             - name: nudging_tendencies.zarr
@@ -241,7 +241,7 @@ spec:
           base_version: v0.6
           namelist:
             coupler_nml:
-              hours: 4
+              hours: 8
               minutes: 0
             diag_manager_nml:
               flush_nc_files: true
@@ -312,16 +312,33 @@ spec:
           diagnostics:
             - name: diags.zarr
               chunks:
-                time: 16           
+                time: 16
               times:
                 frequency: 900
                 kind: interval
               variables:
-              - net_moistening
-              - net_heating
+              - net_moistening_due_to_machine_learning
+              - column_heating_due_to_machine_learning
               - total_precipitation_rate
               - water_vapor_path
               - physics_precip
+            - name: state_after_timestep.zarr
+              chunks:
+                time: 1
+              times:
+                frequency: 3600
+                kind: interval
+              variables:
+                - eastward_wind
+                - northward_wind
+                - vertical_wind
+                - air_temperature
+                - specific_humidity
+                - pressure_thickness_of_atmospheric_layer
+                - vertical_thickness_of_atmospheric_layer
+                - land_sea_mask
+                - surface_temperature
+                - surface_geopotential
   serviceAccountName: integration-tests
   tolerations:
     - effect: NoSchedule

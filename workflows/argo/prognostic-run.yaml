@@ -77,6 +77,15 @@ spec:
                   value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run_diagnostics"
                 - name: flags
                   value: "{{inputs.parameters.online-diags-flags}}"
+      - - name: online-diags-report
+          when: "{{inputs.parameters.online-diags}} == true"
+          templateRef:
+            name: prognostic-run-diags
+            template: report-single-run
+          arguments:
+            parameters:
+                - name: diags-url
+                  value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run_diagnostics"
       - - name: exit
           template: exit
           when: "{{steps.run-model.status}} == Failed"
