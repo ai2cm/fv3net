@@ -65,7 +65,7 @@ spec:
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
       - - name: online-diags
-          when: "{{input.parameters.online-diags}} == true"
+          when: "{{inputs.parameters.online-diags}} == true"
           templateRef:
             name: prognostic-run-diags
             template: diagnostics
