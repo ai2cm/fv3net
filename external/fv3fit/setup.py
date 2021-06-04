@@ -14,6 +14,7 @@ requirements = [
     "tensorflow>=2.2.0",
     "tensorflow-addons>=0.11.2",
     "typing_extensions>=3.7.4.3",
+    "dacite>=1.6.0",
 ]
 
 setup_requirements = []

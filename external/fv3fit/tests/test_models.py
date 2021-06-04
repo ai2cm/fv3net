@@ -1,10 +1,11 @@
+from fv3fit._shared.config import DenseHyperparameters
 import xarray as xr
 import numpy as np
 
 import pytest
 
 from fv3fit.keras._models._sequences import _ThreadedSequencePreLoader
-from fv3fit.keras._models.models import PackedKerasModel, _fill_default
+from fv3fit.keras._models.models import DenseModel, _fill_default
 import tensorflow.keras
 
 
@@ -19,8 +20,8 @@ def test__ThreadedSequencePreLoader():
 
 
 @pytest.mark.parametrize("base_state", ["manual", "default"])
-def test_PackedKerasModel_jacobian(base_state):
-    class IdentityModel(PackedKerasModel):
+def test_DenseModel_jacobian(base_state):
+    class IdentityModel(DenseModel):
         def get_model(self, n, m):
             x = tensorflow.keras.Input(shape=[n])
             model = tensorflow.keras.Model(inputs=[x], outputs=[x])
@@ -33,7 +34,7 @@ def test_PackedKerasModel_jacobian(base_state):
             "b": (["x", "z"], np.arange(10).reshape(2, 5)),
         }
     )
-    model = IdentityModel("x", ["a"], ["b"])
+    model = IdentityModel("x", ["a"], ["b"], DenseHyperparameters())
     model.fit([batch])
     if base_state == "manual":
         jacobian = model.jacobian(batch[["a"]].isel(x=0))

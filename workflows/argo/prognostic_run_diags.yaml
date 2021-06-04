@@ -95,6 +95,27 @@ spec:
             requests:
               cpu: "1000m"
               memory: "{{inputs.parameters.memory}}"
+  - name: report-single-run
+    inputs:
+      parameters:
+      - name: diags-url
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "med-sim-pool"
+      effect: "NoSchedule"
+    container:
+      image: us.gcr.io/vcm-ml/fv3net
+      resources:
+        requests:
+          memory: "6Gi"
+          cpu: "1000m"
+      command: ["bash", "-c", "-x", "-e"]
+      args:
+      - |
+        output_path=vcm-ml-public/argo/$(date +%F)-$(openssl rand -hex 6)
+        prognostic_run_diags report-from-urls "{{inputs.parameters.diags-url}}" -o gs://${output_path}
+        echo "Prognostic run report available at https://storage.googleapis.com/${output_path}/index.html"
   - name: diagnostics
     inputs:
       parameters:

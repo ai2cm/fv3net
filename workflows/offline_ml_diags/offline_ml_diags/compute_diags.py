@@ -23,13 +23,14 @@ from vcm import safe, interpolate_to_pressure_levels
 import vcm
 from vcm.cloud import get_fs
 import fv3fit
-from ._plot_jacobian import plot_jacobian
+from ._plot_input_sensitivity import plot_jacobian, plot_rf_feature_importance
 from ._metrics import compute_metrics
 from ._mapper import PredictionMapper
 from ._helpers import (
     load_grid_info,
     sample_outside_train_range,
     is_3d,
+    get_variable_indices,
 )
 from ._select import meridional_transect, nearest_time
 
@@ -402,6 +403,7 @@ def main(args):
     batches = loaders.batches.batches_from_mapper(
         pred_mapper, variables, timesteps=timesteps, training=False, **batch_kwargs,
     )
+
     # compute diags
     ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diagnostics(
         batches, grid, predicted_vars=config.output_variables
@@ -422,7 +424,17 @@ def main(args):
             os.path.join(args.output_path, "model_sensitivity_figures"),  # type: ignore
         )
     except AttributeError:
-        pass
+        try:
+            input_feature_indices = get_variable_indices(
+                data=pred_mapper[timesteps[0]], variables=model.input_variables
+            )
+            plot_rf_feature_importance(
+                input_feature_indices,
+                model,
+                os.path.join(args.output_path, "model_sensitivity_figures"),
+            )
+        except AttributeError:
+            pass
 
     # compute transected and zonal diags
     snapshot_time = args.snapshot_time or sorted(timesteps)[0]
