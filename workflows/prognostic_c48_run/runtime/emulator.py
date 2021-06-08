@@ -2,6 +2,7 @@ from collections import defaultdict
 import dataclasses
 from matplotlib import pyplot as plt
 from typing import Mapping, Optional, List, Tuple, Sequence
+from matplotlib import pyplot as plt
 import xarray as xr
 import tensorflow as tf
 from runtime.diagnostics.tensorboard import plot_to_image
@@ -175,6 +176,15 @@ class OnlineEmulator:
                 self.log_profiles(
                     "humidity_prediction", (out[3] - x[3]).numpy().T, step=i
                 )
+                self.log_profiles("humidity_truth", (y[3] - x[3]).numpy().T, step=i)
+                self.log_profiles(
+                    "humidity_prediction", (out[3] - x[3]).numpy().T, step=i
+                )
+
+    def log_profiles(self, key, data, step):
+        fig = plt.figure()
+        plt.plot(data)
+        tf.summary.image(key, plot_to_image(fig), step)
 
     def log_profiles(self, key, data, step):
         fig = plt.figure()
