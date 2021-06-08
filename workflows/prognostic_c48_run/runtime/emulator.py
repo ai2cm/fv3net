@@ -1,7 +1,10 @@
+from collections import defaultdict
 import dataclasses
 from typing import Mapping, Optional, Sequence, Tuple
+from matplotlib import pyplot as plt
 import xarray as xr
 import tensorflow as tf
+from runtime.diagnostics.tensorboard import plot_to_image
 
 U = "eastward_wind"
 V = "northward_wind"
@@ -10,6 +13,10 @@ Q = "specific_humidity"
 
 
 State = Mapping[str, xr.DataArray]
+
+
+def average(metrics):
+    return {key: sum(metrics[key]) / len(metrics[key]) for key in metrics}
 
 
 @dataclasses.dataclass
@@ -32,6 +39,7 @@ class OnlineEmulatorConfig:
     u_weight: float = 100
     t_weight: float = 100
     v_weight: float = 100
+    epochs: int = 1
 
     @property
     def input_variables(self) -> Tuple[str]:
@@ -66,58 +74,117 @@ class OnlineEmulator:
         self.optimizer = tf.optimizers.SGD(
             learning_rate=config.learning_rate, momentum=config.momentum
         )
-        self.scaler_fitted: bool = False
         self._statein: Optional[State] = None
         self.output_variables: Sequence[str] = (U, V, T, Q)
+        self._step = 0
 
     @property
     def input_variables(self):
         return self.config.input_variables
 
-    def partial_fit(self, statein: State, stateout: State):
+    def step(self, in_, out):
 
-        if self.model is None:
-            self.model = get_model(self.config, statein)
-            self.step = 0
+        with tf.GradientTape() as tape:
+            loss, info = self.get_loss(in_, out)
 
-        def step(self, in_, out):
-            with tf.GradientTape() as tape:
+        vars = self.model.trainable_variables
+        grads = tape.gradient(loss, vars)
+        self.optimizer.apply_gradients(zip(grads, vars))
 
-                up, vp, tp, qp = self.model(in_)
-                ut, vt, tt, qt = out
-                loss_u = tf.reduce_mean(tf.keras.losses.mean_squared_error(ut, up))
-                loss_v = tf.reduce_mean(tf.keras.losses.mean_squared_error(vt, vp))
-                loss_t = tf.reduce_mean(tf.keras.losses.mean_squared_error(tt, tp))
-                loss_q = tf.reduce_mean(tf.keras.losses.mean_squared_error(qt, qp))
-                loss = (
-                    loss_u * self.config.u_weight
-                    + loss_v * self.config.v_weight
-                    + loss_t * self.config.t_weight
-                    + loss_q * self.config.q_weight
+        for key in info:
+            tf.summary.scalar(key, info[key], step=self._step)
+        self._step += 1
+        return info
+
+    def get_loss(self, in_, out):
+        up, vp, tp, qp = self.model(in_)
+        ut, vt, tt, qt = out
+        loss_u = tf.reduce_mean(tf.keras.losses.mean_squared_error(ut, up))
+        loss_v = tf.reduce_mean(tf.keras.losses.mean_squared_error(vt, vp))
+        loss_t = tf.reduce_mean(tf.keras.losses.mean_squared_error(tt, tp))
+        loss_q = tf.reduce_mean(tf.keras.losses.mean_squared_error(qt, qp))
+        loss = (
+            loss_u * self.config.u_weight
+            + loss_v * self.config.v_weight
+            + loss_t * self.config.t_weight
+            + loss_q * self.config.q_weight
+        )
+        return (
+            loss,
+            {
+                "loss_u": loss_u.numpy(),
+                "loss_v": loss_v.numpy(),
+                "loss_q": loss_q.numpy(),
+                "loss_t": loss_t.numpy(),
+                "loss": loss.numpy(),
+            },
+        )
+
+    def batch_fit(self, d: tf.data.Dataset, validation_data=None):
+        """
+
+        Args:
+            d: a unbatched dataset of tensors. batching is controlled by the
+                routines in side this function
+            validation_data: an unbatched validation dataset
+        """
+
+        if not self.model:
+            argsin, argsout = next(iter(d.batch(10_000)))
+            self.model = get_model(self.config, argsin, argsout)
+
+        for i in range(self.config.epochs):
+            train_loss = defaultdict(lambda: [])
+            test_loss = defaultdict(lambda: [])
+            for x, y in d.batch(self.config.batch_size):
+                info = self.step(x, y)
+                for key in info:
+                    train_loss[key].append(info[key])
+
+            loss_epoch_train = average(train_loss)
+            self.log_dict("train_epoch", loss_epoch_train, step=i)
+
+            if validation_data:
+                for x, y in validation_data.batch(10_000):
+                    _, info = self.get_loss(x, y)
+                    for key in info:
+                        test_loss[key].append(info[key])
+
+                loss_epoch_test = average(test_loss)
+
+                self.log_dict("test_epoch", loss_epoch_test, step=i)
+
+                x, y = next(iter(validation_data.batch(3).take(1)))
+                out = self.model(x)
+                self.log_profiles(
+                    "eastward_wind_truth", (y[0] - x[0]).numpy().T, step=i
+                )
+                self.log_profiles(
+                    "eastward_wind_prediction", (out[0] - x[0]).numpy().T, step=i
+                )
+                self.log_profiles("humidity_truth", (y[3] - x[3]).numpy().T, step=i)
+                self.log_profiles(
+                    "humidity_prediction", (out[3] - x[3]).numpy().T, step=i
                 )
 
-            vars = self.model.trainable_variables
-            grads = tape.gradient(loss, vars)
-            self.optimizer.apply_gradients(zip(grads, vars))
+    def log_profiles(self, key, data, step):
+        fig = plt.figure()
+        plt.plot(data)
+        tf.summary.image(key, plot_to_image(fig), step)
 
-            tf.summary.scalar("loss_u", loss_u, step=self.step)
-            tf.summary.scalar("loss_v", loss_v, step=self.step)
-            tf.summary.scalar("loss_t", loss_t, step=self.step)
-            tf.summary.scalar("loss_q", loss_q, step=self.step)
-            tf.summary.scalar("loss", loss, step=self.step)
-            self.step += 1
+    @staticmethod
+    def log_dict(prefix, metrics, step):
+        for key in metrics:
+            tf.summary.scalar(prefix + "/" + key, metrics[key], step=step)
+
+    def partial_fit(self, statein: State, stateout: State):
 
         in_tensors = _xarray_to_tensor(statein, self.input_variables)
         out_tensors = _xarray_to_tensor(stateout, self.output_variables)
-        d = tf.data.Dataset.from_tensor_slices((in_tensors, out_tensors))
-
-        if self.model is not None:
-            if not self.scaler_fitted:
-                self.scaler_fitted = True
-                argsin, argsout = next(iter(d.batch(len(d))))
-                self.model.fit_scalers(argsin, argsout)
-            for x, y in d.shuffle(1_000_000).batch(self.config.batch_size):
-                step(self, x, y)
+        d = tf.data.Dataset.from_tensor_slices((in_tensors, out_tensors)).shuffle(
+            1_000_000
+        )
+        self.batch_fit(d)
 
     def predict(self, state: State) -> State:
         if self.model is None:
@@ -239,7 +306,6 @@ class UVTQSimple(tf.keras.layers.Layer):
         args = [atleast_2d(arg) for arg in args]
         stacked = tf.concat(args, axis=-1)
         hidden = self.relu(self.linear(self.norm(stacked)))
-
         return (
             u + self.scalers[0](self.out_u(hidden)),
             v + self.scalers[1](self.out_v(hidden)),
@@ -255,6 +321,10 @@ def needs_restart(state) -> bool:
     return False
 
 
-def get_model(config: OnlineEmulatorConfig, state: State) -> tf.keras.Model:
-    n = state["eastward_wind"].sizes["z"]
-    return UVTQSimple(n, n, n, n)
+def get_model(
+    config: OnlineEmulatorConfig, statein: Sequence[tf.Tensor], stateout
+) -> tf.keras.Model:
+    n = statein[0].shape[-1]
+    model = UVTQSimple(n, n, n, n)
+    model.fit_scalers(statein, stateout)
+    return model

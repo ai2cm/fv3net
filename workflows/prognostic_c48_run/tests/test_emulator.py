@@ -69,6 +69,19 @@ def test_OnlineEmulator_fit_predict(state, extra_inputs):
     assert list(stateout["eastward_wind"].dims) == ["z", "y", "x"]
 
 
+def test_OnlineEmulator_batch_fit():
+    config = OnlineEmulatorConfig(batch_size=32, learning_rate=0.001, momentum=0.0,)
+
+    one = tf.zeros([79])
+
+    u, v, t, q = one, one, one, one
+
+    dataset = tf.data.Dataset.from_tensors(((u, v, t, q), (u, v, t, q)))
+
+    emulator = OnlineEmulator(config)
+    emulator.batch_fit(dataset)
+
+
 def test_UVTQSimple():
     model = UVTQSimple(10, 10, 10, 10)
     shape = (3, 10)
