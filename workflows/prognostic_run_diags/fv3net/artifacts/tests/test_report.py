@@ -2,6 +2,7 @@ import os
 import fsspec
 from fv3net.artifacts.report import ReportIndex
 
+# flake8: noqa E501
 REPORT_SAMPLE = """<html>
 <head>
     <title>Prognostic run report</title>
