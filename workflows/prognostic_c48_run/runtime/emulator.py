@@ -114,7 +114,8 @@ class OnlineEmulator:
         if self.model is not None:
             if not self.scaler_fitted:
                 self.scaler_fitted = True
-                self.model.fit_scaler(next(iter(d.batch(len(d))))[0])
+                argsin, argsout = next(iter(d.batch(len(d))))
+                self.model.fit_scalers(argsin, argsout)
             for x, y in d.shuffle(1_000_000).batch(self.config.batch_size):
                 step(self, x, y)
 
@@ -166,6 +167,34 @@ class NormLayer(tf.keras.layers.Layer):
         return (tensor - self.mean) / (self.sigma + self.epsilon)
 
 
+class ScalarNormLayer(NormLayer):
+    """UnNormalize a vector using a scalar mean and standard deviation
+
+
+    """
+
+    def __init__(self, name=None):
+        super(ScalarNormLayer, self).__init__(name=name)
+
+    def build(self, in_shape):
+        self.mean = self.add_weight(
+            "mean", shape=[in_shape[-1]], dtype=tf.float32, trainable=False
+        )
+        self.sigma = self.add_weight(
+            "sigma", shape=[], dtype=tf.float32, trainable=False
+        )
+
+    def fit(self, tensor):
+        self(tensor)
+        self.mean.assign(tf.cast(tf.reduce_mean(tensor, axis=0), tf.float32))
+        self.sigma.assign(
+            tf.cast(tf.sqrt(tf.reduce_mean((tensor - self.mean) ** 2)), tf.float32,)
+        )
+
+    def call(self, tensor):
+        return tensor * self.sigma + self.mean
+
+
 def atleast_2d(x: tf.Variable) -> tf.Variable:
     n = len(x.shape)
     if n == 1:
@@ -185,10 +214,24 @@ class UVTQSimple(tf.keras.layers.Layer):
         self.out_t = tf.keras.layers.Dense(t_size, name="out_t")
         self.out_q = tf.keras.layers.Dense(q_size, name="out_q")
 
-    def fit_scaler(self, args: Sequence[tf.Variable]):
+        self.scalers = [ScalarNormLayer(name=f"out_{i}") for i in range(4)]
+
+    def _fit_input_scaler(self, args: Sequence[tf.Variable]):
         args = [atleast_2d(arg) for arg in args]
         stacked = tf.concat(args, axis=-1)
         self.norm.fit(stacked)
+
+    def _fit_output_scaler(
+        self, argsin: Sequence[tf.Variable], argsout: Sequence[tf.Variable]
+    ):
+        for i in range(len(self.scalers)):
+            self.scalers[i].fit(argsout[i] - argsin[i])
+
+    def fit_scalers(
+        self, argsin: Sequence[tf.Variable], argsout: Sequence[tf.Variable]
+    ):
+        self._fit_input_scaler(argsin)
+        self._fit_output_scaler(argsin, argsout)
 
     def call(self, args: Sequence[tf.Variable]):
         # assume has dims: batch, z
@@ -198,10 +241,10 @@ class UVTQSimple(tf.keras.layers.Layer):
         hidden = self.relu(self.linear(self.norm(stacked)))
 
         return (
-            u + self.out_u(hidden) / 10,
-            v + self.out_v(hidden) / 10,
-            t + self.out_t(hidden) / 10,
-            q + self.out_q(hidden) / 1000,
+            u + self.scalers[0](self.out_u(hidden)),
+            v + self.scalers[1](self.out_v(hidden)),
+            t + self.scalers[2](self.out_t(hidden)),
+            q + self.scalers[3](self.out_q(hidden)),
         )
 
 

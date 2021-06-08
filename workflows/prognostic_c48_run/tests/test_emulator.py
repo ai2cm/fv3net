@@ -7,6 +7,7 @@ from runtime.emulator import (
     OnlineEmulator,
     OnlineEmulatorConfig,
     NormLayer,
+    ScalarNormLayer,
 )
 import pytest
 
@@ -115,3 +116,13 @@ def test_tf_dataset_behaves_as_expected_for_tuples():
     d = tf.data.Dataset.from_tensor_slices(((u, u), (u, u)))
     (out, _), (_, _) = next(iter(d))
     assert (1,) == tuple(out.shape)
+
+
+def test_scalar_norm_layer():
+    input = np.array([[1, 2], [-1, -2]], dtype=np.float32)
+    expected = input * np.sqrt(10 / 4)
+
+    norm = ScalarNormLayer()
+    norm.fit(input)
+
+    np.testing.assert_allclose(norm(input).numpy(), expected)
