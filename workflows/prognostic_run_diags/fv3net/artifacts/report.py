@@ -61,7 +61,7 @@ class ReportIndex:
 
     def dump(self, url: str):
         with self.fs.open(url, "w") as f:
-            json.dump(self.reports_by_run, f)
+            json.dump(self.reports_by_run, f, sort_keys=True, indent=4)
 
     @classmethod
     async def _get_reports(cls, fs, url, filename):
@@ -74,7 +74,7 @@ class ReportIndex:
                 pass
             else:
                 report_lines = report_head.decode("UTF-8").split("\n")
-                for line in report_lines[15:]:
+                for line in report_lines:
                     if "gs://" in line:
                         run_url = line.strip(" ").split(" ")[1]
                         out.setdefault(run_url, []).append(report_url)
