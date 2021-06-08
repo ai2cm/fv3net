@@ -27,7 +27,7 @@ class OnlineEmulatorConfig:
     learning_rate: float = 0.01
     momentum: float = 0.5
     online: bool = False
-    extra_input_variables: Sequence[str] = (U, V, T, Q)
+    extra_input_variables: Sequence[str] = ()
     q_weight: float = 1e6
     u_weight: float = 100
     t_weight: float = 100
