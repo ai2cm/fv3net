@@ -756,6 +756,7 @@ diagnostics:
 - chunks:
     time: 96
   name: diags.zarr
+  tensorboard: false
   times:
     frequency: 900
     includes_lower: false

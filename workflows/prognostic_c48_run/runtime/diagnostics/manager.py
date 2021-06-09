@@ -8,6 +8,7 @@ from typing import (
     Optional,
     MutableMapping,
 )
+from typing_extensions import Protocol
 
 import cftime
 import logging
@@ -17,13 +18,14 @@ import dataclasses
 
 from .fortran import FortranFileConfig
 from .time import TimeConfig, TimeContainer
+from .tensorboard import TensorBoardSink
 
 logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
 class DiagnosticFileConfig:
-    """Configurations for zarr Diagnostic Files
+    """Configurations for Diagnostic Files
 
     Attributes:
         name: filename of a zarr to store the data in, e.g., 'diags.zarr'.
@@ -32,15 +34,30 @@ class DiagnosticFileConfig:
             are stored. Example: ``["air_temperature", "cos_zenith_angle"]``.
         times: the time configuration
         chunks: mapping of dimension names to chunk sizes
+        tensorboard: if True, then plot the variables and log them to a
+            tensorflow summary directory at "<rundir>/tensorboard". These logs can
+            then be viewed with tensorboard. If False (the default), then the
+            variables are saved to zarr. Only supports 2D variables.
     """
 
-    name: str
+    name: str = ""
     variables: Sequence[str] = dataclasses.field(default_factory=list)
     times: TimeConfig = dataclasses.field(default_factory=lambda: TimeConfig())
     chunks: Mapping[str, int] = dataclasses.field(default_factory=dict)
+    tensorboard: bool = False
 
     def to_dict(self) -> Dict:
         return dataclasses.asdict(self)
+
+    def _get_sink(
+        self, partitioner: fv3gfs.util.CubedSpherePartitioner, comm: Any,
+    ) -> "Sink":
+        if self.tensorboard:
+            return TensorBoardSink()
+        else:
+            return ZarrSink(
+                fv3gfs.util.ZarrMonitor(self.name, partitioner, mpi_comm=comm)
+            )
 
     def diagnostic_file(
         self,
@@ -48,17 +65,38 @@ class DiagnosticFileConfig:
         partitioner: fv3gfs.util.CubedSpherePartitioner,
         comm: Any,
     ) -> "DiagnosticFile":
+
         return DiagnosticFile(
             variables=self.variables,
             times=self.times.time_container(initial_time),
-            monitor=fv3gfs.util.ZarrMonitor(self.name, partitioner, mpi_comm=comm),
+            sink=self._get_sink(partitioner, comm),
         )
+
+
+class Sink(Protocol):
+    def sink(self, time: cftime.DatetimeJulian, data: Mapping[str, xr.DataArray]):
+        pass
+
+
+@dataclasses.dataclass
+class ZarrSink:
+    monitor: fv3gfs.util.ZarrMonitor
+
+    def sink(self, time: cftime.DatetimeJulian, data: Mapping[str, xr.DataArray]):
+        quantities = {
+            # need units for from_data_array to work
+            key: fv3gfs.util.Quantity.from_data_array(data[key])
+            for key in data
+        }
+
+        # patch this in manually. the ZarrMonitor needs it.
+        # We should probably modify this behavior.
+        quantities["time"] = time
+        self.monitor.store(quantities)
 
 
 class DiagnosticFile:
     """A object representing a time averaged diagnostics file
-
-    Provides a similar interface as the "diag_table"
 
     Replicates the abilities of the fortran models's diag_table by allowing
     the user to specify different output times for distinct sets of
@@ -71,13 +109,9 @@ class DiagnosticFile:
     """
 
     def __init__(
-        self,
-        variables: Sequence[str],
-        monitor: fv3gfs.util.ZarrMonitor,
-        times: TimeContainer,
+        self, variables: Sequence[str], times: TimeContainer, sink: Sink,
     ):
         """
-
         Note:
 
             The container used for times does not need to be a concrete list or python
@@ -92,13 +126,13 @@ class DiagnosticFile:
         """
         self.variables = variables
         self.times = times
-        self._monitor = monitor
 
         # variables used for averaging
         self._running_total: Dict[str, xr.DataArray] = {}
         self._current_label: Optional[cftime.DatetimeJulian] = None
         self._n = 0
         self._units: Dict[str, str] = {}
+        self._sink = sink
 
     def observe(
         self, time: cftime.DatetimeJulian, diagnostics: Mapping[str, xr.DataArray]
@@ -130,19 +164,12 @@ class DiagnosticFile:
     def flush(self):
         if self._current_label is not None:
             average = {key: val / self._n for key, val in self._running_total.items()}
-            quantities = {
-                # need units for from_data_array to work
-                key: fv3gfs.util.Quantity.from_data_array(
-                    average[key].assign_attrs(units=self._units[key])
-                )
-                for key in average
-                if key in self.variables
+            for key in average:
+                average[key].attrs["units"] = self._units[key]
+            data_to_sink = {
+                key: average[key] for key in average if key in self.variables
             }
-
-            # patch this in manually. the ZarrMonitor needs it.
-            # We should probably modify this behavior.
-            quantities["time"] = self._current_label
-            self._monitor.store(quantities)
+            self._sink.sink(self._current_label, data_to_sink)
 
     def __del__(self):
         self.flush()
