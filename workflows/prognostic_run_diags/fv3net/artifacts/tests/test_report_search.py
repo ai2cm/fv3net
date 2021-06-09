@@ -121,6 +121,7 @@ def test_ReportIndex_public_links():
     )
     expected_public_links = {"/report1/index.html", "/report2/index.html"}
     assert set(index.public_links("/path/to/run")) == expected_public_links
+    assert len(index.public_links("/run/not/in/index")) == 0
 
 
 def test_ReportIndex_reports():
