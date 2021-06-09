@@ -187,6 +187,10 @@ def render_index(metrics, ds_diags, ds_diurnal, ds_transect, output_dir) -> str:
 
     # time averaged column integrated quantity maps
     for var in column_integrated_metrics:
+        ds_diags[f"error_in_{var}"] = (
+            ds_diags.sel(derivation="predict")[var]
+            - ds_diags.sel(derivation="target")[var]
+        )
         fig = diagplot.plot_column_integrated_var(
             ds_diags, var, derivation_plot_coords=ds_diags[DERIVATION_DIM].values,
         )
@@ -194,6 +198,19 @@ def render_index(metrics, ds_diags, ds_diurnal, ds_transect, output_dir) -> str:
             report_sections,
             fig,
             filename=f"{var}.png",
+            section_name="Time averaged maps",
+            output_dir=output_dir,
+        )
+        fig_error = diagplot.plot_column_integrated_var(
+            ds_diags,
+            f"error_in_{var}",
+            derivation_plot_coords=None,
+            derivation_dim=None,
+        )
+        report.insert_report_figure(
+            report_sections,
+            fig_error,
+            filename=f"error_in_{var}.png",
             section_name="Time averaged maps",
             output_dir=output_dir,
         )
