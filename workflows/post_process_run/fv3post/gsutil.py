@@ -8,6 +8,13 @@ class GSUtilResumableUploadException(Exception):
     pass
 
 
+def _decode_to_str_if_bytes(s, encoding="utf-8"):
+    if isinstance(s, bytes):
+        return s.decode(encoding)
+    else:
+        return s
+
+
 def authenticate():
     try:
         credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
@@ -27,7 +34,8 @@ def upload_dir(d, dest):
             ["gsutil", "-m", "rsync", "-r", "-e", d, dest], stderr=subprocess.STDOUT
         )
     except subprocess.CalledProcessError as e:
-        if "ResumableUploadException" in e.output:
+        output = _decode_to_str_if_bytes(e.output)
+        if "ResumableUploadException" in output:
             raise GSUtilResumableUploadException()
         else:
             raise e

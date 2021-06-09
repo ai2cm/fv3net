@@ -7,17 +7,20 @@ from unittest.mock import MagicMock
 from fv3post.gsutil import upload_dir, GSUtilResumableUploadException
 
 
-UPLOAD_EXCEPTION = CalledProcessError(-1, None, output="ResumableUploadException")
-OTHER_EXCEPTION = CalledProcessError(-1, None, output="Other")
+UPLOAD_EXCEPTION_STR = CalledProcessError(-1, None, "ResumableUploadException")
+UPLOAD_EXCEPTION_BYTES = CalledProcessError(-1, None, b"ResumableUploadException")
+OTHER_EXCEPTION = CalledProcessError(-1, None, output=b"Other")
 
 
 @pytest.mark.parametrize(
     ("side_effect", "exception", "call_count"),
     [
-        (UPLOAD_EXCEPTION, GSUtilResumableUploadException, 3),
+        (UPLOAD_EXCEPTION_STR, GSUtilResumableUploadException, 3),
+        (UPLOAD_EXCEPTION_BYTES, GSUtilResumableUploadException, 3),
         (OTHER_EXCEPTION, CalledProcessError, 1),
         (None, None, 1),
-        ([UPLOAD_EXCEPTION, None], None, 2),
+        ([UPLOAD_EXCEPTION_STR, None], None, 2),
+        ([UPLOAD_EXCEPTION_BYTES, None], None, 2),
     ],
 )
 def test_upload_dir(monkeypatch, side_effect, exception, call_count):
