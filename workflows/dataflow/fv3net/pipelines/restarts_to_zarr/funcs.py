@@ -73,7 +73,11 @@ def main(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument("url", help="root directory of time steps")
     parser.add_argument("output", help="Location of output zarr")
-    parser.add_argument("--no-coarse-suffix", action='store_true')
+    parser.add_argument(
+        "--no-coarse-suffix",
+        action="store_true",
+        help="use if restart files do not have `_coarse` suffix in name",
+    )
     parser.add_argument("-s", "--n-steps", default=-1, type=int)
     parser.add_argument("--no-init", action="store_true")
     args, pipeline_args = parser.parse_known_args(argv)
@@ -86,8 +90,7 @@ def main(argv):
     categories = CATEGORIES
     if args.no_coarse_suffix:
         categories = [category.replace("_coarse", "") for category in categories]
-    logging.info(f"categories: {categories}")
-        
+
     tiles = [1, 2, 3, 4, 5, 6]
 
     # get schema for first timestep
@@ -99,7 +102,7 @@ def main(argv):
                 get_schema(fs, _file(args.url, time, category, tile=1))
                 for category in categories
             ]
-        ).drop_vars('tile', errors="ignore")
+        ).drop_vars("tile", errors="ignore")
         print("Schema:")
         print(schema)
 
