@@ -7,8 +7,8 @@ from unittest.mock import MagicMock
 from fv3post.gsutil import upload_dir, GSUtilResumableUploadException
 
 
-UPLOAD_EXCEPTION_STR = CalledProcessError(-1, None, "ResumableUploadException")
-UPLOAD_EXCEPTION_BYTES = CalledProcessError(-1, None, b"ResumableUploadException")
+UPLOAD_EXCEPTION_STR = CalledProcessError(-1, None, "foo\nResumableUploadException:")
+UPLOAD_EXCEPTION_BYTES = CalledProcessError(-1, None, b"foo\nResumableUploadException:")
 OTHER_EXCEPTION = CalledProcessError(-1, None, output=b"Other")
 
 
