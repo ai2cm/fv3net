@@ -1,6 +1,6 @@
 import os
 import fsspec
-from fv3net.artifacts.report import ReportIndex
+from fv3net.artifacts.report_search import ReportIndex
 
 # flake8: noqa E501
 REPORT_SAMPLE = """<html>

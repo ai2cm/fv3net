@@ -9,7 +9,7 @@ import pathlib
 import fsspec
 import gcsfs
 
-from .report import ReportIndex
+from .report_search import ReportIndex
 
 
 STEPS = [
