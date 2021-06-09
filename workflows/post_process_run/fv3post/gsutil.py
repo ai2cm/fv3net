@@ -22,6 +22,7 @@ def authenticate():
 @backoff.on_exception(backoff.expo, GSUtilResumableUploadException, max_tries=3)
 def upload_dir(d, dest):
     try:
+        # Pipe stderr to stdout because gsutil logs upload progress there.
         subprocess.check_output(
             ["gsutil", "-m", "rsync", "-r", "-e", d, dest], stderr=subprocess.STDOUT
         )
