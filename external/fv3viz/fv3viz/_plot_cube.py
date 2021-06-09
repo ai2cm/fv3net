@@ -186,7 +186,7 @@ def plot_cube(
             cb_ax = ax.inset_axes([1.05, 0, 0.02, 1])
         cbar = plt.colorbar(handles[0], cax=cb_ax, extend="both")
         cbar.set_label(
-            _get_var_label(plottable_variable[var_name].attrs, cbar_label or var_name)
+            cbar_label or _get_var_label(plottable_variable[var_name].attrs, var_name)
         )
     else:
         cbar = None
