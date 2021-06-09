@@ -22,7 +22,15 @@ class ReportIndex:
 
     @classmethod
     def from_reports(cls, url: str, filename: str = "index.html") -> "ReportIndex":
-        """Initialize from url containing prognostic reports."""
+        """Initialize from url containing prognostic reports.
+
+        Args:
+            url: path to directory containing report subdirectories.
+            filename: name of report html files.
+    
+        Note:
+            Reports are assumed to be located at {url}/*/{filename}.
+        """
         loop = asyncio.get_event_loop()
         if url.startswith("gs://"):
             fs = gcsfs.GCSFileSystem(asynchronous=True)
@@ -41,7 +49,7 @@ class ReportIndex:
             index = ReportIndex(fs, json.load(f))
         return index
 
-    def public_links(self, run_url: str):
+    def public_links(self, run_url: str) -> Sequence[str]:
         """Return public links for all reports containing a run_url."""
         if isinstance(self.fs, gcsfs.GCSFileSystem):
             public_domain = "https://storage.googleapis.com"
@@ -64,7 +72,9 @@ class ReportIndex:
             json.dump(self.reports_by_run, f, sort_keys=True, indent=4)
 
     @classmethod
-    async def _get_reports(cls, fs, url, filename):
+    async def _get_reports(cls, fs, url, filename) -> Mapping[str, Sequence[str]]:
+        """Generate mapping from run URL to report URLs for all reports foundat
+        {url}/*/{filename}."""
         out = {}
         for report_dir in await cls._list(fs, url):
             report_url = os.path.join(report_dir, filename)
@@ -74,9 +84,10 @@ class ReportIndex:
                 pass
             else:
                 report_lines = report_head.decode("UTF-8").split("\n")
+                report_lines = [l.replace(" ", "") for l in report_lines]
                 for line in report_lines:
-                    if "gs://" in line:
-                        run_url = line.strip(" ").split(" ")[1]
+                    if "<td>gs://" in line:
+                        run_url = line.split("<td>")[1].split("</td>")[0]
                         out.setdefault(run_url, []).append(report_url)
         return out
 
