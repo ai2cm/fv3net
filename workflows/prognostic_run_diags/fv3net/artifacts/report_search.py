@@ -13,7 +13,7 @@ from .utils import _list, _cat_file, _close_session
 
 @dataclasses.dataclass
 class ReportIndex:
-    """Mapping from run urls to sequence of report urls."""
+    """Mapping from run urls to sequences of report urls."""
 
     reports_by_run: Mapping[str, Sequence[str]] = dataclasses.field(
         default_factory=dict
@@ -26,14 +26,15 @@ class ReportIndex:
         return set(itertools.chain.from_iterable(_reports))
 
     def compute(self, url, filename="index.html"):
-        """Compute reports_by_run index from reports at url.
+        """Compute reports_by_run index from all reports found at url.
 
         Args:
             url: path to directory containing report subdirectories.
             filename: name of report html files.
 
         Note:
-            Reports are assumed to be located at {url}/*/{filename}."""
+            Reports are assumed to be located at {url}/*/{filename}.
+        """
         loop = asyncio.get_event_loop()
         if url.startswith("gs://"):
             fs = gcsfs.GCSFileSystem(asynchronous=True)
