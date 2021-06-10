@@ -38,6 +38,8 @@ NC_FILE_TRANSECT = "transect_lon0.nc"
 JSON_FILE_METRICS = "scalar_metrics.json"
 
 MODEL_SENSITIVITY_HTML = "model_sensitivity.html"
+TIME_MEAN_MAPS_HTML = "time_mean_maps.html"
+
 
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
@@ -98,12 +100,50 @@ def render_model_sensitivity(figures_dir, output_dir) -> str:
     )
 
 
+def render_time_mean_maps(
+    figures_dir, output_dir, ds_diags, column_integrated_vars
+) -> str:
+    report_sections: MutableMapping[str, Sequence[str]] = {}
+
+    # time averaged column integrated quantity maps
+    for var in column_integrated_vars:
+        ds_diags[f"error_in_{var}"] = (
+            ds_diags.sel(derivation="predict")[var]
+            - ds_diags.sel(derivation="target")[var]
+        )
+        fig = diagplot.plot_column_integrated_var(
+            ds_diags, var, derivation_plot_coords=ds_diags[DERIVATION_DIM].values,
+        )
+        report.insert_report_figure(
+            report_sections,
+            fig,
+            filename=f"{var}.png",
+            section_name="Time averaged maps",
+            output_dir=output_dir,
+        )
+        fig_error = diagplot.plot_column_integrated_var(
+            ds_diags,
+            f"error_in_{var}",
+            derivation_plot_coords=None,
+            derivation_dim=None,
+        )
+        report.insert_report_figure(
+            report_sections,
+            fig_error,
+            filename=f"error_in_{var}.png",
+            section_name="Time averaged maps",
+            output_dir=output_dir,
+        )
+    return report.create_html(sections=report_sections, title="Time mean maps",)
+
+
 def render_index(metrics, ds_diags, ds_diurnal, ds_transect, output_dir) -> str:
     report_sections: MutableMapping[str, Sequence[str]] = {}
 
     # Links
     report_sections["Links"] = [
         report.Link("Model input sensitivity", MODEL_SENSITIVITY_HTML),
+        report.Link("Time mean maps", TIME_MEAN_MAPS_HTML),
     ]
 
     # histogram of timesteps used for testing
@@ -122,6 +162,7 @@ def render_index(metrics, ds_diags, ds_diurnal, ds_transect, output_dir) -> str:
             section_name="Timesteps used for testing",
             output_dir=output_dir,
         )
+    column_integrated_variable_names = column_integrated_metric_names(metrics)
 
     # Zonal average of vertical profiles for bias and R2
     zonal_avg_pressure_level_metrics = [
@@ -183,21 +224,6 @@ def render_index(metrics, ds_diags, ds_diurnal, ds_transect, output_dir) -> str:
             output_dir=output_dir,
         )
 
-    column_integrated_metrics = column_integrated_metric_names(metrics)
-
-    # time averaged column integrated quantity maps
-    for var in column_integrated_metrics:
-        fig = diagplot.plot_column_integrated_var(
-            ds_diags, var, derivation_plot_coords=ds_diags[DERIVATION_DIM].values,
-        )
-        report.insert_report_figure(
-            report_sections,
-            fig,
-            filename=f"{var}.png",
-            section_name="Time averaged maps",
-            output_dir=output_dir,
-        )
-
     # 2d quantity diurnal cycles
     for var in ds_diurnal:
         fig = diagplot.plot_diurnal_cycles(
@@ -228,8 +254,8 @@ def render_index(metrics, ds_diags, ds_diurnal, ds_transect, output_dir) -> str:
 
     # scalar metrics for RMSE and bias
     metrics_formatted = []
-    metrics = insert_scalar_metrics_r2(metrics, column_integrated_metrics)
-    for var in sorted(column_integrated_metrics):
+    metrics = insert_scalar_metrics_r2(metrics, column_integrated_variable_names)
+    for var in sorted(column_integrated_variable_names):
         values = {
             "r2": get_metric_string(metrics, "r2", var),
             "bias": " ".join(
@@ -292,6 +318,15 @@ if __name__ == "__main__":
     )
     with open(os.path.join(temp_output_dir.name, MODEL_SENSITIVITY_HTML), "w") as f:
         f.write(html_model_sensitivity)
+
+    html_time_mean_maps = render_time_mean_maps(
+        os.path.join(args.input_path, "time_mean_maps_figures"),
+        temp_output_dir.name,
+        ds_diags,
+        column_integrated_vars=column_integrated_metric_names(metrics),
+    )
+    with open(os.path.join(temp_output_dir.name, TIME_MEAN_MAPS_HTML), "w") as f:
+        f.write(html_time_mean_maps)
 
     copy_outputs(temp_output_dir.name, args.output_path)
     logger.info(f"Save report to {args.output_path}")
