@@ -1,6 +1,19 @@
 import os
 import subprocess
 
+import backoff
+
+
+class GSUtilResumableUploadException(Exception):
+    pass
+
+
+def _decode_to_str_if_bytes(s, encoding="utf-8"):
+    if isinstance(s, bytes):
+        return s.decode(encoding)
+    else:
+        return s
+
 
 def authenticate():
     try:
@@ -13,8 +26,19 @@ def authenticate():
         )
 
 
+@backoff.on_exception(backoff.expo, GSUtilResumableUploadException, max_tries=3)
 def upload_dir(d, dest):
-    subprocess.check_call(["gsutil", "-m", "rsync", "-r", "-e", d, dest])
+    try:
+        # Pipe stderr to stdout because gsutil logs upload progress there.
+        subprocess.check_output(
+            ["gsutil", "-m", "rsync", "-r", "-e", d, dest], stderr=subprocess.STDOUT
+        )
+    except subprocess.CalledProcessError as e:
+        output = _decode_to_str_if_bytes(e.output)
+        if "ResumableUploadException" in output:
+            raise GSUtilResumableUploadException()
+        else:
+            raise e
 
 
 def download_directory(dir_, dest):
