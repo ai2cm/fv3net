@@ -162,7 +162,7 @@ def render_index(metrics, ds_diags, ds_diurnal, ds_transect, output_dir) -> str:
             section_name="Timesteps used for testing",
             output_dir=output_dir,
         )
-    column_integrated_metrics = column_integrated_metric_names(metrics)
+    column_integrated_variable_names = column_integrated_metric_names(metrics)
 
     # Zonal average of vertical profiles for bias and R2
     zonal_avg_pressure_level_metrics = [
@@ -254,8 +254,8 @@ def render_index(metrics, ds_diags, ds_diurnal, ds_transect, output_dir) -> str:
 
     # scalar metrics for RMSE and bias
     metrics_formatted = []
-    metrics = insert_scalar_metrics_r2(metrics, column_integrated_metrics)
-    for var in sorted(column_integrated_metrics):
+    metrics = insert_scalar_metrics_r2(metrics, column_integrated_variable_names)
+    for var in sorted(column_integrated_variable_names):
         values = {
             "r2": get_metric_string(metrics, "r2", var),
             "bias": " ".join(
