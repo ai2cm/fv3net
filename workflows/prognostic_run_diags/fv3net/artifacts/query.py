@@ -10,6 +10,7 @@ import fsspec
 import gcsfs
 
 from .report_search import ReportIndex
+from .utils import _list, _close_session
 
 
 STEPS = [
@@ -84,20 +85,6 @@ async def _get_runs(f, bucket, projects):
     return files
 
 
-async def _list(f: fsspec.AbstractFileSystem, path):
-    try:
-        return await f._ls(path)
-    except AttributeError:
-        return f.ls(path)
-
-
-async def _close_session(f):
-    try:
-        await f.session.close()
-    except AttributeError:
-        pass
-
-
 def get_artifacts(bucket, projects):
     loop = asyncio.get_event_loop()
     if bucket.startswith("gs://"):
@@ -135,7 +122,8 @@ def list(args):
 
 def report_entrypoint(args):
     if args.write:
-        index = ReportIndex.from_reports(args.reports_url)
+        index = ReportIndex()
+        index.compute(args.reports_url)
         index.dump(os.path.join(args.reports_url, "index.json"))
     index = ReportIndex.from_json(os.path.join(args.reports_url, "index.json"))
     for link in index.public_links(args.url):
@@ -174,7 +162,10 @@ def register_report_parser(subparsers):
     parser.add_argument(
         "-r",
         "--reports-url",
-        help="Location of prognostic run reports. Defaults to gs://vcm-ml-public/argo.",
+        help=(
+            "Location of prognostic run reports. Defaults to gs://vcm-ml-public/argo. "
+            "Search uses index at REPORTS_URL/index.json"
+        ),
         default="gs://vcm-ml-public/argo",
     )
     parser.add_argument(

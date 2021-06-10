@@ -8,11 +8,16 @@ from typing import Mapping, Sequence, Set
 import gcsfs
 import fsspec
 
+from .utils import _list, _cat_file, _close_session
+
 
 @dataclasses.dataclass
 class ReportIndex:
-    fs: fsspec.AbstractFileSystem
-    reports_by_run: Mapping[str, Sequence[str]]
+    """Mapping from run urls to sequence of report urls."""
+
+    reports_by_run: Mapping[str, Sequence[str]] = dataclasses.field(
+        default_factory=dict
+    )
 
     @property
     def reports(self) -> Set[str]:
@@ -20,66 +25,56 @@ class ReportIndex:
         _reports = [v for v in self.reports_by_run.values()]
         return set(itertools.chain.from_iterable(_reports))
 
-    @classmethod
-    def from_reports(cls, url: str, filename: str = "index.html") -> "ReportIndex":
-        """Initialize from url containing prognostic reports.
+    def compute(self, url, filename="index.html"):
+        """Compute reports_by_run index from reports at url.
 
         Args:
             url: path to directory containing report subdirectories.
             filename: name of report html files.
-    
+
         Note:
-            Reports are assumed to be located at {url}/*/{filename}.
-        """
+            Reports are assumed to be located at {url}/*/{filename}."""
         loop = asyncio.get_event_loop()
         if url.startswith("gs://"):
             fs = gcsfs.GCSFileSystem(asynchronous=True)
         else:
             fs = fsspec.filesystem("file")
-        reports_by_run = loop.run_until_complete(cls._get_reports(fs, url, filename))
-        loop.run_until_complete(cls._close_session(fs))
-        fs, _, _ = fsspec.get_fs_token_paths(url)  # non-async version for ReportIndex
-        return ReportIndex(fs, reports_by_run)
+        self.reports_by_run = loop.run_until_complete(
+            self._get_reports(fs, url, filename)
+        )
+        loop.run_until_complete(_close_session(fs))
 
     @staticmethod
     def from_json(url: str) -> "ReportIndex":
         """Initialize from existing JSON file."""
-        fs, _, _ = fsspec.get_fs_token_paths(url)
-        with fs.open(url) as f:
-            index = ReportIndex(fs, json.load(f))
+        with fsspec.open(url) as f:
+            index = ReportIndex(json.load(f))
         return index
 
     def public_links(self, run_url: str) -> Sequence[str]:
         """Return public links for all reports containing a run_url."""
-        if isinstance(self.fs, gcsfs.GCSFileSystem):
-            public_domain = "https://storage.googleapis.com"
-        elif isinstance(self.fs, fsspec.implementations.local.LocalFileSystem):
-            public_domain = ""
-        else:
-            raise ValueError(f"Public domain unknown for given filesystem {self.fs}.")
-
         if run_url not in self.reports_by_run:
             print(f"Provided URL {run_url} not found in any report.")
             public_links = []
         else:
             public_links = [
-                os.path.join(public_domain, r) for r in self.reports_by_run[run_url]
+                self._insert_public_domain(report_url)
+                for report_url in self.reports_by_run[run_url]
             ]
         return public_links
 
     def dump(self, url: str):
-        with self.fs.open(url, "w") as f:
+        with fsspec.open(url, "w") as f:
             json.dump(self.reports_by_run, f, sort_keys=True, indent=4)
 
-    @classmethod
-    async def _get_reports(cls, fs, url, filename) -> Mapping[str, Sequence[str]]:
-        """Generate mapping from run URL to report URLs for all reports foundat
+    async def _get_reports(self, fs, url, filename) -> Mapping[str, Sequence[str]]:
+        """Generate mapping from run URL to report URLs for all reports found at
         {url}/*/{filename}."""
         out = {}
-        for report_dir in await cls._list(fs, url):
-            report_url = os.path.join(report_dir, filename)
+        for report_dir in await _list(fs, url):
+            report_url = self._url_prefix(fs) + os.path.join(report_dir, filename)
             try:
-                report_head = await cls._cat_file(fs, report_url, end=5 * 1024)
+                report_head = await _cat_file(fs, report_url, end=5 * 1024)
             except FileNotFoundError:
                 pass
             else:
@@ -92,25 +87,19 @@ class ReportIndex:
         return out
 
     @staticmethod
-    async def _close_session(fs):
-        """Handle local and GCS filesystems"""
-        try:
-            await fs.session.close()
-        except AttributeError:
-            pass
+    def _url_prefix(fs) -> str:
+        if isinstance(fs, gcsfs.GCSFileSystem):
+            return "gs://"
+        elif isinstance(fs, fsspec.implementations.local.LocalFileSystem):
+            return ""
+        else:
+            raise ValueError(f"Protocol prefix unknown for {fs}.")
 
     @staticmethod
-    async def _list(fs: fsspec.AbstractFileSystem, path):
-        """Handle local and GCS filesystems"""
-        try:
-            return await fs._ls(path)
-        except AttributeError:
-            return fs.ls(path)
-
-    @staticmethod
-    async def _cat_file(fs: fsspec.AbstractFileSystem, path, **kwargs):
-        """Handle local and GCS filesystems"""
-        try:
-            return await fs._cat_file(path, **kwargs)
-        except AttributeError:
-            return fs.cat_file(path, **kwargs)
+    def _insert_public_domain(url) -> str:
+        if url.startswith("gs://"):
+            return url.replace("gs://", "https://storage.googleapis.com/")
+        elif url.startswith("/"):
+            return url
+        else:
+            raise ValueError(f"Public domain unknown for url {url}.")

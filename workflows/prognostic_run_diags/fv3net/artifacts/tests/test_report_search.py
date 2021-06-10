@@ -93,7 +93,7 @@ REPORT_SAMPLE = """<html>
 """
 
 
-def test_ReportIndex_from_reports(tmpdir):
+def test_ReportIndex_compute(tmpdir):
     expected_run = (
         "gs://vcm-ml-experiments/spencerc/2021-05-28/"
         "n2f-25km-all-climate-tapered-fixed-ml-unperturbed-seed-0/fv3gfs_run"
@@ -105,7 +105,8 @@ def test_ReportIndex_from_reports(tmpdir):
     with open(tmpdir.join("report2/index.html"), "w") as f:
         f.write(REPORT_SAMPLE)
 
-    index = ReportIndex.from_reports(str(tmpdir))
+    index = ReportIndex()
+    index.compute(str(tmpdir))
 
     assert expected_run in index.reports_by_run
     assert set(index.reports_by_run[expected_run]) == {
@@ -116,17 +117,23 @@ def test_ReportIndex_from_reports(tmpdir):
 
 def test_ReportIndex_public_links():
     index = ReportIndex(
-        fsspec.filesystem("file"),
-        {"/path/to/run": ["/report1/index.html", "/report2/index.html"]},
+        {
+            "/path/to/run": [
+                "gs://bucket/report1/index.html",
+                "gs://bucket/report2/index.html",
+            ]
+        },
     )
-    expected_public_links = {"/report1/index.html", "/report2/index.html"}
+    expected_public_links = {
+        "https://storage.googleapis.com/bucket/report1/index.html",
+        "https://storage.googleapis.com/bucket/report2/index.html",
+    }
     assert set(index.public_links("/path/to/run")) == expected_public_links
     assert len(index.public_links("/run/not/in/index")) == 0
 
 
 def test_ReportIndex_reports():
     index = ReportIndex(
-        fsspec.filesystem("file"),
         {
             "/path/to/run": ["/report1/index.html", "/report2/index.html"],
             "/path/to/other/run": ["/report1/index.html"],
