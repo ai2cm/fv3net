@@ -3,7 +3,18 @@ from typing_extensions import Literal
 import fsspec
 import yaml
 import os
-from typing import Any, Callable, Mapping, Optional, Tuple, Union, Sequence, List, Type, Dict
+from typing import (
+    Any,
+    Callable,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+    Sequence,
+    List,
+    Type,
+    Dict,
+)
 from fv3fit.typing import Dataclass
 import xarray as xr
 from .predictor import Estimator, Predictor
@@ -19,7 +30,16 @@ DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
 
 
-TrainingFunction = Callable[[Sequence[str], Sequence[str], Dataclass, Sequence[xr.Dataset], Sequence[xr.Dataset]], Predictor]
+TrainingFunction = Callable[
+    [
+        Sequence[str],
+        Sequence[str],
+        Dataclass,
+        Sequence[xr.Dataset],
+        Sequence[xr.Dataset],
+    ],
+    Predictor,
+]
 
 
 # TODO: delete this routine by refactoring the tests to no longer depend on it

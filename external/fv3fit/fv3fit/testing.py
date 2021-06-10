@@ -58,7 +58,7 @@ class ConstantOutputPredictor(Predictor):
         n_samples = len(X[self.sample_dim_name])
         data_vars = {}
         for name in self.output_variables:
-            output = self._outputs.get(name, 0.)
+            output = self._outputs.get(name, 0.0)
             if isinstance(output, np.ndarray):
                 array = np.repeat(output[None, :], repeats=n_samples, axis=0)
                 data_vars[name] = xr.DataArray(

@@ -65,10 +65,12 @@ def fit_model(
     output_variables: Sequence[str],
     hyperparameters,
     train_batches,
-    val_batches
+    val_batches,
 ):
     func = get_training_function(model_type)
-    return func(input_variables, output_variables, hyperparameters, train_batches, val_batches)
+    return func(
+        input_variables, output_variables, hyperparameters, train_batches, val_batches
+    )
 
 
 def dump_dataclass(obj, yaml_filename):
@@ -121,7 +123,14 @@ def main(args):
             os.path.join(args.local_download_path, "validation")
         )
 
-    model = fit_model(train_config.model_type, train_config.input_variables, train_config.output_variables, train_config.hyperparameters, train_batches, val_batches)
+    model = fit_model(
+        train_config.model_type,
+        train_config.input_variables,
+        train_config.output_variables,
+        train_config.hyperparameters,
+        train_batches,
+        val_batches,
+    )
     # model.fit(train_batches)
     io.dump(model, args.output_data_path)
 

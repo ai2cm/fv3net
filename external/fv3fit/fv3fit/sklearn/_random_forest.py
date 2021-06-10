@@ -32,22 +32,24 @@ def _tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
     names, list_ = d
     return pd.MultiIndex.from_tuples(list_, names=names)
 
+
 @register_estimator("sklearn", RandomForestHyperparameters)
 @register_estimator("rf", RandomForestHyperparameters)
 @register_estimator("random_forest", RandomForestHyperparameters)
 @register_estimator("sklearn_random_forest", RandomForestHyperparameters)
 def train_random_forest(
-        input_variables: Iterable[str],
-        output_variables: Iterable[str],
-        hyperparameters: DenseHyperparameters,
-        train_batches: Sequence[xr.Dataset],
-        validation_batches: Sequence[xr.Dataset]
-    ):
+    input_variables: Iterable[str],
+    output_variables: Iterable[str],
+    hyperparameters: DenseHyperparameters,
+    train_batches: Sequence[xr.Dataset],
+    validation_batches: Sequence[xr.Dataset],
+):
     model = RandomForest("sample", input_variables, output_variables, hyperparameters)
     # TODO: make use of validation_batches, currently validation dataset is
     # passed through hyperparameters.fit_kwargs
     model.fit(train_batches)
     return model
+
 
 @_shared.io.register("sklearn")
 class RandomForest(Estimator):
