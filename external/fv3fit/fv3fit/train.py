@@ -8,7 +8,7 @@ import dataclasses
 import fsspec
 
 from fv3fit._shared import parse_data_path, load_data_sequence, io, Estimator
-from fv3fit._shared.config import get_estimator_class
+from fv3fit._shared.config import get_training_function
 import fv3fit._shared.config
 from .keras._training import set_random_seed
 import fv3fit.keras
@@ -49,14 +49,26 @@ def get_parser():
     return parser
 
 
-def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
-    cls = get_estimator_class(config.model_type)
-    return cls(
-        sample_dim_name=config.sample_dim_name,
-        input_variables=config.input_variables,
-        output_variables=config.output_variables,
-        hyperparameters=config.hyperparameters,
-    )
+# def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
+#     cls = get_estimator_class(config.model_type)
+#     return cls(
+#         sample_dim_name=config.sample_dim_name,
+#         input_variables=config.input_variables,
+#         output_variables=config.output_variables,
+#         hyperparameters=config.hyperparameters,
+#     )
+
+
+def fit_model(
+    model_type: str,
+    input_variables: Sequence[str],
+    output_variables: Sequence[str],
+    hyperparameters,
+    train_batches,
+    val_batches
+):
+    func = get_training_function(model_type)
+    return func(input_variables, output_variables, hyperparameters, train_batches, val_batches)
 
 
 def dump_dataclass(obj, yaml_filename):
@@ -64,10 +76,7 @@ def dump_dataclass(obj, yaml_filename):
         yaml.safe_dump(dataclasses.asdict(obj), f)
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    parser = get_parser()
-    args = parser.parse_args()
+def main(args):
     data_path = parse_data_path(args.data_path)
     (
         train_config,
@@ -112,6 +121,13 @@ if __name__ == "__main__":
             os.path.join(args.local_download_path, "validation")
         )
 
-    model = _get_model(train_config)
-    model.fit(train_batches)
+    model = fit_model(train_config.model_type, train_config.input_variables, train_config.output_variables, train_config.hyperparameters, train_batches, val_batches)
+    # model.fit(train_batches)
     io.dump(model, args.output_data_path)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    parser = get_parser()
+    args = parser.parse_args()
+    main(args)

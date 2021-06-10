@@ -12,8 +12,8 @@ import dataclasses
 
 from ..._shared.packer import ArrayPacker, unpack_matrix
 from ..._shared.predictor import Estimator
-from ..._shared import io, register_estimator
-from ..._shared.config import DenseHyperparameters
+from ..._shared import io
+from ..._shared.config import DenseHyperparameters, register_training_function
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
@@ -34,8 +34,22 @@ EpochLossHistory = Sequence[Sequence[Union[float, int]]]
 History = Mapping[str, EpochLossHistory]
 
 
+@register_training_function("DenseModel", DenseHyperparameters)
+def train_dense_model(
+        input_variables: Iterable[str],
+        output_variables: Iterable[str],
+        hyperparameters: DenseHyperparameters,
+        train_batches: Sequence[xr.Dataset],
+        validation_batches: Sequence[xr.Dataset]
+    ):
+    model = DenseModel("sample", input_variables, output_variables, hyperparameters)
+    # TODO: make use of validation_batches, currently validation dataset is
+    # passed through hyperparameters.fit_kwargs
+    model.fit(train_batches)
+    return model
+
+
 @io.register("packed-keras")
-@register_estimator("DenseModel", DenseHyperparameters)
 class DenseModel(Estimator):
     """
     Abstract base class for a keras-based model which operates on xarray

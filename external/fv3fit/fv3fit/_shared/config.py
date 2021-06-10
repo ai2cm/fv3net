@@ -3,10 +3,10 @@ from typing_extensions import Literal
 import fsspec
 import yaml
 import os
-from typing import Any, Mapping, Optional, Tuple, Union, Sequence, List, Type, Dict
+from typing import Any, Callable, Mapping, Optional, Tuple, Union, Sequence, List, Type, Dict
 from fv3fit.typing import Dataclass
 import xarray as xr
-from .predictor import Estimator
+from .predictor import Estimator, Predictor
 import dacite
 
 # TODO: move all keras configs under fv3fit.keras
@@ -17,6 +17,9 @@ from loaders import batches
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
+
+
+TrainingFunction = Callable[[Sequence[str], Sequence[str], Dataclass, Sequence[xr.Dataset], Sequence[xr.Dataset]], Predictor]
 
 
 # TODO: delete this routine by refactoring the tests to no longer depend on it
@@ -50,12 +53,12 @@ class TrainingConfig:
         kwargs = {**kwargs}  # make a copy to avoid mutating the input
         hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
         kwargs["hyperparameters"] = dacite.from_dict(
-            data_class=hyperparameter_class, data=kwargs["hyperparameters"]
+            data_class=hyperparameter_class, data=kwargs.get("hyperparameters", {})
         )
         return dacite.from_dict(data_class=cls, data=kwargs)
 
 
-ESTIMATORS: Dict[str, Tuple[Type[Estimator], Type[Dataclass]]] = {}
+ESTIMATORS: Dict[str, Tuple[TrainingFunction, Type[Dataclass]]] = {}
 
 
 def get_hyperparameter_class(model_type: str) -> Type:
@@ -66,7 +69,7 @@ def get_hyperparameter_class(model_type: str) -> Type:
     return subclass
 
 
-def get_estimator_class(model_type: str) -> Type[Estimator]:
+def get_training_function(model_type: str) -> TrainingFunction:
     if model_type in ESTIMATORS:
         estimator_class, _ = ESTIMATORS[model_type]
     else:
@@ -74,15 +77,15 @@ def get_estimator_class(model_type: str) -> Type[Estimator]:
     return estimator_class
 
 
-def register_estimator(name: str, hyperparameter_class: type):
+def register_training_function(name: str, hyperparameter_class: type):
     """
-    Returns a decorator that will register the given class as a keras training
-    class, which can be used in training configuration.
+    Returns a decorator that will register the given training function
+    to be usable in training configuration.
     """
 
-    def decorator(cls):
-        ESTIMATORS[name] = (cls, hyperparameter_class)
-        return cls
+    def decorator(func: TrainingFunction) -> TrainingFunction:
+        ESTIMATORS[name] = (func, hyperparameter_class)
+        return func
 
     return decorator
 

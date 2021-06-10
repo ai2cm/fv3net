@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from external.synth.tests.test_restart import output
 from typing import Iterable, Sequence, Optional, Any
 import logging
 import os
@@ -21,6 +22,10 @@ class DummyTrainingConfig(TrainingConfig):
     batch_size: Optional[int] = None
 
 
+def train_dummy_model(input_variables, output_variables, hyperparameters, train_batches, validation_batches):
+    model = DummyModel("sample", input_variables, output_variables, hyperparameters)
+
+
 @io.register("dummy")
 @register_estimator("DummyModel", DummyTrainingConfig)
 class DummyModel(Estimator):
@@ -39,8 +44,7 @@ class DummyModel(Estimator):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
-        epochs: Optional[int] = None,
-        batch_size: Optional[int] = None,
+        hyperparameters: DummyHyperparameters
     ):
         """Initialize the DummyModel
         Args:
