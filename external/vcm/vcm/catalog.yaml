@@ -157,7 +157,6 @@ sources:
     metadata:
       grid: c48
       simulation: 40day_may2020
-      category: restart_files
       variables:
         - DZ
         - T
