@@ -13,19 +13,24 @@ import yaml
 from typing import Mapping, Sequence, Tuple, List, Hashable
 from toolz import dissoc
 
+# TODO: refactor this code to use the public TrainingConfig and DataConfig
+# classes from fv3fit instead of _ModelTrainingConfig
+from fv3fit._shared.config import _ModelTrainingConfig as ModelTrainingConfig
+
 import diagnostics_utils as utils
 import loaders
 from vcm import safe, interpolate_to_pressure_levels
 import vcm
 from vcm.cloud import get_fs
 import fv3fit
-from ._plot_jacobian import plot_jacobian
+from ._plot_input_sensitivity import plot_jacobian, plot_rf_feature_importance
 from ._metrics import compute_metrics
 from ._mapper import PredictionMapper
 from ._helpers import (
     load_grid_info,
     sample_outside_train_range,
     is_3d,
+    get_variable_indices,
 )
 from ._select import meridional_transect, nearest_time
 
@@ -215,7 +220,6 @@ def _compute_diagnostics(
         logger.info(f"Processing batch {i+1}/{len(batches)}")
 
         ds = _fill_empty_dQ1_dQ2(ds)
-
         # ...insert additional variables
         ds = utils.insert_total_apparent_sources(ds)
         diagnostic_vars_3d = [var for var in diagnostic_vars if is_3d(ds[var])]
@@ -268,7 +272,7 @@ def _consolidate_dimensioned_data(ds_summary, ds_metrics):
     return ds_diagnostics, ds_metrics.drop(metrics_arrays_vars)
 
 
-def _get_base_mapper(config: fv3fit.ModelTrainingConfig):
+def _get_base_mapper(config: ModelTrainingConfig):
     logger.info("Creating base mapper")
     base_mapping_function = getattr(
         loaders.mappers, config.batch_kwargs["mapping_function"]
@@ -284,7 +288,7 @@ def _get_base_mapper(config: fv3fit.ModelTrainingConfig):
 
 
 def _get_prediction_mapper(
-    config: fv3fit.ModelTrainingConfig,
+    config: ModelTrainingConfig,
     variables: Sequence[str],
     model: fv3fit.Predictor,
     grid: xr.Dataset,
@@ -334,7 +338,7 @@ def main(args):
         )
 
     if args.config_yml:
-        config = fv3fit.ModelTrainingConfig.load(args.config_yml)
+        config = ModelTrainingConfig.load(args.config_yml)
     else:
         config = fv3fit.load_training_config(args.model_path)
     if args.data_path:
@@ -399,6 +403,7 @@ def main(args):
     batches = loaders.batches.batches_from_mapper(
         pred_mapper, variables, timesteps=timesteps, training=False, **batch_kwargs,
     )
+
     # compute diags
     ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diagnostics(
         batches, grid, predicted_vars=config.output_variables
@@ -412,11 +417,24 @@ def main(args):
     ds_diagnostics["time"] = times_used
     ds_diurnal["time"] = times_used
 
-    # save jacobian
+    # save model senstivity figures: jacobian (TODO: RF feature sensitivity)
     try:
-        plot_jacobian(model, args.output_path)  # type: ignore
+        plot_jacobian(
+            model,
+            os.path.join(args.output_path, "model_sensitivity_figures"),  # type: ignore
+        )
     except AttributeError:
-        pass
+        try:
+            input_feature_indices = get_variable_indices(
+                data=pred_mapper[timesteps[0]], variables=model.input_variables
+            )
+            plot_rf_feature_importance(
+                input_feature_indices,
+                model,
+                os.path.join(args.output_path, "model_sensitivity_figures"),
+            )
+        except AttributeError:
+            pass
 
     # compute transected and zonal diags
     snapshot_time = args.snapshot_time or sorted(timesteps)[0]

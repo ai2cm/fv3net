@@ -1,4 +1,3 @@
-import datetime
 import json
 import os
 import tempfile
@@ -19,10 +18,11 @@ import fv3gfs.util
 import fv3gfs.wrapper
 import numpy as np
 import xarray as xr
+import vcm
 from mpi4py import MPI
 from runtime import DerivedFV3State
-from runtime.config import UserConfig, get_namelist
-from runtime.diagnostics.machine_learning import (
+from runtime.config import UserConfig, DiagnosticFileConfig, get_namelist
+from runtime.diagnostics.compute import (
     compute_baseline_diagnostics,
     rename_diagnostics,
     precipitation_rate,
@@ -46,37 +46,6 @@ from .names import AREA, DELP, TOTAL_PRECIP
 
 logger = logging.getLogger(__name__)
 
-gravity = 9.81
-
-
-def setup_metrics_logger():
-    logger = logging.getLogger("statistics")
-    fh = logging.FileHandler("statistics.txt")
-    fh.setLevel(logging.INFO)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    ch.setFormatter(logging.Formatter(fmt="%(levelname)s:%(name)s:%(message)s"))
-
-    logger.addHandler(fh)
-    logger.addHandler(ch)
-
-
-def log_scalar(time, scalars):
-    dt = datetime.datetime(
-        time.year, time.month, time.day, time.hour, time.minute, time.second
-    )
-    msg = json.dumps({"time": dt.isoformat(), **scalars})
-    logging.getLogger("statistics").info(msg)
-
-
-def global_average(comm, array: xr.DataArray, area: xr.DataArray) -> float:
-    ans = comm.reduce((area * array).sum().item(), root=0)
-    area_all = comm.reduce(area.sum().item(), root=0)
-    if comm.rank == 0:
-        return float(ans / area_all)
-    else:
-        return -1
-
 
 class Stepper(Protocol):
     """Stepper interface
@@ -91,30 +60,20 @@ class Stepper(Protocol):
     """
 
     @property
-    def net_moistening(self) -> str:
-        """Legacy variable needed to renaming the "net_moistening" variable
-
-        This should be refactored away
+    def label(self) -> str:
+        """Label used for naming diagnostics.
         """
         pass
 
     def __call__(self, time, state) -> Tuple[Tendencies, Diagnostics, State]:
         return {}, {}, {}
 
-    def get_diagnostics(self, state, tendency) -> Diagnostics:
-        """Legacy method to provide polymorphic interface for diagnostics
-
-        This should be refactored away by merging the diagnostics code, which
-        is mostly very similar
-        """
-        return {}
+    def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
+        """Return diagnostics mapping and net moistening array."""
+        return {}, xr.DataArray()
 
     def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
-        """Legacy method to provide polymorphic interface for diagnostics
-
-        This should be refactored away by merging the diagnostics code, which
-        is mostly very similar
-        """
+        """Return diagnostics of momentum tendencies."""
         return {}
 
 
@@ -187,6 +146,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         timestep = namelist["coupler_nml"]["dt_atmos"]
         self._timestep = timestep
         self._log_info(f"Timestep: {timestep}")
+        hydrostatic = namelist["fv_core_nml"]["hydrostatic"]
 
         self._prephysics_only_diagnostic_ml: bool = getattr(
             getattr(config, "prephysics"), "diagnostic_ml", False
@@ -198,13 +158,18 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._state_updates: State = {}
 
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
+        (
+            self._tendency_variables,
+            self._storage_variables,
+        ) = self._get_monitored_variable_names(config.diagnostics)
         self._log_debug(f"States to output: {self._states_to_output}")
-        self._prephysics_stepper = self._get_prephysics_stepper(config)
-        self._postphysics_stepper = self._get_postphysics_stepper(config)
+        self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
+        self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
-    def _get_states_to_output(self, config: UserConfig) -> Sequence[str]:
+    @staticmethod
+    def _get_states_to_output(config: UserConfig) -> Sequence[str]:
         states_to_output: List[str] = []
         for diagnostic in config.diagnostics:
             if diagnostic.name == "state_after_timestep.zarr":
@@ -214,7 +179,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                     states_to_output = diagnostic.variables  # type: ignore
         return states_to_output
 
-    def _get_prephysics_stepper(self, config: UserConfig) -> Optional[Stepper]:
+    def _get_prephysics_stepper(
+        self, config: UserConfig, hydrostatic: bool
+    ) -> Optional[Stepper]:
         stepper: Optional[Stepper]
         if config.prephysics is None:
             self._log_info("No prephysics computations")
@@ -222,7 +189,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         elif isinstance(config.prephysics, MachineLearningConfig):
             self._log_info("Using MLStateStepper for prephysics")
             model = self._open_model(config.prephysics, "_prephysics")
-            stepper = MLStateStepper(model, self._timestep)
+            stepper = MLStateStepper(model, self._timestep, hydrostatic)
         elif isinstance(config.prephysics, PrescriberConfig):
             self._log_info("Using Prescriber for prephysics")
             partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
@@ -235,18 +202,22 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             stepper = Prescriber(config.prephysics, communicator, timesteps=timesteps)
         return stepper
 
-    def _get_postphysics_stepper(self, config: UserConfig) -> Optional[Stepper]:
+    def _get_postphysics_stepper(
+        self, config: UserConfig, hydrostatic: bool
+    ) -> Optional[Stepper]:
         if config.scikit_learn:
             self._log_info("Using MLStepper for postphysics updates")
             model = self._open_model(config.scikit_learn, "_postphysics")
-            stepper: Optional[Stepper] = PureMLStepper(model, self._timestep)
+            stepper: Optional[Stepper] = PureMLStepper(
+                model, self._timestep, hydrostatic
+            )
         elif config.nudging:
             self._log_info("Using NudgingStepper for postphysics updates")
             partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
                 get_namelist()
             )
             communicator = fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
-            stepper = PureNudger(config.nudging, communicator)
+            stepper = PureNudger(config.nudging, communicator, hydrostatic)
         else:
             self._log_info("Performing baseline simulation")
             stepper = None
@@ -303,10 +274,9 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         ).data_array
         delp = self._state[DELP]
         return {
-            "storage_of_specific_humidity_path_due_to_microphysics": (micro * delp).sum(
-                "z"
-            )
-            / gravity,
+            "storage_of_specific_humidity_path_due_to_microphysics": vcm.mass_integrate(
+                micro, delp, "z"
+            ),
             "evaporation": self._state["evaporation"],
             "cnvprcp_after_physics": self._fv3gfs.get_diagnostic_by_name(
                 "cnvprcp"
@@ -340,13 +310,13 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
     @property
     def _substeps(self) -> Sequence[Callable[..., Diagnostics]]:
         return [
-            self._step_dynamics,
+            self.monitor("dynamics", self._step_dynamics),
             self._step_prephysics,
             self._compute_physics,
             self._apply_postphysics_to_physics_state,
-            self._apply_physics,
+            self.monitor("fv3_physics", self._apply_physics),
             self._compute_postphysics,
-            self._apply_postphysics_to_dycore_state,
+            self.monitor("python", self._apply_postphysics_to_dycore_state),
         ]
 
     def _step_prephysics(self) -> Diagnostics:
@@ -410,32 +380,18 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 self._state.time, self._state
             )
             self._state_updates.update(state_updates)
-            try:
-                rank_updated_points = diagnostics["rank_updated_points"]
-            except KeyError:
-                pass
-            else:
-                updated_points = self.comm.reduce(rank_updated_points, root=0)
-                if self.comm.rank == 0:
-                    level_updates = {
-                        i: int(value)
-                        for i, value in enumerate(updated_points.sum(["x", "y"]).values)
-                    }
-                    logger.info(
-                        f"specific_humidity_limiter_updates_per_level: {level_updates}"
-                    )
             return diagnostics
 
     def _apply_postphysics_to_dycore_state(self) -> Diagnostics:
 
         tendency = dissoc(self._tendencies, "dQu", "dQv")
+        diagnostics = compute_baseline_diagnostics(self._state)
 
-        if self._postphysics_stepper is None:
-            diagnostics = compute_baseline_diagnostics(self._state)
-        else:
-            diagnostics = self._postphysics_stepper.get_diagnostics(
+        if self._postphysics_stepper is not None:
+            stepper_diags, net_moistening = self._postphysics_stepper.get_diagnostics(
                 self._state, tendency
             )
+            diagnostics.update(stepper_diags)
             if self._postphysics_only_diagnostic_ml:
                 rename_diagnostics(diagnostics)
             else:
@@ -443,9 +399,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                     self._state, tendency, dt=self._timestep
                 )
                 updated_state_from_tendency[TOTAL_PRECIP] = precipitation_sum(
-                    self._state[TOTAL_PRECIP],
-                    diagnostics[self._postphysics_stepper.net_moistening],
-                    self._timestep,
+                    self._state[TOTAL_PRECIP], net_moistening, self._timestep,
                 )
                 self._state.update_mass_conserving(updated_state_from_tendency)
                 self._state.update_mass_conserving(self._state_updates)
@@ -471,94 +425,77 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                     diagnostics.update(substep())
             yield self._state.time, diagnostics
 
+    def monitor(self, name: str, func):
+        """Decorator to add tendency monitoring to an update function
 
-def monitor(name: str, func):
-    """Decorator to add tendency monitoring to an update function
-
-    This will add the following diagnostics:
-    - `tendency_of_{variable}_due_to_{name}`
-    - `storage_of_{variable}_path_due_to_{name}`. A pressure-integrated version of the
-       above
-    - `storage_of_mass_due_to_{name}`, the total mass tendency in Pa/s.
-
-    Args:
-        name: the name to tag the tendency diagnostics with
-        func: a stepping function, usually a bound method of TimeLoop
-
-    Returns:
-        monitored function. Same as func, but with tendency and mass change
-        diagnostics.
-    """
-
-    def step(self) -> Mapping[str, xr.DataArray]:
-
-        vars_ = list(set(self._tendency_variables) | set(self._storage_variables))
-        delp_before = self._state[DELP]
-        before = {key: self._state[key] for key in vars_}
-
-        diags = func(self)
-
-        delp_after = self._state[DELP]
-        after = {key: self._state[key] for key in vars_}
-
-        # Compute statistics
-        for variable in self._tendency_variables:
-            diags[f"tendency_of_{variable}_due_to_{name}"] = (
-                after[variable] - before[variable]
-            ) / self._timestep
-
-        for variable in self._storage_variables:
-            path_before = (before[variable] * delp_before).sum("z") / gravity
-            path_after = (after[variable] * delp_after).sum("z") / gravity
-
-            diags[f"storage_of_{variable}_path_due_to_{name}"] = (
-                path_after - path_before
-            ) / self._timestep
-
-        mass_change = (delp_after - delp_before).sum("z") / self._timestep
-        mass_change.attrs["units"] = "Pa/s"
-        diags[f"storage_of_mass_due_to_{name}"] = mass_change
-
-        return diags
-
-    # ensure monitored function has same name as original
-    step.__name__ = func.__name__
-    return step
-
-
-class MonitoredPhysicsTimeLoop(TimeLoop):
-    def __init__(
-        self,
-        tendency_variables: Sequence[str],
-        storage_variables: Sequence[str],
-        *args,
-        **kwargs,
-    ):
-        """
+        This will add the following diagnostics:
+        - `tendency_of_{variable}_due_to_{name}`
+        - `storage_of_{variable}_path_due_to_{name}`. A pressure-integrated version
+        of the above
+        - `storage_of_mass_due_to_{name}`, the total mass tendency in Pa/s.
 
         Args:
-            tendency_variables: a list of variables to compute the physics
-                tendencies of.
+            name: the name to tag the tendency diagnostics with
+            func: a stepping function
 
+        Returns:
+            monitored function. Same as func, but with tendency and mass change
+            diagnostics.
         """
-        super().__init__(*args, **kwargs)
-        self._tendency_variables = list(tendency_variables)
-        self._storage_variables = list(storage_variables)
 
-    _apply_physics = monitor("fv3_physics", TimeLoop._apply_physics)
-    _apply_postphysics_to_dycore_state = monitor(
-        "python", TimeLoop._apply_postphysics_to_dycore_state
-    )
+        def step() -> Mapping[str, xr.DataArray]:
 
+            vars_ = list(set(self._tendency_variables) | set(self._storage_variables))
+            delp_before = self._state[DELP]
+            before = {key: self._state[key] for key in vars_}
 
-def globally_average_2d_diagnostics(
-    comm,
-    diagnostics: Mapping[str, xr.DataArray],
-    exclude: Optional[Sequence[str]] = None,
-) -> Mapping[str, float]:
-    averages = {}
-    exclude = exclude or []
-    for v in diagnostics:
-        if (set(diagnostics[v].dims) == {"x", "y"}) and (v not in exclude):
-            averages[v] = global_average(comm, diagnostics[v], diagnostics["area"])
-    return averages
+            diags = func()
+
+            delp_after = self._state[DELP]
+            after = {key: self._state[key] for key in vars_}
+
+            # Compute statistics
+            for variable in self._tendency_variables:
+                diag_name = f"tendency_of_{variable}_due_to_{name}"
+                diags[diag_name] = (after[variable] - before[variable]) / self._timestep
+                if "units" in before[variable].attrs:
+                    diags[diag_name].attrs["units"] = before[variable].units + "/s"
+
+            for variable in self._storage_variables:
+                path_before = vcm.mass_integrate(before[variable], delp_before, "z")
+                path_after = vcm.mass_integrate(after[variable], delp_after, "z")
+
+                diag_name = f"storage_of_{variable}_path_due_to_{name}"
+                diags[diag_name] = (path_after - path_before) / self._timestep
+                if "units" in before[variable].attrs:
+                    diags[diag_name].attrs["units"] = (
+                        before[variable].units + " kg/m**2/s"
+                    )
+
+            mass_change = (delp_after - delp_before).sum("z") / self._timestep
+            mass_change.attrs["units"] = "Pa/s"
+            diags[f"storage_of_mass_due_to_{name}"] = mass_change
+
+            return diags
+
+        # ensure monitored function has same name as original
+        step.__name__ = func.__name__
+        return step
+
+    @staticmethod
+    def _get_monitored_variable_names(
+        diagnostics: Sequence[DiagnosticFileConfig],
+    ) -> Tuple[Sequence[str], Sequence[str]]:
+        """Get sequences of tendency and storage variables from diagnostics config."""
+        tendency_variables = []
+        storage_variables = []
+        for diag_file_config in diagnostics:
+            for variable in diag_file_config.variables:
+                if variable.startswith("tendency_of") and "_due_to_" in variable:
+                    short_name = variable.split("_due_to_")[0][len("tendency_of_") :]
+                    tendency_variables.append(short_name)
+                elif variable.startswith("storage_of") and "_path_due_to_" in variable:
+                    split_str = "_path_due_to_"
+                    short_name = variable.split(split_str)[0][len("storage_of_") :]
+                    storage_variables.append(short_name)
+        return tendency_variables, storage_variables

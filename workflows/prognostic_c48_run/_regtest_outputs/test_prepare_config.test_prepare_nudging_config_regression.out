@@ -756,6 +756,7 @@ diagnostics:
 - chunks:
     time: 8
   name: state_after_timestep.zarr
+  tensorboard: false
   times:
     frequency: 900
     includes_lower: false
@@ -797,6 +798,7 @@ diagnostics:
 - chunks:
     time: 8
   name: physics_tendencies.zarr
+  tensorboard: false
   times:
     frequency: 900
     includes_lower: false
@@ -810,6 +812,7 @@ diagnostics:
 - chunks:
     time: 8
   name: nudging_tendencies.zarr
+  tensorboard: false
   times:
     frequency: 900
     includes_lower: false
@@ -824,6 +827,7 @@ diagnostics:
 - chunks:
     time: 96
   name: diags.zarr
+  tensorboard: false
   times:
     frequency: 900
     includes_lower: false
@@ -839,6 +843,7 @@ diagnostics:
 - chunks:
     time: 8
   name: reference_state.zarr
+  tensorboard: false
   times:
     frequency: 900
     includes_lower: false
@@ -1617,11 +1622,3 @@ nudging:
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
 scikit_learn: null
-step_storage_variables:
-- specific_humidity
-- total_water
-step_tendency_variables:
-- specific_humidity
-- air_temperature
-- eastward_wind
-- northward_wind

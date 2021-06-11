@@ -25,6 +25,8 @@ install_requirements = [
     # "fv3viz",
     "vcm",
     "report",
+    "streamlit",
+    "plotly",
 ]
 
 setup(
@@ -44,13 +46,16 @@ setup(
     scripts=["scripts/memoized_compute_diagnostics.sh"],
     entry_points={
         "console_scripts": [
-            "prognostic_run_diags=fv3net.diagnostics.prognostic_run.cli:main"
+            "prognostic_run_diags=fv3net.diagnostics.prognostic_run.cli:main",
+            "artifacts=fv3net.artifacts.query:main",
         ]
     },
     install_requires=install_requirements,
     license="BSD license",
     include_package_data=True,
     name="fv3net-diagnostics-prog-run",
-    packages=find_namespace_packages(include=["fv3net.diagnostics.prognostic_run"]),
+    packages=find_namespace_packages(
+        include=["fv3net.diagnostics.prognostic_run", "fv3net.artifacts"]
+    ),
     version="0.1.0",
 )

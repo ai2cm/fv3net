@@ -48,6 +48,15 @@ RUN pip3 install wheel && \
     ln -s /bin/python3 /bin/python && \
     ln -s /bin/pip3 /bin/pip
 
+# Install the latest version of gcsfs through our local
+# subtree.
+COPY external/gcsfs /fv3net/external/gcsfs
+# install gcsfs deps
+# temporary hack to remove gcsfs from constraints.txt
+# TODO remove once a new release of gcsfs is included
+RUN sed -i.bak 's/gcsfs.*//g' ${PIP_CONSTRAINT}
+RUN pip3 install /fv3net/external/gcsfs
+
 # Build the wrapper
 RUN apt-get install -y pkg-config
 COPY /external/fv3gfs-wrapper /fv3gfs-wrapper

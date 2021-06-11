@@ -1,4 +1,4 @@
-from fv3fit._shared import ModelTrainingConfig
+from fv3fit._shared import _ModelTrainingConfig as ModelTrainingConfig
 import fv3fit
 import yaml
 import pytest
@@ -6,29 +6,13 @@ import tempfile
 import subprocess
 
 
-def _get_model_config(model_info, validation_timesteps, data_info):
-
-    return ModelTrainingConfig(
-        data_path=data_info["data_path"],
-        model_type=model_info["model_type"],
-        hyperparameters=model_info["hyperparameters"],
-        input_variables=["air_temperature", "specific_humidity"],
-        output_variables=["dQ1", "dQ2"],
-        batch_function="batches_from_geodata",
-        batch_kwargs=data_info["batch_kwargs"],
-        scaler_type="standard",
-        scaler_kwargs={},
-        additional_variables=None,
-        random_seed=0,
-        validation_timesteps=data_info["validation_timesteps"]
-        if validation_timesteps
-        else None,
-    )
-
-
 @pytest.mark.parametrize(
     "model_info",
     [
+        dict(
+            model_type="sklearn_random_forest",
+            hyperparameters={"max_depth": 4, "n_estimators": 2},
+        ),
         dict(
             model_type="DenseModel",
             hyperparameters={
@@ -38,8 +22,13 @@ def _get_model_config(model_info, validation_timesteps, data_info):
             },
         ),
         dict(
-            model_type="sklearn_random_forest",
-            hyperparameters={"max_depth": 4, "n_estimators": 2},
+            model_type="DenseModel",
+            hyperparameters={
+                "width": 4,
+                "depth": 3,
+                "fit_kwargs": {"batch_size": 100, "validation_samples": 384},
+            },
+            save_model_checkpoints=True,
         ),
     ],
 )
@@ -52,7 +41,22 @@ def test_training_integration(
     """
     Test the bash endpoint for training the model produces the expected output files.
     """
-    config = _get_model_config(model_info, validation_timesteps, data_info)
+    config = ModelTrainingConfig(
+        data_path=data_info["data_path"],
+        model_type=model_info["model_type"],
+        hyperparameters=model_info["hyperparameters"],
+        input_variables=["air_temperature", "specific_humidity"],
+        output_variables=["dQ1", "dQ2"],
+        batch_function="batches_from_geodata",
+        batch_kwargs=data_info["batch_kwargs"],
+        scaler_type="standard",
+        scaler_kwargs={},
+        additional_variables=[],
+        random_seed=0,
+        validation_timesteps=data_info["validation_timesteps"]
+        if validation_timesteps
+        else [],
+    )
 
     with tempfile.NamedTemporaryFile(mode="w") as f:
         yaml.dump(config.asdict(), f)
@@ -61,4 +65,4 @@ def test_training_integration(
             ["python", "-m", "fv3fit.train", config.data_path, f.name, tmp_path]
         )
         fv3fit.load(str(tmp_path))
-        fv3fit.load_training_config(str(tmp_path))
+        fv3fit._shared.config.load_training_config(str(tmp_path))

@@ -105,9 +105,9 @@ spec:
                 time: 1
               variables:
                 - net_moistening_due_to_nudging
-                - net_heating_due_to_nudging
+                - column_heating_due_to_nudging
                 - net_mass_tendency_due_to_nudging
-                - total_precip
+                - total_precipation_rate
                 - water_vapor_path
                 - physics_precip
             - name: nudging_tendencies.zarr
@@ -241,7 +241,7 @@ spec:
           base_version: v0.6
           namelist:
             coupler_nml:
-              hours: 4
+              hours: 8
               minutes: 0
             diag_manager_nml:
               flush_nc_files: true
@@ -312,16 +312,33 @@ spec:
           diagnostics:
             - name: diags.zarr
               chunks:
-                time: 16           
+                time: 16
               times:
                 frequency: 900
                 kind: interval
               variables:
-              - net_moistening
-              - net_heating
+              - net_moistening_due_to_machine_learning
+              - column_heating_due_to_machine_learning
               - total_precipitation_rate
               - water_vapor_path
               - physics_precip
+            - name: state_after_timestep.zarr
+              chunks:
+                time: 1
+              times:
+                frequency: 3600
+                kind: interval
+              variables:
+                - eastward_wind
+                - northward_wind
+                - vertical_wind
+                - air_temperature
+                - specific_humidity
+                - pressure_thickness_of_atmospheric_layer
+                - vertical_thickness_of_atmospheric_layer
+                - land_sea_mask
+                - surface_temperature
+                - surface_geopotential
   serviceAccountName: integration-tests
   tolerations:
     - effect: NoSchedule
@@ -342,6 +359,18 @@ spec:
   - name: main
     dag:
       tasks:
+      - name: resolve-output-url
+        templateRef:
+          name: resolve-output-url
+          template: resolve-output-url
+        arguments:
+          parameters:
+            - name: bucket
+              value: "{{workflow.parameters.bucket}}"
+            - name: project
+              value: "{{workflow.parameters.project}}"
+            - name: tag
+              value: "{{workflow.parameters.tag}}-nudge-to-fine-run"
       - name: nudge-to-fine-run
         templateRef:
           name: prognostic-run
@@ -354,8 +383,12 @@ spec:
             value: "{{workflow.parameters.initial-condition}}"
           - name: flags
             value: "--output-frequency {{workflow.parameters.nudge-to-fine-output-frequency}}"
-          - name: output
-            value: "{{workflow.parameters.root}}/nudge_to_fine_run"
+          - name: bucket
+            value: "{{workflow.parameters.bucket}}"
+          - name: project
+            value: "{{workflow.parameters.project}}"
+          - name: tag
+            value: "{{workflow.parameters.tag}}-nudge-to-fine-run"
           - name: config
             value: "{{workflow.parameters.nudge-to-fine-config}}"
           - name: segment-count
@@ -364,17 +397,23 @@ spec:
             value: 6000m
           - name: memory
             value: 6Gi
+          - name: online-diags
+            value: "false"
       - name: train-offline-diags-prognostic
-        dependencies: [nudge-to-fine-run]
+        dependencies: [nudge-to-fine-run, resolve-output-url]
         templateRef:
           name: train-diags-prog
           template: train-diags-prog
         arguments:
           parameters:
-          - name: root
-            value: "{{workflow.parameters.root}}"
+          - name: bucket
+            value: "{{workflow.parameters.bucket}}"
+          - name: project
+            value: "{{workflow.parameters.project}}"
+          - name: tag
+            value: "{{workflow.parameters.tag}}-train-diags-prog"
           - name: train-test-data
-            value: "{{workflow.parameters.root}}/nudge_to_fine_run"
+            value: "{{tasks.resolve-output-url.outputs.result}}/fv3gfs_run"
           - name: training-configs
             value: "{{workflow.parameters.training-configs}}"
           - name: train-times
@@ -388,7 +427,7 @@ spec:
           - name: test-times
             value: "{{workflow.parameters.test-times}}"
           - name: public-report-output
-            value: "{{workflow.parameters.root}}/offline-report"
+            value: "{{tasks.resolve-output-url.outputs.result}}/offline-report"
           - name: cpu-prog
             value: "24"
           - name: memory-prog

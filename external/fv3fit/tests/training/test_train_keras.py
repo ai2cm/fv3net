@@ -6,7 +6,6 @@ import loaders
 import fv3fit
 import numpy as np
 import tempfile
-import copy
 
 from fv3fit.keras._training import set_random_seed
 
@@ -35,15 +34,13 @@ def hyperparameters(request, model_type, loss) -> dict:
 
 
 @pytest.fixture
-def model(hyperparameters: dict, train_config,) -> fv3fit.Estimator:
-    fit_kwargs = hyperparameters.pop("fit_kwargs", {})
+def model(train_config) -> fv3fit.Estimator:
     return fv3fit.keras.get_model(
         train_config.model_type,
         loaders.SAMPLE_DIM_NAME,
         train_config.input_variables,
         train_config.output_variables,
-        **train_config.hyperparameters,
-        **fit_kwargs,
+        train_config,
     )
 
 
@@ -52,14 +49,17 @@ def test_reproducibility(
 ):
     batch_dataset_test = training_batches[0]
     fit_kwargs = {"batch_size": 384, "validation_samples": 384}
+    train_config.hyperparameters = {
+        "fit_kwargs": fit_kwargs,
+        **train_config.hyperparameters,
+    }
     set_random_seed(0)
     model_0 = fv3fit.keras.get_model(
         "DenseModel",
         loaders.SAMPLE_DIM_NAME,
         train_config.input_variables,
         train_config.output_variables,
-        fit_kwargs=copy.deepcopy(fit_kwargs),
-        **train_config.hyperparameters,
+        train_config,
     )
     model_0.fit(training_batches)
     result_0 = model_0.predict(batch_dataset_test)
@@ -70,8 +70,7 @@ def test_reproducibility(
         loaders.SAMPLE_DIM_NAME,
         train_config.input_variables,
         train_config.output_variables,
-        fit_kwargs=copy.deepcopy(fit_kwargs),
-        **train_config.hyperparameters,
+        train_config,
     )
     model_1.fit(training_batches)
     result_1 = model_1.predict(batch_dataset_test)

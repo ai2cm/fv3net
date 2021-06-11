@@ -9,7 +9,7 @@ ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_NAME = fv3net
 CACHE_TAG =latest
 
-IMAGES = fv3net fv3fit post_process_run prognostic_run
+IMAGES = fv3net post_process_run prognostic_run
 
 .PHONY: build_images push_image run_integration_tests image_name_explicit
 ############################################################
@@ -95,10 +95,7 @@ test_prognostic_run_report:
 test_%:
 	cd external/$* && tox
 
-test_xpartition:
-	cd external/xpartition && tox -e py37
-
-test_unit: test_fv3kube test_vcm test_fv3fit test_xpartition
+test_unit: test_fv3kube test_vcm test_fv3fit
 	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
 
 test_regression:
@@ -188,7 +185,7 @@ lint:
 	@echo "LINTING SUCCESSFUL"
 
 reformat:
-	black $(PYTHON_FILES) $(PYTHON_INIT_FILES)
+	pre-commit run --all-files black
 
 #################################################################################
 # Self Documenting Commands                                                     #

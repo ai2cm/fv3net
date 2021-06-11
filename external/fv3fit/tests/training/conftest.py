@@ -1,6 +1,10 @@
 from typing import Iterable, Sequence, Optional
 import xarray as xr
-from fv3fit._shared import ModelTrainingConfig, load_data_sequence
+from fv3fit._shared import (
+    _ModelTrainingConfig as ModelTrainingConfig,
+    load_data_sequence,
+)
+from fv3fit._shared.config import legacy_config_to_data_config
 import pytest
 
 import numpy as np
@@ -87,7 +91,7 @@ def train_config(
         batch_kwargs=data_info["batch_kwargs"],
         scaler_type="standard",
         scaler_kwargs={},
-        additional_variables=None,
+        additional_variables=[],
         random_seed=0,
         validation_timesteps=validation_timesteps,
     )
@@ -97,5 +101,8 @@ def train_config(
 def training_batches(
     data_info: str, train_config: ModelTrainingConfig,  # noqa: F811
 ) -> Sequence[xr.Dataset]:
-    batched_data = load_data_sequence(data_info["data_path"], train_config)
+    train_config.data_path = data_info["data_path"]
+    # TODO: convert this to use a DataConfig fixture and delete the
+    # legacy_config_to_data_config conversion helper function
+    batched_data = load_data_sequence(legacy_config_to_data_config(train_config))
     return batched_data

@@ -3,7 +3,7 @@ import intake
 
 
 def get_verification_entries(
-    name: str, catalog: intake.Catalog
+    name: str, catalog: intake.catalog.Catalog
 ) -> Mapping[str, Sequence[str]]:
     """Given simulation name, return catalog keys for c48 dycore and physics data.
     

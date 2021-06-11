@@ -28,7 +28,6 @@ This job can be monitored by running
 
 These workflows currently refer to following images without using any tags:
 1. us.gcr.io/vcm-ml/fv3net
-1. us.gcr.io/vcm-ml/fv3fit
 1. us.gcr.io/vcm-ml/prognostic_run
 1. us.gcr.io/vcm-ml/post_process_run
 
@@ -42,8 +41,6 @@ resources:
 - <path/to/fv3net/workflows/argo>
 kind: Kustomization
 images:
-- name: us.gcr.io/vcm-ml/fv3fit
-  newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
 - name: us.gcr.io/vcm-ml/fv3net
   newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
 - name: us.gcr.io/vcm-ml/post_process_run
@@ -67,14 +64,25 @@ sequential segments.
 | `initial-condition`  | Timestamp string for time at which to begin the prognostic run                |
 | `config`             | String representation of base config YAML file; supplied to prepare_config.py |
 | `reference-restarts` | Location of restart data for initializing the prognostic run                  |
-| `output`             | Location to save prognostic run output                                        |
-| `flags`              | (optional) extra command line flags for prepare_config.py                     |
+| `tag`                | Tag which describes the run and is used in its storage location               | 
+| `flags`              | (optional) Extra command line flags for prepare_config.py                     |
+| `bucket`             | (optional) Bucket to save run output data; default 'vcm-ml-experiments'       |
+| `project`            | (optional) Project directory to save run output data; default 'default'       |
 | `segment-count`      | (optional) Number of prognostic run segments; default "1"                     |
 | `cpu`                | (optional) Number of cpus to request; default "6"                             |
 | `memory`             | (optional) Amount of memory to request; default 6Gi                           |
+| `online-diags-flags` | (optional) `flags` for `prognostic-run-diags` workflow                        |
+| `online-diags`       | (optional) Run online diagostics if "true"; default "true"                     | 
 
 #### Command line interfaces used by workflow
-This workflow calls:
+This workflow first resolves the output location for the run according to:
+```
+output="gs://{bucket}/{project}/$(date +%F)/{tag}/fv3gfs_run"
+```
+Slashes (`/`) are not permitted in `bucket`, `project` and `tag` to preserve the depth 
+of this directory structure.
+
+And then calls:
 ```
 python3 /fv3net/workflows/prognostic_c48_run/prepare_config.py \
         {{inputs.parameters.flags}} \
@@ -85,11 +93,11 @@ python3 /fv3net/workflows/prognostic_c48_run/prepare_config.py \
 ```
 And then
 ```
-runfv3 create {{inputs.parameters.output}} /tmp/fv3config.yaml /fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
+runfv3 create {output} /tmp/fv3config.yaml /fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
 ```
 Followed by `segment-count` iterations of
 ```
-runfv3 append {{inputs.parameters.output}}
+runfv3 append {output}
 ```
 
 #### Volumes used by run-fv3gfs template
@@ -197,7 +205,7 @@ This workflow trains machine learning models.
 | `input`                | Location of dataset for training data                |
 | `config`               | Model training config yaml                           |
 | `times`                | JSON-encoded list of timestamps to use for test data |
-| `offline-diags-output` | Where to save offline diagnsostics                   |
+| `offline-diags-output` | Where to save offline diagnostics                    |
 | `report-output`        | Where to save report                                 |
 | `memory`               | (optional) memory for workflow. Defaults to 6Gi.     |
 
@@ -255,16 +263,17 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 
 | Parameter               | Description                                                           |
 |-------------------------|-----------------------------------------------------------------------|
-| `root`                  | URL for the outputs from this workflow                                |
+| `tag`                   | Tag which describes the experiment and is used in its storage location| 
 | `train-test-data`       | `input` for `training` workflow                                       |
-| `training-configs`      | List of dicts with keys `name`, `config`, where `config` is the 
-                            config used for `training` workflow                                   |
+| `training-configs`      | List of dicts of type `{name: config}`, where `config` is the config used for `training` workflow |
 | `train-times`           | `times` for `training` workflow                                       |
 | `test-times`            | `times` for `offline-diags` workflow                                  |
 | `public-report-output`  | `report-output` for `offline-diags` workflow                          |
 | `initial-condition`     | `initial-condition` for `prognostic-run` workflow                     |
 | `prognostic-run-config` | `config` for `prognostic-run` workflow                                |
 | `reference-restarts`    | `reference-restarts` for `prognostic-run` workflow                    |
+| `bucket`                | (optional) Bucket to save output data; default 'vcm-ml-experiments'   |
+| `project`               | (optional) Project directory to save output data; default 'default'   |
 | `flags`                 | (optional) `flags` for `prognostic-run` workflow                      |
 | `segment-count`         | (optional) `segment-count` for `prognostic-run` workflow; default "1" |
 | `cpu-prog`              | (optional) `cpu` for `prognostic-run` workflow; default "6"           |
@@ -273,6 +282,10 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 | `memory-offline-diags`  | (optional) `memory` for `offline-diags` workflow; default 6Gi         |
 | `training-flags`        | (optional) `flags` for `training` workflow                            |
 | `online-diags-flags`    | (optional) `flags` for `prognostic-run-diags` workflow                |
+
+Output for the various steps will be written to `gs://{bucket}/{project}/$(date +%F)/{tag}`.
+Slashes (`/`) are not permitted in `bucket`, `project` and `tag` to preserve the depth 
+of this directory structure.
 
 ### Cubed-sphere to lat-lon interpolation workflow
 

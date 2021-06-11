@@ -2,12 +2,13 @@ from typing import Iterable, Sequence
 import xarray as xr
 import pytest
 import logging
-from fv3fit._shared import ModelTrainingConfig
+from fv3fit._shared import _ModelTrainingConfig as ModelTrainingConfig
+from fv3fit._shared.config import legacy_config_to_new_config
 import numpy as np
 import copy
 
 
-from fv3fit.sklearn._train import get_model
+from fv3fit.sklearn._random_forest import RandomForest
 
 logger = logging.getLogger(__name__)
 
@@ -30,21 +31,20 @@ def test_training(
     output_variables: Iterable[str],
     train_config: ModelTrainingConfig,
 ):
-    model = get_model(
-        model_type=train_config.model_type,
+    config = legacy_config_to_new_config(train_config)
+    model = RandomForest(
+        sample_dim_name="sample",
         input_variables=train_config.input_variables,
         output_variables=train_config.output_variables,
-        scaler_type=train_config.scaler_type,
-        scaler_kwargs=train_config.scaler_kwargs,
-        **train_config.hyperparameters,
+        hyperparameters=config.hyperparameters,
     )
     model.fit(training_batches)
     # This is the number of random forests in the ensemble, not the
     # number of total trees across the ensemble
-    assert model.model.n_estimators == 1
+    assert model._model_wrapper.model.n_estimators == 1
 
     # assert that the target scaler is fitted
-    assert model.target_scaler is not None
+    assert model._model_wrapper.target_scaler is not None
 
     batch_dataset = training_batches[0]
     result = model.predict(batch_dataset)
@@ -60,25 +60,22 @@ def test_reproducibility(
 ):
     batch_dataset = training_batches[0]
     train_config.hyperparameters["random_state"] = 0
+    config = legacy_config_to_new_config(train_config)
 
-    model_0 = get_model(
-        model_type=train_config.model_type,
+    model_0 = RandomForest(
+        sample_dim_name="sample",
         input_variables=train_config.input_variables,
         output_variables=train_config.output_variables,
-        scaler_type=train_config.scaler_type,
-        scaler_kwargs=train_config.scaler_kwargs,
-        **train_config.hyperparameters,
+        hyperparameters=config.hyperparameters,
     )
     model_0.fit(copy.deepcopy(training_batches))
     result_0 = model_0.predict(batch_dataset)
 
-    model_1 = get_model(
-        model_type=train_config.model_type,
+    model_1 = RandomForest(
+        sample_dim_name="sample",
         input_variables=train_config.input_variables,
         output_variables=train_config.output_variables,
-        scaler_type=train_config.scaler_type,
-        scaler_kwargs=train_config.scaler_kwargs,
-        **train_config.hyperparameters,
+        hyperparameters=config.hyperparameters,
     )
     model_1.fit(copy.deepcopy(training_batches))
     result_1 = model_1.predict(batch_dataset)

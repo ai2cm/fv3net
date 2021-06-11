@@ -6,11 +6,12 @@ dimensions:
 
 variables:
 	float64 column_integrated_dQ1_change_non_neg_sphum_constraint(y, x) ;
-		column_integrated_dQ1_change_non_neg_sphum_constraint:long_name = column integrated heating ;
+		column_integrated_dQ1_change_non_neg_sphum_constraint:long_name = Change in ML column heating due to non-negative specific humidity limiter ;
 		column_integrated_dQ1_change_non_neg_sphum_constraint:units = W/m**2 ;
 	float64 column_integrated_dQ2_change_non_neg_sphum_constraint(y, x) ;
 		column_integrated_dQ2_change_non_neg_sphum_constraint:units = kg/m^2/s ;
-	int64 rank_updated_points(z, y, x) ;
+		column_integrated_dQ2_change_non_neg_sphum_constraint:long_name = Change in ML column moistening due to non-negative specific humidity limiter ;
+	int64 specific_humidity_limiter_active(z, y, x) ;
 
 // global attributes:
 }xarray.Dataset {

@@ -19,12 +19,9 @@ from typing import (
     Optional,
 )
 import logging
+from .names import SST, TSFC, MASK
 
 logger = logging.getLogger(__name__)
-
-SST_NAME = "ocean_surface_temperature"
-TSFC_NAME = "surface_temperature"
-MASK_NAME = "land_sea_mask"
 
 State = MutableMapping[Hashable, xr.DataArray]
 
@@ -200,9 +197,10 @@ def _average_states(state_0: State, state_1: State, weight: float) -> State:
     out = {}
     for key in common_keys:
         if isinstance(state_1[key], xr.DataArray):
-            out[key] = (
-                state_0[key] * weight + (1 - weight) * state_1[key]  # type: ignore
-            )
+            with xr.set_options(keep_attrs=True):
+                out[key] = (
+                    state_0[key] * weight + (1 - weight) * state_1[key]  # type: ignore
+                )
     return out
 
 
@@ -243,12 +241,8 @@ def get_reference_surface_temperatures(state: State, reference: State) -> State:
     and reference state.
     """
     state = {
-        SST_NAME: _sst_from_reference(
-            reference[TSFC_NAME], state[SST_NAME], state[MASK_NAME]
-        ),
-        TSFC_NAME: _sst_from_reference(
-            reference[TSFC_NAME], state[TSFC_NAME], state[MASK_NAME]
-        ),
+        SST: _sst_from_reference(reference[TSFC], state[SST], state[MASK]),
+        TSFC: _sst_from_reference(reference[TSFC], state[TSFC], state[MASK]),
     }
     return state
 

@@ -1,7 +1,6 @@
 import numpy as np
 import xarray as xr
 from ..cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
-from .calc import mass_integrate
 
 
 # following are defined as in FV3GFS model (see FV3/fms/constants/constants.f90)
@@ -25,6 +24,10 @@ _REVERSE = slice(None, None, -1)
 _SEC_PER_DAY = 86400
 _KG_M2S_TO_MM_DAY = (1e3 * 86400) / 997.0
 _KG_M2_TO_MM = 1000.0 / 997
+
+
+def mass_integrate(da, delp, dim=COORD_Z_CENTER):
+    return (da * delp / _GRAVITY).sum(dim)
 
 
 def potential_temperature(P, T):
@@ -342,9 +345,9 @@ def column_integrated_liquid_water_equivalent(
         ci_liquid_water_equivalent: DataArray of water equivalent in mm
     """
 
-    ci_liquid_water_equivalent = _KG_M2_TO_MM * (
-        (delp / _GRAVITY) * specific_humidity
-    ).sum(vertical_dimension)
+    ci_liquid_water_equivalent = _KG_M2_TO_MM * mass_integrate(
+        specific_humidity, delp, vertical_dimension
+    )
     ci_liquid_water_equivalent = ci_liquid_water_equivalent.assign_attrs(
         {"long_name": "precipitable water", "units": "mm"}
     )
@@ -395,34 +398,10 @@ def liquid_ice_temperature(
     return liquid_ice_temperature
 
 
-def column_integrated_heat(
-    temperature: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
-) -> xr.DataArray:
-    """Compute vertically-integrated total heat
-    
-    Args:
-        temperature: DataArray of air temperature in K
-        delp: DataArray of pressure layer thicknesses in Pa
-        vertical_dim: Name of vertical dimension; defaults to 'z'
-          
-    Returns:
-        column_integrated_heat: DataArray of column total heat in J/m**2
-    """
-
-    column_integrated_heat = (
-        _SPECIFIC_HEAT_CONST_PRESSURE * (delp / _GRAVITY) * temperature
-    ).sum(vertical_dim)
-    column_integrated_heat = column_integrated_heat.assign_attrs(
-        {"long_name": "column integrated heat", "units": "J/m**2"}
-    )
-
-    return column_integrated_heat
-
-
-def column_integrated_heating(
+def column_integrated_heating_from_isobaric_transition(
     dtemperature_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
 ) -> xr.DataArray:
-    """Compute vertically-integrated heat tendencies
+    """Compute vertically-integrated heat tendencies assuming isobaric transition.
     
     Args:
         dtemperature_dt: DataArray of air temperature tendencies in K/s
@@ -434,6 +413,30 @@ def column_integrated_heating(
     """
 
     column_integrated_heating = _SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
+        dtemperature_dt, delp, dim=vertical_dim
+    )
+    column_integrated_heating = column_integrated_heating.assign_attrs(
+        {"long_name": "column integrated heating", "units": "W/m**2"}
+    )
+
+    return column_integrated_heating
+
+
+def column_integrated_heating_from_isochoric_transition(
+    dtemperature_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
+) -> xr.DataArray:
+    """Compute vertically-integrated heat tendencies assuming isochoric transition.
+    
+    Args:
+        dtemperature_dt: DataArray of air temperature tendencies in K/s
+        delp: DataArray of pressure layer thicknesses in Pa (NOT tendencies)
+        vertical_dim: Name of vertical dimension; defaults to 'z'
+          
+    Returns:
+        column_integrated_heating: DataArray of column total heat tendencies in W/m**2
+    """
+    specific_heat = _SPECIFIC_HEAT_CONST_PRESSURE - _RDGAS
+    column_integrated_heating = specific_heat * mass_integrate(
         dtemperature_dt, delp, dim=vertical_dim
     )
     column_integrated_heating = column_integrated_heating.assign_attrs(

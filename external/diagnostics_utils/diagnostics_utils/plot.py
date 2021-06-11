@@ -27,10 +27,13 @@ def plot_profile_var(
     dpi: int = 100,
     derivation_dim: str = "derivation",
     domain_dim: str = "domain",
+    dataset_dim: str = "dataset",
     derivation_plot_coords: Sequence[str] = ("target", "predict"),
     xlim: Sequence[float] = None,
     xticks: Union[Sequence[float], np.ndarray] = None,
 ):
+    if dataset_dim in ds[var].dims:
+        ds[var] = ds[var].mean("dataset")
     if derivation_dim in ds[var].dims:
         facet_grid = (
             ds[var]
@@ -56,20 +59,25 @@ def plot_column_integrated_var(
     var: str,
     derivation_plot_coords: Sequence[str],
     derivation_dim: str = "derivation",
-    data_source_dim: str = None,
+    dataset_dim: str = "dataset",
     dpi: int = 100,
     vmax: Union[int, float] = None,
 ):
+    ds_columns = (
+        ds.sel(derivation=derivation_plot_coords)
+        if derivation_plot_coords is not None
+        else ds
+    )
     f, _, _, _, facet_grid = visualize.plot_cube(
-        visualize.mappable_var(
-            ds.sel(derivation=derivation_plot_coords), var, **MAPPABLE_VAR_KWARGS
-        ),
+        visualize.mappable_var(ds_columns, var, **MAPPABLE_VAR_KWARGS),
         col=derivation_dim,
-        row=data_source_dim,
+        row=dataset_dim if dataset_dim in ds.dims else None,
         vmax=vmax,
     )
-    facet_grid.set_titles(template="{value} ", maxchar=40)
-    f.set_size_inches([14, 3.5])
+    if facet_grid:
+        facet_grid.set_titles(template="{value} ", maxchar=40)
+    num_datasets = len(ds[dataset_dim]) if dataset_dim in ds.dims else 1
+    f.set_size_inches([14, 3.5 * num_datasets])
     f.set_dpi(dpi)
     f.suptitle(f'{var.replace("_", " ")} {units_from_name(var)}')
     return f

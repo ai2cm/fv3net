@@ -1,23 +1,29 @@
-from typing import Iterable, Type, Optional, Union
+from typing import Iterable, Type, Union
 import logging
 import numpy as np
 import os
 import random
 import tensorflow as tf
-from . import _models
 from .._shared.predictor import Estimator
+from .._shared.config import (
+    get_keras_model,
+    _ModelTrainingConfig,
+    legacy_config_to_new_config,
+)
 
 logger = logging.getLogger(__file__)
 
 __all__ = ["get_model"]
 
 
+# TODO: delete this and use the unified get_model instead
+# when the tests are refactored to no longer depend on this function
 def get_model(
     model_type: str,
     sample_dim_name: str,
     input_variables: Iterable[str],
     output_variables: Iterable[str],
-    **hyperparameters
+    legacy_config: _ModelTrainingConfig,
 ) -> Estimator:
     """Initialize and return a Estimator instance.
 
@@ -30,11 +36,13 @@ def get_model(
     Returns:
         model
     """
-    return get_model_class(model_type)(  # type: ignore
-        sample_dim_name, input_variables, output_variables, **hyperparameters
+    config = legacy_config_to_new_config(legacy_config)
+    return get_keras_model(model_type)(  # type: ignore
+        sample_dim_name, input_variables, output_variables, config.hyperparameters
     )
 
 
+# TODO: merge this helper function with get_keras_model
 def get_model_class(model_type: str) -> Type[Estimator]:
     """Returns a class implementing the Estimator interface corresponding to the model type.
     
@@ -44,38 +52,7 @@ def get_model_class(model_type: str) -> Type[Estimator]:
     Returns:
         model_class: a subclass of Estimator corresponding to the model type
     """
-    return getattr(_models, model_type)
-
-
-def get_optimizer(hyperparameters: dict = None):
-    hyperparameters = hyperparameters or {}
-    optimizer_config = hyperparameters.pop("optimizer", {})
-    if optimizer_config:
-        optimizer_class = getattr(
-            tf.keras.optimizers, optimizer_config.get("name", "Adam")
-        )
-        optimizer_kwargs = optimizer_config.get("kwargs", {})
-        optimizer = optimizer_class(**optimizer_kwargs)
-    else:
-        optimizer = None
-    return optimizer
-
-
-def get_regularizer(
-    hyperparameters: dict = None,
-) -> Optional[tf.keras.regularizers.Regularizer]:
-    # Will be assumed to be a kernel regularizer when used in the model
-    hyperparameters = hyperparameters or {}
-    regularizer_config = hyperparameters.pop("regularizer", {})
-    if regularizer_config:
-        regularizer_class = getattr(
-            tf.keras.regularizers, regularizer_config.get("name", "L2")
-        )
-        regularizer_kwargs = regularizer_config.get("kwargs", {})
-        regularizer = regularizer_class(**regularizer_kwargs)
-    else:
-        regularizer = None
-    return regularizer
+    return get_keras_model(model_type)
 
 
 def set_random_seed(seed: Union[float, int] = 0):

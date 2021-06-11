@@ -10,7 +10,7 @@ import xarray as xr
 import datetime
 import yaml
 import vcm.testing
-from machine_learning_mocks import get_mock_sklearn_model, get_mock_keras_model
+from machine_learning_mocks import get_mock_predictor
 
 import subprocess
 
@@ -20,21 +20,16 @@ IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
 )
 ORO_PATH = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
 FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
-LOG_PATH = "statistics.txt"
+LOG_PATH = "logs.txt"
+STATISTICS_PATH = "statistics.txt"
+PROFILES_PATH = "profiles.txt"
 RUNFILE_PATH = "runfile.py"
 CHUNKS_PATH = "chunks.yaml"
-DIAGNOSTICS = [
-    {
-        "name": "diags.zarr",
-        "times": {"kind": "interval", "frequency": 900, "times": None},
-    },
-]
 
 
 class ConfigEnum:
     nudging = "nudging"
-    sklearn = "sklearn"
-    keras = "keras"
+    predictor = "predictor"
 
 
 default_fv3config = rf"""
@@ -405,17 +400,97 @@ def _get_nudging_config(config_yaml: str, timestamp_dir: str):
 
 def get_nudging_config():
     config = _get_nudging_config(default_fv3config, "gs://" + IC_PATH.as_posix())
-    config["diagnostics"] = DIAGNOSTICS
+    config["diagnostics"] = [
+        {
+            "name": "diags.zarr",
+            "times": {"kind": "interval", "frequency": 900, "times": None},
+            "variables": [
+                "air_temperature_reference",
+                "air_temperature_tendency_due_to_nudging",
+                "area",
+                "cnvprcp_after_physics",
+                "cnvprcp_after_python",
+                "evaporation",
+                "column_heating_due_to_nudging",
+                "net_moistening_due_to_nudging",
+                "physics_precip",
+                "specific_humidity_reference",
+                "specific_humidity_tendency_due_to_nudging",
+                "storage_of_mass_due_to_fv3_physics",
+                "storage_of_mass_due_to_python",
+                "storage_of_specific_humidity_path_due_to_fv3_physics",
+                "storage_of_specific_humidity_path_due_to_microphysics",
+                "storage_of_specific_humidity_path_due_to_python",
+                "storage_of_total_water_path_due_to_fv3_physics",
+                "storage_of_total_water_path_due_to_python",
+                "surface_temperature_reference",
+                "tendency_of_air_temperature_due_to_fv3_physics",
+                "tendency_of_air_temperature_due_to_python",
+                "tendency_of_eastward_wind_due_to_fv3_physics",
+                "tendency_of_eastward_wind_due_to_python",
+                "tendency_of_northward_wind_due_to_fv3_physics",
+                "tendency_of_northward_wind_due_to_python",
+                "tendency_of_specific_humidity_due_to_fv3_physics",
+                "tendency_of_specific_humidity_due_to_python",
+                "total_precip_after_physics",
+                "total_precipitation_rate",
+                "water_vapor_path",
+            ],
+        }
+    ]
     config["fortran_diagnostics"] = []
     return config
 
 
 def get_ml_config(model_path):
     config = yaml.safe_load(default_fv3config)
-    config["diagnostics"] = DIAGNOSTICS
+    config["diagnostics"] = [
+        {
+            "name": "diags.zarr",
+            "times": {"kind": "interval", "frequency": 900, "times": None},
+            "variables": [
+                "air_temperature",
+                "area",
+                "cnvprcp_after_physics",
+                "cnvprcp_after_python",
+                "column_integrated_dQ1_change_non_neg_sphum_constraint",
+                "column_integrated_dQ2_change_non_neg_sphum_constraint",
+                "column_integrated_dQu",
+                "column_integrated_dQv",
+                "dQ1",
+                "dQ2",
+                "dQu",
+                "dQv",
+                "evaporation",
+                "column_heating_due_to_machine_learning",
+                "net_moistening_due_to_machine_learning",
+                "physics_precip",
+                "pressure_thickness_of_atmospheric_layer",
+                "specific_humidity",
+                "specific_humidity_limiter_active",
+                "storage_of_mass_due_to_fv3_physics",
+                "storage_of_mass_due_to_python",
+                "storage_of_specific_humidity_path_due_to_fv3_physics",
+                "storage_of_specific_humidity_path_due_to_microphysics",
+                "storage_of_specific_humidity_path_due_to_python",
+                "storage_of_total_water_path_due_to_fv3_physics",
+                "storage_of_total_water_path_due_to_python",
+                "tendency_of_air_temperature_due_to_fv3_physics",
+                "tendency_of_air_temperature_due_to_python",
+                "tendency_of_eastward_wind_due_to_fv3_physics",
+                "tendency_of_eastward_wind_due_to_python",
+                "tendency_of_northward_wind_due_to_fv3_physics",
+                "tendency_of_northward_wind_due_to_python",
+                "tendency_of_specific_humidity_due_to_fv3_physics",
+                "tendency_of_specific_humidity_due_to_python",
+                "total_precip_after_physics",
+                "total_precipitation_rate",
+                "water_vapor_path",
+            ],
+        }
+    ]
     config["fortran_diagnostics"] = []
-    config["scikit_learn"] = {"model": [model_path], "zarr_output": "diags.zarr"}
-    config["step_storage_variables"] = ["specific_humidity", "total_water"]
+    config["scikit_learn"] = {"model": [model_path]}
     # use local paths in prognostic_run image. fv3config
     # downloads data. We should change this once the fixes in
     # https://github.com/VulcanClimateModeling/fv3gfs-python/pull/78 propagates
@@ -423,9 +498,7 @@ def get_ml_config(model_path):
     return config
 
 
-@pytest.fixture(
-    scope="module", params=[ConfigEnum.sklearn, ConfigEnum.keras, ConfigEnum.nudging]
-)
+@pytest.fixture(scope="module", params=[ConfigEnum.predictor, ConfigEnum.nudging])
 def configuration(request):
     return request.param
 
@@ -435,12 +508,8 @@ def completed_rundir(configuration, tmpdir_factory):
 
     model_path = str(tmpdir_factory.mktemp("model"))
 
-    if configuration == ConfigEnum.sklearn:
-        model = get_mock_sklearn_model()
-        fv3fit.dump(model, str(model_path))
-        config = get_ml_config(model_path)
-    elif configuration == ConfigEnum.keras:
-        model = get_mock_keras_model()
+    if configuration == ConfigEnum.predictor:
+        model = get_mock_predictor()
         fv3fit.dump(model, str(model_path))
         config = get_ml_config(model_path)
     elif configuration == ConfigEnum.nudging:
@@ -466,8 +535,9 @@ def test_fv3run_checksum_restarts(completed_rundir, regtest):
     print(fv_core.computehash(), file=regtest)
 
 
-def test_fv3run_logs_present(completed_rundir):
-    assert completed_rundir.join(LOG_PATH).exists()
+@pytest.mark.parametrize("path", [LOG_PATH, STATISTICS_PATH, PROFILES_PATH])
+def test_fv3run_logs_present(completed_rundir, path):
+    assert completed_rundir.join(path).exists()
 
 
 def test_runfile_script_present(completed_rundir):
@@ -499,7 +569,7 @@ def test_fv3run_python_mass_conserving(completed_rundir, configuration):
     if configuration == ConfigEnum.nudging:
         pytest.skip()
 
-    path = str(completed_rundir.join(LOG_PATH))
+    path = str(completed_rundir.join(STATISTICS_PATH))
 
     # read python mass conservation info
     with open(path) as f:
@@ -516,3 +586,18 @@ def test_fv3run_python_mass_conserving(completed_rundir, configuration):
             rtol=0.003,
             atol=1e-4 / 86400,
         )
+
+
+def test_fv3run_vertical_profile_statistics(completed_rundir, configuration):
+    if configuration == ConfigEnum.nudging:
+        # no specific humidity limiter for nudging run
+        pytest.skip()
+    path = str(completed_rundir.join(PROFILES_PATH))
+    npz = yaml.safe_load(default_fv3config)["namelist"]["fv_core_nml"]["npz"]
+    with open(path) as f:
+        lines = f.readlines()
+
+    for line in lines:
+        profiles = json.loads(line)
+        assert "time" in profiles
+        assert len(profiles["specific_humidity_limiter_active_global_sum"]) == npz

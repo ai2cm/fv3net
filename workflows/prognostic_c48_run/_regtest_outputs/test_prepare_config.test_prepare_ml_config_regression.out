@@ -756,6 +756,7 @@ diagnostics:
 - chunks:
     time: 96
   name: diags.zarr
+  tensorboard: false
   times:
     frequency: 900
     includes_lower: false
@@ -1537,11 +1538,3 @@ scikit_learn:
   model:
   - gs://ml-model
   output_standard_names: {}
-step_storage_variables:
-- specific_humidity
-- total_water
-step_tendency_variables:
-- specific_humidity
-- air_temperature
-- eastward_wind
-- northward_wind

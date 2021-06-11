@@ -17,7 +17,7 @@ setup(
     entry_points={"console_scripts": ["synth-save-schema=synth.clis:save_schema"]},
     install_requires=[
         "dask==2.*,>=2.15.0",
-        "fsspec==0.*,>=0.7.3",
+        "fsspec>=0.7.3",
         "toolz==0.*,>=0.10.0",
         "xarray==0.*,>=0.15.1",
         "zarr==2.*,>=2.4.0",
