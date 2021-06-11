@@ -384,6 +384,7 @@ def _get_nudging_config(config_yaml: str, timestamp_dir: str):
     config["nudging"] = {
         "restarts_path": ".",
         "timescale_hours": {"air_temperature": 3.0, "specific_humidity": 3.0},
+        "taper_indices": {"z": (5, 10)},
     }
 
     config.setdefault("patch_files", []).extend(
@@ -563,6 +564,17 @@ def test_fv3run_diagnostic_outputs_check_variables(regtest, completed_rundir):
 def test_fv3run_diagnostic_outputs_schema(regtest, completed_rundir):
     diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
     diagnostics.info(regtest)
+
+
+def test_no_nudging_where_tapered(completed_rundir, configuration):
+    if configuration == ConfigEnum.nudging:
+        diags = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
+        for var in [
+            "air_temperature_tendency_due_to_nudging",
+            "specific_humidity_tendency_due_to_nudging",
+        ]:
+            testme = diags[var].isel(time=-1, z=0)
+            xr.testing.assert_equal(testme, xr.zeros_like(testme))
 
 
 def test_fv3run_python_mass_conserving(completed_rundir, configuration):

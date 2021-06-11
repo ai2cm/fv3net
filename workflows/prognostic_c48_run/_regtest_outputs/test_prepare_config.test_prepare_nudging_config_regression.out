@@ -1613,6 +1613,7 @@ nudging:
   reference_frequency_seconds: 900
   reference_initial_time: null
   restarts_path: gs://ic-bucket
+  taper_indices: null
   timescale_hours:
     air_temperature: 12
     pressure_thickness_of_atmospheric_layer: 12

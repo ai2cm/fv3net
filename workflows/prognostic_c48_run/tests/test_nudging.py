@@ -4,6 +4,7 @@ from runtime.nudging import (
     _time_to_label,
     _label_to_time,
     get_nudging_tendency,
+    _taper,
 )
 import xarray as xr
 from datetime import timedelta
@@ -177,3 +178,24 @@ def test_get_nudging_tendency(
         np.testing.assert_array_equal(result[name].data, tendency.data)
         assert result[name].dims == tendency.dims
         assert result[name].attrs["units"] == tendency.attrs["units"]
+
+
+def test_get_nudging_tendency_with_taper(
+    state, reference_state, nudging_timescales, nudging_tendencies
+):
+    result = get_nudging_tendency(
+        state, reference_state, nudging_timescales, {"dim1": (1, 3)}
+    )
+    for name, tendency in nudging_tendencies.items():
+        assert result[name].dims == tendency.dims
+        assert result[name].attrs["units"] == tendency.attrs["units"]
+
+
+def test__taper():
+    da = xr.DataArray(np.ones((2, 2, 5)), dims=["x", "y", "z"])
+    result = _taper(da, {"z": (1, 3)})
+    expected_result = xr.DataArray(np.ones((2, 2, 5)), dims=["x", "y", "z"])
+    expected_result[:, :, 0] = 0.0
+    expected_result[:, :, 1] = 0.0
+    expected_result[:, :, 2] = 0.5
+    xr.testing.assert_equal(result, expected_result)

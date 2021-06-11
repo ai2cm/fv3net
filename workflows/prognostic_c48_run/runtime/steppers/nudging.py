@@ -40,13 +40,15 @@ class PureNudger:
 
         self._nudging_timescales = nudging_timescales_from_dict(config.timescale_hours)
         self._get_nudging_tendency = functools.partial(
-            get_nudging_tendency, nudging_timescales=self._nudging_timescales,
+            get_nudging_tendency,
+            nudging_timescales=self._nudging_timescales,
+            taper_indices=config.taper_indices,
         )
         self.hydrostatic = hydrostatic
 
     def __call__(self, time, state):
         reference = self._get_reference_state(time)
-        tendencies = get_nudging_tendency(state, reference, self._nudging_timescales)
+        tendencies = self._get_nudging_tendency(state, reference)
         ssts = get_reference_surface_temperatures(state, reference)
 
         reference = {

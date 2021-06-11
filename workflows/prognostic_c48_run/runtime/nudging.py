@@ -2,6 +2,7 @@ import fv3gfs.util
 from mpi4py import MPI
 import shutil
 import fsspec
+import numpy as np
 import xarray as xr
 import dataclasses
 import cftime
@@ -17,6 +18,7 @@ from typing import (
     Any,
     Dict,
     Optional,
+    Sequence,
 )
 import logging
 from .names import SST, TSFC, MASK
@@ -61,6 +63,7 @@ class NudgingConfig:
     # optional arguments needed for time interpolation
     reference_initial_time: Optional[str] = None
     reference_frequency_seconds: float = 900
+    taper_indices: Optional[Mapping[str, Sequence[int]]] = None
 
 
 def nudging_timescales_from_dict(timescales: Mapping) -> Mapping:
@@ -205,7 +208,10 @@ def _average_states(state_0: State, state_1: State, weight: float) -> State:
 
 
 def get_nudging_tendency(
-    state: State, reference_state: State, nudging_timescales: Mapping[str, timedelta]
+    state: State,
+    reference_state: State,
+    nudging_timescales: Mapping[str, timedelta],
+    taper_indices: Optional[Mapping[str, Sequence[int]]] = None,
 ) -> State:
     """
     Return the nudging tendency of the given state towards the reference state
@@ -217,6 +223,9 @@ def get_nudging_tendency(
         nudging_timescales (dict): A dictionary whose keys are standard names and
             values are timedelta objects indicating the relaxation timescale for that
             variable.
+        taper_indices: Nudging tendencies will multiplied by zero before first
+            value and unchanged after second value. Factor is linearly interpolated
+            between these.
     Returns:
         nudging_tendencies (dict): A dictionary whose keys are standard names
             and values are xr.DataArray objects indicating the nudging tendency
@@ -227,6 +236,8 @@ def get_nudging_tendency(
         var_state = state[name]
         var_reference = reference_state[name]
         return_data = (var_reference - var_state) / timescale.total_seconds()
+        if taper_indices is not None:
+            return_data = _taper(return_data, taper_indices)
         return_data = return_data.assign_attrs(
             {"units": f'{var_state.attrs.get("units", "")} s^-1'}
         )
@@ -257,3 +268,18 @@ def _sst_from_reference(
         reference_surface_temperature,
         surface_temperature,
     ).assign_attrs(units=surface_temperature.units)
+
+
+def _taper(da: xr.DataArray, taper_indices: Mapping[str, Sequence[int]]):
+    for dim, indices in taper_indices.items():
+        if dim in da.dims:
+            other_dims = set(da.dims) - set([dim])
+            if other_dims:
+                factor = xr.ones_like(da.isel({x: 0 for x in other_dims}))
+            else:
+                factor = xr.ones_like(da)
+            length = indices[1] - indices[0]
+            factor[: indices[0]] = 0.0
+            factor[indices[0] : indices[1]] = np.arange(length) / length
+            da *= factor
+    return da
