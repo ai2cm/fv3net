@@ -48,6 +48,7 @@ class OnlineEmulatorConfig:
     v_weight: float = 100
     epochs: int = 1
     batch: Optional[BatchDataConfig] = None
+    output_path: str = ""
 
     @property
     def input_variables(self) -> Tuple[str]:
@@ -128,6 +129,15 @@ class OnlineEmulator:
             },
         )
 
+    def score(self, d: tf.data.Dataset):
+        losses = defaultdict(list)
+        for x, y in d.batch(10_000):
+            _, info = self.get_loss(x, y)
+            for key in info:
+                losses[key].append(info[key])
+        loss_epoch_test = average(losses)
+        return loss_epoch_test
+
     def batch_fit(self, d: tf.data.Dataset, validation_data=None):
         """
 
@@ -143,7 +153,6 @@ class OnlineEmulator:
 
         for i in range(self.config.epochs):
             train_loss = defaultdict(lambda: [])
-            test_loss = defaultdict(lambda: [])
             for x, y in d.batch(self.config.batch_size):
                 info = self.step(x, y)
                 for key in info:
@@ -153,15 +162,8 @@ class OnlineEmulator:
             self.log_dict("train_epoch", loss_epoch_train, step=i)
 
             if validation_data:
-                for x, y in validation_data.batch(10_000):
-                    _, info = self.get_loss(x, y)
-                    for key in info:
-                        test_loss[key].append(info[key])
-
-                loss_epoch_test = average(test_loss)
-
+                loss_epoch_test = self.score(validation_data)
                 self.log_dict("test_epoch", loss_epoch_test, step=i)
-
                 x, y = next(iter(validation_data.batch(3).take(1)))
                 out = self.model(x)
                 self.log_profiles(

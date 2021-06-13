@@ -1,3 +1,5 @@
+import json
+import os
 import data
 import runtime.emulator
 import tensorflow as tf
@@ -33,5 +35,12 @@ test_dataset = (
     .cache()
 )
 
+
 with tf.summary.create_file_writer(f"tensorboard/{uuid.uuid4().hex}").as_default():
     emulator.batch_fit(train_dataset, validation_data=test_dataset)
+
+train_scores = emulator.score(train_dataset)
+test_scores = emulator.score(test_dataset)
+
+with open(os.path.join(config.output_path, "scores.json"), "w") as f:
+    json.dump({"train": train_scores, "test": test_scores}, f)
