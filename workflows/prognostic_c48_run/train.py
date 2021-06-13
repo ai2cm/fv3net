@@ -2,37 +2,35 @@ import data
 import runtime.emulator
 import tensorflow as tf
 import uuid
+import dacite
+import yaml
+import sys
 
 tf.random.set_seed(1)
 
-config = runtime.emulator.OnlineEmulatorConfig(
-    epochs=100, learning_rate=0.01, q_weight=1e10, t_weight=1e3
-)
+with open(sys.argv[1]) as f:
+    dict_ = yaml.safe_load(f)
+
+config = dacite.from_dict(runtime.emulator.OnlineEmulatorConfig, dict_)
 emulator = runtime.emulator.OnlineEmulator(config)
 
 timestep = 900
 
 train_dataset = (
     data.netcdf_url_to_dataset(
-        "gs://vcm-ml-scratch/andrep/all-physics-emu/training-subsets/simple-phys-hybridedmf-10day",  # noqa
-        timestep,
-        emulator.input_variables,
+        config.batch.training_path, timestep, emulator.input_variables,
     )
     .take(20)
     .unbatch()
     .shuffle(100_000)
-    .cache("train")
+    .cache()
 )
 test_dataset = (
     data.netcdf_url_to_dataset(
-        "gs://vcm-ml-scratch/andrep/all-physics-emu/validation-subsets/simple-phys-hybridedmf-10day",  # noqa
-        timestep,
-        emulator.input_variables,
+        config.batch.testing_path, timestep, emulator.input_variables,
     )
-    .take(10)
     .unbatch()
-    .shuffle(100_000)
-    .cache("test")
+    .cache()
 )
 
 with tf.summary.create_file_writer(f"tensorboard/{uuid.uuid4().hex}").as_default():

@@ -20,6 +20,12 @@ def average(metrics):
 
 
 @dataclasses.dataclass
+class BatchDataConfig:
+    training_path: str
+    testing_path: str
+
+
+@dataclasses.dataclass
 class OnlineEmulatorConfig:
     """
     Attrs:
@@ -27,6 +33,7 @@ class OnlineEmulatorConfig:
             descent step
         learning_rate: the learning rate for each gradient descent step
         online: whether predictions are used or not
+        batch: if provided then these data are used for training the ML model
 
     """
 
@@ -40,6 +47,7 @@ class OnlineEmulatorConfig:
     t_weight: float = 100
     v_weight: float = 100
     epochs: int = 1
+    batch: Optional[BatchDataConfig] = None
 
     @property
     def input_variables(self) -> Tuple[str]:
