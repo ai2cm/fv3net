@@ -4,5 +4,6 @@ stages:
     deps:
     - data/training
     - data/validation
+    - params.yaml
     metrics:
     - scores.json

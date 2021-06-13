@@ -11,7 +11,10 @@ stages:
       md5: 7d6a643bc6f4d3c2790b7318000580ba.dir
       size: 3121742448
       nfiles: 144
+    - path: params.yaml
+      md5: df02b8a5534e87fc6be113849c2451ed
+      size: 135
     outs:
     - path: scores.json
-      md5: e69220799882b41f0aa1bcfa542be108
-      size: 335
+      md5: 881117ba9cb9ef97a6dbb0abeb05ea9b
+      size: 337
