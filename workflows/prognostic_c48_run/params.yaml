@@ -1,7 +1,7 @@
 batch:
   training_path: data/training
   testing_path: data/validation
-epochs: 100
+epochs: 1
 learning_rate: 0.01
 q_weight: 1.e+10
 t_weight: 1.e+3
