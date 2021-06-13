@@ -26,7 +26,6 @@ train_dataset = (
     data.netcdf_url_to_dataset(
         config.batch.training_path, timestep, emulator.input_variables,
     )
-    .take(20)
     .unbatch()
     .shuffle(100_000)
     .cache()
