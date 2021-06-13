@@ -3,13 +3,17 @@ import numpy as np
 import tensorflow as tf
 import xarray as xr
 from runtime.emulator import (
+    ScalarMLP,
     UVTQSimple,
     OnlineEmulator,
     OnlineEmulatorConfig,
     NormLayer,
     ScalarNormLayer,
+    get_model,
 )
 import pytest
+
+from runtime.loss import ScalarLoss
 
 
 def test_OnlineEmulator_partial_fit(state):
@@ -69,8 +73,16 @@ def test_OnlineEmulator_fit_predict(state, extra_inputs):
     assert list(stateout["eastward_wind"].dims) == ["z", "y", "x"]
 
 
-def test_OnlineEmulator_batch_fit():
-    config = OnlineEmulatorConfig(batch_size=32, learning_rate=0.001, momentum=0.0,)
+@pytest.mark.parametrize(
+    "config",
+    [
+        OnlineEmulatorConfig(batch_size=32, learning_rate=0.001, momentum=0.0,),
+        OnlineEmulatorConfig(
+            batch_size=32, learning_rate=0.001, momentum=0.0, target=ScalarLoss(0, 0)
+        ),
+    ],
+)
+def test_OnlineEmulator_batch_fit(config):
 
     one = tf.zeros([79])
 
@@ -139,3 +151,38 @@ def test_scalar_norm_layer():
     norm.fit(input)
 
     np.testing.assert_allclose(norm(input).numpy(), expected)
+
+
+@pytest.mark.parametrize(
+    "config, class_",
+    [
+        pytest.param(OnlineEmulatorConfig(), UVTQSimple, id="3d-out"),
+        pytest.param(
+            OnlineEmulatorConfig(target=ScalarLoss(0, 0)), ScalarMLP, id="scalar-mlp"
+        ),
+    ],
+)
+def test_get_model(config, class_):
+    ins = [tf.ones((1, 10), dtype=tf.float32)] * 4
+    model = get_model(config, ins, ins)
+    assert isinstance(model, class_)
+
+
+def test_ScalarMLP():
+    ins = [tf.ones((1, 10), dtype=tf.float32)] * 4
+    outs = [tf.zeros((1, 10), dtype=tf.float32)] * 4
+    model = ScalarMLP()
+    model.fit_scalers(ins, outs)
+    out = model(ins)
+
+    assert out.shape == (1, 1)
+
+    # computing loss should not fail
+    loss, _ = ScalarLoss(0, 0).loss(model, ins, outs)
+    assert loss.shape == ()
+
+
+def test_top_level():
+    dict_ = {"target": {"variable": 0, "level": 10}}
+    config = OnlineEmulatorConfig.from_dict(dict_)
+    assert ScalarLoss(0, 10) == config.target

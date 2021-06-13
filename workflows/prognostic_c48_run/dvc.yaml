@@ -7,3 +7,11 @@ stages:
     - params.yaml
     metrics:
     - scores.json
+  train-single-level:
+    cmd: docker-compose run fv3 python3 train.py single-level.yaml
+    deps:
+    - data/training
+    - data/validation
+    - single-level.yaml
+    metrics:
+    - single-level/scores.json

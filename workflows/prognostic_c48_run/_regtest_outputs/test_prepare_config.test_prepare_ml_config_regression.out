@@ -428,10 +428,19 @@ namelist:
     ldebug: false
 nudging: null
 online_emulator:
+  batch: null
   batch_size: 64
+  epochs: 1
+  extra_input_variables: []
   learning_rate: 0.01
   momentum: 0.5
   online: false
+  output_path: ''
+  target:
+    q_weight: 1000000.0
+    t_weight: 100
+    u_weight: 100
+    v_weight: 100
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
 scikit_learn:

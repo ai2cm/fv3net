@@ -4,16 +4,20 @@ import data
 import runtime.emulator
 import tensorflow as tf
 import uuid
-import dacite
 import yaml
 import sys
+
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 tf.random.set_seed(1)
 
 with open(sys.argv[1]) as f:
     dict_ = yaml.safe_load(f)
 
-config = dacite.from_dict(runtime.emulator.OnlineEmulatorConfig, dict_)
+config = runtime.emulator.OnlineEmulatorConfig.from_dict(dict_)
+logging.info(config)
 emulator = runtime.emulator.OnlineEmulator(config)
 
 timestep = 900

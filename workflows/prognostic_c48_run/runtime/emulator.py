@@ -1,11 +1,14 @@
 from collections import defaultdict
 import dataclasses
-from matplotlib import pyplot as plt
-from typing import Mapping, Optional, List, Tuple, Sequence
+from typing import Mapping, Optional, Sequence, Tuple, Union, List
 from matplotlib import pyplot as plt
 import xarray as xr
 import tensorflow as tf
+import dacite
 from runtime.diagnostics.tensorboard import plot_to_image
+from runtime.loss import ScalarLoss, MultiVariableLoss
+import logging
+
 
 U = "eastward_wind"
 V = "northward_wind"
@@ -43,17 +46,22 @@ class OnlineEmulatorConfig:
     momentum: float = 0.5
     online: bool = False
     extra_input_variables: List[str] = dataclasses.field(default_factory=list)
-    q_weight: float = 1e6
-    u_weight: float = 100
-    t_weight: float = 100
-    v_weight: float = 100
     epochs: int = 1
     batch: Optional[BatchDataConfig] = None
+    target: Union[MultiVariableLoss, ScalarLoss] = dataclasses.field(
+        default_factory=MultiVariableLoss
+    )
+
     output_path: str = ""
 
     @property
     def input_variables(self) -> List[str]:
         return [U, V, T, Q] + list(self.extra_input_variables)
+
+    @classmethod
+    def from_dict(cls, dict_) -> "OnlineEmulatorConfig":
+        return dacite.from_dict(cls, dict_, dacite.Config(strict=True))
+
 
 def stack(state: State, keys) -> xr.Dataset:
     ds = xr.Dataset({key: state[key] for key in keys})
@@ -106,28 +114,7 @@ class OnlineEmulator:
         return info
 
     def get_loss(self, in_, out):
-        up, vp, tp, qp = self.model(in_)
-        ut, vt, tt, qt = out
-        loss_u = tf.reduce_mean(tf.keras.losses.mean_squared_error(ut, up))
-        loss_v = tf.reduce_mean(tf.keras.losses.mean_squared_error(vt, vp))
-        loss_t = tf.reduce_mean(tf.keras.losses.mean_squared_error(tt, tp))
-        loss_q = tf.reduce_mean(tf.keras.losses.mean_squared_error(qt, qp))
-        loss = (
-            loss_u * self.config.u_weight
-            + loss_v * self.config.v_weight
-            + loss_t * self.config.t_weight
-            + loss_q * self.config.q_weight
-        )
-        return (
-            loss,
-            {
-                "loss_u": loss_u.numpy(),
-                "loss_v": loss_v.numpy(),
-                "loss_q": loss_q.numpy(),
-                "loss_t": loss_t.numpy(),
-                "loss": loss.numpy(),
-            },
-        )
+        return self.config.target.loss(self.model, in_, out)
 
     def score(self, d: tf.data.Dataset):
         losses = defaultdict(list)
@@ -166,25 +153,17 @@ class OnlineEmulator:
                 self.log_dict("test_epoch", loss_epoch_test, step=i)
                 x, y = next(iter(validation_data.batch(3).take(1)))
                 out = self.model(x)
-                self.log_profiles(
-                    "eastward_wind_truth", (y[0] - x[0]).numpy().T, step=i
-                )
-                self.log_profiles(
-                    "eastward_wind_prediction", (out[0] - x[0]).numpy().T, step=i
-                )
-                self.log_profiles("humidity_truth", (y[3] - x[3]).numpy().T, step=i)
-                self.log_profiles(
-                    "humidity_prediction", (out[3] - x[3]).numpy().T, step=i
-                )
-                self.log_profiles("humidity_truth", (y[3] - x[3]).numpy().T, step=i)
-                self.log_profiles(
-                    "humidity_prediction", (out[3] - x[3]).numpy().T, step=i
-                )
-
-    def log_profiles(self, key, data, step):
-        fig = plt.figure()
-        plt.plot(data)
-        tf.summary.image(key, plot_to_image(fig), step)
+                if isinstance(self.model, UVTQSimple):
+                    self.log_profiles(
+                        "eastward_wind_truth", (y[0] - x[0]).numpy().T, step=i
+                    )
+                    self.log_profiles(
+                        "eastward_wind_prediction", (out[0] - x[0]).numpy().T, step=i
+                    )
+                    self.log_profiles("humidity_truth", (y[3] - x[3]).numpy().T, step=i)
+                    self.log_profiles(
+                        "humidity_prediction", (out[3] - x[3]).numpy().T, step=i
+                    )
 
     def log_profiles(self, key, data, step):
         fig = plt.figure()
@@ -333,6 +312,40 @@ class UVTQSimple(tf.keras.layers.Layer):
         )
 
 
+class ScalarMLP(tf.keras.layers.Layer):
+    def __init__(self, num_hidden=256, var_number=0, var_level=0):
+        super(ScalarMLP, self).__init__()
+        self.norm = NormLayer(name="norm")
+        self.linear = tf.keras.layers.Dense(num_hidden, name="lin", activation="relu")
+        self.relu = tf.keras.layers.ReLU()
+        self.out = tf.keras.layers.Dense(1, name="out")
+        self.output_scaler = ScalarNormLayer(name="output_scalar")
+        self.var_number = var_number
+        self.var_level = var_level
+
+    def call(self, args: Sequence[tf.Variable]):
+        # assume has dims: batch, z
+        args = [atleast_2d(arg) for arg in args]
+        stacked = tf.concat(args, axis=-1)
+        hidden = self.relu(self.linear(self.norm(stacked)))
+        t0 = args[self.var_number][:, self.var_level : self.var_level + 1]
+        return t0 + self.output_scaler(self.out(hidden))
+
+    def _fit_input_scaler(self, args: Sequence[tf.Variable]):
+        args = [atleast_2d(arg) for arg in args]
+        stacked = tf.concat(args, axis=-1)
+        self.norm.fit(stacked)
+
+    def _fit_output_scaler(self, argsin: Sequence[tf.Variable], argsout: tf.Variable):
+        t0 = argsin[self.var_number][:, self.var_level : self.var_level + 1]
+        t1 = argsout[self.var_number][:, self.var_level : self.var_level + 1]
+        self.output_scaler.fit(t1 - t0)
+
+    def fit_scalers(self, argsin: Sequence[tf.Variable], argsout: tf.Variable):
+        self._fit_input_scaler(argsin)
+        self._fit_output_scaler(argsin, argsout)
+
+
 def needs_restart(state) -> bool:
     """Detect if error state is happening, in which case we should restart the
     model from a clean state
@@ -341,9 +354,21 @@ def needs_restart(state) -> bool:
 
 
 def get_model(
-    config: OnlineEmulatorConfig, statein: Sequence[tf.Tensor], stateout
+    config: OnlineEmulatorConfig,
+    statein: Sequence[tf.Tensor],
+    stateout: Sequence[tf.Tensor],
 ) -> tf.keras.Model:
-    n = statein[0].shape[-1]
-    model = UVTQSimple(n, n, n, n)
+    if isinstance(config.target, MultiVariableLoss):
+        logging.info("Using ScalerMLP")
+        n = statein[0].shape[-1]
+        model = UVTQSimple(n, n, n, n)
+    elif isinstance(config.target, ScalarLoss):
+        logging.info("Using ScalerMLP")
+        model = ScalarMLP(
+            var_number=config.target.variable, var_level=config.target.level
+        )
+    else:
+        raise NotImplementedError(f"{config}")
+
     model.fit_scalers(statein, stateout)
     return model
