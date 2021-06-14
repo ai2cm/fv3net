@@ -209,18 +209,20 @@ class OnlineEmulator:
         return tf.train.Checkpoint(optimizer=self.optimizer, model=self.model)
 
     _config = "config.yaml"
+    _model = "model"
 
     def dump(self, path: str):
+        os.makedirs(path, exist_ok=True)
         with open(os.path.join(path, self._config), "w") as f:
             json.dump(dataclasses.asdict(self.config), f)
-        self._checkpoint.write(path)
+        self._checkpoint.write(os.path.join(path, self._model))
 
     @classmethod
     def load(cls, path: str):
         with open(os.path.join(path, cls._config), "r") as f:
             config = OnlineEmulatorConfig.from_dict(json.load(f))
         model = cls(config)
-        model._checkpoint.read(path)
+        model._checkpoint.read(os.path.join(path, cls._model))
         return model
 
 

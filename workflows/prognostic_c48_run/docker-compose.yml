@@ -10,15 +10,13 @@ services:
     entrypoint: []
     command: [ls]
     volumes:
-      - ../../external:/fv3net/external
-      - .:/fv3net/workflows/prognostic_c48_run
+      - ../../:/fv3net
       - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json
       - runs:/data
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
   tensorboard:
     image: tensorflow/tensorflow
-    build: .
     volumes:
         - runs:/data
     ports:

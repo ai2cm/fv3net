@@ -191,8 +191,12 @@ def test_top_level():
     assert ScalarLoss(0, 10) == config.target
 
 
-def test_dump_load_OnlineEmulator(state, tmpdir):
-    path = str(tmpdir)
+@pytest.mark.parametrize("output_exists", [True, False])
+def test_dump_load_OnlineEmulator(state, tmpdir, output_exists):
+    if output_exists:
+        path = str(tmpdir)
+    else:
+        path = str(tmpdir.join("model"))
 
     n = state["air_temperature"].sizes["z"]
     config = OnlineEmulatorConfig(levels=n)

@@ -45,6 +45,8 @@ with tf.summary.create_file_writer(f"tensorboard/{uuid.uuid4().hex}").as_default
 train_scores = emulator.score(train_dataset)
 test_scores = emulator.score(test_dataset)
 
+os.makedirs(config.output_path, exist_ok=True)
+
 with open(os.path.join(config.output_path, "scores.json"), "w") as f:
     json.dump({"train": train_scores, "test": test_scores}, f)
 
