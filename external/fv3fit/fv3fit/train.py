@@ -1,5 +1,4 @@
 import argparse
-import loaders
 import logging
 import os
 import xarray as xr
@@ -8,20 +7,13 @@ import yaml
 import dataclasses
 import fsspec
 
-from fv3fit._shared import (
-    parse_data_path,
-    load_data_sequence,
-    io,
-    Estimator,
-)
+from fv3fit._shared import parse_data_path, load_data_sequence, io, Estimator
+from fv3fit._shared.config import get_estimator_class
 import fv3fit._shared.config
-from .keras._training import get_regularizer, get_optimizer, set_random_seed
+from .keras._training import set_random_seed
 import fv3fit.keras
 import fv3fit.sklearn
 import fv3fit
-
-
-KERAS_CHECKPOINT_PATH = "model_checkpoints"
 
 
 def get_parser():
@@ -58,33 +50,13 @@ def get_parser():
 
 
 def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
-    if isinstance(config, fv3fit.SklearnTrainingConfig):
-        return fv3fit.sklearn.get_model(
-            model_type=config.model_type,
-            input_variables=config.input_variables,
-            output_variables=config.output_variables,
-            scaler_type=config.scaler_type,
-            scaler_kwargs=config.scaler_kwargs,
-            **config.hyperparameters,
-        )
-    elif isinstance(config, fv3fit.KerasTrainingConfig):
-        checkpoint_path = (
-            os.path.join(args.output_data_path, KERAS_CHECKPOINT_PATH)
-            if config.save_model_checkpoints
-            else None
-        )
-        return fv3fit.keras.get_model(
-            model_type=config.model_type,
-            sample_dim_name=loaders.SAMPLE_DIM_NAME,
-            input_variables=config.input_variables,
-            output_variables=config.output_variables,
-            optimizer=get_optimizer(config.hyperparameters),
-            kernel_regularizer=get_regularizer(config.hyperparameters),
-            checkpoint_path=checkpoint_path,
-            **config.hyperparameters,
-        )
-    else:
-        raise NotImplementedError(f"Model type {config.model_type} is not implemented.")
+    cls = get_estimator_class(config.model_type)
+    return cls(
+        sample_dim_name=config.sample_dim_name,
+        input_variables=config.input_variables,
+        output_variables=config.output_variables,
+        hyperparameters=config.hyperparameters,
+    )
 
 
 def dump_dataclass(obj, yaml_filename):
@@ -98,7 +70,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     data_path = parse_data_path(args.data_path)
     (
-        legacy_config,
         train_config,
         train_data_config,
         val_data_config,
@@ -111,7 +82,9 @@ if __name__ == "__main__":
     )
     set_random_seed(train_config.random_seed)
 
-    dump_dataclass(train_config, os.path.join(args.output_data_path, "train.yaml"))
+    # TODO: uncomment this line when we aren't using fit_kwargs
+    # to contain validation data
+    # dump_dataclass(train_config, os.path.join(args.output_data_path, "train.yaml"))
     dump_dataclass(
         train_data_config, os.path.join(args.output_data_path, "training_data.yaml")
     )
@@ -141,5 +114,4 @@ if __name__ == "__main__":
 
     model = _get_model(train_config)
     model.fit(train_batches)
-    train_config.model_path = args.output_data_path
     io.dump(model, args.output_data_path)

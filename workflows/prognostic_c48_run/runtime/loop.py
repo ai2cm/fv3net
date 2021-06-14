@@ -310,7 +310,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
     @property
     def _substeps(self) -> Sequence[Callable[..., Diagnostics]]:
         return [
-            self._step_dynamics,
+            self.monitor("dynamics", self._step_dynamics),
             self._step_prephysics,
             self._compute_physics,
             self._apply_postphysics_to_physics_state,

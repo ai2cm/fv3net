@@ -63,15 +63,19 @@ def plot_column_integrated_var(
     dpi: int = 100,
     vmax: Union[int, float] = None,
 ):
+    ds_columns = (
+        ds.sel(derivation=derivation_plot_coords)
+        if derivation_plot_coords is not None
+        else ds
+    )
     f, _, _, _, facet_grid = visualize.plot_cube(
-        visualize.mappable_var(
-            ds.sel(derivation=derivation_plot_coords), var, **MAPPABLE_VAR_KWARGS
-        ),
+        visualize.mappable_var(ds_columns, var, **MAPPABLE_VAR_KWARGS),
         col=derivation_dim,
         row=dataset_dim if dataset_dim in ds.dims else None,
         vmax=vmax,
     )
-    facet_grid.set_titles(template="{value} ", maxchar=40)
+    if facet_grid:
+        facet_grid.set_titles(template="{value} ", maxchar=40)
     num_datasets = len(ds[dataset_dim]) if dataset_dim in ds.dims else 1
     f.set_size_inches([14, 3.5 * num_datasets])
     f.set_dpi(dpi)

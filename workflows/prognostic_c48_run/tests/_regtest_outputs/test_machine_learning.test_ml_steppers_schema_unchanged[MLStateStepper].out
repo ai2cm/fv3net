@@ -4,9 +4,9 @@ dimensions:
 	y = 4 ;
 
 variables:
-	float64 downward_longwave(y, x) ;
 	float64 downward_shortwave(y, x) ;
 	float64 net_shortwave(y, x) ;
+	float64 downward_longwave(y, x) ;
 
 // global attributes:
 }xarray.Dataset {
@@ -21,9 +21,9 @@ dimensions:
 	y = 4 ;
 
 variables:
-	float64 downward_longwave(y, x) ;
 	float64 downward_shortwave(y, x) ;
 	float64 net_shortwave(y, x) ;
+	float64 downward_longwave(y, x) ;
 
 // global attributes:
 }
