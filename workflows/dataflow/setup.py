@@ -3,8 +3,8 @@ from setuptools import find_namespace_packages, setup
 dependencies = [
     "dask==2.13.0",
     "f90nml==1.1.2",
-    "fsspec==0.7.1",
-    "gcsfs==0.6.1",
+    "fsspec",
+    "gcsfs==2021.6.0",
     "intake==0.5.4",
     "MetPy==0.12.0",
     "toolz==0.10.0",
