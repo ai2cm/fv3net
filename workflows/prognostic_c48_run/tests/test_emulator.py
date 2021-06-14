@@ -17,14 +17,18 @@ from runtime.loss import ScalarLoss
 
 
 def test_OnlineEmulator_partial_fit(state):
-    config = OnlineEmulatorConfig(batch_size=32, learning_rate=0.001, momentum=0.0,)
+    config = OnlineEmulatorConfig(
+        batch_size=32, learning_rate=0.001, momentum=0.0, levels=63
+    )
 
     emulator = OnlineEmulator(config)
     emulator.partial_fit(state, state)
 
 
 def test_OnlineEmulator_partial_fit_logged(state):
-    config = OnlineEmulatorConfig(batch_size=8, learning_rate=0.01, momentum=0.0,)
+    config = OnlineEmulatorConfig(
+        batch_size=8, learning_rate=0.01, momentum=0.0, levels=63
+    )
     time = datetime.datetime.now().isoformat()
 
     emulator = OnlineEmulator(config)
@@ -34,20 +38,13 @@ def test_OnlineEmulator_partial_fit_logged(state):
             emulator.partial_fit(state, state)
 
 
-def test_OnlineEmulator_predict_raises(state):
-    config = OnlineEmulatorConfig(batch_size=32, learning_rate=0.001, momentum=0.0,)
-
-    emulator = OnlineEmulator(config)
-    with pytest.raises(ValueError):
-        emulator.predict(state)
-
-
 def test_OnlineEmulator_fails_when_accessing_nonexistant_var(state):
     config = OnlineEmulatorConfig(
         batch_size=32,
         learning_rate=0.001,
         momentum=0.0,
         extra_input_variables=["not a varialbe in any state 332r23r90e9d"],
+        levels=63,
     )
 
     emulator = OnlineEmulator(config)
@@ -64,6 +61,7 @@ def test_OnlineEmulator_fit_predict(state, extra_inputs):
         learning_rate=0.001,
         momentum=0.0,
         extra_input_variables=extra_inputs,
+        levels=63,
     )
 
     emulator = OnlineEmulator(config)
@@ -76,9 +74,15 @@ def test_OnlineEmulator_fit_predict(state, extra_inputs):
 @pytest.mark.parametrize(
     "config",
     [
-        OnlineEmulatorConfig(batch_size=32, learning_rate=0.001, momentum=0.0,),
         OnlineEmulatorConfig(
-            batch_size=32, learning_rate=0.001, momentum=0.0, target=ScalarLoss(0, 0)
+            batch_size=32, learning_rate=0.001, momentum=0.0, levels=79
+        ),
+        OnlineEmulatorConfig(
+            batch_size=32,
+            learning_rate=0.001,
+            momentum=0.0,
+            target=ScalarLoss(0, 0),
+            levels=79,
         ),
     ],
 )
@@ -163,8 +167,7 @@ def test_scalar_norm_layer():
     ],
 )
 def test_get_model(config, class_):
-    ins = [tf.ones((1, 10), dtype=tf.float32)] * 4
-    model = get_model(config, ins, ins)
+    model = get_model(config)
     assert isinstance(model, class_)
 
 
@@ -186,3 +189,20 @@ def test_top_level():
     dict_ = {"target": {"variable": 0, "level": 10}}
     config = OnlineEmulatorConfig.from_dict(dict_)
     assert ScalarLoss(0, 10) == config.target
+
+
+def test_dump_load_OnlineEmulator(state, tmpdir):
+    path = str(tmpdir)
+
+    n = state["air_temperature"].sizes["z"]
+    config = OnlineEmulatorConfig(levels=n)
+    emulator = OnlineEmulator(config)
+    emulator.partial_fit(state, state)
+    emulator.dump(path)
+    new_emulator = OnlineEmulator.load(path)
+
+    # assert that the air_temperature output is unchanged
+    field = "air_temperature"
+    np.testing.assert_array_equal(
+        new_emulator.predict(state)[field], emulator.predict(state)[field]
+    )

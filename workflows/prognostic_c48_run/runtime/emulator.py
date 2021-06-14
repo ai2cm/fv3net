@@ -1,6 +1,7 @@
 from collections import defaultdict
 import dataclasses
 from typing import Mapping, Optional, Sequence, Tuple, Union, List
+import os
 from matplotlib import pyplot as plt
 import xarray as xr
 import tensorflow as tf
@@ -8,6 +9,7 @@ import dacite
 from runtime.diagnostics.tensorboard import plot_to_image
 from runtime.loss import ScalarLoss, MultiVariableLoss
 import logging
+import json
 
 
 U = "eastward_wind"
@@ -47,6 +49,7 @@ class OnlineEmulatorConfig:
     online: bool = False
     extra_input_variables: List[str] = dataclasses.field(default_factory=list)
     epochs: int = 1
+    levels: int = 79
     batch: Optional[BatchDataConfig] = None
     target: Union[MultiVariableLoss, ScalarLoss] = dataclasses.field(
         default_factory=MultiVariableLoss
@@ -87,7 +90,7 @@ class OnlineEmulator:
         self, config: OnlineEmulatorConfig,
     ):
         self.config = config
-        self.model = None
+        self.model = get_model(config)
         self.optimizer = tf.optimizers.SGD(
             learning_rate=config.learning_rate, momentum=config.momentum
         )
@@ -134,9 +137,9 @@ class OnlineEmulator:
             validation_data: an unbatched validation dataset
         """
 
-        if not self.model:
+        if not self.model.scalers_fitted:
             argsin, argsout = next(iter(d.batch(10_000)))
-            self.model = get_model(self.config, argsin, argsout)
+            self.model.fit_scalers(argsin, argsout)
 
         for i in range(self.config.epochs):
             train_loss = defaultdict(lambda: [])
@@ -185,9 +188,6 @@ class OnlineEmulator:
         self.batch_fit(d)
 
     def predict(self, state: State) -> State:
-        if self.model is None:
-            raise ValueError("Must call .partial_fit at least once.")
-
         in_ = stack(state, self.input_variables)
         up, vp, tp, qp = self.model(to_tensors(in_, self.input_variables))
         dims = ["sample", "z"]
@@ -203,6 +203,25 @@ class OnlineEmulator:
             },
             coords=in_.coords,
         ).unstack("sample")
+
+    @property
+    def _checkpoint(self) -> tf.train.Checkpoint:
+        return tf.train.Checkpoint(optimizer=self.optimizer, model=self.model)
+
+    _config = "config.yaml"
+
+    def dump(self, path: str):
+        with open(os.path.join(path, self._config), "w") as f:
+            json.dump(dataclasses.asdict(self.config), f)
+        self._checkpoint.write(path)
+
+    @classmethod
+    def load(cls, path: str):
+        with open(os.path.join(path, cls._config), "r") as f:
+            config = OnlineEmulatorConfig.from_dict(json.load(f))
+        model = cls(config)
+        model._checkpoint.read(path)
+        return model
 
 
 class NormLayer(tf.keras.layers.Layer):
@@ -271,6 +290,7 @@ def atleast_2d(x: tf.Variable) -> tf.Variable:
 class UVTQSimple(tf.keras.layers.Layer):
     def __init__(self, u_size, v_size, t_size, q_size):
         super(UVTQSimple, self).__init__()
+        self.scalers_fitted = False
         self.norm = NormLayer(name="norm")
         self.linear = tf.keras.layers.Dense(256, name="lin")
         self.relu = tf.keras.layers.ReLU()
@@ -297,6 +317,7 @@ class UVTQSimple(tf.keras.layers.Layer):
     ):
         self._fit_input_scaler(argsin)
         self._fit_output_scaler(argsin, argsout)
+        self.scalers_fitted = True
 
     def call(self, args: Sequence[tf.Variable]):
         # assume has dims: batch, z
@@ -315,6 +336,7 @@ class UVTQSimple(tf.keras.layers.Layer):
 class ScalarMLP(tf.keras.layers.Layer):
     def __init__(self, num_hidden=256, var_number=0, var_level=0):
         super(ScalarMLP, self).__init__()
+        self.scalers_fitted = False
         self.norm = NormLayer(name="norm")
         self.linear = tf.keras.layers.Dense(num_hidden, name="lin", activation="relu")
         self.relu = tf.keras.layers.ReLU()
@@ -344,6 +366,7 @@ class ScalarMLP(tf.keras.layers.Layer):
     def fit_scalers(self, argsin: Sequence[tf.Variable], argsout: tf.Variable):
         self._fit_input_scaler(argsin)
         self._fit_output_scaler(argsin, argsout)
+        self.scalers_fitted = True
 
 
 def needs_restart(state) -> bool:
@@ -353,14 +376,10 @@ def needs_restart(state) -> bool:
     return False
 
 
-def get_model(
-    config: OnlineEmulatorConfig,
-    statein: Sequence[tf.Tensor],
-    stateout: Sequence[tf.Tensor],
-) -> tf.keras.Model:
+def get_model(config: OnlineEmulatorConfig) -> tf.keras.Model:
     if isinstance(config.target, MultiVariableLoss):
         logging.info("Using ScalerMLP")
-        n = statein[0].shape[-1]
+        n = config.levels
         model = UVTQSimple(n, n, n, n)
     elif isinstance(config.target, ScalarLoss):
         logging.info("Using ScalerMLP")
@@ -369,6 +388,4 @@ def get_model(
         )
     else:
         raise NotImplementedError(f"{config}")
-
-    model.fit_scalers(statein, stateout)
     return model

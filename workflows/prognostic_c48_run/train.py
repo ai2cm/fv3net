@@ -47,3 +47,5 @@ test_scores = emulator.score(test_dataset)
 
 with open(os.path.join(config.output_path, "scores.json"), "w") as f:
     json.dump({"train": train_scores, "test": test_scores}, f)
+
+emulator.dump(os.path.join(config.output_path, "model"))
