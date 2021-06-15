@@ -22,23 +22,21 @@ artifacts
 memoized_compute_diagnostics.sh
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This script checks for availability of diagnostics and metrics of a given
-prognostic run in the diagnostics cache. If not available, they will be computed
-and added to the cache. The diagnostics will then be copied to specified
+This script checks for availability of pre-computed diagnostics and metrics of a given
+prognostic run. If not available, they will be computed and then be copied to specified
 output location::
 
    memoized_compute_diagnostics.sh runURL output flags
 
-where ``flags`` is provided to ``prognostic_run_diags save``.
+where ``flags`` is provided to ``prognostic_run_diags save``. `runURL` must be a GCS url.
 
-The cache is located at ``gs://vcm-ml-archive/prognostic_run_diags``. The key
-used to describe a run in the cache is the ``runURL`` with ``gs://`` stripped from the
-start of the URL and forward slashes replaced by dashes. For example::
+The cache for the diagnostics is assumed to be at ``${runURL}_diagnostics`.
+For example::
 
-   memoized_compute_diagnostics.sh gs://vcm-ml-experiments/sample-run output flags
+   memoized_compute_diagnostics.sh gs://vcm-ml-experiments/default/2021-05-04/tag/fv3gfs_run output flags
 
-will save the diagnostics and metrics for the given run at::
+will save the diagnostics and metrics for the given run (if they don't already exist) at::
 
-   gs://vcm-ml-archive/prognostic_run_diags/vcm-ml-experiments-sample-run
+   gs://vcm-ml-experiments/default/2021-05-04/tag/fv3gfs_run_diagnostics
 
 in addition to saving the diagnostics and metrics to the given ``output`` location.
