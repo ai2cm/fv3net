@@ -8,12 +8,11 @@ then
         --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
 fi
 
-run=$1
+run=${1%/}  # strip possible trailing slash
 output=$2
 flags=$3
 
-cacheKey=$(echo "$run" | cut -c6- | sed 's/\//-/g')
-cacheURL=gs://vcm-ml-archive/prognostic_run_diags/$cacheKey
+cacheURL=${run}_diagnostics
 
 # check for existence of diagnostics and metrics in cache
 gsutil -q stat "$cacheURL/diags.nc"
