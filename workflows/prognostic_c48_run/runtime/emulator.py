@@ -46,6 +46,7 @@ class OnlineEmulatorConfig:
 
     batch_size: int = 64
     learning_rate: float = 0.01
+    num_hidden: int = 256
     momentum: float = 0.5
     online: bool = False
     extra_input_variables: List[str] = dataclasses.field(default_factory=list)
@@ -395,7 +396,9 @@ def get_model(config: OnlineEmulatorConfig) -> tf.keras.Model:
     elif isinstance(config.target, ScalarLoss):
         logging.info("Using ScalerMLP")
         model = ScalarMLP(
-            var_number=config.target.variable, var_level=config.target.level
+            var_number=config.target.variable,
+            var_level=config.target.level,
+            num_hidden=config.num_hidden,
         )
     else:
         raise NotImplementedError(f"{config}")
