@@ -155,6 +155,7 @@ class DenseHyperparameters:
             dumping, under a 'model_checkpoints' subdirectory
         rectify_outputs: if True, add a ReLu activation layer as the last layer after
             output denormalization layer to ensure outputs are always positive.
+            Defaults to False.
         fit_kwargs: other keyword arguments to be passed to the underlying
             tf.keras.Model.fit() method
     """
