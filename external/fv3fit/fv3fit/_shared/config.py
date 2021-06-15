@@ -153,8 +153,8 @@ class DenseHyperparameters:
         spectral_normalization: whether to apply spectral normalization to hidden layers
         save_model_checkpoints: if True, save one model per epoch when
             dumping, under a 'model_checkpoints' subdirectory
-        rectify_outputs: if True, add a ReLu activation layer as the last layer after
-            output denormalization layer to ensure outputs are always positive.
+        nonnegative_outputs: if True, add a ReLU activation layer as the last layer
+            after output denormalization layer to ensure outputs are always >=0
             Defaults to False.
         fit_kwargs: other keyword arguments to be passed to the underlying
             tf.keras.Model.fit() method
@@ -172,7 +172,7 @@ class DenseHyperparameters:
     loss: str = "mse"
     spectral_normalization: bool = False
     save_model_checkpoints: bool = False
-    rectify_outputs: bool = False
+    nonnegative_outputs: bool = False
 
     # TODO: remove fit_kwargs by fixing how validation data is passed
     fit_kwargs: Optional[dict] = None

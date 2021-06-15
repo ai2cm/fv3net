@@ -61,12 +61,13 @@ def test_fill_default(kwargs, arg, key, default, expected):
         assert _fill_default(kwargs, arg, key, default) == expected
 
 
-def test_rectification():
-    hyperparameters = DenseHyperparameters(rectify_outputs=True)
+def test_nonnegative_model_outputs():
+    hyperparameters = DenseHyperparameters(nonnegative_outputs=True)
     model = DenseModel("sample", ["input"], ["output"], hyperparameters,)
     batch = xr.Dataset(
         {
             "input": (["sample"], np.arange(100)),
+            # even with negative targets, trained model should be nonnegative
             "output": (["sample"], np.full((100,), -1e4)),
         }
     )
