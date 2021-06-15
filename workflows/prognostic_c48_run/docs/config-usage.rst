@@ -115,12 +115,9 @@ Diagnostics
 Python diagnostics
 ^^^^^^^^^^^^^^^^^^
 
-If no :py:attr:`UserConfig.diagnostics` section is provided in the ``minimal.yaml``,
-default diagnostics
-are configured depending on whether ML, nudge-to-fine, nudge-to-obs, or baseline runs
-are chosen. To save custom diagnostics, provide a ``diagnostics`` section. To save 
-additional tendencies and storages across physics and nudging/ML time steps, include 
-variables named like ``tendency_of_{variable}_due_to_{step_name}`` or 
+To save custom diagnostics from the python wrapper, provide a ``diagnostics`` section.
+To save additional tendencies and storages across physics and nudging/ML time steps,
+include variables named like ``tendency_of_{variable}_due_to_{step_name}`` or 
 ``storage_of_{variable}_path_due_to_{step_name}`` where ``variable`` is the name
 of a state variable and ``step_name`` can be either ``fv3_physics``, ``dynamics``
 or ``python`` (i.e. ML or nudging).
