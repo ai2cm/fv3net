@@ -59,3 +59,17 @@ def test_fill_default(kwargs, arg, key, default, expected):
             _fill_default(kwargs, arg, key, default)
     else:
         assert _fill_default(kwargs, arg, key, default) == expected
+
+
+def test_rectification():
+    hyperparameters = DenseHyperparameters(rectify_outputs=True)
+    model = DenseModel("sample", ["input"], ["output"], hyperparameters,)
+    batch = xr.Dataset(
+        {
+            "input": (["sample"], np.arange(100)),
+            "output": (["sample"], np.full((100,), -1e4)),
+        }
+    )
+    model.fit([batch])
+    prediction = model.predict(batch)
+    assert prediction.min() >= 0.0
