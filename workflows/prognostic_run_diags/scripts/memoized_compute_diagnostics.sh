@@ -12,6 +12,11 @@ run=${1%/}  # strip possible trailing slash
 output=$2
 flags=$3
 
+if [[ $run != gs://* ]]; then
+    echo "memoized_compute_diagnostics.sh only works with Google Cloud Storage URL inputs. Got ${run}"
+    exit 1
+fi
+
 cacheURL=${run}_diagnostics
 
 # check for existence of diagnostics and metrics in cache
