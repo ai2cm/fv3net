@@ -2,6 +2,7 @@
 version: '3.4'
 volumes:
   runs: {}
+  guild: {}
 services:
   fv3:
     depends_on:
@@ -11,10 +12,21 @@ services:
     command: [ls]
     volumes:
       - ../../:/fv3net
+      - guild:/mnt/guild
       - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json
       - runs:/data
     environment:
+      - GUILD_HOME=/mnt/guild
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
+  guild:
+    image: guildai/guildai
+    volumes:
+      - guild:/mnt/guild
+    environment:
+      - GUILD_HOME=/mnt/guild
+    command: [guild, view, --port, "8080"]
+    ports:
+      - 8080:8080
   tensorboard:
     image: tensorflow/tensorflow
     volumes:

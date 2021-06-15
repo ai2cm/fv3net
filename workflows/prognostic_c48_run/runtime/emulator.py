@@ -4,6 +4,7 @@ from typing import Mapping, Optional, Sequence, Tuple, Union, List
 import os
 from matplotlib import pyplot as plt
 import xarray as xr
+import numpy
 import tensorflow as tf
 import dacite
 from runtime.diagnostics.tensorboard import plot_to_image
@@ -109,6 +110,9 @@ class OnlineEmulator:
 
         vars = self.model.trainable_variables
         grads = tape.gradient(loss, vars)
+
+        if numpy.isnan(loss.numpy()):
+            raise ValueError("Loss is NaN")
         self.optimizer.apply_gradients(zip(grads, vars))
 
         for key in info:
@@ -142,6 +146,7 @@ class OnlineEmulator:
             self.model.fit_scalers(argsin, argsout)
 
         for i in range(self.config.epochs):
+            logging.info(f"Epoch {i+1}")
             train_loss = defaultdict(lambda: [])
             for x, y in d.batch(self.config.batch_size):
                 info = self.step(x, y)
@@ -175,8 +180,11 @@ class OnlineEmulator:
 
     @staticmethod
     def log_dict(prefix, metrics, step):
+        print(f"step: {step}")
         for key in metrics:
-            tf.summary.scalar(prefix + "/" + key, metrics[key], step=step)
+            name = prefix + "/" + key
+            tf.summary.scalar(name, metrics[key], step=step)
+            print(f"{name}:", metrics[key])
 
     def partial_fit(self, statein: State, stateout: State):
 
@@ -212,7 +220,8 @@ class OnlineEmulator:
     _model = "model"
 
     def dump(self, path: str):
-        os.makedirs(path, exist_ok=True)
+        if path:
+            os.makedirs(path, exist_ok=True)
         with open(os.path.join(path, self._config), "w") as f:
             json.dump(dataclasses.asdict(self.config), f)
         self._checkpoint.write(os.path.join(path, self._model))

@@ -24,7 +24,10 @@ class ScalarLoss:
         )
         return (
             loss / self.scale,
-            {f"loss/variable_{self.variable}/level_{self.level}": loss.numpy()},
+            {
+                f"loss/variable_{self.variable}/level_{self.level}": loss.numpy()
+                * (1000 * 86400 / 900) ** 2
+            },
         )
 
 
