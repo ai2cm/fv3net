@@ -1,9 +1,7 @@
 import prepare_config
-import pytest
 import dacite
 import dataclasses
 from runtime.config import UserConfig
-from runtime.diagnostics.manager import TimeConfig
 
 MODEL_URL = "gs://ml-model"
 IC_URL = "gs://ic-bucket"
@@ -60,30 +58,6 @@ def test_prepare_nudge_to_obs_config_regression(regtest):
         prepare_config.prepare_config(args)
 
 
-@pytest.mark.parametrize(
-    ["frequency_minutes", "expected"],
-    [
-        pytest.param(120, TimeConfig(kind="interval", frequency=7200), id="2-hourly",),
-        pytest.param(
-            15, TimeConfig(kind="interval", frequency=900), id="default_15-minute",
-        ),
-    ],
-)
-def test_diagnostics_overlay_times(frequency_minutes, expected):
-    class Args:
-        model_url = []
-        diagnostic_ml = True
-        nudge_to_observations = False
-        output_frequency = frequency_minutes
-
-    config = prepare_config.user_config_from_dict_and_args(
-        {"base_version": "v0.5"}, Args
-    )
-
-    diags_overlay_times = config.diagnostics[0].times
-    assert diags_overlay_times == expected
-
-
 def test_get_user_config_is_valid():
     class Args:
         model_url = []
@@ -91,7 +65,6 @@ def test_get_user_config_is_valid():
         initial_condition_url = "gs://some-url"
         ic_timestep = "20160801.000000"
         nudge_to_observations = False
-        output_frequency = 900
 
     dict_ = {
         "base_version": "v0.5",
