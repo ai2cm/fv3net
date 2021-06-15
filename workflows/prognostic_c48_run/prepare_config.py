@@ -4,21 +4,15 @@ import yaml
 import logging
 import sys
 from datetime import datetime, timedelta
-from typing import List, Mapping, Optional, Sequence
+from typing import Mapping, Sequence
 
 import dacite
 
 import fv3config
 import fv3kube
 
-from runtime import default_diagnostics
-from runtime.diagnostics.manager import (
-    FortranFileConfig,
-    DiagnosticFileConfig,
-    TimeConfig,
-)
+from runtime.diagnostics.manager import FortranFileConfig
 from runtime.diagnostics.fortran import file_configs_to_namelist_settings
-from runtime.steppers.nudging import NudgingConfig
 from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
 
@@ -76,15 +70,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--output-frequency",
-        type=int,
-        default=15,
-        help=(
-            "Output frequency (in minutes) of ML/nudging diagnostics. If omitted, "
-            "output will be written every 15 minutes from the initial time."
-        ),
-    )
-    parser.add_argument(
         "--diagnostic_ml",
         action="store_true",
         help="Compute and save ML predictions but do not apply them to model state.",
@@ -96,10 +81,6 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
     """Ideally this function could be replaced by dacite.from_dict
     without needing any information from args.
     """
-    nudge_to_observations = (
-        config_dict.get("namelist", {}).get("fv_core_nml", {}).get("nudge", False)
-    )
-
     if "nudging" in config_dict:
         config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
             "restarts_path", args.initial_condition_url
@@ -119,92 +100,12 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
         if args.diagnostic_ml:
             user_config.scikit_learn.diagnostic_ml = args.diagnostic_ml
 
-    # insert custom default diagnostics
-    if len(user_config.diagnostics) == 0:
-        user_config.diagnostics = _default_diagnostics(
-            user_config.nudging,
-            user_config.scikit_learn,
-            nudge_to_observations,
-            args.output_frequency,
-        )
-    if len(user_config.fortran_diagnostics) == 0:
-        user_config.fortran_diagnostics = _default_fortran_diagnostics(
-            nudge_to_observations
-        )
-
     if user_config.nudging and user_config.scikit_learn:
         raise NotImplementedError(
             "Nudging and machine learning cannot currently be run at the same time."
         )
 
     return user_config
-
-
-def _default_diagnostics(
-    nudging: Optional[NudgingConfig],
-    scikit_learn: Optional[MachineLearningConfig],
-    nudge_to_obs: bool,
-    frequency_minutes: int,
-) -> List[DiagnosticFileConfig]:
-    diagnostic_files: List[DiagnosticFileConfig] = []
-
-    if scikit_learn is not None:
-        diagnostic_files.append(default_diagnostics.ml_diagnostics)
-    elif nudging or nudge_to_obs:
-        diagnostic_files.append(default_diagnostics.state_after_timestep)
-        diagnostic_files.append(default_diagnostics.physics_tendencies)
-        if nudging:
-            diagnostic_files.append(_nudging_tendencies(nudging))
-            diagnostic_files.append(default_diagnostics.nudging_diagnostics_2d)
-            diagnostic_files.append(_reference_state(nudging))
-    else:
-        diagnostic_files.append(default_diagnostics.baseline_diagnostics)
-
-    _update_times(diagnostic_files, frequency_minutes)
-    return diagnostic_files
-
-
-def _default_fortran_diagnostics(
-    nudge_to_observations: bool,
-) -> List[FortranFileConfig]:
-    fortran_diags = [
-        default_diagnostics.sfc_dt_atmos,
-        default_diagnostics.atmos_dt_atmos,
-        default_diagnostics.atmos_8xdaily,
-    ]
-    if nudge_to_observations:
-        fortran_diags.append(default_diagnostics.nudging_tendencies_fortran)
-    return fortran_diags
-
-
-def _nudging_tendencies(config: NudgingConfig) -> DiagnosticFileConfig:
-
-    nudging_tendencies = default_diagnostics.nudging_tendencies
-    nudging_variables = list(config.timescale_hours)
-    if isinstance(nudging_tendencies.variables, list):
-        nudging_tendencies.variables.extend(
-            [f"{var}_tendency_due_to_nudging" for var in nudging_variables]
-        )
-    return nudging_tendencies
-
-
-def _reference_state(config: NudgingConfig) -> DiagnosticFileConfig:
-    reference_states = default_diagnostics.reference_state
-    nudging_variables = list(config.timescale_hours)
-    if isinstance(reference_states.variables, list):
-        reference_states.variables.extend(
-            [f"{var}_reference" for var in nudging_variables]
-        )
-
-    return reference_states
-
-
-def _update_times(
-    diagnostic_files: List[DiagnosticFileConfig], frequency_minutes: int
-) -> List[DiagnosticFileConfig]:
-    for diagnostic in diagnostic_files:
-        diagnostic.times = TimeConfig(kind="interval", frequency=60 * frequency_minutes)
-    return diagnostic_files
 
 
 def _diag_table_overlay(
