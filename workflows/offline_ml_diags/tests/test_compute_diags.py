@@ -17,8 +17,8 @@ from fv3fit._shared.config import (
     _ModelTrainingConfig as ModelTrainingConfig,
     legacy_config_to_data_config,
 )
+from fv3fit import Predictor
 from fv3fit.keras import get_model
-from fv3fit import Estimator
 from offline_ml_diags.compute_diags import main
 import pathlib
 import pytest
@@ -50,7 +50,7 @@ batch_kwargs = {
 }
 
 
-def model(training_batches) -> Estimator:
+def model(training_batches) -> Predictor:
     train_config = ModelTrainingConfig(
         model_type="DenseModel",
         hyperparameters={"width": 3, "depth": 2},
