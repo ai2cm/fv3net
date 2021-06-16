@@ -140,12 +140,9 @@ class _RandomForestEnsemble:
             2D numpy array of predictions with N rows corresponding to N input samples.
             Each row is the average ensemble prediction for that sample.
         """
-        for r in self.regressors:
-            print(joblib.hash(r), joblib.hash(r.predict(features)))
         predictions = np.array(
             [regressor.predict(features) for regressor in self.regressors]
         )
-        print(joblib.hash(features), joblib.hash(predictions))
         return np.mean(predictions, axis=0)
 
     def dumps(self) -> bytes:

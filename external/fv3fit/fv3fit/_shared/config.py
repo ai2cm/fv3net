@@ -44,7 +44,7 @@ TrainingFunction = Callable[
 
 # TODO: delete this routine by refactoring the tests to no longer depend on it
 def get_keras_model(name):
-    return ESTIMATORS[name][0]
+    return TRAINING_FUNCTIONS[name][0]
 
 
 @dataclasses.dataclass
@@ -78,20 +78,20 @@ class TrainingConfig:
         return dacite.from_dict(data_class=cls, data=kwargs)
 
 
-ESTIMATORS: Dict[str, Tuple[TrainingFunction, Type[Dataclass]]] = {}
+TRAINING_FUNCTIONS: Dict[str, Tuple[TrainingFunction, Type[Dataclass]]] = {}
 
 
 def get_hyperparameter_class(model_type: str) -> Type:
-    if model_type in ESTIMATORS:
-        _, subclass = ESTIMATORS[model_type]
+    if model_type in TRAINING_FUNCTIONS:
+        _, subclass = TRAINING_FUNCTIONS[model_type]
     else:
         raise ValueError(f"unknown model_type {model_type}")
     return subclass
 
 
 def get_training_function(model_type: str) -> TrainingFunction:
-    if model_type in ESTIMATORS:
-        estimator_class, _ = ESTIMATORS[model_type]
+    if model_type in TRAINING_FUNCTIONS:
+        estimator_class, _ = TRAINING_FUNCTIONS[model_type]
     else:
         raise ValueError(f"unknown model_type {model_type}")
     return estimator_class
@@ -104,7 +104,7 @@ def register_training_function(name: str, hyperparameter_class: type):
     """
 
     def decorator(func: TrainingFunction) -> TrainingFunction:
-        ESTIMATORS[name] = (func, hyperparameter_class)
+        TRAINING_FUNCTIONS[name] = (func, hyperparameter_class)
         return func
 
     return decorator
@@ -310,7 +310,7 @@ class _ModelTrainingConfig:
 
 
 def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> TrainingConfig:
-    config_class = ESTIMATORS[legacy_config.model_type][1]
+    config_class = TRAINING_FUNCTIONS[legacy_config.model_type][1]
     keys = [
         "model_type",
         "hyperparameters",

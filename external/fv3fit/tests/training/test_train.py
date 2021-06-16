@@ -4,19 +4,19 @@ import pytest
 import fv3fit.train
 import xarray as xr
 import numpy as np
-from fv3fit._shared.config import ESTIMATORS, get_hyperparameter_class
+from fv3fit._shared.config import TRAINING_FUNCTIONS, get_hyperparameter_class
 import vcm.testing
 import tempfile
 
 
 # automatically test on every registered training class
-@pytest.fixture(params=list(ESTIMATORS.keys()))
+@pytest.fixture(params=list(TRAINING_FUNCTIONS.keys()))
 def model_type(request):
     return request.param
 
 
 def test_training_functions_exist():
-    assert len(ESTIMATORS.keys()) > 0
+    assert len(TRAINING_FUNCTIONS.keys()) > 0
 
 
 def assert_can_learn_identity(

@@ -6,7 +6,7 @@ from fv3fit._shared.config import (
     register_training_function,
     get_hyperparameter_class,
     TrainingConfig,
-    ESTIMATORS,
+    TRAINING_FUNCTIONS,
 )
 
 
@@ -16,13 +16,13 @@ class MyConfig(TrainingConfig):
 
 @contextlib.contextmanager
 def registration_context():
-    original_estimators = {**ESTIMATORS}
-    ESTIMATORS.clear()
+    original_estimators = {**TRAINING_FUNCTIONS}
+    TRAINING_FUNCTIONS.clear()
     try:
         yield
     finally:
-        ESTIMATORS.clear()
-        ESTIMATORS.update(original_estimators)
+        TRAINING_FUNCTIONS.clear()
+        TRAINING_FUNCTIONS.update(original_estimators)
 
 
 def test_get_training_function_raises_before_registering():
