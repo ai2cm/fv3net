@@ -67,8 +67,6 @@ def test_train_default_model_on_identity(model_type, regtest):
     The model with default configuration options can learn the identity function,
     using gaussian-sampled data around 0 with unit variance.
     """
-    if model_type in ["DummyModel"]:
-        pytest.skip()
     fv3fit.train.set_random_seed(1)
     random = np.random.RandomState(0)
     # don't set n_feature too high for this, because of curse of dimensionality
@@ -94,12 +92,8 @@ def test_train_default_model_on_nonstandard_identity(model_type):
     The model with default configuration options can learn the identity function,
     using gaussian-sampled data around a non-zero value with non-unit variance.
     """
-    if model_type in ["DummyModel"]:
-        pytest.skip()
     mean = 100.0
     std = 15.0
-    if model_type in ["DummyModel"]:
-        pytest.skip()
     random = np.random.RandomState(0)
     # don't set n_feature too high for this, because of curse of dimensionality
     n_sample, n_feature = int(5e3), 2

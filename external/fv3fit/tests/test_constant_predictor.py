@@ -1,6 +1,5 @@
 import xarray as xr
 import pytest
-from fv3fit.keras import DummyModel
 import fv3fit
 from vcm import safe
 import numpy as np
@@ -30,47 +29,27 @@ def get_gridded_dataset(nz):
     return ds
 
 
-@pytest.fixture
-def dummy_model(request):
-    return DummyModel("sample", request.param[0], request.param[1])
+def get_predictor(input_variables, output_variables, outputs):
+    predictor = fv3fit.testing.ConstantOutputPredictor(
+        sample_dim_name="sample",
+        input_variables=input_variables,
+        output_variables=output_variables,
+    )
+    predictor.set_outputs(**outputs)
+    return predictor
 
 
-def dummy_model_func(output_array):
-    return xr.zeros_like(output_array)
+def get_first_columns(ds, names):
+    columns = {}
+    for name in names:
+        non_z_zeros = {d: 0 for d in ds[name].dims if d != "z"}
+        columns[name] = ds[name].isel(**non_z_zeros).values
+    return columns
 
 
 @pytest.fixture
 def nz():
     return 4
-
-
-@pytest.mark.parametrize(
-    "dummy_model",
-    [
-        pytest.param((["feature0", "feature1"], ["pred0"]), id="2_1"),
-        pytest.param((["feature0", "feature1"], ["pred0", "pred1"]), id="2_2"),
-        pytest.param((["feature0"], ["pred0", "pred1"]), id="1_2"),
-    ],
-    indirect=True,
-)
-def test_dummy_model(dummy_model, nz):
-    gridded_dataset = get_gridded_dataset(nz)
-
-    ds_stacked = safe.stack_once(
-        gridded_dataset, "sample", [dim for dim in gridded_dataset.dims if dim != "z"]
-    ).transpose("sample", "z")
-
-    dummy_model.fit([ds_stacked])
-    ds_pred = dummy_model.predict(ds_stacked)
-
-    ds_target = xr.Dataset(
-        {
-            output_var: dummy_model_func(ds_stacked[output_var])
-            for output_var in dummy_model.output_variables
-        }
-    )
-
-    xr.testing.assert_allclose(ds_pred, ds_target)
 
 
 @pytest.mark.parametrize(
@@ -118,24 +97,6 @@ def test_constant_model_predict_columnwise(input_variables, output_variables, nz
 
     for name in output_variables:
         assert np.all(ds_pred_stacked[name].values == outputs[name][None, :])
-
-
-def get_predictor(input_variables, output_variables, outputs):
-    predictor = fv3fit.testing.ConstantOutputPredictor(
-        sample_dim_name="sample",
-        input_variables=input_variables,
-        output_variables=output_variables,
-    )
-    predictor.set_outputs(**outputs)
-    return predictor
-
-
-def get_first_columns(ds, names):
-    columns = {}
-    for name in names:
-        non_z_zeros = {d: 0 for d in ds[name].dims if d != "z"}
-        columns[name] = ds[name].isel(**non_z_zeros).values
-    return columns
 
 
 @pytest.mark.parametrize(
