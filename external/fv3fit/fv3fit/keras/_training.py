@@ -1,10 +1,9 @@
-from typing import Iterable, Type, Union
+from typing import Iterable, Union
 import logging
 import numpy as np
 import os
 import random
 import tensorflow as tf
-from .._shared.predictor import Estimator
 from .._shared.config import (
     get_keras_model,
     _ModelTrainingConfig,
@@ -24,7 +23,7 @@ def get_model(
     input_variables: Iterable[str],
     output_variables: Iterable[str],
     legacy_config: _ModelTrainingConfig,
-) -> Estimator:
+):
     """Initialize and return a Estimator instance.
 
     Args:
@@ -43,7 +42,7 @@ def get_model(
 
 
 # TODO: merge this helper function with get_keras_model
-def get_model_class(model_type: str) -> Type[Estimator]:
+def get_model_class(model_type: str):
     """Returns a class implementing the Estimator interface corresponding to the model type.
     
     Args:

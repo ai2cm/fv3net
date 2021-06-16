@@ -1,5 +1,5 @@
 import dataclasses
-from fv3fit._shared.config import DenseHyperparameters, register_training_function
+from fv3fit._shared.config import DenseHyperparameters
 from fv3fit._shared.config import OptimizerConfig
 import os
 import tempfile

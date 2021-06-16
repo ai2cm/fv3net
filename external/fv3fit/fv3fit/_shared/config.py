@@ -17,7 +17,7 @@ from typing import (
 )
 from fv3fit.typing import Dataclass
 import xarray as xr
-from .predictor import Estimator, Predictor
+from .predictor import Predictor
 import dacite
 
 # TODO: move all keras configs under fv3fit.keras
@@ -188,6 +188,7 @@ class DenseHyperparameters:
     kernel_regularizer_config: Optional[RegularizerConfig] = None
     depth: int = 3
     width: int = 16
+    epochs: int = 3
     gaussian_noise: float = 0.0
     loss: str = "mse"
     spectral_normalization: bool = False
@@ -210,11 +211,11 @@ class RandomForestHyperparameters:
     Args:
         scaler_type: scaler to use for training
         scaler_kwargs: keyword arguments to pass to scaler initialization
-        n_jobs: ???
+        n_jobs: number of jobs to run in parallel when training a single random forest
         random_state: random seed to use when building trees, will be
             deterministically perturbed for each training batch
         n_estimators: the number of trees in each forest
-        max_depth: maximum depth of each tree
+        max_depth: maximum depth of each tree, by default is unlimited
         min_samples_split: minimum number of samples required to split an internal node
         min_samples_leaf: minimum number of samples required to be at a leaf node
         max_features: number of features to consider when looking for the best split
@@ -226,7 +227,9 @@ class RandomForestHyperparameters:
 
     scaler_type: str = "standard"
     scaler_kwargs: Optional[Mapping] = None
-    n_jobs: int = -1
+
+    # don't set default to -1 because it causes non-reproducible training
+    n_jobs: int = 8
     random_state: int = 0
     n_estimators: int = 100
     max_depth: Optional[int] = None

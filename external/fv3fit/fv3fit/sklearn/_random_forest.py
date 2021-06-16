@@ -1,7 +1,6 @@
 from typing import Mapping
 import logging
 import io
-from copy import copy
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -10,9 +9,9 @@ import joblib
 from .._shared import (
     pack,
     unpack,
-    Estimator,
+    Predictor,
     get_scaler,
-    register_estimator,
+    register_training_function,
 )
 from .._shared.config import RandomForestHyperparameters
 from .. import _shared
@@ -33,26 +32,25 @@ def _tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
     return pd.MultiIndex.from_tuples(list_, names=names)
 
 
-@register_estimator("sklearn", RandomForestHyperparameters)
-@register_estimator("rf", RandomForestHyperparameters)
-@register_estimator("random_forest", RandomForestHyperparameters)
-@register_estimator("sklearn_random_forest", RandomForestHyperparameters)
+@register_training_function("sklearn", RandomForestHyperparameters)
+@register_training_function("rf", RandomForestHyperparameters)
+@register_training_function("random_forest", RandomForestHyperparameters)
+@register_training_function("sklearn_random_forest", RandomForestHyperparameters)
 def train_random_forest(
     input_variables: Iterable[str],
     output_variables: Iterable[str],
-    hyperparameters: DenseHyperparameters,
+    hyperparameters: RandomForestHyperparameters,
     train_batches: Sequence[xr.Dataset],
     validation_batches: Sequence[xr.Dataset],
 ):
     model = RandomForest("sample", input_variables, output_variables, hyperparameters)
-    # TODO: make use of validation_batches, currently validation dataset is
-    # passed through hyperparameters.fit_kwargs
+    # TODO: make use of validation_batches to report validation loss
     model.fit(train_batches)
     return model
 
 
 @_shared.io.register("sklearn")
-class RandomForest(Estimator):
+class RandomForest(Predictor):
     def __init__(
         self,
         sample_dim_name: str,
@@ -60,17 +58,7 @@ class RandomForest(Estimator):
         output_variables: Iterable[str],
         hyperparameters: RandomForestHyperparameters,
     ):
-        batch_regressor = _RegressorEnsemble(
-            sklearn.ensemble.RandomForestRegressor(
-                n_jobs=hyperparameters.n_jobs,
-                random_state=hyperparameters.random_state,
-                n_estimators=hyperparameters.n_estimators,
-                max_depth=hyperparameters.max_depth,
-                min_samples_split=hyperparameters.min_samples_split,
-                min_samples_leaf=hyperparameters.min_samples_leaf,
-                max_features=hyperparameters.max_features,
-            )
-        )
+        batch_regressor = _RandomForestEnsemble(hyperparameters)
         self._model_wrapper = SklearnWrapper(
             sample_dim_name,
             input_variables,
@@ -99,15 +87,18 @@ class RandomForest(Estimator):
         return SklearnWrapper.load(path)
 
 
-class _RegressorEnsemble:
-    """Ensemble of regressors that are incrementally trained in batches
-
+class _RandomForestEnsemble:
+    """
+    Ensemble of RandomForestRegressor objects that are each trained on a separate
+    batch of data.
     """
 
     def __init__(
-        self, base_regressor, regressors: Sequence[sklearn.base.BaseEstimator] = None,
+        self,
+        hyperparameters: RandomForestHyperparameters,
+        regressors: Sequence[sklearn.base.BaseEstimator] = None,
     ) -> None:
-        self.base_regressor = base_regressor
+        self.hyperparameters = hyperparameters
         self.regressors = regressors or []
 
     @property
@@ -124,16 +115,24 @@ class _RegressorEnsemble:
         Returns:
 
         """
-        new_regressor = copy(self.base_regressor)
-        # each regressor needs different randomness
-        if hasattr(new_regressor, "random_state"):
-            new_regressor.random_state += len(self.regressors)
-        new_regressor.fit(features, outputs)
+        new_regressor = sklearn.ensemble.RandomForestRegressor(
+            # n_jobs != 1 is non-reproducible, None uses joblib which is reproducible
+            n_jobs=None,
+            # each regressor needs different randomness
+            random_state=self.hyperparameters.random_state + len(self.regressors),
+            n_estimators=self.hyperparameters.n_estimators,
+            max_depth=self.hyperparameters.max_depth,
+            min_samples_split=self.hyperparameters.min_samples_split,
+            min_samples_leaf=self.hyperparameters.min_samples_leaf,
+            max_features=self.hyperparameters.max_features,
+        )
+        # loky is the process-based backend
+        with joblib.parallel_backend("loky", n_jobs=self.hyperparameters.n_jobs):
+            new_regressor.fit(features, outputs)
         self.regressors.append(new_regressor)
 
     def predict(self, features):
         """
-
         Args:
             features: 2D numpy array of features to predict on
 
@@ -141,33 +140,36 @@ class _RegressorEnsemble:
             2D numpy array of predictions with N rows corresponding to N input samples.
             Each row is the average ensemble prediction for that sample.
         """
+        for r in self.regressors:
+            print(joblib.hash(r), joblib.hash(r.predict(features)))
         predictions = np.array(
             [regressor.predict(features) for regressor in self.regressors]
         )
+        print(joblib.hash(features), joblib.hash(predictions))
         return np.mean(predictions, axis=0)
 
     def dumps(self) -> bytes:
         batch_regressor_components = {
             "regressors": self.regressors,
-            "base_regressor": self.base_regressor,
+            "hyperparameters": self.hyperparameters,
         }
         f = io.BytesIO()
         joblib.dump(batch_regressor_components, f)
         return f.getvalue()
 
     @classmethod
-    def loads(cls, b: bytes) -> "_RegressorEnsemble":
+    def loads(cls, b: bytes) -> "_RandomForestEnsemble":
         f = io.BytesIO(b)
         batch_regressor_components = joblib.load(f)
         regressors: Sequence[sklearn.base.BaseEstimator] = batch_regressor_components[
             "regressors"
         ]
-        base_regressor = batch_regressor_components["base_regressor"]
-        obj = cls(base_regressor=base_regressor, regressors=regressors)
+        hyperparameters = batch_regressor_components["hyperparameters"]
+        obj = cls(hyperparameters=hyperparameters, regressors=regressors)
         return obj
 
 
-class SklearnWrapper(Estimator):
+class SklearnWrapper(Predictor):
     """Wrap a SkLearn model for use with xarray
 
     """
@@ -181,7 +183,7 @@ class SklearnWrapper(Estimator):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
-        model: _RegressorEnsemble,
+        model: _RandomForestEnsemble,
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
     ) -> None:
@@ -276,7 +278,7 @@ class SklearnWrapper(Estimator):
     def load(cls, path: str) -> "SklearnWrapper":
         """Load a model from a remote path"""
         mapper = fsspec.get_mapper(path)
-        model = _RegressorEnsemble.loads(mapper[cls._PICKLE_NAME])
+        model = _RandomForestEnsemble.loads(mapper[cls._PICKLE_NAME])
 
         scaler_str = mapper.get(cls._SCALER_NAME, b"")
         scaler_obj: Optional[scaler.NormalizeTransform]

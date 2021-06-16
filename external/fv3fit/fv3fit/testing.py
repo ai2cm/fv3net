@@ -88,7 +88,7 @@ class ConstantOutputPredictor(Predictor):
             )
 
     @classmethod
-    def load(cls, path: str) -> object:
+    def load(cls, path: str) -> "ConstantOutputPredictor":
         """Load a serialized model from a directory."""
         outputs = np.load(os.path.join(path, "_outputs.npz"))
         with open(os.path.join(path, "attrs.yaml"), "r") as f:

@@ -52,9 +52,11 @@ class Predictor(abc.ABC):
         """Serialize to a directory."""
         pass
 
+    @classmethod
     @abc.abstractmethod
-    def load(cls, path: str) -> object:
+    def load(cls, path: str) -> "Predictor":
         """Load a serialized model from a directory."""
+        pass
 
     def predict_columnwise(
         self,

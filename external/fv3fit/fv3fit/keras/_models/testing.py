@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from external.synth.tests.test_restart import output
 from typing import Iterable, Sequence, Optional, Any
 import logging
 import os
@@ -8,33 +7,36 @@ import numpy as np
 from ._sequences import _XyArraySequence
 from ._filesystem import get_dir, put_dir
 from ..._shared.packer import ArrayPacker
-from ..._shared.predictor import Estimator
-from ..._shared import io, register_estimator
-from ..._shared.config import TrainingConfig
+from ..._shared.predictor import Predictor
+from ..._shared import io
+from ..._shared.config import register_training_function
 
 logger = logging.getLogger(__file__)
 
 
 @dataclass
-class DummyTrainingConfig(TrainingConfig):
-
+class DummyHyperparameters:
     epochs: Optional[int] = None
     batch_size: Optional[int] = None
 
 
+@register_training_function("DummyModel", DummyHyperparameters)
 def train_dummy_model(
     input_variables,
     output_variables,
-    hyperparameters,
+    hyperparameters: DummyHyperparameters,
     train_batches,
     validation_batches,
 ):
     model = DummyModel("sample", input_variables, output_variables, hyperparameters)
+    model.fit(train_batches)
+    return model
 
 
+# TODO: consolidate this class with ConstantOutputPredictor, we shouldn't need separate
+# mock predictors for keras and other types of training
 @io.register("dummy")
-@register_estimator("DummyModel", DummyTrainingConfig)
-class DummyModel(Estimator):
+class DummyModel(Predictor):
     """
     A dummy keras model for testing, whose `fit` method learns only the input and
     output variable array dimensions in an xarray dataset and ignores their contents,
@@ -66,8 +68,8 @@ class DummyModel(Estimator):
         self.y_packer = ArrayPacker(
             sample_dim_name=sample_dim_name, pack_names=output_variables
         )
-        self._epochs = epochs
-        self._batch_size = batch_size
+        self._epochs = hyperparameters.epochs
+        self._batch_size = hyperparameters.batch_size
 
     def fit(self, batches: Sequence[xr.Dataset], **fit_kwargs: Any) -> None:
         # this is all we need to do to learn n output feature
@@ -93,14 +95,17 @@ class DummyModel(Estimator):
                 self.y_packer.dump(f)
 
     @classmethod
-    def load(cls, path: str) -> Estimator:
+    def load(cls, path: str) -> "DummyModel":
         with get_dir(path) as path:
             with open(os.path.join(path, cls._X_PACKER_FILENAME), "r") as f:
                 X_packer = ArrayPacker.load(f)
             with open(os.path.join(path, cls._Y_PACKER_FILENAME), "r") as f:
                 y_packer = ArrayPacker.load(f)
             obj = cls(
-                X_packer.sample_dim_name, X_packer.pack_names, y_packer.pack_names
+                X_packer.sample_dim_name,
+                X_packer.pack_names,
+                y_packer.pack_names,
+                DummyHyperparameters(),
             )
             obj.X_packer = X_packer
             obj.y_packer = y_packer

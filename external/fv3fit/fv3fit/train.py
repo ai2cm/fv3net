@@ -7,7 +7,7 @@ import yaml
 import dataclasses
 import fsspec
 
-from fv3fit._shared import parse_data_path, load_data_sequence, io, Estimator
+from fv3fit._shared import parse_data_path, load_data_sequence, io
 from fv3fit._shared.config import get_training_function
 import fv3fit._shared.config
 from .keras._training import set_random_seed
@@ -47,16 +47,6 @@ def get_parser():
         "will read from remote every epoch. Local download greatly speeds training.",
     )
     return parser
-
-
-# def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
-#     cls = get_estimator_class(config.model_type)
-#     return cls(
-#         sample_dim_name=config.sample_dim_name,
-#         input_variables=config.input_variables,
-#         output_variables=config.output_variables,
-#         hyperparameters=config.hyperparameters,
-#     )
 
 
 def fit_model(
@@ -131,7 +121,6 @@ def main(args):
         train_batches,
         val_batches,
     )
-    # model.fit(train_batches)
     io.dump(model, args.output_data_path)
 
 
