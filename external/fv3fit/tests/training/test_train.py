@@ -80,7 +80,7 @@ def test_train_default_model_on_identity(model_type, regtest):
 
     def sample_func():
         return xr.DataArray(
-            random.randn(n_sample, n_feature), dims=["sample", "feature_dim"]
+            random.uniform(size=(n_sample, n_feature)), dims=["sample", "feature_dim"]
         )
 
     assert_can_learn_identity(
@@ -97,8 +97,7 @@ def test_train_default_model_on_nonstandard_identity(model_type):
     The model with default configuration options can learn the identity function,
     using gaussian-sampled data around a non-zero value with non-unit variance.
     """
-    mean = 100.0
-    std = 15.0
+    low, high = 100, 200
     random = np.random.RandomState(0)
     # don't set n_feature too high for this, because of curse of dimensionality
     n_sample, n_feature = int(5e3), 2
@@ -106,7 +105,7 @@ def test_train_default_model_on_nonstandard_identity(model_type):
 
     def sample_func():
         return xr.DataArray(
-            random.randn(n_sample, n_feature) * std + mean,
+            random.uniform(low=low, high=high, size=(n_sample, n_feature)),
             dims=["sample", "feature_dim"],
         )
 
@@ -114,7 +113,7 @@ def test_train_default_model_on_nonstandard_identity(model_type):
         model_type,
         hyperparameters=hyperparameters,
         sample_func=sample_func,
-        max_rmse=0.05 * std,
+        max_rmse=0.05 * (high - low),
     )
 
 
@@ -127,7 +126,7 @@ def test_dump_and_load_default_maintains_prediction(model_type):
 
     def sample_func():
         return xr.DataArray(
-            random.randn(n_sample, n_feature), dims=["sample", "feature_dim"]
+            random.uniform(size=(n_sample, n_feature)), dims=["sample", "feature_dim"]
         )
 
     data_array = sample_func()
