@@ -1,4 +1,4 @@
-from typing import Mapping, Sequence
+from typing import Sequence
 
 from vcm import safe, DerivedMapping, parse_datetime_from_str
 import xarray as xr
@@ -15,25 +15,37 @@ DELP = "pressure_thickness_of_atmospheric_layer"
 
 
 class PredictionMapper(GeoMapper):
+    """A mapper of outputs from a predictor, with inputs coming from a base mapper."""
+
     def __init__(
         self,
         base_mapper: GeoMapper,
-        wrapped_model: fv3fit.Predictor,
+        predictor: fv3fit.Predictor,
         variables: Sequence[str],
         z_dim: str = "z",
-        rename_vars: Mapping[str, str] = None,
         grid: xr.Dataset = None,
     ):
+        """
+        Args:
+            base_mapper: mapper containing input data for prediction
+            predictor: model for prediction
+            variables: names of variables from base_mapper and grid to include in
+                input to predictive model, and in output datasets (alongside any
+                predicted outputs)
+            z_dim: name of the z-dimension used as a feature dimension
+            grid: constant dataset with prediction inputs
+        """
         self._base_mapper = base_mapper
-        self._model = wrapped_model
+        self._model = predictor
         self._z_dim = z_dim
+        # TODO: maybe split off responsibility of merging grid with each dataset
+        # in base_mapper into its own class, wrapping base_mapper
         self._grid = grid or xr.Dataset()
+        # TODO: can this arg be removed, instead using metadata on predictor?
         self._variables = variables
-        self.rename_vars = rename_vars or {}
 
     def _predict(self, ds: xr.Dataset) -> xr.Dataset:
-        output = self._model.predict_columnwise(ds, feature_dim=self._z_dim)
-        return output.rename(self.rename_vars)  # type: ignore
+        return self._model.predict_columnwise(ds, feature_dim=self._z_dim)
 
     def _insert_prediction(self, ds: xr.Dataset, ds_pred: xr.Dataset) -> xr.Dataset:
         predicted_vars = ds_pred.data_vars

@@ -20,7 +20,9 @@ def test_get_runs(exp_root):
 
 
 def test_cli(monkeypatch):
-    monkeypatch.setattr(sys, "argv", ["artifacts", "--bucket", local_experiment_root])
+    monkeypatch.setattr(
+        sys, "argv", ["artifacts", "ls", "--bucket", local_experiment_root]
+    )
     main()
 
 

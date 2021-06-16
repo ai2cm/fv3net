@@ -7,8 +7,10 @@ import os
 import pathlib
 
 import fsspec
-
 import gcsfs
+
+from .report_search import ReportIndex
+from .utils import _list, _close_session
 
 
 STEPS = [
@@ -83,20 +85,6 @@ async def _get_runs(f, bucket, projects):
     return files
 
 
-async def _list(f: fsspec.AbstractFileSystem, path):
-    try:
-        return await f._ls(path)
-    except AttributeError:
-        return f.ls(path)
-
-
-async def _close_session(f):
-    try:
-        await f.session.close()
-    except AttributeError:
-        pass
-
-
 def get_artifacts(bucket, projects):
     loop = asyncio.get_event_loop()
     if bucket.startswith("gs://"):
@@ -132,7 +120,18 @@ def list(args):
             )
 
 
-def register_parser(parser):
+def report_entrypoint(args):
+    if args.write:
+        index = ReportIndex()
+        index.compute(args.reports_url)
+        index.dump(os.path.join(args.reports_url, "index.json"))
+    index = ReportIndex.from_json(os.path.join(args.reports_url, "index.json"))
+    for link in index.public_links(args.url):
+        print(link)
+
+
+def register_ls_parser(subparsers):
+    parser = subparsers.add_parser("ls", help="Query the experiments buckets.")
     parser.add_argument("step", nargs="*", help="One of " + ", ".join(STEPS))
     parser.add_argument(
         "-b",
@@ -157,8 +156,38 @@ def register_parser(parser):
     parser.set_defaults(func=list)
 
 
+def register_report_parser(subparsers):
+    parser = subparsers.add_parser("report", help="Search for prognostic run reports.")
+    parser.add_argument("url", help="A prognostic run URL.")
+    parser.add_argument(
+        "-r",
+        "--reports-url",
+        help=(
+            "Location of prognostic run reports. Defaults to gs://vcm-ml-public/argo. "
+            "Search uses index at REPORTS_URL/index.json"
+        ),
+        default="gs://vcm-ml-public/argo",
+    )
+    parser.add_argument(
+        "-w",
+        "--write",
+        help="Recompute index and write to REPORTS_URL/index.json before searching.",
+        action="store_true",
+    )
+    parser.set_defaults(func=report_entrypoint)
+
+
+def get_parser():
+    parser = argparse.ArgumentParser(
+        description="Query available experiment and report output."
+    )
+    subparsers = parser.add_subparsers(required=True, dest="command")
+    register_ls_parser(subparsers)
+    register_report_parser(subparsers)
+    return parser
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Query the experiments buckets.")
-    register_parser(parser)
+    parser = get_parser()
     args = parser.parse_args()
     args.func(args)

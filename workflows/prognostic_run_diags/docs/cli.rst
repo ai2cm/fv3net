@@ -11,6 +11,14 @@ prognostic_run_diags
    :func: get_parser
    :prog: prognostic_run_diags
 
+artifacts
+^^^^^^^^^
+
+.. argparse::
+   :module: fv3net.artifacts.query
+   :func: get_parser
+   :prog: artifacts
+
 memoized_compute_diagnostics.sh
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

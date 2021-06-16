@@ -9,8 +9,6 @@ spec:
         value: "20160801.001500"
       - name: reference-restarts
         value: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
-      - name: nudge-to-fine-output-frequency
-        value: 30
       - name: train-times
         value: |
           [
@@ -381,8 +379,6 @@ spec:
             value: "{{workflow.parameters.reference-restarts}}"
           - name: initial-condition
             value: "{{workflow.parameters.initial-condition}}"
-          - name: flags
-            value: "--output-frequency {{workflow.parameters.nudge-to-fine-output-frequency}}"
           - name: bucket
             value: "{{workflow.parameters.bucket}}"
           - name: project

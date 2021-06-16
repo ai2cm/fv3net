@@ -59,3 +59,18 @@ def test_fill_default(kwargs, arg, key, default, expected):
             _fill_default(kwargs, arg, key, default)
     else:
         assert _fill_default(kwargs, arg, key, default) == expected
+
+
+def test_nonnegative_model_outputs():
+    hyperparameters = DenseHyperparameters(nonnegative_outputs=True)
+    model = DenseModel("sample", ["input"], ["output"], hyperparameters,)
+    batch = xr.Dataset(
+        {
+            "input": (["sample"], np.arange(100)),
+            # even with negative targets, trained model should be nonnegative
+            "output": (["sample"], np.full((100,), -1e4)),
+        }
+    )
+    model.fit([batch])
+    prediction = model.predict(batch)
+    assert prediction.min() >= 0.0
