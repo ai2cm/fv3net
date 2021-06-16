@@ -114,7 +114,7 @@ def test_constant_model_predict_after_dump_and_load(
     outputs = get_first_columns(gridded_dataset, output_variables)
     predictor = get_predictor(input_variables, output_variables, outputs)
     with tempfile.TemporaryDirectory() as tempdir:
-        predictor.dump(tempdir)
+        fv3fit.dump(predictor, tempdir)
         predictor = fv3fit.load(tempdir)
 
     ds_stacked = safe.stack_once(
