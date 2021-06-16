@@ -15,6 +15,10 @@ def model_type(request):
     return request.param
 
 
+SYSTEM_DEPENDENT_TYPES = ["DenseModel"]
+"""model types which produce different results on different systems"""
+
+
 def test_training_functions_exist():
     assert len(TRAINING_FUNCTIONS.keys()) > 0
 
@@ -60,6 +64,8 @@ def assert_can_learn_identity(
     ), "predict should not mutate its input"
     rmse = np.mean((out_dataset["var_out"] - test_dataset["var_out"]) ** 2) ** 0.5
     assert rmse < max_rmse
+    if model_type in SYSTEM_DEPENDENT_TYPES:
+        regtest = None
     if regtest is not None:
         for result in vcm.testing.checksum_dataarray_mapping(test_dataset):
             print(result, file=regtest)
