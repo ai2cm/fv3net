@@ -21,8 +21,6 @@ spec:
           arguments:
             parameters:
             - {name: runURL, value: "{{inputs.parameters.output-url}}"}
-            - {name: cpu, value: "{{inputs.parameters.cpu}}"}
-            - {name: memory, value: "{{inputs.parameters.memory}}"}
             artifacts:
               - name: fv3config
                 from: "{{inputs.artifacts.fv3config}}"
@@ -84,7 +82,7 @@ spec:
       command: ["/bin/bash", "-c", "-x", "-e"]
       resources:
         limits:
-            memory: "250Mi"
+            memory: "500Mi"
             cpu: "500m"
       args:
       - |

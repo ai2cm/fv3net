@@ -98,6 +98,7 @@ class DenseModel(Predictor):
         self._width = hyperparameters.width
         self._spectral_normalization = hyperparameters.spectral_normalization
         self._gaussian_noise = hyperparameters.gaussian_noise
+        self._nonnegative_outputs = hyperparameters.nonnegative_outputs
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
         self.X_packer = ArrayPacker(
@@ -157,6 +158,8 @@ class DenseModel(Predictor):
             x = hidden_layer(x)
         x = tf.keras.layers.Dense(n_features_out)(x)
         outputs = self.y_scaler.denormalize_layer(x)
+        if self._nonnegative_outputs:
+            outputs = tf.keras.layers.Activation(tf.keras.activations.relu)(outputs)
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
         model.compile(optimizer=self._optimizer, loss=self.loss)
         return model
