@@ -151,8 +151,7 @@ sources:
       
   40day_c48_restarts_as_zarr_may2020:
     description: >-
-      Restart files at C48 resolution every 15 minutes, consolidated as a zarr store, created by pointing
-      `fv3net.pipelines.restarts_to_zarr` at `gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts`
+      Restart files at C48 resolution every 15 minutes, consolidated as a zarr store, created by pointing `fv3net.pipelines.restarts_to_zarr` at `gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts`. Note that tile coordinate is [1, ..., 6] and time coordinate is timestamp-based; the latter can be converted to cftime.datetime via `vcm.convert_timestamps(ds.time)`.
     driver: zarr
     metadata:
       grid: c48
