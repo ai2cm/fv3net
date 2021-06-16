@@ -8,11 +8,10 @@ data
 .dockerignore
 .dockerignore.swp
 Dockerfile
-.dvc
+.dvc/cache
 .env
 .envrc
 experiments
-.git
 .gitignore
 .idea
 .vscode
@@ -38,3 +37,4 @@ outdir/
 workflows/argo
 **/.tox/
 **/.env/
+**/*.nc

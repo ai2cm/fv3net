@@ -23,6 +23,7 @@ test_path = "data/validation"
 problem = "single-level"
 scale = 1e-9
 num_hidden = 256
+nfiles = 0
 
 # config = runtime.emulator.OnlineEmulatorConfig.from_dict(dict_)
 config = runtime.emulator.OnlineEmulatorConfig()
@@ -38,21 +39,17 @@ logging.info(config)
 emulator = runtime.emulator.OnlineEmulator(config)
 
 
-train_dataset = (
-    data.netcdf_url_to_dataset(
-        config.batch.training_path, timestep, emulator.input_variables,
-    )
-    .unbatch()
-    .shuffle(100_000)
-    .cache()
+train_dataset = data.netcdf_url_to_dataset(
+    config.batch.training_path, timestep, emulator.input_variables,
 )
-test_dataset = (
-    data.netcdf_url_to_dataset(
-        config.batch.testing_path, timestep, emulator.input_variables,
-    )
-    .unbatch()
-    .cache()
+
+test_dataset = data.netcdf_url_to_dataset(
+    config.batch.testing_path, timestep, emulator.input_variables,
 )
+
+if nfiles:
+    train_dataset = train_dataset.take(nfiles).unbatch().shuffle(100_000).cache()
+    test_dataset = test_dataset.take(nfiles).unbatch().cache()
 
 id_ = pathlib.Path(os.getcwd()).name
 

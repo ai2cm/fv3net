@@ -3,20 +3,23 @@ version: '3.4'
 volumes:
   runs: {}
   guild: {}
+  dvc: {}
 services:
   fv3:
     depends_on:
       - tensorboard
-    image: us.gcr.io/vcm-ml/prognostic_run
+    image: us.gcr.io/vcm-ml/emulator:5d11da842c4b473b6965990c2699dcb6791bd500
     entrypoint: []
     command: [ls]
     volumes:
       - ../../:/fv3net
       - guild:/mnt/guild
+      - dvc:/mnt/dvc
       - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json
       - runs:/data
     environment:
       - GUILD_HOME=/mnt/guild
+      - REMOTE_GUILD_HOME=gs://vcm-ml-archive/emulator
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
   guild:
     image: guildai/guildai

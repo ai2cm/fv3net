@@ -32,9 +32,14 @@ build_image_prognostic_run:
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/notebook:$(VERSION) \
 		--target notebook .
 
+	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
+		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/emulator:$(VERSION) \
+		--target emulator .
+
 push_image_prognostic_run: build_image_prognostic_run
 	docker push $(REGISTRY)/prognostic_run:$(VERSION)
 	docker push $(REGISTRY)/notebook:$(VERSION)
+	docker push $(REGISTRY)/emulator:$(VERSION)
 
 push_image_%: build_image_%
 	docker push $(REGISTRY)/$*:$(VERSION)
