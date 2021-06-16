@@ -32,9 +32,6 @@ def _tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
     return pd.MultiIndex.from_tuples(list_, names=names)
 
 
-@register_training_function("sklearn", RandomForestHyperparameters)
-@register_training_function("rf", RandomForestHyperparameters)
-@register_training_function("random_forest", RandomForestHyperparameters)
 @register_training_function("sklearn_random_forest", RandomForestHyperparameters)
 def train_random_forest(
     input_variables: Iterable[str],

@@ -52,7 +52,12 @@ def assert_can_learn_identity(
     )
     data_array = sample_func()
     test_dataset = xr.Dataset(data_vars={"var_in": data_array, "var_out": data_array})
+    hash_before_predict = vcm.testing.checksum_dataarray_mapping(test_dataset)
     out_dataset = model.predict(test_dataset)
+    # TODO: move this to a separate test
+    assert (
+        vcm.testing.checksum_dataarray_mapping(test_dataset) == hash_before_predict
+    ), "predict should not mutate its input"
     rmse = np.mean((out_dataset["var_out"] - test_dataset["var_out"]) ** 2) ** 0.5
     assert rmse < max_rmse
     if regtest is not None:
