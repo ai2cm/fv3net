@@ -3,11 +3,24 @@ from typing_extensions import Literal
 import fsspec
 import yaml
 import os
-from typing import Any, Mapping, Optional, Tuple, Union, Sequence, List, Type, Dict
+from typing import (
+    Any,
+    Callable,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+    Sequence,
+    List,
+    Type,
+    Dict,
+)
 from fv3fit.typing import Dataclass
 import xarray as xr
-from .predictor import Estimator
+from .predictor import Predictor
 import dacite
+import numpy as np
+import random
 
 # TODO: move all keras configs under fv3fit.keras
 import tensorflow as tf
@@ -19,9 +32,29 @@ DELP = "pressure_thickness_of_atmospheric_layer"
 MODEL_CONFIG_FILENAME = "training_config.yml"
 
 
+TrainingFunction = Callable[
+    [
+        Sequence[str],
+        Sequence[str],
+        Dataclass,
+        Sequence[xr.Dataset],
+        Sequence[xr.Dataset],
+    ],
+    Predictor,
+]
+
+
+def set_random_seed(seed: Union[float, int] = 0):
+    # https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    np.random.seed(seed + 1)
+    random.seed(seed + 2)
+    tf.random.set_seed(seed + 3)
+
+
 # TODO: delete this routine by refactoring the tests to no longer depend on it
 def get_keras_model(name):
-    return ESTIMATORS[name][0]
+    return TRAINING_FUNCTIONS[name][0]
 
 
 @dataclasses.dataclass
@@ -50,39 +83,39 @@ class TrainingConfig:
         kwargs = {**kwargs}  # make a copy to avoid mutating the input
         hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
         kwargs["hyperparameters"] = dacite.from_dict(
-            data_class=hyperparameter_class, data=kwargs["hyperparameters"]
+            data_class=hyperparameter_class, data=kwargs.get("hyperparameters", {})
         )
         return dacite.from_dict(data_class=cls, data=kwargs)
 
 
-ESTIMATORS: Dict[str, Tuple[Type[Estimator], Type[Dataclass]]] = {}
+TRAINING_FUNCTIONS: Dict[str, Tuple[TrainingFunction, Type[Dataclass]]] = {}
 
 
 def get_hyperparameter_class(model_type: str) -> Type:
-    if model_type in ESTIMATORS:
-        _, subclass = ESTIMATORS[model_type]
+    if model_type in TRAINING_FUNCTIONS:
+        _, subclass = TRAINING_FUNCTIONS[model_type]
     else:
         raise ValueError(f"unknown model_type {model_type}")
     return subclass
 
 
-def get_estimator_class(model_type: str) -> Type[Estimator]:
-    if model_type in ESTIMATORS:
-        estimator_class, _ = ESTIMATORS[model_type]
+def get_training_function(model_type: str) -> TrainingFunction:
+    if model_type in TRAINING_FUNCTIONS:
+        estimator_class, _ = TRAINING_FUNCTIONS[model_type]
     else:
         raise ValueError(f"unknown model_type {model_type}")
     return estimator_class
 
 
-def register_estimator(name: str, hyperparameter_class: type):
+def register_training_function(name: str, hyperparameter_class: type):
     """
-    Returns a decorator that will register the given class as a keras training
-    class, which can be used in training configuration.
+    Returns a decorator that will register the given training function
+    to be usable in training configuration.
     """
 
-    def decorator(cls):
-        ESTIMATORS[name] = (cls, hyperparameter_class)
-        return cls
+    def decorator(func: TrainingFunction) -> TrainingFunction:
+        TRAINING_FUNCTIONS[name] = (func, hyperparameter_class)
+        return func
 
     return decorator
 
@@ -168,6 +201,7 @@ class DenseHyperparameters:
     kernel_regularizer_config: Optional[RegularizerConfig] = None
     depth: int = 3
     width: int = 16
+    epochs: int = 3
     gaussian_noise: float = 0.0
     loss: str = "mse"
     spectral_normalization: bool = False
@@ -191,11 +225,11 @@ class RandomForestHyperparameters:
     Args:
         scaler_type: scaler to use for training
         scaler_kwargs: keyword arguments to pass to scaler initialization
-        n_jobs: ???
+        n_jobs: number of jobs to run in parallel when training a single random forest
         random_state: random seed to use when building trees, will be
             deterministically perturbed for each training batch
         n_estimators: the number of trees in each forest
-        max_depth: maximum depth of each tree
+        max_depth: maximum depth of each tree, by default is unlimited
         min_samples_split: minimum number of samples required to split an internal node
         min_samples_leaf: minimum number of samples required to be at a leaf node
         max_features: number of features to consider when looking for the best split
@@ -207,7 +241,9 @@ class RandomForestHyperparameters:
 
     scaler_type: str = "standard"
     scaler_kwargs: Optional[Mapping] = None
-    n_jobs: int = -1
+
+    # don't set default to -1 because it causes non-reproducible training
+    n_jobs: int = 8
     random_state: int = 0
     n_estimators: int = 100
     max_depth: Optional[int] = None
@@ -284,7 +320,7 @@ class _ModelTrainingConfig:
 
 
 def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> TrainingConfig:
-    config_class = ESTIMATORS[legacy_config.model_type][1]
+    config_class = TRAINING_FUNCTIONS[legacy_config.model_type][1]
     keys = [
         "model_type",
         "hyperparameters",

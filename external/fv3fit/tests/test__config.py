@@ -1,13 +1,12 @@
 import dataclasses
+from fv3fit._shared.config import DenseHyperparameters
 from fv3fit._shared.config import OptimizerConfig
-from fv3fit._shared.predictor import Estimator
 import os
 import tempfile
 from fv3fit._shared.config import (
     _ModelTrainingConfig as ModelTrainingConfig,
     DataConfig,
     TrainingConfig,
-    register_estimator,
 )
 import yaml
 
@@ -68,20 +67,12 @@ def test_safe_dump_training_config():
     and that the relationship between model_type and hyperparameter class is
     preserved when restoring configuration using TrainingConfig.from_dict.
     """
-
-    @dataclasses.dataclass
-    class MyHyperparameters:
-        val: int = 1
-
-    @register_estimator("MyModel", MyHyperparameters)
-    class MyEstimator(Estimator):
-        pass
-
+    # TODO: extend this test to run not just for Dense, but for all registered models
     config = TrainingConfig(
-        model_type="MyModel",
+        model_type="DenseModel",  # an arbitrary model type
         input_variables=["a"],
         output_variables=["b"],
-        hyperparameters=MyHyperparameters(),
+        hyperparameters=DenseHyperparameters(),
     )
     with tempfile.TemporaryDirectory() as tmpdir:
         filename = os.path.join(tmpdir, "config.yaml")

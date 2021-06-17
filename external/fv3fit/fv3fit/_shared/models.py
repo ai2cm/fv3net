@@ -53,6 +53,13 @@ class EnsembleModel(Predictor):
         else:
             return ds.mean(dim="member")
 
+    def dump(self, path):
+        raise NotImplementedError(
+            "no dump method yet for this class, you can define one manually "
+            "using instructions at "
+            "http://vulcanclimatemodeling.com/docs/fv3fit/ensembles.html"
+        )
+
     @classmethod
     def load(cls, path: str) -> "EnsembleModel":
         """Load a serialized model from a directory."""
