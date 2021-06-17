@@ -49,20 +49,6 @@ def get_parser():
     return parser
 
 
-def fit_model(
-    model_type: str,
-    input_variables: Sequence[str],
-    output_variables: Sequence[str],
-    hyperparameters,
-    train_batches,
-    val_batches,
-):
-    func = get_training_function(model_type)
-    return func(
-        input_variables, output_variables, hyperparameters, train_batches, val_batches
-    )
-
-
 def dump_dataclass(obj, yaml_filename):
     with fsspec.open(yaml_filename, "w") as f:
         yaml.safe_dump(dataclasses.asdict(obj), f)
@@ -113,13 +99,13 @@ def main(args):
             os.path.join(args.local_download_path, "validation")
         )
 
-    model = fit_model(
-        train_config.model_type,
-        train_config.input_variables,
-        train_config.output_variables,
-        train_config.hyperparameters,
-        train_batches,
-        val_batches,
+    train = get_training_function(train_config.model_type)
+    model = train(
+        input_variables=train_config.input_variables,
+        output_variables=train_config.output_variables,
+        hyperparameters=train_config.hyperparameters,
+        train_batches=train_batches,
+        validation_batches=val_batches,
     )
     io.dump(model, args.output_data_path)
 

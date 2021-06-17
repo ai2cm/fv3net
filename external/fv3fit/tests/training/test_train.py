@@ -23,6 +23,26 @@ def test_training_functions_exist():
     assert len(TRAINING_FUNCTIONS.keys()) > 0
 
 
+def train_identity_model(model_type, sample_func, hyperparameters):
+    input_variables = ["var_in"]
+    output_variables = ["var_out"]
+    data_array = sample_func()
+    train_dataset = xr.Dataset(data_vars={"var_in": data_array, "var_out": data_array})
+    train_batches = [train_dataset for _ in range(10)]
+    val_batches = []
+    model = fv3fit.train.fit_model(
+        model_type,
+        input_variables,
+        output_variables,
+        hyperparameters,
+        train_batches,
+        val_batches,
+    )
+    data_array = sample_func()
+    test_dataset = xr.Dataset(data_vars={"var_in": data_array, "var_out": data_array})
+    return model, test_dataset
+
+
 def assert_can_learn_identity(
     model_type,
     hyperparameters: Dataclass,
@@ -40,28 +60,10 @@ def assert_can_learn_identity(
         regtest: if given, write hash of output dataset to this file object
     """
     hyperparameters = get_hyperparameter_class(model_type)()
-    input_variables = ["var_in"]
-    output_variables = ["var_out"]
-    data_array = sample_func()
-    train_dataset = xr.Dataset(data_vars={"var_in": data_array, "var_out": data_array})
-    train_batches = [train_dataset for _ in range(10)]
-    val_batches = []
-    model = fv3fit.train.fit_model(
-        model_type,
-        input_variables,
-        output_variables,
-        hyperparameters,
-        train_batches,
-        val_batches,
+    model, test_dataset = train_identity_model(
+        model_type, sample_func=sample_func, hyperparameters=hyperparameters
     )
-    data_array = sample_func()
-    test_dataset = xr.Dataset(data_vars={"var_in": data_array, "var_out": data_array})
-    hash_before_predict = vcm.testing.checksum_dataarray_mapping(test_dataset)
     out_dataset = model.predict(test_dataset)
-    # TODO: move this to a separate test
-    assert (
-        vcm.testing.checksum_dataarray_mapping(test_dataset) == hash_before_predict
-    ), "predict should not mutate its input"
     rmse = np.mean((out_dataset["var_out"] - test_dataset["var_out"]) ** 2) ** 0.5
     assert rmse < max_rmse
     if model_type in SYSTEM_DEPENDENT_TYPES:
@@ -79,15 +81,10 @@ def test_train_default_model_on_identity(model_type, regtest):
     using gaussian-sampled data around 0 with unit variance.
     """
     fv3fit.train.set_random_seed(1)
-    random = np.random.RandomState(0)
     # don't set n_feature too high for this, because of curse of dimensionality
     n_sample, n_feature = int(5e3), 2
     hyperparameters = get_hyperparameter_class(model_type)()
-
-    def sample_func():
-        return xr.DataArray(
-            random.uniform(size=(n_sample, n_feature)), dims=["sample", "feature_dim"]
-        )
+    sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
 
     assert_can_learn_identity(
         model_type,
@@ -98,22 +95,63 @@ def test_train_default_model_on_identity(model_type, regtest):
     )
 
 
+def test_train_with_same_seed_gives_same_result(model_type):
+    hyperparameters = get_hyperparameter_class(model_type)()
+    n_sample, n_feature = 500, 2
+    fv3fit.train.set_random_seed(0)
+    sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
+    first_model, test_dataset = train_identity_model(
+        model_type, sample_func, hyperparameters
+    )
+    fv3fit.train.set_random_seed(0)
+    sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
+    second_model, second_test_dataset = train_identity_model(
+        model_type, sample_func, hyperparameters
+    )
+    xr.testing.assert_equal(test_dataset, second_test_dataset)
+    first_output = first_model.predict(test_dataset)
+    second_output = second_model.predict(test_dataset)
+    xr.testing.assert_equal(first_output, second_output)
+
+
+def test_predict_does_not_mutate_input(model_type):
+    n_sample, n_feature = 100, 2
+    sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
+    hyperparameters = get_hyperparameter_class(model_type)()
+    model, test_dataset = train_identity_model(
+        model_type, sample_func=sample_func, hyperparameters=hyperparameters
+    )
+    hash_before_predict = vcm.testing.checksum_dataarray_mapping(test_dataset)
+    _ = model.predict(test_dataset)
+    assert (
+        vcm.testing.checksum_dataarray_mapping(test_dataset) == hash_before_predict
+    ), "predict should not mutate its input"
+
+
+def get_uniform_sample_func(size, low=0, high=1, seed=0):
+    random = np.random.RandomState(seed=seed)
+
+    def sample_func():
+        return xr.DataArray(
+            random.uniform(low=low, high=high, size=size),
+            dims=["sample", "feature_dim"],
+        )
+
+    return sample_func
+
+
 def test_train_default_model_on_nonstandard_identity(model_type):
     """
     The model with default configuration options can learn the identity function,
     using gaussian-sampled data around a non-zero value with non-unit variance.
     """
     low, high = 100, 200
-    random = np.random.RandomState(0)
     # don't set n_feature too high for this, because of curse of dimensionality
     n_sample, n_feature = int(5e3), 2
     hyperparameters = get_hyperparameter_class(model_type)()
-
-    def sample_func():
-        return xr.DataArray(
-            random.uniform(low=low, high=high, size=(n_sample, n_feature)),
-            dims=["sample", "feature_dim"],
-        )
+    sample_func = get_uniform_sample_func(
+        low=low, high=high, size=(n_sample, n_feature)
+    )
 
     assert_can_learn_identity(
         model_type,
@@ -124,31 +162,13 @@ def test_train_default_model_on_nonstandard_identity(model_type):
 
 
 def test_dump_and_load_default_maintains_prediction(model_type):
-    hyperparameters = get_hyperparameter_class(model_type)()
-    input_variables = ["var_in"]
-    output_variables = ["var_out"]
-    random = np.random.RandomState(0)
     n_sample, n_feature = 500, 2
-
-    def sample_func():
-        return xr.DataArray(
-            random.uniform(size=(n_sample, n_feature)), dims=["sample", "feature_dim"]
-        )
-
-    data_array = sample_func()
-    train_dataset = xr.Dataset(data_vars={"var_in": data_array, "var_out": data_array})
-    train_batches = [train_dataset for _ in range(10)]
-    val_batches = []
-    model = fv3fit.train.fit_model(
-        model_type,
-        input_variables,
-        output_variables,
-        hyperparameters,
-        train_batches,
-        val_batches,
+    sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
+    hyperparameters = get_hyperparameter_class(model_type)()
+    model, test_dataset = train_identity_model(
+        model_type, sample_func=sample_func, hyperparameters=hyperparameters
     )
-    data_array = sample_func()
-    test_dataset = xr.Dataset(data_vars={"var_in": data_array, "var_out": data_array})
+
     original_result = model.predict(test_dataset)
     with tempfile.TemporaryDirectory() as tmpdir:
         model.dump(tmpdir)
