@@ -43,12 +43,15 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
 
 
 def _column_pq1(ds: xr.Dataset) -> xr.DataArray:
+    DSWRFsfc_name = "DSWRFsfc_from_RRTMG" if "DSWRFsfc_from_RRTMG" in ds else "DSWRFsfc"
+    USWRFsfc_name = "USWRFsfc_from_RRTMG" if "USWRFsfc_from_RRTMG" in ds else "USWRFsfc"
+    DLWRFsfc_name = "DLWRFsfc_from_RRTMG" if "DLWRFsfc_from_RRTMG" in ds else "DLWRFsfc"
     net_heating_arg_labels = [
-        "DLWRFsfc",
-        "DSWRFsfc",
+        DLWRFsfc_name,
+        DSWRFsfc_name,
         "ULWRFsfc",
         "ULWRFtoa",
-        "USWRFsfc",
+        USWRFsfc_name,
         "USWRFtoa",
         "DSWRFtoa",
         "SHTFLsfc",
