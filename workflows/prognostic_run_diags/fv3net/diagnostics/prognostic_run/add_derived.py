@@ -36,7 +36,7 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _column_dqm,
         _column_pqm,
         _column_nqm,
-        _column_qm
+        _column_qm,
     ]:
         try:
             arrays.append(func(ds))
