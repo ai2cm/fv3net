@@ -487,9 +487,7 @@ class DenseModel(PackedKerasModel):
         return model
 
 
-io.register("RectifiedDenseModel")
-
-
+@io.register("RectifiedDenseModel")
 class RectifiedDenseModel(PackedKerasModel):
     """
     A simple feedforward neural network model with dense layers.
