@@ -59,6 +59,10 @@ GLOBAL_AVERAGE_PHYSICS_VARS = [
     "column_integrated_dQ2",
     "column_integrated_nQ2",
     "column_integrated_Q2",
+    "column_integrated_pQm",
+    "column_integrated_dQm",
+    "column_integrated_nQm",
+    "column_integrated_Qm",
     "vertical_mean_dQu",
     "vertical_mean_dQv",
     "total_precip_to_surface",
@@ -78,6 +82,7 @@ GLOBAL_AVERAGE_PHYSICS_VARS = [
 GLOBAL_BIAS_PHYSICS_VARS = [
     "column_integrated_Q1",
     "column_integrated_Q2",
+    "column_integrated_Qm",
     "total_precip_to_surface",
     "LHTFLsfc",
     "SHTFLsfc",
@@ -106,6 +111,7 @@ DIURNAL_CYCLE_VARS = [
 TIME_MEAN_VARS = [
     "column_integrated_Q1",
     "column_integrated_Q2",
+    "column_integrated_Qm",
     "total_precip_to_surface",
     "UGRD850",
     "UGRD200",
