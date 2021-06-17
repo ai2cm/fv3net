@@ -5,6 +5,7 @@ import xarray as xr
 import vcm
 
 SECONDS_PER_DAY = 86400
+LATENT_HEAT_VAPORIZATION = 2.5e6
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,10 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _column_nq2,
         _column_dq1_or_nq1,
         _column_dq2_or_nq2,
+        _column_dqm,
+        _column_pqm,
+        _column_nqm,
+        _column_qm
     ]:
         try:
             arrays.append(func(ds))
@@ -269,3 +274,42 @@ def _column_dq2_or_nq2(ds: xr.Dataset, tol=1.0e-12) -> xr.DataArray:
         long_name = "<dQ2> + <nQ2> column integrated moistening from ML + nudging"
     column_dq2_or_nq2.attrs = {"long_name": long_name, "units": "mm/day"}
     return column_dq2_or_nq2.rename("column_integrated_dQ2_or_nQ2")
+
+
+def _column_dqm(ds: xr.Dataset) -> xr.DataArray:
+    mm_per_day_to_W_per_m2 = LATENT_HEAT_VAPORIZATION / SECONDS_PER_DAY
+    column_dqm = _column_dq1(ds) + mm_per_day_to_W_per_m2 * _column_dq2(ds)
+    column_dqm.attrs = {
+        "long_name": "<dQm> column integrated MSE tendency from ML",
+        "units": "W/m^2",
+    }
+    return column_dqm.rename("column_integrated_dQm")
+
+
+def _column_nqm(ds: xr.Dataset) -> xr.DataArray:
+    mm_per_day_to_W_per_m2 = LATENT_HEAT_VAPORIZATION / SECONDS_PER_DAY
+    column_nqm = _column_nq1(ds) + mm_per_day_to_W_per_m2 * _column_nq2(ds)
+    column_nqm.attrs = {
+        "long_name": "<nQm> column integrated MSE tendency from nudging",
+        "units": "W/m^2",
+    }
+    return column_nqm.rename("column_integrated_nQm")
+
+
+def _column_pqm(ds: xr.Dataset) -> xr.DataArray:
+    mm_per_day_to_W_per_m2 = LATENT_HEAT_VAPORIZATION / SECONDS_PER_DAY
+    column_pqm = _column_pq1(ds) + mm_per_day_to_W_per_m2 * _column_pq2(ds)
+    column_pqm.attrs = {
+        "long_name": "<pQm> column integrated MSE tendency from physics",
+        "units": "W/m^2",
+    }
+    return column_pqm.rename("column_integrated_pQm")
+
+
+def _column_qm(ds: xr.Dataset) -> xr.DataArray:
+    column_qm = _column_pqm(ds) + _column_dqm(ds) + _column_nqm(ds)
+    column_qm.attrs = {
+        "long_name": "<Qm> column integrated MSE tendency from physics + ML + nudging",
+        "units": "W/m^2",
+    }
+    return column_qm.rename("column_integrated_Qm")
