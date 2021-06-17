@@ -55,7 +55,7 @@ def test_flatten_same_order():
 @pytest.fixture
 def test_regressor_ensemble():
     base_regressor = LinearRegression()
-    ensemble_regressor = _RegressorEnsemble(base_regressor)
+    ensemble_regressor = _RegressorEnsemble(base_regressor, n_jobs=1)
     num_batches = 3
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
     y = np.dot(X, np.array([1, 2])) + 3
@@ -142,7 +142,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
         scaler = ManualScaler(np.array([scale_factor]))
     else:
         scaler = None
-    model = _RegressorEnsemble(base_regressor=LinearRegression())
+    model = _RegressorEnsemble(base_regressor=LinearRegression(), n_jobs=1)
     wrapper = SklearnWrapper(
         sample_dim_name="sample",
         input_variables=["x"],
@@ -165,7 +165,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
 
 
 def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
-    model = _RegressorEnsemble(base_regressor=LinearRegression())
+    model = _RegressorEnsemble(base_regressor=LinearRegression(), n_jobs=1)
     wrapper = SklearnWrapper(
         sample_dim_name="sample",
         input_variables=["x"],
@@ -196,7 +196,8 @@ def test_predict_columnwise_is_deterministic(regtest):
     """
     nz = 2
     model = _RegressorEnsemble(
-        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz))
+        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
+        n_jobs=1,
     )
     wrapper = SklearnWrapper(
         sample_dim_name="sample",

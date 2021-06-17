@@ -48,8 +48,15 @@ class Predictor(abc.ABC):
         """Predict an output xarray dataset from an input xarray dataset."""
 
     @abc.abstractmethod
-    def load(cls, path: str) -> object:
+    def dump(self, path: str) -> None:
+        """Serialize to a directory."""
+        pass
+
+    @classmethod
+    @abc.abstractmethod
+    def load(cls, path: str) -> "Predictor":
         """Load a serialized model from a directory."""
+        pass
 
     def predict_columnwise(
         self,
@@ -102,23 +109,6 @@ class Predictor(abc.ABC):
             dim for dim in _infer_dimension_order(inputs_) if dim in output.dims
         ]
         return output.transpose(*dim_order)
-
-
-class Estimator(Predictor):
-    """
-    Abstract base class for a machine learning model which operates on xarray
-    datasets, and is trained on sequences of such datasets. Extends the predictor
-    base class by defining `dump` method
-    """
-
-    @abc.abstractmethod
-    def dump(self, path: str) -> None:
-        """Serialize to a directory."""
-        pass
-
-    @abc.abstractmethod
-    def fit(self, batches: Sequence[xr.Dataset],) -> None:
-        pass
 
 
 def _infer_dimension_order(ds: xr.Dataset) -> Tuple:
