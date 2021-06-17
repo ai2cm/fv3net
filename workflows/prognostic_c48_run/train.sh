@@ -3,7 +3,7 @@
 set -e
 
 echo "Pulling data with dvc" > /dev/stderr
-dvc pull data/training data/validation
+dvc checkout --verbose data/training data/validation
 echo "Starting Training" > /dev/stderr
 guild run train $@
 echo "Syncing to $REMOTE_GUILD_HOME" > /dev/stderr
