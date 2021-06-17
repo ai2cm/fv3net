@@ -77,12 +77,16 @@ def test_get_movie_links(tmpdir):
     tmpdir.join(rdirs[0]).join("movie2.mp4").write("foobar")
 
     result = ComputedDiagnosticsList.from_directory(str(tmpdir)).find_movie_links()
+    folder2 = DiagnosticFolder(fsspec.filesystem("file"), str(tmpdir.join(rdirs[1])))
 
     assert "movie1.mp4" in result
     assert "movie2.mp4" in result
     assert {(os.path.join(domain, tmpdir, "rundir1", "movie2.mp4"), "rundir1")} == set(
         result["movie2.mp4"]
     )
+    for movie_name, url in folder2.movie_urls:
+        assert movie_name == "movie1.mp4"
+        assert url == str(tmpdir.join(rdirs[1]).join("movie1.mp4"))
 
 
 one_run = xarray.Dataset({"a": ([], 1,), "b": ([], 2)}, attrs=dict(run="one-run"))

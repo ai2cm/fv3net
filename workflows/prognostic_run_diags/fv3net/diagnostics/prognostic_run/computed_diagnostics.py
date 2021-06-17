@@ -233,13 +233,13 @@ def find_movie_links(rundirs, domain=PUBLIC_GCS_DOMAIN):
     """Get the movie links from a bucket
 
     Returns:
-        A dictionary of (public_url, rundir) tuples
+        A dictionary of (public_url, run_name) tuples with movie names as keys
     """
 
     # TODO refactor to split out I/O from html generation
     movie_links = {}
     for name, folder in rundirs.items():
-        for movie_name, gcs_path in folder.movie_links:
+        for movie_name, gcs_path in folder.movie_urls:
             movie_name = os.path.basename(gcs_path)
             if movie_name not in movie_links:
                 movie_links[movie_name] = []
@@ -277,12 +277,11 @@ class DiagnosticFolder:
             return xr.open_dataset(f.name, engine="h5netcdf").compute()
 
     @property
-    def movie_links(self, domain=PUBLIC_GCS_DOMAIN):
+    def movie_urls(self):
         movie_paths = self.fs.glob(os.path.join(self.path, "*.mp4"))
-        for gcs_path in movie_paths:
-            movie_name = os.path.basename(gcs_path)
-            public_url = os.path.join(domain, gcs_path)
-            yield movie_name, public_url
+        for path in movie_paths:
+            movie_name = os.path.basename(path)
+            yield movie_name, path
 
 
 def detect_folders(
