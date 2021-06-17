@@ -1,9 +1,9 @@
 #!/bin/bash
 
 set -e
-
 echo "Pulling data with dvc" > /dev/stderr
-dvc checkout --verbose data/training data/validation
+dvc config cache.type hardlink,symlink
+dvc pull --verbose data/training data/validation
 echo "Starting Training" > /dev/stderr
 guild run train $@
 echo "Syncing to $REMOTE_GUILD_HOME" > /dev/stderr
