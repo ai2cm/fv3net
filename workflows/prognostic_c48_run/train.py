@@ -23,6 +23,7 @@ test_path = "data/validation"
 problem = "single-level"
 scale = 1e-9
 num_hidden = 256
+num_hidden_layers = 1
 nfiles = 0
 
 # config = runtime.emulator.OnlineEmulatorConfig.from_dict(dict_)
@@ -32,6 +33,7 @@ config.epochs = epochs
 config.learning_rate = lr
 config.batch = runtime.emulator.BatchDataConfig(train_path, test_path)
 config.num_hidden = num_hidden
+config.num_hidden_layers = num_hidden_layers
 if problem == "single-level":
     config.target = runtime.emulator.ScalarLoss(3, 50, scale=scale)
 

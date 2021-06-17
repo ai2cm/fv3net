@@ -171,10 +171,11 @@ def test_get_model(config, class_):
     assert isinstance(model, class_)
 
 
-def test_ScalarMLP():
+@pytest.mark.parametrize("num_hidden_layers", [0, 1, 4])
+def test_ScalarMLP(num_hidden_layers):
     ins = [tf.ones((1, 10), dtype=tf.float32)] * 4
     outs = [tf.zeros((1, 10), dtype=tf.float32)] * 4
-    model = ScalarMLP()
+    model = ScalarMLP(num_hidden_layers=num_hidden_layers)
     model.fit_scalers(ins, outs)
     out = model(ins)
 
@@ -183,6 +184,20 @@ def test_ScalarMLP():
     # computing loss should not fail
     loss, _ = ScalarLoss(0, 0).loss(model, ins, outs)
     assert loss.shape == ()
+
+
+def test_ScalarMLP_has_more_layers():
+    shallow = ScalarMLP(num_hidden_layers=1)
+    deep = ScalarMLP(num_hidden_layers=3)
+
+    # build the models
+    ins = [tf.ones((1, 10), dtype=tf.float32)] * 4
+    outs = [tf.zeros((1, 10), dtype=tf.float32)] * 4
+    for model in [shallow, deep]:
+        model.fit_scalers(ins, outs)
+        model(ins)
+
+    assert len(deep.trainable_variables) > len(shallow.trainable_variables)
 
 
 def test_top_level():

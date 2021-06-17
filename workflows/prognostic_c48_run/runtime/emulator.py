@@ -41,12 +41,15 @@ class OnlineEmulatorConfig:
         learning_rate: the learning rate for each gradient descent step
         online: whether predictions are used or not
         batch: if provided then these data are used for training the ML model
+        num_hidden_layers: number of hidden layers used. Only implemented for
+            ScalarLoss targets.
 
     """
 
     batch_size: int = 64
     learning_rate: float = 0.01
     num_hidden: int = 256
+    num_hidden_layers: int = 1
     momentum: float = 0.5
     online: bool = False
     extra_input_variables: List[str] = dataclasses.field(default_factory=list)
@@ -346,24 +349,34 @@ class UVTQSimple(tf.keras.layers.Layer):
 
 
 class ScalarMLP(tf.keras.layers.Layer):
-    def __init__(self, num_hidden=256, var_number=0, var_level=0):
+    def __init__(self, num_hidden=256, num_hidden_layers=1, var_number=0, var_level=0):
         super(ScalarMLP, self).__init__()
         self.scalers_fitted = False
-        self.norm = NormLayer(name="norm")
-        self.linear = tf.keras.layers.Dense(num_hidden, name="lin", activation="relu")
-        self.relu = tf.keras.layers.ReLU()
-        self.out = tf.keras.layers.Dense(1, name="out")
-        self.output_scaler = ScalarNormLayer(name="output_scalar")
+        self.sequential = tf.keras.Sequential()
+
+        # output level
         self.var_number = var_number
         self.var_level = var_level
+
+        # input and output normalizations
+        self.norm = NormLayer(name="norm")
+        self.output_scaler = ScalarNormLayer(name="output_scalar")
+
+        # model architecture
+        self.sequential.add(self.norm)
+
+        for _ in range(num_hidden_layers):
+            self.sequential.add(tf.keras.layers.Dense(num_hidden, activation="relu"))
+
+        self.sequential.add(tf.keras.layers.Dense(1, name="out"))
+        self.sequential.add(self.output_scaler)
 
     def call(self, args: Sequence[tf.Variable]):
         # assume has dims: batch, z
         args = [atleast_2d(arg) for arg in args]
         stacked = tf.concat(args, axis=-1)
-        hidden = self.relu(self.linear(self.norm(stacked)))
         t0 = args[self.var_number][:, self.var_level : self.var_level + 1]
-        return t0 + self.output_scaler(self.out(hidden))
+        return t0 + self.sequential(stacked)
 
     def _fit_input_scaler(self, args: Sequence[tf.Variable]):
         args = [atleast_2d(arg) for arg in args]
@@ -399,6 +412,7 @@ def get_model(config: OnlineEmulatorConfig) -> tf.keras.Model:
             var_number=config.target.variable,
             var_level=config.target.level,
             num_hidden=config.num_hidden,
+            num_hidden_layers=config.num_hidden_layers,
         )
     else:
         raise NotImplementedError(f"{config}")
