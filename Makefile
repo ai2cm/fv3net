@@ -7,7 +7,7 @@ VERSION ?= $(shell git rev-parse HEAD)
 REGISTRY ?= us.gcr.io/vcm-ml
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_NAME = fv3net
-CACHE_TAG =latest
+CACHE_TAG = 285b642037d08f321c149369024f0314e8611e2a
 
 IMAGES = fv3net post_process_run prognostic_run
 
