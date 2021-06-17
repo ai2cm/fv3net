@@ -11,9 +11,9 @@ import shutil
 import dataclasses
 
 from ..._shared.packer import ArrayPacker, unpack_matrix
-from ..._shared.predictor import Estimator
-from ..._shared import io, register_estimator
-from ..._shared.config import DenseHyperparameters
+from ..._shared.predictor import Predictor
+from ..._shared import io
+from ..._shared.config import DenseHyperparameters, register_training_function
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
@@ -34,9 +34,23 @@ EpochLossHistory = Sequence[Sequence[Union[float, int]]]
 History = Mapping[str, EpochLossHistory]
 
 
+@register_training_function("DenseModel", DenseHyperparameters)
+def train_dense_model(
+    input_variables: Iterable[str],
+    output_variables: Iterable[str],
+    hyperparameters: DenseHyperparameters,
+    train_batches: Sequence[xr.Dataset],
+    validation_batches: Sequence[xr.Dataset],
+):
+    model = DenseModel("sample", input_variables, output_variables, hyperparameters)
+    # TODO: make use of validation_batches, currently validation dataset is
+    # passed through hyperparameters.fit_kwargs
+    model.fit(train_batches)
+    return model
+
+
 @io.register("packed-keras")
-@register_estimator("DenseModel", DenseHyperparameters)
-class DenseModel(Estimator):
+class DenseModel(Predictor):
     """
     Abstract base class for a keras-based model which operates on xarray
     datasets containing a "sample" dimension (as defined by loaders.SAMPLE_DIM_NAME),
@@ -103,6 +117,7 @@ class DenseModel(Estimator):
         self._normalize_loss = hyperparameters.normalize_loss
         self._optimizer = hyperparameters.optimizer_config.instance
         self._loss = hyperparameters.loss
+        self._epochs = hyperparameters.epochs
         if hyperparameters.kernel_regularizer_config is not None:
             regularizer = hyperparameters.kernel_regularizer_config.instance
         else:
@@ -192,7 +207,7 @@ class DenseModel(Estimator):
 
         fit_kwargs = copy.copy(self._fit_kwargs)
         fit_kwargs = _fill_default(fit_kwargs, batch_size, "batch_size", None)
-        fit_kwargs = _fill_default(fit_kwargs, epochs, "epochs", 1)
+        fit_kwargs = _fill_default(fit_kwargs, epochs, "epochs", self._epochs)
         fit_kwargs = _fill_default(fit_kwargs, workers, "workers", 1)
         fit_kwargs = _fill_default(fit_kwargs, max_queue_size, "max_queue_size", 8)
         fit_kwargs = _fill_default(
@@ -325,6 +340,8 @@ class DenseModel(Estimator):
                 # putting validation data in fit_kwargs
                 options = dataclasses.asdict(self._hyperparameters)
                 fit_kwargs = options.get("fit_kwargs", {})
+                if fit_kwargs is None:  # it is sometimes present with a value of None
+                    fit_kwargs = {}
                 if "validation_dataset" in fit_kwargs:
                     fit_kwargs.pop("validation_dataset")
                 yaml.safe_dump(options, f)
