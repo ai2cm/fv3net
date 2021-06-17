@@ -1,9 +1,9 @@
 from typing import Callable, Optional, TextIO
 from fv3fit.typing import Dataclass
 import pytest
-import fv3fit.train
 import xarray as xr
 import numpy as np
+import fv3fit
 from fv3fit._shared.config import TRAINING_FUNCTIONS, get_hyperparameter_class
 import vcm.testing
 import tempfile
@@ -30,13 +30,9 @@ def train_identity_model(model_type, sample_func, hyperparameters):
     train_dataset = xr.Dataset(data_vars={"var_in": data_array, "var_out": data_array})
     train_batches = [train_dataset for _ in range(10)]
     val_batches = []
-    model = fv3fit.train.fit_model(
-        model_type,
-        input_variables,
-        output_variables,
-        hyperparameters,
-        train_batches,
-        val_batches,
+    train = fv3fit.get_training_function(model_type)
+    model = train(
+        input_variables, output_variables, hyperparameters, train_batches, val_batches,
     )
     data_array = sample_func()
     test_dataset = xr.Dataset(data_vars={"var_in": data_array, "var_out": data_array})
@@ -80,7 +76,7 @@ def test_train_default_model_on_identity(model_type, regtest):
     The model with default configuration options can learn the identity function,
     using gaussian-sampled data around 0 with unit variance.
     """
-    fv3fit.train.set_random_seed(1)
+    fv3fit.set_random_seed(1)
     # don't set n_feature too high for this, because of curse of dimensionality
     n_sample, n_feature = int(5e3), 2
     hyperparameters = get_hyperparameter_class(model_type)()
@@ -98,12 +94,12 @@ def test_train_default_model_on_identity(model_type, regtest):
 def test_train_with_same_seed_gives_same_result(model_type):
     hyperparameters = get_hyperparameter_class(model_type)()
     n_sample, n_feature = 500, 2
-    fv3fit.train.set_random_seed(0)
+    fv3fit.set_random_seed(0)
     sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
     first_model, test_dataset = train_identity_model(
         model_type, sample_func, hyperparameters
     )
-    fv3fit.train.set_random_seed(0)
+    fv3fit.set_random_seed(0)
     sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
     second_model, second_test_dataset = train_identity_model(
         model_type, sample_func, hyperparameters

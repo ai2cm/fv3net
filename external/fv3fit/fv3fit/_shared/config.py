@@ -19,6 +19,8 @@ from fv3fit.typing import Dataclass
 import xarray as xr
 from .predictor import Predictor
 import dacite
+import numpy as np
+import random
 
 # TODO: move all keras configs under fv3fit.keras
 import tensorflow as tf
@@ -40,6 +42,14 @@ TrainingFunction = Callable[
     ],
     Predictor,
 ]
+
+
+def set_random_seed(seed: Union[float, int] = 0):
+    # https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    np.random.seed(seed + 1)
+    random.seed(seed + 2)
+    tf.random.set_seed(seed + 3)
 
 
 # TODO: delete this routine by refactoring the tests to no longer depend on it

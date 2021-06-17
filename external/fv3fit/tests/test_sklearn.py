@@ -27,7 +27,7 @@ def test_data_generation_reproducibility(regtest):
     This sequence of operations occurs in another test, and at one point
     seemed not to be reproducible between systems.
     """
-    fv3fit.train.set_random_seed(1)
+    fv3fit.set_random_seed(1)
     random = np.random.RandomState(0)
     n_sample, n_feature = int(5e3), 2
 

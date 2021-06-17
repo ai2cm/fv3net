@@ -7,6 +7,9 @@ from ._shared.config import (
     DenseHyperparameters,
     RandomForestHyperparameters,
     load_training_config,
+    set_random_seed,
+    get_training_function,
+    get_hyperparameter_class,
 )
 from . import keras, sklearn, testing
 

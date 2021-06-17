@@ -8,9 +8,7 @@ import dataclasses
 import fsspec
 
 from fv3fit._shared import parse_data_path, load_data_sequence, io
-from fv3fit._shared.config import get_training_function
 import fv3fit._shared.config
-from .keras._training import set_random_seed
 import fv3fit.keras
 import fv3fit.sklearn
 import fv3fit
@@ -67,7 +65,7 @@ def main(args):
         timesteps_file=args.timesteps_file,
         validation_timesteps_file=args.validation_timesteps_file,
     )
-    set_random_seed(train_config.random_seed)
+    fv3fit.set_random_seed(train_config.random_seed)
 
     # TODO: uncomment this line when we aren't using fit_kwargs
     # to contain validation data
@@ -99,7 +97,7 @@ def main(args):
             os.path.join(args.local_download_path, "validation")
         )
 
-    train = get_training_function(train_config.model_type)
+    train = fv3fit.get_training_function(train_config.model_type)
     model = train(
         input_variables=train_config.input_variables,
         output_variables=train_config.output_variables,
