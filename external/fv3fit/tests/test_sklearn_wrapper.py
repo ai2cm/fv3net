@@ -1,15 +1,12 @@
 import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.dummy import DummyRegressor
 import unittest.mock
 import pytest
 import xarray as xr
 import joblib
 
-from fv3fit.sklearn._random_forest import (
-    _RandomForestEnsemble,
-    pack,
-    SklearnWrapper,
-    RandomForestHyperparameters,
-)
+from fv3fit.sklearn._random_forest import _RegressorEnsemble, pack, SklearnWrapper
 from fv3fit._shared.scaler import ManualScaler
 
 
@@ -55,13 +52,20 @@ def test_flatten_same_order():
     np.testing.assert_allclose(a, b)
 
 
-def test_ensemble_fit():
-    regressor_ensemble = _RandomForestEnsemble(RandomForestHyperparameters())
+@pytest.fixture
+def test_regressor_ensemble():
+    base_regressor = LinearRegression()
+    ensemble_regressor = _RegressorEnsemble(base_regressor, n_jobs=1)
     num_batches = 3
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
     y = np.dot(X, np.array([1, 2])) + 3
     for i in range(num_batches):
-        regressor_ensemble.fit(X, y)
+        ensemble_regressor.fit(X, y)
+    return ensemble_regressor
+
+
+def test_ensemble_fit(test_regressor_ensemble):
+    regressor_ensemble = test_regressor_ensemble
     assert regressor_ensemble.n_estimators == 3
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
     y = np.dot(X, np.array([1, 2])) + 3
@@ -69,7 +73,7 @@ def test_ensemble_fit():
     # test that .fit appends a new regressor
     assert regressor_ensemble.n_estimators == 4
     # test that new regressors are actually fit and not empty base regressor
-    assert len(regressor_ensemble.regressors[-1].estimators_) > 0
+    assert len(regressor_ensemble.regressors[-1].coef_) > 0
 
 
 def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
@@ -108,7 +112,7 @@ def test_fitting_SklearnWrapper_does_not_fit_scaler():
     """SklearnWrapper should use pre-computed scaling factors when fitting data
     
     In other words, calling the .fit method of wrapper should not call the
-    .fit of its scaler attribute.
+    .fit its scaler attribute.
     """
 
     model = unittest.mock.Mock()
@@ -138,7 +142,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
         scaler = ManualScaler(np.array([scale_factor]))
     else:
         scaler = None
-    model = _RandomForestEnsemble(RandomForestHyperparameters())
+    model = _RegressorEnsemble(base_regressor=LinearRegression(), n_jobs=1)
     wrapper = SklearnWrapper(
         sample_dim_name="sample",
         input_variables=["x"],
@@ -161,7 +165,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
 
 
 def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
-    model = _RandomForestEnsemble(RandomForestHyperparameters())
+    model = _RegressorEnsemble(base_regressor=LinearRegression(), n_jobs=1)
     wrapper = SklearnWrapper(
         sample_dim_name="sample",
         input_variables=["x"],
@@ -191,7 +195,10 @@ def test_predict_columnwise_is_deterministic(regtest):
     If this fails, look for non-deterministic logic (e.g. converting sets to lists)
     """
     nz = 2
-    model = _RandomForestEnsemble(RandomForestHyperparameters(n_jobs=1))
+    model = _RegressorEnsemble(
+        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
+        n_jobs=1,
+    )
     wrapper = SklearnWrapper(
         sample_dim_name="sample",
         input_variables=["a"],
