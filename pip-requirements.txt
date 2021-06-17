@@ -4,6 +4,7 @@ nc-time-axis
 bump2version
 yq
 pytest-regtest
+pytest-xdist
 recommonmark
 sphinx>=1.4
 sphinx-argparse
