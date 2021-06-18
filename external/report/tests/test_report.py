@@ -1,5 +1,5 @@
 import os
-from report import __version__, create_html
+from report import __version__, create_html, OrderedList
 from report.create_report import _save_figure, insert_report_figure
 
 
@@ -46,3 +46,8 @@ def test__save_figure(tmpdir):
     with open(os.path.join(output_dir, filepath_relative_to_report), "r") as f:
         saved_data = f.read()
     assert saved_data.replace("\n", "") == fig.content
+
+
+def test_OrderedList_repr():
+    result = str(OrderedList(["item1", "item2"]))
+    assert result == "<ol>\n<li>item1</li>\n<li>item2</li>\n</ol>"

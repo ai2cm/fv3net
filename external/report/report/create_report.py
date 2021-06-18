@@ -1,6 +1,6 @@
 import datetime
 import os
-from typing import Mapping, Sequence, Union
+from typing import Any, Mapping, Sequence, Union
 
 from jinja2 import Template
 from pytz import timezone
@@ -88,6 +88,15 @@ class Link:
 
     def __repr__(self) -> str:
         return f'<a href="{self.url}">{self.tag}</a>'
+
+
+class OrderedList:
+    def __init__(self, items: Sequence[Any]):
+        self.items = items
+
+    def __repr__(self) -> str:
+        items_li = [f"<li>{item}</li>" for item in self.items]
+        return "<ol>\n" + "\n".join(items_li) + "\n</ol>"
 
 
 def resolve_plot(obj):
