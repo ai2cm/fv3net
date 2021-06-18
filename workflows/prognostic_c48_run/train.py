@@ -25,6 +25,7 @@ scale = 1e-9
 num_hidden = 256
 num_hidden_layers = 1
 nfiles = 0
+extra_variables = ""
 
 # config = runtime.emulator.OnlineEmulatorConfig.from_dict(dict_)
 config = runtime.emulator.OnlineEmulatorConfig()
@@ -36,6 +37,9 @@ config.num_hidden = num_hidden
 config.num_hidden_layers = num_hidden_layers
 if problem == "single-level":
     config.target = runtime.emulator.ScalarLoss(3, 50, scale=scale)
+
+if extra_variables:
+    config.extra_input_variables = extra_variables.split(",")
 
 logging.info(config)
 emulator = runtime.emulator.OnlineEmulator(config)
