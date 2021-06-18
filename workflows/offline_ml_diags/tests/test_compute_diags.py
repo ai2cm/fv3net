@@ -9,19 +9,15 @@ from synth import (  # noqa: F401
     grid_dataset_path,
     dataset_fixtures_dir,
 )
-from fv3fit._shared import load_data_sequence
 
 # TODO: refactor this code to use the public TrainingConfig and DataConfig
 # classes from fv3fit instead of _ModelTrainingConfig
-from fv3fit._shared.config import (
-    _ModelTrainingConfig as ModelTrainingConfig,
-    legacy_config_to_data_config,
-)
-from fv3fit.keras import get_model
-from fv3fit import Estimator
+from fv3fit._shared.config import _ModelTrainingConfig as ModelTrainingConfig
+import fv3fit
 from offline_ml_diags.compute_diags import main
 import pathlib
 import pytest
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -48,32 +44,6 @@ batch_kwargs = {
     "timesteps": ["20160801.001500"],
     "mapping_kwargs": {},
 }
-
-
-def model(training_batches) -> Estimator:
-    train_config = ModelTrainingConfig(
-        model_type="DenseModel",
-        hyperparameters={"width": 3, "depth": 2},
-        input_variables=["air_temperature", "specific_humidity"],
-        output_variables=["dQ1", "dQ2"],
-        batch_function="batches_from_geodata",
-        batch_kwargs=batch_kwargs,
-        scaler_type="standard",
-        scaler_kwargs={},
-        additional_variables=[],
-        random_seed=0,
-        validation_timesteps=None,
-        data_path=None,
-    )
-    model = get_model(
-        "DenseModel",
-        "sample",
-        ["air_temperature", "specific_humidity"],
-        ["dQ1", "dQ2"],
-        train_config,
-    )
-    model.fit(training_batches)
-    return model
 
 
 @dataclass
@@ -109,12 +79,15 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
         validation_timesteps=None,
         data_path=None,
     )
-    train_config.data_path = data_path
-    training_batches = load_data_sequence(legacy_config_to_data_config(train_config))
-    trained_model = model(training_batches)
+    trained_model = fv3fit.testing.ConstantOutputPredictor(
+        "sample",
+        input_variables=train_config.input_variables,
+        output_variables=train_config.output_variables,
+    )
+    trained_model.set_outputs(dQ1=np.zeros([19]), dQ2=np.zeros([19]))
     with tempfile.TemporaryDirectory() as tmpdir:
         model_dir = os.path.join(tmpdir, "trained_model")
-        trained_model.dump(model_dir)
+        fv3fit.dump(trained_model, model_dir)
         train_config.data_path = data_path
         train_config.dump(model_dir)
         args = Args(model_dir, os.path.join(tmpdir, "offline_diags"), grid_dataset_path)

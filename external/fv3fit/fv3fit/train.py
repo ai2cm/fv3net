@@ -7,10 +7,8 @@ import yaml
 import dataclasses
 import fsspec
 
-from fv3fit._shared import parse_data_path, load_data_sequence, io, Estimator
-from fv3fit._shared.config import get_estimator_class
+from fv3fit._shared import parse_data_path, load_data_sequence, io
 import fv3fit._shared.config
-from .keras._training import set_random_seed
 import fv3fit.keras
 import fv3fit.sklearn
 import fv3fit
@@ -49,25 +47,12 @@ def get_parser():
     return parser
 
 
-def _get_model(config: fv3fit.TrainingConfig) -> Estimator:
-    cls = get_estimator_class(config.model_type)
-    return cls(
-        sample_dim_name=config.sample_dim_name,
-        input_variables=config.input_variables,
-        output_variables=config.output_variables,
-        hyperparameters=config.hyperparameters,
-    )
-
-
 def dump_dataclass(obj, yaml_filename):
     with fsspec.open(yaml_filename, "w") as f:
         yaml.safe_dump(dataclasses.asdict(obj), f)
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    parser = get_parser()
-    args = parser.parse_args()
+def main(args):
     data_path = parse_data_path(args.data_path)
     (
         train_config,
@@ -80,7 +65,7 @@ if __name__ == "__main__":
         timesteps_file=args.timesteps_file,
         validation_timesteps_file=args.validation_timesteps_file,
     )
-    set_random_seed(train_config.random_seed)
+    fv3fit.set_random_seed(train_config.random_seed)
 
     # TODO: uncomment this line when we aren't using fit_kwargs
     # to contain validation data
@@ -112,6 +97,19 @@ if __name__ == "__main__":
             os.path.join(args.local_download_path, "validation")
         )
 
-    model = _get_model(train_config)
-    model.fit(train_batches)
+    train = fv3fit.get_training_function(train_config.model_type)
+    model = train(
+        input_variables=train_config.input_variables,
+        output_variables=train_config.output_variables,
+        hyperparameters=train_config.hyperparameters,
+        train_batches=train_batches,
+        validation_batches=val_batches,
+    )
     io.dump(model, args.output_data_path)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    parser = get_parser()
+    args = parser.parse_args()
+    main(args)
