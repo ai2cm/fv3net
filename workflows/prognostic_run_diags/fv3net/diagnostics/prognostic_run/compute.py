@@ -12,15 +12,12 @@ dynamical core of the model and saved in `atmos_dt_atmos.tile*.nc` while the "ph
 grouping contains outputs from the physics routines (`sfc_dt_atmos.tile*.nc` and
 `diags.zarr`).
 """
-import os
 import sys
 
 import datetime
-import tempfile
 import intake
 import numpy as np
 import xarray as xr
-import shutil
 from dask.diagnostics import ProgressBar
 import fsspec
 
@@ -228,16 +225,6 @@ def _assign_diagnostic_time_attrs(
             attrs = _get_time_attrs(source_ds[variable])
             diagnostics_ds[variable] = diagnostics_ds[variable].assign_attrs(attrs)
     return diagnostics_ds
-
-
-def dump_nc(ds: xr.Dataset, f):
-    # to_netcdf closes file, which will delete the buffer
-    # need to use a buffer since seek doesn't work with GCSFS file objects
-    with tempfile.TemporaryDirectory() as dirname:
-        url = os.path.join(dirname, "tmp.nc")
-        ds.to_netcdf(url, engine="h5netcdf")
-        with open(url, "rb") as tmp1:
-            shutil.copyfileobj(tmp1, f)
 
 
 @add_to_diags("dycore")
@@ -508,17 +495,28 @@ for mask_type in ["global", "land", "sea"]:
 @diag_finalizer("histogram")
 @transform.apply("resample_time", "3H", inner_join=True)
 @transform.apply("subset_variables", HISTOGRAM_BINS.keys())
-def compute_precip_histogram(prognostic, verification, grid):
-    logger.info("Computing precipitation histogram")
-    count_ds = xr.Dataset()
-    for varname in prognostic:
+def compute_histogram(prognostic, verification, grid):
+    logger.info("Computing histograms for physics diagnostics")
+    counts = xr.Dataset()
+    for varname in prognostic.data_vars:
+        # bins = HISTOGRAM_BINS[varname]
+        # counts[varname] = prognostic.groupby_bins(varname, bins).count()[varname]
+        # bin_midpoints = [x.item().mid for x in counts[f"{varname}_bins"]]
+        # counts = counts.assign_coords({f"{varname}_bins": bin_midpoints})
+        # counts[varname] /= counts[varname].sum()
+        # counts[varname] /= bins[1:] - bins[:1]
+        # counts[varname].attrs["units"] = f"({prognostic[varname].units})^-1"
+        # counts[varname].attrs["long_name"] = "Frequency"
+        # counts[f"{varname}_bins"].attrs = prognostic[varname].attrs
         count, bins = np.histogram(
             prognostic[varname], bins=HISTOGRAM_BINS[varname], density=True
         )
-        count_da = xr.DataArray(count, coords={f"{varname}_bin": bins[:-1]})
-        count_da[f"{varname}_bin"].attrs["units"] = prognostic[varname].units
-        count_ds = xr.merge([count_ds, count_da.rename(varname)])
-    return _assign_diagnostic_time_attrs(count_ds, prognostic)
+        bin_midpoints = 0.5 * (bins[:-1] + bins[1:])
+        coords = {f"{varname}_bins": bin_midpoints}
+        count_da = xr.DataArray(count, coords=coords, dims=list(coords.keys()))
+        count_da[f"{varname}_bins"].attrs["units"] = prognostic[varname].units
+        counts[varname] = count_da
+    return _assign_diagnostic_time_attrs(counts, prognostic)
 
 
 def register_parser(subparsers):
