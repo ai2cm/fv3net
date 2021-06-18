@@ -30,9 +30,9 @@ _COORD_VARS = {
 }
 
 
-def fig_to_b64(fig, format="png"):
+def fig_to_b64(fig, format="png", dpi=None):
     pic_IObytes = io.BytesIO()
-    fig.savefig(pic_IObytes, format=format, bbox_inches="tight")
+    fig.savefig(pic_IObytes, format=format, bbox_inches="tight", dpi=dpi)
     pic_IObytes.seek(0)
     pic_hash = base64.b64encode(pic_IObytes.read())
     return f"data:image/png;base64, " + pic_hash.decode()
@@ -177,6 +177,27 @@ def plot_cubed_sphere_map(
             varfilter=varfilter,
         )
     )
+
+
+def plot_histogram(run_diags: RunDiagnostics, varname: str) -> raw_html:
+    """Plot 1D histogram of varname overlaid across runs."""
+
+    logging.info(f"plotting {varname}")
+    fig, ax = plt.subplots()
+    bin_name = varname.replace("histogram", "bins")
+    for run in run_diags.runs:
+        v = run_diags.get_variable(run, varname)
+        ax.step(v[bin_name], v, label=run, where="post", linewidth=1)
+    ax.set_xlabel(f"{v.long_name} [{v.units}]")
+    ax.set_ylabel(f"Frequency [({v.units})^-1]")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlim([v[bin_name].values[0], v[bin_name].values[-1]])
+    ax.legend()
+    fig.tight_layout()
+    data = fig_to_b64(fig, dpi=150)
+    plt.close(fig)
+    return raw_html(f'<img src="{data}" width="800px" />')
 
 
 def _render_map_title(

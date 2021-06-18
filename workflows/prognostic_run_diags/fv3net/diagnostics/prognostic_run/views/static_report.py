@@ -13,9 +13,14 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunMetrics,
 )
 
-from report import create_html, Link
+from report import create_html, Link, OrderedList
 from report.holoviews import HVPlot, get_html_header
-from .matplotlib import plot_2d_matplotlib, plot_cubed_sphere_map, raw_html
+from .matplotlib import (
+    plot_2d_matplotlib,
+    plot_cubed_sphere_map,
+    raw_html,
+    plot_histogram,
+)
 
 import logging
 
@@ -75,9 +80,7 @@ class PlotManager:
             yield func(data)
 
 
-def plot_1d(
-    run_diags: RunDiagnostics, varfilter: str, run_attr_name: str = "run",
-) -> HVPlot:
+def plot_1d(run_diags: RunDiagnostics, varfilter: str) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
@@ -95,10 +98,7 @@ def plot_1d(
 
 
 def plot_1d_min_max_with_region_bar(
-    run_diags: RunDiagnostics,
-    varfilter_min: str,
-    varfilter_max: str,
-    run_attr_name: str = "run",
+    run_diags: RunDiagnostics, varfilter_min: str, varfilter_max: str,
 ) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 1D."""
@@ -123,9 +123,7 @@ def plot_1d_min_max_with_region_bar(
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
-def plot_1d_with_region_bar(
-    run_diags: RunDiagnostics, varfilter: str, run_attr_name: str = "run"
-) -> HVPlot:
+def plot_1d_with_region_bar(run_diags: RunDiagnostics, varfilter: str) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     Region will be selectable through a drop-down bar. Region is assumed to be part of
     variable name after last underscore. All matching diagnostics must be 1D."""
@@ -189,6 +187,7 @@ zonal_mean_plot_manager = PlotManager()
 hovmoller_plot_manager = PlotManager()
 zonal_pressure_plot_manager = PlotManager()
 diurnal_plot_manager = PlotManager()
+histogram_plot_manager = PlotManager()
 
 # this will be passed the data from the metrics.json files
 metrics_plot_manager = PlotManager()
@@ -291,6 +290,11 @@ def diurnal_cycle_component_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     return diurnal_component_plot(diagnostics)
 
 
+@histogram_plot_manager.register
+def histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_histogram(diagnostics, "total_precip_to_surface_histogram")
+
+
 # Routines for plotting the "metrics"
 # New plotting routines can be registered here.
 @metrics_plot_manager.register
@@ -325,12 +329,14 @@ def generic_metric_plot(metrics: RunMetrics, metric_type: str) -> hv.HoloMap:
         return HVPlot(hmap.opts(**bar_opts))
 
 
-navigation = [
+navigation = OrderedList(
     Link("Home", "index.html"),
+    Link("Process diagnostics", "process.html"),
     Link("Latitude versus time hovmoller", "hovmoller.html"),
     Link("Time-mean maps", "maps.html"),
     Link("Time-mean zonal-pressure profiles", "zonal_pressure.html"),
-]
+)
+navigation = [navigation]  # must be iterable for Jinja HTML template
 
 
 def render_index(metadata, diagnostics, metrics, movie_links):
@@ -338,7 +344,6 @@ def render_index(metadata, diagnostics, metrics, movie_links):
         "Links": navigation,
         "Timeseries": list(timeseries_plot_manager.make_plots(diagnostics)),
         "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
-        "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
     }
 
     if not metrics.empty:
@@ -398,6 +403,20 @@ def render_zonal_pressures(metadata, diagnostics):
     )
 
 
+def render_process_diagnostics(metadata, diagnostics):
+    sections = {
+        "Links": navigation,
+        "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
+        "Precipitation histogram": list(histogram_plot_manager.make_plots(diagnostics)),
+    }
+    return create_html(
+        title="Process diagnostics",
+        metadata=metadata,
+        sections=sections,
+        html_header=get_html_header(),
+    )
+
+
 def _html_link(url, tag):
     return f"<a href='{url}'>{tag}</a>"
 
@@ -427,6 +446,7 @@ def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
         "hovmoller.html": render_hovmollers(metadata, diagnostics),
         "maps.html": render_maps(metadata, diagnostics, metrics),
         "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
+        "process_diagnostics.html": render_process_diagnostics(metadata, diagnostics),
     }
 
     for filename, html in pages.items():
