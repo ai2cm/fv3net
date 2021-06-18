@@ -49,5 +49,5 @@ def test__save_figure(tmpdir):
 
 
 def test_OrderedList_repr():
-    result = str(OrderedList(["item1", "item2"]))
+    result = str(OrderedList("item1", "item2"))
     assert result == "<ol>\n<li>item1</li>\n<li>item2</li>\n</ol>"

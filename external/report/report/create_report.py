@@ -91,7 +91,7 @@ class Link:
 
 
 class OrderedList:
-    def __init__(self, items: Sequence[Any]):
+    def __init__(self, *items: Any):
         self.items = items
 
     def __repr__(self) -> str:
