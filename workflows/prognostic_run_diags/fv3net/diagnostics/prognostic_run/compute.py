@@ -37,6 +37,7 @@ from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import diurnal_cycle
 from fv3net.diagnostics.prognostic_run import transform
 from fv3net.diagnostics.prognostic_run.constants import (
+    HISTOGRAM_BINS,
     HORIZONTAL_DIMS,
     DiagArg,
     GLOBAL_AVERAGE_DYCORE_VARS,
@@ -501,6 +502,23 @@ for mask_type in ["global", "land", "sea"]:
         else:
             diag = diurnal_cycle.calc_diagnostics(prognostic, verification, grid).load()
             return _assign_diagnostic_time_attrs(diag, prognostic)
+
+
+@add_to_diags("physics")
+@diag_finalizer("histogram")
+@transform.apply("resample_time", "3H", inner_join=True)
+@transform.apply("subset_variables", HISTOGRAM_BINS.keys())
+def compute_precip_histogram(prognostic, verification, grid):
+    logger.info("Computing precipitation histogram")
+    count_ds = xr.Dataset()
+    for varname in prognostic:
+        count, bins = np.histogram(
+            prognostic[varname], bins=HISTOGRAM_BINS[varname], density=True
+        )
+        count_da = xr.DataArray(count, coords={f"{varname}_bin": bins[:-1]})
+        count_da[f"{varname}_bin"].attrs["units"] = prognostic[varname].units
+        count_ds = xr.merge([count_ds, count_da.rename(varname)])
+    return _assign_diagnostic_time_attrs(count_ds, prognostic)
 
 
 def register_parser(subparsers):

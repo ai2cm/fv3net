@@ -1,3 +1,4 @@
+import numpy as np
 import xarray as xr
 from typing import Tuple
 
@@ -135,3 +136,5 @@ PRESSURE_INTERPOLATED_VARS = [
     "dQu",
     "dQv",
 ]
+
+HISTOGRAM_BINS = {"total_precip_to_surface": np.logspace(-1, np.log10(500), 101)}
