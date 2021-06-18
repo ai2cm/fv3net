@@ -21,9 +21,6 @@ gsutil cp /tmp/$random/metrics.json $OUTPUT/run1/metrics.json
 # generate movies for short sample prognostic run
 prognostic_run_diags movie --n_jobs 1 --n_timesteps 2 $RUN $OUTPUT/run1
 
-# make a second copy of diags/metrics since generate_report.py needs at least two runs
-gsutil -m cp -r $OUTPUT/run1 $OUTPUT/run2
-
 # generate report based on diagnostics computed above
 prognostic_run_diags report $OUTPUT $OUTPUT
 
