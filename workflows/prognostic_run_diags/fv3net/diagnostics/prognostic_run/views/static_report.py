@@ -457,9 +457,25 @@ def _register_report_from_urls(subparsers):
     parser.set_defaults(func=main_new)
 
 
+def _register_report_from_json(subparsers):
+    parser = subparsers.add_parser(
+        "report-from-json", help="Generate a static html report."
+    )
+    parser.add_argument(
+        "-s",
+        "--suffix",
+        help="String to add to run URLs to get diagnostic locations.",
+        default="_diagnostics",
+    )
+    parser.add_argument("input", help="rundirs.json file with run label and URL pairs.")
+    parser.add_argument("output", help="Location to save report html files.")
+    parser.set_defaults(func=main)
+
+
 def register_parser(subparsers):
     _register_report(subparsers)
     _register_report_from_urls(subparsers)
+    _register_report_from_json(subparsers)
 
 
 def main(args):
@@ -469,6 +485,13 @@ def main(args):
 
 def main_new(args):
     computed_diagnostics = ComputedDiagnosticsList.from_urls(args.inputs)
+    make_report(computed_diagnostics, args.output)
+
+
+def main_json(args):
+    computed_diagnostics = ComputedDiagnosticsList.from_json(
+        args.inputs, suffix=args.suffix
+    )
     make_report(computed_diagnostics, args.output)
 
 

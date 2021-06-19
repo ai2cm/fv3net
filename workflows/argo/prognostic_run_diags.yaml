@@ -6,7 +6,7 @@ spec:
   arguments:
     parameters:
     - name: runs
-    - name: make-movies
+    - name: recompute-diagnostics
       value: "false"
     - name: flags
       value: " "
@@ -17,9 +17,9 @@ spec:
       secretName: gcp-key
   templates:
   - name: all
-    dag:
-      tasks:
-      - name: diagnostics-step
+    steps:
+    - - name: diagnostics-step
+        when: "{{workflow.parameters.recompute-diagnostics}} == true"
         withParam: "{{workflow.parameters.runs}}"
         template: diagnostics
         arguments:
@@ -27,25 +27,19 @@ spec:
             - name: run
               value: "{{item.url}}"
             - name: output
-              value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}"
+              value: "{{item.url}}_diagnostics"
             - name: flags
               value: "{{workflow.parameters.flags}}"
-      - name: movie-step
-        when: "{{workflow.parameters.make-movies}} == true"
-        withParam: "{{workflow.parameters.runs}}"
-        template: movie
-        continueOn:
-          failed: true
+    - - name: generate-report
+        template: report
         arguments:
           parameters:
-            - name: run
-              value: "{{item.url}}"
-            - name: output
-              value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}"
-      - name: generate-report
-        template: report
-        dependencies: [diagnostics-step, movie-step]
+            - name: runs
+              value: "{{workflow.parameters.runs}}"
   - name: report
+    inputs:
+      parameters:
+      - name: runs
     tolerations:
     - key: "dedicated"
       operator: "Equal"
@@ -60,11 +54,10 @@ spec:
         limits:
           memory: "8Gi"
           cpu: "1000m"
-      command:
-      - prognostic_run_diags 
-      - report
-      - gs://vcm-ml-public/argo/{{workflow.name}}
-      - gs://vcm-ml-public/argo/{{workflow.name}}
+      command: ["bash", "-c", "-x", "-e"]
+      args: |
+        echo "{{inputs.parameters.runs}}" > rundirs.json
+        prognostic_run_diags report-from-json rundirs.json gs://vcm-ml-public/argo/{{workflow.name}}
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS 
@@ -102,15 +95,23 @@ spec:
       - name: output
       - name: flags
         value: " "
-    steps:
-    - - name: compute-reduced-diagnostics
+    dag:
+      tasks:
+      - name: movies
+        template: movie
+        arguments:
+          parameters:
+            - {name: run, value: "{{inputs.parameters.run}}"}
+            - {name: output, value: "{{inputs.parameters.output}}"}
+      - name: compute-reduced-diagnostics
         template: compute-reduced-diagnostics
         arguments:
           parameters:
             - {name: run, value: "{{inputs.parameters.run}}"}
             - {name: output, value: "{{inputs.parameters.output}}"}
             - {name: flags, value: "{{inputs.parameters.flags}}"}
-    - - name: regrid-reduced-diagnostics-to-latlon
+      - name: regrid-reduced-diagnostics-to-latlon
+        dependencies: [compute-reduced-diagnostics]
         templateRef:
           name: cubed-to-latlon
           template: regrid-single-input
@@ -139,11 +140,12 @@ spec:
         limits:
           memory: "25Gi"
           cpu: "8000m"
-      command:
-      - memoized_compute_diagnostics.sh
-      - "{{inputs.parameters.run}}"
-      - "{{inputs.parameters.output}}"
-      - "{{inputs.parameters.flags}}"
+      command: ["/bin/bash", "-x", "-e", "-c"]
+      args: |
+        prognostic_run_diags save {{inputs.parameters.flags}} {{inputs.parameters.run}} diags.nc
+        prognostic_run_diags metrics diags.nc > metrics.json
+        gsutil cp diags.nc "{{inputs.parameters.output}}/diags.nc"
+        gsutil cp metrics.json "{{inputs.parameters.output}}/metrics.json"
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
