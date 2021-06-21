@@ -1,5 +1,5 @@
 import argparse
-from fv3net.diagnostics.prognostic_run import metrics, compute
+from fv3net.diagnostics.prognostic_run import metrics, compute, weights_and_biases
 from fv3net.diagnostics.prognostic_run.views import movies, static_report
 from fv3net.diagnostics.prognostic_run.apps import log_viewer
 
@@ -21,6 +21,7 @@ def get_parser():
     movies.register_parser(subparsers)
     static_report.register_parser(subparsers)
     log_viewer.register_parser(subparsers)
+    weights_and_biases.register_parser(subparsers)
     return parser
 
 
