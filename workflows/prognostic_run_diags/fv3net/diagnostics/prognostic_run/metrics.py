@@ -141,7 +141,7 @@ def rmse_time_mean(diags):
 for percentile in [25, 50, 75, 90, 99, 99.9]:
 
     @add_to_metrics(f"percentile_{percentile}")
-    def time_and_global_mean_bias(diags, p=percentile):
+    def percentile_metric(diags, p=percentile):
         histogram = grab_diag(diags, "histogram")
         percentiles = xr.Dataset()
         data_vars = [v for v in histogram.data_vars if not v.endswith("bin_width")]
