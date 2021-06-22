@@ -502,11 +502,13 @@ def compute_histogram(prognostic, verification, grid):
         count, bins = np.histogram(
             prognostic[varname], bins=HISTOGRAM_BINS[varname], density=True
         )
-        bin_midpoints = 0.5 * (bins[:-1] + bins[1:])
-        coords = {f"{varname}_bins": bin_midpoints}
+        coords = {f"{varname}_bins": bins[:-1]}
+        width = bins[1:] - bins[:-1]
+        width_da = xr.DataArray(width, coords=coords, dims=list(coords.keys()))
         count_da = xr.DataArray(count, coords=coords, dims=list(coords.keys()))
         count_da[f"{varname}_bins"].attrs["units"] = prognostic[varname].units
         counts[varname] = count_da
+        counts[f"{varname}_bin_width"] = width_da
     return _assign_diagnostic_time_attrs(counts, prognostic)
 
 
