@@ -30,6 +30,7 @@ num_hidden = 256
 num_hidden_layers = 1
 nfiles = 0
 extra_variables = ""
+wandb_logger = False
 
 # config = runtime.emulator.OnlineEmulatorConfig.from_dict(dict_)
 config = runtime.emulator.OnlineEmulatorConfig()
@@ -39,7 +40,7 @@ config.learning_rate = lr
 config.batch = runtime.emulator.BatchDataConfig(train_path, test_path)
 config.num_hidden = num_hidden
 config.num_hidden_layers = num_hidden_layers
-config.wandb_logger = True
+config.wandb_logger = wandb_logger
 if problem == "single-level":
     config.target = runtime.emulator.ScalarLoss(3, 50, scale=scale)
 elif problem == "all":
@@ -53,10 +54,14 @@ if extra_variables:
 
 logging.info(config)
 
-wandb.init(
-    entity="ai2cm", project=f"emulator-single-level-{problem}", config=asdict(config)
-)
-wandb.config.nfiles = nfiles
+if config.wandb_logger:
+    wandb.init(
+        entity="ai2cm",
+        project=f"emulator-single-level-{problem}",
+        config=asdict(config),
+    )
+    wandb.config.nfiles = nfiles
+
 emulator = runtime.emulator.OnlineEmulator(config)
 
 
@@ -96,6 +101,7 @@ with open(os.path.join(config.output_path, "scores.json"), "w") as f:
 
 emulator.dump(os.path.join(config.output_path, "model"))
 
-model = wandb.Artifact(f"{problem}-model", type="model")
-model.add_dir(os.path.join(config.output_path, "model"))
-wandb.log_artifact(model)
+if config.wandb_logger:
+    model = wandb.Artifact(f"{problem}-model", type="model")
+    model.add_dir(os.path.join(config.output_path, "model"))
+    wandb.log_artifact(model)
