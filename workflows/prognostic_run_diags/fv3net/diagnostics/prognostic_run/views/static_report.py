@@ -331,12 +331,12 @@ def generic_metric_plot(metrics: RunMetrics, metric_type: str) -> hv.HoloMap:
 
 navigation = OrderedList(
     Link("Home", "index.html"),
-    Link("Process diagnostics", "process.html"),
+    Link("Process diagnostics", "process_diagnostics.html"),
     Link("Latitude versus time hovmoller", "hovmoller.html"),
     Link("Time-mean maps", "maps.html"),
     Link("Time-mean zonal-pressure profiles", "zonal_pressure.html"),
 )
-navigation = [navigation]  # must be iterable for Jinja HTML template
+navigation = [navigation]  # must be iterable for create_html template
 
 
 def render_index(metadata, diagnostics, metrics, movie_links):
