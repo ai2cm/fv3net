@@ -46,7 +46,7 @@ emulator = runtime.emulator.OnlineEmulator(config)
 
 
 train_dataset = data.netcdf_url_to_dataset(
-    config.batch.training_path, timestep, emulator.input_variables,
+    config.batch.training_path, timestep, emulator.input_variables, shuffle=True
 )
 
 test_dataset = data.netcdf_url_to_dataset(
@@ -54,13 +54,21 @@ test_dataset = data.netcdf_url_to_dataset(
 )
 
 if nfiles:
-    train_dataset = train_dataset.take(nfiles).unbatch().shuffle(100_000).cache()
-    test_dataset = test_dataset.take(nfiles).unbatch().cache()
+    train_dataset = train_dataset.take(nfiles)
+    test_dataset = test_dataset.take(nfiles)
+
+train_dataset = train_dataset.unbatch().cache()
+test_dataset = test_dataset.unbatch().cache()
+
+
+# detect number of levels
+sample_ins, _ = next(iter(train_dataset.batch(10).take(1)))
+_, config.levels = sample_ins[0].shape
 
 id_ = pathlib.Path(os.getcwd()).name
 
 with tf.summary.create_file_writer(f"/data/emulator/{id_}").as_default():
-    emulator.batch_fit(train_dataset, validation_data=test_dataset)
+    emulator.batch_fit(train_dataset.shuffle(100_000), validation_data=test_dataset)
 
 train_scores = emulator.score(train_dataset)
 test_scores = emulator.score(test_dataset)

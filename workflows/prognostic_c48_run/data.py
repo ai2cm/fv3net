@@ -39,9 +39,11 @@ def open_url(fs, url, timestep, input_variables):
     return get_data(vcm.open_remote_nc(fs, url), timestep, input_variables)
 
 
-def netcdf_url_to_dataset(url, timestep, input_variables):
+def netcdf_url_to_dataset(url, timestep, input_variables, shuffle=False):
     fs = vcm.get_fs(url)
-    d = tf.data.Dataset.from_tensor_slices(fs.ls(url)).shuffle(1_000_000)
+    d = tf.data.Dataset.from_tensor_slices(sorted(fs.ls(url)))
+    if shuffle:
+        d = d.shuffle(100_000)
     return d.map(lambda url: read_image_from_url(fs, url, timestep, input_variables))
 
 
