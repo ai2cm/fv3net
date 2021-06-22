@@ -212,7 +212,6 @@ def net_heating(
     of vaporization with the FV3 formulas.
     """
 
-    lv = latent_heat_vaporization(surface_temperature)
     da = (
         -dlw_sfc
         - dsw_sfc
@@ -222,7 +221,7 @@ def net_heating(
         - usw_toa
         + dsw_toa
         + shf
-        + surface_rain_rate * lv
+        + moistening_in_energy_units(surface_rain_rate, surface_temperature)
     )
     da.attrs = {"long_name": "net heating from model physics", "units": "W/m^2"}
     return da
@@ -270,6 +269,22 @@ def net_precipitation(lhf, prate):
     da = (prate - latent_heat_flux_to_evaporation(lhf)) * _SEC_PER_DAY
     da.attrs = {"long_name": "net precipitation from model physics", "units": "mm/day"}
     return da
+
+
+def moistening_in_energy_units(
+    da: xr.DataArray, temperature: float = _DEFAULT_SURFACE_TEMPERATURE
+) -> xr.DataArray:
+    """Convert moistening rate to energy flux.
+
+    Args:
+        da: moistening in units of kg/s/m^2
+        temperature: temperature to use for computing heat of vaporization
+
+    Returns:
+        energy flux in W/m2
+    """
+    result = da * latent_heat_vaporization(temperature)
+    return result.assign_attrs(units="W/m^2")
 
 
 def surface_pressure_from_delp(

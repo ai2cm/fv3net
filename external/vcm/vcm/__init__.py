@@ -28,6 +28,7 @@ from .calc.thermo import (
     surface_pressure_from_delp,
     column_integrated_heating_from_isobaric_transition,
     column_integrated_heating_from_isochoric_transition,
+    moistening_in_energy_units,
 )
 
 from .interpolate import (
