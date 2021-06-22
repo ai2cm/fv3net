@@ -70,10 +70,10 @@ def load_config(config_path):
     return TrainingConfig(**config_yaml)
 
 
-def _get_std_info(batches):
+def _get_std_info(batches, num_batches):
     # Currently uses profile max std as the scaling factor
     ignore_vars = ["cos_day", "sin_day", "cos_month", "sin_month"]
-    sample_ds = xr.concat([b for b in shuffle(batches, seed=89)[:96]], "init")
+    sample_ds = xr.concat([b for b in shuffle(batches, seed=89)[:num_batches]], "init")
     std_info = {}
     for var, da in sample_ds.items():
         if var not in ignore_vars:
@@ -87,9 +87,9 @@ def _get_std_info(batches):
     return std_info
 
 
-def load_batch_preprocessing_chain(config: TrainingConfig, batches):
+def load_batch_preprocessing_chain(config: TrainingConfig, batches, num_std_batches=96):
     # func that goes from dataset -> X, y
-    std_info = _get_std_info(batches)
+    std_info = _get_std_info(batches, num_std_batches)
 
     peeked = batches[0]
     X_stacker = ArrayStacker.from_data(
@@ -143,7 +143,7 @@ def batches_to_tf_dataset(preproc_func, batches):
     get_generator = get_batch_generator_constructer(preproc_func, batches)
     tf_ds = create_tf_dataset_for_training(get_generator)
 
-    return tf_ds.prefetch(tf.data.AUTOTUNE).interleave(lambda x: x)
+    return tf_ds.prefetch(12).interleave(lambda x: x)
 
 
 def get_fit_kwargs(config):
