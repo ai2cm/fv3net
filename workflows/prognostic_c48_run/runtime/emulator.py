@@ -2,12 +2,12 @@ from collections import defaultdict
 import dataclasses
 from typing import Mapping, Optional, Sequence, Tuple, Union, List
 import os
-from matplotlib import pyplot as plt
+from runtime.weights_and_biases import WandBLogger
 import xarray as xr
 import numpy
 import tensorflow as tf
 import dacite
-from runtime.diagnostics.tensorboard import plot_to_image
+from runtime.diagnostics.tensorboard import ConsoleLogger, TBLogger, LoggerList
 from runtime.loss import ScalarLoss, MultiVariableLoss
 import logging
 import json
@@ -43,6 +43,7 @@ class OnlineEmulatorConfig:
         batch: if provided then these data are used for training the ML model
         num_hidden_layers: number of hidden layers used. Only implemented for
             ScalarLoss targets.
+        wandb_logger: if True, then enable weights and biases saving
 
     """
 
@@ -59,6 +60,7 @@ class OnlineEmulatorConfig:
     target: Union[MultiVariableLoss, ScalarLoss] = dataclasses.field(
         default_factory=MultiVariableLoss
     )
+    wandb_logger: bool = False
 
     output_path: str = ""
 
@@ -102,6 +104,11 @@ class OnlineEmulator:
         self._statein: Optional[State] = None
         self.output_variables: Sequence[str] = (U, V, T, Q)
         self._step = 0
+
+        self.logger = LoggerList([TBLogger(), ConsoleLogger()])
+
+        if config.wandb_logger:
+            self.logger.loggers.append(WandBLogger())
 
     @property
     def input_variables(self):
@@ -178,17 +185,10 @@ class OnlineEmulator:
                     )
 
     def log_profiles(self, key, data, step):
-        fig = plt.figure()
-        plt.plot(data)
-        tf.summary.image(key, plot_to_image(fig), step)
+        self.logger.log_profiles(key, data, step)
 
-    @staticmethod
-    def log_dict(prefix, metrics, step):
-        print(f"step: {step}")
-        for key in metrics:
-            name = prefix + "/" + key
-            tf.summary.scalar(name, metrics[key], step=step)
-            print(f"{name}:", metrics[key])
+    def log_dict(self, prefix, metrics, step):
+        self.logger.log_dict(prefix, metrics, step)
 
     def partial_fit(self, statein: State, stateout: State):
 

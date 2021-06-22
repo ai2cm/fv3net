@@ -4,8 +4,12 @@ import data
 import runtime.emulator
 import tensorflow as tf
 import pathlib
+from dataclasses import asdict
 
 import logging
+
+import wandb
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -35,13 +39,24 @@ config.learning_rate = lr
 config.batch = runtime.emulator.BatchDataConfig(train_path, test_path)
 config.num_hidden = num_hidden
 config.num_hidden_layers = num_hidden_layers
+config.wandb_logger = True
 if problem == "single-level":
     config.target = runtime.emulator.ScalarLoss(3, 50, scale=scale)
+elif problem == "all":
+    pass
+else:
+    raise NotImplementedError(f"{problem} is not implemented.")
+
 
 if extra_variables:
     config.extra_input_variables = extra_variables.split(",")
 
 logging.info(config)
+
+wandb.init(
+    entity="ai2cm", project=f"emulator-single-level-{problem}", config=asdict(config)
+)
+wandb.config.nfiles = nfiles
 emulator = runtime.emulator.OnlineEmulator(config)
 
 
@@ -80,3 +95,7 @@ with open(os.path.join(config.output_path, "scores.json"), "w") as f:
     json.dump({"train": train_scores, "test": test_scores}, f)
 
 emulator.dump(os.path.join(config.output_path, "model"))
+
+model = wandb.Artifact(f"{problem}-model", type="model")
+model.add_dir(os.path.join(config.output_path, "model"))
+wandb.log_artifact(model)
