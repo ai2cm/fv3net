@@ -494,20 +494,11 @@ for mask_type in ["global", "land", "sea"]:
 @add_to_diags("physics")
 @diag_finalizer("histogram")
 @transform.apply("resample_time", "3H", inner_join=True)
-@transform.apply("subset_variables", HISTOGRAM_BINS.keys())
+@transform.apply("subset_variables", list(HISTOGRAM_BINS.keys()))
 def compute_histogram(prognostic, verification, grid):
     logger.info("Computing histograms for physics diagnostics")
     counts = xr.Dataset()
     for varname in prognostic.data_vars:
-        # bins = HISTOGRAM_BINS[varname]
-        # counts[varname] = prognostic.groupby_bins(varname, bins).count()[varname]
-        # bin_midpoints = [x.item().mid for x in counts[f"{varname}_bins"]]
-        # counts = counts.assign_coords({f"{varname}_bins": bin_midpoints})
-        # counts[varname] /= counts[varname].sum()
-        # counts[varname] /= bins[1:] - bins[:1]
-        # counts[varname].attrs["units"] = f"({prognostic[varname].units})^-1"
-        # counts[varname].attrs["long_name"] = "Frequency"
-        # counts[f"{varname}_bins"].attrs = prognostic[varname].attrs
         count, bins = np.histogram(
             prognostic[varname], bins=HISTOGRAM_BINS[varname], density=True
         )
