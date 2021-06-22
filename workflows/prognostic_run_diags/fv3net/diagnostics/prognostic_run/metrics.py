@@ -18,9 +18,6 @@ import json
 
 _METRICS = []
 GRID_VARS = ["lon", "lat", "lonb", "latb", "area"]
-QUANTILE_LIMITS = {
-    "total_precip_to_surface": ((0.1, 1), (1, 10), (10, 100), (100, None))
-}
 
 
 def grab_diag(ds, name):
