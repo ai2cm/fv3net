@@ -18,6 +18,9 @@ import json
 
 _METRICS = []
 GRID_VARS = ["lon", "lat", "lonb", "latb", "area"]
+QUANTILE_LIMITS = {
+    "total_precip_to_surface": ((0.1, 1), (1, 10), (10, 100), (100, None))
+}
 
 
 def grab_diag(ds, name):
@@ -136,6 +139,25 @@ def rmse_time_mean(diags):
     )
     restore_units(time_mean_bias, rms_of_time_mean_bias)
     return rms_of_time_mean_bias
+
+
+for percentile in [25, 50, 75, 90, 99, 99.9]:
+
+    @add_to_metrics(f"percentile_{percentile}")
+    def time_and_global_mean_bias(diags, p=percentile):
+        histogram = grab_diag(diags, "histogram")
+        percentiles = xr.Dataset()
+        data_vars = [v for v in histogram.data_vars if not v.endswith("bin_width")]
+        for varname in data_vars:
+            bins = histogram[f"{varname}_bins"].values
+            bin_width = histogram[f"{varname}_bin_width"]
+            bin_midpoints = bins + 0.5 * bin_width
+            cumulative_distribution = np.cumsum(histogram[varname][:-1] * bin_width)
+            percentiles[varname] = bin_midpoints[
+                np.argmin(np.abs(cumulative_distribution.values - p / 100))
+            ]
+        restore_units(histogram, percentiles)
+        return percentiles
 
 
 def restore_units(source, target):
