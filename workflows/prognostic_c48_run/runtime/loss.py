@@ -46,7 +46,7 @@ class MultiVariableLoss:
 
     def loss(self, model, in_, out):
         up, vp, tp, qp = model(in_)
-        ut, vt, tt, qt = out
+        ut, vt, tt, qt, _ = out
         loss_u = tf.reduce_mean(tf.keras.losses.mean_squared_error(ut, up))
         loss_v = tf.reduce_mean(tf.keras.losses.mean_squared_error(vt, vp))
         loss_t = tf.reduce_mean(tf.keras.losses.mean_squared_error(tt, tp))

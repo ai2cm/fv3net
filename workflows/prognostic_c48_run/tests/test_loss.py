@@ -4,10 +4,10 @@ import tensorflow as tf
 
 def test_MultiVariableLoss():
     def model(x):
-        return x
+        return x[:4]
 
-    in_ = [tf.ones((1, 10))] * 4
-    out = [tf.ones((1, 10))] * 4
+    in_ = [tf.ones((1, 10))] * 5
+    out = [tf.ones((1, 10))] * 5
 
     loss, info = MultiVariableLoss().loss(model, in_, out)
 

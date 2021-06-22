@@ -90,9 +90,9 @@ def test_OnlineEmulator_batch_fit(config):
 
     one = tf.zeros([79])
 
-    u, v, t, q = one, one, one, one
+    u, v, t, q, dp = one, one, one, one, one
 
-    dataset = tf.data.Dataset.from_tensors(((u, v, t, q), (u, v, t, q)))
+    dataset = tf.data.Dataset.from_tensors(((u, v, t, q, dp), (u, v, t, q, dp)))
 
     emulator = OnlineEmulator(config)
     emulator.batch_fit(dataset)

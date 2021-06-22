@@ -17,6 +17,7 @@ U = "eastward_wind"
 V = "northward_wind"
 T = "air_temperature"
 Q = "specific_humidity"
+DELP = "pressure_thickness_of_atmospheric_layer"
 
 
 State = Mapping[str, xr.DataArray]
@@ -102,7 +103,7 @@ class OnlineEmulator:
             learning_rate=config.learning_rate, momentum=config.momentum
         )
         self._statein: Optional[State] = None
-        self.output_variables: Sequence[str] = (U, V, T, Q)
+        self.output_variables: Sequence[str] = (U, V, T, Q, DELP)
         self._step = 0
         self.logger = LoggerList([TBLogger(), ConsoleLogger(), WandBLogger()])
 
