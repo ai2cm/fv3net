@@ -104,6 +104,7 @@ class OnlineEmulator:
         self._statein: Optional[State] = None
         self.output_variables: Sequence[str] = (U, V, T, Q)
         self._step = 0
+        self.logger = LoggerList([TBLogger(), ConsoleLogger(), WandBLogger()])
 
         self.logger = LoggerList([TBLogger(), ConsoleLogger()])
 
