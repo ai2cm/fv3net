@@ -5,7 +5,6 @@ import xarray as xr
 import vcm
 
 SECONDS_PER_DAY = 86400
-LATENT_HEAT_VAPORIZATION = 2.5e6
 
 logger = logging.getLogger(__name__)
 
@@ -277,8 +276,9 @@ def _column_dq2_or_nq2(ds: xr.Dataset, tol=1.0e-12) -> xr.DataArray:
 
 
 def _column_dqm(ds: xr.Dataset) -> xr.DataArray:
-    mm_per_day_to_W_per_m2 = LATENT_HEAT_VAPORIZATION / SECONDS_PER_DAY
-    column_dqm = _column_dq1(ds) + mm_per_day_to_W_per_m2 * _column_dq2(ds)
+    column_dqm = _column_dq1(ds) + vcm.moistening_in_energy_units(
+        _column_dq2(ds) / SECONDS_PER_DAY
+    )
     column_dqm.attrs = {
         "long_name": "<dQm> column integrated MSE tendency from ML",
         "units": "W/m^2",
@@ -287,8 +287,9 @@ def _column_dqm(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_nqm(ds: xr.Dataset) -> xr.DataArray:
-    mm_per_day_to_W_per_m2 = LATENT_HEAT_VAPORIZATION / SECONDS_PER_DAY
-    column_nqm = _column_nq1(ds) + mm_per_day_to_W_per_m2 * _column_nq2(ds)
+    column_nqm = _column_nq1(ds) + vcm.moistening_in_energy_units(
+        _column_nq2(ds) / SECONDS_PER_DAY
+    )
     column_nqm.attrs = {
         "long_name": "<nQm> column integrated MSE tendency from nudging",
         "units": "W/m^2",
@@ -297,8 +298,9 @@ def _column_nqm(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_pqm(ds: xr.Dataset) -> xr.DataArray:
-    mm_per_day_to_W_per_m2 = LATENT_HEAT_VAPORIZATION / SECONDS_PER_DAY
-    column_pqm = _column_pq1(ds) + mm_per_day_to_W_per_m2 * _column_pq2(ds)
+    column_pqm = _column_pq1(ds) + vcm.moistening_in_energy_units(
+        _column_pq2(ds) / SECONDS_PER_DAY
+    )
     column_pqm.attrs = {
         "long_name": "<pQm> column integrated MSE tendency from physics",
         "units": "W/m^2",
