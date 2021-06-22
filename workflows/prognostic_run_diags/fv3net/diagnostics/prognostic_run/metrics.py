@@ -17,6 +17,7 @@ from .constants import HORIZONTAL_DIMS
 import json
 
 _METRICS = []
+
 GRID_VARS = ["lon", "lat", "lonb", "latb", "area"]
 
 
@@ -88,6 +89,25 @@ def rmse_3day(diags):
 
     restore_units(rms_global, rms_at_day_3)
     return rms_at_day_3
+
+
+@add_to_metrics("rmse_days_3to7_avg")
+def rmse_days_3to7_avg(diags):
+    rms_global = grab_diag(diags, "rms_global").drop(GRID_VARS, errors="ignore")
+    time_since_start = rms_global.time.values - rms_global.time.isel(time=0).item()
+    ds = rms_global.assign_coords(
+        {"days_since_start": ("time", [t.days for t in time_since_start])}
+    )
+
+    if max(ds["days_since_start"] > 7):
+        rmse_days_3to7_avg = (
+            ds.where(ds["days_since_start"] >= 3).where(ds["days_since_start"] <= 7)
+        ).mean(skipna=True)
+    else:  # don't compute metric if run didn't make it to 7 days
+        rmse_days_3to7_avg = xr.Dataset()
+
+    restore_units(rms_global, rmse_days_3to7_avg)
+    return rmse_days_3to7_avg
 
 
 @add_to_metrics("drift_3day")
