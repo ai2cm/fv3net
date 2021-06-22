@@ -37,5 +37,7 @@ else
     gsutil cp metrics.json "$cacheURL/metrics.json"
 fi
 
-gsutil cp "$cacheURL/diags.nc" "$output/diags.nc"
-gsutil cp "$cacheURL/metrics.json" "$output/metrics.json"
+if [[ $output != $cacheURL ]]; then
+    gsutil cp "$cacheURL/diags.nc" "$output/diags.nc"
+    gsutil cp "$cacheURL/metrics.json" "$output/metrics.json"
+fi
