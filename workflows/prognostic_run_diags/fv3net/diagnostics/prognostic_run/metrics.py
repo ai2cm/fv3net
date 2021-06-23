@@ -48,7 +48,7 @@ def prepend_to_key(d, prefix):
 
 
 def weighted_mean(ds, w, dims):
-    return (ds * w).sum(dims) / w.sum(dims)
+    return (ds * w).sum(dims, skipna=True) / w.sum(dims, skipna=True)
 
 
 @curry
@@ -145,24 +145,28 @@ def time_and_global_mean_value(diags):
     return time_and_global_mean_value
 
 
-@add_to_metrics("time_and_global_mean_bias")
-def time_and_global_mean_bias(diags):
-    time_mean_bias = grab_diag(diags, "time_mean_bias")
-    area = diags["area"]
-    time_and_global_mean_bias = weighted_mean(time_mean_bias, area, HORIZONTAL_DIMS)
-    restore_units(time_mean_bias, time_and_global_mean_bias)
-    return time_and_global_mean_bias
+for mask_type in ["global", "land", "sea"]:
+
+    @add_to_metrics(f"time_and_{mask_type}_mean_bias")
+    def time_and_domain_mean_bias(diags, mask_type=mask_type):
+        time_mean_bias = grab_diag(diags, f"time_mean_bias_{mask_type}")
+        area = diags["area"]
+        time_and_domain_mean_bias = weighted_mean(time_mean_bias, area, HORIZONTAL_DIMS)
+        restore_units(time_mean_bias, time_and_domain_mean_bias)
+        return time_and_domain_mean_bias
 
 
-@add_to_metrics("rmse_of_time_mean")
-def rmse_time_mean(diags):
-    time_mean_bias = grab_diag(diags, "time_mean_bias")
-    area = diags["area"]
-    rms_of_time_mean_bias = np.sqrt(
-        weighted_mean(time_mean_bias ** 2, area, HORIZONTAL_DIMS)
-    )
-    restore_units(time_mean_bias, rms_of_time_mean_bias)
-    return rms_of_time_mean_bias
+for mask_type in ["global", "land", "sea"]:
+
+    @add_to_metrics(f"rmse_of_time_mean_{mask_type}")
+    def rmse_time_mean(diags, mask_type=mask_type):
+        time_mean_bias = grab_diag(diags, f"time_mean_bias_{mask_type}")
+        area = diags["area"]
+        rms_of_time_mean_bias = np.sqrt(
+            weighted_mean(time_mean_bias ** 2, area, HORIZONTAL_DIMS)
+        )
+        restore_units(time_mean_bias, rms_of_time_mean_bias)
+        return rms_of_time_mean_bias
 
 
 def restore_units(source, target):
@@ -185,4 +189,4 @@ def main(args):
     diags["time"] = diags.time - diags.time[0]
     metrics = compute_all_metrics(diags)
     # print to stdout, use pipes to save
-    print(json.dumps(metrics))
+    print(json.dumps(metrics, indent=4))
