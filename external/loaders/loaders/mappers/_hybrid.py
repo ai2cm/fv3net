@@ -1,4 +1,4 @@
-from typing import Mapping, List
+from typing import Mapping, List, no_type_check
 import xarray as xr
 
 from ._base import GeoMapper
@@ -38,6 +38,7 @@ class FineResolutionResidual(ResidualMapper):
 T_Mapper = FineResolutionResidual
 
 
+@no_type_check
 def _open_fine_resolution_nudging_hybrid(
     data_paths: List[str],
     mapper: T_Mapper = FineResolutionResidual,
