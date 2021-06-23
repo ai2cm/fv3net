@@ -157,8 +157,19 @@ for percentile in PERCENTILES:
 
 
 def compute_percentile(
-    p: float, freq: np.ndarray, bins: np.ndarray, bin_widths: np.ndarray
-):
+    percentile: float, freq: np.ndarray, bins: np.ndarray, bin_widths: np.ndarray
+) -> float:
+    """Compute percentile given normalized histogram.
+
+    Args:
+        percentile: value between 0 and 100
+        freq: array of frequencies normalized by bin widths
+        bins: values of left sides of bins
+        bin_widths: values of bin widths
+
+    Returns:
+        value of distribution at percentile
+    """
     cumulative_distribution = np.cumsum(freq * bin_widths)
     if np.abs(cumulative_distribution[-1] - 1) > 1e-6:
         raise ValueError(
@@ -166,7 +177,8 @@ def compute_percentile(
             "Ensure that histogram is computed with density=True."
         )
     bin_midpoints = bins + 0.5 * bin_widths
-    return bin_midpoints[np.argmin(np.abs(cumulative_distribution - p / 100))]
+    closest_index = np.argmin(np.abs(cumulative_distribution - percentile / 100))
+    return bin_midpoints[closest_index]
 
 
 def restore_units(source, target):
