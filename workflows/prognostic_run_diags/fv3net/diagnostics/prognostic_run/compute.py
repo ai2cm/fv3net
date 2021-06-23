@@ -192,11 +192,11 @@ def _generate_diag_functions(input_datasets):
 
 
 def rms(x, y, w, dims):
-    return np.sqrt(((x - y) ** 2 * w).sum(dims, skipna=True) / w.sum(dims, skipna=True))
+    return np.sqrt(((x - y) ** 2 * w).sum(dims) / w.sum(dims))
 
 
 def bias(truth, prediction, w, dims):
-    return ((prediction - truth) * w).sum(dims, skipna=True) / w.sum(dims, skipna=True)
+    return ((prediction - truth) * w).sum(dims) / w.sum(dims)
 
 
 def zonal_mean(
@@ -239,19 +239,16 @@ def dump_nc(ds: xr.Dataset, f):
             shutil.copyfileobj(tmp1, f)
 
 
-for mask_type in ["global", "land", "sea"]:
+@add_to_diags("dycore")
+@diag_finalizer("rms_global")
+@transform.apply("resample_time", "3H", inner_join=True)
+@transform.apply("daily_mean", datetime.timedelta(days=10))
+@transform.apply("subset_variables", RMSE_VARS)
+def rms_errors(prognostic, verification_c48, grid):
+    logger.info("Preparing rms errors")
+    rms_errors = rms(prognostic, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
 
-    @add_to_diags("dycore")
-    @diag_finalizer(f"rms_{mask_type}")
-    @transform.apply("mask_area", mask_type)
-    @transform.apply("resample_time", "3H", inner_join=True)
-    @transform.apply("daily_mean", datetime.timedelta(days=10))
-    @transform.apply("subset_variables", RMSE_VARS)
-    def rms_errors(prognostic, verification_c48, grid):
-        logger.info(f"Preparing rms errors for mask_type {mask_type}")
-        rms_errors = rms(prognostic, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
-
-        return rms_errors
+    return rms_errors
 
 
 @add_to_diags("dycore")
@@ -458,18 +455,13 @@ def time_means_physics(prognostic, verification, grid):
     return time_mean(prognostic)
 
 
-for mask_type in ["global", "land", "sea"]:
-
-    @add_to_diags("physics")
-    @diag_finalizer(f"time_mean_bias_{mask_type}")
-    @transform.apply("mask_to_sfc_type", mask_type)
-    @transform.apply("resample_time", "1H", inner_join=True)
-    @transform.apply("subset_variables", TIME_MEAN_VARS)
-    def time_mean_biases_physics(prognostic, verification, grid):
-        logger.info(
-            f"Preparing time mean biases for physics variables, mask type {mask_type}"
-        )
-        return time_mean(prognostic - verification)
+@add_to_diags("physics")
+@diag_finalizer("time_mean_bias")
+@transform.apply("resample_time", "1H", inner_join=True)
+@transform.apply("subset_variables", TIME_MEAN_VARS)
+def time_mean_biases_physics(prognostic, verification, grid):
+    logger.info("Preparing time mean biases for physics variables")
+    return time_mean(prognostic - verification)
 
 
 @add_to_diags("dycore")
@@ -477,22 +469,17 @@ for mask_type in ["global", "land", "sea"]:
 @transform.apply("resample_time", "1H", inner_join=True)
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_means_dycore(prognostic, verification, grid):
-    logger.info("Preparing time means for dycore variables")
+    logger.info("Preparing time means for physics variables")
     return time_mean(prognostic)
 
 
-for mask_type in ["global", "land", "sea"]:
-
-    @add_to_diags("dycore")
-    @diag_finalizer(f"time_mean_bias_{mask_type}")
-    @transform.apply("mask_to_sfc_type", mask_type)
-    @transform.apply("resample_time", "1H", inner_join=True)
-    @transform.apply("subset_variables", TIME_MEAN_VARS)
-    def time_mean_biases_dycore(prognostic, verification, grid):
-        logger.info(
-            f"Preparing time mean biases for dycore variables, mask type {mask_type}"
-        )
-        return time_mean(prognostic - verification)
+@add_to_diags("dycore")
+@diag_finalizer("time_mean_bias")
+@transform.apply("resample_time", "1H", inner_join=True)
+@transform.apply("subset_variables", TIME_MEAN_VARS)
+def time_mean_biases_dycore(prognostic, verification, grid):
+    logger.info("Preparing time mean biases for physics variables")
+    return time_mean(prognostic - verification)
 
 
 for mask_type in ["global", "land", "sea"]:

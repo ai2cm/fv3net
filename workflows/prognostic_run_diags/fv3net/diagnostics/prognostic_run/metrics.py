@@ -19,6 +19,8 @@ import json
 _METRICS = []
 
 GRID_VARS = ["lon", "lat", "lonb", "latb", "area"]
+SURFACE_TYPE_CODES = {"sea": (0, 2), "land": (1,), "seaice": (2,)}
+
 ns_per_day = 1e9 * 60 * 60 * 24
 
 
@@ -49,6 +51,22 @@ def prepend_to_key(d, prefix):
 
 def weighted_mean(ds, w, dims):
     return (ds * w).sum(dims, skipna=True) / w.sum(dims, skipna=True)
+
+
+def _mask_array(
+    region: str, arr: xr.DataArray, land_sea_mask: xr.DataArray,
+) -> xr.DataArray:
+    if region == "global":
+        masked_arr = arr.copy()
+    elif region in SURFACE_TYPE_CODES:
+        masks = [land_sea_mask == code for code in SURFACE_TYPE_CODES[region]]
+        mask_union = masks[0]
+        for mask in masks[1:]:
+            mask_union = np.logical_or(mask_union, mask)
+        masked_arr = arr.where(mask_union)
+    else:
+        raise ValueError(f"Masking procedure for region '{region}' is not defined.")
+    return masked_arr
 
 
 @curry
@@ -106,9 +124,9 @@ def rmse_days_3to7_avg(diags):
         }
     )
 
-    if max(ds["days_since_start"] > 7):
+    if max(ds["days_since_start"] > 8):
         rmse_days_3to7_avg = (
-            ds.where(ds["days_since_start"] >= 3).where(ds["days_since_start"] <= 7)
+            ds.where(ds["days_since_start"] >= 3).where(ds["days_since_start"] <= 8)
         ).mean(skipna=True)
     else:  # don't compute metric if run didn't make it to 7 days
         rmse_days_3to7_avg = xr.Dataset()
@@ -149,9 +167,11 @@ for mask_type in ["global", "land", "sea"]:
 
     @add_to_metrics(f"time_and_{mask_type}_mean_bias")
     def time_and_domain_mean_bias(diags, mask_type=mask_type):
-        time_mean_bias = grab_diag(diags, f"time_mean_bias_{mask_type}")
-        area = diags["area"]
-        time_and_domain_mean_bias = weighted_mean(time_mean_bias, area, HORIZONTAL_DIMS)
+        time_mean_bias = grab_diag(diags, f"time_mean_bias")
+        masked_area = _mask_array(mask_type, diags["area"], diags["land_sea_mask"])
+        time_and_domain_mean_bias = weighted_mean(
+            time_mean_bias, masked_area, HORIZONTAL_DIMS
+        )
         restore_units(time_mean_bias, time_and_domain_mean_bias)
         return time_and_domain_mean_bias
 
@@ -160,10 +180,10 @@ for mask_type in ["global", "land", "sea"]:
 
     @add_to_metrics(f"rmse_of_time_mean_{mask_type}")
     def rmse_time_mean(diags, mask_type=mask_type):
-        time_mean_bias = grab_diag(diags, f"time_mean_bias_{mask_type}")
-        area = diags["area"]
+        time_mean_bias = grab_diag(diags, f"time_mean_bias")
+        masked_area = _mask_array(mask_type, diags["area"], diags["land_sea_mask"])
         rms_of_time_mean_bias = np.sqrt(
-            weighted_mean(time_mean_bias ** 2, area, HORIZONTAL_DIMS)
+            weighted_mean(time_mean_bias ** 2, masked_area, HORIZONTAL_DIMS)
         )
         restore_units(time_mean_bias, rms_of_time_mean_bias)
         return rms_of_time_mean_bias
