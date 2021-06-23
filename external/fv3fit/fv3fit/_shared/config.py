@@ -56,9 +56,6 @@ def get_keras_model(name):
     return TRAINING_FUNCTIONS[name][0]
 
 
-TRAINING_FUNCTIONS: Dict[str, Tuple[TrainingFunction, Type[Dataclass]]] = {}
-
-
 @dataclasses.dataclass
 class TrainingConfig:
     """Convenience wrapper for model training parameters and file info
@@ -93,6 +90,9 @@ class TrainingConfig:
         return dacite.from_dict(data_class=cls, data=kwargs)
 
 
+TRAINING_FUNCTIONS: Dict[str, Tuple[TrainingFunction, Type[Dataclass]]] = {}
+
+
 def get_hyperparameter_class(model_type: str) -> Type:
     if model_type in TRAINING_FUNCTIONS:
         _, subclass = TRAINING_FUNCTIONS[model_type]
@@ -120,11 +120,6 @@ def register_training_function(name: str, hyperparameter_class: type):
         return func
 
     return decorator
-
-
-class EmptyBatchesLoader(loaders.BatchesLoader):
-    def load_batches(self, variables) -> loaders.typing.Batches:
-        return []
 
 
 @dataclasses.dataclass
