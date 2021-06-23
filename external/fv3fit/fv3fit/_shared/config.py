@@ -59,40 +59,6 @@ def get_keras_model(name):
 TRAINING_FUNCTIONS: Dict[str, Tuple[TrainingFunction, Type[Dataclass]]] = {}
 
 
-def get_hyperparameter_class(model_type: str) -> Type:
-    if model_type in TRAINING_FUNCTIONS:
-        _, subclass = TRAINING_FUNCTIONS[model_type]
-    else:
-        raise ValueError(f"unknown model_type {model_type}")
-    return subclass
-
-
-def get_training_function(model_type: str) -> TrainingFunction:
-    if model_type in TRAINING_FUNCTIONS:
-        estimator_class, _ = TRAINING_FUNCTIONS[model_type]
-    else:
-        raise ValueError(f"unknown model_type {model_type}")
-    return estimator_class
-
-
-def register_training_function(name: str, hyperparameter_class: type):
-    """
-    Returns a decorator that will register the given training function
-    to be usable in training configuration.
-    """
-
-    def decorator(func: TrainingFunction) -> TrainingFunction:
-        TRAINING_FUNCTIONS[name] = (func, hyperparameter_class)
-        return func
-
-    return decorator
-
-
-class EmptyBatchesLoader(loaders.BatchesLoader):
-    def load_batches(self, variables) -> loaders.typing.Batches:
-        return []
-
-
 @dataclasses.dataclass
 class TrainingConfig:
     """Convenience wrapper for model training parameters and file info
@@ -125,6 +91,40 @@ class TrainingConfig:
             data_class=hyperparameter_class, data=kwargs.get("hyperparameters", {})
         )
         return dacite.from_dict(data_class=cls, data=kwargs)
+
+
+def get_hyperparameter_class(model_type: str) -> Type:
+    if model_type in TRAINING_FUNCTIONS:
+        _, subclass = TRAINING_FUNCTIONS[model_type]
+    else:
+        raise ValueError(f"unknown model_type {model_type}")
+    return subclass
+
+
+def get_training_function(model_type: str) -> TrainingFunction:
+    if model_type in TRAINING_FUNCTIONS:
+        estimator_class, _ = TRAINING_FUNCTIONS[model_type]
+    else:
+        raise ValueError(f"unknown model_type {model_type}")
+    return estimator_class
+
+
+def register_training_function(name: str, hyperparameter_class: type):
+    """
+    Returns a decorator that will register the given training function
+    to be usable in training configuration.
+    """
+
+    def decorator(func: TrainingFunction) -> TrainingFunction:
+        TRAINING_FUNCTIONS[name] = (func, hyperparameter_class)
+        return func
+
+    return decorator
+
+
+class EmptyBatchesLoader(loaders.BatchesLoader):
+    def load_batches(self, variables) -> loaders.typing.Batches:
+        return []
 
 
 @dataclasses.dataclass
