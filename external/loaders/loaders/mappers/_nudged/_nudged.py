@@ -6,6 +6,8 @@ from typing import Hashable, Sequence, Mapping, Optional, Any, MutableMapping
 
 from .._base import MultiDatasetMapper
 from .._xarray import XarrayMapper
+from loaders._config import register_mapper_function
+from loaders.typing import Mapper
 
 logger = logging.getLogger(__name__)
 
@@ -15,12 +17,13 @@ Time = str
 Dataset = MutableMapping[Hashable, Any]
 
 
+@register_mapper_function
 def open_nudge_to_obs(
-    url: str,
+    data_path: str,
     nudging_tendency_variables: Optional[Mapping[str, str]] = None,
     physics_timestep_seconds: float = 900.0,
     consolidated: bool = True,
-):
+) -> Mapper:
     """
     Load nudge-to-obs data mapper for use with training. Merges
     variables saved in the physics tendencies, nudging tendencies (Fortran
@@ -33,7 +36,7 @@ def open_nudge_to_obs(
     ``before nudging`` state for training.
     
     Args:
-        url (str): path to a nudge-to-obs output directory, remote or local
+        data_path (str): path to a nudge-to-obs output directory, remote or local
         nudging_tendency_variables: (optional): mapping of variables to their renamed
             nudging tendencies. Defaults to
             {"air_temperature": "dQ1", "specific_humidity": "dQ2"}
@@ -48,7 +51,7 @@ def open_nudge_to_obs(
     """
 
     datasets = _get_datasets(
-        url,
+        data_path,
         [
             "physics_tendencies.zarr",
             "nudging_tendencies.zarr",
@@ -110,8 +113,9 @@ def open_nudge_to_obs(
     return XarrayMapper(ds)
 
 
+@register_mapper_function
 def open_nudge_to_fine(
-    url: str,
+    data_path: str,
     nudging_variables: Sequence[str],
     physics_timestep_seconds: float = 900.0,
     consolidated: bool = True,
@@ -138,7 +142,7 @@ def open_nudge_to_fine(
 
     ds = xr.merge(
         _get_datasets(
-            url,
+            data_path,
             [
                 "physics_tendencies.zarr",
                 "nudging_tendencies.zarr",
@@ -171,22 +175,31 @@ def open_nudge_to_fine(
     return XarrayMapper(ds.rename(rename_vars))
 
 
+@register_mapper_function
 def open_nudge_to_fine_multiple_datasets(
-    urls: Sequence[str], names: Optional[Sequence[Hashable]] = None, **kwargs
-):
+    data_path: str,
+    additional_paths: Sequence[str],
+    names: Optional[Sequence[Hashable]] = None,
+    **kwargs,
+) -> Mapper:
     """
     Load sequence of mappers to nudged datasets containing dQ tendency terms.
 
     Args:
-        urls: paths to directories with nudging output
-        names: sequence of names to assign to the dataset coordinate (optional)
+        data_path: path to directory with nudging output
+        additional_paths: additional paths to directories with nudging output
+        names: sequence of dataset names, starting with data_path and
+            followed by additional_paths in order.
+            gets assigned as the "dataset" coordinate
         **kwargs: keyword arguments passed to open_nudge_to_fine
 
     Returns
-        mapper of timestamps to dataset containing tendency terms with a dataset
-        dimension
+        merged_nudged: mapper of timestamps to Dataset containing tendency terms
+            with a "dataset" dimension
     """
-    mappers = [open_nudge_to_fine(url, **kwargs) for url in urls]
+    paths = [data_path]
+    paths.extend(additional_paths)
+    mappers = [open_nudge_to_fine(path, **kwargs) for path in paths]
     return MultiDatasetMapper(mappers, names=names)
 
 

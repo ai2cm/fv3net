@@ -18,6 +18,7 @@ from ..constants import (
 from ._base import GeoMapper
 from ._high_res_diags import open_high_res_diags
 from ._merged import MergeOverlappingData
+from loaders._config import register_mapper_function
 
 Time = str
 Tile = int
@@ -383,20 +384,18 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
     return GroupByTime(tiles)
 
 
+@register_mapper_function
 def open_fine_res_apparent_sources(
-    fine_res_url: str,
-    shield_diags_url: str = None,
+    data_path: str,
+    shield_diags_path: str = None,
     offset_seconds: Union[int, float] = 0,
-    rename_vars: Mapping[str, str] = None,
-    dim_order: Sequence[str] = ("tile", "z", "y", "x"),
-    drop_vars: Sequence[str] = ("step", "time"),
 ) -> Mapping[str, xr.Dataset]:
     """Open a derived mapping interface to the fine resolution budget, grouped
         by time and with derived apparent sources
 
     Args:
-        fine_res_url (str): path to fine res dataset
-        shield_diags_url: path to directory containing a zarr store of SHiELD
+        data_path (str): path to fine res dataset
+        shield_diags_path: path to directory containing a zarr store of SHiELD
             diagnostics coarsened to the nudged model resolution (optional)
         offset_seconds: amount to shift the keys forward by in seconds. For
             example, if the underlying data contains a value at the key
@@ -407,17 +406,17 @@ def open_fine_res_apparent_sources(
         drop_vars (sequence): optional list of variable names to drop from dataset
     """
 
-    # use default which is valid for real data
-    if rename_vars is None:
-        rename_vars = {
-            "grid_xt": "x",
-            "grid_yt": "y",
-            "pfull": "z",
-            "delp": "pressure_thickness_of_atmospheric_layer",
-        }
+    rename_vars = {
+        "grid_xt": "x",
+        "grid_yt": "y",
+        "pfull": "z",
+        "delp": "pressure_thickness_of_atmospheric_layer",
+    }
+    dim_order = ("tile", "z", "y", "x")
+    drop_vars = ("step", "time")
 
     fine_resolution_sources_mapper = FineResolutionSources(
-        open_fine_resolution_budget(fine_res_url),
+        open_fine_resolution_budget(data_path),
         drop_vars,
         dim_order=dim_order,
         rename_vars=rename_vars,
@@ -428,8 +427,8 @@ def open_fine_res_apparent_sources(
         fine_resolution_sources_mapper,
     )
 
-    if shield_diags_url is not None:
-        shield_diags_mapper = open_high_res_diags(shield_diags_url)
+    if shield_diags_path is not None:
+        shield_diags_mapper = open_high_res_diags(shield_diags_path)
         fine_resolution_sources_mapper = MergeOverlappingData(
             shield_diags_mapper,
             fine_resolution_sources_mapper,

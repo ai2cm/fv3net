@@ -19,6 +19,7 @@ from .._utils import (
     SAMPLE_DIM_NAME,
 )
 from ..constants import TIME_NAME
+from .._config import register_batches_function
 from ._serialized_phys import (
     SerializedSequence,
     FlattenDims,
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
+@register_batches_function
 def batches_from_geodata(
     data_path: Union[str, List, tuple],
     variable_names: Iterable[str],
@@ -172,6 +174,7 @@ def batches_from_mapper(
     return seq
 
 
+@register_batches_function
 def diagnostic_batches_from_geodata(
     data_path: Union[str, List, tuple],
     variable_names: Sequence[str],
@@ -245,6 +248,7 @@ def _get_batch(
     return ds
 
 
+@register_batches_function
 def batches_from_serialized(
     path: str,
     zarr_prefix: str = "phys",

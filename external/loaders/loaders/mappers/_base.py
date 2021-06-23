@@ -2,14 +2,15 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 import vcm
-from typing import Hashable, Mapping, Optional, Sequence
+from typing import Hashable, Optional, Sequence
 
 
 from ..constants import DATASET_DIM_NAME, TIME_NAME, TIME_FMT
 from .._utils import standardize_zarr_time_coord
+from loaders.typing import Mapper
 
 
-class GeoMapper(Mapping[str, xr.Dataset]):
+class GeoMapper(Mapper):
     def __len__(self):
         return len(self.keys())
 
