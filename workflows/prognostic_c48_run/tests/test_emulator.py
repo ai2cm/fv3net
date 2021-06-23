@@ -173,8 +173,8 @@ def test_get_model(config, class_):
 
 @pytest.mark.parametrize("num_hidden_layers", [0, 1, 4])
 def test_ScalarMLP(num_hidden_layers):
-    ins = [tf.ones((1, 10), dtype=tf.float32)] * 4
-    outs = [tf.zeros((1, 10), dtype=tf.float32)] * 4
+    ins = [tf.ones((1, 10), dtype=tf.float32)] * 5
+    outs = [tf.zeros((1, 10), dtype=tf.float32)] * 5
     model = ScalarMLP(num_hidden_layers=num_hidden_layers)
     model.fit_scalers(ins, outs)
     out = model(ins)

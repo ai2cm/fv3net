@@ -45,6 +45,8 @@ if problem == "single-level":
     config.target = runtime.emulator.ScalarLoss(3, 50, scale=scale)
 elif problem == "all":
     pass
+elif problem == "rh":
+    config.target = runtime.emulator.RHLoss(level=50, scale=scale)
 else:
     raise NotImplementedError(f"{problem} is not implemented.")
 

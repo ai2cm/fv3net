@@ -21,16 +21,16 @@ def test_MultiVariableLoss():
     } == info
 
 
-def test_ScalarLoss(regtest):
+def test_ScalarLoss():
     varnum = 0
     i = 5
 
     def model(x):
         return x[varnum][:, i : i + 1]
 
-    in_ = [tf.ones((1, 10))]
+    in_ = [tf.ones((1, 10))] * 5
     out = in_
 
     loss, info = ScalarLoss(varnum, level=i).loss(model, in_, out)
     assert isinstance(loss, tf.Tensor)
-    print(info, file=regtest)
+    assert {"loss/variable_0/level_5": 0.0, "relative_humidity_mse": 0.0} == info

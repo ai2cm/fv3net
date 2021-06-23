@@ -1,5 +1,10 @@
 import dataclasses
 import tensorflow as tf
+from runtime.thermo import (
+    relative_humidity,
+    specific_humidity_from_rh,
+    SpecificHumidityBasis,
+)
 
 
 @dataclasses.dataclass
@@ -17,18 +22,70 @@ class ScalarLoss:
 
     def loss(self, model, in_, out):
         pred = model(in_)
-        loss = tf.reduce_mean(
-            tf.losses.mean_squared_error(
-                out[self.variable][:, self.level : self.level + 1], pred
-            )
+        basis_out = SpecificHumidityBasis(out)
+
+        truth_q = select_level(basis_out.q, self.level)
+        loss = tf.reduce_mean(tf.losses.mean_squared_error(truth_q, pred))
+
+        pred_rh = relative_humidity(
+            select_level(basis_out.T, self.level),
+            pred,
+            select_level(basis_out.dp, self.level),
         )
+        truth_rh = select_level(basis_out.rh, self.level)
+        loss_rh = tf.reduce_mean(tf.losses.mean_squared_error(truth_rh, pred_rh))
+
         return (
             loss / self.scale,
             {
                 f"loss/variable_{self.variable}/level_{self.level}": loss.numpy()
-                * (1000 * 86400 / 900) ** 2
+                * (1000 * 86400 / 900) ** 2,
+                f"relative_humidity_mse": loss_rh.numpy() * (86400 / 900) ** 2,
             },
         )
+
+
+@dataclasses.dataclass
+class RHLoss:
+    """
+    Attrs:
+        variable: the variable to target, defaults to all levels of u,v,t,q
+        level: the level to predict
+        scale: the typical order of the loss function
+    """
+
+    level: int
+    scale: float = 1.0
+
+    def loss(self, model, in_, out):
+        pred_rh = model(SpecificHumidityBasis(in_).to_rh().args)
+        basis_out = SpecificHumidityBasis(out)
+
+        pred_q = specific_humidity_from_rh(
+            select_level(basis_out.T, self.level),
+            pred_rh,
+            select_level(basis_out.dp, self.level),
+        )
+
+        truth_q = select_level(basis_out.q, self.level)
+        truth_rh = select_level(basis_out.rh, self.level)
+
+        loss = tf.reduce_mean(tf.losses.mean_squared_error(truth_q, pred_q))
+        loss_rh = tf.reduce_mean(tf.losses.mean_squared_error(truth_rh, pred_rh))
+
+        return (
+            loss_rh / self.scale,
+            {
+                f"loss/variable_3/level_{self.level}": loss.numpy()
+                * (1000 * 86400 / 900) ** 2,
+                f"relative_humidity_mse/level_{self.level}": loss_rh.numpy()
+                * (86400 / 900) ** 2,
+            },
+        )
+
+
+def select_level(arr: tf.Tensor, level) -> tf.Tensor:
+    return arr[:, level : level + 1]
 
 
 @dataclasses.dataclass

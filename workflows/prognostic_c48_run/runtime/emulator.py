@@ -8,7 +8,7 @@ import numpy
 import tensorflow as tf
 import dacite
 from runtime.diagnostics.tensorboard import ConsoleLogger, TBLogger, LoggerList
-from runtime.loss import ScalarLoss, MultiVariableLoss
+from runtime.loss import RHLoss, ScalarLoss, MultiVariableLoss
 import logging
 import json
 
@@ -58,7 +58,7 @@ class OnlineEmulatorConfig:
     epochs: int = 1
     levels: int = 79
     batch: Optional[BatchDataConfig] = None
-    target: Union[MultiVariableLoss, ScalarLoss] = dataclasses.field(
+    target: Union[MultiVariableLoss, ScalarLoss, RHLoss] = dataclasses.field(
         default_factory=MultiVariableLoss
     )
     wandb_logger: bool = False
@@ -67,7 +67,7 @@ class OnlineEmulatorConfig:
 
     @property
     def input_variables(self) -> List[str]:
-        return [U, V, T, Q] + list(self.extra_input_variables)
+        return [U, V, T, Q, DELP] + list(self.extra_input_variables)
 
     @classmethod
     def from_dict(cls, dict_) -> "OnlineEmulatorConfig":
@@ -396,6 +396,12 @@ class ScalarMLP(tf.keras.layers.Layer):
         self.scalers_fitted = True
 
 
+class RHScalarMLP(ScalarMLP):
+    def call(self, args: Sequence[tf.Variable]):
+        rh = super().call(args)
+        return tf.keras.activations.sigmoid(rh)
+
+
 def needs_restart(state) -> bool:
     """Detect if error state is happening, in which case we should restart the
     model from a clean state
@@ -412,6 +418,14 @@ def get_model(config: OnlineEmulatorConfig) -> tf.keras.Model:
         logging.info("Using ScalerMLP")
         model = ScalarMLP(
             var_number=config.target.variable,
+            var_level=config.target.level,
+            num_hidden=config.num_hidden,
+            num_hidden_layers=config.num_hidden_layers,
+        )
+    elif isinstance(config.target, RHLoss):
+        logging.info("Using RHScaler")
+        model = RHScalarMLP(
+            var_number=3,
             var_level=config.target.level,
             num_hidden=config.num_hidden,
             num_hidden_layers=config.num_hidden_layers,
