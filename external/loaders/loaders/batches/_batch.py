@@ -118,7 +118,7 @@ def batches_from_mapper(
         data_mapping: Interface to select data for
             given timestep keys.
         variable_names: data variables to select
-        timesteps_per_batch (int, optional): Defaults to 1.
+        timesteps_per_batch: Defaults to 1.
         random_seed: Defaults to 0.
         timesteps: List of timesteps to use in training.
         needs_grid: Add grid information into batched datasets. [Warning] requires
