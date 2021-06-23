@@ -30,7 +30,7 @@ class ScalarLoss:
         pred_rh = relative_humidity(
             select_level(basis_out.T, self.level),
             pred,
-            select_level(basis_out.dp, self.level),
+            select_level(basis_out.rho, self.level),
         )
         truth_rh = select_level(basis_out.rh, self.level)
         loss_rh = tf.reduce_mean(tf.losses.mean_squared_error(truth_rh, pred_rh))
@@ -58,13 +58,13 @@ class RHLoss:
     scale: float = 1.0
 
     def loss(self, model, in_, out):
-        pred_rh = model(SpecificHumidityBasis(in_).to_rh().args)
+        pred_rh = model(in_)
         basis_out = SpecificHumidityBasis(out)
 
         pred_q = specific_humidity_from_rh(
             select_level(basis_out.T, self.level),
             pred_rh,
-            select_level(basis_out.dp, self.level),
+            select_level(basis_out.rho, self.level),
         )
 
         truth_q = select_level(basis_out.q, self.level)
@@ -80,6 +80,7 @@ class RHLoss:
                 * (1000 * 86400 / 900) ** 2,
                 f"relative_humidity_mse/level_{self.level}": loss_rh.numpy()
                 * (86400 / 900) ** 2,
+                f"loss": loss_rh.numpy(),
             },
         )
 
@@ -102,8 +103,8 @@ class MultiVariableLoss:
     v_weight: float = 100
 
     def loss(self, model, in_, out):
-        up, vp, tp, qp = model(in_)
-        ut, vt, tt, qt, _ = out
+        up, vp, tp, qp = model(in_)[:4]
+        ut, vt, tt, qt = out[:4]
         loss_u = tf.reduce_mean(tf.keras.losses.mean_squared_error(ut, up))
         loss_v = tf.reduce_mean(tf.keras.losses.mean_squared_error(vt, vp))
         loss_t = tf.reduce_mean(tf.keras.losses.mean_squared_error(tt, tp))

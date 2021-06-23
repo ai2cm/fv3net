@@ -8,6 +8,7 @@ import tensorflow as tf
 import dacite
 from runtime.emulator.loggers import WandBLogger, ConsoleLogger, TBLogger, LoggerList
 from runtime.emulator.loss import RHLoss, ScalarLoss, MultiVariableLoss
+from runtime.emulator.thermo import SpecificHumidityBasis
 import logging
 import json
 
@@ -17,6 +18,7 @@ V = "northward_wind"
 T = "air_temperature"
 Q = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
+DELZ = "vertical_thickness_of_atmospheric_layer"
 
 
 State = Mapping[str, xr.DataArray]
@@ -66,7 +68,7 @@ class OnlineEmulatorConfig:
 
     @property
     def input_variables(self) -> List[str]:
-        return [U, V, T, Q, DELP] + list(self.extra_input_variables)
+        return [U, V, T, Q, DELP, DELZ] + list(self.extra_input_variables)
 
     @classmethod
     def from_dict(cls, dict_) -> "OnlineEmulatorConfig":
@@ -102,7 +104,7 @@ class OnlineEmulator:
             learning_rate=config.learning_rate, momentum=config.momentum
         )
         self._statein: Optional[State] = None
-        self.output_variables: Sequence[str] = (U, V, T, Q, DELP)
+        self.output_variables: Sequence[str] = (U, V, T, Q, DELP, DELZ)
         self._step = 0
         self.logger = LoggerList([TBLogger(), ConsoleLogger(), WandBLogger()])
 
@@ -155,6 +157,8 @@ class OnlineEmulator:
 
         if not self.model.scalers_fitted:
             argsin, argsout = next(iter(d.batch(10_000)))
+            # calls .build on any layers
+            # self.model(argsin)
             self.model.fit_scalers(argsin, argsout)
 
         for i in range(self.config.epochs):
@@ -396,9 +400,15 @@ class ScalarMLP(tf.keras.layers.Layer):
 
 
 class RHScalarMLP(ScalarMLP):
+    def fit_scalers(self, argsin, argsout):
+        rh_argsin = SpecificHumidityBasis(argsin).to_rh().args
+        rh_argsout = SpecificHumidityBasis(argsout).to_rh().args
+        super(RHScalarMLP, self).fit_scalers(rh_argsin, rh_argsout)
+
     def call(self, args: Sequence[tf.Variable]):
-        rh = super().call(args)
-        return tf.keras.activations.sigmoid(rh)
+        rh_args = SpecificHumidityBasis(args).to_rh().args
+        rh = super().call(rh_args)
+        return rh
 
 
 def needs_restart(state) -> bool:

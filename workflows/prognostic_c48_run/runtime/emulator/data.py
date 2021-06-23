@@ -1,7 +1,7 @@
 import tensorflow as tf
 import vcm
 import xarray as xr
-from runtime.emulator.emulator import DELP
+from runtime.emulator.emulator import DELP, DELZ
 
 
 def get_data(ds, timestep, input_variables):
@@ -12,14 +12,14 @@ def get_data(ds, timestep, input_variables):
     outputs = [
         ds[field] + timestep * ds[f"tendency_of_{field}_due_to_fv3_physics"]
         for field in input_variables[:4]
-    ] + [ds[DELP]]
+    ] + [ds[DELP], ds[DELZ]]
     output_tensors = [convert(array) for array in outputs]
     return inputs_ + output_tensors
 
 
 def read_image_from_url(fs, url, timestep, input_variables):
     input_sig = (tf.float32,) * len(input_variables)
-    output_sig = (tf.float32,) * 5
+    output_sig = (tf.float32,) * 6
 
     outputs = tf.py_function(
         lambda url: open_url(fs, url, timestep, input_variables),

@@ -13,20 +13,27 @@ def saturation_pressure(air_temperature_kelvin: tf.Tensor) -> tf.Tensor:
 
 
 def relative_humidity(
-    air_temperature_kelvin: tf.Tensor, specific_humidity: tf.Tensor, delp: tf.Tensor
+    air_temperature_kelvin: tf.Tensor, specific_humidity: tf.Tensor, rho: tf.Tensor
 ):
-    rho = delp / _GRAVITY
     partial_pressure = _RVGAS * specific_humidity * rho * air_temperature_kelvin
     return partial_pressure / saturation_pressure(air_temperature_kelvin)
 
 
-def specific_humidity_from_rh(air_temperature_kelvin, relative_humidity, delp):
-    rho = delp / _GRAVITY
-
+def specific_humidity_from_rh(
+    air_temperature_kelvin, relative_humidity, rho: tf.Tensor
+):
     es = saturation_pressure(air_temperature_kelvin)
     partial_pressure = relative_humidity * es
 
     return partial_pressure / _RVGAS / rho / air_temperature_kelvin
+
+
+def density(delp, delz):
+    return delp / delz / _GRAVITY
+
+
+def pressure_thickness(rho, delz):
+    return rho * delz * _GRAVITY
 
 
 class ThermoBasis:
@@ -45,11 +52,23 @@ class ThermoBasis:
         raise NotImplementedError()
 
     @property
-    def dp(self):
+    def rh(self):
+        raise NotImplementedError()
+
+    @property
+    def rho(self):
         raise NotImplementedError()
 
     @property
     def T(self):
+        raise NotImplementedError()
+
+    @property
+    def dz(self):
+        raise NotImplementedError()
+
+    @property
+    def dp(self):
         raise NotImplementedError()
 
 
@@ -65,7 +84,11 @@ class SpecificHumidityBasis(ThermoBasis):
 
     @property
     def v(self):
-        return self.args[0]
+        return self.args[1]
+
+    @property
+    def T(self):
+        return self.args[2]
 
     @property
     def q(self):
@@ -76,16 +99,20 @@ class SpecificHumidityBasis(ThermoBasis):
         return self.args[4]
 
     @property
-    def T(self):
-        return self.args[2]
+    def dz(self):
+        return self.args[5]
+
+    @property
+    def rho(self):
+        return density(self.dp, self.dz)
 
     @property
     def rh(self) -> tf.Tensor:
-        return relative_humidity(self.T, self.q, self.dp)
+        return relative_humidity(self.T, self.q, self.rho)
 
     def to_rh(self):
         return RelativeHumidityBasis(
-            (self.u, self.v, self.rh, self.T, self.dp) + self.args[5:]
+            (self.u, self.v, self.T, self.rh, self.rho, self.dz) + self.args[6:]
         )
 
 
@@ -99,9 +126,17 @@ class RelativeHumidityBasis(SpecificHumidityBasis):
 
     @property
     def q(self):
-        return specific_humidity_from_rh(self.T, self.rh, self.dp)
+        return specific_humidity_from_rh(self.T, self.rh, self.rho)
+
+    @property
+    def dp(self):
+        return pressure_thickness(self.rho, self.dz)
+
+    @property
+    def rho(self):
+        return self.args[4]
 
     def to_q(self):
         return SpecificHumidityBasis(
-            (self.u, self.v, self.q, self.T, self.dp, *self.args[5:])
+            (self.u, self.v, self.T, self.q, self.dp, self.dz, *self.args[6:])
         )

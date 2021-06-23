@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 import xarray as xr
 from runtime.emulator.emulator import (
+    RHScalarMLP,
     ScalarMLP,
     UVTQSimple,
     OnlineEmulator,
@@ -11,7 +12,8 @@ from runtime.emulator.emulator import (
     ScalarNormLayer,
     get_model,
 )
-from runtime.emulator.loss import ScalarLoss
+from runtime.emulator.loss import RHLoss, ScalarLoss
+from .utils import _get_argsin
 import pytest
 
 
@@ -83,15 +85,12 @@ def test_OnlineEmulator_fit_predict(state, extra_inputs):
             target=ScalarLoss(0, 0),
             levels=79,
         ),
+        OnlineEmulatorConfig(target=RHLoss(50), levels=79,),
     ],
 )
 def test_OnlineEmulator_batch_fit(config):
-
-    one = tf.zeros([79])
-
-    u, v, t, q, dp = one, one, one, one, one
-
-    dataset = tf.data.Dataset.from_tensors(((u, v, t, q, dp), (u, v, t, q, dp)))
+    args = _get_argsin(config.levels)
+    dataset = tf.data.Dataset.from_tensors((args, args)).unbatch()
 
     emulator = OnlineEmulator(config)
     emulator.batch_fit(dataset)
@@ -172,8 +171,8 @@ def test_get_model(config, class_):
 
 @pytest.mark.parametrize("num_hidden_layers", [0, 1, 4])
 def test_ScalarMLP(num_hidden_layers):
-    ins = [tf.ones((1, 10), dtype=tf.float32)] * 5
-    outs = [tf.zeros((1, 10), dtype=tf.float32)] * 5
+    ins = _get_argsin(n=1, levels=10)
+    outs = ins
     model = ScalarMLP(num_hidden_layers=num_hidden_layers)
     model.fit_scalers(ins, outs)
     out = model(ins)
@@ -224,3 +223,20 @@ def test_dump_load_OnlineEmulator(state, tmpdir, output_exists):
     np.testing.assert_array_equal(
         new_emulator.predict(state)[field], emulator.predict(state)[field]
     )
+
+
+def test_RHScalarMLP():
+    argsin = _get_argsin(n=10, levels=10)
+    tf.random.set_seed(1)
+    mlp = RHScalarMLP(var_number=3)
+    mlp(argsin)
+    mlp.fit_scalers(argsin, argsout=argsin)
+    out = mlp(argsin)
+    assert not np.isnan(out.numpy()).any()
+    assert np.all(out.numpy() < 1.2)
+    assert np.all(out.numpy() > 0.0)
+
+    loss = RHLoss(mlp.var_level)
+    val, _ = loss.loss(mlp, argsin, argsin)
+    assert val.numpy() >= 0.0
+    assert val.numpy() < 10.0
