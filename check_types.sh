@@ -6,7 +6,5 @@ mypy --follow-imports silent \
     workflows/prognostic_c48_run \
     workflows/prognostic_c48_run/tests/ \
     external/fv3fit/fv3fit \
-    external/loaders/loaders/mappers/_local.py \
-    external/loaders/loaders/batches/_sequences.py \
-    external/loaders/loaders/mappers/_nudged/_nudged.py \
+    external/loaders/loaders/ \
     workflows/offline_ml_diags/offline_ml_diags

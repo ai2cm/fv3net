@@ -6,7 +6,19 @@ import xarray as xr
 
 from functools import partial
 from toolz import groupby
-from typing import Dict, Mapping, Optional, Sequence, Tuple, Union
+from typing import (
+    Dict,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    Hashable,
+    Iterable,
+    MutableMapping,
+    Callable,
+    cast,
+)
 
 from ._transformations import KeyMap
 from .._utils import assign_net_physics_terms
@@ -25,7 +37,7 @@ Tile = int
 K = Tuple[Time, Tile]
 
 
-DESCRIPTIVE_NAMES = {
+DESCRIPTIVE_NAMES: Mapping[Hashable, Hashable] = {
     "T": "air_temperature",
     "t_dt_fv_sat_adj_coarse": "air_temperature_saturation_adjustment",
     "t_dt_nudge_coarse": "air_temperature_nudging",
@@ -146,8 +158,8 @@ def convergence(eddy: xr.DataArray, delp: xr.DataArray, dim: str = "p") -> xr.Da
     )
 
 
-class FineResolutionBudgetTiles(GeoMapper):
-    """An Mapping interface to a fine-res-q1-q2 dataset"""
+class FineResolutionBudgetTiles(Mapping[Tuple[str, int], xr.Dataset]):
+    """A Mapping to a fine-res-q1-q2 dataset"""
 
     def __init__(self, url):
         self._fs = vcm.cloud.get_fs(url)
@@ -156,14 +168,18 @@ class FineResolutionBudgetTiles(GeoMapper):
         if len(self.files) == 0:
             raise ValueError("No file detected")
 
-    def _parse_file(self, url):
+    def _parse_file(self, url) -> Tuple[str, int]:
         pattern = r"tile(.)\.nc"
         match = re.search(pattern, url)
+        if match is None:
+            raise ValueError(
+                f"invalid url, must contain pattern {pattern} but received {url}"
+            )
         date = vcm.parse_timestep_str_from_path(url)
         tile = match.group(1)
         return date, int(tile)
 
-    def __getitem__(self, key: str) -> xr.Dataset:
+    def __getitem__(self, key):
         return vcm.open_remote_nc(self._fs, self._find_file(key))
 
     def _find_file(self, key):
@@ -172,9 +188,15 @@ class FineResolutionBudgetTiles(GeoMapper):
     def keys(self):
         return [self._parse_file(file) for file in self.files]
 
+    def __len__(self):
+        return len(self.keys())
+
+    def __iter__(self):
+        return iter(self.keys())
+
 
 class GroupByTime(GeoMapper):
-    def __init__(self, tiles: Mapping[K, xr.Dataset]) -> Mapping[K, xr.Dataset]:
+    def __init__(self, tiles: Mapping[K, xr.Dataset]):
         def fn(key):
             time, _ = key
             return time
@@ -195,13 +217,11 @@ class FineResolutionSources(GeoMapper):
     def __init__(
         self,
         fine_resolution_time_mapping: Mapping[Time, xr.Dataset],
-        offset_seconds: Union[int, float] = 0,
         drop_vars: Sequence[str] = ("step", "time"),
         dim_order: Sequence[str] = ("tile", "z", "y", "x"),
-        rename_vars: Optional[Mapping[str, str]] = None,
+        rename_vars: Optional[Mapping[Hashable, Hashable]] = None,
     ):
         self._time_mapping = fine_resolution_time_mapping
-        self._offset_seconds = offset_seconds
         self._drop_vars = drop_vars
         self._dim_order = dim_order
         self._rename_vars = rename_vars or {}
@@ -333,12 +353,12 @@ class FineResolutionSources(GeoMapper):
     @staticmethod
     def _insert_physics(
         budget_time_ds: xr.Dataset,
-        physics_varnames: Sequence[str] = RENAMED_SHIELD_DIAG_VARS.values(),
+        physics_varnames: Iterable[str] = RENAMED_SHIELD_DIAG_VARS.values(),
     ) -> xr.Dataset:
 
         template_2d_var = budget_time_ds["air_temperature"].isel({"pfull": 0})
 
-        physics_vars = {}
+        physics_vars: MutableMapping[Hashable, Hashable] = {}
         for var in physics_varnames:
             physics_var = xr.full_like(template_2d_var, fill_value=0.0)
             physics_vars[var] = physics_var
@@ -417,14 +437,18 @@ def open_fine_res_apparent_sources(
 
     fine_resolution_sources_mapper = FineResolutionSources(
         open_fine_resolution_budget(data_path),
-        drop_vars,
+        drop_vars=drop_vars,
         dim_order=dim_order,
         rename_vars=rename_vars,
     )
 
-    fine_resolution_sources_mapper = KeyMap(
+    shift_timestamp = cast(
+        Callable[[xr.Dataset], xr.Dataset],
         partial(vcm.shift_timestamp, seconds=offset_seconds),
-        fine_resolution_sources_mapper,
+    )
+
+    fine_resolution_sources_mapper = KeyMap(
+        shift_timestamp, fine_resolution_sources_mapper,
     )
 
     if shield_diags_path is not None:
