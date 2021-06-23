@@ -16,7 +16,7 @@ RENAMED_SHIELD_DIMS = {
 
 @register_mapper_function
 def open_high_res_diags(
-    url: str,
+    data_path: str,
     renamed_vars: Mapping[str, str] = RENAMED_SHIELD_DIAG_VARS,
     renamed_dims: Mapping[str, str] = RENAMED_SHIELD_DIMS,
 ) -> LongRunMapper:
@@ -24,16 +24,16 @@ def open_high_res_diags(
     Handles renaming to state variable names.
 
     Args:
-        url (str): path to diagnostics zarr
-        renamed_vars (Mapping, optional): Defaults to RENAMED_HIGH_RES_DIAG_VARS.
-        renamed_dims (Mapping, optional): Defaults to RENAMED_HIGH_RES_DIMS.
+        data_path: path to diagnostics zarr
+        renamed_vars: Defaults to RENAMED_HIGH_RES_DIAG_VARS.
+        renamed_dims: Defaults to RENAMED_HIGH_RES_DIMS.
 
     Returns:
         LongRunMapper
     """
 
-    fs = get_fs(url)
-    mapper = fs.get_mapper(url)
+    fs = get_fs(data_path)
+    mapper = fs.get_mapper(data_path)
     consolidated = True if ".zmetadata" in mapper else False
     ds = (
         xr.open_zarr(zstore.LRUStoreCache(mapper, 1024), consolidated=consolidated)

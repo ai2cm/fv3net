@@ -31,6 +31,7 @@ from ._base import GeoMapper
 from ._high_res_diags import open_high_res_diags
 from ._merged import MergeOverlappingData
 from loaders._config import register_mapper_function
+from loaders.typing import Mapper
 
 Time = str
 Tile = int
@@ -409,7 +410,7 @@ def open_fine_res_apparent_sources(
     data_path: str,
     shield_diags_path: str = None,
     offset_seconds: Union[int, float] = 0,
-) -> Mapping[str, xr.Dataset]:
+) -> Mapper:
     """Open a derived mapping interface to the fine resolution budget, grouped
         by time and with derived apparent sources
 
@@ -426,7 +427,7 @@ def open_fine_res_apparent_sources(
         drop_vars (sequence): optional list of variable names to drop from dataset
     """
 
-    rename_vars = {
+    rename_vars: Mapping[Hashable, Hashable] = {
         "grid_xt": "x",
         "grid_yt": "y",
         "pfull": "z",
@@ -447,17 +448,17 @@ def open_fine_res_apparent_sources(
         partial(vcm.shift_timestamp, seconds=offset_seconds),
     )
 
-    fine_resolution_sources_mapper = KeyMap(
-        shift_timestamp, fine_resolution_sources_mapper,
-    )
+    shifted_mapper = KeyMap(shift_timestamp, fine_resolution_sources_mapper,)
 
     if shield_diags_path is not None:
         shield_diags_mapper = open_high_res_diags(shield_diags_path)
-        fine_resolution_sources_mapper = MergeOverlappingData(
+        final_mapper: Mapper = MergeOverlappingData(
             shield_diags_mapper,
-            fine_resolution_sources_mapper,
+            shifted_mapper,
             source_name_left=DERIVATION_SHIELD_COORD,
             source_name_right=DERIVATION_FV3GFS_COORD,
         )
+    else:
+        final_mapper = shifted_mapper
 
-    return fine_resolution_sources_mapper
+    return final_mapper

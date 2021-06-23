@@ -28,7 +28,7 @@ from .._utils import (
     SAMPLE_DIM_NAME,
 )
 from ..constants import TIME_NAME
-from .._config import register_batches_function
+from .._config import register_batches_function, register_batches_from_mapper_function
 from ._serialized_phys import (
     SerializedSequence,
     FlattenDims,
@@ -101,6 +101,7 @@ def _create_mapper(
     return mapping_func(data_path, **mapping_kwargs)
 
 
+@register_batches_from_mapper_function
 def batches_from_mapper(
     data_mapping: Mapping[str, xr.Dataset],
     variable_names: Sequence[str],

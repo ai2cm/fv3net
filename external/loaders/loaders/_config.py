@@ -1,6 +1,12 @@
 import abc
 from typing import Dict
-from loaders.typing import Mapper, MapperFunction, Batches, BatchesFunction
+from loaders.typing import (
+    Mapper,
+    MapperFunction,
+    Batches,
+    BatchesFunction,
+    BatchesFromMapperFunction,
+)
 import dataclasses
 import dacite
 
@@ -18,6 +24,14 @@ BATCHES_FUNCTIONS: Dict[str, BatchesFunction] = {}
 
 def register_batches_function(func):
     BATCHES_FUNCTIONS[func.__name__] = func
+    return func
+
+
+BATCHES_FROM_MAPPER_FUNCTIONS: Dict[str, BatchesFromMapperFunction] = {}
+
+
+def register_batches_from_mapper_function(func):
+    BATCHES_FROM_MAPPER_FUNCTIONS[func.__name__] = func
     return func
 
 
@@ -76,15 +90,14 @@ class BatchesFromMapperConfig(BatchesLoader):
     def load_batches(self, variables) -> Batches:
         """
         Args:
-            config: data configuration
+            variables: names of variables to include in dataset
 
         Returns:
             Sequence of datasets according to configuration
         """
         mapper = self.mapper_config.load_mapper()
-        batches_function = BATCHES_FUNCTIONS[self.batches_function]
-        ds_batches = batches_function(mapper, list(variables), **self.batches_kwargs,)
-        return ds_batches
+        batches_function = BATCHES_FROM_MAPPER_FUNCTIONS[self.batches_function]
+        return batches_function(mapper, list(variables), **self.batches_kwargs,)
 
 
 @dataclasses.dataclass
@@ -111,7 +124,4 @@ class BatchesConfig(BatchesLoader):
             Sequence of datasets according to configuration
         """
         batches_function = BATCHES_FUNCTIONS[self.batches_function]
-        ds_batches = batches_function(
-            self.data_path, list(variables), **self.batches_kwargs,
-        )
-        return ds_batches
+        return batches_function(self.data_path, list(variables), **self.batches_kwargs,)

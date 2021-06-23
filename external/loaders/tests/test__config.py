@@ -10,21 +10,35 @@ import dataclasses
 
 
 @contextlib.contextmanager
-def mapper_context():
-    original_functions = {**loaders._config.MAPPER_FUNCTIONS}
-    loaders._config.MAPPER_FUNCTIONS.clear()
+def registration_context(registration_dict):
+    """
+    A context manager that provides a clean slate for registering functions,
+    and restores the registration state when exiting.
+    """
+    original_functions = {}
+    original_functions.update(registration_dict)
+    registration_dict.clear()
     yield
-    loaders._config.MAPPER_FUNCTIONS.clear()
-    loaders._config.MAPPER_FUNCTIONS.update(original_functions)
+    registration_dict.clear()
+    registration_dict.update(original_functions)
+
+
+@contextlib.contextmanager
+def mapper_context():
+    with registration_context(loaders._config.MAPPER_FUNCTIONS):
+        yield
 
 
 @contextlib.contextmanager
 def batches_context():
-    original_functions = {**loaders._config.BATCHES_FUNCTIONS}
-    loaders._config.BATCHES_FUNCTIONS.clear()
-    yield
-    loaders._config.BATCHES_FUNCTIONS.clear()
-    loaders._config.BATCHES_FUNCTIONS.update(original_functions)
+    with registration_context(loaders._config.BATCHES_FUNCTIONS):
+        yield
+
+
+@contextlib.contextmanager
+def batches_from_mapper_context():
+    with registration_context(loaders._config.BATCHES_FROM_MAPPER_FUNCTIONS):
+        yield
 
 
 def test_load_mapper():
@@ -73,6 +87,14 @@ def test_expected_batches_functions_exist():
         assert expected in loaders._config.BATCHES_FUNCTIONS
 
 
+def test_expected_batches_from_mapper_functions_exist():
+    # this test exists to ensure we don't accidentally remove functions we
+    # currently use in configs, if you are deleting an option we no longer use
+    # you can delete it here
+    for expected in ("batches_from_mapper",):
+        assert expected in loaders._config.BATCHES_FROM_MAPPER_FUNCTIONS
+
+
 def test_load_batches():
     with batches_context():
         mock_batches = [xr.Dataset()]
@@ -96,16 +118,16 @@ def test_load_batches():
 
 
 def test_load_batches_from_mapper():
-    with batches_context(), mapper_context():
+    with batches_from_mapper_context(), mapper_context():
         mock_batches = [xr.Dataset()]
         mock_batches_function = unittest.mock.MagicMock(return_value=mock_batches)
         mock_batches_function.__name__ = "mock_batches_function"
-        loaders._config.register_batches_function(mock_batches_function)
+        loaders._config.register_batches_from_mapper_function(mock_batches_function)
         mock_mapper = {"key": xr.Dataset()}
         mock_mapper_function = unittest.mock.MagicMock(return_value=mock_mapper)
         mock_mapper_function.__name__ = "mock_mapper_function"
         loaders._config.register_mapper_function(mock_mapper_function)
-        assert "mock_batches_function" in loaders._config.BATCHES_FUNCTIONS
+        assert "mock_batches_function" in loaders._config.BATCHES_FROM_MAPPER_FUNCTIONS
         assert "mock_mapper_function" in loaders._config.MAPPER_FUNCTIONS
         data_path = "test/data/path"
         variables = ["var1"]
@@ -128,13 +150,40 @@ def test_load_batches_from_mapper():
         mock_mapper_function.assert_called_once_with(data_path, **mapper_kwargs)
 
 
+def test_load_batches_from_mapper_raises_if_registered_with_wrong_decorator():
+    with batches_from_mapper_context(), mapper_context():
+        mock_batches = [xr.Dataset()]
+        mock_batches_function = unittest.mock.MagicMock(return_value=mock_batches)
+        mock_batches_function.__name__ = "mock_batches_function"
+        loaders._config.register_batches_function(mock_batches_function)
+        mock_mapper = {"key": xr.Dataset()}
+        mock_mapper_function = unittest.mock.MagicMock(return_value=mock_mapper)
+        mock_mapper_function.__name__ = "mock_mapper_function"
+        loaders._config.register_mapper_function(mock_mapper_function)
+        data_path = "test/data/path"
+        variables = ["var1"]
+        batches_kwargs = {"arg1": "value1", "arg2": 2}
+        mapper_kwargs = {"arg3": 3}
+        config = loaders._config.BatchesFromMapperConfig(
+            mapper_config=loaders._config.MapperConfig(
+                data_path=data_path,
+                mapper_function="mock_mapper_function",
+                mapper_kwargs=mapper_kwargs,
+            ),
+            batches_function="mock_batches_function",
+            batches_kwargs=batches_kwargs,
+        )
+        with pytest.raises(KeyError):
+            config.load_batches(variables=variables)
+
+
 @pytest.mark.parametrize(
     "data, expected_class",
     [
         pytest.param(
             {
                 "data_path": "mock/data/path",
-                "batches_function": "mock_batch_function",
+                "batches_function": "mock_batches_function",
                 "batches_kwargs": {},
             },
             loaders._config.BatchesConfig,
@@ -146,7 +195,7 @@ def test_load_batches_from_mapper():
                     "mapper_function": "mock_mapper_function",
                     "mapper_kwargs": {},
                 },
-                "batches_function": "mock_batch_function",
+                "batches_function": "mock_batches_function",
                 "batches_kwargs": {},
             },
             loaders._config.BatchesFromMapperConfig,
@@ -164,8 +213,8 @@ def test_safe_dump_data_config():
     """
     config = loaders.BatchesConfig(
         data_path="/my/path",
-        batch_function="batch_func",
-        batch_kwargs={"key": "value"},
+        batches_function="batches_func",
+        batches_kwargs={"key": "value"},
     )
     with tempfile.TemporaryDirectory() as tmpdir:
         filename = os.path.join(tmpdir, "config.yaml")

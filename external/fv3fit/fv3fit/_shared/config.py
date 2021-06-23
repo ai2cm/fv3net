@@ -89,7 +89,7 @@ def register_training_function(name: str, hyperparameter_class: type):
 
 
 class EmptyBatchesLoader(loaders.BatchesLoader):
-    def load_batches(self) -> loaders.typing.Batches:
+    def load_batches(self, variables) -> loaders.typing.Batches:
         return []
 
 
