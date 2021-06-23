@@ -23,7 +23,7 @@ import fsspec
 
 from toolz import curry
 from collections import defaultdict
-from typing import Dict, Callable, Mapping, Union
+from typing import Dict, Callable, Mapping, Tuple, Union
 
 from joblib import Parallel, delayed
 
@@ -499,16 +499,11 @@ def compute_histogram(prognostic, verification, grid):
     logger.info("Computing histograms for physics diagnostics")
     counts = xr.Dataset()
     for varname in prognostic.data_vars:
-        count, bins = np.histogram(
+        count, width = vcm.histogram(
             prognostic[varname], bins=HISTOGRAM_BINS[varname], density=True
         )
-        coords = {f"{varname}_bins": bins[:-1]}
-        width = bins[1:] - bins[:-1]
-        width_da = xr.DataArray(width, coords=coords, dims=list(coords.keys()))
-        count_da = xr.DataArray(count, coords=coords, dims=list(coords.keys()))
-        count_da[f"{varname}_bins"].attrs["units"] = prognostic[varname].units
-        counts[varname] = count_da
-        counts[f"{varname}_bin_width"] = width_da
+        counts[varname] = count
+        counts[f"{varname}_bin_width"] = width
     return _assign_diagnostic_time_attrs(counts, prognostic)
 
 
