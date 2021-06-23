@@ -137,4 +137,6 @@ PRESSURE_INTERPOLATED_VARS = [
     "dQv",
 ]
 
-HISTOGRAM_BINS = {"total_precip_to_surface": np.logspace(-1, np.log10(500), 101)}
+PRECIP_RATE = "total_precip_to_surface"
+HISTOGRAM_BINS = {PRECIP_RATE: np.logspace(-1, np.log10(500), 101)}
+PERCENTILES = [25, 50, 75, 90, 99, 99.9]

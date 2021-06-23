@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from typing import Iterable
+from typing import Iterable, Mapping, Sequence
 import os
 import xarray as xr
 import fsspec
@@ -21,6 +21,7 @@ from .matplotlib import (
     raw_html,
     plot_histogram,
 )
+from ..constants import PERCENTILES, PRECIP_RATE
 
 import logging
 
@@ -292,7 +293,7 @@ def diurnal_cycle_component_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 @histogram_plot_manager.register
 def histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_histogram(diagnostics, "total_precip_to_surface_histogram")
+    return plot_histogram(diagnostics, f"{PRECIP_RATE}_histogram")
 
 
 # Routines for plotting the "metrics"
@@ -327,6 +328,22 @@ def generic_metric_plot(metrics: RunMetrics, metric_type: str) -> hv.HoloMap:
         hmap[metrics.metric_name(metric_type, varname)] = bars
     if len(variables) > 0:
         return HVPlot(hmap.opts(**bar_opts))
+
+
+def get_metrics_table(
+    metrics: RunMetrics, metric_types: Sequence[str], variable_names: Sequence[str]
+) -> Mapping[str, Mapping[str, float]]:
+    """Structure a set of metrics in format suitable for reports.create_html"""
+    table = {}
+    for metric_type in metric_types:
+        for name in variable_names:
+            units = metrics.get_metric_units(metric_type, name, metrics.runs[0])
+            type_label = f"{name} {metric_type} [{units}]"
+            table[type_label] = {
+                run: f"{metrics.get_metric_value(metric_type, name, run):.2f}"
+                for run in metrics.runs
+            }
+    return table
 
 
 navigation = OrderedList(
@@ -403,15 +420,18 @@ def render_zonal_pressures(metadata, diagnostics):
     )
 
 
-def render_process_diagnostics(metadata, diagnostics):
+def render_process_diagnostics(metadata, diagnostics, metrics):
     sections = {
         "Links": navigation,
         "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
         "Precipitation histogram": list(histogram_plot_manager.make_plots(diagnostics)),
     }
+    metric_types = [f"percentile_{p}" for p in PERCENTILES]
+    metrics_table = get_metrics_table(metrics, metric_types, [PRECIP_RATE])
     return create_html(
         title="Process diagnostics",
         metadata=metadata,
+        metrics=metrics_table,
         sections=sections,
         html_header=get_html_header(),
     )
@@ -446,7 +466,9 @@ def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
         "hovmoller.html": render_hovmollers(metadata, diagnostics),
         "maps.html": render_maps(metadata, diagnostics, metrics),
         "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
-        "process_diagnostics.html": render_process_diagnostics(metadata, diagnostics),
+        "process_diagnostics.html": render_process_diagnostics(
+            metadata, diagnostics, metrics
+        ),
     }
 
     for filename, html in pages.items():

@@ -13,7 +13,7 @@ from typing import Callable, Mapping
 import numpy as np
 import xarray as xr
 from toolz import curry
-from .constants import HORIZONTAL_DIMS
+from .constants import HORIZONTAL_DIMS, PERCENTILES
 import json
 
 _METRICS = []
@@ -138,7 +138,7 @@ def rmse_time_mean(diags):
     return rms_of_time_mean_bias
 
 
-for percentile in [25, 50, 75, 90, 99, 99.9]:
+for percentile in PERCENTILES:
 
     @add_to_metrics(f"percentile_{percentile}")
     def percentile_metric(diags, p=percentile):
