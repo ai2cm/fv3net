@@ -19,6 +19,7 @@ import json
 _METRICS = []
 
 GRID_VARS = ["lon", "lat", "lonb", "latb", "area"]
+ns_per_day = 1e9 * 60 * 60 * 24
 
 
 def grab_diag(ds, name):
@@ -95,8 +96,14 @@ def rmse_3day(diags):
 def rmse_days_3to7_avg(diags):
     rms_global = grab_diag(diags, "rms_global").drop(GRID_VARS, errors="ignore")
     time_since_start = rms_global.time.values - rms_global.time.isel(time=0).item()
+
     ds = rms_global.assign_coords(
-        {"days_since_start": ("time", [t.days for t in time_since_start])}
+        {
+            "days_since_start": (
+                "time",
+                [t.item() / ns_per_day for t in time_since_start],
+            )
+        }
     )
 
     if max(ds["days_since_start"] > 7):
