@@ -141,20 +141,32 @@ def rmse_time_mean(diags):
 for percentile in PERCENTILES:
 
     @add_to_metrics(f"percentile_{percentile}")
-    def percentile_metric(diags, p=percentile):
+    def percentile_metric(diags, percentile=percentile):
         histogram = grab_diag(diags, "histogram")
         percentiles = xr.Dataset()
         data_vars = [v for v in histogram.data_vars if not v.endswith("bin_width")]
         for varname in data_vars:
-            bins = histogram[f"{varname}_bins"].values
-            bin_width = histogram[f"{varname}_bin_width"]
-            bin_midpoints = bins + 0.5 * bin_width
-            cumulative_distribution = np.cumsum(histogram[varname][:-1] * bin_width)
-            percentiles[varname] = bin_midpoints[
-                np.argmin(np.abs(cumulative_distribution.values - p / 100))
-            ]
+            percentiles[varname] = compute_percentile(
+                percentile,
+                histogram[varname].values,
+                histogram[f"{varname}_bins"].values,
+                histogram[f"{varname}_bin_width"].values,
+            )
         restore_units(histogram, percentiles)
         return percentiles
+
+
+def compute_percentile(
+    p: float, freq: np.ndarray, bins: np.ndarray, bin_widths: np.ndarray
+):
+    cumulative_distribution = np.cumsum(freq * bin_widths)
+    if np.abs(cumulative_distribution[-1] - 1) > 1e-6:
+        raise ValueError(
+            "The provided frequencies do not integrate to one. "
+            "Ensure that histogram is computed with density=True."
+        )
+    bin_midpoints = bins + 0.5 * bin_widths
+    return bin_midpoints[np.argmin(np.abs(cumulative_distribution - p / 100))]
 
 
 def restore_units(source, target):
