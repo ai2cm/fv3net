@@ -1,7 +1,7 @@
 import tensorflow as tf
 import vcm
 import xarray as xr
-from runtime.emulator import DELP
+from runtime.emulator.emulator import DELP
 
 
 def get_data(ds, timestep, input_variables):

@@ -2,7 +2,7 @@ import datetime
 import numpy as np
 import tensorflow as tf
 import xarray as xr
-from runtime.emulator import (
+from runtime.emulator.emulator import (
     ScalarMLP,
     UVTQSimple,
     OnlineEmulator,
@@ -11,9 +11,8 @@ from runtime.emulator import (
     ScalarNormLayer,
     get_model,
 )
+from runtime.emulator.loss import ScalarLoss
 import pytest
-
-from runtime.loss import ScalarLoss
 
 
 def test_OnlineEmulator_partial_fit(state):

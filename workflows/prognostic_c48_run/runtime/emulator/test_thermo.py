@@ -1,5 +1,5 @@
 import tensorflow as tf
-from runtime.thermo import relative_humidity, specific_humidity_from_rh
+from runtime.emulator.thermo import relative_humidity, specific_humidity_from_rh
 from vcm.calc.thermo import _GRAVITY, _RDGAS, _RVGAS
 import pytest
 

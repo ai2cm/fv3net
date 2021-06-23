@@ -2,13 +2,12 @@ from collections import defaultdict
 import dataclasses
 from typing import Mapping, Optional, Sequence, Tuple, Union, List
 import os
-from runtime.weights_and_biases import WandBLogger
 import xarray as xr
 import numpy
 import tensorflow as tf
 import dacite
-from runtime.diagnostics.tensorboard import ConsoleLogger, TBLogger, LoggerList
-from runtime.loss import RHLoss, ScalarLoss, MultiVariableLoss
+from runtime.emulator.loggers import WandBLogger, ConsoleLogger, TBLogger, LoggerList
+from runtime.emulator.loss import RHLoss, ScalarLoss, MultiVariableLoss
 import logging
 import json
 

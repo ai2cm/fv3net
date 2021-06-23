@@ -1,6 +1,6 @@
 import json
 import os
-import data
+from runtime.emulator import data
 import runtime.emulator
 import tensorflow as tf
 import pathlib

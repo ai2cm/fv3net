@@ -1,6 +1,6 @@
 import dataclasses
 import tensorflow as tf
-from runtime.thermo import (
+from runtime.emulator.thermo import (
     relative_humidity,
     specific_humidity_from_rh,
     SpecificHumidityBasis,

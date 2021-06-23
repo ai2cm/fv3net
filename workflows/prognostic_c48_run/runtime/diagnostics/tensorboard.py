@@ -36,39 +36,3 @@ class TensorBoardSink:
             plt.close(fig)
 
         self.step += 1
-
-
-class TBLogger:
-    def log_profiles(self, key, data, step):
-        fig = plt.figure()
-        plt.plot(data)
-        tf.summary.image(key, plot_to_image(fig), step)
-
-    def log_dict(self, prefix, metrics, step):
-        for key in metrics:
-            name = prefix + "/" + key
-            tf.summary.scalar(name, metrics[key], step=step)
-
-
-class ConsoleLogger:
-    def log_profiles(self, key, data, step):
-        pass
-
-    def log_dict(self, prefix, metrics, step):
-        print(f"step: {step}")
-        for key in metrics:
-            name = prefix + "/" + key
-            print(f"{name}:", metrics[key])
-
-
-class LoggerList:
-    def __init__(self, loggers):
-        self.loggers = loggers
-
-    def log_profiles(self, key, data, step):
-        for logger in self.loggers:
-            logger.log_profiles(key, data, step)
-
-    def log_dict(self, prefix, metrics, step):
-        for logger in self.loggers:
-            logger.log_dict(prefix, metrics, step)

@@ -1,4 +1,4 @@
-from runtime.loss import MultiVariableLoss, ScalarLoss
+from runtime.emulator.loss import MultiVariableLoss, ScalarLoss
 import tensorflow as tf
 
 
