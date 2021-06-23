@@ -87,6 +87,9 @@ class BatchesFromMapperConfig(BatchesLoader):
     batches_function: str
     batches_kwargs: dict
 
+    def load_mapper(self) -> Mapper:
+        return self.mapper_config.load_mapper()
+
     def load_batches(self, variables) -> Batches:
         """
         Args:
