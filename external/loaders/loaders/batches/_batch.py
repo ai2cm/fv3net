@@ -9,7 +9,6 @@ from typing import (
     Optional,
     Union,
     List,
-    no_type_check,
 )
 import xarray as xr
 from vcm import safe, parse_datetime_from_str
@@ -41,7 +40,6 @@ logger.setLevel(logging.INFO)
 
 
 @register_batches_function
-@no_type_check
 def batches_from_geodata(
     data_path: Union[str, List, tuple],
     variable_names: Iterable[str],
@@ -78,6 +76,8 @@ def batches_from_geodata(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
+    if mapping_kwargs is None:
+        mapping_kwargs = {}
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     batches = batches_from_mapper(
         data_mapping,
@@ -97,7 +97,6 @@ def _create_mapper(
     data_path, mapping_func_name: str, mapping_kwargs: Mapping[str, Any]
 ) -> Mapping[str, xr.Dataset]:
     mapping_func = getattr(loaders.mappers, mapping_func_name)
-    mapping_kwargs = mapping_kwargs or {}
     return mapping_func(data_path, **mapping_kwargs)
 
 
@@ -186,7 +185,6 @@ def batches_from_mapper(
 
 
 @register_batches_function
-@no_type_check
 def diagnostic_batches_from_geodata(
     data_path: Union[str, List, tuple],
     variable_names: Sequence[str],
@@ -224,7 +222,8 @@ def diagnostic_batches_from_geodata(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
-
+    if mapping_kwargs is None:
+        mapping_kwargs = {}
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     sequence = batches_from_mapper(
         data_mapping,
