@@ -8,7 +8,7 @@ services:
   fv3:
     depends_on:
       - tensorboard
-    image: us.gcr.io/vcm-ml/emulator:5d11da842c4b473b6965990c2699dcb6791bd500
+    image: us.gcr.io/vcm-ml/emulator:latest
     entrypoint: []
     command: [ls]
     volumes:

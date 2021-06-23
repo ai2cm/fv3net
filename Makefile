@@ -119,6 +119,9 @@ htmlcov:
 test_argo:
 	make -C workflows/argo/ test
 
+test_emulator:
+	cd workflows/prognostic_c48_run && docker-compose run --rm fv3 bash test.sh
+
 ## Make Dataset
 .PHONY: data update_submodules create_environment overwrite_baseline_images
 
