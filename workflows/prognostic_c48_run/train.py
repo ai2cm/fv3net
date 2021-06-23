@@ -58,9 +58,7 @@ logging.info(config)
 
 if config.wandb_logger:
     wandb.init(
-        entity="ai2cm",
-        project=f"emulator-single-level-{problem}",
-        config=asdict(config),
+        entity="ai2cm", project=f"emulator-noah", config=asdict(config),
     )
     wandb.config.nfiles = nfiles
 
