@@ -71,6 +71,16 @@ class ThermoBasis:
     def dp(self):
         raise NotImplementedError()
 
+    def to_rh(self):
+        return RelativeHumidityBasis(
+            (self.u, self.v, self.T, self.rh, self.rho, self.dz) + self.args[6:]
+        )
+
+    def to_q(self):
+        return SpecificHumidityBasis(
+            (self.u, self.v, self.T, self.q, self.dp, self.dz, *self.args[6:])
+        )
+
 
 class SpecificHumidityBasis(ThermoBasis):
     """A thermodynamic basis with specific humidity as the prognostic variable"""
@@ -110,11 +120,6 @@ class SpecificHumidityBasis(ThermoBasis):
     def rh(self) -> tf.Tensor:
         return relative_humidity(self.T, self.q, self.rho)
 
-    def to_rh(self):
-        return RelativeHumidityBasis(
-            (self.u, self.v, self.T, self.rh, self.rho, self.dz) + self.args[6:]
-        )
-
 
 class RelativeHumidityBasis(SpecificHumidityBasis):
     def __init__(self, args):
@@ -135,8 +140,3 @@ class RelativeHumidityBasis(SpecificHumidityBasis):
     @property
     def rho(self):
         return self.args[4]
-
-    def to_q(self):
-        return SpecificHumidityBasis(
-            (self.u, self.v, self.T, self.q, self.dp, self.dz, *self.args[6:])
-        )

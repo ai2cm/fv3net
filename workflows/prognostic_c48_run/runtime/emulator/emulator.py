@@ -8,7 +8,7 @@ import tensorflow as tf
 import dacite
 from runtime.emulator.loggers import WandBLogger, ConsoleLogger, TBLogger, LoggerList
 from runtime.emulator.loss import RHLoss, ScalarLoss, MultiVariableLoss
-from runtime.emulator.thermo import SpecificHumidityBasis
+from runtime.emulator.thermo import SpecificHumidityBasis, ThermoBasis
 import logging
 import json
 
@@ -140,7 +140,9 @@ class OnlineEmulator:
     def score(self, d: tf.data.Dataset):
         losses = defaultdict(list)
         for x, y in d.batch(10_000):
-            _, info = self.get_loss(x, y)
+            in_ = SpecificHumidityBasis(x)
+            out = SpecificHumidityBasis(y)
+            _, info = self.get_loss(in_, out)
             for key in info:
                 losses[key].append(info[key])
         loss_epoch_test = average(losses)
@@ -159,13 +161,17 @@ class OnlineEmulator:
             argsin, argsout = next(iter(d.batch(10_000)))
             # calls .build on any layers
             # self.model(argsin)
-            self.model.fit_scalers(argsin, argsout)
+            in_ = SpecificHumidityBasis(argsin)
+            out = SpecificHumidityBasis(argsout)
+            self.model.fit_scalers(in_, out)
 
         for i in range(self.config.epochs):
             logging.info(f"Epoch {i+1}")
             train_loss = defaultdict(lambda: [])
             for x, y in d.batch(self.config.batch_size):
-                info = self.step(x, y)
+                in_ = SpecificHumidityBasis(x)
+                out = SpecificHumidityBasis(y)
+                info = self.step(in_, out)
                 for key in info:
                     train_loss[key].append(info[key])
 
@@ -176,17 +182,21 @@ class OnlineEmulator:
                 loss_epoch_test = self.score(validation_data)
                 self.log_dict("test_epoch", loss_epoch_test, step=i)
                 x, y = next(iter(validation_data.batch(3).take(1)))
-                out = self.model(x)
+                in_ = SpecificHumidityBasis(x)
+                out = SpecificHumidityBasis(y)
+                pred = self.model(in_)
                 if isinstance(self.model, UVTQSimple):
                     self.log_profiles(
-                        "eastward_wind_truth", (y[0] - x[0]).numpy().T, step=i
+                        "eastward_wind_truth", (out.u - in_.u).numpy().T, step=i
                     )
                     self.log_profiles(
-                        "eastward_wind_prediction", (out[0] - x[0]).numpy().T, step=i
+                        "eastward_wind_prediction", (pred.u - in_.u).numpy().T, step=i
                     )
-                    self.log_profiles("humidity_truth", (y[3] - x[3]).numpy().T, step=i)
                     self.log_profiles(
-                        "humidity_prediction", (out[3] - x[3]).numpy().T, step=i
+                        "humidity_truth", (out.q - in_.q).numpy().T, step=i
+                    )
+                    self.log_profiles(
+                        "humidity_prediction", (pred.q - in_.q).numpy().T, step=i
                     )
 
     def log_profiles(self, key, data, step):
@@ -206,17 +216,19 @@ class OnlineEmulator:
 
     def predict(self, state: State) -> State:
         in_ = stack(state, self.input_variables)
-        up, vp, tp, qp = self.model(to_tensors(in_, self.input_variables))
+        in_tensors = to_tensors(in_, self.input_variables)
+        x = SpecificHumidityBasis(in_tensors)
+        out = self.model(x)
         dims = ["sample", "z"]
 
         attrs = {"units": "no one cares"}
 
         return xr.Dataset(
             {
-                U: (dims, up, attrs),
-                V: (dims, vp, attrs),
-                T: (dims, tp, attrs),
-                Q: (dims, qp, attrs),
+                U: (dims, out.u, attrs),
+                V: (dims, out.v, attrs),
+                T: (dims, out.T, attrs),
+                Q: (dims, out.q, attrs),
             },
             coords=in_.coords,
         ).unstack("sample")
@@ -332,24 +344,26 @@ class UVTQSimple(tf.keras.layers.Layer):
         for i in range(len(self.scalers)):
             self.scalers[i].fit(argsout[i] - argsin[i])
 
-    def fit_scalers(
-        self, argsin: Sequence[tf.Variable], argsout: Sequence[tf.Variable]
-    ):
-        self._fit_input_scaler(argsin)
-        self._fit_output_scaler(argsin, argsout)
+    def fit_scalers(self, x: ThermoBasis, y: ThermoBasis):
+        self._fit_input_scaler(x.args)
+        self._fit_output_scaler(x.args, y.args)
         self.scalers_fitted = True
 
-    def call(self, args: Sequence[tf.Variable]):
+    def call(self, in_: ThermoBasis) -> ThermoBasis:
         # assume has dims: batch, z
-        u, v, t, q = args[:4]
-        args = [atleast_2d(arg) for arg in args]
+        args = [atleast_2d(arg) for arg in in_.args]
         stacked = tf.concat(args, axis=-1)
         hidden = self.relu(self.linear(self.norm(stacked)))
-        return (
-            u + self.scalers[0](self.out_u(hidden)),
-            v + self.scalers[1](self.out_v(hidden)),
-            t + self.scalers[2](self.out_t(hidden)),
-            q + self.scalers[3](self.out_q(hidden)),
+
+        return SpecificHumidityBasis(
+            [
+                in_.u + self.scalers[0](self.out_u(hidden)),
+                in_.v + self.scalers[1](self.out_v(hidden)),
+                in_.T + self.scalers[2](self.out_t(hidden)),
+                in_.q + self.scalers[3](self.out_q(hidden)),
+                in_.dp,
+                in_.dz,
+            ]
         )
 
 
@@ -376,37 +390,37 @@ class ScalarMLP(tf.keras.layers.Layer):
         self.sequential.add(tf.keras.layers.Dense(1, name="out"))
         self.sequential.add(self.output_scaler)
 
-    def call(self, args: Sequence[tf.Variable]):
+    def call(self, in_: ThermoBasis):
         # assume has dims: batch, z
-        args = [atleast_2d(arg) for arg in args]
+        args = [atleast_2d(arg) for arg in in_.args]
         stacked = tf.concat(args, axis=-1)
-        t0 = args[self.var_number][:, self.var_level : self.var_level + 1]
+        t0 = in_.args[self.var_number][:, self.var_level : self.var_level + 1]
         return t0 + self.sequential(stacked)
 
-    def _fit_input_scaler(self, args: Sequence[tf.Variable]):
-        args = [atleast_2d(arg) for arg in args]
+    def _fit_input_scaler(self, in_: ThermoBasis):
+        args = [atleast_2d(arg) for arg in in_.args]
         stacked = tf.concat(args, axis=-1)
         self.norm.fit(stacked)
 
-    def _fit_output_scaler(self, argsin: Sequence[tf.Variable], argsout: tf.Variable):
-        t0 = argsin[self.var_number][:, self.var_level : self.var_level + 1]
-        t1 = argsout[self.var_number][:, self.var_level : self.var_level + 1]
+    def _fit_output_scaler(self, argsin: ThermoBasis, argsout: ThermoBasis):
+        t0 = argsin.args[self.var_number][:, self.var_level : self.var_level + 1]
+        t1 = argsout.args[self.var_number][:, self.var_level : self.var_level + 1]
         self.output_scaler.fit(t1 - t0)
 
-    def fit_scalers(self, argsin: Sequence[tf.Variable], argsout: tf.Variable):
+    def fit_scalers(self, argsin: ThermoBasis, argsout: ThermoBasis):
         self._fit_input_scaler(argsin)
         self._fit_output_scaler(argsin, argsout)
         self.scalers_fitted = True
 
 
 class RHScalarMLP(ScalarMLP):
-    def fit_scalers(self, argsin, argsout):
-        rh_argsin = SpecificHumidityBasis(argsin).to_rh().args
-        rh_argsout = SpecificHumidityBasis(argsout).to_rh().args
+    def fit_scalers(self, argsin: ThermoBasis, argsout: ThermoBasis):
+        rh_argsin = argsin.to_rh()
+        rh_argsout = argsout.to_rh()
         super(RHScalarMLP, self).fit_scalers(rh_argsin, rh_argsout)
 
-    def call(self, args: Sequence[tf.Variable]):
-        rh_args = SpecificHumidityBasis(args).to_rh().args
+    def call(self, args: ThermoBasis):
+        rh_args = args.to_rh()
         rh = super().call(rh_args)
         return rh
 

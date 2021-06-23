@@ -72,6 +72,7 @@ def test_OnlineEmulator_fit_predict(state, extra_inputs):
     assert list(stateout["eastward_wind"].dims) == ["z", "y", "x"]
 
 
+@pytest.mark.parametrize("with_validation", [True, False])
 @pytest.mark.parametrize(
     "config",
     [
@@ -88,25 +89,28 @@ def test_OnlineEmulator_fit_predict(state, extra_inputs):
         OnlineEmulatorConfig(target=RHLoss(50), levels=79,),
     ],
 )
-def test_OnlineEmulator_batch_fit(config):
-    args = _get_argsin(config.levels)
-    dataset = tf.data.Dataset.from_tensors((args, args)).unbatch()
+def test_OnlineEmulator_batch_fit(config, with_validation):
+    x = _get_argsin(config.levels)
+    dataset = tf.data.Dataset.from_tensors((x.args, x.args)).unbatch()
 
     emulator = OnlineEmulator(config)
-    emulator.batch_fit(dataset)
+
+    if with_validation:
+        emulator.batch_fit(dataset, validation_data=dataset)
+    else:
+        emulator.batch_fit(dataset)
 
 
 def test_UVTQSimple():
     model = UVTQSimple(10, 10, 10, 10)
     shape = (3, 10)
-    u = tf.ones(shape)
-    v = tf.ones(shape)
-    t = tf.ones(shape)
-    q = tf.ones(shape)
-    up, vp, tp, qp = model([u, v, t, q])
+    argsin = _get_argsin(levels=10, n=3)
+    out = model(argsin)
 
-    for v in [up, vp, tp, qp]:
-        assert tuple(v.shape) == shape
+    assert tuple(out.u.shape) == shape
+    assert tuple(out.v.shape) == shape
+    assert tuple(out.T.shape) == shape
+    assert tuple(out.q.shape) == shape
 
 
 def test_NormLayer():
@@ -189,10 +193,9 @@ def test_ScalarMLP_has_more_layers():
     deep = ScalarMLP(num_hidden_layers=3)
 
     # build the models
-    ins = [tf.ones((1, 10), dtype=tf.float32)] * 4
-    outs = [tf.zeros((1, 10), dtype=tf.float32)] * 4
+    ins = _get_argsin(n=1, levels=10)
     for model in [shallow, deep]:
-        model.fit_scalers(ins, outs)
+        model.fit_scalers(ins, ins)
         model(ins)
 
     assert len(deep.trainable_variables) > len(shallow.trainable_variables)

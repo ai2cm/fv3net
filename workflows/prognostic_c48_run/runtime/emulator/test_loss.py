@@ -5,7 +5,7 @@ from .utils import _get_argsin
 
 def test_MultiVariableLoss():
     def model(x):
-        return x[:6]
+        return x
 
     tf.random.set_seed(1)
     in_ = _get_argsin(levels=10)
@@ -26,7 +26,7 @@ def test_ScalarLoss():
     i = 5
 
     def model(x):
-        return x[varnum][:, i : i + 1]
+        return x.q[:, i : i + 1]
 
     in_ = _get_argsin(levels=i + 1)
     out = in_

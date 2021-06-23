@@ -1,9 +1,10 @@
 import dataclasses
+from typing import Any, Tuple
 import tensorflow as tf
 from runtime.emulator.thermo import (
+    ThermoBasis,
     relative_humidity,
     specific_humidity_from_rh,
-    SpecificHumidityBasis,
 )
 
 
@@ -20,19 +21,17 @@ class ScalarLoss:
     level: int
     scale: float = 1.0
 
-    def loss(self, model, in_, out):
+    def loss(self, model, in_: ThermoBasis, out: ThermoBasis):
+        # TODO remove model as an input to the loss functions
         pred = model(in_)
-        basis_out = SpecificHumidityBasis(out)
 
-        truth_q = select_level(basis_out.q, self.level)
+        truth_q = select_level(out.q, self.level)
         loss = tf.reduce_mean(tf.losses.mean_squared_error(truth_q, pred))
 
         pred_rh = relative_humidity(
-            select_level(basis_out.T, self.level),
-            pred,
-            select_level(basis_out.rho, self.level),
+            select_level(out.T, self.level), pred, select_level(out.rho, self.level),
         )
-        truth_rh = select_level(basis_out.rh, self.level)
+        truth_rh = select_level(out.rh, self.level)
         loss_rh = tf.reduce_mean(tf.losses.mean_squared_error(truth_rh, pred_rh))
 
         return (
@@ -57,18 +56,15 @@ class RHLoss:
     level: int
     scale: float = 1.0
 
-    def loss(self, model, in_, out):
+    def loss(self, model, in_: ThermoBasis, out: ThermoBasis) -> Tuple[tf.Tensor, Any]:
         pred_rh = model(in_)
-        basis_out = SpecificHumidityBasis(out)
 
         pred_q = specific_humidity_from_rh(
-            select_level(basis_out.T, self.level),
-            pred_rh,
-            select_level(basis_out.rho, self.level),
+            select_level(out.T, self.level), pred_rh, select_level(out.rho, self.level),
         )
 
-        truth_q = select_level(basis_out.q, self.level)
-        truth_rh = select_level(basis_out.rh, self.level)
+        truth_q = select_level(out.q, self.level)
+        truth_rh = select_level(out.rh, self.level)
 
         loss = tf.reduce_mean(tf.losses.mean_squared_error(truth_q, pred_q))
         loss_rh = tf.reduce_mean(tf.losses.mean_squared_error(truth_rh, pred_rh))
@@ -102,9 +98,11 @@ class MultiVariableLoss:
     t_weight: float = 100
     v_weight: float = 100
 
-    def loss(self, model, in_, out):
-        up, vp, tp, qp = model(in_)[:4]
-        ut, vt, tt, qt = out[:4]
+    def loss(
+        self, model: Any, in_: ThermoBasis, out: ThermoBasis
+    ) -> Tuple[tf.Tensor, Any]:
+        up, vp, tp, qp = model(in_).args[:4]
+        ut, vt, tt, qt = out.args[:4]
         loss_u = tf.reduce_mean(tf.keras.losses.mean_squared_error(ut, up))
         loss_v = tf.reduce_mean(tf.keras.losses.mean_squared_error(vt, vp))
         loss_t = tf.reduce_mean(tf.keras.losses.mean_squared_error(tt, tp))
