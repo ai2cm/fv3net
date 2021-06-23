@@ -23,7 +23,7 @@ import fsspec
 
 from toolz import curry
 from collections import defaultdict
-from typing import Dict, Callable, Mapping, Tuple, Union
+from typing import Dict, Callable, Mapping, Union
 
 from joblib import Parallel, delayed
 

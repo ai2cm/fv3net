@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Any, Hashable, Mapping, Tuple
 
 import numpy as np
 import xarray as xr
@@ -17,7 +17,7 @@ def histogram(da: xr.DataArray, **kwargs) -> Tuple[xr.DataArray, xr.DataArray]:
     """
     coord_name = f"{da.name}_bins" if da.name is not None else "bins"
     count, bins = np.histogram(da, **kwargs)
-    coords = {coord_name: bins[:-1]}
+    coords: Mapping[Hashable, Any] = {coord_name: bins[:-1]}
     width = bins[1:] - bins[:-1]
     width_da = xr.DataArray(width, coords=coords, dims=[coord_name])
     count_da = xr.DataArray(count, coords=coords, dims=[coord_name])
