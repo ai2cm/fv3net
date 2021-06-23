@@ -493,7 +493,7 @@ for mask_type in ["global", "land", "sea"]:
 
 @add_to_diags("physics")
 @diag_finalizer("histogram")
-@transform.apply("resample_time", "3H", inner_join=True)
+@transform.apply("resample_time", "3H", inner_join=True, method="mean")
 @transform.apply("subset_variables", list(HISTOGRAM_BINS.keys()))
 def compute_histogram(prognostic, verification, grid):
     logger.info("Computing histograms for physics diagnostics")
