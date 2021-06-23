@@ -1,15 +1,4 @@
-import loaders.typing
-import xarray as xr
 from typing_extensions import runtime_checkable, Protocol
-
-
-def test_is_mapper_function():
-    def mock_mapper_function(data_path: str, other_arg: str) -> loaders.typing.Mapper:
-        return {"key": xr.Dataset()}
-
-    assert isinstance(
-        mock_mapper_function, runtime_checkable(loaders.typing.MapperFunction)
-    )
 
 
 def test_extended_kwargs_signature_is_still_instance():
