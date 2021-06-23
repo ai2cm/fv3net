@@ -12,15 +12,12 @@ dynamical core of the model and saved in `atmos_dt_atmos.tile*.nc` while the "ph
 grouping contains outputs from the physics routines (`sfc_dt_atmos.tile*.nc` and
 `diags.zarr`).
 """
-import os
 import sys
 
 import datetime
-import tempfile
 import intake
 import numpy as np
 import xarray as xr
-import shutil
 from dask.diagnostics import ProgressBar
 import fsspec
 
@@ -37,6 +34,7 @@ from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import diurnal_cycle
 from fv3net.diagnostics.prognostic_run import transform
 from fv3net.diagnostics.prognostic_run.constants import (
+    HISTOGRAM_BINS,
     HORIZONTAL_DIMS,
     DiagArg,
     GLOBAL_AVERAGE_DYCORE_VARS,
@@ -227,16 +225,6 @@ def _assign_diagnostic_time_attrs(
             attrs = _get_time_attrs(source_ds[variable])
             diagnostics_ds[variable] = diagnostics_ds[variable].assign_attrs(attrs)
     return diagnostics_ds
-
-
-def dump_nc(ds: xr.Dataset, f):
-    # to_netcdf closes file, which will delete the buffer
-    # need to use a buffer since seek doesn't work with GCSFS file objects
-    with tempfile.TemporaryDirectory() as dirname:
-        url = os.path.join(dirname, "tmp.nc")
-        ds.to_netcdf(url, engine="h5netcdf")
-        with open(url, "rb") as tmp1:
-            shutil.copyfileobj(tmp1, f)
 
 
 @add_to_diags("dycore")
@@ -501,6 +489,22 @@ for mask_type in ["global", "land", "sea"]:
         else:
             diag = diurnal_cycle.calc_diagnostics(prognostic, verification, grid).load()
             return _assign_diagnostic_time_attrs(diag, prognostic)
+
+
+@add_to_diags("physics")
+@diag_finalizer("histogram")
+@transform.apply("resample_time", "3H", inner_join=True, method="mean")
+@transform.apply("subset_variables", list(HISTOGRAM_BINS.keys()))
+def compute_histogram(prognostic, verification, grid):
+    logger.info("Computing histograms for physics diagnostics")
+    counts = xr.Dataset()
+    for varname in prognostic.data_vars:
+        count, width = vcm.histogram(
+            prognostic[varname], bins=HISTOGRAM_BINS[varname], density=True
+        )
+        counts[varname] = count
+        counts[f"{varname}_bin_width"] = width
+    return _assign_diagnostic_time_attrs(counts, prognostic)
 
 
 def register_parser(subparsers):
