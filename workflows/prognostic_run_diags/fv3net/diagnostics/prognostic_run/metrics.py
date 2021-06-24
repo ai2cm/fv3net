@@ -21,8 +21,6 @@ _METRICS = []
 GRID_VARS = ["lon", "lat", "lonb", "latb", "area"]
 SURFACE_TYPE_CODES = {"sea": (0, 2), "land": (1,), "seaice": (2,)}
 
-ns_per_day = 1e9 * 60 * 60 * 24
-
 
 def grab_diag(ds, name):
     replace_dict = {}
@@ -50,7 +48,7 @@ def prepend_to_key(d, prefix):
 
 
 def weighted_mean(ds, w, dims):
-    return (ds * w).sum(dims, skipna=True) / w.sum(dims, skipna=True)
+    return (ds * w).sum(dims) / w.sum(dims)
 
 
 def _mask_array(
@@ -95,39 +93,29 @@ def compute_all_metrics(diags: xr.Dataset) -> Mapping[str, float]:
     return out
 
 
-@add_to_metrics("rmse_3day")
-def rmse_3day(diags):
-    rms_global = grab_diag(diags, "rms_global").drop(GRID_VARS, errors="ignore")
+for day in [3, 5]:
 
-    rms_global_daily = rms_global.resample(time="1D").mean()
+    @add_to_metrics(f"rmse_{day}day")
+    def rmse_on_day(diags, day=day):
+        rms_global = grab_diag(diags, "rms_global").drop(GRID_VARS, errors="ignore")
 
-    try:
-        rms_at_day_3 = rms_global_daily.isel(time=3)
-    except IndexError:  # don't compute metric if run didn't make it to 3 days
-        rms_at_day_3 = xr.Dataset()
+        rms_global_daily = rms_global.resample(time="1D").mean()
 
-    restore_units(rms_global, rms_at_day_3)
-    return rms_at_day_3
+        try:
+            rms_on_day = rms_global_daily.isel(time=day)
+        except IndexError:  # don't compute metric if run didn't make it to day
+            rms_on_day = xr.Dataset()
+
+        restore_units(rms_global, rms_on_day)
+        return rms_on_day
 
 
 @add_to_metrics("rmse_days_3to7_avg")
 def rmse_days_3to7_avg(diags):
     rms_global = grab_diag(diags, "rms_global").drop(GRID_VARS, errors="ignore")
-    time_since_start = rms_global.time.values - rms_global.time.isel(time=0).item()
-
-    ds = rms_global.assign_coords(
-        {
-            "days_since_start": (
-                "time",
-                [t.item() / ns_per_day for t in time_since_start],
-            )
-        }
-    )
-
-    if max(ds["days_since_start"] > 8):
-        rmse_days_3to7_avg = (
-            ds.where(ds["days_since_start"] >= 3).where(ds["days_since_start"] <= 8)
-        ).mean(skipna=True)
+    rms_global_daily = rms_global.resample(time="1D").mean()
+    if rms_global_daily.sizes["time"] >= 7:
+        rmse_days_3to7_avg = rms_global_daily.isel(time=slice(2, 7)).mean("time")
     else:  # don't compute metric if run didn't make it to 7 days
         rmse_days_3to7_avg = xr.Dataset()
 
@@ -154,13 +142,17 @@ def drift_3day(diags):
     return drift
 
 
-@add_to_metrics("time_and_global_mean_value")
-def time_and_global_mean_value(diags):
-    time_mean_value = grab_diag(diags, "time_mean_value")
-    area = diags["area"]
-    time_and_global_mean_value = weighted_mean(time_mean_value, area, HORIZONTAL_DIMS)
-    restore_units(time_mean_value, time_and_global_mean_value)
-    return time_and_global_mean_value
+for mask_type in ["global", "land", "sea"]:
+
+    @add_to_metrics(f"time_and_{mask_type}_mean_value")
+    def time_and_global_mean_value(diags, mask_type=mask_type):
+        time_mean_value = grab_diag(diags, "time_mean_value")
+        masked_area = _mask_array(mask_type, diags["area"], diags["land_sea_mask"])
+        time_and_global_mean_value = weighted_mean(
+            time_mean_value, masked_area, HORIZONTAL_DIMS
+        )
+        restore_units(time_mean_value, time_and_global_mean_value)
+        return time_and_global_mean_value
 
 
 for mask_type in ["global", "land", "sea"]:
@@ -176,9 +168,9 @@ for mask_type in ["global", "land", "sea"]:
         return time_and_domain_mean_bias
 
 
-for mask_type in ["global", "land", "sea"]:
-
-    @add_to_metrics(f"rmse_of_time_mean_{mask_type}")
+for mask_type, suffix in zip(["global", "land", "sea"], ["", "_land", "_sea"]):
+    # Omits 'global' suffix to avoid breaking change in map plots
+    @add_to_metrics(f"rmse_of_time_mean{suffix}")
     def rmse_time_mean(diags, mask_type=mask_type):
         time_mean_bias = grab_diag(diags, f"time_mean_bias")
         masked_area = _mask_array(mask_type, diags["area"], diags["land_sea_mask"])
