@@ -12,19 +12,9 @@ spec:
           - name: project
           - name: tag
       script:
-        image: debian:9.4
+        image: us.gcr.io/vcm-ml/fv3net
         command: [bash]
         source: |
           set -e
-          fail_on_slash () {
-            if [[ "$1" == *"/"* ]]; then
-              echo "Slashes not permitted in bucket, project, and tag: $1"
-              exit 1
-            fi
-          }
-          DATE=$(date +'%F')
-          fail_on_slash {{inputs.parameters.bucket}}
-          fail_on_slash {{inputs.parameters.project}}
-          fail_on_slash {{inputs.parameters.tag}}
-          echo "gs://{{inputs.parameters.bucket}}/{{inputs.parameters.project}}/${DATE}/{{inputs.parameters.tag}}"
+          artifacts generate {{inputs.parameters.bucket}} {{inputs.parameters.project}} {{inputs.parameters.tag}}
           

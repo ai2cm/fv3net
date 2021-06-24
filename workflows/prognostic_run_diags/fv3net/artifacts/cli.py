@@ -1,6 +1,7 @@
 import argparse
 from fv3net.artifacts import query
 from fv3net.artifacts import report_search
+from fv3net.artifacts import generate
 
 
 def get_parser():
