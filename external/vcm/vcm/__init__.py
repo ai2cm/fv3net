@@ -29,6 +29,7 @@ from .calc.thermo import (
     column_integrated_heating_from_isobaric_transition,
     column_integrated_heating_from_isochoric_transition,
 )
+from .calc.histogram import histogram
 
 from .interpolate import (
     interpolate_to_pressure_levels,

@@ -289,11 +289,6 @@ def detect_folders(
     bucket: str, fs: fsspec.AbstractFileSystem,
 ) -> Mapping[str, DiagnosticFolder]:
     diag_ncs = fs.glob(os.path.join(bucket, "*", "diags.nc"))
-    if len(diag_ncs) < 2:
-        raise ValueError(
-            "Plots require more than 1 diagnostic directory in"
-            f" {bucket} for holoviews plots to display correctly."
-        )
     return {
         Path(url).parent.name: DiagnosticFolder(fs, Path(url).parent.as_posix())
         for url in diag_ncs

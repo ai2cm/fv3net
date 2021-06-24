@@ -49,16 +49,6 @@ def test_ComputedDiagnosticsList_from_urls():
     assert isinstance(result.folders["1"], DiagnosticFolder)
 
 
-def test_detect_folders_fail_less_than_2(tmpdir):
-
-    fs = fsspec.filesystem("file")
-
-    tmpdir.mkdir("rundir1").join("diags.nc").write("foobar")
-
-    with pytest.raises(ValueError):
-        detect_folders(tmpdir, fs)
-
-
 def test_get_movie_links(tmpdir):
     domain = "http://www.domain.com"
     rdirs = ["rundir1", "rundir2"]
