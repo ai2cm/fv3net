@@ -3,7 +3,7 @@ import os
 import fsspec
 import xarray as xr
 import numpy as np
-from typing import Sequence, Union
+from typing import Sequence, Union, Dict, Tuple, Hashable, Mapping, Any
 
 import vcm.safe as safe
 
@@ -118,14 +118,15 @@ def _stack_extra_features(ds: xr.Dataset, sample_dim_name: str) -> xr.Dataset:
     separation for these multi-feature variables
     """
 
-    combined_feature_dims = {}
+    combined_feature_dims: Dict[Tuple[Hashable, ...], Hashable] = {}
     for var, da in ds.items():
         if da.ndim > 2:
             dims_to_stack = tuple(
                 sorted([dim for dim in da.dims if dim != sample_dim_name])
             )
-            dim_name = combined_feature_dims.get(dims_to_stack, None)
-            if dim_name is None:
+            if dims_to_stack in combined_feature_dims:
+                dim_name = combined_feature_dims[dims_to_stack]
+            else:
                 dim_name = f"stacked_feature{len(combined_feature_dims) + 1}"
                 combined_feature_dims[dims_to_stack] = dim_name
 
@@ -215,7 +216,7 @@ def _drop_const_vars(ds: xr.Dataset) -> xr.Dataset:
             eps = 0
 
         # Drop if approximately constant
-        selection = {dim: 0 for dim in da.dims}
+        selection: Mapping[str, Any] = {dim: 0 for dim in da.dims}
         item = sample.isel(**selection)
         const = abs(sample - item) < eps
         if const.all():
@@ -233,7 +234,9 @@ def _load_sample_using_chunk(da: xr.DataArray) -> xr.DataArray:
         logger.debug("No chunksize attribute. Data already loaded.")
         sample = da
     else:
-        select = {dim: slice(0, chunk[i]) for i, dim in enumerate(da.dims)}
+        select: Mapping[str, Any] = {
+            str(dim): slice(0, chunk[i]) for i, dim in enumerate(da.dims)
+        }
         sample = da.isel(**select).load()
 
     return sample

@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.random import RandomState
-from typing import Tuple, Sequence
+from typing import Any, Hashable, Mapping, Optional, Tuple, Sequence
 from toolz.functoolz import curry
 import xarray as xr
 import vcm
@@ -33,7 +33,7 @@ Tile = int
 K = Tuple[Time, Tile]
 
 
-def nonderived_variables(requested: Sequence[str], available: Sequence[str]):
+def nonderived_variables(requested: Sequence[Hashable], available: Sequence[Hashable]):
     derived = [var for var in requested if var not in available]
     nonderived = [var for var in requested if var in available]
     # if E/N winds not in underlying data, need to load x/y wind
@@ -157,7 +157,7 @@ def preserve_samples_per_batch(
             thinning
     """
     try:
-        dataset_coord = ds.coords[dataset_dim_name]
+        dataset_coord: Optional[xr.DataArray] = ds.coords[dataset_dim_name]
     except KeyError:
         dataset_coord = None
 
@@ -256,8 +256,8 @@ def net_precipitation_from_physics(ds: xr.Dataset) -> xr.DataArray:
     return net_precipitation(*fluxes)
 
 
-def assign_net_physics_terms(ds: xr.Dataset) -> xr.DataArray:
-    net_terms = {
+def assign_net_physics_terms(ds: xr.Dataset) -> xr.Dataset:
+    net_terms: Mapping[Hashable, Any] = {
         "net_heating": net_heating_from_physics(ds),
         "net_precipitation": net_precipitation_from_physics(ds),
     }

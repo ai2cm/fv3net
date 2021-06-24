@@ -31,11 +31,13 @@ if [[ $diagsExitCode -eq 0 && $metricsExitCode -eq 0 ]]; then
     echo "Prognostic run diagnostics detected in cache for given run. Using cached diagnostics."
 else
     echo "No prognostic run diagnostics detected in cache for given run. Computing diagnostics and adding to cache."	
-    prognostic_run_diags save "$flags" "$run" diags.nc
+    prognostic_run_diags save $flags "$run" diags.nc
     prognostic_run_diags metrics diags.nc > metrics.json
     gsutil cp diags.nc "$cacheURL/diags.nc"
     gsutil cp metrics.json "$cacheURL/metrics.json"
 fi
 
-gsutil cp "$cacheURL/diags.nc" "$output/diags.nc"
-gsutil cp "$cacheURL/metrics.json" "$output/metrics.json"
+if [[ $output != $cacheURL ]]; then
+    gsutil cp "$cacheURL/diags.nc" "$output/diags.nc"
+    gsutil cp "$cacheURL/metrics.json" "$output/metrics.json"
+fi

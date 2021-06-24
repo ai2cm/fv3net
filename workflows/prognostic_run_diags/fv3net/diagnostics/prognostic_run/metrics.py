@@ -13,7 +13,7 @@ from typing import Callable, Mapping
 import numpy as np
 import xarray as xr
 from toolz import curry
-from .constants import HORIZONTAL_DIMS
+from .constants import HORIZONTAL_DIMS, PERCENTILES
 import json
 
 _METRICS = []
@@ -179,6 +179,49 @@ for mask_type, suffix in zip(["global", "land", "sea"], ["", "_land", "_sea"]):
         )
         restore_units(time_mean_bias, rms_of_time_mean_bias)
         return rms_of_time_mean_bias
+
+
+for percentile in PERCENTILES:
+
+    @add_to_metrics(f"percentile_{percentile}")
+    def percentile_metric(diags, percentile=percentile):
+        histogram = grab_diag(diags, "histogram")
+        percentiles = xr.Dataset()
+        data_vars = [v for v in histogram.data_vars if not v.endswith("bin_width")]
+        for varname in data_vars:
+            percentiles[varname] = compute_percentile(
+                percentile,
+                histogram[varname].values,
+                histogram[f"{varname}_bins"].values,
+                histogram[f"{varname}_bin_width"].values,
+            )
+        restore_units(histogram, percentiles)
+        return percentiles
+
+
+def compute_percentile(
+    percentile: float, freq: np.ndarray, bins: np.ndarray, bin_widths: np.ndarray
+) -> float:
+    """Compute percentile given normalized histogram.
+
+    Args:
+        percentile: value between 0 and 100
+        freq: array of frequencies normalized by bin widths
+        bins: values of left sides of bins
+        bin_widths: values of bin widths
+
+    Returns:
+        value of distribution at percentile
+    """
+    cumulative_distribution = np.cumsum(freq * bin_widths)
+    if np.abs(cumulative_distribution[-1] - 1) > 1e-6:
+        raise ValueError(
+            "The provided frequencies do not integrate to one. "
+            "Ensure that histogram is computed with density=True."
+        )
+    bin_midpoints = bins + 0.5 * bin_widths
+    closest_index = np.argmin(np.abs(cumulative_distribution - percentile / 100))
+    return bin_midpoints[closest_index]
 
 
 def restore_units(source, target):
