@@ -11,6 +11,7 @@ def get_parser():
     subparsers = parser.add_subparsers(required=True, dest="command")
     query.register_parser(subparsers)
     report_search.register_parser(subparsers)
+    generate.register_parser(subparsers)
     return parser
 
 
