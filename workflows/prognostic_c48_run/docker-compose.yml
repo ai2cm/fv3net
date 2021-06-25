@@ -21,6 +21,10 @@ services:
       - GUILD_HOME=/mnt/guild
       - REMOTE_GUILD_HOME=gs://vcm-ml-archive/emulator
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
+      # need to override these constraints
+      - PIP_CONSTRAINT=/fv3net/constraints.txt
+    env_file:
+      .env
   guild:
     image: guildai/guildai
     volumes:

@@ -167,7 +167,7 @@ ENV PATH=/root/.local/bin:${PATH}
 RUN pipx install dvc[gs]==2.0.17
 
 
-RUN pip install guildai==0.7.3 hypothesis wandb
+RUN pip install guildai==0.7.3 hypothesis wandb jupyterlab ipython
 
 COPY . /fv3net
 
