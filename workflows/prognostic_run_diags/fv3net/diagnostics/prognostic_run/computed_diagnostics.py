@@ -53,8 +53,8 @@ class ComputedDiagnosticsList:
         )
 
     @staticmethod
-    def from_json(url: str, suffix="_diagnostics") -> "ComputedDiagnosticsList":
-        """Open computed diagnostics from runs specified in given JSON."""
+    def from_json(url: str) -> "ComputedDiagnosticsList":
+        """Open labeled computed diagnostics at urls specified in given JSON."""
 
         def url_to_folder(url):
             fs, _, path = fsspec.get_fs_token_paths(url)
@@ -64,7 +64,7 @@ class ComputedDiagnosticsList:
             rundirs = json.load(f)
 
         return ComputedDiagnosticsList(
-            {name: url_to_folder(url + suffix) for name, url in rundirs.items()}
+            {name: url_to_folder(url) for name, url in rundirs.items()}
         )
 
     def load_metrics(self) -> "RunMetrics":
