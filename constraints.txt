@@ -113,7 +113,7 @@ ipykernel==5.5.0
 ipython-genutils==0.2.0
 ipython==7.16.1
 ipywidgets==7.6.3
-jedi==0.18.0
+jedi==0.17.2
 jeepney==0.6.0
 jinja2==2.11.2
 joblib==0.16.0
@@ -167,7 +167,7 @@ pandas==1.0.1
 pandocfilters==1.4.3
 panel==0.10.3
 param==1.10.1
-parso==0.8.1
+parso==0.7.1
 partd==1.1.0
 pastel==0.2.0
 pathtools==0.1.2
