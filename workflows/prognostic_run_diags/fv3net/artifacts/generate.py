@@ -17,7 +17,7 @@ def main(args):
 
 def register_parser(subparsers):
     parser = subparsers.add_parser(
-        "generate", help="Print URL from given bucket, project, and tag."
+        "generate", help="Generate a URL from provided bucket, project, and tag."
     )
     parser.add_argument("bucket", help="A storage bucket.")
     parser.add_argument("project", help="The name of a project.")
