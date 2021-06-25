@@ -529,7 +529,7 @@ def main_new(args):
 
 
 def main_json(args):
-    computed_diagnostics = ComputedDiagnosticsList.from_json(args.inputs)
+    computed_diagnostics = ComputedDiagnosticsList.from_json(args.input)
     make_report(computed_diagnostics, args.output)
 
 
