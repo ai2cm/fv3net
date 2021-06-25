@@ -1,8 +1,8 @@
 import datetime
 
 
-def generate(bucket: str, project: str, tag: str) -> str:
-    """Generate GCS URL given inputs."""
+def resolve_url(bucket: str, project: str, tag: str) -> str:
+    """Return a GCS URL given inputs."""
     for item in [bucket, project, tag]:
         if "/" in item:
             raise ValueError(f"Slashes not permitted in bucket, project or tag: {item}")
@@ -11,13 +11,13 @@ def generate(bucket: str, project: str, tag: str) -> str:
 
 
 def main(args):
-    url = generate(args.bucket, args.project, args.tag)
+    url = resolve_url(args.bucket, args.project, args.tag)
     print(url)
 
 
 def register_parser(subparsers):
     parser = subparsers.add_parser(
-        "generate", help="Generate a URL from provided bucket, project, and tag."
+        "resolve-url", help="Print a URL from provided bucket, project, and tag."
     )
     parser.add_argument("bucket", help="A storage bucket.")
     parser.add_argument("project", help="The name of a project.")

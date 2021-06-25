@@ -68,7 +68,7 @@ spec:
             - name: times
               value: "{{inputs.parameters.train-times}}"
             - name: output
-              value: "{{tasks.resolve-output-url.outputs.parameters.url}}/trained_models/{{item.name}}"
+              value: "{{tasks.resolve-output-url.outputs.result}}/trained_models/{{item.name}}"
             - name: memory
               value: "{{inputs.parameters.memory-training}}"
             - name: flags
@@ -82,11 +82,11 @@ spec:
         arguments:
           parameters:
               - name: ml-model
-                value: "{{tasks.resolve-output-url.outputs.parameters.url}}/trained_models/{{item.name}}"
+                value: "{{tasks.resolve-output-url.outputs.result}}/trained_models/{{item.name}}"
               - name: times
                 value: "{{inputs.parameters.test-times}}"
               - name: offline-diags-output
-                value: "{{tasks.resolve-output-url.outputs.parameters.url}}/offline_diags/{{item.name}}"
+                value: "{{tasks.resolve-output-url.outputs.result}}/offline_diags/{{item.name}}"
               - name: report-output
                 value: "{{inputs.parameters.public-report-output}}/{{item.name}}"
               - name: memory
@@ -97,7 +97,7 @@ spec:
         arguments:
           parameters:
               - name: root
-                value: "{{tasks.resolve-output-url.outputs.parameters.url}}"
+                value: "{{tasks.resolve-output-url.outputs.result}}"
               - name: training-configs
                 value: "{{inputs.parameters.training-configs}}"
               - name: flags
@@ -124,7 +124,7 @@ spec:
               - name: flags
                 value: "{{tasks.construct-full-flags.outputs.parameters.prognostic-flags}}"
               - name: models-dir
-                value: "{{tasks.resolve-output-url.outputs.parameters.url}}/trained_models"
+                value: "{{tasks.resolve-output-url.outputs.result}}/trained_models"
               - name: segment-count
                 value: "{{inputs.parameters.segment-count}}"
               - name: cpu

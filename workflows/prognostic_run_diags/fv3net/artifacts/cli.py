@@ -1,7 +1,7 @@
 import argparse
 from fv3net.artifacts import query
 from fv3net.artifacts import report_search
-from fv3net.artifacts import generate
+from fv3net.artifacts import resolve_url
 
 
 def get_parser():
@@ -11,7 +11,7 @@ def get_parser():
     subparsers = parser.add_subparsers(required=True, dest="command")
     query.register_parser(subparsers)
     report_search.register_parser(subparsers)
-    generate.register_parser(subparsers)
+    resolve_url.register_parser(subparsers)
     return parser
 
 
