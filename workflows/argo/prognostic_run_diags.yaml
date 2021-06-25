@@ -55,9 +55,13 @@ spec:
           memory: "8Gi"
           cpu: "1000m"
       command: ["bash", "-c", "-x", "-e"]
-      args: |
-        echo "{{inputs.parameters.runs}}" > rundirs.json
-        prognostic_run_diags report-from-json rundirs.json gs://vcm-ml-public/argo/{{workflow.name}}
+      args:
+      - |
+        cat << EOFRUNDIRSJSON > rundirs.json
+        {{inputs.parameters.runs}}
+        EOFRUNDIRSJSON
+        jq '.[].url |= . + "_diagnostics"' rundirs.json > diagnostic_dirs.json
+        prognostic_run_diags report-from-json diagnostic_dirs.json gs://vcm-ml-public/argo/{{workflow.name}}
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS 
@@ -141,7 +145,8 @@ spec:
           memory: "25Gi"
           cpu: "8000m"
       command: ["/bin/bash", "-x", "-e", "-c"]
-      args: |
+      args:
+      - |
         prognostic_run_diags save {{inputs.parameters.flags}} {{inputs.parameters.run}} diags.nc
         prognostic_run_diags metrics diags.nc > metrics.json
         gsutil cp diags.nc "{{inputs.parameters.output}}/diags.nc"
