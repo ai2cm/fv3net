@@ -26,19 +26,31 @@ def registration_context(registration_dict):
 @contextlib.contextmanager
 def mapper_context():
     with registration_context(loaders._config.mapper_functions):
-        yield
+        mock_mapper = {"key": xr.Dataset()}
+        mock_mapper_function = unittest.mock.MagicMock(return_value=mock_mapper)
+        mock_mapper_function.__name__ = "mock_mapper_function"
+        loaders._config.mapper_functions.register(mock_mapper_function)
+        yield mock_mapper_function
 
 
 @contextlib.contextmanager
 def batches_context():
     with registration_context(loaders._config.batches_functions):
-        yield
+        mock_batches = [xr.Dataset()]
+        mock_batches_function = unittest.mock.MagicMock(return_value=mock_batches)
+        mock_batches_function.__name__ = "mock_batches_function"
+        loaders._config.batches_functions.register(mock_batches_function)
+        yield mock_batches_function
 
 
 @contextlib.contextmanager
 def batches_from_mapper_context():
     with registration_context(loaders._config.batches_from_mapper_functions):
-        yield
+        mock_batches = [xr.Dataset()]
+        mock_batches_function = unittest.mock.MagicMock(return_value=mock_batches)
+        mock_batches_function.__name__ = "mock_batches_function"
+        loaders._config.batches_from_mapper_functions.register(mock_batches_function)
+        yield mock_batches_function
 
 
 def test_load_mapper():
@@ -118,12 +130,7 @@ def test_registered_batches_from_mapper_functions_are_public():
 
 
 def test_load_batches():
-    with batches_context():
-        mock_batches = [xr.Dataset()]
-        mock_batches_function = unittest.mock.MagicMock(return_value=mock_batches)
-        mock_batches_function.__name__ = "mock_batches_function"
-        loaders._config.batches_functions.register(mock_batches_function)
-        assert "mock_batches_function" in loaders._config.batches_functions
+    with batches_context() as mock_batches_function:
         data_path = "test/data/path"
         variables = ["var1"]
         batches_kwargs = {"arg1": "value1", "arg2": 2}
@@ -133,71 +140,51 @@ def test_load_batches():
             batches_kwargs=batches_kwargs,
         )
         result = config.load_batches(variables=variables)
-        assert result is mock_batches
+        assert result is mock_batches_function.return_value
         mock_batches_function.assert_called_once_with(
             data_path, variables, **batches_kwargs
         )
 
 
+def batches_from_mapper_init():
+    data_path = "test/data/path"
+    variables = ["var1"]
+    batches_kwargs = {"arg1": "value1", "arg2": 2}
+    mapper_kwargs = {"arg3": 3}
+    config = loaders._config.BatchesFromMapperConfig(
+        mapper_config=loaders._config.MapperConfig(
+            data_path=data_path,
+            mapper_function="mock_mapper_function",
+            mapper_kwargs=mapper_kwargs,
+        ),
+        batches_function="mock_batches_function",
+        batches_kwargs=batches_kwargs,
+    )
+    return data_path, variables, batches_kwargs, mapper_kwargs, config
+
+
 def test_load_batches_from_mapper():
-    with batches_from_mapper_context(), mapper_context():
-        mock_batches = [xr.Dataset()]
-        mock_batches_function = unittest.mock.MagicMock(return_value=mock_batches)
-        mock_batches_function.__name__ = "mock_batches_function"
-        loaders._config.batches_from_mapper_functions.register(mock_batches_function)
-        mock_mapper = {"key": xr.Dataset()}
-        mock_mapper_function = unittest.mock.MagicMock(return_value=mock_mapper)
-        mock_mapper_function.__name__ = "mock_mapper_function"
-        loaders._config.mapper_functions.register(mock_mapper_function)
-        assert "mock_batches_function" in loaders._config.batches_from_mapper_functions
-        assert "mock_mapper_function" in loaders._config.mapper_functions
-        data_path = "test/data/path"
-        variables = ["var1"]
-        batches_kwargs = {"arg1": "value1", "arg2": 2}
-        mapper_kwargs = {"arg3": 3}
-        config = loaders._config.BatchesFromMapperConfig(
-            mapper_config=loaders._config.MapperConfig(
-                data_path=data_path,
-                mapper_function="mock_mapper_function",
-                mapper_kwargs=mapper_kwargs,
-            ),
-            batches_function="mock_batches_function",
-            batches_kwargs=batches_kwargs,
-        )
+    with batches_from_mapper_context() as mock_batches_function, mapper_context() as mock_mapper_function:  # noqa: E501
+        (
+            data_path,
+            variables,
+            batches_kwargs,
+            mapper_kwargs,
+            config,
+        ) = batches_from_mapper_init()
         result = config.load_batches(variables=variables)
-        assert result is mock_batches
+        assert result is mock_batches_function.return_value
         mock_batches_function.assert_called_once_with(
-            mock_mapper, variables, **batches_kwargs
+            mock_mapper_function.return_value, variables, **batches_kwargs
         )
         mock_mapper_function.assert_called_once_with(data_path, **mapper_kwargs)
 
 
 def test_batches_from_mapper_load_mapper():
-    with batches_from_mapper_context(), mapper_context():
-        mock_batches = [xr.Dataset()]
-        mock_batches_function = unittest.mock.MagicMock(return_value=mock_batches)
-        mock_batches_function.__name__ = "mock_batches_function"
-        loaders._config.batches_from_mapper_functions.register(mock_batches_function)
-        mock_mapper = {"key": xr.Dataset()}
-        mock_mapper_function = unittest.mock.MagicMock(return_value=mock_mapper)
-        mock_mapper_function.__name__ = "mock_mapper_function"
-        loaders._config.mapper_functions.register(mock_mapper_function)
-        assert "mock_batches_function" in loaders._config.batches_from_mapper_functions
-        assert "mock_mapper_function" in loaders._config.mapper_functions
-        data_path = "test/data/path"
-        batches_kwargs = {"arg1": "value1", "arg2": 2}
-        mapper_kwargs = {"arg3": 3}
-        config = loaders._config.BatchesFromMapperConfig(
-            mapper_config=loaders._config.MapperConfig(
-                data_path=data_path,
-                mapper_function="mock_mapper_function",
-                mapper_kwargs=mapper_kwargs,
-            ),
-            batches_function="mock_batches_function",
-            batches_kwargs=batches_kwargs,
-        )
+    with batches_from_mapper_context() as mock_batches_function, mapper_context() as mock_mapper_function:  # noqa: E501
+        data_path, _, _, mapper_kwargs, config = batches_from_mapper_init()
         result = config.load_mapper()
-        assert result is mock_mapper
+        assert result is mock_mapper_function.return_value
         mock_batches_function.assert_not_called
         mock_mapper_function.assert_called_once_with(data_path, **mapper_kwargs)
 
@@ -205,13 +192,11 @@ def test_batches_from_mapper_load_mapper():
 def test_load_batches_from_mapper_raises_if_registered_with_wrong_decorator():
     with batches_from_mapper_context(), mapper_context():
         mock_batches = [xr.Dataset()]
-        mock_batches_function = unittest.mock.MagicMock(return_value=mock_batches)
-        mock_batches_function.__name__ = "mock_batches_function"
-        loaders._config.batches_functions.register(mock_batches_function)
-        mock_mapper = {"key": xr.Dataset()}
-        mock_mapper_function = unittest.mock.MagicMock(return_value=mock_mapper)
-        mock_mapper_function.__name__ = "mock_mapper_function"
-        loaders._config.mapper_functions.register(mock_mapper_function)
+        another_mock_batches_function = unittest.mock.MagicMock(
+            return_value=mock_batches
+        )
+        another_mock_batches_function.__name__ = "another_mock_batches_function"
+        loaders._config.batches_functions.register(another_mock_batches_function)
         data_path = "test/data/path"
         variables = ["var1"]
         batches_kwargs = {"arg1": "value1", "arg2": 2}
@@ -222,7 +207,7 @@ def test_load_batches_from_mapper_raises_if_registered_with_wrong_decorator():
                 mapper_function="mock_mapper_function",
                 mapper_kwargs=mapper_kwargs,
             ),
-            batches_function="mock_batches_function",
+            batches_function="another_mock_batches_function",
             batches_kwargs=batches_kwargs,
         )
         with pytest.raises(KeyError):
