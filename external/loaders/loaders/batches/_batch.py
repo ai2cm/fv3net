@@ -13,7 +13,7 @@ from typing import (
 import xarray as xr
 from vcm import safe, parse_datetime_from_str
 from toolz import partition_all, curry, compose_left
-from ._sequences import Map, BaseSequence
+from ._sequences import Map
 from .._utils import (
     add_grid_info,
     add_derived_data,
@@ -51,7 +51,7 @@ def batches_from_geodata(
     res: str = "c48",
     subsample_size: int = None,
     needs_grid: bool = True,
-) -> BaseSequence[xr.Dataset]:
+) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train. The data is assumed to
     have geospatial dimensions and is accessed through a mapper interface.
@@ -111,7 +111,7 @@ def batches_from_mapper(
     needs_grid: bool = True,
     training: bool = True,
     subsample_size: int = None,
-) -> BaseSequence[xr.Dataset]:
+) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
 
@@ -196,7 +196,7 @@ def diagnostic_batches_from_geodata(
     res: str = "c48",
     subsample_size: int = None,
     needs_grid: bool = True,
-) -> BaseSequence[xr.Dataset]:
+) -> loaders.typing.Batches:
     """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
     as batches_from_mapper but without transformation and stacking
 
@@ -265,7 +265,7 @@ def batches_from_serialized(
     zarr_prefix: str = "phys",
     sample_dims: Sequence[str] = ["savepoint", "rank", "horizontal_dimension"],
     savepoints_per_batch: int = 1,
-) -> BaseSequence[xr.Dataset]:
+) -> loaders.typing.Batches:
     """
     Load a sequence of serialized physics data for use in model fitting procedures.
     Data variables are reduced to a sample and feature dimension by stacking specified

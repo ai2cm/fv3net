@@ -1,8 +1,7 @@
 import argparse
 import logging
 import os
-import xarray as xr
-from typing import Sequence, Optional
+from typing import Optional
 import yaml
 import dataclasses
 import fsspec
@@ -12,6 +11,7 @@ import fv3fit._shared.config
 import fv3fit.keras
 import fv3fit.sklearn
 import fv3fit
+import loaders
 
 
 def get_parser():
@@ -74,7 +74,7 @@ def main(args):
         train_data_config, os.path.join(args.output_data_path, "training_data.yaml")
     )
 
-    train_batches = train_data_config.load_batches(
+    train_batches: loaders.typing.Batches = train_data_config.load_batches(
         variables=train_config.input_variables
         + train_config.output_variables
         + train_config.additional_variables
@@ -83,7 +83,7 @@ def main(args):
         dump_dataclass(
             val_data_config, os.path.join(args.output_data_path, "validation_data.yaml")
         )
-        val_batches: Optional[Sequence[xr.Dataset]] = val_data_config.load_sequence()
+        val_batches: Optional[loaders.typing.Batches] = val_data_config.load_sequence()
     else:
         val_batches = None
 

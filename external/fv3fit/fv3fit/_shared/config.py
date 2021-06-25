@@ -419,7 +419,7 @@ def legacy_config_to_batches_config(
     legacy_config: _ModelTrainingConfig,
 ) -> loaders.BatchesConfig:
     return loaders.BatchesConfig(
-        data_path=legacy_config.data_path,
+        data_path=str(legacy_config.data_path),
         batches_function=legacy_config.batch_function,
         batches_kwargs=legacy_config.batch_kwargs,
     )

@@ -1,21 +1,18 @@
 import abc
-from typing import Dict, TypeVar
+from typing import Dict, TypeVar, Callable
 from loaders.typing import (
     Mapper,
-    MapperFunction,
     Batches,
-    BatchesFunction,
-    BatchesFromMapperFunction,
 )
 import dataclasses
 import dacite
 
 
-T = TypeVar("T")
+RT = TypeVar("RT")
 
 
-class FunctionRegister(dict, Dict[str, T]):
-    def register(self, func: T) -> T:
+class FunctionRegister(Dict[str, Callable[..., RT]]):
+    def register(self, func: Callable[..., RT]) -> Callable[..., RT]:
         self[func.__name__] = func
         return func
 
@@ -23,11 +20,9 @@ class FunctionRegister(dict, Dict[str, T]):
         return str(sorted(list(self.keys())))
 
 
-mapper_functions: FunctionRegister[MapperFunction] = FunctionRegister()
-batches_functions: FunctionRegister[BatchesFunction] = FunctionRegister()
-batches_from_mapper_functions: FunctionRegister[
-    BatchesFromMapperFunction
-] = FunctionRegister()
+mapper_functions: FunctionRegister[Mapper] = FunctionRegister()
+batches_functions: FunctionRegister[Batches] = FunctionRegister()
+batches_from_mapper_functions: FunctionRegister[Batches] = FunctionRegister()
 
 
 @dataclasses.dataclass
