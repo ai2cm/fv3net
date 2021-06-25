@@ -184,7 +184,7 @@ def test_ScalarMLP(num_hidden_layers):
     assert out.shape == (1, 1)
 
     # computing loss should not fail
-    loss, _ = ScalarLoss(0, 0).loss(model, ins, outs)
+    loss, _ = ScalarLoss(0, 0).loss(model(ins), outs)
     assert loss.shape == ()
 
 
@@ -240,6 +240,6 @@ def test_RHScalarMLP():
     assert np.all(out.numpy() > 0.0)
 
     loss = RHLoss(mlp.var_level)
-    val, _ = loss.loss(mlp, argsin, argsin)
+    val, _ = loss.loss(mlp(argsin), argsin)
     assert val.numpy() >= 0.0
     assert val.numpy() < 10.0

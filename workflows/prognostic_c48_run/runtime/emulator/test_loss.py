@@ -4,12 +4,10 @@ from .utils import _get_argsin
 
 
 def test_MultiVariableLoss():
-    def model(x):
-        return x
 
     tf.random.set_seed(1)
     in_ = _get_argsin(levels=10)
-    loss, info = MultiVariableLoss().loss(model, in_, in_)
+    loss, info = MultiVariableLoss().loss(in_, in_)
 
     assert isinstance(loss, tf.Tensor)
     assert {
@@ -30,6 +28,9 @@ def test_ScalarLoss():
 
     in_ = _get_argsin(levels=i + 1)
     out = in_
-    loss, info = ScalarLoss(varnum, level=i).loss(model, in_, out)
+    loss, info = ScalarLoss(varnum, level=i).loss(model(in_), out)
     assert isinstance(loss, tf.Tensor)
-    assert {"loss/variable_3/level_5": 0.0, "relative_humidity_mse": 0.0} == info
+    assert {
+        "loss/variable_3/level_5": 0.0,
+        "relative_humidity_mse/level_5": 0.0,
+    } == info

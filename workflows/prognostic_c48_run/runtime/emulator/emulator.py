@@ -135,7 +135,7 @@ class OnlineEmulator:
         return info
 
     def get_loss(self, in_, out):
-        return self.config.target.loss(self.model, in_, out)
+        return self.config.target.loss(self.model(in_), out)
 
     def score(self, d: tf.data.Dataset):
         losses = defaultdict(list)
