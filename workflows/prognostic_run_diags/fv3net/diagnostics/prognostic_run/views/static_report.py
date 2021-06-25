@@ -501,14 +501,15 @@ def _register_report_from_urls(subparsers):
 
 def _register_report_from_json(subparsers):
     parser = subparsers.add_parser(
-        "report-from-json", help="Generate a static html report."
+        "report-from-json", help="Generate report from diagnostics in given JSON file."
     )
     parser.add_argument(
         "input",
-        help="rundirs.json file mapping from run labels to run diagnostics folders.",
+        help="Path to JSON file with list of mappings, each with name and url keys. "
+        "Given URLs must be for run diagnostics folders.",
     )
     parser.add_argument("output", help="Location to save report html files.")
-    parser.set_defaults(func=main)
+    parser.set_defaults(func=main_json)
 
 
 def register_parser(subparsers):
