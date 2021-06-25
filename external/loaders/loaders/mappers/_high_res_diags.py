@@ -6,7 +6,7 @@ import zarr.storage as zstore
 from .._utils import net_precipitation_from_physics, net_heating_from_physics
 from ._base import LongRunMapper
 from ..constants import RENAMED_SHIELD_DIAG_VARS
-from loaders._config import register_mapper_function
+from loaders._config import mapper_functions
 
 RENAMED_SHIELD_DIMS = {
     "grid_xt": "x",
@@ -14,7 +14,7 @@ RENAMED_SHIELD_DIMS = {
 }
 
 
-@register_mapper_function
+@mapper_functions.register
 def open_high_res_diags(
     data_path: str,
     renamed_vars: Mapping[str, str] = RENAMED_SHIELD_DIAG_VARS,

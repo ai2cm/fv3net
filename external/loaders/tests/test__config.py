@@ -1,6 +1,6 @@
 import pytest
 import unittest.mock
-import loaders._config
+import loaders
 import contextlib
 import xarray as xr
 import tempfile
@@ -25,19 +25,19 @@ def registration_context(registration_dict):
 
 @contextlib.contextmanager
 def mapper_context():
-    with registration_context(loaders._config.MAPPER_FUNCTIONS):
+    with registration_context(loaders._config.mapper_functions):
         yield
 
 
 @contextlib.contextmanager
 def batches_context():
-    with registration_context(loaders._config.BATCHES_FUNCTIONS):
+    with registration_context(loaders._config.batches_functions):
         yield
 
 
 @contextlib.contextmanager
 def batches_from_mapper_context():
-    with registration_context(loaders._config.BATCHES_FROM_MAPPER_FUNCTIONS):
+    with registration_context(loaders._config.batches_from_mapper_functions):
         yield
 
 
@@ -46,8 +46,8 @@ def test_load_mapper():
         mock_mapper = {"key": xr.Dataset()}
         mock_mapper_function = unittest.mock.MagicMock(return_value=mock_mapper)
         mock_mapper_function.__name__ = "mock_mapper_function"
-        loaders._config.register_mapper_function(mock_mapper_function)
-        assert "mock_mapper_function" in loaders._config.MAPPER_FUNCTIONS
+        loaders._config.mapper_functions.register(mock_mapper_function)
+        assert "mock_mapper_function" in loaders._config.mapper_functions
         data_path = "test/data/path"
         mapper_kwargs = {"arg1": "value1", "arg2": 2}
         config = loaders._config.MapperConfig(
@@ -72,7 +72,7 @@ def test_expected_mapper_functions_exist():
         "open_fine_resolution_nudging_hybrid",
         "open_nudge_to_fine_multiple_datasets",
     ):
-        assert expected in loaders._config.MAPPER_FUNCTIONS
+        assert expected in loaders._config.mapper_functions
 
 
 def test_expected_batches_functions_exist():
@@ -84,7 +84,7 @@ def test_expected_batches_functions_exist():
         "batches_from_serialized",
         "diagnostic_batches_from_geodata",
     ):
-        assert expected in loaders._config.BATCHES_FUNCTIONS
+        assert expected in loaders._config.batches_functions
 
 
 def test_expected_batches_from_mapper_functions_exist():
@@ -92,7 +92,29 @@ def test_expected_batches_from_mapper_functions_exist():
     # currently use in configs, if you are deleting an option we no longer use
     # you can delete it here
     for expected in ("batches_from_mapper",):
-        assert expected in loaders._config.BATCHES_FROM_MAPPER_FUNCTIONS
+        assert expected in loaders._config.batches_from_mapper_functions
+
+
+def assert_registered_functions_are_public(function_register):
+    missing_functions = []
+    for name, func in function_register.items():
+        if getattr(loaders, name, None) is not func:
+            missing_functions.append(name)
+    assert (
+        len(missing_functions) == 0
+    ), "registered functions are public and should exist in root namespace"
+
+
+def test_registered_mapper_functions_are_public():
+    assert_registered_functions_are_public(loaders.mapper_functions)
+
+
+def test_registered_batches_functions_are_public():
+    assert_registered_functions_are_public(loaders.batches_functions)
+
+
+def test_registered_batches_from_mapper_functions_are_public():
+    assert_registered_functions_are_public(loaders.batches_from_mapper_functions)
 
 
 def test_load_batches():
@@ -100,8 +122,8 @@ def test_load_batches():
         mock_batches = [xr.Dataset()]
         mock_batches_function = unittest.mock.MagicMock(return_value=mock_batches)
         mock_batches_function.__name__ = "mock_batches_function"
-        loaders._config.register_batches_function(mock_batches_function)
-        assert "mock_batches_function" in loaders._config.BATCHES_FUNCTIONS
+        loaders._config.batches_functions.register(mock_batches_function)
+        assert "mock_batches_function" in loaders._config.batches_functions
         data_path = "test/data/path"
         variables = ["var1"]
         batches_kwargs = {"arg1": "value1", "arg2": 2}
@@ -122,13 +144,13 @@ def test_load_batches_from_mapper():
         mock_batches = [xr.Dataset()]
         mock_batches_function = unittest.mock.MagicMock(return_value=mock_batches)
         mock_batches_function.__name__ = "mock_batches_function"
-        loaders._config.register_batches_from_mapper_function(mock_batches_function)
+        loaders._config.batches_from_mapper_functions.register(mock_batches_function)
         mock_mapper = {"key": xr.Dataset()}
         mock_mapper_function = unittest.mock.MagicMock(return_value=mock_mapper)
         mock_mapper_function.__name__ = "mock_mapper_function"
-        loaders._config.register_mapper_function(mock_mapper_function)
-        assert "mock_batches_function" in loaders._config.BATCHES_FROM_MAPPER_FUNCTIONS
-        assert "mock_mapper_function" in loaders._config.MAPPER_FUNCTIONS
+        loaders._config.mapper_functions.register(mock_mapper_function)
+        assert "mock_batches_function" in loaders._config.batches_from_mapper_functions
+        assert "mock_mapper_function" in loaders._config.mapper_functions
         data_path = "test/data/path"
         variables = ["var1"]
         batches_kwargs = {"arg1": "value1", "arg2": 2}
@@ -155,13 +177,13 @@ def test_batches_from_mapper_load_mapper():
         mock_batches = [xr.Dataset()]
         mock_batches_function = unittest.mock.MagicMock(return_value=mock_batches)
         mock_batches_function.__name__ = "mock_batches_function"
-        loaders._config.register_batches_from_mapper_function(mock_batches_function)
+        loaders._config.batches_from_mapper_functions.register(mock_batches_function)
         mock_mapper = {"key": xr.Dataset()}
         mock_mapper_function = unittest.mock.MagicMock(return_value=mock_mapper)
         mock_mapper_function.__name__ = "mock_mapper_function"
-        loaders._config.register_mapper_function(mock_mapper_function)
-        assert "mock_batches_function" in loaders._config.BATCHES_FROM_MAPPER_FUNCTIONS
-        assert "mock_mapper_function" in loaders._config.MAPPER_FUNCTIONS
+        loaders._config.mapper_functions.register(mock_mapper_function)
+        assert "mock_batches_function" in loaders._config.batches_from_mapper_functions
+        assert "mock_mapper_function" in loaders._config.mapper_functions
         data_path = "test/data/path"
         batches_kwargs = {"arg1": "value1", "arg2": 2}
         mapper_kwargs = {"arg3": 3}
@@ -185,11 +207,11 @@ def test_load_batches_from_mapper_raises_if_registered_with_wrong_decorator():
         mock_batches = [xr.Dataset()]
         mock_batches_function = unittest.mock.MagicMock(return_value=mock_batches)
         mock_batches_function.__name__ = "mock_batches_function"
-        loaders._config.register_batches_function(mock_batches_function)
+        loaders._config.batches_functions.register(mock_batches_function)
         mock_mapper = {"key": xr.Dataset()}
         mock_mapper_function = unittest.mock.MagicMock(return_value=mock_mapper)
         mock_mapper_function.__name__ = "mock_mapper_function"
-        loaders._config.register_mapper_function(mock_mapper_function)
+        loaders._config.mapper_functions.register(mock_mapper_function)
         data_path = "test/data/path"
         variables = ["var1"]
         batches_kwargs = {"arg1": "value1", "arg2": 2}

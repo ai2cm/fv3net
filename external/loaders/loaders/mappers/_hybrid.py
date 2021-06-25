@@ -4,7 +4,7 @@ import xarray as xr
 from loaders.typing import Mapper
 from ._nudged import open_nudge_to_fine
 from ._fine_resolution_budget import open_fine_res_apparent_sources
-from loaders._config import register_mapper_function
+from loaders._config import mapper_functions
 
 
 class PhysicsResidual(Mapper):
@@ -44,7 +44,7 @@ class PhysicsResidual(Mapper):
         return iter(self.keys())
 
 
-@register_mapper_function
+@mapper_functions.register
 def open_fine_resolution_nudging_hybrid(
     data_path: str,
     fine_res_path: str,

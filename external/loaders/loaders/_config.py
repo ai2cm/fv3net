@@ -1,5 +1,5 @@
 import abc
-from typing import Dict
+from typing import Dict, TypeVar
 from loaders.typing import (
     Mapper,
     MapperFunction,
@@ -11,32 +11,35 @@ import dataclasses
 import dacite
 
 
-MAPPER_FUNCTIONS: Dict[str, MapperFunction] = {}
+T = TypeVar("T")
 
 
-def register_mapper_function(func: MapperFunction):
-    MAPPER_FUNCTIONS[func.__name__] = func
-    return func
+class FunctionRegister(dict, Dict[str, T]):
+    def register(self, func: T) -> T:
+        self[func.__name__] = func
+        return func
+
+    def __repr__(self):
+        return str(sorted(list(self.keys())))
 
 
-BATCHES_FUNCTIONS: Dict[str, BatchesFunction] = {}
-
-
-def register_batches_function(func):
-    BATCHES_FUNCTIONS[func.__name__] = func
-    return func
-
-
-BATCHES_FROM_MAPPER_FUNCTIONS: Dict[str, BatchesFromMapperFunction] = {}
-
-
-def register_batches_from_mapper_function(func):
-    BATCHES_FROM_MAPPER_FUNCTIONS[func.__name__] = func
-    return func
+mapper_functions: FunctionRegister[MapperFunction] = FunctionRegister()
+batches_functions: FunctionRegister[BatchesFunction] = FunctionRegister()
+batches_from_mapper_functions: FunctionRegister[
+    BatchesFromMapperFunction
+] = FunctionRegister()
 
 
 @dataclasses.dataclass
 class MapperConfig:
+    """Configuration for the use of mapper loading functions.
+
+    Attributes:
+        data_path: location of training data to be loaded by mapper function
+        mapper_function: name of function to use for loading batched data,
+            can take any value in the keys of `loaders.mapper_functions`
+        mapper_kwargs: keyword arguments to pass to mapper function
+    """
 
     data_path: str
     mapper_function: str
@@ -44,13 +47,10 @@ class MapperConfig:
 
     def load_mapper(self) -> Mapper:
         """
-        Args:
-            config: data configuration
-
         Returns:
-            Sequence of datasets according to configuration
+            Sequence of mappers according to configuration
         """
-        mapping_func = MAPPER_FUNCTIONS[self.mapper_function]
+        mapping_func = mapper_functions[self.mapper_function]
         return mapping_func(self.data_path, **self.mapper_kwargs)
 
 
@@ -82,6 +82,14 @@ class BatchesLoader(abc.ABC):
 
 @dataclasses.dataclass
 class BatchesFromMapperConfig(BatchesLoader):
+    """Configuration for the use of batch loading functions using mappers as input.
+
+    Attributes:
+        mapper_config: configuration to retriev einput mapper
+        batches_function: name of function to use to convert mapper to batches,
+            can take any value in the keys of `loaders.batches_from_mapper_functions`
+        batches_kwargs: keyword arguments to pass to batches function
+    """
 
     mapper_config: MapperConfig
     batches_function: str
@@ -99,19 +107,19 @@ class BatchesFromMapperConfig(BatchesLoader):
             Sequence of datasets according to configuration
         """
         mapper = self.mapper_config.load_mapper()
-        batches_function = BATCHES_FROM_MAPPER_FUNCTIONS[self.batches_function]
+        batches_function = batches_from_mapper_functions[self.batches_function]
         return batches_function(mapper, list(variables), **self.batches_kwargs,)
 
 
 @dataclasses.dataclass
 class BatchesConfig(BatchesLoader):
-    """Convenience wrapper for model training data.
+    """Configuration for the use of batch loading functions.
 
-    Attrs:
+    Attributes:
         data_path: location of training data to be loaded by batch function
-        batches_function: name of function from `fv3fit.batches` to use for
-            loading batched data
-        batches_kwargs: keyword arguments to pass to batch function
+        batches_function: name of function to use for loading batched data,
+            can take any value in the keys of `loaders.batches_functions`
+        batches_kwargs: keyword arguments to pass to batches function
     """
 
     data_path: str
@@ -126,5 +134,5 @@ class BatchesConfig(BatchesLoader):
         Returns:
             Sequence of datasets according to configuration
         """
-        batches_function = BATCHES_FUNCTIONS[self.batches_function]
+        batches_function = batches_functions[self.batches_function]
         return batches_function(self.data_path, list(variables), **self.batches_kwargs,)

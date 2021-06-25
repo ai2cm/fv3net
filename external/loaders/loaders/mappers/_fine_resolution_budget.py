@@ -30,7 +30,7 @@ from ..constants import (
 from ._base import GeoMapper
 from ._high_res_diags import open_high_res_diags
 from ._merged import MergeOverlappingData
-from loaders._config import register_mapper_function
+from loaders._config import mapper_functions
 from loaders.typing import Mapper
 
 Time = str
@@ -405,7 +405,7 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
     return GroupByTime(tiles)
 
 
-@register_mapper_function
+@mapper_functions.register
 def open_fine_res_apparent_sources(
     data_path: str,
     shield_diags_path: str = None,

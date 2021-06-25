@@ -6,7 +6,7 @@ from typing import Hashable, Sequence, Mapping, Optional, Any, MutableMapping
 
 from .._base import MultiDatasetMapper
 from .._xarray import XarrayMapper
-from loaders._config import register_mapper_function
+from loaders._config import mapper_functions
 from loaders.typing import Mapper
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ Time = str
 Dataset = MutableMapping[Hashable, Any]
 
 
-@register_mapper_function
+@mapper_functions.register
 def open_nudge_to_obs(
     data_path: str,
     nudging_tendency_variables: Optional[Mapping[str, str]] = None,
@@ -113,7 +113,7 @@ def open_nudge_to_obs(
     return XarrayMapper(ds)
 
 
-@register_mapper_function
+@mapper_functions.register
 def open_nudge_to_fine(
     data_path: str,
     nudging_variables: Sequence[str],
@@ -175,7 +175,7 @@ def open_nudge_to_fine(
     return XarrayMapper(ds.rename(rename_vars))
 
 
-@register_mapper_function
+@mapper_functions.register
 def open_nudge_to_fine_multiple_datasets(
     data_path: str,
     additional_paths: Sequence[str],
