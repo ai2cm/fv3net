@@ -60,7 +60,7 @@ spec:
               - {name: fv3config, from: "{{steps.prepare-config.outputs.artifacts.fv3config}}"}
               - {name: runfile, from: "{{steps.prepare-config.outputs.artifacts.runfile}}"}
             parameters:
-              - {name: output-url, value: "{{steps.resolve-output-url.outputs.parameters.url}}/fv3gfs_run"}
+              - {name: output-url, value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run"}
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
@@ -72,9 +72,9 @@ spec:
           arguments:
             parameters:
                 - name: run
-                  value: "{{steps.resolve-output-url.outputs.parameters.url}}/fv3gfs_run"
+                  value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run"
                 - name: output
-                  value: "{{steps.resolve-output-url.outputs.parameters.url}}/fv3gfs_run_diagnostics"
+                  value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run_diagnostics"
                 - name: flags
                   value: "{{inputs.parameters.online-diags-flags}}"
       - - name: online-diags-report
@@ -85,7 +85,7 @@ spec:
           arguments:
             parameters:
                 - name: diags-url
-                  value: "{{steps.resolve-output-url.outputs.parameters.url}}/fv3gfs_run_diagnostics"
+                  value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run_diagnostics"
       - - name: exit
           template: exit
           when: "{{steps.run-model.status}} == Failed"
