@@ -18,7 +18,6 @@ setup(
         "xarray>=0.15.1",
         "zarr>=2.4.0",
         "joblib>=0.16.0",
-        "typing_extensions",
         "vcm",
         "m2r2",
     ],
