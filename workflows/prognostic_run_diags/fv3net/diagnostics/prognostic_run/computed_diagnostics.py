@@ -64,7 +64,7 @@ class ComputedDiagnosticsList:
             rundirs = json.load(f)
 
         return ComputedDiagnosticsList(
-            {name: url_to_folder(url) for name, url in rundirs.items()}
+            {item["name"]: url_to_folder(item["url"]) for item in rundirs}
         )
 
     def load_metrics(self) -> "RunMetrics":

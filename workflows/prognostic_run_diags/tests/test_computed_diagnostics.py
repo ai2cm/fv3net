@@ -1,3 +1,4 @@
+import json
 import os
 
 import fsspec
@@ -47,6 +48,21 @@ def test_ComputedDiagnosticsList_from_urls():
     assert len(result.folders) == 2
     assert isinstance(result.folders["0"], DiagnosticFolder)
     assert isinstance(result.folders["1"], DiagnosticFolder)
+
+
+def test_ComputedDiagnosticsList_from_json(tmpdir):
+    rundiags = [
+        {"name": "run1", "url": "rundir1_diagnostics"},
+        {"name": "run2", "url": "rundir2_diagnostics"},
+    ]
+    with open(tmpdir.join("rundiags.json"), "w") as f:
+        json.dump(rundiags, f)
+
+    result = ComputedDiagnosticsList.from_json(str(tmpdir.join("rundiags.json")))
+
+    assert len(result.folders) == 2
+    assert isinstance(result.folders["run1"], DiagnosticFolder)
+    assert isinstance(result.folders["run2"], DiagnosticFolder)
 
 
 def test_get_movie_links(tmpdir):
