@@ -11,15 +11,12 @@ spec:
           - name: bucket
           - name: project
           - name: tag
-      outputs:
-        parameters:
-        - name: url
-          valueFrom:
-            path: /tmp/url.txt
       container:
         image: us.gcr.io/vcm-ml/fv3net
-        command: ["bash", "-c", "-x", "-e"]
-        args:
-          - |
-            artifacts generate "{{inputs.parameters.bucket}}" "{{inputs.parameters.project}}" "{{inputs.parameters.tag}}" > /tmp/url.txt
+        command:
+          - artifacts
+          - resolve-url
+          - "{{inputs.parameters.bucket}}"
+          - "{{inputs.parameters.project}}"
+          - "{{inputs.parameters.tag}}"
           
