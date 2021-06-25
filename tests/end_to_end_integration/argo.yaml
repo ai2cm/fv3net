@@ -409,7 +409,7 @@ spec:
           - name: tag
             value: "{{workflow.parameters.tag}}-train-diags-prog"
           - name: train-test-data
-            value: "{{tasks.resolve-output-url.outputs.result}}/fv3gfs_run"
+            value: "{{tasks.resolve-output-url.outputs.parameters.url}}/fv3gfs_run"
           - name: training-configs
             value: "{{workflow.parameters.training-configs}}"
           - name: train-times
@@ -423,7 +423,7 @@ spec:
           - name: test-times
             value: "{{workflow.parameters.test-times}}"
           - name: public-report-output
-            value: "{{tasks.resolve-output-url.outputs.result}}/offline-report"
+            value: "{{tasks.resolve-output-url.outputs.parameters.url}}/offline-report"
           - name: cpu-prog
             value: "24"
           - name: memory-prog
