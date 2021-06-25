@@ -404,7 +404,7 @@ def check_validation_train_overlap(
 
 
 def validation_timesteps_config(train_config):
-    val_config = legacy_config_to_data_config(train_config)
+    val_config = legacy_config_to_batches_config(train_config)
     assert not isinstance(val_config.data_path, list)
     val_config.batches_kwargs["timesteps"] = train_config.validation_timesteps
     val_config.batches_kwargs["timesteps_per_batch"] = len(
@@ -415,7 +415,9 @@ def validation_timesteps_config(train_config):
 
 # TODO: refactor all tests and code using this to create BatchesConfig
 # from the beginning and delete this helper routine
-def legacy_config_to_data_config(legacy_config):
+def legacy_config_to_batches_config(
+    legacy_config: _ModelTrainingConfig,
+) -> loaders.BatchesConfig:
     return loaders.BatchesConfig(
         data_path=legacy_config.data_path,
         batches_function=legacy_config.batch_function,
