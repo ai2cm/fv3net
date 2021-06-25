@@ -1,0 +1,19 @@
+To run hyperparameter sweep:
+
+    $ wandb sweep --entity ai2cm --project emulator-noah hyper-parameter-tune/sweep.yaml
+    wandb: Creating sweep from: sweep.yaml
+    wandb: Created sweep with ID: ysqp9qt1
+    wandb: View sweep at: https://wandb.ai/ai2cm/emulator-noah/sweeps/ysqp9qt1
+    wandb: Run sweep agent with: wandb agent ai2cm/emulator-noah/ysqp9qt1
+
+Create a secret in K8s to launch an agent
+
+    echo "WANDB_API_KEY=<api key from web console> > .env"
+    kubectl create secret -n default generic wandb-token --from-env-file .env
+
+
+Launch the jobs:
+
+    $ bash hyper-parameter-tune/launch-agents.sh ai2cm/emulator-noah/ztxinezd                                                                       (fv3net) 
+    job.batch/emulation-noah-sweep-g9qdj created
+    

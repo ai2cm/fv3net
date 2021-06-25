@@ -39,7 +39,8 @@ class ScalarLoss:
             {
                 f"loss/variable_{self.variable}/level_{self.level}": loss.numpy()
                 * (1000 * 86400 / 900) ** 2,
-                f"relative_humidity_mse": loss_rh.numpy() * (86400 / 900) ** 2,
+                f"relative_humidity_mse/level_{self.level}": loss_rh.numpy()
+                * (86400 / 900) ** 2,
             },
         )
 
