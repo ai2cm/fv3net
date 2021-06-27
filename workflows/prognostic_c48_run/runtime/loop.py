@@ -240,6 +240,14 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._fv3gfs.apply_physics()
 
         diagnostics = {name: self._state[name] for name in self._states_to_output}
+        micro_dt_keys = [
+            "tendency_of_air_temperature_due_to_microphysics",
+            "tendency_of_specific_humidity_due_to_microphysics",
+        ]
+        micro_dt_diag = {
+            key: self._fv3gfs.get_diagnostic_by_name(key).data_array
+            for key in micro_dt_keys
+        }
         micro = self._fv3gfs.get_diagnostic_by_name(
             "tendency_of_specific_humidity_due_to_microphysics"
         ).data_array
@@ -255,6 +263,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             ).data_array,
             "total_precip_after_physics": self._state[TOTAL_PRECIP],
         })
+        diagnostics.update(micro_dt_diag)
         return diagnostics
 
     def _print_timing(self, name, min_val, max_val, mean_val):
