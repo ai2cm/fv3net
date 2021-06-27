@@ -164,15 +164,18 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._state_updates: State = {}
 
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
+        self._after_dynamics_to_output = self._get_states_to_output(
+            config, name="state_after_dynamics.zarr"
+        )
         self._log_debug(f"States to output: {self._states_to_output}")
         self.stepper = self._get_stepper(config)
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
-    def _get_states_to_output(self, config: UserConfig) -> Sequence[str]:
+    def _get_states_to_output(self, config: UserConfig, name: str = "state_after_timestep.zarr") -> Sequence[str]:
         states_to_output: List[str] = []
         for diagnostic in config.diagnostics:
-            if diagnostic.name == "state_after_timestep.zarr":
+            if diagnostic.name == name:
                 if diagnostic.variables:
                     # states_to_output should be a Container but fixing this
                     # type error requires changing its usage by the steppers
@@ -209,8 +212,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
     def _step_dynamics(self) -> Diagnostics:
         self._log_debug(f"Dynamics Step")
         self._fv3gfs.step_dynamics()
-        # no diagnostics are computed by default
-        return {}
+        diags = {name: self._state[name] for name in self._after_dynamics_to_output}
+        return diags
 
     def _compute_physics(self) -> Diagnostics:
         self._log_debug(f"Physics Step (compute)")
