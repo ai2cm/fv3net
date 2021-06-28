@@ -51,4 +51,7 @@ To make a report from runs that are not in a combined folder like
       path/to/baseline_run_diags \
       path/to/prognostic_run_diags
 
+Or you may encode the paths to URLs in a JSON and use the
+`prognostic_run_diags report-from-json` entrypoint.
+
 See :ref:`cli` for details about the options available for the above commands.
