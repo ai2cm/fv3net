@@ -426,7 +426,7 @@ def main(args):
     except AttributeError:
         try:
             input_feature_indices = get_variable_indices(
-                data=pred_mapper[timesteps[0]], variables=model.input_variables
+                data=pred_mapper[timesteps[0]], variables=model.input_variables, drop_levels=model.drop_levels
             )
             plot_rf_feature_importance(
                 input_feature_indices,

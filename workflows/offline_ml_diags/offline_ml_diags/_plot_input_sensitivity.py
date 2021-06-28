@@ -109,6 +109,11 @@ def plot_rf_feature_importance(
         len(vector_features) + 1 if len(scalar_features) > 0 else len(vector_features)
     )
     fig, axs = plt.subplots(1, n_panels, figsize=(6 * n_panels, 4), squeeze=False,)
+
+    print(f"len(vector_features): {len(vector_features)}")
+    print(f"vector features {vector_features}")
+    print(f"mean importance {mean_importances}")
+    print(f"std_importances {std_importances}")
     axs = _subplot_vector_feature_importances(
         axs, vector_features, mean_importances, std_importances
     )

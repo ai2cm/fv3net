@@ -22,16 +22,20 @@ class _XyArraySequence(tf.keras.utils.Sequence):
         X_packer: ArrayPacker,
         y_packer: ArrayPacker,
         dataset_sequence: Sequence[xr.Dataset],
+        drop_levels: int = 0,
     ):
         self.X_packer = X_packer
         self.y_packer = y_packer
         self.dataset_sequence = dataset_sequence
+        self.drop_levels = drop_levels
 
     def __len__(self) -> int:
         return len(self.dataset_sequence)
 
     def __getitem__(self, idx) -> Tuple[np.ndarray, np.ndarray]:
         ds = self.dataset_sequence[idx]
+        if "z" in ds.dims:
+            ds = ds.isel(z=slice(self.drop_levels, None))
         X = self.X_packer.to_array(ds)
         y = self.y_packer.to_array(ds)
         return X, y

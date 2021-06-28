@@ -130,6 +130,7 @@ class DenseModel(Predictor):
             ] = tempfile.TemporaryDirectory()
         else:
             self._checkpoint_path = None
+        self.drop_levels = hyperparameters.drop_levels
         self._fit_kwargs = hyperparameters.fit_kwargs or {}
 
     @property
@@ -217,7 +218,7 @@ class DenseModel(Predictor):
             fit_kwargs, use_last_batch_to_validate, "use_last_batch_to_validate", False
         )
 
-        Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
+        Xy = _XyArraySequence(self.X_packer, self.y_packer, batches, self.drop_levels)
 
         if self._model is None:
             X, y = Xy[0]

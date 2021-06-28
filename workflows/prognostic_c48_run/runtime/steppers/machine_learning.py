@@ -126,7 +126,17 @@ class MultiModelAdapter:
     def predict_columnwise(self, arg: xr.Dataset, **kwargs) -> xr.Dataset:
         predictions = []
         for model in self.models:
-            predictions.append(model.predict_columnwise(arg, **kwargs))
+            input_state = arg
+            print(f"Input state: {input_state}")
+            if "z" in input_state.dims:
+                input_state = input_state.isel(z=slice(model.model.drop_levels, None))
+                print(f"model.model.drop_levels {model.model.drop_levels}")
+
+            prediction = model.predict_columnwise(input_state, **kwargs)
+            if "z" in prediction.dims:
+                pad = model.model.drop_levels
+                prediction = prediction.pad(z=(pad, 0), constant_values=0.0)
+            predictions.append(prediction)
         return xr.merge(predictions)
 
 

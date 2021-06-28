@@ -77,8 +77,10 @@ def _count_features_2d(
 
 
 def get_variable_indices(
-    data: xr.Dataset, variables: Sequence[str]
+    data: xr.Dataset, variables: Sequence[str], drop_levels: int = 0
 ) -> Mapping[str, Tuple[int, int]]:
+    if "z" in data.dims:
+        data = data.isel(z=slice(drop_levels, None))
     if "time" in data.dims:
         data = data.isel(time=0).squeeze(drop=True)
     stacked = data.stack(sample=["tile", "x", "y"])

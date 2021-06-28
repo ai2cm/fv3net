@@ -45,7 +45,14 @@ class PredictionMapper(GeoMapper):
         self._variables = variables
 
     def _predict(self, ds: xr.Dataset) -> xr.Dataset:
-        return self._model.predict_columnwise(ds, feature_dim=self._z_dim)
+        print(f"drop_levels {self._model.drop_levels}")
+        if "z" in ds.dims:
+            ds = ds.isel(z=slice(self._model.drop_levels, None))
+        result = self._model.predict_columnwise(ds, feature_dim=self._z_dim)
+        if "z" in ds.dims:
+            result = result.pad(z=(self._model.drop_levels, 0), constant_values=0.0)
+        return result
+
 
     def _insert_prediction(self, ds: xr.Dataset, ds_pred: xr.Dataset) -> xr.Dataset:
         predicted_vars = ds_pred.data_vars

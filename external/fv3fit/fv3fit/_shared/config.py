@@ -189,6 +189,8 @@ class DenseHyperparameters:
         nonnegative_outputs: if True, add a ReLU activation layer as the last layer
             after output denormalization layer to ensure outputs are always >=0
             Defaults to False.
+        drop_levels: number of layers to drop from the top of the model inputs and
+            outputs (default 0).
         fit_kwargs: other keyword arguments to be passed to the underlying
             tf.keras.Model.fit() method
     """
@@ -207,6 +209,7 @@ class DenseHyperparameters:
     spectral_normalization: bool = False
     save_model_checkpoints: bool = False
     nonnegative_outputs: bool = False
+    drop_levels: int = 0
 
     # TODO: remove fit_kwargs by fixing how validation data is passed
     fit_kwargs: Optional[dict] = None
@@ -237,6 +240,8 @@ class RandomForestHyperparameters:
             for each base estimator
         bootstrap: whether bootstrap samples are used when building trees.
             If False, the whole dataset is used to build each tree.
+        drop_levels: number of layers to drop from the top of the model inputs and
+            outputs (default 0).
     """
 
     scaler_type: str = "standard"
@@ -252,6 +257,7 @@ class RandomForestHyperparameters:
     max_features: Union[Literal["auto", "sqrt", "log2"], int, float] = "auto"
     max_samples: Optional[Union[int, float]] = None
     bootstrap: bool = True
+    drop_levels: int = 0
 
 
 @dataclasses.dataclass

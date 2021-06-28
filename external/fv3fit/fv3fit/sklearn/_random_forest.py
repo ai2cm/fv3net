@@ -79,9 +79,10 @@ class RandomForest(Predictor):
             scaler_type=hyperparameters.scaler_type,
             scaler_kwargs=hyperparameters.scaler_kwargs,
         )
+        self.drop_levels = hyperparameters.drop_levels
 
     def fit(self, batches: Sequence[xr.Dataset]):
-        return self._model_wrapper.fit(batches)
+        return self._model_wrapper.fit(batches, self.drop_levels)
 
     def predict(self, features):
         return self._model_wrapper.predict(features)
@@ -186,6 +187,7 @@ class SklearnWrapper(Predictor):
     _PICKLE_NAME = "sklearn.pkl"
     _SCALER_NAME = "scaler.bin"
     _METADATA_NAME = "metadata.bin"
+    _CONFIG_NAME = "training_config.yml"
 
     def __init__(
         self,
@@ -195,6 +197,7 @@ class SklearnWrapper(Predictor):
         model: _RegressorEnsemble,
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
+        drop_levels: int = 0
     ) -> None:
         """
         Initialize the wrapper
@@ -213,12 +216,15 @@ class SklearnWrapper(Predictor):
         self.scaler_type = scaler_type
         self.scaler_kwargs = scaler_kwargs or {}
         self.target_scaler: Optional[scaler.NormalizeTransform] = None
+        self.drop_levels = drop_levels
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
-    def _fit_batch(self, data: xr.Dataset):
+    def _fit_batch(self, data: xr.Dataset, drop_levels: int):
         # TODO the sample_dim can change so best to use feature dim to flatten
+        if "z" in data.dims:
+            data = data.isel(z=slice(drop_levels, None))
         x, _ = pack(data[self.input_variables], self.sample_dim_name)
         y, self.output_features_ = pack(
             data[self.output_variables], self.sample_dim_name
@@ -239,11 +245,11 @@ class SklearnWrapper(Predictor):
             self._sample_dim_name,
         )
 
-    def fit(self, batches: Sequence[xr.Dataset]):
+    def fit(self, batches: Sequence[xr.Dataset], drop_levels):
         logger = logging.getLogger("SklearnWrapper")
         for i, batch in enumerate(batches):
             logger.info(f"Fitting batch {i+1}/{len(batches)}")
-            self._fit_batch(batch)
+            self._fit_batch(batch, drop_levels)
             logger.info(f"Batch {i+1} done fitting.")
 
     def predict(self, data):
@@ -284,7 +290,7 @@ class SklearnWrapper(Predictor):
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
 
     @classmethod
-    def load(cls, path: str) -> "SklearnWrapper":
+    def load(cls, path: str, drop_levels: int = 0) -> "SklearnWrapper":
         """Load a model from a remote path"""
         mapper = fsspec.get_mapper(path)
         model = _RegressorEnsemble.loads(mapper[cls._PICKLE_NAME])
@@ -302,11 +308,16 @@ class SklearnWrapper(Predictor):
             output_features_dict_,
         ) = yaml.safe_load(mapper[cls._METADATA_NAME])
 
+        training_config = yaml.safe_load(mapper[cls._CONFIG_NAME])
+        drop_levels = training_config["hyperparameters"].get("drop_levels", 0)
+        print(f"drop_levels {drop_levels}")
+
         output_features_ = _tuple_to_multiindex(output_features_dict_)
 
         obj = cls(sample_dim_name, input_variables, output_variables, model)
         obj.target_scaler = scaler_obj
         obj.output_features_ = output_features_
+        obj.drop_levels = drop_levels
 
         return obj
 

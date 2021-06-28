@@ -20,6 +20,7 @@ class ConstantOutputPredictor(Predictor):
         sample_dim_name: str,
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
+        drop_levels: int = 0,
     ):
         """Initialize the predictor
         
@@ -27,6 +28,7 @@ class ConstantOutputPredictor(Predictor):
             sample_dim_name: name of sample dimension
             input_variables: names of input variables
             output_variables: names of output variables
+            drop_levels: number of levels to drop from top of model
         
         """
         super().__init__(
@@ -35,6 +37,7 @@ class ConstantOutputPredictor(Predictor):
             output_variables=output_variables,
         )
         self._outputs: Dict[Hashable, Union[np.ndarray, float]] = {}
+        self.drop_levels = drop_levels
 
     def set_outputs(self, **outputs: Union[np.ndarray, float]):
         """
