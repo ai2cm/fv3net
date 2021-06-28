@@ -1,11 +1,12 @@
 import argparse
 import fsspec
+from numpy.ma.core import default_fill_value
 import yaml
 import logging
 import os
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from typing import List
 
 from loaders.mappers import open_phys_emu_training
@@ -24,6 +25,13 @@ Batch is defined as what the mapper loads for a single item.
 logger = logging.getLogger(__name__)
 
 
+def default_source_files():
+    sources =  [
+        "state_after_timestep.zarr",
+        "physics_tendencies.zarr"
+    ]
+    return sources
+
 @dataclass
 class SubsetConfig:
     """
@@ -41,6 +49,7 @@ class SubsetConfig:
     destination_path: str
     init_times: List[str]
     variables: List[str]
+    source_files: List[str] = field(default_factory=default_source_files)
     subsample_size: int = 2560
     num_workers: int = 10
 
@@ -91,8 +100,10 @@ if __name__ == "__main__":
 
     config = SubsetConfig(**config_yaml)
 
-    data_mapping = open_phys_emu_training(config.source_path, config.init_times,
-        dataset_names=["emulator_inputs.zarr", "physics_tendencies.zarr"]
+    data_mapping = open_phys_emu_training(
+        config.source_path,
+        config.init_times,
+        dataset_names=config.source_files
     )
     batches = batches_from_mapper(
         data_mapping, config.variables, subsample_size=config.subsample_size

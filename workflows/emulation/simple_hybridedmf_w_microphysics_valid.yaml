@@ -1,0 +1,45 @@
+source_path: gs://vcm-ml-scratch/andrep/all-physics-emu/training-simple-phys-12day-w-micro
+destination_path: gs://vcm-ml-scratch/andrep/all-physics-emu/validation-subsets/simple-phys-hybridedmf-w-microphysics-12day
+source_files:
+  - state_after_dynamics.zarr
+  - physics_tendencies.zarr
+  - physics_component_tendencies.zarr
+init_times: 
+  - "20160201.000000"
+  - "20160601.000000"
+  - "20160901.000000"
+variables: 
+  - cos_day
+  - sin_day
+  - cos_month
+  - sin_month
+  - latitude
+  - longitude
+  - cos_lon
+  - sin_lon
+  - cos_zenith_angle
+  - vertical_thickness_of_atmospheric_layer
+  - pressure_thickness_of_atmospheric_layer
+  - eastward_wind
+  - northward_wind
+  - vertical_wind
+  - air_temperature
+  - specific_humidity
+  - cloud_water_mixing_ratio
+  - ozone_mixing_ratio
+  - total_soil_moisture
+  - liquid_soil_moisture
+  - soil_temperature
+  - surface_temperature
+  - canopy_water
+  - sea_ice_thickness
+  - snow_depth_water_equivalent
+  - tendency_of_air_temperature_due_to_fv3_physics
+  - tendency_of_specific_humidity_due_to_fv3_physics
+  - tendency_of_eastward_wind_due_to_fv3_physics
+  - tendency_of_northward_wind_due_to_fv3_physics
+  - tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics
+  - tendency_of_ozone_mixing_ratio_due_to_fv3_physics
+  - tendency_of_pressure_thickness_of_atmospheric_layer_due_to_fv3_physics
+  - tendency_of_specific_humidity_due_to_microphysics
+  - tendency_of_air_temperature_due_to_microphysics
