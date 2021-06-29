@@ -16,4 +16,8 @@ Launch the jobs:
 
     $ bash hyper-parameter-tune/launch-agents.sh ai2cm/emulator-noah/ztxinezd                                                                       (fv3net) 
     job.batch/emulation-noah-sweep-g9qdj created
+
+To launch a single run, edit the parameters in `hyper-parameter-tune/train.yaml` and launch the pod like this:
+
+    kubectl apply -f hyper-parameter-tune/train.yaml
     
