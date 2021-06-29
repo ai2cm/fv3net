@@ -12,12 +12,14 @@ from pathlib import Path
 from dataclasses import dataclass
 import tempfile
 
+from .metrics import compute_all_metrics
+
 
 __all__ = ["ComputedDiagnosticsList", "RunDiagnostics"]
 
 
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
-GRID_VARS = ["area", "lonb", "latb", "lon", "lat"]
+GRID_VARS = ["area", "lonb", "latb", "lon", "lat", "land_sea_mask"]
 
 Diagnostics = Iterable[xr.Dataset]
 Metadata = Any
@@ -58,6 +60,10 @@ class ComputedDiagnosticsList:
     def load_diagnostics(self) -> Tuple[Metadata, "RunDiagnostics"]:
         metadata, xarray_diags = load_diagnostics(self.folders)
         return metadata, RunDiagnostics(xarray_diags)
+
+    def load_metrics_from_diagnostics(self) -> "RunMetrics":
+        """Compute metrics on the fly from the pre-computed diagnostics."""
+        return RunMetrics(load_metrics_from_diagnostics(self.folders))
 
     def find_movie_links(self):
         return find_movie_links(self.folders)
@@ -192,8 +198,21 @@ class RunMetrics:
 def load_metrics(rundirs) -> pd.DataFrame:
     """Load the metrics from a bucket"""
     metrics = _load_metrics(rundirs)
+    return _metrics_dataframe_from_dict(metrics)
+
+
+def load_metrics_from_diagnostics(rundirs) -> pd.DataFrame:
+    """Load the diagnostics from a bucket and compute metrics"""
+    metrics = {}
+    _, diagnostics = load_diagnostics(rundirs)
+    for ds in diagnostics:
+        metrics[ds.run] = compute_all_metrics(ds)
+    return _metrics_dataframe_from_dict(metrics)
+
+
+def _metrics_dataframe_from_dict(metrics) -> pd.DataFrame:
     metric_table = pd.DataFrame.from_records(_yield_metric_rows(metrics))
-    run_table = parse_rundirs(rundirs)
+    run_table = parse_rundirs(list(metrics.keys()))
     return pd.merge(run_table, metric_table, on="run")
 
 
@@ -206,9 +225,6 @@ def load_diagnostics(rundirs) -> Tuple[Metadata, Diagnostics]:
         for key, ds in diags.items()
     ]
     diagnostics = [convert_index_to_datetime(ds, "time") for ds in diagnostics]
-
-    # hack to add verification data from longest set of diagnostics as new run
-    # TODO: generate separate diags.nc file for verification data and load that in here
     longest_run_ds = _longest_run(diagnostics)
     diagnostics.append(_get_verification_diagnostics(longest_run_ds))
     return get_metadata(diags), diagnostics
@@ -324,7 +340,7 @@ def _parse_metadata(run: str):
 
 
 def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
-    """Back out verification timeseries from prognostic run value and bias"""
+    """Back out verification diagnostics from prognostic run values and biases"""
     verif_diagnostics = {}
     verif_attrs = {"run": "verification", "baseline": True}
     mean_bias_pairs = {
@@ -333,6 +349,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
         "zonal_and_time_mean": "zonal_bias",
         "zonal_mean_value": "zonal_mean_bias",
         "time_mean_value": "time_mean_bias",
+        "histogram": "hist_bias",
     }
     for mean_filter, bias_filter in mean_bias_pairs.items():
         mean_vars = [var for var in ds if mean_filter in var]
@@ -342,6 +359,10 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
                 # verification = prognostic - bias
                 verif_diagnostics[var] = ds[var] - ds[matching_bias_var]
                 verif_diagnostics[var].attrs = ds[var].attrs
+    # special handling for histogram bin widths
+    bin_width_vars = [var for var in ds if "bin_width_histogram" in var]
+    for var in bin_width_vars:
+        verif_diagnostics[var] = ds[var]
     verif_dataset = xr.Dataset(verif_diagnostics)
     return xr.merge([ds[GRID_VARS], verif_dataset]).assign_attrs(verif_attrs)
 
