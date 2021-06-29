@@ -511,11 +511,11 @@ def _register_report_from_json(subparsers):
     )
     parser.add_argument("output", help="Location to save report html files.")
     parser.add_argument(
-        "-u",
+        "-r",
         "--urls-are-rundirs",
         action="store_true",
-        help="The URLs in JSON file are for FV3GFS run directories instead of run "
-        "diagnostics folders.",
+        help="Use if the URLs in given JSON file are for fv3gfs run directories "
+        "instead of run diagnostics folders.",
     )
     parser.set_defaults(func=main_json)
 

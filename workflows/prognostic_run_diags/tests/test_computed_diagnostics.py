@@ -1,6 +1,5 @@
 import json
 import os
-from re import U
 
 import fsspec
 import numpy as np
