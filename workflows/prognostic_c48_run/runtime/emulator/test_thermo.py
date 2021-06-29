@@ -47,7 +47,7 @@ def test_specific_humidity(t, rh, rho):
     floats(200, 400),
     floats(0.00001, 0.01),
     floats(100, 110),
-    floats(50, 100),
+    floats(-100, -50),
     integers(0, 10),
 )
 def test_basis_tranformations(u, v, t, q, dp, dz, num_extra):
@@ -60,3 +60,8 @@ def test_basis_tranformations(u, v, t, q, dp, dz, num_extra):
     assert len(orig.args) == len(roundtrip.args)
     for k, (a, b) in enumerate(zip(orig.args, roundtrip.args)):
         assert pytest.approx(a.numpy()) == b.numpy(), k
+
+
+def test_vertical_thickness_nonpositive(state):
+    all_positive = (state["vertical_thickness_of_atmospheric_layer"] <= 0).all().item()
+    assert all_positive

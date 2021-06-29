@@ -29,11 +29,11 @@ def specific_humidity_from_rh(
 
 
 def density(delp, delz):
-    return delp / delz / _GRAVITY
+    return tf.abs(delp / delz / _GRAVITY)
 
 
 def pressure_thickness(rho, delz):
-    return rho * delz * _GRAVITY
+    return tf.abs(rho * delz * _GRAVITY)
 
 
 class ThermoBasis:
