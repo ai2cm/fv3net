@@ -28,6 +28,7 @@ problem = "single-level"
 scale = 1e-9
 num_hidden = 256
 num_hidden_layers = 1
+levels = "50,25,75"
 nfiles = 0
 extra_variables = ""
 wandb_logger = False
@@ -44,7 +45,11 @@ config.wandb_logger = wandb_logger
 if problem == "single-level":
     config.target = runtime.emulator.ScalarLoss(3, 50, scale=scale)
 elif problem == "all":
-    pass
+    if levels:
+        int_levels = [int(lev) for lev in levels.split(",")]
+    else:
+        int_levels = []
+    config.target = runtime.emulator.MultiVariableLoss(levels=int_levels)
 elif problem == "rh":
     config.target = runtime.emulator.RHLoss(level=50, scale=scale)
 else:

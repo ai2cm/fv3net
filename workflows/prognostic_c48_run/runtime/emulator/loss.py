@@ -1,11 +1,25 @@
 import dataclasses
-from typing import Any, Tuple
+from typing import Any, List, Tuple
 import tensorflow as tf
 from runtime.emulator.thermo import (
     ThermoBasis,
     relative_humidity,
     specific_humidity_from_rh,
 )
+
+
+def rh_loss_info(truth_rh, pred_rh, level):
+    loss_rh = tf.reduce_mean(tf.losses.mean_squared_error(truth_rh, pred_rh))
+    return {
+        f"relative_humidity_mse/level_{level}": loss_rh.numpy() * (86400 / 900) ** 2
+    }
+
+
+def q_loss_info(truth_q, pred_q, level):
+    loss_q = tf.reduce_mean(tf.losses.mean_squared_error(truth_q, pred_q))
+    return {
+        f"loss/variable_3/level_{level}": loss_q.numpy() * (1000 * 86400 / 900) ** 2
+    }
 
 
 @dataclasses.dataclass
@@ -21,7 +35,7 @@ class ScalarLoss:
     level: int
     scale: float = 1.0
 
-    def loss(self, pred: ThermoBasis, out: ThermoBasis):
+    def loss(self, pred: tf.Tensor, out: ThermoBasis):
         truth_q = select_level(out.q, self.level)
         loss = tf.reduce_mean(tf.losses.mean_squared_error(truth_q, pred))
 
@@ -29,15 +43,12 @@ class ScalarLoss:
             select_level(out.T, self.level), pred, select_level(out.rho, self.level),
         )
         truth_rh = select_level(out.rh, self.level)
-        loss_rh = tf.reduce_mean(tf.losses.mean_squared_error(truth_rh, pred_rh))
 
         return (
             loss / self.scale,
             {
-                f"loss/variable_{self.variable}/level_{self.level}": loss.numpy()
-                * (1000 * 86400 / 900) ** 2,
-                f"relative_humidity_mse/level_{self.level}": loss_rh.numpy()
-                * (86400 / 900) ** 2,
+                **q_loss_info(truth_q, pred, self.level),
+                **rh_loss_info(truth_rh, pred_rh, self.level),
             },
         )
 
@@ -63,17 +74,14 @@ class RHLoss:
         truth_q = select_level(out.q, self.level)
         truth_rh = select_level(out.rh, self.level)
 
-        loss = tf.reduce_mean(tf.losses.mean_squared_error(truth_q, pred_q))
         loss_rh = tf.reduce_mean(tf.losses.mean_squared_error(truth_rh, pred_rh))
 
         return (
             loss_rh / self.scale,
             {
-                f"loss/variable_3/level_{self.level}": loss.numpy()
-                * (1000 * 86400 / 900) ** 2,
-                f"relative_humidity_mse/level_{self.level}": loss_rh.numpy()
-                * (86400 / 900) ** 2,
                 f"loss": loss_rh.numpy(),
+                **q_loss_info(truth_q, pred_q, self.level),
+                **rh_loss_info(truth_rh, pred_rh, self.level),
             },
         )
 
@@ -88,12 +96,14 @@ class MultiVariableLoss:
         Attrs:
             ?_weight: weight of the variable in the loss function.
                 Only used if name is None
+            levels: levels to save outputs at
     """
 
     q_weight: float = 1e6
     u_weight: float = 100
     t_weight: float = 100
     v_weight: float = 100
+    levels: List[int] = dataclasses.field(default_factory=list)
 
     def loss(self, pred: ThermoBasis, out: ThermoBasis) -> Tuple[tf.Tensor, Any]:
         loss_u = tf.reduce_mean(tf.keras.losses.mean_squared_error(out.u, pred.u))
@@ -106,13 +116,22 @@ class MultiVariableLoss:
             + loss_t * self.t_weight
             + loss_q * self.q_weight
         )
-        return (
-            loss,
-            {
-                "loss_u": loss_u.numpy(),
-                "loss_v": loss_v.numpy(),
-                "loss_q": loss_q.numpy(),
-                "loss_t": loss_t.numpy(),
-                "loss": loss.numpy(),
-            },
-        )
+
+        info = {
+            "loss_u": loss_u.numpy(),
+            "loss_v": loss_v.numpy(),
+            "loss_q": loss_q.numpy(),
+            "loss_t": loss_t.numpy(),
+            "loss": loss.numpy(),
+        }
+
+        for level in self.levels:
+            pred_rh = select_level(pred.rh, level)
+            truth_rh = select_level(out.rh, level)
+            info.update(rh_loss_info(truth_rh, pred_rh, level))
+
+            pred_q = select_level(pred.q, level)
+            truth_q = select_level(out.q, level)
+            info.update(q_loss_info(truth_q, pred_q, level))
+
+        return loss, info

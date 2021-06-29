@@ -1,24 +1,24 @@
-from workflows.prognostic_c48_run.runtime.emulator.loss import RHLoss
+import numpy as np
+from runtime.emulator.loss import RHLoss
 from runtime.emulator.loss import MultiVariableLoss, ScalarLoss
 import tensorflow as tf
 from .utils import _get_argsin
 import pytest
 
 
-def test_MultiVariableLoss():
+def test_MultiVariableLoss(regtest):
 
     tf.random.set_seed(1)
     in_ = _get_argsin(levels=10)
-    loss, info = MultiVariableLoss().loss(in_, in_)
+    loss, info = MultiVariableLoss(levels=[5, 9]).loss(in_, in_)
 
     assert isinstance(loss, tf.Tensor)
-    assert {
-        "loss_u": 0.0,
-        "loss_v": 0.0,
-        "loss_q": 0.0,
-        "loss_t": 0.0,
-        "loss": 0.0,
-    } == info
+    print(info, file=regtest)
+
+    for key in sorted(info):
+        value = info[key]
+        assert not np.isnan(value), key
+        print(key, value, file=regtest)
 
 
 @pytest.mark.parametrize("loss_fn", [ScalarLoss(3, 5), RHLoss(5)])
