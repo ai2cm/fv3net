@@ -507,6 +507,24 @@ def compute_histogram(prognostic, verification, grid):
     return _assign_diagnostic_time_attrs(counts, prognostic)
 
 
+@add_to_diags("physics")
+@diag_finalizer("hist_bias")
+@transform.apply("resample_time", "3H", inner_join=True, method="mean")
+@transform.apply("subset_variables", list(HISTOGRAM_BINS.keys()))
+def compute_histogram(prognostic, verification, grid):
+    logger.info("Computing histogram biases for physics diagnostics")
+    counts = xr.Dataset()
+    for varname in prognostic.data_vars:
+        prognostic_count, _ = vcm.histogram(
+            prognostic[varname], bins=HISTOGRAM_BINS[varname], density=True
+        )
+        verification_count, _ = vcm.histogram(
+            verification[varname], bins=HISTOGRAM_BINS[varname], density=True
+        )
+        counts[varname] = prognostic_count - verification_count
+    return _assign_diagnostic_time_attrs(counts, prognostic)
+
+
 def register_parser(subparsers):
     parser = subparsers.add_parser("save", help="Compute the prognostic run diags.")
     parser.add_argument("url", help="Prognostic run output location.")
