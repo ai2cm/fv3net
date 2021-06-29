@@ -21,7 +21,7 @@ from .matplotlib import (
     raw_html,
     plot_histogram,
 )
-from ..constants import PERCENTILES, PRECIP_RATE
+from ..constants import PERCENTILES, PRECIP_RATE, TOP_LEVEL_METRICS
 
 import logging
 
@@ -331,12 +331,22 @@ def generic_metric_plot(metrics: RunMetrics, metric_type: str) -> hv.HoloMap:
 
 
 def get_metrics_table(
-    metrics: RunMetrics, metric_types: Sequence[str], variable_names: Sequence[str]
-) -> Mapping[str, Mapping[str, float]]:
-    """Structure a set of metrics in format suitable for reports.create_html"""
+    metrics: RunMetrics, variable_names: Mapping[str, Sequence[str]],
+) -> Mapping[str, Mapping[str, str]]:
+    """Structure a set of metrics in format suitable for reports.create_html.
+    
+    Args:
+        metrics: The full set of run metrics.
+        variable_names: Names of desired metrics to include in table as mapping
+            from metric type to sequences of variable names. For example,
+            {"rmse_5day": ["h500", "tmp850"]}.
+
+    Returns:
+        Mapping from metric label to mapping from run name to metric value as string.
+    """
     table = {}
-    for metric_type in metric_types:
-        for name in variable_names:
+    for metric_type, names in variable_names.items():
+        for name in names:
             units = metrics.get_metric_units(metric_type, name, metrics.runs[0])
             type_label = f"{name} {metric_type} [{units}]"
             table[type_label] = {
@@ -365,9 +375,11 @@ def render_index(metadata, diagnostics, metrics, movie_links):
 
     if not metrics.empty:
         sections_index["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
+    metrics_table = get_metrics_table(metrics, TOP_LEVEL_METRICS)
     return create_html(
         title="Prognostic run report",
         metadata={**metadata, **render_links(movie_links)},
+        metrics=metrics_table,
         sections=sections_index,
         html_header=get_html_header(),
     )
@@ -426,8 +438,8 @@ def render_process_diagnostics(metadata, diagnostics, metrics):
         "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
         "Precipitation histogram": list(histogram_plot_manager.make_plots(diagnostics)),
     }
-    metric_types = [f"percentile_{p}" for p in PERCENTILES]
-    metrics_table = get_metrics_table(metrics, metric_types, [PRECIP_RATE])
+    percentile_names = {f"percentile_{p}": [PRECIP_RATE] for p in PERCENTILES}
+    metrics_table = get_metrics_table(metrics, percentile_names)
     return create_html(
         title="Process diagnostics",
         metadata=metadata,
