@@ -21,6 +21,7 @@ tf.random.set_seed(1)
 batch_size = 32
 epochs = 60
 lr = 0.01
+momentum = 0.5
 timestep = 900
 train_path = "data/training"
 test_path = "data/validation"
@@ -38,6 +39,7 @@ config = runtime.emulator.OnlineEmulatorConfig()
 config.batch_size = batch_size
 config.epochs = epochs
 config.learning_rate = lr
+config.momentum = momentum
 config.batch = runtime.emulator.BatchDataConfig(train_path, test_path)
 config.num_hidden = num_hidden
 config.num_hidden_layers = num_hidden_layers
