@@ -8,7 +8,7 @@ services:
   fv3:
     depends_on:
       - tensorboard
-    image: us.gcr.io/vcm-ml/emulator:latest
+    image: us.gcr.io/vcm-ml/emulator@sha256:3c7cf659659e7b2cc3ad76e3048620e57c17faecee9316fade5d54610b1b445a
     entrypoint: []
     command: [ls]
     volumes:
@@ -25,10 +25,20 @@ services:
       - PIP_CONSTRAINT=/fv3net/constraints.txt
     env_file:
       .env
+  jupyter:
+    image: us.gcr.io/vcm-ml/emulator@sha256:3c7cf659659e7b2cc3ad76e3048620e57c17faecee9316fade5d54610b1b445a
+    entrypoint: []
+    command: []
+    working_dir: "/mnt/jupyter"
+    volumes:
+      - dvc:/mnt
+    ports:
+      - "8890:8888"
   guild:
     image: guildai/guildai
     volumes:
-      - guild:/mnt/guild
+      - dvc:/mnt
+      - .:/fv3net
     environment:
       - GUILD_HOME=/mnt/guild
     command: [guild, view, --port, "8080"]
