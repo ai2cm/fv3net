@@ -1,6 +1,8 @@
+from workflows.prognostic_c48_run.runtime.emulator.loss import RHLoss
 from runtime.emulator.loss import MultiVariableLoss, ScalarLoss
 import tensorflow as tf
 from .utils import _get_argsin
+import pytest
 
 
 def test_MultiVariableLoss():
@@ -19,18 +21,19 @@ def test_MultiVariableLoss():
     } == info
 
 
-def test_ScalarLoss():
-    varnum = 3
-    i = 5
+@pytest.mark.parametrize("loss_fn", [ScalarLoss(3, 5), RHLoss(5)])
+def test_ScalarLoss(loss_fn):
+    i = loss_fn.level
 
     def model(x):
-        return x.q[:, i : i + 1]
+        if isinstance(loss_fn, ScalarLoss):
+            return x.q[:, i : i + 1]
+        elif isinstance(loss_fn, RHLoss):
+            return x.rh[:, i : i + 1]
 
     in_ = _get_argsin(levels=i + 1)
     out = in_
-    loss, info = ScalarLoss(varnum, level=i).loss(model(in_), out)
+    loss, info = loss_fn.loss(model(in_), out)
     assert isinstance(loss, tf.Tensor)
-    assert {
-        "loss/variable_3/level_5": 0.0,
-        "relative_humidity_mse/level_5": 0.0,
-    } == info
+    assert f"loss/variable_3/level_{i}" in info
+    assert f"relative_humidity_mse/level_{i}" in info
