@@ -140,3 +140,9 @@ PRESSURE_INTERPOLATED_VARS = [
 PRECIP_RATE = "total_precip_to_surface"
 HISTOGRAM_BINS = {PRECIP_RATE: np.logspace(-1, np.log10(500), 101)}
 PERCENTILES = [25, 50, 75, 90, 99, 99.9]
+TOP_LEVEL_METRICS = {
+    "rmse_5day": ["h500", "tmp850", "pressfc"],
+    "rmse_of_time_mean": [PRECIP_RATE],
+    "time_and_land_mean_bias": [PRECIP_RATE],
+    "rmse_of_time_mean_land": ["tmp850"],
+}
