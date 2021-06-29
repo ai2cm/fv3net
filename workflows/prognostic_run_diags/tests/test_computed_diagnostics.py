@@ -1,5 +1,6 @@
 import json
 import os
+from re import U
 
 import fsspec
 import numpy as np
@@ -63,6 +64,17 @@ def test_ComputedDiagnosticsList_from_json(tmpdir):
     assert len(result.folders) == 2
     assert isinstance(result.folders["run1"], DiagnosticFolder)
     assert isinstance(result.folders["run2"], DiagnosticFolder)
+
+
+def test_ComputedDiagnosticsList_from_json_urls_are_rundirs(tmpdir):
+    rundiags = [{"name": "run1", "url": "/rundir1"}]
+    with open(tmpdir.join("rundiags.json"), "w") as f:
+        json.dump(rundiags, f)
+
+    result = ComputedDiagnosticsList.from_json(
+        str(tmpdir.join("rundiags.json")), urls_are_rundirs=True
+    )
+    assert result.folders["run1"].path == "/rundir1_diagnostics"
 
 
 def test_get_movie_links(tmpdir):

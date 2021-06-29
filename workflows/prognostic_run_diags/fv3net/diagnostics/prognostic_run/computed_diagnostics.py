@@ -53,7 +53,9 @@ class ComputedDiagnosticsList:
         )
 
     @staticmethod
-    def from_json(url: str) -> "ComputedDiagnosticsList":
+    def from_json(
+        url: str, urls_are_rundirs: bool = False
+    ) -> "ComputedDiagnosticsList":
         """Open labeled computed diagnostics at urls specified in given JSON."""
 
         def url_to_folder(url):
@@ -62,6 +64,10 @@ class ComputedDiagnosticsList:
 
         with fsspec.open(url) as f:
             rundirs = json.load(f)
+
+        if urls_are_rundirs:
+            for item in rundirs:
+                item["url"] += "_diagnostics"
 
         return ComputedDiagnosticsList(
             {item["name"]: url_to_folder(item["url"]) for item in rundirs}

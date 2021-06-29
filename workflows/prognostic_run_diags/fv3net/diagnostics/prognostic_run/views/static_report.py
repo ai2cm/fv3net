@@ -501,7 +501,8 @@ def _register_report_from_urls(subparsers):
 
 def _register_report_from_json(subparsers):
     parser = subparsers.add_parser(
-        "report-from-json", help="Generate report from diagnostics in given JSON file."
+        "report-from-json",
+        help="Generate report from diagnostics listed in given JSON file.",
     )
     parser.add_argument(
         "input",
@@ -509,6 +510,13 @@ def _register_report_from_json(subparsers):
         "Given URLs must be for run diagnostics folders.",
     )
     parser.add_argument("output", help="Location to save report html files.")
+    parser.add_argument(
+        "-u",
+        "--urls-are-rundirs",
+        action="store_true",
+        help="The URLs in JSON file are for FV3GFS run directories instead of run "
+        "diagnostics folders.",
+    )
     parser.set_defaults(func=main_json)
 
 
@@ -529,7 +537,9 @@ def main_new(args):
 
 
 def main_json(args):
-    computed_diagnostics = ComputedDiagnosticsList.from_json(args.input)
+    computed_diagnostics = ComputedDiagnosticsList.from_json(
+        args.input, args.urls_are_rundirs
+    )
     make_report(computed_diagnostics, args.output)
 
 
