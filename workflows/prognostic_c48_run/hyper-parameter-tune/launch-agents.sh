@@ -1,12 +1,16 @@
 SWEEP="$1"
 
-envsubst SWEEP << EOF | kubectl create -f -
+label=$(echo "$SWEEP" | tr / -)
+envsubst "SWEEP label" << EOF | kubectl create -f -
 apiVersion: batch/v1
 kind: Job
 metadata:
   generateName: emulation-noah-sweep-
+  labels:
+    sweep: $label
+    app: emulation
 spec:
-  parallelism: 6
+  parallelism: 12
   template:
     metadata:
       labels:
@@ -31,7 +35,7 @@ spec:
             - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
               value: /secret/gcp-credentials/key.json
           image:
-            us.gcr.io/vcm-ml/emulator:90b2e93b55887298a36c92d53ba7cb40671d517e
+            us.gcr.io/vcm-ml/emulator:83eac51ad0ce455fa7f8f431c6cad09cd41ad500
           command: [wandb, agent, $SWEEP]
           volumeMounts:
             - name: gcp-credentials-user-gcp-sa
