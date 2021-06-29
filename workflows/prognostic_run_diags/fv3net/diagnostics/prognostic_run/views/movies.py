@@ -209,7 +209,8 @@ def main(args):
     )
 
     if args.n_timesteps:
-        prognostic = prognostic.isel(time=slice(None, args.n_timesteps))
+        max_time = min(args.n_timesteps, prognostic.sizes["time"])
+        prognostic = prognostic.isel(time=slice(None, max_time))
 
     for name, movie_spec in _movie_specs().items():
         _create_movie(name, movie_spec, prognostic, args.output, args.n_jobs)
