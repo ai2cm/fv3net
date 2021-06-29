@@ -24,7 +24,7 @@ spec:
         - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
           value: /secret/gcp-credentials/key.json
       image:
-        us.gcr.io/vcm-ml/emulator:14acadf314a96702db807da00caea8d7b3ae4d82
+        us.gcr.io/vcm-ml/emulator:90b2e93b55887298a36c92d53ba7cb40671d517e
       command: [./train.sh]
       args:
         - -y

@@ -1,0 +1,42 @@
+entity: ai2cm
+project: emulator-noah
+name: 2021-06-29-all-level-prediction
+command:
+- ./train.sh
+- -y
+- ${args_no_hyphens}
+- epochs=100
+- wandb_logger=yes
+- nfiles=0
+- problem=all
+method: random
+early_terminate:
+  type: hyperband
+  min_iter: 3
+  s: 4
+metric:
+  goal: minimize
+  name: test_epoch/loss/variable_3/level_50
+parameters:
+  batch_size:
+    distribution: int_uniform
+    max: 1028
+    min: 16
+  lr:
+    distribution: log_uniform
+    max: -2
+    min: -5
+  num_hidden_layers:
+    distribution: int_uniform
+    min: 0
+    max: 10
+  num_hidden:
+    distribution: int_uniform
+    min: 256
+    max: 512
+  momentum:
+    distribution: uniform
+    max: 0.99
+    min: 0.01
+  extra_variables:
+    value: cos_zenith_angle,cloud_water_mixing_ratio,surface_pressure

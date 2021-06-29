@@ -31,7 +31,7 @@ spec:
             - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
               value: /secret/gcp-credentials/key.json
           image:
-            us.gcr.io/vcm-ml/emulator:4e6c7fe185219b827404d5303c892e0351d51812
+            us.gcr.io/vcm-ml/emulator:90b2e93b55887298a36c92d53ba7cb40671d517e
           command: [wandb, agent, $SWEEP]
           volumeMounts:
             - name: gcp-credentials-user-gcp-sa
