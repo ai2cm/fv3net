@@ -1,6 +1,5 @@
 import json
 import os
-from sys import exec_prefix
 
 import fsspec
 import numpy as np
