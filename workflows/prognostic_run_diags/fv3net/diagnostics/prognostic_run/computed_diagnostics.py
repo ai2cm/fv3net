@@ -200,6 +200,19 @@ class RunMetrics:
         metric_name = self.metric_name(metric_type, variable)
         return self.metrics[self.metrics.metric == metric_name]
 
+    def get_metric_type_table(self, metric_type: str) -> pd.DataFrame:
+        """Return dataframe with nicely labeled variable columns and run rows."""
+        variables = self.get_metric_variables(metric_type)
+        runs = self.runs
+        data = {}
+        for varname in variables:
+            units = self.get_metric_units(metric_type, varname, runs[0])
+            column_name = f"{varname} [{units}]"
+            data[column_name] = [
+                self.get_metric_value(metric_type, varname, run) for run in runs
+            ]
+        return pd.DataFrame(data, index=runs)
+
     @staticmethod
     def _prefix(metric: str) -> str:
         return metric.split("/")[0]

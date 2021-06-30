@@ -1,5 +1,6 @@
 import json
 import os
+from sys import exec_prefix
 
 import fsspec
 import numpy as np
@@ -157,6 +158,14 @@ metrics_df = pd.DataFrame(
 def test_RunMetrics_runs():
     metrics = RunMetrics(metrics_df)
     assert metrics.runs == ["run1", "run2"]
+
+
+def test_RunMetrics_get_metric_type_table():
+    metrics = RunMetrics(metrics_df)
+    table = metrics.get_metric_type_table("rmse_of_time_mean")
+    expected_data = {"h500 [m]": [2, np.nan], "precip [mm/day]": [-1, 1]}
+    expected_table = pd.DataFrame(expected_data, index=["run1", "run2"])
+    pd.testing.assert_frame_equal(table, expected_table)
 
 
 def test_RunMetrics_types():
