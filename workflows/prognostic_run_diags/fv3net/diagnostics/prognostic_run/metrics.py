@@ -9,7 +9,7 @@ Usage:
     metrics.py <diagnostics netCDF file>
 
 """
-from typing import Callable, Mapping
+from typing import Callable, Mapping, Tuple
 import numpy as np
 import xarray as xr
 from toolz import curry
@@ -20,6 +20,9 @@ _METRICS = []
 
 GRID_VARS = ["lon", "lat", "lonb", "latb", "area"]
 SURFACE_TYPE_CODES = {"sea": (0, 2), "land": (1,), "seaice": (2,)}
+
+_GRAVITY = 9.8065
+_EARTH_RADIUS = 6.378e6
 
 
 def grab_diag(ds, name):
@@ -212,6 +215,36 @@ for percentile in PERCENTILES:
         return percentiles
 
 
+@add_to_metrics("tropics_max_minus_min")
+def itcz_mass_transport(diags):
+    if "northward_wind_pressure_level_zonal_time_mean" not in diags:
+        return xr.Dataset()
+    northward_wind = diags["northward_wind_pressure_level_zonal_time_mean"]
+    psi = mass_streamfunction(northward_wind).sel(pressure=slice(30000, 70000))
+    psi_mid_troposphere = psi.weighted(psi.pressure).mean("pressure")
+    lat_min, lat_max = itcz_edges(psi_mid_troposphere)
+    mass_transport = psi_mid_troposphere.sel(
+        latitude=lat_max
+    ) - psi_mid_troposphere.sel(latitude=lat_min)
+    return xr.Dataset({"psi_300_to_700": mass_transport.assign_attrs(units="Gkg/s")})
+
+
+@add_to_metrics("tropical_ascent_region_mean")
+def tropical_ascent_region_mean(diags):
+    if "northward_wind_pressure_level_zonal_time_mean" not in diags:
+        return xr.Dataset()
+    zonal_mean_diags = grab_diag(diags, "zonal_and_time_mean")
+    northward_wind = diags["northward_wind_pressure_level_zonal_time_mean"]
+    psi = mass_streamfunction(northward_wind).sel(pressure=slice(30000, 70000))
+    psi_mid_troposphere = psi.weighted(psi.pressure).mean("pressure")
+    lat_min, lat_max = itcz_edges(psi_mid_troposphere)
+    ascent_region_mean = zonal_mean_diags.sel(latitude=slice(lat_min, lat_max)).mean(
+        "latitude"
+    )
+    restore_units(zonal_mean_diags, ascent_region_mean)
+    return ascent_region_mean
+
+
 def compute_percentile(
     percentile: float, freq: np.ndarray, bins: np.ndarray, bin_widths: np.ndarray
 ) -> float:
@@ -235,6 +268,25 @@ def compute_percentile(
     bin_midpoints = bins + 0.5 * bin_widths
     closest_index = np.argmin(np.abs(cumulative_distribution - percentile / 100))
     return bin_midpoints[closest_index]
+
+
+def mass_streamfunction(
+    zonal_mean_northward_wind: xr.DataArray,
+    lat: str = "latitude",
+    plev: str = "pressure",
+) -> xr.DataArray:
+    pressure_thickness = zonal_mean_northward_wind[plev].diff(plev, label="lower")
+    psi = (zonal_mean_northward_wind * pressure_thickness).cumsum(dim=plev)
+    psi = 2 * np.pi * _EARTH_RADIUS * np.cos(np.deg2rad(psi[lat])) * psi / _GRAVITY
+    return (psi / 1e9).assign_attrs(long_name="mass streamfunction", units="Gkg/s")
+
+
+def itcz_edges(
+    vertically_integrated_psi: xr.DataArray, lat: str = "latitude",
+) -> Tuple[float, float]:
+    lat_min = vertically_integrated_psi.sel({lat: slice(-30, 10)}).idxmin(lat).item()
+    lat_max = vertically_integrated_psi.sel({lat: slice(-10, 30)}).idxmax(lat).item()
+    return lat_min, lat_max
 
 
 def restore_units(source, target):

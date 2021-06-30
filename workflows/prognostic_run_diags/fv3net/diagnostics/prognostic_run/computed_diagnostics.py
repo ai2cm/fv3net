@@ -382,6 +382,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
         "zonal_and_time_mean": "zonal_bias",
         "zonal_mean_value": "zonal_mean_bias",
         "time_mean_value": "time_mean_bias",
+        "pressure_level_zonal_time_mean": "pressure_level_zonal_bias",
         "histogram": "hist_bias",
     }
     for mean_filter, bias_filter in mean_bias_pairs.items():

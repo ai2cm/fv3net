@@ -145,4 +145,6 @@ TOP_LEVEL_METRICS = {
     "rmse_of_time_mean": [PRECIP_RATE, "pwat", "tmp200"],
     "time_and_land_mean_bias": [PRECIP_RATE],
     "rmse_of_time_mean_land": ["tmp850"],
+    "tropics_max_minus_min": ["psi_300_to_700"],
+    "tropical_ascent_region_mean": ["column_integrated_q1"],
 }
