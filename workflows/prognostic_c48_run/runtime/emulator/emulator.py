@@ -97,7 +97,7 @@ class OnlineEmulatorConfig:
         group.add_argument("--u-weight", default=100.0, type=float)
         group.add_argument("--v-weight", default=100.0, type=float)
         group.add_argument("--t-weight", default=100.0, type=float)
-        group.add_argument("--levels", default=[], action="append")
+        group.add_argument("--levels", default="", type=str)
 
         group = parser.add_argument_group("single level output")
         group.add_argument(
@@ -137,8 +137,9 @@ class OnlineEmulatorConfig:
             else:
                 config.target = ScalarLoss(args.variable, args.level, scale=args.scale)
         elif args.multi_output:
+            levels = [int(s) for s in args.levels.split(",") if s]
             config.target = MultiVariableLoss(
-                levels=[int(s) for s in args.levels],
+                levels=levels,
                 q_weight=args.q_weight,
                 u_weight=args.u_weight,
                 v_weight=args.v_weight,

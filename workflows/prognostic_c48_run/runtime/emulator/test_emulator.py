@@ -16,6 +16,8 @@ from runtime.emulator.emulator import (
 from runtime.emulator.loss import MultiVariableLoss, RHLoss, ScalarLoss
 from .utils import _get_argsin
 import pytest
+from hypothesis import given
+from hypothesis.strategies import lists, integers
 
 
 def test_OnlineEmulator_partial_fit(state):
@@ -261,3 +263,16 @@ def test_OnlineEmulatorConfig_register_parser(args, loss_cls):
     config = OnlineEmulatorConfig.from_args(args)
     assert isinstance(config, OnlineEmulatorConfig)
     assert isinstance(config.target, loss_cls)
+
+
+@given(lists(integers(min_value=0)))
+def test_OnlineEmulatorConfig_multi_output_levels(levels):
+
+    str_levels = ",".join(str(s) for s in levels)
+
+    parser = argparse.ArgumentParser()
+    OnlineEmulatorConfig.register_parser(parser)
+    args = parser.parse_args(["--multi-output", "--levels", str_levels])
+    config = OnlineEmulatorConfig.from_args(args)
+
+    assert config.target.levels == levels

@@ -1,14 +1,16 @@
 entity: ai2cm
 project: emulator-noah
-name: 2021-06-29-all-level-prediction
+name: 2021-06-30-all-level-prediction
 command:
 - ./train.sh
 - -y
 - ${args_no_hyphens}
 - epochs=100
-- wandb_logger=yes
-- nfiles=0
+- wandb=yes
+- q-weight=1e9
+- multi-output=yes
 - problem=all
+- levels=25,50,75
 method: random
 early_terminate:
   type: hyperband
@@ -16,7 +18,7 @@ early_terminate:
   s: 4
 metric:
   goal: minimize
-  name: test_epoch/loss/variable_3/level_50
+  name: test_epoch/loss
 parameters:
   batch_size:
     distribution: int_uniform
@@ -28,8 +30,8 @@ parameters:
     min: -5
   num_hidden_layers:
     distribution: int_uniform
-    min: 0
-    max: 10
+    min: 1
+    max: 5
   num_hidden:
     distribution: int_uniform
     min: 256

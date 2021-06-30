@@ -1,2 +1,5 @@
 train:
   flags-import: all
+  sourcecode:
+    - "*.py"
+    - "*.json"
