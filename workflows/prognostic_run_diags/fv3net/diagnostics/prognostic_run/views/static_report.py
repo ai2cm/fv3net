@@ -465,17 +465,15 @@ def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
     movie_links = computed_diagnostics.find_movie_links()
     metadata, diagnostics = computed_diagnostics.load_diagnostics()
 
-    if False:
-        pages = {
-            "index.html": render_index(metadata, diagnostics, metrics, movie_links),
-            "hovmoller.html": render_hovmollers(metadata, diagnostics),
-            "maps.html": render_maps(metadata, diagnostics, metrics),
-            "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
-            "process_diagnostics.html": render_process_diagnostics(
-                metadata, diagnostics, metrics
-            ),
-        }
-    pages = {"index.html": render_index(metadata, diagnostics, metrics, movie_links)}
+    pages = {
+        "index.html": render_index(metadata, diagnostics, metrics, movie_links),
+        "hovmoller.html": render_hovmollers(metadata, diagnostics),
+        "maps.html": render_maps(metadata, diagnostics, metrics),
+        "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
+        "process_diagnostics.html": render_process_diagnostics(
+            metadata, diagnostics, metrics
+        ),
+    }
 
     for filename, html in pages.items():
         upload(html, os.path.join(output, filename))
