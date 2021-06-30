@@ -13,7 +13,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunMetrics,
 )
 
-from report import create_html, Link, OrderedList
+from report import create_html, Link, OrderedList, RawHTML
 from report.holoviews import HVPlot, get_html_header
 from .matplotlib import (
     plot_2d_matplotlib,
@@ -300,34 +300,28 @@ def histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 # New plotting routines can be registered here.
 @metrics_plot_manager.register
 def time_mean_bias_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "time_and_global_mean_bias")
+    return generic_metric_table(metrics, "time_and_global_mean_bias")
 
 
 @metrics_plot_manager.register
 def rmse_time_mean_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "rmse_of_time_mean")
+    return generic_metric_table(metrics, "rmse_of_time_mean")
 
 
 @metrics_plot_manager.register
 def rmse_3day_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "rmse_3day")
+    return generic_metric_table(metrics, "rmse_3day")
 
 
 @metrics_plot_manager.register
 def drift_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "drift")
+    return generic_metric_table(metrics, "drift")
 
 
-def generic_metric_plot(metrics: RunMetrics, metric_type: str) -> hv.HoloMap:
-    hmap = hv.HoloMap(kdims=["metric"])
-    bar_opts = dict(norm=dict(framewise=True), plot=dict(width=600))
-    variables = metrics.get_metric_variables(metric_type)
-    for varname in variables:
-        s = metrics.get_metric_all_runs(metric_type, varname)
-        bars = hv.Bars((s.run, s.value), hv.Dimension("Run"), s.units.iloc[0])
-        hmap[metrics.metric_name(metric_type, varname)] = bars
-    if len(variables) > 0:
-        return HVPlot(hmap.opts(**bar_opts))
+def generic_metric_table(metrics: RunMetrics, metric_type: str) -> hv.HoloMap:
+    df = metrics.get_metric_type_table(metric_type).transpose()
+    header = f"<h3>{metric_type}</h3>"
+    return RawHTML(header + df.to_html(justify="center", float_format="{:.2f}".format))
 
 
 def get_metrics_table(
@@ -371,10 +365,8 @@ def render_index(metadata, diagnostics, metrics, movie_links):
         "Links": navigation,
         "Timeseries": list(timeseries_plot_manager.make_plots(diagnostics)),
         "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
+        "Complete metrics": list(metrics_plot_manager.make_plots(metrics)),
     }
-
-    if not metrics.empty:
-        sections_index["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
     metrics_table = get_metrics_table(metrics, TOP_LEVEL_METRICS)
     return create_html(
         title="Prognostic run report",
@@ -473,15 +465,17 @@ def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
     movie_links = computed_diagnostics.find_movie_links()
     metadata, diagnostics = computed_diagnostics.load_diagnostics()
 
-    pages = {
-        "index.html": render_index(metadata, diagnostics, metrics, movie_links),
-        "hovmoller.html": render_hovmollers(metadata, diagnostics),
-        "maps.html": render_maps(metadata, diagnostics, metrics),
-        "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
-        "process_diagnostics.html": render_process_diagnostics(
-            metadata, diagnostics, metrics
-        ),
-    }
+    if False:
+        pages = {
+            "index.html": render_index(metadata, diagnostics, metrics, movie_links),
+            "hovmoller.html": render_hovmollers(metadata, diagnostics),
+            "maps.html": render_maps(metadata, diagnostics, metrics),
+            "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
+            "process_diagnostics.html": render_process_diagnostics(
+                metadata, diagnostics, metrics
+            ),
+        }
+    pages = {"index.html": render_index(metadata, diagnostics, metrics, movie_links)}
 
     for filename, html in pages.items():
         upload(html, os.path.join(output, filename))
