@@ -9,6 +9,8 @@ import xarray as xr
 import cartopy.crs as ccrs
 import jinja2
 import matplotlib.pyplot as plt
+import numpy as np
+
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunDiagnostics,
     RunMetrics,
@@ -77,6 +79,7 @@ CBAR_RANGE = {
     "specific_humidity_pressure_level_zonal_bias": 1e-3,
     "vertical_wind_pressure_level_zonal_bias": 0.02,
 }
+CONTOUR_LEVELS = 20
 
 
 def plot_2d_matplotlib(
@@ -96,7 +99,6 @@ def plot_2d_matplotlib(
     x, y = dims
 
     variables_to_plot = run_diags.matching_variables(varfilter)
-
     for run in run_diags.runs:
         for varname in variables_to_plot:
             vmax = CBAR_RANGE.get(varname)
@@ -105,7 +107,10 @@ def plot_2d_matplotlib(
             long_name_and_units = f"{v.long_name} [{v.units}]"
             fig, ax = plt.subplots()
             if contour:
-                xr.plot.contourf(v, ax=ax, x=x, y=y, vmax=vmax, **opts)
+                cbar_levels = np.arange(-vmax, vmax, step=2 * vmax / CONTOUR_LEVELS)
+                xr.plot.contourf(
+                    v, ax=ax, x=x, y=y, vmax=vmax, levels=cbar_levels, **opts
+                )
             else:
                 v.plot(ax=ax, x=x, y=y, vmax=vmax, **opts)
             if ylabel:
@@ -151,7 +156,6 @@ def plot_cubed_sphere_map(
         metrics_for_title = {}
 
     variables_to_plot = run_diags.matching_variables(varfilter)
-
     for run in run_diags.runs:
         for varname in variables_to_plot:
             logging.info(f"plotting {varname} in {run}")
