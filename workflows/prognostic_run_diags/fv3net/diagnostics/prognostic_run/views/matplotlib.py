@@ -109,7 +109,14 @@ def plot_2d_matplotlib(
             if contour:
                 cbar_levels = np.arange(-vmax, vmax, step=2 * vmax / CONTOUR_LEVELS)
                 xr.plot.contourf(
-                    v, ax=ax, x=x, y=y, vmax=vmax, levels=cbar_levels, **opts
+                    v,
+                    ax=ax,
+                    x=x,
+                    y=y,
+                    vmax=vmax,
+                    levels=cbar_levels,
+                    extend="both",
+                    **opts,
                 )
             else:
                 v.plot(ax=ax, x=x, y=y, vmax=vmax, **opts)
