@@ -74,6 +74,87 @@ class OnlineEmulatorConfig:
     def from_dict(cls, dict_) -> "OnlineEmulatorConfig":
         return dacite.from_dict(cls, dict_, dacite.Config(strict=True))
 
+    @staticmethod
+    def register_parser(parser):
+        parser.add_argument("--training-data", default="data/training")
+        parser.add_argument("--testing-data", default="data/validation")
+        parser.add_argument("--batch-size", default=32, type=int)
+        parser.add_argument("--epochs", default=60, type=int)
+        parser.add_argument("--lr", default=0.01, type=float)
+        parser.add_argument("--momentum", default=0.5, type=float)
+        parser.add_argument("--timestep", default=900, type=int)
+        parser.add_argument("--nfiles", default=0, type=int)
+        parser.add_argument(
+            "--wandb", action="store_true", help="Run with weights and biases logging."
+        )
+
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument("--multi-output", action="store_true")
+        group.add_argument("--level", default=0, type=int, help="target level")
+
+        group = parser.add_argument_group("multiple output target")
+        group.add_argument("--q-weight", default=1e6, type=float)
+        group.add_argument("--u-weight", default=100.0, type=float)
+        group.add_argument("--v-weight", default=100.0, type=float)
+        group.add_argument("--t-weight", default=100.0, type=float)
+        group.add_argument("--levels", default=[], action="append")
+
+        group = parser.add_argument_group("single level output")
+        group.add_argument(
+            "--relative-humidity",
+            action="store_true",
+            help="if true use relative based prediction.",
+        )
+        group.add_argument("--variable", default=3, type=int)
+        group.add_argument("--scale", default=1.0, type=float)
+
+        group = parser.add_argument_group("network structure")
+        group.add_argument("--num-hidden", default=256, type=int)
+        group.add_argument("--num-hidden-layers", default=3, type=int)
+        group.add_argument(
+            "--extra-variables",
+            default="",
+            type=str,
+            help="comma separated list of variable names.",
+        )
+
+    @staticmethod
+    def from_args(args) -> "OnlineEmulatorConfig":
+        config = OnlineEmulatorConfig()
+        config.batch_size = args.batch_size
+        config.epochs = args.epochs
+        config.learning_rate = args.lr
+        config.momentum = args.momentum
+        config.batch = BatchDataConfig(args.training_data, args.testing_data)
+
+        config.num_hidden = args.num_hidden
+        config.num_hidden_layers = args.num_hidden_layers
+        config.wandb_logger = args.wandb
+
+        if args.level:
+            if args.relative_humidity:
+                config.target = RHLoss(level=args.level, scale=args.scale)
+            else:
+                config.target = ScalarLoss(args.variable, args.level, scale=args.scale)
+        elif args.multi_output:
+            config.target = MultiVariableLoss(
+                levels=[int(s) for s in args.levels],
+                q_weight=args.q_weight,
+                u_weight=args.u_weight,
+                v_weight=args.v_weight,
+                t_weight=args.t_weight,
+            )
+        else:
+            raise NotImplementedError(
+                f"No problem type detected. "
+                "Need to pass either --level or --multi-output"
+            )
+
+        if args.extra_variables:
+            config.extra_input_variables = args.extra_variables.split(",")
+
+        return config
+
 
 def stack(state: State, keys) -> xr.Dataset:
     ds = xr.Dataset({key: state[key] for key in keys})

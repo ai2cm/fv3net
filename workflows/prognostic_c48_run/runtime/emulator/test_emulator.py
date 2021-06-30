@@ -1,3 +1,4 @@
+import argparse
 import datetime
 import numpy as np
 import tensorflow as tf
@@ -12,7 +13,7 @@ from runtime.emulator.emulator import (
     ScalarNormLayer,
     get_model,
 )
-from runtime.emulator.loss import RHLoss, ScalarLoss
+from runtime.emulator.loss import MultiVariableLoss, RHLoss, ScalarLoss
 from .utils import _get_argsin
 import pytest
 
@@ -243,3 +244,20 @@ def test_RHScalarMLP():
     val, _ = loss.loss(mlp(argsin), argsin)
     assert val.numpy() >= 0.0
     assert val.numpy() < 10.0
+
+
+@pytest.mark.parametrize(
+    "args,loss_cls",
+    [
+        (["--level", "50"], ScalarLoss),
+        (["--level", "50", "--relative-humidity"], RHLoss),
+        (["--multi-output"], MultiVariableLoss),
+    ],
+)
+def test_OnlineEmulatorConfig_register_parser(args, loss_cls):
+    parser = argparse.ArgumentParser()
+    OnlineEmulatorConfig.register_parser(parser)
+    args = parser.parse_args(args)
+    config = OnlineEmulatorConfig.from_args(args)
+    assert isinstance(config, OnlineEmulatorConfig)
+    assert isinstance(config.target, loss_cls)
