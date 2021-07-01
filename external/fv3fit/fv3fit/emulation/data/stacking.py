@@ -1,3 +1,8 @@
+"""
+Old stacking infrastructure from emulation in notebooks.
+No tests yet.
+"""
+
 import yaml
 import numpy as np
 from typing import Sequence, TextIO, Mapping, Any

@@ -5,7 +5,7 @@ import tensorflow as tf
 from toolz.functoolz import compose_left
 from typing import Any, Dict, List, Mapping, Sequence, Tuple, Union
 
-from . import emu_transforms as transforms
+from . import transforms
 
 TransformKwargs = Mapping[str, Any]
 TransformItem = Dict[str, TransformKwargs]
@@ -15,7 +15,7 @@ XyTensors = Tuple[Tuple[tf.Tensor], Tuple[tf.Tensor]]
 
 
 def load_transforms(transforms_to_load: Sequence[TransformItem]):
-    
+
     loaded_transforms = []
     for transform_info in transforms_to_load:
         target_transform, transform_kwargs = transform_info.popitem()
@@ -51,12 +51,12 @@ class InputTransformConfig:
     Standard input pipeline that goes from xarray dataset to grouped
     X, y tuples of arrays/tensors per variable
     """
-    transforms: List[TransformItem] = dataclasses.field(default_factory=list)
     input_variables: List[str] = dataclasses.field(default_factory=list)
     output_variables: List[str] = dataclasses.field(default_factory=list)
     antarctic_only: bool = False
     use_tensors: bool = True
     vertical_subselections: Union[Mapping[str, slice], None] = None
+    transforms: List[TransformItem] = dataclasses.field(default_factory=list)
 
     def get_transform_func(self):
 

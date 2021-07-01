@@ -10,7 +10,6 @@ import xarray as xr
 from toolz.functoolz import curry
 from typing import List, Mapping, Sequence, Tuple, Union
 
-from .stacking import ArrayStacker
 
 logger = logging.getLogger(__name__)
 
@@ -50,47 +49,6 @@ def select_antarctic(dataset: xr.Dataset, sample_dim_name="sample") -> xr.Datase
     dataset = dataset.isel({sample_dim_name: mask})
 
     return dataset
-
-
-@curry
-def standardize(std_info: StandardizeInfo, dataset: InputDataset):
-    """
-    Standardize data by removing the mean and scaling by a factor.
-    """
-    standardized = {}
-    for varname in dataset:
-        mean, std = std_info[varname]
-        standardized[varname] = (dataset[varname] - mean) / std
-    return standardized
-
-
-@curry
-def unstandardize(std_info: StandardizeInfo, dataset: InputDataset):
-    """
-    Unstandardize data by scaling by a factor and adding the mean.
-    """
-    unstandardized = {}
-    for varname in dataset:
-        mean, std = std_info[varname]
-        unstandardized[varname] = (dataset[varname] * std) + mean
-    return unstandardized
-
-
-@curry
-def stack_io(
-    X_stacker: ArrayStacker,
-    y_stacker: ArrayStacker,
-    dataset: ArrayDataset
-) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Use stackers to combine dataset variables along the feature dimension.
-    Groups dataset into stacked input and output data for training.
-    """
-
-    inputs = X_stacker.stack(dataset)
-    outputs = y_stacker.stack(dataset)
-
-    return inputs, outputs
 
 
 @curry
