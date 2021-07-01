@@ -370,7 +370,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
         "zonal_mean_value": "zonal_mean_bias",
         "time_mean_value": "time_mean_bias",
         "histogram": "hist_bias",
-        "pressure_level_zonal_time_mean": "presure_level_zonal_bias",
+        "pressure_level_zonal_time_mean": "pressure_level_zonal_bias",
     }
     for mean_filter, bias_filter in mean_bias_pairs.items():
         mean_vars = [var for var in ds if mean_filter in var]
