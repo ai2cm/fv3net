@@ -213,6 +213,19 @@ class DenseHyperparameters:
 
 
 @dataclasses.dataclass
+class DerivedModelHyperparameters:
+    base_model_type: str
+    hyperparameters: dict
+    derived_variables: Sequence[str]
+
+    def __post_init__(self):
+        hyperparameter_class = get_hyperparameter_class(self.base_model_type)
+        self.base_model_hyperparameters = dacite.from_dict(
+            data_class=hyperparameter_class, data=self.hyperparameters
+        )
+
+
+@dataclasses.dataclass
 class RandomForestHyperparameters:
     """
     Configuration for training a random forest based model.
