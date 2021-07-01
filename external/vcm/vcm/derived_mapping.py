@@ -123,3 +123,13 @@ def horizontal_wind_tendency_parallel_to_horizontal_wind(self):
         self["eastward_wind"] * self["dQu"] + self["northward_wind"] * self["dQv"]
     ) / np.linalg.norm((self["eastward_wind"], self["northward_wind"]))
     return tendency_projection_onto_wind
+
+
+@DerivedMapping.register("net_downward_shortwave_sfc_flux_derived")
+def net_downward_shortwave_sfc_flux_derived(self):
+    # are these the right variable names?
+    albedo = self["surface_diffused_shortwave_albedo"]
+    downward_sfc_shortwave_flux = self[
+        "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface"
+    ]
+    return (1 - albedo) * downward_sfc_shortwave_flux
