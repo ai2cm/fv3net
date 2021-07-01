@@ -65,4 +65,3 @@ def psi_bias_mid_troposphere(diags: xr.Dataset) -> xr.DataArray:
     return psi_mid_trop.assign_attrs(
         long_name="mass streamfunction 300-700hPa average", units="Gkg/s"
     )
-
