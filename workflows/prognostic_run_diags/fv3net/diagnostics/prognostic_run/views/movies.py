@@ -18,7 +18,7 @@ import vcm
 import vcm.catalog
 
 from fv3net.diagnostics.prognostic_run import config
-import fv3net.diagnostics.prognostic_run.load_diagnostic_data as load_diags
+import fv3net.diagnostics.prognostic_run.load_run_data as load_diags
 
 dask.config.set(sheduler="single-threaded")
 logger = logging.getLogger(__name__)

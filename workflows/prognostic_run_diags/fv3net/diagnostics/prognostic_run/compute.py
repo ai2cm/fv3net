@@ -29,7 +29,7 @@ from joblib import Parallel, delayed
 
 import vcm
 
-from fv3net.diagnostics.prognostic_run import load_diagnostic_data as load_diags
+from fv3net.diagnostics.prognostic_run import load_run_data as load_diags
 from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import diurnal_cycle
 from fv3net.diagnostics.prognostic_run import transform
