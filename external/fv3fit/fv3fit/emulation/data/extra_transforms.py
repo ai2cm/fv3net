@@ -1,4 +1,15 @@
+import abc
+import os
+import pickle
+import numpy as np
+import tensorflow as tf
+import xarray as xr
+from typing import Mapping, Tuple, Union
 
+
+NumericContainer = Union[np.ndarray, xr.DataArray, tf.Tensor]
+StandardizeInfo = Mapping[str, Tuple[NumericContainer, NumericContainer]]
+AnyDataset = Mapping[str, NumericContainer]
 
 
 class DumpableTransform(abc.ABC):
@@ -12,7 +23,7 @@ class DumpableTransform(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def __call__(self, dataset: AnyDataset) -> OutputDataset:
+    def __call__(self, dataset: AnyDataset) -> AnyDataset:
         pass
 
     @abc.abstractmethod
