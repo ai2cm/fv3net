@@ -1,3 +1,8 @@
+"""
+Trying to update old transforms that don't easly fit
+into the new from config style yet.
+"""
+
 import abc
 import os
 import pickle
