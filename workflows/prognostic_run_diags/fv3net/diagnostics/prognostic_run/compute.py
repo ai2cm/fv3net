@@ -511,7 +511,7 @@ def compute_histogram(prognostic, verification, grid):
 @diag_finalizer("hist_bias")
 @transform.apply("resample_time", "3H", inner_join=True, method="mean")
 @transform.apply("subset_variables", list(HISTOGRAM_BINS.keys()))
-def compute_histogram(prognostic, verification, grid):
+def compute_histogram_bias(prognostic, verification, grid):
     logger.info("Computing histogram biases for physics diagnostics")
     counts = xr.Dataset()
     for varname in prognostic.data_vars:
