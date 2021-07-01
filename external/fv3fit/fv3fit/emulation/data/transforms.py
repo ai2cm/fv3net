@@ -43,7 +43,7 @@ def to_tensors(
 
 @curry
 def select_antarctic(dataset: xr.Dataset, sample_dim_name="sample") -> xr.Dataset:
-    """Select only points below 60 S.  Requires 'latitude' in dataset."""
+    """Select only points below 60 S.  Requires 'latitude' in dataset and expects units in radians"""
 
     mask = dataset["latitude"] < -np.deg2rad(60)
     dataset = dataset.isel({sample_dim_name: mask})
@@ -80,6 +80,7 @@ def maybe_subselect(
 
     new_ds = {}
     for vname, arr in dataset.items():
+        # TODO: switch to more readable if
         subselect_slice = subselection_map.get(vname, None)
         if subselect_slice is not None:
             arr = arr[..., subselect_slice]
