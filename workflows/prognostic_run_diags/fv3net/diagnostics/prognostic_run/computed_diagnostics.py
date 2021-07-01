@@ -13,6 +13,7 @@ from dataclasses import dataclass
 import tempfile
 
 from .metrics import compute_all_metrics
+from .derived_diagnostics import add_derived_diagnostics
 
 
 __all__ = ["ComputedDiagnosticsList", "RunDiagnostics"]
@@ -246,6 +247,7 @@ def load_diagnostics(rundirs) -> Tuple[Metadata, Diagnostics]:
         for key, ds in diags.items()
     ]
     diagnostics = [convert_index_to_datetime(ds, "time") for ds in diagnostics]
+    diagnostics = [add_derived_diagnostics(ds) for ds in diagnostics]
     longest_run_ds = _longest_run(diagnostics)
     diagnostics.append(_get_verification_diagnostics(longest_run_ds))
     return get_metadata(diags), diagnostics

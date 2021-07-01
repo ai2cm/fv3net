@@ -78,6 +78,7 @@ CBAR_RANGE = {
     "air_temperature_pressure_level_zonal_bias": 15,
     "specific_humidity_pressure_level_zonal_bias": 1e-3,
     "vertical_wind_pressure_level_zonal_bias": 0.02,
+    "mass_streamfunction_pressure_level_zonal_bias": 100,
 }
 CONTOUR_LEVELS = 20
 
