@@ -103,6 +103,8 @@ class MultiVariableLoss:
     u_weight: float = 100
     t_weight: float = 100
     v_weight: float = 100
+    rh_weight: float = 0.0
+
     levels: List[int] = dataclasses.field(default_factory=list)
 
     def loss(self, pred: ThermoBasis, out: ThermoBasis) -> Tuple[tf.Tensor, Any]:
@@ -110,17 +112,20 @@ class MultiVariableLoss:
         loss_v = tf.reduce_mean(tf.keras.losses.mean_squared_error(out.v, pred.v))
         loss_t = tf.reduce_mean(tf.keras.losses.mean_squared_error(out.T, pred.T))
         loss_q = tf.reduce_mean(tf.keras.losses.mean_squared_error(out.q, pred.q))
+        loss_rh = tf.reduce_mean(tf.keras.losses.mean_squared_error(out.rh, pred.rh))
         loss = (
             loss_u * self.u_weight
             + loss_v * self.v_weight
             + loss_t * self.t_weight
             + loss_q * self.q_weight
+            + loss_rh * self.rh_weight
         )
 
         info = {
             "loss_u": loss_u.numpy(),
             "loss_v": loss_v.numpy(),
             "loss_q": loss_q.numpy(),
+            "loss_rh": loss_rh.numpy(),
             "loss_t": loss_t.numpy(),
             "loss": loss.numpy(),
         }

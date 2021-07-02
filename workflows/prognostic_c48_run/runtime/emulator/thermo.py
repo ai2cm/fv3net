@@ -73,7 +73,7 @@ class ThermoBasis:
 
     def to_rh(self):
         return RelativeHumidityBasis(
-            (self.u, self.v, self.T, self.rh, self.rho, self.dz) + self.args[6:]
+            (self.u, self.v, self.T, self.rh, self.rho, self.dz, *self.args[6:])
         )
 
     def to_q(self):

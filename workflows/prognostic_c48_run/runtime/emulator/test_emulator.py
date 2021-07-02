@@ -1,6 +1,7 @@
 import argparse
 import datetime
 import numpy as np
+from runtime.emulator.thermo import RelativeHumidityBasis
 import tensorflow as tf
 import xarray as xr
 from runtime.emulator.emulator import (
@@ -11,6 +12,7 @@ from runtime.emulator.emulator import (
     OnlineEmulatorConfig,
     NormLayer,
     ScalarNormLayer,
+    UVTRHSimple,
     get_model,
 )
 from runtime.emulator.loss import MultiVariableLoss, RHLoss, ScalarLoss
@@ -169,6 +171,9 @@ def test_scalar_norm_layer():
         pytest.param(
             OnlineEmulatorConfig(target=ScalarLoss(0, 0)), ScalarMLP, id="scalar-mlp"
         ),
+        pytest.param(
+            OnlineEmulatorConfig(relative_humidity=True), UVTRHSimple, id="rh-mlp"
+        ),
     ],
 )
 def test_get_model(config, class_):
@@ -254,6 +259,7 @@ def test_RHScalarMLP():
         (["--level", "50"], ScalarLoss),
         (["--level", "50", "--relative-humidity"], RHLoss),
         (["--multi-output"], MultiVariableLoss),
+        (["--multi-output", "--relative-humidity"], MultiVariableLoss),
     ],
 )
 def test_OnlineEmulatorConfig_register_parser(args, loss_cls):
@@ -263,6 +269,11 @@ def test_OnlineEmulatorConfig_register_parser(args, loss_cls):
     config = OnlineEmulatorConfig.from_args(args)
     assert isinstance(config, OnlineEmulatorConfig)
     assert isinstance(config.target, loss_cls)
+
+    if args.relative_humidity:
+        assert config.relative_humidity
+    else:
+        assert not config.relative_humidity
 
 
 @given(lists(integers(min_value=0)))
@@ -276,3 +287,15 @@ def test_OnlineEmulatorConfig_multi_output_levels(levels):
     config = OnlineEmulatorConfig.from_args(args)
 
     assert config.target.levels == levels
+
+
+def test_UVTRHSimple():
+    n = 2
+    x = _get_argsin(n)
+    y = RelativeHumidityBasis(
+        [x.u + 1.0, x.v + 1.0, x.T + 1.0, x.rh + 0.01, x.dp, x.dz]
+    )
+    model = UVTRHSimple(n, n, n, n)
+    model.fit_scalers(x, y)
+    out = model(x)
+    assert (out.q.numpy() > 0).all()

@@ -8,7 +8,11 @@ import tensorflow as tf
 import dacite
 from runtime.emulator.loggers import WandBLogger, ConsoleLogger, TBLogger, LoggerList
 from runtime.emulator.loss import RHLoss, ScalarLoss, MultiVariableLoss
-from runtime.emulator.thermo import SpecificHumidityBasis, ThermoBasis
+from runtime.emulator.thermo import (
+    RelativeHumidityBasis,
+    SpecificHumidityBasis,
+    ThermoBasis,
+)
 import logging
 import json
 
@@ -62,6 +66,7 @@ class OnlineEmulatorConfig:
     target: Union[MultiVariableLoss, ScalarLoss, RHLoss] = dataclasses.field(
         default_factory=MultiVariableLoss
     )
+    relative_humidity: bool = False
     wandb_logger: bool = False
 
     output_path: str = ""
@@ -94,6 +99,7 @@ class OnlineEmulatorConfig:
 
         group = parser.add_argument_group("multiple output target")
         group.add_argument("--q-weight", default=1e6, type=float)
+        group.add_argument("--rh-weight", default=0.0, type=float)
         group.add_argument("--u-weight", default=100.0, type=float)
         group.add_argument("--v-weight", default=100.0, type=float)
         group.add_argument("--t-weight", default=100.0, type=float)
@@ -130,6 +136,7 @@ class OnlineEmulatorConfig:
         config.num_hidden = args.num_hidden
         config.num_hidden_layers = args.num_hidden_layers
         config.wandb_logger = args.wandb
+        config.relative_humidity = args.relative_humidity
 
         if args.level:
             if args.relative_humidity:
@@ -144,6 +151,7 @@ class OnlineEmulatorConfig:
                 u_weight=args.u_weight,
                 v_weight=args.v_weight,
                 t_weight=args.t_weight,
+                rh_weight=args.rh_weight,
             )
         else:
             raise NotImplementedError(
@@ -449,6 +457,30 @@ class UVTQSimple(tf.keras.layers.Layer):
         )
 
 
+class UVTRHSimple(UVTQSimple):
+    def fit_scalers(self, x: ThermoBasis, y: ThermoBasis):
+        self._fit_input_scaler(x.to_rh().args)
+        self._fit_output_scaler(x.to_rh().args, y.to_rh().args)
+        self.scalers_fitted = True
+
+    def call(self, in_: ThermoBasis) -> ThermoBasis:
+        # assume has dims: batch, z
+        args = [atleast_2d(arg) for arg in in_.to_rh().args]
+        stacked = tf.concat(args, axis=-1)
+        hidden = self.relu(self.linear(self.norm(stacked)))
+
+        return RelativeHumidityBasis(
+            [
+                in_.u + self.scalers[0](self.out_u(hidden)),
+                in_.v + self.scalers[1](self.out_v(hidden)),
+                in_.T + self.scalers[2](self.out_t(hidden)),
+                in_.rh + self.scalers[3](self.out_q(hidden)),
+                in_.rho,
+                in_.dz,
+            ]
+        )
+
+
 class ScalarMLP(tf.keras.layers.Layer):
     def __init__(self, num_hidden=256, num_hidden_layers=1, var_number=0, var_level=0):
         super(ScalarMLP, self).__init__()
@@ -518,7 +550,10 @@ def get_model(config: OnlineEmulatorConfig) -> tf.keras.Model:
     if isinstance(config.target, MultiVariableLoss):
         logging.info("Using ScalerMLP")
         n = config.levels
-        model = UVTQSimple(n, n, n, n)
+        if config.relative_humidity:
+            return UVTRHSimple(n, n, n, n)
+        else:
+            return UVTQSimple(n, n, n, n)
     elif isinstance(config.target, ScalarLoss):
         logging.info("Using ScalerMLP")
         model = ScalarMLP(
