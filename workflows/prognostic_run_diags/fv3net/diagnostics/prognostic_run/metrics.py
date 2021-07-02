@@ -16,8 +16,6 @@ from .constants import HORIZONTAL_DIMS, PERCENTILES
 from .registry import Registry
 import json
 
-_METRICS = []
-
 GRID_VARS = ["lon", "lat", "lonb", "latb", "area"]
 SURFACE_TYPE_CODES = {"sea": (0, 2), "land": (1,), "seaice": (2,)}
 
