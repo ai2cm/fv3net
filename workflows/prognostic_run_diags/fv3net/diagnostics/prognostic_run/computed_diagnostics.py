@@ -13,7 +13,7 @@ from dataclasses import dataclass
 import tempfile
 
 from .metrics import MetricsRegistry
-from .derived_diagnostics import add_derived_diagnostics
+from .derived_diagnostics import derived_registry
 
 
 __all__ = ["ComputedDiagnosticsList", "RunDiagnostics"]
@@ -247,10 +247,15 @@ def load_diagnostics(rundirs) -> Tuple[Metadata, Diagnostics]:
         for key, ds in diags.items()
     ]
     diagnostics = [convert_index_to_datetime(ds, "time") for ds in diagnostics]
-    diagnostics = [add_derived_diagnostics(ds) for ds in diagnostics]
+    diagnostics = [_add_derived_diagnostics(ds) for ds in diagnostics]
     longest_run_ds = _longest_run(diagnostics)
     diagnostics.append(_get_verification_diagnostics(longest_run_ds))
     return get_metadata(diags), diagnostics
+
+
+def _add_derived_diagnostics(ds):
+    merged = xr.merge([ds, derived_registry.compute(ds)])
+    return merged.assign_attrs(ds.attrs)
 
 
 def find_movie_links(rundirs, domain=PUBLIC_GCS_DOMAIN):
