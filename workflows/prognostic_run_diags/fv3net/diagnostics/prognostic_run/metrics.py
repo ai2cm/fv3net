@@ -9,11 +9,11 @@ Usage:
     metrics.py <diagnostics netCDF file>
 
 """
-from typing import Callable, Mapping
+from typing import Mapping
 import numpy as np
 import xarray as xr
-from toolz import curry
 from .constants import HORIZONTAL_DIMS, PERCENTILES
+from .registry import Registry
 import json
 
 _METRICS = []
@@ -67,35 +67,19 @@ def _mask_array(
     return masked_arr
 
 
-@curry
-def add_to_metrics(metricname: str, func: Callable[[xr.Dataset], xr.Dataset]):
-    """Register a function to be used for computing metrics
-
-    This function will be passed the diagnostics xarray dataset,
-    and should return a Dataset of scalar quantities.
-
-    See rmse_3day below for an example.
-
-    """
-
-    def myfunc(diags):
-        metrics = func(diags)
-        return prepend_to_key(to_dict(metrics), f"{metricname}/")
-
-    _METRICS.append(myfunc)
-    return func
-
-
-def compute_all_metrics(diags: xr.Dataset) -> Mapping[str, float]:
+def merge_metrics(metrics_dict: Mapping[str, xr.Dataset]) -> Mapping[str, float]:
     out = {}
-    for metric in _METRICS:
-        out.update(metric(diags))
+    for name, ds in metrics_dict.items():
+        out.update(prepend_to_key(to_dict(ds), f"{name}/"))
     return out
+
+
+MetricsRegistry = Registry(merge_metrics)
 
 
 for day in [3, 5]:
 
-    @add_to_metrics(f"rmse_{day}day")
+    @MetricsRegistry.register(f"rmse_{day}day")
     def rmse_on_day(diags, day=day):
         rms_global = grab_diag(diags, "rms_global").drop(GRID_VARS, errors="ignore")
         if len(rms_global) == 0:
@@ -111,7 +95,7 @@ for day in [3, 5]:
         return rms_on_day
 
 
-@add_to_metrics("rmse_days_3to7_avg")
+@MetricsRegistry.register("rmse_days_3to7_avg")
 def rmse_days_3to7_avg(diags):
     rms_global = grab_diag(diags, "rms_global").drop(GRID_VARS, errors="ignore")
     if len(rms_global) == 0:
@@ -126,7 +110,7 @@ def rmse_days_3to7_avg(diags):
     return rmse_days_3to7_avg
 
 
-@add_to_metrics("drift_3day")
+@MetricsRegistry.register("drift_3day")
 def drift_3day(diags):
     averages = grab_diag(diags, "spatial_mean_dycore_global").drop(
         GRID_VARS, errors="ignore"
@@ -149,7 +133,7 @@ def drift_3day(diags):
 
 for mask_type in ["global", "land", "sea"]:
 
-    @add_to_metrics(f"time_and_{mask_type}_mean_value")
+    @MetricsRegistry.register(f"time_and_{mask_type}_mean_value")
     def time_and_global_mean_value(diags, mask_type=mask_type):
         time_mean_value = grab_diag(diags, "time_mean_value")
         if len(time_mean_value) == 0:
@@ -164,7 +148,7 @@ for mask_type in ["global", "land", "sea"]:
 
 for mask_type in ["global", "land", "sea"]:
 
-    @add_to_metrics(f"time_and_{mask_type}_mean_bias")
+    @MetricsRegistry.register(f"time_and_{mask_type}_mean_bias")
     def time_and_domain_mean_bias(diags, mask_type=mask_type):
         time_mean_bias = grab_diag(diags, f"time_mean_bias")
         if len(time_mean_bias) == 0:
@@ -179,7 +163,7 @@ for mask_type in ["global", "land", "sea"]:
 
 for mask_type, suffix in zip(["global", "land", "sea"], ["", "_land", "_sea"]):
     # Omits 'global' suffix to avoid breaking change in map plots
-    @add_to_metrics(f"rmse_of_time_mean{suffix}")
+    @MetricsRegistry.register(f"rmse_of_time_mean{suffix}")
     def rmse_time_mean(diags, mask_type=mask_type):
         time_mean_bias = grab_diag(diags, f"time_mean_bias")
         if len(time_mean_bias) == 0:
@@ -194,7 +178,7 @@ for mask_type, suffix in zip(["global", "land", "sea"], ["", "_land", "_sea"]):
 
 for percentile in PERCENTILES:
 
-    @add_to_metrics(f"percentile_{percentile}")
+    @MetricsRegistry.register(f"percentile_{percentile}")
     def percentile_metric(diags, percentile=percentile):
         histogram = grab_diag(diags, "histogram")
         if len(histogram) == 0:
@@ -255,6 +239,6 @@ def register_parser(subparsers):
 def main(args):
     diags = xr.open_dataset(args.input)
     diags["time"] = diags.time - diags.time[0]
-    metrics = compute_all_metrics(diags)
+    metrics = MetricsRegistry.compute(diags)
     # print to stdout, use pipes to save
     print(json.dumps(metrics, indent=4))
