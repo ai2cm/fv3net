@@ -9,7 +9,7 @@ Usage:
     metrics.py <diagnostics netCDF file>
 
 """
-from typing import Mapping
+from typing import Mapping, Sequence, Tuple
 import numpy as np
 import xarray as xr
 from .constants import HORIZONTAL_DIMS, PERCENTILES
@@ -65,9 +65,9 @@ def _mask_array(
     return masked_arr
 
 
-def merge_metrics(metrics_dict: Mapping[str, xr.Dataset]) -> Mapping[str, float]:
+def merge_metrics(metrics: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, float]:
     out = {}
-    for name, ds in metrics_dict.items():
+    for name, ds in metrics:
         out.update(prepend_to_key(to_dict(ds), f"{name}/"))
     return out
 
@@ -237,6 +237,6 @@ def register_parser(subparsers):
 def main(args):
     diags = xr.open_dataset(args.input)
     diags["time"] = diags.time - diags.time[0]
-    metrics = MetricsRegistry.compute(diags)
+    metrics = MetricsRegistry.compute(diags, n_jobs=1)
     # print to stdout, use pipes to save
     print(json.dumps(metrics, indent=4))

@@ -254,7 +254,7 @@ def load_diagnostics(rundirs) -> Tuple[Metadata, Diagnostics]:
 
 
 def _add_derived_diagnostics(ds):
-    merged = xr.merge([ds, derived_registry.compute(ds)])
+    merged = xr.merge([ds, derived_registry.compute(ds, n_jobs=1)])
     return merged.assign_attrs(ds.attrs)
 
 

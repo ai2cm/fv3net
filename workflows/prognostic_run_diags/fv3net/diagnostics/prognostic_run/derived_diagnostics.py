@@ -1,4 +1,4 @@
-from typing import Mapping
+from typing import Sequence, Tuple
 
 import xarray as xr
 
@@ -7,9 +7,9 @@ import vcm
 from .registry import Registry
 
 
-def merge_derived(diags_dict: Mapping[str, xr.DataArray]) -> xr.Dataset:
+def merge_derived(diags: Sequence[Tuple[str, xr.DataArray]]) -> xr.Dataset:
     out = xr.Dataset()
-    for name, da in diags_dict.items():
+    for name, da in diags:
         out[name] = da
     return out
 
