@@ -1,8 +1,12 @@
 from collections import defaultdict
+import logging
 from typing import Any, Callable, Mapping, Union
 
+from joblib import Parallel, delayed
 import xarray as xr
 from toolz import curry
+
+logger = logging.getLogger(__name__)
 
 
 class Registry:
@@ -20,8 +24,29 @@ class Registry:
             raise ValueError(f"Function {name} has already been added to registry.")
         self._funcs[name] = func
 
-    def compute(self, *args, **kwargs) -> Any:
-        computed_outputs = {}
-        for name, func in self._funcs.items():
-            computed_outputs[name] = func(*args, **kwargs)
+    def compute(self, *args, n_jobs=-1, **kwargs) -> Any:
+        computed_outputs = Parallel(n_jobs=n_jobs, verbose=True)(
+            delayed(self._load)(name, func, *args, **kwargs)
+            for name, func in self._funcs.items()
+        )
         return self.merge_func(computed_outputs)
+
+    @staticmethod
+    def _load(name, func, *args, **kwargs):
+        _start_logger_if_necessary()
+        return name, func(*args, **kwargs).load()
+
+
+def _start_logger_if_necessary():
+    # workaround for joblib.Parallel logging from
+    # https://github.com/joblib/joblib/issues/1017
+    logger = logging.getLogger("SaveDiags")
+    if len(logger.handlers) == 0:
+        logger.setLevel(logging.INFO)
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter("%(asctime)s %(levelname)-8s %(message)s"))
+        fh = logging.FileHandler("out.log", mode="w")
+        fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)-8s %(message)s"))
+        logger.addHandler(sh)
+        logger.addHandler(fh)
+    return logger

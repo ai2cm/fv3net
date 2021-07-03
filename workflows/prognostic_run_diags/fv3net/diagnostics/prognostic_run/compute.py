@@ -21,11 +21,7 @@ import xarray as xr
 from dask.diagnostics import ProgressBar
 import fsspec
 
-from toolz import curry
-from collections import defaultdict
-from typing import Dict, Callable, Mapping, Union
-
-from joblib import Parallel, delayed
+from typing import Mapping, Union, Tuple, Sequence
 
 import vcm
 
@@ -36,7 +32,6 @@ from fv3net.diagnostics.prognostic_run import transform
 from fv3net.diagnostics.prognostic_run.constants import (
     HISTOGRAM_BINS,
     HORIZONTAL_DIMS,
-    DiagArg,
     GLOBAL_AVERAGE_DYCORE_VARS,
     GLOBAL_AVERAGE_PHYSICS_VARS,
     GLOBAL_BIAS_PHYSICS_VARS,
@@ -50,23 +45,6 @@ from .registry import Registry
 import logging
 
 logger = logging.getLogger("SaveDiags")
-
-_DIAG_FNS = defaultdict(list)
-
-
-def _start_logger_if_necessary():
-    # workaround for joblib.Parallel logging from
-    # https://github.com/joblib/joblib/issues/1017
-    logger = logging.getLogger("SaveDiags")
-    if len(logger.handlers) == 0:
-        logger.setLevel(logging.INFO)
-        sh = logging.StreamHandler()
-        sh.setFormatter(logging.Formatter("%(asctime)s %(levelname)-8s %(message)s"))
-        fh = logging.FileHandler("out.log", mode="w")
-        fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)-8s %(message)s"))
-        logger.addHandler(sh)
-        logger.addHandler(fh)
-    return logger
 
 
 def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
@@ -83,9 +61,9 @@ def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Mapping[str, xr.DataArray
     return diags
 
 
-def merge_diags(diags: Mapping[str, xr.Dataset]) -> Mapping[str, xr.DataArray]:
+def merge_diags(diags: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, xr.DataArray]:
     out = {}
-    for name, ds in diags.items():
+    for name, ds in diags:
         out.update(_prepare_diag_dict(name, ds))
     return out
 
@@ -99,49 +77,6 @@ registries = {
 registry_dycore = registries["dycore"]
 registry_physics = registries["physics"]
 registry_3d = registries["3d"]
-
-
-def compute_all_diagnostics(
-    input_datasets: Dict[str, DiagArg], n_jobs: int = -1
-) -> Mapping[str, xr.DataArray]:
-    """
-    Compute all diagnostics for input data.
-
-    Args:
-        input_datasets: Input datasets with keys corresponding to the appropriate group
-        of diagnostics (_DIAG_FNS) to be run on each data source.
-
-    Returns:
-        all computed diagnostics
-    """
-
-    diags = {}
-    logger.info("Computing all diagnostics")
-    single_diags = Parallel(n_jobs=n_jobs, verbose=True)(
-        delayed(_apply_and_load)(diag_func, data, verification, grid)
-        for diag_func, (data, verification, grid) in _generate_diag_functions(
-            input_datasets
-        )
-    )
-
-    for single_diag in single_diags:
-        vcm.safe.warn_if_intersecting(diags.keys(), single_diag.keys())
-        diags.update(single_diag)
-
-    return diags
-
-
-def _apply_and_load(func, data, verification, grid):
-    _start_logger_if_necessary()
-    return {key: diag.load() for key, diag in func(data, verification, grid).items()}
-
-
-def _generate_diag_functions(input_datasets):
-    for key, input_args in input_datasets.items():
-        if key not in _DIAG_FNS:
-            raise KeyError(f"No target diagnostics found for input data group: {key}")
-        for func in _DIAG_FNS[key]:
-            yield func, input_args
 
 
 def rms(x, y, w, dims):
@@ -491,15 +426,14 @@ def main(args):
     diags["pwat_run_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
     diags["pwat_verification_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
 
-    for key, (prognostic, verification, grid) in input_data.items():
-        diags.update(registries[key].compute(prognostic, verification, grid))
-    # diags.update(compute_all_diagnostics(input_data, n_jobs=args.n_jobs))
+    for key, (prog, verif, grid) in input_data.items():
+        diags.update(registries[key].compute(prog, verif, grid, n_jobs=args.n_jobs))
 
     # add grid vars
     diags = xr.Dataset(diags, attrs=attrs)
     diags = diags.merge(input_data["dycore"][2])
 
-    logger.info("Forcing computation.")
+    logger.info("Forcing remaining computation.")
     with ProgressBar():
         diags = diags.load()
 
