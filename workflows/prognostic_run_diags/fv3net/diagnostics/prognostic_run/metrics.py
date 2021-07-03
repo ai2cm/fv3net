@@ -72,12 +72,12 @@ def merge_metrics(metrics: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, flo
     return out
 
 
-MetricsRegistry = Registry(merge_metrics)
+metrics_registry = Registry(merge_metrics)
 
 
 for day in [3, 5]:
 
-    @MetricsRegistry.register(f"rmse_{day}day")
+    @metrics_registry.register(f"rmse_{day}day")
     def rmse_on_day(diags, day=day):
         rms_global = grab_diag(diags, "rms_global").drop(GRID_VARS, errors="ignore")
         if len(rms_global) == 0:
@@ -93,7 +93,7 @@ for day in [3, 5]:
         return rms_on_day
 
 
-@MetricsRegistry.register("rmse_days_3to7_avg")
+@metrics_registry.register("rmse_days_3to7_avg")
 def rmse_days_3to7_avg(diags):
     rms_global = grab_diag(diags, "rms_global").drop(GRID_VARS, errors="ignore")
     if len(rms_global) == 0:
@@ -108,7 +108,7 @@ def rmse_days_3to7_avg(diags):
     return rmse_days_3to7_avg
 
 
-@MetricsRegistry.register("drift_3day")
+@metrics_registry.register("drift_3day")
 def drift_3day(diags):
     averages = grab_diag(diags, "spatial_mean_dycore_global").drop(
         GRID_VARS, errors="ignore"
@@ -131,7 +131,7 @@ def drift_3day(diags):
 
 for mask_type in ["global", "land", "sea"]:
 
-    @MetricsRegistry.register(f"time_and_{mask_type}_mean_value")
+    @metrics_registry.register(f"time_and_{mask_type}_mean_value")
     def time_and_global_mean_value(diags, mask_type=mask_type):
         time_mean_value = grab_diag(diags, "time_mean_value")
         if len(time_mean_value) == 0:
@@ -146,7 +146,7 @@ for mask_type in ["global", "land", "sea"]:
 
 for mask_type in ["global", "land", "sea"]:
 
-    @MetricsRegistry.register(f"time_and_{mask_type}_mean_bias")
+    @metrics_registry.register(f"time_and_{mask_type}_mean_bias")
     def time_and_domain_mean_bias(diags, mask_type=mask_type):
         time_mean_bias = grab_diag(diags, f"time_mean_bias")
         if len(time_mean_bias) == 0:
@@ -161,7 +161,7 @@ for mask_type in ["global", "land", "sea"]:
 
 for mask_type, suffix in zip(["global", "land", "sea"], ["", "_land", "_sea"]):
     # Omits 'global' suffix to avoid breaking change in map plots
-    @MetricsRegistry.register(f"rmse_of_time_mean{suffix}")
+    @metrics_registry.register(f"rmse_of_time_mean{suffix}")
     def rmse_time_mean(diags, mask_type=mask_type):
         time_mean_bias = grab_diag(diags, f"time_mean_bias")
         if len(time_mean_bias) == 0:
@@ -176,7 +176,7 @@ for mask_type, suffix in zip(["global", "land", "sea"], ["", "_land", "_sea"]):
 
 for percentile in PERCENTILES:
 
-    @MetricsRegistry.register(f"percentile_{percentile}")
+    @metrics_registry.register(f"percentile_{percentile}")
     def percentile_metric(diags, percentile=percentile):
         histogram = grab_diag(diags, "histogram")
         if len(histogram) == 0:
@@ -237,6 +237,6 @@ def register_parser(subparsers):
 def main(args):
     diags = xr.open_dataset(args.input)
     diags["time"] = diags.time - diags.time[0]
-    metrics = MetricsRegistry.compute(diags, n_jobs=1)
+    metrics = metrics_registry.compute(diags, n_jobs=1)
     # print to stdout, use pipes to save
     print(json.dumps(metrics, indent=4))

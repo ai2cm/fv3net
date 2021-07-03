@@ -12,7 +12,7 @@ from pathlib import Path
 from dataclasses import dataclass
 import tempfile
 
-from .metrics import MetricsRegistry
+from .metrics import metrics_registry
 from .derived_diagnostics import derived_registry
 
 
@@ -228,7 +228,7 @@ def load_metrics_from_diagnostics(rundirs) -> pd.DataFrame:
     metrics = {}
     _, diagnostics = load_diagnostics(rundirs)
     for ds in diagnostics:
-        metrics[ds.run] = MetricsRegistry.compute(ds)
+        metrics[ds.run] = metrics_registry.compute(ds)
     return _metrics_dataframe_from_dict(metrics)
 
 
