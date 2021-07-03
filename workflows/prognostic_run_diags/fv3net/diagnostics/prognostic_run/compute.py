@@ -45,14 +45,13 @@ from fv3net.diagnostics.prognostic_run.constants import (
     RMSE_VARS,
     PRESSURE_INTERPOLATED_VARS,
 )
+from .registry import Registry
 
 import logging
 
 logger = logging.getLogger("SaveDiags")
 
 _DIAG_FNS = defaultdict(list)
-
-DiagDict = Mapping[str, xr.DataArray]
 
 
 def _start_logger_if_necessary():
@@ -70,85 +69,41 @@ def _start_logger_if_necessary():
     return logger
 
 
-def _prepare_diag_dict(
-    suffix: str, new_diags: xr.Dataset, src_ds: xr.Dataset
-) -> DiagDict:
+def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
     """
-    Take a diagnostic dict add a suffix to all variable names and transfer attributes
-    from a source dataset.  This is useful when the calculated diagnostics are a 1-to-1
-    mapping from the source.
+    Take a diagnostic dataset and add a suffix to all variable names and return as dict.
     """
 
     diags = {}
-    for variable in new_diags:
+    for variable in ds:
         lower = variable.lower()
-        da = new_diags[variable]
-        if variable in src_ds:
-            logger.debug(
-                "Transferring available diagnostic attributes from source for "
-                f"{variable}."
-            )
-            src_attrs = src_ds[variable].attrs
-            da = da.assign_attrs(src_attrs)
-        else:
-            logger.debug(
-                f"Not transferring attributes from source dataset for {variable}. This "
-                "may cause issues with automated report generation."
-            )
-
+        da = ds[variable]
         diags[f"{lower}_{suffix}"] = da
 
     return diags
 
 
-@curry
-def diag_finalizer(var_suffix, func, *diag_args):
-    """
-    Wrapper to update dictionary to final variable names (with var_suffix)
-    and attributes before returning.
-
-    Expects diag_args to be of the form (prognostic_source, verif, grid)
-    """
-
-    def finalize(*diag_args):
-        logger.debug(f"Finalizing wrapper to {func.__name__}")
-
-        diags = func(*diag_args)
-        prognostic, *_ = diag_args
-
-        return _prepare_diag_dict(var_suffix, diags, prognostic)
-
-    return finalize
+def merge_diags(diags: Mapping[str, xr.Dataset]) -> Mapping[str, xr.DataArray]:
+    out = {}
+    for name, ds in diags.items():
+        out.update(_prepare_diag_dict(name, ds))
+    return out
 
 
-@curry
-def add_to_diags(
-    diags_key: str, func: Callable[[DiagArg], DiagDict],
-):
-    """
-    Add a function to the list of diagnostics to be computed
-    for a specified group of data.
-
-    Args:
-        diags_key: A key for a group of diagnostics
-        func: a function which computes a set of diagnostics.
-            It needs to have the following signature::
-
-                func(prognostic_run_data, verification_c48_data, grid)
-
-            and should return diagnostics as a dict of xr.DataArrays.
-            This output will be merged with all other decorated functions,
-            so some care must be taken to avoid variable and coordinate clashes.
-    """
-
-    _DIAG_FNS[diags_key].append(func)
-
-    return func
+registries = {
+    "dycore": Registry(merge_diags),
+    "physics": Registry(merge_diags),
+    "3d": Registry(merge_diags),
+}
+# expressions not allowed in decorator calls, so need explicit variables for each here
+registry_dycore = registries["dycore"]
+registry_physics = registries["physics"]
+registry_3d = registries["3d"]
 
 
 def compute_all_diagnostics(
     input_datasets: Dict[str, DiagArg], n_jobs: int = -1
-) -> DiagDict:
+) -> Mapping[str, xr.DataArray]:
     """
     Compute all diagnostics for input data.
 
@@ -227,8 +182,7 @@ def _assign_diagnostic_time_attrs(
     return diagnostics_ds
 
 
-@add_to_diags("dycore")
-@diag_finalizer("rms_global")
+@registry_dycore.register("rms_global")
 @transform.apply("resample_time", "3H", inner_join=True)
 @transform.apply("daily_mean", datetime.timedelta(days=10))
 @transform.apply("subset_variables", RMSE_VARS)
@@ -239,8 +193,7 @@ def rms_errors(prognostic, verification_c48, grid):
     return rms_errors
 
 
-@add_to_diags("dycore")
-@diag_finalizer("zonal_and_time_mean")
+@registry_dycore.register("zonal_and_time_mean")
 @transform.apply("resample_time", "1H")
 @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
 def zonal_means_dycore(prognostic, verification, grid):
@@ -249,8 +202,7 @@ def zonal_means_dycore(prognostic, verification, grid):
     return time_mean(zonal_means)
 
 
-@add_to_diags("physics")
-@diag_finalizer("zonal_and_time_mean")
+@registry_physics.register("zonal_and_time_mean")
 @transform.apply("resample_time", "1H")
 @transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
 def zonal_means_physics(prognostic, verification, grid):
@@ -259,8 +211,7 @@ def zonal_means_physics(prognostic, verification, grid):
     return time_mean(zonal_means)
 
 
-@add_to_diags("3d")
-@diag_finalizer("pressure_level_zonal_time_mean")
+@registry_3d.register("pressure_level_zonal_time_mean")
 @transform.apply("subset_variables", PRESSURE_INTERPOLATED_VARS)
 @transform.apply("insert_absent_3d_output_placeholder")
 @transform.apply("resample_time", "3H")
@@ -271,8 +222,7 @@ def zonal_means_3d(prognostic, verification, grid):
         return time_mean(zonal_means)
 
 
-@add_to_diags("3d")
-@diag_finalizer("pressure_level_zonal_bias")
+@registry_3d.register("pressure_level_zonal_bias")
 @transform.apply("subset_variables", PRESSURE_INTERPOLATED_VARS)
 @transform.apply("insert_absent_3d_output_placeholder")
 @transform.apply("resample_time", "3H")
@@ -283,8 +233,7 @@ def zonal_bias_3d(prognostic, verification, grid):
         return time_mean(zonal_mean_bias)
 
 
-@add_to_diags("dycore")
-@diag_finalizer("zonal_bias")
+@registry_dycore.register("zonal_bias")
 @transform.apply("resample_time", "1H")
 @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
 def zonal_and_time_mean_biases_dycore(prognostic, verification, grid):
@@ -294,8 +243,7 @@ def zonal_and_time_mean_biases_dycore(prognostic, verification, grid):
     return time_mean(zonal_mean_bias)
 
 
-@add_to_diags("physics")
-@diag_finalizer("zonal_bias")
+@registry_physics.register("zonal_bias")
 @transform.apply("resample_time", "1H")
 @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
 def zonal_and_time_mean_biases_physics(prognostic, verification, grid):
@@ -305,14 +253,14 @@ def zonal_and_time_mean_biases_physics(prognostic, verification, grid):
 
 
 for variable_set in ["dycore", "physics"]:
-    subset_variables = (
-        GLOBAL_AVERAGE_DYCORE_VARS
-        if variable_set == "dycore"
-        else GLOBAL_AVERAGE_PHYSICS_VARS
-    )
+    if variable_set == "dycore":
+        subset_variables = GLOBAL_AVERAGE_DYCORE_VARS
+        registry = registry_dycore
+    else:
+        subset_variables = GLOBAL_AVERAGE_PHYSICS_VARS
+        registry = registry_physics
 
-    @add_to_diags(variable_set)
-    @diag_finalizer("zonal_mean_value")
+    @registry.register("zonal_mean_value")
     @transform.apply("resample_time", "3H", inner_join=True)
     @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", subset_variables)
@@ -320,8 +268,7 @@ for variable_set in ["dycore", "physics"]:
         logger.info(f"Preparing zonal mean values ({variable_set})")
         return zonal_mean(prognostic, grid.lat)
 
-    @add_to_diags(variable_set)
-    @diag_finalizer("zonal_mean_bias")
+    @registry.register("zonal_mean_bias")
     @transform.apply("resample_time", "3H", inner_join=True)
     @transform.apply("daily_mean", datetime.timedelta(days=10))
     @transform.apply("subset_variables", subset_variables)
@@ -329,17 +276,9 @@ for variable_set in ["dycore", "physics"]:
         logger.info(f"Preparing zonal mean biases ({variable_set})")
         return zonal_mean(prognostic - verification, grid.lat)
 
-
-for var_set in ["dycore", "physics"]:
     for mask_type in ["global", "land", "sea", "tropics"]:
-        subset_variables = (
-            GLOBAL_AVERAGE_DYCORE_VARS
-            if var_set == "dycore"
-            else GLOBAL_AVERAGE_PHYSICS_VARS
-        )
 
-        @add_to_diags(var_set)
-        @diag_finalizer(f"spatial_min_{var_set}_{mask_type}")
+        @registry.register(f"spatial_min_{variable_set}_{mask_type}")
         @transform.apply("mask_area", mask_type)
         @transform.apply("resample_time", "3H")
         @transform.apply("daily_mean", datetime.timedelta(days=10))
@@ -349,17 +288,7 @@ for var_set in ["dycore", "physics"]:
             masked = prognostic.where(~grid["area"].isnull())
             return masked.min(dim=HORIZONTAL_DIMS)
 
-
-for var_set in ["dycore", "physics"]:
-    for mask_type in ["global", "land", "sea", "tropics"]:
-        subset_variables = (
-            GLOBAL_AVERAGE_DYCORE_VARS
-            if var_set == "dycore"
-            else GLOBAL_AVERAGE_PHYSICS_VARS
-        )
-
-        @add_to_diags(var_set)
-        @diag_finalizer(f"spatial_max_{var_set}_{mask_type}")
+        @registry.register(f"spatial_max_{variable_set}_{mask_type}")
         @transform.apply("mask_area", mask_type)
         @transform.apply("resample_time", "3H")
         @transform.apply("daily_mean", datetime.timedelta(days=10))
@@ -372,8 +301,7 @@ for var_set in ["dycore", "physics"]:
 
 for mask_type in ["global", "land", "sea", "tropics"]:
 
-    @add_to_diags("dycore")
-    @diag_finalizer(f"spatial_mean_dycore_{mask_type}")
+    @registry_dycore.register(f"spatial_mean_dycore_{mask_type}")
     @transform.apply("mask_area", mask_type)
     @transform.apply("resample_time", "3H")
     @transform.apply("daily_mean", datetime.timedelta(days=10))
@@ -389,8 +317,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 
 for mask_type in ["global", "land", "sea", "tropics"]:
 
-    @add_to_diags("physics")
-    @diag_finalizer(f"spatial_mean_physics_{mask_type}")
+    @registry_physics.register(f"spatial_mean_physics_{mask_type}")
     @transform.apply("mask_area", mask_type)
     @transform.apply("resample_time", "3H")
     @transform.apply("daily_mean", datetime.timedelta(days=10))
@@ -406,8 +333,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 
 for mask_type in ["global", "land", "sea", "tropics"]:
 
-    @add_to_diags("physics")
-    @diag_finalizer(f"mean_bias_physics_{mask_type}")
+    @registry_physics.register(f"mean_bias_physics_{mask_type}")
     @transform.apply("mask_area", mask_type)
     @transform.apply("resample_time", "3H", inner_join=True)
     @transform.apply("daily_mean", datetime.timedelta(days=10))
@@ -421,8 +347,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 
 for mask_type in ["global", "land", "sea", "tropics"]:
 
-    @add_to_diags("dycore")
-    @diag_finalizer(f"mean_bias_dycore_{mask_type}")
+    @registry_dycore.register(f"mean_bias_dycore_{mask_type}")
     @transform.apply("mask_area", mask_type)
     @transform.apply("resample_time", "3H", inner_join=True)
     @transform.apply("daily_mean", datetime.timedelta(days=10))
@@ -434,8 +359,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         return bias_errors
 
 
-@add_to_diags("physics")
-@diag_finalizer("time_mean_value")
+@registry_physics.register("time_mean_value")
 @transform.apply("resample_time", "1H", inner_join=True)
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_means_physics(prognostic, verification, grid):
@@ -443,8 +367,7 @@ def time_means_physics(prognostic, verification, grid):
     return time_mean(prognostic)
 
 
-@add_to_diags("physics")
-@diag_finalizer("time_mean_bias")
+@registry_physics.register("time_mean_bias")
 @transform.apply("resample_time", "1H", inner_join=True)
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_mean_biases_physics(prognostic, verification, grid):
@@ -452,8 +375,7 @@ def time_mean_biases_physics(prognostic, verification, grid):
     return time_mean(prognostic - verification)
 
 
-@add_to_diags("dycore")
-@diag_finalizer("time_mean_value")
+@registry_dycore.register("time_mean_value")
 @transform.apply("resample_time", "1H", inner_join=True)
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_means_dycore(prognostic, verification, grid):
@@ -461,8 +383,7 @@ def time_means_dycore(prognostic, verification, grid):
     return time_mean(prognostic)
 
 
-@add_to_diags("dycore")
-@diag_finalizer("time_mean_bias")
+@registry_dycore.register("time_mean_bias")
 @transform.apply("resample_time", "1H", inner_join=True)
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_mean_biases_dycore(prognostic, verification, grid):
@@ -472,8 +393,7 @@ def time_mean_biases_dycore(prognostic, verification, grid):
 
 for mask_type in ["global", "land", "sea"]:
 
-    @add_to_diags("physics")
-    @diag_finalizer(f"diurnal_{mask_type}")
+    @registry_physics.register(f"diurnal_{mask_type}")
     @transform.apply("mask_to_sfc_type", mask_type)
     @transform.apply("resample_time", "1H", inner_join=True)
     @transform.apply("subset_variables", DIURNAL_CYCLE_VARS)
@@ -491,8 +411,7 @@ for mask_type in ["global", "land", "sea"]:
             return _assign_diagnostic_time_attrs(diag, prognostic)
 
 
-@add_to_diags("physics")
-@diag_finalizer("histogram")
+@registry_physics.register("histogram")
 @transform.apply("resample_time", "3H", inner_join=True, method="mean")
 @transform.apply("subset_variables", list(HISTOGRAM_BINS.keys()))
 def compute_histogram(prognostic, verification, grid):
@@ -507,8 +426,7 @@ def compute_histogram(prognostic, verification, grid):
     return _assign_diagnostic_time_attrs(counts, prognostic)
 
 
-@add_to_diags("physics")
-@diag_finalizer("hist_bias")
+@registry_physics.register("hist_bias")
 @transform.apply("resample_time", "3H", inner_join=True, method="mean")
 @transform.apply("subset_variables", list(HISTOGRAM_BINS.keys()))
 def compute_histogram_bias(prognostic, verification, grid):
@@ -573,7 +491,9 @@ def main(args):
     diags["pwat_run_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
     diags["pwat_verification_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
 
-    diags.update(compute_all_diagnostics(input_data, n_jobs=args.n_jobs))
+    for key, (prognostic, verification, grid) in input_data.items():
+        diags.update(registries[key].compute(prognostic, verification, grid))
+    # diags.update(compute_all_diagnostics(input_data, n_jobs=args.n_jobs))
 
     # add grid vars
     diags = xr.Dataset(diags, attrs=attrs)
