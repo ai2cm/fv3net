@@ -2,6 +2,7 @@ from typing import Mapping
 import pytest
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.framework.ops import convert_to_tensor
 import xarray as xr
 from fv3fit.emulation.data import transforms as xfm
 
@@ -37,36 +38,102 @@ def test_xr_dataset_to_tensor_dataset(xr_dataset):
         result_data = tf.convert_to_tensor(data.values)
 
 
-def test_select_antarcic():
-    pass
+@pytest.mark.parametrize(
+    "lats, data, expected",
+    [
+        ([-55, -60, -65], [1, 2, 3], [np.nan, 2, 3]),
+        ([55, 60, 65], [1, 2, 3], [np.nan, np.nan, np.nan]),
+        ([-60, -65, -80], [1, 2, 3], [1, 2, 3]),
+    ]
+)
+def test_select_antarcic(lats, data, expected):
+    lats_da = xr.DataArray(
+        np.deg2rad(lats),
+        dims=["lat"]
+    )
+    data_da = xr.DataArray(data, dims=["lat"])
+    dataset = xr.Dataset({"latitude": lats_da, "field": data_da})
+    result = xfm.select_antarctic(dataset)
+
+    expected_da = xr.DataArray(expected, dims=["lat"])
+    xr.testing.assert_equal(expected_da, result["field"])
 
 
-def test_select_antarctic_no_overlap():
-    pass
+def test_group_input_output_input():
 
+    dataset = {
+        "a": np.array([0, 1]),
+        "b": np.array([2, 3]),
+        "c": np.array([4, 5])
+    }
 
-def test_select_antarctic_no_latitude_in_dataset():
-    pass
-
-
-def test_group_input_output():
-    pass
+    inputs_, outputs_ = xfm.group_inputs_outputs(["a"], ["c", "b"], dataset)
+    assert isinstance(inputs_, tuple)
+    assert isinstance(outputs_, tuple)
+    assert len(inputs_) == 1
+    assert inputs_[0] == dataset["a"]
+    assert len(outputs_) == 2
+    assert outputs_[0] == dataset["c"]
+    assert outputs_[1] == dataset["b"]
 
 
 def test_group_input_output_empty_var_list():
-    pass
+
+    dataset = {
+        "a": np.array([0, 1]),
+        "b": np.array([2, 3]),
+        "c": np.array([4, 5])
+    }
+
+    inputs_, outputs_ = xfm.group_inputs_outputs([], [], dataset)
+    assert inputs_ == tuple()
+    assert outputs_ == tuple()
 
 
-def test_maybe_subselect():
-    # Parametrize for all potential datasets
-    pass
+@pytest.mark.parametrize(
+    "dataset",
+    [
+        xr.Dataset({"X": np.arange(40).reshape(10, 4)}),
+        {"X": np.arange(40).reshape(10, 4)},
+        {"X": tf.convert_to_tensor(np.arange(40).reshape(10, 4))},
+    ]
+)
+def test_maybe_subselect_dataset_inputs(dataset):
+
+    subselect_map = {"X": slice(2, None)}
+
+    result = xfm.maybe_subselect(subselect_map, dataset)
+    assert len(result["X"].shape) == len(dataset["X"].shape)
+    np.testing.assert_equal(
+        result["X"],
+        np.arange(40).reshape(10, 4)[..., slice(2, None)]
+    )
 
 
 def test_maybe_subselect_empty_selection_map():
-    pass
+
+    subselect_map = {}
+    full_data = np.arange(40).reshape(10, 4)
+
+    result = xfm.maybe_subselect(subselect_map, {"X": full_data})
+    np.testing.assert_equal(
+        result["X"],
+        full_data
+    )
 
 
-def test_maybe_expand_feature_dim():
-    # parametrize ndarrays and tensors
-    # have 1d and 2d variable
-    pass
+@pytest.mark.parametrize(
+    "dataset",
+    [
+        {"X": np.arange(40).reshape(10, 4), "y": np.arange(20)},
+        {
+            "X": tf.convert_to_tensor(np.arange(40).reshape(10, 4)),
+            "y": tf.convert_to_tensor(np.arange(20))
+        },
+    ]
+)
+def test_maybe_expand_feature_dim(dataset):
+
+    result = xfm.maybe_expand_feature_dim(dataset)
+    assert result["X"].shape == (10, 4)
+    assert result["y"].shape == (20, 1)
