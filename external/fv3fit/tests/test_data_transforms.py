@@ -41,21 +41,21 @@ def test_xr_dataset_to_tensor_dataset(xr_dataset):
 @pytest.mark.parametrize(
     "lats, data, expected",
     [
-        ([-55, -60, -65], [1, 2, 3], [np.nan, 2, 3]),
-        ([55, 60, 65], [1, 2, 3], [np.nan, np.nan, np.nan]),
-        ([-60, -65, -80], [1, 2, 3], [1, 2, 3]),
+        ([-55, -60, -65], [1, 2, 3], [3]),
+        ([55, 60, 65], [1, 2, 3], []),
+        ([-61, -65, -80], [1, 2, 3], [1, 2, 3]),
     ]
 )
 def test_select_antarcic(lats, data, expected):
     lats_da = xr.DataArray(
         np.deg2rad(lats),
-        dims=["lat"]
+        dims=["sample"]
     )
-    data_da = xr.DataArray(data, dims=["lat"])
+    data_da = xr.DataArray(data, dims=["sample"])
     dataset = xr.Dataset({"latitude": lats_da, "field": data_da})
     result = xfm.select_antarctic(dataset)
 
-    expected_da = xr.DataArray(expected, dims=["lat"])
+    expected_da = xr.DataArray(expected, dims=["sample"])
     xr.testing.assert_equal(expected_da, result["field"])
 
 
@@ -71,10 +71,10 @@ def test_group_input_output_input():
     assert isinstance(inputs_, tuple)
     assert isinstance(outputs_, tuple)
     assert len(inputs_) == 1
-    assert inputs_[0] == dataset["a"]
+    np.testing.assert_array_equal(inputs_[0], dataset["a"])
     assert len(outputs_) == 2
-    assert outputs_[0] == dataset["c"]
-    assert outputs_[1] == dataset["b"]
+    np.testing.assert_array_equal(outputs_[0], dataset["c"])
+    np.testing.assert_array_equal(outputs_[1], dataset["b"])
 
 
 def test_group_input_output_empty_var_list():
@@ -93,7 +93,7 @@ def test_group_input_output_empty_var_list():
 @pytest.mark.parametrize(
     "dataset",
     [
-        xr.Dataset({"X": np.arange(40).reshape(10, 4)}),
+        xr.Dataset({"X": (["sample", "feature"], np.arange(40).reshape(10, 4))}),
         {"X": np.arange(40).reshape(10, 4)},
         {"X": tf.convert_to_tensor(np.arange(40).reshape(10, 4))},
     ]

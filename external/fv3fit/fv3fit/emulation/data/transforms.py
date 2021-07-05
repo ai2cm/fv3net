@@ -53,8 +53,8 @@ def select_antarctic(dataset: xr.Dataset, sample_dim_name="sample") -> xr.Datase
 
 @curry
 def group_inputs_outputs(
-    input_variables: List[str],
-    output_variables: List[str],
+    input_variables: Sequence[str],
+    output_variables: Sequence[str],
     dataset: AnyDataset
 ) -> Tuple[Sequence[NumericContainer], Sequence[NumericContainer]]:
     """
@@ -80,9 +80,8 @@ def maybe_subselect(
 
     new_ds = {}
     for vname, arr in dataset.items():
-        # TODO: switch to more readable if
-        subselect_slice = subselection_map.get(vname, None)
-        if subselect_slice is not None:
+        if vname in subselection_map:
+            subselect_slice = subselection_map[vname]
             arr = arr[..., subselect_slice]
 
         new_ds[vname] = arr

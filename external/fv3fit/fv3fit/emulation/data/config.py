@@ -22,7 +22,7 @@ def load_transforms(transforms_to_load: Sequence[TransformItem]):
         transform_func = getattr(transforms, target_transform)
         # TODO: I use kwargs in yaml for readability, but don't know how
         #       to do partials by assiging the keyword arguments as is
-        #       For now, the ordering of values matters for partial
+        #       For now, the ordering of arguments matters in the yaml
         transform_func = transform_func(*transform_kwargs.values())
         loaded_transforms.append(transform_func)
 
