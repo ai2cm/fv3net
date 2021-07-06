@@ -17,7 +17,7 @@ def mocked_cfg_transforms(monkeypatch):
         ("sl: !!python/slice [15]", slice(15)),
         ("sl: !!python/slice [15, null]", slice(15, None)),
         ("sl: !!python/slice [15, null, 2]", slice(15, None, 2)),
-    ]
+    ],
 )
 def test_SliceLoader(yaml_str, expected):
 

@@ -25,13 +25,13 @@ class SliceLoader(yaml.SafeLoader):
             tendency_of_sphum: !!python/slice [15, null]
 
     """
+
     def construct_python_slice(self, node):
         return slice(*self.construct_sequence(node))
 
 
 SliceLoader.add_constructor(
-    u'tag:yaml.org,2002:python/slice',
-    SliceLoader.construct_python_slice
+    "tag:yaml.org,2002:python/slice", SliceLoader.construct_python_slice
 )
 
 
