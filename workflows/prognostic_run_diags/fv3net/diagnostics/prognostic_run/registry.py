@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 
 class Registry:
     def __init__(
-        self, merge_func: Callable[[Mapping[str, Union[xr.DataArray, xr.Dataset]]], Any]
+        self, merge: Callable[[Mapping[str, Union[xr.DataArray, xr.Dataset]]], Any]
     ):
         self._funcs = defaultdict()
-        self.merge_func = merge_func
+        self.merge = merge
 
     @curry
     def register(
@@ -29,7 +29,7 @@ class Registry:
             delayed(self._load)(name, func, *args, **kwargs)
             for name, func in self._funcs.items()
         )
-        return self.merge_func(computed_outputs)
+        return self.merge(computed_outputs)
 
     @staticmethod
     def _load(name, func, *args, **kwargs):
