@@ -1,12 +1,39 @@
 import dacite
 import dataclasses
 import xarray
+import yaml
 import numpy as np
 import tensorflow as tf
 from toolz.functoolz import compose_left
 from typing import Any, Callable, Dict, Mapping, Sequence, Tuple, Union
 
 from . import transforms
+
+
+class SliceLoader(yaml.SafeLoader):
+    """
+    Extended safe yaml loader to interpret slices from a sequence.
+
+    Example
+    -------
+
+    The vertical subselection transform yaml::
+
+        name: maybe_subselect
+        args:
+          - specific_humidity: !!python/slice [15, null]
+            tendency_of_sphum: !!python/slice [15, null]
+
+    """
+    def construct_python_slice(self, node):
+        return slice(*self.construct_sequence(node))
+
+
+SliceLoader.add_constructor(
+    u'tag:yaml.org,2002:python/slice',
+    SliceLoader.construct_python_slice
+)
+
 
 Dataset = Union[xarray.Dataset, Mapping[str, np.ndarray], Mapping[str, tf.Tensor]]
 XyTensors = Tuple[Tuple[tf.Tensor], Tuple[tf.Tensor]]
@@ -31,18 +58,18 @@ class _TransformConfigItem:
     Example
     -------
     Example yaml for grouped inputs/outputs transform::
-        
+
         name: group_inputs_outputs
         args:
-        - ["field1", "field2"]
-        - ["field3"]
+          - ["field1", "field2"]
+          - ["field3"]
 
     Equivalent yaml for grouped inputs/outputs transform::
 
         name: group_inputs_outputs
         args:
-        input_variables: ["field1", "field2"]
-        output_variables: ["field3"]
+          input_variables: ["field1", "field2"]
+          output_variables: ["field3"]
     """
 
     # put a note about the args order relevance
@@ -93,6 +120,17 @@ class TransformConfig:
     Args
     ----
         transforms: Sequence of transform configurations to combine in order
+
+    Example
+    -------
+    Example yaml converting dataset to tensors and grouping::
+
+        transforms:
+          - name: to_tensors
+          - name: group_inputs_outputs
+            args:
+              - ["field1", "field2"]
+              - ["field3"]
     """
 
     transforms: Sequence[_TransformConfigItem] = dataclasses.field(default_factory=list)

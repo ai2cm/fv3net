@@ -1,13 +1,31 @@
 import pytest
+import yaml
 
 import data_transform_mock
 from fv3fit.emulation.data import config
+
+from train_emulator import SliceLoader
 
 
 @pytest.fixture
 def mocked_cfg_transforms(monkeypatch):
 
     monkeypatch.setattr(config, "transforms", data_transform_mock)
+
+
+@pytest.mark.parametrize(
+    "yaml_str,expected",
+    [
+        ("sl: !!python/slice []", slice(None)),
+        ("sl: !!python/slice [15]", slice(15)),
+        ("sl: !!python/slice [15, null]", slice(15, None)),
+        ("sl: !!python/slice [15, null, 2]", slice(15, None, 2)),
+    ]
+)
+def test_SliceLoader(yaml_str, expected):
+
+    result = yaml.load(yaml_str, Loader=SliceLoader)
+    assert result["sl"] == expected
 
 
 def test__TransformConfigItem():
