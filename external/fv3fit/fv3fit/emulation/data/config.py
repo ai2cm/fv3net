@@ -200,6 +200,14 @@ class InputTransformConfig(TransformConfig):
 
     Note that the slice loading in yaml requires using the SliceLoader defined
     in this module.
+
+    Loading the combined transform function::
+
+        with open("config.yaml", "r") as f:
+            config = yaml.load(f, Loader=SliceLoader)
+
+        input_transforms = InputTransformConfig.from_dict(config)
+        pipeline = input_transforms.get_transform_pipeline()
     """
 
     input_variables: Sequence[str] = dataclasses.field(default_factory=list)
