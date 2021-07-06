@@ -2,7 +2,7 @@ from toolz.functoolz import curry
 
 
 @curry
-def dymmy_transform(dataset):
+def dummy_transform(dataset):
     return dataset
 
 

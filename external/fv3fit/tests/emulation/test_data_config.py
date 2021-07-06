@@ -42,8 +42,8 @@ def test__TransformConfigItem_args_mapping_to_sequence():
 
 def test__TransformConfigItem_from_dict():
 
-    name = "transform_func",
-    args = [1, 2, 3],
+    name = "transform_func"
+    args = [1, 2, 3]
     kwargs = dict(kwarg1=1, kwarg2=2)
     item_dict = dict(name=name, args=args, kwargs=kwargs)
     item = config._TransformConfigItem.from_dict(item_dict)
@@ -61,7 +61,7 @@ def test__TransformConfigItem_from_dict():
         ("dummy_transform_w_leading_arg", ["leading"], {})
     ]
 )
-def test__TransformConfigItem_load_transform(name, args, kwargs, mocked_cfg_transform):
+def test__TransformConfigItem_load_transform(name, args, kwargs, mocked_cfg_transforms):
 
     item = config._TransformConfigItem(name, args, kwargs)
     func = item.load_transform_func()
@@ -69,7 +69,7 @@ def test__TransformConfigItem_load_transform(name, args, kwargs, mocked_cfg_tran
     assert func(1) == 1
 
 
-def test__TransformConfigItem_load_transform_func_overspecified(mocked_cfg_transform):
+def test__TransformConfigItem_load_transform_func_overspecified(mocked_cfg_transforms):
 
     name = "dummy_transform"
 
@@ -87,7 +87,7 @@ def test__load_transforms(mocked_cfg_transforms):
     assert composed(1) == 1
 
 
-def test_TransformConfig(mocked_cfg_transform):
+def test_TransformConfig(mocked_cfg_transforms):
 
     config_item = config._TransformConfigItem("dummy_transform")
     transform_seq = [config_item]*3
@@ -99,7 +99,7 @@ def test_TransformConfig(mocked_cfg_transform):
     assert pipeline_func(1) == 1
 
 
-def test_TransformConfig_empty_transforms(mocked_cfg_transform):
+def test_TransformConfig_empty_transforms(mocked_cfg_transforms):
     base_config = config.TransformConfig()
     pipeline_func = base_config.get_transform_func()
 
@@ -116,7 +116,7 @@ def test_TransformConfig__initialize_custom_transforms():
         assert isinstance(item, config._TransformConfigItem)
 
 
-def test_TransformConfig_from_dict(mocked_cfg_transform):
+def test_TransformConfig_from_dict(mocked_cfg_transforms):
     
     custom_transforms = {"transforms": [{"name": "dummy_transform"}]*3}
     result = config.TransformConfig.from_dict(custom_transforms)

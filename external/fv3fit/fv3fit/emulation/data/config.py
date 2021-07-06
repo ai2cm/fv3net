@@ -1,10 +1,11 @@
+from functools import partial
 import dacite
 import dataclasses
 import xarray
 import numpy as np
 import tensorflow as tf
 from toolz.functoolz import compose_left
-from typing import Any, Dict, Mapping, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Mapping, Sequence, Tuple, Union
 
 from . import transforms
 
@@ -27,15 +28,23 @@ class _TransformConfigItem:
     def from_dict(cls, item_info):
         return dacite.from_dict(data_class=cls, data=item_info)
 
-    def load_transform(self):
+    def load_transform_func(self) -> Callable:
         func = getattr(transforms, self.name)
-        return func(*self.args, **self.kwargs)
+        partial_func = func(*self.args, **self.kwargs)
+
+        if not callable(partial_func):
+            raise TypeError(
+                f"Loaded transform for {self.name} from config is no"
+                " longer callable. Check that partial arguments match"
+                " the signature."
+            )
+        return partial_func
 
 
 def _load_transforms(transforms_to_load: Sequence[_TransformConfigItem]):
 
     loaded_transforms = [
-        transform_info.load_transform()
+        transform_info.load_transform_func()
         for transform_info in transforms_to_load
     ]
     return compose_left(*loaded_transforms)
@@ -84,7 +93,6 @@ class InputTransformConfig(TransformConfig):
     antarctic_only: bool = False
     use_tensors: bool = True
     vertical_subselections: Union[Mapping[str, slice], None] = None
-    transforms: Sequence[_TransformConfigItem] = dataclasses.field(default_factory=list)
 
     def get_transform_func(self):
 
