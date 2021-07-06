@@ -38,13 +38,10 @@ def to_unit_quantity(val):
 
 
 def to_dict(ds: xr.Dataset):
-    for var, da in ds.items():
-        print(da)
     return {key: to_unit_quantity(ds[key]) for key in ds}
 
 
 def prepend_to_key(d, prefix):
-    print(prefix)
     return {prefix + key: val for key, val in d.items()}
 
 
