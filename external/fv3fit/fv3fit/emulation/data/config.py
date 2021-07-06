@@ -24,6 +24,11 @@ class SliceLoader(yaml.SafeLoader):
           - specific_humidity: !!python/slice [15, null]
             tendency_of_sphum: !!python/slice [15, null]
 
+    Loading the yaml file::
+
+        with open("yaml_file_with_slices.yaml", "r") as f:
+            yaml.load(f, Loader=SliceLoader)
+
     """
 
     def construct_python_slice(self, node):
