@@ -104,3 +104,34 @@ class ReportIndex:
             return url
         else:
             raise ValueError(f"Public domain unknown for url {url}.")
+
+
+def main(args):
+    if args.write:
+        index = ReportIndex()
+        index.compute(args.reports_url)
+        index.dump(os.path.join(args.reports_url, "index.json"))
+    index = ReportIndex.from_json(os.path.join(args.reports_url, "index.json"))
+    for link in index.public_links(args.url):
+        print(link)
+
+
+def register_parser(subparsers):
+    parser = subparsers.add_parser("report", help="Search for prognostic run reports.")
+    parser.add_argument("url", help="A prognostic run URL.")
+    parser.add_argument(
+        "-r",
+        "--reports-url",
+        help=(
+            "Location of prognostic run reports. Defaults to gs://vcm-ml-public/argo. "
+            "Search uses index at REPORTS_URL/index.json"
+        ),
+        default="gs://vcm-ml-public/argo",
+    )
+    parser.add_argument(
+        "-w",
+        "--write",
+        help="Recompute index and write to REPORTS_URL/index.json before searching.",
+        action="store_true",
+    )
+    parser.set_defaults(func=main)

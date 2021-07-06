@@ -1,3 +1,4 @@
+import json
 import os
 
 import fsspec
@@ -49,14 +50,30 @@ def test_ComputedDiagnosticsList_from_urls():
     assert isinstance(result.folders["1"], DiagnosticFolder)
 
 
-def test_detect_folders_fail_less_than_2(tmpdir):
+def test_ComputedDiagnosticsList_from_json(tmpdir):
+    rundiags = [
+        {"name": "run1", "url": "rundir1_diagnostics"},
+        {"name": "run2", "url": "rundir2_diagnostics"},
+    ]
+    with open(tmpdir.join("rundiags.json"), "w") as f:
+        json.dump(rundiags, f)
 
-    fs = fsspec.filesystem("file")
+    result = ComputedDiagnosticsList.from_json(str(tmpdir.join("rundiags.json")))
 
-    tmpdir.mkdir("rundir1").join("diags.nc").write("foobar")
+    assert len(result.folders) == 2
+    assert isinstance(result.folders["run1"], DiagnosticFolder)
+    assert isinstance(result.folders["run2"], DiagnosticFolder)
 
-    with pytest.raises(ValueError):
-        detect_folders(tmpdir, fs)
+
+def test_ComputedDiagnosticsList_from_json_urls_are_rundirs(tmpdir):
+    rundiags = [{"name": "run1", "url": "/rundir1"}]
+    with open(tmpdir.join("rundiags.json"), "w") as f:
+        json.dump(rundiags, f)
+
+    result = ComputedDiagnosticsList.from_json(
+        str(tmpdir.join("rundiags.json")), urls_are_rundirs=True
+    )
+    assert result.folders["run1"].path == "/rundir1_diagnostics"
 
 
 def test_get_movie_links(tmpdir):
@@ -71,12 +88,16 @@ def test_get_movie_links(tmpdir):
     tmpdir.join(rdirs[0]).join("movie2.mp4").write("foobar")
 
     result = ComputedDiagnosticsList.from_directory(str(tmpdir)).find_movie_links()
+    folder2 = DiagnosticFolder(fsspec.filesystem("file"), str(tmpdir.join(rdirs[1])))
 
     assert "movie1.mp4" in result
     assert "movie2.mp4" in result
     assert {(os.path.join(domain, tmpdir, "rundir1", "movie2.mp4"), "rundir1")} == set(
         result["movie2.mp4"]
     )
+    for movie_name, url in folder2.movie_urls:
+        assert movie_name == "movie1.mp4"
+        assert url == str(tmpdir.join(rdirs[1]).join("movie1.mp4"))
 
 
 one_run = xarray.Dataset({"a": ([], 1,), "b": ([], 2)}, attrs=dict(run="one-run"))

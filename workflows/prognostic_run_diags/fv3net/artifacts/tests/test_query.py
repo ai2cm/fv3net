@@ -1,6 +1,5 @@
-import sys
-from fv3net.artifacts.query import get_artifacts, Step, main, matches_tag
 import pathlib
+from fv3net.artifacts.query import get_artifacts, Step, matches_tag
 
 import pytest
 
@@ -17,13 +16,6 @@ def test_get_runs(exp_root):
     assert steps
     for step in steps:
         assert isinstance(step, Step)
-
-
-def test_cli(monkeypatch):
-    monkeypatch.setattr(
-        sys, "argv", ["artifacts", "ls", "--bucket", local_experiment_root]
-    )
-    main()
 
 
 @pytest.mark.parametrize(

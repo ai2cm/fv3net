@@ -448,7 +448,7 @@ def open_fine_res_apparent_sources(
         partial(vcm.shift_timestamp, seconds=offset_seconds),
     )
 
-    shifted_mapper = KeyMap(shift_timestamp, fine_resolution_sources_mapper,)
+    shifted_mapper = KeyMap(shift_timestamp, fine_resolution_sources_mapper)
 
     if shield_diags_path is not None:
         shield_diags_mapper = open_high_res_diags(shield_diags_path)

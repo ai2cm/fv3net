@@ -43,11 +43,10 @@ setup(
         "Programming Language :: Python :: 3.7",
     ],
     description="Prognostic run diagnostics",
-    scripts=["scripts/memoized_compute_diagnostics.sh"],
     entry_points={
         "console_scripts": [
             "prognostic_run_diags=fv3net.diagnostics.prognostic_run.cli:main",
-            "artifacts=fv3net.artifacts.query:main",
+            "artifacts=fv3net.artifacts.cli:main",
         ]
     },
     install_requires=install_requirements,
