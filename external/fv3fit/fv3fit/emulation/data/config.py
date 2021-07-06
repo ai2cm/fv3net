@@ -143,7 +143,8 @@ class TransformConfig:
 
     @classmethod
     def from_dict(cls, d):
-        d = cls._initialize_custom_transforms(d)
+        if "transforms" in d:
+            d = cls._initialize_custom_transforms(d)
         return dacite.from_dict(data_class=cls, data=d)
 
     def get_transform_pipeline(self):
@@ -171,6 +172,24 @@ class InputTransformConfig(TransformConfig):
             sequence.
         transforms: Sequence of extra transform configurations to combine
             in order. Inserted just before input/output grouping function.
+        vertical_subselections: Mapping of variables to slice-based reductions
+            for the feature dimension
+
+    Example
+    -------
+    Yaml file example::
+
+        input_variables: ["a", "b"]
+        output_variables: ["c", "d"]
+        antarctic_only: true
+        use_tensors: true
+        vertical_subselections:
+          a: !!python/slice [5]
+          b: !!python/slice [5, None]
+          c: !!python/slice [5, 20, 2]
+
+    Note that the slice loading in yaml requires using the SliceLoader defined
+    in this module.
     """
 
     input_variables: Sequence[str] = dataclasses.field(default_factory=list)

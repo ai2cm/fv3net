@@ -130,3 +130,11 @@ def test_TransformConfig_from_dict(mocked_cfg_transforms):
     result = config.TransformConfig.from_dict(custom_transforms)
 
     assert isinstance(result, config.TransformConfig)
+
+
+def test_TransformConfig_from_dict_no_transforms(mocked_cfg_transforms):
+
+    custom_transforms = {}
+    result = config.TransformConfig.from_dict(custom_transforms)
+
+    assert isinstance(result, config.TransformConfig)
