@@ -2,7 +2,7 @@ import pytest
 import yaml
 
 import data_transform_mock
-from fv3fit.emulation.data import config, transforms
+from fv3fit.emulation.data import config
 
 
 @pytest.fixture
@@ -146,7 +146,7 @@ def test_InputTransformConfig():
         input_variables=["a", "b"],
         output_variables=["c", "d"],
         antarctic_only=False,
-        vertical_subselections={"a": slice(5, None)}
+        vertical_subselections={"a": slice(5, None)},
     )
 
     transform_func = result.get_transform_pipeline()

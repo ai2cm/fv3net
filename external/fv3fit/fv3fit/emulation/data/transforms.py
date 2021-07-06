@@ -24,12 +24,14 @@ AnyDataset = Mapping[str, NumericContainer]
 
 def to_ndarrays(dataset: xr.Dataset) -> ArrayDataset:
     """Convert a dataset to ndarrays with a specified dtype."""
+    logger.debug("Converting dataset to ndarray dataset")
     return {varname: da.values for varname, da in dataset.items()}
 
 
 @curry
 def to_tensors(dataset: InputDataset, dtype: tf.DType = tf.float32) -> TensorDataset:
     """Convert a dataset to tensors with specified dtype."""
+    logger.debug("Converting dataset to tensor dataset")
     return {
         key: tf.convert_to_tensor(data, dtype=dtype) for key, data in dataset.items()
     }
@@ -42,6 +44,7 @@ def select_antarctic(dataset: xr.Dataset, sample_dim_name="sample") -> xr.Datase
     units in radians
     """
 
+    logger.debug("Reducing samples to antarctic points (<60S) only")
     mask = dataset["latitude"] < -np.deg2rad(60)
     dataset = dataset.isel({sample_dim_name: mask})
 
@@ -58,6 +61,9 @@ def group_inputs_outputs(
     keys.
     """
 
+    logger.debug("Grouping input and output tuples")
+    logger.debug(f"input vars: {input_variables}")
+    logger.debug(f"output vars: {output_variables}")
     inputs_ = tuple([dataset[key] for key in input_variables])
     outputs_ = tuple([dataset[key] for key in output_variables])
 
@@ -71,11 +77,13 @@ def maybe_subselect(
     """
     Subselect from the feature dimension if specified in the map.
     """
-
     new_ds = {}
     for vname, arr in dataset.items():
         if vname in subselection_map:
             subselect_slice = subselection_map[vname]
+            logger.debug(
+                f"Subselecting features from {vname} using slice {subselect_slice}"
+            )
             arr = arr[..., subselect_slice]
 
         new_ds[vname] = arr
@@ -92,6 +100,7 @@ def maybe_expand_feature_dim(
     new_ds = {}
     for key, data in dataset.items():
         if len(data.shape) == 1:
+            logger.debug(f"Expanding feature dimension for {key}")
             data = data[:, None]
 
         new_ds[key] = data

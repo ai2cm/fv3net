@@ -1,5 +1,6 @@
 import dacite
 import dataclasses
+import logging
 import xarray
 import yaml
 import numpy as np
@@ -8,6 +9,9 @@ from toolz.functoolz import compose_left
 from typing import Any, Callable, Dict, Mapping, Sequence, Tuple, Union
 
 from . import transforms
+
+
+logger = logging.getLogger(__name__)
 
 
 class SliceLoader(yaml.SafeLoader):
@@ -109,6 +113,9 @@ def _load_transforms(transforms_to_load: Sequence[_TransformConfigItem]):
     loaded_transforms = [
         transform_info.load_transform_func() for transform_info in transforms_to_load
     ]
+    logger.debug(
+        f"Loaded transform sequence: {[xfm.name for xfm in transforms_to_load]}"
+    )
     return compose_left(*loaded_transforms)
 
 
