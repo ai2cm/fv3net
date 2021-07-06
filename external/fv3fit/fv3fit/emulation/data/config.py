@@ -179,13 +179,11 @@ class InputTransformConfig(TransformConfig):
         antarctic_only: Limit data to < 60 S.  Requires latitude exists
             as a field in the dataset
         use_tensors: Converts data to float32 tensors instead of numpy arrays
-            vertical_subselection: Limit the feature dimension of a variable
+        vertical_subselection: Limit the feature dimension of a variable
             to a specified range. Loaded in as slices from a 2 or 3 item
             sequence.
         transforms: Sequence of extra transform configurations to combine
             in order. Inserted just before input/output grouping function.
-        vertical_subselections: Mapping of variables to slice-based reductions
-            for the feature dimension
 
     Example
     -------
