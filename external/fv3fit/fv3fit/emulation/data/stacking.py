@@ -97,7 +97,7 @@ class ArrayStacker:
 
     @classmethod
     def load(cls, source: TextIO):
-        kwargs = yaml.unsafe_load(source.read())
+        kwargs = yaml.load(source.read(), Loader=yaml.Loader)
         return cls(**kwargs)
 
 
