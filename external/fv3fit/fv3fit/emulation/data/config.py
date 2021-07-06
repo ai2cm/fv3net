@@ -15,6 +15,36 @@ XyTensors = Tuple[Tuple[tf.Tensor], Tuple[tf.Tensor]]
 
 @dataclasses.dataclass
 class _TransformConfigItem:
+    """
+    Specification of a transform function and any
+    args and/or kwargs necessary to curry it into a
+    function taking a single argument.
+
+    Args
+    ----
+        name: Curry-able function name in the transforms module
+        args: Arguments to provide into curried function such that
+            the resulting call signature is func(dataset).  Note:
+            This can be specified as a mapping but it will be converted
+            to a list in the order supplied.
+        kwargs: Keyword arguments to provide to the curried function.
+
+    Example
+    -------
+    Example yaml for grouped inputs/outputs transform::
+        
+        name: group_inputs_outputs
+        args:
+        - ["field1", "field2"]
+        - ["field3"]
+
+    Equivalent yaml for grouped inputs/outputs transform::
+
+        name: group_inputs_outputs
+        args:
+        input_variables: ["field1", "field2"]
+        output_variables: ["field3"]
+    """
     # put a note about the args order relevance
     name: str
     args: Union[Sequence[Any], Mapping[str, Any]] = dataclasses.field(default_factory=list)
@@ -57,9 +87,11 @@ TransformConfigSpec = Dict[str, Sequence[TransformItemSpec]]
 @dataclasses.dataclass
 class TransformConfig:
     """
-    Specify exact transform pipeline
+    Specify a custom transform pipeline for data
 
-    example
+    Args
+    ----
+        transforms: Sequence of transform configurations to combine in order
     """
     transforms: Sequence[_TransformConfigItem] = dataclasses.field(default_factory=list)
 
@@ -75,7 +107,7 @@ class TransformConfig:
         d = cls._initialize_custom_transforms(d)
         return dacite.from_dict(data_class=cls, data=d)
 
-    def get_transform_func(self):
+    def get_transform_pipeline(self):
         if self.transforms:
             return _load_transforms(self.transforms)
         else:
@@ -87,6 +119,18 @@ class InputTransformConfig(TransformConfig):
     """
     Standard input pipeline that goes from xarray dataset to grouped
     X, y tuples of arrays/tensors per variable
+
+    Args
+    ----
+        input_variables: Variables to include as inputs for training
+        output_variables: Variables to include as targets for training
+        antarctic_only: Limit data to < 60 S.  Requires latitude exists
+            as a field in the dataset
+        use_tensors: Converts data to float32 tensors instead of numpy arrays
+        vertical_subselection: Limit the feature dimension of a variable to a specified range.
+            Loaded in as slices from a 2 or 3 item sequence.
+        transforms: Sequence of extra transform configurations to combine in order.
+            Inserted just before input/output grouping function.
     """
     input_variables: Sequence[str] = dataclasses.field(default_factory=list)
     output_variables: Sequence[str] = dataclasses.field(default_factory=list)
@@ -94,7 +138,7 @@ class InputTransformConfig(TransformConfig):
     use_tensors: bool = True
     vertical_subselections: Union[Mapping[str, slice], None] = None
 
-    def get_transform_func(self):
+    def get_transform_pipeline(self):
 
         transform_funcs = []
 

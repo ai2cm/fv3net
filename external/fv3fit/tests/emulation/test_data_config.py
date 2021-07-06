@@ -93,7 +93,7 @@ def test_TransformConfig(mocked_cfg_transforms):
     transform_seq = [config_item]*3
 
     base_config = config.TransformConfig(transforms=transform_seq)
-    pipeline_func = base_config.get_transform_func()
+    pipeline_func = base_config.get_transform_pipeline()
 
     assert callable(pipeline_func)
     assert pipeline_func(1) == 1
@@ -101,7 +101,7 @@ def test_TransformConfig(mocked_cfg_transforms):
 
 def test_TransformConfig_empty_transforms(mocked_cfg_transforms):
     base_config = config.TransformConfig()
-    pipeline_func = base_config.get_transform_func()
+    pipeline_func = base_config.get_transform_pipeline()
 
     assert callable(pipeline_func)
     assert pipeline_func(1) == 1
