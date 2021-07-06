@@ -90,9 +90,7 @@ def unstandardize(std_info: StandardizeInfo, dataset: InputDataset):
 
 @curry
 def stack_io(
-    X_stacker: ArrayStacker,
-    y_stacker: ArrayStacker,
-    dataset: ArrayDataset
+    X_stacker: ArrayStacker, y_stacker: ArrayStacker, dataset: ArrayDataset
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Use stackers to combine dataset variables along the feature dimension.

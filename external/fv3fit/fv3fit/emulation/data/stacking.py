@@ -44,10 +44,12 @@ class ArrayStacker:
         self._feature_size = end
 
     def stack(self, dataset: Mapping[str, np.ndarray]) -> np.ndarray:
-        return np.hstack([
-            dataset[varname][..., self._feature_subselections[varname]]
-            for varname in self._variables
-        ])
+        return np.hstack(
+            [
+                dataset[varname][..., self._feature_subselections[varname]]
+                for varname in self._variables
+            ]
+        )
 
     def unstack(self, array):
         unstacked = {}
@@ -78,9 +80,7 @@ class ArrayStacker:
             feature_subselections = {}
 
         init_kwargs = _get_ArrayStacker_args(
-            variables_to_stack,
-            dataset,
-            subselections=feature_subselections
+            variables_to_stack, dataset, subselections=feature_subselections
         )
         return cls(**init_kwargs)
 
@@ -90,9 +90,9 @@ class ArrayStacker:
                 "variables_to_stack": self._variables,
                 "stacked_feature_sizes": self._stacked_feature_sizes,
                 "original_feature_sizes": self._orig_feature_sizes,
-                "feature_subselections": self._feature_subselections
+                "feature_subselections": self._feature_subselections,
             },
-            out
+            out,
         )
 
     @classmethod

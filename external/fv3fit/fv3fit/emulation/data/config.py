@@ -1,4 +1,3 @@
-from functools import partial
 import dacite
 import dataclasses
 import xarray
@@ -45,9 +44,12 @@ class _TransformConfigItem:
         input_variables: ["field1", "field2"]
         output_variables: ["field3"]
     """
+
     # put a note about the args order relevance
     name: str
-    args: Union[Sequence[Any], Mapping[str, Any]] = dataclasses.field(default_factory=list)
+    args: Union[Sequence[Any], Mapping[str, Any]] = dataclasses.field(
+        default_factory=list
+    )
     kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
@@ -74,8 +76,7 @@ class _TransformConfigItem:
 def _load_transforms(transforms_to_load: Sequence[_TransformConfigItem]):
 
     loaded_transforms = [
-        transform_info.load_transform_func()
-        for transform_info in transforms_to_load
+        transform_info.load_transform_func() for transform_info in transforms_to_load
     ]
     return compose_left(*loaded_transforms)
 
@@ -93,6 +94,7 @@ class TransformConfig:
     ----
         transforms: Sequence of transform configurations to combine in order
     """
+
     transforms: Sequence[_TransformConfigItem] = dataclasses.field(default_factory=list)
 
     @staticmethod
@@ -127,11 +129,13 @@ class InputTransformConfig(TransformConfig):
         antarctic_only: Limit data to < 60 S.  Requires latitude exists
             as a field in the dataset
         use_tensors: Converts data to float32 tensors instead of numpy arrays
-        vertical_subselection: Limit the feature dimension of a variable to a specified range.
-            Loaded in as slices from a 2 or 3 item sequence.
-        transforms: Sequence of extra transform configurations to combine in order.
-            Inserted just before input/output grouping function.
+            vertical_subselection: Limit the feature dimension of a variable
+            to a specified range. Loaded in as slices from a 2 or 3 item
+            sequence.
+        transforms: Sequence of extra transform configurations to combine
+            in order. Inserted just before input/output grouping function.
     """
+
     input_variables: Sequence[str] = dataclasses.field(default_factory=list)
     output_variables: Sequence[str] = dataclasses.field(default_factory=list)
     antarctic_only: bool = False
@@ -153,16 +157,15 @@ class InputTransformConfig(TransformConfig):
         transform_funcs.append(transforms.maybe_expand_feature_dim)
 
         if self.vertical_subselections is not None:
-            transform_funcs.append(transforms.maybe_subselect(self.vertical_subselections))
+            transform_funcs.append(
+                transforms.maybe_subselect(self.vertical_subselections)
+            )
 
         if self.transforms:
             transform_funcs += _load_transforms(self.transforms)
 
         transform_funcs.append(
-            transforms.group_inputs_outputs(
-                self.input_variables,
-                self.output_variables
-            )
+            transforms.group_inputs_outputs(self.input_variables, self.output_variables)
         )
 
         return compose_left(*transform_funcs)

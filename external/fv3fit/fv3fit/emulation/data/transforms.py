@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 import xarray as xr
 from toolz.functoolz import curry
-from typing import List, Mapping, Sequence, Tuple, Union
+from typing import Mapping, Sequence, Tuple, Union
 
 
 logger = logging.getLogger(__name__)
@@ -24,26 +24,23 @@ AnyDataset = Mapping[str, NumericContainer]
 
 def to_ndarrays(dataset: xr.Dataset) -> ArrayDataset:
     """Convert a dataset to ndarrays with a specified dtype."""
-    return {
-        varname: da.values
-        for varname, da in dataset.items()
-    }
+    return {varname: da.values for varname, da in dataset.items()}
 
 
 @curry
-def to_tensors(
-    dataset: InputDataset, dtype: tf.DType = tf.float32
-) -> TensorDataset:
+def to_tensors(dataset: InputDataset, dtype: tf.DType = tf.float32) -> TensorDataset:
     """Convert a dataset to tensors with specified dtype."""
     return {
-        key: tf.convert_to_tensor(data, dtype=dtype)
-        for key, data in dataset.items()
+        key: tf.convert_to_tensor(data, dtype=dtype) for key, data in dataset.items()
     }
 
 
 @curry
 def select_antarctic(dataset: xr.Dataset, sample_dim_name="sample") -> xr.Dataset:
-    """Select only points below 60 S.  Requires 'latitude' in dataset and expects units in radians"""
+    """
+    Select only points below 60 S.  Requires 'latitude' in dataset and expects
+    units in radians
+    """
 
     mask = dataset["latitude"] < -np.deg2rad(60)
     dataset = dataset.isel({sample_dim_name: mask})
@@ -53,9 +50,7 @@ def select_antarctic(dataset: xr.Dataset, sample_dim_name="sample") -> xr.Datase
 
 @curry
 def group_inputs_outputs(
-    input_variables: Sequence[str],
-    output_variables: Sequence[str],
-    dataset: AnyDataset
+    input_variables: Sequence[str], output_variables: Sequence[str], dataset: AnyDataset
 ) -> Tuple[Sequence[NumericContainer], Sequence[NumericContainer]]:
     """
     Group input and output variables into separate tuples where each item
@@ -71,8 +66,7 @@ def group_inputs_outputs(
 
 @curry
 def maybe_subselect(
-    subselection_map: Mapping[str, slice],
-    dataset: Union[ArrayDataset, TensorDataset]
+    subselection_map: Mapping[str, slice], dataset: Union[ArrayDataset, TensorDataset]
 ) -> Union[ArrayDataset, TensorDataset]:
     """
     Subselect from the feature dimension if specified in the map.

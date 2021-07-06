@@ -7,10 +7,16 @@ from fv3fit.emulation.data import transforms as xfm
 
 @pytest.fixture
 def xr_dataset():
-    return xr.Dataset({
-        "air_temperature": xr.DataArray(data=np.arange(30).reshape(10, 3), dims=["sample", "z"]),
-        "specific_humidity": xr.DataArray(data=np.arange(30, 60).reshape(10, 3), dims=["sample", "z"])
-    })
+    return xr.Dataset(
+        {
+            "air_temperature": xr.DataArray(
+                data=np.arange(30).reshape(10, 3), dims=["sample", "z"]
+            ),
+            "specific_humidity": xr.DataArray(
+                data=np.arange(30, 60).reshape(10, 3), dims=["sample", "z"]
+            ),
+        }
+    )
 
 
 def test_xr_dataset_to_ndarray_dataset(xr_dataset):
@@ -42,13 +48,10 @@ def test_xr_dataset_to_tensor_dataset(xr_dataset):
         ([-55, -60, -65], [1, 2, 3], [3]),
         ([55, 60, 65], [1, 2, 3], []),
         ([-61, -65, -80], [1, 2, 3], [1, 2, 3]),
-    ]
+    ],
 )
 def test_select_antarcic(lats, data, expected):
-    lats_da = xr.DataArray(
-        np.deg2rad(lats),
-        dims=["sample"]
-    )
+    lats_da = xr.DataArray(np.deg2rad(lats), dims=["sample"])
     data_da = xr.DataArray(data, dims=["sample"])
     dataset = xr.Dataset({"latitude": lats_da, "field": data_da})
     result = xfm.select_antarctic(dataset)
@@ -59,11 +62,7 @@ def test_select_antarcic(lats, data, expected):
 
 def test_group_input_output_input():
 
-    dataset = {
-        "a": np.array([0, 1]),
-        "b": np.array([2, 3]),
-        "c": np.array([4, 5])
-    }
+    dataset = {"a": np.array([0, 1]), "b": np.array([2, 3]), "c": np.array([4, 5])}
 
     inputs_, outputs_ = xfm.group_inputs_outputs(["a"], ["c", "b"], dataset)
     assert isinstance(inputs_, tuple)
@@ -77,11 +76,7 @@ def test_group_input_output_input():
 
 def test_group_input_output_empty_var_list():
 
-    dataset = {
-        "a": np.array([0, 1]),
-        "b": np.array([2, 3]),
-        "c": np.array([4, 5])
-    }
+    dataset = {"a": np.array([0, 1]), "b": np.array([2, 3]), "c": np.array([4, 5])}
 
     inputs_, outputs_ = xfm.group_inputs_outputs([], [], dataset)
     assert inputs_ == tuple()
@@ -94,7 +89,7 @@ def test_group_input_output_empty_var_list():
         xr.Dataset({"X": (["sample", "feature"], np.arange(40).reshape(10, 4))}),
         {"X": np.arange(40).reshape(10, 4)},
         {"X": tf.convert_to_tensor(np.arange(40).reshape(10, 4))},
-    ]
+    ],
 )
 def test_maybe_subselect_dataset_inputs(dataset):
 
@@ -103,8 +98,7 @@ def test_maybe_subselect_dataset_inputs(dataset):
     result = xfm.maybe_subselect(subselect_map, dataset)
     assert len(result["X"].shape) == len(dataset["X"].shape)
     np.testing.assert_equal(
-        result["X"],
-        np.arange(40).reshape(10, 4)[..., slice(2, None)]
+        result["X"], np.arange(40).reshape(10, 4)[..., slice(2, None)]
     )
 
 
@@ -114,10 +108,7 @@ def test_maybe_subselect_empty_selection_map():
     full_data = np.arange(40).reshape(10, 4)
 
     result = xfm.maybe_subselect(subselect_map, {"X": full_data})
-    np.testing.assert_equal(
-        result["X"],
-        full_data
-    )
+    np.testing.assert_equal(result["X"], full_data)
 
 
 @pytest.mark.parametrize(
@@ -126,9 +117,9 @@ def test_maybe_subselect_empty_selection_map():
         {"X": np.arange(40).reshape(10, 4), "y": np.arange(20)},
         {
             "X": tf.convert_to_tensor(np.arange(40).reshape(10, 4)),
-            "y": tf.convert_to_tensor(np.arange(20))
+            "y": tf.convert_to_tensor(np.arange(20)),
         },
-    ]
+    ],
 )
 def test_maybe_expand_feature_dim(dataset):
 
