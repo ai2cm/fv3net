@@ -117,6 +117,17 @@ def _assign_diagnostic_time_attrs(
     return diagnostics_ds
 
 
+def _assign_source_attrs(
+    diagnostics_ds: xr.Dataset, source_ds: xr.Dataset
+) -> xr.Dataset:
+    """Get attrs for each variable in diagnostics_ds from corresponding in source_ds."""
+    for variable in diagnostics_ds:
+        if variable in source_ds:
+            attrs = source_ds[variable].attrs
+            diagnostics_ds[variable] = diagnostics_ds[variable].assign_attrs(attrs)
+    return diagnostics_ds
+
+
 @registry_dycore.register("rms_global")
 @transform.apply("resample_time", "3H", inner_join=True)
 @transform.apply("daily_mean", datetime.timedelta(days=10))
@@ -125,7 +136,7 @@ def rms_errors(prognostic, verification_c48, grid):
     logger.info("Preparing rms errors")
     rms_errors = rms(prognostic, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
 
-    return rms_errors
+    return _assign_source_attrs(rms_errors, prognostic)
 
 
 @registry_dycore.register("zonal_and_time_mean")
@@ -134,7 +145,7 @@ def rms_errors(prognostic, verification_c48, grid):
 def zonal_means_dycore(prognostic, verification, grid):
     logger.info("Preparing zonal+time means (dycore)")
     zonal_means = zonal_mean(prognostic, grid.lat)
-    return time_mean(zonal_means)
+    return _assign_source_attrs(time_mean(zonal_means), prognostic)
 
 
 @registry_physics.register("zonal_and_time_mean")
@@ -143,7 +154,7 @@ def zonal_means_dycore(prognostic, verification, grid):
 def zonal_means_physics(prognostic, verification, grid):
     logger.info("Preparing zonal+time means (physics)")
     zonal_means = zonal_mean(prognostic, grid.lat)
-    return time_mean(zonal_means)
+    return _assign_source_attrs(time_mean(zonal_means), prognostic)
 
 
 @registry_3d.register("pressure_level_zonal_time_mean")
@@ -154,7 +165,7 @@ def zonal_means_3d(prognostic, verification, grid):
     logger.info("Preparing zonal+time means (3d)")
     with xr.set_options(keep_attrs=True):
         zonal_means = zonal_mean(prognostic, grid.lat)
-        return time_mean(zonal_means)
+        return _assign_source_attrs(time_mean(zonal_means), prognostic)
 
 
 @registry_3d.register("pressure_level_zonal_bias")
@@ -165,7 +176,7 @@ def zonal_bias_3d(prognostic, verification, grid):
     logger.info("Preparing zonal mean bias (3d)")
     with xr.set_options(keep_attrs=True):
         zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
-        return time_mean(zonal_mean_bias)
+        return _assign_source_attrs(time_mean(zonal_mean_bias), prognostic)
 
 
 @registry_dycore.register("zonal_bias")
@@ -175,7 +186,7 @@ def zonal_and_time_mean_biases_dycore(prognostic, verification, grid):
     logger.info("Preparing zonal+time mean biases (dycore)")
 
     zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
-    return time_mean(zonal_mean_bias)
+    return _assign_source_attrs(time_mean(zonal_mean_bias), prognostic)
 
 
 @registry_physics.register("zonal_bias")
@@ -184,7 +195,7 @@ def zonal_and_time_mean_biases_dycore(prognostic, verification, grid):
 def zonal_and_time_mean_biases_physics(prognostic, verification, grid):
     logger.info("Preparing zonal+time mean biases (physics)")
     zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
-    return time_mean(zonal_mean_bias)
+    return _assign_source_attrs(time_mean(zonal_mean_bias), prognostic)
 
 
 for variable_set in ["dycore", "physics"]:
@@ -201,7 +212,7 @@ for variable_set in ["dycore", "physics"]:
     @transform.apply("subset_variables", subset_variables)
     def zonal_mean_hovmoller(prognostic, verification, grid):
         logger.info(f"Preparing zonal mean values ({variable_set})")
-        return zonal_mean(prognostic, grid.lat)
+        return _assign_source_attrs(zonal_mean(prognostic, grid.lat), prognostic)
 
     @registry.register("zonal_mean_bias")
     @transform.apply("resample_time", "3H", inner_join=True)
@@ -209,7 +220,9 @@ for variable_set in ["dycore", "physics"]:
     @transform.apply("subset_variables", subset_variables)
     def zonal_mean_bias_hovmoller(prognostic, verification, grid):
         logger.info(f"Preparing zonal mean biases ({variable_set})")
-        return zonal_mean(prognostic - verification, grid.lat)
+        return _assign_source_attrs(
+            zonal_mean(prognostic - verification, grid.lat), prognostic
+        )
 
     for mask_type in ["global", "land", "sea", "tropics"]:
 
@@ -221,7 +234,7 @@ for variable_set in ["dycore", "physics"]:
         def spatial_min(prognostic, verification, grid, mask_type=mask_type):
             logger.info(f"Preparing minimum for variables ({mask_type})")
             masked = prognostic.where(~grid["area"].isnull())
-            return masked.min(dim=HORIZONTAL_DIMS)
+            return _assign_source_attrs(masked.min(dim=HORIZONTAL_DIMS), prognostic)
 
         @registry.register(f"spatial_max_{variable_set}_{mask_type}")
         @transform.apply("mask_area", mask_type)
@@ -231,7 +244,7 @@ for variable_set in ["dycore", "physics"]:
         def spatial_max(prognostic, verification, grid, mask_type=mask_type):
             logger.info(f"Preparing maximum for variables ({mask_type})")
             masked = prognostic.where(~grid["area"].isnull())
-            return masked.max(dim=HORIZONTAL_DIMS)
+            return _assign_source_attrs(masked.max(dim=HORIZONTAL_DIMS), prognostic)
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -247,7 +260,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
             HORIZONTAL_DIMS
         )
 
-        return area_averages
+        return _assign_source_attrs(area_averages, prognostic)
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -263,7 +276,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
             HORIZONTAL_DIMS
         )
 
-        return area_averages
+        return _assign_source_attrs(area_averages, prognostic)
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -277,7 +290,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         logger.info(f"Preparing average biases for physics variables ({mask_type})")
         bias_errors = bias(verification, prognostic, grid.area, HORIZONTAL_DIMS)
 
-        return bias_errors
+        return _assign_source_attrs(bias_errors, prognostic)
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -291,7 +304,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         logger.info(f"Preparing average biases for dycore variables ({mask_type})")
         bias_errors = bias(verification, prognostic, grid.area, HORIZONTAL_DIMS)
 
-        return bias_errors
+        return _assign_source_attrs(bias_errors, prognostic)
 
 
 @registry_physics.register("time_mean_value")
@@ -299,7 +312,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_means_physics(prognostic, verification, grid):
     logger.info("Preparing time means for physics variables")
-    return time_mean(prognostic)
+    return _assign_source_attrs(time_mean(prognostic), prognostic)
 
 
 @registry_physics.register("time_mean_bias")
@@ -307,7 +320,7 @@ def time_means_physics(prognostic, verification, grid):
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_mean_biases_physics(prognostic, verification, grid):
     logger.info("Preparing time mean biases for physics variables")
-    return time_mean(prognostic - verification)
+    return _assign_source_attrs(time_mean(prognostic - verification), prognostic)
 
 
 @registry_dycore.register("time_mean_value")
@@ -315,7 +328,7 @@ def time_mean_biases_physics(prognostic, verification, grid):
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_means_dycore(prognostic, verification, grid):
     logger.info("Preparing time means for physics variables")
-    return time_mean(prognostic)
+    return _assign_source_attrs(time_mean(prognostic), prognostic)
 
 
 @registry_dycore.register("time_mean_bias")
@@ -323,7 +336,7 @@ def time_means_dycore(prognostic, verification, grid):
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_mean_biases_dycore(prognostic, verification, grid):
     logger.info("Preparing time mean biases for physics variables")
-    return time_mean(prognostic - verification)
+    return _assign_source_attrs(time_mean(prognostic - verification), prognostic)
 
 
 for mask_type in ["global", "land", "sea"]:
@@ -343,7 +356,9 @@ for mask_type in ["global", "land", "sea"]:
             return xr.Dataset({})
         else:
             diag = diurnal_cycle.calc_diagnostics(prognostic, verification, grid).load()
-            return _assign_diagnostic_time_attrs(diag, prognostic)
+            return _assign_source_attrs(
+                _assign_diagnostic_time_attrs(diag, prognostic), prognostic
+            )
 
 
 @registry_physics.register("histogram")
@@ -358,7 +373,9 @@ def compute_histogram(prognostic, verification, grid):
         )
         counts[varname] = count
         counts[f"{varname}_bin_width"] = width
-    return _assign_diagnostic_time_attrs(counts, prognostic)
+    return _assign_source_attrs(
+        _assign_diagnostic_time_attrs(counts, prognostic), prognostic
+    )
 
 
 @registry_physics.register("hist_bias")
@@ -375,7 +392,9 @@ def compute_histogram_bias(prognostic, verification, grid):
             verification[varname], bins=HISTOGRAM_BINS[varname], density=True
         )
         counts[varname] = prognostic_count - verification_count
-    return _assign_diagnostic_time_attrs(counts, prognostic)
+    return _assign_source_attrs(
+        _assign_diagnostic_time_attrs(counts, prognostic), prognostic
+    )
 
 
 def register_parser(subparsers):
