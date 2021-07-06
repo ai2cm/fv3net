@@ -37,7 +37,7 @@ spec:
             - name: SHA
               value: $SHA
           image:
-            us.gcr.io/vcm-ml/emulator:41acf57b1896078d048d1a19b9b4b16911785717
+            us.gcr.io/vcm-ml/emulator:a4b119f442f6650d6e59e114bf6e2f1d632e8462
           command: [wandb, agent, $SWEEP]
           volumeMounts:
             - name: gcp-credentials-user-gcp-sa
