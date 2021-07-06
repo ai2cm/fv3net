@@ -13,8 +13,7 @@ services:
     command: [ls]
     volumes:
       - ../../:/fv3net
-      - guild:/mnt/guild
-      - dvc:/mnt/dvc
+      - dvc:/mnt
       - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json
       - runs:/data
     environment:
