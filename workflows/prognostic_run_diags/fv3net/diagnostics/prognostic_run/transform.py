@@ -17,6 +17,8 @@ import cftime
 
 from .constants import HORIZONTAL_DIMS, DiagArg
 
+xr.set_options(keep_attrs=True)
+
 _TRANSFORM_FNS = {}
 
 logger = logging.getLogger(__name__)
