@@ -72,7 +72,6 @@ class _TransformConfigItem:
           output_variables: ["field3"]
     """
 
-    # put a note about the args order relevance
     name: str
     args: Union[Sequence[Any], Mapping[str, Any]] = dataclasses.field(
         default_factory=list
