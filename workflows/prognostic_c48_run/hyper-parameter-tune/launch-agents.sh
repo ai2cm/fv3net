@@ -1,7 +1,7 @@
 SWEEP="$1"
-
+SHA=$(git rev-parse HEAD)
 label=$(echo "$SWEEP" | tr / -)
-envsubst "SWEEP label" << EOF | kubectl create -f -
+envsubst "SWEEP label SHA" << EOF | kubectl create -f -
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -34,8 +34,10 @@ spec:
               value: /secret/gcp-credentials/key.json
             - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
               value: /secret/gcp-credentials/key.json
+            - name: SHA
+              value: $SHA
           image:
-            us.gcr.io/vcm-ml/emulator:83eac51ad0ce455fa7f8f431c6cad09cd41ad500
+            us.gcr.io/vcm-ml/emulator:41acf57b1896078d048d1a19b9b4b16911785717
           command: [wandb, agent, $SWEEP]
           volumeMounts:
             - name: gcp-credentials-user-gcp-sa
