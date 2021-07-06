@@ -213,41 +213,6 @@ class DenseHyperparameters:
 
 
 @dataclasses.dataclass
-class DerivedModelHyperparameters:
-    """Configuration for training a DerivedModel, which wraps
-    the base_model_type and adds derived_variables to its output
-    predictions.
-
-    Example usage: The base model predicts net DW shortwave flux, which is
-    used in combination with additional input albedo to add a 'derived'
-    prediction for net shortwave flux.
-
-    Args:
-        base_model_type: Class of base model, e.g. DenseModel, RandomForest
-        hyperparameters: Hyperparameters of the base model. These must
-            correspond to its hyperparamter class, e.g.
-            DenseModelHyperparameters
-        derived_variables: List of outputs that are not directly predicted by
-            the base model.
-        additional_inputs: List of additional variables needed to make the
-            derived prediction which are **not** used as input variables for
-            the base ML model. If these are already used as features in the ML
-            model, there is no need to include them here.
-    """
-
-    base_model_type: str
-    hyperparameters: dict
-    derived_variables: Sequence[str]
-    additional_inputs: Sequence[str]
-
-    def __post_init__(self):
-        hyperparameter_class = get_hyperparameter_class(self.base_model_type)
-        self.base_model_hyperparameters = dacite.from_dict(
-            data_class=hyperparameter_class, data=self.hyperparameters
-        )
-
-
-@dataclasses.dataclass
 class RandomForestHyperparameters:
     """
     Configuration for training a random forest based model.
