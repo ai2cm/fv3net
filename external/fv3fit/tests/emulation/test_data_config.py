@@ -2,7 +2,7 @@ import pytest
 import yaml
 
 import data_transform_mock
-from fv3fit.emulation.data import config
+from fv3fit.emulation.data import config, transforms
 
 
 @pytest.fixture
@@ -138,3 +138,32 @@ def test_TransformConfig_from_dict_no_transforms(mocked_cfg_transforms):
     result = config.TransformConfig.from_dict(custom_transforms)
 
     assert isinstance(result, config.TransformConfig)
+
+
+def test_InputTransformConfig():
+
+    result = config.InputTransformConfig(
+        input_variables=["a", "b"],
+        output_variables=["c", "d"],
+        antarctic_only=False,
+        vertical_subselections={"a": slice(5, None)}
+    )
+
+    transform_func = result.get_transform_pipeline()
+    assert callable(transform_func)
+
+
+def test_InputTransformConfig_from_dict():
+
+    result = config.InputTransformConfig.from_dict(
+        dict(
+            input_variables=["a", "b"],
+            output_variables=["c", "d"],
+            antarctic_only=False,
+            vertical_subselections={"a": slice(5, None)},
+        )
+    )
+
+    assert isinstance(result, config.InputTransformConfig)
+    transform_func = result.get_transform_pipeline()
+    assert callable(transform_func)
