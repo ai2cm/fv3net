@@ -18,8 +18,8 @@ class DerivedModel(Predictor):
     def __init__(
         self,
         base_model: Predictor,
-        additional_input_variables: Iterable[str],
-        derived_output_variables: Iterable[str],
+        additional_input_variables: Iterable[Hashable],
+        derived_output_variables: Iterable[Hashable],
     ):
         """
 
@@ -39,10 +39,14 @@ class DerivedModel(Predictor):
         sample_dim_name = base_model.sample_dim_name
 
         full_input_variables = sorted(
-            list(set(base_model.input_variables + additional_input_variables))
+            list(
+                set(list(base_model.input_variables) + list(additional_input_variables))
+            )
         )
         full_output_variables = sorted(
-            list(set(base_model.output_variables + derived_output_variables))
+            list(
+                set(list(base_model.output_variables) + list(derived_output_variables))
+            )
         )
 
         # DerivedModel.input_variables (what the prognostic run uses to grab

@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Mapping, Hashable, Callable, Sequence
+from typing import Mapping, Hashable, Callable, Iterable
 import xarray as xr
 
 import vcm
@@ -15,11 +15,11 @@ class DerivedMapping:
 
     _VARIABLES: Mapping[Hashable, Callable[..., xr.DataArray]] = {}
 
-    def __init__(self, mapper: Mapping[str, xr.DataArray]):
+    def __init__(self, mapper: Mapping[Hashable, xr.DataArray]):
         self._mapper = mapper
 
     @classmethod
-    def register(cls, name: str):
+    def register(cls, name: Hashable):
         """Register a function as a derived variable
 
         Args:
@@ -32,7 +32,7 @@ class DerivedMapping:
 
         return decorator
 
-    def __getitem__(self, key: str) -> xr.DataArray:
+    def __getitem__(self, key: Hashable) -> xr.DataArray:
         if key in self._VARIABLES:
             return self._VARIABLES[key](self)
         else:
@@ -41,10 +41,10 @@ class DerivedMapping:
     def keys(self):
         return set(self._mapper) | set(self._VARIABLES)
 
-    def _data_arrays(self, keys: Sequence[str]):
+    def _data_arrays(self, keys: Iterable[Hashable]):
         return {key: self[key] for key in keys}
 
-    def dataset(self, keys: Sequence[str]) -> xr.Dataset:
+    def dataset(self, keys: Iterable[Hashable]) -> xr.Dataset:
         return xr.Dataset(self._data_arrays(keys))
 
 
