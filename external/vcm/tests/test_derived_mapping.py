@@ -144,5 +144,5 @@ def test_net_downward_shortwave_sfc_flux_derived():
         }
     )
     derived_state = DerivedMapping(ds)
-    derived_net_sw = derived_state["net_downward_shortwave_sfc_flux_derived"]
+    derived_net_sw = derived_state["net_shortwave_sfc_flux_derived"]
     np.testing.assert_array_almost_equal(derived_net_sw, [1.0, 0.5, 0.0])
