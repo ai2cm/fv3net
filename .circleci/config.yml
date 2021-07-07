@@ -151,9 +151,7 @@ jobs:
             chmod +x /bin/yq
 
             # install kustomize
-            wget "https://raw.githubusercontent.com/\
-            kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
-            chmod +x install_kustomize.sh
+            curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/e1804cbc76d0bb0256b1fd174a0bef6ba2973a95/hack/install_kustomize.sh" | bash
             ./install_kustomize.sh  3.8.6
             mv kustomize /usr/local/bin/
 
