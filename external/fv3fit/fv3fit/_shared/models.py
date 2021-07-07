@@ -13,7 +13,6 @@ from .predictor import Predictor
 @io.register("derived_model")
 class DerivedModel(Predictor):
     _CONFIG_FILENAME = "derived_model.yaml"
-    _BASE_MODEL_DIRECTORY = "base_model_data"
 
     def __init__(
         self,
@@ -34,6 +33,7 @@ class DerivedModel(Predictor):
         """
         self._base_model = base_model
         self._additional_input_variables = additional_input_variables
+
         self._derived_output_variables = derived_output_variables
 
         sample_dim_name = base_model.sample_dim_name
@@ -48,7 +48,7 @@ class DerivedModel(Predictor):
                 set(list(base_model.output_variables) + list(derived_output_variables))
             )
         )
-
+        self._check_derived_predictions_supported()
         # DerivedModel.input_variables (what the prognostic run uses to grab
         # necessary state for input to .predict()) is the set of
         # base_model_input_variables arg and hyperparameters.additional_inputs.
@@ -90,6 +90,19 @@ class DerivedModel(Predictor):
                 "input dataset needed to compute derived prediction variables. "
                 "Make sure these are present in the data and included in the "
                 "DerivedModel config under additional_input_variables."
+            )
+
+    def _check_derived_predictions_supported(self):
+
+        invalid_derived_variables = np.setdiff1d(
+            self._derived_output_variables, list(vcm.DerivedMapping.VARIABLES)
+        )
+        if len(invalid_derived_variables) > 0:
+            raise ValueError(
+                f"Invalid variables {invalid_derived_variables} "
+                "provided in init arg derived_output_variables. "
+                "Variables in this arg must be available as derived variables "
+                "in vcm.DerivedMapping."
             )
 
 

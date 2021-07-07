@@ -49,3 +49,12 @@ def test_derived_alert_to_missing_additional_input():
     )
     with pytest.raises(KeyError):
         derived_model.predict(ds_in.stack(sample=["x", "y"]))
+
+
+def test_invalid_derived_output_variables():
+    with pytest.raises(ValueError):
+        DerivedModel(
+            base_model,
+            additional_input_variables=["surface_diffused_shortwave_albedo"],
+            derived_output_variables=["variable_not_in_DerivedMapping"],
+        )
