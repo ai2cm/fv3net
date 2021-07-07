@@ -13,7 +13,7 @@ class DerivedMapping:
 
     """
 
-    _VARIABLES: Mapping[Hashable, Callable[..., xr.DataArray]] = {}
+    VARIABLES: Mapping[Hashable, Callable[..., xr.DataArray]] = {}
 
     def __init__(self, mapper: Mapping[Hashable, xr.DataArray]):
         self._mapper = mapper
@@ -27,19 +27,19 @@ class DerivedMapping:
         """
 
         def decorator(func):
-            cls._VARIABLES[name] = func
+            cls.VARIABLES[name] = func
             return func
 
         return decorator
 
     def __getitem__(self, key: Hashable) -> xr.DataArray:
-        if key in self._VARIABLES:
-            return self._VARIABLES[key](self)
+        if key in self.VARIABLES:
+            return self.VARIABLES[key](self)
         else:
             return self._mapper[key]
 
     def keys(self):
-        return set(self._mapper) | set(self._VARIABLES)
+        return set(self._mapper) | set(self.VARIABLES)
 
     def _data_arrays(self, keys: Iterable[Hashable]):
         return {key: self[key] for key in keys}
