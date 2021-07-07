@@ -14,7 +14,7 @@ Models that include "derived" prediction variables that can be defined manually,
     additional_input_variables:
         - surface_diffused_shortwave_albedo
     derived_output_variables:
-        - net_downward_shortwave_sfc_flux_derived
+        - net_shortwave_sfc_flux_derived
 
 A ``name`` file can be written using:
 
