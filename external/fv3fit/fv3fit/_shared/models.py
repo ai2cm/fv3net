@@ -2,6 +2,7 @@ from typing import Iterable, Set, Hashable
 import fsspec
 import yaml
 import os
+import numpy as np
 import xarray as xr
 import vcm
 
@@ -50,10 +51,10 @@ class DerivedModel(Predictor):
         super().__init__(sample_dim_name, full_input_variables, full_output_variables)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
+        self._check_additional_inputs_present(X)
         base_prediction = self._base_model.predict(X)
-        # derived prediction variables may need additional inputs to compute
         derived_mapping = vcm.DerivedMapping(xr.merge([X, base_prediction]))
-        derived_prediction = derived_mapping.dataset(self._derived_variables)
+        derived_prediction = derived_mapping.dataset(self._derived_output_variables)
         return xr.merge([base_prediction, derived_prediction])
 
     def dump(self, path: str):
@@ -74,6 +75,18 @@ class DerivedModel(Predictor):
             base_model, additional_input_variables, derived_output_variables
         )
         return derived_model
+
+    def _check_additional_inputs_present(self, X: xr.Dataset):
+        missing_additional_inputs = np.setdiff1d(
+            self._additional_input_variables, list(X.data_vars)
+        )
+        if len(missing_additional_inputs) > 0:
+            raise KeyError(
+                f"Missing additional inputs {missing_additional_inputs} in "
+                "input dataset needed to compute derived prediction variables. "
+                "Make sure these are present in the data and included in the "
+                "DerivedModel config under additional_input_variables."
+            )
 
 
 @io.register("ensemble")
