@@ -125,9 +125,9 @@ def horizontal_wind_tendency_parallel_to_horizontal_wind(self):
     return tendency_projection_onto_wind
 
 
-@DerivedMapping.register("net_downward_shortwave_sfc_flux_derived")
-def net_downward_shortwave_sfc_flux_derived(self):
-    # are these the right variable names?
+@DerivedMapping.register("net_shortwave_sfc_flux_derived")
+def net_shortwave_sfc_flux_derived(self):
+    # Positive = downward direction
     albedo = self["surface_diffused_shortwave_albedo"]
     downward_sfc_shortwave_flux = self[
         "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface"
