@@ -16,4 +16,4 @@ from .scaler import (
 )
 from .predictor import Predictor
 from .utils import parse_data_path
-from .models import EnsembleModel
+from .models import EnsembleModel, DerivedModel

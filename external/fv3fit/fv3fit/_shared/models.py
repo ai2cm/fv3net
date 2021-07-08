@@ -13,6 +13,7 @@ from .predictor import Predictor
 @io.register("derived_model")
 class DerivedModel(Predictor):
     _CONFIG_FILENAME = "derived_model.yaml"
+    _BASE_MODEL_SUBDIR = "base_model_data"
 
     def __init__(
         self,
@@ -62,11 +63,15 @@ class DerivedModel(Predictor):
         return xr.merge([base_prediction, derived_prediction])
 
     def dump(self, path: str):
-        raise NotImplementedError(
-            "no dump method yet for this class, you can define one manually "
-            "using instructions at "
-            "http://vulcanclimatemodeling.com/docs/fv3fit/derived_model.html"
-        )
+        base_model_path = os.path.join(path, self._BASE_MODEL_SUBDIR)
+        options = {
+            "additional_input_variables": self._additional_input_variables,
+            "derived_output_variables": self._derived_output_variables,
+            "model": base_model_path,
+        }
+        self._base_model.dump(base_model_path)
+        with fsspec.open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
+            yaml.safe_dump(options, f)
 
     @classmethod
     def load(cls, path: str) -> "DerivedModel":
