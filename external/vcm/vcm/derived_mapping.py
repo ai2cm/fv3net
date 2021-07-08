@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Mapping, Hashable, Callable, Sequence
+from typing import Mapping, Hashable, Callable, Iterable
 import xarray as xr
 
 import vcm
@@ -13,13 +13,13 @@ class DerivedMapping:
 
     """
 
-    _VARIABLES: Mapping[Hashable, Callable[..., xr.DataArray]] = {}
+    VARIABLES: Mapping[Hashable, Callable[..., xr.DataArray]] = {}
 
-    def __init__(self, mapper: Mapping[str, xr.DataArray]):
+    def __init__(self, mapper: Mapping[Hashable, xr.DataArray]):
         self._mapper = mapper
 
     @classmethod
-    def register(cls, name: str):
+    def register(cls, name: Hashable):
         """Register a function as a derived variable
 
         Args:
@@ -27,24 +27,24 @@ class DerivedMapping:
         """
 
         def decorator(func):
-            cls._VARIABLES[name] = func
+            cls.VARIABLES[name] = func
             return func
 
         return decorator
 
-    def __getitem__(self, key: str) -> xr.DataArray:
-        if key in self._VARIABLES:
-            return self._VARIABLES[key](self)
+    def __getitem__(self, key: Hashable) -> xr.DataArray:
+        if key in self.VARIABLES:
+            return self.VARIABLES[key](self)
         else:
             return self._mapper[key]
 
     def keys(self):
-        return set(self._mapper) | set(self._VARIABLES)
+        return set(self._mapper) | set(self.VARIABLES)
 
-    def _data_arrays(self, keys: Sequence[str]):
+    def _data_arrays(self, keys: Iterable[Hashable]):
         return {key: self[key] for key in keys}
 
-    def dataset(self, keys: Sequence[str]) -> xr.Dataset:
+    def dataset(self, keys: Iterable[Hashable]) -> xr.Dataset:
         return xr.Dataset(self._data_arrays(keys))
 
 
@@ -123,3 +123,13 @@ def horizontal_wind_tendency_parallel_to_horizontal_wind(self):
         self["eastward_wind"] * self["dQu"] + self["northward_wind"] * self["dQv"]
     ) / np.linalg.norm((self["eastward_wind"], self["northward_wind"]))
     return tendency_projection_onto_wind
+
+
+@DerivedMapping.register("net_shortwave_sfc_flux_derived")
+def net_shortwave_sfc_flux_derived(self):
+    # Positive = downward direction
+    albedo = self["surface_diffused_shortwave_albedo"]
+    downward_sfc_shortwave_flux = self[
+        "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface"
+    ]
+    return (1 - albedo) * downward_sfc_shortwave_flux
