@@ -24,7 +24,7 @@ InputDataset = Mapping[str, Union[np.ndarray, xr.DataArray]]
 AnyDataset = Mapping[str, NumericContainer]
 
 
-def open_netcdf(path: str) -> xr.Dataset:
+def open_netcdf_dataset(path: str) -> xr.Dataset:
     """Open a netcdf from a local/remote path"""
 
     fs = get_fs(path)
@@ -82,7 +82,7 @@ def group_inputs_outputs(
 
 
 @curry
-def maybe_subselect(
+def maybe_subselect_feature_dim(
     subselection_map: Mapping[str, slice], dataset: Union[ArrayDataset, TensorDataset]
 ) -> Union[ArrayDataset, TensorDataset]:
     """
@@ -102,7 +102,7 @@ def maybe_subselect(
     return new_ds
 
 
-def maybe_expand_feature_dim(
+def expand_single_dim_data(
     dataset: Union[ArrayDataset, TensorDataset]
 ) -> Union[ArrayDataset, TensorDataset]:
     """Expand a feature dimension for single-dimension data"""
