@@ -160,6 +160,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
 
         self._online_emulator = get_emulator(config.online_emulator)
         self._predict_with_emulator: bool = config.online_emulator.online
+        self._train_emulator: bool = config.online_emulator.train
 
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
         (
@@ -282,8 +283,19 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         )
         before = {key: self._state[key] for key in vars_}
         self._fv3gfs.apply_physics()
-        self._online_emulator.partial_fit(before, self._state)
-        emulator_after = self._online_emulator.predict(before)
+        diags = compute_change(
+            before,
+            self._state,
+            self._tendency_variables,
+            self._storage_variables,
+            "fv3_physics",
+            self._timestep,
+        )
+        if self._train_emulator:
+            self._online_emulator.partial_fit(before, self._state)
+        emulator_prediction = self._online_emulator.predict(before)
+
+        emulator_after = emulator_prediction.copy()
         emulator_after[DELP] = before[DELP]
 
         # insert state variables not predicted by the emulator
@@ -291,17 +303,19 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             if v not in emulator_after:
                 emulator_after[v] = self._state[v]
 
-        diags = compute_change(
-            before,
-            emulator_after,
-            self._tendency_variables,
-            self._storage_variables,
-            "emulator",
-            self._timestep,
+        diags.update(
+            compute_change(
+                before,
+                emulator_after,
+                self._tendency_variables,
+                self._storage_variables,
+                "emulator",
+                self._timestep,
+            )
         )
 
         if self._predict_with_emulator:
-            self._state.update(emulator_after)
+            self._state.update(emulator_prediction)
 
         micro = self._fv3gfs.get_diagnostic_by_name(
             "tendency_of_specific_humidity_due_to_microphysics"
@@ -352,7 +366,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             self._step_prephysics,
             self._compute_physics,
             self._apply_postphysics_to_physics_state,
-            self.monitor("fv3_physics", self._apply_physics),
+            self._apply_physics,
             self._compute_postphysics,
             self.monitor("python", self._apply_postphysics_to_dycore_state),
         ]

@@ -7,6 +7,7 @@ import numpy
 import tensorflow as tf
 import dacite
 from runtime.emulator.loggers import WandBLogger, ConsoleLogger, TBLogger, LoggerList
+import wandb
 from runtime.emulator.loss import RHLoss, ScalarLoss, MultiVariableLoss
 from runtime.emulator.thermo import (
     RelativeHumidityBasis,
@@ -46,10 +47,13 @@ class OnlineEmulatorConfig:
             descent step
         learning_rate: the learning rate for each gradient descent step
         online: whether predictions are used or not
+        train: if True the model is trained online
         batch: if provided then these data are used for training the ML model
         num_hidden_layers: number of hidden layers used. Only implemented for
             ScalarLoss targets.
         wandb_logger: if True, then enable weights and biases saving
+        checkpoint: path to model artifact in Weights and biases
+            "<entity>/<project>/<name>:tag"
 
     """
 
@@ -59,6 +63,7 @@ class OnlineEmulatorConfig:
     num_hidden_layers: int = 1
     momentum: float = 0.5
     online: bool = False
+    train: bool = True
     extra_input_variables: List[str] = dataclasses.field(default_factory=list)
     epochs: int = 1
     levels: int = 79
@@ -70,6 +75,7 @@ class OnlineEmulatorConfig:
     wandb_logger: bool = False
 
     output_path: str = ""
+    checkpoint: Optional[str] = None
 
     @property
     def input_variables(self) -> List[str]:
@@ -576,4 +582,11 @@ def get_model(config: OnlineEmulatorConfig) -> tf.keras.Model:
 
 
 def get_emulator(config: OnlineEmulatorConfig):
-    return OnlineEmulator(config)
+    if config.checkpoint:
+        logging.info(f"Loading emulator from checkpoint {config.checkpoint}")
+        api = wandb.Api()
+        artifact = api.artifact(config.checkpoint)
+        path = artifact.download()
+        return OnlineEmulator.load(path)
+    else:
+        return OnlineEmulator(config)

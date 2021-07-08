@@ -1,4 +1,5 @@
 import argparse
+import os
 import datetime
 import numpy as np
 from runtime.emulator.thermo import RelativeHumidityBasis
@@ -21,6 +22,14 @@ from .utils import _get_argsin
 import pytest
 from hypothesis import given
 from hypothesis.strategies import lists, integers
+
+
+@pytest.fixture(scope="function")
+def change_test_dir(tmpdir, request):
+    # from https://stackoverflow.com/a/62055409/1208392
+    os.chdir(tmpdir)
+    yield
+    os.chdir(request.config.invocation_dir)
 
 
 def test_OnlineEmulator_partial_fit(state):
@@ -300,3 +309,10 @@ def test_UVTRHSimple():
     model.fit_scalers(x, y)
     out = model(x)
     assert (out.q.numpy() > 0).all()
+
+
+@pytest.mark.network
+def test_checkpointed_model(change_test_dir):
+    config = OnlineEmulatorConfig(checkpoint="ai2cm/emulator-noah/model:v9")
+    emulator = get_emulator(config)
+    assert isinstance(emulator, OnlineEmulator)
