@@ -77,6 +77,8 @@ class TrainingConfig:
     hyperparameters: Dataclass
     sample_dim_name: str = "sample"
     random_seed: Union[float, int] = 0
+    derived_output_variables: List[str] = None
+    nonfeature_input_variables: List[str] = None
 
     @classmethod
     def from_dict(cls, kwargs) -> "TrainingConfig":
@@ -296,6 +298,8 @@ class _ModelTrainingConfig:
     save_model_checkpoints: bool = False
     model_path: str = ""
     timesteps_source: str = "timesteps_file"
+    derived_output_variables: List[str] = None
+    nonfeature_input_variables: List[str] = None
 
     def __post_init__(self):
         if self.scaler_type == "mass":
@@ -328,6 +332,8 @@ def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> Training
         "output_variables",
         "random_seed",
         "sample_dim_name",
+        "derived_output_variables",
+        "nonfeature_input_variables",
     ]
     if config_class is RandomForestHyperparameters:
         for key in ("scaler_type", "scaler_kwargs"):
