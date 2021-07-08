@@ -1,12 +1,8 @@
 import dacite
 import dataclasses
 import logging
-import xarray
-import yaml
-import numpy as np
-import tensorflow as tf
 from toolz.functoolz import compose_left
-from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
 from . import transforms
 
@@ -14,7 +10,7 @@ from . import transforms
 logger = logging.getLogger(__name__)
 
 
-def _sequence_to_slice(seq: Sequence[int]):
+def _sequence_to_slice(seq: Sequence[Union[None, int]]):
 
     if not seq:
         slice_ = slice(None)
@@ -45,16 +41,16 @@ class TransformConfig:
 
     Args
     ----
-        input_variables: Variables to include as inputs for training
-        output_variables: Variables to include as targets for training
-        antarctic_only: Limit data to < 60 S.  Requires latitude exists
-            as a field in the dataset
-        use_tensors: Converts data to float32 tensors instead of numpy arrays
-        vertical_subselection: Limit the feature dimension of a variable
-            to a specified range. Loaded in as slices from a 2 or 3 item
-            sequence.
-        transforms: Sequence of extra transform configurations to combine
-            in order. Inserted just before input/output grouping function.
+    input_variables: Variables to include as inputs for training
+    output_variables: Variables to include as targets for training
+    antarctic_only: Limit data to < 60 S.  Requires latitude exists
+        as a field in the dataset
+    use_tensors: Converts data to float32 tensors instead of numpy arrays
+    vertical_subselection: Limit the feature dimension of a variable
+        to a specified range. Loaded in as slices from a 2 or 3 item
+        sequence.
+    transforms: Sequence of extra transform configurations to combine
+        in order. Inserted just before input/output grouping function.
 
     Example
     -------
@@ -65,20 +61,9 @@ class TransformConfig:
         antarctic_only: true
         use_tensors: true
         vertical_subselections:
-          a: !!python/slice [5]
-          b: !!python/slice [5, None]
-          c: !!python/slice [5, 20, 2]
-
-    Note that the slice loading in yaml requires using the SliceLoader defined
-    in this module.
-
-    Loading the combined transform function::
-
-        with open("config.yaml", "r") as f:
-            config = yaml.load(f, Loader=SliceLoader)
-
-        input_transforms = InputTransformConfig.from_dict(config)
-        pipeline = input_transforms.get_transform_pipeline()
+          a: [5]
+          b: [5, None]
+          c: [5, 20, 2]
     """
 
     input_variables: Sequence[str] = dataclasses.field(default_factory=list)
@@ -87,17 +72,7 @@ class TransformConfig:
     use_tensors: bool = True
     vertical_subselections: Optional[Mapping[str, slice]] = None
 
-    @classmethod
-    def from_dict(cls, d: Dict):
-
-        if "vertical_subselections" in d:
-            d["vertical_subselections"] =\
-                 _convert_map_sequences_to_slices(d["vertical_subselections"])
-
-        return dacite.from_dict(cls, d)
-
-
-    def get_transform_pipeline(self):
+    def __post_init__(self):
 
         transform_funcs = []
 
@@ -120,4 +95,16 @@ class TransformConfig:
             transforms.group_inputs_outputs(self.input_variables, self.output_variables)
         )
 
-        return compose_left(*transform_funcs)
+        self._pipeline: Callable = compose_left(*transform_funcs)
+
+    @classmethod
+    def from_dict(cls, d: Dict):
+
+        if "vertical_subselections" in d:
+            d["vertical_subselections"] =\
+                 _convert_map_sequences_to_slices(d["vertical_subselections"])
+
+        return dacite.from_dict(cls, d)
+
+    def __call__(self, item: Any) -> Any:
+        return self._pipeline(item)

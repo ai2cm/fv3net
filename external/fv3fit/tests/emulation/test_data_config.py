@@ -21,22 +21,32 @@ def test__sequence_to_slice_too_long():
         config._sequence_to_slice([1, 2, 3, 4])
 
 
+def test__map_sequences_to_slices():
+    d = {
+        "a": [],
+        "b": [1, 2, 2]
+    }
+    result = config._convert_map_sequences_to_slices(d)
+    for k in d:
+        assert k in result
+        assert isinstance(result[k], slice)
+
+
 def test_TransformConfig():
 
-    result = config.TransformConfig(
+    transform = config.TransformConfig(
         input_variables=["a", "b"],
         output_variables=["c", "d"],
         antarctic_only=False,
         vertical_subselections={"a": slice(5, None)},
     )
 
-    transform_func = result.get_transform_pipeline()
-    assert callable(transform_func)
+    assert callable(transform)
 
 
 def test_TransformConfig_from_dict():
 
-    result = config.TransformConfig.from_dict(
+    transform = config.TransformConfig.from_dict(
         dict(
             input_variables=["a", "b"],
             output_variables=["c", "d"],
@@ -45,6 +55,6 @@ def test_TransformConfig_from_dict():
         )
     )
 
-    assert isinstance(result, config.TransformConfig)
-    transform_func = result.get_transform_pipeline()
-    assert callable(transform_func)
+    assert transform.vertical_subselections["a"] == slice(5, None)
+    assert isinstance(transform, config.TransformConfig)
+    assert callable(transform)
