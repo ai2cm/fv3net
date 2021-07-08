@@ -6,7 +6,7 @@ import yaml
 import numpy as np
 import tensorflow as tf
 from toolz.functoolz import compose_left
-from typing import Any, Callable, Dict, Mapping, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
 
 from . import transforms
 
@@ -14,12 +14,31 @@ from . import transforms
 logger = logging.getLogger(__name__)
 
 
-Dataset = Union[xarray.Dataset, Mapping[str, np.ndarray], Mapping[str, tf.Tensor]]
-XyTensors = Tuple[Tuple[tf.Tensor], Tuple[tf.Tensor]]
+def _sequence_to_slice(seq: Sequence[int]):
+
+    if not seq:
+        slice_ = slice(None)
+    elif len(seq) > 3:
+        raise ValueError(
+            "Converting sequence to slice failed. Expected maximum of 3 values"
+            f" but received {seq}."
+        )
+    else:
+        slice_ = slice(*seq)
+
+    return slice_
+
+
+def _convert_map_sequences_to_slices(map_: Mapping[str, Sequence[int]]):
+
+    return {
+        key: _sequence_to_slice(seq)
+        for key, seq in map_.items()
+    }
 
 
 @dataclasses.dataclass
-class InputTransformConfig:
+class TransformConfig:
     """
     Standard input pipeline that goes from xarray dataset to grouped
     X, y tuples of arrays/tensors per variable
@@ -66,7 +85,17 @@ class InputTransformConfig:
     output_variables: Sequence[str] = dataclasses.field(default_factory=list)
     antarctic_only: bool = False
     use_tensors: bool = True
-    vertical_subselections: Union[Mapping[str, slice], None] = None
+    vertical_subselections: Optional[Mapping[str, slice]] = None
+
+    @classmethod
+    def from_dict(cls, d: Dict):
+
+        if "vertical_subselections" in d:
+            d["vertical_subselections"] =\
+                 _convert_map_sequences_to_slices(d["vertical_subselections"])
+
+        return dacite.from_dict(cls, d)
+
 
     def get_transform_pipeline(self):
 
