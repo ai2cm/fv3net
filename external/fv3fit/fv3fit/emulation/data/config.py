@@ -40,30 +40,28 @@ class TransformConfig:
     X, y tuples of arrays/tensors per variable
 
     Args
-    ----
-    input_variables: Variables to include as inputs for training
-    output_variables: Variables to include as targets for training
-    antarctic_only: Limit data to < 60 S.  Requires latitude exists
-        as a field in the dataset
-    use_tensors: Converts data to float32 tensors instead of numpy arrays
-    vertical_subselection: Limit the feature dimension of a variable
-        to a specified range. Loaded in as slices from a 2 or 3 item
-        sequence.
-    transforms: Sequence of extra transform configurations to combine
-        in order. Inserted just before input/output grouping function.
+        input_variables: Variables to include as inputs for training
+        output_variables: Variables to include as targets for training
+        antarctic_only: Limit data to < 60 S.  Requires latitude exists
+            as a field in the dataset
+        use_tensors: Converts data to float32 tensors instead of numpy arrays
+        vertical_subselection: Limit the feature dimension of a variable
+            to a specified range. Loaded in as slices from a 2 or 3 item
+            sequence.
+        transforms: Sequence of extra transform configurations to combine
+            in order. Inserted just before input/output grouping function.
 
     Example
-    -------
-    Yaml file example::
+        Yaml file example::
 
-        input_variables: ["a", "b"]
-        output_variables: ["c", "d"]
-        antarctic_only: true
-        use_tensors: true
-        vertical_subselections:
-          a: [5]
-          b: [5, None]
-          c: [5, 20, 2]
+            input_variables: ["a", "b"]
+            output_variables: ["c", "d"]
+            antarctic_only: true
+            use_tensors: true
+            vertical_subselections:
+            a: [5]
+            b: [5, None]
+            c: [5, 20, 2]
     """
 
     input_variables: Sequence[str] = dataclasses.field(default_factory=list)
@@ -72,7 +70,20 @@ class TransformConfig:
     use_tensors: bool = True
     vertical_subselections: Optional[Mapping[str, slice]] = None
 
-    def __post_init__(self):
+    @classmethod
+    def from_dict(cls, d: Dict):
+
+        if "vertical_subselections" in d:
+            d["vertical_subselections"] =\
+                 _convert_map_sequences_to_slices(d["vertical_subselections"])
+
+        return dacite.from_dict(cls, d)
+
+    def __call__(self, item: Any) -> Any:
+        transform_pipeline = self._get_pipeline_from_config()
+        return transform_pipeline(item)
+
+    def _get_pipeline_from_config(self):
 
         transform_funcs = []
 
@@ -88,23 +99,11 @@ class TransformConfig:
 
         if self.vertical_subselections is not None:
             transform_funcs.append(
-                transforms.maybe_subselect(self.vertical_subselections)
+                transforms.maybe_subselect_feature_dim(self.vertical_subselections)
             )
 
         transform_funcs.append(
             transforms.group_inputs_outputs(self.input_variables, self.output_variables)
         )
 
-        self._pipeline: Callable = compose_left(*transform_funcs)
-
-    @classmethod
-    def from_dict(cls, d: Dict):
-
-        if "vertical_subselections" in d:
-            d["vertical_subselections"] =\
-                 _convert_map_sequences_to_slices(d["vertical_subselections"])
-
-        return dacite.from_dict(cls, d)
-
-    def __call__(self, item: Any) -> Any:
-        return self._pipeline(item)
+        return compose_left(*transform_funcs)
