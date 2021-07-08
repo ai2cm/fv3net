@@ -8,12 +8,13 @@ from runtime.emulator.emulator import (
     RHScalarMLP,
     ScalarMLP,
     UVTQSimple,
-    OnlineEmulator,
     OnlineEmulatorConfig,
+    OnlineEmulator,
     NormLayer,
     ScalarNormLayer,
     UVTRHSimple,
     get_model,
+    get_emulator,
 )
 from runtime.emulator.loss import MultiVariableLoss, RHLoss, ScalarLoss
 from .utils import _get_argsin
@@ -27,7 +28,7 @@ def test_OnlineEmulator_partial_fit(state):
         batch_size=32, learning_rate=0.001, momentum=0.0, levels=63
     )
 
-    emulator = OnlineEmulator(config)
+    emulator = get_emulator(config)
     emulator.partial_fit(state, state)
 
 
@@ -37,7 +38,7 @@ def test_OnlineEmulator_partial_fit_logged(state):
     )
     time = datetime.datetime.now().isoformat()
 
-    emulator = OnlineEmulator(config)
+    emulator = get_emulator(config)
     writer = tf.summary.create_file_writer(f"logs_long/{time}")
     with writer.as_default():
         for i in range(10):
@@ -53,7 +54,7 @@ def test_OnlineEmulator_fails_when_accessing_nonexistant_var(state):
         levels=63,
     )
 
-    emulator = OnlineEmulator(config)
+    emulator = get_emulator(config)
     with pytest.raises(KeyError):
         emulator.partial_fit(state, state)
 
@@ -70,7 +71,7 @@ def test_OnlineEmulator_fit_predict(state, extra_inputs):
         levels=63,
     )
 
-    emulator = OnlineEmulator(config)
+    emulator = get_emulator(config)
     emulator.partial_fit(state, state)
     stateout = emulator.predict(state)
     assert isinstance(stateout, xr.Dataset)
@@ -98,7 +99,7 @@ def test_OnlineEmulator_batch_fit(config, with_validation):
     x = _get_argsin(config.levels)
     dataset = tf.data.Dataset.from_tensors((x.args, x.args)).unbatch()
 
-    emulator = OnlineEmulator(config)
+    emulator = get_emulator(config)
 
     if with_validation:
         emulator.batch_fit(dataset, validation_data=dataset)
@@ -224,7 +225,7 @@ def test_dump_load_OnlineEmulator(state, tmpdir, output_exists):
 
     n = state["air_temperature"].sizes["z"]
     config = OnlineEmulatorConfig(levels=n)
-    emulator = OnlineEmulator(config)
+    emulator = get_emulator(config)
     emulator.partial_fit(state, state)
     emulator.dump(path)
     new_emulator = OnlineEmulator.load(path)

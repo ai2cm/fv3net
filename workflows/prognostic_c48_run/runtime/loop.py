@@ -39,7 +39,7 @@ from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig, get_timesteps
 from runtime.types import Diagnostics, State, Tendencies
 from runtime.names import TENDENCY_TO_STATE_NAME
-from runtime.emulator import OnlineEmulator
+from runtime.emulator.emulator import get_emulator
 from toolz import dissoc
 from typing_extensions import Protocol
 
@@ -158,7 +158,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._tendencies: Tendencies = {}
         self._state_updates: State = {}
 
-        self._online_emulator = OnlineEmulator(config.online_emulator)
+        self._online_emulator = get_emulator(config.online_emulator)
         self._predict_with_emulator: bool = config.online_emulator.online
 
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)

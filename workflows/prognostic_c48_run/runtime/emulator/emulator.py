@@ -573,3 +573,7 @@ def get_model(config: OnlineEmulatorConfig) -> tf.keras.Model:
     else:
         raise NotImplementedError(f"{config}")
     return model
+
+
+def get_emulator(config: OnlineEmulatorConfig):
+    return OnlineEmulator(config)
