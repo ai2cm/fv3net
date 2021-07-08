@@ -27,7 +27,7 @@ def test_open_netcdf(xr_dataset: xr.Dataset):
         path = os.path.join(tmpdir, "data.nc")
         xr_dataset.to_netcdf(path)
 
-        result = transforms.open_netcdf(path)
+        result = transforms.open_netcdf_dataset(path)
         assert isinstance(result, xr.Dataset)
         xr.testing.assert_equal(result, xr_dataset)
 
@@ -104,23 +104,23 @@ def test_group_input_output_empty_var_list():
         {"X": tf.convert_to_tensor(np.arange(40).reshape(10, 4))},
     ],
 )
-def test_maybe_subselect_dataset_inputs(dataset):
+def test_maybe_subselect_feature_dim_dataset_inputs(dataset):
 
     subselect_map = {"X": slice(2, None)}
 
-    result = transforms.maybe_subselect(subselect_map, dataset)
+    result = transforms.maybe_subselect_feature_dim(subselect_map, dataset)
     assert len(result["X"].shape) == len(dataset["X"].shape)
     np.testing.assert_equal(
         result["X"], np.arange(40).reshape(10, 4)[..., slice(2, None)]
     )
 
 
-def test_maybe_subselect_empty_selection_map():
+def test_maybe_subselect_feature_dim_empty_selection_map():
 
     subselect_map = {}
     full_data = np.arange(40).reshape(10, 4)
 
-    result = transforms.maybe_subselect(subselect_map, {"X": full_data})
+    result = transforms.maybe_subselect_feature_dim(subselect_map, {"X": full_data})
     np.testing.assert_equal(result["X"], full_data)
 
 
@@ -134,8 +134,8 @@ def test_maybe_subselect_empty_selection_map():
         },
     ],
 )
-def test_maybe_expand_feature_dim(dataset):
+def test_expand_single_dim_data(dataset):
 
-    result = transforms.maybe_expand_feature_dim(dataset)
+    result = transforms.expand_single_dim_data(dataset)
     assert result["X"].shape == (10, 4)
     assert result["y"].shape == (20, 1)
