@@ -69,6 +69,9 @@ def merge_diags(diags: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, xr.Data
     return out
 
 
+# all functions added to these registries must take three xarray Datasets as inputs
+# (specifically, the prognostic run output, the verification data and the grid dataset)
+# and return an xarray dataset containing one or more diagnostics.
 registries = {
     "dycore": Registry(merge_diags),
     "physics": Registry(merge_diags),

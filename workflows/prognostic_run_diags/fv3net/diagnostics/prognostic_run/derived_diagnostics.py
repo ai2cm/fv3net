@@ -14,6 +14,8 @@ def merge_derived(diags: Sequence[Tuple[str, xr.DataArray]]) -> xr.Dataset:
     return out
 
 
+# all functions added to this registry must take a single xarray Dataset as
+# input and return a single xarray DataArray
 derived_registry = Registry(merge_derived)
 
 

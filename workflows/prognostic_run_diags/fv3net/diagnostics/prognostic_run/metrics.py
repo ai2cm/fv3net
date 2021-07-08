@@ -72,6 +72,8 @@ def merge_metrics(metrics: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, flo
     return out
 
 
+# all functions added to this registry must take a single xarray Dataset as input
+# and return an xarray Dataset containing one or more scalar metrics
 metrics_registry = Registry(merge_metrics)
 
 
