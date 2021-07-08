@@ -14,160 +14,12 @@ from . import transforms
 logger = logging.getLogger(__name__)
 
 
-class SliceLoader(yaml.SafeLoader):
-    """
-    Extended safe yaml loader to interpret slices from a sequence.
-
-    Example
-    -------
-
-    The vertical subselection transform yaml::
-
-        name: maybe_subselect
-        args:
-          - specific_humidity: !!python/slice [15, null]
-            tendency_of_sphum: !!python/slice [15, null]
-
-    Loading the yaml file::
-
-        with open("yaml_file_with_slices.yaml", "r") as f:
-            yaml.load(f, Loader=SliceLoader)
-
-    """
-
-    def construct_python_slice(self, node):
-        return slice(*self.construct_sequence(node))
-
-
-SliceLoader.add_constructor(
-    "tag:yaml.org,2002:python/slice", SliceLoader.construct_python_slice
-)
-
-
 Dataset = Union[xarray.Dataset, Mapping[str, np.ndarray], Mapping[str, tf.Tensor]]
 XyTensors = Tuple[Tuple[tf.Tensor], Tuple[tf.Tensor]]
 
 
 @dataclasses.dataclass
-class _TransformConfigItem:
-    """
-    Specification of a transform function and any
-    args and/or kwargs necessary to curry it into a
-    function taking a single argument.
-
-    Args
-    ----
-        name: Curry-able function name in the transforms module
-        args: Arguments to provide into curried function such that
-            the resulting call signature is func(dataset).  Note:
-            This can be specified as a mapping but it will be converted
-            to a list in the order supplied.
-        kwargs: Keyword arguments to provide to the curried function.
-
-    Example
-    -------
-    Example yaml for grouped inputs/outputs transform::
-
-        name: group_inputs_outputs
-        args:
-          - ["field1", "field2"]
-          - ["field3"]
-
-    Equivalent yaml for grouped inputs/outputs transform::
-
-        name: group_inputs_outputs
-        args:
-          input_variables: ["field1", "field2"]
-          output_variables: ["field3"]
-    """
-
-    name: str
-    args: Union[Sequence[Any], Mapping[str, Any]] = dataclasses.field(
-        default_factory=list
-    )
-    kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
-
-    def __post_init__(self):
-        if isinstance(self.args, Mapping):
-            self.args = list(self.args.values())
-
-    @classmethod
-    def from_dict(cls, item_info):
-        return dacite.from_dict(data_class=cls, data=item_info)
-
-    def load_transform_func(self) -> Callable:
-        func = getattr(transforms, self.name)
-        partial_func = func(*self.args, **self.kwargs)
-
-        if not callable(partial_func):
-            raise TypeError(
-                f"Loaded transform for {self.name} from config is no"
-                " longer callable. Check that partial arguments match"
-                " the signature."
-            )
-        return partial_func
-
-
-def _load_transforms(transforms_to_load: Sequence[_TransformConfigItem]):
-
-    loaded_transforms = [
-        transform_info.load_transform_func() for transform_info in transforms_to_load
-    ]
-    logger.debug(
-        f"Loaded transform sequence: {[xfm.name for xfm in transforms_to_load]}"
-    )
-    return compose_left(*loaded_transforms)
-
-
-TransformItemSpec = Union[Mapping, _TransformConfigItem]
-TransformConfigSpec = Dict[str, Sequence[TransformItemSpec]]
-
-
-@dataclasses.dataclass
-class TransformConfig:
-    """
-    Specify a custom transform pipeline for data
-
-    Args
-    ----
-        transforms: Sequence of transform configurations to combine in order
-
-    Example
-    -------
-    Example yaml converting dataset to tensors and grouping::
-
-        transforms:
-          - name: to_tensors
-          - name: group_inputs_outputs
-            args:
-              - ["field1", "field2"]
-              - ["field3"]
-    """
-
-    transforms: Sequence[_TransformConfigItem] = dataclasses.field(default_factory=list)
-
-    @staticmethod
-    def _initialize_custom_transforms(d: TransformConfigSpec):
-        v = d.pop("transforms")
-        initialized = [_TransformConfigItem.from_dict(item_info) for item_info in v]
-        d["transforms"] = initialized
-        return d
-
-    @classmethod
-    def from_dict(cls, d):
-        if "transforms" in d:
-            d = cls._initialize_custom_transforms(d)
-        return dacite.from_dict(data_class=cls, data=d)
-
-    def get_transform_pipeline(self):
-        if self.transforms:
-            return _load_transforms(self.transforms)
-        else:
-            return lambda x: x
-
-
-@dataclasses.dataclass
-class InputTransformConfig(TransformConfig):
+class InputTransformConfig:
     """
     Standard input pipeline that goes from xarray dataset to grouped
     X, y tuples of arrays/tensors per variable
@@ -234,9 +86,6 @@ class InputTransformConfig(TransformConfig):
             transform_funcs.append(
                 transforms.maybe_subselect(self.vertical_subselections)
             )
-
-        if self.transforms:
-            transform_funcs += _load_transforms(self.transforms)
 
         transform_funcs.append(
             transforms.group_inputs_outputs(self.input_variables, self.output_variables)
