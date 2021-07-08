@@ -7,7 +7,7 @@ import yaml
 import dataclasses
 import fsspec
 
-from fv3fit._shared import parse_data_path, load_data_sequence, io
+from fv3fit._shared import parse_data_path, load_data_sequence, io, DerivedModel
 import fv3fit._shared.config
 import fv3fit.keras
 import fv3fit.sklearn
@@ -105,6 +105,12 @@ def main(args):
         train_batches=train_batches,
         validation_batches=val_batches,
     )
+    if train_config.derived_output_variables:
+        model = DerivedModel(
+            model,
+            train_config.nonfeature_input_variables,
+            train_config.derived_output_variables,
+        )
     io.dump(model, args.output_data_path)
 
 
