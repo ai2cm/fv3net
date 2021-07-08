@@ -10,6 +10,8 @@ import xarray as xr
 from toolz.functoolz import curry
 from typing import Mapping, Sequence, Tuple, Union
 
+from vcm import get_fs, open_remote_nc
+
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,15 @@ ArrayDataset = Mapping[str, np.ndarray]
 TensorDataset = Mapping[str, tf.Tensor]
 InputDataset = Mapping[str, Union[np.ndarray, xr.DataArray]]
 AnyDataset = Mapping[str, NumericContainer]
+
+
+def open_netcdf(path: str) -> xr.Dataset:
+    """Open a netcdf from a local/remote path"""
+
+    fs = get_fs(path)
+    data = open_remote_nc(fs, path)
+
+    return data
 
 
 def to_ndarrays(dataset: xr.Dataset) -> ArrayDataset:
@@ -91,7 +102,6 @@ def maybe_subselect(
     return new_ds
 
 
-@curry
 def maybe_expand_feature_dim(
     dataset: Union[ArrayDataset, TensorDataset]
 ) -> Union[ArrayDataset, TensorDataset]:

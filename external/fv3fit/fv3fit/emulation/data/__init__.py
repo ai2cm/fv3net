@@ -1,2 +1,2 @@
-from .config import TransformConfig, InputTransformConfig, SliceLoader
+from .config import InputTransformConfig
 from . import transforms

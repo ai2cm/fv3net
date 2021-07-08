@@ -12,14 +12,6 @@ from vcm import open_remote_nc, get_fs
 logger = logging.getLogger(__name__)
 
 
-def open_netcdf(path: str) -> xr.Dataset:
-
-    fs = get_fs(path)
-    data = open_remote_nc(fs, path)
-
-    return data
-
-
 def get_nc_files(path) -> List:
 
     fs = get_fs(path)
