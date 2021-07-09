@@ -76,7 +76,6 @@ class ConstantOutputPredictor(Predictor):
         return xr.Dataset(data_vars=data_vars, coords=coords)
 
     def dump(self, path: str) -> None:
-        print("at dump, outputs: ", self._outputs)
         np.savez(os.path.join(path, "_outputs.npz"), **self._outputs)
         with open(os.path.join(path, "attrs.yaml"), "w") as f:
             yaml.safe_dump(
