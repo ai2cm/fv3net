@@ -77,8 +77,8 @@ class TrainingConfig:
     hyperparameters: Dataclass
     sample_dim_name: str = "sample"
     random_seed: Union[float, int] = 0
-    derived_output_variables: List[str] = None
-    nonfeature_input_variables: List[str] = None
+    derived_output_variables: List[str] = dataclasses.field(default_factory=list)
+    nonfeature_input_variables: List[str] = dataclasses.field(default_factory=list)
 
     @classmethod
     def from_dict(cls, kwargs) -> "TrainingConfig":
