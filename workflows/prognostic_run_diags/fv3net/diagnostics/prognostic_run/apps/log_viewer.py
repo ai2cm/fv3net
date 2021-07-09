@@ -1,5 +1,5 @@
 import sys
-from fv3net.diagnostics.prognostic_run.load_diagnostic_data import (
+from fv3net.diagnostics.prognostic_run.load_run_data import (
     open_segmented_stats,
     open_segmented_logs,
 )

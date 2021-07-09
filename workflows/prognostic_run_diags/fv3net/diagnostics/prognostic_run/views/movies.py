@@ -18,7 +18,7 @@ import vcm
 import vcm.catalog
 
 from fv3net.diagnostics.prognostic_run import config
-import fv3net.diagnostics.prognostic_run.load_diagnostic_data as load_diags
+import fv3net.diagnostics.prognostic_run.load_run_data as load_diags
 
 dask.config.set(sheduler="single-threaded")
 logger = logging.getLogger(__name__)
@@ -209,7 +209,8 @@ def main(args):
     )
 
     if args.n_timesteps:
-        prognostic = prognostic.isel(time=slice(None, args.n_timesteps))
+        max_time = min(args.n_timesteps, prognostic.sizes["time"])
+        prognostic = prognostic.isel(time=slice(None, max_time))
 
     for name, movie_spec in _movie_specs().items():
         _create_movie(name, movie_spec, prognostic, args.output, args.n_jobs)
