@@ -45,7 +45,6 @@ from .registry import Registry
 import logging
 
 logger = logging.getLogger("SaveDiags")
-xr.set_options(keep_attrs=True)
 
 
 def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
@@ -84,23 +83,32 @@ registry_3d = registries["3d"]
 
 
 def rms(x, y, w, dims):
-    return np.sqrt(((x - y) ** 2 * w).sum(dims) / w.sum(dims))
+    with xr.set_options(keep_attrs=True):
+        return np.sqrt(((x - y) ** 2 * w).sum(dims) / w.sum(dims))
 
 
-def bias(truth, prediction, w, dims):
-    return ((prediction - truth) * w).sum(dims) / w.sum(dims)
+def bias(truth, prediction):
+    with xr.set_options(keep_attrs=True):
+        return prediction - truth
+
+
+def weighted_mean(ds, weights, dims):
+    with xr.set_options(keep_attrs=True):
+        return (ds * weights).sum(dims) / weights.sum(dims)
 
 
 def zonal_mean(
     ds: xr.Dataset, latitude: xr.DataArray, bins=np.arange(-90, 91, 2)
 ) -> xr.Dataset:
-    zm = ds.groupby_bins(latitude, bins=bins).mean().rename(lat_bins="latitude")
+    with xr.set_options(keep_attrs=True):
+        zm = ds.groupby_bins(latitude, bins=bins).mean().rename(lat_bins="latitude")
     latitude_midpoints = [x.item().mid for x in zm["latitude"]]
     return zm.assign_coords(latitude=latitude_midpoints)
 
 
 def time_mean(ds: xr.Dataset, dim: str = "time") -> xr.Dataset:
-    result = ds.mean(dim)
+    with xr.set_options(keep_attrs=True):
+        result = ds.mean(dim)
     return _assign_diagnostic_time_attrs(result, ds)
 
 
@@ -179,7 +187,7 @@ def zonal_means_3d(prognostic, verification, grid):
 def zonal_bias_3d(prognostic, verification, grid):
     logger.info("Preparing zonal mean bias (3d)")
     with xr.set_options(keep_attrs=True):
-        zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
+        zonal_mean_bias = zonal_mean(bias(verification, prognostic), grid.lat)
         return time_mean(zonal_mean_bias)
 
 
@@ -189,7 +197,7 @@ def zonal_bias_3d(prognostic, verification, grid):
 def zonal_and_time_mean_biases_dycore(prognostic, verification, grid):
     logger.info("Preparing zonal+time mean biases (dycore)")
 
-    zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
+    zonal_mean_bias = zonal_mean(bias(verification, prognostic), grid.lat)
     return time_mean(zonal_mean_bias)
 
 
@@ -198,7 +206,7 @@ def zonal_and_time_mean_biases_dycore(prognostic, verification, grid):
 @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
 def zonal_and_time_mean_biases_physics(prognostic, verification, grid):
     logger.info("Preparing zonal+time mean biases (physics)")
-    zonal_mean_bias = zonal_mean(prognostic - verification, grid.lat)
+    zonal_mean_bias = zonal_mean(bias(verification, prognostic), grid.lat)
     return time_mean(zonal_mean_bias)
 
 
@@ -224,7 +232,7 @@ for variable_set in ["dycore", "physics"]:
     @transform.apply("subset_variables", subset_variables)
     def zonal_mean_bias_hovmoller(prognostic, verification, grid):
         logger.info(f"Preparing zonal mean biases ({variable_set})")
-        return zonal_mean(prognostic - verification, grid.lat)
+        return zonal_mean(bias(verification, prognostic), grid.lat)
 
     for mask_type in ["global", "land", "sea", "tropics"]:
 
@@ -236,7 +244,8 @@ for variable_set in ["dycore", "physics"]:
         def spatial_min(prognostic, verification, grid, mask_type=mask_type):
             logger.info(f"Preparing minimum for variables ({mask_type})")
             masked = prognostic.where(~grid["area"].isnull())
-            return masked.min(dim=HORIZONTAL_DIMS)
+            with xr.set_options(keep_attrs=True):
+                return masked.min(dim=HORIZONTAL_DIMS)
 
         @registry.register(f"spatial_max_{variable_set}_{mask_type}")
         @transform.apply("mask_area", mask_type)
@@ -246,7 +255,8 @@ for variable_set in ["dycore", "physics"]:
         def spatial_max(prognostic, verification, grid, mask_type=mask_type):
             logger.info(f"Preparing maximum for variables ({mask_type})")
             masked = prognostic.where(~grid["area"].isnull())
-            return masked.max(dim=HORIZONTAL_DIMS)
+            with xr.set_options(keep_attrs=True):
+                return masked.max(dim=HORIZONTAL_DIMS)
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -258,11 +268,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
     def global_averages_dycore(prognostic, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing averages for dycore variables ({mask_type})")
-        area_averages = (prognostic * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
-            HORIZONTAL_DIMS
-        )
-
-        return area_averages
+        return weighted_mean(prognostic, grid.area, HORIZONTAL_DIMS)
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -274,11 +280,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
     def global_averages_physics(prognostic, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing averages for physics variables ({mask_type})")
-        area_averages = (prognostic * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
-            HORIZONTAL_DIMS
-        )
-
-        return area_averages
+        return weighted_mean(prognostic, grid.area, HORIZONTAL_DIMS)
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -290,9 +292,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
     def global_biases_physics(prognostic, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing average biases for physics variables ({mask_type})")
-        bias_errors = bias(verification, prognostic, grid.area, HORIZONTAL_DIMS)
-
-        return bias_errors
+        bias_errors = bias(verification, prognostic)
+        mean_bias_errors = weighted_mean(bias_errors, grid.area, HORIZONTAL_DIMS)
+        return mean_bias_errors
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -304,9 +306,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
     def global_biases_dycore(prognostic, verification, grid, mask_type=mask_type):
         logger.info(f"Preparing average biases for dycore variables ({mask_type})")
-        bias_errors = bias(verification, prognostic, grid.area, HORIZONTAL_DIMS)
-
-        return bias_errors
+        bias_errors = bias(verification, prognostic)
+        mean_bias_errors = weighted_mean(bias_errors, grid.area, HORIZONTAL_DIMS)
+        return mean_bias_errors
 
 
 @registry_physics.register("time_mean_value")
@@ -322,7 +324,7 @@ def time_means_physics(prognostic, verification, grid):
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_mean_biases_physics(prognostic, verification, grid):
     logger.info("Preparing time mean biases for physics variables")
-    return time_mean(prognostic - verification)
+    return time_mean(bias(verification, prognostic))
 
 
 @registry_dycore.register("time_mean_value")
@@ -338,7 +340,7 @@ def time_means_dycore(prognostic, verification, grid):
 @transform.apply("subset_variables", TIME_MEAN_VARS)
 def time_mean_biases_dycore(prognostic, verification, grid):
     logger.info("Preparing time mean biases for physics variables")
-    return time_mean(prognostic - verification)
+    return time_mean(bias(verification, prognostic))
 
 
 for mask_type in ["global", "land", "sea"]:
@@ -391,7 +393,7 @@ def compute_histogram_bias(prognostic, verification, grid):
         verification_count, _ = vcm.histogram(
             verification[varname], bins=HISTOGRAM_BINS[varname], density=True
         )
-        counts[varname] = prognostic_count - verification_count
+        counts[varname] = bias(verification_count, prognostic_count)
     return _assign_source_attrs(
         _assign_diagnostic_time_attrs(counts, prognostic), prognostic
     )

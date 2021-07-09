@@ -17,8 +17,6 @@ import cftime
 
 from .constants import HORIZONTAL_DIMS, DiagArg
 
-xr.set_options(keep_attrs=True)
-
 _TRANSFORM_FNS = {}
 
 logger = logging.getLogger(__name__)
@@ -129,7 +127,8 @@ def _downsample_only(ds: xr.Dataset, freq_label: str, method: str) -> xr.Dataset
         if method == "nearest":
             return resampled.nearest()
         elif method == "mean":
-            return resampled.mean()
+            with xr.set_options(keep_attrs=True):
+                return resampled.mean()
         else:
             raise ValueError(f"Don't know how to resample with method={method}.")
     else:
@@ -187,7 +186,8 @@ def _resample_end(ds: xr.Dataset, split: datetime, freq_label: str) -> xr.Datase
     start_segment = ds.sel(time=slice(None, split))
     end_segment = ds.sel(time=slice(split, None))
     if end_segment.sizes["time"] != 0:
-        end_segment = end_segment.resample(time=freq_label, label="right").mean()
+        with xr.set_options(keep_attrs=True):
+            end_segment = end_segment.resample(time=freq_label, label="right").mean()
     return xr.concat([start_segment, end_segment], dim="time")
 
 

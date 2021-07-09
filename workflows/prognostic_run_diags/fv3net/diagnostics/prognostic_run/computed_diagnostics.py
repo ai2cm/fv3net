@@ -228,7 +228,7 @@ def load_metrics_from_diagnostics(rundirs) -> pd.DataFrame:
     metrics = {}
     _, diagnostics = load_diagnostics(rundirs)
     for ds in diagnostics:
-        metrics[ds.run] = metrics_registry.compute(ds)
+        metrics[ds.run] = metrics_registry.compute(ds, n_jobs=1)
     return _metrics_dataframe_from_dict(metrics)
 
 

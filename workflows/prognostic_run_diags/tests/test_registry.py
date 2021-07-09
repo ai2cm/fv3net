@@ -6,8 +6,7 @@ from typing import Sequence, Tuple
 from fv3net.diagnostics.prognostic_run.registry import Registry
 
 
-@pytest.fixture()
-def registry():
+def _get_registry():
     def merge(diags: Sequence[Tuple[str, xr.Dataset]]) -> xr.Dataset:
         out = {}
         for suffix, ds in diags:
@@ -18,9 +17,10 @@ def registry():
     return Registry(merge)
 
 
-def test_registry_compute(registry):
+def test_registry_compute():
     da = xr.DataArray(np.reshape(np.arange(20), (4, 5)), dims=["time", "x"])
     ds = xr.Dataset({"wind": da, "temperature": da})
+    registry = _get_registry()
 
     @registry.register("time_mean")
     def compute_mean(data, dim="time"):
@@ -42,7 +42,9 @@ def test_registry_compute(registry):
     xr.testing.assert_identical(output, expected_output)
 
 
-def test_registry_raises_value_error(registry):
+def test_registry_raises_value_error():
+    registry = _get_registry()
+
     @registry.register("time_mean")
     def compute_mean(data, dim="time"):
         return data.mean(dim)
