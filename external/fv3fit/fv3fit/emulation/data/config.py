@@ -48,20 +48,21 @@ class TransformConfig:
         vertical_subselection: Limit the feature dimension of a variable
             to a specified range. Loaded in as slices from a 2 or 3 item
             sequence.
-        transforms: Sequence of extra transform configurations to combine
-            in order. Inserted just before input/output grouping function.
+        from_netcdf_path: Prepend a netcdf opening transform (works on 
+            local/remote) to get xarray datasets from input path
 
     Example
         Yaml file example::
-
+            
+            from_netcdf_path: true
             input_variables: ["a", "b"]
             output_variables: ["c", "d"]
             antarctic_only: true
             use_tensors: true
             vertical_subselections:
-            a: [5]
-            b: [5, None]
-            c: [5, 20, 2]
+              a: [5]
+              b: [5, None]
+              c: [5, 20, 2]
     """
 
     input_variables: Sequence[str] = dataclasses.field(default_factory=list)
@@ -69,6 +70,7 @@ class TransformConfig:
     antarctic_only: bool = False
     use_tensors: bool = True
     vertical_subselections: Optional[Mapping[str, slice]] = None
+    from_netcdf_path: bool = True
 
     @classmethod
     def from_dict(cls, d: Dict):
@@ -86,6 +88,9 @@ class TransformConfig:
     def _get_pipeline_from_config(self):
 
         transform_funcs = []
+
+        if self.from_netcdf_path:
+            transform_funcs.append(transforms.open_remote_nc)
 
         if self.antarctic_only:
             transform_funcs.append(transforms.select_antarctic)
