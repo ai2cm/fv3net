@@ -2,7 +2,7 @@ import dacite
 import dataclasses
 import logging
 from toolz.functoolz import compose_left
-from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Union
+from typing import Any, Dict, Mapping, Optional, Sequence, Union
 
 from . import transforms
 
@@ -27,10 +27,7 @@ def _sequence_to_slice(seq: Sequence[Union[None, int]]):
 
 def _convert_map_sequences_to_slices(map_: Mapping[str, Sequence[int]]):
 
-    return {
-        key: _sequence_to_slice(seq)
-        for key, seq in map_.items()
-    }
+    return {key: _sequence_to_slice(seq) for key, seq in map_.items()}
 
 
 @dataclasses.dataclass
@@ -48,7 +45,7 @@ class TransformConfig:
         vertical_subselection: Limit the feature dimension of a variable
             to a specified range. Loaded in as slices from a 2 or 3 item
             sequence.
-        from_netcdf_path: Prepend a netcdf opening transform (works on 
+        from_netcdf_path: Prepend a netcdf opening transform (works on
             local/remote) to get xarray datasets from input path
 
     Example
@@ -76,8 +73,9 @@ class TransformConfig:
     def from_dict(cls, d: Dict):
 
         if "vertical_subselections" in d:
-            d["vertical_subselections"] =\
-                 _convert_map_sequences_to_slices(d["vertical_subselections"])
+            d["vertical_subselections"] = _convert_map_sequences_to_slices(
+                d["vertical_subselections"]
+            )
 
         return dacite.from_dict(cls, d)
 

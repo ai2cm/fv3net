@@ -8,8 +8,8 @@ from fv3fit.emulation.data import config
         ([], slice(None)),
         ([1], slice(1)),
         ([1, 2], slice(1, 2)),
-        ([1, 10, 2], slice(1, 10, 2))
-    ]
+        ([1, 10, 2], slice(1, 10, 2)),
+    ],
 )
 def test__sequence_to_slice(sequence, expected):
     result = config._sequence_to_slice(sequence)
@@ -22,10 +22,7 @@ def test__sequence_to_slice_too_long():
 
 
 def test__map_sequences_to_slices():
-    d = {
-        "a": [],
-        "b": [1, 2, 2]
-    }
+    d = {"a": [], "b": [1, 2, 2]}
     result = config._convert_map_sequences_to_slices(d)
     for k in d:
         assert k in result

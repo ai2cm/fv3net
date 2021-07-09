@@ -7,6 +7,7 @@ import xarray as xr
 
 from fv3fit.emulation.data import load
 
+
 @pytest.fixture
 def xr_dataset():
     return xr.Dataset(
@@ -37,13 +38,13 @@ def test_get_nc_files(xr_dataset):
 
 def test_batched_to_tf_dataset(xr_dataset):
 
-    batches = [np.arange(30).reshape(10, 3)]*3
+    batches = [np.arange(30).reshape(10, 3)] * 3
 
     def transform(batch):
-        return batch*2
+        return batch * 2
 
     tf_ds = load.batched_to_tf_dataset(batches, transform)
     assert isinstance(tf_ds, tf.data.Dataset)
 
     result = next(tf_ds.batch(10).as_numpy_iterator())
-    np.testing.assert_equal(result, batches[0]*2)
+    np.testing.assert_equal(result, batches[0] * 2)
