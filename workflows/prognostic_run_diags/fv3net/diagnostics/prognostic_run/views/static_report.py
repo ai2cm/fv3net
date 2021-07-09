@@ -300,54 +300,37 @@ def histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 # New plotting routines can be registered here.
 @metrics_plot_manager.register
 def time_mean_bias_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_table(metrics, "time_and_global_mean_bias")
+    return metric_type_table(metrics, "time_and_global_mean_bias")
 
 
 @metrics_plot_manager.register
 def rmse_time_mean_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_table(metrics, "rmse_of_time_mean")
+    return metric_type_table(metrics, "rmse_of_time_mean")
 
 
 @metrics_plot_manager.register
 def rmse_3day_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_table(metrics, "rmse_3day")
+    return metric_type_table(metrics, "rmse_3day")
 
 
 @metrics_plot_manager.register
 def drift_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_table(metrics, "drift")
+    return metric_type_table(metrics, "drift")
 
 
-def generic_metric_table(metrics: RunMetrics, metric_type: str) -> hv.HoloMap:
+def metric_type_table(metrics: RunMetrics, metric_type: str) -> hv.HoloMap:
+    """Return HTML for metrics table of all variables of metric_type"""
     df = metrics.get_metric_type_table(metric_type).transpose()
     header = f"<h3>{metric_type}</h3>"
     return RawHTML(header + df.to_html(justify="center", float_format="{:.2f}".format))
 
 
-def get_metrics_table(
-    metrics: RunMetrics, variable_names: Mapping[str, Sequence[str]],
-) -> Mapping[str, Mapping[str, str]]:
-    """Structure a set of metrics in format suitable for reports.create_html.
-    
-    Args:
-        metrics: The full set of run metrics.
-        variable_names: Names of desired metrics to include in table as mapping
-            from metric type to sequences of variable names. For example,
-            {"rmse_5day": ["h500", "tmp850"]}.
-
-    Returns:
-        Mapping from metric label to mapping from run name to metric value as string.
-    """
-    table = {}
-    for metric_type, names in variable_names.items():
-        for name in names:
-            units = metrics.get_metric_units(metric_type, name, metrics.runs[0])
-            type_label = f"{name} {metric_type} [{units}]"
-            table[type_label] = {
-                run: f"{metrics.get_metric_value(metric_type, name, run):.2f}"
-                for run in metrics.runs
-            }
-    return table
+def metric_table(
+    metrics: RunMetrics, metric_names: Mapping[str, Sequence[str]]
+) -> hv.HoloMap:
+    """Return HTML for metrics table containing specified metrics."""
+    df = metrics.get_table(metric_names).transpose()
+    return RawHTML(df.to_html(justify="center", float_format="{:.2f}".format))
 
 
 navigation = OrderedList(
@@ -363,15 +346,14 @@ navigation = [navigation]  # must be iterable for create_html template
 def render_index(metadata, diagnostics, metrics, movie_links):
     sections_index = {
         "Links": navigation,
+        "Top-level metrics": [metric_table(metrics, TOP_LEVEL_METRICS)],
         "Timeseries": list(timeseries_plot_manager.make_plots(diagnostics)),
         "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
         "Complete metrics": list(metrics_plot_manager.make_plots(metrics)),
     }
-    metrics_table = get_metrics_table(metrics, TOP_LEVEL_METRICS)
     return create_html(
         title="Prognostic run report",
         metadata={**metadata, **render_links(movie_links)},
-        metrics=metrics_table,
         sections=sections_index,
         html_header=get_html_header(),
     )
@@ -425,17 +407,16 @@ def render_zonal_pressures(metadata, diagnostics):
 
 
 def render_process_diagnostics(metadata, diagnostics, metrics):
+    percentile_names = {f"percentile_{p}": [PRECIP_RATE] for p in PERCENTILES}
     sections = {
         "Links": navigation,
+        "Precipitation percentiles": [metric_table(metrics, percentile_names)],
         "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
         "Precipitation histogram": list(histogram_plot_manager.make_plots(diagnostics)),
     }
-    percentile_names = {f"percentile_{p}": [PRECIP_RATE] for p in PERCENTILES}
-    metrics_table = get_metrics_table(metrics, percentile_names)
     return create_html(
         title="Process diagnostics",
         metadata=metadata,
-        metrics=metrics_table,
         sections=sections,
         html_header=get_html_header(),
     )

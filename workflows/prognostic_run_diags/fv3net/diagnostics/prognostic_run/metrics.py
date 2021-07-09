@@ -197,6 +197,31 @@ for percentile in PERCENTILES:
         return percentiles
 
 
+@metrics_registry.register("tropics_max_minus_min")
+def itcz_mass_transport(diags):
+    psi_mid_troposphere_name = "mass_streamfunction_300_700_zonal_and_time_mean"
+    if psi_mid_troposphere_name not in diags:
+        return xr.Dataset()
+    psi = diags[psi_mid_troposphere_name]
+    lat_min, lat_max = itcz_edges(psi)
+    max_minus_min = psi.sel(latitude=lat_max) - psi.sel(latitude=lat_min)
+    return xr.Dataset({psi_mid_troposphere_name: max_minus_min.assign_attrs(psi.attrs)})
+
+
+@metrics_registry.register("tropical_ascent_region_mean")
+def tropical_ascent_region_mean(diags):
+    psi_mid_troposphere_name = "mass_streamfunction_300_700_zonal_and_time_mean"
+    if psi_mid_troposphere_name not in diags:
+        return xr.Dataset()
+    zonal_mean_diags = grab_diag(diags, "zonal_and_time_mean")
+    lat_min, lat_max = itcz_edges(diags[psi_mid_troposphere_name])
+    ascent_region_diags = zonal_mean_diags.sel(latitude=slice(lat_min, lat_max))
+    weights = np.cos(np.deg2rad(ascent_region_diags.latitude))
+    ascent_region_mean = weighted_mean(ascent_region_diags, weights, ["latitude"])
+    restore_units(zonal_mean_diags, ascent_region_mean)
+    return ascent_region_mean
+
+
 def compute_percentile(
     percentile: float, freq: np.ndarray, bins: np.ndarray, bin_widths: np.ndarray
 ) -> float:
@@ -220,6 +245,13 @@ def compute_percentile(
     bin_midpoints = bins + 0.5 * bin_widths
     closest_index = np.argmin(np.abs(cumulative_distribution - percentile / 100))
     return bin_midpoints[closest_index]
+
+
+def itcz_edges(psi: xr.DataArray, lat: str = "latitude",) -> Tuple[float, float]:
+    """Compute latitude of ITCZ edges given mass streamfunction at particular level."""
+    lat_min = psi.sel({lat: slice(-30, 10)}).idxmin(lat).item()
+    lat_max = psi.sel({lat: slice(-10, 30)}).idxmax(lat).item()
+    return lat_min, lat_max
 
 
 def restore_units(source, target):
