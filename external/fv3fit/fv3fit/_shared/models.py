@@ -67,7 +67,6 @@ class DerivedModel(Predictor):
     def dump(self, path: str):
         base_model_path = os.path.join(path, self._BASE_MODEL_SUBDIR)
         options = {
-            "additional_input_variables": self._additional_input_variables,
             "derived_output_variables": self._derived_output_variables,
             "model": base_model_path,
         }
