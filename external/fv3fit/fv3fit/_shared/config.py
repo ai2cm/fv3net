@@ -69,6 +69,9 @@ class TrainingConfig:
         sample_dim_name: deprecated, internal name used for sample dimension
             when training and predicting
         random_seed: value to use to initialize randomness
+        derived_output_variables: optional list of prediction variables that
+            are not directly predicted by the ML model but instead are derived
+            using the ML-predicted output_variables
     """
 
     model_type: str
