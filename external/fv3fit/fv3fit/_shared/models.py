@@ -70,7 +70,7 @@ class DerivedModel(Predictor):
             "derived_output_variables": self._derived_output_variables,
             "model": base_model_path,
         }
-        self._base_model.dump(base_model_path)
+        io.dump(self._base_model, base_model_path)
         with fsspec.open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
             yaml.safe_dump(options, f)
 
@@ -105,7 +105,6 @@ class DerivedModel(Predictor):
             )
 
     def _check_derived_predictions_supported(self):
-
         invalid_derived_variables = np.setdiff1d(
             self._derived_output_variables, list(vcm.DerivedMapping.VARIABLES)
         )
