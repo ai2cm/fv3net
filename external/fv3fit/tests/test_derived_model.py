@@ -61,3 +61,27 @@ def test_invalid_derived_output_variables():
         DerivedModel(
             base_model, derived_output_variables=["variable_not_in_DerivedMapping"],
         )
+
+
+def test_dump_and_load(tmpdir):
+    derived_model = DerivedModel(
+        base_model, derived_output_variables=["net_shortwave_sfc_flux_derived"],
+    )
+    ds_in = xr.Dataset(
+        data_vars={
+            "input": xr.DataArray(np.zeros([3, 3, 5]), dims=["x", "y", "z"],),
+            "surface_diffused_shortwave_albedo": xr.DataArray(
+                np.zeros([3, 3]), dims=["x", "y"],
+            ),
+        }
+    )
+    input_data = ds_in.stack(sample=["x", "y"])
+    prediction = derived_model.predict(input_data)
+
+    fv3fit.dump(derived_model, str(tmpdir))
+    loaded_model = fv3fit.load(str(tmpdir))
+
+    prediction_after_load = loaded_model.predict(input_data)
+    for var in loaded_model.output_variables:
+        assert var in derived_model.output_variables
+        assert np.allclose(prediction[var].values, prediction_after_load[var].values)
