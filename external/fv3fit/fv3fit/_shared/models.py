@@ -86,9 +86,10 @@ class DerivedModel(Predictor):
     def _get_additional_input_variables(self, derived_output_variables):
         additional_input_variables = []
         for derived_var in derived_output_variables:
-            additional_input_variables += vcm.DerivedMapping.REQUIRED_INPUTS[
-                derived_var
-            ]
+            if derived_var in vcm.DerivedMapping.REQUIRED_INPUTS:
+                additional_input_variables += vcm.DerivedMapping.REQUIRED_INPUTS[
+                    derived_var
+                ]
         return additional_input_variables
 
     def _check_additional_inputs_present(self, X: xr.Dataset):
