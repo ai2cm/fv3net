@@ -298,8 +298,8 @@ class _ModelTrainingConfig:
     save_model_checkpoints: bool = False
     model_path: str = ""
     timesteps_source: str = "timesteps_file"
-    derived_output_variables: List[str] = None
-    nonfeature_input_variables: List[str] = None
+    derived_output_variables: List[str] = dataclasses.field(default_factory=list)
+    nonfeature_input_variables: List[str] = dataclasses.field(default_factory=list)
 
     def __post_init__(self):
         if self.scaler_type == "mass":

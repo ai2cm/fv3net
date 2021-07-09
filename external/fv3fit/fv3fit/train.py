@@ -105,7 +105,7 @@ def main(args):
         train_batches=train_batches,
         validation_batches=val_batches,
     )
-    if train_config.derived_output_variables:
+    if len(train_config.derived_output_variables) > 0:
         model = DerivedModel(
             model,
             train_config.nonfeature_input_variables,
