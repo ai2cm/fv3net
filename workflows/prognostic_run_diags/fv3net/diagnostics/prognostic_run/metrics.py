@@ -14,6 +14,7 @@ import numpy as np
 import xarray as xr
 from .constants import HORIZONTAL_DIMS, PERCENTILES
 from .registry import Registry
+from .derived_diagnostics import derived_registry
 import json
 
 GRID_VARS = ["lon", "lat", "lonb", "latb", "area"]
@@ -63,6 +64,11 @@ def _mask_array(
     else:
         raise ValueError(f"Masking procedure for region '{region}' is not defined.")
     return masked_arr
+
+
+def _add_derived_diagnostics(ds):
+    merged = xr.merge([ds, derived_registry.compute(ds, n_jobs=1)])
+    return merged.assign_attrs(ds.attrs)
 
 
 def merge_metrics(metrics: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, float]:
@@ -270,8 +276,7 @@ def register_parser(subparsers):
 
 
 def main(args):
-    diags = xr.open_dataset(args.input)
-    diags["time"] = diags.time - diags.time[0]
+    diags = _add_derived_diagnostics(xr.open_dataset(args.input))
     metrics = metrics_registry.compute(diags, n_jobs=1)
     # print to stdout, use pipes to save
     print(json.dumps(metrics, indent=4))
