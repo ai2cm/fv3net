@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 import numpy as np
 
-import fv3net.diagnostics.prognostic_run.load_diagnostic_data as load_diags
+import fv3net.diagnostics.prognostic_run.load_run_data as load_diags
 
 
 @pytest.fixture
