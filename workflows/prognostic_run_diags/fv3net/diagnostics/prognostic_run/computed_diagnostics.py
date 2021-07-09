@@ -210,7 +210,7 @@ class RunMetrics:
             Table of metric values with columns of all variables available for
             given metric_type and rows of runs.
         """
-        variables = self.get_metric_variables(metric_type)
+        variables = sorted(self.get_metric_variables(metric_type))
         runs = self.runs
         data = {}
         for varname in variables:
