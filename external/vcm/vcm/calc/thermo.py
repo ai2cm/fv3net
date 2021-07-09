@@ -14,6 +14,7 @@ _SPECIFIC_ENTHALPY_VAP0R = 1846
 _SPECIFIC_HEAT_CONST_PRESSURE = 1004
 _FREEZING_TEMPERATURE = 273.15
 _POISSON_CONST = 0.2854
+_EARTH_RADIUS = 6.3712e6  # m
 
 _DEFAULT_SURFACE_TEMPERATURE = _FREEZING_TEMPERATURE + 15
 
@@ -469,3 +470,27 @@ def minus_column_integrated_moistening(
     )
 
     return minus_col_int_moistening
+
+
+def mass_streamfunction(
+    northward_wind: xr.DataArray, lat: str = "latitude", plev: str = "pressure",
+) -> xr.DataArray:
+    """Compute overturning streamfunction from northward wind on pressure grid.
+
+    Args:
+        northward_wind: the meridional wind which depends on pressure and latitude.
+            May have additional dimensions.
+        lat: name of latitude dimension. Latitude must be in degrees.
+        plev: name of pressure dimension. Pressure must be in Pa.
+
+    Returns:
+        mass streamfunction on same coordinates as northward_wind
+    """
+    pressure_thickness = northward_wind[plev].diff(plev, label="lower")
+    psi = (northward_wind * pressure_thickness).cumsum(dim=plev)
+    psi = 2 * np.pi * _EARTH_RADIUS * np.cos(np.deg2rad(psi[lat])) * psi / _GRAVITY
+    # extend psi assuming it is constant so it has same pressure coordinate as input
+    bottom_level_pressure = northward_wind[plev].isel({plev: -1})
+    bottom_level_psi = psi.isel({plev: -1}).assign_coords({plev: bottom_level_pressure})
+    psi = xr.concat([psi, bottom_level_psi], dim=plev)
+    return (psi / 1e9).assign_attrs(long_name="mass streamfunction", units="Gkg/s")

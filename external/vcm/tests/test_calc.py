@@ -9,6 +9,7 @@ from vcm.calc.thermo import (
     _interface_to_midpoint,
     dz_and_top_to_phis,
     _add_coords_to_interface_variable,
+    mass_streamfunction,
 )
 from vcm.calc.calc import local_time, apparent_source
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
@@ -132,3 +133,16 @@ def test_histogram():
     count, width = histogram(data, bins=[0, 30, 40])
     xr.testing.assert_equal(count, expected_count)
     xr.testing.assert_equal(width, expected_width)
+
+
+def test_mass_streamfunction():
+    latitude = np.array([-75, -25, 25, 75])
+    pressure = np.array([5000, 10000, 30000, 75000, 90000])
+    wind = xr.DataArray(
+        np.reshape(np.arange(0, 40, 2), (5, 4)),
+        coords={"pressure": pressure, "latitude": latitude},
+        dims=["pressure", "latitude"],
+    )
+    psi = mass_streamfunction(wind)
+    assert dict(psi.sizes) == {"pressure": 5, "latitude": 4}
+    np.testing.assert_equal(psi.pressure.values, pressure)

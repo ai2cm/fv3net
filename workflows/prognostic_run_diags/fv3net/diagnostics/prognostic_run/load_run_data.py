@@ -12,7 +12,7 @@ import xarray as xr
 from vcm.cloud import get_fs
 from vcm.fv3 import standardize_fv3_diagnostics
 
-from fv3net.diagnostics.prognostic_run import add_derived
+from fv3net.diagnostics.prognostic_run import derived_variables
 from fv3net.diagnostics.prognostic_run.constants import DiagArg
 
 logger = logging.getLogger(__name__)
@@ -210,7 +210,7 @@ def load_physics(
 
     # open verification
     verification_c48 = load_verification(verification_entries, catalog)
-    verification_c48 = add_derived.physics_variables(verification_c48)
+    verification_c48 = derived_variables.physics_variables(verification_c48)
 
     # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
@@ -218,7 +218,7 @@ def load_physics(
     input_grid, coarsening_factor = _get_coarsening_args(prognostic_output, 48)
     area = catalog[input_grid].to_dask()["area"]
     prognostic_output = _coarsen(prognostic_output, area, coarsening_factor)
-    prognostic_output = add_derived.physics_variables(prognostic_output)
+    prognostic_output = derived_variables.physics_variables(prognostic_output)
 
     return prognostic_output, verification_c48, grid_c48
 
