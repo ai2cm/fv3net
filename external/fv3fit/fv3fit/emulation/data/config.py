@@ -50,7 +50,7 @@ class TransformConfig:
 
     Example
         Yaml file example::
-            
+
             from_netcdf_path: true
             input_variables: ["a", "b"]
             output_variables: ["c", "d"]
@@ -88,7 +88,7 @@ class TransformConfig:
         transform_funcs = []
 
         if self.from_netcdf_path:
-            transform_funcs.append(transforms.open_remote_nc)
+            transform_funcs.append(transforms.open_netcdf_dataset)
 
         if self.antarctic_only:
             transform_funcs.append(transforms.select_antarctic)
@@ -98,7 +98,7 @@ class TransformConfig:
         else:
             transform_funcs.append(transforms.to_ndarrays)
 
-        transform_funcs.append(transforms.maybe_expand_feature_dim)
+        transform_funcs.append(transforms.expand_single_dim_data)
 
         if self.vertical_subselections is not None:
             transform_funcs.append(

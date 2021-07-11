@@ -29,7 +29,7 @@ def batched_to_tf_dataset(
     signature = tf.data.DatasetSpec.from_value(peeked)
     tf_ds = tf.data.Dataset.from_generator(get_generator, output_signature=signature)
 
-    # Interleave is required with a generator that yields a tf.dataset
-    tf_ds = tf_ds.prefetch(tf.data.AUTOTUNE).interleave(lambda x: x)
+    # Flat map goes from generating tf_dataset -> generating tensors
+    tf_ds = tf_ds.prefetch(tf.data.AUTOTUNE).flat_map(lambda x: x)
 
     return tf_ds
