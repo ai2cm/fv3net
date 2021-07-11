@@ -36,7 +36,7 @@ def test_get_nc_files(xr_dataset):
             assert path in result_files
 
 
-def test_batched_to_tf_dataset(xr_dataset):
+def test_batched_to_tf_dataset():
 
     batches = [np.arange(30).reshape(10, 3)] * 3
 
