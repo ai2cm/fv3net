@@ -10,6 +10,12 @@ logger = logging.getLogger(__name__)
 
 
 def get_nc_files(path: str) -> List[str]:
+    """
+    Get a list of netCDF files from a remote/local directory
+
+    Args:
+        path: Local or remote gcs path to netCDF directory
+    """
 
     fs = get_fs(path)
     files = list(fs.glob(os.path.join(path, "*.nc")))
@@ -20,6 +26,16 @@ def get_nc_files(path: str) -> List[str]:
 def batched_to_tf_dataset(
     batched_source: Sequence, transform: Callable,
 ) -> tf.data.Dataset:
+    """
+    Convert a batched data sequence into a tensorflow dataset to be used
+    for ML model training.
+
+    Args:
+        batched_source: A sequence of data items to be included in the
+            dataset.
+        transform: function to process data items into a tensor-compatible
+            result
+    """
     def get_generator():
         for batch in batched_source:
             output = transform(batch)
