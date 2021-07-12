@@ -72,10 +72,9 @@ class TransformConfig:
     @classmethod
     def from_dict(cls, d: Dict):
 
-        if "vertical_subselections" in d:
-            d["vertical_subselections"] = _convert_map_sequences_to_slices(
-                d["vertical_subselections"]
-            )
+        subselect_key = "vertical_subselections"
+        if subselect_key in d:
+            d[subselect_key] = _convert_map_sequences_to_slices(d[subselect_key])
 
         return dacite.from_dict(cls, d)
 
