@@ -9,14 +9,12 @@ Usage:
     metrics.py <diagnostics netCDF file>
 
 """
-from typing import Callable, Mapping
+from typing import Mapping, Sequence, Tuple
 import numpy as np
 import xarray as xr
-from toolz import curry
 from .constants import HORIZONTAL_DIMS, PERCENTILES
+from .registry import Registry
 import json
-
-_METRICS = []
 
 GRID_VARS = ["lon", "lat", "lonb", "latb", "area"]
 SURFACE_TYPE_CODES = {"sea": (0, 2), "land": (1,), "seaice": (2,)}
@@ -30,7 +28,7 @@ def grab_diag(ds, name):
             replace_dict[var] = var[: -len(match)]
 
     if len(replace_dict) == 0:
-        raise ValueError(f"No diagnostics with name {name} found.")
+        return xr.Dataset()
 
     return ds[list(replace_dict.keys())].rename(replace_dict)
 
@@ -67,38 +65,25 @@ def _mask_array(
     return masked_arr
 
 
-@curry
-def add_to_metrics(metricname: str, func: Callable[[xr.Dataset], xr.Dataset]):
-    """Register a function to be used for computing metrics
-
-    This function will be passed the diagnostics xarray dataset,
-    and should return a Dataset of scalar quantities.
-
-    See rmse_3day below for an example.
-
-    """
-
-    def myfunc(diags):
-        metrics = func(diags)
-        return prepend_to_key(to_dict(metrics), f"{metricname}/")
-
-    _METRICS.append(myfunc)
-    return func
-
-
-def compute_all_metrics(diags: xr.Dataset) -> Mapping[str, float]:
+def merge_metrics(metrics: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, float]:
     out = {}
-    for metric in _METRICS:
-        out.update(metric(diags))
+    for name, ds in metrics:
+        out.update(prepend_to_key(to_dict(ds), f"{name}/"))
     return out
+
+
+# all functions added to this registry must take a single xarray Dataset as input
+# and return an xarray Dataset containing one or more scalar metrics
+metrics_registry = Registry(merge_metrics)
 
 
 for day in [3, 5]:
 
-    @add_to_metrics(f"rmse_{day}day")
+    @metrics_registry.register(f"rmse_{day}day")
     def rmse_on_day(diags, day=day):
         rms_global = grab_diag(diags, "rms_global").drop(GRID_VARS, errors="ignore")
-
+        if len(rms_global) == 0:
+            return xr.Dataset()
         rms_global_daily = rms_global.resample(time="1D").mean()
 
         try:
@@ -110,9 +95,11 @@ for day in [3, 5]:
         return rms_on_day
 
 
-@add_to_metrics("rmse_days_3to7_avg")
+@metrics_registry.register("rmse_days_3to7_avg")
 def rmse_days_3to7_avg(diags):
     rms_global = grab_diag(diags, "rms_global").drop(GRID_VARS, errors="ignore")
+    if len(rms_global) == 0:
+        return xr.Dataset()
     rms_global_daily = rms_global.resample(time="1D").mean()
     if rms_global_daily.sizes["time"] >= 7:
         rmse_days_3to7_avg = rms_global_daily.isel(time=slice(2, 7)).mean("time")
@@ -123,11 +110,13 @@ def rmse_days_3to7_avg(diags):
     return rmse_days_3to7_avg
 
 
-@add_to_metrics("drift_3day")
+@metrics_registry.register("drift_3day")
 def drift_3day(diags):
     averages = grab_diag(diags, "spatial_mean_dycore_global").drop(
         GRID_VARS, errors="ignore"
     )
+    if len(averages) == 0:
+        return xr.Dataset()
 
     daily = averages.resample(time="1D").mean()
 
@@ -144,9 +133,11 @@ def drift_3day(diags):
 
 for mask_type in ["global", "land", "sea"]:
 
-    @add_to_metrics(f"time_and_{mask_type}_mean_value")
+    @metrics_registry.register(f"time_and_{mask_type}_mean_value")
     def time_and_global_mean_value(diags, mask_type=mask_type):
         time_mean_value = grab_diag(diags, "time_mean_value")
+        if len(time_mean_value) == 0:
+            return xr.Dataset()
         masked_area = _mask_array(mask_type, diags["area"], diags["land_sea_mask"])
         time_and_global_mean_value = weighted_mean(
             time_mean_value, masked_area, HORIZONTAL_DIMS
@@ -157,9 +148,11 @@ for mask_type in ["global", "land", "sea"]:
 
 for mask_type in ["global", "land", "sea"]:
 
-    @add_to_metrics(f"time_and_{mask_type}_mean_bias")
+    @metrics_registry.register(f"time_and_{mask_type}_mean_bias")
     def time_and_domain_mean_bias(diags, mask_type=mask_type):
         time_mean_bias = grab_diag(diags, f"time_mean_bias")
+        if len(time_mean_bias) == 0:
+            return xr.Dataset()
         masked_area = _mask_array(mask_type, diags["area"], diags["land_sea_mask"])
         time_and_domain_mean_bias = weighted_mean(
             time_mean_bias, masked_area, HORIZONTAL_DIMS
@@ -170,9 +163,11 @@ for mask_type in ["global", "land", "sea"]:
 
 for mask_type, suffix in zip(["global", "land", "sea"], ["", "_land", "_sea"]):
     # Omits 'global' suffix to avoid breaking change in map plots
-    @add_to_metrics(f"rmse_of_time_mean{suffix}")
+    @metrics_registry.register(f"rmse_of_time_mean{suffix}")
     def rmse_time_mean(diags, mask_type=mask_type):
         time_mean_bias = grab_diag(diags, f"time_mean_bias")
+        if len(time_mean_bias) == 0:
+            return xr.Dataset()
         masked_area = _mask_array(mask_type, diags["area"], diags["land_sea_mask"])
         rms_of_time_mean_bias = np.sqrt(
             weighted_mean(time_mean_bias ** 2, masked_area, HORIZONTAL_DIMS)
@@ -183,9 +178,11 @@ for mask_type, suffix in zip(["global", "land", "sea"], ["", "_land", "_sea"]):
 
 for percentile in PERCENTILES:
 
-    @add_to_metrics(f"percentile_{percentile}")
+    @metrics_registry.register(f"percentile_{percentile}")
     def percentile_metric(diags, percentile=percentile):
         histogram = grab_diag(diags, "histogram")
+        if len(histogram) == 0:
+            return xr.Dataset()
         percentiles = xr.Dataset()
         data_vars = [v for v in histogram.data_vars if not v.endswith("bin_width")]
         for varname in data_vars:
@@ -195,7 +192,8 @@ for percentile in PERCENTILES:
                 histogram[f"{varname}_bins"].values,
                 histogram[f"{varname}_bin_width"].values,
             )
-        restore_units(histogram, percentiles)
+            units = histogram[f"{varname}_bin_width"].attrs["units"]
+            percentiles[varname].attrs.update({"units": units})
         return percentiles
 
 
@@ -242,6 +240,6 @@ def register_parser(subparsers):
 def main(args):
     diags = xr.open_dataset(args.input)
     diags["time"] = diags.time - diags.time[0]
-    metrics = compute_all_metrics(diags)
+    metrics = metrics_registry.compute(diags, n_jobs=1)
     # print to stdout, use pipes to save
     print(json.dumps(metrics, indent=4))
