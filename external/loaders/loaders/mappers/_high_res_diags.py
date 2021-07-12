@@ -6,6 +6,7 @@ import zarr.storage as zstore
 from .._utils import net_precipitation_from_physics, net_heating_from_physics
 from ._base import LongRunMapper
 from ..constants import RENAMED_SHIELD_DIAG_VARS
+from loaders._config import mapper_functions
 
 RENAMED_SHIELD_DIMS = {
     "grid_xt": "x",
@@ -13,25 +14,26 @@ RENAMED_SHIELD_DIMS = {
 }
 
 
+@mapper_functions.register
 def open_high_res_diags(
-    url: str,
-    renamed_vars: Mapping = RENAMED_SHIELD_DIAG_VARS,
-    renamed_dims: Mapping = RENAMED_SHIELD_DIMS,
+    data_path: str,
+    renamed_vars: Mapping[str, str] = RENAMED_SHIELD_DIAG_VARS,
+    renamed_dims: Mapping[str, str] = RENAMED_SHIELD_DIMS,
 ) -> LongRunMapper:
     """Create a mapper for SHiELD 2D diagnostics data.
     Handles renaming to state variable names.
 
     Args:
-        url (str): path to diagnostics zarr
-        renamed_vars (Mapping, optional): Defaults to RENAMED_HIGH_RES_DIAG_VARS.
-        renamed_dims (Mapping, optional): Defaults to RENAMED_HIGH_RES_DIMS.
+        data_path: path to diagnostics zarr
+        renamed_vars: Defaults to RENAMED_HIGH_RES_DIAG_VARS.
+        renamed_dims: Defaults to RENAMED_HIGH_RES_DIMS.
 
     Returns:
         LongRunMapper
     """
 
-    fs = get_fs(url)
-    mapper = fs.get_mapper(url)
+    fs = get_fs(data_path)
+    mapper = fs.get_mapper(data_path)
     consolidated = True if ".zmetadata" in mapper else False
     ds = (
         xr.open_zarr(zstore.LRUStoreCache(mapper, 1024), consolidated=consolidated)
