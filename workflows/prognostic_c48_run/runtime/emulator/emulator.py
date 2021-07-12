@@ -586,7 +586,10 @@ def get_emulator(config: OnlineEmulatorConfig):
         logging.info(f"Loading emulator from checkpoint {config.checkpoint}")
         api = wandb.Api()
         artifact = api.artifact(config.checkpoint)
-        path = artifact.download()
+        # named wandb-artifacts to hack around this bug:
+        # https://github.com/VulcanClimateModeling/fv3net/issues/1293
+        # TODO remove the "root" argument once this is fixed
+        path = artifact.download(root="wandb-artifacts")
         return OnlineEmulator.load(path)
     else:
         return OnlineEmulator(config)
