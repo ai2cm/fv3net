@@ -82,7 +82,7 @@ spec:
       command: ["/bin/bash", "-c", "-x", "-e"]
       resources:
         limits:
-            memory: "500Mi"
+            memory: "2000Mi"
             cpu: "500m"
       args:
       - |
