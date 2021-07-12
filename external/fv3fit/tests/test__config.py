@@ -5,7 +5,6 @@ import os
 import tempfile
 from fv3fit._shared.config import (
     _ModelTrainingConfig as ModelTrainingConfig,
-    DataConfig,
     TrainingConfig,
 )
 import yaml
@@ -40,25 +39,6 @@ def test_dump_and_load_legacy_config():
         legacy_config.dump(tmpdir)
         loaded = ModelTrainingConfig.load(os.path.join(tmpdir, "training_config.yml"))
         assert legacy_config.asdict() == loaded.asdict()
-
-
-def test_safe_dump_data_config():
-    """
-    Test that dataclass.asdict and pyyaml can be used to save DataConfig.
-    """
-    config = DataConfig(
-        variables=["a", "b"],
-        data_path="/my/path",
-        batch_function="batch_func",
-        batch_kwargs={"key": "value"},
-    )
-    with tempfile.TemporaryDirectory() as tmpdir:
-        filename = os.path.join(tmpdir, "config.yaml")
-        with open(filename, "w") as f:
-            as_dict = dataclasses.asdict(config)
-            yaml.safe_dump(as_dict, f)
-        from_dict = DataConfig(**as_dict)
-        assert config == from_dict
 
 
 def test_safe_dump_training_config():

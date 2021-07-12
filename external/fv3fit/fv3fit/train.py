@@ -1,17 +1,17 @@
 import argparse
 import logging
 import os
-import xarray as xr
-from typing import Sequence, Optional
+from typing import Optional
 import yaml
 import dataclasses
 import fsspec
 
-from fv3fit._shared import parse_data_path, load_data_sequence, io
+from fv3fit._shared import parse_data_path, io
 import fv3fit._shared.config
 import fv3fit.keras
 import fv3fit.sklearn
 import fv3fit
+import loaders
 
 
 def get_parser():
@@ -74,14 +74,16 @@ def main(args):
         train_data_config, os.path.join(args.output_data_path, "training_data.yaml")
     )
 
-    train_batches = load_data_sequence(train_data_config)
+    train_batches: loaders.typing.Batches = train_data_config.load_batches(
+        variables=train_config.input_variables
+        + train_config.output_variables
+        + train_config.additional_variables
+    )
     if val_data_config is not None:
         dump_dataclass(
             val_data_config, os.path.join(args.output_data_path, "validation_data.yaml")
         )
-        val_batches: Optional[Sequence[xr.Dataset]] = load_data_sequence(
-            val_data_config
-        )
+        val_batches: Optional[loaders.typing.Batches] = val_data_config.load_sequence()
     else:
         val_batches = None
 
@@ -93,9 +95,10 @@ def main(args):
         # where it is handled in an odd way during configuration setup. Refactor
         # model fitting to take in validation data directly, so this val_batches
         # (or val_dataset if you need to refactor it to one) is actually used
-        val_batches = train_batches.local(
-            os.path.join(args.local_download_path, "validation")
-        )
+        if val_batches is not None:
+            val_batches = val_batches.local(
+                os.path.join(args.local_download_path, "validation")
+            )
 
     train = fv3fit.get_training_function(train_config.model_type)
     model = train(
