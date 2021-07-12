@@ -248,15 +248,6 @@ def append_zarr_along_time(
     consolidate_metadata(fs, absolute_target_paths[0])
 
 
-@click.command()
-@click.argument("rundir")
-@click.argument("destination")
-@click.option("--segment_label", help="Defaults to timestamp of start of segment.")
-@click.option(
-    "--no-copy",
-    is_flag=True,
-    help="Skip local copy of RUNDIR. Warning: will modify and delete files in RUNDIR.",
-)
 def append_segment(rundir: str, destination: str, segment_label: str, no_copy: bool):
     """Append local RUNDIR to possibly existing output at DESTINATION
     
@@ -299,5 +290,18 @@ def append_segment(rundir: str, destination: str, segment_label: str, no_copy: b
         upload_dir(tmp_rundir, destination)
 
 
+@click.command()
+@click.argument("rundir")
+@click.argument("destination")
+@click.option("--segment_label", help="Defaults to timestamp of start of segment.")
+@click.option(
+    "--no-copy",
+    is_flag=True,
+    help="Skip local copy of RUNDIR. Warning: will modify and delete files in RUNDIR.",
+)
+def main(rundir: str, destination: str, segment_label: str, no_copy: bool):
+    append_segment(rundir, destination, segment_label, no_copy)
+
+
 if __name__ == "__main__":
-    append_segment()
+    main()
