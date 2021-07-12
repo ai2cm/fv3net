@@ -64,7 +64,7 @@ def test_xr_dataset_to_tensor_dataset(xr_dataset):
         ([-61, -65, -80], [1, 2, 3], [1, 2, 3]),
     ],
 )
-def test_select_antarcic(lats, data, expected):
+def test_select_antarctic(lats, data, expected):
     lats_da = xr.DataArray(np.deg2rad(lats), dims=["sample"])
     data_da = xr.DataArray(data, dims=["sample"])
     dataset = xr.Dataset({"latitude": lats_da, "field": data_da})
