@@ -45,14 +45,15 @@ def test_xr_dataset_to_ndarray_dataset(xr_dataset):
 
 
 def test_xr_dataset_to_tensor_dataset(xr_dataset):
-    result = transforms.to_tensors(xr_dataset)
+    result = transforms.to_tensors(xr_dataset, dtype=tf.float32)
     assert len(result) == len(xr_dataset)
 
     for key, data in xr_dataset.items():
         assert key in result
         result_data = result[key]
         assert isinstance(result_data, tf.Tensor)
-        result_data = tf.convert_to_tensor(data.values)
+        expected = tf.convert_to_tensor(data, dtype=tf.float32)
+        tf.debugging.assert_equal(result_data, expected)
 
 
 @pytest.mark.parametrize(

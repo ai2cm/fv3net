@@ -16,11 +16,8 @@ from vcm import get_fs, open_remote_nc
 logger = logging.getLogger(__name__)
 
 NumericContainer = Union[np.ndarray, xr.DataArray, tf.Tensor]
-StandardizeInfo = Mapping[str, Tuple[NumericContainer, NumericContainer]]
-FeatureSubselection = Mapping[str, slice]
 ArrayDataset = Mapping[str, np.ndarray]
 TensorDataset = Mapping[str, tf.Tensor]
-InputDataset = Mapping[str, Union[np.ndarray, xr.DataArray]]
 AnyDataset = Mapping[str, NumericContainer]
 
 
@@ -33,14 +30,14 @@ def open_netcdf_dataset(path: str) -> xr.Dataset:
     return data
 
 
-def to_ndarrays(dataset: xr.Dataset) -> ArrayDataset:
+def to_ndarrays(dataset: AnyDataset) -> ArrayDataset:
     """Convert a dataset to ndarrays with a specified dtype."""
     logger.debug("Converting dataset to ndarray dataset")
-    return {varname: da.values for varname, da in dataset.items()}
+    return {varname: np.array(da) for varname, da in dataset.items()}
 
 
 @curry
-def to_tensors(dataset: InputDataset, dtype: tf.DType = tf.float32) -> TensorDataset:
+def to_tensors(dataset: AnyDataset, dtype: tf.DType = tf.float32) -> TensorDataset:
     """Convert a dataset to tensors with specified dtype."""
     logger.debug("Converting dataset to tensor dataset")
     return {
