@@ -3,7 +3,7 @@
 Emulation Data Tools
 ====================
 
-``fv3fit.emulation.data`` contains a set of composable transforms useful for building training input pipelines, an input transform configuration, and convenience functions for creating tensorflow datasets from batched data.
+``fv3fit.emulation.data`` contains a set of composable transforms useful for building training input pipelines, an input transform configuration, and convenience functions for creating tensorflow datasets from a sequence of data.
 
 Example
 -------
@@ -24,7 +24,9 @@ Here we show use of our standard input transformation configuration to go from a
     files = get_nc_files("/path/to/netcdf/directory")
 
     tf_ds = batched_to_tf_dataset(files, transform)
-    
+
+.. note::
+    The standard input transformations (:py:class:`fv3fit.emulation.data.TransformConfig`) expect input data source files or batches to have the shapes [sample x feature] or [sample].  This may not be the always be the case for custom or future standardized pipelines.
 
 .. toctree::
     :maxdepth: 1

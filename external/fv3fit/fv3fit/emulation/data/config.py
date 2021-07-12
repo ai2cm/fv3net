@@ -33,10 +33,11 @@ def _convert_map_sequences_to_slices(map_: Mapping[str, Sequence[int]]):
 @dataclasses.dataclass
 class TransformConfig:
     """
-    Standard input pipeline that goes from xarray dataset to grouped
+    Standard input pipeline that goes from an xarray dataset with data
+    dimensions of [sample, feature] or [sample] to grouped
     X, y tuples of arrays/tensors per variable
 
-    Args
+    Args:
         input_variables: Variables to include as inputs for training
         output_variables: Variables to include as targets for training
         antarctic_only: Limit data to < 60 S.  Requires latitude exists
@@ -48,7 +49,7 @@ class TransformConfig:
         from_netcdf_path: Prepend a netcdf opening transform (works on
             local/remote) to get xarray datasets from input path
 
-    Example
+    Example:
         Yaml file example::
 
             from_netcdf_path: true
