@@ -36,6 +36,7 @@ def batched_to_tf_dataset(
         transform: function to process data items into a tensor-compatible
             result
     """
+
     def get_generator():
         for batch in batched_source:
             output = transform(batch)
