@@ -430,9 +430,11 @@ def main(args):
     # begin constructing diags
     diags = {}
     catalog = intake.open_catalog(args.catalog)
-
-    input_data = load_diags.load_verification_and_input_data(
-        args.url, catalog, args.verification
+    prognostic = load_diags.SegmentedRun(args.url, catalog)
+    verification = load_diags.CatalogSimulation(args.verification, catalog)
+    grid = load_diags.load_grid(catalog)
+    input_data = load_diags.evaluation_pair_to_input_data(
+        prognostic, verification, grid
     )
 
     # maps

@@ -265,17 +265,9 @@ class SegmentedRun:
         return load_3d(self.url, self.catalog)
 
 
-def load_verification_and_input_data(url, catalog, verification: str):
-    prognostic = SegmentedRun(url, catalog)
-    verification = CatalogSimulation(verification, catalog)
-    grid = load_grid(catalog)
-    return _evaluation_pair_to_input_data(prognostic, verification, grid)
-
-
-def _evaluation_pair_to_input_data(
+def evaluation_pair_to_input_data(
     prognostic: Simulation, verification: Simulation, grid: xr.Dataset
 ):
-
     # 3d data special handling
     data_3d = prognostic.data_3d
     verif_3d = verification.data_3d
