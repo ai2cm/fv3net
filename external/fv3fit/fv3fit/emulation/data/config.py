@@ -52,7 +52,6 @@ class TransformConfig:
     Example:
         Yaml file example::
 
-            from_netcdf_path: true
             input_variables: ["a", "b"]
             output_variables: ["c", "d"]
             antarctic_only: true
@@ -68,7 +67,6 @@ class TransformConfig:
     antarctic_only: bool = False
     use_tensors: bool = True
     vertical_subselections: Optional[Mapping[str, slice]] = None
-    from_netcdf_path: bool = True
 
     @classmethod
     def from_dict(cls, d: Dict):
@@ -86,9 +84,6 @@ class TransformConfig:
     def _get_pipeline_from_config(self):
 
         transform_funcs = []
-
-        if self.from_netcdf_path:
-            transform_funcs.append(transforms.open_netcdf_dataset)
 
         if self.antarctic_only:
             transform_funcs.append(transforms.select_antarctic)
