@@ -414,7 +414,11 @@ def register_parser(subparsers):
         default="40day_may2020",
     )
     verification_group.add_argument(
-        "--verification-url", default="", type=str, help="URL to segmented run."
+        "--verification-url",
+        default="",
+        type=str,
+        help="URL to segmented run. "
+        "If not passed then the --verification argument is used.",
     )
     parser.add_argument(
         "--n-jobs",
