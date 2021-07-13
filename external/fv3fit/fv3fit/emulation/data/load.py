@@ -6,6 +6,7 @@ from typing import Callable, Sequence
 
 from .config import TransformConfig
 from .transforms import open_netcdf_dataset
+from .io import get_nc_files
 
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,22 @@ def nc_files_to_tf_dataset(files: Sequence[str], config: TransformConfig):
     transform = compose_left(*[open_netcdf_dataset, config])
 
     return _seq_to_tf_dataset(files, transform)
+
+
+def nc_dir_to_tf_dataset(nc_dir: str, config: TransformConfig):
+
+    """
+    Convert a directory of netCDF files into a tensorflow dataset.
+
+    Args:
+        nc_dir: Path to a directory of netCDFs to include in dataset.
+            Expected to be 2D ([sample, feature]) or 1D ([sample]) dimensions.
+        config: Data preprocessing options for going from xr.Dataset to
+            X, y tensor tuples grouped by variable.
+    """
+
+    files = get_nc_files(nc_dir)
+    return nc_files_to_tf_dataset(files, config)
 
 
 def batches_to_tf_dataset(batches: Sequence[xr.Dataset], config: TransformConfig):

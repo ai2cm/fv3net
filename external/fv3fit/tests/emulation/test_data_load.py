@@ -45,7 +45,7 @@ def test__seq_to_tf_dataset():
     np.testing.assert_equal(result, batches[0] * 2)
 
 
-def test_nc_files_to_tf_dataset(xr_dataset, config):
+def test_nc_to_tf_dataset(xr_dataset, config):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         files = [os.path.join(tmpdir, f"file{i}.nc") for i in range(3)]
@@ -54,6 +54,10 @@ def test_nc_files_to_tf_dataset(xr_dataset, config):
 
         tf_ds = load.nc_files_to_tf_dataset(files, config)
         assert isinstance(tf_ds, tf.data.Dataset)
+
+        tf_ds = load.nc_dir_to_tf_dataset(tmpdir, config)
+        assert isinstance(tf_ds, tf.data.Dataset)
+
 
 
 def test_batches_to_tf_dataset(xr_dataset, config):
