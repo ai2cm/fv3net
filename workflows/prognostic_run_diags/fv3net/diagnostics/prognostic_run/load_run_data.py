@@ -170,27 +170,14 @@ def load_dycore(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     return ds
 
 
-def load_physics(
-    url: str, verification_entries: Sequence[str], catalog: intake.catalog.Catalog
-) -> DiagArg:
+def load_physics(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     """Open data required for physics plots.
 
     Args:
         url: path to prognostic run directory
-        verification_entries: catalog entries for verification physics data
         catalog: Intake catalog of available data sources
-
-    Returns:
-        tuple of prognostic run data, verification data and grid variables all at
-        coarsened resolution. Prognostic and verification data contain variables
-        output by the physics routines.
     """
     logger.info(f"Processing physics data from run directory at {url}")
-
-    # open verification
-    verification_c48 = load_verification(verification_entries, catalog)
-    verification_c48 = derived_variables.physics_variables(verification_c48)
-
     # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
@@ -198,8 +185,7 @@ def load_physics(
     area = catalog[input_grid].to_dask()["area"]
     prognostic_output = _coarsen(prognostic_output, area, coarsening_factor)
     prognostic_output = derived_variables.physics_variables(prognostic_output)
-
-    return prognostic_output, verification_c48
+    return prognostic_output
 
 
 def loads_stats(b: bytes):
@@ -222,15 +208,17 @@ def open_segmented_logs(url: str) -> vcm.fv3.logs.FV3Log:
 
 
 def load_verification_and_input_data(url, catalog, verification: str):
-    # get catalog entries for specified verification data
+
     verif_entries = config.get_verification_entries(verification, catalog)
     verif_dycore = load_verification(verif_entries["dycore"], catalog)
-
+    verif_physics = derived_variables.physics_variables(
+        load_verification(verif_entries["physics"], catalog)
+    )
     grid = load_grid(catalog)
 
     return {
         "dycore": (load_dycore(url, catalog), verif_dycore, grid),
-        "physics": load_physics(url, verif_entries["physics"], catalog) + (grid,),
+        "physics": (load_physics(url, catalog), verif_physics, grid),
         "3d": load_3d(url, verif_entries["3d"], catalog)
         + (grid.drop(["tile", "land_sea_mask"]),),
     }
