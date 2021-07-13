@@ -11,11 +11,13 @@ logger = logging.getLogger(__name__)
 
 def physics_variables(ds: xr.Dataset) -> xr.Dataset:
     """
-    Compute selected derived variables from a physics dataset
-    and merge them back in.
+    Compute selected derived variables from a physics dataset and merge them back in.
     
     Args:
         ds: Dataset to calculated derived values from and merge to
+
+    Note:
+        Derived variables are linear combinations of other variables with no reductions.
     """
     arrays = []
     for func in [

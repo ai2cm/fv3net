@@ -457,7 +457,7 @@ def render_links(link_dict):
 
 
 def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
-    metrics = computed_diagnostics.load_metrics()
+    metrics = computed_diagnostics.load_metrics_from_diagnostics()
     movie_links = computed_diagnostics.find_movie_links()
     metadata, diagnostics = computed_diagnostics.load_diagnostics()
 
