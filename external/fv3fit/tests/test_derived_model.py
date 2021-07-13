@@ -82,6 +82,4 @@ def test_dump_and_load(tmpdir):
     loaded_model = fv3fit.load(str(tmpdir))
 
     prediction_after_load = loaded_model.predict(input_data)
-    for var in loaded_model.output_variables:
-        assert var in derived_model.output_variables
-        assert np.allclose(prediction[var].values, prediction_after_load[var].values)
+    assert prediction_after_load.identical(prediction)
