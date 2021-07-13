@@ -2,6 +2,8 @@ import cftime
 import pytest
 import xarray as xr
 import numpy as np
+import vcm.catalog
+import joblib
 
 import fv3net.diagnostics.prognostic_run.load_run_data as load_diags
 
@@ -54,3 +56,30 @@ def test__load_prognostic_run_physics_output_no_diags(tmpdir):
     ds1["time"] = time
     ds1.to_zarr(str(tmpdir.join("sfc_dt_atmos.zarr")), consolidated=True)
     load_diags._load_prognostic_run_physics_output(str(tmpdir))
+
+
+def print_coord_hashes(ds):
+    print()
+    for coord in ds.coords:
+        print(str(coord), joblib.hash(np.asarray(ds[coord])))
+
+
+def test_load_verification_and_input_data(regtest):
+    url = "gs://vcm-ml-code-testing-data/sample-prognostic-run-output"
+    input_data = load_diags.load_verification_and_input_data(
+        url, vcm.catalog.catalog, "40day_may2020"
+    )
+    with regtest:
+        for key, (prognostic_run, verification, grid) in input_data.items():
+            print(key)
+            print("Prognostic Run")
+            prognostic_run.info()
+            print_coord_hashes(prognostic_run)
+
+            print("Verification")
+            verification.info()
+            print_coord_hashes(verification)
+
+            print("grid")
+            grid.info()
+            print_coord_hashes(grid)

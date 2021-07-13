@@ -12,6 +12,7 @@ import xarray as xr
 from vcm.cloud import get_fs
 from vcm.fv3 import standardize_fv3_diagnostics
 
+from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import derived_variables
 from fv3net.diagnostics.prognostic_run.constants import DiagArg
 
@@ -240,3 +241,13 @@ def open_segmented_logs(url: str) -> vcm.fv3.logs.FV3Log:
     logfiles = sorted(fs.glob(f"{url}/**/logs.txt"))
     logs = [vcm.fv3.logs.loads(fs.cat(url).decode()) for url in logfiles]
     return vcm.fv3.logs.concatenate(logs)
+
+
+def load_verification_and_input_data(url, catalog, verification: str):
+    # get catalog entries for specified verification data
+    verif_entries = config.get_verification_entries(verification, catalog)
+    return {
+        "dycore": load_dycore(url, verif_entries["dycore"], catalog),
+        "physics": load_physics(url, verif_entries["physics"], catalog),
+        "3d": load_3d(url, verif_entries["3d"], catalog),
+    }

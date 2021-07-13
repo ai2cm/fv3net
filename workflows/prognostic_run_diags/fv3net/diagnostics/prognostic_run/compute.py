@@ -26,7 +26,6 @@ from typing import Mapping, Union, Tuple, Sequence
 import vcm
 
 from fv3net.diagnostics.prognostic_run import load_run_data as load_diags
-from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import diurnal_cycle
 from fv3net.diagnostics.prognostic_run import transform
 from fv3net.diagnostics.prognostic_run.constants import (
@@ -428,19 +427,13 @@ def main(args):
     attrs = vars(args)
     attrs["history"] = " ".join(sys.argv)
 
-    catalog = intake.open_catalog(args.catalog)
-
-    # get catalog entries for specified verification data
-    verif_entries = config.get_verification_entries(args.verification, catalog)
-
-    input_data = {
-        "dycore": load_diags.load_dycore(args.url, verif_entries["dycore"], catalog),
-        "physics": load_diags.load_physics(args.url, verif_entries["physics"], catalog),
-        "3d": load_diags.load_3d(args.url, verif_entries["3d"], catalog),
-    }
-
     # begin constructing diags
     diags = {}
+    catalog = intake.open_catalog(args.catalog)
+
+    input_data = load_diags.load_verification_and_input_data(
+        args.url, catalog, args.verification
+    )
 
     # maps
     diags["pwat_run_initial"] = input_data["dycore"][0].PWAT.isel(time=0)
