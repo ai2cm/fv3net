@@ -1,4 +1,4 @@
-.. emulation_data_api_:
+.. _emulation_data_api:
 
 Data API
 ========

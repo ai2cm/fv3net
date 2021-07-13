@@ -1,4 +1,4 @@
-.. emulation_data_:
+.. _emulation_data:
 
 Emulation Data Tools
 ====================
@@ -12,7 +12,7 @@ Here we show use of our standard input transformation configuration to go from a
 
 .. code-block:: python
 
-    from fv3fit.emulation.data import get_nc_files, nc_files_to_tf_dataset, TransformConfig
+    from fv3fit.emulation.data import nc_dir_to_tf_dataset, TransformConfig
 
     transform = TransformConfig(
         input_variables=["air_temperature", "specific_humdity"],
@@ -20,9 +20,7 @@ Here we show use of our standard input transformation configuration to go from a
         vertical_subselections=dict(specific_humdity=slice(10,None)),
     )
 
-    files = get_nc_files("/path/to/netcdf/directory")
-
-    tf_ds = nc_files_to_tf_dataset(files, transform)
+    tf_ds = nc_dir_to_tf_dataset("/path/to/netcdf/directory", transform)
 
 .. note::
     The standard input transformations (:py:class:`fv3fit.emulation.data.TransformConfig`) expect input data source files or batches to have the shapes [sample x feature] or [sample].  This may not be the always be the case for custom or future standardized pipelines.

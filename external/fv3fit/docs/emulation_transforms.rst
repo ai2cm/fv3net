@@ -1,4 +1,4 @@
-.. emulation_transforms:
+.. _emulation_transforms:
 
 Emulation transforms
 ====================
