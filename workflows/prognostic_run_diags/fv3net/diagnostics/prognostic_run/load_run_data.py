@@ -121,10 +121,6 @@ def load_3d(
         area = catalog[input_grid].to_dask()["area"]
         ds = _coarsen(ds, area, coarsening_factor)
 
-        # open grid
-        logger.info("Opening Grid Spec")
-        grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
-
         # interpolate 3d prognostic fields to pressure levels
         ds_interp = xr.Dataset()
         pressure_vars = [var for var in ds.data_vars if "z" in ds[var].dims]
@@ -145,7 +141,14 @@ def load_3d(
             for var in ds_interp:
                 verification_c48[var] = xr.full_like(ds_interp[var], np.nan)
                 verification_c48[var].attrs = ds_interp[var].attrs
-        return ds_interp, verification_c48, grid_c48
+        return ds_interp, verification_c48
+
+
+def load_grid(catalog):
+    logger.info("Opening Grid Spec")
+    grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
+    ls_mask = standardize_fv3_diagnostics(catalog["landseamask/c48"].to_dask())
+    return xr.merge([grid_c48, ls_mask])
 
 
 def load_dycore(
@@ -165,12 +168,6 @@ def load_dycore(
     """
     logger.info(f"Processing dycore data from run directory at {url}")
 
-    # open grid
-    logger.info("Opening Grid Spec")
-    grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
-    ls_mask = standardize_fv3_diagnostics(catalog["landseamask/c48"].to_dask())
-    grid_c48 = xr.merge([grid_c48, ls_mask])
-
     # open verification
     logger.info("Opening verification data")
     verification_c48 = load_verification(verification_entries, catalog)
@@ -182,8 +179,7 @@ def load_dycore(
     input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
     area = catalog[input_grid].to_dask()["area"]
     ds = _coarsen(ds, area, coarsening_factor)
-
-    return ds, verification_c48, grid_c48
+    return ds, verification_c48
 
 
 def load_physics(
@@ -203,12 +199,6 @@ def load_physics(
     """
     logger.info(f"Processing physics data from run directory at {url}")
 
-    # open grid
-    logger.info("Opening Grid Spec")
-    grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
-    ls_mask = standardize_fv3_diagnostics(catalog["landseamask/c48"].to_dask())
-    grid_c48 = xr.merge([grid_c48, ls_mask])
-
     # open verification
     verification_c48 = load_verification(verification_entries, catalog)
     verification_c48 = derived_variables.physics_variables(verification_c48)
@@ -221,7 +211,7 @@ def load_physics(
     prognostic_output = _coarsen(prognostic_output, area, coarsening_factor)
     prognostic_output = derived_variables.physics_variables(prognostic_output)
 
-    return prognostic_output, verification_c48, grid_c48
+    return prognostic_output, verification_c48
 
 
 def loads_stats(b: bytes):
@@ -246,8 +236,12 @@ def open_segmented_logs(url: str) -> vcm.fv3.logs.FV3Log:
 def load_verification_and_input_data(url, catalog, verification: str):
     # get catalog entries for specified verification data
     verif_entries = config.get_verification_entries(verification, catalog)
+
+    grid = load_grid(catalog)
+
     return {
-        "dycore": load_dycore(url, verif_entries["dycore"], catalog),
-        "physics": load_physics(url, verif_entries["physics"], catalog),
-        "3d": load_3d(url, verif_entries["3d"], catalog),
+        "dycore": load_dycore(url, verif_entries["dycore"], catalog) + (grid,),
+        "physics": load_physics(url, verif_entries["physics"], catalog) + (grid,),
+        "3d": load_3d(url, verif_entries["3d"], catalog)
+        + (grid.drop(["tile", "land_sea_mask"]),),
     }
