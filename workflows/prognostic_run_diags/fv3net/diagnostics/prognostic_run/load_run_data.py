@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import json
 import logging
 import os
@@ -202,22 +203,51 @@ def _insert_nan_from_other(self: xr.Dataset, other: xr.Dataset):
             self[var].attrs = other[var].attrs
 
 
+@dataclass
+class CatalogSimulation:
+    """A simulation specified in an intake catalog
+
+    Typically used for commonly used runs like the high resolution SHiELD
+    simulation, that are specified in a catalog.
+    
+    """
+
+    url: str
+    tag: str
+    catalog: intake.catalog.base.Catalog
+
+    @property
+    def _verif_entries(self):
+        return config.get_verification_entries(self.tag, self.catalog)
+
+    @property
+    def physics(self):
+        return load_verification(self._verif_entries["physics"], self.catalog)
+
+    @property
+    def dycore(self):
+        return load_verification(self._verif_entries["dycore"], self.catalog)
+
+    @property
+    def data_3d(self):
+        return load_verification(self._verif_entries["3d"], self.catalog)
+
+
 def load_verification_and_input_data(url, catalog, verification: str):
 
-    verif_entries = config.get_verification_entries(verification, catalog)
-    verif_dycore = load_verification(verif_entries["dycore"], catalog)
-    verif_physics = derived_variables.physics_variables(
-        load_verification(verif_entries["physics"], catalog)
-    )
-
+    verification = CatalogSimulation(url, verification, catalog)
+    grid = load_grid(catalog)
     # 3d data special handling
     data_3d = load_3d(url, catalog)
-    verif_3d = load_verification(verif_entries["3d"], catalog)
+    verif_3d = verification.data_3d
     _insert_nan_from_other(verif_3d, data_3d)
-    grid = load_grid(catalog)
 
     return {
-        "dycore": (load_dycore(url, catalog), verif_dycore, grid),
-        "physics": (load_physics(url, catalog), verif_physics, grid),
-        "3d": (data_3d, verif_3d, grid.drop(["tile", "land_sea_mask"])),
+        "dycore": (load_dycore(url, catalog), verification.dycore, grid),
+        "physics": (
+            load_physics(url, catalog),
+            derived_variables.physics_variables(verification.physics),
+            grid,
+        ),
+        "3d": (data_3d, verif_3d, grid.drop(["tile", "land_sea_mask"]),),
     }
