@@ -11,9 +11,7 @@ from .transforms import open_netcdf_dataset
 logger = logging.getLogger(__name__)
 
 
-def seq_to_tf_dataset(
-    source: Sequence, transform: Callable,
-) -> tf.data.Dataset:
+def seq_to_tf_dataset(source: Sequence, transform: Callable,) -> tf.data.Dataset:
     """
     A general function to convert from a sequence into a tensorflow dataset
     to be used for ML model training.

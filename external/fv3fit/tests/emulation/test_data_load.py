@@ -27,7 +27,7 @@ def config():
     return TransformConfig(
         input_variables=["air_temperature"],
         output_variables=["specific_humidity"],
-        use_tensors=True
+        use_tensors=True,
     )
 
 
