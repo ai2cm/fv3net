@@ -46,8 +46,6 @@ class TransformConfig:
         vertical_subselection: Limit the feature dimension of a variable
             to a specified range. Loaded in as slices from a 2 or 3 item
             sequence.
-        from_netcdf_path: Prepend a netcdf opening transform (works on
-            local/remote) to get xarray datasets from input path
 
     Example:
         Yaml file example::
