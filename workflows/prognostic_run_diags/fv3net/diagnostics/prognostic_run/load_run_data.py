@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import List, Mapping, Sequence
+from typing import List, Mapping
 
 import fsspec
 import intake
@@ -14,7 +14,6 @@ from vcm.fv3 import standardize_fv3_diagnostics
 
 from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import derived_variables
-from fv3net.diagnostics.prognostic_run.constants import DiagArg
 
 logger = logging.getLogger(__name__)
 
@@ -106,15 +105,13 @@ def _load_prognostic_run_3d_output(url: str):
         return None
 
 
-def load_3d(
-    url: str, verification_entries: Sequence[str], catalog: intake.catalog.Catalog
-) -> DiagArg:
+def load_3d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     logger.info(f"Processing 3d data from run directory at {url}")
 
     # open prognostic run data. If 3d data not saved, return empty datasets.
     ds = _load_prognostic_run_3d_output(url)
     if ds is None:
-        return xr.Dataset(), xr.Dataset(), xr.Dataset()
+        return xr.Dataset()
 
     else:
         input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
@@ -130,18 +127,7 @@ def load_3d(
                 delp=ds["pressure_thickness_of_atmospheric_layer"],
                 dim="z",
             )
-
-        # open verification
-        logger.info("Opening verification data")
-        verification_c48 = load_verification(verification_entries, catalog)
-
-        # Not all verification datasets have 3D variables saved,
-        # if not available fill with NaNs
-        if len(verification_c48.data_vars) == 0:
-            for var in ds_interp:
-                verification_c48[var] = xr.full_like(ds_interp[var], np.nan)
-                verification_c48[var].attrs = ds_interp[var].attrs
-        return ds_interp, verification_c48
+        return ds_interp
 
 
 def load_grid(catalog):
@@ -207,6 +193,15 @@ def open_segmented_logs(url: str) -> vcm.fv3.logs.FV3Log:
     return vcm.fv3.logs.concatenate(logs)
 
 
+def _insert_nan_from_other(self: xr.Dataset, other: xr.Dataset):
+    # Not all verification datasets have 3D variables saved,
+    # if not available fill with NaNs
+    if len(self.data_vars) == 0:
+        for var in other:
+            self[var] = xr.full_like(other[var], np.nan)
+            self[var].attrs = other[var].attrs
+
+
 def load_verification_and_input_data(url, catalog, verification: str):
 
     verif_entries = config.get_verification_entries(verification, catalog)
@@ -214,11 +209,15 @@ def load_verification_and_input_data(url, catalog, verification: str):
     verif_physics = derived_variables.physics_variables(
         load_verification(verif_entries["physics"], catalog)
     )
+
+    # 3d data special handling
+    data_3d = load_3d(url, catalog)
+    verif_3d = load_verification(verif_entries["3d"], catalog)
+    _insert_nan_from_other(verif_3d, data_3d)
     grid = load_grid(catalog)
 
     return {
         "dycore": (load_dycore(url, catalog), verif_dycore, grid),
         "physics": (load_physics(url, catalog), verif_physics, grid),
-        "3d": load_3d(url, verif_entries["3d"], catalog)
-        + (grid.drop(["tile", "land_sea_mask"]),),
+        "3d": (data_3d, verif_3d, grid.drop(["tile", "land_sea_mask"])),
     }
