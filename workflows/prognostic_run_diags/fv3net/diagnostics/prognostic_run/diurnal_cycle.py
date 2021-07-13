@@ -40,9 +40,10 @@ def _calc_ds_diurnal_cycle(ds):
     ds["local_time"] = local_time
     diurnal_cycles = xr.Dataset()
     for var in ds.data_vars:
-        diurnal_cycles[var] = (
-            ds[[var, "local_time"]].groupby("local_time").mean()[var].load()
-        )
+        with xr.set_options(keep_attrs=True):
+            diurnal_cycles[var] = (
+                ds[[var, "local_time"]].groupby("local_time").mean()[var].load()
+            )
     return diurnal_cycles
 
 

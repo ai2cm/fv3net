@@ -231,25 +231,10 @@ def fine_url(tmpdir):
     return fine_url
 
 
-@pytest.mark.parametrize("kind", ["data_paths", "dicts"])
-def test_open_fine_resolution_nudging_hybrid(nudge_to_fine_data_dir, fine_url, kind):
-    def _get_kwargs(kind):
-        if kind == "data_paths":
-            return dict(
-                data_paths=None,
-                nudging={
-                    "url": nudge_to_fine_data_dir,
-                    "nudging_variables": NUDGE_TO_FINE_VARIABLES,
-                },
-                fine_res={"fine_res_url": fine_url},
-            )
-        else:
-            return dict(
-                data_paths=[nudge_to_fine_data_dir, fine_url],
-                nudging=dict(nudging_variables=NUDGE_TO_FINE_VARIABLES),
-                fine_res={},
-            )
-
-    kwargs = _get_kwargs(kind)
-    data = open_fine_resolution_nudging_hybrid(**kwargs)
+def test_open_fine_resolution_nudging_hybrid(nudge_to_fine_data_dir, fine_url):
+    data = open_fine_resolution_nudging_hybrid(
+        data_path=nudge_to_fine_data_dir,
+        fine_res_path=fine_url,
+        nudging_variables=NUDGE_TO_FINE_VARIABLES,
+    )
     data[timestep1_end]

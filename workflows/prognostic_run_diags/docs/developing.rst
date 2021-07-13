@@ -20,13 +20,25 @@ Adding a diagnostic
 
 A new diagnostics can be added by writing a new function in
 :py:mod:`fv3net.diagnostics.prognostic_run.compute` and decorating it
-with ``@add_to_diags`` and other desired transforms.
+with ``@registry_{category}.register`` and other desired transforms.
+Separate diagnostic registries exist for each input data category, for
+example ``physics`` or ``dycore``.
+
+Adding a derived diagnostic
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Derived diagnostics are those which are computed based on the output from
+:py:mod:`fv3net.diagnostics.prognostic_run.compute` but which are not scalars.
+They can be added by writing a function in
+:py:mod:`fv3net.diagnostics.prognostic_run.derived_diagnostics` and decorating
+it with `derived_registry.register`.
+
 
 Adding a new metric
 ~~~~~~~~~~~~~~~~~~~
 
-Similarly, a new metric can be added using the ``@add_to_metrics`` decorator in
-:py:mod:`fv3net.diagnostics.prognostic_run.metrics`.
+Similarly, a new metric can be added using the ``@metrics_registry.register``
+decorator in :py:mod:`fv3net.diagnostics.prognostic_run.metrics`.
 
 Adding a new visualization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

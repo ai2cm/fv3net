@@ -1,11 +1,19 @@
 import logging
 from numpy.random import RandomState
 import pandas as pd
-from typing import Iterable, Sequence, Mapping, Any, Optional, Union, List
+from typing import (
+    Iterable,
+    Sequence,
+    Mapping,
+    Any,
+    Optional,
+    Union,
+    List,
+)
 import xarray as xr
 from vcm import safe, parse_datetime_from_str
 from toolz import partition_all, curry, compose_left
-from ._sequences import Map, BaseSequence
+from ._sequences import Map
 from .._utils import (
     add_grid_info,
     add_derived_data,
@@ -19,6 +27,7 @@ from .._utils import (
     SAMPLE_DIM_NAME,
 )
 from ..constants import TIME_NAME
+from .._config import batches_functions, batches_from_mapper_functions
 from ._serialized_phys import (
     SerializedSequence,
     FlattenDims,
@@ -30,6 +39,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
+@batches_functions.register
 def batches_from_geodata(
     data_path: Union[str, List, tuple],
     variable_names: Iterable[str],
@@ -41,7 +51,7 @@ def batches_from_geodata(
     res: str = "c48",
     subsample_size: int = None,
     needs_grid: bool = True,
-) -> BaseSequence[xr.Dataset]:
+) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train. The data is assumed to
     have geospatial dimensions and is accessed through a mapper interface.
@@ -66,6 +76,8 @@ def batches_from_geodata(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
+    if mapping_kwargs is None:
+        mapping_kwargs = {}
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     batches = batches_from_mapper(
         data_mapping,
@@ -85,13 +97,13 @@ def _create_mapper(
     data_path, mapping_func_name: str, mapping_kwargs: Mapping[str, Any]
 ) -> Mapping[str, xr.Dataset]:
     mapping_func = getattr(loaders.mappers, mapping_func_name)
-    mapping_kwargs = mapping_kwargs or {}
     return mapping_func(data_path, **mapping_kwargs)
 
 
+@batches_from_mapper_functions.register
 def batches_from_mapper(
     data_mapping: Mapping[str, xr.Dataset],
-    variable_names: Iterable[str],
+    variable_names: Sequence[str],
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
@@ -99,16 +111,16 @@ def batches_from_mapper(
     needs_grid: bool = True,
     training: bool = True,
     subsample_size: int = None,
-) -> BaseSequence[xr.Dataset]:
+) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
 
     Args:
-        data_mapping (Mapping[str, xr.Dataset]): Interface to select data for
+        data_mapping: Interface to select data for
             given timestep keys.
-        variable_names (Iterable[str]): data variables to select
+        variable_names: data variables to select
         timesteps_per_batch (int, optional): Defaults to 1.
-        random_seed (int, optional): Defaults to 0.
+        random_seed: Defaults to 0.
         timesteps: List of timesteps to use in training.
         needs_grid: Add grid information into batched datasets. [Warning] requires
             remote GCS access
@@ -134,7 +146,7 @@ def batches_from_mapper(
         raise TypeError("At least one value must be given for variable_names")
 
     if timesteps is None:
-        timesteps = data_mapping.keys()
+        timesteps = list(data_mapping.keys())
     num_times = len(timesteps)
     times = _sample(timesteps, num_times, random_state)
     batched_timesteps = list(partition_all(timesteps_per_batch, times))
@@ -172,6 +184,7 @@ def batches_from_mapper(
     return seq
 
 
+@batches_functions.register
 def diagnostic_batches_from_geodata(
     data_path: Union[str, List, tuple],
     variable_names: Sequence[str],
@@ -183,7 +196,7 @@ def diagnostic_batches_from_geodata(
     res: str = "c48",
     subsample_size: int = None,
     needs_grid: bool = True,
-) -> BaseSequence[xr.Dataset]:
+) -> loaders.typing.Batches:
     """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
     as batches_from_mapper but without transformation and stacking
 
@@ -209,7 +222,8 @@ def diagnostic_batches_from_geodata(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
-
+    if mapping_kwargs is None:
+        mapping_kwargs = {}
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     sequence = batches_from_mapper(
         data_mapping,
@@ -240,17 +254,18 @@ def _get_batch(
     """
     time_coords = [parse_datetime_from_str(key) for key in keys]
     ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))
-    nonderived_vars = nonderived_variables(data_vars, ds.data_vars)
+    nonderived_vars = nonderived_variables(data_vars, tuple(ds.data_vars))
     ds = safe.get_variables(ds, nonderived_vars)
     return ds
 
 
+@batches_functions.register
 def batches_from_serialized(
     path: str,
     zarr_prefix: str = "phys",
     sample_dims: Sequence[str] = ["savepoint", "rank", "horizontal_dimension"],
     savepoints_per_batch: int = 1,
-) -> BaseSequence[xr.Dataset]:
+) -> loaders.typing.Batches:
     """
     Load a sequence of serialized physics data for use in model fitting procedures.
     Data variables are reduced to a sample and feature dimension by stacking specified
@@ -269,19 +284,19 @@ def batches_from_serialized(
         A seqence of batched serialized data ready for model testing/training
     """
     ds = open_serialized_physics_data(path, zarr_prefix=zarr_prefix)
-    seq = SerializedSequence(ds)
-    seq = FlattenDims(seq, sample_dims)
+    serialized_seq = SerializedSequence(ds)
+    flattened_seq = FlattenDims(serialized_seq, sample_dims)
 
     if savepoints_per_batch > 1:
-        batch_args = [
+        batch_args: Sequence[Union[int, slice]] = [
             slice(start, start + savepoints_per_batch)
-            for start in range(0, len(seq), savepoints_per_batch)
+            for start in range(0, len(flattened_seq), savepoints_per_batch)
         ]
     else:
-        batch_args = list(range(len(seq)))
+        batch_args = list(range(len(flattened_seq)))
 
     def _load_item(item: Union[int, slice]):
-        return seq[item]
+        return flattened_seq[item]
 
     func_seq = Map(_load_item, batch_args)
 

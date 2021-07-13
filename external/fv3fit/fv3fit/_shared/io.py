@@ -1,9 +1,9 @@
-from typing import MutableMapping, Callable
+from typing import MutableMapping, Callable, Type
 import os
 import fsspec
 import warnings
 
-from .predictor import Predictor, Estimator
+from .predictor import Predictor
 from functools import partial
 
 _NAME_PATH = "name"
@@ -15,9 +15,9 @@ class _Register:
     """
 
     def __init__(self) -> None:
-        self._model_types: MutableMapping[str, type] = {}
+        self._model_types: MutableMapping[str, Type[Predictor]] = {}
 
-    def __call__(self, name: str) -> Callable[[type], type]:
+    def __call__(self, name: str) -> Callable[[Type[Predictor]], Type[Predictor]]:
         if name in self._model_types:
             raise ValueError(
                 f"{name} is already registered by {self._model_types[name]}."
@@ -25,12 +25,12 @@ class _Register:
         else:
             return partial(self._register_class, name=name)
 
-    def _register_class(self, cls: type, name: str) -> type:
+    def _register_class(self, cls: Type[Predictor], name: str) -> Type[Predictor]:
         self._model_types[name] = cls
         return cls
 
     def _load_by_name(self, name: str, path: str) -> Predictor:
-        return self._model_types[name].load(path)  # type: ignore
+        return self._model_types[name].load(path)
 
     def get_name(self, obj: Predictor) -> str:
         return_name = None
@@ -50,18 +50,18 @@ class _Register:
             return return_name
 
     @staticmethod
-    def _get_mapper_name(path: str) -> str:
+    def _get_predictor_name(path: str) -> str:
         return fsspec.get_mapper(path)[_NAME_PATH].decode(_NAME_ENCODING).strip()
 
-    def _set_mapper_name(self, obj: Predictor, path: str):
+    def _dump_predictor_name(self, obj: Predictor, path: str):
         mapper = fsspec.get_mapper(path)
         name = self.get_name(obj)
         mapper[_NAME_PATH] = name.encode(_NAME_ENCODING)
 
     def load(self, path: str) -> Predictor:
-        """Load a serialized model from `path`."""
+        """Load a serialized Predictor from `path`."""
         try:
-            name = self._get_mapper_name(path)
+            name = self._get_predictor_name(path)
         except KeyError as e:
             # backwards compatibility
             warnings.warn(
@@ -79,9 +79,9 @@ class _Register:
         else:
             return self._load_by_name(name, path)
 
-    def dump(self, obj: Estimator, path: str):
-        """Dump an Estimator to a path"""
-        self._set_mapper_name(obj, path)
+    def dump(self, obj: Predictor, path: str):
+        """Dump a Predictor to a path"""
+        self._dump_predictor_name(obj, path)
         obj.dump(path)
 
 

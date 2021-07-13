@@ -1,13 +1,11 @@
 import dataclasses
+from fv3fit._shared.config import DenseHyperparameters
 from fv3fit._shared.config import OptimizerConfig
-from fv3fit._shared.predictor import Estimator
 import os
 import tempfile
 from fv3fit._shared.config import (
     _ModelTrainingConfig as ModelTrainingConfig,
-    DataConfig,
     TrainingConfig,
-    register_estimator,
 )
 import yaml
 
@@ -43,45 +41,18 @@ def test_dump_and_load_legacy_config():
         assert legacy_config.asdict() == loaded.asdict()
 
 
-def test_safe_dump_data_config():
-    """
-    Test that dataclass.asdict and pyyaml can be used to save DataConfig.
-    """
-    config = DataConfig(
-        variables=["a", "b"],
-        data_path="/my/path",
-        batch_function="batch_func",
-        batch_kwargs={"key": "value"},
-    )
-    with tempfile.TemporaryDirectory() as tmpdir:
-        filename = os.path.join(tmpdir, "config.yaml")
-        with open(filename, "w") as f:
-            as_dict = dataclasses.asdict(config)
-            yaml.safe_dump(as_dict, f)
-        from_dict = DataConfig(**as_dict)
-        assert config == from_dict
-
-
 def test_safe_dump_training_config():
     """
     Test that dataclass.asdict and pyyaml can be used to save the configuration class,
     and that the relationship between model_type and hyperparameter class is
     preserved when restoring configuration using TrainingConfig.from_dict.
     """
-
-    @dataclasses.dataclass
-    class MyHyperparameters:
-        val: int = 1
-
-    @register_estimator("MyModel", MyHyperparameters)
-    class MyEstimator(Estimator):
-        pass
-
+    # TODO: extend this test to run not just for Dense, but for all registered models
     config = TrainingConfig(
-        model_type="MyModel",
+        model_type="DenseModel",  # an arbitrary model type
         input_variables=["a"],
         output_variables=["b"],
-        hyperparameters=MyHyperparameters(),
+        hyperparameters=DenseHyperparameters(),
     )
     with tempfile.TemporaryDirectory() as tmpdir:
         filename = os.path.join(tmpdir, "config.yaml")

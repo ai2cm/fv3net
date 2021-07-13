@@ -130,3 +130,27 @@ def test_DerivedMapping_unregistered():
     derived_state = DerivedMapping(ds)
     with pytest.raises(KeyError):
         derived_state["latent_heat_flux"]
+
+
+def test_net_downward_shortwave_sfc_flux_derived():
+    ds = xr.Dataset(
+        {
+            "surface_diffused_shortwave_albedo": xr.DataArray(
+                [0, 0.5, 1.0], dims=["x"]
+            ),
+            "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface": (
+                xr.DataArray([1.0, 1.0, 1.0], dims=["x"])
+            ),
+        }
+    )
+    derived_state = DerivedMapping(ds)
+    derived_net_sw = derived_state["net_shortwave_sfc_flux_derived"]
+    np.testing.assert_array_almost_equal(derived_net_sw, [1.0, 0.5, 0.0])
+
+
+def test_required_inputs():
+    @DerivedMapping.register("test_derived_var", required_inputs=["required_input"])
+    def test_derived_var(self):
+        return None
+
+    assert set(DerivedMapping.REQUIRED_INPUTS["test_derived_var"]) == {"required_input"}

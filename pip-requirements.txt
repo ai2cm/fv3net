@@ -1,5 +1,4 @@
 apache-beam[gcp]
-zarr
 nc-time-axis
 bump2version
 yq

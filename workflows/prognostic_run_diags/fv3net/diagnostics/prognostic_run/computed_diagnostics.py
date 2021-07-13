@@ -12,12 +12,15 @@ from pathlib import Path
 from dataclasses import dataclass
 import tempfile
 
+from .metrics import metrics_registry
+from .derived_diagnostics import derived_registry
+
 
 __all__ = ["ComputedDiagnosticsList", "RunDiagnostics"]
 
 
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
-GRID_VARS = ["area", "lonb", "latb", "lon", "lat"]
+GRID_VARS = ["area", "lonb", "latb", "lon", "lat", "land_sea_mask"]
 
 Diagnostics = Iterable[xr.Dataset]
 Metadata = Any
@@ -52,12 +55,37 @@ class ComputedDiagnosticsList:
             {str(k): url_to_folder(url) for k, url in enumerate(urls)}
         )
 
+    @staticmethod
+    def from_json(
+        url: str, urls_are_rundirs: bool = False
+    ) -> "ComputedDiagnosticsList":
+        """Open labeled computed diagnostics at urls specified in given JSON."""
+
+        def url_to_folder(url):
+            fs, _, path = fsspec.get_fs_token_paths(url)
+            return DiagnosticFolder(fs, path[0])
+
+        with fsspec.open(url) as f:
+            rundirs = json.load(f)
+
+        if urls_are_rundirs:
+            for item in rundirs:
+                item["url"] += "_diagnostics"
+
+        return ComputedDiagnosticsList(
+            {item["name"]: url_to_folder(item["url"]) for item in rundirs}
+        )
+
     def load_metrics(self) -> "RunMetrics":
         return RunMetrics(load_metrics(self.folders))
 
     def load_diagnostics(self) -> Tuple[Metadata, "RunDiagnostics"]:
         metadata, xarray_diags = load_diagnostics(self.folders)
         return metadata, RunDiagnostics(xarray_diags)
+
+    def load_metrics_from_diagnostics(self) -> "RunMetrics":
+        """Compute metrics on the fly from the pre-computed diagnostics."""
+        return RunMetrics(load_metrics_from_diagnostics(self.folders))
 
     def find_movie_links(self):
         return find_movie_links(self.folders)
@@ -192,8 +220,21 @@ class RunMetrics:
 def load_metrics(rundirs) -> pd.DataFrame:
     """Load the metrics from a bucket"""
     metrics = _load_metrics(rundirs)
+    return _metrics_dataframe_from_dict(metrics)
+
+
+def load_metrics_from_diagnostics(rundirs) -> pd.DataFrame:
+    """Load the diagnostics from a bucket and compute metrics"""
+    metrics = {}
+    _, diagnostics = load_diagnostics(rundirs)
+    for ds in diagnostics:
+        metrics[ds.run] = metrics_registry.compute(ds, n_jobs=1)
+    return _metrics_dataframe_from_dict(metrics)
+
+
+def _metrics_dataframe_from_dict(metrics) -> pd.DataFrame:
     metric_table = pd.DataFrame.from_records(_yield_metric_rows(metrics))
-    run_table = parse_rundirs(rundirs)
+    run_table = parse_rundirs(list(metrics.keys()))
     return pd.merge(run_table, metric_table, on="run")
 
 
@@ -206,25 +247,28 @@ def load_diagnostics(rundirs) -> Tuple[Metadata, Diagnostics]:
         for key, ds in diags.items()
     ]
     diagnostics = [convert_index_to_datetime(ds, "time") for ds in diagnostics]
-
-    # hack to add verification data from longest set of diagnostics as new run
-    # TODO: generate separate diags.nc file for verification data and load that in here
+    diagnostics = [_add_derived_diagnostics(ds) for ds in diagnostics]
     longest_run_ds = _longest_run(diagnostics)
     diagnostics.append(_get_verification_diagnostics(longest_run_ds))
     return get_metadata(diags), diagnostics
+
+
+def _add_derived_diagnostics(ds):
+    merged = xr.merge([ds, derived_registry.compute(ds, n_jobs=1)])
+    return merged.assign_attrs(ds.attrs)
 
 
 def find_movie_links(rundirs, domain=PUBLIC_GCS_DOMAIN):
     """Get the movie links from a bucket
 
     Returns:
-        A dictionary of (public_url, rundir) tuples
+        A dictionary of (public_url, run_name) tuples with movie names as keys
     """
 
     # TODO refactor to split out I/O from html generation
     movie_links = {}
     for name, folder in rundirs.items():
-        for movie_name, gcs_path in folder.movie_links:
+        for movie_name, gcs_path in folder.movie_urls:
             movie_name = os.path.basename(gcs_path)
             if movie_name not in movie_links:
                 movie_links[movie_name] = []
@@ -262,23 +306,17 @@ class DiagnosticFolder:
             return xr.open_dataset(f.name, engine="h5netcdf").compute()
 
     @property
-    def movie_links(self, domain=PUBLIC_GCS_DOMAIN):
+    def movie_urls(self):
         movie_paths = self.fs.glob(os.path.join(self.path, "*.mp4"))
-        for gcs_path in movie_paths:
-            movie_name = os.path.basename(gcs_path)
-            public_url = os.path.join(domain, gcs_path)
-            yield movie_name, public_url
+        for path in movie_paths:
+            movie_name = os.path.basename(path)
+            yield movie_name, path
 
 
 def detect_folders(
     bucket: str, fs: fsspec.AbstractFileSystem,
 ) -> Mapping[str, DiagnosticFolder]:
     diag_ncs = fs.glob(os.path.join(bucket, "*", "diags.nc"))
-    if len(diag_ncs) < 2:
-        raise ValueError(
-            "Plots require more than 1 diagnostic directory in"
-            f" {bucket} for holoviews plots to display correctly."
-        )
     return {
         Path(url).parent.name: DiagnosticFolder(fs, Path(url).parent.as_posix())
         for url in diag_ncs
@@ -329,7 +367,7 @@ def _parse_metadata(run: str):
 
 
 def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
-    """Back out verification timeseries from prognostic run value and bias"""
+    """Back out verification diagnostics from prognostic run values and biases"""
     verif_diagnostics = {}
     verif_attrs = {"run": "verification", "baseline": True}
     mean_bias_pairs = {
@@ -338,6 +376,8 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
         "zonal_and_time_mean": "zonal_bias",
         "zonal_mean_value": "zonal_mean_bias",
         "time_mean_value": "time_mean_bias",
+        "histogram": "hist_bias",
+        "pressure_level_zonal_time_mean": "pressure_level_zonal_bias",
     }
     for mean_filter, bias_filter in mean_bias_pairs.items():
         mean_vars = [var for var in ds if mean_filter in var]
@@ -347,6 +387,10 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
                 # verification = prognostic - bias
                 verif_diagnostics[var] = ds[var] - ds[matching_bias_var]
                 verif_diagnostics[var].attrs = ds[var].attrs
+    # special handling for histogram bin widths
+    bin_width_vars = [var for var in ds if "bin_width_histogram" in var]
+    for var in bin_width_vars:
+        verif_diagnostics[var] = ds[var]
     verif_dataset = xr.Dataset(verif_diagnostics)
     return xr.merge([ds[GRID_VARS], verif_dataset]).assign_attrs(verif_attrs)
 

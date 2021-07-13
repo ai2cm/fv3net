@@ -28,7 +28,9 @@ from .calc.thermo import (
     surface_pressure_from_delp,
     column_integrated_heating_from_isobaric_transition,
     column_integrated_heating_from_isochoric_transition,
+    mass_streamfunction,
 )
+from .calc.histogram import histogram
 
 from .interpolate import (
     interpolate_to_pressure_levels,
