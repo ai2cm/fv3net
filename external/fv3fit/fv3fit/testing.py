@@ -90,9 +90,14 @@ class ConstantOutputPredictor(Predictor):
     @classmethod
     def load(cls, path: str) -> "ConstantOutputPredictor":
         """Load a serialized model from a directory."""
-        outputs = np.load(os.path.join(path, "_outputs.npz"))
+        outputs = dict(np.load(os.path.join(path, "_outputs.npz")))
         with open(os.path.join(path, "attrs.yaml"), "r") as f:
             attrs = yaml.safe_load(f)
         obj = cls(**attrs)
+        for key, value in outputs.items():
+            # loading from .npz will convert float outputs to dim-0 ndarray,
+            # need to convert back to float
+            if value.ndim == 0:
+                outputs[key] = value.item()
         obj.set_outputs(**outputs)
         return obj
