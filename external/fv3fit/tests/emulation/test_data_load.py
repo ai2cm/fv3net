@@ -59,7 +59,6 @@ def test_nc_to_tf_dataset(xr_dataset, config):
         assert isinstance(tf_ds, tf.data.Dataset)
 
 
-
 def test_batches_to_tf_dataset(xr_dataset, config):
 
     batches = [xr_dataset] * 3
