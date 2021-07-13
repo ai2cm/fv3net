@@ -151,27 +151,15 @@ def load_grid(catalog):
     return xr.merge([grid_c48, ls_mask])
 
 
-def load_dycore(
-    url: str, verification_entries: Sequence[str], catalog: intake.catalog.Catalog
-) -> DiagArg:
+def load_dycore(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     """Open data required for dycore plots.
 
     Args:
         url: path to prognostic run directory
-        verification_entries: catalog entries for verification dycore data
         catalog: Intake catalog of available data sources
 
-    Returns:
-        tuple of prognostic run data, verification data and grid variables all at
-        coarsened resolution. Prognostic and verification data contain variables output
-        by the dynamical core.
     """
     logger.info(f"Processing dycore data from run directory at {url}")
-
-    # open verification
-    logger.info("Opening verification data")
-    verification_c48 = load_verification(verification_entries, catalog)
-
     # open prognostic run data
     path = os.path.join(url, "atmos_dt_atmos.zarr")
     logger.info(f"Opening prognostic run data at {path}")
@@ -179,7 +167,7 @@ def load_dycore(
     input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
     area = catalog[input_grid].to_dask()["area"]
     ds = _coarsen(ds, area, coarsening_factor)
-    return ds, verification_c48
+    return ds
 
 
 def load_physics(
@@ -236,11 +224,12 @@ def open_segmented_logs(url: str) -> vcm.fv3.logs.FV3Log:
 def load_verification_and_input_data(url, catalog, verification: str):
     # get catalog entries for specified verification data
     verif_entries = config.get_verification_entries(verification, catalog)
+    verif_dycore = load_verification(verif_entries["dycore"], catalog)
 
     grid = load_grid(catalog)
 
     return {
-        "dycore": load_dycore(url, verif_entries["dycore"], catalog) + (grid,),
+        "dycore": (load_dycore(url, catalog), verif_dycore, grid),
         "physics": load_physics(url, verif_entries["physics"], catalog) + (grid,),
         "3d": load_3d(url, verif_entries["3d"], catalog)
         + (grid.drop(["tile", "land_sea_mask"]),),
