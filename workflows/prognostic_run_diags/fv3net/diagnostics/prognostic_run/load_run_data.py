@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import json
 import logging
 import os
+from typing_extensions import Protocol
 from typing import List, Mapping
 
 import fsspec
@@ -203,6 +204,20 @@ def _insert_nan_from_other(self: xr.Dataset, other: xr.Dataset):
             self[var].attrs = other[var].attrs
 
 
+class Simulation(Protocol):
+    @property
+    def physics(self) -> xr.Dataset:
+        pass
+
+    @property
+    def dycore(self) -> xr.Dataset:
+        pass
+
+    @property
+    def data_3d(self) -> xr.Dataset:
+        pass
+
+
 @dataclass
 class CatalogSimulation:
     """A simulation specified in an intake catalog
@@ -212,7 +227,6 @@ class CatalogSimulation:
     
     """
 
-    url: str
     tag: str
     catalog: intake.catalog.base.Catalog
 
@@ -221,31 +235,56 @@ class CatalogSimulation:
         return config.get_verification_entries(self.tag, self.catalog)
 
     @property
-    def physics(self):
+    def physics(self) -> xr.Dataset:
         return load_verification(self._verif_entries["physics"], self.catalog)
 
     @property
-    def dycore(self):
+    def dycore(self) -> xr.Dataset:
         return load_verification(self._verif_entries["dycore"], self.catalog)
 
     @property
-    def data_3d(self):
+    def data_3d(self) -> xr.Dataset:
         return load_verification(self._verif_entries["3d"], self.catalog)
 
 
-def load_verification_and_input_data(url, catalog, verification: str):
+@dataclass
+class SegmentedRun:
+    url: str
+    catalog: intake.catalog.base.Catalog
 
-    verification = CatalogSimulation(url, verification, catalog)
+    @property
+    def physics(self) -> xr.Dataset:
+        return load_physics(self.url, self.catalog)
+
+    @property
+    def dycore(self) -> xr.Dataset:
+        return load_dycore(self.url, self.catalog)
+
+    @property
+    def data_3d(self) -> xr.Dataset:
+        return load_3d(self.url, self.catalog)
+
+
+def load_verification_and_input_data(url, catalog, verification: str):
+    prognostic = SegmentedRun(url, catalog)
+    verification = CatalogSimulation(verification, catalog)
     grid = load_grid(catalog)
+    return _evaluation_pair_to_input_data(prognostic, verification, grid)
+
+
+def _evaluation_pair_to_input_data(
+    prognostic: Simulation, verification: Simulation, grid: xr.Dataset
+):
+
     # 3d data special handling
-    data_3d = load_3d(url, catalog)
+    data_3d = prognostic.data_3d
     verif_3d = verification.data_3d
     _insert_nan_from_other(verif_3d, data_3d)
 
     return {
-        "dycore": (load_dycore(url, catalog), verification.dycore, grid),
+        "dycore": (prognostic.dycore, verification.dycore, grid),
         "physics": (
-            load_physics(url, catalog),
+            prognostic.physics,
             derived_variables.physics_variables(verification.physics),
             grid,
         ),
