@@ -30,6 +30,8 @@ from ..constants import (
 from ._base import GeoMapper
 from ._high_res_diags import open_high_res_diags
 from ._merged import MergeOverlappingData
+from loaders._config import mapper_functions
+from loaders.typing import Mapper
 
 Time = str
 Tile = int
@@ -403,20 +405,18 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
     return GroupByTime(tiles)
 
 
+@mapper_functions.register
 def open_fine_res_apparent_sources(
-    fine_res_url: str,
-    shield_diags_url: str = None,
+    data_path: str,
+    shield_diags_path: str = None,
     offset_seconds: Union[int, float] = 0,
-    rename_vars: Optional[Mapping[Hashable, Hashable]] = None,
-    dim_order: Sequence[str] = ("tile", "z", "y", "x"),
-    drop_vars: Sequence[str] = ("step", "time"),
-) -> Mapping[str, xr.Dataset]:
+) -> Mapper:
     """Open a derived mapping interface to the fine resolution budget, grouped
         by time and with derived apparent sources
 
     Args:
-        fine_res_url (str): path to fine res dataset
-        shield_diags_url: path to directory containing a zarr store of SHiELD
+        data_path (str): path to fine res dataset
+        shield_diags_path: path to directory containing a zarr store of SHiELD
             diagnostics coarsened to the nudged model resolution (optional)
         offset_seconds: amount to shift the keys forward by in seconds. For
             example, if the underlying data contains a value at the key
@@ -427,17 +427,17 @@ def open_fine_res_apparent_sources(
         drop_vars (sequence): optional list of variable names to drop from dataset
     """
 
-    # use default which is valid for real data
-    if rename_vars is None:
-        rename_vars = {
-            "grid_xt": "x",
-            "grid_yt": "y",
-            "pfull": "z",
-            "delp": "pressure_thickness_of_atmospheric_layer",
-        }
+    rename_vars: Mapping[Hashable, Hashable] = {
+        "grid_xt": "x",
+        "grid_yt": "y",
+        "pfull": "z",
+        "delp": "pressure_thickness_of_atmospheric_layer",
+    }
+    dim_order = ("tile", "z", "y", "x")
+    drop_vars = ("step", "time")
 
-    fine_resolution_sources_mapper: GeoMapper = FineResolutionSources(
-        open_fine_resolution_budget(fine_res_url),
+    fine_resolution_sources_mapper = FineResolutionSources(
+        open_fine_resolution_budget(data_path),
         drop_vars=drop_vars,
         dim_order=dim_order,
         rename_vars=rename_vars,
@@ -448,17 +448,17 @@ def open_fine_res_apparent_sources(
         partial(vcm.shift_timestamp, seconds=offset_seconds),
     )
 
-    fine_resolution_sources_mapper = KeyMap(
-        shift_timestamp, fine_resolution_sources_mapper,
-    )
+    shifted_mapper = KeyMap(shift_timestamp, fine_resolution_sources_mapper)
 
-    if shield_diags_url is not None:
-        shield_diags_mapper = open_high_res_diags(shield_diags_url)
-        fine_resolution_sources_mapper = MergeOverlappingData(
+    if shield_diags_path is not None:
+        shield_diags_mapper = open_high_res_diags(shield_diags_path)
+        final_mapper: Mapper = MergeOverlappingData(
             shield_diags_mapper,
-            fine_resolution_sources_mapper,
+            shifted_mapper,
             source_name_left=DERIVATION_SHIELD_COORD,
             source_name_right=DERIVATION_FV3GFS_COORD,
         )
+    else:
+        final_mapper = shifted_mapper
 
-    return fine_resolution_sources_mapper
+    return final_mapper

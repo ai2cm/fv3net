@@ -9,12 +9,11 @@ from typing import (
     Optional,
     Union,
     List,
-    no_type_check,
 )
 import xarray as xr
 from vcm import safe, parse_datetime_from_str
 from toolz import partition_all, curry, compose_left
-from ._sequences import Map, BaseSequence
+from ._sequences import Map
 from .._utils import (
     add_grid_info,
     add_derived_data,
@@ -28,6 +27,7 @@ from .._utils import (
     SAMPLE_DIM_NAME,
 )
 from ..constants import TIME_NAME
+from .._config import batches_functions, batches_from_mapper_functions
 from ._serialized_phys import (
     SerializedSequence,
     FlattenDims,
@@ -39,8 +39,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-# TODO: remove this decorator or delete this function
-@no_type_check
+@batches_functions.register
 def batches_from_geodata(
     data_path: Union[str, List, tuple],
     variable_names: Iterable[str],
@@ -52,7 +51,7 @@ def batches_from_geodata(
     res: str = "c48",
     subsample_size: int = None,
     needs_grid: bool = True,
-) -> BaseSequence[xr.Dataset]:
+) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train. The data is assumed to
     have geospatial dimensions and is accessed through a mapper interface.
@@ -77,6 +76,8 @@ def batches_from_geodata(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
+    if mapping_kwargs is None:
+        mapping_kwargs = {}
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     batches = batches_from_mapper(
         data_mapping,
@@ -96,10 +97,10 @@ def _create_mapper(
     data_path, mapping_func_name: str, mapping_kwargs: Mapping[str, Any]
 ) -> Mapping[str, xr.Dataset]:
     mapping_func = getattr(loaders.mappers, mapping_func_name)
-    mapping_kwargs = mapping_kwargs or {}
     return mapping_func(data_path, **mapping_kwargs)
 
 
+@batches_from_mapper_functions.register
 def batches_from_mapper(
     data_mapping: Mapping[str, xr.Dataset],
     variable_names: Sequence[str],
@@ -110,7 +111,7 @@ def batches_from_mapper(
     needs_grid: bool = True,
     training: bool = True,
     subsample_size: int = None,
-) -> BaseSequence[xr.Dataset]:
+) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
 
@@ -118,7 +119,7 @@ def batches_from_mapper(
         data_mapping: Interface to select data for
             given timestep keys.
         variable_names: data variables to select
-        timesteps_per_batch: Defaults to 1.
+        timesteps_per_batch (int, optional): Defaults to 1.
         random_seed: Defaults to 0.
         timesteps: List of timesteps to use in training.
         needs_grid: Add grid information into batched datasets. [Warning] requires
@@ -183,8 +184,7 @@ def batches_from_mapper(
     return seq
 
 
-# TODO: remove this decorator or delete this function
-@no_type_check
+@batches_functions.register
 def diagnostic_batches_from_geodata(
     data_path: Union[str, List, tuple],
     variable_names: Sequence[str],
@@ -196,7 +196,7 @@ def diagnostic_batches_from_geodata(
     res: str = "c48",
     subsample_size: int = None,
     needs_grid: bool = True,
-) -> BaseSequence[xr.Dataset]:
+) -> loaders.typing.Batches:
     """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
     as batches_from_mapper but without transformation and stacking
 
@@ -222,7 +222,8 @@ def diagnostic_batches_from_geodata(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
-
+    if mapping_kwargs is None:
+        mapping_kwargs = {}
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     sequence = batches_from_mapper(
         data_mapping,
@@ -258,12 +259,13 @@ def _get_batch(
     return ds
 
 
+@batches_functions.register
 def batches_from_serialized(
     path: str,
     zarr_prefix: str = "phys",
     sample_dims: Sequence[str] = ["savepoint", "rank", "horizontal_dimension"],
     savepoints_per_batch: int = 1,
-) -> BaseSequence[xr.Dataset]:
+) -> loaders.typing.Batches:
     """
     Load a sequence of serialized physics data for use in model fitting procedures.
     Data variables are reduced to a sample and feature dimension by stacking specified
