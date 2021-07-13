@@ -222,45 +222,6 @@ variables:
 	float64 water_vapor_path(time, tile, y, x) ;
 		water_vapor_path:units = mm ;
 		water_vapor_path:long_name = water_vapor_path ;
-	float32 column_integrated_pQ1(tile, time, y, x) ;
-		column_integrated_pQ1:long_name = <pQ1> column integrated heating from physics ;
-		column_integrated_pQ1:units = W/m^2 ;
-	float64 column_integrated_pQ2(tile, time, y, x) ;
-		column_integrated_pQ2:long_name = <pQ2> column integrated moistening from physics ;
-		column_integrated_pQ2:units = mm/day ;
-	float64 column_integrated_dQ1(time, tile, y, x) ;
-		column_integrated_dQ1:long_name = <dQ1> column integrated heating from ML ;
-		column_integrated_dQ1:units = W/m^2 ;
-	float64 column_integrated_dQ2(time, tile, y, x) ;
-		column_integrated_dQ2:long_name = <dQ2> column integrated moistening from ML ;
-		column_integrated_dQ2:units = mm/day ;
-	float64 column_integrated_Q1(tile, time, y, x) ;
-		column_integrated_Q1:long_name = <Q1> column integrated heating from physics + ML + nudging ;
-		column_integrated_Q1:units = W/m^2 ;
-	float64 column_integrated_Q2(tile, time, y, x) ;
-		column_integrated_Q2:long_name = <Q2> column integrated moistening from physics + ML + nudging ;
-		column_integrated_Q2:units = mm/day ;
-	float64 total_precip_to_surface(tile, time, y, x) ;
-		total_precip_to_surface:long_name = total precip to surface (max(PRATE-<dQ2>-<nQ2>, 0)) ;
-		total_precip_to_surface:units = mm/day ;
-	float32 vertical_mean_dQu(tile, time, y, x) ;
-		vertical_mean_dQu:long_name = <dQu> vertical mean eastward wind tendency from ML ;
-		vertical_mean_dQu:units = m/s/day ;
-	float32 vertical_mean_dQv(tile, time, y, x) ;
-		vertical_mean_dQv:long_name = <dQv> vertical mean northward wind tendency from ML ;
-		vertical_mean_dQv:units = m/s/day ;
-	float32 column_integrated_nQ1(tile, time, y, x) ;
-		column_integrated_nQ1:long_name = <nQ1> column integrated heating from nudging ;
-		column_integrated_nQ1:units = W/m^2 ;
-	float32 column_integrated_nQ2(tile, time, y, x) ;
-		column_integrated_nQ2:long_name = <nQ2> column integrated moistening from nudging ;
-		column_integrated_nQ2:units = mm/day ;
-	float64 column_integrated_dQ1_or_nQ1(time, tile, y, x) ;
-		column_integrated_dQ1_or_nQ1:long_name = <dQ1> column integrated moistening from ML ;
-		column_integrated_dQ1_or_nQ1:units = W/m^2 ;
-	float64 column_integrated_dQ2_or_nQ2(time, tile, y, x) ;
-		column_integrated_dQ2_or_nQ2:long_name = <dQ2> column integrated moistening from ML ;
-		column_integrated_dQ2_or_nQ2:units = mm/day ;
 
 // global attributes:
 }xarray.Dataset {

@@ -171,9 +171,7 @@ def load_physics(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     prognostic_output = _load_prognostic_run_physics_output(url)
     input_grid, coarsening_factor = _get_coarsening_args(prognostic_output, 48)
     area = catalog[input_grid].to_dask()["area"]
-    prognostic_output = _coarsen(prognostic_output, area, coarsening_factor)
-    prognostic_output = derived_variables.physics_variables(prognostic_output)
-    return prognostic_output
+    return _coarsen(prognostic_output, area, coarsening_factor)
 
 
 def loads_stats(b: bytes):
@@ -276,7 +274,7 @@ def evaluation_pair_to_input_data(
     return {
         "dycore": (prognostic.dycore, verification.dycore, grid),
         "physics": (
-            prognostic.physics,
+            derived_variables.physics_variables(prognostic.physics),
             derived_variables.physics_variables(verification.physics),
             grid,
         ),
