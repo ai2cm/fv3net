@@ -11,7 +11,7 @@ from .transforms import open_netcdf_dataset
 logger = logging.getLogger(__name__)
 
 
-def seq_to_tf_dataset(source: Sequence, transform: Callable,) -> tf.data.Dataset:
+def _seq_to_tf_dataset(source: Sequence, transform: Callable,) -> tf.data.Dataset:
     """
     A general function to convert from a sequence into a tensorflow dataset
     to be used for ML model training.
@@ -52,7 +52,7 @@ def nc_files_to_tf_dataset(files: Sequence[str], config: TransformConfig):
 
     transform = compose_left(*[open_netcdf_dataset, config])
 
-    return seq_to_tf_dataset(files, transform)
+    return _seq_to_tf_dataset(files, transform)
 
 
 def batches_to_tf_dataset(batches: Sequence[xr.Dataset], config: TransformConfig):
@@ -67,4 +67,4 @@ def batches_to_tf_dataset(batches: Sequence[xr.Dataset], config: TransformConfig
             X, y tensor tuples grouped by variable.
     """
 
-    return seq_to_tf_dataset(batches, config)
+    return _seq_to_tf_dataset(batches, config)

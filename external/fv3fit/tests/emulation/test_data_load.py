@@ -31,14 +31,14 @@ def config():
     )
 
 
-def test_seq_to_tf_dataset():
+def test__seq_to_tf_dataset():
 
     batches = [np.arange(30).reshape(10, 3)] * 3
 
     def transform(batch):
         return batch * 2
 
-    tf_ds = load.seq_to_tf_dataset(batches, transform)
+    tf_ds = load._seq_to_tf_dataset(batches, transform)
     assert isinstance(tf_ds, tf.data.Dataset)
 
     result = next(tf_ds.batch(10).as_numpy_iterator())
