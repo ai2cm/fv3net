@@ -435,4 +435,4 @@ scikit_learn:
   model:
   - gs://ml-model
   output_standard_names: {}
-  - regions: []
+  regions: []
