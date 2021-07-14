@@ -137,7 +137,7 @@ class MultiModelAdapter:
         vars = [model.input_variables for model in self.models]
         return {var for model_vars in vars for var in model_vars}
 
-    def predict_columnwise(self, arg: xr.Dataset, **kwargs) -> xr.Dataset:
+    def predict_columnwise(self, arg: xr.Dataset, land_sea_mask, **kwargs) -> xr.Dataset:
         predictions = []
         for model in self.models:
             predictions.append(model.predict_columnwise(arg, **kwargs))
@@ -145,7 +145,7 @@ class MultiModelAdapter:
             merged_prediction = xr.zeros_like(predictions[0])
             for region, prediction in zip(self.regions, predictions):
                 print(f"Applying predction over {region}")
-                mask = region_mask(region, kwargs["land_sea_mask"])
+                mask = region_mask(region, land_sea_mask)
                 merged_prediction = xr.where(mask, prediction, merged_prediction)
             return merged_prediction
         else:
@@ -180,7 +180,7 @@ def predict(model: MultiModelAdapter, state: State) -> State:
     """Given ML model and state, return prediction"""
     state_loaded = {key: state[key] for key in model.input_variables}
     ds = xr.Dataset(state_loaded)  # type: ignore
-    output = model.predict_columnwise(ds, feature_dim="z", land_sea_mask=state["land_sea_mask"])
+    output = model.predict_columnwise(ds, state["land_sea_mask"], feature_dim="z")
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
