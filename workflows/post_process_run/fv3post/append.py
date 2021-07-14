@@ -12,6 +12,7 @@ import cftime
 import click
 import fsspec
 import numpy as np
+import random
 import xarray as xr
 import zarr
 
@@ -270,8 +271,10 @@ def append_segment(rundir: str, destination: str, segment_label: str, no_copy: b
             # append_segment could operate without making a copy or affecting RUNDIR.
             tmp_rundir = shutil.copytree(rundir, os.path.join(d_in, "rundir"))
         files = os.listdir(tmp_rundir)
-        artifacts_dir = os.path.join(tmp_rundir, "artifacts", segment_label)
-        os.makedirs(artifacts_dir, exist_ok=True)
+
+        # Write a temporary artifacts dir to avoid conflict if prognostic run
+        # already created an output dir named 'artifacts'
+        tmp_artifacts_dir = _create_tmp_artifacts_dir(tmp_rundir, segment_label)
 
         for file_ in files:
             tmp_rundir_file = os.path.join(tmp_rundir, file_)
@@ -283,11 +286,20 @@ def append_segment(rundir: str, destination: str, segment_label: str, no_copy: b
                 # remove temporary local copy so not uploaded twice
                 shutil.rmtree(tmp_rundir_file)
             else:
-                renamed_file = os.path.join(artifacts_dir, file_)
+                renamed_file = os.path.join(tmp_artifacts_dir, file_)
                 os.rename(tmp_rundir_file, renamed_file)
-
+        os.rename(
+            os.path.dirname(tmp_artifacts_dir), os.path.join(tmp_rundir, "artifacts")
+        )
         logger.info(f"Uploading non-zarr files from {tmp_rundir} to {destination}")
         upload_dir(tmp_rundir, destination)
+
+
+def _create_tmp_artifacts_dir(root, segment_label):
+    tmp_artifacts_dir = str(random.getrandbits(32))
+    artifacts_dir = os.path.join(root, tmp_artifacts_dir, segment_label)
+    os.makedirs(artifacts_dir, exist_ok=True)
+    return artifacts_dir
 
 
 @click.command()
