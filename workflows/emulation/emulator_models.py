@@ -81,7 +81,7 @@ def normalize_model_io(example_inputs, example_outputs, model_to_wrap: tf.keras.
     new_inputs = []
     normalized_in = []
     for i, layer in enumerate(inputs):
-        input_ = tf.keras.layers.Input(layer.shape, name=layer.name)
+        input_ = tf.keras.layers.Input(layer.shape[-1], name=layer.name)
         norm_ = MaxProfileStdNormLayer(name=f"normalized_{layer.name}")
         norm_.fit(example_inputs[i])
         norm_ = norm_(input_)
@@ -95,7 +95,10 @@ def normalize_model_io(example_inputs, example_outputs, model_to_wrap: tf.keras.
     for i, layer in enumerate(model_to_wrap.layers[-len(outputs):]):
         denorm_ = MaxProfileStdDenormLayer(name=f"denormalized_{layer.name}")
         denorm_.fit(example_outputs[i])
-        denorm_ = denorm_(new_model[i])
+        if len(outputs) > 1:
+            denorm_ = denorm_(new_model[i])
+        else:
+            denorm_ = denorm_(new_model)
         new_outputs.append(denorm_)
 
     return tf.keras.Model(inputs=new_inputs, outputs=new_outputs)
@@ -163,10 +166,15 @@ if __name__ == "__main__":
         "/mnt/disks/scratch/training-subsets/simple-phys-hybridedmf-10day",
         config.input_preprocessing
     )
-    example_data = next(iter(tf_ds.batch(64)))
+    example_data = next(iter(tf_ds.batch(20_000)))
     X, y = example_data
 
     # begin of emulator operations
     model = config.model.get_model(example_data)
     normalized_model = normalize_model_io(X, y, model)
+    normalized_model.compile(optimizer="Adam", loss="mse", metrics=["mae"])
+    normalized_model.fit(
+        tf_ds.shuffle(10_000).batch(64),
+        epochs=1
+    )
     pass

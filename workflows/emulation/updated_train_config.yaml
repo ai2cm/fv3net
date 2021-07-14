@@ -16,4 +16,3 @@ input_variables:
   - specific_humidity
 output_variables:
   - tendency_of_specific_humidity_due_to_fv3_physics
-  - tendency_of_air_temperature_due_to_fv3_physics
