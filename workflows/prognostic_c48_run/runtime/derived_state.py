@@ -32,6 +32,8 @@ class FV3StateMapper(Mapping):
             return self._getter.get_diagnostic_by_name("lhtfl").data_array
         elif key == "total_water":
             return self._total_water()
+        elif key == "land_sea_mask":
+            return self._getter.get_state(["land_sea_mask"])["land_sea_mask"]
         else:
             if key in self._alternate_keys:
                 key = self._alternate_keys[key]

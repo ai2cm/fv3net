@@ -20,6 +20,7 @@ from .._utils import (
     add_derived_data,
     add_wind_rotation_info,
     check_empty,
+    mask_to_region,
     nonderived_variables,
     preserve_samples_per_batch,
     shuffled,
@@ -52,6 +53,7 @@ def batches_from_geodata(
     res: str = "c48",
     subsample_size: int = None,
     needs_grid: bool = True,
+    region: Sequence[str] = ("ocean", "land", "sea-ice"),
 ) -> BaseSequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train. The data is assumed to
@@ -71,6 +73,8 @@ def batches_from_geodata(
             specified size along the sampling dimension
         needs_grid: Add grid information into batched datasets. [Warning] requires
             remote GCS access
+        region: region to train model over.  Must be a tuple of a subset of
+            ("ocean", "land", "sea-ice").
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -88,6 +92,7 @@ def batches_from_geodata(
         training=True,
         subsample_size=subsample_size,
         needs_grid=needs_grid,
+        region=region,
     )
     return batches
 
@@ -110,6 +115,7 @@ def batches_from_mapper(
     needs_grid: bool = True,
     training: bool = True,
     subsample_size: int = None,
+    region: Optional[Sequence[str]] = None,
 ) -> BaseSequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -128,6 +134,8 @@ def batches_from_mapper(
             training
         subsample_size: draw a random subsample from the batch of the
             specified size along the sampling dimension
+        region: region to train model over.  Must be a tuple of a subset of
+            ("ocean", "land", "sea-ice").
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -159,6 +167,11 @@ def batches_from_mapper(
             add_grid_info(res),
             add_wind_rotation_info(res),
         ]
+
+    if region is not None:
+        if not needs_grid:
+            raise ValueError("If masking to a specific region, grid information must be present.")
+        transforms += [mask_to_region(region)]
 
     transforms += [add_derived_data(variable_names)]
 

@@ -69,7 +69,23 @@ def add_grid_info(res: str, ds: xr.Dataset) -> xr.Dataset:
     """
     grid = _load_grid(res)
     # Prioritize dataset's land_sea_mask if it differs from grid
-    return xr.merge([ds, grid], compat="override")
+    result = xr.merge([ds, grid], compat="override")
+    return result
+
+
+@curry
+def mask_to_region(region: Sequence[str], ds: xr.Dataset) -> xr.Dataset:
+    """Mask variables in Dataset to be over a specific region
+    
+    Args:
+        region: region to mask to.  Must be a tuple of a subset of
+            ("ocean", "land", "sea-ice").
+    """
+    region_codes = {"ocean": 0.0, "land": 1.0, "sea-ice": 2.0}
+    mask = xr.zeros_like(ds.land_sea_mask, dtype=bool)
+    for key in region:
+        mask |= vcm.xarray_utils.isclose(ds.land_sea_mask, region_codes[key])
+    return ds.where(mask)
 
 
 @curry
@@ -80,7 +96,6 @@ def add_wind_rotation_info(res: str, ds: xr.Dataset) -> xr.Dataset:
     Args:
         res: grid resolution, format as f'c{number cells in tile}'
     """
-
     rotation = _load_wind_rotation_matrix(res)
     common_coords = {"x": ds["x"].values, "y": ds["y"].values}
     rotation = rotation.assign_coords(common_coords)

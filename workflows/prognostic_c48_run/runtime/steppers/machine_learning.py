@@ -34,6 +34,10 @@ class MachineLearningConfig:
             the canonical names used in the wrapper.
         output_standard_names: mapping from non-standard names to the standard
             ones used by the model. Renames the ML predictions.
+        regions: sequence of sequences of region names.  If provided, it is assumed
+            that all models predict the same variables and are applied over the regions
+            specified in this sequence.  Number of sequences must match the number
+            of models provided.  Regions are a sequence that is a subset of ("ocean", "land", "sea-ice").
 
     Example::
 
@@ -54,6 +58,7 @@ class MachineLearningConfig:
     output_standard_names: Mapping[Hashable, Hashable] = dataclasses.field(
         default_factory=dict
     )
+    regions: Sequence[Sequence[str]] = dataclasses.field(default_factory=list)
 
 
 def non_negative_sphum(
@@ -114,9 +119,18 @@ class RenamingAdapter:
         return self._rename_outputs(prediction)
 
 
+def region_mask(regions, land_sea_mask):
+    region_codes = {"ocean": 0.0, "land": 1.0, "sea-ice": 2.0}
+    mask = xr.zeros_like(land_sea_mask, dtype=bool)
+    for region in regions:
+        mask |= vcm.xarray_utils.isclose(land_sea_mask, region_codes[region])
+    return mask
+
+
 class MultiModelAdapter:
-    def __init__(self, models: Iterable[RenamingAdapter]):
+    def __init__(self, models: Iterable[RenamingAdapter], regions: Sequence[Sequence[str]]):
         self.models = models
+        self.regions = regions
 
     @property
     def input_variables(self) -> Set[str]:
@@ -127,7 +141,15 @@ class MultiModelAdapter:
         predictions = []
         for model in self.models:
             predictions.append(model.predict_columnwise(arg, **kwargs))
-        return xr.merge(predictions)
+        if self.regions:
+            merged_prediction = xr.zeros_like(predictions[0])
+            for region, prediction in zip(self.regions, predictions):
+                print(f"Applying predction over {region}")
+                mask = region_mask(region, kwargs["land_sea_mask"])
+                merged_prediction = xr.where(mask, prediction, merged_prediction)
+            return merged_prediction
+        else:
+            return xr.merge(predictions)
 
 
 def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
@@ -138,7 +160,7 @@ def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
         rename_in = config.input_standard_names
         rename_out = config.output_standard_names
         models.append(RenamingAdapter(model, rename_in, rename_out))
-    return MultiModelAdapter(models)
+    return MultiModelAdapter(models, config.regions)
 
 
 def download_model(config: MachineLearningConfig, path: str) -> Sequence[str]:
@@ -158,7 +180,7 @@ def predict(model: MultiModelAdapter, state: State) -> State:
     """Given ML model and state, return prediction"""
     state_loaded = {key: state[key] for key in model.input_variables}
     ds = xr.Dataset(state_loaded)  # type: ignore
-    output = model.predict_columnwise(ds, feature_dim="z")
+    output = model.predict_columnwise(ds, feature_dim="z", land_sea_mask=state["land_sea_mask"])
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 

@@ -16,12 +16,15 @@ Z_DIM_SIZE = 79
 
 
 class MockDatasetMapper:
-    def __init__(self, schema: synth.DatasetSchema):
+    def __init__(self, schema: synth.DatasetSchema, drop_grid_data=False):
         self._schema = schema
         self._keys = [f"2000050{i+1}.000000" for i in range(4)]
+        self._drop_grid_data = drop_grid_data
 
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = synth.generate(self._schema).drop("initial_time")
+        if self._drop_grid_data:
+            ds = ds.drop(["lat", "lon", "land_sea_mask"])
         return ds
 
     def keys(self):
@@ -50,6 +53,22 @@ def mapper(request, datadir):
         raise ValueError("Invalid mapper type provided.")
 
 
+@pytest.fixture(params=["MockDatasetMapper", "MultiDatasetMapper"])
+def mapper_without_grid_data(request, datadir):
+    one_step_zarr_schema = "one_step_zarr_schema.json"
+    # uses the one step schema but final mapper
+    # functions the same for all data sources
+    with open(os.path.join(datadir, one_step_zarr_schema)) as f:
+        schema = synth.load(f)
+    mapper = MockDatasetMapper(schema, drop_grid_data=True)
+    if request.param == "MockDatasetMapper":
+        return mapper
+    elif request.param == "MultiDatasetMapper":
+        return loaders.mappers.MultiDatasetMapper([mapper, mapper, mapper])
+    else:
+        raise ValueError("Invalid mapper type provided.")
+
+
 @pytest.fixture
 def random_state():
     return np.random.RandomState(0)
@@ -70,6 +89,36 @@ def test_batches_from_mapper(mapper):
     )
     assert len(batched_data_sequence) == 2
     expected_num_samples = 6 * 48 * 48 * 2
+    for i, batch in enumerate(batched_data_sequence):
+        assert len(batch["z"]) == Z_DIM_SIZE
+        assert set(batch.data_vars) == set(DATA_VARS)
+        for name in batch.data_vars.keys():
+            assert batch[name].dims[0] == loaders.SAMPLE_DIM_NAME
+            assert batch[name].sizes[loaders.SAMPLE_DIM_NAME] == expected_num_samples
+
+
+@pytest.mark.parametrize(
+    ("region", "samples_per_timestep"),
+    [
+        (None, 6 * 48 * 48),
+        (("ocean",), 9323),
+        (("land",), 4031),
+        (("sea-ice",), 470),
+        (("ocean", "sea-ice"), 9323 + 470),
+    ],
+)
+def test_batches_from_mapper_masked_to_region(
+    mapper_without_grid_data, region, samples_per_timestep
+):
+    batched_data_sequence = batches_from_mapper(
+        mapper_without_grid_data,
+        DATA_VARS,
+        timesteps_per_batch=2,
+        needs_grid=True,
+        region=region,
+    )
+    assert len(batched_data_sequence) == 2
+    expected_num_samples = samples_per_timestep * 2
     for i, batch in enumerate(batched_data_sequence):
         assert len(batch["z"]) == Z_DIM_SIZE
         assert set(batch.data_vars) == set(DATA_VARS)
