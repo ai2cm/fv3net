@@ -17,7 +17,7 @@ import fv3viz as viz
 import vcm
 import vcm.catalog
 
-from fv3net.diagnostics.prognostic_run import config
+from fv3net.diagnostics.prognostic_run import derived_variables
 import fv3net.diagnostics.prognostic_run.load_run_data as load_diags
 
 dask.config.set(sheduler="single-threaded")
@@ -196,10 +196,9 @@ def main(args):
         os.makedirs(args.output, exist_ok=True)
 
     catalog = intake.open_catalog(args.catalog)
-    verification = config.get_verification_entries("40day_may2020", catalog)
-
-    prognostic, _, grid = load_diags.load_physics(
-        args.url, verification["physics"], catalog
+    grid = load_diags.load_grid(catalog)
+    prognostic = derived_variables.physics_variables(
+        load_diags.SegmentedRun(args.url, catalog).physics
     )
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead
     prognostic = (

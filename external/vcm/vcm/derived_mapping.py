@@ -14,20 +14,28 @@ class DerivedMapping:
     """
 
     VARIABLES: Mapping[Hashable, Callable[..., xr.DataArray]] = {}
+    REQUIRED_INPUTS: Mapping[Hashable, Iterable[Hashable]] = {}
 
     def __init__(self, mapper: Mapping[Hashable, xr.DataArray]):
         self._mapper = mapper
 
     @classmethod
-    def register(cls, name: Hashable):
-        """Register a function as a derived variable
+    def register(cls, name: Hashable, required_inputs: Iterable[Hashable] = None):
+        """Register a function as a derived variable.
 
         Args:
             name: the name the derived variable will be available under
+            required_inputs: Optional arg to list the
+                required inputs needed to derive said variable. Omit this if the
+                requirements are not well-defined, e.g. dQu only needs dQxwind,
+                dQywind if dQu is not already in the mapping, so do not list these
+                as requirements.
         """
 
         def decorator(func):
             cls.VARIABLES[name] = func
+            if required_inputs:
+                cls.REQUIRED_INPUTS[name] = required_inputs
             return func
 
         return decorator
@@ -48,12 +56,12 @@ class DerivedMapping:
         return xr.Dataset(self._data_arrays(keys))
 
 
-@DerivedMapping.register("cos_zenith_angle")
+@DerivedMapping.register("cos_zenith_angle", required_inputs=["time", "lon", "lat"])
 def cos_zenith_angle(self):
     return vcm.cos_zenith_angle(self["time"], self["lon"], self["lat"])
 
 
-@DerivedMapping.register("evaporation")
+@DerivedMapping.register("evaporation", required_inputs=["latent_heat_flux"])
 def evaporation(self):
     lhf = self["latent_heat_flux"]
     return vcm.thermo.latent_heat_flux_to_evaporation(lhf)
@@ -105,19 +113,26 @@ def northward_wind(self):
         return _rotate(self, "x_wind", "y_wind")[1]
 
 
-@DerivedMapping.register("dQu_parallel_to_eastward_wind")
+@DerivedMapping.register(
+    "dQu_parallel_to_eastward_wind", required_inputs=["eastward_wind", "dQu"]
+)
 def dQu_parallel_to_eastward_wind_direction(self):
     sign = np.sign(self["eastward_wind"] / self["dQu"])
     return sign * abs(self["dQu"])
 
 
-@DerivedMapping.register("dQv_parallel_to_northward_wind")
+@DerivedMapping.register(
+    "dQv_parallel_to_northward_wind", required_inputs=["northward_wind", "dQv"]
+)
 def dQv_parallel_to_northward_wind_direction(self):
     sign = np.sign(self["northward_wind"] / self["dQv"])
     return sign * abs(self["dQv"])
 
 
-@DerivedMapping.register("horizontal_wind_tendency_parallel_to_horizontal_wind")
+@DerivedMapping.register(
+    "horizontal_wind_tendency_parallel_to_horizontal_wind",
+    required_inputs=["eastward_wind", "dQu", "northward_wind", "dQv"],
+)
 def horizontal_wind_tendency_parallel_to_horizontal_wind(self):
     tendency_projection_onto_wind = (
         self["eastward_wind"] * self["dQu"] + self["northward_wind"] * self["dQv"]
@@ -125,7 +140,10 @@ def horizontal_wind_tendency_parallel_to_horizontal_wind(self):
     return tendency_projection_onto_wind
 
 
-@DerivedMapping.register("net_shortwave_sfc_flux_derived")
+@DerivedMapping.register(
+    "net_shortwave_sfc_flux_derived",
+    required_inputs=["surface_diffused_shortwave_albedo"],
+)
 def net_shortwave_sfc_flux_derived(self):
     # Positive = downward direction
     albedo = self["surface_diffused_shortwave_albedo"]

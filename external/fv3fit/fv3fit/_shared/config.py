@@ -70,6 +70,9 @@ class TrainingConfig:
         sample_dim_name: deprecated, internal name used for sample dimension
             when training and predicting
         random_seed: value to use to initialize randomness
+        derived_output_variables: optional list of prediction variables that
+            are not directly predicted by the ML model but instead are derived
+            using the ML-predicted output_variables
     """
 
     model_type: str
@@ -79,6 +82,7 @@ class TrainingConfig:
     additional_variables: List[str] = dataclasses.field(default_factory=list)
     sample_dim_name: str = "sample"
     random_seed: Union[float, int] = 0
+    derived_output_variables: List[str] = dataclasses.field(default_factory=list)
 
     @classmethod
     def from_dict(cls, kwargs) -> "TrainingConfig":
@@ -280,6 +284,7 @@ class _ModelTrainingConfig:
     save_model_checkpoints: bool = False
     model_path: str = ""
     timesteps_source: str = "timesteps_file"
+    derived_output_variables: List[str] = dataclasses.field(default_factory=list)
 
     def __post_init__(self):
         if self.scaler_type == "mass":
@@ -313,6 +318,7 @@ def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> Training
         "additional_variables",
         "random_seed",
         "sample_dim_name",
+        "derived_output_variables",
     ]
     if config_class is RandomForestHyperparameters:
         for key in ("scaler_type", "scaler_kwargs"):
