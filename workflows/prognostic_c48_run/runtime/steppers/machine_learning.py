@@ -3,7 +3,7 @@
 import dataclasses
 import logging
 import os
-from typing import Hashable, Iterable, Mapping, Sequence, Set, Tuple, cast
+from typing import Hashable, Iterable, Mapping, Optional, Sequence, Set, Tuple, cast
 
 import fv3fit
 import xarray as xr
@@ -128,16 +128,18 @@ def region_mask(regions, land_sea_mask):
 
 
 class MultiModelAdapter:
-    def __init__(self, models: Iterable[RenamingAdapter], regions: Sequence[Sequence[str]]):
+    def __init__(self, models: Iterable[RenamingAdapter], regions: Optional[Sequence[Sequence[str]]] = None):
         self.models = models
-        self.regions = regions
+        if regions is not None:
+            self.regions = regions
+        else: self.regions = []
 
     @property
     def input_variables(self) -> Set[str]:
         vars = [model.input_variables for model in self.models]
         return {var for model_vars in vars for var in model_vars}
 
-    def predict_columnwise(self, arg: xr.Dataset, land_sea_mask, **kwargs) -> xr.Dataset:
+    def predict_columnwise(self, arg: xr.Dataset, land_sea_mask=None, **kwargs) -> xr.Dataset:
         predictions = []
         for model in self.models:
             predictions.append(model.predict_columnwise(arg, **kwargs))

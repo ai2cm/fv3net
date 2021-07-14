@@ -66,7 +66,7 @@ def test_MultiModelAdapter_combines_predictions():
     ds = xr.Dataset({"x": (["dim_0", "dim_1"], np.ones((5, 10)))})
     model0 = MockPredictor(output_variables=["y0"], input_variables=["x"])
     model1 = MockPredictor(output_variables=["y1"], input_variables=["x"])
-    combined_model = MultiModelAdapter([model0, model1], [])
+    combined_model = MultiModelAdapter([model0, model1])
     out = combined_model.predict_columnwise(ds)
     assert "y0" in out.data_vars and "y1" in out.data_vars
 
@@ -77,6 +77,6 @@ def test_MultiModelAdapter_exception_on_output_overlap():
     model1 = MockPredictor(
         output_variables=["y0"], input_variables=["x"], output_scaling=2.0
     )
-    combined_model = MultiModelAdapter([model0, model1], [])
+    combined_model = MultiModelAdapter([model0, model1])
     with pytest.raises(xr.MergeError):
         combined_model.predict_columnwise(ds)
