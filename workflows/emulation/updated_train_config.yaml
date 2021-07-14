@@ -1,0 +1,19 @@
+model:
+  name: MLPEmulator
+  model_kwargs:
+    depth: 2
+    width: 250
+input_preprocessing:
+  transforms:
+    - to_tensors: {}
+    - maybe_expand_feature_dim: {}
+    - maybe_subselect:
+        subselection_map: 
+          specific_humidity:  [15, null]
+          tendency_of_specific_humidity_due_to_fv3_physics: [15, null]
+input_variables:
+  - air_temperature
+  - specific_humidity
+output_variables:
+  - tendency_of_specific_humidity_due_to_fv3_physics
+  - tendency_of_air_temperature_due_to_fv3_physics

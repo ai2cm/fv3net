@@ -1,0 +1,37 @@
+source_path: gs://vcm-ml-scratch/andrep/all-physics-emu/training-online-simple-hybedmf/
+destination_path: gs://vcm-ml-scratch/andrep/all-physics-emu/validation-subsets/training-online-simple-hybedmf/
+init_times: 
+  - "20160802.220000"
+  - "20160805.050000"
+  - "20160806.140000"
+variables: 
+  - cos_day
+  - sin_day
+  - cos_month
+  - sin_month
+  - latitude
+  - longitude
+  - cos_lon
+  - sin_lon
+  - cos_zenith_angle
+  - vertical_thickness_of_atmospheric_layer
+  - pressure_thickness_of_atmospheric_layer
+  - surface_pressure
+  - eastward_wind
+  - northward_wind
+  - vertical_wind
+  - air_temperature
+  - specific_humidity
+  # - cloud_water_mixing_ratio
+  # - total_soil_moisture
+  # - liquid_soil_moisture
+  # - soil_temperature
+  # - surface_temperature
+  # - canopy_water
+  # - sea_ice_thickness
+  # - snow_depth_water_equivalent
+  - tendency_of_air_temperature_due_to_fv3_physics
+  - tendency_of_specific_humidity_due_to_fv3_physics
+  - tendency_of_eastward_wind_due_to_fv3_physics
+  - tendency_of_northward_wind_due_to_fv3_physics
+  - tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics
