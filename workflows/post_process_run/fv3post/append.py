@@ -255,9 +255,6 @@ def append_segment(rundir: str, destination: str, segment_label: str, no_copy: b
     Zarr's will be appended to in place, while all other files will be saved to
     DESTINATION/artifacts/SEGMENT_LABEL.
     """
-    logger.info(f"Appending {rundir} to {destination}")
-    authenticate()
-
     if not segment_label:
         segment_label = _get_initial_timestamp(rundir)
 
@@ -312,6 +309,8 @@ def _create_tmp_artifacts_dir(root, segment_label):
     help="Skip local copy of RUNDIR. Warning: will modify and delete files in RUNDIR.",
 )
 def main(rundir: str, destination: str, segment_label: str, no_copy: bool):
+    logger.info(f"Appending {rundir} to {destination}")
+    authenticate()
     append_segment(rundir, destination, segment_label, no_copy)
 
 
