@@ -285,7 +285,7 @@ if __name__ == "__main__":
         diurnal_nc_name=NC_FILE_DIURNAL,
         transect_nc_name=NC_FILE_TRANSECT,
         metrics_json_name=JSON_FILE_METRICS,
-        config_name="config.yaml",
+        config_name="data_config.yaml",
     )
     ds_diags = ds_diags.pipe(insert_dataset_r2).pipe(mse_to_rmse)
 

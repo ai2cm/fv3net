@@ -6,6 +6,7 @@ import random
 import shutil
 from typing import Mapping, Sequence, Dict, List, Tuple, Iterable
 import warnings
+import vcm
 import xarray as xr
 import yaml
 
@@ -192,13 +193,16 @@ def open_diagnostics_outputs(
     transect_nc_name: str,
     metrics_json_name: str,
     config_name: str,
-):
+) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset, dict, dict]:
     with fsspec.open(os.path.join(data_dir, diagnostics_nc_name), "rb") as f:
         ds_diags = xr.open_dataset(f).load()
     with fsspec.open(os.path.join(data_dir, diurnal_nc_name), "rb") as f:
         ds_diurnal = xr.open_dataset(f).load()
-    with fsspec.open(os.path.join(data_dir, transect_nc_name), "rb") as f:
-        ds_transect = xr.open_dataset(f).load()
+    if vcm.get_fs(transect_nc_name).exists(transect_nc_name):
+        with fsspec.open(os.path.join(data_dir, transect_nc_name), "rb") as f:
+            ds_transect = xr.open_dataset(f).load()
+    else:
+        ds_transect = xr.Dataset()
     with fsspec.open(os.path.join(data_dir, metrics_json_name), "r") as f:
         metrics = json.load(f)
     with fsspec.open(os.path.join(data_dir, config_name), "r") as f:
