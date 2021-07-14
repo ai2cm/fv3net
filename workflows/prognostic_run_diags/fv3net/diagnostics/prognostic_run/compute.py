@@ -450,6 +450,8 @@ def main(args):
     catalog = intake.open_catalog(args.catalog)
     prognostic = load_diags.SegmentedRun(args.url, catalog)
     verification = get_verification(args, catalog)
+    attrs["verification"] = str(verification)
+
     grid = load_diags.load_grid(catalog)
     input_data = load_diags.evaluation_pair_to_input_data(
         prognostic, verification, grid

@@ -244,6 +244,9 @@ class CatalogSimulation:
     def data_3d(self) -> xr.Dataset:
         return load_verification(self._verif_entries["3d"], self.catalog)
 
+    def __str__(self) -> str:
+        return self.tag
+
 
 @dataclass
 class SegmentedRun:
@@ -261,6 +264,9 @@ class SegmentedRun:
     @property
     def data_3d(self) -> xr.Dataset:
         return load_3d(self.url, self.catalog)
+
+    def __str__(self) -> str:
+        return self.url
 
 
 def evaluation_pair_to_input_data(
