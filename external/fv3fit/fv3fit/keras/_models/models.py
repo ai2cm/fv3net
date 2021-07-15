@@ -12,7 +12,7 @@ import dataclasses
 
 from ..._shared.packer import ArrayPacker, unpack_matrix
 from ..._shared.predictor import Predictor
-from ..._shared import io
+from ..._shared import io, stack_batches, stack_dataset
 from ..._shared.config import DenseHyperparameters, register_training_function
 import numpy as np
 import os
@@ -185,7 +185,7 @@ class DenseModel(Predictor):
         e.g. {"loss": [[epoch0_loss], [epoch1_loss]]}
         
         Args:
-            batches: sequence of stacked datasets of predictor variables
+            batches: sequence of unstacked datasets of predictor variables
             validation_dataset: optional validation dataset
             epochs: optional number of times through the batches to run when training.
                 Defaults to 1.
@@ -216,8 +216,8 @@ class DenseModel(Predictor):
         fit_kwargs = _fill_default(
             fit_kwargs, use_last_batch_to_validate, "use_last_batch_to_validate", False
         )
-
-        Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
+        stacked_batches = stack_batches(batches)
+        Xy = _XyArraySequence(self.X_packer, self.y_packer, stacked_batches)
 
         if self._model is None:
             X, y = Xy[0]
@@ -227,7 +227,7 @@ class DenseModel(Predictor):
 
         validation_data: Optional[Tuple[np.ndarray, np.ndarray]]
         validation_dataset = (
-            validation_dataset
+            stack_dataset(validation_dataset)
             if validation_dataset is not None
             else fit_kwargs.pop("validation_dataset", None)
         )
