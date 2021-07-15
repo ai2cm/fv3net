@@ -151,3 +151,27 @@ def net_shortwave_sfc_flux_derived(self):
         "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface"
     ]
     return (1 - albedo) * downward_sfc_shortwave_flux
+
+
+@DerivedMapping.register(
+    "is_land", required_inputs=["land_sea_mask"],
+)
+def is_land(self):
+    # one hot encoding for land / (sea or sea ice) surface
+    return xr.where(self["land_sea_mask"] == 1, 1.0, 0.0)
+
+
+@DerivedMapping.register(
+    "is_sea", required_inputs=["land_sea_mask"],
+)
+def is_sea(self):
+    # one hot encoding for sea surface
+    return xr.where(self["land_sea_mask"] == 0, 1.0, 0.0)
+
+
+@DerivedMapping.register(
+    "is_sea_ice", required_inputs=["land_sea_mask"],
+)
+def is_sea_ice(self):
+    # one hot encoding for sea ice surface
+    return xr.where(self["land_sea_mask"] == 2, 1.0, 0.0)
