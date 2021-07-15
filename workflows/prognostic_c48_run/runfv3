@@ -41,7 +41,6 @@ function createRun {
     url="$1"
     fv3config="$2"
 
-    # TODO fix this command
     segmented-run-create $url $fv3config
 }
 
@@ -101,7 +100,6 @@ function appendSegment {
     postProcessedOut="$workingDir/post_processed"
 
     set +e
-    # TODO fix runSegment
     runSegment "$workingDir/fv3config.yml" "$rundir"
     fv3ExitCode=$?
     set -e

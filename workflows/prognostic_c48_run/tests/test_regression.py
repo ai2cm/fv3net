@@ -526,9 +526,6 @@ def test_fv3run_checksum_restarts(completed_rundir, regtest):
     Additional Predictor model types and configurations should be tested against
     the base class in the fv3fit test suite.
     """
-    # TODO: The checksum currently changes with new commits/updates. Figure out why
-    # This checksum can be updated if checksum is expected to change
-    # perhaps if an external library is updated.
     fv_core = completed_rundir.join("RESTART").join("fv_core.res.tile1.nc")
     print(fv_core.computehash(), file=regtest)
 
