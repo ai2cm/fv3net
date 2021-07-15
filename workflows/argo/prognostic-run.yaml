@@ -58,7 +58,6 @@ spec:
           arguments:
             artifacts:
               - {name: fv3config, from: "{{steps.prepare-config.outputs.artifacts.fv3config}}"}
-              - {name: runfile, from: "{{steps.prepare-config.outputs.artifacts.runfile}}"}
             parameters:
               - {name: output-url, value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run"}
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
@@ -103,8 +102,6 @@ spec:
       outputs:
         artifacts:
           - {name: fv3config, path: /tmp/fv3config.yaml}
-          - name: runfile
-            path: /tmp/runfile.py
       container:
         image: us.gcr.io/vcm-ml/prognostic_run
         command: ["bash", "-c", "-x", "-e"]
@@ -117,8 +114,6 @@ spec:
             cat << EOF > config.yaml
             {{inputs.parameters.config}}
             EOF
-
-            cp /fv3net/workflows/prognostic_c48_run/sklearn_runfile.py  /tmp/runfile.py
 
             python3 prepare_config.py \
               {{inputs.parameters.flags}} \

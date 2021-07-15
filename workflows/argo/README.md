@@ -93,7 +93,7 @@ python3 /fv3net/workflows/prognostic_c48_run/prepare_config.py \
 ```
 And then
 ```
-runfv3 create {output} /tmp/fv3config.yaml /fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
+runfv3 create {output} /tmp/fv3config.yaml
 ```
 Followed by `segment-count` iterations of
 ```

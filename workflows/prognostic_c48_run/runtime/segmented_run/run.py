@@ -2,10 +2,12 @@ import sys
 import subprocess
 import os
 import glob
-import shutil
 import contextlib
+from pathlib import Path
 
 import fv3config
+
+runfile = Path(__file__).parent.parent / "main.py"
 
 
 @contextlib.contextmanager
@@ -20,10 +22,8 @@ def find(path: str):
     return glob.glob(os.path.join(path, "**"), recursive=True)
 
 
-def run_segment(config: dict, rundir: str, runfile: str):
+def run_segment(config: dict, rundir: str):
     fv3config.write_run_directory(config, rundir)
-    shutil.copy(runfile, os.path.join(rundir, "runfile.py"))
-
     with cwd(rundir):
         manifest = find(".")
         with open("preexisting_files.txt", "w") as f:
@@ -39,7 +39,7 @@ def run_segment(config: dict, rundir: str, runfile: str):
                     "-n",
                     str(nprocs),
                     sys.executable,
-                    os.path.abspath(runfile),
+                    runfile.absolute().as_posix(),
                 ],
                 stdout=f,
                 stderr=f,
@@ -47,7 +47,7 @@ def run_segment(config: dict, rundir: str, runfile: str):
 
 
 def main():
-    config_path, rundir, runfile = sys.argv[1:]
+    config_path, rundir = sys.argv[1:]
     with open(config_path) as f:
         config = fv3config.load(f)
-    run_segment(config, rundir, runfile)
+    run_segment(config, rundir)
