@@ -158,7 +158,7 @@ def net_shortwave_sfc_flux_derived(self):
 )
 def is_land(self):
     # one hot encoding for land / (sea or sea ice) surface
-    return xr.where(self["land_sea_mask"] == 1, 1.0, 0.0)
+    return xr.where(vcm.xarray_utils.isclose(self["land_sea_mask"], 1), 1.0, 0.0)
 
 
 @DerivedMapping.register(
@@ -166,7 +166,7 @@ def is_land(self):
 )
 def is_sea(self):
     # one hot encoding for sea surface
-    return xr.where(self["land_sea_mask"] == 0, 1.0, 0.0)
+    return xr.where(vcm.xarray_utils.isclose(self["land_sea_mask"], 0), 1.0, 0.0)
 
 
 @DerivedMapping.register(
@@ -174,4 +174,4 @@ def is_sea(self):
 )
 def is_sea_ice(self):
     # one hot encoding for sea ice surface
-    return xr.where(self["land_sea_mask"] == 2, 1.0, 0.0)
+    return xr.where(vcm.xarray_utils.isclose(self["land_sea_mask"], 2), 1.0, 0.0)
