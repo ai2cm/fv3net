@@ -12,7 +12,7 @@ import dataclasses
 
 from ..._shared.packer import ArrayPacker, unpack_matrix
 from ..._shared.predictor import Predictor
-from ..._shared import io, stack_batches, stack_dataset
+from ..._shared import io, stack_batches, stack_non_vertical
 from ..._shared.config import DenseHyperparameters, register_training_function
 import numpy as np
 import os
@@ -227,7 +227,7 @@ class DenseModel(Predictor):
 
         validation_data: Optional[Tuple[np.ndarray, np.ndarray]]
         validation_dataset = (
-            stack_dataset(validation_dataset)
+            stack_non_vertical(validation_dataset)
             if validation_dataset is not None
             else fit_kwargs.pop("validation_dataset", None)
         )
@@ -307,9 +307,10 @@ class DenseModel(Predictor):
                 )
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
-        sample_coord = X[self.sample_dim_name]
+        stacked_X = stack_non_vertical(X)
+        sample_coord = stacked_X[self.sample_dim_name]
         ds_pred = self.y_packer.to_dataset(
-            self.predict_array(self.X_packer.to_array(X))
+            self.predict_array(self.X_packer.to_array(stacked_X))
         )
         return ds_pred.assign_coords({self.sample_dim_name: sample_coord})
 
