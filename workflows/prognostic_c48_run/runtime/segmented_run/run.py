@@ -3,8 +3,11 @@ import subprocess
 import os
 import glob
 import contextlib
+from pathlib import Path
 
 import fv3config
+
+runfile = Path(__file__).parent.parent / "main.py"
 
 
 @contextlib.contextmanager
@@ -31,7 +34,13 @@ def run_segment(config: dict, rundir: str):
         nprocs = x * y * 6
         with open("logs.txt", "w") as f:
             subprocess.check_call(
-                ["mpirun", "-n", str(nprocs), sys.executable, "-m", "runtime"],
+                [
+                    "mpirun",
+                    "-n",
+                    str(nprocs),
+                    sys.executable,
+                    runfile.absolute().as_posix(),
+                ],
                 stdout=f,
                 stderr=f,
             )
