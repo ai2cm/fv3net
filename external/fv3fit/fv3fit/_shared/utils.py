@@ -23,18 +23,14 @@ def parse_data_path(data_path: Union[List, str]):
 def stack_batches(
     batches: Sequence[xr.Dataset], random_state: RandomState
 ) -> Sequence[xr.Dataset]:
-    for ds in batches:
-        yield stack_dataset(ds, random_state)
+    for ds_unstacked in batches:
+        ds = stack_non_vertical(ds_unstacked).load().dropna(dim=SAMPLE_DIM_NAME)
+        ds = _check_empty(ds)
+        ds = _preserve_samples_per_batch(ds)
+        yield _shuffled(ds, random_state)
 
 
-def stack_dataset(ds_unstacked: xr.Dataset, random_state: RandomState) -> xr.Dataset:
-    ds = _stack_non_vertical(ds_unstacked).load().dropna(dim=SAMPLE_DIM_NAME)
-    ds = _check_empty(ds)
-    ds = _preserve_samples_per_batch(ds)
-    return _shuffled(ds, random_state)
-
-
-def _stack_non_vertical(ds: xr.Dataset,) -> xr.Dataset:
+def stack_non_vertical(ds: xr.Dataset,) -> xr.Dataset:
     """
     Stack all dimensions except for the Z dimensions into a sample
 

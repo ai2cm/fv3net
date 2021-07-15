@@ -13,5 +13,5 @@ from .scaler import (
     NormalizeTransform,
 )
 from .predictor import Predictor
-from .utils import parse_data_path, stack_batches, stack_dataset
+from .utils import parse_data_path, stack_batches, stack_non_vertical
 from .models import EnsembleModel, DerivedModel
