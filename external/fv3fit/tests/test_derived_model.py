@@ -20,11 +20,18 @@ base_model.set_outputs(
 )
 
 
+def test_get_additional_inputs():
+    derived_model = DerivedModel(
+        base_model, derived_output_variables=["net_shortwave_sfc_flux_derived"],
+    )
+    assert (
+        "surface_diffused_shortwave_albedo" in derived_model._additional_input_variables
+    )
+
+
 def test_derived_prediction():
     derived_model = DerivedModel(
-        base_model,
-        additional_input_variables=["surface_diffused_shortwave_albedo"],
-        derived_output_variables=["net_shortwave_sfc_flux_derived"],
+        base_model, derived_output_variables=["net_shortwave_sfc_flux_derived"],
     )
     ds_in = xr.Dataset(
         data_vars={
@@ -40,9 +47,7 @@ def test_derived_prediction():
 
 def test_derived_alert_to_missing_additional_input():
     derived_model = DerivedModel(
-        base_model,
-        additional_input_variables=["surface_diffused_shortwave_albedo"],
-        derived_output_variables=["net_shortwave_sfc_flux_derived"],
+        base_model, derived_output_variables=["net_shortwave_sfc_flux_derived"],
     )
     ds_in = xr.Dataset(
         data_vars={"input": xr.DataArray(np.zeros([3, 3, 5]), dims=["x", "y", "z"])}
@@ -54,7 +59,27 @@ def test_derived_alert_to_missing_additional_input():
 def test_invalid_derived_output_variables():
     with pytest.raises(ValueError):
         DerivedModel(
-            base_model,
-            additional_input_variables=["surface_diffused_shortwave_albedo"],
-            derived_output_variables=["variable_not_in_DerivedMapping"],
+            base_model, derived_output_variables=["variable_not_in_DerivedMapping"],
         )
+
+
+def test_dump_and_load(tmpdir):
+    derived_model = DerivedModel(
+        base_model, derived_output_variables=["net_shortwave_sfc_flux_derived"],
+    )
+    ds_in = xr.Dataset(
+        data_vars={
+            "input": xr.DataArray(np.zeros([3, 3, 5]), dims=["x", "y", "z"],),
+            "surface_diffused_shortwave_albedo": xr.DataArray(
+                np.zeros([3, 3]), dims=["x", "y"],
+            ),
+        }
+    )
+    input_data = ds_in.stack(sample=["x", "y"])
+    prediction = derived_model.predict(input_data)
+
+    fv3fit.dump(derived_model, str(tmpdir))
+    loaded_model = fv3fit.load(str(tmpdir))
+
+    prediction_after_load = loaded_model.predict(input_data)
+    assert prediction_after_load.identical(prediction)

@@ -26,7 +26,7 @@ def run_segment(config: dict, rundir: str, runfile: str):
 
     with cwd(rundir):
         manifest = find(".")
-        with open("preexisting-files.txt", "w") as f:
+        with open("preexisting_files.txt", "w") as f:
             for path in manifest:
                 print(path, file=f)
 
