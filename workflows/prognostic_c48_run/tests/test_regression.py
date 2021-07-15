@@ -23,7 +23,6 @@ FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
 LOG_PATH = "logs.txt"
 STATISTICS_PATH = "statistics.txt"
 PROFILES_PATH = "profiles.txt"
-RUNFILE_PATH = "runfile.py"
 CHUNKS_PATH = "chunks.yaml"
 
 
@@ -342,11 +341,11 @@ TIME_FMT = "%Y%m%d.%H%M%S"
 RUNTIME = {"days": 0, "months": 0, "hours": 0, "minutes": RUNTIME_MINUTES, "seconds": 0}
 
 
-def run_native(config, rundir, runfile):
+def run_native(config, rundir):
     with tempfile.NamedTemporaryFile("w") as f:
         yaml.safe_dump(config, f)
         fv3_script = Path(__file__).parent.parent.joinpath("runfv3").as_posix()
-        subprocess.check_call([fv3_script, "run-native", f.name, str(rundir), runfile])
+        subprocess.check_call([fv3_script, "run-native", f.name, str(rundir)])
 
 
 def assets_from_initial_condition_dir(dir_: str):
@@ -517,9 +516,8 @@ def completed_rundir(configuration, tmpdir_factory):
     else:
         raise NotImplementedError()
 
-    runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
     rundir = tmpdir_factory.mktemp("rundir")
-    run_native(config, str(rundir), runfile)
+    run_native(config, str(rundir))
     return rundir
 
 
@@ -538,10 +536,6 @@ def test_fv3run_checksum_restarts(completed_rundir, regtest):
 @pytest.mark.parametrize("path", [LOG_PATH, STATISTICS_PATH, PROFILES_PATH])
 def test_fv3run_logs_present(completed_rundir, path):
     assert completed_rundir.join(path).exists()
-
-
-def test_runfile_script_present(completed_rundir):
-    assert completed_rundir.join(RUNFILE_PATH).exists()
 
 
 def test_chunks_present(completed_rundir):

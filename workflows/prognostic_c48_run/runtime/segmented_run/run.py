@@ -2,7 +2,6 @@ import sys
 import subprocess
 import os
 import glob
-import shutil
 import contextlib
 
 import fv3config
@@ -20,10 +19,8 @@ def find(path: str):
     return glob.glob(os.path.join(path, "**"), recursive=True)
 
 
-def run_segment(config: dict, rundir: str, runfile: str):
+def run_segment(config: dict, rundir: str):
     fv3config.write_run_directory(config, rundir)
-    shutil.copy(runfile, os.path.join(rundir, "runfile.py"))
-
     with cwd(rundir):
         manifest = find(".")
         with open("preexisting_files.txt", "w") as f:
@@ -34,20 +31,14 @@ def run_segment(config: dict, rundir: str, runfile: str):
         nprocs = x * y * 6
         with open("logs.txt", "w") as f:
             subprocess.check_call(
-                [
-                    "mpirun",
-                    "-n",
-                    str(nprocs),
-                    sys.executable,
-                    os.path.abspath(runfile),
-                ],
+                ["mpirun", "-n", str(nprocs), sys.executable, "-m", "runtime"],
                 stdout=f,
                 stderr=f,
             )
 
 
 def main():
-    config_path, rundir, runfile = sys.argv[1:]
+    config_path, rundir = sys.argv[1:]
     with open(config_path) as f:
         config = fv3config.load(f)
-    run_segment(config, rundir, runfile)
+    run_segment(config, rundir)

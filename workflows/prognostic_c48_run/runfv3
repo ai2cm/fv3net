@@ -22,9 +22,9 @@ function usage {
     echo "Google Cloud Storage locations should start with 'gs:'."
     echo ""
     echo "Usage:"
-    echo " runfv3 create <outputUrl> <fv3configFile> <runFile>" > /dev/stderr 
-    echo " runfv3 append <outputUrl>" > /dev/stderr 
-    echo " runfv3 run-native <fv3config> <rundir> <runfile>" > /dev/stderr
+    echo " runfv3 create <outputUrl> <fv3configFile>" > /dev/stderr
+    echo " runfv3 append <outputUrl>" > /dev/stderr
+    echo " runfv3 run-native <fv3config> <rundir>" > /dev/stderr
     echo ""
     echo "Segmented Run Commands:"
     echo "  create      Initialize a segmented run in GCS"
@@ -40,9 +40,9 @@ function usage {
 function createRun {
     url="$1"
     fv3config="$2"
-    runfile="$3"
 
-    segmented-run-create $url $fv3config $runfile
+    # TODO fix this command
+    segmented-run-create $url $fv3config
 }
 
 function readRunConfig {
@@ -99,10 +99,10 @@ function appendSegment {
 
     rundir="$workingDir/rundir"
     postProcessedOut="$workingDir/post_processed"
-    gsutil cp "$runURL/runfile.py" "$workingDir/runfile.py"
 
     set +e
-    runSegment "$workingDir/fv3config.yml" "$rundir" "$workingDir/runfile.py"
+    # TODO fix runSegment
+    runSegment "$workingDir/fv3config.yml" "$rundir"
     fv3ExitCode=$?
     set -e
 
