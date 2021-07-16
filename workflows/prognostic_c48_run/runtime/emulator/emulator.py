@@ -7,7 +7,6 @@ import numpy
 import tensorflow as tf
 import dacite
 from runtime.emulator.loggers import WandBLogger, ConsoleLogger, TBLogger, LoggerList
-import wandb
 from runtime.emulator.loss import RHLoss, ScalarLoss, MultiVariableLoss
 from runtime.emulator.thermo import (
     RelativeHumidityBasis,
@@ -584,12 +583,6 @@ def get_model(config: OnlineEmulatorConfig) -> tf.keras.Model:
 def get_emulator(config: OnlineEmulatorConfig):
     if config.checkpoint:
         logging.info(f"Loading emulator from checkpoint {config.checkpoint}")
-        api = wandb.Api()
-        artifact = api.artifact(config.checkpoint)
-        # named wandb-artifacts to hack around this bug:
-        # https://github.com/VulcanClimateModeling/fv3net/issues/1293
-        # TODO remove the "root" argument once this is fixed
-        path = artifact.download(root="wandb-artifacts")
-        return OnlineEmulator.load(path)
+        return OnlineEmulator.load(config.checkpoint)
     else:
         return OnlineEmulator(config)
