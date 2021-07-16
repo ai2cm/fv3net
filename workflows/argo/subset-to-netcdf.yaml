@@ -5,7 +5,7 @@ metadata:
 spec:
   arguments:
     parameters:
-    - name: subset_config
+    - name: subset-config
   entrypoint: regrid
   volumes:
   - name: gcp-credentials-user-gcp-sa
@@ -35,7 +35,7 @@ spec:
       args:
         - |
           cat << EOF > subset_config.yaml
-          {{workflow.parameters.subset_config}}
+          {{workflow.parameters.subset-config}}
           EOF
 
           python3 subset_training_data.py subset_config.yaml
