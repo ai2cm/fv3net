@@ -13,6 +13,11 @@ spec:
       secretName: gcp-key
   templates:
   - name: subset
+    tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "med-sim-pool"
+        effect: "NoSchedule"
     container:
       image: us.gcr.io/vcm-ml/fv3net
       env:
@@ -23,13 +28,6 @@ spec:
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-credentials-user-gcp-sa
-      resources:
-        request:
-          cpu: "3.5"
-          memory: "6Gi"
-        limit:
-          cpu: "8"
-          memory: "12Gi"
       command: ["bash", "-c", "-x", "-e"]
       workingDir: /home/jovyan/fv3net/workflows/emulation
       args:
@@ -39,3 +37,10 @@ spec:
           EOF
 
           python3 subset_training_data.py subset_config.yaml
+      resources:
+        requests:
+          cpu: "3500m"
+          memory: "6Gi"
+        limits:
+          cpu: "8"
+          memory: "15Gi"
