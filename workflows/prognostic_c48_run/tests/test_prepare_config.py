@@ -1,4 +1,4 @@
-import prepare_config
+from runtime.segmented_run import prepare_config
 import dacite
 import dataclasses
 from runtime.config import UserConfig

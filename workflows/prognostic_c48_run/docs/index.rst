@@ -18,7 +18,7 @@ line utilities:
 .. graphviz::
 
    digraph foo {
-      "minimal-fv3config.yml" -> "full fv3config.yml" [label="prepare_config.py"];
+      "minimal-fv3config.yml" -> "full fv3config.yml" [label="prepare-config"];
       "full fv3config.yml" -> "Segmented run" [label="runfv3 create"];
       "Segmented run" -> "Segmented run" [label="runfv3 append"];
    }
