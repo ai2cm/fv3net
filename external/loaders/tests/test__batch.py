@@ -68,14 +68,13 @@ def test_batches_from_mapper(mapper):
     batched_data_sequence = batches_from_mapper(
         mapper, DATA_VARS, timesteps_per_batch=2, needs_grid=False,
     )
+    original_dims = set(batched_data_sequence[0].dims)
     assert len(batched_data_sequence) == 2
-    expected_num_samples = 6 * 48 * 48 * 2
     for i, batch in enumerate(batched_data_sequence):
         assert len(batch["z"]) == Z_DIM_SIZE
         assert set(batch.data_vars) == set(DATA_VARS)
         for name in batch.data_vars.keys():
-            assert batch[name].dims[0] == loaders.SAMPLE_DIM_NAME
-            assert batch[name].sizes[loaders.SAMPLE_DIM_NAME] == expected_num_samples
+            assert set(batch[name].dims) == original_dims
 
 
 @pytest.mark.parametrize(
@@ -92,7 +91,6 @@ def test_batches_from_mapper_timestep_list(
         timesteps=timestep_list,
         needs_grid=False,
     )
-    print(batched_data_sequence._args)
     assert len(batched_data_sequence) == valid_num_batches
     timesteps_used = sum(batched_data_sequence._args, ())  # flattens list
     assert set(timesteps_used).issubset(timestep_list)
@@ -112,7 +110,7 @@ def test__batches_from_mapper_invalid_times(mapper):
 
 def test_diagnostic_batches_from_mapper(mapper):
     batched_data_sequence = batches_from_mapper(
-        mapper, DATA_VARS, timesteps_per_batch=2, training=False, needs_grid=False,
+        mapper, DATA_VARS, timesteps_per_batch=2, needs_grid=False,
     )
     assert len(batched_data_sequence) == len(mapper) // 2 + len(mapper) % 2
     for i, batch in enumerate(batched_data_sequence):
@@ -127,7 +125,7 @@ def test_diagnostic_batches_from_mapper(mapper):
         pytest.param([0, 1, 2, 3, 4, 5], id="zero-indexed"),
     ],
 )
-def test_baches_from_mappper_different_indexing_conventions(tiles):
+def test_batches_from_mappper_different_indexing_conventions(tiles):
     n = 48
     ds = xr.Dataset(
         {"a": (["time", "tile", "y", "x"], np.zeros((1, 6, n, n)))},
@@ -135,6 +133,5 @@ def test_baches_from_mappper_different_indexing_conventions(tiles):
     )
     mapper = loaders.mappers.XarrayMapper(ds)
     seq = batches_from_mapper(mapper, ["a", "lon"], res=f"c{n}")
-
     assert len(seq) == 1
     assert ds.a[0].size == seq[0].a.size
