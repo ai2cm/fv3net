@@ -115,7 +115,7 @@ spec:
             {{inputs.parameters.config}}
             EOF
 
-            python3 prepare_config.py \
+            prepare-config \
               {{inputs.parameters.flags}} \
               config.yaml \
               {{inputs.parameters.reference-restarts}} \
