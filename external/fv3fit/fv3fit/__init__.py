@@ -5,7 +5,6 @@ from ._shared.config import (
     TrainingConfig,
     DenseHyperparameters,
     RandomForestHyperparameters,
-    load_training_config,
     set_random_seed,
     get_training_function,
     get_hyperparameter_class,
