@@ -1,9 +1,9 @@
 import argparse
 import fsspec
-from numpy.ma.core import default_fill_value
 import yaml
 import logging
 import os
+import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, asdict, field
@@ -78,9 +78,8 @@ def run_subsample_threaded(num_workers, outdir, batches, template="window_{idx:0
 
 def save_to_destination(source, destination):
 
-    fs = fsspec.get_fs_token_paths(destination)[0]
-    fs.makedirs(destination, exist_ok=True)
-    fs.put(source, destination, recursive=True)
+    command = ["gsutil", "-m", "cp", "-r", f"{source}", f"{destination}"]
+    subprocess.check_call(command)
 
 
 if __name__ == "__main__":
