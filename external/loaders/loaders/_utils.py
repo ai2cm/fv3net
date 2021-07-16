@@ -79,7 +79,7 @@ def add_wind_rotation_info(res: str, ds: xr.Dataset) -> xr.Dataset:
         res: grid resolution, format as f'c{number cells in tile}'
     """
 
-    rotation = _load_wind_rotation_matrix(res)
+    rotation = _load_wind_rotation_matrix(res).drop("tile")
     common_coords = {"x": ds["x"].values, "y": ds["y"].values}
     rotation = rotation.assign_coords(common_coords)
     return ds.merge(rotation, compat="override")
