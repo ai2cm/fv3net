@@ -5,6 +5,54 @@ import pytest
 import tempfile
 import subprocess
 import os
+import cftime
+import xarray
+import numpy as np
+
+
+@pytest.fixture
+def data_info(tmpdir):
+
+    # size needs to be 48 or an error happens. Is there a hardcode in fv3fit
+    # someplace?...maybe where the grid data is loaded?
+    x, y, z, tile, time = (8, 8, 79, 6, 2)
+    arr = np.zeros((time, tile, z, y, x))
+    arr_surf = np.zeros((time, tile, y, x))
+    dims = ["time", "tile", "z", "y", "x"]
+    dims_surf = ["time", "tile", "y", "x"]
+
+    data = xarray.Dataset(
+        {
+            "specific_humidity": (dims, arr),
+            "air_temperature": (dims, arr),
+            "downward_shortwave": (dims_surf, arr_surf),
+            "net_shortwave": (dims_surf, arr_surf),
+            "downward_longwave": (dims_surf, arr_surf),
+            "dQ1": (dims, arr),
+            "dQ2": (dims, arr),
+            "dQu": (dims, arr),
+            "dQv": (dims, arr),
+        },
+        coords={
+            "time": [
+                cftime.DatetimeJulian(2016, 8, 1),
+                cftime.DatetimeJulian(2016, 8, 2),
+            ]
+        },
+    )
+
+    data.to_zarr(str(tmpdir), consolidated=True)
+    return dict(
+        data_path=str(tmpdir),
+        batch_kwargs=dict(
+            mapping_function="open_zarr",
+            timesteps=["20160801.000000"],
+            needs_grid=False,
+            res="c8_random_values",
+            timesteps_per_batch=1,
+        ),
+        validation_timesteps=["20160802.000000"],
+    )
 
 
 @pytest.mark.parametrize(
