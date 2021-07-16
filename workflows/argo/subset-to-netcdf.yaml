@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: subset-to-netcdf
+spec:
+  arguments:
+    parameters:
+    - name: subset_config
+  entrypoint: regrid
+  volumes:
+  - name: gcp-credentials-user-gcp-sa
+    secret:
+      secretName: gcp-key
+  templates:
+  - name: subset
+    container:
+      image: us.gcr.io/vcm-ml/fv3net
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/gcp-credentials/key.json
+      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+        value: /secret/gcp-credentials/key.json
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-credentials-user-gcp-sa
+      resources:
+        request:
+          cpu: "3.5"
+          memory: "6Gi"
+        limit:
+          cpu: "8"
+          memory: "12Gi"
+      command: ["bash", "-c", "-x", "-e"]
+      workingDir: /home/jovyan/fv3net/workflows/emulation
+      args:
+        - |
+          cat << EOF > subset_config.yaml
+          {{workflow.parameters.subset_config}}
+          EOF
+
+          python3 subset_training_data.py subset_config.yaml
