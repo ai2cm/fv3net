@@ -6,7 +6,7 @@ spec:
   arguments:
     parameters:
     - name: subset-config
-  entrypoint: regrid
+  entrypoint: subset
   volumes:
   - name: gcp-credentials-user-gcp-sa
     secret:
