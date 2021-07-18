@@ -34,7 +34,9 @@ build_image_ci:
 
 # Section for convienience with emulation training
 build_prognostic_images: build_image_fv3fit build_image_post_process_run build_image_fv3net
+	cd workflows/prognostic_c48_run; $(MAKE) build
 push_prognostic_images: push_image_fv3fit push_image_post_process_run push_image_fv3net
+	cd workflows/prognostic_c48_run; $(MAKE) push
 
 ############################################################
 # Documentation (rules match "deploy_docs_%")
