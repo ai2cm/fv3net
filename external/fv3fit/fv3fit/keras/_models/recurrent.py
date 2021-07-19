@@ -542,7 +542,8 @@ class PureKerasModel(Predictor):
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
-        inputs = [X[name].values for name in self.input_variables]
+        stacked_X = stack_non_vertical(X, "sample")
+        inputs = [stacked_X[name].values for name in self.input_variables]
         outputs = self.model.predict(inputs)
         if self._output_metadata is not None:
             return xr.Dataset(
@@ -550,7 +551,9 @@ class PureKerasModel(Predictor):
                     name: xr.DataArray(
                         value,
                         dims=metadata["dims"],
-                        coords={name: X.coords[name] for name in metadata["dims"]},
+                        coords={
+                            name: stacked_X.coords[name] for name in metadata["dims"]
+                        },
                         attrs={"units": metadata["units"]},
                     )
                     for name, value, metadata in zip(
@@ -567,15 +570,15 @@ class PureKerasModel(Predictor):
                 data_vars={
                     "dQ1": xr.DataArray(
                         dQ1,
-                        dims=X["air_temperature"].dims,
-                        coords=X["air_temperature"].coords,
-                        attrs={"units": X["air_temperature"].units + " / s"},
+                        dims=stacked_X["air_temperature"].dims,
+                        coords=stacked_X["air_temperature"].coords,
+                        attrs={"units": stacked_X["air_temperature"].units + " / s"},
                     ),
                     "dQ2": xr.DataArray(
                         dQ2,
-                        dims=X["specific_humidity"].dims,
-                        coords=X["specific_humidity"].coords,
-                        attrs={"units": X["specific_humidity"].units + " / s"},
+                        dims=stacked_X["specific_humidity"].dims,
+                        coords=stacked_X["specific_humidity"].coords,
+                        attrs={"units": stacked_X["specific_humidity"].units + " / s"},
                     ),
                 }
             )
