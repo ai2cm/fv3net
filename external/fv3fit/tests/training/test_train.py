@@ -59,7 +59,7 @@ def assert_can_learn_identity(
     model, test_dataset = train_identity_model(
         model_type, sample_func=sample_func, hyperparameters=hyperparameters
     )
-    out_dataset = model.predict(test_dataset)
+    out_dataset = model.predict(test_dataset).unstack("sample")
     rmse = np.mean((out_dataset["var_out"] - test_dataset["var_out"]) ** 2) ** 0.5
     assert rmse < max_rmse
     if model_type in SYSTEM_DEPENDENT_TYPES:
@@ -130,7 +130,8 @@ def get_uniform_sample_func(size, low=0, high=1, seed=0):
     def sample_func():
         return xr.DataArray(
             random.uniform(low=low, high=high, size=size),
-            dims=["sample", "feature_dim"],
+            dims=["sample_", "feature_dim"],
+            coords=[range(size[0]), range(size[1])],
         )
 
     return sample_func
