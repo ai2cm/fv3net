@@ -86,15 +86,7 @@ class Predictor(abc.ABC):
 
         if feature_dim is not None:
             sample_dims = _infer_sample_dims(inputs_, feature_dim)
-
-        stacked = safe.stack_once(
-            inputs_,
-            self.sample_dim_name,
-            dims=sample_dims,
-            allowed_broadcast_dims=[DATASET_DIM_NAME],
-        )
-        transposed = stacked.transpose(self.sample_dim_name, ...)
-        output = self.predict(transposed).unstack(self.sample_dim_name)
+        output = self.predict(inputs_).unstack(self.sample_dim_name)
 
         # ensure the output coords are the same
         # stack/unstack adds coordinates if none exist before
