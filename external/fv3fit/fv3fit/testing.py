@@ -1,3 +1,4 @@
+from external.fv3fit.fv3fit._shared.utils import stack_non_vertical
 from typing import Any, Dict, Hashable, Iterable, Mapping, Optional, Union
 from ._shared import Predictor, io
 import numpy as np
@@ -55,7 +56,8 @@ class ConstantOutputPredictor(Predictor):
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
-        n_samples = len(X[self.sample_dim_name])
+        stacked_X = stack_non_vertical(X)
+        n_samples = len(stacked_X[self.sample_dim_name])
         data_vars = {}
         for name in self.output_variables:
             output = self._outputs.get(name, 0.0)
@@ -67,9 +69,9 @@ class ConstantOutputPredictor(Predictor):
             else:
                 array = np.full([n_samples], float(output))
                 data_vars[name] = xr.DataArray(data=array, dims=[self.sample_dim_name])
-        if self.sample_dim_name in X.coords:
+        if self.sample_dim_name in stacked_X.coords:
             coords: Optional[Mapping[Hashable, Any]] = {
-                self.sample_dim_name: X.coords[self.sample_dim_name]
+                self.sample_dim_name: stacked_X.coords[self.sample_dim_name]
             }
         else:
             coords = None
