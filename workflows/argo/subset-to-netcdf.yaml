@@ -40,7 +40,7 @@ spec:
       resources:
         requests:
           cpu: "3500m"
-          memory: "6Gi"
+          memory: "15Gi"
         limits:
           cpu: "8"
-          memory: "15Gi"
+          memory: "30Gi"
