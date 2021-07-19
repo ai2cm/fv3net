@@ -16,7 +16,7 @@ from .._shared import (
 )
 from .._shared.config import RandomForestHyperparameters
 from .. import _shared
-from .._shared import scaler, stack_batches, stack_non_vertical
+from .._shared import scaler, StackedBatches, stack_non_vertical
 import sklearn.base
 import sklearn.ensemble
 
@@ -241,7 +241,8 @@ class SklearnWrapper(Predictor):
 
     def fit(self, batches: Sequence[xr.Dataset]):
         logger = logging.getLogger("SklearnWrapper")
-        stacked_batches = stack_batches(batches)
+        random_state = np.random.RandomState(np.random.get_state()[1][0])
+        stacked_batches = StackedBatches(batches, random_state)
         for i, batch in enumerate(stacked_batches):
             logger.info(f"Fitting batch {i+1}/{len(batches)}")
             self._fit_batch(batch)
@@ -258,7 +259,9 @@ class SklearnWrapper(Predictor):
             raise ValueError("Target scaler not present.")
 
         ds = unpack(y, self.sample_dim_name, self.output_features_)
-        return ds.assign_coords({self.sample_dim_name: data[self.sample_dim_name]})
+        return ds.assign_coords(
+            {self.sample_dim_name: stacked_data[self.sample_dim_name]}
+        )
 
     def dump(self, path: str) -> None:
         """Dump data to a directory

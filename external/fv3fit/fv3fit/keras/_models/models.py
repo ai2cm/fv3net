@@ -12,7 +12,7 @@ import dataclasses
 
 from ..._shared.packer import ArrayPacker, unpack_matrix
 from ..._shared.predictor import Predictor
-from ..._shared import io, stack_batches, stack_non_vertical
+from ..._shared import io, StackedBatches, stack_non_vertical
 from ..._shared.config import DenseHyperparameters, register_training_function
 import numpy as np
 import os
@@ -216,9 +216,9 @@ class DenseModel(Predictor):
         fit_kwargs = _fill_default(
             fit_kwargs, use_last_batch_to_validate, "use_last_batch_to_validate", False
         )
-        stacked_batches = stack_batches(batches)
+        random_state = np.random.RandomState(np.random.get_state()[1][0])
+        stacked_batches = StackedBatches(batches, random_state)
         Xy = _XyArraySequence(self.X_packer, self.y_packer, stacked_batches)
-
         if self._model is None:
             X, y = Xy[0]
             n_features_in, n_features_out = X.shape[-1], y.shape[-1]
