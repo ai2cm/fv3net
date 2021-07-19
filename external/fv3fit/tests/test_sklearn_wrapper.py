@@ -100,7 +100,7 @@ def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
 
 def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
     wrapper = _get_sklearn_wrapper(scale)
-    dims = ["sample", "z"]
+    dims = ["sample_", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit([data])
 
@@ -126,7 +126,7 @@ def test_fitting_SklearnWrapper_does_not_fit_scaler():
     )
     wrapper.target_scaler = scaler
 
-    dims = ["sample", "z"]
+    dims = ["sample_", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit([data])
     scaler.fit.assert_not_called()
@@ -152,7 +152,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
     wrapper.target_scaler = scaler
 
     # setup input data
-    dims = ["sample", "z"]
+    dims = ["unstacked_dim", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit([data])
 
@@ -174,7 +174,7 @@ def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
     )
 
     # setup input data
-    dims = ["sample", "z"]
+    dims = ["unstacked_dim", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit([data])
 
@@ -210,8 +210,8 @@ def test_predict_columnwise_is_deterministic(regtest):
     shape = (2, 2, nz)
     arr = np.arange(np.prod(shape)).reshape(shape)
     data = xr.Dataset({"a": (dims, arr), "b": (dims, arr + 1)})
-    stacked = data.stack(sample=["x", "y"]).transpose("sample", "z")
-    wrapper.fit([stacked])
+    # stacked = data.stack(sample=["x", "y"]).transpose("sample", "z")
+    wrapper.fit([data])
 
     output = wrapper.predict_columnwise(data, feature_dim="z")
     print(joblib.hash(np.asarray(output["b"])), file=regtest)

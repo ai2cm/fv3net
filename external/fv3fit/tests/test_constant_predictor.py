@@ -68,7 +68,7 @@ def test_constant_model_predict(input_variables, output_variables, nz):
         gridded_dataset, "sample", [dim for dim in gridded_dataset.dims if dim != "z"]
     ).transpose("sample", "z")
 
-    ds_pred = predictor.predict(ds_stacked)
+    ds_pred = predictor.predict(gridded_dataset)
 
     assert sorted(list(ds_pred.data_vars.keys())) == sorted(output_variables)
     for name in output_variables:
@@ -117,11 +117,7 @@ def test_constant_model_predict_after_dump_and_load(
         fv3fit.dump(predictor, tempdir)
         predictor = fv3fit.load(tempdir)
 
-    ds_stacked = safe.stack_once(
-        gridded_dataset, "sample", [dim for dim in gridded_dataset.dims if dim != "z"]
-    ).transpose("sample", "z")
-
-    ds_pred = predictor.predict(ds_stacked)
+    ds_pred = predictor.predict(gridded_dataset)
 
     assert sorted(list(ds_pred.data_vars.keys())) == sorted(output_variables)
     for name in output_variables:

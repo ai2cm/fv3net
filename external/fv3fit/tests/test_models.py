@@ -34,7 +34,7 @@ def test_DenseModel_jacobian(base_state):
             "b": (["x", "z"], np.arange(10).reshape(2, 5)),
         }
     )
-    model = IdentityModel("x", ["a"], ["b"], DenseHyperparameters())
+    model = IdentityModel("sample", ["a"], ["b"], DenseHyperparameters())
     model.fit([batch])
     if base_state == "manual":
         jacobian = model.jacobian(batch[["a"]].isel(x=0))
@@ -66,9 +66,9 @@ def test_nonnegative_model_outputs():
     model = DenseModel("sample", ["input"], ["output"], hyperparameters,)
     batch = xr.Dataset(
         {
-            "input": (["sample"], np.arange(100)),
+            "input": (["x"], np.arange(100)),
             # even with negative targets, trained model should be nonnegative
-            "output": (["sample"], np.full((100,), -1e4)),
+            "output": (["x"], np.full((100,), -1e4)),
         }
     )
     model.fit([batch])

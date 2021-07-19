@@ -5,14 +5,12 @@ import numpy as np
 import pytest
 
 from fv3fit._shared.predictor import DATASET_DIM_NAME
-from fv3fit._shared import get_scaler, StandardScaler, ManualScaler
+from fv3fit._shared import get_scaler, StandardScaler, ManualScaler, stack_non_vertical
 
 
 class IdentityPredictor2D(Predictor):
     def predict(self, X):
-        for variable in X:
-            assert X[variable].ndim <= 2
-        return X[self.output_variables]
+        return stack_non_vertical(X[self.output_variables])
 
     def dump(self, *args, **kwargs):
         pass
@@ -31,8 +29,7 @@ class InOutPredictor(Predictor):
         return cls("sample", cls.input_variables, cls.output_variables)
 
     def predict(self, x):
-        assert x["in"].ndim == 2
-        return x.rename({"in": "out"})
+        return stack_non_vertical(x.rename({"in": "out"}))
 
     def dump(self, *args, **kwargs):
         pass
@@ -43,9 +40,8 @@ class InOutPredictor(Predictor):
 
 
 @pytest.mark.parametrize("sample_dims", [("x", "y"), ("y", "x")])
-@pytest.mark.parametrize("sample_dim_name", ["sample", "asdf"])
-def test__Predictor_predict_columnwise_dims_same_order(sample_dims, sample_dim_name):
-    model = IdentityPredictor2D(sample_dim_name, ["a"], ["a"])
+def test__Predictor_predict_columnwise_dims_same_order(sample_dims):
+    model = IdentityPredictor2D("sample", ["a"], ["a"])
     X = xr.Dataset({"a": (["x", "y", "z"], np.ones((3, 4, 5)))})
     ans = model.predict_columnwise(X, sample_dims=sample_dims)
     assert ans.a.dims == ("x", "y", "z")
