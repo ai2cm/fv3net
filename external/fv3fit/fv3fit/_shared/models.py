@@ -6,7 +6,7 @@ import numpy as np
 import xarray as xr
 import vcm
 
-from . import io
+from . import io, stack_non_vertical
 from .predictor import Predictor
 
 
@@ -60,7 +60,9 @@ class DerivedModel(Predictor):
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         self._check_additional_inputs_present(X)
         base_prediction = self._base_model.predict(X)
-        derived_mapping = vcm.DerivedMapping(xr.merge([X, base_prediction]))
+        derived_mapping = vcm.DerivedMapping(
+            xr.merge([stack_non_vertical(X), base_prediction])
+        )
         derived_prediction = derived_mapping.dataset(self._derived_output_variables)
         return xr.merge([base_prediction, derived_prediction])
 
