@@ -20,14 +20,22 @@ def parse_data_path(data_path: Union[List, str]):
         return data_path
 
 
-def stack_batches(
-    batches: Sequence[xr.Dataset], random_state: RandomState
-) -> Sequence[xr.Dataset]:
-    for ds_unstacked in batches:
+class StackedBatches:
+    def __init__(self, batches: Sequence[xr.Dataset], random_state: RandomState):
+        self._batches = batches
+        self._random_state = random_state
+
+    def __getitem__(self, idx: int):
+        return self._stack_batch(self._batches[idx])
+
+    def __len__(self) -> int:
+        return len(self._batches)
+
+    def _stack_batch(self, ds_unstacked: xr.Dataset) -> xr.Dataset:
         ds = stack_non_vertical(ds_unstacked).load().dropna(dim=SAMPLE_DIM_NAME)
         ds = _check_empty(ds)
         ds = _preserve_samples_per_batch(ds)
-        yield _shuffled(ds, random_state)
+        return _shuffled(self._random_state, ds)
 
 
 def stack_non_vertical(ds: xr.Dataset,) -> xr.Dataset:
