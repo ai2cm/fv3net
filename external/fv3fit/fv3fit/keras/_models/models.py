@@ -227,7 +227,7 @@ class DenseModel(Predictor):
 
         validation_data: Optional[Tuple[np.ndarray, np.ndarray]]
         validation_dataset = (
-            stack_non_vertical(validation_dataset)
+            validation_dataset
             if validation_dataset is not None
             else fit_kwargs.pop("validation_dataset", None)
         )
@@ -252,8 +252,9 @@ class DenseModel(Predictor):
             validation_data = (X_val, y_val)
             Xy = Take(Xy, len(Xy) - 1)  # type: ignore
         elif validation_dataset is not None:
-            X_val = self.X_packer.to_array(validation_dataset)
-            y_val = self.y_packer.to_array(validation_dataset)
+            stacked_validation_dataset = stack_non_vertical(validation_dataset)
+            X_val = self.X_packer.to_array(stacked_validation_dataset)
+            y_val = self.y_packer.to_array(stacked_validation_dataset)
             val_sample = np.random.choice(
                 np.arange(len(y_val)), validation_samples, replace=False
             )
