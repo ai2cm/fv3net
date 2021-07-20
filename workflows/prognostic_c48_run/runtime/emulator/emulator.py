@@ -13,6 +13,7 @@ from runtime.emulator.thermo import (
     SpecificHumidityBasis,
     ThermoBasis,
 )
+from runtime.emulator.layers import NormLayer, ScalarNormLayer, UnNormLayer
 import logging
 import json
 
@@ -75,6 +76,7 @@ class OnlineEmulatorConfig:
 
     output_path: str = ""
     checkpoint: Optional[str] = None
+    weight_sharing: bool = False
 
     @property
     def input_variables(self) -> List[str]:
@@ -109,6 +111,12 @@ class OnlineEmulatorConfig:
         group.add_argument("--v-weight", default=100.0, type=float)
         group.add_argument("--t-weight", default=100.0, type=float)
         group.add_argument("--levels", default="", type=str)
+        group.add_argument(
+            "--no-weight-sharing",
+            dest="weight_sharing",
+            action="store_true",
+            help="Weights not shared by any inputs.",
+        )
 
         group = parser.add_argument_group("single level output")
         group.add_argument(
@@ -158,6 +166,7 @@ class OnlineEmulatorConfig:
                 t_weight=args.t_weight,
                 rh_weight=args.rh_weight,
             )
+            config.weight_sharing = args.weight_sharing
         else:
             raise NotImplementedError(
                 f"No problem type detected. "
@@ -351,82 +360,6 @@ class OnlineEmulator:
         return model
 
 
-class NormLayer(tf.keras.layers.Layer):
-    def __init__(self, epsilon: float = 1e-7, name=None):
-        super(NormLayer, self).__init__(name=name)
-        self.epsilon = epsilon
-
-    def build(self, in_shape):
-        self.mean = self.add_weight(
-            "mean", shape=[in_shape[-1]], dtype=tf.float32, trainable=False
-        )
-        self.sigma = self.add_weight(
-            "sigma", shape=[in_shape[-1]], dtype=tf.float32, trainable=False
-        )
-        self.fitted = False
-
-    def fit(self, tensor):
-        self(tensor)
-        self.mean.assign(tf.cast(tf.reduce_mean(tensor, axis=0), tf.float32))
-        self.sigma.assign(
-            tf.cast(
-                tf.sqrt(tf.reduce_mean((tensor - self.mean) ** 2, axis=0)), tf.float32,
-            )
-        )
-
-    def call(self, tensor):
-        return (tensor - self.mean) / (self.sigma + self.epsilon)
-
-
-class UnNormLayer(tf.keras.layers.Layer):
-    def __init__(self, name=None):
-        super(UnNormLayer, self).__init__(name=name)
-        self.norm = NormLayer()
-
-    @property
-    def fitted(self):
-        return self.norm.fitted
-
-    def fit(self, x):
-        self.norm.fit(x)
-
-    def call(self, tensor):
-        try:
-            self.norm.mean
-        except AttributeError:
-            # need to initialize the weights
-            self.norm(tensor)
-
-        return tensor * self.norm.sigma + self.norm.mean
-
-
-class ScalarNormLayer(NormLayer):
-    """UnNormalize a vector using a scalar mean and standard deviation
-
-    """
-
-    def __init__(self, name=None):
-        super(ScalarNormLayer, self).__init__(name=name)
-
-    def build(self, in_shape):
-        self.mean = self.add_weight(
-            "mean", shape=[in_shape[-1]], dtype=tf.float32, trainable=False
-        )
-        self.sigma = self.add_weight(
-            "sigma", shape=[], dtype=tf.float32, trainable=False
-        )
-
-    def fit(self, tensor):
-        self(tensor)
-        self.mean.assign(tf.cast(tf.reduce_mean(tensor, axis=0), tf.float32))
-        self.sigma.assign(
-            tf.cast(tf.sqrt(tf.reduce_mean((tensor - self.mean) ** 2)), tf.float32,)
-        )
-
-    def call(self, tensor):
-        return tensor * self.sigma + self.mean
-
-
 def atleast_2d(x: tf.Variable) -> tf.Variable:
     n = len(x.shape)
     if n == 1:
@@ -563,6 +496,38 @@ class RHScalarMLP(ScalarMLP):
         rh_args = args.to_rh()
         rh = super().call(rh_args)
         return rh
+
+
+class NoSharedWeights:
+    def __init__(self, out_size, num_hidden):
+        self.out_size = out_size
+        self.num_hidden = num_hidden
+        self.dense_in = tf.keras.Sequential(
+            [
+                tf.keras.layers.Dense(
+                    self.out_size * self.num_hidden, activation="relu"
+                ),
+                tf.keras.layers.Reshape((self.out_size, self.num_hidden)),
+            ]
+        )
+
+        self.dense_out = tf.keras.Sequential(
+            [
+                tf.keras.layers.Conv1D(self.out_size, 1),
+                tf.keras.layers.Reshape([self.out_size]),
+            ]
+        )
+
+    def fit_scalers(self, argsin, argsout):
+        self._fit_input_scaler(argsin)
+        self._fit_output_scaler(argsin, argsout)
+        self.scalers_fitted = True
+
+    def call(self, args: ThermoBasis):
+        in_ = args.to_q().args
+        args = [atleast_2d(arg) for arg in in_.args]
+        x = tf.concat(args, axis=-1)
+        self.dense_in(x)
 
 
 def needs_restart(state) -> bool:
