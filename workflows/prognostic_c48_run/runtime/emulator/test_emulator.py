@@ -312,7 +312,14 @@ def test_UVTRHSimple():
 
 
 @pytest.mark.network
-def test_checkpointed_model(change_test_dir):
-    config = OnlineEmulatorConfig(checkpoint="ai2cm/emulator-noah/model:v9")
+def test_checkpointed_model(tmpdir):
+
+    # dump a model
+    config = OnlineEmulatorConfig()
+    emulator = get_emulator(config)
+    emulator.dump(tmpdir)
+
+    # load it
+    config = OnlineEmulatorConfig(checkpoint=str(tmpdir))
     emulator = get_emulator(config)
     assert isinstance(emulator, OnlineEmulator)
