@@ -20,13 +20,21 @@ def parse_data_path(data_path: Union[List, str]):
         return data_path
 
 
-class StackedBatches:
+class StackedBatches(Sequence[xr.Dataset]):
     def __init__(self, batches: Sequence[xr.Dataset], random_state: RandomState):
         self._batches = batches
         self._random_state = random_state
 
-    def __getitem__(self, idx: int):
-        return self._stack_batch(self._batches[idx])
+    def __getitem__(self, idx: Union[int, slice]):
+        if isinstance(idx, int):
+            return self._stack_batch(self._batches[idx])
+        elif isinstance(idx, slice):
+            return [self._stack_batch(ds) for ds in self._batches[idx]]
+        else:
+            raise TypeError(
+                f"Invalid argument type of {type(idx)} passed into "
+                "StackedBatches.__getitem__."
+            )
 
     def __len__(self) -> int:
         return len(self._batches)
