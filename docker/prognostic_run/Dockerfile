@@ -19,12 +19,17 @@ COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4
 RUN apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
     apt-get install -y  --no-install-recommends \
+    cmake \
     python3 \
     libpython3-dev \
     python3-dev \
     python3-setuptools \
     python3-pip \
     cython3
+
+# vcm couldn't uninstall it from distutils so extracting here
+
+RUN pip3 install cffi
 
 # install pfunit
 RUN cd /tmp && curl -L https://github.com/Goddard-Fortran-Ecosystem/pFUnit/archive/3.2.9.tar.gz | tar xz
