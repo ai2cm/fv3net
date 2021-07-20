@@ -1,3 +1,4 @@
+from external.fv3fit.fv3fit._shared.utils import stack_non_vertical
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.dummy import DummyRegressor
@@ -100,11 +101,11 @@ def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
 
 def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
     wrapper = _get_sklearn_wrapper(scale)
-    dims = ["sample_", "z"]
+    dims = ["unstacked_dim", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit([data])
-
-    output = wrapper.predict(data)
+    stacked_data = stack_non_vertical(data)
+    output = wrapper.predict(stacked_data)
     assert pytest.approx(1 / scale) == output["y"].item()
 
 
@@ -161,7 +162,8 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
     wrapper.dump(path)
 
     loaded = wrapper.load(path)
-    xr.testing.assert_equal(loaded.predict(data), wrapper.predict(data))
+    stacked_data = stack_non_vertical(data)
+    xr.testing.assert_equal(loaded.predict(stacked_data), wrapper.predict(stacked_data))
 
 
 def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
@@ -210,7 +212,6 @@ def test_predict_columnwise_is_deterministic(regtest):
     shape = (2, 2, nz)
     arr = np.arange(np.prod(shape)).reshape(shape)
     data = xr.Dataset({"a": (dims, arr), "b": (dims, arr + 1)})
-    # stacked = data.stack(sample=["x", "y"]).transpose("sample", "z")
     wrapper.fit([data])
 
     output = wrapper.predict_columnwise(data, feature_dim="z")
