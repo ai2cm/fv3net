@@ -1,13 +1,37 @@
 import numpy as np
 import pytest
 import xarray as xr
+from typing import Sequence
 from fv3fit._shared.utils import (
     _shuffled,
     _get_chunk_indices,
     _check_empty,
     stack_non_vertical,
     _preserve_samples_per_batch,
+    StackedBatches,
 )
+
+ds_unstacked = xr.Dataset(
+    {"var": xr.DataArray(np.arange(0, 100).reshape(5, 20), dims=["z", "x"],)}
+)
+batches_unstacked = [ds_unstacked, ds_unstacked]
+
+
+def test_StackedBatches_get_index_stack():
+    stacked_batches = StackedBatches(batches_unstacked, np.random.RandomState(0))
+    stacked_batch = stacked_batches[0]
+    assert stacked_batch["var"].dims == ("sample", "z")
+    assert len(stacked_batch.sample) == 20
+
+
+def test_StackedBatches_get_slice_stack():
+    stacked_batches = StackedBatches(batches_unstacked, np.random.RandomState(0))
+    stacked_batch_sequence = stacked_batches[slice(0, None)]
+    assert isinstance(stacked_batch_sequence, Sequence)
+    assert len(stacked_batch_sequence) == 2
+    for ds in stacked_batch_sequence:
+        assert ds["var"].dims == ("sample", "z")
+        assert len(ds.sample) == 20
 
 
 @pytest.fixture
