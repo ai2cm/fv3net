@@ -1,0 +1,336 @@
+# Shared between gscond and precpd
+
+im:
+  standard_name: horizontal_loop_extent
+  long_name: horizontal loop extent
+  units: count
+  dimensions: []
+  type: integer
+  intent: in
+  optional: F
+ix:
+  standard_name: horizontal_dimension
+  long_name: horizontal dimension
+  units: count
+  dimensions: []
+  type: integer
+  intent: in
+  optional: F
+km:
+  standard_name: vertical_dimension
+  long_name: vertical layer dimension
+  units: count
+  dimensions: []
+  type: integer
+  intent: in
+  optional: F
+dt:
+  standard_name: time_step_for_physics
+  long_name: physics time step
+  units: s
+  dimensions: []
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F  
+prsl:
+  standard_name: air_pressure
+  long_name: layer mean air pressure
+  units: Pa
+  dimensions: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+q:
+  standard_name: water_vapor_specific_humidity_updated_by_physics
+  long_name: water vapor specific humidity
+  units: kg kg-1
+  dimensions: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+cwm:
+  standard_name: cloud_condensed_water_mixing_ratio_updated_by_physics
+  long_name: moist cloud condensed water mixing ratio
+  units: kg kg-1
+  dimensions: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: out
+  optional: F
+t:
+  standard_name: air_temperature_updated_by_physics
+  long_name: layer mean air temperature
+  units: K
+  dimensions: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+xlat:
+  standard_name: latitude
+  long_name: grid latitude in radians
+  units: radians
+  dimensions: (horizontal_dimension)
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+xlon:
+  standard_name: longitude
+  long_name: grid longitude in radians
+  units: radians
+  dimensions: (horizontal_dimension)
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+
+
+# gscond specific
+
+dtf:
+  standard_name: time_step_for_dynamics
+  long_name: dynamics time step
+  units: s
+  dimensions: []
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+
+
+ps:
+  standard_name: surface_air_pressure
+  long_name: surface pressure
+  units: Pa
+  dimensions: [horizontal_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+clw1:
+  standard_name: ice_water_mixing_ratio_convective_transport_tracer
+  long_name: moist [dry+vapor,  no]] mixing ratio of ice water in the convectively transported tracer array
+  units: kg kg-1
+  dimensions: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+clw2:
+  standard_name: cloud_condensed_water_mixing_ratio_convective_transport_tracer
+  long_name: moist [dry+vapor,  no]] mixing ratio of cloud water [condensate] in the convectively transported tracer array
+  units: kg kg-1
+  dimensions: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+tp:
+  standard_name: air_temperature_two_time_steps_back
+  long_name: air temperature two time steps back
+  units: K
+  dimensions: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+qp:
+  standard_name: water_vapor_specific_humidity_two_time_steps_back
+  long_name: water vapor specific humidity two time steps back
+  units: kg kg-1
+  dimensions: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+psp:
+  standard_name: surface_air_pressure_two_time_steps_back
+  long_name: surface air pressure two time steps back
+  units: Pa
+  dimensions: [horizontal_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+tp1:
+  standard_name: air_temperature_at_previous_time_step
+  long_name: air temperature at previous time step
+  units: K
+  dimensions: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+qp1:
+  standard_name: water_vapor_specific_humidity_at_previous_time_step
+  long_name: water vapor specific humidity at previous time step
+  units: kg kg-1
+  dimensions: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+psp1:
+  standard_name: surface_air_pressure_at_previous_time_step
+  long_name: surface air surface pressure at previous time step
+  units: Pa
+  dimensions: [horizontal_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+u:
+  standard_name: critical_relative_humidity
+  long_name: critical relative humidity
+  units: frac
+  dimensions: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+lprnt:
+  standard_name: flag_print
+  long_name: flag for printing diagnostics to output
+  units: flag
+  dimensions: []
+  type: logical
+  intent: in
+  optional: F
+ipr:
+  standard_name: horizontal_index_of_printed_column
+  long_name: horizontal index of printed column
+  units: index
+  dimensions: []
+  type: integer
+  intent: in
+  optional: F
+errmsg:
+  standard_name: ccpp_error_message
+  long_name: error message for error handling in CCPP
+  units: none
+  dimensions: []
+  type: character
+  kind:   le:*
+  intent: out
+  optional: F
+errflg:
+  standard_name: ccpp_error_flag
+  long_name: error flag for error handling in CCPP
+  units: flag
+  dimensions: []
+  type: integer
+  intent: out
+  optional: F
+
+# precpd specific
+del:
+  standard_name: air_pressure_difference_between_midlayers
+  long_name: pressure level thickness
+  units: Pa
+  dimensions: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+rn:
+  standard_name: lwe_thickness_of_explicit_precipitation_amount
+  long_name: explicit precipitation amount on physics timestep
+  units: m
+  dimensions: [horizontal_dimension]
+  type: real
+  kind: kind_phys
+  intent: out
+  optional: F
+sr:
+  standard_name: ratio_of_snowfall_to_rainfall
+  long_name: ratio of snowfall to large-scale rainfall
+  units: frac
+  dimensions: [horizontal_dimension]
+  type: real
+  kind: kind_phys
+  intent: out
+  optional: F
+rainp:
+  standard_name: tendency_of_rain_water_mixing_ratio_due_to_microphysics
+  long_name: tendency of rain water mixing ratio due to microphysics
+  units: kg kg-1 s-1
+  dimensions: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: out
+  optional: F
+u00k:
+  standard_name: critical_relative_humidity
+  long_name: critical relative humidity
+  units: frac
+  dimensions: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+psautco:
+  standard_name: coefficient_from_cloud_ice_to_snow
+  long_name: conversion coefficient from cloud ice to snow
+  units: none
+  dimensions: [2]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+prautco:
+  standard_name: coefficient_from_cloud_water_to_rain
+  long_name: conversion coefficient from cloud water to rain
+  units: none
+  dimensions: [2]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+evpco:
+  standard_name: coefficient_for_evaporation_of_rainfall
+  long_name: coefficient for evaporation of rainfall
+  units: none
+  dimensions: []
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+wminco:
+  standard_name: cloud_condensed_water_conversion_threshold
+  long_name: conversion coefficient from cloud liquid and ice to precipitation
+  units: none
+  dimensions: [2]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+wk1:
+  standard_name: grid_size_related_coefficient_used_in_scale_sensitive_schemes
+  long_name: grid size related coefficient used in scale-sensitive schemes
+  units: none
+  dimensions: [horizontal_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+lprnt:
+  standard_name: flag_print
+  long_name: flag for printing diagnostics to output
+  units: flag
+  dimensions: []
+  type: logical
+  intent: in
+  optional: F
+jpr:
+  standard_name: horizontal_index_of_printed_column
+  long_name: horizontal index of printed column
+  units: index
+  dimensions: []
+  type: integer
+  intent: in
+  optional: F
+
