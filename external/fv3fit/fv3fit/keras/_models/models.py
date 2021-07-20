@@ -308,10 +308,9 @@ class DenseModel(Predictor):
                 )
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
-        stacked_X = stack_non_vertical(X)
-        sample_coord = stacked_X[self.sample_dim_name]
+        sample_coord = X[self.sample_dim_name]
         ds_pred = self.y_packer.to_dataset(
-            self.predict_array(self.X_packer.to_array(stacked_X))
+            self.predict_array(self.X_packer.to_array(X))
         )
         return ds_pred.assign_coords({self.sample_dim_name: sample_coord})
 

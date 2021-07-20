@@ -16,7 +16,7 @@ from .._shared import (
 )
 from .._shared.config import RandomForestHyperparameters
 from .. import _shared
-from .._shared import scaler, StackedBatches, stack_non_vertical
+from .._shared import scaler, StackedBatches
 import sklearn.base
 import sklearn.ensemble
 
@@ -249,8 +249,7 @@ class SklearnWrapper(Predictor):
             logger.info(f"Batch {i+1} done fitting.")
 
     def predict(self, data):
-        stacked_data = stack_non_vertical(data)
-        x, _ = pack(stacked_data[self.input_variables], self.sample_dim_name)
+        x, _ = pack(data[self.input_variables], self.sample_dim_name)
         y = self.model.predict(x)
 
         if self.target_scaler is not None:
@@ -259,9 +258,7 @@ class SklearnWrapper(Predictor):
             raise ValueError("Target scaler not present.")
 
         ds = unpack(y, self.sample_dim_name, self.output_features_)
-        return ds.assign_coords(
-            {self.sample_dim_name: stacked_data[self.sample_dim_name]}
-        )
+        return ds.assign_coords({self.sample_dim_name: data[self.sample_dim_name]})
 
     def dump(self, path: str) -> None:
         """Dump data to a directory
