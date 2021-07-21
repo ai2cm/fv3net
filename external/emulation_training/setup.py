@@ -5,7 +5,15 @@
 
 from setuptools import setup, find_packages
 
-requirements = []
+requirements = [
+    "numpy>=1.11",
+    "fsspec>=0.6.2",
+    "pyyaml>=5.1.2",
+    "tensorflow==2.3.0",
+    "mpi4py>=3.0.3",
+    "cftime",
+    "f90nml",
+]
 
 setup_requirements = []
 
