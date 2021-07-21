@@ -4,6 +4,7 @@ import cftime
 import f90nml
 import yaml
 import numpy as np
+from pathlib import Path
 from mpi4py import MPI
 
 from fv3gfs.util import ZarrMonitor, CubedSpherePartitioner, Quantity
@@ -11,9 +12,11 @@ from .debug import print_errors
 
 
 logger = logging.getLogger(__name__)
+parent_dir = str(Path(__file__).parent.absolute())
+meta_file = "microphysics_parameter_metadata.yaml"
 
+VAR_META_PATH = os.path.join(parent_dir, meta_file)
 NML_PATH = os.environ.get("INPUT_NML_PATH")
-VAR_META_PATH = os.environ.get("VARIABLE_METADATA_YAML")
 DUMP_PATH = os.environ.get("STATE_DUMP_PATH")
 DIMS_MAP = {
     1: ["horizontal_dimension"],
@@ -63,15 +66,6 @@ def print_rank(state):
     logger.info(MPI.COMM_WORLD.Get_rank())
 
 
-def _adjust_if_vert_plus_one(data, dims):
-    logger.debug("Found vertical layers plus 1, adjusting dim name")
-    dim_idx = dims.index("z")
-    dims = list(dims)
-    if data.shape[dim_idx] == 80:
-        dims[dim_idx] = "z_plus_one"
-    return dims
-
-
 def _get_attrs(key):
     if key in _variable_metadata:
         var_key = key
@@ -93,10 +87,8 @@ def _convert_to_quantities(state):
     for key, data in state.items():
         data = np.squeeze(data.astype(np.float32))
         dims = DIMS_MAP[data.ndim]
-        if "z" in dims:
-            dims = _adjust_if_vert_plus_one(data, dims)
         attrs = _get_attrs(key)
-        units = attrs.pop("units", "units")
+        units = attrs.pop("units", "unknown")
         quantities[key] = Quantity(data, dims, units)
         # Access to private member could break TODO: Quantity kwarg for attrs?
         quantities[key]._attrs.update(attrs)
