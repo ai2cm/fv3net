@@ -21,6 +21,8 @@ import numpy as np
 import xarray as xr
 from dask.diagnostics import ProgressBar
 import fsspec
+from joblib import Parallel, delayed
+
 
 from typing import Mapping, Union, Tuple, Sequence
 
@@ -464,6 +466,8 @@ def main(args):
 
     for key, (prog, verif, grid) in input_data.items():
         diags.update(registries[key].compute(prog, verif, grid, n_jobs=args.n_jobs))
+    # computed_diags = _merge_diag_computes(input_data, registries, args.n_jobs)
+    # diags.update(computed_diags)
 
     # add grid vars
     diags = xr.Dataset(diags, attrs=attrs)
@@ -476,3 +480,22 @@ def main(args):
     logger.info(f"Saving data to {args.output}")
     with fsspec.open(args.output, "wb") as f:
         vcm.dump_nc(diags, f)
+
+
+def _merge_diag_computes(input_data, registries, n_jobs):
+    # Flattens list of all computations across registries before
+    # parallelizing the computation.
+    merged_input_data = []
+    for registry_key, (prog, verif, grid) in input_data.items():
+        merged_input_data += [
+            (func_name, func, registry_key, prog, verif, grid)
+            for func_name, func in registries[registry_key].funcs.items()
+        ]
+
+    def _compute(func_name, func, key, *args):
+        return registries[key].load(func_name, func, *args)
+
+    computed_outputs = Parallel(n_jobs=n_jobs, verbose=True)(
+        delayed(_compute)(*compute_args) for compute_args in merged_input_data
+    )
+    return merge_diags(computed_outputs)
