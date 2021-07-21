@@ -35,5 +35,4 @@ def create(url: str, fv3config_path: str):
     with fsspec.open(fv3config_path) as f:
         fv3config_dict = fv3config.load(f)
     validate_chunks(fv3config_dict)
-
     copy(fv3config_path, os.path.join(url, "fv3config.yml"))

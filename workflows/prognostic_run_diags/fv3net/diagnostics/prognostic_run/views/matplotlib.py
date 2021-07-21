@@ -1,5 +1,4 @@
 import base64
-import dataclasses
 import io
 import logging
 from collections import defaultdict
@@ -16,6 +15,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunMetrics,
 )
 import fv3viz
+from report import RawHTML
 
 COORD_NAMES = {
     "coord_x_center": "x",
@@ -38,14 +38,6 @@ def fig_to_b64(fig, format="png", dpi=None):
     pic_IObytes.seek(0)
     pic_hash = base64.b64encode(pic_IObytes.read())
     return f"data:image/png;base64, " + pic_hash.decode()
-
-
-@dataclasses.dataclass
-class raw_html:
-    contents: str
-
-    def __repr__(self):
-        return self.contents
 
 
 template = jinja2.Template(
@@ -89,7 +81,7 @@ def plot_2d_matplotlib(
     dims: Sequence = None,
     contour=False,
     **opts,
-) -> raw_html:
+) -> RawHTML:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 2D and have the same dimensions."""
 
@@ -127,7 +119,7 @@ def plot_2d_matplotlib(
             plt.tight_layout()
             data[varname][run] = fig_to_b64(fig)
             plt.close(fig)
-    return raw_html(
+    return RawHTML(
         template.render(
             image_data=data,
             runs=sorted(run_diags.runs),
@@ -181,7 +173,7 @@ def plot_cubed_sphere_map(
             plt.subplots_adjust(left=0.01, right=0.75, bottom=0.02)
             data[varname][run] = fig_to_b64(fig)
             plt.close(fig)
-    return raw_html(
+    return RawHTML(
         template.render(
             image_data=data,
             runs=sorted(run_diags.runs),
@@ -191,7 +183,7 @@ def plot_cubed_sphere_map(
     )
 
 
-def plot_histogram(run_diags: RunDiagnostics, varname: str) -> raw_html:
+def plot_histogram(run_diags: RunDiagnostics, varname: str) -> RawHTML:
     """Plot 1D histogram of varname overlaid across runs."""
 
     logging.info(f"plotting {varname}")
@@ -209,7 +201,7 @@ def plot_histogram(run_diags: RunDiagnostics, varname: str) -> raw_html:
     fig.tight_layout()
     data = fig_to_b64(fig, dpi=150)
     plt.close(fig)
-    return raw_html(f'<img src="{data}" width="800px" />')
+    return RawHTML(f'<img src="{data}" width="800px" />')
 
 
 def _render_map_title(

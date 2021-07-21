@@ -5,6 +5,7 @@ from .create_report import (
     Metadata,
     Link,
     OrderedList,
+    RawHTML,
 )
 
 __version__ = "0.1.0"
