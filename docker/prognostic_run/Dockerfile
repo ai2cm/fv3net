@@ -102,6 +102,9 @@ RUN pip3 install /fv3net/external/fv3fit
 COPY external/fv3kube /fv3net/external/fv3kube
 RUN pip3 install /fv3net/external/fv3kube
 
+COPY external/emulation_training /fv3net/external/emulation_training
+RUN pip3 install /fv3net/external/emulation_training
+
 RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     mkdir /outdir && \
     chmod -R 777 /outdir
