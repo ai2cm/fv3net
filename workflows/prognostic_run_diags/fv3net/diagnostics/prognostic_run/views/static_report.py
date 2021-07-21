@@ -18,7 +18,6 @@ from report.holoviews import HVPlot, get_html_header
 from .matplotlib import (
     plot_2d_matplotlib,
     plot_cubed_sphere_map,
-    raw_html,
     plot_histogram,
 )
 from ..constants import PERCENTILES, PRECIP_RATE, TOP_LEVEL_METRICS
@@ -218,14 +217,14 @@ def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 
 @hovmoller_plot_manager.register
-def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics, "zonal_mean_value", dims=["time", "latitude"], cmap="viridis"
     )
 
 
 @hovmoller_plot_manager.register
-def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics, "zonal_mean_bias", dims=["time", "latitude"], cmap="RdBu_r",
     )
@@ -257,7 +256,7 @@ def time_mean_bias_cubed_sphere_maps(
 
 
 @zonal_pressure_plot_manager.register
-def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_time_mean",
@@ -269,7 +268,7 @@ def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
 
 
 @zonal_pressure_plot_manager.register
-def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_bias",
@@ -299,37 +298,81 @@ def histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 # Routines for plotting the "metrics"
 # New plotting routines can be registered here.
 @metrics_plot_manager.register
-def time_mean_bias_metrics(metrics: RunMetrics) -> hv.HoloMap:
+def time_mean_bias_metrics(metrics: RunMetrics) -> RawHTML:
     return metric_type_table(metrics, "time_and_global_mean_bias")
 
 
 @metrics_plot_manager.register
-def rmse_time_mean_metrics(metrics: RunMetrics) -> hv.HoloMap:
+def rmse_time_mean_metrics(metrics: RunMetrics) -> RawHTML:
     return metric_type_table(metrics, "rmse_of_time_mean")
 
 
 @metrics_plot_manager.register
-def rmse_3day_metrics(metrics: RunMetrics) -> hv.HoloMap:
+def rmse_3day_metrics(metrics: RunMetrics) -> RawHTML:
     return metric_type_table(metrics, "rmse_3day")
 
 
 @metrics_plot_manager.register
-def drift_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return metric_type_table(metrics, "drift")
+def drift_metrics(metrics: RunMetrics) -> RawHTML:
+    return metric_type_table(metrics, "drift_3day")
 
 
-def metric_type_table(metrics: RunMetrics, metric_type: str) -> hv.HoloMap:
-    """Return HTML for metrics table of all variables of metric_type"""
-    df = metrics.get_metric_type_table(metric_type).transpose()
+def _get_metric_type_df(metrics: RunMetrics, metric_type: str) -> pd.DataFrame:
+    variables = sorted(metrics.get_metric_variables(metric_type))
+    table = {}
+    for varname in variables:
+        units = metrics.get_metric_units(metric_type, varname, metrics.runs[0])
+        column_name = f"{varname} [{units}]"
+        table[column_name] = [
+            metrics.get_metric_value(metric_type, varname, run) for run in metrics.runs
+        ]
+    return pd.DataFrame(table, index=metrics.runs)
+
+
+def metric_type_table(metrics: RunMetrics, metric_type: str) -> RawHTML:
+    """Return HTML table of all metrics of type metric_type.
+        
+    Args:
+        metrics: Computed metrics.
+        metric_type: Label for type of metric, e.g. "rmse_5day".
+        
+    Returns:
+        HTML representation of table of metric values with rows of all variables
+        available for given metric_type and columns of runs.
+    """
+    df = _get_metric_type_df(metrics, metric_type).transpose()
     header = f"<h3>{metric_type}</h3>"
     return RawHTML(header + df.to_html(justify="center", float_format="{:.2f}".format))
 
 
+def _get_metric_df(metrics, metric_names):
+    table = {}
+    for metric_type, variables in metric_names.items():
+        for variable in variables:
+            units = metrics.get_metric_units(metric_type, variable, metrics.runs[0])
+            column_name = f"{variable} {metric_type} [{units}]"
+            table[column_name] = [
+                metrics.get_metric_value(metric_type, variable, run)
+                for run in metrics.runs
+            ]
+    return pd.DataFrame(table, index=metrics.runs)
+
+
 def metric_table(
     metrics: RunMetrics, metric_names: Mapping[str, Sequence[str]]
-) -> hv.HoloMap:
-    """Return HTML for metrics table containing specified metrics."""
-    df = metrics.get_table(metric_names).transpose()
+) -> RawHTML:
+    """Return HTML table for all metrics specified in metric_names.
+    
+    Args:
+        metrics: Computed metrics.
+        metric_names: A mapping from metric_types to sequences of variable names.
+            For example, {"rmse_5day": ["h500", "tmp850"]}.
+
+    Returns:
+        HTML representation of table of metric values with rows of all metrics
+        specified in metric_names and columns of runs.
+    """
+    df = _get_metric_df(metrics, metric_names).transpose()
     return RawHTML(df.to_html(justify="center", float_format="{:.2f}".format))
 
 

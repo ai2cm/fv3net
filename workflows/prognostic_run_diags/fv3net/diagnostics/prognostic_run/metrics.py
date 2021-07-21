@@ -12,7 +12,7 @@ Usage:
 from typing import Mapping, Sequence, Tuple
 import numpy as np
 import xarray as xr
-from .constants import HORIZONTAL_DIMS, PERCENTILES
+from .constants import HORIZONTAL_DIMS, PERCENTILES, MASS_STREAMFUNCTION_MID_TROPOSPHERE
 from .registry import Registry
 from .derived_diagnostics import derived_registry
 import json
@@ -205,7 +205,7 @@ for percentile in PERCENTILES:
 
 @metrics_registry.register("tropics_max_minus_min")
 def itcz_mass_transport(diags):
-    psi_mid_troposphere_name = "mass_streamfunction_300_700_zonal_and_time_mean"
+    psi_mid_troposphere_name = MASS_STREAMFUNCTION_MID_TROPOSPHERE
     if psi_mid_troposphere_name not in diags:
         return xr.Dataset()
     psi = diags[psi_mid_troposphere_name]
@@ -216,7 +216,7 @@ def itcz_mass_transport(diags):
 
 @metrics_registry.register("tropical_ascent_region_mean")
 def tropical_ascent_region_mean(diags):
-    psi_mid_troposphere_name = "mass_streamfunction_300_700_zonal_and_time_mean"
+    psi_mid_troposphere_name = MASS_STREAMFUNCTION_MID_TROPOSPHERE
     if psi_mid_troposphere_name not in diags:
         return xr.Dataset()
     zonal_mean_diags = grab_diag(diags, "zonal_and_time_mean")

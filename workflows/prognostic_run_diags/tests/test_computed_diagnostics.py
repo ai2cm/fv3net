@@ -159,25 +159,6 @@ def test_RunMetrics_runs():
     assert metrics.runs == ["run1", "run2"]
 
 
-def test_RunMetrics_get_metric_type_table():
-    metrics = RunMetrics(metrics_df)
-    table = metrics.get_metric_type_table("rmse_of_time_mean")
-    expected_data = {"h500 [m]": [2, np.nan], "precip [mm/day]": [-1, 1]}
-    expected_table = pd.DataFrame(expected_data, index=["run1", "run2"])
-    pd.testing.assert_frame_equal(table, expected_table)
-
-
-def test_RunMetrics_get_table():
-    metrics = RunMetrics(metrics_df)
-    table = metrics.get_table({"rmse_of_time_mean": ["h500", "precip"]})
-    expected_data = {
-        "h500 rmse_of_time_mean [m]": [2, np.nan],
-        "precip rmse_of_time_mean [mm/day]": [-1, 1],
-    }
-    expected_table = pd.DataFrame(expected_data, index=["run1", "run2"])
-    pd.testing.assert_frame_equal(table, expected_table)
-
-
 def test_RunMetrics_types():
     metrics = RunMetrics(metrics_df)
     assert metrics.types == {"rmse_of_time_mean", "time_and_global_mean_bias"}

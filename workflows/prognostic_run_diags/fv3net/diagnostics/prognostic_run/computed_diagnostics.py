@@ -200,49 +200,6 @@ class RunMetrics:
         metric_name = self.metric_name(metric_type, variable)
         return self.metrics[self.metrics.metric == metric_name]
 
-    def get_metric_type_table(self, metric_type: str) -> pd.DataFrame:
-        """Return nicely labeled DataFrame for all metrics of type metric_type.
-        
-        Args:
-            metric_type: label for type of metric, e.g. "rmse_5day".
-            
-        Returns:
-            Table of metric values with columns of all variables available for
-            given metric_type and rows of runs.
-        """
-        variables = sorted(self.get_metric_variables(metric_type))
-        runs = self.runs
-        data = {}
-        for varname in variables:
-            units = self.get_metric_units(metric_type, varname, runs[0])
-            column_name = f"{varname} [{units}]"
-            data[column_name] = [
-                self.get_metric_value(metric_type, varname, run) for run in runs
-            ]
-        return pd.DataFrame(data, index=runs)
-
-    def get_table(self, metric_names: Mapping[str, Sequence[str]]) -> pd.DataFrame:
-        """Return nicely labeled DataFrame for all metrics specified in metric_names.
-    
-        Args:
-            metric_names: A mapping from metric_types to sequences of variable names.
-                For example, {"rmse_5day": ["h500", "tmp850"]}.
-
-        Returns:
-            Table of metric values with columns of all metrics specified in metric_names
-            and rows of runs.
-        """
-        table = {}
-        for metric_type, variables in metric_names.items():
-            for variable in variables:
-                units = self.get_metric_units(metric_type, variable, self.runs[0])
-                column_name = f"{variable} {metric_type} [{units}]"
-                table[column_name] = [
-                    self.get_metric_value(metric_type, variable, run)
-                    for run in self.runs
-                ]
-        return pd.DataFrame(table, index=self.runs)
-
     @staticmethod
     def _prefix(metric: str) -> str:
         return metric.split("/")[0]
