@@ -146,3 +146,29 @@ def test_net_downward_shortwave_sfc_flux_derived():
     derived_state = DerivedMapping(ds)
     derived_net_sw = derived_state["net_shortwave_sfc_flux_derived"]
     np.testing.assert_array_almost_equal(derived_net_sw, [1.0, 0.5, 0.0])
+
+
+def test_required_inputs():
+    @DerivedMapping.register("test_derived_var", required_inputs=["required_input"])
+    def test_derived_var(self):
+        return None
+
+    assert set(DerivedMapping.REQUIRED_INPUTS["test_derived_var"]) == {"required_input"}
+
+
+ds_sfc = xr.Dataset({"land_sea_mask": xr.DataArray([0, 1, 2], dims=["x"])})
+
+
+def test_is_sea():
+    derived_state = DerivedMapping(ds_sfc)
+    np.testing.assert_array_almost_equal(derived_state["is_sea"], [1.0, 0.0, 0.0])
+
+
+def test_is_land():
+    derived_state = DerivedMapping(ds_sfc)
+    np.testing.assert_array_almost_equal(derived_state["is_land"], [0.0, 1.0, 0.0])
+
+
+def test_is_sea_ice():
+    derived_state = DerivedMapping(ds_sfc)
+    np.testing.assert_array_almost_equal(derived_state["is_sea_ice"], [0.0, 0.0, 1.0])

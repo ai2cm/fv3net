@@ -1,7 +1,9 @@
+from dataclasses import dataclass
 import json
 import logging
 import os
-from typing import List, Mapping, Sequence
+from typing_extensions import Protocol
+from typing import List, Mapping
 
 import fsspec
 import intake
@@ -12,8 +14,8 @@ import xarray as xr
 from vcm.cloud import get_fs
 from vcm.fv3 import standardize_fv3_diagnostics
 
+from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import derived_variables
-from fv3net.diagnostics.prognostic_run.constants import DiagArg
 
 logger = logging.getLogger(__name__)
 
@@ -105,24 +107,18 @@ def _load_prognostic_run_3d_output(url: str):
         return None
 
 
-def load_3d(
-    url: str, verification_entries: Sequence[str], catalog: intake.catalog.Catalog
-) -> DiagArg:
+def load_3d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     logger.info(f"Processing 3d data from run directory at {url}")
 
     # open prognostic run data. If 3d data not saved, return empty datasets.
     ds = _load_prognostic_run_3d_output(url)
     if ds is None:
-        return xr.Dataset(), xr.Dataset(), xr.Dataset()
+        return xr.Dataset()
 
     else:
         input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
         area = catalog[input_grid].to_dask()["area"]
         ds = _coarsen(ds, area, coarsening_factor)
-
-        # open grid
-        logger.info("Opening Grid Spec")
-        grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
 
         # interpolate 3d prognostic fields to pressure levels
         ds_interp = xr.Dataset()
@@ -133,47 +129,25 @@ def load_3d(
                 delp=ds["pressure_thickness_of_atmospheric_layer"],
                 dim="z",
             )
-
-        # open verification
-        logger.info("Opening verification data")
-        verification_c48 = load_verification(verification_entries, catalog)
-
-        # Not all verification datasets have 3D variables saved,
-        # if not available fill with NaNs
-        if len(verification_c48.data_vars) == 0:
-            for var in ds_interp:
-                verification_c48[var] = xr.full_like(ds_interp[var], np.nan)
-                verification_c48[var].attrs = ds_interp[var].attrs
-        return ds_interp, verification_c48, grid_c48
+        return ds_interp
 
 
-def load_dycore(
-    url: str, verification_entries: Sequence[str], catalog: intake.catalog.Catalog
-) -> DiagArg:
+def load_grid(catalog):
+    logger.info("Opening Grid Spec")
+    grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
+    ls_mask = standardize_fv3_diagnostics(catalog["landseamask/c48"].to_dask())
+    return xr.merge([grid_c48, ls_mask])
+
+
+def load_dycore(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     """Open data required for dycore plots.
 
     Args:
         url: path to prognostic run directory
-        verification_entries: catalog entries for verification dycore data
         catalog: Intake catalog of available data sources
 
-    Returns:
-        tuple of prognostic run data, verification data and grid variables all at
-        coarsened resolution. Prognostic and verification data contain variables output
-        by the dynamical core.
     """
     logger.info(f"Processing dycore data from run directory at {url}")
-
-    # open grid
-    logger.info("Opening Grid Spec")
-    grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
-    ls_mask = standardize_fv3_diagnostics(catalog["landseamask/c48"].to_dask())
-    grid_c48 = xr.merge([grid_c48, ls_mask])
-
-    # open verification
-    logger.info("Opening verification data")
-    verification_c48 = load_verification(verification_entries, catalog)
-
     # open prognostic run data
     path = os.path.join(url, "atmos_dt_atmos.zarr")
     logger.info(f"Opening prognostic run data at {path}")
@@ -181,46 +155,23 @@ def load_dycore(
     input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
     area = catalog[input_grid].to_dask()["area"]
     ds = _coarsen(ds, area, coarsening_factor)
+    return ds
 
-    return ds, verification_c48, grid_c48
 
-
-def load_physics(
-    url: str, verification_entries: Sequence[str], catalog: intake.catalog.Catalog
-) -> DiagArg:
+def load_physics(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     """Open data required for physics plots.
 
     Args:
         url: path to prognostic run directory
-        verification_entries: catalog entries for verification physics data
         catalog: Intake catalog of available data sources
-
-    Returns:
-        tuple of prognostic run data, verification data and grid variables all at
-        coarsened resolution. Prognostic and verification data contain variables
-        output by the physics routines.
     """
     logger.info(f"Processing physics data from run directory at {url}")
-
-    # open grid
-    logger.info("Opening Grid Spec")
-    grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
-    ls_mask = standardize_fv3_diagnostics(catalog["landseamask/c48"].to_dask())
-    grid_c48 = xr.merge([grid_c48, ls_mask])
-
-    # open verification
-    verification_c48 = load_verification(verification_entries, catalog)
-    verification_c48 = derived_variables.physics_variables(verification_c48)
-
     # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
     input_grid, coarsening_factor = _get_coarsening_args(prognostic_output, 48)
     area = catalog[input_grid].to_dask()["area"]
-    prognostic_output = _coarsen(prognostic_output, area, coarsening_factor)
-    prognostic_output = derived_variables.physics_variables(prognostic_output)
-
-    return prognostic_output, verification_c48, grid_c48
+    return _coarsen(prognostic_output, area, coarsening_factor)
 
 
 def loads_stats(b: bytes):
@@ -240,3 +191,98 @@ def open_segmented_logs(url: str) -> vcm.fv3.logs.FV3Log:
     logfiles = sorted(fs.glob(f"{url}/**/logs.txt"))
     logs = [vcm.fv3.logs.loads(fs.cat(url).decode()) for url in logfiles]
     return vcm.fv3.logs.concatenate(logs)
+
+
+def _insert_nan_from_other(self: xr.Dataset, other: xr.Dataset):
+    # Not all verification datasets have 3D variables saved,
+    # if not available fill with NaNs
+    if len(self.data_vars) == 0:
+        for var in other:
+            self[var] = xr.full_like(other[var], np.nan)
+            self[var].attrs = other[var].attrs
+
+
+class Simulation(Protocol):
+    @property
+    def physics(self) -> xr.Dataset:
+        pass
+
+    @property
+    def dycore(self) -> xr.Dataset:
+        pass
+
+    @property
+    def data_3d(self) -> xr.Dataset:
+        pass
+
+
+@dataclass
+class CatalogSimulation:
+    """A simulation specified in an intake catalog
+
+    Typically used for commonly used runs like the high resolution SHiELD
+    simulation, that are specified in a catalog.
+    
+    """
+
+    tag: str
+    catalog: intake.catalog.base.Catalog
+
+    @property
+    def _verif_entries(self):
+        return config.get_verification_entries(self.tag, self.catalog)
+
+    @property
+    def physics(self) -> xr.Dataset:
+        return load_verification(self._verif_entries["physics"], self.catalog)
+
+    @property
+    def dycore(self) -> xr.Dataset:
+        return load_verification(self._verif_entries["dycore"], self.catalog)
+
+    @property
+    def data_3d(self) -> xr.Dataset:
+        return load_verification(self._verif_entries["3d"], self.catalog)
+
+    def __str__(self) -> str:
+        return self.tag
+
+
+@dataclass
+class SegmentedRun:
+    url: str
+    catalog: intake.catalog.base.Catalog
+
+    @property
+    def physics(self) -> xr.Dataset:
+        return load_physics(self.url, self.catalog)
+
+    @property
+    def dycore(self) -> xr.Dataset:
+        return load_dycore(self.url, self.catalog)
+
+    @property
+    def data_3d(self) -> xr.Dataset:
+        return load_3d(self.url, self.catalog)
+
+    def __str__(self) -> str:
+        return self.url
+
+
+def evaluation_pair_to_input_data(
+    prognostic: Simulation, verification: Simulation, grid: xr.Dataset
+):
+    # 3d data special handling
+    data_3d = prognostic.data_3d
+    verif_3d = verification.data_3d
+    _insert_nan_from_other(verif_3d, data_3d)
+
+    return {
+        "dycore": (prognostic.dycore, verification.dycore, grid),
+        "physics": (
+            derived_variables.physics_variables(prognostic.physics),
+            derived_variables.physics_variables(verification.physics),
+            grid,
+        ),
+        "3d": (data_3d, verif_3d, grid.drop(["tile", "land_sea_mask"]),),
+    }

@@ -21,11 +21,10 @@ from .predictor import Predictor
 import dacite
 import numpy as np
 import random
+import loaders
 
 # TODO: move all keras configs under fv3fit.keras
 import tensorflow as tf
-
-from loaders import batches
 
 
 DELP = "pressure_thickness_of_atmospheric_layer"
@@ -66,17 +65,24 @@ class TrainingConfig:
         input_variables: variables used as features
         output_variables: variables to predict
         hyperparameters: model_type-specific training configuration
+        additional_variables: variables needed for training which aren't input
+            or output variables of the trained model
         sample_dim_name: deprecated, internal name used for sample dimension
             when training and predicting
         random_seed: value to use to initialize randomness
+        derived_output_variables: optional list of prediction variables that
+            are not directly predicted by the ML model but instead are derived
+            using the ML-predicted output_variables
     """
 
     model_type: str
     input_variables: List[str]
     output_variables: List[str]
     hyperparameters: Dataclass
+    additional_variables: List[str] = dataclasses.field(default_factory=list)
     sample_dim_name: str = "sample"
     random_seed: Union[float, int] = 0
+    derived_output_variables: List[str] = dataclasses.field(default_factory=list)
 
     @classmethod
     def from_dict(cls, kwargs) -> "TrainingConfig":
@@ -118,24 +124,6 @@ def register_training_function(name: str, hyperparameter_class: type):
         return func
 
     return decorator
-
-
-@dataclasses.dataclass
-class DataConfig:
-    """Convenience wrapper for model training data
-
-    Attrs:
-        variables: names of variables to include in dataset
-        data_path: location of training data to be loaded by batch function
-        batch_function: name of function from `fv3fit.batches` to use for
-            loading batched data
-        batch_kwargs: keyword arguments to pass to batch function
-    """
-
-    variables: List[str]
-    data_path: str
-    batch_function: str
-    batch_kwargs: dict
 
 
 @dataclasses.dataclass
@@ -296,6 +284,7 @@ class _ModelTrainingConfig:
     save_model_checkpoints: bool = False
     model_path: str = ""
     timesteps_source: str = "timesteps_file"
+    derived_output_variables: List[str] = dataclasses.field(default_factory=list)
 
     def __post_init__(self):
         if self.scaler_type == "mass":
@@ -326,8 +315,10 @@ def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> Training
         "hyperparameters",
         "input_variables",
         "output_variables",
+        "additional_variables",
         "random_seed",
         "sample_dim_name",
+        "derived_output_variables",
     ]
     if config_class is RandomForestHyperparameters:
         for key in ("scaler_type", "scaler_kwargs"):
@@ -356,7 +347,7 @@ def load_configs(
     output_data_path: str,
     timesteps_file=None,
     validation_timesteps_file=None,
-) -> Tuple[TrainingConfig, DataConfig, Optional[DataConfig]]:
+) -> Tuple[TrainingConfig, loaders.BatchesConfig, Optional[loaders.BatchesConfig]]:
     """Load training configuration information from a legacy yaml config path.
 
     Dumps the legacy configuration class to the output_data_path.
@@ -372,37 +363,30 @@ def load_configs(
     config_dict = dataclasses.asdict(legacy_config)
     training_config = legacy_config_to_new_config(legacy_config)
 
-    variables = (
-        config_dict["input_variables"]
-        + config_dict["output_variables"]
-        + config_dict.get("additional_variables", [])
-    )
     data_path = config_dict["data_path"]
-    batch_function = config_dict["batch_function"]
-    batch_kwargs = config_dict["batch_kwargs"]
+    batches_function = config_dict["batch_function"]
+    batches_kwargs = config_dict["batch_kwargs"]
 
-    train_batch_kwargs = {**batch_kwargs}
+    train_batches_kwargs = {**batches_kwargs}
     if timesteps_file is not None:
         with open(timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
-        train_batch_kwargs["timesteps"] = timesteps
-    train_data_config = DataConfig(
-        variables=variables,
+        train_batches_kwargs["timesteps"] = timesteps
+    train_data_config = loaders.BatchesConfig(
         data_path=data_path,
-        batch_function=batch_function,
-        batch_kwargs=train_batch_kwargs,
+        batches_function=batches_function,
+        batches_kwargs=train_batches_kwargs,
     )
 
     if validation_timesteps_file is not None:
-        validation_batch_kwargs = {**batch_kwargs}
+        validation_batches_kwargs = {**batches_kwargs}
         with open(validation_timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
-        validation_batch_kwargs["timesteps"] = timesteps
-        validation_data_config: Optional[DataConfig] = DataConfig(
-            variables=variables,
+        validation_batches_kwargs["timesteps"] = timesteps
+        validation_data_config: Optional[loaders.BatchesConfig] = loaders.BatchesConfig(
             data_path=data_path,
-            batch_function=batch_function,
-            batch_kwargs=validation_batch_kwargs,
+            batches_function=batches_function,
+            batches_kwargs=validation_batches_kwargs,
         )
     else:
         validation_data_config = None
@@ -412,7 +396,7 @@ def load_configs(
 
 # TODO: this should be made to work regardless of whether we're using
 # keras or sklearn models, find a way to delete this code entirely and
-# use the validation DataConfig instead.
+# use the validation BatchesConfig instead.
 
 
 def check_validation_train_overlap(
@@ -426,25 +410,24 @@ def check_validation_train_overlap(
 
 
 def validation_timesteps_config(train_config):
-    val_config = legacy_config_to_data_config(train_config)
+    val_config = legacy_config_to_batches_config(train_config)
     assert not isinstance(val_config.data_path, list)
-    val_config.batch_kwargs["timesteps"] = train_config.validation_timesteps
-    val_config.batch_kwargs["timesteps_per_batch"] = len(
+    val_config.batches_kwargs["timesteps"] = train_config.validation_timesteps
+    val_config.batches_kwargs["timesteps_per_batch"] = len(
         train_config.validation_timesteps  # type: ignore
     )
     return val_config
 
 
-# TODO: refactor all tests and code using this to create DataConfig from the beginning
-# and delete this helper routine
-def legacy_config_to_data_config(legacy_config):
-    return DataConfig(
-        variables=legacy_config.input_variables
-        + legacy_config.output_variables
-        + (legacy_config.additional_variables or []),
-        data_path=legacy_config.data_path,
-        batch_function=legacy_config.batch_function,
-        batch_kwargs=legacy_config.batch_kwargs,
+# TODO: refactor all tests and code using this to create BatchesConfig
+# from the beginning and delete this helper routine
+def legacy_config_to_batches_config(
+    legacy_config: _ModelTrainingConfig,
+) -> loaders.BatchesConfig:
+    return loaders.BatchesConfig(
+        data_path=str(legacy_config.data_path),
+        batches_function=legacy_config.batch_function,
+        batches_kwargs=legacy_config.batch_kwargs,
     )
 
 
@@ -455,12 +438,17 @@ def validation_dataset(train_config: _ModelTrainingConfig,) -> Optional[xr.Datas
         )
         validation_config = validation_timesteps_config(train_config)
         # validation config puts all data in one batch
-        validation_dataset_sequence = load_data_sequence(validation_config)
+        validation_dataset_sequence = validation_config.load_batches(
+            variables=train_config.input_variables
+            + train_config.output_variables
+            + train_config.additional_variables
+        )
         if len(validation_dataset_sequence) > 1:
             raise ValueError(
                 "Something went wrong! "
-                "All validation data should be concatenated into a single batch. There "
-                f"are {len(validation_dataset_sequence)} batches in the sequence."
+                "All validation data should be concatenated into a single batch. "
+                f"There are {len(validation_dataset_sequence)} "
+                "batches in the sequence."
             )
         return validation_dataset_sequence[0]
     else:
@@ -483,20 +471,3 @@ def load_training_config(model_path: str) -> _ModelTrainingConfig:
     """
     config_path = os.path.join(model_path, MODEL_CONFIG_FILENAME)
     return _ModelTrainingConfig.load(config_path)
-
-
-# TODO: move this back into its own module once it has been decoupled
-# from the config code by deleting `validation_dataset`
-def load_data_sequence(config: DataConfig) -> batches.BaseSequence[xr.Dataset]:
-    """
-    Args:
-        config: data configuration
-
-    Returns:
-        Sequence of datasets according to configuration
-    """
-    batch_function = getattr(batches, config.batch_function)
-    ds_batches = batch_function(
-        config.data_path, list(config.variables), **config.batch_kwargs,
-    )
-    return ds_batches

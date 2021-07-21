@@ -172,8 +172,7 @@ def _prepare_config_from_parsed_config(
     return fv3kube.merge_fv3config_overlays(*overlays)
 
 
-if __name__ == "__main__":
-
+def main():
     logging.basicConfig(level=logging.INFO)
     parser = _create_arg_parser()
     args = parser.parse_args()

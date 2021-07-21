@@ -3,7 +3,6 @@ from ._shared.predictor import Predictor
 from ._shared.io import dump, load
 from ._shared.config import (
     TrainingConfig,
-    DataConfig,
     DenseHyperparameters,
     RandomForestHyperparameters,
     load_training_config,
