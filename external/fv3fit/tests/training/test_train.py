@@ -16,7 +16,7 @@ def model_type(request):
     return request.param
 
 
-SYSTEM_DEPENDENT_TYPES = ["DenseModel"]
+SYSTEM_DEPENDENT_TYPES = ["DenseModel", "RandomForest"]
 """model types which produce different results on different systems"""
 
 
