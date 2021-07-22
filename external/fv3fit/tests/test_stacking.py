@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 from typing import Sequence
-from fv3fit._shared.utils import (
+from fv3fit._shared.stacking import (
     _shuffled,
     _get_chunk_indices,
     _check_empty,
