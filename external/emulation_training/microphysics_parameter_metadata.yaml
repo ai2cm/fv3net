@@ -1,39 +1,5 @@
-# Shared between gscond and precpd
-
-im:
-  standard_name: horizontal_loop_extent
-  long_name: horizontal loop extent
-  units: count
-  dimensions: []
-  type: integer
-  intent: in
-  optional: F
-ix:
-  standard_name: horizontal_dimension
-  long_name: horizontal dimension
-  units: count
-  dimensions: []
-  type: integer
-  intent: in
-  optional: F
-km:
-  standard_name: vertical_dimension
-  long_name: vertical layer dimension
-  units: count
-  dimensions: []
-  type: integer
-  intent: in
-  optional: F
-dt:
-  standard_name: time_step_for_physics
-  long_name: physics time step
-  units: s
-  dimensions: []
-  type: real
-  kind: kind_phys
-  intent: in
-  optional: F  
-prsl:
+air_pressure:
+  fortran_name: prsl
   standard_name: air_pressure
   long_name: layer mean air pressure
   units: Pa
@@ -42,7 +8,18 @@ prsl:
   kind: kind_phys
   intent: in
   optional: F
-q:
+pressure_thickness_of_atmospheric_layer:
+  standard_name: air_pressure_difference_between_midlayers
+  fortran_name: del
+  long_name: pressure level thickness
+  units: Pa
+  dimensions: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+specific_humidity:
+  fortran_name: q
   standard_name: specific_humidity
   long_name: water vapor specific humidity
   units: kg kg-1
@@ -51,7 +28,8 @@ q:
   kind: kind_phys
   intent: inout
   optional: F
-cwm:
+cloud_water_mixing_ratio:
+  fortran_name: cwm
   standard_name: cloud_water_mixing_ratio
   long_name: moist cloud condensed water mixing ratio
   units: kg kg-1
@@ -60,7 +38,8 @@ cwm:
   kind: kind_phys
   intent: out
   optional: F
-t:
+air_temperature:
+  fortran_name: t
   standard_name: air_temperature
   long_name: layer mean air temperature
   units: K
@@ -69,7 +48,8 @@ t:
   kind: kind_phys
   intent: inout
   optional: F
-xlat:
+latitude:
+  fortran_name: xlat
   standard_name: latitude
   long_name: grid latitude in radians
   units: radians
@@ -78,7 +58,8 @@ xlat:
   kind: kind_phys
   intent: in
   optional: F
-xlon:
+longitude:
+  fortran_name: xlon
   standard_name: longitude
   long_name: grid longitude in radians
   units: radians
@@ -91,7 +72,8 @@ xlon:
 
 # gscond specific
 
-dtf:
+time_step_for_dynamics:
+  fortran_name: dtf
   standard_name: time_step_for_dynamics
   long_name: dynamics time step
   units: s
@@ -102,7 +84,8 @@ dtf:
   optional: F
 
 
-ps:
+surface_air_pressure:
+  fortran_name: ps
   standard_name: surface_air_pressure
   long_name: surface pressure
   units: Pa
@@ -111,7 +94,8 @@ ps:
   kind: kind_phys
   intent: in
   optional: F
-clw1:
+ice_water_mixing_ratio_convective_transport_tracer:
+  fortran_name: clw1
   standard_name: ice_water_mixing_ratio_convective_transport_tracer
   long_name: moist [dry+vapor,  no]] mixing ratio of ice water in the convectively transported tracer array
   units: kg kg-1
@@ -120,7 +104,8 @@ clw1:
   kind: kind_phys
   intent: in
   optional: F
-clw2:
+cloud_condensed_water_mixing_ratio_convective_transport_tracer:
+  fortran_name: clw2
   standard_name: cloud_condensed_water_mixing_ratio_convective_transport_tracer
   long_name: moist [dry+vapor,  no]] mixing ratio of cloud water [condensate] in the convectively transported tracer array
   units: kg kg-1
@@ -129,7 +114,8 @@ clw2:
   kind: kind_phys
   intent: in
   optional: F
-tp:
+air_temperature_two_time_steps_back:
+  fortran_name: tp
   standard_name: air_temperature_two_time_steps_back
   long_name: air temperature two time steps back
   units: K
@@ -138,7 +124,8 @@ tp:
   kind: kind_phys
   intent: inout
   optional: F
-qp:
+specific_humidity_two_time_steps_back:
+  fortran_name: qp
   standard_name: specific_humidity_two_time_steps_back
   long_name: water vapor specific humidity two time steps back
   units: kg kg-1
@@ -147,7 +134,8 @@ qp:
   kind: kind_phys
   intent: inout
   optional: F
-psp:
+surface_air_pressure_two_time_steps_back:
+  fortran_name: psp
   standard_name: surface_air_pressure_two_time_steps_back
   long_name: surface air pressure two time steps back
   units: Pa
@@ -156,7 +144,8 @@ psp:
   kind: kind_phys
   intent: inout
   optional: F
-tp1:
+air_temperature_at_previous_time_step:
+  fortran_name: tp1
   standard_name: air_temperature_at_previous_time_step
   long_name: air temperature at previous time step
   units: K
@@ -165,7 +154,8 @@ tp1:
   kind: kind_phys
   intent: inout
   optional: F
-qp1:
+specific_humidity_at_previous_time_step:
+  fortran_name: qp1
   standard_name: specific_humidity_at_previous_time_step
   long_name: water vapor specific humidity at previous time step
   units: kg kg-1
@@ -174,7 +164,8 @@ qp1:
   kind: kind_phys
   intent: inout
   optional: F
-psp1:
+surface_air_pressure_at_previous_time_step:
+  fortran_name: psp1
   standard_name: surface_air_pressure_at_previous_time_step
   long_name: surface air surface pressure at previous time step
   units: Pa
@@ -183,7 +174,8 @@ psp1:
   kind: kind_phys
   intent: inout
   optional: F
-u:
+critical_relative_humidity:
+  fortran_name: u
   standard_name: critical_relative_humidity
   long_name: critical relative humidity
   units: frac
@@ -227,16 +219,8 @@ errflg:
   optional: F
 
 # precpd specific
-del:
-  standard_name: air_pressure_difference_between_midlayers
-  long_name: pressure level thickness
-  units: Pa
-  dimensions: [horizontal_dimension, vertical_dimension]
-  type: real
-  kind: kind_phys
-  intent: in
-  optional: F
-rn:
+total_precipitation:
+  fortran_name: rn
   standard_name: total_precipitation
   long_name: explicit precipitation amount on physics timestep
   units: m
@@ -245,7 +229,8 @@ rn:
   kind: kind_phys
   intent: out
   optional: F
-sr:
+ratio_of_snowfall_to_rainfall:
+  fortran_name: sr
   standard_name: ratio_of_snowfall_to_rainfall
   long_name: ratio of snowfall to large-scale rainfall
   units: frac
@@ -254,7 +239,8 @@ sr:
   kind: kind_phys
   intent: out
   optional: F
-rainp:
+tendency_of_rain_water_mixing_ratio_due_to_microphysics:
+  fortran_name: rainp
   standard_name: tendency_of_rain_water_mixing_ratio_due_to_microphysics
   long_name: tendency of rain water mixing ratio due to microphysics
   units: kg kg-1 s-1
@@ -263,7 +249,8 @@ rainp:
   kind: kind_phys
   intent: out
   optional: F
-u00k:
+critical_relative_humidity:
+  fortran_name: u00k
   standard_name: critical_relative_humidity
   long_name: critical relative humidity
   units: frac
@@ -272,7 +259,8 @@ u00k:
   kind: kind_phys
   intent: in
   optional: F
-psautco:
+coefficient_from_cloud_ice_to_snow:
+  fortran_name: psautco
   standard_name: coefficient_from_cloud_ice_to_snow
   long_name: conversion coefficient from cloud ice to snow
   units: none
@@ -281,7 +269,8 @@ psautco:
   kind: kind_phys
   intent: in
   optional: F
-prautco:
+coefficient_from_cloud_water_to_rain:
+  fortran_name: prautco
   standard_name: coefficient_from_cloud_water_to_rain
   long_name: conversion coefficient from cloud water to rain
   units: none
@@ -290,7 +279,8 @@ prautco:
   kind: kind_phys
   intent: in
   optional: F
-evpco:
+coefficient_for_evaporation_of_rainfall:
+  fortran_name: evpco
   standard_name: coefficient_for_evaporation_of_rainfall
   long_name: coefficient for evaporation of rainfall
   units: none
@@ -299,7 +289,8 @@ evpco:
   kind: kind_phys
   intent: in
   optional: F
-wminco:
+cloud_condensed_water_conversion_threshold:
+  fortran_name: wminco
   standard_name: cloud_condensed_water_conversion_threshold
   long_name: conversion coefficient from cloud liquid and ice to precipitation
   units: none
@@ -308,7 +299,8 @@ wminco:
   kind: kind_phys
   intent: in
   optional: F
-wk1:
+grid_size_related_coefficient_used_in_scale_sensitive_schemes:
+  fortran_name: wk1
   standard_name: grid_size_related_coefficient_used_in_scale_sensitive_schemes
   long_name: grid size related coefficient used in scale-sensitive schemes
   units: none
