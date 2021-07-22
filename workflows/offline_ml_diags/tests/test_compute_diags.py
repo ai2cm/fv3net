@@ -43,6 +43,7 @@ class Args:
     data_yaml: str
     snapshot_time: Optional[str] = None
     grid: str = None
+    grid_resolution: str = "c8_random_values"
 
 
 def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811

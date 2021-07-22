@@ -94,6 +94,15 @@ def _create_arg_parser() -> argparse.Namespace:
             "data in vcm.catalog."
         ),
     )
+    parser.add_argument(
+        "--grid-resolution",
+        type=str,
+        default="c48",
+        help=(
+            "Optional grid resolution used to retrieve grid from the vcm catalog "
+            '(e.g. "c48"), ignored if --grid is provided'
+        ),
+    )
     return parser.parse_args()
 
 
@@ -298,8 +307,7 @@ def main(args):
     logger.info("Reading grid...")
     if not args.grid:
         # By default, read the appropriate resolution grid from vcm.catalog
-        res = config.batch_kwargs.get("res", "c48")
-        grid = load_grid_info(res)
+        grid = load_grid_info(args.grid_resolution)
     else:
         with fsspec.open(args.grid, "rb") as f:
             grid = xr.open_dataset(f).load()
