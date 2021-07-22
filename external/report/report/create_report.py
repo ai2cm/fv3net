@@ -99,6 +99,14 @@ class OrderedList:
         return "<ol>\n" + "\n".join(items_li) + "\n</ol>"
 
 
+class RawHTML:
+    def __init__(self, source: str):
+        self.source = source
+
+    def __repr__(self) -> str:
+        return self.source
+
+
 def resolve_plot(obj):
     if isinstance(obj, str):
         return ImagePlot(obj)

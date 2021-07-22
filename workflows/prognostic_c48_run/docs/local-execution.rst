@@ -20,17 +20,16 @@ For robustness, the FV3 model is typically run in several short segments,
 with restart files saved after each segment. This ensures that the model
 still produces outputs if a given segment crashes. For example, assume you
 would like to run a full fv3config file (see :ref:`config usage` for instructions), 
-with the runfile ``sklearn_runfile.py`` and save the outputs to a google
+and save the outputs to a google
 cloud storage bucket ``gs://bucket/prognostic_run``.
 
 First, save the file ``fv3config.yaml``. Then, the output location for the segmented run needs to be prepared by running::
 
-    runfv3 create gs://bucket/prognostic_run fv3config.yaml  /path/to/sklearn_runfile.py
+    runfv3 create gs://bucket/prognostic_run fv3config.yaml
 
 This sets up a simple directory structure like this (which you can see by running ``gsutil ls gs://bucket/prognostic_run``::
 
     fv3config.yml
-    runfile.py
 
 Now that the folder is setup, you can run a segment locally and save the outputs to the remote location using the ``append`` subcommand::
 
@@ -40,7 +39,6 @@ After being append to at least once the segmented run GCS location contains the 
 
     # Same as above
     fv3config.yml
-    runfile.py
 
     # Files specific to a given segment
     artifacts/20160801.001500/
@@ -93,7 +91,7 @@ Sometimes it is nice to avoid the complexities of a segmented run
 (:ref:`segmented-run-cli`) for local development. For this reason, the ``runfv3``
 tool provides a command ``run-native`` which you can use like this::
 
-    runfv3 run-native fv3config.yaml path/to/local/rundir path/to/sklearn_runfile.py
+    runfv3 run-native fv3config.yaml path/to/local/rundir
 
 This writes the run directory described by the ``fv3config.yaml`` to the
 specified local path and executes the model there. The command is used for
