@@ -56,7 +56,6 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
         "res": "c8_random_values",
         "timesteps_per_batch": 1,
         "timesteps": ["20160801.001500"],
-        "training": False,
     }
     trained_model = fv3fit.testing.ConstantOutputPredictor(
         "sample",

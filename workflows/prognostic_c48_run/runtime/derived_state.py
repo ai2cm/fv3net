@@ -67,7 +67,7 @@ class DerivedFV3State(MutableMapping):
     This class wraps the fv3gfs getters with the FV3StateMapper, that always returns
     DataArray and has time as an attribute (since this isn't a DataArray).
     
-    This insulates runfiles from the details of Quantity
+    This encapsulates from the details of Quantity
     
     """
 

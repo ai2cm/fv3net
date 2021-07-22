@@ -16,7 +16,7 @@ from .._shared import (
 )
 from .._shared.config import RandomForestHyperparameters
 from .. import _shared
-from .._shared import scaler
+from .._shared import scaler, StackedBatches
 import sklearn.base
 import sklearn.ensemble
 
@@ -241,7 +241,9 @@ class SklearnWrapper(Predictor):
 
     def fit(self, batches: Sequence[xr.Dataset]):
         logger = logging.getLogger("SklearnWrapper")
-        for i, batch in enumerate(batches):
+        random_state = np.random.RandomState(np.random.get_state()[1][0])
+        stacked_batches = StackedBatches(batches, random_state)
+        for i, batch in enumerate(stacked_batches):
             logger.info(f"Fitting batch {i+1}/{len(batches)}")
             self._fit_batch(batch)
             logger.info(f"Batch {i+1} done fitting.")
