@@ -12,12 +12,11 @@ from .debug import print_errors
 
 
 logger = logging.getLogger(__name__)
-parent_dir = str(Path(__file__).parent.absolute())
-meta_file = "microphysics_parameter_metadata.yaml"
 
-VAR_META_PATH = os.path.join(parent_dir, meta_file)
+VAR_META_PATH = os.environ.get("VAR_META_PATH")
 NML_PATH = os.environ.get("INPUT_NML_PATH")
 DUMP_PATH = os.environ.get("STATE_DUMP_PATH")
+
 DIMS_MAP = {
     1: ["horizontal_dimension"],
     2: ["z", "horizontal_dimension"],

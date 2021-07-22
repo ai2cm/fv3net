@@ -16,7 +16,7 @@ test:
 	docker-compose run fv3 pytest
 	
 indocker_rebuild:
-	cd /fv3net/external/fv3gfs-fortran/FV3 && \
+	cd /tmp/fortran-build/FV3 && \
     ./configure gnu_docker && \
     $(MAKE) -j 8 && \
     PREFIX=/usr/local $(MAKE) install
