@@ -18,9 +18,8 @@ NML_PATH = os.environ.get("INPUT_NML_PATH")
 DUMP_PATH = os.environ.get("STATE_DUMP_PATH")
 
 DIMS_MAP = {
-    1: ["horizontal_dimension"],
-    2: ["z", "horizontal_dimension"],
-    3: ["tracer_number", "z", "horizontal_dimension"]
+    1: ["sample"],
+    2: ["sample", "z"],
 }
 
 
@@ -85,10 +84,11 @@ def _convert_to_quantities(state):
     quantities = {}
     for key, data in state.items():
         data = np.squeeze(data.astype(np.float32))
+        data_t = data.T
         dims = DIMS_MAP[data.ndim]
         attrs = _get_attrs(key)
         units = attrs.pop("units", "unknown")
-        quantities[key] = Quantity(data, dims, units)
+        quantities[key] = Quantity(data_t, dims, units)
         # Access to private member could break TODO: Quantity kwarg for attrs?
         quantities[key]._attrs.update(attrs)
 

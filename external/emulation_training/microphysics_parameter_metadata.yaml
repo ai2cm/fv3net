@@ -43,7 +43,7 @@ prsl:
   intent: in
   optional: F
 q:
-  standard_name: water_vapor_specific_humidity_updated_by_physics
+  standard_name: specific_humidity
   long_name: water vapor specific humidity
   units: kg kg-1
   dimensions: [horizontal_dimension, vertical_dimension]
@@ -52,7 +52,7 @@ q:
   intent: inout
   optional: F
 cwm:
-  standard_name: cloud_condensed_water_mixing_ratio_updated_by_physics
+  standard_name: cloud_water_mixing_ratio
   long_name: moist cloud condensed water mixing ratio
   units: kg kg-1
   dimensions: [horizontal_dimension, vertical_dimension]
@@ -61,7 +61,7 @@ cwm:
   intent: out
   optional: F
 t:
-  standard_name: air_temperature_updated_by_physics
+  standard_name: air_temperature
   long_name: layer mean air temperature
   units: K
   dimensions: [horizontal_dimension, vertical_dimension]
@@ -139,7 +139,7 @@ tp:
   intent: inout
   optional: F
 qp:
-  standard_name: water_vapor_specific_humidity_two_time_steps_back
+  standard_name: specific_humidity_two_time_steps_back
   long_name: water vapor specific humidity two time steps back
   units: kg kg-1
   dimensions: [horizontal_dimension, vertical_dimension]
@@ -166,7 +166,7 @@ tp1:
   intent: inout
   optional: F
 qp1:
-  standard_name: water_vapor_specific_humidity_at_previous_time_step
+  standard_name: specific_humidity_at_previous_time_step
   long_name: water vapor specific humidity at previous time step
   units: kg kg-1
   dimensions: [horizontal_dimension, vertical_dimension]
@@ -237,7 +237,7 @@ del:
   intent: in
   optional: F
 rn:
-  standard_name: lwe_thickness_of_explicit_precipitation_amount
+  standard_name: total_precipitation
   long_name: explicit precipitation amount on physics timestep
   units: m
   dimensions: [horizontal_dimension]
@@ -315,14 +315,6 @@ wk1:
   dimensions: [horizontal_dimension]
   type: real
   kind: kind_phys
-  intent: in
-  optional: F
-lprnt:
-  standard_name: flag_print
-  long_name: flag for printing diagnostics to output
-  units: flag
-  dimensions: []
-  type: logical
   intent: in
   optional: F
 jpr:
