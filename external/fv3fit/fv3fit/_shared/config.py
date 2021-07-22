@@ -24,7 +24,6 @@ import tensorflow as tf
 
 
 DELP = "pressure_thickness_of_atmospheric_layer"
-MODEL_CONFIG_FILENAME = "training_config.yml"
 
 
 TrainingFunction = Callable[
