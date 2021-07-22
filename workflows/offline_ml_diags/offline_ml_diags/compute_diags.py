@@ -62,15 +62,15 @@ def _create_arg_parser() -> argparse.Namespace:
         "model_path", type=str, help=("Local or remote path for reading ML model."),
     )
     parser.add_argument(
-        "output_path",
-        type=str,
-        help="Local or remote path where diagnostic output will be written.",
-    )
-    parser.add_argument(
         "data_yaml",
         type=str,
         default=None,
         help=("Config file with dataset specifications."),
+    )
+    parser.add_argument(
+        "output_path",
+        type=str,
+        help="Local or remote path where diagnostic output will be written.",
     )
 
     parser.add_argument(
