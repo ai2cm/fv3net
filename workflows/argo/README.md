@@ -62,10 +62,10 @@ sequential segments.
 | Parameter            | Description                                                                   |
 |----------------------|-------------------------------------------------------------------------------|
 | `initial-condition`  | Timestamp string for time at which to begin the prognostic run                |
-| `config`             | String representation of base config YAML file; supplied to prepare_config.py |
+| `config`             | String representation of base config YAML file; supplied to prepare-config |
 | `reference-restarts` | Location of restart data for initializing the prognostic run                  |
 | `tag`                | Tag which describes the run and is used in its storage location               | 
-| `flags`              | (optional) Extra command line flags for prepare_config.py                     |
+| `flags`              | (optional) Extra command line flags for prepare-config                    |
 | `bucket`             | (optional) Bucket to save run output data; default 'vcm-ml-experiments'       |
 | `project`            | (optional) Project directory to save run output data; default 'default'       |
 | `segment-count`      | (optional) Number of prognostic run segments; default "1"                     |
@@ -84,7 +84,7 @@ of this directory structure.
 
 And then calls:
 ```
-python3 /fv3net/workflows/prognostic_c48_run/prepare_config.py \
+prepare-config \
         {{inputs.parameters.flags}} \
         {{inputs.parameters.config}} \
         {{inputs.parameters.reference-restarts}} \
@@ -93,7 +93,7 @@ python3 /fv3net/workflows/prognostic_c48_run/prepare_config.py \
 ```
 And then
 ```
-runfv3 create {output} /tmp/fv3config.yaml /fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
+runfv3 create {output} /tmp/fv3config.yaml
 ```
 Followed by `segment-count` iterations of
 ```

@@ -182,10 +182,7 @@ def get_diagnostic_files(
     initial_time: cftime.DatetimeJulian,
 ) -> List[DiagnosticFile]:
     """Initialize a list of diagnostic file objects from a configuration dictionary
-    Note- the default here is to save no variables in the diagnostics. This
-    can be overwritten by inserting a default diagnostics
-    config entry for each runfile, e.g. ../prepare_config.py does this for
-    the sklearn runfile.
+    Note- the default here is to save no variables in the diagnostics.
 
     Args:
         configs: A sequence of DiagnosticFileConfigs
