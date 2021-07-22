@@ -68,13 +68,15 @@ def test_batches_from_mapper(mapper):
     batched_data_sequence = batches_from_mapper(
         mapper, DATA_VARS, timesteps_per_batch=2, needs_grid=False,
     )
-    original_dims = set(batched_data_sequence[0].dims)
+    original_dim_lengths = {dim: len(dim) for dim in batched_data_sequence[0].dims}
     assert len(batched_data_sequence) == 2
     for i, batch in enumerate(batched_data_sequence):
         assert len(batch["z"]) == Z_DIM_SIZE
         assert set(batch.data_vars) == set(DATA_VARS)
         for name in batch.data_vars.keys():
-            assert set(batch[name].dims) == original_dims
+            assert set(batch[name].dims) == set(original_dim_lengths)
+        for dim in batch.dims:
+            assert len(dim) == original_dim_lengths[dim]
 
 
 @pytest.mark.parametrize(
