@@ -64,19 +64,28 @@ def print_rank(state):
     logger.info(MPI.COMM_WORLD.Get_rank())
 
 
-def _get_attrs(key):
-    if key in _variable_metadata:
-        var_key = key
-    elif key.split("_")[0] in _variable_metadata:
-        # var_input_... style
-        var_key = key.split("_")[0]
-        logger.debug(f"Reduced key to {var_key} for metadata mapping")
+def _remove_io_suffix(key: str):
+    if key.endswith("_input"):
+        var_key = key[:-6]
+        logger.debug(f"Removed _input with result {var_key} for metadata mapping")
+    elif key.endswith("_output"):
+        var_key = key[:-7]
+        logger.debug(f"Removed _output with result {var_key} for metadata mapping")
     else:
-        var_key = None
-        logger.debug(f"No metadata found for {key}... skipping")
-        return {}
+        var_key = key
+    
+    return var_key
 
-    return dict(**_variable_metadata[var_key])
+
+def _get_attrs(key: str):
+    key = _remove_io_suffix(key)
+    if key in _variable_metadata:
+        meta = dict(**_variable_metadata[key])
+    else:
+        logger.debug(f"No metadata found for {key}... skipping")
+        meta = {}
+
+    return meta
 
 
 def _convert_to_quantities(state):
