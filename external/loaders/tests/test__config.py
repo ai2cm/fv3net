@@ -18,9 +18,11 @@ def registration_context(registration_dict):
     original_functions = {}
     original_functions.update(registration_dict)
     registration_dict.clear()
-    yield
-    registration_dict.clear()
-    registration_dict.update(original_functions)
+    try:
+        yield
+    finally:
+        registration_dict.clear()
+        registration_dict.update(original_functions)
 
 
 @contextlib.contextmanager
@@ -72,39 +74,85 @@ def test_load_mapper():
         mock_mapper_function.assert_called_once_with(data_path, **mapper_kwargs)
 
 
+def test_mapper_config_raises_on_invalid_mapper_function():
+    with mapper_context():
+        with pytest.raises(ValueError):
+            loaders.MapperConfig(
+                data_path="/", mapper_function="missing_function", mapper_kwargs={}
+            )
+
+
+def test_batches_config_raises_on_invalid_batches_function():
+    with batches_context():
+        with pytest.raises(ValueError):
+            loaders.BatchesConfig(
+                data_path="/", batches_function="missing_function", batches_kwargs={}
+            )
+
+
+def test_batches_from_mapper_config_raises_on_invalid_batches_function():
+    with batches_from_mapper_context():
+        with pytest.raises(ValueError):
+            loaders.BatchesFromMapperConfig(
+                mapper_config=loaders.MapperConfig(
+                    data_path="/", mapper_function="open_zarr", mapper_kwargs={}
+                ),
+                batches_function="missing_function",
+                batches_kwargs={},
+            )
+
+
 def test_expected_mapper_functions_exist():
     # this test exists to ensure we don't accidentally remove functions we
     # currently use in configs, if you are deleting an option we no longer use
     # you can delete it here
-    for expected in (
+    expected_functions = (
         "open_nudge_to_obs",
         "open_nudge_to_fine",
         "open_fine_res_apparent_sources",
         "open_high_res_diags",
         "open_fine_resolution_nudging_hybrid",
         "open_nudge_to_fine_multiple_datasets",
-    ):
+        "open_zarr",
+    )
+    for expected in expected_functions:
         assert expected in loaders._config.mapper_functions
+    missing_expected = list(
+        set(loaders._config.mapper_functions).difference(expected_functions)
+    )
+    assert len(missing_expected) == 0, f"add {missing_expected} to expected_functions"
 
 
 def test_expected_batches_functions_exist():
     # this test exists to ensure we don't accidentally remove functions we
     # currently use in configs, if you are deleting an option we no longer use
     # you can delete it here
-    for expected in (
+    expected_functions = (
         "batches_from_geodata",
         "batches_from_serialized",
         "diagnostic_batches_from_geodata",
-    ):
+    )
+    for expected in expected_functions:
         assert expected in loaders._config.batches_functions
+    missing_expected = list(
+        set(loaders._config.batches_functions).difference(expected_functions)
+    )
+    assert len(missing_expected) == 0, f"add {missing_expected} to expected_functions"
 
 
 def test_expected_batches_from_mapper_functions_exist():
     # this test exists to ensure we don't accidentally remove functions we
     # currently use in configs, if you are deleting an option we no longer use
     # you can delete it here
-    for expected in ("batches_from_mapper",):
+    expected_functions = ("batches_from_mapper",)
+    for expected in expected_functions:
         assert expected in loaders._config.batches_from_mapper_functions
+    missing_expected = list(
+        set(loaders._config.batches_from_mapper_functions).difference(
+            expected_functions
+        )
+    )
+    assert len(missing_expected) == 0, f"add {missing_expected} to expected_functions"
 
 
 def assert_registered_functions_are_public(function_register):
@@ -198,20 +246,18 @@ def test_load_batches_from_mapper_raises_if_registered_with_wrong_decorator():
         another_mock_batches_function.__name__ = "another_mock_batches_function"
         loaders._config.batches_functions.register(another_mock_batches_function)
         data_path = "test/data/path"
-        variables = ["var1"]
         batches_kwargs = {"arg1": "value1", "arg2": 2}
         mapper_kwargs = {"arg3": 3}
-        config = loaders._config.BatchesFromMapperConfig(
-            mapper_config=loaders._config.MapperConfig(
-                data_path=data_path,
-                mapper_function="mock_mapper_function",
-                mapper_kwargs=mapper_kwargs,
-            ),
-            batches_function="another_mock_batches_function",
-            batches_kwargs=batches_kwargs,
-        )
-        with pytest.raises(KeyError):
-            config.load_batches(variables=variables)
+        with pytest.raises(ValueError):
+            loaders._config.BatchesFromMapperConfig(
+                mapper_config=loaders._config.MapperConfig(
+                    data_path=data_path,
+                    mapper_function="mock_mapper_function",
+                    mapper_kwargs=mapper_kwargs,
+                ),
+                batches_function="another_mock_batches_function",
+                batches_kwargs=batches_kwargs,
+            )
 
 
 @pytest.mark.parametrize(
@@ -220,7 +266,7 @@ def test_load_batches_from_mapper_raises_if_registered_with_wrong_decorator():
         pytest.param(
             {
                 "data_path": "mock/data/path",
-                "batches_function": "mock_batches_function",
+                "batches_function": "batches_from_geodata",
                 "batches_kwargs": {},
             },
             loaders._config.BatchesConfig,
@@ -229,10 +275,10 @@ def test_load_batches_from_mapper_raises_if_registered_with_wrong_decorator():
             {
                 "mapper_config": {
                     "data_path": "mock/data/path",
-                    "mapper_function": "mock_mapper_function",
+                    "mapper_function": "open_zarr",
                     "mapper_kwargs": {},
                 },
-                "batches_function": "mock_batches_function",
+                "batches_function": "batches_from_mapper",
                 "batches_kwargs": {},
             },
             loaders._config.BatchesFromMapperConfig,
@@ -250,7 +296,7 @@ def test_safe_dump_data_config():
     """
     config = loaders.BatchesConfig(
         data_path="/my/path",
-        batches_function="batches_func",
+        batches_function="batches_from_geodata",
         batches_kwargs={"key": "value"},
     )
     with tempfile.TemporaryDirectory() as tmpdir:
