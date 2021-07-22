@@ -1,4 +1,4 @@
-from external.fv3fit.fv3fit._shared.utils import stack_non_vertical
+from external.fv3fit.fv3fit._shared import stack_non_vertical
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.dummy import DummyRegressor

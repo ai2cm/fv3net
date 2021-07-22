@@ -16,7 +16,7 @@ def model_type(request):
     return request.param
 
 
-SYSTEM_DEPENDENT_TYPES = ["DenseModel", "RandomForest"]
+SYSTEM_DEPENDENT_TYPES = ["DenseModel", "sklearn_random_forest"]
 """model types which produce different results on different systems"""
 
 
@@ -64,6 +64,7 @@ def assert_can_learn_identity(
     rmse = np.mean((out_dataset["var_out"] - test_dataset["var_out"]) ** 2) ** 0.5
     assert rmse < max_rmse
     if model_type in SYSTEM_DEPENDENT_TYPES:
+        print(f"{model_type} is system dependent, not checking against regtest output")
         regtest = None
     if regtest is not None:
         for result in vcm.testing.checksum_dataarray_mapping(test_dataset):
