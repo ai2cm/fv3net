@@ -16,9 +16,9 @@ spec:
     - name: training
       inputs:
         parameters:
-          - name: input
-          - name: config
-          - name: times
+          - name: train_config
+          - name: train_data_config
+          - name: validation_data_config
           - name: output
           - {name: memory, value: 6Gi}
           - {name: flags, value: " "}
@@ -36,22 +36,30 @@ spec:
         args:
           - |
 
-            cat <<EOF >config.yaml
-            {{inputs.parameters.config}}
-            EOF
-            
-            cat << EOF > times.json
-            {{inputs.parameters.times}}
+            cat <<EOF >train_config.yaml
+            {{inputs.parameters.train_config}}
             EOF
 
-            echo "Configuration:"
-            cat config.yaml
+            cat <<EOF >train_data.yaml
+            {{inputs.parameters.train_data_config}}
+            EOF
+
+            cat <<EOF >validation_data.yaml
+            {{inputs.parameters.validation_data_config}}
+            EOF
+
+            echo "Training Configuration:"
+            cat train_config.yaml
+            echo "Training Data Configuration:"
+            cat train_data.yaml
+            echo "Validation Data Configuration:"
+            cat validation_data.yaml
                 
             python3 -m fv3fit.train \
-              {{inputs.parameters.input}} \
-              config.yaml \
+              train_config.yaml \
+              train_data.yaml \
+              validation_data.yaml \
               {{inputs.parameters.output}} \
-              --timesteps-file times.json \
               {{inputs.parameters.flags}}
       tolerations:
       - key: "dedicated"
