@@ -69,6 +69,7 @@ class TrainingConfig:
             or output variables of the trained model
         sample_dim_name: deprecated, internal name used for sample dimension
             when training and predicting
+        random_seed: value to use to initialize randomness
         derived_output_variables: optional list of prediction variables that
             are not directly predicted by the ML model but instead are derived
             using the ML-predicted output_variables
@@ -80,6 +81,7 @@ class TrainingConfig:
     hyperparameters: Dataclass
     additional_variables: List[str] = dataclasses.field(default_factory=list)
     sample_dim_name: str = "sample"
+    random_seed: Union[float, int] = 0
     derived_output_variables: List[str] = dataclasses.field(default_factory=list)
 
     @classmethod
@@ -175,7 +177,6 @@ class DenseHyperparameters:
         nonnegative_outputs: if True, add a ReLU activation layer as the last layer
             after output denormalization layer to ensure outputs are always >=0
             Defaults to False.
-        random_seed: value to use to initialize randomness
         fit_kwargs: other keyword arguments to be passed to the underlying
             tf.keras.Model.fit() method
     """
@@ -194,7 +195,6 @@ class DenseHyperparameters:
     spectral_normalization: bool = False
     save_model_checkpoints: bool = False
     nonnegative_outputs: bool = False
-    random_seed: Union[float, int] = 0
 
     # TODO: remove fit_kwargs by fixing how validation data is passed
     fit_kwargs: Optional[dict] = None
@@ -225,7 +225,6 @@ class RandomForestHyperparameters:
             for each base estimator
         bootstrap: whether bootstrap samples are used when building trees.
             If False, the whole dataset is used to build each tree.
-
     """
 
     scaler_type: str = "standard"
@@ -317,6 +316,7 @@ def legacy_config_to_new_config(legacy_config: _ModelTrainingConfig) -> Training
         "input_variables",
         "output_variables",
         "additional_variables",
+        "random_seed",
         "sample_dim_name",
         "derived_output_variables",
     ]

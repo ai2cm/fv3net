@@ -65,6 +65,7 @@ def main(args):
         timesteps_file=args.timesteps_file,
         validation_timesteps_file=args.validation_timesteps_file,
     )
+    fv3fit.set_random_seed(train_config.random_seed)
 
     # TODO: uncomment this line when we aren't using fit_kwargs
     # to contain validation data

@@ -13,11 +13,7 @@ import dataclasses
 from ..._shared.packer import ArrayPacker, unpack_matrix
 from ..._shared.predictor import Predictor
 from ..._shared import io, StackedBatches, stack_non_vertical
-from ..._shared.config import (
-    DenseHyperparameters,
-    register_training_function,
-    set_random_seed,
-)
+from ..._shared.config import DenseHyperparameters, register_training_function
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
@@ -46,7 +42,6 @@ def train_dense_model(
     train_batches: Sequence[xr.Dataset],
     validation_batches: Sequence[xr.Dataset],
 ):
-    set_random_seed(hyperparameters.random_seed)
     model = DenseModel("sample", input_variables, output_variables, hyperparameters)
     # TODO: make use of validation_batches, currently validation dataset is
     # passed through hyperparameters.fit_kwargs
@@ -136,7 +131,6 @@ class DenseModel(Predictor):
         else:
             self._checkpoint_path = None
         self._fit_kwargs = hyperparameters.fit_kwargs or {}
-        self._random_seed = hyperparameters.random_seed
 
     @property
     def model(self) -> tf.keras.Model:
@@ -222,9 +216,8 @@ class DenseModel(Predictor):
         fit_kwargs = _fill_default(
             fit_kwargs, use_last_batch_to_validate, "use_last_batch_to_validate", False
         )
-        stacked_batches = StackedBatches(
-            batches, np.random.RandomState(self._random_seed)
-        )
+        random_state = np.random.RandomState(np.random.get_state()[1][0])
+        stacked_batches = StackedBatches(batches, random_state)
         Xy = _XyArraySequence(self.X_packer, self.y_packer, stacked_batches)
         if self._model is None:
             X, y = Xy[0]

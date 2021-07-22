@@ -15,7 +15,7 @@ from .._shared import (
     register_training_function,
 )
 from .._shared.config import RandomForestHyperparameters
-from .. import _shared, set_random_seed
+from .. import _shared
 from .._shared import scaler, StackedBatches
 import sklearn.base
 import sklearn.ensemble
@@ -41,7 +41,6 @@ def train_random_forest(
     train_batches: Sequence[xr.Dataset],
     validation_batches: Sequence[xr.Dataset],
 ):
-    set_random_seed(hyperparameters.random_state)
     model = RandomForest("sample", input_variables, output_variables, hyperparameters)
     # TODO: make use of validation_batches to report validation loss
     model.fit(train_batches)
@@ -79,7 +78,6 @@ class RandomForest(Predictor):
             model=batch_regressor,
             scaler_type=hyperparameters.scaler_type,
             scaler_kwargs=hyperparameters.scaler_kwargs,
-            random_seed=hyperparameters.random_state,
         )
 
     def fit(self, batches: Sequence[xr.Dataset]):
@@ -197,7 +195,6 @@ class SklearnWrapper(Predictor):
         model: _RegressorEnsemble,
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
-        random_seed: int = 0,
     ) -> None:
         """
         Initialize the wrapper
@@ -211,7 +208,6 @@ class SklearnWrapper(Predictor):
         self._sample_dim_name = sample_dim_name
         self._input_variables = input_variables
         self._output_variables = output_variables
-        self._random_seed = random_seed
         self.model = model
 
         self.scaler_type = scaler_type
@@ -245,9 +241,8 @@ class SklearnWrapper(Predictor):
 
     def fit(self, batches: Sequence[xr.Dataset]):
         logger = logging.getLogger("SklearnWrapper")
-        stacked_batches = StackedBatches(
-            batches, np.random.RandomState(self._random_seed)
-        )
+        random_state = np.random.RandomState(np.random.get_state()[1][0])
+        stacked_batches = StackedBatches(batches, random_state)
         for i, batch in enumerate(stacked_batches):
             logger.info(f"Fitting batch {i+1}/{len(batches)}")
             self._fit_batch(batch)
