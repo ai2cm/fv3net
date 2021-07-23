@@ -51,6 +51,8 @@ class CreateReportArgs:
     input_path: str
     output_path: str
     commit_sha: str = "commit_sha_placeholder"
+    training_config: Optional[str] = None
+    training_data_config: Optional[str] = None
 
 
 def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
