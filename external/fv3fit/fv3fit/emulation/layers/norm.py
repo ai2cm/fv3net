@@ -1,4 +1,5 @@
 import abc
+import warnings
 import tensorflow as tf
 
 
@@ -6,6 +7,7 @@ class NormLayer(tf.keras.layers.Layer, abc.ABC):
 
     def __init__(self, name=None, **kwargs):
         super(NormLayer, self).__init__(name=name)
+        self.fitted = False
 
     @abc.abstractmethod
     def _build_mean(self, in_shape):
@@ -18,7 +20,6 @@ class NormLayer(tf.keras.layers.Layer, abc.ABC):
     def build(self, in_shape):
         self._build_mean(in_shape)
         self._build_sigma(in_shape)
-        self.fitted = False
 
     @abc.abstractmethod
     def _fit_mean(self, tensor):
@@ -36,10 +37,18 @@ class NormLayer(tf.keras.layers.Layer, abc.ABC):
 
     @abc.abstractmethod
     def call(self, tensor) -> tf.Tensor:
-        pass
+        if not self.fitted:
+            warnings.warn(
+                "Call to an unfit normalization "
+                f"layer ({self.__class__.__name__})."
+            )
 
 
-class PerLevelMean(NormLayer):
+class PerFeatureMean(NormLayer):
+    """
+    Build layer weights and fit a mean value for each
+    feature in a tensor (assumed first dimension is samples).
+    """
 
     def _build_mean(self, in_shape):
         self.mean = self.add_weight(
@@ -50,7 +59,11 @@ class PerLevelMean(NormLayer):
         self.mean.assign(tf.cast(tf.reduce_mean(tensor, axis=0), tf.float32))
 
 
-class PerLevelStd(NormLayer):
+class PerFeatureStd(NormLayer):
+    """
+    Build layer weights and fit a standard deviation value [sigma]
+    for each feature in a tensor (assumed first dimension is samples).
+    """
 
     def _build_sigma(self, in_shape):
         self.sigma = self.add_weight(
@@ -63,7 +76,12 @@ class PerLevelStd(NormLayer):
         )
 
 
-class LevelMaxStd(NormLayer):
+class FeatureMaxStd(NormLayer):
+    """
+    Build layer weights and fit a standard deviation value based
+    on the maximum of all features in a tensor (assumed first 
+    dimension is samples).
+    """
 
     def _build_sigma(self, in_shape):
         self.sigma = self.add_weight(
@@ -76,28 +94,55 @@ class LevelMaxStd(NormLayer):
         self.sigma.assign(max_std)
 
 
-class StandardNormLayer(PerLevelMean, PerLevelStd):
+class StandardNormLayer(PerFeatureMean, PerFeatureStd):
+    """
+    Normalization layer that removes mean and standard
+    deviation for each feature individually.
+
+    Args:
+        epsilon: Floating point  floor added to sigma prior to
+            division
+    """
     def __init__(self, epsilon: float = 1e-7, name=None):
-        super(NormLayer, self).__init__(name=name)
+        super().__init__(name=name)
         self.epsilon = epsilon
 
     def call(self, tensor):
+        super().call(tensor)
         return (tensor - self.mean) / (self.sigma + self.epsilon)
 
 
-class StandardDenormLayer(StandardNormLayer):
+class StandardDenormLayer(PerFeatureMean, PerFeatureStd):
+    """
+    De-normalization layer that scales by the standard
+    deviation and adds the mean for each feature individually.
+    """
 
     def call(self, tensor):
+        super().call(tensor)
         return tensor * self.sigma + self.mean
 
 
-class MaxProfileStdNormLayer(PerLevelMean, LevelMaxStd):
+class MaxProfileStdNormLayer(PerFeatureMean, FeatureMaxStd):
+    """
+    Normalization layer that removes mean for each feature
+    individually but scales all features by the maximum standard
+    deviation calculated over all features. Useful to preserve
+    feature scale relationships.
+    """
 
     def call(self, tensor):
+        super().call(tensor)
         return (tensor - self.mean) / self.sigma
 
 
 class MaxProfileStdDenormLayer(MaxProfileStdNormLayer):
+    """
+    De-normalization layer that scales all features by the maximum
+    standard deviation calculated over all features and adds back
+    the mean for each individual feature.
+    """
 
     def call(self, tensor):
+        super().call(tensor)
         return tensor * self.sigma + self.mean
