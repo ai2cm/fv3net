@@ -1,6 +1,6 @@
 from logging import warning
 from os import TMP_MAX
-from fv3fit.emulation.layers.norm import MaxProfileStdDenormLayer, StandardDenormLayer, StandardNormLayer
+from fv3fit.emulation.layers.norm import MaxFeatureStdDenormLayer, StandardDenormLayer, StandardNormLayer
 import pytest
 import numpy as np
 import tensorflow as tf
@@ -10,8 +10,8 @@ from fv3fit.emulation import layers
 _all_layers = [
     layers.StandardNormLayer,
     layers.StandardDenormLayer,
-    layers.MaxProfileStdNormLayer,
-    layers.MaxProfileStdNormLayer,
+    layers.MaxFeatureStdNormLayer,
+    layers.MaxFeatureStdNormLayer,
 ]
 
 @pytest.fixture(params=_all_layers)
@@ -45,8 +45,8 @@ def tensor():
              [1.0, 1.0]]
         ),
         (
-            layers.MaxProfileStdNormLayer,
-            layers.MaxProfileStdDenormLayer,
+            layers.MaxFeatureStdNormLayer,
+            layers.MaxFeatureStdDenormLayer,
             [[-0.5, -1.0],
              [0.5, 1.0]]
         )

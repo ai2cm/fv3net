@@ -123,7 +123,7 @@ class StandardDenormLayer(PerFeatureMean, PerFeatureStd):
         return tensor * self.sigma + self.mean
 
 
-class MaxProfileStdNormLayer(PerFeatureMean, FeatureMaxStd):
+class MaxFeatureStdNormLayer(PerFeatureMean, FeatureMaxStd):
     """
     Normalization layer that removes mean for each feature
     individually but scales all features by the maximum standard
@@ -136,7 +136,7 @@ class MaxProfileStdNormLayer(PerFeatureMean, FeatureMaxStd):
         return (tensor - self.mean) / self.sigma
 
 
-class MaxProfileStdDenormLayer(MaxProfileStdNormLayer):
+class MaxFeatureStdDenormLayer(MaxFeatureStdNormLayer):
     """
     De-normalization layer that scales all features by the maximum
     standard deviation calculated over all features and adds back
