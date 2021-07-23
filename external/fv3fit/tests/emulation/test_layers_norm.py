@@ -1,6 +1,3 @@
-from logging import warning
-from os import TMP_MAX
-from fv3fit.emulation.layers.norm import MaxFeatureStdDenormLayer, StandardDenormLayer, StandardNormLayer
 import pytest
 import numpy as np
 import tensorflow as tf
@@ -14,6 +11,7 @@ _all_layers = [
     layers.MaxFeatureStdNormLayer,
 ]
 
+
 @pytest.fixture(params=_all_layers)
 def layer_cls(request):
     return request.param
@@ -25,14 +23,8 @@ def tensor():
     Tensor with 2 features (columns)
     and 2 samples (rows)
     """
-    
-    return tf.Variable(
-        [[0.0, 0.0],
-         [1.0, 2.0]],
-        dtype=tf.float32
-    )
 
-
+    return tf.Variable([[0.0, 0.0], [1.0, 2.0]], dtype=tf.float32)
 
 
 @pytest.mark.parametrize(
@@ -41,17 +33,14 @@ def tensor():
         (
             layers.StandardNormLayer,
             layers.StandardDenormLayer,
-            [[-1.0, -1.0],
-             [1.0, 1.0]]
+            [[-1.0, -1.0], [1.0, 1.0]],
         ),
         (
             layers.MaxFeatureStdNormLayer,
             layers.MaxFeatureStdDenormLayer,
-            [[-0.5, -1.0],
-             [0.5, 1.0]]
-        )
-
-    ]
+            [[-0.5, -1.0], [0.5, 1.0]],
+        ),
+    ],
 )
 def test_normalize_layers(tensor, norm_cls, denorm_cls, expected):
     norm_layer = norm_cls()

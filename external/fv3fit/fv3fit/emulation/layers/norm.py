@@ -4,7 +4,6 @@ import tensorflow as tf
 
 
 class NormLayer(tf.keras.layers.Layer, abc.ABC):
-
     def __init__(self, name=None, **kwargs):
         super(NormLayer, self).__init__(name=name)
         self.fitted = False
@@ -39,8 +38,7 @@ class NormLayer(tf.keras.layers.Layer, abc.ABC):
     def call(self, tensor) -> tf.Tensor:
         if not self.fitted:
             warnings.warn(
-                "Call to an unfit normalization "
-                f"layer ({self.__class__.__name__})."
+                "Call to an unfit normalization " f"layer ({self.__class__.__name__})."
             )
 
 
@@ -71,15 +69,13 @@ class PerFeatureStd(NormLayer):
         )
 
     def _fit_sigma(self, tensor):
-        self.sigma.assign(
-            tf.cast(tf.math.reduce_std(tensor, axis=0), tf.float32)
-        )
+        self.sigma.assign(tf.cast(tf.math.reduce_std(tensor, axis=0), tf.float32))
 
 
 class FeatureMaxStd(NormLayer):
     """
     Build layer weights and fit a standard deviation value based
-    on the maximum of all features in a tensor (assumed first 
+    on the maximum of all features in a tensor (assumed first
     dimension is samples).
     """
 
@@ -103,6 +99,7 @@ class StandardNormLayer(PerFeatureMean, PerFeatureStd):
         epsilon: Floating point  floor added to sigma prior to
             division
     """
+
     def __init__(self, epsilon: float = 1e-7, name=None):
         super().__init__(name=name)
         self.epsilon = epsilon
