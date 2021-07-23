@@ -73,12 +73,6 @@ def test_standard_layers_gradient_works_epsilon(tensor):
     np.testing.assert_array_almost_equal(expected, g[0, :])
 
 
-def test_warn_on_unfit_layer(tensor, layer_cls):
-    layer = layer_cls()
-    with pytest.warns(UserWarning):
-        layer(tensor)
-
-
 def test_fit_layers_are_fitted(tensor, layer_cls):
     layer = layer_cls()
 

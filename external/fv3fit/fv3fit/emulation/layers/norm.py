@@ -1,5 +1,4 @@
 import abc
-import warnings
 import tensorflow as tf
 
 
@@ -36,10 +35,7 @@ class NormLayer(tf.keras.layers.Layer, abc.ABC):
 
     @abc.abstractmethod
     def call(self, tensor) -> tf.Tensor:
-        if not self.fitted:
-            warnings.warn(
-                "Call to an unfit normalization " f"layer ({self.__class__.__name__})."
-            )
+        pass
 
 
 class PerFeatureMean(NormLayer):
@@ -105,7 +101,6 @@ class StandardNormLayer(PerFeatureMean, PerFeatureStd):
         self.epsilon = epsilon
 
     def call(self, tensor):
-        super().call(tensor)
         return (tensor - self.mean) / (self.sigma + self.epsilon)
 
 
@@ -116,7 +111,6 @@ class StandardDenormLayer(PerFeatureMean, PerFeatureStd):
     """
 
     def call(self, tensor):
-        super().call(tensor)
         return tensor * self.sigma + self.mean
 
 
@@ -129,7 +123,6 @@ class MaxFeatureStdNormLayer(PerFeatureMean, FeatureMaxStd):
     """
 
     def call(self, tensor):
-        super().call(tensor)
         return (tensor - self.mean) / self.sigma
 
 
@@ -141,5 +134,4 @@ class MaxFeatureStdDenormLayer(MaxFeatureStdNormLayer):
     """
 
     def call(self, tensor):
-        super().call(tensor)
         return tensor * self.sigma + self.mean
