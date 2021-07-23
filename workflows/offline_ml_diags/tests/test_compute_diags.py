@@ -13,7 +13,7 @@ from synth import (  # noqa: F401
 )
 
 import fv3fit
-from offline_ml_diags.compute_diags import main
+from offline_ml_diags import compute_diags, create_report
 import pathlib
 import pytest
 import numpy as np
@@ -37,13 +37,20 @@ def data_path(tmpdir):
 
 
 @dataclass
-class Args:
+class ComputeDiagsArgs:
     model_path: str
     output_path: str
     data_yaml: str
     snapshot_time: Optional[str] = None
     grid: str = None
     grid_resolution: str = "c8_random_values"
+
+
+@dataclass
+class CreateReportArgs:
+    input_path: str
+    output_path: str
+    commit_sha: str = "commit_sha_placeholder"
 
 
 def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
@@ -76,10 +83,15 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
         data_config_filename = os.path.join(tmpdir, "data_config.yaml")
         with open(data_config_filename, "w") as f:
             yaml.safe_dump(dataclasses.asdict(data_config), f)
-        args = Args(
+        compute_diags_args = ComputeDiagsArgs(
             model_path=model_dir,
             output_path=os.path.join(tmpdir, "offline_diags"),
             data_yaml=data_config_filename,
             grid=grid_dataset_path,
         )
-        main(args)
+        compute_diags.main(compute_diags_args)
+        create_report_args = CreateReportArgs(
+            input_path=os.path.join(tmpdir, "offline_diags"),
+            output_path=os.path.join(tmpdir, "report"),
+        )
+        create_report.main(create_report_args)

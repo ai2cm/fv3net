@@ -83,6 +83,10 @@ spec:
           parameters:
               - name: ml-model
                 value: "{{tasks.resolve-output-url.outputs.result}}/trained_models/{{item.name}}"
+              - name: training_config
+                value: "{{item.training_config}}"
+              - name: training_data_config
+                value: "{{inputs.parameters.training_data_config}}"
               - name: validation_data_config
                 value: "{{inputs.parameters.validation_data_config}}"
               - name: offline-diags-output
