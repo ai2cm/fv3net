@@ -12,8 +12,9 @@ Usage:
 from typing import Mapping, Sequence, Tuple
 import numpy as np
 import xarray as xr
-from .constants import HORIZONTAL_DIMS, PERCENTILES
+from .constants import HORIZONTAL_DIMS, PERCENTILES, MASS_STREAMFUNCTION_MID_TROPOSPHERE
 from .registry import Registry
+from .derived_diagnostics import derived_registry
 import json
 
 GRID_VARS = ["lon", "lat", "lonb", "latb", "area"]
@@ -63,6 +64,11 @@ def _mask_array(
     else:
         raise ValueError(f"Masking procedure for region '{region}' is not defined.")
     return masked_arr
+
+
+def _add_derived_diagnostics(ds):
+    merged = xr.merge([ds, derived_registry.compute(ds, n_jobs=1)])
+    return merged.assign_attrs(ds.attrs)
 
 
 def merge_metrics(metrics: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, float]:
@@ -197,6 +203,31 @@ for percentile in PERCENTILES:
         return percentiles
 
 
+@metrics_registry.register("tropics_max_minus_min")
+def itcz_mass_transport(diags):
+    psi_mid_troposphere_name = MASS_STREAMFUNCTION_MID_TROPOSPHERE
+    if psi_mid_troposphere_name not in diags:
+        return xr.Dataset()
+    psi = diags[psi_mid_troposphere_name]
+    lat_min, lat_max = itcz_edges(psi)
+    max_minus_min = psi.sel(latitude=lat_max) - psi.sel(latitude=lat_min)
+    return xr.Dataset({psi_mid_troposphere_name: max_minus_min.assign_attrs(psi.attrs)})
+
+
+@metrics_registry.register("tropical_ascent_region_mean")
+def tropical_ascent_region_mean(diags):
+    psi_mid_troposphere_name = MASS_STREAMFUNCTION_MID_TROPOSPHERE
+    if psi_mid_troposphere_name not in diags:
+        return xr.Dataset()
+    zonal_mean_diags = grab_diag(diags, "zonal_and_time_mean")
+    lat_min, lat_max = itcz_edges(diags[psi_mid_troposphere_name])
+    ascent_region_diags = zonal_mean_diags.sel(latitude=slice(lat_min, lat_max))
+    weights = np.cos(np.deg2rad(ascent_region_diags.latitude))
+    ascent_region_mean = weighted_mean(ascent_region_diags, weights, ["latitude"])
+    restore_units(zonal_mean_diags, ascent_region_mean)
+    return ascent_region_mean
+
+
 def compute_percentile(
     percentile: float, freq: np.ndarray, bins: np.ndarray, bin_widths: np.ndarray
 ) -> float:
@@ -222,6 +253,13 @@ def compute_percentile(
     return bin_midpoints[closest_index]
 
 
+def itcz_edges(psi: xr.DataArray, lat: str = "latitude",) -> Tuple[float, float]:
+    """Compute latitude of ITCZ edges given mass streamfunction at particular level."""
+    lat_min = psi.sel({lat: slice(-30, 10)}).idxmin(lat).item()
+    lat_max = psi.sel({lat: slice(-10, 30)}).idxmax(lat).item()
+    return lat_min, lat_max
+
+
 def restore_units(source, target):
     for variable in target:
         target[variable].attrs["units"] = source[variable].attrs["units"]
@@ -238,8 +276,7 @@ def register_parser(subparsers):
 
 
 def main(args):
-    diags = xr.open_dataset(args.input)
-    diags["time"] = diags.time - diags.time[0]
+    diags = _add_derived_diagnostics(xr.open_dataset(args.input))
     metrics = metrics_registry.compute(diags, n_jobs=1)
     # print to stdout, use pipes to save
     print(json.dumps(metrics, indent=4))
