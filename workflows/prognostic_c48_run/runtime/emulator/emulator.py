@@ -378,9 +378,30 @@ class NormLayer(tf.keras.layers.Layer):
         return (tensor - self.mean) / (self.sigma + self.epsilon)
 
 
+class UnNormLayer(tf.keras.layers.Layer):
+    def __init__(self, name=None):
+        super(UnNormLayer, self).__init__(name=name)
+        self.norm = NormLayer()
+
+    @property
+    def fitted(self):
+        return self.norm.fitted
+
+    def fit(self, x):
+        self.norm.fit(x)
+
+    def call(self, tensor):
+        try:
+            self.norm.mean
+        except AttributeError:
+            # need to initialize the weights
+            self.norm(tensor)
+
+        return tensor * self.norm.sigma + self.norm.mean
+
+
 class ScalarNormLayer(NormLayer):
     """UnNormalize a vector using a scalar mean and standard deviation
-
 
     """
 
@@ -426,7 +447,7 @@ class UVTQSimple(tf.keras.layers.Layer):
         self.out_t = tf.keras.layers.Dense(t_size, name="out_t")
         self.out_q = tf.keras.layers.Dense(q_size, name="out_q")
 
-        self.scalers = [ScalarNormLayer(name=f"out_{i}") for i in range(4)]
+        self.scalers = [UnNormLayer(name=f"out_{i}") for i in range(4)]
 
     def _fit_input_scaler(self, args: Sequence[tf.Variable]):
         args = [atleast_2d(arg) for arg in args]

@@ -12,6 +12,7 @@ from runtime.emulator.emulator import (
     OnlineEmulatorConfig,
     OnlineEmulator,
     NormLayer,
+    UnNormLayer,
     ScalarNormLayer,
     UVTRHSimple,
     get_model,
@@ -43,7 +44,7 @@ def test_OnlineEmulator_partial_fit(state):
 
 def test_OnlineEmulator_partial_fit_logged(state):
     config = OnlineEmulatorConfig(
-        batch_size=8, learning_rate=0.01, momentum=0.0, levels=63
+        batch_size=8, learning_rate=0.0001, momentum=0.0, levels=63
     )
     time = datetime.datetime.now().isoformat()
 
@@ -120,6 +121,7 @@ def test_UVTQSimple():
     model = UVTQSimple(10, 10, 10, 10)
     shape = (3, 10)
     argsin = _get_argsin(levels=10, n=3)
+    model.fit_scalers(argsin, argsin)
     out = model(argsin)
 
     assert tuple(out.u.shape) == shape
@@ -155,6 +157,19 @@ def test_NormLayer_gradient_works():
     (g,) = tape.gradient(y, [u])
     expected = 1 / (layer.sigma + layer.epsilon)
     np.testing.assert_array_almost_equal(expected, g[0, :])
+
+
+@given(integers())
+def test_ScalarNormLayer(seed):
+    tf.random.set_seed(seed)
+    u = tf.random.uniform([2, 3])
+    norm = NormLayer()
+    norm.fit(u)
+
+    unnorm = UnNormLayer()
+    unnorm.fit(u)
+    round_tripped = unnorm(norm(u))
+    np.testing.assert_almost_equal(u.numpy(), round_tripped.numpy())
 
 
 def test_tf_dataset_behaves_as_expected_for_tuples():
