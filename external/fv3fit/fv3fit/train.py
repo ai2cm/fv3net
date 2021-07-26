@@ -53,22 +53,9 @@ def main(args):
     with open(args.val_data_config, "r") as f:
         val_data_config = loaders.BatchesLoader.from_dict(yaml.load(f))
 
-    # (
-    #     train_config,
-    #     train_data_config,
-    #     val_data_config,
-    # ) = fv3fit._shared.config.load_configs(
-    #     args.config_file,
-    #     data_path=data_path,
-    #     output_data_path=args.output_data_path,
-    #     timesteps_file=args.timesteps_file,
-    #     validation_timesteps_file=args.validation_timesteps_file,
-    # )
     fv3fit.set_random_seed(train_config.random_seed)
 
-    # TODO: uncomment this line when we aren't using fit_kwargs
-    # to contain validation data
-    # dump_dataclass(train_config, os.path.join(args.output_data_path, "train.yaml"))
+    dump_dataclass(train_config, os.path.join(args.output_data_path, "train.yaml"))
     dump_dataclass(
         train_data_config, os.path.join(args.output_path, "training_data.yaml")
     )
@@ -90,10 +77,6 @@ def main(args):
         train_batches = train_batches.local(
             os.path.join(args.local_download_path, "train")
         )
-        # TODO: currently, validation data is actually ignored except for Keras
-        # where it is handled in an odd way during configuration setup. Refactor
-        # model fitting to take in validation data directly, so this val_batches
-        # (or val_dataset if you need to refactor it to one) is actually used
         val_batches = val_batches.local(
             os.path.join(args.local_download_path, "validation")
         )
