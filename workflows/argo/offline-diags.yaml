@@ -51,14 +51,20 @@ spec:
               validation_data.yaml \
               {{inputs.parameters.offline-diags-output}}
               
+            cat << EOF > training.yaml
+            {{inputs.parameters.training_config}}
+            EOF
+            cat << EOF > training_data.yaml
+            {{inputs.parameters.training_data_config}}
+            EOF
             python -m offline_ml_diags.create_report \
               {{inputs.parameters.offline-diags-output}} \
               {{inputs.parameters.report-output}} \
               --commit-sha "$COMMIT_SHA" \
               --training-config \
-              {{inputs.parameters.training_config}} \
+              training.yaml \
               --training-data-config \
-              {{inputs.parameters.training_data_config}}
+              training_data.yaml
       podSpecPatch: |
         containers:
           - name: main
