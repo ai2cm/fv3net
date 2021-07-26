@@ -55,7 +55,7 @@ def main(args):
 
     fv3fit.set_random_seed(train_config.random_seed)
 
-    dump_dataclass(train_config, os.path.join(args.output_data_path, "train.yaml"))
+    dump_dataclass(train_config, os.path.join(args.output_path, "train.yaml"))
     dump_dataclass(
         train_data_config, os.path.join(args.output_path, "training_data.yaml")
     )
