@@ -51,7 +51,7 @@ class MapperConfig:
     def __post_init__(self):
         if self.mapper_function not in mapper_functions:
             raise ValueError(
-                f"Invalid batches function {self.mapper_function}, "
+                f"Invalid mapper function {self.mapper_function}, "
                 f"must be one of {list(mapper_functions.keys())}"
             )
 
