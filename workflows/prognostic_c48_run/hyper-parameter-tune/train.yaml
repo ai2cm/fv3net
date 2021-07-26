@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  generateName: emulation-noah-sweep-
+  generateName: emulation-noah-
   labels:
     app: emulation
 spec:
@@ -23,20 +23,27 @@ spec:
           value: /secret/gcp-credentials/key.json
         - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
           value: /secret/gcp-credentials/key.json
+        - name: SHA
+          value: 23752694e657fe0fcc93a804b8f7af405bf30976
+        - name: WANDB_NAME
+          value: "rh-all-noCloud-denormFix"
       image:
-        us.gcr.io/vcm-ml/emulator:90b2e93b55887298a36c92d53ba7cb40671d517e
+        us.gcr.io/vcm-ml/emulator:23752694e657fe0fcc93a804b8f7af405bf30976
       command: [./train.sh]
       args:
-        - -y
-        - batch_size=945
-        - epochs=100
-        - extra_variables=cos_zenith_angle,cloud_water_mixing_ratio,surface_pressure
-        - lr=12.947
-        - num_hidden=616
-        - num_hidden_layers=6
-        - problem=rh
-        - scale=1.0
-        - wandb_logger=yes
+        - --wandb
+        - --levels=25,50,75
+        - --multi-output
+        - --relative-humidity
+        - --extra-variables=cos_zenith_angle,surface_pressure
+        - --rh-weight=10000
+        - --q-weight=0
+        - --lr=0.01
+        - --momentum=0.9
+        - --epochs=100
+        - --batch-size=512
+        - --num-hidden=512
+        - --num-hidden-layers=3
       volumeMounts:
         - name: gcp-credentials-user-gcp-sa
           mountPath: /secret/gcp-credentials
@@ -46,11 +53,11 @@ spec:
       resources:
         limits:
           cpu: "2000m"
-          memory: 12Gi
+          memory: 16Gi
           ephemeral-storage: 40Gi
         requests:
           cpu: "2000m"
-          memory: 12Gi
+          memory: 16Gi
           ephemeral-storage: 40Gi
   restartPolicy: Never
   tolerations:
