@@ -39,10 +39,6 @@ spec:
           - |
 
             gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
-                    
-            cat << EOF > times.json
-            {{inputs.parameters.times}}
-            EOF
 
             cat << EOF > validation_data.yaml
             {{inputs.parameters.validation_data_config}}

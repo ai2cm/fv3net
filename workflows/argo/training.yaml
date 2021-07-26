@@ -16,8 +16,8 @@ spec:
     - name: training
       inputs:
         parameters:
-          - name: train_config
-          - name: train_data_config
+          - name: training_config
+          - name: training_data_config
           - name: validation_data_config
           - name: output
           - {name: memory, value: 6Gi}
@@ -36,12 +36,12 @@ spec:
         args:
           - |
 
-            cat <<EOF >train_config.yaml
-            {{inputs.parameters.train_config}}
+            cat <<EOF >training_config.yaml
+            {{inputs.parameters.training_config}}
             EOF
 
-            cat <<EOF >train_data.yaml
-            {{inputs.parameters.train_data_config}}
+            cat <<EOF >training_data.yaml
+            {{inputs.parameters.training_data_config}}
             EOF
 
             cat <<EOF >validation_data.yaml
@@ -49,15 +49,15 @@ spec:
             EOF
 
             echo "Training Configuration:"
-            cat train_config.yaml
+            cat training_config.yaml
             echo "Training Data Configuration:"
-            cat train_data.yaml
+            cat training_data.yaml
             echo "Validation Data Configuration:"
             cat validation_data.yaml
                 
             python3 -m fv3fit.train \
-              train_config.yaml \
-              train_data.yaml \
+              training_config.yaml \
+              training_data.yaml \
               validation_data.yaml \
               {{inputs.parameters.output}} \
               {{inputs.parameters.flags}}
