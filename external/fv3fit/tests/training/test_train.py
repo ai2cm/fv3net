@@ -4,6 +4,7 @@ import pytest
 import xarray as xr
 import numpy as np
 import fv3fit
+from fv3fit._shared import stack_non_vertical
 from fv3fit._shared.config import TRAINING_FUNCTIONS, get_hyperparameter_class
 import vcm.testing
 import tempfile
@@ -15,7 +16,7 @@ def model_type(request):
     return request.param
 
 
-SYSTEM_DEPENDENT_TYPES = ["DenseModel"]
+SYSTEM_DEPENDENT_TYPES = ["DenseModel", "sklearn_random_forest"]
 """model types which produce different results on different systems"""
 
 
@@ -59,10 +60,11 @@ def assert_can_learn_identity(
     model, test_dataset = train_identity_model(
         model_type, sample_func=sample_func, hyperparameters=hyperparameters
     )
-    out_dataset = model.predict(test_dataset)
+    out_dataset = model.predict(stack_non_vertical(test_dataset)).unstack("sample")
     rmse = np.mean((out_dataset["var_out"] - test_dataset["var_out"]) ** 2) ** 0.5
     assert rmse < max_rmse
     if model_type in SYSTEM_DEPENDENT_TYPES:
+        print(f"{model_type} is system dependent, not checking against regtest output")
         regtest = None
     if regtest is not None:
         for result in vcm.testing.checksum_dataarray_mapping(test_dataset):
@@ -105,8 +107,8 @@ def test_train_with_same_seed_gives_same_result(model_type):
         model_type, sample_func, hyperparameters
     )
     xr.testing.assert_equal(test_dataset, second_test_dataset)
-    first_output = first_model.predict(test_dataset)
-    second_output = second_model.predict(test_dataset)
+    first_output = first_model.predict(stack_non_vertical(test_dataset))
+    second_output = second_model.predict(stack_non_vertical(test_dataset))
     xr.testing.assert_equal(first_output, second_output)
 
 
@@ -118,7 +120,7 @@ def test_predict_does_not_mutate_input(model_type):
         model_type, sample_func=sample_func, hyperparameters=hyperparameters
     )
     hash_before_predict = vcm.testing.checksum_dataarray_mapping(test_dataset)
-    _ = model.predict(test_dataset)
+    _ = model.predict(stack_non_vertical(test_dataset))
     assert (
         vcm.testing.checksum_dataarray_mapping(test_dataset) == hash_before_predict
     ), "predict should not mutate its input"
@@ -130,7 +132,8 @@ def get_uniform_sample_func(size, low=0, high=1, seed=0):
     def sample_func():
         return xr.DataArray(
             random.uniform(low=low, high=high, size=size),
-            dims=["sample", "feature_dim"],
+            dims=["sample_", "feature_dim"],
+            coords=[range(size[0]), range(size[1])],
         )
 
     return sample_func
@@ -165,9 +168,9 @@ def test_dump_and_load_default_maintains_prediction(model_type):
         model_type, sample_func=sample_func, hyperparameters=hyperparameters
     )
 
-    original_result = model.predict(test_dataset)
+    original_result = model.predict(stack_non_vertical(test_dataset))
     with tempfile.TemporaryDirectory() as tmpdir:
         model.dump(tmpdir)
         loaded_model = model.__class__.load(tmpdir)
-    loaded_result = loaded_model.predict(test_dataset)
+    loaded_result = loaded_model.predict(stack_non_vertical(test_dataset))
     xr.testing.assert_equal(loaded_result, original_result)

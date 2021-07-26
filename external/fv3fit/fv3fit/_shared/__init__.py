@@ -14,4 +14,5 @@ from .scaler import (
 )
 from .predictor import Predictor
 from .utils import parse_data_path
+from .stacking import StackedBatches, stack_non_vertical
 from .models import EnsembleModel, DerivedModel
