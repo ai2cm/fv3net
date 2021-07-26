@@ -2,6 +2,7 @@ import loaders
 import argparse
 import yaml
 
+
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -14,4 +15,4 @@ def main():
     parser = get_parser()
     args = parser.parse_args()
     with open(args.config, "r") as f:
-        config = loaders.BatchesLoader.from_dict(yaml.safe_load(f))
+        loaders.BatchesLoader.from_dict(yaml.safe_load(f))

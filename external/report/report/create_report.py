@@ -1,6 +1,7 @@
 import datetime
+import json
 import os
-from typing import Any, Mapping, Sequence, Union
+from typing import Any, Mapping, Sequence
 
 from jinja2 import Template
 from pytz import timezone
@@ -12,7 +13,6 @@ logger = logging.getLogger(__name__)
 PACIFIC_TZ = "US/Pacific"
 NOW_FORMAT = "%Y-%m-%d %H:%M:%S %Z"
 
-Metadata = Mapping[str, Union[str, float, int, bool]]
 Metrics = Mapping[str, Mapping[str, str]]
 
 HTML_TEMPLATE = Template(
@@ -28,14 +28,9 @@ HTML_TEMPLATE = Template(
     Report created {{now}}
     {% if metadata is not none %}
         <h2>Metadata</h2>
-        <table>
-        {% for key, value in metadata.items() %}
-            <tr>
-                <th> {{ key }} </th>
-                <td> {{ value }} </td>
-            </tr>
-        {% endfor %}
-        </table>
+<pre id="json">
+{{ metadata }}
+</pre>
     {% endif %}
 
     {% if metrics is not none %}
@@ -99,6 +94,14 @@ class OrderedList:
         return "<ol>\n" + "\n".join(items_li) + "\n</ol>"
 
 
+class RawHTML:
+    def __init__(self, source: str):
+        self.source = source
+
+    def __repr__(self) -> str:
+        return self.source
+
+
 def resolve_plot(obj):
     if isinstance(obj, str):
         return ImagePlot(obj)
@@ -157,8 +160,8 @@ def insert_report_figure(
 def create_html(
     sections: Mapping[str, Sequence[str]],
     title: str,
-    metadata: Metadata = None,
-    html_header: str = None,
+    metadata=None,
+    html_header: str = "",
     metrics: Metrics = None,
 ) -> str:
     """Return html report of figures described in sections.
@@ -168,8 +171,8 @@ def create_html(
             section names as keys and lists of figure filenames as values, e.g.:
             {'First section': ['figure1.png', 'figure2.png']}
         title: title at top of report
-        metadata (optional): metadata to be printed in a table before figures.
-            Defaults to None, in which case no metadata printed.
+        metadata (optional): json-representable metadata to be printed in a
+            table before figures. By default no metadata is printed.
         html_header: string to include within the <head></head> tags of the compiled
             html file.
 
@@ -188,7 +191,7 @@ def create_html(
     html = HTML_TEMPLATE.render(
         title=title,
         sections=resolved_sections,
-        metadata=metadata,
+        metadata=json.dumps(metadata, indent=4),
         metrics=metrics,
         now=now_str,
         header=html_header,

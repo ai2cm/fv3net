@@ -19,6 +19,8 @@ spec:
       inputs:
         parameters:
           - name: ml-model
+          - name: training_config
+          - name: training_data_config
           - name: validation_data_config
           - name: offline-diags-output
           - name: report-output
@@ -52,7 +54,11 @@ spec:
             python -m offline_ml_diags.create_report \
               {{inputs.parameters.offline-diags-output}} \
               {{inputs.parameters.report-output}} \
-              --commit-sha "$COMMIT_SHA"
+              --commit-sha "$COMMIT_SHA" \
+              --training-config \
+              {{inputs.parameters.training_config}} \
+              --training-data-config \
+              {{inputs.parameters.training_data_config}}
       podSpecPatch: |
         containers:
           - name: main

@@ -31,6 +31,7 @@ poetry_packages=(
   external/synth
   external/fv3kube
   external/diagnostics_utils
+  external/report
   workflows/fine_res_budget
   workflows/offline_ml_diags
   workflows/dataflow

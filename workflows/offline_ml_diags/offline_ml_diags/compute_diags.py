@@ -1,5 +1,6 @@
 import argparse
 from copy import copy
+import dataclasses
 import warnings
 import fsspec
 import logging
@@ -43,6 +44,7 @@ DIAGS_NC_NAME = "offline_diagnostics.nc"
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
 TRANSECT_NC_NAME = "transect_lon0.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
+METADATA_JSON_NAME = "metadata.json"
 DATASET_DIM_NAME = "dataset"
 
 # Base set of variables for which to compute column integrals and composite means
@@ -92,6 +94,15 @@ def _create_arg_parser() -> argparse.Namespace:
             "the grid  with the appropriate resolution (given in batch_kwargs) from "
             "the catalog. Useful if you do not have permissions to access the GCS "
             "data in vcm.catalog."
+        ),
+    )
+    parser.add_argument(
+        "--grid-resolution",
+        type=str,
+        default="c48",
+        help=(
+            "Optional grid resolution used to retrieve grid from the vcm catalog "
+            '(e.g. "c48"), ignored if --grid is provided'
         ),
     )
     return parser.parse_args()
@@ -193,9 +204,8 @@ def _compute_diagnostics(
         ds_diurnal["time"] = ds["time"]
         ds_metrics = compute_metrics(
             stacked,
-            stacked["lat"],
-            stacked["area"],
-            stacked["pressure_thickness_of_atmospheric_layer"],
+            lat=stacked["lat"],
+            area=stacked["area"],
             predicted_vars=metric_vars,
         )
         batches_summary.append(ds_summary.load())
@@ -298,8 +308,7 @@ def main(args):
     logger.info("Reading grid...")
     if not args.grid:
         # By default, read the appropriate resolution grid from vcm.catalog
-        res = config.batch_kwargs.get("res", "c48")
-        grid = load_grid_info(res)
+        grid = load_grid_info(args.grid_resolution)
     else:
         with fsspec.open(args.grid, "rb") as f:
             grid = xr.open_dataset(f).load()
@@ -366,6 +375,12 @@ def main(args):
     metrics = _average_metrics_dict(ds_scalar_metrics)
     with fsspec.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
         json.dump(metrics, f, indent=4)
+
+    metadata = {}
+    metadata["model_path"] = args.model_path
+    metadata["data_config"] = dataclasses.asdict(config)
+    with fsspec.open(os.path.join(args.output_path, METADATA_JSON_NAME), "w") as f:
+        json.dump(metadata, f, indent=4)
 
     logger.info(f"Finished processing dataset diagnostics and metrics.")
 

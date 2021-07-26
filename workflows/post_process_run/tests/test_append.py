@@ -148,3 +148,34 @@ def test_appended_zarr_has_single_time_chunk(tmpdir):
     append.append_zarr_along_time(paths[1], paths[0], fs)
     appended_zarr = zarr.open_group(paths[0])
     assert appended_zarr["time"].chunks == appended_zarr["time"].shape
+
+
+@pytest.mark.parametrize("no_copy", [True, False])
+def test_append_segment(tmpdir, no_copy):
+    a = tmpdir.join("a")
+    b = tmpdir.join("b")
+
+    a.mkdir()
+    b.mkdir()
+
+    one = xr.Dataset({"t": (["time"], [1])})
+
+    one.to_zarr(str(a.join("data.zarr")), consolidated=True)
+    one.to_zarr(str(b.join("data.zarr")), consolidated=True)
+    append.append_segment(str(a), str(b), "1", no_copy=no_copy)
+
+
+@pytest.mark.parametrize("no_copy", [True, False])
+def test_append_segment_containing_dir_named_artifacts(tmpdir, no_copy):
+    """
+    Segments containing an "artifacts" directory
+    """
+    a = tmpdir.join("a")
+    b = tmpdir.join("b")
+
+    a.mkdir()
+    b.mkdir()
+
+    a.join("artifacts").mkdir()
+
+    append.append_segment(a, b, "1", no_copy=no_copy)
