@@ -19,7 +19,6 @@ from .derived_diagnostics import derived_registry
 __all__ = ["ComputedDiagnosticsList", "RunDiagnostics"]
 
 
-PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
 GRID_VARS = ["area", "lonb", "latb", "lon", "lat", "land_sea_mask"]
 
 Diagnostics = Iterable[xr.Dataset]
@@ -87,8 +86,10 @@ class ComputedDiagnosticsList:
         """Compute metrics on the fly from the pre-computed diagnostics."""
         return RunMetrics(load_metrics_from_diagnostics(self.folders))
 
-    def find_movie_links(self):
-        return find_movie_links(self.folders)
+    def get_movies(self) -> "RunMoviePaths":
+        movies = {name: folder.movie_urls for name, folder in self.folders.items()}
+        filesystems = {name: folder.fs for name, folder in self.folders.items()}
+        return RunMoviePaths(movies, filesystems)
 
 
 @dataclass
@@ -217,6 +218,21 @@ class RunMetrics:
         return _metrics[_metrics.run == run]
 
 
+@dataclass
+class RunMoviePaths:
+    """Represents locations of movies for a collection of run diagnostics."""
+
+    movies: Mapping[str, Sequence[Tuple[str, str]]]
+    filesystems: Mapping[str, fsspec.AbstractFileSystem]
+
+    def get_paths(self):
+        paths = {}
+        for run_name, (movie_name, path) in self.movies.items():
+            fs = self.filesystems[run_name]
+            paths.setdefault(movie_name, []).append((fs, path, run_name))
+        return paths
+
+
 def load_metrics(rundirs) -> pd.DataFrame:
     """Load the metrics from a bucket"""
     metrics = _load_metrics(rundirs)
@@ -256,25 +272,6 @@ def load_diagnostics(rundirs) -> Tuple[Metadata, Diagnostics]:
 def _add_derived_diagnostics(ds):
     merged = xr.merge([ds, derived_registry.compute(ds, n_jobs=1)])
     return merged.assign_attrs(ds.attrs)
-
-
-def find_movie_links(rundirs, domain=PUBLIC_GCS_DOMAIN):
-    """Get the movie links from a bucket
-
-    Returns:
-        A dictionary of (public_url, run_name) tuples with movie names as keys
-    """
-
-    # TODO refactor to split out I/O from html generation
-    movie_links = {}
-    for name, folder in rundirs.items():
-        for movie_name, gcs_path in folder.movie_urls:
-            movie_name = os.path.basename(gcs_path)
-            if movie_name not in movie_links:
-                movie_links[movie_name] = []
-            public_url = os.path.join(domain, gcs_path)
-            movie_links[movie_name].append((public_url, name))
-    return movie_links
 
 
 def _longest_run(diagnostics: Iterable[xr.Dataset]) -> xr.Dataset:

@@ -35,6 +35,7 @@ warnings.filterwarnings("ignore", message="All-NaN slice encountered")
 logging.basicConfig(level=logging.INFO)
 
 hv.extension("bokeh")
+PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
 
 
 def upload(html: str, url: str, content_type: str = "text/html"):
@@ -456,13 +457,30 @@ def render_links(link_dict):
     }
 
 
+def copy_movies(movie_paths, output):
+    public_links = {}
+    for movie_name, movie_specifications in movie_paths.movies.items():
+        public_links[movie_name] = []
+        for fs, path, run_name in movie_specifications:
+            output_path = os.path.join(output, "_movies", run_name, movie_name)
+            if output_path.startswith("gs://"):
+                public_link = output_path.replace("gs:/", PUBLIC_GCS_DOMAIN)
+                fs.cp(path, output_path)
+            else:
+                public_link = output_path
+                fs.get(path, output_path)
+            public_links[movie_name].append((public_link, run_name))
+    return public_links
+
+
 def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
     metrics = computed_diagnostics.load_metrics_from_diagnostics()
-    movie_links = computed_diagnostics.find_movie_links()
+    movie_paths = computed_diagnostics.get_movies()
     metadata, diagnostics = computed_diagnostics.load_diagnostics()
+    public_links = copy_movies(movie_paths, output)
 
     pages = {
-        "index.html": render_index(metadata, diagnostics, metrics, movie_links),
+        "index.html": render_index(metadata, diagnostics, metrics, public_links),
         "hovmoller.html": render_hovmollers(metadata, diagnostics),
         "maps.html": render_maps(metadata, diagnostics, metrics),
         "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
