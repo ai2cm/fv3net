@@ -1,4 +1,4 @@
-from .norm import (
+from .normalization import (
     StandardNormLayer,
     StandardDenormLayer,
     MaxFeatureStdNormLayer,
