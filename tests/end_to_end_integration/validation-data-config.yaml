@@ -1,0 +1,16 @@
+mapper_config:
+  data_path: $N2F_DATA_PATH
+  mapper_function: open_nudge_to_fine
+  mapper_kwargs:
+    nudging_variables:
+      - air_temperature
+      - specific_humidity
+      - x_wind
+      - y_wind
+      - pressure_thickness_of_atmospheric_layer
+batches_function: batches_from_mapper
+batches_kwargs:
+  timesteps_per_batch: 2
+  timesteps:
+    - "20160906.120000"
+    - "20160906.044500"
