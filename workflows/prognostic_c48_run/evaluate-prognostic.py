@@ -12,8 +12,6 @@ import subprocess
 import yaml
 import os
 
-import sys
-
 
 def _get_config(artifact_path: str):
 
@@ -501,8 +499,7 @@ def run(artifact: str, path):
     ) as user_config:
         yaml.safe_dump(config, user_config)
         subprocess.check_call(
-            [sys.executable, "prepare_config.py", user_config.name, ic_url, ic],
-            stdout=f,
+            ["prepare-config", user_config.name, ic_url, ic], stdout=f,
         )
         subprocess.check_call(["runfv3", "create", path, f.name, "sklearn_runfile.py"])
     subprocess.check_call(["runfv3", "append", path])
