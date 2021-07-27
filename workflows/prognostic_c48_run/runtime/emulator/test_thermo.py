@@ -8,7 +8,7 @@ from vcm.calc.thermo import _RDGAS, _RVGAS
 import pytest
 
 from hypothesis import given
-from hypothesis.strategies import floats, integers, sampled_from
+from hypothesis.strategies import floats, integers
 
 
 @pytest.mark.parametrize("celsius, rh", [(26, 0.5), (14.77, 1.0)])
@@ -49,13 +49,13 @@ def test_specific_humidity(t, rh, rho):
     floats(100, 110),
     floats(-100, -50),
     integers(0, 10),
-    sampled_from([tuple, list]),
 )
-def test_basis_tranformations(u, v, t, q, dp, dz, num_extra, container):
-    args = tuple(
-        [tf.convert_to_tensor(val) for val in [u, v, t, q, dp, dz] + [0.0] * num_extra]
-    )
-    orig = SpecificHumidityBasis(container(args))
+def test_basis_tranformations(u, v, t, q, dp, dz, num_extra):
+
+    scalars = tf.convert_to_tensor([0.0]) * num_extra
+    args = dict(u=u, v=v, T=t, q=q, dp=dp, dz=dz)
+    args_tf = {key: tf.convert_to_tensor(val) for key, val in args.items()}
+    orig = SpecificHumidityBasis(scalars=scalars, **args_tf)
     roundtrip = orig.to_rh().to_q()
 
     assert len(orig.args) == len(roundtrip.args)

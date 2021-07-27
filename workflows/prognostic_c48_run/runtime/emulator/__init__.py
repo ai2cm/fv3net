@@ -3,4 +3,4 @@ from runtime.emulator.emulator import (
     OnlineEmulator,
     BatchDataConfig,
 )
-from runtime.emulator.loss import ScalarLoss, MultiVariableLoss, RHLoss
+from runtime.emulator.loss import QVLoss, MultiVariableLoss, RHLoss

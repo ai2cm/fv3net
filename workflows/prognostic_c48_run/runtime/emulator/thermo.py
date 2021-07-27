@@ -1,5 +1,7 @@
+from typing import Sequence, Tuple
 import tensorflow as tf
 from vcm.calc.thermo import _RVGAS, _GRAVITY
+import dataclasses
 
 
 def saturation_pressure(air_temperature_kelvin: tf.Tensor) -> tf.Tensor:
@@ -39,78 +41,41 @@ def pressure_thickness(rho, delz):
 class ThermoBasis:
     """A thermodynamic basis with specific humidity as the prognostic variable"""
 
-    @property
-    def u(self):
-        raise NotImplementedError()
-
-    @property
-    def v(self):
-        raise NotImplementedError()
-
-    @property
-    def q(self):
-        raise NotImplementedError()
-
-    @property
-    def rh(self):
-        raise NotImplementedError()
-
-    @property
-    def rho(self):
-        raise NotImplementedError()
-
-    @property
-    def T(self):
-        raise NotImplementedError()
-
-    @property
-    def dz(self):
-        raise NotImplementedError()
-
-    @property
-    def dp(self):
-        raise NotImplementedError()
+    u: tf.Tensor
+    v: tf.Tensor
+    T: tf.Tensor
+    q: tf.Tensor
+    dp: tf.Tensor
+    dz: tf.Tensor
+    rh: tf.Tensor
+    rho: tf.Tensor
+    scalars: Sequence[tf.Tensor]
 
     def to_rh(self):
         return RelativeHumidityBasis(
-            (self.u, self.v, self.T, self.rh, self.rho, self.dz, *self.args[6:])
+            self.u, self.v, self.T, self.rh, self.rho, self.dz, self.scalars
         )
 
     def to_q(self):
         return SpecificHumidityBasis(
-            (self.u, self.v, self.T, self.q, self.dp, self.dz, *self.args[6:])
+            self.u, self.v, self.T, self.q, self.dp, self.dz, self.scalars
         )
 
+    def args(self) -> Tuple[tf.Tensor]:
+        raise NotImplementedError()
 
+
+@dataclasses.dataclass
 class SpecificHumidityBasis(ThermoBasis):
     """A thermodynamic basis with specific humidity as the prognostic variable"""
 
-    def __init__(self, args):
-        self.args = args
-
-    @property
-    def u(self):
-        return self.args[0]
-
-    @property
-    def v(self):
-        return self.args[1]
-
-    @property
-    def T(self):
-        return self.args[2]
-
-    @property
-    def q(self):
-        return self.args[3]
-
-    @property
-    def dp(self):
-        return self.args[4]
-
-    @property
-    def dz(self):
-        return self.args[5]
+    u: tf.Tensor
+    v: tf.Tensor
+    T: tf.Tensor
+    q: tf.Tensor
+    dp: tf.Tensor
+    dz: tf.Tensor
+    scalars: Sequence[tf.Tensor] = dataclasses.field(default_factory=list)
 
     @property
     def rho(self):
@@ -120,14 +85,21 @@ class SpecificHumidityBasis(ThermoBasis):
     def rh(self) -> tf.Tensor:
         return relative_humidity(self.T, self.q, self.rho)
 
-
-class RelativeHumidityBasis(SpecificHumidityBasis):
-    def __init__(self, args):
-        self.args = args
-
     @property
-    def rh(self):
-        return self.args[3]
+    def args(self):
+        return (self.u, self.v, self.T, self.q, self.dp, self.dz) + tuple(self.scalars)
+
+
+@dataclasses.dataclass
+class RelativeHumidityBasis(ThermoBasis):
+
+    u: tf.Tensor
+    v: tf.Tensor
+    T: tf.Tensor
+    rh: tf.Tensor
+    rho: tf.Tensor
+    dz: tf.Tensor
+    scalars: Sequence[tf.Tensor] = dataclasses.field(default_factory=list)
 
     @property
     def q(self):
@@ -138,5 +110,7 @@ class RelativeHumidityBasis(SpecificHumidityBasis):
         return pressure_thickness(self.rho, self.dz)
 
     @property
-    def rho(self):
-        return self.args[4]
+    def args(self) -> Tuple[tf.Tensor]:
+        return (self.u, self.v, self.T, self.rh, self.rho, self.dz) + tuple(
+            self.scalars
+        )

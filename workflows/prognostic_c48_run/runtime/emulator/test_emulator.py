@@ -15,7 +15,7 @@ from runtime.emulator.emulator import (
     get_model,
     get_emulator,
 )
-from runtime.emulator.loss import MultiVariableLoss, RHLoss, ScalarLoss
+from runtime.emulator.loss import MultiVariableLoss, RHLoss, QVLoss
 from .utils import _get_argsin
 import pytest
 from hypothesis import given
@@ -96,7 +96,7 @@ def test_OnlineEmulator_fit_predict(state, extra_inputs):
             batch_size=32,
             learning_rate=0.001,
             momentum=0.0,
-            target=ScalarLoss(0, 0),
+            target=QVLoss(0),
             levels=79,
         ),
         OnlineEmulatorConfig(target=RHLoss(50), levels=79,),
@@ -139,7 +139,7 @@ def test_tf_dataset_behaves_as_expected_for_tuples():
     [
         pytest.param(OnlineEmulatorConfig(), UVTQSimple, id="3d-out"),
         pytest.param(
-            OnlineEmulatorConfig(target=ScalarLoss(0, 0)), ScalarMLP, id="scalar-mlp"
+            OnlineEmulatorConfig(target=QVLoss(0)), ScalarMLP, id="scalar-mlp"
         ),
         pytest.param(
             OnlineEmulatorConfig(relative_humidity=True), UVTRHSimple, id="rh-mlp"
@@ -162,7 +162,7 @@ def test_ScalarMLP(num_hidden_layers):
     assert out.shape == (1, 1)
 
     # computing loss should not fail
-    loss, _ = ScalarLoss(0, 0).loss(model(ins), outs)
+    loss, _ = QVLoss(0).loss(model(ins), outs)
     assert loss.shape == ()
 
 
@@ -180,9 +180,9 @@ def test_ScalarMLP_has_more_layers():
 
 
 def test_top_level():
-    dict_ = {"target": {"variable": 0, "level": 10}}
+    dict_ = {"target": {"level": 10}}
     config = OnlineEmulatorConfig.from_dict(dict_)
-    assert ScalarLoss(0, 10) == config.target
+    assert QVLoss(10) == config.target
 
 
 @pytest.mark.parametrize("output_exists", [True, False])
@@ -209,7 +209,7 @@ def test_dump_load_OnlineEmulator(state, tmpdir, output_exists):
 def test_RHScalarMLP():
     argsin = _get_argsin(n=10, levels=10)
     tf.random.set_seed(1)
-    mlp = RHScalarMLP(var_number=3)
+    mlp = RHScalarMLP()
     mlp(argsin)
     mlp.fit_scalers(argsin, argsout=argsin)
     out = mlp(argsin)
@@ -226,7 +226,7 @@ def test_RHScalarMLP():
 @pytest.mark.parametrize(
     "args,loss_cls",
     [
-        (["--level", "50"], ScalarLoss),
+        (["--level", "50"], QVLoss),
         (["--level", "50", "--relative-humidity"], RHLoss),
         (["--multi-output"], MultiVariableLoss),
         (["--multi-output", "--relative-humidity"], MultiVariableLoss),
@@ -262,9 +262,7 @@ def test_OnlineEmulatorConfig_multi_output_levels(levels):
 def test_UVTRHSimple():
     n = 2
     x = _get_argsin(n)
-    y = RelativeHumidityBasis(
-        [x.u + 1.0, x.v + 1.0, x.T + 1.0, x.rh + 0.01, x.dp, x.dz]
-    )
+    y = RelativeHumidityBasis(x.u + 1.0, x.v + 1.0, x.T + 1.0, x.rh + 0.01, x.dp, x.dz)
     model = UVTRHSimple(n, n, n, n)
     model.fit_scalers(x, y)
     out = model(x)

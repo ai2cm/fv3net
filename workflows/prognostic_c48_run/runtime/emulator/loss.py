@@ -23,15 +23,13 @@ def q_loss_info(truth_q, pred_q, level):
 
 
 @dataclasses.dataclass
-class ScalarLoss:
+class QVLoss:
     """
     Attrs:
-        variable: the variable to target, defaults to all levels of u,v,t,q
         level: the level to predict
         scale: the typical order of the loss function
     """
 
-    variable: int
     level: int
     scale: float = 1.0
 

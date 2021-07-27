@@ -7,7 +7,7 @@ import numpy
 import tensorflow as tf
 import dacite
 from runtime.emulator.loggers import WandBLogger, ConsoleLogger, TBLogger, LoggerList
-from runtime.emulator.loss import RHLoss, ScalarLoss, MultiVariableLoss
+from runtime.emulator.loss import RHLoss, QVLoss, MultiVariableLoss
 from runtime.emulator.thermo import (
     RelativeHumidityBasis,
     SpecificHumidityBasis,
@@ -54,7 +54,7 @@ class OnlineEmulatorConfig:
         train: if True the model is trained online
         batch: if provided then these data are used for training the ML model
         num_hidden_layers: number of hidden layers used. Only implemented for
-            ScalarLoss targets.
+            QVLoss targets.
         wandb_logger: if True, then enable weights and biases saving
         checkpoint: path to model artifact in Weights and biases
             "<entity>/<project>/<name>:tag"
@@ -72,7 +72,7 @@ class OnlineEmulatorConfig:
     epochs: int = 1
     levels: int = 79
     batch: Optional[BatchDataConfig] = None
-    target: Union[MultiVariableLoss, ScalarLoss, RHLoss] = dataclasses.field(
+    target: Union[MultiVariableLoss, QVLoss, RHLoss] = dataclasses.field(
         default_factory=MultiVariableLoss
     )
     relative_humidity: bool = False
@@ -159,7 +159,7 @@ class OnlineEmulatorConfig:
             if args.relative_humidity:
                 config.target = RHLoss(level=args.level, scale=args.scale)
             else:
-                config.target = ScalarLoss(args.variable, args.level, scale=args.scale)
+                config.target = QVLoss(args.level, scale=args.scale)
         elif args.multi_output:
             levels = [int(s) for s in args.levels.split(",") if s]
             config.target = MultiVariableLoss(
@@ -200,6 +200,11 @@ def to_tensors(ds: xr.Dataset, keys) -> Tuple[xr.DataArray]:
 def _xarray_to_tensor(state, keys):
     in_ = stack(state, keys)
     return to_tensors(in_, keys)
+
+
+def batch_to_specific_humidity_basis(x):
+    args, scalars = x[:6], x[6:]
+    return SpecificHumidityBasis(*args, scalars=scalars)
 
 
 class OnlineEmulator:
@@ -248,8 +253,8 @@ class OnlineEmulator:
     def score(self, d: tf.data.Dataset):
         losses = defaultdict(list)
         for x, y in d.batch(10_000):
-            in_ = SpecificHumidityBasis(x)
-            out = SpecificHumidityBasis(y)
+            in_ = batch_to_specific_humidity_basis(x)
+            out = batch_to_specific_humidity_basis(y)
             _, info = self.get_loss(in_, out)
             for key in info:
                 losses[key].append(info[key])
@@ -269,16 +274,16 @@ class OnlineEmulator:
             argsin, argsout = next(iter(d.batch(10_000)))
             # calls .build on any layers
             # self.model(argsin)
-            in_ = SpecificHumidityBasis(argsin)
-            out = SpecificHumidityBasis(argsout)
+            in_ = batch_to_specific_humidity_basis(argsin)
+            out = batch_to_specific_humidity_basis(argsout)
             self.model.fit_scalers(in_, out)
 
         for i in range(self.config.epochs):
             logging.info(f"Epoch {i+1}")
             train_loss = defaultdict(lambda: [])
             for x, y in d.batch(self.config.batch_size):
-                in_ = SpecificHumidityBasis(x)
-                out = SpecificHumidityBasis(y)
+                in_ = batch_to_specific_humidity_basis(x)
+                out = batch_to_specific_humidity_basis(y)
                 info = self.step(in_, out)
                 for key in info:
                     train_loss[key].append(info[key])
@@ -290,8 +295,8 @@ class OnlineEmulator:
                 loss_epoch_test = self.score(validation_data)
                 self.log_dict("test_epoch", loss_epoch_test, step=i)
                 x, y = next(iter(validation_data.batch(3).take(1)))
-                in_ = SpecificHumidityBasis(x)
-                out = SpecificHumidityBasis(y)
+                in_ = batch_to_specific_humidity_basis(x)
+                out = batch_to_specific_humidity_basis(y)
                 pred = self.model(in_)
                 if isinstance(self.model, UVTQSimple):
                     self.log_profiles(
@@ -325,7 +330,7 @@ class OnlineEmulator:
     def predict(self, state: State) -> State:
         in_ = stack(state, self.input_variables)
         in_tensors = to_tensors(in_, self.input_variables)
-        x = SpecificHumidityBasis(in_tensors)
+        x = batch_to_specific_humidity_basis(in_tensors)
         out = self.model(x)
         dims = ["sample", "z"]
 
@@ -409,14 +414,12 @@ class UVTQSimple(tf.keras.layers.Layer):
         hidden = self.relu(self.linear(self.norm(stacked)))
 
         return SpecificHumidityBasis(
-            [
-                in_.u + self.scalers[0](self.out_u(hidden)),
-                in_.v + self.scalers[1](self.out_v(hidden)),
-                in_.T + self.scalers[2](self.out_t(hidden)),
-                in_.q + self.scalers[3](self.out_q(hidden)),
-                in_.dp,
-                in_.dz,
-            ]
+            in_.u + self.scalers[0](self.out_u(hidden)),
+            in_.v + self.scalers[1](self.out_v(hidden)),
+            in_.T + self.scalers[2](self.out_t(hidden)),
+            in_.q + self.scalers[3](self.out_q(hidden)),
+            in_.dp,
+            in_.dz,
         )
 
 
@@ -433,25 +436,22 @@ class UVTRHSimple(UVTQSimple):
         hidden = self.relu(self.linear(self.norm(stacked)))
 
         return RelativeHumidityBasis(
-            [
-                in_.u + self.scalers[0](self.out_u(hidden)),
-                in_.v + self.scalers[1](self.out_v(hidden)),
-                in_.T + self.scalers[2](self.out_t(hidden)),
-                in_.rh + self.scalers[3](self.out_q(hidden)),
-                in_.rho,
-                in_.dz,
-            ]
+            in_.u + self.scalers[0](self.out_u(hidden)),
+            in_.v + self.scalers[1](self.out_v(hidden)),
+            in_.T + self.scalers[2](self.out_t(hidden)),
+            in_.rh + self.scalers[3](self.out_q(hidden)),
+            in_.rho,
+            in_.dz,
         )
 
 
 class ScalarMLP(tf.keras.layers.Layer):
-    def __init__(self, num_hidden=256, num_hidden_layers=1, var_number=0, var_level=0):
+    def __init__(self, num_hidden=256, num_hidden_layers=1, var_level=0):
         super(ScalarMLP, self).__init__()
         self.scalers_fitted = False
         self.sequential = tf.keras.Sequential()
 
         # output level
-        self.var_number = var_number
         self.var_level = var_level
 
         # input and output normalizations
@@ -471,7 +471,7 @@ class ScalarMLP(tf.keras.layers.Layer):
         # assume has dims: batch, z
         args = [atleast_2d(arg) for arg in in_.args]
         stacked = tf.concat(args, axis=-1)
-        t0 = in_.args[self.var_number][:, self.var_level : self.var_level + 1]
+        t0 = in_.q[:, self.var_level : self.var_level + 1]
         return t0 + self.sequential(stacked)
 
     def _fit_input_scaler(self, in_: ThermoBasis):
@@ -480,8 +480,8 @@ class ScalarMLP(tf.keras.layers.Layer):
         self.norm.fit(stacked)
 
     def _fit_output_scaler(self, argsin: ThermoBasis, argsout: ThermoBasis):
-        t0 = argsin.args[self.var_number][:, self.var_level : self.var_level + 1]
-        t1 = argsout.args[self.var_number][:, self.var_level : self.var_level + 1]
+        t0 = argsin.q[:, self.var_level : self.var_level + 1]
+        t1 = argsout.q[:, self.var_level : self.var_level + 1]
         self.output_scaler.fit(t1 - t0)
 
     def fit_scalers(self, argsin: ThermoBasis, argsout: ThermoBasis):
@@ -549,10 +549,9 @@ def get_model(config: OnlineEmulatorConfig) -> tf.keras.Model:
             return UVTRHSimple(n, n, n, n)
         else:
             return UVTQSimple(n, n, n, n)
-    elif isinstance(config.target, ScalarLoss):
+    elif isinstance(config.target, QVLoss):
         logging.info("Using ScalerMLP")
         model = ScalarMLP(
-            var_number=config.target.variable,
             var_level=config.target.level,
             num_hidden=config.num_hidden,
             num_hidden_layers=config.num_hidden_layers,
@@ -560,7 +559,6 @@ def get_model(config: OnlineEmulatorConfig) -> tf.keras.Model:
     elif isinstance(config.target, RHLoss):
         logging.info("Using RHScaler")
         model = RHScalarMLP(
-            var_number=3,
             var_level=config.target.level,
             num_hidden=config.num_hidden,
             num_hidden_layers=config.num_hidden_layers,

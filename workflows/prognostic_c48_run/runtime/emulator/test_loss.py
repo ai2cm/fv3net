@@ -1,6 +1,5 @@
 import numpy as np
-from runtime.emulator.loss import RHLoss
-from runtime.emulator.loss import MultiVariableLoss, ScalarLoss
+from runtime.emulator.loss import QVLoss, RHLoss, MultiVariableLoss
 import tensorflow as tf
 from .utils import _get_argsin
 import pytest
@@ -21,12 +20,12 @@ def test_MultiVariableLoss(regtest):
         print(key, value, file=regtest)
 
 
-@pytest.mark.parametrize("loss_fn", [ScalarLoss(3, 5), RHLoss(5)])
+@pytest.mark.parametrize("loss_fn", [QVLoss(5), RHLoss(5)])
 def test_ScalarLoss(loss_fn):
     i = loss_fn.level
 
     def model(x):
-        if isinstance(loss_fn, ScalarLoss):
+        if isinstance(loss_fn, QVLoss):
             return x.q[:, i : i + 1]
         elif isinstance(loss_fn, RHLoss):
             return x.rh[:, i : i + 1]
