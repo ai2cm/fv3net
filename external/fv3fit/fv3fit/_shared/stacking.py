@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.random import RandomState
-from typing import Sequence, Union, Optional
+from typing import Sequence, Union, Optional, Tuple
 import xarray as xr
 
 from vcm import safe
@@ -53,7 +53,7 @@ def stack_non_vertical(ds: xr.Dataset,) -> xr.Dataset:
         stack_dims,
         allowed_broadcast_dims=Z_DIM_NAMES + ["time", "dataset"],
     )
-    return ds_stacked.transpose()
+    return ds_stacked.transpose(SAMPLE_DIM_NAME, ...)
 
 
 def _check_empty(ds: xr.Dataset) -> xr.Dataset:
@@ -113,3 +113,27 @@ def _get_chunk_indices(chunks):
         indices.append(list(range(start, start + chunk)))
         start += chunk
     return indices
+
+
+def infer_dimension_order(ds: xr.Dataset) -> Tuple:
+    # add check here for cases when the dimension order is inconsistent between arrays?
+    dim_order = []
+    for variable in ds:
+        for dim in ds[variable].dims:
+            if dim not in dim_order:
+                dim_order.append(dim)
+    return tuple(dim_order)
+
+
+def match_prediction_to_input_coords(
+    input: xr.Dataset, prediction: xr.Dataset
+) -> xr.Dataset:
+    # ensure the output coords are the same
+    # stack/unstack adds coordinates if none exist before
+    input_coords = input.coords
+    for key in prediction.coords:
+        if key in input_coords:
+            prediction.coords[key] = input_coords[key]
+        else:
+            del prediction.coords[key]
+    return prediction
