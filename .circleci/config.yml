@@ -147,7 +147,7 @@ jobs:
           name: Install dependencies
           command: |
             apt-get install -y wget jq make gettext gzip
-            pip3 install yq
+            pip3 install yq==2.11.0
 
             # install kustomize
             wget "https://raw.githubusercontent.com/\
