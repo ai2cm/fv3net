@@ -13,7 +13,11 @@ from runtime.emulator.thermo import (
     SpecificHumidityBasis,
     ThermoBasis,
 )
-from runtime.emulator.layers import NormLayer, ScalarNormLayer, UnNormLayer
+from fv3fit.emulation.layers.normalization import (
+    MaxFeatureStdDenormLayer,
+    StandardNormLayer,
+    StandardDenormLayer,
+)
 import logging
 import json
 
@@ -372,7 +376,7 @@ class UVTQSimple(tf.keras.layers.Layer):
     def __init__(self, u_size, v_size, t_size, q_size):
         super(UVTQSimple, self).__init__()
         self.scalers_fitted = False
-        self.norm = NormLayer(name="norm")
+        self.norm = StandardNormLayer(name="norm")
         self.linear = tf.keras.layers.Dense(256, name="lin")
         self.relu = tf.keras.layers.ReLU()
         self.out_u = tf.keras.layers.Dense(u_size, name="out_u")
@@ -380,7 +384,7 @@ class UVTQSimple(tf.keras.layers.Layer):
         self.out_t = tf.keras.layers.Dense(t_size, name="out_t")
         self.out_q = tf.keras.layers.Dense(q_size, name="out_q")
 
-        self.scalers = [UnNormLayer(name=f"out_{i}") for i in range(4)]
+        self.scalers = [MaxFeatureStdDenormLayer(name=f"out_{i}") for i in range(4)]
 
     def _fit_input_scaler(self, args: Sequence[tf.Variable]):
         args = [atleast_2d(arg) for arg in args]
@@ -451,8 +455,8 @@ class ScalarMLP(tf.keras.layers.Layer):
         self.var_level = var_level
 
         # input and output normalizations
-        self.norm = NormLayer(name="norm")
-        self.output_scaler = ScalarNormLayer(name="output_scalar")
+        self.norm = StandardNormLayer(name="norm")
+        self.output_scaler = StandardDenormLayer(name="output_scalar")
 
         # model architecture
         self.sequential.add(self.norm)
