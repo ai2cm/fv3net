@@ -59,7 +59,7 @@ positional arguments:
   model_path            Local or remote path for reading ML model.
   output_path           Local or remote path where diagnostic output will be
                         written.
-  data_yaml             Config file with dataset specifications.
+  data_yaml             BatchesLoader configuration file.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -84,4 +84,3 @@ usage: python -m offline_ml_diags.create_report [-h] [--commit-sha COMMIT_SHA] i
 | :--- | :--- | :--- |
 |`--help`||show this help message and exit|
 |`--commit-sha`|`None`|Commit SHA of fv3net used to create report. Useful for referencingthe version used to train the model.|
-
