@@ -1,4 +1,3 @@
 config.yaml
 kustomization.yaml
 training-data-config-compiled.yaml
-validation-data-config-compiled.yaml
