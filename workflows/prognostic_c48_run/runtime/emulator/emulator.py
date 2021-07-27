@@ -1,11 +1,17 @@
 from collections import defaultdict
 import dataclasses
-from typing import Mapping, Optional, Sequence, Tuple, Union, List
+from typing import Mapping, Optional, Sequence, Union, List
 import os
 import xarray as xr
 import numpy
 import tensorflow as tf
 import dacite
+from runtime.emulator.batch import (
+    get_prognostic_variables,
+    batch_to_specific_humidity_basis,
+    to_tensors,
+    to_dict_no_static_vars,
+)
 from runtime.emulator.loggers import WandBLogger, ConsoleLogger, TBLogger, LoggerList
 from runtime.emulator.loss import RHLoss, QVLoss, MultiVariableLoss
 from runtime.emulator.thermo import (
@@ -20,14 +26,6 @@ from fv3fit.emulation.layers.normalization import (
 )
 import logging
 import json
-
-
-U = "eastward_wind"
-V = "northward_wind"
-T = "air_temperature"
-Q = "specific_humidity"
-DELP = "pressure_thickness_of_atmospheric_layer"
-DELZ = "vertical_thickness_of_atmospheric_layer"
 
 
 State = Mapping[str, xr.DataArray]
@@ -84,7 +82,7 @@ class OnlineEmulatorConfig:
 
     @property
     def input_variables(self) -> List[str]:
-        return [U, V, T, Q, DELP, DELZ] + list(self.extra_input_variables)
+        return get_prognostic_variables() + list(self.extra_input_variables)
 
     @classmethod
     def from_dict(cls, dict_) -> "OnlineEmulatorConfig":
@@ -183,30 +181,6 @@ class OnlineEmulatorConfig:
         return config
 
 
-def stack(state: State, keys) -> xr.Dataset:
-    ds = xr.Dataset({key: state[key] for key in keys})
-    sample_dims = ["y", "x"]
-    return ds.stack(sample=sample_dims).transpose("sample", ...)
-
-
-def to_tensor(arr: xr.DataArray) -> tf.Variable:
-    return tf.cast(tf.Variable(arr), tf.float32)
-
-
-def to_tensors(ds: xr.Dataset, keys) -> Tuple[xr.DataArray]:
-    return tuple([to_tensor(ds[k]) for k in ds])
-
-
-def _xarray_to_tensor(state, keys):
-    in_ = stack(state, keys)
-    return to_tensors(in_, keys)
-
-
-def batch_to_specific_humidity_basis(x):
-    args, scalars = x[:6], x[6:]
-    return SpecificHumidityBasis(*args, scalars=scalars)
-
-
 class OnlineEmulator:
     def __init__(
         self, config: OnlineEmulatorConfig,
@@ -217,7 +191,7 @@ class OnlineEmulator:
             learning_rate=config.learning_rate, momentum=config.momentum
         )
         self._statein: Optional[State] = None
-        self.output_variables: Sequence[str] = (U, V, T, Q, DELP, DELZ)
+        self.output_variables: Sequence[str] = get_prognostic_variables()
         self._step = 0
         self.logger = LoggerList([TBLogger(), ConsoleLogger(), WandBLogger()])
 
@@ -329,20 +303,17 @@ class OnlineEmulator:
 
     def predict(self, state: State) -> State:
         in_ = stack(state, self.input_variables)
-        in_tensors = to_tensors(in_, self.input_variables)
+        in_tensors = to_tensors(in_)
         x = batch_to_specific_humidity_basis(in_tensors)
         out = self.model(x)
-        dims = ["sample", "z"]
 
+        tensors = to_dict_no_static_vars(out)
+
+        dims = ["sample", "z"]
         attrs = {"units": "no one cares"}
 
         return xr.Dataset(
-            {
-                U: (dims, out.u, attrs),
-                V: (dims, out.v, attrs),
-                T: (dims, out.T, attrs),
-                Q: (dims, out.q, attrs),
-            },
+            {key: (dims, val, attrs) for key, val in tensors.items()},
             coords=in_.coords,
         ).unstack("sample")
 
@@ -367,6 +338,17 @@ class OnlineEmulator:
         model = cls(config)
         model._checkpoint.read(os.path.join(path, cls._model))
         return model
+
+
+def _xarray_to_tensor(state, keys):
+    in_ = stack(state, keys)
+    return to_tensors(in_)
+
+
+def stack(state: State, keys) -> xr.Dataset:
+    ds = xr.Dataset({key: state[key] for key in keys})
+    sample_dims = ["y", "x"]
+    return ds.stack(sample=sample_dims).transpose("sample", ...)
 
 
 def atleast_2d(x: tf.Variable) -> tf.Variable:

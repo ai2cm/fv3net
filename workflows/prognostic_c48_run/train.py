@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
+from functools import partial
 import json
 import os
 
 from runtime.emulator.emulator import OnlineEmulatorConfig
+from runtime.emulator.batch import all_required_variables, compute_in_out, nz
 from runtime.emulator import data
 import runtime.emulator
 import tensorflow as tf
@@ -28,16 +30,16 @@ def main(config: OnlineEmulatorConfig):
 
     emulator = runtime.emulator.OnlineEmulator(config)
 
+    prep = partial(compute_in_out, timestep=args.timestep)
+    variables = config.extra_input_variables + all_required_variables()
+
     train_dataset = data.netcdf_url_to_dataset(
-        config.batch.training_path,
-        args.timestep,
-        emulator.input_variables,
-        shuffle=True,
-    )
+        config.batch.training_path, variables, shuffle=True,
+    ).map(prep)
 
     test_dataset = data.netcdf_url_to_dataset(
-        config.batch.testing_path, args.timestep, emulator.input_variables,
-    )
+        config.batch.testing_path, variables,
+    ).map(prep)
 
     if args.nfiles:
         train_dataset = train_dataset.take(args.nfiles)
@@ -48,7 +50,7 @@ def main(config: OnlineEmulatorConfig):
 
     # detect number of levels
     sample_ins, _ = next(iter(train_dataset.batch(10).take(1)))
-    _, config.levels = sample_ins[0].shape
+    config.levels = nz(sample_ins)
 
     id_ = pathlib.Path(os.getcwd()).name
 

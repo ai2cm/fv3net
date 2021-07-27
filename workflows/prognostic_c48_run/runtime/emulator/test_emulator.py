@@ -5,6 +5,7 @@ import numpy as np
 from runtime.emulator.thermo import RelativeHumidityBasis
 import tensorflow as tf
 import xarray as xr
+from runtime.emulator.batch import to_dict
 from runtime.emulator.emulator import (
     RHScalarMLP,
     ScalarMLP,
@@ -103,8 +104,8 @@ def test_OnlineEmulator_fit_predict(state, extra_inputs):
     ],
 )
 def test_OnlineEmulator_batch_fit(config, with_validation):
-    x = _get_argsin(config.levels)
-    dataset = tf.data.Dataset.from_tensors((x.args, x.args)).unbatch()
+    x = to_dict(_get_argsin(config.levels))
+    dataset = tf.data.Dataset.from_tensors((x, x)).unbatch()
 
     emulator = get_emulator(config)
 
