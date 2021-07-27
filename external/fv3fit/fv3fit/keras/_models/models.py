@@ -12,7 +12,13 @@ import dataclasses
 
 from ..._shared.packer import ArrayPacker, unpack_matrix
 from ..._shared.predictor import Predictor
-from ..._shared import io, StackedBatches, stack_non_vertical
+from ..._shared import (
+    io,
+    StackedBatches,
+    stack_non_vertical,
+    infer_dimension_order,
+    match_prediction_to_input_coords,
+)
 from ..._shared.config import DenseHyperparameters, register_training_function
 import numpy as np
 import os
@@ -22,6 +28,8 @@ from .normalizer import LayerStandardScaler
 from .loss import get_weighted_mse, get_weighted_mae
 from loaders.batches import Take, shuffle
 import yaml
+from vcm import safe
+
 
 logger = logging.getLogger(__file__)
 
@@ -308,11 +316,23 @@ class DenseModel(Predictor):
                 )
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
-        sample_coord = X[self.sample_dim_name]
-        ds_pred = self.y_packer.to_dataset(
-            self.predict_array(self.X_packer.to_array(X))
+        # Takes unstacked data, stacks into sample dimension before
+        # keras model prediction, and returns unstacked prediction
+        # ensure dimension order is the same
+        inputs_ = safe.get_variables(X, self.input_variables)
+        inputs_stacked = stack_non_vertical(inputs_)
+        sample_coord = inputs_stacked[self.sample_dim_name]
+        ds_pred_stacked = self.y_packer.to_dataset(
+            self.predict_array(self.X_packer.to_array(inputs_stacked))
         )
-        return ds_pred.assign_coords({self.sample_dim_name: sample_coord})
+        ds_pred = ds_pred_stacked.assign_coords(
+            {self.sample_dim_name: sample_coord}
+        ).unstack(self.sample_dim_name)
+        ds_pred = match_prediction_to_input_coords(X, ds_pred)
+        dim_order = [
+            dim for dim in infer_dimension_order(inputs_) if dim in ds_pred.dims
+        ]
+        return ds_pred.transpose(*dim_order)
 
     def predict_array(self, X: np.ndarray) -> np.ndarray:
         return self.model.predict(X)
