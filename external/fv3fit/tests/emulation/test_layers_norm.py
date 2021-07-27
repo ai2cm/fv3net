@@ -12,13 +12,7 @@ _all_layers = [
 ]
 
 
-@pytest.fixture(params=_all_layers)
-def layer_cls(request):
-    return request.param
-
-
-@pytest.fixture
-def tensor():
+def _get_tensor():
     """
     Tensor with 2 features (columns)
     and 2 samples (rows)
@@ -42,7 +36,8 @@ def tensor():
         ),
     ],
 )
-def test_normalize_layers(tensor, norm_cls, denorm_cls, expected):
+def test_normalize_layers(norm_cls, denorm_cls, expected):
+    tensor = _get_tensor()
     norm_layer = norm_cls()
     denorm_layer = denorm_cls()
     norm_layer.fit(tensor)
@@ -55,14 +50,17 @@ def test_normalize_layers(tensor, norm_cls, denorm_cls, expected):
     np.testing.assert_allclose(denorm, tensor, rtol=1e-6, atol=1e-6)
 
 
-def test_layers_no_trainable_variables(tensor, layer_cls):
+@pytest.mark.parametrize("layer_cls", _all_layers)
+def test_layers_no_trainable_variables(layer_cls):
+    tensor = _get_tensor()
     layer = layer_cls()
     layer(tensor)
 
     assert [] == layer.trainable_variables
 
 
-def test_standard_layers_gradient_works_epsilon(tensor):
+def test_standard_layers_gradient_works_epsilon():
+    tensor = _get_tensor()
     norm_layer = layers.StandardNormLayer()
 
     with tf.GradientTape(persistent=True) as tape:
@@ -73,7 +71,9 @@ def test_standard_layers_gradient_works_epsilon(tensor):
     np.testing.assert_array_almost_equal(expected, g[0, :])
 
 
-def test_fit_layers_are_fitted(tensor, layer_cls):
+@pytest.mark.parametrize("layer_cls", _all_layers)
+def test_fit_layers_are_fitted(layer_cls):
+    tensor = _get_tensor()
     layer = layer_cls()
 
     assert not layer.fitted
