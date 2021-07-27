@@ -19,6 +19,7 @@ from runtime.emulator.thermo import (
     SpecificHumidityBasis,
     ThermoBasis,
 )
+from runtime.emulator.models import V1QCModel, atleast_2d
 from fv3fit.emulation.layers.normalization import (
     MaxFeatureStdDenormLayer,
     StandardNormLayer,
@@ -79,6 +80,7 @@ class OnlineEmulatorConfig:
     output_path: str = ""
     checkpoint: Optional[str] = None
     weight_sharing: bool = False
+    cloud_water: bool = False
 
     @property
     def input_variables(self) -> List[str]:
@@ -108,6 +110,7 @@ class OnlineEmulatorConfig:
 
         group = parser.add_argument_group("multiple output target")
         group.add_argument("--q-weight", default=1e6, type=float)
+        group.add_argument("--qc-weight", default=1e9, type=float)
         group.add_argument("--rh-weight", default=0.0, type=float)
         group.add_argument("--u-weight", default=100.0, type=float)
         group.add_argument("--v-weight", default=100.0, type=float)
@@ -125,6 +128,11 @@ class OnlineEmulatorConfig:
             "--relative-humidity",
             action="store_true",
             help="if true use relative based prediction.",
+        )
+        group.add_argument(
+            "--cloud-water",
+            action="store_true",
+            help="if true predict the cloud water field.",
         )
         group.add_argument("--variable", default=3, type=int)
         group.add_argument("--scale", default=1.0, type=float)
@@ -152,6 +160,7 @@ class OnlineEmulatorConfig:
         config.num_hidden_layers = args.num_hidden_layers
         config.wandb_logger = args.wandb
         config.relative_humidity = args.relative_humidity
+        config.cloud_water = args.cloud_water
 
         if args.level:
             if args.relative_humidity:
@@ -162,6 +171,7 @@ class OnlineEmulatorConfig:
             levels = [int(s) for s in args.levels.split(",") if s]
             config.target = MultiVariableLoss(
                 levels=levels,
+                qc_weight=args.qc_weight,
                 q_weight=args.q_weight,
                 u_weight=args.u_weight,
                 v_weight=args.v_weight,
@@ -351,14 +361,6 @@ def stack(state: State, keys) -> xr.Dataset:
     return ds.stack(sample=sample_dims).transpose("sample", ...)
 
 
-def atleast_2d(x: tf.Variable) -> tf.Variable:
-    n = len(x.shape)
-    if n == 1:
-        return tf.reshape(x, shape=x.shape + [1])
-    else:
-        return x
-
-
 class UVTQSimple(tf.keras.layers.Layer):
     def __init__(self, u_size, v_size, t_size, q_size):
         super(UVTQSimple, self).__init__()
@@ -425,6 +427,13 @@ class UVTRHSimple(UVTQSimple):
             in_.rho,
             in_.dz,
         )
+
+
+def embed(x: ThermoBasis):
+    args = [atleast_2d(arg) for arg in x.args.to_rh()]
+    if x.qc is not None:
+        args.append(x.qc)
+    return tf.concat(args, axis=-1)
 
 
 class ScalarMLP(tf.keras.layers.Layer):
@@ -524,7 +533,10 @@ def needs_restart(state) -> bool:
 
 
 def get_model(config: OnlineEmulatorConfig) -> tf.keras.Model:
-    if isinstance(config.target, MultiVariableLoss):
+    if config.cloud_water:
+        logging.info("Using V1QCModel")
+        return V1QCModel(config.levels, num_scalar=0)
+    elif isinstance(config.target, MultiVariableLoss):
         logging.info("Using ScalerMLP")
         n = config.levels
         if config.relative_humidity:

@@ -17,15 +17,16 @@ DELZ = "vertical_thickness_of_atmospheric_layer"
 DU = f"tendency_of_{U}_due_to_fv3_physics"
 DV = f"tendency_of_{V}_due_to_fv3_physics"
 DQ = f"tendency_of_{Q}_due_to_fv3_physics"
+DQC = f"tendency_of_{QC}_due_to_fv3_physics"
 DT = f"tendency_of_{T}_due_to_fv3_physics"
 
 
 def get_prognostic_variables():
-    return [U, V, T, Q, DELP, DELZ]
+    return [U, V, T, Q, QC, DELP, DELZ]
 
 
 def all_required_variables():
-    return [DU, DV, DQ, DT, Q, U, V, T, DELZ, DELP]
+    return [DU, DV, DQ, DT, DQC] + get_prognostic_variables()
 
 
 def nz(x: Dict[str, tf.Tensor]):
@@ -41,17 +42,23 @@ def batch_to_specific_humidity_basis(x: Dict[str, tf.Tensor]):
         q=scalars.pop(Q),
         dz=scalars.pop(DELZ),
         dp=scalars.pop(DELP),
+        qc=scalars.pop(QC),
     )
     scalars_sorted = [scalars[key] for key in sorted(scalars)]
     return SpecificHumidityBasis(**kw, scalars=scalars_sorted)
 
 
 def to_dict(x: SpecificHumidityBasis) -> Dict[str, tf.Tensor]:
-    return {U: x.u, V: x.v, T: x.T, Q: x.q, DELZ: x.dz, DELP: x.dp}
+    out = to_dict_no_static_vars(x)
+    out.update({DELZ: x.dz, DELP: x.dp})
+    return out
 
 
 def to_dict_no_static_vars(x: SpecificHumidityBasis) -> Dict[str, tf.Tensor]:
-    return {U: x.u, V: x.v, T: x.T, Q: x.q}
+    out = {U: x.u, V: x.v, T: x.T, Q: x.q}
+    if x.qc is not None:
+        out[QC] = x.qc
+    return out
 
 
 def to_tensor(arr: xr.DataArray) -> tf.Variable:
@@ -68,6 +75,7 @@ def compute_in_out(data: Mapping[str, tf.Tensor], timestep):
     next_state[V] = data[V] + timestep * data[DV]
     next_state[Q] = data[Q] + timestep * data[DQ]
     next_state[T] = data[T] + timestep * data[DT]
+    next_state[QC] = data[QC] + timestep * data[DQC]
     next_state[DELZ] = data[DELZ]
     next_state[DELP] = data[DELP]
     return data, next_state

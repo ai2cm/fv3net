@@ -11,4 +11,5 @@ def _get_argsin(levels: int, n: int = 10) -> ThermoBasis:
         tf.random.uniform(shape, 0, 0.01, dtype=tf.float32),  # q
         tf.random.uniform(shape, 100, 110, dtype=tf.float32),  # dp
         tf.random.uniform(shape, 100, 100, dtype=tf.float32),  # dz
+        qc=tf.random.uniform(shape, 0, 0.01, dtype=tf.float32),  # qc
     )

@@ -1,7 +1,8 @@
-from typing import Sequence, Tuple
-import tensorflow as tf
-from vcm.calc.thermo import _RVGAS, _GRAVITY
 import dataclasses
+from typing import Optional, Sequence, Tuple
+
+import tensorflow as tf
+from vcm.calc.thermo import _GRAVITY, _RVGAS
 
 
 def saturation_pressure(air_temperature_kelvin: tf.Tensor) -> tf.Tensor:
@@ -49,16 +50,31 @@ class ThermoBasis:
     dz: tf.Tensor
     rh: tf.Tensor
     rho: tf.Tensor
+    qc: Optional[tf.Tensor] = None
     scalars: Sequence[tf.Tensor]
 
     def to_rh(self):
         return RelativeHumidityBasis(
-            self.u, self.v, self.T, self.rh, self.rho, self.dz, self.scalars
+            self.u,
+            self.v,
+            self.T,
+            self.rh,
+            self.rho,
+            self.dz,
+            scalars=self.scalars,
+            qc=self.qc,
         )
 
     def to_q(self):
         return SpecificHumidityBasis(
-            self.u, self.v, self.T, self.q, self.dp, self.dz, self.scalars
+            self.u,
+            self.v,
+            self.T,
+            self.q,
+            self.dp,
+            self.dz,
+            scalars=self.scalars,
+            qc=self.qc,
         )
 
     def args(self) -> Tuple[tf.Tensor]:
@@ -75,6 +91,7 @@ class SpecificHumidityBasis(ThermoBasis):
     q: tf.Tensor
     dp: tf.Tensor
     dz: tf.Tensor
+    qc: Optional[tf.Tensor] = None
     scalars: Sequence[tf.Tensor] = dataclasses.field(default_factory=list)
 
     @property
@@ -99,6 +116,7 @@ class RelativeHumidityBasis(ThermoBasis):
     rh: tf.Tensor
     rho: tf.Tensor
     dz: tf.Tensor
+    qc: Optional[tf.Tensor] = None
     scalars: Sequence[tf.Tensor] = dataclasses.field(default_factory=list)
 
     @property

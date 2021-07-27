@@ -102,6 +102,7 @@ class MultiVariableLoss:
     t_weight: float = 100
     v_weight: float = 100
     rh_weight: float = 0.0
+    qc_weight: float = 0.0
 
     levels: List[int] = dataclasses.field(default_factory=list)
 
@@ -127,6 +128,16 @@ class MultiVariableLoss:
             "loss_t": loss_t.numpy(),
             "loss": loss.numpy(),
         }
+
+        if pred.qc is not None:
+            loss_qc = tf.reduce_mean(
+                tf.keras.losses.mean_squared_error(out.qc, pred.qc)
+            )
+            info["loss_qc"] = loss_qc.numpy()
+
+            loss += loss_qc * self.qc_weight
+
+        info["loss"] = loss.numpy()
 
         for level in self.levels:
             pred_rh = select_level(pred.rh, level)
