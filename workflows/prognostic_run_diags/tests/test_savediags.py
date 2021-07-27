@@ -1,10 +1,13 @@
 from itertools import chain
 
 import fv3net.diagnostics.prognostic_run.compute as savediags
+from fv3net.diagnostics.prognostic_run.load_run_data import (
+    SegmentedRun,
+    CatalogSimulation,
+)
 import cftime
 import numpy as np
 import xarray as xr
-
 import pytest
 
 
@@ -32,7 +35,7 @@ def grid():
 @pytest.mark.parametrize(
     "func",
     chain.from_iterable(
-        registry._funcs.values() for registry in savediags.registries.values()
+        registry.funcs.values() for registry in savediags.registries.values()
     ),
 )
 def test_compute_diags_succeeds(func, resampled, verification, grid):
@@ -49,3 +52,15 @@ def test_time_mean():
     diagnostic = savediags.time_mean(ds)
     assert diagnostic.temperature.attrs["diagnostic_start_time"] == str(time_coord[0])
     assert diagnostic.temperature.attrs["diagnostic_end_time"] == str(time_coord[-1])
+
+
+@pytest.mark.parametrize(
+    "url, expected_cls", [("", CatalogSimulation), ("gs://some/run", SegmentedRun)]
+)
+def test_get_verification_from_catalog(url, expected_cls):
+    class Args:
+        verification = "hello"
+        verification_url = url
+
+    verification = savediags.get_verification(Args, catalog=None)
+    assert isinstance(verification, expected_cls), verification

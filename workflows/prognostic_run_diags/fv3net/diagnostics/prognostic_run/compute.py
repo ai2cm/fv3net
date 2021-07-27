@@ -12,6 +12,7 @@ dynamical core of the model and saved in `atmos_dt_atmos.tile*.nc` while the "ph
 grouping contains outputs from the physics routines (`sfc_dt_atmos.tile*.nc` and
 `diags.zarr`).
 """
+from argparse import ArgumentParser
 import sys
 
 import datetime
@@ -20,13 +21,14 @@ import numpy as np
 import xarray as xr
 from dask.diagnostics import ProgressBar
 import fsspec
+from joblib import Parallel, delayed
+
 
 from typing import Mapping, Union, Tuple, Sequence
 
 import vcm
 
 from fv3net.diagnostics.prognostic_run import load_run_data as load_diags
-from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import diurnal_cycle
 from fv3net.diagnostics.prognostic_run import transform
 from fv3net.diagnostics.prognostic_run.constants import (
@@ -59,6 +61,29 @@ def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Mapping[str, xr.DataArray
         diags[f"{lower}_{suffix}"] = da
 
     return diags
+
+
+def _merge_diag_computes(
+    input_data: Mapping[str, Sequence[xr.Dataset]],
+    registries: Mapping[str, Registry],
+    n_jobs: int,
+) -> Mapping[str, xr.DataArray]:
+    # Flattens list of all computations across registries before
+    # parallelizing the computation.
+    merged_input_data = []
+    for registry_key, (prog, verif, grid) in input_data.items():
+        merged_input_data += [
+            (func_name, func, registry_key, prog, verif, grid)
+            for func_name, func in registries[registry_key].funcs.items()
+        ]
+
+    def _compute(func_name, func, key, *args):
+        return registries[key].load(func_name, func, *args)
+
+    computed_outputs = Parallel(n_jobs=n_jobs, verbose=True)(
+        delayed(_compute)(*compute_args) for compute_args in merged_input_data
+    )
+    return merge_diags(computed_outputs)
 
 
 def merge_diags(diags: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, xr.DataArray]:
@@ -400,15 +425,25 @@ def compute_histogram_bias(prognostic, verification, grid):
 
 
 def register_parser(subparsers):
-    parser = subparsers.add_parser("save", help="Compute the prognostic run diags.")
+    parser: ArgumentParser = subparsers.add_parser(
+        "save", help="Compute the prognostic run diags."
+    )
     parser.add_argument("url", help="Prognostic run output location.")
     parser.add_argument("output", help="Output path including filename.")
     parser.add_argument("--catalog", default=vcm.catalog.catalog_path)
-    parser.add_argument(
+    verification_group = parser.add_mutually_exclusive_group()
+    verification_group.add_argument(
         "--verification",
         help="Tag for simulation to use as verification data. Checks against "
         "'simulation' metadata from intake catalog.",
         default="40day_may2020",
+    )
+    verification_group.add_argument(
+        "--verification-url",
+        default="",
+        type=str,
+        help="URL to segmented run. "
+        "If not passed then the --verification argument is used.",
     )
     parser.add_argument(
         "--n-jobs",
@@ -422,33 +457,38 @@ def register_parser(subparsers):
     parser.set_defaults(func=main)
 
 
+def get_verification(args, catalog):
+    if args.verification_url:
+        return load_diags.SegmentedRun(args.verification_url, catalog)
+    else:
+        return load_diags.CatalogSimulation(args.verification, catalog)
+
+
 def main(args):
 
     logging.basicConfig(level=logging.INFO)
     attrs = vars(args)
     attrs["history"] = " ".join(sys.argv)
 
-    catalog = intake.open_catalog(args.catalog)
-
-    # get catalog entries for specified verification data
-    verif_entries = config.get_verification_entries(args.verification, catalog)
-
-    input_data = {
-        "dycore": load_diags.load_dycore(args.url, verif_entries["dycore"], catalog),
-        "physics": load_diags.load_physics(args.url, verif_entries["physics"], catalog),
-        "3d": load_diags.load_3d(args.url, verif_entries["3d"], catalog),
-    }
-
     # begin constructing diags
     diags = {}
+    catalog = intake.open_catalog(args.catalog)
+    prognostic = load_diags.SegmentedRun(args.url, catalog)
+    verification = get_verification(args, catalog)
+    attrs["verification"] = str(verification)
+
+    grid = load_diags.load_grid(catalog)
+    input_data = load_diags.evaluation_pair_to_input_data(
+        prognostic, verification, grid
+    )
 
     # maps
     diags["pwat_run_initial"] = input_data["dycore"][0].PWAT.isel(time=0)
     diags["pwat_run_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
     diags["pwat_verification_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
 
-    for key, (prog, verif, grid) in input_data.items():
-        diags.update(registries[key].compute(prog, verif, grid, n_jobs=args.n_jobs))
+    computed_diags = _merge_diag_computes(input_data, registries, args.n_jobs)
+    diags.update(computed_diags)
 
     # add grid vars
     diags = xr.Dataset(diags, attrs=attrs)

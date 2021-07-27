@@ -34,6 +34,7 @@ setup(
         "console_scripts": [
             "segmented-run-create=runtime.segmented_run.cli:create",
             "runSegment=runtime.segmented_run.run:main",
+            "prepare-config=runtime.segmented_run.prepare_config:main",
         ]
     },
 )

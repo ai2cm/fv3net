@@ -423,8 +423,6 @@ def open_fine_res_apparent_sources(
             "20160801.000730", a value off 450 will shift this forward 7:30
             minutes, so that this same value can be accessed with the key
             "20160801.001500"
-        rename_vars: (mapping): optional mapping of variables to rename in dataset
-        drop_vars (sequence): optional list of variable names to drop from dataset
     """
 
     rename_vars: Mapping[Hashable, Hashable] = {
@@ -434,7 +432,7 @@ def open_fine_res_apparent_sources(
         "delp": "pressure_thickness_of_atmospheric_layer",
     }
     dim_order = ("tile", "z", "y", "x")
-    drop_vars = ("step", "time")
+    drop_vars = ("step",)
 
     fine_resolution_sources_mapper = FineResolutionSources(
         open_fine_resolution_budget(data_path),

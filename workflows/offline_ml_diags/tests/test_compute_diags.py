@@ -55,7 +55,6 @@ class Args:
     data_path: Optional[str] = None
     config_yml: Optional[str] = None
     timesteps_file: Optional[str] = None
-    training: Optional[bool] = False
     snapshot_time: Optional[str] = None
 
 

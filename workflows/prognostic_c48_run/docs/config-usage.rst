@@ -10,7 +10,7 @@ The prognostic run can can be configured to run with the following
 #. :ref:`Nudge-to-obs <nudge to obs>`
 #. :ref:`Machine learning (prognostic) <ml config>`
 
-The prognostic run provides a command line script ```prepare_config.py`` <https://github.com/VulcanClimateModeling/fv3net/blob/master/workflows/prognostic_c48_run/prepare_config.py>`_ to
+The prognostic run provides a command line script ```prepare-config``  to
 minimize the boilerplate required to configure a run. This script allows
 specifying changes over the "default" configurations stored `here <https://github.com/VulcanClimateModeling/fv3net/tree/master/external/fv3kube/fv3kube/base_yamls>`_.
 
@@ -30,7 +30,7 @@ runtime configurations described in :ref:`configuration-api`. To generate a
 "full configuration" usable by fv3config_ and the python runtime
 configurations, run the following::
 
-    python3 prepare_config.py \
+    prepare-config \
         minimal.yaml \
         gs://vcm-ml-code-testing-data/c48-restarts-for-e2e \
         20160801.001500 \
@@ -101,7 +101,7 @@ For convenient scripting, the ``--model_url`` command line argument adds a
 model to :py:class:`runtime.steppers.machine_learning.MachineLearningConfig`.
 It can be used multiple times to specify multiple models. For example::
 
-    python3 prepare_config.py \
+    prepare-config \
         minimal.yaml \
         gs://vcm-ml-code-testing-data/c48-restarts-for-e2e \
         20160801.001500 \

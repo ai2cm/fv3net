@@ -401,7 +401,7 @@ def main(args):
         config.batch_kwargs, "mapping_function", "mapping_kwargs", "timesteps"
     )
     batches = loaders.batches.batches_from_mapper(
-        pred_mapper, variables, timesteps=timesteps, training=False, **batch_kwargs,
+        pred_mapper, variables, timesteps=timesteps, **batch_kwargs,
     )
 
     # compute diags

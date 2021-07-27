@@ -344,7 +344,7 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         recvbuf = np.array(0.0)
         reduced = {}
         self._print("-----------------------------------------------------------------")
-        self._print("         Reporting clock statistics from python runfile          ")
+        self._print("         Reporting clock statistics from python                  ")
         self._print("-----------------------------------------------------------------")
         self._print(f"{' ':<30}{'min (s)':>15}{'max (s)':>15}{'mean (s)':>15}")
         for name, value in self._timer.times.items():
