@@ -1,4 +1,3 @@
-from external.fv3fit.fv3fit._shared import stack_non_vertical
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.dummy import DummyRegressor
@@ -104,8 +103,7 @@ def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
     dims = ["unstacked_dim", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit([data])
-    stacked_data = stack_non_vertical(data)
-    output = wrapper.predict(stacked_data)
+    output = wrapper.predict(data)
     assert pytest.approx(1 / scale) == output["y"].item()
 
 
@@ -162,8 +160,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
     wrapper.dump(path)
 
     loaded = wrapper.load(path)
-    stacked_data = stack_non_vertical(data)
-    xr.testing.assert_equal(loaded.predict(stacked_data), wrapper.predict(stacked_data))
+    xr.testing.assert_equal(loaded.predict(data), wrapper.predict(data))
 
 
 def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
@@ -191,11 +188,7 @@ def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
     assert len(loaded.model.regressors) == 2
 
 
-def test_predict_columnwise_is_deterministic(regtest):
-    """Tests that fitting/predicting with a model is deterministic
-
-    If this fails, look for non-deterministic logic (e.g. converting sets to lists)
-    """
+def fit_wrapper_with_columnar_data():
     nz = 2
     model = _RegressorEnsemble(
         base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
@@ -211,8 +204,24 @@ def test_predict_columnwise_is_deterministic(regtest):
     dims = ["x", "y", "z"]
     shape = (2, 2, nz)
     arr = np.arange(np.prod(shape)).reshape(shape)
-    data = xr.Dataset({"a": (dims, arr), "b": (dims, arr + 1)})
-    wrapper.fit([data])
+    input_data = xr.Dataset({"a": (dims, arr), "b": (dims, arr + 1)})
+    wrapper.fit([input_data])
+    return input_data, wrapper
 
-    output = wrapper.predict_columnwise(data, feature_dim="z")
+
+def test_predict_is_deterministic(regtest):
+    """Tests that fitting/predicting with a model is deterministic
+
+    If this fails, look for non-deterministic logic (e.g. converting sets to lists)
+    """
+    input_data, wrapper = fit_wrapper_with_columnar_data()
+    output = wrapper.predict(input_data)
     print(joblib.hash(np.asarray(output["b"])), file=regtest)
+
+
+def test_predict_returns_unstacked_dims():
+    # 2D output dims same as input dims
+    input_data, wrapper = fit_wrapper_with_columnar_data()
+
+    prediction = wrapper.predict(input_data)
+    assert prediction.dims == input_data.dims
