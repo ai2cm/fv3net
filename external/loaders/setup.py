@@ -10,6 +10,11 @@ setup(
     packages=find_packages(),
     package_dir={"": "."},
     package_data={},
+    entry_points={
+        "console_scripts": [
+            "validate_batches_config=loaders.validate_batches_config:main",
+        ]
+    },
     install_requires=[
         "fsspec>=0.7.4",
         "numpy>=1.18.4",

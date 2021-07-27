@@ -48,6 +48,13 @@ class MapperConfig:
         mapping_func = mapper_functions[self.mapper_function]
         return mapping_func(self.data_path, **self.mapper_kwargs)
 
+    def __post_init__(self):
+        if self.mapper_function not in mapper_functions:
+            raise ValueError(
+                f"Invalid mapper function {self.mapper_function}, "
+                f"must be one of {list(mapper_functions.keys())}"
+            )
+
 
 class BatchesLoader(abc.ABC):
     @abc.abstractmethod
@@ -105,6 +112,13 @@ class BatchesFromMapperConfig(BatchesLoader):
         batches_function = batches_from_mapper_functions[self.batches_function]
         return batches_function(mapper, list(variables), **self.batches_kwargs,)
 
+    def __post_init__(self):
+        if self.batches_function not in batches_from_mapper_functions:
+            raise ValueError(
+                f"Invalid batches function {self.batches_function}, "
+                f"must be one of {list(batches_from_mapper_functions.keys())}"
+            )
+
 
 @dataclasses.dataclass
 class BatchesConfig(BatchesLoader):
@@ -131,3 +145,10 @@ class BatchesConfig(BatchesLoader):
         """
         batches_function = batches_functions[self.batches_function]
         return batches_function(self.data_path, list(variables), **self.batches_kwargs,)
+
+    def __post_init__(self):
+        if self.batches_function not in batches_functions:
+            raise ValueError(
+                f"Invalid batches function {self.batches_function}, "
+                f"must be one of {list(batches_functions.keys())}"
+            )
