@@ -1,5 +1,4 @@
 SWEEP="$1"
-SHA=$(git rev-parse HEAD)
 label=$(echo "$SWEEP" | tr / -)
 envsubst "SWEEP label SHA" << EOF | kubectl create -f -
 apiVersion: batch/v1
@@ -34,8 +33,6 @@ spec:
               value: /secret/gcp-credentials/key.json
             - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
               value: /secret/gcp-credentials/key.json
-            - name: SHA
-              value: $SHA
           image:
             us.gcr.io/vcm-ml/emulator:a4b119f442f6650d6e59e114bf6e2f1d632e8462
           command: [wandb, agent, $SWEEP]

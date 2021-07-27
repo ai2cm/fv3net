@@ -23,8 +23,6 @@ spec:
           value: /secret/gcp-credentials/key.json
         - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
           value: /secret/gcp-credentials/key.json
-        - name: SHA
-          value: 23752694e657fe0fcc93a804b8f7af405bf30976
         - name: WANDB_NAME
           value: "rh-all-noCloud-denormFix"
       image:

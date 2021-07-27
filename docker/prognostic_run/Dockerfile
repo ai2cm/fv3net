@@ -173,5 +173,5 @@ VOLUME ["/mnt/dvc"]
 RUN dvc cache dir /mnt/dvc
 
 WORKDIR "/fv3net/workflows/prognostic_c48_run"
-RUN chmod +x train.sh
+RUN chmod +x train.sh train.py
 ENTRYPOINT [ "./train.sh" ]
