@@ -1,14 +1,12 @@
 #!/bin/sh
 
 GCS_SRC="gs://vcm-ml-scratch/annak/test-pire-data" #"gs://vcm-ml-data/2019-12-02-40-day-X-SHiELD-simulation-C384-restart-files"
-GCS_GRIDSPEC="gs://vcm-ml-raw-flexible-retention/2021-07-19-PIRE/C3072-to-C384-res-diagnostics/grid_spec_coarse.zarr" #gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy"
+GCS_GRIDSPEC="gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy"  #"gs://vcm-ml-raw-flexible-retention/2021-07-19-PIRE/C3072-to-C384-res-diagnostics/grid_spec_coarse.zarr" 
 SRC_RESOLUTION=384
 TARGET_RESOLUTION=48
 GCS_DST="gs://vcm-ml-scratch/annak/c48-pire-data" #"gs://vcm-ml-intermediate/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts"
 
 user=$(whoami)
-#user=${user,,}
-
 
 
 python -m fv3net.pipelines.coarsen_restarts\
@@ -24,7 +22,7 @@ python -m fv3net.pipelines.coarsen_restarts\
     --region us-central1 \
     --temp_location gs://vcm-ml-scratch/tmp_dataflow \
     --num_workers 3 \
-    --max_num_workers 50 \
+    --max_num_workers 4 \
     --disk_size_gb 50 \
     --worker_machine_type n1-highmem-4 \
     --setup_file /home/AnnaK/fv3net/workflows/dataflow/setup.py \
