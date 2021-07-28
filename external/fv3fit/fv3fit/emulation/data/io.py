@@ -11,6 +11,8 @@ def get_nc_files(path: str, fs: fsspec.AbstractFileSystem = None) -> List[str]:
 
     Args:
         path: Local or remote gcs path to netCDF directory
+        fs: Filesystem object to use for the glob operation
+            searching for netCDFs in the path
     """
 
     if fs is None:
