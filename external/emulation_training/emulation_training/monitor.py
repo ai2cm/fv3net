@@ -4,8 +4,10 @@ import cftime
 import f90nml
 import yaml
 import numpy as np
-from pathlib import Path
+import xarray as xr
+from datetime import timedelta
 from mpi4py import MPI
+from pathlib import Path
 
 from fv3gfs.util import ZarrMonitor, CubedSpherePartitioner, Quantity
 from .debug import print_errors
@@ -13,20 +15,45 @@ from .debug import print_errors
 
 logger = logging.getLogger(__name__)
 
-VAR_META_PATH = os.environ.get("VAR_META_PATH")
-NML_PATH = os.environ.get("INPUT_NML_PATH")
-DUMP_PATH = os.environ.get("STATE_DUMP_PATH")
-
+TIME_FMT = "%Y%m%d.%H%M%S"
 DIMS_MAP = {
     1: ["sample"],
     2: ["sample", "z"],
 }
+
+# Initialized later from within functions to print errors
+VAR_META_PATH = None
+NML_PATH = None
+DUMP_PATH = None
+NC_DUMP_PATH = None
+OUTPUT_FREQ_SEC = None
+DT_SEC = None
+INITIAL_TIME = None
+
+
+@print_errors
+def _load_environment_vars_into_global():
+    global VAR_META_PATH
+    global NML_PATH
+    global DUMP_PATH
+    global NC_DUMP_PATH
+    global OUTPUT_FREQ_SEC
+
+    VAR_META_PATH = os.environ["VAR_META_PATH"]
+    NML_PATH = os.environ["INPUT_NML_PATH"]
+    DUMP_PATH = os.environ["STATE_DUMP_PATH"]
+    NC_DUMP_PATH = os.environ["NC_DUMP_PATH"]
+    OUTPUT_FREQ_SEC = int(os.environ["OUTPUT_FREQ_SEC"])
 
 
 @print_errors
 def _load_nml():
     namelist = f90nml.read(NML_PATH)
     logger.info(f"Loaded namelist for ZarrMonitor from {NML_PATH}")
+    
+    global DT_SEC
+    DT_SEC = int(namelist["coupler_nml"]["dt_atmos"])
+    
     return namelist
 
 
@@ -55,8 +82,19 @@ def _load_monitor(namelist):
     return output_monitor
 
 
+@print_errors
+def _make_output_paths():
+    zarr_path = Path(DUMP_PATH)
+    zarr_path.mkdir(exist_ok=True)
+
+    netcdf_path = Path(NC_DUMP_PATH)
+    netcdf_path.mkdir(exist_ok=True)
+
+
+_load_environment_vars_into_global()
 _namelist = _load_nml()
 _variable_metadata = _load_metadata()
+_make_output_paths()
 _output_monitor = _load_monitor(_namelist)
 
 
@@ -104,6 +142,20 @@ def _convert_to_quantities(state):
     return quantities
 
 
+def _convert_to_xr_dataset(state):
+
+    dataset = {}
+    for key, data in state.items():
+        data = np.squeeze(data.astype(np.float32))
+        data_t = data.T
+        dims = DIMS_MAP[data.ndim]
+        attrs = _get_attrs(key)
+        attrs["units"] = attrs.pop("units", "unknown")
+        dataset[key] = xr.DataArray(data_t, dims=dims, attrs=attrs)
+
+    return xr.Dataset(dataset)
+
+
 def _translate_time(time):
     year = time[0]
     month = time[1]
@@ -111,16 +163,53 @@ def _translate_time(time):
     hour = time[4]
     min = time[5]
     datetime = cftime.DatetimeJulian(year, month, day, hour, min)
-    logger.debug(f"Translated time: {datetime}")
+    logger.debug(f"Translated input time: {datetime}")
 
     return datetime
 
 
+def _store_interval_check(time):
+
+    global INITIAL_TIME
+
+    if INITIAL_TIME is None:
+        INITIAL_TIME = time
+
+    # add increment since we are in the middle of timestep
+    increment = timedelta(seconds=DT_SEC)
+    elapsed = (time + increment) - INITIAL_TIME
+
+    logger.debug(f"Time elapsed after increment: {elapsed}")
+    logger.debug(f"Output frequency modulus: {elapsed.seconds % OUTPUT_FREQ_SEC}")
+
+    return elapsed.seconds % OUTPUT_FREQ_SEC == 0
+
+
+@print_errors
+def store_netcdf(state):
+    state = dict(**state)
+    time = _translate_time(state.pop("model_time"))
+
+    if _store_interval_check(time):
+        logger.debug(f"Model fields: {list(state.keys())}")
+        logger.info(f"Storing state to netcdf on rank {MPI.COMM_WORLD.Get_rank()}")
+        ds = _convert_to_xr_dataset(state)
+        rank = MPI.COMM_WORLD.Get_rank()
+        coords = {"time": time, "tile": rank}
+        ds = ds.assign_coords(coords)
+        filename = f"state_{time.strftime(TIME_FMT)}_{rank}.nc"
+        out_path = os.path.join(NC_DUMP_PATH, filename)
+        ds.to_netcdf(out_path)
+
+
 @print_errors
 def store(state):
-    logger.info(f"Storing model state on rank {MPI.COMM_WORLD.Get_rank()}")
-    logger.debug(f"Model fields: {list(state.keys())}")
+    state = dict(**state)
     time = _translate_time(state.pop("model_time"))
-    state = _convert_to_quantities(state)
-    state["time"] = time
-    _output_monitor.store(state)
+
+    if _store_interval_check(time):
+        logger.info(f"Storing model state on rank {MPI.COMM_WORLD.Get_rank()}")
+        logger.debug(f"Model fields: {list(state.keys())}")
+        state = _convert_to_quantities(state)
+        state["time"] = time
+        _output_monitor.store(state)
