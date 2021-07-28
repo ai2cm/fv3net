@@ -1,11 +1,13 @@
 import os
 import fsspec
-from typing import List
+from typing import List, Optional
 
 from vcm import get_fs
 
 
-def get_nc_files(path: str, fs: fsspec.AbstractFileSystem = None) -> List[str]:
+def get_nc_files(
+    path: str, fs: Optional[fsspec.AbstractFileSystem] = None
+) -> List[str]:
     """
     Get a list of netCDF files from a remote/local directory
 
