@@ -1,12 +1,11 @@
 #!/bin/sh
 
-GCS_SRC="gs://vcm-ml-scratch/annak/test-pire-data" #"gs://vcm-ml-data/2019-12-02-40-day-X-SHiELD-simulation-C384-restart-files"
-GCS_GRIDSPEC="gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy"  #"gs://vcm-ml-raw-flexible-retention/2021-07-19-PIRE/C3072-to-C384-res-diagnostics/grid_spec_coarse.zarr" 
+GCS_SRC="gs://vcm-ml-raw-flexible-retention/2021-07-19-PIRE/C3072-to-C384-restart-files" 
+GCS_GRIDSPEC="gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy" 
 SRC_RESOLUTION=384
 TARGET_RESOLUTION=48
-GCS_DST="gs://vcm-ml-scratch/annak/c48-pire-data" #"gs://vcm-ml-intermediate/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts"
+GCS_DST="gs://vcm-ml-intermediate/2021-07-28-PIRE-c48-restarts-post-spinup"
 
-user=$(whoami)
 
 
 python -m fv3net.pipelines.coarsen_restarts\
@@ -17,14 +16,14 @@ python -m fv3net.pipelines.coarsen_restarts\
     $GCS_DST \
     --coarsen-agrid-winds \
     --runner DataflowRunner \
-    --job_name coarsen-restarts-pire-test \
+    --job_name coarsen-restarts-pire-test-dataflow-runner \
     --project vcm-ml \
     --region us-central1 \
     --temp_location gs://vcm-ml-scratch/tmp_dataflow \
     --num_workers 3 \
     --max_num_workers 4 \
     --disk_size_gb 50 \
-    --worker_machine_type n1-highmem-4 \
+    --worker_machine_type n1-standard-4 \
     --setup_file /home/AnnaK/fv3net/workflows/dataflow/setup.py \
     --extra_package /home/AnnaK/fv3net/external/vcm/dist/vcm-0.1.0.tar.gz \
     --extra_package /home/AnnaK/fv3net/external/vcm/external/mappm/dist/mappm-0.1.0.tar.gz
