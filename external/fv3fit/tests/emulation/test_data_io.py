@@ -48,7 +48,6 @@ class MockGCSFilesystem:
         ]
 
 
-@pytest.mark.network
 def test_get_nc_files_remote_protocol_prepend():
 
     fs = MockGCSFilesystem()
