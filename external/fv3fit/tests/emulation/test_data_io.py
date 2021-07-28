@@ -37,7 +37,7 @@ def test_get_nc_files():
             assert path in orig_paths
 
 
-class MockFilesystem:
+class MockGCSFilesystem:
 
     protocol = ("gs", "gcs")
 
@@ -51,7 +51,7 @@ class MockFilesystem:
 @pytest.mark.network
 def test_get_nc_files_remote_protocol_prepend():
 
-    fs = MockFilesystem()
+    fs = MockGCSFilesystem()
     result_files = io.get_nc_files("gs://fake-bucket", fs=fs)
 
     assert len(result_files) == 2
