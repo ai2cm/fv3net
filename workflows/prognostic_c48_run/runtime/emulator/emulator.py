@@ -15,8 +15,7 @@ from runtime.emulator.batch import (
 from runtime.emulator.loggers import WandBLogger, ConsoleLogger, TBLogger, LoggerList
 from runtime.emulator.loss import RHLoss, QVLoss, MultiVariableLoss
 from runtime.emulator.models import UVTQSimple, UVTRHSimple, ScalarMLP, RHScalarMLP
-from runtime.emulator.thermo import ThermoBasis
-from runtime.emulator.models import V1QCModel, atleast_2d
+from runtime.emulator.models import V1QCModel
 import logging
 import json
 
@@ -355,38 +354,6 @@ def stack(state: State, keys) -> xr.Dataset:
     ds = xr.Dataset({key: state[key] for key in keys})
     sample_dims = ["y", "x"]
     return ds.stack(sample=sample_dims).transpose("sample", ...)
-
-
-class NoSharedWeights:
-    def __init__(self, out_size, num_hidden):
-        self.out_size = out_size
-        self.num_hidden = num_hidden
-        self.dense_in = tf.keras.Sequential(
-            [
-                tf.keras.layers.Dense(
-                    self.out_size * self.num_hidden, activation="relu"
-                ),
-                tf.keras.layers.Reshape((self.out_size, self.num_hidden)),
-            ]
-        )
-
-        self.dense_out = tf.keras.Sequential(
-            [
-                tf.keras.layers.Conv1D(self.out_size, 1),
-                tf.keras.layers.Reshape([self.out_size]),
-            ]
-        )
-
-    def fit_scalers(self, argsin, argsout):
-        self._fit_input_scaler(argsin)
-        self._fit_output_scaler(argsin, argsout)
-        self.scalers_fitted = True
-
-    def call(self, args: ThermoBasis):
-        in_ = args.to_q().args
-        args = [atleast_2d(arg) for arg in in_.args]
-        x = tf.concat(args, axis=-1)
-        self.dense_in(x)
 
 
 def needs_restart(state) -> bool:
