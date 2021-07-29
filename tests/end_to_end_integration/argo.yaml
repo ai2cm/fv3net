@@ -71,14 +71,14 @@ spec:
         value: |
         {
             "mapper_config": {
-                "data_path": "gs://vcm-ml-experiments/2020-07-30-fine-res",
-                "mapper_function": "open_fine_res_apparent_sources",
-                "mapper_kwargs": {
+                "function": "open_fine_res_apparent_sources",
+                "kwargs": {
+                    "data_path": "gs://vcm-ml-experiments/2020-07-30-fine-res",
                     "offset_seconds": 450
                 }
             },
-            "batches_function": "batches_from_mapper",
-            "batches_kwargs": {
+            "function": "batches_from_mapper",
+            "kwargs": {
                 "timesteps_per_batch": 2,
                 "timesteps": [
                     "20160817.101500",
@@ -90,14 +90,14 @@ spec:
         value: |
         {
             "mapper_config": {
-                "data_path": "gs://vcm-ml-experiments/2020-07-30-fine-res",
-                "mapper_function": "open_fine_res_apparent_sources",
-                "mapper_kwargs": {
+                "function": "open_fine_res_apparent_sources",
+                "kwargs": {
+                    "data_path": "gs://vcm-ml-experiments/2020-07-30-fine-res",
                     "offset_seconds": 450
                 }
             },
-            "batches_function": "batches_from_mapper",
-            "batches_kwargs": {
+            "function": "batches_from_mapper",
+            "kwargs": {
                 "timesteps_per_batch": 2,
                 "timesteps": [
                     "20160906.120000",
