@@ -206,7 +206,9 @@ class RandomForestHyperparameters:
     `sklearn.ensemble.RandomForestRegressor`.
 
     Args:
-        scaler_type: scaler to use for training
+        scaler_type: scaler to use for training, must be "standard" or "mass".
+            If set to "mass", then "pressure_thickness_of_atmospheric_layer" must
+            be included in the TrainingConfig `additional_variables` field.
         scaler_kwargs: keyword arguments to pass to scaler initialization
         n_jobs: number of jobs to run in parallel when training a single random forest
         random_state: random seed to use when building trees, will be
