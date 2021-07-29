@@ -124,7 +124,9 @@ def _open_fine_res_dataset(
     # shift the data to match the other time series
     fine_shifted = fine.assign(time=fine.time - timedelta(minutes=7, seconds=30))
 
-    nudge_physics_tendencies = open_zarr(nudge_url + "/physics_tendencies.zarr",)
+    nudge_physics_tendencies = open_zarr_maybe_consolidated(
+        nudge_url + "/physics_tendencies.zarr",
+    )
     nudge_state = open_zarr_maybe_consolidated(nudge_url + "/state_after_timestep.zarr")
     nudge_tends = open_zarr_maybe_consolidated(nudge_url + "/nudging_tendencies.zarr")
 
