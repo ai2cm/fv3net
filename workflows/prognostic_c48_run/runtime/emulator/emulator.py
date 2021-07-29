@@ -539,7 +539,8 @@ def needs_restart(state) -> bool:
 def get_model(config: OnlineEmulatorConfig) -> tf.keras.Model:
     if config.cloud_water:
         logging.info("Using V1QCModel")
-        return V1QCModel(config.levels, num_scalar=0)
+        # TODO remove the hard-coded num_scalar
+        return V1QCModel(config.levels, num_scalar=2)
     elif isinstance(config.target, MultiVariableLoss):
         logging.info("Using ScalerMLP")
         n = config.levels

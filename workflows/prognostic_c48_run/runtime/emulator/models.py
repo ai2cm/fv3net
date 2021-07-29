@@ -28,16 +28,16 @@ def embed(args: Sequence[tf.Tensor]):
 def get_model(
     nz, num_scalar, num_hidden=256, num_hidden_layers=3, output_is_positive=True
 ):
-    u = Input(shape=[None, nz])
-    v = Input(shape=[None, nz])
-    t = Input(shape=[None, nz])
-    q = Input(shape=[None, nz])
-    qc = Input(shape=[None, nz])
+    u = Input(shape=[nz])
+    v = Input(shape=[nz])
+    t = Input(shape=[nz])
+    q = Input(shape=[nz])
+    qc = Input(shape=[nz])
 
     inputs = [u, v, t, q, qc]
 
     if num_scalar > 0:
-        scalars = Input(shape=[None, num_scalar])
+        scalars = Input(shape=[num_scalar])
         inputs.append(scalars)
 
     stacked = Concatenate()(inputs)
@@ -62,6 +62,7 @@ class V1QCModel(tf.keras.layers.Layer):
         self.scale_t = StandardNormLayer()
         self.scale_rh = StandardNormLayer()
         self.scale_qc = StandardNormLayer()
+        self.scale_rho = StandardNormLayer()
 
         if num_scalar != 0:
             self.scale_scalars = StandardNormLayer()
@@ -112,7 +113,7 @@ class V1QCModel(tf.keras.layers.Layer):
         ]
 
         if self.scale_scalars is not None:
-            inputs.append(self.scale_scalars(x.scalars))
+            inputs.append(self.scale_scalars(embed(x.scalars)))
 
         return RelativeHumidityBasis(
             u=x.u + self.u_tend_scale(self.u_tend_model(inputs)),
