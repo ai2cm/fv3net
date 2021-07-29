@@ -9,6 +9,133 @@ spec:
         value: "20160801.001500"
       - name: reference-restarts
         value: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
+      - name: nudge-to-fine-config
+        value: | 
+          base_version: v0.6
+          forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+          nudging:
+            timescale_hours:
+              air_temperature: 3
+              specific_humidity: 3
+              x_wind: 3
+              y_wind: 3
+              pressure_thickness_of_atmospheric_layer: 3
+          namelist:
+            coupler_nml:
+              current_date:
+                - 2016
+                - 8
+                - 1
+                - 0
+                - 15
+                - 0
+              hours: 0
+              minutes: 30
+            fv_core_nml:
+              do_sat_adj: false
+            gfdl_cloud_microphysics_nml:
+              fast_sat_adj: false
+          fortran_diagnostics:
+            - name: atmos_dt_atmos.zarr
+              chunks:
+                time: 2
+              times:
+                frequency: 900
+                kind: interval
+              variables:
+              - {module_name: dynamics, field_name: grid_lont, output_name: lon}
+              - {module_name: dynamics, field_name: grid_latt, output_name: lat}
+              - {module_name: dynamics, field_name: grid_lon, output_name: lonb}
+              - {module_name: dynamics, field_name: grid_lat, output_name: latb}
+              - {module_name: dynamics, field_name: area, output_name: area}
+              - {module_name: dynamics, field_name: tb, output_name: TMPlowest}
+              - {module_name: dynamics, field_name: t850, output_name: TMP850}
+              - {module_name: dynamics, field_name: t500, output_name: TMP500}
+              - {module_name: dynamics, field_name: t200, output_name: TMP200}
+              - {module_name: dynamics, field_name: w500, output_name: w500}
+              - {module_name: dynamics, field_name: vort500, output_name: VORT500}
+              - {module_name: dynamics, field_name: z500, output_name: h500}
+              - {module_name: dynamics, field_name: rh850, output_name: RH850}
+              - {module_name: dynamics, field_name: q500, output_name: q500}
+              - {module_name: dynamics, field_name: ps, output_name: PRESsfc}
+              - {module_name: dynamics, field_name: tq, output_name: PWAT}
+              - {module_name: dynamics, field_name: lw, output_name: VIL}
+            - name: sfc_dt_atmos.zarr
+              chunks:
+                time: 2
+              times:
+                frequency: 900
+                kind: interval
+              variables:
+              - {module_name: dynamics, field_name: grid_lont, output_name: lon}
+              - {module_name: dynamics, field_name: grid_latt, output_name: lat}
+              - {module_name: dynamics, field_name: grid_lon, output_name: lonb}
+              - {module_name: dynamics, field_name: grid_lat, output_name: latb}
+              - {module_name: dynamics, field_name: area, output_name: area}
+              - {module_name: gfs_phys, field_name: dusfci, output_name: uflx}
+              - {module_name: gfs_phys, field_name: dvsfci, output_name: vflx}
+              - {module_name: gfs_phys, field_name: cnvprcpb_ave, output_name: CPRATsfc}
+              - {module_name: gfs_phys, field_name: totprcpb_ave, output_name: PRATEsfc}
+              - {module_name: gfs_phys, field_name: DSWRF, output_name: DSWRFsfc}
+              - {module_name: gfs_phys, field_name: USWRF, output_name: USWRFsfc}
+              - {module_name: gfs_phys, field_name: DSWRFtoa, output_name: DSWRFtoa}
+              - {module_name: gfs_phys, field_name: USWRFtoa, output_name: USWRFtoa}
+              - {module_name: gfs_phys, field_name: ULWRFtoa, output_name: ULWRFtoa}
+              - {module_name: gfs_phys, field_name: ULWRF, output_name: ULWRFsfc}
+              - {module_name: gfs_phys, field_name: DLWRF, output_name: DLWRFsfc}
+              - {module_name: gfs_phys, field_name: lhtfl_ave, output_name: LHTFLsfc}
+              - {module_name: gfs_phys, field_name: shtfl_ave, output_name: SHTFLsfc}
+          diagnostics:
+            - name: diags.zarr
+              chunks:
+                time: 1
+              variables:
+                - net_moistening_due_to_nudging
+                - column_heating_due_to_nudging
+                - net_mass_tendency_due_to_nudging
+                - total_precipation_rate
+                - water_vapor_path
+                - physics_precip
+            - name: nudging_tendencies.zarr
+              chunks:
+                time: 1
+              variables:
+                - air_temperature_tendency_due_to_nudging
+                - specific_humidity_tendency_due_to_nudging
+                - x_wind_tendency_due_to_nudging
+                - y_wind_tendency_due_to_nudging
+                - pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging
+            - name: physics_tendencies.zarr
+              chunks:
+                time: 1
+              variables:
+                - tendency_of_air_temperature_due_to_fv3_physics
+                - tendency_of_specific_humidity_due_to_fv3_physics
+                - tendency_of_eastward_wind_due_to_fv3_physics
+                - tendency_of_northward_wind_due_to_fv3_physics
+            - name: state_after_timestep.zarr
+              chunks:
+                time: 1
+              variables:
+                - x_wind
+                - y_wind
+                - eastward_wind
+                - northward_wind
+                - vertical_wind
+                - air_temperature
+                - specific_humidity
+                - pressure_thickness_of_atmospheric_layer
+                - vertical_thickness_of_atmospheric_layer
+                - land_sea_mask
+                - surface_temperature
+                - surface_geopotential
+                - sensible_heat_flux
+                - latent_heat_flux
+                - total_precipitation
+                - surface_precipitation_rate
+                - total_soil_moisture
+      - name: nudge-to-fine-segment-count
+        value:  "2"
       - name: training-configs
         value: |
           [
@@ -240,6 +367,32 @@ spec:
               value: "{{workflow.parameters.project}}"
             - name: tag
               value: "{{workflow.parameters.tag}}-nudge-to-fine-run"
+      - name: nudge-to-fine-run
+        templateRef:
+          name: prognostic-run
+          template: prognostic-run
+        arguments:
+          parameters:
+          - name: reference-restarts
+            value: "{{workflow.parameters.reference-restarts}}"
+          - name: initial-condition
+            value: "{{workflow.parameters.initial-condition}}"
+          - name: bucket
+            value: "{{workflow.parameters.bucket}}"
+          - name: project
+            value: "{{workflow.parameters.project}}"
+          - name: tag
+            value: "{{workflow.parameters.tag}}-nudge-to-fine-run"
+          - name: config
+            value: "{{workflow.parameters.nudge-to-fine-config}}"
+          - name: segment-count
+            value: "{{workflow.parameters.nudge-to-fine-segment-count}}"
+          - name: cpu
+            value: 6000m
+          - name: memory
+            value: 6Gi
+          - name: online-diags
+            value: "false"
       - name: train-offline-diags-prognostic
         dependencies: [nudge-to-fine-run, resolve-output-url]
         templateRef:
@@ -253,8 +406,6 @@ spec:
             value: "{{workflow.parameters.project}}"
           - name: tag
             value: "{{workflow.parameters.tag}}-train-diags-prog"
-          - name: train-test-data
-            value: "{{tasks.resolve-output-url.outputs.result}}/fv3gfs_run"
           - name: training-configs
             value: "{{workflow.parameters.training-configs}}"
           - name: training-data-config
