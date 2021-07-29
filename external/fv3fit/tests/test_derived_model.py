@@ -41,7 +41,6 @@ def test_derived_prediction():
             ),
         }
     )
-    print(base_model.predict(ds_in))
     prediction = derived_model.predict(ds_in)
     assert "net_shortwave_sfc_flux_derived" in prediction
 
