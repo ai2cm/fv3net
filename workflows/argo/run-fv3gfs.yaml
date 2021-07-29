@@ -14,6 +14,7 @@ spec:
         - {name: cpu, value: "6"}
         - {name: memory, value: 8Gi}
         - {name: segment-count, value: "1"}
+        - {name: output_freq_sec, value: 18000}
     steps:
       - - template: create-run
           name: create-run
@@ -34,6 +35,7 @@ spec:
             - {name: memory, value: "{{inputs.parameters.memory}}"}
             - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
             - {name: segment, value: 0}
+            - {name: output_freq_sec, value: "{{inputs.parameters.output_freq_sec}}"}
   - name: run-all-segments
     inputs:
       parameters:
@@ -42,6 +44,7 @@ spec:
         - name: memory
         - name: segment-count
         - name: segment
+        - name: output_freq_sec
     steps:
       - - template: append-segment
           name: append-segment 
@@ -50,6 +53,7 @@ spec:
               - {name: runURL, value: "{{inputs.parameters.output-url}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
+              - {name: output_freq_sec, value: "{{inputs.parameters.output_freq_sec}}"}
       - - name: increment-segment
           template: increment-count
           arguments:
@@ -102,6 +106,7 @@ spec:
         - name: cpu
         - name: memory
         - name: runURL
+        - name: output_freq_sec
     tolerations:
     - key: "dedicated"
       operator: "Equal"
@@ -126,6 +131,10 @@ spec:
           value: /secret/gcp-credentials/key.json
         - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
           value: /secret/gcp-credentials/key.json
+        - name: VAR_META_PATH
+          value: /fv3net/external/emulation_training/microphsyics_parameter_metadata.yaml
+        - name: output_freq_sec
+          value: "{{inputs.parameters.output_freq_sec}}"
       terminationMessagePath: /dev/termination-log
       terminationMessagePolicy: File
       volumeMounts:

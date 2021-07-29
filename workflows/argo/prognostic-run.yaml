@@ -31,6 +31,8 @@ spec:
           - {name: memory, value: 6Gi}
           - {name: online-diags-flags, value: " "}
           - {name: online-diags, value: "true"}
+          - name: output_freq_sec
+            value: 18000
       steps:
       - - name: resolve-output-url
           templateRef:
@@ -63,6 +65,7 @@ spec:
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
+              - {name: output_freq_sec, value: "{{inputs.parameters.output_freq_sec}}"}
       - - name: online-diags
           when: "{{inputs.parameters.online-diags}} == true"
           templateRef:
