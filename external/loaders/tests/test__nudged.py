@@ -231,15 +231,10 @@ timestep2 = "20160801.002230"
 times_centered_str = [timestep1, timestep2]
 
 
-@pytest.fixture
-def fine_url(tmpdir):
-    fine_url = str(tmpdir.mkdir("fine_res"))
-    synth.generate_fine_res(fine_url, times_centered_str)
-    return fine_url
-
-
-def test_open_fine_resolution_nudging_hybrid(nudge_to_fine_data_dir, fine_res_zarr):
+def test_open_fine_resolution_nudging_hybrid(
+    regtest, nudge_to_fine_data_dir, fine_res_zarr
+):
     data = open_fine_resolution_nudging_hybrid(
         None, fine_url=fine_res_zarr, nudge_url=nudge_to_fine_data_dir,
     )
-    data[timestep1_end]
+    data[timestep1_end].info(regtest)

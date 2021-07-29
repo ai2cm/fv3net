@@ -107,7 +107,7 @@ def apparent_moistening(data: FineResBudget):
     )
 
 
-def _open_fine_res_dataset(
+def open_fine_resolution_nudging_hybrid_dataset(
     # created by this commit:
     # https://github.com/VulcanClimateModeling/vcm-workflow-control/commit/3c852d0e4f8b86c4e88db9f29f0b8e484aeb77a1
     # I manually consolidated the metadata with zarr.consolidate_metadata
@@ -146,29 +146,12 @@ def _open_fine_res_dataset(
     merged["dQxwind"] = nudge_tends.x_wind_tendency_due_to_nudging
     merged["dQywind"] = nudge_tends.y_wind_tendency_due_to_nudging
 
+    # drop time from lat and lon
+    merged["latitude"] = merged.latitude.isel(time=0)
+    merged["longitude"] = merged.longitude.isel(time=0)
+
     # Select the data we want to return
-    return (
-        xarray.merge(
-            [
-                merged.dQ1,
-                merged.dQ2,
-                merged.dQxwind,
-                merged.dQywind,
-                merged.specific_humidity,
-                merged.pressure_thickness_of_atmospheric_layer,
-                merged.air_temperature,
-                merged.x_wind,
-                merged.y_wind,
-                merged.surface_geopotential,
-                merged.latitude.isel(time=0),
-                merged.longitude.isel(time=0),
-                merged.area,
-            ],
-            join="inner",
-        )
-        .astype(numpy.float32)
-        .drop("tile")
-    )
+    return merged.astype(numpy.float32).drop("tile")
 
 
 @mapper_functions.register
@@ -187,4 +170,8 @@ def open_fine_resolution_nudging_hybrid(
     Returns:
         a mapper
     """
-    return XarrayMapper(_open_fine_res_dataset(fine_url=fine_url, nudge_url=nudge_url))
+    return XarrayMapper(
+        open_fine_resolution_nudging_hybrid_dataset(
+            fine_url=fine_url, nudge_url=nudge_url
+        )
+    )
