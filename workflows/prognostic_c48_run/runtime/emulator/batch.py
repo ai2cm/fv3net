@@ -47,7 +47,7 @@ def batch_to_specific_humidity_basis(
         qc=scalars.pop(QC),
     )
     scalars_sorted = [scalars[key] for key in sorted(extra_inputs)]
-    return SpecificHumidityBasis(**kw, scalars=scalars_sorted)
+    return SpecificHumidityBasis(scalars=scalars_sorted, **kw)
 
 
 def to_dict(x: SpecificHumidityBasis) -> Dict[str, tf.Tensor]:
@@ -68,7 +68,7 @@ def to_tensor(arr: xr.DataArray) -> tf.Variable:
 
 
 def to_tensors(ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
-    return {k: to_tensor(ds[k]) for k in ds}
+    return {str(k): to_tensor(ds[k]) for k in ds}
 
 
 def compute_in_out(data: Mapping[str, tf.Tensor], timestep):

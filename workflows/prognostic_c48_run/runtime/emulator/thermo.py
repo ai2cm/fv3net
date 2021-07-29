@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Optional, Sequence, Tuple
+from typing import Optional, Sequence
 
 import tensorflow as tf
 from vcm.calc.thermo import _GRAVITY, _RVGAS
@@ -53,7 +53,7 @@ class ThermoBasis:
     qc: Optional[tf.Tensor] = None
     scalars: Sequence[tf.Tensor]
 
-    def to_rh(self):
+    def to_rh(self) -> "RelativeHumidityBasis":
         return RelativeHumidityBasis(
             self.u,
             self.v,
@@ -65,7 +65,7 @@ class ThermoBasis:
             qc=self.qc,
         )
 
-    def to_q(self):
+    def to_q(self) -> "SpecificHumidityBasis":
         return SpecificHumidityBasis(
             self.u,
             self.v,
@@ -77,7 +77,8 @@ class ThermoBasis:
             qc=self.qc,
         )
 
-    def args(self) -> Tuple[tf.Tensor]:
+    @property
+    def args(self) -> Sequence[tf.Tensor]:
         raise NotImplementedError()
 
 
@@ -95,7 +96,7 @@ class SpecificHumidityBasis(ThermoBasis):
     scalars: Sequence[tf.Tensor] = dataclasses.field(default_factory=list)
 
     @property
-    def rho(self):
+    def rho(self) -> tf.Tensor:
         return density(self.dp, self.dz)
 
     @property
@@ -103,7 +104,7 @@ class SpecificHumidityBasis(ThermoBasis):
         return relative_humidity(self.T, self.q, self.rho)
 
     @property
-    def args(self):
+    def args(self) -> Sequence[tf.Tensor]:
         return (self.u, self.v, self.T, self.q, self.dp, self.dz) + tuple(self.scalars)
 
 
@@ -120,15 +121,15 @@ class RelativeHumidityBasis(ThermoBasis):
     scalars: Sequence[tf.Tensor] = dataclasses.field(default_factory=list)
 
     @property
-    def q(self):
+    def q(self) -> tf.Tensor:
         return specific_humidity_from_rh(self.T, self.rh, self.rho)
 
     @property
-    def dp(self):
+    def dp(self) -> tf.Tensor:
         return pressure_thickness(self.rho, self.dz)
 
     @property
-    def args(self) -> Tuple[tf.Tensor]:
+    def args(self) -> Sequence[tf.Tensor]:
         return (self.u, self.v, self.T, self.rh, self.rho, self.dz) + tuple(
             self.scalars
         )

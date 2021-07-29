@@ -21,13 +21,6 @@ def atleast_2d(x: tf.Variable) -> tf.Variable:
         return x
 
 
-def embed(x: ThermoBasis):
-    args = [atleast_2d(arg) for arg in x.args.to_rh()]
-    if x.qc is not None:
-        args.append(x.qc)
-    return tf.concat(args, axis=-1)
-
-
 class ScalarMLP(tf.keras.layers.Layer):
     def __init__(self, num_hidden=256, num_hidden_layers=1, var_level=0):
         super(ScalarMLP, self).__init__()
@@ -186,7 +179,7 @@ class UVTRHSimple(UVTQSimple):
         self._fit_output_scaler(x.to_rh().args, y.to_rh().args)
         self.scalers_fitted = True
 
-    def call(self, in_: ThermoBasis) -> ThermoBasis:
+    def call(self, in_: ThermoBasis) -> RelativeHumidityBasis:
         # assume has dims: batch, z
         args = [atleast_2d(arg) for arg in in_.to_rh().args]
         stacked = tf.concat(args, axis=-1)

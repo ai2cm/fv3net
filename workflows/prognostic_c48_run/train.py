@@ -23,9 +23,12 @@ def main(config: OnlineEmulatorConfig):
     tf.random.set_seed(1)
     logging.info(config)
 
+    if config.batch is None:
+        raise ValueError("No training dataset detected.")
+
     if config.wandb_logger:
         wandb.init(
-            entity="ai2cm", project=f"emulator-noah", config=args,
+            entity="ai2cm", project=f"emulator-noah", config=args,  # type: ignore
         )
 
     emulator = runtime.emulator.OnlineEmulator(config)

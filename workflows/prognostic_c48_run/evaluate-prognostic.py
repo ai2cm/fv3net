@@ -483,7 +483,7 @@ def log_vertical_metrics(key, metrics: xarray.Dataset):
 
 def log_summary_metrics(label: str, mean: xarray.Dataset):
     for key in mean:
-        wandb.summary[label + "/" + key] = float(mean[key])
+        wandb.summary[label + "/" + str(key)] = float(mean[key])
 
 
 def run(artifact: str, path):
