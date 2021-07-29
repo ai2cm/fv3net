@@ -32,7 +32,7 @@ spec:
           - {name: online-diags-flags, value: " "}
           - {name: online-diags, value: "true"}
           - name: output_freq_sec
-            value: 18000
+            value: "18000"
       steps:
       - - name: resolve-output-url
           templateRef:

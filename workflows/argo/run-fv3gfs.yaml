@@ -14,7 +14,7 @@ spec:
         - {name: cpu, value: "6"}
         - {name: memory, value: 8Gi}
         - {name: segment-count, value: "1"}
-        - {name: output_freq_sec, value: 18000}
+        - {name: output_freq_sec, value: "18000"}
     steps:
       - - template: create-run
           name: create-run
@@ -69,6 +69,7 @@ spec:
             - {name: memory, value: "{{inputs.parameters.memory}}"}
             - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
             - {name: segment, value: "{{steps.increment-segment.outputs.result}}"}
+            - {name: output_freq_sec, value: "{{inputs.parameters.output_freq_sec}}"}
   - name: create-run
     inputs:
       artifacts:
@@ -133,7 +134,7 @@ spec:
           value: /secret/gcp-credentials/key.json
         - name: VAR_META_PATH
           value: /fv3net/external/emulation_training/microphsyics_parameter_metadata.yaml
-        - name: output_freq_sec
+        - name: OUTPUT_FREQ_SEC
           value: "{{inputs.parameters.output_freq_sec}}"
       terminationMessagePath: /dev/termination-log
       terminationMessagePolicy: File
