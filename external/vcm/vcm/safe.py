@@ -1,4 +1,4 @@
-from typing import cast, Sequence, Hashable, Iterable
+from typing import cast, Sequence, Hashable, Iterable, Union
 import warnings
 import xarray as xr
 
@@ -19,8 +19,9 @@ def get_variables(ds: xr.Dataset, variables: Iterable[Hashable]) -> xr.Dataset:
 
 def _validate_stack_dims(ds, dims, allowed_broadcast_dims=()):
     """Don't broadcast arrays"""
-    for variable in ds:
-        var_dims = ds[variable].dims
+    ds_ = ds.to_dataset() if isinstance(ds, xr.DataArray) else ds
+    for variable in ds_:
+        var_dims = ds_[variable].dims
         broadcast_dims = set(dims) - (set(var_dims) | set(allowed_broadcast_dims))
         if len(broadcast_dims) > 0:
             raise ValueError(
@@ -30,7 +31,7 @@ def _validate_stack_dims(ds, dims, allowed_broadcast_dims=()):
 
 
 def stack_once(
-    ds: xr.Dataset,
+    ds: Union[xr.DataArray, xr.Dataset],
     dim,
     dims: Sequence[Hashable],
     allowed_broadcast_dims: Sequence[Hashable] = (),
