@@ -202,6 +202,7 @@ class OnlineEmulator:
         )
         self._statein: Optional[State] = None
         self.output_variables: Sequence[str] = get_prognostic_variables()
+        self.extra_inputs = config.extra_input_variables
         self._step = 0
         self.logger = LoggerList([TBLogger(), ConsoleLogger(), WandBLogger()])
 
@@ -213,6 +214,9 @@ class OnlineEmulator:
     @property
     def input_variables(self):
         return self.config.input_variables
+
+    def batch_to_specific_humidity_basis(self, x):
+        return batch_to_specific_humidity_basis(x, self.extra_inputs)
 
     def step(self, in_, out):
 
@@ -237,7 +241,7 @@ class OnlineEmulator:
     def score(self, d: tf.data.Dataset):
         losses = defaultdict(list)
         for x, y in d.batch(10_000):
-            in_ = batch_to_specific_humidity_basis(x)
+            in_ = self.batch_to_specific_humidity_basis(x)
             out = batch_to_specific_humidity_basis(y)
             _, info = self.get_loss(in_, out)
             for key in info:
@@ -258,7 +262,7 @@ class OnlineEmulator:
             argsin, argsout = next(iter(d.batch(10_000)))
             # calls .build on any layers
             # self.model(argsin)
-            in_ = batch_to_specific_humidity_basis(argsin)
+            in_ = self.batch_to_specific_humidity_basis(argsin)
             out = batch_to_specific_humidity_basis(argsout)
             self.model.fit_scalers(in_, out)
 
@@ -266,7 +270,7 @@ class OnlineEmulator:
             logging.info(f"Epoch {i+1}")
             train_loss = defaultdict(lambda: [])
             for x, y in d.batch(self.config.batch_size):
-                in_ = batch_to_specific_humidity_basis(x)
+                in_ = self.batch_to_specific_humidity_basis(x)
                 out = batch_to_specific_humidity_basis(y)
                 info = self.step(in_, out)
                 for key in info:
@@ -279,7 +283,7 @@ class OnlineEmulator:
                 loss_epoch_test = self.score(validation_data)
                 self.log_dict("test_epoch", loss_epoch_test, step=i)
                 x, y = next(iter(validation_data.batch(3).take(1)))
-                in_ = batch_to_specific_humidity_basis(x)
+                in_ = self.batch_to_specific_humidity_basis(x)
                 out = batch_to_specific_humidity_basis(y)
                 pred = self.model(in_)
                 if isinstance(self.model, UVTQSimple):
@@ -314,7 +318,7 @@ class OnlineEmulator:
     def predict(self, state: State) -> State:
         in_ = stack(state, self.input_variables)
         in_tensors = to_tensors(in_)
-        x = batch_to_specific_humidity_basis(in_tensors)
+        x = self.batch_to_specific_humidity_basis(in_tensors)
         out = self.model(x)
 
         tensors = to_dict_no_static_vars(out)

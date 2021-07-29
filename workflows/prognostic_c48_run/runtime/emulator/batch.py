@@ -1,4 +1,4 @@
-from typing import Dict, Mapping
+from typing import Dict, Mapping, Sequence
 
 import tensorflow as tf
 import xarray as xr
@@ -33,7 +33,9 @@ def nz(x: Dict[str, tf.Tensor]):
     return batch_to_specific_humidity_basis(x).q.shape[-1]
 
 
-def batch_to_specific_humidity_basis(x: Dict[str, tf.Tensor]):
+def batch_to_specific_humidity_basis(
+    x: Dict[str, tf.Tensor], extra_inputs: Sequence[str] = ()
+):
     scalars = x.copy()
     kw = dict(
         u=scalars.pop(U),
@@ -44,7 +46,7 @@ def batch_to_specific_humidity_basis(x: Dict[str, tf.Tensor]):
         dp=scalars.pop(DELP),
         qc=scalars.pop(QC),
     )
-    scalars_sorted = [scalars[key] for key in sorted(scalars)]
+    scalars_sorted = [scalars[key] for key in sorted(extra_inputs)]
     return SpecificHumidityBasis(**kw, scalars=scalars_sorted)
 
 
