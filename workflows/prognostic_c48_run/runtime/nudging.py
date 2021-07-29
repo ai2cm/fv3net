@@ -19,12 +19,9 @@ from typing import (
     Optional,
 )
 import logging
+from .names import SST, TSFC, MASK
 
 logger = logging.getLogger(__name__)
-
-SST_NAME = "ocean_surface_temperature"
-TSFC_NAME = "surface_temperature"
-MASK_NAME = "land_sea_mask"
 
 State = MutableMapping[Hashable, xr.DataArray]
 
@@ -33,13 +30,13 @@ State = MutableMapping[Hashable, xr.DataArray]
 class NudgingConfig:
     """Nudging Configurations
 
-    The runfile supports nudge-to-fine towards a dataset with a different sampling
-    frequency than the model time step. The available nudging times should start
-    with ``reference_initial_time`` and appear at a regular frequency of
-    ``reference_frequency_seconds`` thereafter. These options are optional; if
-    not provided the nudging data will be assumed to contain every time. The
-    reference state will be linearly interpolated between the available time
-    samples.
+    The prognostic run supports nudge-to-fine towards a dataset with a different
+    sampling frequency than the model time step. The available nudging times
+    should start with ``reference_initial_time`` and appear at a regular
+    frequency of ``reference_frequency_seconds`` thereafter. These options are
+    optional; if not provided the nudging data will be assumed to contain every
+    time. The reference state will be linearly interpolated between the
+    available time samples.
 
     Attributes:
         timescale_hours: mapping of variable names to timescales (in hours).
@@ -244,12 +241,8 @@ def get_reference_surface_temperatures(state: State, reference: State) -> State:
     and reference state.
     """
     state = {
-        SST_NAME: _sst_from_reference(
-            reference[TSFC_NAME], state[SST_NAME], state[MASK_NAME]
-        ),
-        TSFC_NAME: _sst_from_reference(
-            reference[TSFC_NAME], state[TSFC_NAME], state[MASK_NAME]
-        ),
+        SST: _sst_from_reference(reference[TSFC], state[SST], state[MASK]),
+        TSFC: _sst_from_reference(reference[TSFC], state[TSFC], state[MASK]),
     }
     return state
 

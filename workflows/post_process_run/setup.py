@@ -20,7 +20,7 @@ setup(
     entry_points={
         "console_scripts": [
             "post_process_run=fv3post.post_process:post_process",
-            "append_run=fv3post.append:append_segment",
+            "append_run=fv3post.append:main",
             "fregrid_single_input=fv3post.fregrid:fregrid_single_input",
         ]
     },

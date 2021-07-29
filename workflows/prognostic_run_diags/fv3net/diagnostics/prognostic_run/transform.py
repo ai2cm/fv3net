@@ -89,7 +89,11 @@ def apply(transform_key: str, *transform_args_partial, **transform_kwargs):
 
 @add_to_input_transform_fns
 def resample_time(
-    freq_label: str, arg: DiagArg, time_slice=slice(None, -1), inner_join: bool = False
+    freq_label: str,
+    arg: DiagArg,
+    time_slice=slice(None, -1),
+    inner_join: bool = False,
+    method: str = "nearest",
 ) -> DiagArg:
     """
     Subset times in prognostic and verification data
@@ -102,10 +106,11 @@ def resample_time(
             time by default to work with crashed simulations.
         inner_join: Subset times to the intersection of prognostic and verification
             data. Defaults to False.
+        method: how to do resampling. Can be "nearest" or "mean".
     """
     prognostic, verification, grid = arg
-    prognostic = _downsample_only(prognostic, freq_label)
-    verification = _downsample_only(verification, freq_label)
+    prognostic = _downsample_only(prognostic, freq_label, method)
+    verification = _downsample_only(verification, freq_label, method)
 
     prognostic = prognostic.isel(time=time_slice)
     if inner_join:
@@ -113,12 +118,19 @@ def resample_time(
     return prognostic, verification, grid
 
 
-def _downsample_only(ds: xr.Dataset, freq_label: str) -> xr.Dataset:
+def _downsample_only(ds: xr.Dataset, freq_label: str, method: str) -> xr.Dataset:
     """Resample in time, only if given freq_label is lower frequency than time
     sampling of given dataset ds"""
     ds_freq = ds.time.values[1] - ds.time.values[0]
     if ds_freq < pd.to_timedelta(freq_label):
-        return ds.resample(time=freq_label, label="right").nearest()
+        resampled = ds.resample(time=freq_label, label="right")
+        if method == "nearest":
+            return resampled.nearest()
+        elif method == "mean":
+            with xr.set_options(keep_attrs=True):
+                return resampled.mean()
+        else:
+            raise ValueError(f"Don't know how to resample with method={method}.")
     else:
         return ds
 
@@ -174,7 +186,8 @@ def _resample_end(ds: xr.Dataset, split: datetime, freq_label: str) -> xr.Datase
     start_segment = ds.sel(time=slice(None, split))
     end_segment = ds.sel(time=slice(split, None))
     if end_segment.sizes["time"] != 0:
-        end_segment = end_segment.resample(time=freq_label, label="right").mean()
+        with xr.set_options(keep_attrs=True):
+            end_segment = end_segment.resample(time=freq_label, label="right").mean()
     return xr.concat([start_segment, end_segment], dim="time")
 
 

@@ -2,6 +2,7 @@ import xarray as xr
 import fsspec
 import vcm
 from ._base import GeoMapper
+from loaders._config import mapper_functions
 
 
 class XarrayMapper(GeoMapper):
@@ -49,6 +50,7 @@ class XarrayMapper(GeoMapper):
         return self.time_lookup.keys()
 
 
+@mapper_functions.register
 def open_zarr(url: str, consolidated: bool = True, dim: str = "time") -> XarrayMapper:
     ds = xr.open_zarr(fsspec.get_mapper(url), consolidated=consolidated)
     return XarrayMapper(ds, dim)

@@ -2,9 +2,119 @@ from typing import Iterable, Set, Hashable
 import fsspec
 import yaml
 import os
+import numpy as np
 import xarray as xr
+import vcm
+
 from . import io
 from .predictor import Predictor
+
+
+@io.register("derived_model")
+class DerivedModel(Predictor):
+    _CONFIG_FILENAME = "derived_model.yaml"
+    _BASE_MODEL_SUBDIR = "base_model_data"
+
+    def __init__(
+        self, base_model: Predictor, derived_output_variables: Iterable[Hashable],
+    ):
+        """
+
+        Args:
+            base_model: trained ML model whose predicted output(s) will be
+                used to derived the additional derived_output_variables.
+            additional_input_variables: inputs needed for derived
+                prediction if they are not ML features.
+            derived_output_variables: derived prediction variables that are NOT
+                part of the set of base_model.output_variables. Should
+                correspond to variables available through vcm.DerivedMapping.
+        """
+        self._base_model = base_model
+
+        self._derived_output_variables = derived_output_variables
+        self._additional_input_variables = self._get_additional_input_variables(
+            derived_output_variables
+        )
+
+        sample_dim_name = base_model.sample_dim_name
+
+        full_input_variables = sorted(
+            list(
+                set(
+                    list(base_model.input_variables)
+                    + list(self._additional_input_variables)
+                )
+            )
+        )
+        full_output_variables = sorted(
+            list(
+                set(list(base_model.output_variables) + list(derived_output_variables))
+            )
+        )
+        self._check_derived_predictions_supported()
+        # DerivedModel.input_variables (what the prognostic run uses to grab
+        # necessary state for input to .predict()) is the set of
+        # base_model_input_variables arg and hyperparameters.additional_inputs.
+        super().__init__(sample_dim_name, full_input_variables, full_output_variables)
+
+    def predict(self, X: xr.Dataset) -> xr.Dataset:
+        self._check_additional_inputs_present(X)
+        base_prediction = self._base_model.predict(X)
+        derived_mapping = vcm.DerivedMapping(xr.merge([X, base_prediction]))
+        derived_prediction = derived_mapping.dataset(self._derived_output_variables)
+        return xr.merge([base_prediction, derived_prediction])
+
+    def dump(self, path: str):
+        base_model_path = os.path.join(path, self._BASE_MODEL_SUBDIR)
+        options = {
+            "derived_output_variables": self._derived_output_variables,
+            "model": base_model_path,
+        }
+        io.dump(self._base_model, base_model_path)
+        with fsspec.open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
+            yaml.safe_dump(options, f)
+
+    @classmethod
+    def load(cls, path: str) -> "DerivedModel":
+        with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+            config = yaml.safe_load(f)
+        base_model = io.load(config["model"])
+        derived_output_variables = config["derived_output_variables"]
+        derived_model = cls(base_model, derived_output_variables)
+        return derived_model
+
+    def _get_additional_input_variables(self, derived_output_variables):
+        additional_input_variables = []
+        for derived_var in derived_output_variables:
+            if derived_var in vcm.DerivedMapping.REQUIRED_INPUTS:
+                additional_input_variables += vcm.DerivedMapping.REQUIRED_INPUTS[
+                    derived_var
+                ]
+        return additional_input_variables
+
+    def _check_additional_inputs_present(self, X: xr.Dataset):
+        missing_additional_inputs = np.setdiff1d(
+            self._additional_input_variables, list(X.data_vars)
+        )
+        if len(missing_additional_inputs) > 0:
+            raise KeyError(
+                f"Missing additional inputs {missing_additional_inputs} in "
+                "input dataset needed to compute derived prediction variables. "
+                "Make sure these are present in the data and included in the "
+                "DerivedModel config under additional_input_variables."
+            )
+
+    def _check_derived_predictions_supported(self):
+        invalid_derived_variables = np.setdiff1d(
+            self._derived_output_variables, list(vcm.DerivedMapping.VARIABLES)
+        )
+        if len(invalid_derived_variables) > 0:
+            raise ValueError(
+                f"Invalid variables {invalid_derived_variables} "
+                "provided in init arg derived_output_variables. "
+                "Variables in this arg must be available as derived variables "
+                "in vcm.DerivedMapping."
+            )
 
 
 @io.register("ensemble")
@@ -52,6 +162,13 @@ class EnsembleModel(Predictor):
             return ds.median(dim="member")
         else:
             return ds.mean(dim="member")
+
+    def dump(self, path):
+        raise NotImplementedError(
+            "no dump method yet for this class, you can define one manually "
+            "using instructions at "
+            "http://vulcanclimatemodeling.com/docs/fv3fit/ensembles.html"
+        )
 
     @classmethod
     def load(cls, path: str) -> "EnsembleModel":

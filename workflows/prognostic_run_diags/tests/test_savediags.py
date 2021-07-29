@@ -1,10 +1,13 @@
+from itertools import chain
+
 import fv3net.diagnostics.prognostic_run.compute as savediags
+from fv3net.diagnostics.prognostic_run.load_run_data import (
+    SegmentedRun,
+    CatalogSimulation,
+)
 import cftime
 import numpy as np
 import xarray as xr
-import fsspec
-from unittest.mock import Mock
-
 import pytest
 
 
@@ -29,34 +32,12 @@ def grid():
     return xr.open_dataset("grid.nc").load()
 
 
-def test_dump_nc(tmpdir):
-    ds = xr.Dataset({"a": (["x"], [1.0])})
-
-    path = str(tmpdir.join("data.nc"))
-    with fsspec.open(path, "wb") as f:
-        savediags.dump_nc(ds, f)
-
-    ds_compare = xr.open_dataset(path)
-    xr.testing.assert_equal(ds, ds_compare)
-
-
-def test_dump_nc_no_seek():
-    """
-    GCSFS file objects raise an error when seek is called in write mode::
-
-        if not self.mode == "rb":
-            raise ValueError("Seek only available in read mode")
-            ValueError: Seek only available in read mode
-
-    """
-    ds = xr.Dataset({"a": (["x"], [1.0])})
-    m = Mock()
-
-    savediags.dump_nc(ds, m)
-    m.seek.assert_not_called()
-
-
-@pytest.mark.parametrize("func", savediags._DIAG_FNS)
+@pytest.mark.parametrize(
+    "func",
+    chain.from_iterable(
+        registry.funcs.values() for registry in savediags.registries.values()
+    ),
+)
 def test_compute_diags_succeeds(func, resampled, verification, grid):
     func(resampled, verification, grid)
 
@@ -71,3 +52,15 @@ def test_time_mean():
     diagnostic = savediags.time_mean(ds)
     assert diagnostic.temperature.attrs["diagnostic_start_time"] == str(time_coord[0])
     assert diagnostic.temperature.attrs["diagnostic_end_time"] == str(time_coord[-1])
+
+
+@pytest.mark.parametrize(
+    "url, expected_cls", [("", CatalogSimulation), ("gs://some/run", SegmentedRun)]
+)
+def test_get_verification_from_catalog(url, expected_cls):
+    class Args:
+        verification = "hello"
+        verification_url = url
+
+    verification = savediags.get_verification(Args, catalog=None)
+    assert isinstance(verification, expected_cls), verification

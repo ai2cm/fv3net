@@ -10,7 +10,7 @@ import xarray as xr
 import datetime
 import yaml
 import vcm.testing
-from machine_learning_mocks import get_mock_sklearn_model, get_mock_keras_model
+from machine_learning_mocks import get_mock_predictor
 
 import subprocess
 
@@ -23,14 +23,12 @@ FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
 LOG_PATH = "logs.txt"
 STATISTICS_PATH = "statistics.txt"
 PROFILES_PATH = "profiles.txt"
-RUNFILE_PATH = "runfile.py"
 CHUNKS_PATH = "chunks.yaml"
 
 
 class ConfigEnum:
     nudging = "nudging"
-    sklearn = "sklearn"
-    keras = "keras"
+    predictor = "predictor"
 
 
 default_fv3config = rf"""
@@ -343,11 +341,12 @@ TIME_FMT = "%Y%m%d.%H%M%S"
 RUNTIME = {"days": 0, "months": 0, "hours": 0, "minutes": RUNTIME_MINUTES, "seconds": 0}
 
 
-def run_native(config, rundir, runfile):
+def run_native(config, rundir):
     with tempfile.NamedTemporaryFile("w") as f:
         yaml.safe_dump(config, f)
         fv3_script = Path(__file__).parent.parent.joinpath("runfv3").as_posix()
-        subprocess.check_call([fv3_script, "run-native", f.name, str(rundir), runfile])
+        subprocess.check_call([fv3_script, "create", rundir, f.name])
+        subprocess.check_call([fv3_script, "append", rundir])
 
 
 def assets_from_initial_condition_dir(dir_: str):
@@ -412,7 +411,7 @@ def get_nudging_config():
                 "cnvprcp_after_physics",
                 "cnvprcp_after_python",
                 "evaporation",
-                "net_heating_due_to_nudging",
+                "column_heating_due_to_nudging",
                 "net_moistening_due_to_nudging",
                 "physics_precip",
                 "specific_humidity_reference",
@@ -463,8 +462,8 @@ def get_ml_config(model_path):
                 "dQu",
                 "dQv",
                 "evaporation",
-                "net_heating",
-                "net_moistening",
+                "column_heating_due_to_machine_learning",
+                "net_moistening_due_to_machine_learning",
                 "physics_precip",
                 "pressure_thickness_of_atmospheric_layer",
                 "specific_humidity",
@@ -499,9 +498,7 @@ def get_ml_config(model_path):
     return config
 
 
-@pytest.fixture(
-    scope="module", params=[ConfigEnum.sklearn, ConfigEnum.keras, ConfigEnum.nudging]
-)
+@pytest.fixture(scope="module", params=[ConfigEnum.predictor, ConfigEnum.nudging])
 def configuration(request):
     return request.param
 
@@ -511,12 +508,8 @@ def completed_rundir(configuration, tmpdir_factory):
 
     model_path = str(tmpdir_factory.mktemp("model"))
 
-    if configuration == ConfigEnum.sklearn:
-        model = get_mock_sklearn_model()
-        fv3fit.dump(model, str(model_path))
-        config = get_ml_config(model_path)
-    elif configuration == ConfigEnum.keras:
-        model = get_mock_keras_model()
+    if configuration == ConfigEnum.predictor:
+        model = get_mock_predictor()
         fv3fit.dump(model, str(model_path))
         config = get_ml_config(model_path)
     elif configuration == ConfigEnum.nudging:
@@ -524,35 +517,32 @@ def completed_rundir(configuration, tmpdir_factory):
     else:
         raise NotImplementedError()
 
-    runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
-    rundir = tmpdir_factory.mktemp("rundir")
-    run_native(config, str(rundir), runfile)
+    rundir = tmpdir_factory.mktemp("rundir").join("subdir")
+    run_native(config, str(rundir))
     return rundir
 
 
-def test_fv3run_checksum_restarts(completed_rundir, regtest):
+@pytest.fixture()
+def completed_segment(completed_rundir):
+    return completed_rundir.join("artifacts").join("20160801.000000")
+
+
+def test_fv3run_checksum_restarts(completed_segment, regtest):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
     the base class in the fv3fit test suite.
     """
-    # TODO: The checksum currently changes with new commits/updates. Figure out why
-    # This checksum can be updated if checksum is expected to change
-    # perhaps if an external library is updated.
-    fv_core = completed_rundir.join("RESTART").join("fv_core.res.tile1.nc")
+    fv_core = completed_segment.join("RESTART").join("fv_core.res.tile1.nc")
     print(fv_core.computehash(), file=regtest)
 
 
 @pytest.mark.parametrize("path", [LOG_PATH, STATISTICS_PATH, PROFILES_PATH])
-def test_fv3run_logs_present(completed_rundir, path):
-    assert completed_rundir.join(path).exists()
+def test_fv3run_logs_present(completed_segment, path):
+    assert completed_segment.join(path).exists()
 
 
-def test_runfile_script_present(completed_rundir):
-    assert completed_rundir.join(RUNFILE_PATH).exists()
-
-
-def test_chunks_present(completed_rundir):
-    assert completed_rundir.join(CHUNKS_PATH).exists()
+def test_chunks_present(completed_segment):
+    assert completed_segment.join(CHUNKS_PATH).exists()
 
 
 def test_fv3run_diagnostic_outputs_check_variables(regtest, completed_rundir):
@@ -572,11 +562,11 @@ def test_fv3run_diagnostic_outputs_schema(regtest, completed_rundir):
     diagnostics.info(regtest)
 
 
-def test_fv3run_python_mass_conserving(completed_rundir, configuration):
+def test_fv3run_python_mass_conserving(completed_segment, configuration):
     if configuration == ConfigEnum.nudging:
         pytest.skip()
 
-    path = str(completed_rundir.join(STATISTICS_PATH))
+    path = str(completed_segment.join(STATISTICS_PATH))
 
     # read python mass conservation info
     with open(path) as f:
@@ -595,11 +585,11 @@ def test_fv3run_python_mass_conserving(completed_rundir, configuration):
         )
 
 
-def test_fv3run_vertical_profile_statistics(completed_rundir, configuration):
+def test_fv3run_vertical_profile_statistics(completed_segment, configuration):
     if configuration == ConfigEnum.nudging:
         # no specific humidity limiter for nudging run
         pytest.skip()
-    path = str(completed_rundir.join(PROFILES_PATH))
+    path = str(completed_segment.join(PROFILES_PATH))
     npz = yaml.safe_load(default_fv3config)["namelist"]["fv_core_nml"]["npz"]
     with open(path) as f:
         lines = f.readlines()

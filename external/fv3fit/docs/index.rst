@@ -14,6 +14,8 @@ The package provides :py:func:`fv3fit.dump` and :py:func:`fv3fit.load` functions
    configuration
    ensembles
    api
+   derived_model
+   emulation_tools
 
 Indices and tables
 ==================

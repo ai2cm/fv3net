@@ -62,15 +62,17 @@ sequential segments.
 | Parameter            | Description                                                                   |
 |----------------------|-------------------------------------------------------------------------------|
 | `initial-condition`  | Timestamp string for time at which to begin the prognostic run                |
-| `config`             | String representation of base config YAML file; supplied to prepare_config.py |
+| `config`             | String representation of base config YAML file; supplied to prepare-config |
 | `reference-restarts` | Location of restart data for initializing the prognostic run                  |
 | `tag`                | Tag which describes the run and is used in its storage location               | 
-| `flags`              | (optional) Extra command line flags for prepare_config.py                     |
+| `flags`              | (optional) Extra command line flags for prepare-config                    |
 | `bucket`             | (optional) Bucket to save run output data; default 'vcm-ml-experiments'       |
 | `project`            | (optional) Project directory to save run output data; default 'default'       |
 | `segment-count`      | (optional) Number of prognostic run segments; default "1"                     |
 | `cpu`                | (optional) Number of cpus to request; default "6"                             |
 | `memory`             | (optional) Amount of memory to request; default 6Gi                           |
+| `online-diags-flags` | (optional) `flags` for `prognostic-run-diags` workflow                        |
+| `online-diags`       | (optional) Run online diagostics if "true"; default "true"                     | 
 
 #### Command line interfaces used by workflow
 This workflow first resolves the output location for the run according to:
@@ -82,7 +84,7 @@ of this directory structure.
 
 And then calls:
 ```
-python3 /fv3net/workflows/prognostic_c48_run/prepare_config.py \
+prepare-config \
         {{inputs.parameters.flags}} \
         {{inputs.parameters.config}} \
         {{inputs.parameters.reference-restarts}} \
@@ -91,20 +93,12 @@ python3 /fv3net/workflows/prognostic_c48_run/prepare_config.py \
 ```
 And then
 ```
-runfv3 create {output} /tmp/fv3config.yaml /fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
+runfv3 create {output} /tmp/fv3config.yaml
 ```
 Followed by `segment-count` iterations of
 ```
 runfv3 append {output}
 ```
-
-#### Volumes used by run-fv3gfs template
-
-The `prognostic-run` template uses an internal workflow template `run-fv3gfs`. Due to 
-some limitations of argo, it is necessary that the entrypoint workflow makes a
-claim for volumes that are ultimately mounted and used by `run-fv3gfs`. See the
-`volumes` section of the `prognostic-run` workflow for an example of the volume claims 
-necessary to use `run-fv3gfs`.
 
 #### Restarting prognostic runs
 
@@ -124,43 +118,36 @@ configuration when restarting runs.
 The `prognostic-run-diags` workflow template will generate reports for
 prognostic runs. See this [example][1].
 
-| Parameter     | Description                                                      |
-|---------------|------------------------------------------------------------------|
-| `runs`        | A json-encoded list of {"name": ..., "url": ...} items           |
-| `make-movies` | (optional) whether to generate movies. Defaults to "false".      |
-| `flags`       | (optional) flags to pass to `prognostic_run_diags save` command. |
+| Parameter               | Description                                                                      |
+|-------------------------|----------------------------------------------------------------------------------|
+| `runs`                  | A json-encoded list of {"name": ..., "url": ...} items                           |
+| `recompute-diagnostics` | (optional) whether to recompute diags before making report. Defaults to "false". |
+| `flags`                 | (optional) flags to pass to `prognostic_run_diags save` command.                 |
 
 To specify what verification data use when computing the diagnostics, use the `--verification`
-flag. E.g. specifying the argo parameter `flags= --verification nudged_c48_fv3gfs_2016` will use a
+flag. E.g. specifying the argo parameter `flags=" --verification nudged_c48_fv3gfs_2016"` will use a
 year-long nudged-to-obs C48 run as verification. By default, the `40day_may2020` simulation
 is used as verification. Datasets in the [vcm catalog](/external/vcm/vcm/catalog.yaml) with
 the `simulation` and `category` metadata tags can be used.
 
-The prognostic run report implements some basic caching to speed the generation of multiple
-reports that use the same run. The diagnostics and metrics for each run will be saved
-to `gs://vcm-ml-archive/prognostic_run_diags/{cache-key}` where `cache-key` is the run url
-without the `gs://` part and with forward slashes replaced by dashes. The workflow will only
-compute the diagnostics if they don't already exist in the cache. If you wish to force a
-recomputation of the diagnostics, simply delete everything under the appropriate cached
-subdirectory.
+By default, the report workflow assumes that the necessary diagnostics have already been
+computed for each of the specified runs. If this is not the case, or if you want to recompute
+the diagnostics for any reason, use `recompute-diagnostics=true`.
 
 #### Command line interfaces used by workflow
-For each `run` in the `runs` JSON parameter, this workflow calls
+For each `run` in the `runs` JSON parameter, this workflow calls `prognostic_run_diags save`
+and `prognostic_run_diags metrics` to compute the diagnostics and metrics. The outputs are saved
+to `{run.url}_diagnostics`. The workflow then regrids the relevant diagnostics to a lat-lon grid
+using `cubed-to-latlon.regrid-single-input`. And then optionally calls
 ```
-memoized_compute_diagnostics.sh {{run.url}} \
-                                gs://vcm-ml-public/argo/{{workflow.name}}/{{run.name}} \
-                                {{inputs.parameters.flags}}
-```
-and then regrids the relevant diagnostics to a lat-lon grid using `cubed-to-latlon.regrid-single-input`.
-It then optionally calls
-```
-prognostic_run_diags movie {{run.url}} /tmp/movie_stills
-stitch_movie_stills.sh /tmp/movie_stills  gs://vcm-ml-public/argo/{{workflow.name}}/{{run.name}}
+prognostic_run_diags movie {{run.url}} {{run.url}}_diagnostics
 ```
 Once these steps are completed, a report is generated with
 ```
-prognostic_run_diags report gs://vcm-ml-public/argo/{{workflow.name}} gs://vcm-ml-public/argo/{{workflow.name}}
+prognostic_run_diags report-from-json rundiags.json gs://vcm-ml-public/argo/{{workflow.name}}
 ```
+where `rundiags.json` is generated from the supplied `rundirs.json` assuming diagnostics
+are available at `{run.url}_diagnostics`
 
 #### Workflow Usage Example
 
@@ -168,12 +155,12 @@ Typically, `runs` will be stored in a json file (e.g. `rundirs.json`).
 ```
 [
   {
-    "url": "gs://vcm-ml-scratch/oliwm/2020-04-27-advisory-council-with-more-features/dsmp-off-cs-solar-phis-ts/prognostic_run",
-    "name": "dsmp-off-cs-solar-phis-ts"
+    "url": "gs://vcm-ml-experiments/default/2021-05-25/tuned-mp-no-ml-rad/fv3gfs_run",
+    "name": "tuned-microphysics"
   },
   {
-    "url": "gs://vcm-ml-scratch/oliwm/2020-04-27-advisory-council-with-more-features/physics-on-solar-phis-ts/prognostic_run",
-    "name": "physics-on-solar-phis-ts"
+    "url": "gs://vcm-ml-experiments/default/2021-05-25/control-mp-no-ml-rad/fv3gfs_run",
+    "name": "control"
   }
 ]
 ```

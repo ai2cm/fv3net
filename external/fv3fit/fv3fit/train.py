@@ -1,32 +1,17 @@
 import argparse
-import inspect
-import loaders
 import logging
 import os
+from typing import Optional
 import yaml
+import dataclasses
+import fsspec
 
-from ._shared import (
-    parse_data_path,
-    load_data_sequence,
-    ModelTrainingConfig,
-    io,
-    Estimator,
-)
-from .keras._training import get_regularizer, get_optimizer, set_random_seed
-from .keras._validation_data import validation_dataset
+from fv3fit._shared import parse_data_path, io, DerivedModel
+import fv3fit._shared.config
 import fv3fit.keras
 import fv3fit.sklearn
-
-
-KERAS_CHECKPOINT_PATH = "model_checkpoints"
-KERAS_MODEL_TYPES = [
-    m[0] for m in inspect.getmembers(fv3fit.keras._models, inspect.isclass)
-]
-SKLEARN_MODEL_TYPES = ["sklearn", "rf", "random_forest", "sklearn_random_forest"]
-ROUTINE_LOOKUP = {
-    **{model: "keras" for model in KERAS_MODEL_TYPES},
-    **{model: "sklearn" for model in SKLEARN_MODEL_TYPES},
-}
+import fv3fit
+import loaders
 
 
 def get_parser():
@@ -62,73 +47,74 @@ def get_parser():
     return parser
 
 
-def _get_model(config: ModelTrainingConfig) -> Estimator:
-    routine = ROUTINE_LOOKUP[config.model_type]
-    if routine == "sklearn":
-        return fv3fit.sklearn.get_model(
-            model_type=config.model_type,
-            input_variables=config.input_variables,
-            output_variables=config.output_variables,
-            scaler_type=config.scaler_type,
-            scaler_kwargs=config.scaler_kwargs,
-            **config.hyperparameters,
+def dump_dataclass(obj, yaml_filename):
+    with fsspec.open(yaml_filename, "w") as f:
+        yaml.safe_dump(dataclasses.asdict(obj), f)
+
+
+def main(args):
+    data_path = parse_data_path(args.data_path)
+    (
+        train_config,
+        train_data_config,
+        val_data_config,
+    ) = fv3fit._shared.config.load_configs(
+        args.config_file,
+        data_path=data_path,
+        output_data_path=args.output_data_path,
+        timesteps_file=args.timesteps_file,
+        validation_timesteps_file=args.validation_timesteps_file,
+    )
+    fv3fit.set_random_seed(train_config.random_seed)
+
+    # TODO: uncomment this line when we aren't using fit_kwargs
+    # to contain validation data
+    # dump_dataclass(train_config, os.path.join(args.output_data_path, "train.yaml"))
+    dump_dataclass(
+        train_data_config, os.path.join(args.output_data_path, "training_data.yaml")
+    )
+
+    train_batches: loaders.typing.Batches = train_data_config.load_batches(
+        variables=train_config.input_variables
+        + train_config.output_variables
+        + train_config.additional_variables
+    )
+    if val_data_config is not None:
+        dump_dataclass(
+            val_data_config, os.path.join(args.output_data_path, "validation_data.yaml")
         )
-    elif routine == "keras":
-        fit_kwargs = _keras_fit_kwargs(config)
-        checkpoint_path = (
-            os.path.join(args.output_data_path, KERAS_CHECKPOINT_PATH)
-            if config.save_model_checkpoints
-            else None
-        )
-        return fv3fit.keras.get_model(
-            model_type=config.model_type,
-            sample_dim_name=loaders.SAMPLE_DIM_NAME,
-            input_variables=config.input_variables,
-            output_variables=config.output_variables,
-            optimizer=get_optimizer(config.hyperparameters),
-            kernel_regularizer=get_regularizer(config.hyperparameters),
-            checkpoint_path=checkpoint_path,
-            fit_kwargs=fit_kwargs,
-            **config.hyperparameters,
-        )
+        val_batches: Optional[loaders.typing.Batches] = val_data_config.load_sequence()
     else:
-        raise NotImplementedError(f"Model type {config.model_type} is not implemented.")
+        val_batches = None
 
+    if args.local_download_path:
+        train_batches = train_batches.local(
+            os.path.join(args.local_download_path, "train")
+        )
+        # TODO: currently, validation data is actually ignored except for Keras
+        # where it is handled in an odd way during configuration setup. Refactor
+        # model fitting to take in validation data directly, so this val_batches
+        # (or val_dataset if you need to refactor it to one) is actually used
+        if val_batches is not None:
+            val_batches = val_batches.local(
+                os.path.join(args.local_download_path, "validation")
+            )
 
-def _keras_fit_kwargs(config: ModelTrainingConfig) -> dict:
-    # extra args specific to keras training
-    fit_kwargs = config.hyperparameters.pop("fit_kwargs", {})
-    fit_kwargs["validation_dataset"] = validation_dataset(data_path, train_config)
-    return fit_kwargs
+    train = fv3fit.get_training_function(train_config.model_type)
+    model = train(
+        input_variables=train_config.input_variables,
+        output_variables=train_config.output_variables,
+        hyperparameters=train_config.hyperparameters,
+        train_batches=train_batches,
+        validation_batches=val_batches,
+    )
+    if len(train_config.derived_output_variables) > 0:
+        model = DerivedModel(model, train_config.derived_output_variables,)
+    io.dump(model, args.output_data_path)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     parser = get_parser()
     args = parser.parse_args()
-    data_path = parse_data_path(args.data_path)
-    train_config = ModelTrainingConfig.load(args.config_file)
-    train_config.data_path = args.data_path
-
-    if args.timesteps_file:
-        with open(args.timesteps_file, "r") as f:
-            timesteps = yaml.safe_load(f)
-        train_config.batch_kwargs["timesteps"] = timesteps
-        train_config.timesteps_source = "timesteps_file"
-
-    if args.validation_timesteps_file:
-        with open(args.validation_timesteps_file, "r") as f:
-            val_timesteps = yaml.safe_load(f)
-        train_config.validation_timesteps = val_timesteps
-
-    train_config.dump(args.output_data_path)
-    set_random_seed(train_config.random_seed)
-
-    batches = load_data_sequence(data_path, train_config)
-    if args.local_download_path:
-        batches = batches.local(args.local_download_path)  # type: ignore
-
-    model = _get_model(train_config)
-    model.fit(batches)
-    train_config.model_path = args.output_data_path
-    io.dump(model, args.output_data_path)
+    main(args)

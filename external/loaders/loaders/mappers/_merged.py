@@ -5,13 +5,14 @@ from vcm import safe
 from ._base import GeoMapper
 from ..constants import DERIVATION_DIM
 from .._utils import get_sample_dataset
+from loaders.typing import Mapper
 
 
 class MergeOverlappingData(GeoMapper):
     def __init__(
         self,
-        mapper_left: GeoMapper,
-        mapper_right: GeoMapper,
+        mapper_left: Mapper,
+        mapper_right: Mapper,
         source_name_left: str = None,
         source_name_right: str = None,
         overlap_dim: str = DERIVATION_DIM,

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from typing import Iterable
+from typing import Iterable, Mapping, Sequence
 import os
 import xarray as xr
 import fsspec
@@ -13,9 +13,14 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunMetrics,
 )
 
-from report import create_html, Link
+from report import create_html, Link, OrderedList, RawHTML
 from report.holoviews import HVPlot, get_html_header
-from .matplotlib import plot_2d_matplotlib, plot_cubed_sphere_map, raw_html
+from .matplotlib import (
+    plot_2d_matplotlib,
+    plot_cubed_sphere_map,
+    plot_histogram,
+)
+from ..constants import PERCENTILES, PRECIP_RATE, TOP_LEVEL_METRICS
 
 import logging
 
@@ -75,9 +80,7 @@ class PlotManager:
             yield func(data)
 
 
-def plot_1d(
-    run_diags: RunDiagnostics, varfilter: str, run_attr_name: str = "run",
-) -> HVPlot:
+def plot_1d(run_diags: RunDiagnostics, varfilter: str) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 1D."""
     p = hv.Cycle("Colorblind")
@@ -95,10 +98,7 @@ def plot_1d(
 
 
 def plot_1d_min_max_with_region_bar(
-    run_diags: RunDiagnostics,
-    varfilter_min: str,
-    varfilter_max: str,
-    run_attr_name: str = "run",
+    run_diags: RunDiagnostics, varfilter_min: str, varfilter_max: str,
 ) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 1D."""
@@ -123,9 +123,7 @@ def plot_1d_min_max_with_region_bar(
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
-def plot_1d_with_region_bar(
-    run_diags: RunDiagnostics, varfilter: str, run_attr_name: str = "run"
-) -> HVPlot:
+def plot_1d_with_region_bar(run_diags: RunDiagnostics, varfilter: str) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     Region will be selectable through a drop-down bar. Region is assumed to be part of
     variable name after last underscore. All matching diagnostics must be 1D."""
@@ -189,6 +187,7 @@ zonal_mean_plot_manager = PlotManager()
 hovmoller_plot_manager = PlotManager()
 zonal_pressure_plot_manager = PlotManager()
 diurnal_plot_manager = PlotManager()
+histogram_plot_manager = PlotManager()
 
 # this will be passed the data from the metrics.json files
 metrics_plot_manager = PlotManager()
@@ -218,14 +217,14 @@ def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 
 @hovmoller_plot_manager.register
-def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics, "zonal_mean_value", dims=["time", "latitude"], cmap="viridis"
     )
 
 
 @hovmoller_plot_manager.register
-def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics, "zonal_mean_bias", dims=["time", "latitude"], cmap="RdBu_r",
     )
@@ -257,7 +256,7 @@ def time_mean_bias_cubed_sphere_maps(
 
 
 @zonal_pressure_plot_manager.register
-def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_time_mean",
@@ -269,7 +268,7 @@ def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
 
 
 @zonal_pressure_plot_manager.register
-def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_bias",
@@ -291,58 +290,110 @@ def diurnal_cycle_component_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     return diurnal_component_plot(diagnostics)
 
 
+@histogram_plot_manager.register
+def histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_histogram(diagnostics, f"{PRECIP_RATE}_histogram")
+
+
 # Routines for plotting the "metrics"
 # New plotting routines can be registered here.
 @metrics_plot_manager.register
-def time_mean_bias_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "time_and_global_mean_bias")
+def time_mean_bias_metrics(metrics: RunMetrics) -> RawHTML:
+    return metric_type_table(metrics, "time_and_global_mean_bias")
 
 
 @metrics_plot_manager.register
-def rmse_time_mean_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "rmse_of_time_mean")
+def rmse_time_mean_metrics(metrics: RunMetrics) -> RawHTML:
+    return metric_type_table(metrics, "rmse_of_time_mean")
 
 
 @metrics_plot_manager.register
-def rmse_3day_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "rmse_3day")
+def rmse_3day_metrics(metrics: RunMetrics) -> RawHTML:
+    return metric_type_table(metrics, "rmse_3day")
 
 
 @metrics_plot_manager.register
-def drift_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "drift")
+def drift_metrics(metrics: RunMetrics) -> RawHTML:
+    return metric_type_table(metrics, "drift_3day")
 
 
-def generic_metric_plot(metrics: RunMetrics, metric_type: str) -> hv.HoloMap:
-    hmap = hv.HoloMap(kdims=["metric"])
-    bar_opts = dict(norm=dict(framewise=True), plot=dict(width=600))
-    variables = metrics.get_metric_variables(metric_type)
+def _get_metric_type_df(metrics: RunMetrics, metric_type: str) -> pd.DataFrame:
+    variables = sorted(metrics.get_metric_variables(metric_type))
+    table = {}
     for varname in variables:
-        s = metrics.get_metric_all_runs(metric_type, varname)
-        bars = hv.Bars((s.run, s.value), hv.Dimension("Run"), s.units.iloc[0])
-        hmap[metrics.metric_name(metric_type, varname)] = bars
-    if len(variables) > 0:
-        return HVPlot(hmap.opts(**bar_opts))
+        units = metrics.get_metric_units(metric_type, varname, metrics.runs[0])
+        column_name = f"{varname} [{units}]"
+        table[column_name] = [
+            metrics.get_metric_value(metric_type, varname, run) for run in metrics.runs
+        ]
+    return pd.DataFrame(table, index=metrics.runs)
 
 
-navigation = [
+def metric_type_table(metrics: RunMetrics, metric_type: str) -> RawHTML:
+    """Return HTML table of all metrics of type metric_type.
+        
+    Args:
+        metrics: Computed metrics.
+        metric_type: Label for type of metric, e.g. "rmse_5day".
+        
+    Returns:
+        HTML representation of table of metric values with rows of all variables
+        available for given metric_type and columns of runs.
+    """
+    df = _get_metric_type_df(metrics, metric_type).transpose()
+    header = f"<h3>{metric_type}</h3>"
+    return RawHTML(header + df.to_html(justify="center", float_format="{:.2f}".format))
+
+
+def _get_metric_df(metrics, metric_names):
+    table = {}
+    for metric_type, variables in metric_names.items():
+        for variable in variables:
+            units = metrics.get_metric_units(metric_type, variable, metrics.runs[0])
+            column_name = f"{variable} {metric_type} [{units}]"
+            table[column_name] = [
+                metrics.get_metric_value(metric_type, variable, run)
+                for run in metrics.runs
+            ]
+    return pd.DataFrame(table, index=metrics.runs)
+
+
+def metric_table(
+    metrics: RunMetrics, metric_names: Mapping[str, Sequence[str]]
+) -> RawHTML:
+    """Return HTML table for all metrics specified in metric_names.
+    
+    Args:
+        metrics: Computed metrics.
+        metric_names: A mapping from metric_types to sequences of variable names.
+            For example, {"rmse_5day": ["h500", "tmp850"]}.
+
+    Returns:
+        HTML representation of table of metric values with rows of all metrics
+        specified in metric_names and columns of runs.
+    """
+    df = _get_metric_df(metrics, metric_names).transpose()
+    return RawHTML(df.to_html(justify="center", float_format="{:.2f}".format))
+
+
+navigation = OrderedList(
     Link("Home", "index.html"),
+    Link("Process diagnostics", "process_diagnostics.html"),
     Link("Latitude versus time hovmoller", "hovmoller.html"),
     Link("Time-mean maps", "maps.html"),
     Link("Time-mean zonal-pressure profiles", "zonal_pressure.html"),
-]
+)
+navigation = [navigation]  # must be iterable for create_html template
 
 
 def render_index(metadata, diagnostics, metrics, movie_links):
     sections_index = {
         "Links": navigation,
+        "Top-level metrics": [metric_table(metrics, TOP_LEVEL_METRICS)],
         "Timeseries": list(timeseries_plot_manager.make_plots(diagnostics)),
         "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
-        "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
+        "Complete metrics": list(metrics_plot_manager.make_plots(metrics)),
     }
-
-    if not metrics.empty:
-        sections_index["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
     return create_html(
         title="Prognostic run report",
         metadata={**metadata, **render_links(movie_links)},
@@ -398,6 +449,22 @@ def render_zonal_pressures(metadata, diagnostics):
     )
 
 
+def render_process_diagnostics(metadata, diagnostics, metrics):
+    percentile_names = {f"percentile_{p}": [PRECIP_RATE] for p in PERCENTILES}
+    sections = {
+        "Links": navigation,
+        "Precipitation percentiles": [metric_table(metrics, percentile_names)],
+        "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
+        "Precipitation histogram": list(histogram_plot_manager.make_plots(diagnostics)),
+    }
+    return create_html(
+        title="Process diagnostics",
+        metadata=metadata,
+        sections=sections,
+        html_header=get_html_header(),
+    )
+
+
 def _html_link(url, tag):
     return f"<a href='{url}'>{tag}</a>"
 
@@ -417,17 +484,8 @@ def render_links(link_dict):
     }
 
 
-def register_parser(subparsers):
-    parser = subparsers.add_parser("report", help="Generate a static html report.")
-    parser.add_argument("input", help="Directory containing multiple run diagnostics.")
-    parser.add_argument("output", help="Location to save report html files.")
-    parser.set_defaults(func=main)
-
-
-def main(args):
-
-    computed_diagnostics = ComputedDiagnosticsList(url=args.input)
-    metrics = computed_diagnostics.load_metrics()
+def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
+    metrics = computed_diagnostics.load_metrics_from_diagnostics()
     movie_links = computed_diagnostics.find_movie_links()
     metadata, diagnostics = computed_diagnostics.load_diagnostics()
 
@@ -436,10 +494,81 @@ def main(args):
         "hovmoller.html": render_hovmollers(metadata, diagnostics),
         "maps.html": render_maps(metadata, diagnostics, metrics),
         "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
+        "process_diagnostics.html": render_process_diagnostics(
+            metadata, diagnostics, metrics
+        ),
     }
 
     for filename, html in pages.items():
-        upload(html, os.path.join(args.output, filename))
+        upload(html, os.path.join(output, filename))
+
+
+def _register_report(subparsers):
+    parser = subparsers.add_parser("report", help="Generate a static html report.")
+    parser.add_argument("input", help="Directory containing multiple run diagnostics.")
+    parser.add_argument("output", help="Location to save report html files.")
+    parser.set_defaults(func=main)
+
+
+def _register_report_from_urls(subparsers):
+    parser = subparsers.add_parser(
+        "report-from-urls",
+        help="Generate a static html report from list of diagnostics.",
+    )
+    parser.add_argument(
+        "inputs",
+        help="Folders containing diags.nc. Will be labeled with "
+        "increasing numbers in report.",
+        nargs="+",
+    )
+    parser.add_argument(
+        "-o", "--output", help="Location to save report html files.", required=True
+    )
+    parser.set_defaults(func=main_new)
+
+
+def _register_report_from_json(subparsers):
+    parser = subparsers.add_parser(
+        "report-from-json",
+        help="Generate report from diagnostics listed in given JSON file.",
+    )
+    parser.add_argument(
+        "input",
+        help="Path to JSON file with list of mappings, each with name and url keys. "
+        "Given URLs must be for run diagnostics folders.",
+    )
+    parser.add_argument("output", help="Location to save report html files.")
+    parser.add_argument(
+        "-r",
+        "--urls-are-rundirs",
+        action="store_true",
+        help="Use if the URLs in given JSON file are for fv3gfs run directories "
+        "instead of run diagnostics folders.",
+    )
+    parser.set_defaults(func=main_json)
+
+
+def register_parser(subparsers):
+    _register_report(subparsers)
+    _register_report_from_urls(subparsers)
+    _register_report_from_json(subparsers)
+
+
+def main(args):
+    computed_diagnostics = ComputedDiagnosticsList.from_directory(args.input)
+    make_report(computed_diagnostics, args.output)
+
+
+def main_new(args):
+    computed_diagnostics = ComputedDiagnosticsList.from_urls(args.inputs)
+    make_report(computed_diagnostics, args.output)
+
+
+def main_json(args):
+    computed_diagnostics = ComputedDiagnosticsList.from_json(
+        args.input, args.urls_are_rundirs
+    )
+    make_report(computed_diagnostics, args.output)
 
 
 if __name__ == "__main__":

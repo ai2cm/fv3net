@@ -25,17 +25,20 @@ class Predictor(abc.ABC):
         sample_dim_name: str,
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
+        **kwargs,
     ):
-        """Initialize the predictor
+        """Initialize the predictor.
         
         Args:
             sample_dim_name: name of sample dimension
             input_variables: names of input variables
             output_variables: names of output variables
-        
         """
-
         super().__init__()
+        if len(kwargs.keys()) > 0:
+            raise TypeError(
+                f"received unexpected keyword arguments: {tuple(kwargs.keys())}"
+            )
         self.sample_dim_name = sample_dim_name
         self.input_variables = input_variables
         self.output_variables = output_variables
@@ -45,8 +48,15 @@ class Predictor(abc.ABC):
         """Predict an output xarray dataset from an input xarray dataset."""
 
     @abc.abstractmethod
-    def load(cls, path: str) -> object:
+    def dump(self, path: str) -> None:
+        """Serialize to a directory."""
+        pass
+
+    @classmethod
+    @abc.abstractmethod
+    def load(cls, path: str) -> "Predictor":
         """Load a serialized model from a directory."""
+        pass
 
     def predict_columnwise(
         self,
@@ -65,6 +75,10 @@ class Predictor(abc.ABC):
         Returns:
             the predictions defined on the same dimensions as X
         """
+        if len(sample_dims) == 0 and feature_dim is None:
+            raise ValueError(
+                "either feature_dim or non-empty sample_dims must be given"
+            )
 
         coords = X.coords
 
@@ -95,22 +109,6 @@ class Predictor(abc.ABC):
             dim for dim in _infer_dimension_order(inputs_) if dim in output.dims
         ]
         return output.transpose(*dim_order)
-
-
-class Estimator(Predictor):
-    """
-    Abstract base class for a machine learning model which operates on xarray
-    datasets, and is trained on sequences of such datasets. Extends the predictor
-    base class by defining `dump` method
-    """
-
-    @abc.abstractmethod
-    def dump(self, path: str) -> None:
-        pass
-
-    @abc.abstractmethod
-    def fit(self, batches: Sequence[xr.Dataset],) -> None:
-        pass
 
 
 def _infer_dimension_order(ds: xr.Dataset) -> Tuple:

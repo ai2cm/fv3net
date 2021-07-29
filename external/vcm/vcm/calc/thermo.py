@@ -1,7 +1,6 @@
 import numpy as np
 import xarray as xr
 from ..cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
-from .calc import mass_integrate
 
 
 # following are defined as in FV3GFS model (see FV3/fms/constants/constants.f90)
@@ -15,6 +14,7 @@ _SPECIFIC_ENTHALPY_VAP0R = 1846
 _SPECIFIC_HEAT_CONST_PRESSURE = 1004
 _FREEZING_TEMPERATURE = 273.15
 _POISSON_CONST = 0.2854
+_EARTH_RADIUS = 6.3712e6  # m
 
 _DEFAULT_SURFACE_TEMPERATURE = _FREEZING_TEMPERATURE + 15
 
@@ -25,6 +25,10 @@ _REVERSE = slice(None, None, -1)
 _SEC_PER_DAY = 86400
 _KG_M2S_TO_MM_DAY = (1e3 * 86400) / 997.0
 _KG_M2_TO_MM = 1000.0 / 997
+
+
+def mass_integrate(da, delp, dim=COORD_Z_CENTER):
+    return (da * delp / _GRAVITY).sum(dim)
 
 
 def potential_temperature(P, T):
@@ -342,9 +346,9 @@ def column_integrated_liquid_water_equivalent(
         ci_liquid_water_equivalent: DataArray of water equivalent in mm
     """
 
-    ci_liquid_water_equivalent = _KG_M2_TO_MM * (
-        (delp / _GRAVITY) * specific_humidity
-    ).sum(vertical_dimension)
+    ci_liquid_water_equivalent = _KG_M2_TO_MM * mass_integrate(
+        specific_humidity, delp, vertical_dimension
+    )
     ci_liquid_water_equivalent = ci_liquid_water_equivalent.assign_attrs(
         {"long_name": "precipitable water", "units": "mm"}
     )
@@ -395,34 +399,10 @@ def liquid_ice_temperature(
     return liquid_ice_temperature
 
 
-def column_integrated_heat(
-    temperature: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
-) -> xr.DataArray:
-    """Compute vertically-integrated total heat
-    
-    Args:
-        temperature: DataArray of air temperature in K
-        delp: DataArray of pressure layer thicknesses in Pa
-        vertical_dim: Name of vertical dimension; defaults to 'z'
-          
-    Returns:
-        column_integrated_heat: DataArray of column total heat in J/m**2
-    """
-
-    column_integrated_heat = (
-        _SPECIFIC_HEAT_CONST_PRESSURE * (delp / _GRAVITY) * temperature
-    ).sum(vertical_dim)
-    column_integrated_heat = column_integrated_heat.assign_attrs(
-        {"long_name": "column integrated heat", "units": "J/m**2"}
-    )
-
-    return column_integrated_heat
-
-
-def column_integrated_heating(
+def column_integrated_heating_from_isobaric_transition(
     dtemperature_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
 ) -> xr.DataArray:
-    """Compute vertically-integrated heat tendencies
+    """Compute vertically-integrated heat tendencies assuming isobaric transition.
     
     Args:
         dtemperature_dt: DataArray of air temperature tendencies in K/s
@@ -434,6 +414,30 @@ def column_integrated_heating(
     """
 
     column_integrated_heating = _SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
+        dtemperature_dt, delp, dim=vertical_dim
+    )
+    column_integrated_heating = column_integrated_heating.assign_attrs(
+        {"long_name": "column integrated heating", "units": "W/m**2"}
+    )
+
+    return column_integrated_heating
+
+
+def column_integrated_heating_from_isochoric_transition(
+    dtemperature_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
+) -> xr.DataArray:
+    """Compute vertically-integrated heat tendencies assuming isochoric transition.
+    
+    Args:
+        dtemperature_dt: DataArray of air temperature tendencies in K/s
+        delp: DataArray of pressure layer thicknesses in Pa (NOT tendencies)
+        vertical_dim: Name of vertical dimension; defaults to 'z'
+          
+    Returns:
+        column_integrated_heating: DataArray of column total heat tendencies in W/m**2
+    """
+    specific_heat = _SPECIFIC_HEAT_CONST_PRESSURE - _RDGAS
+    column_integrated_heating = specific_heat * mass_integrate(
         dtemperature_dt, delp, dim=vertical_dim
     )
     column_integrated_heating = column_integrated_heating.assign_attrs(
@@ -466,3 +470,27 @@ def minus_column_integrated_moistening(
     )
 
     return minus_col_int_moistening
+
+
+def mass_streamfunction(
+    northward_wind: xr.DataArray, lat: str = "latitude", plev: str = "pressure",
+) -> xr.DataArray:
+    """Compute overturning streamfunction from northward wind on pressure grid.
+
+    Args:
+        northward_wind: the meridional wind which depends on pressure and latitude.
+            May have additional dimensions.
+        lat: name of latitude dimension. Latitude must be in degrees.
+        plev: name of pressure dimension. Pressure must be in Pa.
+
+    Returns:
+        mass streamfunction on same coordinates as northward_wind
+    """
+    pressure_thickness = northward_wind[plev].diff(plev, label="lower")
+    psi = (northward_wind * pressure_thickness).cumsum(dim=plev)
+    psi = 2 * np.pi * _EARTH_RADIUS * np.cos(np.deg2rad(psi[lat])) * psi / _GRAVITY
+    # extend psi assuming it is constant so it has same pressure coordinate as input
+    bottom_level_pressure = northward_wind[plev].isel({plev: -1})
+    bottom_level_psi = psi.isel({plev: -1}).assign_coords({plev: bottom_level_pressure})
+    psi = xr.concat([psi, bottom_level_psi], dim=plev)
+    return (psi / 1e9).assign_attrs(long_name="mass streamfunction", units="Gkg/s")

@@ -16,8 +16,9 @@ from .convenience import (
     encode_time,
     shift_timestamp,
 )
-from .calc import mass_integrate, r2_score, local_time, thermo, cos_zenith_angle
+from .calc import r2_score, local_time, thermo, cos_zenith_angle
 from .calc.thermo import (
+    mass_integrate,
     net_heating,
     net_precipitation,
     latent_heat_flux_to_evaporation,
@@ -25,7 +26,11 @@ from .calc.thermo import (
     potential_temperature,
     pressure_at_interface,
     surface_pressure_from_delp,
+    column_integrated_heating_from_isobaric_transition,
+    column_integrated_heating_from_isochoric_transition,
+    mass_streamfunction,
 )
+from .calc.histogram import histogram
 
 from .interpolate import (
     interpolate_to_pressure_levels,

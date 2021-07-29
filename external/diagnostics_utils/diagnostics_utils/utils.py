@@ -29,6 +29,7 @@ UNITS = {
     "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": "[W/m2]",
     "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": "[W/m2]",
 }
+UNITS.update({f"error_in_{var}": UNITS[var] for var in UNITS})
 
 
 def reduce_to_diagnostic(
@@ -38,7 +39,6 @@ def reduce_to_diagnostic(
     primary_vars: Sequence[str] = PRIMARY_VARS,
     net_precipitation: xr.DataArray = None,
     time_dim: str = "time",
-    derivation_dim: str = "derivation",
     uninformative_coords: Sequence[str] = ["tile", "z", "y", "x"],
 ) -> xr.Dataset:
     """Reduce a sequence of batches to a diagnostic dataset
@@ -56,8 +56,6 @@ def reduce_to_diagnostic(
             composites, typically supplied by SHiELD net_precipitation; optional
         time_dim: name of the dataset time dimension to average over; optional,
             defaults to 'time'
-        derivation_dim: name of the dataset derivation dimension containing coords
-            such as 'target', 'predict', etc.; optional, defaults to 'derivation'
         uninformative_coords: sequence of names of uninformative (i.e.,
             range(len(dim))), coordinates to be dropped
             
@@ -105,7 +103,9 @@ def insert_column_integrated_vars(
     for var in column_integrated_vars:
         column_integrated_name = f"column_integrated_{var}"
         if "Q1" in var:
-            da = thermo.column_integrated_heating(ds[var], ds[VARNAMES["delp"]])
+            da = thermo.column_integrated_heating_from_isochoric_transition(
+                ds[var], ds[VARNAMES["delp"]]
+            )
         elif "Q2" in var:
             da = -thermo.minus_column_integrated_moistening(
                 ds[var], ds[VARNAMES["delp"]]

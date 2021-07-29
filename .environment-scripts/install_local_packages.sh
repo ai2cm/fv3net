@@ -20,8 +20,6 @@ for package  in "${local_packages_to_install[@]}"
 do
   pip install -c constraints.txt -e "$package"
 done
-
-pip install --no-deps --upgrade external/gcsfs
 set +e
 
   
@@ -33,6 +31,7 @@ poetry_packages=(
   external/synth
   external/fv3kube
   external/diagnostics_utils
+  external/report
   workflows/fine_res_budget
   workflows/offline_ml_diags
   workflows/dataflow

@@ -1,5 +1,4 @@
 import base64
-import dataclasses
 import io
 import logging
 from collections import defaultdict
@@ -9,11 +8,14 @@ import xarray as xr
 import cartopy.crs as ccrs
 import jinja2
 import matplotlib.pyplot as plt
+import numpy as np
+
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunDiagnostics,
     RunMetrics,
 )
 import fv3viz
+from report import RawHTML
 
 COORD_NAMES = {
     "coord_x_center": "x",
@@ -30,20 +32,12 @@ _COORD_VARS = {
 }
 
 
-def fig_to_b64(fig, format="png"):
+def fig_to_b64(fig, format="png", dpi=None):
     pic_IObytes = io.BytesIO()
-    fig.savefig(pic_IObytes, format=format, bbox_inches="tight")
+    fig.savefig(pic_IObytes, format=format, bbox_inches="tight", dpi=dpi)
     pic_IObytes.seek(0)
     pic_hash = base64.b64encode(pic_IObytes.read())
     return f"data:image/png;base64, " + pic_hash.decode()
-
-
-@dataclasses.dataclass
-class raw_html:
-    contents: str
-
-    def __repr__(self):
-        return self.contents
 
 
 template = jinja2.Template(
@@ -76,7 +70,9 @@ CBAR_RANGE = {
     "air_temperature_pressure_level_zonal_bias": 15,
     "specific_humidity_pressure_level_zonal_bias": 1e-3,
     "vertical_wind_pressure_level_zonal_bias": 0.02,
+    "mass_streamfunction_pressure_level_zonal_bias": 100,
 }
+CONTOUR_LEVELS = 20
 
 
 def plot_2d_matplotlib(
@@ -85,7 +81,7 @@ def plot_2d_matplotlib(
     dims: Sequence = None,
     contour=False,
     **opts,
-) -> raw_html:
+) -> RawHTML:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 2D and have the same dimensions."""
 
@@ -96,7 +92,6 @@ def plot_2d_matplotlib(
     x, y = dims
 
     variables_to_plot = run_diags.matching_variables(varfilter)
-
     for run in run_diags.runs:
         for varname in variables_to_plot:
             vmax = CBAR_RANGE.get(varname)
@@ -105,7 +100,17 @@ def plot_2d_matplotlib(
             long_name_and_units = f"{v.long_name} [{v.units}]"
             fig, ax = plt.subplots()
             if contour:
-                xr.plot.contourf(v, ax=ax, x=x, y=y, vmax=vmax, **opts)
+                cbar_levels = np.arange(-vmax, vmax, step=2 * vmax / CONTOUR_LEVELS)
+                xr.plot.contourf(
+                    v,
+                    ax=ax,
+                    x=x,
+                    y=y,
+                    vmax=vmax,
+                    levels=cbar_levels,
+                    extend="both",
+                    **opts,
+                )
             else:
                 v.plot(ax=ax, x=x, y=y, vmax=vmax, **opts)
             if ylabel:
@@ -114,7 +119,7 @@ def plot_2d_matplotlib(
             plt.tight_layout()
             data[varname][run] = fig_to_b64(fig)
             plt.close(fig)
-    return raw_html(
+    return RawHTML(
         template.render(
             image_data=data,
             runs=sorted(run_diags.runs),
@@ -151,7 +156,6 @@ def plot_cubed_sphere_map(
         metrics_for_title = {}
 
     variables_to_plot = run_diags.matching_variables(varfilter)
-
     for run in run_diags.runs:
         for varname in variables_to_plot:
             logging.info(f"plotting {varname} in {run}")
@@ -169,7 +173,7 @@ def plot_cubed_sphere_map(
             plt.subplots_adjust(left=0.01, right=0.75, bottom=0.02)
             data[varname][run] = fig_to_b64(fig)
             plt.close(fig)
-    return raw_html(
+    return RawHTML(
         template.render(
             image_data=data,
             runs=sorted(run_diags.runs),
@@ -177,6 +181,27 @@ def plot_cubed_sphere_map(
             varfilter=varfilter,
         )
     )
+
+
+def plot_histogram(run_diags: RunDiagnostics, varname: str) -> RawHTML:
+    """Plot 1D histogram of varname overlaid across runs."""
+
+    logging.info(f"plotting {varname}")
+    fig, ax = plt.subplots()
+    bin_name = varname.replace("histogram", "bins")
+    for run in run_diags.runs:
+        v = run_diags.get_variable(run, varname)
+        ax.step(v[bin_name], v, label=run, where="post", linewidth=1)
+    ax.set_xlabel(f"{v.long_name} [{v.units}]")
+    ax.set_ylabel(f"Frequency [({v.units})^-1]")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlim([v[bin_name].values[0], v[bin_name].values[-1]])
+    ax.legend()
+    fig.tight_layout()
+    data = fig_to_b64(fig, dpi=150)
+    plt.close(fig)
+    return RawHTML(f'<img src="{data}" width="800px" />')
 
 
 def _render_map_title(

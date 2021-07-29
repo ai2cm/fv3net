@@ -1,10 +1,12 @@
+from fv3fit._shared.config import DenseHyperparameters
 import xarray as xr
 import numpy as np
 
 import pytest
 
 from fv3fit.keras._models._sequences import _ThreadedSequencePreLoader
-from fv3fit.keras._models.models import PackedKerasModel, _fill_default
+from fv3fit.keras._models.models import DenseModel, _fill_default
+from fv3fit._shared import stack_non_vertical
 import tensorflow.keras
 
 
@@ -19,8 +21,8 @@ def test__ThreadedSequencePreLoader():
 
 
 @pytest.mark.parametrize("base_state", ["manual", "default"])
-def test_PackedKerasModel_jacobian(base_state):
-    class IdentityModel(PackedKerasModel):
+def test_DenseModel_jacobian(base_state):
+    class IdentityModel(DenseModel):
         def get_model(self, n, m):
             x = tensorflow.keras.Input(shape=[n])
             model = tensorflow.keras.Model(inputs=[x], outputs=[x])
@@ -33,7 +35,7 @@ def test_PackedKerasModel_jacobian(base_state):
             "b": (["x", "z"], np.arange(10).reshape(2, 5)),
         }
     )
-    model = IdentityModel("x", ["a"], ["b"])
+    model = IdentityModel("sample", ["a"], ["b"], DenseHyperparameters())
     model.fit([batch])
     if base_state == "manual":
         jacobian = model.jacobian(batch[["a"]].isel(x=0))
@@ -58,3 +60,18 @@ def test_fill_default(kwargs, arg, key, default, expected):
             _fill_default(kwargs, arg, key, default)
     else:
         assert _fill_default(kwargs, arg, key, default) == expected
+
+
+def test_nonnegative_model_outputs():
+    hyperparameters = DenseHyperparameters(nonnegative_outputs=True)
+    model = DenseModel("sample", ["input"], ["output"], hyperparameters,)
+    batch = xr.Dataset(
+        {
+            "input": (["x"], np.arange(100)),
+            # even with negative targets, trained model should be nonnegative
+            "output": (["x"], np.full((100,), -1e4)),
+        }
+    )
+    model.fit([batch])
+    prediction = model.predict(stack_non_vertical(batch))
+    assert prediction.min() >= 0.0

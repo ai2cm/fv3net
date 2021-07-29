@@ -6,7 +6,19 @@ import xarray as xr
 
 from functools import partial
 from toolz import groupby
-from typing import Dict, Mapping, Optional, Sequence, Tuple, Union
+from typing import (
+    Dict,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    Hashable,
+    Iterable,
+    MutableMapping,
+    Callable,
+    cast,
+)
 
 from ._transformations import KeyMap
 from .._utils import assign_net_physics_terms
@@ -18,13 +30,15 @@ from ..constants import (
 from ._base import GeoMapper
 from ._high_res_diags import open_high_res_diags
 from ._merged import MergeOverlappingData
+from loaders._config import mapper_functions
+from loaders.typing import Mapper
 
 Time = str
 Tile = int
 K = Tuple[Time, Tile]
 
 
-DESCRIPTIVE_NAMES = {
+DESCRIPTIVE_NAMES: Mapping[Hashable, Hashable] = {
     "T": "air_temperature",
     "t_dt_fv_sat_adj_coarse": "air_temperature_saturation_adjustment",
     "t_dt_nudge_coarse": "air_temperature_nudging",
@@ -145,8 +159,8 @@ def convergence(eddy: xr.DataArray, delp: xr.DataArray, dim: str = "p") -> xr.Da
     )
 
 
-class FineResolutionBudgetTiles(GeoMapper):
-    """An Mapping interface to a fine-res-q1-q2 dataset"""
+class FineResolutionBudgetTiles(Mapping[Tuple[str, int], xr.Dataset]):
+    """A Mapping to a fine-res-q1-q2 dataset"""
 
     def __init__(self, url):
         self._fs = vcm.cloud.get_fs(url)
@@ -155,14 +169,18 @@ class FineResolutionBudgetTiles(GeoMapper):
         if len(self.files) == 0:
             raise ValueError("No file detected")
 
-    def _parse_file(self, url):
+    def _parse_file(self, url) -> Tuple[str, int]:
         pattern = r"tile(.)\.nc"
         match = re.search(pattern, url)
+        if match is None:
+            raise ValueError(
+                f"invalid url, must contain pattern {pattern} but received {url}"
+            )
         date = vcm.parse_timestep_str_from_path(url)
         tile = match.group(1)
         return date, int(tile)
 
-    def __getitem__(self, key: str) -> xr.Dataset:
+    def __getitem__(self, key):
         return vcm.open_remote_nc(self._fs, self._find_file(key))
 
     def _find_file(self, key):
@@ -171,9 +189,15 @@ class FineResolutionBudgetTiles(GeoMapper):
     def keys(self):
         return [self._parse_file(file) for file in self.files]
 
+    def __len__(self):
+        return len(self.keys())
+
+    def __iter__(self):
+        return iter(self.keys())
+
 
 class GroupByTime(GeoMapper):
-    def __init__(self, tiles: Mapping[K, xr.Dataset]) -> Mapping[K, xr.Dataset]:
+    def __init__(self, tiles: Mapping[K, xr.Dataset]):
         def fn(key):
             time, _ = key
             return time
@@ -194,13 +218,11 @@ class FineResolutionSources(GeoMapper):
     def __init__(
         self,
         fine_resolution_time_mapping: Mapping[Time, xr.Dataset],
-        offset_seconds: Union[int, float] = 0,
         drop_vars: Sequence[str] = ("step", "time"),
         dim_order: Sequence[str] = ("tile", "z", "y", "x"),
-        rename_vars: Optional[Mapping[str, str]] = None,
+        rename_vars: Optional[Mapping[Hashable, Hashable]] = None,
     ):
         self._time_mapping = fine_resolution_time_mapping
-        self._offset_seconds = offset_seconds
         self._drop_vars = drop_vars
         self._dim_order = dim_order
         self._rename_vars = rename_vars or {}
@@ -332,12 +354,12 @@ class FineResolutionSources(GeoMapper):
     @staticmethod
     def _insert_physics(
         budget_time_ds: xr.Dataset,
-        physics_varnames: Sequence[str] = RENAMED_SHIELD_DIAG_VARS.values(),
+        physics_varnames: Iterable[str] = RENAMED_SHIELD_DIAG_VARS.values(),
     ) -> xr.Dataset:
 
         template_2d_var = budget_time_ds["air_temperature"].isel({"pfull": 0})
 
-        physics_vars = {}
+        physics_vars: MutableMapping[Hashable, Hashable] = {}
         for var in physics_varnames:
             physics_var = xr.full_like(template_2d_var, fill_value=0.0)
             physics_vars[var] = physics_var
@@ -383,58 +405,58 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
     return GroupByTime(tiles)
 
 
+@mapper_functions.register
 def open_fine_res_apparent_sources(
-    fine_res_url: str,
-    shield_diags_url: str = None,
+    data_path: str,
+    shield_diags_path: str = None,
     offset_seconds: Union[int, float] = 0,
-    rename_vars: Mapping[str, str] = None,
-    dim_order: Sequence[str] = ("tile", "z", "y", "x"),
-    drop_vars: Sequence[str] = ("step", "time"),
-) -> Mapping[str, xr.Dataset]:
+) -> Mapper:
     """Open a derived mapping interface to the fine resolution budget, grouped
         by time and with derived apparent sources
 
     Args:
-        fine_res_url (str): path to fine res dataset
-        shield_diags_url: path to directory containing a zarr store of SHiELD
+        data_path (str): path to fine res dataset
+        shield_diags_path: path to directory containing a zarr store of SHiELD
             diagnostics coarsened to the nudged model resolution (optional)
         offset_seconds: amount to shift the keys forward by in seconds. For
             example, if the underlying data contains a value at the key
             "20160801.000730", a value off 450 will shift this forward 7:30
             minutes, so that this same value can be accessed with the key
             "20160801.001500"
-        rename_vars: (mapping): optional mapping of variables to rename in dataset
-        drop_vars (sequence): optional list of variable names to drop from dataset
     """
 
-    # use default which is valid for real data
-    if rename_vars is None:
-        rename_vars = {
-            "grid_xt": "x",
-            "grid_yt": "y",
-            "pfull": "z",
-            "delp": "pressure_thickness_of_atmospheric_layer",
-        }
+    rename_vars: Mapping[Hashable, Hashable] = {
+        "grid_xt": "x",
+        "grid_yt": "y",
+        "pfull": "z",
+        "delp": "pressure_thickness_of_atmospheric_layer",
+    }
+    dim_order = ("tile", "z", "y", "x")
+    drop_vars = ("step",)
 
     fine_resolution_sources_mapper = FineResolutionSources(
-        open_fine_resolution_budget(fine_res_url),
-        drop_vars,
+        open_fine_resolution_budget(data_path),
+        drop_vars=drop_vars,
         dim_order=dim_order,
         rename_vars=rename_vars,
     )
 
-    fine_resolution_sources_mapper = KeyMap(
+    shift_timestamp = cast(
+        Callable[[xr.Dataset], xr.Dataset],
         partial(vcm.shift_timestamp, seconds=offset_seconds),
-        fine_resolution_sources_mapper,
     )
 
-    if shield_diags_url is not None:
-        shield_diags_mapper = open_high_res_diags(shield_diags_url)
-        fine_resolution_sources_mapper = MergeOverlappingData(
+    shifted_mapper = KeyMap(shift_timestamp, fine_resolution_sources_mapper)
+
+    if shield_diags_path is not None:
+        shield_diags_mapper = open_high_res_diags(shield_diags_path)
+        final_mapper: Mapper = MergeOverlappingData(
             shield_diags_mapper,
-            fine_resolution_sources_mapper,
+            shifted_mapper,
             source_name_left=DERIVATION_SHIELD_COORD,
             source_name_right=DERIVATION_FV3GFS_COORD,
         )
+    else:
+        final_mapper = shifted_mapper
 
-    return fine_resolution_sources_mapper
+    return final_mapper

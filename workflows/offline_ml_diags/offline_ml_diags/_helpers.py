@@ -4,15 +4,15 @@ import numpy as np
 import os
 import random
 import shutil
-from typing import Mapping, Sequence, Dict, List
+from typing import Mapping, Sequence, Dict, List, Tuple, Iterable
 import warnings
 import xarray as xr
 import yaml
 
-import report
 from vcm import safe
 from vcm.cloud import gsutil
 from vcm.catalog import catalog
+
 
 UNITS = {
     "column_integrated_dq1": "[W/m2]",
@@ -45,6 +45,52 @@ GRID_INFO_VARS = [
     "area",
 ]
 ScalarMetrics = Dict[str, Mapping[str, float]]
+
+
+def _count_features_2d(
+    quantity_names: Iterable[str], dataset: xr.Dataset, sample_dim_name: str
+) -> Mapping[str, int]:
+    """
+    count features for (sample[, z]) arrays.
+    Copied from fv3fit._shared.packer, as this logic is pretty robust.
+    """
+    for name in quantity_names:
+        if len(dataset[name].dims) > 2:
+            value = dataset[name]
+            raise ValueError(
+                "can only count 1D/2D (sample[, z]) "
+                f"variables, recieved values for {name} with dimensions {value.dims}"
+            )
+    return_dict = {}
+    for name in quantity_names:
+        value = dataset[name]
+        if len(value.dims) == 1 and value.dims[0] == sample_dim_name:
+            return_dict[name] = 1
+        elif value.dims[0] != sample_dim_name:
+            raise ValueError(
+                f"cannot count values for {name} whose first dimension is not the "
+                f"sample dimension ({sample_dim_name}), has dims {value.dims}"
+            )
+        else:
+            return_dict[name] = value.shape[1]
+    return return_dict
+
+
+def get_variable_indices(
+    data: xr.Dataset, variables: Sequence[str]
+) -> Mapping[str, Tuple[int, int]]:
+    if "time" in data.dims:
+        data = data.isel(time=0).squeeze(drop=True)
+    stacked = data.stack(sample=["tile", "x", "y"])
+    variable_dims = _count_features_2d(
+        variables, stacked.transpose("sample", ...), "sample"
+    )
+    start = 0
+    variable_indices = {}
+    for var, var_dim in variable_dims.items():
+        variable_indices[var] = (start, start + var_dim)
+        start += var_dim
+    return variable_indices
 
 
 def drop_physics_vars(ds: xr.Dataset):
@@ -137,26 +183,6 @@ def load_grid_info(res: str = "c48"):
     land_sea_mask = catalog[f"landseamask/{res}"].read()
     grid_info = xr.merge([grid, wind_rotation, land_sea_mask])
     return safe.get_variables(grid_info, GRID_INFO_VARS).drop("tile")
-
-
-def write_report(
-    output_dir: str,
-    title: str,
-    sections: Mapping[str, Sequence[str]],
-    metadata: report.Metadata = None,
-    report_metrics: report.Metrics = None,
-    html_header: str = None,
-):
-    filename = "index.html"
-    html_report = report.create_html(
-        sections,
-        title,
-        metadata=metadata,
-        metrics=report_metrics,
-        html_header=html_header,
-    )
-    with open(os.path.join(output_dir, filename), "w") as f:
-        f.write(html_report)
 
 
 def open_diagnostics_outputs(

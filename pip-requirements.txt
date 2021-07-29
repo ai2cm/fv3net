@@ -1,5 +1,4 @@
 apache-beam[gcp]
-zarr
 nc-time-axis
 bump2version
 yq
@@ -17,9 +16,12 @@ numba
 # prognostic run diagnostics requirements
 # this file depends on vcm, so pip-tools cannot lock it
 holoviews
+streamlit
+plotly
 
 # Hope for more stable performance with these versions
-gcsfs>=2021.04.0
+gcsfs>=2021.6.0
+fsspec>=0.9.0
 
 # faster async
 zarr>=2.5.0

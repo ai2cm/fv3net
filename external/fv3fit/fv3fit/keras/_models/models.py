@@ -1,16 +1,19 @@
 from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, List, Any
-from typing_extensions import Literal
 import xarray as xr
 import logging
-import abc
 import copy
 import json
 import tensorflow as tf
 import tensorflow_addons as tfa
+import tempfile
+import dacite
+import shutil
+import dataclasses
 
 from ..._shared.packer import ArrayPacker, unpack_matrix
-from ..._shared.predictor import Estimator
-from ..._shared import io
+from ..._shared.predictor import Predictor
+from ..._shared import io, StackedBatches, stack_non_vertical
+from ..._shared.config import DenseHyperparameters, register_training_function
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
@@ -23,6 +26,7 @@ import yaml
 logger = logging.getLogger(__file__)
 
 MODEL_DIRECTORY = "model_data"
+KERAS_CHECKPOINT_PATH = "model_checkpoints"
 
 # Description of the training loss progression over epochs
 # Outer array indexes epoch, inner array indexes batch (if applicable)
@@ -30,7 +34,23 @@ EpochLossHistory = Sequence[Sequence[Union[float, int]]]
 History = Mapping[str, EpochLossHistory]
 
 
-class PackedKerasModel(Estimator):
+@register_training_function("DenseModel", DenseHyperparameters)
+def train_dense_model(
+    input_variables: Iterable[str],
+    output_variables: Iterable[str],
+    hyperparameters: DenseHyperparameters,
+    train_batches: Sequence[xr.Dataset],
+    validation_batches: Sequence[xr.Dataset],
+):
+    model = DenseModel("sample", input_variables, output_variables, hyperparameters)
+    # TODO: make use of validation_batches, currently validation dataset is
+    # passed through hyperparameters.fit_kwargs
+    model.fit(train_batches)
+    return model
+
+
+@io.register("packed-keras")
+class DenseModel(Predictor):
     """
     Abstract base class for a keras-based model which operates on xarray
     datasets containing a "sample" dimension (as defined by loaders.SAMPLE_DIM_NAME),
@@ -55,40 +75,30 @@ class PackedKerasModel(Estimator):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
-        weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
-        normalize_loss: bool = True,
-        optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
-        kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
-        loss: Literal["mse", "mae"] = "mse",
-        checkpoint_path: Optional[str] = None,
-        fit_kwargs: Optional[dict] = None,
+        hyperparameters: DenseHyperparameters,
     ):
-        """Initialize the model.
-        
+        """Initialize the DenseModel.
+
         Loss is computed on normalized outputs only if `normalized_loss` is True
         (default). This allows you to provide weights that will be proportional
         to the importance of that feature within the loss. If `normalized_loss`
         is False, you should consider scaling your weights to decrease the importance
         of features that are orders of magnitude larger than other features.
-        
+
         Args:
             sample_dim_name: name of the sample dimension in datasets used as
                 inputs and outputs.
             input_variables: names of input variables
             output_variables: names of output variables
-            weights: loss function weights, defined as a dict whose keys are
-                variable names and values are either a scalar referring to the total
-                weight of the variable, or a vector referring to the weight for each
-                feature of the variable. Default is a total weight of 1
-                for each variable.
-            normalize_loss: if True (default), normalize outputs by their standard
-                deviation before computing the loss function
-            optimizer: algorithm to be used in gradient descent, must subclass
-                tf.keras.optimizers.Optimizer; defaults to tf.keras.optimizers.Adam
-            loss: loss function to use. Defaults to mean squared error.
-            fit_kwargs: other keyword arguments to be passed to the underlying
-                tf.keras.Model.fit() method
+            hyperparameters: configuration of the dense model training
         """
+        # store (duplicate) hyperparameters like this for ease of serialization
+        self._hyperparameters = hyperparameters
+        self._depth = hyperparameters.depth
+        self._width = hyperparameters.width
+        self._spectral_normalization = hyperparameters.spectral_normalization
+        self._gaussian_noise = hyperparameters.gaussian_noise
+        self._nonnegative_outputs = hyperparameters.nonnegative_outputs
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
         self.X_packer = ArrayPacker(
@@ -100,16 +110,27 @@ class PackedKerasModel(Estimator):
         self.X_scaler = LayerStandardScaler()
         self.y_scaler = LayerStandardScaler()
         self.train_history = {"loss": [], "val_loss": []}  # type: Mapping[str, List]
-        if weights is None:
+        if hyperparameters.weights is None:
             self.weights: Mapping[str, Union[int, float, np.ndarray]] = {}
         else:
-            self.weights = weights
-        self._normalize_loss = normalize_loss
-        self._optimizer = optimizer
-        self._loss = loss
-        self._kernel_regularizer = kernel_regularizer
-        self._checkpoint_path = checkpoint_path
-        self._fit_kwargs = fit_kwargs or {}
+            self.weights = hyperparameters.weights
+        self._normalize_loss = hyperparameters.normalize_loss
+        self._optimizer = hyperparameters.optimizer_config.instance
+        self._loss = hyperparameters.loss
+        self._epochs = hyperparameters.epochs
+        if hyperparameters.kernel_regularizer_config is not None:
+            regularizer = hyperparameters.kernel_regularizer_config.instance
+        else:
+            regularizer = None
+        self._kernel_regularizer = regularizer
+        self._save_model_checkpoints = hyperparameters.save_model_checkpoints
+        if hyperparameters.save_model_checkpoints:
+            self._checkpoint_path: Optional[
+                tempfile.TemporaryDirectory
+            ] = tempfile.TemporaryDirectory()
+        else:
+            self._checkpoint_path = None
+        self._fit_kwargs = hyperparameters.fit_kwargs or {}
 
     @property
     def model(self) -> tf.keras.Model:
@@ -121,17 +142,27 @@ class PackedKerasModel(Estimator):
         self.X_scaler.fit(X)
         self.y_scaler.fit(y)
 
-    @abc.abstractmethod
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
-        """Returns a Keras model to use as the underlying predictive model.
-        
-        Args:
-            n_features_in: the number of input features
-            n_features_out: the number of output features
-        Returns:
-            model: a Keras model whose input shape is [n_samples, n_features_in] and
-                output shape is [n_samples, features_out]
-        """
+        inputs = tf.keras.Input(n_features_in)
+        x = self.X_scaler.normalize_layer(inputs)
+        for i in range(self._depth - 1):
+            hidden_layer = tf.keras.layers.Dense(
+                self._width,
+                activation=tf.keras.activations.relu,
+                kernel_regularizer=self._kernel_regularizer,
+            )
+            if self._spectral_normalization:
+                hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
+            if self._gaussian_noise > 0.0:
+                x = tf.keras.layers.GaussianNoise(self._gaussian_noise)(x)
+            x = hidden_layer(x)
+        x = tf.keras.layers.Dense(n_features_out)(x)
+        outputs = self.y_scaler.denormalize_layer(x)
+        if self._nonnegative_outputs:
+            outputs = tf.keras.layers.Activation(tf.keras.activations.relu)(outputs)
+        model = tf.keras.Model(inputs=inputs, outputs=outputs)
+        model.compile(optimizer=self._optimizer, loss=self.loss)
+        return model
 
     def fit(
         self,
@@ -154,7 +185,7 @@ class PackedKerasModel(Estimator):
         e.g. {"loss": [[epoch0_loss], [epoch1_loss]]}
         
         Args:
-            batches: sequence of stacked datasets of predictor variables
+            batches: sequence of unstacked datasets of predictor variables
             validation_dataset: optional validation dataset
             epochs: optional number of times through the batches to run when training.
                 Defaults to 1.
@@ -176,7 +207,7 @@ class PackedKerasModel(Estimator):
 
         fit_kwargs = copy.copy(self._fit_kwargs)
         fit_kwargs = _fill_default(fit_kwargs, batch_size, "batch_size", None)
-        fit_kwargs = _fill_default(fit_kwargs, epochs, "epochs", 1)
+        fit_kwargs = _fill_default(fit_kwargs, epochs, "epochs", self._epochs)
         fit_kwargs = _fill_default(fit_kwargs, workers, "workers", 1)
         fit_kwargs = _fill_default(fit_kwargs, max_queue_size, "max_queue_size", 8)
         fit_kwargs = _fill_default(
@@ -185,9 +216,9 @@ class PackedKerasModel(Estimator):
         fit_kwargs = _fill_default(
             fit_kwargs, use_last_batch_to_validate, "use_last_batch_to_validate", False
         )
-
-        Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
-
+        random_state = np.random.RandomState(np.random.get_state()[1][0])
+        stacked_batches = StackedBatches(batches, random_state)
+        Xy = _XyArraySequence(self.X_packer, self.y_packer, stacked_batches)
         if self._model is None:
             X, y = Xy[0]
             n_features_in, n_features_out = X.shape[-1], y.shape[-1]
@@ -221,8 +252,9 @@ class PackedKerasModel(Estimator):
             validation_data = (X_val, y_val)
             Xy = Take(Xy, len(Xy) - 1)  # type: ignore
         elif validation_dataset is not None:
-            X_val = self.X_packer.to_array(validation_dataset)
-            y_val = self.y_packer.to_array(validation_dataset)
+            stacked_validation_dataset = stack_non_vertical(validation_dataset)
+            X_val = self.X_packer.to_array(stacked_validation_dataset)
+            y_val = self.y_packer.to_array(stacked_validation_dataset)
             val_sample = np.random.choice(
                 np.arange(len(y_val)), validation_samples, replace=False
             )
@@ -269,7 +301,7 @@ class PackedKerasModel(Estimator):
             self.train_history["loss"].append(loss_over_batches)
             self.train_history["val_loss"].append(val_loss_over_batches)
             if self._checkpoint_path:
-                self.dump(os.path.join(self._checkpoint_path, f"epoch_{i_epoch}"))
+                self.dump(os.path.join(self._checkpoint_path.name, f"epoch_{i_epoch}"))
                 logger.info(
                     f"Saved model checkpoint after epoch {i_epoch} "
                     f"to {self._checkpoint_path}"
@@ -291,6 +323,11 @@ class PackedKerasModel(Estimator):
             if self._model is not None:
                 model_filename = os.path.join(path, self._MODEL_FILENAME)
                 self.model.save(model_filename)
+            if self._checkpoint_path is not None:
+                shutil.copytree(
+                    self._checkpoint_path.name,
+                    os.path.join(path, KERAS_CHECKPOINT_PATH),
+                )
             with open(os.path.join(path, self._X_PACKER_FILENAME), "w") as f:
                 self.X_packer.dump(f)
             with open(os.path.join(path, self._Y_PACKER_FILENAME), "w") as f:
@@ -300,9 +337,15 @@ class PackedKerasModel(Estimator):
             with open(os.path.join(path, self._Y_SCALER_FILENAME), "wb") as f_binary:
                 self.y_scaler.dump(f_binary)
             with open(os.path.join(path, self._OPTIONS_FILENAME), "w") as f:
-                yaml.safe_dump(
-                    {"normalize_loss": self._normalize_loss, "loss": self._loss}, f
-                )
+                # TODO: remove this hack when we aren't
+                # putting validation data in fit_kwargs
+                options = dataclasses.asdict(self._hyperparameters)
+                fit_kwargs = options.get("fit_kwargs", {})
+                if fit_kwargs is None:  # it is sometimes present with a value of None
+                    fit_kwargs = {}
+                if "validation_dataset" in fit_kwargs:
+                    fit_kwargs.pop("validation_dataset")
+                yaml.safe_dump(options, f)
             with open(os.path.join(path, self._HISTORY_FILENAME), "w") as f:
                 json.dump(self.train_history, f)
 
@@ -328,7 +371,7 @@ class PackedKerasModel(Estimator):
             )
 
     @classmethod
-    def load(cls, path: str) -> "PackedKerasModel":
+    def load(cls, path: str) -> "DenseModel":
         dir_ = os.path.join(path, MODEL_DIRECTORY)
         with get_dir(dir_) as path:
             with open(os.path.join(path, cls._X_PACKER_FILENAME), "r") as f:
@@ -341,12 +384,15 @@ class PackedKerasModel(Estimator):
                 y_scaler = LayerStandardScaler.load(f_binary)
             with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
                 options = yaml.safe_load(f)
+            hyperparameters = dacite.from_dict(
+                data_class=DenseHyperparameters, data=options
+            )
 
             obj = cls(
                 X_packer.sample_dim_name,
                 X_packer.pack_names,
                 y_packer.pack_names,
-                **options,
+                hyperparameters,
             )
             obj.X_packer = X_packer
             obj.y_packer = y_packer
@@ -391,100 +437,6 @@ class PackedKerasModel(Estimator):
 
         J = g.jacobian(y, mean_tf)[0, :, 0, :].numpy()
         return unpack_matrix(self.X_packer, self.y_packer, J)
-
-
-@io.register("packed-keras")
-class DenseModel(PackedKerasModel):
-    """
-    A simple feedforward neural network model with dense layers.
-    """
-
-    def __init__(
-        self,
-        sample_dim_name: str,
-        input_variables: Iterable[str],
-        output_variables: Iterable[str],
-        weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
-        normalize_loss: bool = True,
-        optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
-        kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
-        depth: int = 3,
-        width: int = 16,
-        gaussian_noise: float = 0.0,
-        loss: Literal["mse", "mae"] = "mse",
-        spectral_normalization: bool = False,
-        checkpoint_path: Optional[str] = None,
-        fit_kwargs: Optional[dict] = None,
-    ):
-        """Initialize the DenseModel.
-
-        Loss is computed on normalized outputs only if `normalized_loss` is True
-        (default). This allows you to provide weights that will be proportional
-        to the importance of that feature within the loss. If `normalized_loss`
-        is False, you should consider scaling your weights to decrease the importance
-        of features that are orders of magnitude larger than other features.
-
-        Args:
-            sample_dim_name: name of the sample dimension in datasets used as
-                inputs and outputs.
-            input_variables: names of input variables
-            output_variables: names of output variables
-            weights: loss function weights, defined as a dict whose keys are
-                variable names and values are either a scalar referring to the total
-                weight of the variable, or a vector referring to the weight for each
-                feature of the variable. Default is a total weight of 1
-                for each variable.
-            normalize_loss: if True (default), normalize outputs by their standard
-                deviation before computing the loss function
-            optimizer: algorithm to be used in gradient descent, must subclass
-                tf.keras.optimizers.Optimizer; defaults to tf.keras.optimizers.Adam
-            depth: number of dense layers to use between the input and output layer.
-                The number of hidden layers will be (depth - 1). Default is 3.
-            width: number of neurons to use on layers between the input and output
-                layer. Default is 16.
-            gaussian_noise: how much gaussian noise to add before each Dense layer,
-                apart from the output layer
-            loss: loss function to use. Defaults to mean squared error.
-            fit_kwargs: other keyword arguments to be passed to the underlying
-                tf.keras.Model.fit() method
-        """
-        self._depth = depth
-        self._width = width
-        self._spectral_normalization = spectral_normalization
-        self._gaussian_noise = gaussian_noise
-        optimizer = optimizer or tf.keras.optimizers.Adam()
-        super().__init__(
-            sample_dim_name,
-            input_variables,
-            output_variables,
-            weights=weights,
-            normalize_loss=normalize_loss,
-            optimizer=optimizer,
-            kernel_regularizer=kernel_regularizer,
-            loss=loss,
-            checkpoint_path=checkpoint_path,
-            fit_kwargs=fit_kwargs,
-        )
-
-    def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
-        inputs = tf.keras.Input(n_features_in)
-        x = self.X_scaler.normalize_layer(inputs)
-        for i in range(self._depth - 1):
-            hidden_layer = tf.keras.layers.Dense(
-                self._width,
-                activation=tf.keras.activations.relu,
-                kernel_regularizer=self._kernel_regularizer,
-            )
-            if self._spectral_normalization:
-                hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
-            if self._gaussian_noise > 0.0:
-                x = tf.keras.layers.GaussianNoise(self._gaussian_noise)(x)
-            x = hidden_layer(x)
-        x = tf.keras.layers.Dense(n_features_out)(x)
-        outputs = self.y_scaler.denormalize_layer(x)
-        model = tf.keras.Model(inputs=inputs, outputs=outputs)
-        model.compile(optimizer=self._optimizer, loss=self.loss)
-        return model
 
 
 def _fill_default(kwargs: dict, arg: Optional[Any], key: str, default: Any):

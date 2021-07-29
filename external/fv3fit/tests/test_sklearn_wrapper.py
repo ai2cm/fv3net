@@ -1,3 +1,4 @@
+from external.fv3fit.fv3fit._shared import stack_non_vertical
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.dummy import DummyRegressor
@@ -6,7 +7,7 @@ import pytest
 import xarray as xr
 import joblib
 
-from fv3fit.sklearn._wrapper import RegressorEnsemble, pack, SklearnWrapper, select
+from fv3fit.sklearn._random_forest import _RegressorEnsemble, pack, SklearnWrapper
 from fv3fit._shared.scaler import ManualScaler
 
 
@@ -55,7 +56,7 @@ def test_flatten_same_order():
 @pytest.fixture
 def test_regressor_ensemble():
     base_regressor = LinearRegression()
-    ensemble_regressor = RegressorEnsemble(base_regressor)
+    ensemble_regressor = _RegressorEnsemble(base_regressor, n_jobs=1)
     num_batches = 3
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
     y = np.dot(X, np.array([1, 2])) + 3
@@ -88,22 +89,23 @@ def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
     else:
         scaler = None
 
-    return SklearnWrapper(
+    wrapper = SklearnWrapper(
         sample_dim_name="sample",
         input_variables=["x"],
         output_variables=["y"],
         model=model,
-        target_scaler=scaler,
     )
+    wrapper.target_scaler = scaler
+    return wrapper
 
 
 def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
     wrapper = _get_sklearn_wrapper(scale)
-    dims = ["sample", "z"]
+    dims = ["unstacked_dim", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit([data])
-
-    output = wrapper.predict(data)
+    stacked_data = stack_non_vertical(data)
+    output = wrapper.predict(stacked_data)
     assert pytest.approx(1 / scale) == output["y"].item()
 
 
@@ -122,10 +124,10 @@ def test_fitting_SklearnWrapper_does_not_fit_scaler():
         input_variables=["x"],
         output_variables=["y"],
         model=model,
-        target_scaler=scaler,
     )
+    wrapper.target_scaler = scaler
 
-    dims = ["sample", "z"]
+    dims = ["sample_", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit([data])
     scaler.fit.assert_not_called()
@@ -141,17 +143,17 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
         scaler = ManualScaler(np.array([scale_factor]))
     else:
         scaler = None
-    model = RegressorEnsemble(base_regressor=LinearRegression())
+    model = _RegressorEnsemble(base_regressor=LinearRegression(), n_jobs=1)
     wrapper = SklearnWrapper(
         sample_dim_name="sample",
         input_variables=["x"],
         output_variables=["y"],
         model=model,
-        target_scaler=scaler,
     )
+    wrapper.target_scaler = scaler
 
     # setup input data
-    dims = ["sample", "z"]
+    dims = ["unstacked_dim", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit([data])
 
@@ -160,21 +162,21 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
     wrapper.dump(path)
 
     loaded = wrapper.load(path)
-    xr.testing.assert_equal(loaded.predict(data), wrapper.predict(data))
+    stacked_data = stack_non_vertical(data)
+    xr.testing.assert_equal(loaded.predict(stacked_data), wrapper.predict(stacked_data))
 
 
 def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
-    model = RegressorEnsemble(base_regressor=LinearRegression())
+    model = _RegressorEnsemble(base_regressor=LinearRegression(), n_jobs=1)
     wrapper = SklearnWrapper(
         sample_dim_name="sample",
         input_variables=["x"],
         output_variables=["y"],
         model=model,
-        target_scaler=None,
     )
 
     # setup input data
-    dims = ["sample", "z"]
+    dims = ["unstacked_dim", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit([data])
 
@@ -195,40 +197,22 @@ def test_predict_columnwise_is_deterministic(regtest):
     If this fails, look for non-deterministic logic (e.g. converting sets to lists)
     """
     nz = 2
-    model = RegressorEnsemble(
-        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz))
+    model = _RegressorEnsemble(
+        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
+        n_jobs=1,
     )
     wrapper = SklearnWrapper(
         sample_dim_name="sample",
         input_variables=["a"],
         output_variables=["b"],
         model=model,
-        target_scaler=None,
     )
 
     dims = ["x", "y", "z"]
     shape = (2, 2, nz)
     arr = np.arange(np.prod(shape)).reshape(shape)
     data = xr.Dataset({"a": (dims, arr), "b": (dims, arr + 1)})
-    stacked = data.stack(sample=["x", "y"]).transpose("sample", "z")
-    wrapper.fit([stacked])
+    wrapper.fit([data])
 
     output = wrapper.predict_columnwise(data, feature_dim="z")
     print(joblib.hash(np.asarray(output["b"])), file=regtest)
-
-
-def test_select_all():
-    idx = [("u", 0)]
-    data = np.array([[0]])
-    np.testing.assert_equal(data, select(idx, data, "all"))
-
-
-def test_select_lower():
-    v = "northward_wind"
-    qv = "specific_humidity"
-    t = "air_temperature"
-    idx = [(t, 19), (t, 20), (qv, 29), (qv, 30), (v, 9), (v, 10), ("u", 0)]
-    data = np.array([["t_19", "t_20", "qv_29", "qv_30", "v_9", "v_10", "u_0"]])
-
-    expected = np.array([["t_20", "qv_30", "v_10", "u_0"]])
-    np.testing.assert_equal(select(idx, data, "lower"), expected)

@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any
 
 
 import fsspec
@@ -10,6 +10,7 @@ from typing_extensions import Protocol
 from loaders.mappers._fine_resolution_budget import eddy_flux_coarse, convergence
 from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
+from loaders._config import mapper_functions
 from vcm.fv3.metadata import gfdl_to_standard
 
 
@@ -159,18 +160,20 @@ def _open_fine_res_dataset(
     )
 
 
-def open_fine_resolution_nudging_hybrid(data_paths: List[str]) -> GeoMapper:
+@mapper_functions.register
+def open_fine_resolution_nudging_hybrid(
+    _: Any, fine_url: str = "", nudge_url: str = ""
+) -> GeoMapper:
     """
     Open the fine resolution nudging_hybrid mapper
 
     Args:
-        data_paths: If list of urls is provided, the first is used as the nudging
-            data url and second is used as fine res. If string or None, the paths must
-            be provided in each mapper's kwargs.
+        _: the loading infrastructure expects this argument, but it is not used
+            by the hybrid sheme. Keep this in mind when configuring
+        fine_url: url where coarsened fine resolution data is stored
+        nudge_url: url to nudging data to be used as a residual
 
     Returns:
         a mapper
     """
-    return XarrayMapper(
-        _open_fine_res_dataset(fine_url=data_paths[1], nudge_url=data_paths[0])
-    )
+    return XarrayMapper(_open_fine_res_dataset(fine_url=fine_url, nudge_url=nudge_url))
