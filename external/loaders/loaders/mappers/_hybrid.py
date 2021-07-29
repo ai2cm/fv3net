@@ -54,6 +54,13 @@ def open_zarr(url, consolidated=False):
     return xarray.open_zarr(mapper, consolidated=consolidated)
 
 
+def open_zarr_maybe_consolidated(url):
+    try:
+        return open_zarr(url, consolidated=True)
+    except KeyError:
+        return open_zarr(url, consolidated=False)
+
+
 def apparent_heating(data: FineResBudget):
     eddy_flux = eddy_flux_coarse(
         data.eddy_flux_vulcan_omega_temp,
@@ -110,18 +117,16 @@ def _open_fine_res_dataset(
     nudge_url="gs://vcm-ml-experiments/2021-04-13-n2f-c3072/3-hrly-ave-rad-precip-setting-30-min-rad-timestep-shifted-start-tke-edmf",  # noqa: E501
 ) -> xarray.Dataset:
 
-    fine = open_zarr(fine_url, consolidated=True)
+    fine = open_zarr_maybe_consolidated(fine_url)
     # compute apparent sources
     fine["Q1"] = apparent_heating(fine)
     fine["Q2"] = apparent_moistening(fine)
     # shift the data to match the other time series
     fine_shifted = fine.assign(time=fine.time - timedelta(minutes=7, seconds=30))
 
-    nudge_physics_tendencies = open_zarr(
-        nudge_url + "/physics_tendencies.zarr", consolidated=True
-    )
-    nudge_state = open_zarr(nudge_url + "/state_after_timestep.zarr", consolidated=True)
-    nudge_tends = open_zarr(nudge_url + "/nudging_tendencies.zarr", consolidated=True)
+    nudge_physics_tendencies = open_zarr(nudge_url + "/physics_tendencies.zarr",)
+    nudge_state = open_zarr_maybe_consolidated(nudge_url + "/state_after_timestep.zarr")
+    nudge_tends = open_zarr_maybe_consolidated(nudge_url + "/nudging_tendencies.zarr")
 
     merged = xarray.merge(
         [gfdl_to_standard(fine_shifted), nudge_state, nudge_physics_tendencies],

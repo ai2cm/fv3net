@@ -233,8 +233,6 @@ def fine_url(tmpdir):
 
 def test_open_fine_resolution_nudging_hybrid(nudge_to_fine_data_dir, fine_url):
     data = open_fine_resolution_nudging_hybrid(
-        data_path=nudge_to_fine_data_dir,
-        fine_res_path=fine_url,
-        nudging_variables=NUDGE_TO_FINE_VARIABLES,
+        None, fine_url=fine_url, nudge_url=nudge_to_fine_data_dir,
     )
     data[timestep1_end]
