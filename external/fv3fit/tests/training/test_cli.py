@@ -82,10 +82,10 @@ def data_info(tmpdir):
     ],
 )
 @pytest.mark.parametrize(
-    "use_validation_timesteps", [True, False],
+    "use_validation_data", [True, False],
 )
 def test_training_integration(
-    model_info, data_info, use_validation_timesteps: bool, tmp_path: str,
+    model_info, data_info, use_validation_data: bool, tmp_path: str,
 ):
     """
     Test the bash endpoint for training the model produces the expected output files.
@@ -95,7 +95,15 @@ def test_training_integration(
         train_data_filename,
         validation_data_filename,
         output_path,
-    ) = get_config(model_info, data_info, tmp_path, use_validation_timesteps)
+    ) = get_config(model_info, data_info, tmp_path, use_validation_data)
+
+    if use_validation_data:
+        validation_args = [
+            "--validation-data-config",
+            validation_data_filename,
+        ]
+    else:
+        validation_args = []
 
     subprocess.check_call(
         [
@@ -104,14 +112,14 @@ def test_training_integration(
             "fv3fit.train",
             training_filename,
             train_data_filename,
-            validation_data_filename,
             output_path,
         ]
+        + validation_args
     )
     fv3fit.load(output_path)
 
 
-def get_config(model_info, data_info, tmp_path, use_validation_timesteps: bool):
+def get_config(model_info, data_info, tmp_path, use_validation_data: bool):
     """
     Initialize configuration files and get paths required to run fv3fit.train
     """
@@ -132,7 +140,7 @@ def get_config(model_info, data_info, tmp_path, use_validation_timesteps: bool):
             **data_info["batches_kwargs"]
         ),
     )
-    if use_validation_timesteps:
+    if use_validation_data:
         validation_timesteps = data_info["validation_timesteps"]
     else:
         validation_timesteps = []
@@ -168,10 +176,10 @@ def get_config(model_info, data_info, tmp_path, use_validation_timesteps: bool):
     ],
 )
 @pytest.mark.parametrize(
-    "use_validation_timesteps", [True, False],
+    "use_validation_data", [True, False],
 )
 def test_local_download_path(
-    model_info, data_info, use_validation_timesteps: bool, tmp_path,
+    model_info, data_info, use_validation_data: bool, tmp_path,
 ):
     """
     Test the bash endpoint for training the model produces the expected output files.
@@ -181,8 +189,16 @@ def test_local_download_path(
         train_data_filename,
         validation_data_filename,
         output_path,
-    ) = get_config(model_info, data_info, tmp_path, use_validation_timesteps)
+    ) = get_config(model_info, data_info, tmp_path, use_validation_data)
     local_download_path = os.path.join(tmp_path, "local_data")
+
+    if use_validation_data:
+        validation_args = [
+            "--validation-data-config",
+            validation_data_filename,
+        ]
+    else:
+        validation_args = []
 
     subprocess.check_call(
         [
@@ -191,11 +207,11 @@ def test_local_download_path(
             "fv3fit.train",
             training_filename,
             train_data_filename,
-            validation_data_filename,
             output_path,
             "--local-download-path",
             local_download_path,
         ]
+        + validation_args
     )
     assert len(os.listdir(local_download_path)) > 0
     fv3fit.load(output_path)

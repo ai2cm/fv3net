@@ -58,8 +58,9 @@ spec:
             python3 -m fv3fit.train \
               training_config.yaml \
               training_data.yaml \
-              validation_data.yaml \
               {{inputs.parameters.output}} \
+              --validation-data-config \
+              validation_data.yaml \
               {{inputs.parameters.flags}}
       tolerations:
       - key: "dedicated"
