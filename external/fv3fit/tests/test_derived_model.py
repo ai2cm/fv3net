@@ -41,7 +41,8 @@ def test_derived_prediction():
             ),
         }
     )
-    prediction = derived_model.predict(ds_in.stack(sample=["x", "y"]))
+    print(base_model.predict(ds_in))
+    prediction = derived_model.predict(ds_in)
     assert "net_shortwave_sfc_flux_derived" in prediction
 
 
@@ -75,11 +76,10 @@ def test_dump_and_load(tmpdir):
             ),
         }
     )
-    input_data = ds_in.stack(sample=["x", "y"])
-    prediction = derived_model.predict(input_data)
+    prediction = derived_model.predict(ds_in)
 
     fv3fit.dump(derived_model, str(tmpdir))
     loaded_model = fv3fit.load(str(tmpdir))
 
-    prediction_after_load = loaded_model.predict(input_data)
+    prediction_after_load = loaded_model.predict(ds_in)
     assert prediction_after_load.identical(prediction)
