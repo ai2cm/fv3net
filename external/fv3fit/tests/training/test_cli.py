@@ -13,8 +13,6 @@ import numpy as np
 @pytest.fixture
 def data_info(tmpdir):
     data_dir = os.path.join(str(tmpdir), "data")
-    # size needs to be 48 or an error happens. Is there a hardcode in fv3fit
-    # someplace?...maybe where the grid data is loaded?
     x, y, z, tile, time = (8, 8, 79, 6, 2)
     arr = np.zeros((time, tile, z, y, x))
     arr_surf = np.zeros((time, tile, y, x))
