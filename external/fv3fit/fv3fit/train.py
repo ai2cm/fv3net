@@ -14,17 +14,17 @@ import loaders
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "train_config", type=str, help="path of training configuration yaml file",
+        "train_config", type=str, help="path of fv3fit.TrainingConfig yaml file",
     )
     parser.add_argument(
         "train_data_config",
         type=str,
-        help="path of training data configuration yaml file",
+        help="path of loaders.BatchesLoader training data yaml file",
     )
     parser.add_argument(
         "val_data_config",
         type=str,
-        help="path of validation data configuration yaml file",
+        help="path of loaders.BatchesLoader validation data yaml file",
     )
     parser.add_argument(
         "output_path", type=str, help="path to save config and trained model"

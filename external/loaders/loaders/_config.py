@@ -56,6 +56,11 @@ class MapperConfig:
 
 
 class BatchesLoader(abc.ABC):
+    """
+    Abstract base class for configuration classes that load batches. See
+    subclasses for concrete implementations you can use in configuration files.
+    """
+
     @abc.abstractmethod
     def load_batches(self, variables) -> Batches:
         """
