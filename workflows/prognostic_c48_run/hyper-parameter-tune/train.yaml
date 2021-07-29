@@ -29,7 +29,7 @@ spec:
               fieldPath: metadata.name
 
       image:
-        us.gcr.io/vcm-ml/emulator:e9d73c5664710a340ad308bfc7a6003039e07f18
+        us.gcr.io/vcm-ml/emulator:55e360d0aa9322d7be5d299eee176d015c103569
       command: [./train.sh]
       args:
         - --wandb
@@ -42,7 +42,7 @@ spec:
         - --q-weight=0
         - --lr=0.01
         - --momentum=0.9
-        - --epochs=100
+        - --epochs=80
         - --batch-size=512
       volumeMounts:
         - name: gcp-credentials-user-gcp-sa
@@ -53,11 +53,11 @@ spec:
       resources:
         limits:
           cpu: "2000m"
-          memory: 16Gi
+          memory: 20Gi
           ephemeral-storage: 40Gi
         requests:
           cpu: "2000m"
-          memory: 16Gi
+          memory: 20Gi
           ephemeral-storage: 40Gi
   restartPolicy: Never
   tolerations:
