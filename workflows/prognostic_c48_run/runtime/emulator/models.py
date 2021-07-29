@@ -1,13 +1,13 @@
 from typing import Sequence
 import tensorflow as tf
-from tensorflow.keras.layers import Input, Dense, Concatenate
 from runtime.emulator.thermo import (
     RelativeHumidityBasis,
     ThermoBasis,
+    SpecificHumidityBasis,
 )
 from fv3fit.emulation.layers.normalization import (
-    MaxFeatureStdDenormLayer,
     StandardNormLayer,
+    StandardDenormLayer,
 )
 
 from runtime.emulator.layers import ScalarNormLayer
@@ -21,106 +21,182 @@ def atleast_2d(x: tf.Variable) -> tf.Variable:
         return x
 
 
-def embed(args: Sequence[tf.Tensor]):
-    return tf.concat([atleast_2d(arg) for arg in args], axis=-1)
+def embed(x: ThermoBasis):
+    args = [atleast_2d(arg) for arg in x.args.to_rh()]
+    if x.qc is not None:
+        args.append(x.qc)
+    return tf.concat(args, axis=-1)
 
 
-def get_model(
-    nz, num_scalar, num_hidden=256, num_hidden_layers=3, output_is_positive=True
-):
-    u = Input(shape=[nz])
-    v = Input(shape=[nz])
-    t = Input(shape=[nz])
-    q = Input(shape=[nz])
-    qc = Input(shape=[nz])
+class ScalarMLP(tf.keras.layers.Layer):
+    def __init__(self, num_hidden=256, num_hidden_layers=1, var_level=0):
+        super(ScalarMLP, self).__init__()
+        self.scalers_fitted = False
+        self.sequential = tf.keras.Sequential()
 
-    inputs = [u, v, t, q, qc]
+        # output level
+        self.var_level = var_level
 
-    if num_scalar > 0:
-        scalars = Input(shape=[num_scalar])
-        inputs.append(scalars)
+        # input and output normalizations
+        self.norm = StandardNormLayer(name="norm")
+        self.output_scaler = StandardDenormLayer(name="output_scalar")
 
-    stacked = Concatenate()(inputs)
-    for i in range(num_hidden_layers):
-        stacked = Dense(num_hidden, activation="relu")(stacked)
+        # model architecture
+        self.sequential.add(self.norm)
 
-    if output_is_positive:
-        y = Dense(nz)(stacked)
-    else:
-        y = Dense(nz, activation="relu")(stacked)
+        for _ in range(num_hidden_layers):
+            self.sequential.add(tf.keras.layers.Dense(num_hidden, activation="relu"))
 
-    return tf.keras.Model(inputs=inputs, outputs=y)
+        self.sequential.add(tf.keras.layers.Dense(1, name="out"))
+        self.sequential.add(self.output_scaler)
+
+    def call(self, in_: ThermoBasis):
+        # assume has dims: batch, z
+        args = [atleast_2d(arg) for arg in in_.args]
+        stacked = tf.concat(args, axis=-1)
+        t0 = in_.q[:, self.var_level : self.var_level + 1]
+        return t0 + self.sequential(stacked)
+
+    def _fit_input_scaler(self, in_: ThermoBasis):
+        args = [atleast_2d(arg) for arg in in_.args]
+        stacked = tf.concat(args, axis=-1)
+        self.norm.fit(stacked)
+
+    def _fit_output_scaler(self, argsin: ThermoBasis, argsout: ThermoBasis):
+        t0 = argsin.q[:, self.var_level : self.var_level + 1]
+        t1 = argsout.q[:, self.var_level : self.var_level + 1]
+        self.output_scaler.fit(t1 - t0)
+
+    def fit_scalers(self, argsin: ThermoBasis, argsout: ThermoBasis):
+        self._fit_input_scaler(argsin)
+        self._fit_output_scaler(argsin, argsout)
+        self.scalers_fitted = True
+
+
+class RHScalarMLP(ScalarMLP):
+    def fit_scalers(self, argsin: ThermoBasis, argsout: ThermoBasis):
+        rh_argsin = argsin.to_rh()
+        rh_argsout = argsout.to_rh()
+        super(RHScalarMLP, self).fit_scalers(rh_argsin, rh_argsout)
+
+    def call(self, args: ThermoBasis):
+        rh_args = args.to_rh()
+        rh = super().call(rh_args)
+        return rh
+
+
+class SingleVarModel(tf.keras.layers.Layer):
+    def __init__(self, n):
+        super(SingleVarModel, self).__init__()
+        self.scalers_fitted = False
+        self.norm = StandardNormLayer(name="norm")
+        self.linear = tf.keras.layers.Dense(256, name="lin")
+        self.relu = tf.keras.layers.ReLU()
+        self.out = tf.keras.layers.Dense(n, name="out", activation="relu")
+
+        self.denorm = ScalarNormLayer()
+
+    def _fit_input_scaler(self, args: Sequence[tf.Variable]):
+        args = [atleast_2d(arg) for arg in args]
+        stacked = tf.concat(args, axis=-1)
+        self.norm.fit(stacked)
+
+    def fit_scalers(self, x: ThermoBasis, y: ThermoBasis):
+        self._fit_input_scaler(x.args)
+        self.denorm.fit(x.qc)
+        self.scalers_fitted = True
+
+    def call(self, in_: ThermoBasis) -> ThermoBasis:
+        # assume has dims: batch, z
+        args = [atleast_2d(arg) for arg in in_.args]
+        stacked = tf.concat(args, axis=-1)
+        hidden = self.relu(self.linear(self.norm(stacked)))
+        return self.denorm(self.out(hidden))
 
 
 class V1QCModel(tf.keras.layers.Layer):
-    def __init__(self, nz, num_scalar):
+    def __init__(self, nz):
         super(V1QCModel, self).__init__()
+        self.tend_model = UVTRHSimple(nz, nz, nz, nz)
+        self.qc_model = SingleVarModel(nz)
 
-        # input scaling
-        self.scale_u = StandardNormLayer()
-        self.scale_v = StandardNormLayer()
-        self.scale_t = StandardNormLayer()
-        self.scale_rh = StandardNormLayer()
-        self.scale_qc = StandardNormLayer()
-        self.scale_rho = StandardNormLayer()
-
-        if num_scalar != 0:
-            self.scale_scalars = StandardNormLayer()
-        else:
-            self.scale_scalars = None
-
-        self.u_tend_model = get_model(nz, num_scalar, output_is_positive=False)
-        self.u_tend_scale = ScalarNormLayer()
-        self.v_tend_model = get_model(nz, num_scalar, output_is_positive=False)
-        self.v_tend_scale = ScalarNormLayer()
-        self.t_tend_model = get_model(nz, num_scalar, output_is_positive=False)
-        self.t_tend_scale = ScalarNormLayer()
-        self.rh_tend_model = get_model(nz, num_scalar, output_is_positive=False)
-        self.rh_tend_scale = ScalarNormLayer()
-
-        # qc is predicted directly
-        self.qc_model = get_model(nz, num_scalar, output_is_positive=True)
-        self.qc_scale = MaxFeatureStdDenormLayer()
-
-        self.scalers_fitted = False
+    @property
+    def scalers_fitted(self):
+        return self.tend_model.scalers_fitted & self.qc_model.scalers_fitted
 
     def fit_scalers(self, x: ThermoBasis, y: ThermoBasis):
-        self.scale_u.fit(x.u)
-        self.scale_v.fit(x.v)
-        self.scale_t.fit(x.T)
-        self.scale_rh.fit(x.rh)
-        self.scale_qc.fit(x.qc)
-
-        if self.scale_scalars is not None:
-            self.scale_scalars.fit(embed(x.scalars))
-
-        self.u_tend_scale.fit(y.u - x.u)
-        self.v_tend_scale.fit(y.v - x.v)
-        self.t_tend_scale.fit(y.T - x.T)
-        self.rh_tend_scale.fit(y.rh - x.rh)
-        self.qc_scale.fit(y.qc)
-
-        self.scalers_fitted = True
+        self.tend_model.fit_scalers(x, y)
+        self.qc_model.fit_scalers(x, y)
 
     def call(self, x: ThermoBasis) -> RelativeHumidityBasis:
+        y = self.tend_model(x)
+        y.qc = self.qc_model(x)
+        return y
 
-        inputs = [
-            self.scale_u(x.u),
-            self.scale_v(x.v),
-            self.scale_t(x.T),
-            self.scale_rh(x.rh),
-            self.scale_qc(x.qc),
-        ]
 
-        if self.scale_scalars is not None:
-            inputs.append(self.scale_scalars(embed(x.scalars)))
+class UVTQSimple(tf.keras.layers.Layer):
+    def __init__(self, u_size, v_size, t_size, q_size):
+        super(UVTQSimple, self).__init__()
+        self.scalers_fitted = False
+        self.norm = StandardNormLayer(name="norm")
+        self.linear = tf.keras.layers.Dense(256, name="lin")
+        self.relu = tf.keras.layers.ReLU()
+        self.out_u = tf.keras.layers.Dense(u_size, name="out_u")
+        self.out_v = tf.keras.layers.Dense(v_size, name="out_v")
+        self.out_t = tf.keras.layers.Dense(t_size, name="out_t")
+        self.out_q = tf.keras.layers.Dense(q_size, name="out_q")
+
+        self.scalers = [ScalarNormLayer(name=f"out_{i}") for i in range(4)]
+
+    def _fit_input_scaler(self, args: Sequence[tf.Variable]):
+        args = [atleast_2d(arg) for arg in args]
+        stacked = tf.concat(args, axis=-1)
+        self.norm.fit(stacked)
+
+    def _fit_output_scaler(
+        self, argsin: Sequence[tf.Variable], argsout: Sequence[tf.Variable]
+    ):
+        for i in range(len(self.scalers)):
+            self.scalers[i].fit(argsout[i] - argsin[i])
+
+    def fit_scalers(self, x: ThermoBasis, y: ThermoBasis):
+        self._fit_input_scaler(x.args)
+        self._fit_output_scaler(x.args, y.args)
+        self.scalers_fitted = True
+
+    def call(self, in_: ThermoBasis) -> ThermoBasis:
+        # assume has dims: batch, z
+        args = [atleast_2d(arg) for arg in in_.args]
+        stacked = tf.concat(args, axis=-1)
+        hidden = self.relu(self.linear(self.norm(stacked)))
+
+        return SpecificHumidityBasis(
+            in_.u + self.scalers[0](self.out_u(hidden)),
+            in_.v + self.scalers[1](self.out_v(hidden)),
+            in_.T + self.scalers[2](self.out_t(hidden)),
+            in_.q + self.scalers[3](self.out_q(hidden)),
+            in_.dp,
+            in_.dz,
+        )
+
+
+class UVTRHSimple(UVTQSimple):
+    def fit_scalers(self, x: ThermoBasis, y: ThermoBasis):
+        self._fit_input_scaler(x.to_rh().args)
+        self._fit_output_scaler(x.to_rh().args, y.to_rh().args)
+        self.scalers_fitted = True
+
+    def call(self, in_: ThermoBasis) -> ThermoBasis:
+        # assume has dims: batch, z
+        args = [atleast_2d(arg) for arg in in_.to_rh().args]
+        stacked = tf.concat(args, axis=-1)
+        hidden = self.relu(self.linear(self.norm(stacked)))
 
         return RelativeHumidityBasis(
-            u=x.u + self.u_tend_scale(self.u_tend_model(inputs)),
-            v=x.v + self.v_tend_scale(self.v_tend_model(inputs)),
-            T=x.T + self.t_tend_scale(self.t_tend_model(inputs)),
-            rh=x.rh + self.rh_tend_scale(self.rh_tend_model(inputs)),
-            qc=self.qc_scale(self.qc_model(inputs)),
-            rho=x.rho,
-            dz=x.dz,
+            in_.u + self.scalers[0](self.out_u(hidden)),
+            in_.v + self.scalers[1](self.out_v(hidden)),
+            in_.T + self.scalers[2](self.out_t(hidden)),
+            in_.rh + self.scalers[3](self.out_q(hidden)),
+            in_.rho,
+            in_.dz,
         )
