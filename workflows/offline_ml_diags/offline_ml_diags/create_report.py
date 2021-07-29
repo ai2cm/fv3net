@@ -29,16 +29,17 @@ from ._helpers import (
     drop_temperature_humidity_tendencies_if_not_predicted,
 )
 from ._select import plot_transect
-from .compute_diags import METADATA_JSON_NAME
+from .compute_diags import (
+    DIAGS_NC_NAME,
+    DIURNAL_NC_NAME,
+    TRANSECT_NC_NAME,
+    METRICS_JSON_NAME,
+    METADATA_JSON_NAME,
+    DERIVATION_DIM_NAME,
+)
 
 
-DERIVATION_DIM = "derivation"
 DOMAIN_DIM = "domain"
-
-NC_FILE_DIAGS = "offline_diagnostics.nc"
-NC_FILE_DIURNAL = "diurnal_cycle.nc"
-NC_FILE_TRANSECT = "transect_lon0.nc"
-JSON_FILE_METRICS = "scalar_metrics.json"
 
 MODEL_SENSITIVITY_HTML = "model_sensitivity.html"
 TIME_MEAN_MAPS_HTML = "time_mean_maps.html"
@@ -125,7 +126,7 @@ def render_time_mean_maps(output_dir, ds_diags, column_integrated_vars) -> str:
             - ds_diags.sel(derivation="target")[var]
         )
         fig = diagplot.plot_column_integrated_var(
-            ds_diags, var, derivation_plot_coords=ds_diags[DERIVATION_DIM].values,
+            ds_diags, var, derivation_plot_coords=ds_diags[DERIVATION_DIM_NAME].values,
         )
         report.insert_report_figure(
             report_sections,
@@ -227,7 +228,7 @@ def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir)
     ]
     for var in sorted(profiles):
         fig = diagplot.plot_profile_var(
-            ds_diags, var, derivation_dim=DERIVATION_DIM, domain_dim=DOMAIN_DIM,
+            ds_diags, var, derivation_dim=DERIVATION_DIM_NAME, domain_dim=DOMAIN_DIM,
         )
         report.insert_report_figure(
             report_sections,
@@ -242,7 +243,7 @@ def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir)
         fig = diagplot.plot_diurnal_cycles(
             ds_diurnal,
             var=var,
-            derivation_plot_coords=ds_diurnal[DERIVATION_DIM].values,
+            derivation_plot_coords=ds_diurnal[DERIVATION_DIM_NAME].values,
         )
         report.insert_report_figure(
             report_sections,
@@ -291,10 +292,10 @@ def main(args):
 
     ds_diags, ds_diurnal, ds_transect, metrics, metadata = open_diagnostics_outputs(
         args.input_path,
-        diagnostics_nc_name=NC_FILE_DIAGS,
-        diurnal_nc_name=NC_FILE_DIURNAL,
-        transect_nc_name=NC_FILE_TRANSECT,
-        metrics_json_name=JSON_FILE_METRICS,
+        diagnostics_nc_name=DIAGS_NC_NAME,
+        diurnal_nc_name=DIURNAL_NC_NAME,
+        transect_nc_name=TRANSECT_NC_NAME,
+        metrics_json_name=METRICS_JSON_NAME,
         metadata_json_name=METADATA_JSON_NAME,
     )
     ds_diags = ds_diags.pipe(insert_dataset_r2).pipe(mse_to_rmse)

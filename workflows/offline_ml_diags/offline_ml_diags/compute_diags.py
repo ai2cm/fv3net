@@ -46,6 +46,7 @@ TRANSECT_NC_NAME = "transect_lon0.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
 METADATA_JSON_NAME = "metadata.json"
 DATASET_DIM_NAME = "dataset"
+DERIVATION_DIM_NAME = "derivation"
 
 # Base set of variables for which to compute column integrals and composite means
 # Additional output variables are also computed.
@@ -261,11 +262,11 @@ def insert_prediction(ds: xr.Dataset, ds_pred: xr.Dataset) -> xr.Dataset:
     nonpredicted_vars = [var for var in ds.data_vars if var not in predicted_vars]
     ds_target = (
         safe.get_variables(ds, [var for var in predicted_vars if var in ds.data_vars])
-        .expand_dims(loaders.DERIVATION_DIM)
-        .assign_coords({loaders.DERIVATION_DIM: [TARGET_COORD]})
+        .expand_dims(DERIVATION_DIM_NAME)
+        .assign_coords({DERIVATION_DIM_NAME: [TARGET_COORD]})
     )
-    ds_pred = ds_pred.expand_dims(loaders.DERIVATION_DIM).assign_coords(
-        {loaders.DERIVATION_DIM: [PREDICT_COORD]}
+    ds_pred = ds_pred.expand_dims(DERIVATION_DIM_NAME).assign_coords(
+        {DERIVATION_DIM_NAME: [PREDICT_COORD]}
     )
     return xr.merge([safe.get_variables(ds, nonpredicted_vars), ds_target, ds_pred])
 
