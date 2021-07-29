@@ -15,6 +15,11 @@ from vcm.fv3.metadata import gfdl_to_standard
 
 
 class FineResBudget(Protocol):
+    """Protocol defining what input vaiables are required
+
+    Only used for type checking and editor autocompletion.
+    """
+
     area: xarray.DataArray
     delp: xarray.DataArray
     T: xarray.DataArray
@@ -54,8 +59,7 @@ def apparent_heating(data: FineResBudget):
         data.eddy_flux_vulcan_omega_temp,
         data.T_vulcan_omega_coarse,
         data.vulcan_omega_coarse,
-        # data.T gives transpose
-        data["T"],
+        data.T,
     )
     eddy_flux_convergence = convergence(eddy_flux, data.delp, dim="pfull")
     return (
