@@ -21,7 +21,6 @@ from runtime.emulator.thermo import (
 )
 from runtime.emulator.models import V1QCModel, atleast_2d
 from fv3fit.emulation.layers.normalization import (
-    MaxFeatureStdDenormLayer,
     StandardNormLayer,
     StandardDenormLayer,
 )
@@ -377,7 +376,7 @@ class UVTQSimple(tf.keras.layers.Layer):
         self.out_t = tf.keras.layers.Dense(t_size, name="out_t")
         self.out_q = tf.keras.layers.Dense(q_size, name="out_q")
 
-        self.scalers = [MaxFeatureStdDenormLayer(name=f"out_{i}") for i in range(4)]
+        self.scalers = [StandardDenormLayer(name=f"out_{i}") for i in range(4)]
 
     def _fit_input_scaler(self, args: Sequence[tf.Variable]):
         args = [atleast_2d(arg) for arg in args]
