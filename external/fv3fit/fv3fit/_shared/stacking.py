@@ -37,9 +37,7 @@ class StackedBatches(Sequence[xr.Dataset]):
         return _shuffled(self._random_state, ds)
 
 
-def stack_non_vertical(
-    ds: Union[xr.DataArray, xr.Dataset]
-) -> Union[xr.DataArray, xr.Dataset]:
+def stack_non_vertical(ds: xr.Dataset) -> xr.Dataset:
     """
     Stack all dimensions except for the Z dimensions into a sample
 
