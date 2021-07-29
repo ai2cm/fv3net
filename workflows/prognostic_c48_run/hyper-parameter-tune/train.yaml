@@ -29,7 +29,7 @@ spec:
               fieldPath: metadata.name
 
       image:
-        us.gcr.io/vcm-ml/emulator:7acd61cae60bbc04ba08e0bc672ffc3963fc03a1
+        us.gcr.io/vcm-ml/emulator:591c9d310792774d5666f85308133a7830ea69ea
       command: [./train.sh]
       args:
         - --wandb

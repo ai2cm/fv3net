@@ -10,6 +10,8 @@ from fv3fit.emulation.layers.normalization import (
     StandardNormLayer,
 )
 
+from runtime.emulator.layers import ScalarNormLayer
+
 
 def atleast_2d(x: tf.Variable) -> tf.Variable:
     n = len(x.shape)
@@ -67,13 +69,13 @@ class V1QCModel(tf.keras.layers.Layer):
             self.scale_scalars = None
 
         self.u_tend_model = get_model(nz, num_scalar, output_is_positive=False)
-        self.u_tend_scale = MaxFeatureStdDenormLayer()
+        self.u_tend_scale = ScalarNormLayer()
         self.v_tend_model = get_model(nz, num_scalar, output_is_positive=False)
-        self.v_tend_scale = MaxFeatureStdDenormLayer()
+        self.v_tend_scale = ScalarNormLayer()
         self.t_tend_model = get_model(nz, num_scalar, output_is_positive=False)
-        self.t_tend_scale = MaxFeatureStdDenormLayer()
+        self.t_tend_scale = ScalarNormLayer()
         self.rh_tend_model = get_model(nz, num_scalar, output_is_positive=False)
-        self.rh_tend_scale = MaxFeatureStdDenormLayer()
+        self.rh_tend_scale = ScalarNormLayer()
 
         # qc is predicted directly
         self.qc_model = get_model(nz, num_scalar, output_is_positive=True)
