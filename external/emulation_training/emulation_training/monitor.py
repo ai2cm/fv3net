@@ -39,10 +39,13 @@ def _load_environment_vars_into_global():
     global NC_DUMP_PATH
     global OUTPUT_FREQ_SEC
 
+    cwd = os.getcwd()
+    logger.debug(f"Current working directory: {cwd}")
+
     VAR_META_PATH = os.environ["VAR_META_PATH"]
-    NML_PATH = os.environ["INPUT_NML_PATH"]
-    DUMP_PATH = os.environ["STATE_DUMP_PATH"]
-    NC_DUMP_PATH = os.environ["NC_DUMP_PATH"]
+    NML_PATH = os.path.join(cwd, "input.nml")
+    DUMP_PATH = cwd
+    NC_DUMP_PATH = os.path.join(cwd, "netcdf_output")
     OUTPUT_FREQ_SEC = int(os.environ["OUTPUT_FREQ_SEC"])
 
 
