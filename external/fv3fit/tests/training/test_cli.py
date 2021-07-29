@@ -125,10 +125,11 @@ def get_config(model_info, data_info, tmp_path, use_validation_timesteps: bool):
         additional_variables=[],
     )
     train_data_config = loaders.BatchesConfig(
-        data_path=data_info["data_path"],
-        batches_function="batches_from_geodata",
-        batches_kwargs=dict(
-            timesteps=data_info["train_timesteps"], **data_info["batches_kwargs"]
+        function="batches_from_geodata",
+        kwargs=dict(
+            data_path=data_info["data_path"],
+            timesteps=data_info["train_timesteps"],
+            **data_info["batches_kwargs"]
         ),
     )
     if use_validation_timesteps:
@@ -136,10 +137,11 @@ def get_config(model_info, data_info, tmp_path, use_validation_timesteps: bool):
     else:
         validation_timesteps = []
     validation_data_config = loaders.BatchesConfig(
-        data_path=data_info["data_path"],
-        batches_function="batches_from_geodata",
-        batches_kwargs=dict(
-            timesteps=validation_timesteps, **data_info["batches_kwargs"]
+        function="batches_from_geodata",
+        kwargs=dict(
+            data_path=data_info["data_path"],
+            timesteps=validation_timesteps,
+            **data_info["batches_kwargs"]
         ),
     )
 

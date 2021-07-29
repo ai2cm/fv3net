@@ -181,9 +181,9 @@ def get_config(tmpdir, mock_dataset, additional_variables, derived_output_variab
     train_times = [vcm.encode_time(dt) for dt in mock_dataset["time"][:6].values]
     validation_times = [vcm.encode_time(dt) for dt in mock_dataset["time"][6:9].values]
     train_data_config = loaders.BatchesConfig(
-        data_path=base_dir,
-        batches_function="batches_from_geodata",
-        batches_kwargs=dict(
+        function="batches_from_geodata",
+        kwargs=dict(
+            data_path=base_dir,
             mapping_function="open_zarr",
             timesteps=train_times,
             needs_grid=False,
@@ -192,9 +192,9 @@ def get_config(tmpdir, mock_dataset, additional_variables, derived_output_variab
         ),
     )
     validation_data_config = loaders.BatchesConfig(
-        data_path=base_dir,
-        batches_function="batches_from_geodata",
-        batches_kwargs=dict(
+        function="batches_from_geodata",
+        kwargs=dict(
+            data_path=base_dir,
             mapping_function="open_zarr",
             timesteps=validation_times,
             needs_grid=False,
