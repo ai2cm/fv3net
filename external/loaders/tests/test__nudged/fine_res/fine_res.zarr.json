@@ -1,0 +1,931 @@
+{
+    "version": "v3",
+    "schema": {
+        "coords": {
+            "tile": {
+                "name": "tile",
+                "dims": [
+                    "tile"
+                ],
+                "value": [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ],
+                "attrs": {}
+            },
+            "time": {
+                "name": "time",
+                "dims": [
+                    "time"
+                ],
+                "value": [
+                    0,
+                    15
+                ],
+                "attrs": {
+                    "calendar": "julian",
+                    "units": "minutes since 2016-08-01 00:22:30.000000"
+                }
+            }
+        },
+        "variables": {
+            "T": {
+                "name": "T",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "checksum": "84E9D5116058750E",
+                    "long_name": "temperature",
+                    "units": "K"
+                }
+            },
+            "T_storage": {
+                "name": "T_storage",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "long_name": "Storage of temperature",
+                    "units": "K/s"
+                }
+            },
+            "T_vulcan_omega_coarse": {
+                "name": "T_vulcan_omega_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "long_name": "Product of temperature and coarse-grained vulcan omega",
+                    "units": "K Pa/s"
+                }
+            },
+            "area": {
+                "name": "area",
+                "dims": [
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "long_name": "area_of_grid_cell",
+                    "units": "m^2"
+                }
+            },
+            "delp": {
+                "name": "delp",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "checksum": "F4877F0507E61627",
+                    "long_name": "pressure thickness",
+                    "units": "Pa"
+                }
+            },
+            "dq3dt_deep_conv_coarse": {
+                "name": "dq3dt_deep_conv_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "moisture change due to physics 2",
+                    "units": "XXX"
+                }
+            },
+            "dq3dt_mp_coarse": {
+                "name": "dq3dt_mp_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "moisture change due to physics 4",
+                    "units": "XXX"
+                }
+            },
+            "dq3dt_pbl_coarse": {
+                "name": "dq3dt_pbl_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "moisture change due to physics 1",
+                    "units": "XXX"
+                }
+            },
+            "dq3dt_shal_conv_coarse": {
+                "name": "dq3dt_shal_conv_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "moisture change due to physics 3",
+                    "units": "XXX"
+                }
+            },
+            "dt3dt_deep_conv_coarse": {
+                "name": "dt3dt_deep_conv_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "temperature change due to physics 4",
+                    "units": "XXX"
+                }
+            },
+            "dt3dt_lw_coarse": {
+                "name": "dt3dt_lw_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "temperature change due to physics 1",
+                    "units": "XXX"
+                }
+            },
+            "dt3dt_mp_coarse": {
+                "name": "dt3dt_mp_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "temperature change due to physics 6",
+                    "units": "XXX"
+                }
+            },
+            "dt3dt_ogwd_coarse": {
+                "name": "dt3dt_ogwd_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "temperature change due to physics 7",
+                    "units": "XXX"
+                }
+            },
+            "dt3dt_pbl_coarse": {
+                "name": "dt3dt_pbl_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "temperature change due to physics 3",
+                    "units": "XXX"
+                }
+            },
+            "dt3dt_shal_conv_coarse": {
+                "name": "dt3dt_shal_conv_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "temperature change due to physics 5",
+                    "units": "XXX"
+                }
+            },
+            "dt3dt_sw_coarse": {
+                "name": "dt3dt_sw_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "temperature change due to physics 2",
+                    "units": "XXX"
+                }
+            },
+            "eddy_flux_vulcan_omega_sphum": {
+                "name": "eddy_flux_vulcan_omega_sphum",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: mean",
+                    "long_name": "vulcan vertical eddy flux of specific humidity",
+                    "time_avg_info": "average_T1,average_T2,average_DT",
+                    "units": "Pa kg / kg / s"
+                }
+            },
+            "eddy_flux_vulcan_omega_temp": {
+                "name": "eddy_flux_vulcan_omega_temp",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: mean",
+                    "long_name": "vulcan vertical eddy flux of temperature",
+                    "time_avg_info": "average_T1,average_T2,average_DT",
+                    "units": "Pa K / s"
+                }
+            },
+            "exposed_area": {
+                "name": "exposed_area",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "description": "area where the fine resolution surface is below the coarse-resolution pressure midpoint",
+                    "long_name": "exposed_area",
+                    "units": "m^2"
+                }
+            },
+            "qv_dt_fv_sat_adj_coarse": {
+                "name": "qv_dt_fv_sat_adj_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: mean",
+                    "long_name": "specific humidity tendency due to dycore phase changes",
+                    "time_avg_info": "average_T1,average_T2,average_DT",
+                    "units": "kg/kg/s"
+                }
+            },
+            "qv_dt_phys_coarse": {
+                "name": "qv_dt_phys_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: mean",
+                    "long_name": "water vapor specific humidity tendency from physics",
+                    "time_avg_info": "average_T1,average_T2,average_DT",
+                    "units": "kg/kg/s"
+                }
+            },
+            "sphum": {
+                "name": "sphum",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "checksum": "CEC95437F1418F74",
+                    "long_name": "specific humidity",
+                    "units": "kg / kg"
+                }
+            },
+            "sphum_storage": {
+                "name": "sphum_storage",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "long_name": "Storage of specific humidity",
+                    "units": "kg / kg/s"
+                }
+            },
+            "sphum_vulcan_omega_coarse": {
+                "name": "sphum_vulcan_omega_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "long_name": "Product of specific humidity and coarse-grained vulcan omega",
+                    "units": "kg / kg Pa/s"
+                }
+            },
+            "t_dt_fv_sat_adj_coarse": {
+                "name": "t_dt_fv_sat_adj_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: mean",
+                    "long_name": "temperature tendency due to dycore phase changes",
+                    "time_avg_info": "average_T1,average_T2,average_DT",
+                    "units": "K/s"
+                }
+            },
+            "t_dt_nudge_coarse": {
+                "name": "t_dt_nudge_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: mean",
+                    "long_name": "temperature tendency from nudging",
+                    "time_avg_info": "average_T1,average_T2,average_DT",
+                    "units": "K/s"
+                }
+            },
+            "t_dt_phys_coarse": {
+                "name": "t_dt_phys_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: mean",
+                    "long_name": "temperature tendency from physics",
+                    "time_avg_info": "average_T1,average_T2,average_DT",
+                    "units": "K/s"
+                }
+            },
+            "vulcan_omega_coarse": {
+                "name": "vulcan_omega_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "pfull",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        19,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: mean",
+                    "long_name": "coarse-grained vulcan omega",
+                    "time_avg_info": "average_T1,average_T2,average_DT",
+                    "units": "Pa/s"
+                }
+            }
+        }
+    }
+}
