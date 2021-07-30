@@ -165,7 +165,7 @@ ENV PATH=/root/.local/bin:${PATH}
 
 
 RUN pipx install dvc[gs]==2.0.17
-RUN pip install jupyterlab ipython
+RUN pip install jupyterlab ipython hydra-core
 
 COPY . /fv3net
 

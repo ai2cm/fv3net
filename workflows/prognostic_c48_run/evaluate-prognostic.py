@@ -1,4 +1,3 @@
-import argparse
 from pathlib import Path
 import tempfile
 
@@ -12,14 +11,17 @@ import subprocess
 import yaml
 import os
 
+from omegaconf import DictConfig, OmegaConf
+import hydra
+from hydra.core.config_store import ConfigStore
 
-def _get_config(artifact_path: str):
 
+def _get_config():
     return {
         "base_version": "v0.5",
         "forcing": "gs://vcm-fv3config/data/base_forcing/v1.1/",
         "online_emulator": {
-            "checkpoint": artifact_path,
+            "checkpoint": "dummy/path",
             "train": False,
             "online": True,
         },
@@ -340,10 +342,12 @@ def _get_config(artifact_path: str):
                     "tendency_of_specific_humidity_due_to_fv3_physics",
                     "tendency_of_eastward_wind_due_to_fv3_physics",
                     "tendency_of_northward_wind_due_to_fv3_physics",
+                    "tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics",
                     "tendency_of_air_temperature_due_to_emulator",
                     "tendency_of_specific_humidity_due_to_emulator",
                     "tendency_of_eastward_wind_due_to_emulator",
                     "tendency_of_northward_wind_due_to_emulator",
+                    "tendency_of_cloud_water_mixing_ratio_due_to_emulator",
                 ],
             },
         ],
@@ -411,6 +415,8 @@ class Data(Protocol):
     storage_of_specific_humidity_path_due_to_emulator: xarray.DataArray
     storage_of_specific_humidity_path_due_to_fv3_physics: xarray.DataArray
     water_vapor_path: xarray.DataArray
+    tendency_of_cloud_water_mixing_ratio_due_to_emulator: xarray.DataArray
+    tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics: xarray.DataArray
     tendency_of_air_temperature_due_to_emulator: xarray.DataArray
     tendency_of_air_temperature_due_to_fv3_physics: xarray.DataArray
     tendency_of_eastward_wind_due_to_emulator: xarray.DataArray
@@ -471,6 +477,11 @@ def compute_metrics(ds: Data) -> xarray.Dataset:
                 ds.tendency_of_northward_wind_due_to_emulator,
                 ds.area,
             ),
+            qc_error=mse(
+                ds.tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics,
+                ds.tendency_of_cloud_water_mixing_ratio_due_to_emulator,
+                ds.area,
+            ),
         )
     )
 
@@ -486,13 +497,7 @@ def log_summary_metrics(label: str, mean: xarray.Dataset):
         wandb.summary[label + "/" + str(key)] = float(mean[key])
 
 
-def run(artifact: str, path):
-    ic_url = (
-        "gs://vcm-ml-experiments/andrep/2021-05-28/spunup-c48-simple-phys-hybrid-edmf"
-    )
-    ic = "20160802.000000"
-
-    config = _get_config(artifact_path=artifact)
+def run(config, path, ic_url, ic):
 
     with tempfile.NamedTemporaryFile("w") as f, tempfile.NamedTemporaryFile(
         "w"
@@ -513,18 +518,34 @@ def evaluate(path):
     wandb.finish()
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("artifact_id")
-    args = parser.parse_args()
+# boiler plate to get allow hydra to modify the default fv3config dictionary
+cs = ConfigStore.instance()
+CONFIG_NAME = "config"
+cs.store(
+    name=CONFIG_NAME,
+    node=dict(
+        fv3=_get_config(),
+        ic_url=(
+            "gs://vcm-ml-experiments/andrep/2021-05-28/spunup-c48-simple-phys-hybrid-edmf"  # noqa
+        ),
+        ic="20160802.000000",
+        artifact_id="doesn't matter",
+    ),
+)
+
+
+@hydra.main(config_path=None, config_name=CONFIG_NAME)
+def main(cfg: DictConfig):
     job = wandb.init(entity="ai2cm", project="emulator-noah", job_type="prognostic-run")
-    wandb.config.update(args)
-    args = wandb.config
+    wandb.config.update(OmegaConf.to_container(cfg))
 
     path = Path("/data/prognostic-runs") / str(job.id)
-    artifact = wandb.use_artifact(args.artifact_id)
+    artifact = wandb.use_artifact(cfg.artifact_id)
     artifact_path = os.path.abspath(artifact.download())
-    run(artifact_path, path)
+
+    config = cfg.fv3
+    config["online_emulator"]["checkpoint"] = artifact_path
+    run(OmegaConf.to_container(config), path, ic_url=cfg.ic_url, ic=cfg.ic)
     evaluate(path)
 
 

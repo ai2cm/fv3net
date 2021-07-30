@@ -18,6 +18,7 @@ numba
 holoviews
 streamlit
 plotly
+hydra-core
 
 # Hope for more stable performance with these versions
 gcsfs>=2021.6.0
