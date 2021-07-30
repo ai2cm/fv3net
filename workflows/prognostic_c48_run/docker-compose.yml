@@ -8,7 +8,7 @@ services:
   fv3:
     depends_on:
       - tensorboard
-    image: us.gcr.io/vcm-ml/emulator@sha256:3c7cf659659e7b2cc3ad76e3048620e57c17faecee9316fade5d54610b1b445a
+    image: us.gcr.io/vcm-ml/emulator:55e360d0aa9322d7be5d299eee176d015c103569
     entrypoint: []
     command: [ls]
     volumes:
@@ -16,7 +16,7 @@ services:
       - guild:/mnt/guild
       - dvc:/mnt/dvc
       - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json
-      - runs:/data
+      - /scratch/runs:/data
     environment:
       - GUILD_HOME=/mnt/guild
       - REMOTE_GUILD_HOME=gs://vcm-ml-archive/emulator
@@ -26,7 +26,7 @@ services:
     env_file:
       .env
   jupyter:
-    image: us.gcr.io/vcm-ml/emulator@sha256:3c7cf659659e7b2cc3ad76e3048620e57c17faecee9316fade5d54610b1b445a
+    image: us.gcr.io/vcm-ml/emulator:55e360d0aa9322d7be5d299eee176d015c103569
     entrypoint: []
     command: []
     working_dir: "/mnt/jupyter"
