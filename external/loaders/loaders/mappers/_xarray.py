@@ -51,6 +51,8 @@ class XarrayMapper(GeoMapper):
 
 
 @mapper_functions.register
-def open_zarr(url: str, consolidated: bool = True, dim: str = "time") -> XarrayMapper:
-    ds = xr.open_zarr(fsspec.get_mapper(url), consolidated=consolidated)
+def open_zarr(
+    data_path: str, consolidated: bool = True, dim: str = "time"
+) -> XarrayMapper:
+    ds = xr.open_zarr(fsspec.get_mapper(data_path), consolidated=consolidated)
     return XarrayMapper(ds, dim)
