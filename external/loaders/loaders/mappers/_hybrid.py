@@ -4,14 +4,53 @@ from typing import Any
 import fsspec
 import xarray
 import numpy
+import numpy as np
 from datetime import timedelta
 from typing_extensions import Protocol
 
-from loaders.mappers._fine_resolution_budget import eddy_flux_coarse, convergence
 from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
 from loaders._config import mapper_functions
 from vcm.fv3.metadata import gfdl_to_standard
+
+
+def eddy_flux_coarse(unresolved_flux, total_resolved_flux, omega, field):
+    """Compute re-coarsened eddy flux divergence from re-coarsed data
+    """
+    return unresolved_flux + (total_resolved_flux - omega * field)
+
+
+def _center_to_interface(f: np.ndarray) -> np.ndarray:
+    """Interpolate vertically cell centered data to the interface
+    with linearly extrapolated inputs"""
+    f_low = 2 * f[..., 0] - f[..., 1]
+    f_high = 2 * f[..., -1] - f[..., -2]
+    pad = np.concatenate([f_low[..., np.newaxis], f, f_high[..., np.newaxis]], axis=-1)
+    return (pad[..., :-1] + pad[..., 1:]) / 2
+
+
+def _convergence(eddy: np.ndarray, delp: np.ndarray) -> np.ndarray:
+    """Compute vertical convergence of a cell-centered flux.
+
+    This flux is assumed to vanish at the vertical boundaries
+    """
+    padded = _center_to_interface(eddy)
+    # pad interfaces assuming eddy = 0 at edges
+    return -np.diff(padded, axis=-1) / delp
+
+
+def convergence(
+    eddy: xarray.DataArray, delp: xarray.DataArray, dim: str = "p"
+) -> xarray.DataArray:
+    return xarray.apply_ufunc(
+        _convergence,
+        eddy,
+        delp,
+        input_core_dims=[[dim], [dim]],
+        output_core_dims=[[dim]],
+        dask="parallelized",
+        output_dtypes=[eddy.dtype],
+    )
 
 
 class FineResBudget(Protocol):
