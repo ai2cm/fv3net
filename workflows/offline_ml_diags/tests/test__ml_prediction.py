@@ -137,20 +137,3 @@ def test_predict_function_inserts_grid_before_calling_predict(base_dataset):
     passed_ds = mock_model.call_datasets[0]
     for varname in grid_ds.data_vars:
         xr.testing.assert_identical(grid_ds[varname], passed_ds[varname])
-
-
-def test_prediction_mapper_output_contains_grid_value(base_dataset):
-    input_variables, output_variables = ["feature0", "feature1"], ["pred0"]
-    mock_model = get_mock_model(input_variables, output_variables)
-    variables = mock_model.output_variables + mock_model.input_variables
-    grid_ds = xr.Dataset(
-        data_vars={
-            "grid_var": xr.DataArray(
-                np.random.randn(3, 4, 5), dims=["dim1", "dim2", "dim3"]
-            )
-        }
-    )
-    predict_function = _get_predict_function(mock_model, variables, grid=grid_ds)
-    output = predict_function(base_dataset)
-    assert "grid_var" in output
-    xr.testing.assert_equal(output["grid_var"], grid_ds["grid_var"])
