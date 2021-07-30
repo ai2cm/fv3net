@@ -23,6 +23,13 @@ def nudge_to_obs_data_dir(datadir_module):
     return save_data_dir(datadir_module, "nudge_to_obs_data", "nudge_to_obs")
 
 
+@pytest.fixture(scope="module")
+def fine_res_zarr(datadir_module):
+    return os.path.join(
+        save_data_dir(datadir_module, "fine_res", "fine_res"), "fine_res.zarr"
+    )
+
+
 NUDGE_TO_FINE_VARIABLES = [
     "air_temperature",
     "specific_humidity",
@@ -224,17 +231,10 @@ timestep2 = "20160801.002230"
 times_centered_str = [timestep1, timestep2]
 
 
-@pytest.fixture
-def fine_url(tmpdir):
-    fine_url = str(tmpdir.mkdir("fine_res"))
-    synth.generate_fine_res(fine_url, times_centered_str)
-    return fine_url
-
-
-def test_open_fine_resolution_nudging_hybrid(nudge_to_fine_data_dir, fine_url):
+def test_open_fine_resolution_nudging_hybrid(
+    regtest, nudge_to_fine_data_dir, fine_res_zarr
+):
     data = open_fine_resolution_nudging_hybrid(
-        data_path=nudge_to_fine_data_dir,
-        fine_res_path=fine_url,
-        nudging_variables=NUDGE_TO_FINE_VARIABLES,
+        None, fine_url=fine_res_zarr, nudge_url=nudge_to_fine_data_dir,
     )
-    data[timestep1_end]
+    data[timestep1_end].info(regtest)
