@@ -255,3 +255,7 @@ help:
 		printf "\n"; \
 	}' \
 	| more $(shell test $(shell uname) = Darwin && echo '--no-init --raw-control-chars')
+
+
+enter_prognostic_c48_run:
+	cd workflows/prognostic_c48_run && docker-compose run --rm fv3 bash
