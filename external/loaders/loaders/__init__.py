@@ -25,7 +25,6 @@ from loaders.batches import (
     diagnostic_batches_from_geodata,
 )
 from loaders.mappers import (
-    open_fine_res_apparent_sources,
     open_nudge_to_fine,
     open_nudge_to_obs,
     open_nudge_to_fine_multiple_datasets,
