@@ -9,6 +9,7 @@ import numpy as np
 import xarray as xr
 import os
 import yaml
+from vcm import safe
 
 
 @io.register("constant-output")
@@ -60,7 +61,7 @@ class ConstantOutputPredictor(Predictor):
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
-        stacked_X = stack_non_vertical(X)
+        stacked_X = stack_non_vertical(safe.get_variables(X, self.input_variables))
         n_samples = len(stacked_X[self.sample_dim_name])
         data_vars = {}
         for name in self.output_variables:
