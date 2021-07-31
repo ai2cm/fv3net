@@ -28,10 +28,12 @@ services:
   jupyter:
     image: us.gcr.io/vcm-ml/emulator:55e360d0aa9322d7be5d299eee176d015c103569
     entrypoint: []
-    command: []
+    command: [jupyter, lab, --port, "8888", --allow-root, --ip, "0.0.0.0", --no-browser, --ServerApp.token=""]
     working_dir: "/mnt/jupyter"
     volumes:
       - dvc:/mnt
+      - /scratch/runs:/data
+      - ../../:/fv3net
     ports:
       - "8890:8888"
   guild:
