@@ -1,15 +1,15 @@
 mapper_config:
-  data_path: placeholder
-  mapper_function: open_nudge_to_fine
-  mapper_kwargs:
+  function: open_nudge_to_fine
+  kwargs:
+    data_path: placeholder
     nudging_variables:
       - air_temperature
       - specific_humidity
       - x_wind
       - y_wind
       - pressure_thickness_of_atmospheric_layer
-batches_function: batches_from_mapper
-batches_kwargs:
+function: batches_from_mapper
+kwargs:
   timesteps_per_batch: 2
   timesteps:
     - "20160801.004500"

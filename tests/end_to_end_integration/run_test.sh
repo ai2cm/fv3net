@@ -87,7 +87,7 @@ n2fDataPath="gs://${bucket}/${project}/${date}/${tag}-nudge-to-fine-run/fv3gfs_r
 
 cd tests/end_to_end_integration
 
-yq -y --arg data_path $n2fDataPath '.mapper_config.data_path|=$data_path' \
+yq -y --arg data_path $n2fDataPath '.mapper_config.kwargs.data_path|=$data_path' \
     training-data-config.yaml > \
     training-data-config-compiled.yaml
 
