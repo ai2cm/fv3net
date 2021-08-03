@@ -106,7 +106,7 @@ class DenseModel(Predictor):
         self._spectral_normalization = hyperparameters.spectral_normalization
         self._gaussian_noise = hyperparameters.gaussian_noise
         self._nonnegative_outputs = hyperparameters.nonnegative_outputs
-        self._fv3fit_sample_dim = f"{sample_dim_name}_fv3fit"
+        self._fv3fit_sample_dim = f"_sample_fv3fit"
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
         self.X_packer = ArrayPacker(
