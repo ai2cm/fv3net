@@ -106,6 +106,7 @@ class DenseModel(Predictor):
         self._spectral_normalization = hyperparameters.spectral_normalization
         self._gaussian_noise = hyperparameters.gaussian_noise
         self._nonnegative_outputs = hyperparameters.nonnegative_outputs
+        # TODO: remove internal sample dim name once sample dim is hardcoded everywhere
         self._fv3fit_sample_dim = f"_sample_fv3fit"
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
@@ -334,9 +335,6 @@ class DenseModel(Predictor):
         ).unstack(self._fv3fit_sample_dim)
 
         return match_prediction_to_input_coords(X, unstacked_output)
-
-    def predict_array(self, X: np.ndarray) -> np.ndarray:
-        return self.model.predict(X)
 
     def dump(self, path: str) -> None:
         dir_ = os.path.join(path, MODEL_DIRECTORY)
