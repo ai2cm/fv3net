@@ -106,7 +106,11 @@ def mock_load_batches():
 
 
 def call_main(
-    tmpdir, mock_load_batches, additional_variables, derived_output_variables,
+    tmpdir,
+    mock_load_batches,
+    additional_variables,
+    derived_output_variables,
+    use_validation_data: bool,
 ):
     model_type = "DenseModel"
     hyperparameters = fv3fit.DenseHyperparameters(depth=2, width=8)
@@ -116,6 +120,7 @@ def call_main(
         derived_output_variables,
         model_type,
         hyperparameters,
+        use_validation_data,
     )
     mock_load_batches.return_value = [config.mock_dataset for _ in range(6)]
     all_variables = (
@@ -138,23 +143,34 @@ def call_main(
 
 @pytest.mark.parametrize("additional_variables", [[], ["downward_shortwave"]])
 @pytest.mark.parametrize("derived_output_variables", [[], ["downwelling_shortwave"]])
+@pytest.mark.parametrize("use_validation_data", [True, False])
 def test_main_calls_load_batches_correctly(
     tmpdir,
     mock_load_batches: mock.MagicMock,
     mock_train_dense_model: mock.MagicMock,
     additional_variables: Sequence[str],
     derived_output_variables: Sequence[str],
+    use_validation_data: bool,
 ):
     """
     Test of fv3fit.train main function only, using mocks for training function
     and data loading.
     """
     artifacts = call_main(
-        tmpdir, mock_load_batches, additional_variables, derived_output_variables,
+        tmpdir,
+        mock_load_batches,
+        additional_variables,
+        derived_output_variables,
+        use_validation_data,
     )
     mock_load_batches.assert_called_with(variables=artifacts.all_variables)
-    assert mock_load_batches.call_args_list[0] == mock_load_batches.call_args_list[1]
-    assert mock_load_batches.call_count == 2
+    if use_validation_data:
+        assert (
+            mock_load_batches.call_args_list[0] == mock_load_batches.call_args_list[1]
+        )
+        assert mock_load_batches.call_count == 2
+    else:
+        assert mock_load_batches.call_count == 1
 
 
 @pytest.mark.parametrize("additional_variables", [[], ["downward_shortwave"]])
@@ -166,12 +182,12 @@ def test_main_dumps_correct_predictor(
     additional_variables: Sequence[str],
     derived_output_variables: Sequence[str],
 ):
-    """
-    Test of fv3fit.train main function only, using mocks for training function
-    and data loading.
-    """
     artifacts = call_main(
-        tmpdir, mock_load_batches, additional_variables, derived_output_variables,
+        tmpdir,
+        mock_load_batches,
+        additional_variables,
+        derived_output_variables,
+        use_validation_data=True,
     )
     mock_predictor = mock_train_dense_model.return_value
     if len(derived_output_variables) > 0:
@@ -191,12 +207,12 @@ def test_main_uses_derived_model_only_if_needed(
     additional_variables: Sequence[str],
     derived_output_variables: Sequence[str],
 ):
-    """
-    Test of fv3fit.train main function only, using mocks for training function
-    and data loading.
-    """
     artifacts = call_main(
-        tmpdir, mock_load_batches, additional_variables, derived_output_variables,
+        tmpdir,
+        mock_load_batches,
+        additional_variables,
+        derived_output_variables,
+        use_validation_data=True,
     )
     if len(derived_output_variables) > 0:
         artifacts.MockDerivedModel.assert_called_once_with(
@@ -208,31 +224,42 @@ def test_main_uses_derived_model_only_if_needed(
 
 @pytest.mark.parametrize("additional_variables", [[], ["downward_shortwave"]])
 @pytest.mark.parametrize("derived_output_variables", [[], ["downwelling_shortwave"]])
+@pytest.mark.parametrize("use_validation_data", [True, False])
 def test_main_calls_train_with_correct_arguments(
     tmpdir,
     mock_load_batches: mock.MagicMock,
     mock_train_dense_model: mock.MagicMock,
     additional_variables: Sequence[str],
     derived_output_variables: Sequence[str],
+    use_validation_data: bool,
 ):
-    """
-    Test of fv3fit.train main function only, using mocks for training function
-    and data loading.
-    """
     artifacts = call_main(
-        tmpdir, mock_load_batches, additional_variables, derived_output_variables,
+        tmpdir,
+        mock_load_batches,
+        additional_variables,
+        derived_output_variables,
+        use_validation_data,
     )
+    if use_validation_data:
+        validation_batches = mock_load_batches.return_value
+    else:
+        validation_batches = []
     mock_train_dense_model.assert_called_once_with(
         input_variables=artifacts.input_variables,
         output_variables=artifacts.output_variables,
         hyperparameters=artifacts.hyperparameters,
         train_batches=mock_load_batches.return_value,
-        validation_batches=mock_load_batches.return_value,
+        validation_batches=validation_batches,
     )
 
 
 def get_config(
-    tmpdir, additional_variables, derived_output_variables, model_type, hyperparameters,
+    tmpdir,
+    additional_variables,
+    derived_output_variables,
+    model_type,
+    hyperparameters,
+    use_validation_data: bool,
 ):
     base_dir = str(tmpdir)
     input_variables = ["air_temperature", "specific_humidity"]
@@ -250,13 +277,12 @@ def get_config(
     validation_times = [vcm.encode_time(dt) for dt in mock_dataset["time"][6:9].values]
     # TODO: refactor to use a loaders function that generates dummy data
     # instead of reading from disk, for CLI tests where we can't mock
-    data_dir = os.path.join(base_dir, "data")
-    mock_dataset.to_zarr(data_dir, consolidated=True)
-    # assert ".zmetadata" in os.listdir(data_dir)
+    data_path = os.path.join(base_dir, "data")
+    mock_dataset.to_zarr(data_path, consolidated=True)
     train_data_config = loaders.BatchesConfig(
         function="batches_from_geodata",
         kwargs=dict(
-            data_path=data_dir,
+            data_path=data_path,
             mapping_function="open_zarr",
             timesteps=train_times,
             needs_grid=False,
@@ -264,25 +290,27 @@ def get_config(
             timesteps_per_batch=3,
         ),
     )
-    validation_data_config = loaders.BatchesConfig(
-        function="batches_from_geodata",
-        kwargs=dict(
-            data_path=data_dir,
-            mapping_function="open_zarr",
-            timesteps=validation_times,
-            needs_grid=False,
-            res="c8_random_values",
-            timesteps_per_batch=3,
-        ),
-    )
-    data_path = os.path.join(base_dir, "data")
+    if use_validation_data:
+        validation_data_config = loaders.BatchesConfig(
+            function="batches_from_geodata",
+            kwargs=dict(
+                data_path=data_path,
+                mapping_function="open_zarr",
+                timesteps=validation_times,
+                needs_grid=False,
+                res="c8_random_values",
+                timesteps_per_batch=3,
+            ),
+        )
+        validation_data_filename = os.path.join(base_dir, "validation_data.yaml")
+        with open(validation_data_filename, "w") as f:
+            yaml.dump(dataclasses.asdict(validation_data_config), f)
+    else:
+        validation_data_filename = None
     train_data_filename = os.path.join(base_dir, "train_data.yaml")
-    validation_data_filename = os.path.join(base_dir, "validation_data.yaml")
     training_filename = os.path.join(base_dir, "training.yaml")
     with open(train_data_filename, "w") as f:
         yaml.dump(dataclasses.asdict(train_data_config), f)
-    with open(validation_data_filename, "w") as f:
-        yaml.dump(dataclasses.asdict(validation_data_config), f)
     with open(training_filename, "w") as f:
         yaml.dump(dataclasses.asdict(training_config), f)
     output_path = os.path.join(base_dir, "output")
@@ -352,16 +380,29 @@ def cli_main(args: MainArgs):
         ),
     ],
 )
-@pytest.mark.parametrize("use_local_download_path", [True, False])
+@pytest.mark.parametrize(
+    "use_local_download_path, use_validation_data",
+    [(False, False), (False, True), (True, False)],
+)
 def test_cli(
-    tmpdir, use_local_download_path: bool, model_type: str, hyperparameters,
+    tmpdir,
+    use_local_download_path: bool,
+    use_validation_data: bool,
+    model_type: str,
+    hyperparameters,
 ):
     """
-    Test of fv3fit.train main function only, using mocks for training function
-    and data loading.
+    Test of fv3fit.train command-line interface.
     """
     additional_variables = []
-    config = get_config(tmpdir, additional_variables, [], model_type, hyperparameters)
+    config = get_config(
+        tmpdir,
+        additional_variables,
+        [],
+        model_type,
+        hyperparameters,
+        use_validation_data,
+    )
     mock_load_batches.return_value = [config.mock_dataset for _ in range(6)]
     if use_local_download_path:
         config.args.local_download_path = os.path.join(str(tmpdir), "local_download")
