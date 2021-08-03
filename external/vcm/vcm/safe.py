@@ -1,6 +1,9 @@
-from typing import cast, Sequence, Hashable, Iterable, Union
+from typing import cast, Sequence, Hashable, Iterable, TypeVar
 import warnings
 import xarray as xr
+
+
+T = TypeVar("T", xr.DataArray, xr.Dataset)
 
 
 def get_variables(ds: xr.Dataset, variables: Iterable[Hashable]) -> xr.Dataset:
@@ -31,11 +34,11 @@ def _validate_stack_dims(ds, dims, allowed_broadcast_dims=()):
 
 
 def stack_once(
-    ds: Union[xr.DataArray, xr.Dataset],
+    ds: T,
     dim,
     dims: Sequence[Hashable],
     allowed_broadcast_dims: Sequence[Hashable] = (),
-):
+) -> T:
     """Stack once raising ValueError if any unexpected broadcasting occurs"""
     _validate_stack_dims(ds, dims, allowed_broadcast_dims)
     return ds.stack({dim: dims})
