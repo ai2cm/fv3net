@@ -1,6 +1,21 @@
 hi-res-data-vars:
+  - CPRATEsfc_coarse
+  - DLWRFsfc_coarse
+  - DSWRFsfc_coarse
+  - DSWRFtoa_coarse
+  - HPBLsfc_coarse
+  - LHTFLsfc_coarse
   - PRATEsfc_coarse
   - SHTFLsfc_coarse
+  - UGRD10m_coarse
+  - ULWRFsfc_coarse
+  - ULWRFtoa_coarse
+  - USWRFsfc_coarse
+  - USWRFtoa_coarse
+  - VGRD10m_coarse
+  - tsfc_coarse
+  - uflx_coarse
+  - vflx_coarse
 target_resolution: 48
 rechunk:
   tile: 6

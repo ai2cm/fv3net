@@ -1,0 +1,63 @@
+# vim: set sts=2 ts=2 tw=2 sw=2 :
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: coarsen-c384-diags
+spec:
+  entrypoint: coarsen-c384-diags
+  volumes:
+    - name: workdir
+      emptyVol: {}
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+    - name: coarsen-c384-diags
+      inputs:
+        parameters:
+          - name: input
+          - name: config
+          - name: output
+          - {name: memory, value: 29Gi}
+      container:
+        image: us.gcr.io/vcm-ml/fv3net
+        command: ["bash", "-c", "-x"]
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-key-secret
+        args:
+          - |
+
+            cat <<EOF >config.yaml
+            {{inputs.parameters.config}}
+            EOF
+
+            echo "Configuration:"
+            cat config.yaml
+                
+            python workflows/coarsen_c384_diagnostics/coarsen_c384_diagnostics.py \
+              {{inputs.parameters.input}} \
+              config.yaml \
+              {{inputs.parameters.output}}
+              
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "med-sim-pool"
+        effect: "NoSchedule"      
+      podSpecPatch: |
+        containers:
+          - name: main
+            resources:
+              limits:
+                cpu: "1000m"
+                memory: "{{inputs.parameters.memory}}"
+              requests:
+                cpu: "1000m"
+                memory: "{{inputs.parameters.memory}}"
