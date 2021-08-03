@@ -88,7 +88,7 @@ def test__preserve_samples_per_batch(gridded_dataset):
 
     multi_ds = xr.concat([gridded_dataset] * num_multiple, dim=d_dim)
     stacked = stack_non_vertical(multi_ds)
-    thinned = _preserve_samples_per_batch(stacked)
+    thinned = _preserve_samples_per_batch(stacked, "sample")
     orig_stacked = stack_non_vertical(gridded_dataset)
 
     samples_per_batch_diff = thinned.sizes[s_dim] - orig_stacked.sizes[s_dim]
@@ -102,8 +102,8 @@ def test__preserve_samples_per_batch(gridded_dataset):
 )
 def test__preserve_samples_per_batch_not_multi(gridded_dataset):
     s_dim = "sample"
-    stacked = stack_non_vertical(gridded_dataset)
-    result = _preserve_samples_per_batch(stacked)
+    stacked = stack_non_vertical(gridded_dataset, "sample")
+    result = _preserve_samples_per_batch(stacked, "sample")
     assert result.sizes[s_dim] == stacked.sizes[s_dim]
 
 
@@ -127,9 +127,9 @@ def _stacked_dataset(sample_dim):
 def test__shuffled():
     dataset = _stacked_dataset("sample")
     dataset.isel(sample=1)
-    _shuffled(np.random.RandomState(1), dataset)
+    _shuffled(np.random.RandomState(1), dataset, "sample")
 
 
 def test__shuffled_dask():
     dataset = _stacked_dataset("sample").chunk()
-    _shuffled(np.random.RandomState(1), dataset)
+    _shuffled(np.random.RandomState(1), dataset, "sample")

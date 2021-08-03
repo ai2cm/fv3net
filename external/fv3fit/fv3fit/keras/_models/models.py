@@ -261,7 +261,9 @@ class DenseModel(Predictor):
             validation_data = (X_val, y_val)
             Xy = Take(Xy, len(Xy) - 1)  # type: ignore
         elif validation_dataset is not None:
-            stacked_validation_dataset = stack_non_vertical(validation_dataset)
+            stacked_validation_dataset = stack_non_vertical(
+                validation_dataset, self._fv3fit_sample_dim
+            )
             X_val = self.X_packer.to_array(stacked_validation_dataset)
             y_val = self.y_packer.to_array(stacked_validation_dataset)
             val_sample = np.random.choice(
