@@ -115,7 +115,7 @@ def _get_chunk_indices(chunks):
     return indices
 
 
-def infer_dimension_order(ds: xr.Dataset) -> Tuple:
+def _infer_dimension_order(ds: xr.Dataset) -> Tuple:
     # add check here for cases when the dimension order is inconsistent between arrays?
     dim_order = []
     for variable in ds:
@@ -128,7 +128,7 @@ def infer_dimension_order(ds: xr.Dataset) -> Tuple:
 def match_prediction_to_input_coords(
     input: xr.Dataset, prediction: xr.Dataset
 ) -> xr.Dataset:
-    # ensure the output coords are the same
+    # ensure the output coords are the same and dims are same order
     # stack/unstack adds coordinates if none exist before
     input_coords = input.coords
     for key in prediction.coords:
@@ -136,4 +136,5 @@ def match_prediction_to_input_coords(
             prediction.coords[key] = input_coords[key]
         else:
             del prediction.coords[key]
-    return prediction
+    dim_order = [dim for dim in _infer_dimension_order(input) if dim in prediction.dims]
+    return prediction.transpose(*dim_order)
