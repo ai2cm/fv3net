@@ -93,7 +93,7 @@ spec:
                 - net_moistening_due_to_nudging
                 - column_heating_due_to_nudging
                 - net_mass_tendency_due_to_nudging
-                - total_precipation_rate
+                - total_precipitation_rate
                 - water_vapor_path
                 - physics_precip
             - name: nudging_tendencies.zarr
