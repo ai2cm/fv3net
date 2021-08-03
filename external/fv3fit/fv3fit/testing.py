@@ -1,6 +1,5 @@
 from fv3fit._shared import (
     stack_non_vertical,
-    infer_dimension_order,
     match_prediction_to_input_coords,
 )
 from typing import Any, Dict, Hashable, Iterable, Mapping, Optional, Union
@@ -81,9 +80,7 @@ class ConstantOutputPredictor(Predictor):
         pred = xr.Dataset(data_vars=data_vars, coords=coords).unstack(
             self.sample_dim_name
         )
-        pred = match_prediction_to_input_coords(X, pred)
-        dim_order = [dim for dim in infer_dimension_order(X) if dim in pred.dims]
-        return pred.transpose(*dim_order)
+        return match_prediction_to_input_coords(X, pred)
 
     def dump(self, path: str) -> None:
         np.savez(os.path.join(path, "_outputs.npz"), **self._outputs)

@@ -17,7 +17,6 @@ from .utils import parse_data_path
 from .stacking import (
     StackedBatches,
     stack_non_vertical,
-    infer_dimension_order,
     match_prediction_to_input_coords,
 )
 from .models import EnsembleModel, DerivedModel

@@ -20,7 +20,6 @@ from .._shared import (
     scaler,
     StackedBatches,
     stack_non_vertical,
-    infer_dimension_order,
     match_prediction_to_input_coords,
 )
 import sklearn.base
@@ -212,23 +211,23 @@ class SklearnWrapper(Predictor):
             output_variables: list of output variables
             model: a scikit learn regression model
         """
-        self._sample_dim_name = sample_dim_name
-        self._input_variables = input_variables
-        self._output_variables = output_variables
         self.model = model
-
         self.scaler_type = scaler_type
         self.scaler_kwargs = scaler_kwargs or {}
         self.target_scaler: Optional[scaler.NormalizeTransform] = None
+        self._fv3fit_sample_dim = f"{sample_dim_name}_fv3fit"
+        self._sample_dim_name = sample_dim_name
+        self._input_variables = input_variables
+        self._output_variables = output_variables
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
     def _fit_batch(self, data: xr.Dataset):
         # TODO the sample_dim can change so best to use feature dim to flatten
-        x, _ = pack(data[self.input_variables], self.sample_dim_name)
+        x, _ = pack(data[self.input_variables], self._fv3fit_sample_dim)
         y, self.output_features_ = pack(
-            data[self.output_variables], self.sample_dim_name
+            data[self.output_variables], self._fv3fit_sample_dim
         )
 
         if self.target_scaler is None:
@@ -243,39 +242,40 @@ class SklearnWrapper(Predictor):
             self.scaler_kwargs,
             batch,
             self._output_variables,
-            self._sample_dim_name,
+            self._fv3fit_sample_dim,
         )
 
     def fit(self, batches: Sequence[xr.Dataset]):
         logger = logging.getLogger("SklearnWrapper")
         random_state = np.random.RandomState(np.random.get_state()[1][0])
-        stacked_batches = StackedBatches(batches, random_state)
+        stacked_batches = StackedBatches(batches, random_state, self._fv3fit_sample_dim)
         for i, batch in enumerate(stacked_batches):
             logger.info(f"Fitting batch {i+1}/{len(batches)}")
             self._fit_batch(batch)
             logger.info(f"Batch {i+1} done fitting.")
 
-    def predict(self, data):
-        # Takes unstacked data, stacks into sample dimension before
-        # sklearn model prediction, and returns unstacked prediction
-        stacked_data = stack_non_vertical(
-            safe.get_variables(data, self.input_variables)
-        )
-        sample_coord = stacked_data[self.sample_dim_name]
-        X, _ = pack(stacked_data[self.input_variables], self.sample_dim_name)
+    def _predict_on_stacked_data(self, stacked_data):
+        X, _ = pack(stacked_data[self.input_variables], self._fv3fit_sample_dim)
         y = self.model.predict(X)
-
         if self.target_scaler is not None:
             y = self.target_scaler.denormalize(y)
         else:
             raise ValueError("Target scaler not present.")
-        output = unpack(y, self.sample_dim_name, self.output_features_)
-        output = output.assign_coords({self.sample_dim_name: sample_coord}).unstack(
-            self.sample_dim_name
+        return unpack(y, self._fv3fit_sample_dim, self.output_features_)
+
+    def predict(self, data):
+        # Takes unstacked data, stacks into sample dimension before
+        # sklearn model prediction, and returns unstacked prediction
+        stacked_data = stack_non_vertical(
+            safe.get_variables(data, self.input_variables), self._fv3fit_sample_dim
         )
-        output = match_prediction_to_input_coords(data, output)
-        dim_order = [dim for dim in infer_dimension_order(data) if dim in output.dims]
-        return output.transpose(*dim_order)
+
+        stacked_output = self._predict_on_stacked_data(stacked_data)
+        unstacked_output = stacked_output.assign_coords(
+            {self._fv3fit_sample_dim: stacked_data[self._fv3fit_sample_dim]}
+        ).unstack(self._fv3fit_sample_dim)
+
+        return match_prediction_to_input_coords(data, unstacked_output)
 
     def dump(self, path: str) -> None:
         """Dump data to a directory

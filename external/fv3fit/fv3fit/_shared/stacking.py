@@ -10,11 +10,24 @@ SAMPLE_DIM_NAME = "sample"
 DATASET_DIM_NAME = "dataset"
 Z_DIM_NAMES = ["z", "pfull"]
 
+"""
+TODO: Remove the optional sample_dim_name arg from functions once the
+stacking sample dim is hard coded and removed as a training function arg.
+The presence in the functions below is temporary and done to allow use
+of an internal stacking dim (allows inputs to be prestacked in "sample" dim)
+"""
+
 
 class StackedBatches(Sequence[xr.Dataset]):
-    def __init__(self, batches: Sequence[xr.Dataset], random_state: RandomState):
+    def __init__(
+        self,
+        batches: Sequence[xr.Dataset],
+        random_state: RandomState,
+        sample_dim_name=SAMPLE_DIM_NAME,
+    ):
         self._batches = batches
         self._random_state = random_state
+        self._sample_dim_name = sample_dim_name
 
     def __getitem__(self, idx: Union[int, slice]):
         if isinstance(idx, int):
@@ -31,13 +44,17 @@ class StackedBatches(Sequence[xr.Dataset]):
         return len(self._batches)
 
     def _stack_batch(self, ds_unstacked: xr.Dataset) -> xr.Dataset:
-        ds = stack_non_vertical(ds_unstacked).load().dropna(dim=SAMPLE_DIM_NAME)
-        ds = _check_empty(ds)
-        ds = _preserve_samples_per_batch(ds)
-        return _shuffled(self._random_state, ds)
+        ds = (
+            stack_non_vertical(ds_unstacked, self._sample_dim_name)
+            .load()
+            .dropna(dim=self._sample_dim_name)
+        )
+        ds = _check_empty(ds, self._sample_dim_name)
+        ds = _preserve_samples_per_batch(ds, self._sample_dim_name)
+        return _shuffled(self._random_state, ds, self._sample_dim_name)
 
 
-def stack_non_vertical(ds: xr.Dataset) -> xr.Dataset:
+def stack_non_vertical(ds: xr.Dataset, sample_dim_name=SAMPLE_DIM_NAME) -> xr.Dataset:
     """
     Stack all dimensions except for the Z dimensions into a sample
 
@@ -49,23 +66,23 @@ def stack_non_vertical(ds: xr.Dataset) -> xr.Dataset:
         raise ValueError("Data cannot have >1 feature dimension in {Z_DIM_NAMES}.")
     ds_stacked = safe.stack_once(
         ds,
-        SAMPLE_DIM_NAME,
+        sample_dim_name,
         stack_dims,
         allowed_broadcast_dims=Z_DIM_NAMES + ["time", "dataset"],
     )
-    return ds_stacked.transpose(SAMPLE_DIM_NAME, ...)
+    return ds_stacked.transpose(sample_dim_name, ...)
 
 
-def _check_empty(ds: xr.Dataset) -> xr.Dataset:
+def _check_empty(ds: xr.Dataset, sample_dim_name=SAMPLE_DIM_NAME) -> xr.Dataset:
     """
     Check for an empty variables along a dimension in a dataset
     """
-    if len(ds[SAMPLE_DIM_NAME]) == 0:
+    if len(ds[sample_dim_name]) == 0:
         raise ValueError("Check for NaN fields in the training data.")
     return ds
 
 
-def _preserve_samples_per_batch(ds: xr.Dataset) -> xr.Dataset:
+def _preserve_samples_per_batch(ds: xr.Dataset, sample_dim_name: str) -> xr.Dataset:
     """
     Preserve the approximate number of samples per batch when multiple dataset
     sources are detected in the batch dataset.  Returns an unadjusted dataset
@@ -81,12 +98,14 @@ def _preserve_samples_per_batch(ds: xr.Dataset) -> xr.Dataset:
 
     if dataset_coord is not None:
         num_datasets = len(set(dataset_coord.values.tolist()))
-        ds = ds.thin({SAMPLE_DIM_NAME: num_datasets})
+        ds = ds.thin({sample_dim_name: num_datasets})
 
     return ds
 
 
-def _shuffled(random: RandomState, dataset: xr.Dataset) -> xr.Dataset:
+def _shuffled(
+    random: RandomState, dataset: xr.Dataset, sample_dim_name: str
+) -> xr.Dataset:
     """
     Shuffles dataset along a dimension within chunks if chunking is present
 
@@ -95,14 +114,14 @@ def _shuffled(random: RandomState, dataset: xr.Dataset) -> xr.Dataset:
         random: Initialized random number generator state used for shuffling
         dataset: input data to be shuffled
     """
-    chunks_default = (len(dataset[SAMPLE_DIM_NAME]),)
-    chunks = dataset.chunks.get(SAMPLE_DIM_NAME, chunks_default)
+    chunks_default = (len(dataset[sample_dim_name]),)
+    chunks = dataset.chunks.get(sample_dim_name, chunks_default)
     chunk_indices = _get_chunk_indices(chunks)
     shuffled_inds = np.concatenate(
         [random.permutation(indices) for indices in chunk_indices]
     )
 
-    return dataset.isel({SAMPLE_DIM_NAME: shuffled_inds})
+    return dataset.isel({sample_dim_name: shuffled_inds})
 
 
 def _get_chunk_indices(chunks):
