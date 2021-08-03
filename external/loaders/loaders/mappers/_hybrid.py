@@ -1,88 +1,177 @@
-from typing import Optional, Sequence, Union
-import xarray as xr
+from typing import Any
 
-from loaders.typing import Mapper
-from ._nudged import open_nudge_to_fine
-from ._fine_resolution_budget import open_fine_res_apparent_sources
+
+import fsspec
+import xarray
+import numpy
+from datetime import timedelta
+from typing_extensions import Protocol
+
+from loaders.mappers._fine_resolution_budget import eddy_flux_coarse, convergence
+from loaders.mappers._base import GeoMapper
+from loaders.mappers._xarray import XarrayMapper
 from loaders._config import mapper_functions
+from vcm.fv3.metadata import gfdl_to_standard
 
 
-class PhysicsResidual(Mapper):
-    """Replaces dQ1 and dQ2 in a base mapper with their difference from
-    pQ1 and pQ2 values provided in a physics mapper
+class FineResBudget(Protocol):
+    """Protocol defining what input vaiables are required
+
+    Only used for type checking and editor autocompletion.
     """
 
-    def __init__(self, physics_mapper: Mapper, base_mapper: Mapper):
-        """
-        Args:
-            physics_mapper: Mapper whose datasets contain pQ1 and pQ2
-            base_mapper: Mapper whose datasets contain dQ1 and dQ2
-        """
-        self.physics_mapper = physics_mapper
-        self.base_mapper = base_mapper
+    area: xarray.DataArray
+    delp: xarray.DataArray
+    T: xarray.DataArray
+    dq3dt_deep_conv_coarse: xarray.DataArray
+    dq3dt_mp_coarse: xarray.DataArray
+    dq3dt_pbl_coarse: xarray.DataArray
+    dq3dt_shal_conv_coarse: xarray.DataArray
+    dt3dt_deep_conv_coarse: xarray.DataArray
+    dt3dt_lw_coarse: xarray.DataArray
+    dt3dt_mp_coarse: xarray.DataArray
+    dt3dt_ogwd_coarse: xarray.DataArray
+    dt3dt_pbl_coarse: xarray.DataArray
+    dt3dt_shal_conv_coarse: xarray.DataArray
+    dt3dt_sw_coarse: xarray.DataArray
+    eddy_flux_vulcan_omega_sphum: xarray.DataArray
+    eddy_flux_vulcan_omega_temp: xarray.DataArray
+    exposed_area: xarray.DataArray
+    qv_dt_fv_sat_adj_coarse: xarray.DataArray
+    qv_dt_phys_coarse: xarray.DataArray
+    sphum: xarray.DataArray
+    sphum_storage: xarray.DataArray
+    sphum_vulcan_omega_coarse: xarray.DataArray
+    t_dt_fv_sat_adj_coarse: xarray.DataArray
+    t_dt_nudge_coarse: xarray.DataArray
+    t_dt_phys_coarse: xarray.DataArray
+    vulcan_omega_coarse: xarray.DataArray
+    T_vulcan_omega_coarse: xarray.DataArray
 
-    def __getitem__(self, key: str) -> xr.Dataset:
-        physics = self.physics_mapper[key]
-        base = self.base_mapper[key]
 
-        return physics.assign(
-            pQ1=physics.pQ1,
-            pQ2=physics.pQ2,
-            dQ1=base.dQ1 - physics.pQ1,
-            dQ2=base.dQ2 - physics.pQ2,
+def open_zarr(url, consolidated=False):
+    mapper = fsspec.get_mapper(url)
+    return xarray.open_zarr(mapper, consolidated=consolidated)
+
+
+def open_zarr_maybe_consolidated(url):
+    try:
+        return open_zarr(url, consolidated=True)
+    except KeyError:
+        return open_zarr(url, consolidated=False)
+
+
+def apparent_heating(data: FineResBudget):
+    eddy_flux = eddy_flux_coarse(
+        data.eddy_flux_vulcan_omega_temp,
+        data.T_vulcan_omega_coarse,
+        data.vulcan_omega_coarse,
+        data.T,
+    )
+    eddy_flux_convergence = convergence(eddy_flux, data.delp, dim="pfull")
+    return (
+        (data.t_dt_fv_sat_adj_coarse + data.t_dt_phys_coarse + eddy_flux_convergence)
+        .assign_attrs(
+            units="K/s",
+            long_name="apparent heating from high resolution data",
+            description=(
+                "Apparent heating due to physics and sub-grid-scale advection. Given "
+                "by "
+                "sat adjustment (dycore) + physics tendency + eddy-flux-convergence"
+            ),
         )
+        .rename("Q1")
+    )
 
-    def keys(self):
-        return list(
-            set(self.physics_mapper.keys()).intersection(self.fine_res_mapper.keys())
+
+def apparent_moistening(data: FineResBudget):
+    eddy_flux = eddy_flux_coarse(
+        data.eddy_flux_vulcan_omega_sphum,
+        data.sphum_vulcan_omega_coarse,
+        data.vulcan_omega_coarse,
+        data.sphum,
+    )
+    eddy_flux_convergence = convergence(eddy_flux, data.delp, dim="pfull")
+    return (
+        (data.qv_dt_fv_sat_adj_coarse + data.qv_dt_phys_coarse + eddy_flux_convergence)
+        .assign_attrs(
+            units="kg/kg/s",
+            long_name="apparent moistening from high resolution data",
+            description=(
+                "Apparent moistening due to physics and sub-grid-scale advection. "
+                "Given by "
+                "sat adjustment (dycore) + physics tendency + eddy-flux-convergence"
+            ),
         )
+        .rename("Q2")
+    )
 
-    def __len__(self):
-        return len(self.keys())
 
-    def __iter__(self):
-        return iter(self.keys())
+def open_fine_resolution_nudging_hybrid_dataset(
+    # created by this commit:
+    # https://github.com/VulcanClimateModeling/vcm-workflow-control/commit/3c852d0e4f8b86c4e88db9f29f0b8e484aeb77a1
+    # I manually consolidated the metadata with zarr.consolidate_metadata
+    fine_url: str = "gs://vcm-ml-experiments/default/2021-04-27/2020-05-27-40-day-X-SHiELD-simulation/fine-res-budget.zarr",  # noqa: E501
+    # created by this commit
+    # https://github.com/VulcanClimateModeling/vcm-workflow-control/commit/dd4498bcf3143d05095bf9ff4ca3f1341ba25330
+    nudge_url="gs://vcm-ml-experiments/2021-04-13-n2f-c3072/3-hrly-ave-rad-precip-setting-30-min-rad-timestep-shifted-start-tke-edmf",  # noqa: E501
+) -> xarray.Dataset:
+
+    fine = open_zarr_maybe_consolidated(fine_url)
+    # compute apparent sources
+    fine["Q1"] = apparent_heating(fine)
+    fine["Q2"] = apparent_moistening(fine)
+    # shift the data to match the other time series
+    fine_shifted = fine.assign(time=fine.time - timedelta(minutes=7, seconds=30))
+
+    nudge_physics_tendencies = open_zarr_maybe_consolidated(
+        nudge_url + "/physics_tendencies.zarr",
+    )
+    nudge_state = open_zarr_maybe_consolidated(nudge_url + "/state_after_timestep.zarr")
+    nudge_tends = open_zarr_maybe_consolidated(nudge_url + "/nudging_tendencies.zarr")
+
+    merged = xarray.merge(
+        [gfdl_to_standard(fine_shifted), nudge_state, nudge_physics_tendencies],
+        join="inner",
+    )
+
+    # dQ1,2,u,v
+    # "hybrid" definitions for humidity and moisture
+    merged["dQ1"] = (
+        merged["Q1"] - merged["tendency_of_air_temperature_due_to_fv3_physics"]
+    )
+    merged["dQ2"] = (
+        merged["Q2"] - merged["tendency_of_specific_humidity_due_to_fv3_physics"]
+    )
+    merged["dQxwind"] = nudge_tends.x_wind_tendency_due_to_nudging
+    merged["dQywind"] = nudge_tends.y_wind_tendency_due_to_nudging
+
+    # drop time from lat and lon
+    merged["latitude"] = merged.latitude.isel(time=0)
+    merged["longitude"] = merged.longitude.isel(time=0)
+
+    # Select the data we want to return
+    return merged.astype(numpy.float32).drop("tile")
 
 
 @mapper_functions.register
 def open_fine_resolution_nudging_hybrid(
-    data_path: str,
-    fine_res_path: str,
-    nudging_variables: Sequence[str],
-    shield_diags_path: Optional[str] = None,
-    physics_timestep_seconds: float = 900.0,
-    consolidated_nudging_data: bool = True,
-    fine_res_offset_seconds: Union[int, float] = 450,
-) -> PhysicsResidual:
+    _: Any, fine_url: str = "", nudge_url: str = ""
+) -> GeoMapper:
     """
     Open the fine resolution nudging_hybrid mapper
 
     Args:
-        data_path: path to nudging data
-        fine_res_path: path to fine res data
-        shield_diags_path: path to directory containing a zarr store of SHiELD
-            diagnostics coarsened to the nudged model resolution (optional)
-        physics_timestep_seconds (float): physics timestep, i.e. dt_atmos
-        consolidated_nudging_data (bool): whether zarrs at data_path have
-            consolidated metadata
-        fine_res_offset_seconds: amount to shift the keys forward by in seconds. For
-            example, if the underlying data contains a value at the key
-            "20160801.000730", a value off 450 will shift this forward 7:30
-            minutes, so that this same value can be accessed with the key
-            "20160801.001500"
+        _: the loading infrastructure expects this argument, but it is not used
+            by the hybrid sheme. Keep this in mind when configuring
+        fine_url: url where coarsened fine resolution data is stored
+        nudge_url: url to nudging data to be used as a residual
 
     Returns:
         a mapper
     """
-    nudged = open_nudge_to_fine(
-        data_path,
-        nudging_variables=nudging_variables,
-        physics_timestep_seconds=physics_timestep_seconds,
-        consolidated=consolidated_nudging_data,
+    return XarrayMapper(
+        open_fine_resolution_nudging_hybrid_dataset(
+            fine_url=fine_url, nudge_url=nudge_url
+        )
     )
-    fine_res = open_fine_res_apparent_sources(
-        data_path=fine_res_path,
-        shield_diags_path=shield_diags_path,
-        offset_seconds=fine_res_offset_seconds,
-    )
-    return PhysicsResidual(nudged, fine_res)
