@@ -7,7 +7,7 @@ from .constants import (
 )
 from . import batches
 from . import mappers
-from .batches._sequences import Map, shuffle
+from .batches._sequences import Map, shuffle, Local, to_local
 from ._one_ahead import OneAheadIterator
 from ._config import (
     BatchesLoader,
