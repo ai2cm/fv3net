@@ -96,6 +96,7 @@ def test_train_with_same_seed_gives_same_result(model_type):
     hyperparameters = get_hyperparameter_class(model_type)()
     n_sample, n_feature = 500, 2
     fv3fit.set_random_seed(0)
+
     sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
     first_model, test_dataset = train_identity_model(
         model_type, sample_func, hyperparameters
@@ -131,7 +132,7 @@ def get_uniform_sample_func(size, low=0, high=1, seed=0):
     def sample_func():
         return xr.DataArray(
             random.uniform(low=low, high=high, size=size),
-            dims=["sample_", "feature_dim"],
+            dims=["sample", "feature_dim"],
             coords=[range(size[0]), range(size[1])],
         )
 
@@ -173,3 +174,22 @@ def test_dump_and_load_default_maintains_prediction(model_type):
         loaded_model = model.__class__.load(tmpdir)
     loaded_result = loaded_model.predict(test_dataset)
     xr.testing.assert_equal(loaded_result, original_result)
+
+
+def test_train_predict_multiple_stacked_dims(model_type):
+    hyperparameters = get_hyperparameter_class(model_type)()
+    da = xr.DataArray(np.full(fill_value=1.0, shape=(5, 10, 15)), dims=["x", "y", "z"],)
+    train_dataset = xr.Dataset(
+        data_vars={"var_in_0": da, "var_in_1": da, "var_out_0": da, "var_out_1": da}
+    )
+    train_batches = [train_dataset for _ in range(2)]
+    val_batches = []
+    train = fv3fit.get_training_function(model_type)
+    model = train(
+        ["var_in_0", "var_in_1"],
+        ["var_out_0", "var_out_1"],
+        hyperparameters,
+        train_batches,
+        val_batches,
+    )
+    model.predict(train_dataset)
