@@ -41,8 +41,8 @@ def run_segment(config: dict, rundir: str):
                     sys.executable,
                     runfile.absolute().as_posix(),
                 ],
-                # stdout=f,
-                # stderr=f,
+                stdout=f,
+                stderr=f,
             )
 
 
