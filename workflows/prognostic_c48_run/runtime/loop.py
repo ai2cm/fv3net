@@ -151,7 +151,7 @@ class TimeLoop(
         self._tendencies: Tendencies = {}
         self._state_updates: State = {}
 
-        self.monitor = Monitor(
+        self.monitor = Monitor.from_variables(
             config.diagnostic_variables, state=self._state, timestep=self._timestep,
         )
 

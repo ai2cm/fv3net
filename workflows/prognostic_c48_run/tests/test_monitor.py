@@ -5,11 +5,22 @@ from runtime.names import DELP
 
 def test_Monitor_monitor():
     ds = xarray.Dataset({"x": ([], 0.0), "y": (["z"], [1, 2]), DELP: (["z"], [1, 1])})
-    tend = "tendency_of_x_due_to_blah"
-    storage = "storage_of_y_path_due_to_blah"
-
-    monitor = Monitor([tend, storage], ds, timestep=900)
+    monitor = Monitor(
+        tendency_variables={"x"}, storage_variables={"y"}, _state=ds, timestep=900
+    )
     out = monitor("blah", lambda: {})()
     print(set(out))
 
-    assert {tend, storage, "storage_of_mass_due_to_blah"} == set(out)
+    assert {
+        "tendency_of_x_due_to_blah",
+        "storage_of_y_path_due_to_blah",
+        "storage_of_mass_due_to_blah",
+    } == set(out)
+
+
+def test_Monitor_from_variables():
+    variables = ["tendency_of_y_due_to_blah", "storage_of_z_path_due_to_yadayada"]
+
+    monitor = Monitor.from_variables(variables, state={}, timestep=900)
+    assert {"y"} == monitor.tendency_variables
+    assert {"z"} == monitor.storage_variables

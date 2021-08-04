@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import logging
 from typing import (
     Callable,
@@ -12,27 +13,16 @@ from .names import DELP
 logger = logging.getLogger(__name__)
 
 
+@dataclass
 class Monitor:
     """Utility class for monitoring changes to a state dictionary and returning
     the outputs as tendencies
     """
 
-    def __init__(self, variables: Iterable[str], state: State, timestep: float):
-        """
-
-        Args:
-            variables: list of variables with names like
-                `tendency_of_{variable}_due_to_{name}`. Used to infer the variables
-                to be monitored.
-            state: The mutable object to monitor
-            timestep: the length of the timestep used to compute the tendency
-        """
-        # need to consume variables into set to use more than once
-        var_set = set(variables)
-        self.tendency_variables = filter_tendency(var_set)
-        self.storage_variables = filter_storage(var_set)
-        self._state = state
-        self.timestep = timestep
+    tendency_variables: Set[str]
+    storage_variables: Set[str]
+    _state: State
+    timestep: float
 
     def __call__(
         self, name: str, func: Callable[[], Diagnostics],
@@ -88,6 +78,28 @@ class Monitor:
         # ensure monitored function has same name as original
         step.__name__ = func.__name__
         return step
+
+    @staticmethod
+    def from_variables(
+        variables: Iterable[str], state: State, timestep: float
+    ) -> "Monitor":
+        """
+
+        Args:
+            variables: list of variables with names like
+                `tendency_of_{variable}_due_to_{name}`. Used to infer the variables
+                to be monitored.
+            state: The mutable object to monitor
+            timestep: the length of the timestep used to compute the tendency
+        """
+        # need to consume variables into set to use more than once
+        var_set = set(variables)
+        return Monitor(
+            tendency_variables=filter_tendency(var_set),
+            storage_variables=filter_storage(var_set),
+            _state=state,
+            timestep=timestep,
+        )
 
 
 def filter_matching(variables: Iterable[str], split: str, prefix: str) -> Set[str]:
