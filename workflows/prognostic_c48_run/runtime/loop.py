@@ -11,7 +11,6 @@ from typing import (
     Sequence,
     Tuple,
 )
-
 import cftime
 import fv3gfs.util
 import fv3gfs.wrapper
@@ -20,7 +19,7 @@ import xarray as xr
 import vcm
 from mpi4py import MPI
 from runtime import DerivedFV3State
-from runtime.config import UserConfig, DiagnosticFileConfig, get_namelist
+from runtime.config import UserConfig, get_namelist
 from runtime.diagnostics.compute import (
     compute_baseline_diagnostics,
     rename_diagnostics,
@@ -37,7 +36,7 @@ from runtime.steppers.machine_learning import (
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig, get_timesteps
 from runtime.types import Diagnostics, State, Tendencies
-from runtime.names import TENDENCY_TO_STATE_NAME
+from runtime.names import TENDENCY_TO_STATE_NAME, filter_storage, filter_tendency
 from toolz import dissoc
 from typing_extensions import Protocol
 
@@ -162,10 +161,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._state_updates: State = {}
 
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
-        (
-            self._tendency_variables,
-            self._storage_variables,
-        ) = self._get_monitored_variable_names(config.diagnostics)
+        self._tendency_variables = filter_tendency(config.diagnostic_variables)
+        self._storage_variables = filter_storage(config.diagnostic_variables)
         self._log_debug(f"States to output: {self._states_to_output}")
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
         self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
@@ -487,21 +484,3 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         # ensure monitored function has same name as original
         step.__name__ = func.__name__
         return step
-
-    @staticmethod
-    def _get_monitored_variable_names(
-        diagnostics: Sequence[DiagnosticFileConfig],
-    ) -> Tuple[Sequence[str], Sequence[str]]:
-        """Get sequences of tendency and storage variables from diagnostics config."""
-        tendency_variables = []
-        storage_variables = []
-        for diag_file_config in diagnostics:
-            for variable in diag_file_config.variables:
-                if variable.startswith("tendency_of") and "_due_to_" in variable:
-                    short_name = variable.split("_due_to_")[0][len("tendency_of_") :]
-                    tendency_variables.append(short_name)
-                elif variable.startswith("storage_of") and "_path_due_to_" in variable:
-                    split_str = "_path_due_to_"
-                    short_name = variable.split(split_str)[0][len("storage_of_") :]
-                    storage_variables.append(short_name)
-        return tendency_variables, storage_variables
