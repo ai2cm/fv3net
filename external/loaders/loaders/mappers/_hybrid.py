@@ -1,6 +1,3 @@
-from typing import Any
-
-
 import fsspec
 import xarray
 import numpy
@@ -195,14 +192,12 @@ def open_fine_resolution_nudging_hybrid_dataset(
 
 @mapper_functions.register
 def open_fine_resolution_nudging_hybrid(
-    _: Any, fine_url: str = "", nudge_url: str = ""
+    fine_url: str = "", nudge_url: str = ""
 ) -> GeoMapper:
     """
     Open the fine resolution nudging_hybrid mapper
 
     Args:
-        _: the loading infrastructure expects this argument, but it is not used
-            by the hybrid sheme. Keep this in mind when configuring
         fine_url: url where coarsened fine resolution data is stored
         nudge_url: url to nudging data to be used as a residual
 
