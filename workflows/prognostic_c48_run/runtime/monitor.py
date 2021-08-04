@@ -37,7 +37,9 @@ class Monitor:
 
         Args:
             name: the name to tag the tendency diagnostics with
-            func: a stepping function
+            func: a stepping function which modifies the `state` dictionary this object
+                is monitoring, but does not directly modify the `DataArray` objects
+                it contains
         Returns:
             monitored function. Same as func, but with tendency and mass change
             diagnostics inserted in place
