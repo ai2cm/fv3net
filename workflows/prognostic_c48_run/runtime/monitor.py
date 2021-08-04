@@ -41,7 +41,7 @@ class Monitor:
 
         This will add the following diagnostics:
         - `tendency_of_{variable}_due_to_{name}`
-        - `storage_of_{variable}_path_due_to_{name}`. A pressure-integrated version
+        - `storage_of_{variable}_path_due_to_{name}`. A mass-integrated version
         of the above
         - `storage_of_mass_due_to_{name}`, the total mass tendency in Pa/s.
 
