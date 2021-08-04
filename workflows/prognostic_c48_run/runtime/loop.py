@@ -1,43 +1,36 @@
 import json
+import logging
 import os
 import tempfile
-import logging
-from typing import (
-    Any,
-    Callable,
-    Iterable,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-)
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
+
 import cftime
 import fv3gfs.util
 import fv3gfs.wrapper
 import numpy as np
-import xarray as xr
 import vcm
+import xarray as xr
 from mpi4py import MPI
 from runtime import DerivedFV3State
 from runtime.config import UserConfig, get_namelist
 from runtime.diagnostics.compute import (
     compute_baseline_diagnostics,
-    rename_diagnostics,
     precipitation_rate,
     precipitation_sum,
+    rename_diagnostics,
 )
+from runtime.monitor import Monitor
+from runtime.names import TENDENCY_TO_STATE_NAME
 from runtime.steppers.machine_learning import (
-    PureMLStepper,
-    open_model,
-    download_model,
     MachineLearningConfig,
     MLStateStepper,
+    PureMLStepper,
+    download_model,
+    open_model,
 )
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig, get_timesteps
 from runtime.types import Diagnostics, State, Tendencies
-from runtime.names import TENDENCY_TO_STATE_NAME
-from runtime.monitor import Monitor
 from toolz import dissoc
 from typing_extensions import Protocol
 
@@ -105,7 +98,9 @@ class LoggingMixin:
             print(message)
 
 
-class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin):
+class TimeLoop(
+    Iterable[Tuple[cftime.DatetimeJulian, Dict[str, xr.DataArray]]], LoggingMixin
+):
     """An iterable defining the master time loop of a prognostic simulation
 
     Yields (time, diagnostics) tuples, which can be saved using diagnostic routines.
@@ -306,18 +301,6 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             )
         self._log_info(f"python_timing:{json.dumps(reduced)}")
 
-    @property
-    def _substeps(self) -> Sequence[Callable[..., Diagnostics]]:
-        return [
-            self.monitor("dynamics", self._step_dynamics),
-            self._step_prephysics,
-            self._compute_physics,
-            self._apply_postphysics_to_physics_state,
-            self.monitor("fv3_physics", self._apply_physics),
-            self._compute_postphysics,
-            self.monitor("python", self._apply_postphysics_to_dycore_state),
-        ]
-
     def _step_prephysics(self) -> Diagnostics:
 
         if self._prephysics_stepper is None:
@@ -416,10 +399,20 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         )
         return diagnostics
 
-    def __iter__(self):
+    def __iter__(
+        self,
+    ) -> Iterator[Tuple[cftime.DatetimeJulian, Dict[str, xr.DataArray]]]:
         for i in range(self._fv3gfs.get_step_count()):
-            diagnostics = {}
-            for substep in self._substeps:
+            diagnostics: Diagnostics = {}
+            for substep in [
+                self.monitor("dynamics", self._step_dynamics),
+                self._step_prephysics,
+                self._compute_physics,
+                self._apply_postphysics_to_physics_state,
+                self.monitor("fv3_physics", self._apply_physics),
+                self._compute_postphysics,
+                self.monitor("python", self._apply_postphysics_to_dycore_state),
+            ]:
                 with self._timer.clock(substep.__name__):
                     diagnostics.update(substep())
-            yield self._state.time, diagnostics
+            yield self._state.time, {str(k): v for k, v in diagnostics.items()}
