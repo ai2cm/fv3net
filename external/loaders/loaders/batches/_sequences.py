@@ -27,11 +27,7 @@ class BaseSequence(Sequence[T]):
             path: local directory, will be created if not existing
             n_jobs: parallelism
         """
-        os.makedirs(path, exist_ok=True)
-        joblib.Parallel(n_jobs=n_jobs)(
-            joblib.delayed(self._save_item)(path, i) for i in range(len(self))
-        )
-        return Local(os.path.abspath(path))
+        return to_local(self, path=path, n_jobs=n_jobs)
 
     def _save_item(self, path: str, i: int):
         item = self[i]
@@ -81,6 +77,31 @@ class Local(BaseSequence[T]):
 
     def __getitem__(self, i):
         return joblib.load(self.files[i])
+
+
+def to_local(sequence: Sequence[T], path: str, n_jobs: int = 4) -> Local[T]:
+    """
+    Download a sequence of pickleable objects to a local path.
+
+    Args:
+        sequence: pickleable objects to dump locally
+        path: local directory, will be created if not existing
+        n_jobs: how many threads to use when dumping objects to file
+    
+    Returns:
+        local_sequence
+    """
+    os.makedirs(path, exist_ok=True)
+
+    def save_item(path: str, i: int):
+        item = sequence[i]
+        path = os.path.join(path, "%05d.pkl" % i)
+        Local.dump(item, path)
+
+    joblib.Parallel(n_jobs=n_jobs)(
+        joblib.delayed(save_item)(path, i) for i in range(len(sequence))
+    )
+    return Local(os.path.abspath(path))
 
 
 class Map(BaseSequence[T]):

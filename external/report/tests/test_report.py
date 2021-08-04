@@ -7,7 +7,7 @@ def test_version():
     assert __version__ == "0.1.0"
 
 
-def test_create_html():
+def test_create_html_inserts_header_image():
     title = "Report Name"
     sections = {"header": ["image.png"]}
     html = create_html(title=title, sections=sections)
