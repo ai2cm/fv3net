@@ -219,6 +219,7 @@ def _compute_diagnostics(
     for i, ds in enumerate(batches):
         logger.info(f"Processing batch {i+1}/{len(batches)}")
 
+        ds = ds.where(ds.sel(derivation="target").notnull())
         ds = _fill_empty_dQ1_dQ2(ds)
         # ...insert additional variables
         ds = utils.insert_total_apparent_sources(ds)
