@@ -3,9 +3,9 @@ import xarray as xr
 import numpy as np
 import pytest
 from fv3fit._shared.models import DerivedModel
+from fv3fit._shared import SAMPLE_DIM_NAME
 
 
-sample_dim_name = "sample"
 input_variables = [
     "input",
 ]
@@ -13,7 +13,7 @@ output_variables = [
     "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
 ]
 base_model = fv3fit.testing.ConstantOutputPredictor(
-    sample_dim_name, input_variables, output_variables
+    SAMPLE_DIM_NAME, input_variables, output_variables
 )
 base_model.set_outputs(
     override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface=1.0

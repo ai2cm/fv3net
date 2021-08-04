@@ -3,6 +3,7 @@ import xarray as xr
 import numpy as np
 import pytest
 from fv3fit._shared.models import EnsembleModel
+from fv3fit._shared import SAMPLE_DIM_NAME
 
 
 @pytest.mark.parametrize(
@@ -10,7 +11,7 @@ from fv3fit._shared.models import EnsembleModel
     [((0.0, 3.0, 5.0), "median", 3.0), ((0.0, 3.0, 5.0), "mean", 8.0 / 3)],
 )
 def test_ensemble_model_median(values, reduction, output):
-    sample_dim_name = "sample"
+    sample_dim_name = SAMPLE_DIM_NAME
     input_variables = ["input"]
     output_variables = ["output"]
     models = tuple(

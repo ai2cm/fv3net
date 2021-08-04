@@ -222,6 +222,6 @@ def test_predict_is_deterministic(regtest):
 def test_predict_returns_unstacked_dims():
     # 2D output dims same as input dims
     input_data, wrapper = fit_wrapper_with_columnar_data()
-
+    assert len(input_data.dims) > 2
     prediction = wrapper.predict(input_data)
     assert prediction.dims == input_data.dims
