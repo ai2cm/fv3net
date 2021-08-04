@@ -7,7 +7,6 @@ from typing import (
     Callable,
     Iterable,
     List,
-    Mapping,
     Optional,
     Sequence,
     Tuple,
@@ -104,6 +103,11 @@ class LoggingMixin:
     def _print(self, message: str):
         if self.rank == 0:
             print(message)
+
+
+class Monitor:
+    def __init__(self, state: DerivedFV3State):
+        self._state = state
 
 
 class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin):
@@ -425,41 +429,22 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                     diagnostics.update(substep())
             yield self._state.time, diagnostics
 
-    def monitor(self, name: str, func):
-        """Decorator to add tendency monitoring to an update function
+    def monitor(
+        self, name: str, func: Callable[[], Diagnostics]
+    ) -> Callable[[], Diagnostics]:
+        return self.monitor_tendency(name, self.monitor_storage(name, func))
 
-        This will add the following diagnostics:
-        - `tendency_of_{variable}_due_to_{name}`
-        - `storage_of_{variable}_path_due_to_{name}`. A pressure-integrated version
-        of the above
-        - `storage_of_mass_due_to_{name}`, the total mass tendency in Pa/s.
+    def monitor_storage(
+        self, name: str, func: Callable[[], Diagnostics]
+    ) -> Callable[[], Diagnostics]:
+        def step() -> Diagnostics:
 
-        Args:
-            name: the name to tag the tendency diagnostics with
-            func: a stepping function
-
-        Returns:
-            monitored function. Same as func, but with tendency and mass change
-            diagnostics.
-        """
-
-        def step() -> Mapping[str, xr.DataArray]:
-
-            vars_ = list(set(self._tendency_variables) | set(self._storage_variables))
+            vars_ = set(self._storage_variables)
             delp_before = self._state[DELP]
             before = {key: self._state[key] for key in vars_}
-
             diags = func()
-
             delp_after = self._state[DELP]
             after = {key: self._state[key] for key in vars_}
-
-            # Compute statistics
-            for variable in self._tendency_variables:
-                diag_name = f"tendency_of_{variable}_due_to_{name}"
-                diags[diag_name] = (after[variable] - before[variable]) / self._timestep
-                if "units" in before[variable].attrs:
-                    diags[diag_name].attrs["units"] = before[variable].units + "/s"
 
             for variable in self._storage_variables:
                 path_before = vcm.mass_integrate(before[variable], delp_before, "z")
@@ -475,7 +460,28 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
             mass_change = (delp_after - delp_before).sum("z") / self._timestep
             mass_change.attrs["units"] = "Pa/s"
             diags[f"storage_of_mass_due_to_{name}"] = mass_change
+            return diags
 
+        # ensure monitored function has same name as original
+        step.__name__ = func.__name__
+        return step
+
+    def monitor_tendency(
+        self, name: str, func: Callable[[], Diagnostics]
+    ) -> Callable[[], Diagnostics]:
+        def step() -> Diagnostics:
+
+            vars_ = list(set(self._tendency_variables))
+            before = {key: self._state[key] for key in vars_}
+            diags = func()
+            after = {key: self._state[key] for key in vars_}
+
+            # Compute statistics
+            for variable in self._tendency_variables:
+                diag_name = f"tendency_of_{variable}_due_to_{name}"
+                diags[diag_name] = (after[variable] - before[variable]) / self._timestep
+                if "units" in before[variable].attrs:
+                    diags[diag_name].attrs["units"] = before[variable].units + "/s"
             return diags
 
         # ensure monitored function has same name as original
