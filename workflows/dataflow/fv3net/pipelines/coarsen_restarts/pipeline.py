@@ -55,6 +55,7 @@ def coarsen_timestep(
 
 def split_by_tiles(kv: Tuple[Tuple, xr.Dataset]) -> Iterable[Tuple[Tuple, xr.Dataset]]:
     key, ds = kv
+    ds["tile"] = ds["tile"].astype("float32")
     for tile in range(6):
         yield key + (tile + 1,), ds.isel(tile=tile)
 
