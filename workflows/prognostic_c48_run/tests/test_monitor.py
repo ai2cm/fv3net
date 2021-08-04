@@ -3,7 +3,7 @@ from runtime.monitor import Monitor
 from runtime.names import DELP
 
 
-def test_Monitor_monitor():
+def test_monitor_inserts_tendency_and_storage_of_one_var():
     ds = xarray.Dataset({"x": ([], 0.0), "y": (["z"], [1, 2]), DELP: (["z"], [1, 1])})
     monitor = Monitor(
         tendency_variables={"x"}, storage_variables={"y"}, _state=ds, timestep=900
