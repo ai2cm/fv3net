@@ -36,7 +36,8 @@ from runtime.steppers.machine_learning import (
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig, get_timesteps
 from runtime.types import Diagnostics, State, Tendencies
-from runtime.names import TENDENCY_TO_STATE_NAME, filter_storage, filter_tendency
+from runtime.names import TENDENCY_TO_STATE_NAME
+from runtime.monitor import Monitor
 from toolz import dissoc
 from typing_extensions import Protocol
 
@@ -104,11 +105,6 @@ class LoggingMixin:
             print(message)
 
 
-class Monitor:
-    def __init__(self, state: DerivedFV3State):
-        self._state = state
-
-
 class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin):
     """An iterable defining the master time loop of a prognostic simulation
 
@@ -160,9 +156,11 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
         self._tendencies: Tendencies = {}
         self._state_updates: State = {}
 
+        self.monitor = Monitor(
+            config.diagnostic_variables, state=self._state, timestep=self._timestep,
+        )
+
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
-        self._tendency_variables = filter_tendency(config.diagnostic_variables)
-        self._storage_variables = filter_storage(config.diagnostic_variables)
         self._log_debug(f"States to output: {self._states_to_output}")
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
         self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
@@ -425,62 +423,3 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]], LoggingMixin
                 with self._timer.clock(substep.__name__):
                     diagnostics.update(substep())
             yield self._state.time, diagnostics
-
-    def monitor(
-        self, name: str, func: Callable[[], Diagnostics]
-    ) -> Callable[[], Diagnostics]:
-        return self.monitor_tendency(name, self.monitor_storage(name, func))
-
-    def monitor_storage(
-        self, name: str, func: Callable[[], Diagnostics]
-    ) -> Callable[[], Diagnostics]:
-        def step() -> Diagnostics:
-
-            vars_ = set(self._storage_variables)
-            delp_before = self._state[DELP]
-            before = {key: self._state[key] for key in vars_}
-            diags = func()
-            delp_after = self._state[DELP]
-            after = {key: self._state[key] for key in vars_}
-
-            for variable in self._storage_variables:
-                path_before = vcm.mass_integrate(before[variable], delp_before, "z")
-                path_after = vcm.mass_integrate(after[variable], delp_after, "z")
-
-                diag_name = f"storage_of_{variable}_path_due_to_{name}"
-                diags[diag_name] = (path_after - path_before) / self._timestep
-                if "units" in before[variable].attrs:
-                    diags[diag_name].attrs["units"] = (
-                        before[variable].units + " kg/m**2/s"
-                    )
-
-            mass_change = (delp_after - delp_before).sum("z") / self._timestep
-            mass_change.attrs["units"] = "Pa/s"
-            diags[f"storage_of_mass_due_to_{name}"] = mass_change
-            return diags
-
-        # ensure monitored function has same name as original
-        step.__name__ = func.__name__
-        return step
-
-    def monitor_tendency(
-        self, name: str, func: Callable[[], Diagnostics]
-    ) -> Callable[[], Diagnostics]:
-        def step() -> Diagnostics:
-
-            vars_ = list(set(self._tendency_variables))
-            before = {key: self._state[key] for key in vars_}
-            diags = func()
-            after = {key: self._state[key] for key in vars_}
-
-            # Compute statistics
-            for variable in self._tendency_variables:
-                diag_name = f"tendency_of_{variable}_due_to_{name}"
-                diags[diag_name] = (after[variable] - before[variable]) / self._timestep
-                if "units" in before[variable].attrs:
-                    diags[diag_name].attrs["units"] = before[variable].units + "/s"
-            return diags
-
-        # ensure monitored function has same name as original
-        step.__name__ = func.__name__
-        return step

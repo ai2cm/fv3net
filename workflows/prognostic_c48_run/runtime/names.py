@@ -1,4 +1,4 @@
-from typing import List, Mapping, Hashable, Iterable
+from typing import Mapping, Hashable
 
 TEMP = "air_temperature"
 TOTAL_WATER = "total_water"
@@ -20,20 +20,3 @@ TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
     "dQu": EAST_WIND,
     "dQv": NORTH_WIND,
 }
-
-
-def filter_matching(variables: Iterable[str], split: str, prefix: str) -> List[str]:
-    """Get sequences of tendency and storage variables from diagnostics config."""
-    return [
-        variable.split(split)[0][len(prefix) :]
-        for variable in variables
-        if variable.startswith(prefix) and split in variable
-    ]
-
-
-def filter_storage(variables: Iterable[str]) -> List[str]:
-    return filter_matching(variables, split="_path_due_to_", prefix="storage_of_")
-
-
-def filter_tendency(variables: Iterable[str]) -> List[str]:
-    return filter_matching(variables, split="_due_to_", prefix="tendency_of_")
