@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Iterable
 import dataclasses
 import yaml
 import f90nml
@@ -43,6 +43,12 @@ class UserConfig:
     online_emulator: OnlineEmulatorConfig = dataclasses.field(
         default_factory=OnlineEmulatorConfig
     )
+
+    @property
+    def diagnostic_variables(self) -> Iterable[str]:
+        for diag_file_config in self.diagnostics:
+            for variable in diag_file_config.variables:
+                yield variable
 
 
 def get_config() -> UserConfig:

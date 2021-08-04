@@ -4,10 +4,10 @@ import numpy as np
 import os
 import random
 import shutil
-from typing import Mapping, Sequence, Dict, List, Tuple, Iterable
+from typing import Mapping, Sequence, Dict, Tuple, Iterable
 import warnings
+import vcm
 import xarray as xr
-import yaml
 
 from vcm import safe
 from vcm.cloud import gsutil
@@ -100,23 +100,12 @@ def drop_physics_vars(ds: xr.Dataset):
     return ds
 
 
-def _tendency_in_predictions(tendency: str, predicted_vars: List[str]):
-    for predicted_var in predicted_vars:
-        if tendency in predicted_var:
-            return True
-    return False
-
-
-def drop_temperature_humidity_tendencies_if_not_predicted(
-    ds: xr.Dataset, ml_outputs: List[str]
-):
+def drop_temperature_humidity_tendencies_if_not_predicted(ds: xr.Dataset):
     tendencies = ["Q1", "Q2"]
-    for var in ds:
-        for tendency in tendencies:
-            if tendency in str(var) and not _tendency_in_predictions(
-                tendency, ml_outputs
-            ):
-                ds = ds.drop(var)
+    for name in tendencies:
+        # if variable is not predicted, it will be all NaN
+        if name in ds and np.all(np.isnan(ds[name].sel(derivation="predict").values)):
+            ds = ds.drop(name)
     return ds
 
 
@@ -125,12 +114,7 @@ def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
 
 
 def insert_scalar_metrics_r2(
-    metrics: ScalarMetrics,
-    predicted: Sequence[str],
-    mse_coord: str = "mse",
-    r2_coord: str = "r2",
-    predict_coord: str = "predict",
-    target_coord: str = "target",
+    metrics: ScalarMetrics, predicted: Sequence[str],
 ):
     for var in predicted:
         r2_name = f"scalar/r2/{var}/predict_vs_target"
@@ -191,19 +175,22 @@ def open_diagnostics_outputs(
     diurnal_nc_name: str,
     transect_nc_name: str,
     metrics_json_name: str,
-    config_name: str,
-):
+    metadata_json_name: str,
+) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset, dict, dict]:
     with fsspec.open(os.path.join(data_dir, diagnostics_nc_name), "rb") as f:
         ds_diags = xr.open_dataset(f).load()
     with fsspec.open(os.path.join(data_dir, diurnal_nc_name), "rb") as f:
         ds_diurnal = xr.open_dataset(f).load()
-    with fsspec.open(os.path.join(data_dir, transect_nc_name), "rb") as f:
-        ds_transect = xr.open_dataset(f).load()
+    if vcm.get_fs(transect_nc_name).exists(transect_nc_name):
+        with fsspec.open(os.path.join(data_dir, transect_nc_name), "rb") as f:
+            ds_transect = xr.open_dataset(f).load()
+    else:
+        ds_transect = xr.Dataset()
     with fsspec.open(os.path.join(data_dir, metrics_json_name), "r") as f:
         metrics = json.load(f)
-    with fsspec.open(os.path.join(data_dir, config_name), "r") as f:
-        config = yaml.safe_load(f)
-    return ds_diags, ds_diurnal, ds_transect, metrics, config
+    with fsspec.open(os.path.join(data_dir, metadata_json_name), "r") as f:
+        metadata = json.load(f)
+    return ds_diags, ds_diurnal, ds_transect, metrics, metadata
 
 
 def copy_outputs(temp_dir, output_dir):

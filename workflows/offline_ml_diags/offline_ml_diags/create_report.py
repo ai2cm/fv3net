@@ -5,6 +5,7 @@ import logging
 import sys
 import tempfile
 from typing import MutableMapping, Sequence, List
+import fsspec
 
 import fv3viz
 import numpy as np
@@ -12,6 +13,7 @@ import report
 import vcm
 from vcm.cloud import get_fs
 import diagnostics_utils.plot as diagplot
+import yaml
 from ._helpers import (
     get_metric_string,
     open_diagnostics_outputs,
@@ -27,15 +29,17 @@ from ._helpers import (
     drop_temperature_humidity_tendencies_if_not_predicted,
 )
 from ._select import plot_transect
+from .compute_diags import (
+    DIAGS_NC_NAME,
+    DIURNAL_NC_NAME,
+    TRANSECT_NC_NAME,
+    METRICS_JSON_NAME,
+    METADATA_JSON_NAME,
+    DERIVATION_DIM_NAME,
+)
 
 
-DERIVATION_DIM = "derivation"
 DOMAIN_DIM = "domain"
-
-NC_FILE_DIAGS = "offline_diagnostics.nc"
-NC_FILE_DIURNAL = "diurnal_cycle.nc"
-NC_FILE_TRANSECT = "transect_lon0.nc"
-JSON_FILE_METRICS = "scalar_metrics.json"
 
 MODEL_SENSITIVITY_HTML = "model_sensitivity.html"
 TIME_MEAN_MAPS_HTML = "time_mean_maps.html"
@@ -86,6 +90,18 @@ def _create_arg_parser() -> argparse.Namespace:
             "the version used to train the model."
         ),
     )
+    parser.add_argument(
+        "--training-config",
+        type=str,
+        default=None,
+        help=("Training configuration yaml file to insert into report"),
+    )
+    parser.add_argument(
+        "--training-data-config",
+        type=str,
+        default=None,
+        help=("Training data configuration yaml file to insert into report"),
+    )
     return parser.parse_args()
 
 
@@ -100,9 +116,7 @@ def render_model_sensitivity(figures_dir, output_dir) -> str:
     )
 
 
-def render_time_mean_maps(
-    figures_dir, output_dir, ds_diags, column_integrated_vars
-) -> str:
+def render_time_mean_maps(output_dir, ds_diags, column_integrated_vars) -> str:
     report_sections: MutableMapping[str, Sequence[str]] = {}
 
     # time averaged column integrated quantity maps
@@ -112,7 +126,7 @@ def render_time_mean_maps(
             - ds_diags.sel(derivation="target")[var]
         )
         fig = diagplot.plot_column_integrated_var(
-            ds_diags, var, derivation_plot_coords=ds_diags[DERIVATION_DIM].values,
+            ds_diags, var, derivation_plot_coords=ds_diags[DERIVATION_DIM_NAME].values,
         )
         report.insert_report_figure(
             report_sections,
@@ -137,7 +151,7 @@ def render_time_mean_maps(
     return report.create_html(sections=report_sections, title="Time mean maps",)
 
 
-def render_index(metrics, ds_diags, ds_diurnal, ds_transect, output_dir) -> str:
+def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir) -> str:
     report_sections: MutableMapping[str, Sequence[str]] = {}
 
     # Links
@@ -214,7 +228,7 @@ def render_index(metrics, ds_diags, ds_diurnal, ds_transect, output_dir) -> str:
     ]
     for var in sorted(profiles):
         fig = diagplot.plot_profile_var(
-            ds_diags, var, derivation_dim=DERIVATION_DIM, domain_dim=DOMAIN_DIM,
+            ds_diags, var, derivation_dim=DERIVATION_DIM_NAME, domain_dim=DOMAIN_DIM,
         )
         report.insert_report_figure(
             report_sections,
@@ -229,7 +243,7 @@ def render_index(metrics, ds_diags, ds_diurnal, ds_transect, output_dir) -> str:
         fig = diagplot.plot_diurnal_cycles(
             ds_diurnal,
             var=var,
-            derivation_plot_coords=ds_diurnal[DERIVATION_DIM].values,
+            derivation_plot_coords=ds_diurnal[DERIVATION_DIM_NAME].values,
         )
         report.insert_report_figure(
             report_sections,
@@ -272,20 +286,17 @@ def render_index(metrics, ds_diags, ds_diurnal, ds_transect, output_dir) -> str:
     )
 
 
-if __name__ == "__main__":
-
-    logger.info("Starting create report routine.")
-    args = _create_arg_parser()
+def main(args):
     temp_output_dir = tempfile.TemporaryDirectory()
     atexit.register(_cleanup_temp_dir, temp_output_dir)
 
-    ds_diags, ds_diurnal, ds_transect, metrics, config = open_diagnostics_outputs(
+    ds_diags, ds_diurnal, ds_transect, metrics, metadata = open_diagnostics_outputs(
         args.input_path,
-        diagnostics_nc_name=NC_FILE_DIAGS,
-        diurnal_nc_name=NC_FILE_DIURNAL,
-        transect_nc_name=NC_FILE_TRANSECT,
-        metrics_json_name=JSON_FILE_METRICS,
-        config_name="config.yaml",
+        diagnostics_nc_name=DIAGS_NC_NAME,
+        diurnal_nc_name=DIURNAL_NC_NAME,
+        transect_nc_name=TRANSECT_NC_NAME,
+        metrics_json_name=METRICS_JSON_NAME,
+        metadata_json_name=METADATA_JSON_NAME,
     )
     ds_diags = ds_diags.pipe(insert_dataset_r2).pipe(mse_to_rmse)
 
@@ -295,19 +306,25 @@ if __name__ == "__main__":
 
     # diagnostics_utils currently fill dQ1/2 with zeros if not predicted
     # exclude these from the report if they are not model outputs.
-    ds_diags = drop_temperature_humidity_tendencies_if_not_predicted(
-        ds_diags, config["output_variables"]
-    )
-    ds_diurnal = drop_temperature_humidity_tendencies_if_not_predicted(
-        ds_diurnal, config["output_variables"]
-    )
+    ds_diags = drop_temperature_humidity_tendencies_if_not_predicted(ds_diags)
+    ds_diurnal = drop_temperature_humidity_tendencies_if_not_predicted(ds_diurnal)
 
-    config.pop("mapping_kwargs", None)  # this item clutters the report
     if args.commit_sha:
-        config["commit"] = args.commit_sha
+        metadata["commit"] = args.commit_sha
+    if args.training_config:
+        with fsspec.open(args.training_config, "r") as f:
+            metadata["training_config"] = yaml.safe_load(f)
+    if args.training_data_config:
+        with fsspec.open(args.training_data_config, "r") as f:
+            metadata["training_data_config"] = yaml.safe_load(f)
 
     html_index = render_index(
-        metrics, ds_diags, ds_diurnal, ds_transect, output_dir=temp_output_dir.name
+        metadata,
+        metrics,
+        ds_diags,
+        ds_diurnal,
+        ds_transect,
+        output_dir=temp_output_dir.name,
     )
     with open(os.path.join(temp_output_dir.name, "index.html"), "w") as f:
         f.write(html_index)
@@ -320,7 +337,6 @@ if __name__ == "__main__":
         f.write(html_model_sensitivity)
 
     html_time_mean_maps = render_time_mean_maps(
-        os.path.join(args.input_path, "time_mean_maps_figures"),
         temp_output_dir.name,
         ds_diags,
         column_integrated_vars=column_integrated_metric_names(metrics),
@@ -336,3 +352,9 @@ if __name__ == "__main__":
     ds_diags.close()
     ds_diurnal.close()
     ds_transect.close()
+
+
+if __name__ == "__main__":
+    logger.info("Starting create report routine.")
+    args = _create_arg_parser()
+    main(args)
