@@ -17,6 +17,7 @@ from ..._shared import (
     StackedBatches,
     stack_non_vertical,
     match_prediction_to_input_coords,
+    SAMPLE_DIM_NAME,
 )
 from ..._shared.config import DenseHyperparameters, register_training_function
 import numpy as np
@@ -107,14 +108,13 @@ class DenseModel(Predictor):
         self._gaussian_noise = hyperparameters.gaussian_noise
         self._nonnegative_outputs = hyperparameters.nonnegative_outputs
         # TODO: remove internal sample dim name once sample dim is hardcoded everywhere
-        self._fv3fit_sample_dim = f"_sample_fv3fit"
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
         self.X_packer = ArrayPacker(
-            sample_dim_name=self._fv3fit_sample_dim, pack_names=input_variables
+            sample_dim_name=SAMPLE_DIM_NAME, pack_names=input_variables
         )
         self.y_packer = ArrayPacker(
-            sample_dim_name=self._fv3fit_sample_dim, pack_names=output_variables
+            sample_dim_name=SAMPLE_DIM_NAME, pack_names=output_variables
         )
         self.X_scaler = LayerStandardScaler()
         self.y_scaler = LayerStandardScaler()
@@ -226,7 +226,7 @@ class DenseModel(Predictor):
             fit_kwargs, use_last_batch_to_validate, "use_last_batch_to_validate", False
         )
         random_state = np.random.RandomState(np.random.get_state()[1][0])
-        stacked_batches = StackedBatches(batches, random_state, self._fv3fit_sample_dim)
+        stacked_batches = StackedBatches(batches, random_state)
         Xy = _XyArraySequence(self.X_packer, self.y_packer, stacked_batches)
         if self._model is None:
             X, y = Xy[0]
@@ -261,9 +261,7 @@ class DenseModel(Predictor):
             validation_data = (X_val, y_val)
             Xy = Take(Xy, len(Xy) - 1)  # type: ignore
         elif validation_dataset is not None:
-            stacked_validation_dataset = stack_non_vertical(
-                validation_dataset, self._fv3fit_sample_dim
-            )
+            stacked_validation_dataset = stack_non_vertical(validation_dataset)
             X_val = self.X_packer.to_array(stacked_validation_dataset)
             y_val = self.y_packer.to_array(stacked_validation_dataset)
             val_sample = np.random.choice(
@@ -324,17 +322,12 @@ class DenseModel(Predictor):
         return self.y_packer.to_dataset(stacked_output_array)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
-        # Takes unstacked data, stacks into sample dimension before
-        # keras model prediction, and returns unstacked prediction
-        # ensure dimension order is the same
-        stacked_data = stack_non_vertical(
-            safe.get_variables(X, self.input_variables), self._fv3fit_sample_dim
-        )
+        stacked_data = stack_non_vertical(safe.get_variables(X, self.input_variables))
 
         stacked_output = self._predict_on_stacked_data(stacked_data)
         unstacked_output = stacked_output.assign_coords(
-            {self._fv3fit_sample_dim: stacked_data[self._fv3fit_sample_dim]}
-        ).unstack(self._fv3fit_sample_dim)
+            {SAMPLE_DIM_NAME: stacked_data[SAMPLE_DIM_NAME]}
+        ).unstack(SAMPLE_DIM_NAME)
 
         return match_prediction_to_input_coords(X, unstacked_output)
 
@@ -449,7 +442,7 @@ class DenseModel(Predictor):
             else:
                 raise ValueError("X_scaler needs to be fit first.")
         else:
-            mean_expanded = base_state.expand_dims(self._fv3fit_sample_dim)
+            mean_expanded = base_state.expand_dims(SAMPLE_DIM_NAME)
 
         mean_tf = tf.convert_to_tensor(self.X_packer.to_array(mean_expanded))
         with tf.GradientTape() as g:

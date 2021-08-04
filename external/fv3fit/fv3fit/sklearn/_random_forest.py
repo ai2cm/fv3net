@@ -21,6 +21,7 @@ from .._shared import (
     StackedBatches,
     stack_non_vertical,
     match_prediction_to_input_coords,
+    SAMPLE_DIM_NAME,
 )
 import sklearn.base
 import sklearn.ensemble
@@ -216,7 +217,6 @@ class SklearnWrapper(Predictor):
         self.scaler_kwargs = scaler_kwargs or {}
         self.target_scaler: Optional[scaler.NormalizeTransform] = None
         # TODO: remove internal sample dim name once sample dim is hardcoded everywhere
-        self._fv3fit_sample_dim = f"_sample_fv3fit"
         self._sample_dim_name = sample_dim_name
         self._input_variables = input_variables
         self._output_variables = output_variables
@@ -226,10 +226,8 @@ class SklearnWrapper(Predictor):
 
     def _fit_batch(self, data: xr.Dataset):
         # TODO the sample_dim can change so best to use feature dim to flatten
-        x, _ = pack(data[self.input_variables], self._fv3fit_sample_dim)
-        y, self.output_features_ = pack(
-            data[self.output_variables], self._fv3fit_sample_dim
-        )
+        x, _ = pack(data[self.input_variables], SAMPLE_DIM_NAME)
+        y, self.output_features_ = pack(data[self.output_variables], SAMPLE_DIM_NAME)
 
         if self.target_scaler is None:
             self.target_scaler = self._init_target_scaler(data)
@@ -243,38 +241,38 @@ class SklearnWrapper(Predictor):
             self.scaler_kwargs,
             batch,
             self._output_variables,
-            self._fv3fit_sample_dim,
+            SAMPLE_DIM_NAME,
         )
 
     def fit(self, batches: Sequence[xr.Dataset]):
         logger = logging.getLogger("SklearnWrapper")
         random_state = np.random.RandomState(np.random.get_state()[1][0])
-        stacked_batches = StackedBatches(batches, random_state, self._fv3fit_sample_dim)
+        stacked_batches = StackedBatches(batches, random_state)
         for i, batch in enumerate(stacked_batches):
             logger.info(f"Fitting batch {i+1}/{len(batches)}")
             self._fit_batch(batch)
             logger.info(f"Batch {i+1} done fitting.")
 
     def _predict_on_stacked_data(self, stacked_data):
-        X, _ = pack(stacked_data[self.input_variables], self._fv3fit_sample_dim)
+        X, _ = pack(stacked_data[self.input_variables], SAMPLE_DIM_NAME)
         y = self.model.predict(X)
         if self.target_scaler is not None:
             y = self.target_scaler.denormalize(y)
         else:
             raise ValueError("Target scaler not present.")
-        return unpack(y, self._fv3fit_sample_dim, self.output_features_)
+        return unpack(y, SAMPLE_DIM_NAME, self.output_features_)
 
     def predict(self, data):
         # Takes unstacked data, stacks into sample dimension before
         # sklearn model prediction, and returns unstacked prediction
         stacked_data = stack_non_vertical(
-            safe.get_variables(data, self.input_variables), self._fv3fit_sample_dim
+            safe.get_variables(data, self.input_variables)
         )
 
         stacked_output = self._predict_on_stacked_data(stacked_data)
         unstacked_output = stacked_output.assign_coords(
-            {self._fv3fit_sample_dim: stacked_data[self._fv3fit_sample_dim]}
-        ).unstack(self._fv3fit_sample_dim)
+            {SAMPLE_DIM_NAME: stacked_data[SAMPLE_DIM_NAME]}
+        ).unstack(SAMPLE_DIM_NAME)
 
         return match_prediction_to_input_coords(data, unstacked_output)
 
