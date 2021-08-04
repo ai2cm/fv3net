@@ -20,15 +20,14 @@ spec:
     inputs:
       parameters:
       - name: tag
-      - name: train-test-data
       - name: training-configs  # used in withParam
-      - name: train-times
+      - name: training-data-config
+      - name: validation-data-config
       - name: initial-condition
       - name: prognostic-run-config
       - name: reference-restarts
       - name: flags
         value: " "
-      - name: test-times
       - name: public-report-output
       - {name: bucket, value: "vcm-ml-experiments"}
       - {name: project, value: "default"}
@@ -61,12 +60,12 @@ spec:
         withParam: "{{workflow.parameters.training-configs}}"
         arguments:
           parameters:
-            - name: input
-              value: "{{inputs.parameters.train-test-data}}"
-            - name: config
+            - name: training_config
               value: "{{item.config}}"
-            - name: times
-              value: "{{inputs.parameters.train-times}}"
+            - name: training_data_config
+              value: "{{inputs.parameters.training-data-config}}"
+            - name: validation_data_config
+              value: "{{inputs.parameters.validation-data-config}}"
             - name: output
               value: "{{tasks.resolve-output-url.outputs.result}}/trained_models/{{item.name}}"
             - name: memory
@@ -83,8 +82,12 @@ spec:
           parameters:
               - name: ml-model
                 value: "{{tasks.resolve-output-url.outputs.result}}/trained_models/{{item.name}}"
-              - name: times
-                value: "{{inputs.parameters.test-times}}"
+              - name: training_config
+                value: "{{item.config}}"
+              - name: training_data_config
+                value: "{{inputs.parameters.training-data-config}}"
+              - name: validation_data_config
+                value: "{{inputs.parameters.validation-data-config}}"
               - name: offline-diags-output
                 value: "{{tasks.resolve-output-url.outputs.result}}/offline_diags/{{item.name}}"
               - name: report-output
