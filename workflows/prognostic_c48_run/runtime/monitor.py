@@ -13,7 +13,20 @@ logger = logging.getLogger(__name__)
 
 
 class Monitor:
+    """Utility class for monitoring changes to a state dictionary and returning
+    the outputs as tendencies
+    """
+
     def __init__(self, variables: Iterable[str], state: State, timestep: float):
+        """
+
+        Args:
+            variables: list of variables with names like
+                `tendency_of_{variable}_due_to_{name}`. Used to infer the variables
+                to be monitored.
+            state: The mutable object to monitor
+            timestep: the length of the timestep used to compute the tendency
+        """
         # need to consume variables into set to use more than once
         var_set = set(variables)
         self.tendency_variables = filter_tendency(var_set)
@@ -24,6 +37,22 @@ class Monitor:
     def __call__(
         self, name: str, func: Callable[[], Diagnostics],
     ) -> Callable[[], Diagnostics]:
+        """Decorator to add tendency monitoring to an update function
+
+        This will add the following diagnostics:
+        - `tendency_of_{variable}_due_to_{name}`
+        - `storage_of_{variable}_path_due_to_{name}`. A pressure-integrated version
+        of the above
+        - `storage_of_mass_due_to_{name}`, the total mass tendency in Pa/s.
+
+        Args:
+            name: the name to tag the tendency diagnostics with
+            func: a stepping function
+        Returns:
+            monitored function. Same as func, but with tendency and mass change
+            diagnostics inserted in place
+        """
+
         def step() -> Diagnostics:
 
             vars_ = self.storage_variables | self.tendency_variables
