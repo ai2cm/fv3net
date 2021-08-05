@@ -421,7 +421,7 @@ def get_emulator(config: OnlineEmulatorConfig):
 def _update_state_with_emulator(
     state: MutableMapping[Hashable, xr.DataArray],
     src: Mapping[Hashable, xr.DataArray],
-    from_orig: Callable[[xr.DataArray], xr.DataArray],
+    from_orig: Callable[[Hashable, xr.DataArray], xr.DataArray],
 ) -> None:
     """
     Args:
@@ -441,14 +441,14 @@ def _update_state_with_emulator(
 class from_orig:
     ignore_humidity_below: Optional[int] = None
 
-    def __call__(self, name: str, arr: xr.DataArray) -> xr.DataArray:
+    def __call__(self, name: Hashable, arr: xr.DataArray) -> xr.DataArray:
         if name == SPHUM:
             if self.ignore_humidity_below is not None:
                 return arr.z > self.ignore_humidity_below
             else:
-                return False
+                return xr.DataArray(False)
         else:
-            return True
+            return xr.DataArray(True)
 
 
 def update_state_with_emulator(

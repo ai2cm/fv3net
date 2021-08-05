@@ -414,6 +414,9 @@ cs.store(
 @hydra.main(config_path=None, config_name=CONFIG_NAME)
 def main(cfg: DictConfig):
     job = wandb.init(entity="ai2cm", project="emulator-noah", job_type="prognostic-run")
+    if job is None:
+        raise RuntimeError("Weights and biases not initialized properly.")
+
     wandb.config.update(OmegaConf.to_container(cfg))
 
     path = Path("/data/prognostic-runs") / str(job.id)
