@@ -217,7 +217,6 @@ class SklearnWrapper(Predictor):
         self.scaler_kwargs = scaler_kwargs or {}
         self.target_scaler: Optional[scaler.NormalizeTransform] = None
         # TODO: remove internal sample dim name once sample dim is hardcoded everywhere
-        self._sample_dim_name = sample_dim_name
         self._input_variables = input_variables
         self._output_variables = output_variables
 
