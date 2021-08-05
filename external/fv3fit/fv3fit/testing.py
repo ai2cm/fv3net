@@ -3,7 +3,7 @@ from fv3fit._shared import (
     match_prediction_to_input_coords,
 )
 from typing import Any, Dict, Hashable, Iterable, Mapping, Optional, Union
-from ._shared import Predictor, io
+from ._shared import Predictor, io, SAMPLE_DIM_NAME
 import numpy as np
 import xarray as xr
 import os
@@ -61,25 +61,21 @@ class ConstantOutputPredictor(Predictor):
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
         stacked_X = stack_non_vertical(safe.get_variables(X, self.input_variables))
-        n_samples = len(stacked_X[self.sample_dim_name])
+        n_samples = len(stacked_X[SAMPLE_DIM_NAME])
         data_vars = {}
         for name in self.output_variables:
             output = self._outputs.get(name, 0.0)
             if isinstance(output, np.ndarray):
                 array = np.repeat(output[None, :], repeats=n_samples, axis=0)
-                data_vars[name] = xr.DataArray(
-                    data=array, dims=[self.sample_dim_name, "z"]
-                )
+                data_vars[name] = xr.DataArray(data=array, dims=[SAMPLE_DIM_NAME, "z"])
             else:
                 array = np.full([n_samples], float(output))
-                data_vars[name] = xr.DataArray(data=array, dims=[self.sample_dim_name])
+                data_vars[name] = xr.DataArray(data=array, dims=[SAMPLE_DIM_NAME])
         coords: Optional[Mapping[Hashable, Any]] = {
-            self.sample_dim_name: stacked_X.coords[self.sample_dim_name]
+            SAMPLE_DIM_NAME: stacked_X.coords[SAMPLE_DIM_NAME]
         }
 
-        pred = xr.Dataset(data_vars=data_vars, coords=coords).unstack(
-            self.sample_dim_name
-        )
+        pred = xr.Dataset(data_vars=data_vars, coords=coords).unstack(SAMPLE_DIM_NAME)
         return match_prediction_to_input_coords(X, pred)
 
     def dump(self, path: str) -> None:
