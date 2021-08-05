@@ -198,7 +198,9 @@ def test_update_state_with_emulator(state):
     z_slice = slice(0, 10)
     new = {qv: state[qv] + 1.0}
 
-    _update_state_with_emulator(state, new, from_orig=lambda arr: arr.z < 10)
+    _update_state_with_emulator(
+        state, new, from_orig=lambda name, arr: xr.DataArray(name == qv) & (arr.z < 10)
+    )
 
     xr.testing.assert_allclose(state[qv].sel(z=z_slice), old_state[qv].sel(z=z_slice))
     new_z_slice = slice(10, None)
