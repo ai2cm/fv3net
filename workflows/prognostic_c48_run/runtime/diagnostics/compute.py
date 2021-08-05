@@ -118,8 +118,8 @@ def compute_ml_momentum_diagnostics(state: State, tendency: State) -> Diagnostic
 
     dQu = tendency.get("dQu", xr.zeros_like(delp))
     dQv = tendency.get("dQv", xr.zeros_like(delp))
-    column_integrated_dQu = _mass_average(dQu, delp, "z")
-    column_integrated_dQv = _mass_average(dQv, delp, "z")
+    column_integrated_dQu = vcm.mass_integrate(dQu, delp, "z")
+    column_integrated_dQv = vcm.mass_integrate(dQv, delp, "z")
     return dict(
         dQu=dQu.assign_attrs(units="m s^-2").assign_attrs(
             description="zonal wind tendency due to ML"
@@ -127,12 +127,11 @@ def compute_ml_momentum_diagnostics(state: State, tendency: State) -> Diagnostic
         dQv=dQv.assign_attrs(units="m s^-2").assign_attrs(
             description="meridional wind tendency due to ML"
         ),
-        column_integrated_dQu=column_integrated_dQu.assign_attrs(
-            units="m s^-2",
-            description="column integrated zonal wind tendency due to ML",
+        column_integrated_dQu_stress=column_integrated_dQu.assign_attrs(
+            units="Pa", description="column integrated zonal wind tendency due to ML",
         ),
-        column_integrated_dQv=column_integrated_dQv.assign_attrs(
-            units="m s^-2",
+        column_integrated_dQv_stress=column_integrated_dQv.assign_attrs(
+            units="Pa",
             description="column integrated meridional wind tendency due to ML",
         ),
     )
@@ -164,15 +163,6 @@ def _append_key_label(d: Diagnostics, suffix: str) -> Diagnostics:
     for key, value in d.items():
         return_dict[str(key) + suffix] = value
     return return_dict
-
-
-def _mass_average(
-    da: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
-) -> xr.DataArray:
-    total_thickness = delp.sum(vertical_dim)
-    mass_average = (da * delp).sum(vertical_dim) / total_thickness
-    mass_average = mass_average.assign_attrs(**da.attrs)
-    return mass_average
 
 
 def compute_baseline_diagnostics(state: State) -> Diagnostics:
