@@ -95,7 +95,7 @@ class Monitor:
         """Compute the change between two checkpoints
 
         Args:
-            name: labels the output varialbe names. Same meaning as in __call__
+            name: labels the output variable names. Same meaning as in __call__
             before: the initial state
             after: the final state
 
