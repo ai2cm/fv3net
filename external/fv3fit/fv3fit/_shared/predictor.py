@@ -2,7 +2,7 @@ import xarray as xr
 import abc
 from typing import Hashable, Iterable, Sequence
 import logging
-
+import warnings
 
 DATASET_DIM_NAME = "dataset"
 logger = logging.getLogger(__file__)
@@ -78,4 +78,10 @@ class Predictor(abc.ABC):
         Returns:
             the predictions defined on the same dimensions as X
         """
+        warnings.warn(
+            "The predict_columnwise method is now deprecated since predictors' "
+            "predict methods now work on unstacked data. This will be removed "
+            "in the near future.",
+            DeprecationWarning,
+        )
         return self.predict(X)

@@ -263,8 +263,6 @@ class SklearnWrapper(Predictor):
         return unpack(y, SAMPLE_DIM_NAME, self.output_features_)
 
     def predict(self, data):
-        # Takes unstacked data, stacks into sample dimension before
-        # sklearn model prediction, and returns unstacked prediction
         stacked_data = stack_non_vertical(
             safe.get_variables(data, self.input_variables)
         )
