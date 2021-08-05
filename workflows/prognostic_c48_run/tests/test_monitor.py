@@ -24,3 +24,37 @@ def test_Monitor_from_variables():
     monitor = Monitor.from_variables(variables, state={}, timestep=900)
     assert {"y"} == monitor.tendency_variables
     assert {"z"} == monitor.storage_variables
+
+
+def test_Monitor_checkpoint_returns_correct_variables():
+    orig_value = xarray.DataArray(True)
+    state = {
+        "a": orig_value,
+        "b": orig_value,
+        "c": orig_value,
+        "d": orig_value,
+        DELP: orig_value,
+    }
+
+    monitor = Monitor(
+        tendency_variables={"a", "b"},
+        storage_variables={"c"},
+        _state=state,
+        timestep=900,
+    )
+
+    immutable_state = monitor.checkpoint()
+    assert {"a", "b", "c", DELP} == set(immutable_state)
+
+
+def test_Monitor_checkpoint_output_is_immutable():
+    orig_value = xarray.DataArray(True)
+    state = {"a": orig_value, DELP: orig_value}
+    monitor = Monitor(
+        tendency_variables={"a"}, storage_variables=set(), _state=state, timestep=900
+    )
+    immutable_state = monitor.checkpoint()
+    # mutate the state
+    state["a"] = xarray.DataArray(False)
+    # verify that the checkpoint is unaltered
+    xarray.testing.assert_equal(orig_value, immutable_state["a"])
