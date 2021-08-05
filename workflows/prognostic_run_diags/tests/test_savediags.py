@@ -35,7 +35,7 @@ def grid():
 @pytest.mark.parametrize(
     "func",
     chain.from_iterable(
-        registry._funcs.values() for registry in savediags.registries.values()
+        registry.funcs.values() for registry in savediags.registries.values()
     ),
 )
 def test_compute_diags_succeeds(func, resampled, verification, grid):

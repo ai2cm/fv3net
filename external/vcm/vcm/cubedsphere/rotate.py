@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import xarray as xr
 from .coarsen import shift_edge_var_to_center
 
@@ -8,7 +10,7 @@ def center_and_rotate_xy_winds(
     wind_rotation_matrix: xr.Dataset,
     x_component: xr.DataArray,
     y_component: xr.DataArray,
-):
+) -> Tuple[xr.DataArray, xr.DataArray]:
     """ Transform D grid x/y winds to A grid E/N winds.
 
     Args:
@@ -16,6 +18,9 @@ def center_and_rotate_xy_winds(
         x/y to E/N rotation. Can be found in catalog.
         x_component : D grid x wind
         y_component : D grid y wind
+
+    Returns:
+        Tuple of eastward and northward winds on A-grid.
     """
     common_coords = {
         "x": wind_rotation_matrix["x"].values,
@@ -34,15 +39,18 @@ def center_and_rotate_xy_winds(
 
 def rotate_xy_winds(
     wind_rotation_matrix: xr.Dataset,
-    x_component: xr.DataArray,
-    y_component: xr.DataArray,
-):
+    x_wind_centered: xr.DataArray,
+    y_wind_centered: xr.DataArray,
+) -> Tuple[xr.DataArray, xr.DataArray]:
     eastward = (
-        wind_rotation_matrix["eastward_wind_u_coeff"] * x_component
-        + wind_rotation_matrix["eastward_wind_v_coeff"] * y_component
+        wind_rotation_matrix["eastward_wind_u_coeff"] * x_wind_centered
+        + wind_rotation_matrix["eastward_wind_v_coeff"] * y_wind_centered
     )
     northward = (
-        wind_rotation_matrix["northward_wind_u_coeff"] * x_component
-        + wind_rotation_matrix["northward_wind_v_coeff"] * y_component
+        wind_rotation_matrix["northward_wind_u_coeff"] * x_wind_centered
+        + wind_rotation_matrix["northward_wind_v_coeff"] * y_wind_centered
     )
-    return eastward, northward
+    return (
+        eastward.transpose(*x_wind_centered.dims),
+        northward.transpose(*y_wind_centered.dims),
+    )

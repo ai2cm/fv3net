@@ -54,8 +54,8 @@ HEATING_MOISTENING_PLOT_KWARGS = {
 }
 
 WIND_TENDENCY_PLOT_KWARGS = {
-    "vertical_mean_dQu": {"vmin": -5, "vmax": 5, "cmap": "RdBu_r"},
-    "vertical_mean_dQv": {"vmin": -5, "vmax": 5, "cmap": "RdBu_r"},
+    "column_int_dQu": {"vmin": -4, "vmax": 4, "cmap": "RdBu_r"},
+    "column_int_dQv": {"vmin": -4, "vmax": 4, "cmap": "RdBu_r"},
 }
 
 

@@ -1,9 +1,8 @@
 import xarray as xr
-from vcm import safe
 import abc
-from typing import Hashable, Iterable, Sequence, Tuple
+from typing import Hashable, Iterable, Sequence
 import logging
-
+import warnings
 
 DATASET_DIM_NAME = "dataset"
 logger = logging.getLogger(__file__)
@@ -64,7 +63,11 @@ class Predictor(abc.ABC):
         sample_dims: Sequence[Hashable] = (),
         feature_dim: Hashable = None,
     ) -> xr.Dataset:
-        """Predict on an unstacked xarray dataset
+        """
+        Deprecated after models' .predict changed to take unstacked data.
+        Will be removed in a following PR.
+
+        Predict on an unstacked xarray dataset
 
         Args:
             X: the input data
@@ -75,53 +78,10 @@ class Predictor(abc.ABC):
         Returns:
             the predictions defined on the same dimensions as X
         """
-        if len(sample_dims) == 0 and feature_dim is None:
-            raise ValueError(
-                "either feature_dim or non-empty sample_dims must be given"
-            )
-
-        coords = X.coords
-
-        inputs_ = safe.get_variables(X, self.input_variables)
-
-        if feature_dim is not None:
-            sample_dims = _infer_sample_dims(inputs_, feature_dim)
-
-        stacked = safe.stack_once(
-            inputs_,
-            self.sample_dim_name,
-            dims=sample_dims,
-            allowed_broadcast_dims=[DATASET_DIM_NAME],
+        warnings.warn(
+            "The predict_columnwise method is now deprecated since predictors' "
+            "predict methods now work on unstacked data. This will be removed "
+            "in the near future.",
+            DeprecationWarning,
         )
-        transposed = stacked.transpose(self.sample_dim_name, ...)
-        output = self.predict(transposed).unstack(self.sample_dim_name)
-
-        # ensure the output coords are the same
-        # stack/unstack adds coordinates if none exist before
-        for key in output.coords:
-            if key in coords:
-                output.coords[key] = coords[key]
-            else:
-                del output.coords[key]
-
-        # ensure dimension order is the same
-        dim_order = [
-            dim for dim in _infer_dimension_order(inputs_) if dim in output.dims
-        ]
-        return output.transpose(*dim_order)
-
-
-def _infer_dimension_order(ds: xr.Dataset) -> Tuple:
-    # add check here for cases when the dimension order is inconsistent between arrays?
-    dim_order = []
-    for variable in ds:
-        for dim in ds[variable].dims:
-            if dim not in dim_order:
-                dim_order.append(dim)
-    return tuple(dim_order)
-
-
-def _infer_sample_dims(ds: xr.Dataset, feature_dim: Hashable) -> Tuple:
-    dims_in_inputs = set.union(*[set(ds[variable].dims) for variable in ds])
-    non_feature_dims = set(dim for dim in ds.dims if dim != feature_dim)
-    return tuple(sorted(dims_in_inputs.intersection(non_feature_dims)))
+        return self.predict(X)

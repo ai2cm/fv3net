@@ -1,11 +1,10 @@
-from ._shared import ArrayPacker, StandardScaler
+from ._shared import ArrayPacker, StandardScaler, DerivedModel
 from ._shared.predictor import Predictor
 from ._shared.io import dump, load
 from ._shared.config import (
     TrainingConfig,
     DenseHyperparameters,
     RandomForestHyperparameters,
-    load_training_config,
     set_random_seed,
     get_training_function,
     get_hyperparameter_class,

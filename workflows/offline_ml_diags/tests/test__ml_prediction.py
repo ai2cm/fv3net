@@ -2,33 +2,14 @@ import xarray as xr
 import numpy as np
 import pytest
 
-from offline_ml_diags._mapper import (
-    PredictionMapper,
+from offline_ml_diags.compute_diags import (
     PREDICT_COORD,
     TARGET_COORD,
-    DERIVATION_DIM,
+    DERIVATION_DIM_NAME,
+    _get_predict_function,
 )
 
 import fv3fit
-
-
-class MockBaseMapper:
-    def __init__(self, ds_template, n_keys=4):
-        self._ds_template = ds_template
-        self._keys = [f"2020050{i+1}.000000" for i in range(n_keys)]
-
-    def __getitem__(self, key: str) -> xr.Dataset:
-        ds = self._ds_template
-        return ds
-
-    def keys(self):
-        return self._keys
-
-    def __iter__(self):
-        return iter(self.keys())
-
-    def __len__(self):
-        return len(self.keys())
 
 
 def get_gridded_dataset(seed=0):
@@ -47,18 +28,8 @@ def get_gridded_dataset(seed=0):
 
 
 @pytest.fixture
-def base_mapper():
-    return MockBaseMapper(get_gridded_dataset(seed=0))
-
-
-@pytest.fixture
-def input_variables(request):
-    return request.param
-
-
-@pytest.fixture
-def output_variables(request):
-    return request.param
+def base_dataset():
+    return get_gridded_dataset(seed=0)
 
 
 class MockPredictor(fv3fit.Predictor):
@@ -69,10 +40,7 @@ class MockPredictor(fv3fit.Predictor):
     def __init__(self, input_variables, output_variables, output_ds: xr.Dataset):
         self.input_variables = input_variables
         self.output_variables = output_variables
-        non_predicted_names = set(output_ds.data_vars.keys()).difference(
-            output_variables
-        )
-        self.output_ds = output_ds.drop(labels=non_predicted_names)
+        self.output_ds = output_ds
         self.call_datasets = []
 
     def predict(self, X: xr.Dataset):
@@ -96,68 +64,59 @@ def get_mock_model(input_variables, output_variables):
     return MockPredictor(input_variables, output_variables, output_ds=output_ds)
 
 
+CASES = [
+    pytest.param(["feature0", "feature1"], ["pred0"], id="keras_2_1"),
+    pytest.param(["feature0", "feature1"], ["pred0", "pred1"], id="keras_2_2"),
+    pytest.param(["feature0"], ["pred0", "pred1"], id="keras_1_2"),
+    pytest.param(["feature0", "feature1"], ["pred0"], id="sklearn_2_1"),
+    pytest.param(["feature0", "feature1"], ["pred0", "pred1"], id="sklearn_2_2"),
+    pytest.param(["feature0"], ["pred0", "pred1"], id="sklearn_1_2"),
+]
+
+
 @pytest.mark.parametrize(
-    "input_variables, output_variables",
-    [
-        pytest.param(["feature0", "feature1"], ["pred0"], id="keras_2_1"),
-        pytest.param(["feature0", "feature1"], ["pred0", "pred1"], id="keras_2_2"),
-        pytest.param(["feature0"], ["pred0", "pred1"], id="keras_1_2"),
-        pytest.param(["feature0", "feature1"], ["pred0"], id="sklearn_2_1"),
-        pytest.param(["feature0", "feature1"], ["pred0", "pred1"], id="sklearn_2_2"),
-        pytest.param(["feature0"], ["pred0", "pred1"], id="sklearn_1_2"),
-    ],
+    "input_variables, output_variables", CASES,
 )
-def test_ml_predict_mapper_insert_prediction(
-    input_variables, output_variables, base_mapper
+def test_predict_function_mapper_inserts_prediction_dim(
+    input_variables, output_variables, base_dataset
 ):
     mock_model = get_mock_model(input_variables, output_variables)
     variables = mock_model.output_variables + mock_model.input_variables
-    mapper = PredictionMapper(
-        base_mapper, mock_model, variables, z_dim="z", grid=xr.Dataset()
-    )
-    for key in mapper.keys():
-        mapper_output = mapper[key]
-        for var in mock_model.output_variables:
-            assert set(mapper_output[var][DERIVATION_DIM].values) == {
-                TARGET_COORD,
-                PREDICT_COORD,
-            }
+    predict_function = _get_predict_function(mock_model, variables, grid=xr.Dataset())
+    output = predict_function(base_dataset)
+    for var in mock_model.output_variables:
+        assert var in output
+        assert set(output[var][DERIVATION_DIM_NAME].values) == {
+            TARGET_COORD,
+            PREDICT_COORD,
+        }
 
 
-@pytest.mark.parametrize(
-    "input_variables, output_variables",
-    [
-        pytest.param(["feature0", "feature1"], ["pred0"], id="keras_2_1"),
-        pytest.param(["feature0", "feature1"], ["pred0", "pred1"], id="keras_2_2"),
-        pytest.param(["feature0", "feature1"], ["pred0"], id="sklearn_2_1"),
-        pytest.param(["feature0", "feature1"], ["pred0", "pred1"], id="sklearn_2_2"),
-    ],
-)
-def test_ml_predict_mapper(input_variables, output_variables, base_mapper):
+@pytest.mark.parametrize("input_variables, output_variables", CASES)
+def test_predict_function_inserts_prediction_values(
+    input_variables, output_variables, base_dataset
+):
     mock_model = get_mock_model(input_variables, output_variables)
     variables = mock_model.output_variables + mock_model.input_variables
-    prediction_mapper = PredictionMapper(
-        base_mapper, mock_model, variables, z_dim="z", grid=xr.Dataset()
-    )
-    for key in prediction_mapper.keys():
-        prediction_output = prediction_mapper[key]
-        for var in mock_model.output_variables:
-            target = base_mapper[key][var]
-            truth = (
-                prediction_output[var]
-                .sel({DERIVATION_DIM: "target"})
-                .drop([DERIVATION_DIM, "time"])
-            )
-            prediction = (
-                prediction_output[var]
-                .sel({DERIVATION_DIM: "predict"})
-                .drop([DERIVATION_DIM, "time"])
-            )
-            xr.testing.assert_allclose(truth, target)
-            xr.testing.assert_allclose(prediction, mock_model.output_ds[var])
+    predict_function = _get_predict_function(mock_model, variables, grid=xr.Dataset())
+    output = predict_function(base_dataset)
+    for var in mock_model.output_variables:
+        assert var in output
+        print(output[var])
+        target = base_dataset[var]
+        truth = (
+            output[var].sel({DERIVATION_DIM_NAME: "target"}).drop([DERIVATION_DIM_NAME])
+        )
+        prediction = (
+            output[var]
+            .sel({DERIVATION_DIM_NAME: "predict"})
+            .drop([DERIVATION_DIM_NAME])
+        )
+        xr.testing.assert_allclose(truth, target)
+        xr.testing.assert_allclose(prediction, mock_model.output_ds[var])
 
 
-def test_prediction_mapper_inserts_grid_to_input(base_mapper):
+def test_predict_function_inserts_grid_before_calling_predict(base_dataset):
     input_variables, output_variables = ["feature0", "feature1"], ["pred0", "pred1"]
     mock_model = get_mock_model(input_variables, output_variables)
     grid_ds = xr.Dataset(
@@ -172,48 +131,9 @@ def test_prediction_mapper_inserts_grid_to_input(base_mapper):
         + mock_model.input_variables
         + list(grid_ds.data_vars.keys())
     )
-    prediction_mapper = PredictionMapper(
-        base_mapper, mock_model, variables, z_dim="z", grid=grid_ds
-    )
-    # need to call using any arbitrary key
-    key = list(prediction_mapper.keys())[0]
-    prediction_mapper[key]
+    predict_function = _get_predict_function(mock_model, variables, grid=grid_ds)
+    _ = predict_function(base_dataset)
     assert len(mock_model.call_datasets) == 1, "should be called only once"
     passed_ds = mock_model.call_datasets[0]
     for varname in grid_ds.data_vars:
-        xr.testing.assert_identical(grid_ds[varname], passed_ds[varname].drop("time"))
-
-
-def test_prediction_mapper_output_contains_input_value(base_mapper):
-    input_variables, output_variables = ["feature0", "feature1"], ["pred0"]
-    mock_model = get_mock_model(input_variables, output_variables)
-    variables = mock_model.output_variables + mock_model.input_variables + ["pred1"]
-    prediction_mapper = PredictionMapper(
-        base_mapper, mock_model, variables, z_dim="z", grid=xr.Dataset()
-    )
-    # need to call using any arbitrary key
-    key = list(prediction_mapper.keys())[0]
-    output = prediction_mapper[key]
-    assert "pred1" in output
-    xr.testing.assert_equal(output["pred1"].drop("time"), base_mapper[key]["pred1"])
-
-
-def test_prediction_mapper_output_contains_grid_value(base_mapper):
-    input_variables, output_variables = ["feature0", "feature1"], ["pred0"]
-    mock_model = get_mock_model(input_variables, output_variables)
-    grid_ds = xr.Dataset(
-        data_vars={
-            "grid_var": xr.DataArray(
-                np.random.randn(3, 4, 5), dims=["dim1", "dim2", "dim3"]
-            )
-        }
-    )
-    variables = mock_model.output_variables + mock_model.input_variables + ["grid_var"]
-    prediction_mapper = PredictionMapper(
-        base_mapper, mock_model, variables, z_dim="z", grid=grid_ds
-    )
-    # need to call using any arbitrary key
-    key = list(prediction_mapper.keys())[0]
-    output = prediction_mapper[key]
-    assert "grid_var" in output
-    xr.testing.assert_equal(output["grid_var"].drop("time"), grid_ds["grid_var"])
+        xr.testing.assert_identical(grid_ds[varname], passed_ds[varname])
