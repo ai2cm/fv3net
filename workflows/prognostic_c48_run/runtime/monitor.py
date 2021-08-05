@@ -8,7 +8,7 @@ from typing import (
 )
 import xarray as xr
 from runtime.types import Diagnostics, State
-from runtime.diagnostics.compute import compute_change
+import vcm
 from runtime.names import DELP
 
 logger = logging.getLogger(__name__)
@@ -116,3 +116,36 @@ def filter_storage(variables: Iterable[str]) -> Set[str]:
 
 def filter_tendency(variables: Iterable[str]) -> Set[str]:
     return filter_matching(variables, split="_due_to_", prefix="tendency_of_")
+
+
+def compute_change(
+    before: ImmutableState,
+    after: ImmutableState,
+    tendency_variables: Set[str],
+    storage_variables: Set[str],
+    name: str,
+    timestep: float,
+):
+    diags = {}
+    delp_before = before[DELP]
+    delp_after = after[DELP]
+    # Compute statistics
+    for variable in tendency_variables:
+        diag_name = f"tendency_of_{variable}_due_to_{name}"
+        diags[diag_name] = (after[variable] - before[variable]) / timestep
+        if "units" in before[variable].attrs:
+            diags[diag_name].attrs["units"] = before[variable].units + "/s"
+
+    for variable in storage_variables:
+        path_before = vcm.mass_integrate(before[variable], delp_before, "z")
+        path_after = vcm.mass_integrate(after[variable], delp_after, "z")
+
+        diag_name = f"storage_of_{variable}_path_due_to_{name}"
+        diags[diag_name] = (path_after - path_before) / timestep
+        if "units" in before[variable].attrs:
+            diags[diag_name].attrs["units"] = before[variable].units + " kg/m**2/s"
+
+    mass_change = (delp_after - delp_before).sum("z") / timestep
+    mass_change.attrs["units"] = "Pa/s"
+    diags[f"storage_of_mass_due_to_{name}"] = mass_change
+    return diags
