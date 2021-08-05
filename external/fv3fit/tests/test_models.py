@@ -6,7 +6,6 @@ import pytest
 
 from fv3fit.keras._models._sequences import _ThreadedSequencePreLoader
 from fv3fit.keras._models.models import DenseModel, _fill_default
-from fv3fit._shared import stack_non_vertical
 import tensorflow.keras
 
 
@@ -73,5 +72,5 @@ def test_nonnegative_model_outputs():
         }
     )
     model.fit([batch])
-    prediction = model.predict(stack_non_vertical(batch))
+    prediction = model.predict(batch)
     assert prediction.min() >= 0.0
