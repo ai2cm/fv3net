@@ -1,7 +1,17 @@
 from collections import defaultdict
 import dataclasses
-from typing import Mapping, Optional, Sequence, Union, List
+from typing import (
+    Callable,
+    Hashable,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Sequence,
+    Union,
+    List,
+)
 import os
+from runtime.names import SPHUM
 import xarray as xr
 import numpy
 import tensorflow as tf
@@ -56,8 +66,15 @@ class OnlineEmulatorConfig:
     num_hidden: int = 256
     num_hidden_layers: int = 1
     momentum: float = 0.5
+    # online parameters
     online: bool = False
     train: bool = True
+
+    # will ignore the emulator for any z larger than this value
+    # remember higher z is lower in the atmosphere hence "below"
+    ignore_humidity_below: Optional[int] = None
+
+    # other parameters
     extra_input_variables: List[str] = dataclasses.field(default_factory=list)
     epochs: int = 1
     levels: int = 79
@@ -399,3 +416,44 @@ def get_emulator(config: OnlineEmulatorConfig):
         return OnlineEmulator.load(config.checkpoint)
     else:
         return OnlineEmulator(config)
+
+
+def _update_state_with_emulator(
+    state: MutableMapping[Hashable, xr.DataArray],
+    src: Mapping[Hashable, xr.DataArray],
+    from_orig: Callable[[xr.DataArray], xr.DataArray],
+) -> None:
+    """
+    Args:
+        state: the mutable state object
+        src: updates to put into state
+        from_orig: a function returning a mask. Where this mask is True, the
+            original state array will be used.
+
+    """
+    for key in src:
+        arr = state[key]
+        mask = from_orig(key, arr)
+        state[key] = arr.where(mask, src[key].variable)
+
+
+@dataclasses.dataclass
+class from_orig:
+    ignore_humidity_below: Optional[int] = None
+
+    def __call__(self, name: str, arr: xr.DataArray) -> xr.DataArray:
+        if name == SPHUM:
+            if self.ignore_humidity_below is not None:
+                return arr.z > self.ignore_humidity_below
+            else:
+                return False
+        else:
+            return True
+
+
+def update_state_with_emulator(
+    state: MutableMapping[Hashable, xr.DataArray],
+    src: Mapping[Hashable, xr.DataArray],
+    ignore_humidity_below: Optional[int] = None,
+) -> None:
+    return _update_state_with_emulator(state, src, from_orig(ignore_humidity_below))

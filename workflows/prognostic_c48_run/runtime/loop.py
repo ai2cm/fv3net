@@ -39,7 +39,7 @@ from runtime.steppers.machine_learning import (
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig, get_timesteps
 from runtime.types import Diagnostics, State, Tendencies
-from runtime.emulator.emulator import get_emulator
+from runtime.emulator.emulator import get_emulator, update_state_with_emulator
 from toolz import dissoc
 from typing_extensions import Protocol
 
@@ -163,6 +163,7 @@ class TimeLoop(
         self._online_emulator = get_emulator(config.online_emulator)
         self._predict_with_emulator: bool = config.online_emulator.online
         self._train_emulator: bool = config.online_emulator.train
+        self._ignore_humidity_below = config.online_emulator.ignore_humidity_below
 
         self.monitor = Monitor.from_variables(
             config.diagnostic_variables, state=self._state, timestep=self._timestep,
@@ -280,8 +281,9 @@ class TimeLoop(
         inputs = {
             key: self._state[key] for key in self._online_emulator.input_variables
         }
+        diags.update({"emulator_" + key: inputs[key] for key in inputs})
         self._fv3gfs.apply_physics()
-        diags = self.monitor.compute_change("fv3_physics", before, self._state,)
+        diags.update(self.monitor.compute_change("fv3_physics", before, self._state))
 
         if self._train_emulator:
             self._online_emulator.partial_fit(inputs, self._state)
@@ -298,7 +300,11 @@ class TimeLoop(
         diags.update(self.monitor.compute_change("emulator", before, emulator_after,))
 
         if self._predict_with_emulator:
-            self._state.update(emulator_prediction)
+            update_state_with_emulator(
+                self._state,
+                emulator_prediction,
+                ignore_humidity_below=self._ignore_humidity_below,
+            )
 
         micro = self._fv3gfs.get_diagnostic_by_name(
             "tendency_of_specific_humidity_due_to_microphysics"
