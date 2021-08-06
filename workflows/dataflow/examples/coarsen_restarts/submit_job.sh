@@ -4,7 +4,7 @@ GCS_SRC="gs://vcm-ml-raw-flexible-retention/2021-07-19-PIRE/C3072-to-C384-restar
 GCS_GRIDSPEC="gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy" 
 SRC_RESOLUTION=384
 TARGET_RESOLUTION=48
-GCS_DST="gs://vcm-ml-intermediate/2021-07-28-PIRE-c48-restarts-post-spinup"
+GCS_DST="gs://vcm-ml-intermediate/2021-08-06-PIRE-c48-restarts-post-spinup"
 
 python -m fv3net.pipelines.coarsen_restarts\
     $GCS_SRC \
