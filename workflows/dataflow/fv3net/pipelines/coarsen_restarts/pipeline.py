@@ -4,6 +4,7 @@ import os
 from typing import Iterable, Mapping, Tuple, TypeVar
 
 import apache_beam as beam
+from apache_beam.io.filesystems import FileSystems
 import xarray as xr
 from apache_beam.options.pipeline_options import PipelineOptions
 
@@ -17,7 +18,7 @@ logger.setLevel(logging.DEBUG)
 def output_filename(arg: Tuple[str, str, int], directory: str) -> str:
     time, category, tile = arg
     assert tile in [1, 2, 3, 4, 5, 6]
-    return os.path.join(directory, time, f"{time}.{category}.tile{tile}.nc")
+    return os.path.join(directory, time, f"{category}.tile{tile}.nc")
 
 
 def _open_restart_categories(
@@ -59,6 +60,11 @@ def split_by_tiles(kv: Tuple[Tuple, xr.Dataset]) -> Iterable[Tuple[Tuple, xr.Dat
         yield key + (tile + 1,), ds.isel(tile=tile)
 
 
+def write_fv_core_file(time: str, output_dir: str, fv_core_path: str) -> None:
+    out_path = os.path.join(output_dir, time, "fv_core.res.nc")
+    FileSystems.copy([fv_core_path], [out_path])
+
+
 T = TypeVar("T")
 
 
@@ -73,6 +79,7 @@ def run(
     output_dir: str,
     factor: int,
     coarsen_agrid_winds: bool,
+    fv_core_url: str,
     pipeline_args=None,
 ):
 
@@ -82,10 +89,19 @@ def run(
         grid_spec = p | FunctionSource(
             lambda x: vcm.open_tiles(x).load(), gridspec_path
         )
-        (
+
+        timesteps = (
             p
             | beam.Create([src_dir]).with_output_types(str)
             | "ListTimes" >> beam.ParDo(list_timesteps)
+        )
+
+        timesteps | "Write FVCore File" >> beam.Map(
+            write_fv_core_file, output_dir, fv_core_url
+        )
+
+        (
+            timesteps
             | "ParseTimeString" >> beam.Map(vcm.parse_timestep_str_from_path)
             # Data is still lazy at this point so reshuffle is not too costly
             # It distributes the work
@@ -154,6 +170,14 @@ def main(argv):
             "restart files."
         ),
     )
+    parser.add_argument(
+        "--fv-core-url",
+        type=str,
+        help="URL to the fv_core_nml file. For ease of implementation, "
+        "if in GCS so must dst_dir.",
+        default="gs://vcm-fv3config/data/initial_conditions/"
+        "fv_core_79_levels/v1.0/fv_core.res.nc",
+    )
     logging.basicConfig(level=logging.INFO)
 
     args, pipeline_args = parser.parse_known_args(argv)
@@ -174,5 +198,6 @@ def main(argv):
         output_dir_prefix,
         factor,
         args.coarsen_agrid_winds,
+        fv_core_url=args.fv_core_url,
         pipeline_args=pipeline_args,
     )
