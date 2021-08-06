@@ -1,7 +1,5 @@
 import argparse
-from copy import copy
 import dataclasses
-import warnings
 import fsspec
 import logging
 import json
@@ -39,7 +37,6 @@ logger = logging.getLogger("offline_diags")
 
 
 # variables that are needed in addition to the model features
-ADDITIONAL_VARS = ["pressure_thickness_of_atmospheric_layer", "pQ1", "pQ2"]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
 TRANSECT_NC_NAME = "transect_lon0.nc"
@@ -47,11 +44,6 @@ METRICS_JSON_NAME = "scalar_metrics.json"
 METADATA_JSON_NAME = "metadata.json"
 DATASET_DIM_NAME = "dataset"
 DERIVATION_DIM_NAME = "derivation"
-
-# Base set of variables for which to compute column integrals and composite means
-# Additional output variables are also computed.
-DIAGNOSTIC_VARS = ("dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2")
-METRIC_VARS = ("dQ1", "dQ2", "Q1", "Q2")
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 PREDICT_COORD = "predict"
@@ -170,22 +162,14 @@ def _compute_diagnostics(
     batches: Sequence[xr.Dataset], grid: xr.Dataset, predicted_vars: List[str]
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
     batches_summary, batches_diurnal, batches_metrics = [], [], []
-    diagnostic_vars = list(
-        set(list(predicted_vars) + ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"])
-    )
-
-    metric_vars = copy(predicted_vars)
-    if "dQ1" in predicted_vars and "dQ2" in predicted_vars:
-        metric_vars += ["Q1", "Q2"]
 
     # for each batch...
     for i, ds in enumerate(batches):
         logger.info(f"Processing batch {i+1}/{len(batches)}")
 
-        ds = _fill_empty_dQ1_dQ2(ds)
+        # ds = _fill_empty_dQ1_dQ2(ds)
         # ...insert additional variables
-        ds = utils.insert_total_apparent_sources(ds)
-        diagnostic_vars_3d = [var for var in diagnostic_vars if is_3d(ds[var])]
+        diagnostic_vars_3d = [var for var in predicted_vars if is_3d(ds[var])]
 
         ds = (
             ds.pipe(utils.insert_column_integrated_vars, diagnostic_vars_3d)
@@ -207,7 +191,7 @@ def _compute_diagnostics(
             stacked,
             lat=stacked["lat"],
             area=stacked["area"],
-            predicted_vars=metric_vars,
+            predicted_vars=predicted_vars,
         )
         batches_summary.append(ds_summary.load())
         batches_diurnal.append(ds_diurnal.load())
@@ -242,7 +226,7 @@ def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence
         transect_var = [
             interpolate_to_pressure_levels(
                 field=ds_snapshot[var].sel(derivation=deriv),
-                delp=ds_snapshot["pressure_thickness_of_atmospheric_layer"],
+                delp=ds_snapshot[DELP],
                 dim="z",
             )
             for deriv in ["target", "predict"]
@@ -278,25 +262,22 @@ def _get_predict_function(predictor, variables, grid):
             [ds, grid], compat="override"  # type: ignore
         )
         derived_mapping = DerivedMapping(ds)
-
-        ds_derived = xr.Dataset({})
-        for key in variables:
-            try:
-                ds_derived[key] = derived_mapping[key]
-            except KeyError as e:
-                if key == DELP:
-                    raise e
-                elif key in ["pQ1", "pQ2", "dQ1", "dQ2"]:
-                    ds_derived[key] = xr.zeros_like(derived_mapping[DELP])
-                    warnings.warn(
-                        f"{key} not present in data. Filling with zeros.", UserWarning
-                    )
-                else:
-                    raise e
+        ds_derived = derived_mapping.dataset(variables)
         ds_prediction = predictor.predict_columnwise(ds_derived, feature_dim="z")
         return insert_prediction(ds_derived, ds_prediction)
 
     return transform
+
+
+def _derived_heating_moistening_model(model: fv3fit.Predictor) -> fv3fit.DerivedModel:
+    # if dQ1, dQ2 are predicted, add derived Q1, Q2 variables so that the
+    # apparent sources can be inserted
+    derived_Q_vars = []
+    if "dQ1" in model.input_variables:
+        derived_Q_vars.append("Q1")
+    if "dQ2" in model.input_variables:
+        derived_Q_vars.append("Q2")
+    return fv3fit.DerivedModel(model, derived_output_variables=derived_Q_vars)
 
 
 def main(args):
@@ -316,8 +297,9 @@ def main(args):
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
+    if "dQ1" in model.output_variables or "dQ2" in model.output_variables:
+        model = _derived_heating_moistening_model(model)
     model_variables = list(set(model.input_variables + model.output_variables + [DELP]))
-    all_variables = list(set(model_variables + ADDITIONAL_VARS))
 
     output_data_yaml = os.path.join(args.output_path, "data_config.yaml")
     with fsspec.open(args.data_yaml, "r") as f_in, fsspec.open(
@@ -326,7 +308,7 @@ def main(args):
         f_out.write(f_in.read())
 
     batches = config.load_batches(model_variables)
-    predict_function = _get_predict_function(model, all_variables, grid)
+    predict_function = _get_predict_function(model, model_variables, grid)
     batches = loaders.Map(predict_function, batches)
 
     # compute diags

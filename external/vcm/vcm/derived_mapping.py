@@ -175,3 +175,19 @@ def is_sea(self):
 def is_sea_ice(self):
     # one hot encoding for sea ice surface
     return xr.where(vcm.xarray_utils.isclose(self["land_sea_mask"], 2), 1.0, 0.0)
+
+
+@DerivedMapping.register("Q1", required_inputs=["dQ1", "pQ1"])
+def Q1(self):
+    if "dQ1" in self.keys:
+        return self["dQ1"] + self["pQ1"]
+    else:
+        return self["pQ1"]
+
+
+@DerivedMapping.register("Q2", required_inputs=["dQ1", "pQ2"])
+def Q2(self):
+    if "dQ2" in self.keys:
+        return self["dQ2"] + self["pQ2"]
+    else:
+        return self["pQ2"]

@@ -8,7 +8,7 @@ from vcm import thermo, safe, mass_integrate
 import xarray as xr
 import numpy as np
 import logging
-from typing import Sequence, Mapping, Union, Tuple
+from typing import Sequence, Mapping, Union
 
 logger = logging.getLogger(__name__)
 
@@ -118,31 +118,6 @@ def insert_column_integrated_vars(
         ds = ds.assign({column_integrated_name: da})
 
     return ds
-
-
-def insert_total_apparent_sources(ds: xr.Dataset) -> xr.Dataset:
-    """Inserts apparent source (Q) terms as the sum of dQ and pQ, assumed to be present in
-    dataset ds
-    """
-    return ds.assign(
-        {
-            total_apparent_sources_name: da
-            for total_apparent_sources_name, da in zip(
-                ("Q1", "Q2"),
-                _total_apparent_sources(ds["dQ1"], ds["dQ2"], ds["pQ1"], ds["pQ2"]),
-            )
-        }
-    )
-
-
-def _total_apparent_sources(
-    dQ1: xr.DataArray, dQ2: xr.DataArray, pQ1: xr.DataArray, pQ2: xr.DataArray
-) -> Tuple[xr.DataArray, xr.DataArray]:
-
-    Q1 = pQ1 + dQ1
-    Q2 = pQ2 + dQ2
-
-    return Q1, Q2
 
 
 def insert_net_terms_as_Qs(
