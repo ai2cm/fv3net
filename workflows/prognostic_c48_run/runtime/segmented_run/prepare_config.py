@@ -71,11 +71,6 @@ def user_config_from_dict_and_args(config_dict: dict, args) -> UserConfig:
     """Ideally this function could be replaced by dacite.from_dict
     without needing any information from args.
     """
-    if "nudging" in config_dict:
-        config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
-            "restarts_path", args.initial_condition_url
-        )
-
     user_config = dacite.from_dict(UserConfig, config_dict)
 
     # insert command line option overrides
@@ -147,9 +142,6 @@ def _prepare_config_from_parsed_config(
     # dictionary.
     overlays = [
         fv3kube.get_base_fv3config(base_version),
-        fv3kube.c48_initial_conditions_overlay(
-            args.initial_condition_url, args.ic_timestep
-        ),
         SUPPRESS_RANGE_WARNINGS,
         dataclasses.asdict(user_config),
         fv3_config,
