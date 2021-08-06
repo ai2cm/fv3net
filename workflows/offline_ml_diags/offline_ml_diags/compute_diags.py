@@ -135,13 +135,14 @@ def _compute_diurnal_cycle(ds: xr.Dataset) -> xr.Dataset:
 
 def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
     # ...reduce to diagnostic variables
-    summary = utils.reduce_to_diagnostic(
-        ds,
-        ds,
-        net_precipitation=-ds["column_integrated_Q2"].sel(  # type: ignore
+    if "column_integrated_Q2" in ds:
+        net_precip = -ds["column_integrated_Q2"].sel(  # type: ignore
             derivation="target"
-        ),
-        primary_vars=variables,
+        )
+    else:
+        net_precip = None
+    summary = utils.reduce_to_diagnostic(
+        ds, ds, net_precipitation=net_precip, primary_vars=variables,
     )
     return summary
 
@@ -263,7 +264,9 @@ def _get_predict_function(predictor, variables, grid):
         )
         derived_mapping = DerivedMapping(ds)
         ds_derived = derived_mapping.dataset(variables)
-        ds_prediction = predictor.predict_columnwise(ds_derived, feature_dim="z")
+        ds_prediction = predictor.predict_columnwise(
+            safe.get_variables(ds_derived, predictor.input_variables), feature_dim="z"
+        )
         return insert_prediction(ds_derived, ds_prediction)
 
     return transform
