@@ -357,6 +357,8 @@ def _get_config():
                     "emulator_vertical_thickness_of_atmospheric_layer",
                     "emulator_cos_zenith_angle",
                     "emulator_surface_pressure",
+                    "emulator_latent_heat_flux",
+                    "emulator_sensible_heat_flux",
                 ],
             },
         ],

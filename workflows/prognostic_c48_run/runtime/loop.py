@@ -10,6 +10,7 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Set,
     Tuple,
 )
 import cftime
@@ -107,6 +108,10 @@ class LoggingMixin:
             print(message)
 
 
+def strip_prefix(prefix: str, variables: Iterable[str]) -> Set[str]:
+    return {k[len(prefix) :] for k in variables if k.startswith(prefix)}
+
+
 class TimeLoop(
     Iterable[Tuple[cftime.DatetimeJulian, Dict[str, xr.DataArray]]], LoggingMixin
 ):
@@ -129,6 +134,8 @@ class TimeLoop(
     updates in ``_step_prephysics`` and ``_compute_postphysics``. The
     ``TimeLoop`` controls when and how to apply these updates to the FV3 state.
     """
+
+    emulator_prefix: str = "emulator_"
 
     def __init__(
         self, config: UserConfig, comm: Any = None, wrapper: Any = fv3gfs.wrapper,
@@ -164,6 +171,9 @@ class TimeLoop(
         self._predict_with_emulator: bool = config.online_emulator.online
         self._train_emulator: bool = config.online_emulator.train
         self._ignore_humidity_below = config.online_emulator.ignore_humidity_below
+        self._emulator_inputs_to_save = strip_prefix(
+            self.emulator_prefix, config.diagnostic_variables
+        )
 
         self.monitor = Monitor.from_variables(
             config.diagnostic_variables, state=self._state, timestep=self._timestep,
@@ -281,7 +291,12 @@ class TimeLoop(
         inputs = {
             key: self._state[key] for key in self._online_emulator.input_variables
         }
-        diags.update({"emulator_" + key: inputs[key] for key in inputs})
+        diags.update(
+            {
+                self.emulator_prefix + key: self._state[key]
+                for key in self._emulator_inputs_to_save
+            }
+        )
         self._fv3gfs.apply_physics()
         diags.update(self.monitor.compute_change("fv3_physics", before, self._state))
 
