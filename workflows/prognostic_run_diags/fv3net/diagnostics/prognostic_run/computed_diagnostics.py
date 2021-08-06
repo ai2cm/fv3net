@@ -86,10 +86,9 @@ class ComputedDiagnosticsList:
         """Compute metrics on the fly from the pre-computed diagnostics."""
         return RunMetrics(load_metrics_from_diagnostics(self.folders))
 
-    def get_movies(self) -> "RunMoviePaths":
+    def find_movie_urls(self) -> "RunMovieUrls":
         movies = {name: folder.movie_urls for name, folder in self.folders.items()}
-        filesystems = {name: folder.fs for name, folder in self.folders.items()}
-        return RunMoviePaths(movies, filesystems)
+        return RunMovieUrls(movies)
 
 
 @dataclass
@@ -219,18 +218,19 @@ class RunMetrics:
 
 
 @dataclass
-class RunMoviePaths:
+class RunMovieUrls:
     """Represents locations of movies for a collection of run diagnostics."""
 
-    movies: Mapping[str, Sequence[Tuple[str, str]]]
-    filesystems: Mapping[str, fsspec.AbstractFileSystem]
+    movies: Mapping[str, Sequence[str]]  # mapping from run name to sequence of URLs
 
-    def get_paths(self):
-        paths = {}
-        for run_name, (movie_name, path) in self.movies.items():
-            fs = self.filesystems[run_name]
-            paths.setdefault(movie_name, []).append((fs, path, run_name))
-        return paths
+    def by_name(self):
+        """Return mapping from movie name to sequence of (url, run_name) tuples."""
+        movies_by_name = {}
+        for run_name, urls in self.movies.items():
+            for url in urls:
+                movie_name = os.path.basename(url)
+                movies_by_name.setdefault(movie_name, []).append((url, run_name))
+        return movies_by_name
 
 
 def load_metrics(rundirs) -> pd.DataFrame:
@@ -303,11 +303,11 @@ class DiagnosticFolder:
             return xr.open_dataset(f.name, engine="h5netcdf").compute()
 
     @property
-    def movie_urls(self):
+    def movie_urls(self) -> Sequence[str]:
         movie_paths = self.fs.glob(os.path.join(self.path, "*.mp4"))
-        for path in movie_paths:
-            movie_name = os.path.basename(path)
-            yield movie_name, path
+        if "gs" in self.fs.protocol:
+            movie_paths = ["gs://" + path for path in movie_paths]
+        return movie_paths
 
 
 def detect_folders(

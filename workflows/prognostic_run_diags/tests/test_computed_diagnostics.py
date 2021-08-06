@@ -1,5 +1,4 @@
 import json
-import os
 
 import fsspec
 import numpy as np
@@ -13,8 +12,20 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     detect_folders,
     RunDiagnostics,
     RunMetrics,
+    RunMovieUrls,
     DiagnosticFolder,
 )
+
+
+class MockGCSFilesystem:
+
+    protocol = ("gs", "gcs")
+
+    def glob(*args):
+        return [
+            "fake-bucket/movie1.mp4",
+            "fake-bucket/movie2.mp4",
+        ]
 
 
 def test__parse_metadata():
@@ -76,28 +87,43 @@ def test_ComputedDiagnosticsList_from_json_urls_are_rundirs(tmpdir):
     assert result.folders["run1"].path == "/rundir1_diagnostics"
 
 
-def test_get_movie_links(tmpdir):
-    domain = "http://www.domain.com"
-    rdirs = ["rundir1", "rundir2"]
-    for rdir in rdirs:
-        rundir = tmpdir.mkdir(rdir)
-        rundir.join("movie1.mp4").write("foobar")
-        rundir.join("diags.nc").write("foobar")
-        rundir.join("metrics.json").write("foobar")
+def test_movie_urls(tmpdir):
+    rundir = tmpdir.mkdir("baseline_run")
+    rundir.join("movie1.mp4").write("foobar")
+    rundir.join("movie2.mp4").write("foobar")
+    folder = DiagnosticFolder(fsspec.filesystem("file"), str(rundir))
+    assert set(folder.movie_urls) == {
+        str(rundir.join("movie1.mp4")),
+        str(rundir.join("movie2.mp4")),
+    }
 
-    tmpdir.join(rdirs[0]).join("movie2.mp4").write("foobar")
 
-    result = ComputedDiagnosticsList.from_directory(str(tmpdir)).find_movie_links()
-    folder2 = DiagnosticFolder(fsspec.filesystem("file"), str(tmpdir.join(rdirs[1])))
+def test_movie_urls_gcs():
+    folder = DiagnosticFolder(MockGCSFilesystem(), "gs://fake-bucket")
+    assert set(folder.movie_urls) == {
+        "gs://fake-bucket/movie1.mp4",
+        "gs://fake-bucket/movie2.mp4",
+    }
 
-    assert "movie1.mp4" in result
-    assert "movie2.mp4" in result
-    assert {(os.path.join(domain, tmpdir, "rundir1", "movie2.mp4"), "rundir1")} == set(
-        result["movie2.mp4"]
+
+def test_RunMovieUrl_by_name():
+    movie_urls = RunMovieUrls(
+        {
+            "baseline": [
+                "gs://bucket/baseline/movie1.mp4",
+                "gs://bucket/baseline/movie2.mp4",
+            ],
+            "prognostic": ["gs://bucket/prognostic/movie1.mp4"],
+        }
     )
-    for movie_name, url in folder2.movie_urls:
-        assert movie_name == "movie1.mp4"
-        assert url == str(tmpdir.join(rdirs[1]).join("movie1.mp4"))
+    expected_urls_by_name = {
+        "movie1.mp4": [
+            ("gs://bucket/baseline/movie1.mp4", "baseline"),
+            ("gs://bucket/prognostic/movie1.mp4", "prognostic"),
+        ],
+        "movie2.mp4": [("gs://bucket/baseline/movie2.mp4", "baseline")],
+    }
+    assert movie_urls.by_name() == expected_urls_by_name
 
 
 one_run = xarray.Dataset({"a": ([], 1,), "b": ([], 2)}, attrs=dict(run="one-run"))
@@ -206,7 +232,7 @@ def test_ComputeDiagnosticsList_load_metrics(url):
 
 
 @pytest.mark.network
-def test_ComputeDiagnosticsList_find_movie_links(url):
+def test_ComputeDiagnosticsList_find_movie_paths(url):
     diags = ComputedDiagnosticsList.from_directory(url)
-    meta = diags.find_movie_links()
-    assert len(meta) == 0
+    movie_paths = diags.find_movie_urls()
+    assert isinstance(movie_paths, RunMovieUrls)

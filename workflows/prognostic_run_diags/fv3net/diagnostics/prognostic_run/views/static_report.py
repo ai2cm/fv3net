@@ -13,6 +13,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunMetrics,
 )
 
+import vcm
 from report import create_html, Link, OrderedList, RawHTML
 from report.holoviews import HVPlot, get_html_header
 from .matplotlib import (
@@ -50,6 +51,17 @@ def upload(html: str, url: str, content_type: str = "text/html"):
     if url.startswith("gs"):
         fs = fsspec.filesystem("gs")
         fs.setxattrs(url, content_type=content_type)
+
+
+def copy_item(source, target, content_type=None):
+    """Works for any combination of source/target filesystems. Not for large files."""
+    with fsspec.open(source) as f_in:
+        with fsspec.open(target, mode="wb") as f_out:
+            f_out.write(f_in.read())
+
+    if content_type is not None:
+        fs = vcm.get_fs(target)
+        fs.setxattrs(target, content_type=content_type)
 
 
 class PlotManager:
@@ -485,27 +497,29 @@ def render_links(link_dict):
     }
 
 
-def copy_movies(movie_paths, output):
+def get_movie_manifest(movie_urls, output):
+    manifest = []
     public_links = {}
-    for movie_name, movie_specifications in movie_paths.movies.items():
+    for movie_name, items in movie_urls.by_name().items():
         public_links[movie_name] = []
-        for fs, path, run_name in movie_specifications:
+        for url, run_name in items:
             output_path = os.path.join(output, "_movies", run_name, movie_name)
             if output_path.startswith("gs://"):
                 public_link = output_path.replace("gs:/", PUBLIC_GCS_DOMAIN)
-                fs.cp(path, output_path)
             else:
                 public_link = output_path
-                fs.get(path, output_path)
+            manifest.append((url, output_path))
             public_links[movie_name].append((public_link, run_name))
-    return public_links
+    return manifest, public_links
 
 
 def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
     metrics = computed_diagnostics.load_metrics_from_diagnostics()
-    movie_paths = computed_diagnostics.get_movies()
+    movie_urls = computed_diagnostics.find_movie_urls()
     metadata, diagnostics = computed_diagnostics.load_diagnostics()
-    public_links = copy_movies(movie_paths, output)
+    manifest, public_links = get_movie_manifest(movie_urls, output)
+    for source, target in manifest:
+        copy_item(source, target, content_type="video/mp4")
 
     pages = {
         "index.html": render_index(metadata, diagnostics, metrics, public_links),

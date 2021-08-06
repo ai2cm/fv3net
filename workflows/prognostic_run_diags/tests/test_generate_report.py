@@ -9,6 +9,7 @@ from google.cloud.storage.client import Client
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunDiagnostics,
     RunMetrics,
+    RunMovieUrls,
 )
 from fv3net.diagnostics.prognostic_run.views.matplotlib import plot_2d_matplotlib
 from fv3net.diagnostics.prognostic_run.views.static_report import (
@@ -17,6 +18,7 @@ from fv3net.diagnostics.prognostic_run.views.static_report import (
     upload,
     _get_metric_type_df,
     _get_metric_df,
+    get_movie_manifest,
 )
 
 
@@ -133,3 +135,53 @@ def test__get_metric_df():
     }
     expected_table = pd.DataFrame(expected_data, index=["run1", "run2"])
     pd.testing.assert_frame_equal(table, expected_table)
+
+
+def test_get_movie_manifest():
+    movie_urls = RunMovieUrls(
+        {
+            "baseline": [
+                "gs://bucket/baseline/movie1.mp4",
+                "gs://bucket/baseline/movie2.mp4",
+            ],
+            "prognostic": ["gs://bucket/prognostic/movie1.mp4"],
+        }
+    )
+    manifest, links = get_movie_manifest(movie_urls, "gs://bucket/report")
+    expected_manifest = [
+        (
+            "gs://bucket/baseline/movie1.mp4",
+            "gs://bucket/report/_movies/baseline/movie1.mp4",
+        ),
+        (
+            "gs://bucket/baseline/movie2.mp4",
+            "gs://bucket/report/_movies/baseline/movie2.mp4",
+        ),
+        (
+            "gs://bucket/prognostic/movie1.mp4",
+            "gs://bucket/report/_movies/prognostic/movie1.mp4",
+        ),
+    ]
+    expected_links = {
+        "movie1.mp4": [
+            (
+                "https://storage.googleapis.com/bucket/report/_movies/baseline/"
+                "movie1.mp4",
+                "baseline",
+            ),
+            (
+                "https://storage.googleapis.com/bucket/report/_movies/prognostic/"
+                "movie1.mp4",
+                "prognostic",
+            ),
+        ],
+        "movie2.mp4": [
+            (
+                "https://storage.googleapis.com/bucket/report/_movies/baseline/"
+                "movie2.mp4",
+                "baseline",
+            )
+        ],
+    }
+    assert set(manifest) == set(expected_manifest)
+    assert links == expected_links
