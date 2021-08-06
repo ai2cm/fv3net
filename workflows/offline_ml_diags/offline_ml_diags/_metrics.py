@@ -130,19 +130,27 @@ def _regrid_dataset_zdim(
 ) -> xr.Dataset:
     # have to separate the derivation coordinates before interpolating
     # to regridded pressure
+    # TODO: refactor into function registry a la prognostic diags
     regridded_datasets = []
-    vertical_dim_vars = [var for var in ds.data_vars if vertical_dim in ds[var].dims]
+    vertical_dim_vars = [
+        var
+        for var in ds.data_vars
+        if vertical_dim in ds[var].dims and derivation_dim in ds[var].dims
+    ]
     ds_2d = ds.drop(vertical_dim_vars)
     ds_3d = safe.get_variables(ds, vertical_dim_vars)
-
-    for derivation_coord in [target_coord, predict_coord]:
-        ds_regrid = ds_3d.sel({derivation_dim: derivation_coord})
-        for var in vertical_dim_vars:
-            ds_regrid[var] = interpolate_to_pressure_levels(
-                delp=ds[delp_var], field=ds_regrid[var], dim=vertical_dim,
-            )
-        regridded_datasets.append(ds_regrid)
-    return xr.merge([ds_2d, xr.concat(regridded_datasets, dim=derivation_dim)])
+    if len(ds_3d) > 0:
+        for derivation_coord in [target_coord, predict_coord]:
+            ds_regrid = ds_3d.sel({derivation_dim: derivation_coord})
+            for var in vertical_dim_vars:
+                ds_regrid[var] = interpolate_to_pressure_levels(
+                    delp=ds[delp_var], field=ds_regrid[var], dim=vertical_dim,
+                )
+            regridded_datasets.append(ds_regrid)
+        ds_3d_regridded = xr.concat(regridded_datasets, dim=derivation_dim)
+    else:
+        ds_3d_regridded = xr.Dataset()
+    return xr.merge([ds_2d, ds_3d_regridded])
 
 
 def _calc_same_dims_metrics(
