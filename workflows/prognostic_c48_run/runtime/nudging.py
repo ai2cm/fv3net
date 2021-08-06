@@ -122,7 +122,6 @@ def _get_reference_state(
     state = fv3gfs.util.open_restart(
         localdir,
         communicator,
-        label=label,
         only_names=only_names,
         tracer_properties=tracer_metadata,
     )

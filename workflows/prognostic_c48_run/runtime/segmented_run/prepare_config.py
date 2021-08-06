@@ -45,16 +45,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
     )
     parser.add_argument(
-        "initial_condition_url",
-        type=str,
-        help="Remote url to directory holding timesteps with model initial conditions.",
-    )
-    parser.add_argument(
-        "ic_timestep",
-        type=str,
-        help="YYYYMMDD.HHMMSS timestamp to grab from the initial conditions url.",
-    )
-    parser.add_argument(
         "--model_url",
         type=str,
         default=None,
