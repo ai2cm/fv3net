@@ -40,6 +40,14 @@ class NudgingConfig:
 
     Attributes:
         timescale_hours: mapping of variable names to timescales (in hours).
+        filenames_include_time: If true (default), the restart files will be
+            loaded from paths like this::
+
+                {restarts_path}/20160801.000000/20160801.000000.fv_core.res.tile.nc
+
+            otherwise, the redundant time prefix will be stripped::
+
+                {restarts_path}/20160801.000000/fv_core.res.tile.nc
 
     Examples::
 
@@ -58,6 +66,7 @@ class NudgingConfig:
 
     timescale_hours: Dict[str, float]
     restarts_path: str
+    filenames_include_time: bool = True
     # optional arguments needed for time interpolation
     reference_initial_time: Optional[str] = None
     reference_frequency_seconds: float = 900
@@ -87,6 +96,7 @@ def setup_get_reference_state(
         communicator=communicator,
         only_names=state_names,
         tracer_metadata=tracer_metadata,
+        filenames_include_time=config.filenames_include_time,
     )
 
     initial_time_label = config.reference_initial_time
@@ -106,9 +116,10 @@ def _get_reference_state(
     communicator: fv3gfs.util.CubedSphereCommunicator,
     only_names: Iterable[str],
     tracer_metadata: Mapping,
+    filenames_include_time: bool,
 ):
-    label = _time_to_label(time)
-    dirname = os.path.join(reference_dir, label)
+    timestamp = _time_to_label(time)
+    dirname = os.path.join(reference_dir, timestamp)
 
     localdir = "download"
 
@@ -122,7 +133,7 @@ def _get_reference_state(
     state = fv3gfs.util.open_restart(
         localdir,
         communicator,
-        label=label,
+        label="{timestamp}" if filenames_include_time else "",
         only_names=only_names,
         tracer_properties=tracer_metadata,
     )

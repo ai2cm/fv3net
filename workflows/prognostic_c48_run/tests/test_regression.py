@@ -369,7 +369,7 @@ def assets_from_initial_condition_dir(dir_: str):
                         dir_,
                         f"{category}.tile{tile}.nc",
                         target_location=timestamp,
-                        target_name=f"{timestamp}.{category}.tile{tile}.nc",
+                        target_name=f"{category}.tile{tile}.nc",
                     )
                 )
     return assets

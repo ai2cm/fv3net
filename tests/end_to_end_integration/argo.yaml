@@ -5,15 +5,13 @@ metadata:
 spec:
   arguments:
     parameters:
-      - name: initial-condition
-        value: "20160801.001500"
-      - name: reference-restarts
-        value: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
       - name: nudge-to-fine-config
         value: | 
           base_version: v0.6
           forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+          initial_conditions: gs://vcm-ml-code-testing-data/v2/c48-restarts-for-e2e/20160801.001500
           nudging:
+            restarts_path: gs://vcm-ml-code-testing-data/v2/c48-restarts-for-e2e/
             timescale_hours:
               air_temperature: 3
               specific_humidity: 3
@@ -22,13 +20,7 @@ spec:
               pressure_thickness_of_atmospheric_layer: 3
           namelist:
             coupler_nml:
-              current_date:
-                - 2016
-                - 8
-                - 1
-                - 0
-                - 15
-                - 0
+              current_date: [2016, 8, 1, 0, 15, 0]
               hours: 0
               minutes: 30
             fv_core_nml:
@@ -335,10 +327,6 @@ spec:
           template: prognostic-run
         arguments:
           parameters:
-          - name: reference-restarts
-            value: "{{workflow.parameters.reference-restarts}}"
-          - name: initial-condition
-            value: "{{workflow.parameters.initial-condition}}"
           - name: bucket
             value: "{{workflow.parameters.bucket}}"
           - name: project
@@ -374,12 +362,8 @@ spec:
             value: "{{workflow.parameters.training-data-config}}"
           - name: validation-data-config
             value: "{{workflow.parameters.validation-data-config}}"
-          - name: initial-condition
-            value: "{{workflow.parameters.initial-condition}}"
           - name: prognostic-run-config
             value: "{{workflow.parameters.prognostic-run-config}}"
-          - name: reference-restarts
-            value: "{{workflow.parameters.reference-restarts}}"
           - name: public-report-output
             value: "{{tasks.resolve-output-url.outputs.result}}/offline-report"
           - name: cpu-prog

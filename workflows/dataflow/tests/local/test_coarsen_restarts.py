@@ -79,29 +79,36 @@ def restart_dir(tmpdir, datadir, include_agrid_winds):
         nx=nx, include_agrid_winds=include_agrid_winds
     )
     save_restarts(restarts, output, time)
+    fv_core = output.join("fv_core.res.nc")
+
+    with fv_core.open("w") as f:
+        f.write("contents dont matter")
 
     grid_spec = _grid_spec(datadir, nx)
     for i in range(6):
         path = str(tmpdir.join(f"grid_spec/grid_spec.tile{i+1}.nc"))
         grid_spec.to_netcdf(path)
 
-    return tmpdir
+    return tmpdir, fv_core
 
 
 @pytest.mark.regression
 def test_regression_coarsen_restarts(
     restart_dir, include_agrid_winds, coarsen_agrid_winds, dropped_fv_core_variables
 ):
-    grid_spec_path = str(restart_dir.join("grid_spec"))
-    src_path = str(restart_dir)
+    src_dir, fv_core = restart_dir
+    grid_spec_path = str(src_dir.join("grid_spec"))
+    src_path = str(src_dir)
     in_res = "48"
     out_res = "6"
     time = "20160101.000000"
-    dest = str(restart_dir.join("output"))
+    dest = str(src_dir.join("output"))
 
     args = [src_path, grid_spec_path, in_res, out_res, dest]
     if coarsen_agrid_winds:
         args.append("--coarsen-agrid-winds")
+
+    args.extend(["--fv-core-url", str(fv_core)])
 
     if coarsen_agrid_winds and not include_agrid_winds:
         with pytest.raises(ValueError, match="'ua' and 'va'"):
@@ -124,8 +131,13 @@ def test_regression_coarsen_restarts(
                 )
 
 
-def open_category(category, time, directory):
+def open_source_category(category, time, directory):
     files = os.path.join(directory, time, f"{time}.{category}.tile[1-6].nc")
+    return xr.open_mfdataset(files, concat_dim=["tile"], combine="nested")
+
+
+def open_dest_category(category, time, directory):
+    files = os.path.join(directory, time, f"{category}.tile[1-6].nc")
     return xr.open_mfdataset(files, concat_dim=["tile"], combine="nested")
 
 
@@ -139,8 +151,8 @@ def assert_expected_variables_were_coarsened(
 ):
     """Check that expected variables in the original restart files can be found in
     the coarsened restart files."""
-    source = open_category(source_category, time, source_dir)
-    result = open_category(destination_category, time, destination_dir)
+    source = open_source_category(source_category, time, source_dir)
+    result = open_dest_category(destination_category, time, destination_dir)
 
     if dropped_variables is None:
         dropped_variables = set()
