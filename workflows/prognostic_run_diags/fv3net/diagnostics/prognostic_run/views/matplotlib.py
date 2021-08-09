@@ -93,7 +93,7 @@ def plot_2d_matplotlib(
 
     variables_to_plot = run_diags.matching_variables(varfilter)
     for varname in variables_to_plot:
-        plot_kwargs = _get_plot_kwargs(run_diags, varname, robust=False)
+        cmap_kwargs = _get_cmap_kwargs(run_diags, varname, robust=False)
         for run in run_diags.runs:
             logging.info(f"plotting {varname} in {run}")
             v = run_diags.get_variable(run, varname)
@@ -105,7 +105,7 @@ def plot_2d_matplotlib(
                     v, ax=ax, x=x, y=y, levels=levels, extend="both", **opts
                 )
             else:
-                v.plot(ax=ax, x=x, y=y, **plot_kwargs, **opts)
+                v.plot(ax=ax, x=x, y=y, **cmap_kwargs, **opts)
             if ylabel:
                 ax.set_ylabel(ylabel)
             ax.set_title(long_name_and_units)
@@ -148,7 +148,7 @@ def plot_cubed_sphere_map(
 
     variables_to_plot = run_diags.matching_variables(varfilter)
     for varname in variables_to_plot:
-        plot_kwargs = _get_plot_kwargs(run_diags, varname, robust=True)
+        cmap_kwargs = _get_cmap_kwargs(run_diags, varname, robust=True)
         for run in run_diags.runs:
             logging.info(f"plotting {varname} in {run}")
             shortname = varname.split(varfilter)[0][:-1]
@@ -160,7 +160,7 @@ def plot_cubed_sphere_map(
                 figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()}
             )
             mv = fv3viz.mappable_var(ds, varname, coord_vars=_COORD_VARS, **COORD_NAMES)
-            fv3viz.plot_cube(mv, ax=ax, **plot_kwargs)
+            fv3viz.plot_cube(mv, ax=ax, **cmap_kwargs)
             ax.set_title(plot_title)
             plt.subplots_adjust(left=0.01, right=0.75, bottom=0.02)
             data[varname][run] = fig_to_b64(fig)
@@ -207,10 +207,10 @@ def _render_map_title(
     return ", ".join(title_parts)
 
 
-def _get_plot_kwargs(run_diags, variable, robust=False, **kwargs):
+def _get_cmap_kwargs(run_diags, variable, robust=False):
     input_data = []
     for run in run_diags.runs:
         input_data.append(run_diags.get_variable(run, variable).assign_coords(run=run))
     input_data = xr.concat(input_data, dim="run")
-    plot_kwargs = _determine_cmap_params(input_data.values, robust=robust, **kwargs)
-    return {k: plot_kwargs[k] for k in ["vmin", "vmax", "cmap"]}
+    result = _determine_cmap_params(input_data.values, robust=robust)
+    return {k: result[k] for k in ["vmin", "vmax", "cmap"]}
