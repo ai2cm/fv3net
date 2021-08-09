@@ -10,7 +10,10 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunDiagnostics,
     RunMetrics,
 )
-from fv3net.diagnostics.prognostic_run.views.matplotlib import plot_2d_matplotlib
+from fv3net.diagnostics.prognostic_run.views.matplotlib import (
+    plot_2d_matplotlib,
+    _get_cmap_kwargs,
+)
 from fv3net.diagnostics.prognostic_run.views.static_report import (
     _html_link,
     render_links,
@@ -132,3 +135,18 @@ def test__get_metric_df():
     }
     expected_table = pd.DataFrame(expected_data, index=["run1", "run2"])
     pd.testing.assert_frame_equal(table, expected_table)
+
+
+def test__get_cmap_kwargs():
+    ds = xarray.Dataset(
+        {
+            "wind": (
+                ["x", "y"],
+                np.arange(50).reshape((10, 5)),
+                dict(long_name="longlongname", units="parsec/year"),
+            ),
+        },
+        attrs=dict(run="one-run"),
+    )
+    out = _get_cmap_kwargs(RunDiagnostics([ds, ds.assign_attrs(run="k")]), "wind")
+    assert set(out.keys()) == {"vmin", "vmax", "cmap"}
