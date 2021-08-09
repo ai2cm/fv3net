@@ -108,7 +108,6 @@ def test_plot_2d_matplotlib():
         RunDiagnostics([diagnostics, diagnostics.assign_attrs(run="k")]),
         "somefilter",
         dims=["x", "y"],
-        cmap="viridis",
         ylabel="y",
     )
 
