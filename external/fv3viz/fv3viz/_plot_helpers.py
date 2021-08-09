@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy as np
 import textwrap
 
@@ -115,3 +117,30 @@ def _get_var_label(attrs: dict, var_name: str, max_line_length: int = 30):
     if "units" in attrs:
         var_label += f" [{attrs['units']}]"
     return "\n".join(textwrap.wrap(var_label, max_line_length))
+
+
+def auto_limits_cmap(
+    data: np.ndarray,
+    vmin: float = None,
+    vmax: float = None,
+    cmap: str = None,
+    robust: bool = False,
+) -> Tuple[float, float, str]:
+    """Determine useful colorbar limits and cmap for given data.
+    
+    Args:
+        data: The data to be plotted.
+        vmin: Optional minimum for colorbar.
+        vmax: Optional maximum for colorbar.
+        cmap: Optional colormap to use.
+        robust: If true, use 2nd and 98th percentiles for colorbar limits.
+
+    Returns:
+        Tuple of (vmin, vmax, cmap).
+    """
+    if robust:
+        xmin, xmax = _min_max_from_percentiles(data)
+    else:
+        xmin, xmax = np.nanmin(data), np.nanmax(data)
+    vmin, vmax, cmap = _infer_color_limits(xmin, xmax, vmin, vmax, cmap)
+    return vmin, vmax, cmap

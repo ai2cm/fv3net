@@ -9,6 +9,7 @@ from ._plot_diagnostics import (
     plot_diag_var_single_map,
     plot_time_series,
 )
+from ._plot_helpers import auto_limits_cmap
 
 __all__ = [
     "plot_daily_and_hourly_hist",

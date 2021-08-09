@@ -12,7 +12,6 @@ from fv3viz._masking import (
     _periodic_difference,
 )
 from fv3viz._plot_cube import mappable_var, plot_cube_axes, plot_cube
-from fv3viz._plot_helpers import _get_var_label
 from fv3viz._timestep_histograms import (
     plot_daily_and_hourly_hist,
     plot_daily_hist,
@@ -312,24 +311,6 @@ def test_plot_cube_with_all_nans(sample_dataset, plotting_function):
         plotting_function=plotting_function,
         ax=ax,
     )
-
-
-@pytest.mark.parametrize(
-    "attrs,var_name,expected_label",
-    [
-        ({}, "temp", "temp"),
-        ({"long_name": "air_temperature"}, "temp", "air_temperature"),
-        ({"units": "degK"}, "temp", "temp [degK]"),
-        (
-            {"long_name": "air_temperature", "units": "degK"},
-            "temp",
-            "air_temperature [degK]",
-        ),
-    ],
-)
-def test__get_var_label(attrs, var_name, expected_label):
-    assert _get_var_label(attrs, var_name) == expected_label
-
 
 example_timesteps = [
     [datetime(2016, 8, 1), datetime(2016, 8, 2)],
