@@ -149,4 +149,4 @@ def test__get_cmap_kwargs():
         attrs=dict(run="one-run"),
     )
     out = _get_cmap_kwargs(RunDiagnostics([ds, ds.assign_attrs(run="k")]), "wind")
-    assert set(out.keys()) == {"vmin", "vmax", "cmap"}
+    assert len(out) == 3

@@ -4,7 +4,6 @@ import logging
 from collections import defaultdict
 from typing import Tuple, Mapping
 import xarray as xr
-from xarray.plot.utils import _determine_cmap_params
 
 import cartopy.crs as ccrs
 import jinja2
@@ -70,7 +69,7 @@ CONTOUR_LEVELS = {
     "northward_wind_pressure_level_zonal_bias": np.arange(-3, 3.1, 0.4),
     "air_temperature_pressure_level_zonal_bias": np.arange(-15, 16, 2),
     "specific_humidity_pressure_level_zonal_bias": np.arange(-1.1e-3, 1.2e-3, 2e-4),
-    "vertical_wind_pressure_level_zonal_bias": np.arange(-2.1e-2, 2.1e-2, 2e-3),
+    "vertical_wind_pressure_level_zonal_bias": np.arange(-2.1e-2, 2.2e-2, 2e-3),
     "mass_streamfunction_pressure_level_zonal_bias": np.arange(-105, 106, 10),
 }
 
@@ -93,7 +92,9 @@ def plot_2d_matplotlib(
 
     variables_to_plot = run_diags.matching_variables(varfilter)
     for varname in variables_to_plot:
-        cmap_kwargs = _get_cmap_kwargs(run_diags, varname, robust=False)
+        opts["vmin"], opts["vmax"], opts["cmap"] = _get_cmap_kwargs(
+            run_diags, varname, robust=False
+        )
         for run in run_diags.runs:
             logging.info(f"plotting {varname} in {run}")
             v = run_diags.get_variable(run, varname)
@@ -105,7 +106,7 @@ def plot_2d_matplotlib(
                     v, ax=ax, x=x, y=y, levels=levels, extend="both", **opts
                 )
             else:
-                v.plot(ax=ax, x=x, y=y, **cmap_kwargs, **opts)
+                v.plot(ax=ax, x=x, y=y, **opts)
             if ylabel:
                 ax.set_ylabel(ylabel)
             ax.set_title(long_name_and_units)
@@ -148,7 +149,7 @@ def plot_cubed_sphere_map(
 
     variables_to_plot = run_diags.matching_variables(varfilter)
     for varname in variables_to_plot:
-        cmap_kwargs = _get_cmap_kwargs(run_diags, varname, robust=True)
+        vmin, vmax, cmap = _get_cmap_kwargs(run_diags, varname, robust=True)
         for run in run_diags.runs:
             logging.info(f"plotting {varname} in {run}")
             shortname = varname.split(varfilter)[0][:-1]
@@ -160,7 +161,7 @@ def plot_cubed_sphere_map(
                 figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()}
             )
             mv = fv3viz.mappable_var(ds, varname, coord_vars=_COORD_VARS, **COORD_NAMES)
-            fv3viz.plot_cube(mv, ax=ax, **cmap_kwargs)
+            fv3viz.plot_cube(mv, ax=ax, vmin=vmin, vmax=vmax, cmap=cmap)
             ax.set_title(plot_title)
             plt.subplots_adjust(left=0.01, right=0.75, bottom=0.02)
             data[varname][run] = fig_to_b64(fig)
@@ -207,10 +208,9 @@ def _render_map_title(
     return ", ".join(title_parts)
 
 
-def _get_cmap_kwargs(run_diags, variable, robust=False):
+def _get_cmap_kwargs(run_diags, variable, **kwargs):
     input_data = []
     for run in run_diags.runs:
         input_data.append(run_diags.get_variable(run, variable).assign_coords(run=run))
     input_data = xr.concat(input_data, dim="run")
-    result = _determine_cmap_params(input_data.values, robust=robust)
-    return {k: result[k] for k in ["vmin", "vmax", "cmap"]}
+    return fv3viz.auto_limits_cmap(input_data.values, **kwargs)
