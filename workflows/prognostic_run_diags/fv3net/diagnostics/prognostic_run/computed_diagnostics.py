@@ -223,7 +223,7 @@ class RunMovieUrls:
 
     movies: Mapping[str, Sequence[str]]  # mapping from run name to sequence of URLs
 
-    def by_name(self):
+    def by_movie_name(self):
         """Return mapping from movie name to sequence of (url, run_name) tuples."""
         movies_by_name = {}
         for run_name, urls in self.movies.items():

@@ -106,7 +106,7 @@ def test_movie_urls_gcs():
     }
 
 
-def test_RunMovieUrl_by_name():
+def test_RunMovieUrl_by_movie_name():
     movie_urls = RunMovieUrls(
         {
             "baseline": [
@@ -123,7 +123,7 @@ def test_RunMovieUrl_by_name():
         ],
         "movie2.mp4": [("gs://bucket/baseline/movie2.mp4", "baseline")],
     }
-    assert movie_urls.by_name() == expected_urls_by_name
+    assert movie_urls.by_movie_name() == expected_urls_by_name
 
 
 one_run = xarray.Dataset({"a": ([], 1,), "b": ([], 2)}, attrs=dict(run="one-run"))

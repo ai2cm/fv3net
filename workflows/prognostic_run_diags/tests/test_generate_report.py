@@ -18,7 +18,8 @@ from fv3net.diagnostics.prognostic_run.views.static_report import (
     upload,
     _get_metric_type_df,
     _get_metric_df,
-    get_movie_manifest,
+    _get_movie_manifest,
+    _get_public_links,
 )
 
 
@@ -147,21 +148,47 @@ def test_get_movie_manifest():
             "prognostic": ["gs://bucket/prognostic/movie1.mp4"],
         }
     )
-    manifest, links = get_movie_manifest(movie_urls, "gs://bucket/report")
-    expected_manifest = [
-        (
-            "gs://bucket/baseline/movie1.mp4",
-            "gs://bucket/report/_movies/baseline/movie1.mp4",
-        ),
-        (
-            "gs://bucket/baseline/movie2.mp4",
-            "gs://bucket/report/_movies/baseline/movie2.mp4",
-        ),
-        (
-            "gs://bucket/prognostic/movie1.mp4",
-            "gs://bucket/report/_movies/prognostic/movie1.mp4",
-        ),
-    ]
+    manifest = _get_movie_manifest(movie_urls, "gs://bucket/report")
+    expected_manifest = {
+        "movie1.mp4": [
+            (
+                "gs://bucket/baseline/movie1.mp4",
+                "gs://bucket/report/_movies/baseline/movie1.mp4",
+            ),
+            (
+                "gs://bucket/prognostic/movie1.mp4",
+                "gs://bucket/report/_movies/prognostic/movie1.mp4",
+            ),
+        ],
+        "movie2.mp4": [
+            (
+                "gs://bucket/baseline/movie2.mp4",
+                "gs://bucket/report/_movies/baseline/movie2.mp4",
+            ),
+        ],
+    }
+    assert manifest == expected_manifest
+
+
+def test_get_public_links():
+    manifest = {
+        "movie1.mp4": [
+            (
+                "gs://bucket/baseline/movie1.mp4",
+                "gs://bucket/report/_movies/baseline/movie1.mp4",
+            ),
+            (
+                "gs://bucket/prognostic/movie1.mp4",
+                "gs://bucket/report/_movies/prognostic/movie1.mp4",
+            ),
+        ],
+        "movie2.mp4": [
+            (
+                "gs://bucket/baseline/movie2.mp4",
+                "gs://bucket/report/_movies/baseline/movie2.mp4",
+            ),
+        ],
+    }
     expected_links = {
         "movie1.mp4": [
             (
@@ -183,5 +210,4 @@ def test_get_movie_manifest():
             )
         ],
     }
-    assert set(manifest) == set(expected_manifest)
-    assert links == expected_links
+    assert _get_public_links(manifest) == expected_links

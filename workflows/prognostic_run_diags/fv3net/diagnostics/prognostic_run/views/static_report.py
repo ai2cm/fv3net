@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-from typing import Iterable, Mapping, Sequence
+from itertools import chain
+from typing import Iterable, Mapping, Sequence, Tuple
 import os
 import xarray as xr
 import fsspec
@@ -11,6 +12,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     ComputedDiagnosticsList,
     RunDiagnostics,
     RunMetrics,
+    RunMovieUrls,
 )
 
 import vcm
@@ -36,6 +38,8 @@ logging.basicConfig(level=logging.INFO)
 
 hv.extension("bokeh")
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
+MovieManifest = Mapping[str, Sequence[Tuple[str, str]]]
+PublicLinks = Mapping[str, Sequence[Tuple[str, str]]]
 
 
 def upload(html: str, url: str, content_type: str = "text/html"):
@@ -497,28 +501,46 @@ def render_links(link_dict):
     }
 
 
-def get_movie_manifest(movie_urls, output):
-    manifest = []
-    public_links = {}
-    for movie_name, items in movie_urls.by_name().items():
-        public_links[movie_name] = []
+def _get_movie_manifest(movie_urls: RunMovieUrls, output: str) -> MovieManifest:
+    """Return manifest of report output location for each movie in movie_urls.
+    
+    Args:
+        movie_urls: the URLs for the movies to be included in report.
+        output: the location where the report will be saved.
+        
+    Returns:
+        Tuples of source URL and output path for each movie."""
+    manifest = {}
+    for movie_name, items in movie_urls.by_movie_name().items():
+        manifest[movie_name] = []
         for url, run_name in items:
             output_path = os.path.join(output, "_movies", run_name, movie_name)
+            manifest[movie_name].append((url, output_path))
+    return manifest
+
+
+def _get_public_links(manifest: MovieManifest) -> PublicLinks:
+    """Get the public links at which each movie can be opened in a browser."""
+    public_links = {}
+    for movie_name, items in manifest.items():
+        public_links[movie_name] = []
+        for _, output_path in items:
             if output_path.startswith("gs://"):
                 public_link = output_path.replace("gs:/", PUBLIC_GCS_DOMAIN)
             else:
                 public_link = output_path
-            manifest.append((url, output_path))
+            run_name = output_path.split("/")[-2]
             public_links[movie_name].append((public_link, run_name))
-    return manifest, public_links
+    return public_links
 
 
 def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
     metrics = computed_diagnostics.load_metrics_from_diagnostics()
     movie_urls = computed_diagnostics.find_movie_urls()
     metadata, diagnostics = computed_diagnostics.load_diagnostics()
-    manifest, public_links = get_movie_manifest(movie_urls, output)
-    for source, target in manifest:
+    manifest = _get_movie_manifest(movie_urls, output)
+    public_links = _get_public_links(manifest)
+    for source, target in chain.from_iterable(manifest.values()):
         copy_item(source, target, content_type="video/mp4")
 
     pages = {
