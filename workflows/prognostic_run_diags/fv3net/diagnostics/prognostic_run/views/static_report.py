@@ -269,6 +269,7 @@ def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
         "pressure_level_zonal_bias",
         ["latitude", "pressure"],
         contour=True,
+        cmap="RdBu_r",
         yincrease=False,
         ylabel="Pressure [Pa]",
     )

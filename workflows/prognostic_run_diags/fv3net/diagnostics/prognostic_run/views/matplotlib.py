@@ -92,9 +92,10 @@ def plot_2d_matplotlib(
 
     variables_to_plot = run_diags.matching_variables(varfilter)
     for varname in variables_to_plot:
-        opts["vmin"], opts["vmax"], opts["cmap"] = _get_cmap_kwargs(
-            run_diags, varname, robust=False
-        )
+        if not contour:
+            opts["vmin"], opts["vmax"], opts["cmap"] = _get_cmap_kwargs(
+                run_diags, varname, robust=False
+            )
         for run in run_diags.runs:
             logging.info(f"plotting {varname} in {run}")
             v = run_diags.get_variable(run, varname)
