@@ -312,6 +312,7 @@ def test_plot_cube_with_all_nans(sample_dataset, plotting_function):
         ax=ax,
     )
 
+
 example_timesteps = [
     [datetime(2016, 8, 1), datetime(2016, 8, 2)],
     (datetime(2016, 8, 1), datetime(2016, 8, 2)),
