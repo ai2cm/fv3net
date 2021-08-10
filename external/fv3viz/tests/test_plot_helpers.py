@@ -33,6 +33,6 @@ def test__get_var_label(attrs, var_name, expected_label):
         (np.array([-0.5, 0, 1]), {"vmin": -0.6}, (-0.6, 0.6, "RdBu_r")),
     ],
 )
-def test_auto_limits_cmap(data, args, expected_result):
-    result = fv3viz.auto_limits_cmap(data, **args)
+def test_infer_cmap_params(data, args, expected_result):
+    result = fv3viz.infer_cmap_params(data, **args)
     assert result == expected_result

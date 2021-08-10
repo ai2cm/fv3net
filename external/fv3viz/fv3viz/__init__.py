@@ -9,7 +9,7 @@ from ._plot_diagnostics import (
     plot_diag_var_single_map,
     plot_time_series,
 )
-from ._plot_helpers import auto_limits_cmap
+from ._plot_helpers import infer_cmap_params
 
 __all__ = [
     "plot_daily_and_hourly_hist",
@@ -22,6 +22,7 @@ __all__ = [
     "plot_diurnal_cycle",
     "plot_diag_var_single_map",
     "plot_time_series",
+    "infer_cmap_params",
 ]
 
 __version__ = "0.1.0"

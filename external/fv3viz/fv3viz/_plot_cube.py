@@ -9,7 +9,7 @@ from ._constants import (
     VAR_LAT_OUTER,
 )
 from ._plot_helpers import (
-    auto_limits_cmap,
+    infer_cmap_params,
     _get_var_label,
     _remove_redundant_dims,
 )
@@ -123,7 +123,7 @@ def plot_cube(
     """
     var_name = list(plottable_variable.data_vars)[0]
     array = plottable_variable[var_name].values
-    kwargs["vmin"], kwargs["vmax"], kwargs["cmap"] = auto_limits_cmap(
+    kwargs["vmin"], kwargs["vmax"], kwargs["cmap"] = infer_cmap_params(
         array,
         vmin=kwargs.get("vmin"),
         vmax=kwargs.get("vmax"),

@@ -213,4 +213,4 @@ def _get_cmap_kwargs(run_diags, variable, **kwargs):
     for run in run_diags.runs:
         input_data.append(run_diags.get_variable(run, variable).assign_coords(run=run))
     input_data = xr.concat(input_data, dim="run")
-    return fv3viz.auto_limits_cmap(input_data.values, **kwargs)
+    return fv3viz.infer_cmap_params(input_data.values, **kwargs)

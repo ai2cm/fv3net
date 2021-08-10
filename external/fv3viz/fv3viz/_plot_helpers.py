@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 import textwrap
@@ -119,11 +119,11 @@ def _get_var_label(attrs: dict, var_name: str, max_line_length: int = 30):
     return "\n".join(textwrap.wrap(var_label, max_line_length))
 
 
-def auto_limits_cmap(
+def infer_cmap_params(
     data: np.ndarray,
-    vmin: float = None,
-    vmax: float = None,
-    cmap: str = None,
+    vmin: Optional[float] = None,
+    vmax: Optional[float] = None,
+    cmap: Optional[str] = None,
     robust: bool = False,
 ) -> Tuple[float, float, str]:
     """Determine useful colorbar limits and cmap for given data.

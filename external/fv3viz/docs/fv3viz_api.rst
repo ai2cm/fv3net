@@ -23,6 +23,6 @@ Timestep histogram plotting functions
 Utility functions
 -----------------
 .. automodule:: fv3viz
-   :members: auto_limits_cmap
+   :members: infer_cmap_params
    
    
