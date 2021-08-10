@@ -3,14 +3,17 @@ import logging
 from typing import (
     Callable,
     Iterable,
+    Mapping,
     Set,
 )
-import vcm
+import xarray as xr
 from runtime.types import Diagnostics, State
-
-from .names import DELP
+import vcm
+from runtime.names import DELP
 
 logger = logging.getLogger(__name__)
+
+Checkpoint = Mapping[str, xr.DataArray]
 
 
 @dataclass
@@ -46,35 +49,10 @@ class Monitor:
         """
 
         def step() -> Diagnostics:
-
-            vars_ = self.storage_variables | self.tendency_variables
-            delp_before = self._state[DELP]
-            before = {key: self._state[key] for key in vars_}
+            before = self.checkpoint()
             diags = func()
-            delp_after = self._state[DELP]
-            after = {key: self._state[key] for key in vars_}
-
-            for variable in self.storage_variables:
-                path_before = vcm.mass_integrate(before[variable], delp_before, "z")
-                path_after = vcm.mass_integrate(after[variable], delp_after, "z")
-
-                diag_name = f"storage_of_{variable}_path_due_to_{name}"
-                diags[diag_name] = (path_after - path_before) / self.timestep
-                if "units" in before[variable].attrs:
-                    diags[diag_name].attrs["units"] = (
-                        before[variable].units + " kg/m**2/s"
-                    )
-
-            # Compute statistics
-            for variable in self.tendency_variables:
-                diag_name = f"tendency_of_{variable}_due_to_{name}"
-                diags[diag_name] = (after[variable] - before[variable]) / self.timestep
-                if "units" in before[variable].attrs:
-                    diags[diag_name].attrs["units"] = before[variable].units + "/s"
-
-            mass_change = (delp_after - delp_before).sum("z") / self.timestep
-            mass_change.attrs["units"] = "Pa/s"
-            diags[f"storage_of_mass_due_to_{name}"] = mass_change
+            after = self.checkpoint()
+            diags.update(self.compute_change(name, before, after))
             return diags
 
         # ensure monitored function has same name as original
@@ -103,6 +81,43 @@ class Monitor:
             timestep=timestep,
         )
 
+    def checkpoint(self) -> Checkpoint:
+        """Copy the monitored variables into a new dictionary """
+        vars_ = list(
+            set(self.tendency_variables) | set(self.storage_variables) | {DELP}
+        )
+        before = {key: self._state[key] for key in vars_}
+        return before
+
+    def compute_change(
+        self, name: str, before: Checkpoint, after: Checkpoint
+    ) -> Diagnostics:
+        """Compute the change between two checkpoints
+
+        Args:
+            name: labels the output variable names. Same meaning as in __call__
+            before: the initial state
+            after: the final state
+
+        Returns:
+            storage and tendencies computed between before and after
+
+        Examples:
+            >>> before = monitor.checkpoint()
+            >>> # some changes
+            >>> after = monitor.checkpoint()
+            >>> storage_and_tendencies = monitor.compute_change("label", before, after)
+
+        """
+        return compute_change(
+            before,
+            after,
+            self.tendency_variables,
+            self.storage_variables,
+            name,
+            self.timestep,
+        )
+
 
 def filter_matching(variables: Iterable[str], split: str, prefix: str) -> Set[str]:
     """Get sequences of tendency and storage variables from diagnostics config."""
@@ -119,3 +134,36 @@ def filter_storage(variables: Iterable[str]) -> Set[str]:
 
 def filter_tendency(variables: Iterable[str]) -> Set[str]:
     return filter_matching(variables, split="_due_to_", prefix="tendency_of_")
+
+
+def compute_change(
+    before: Checkpoint,
+    after: Checkpoint,
+    tendency_variables: Set[str],
+    storage_variables: Set[str],
+    name: str,
+    timestep: float,
+):
+    diags = {}
+    delp_before = before[DELP]
+    delp_after = after[DELP]
+    # Compute statistics
+    for variable in tendency_variables:
+        diag_name = f"tendency_of_{variable}_due_to_{name}"
+        diags[diag_name] = (after[variable] - before[variable]) / timestep
+        if "units" in before[variable].attrs:
+            diags[diag_name].attrs["units"] = before[variable].units + "/s"
+
+    for variable in storage_variables:
+        path_before = vcm.mass_integrate(before[variable], delp_before, "z")
+        path_after = vcm.mass_integrate(after[variable], delp_after, "z")
+
+        diag_name = f"storage_of_{variable}_path_due_to_{name}"
+        diags[diag_name] = (path_after - path_before) / timestep
+        if "units" in before[variable].attrs:
+            diags[diag_name].attrs["units"] = before[variable].units + " kg/m**2/s"
+
+    mass_change = (delp_after - delp_before).sum("z") / timestep
+    mass_change.attrs["units"] = "Pa/s"
+    diags[f"storage_of_mass_due_to_{name}"] = mass_change
+    return diags
