@@ -1,6 +1,6 @@
 import numpy as np
 import xarray as xr
-from typing import Tuple
+from typing import Mapping, Sequence, Tuple
 
 HORIZONTAL_DIMS = ["x", "y", "tile"]
 
@@ -8,6 +8,7 @@ HORIZONTAL_DIMS = ["x", "y", "tile"]
 # by multiple modules split out to group operations and simplify
 # the diagnostic script
 DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
+MovieUrls = Mapping[str, Sequence[str]]
 
 RMSE_VARS = [
     "UGRDlowest",
