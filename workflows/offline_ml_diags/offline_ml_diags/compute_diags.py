@@ -10,7 +10,7 @@ from tempfile import NamedTemporaryFile
 from vcm.derived_mapping import DerivedMapping
 import xarray as xr
 import yaml
-from typing import Mapping, Sequence, Tuple, List, Hashable
+from typing import Mapping, Sequence, Tuple, List
 
 import diagnostics_utils as utils
 import loaders
@@ -147,18 +147,6 @@ def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
     return summary
 
 
-def _fill_empty_dQ1_dQ2(ds: xr.Dataset):
-    dims = ["x", "y", "tile", "z", "derivation", "time"]
-    coords = {
-        dim: ds.coords[dim] for dim in dims
-    }  # type: Mapping[Hashable, xr.DataArray]
-    fill_template = xr.DataArray(0.0, dims=dims, coords=coords)
-    for tendency in ["dQ1", "dQ2"]:
-        if tendency not in ds.data_vars:
-            ds[tendency] = fill_template
-    return ds
-
-
 def _compute_diagnostics(
     batches: Sequence[xr.Dataset], grid: xr.Dataset, predicted_vars: List[str]
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
@@ -265,7 +253,7 @@ def _get_predict_function(predictor, variables, grid):
         derived_mapping = DerivedMapping(ds)
         ds_derived = derived_mapping.dataset(variables)
         ds_prediction = predictor.predict_columnwise(
-            safe.get_variables(ds_derived, predictor.input_variables), feature_dim="z"
+            safe.get_variables(ds_derived, variables), feature_dim="z"
         )
         return insert_prediction(ds_derived, ds_prediction)
 
