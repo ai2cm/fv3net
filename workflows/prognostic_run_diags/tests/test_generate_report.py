@@ -9,7 +9,6 @@ from google.cloud.storage.client import Client
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunDiagnostics,
     RunMetrics,
-    RunMovieUrls,
 )
 from fv3net.diagnostics.prognostic_run.views.matplotlib import (
     plot_2d_matplotlib,
@@ -40,6 +39,10 @@ METRICS_DF = pd.DataFrame(
         "units": ["mm/day", "m", "mm/day", "mm/day"],
     }
 )
+MOVIE_URLS = {
+    "baseline": ["gs://bucket/baseline/movie1.mp4", "gs://bucket/baseline/movie2.mp4"],
+    "prognostic": ["gs://bucket/prognostic/movie1.mp4"],
+}
 
 
 @pytest.fixture()
@@ -141,56 +144,26 @@ def test__get_metric_df():
 
 
 def test_get_movie_manifest():
-    movie_urls = RunMovieUrls(
-        {
-            "baseline": [
-                "gs://bucket/baseline/movie1.mp4",
-                "gs://bucket/baseline/movie2.mp4",
-            ],
-            "prognostic": ["gs://bucket/prognostic/movie1.mp4"],
-        }
-    )
-    manifest = _get_movie_manifest(movie_urls, "gs://bucket/report")
-    expected_manifest = {
-        "movie1.mp4": [
-            (
-                "gs://bucket/baseline/movie1.mp4",
-                "gs://bucket/report/_movies/baseline/movie1.mp4",
-            ),
-            (
-                "gs://bucket/prognostic/movie1.mp4",
-                "gs://bucket/report/_movies/prognostic/movie1.mp4",
-            ),
-        ],
-        "movie2.mp4": [
-            (
-                "gs://bucket/baseline/movie2.mp4",
-                "gs://bucket/report/_movies/baseline/movie2.mp4",
-            ),
-        ],
-    }
-    assert manifest == expected_manifest
+    manifest = _get_movie_manifest(MOVIE_URLS, "gs://bucket/report")
+    expected_manifest = [
+        (
+            "gs://bucket/baseline/movie1.mp4",
+            "gs://bucket/report/_movies/baseline/movie1.mp4",
+        ),
+        (
+            "gs://bucket/prognostic/movie1.mp4",
+            "gs://bucket/report/_movies/prognostic/movie1.mp4",
+        ),
+        (
+            "gs://bucket/baseline/movie2.mp4",
+            "gs://bucket/report/_movies/baseline/movie2.mp4",
+        ),
+    ]
+    assert set(manifest) == set(expected_manifest)
 
 
 def test_get_public_links():
-    manifest = {
-        "movie1.mp4": [
-            (
-                "gs://bucket/baseline/movie1.mp4",
-                "gs://bucket/report/_movies/baseline/movie1.mp4",
-            ),
-            (
-                "gs://bucket/prognostic/movie1.mp4",
-                "gs://bucket/report/_movies/prognostic/movie1.mp4",
-            ),
-        ],
-        "movie2.mp4": [
-            (
-                "gs://bucket/baseline/movie2.mp4",
-                "gs://bucket/report/_movies/baseline/movie2.mp4",
-            ),
-        ],
-    }
+    links = _get_public_links(MOVIE_URLS, "gs://bucket/report")
     expected_links = {
         "movie1.mp4": [
             (
@@ -212,7 +185,7 @@ def test_get_public_links():
             )
         ],
     }
-    assert _get_public_links(manifest) == expected_links
+    assert links == expected_links
 
 
 def test__get_cmap_kwargs():

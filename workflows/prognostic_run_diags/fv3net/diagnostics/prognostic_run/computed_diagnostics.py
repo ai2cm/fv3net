@@ -14,6 +14,7 @@ import tempfile
 
 from .metrics import metrics_registry
 from .derived_diagnostics import derived_registry
+from .constants import MovieUrls
 
 
 __all__ = ["ComputedDiagnosticsList", "RunDiagnostics"]
@@ -86,9 +87,8 @@ class ComputedDiagnosticsList:
         """Compute metrics on the fly from the pre-computed diagnostics."""
         return RunMetrics(load_metrics_from_diagnostics(self.folders))
 
-    def find_movie_urls(self) -> "RunMovieUrls":
-        movies = {name: folder.movie_urls for name, folder in self.folders.items()}
-        return RunMovieUrls(movies)
+    def find_movie_urls(self) -> MovieUrls:
+        return {name: folder.movie_urls for name, folder in self.folders.items()}
 
 
 @dataclass
@@ -215,22 +215,6 @@ class RunMetrics:
     def _get_metric(self, metric_type: str, variable: str, run: str) -> pd.Series:
         _metrics = self.get_metric_all_runs(metric_type, variable)
         return _metrics[_metrics.run == run]
-
-
-@dataclass
-class RunMovieUrls:
-    """Represents locations of movies for a collection of run diagnostics."""
-
-    movies: Mapping[str, Sequence[str]]  # mapping from run name to sequence of URLs
-
-    def by_movie_name(self):
-        """Return mapping from movie name to sequence of (url, run_name) tuples."""
-        movies_by_name = {}
-        for run_name, urls in self.movies.items():
-            for url in urls:
-                movie_name = os.path.basename(url)
-                movies_by_name.setdefault(movie_name, []).append((url, run_name))
-        return movies_by_name
 
 
 def load_metrics(rundirs) -> pd.DataFrame:

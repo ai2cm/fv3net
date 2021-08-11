@@ -1,3 +1,4 @@
+from collections.abc import MutableMapping
 import json
 
 import fsspec
@@ -12,12 +13,11 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     detect_folders,
     RunDiagnostics,
     RunMetrics,
-    RunMovieUrls,
     DiagnosticFolder,
 )
 
 
-class MockGCSFilesystem:
+class MockGCSFilesystemForMovieUrls:
 
     protocol = ("gs", "gcs")
 
@@ -99,31 +99,11 @@ def test_movie_urls(tmpdir):
 
 
 def test_movie_urls_gcs():
-    folder = DiagnosticFolder(MockGCSFilesystem(), "gs://fake-bucket")
+    folder = DiagnosticFolder(MockGCSFilesystemForMovieUrls(), "gs://fake-bucket")
     assert set(folder.movie_urls) == {
         "gs://fake-bucket/movie1.mp4",
         "gs://fake-bucket/movie2.mp4",
     }
-
-
-def test_RunMovieUrl_by_movie_name():
-    movie_urls = RunMovieUrls(
-        {
-            "baseline": [
-                "gs://bucket/baseline/movie1.mp4",
-                "gs://bucket/baseline/movie2.mp4",
-            ],
-            "prognostic": ["gs://bucket/prognostic/movie1.mp4"],
-        }
-    )
-    expected_urls_by_name = {
-        "movie1.mp4": [
-            ("gs://bucket/baseline/movie1.mp4", "baseline"),
-            ("gs://bucket/prognostic/movie1.mp4", "prognostic"),
-        ],
-        "movie2.mp4": [("gs://bucket/baseline/movie2.mp4", "baseline")],
-    }
-    assert movie_urls.by_movie_name() == expected_urls_by_name
 
 
 one_run = xarray.Dataset({"a": ([], 1,), "b": ([], 2)}, attrs=dict(run="one-run"))
@@ -232,7 +212,7 @@ def test_ComputeDiagnosticsList_load_metrics(url):
 
 
 @pytest.mark.network
-def test_ComputeDiagnosticsList_find_movie_paths(url):
+def test_ComputeDiagnosticsList_find_movie_urls(url):
     diags = ComputedDiagnosticsList.from_directory(url)
-    movie_paths = diags.find_movie_urls()
-    assert isinstance(movie_paths, RunMovieUrls)
+    movie_urls = diags.find_movie_urls()
+    assert isinstance(movie_urls, MutableMapping)

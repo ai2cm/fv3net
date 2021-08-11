@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from itertools import chain
 from typing import Iterable, Mapping, Sequence, Tuple
 import os
 import xarray as xr
@@ -12,7 +11,6 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     ComputedDiagnosticsList,
     RunDiagnostics,
     RunMetrics,
-    RunMovieUrls,
 )
 
 import vcm
@@ -23,7 +21,7 @@ from .matplotlib import (
     plot_cubed_sphere_map,
     plot_histogram,
 )
-from ..constants import PERCENTILES, PRECIP_RATE, TOP_LEVEL_METRICS
+from ..constants import PERCENTILES, PRECIP_RATE, TOP_LEVEL_METRICS, MovieUrls
 
 import logging
 
@@ -38,7 +36,7 @@ logging.basicConfig(level=logging.INFO)
 
 hv.extension("bokeh")
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
-MovieManifest = Mapping[str, Sequence[Tuple[str, str]]]
+MovieManifest = Sequence[Tuple[str, str]]
 PublicLinks = Mapping[str, Sequence[Tuple[str, str]]]
 
 
@@ -55,17 +53,6 @@ def upload(html: str, url: str, content_type: str = "text/html"):
     if url.startswith("gs"):
         fs = fsspec.filesystem("gs")
         fs.setxattrs(url, content_type=content_type)
-
-
-def copy_item(source, target, content_type=None):
-    """Works for any combination of source/target filesystems. Not for large files."""
-    with fsspec.open(source) as f_in:
-        with fsspec.open(target, mode="wb") as f_out:
-            f_out.write(f_in.read())
-
-    if content_type is not None:
-        fs = vcm.get_fs(target)
-        fs.setxattrs(target, content_type=content_type)
 
 
 class PlotManager:
@@ -496,7 +483,15 @@ def render_links(link_dict):
     }
 
 
-def _get_movie_manifest(movie_urls: RunMovieUrls, output: str) -> MovieManifest:
+def _movie_name(url: str) -> str:
+    return os.path.basename(url)
+
+
+def _movie_output_path(root: str, run_name: str, movie_name: str) -> str:
+    return os.path.join(root, "_movies", run_name, movie_name)
+
+
+def _get_movie_manifest(movie_urls: MovieUrls, output: str) -> MovieManifest:
     """Return manifest of report output location for each movie in movie_urls.
     
     Args:
@@ -505,27 +500,26 @@ def _get_movie_manifest(movie_urls: RunMovieUrls, output: str) -> MovieManifest:
         
     Returns:
         Tuples of source URL and output path for each movie."""
-    manifest = {}
-    for movie_name, items in movie_urls.by_movie_name().items():
-        manifest[movie_name] = []
-        for url, run_name in items:
-            output_path = os.path.join(output, "_movies", run_name, movie_name)
-            manifest[movie_name].append((url, output_path))
+    manifest = []
+    for run_name, urls in movie_urls.items():
+        for url in urls:
+            output_path = _movie_output_path(output, run_name, _movie_name(url))
+            manifest.append((url, output_path))
     return manifest
 
 
-def _get_public_links(manifest: MovieManifest) -> PublicLinks:
+def _get_public_links(movie_urls: MovieUrls, output: str) -> PublicLinks:
     """Get the public links at which each movie can be opened in a browser."""
     public_links = {}
-    for movie_name, items in manifest.items():
-        public_links[movie_name] = []
-        for _, output_path in items:
+    for run_name, urls in movie_urls.items():
+        for url in urls:
+            movie_name = _movie_name(url)
+            output_path = _movie_output_path(output, run_name, movie_name)
             if output_path.startswith("gs://"):
                 public_link = output_path.replace("gs:/", PUBLIC_GCS_DOMAIN)
             else:
                 public_link = output_path
-            run_name = output_path.split("/")[-2]
-            public_links[movie_name].append((public_link, run_name))
+            public_links.setdefault(movie_name, []).append((public_link, run_name))
     return public_links
 
 
@@ -534,9 +528,9 @@ def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
     movie_urls = computed_diagnostics.find_movie_urls()
     metadata, diagnostics = computed_diagnostics.load_diagnostics()
     manifest = _get_movie_manifest(movie_urls, output)
-    public_links = _get_public_links(manifest)
-    for source, target in chain.from_iterable(manifest.values()):
-        copy_item(source, target, content_type="video/mp4")
+    public_links = _get_public_links(movie_urls, output)
+    for source, target in manifest:
+        vcm.cloud.copy(source, target, content_type="video/mp4")
 
     pages = {
         "index.html": render_index(metadata, diagnostics, metrics, public_links),
