@@ -35,7 +35,7 @@ spec:
       - {name: cpu-prog, value: "6"}
       - {name: memory-prog, value: 6Gi}
       - {name: memory-training, value: 6Gi}
-      - {name: memory-offline-diags, value: 6Gi}
+      - {name: memory-offline-diags, value: 10Gi}
       - {name: training-flags, value: " "}
       - {name: online-diags-flags, value: " "}
     dag:
