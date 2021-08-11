@@ -11,7 +11,10 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunMetrics,
     RunMovieUrls,
 )
-from fv3net.diagnostics.prognostic_run.views.matplotlib import plot_2d_matplotlib
+from fv3net.diagnostics.prognostic_run.views.matplotlib import (
+    plot_2d_matplotlib,
+    _get_cmap_kwargs,
+)
 from fv3net.diagnostics.prognostic_run.views.static_report import (
     _html_link,
     render_links,
@@ -111,7 +114,6 @@ def test_plot_2d_matplotlib():
         RunDiagnostics([diagnostics, diagnostics.assign_attrs(run="k")]),
         "somefilter",
         dims=["x", "y"],
-        cmap="viridis",
         ylabel="y",
     )
 
@@ -211,3 +213,18 @@ def test_get_public_links():
         ],
     }
     assert _get_public_links(manifest) == expected_links
+
+
+def test__get_cmap_kwargs():
+    ds = xarray.Dataset(
+        {
+            "wind": (
+                ["x", "y"],
+                np.arange(50).reshape((10, 5)),
+                dict(long_name="longlongname", units="parsec/year"),
+            ),
+        },
+        attrs=dict(run="one-run"),
+    )
+    out = _get_cmap_kwargs(RunDiagnostics([ds, ds.assign_attrs(run="k")]), "wind")
+    assert len(out) == 3

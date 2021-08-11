@@ -235,16 +235,12 @@ def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 @hovmoller_plot_manager.register
 def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
-    return plot_2d_matplotlib(
-        diagnostics, "zonal_mean_value", dims=["time", "latitude"], cmap="viridis"
-    )
+    return plot_2d_matplotlib(diagnostics, "zonal_mean_value", ["time", "latitude"])
 
 
 @hovmoller_plot_manager.register
 def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
-    return plot_2d_matplotlib(
-        diagnostics, "zonal_mean_bias", dims=["time", "latitude"], cmap="RdBu_r",
-    )
+    return plot_2d_matplotlib(diagnostics, "zonal_mean_bias", ["time", "latitude"])
 
 
 def time_mean_cubed_sphere_maps(
@@ -277,8 +273,7 @@ def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_time_mean",
-        dims=["latitude", "pressure"],
-        cmap="viridis",
+        ["latitude", "pressure"],
         yincrease=False,
         ylabel="Pressure [Pa]",
     )
@@ -289,8 +284,8 @@ def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_bias",
+        ["latitude", "pressure"],
         contour=True,
-        dims=["latitude", "pressure"],
         cmap="RdBu_r",
         yincrease=False,
         ylabel="Pressure [Pa]",
