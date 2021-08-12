@@ -52,7 +52,7 @@ def _moisture_tendency_limiter(packer, state_update, state):
     return pack([dQ1, dQ2])
 
 
-def _get_input_vector(
+def get_input_vector(
     packer: ArrayPacker,
     scaler: Optional[LayerStandardScaler],
     n_window: Optional[int] = None,
@@ -298,13 +298,13 @@ class _BPTTTrainer:
         which predicts tendencies of that model used for debugging and testing
         purposes.
         """
-        input_series_layers, forcing_series_input = _get_input_vector(
+        input_series_layers, forcing_series_input = get_input_vector(
             self.input_packer, self.input_scaler, n_window, series=True
         )
-        state_layers, state_input = _get_input_vector(
+        state_layers, state_input = get_input_vector(
             self.prognostic_packer, None, n_window, series=False
         )
-        given_tendency_series_layers, given_tendency_series_input = _get_input_vector(
+        given_tendency_series_layers, given_tendency_series_input = get_input_vector(
             self.prognostic_packer, None, n_window, series=True
         )
 
@@ -366,10 +366,10 @@ class _BPTTTrainer:
         Build a model which predicts the tendency for a single timestep, used for
         prediction.
         """
-        input_layers, forcing_input = _get_input_vector(
+        input_layers, forcing_input = get_input_vector(
             self.input_packer, self.input_scaler, series=False
         )
-        state_layers, state_input = _get_input_vector(
+        state_layers, state_input = get_input_vector(
             self.prognostic_packer, self.prognostic_scaler, series=False
         )
         denormalized_state = tf.keras.layers.Concatenate()(state_layers)
@@ -542,22 +542,23 @@ class PureKerasModel(Predictor):
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
+        sample_dim_name = X[self.input_variables[0]].dims[0]
+        sample_coord = X[self.input_variables[0]].coords[sample_dim_name]
         inputs = [X[name].values for name in self.input_variables]
         outputs = self.model.predict(inputs)
         if self._output_metadata is not None:
-            return xr.Dataset(
-                data_vars={
-                    name: xr.DataArray(
-                        value,
-                        dims=metadata["dims"],
-                        coords={name: X.coords[name] for name in metadata["dims"]},
-                        attrs={"units": metadata["units"]},
-                    )
-                    for name, value, metadata in zip(
-                        self.output_variables, outputs, self._output_metadata
-                    )
-                }
-            )
+            data_vars = {}
+            for name, value, metadata in zip(
+                self.output_variables, outputs, self._output_metadata
+            ):
+                # ignore sample dim from saved metadata, use the sample dim we have now
+                coords = {sample_dim_name: sample_coord}
+                coords.update({name: X.coords[name] for name in metadata["dims"][1:]})
+                dims = [sample_dim_name] + list(metadata["dims"][1:])
+                data_vars[name] = xr.DataArray(
+                    value, dims=dims, coords=coords, attrs={"units": metadata["units"]},
+                )
+            return xr.Dataset(data_vars=data_vars)
         else:
             # workaround for saved datasets which do not have output metadata
             # from an initial version of the BPTT code. Can be removed

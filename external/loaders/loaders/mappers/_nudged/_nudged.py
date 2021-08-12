@@ -130,7 +130,8 @@ def open_nudge_to_fine(
     
     Args:
         url (str):  path to nudge-to-fine output directory, remote or local
-        nudging_variables (Sequence[str]): Names of nudged variables
+        nudging_variables (Sequence[str]): Names of nudged variables, nudging tendency
+            will be subtracted to retrieve model state before nudging
         physics_timestep_seconds (float): physics timestep, i.e., dt_atmos; defaults
             to 900.0
         consolidated (bool): whether zarrs to open have consolidated metadata

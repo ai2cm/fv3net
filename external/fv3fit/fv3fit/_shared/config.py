@@ -138,9 +138,13 @@ class RegularizerConfig:
     kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
 
     @property
-    def instance(self) -> tf.keras.regularizers.Regularizer:
-        cls = getattr(tf.keras.regularizers, self.name)
-        return cls(**self.kwargs)
+    def instance(self) -> Optional[tf.keras.regularizers.Regularizer]:
+        if self.name.lower() != "none":
+            cls = getattr(tf.keras.regularizers, self.name)
+            instance = cls(**self.kwargs)
+        else:
+            instance = None
+        return instance
 
 
 # TODO: move this class to where the Dense training is defined when config.py

@@ -19,9 +19,7 @@ of an internal stacking dim (allows inputs to be prestacked in "sample" dim)
 
 
 class StackedBatches(Sequence[xr.Dataset]):
-    def __init__(
-        self, batches: Sequence[xr.Dataset], random_state: RandomState,
-    ):
+    def __init__(self, batches: Sequence[xr.Dataset], random_state: RandomState):
         self._batches = batches
         self._random_state = random_state
 

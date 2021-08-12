@@ -63,6 +63,7 @@ class RandomForest(Predictor):
         output_variables: Iterable[str],
         hyperparameters: RandomForestHyperparameters,
     ):
+        super().__init__(sample_dim_name, input_variables, output_variables)
         batch_regressor = _RegressorEnsemble(
             sklearn.ensemble.RandomForestRegressor(
                 # n_jobs != 1 is non-reproducible,

@@ -9,6 +9,7 @@ from ._shared.config import (
     get_training_function,
     get_hyperparameter_class,
 )
+from .keras._models.precipitative import PrecipitativeHyperparameters
 from . import keras, sklearn, testing
 
 __version__ = "0.1.0"

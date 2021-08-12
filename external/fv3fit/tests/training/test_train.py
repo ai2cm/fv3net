@@ -7,12 +7,32 @@ import fv3fit
 from fv3fit._shared.config import TRAINING_FUNCTIONS, get_hyperparameter_class
 import vcm.testing
 import tempfile
+from fv3fit.keras._models.precipitative import LV, CPD, KG_M2_TO_MM, GRAVITY
+
+
+# training functions that work on arbitrary datasets, can be used in generic tests below
+GENERAL_TRAINING_TYPES = ["DenseModel", "sklearn_random_forest", "precipitative"]
+# training functions that have restrictions on the datasets they support,
+# cannot be used in generic tests below
+# you must write a separate file that specializes each of the tests
+# for models in this list
+SPECIAL_TRAINING_TYPES = []
 
 
 # automatically test on every registered training class
-@pytest.fixture(params=list(TRAINING_FUNCTIONS.keys()))
+@pytest.fixture(params=GENERAL_TRAINING_TYPES)
 def model_type(request):
     return request.param
+
+
+def test_all_training_functions_are_tested_or_exempted():
+    missing_types = set(TRAINING_FUNCTIONS.keys()).difference(
+        GENERAL_TRAINING_TYPES + SPECIAL_TRAINING_TYPES
+    )
+    assert len(missing_types) == 0, (
+        "training type must be added to GENERAL_TRAINING_TYPES or "
+        "SPECIAL_TRAINING_TYPES in test script"
+    )
 
 
 SYSTEM_DEPENDENT_TYPES = ["DenseModel", "sklearn_random_forest"]
@@ -24,19 +44,49 @@ def test_training_functions_exist():
 
 
 def train_identity_model(model_type, sample_func, hyperparameters):
-    input_variables = ["var_in"]
-    output_variables = ["var_out"]
-    data_array = sample_func()
-    train_dataset = xr.Dataset(data_vars={"var_in": data_array, "var_out": data_array})
+    input_variables, output_variables, train_dataset = get_dataset(
+        model_type, sample_func
+    )
     train_batches = [train_dataset for _ in range(10)]
-    val_batches = []
+    _, _, test_dataset = get_dataset(model_type, sample_func)
+    val_batches = [test_dataset]
     train = fv3fit.get_training_function(model_type)
     model = train(
         input_variables, output_variables, hyperparameters, train_batches, val_batches,
     )
-    data_array = sample_func()
-    test_dataset = xr.Dataset(data_vars={"var_in": data_array, "var_out": data_array})
     return model, test_dataset
+
+
+def get_dataset(model_type, sample_func):
+    if model_type == "precipitative":
+        input_variables = [
+            "air_temperature",
+            "specific_humidity",
+            "pressure_thickness_of_atmospheric_layer",
+        ]
+        output_variables = ["dQ1", "dQ2", "total_precipitation_rate"]
+    else:
+        input_variables = ["var_in"]
+        output_variables = ["var_out"]
+    input_values = tuple(sample_func() for _ in input_variables)
+    if model_type == "precipitative":
+        output_values = (
+            input_values[0] + LV / CPD * input_values[1],  # latent heat of condensation
+            input_values[1],
+            KG_M2_TO_MM
+            / GRAVITY
+            * np.sum(
+                input_values[2] * input_values[1], axis=1
+            ),  # total_precipitation_rate is integration of dQ2
+        )
+    else:
+        output_values = input_values
+    data_vars = {name: value for name, value in zip(input_variables, input_values)}
+    data_vars.update(
+        {name: value for name, value in zip(output_variables, output_values)}
+    )
+    train_dataset = xr.Dataset(data_vars=data_vars)
+    return input_variables, output_variables, train_dataset
 
 
 def assert_can_learn_identity(
@@ -60,7 +110,13 @@ def assert_can_learn_identity(
         model_type, sample_func=sample_func, hyperparameters=hyperparameters
     )
     out_dataset = model.predict(test_dataset)
-    rmse = np.mean((out_dataset["var_out"] - test_dataset["var_out"]) ** 2) ** 0.5
+    rmse = np.mean(
+        [
+            np.mean((out_dataset[name] - test_dataset[name]) ** 2) ** 0.5
+            / np.std(test_dataset[name])
+            for name in model.output_variables
+        ]
+    )
     assert rmse < max_rmse
     if model_type in SYSTEM_DEPENDENT_TYPES:
         print(f"{model_type} is system dependent, not checking against regtest output")
@@ -132,7 +188,7 @@ def get_uniform_sample_func(size, low=0, high=1, seed=0):
     def sample_func():
         return xr.DataArray(
             random.uniform(low=low, high=high, size=size),
-            dims=["sample", "feature_dim"],
+            dims=["sample", "z"],
             coords=[range(size[0]), range(size[1])],
         )
 
@@ -176,6 +232,7 @@ def test_dump_and_load_default_maintains_prediction(model_type):
     xr.testing.assert_equal(loaded_result, original_result)
 
 
+@pytest.mark.parametrize("model_type", ["DenseModel", "sklearn_random_forest"])
 def test_train_predict_multiple_stacked_dims(model_type):
     hyperparameters = get_hyperparameter_class(model_type)()
     da = xr.DataArray(np.full(fill_value=1.0, shape=(5, 10, 15)), dims=["x", "y", "z"],)
