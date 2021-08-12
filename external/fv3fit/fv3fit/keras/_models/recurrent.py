@@ -170,7 +170,11 @@ class _BPTTTrainer:
         """
         if self.train_keras_model is not None:
             raise RuntimeError("cannot build, model is already built!")
-        X_tmp = _rename_sample_dim(X, self.sample_dim_name)
+        temporary_sample_dim = self.sample_dim_name + "_tmp"
+        if self.sample_dim_name in X.dims:
+            X_tmp = X.rename({self.sample_dim_name: temporary_sample_dim})
+        else:
+            X_tmp = X
         dataset_2d = stack_non_vertical(X_tmp)
         inputs = self.input_packer.to_array(dataset_2d)
         state = self.prognostic_packer.to_array(dataset_2d)
@@ -610,15 +614,6 @@ class PureKerasModel(Predictor):
                         }
                     )
                 )
-
-
-def _rename_sample_dim(X: xr.Dataset, sample_dim_name: str) -> xr.Dataset:
-    temporary_sample_dim = sample_dim_name + "_tmp"
-    if sample_dim_name in X.dims:
-        X_tmp = X.rename({sample_dim_name: temporary_sample_dim})
-    else:
-        X_tmp = X
-    return X_tmp
 
 
 def _update_ds_with_state(ds, state, sample_dim_name):
