@@ -10,13 +10,18 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunDiagnostics,
     RunMetrics,
 )
-from fv3net.diagnostics.prognostic_run.views.matplotlib import plot_2d_matplotlib
+from fv3net.diagnostics.prognostic_run.views.matplotlib import (
+    plot_2d_matplotlib,
+    _get_cmap_kwargs,
+)
 from fv3net.diagnostics.prognostic_run.views.static_report import (
     _html_link,
     render_links,
     upload,
     _get_metric_type_df,
     _get_metric_df,
+    _get_movie_manifest,
+    _get_public_links,
 )
 
 
@@ -34,6 +39,10 @@ METRICS_DF = pd.DataFrame(
         "units": ["mm/day", "m", "mm/day", "mm/day"],
     }
 )
+MOVIE_URLS = {
+    "baseline": ["gs://bucket/baseline/movie1.mp4", "gs://bucket/baseline/movie2.mp4"],
+    "prognostic": ["gs://bucket/prognostic/movie1.mp4"],
+}
 
 
 @pytest.fixture()
@@ -108,7 +117,6 @@ def test_plot_2d_matplotlib():
         RunDiagnostics([diagnostics, diagnostics.assign_attrs(run="k")]),
         "somefilter",
         dims=["x", "y"],
-        cmap="viridis",
         ylabel="y",
     )
 
@@ -133,3 +141,63 @@ def test__get_metric_df():
     }
     expected_table = pd.DataFrame(expected_data, index=["run1", "run2"])
     pd.testing.assert_frame_equal(table, expected_table)
+
+
+def test_get_movie_manifest():
+    manifest = _get_movie_manifest(MOVIE_URLS, "gs://bucket/report")
+    expected_manifest = [
+        (
+            "gs://bucket/baseline/movie1.mp4",
+            "gs://bucket/report/_movies/baseline/movie1.mp4",
+        ),
+        (
+            "gs://bucket/prognostic/movie1.mp4",
+            "gs://bucket/report/_movies/prognostic/movie1.mp4",
+        ),
+        (
+            "gs://bucket/baseline/movie2.mp4",
+            "gs://bucket/report/_movies/baseline/movie2.mp4",
+        ),
+    ]
+    assert set(manifest) == set(expected_manifest)
+
+
+def test_get_public_links():
+    links = _get_public_links(MOVIE_URLS, "gs://bucket/report")
+    expected_links = {
+        "movie1.mp4": [
+            (
+                "https://storage.googleapis.com/bucket/report/_movies/baseline/"
+                "movie1.mp4",
+                "baseline",
+            ),
+            (
+                "https://storage.googleapis.com/bucket/report/_movies/prognostic/"
+                "movie1.mp4",
+                "prognostic",
+            ),
+        ],
+        "movie2.mp4": [
+            (
+                "https://storage.googleapis.com/bucket/report/_movies/baseline/"
+                "movie2.mp4",
+                "baseline",
+            )
+        ],
+    }
+    assert links == expected_links
+
+
+def test__get_cmap_kwargs():
+    ds = xarray.Dataset(
+        {
+            "wind": (
+                ["x", "y"],
+                np.arange(50).reshape((10, 5)),
+                dict(long_name="longlongname", units="parsec/year"),
+            ),
+        },
+        attrs=dict(run="one-run"),
+    )
+    out = _get_cmap_kwargs(RunDiagnostics([ds, ds.assign_attrs(run="k")]), "wind")
+    assert len(out) == 3

@@ -19,4 +19,10 @@ Timestep histogram plotting functions
 .. automodule:: fv3viz
    :members: plot_daily_and_hourly_hist, plot_daily_hist, plot_hourly_hist
    
+
+Utility functions
+-----------------
+.. automodule:: fv3viz
+   :members: infer_cmap_params
+   
    
