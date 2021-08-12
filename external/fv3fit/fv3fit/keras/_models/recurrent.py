@@ -542,8 +542,8 @@ class PureKerasModel(Predictor):
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
-        sample_dim_name = X[self.input_variables[0]].dims[0]
-        sample_coord = X[self.input_variables[0]].coords[sample_dim_name]
+        sample_dim_name = X[tuple(self.input_variables)[0]].dims[0]
+        sample_coord = X[tuple(self.input_variables)[0]].coords[sample_dim_name]
         inputs = [X[name].values for name in self.input_variables]
         outputs = self.model.predict(inputs)
         if self._output_metadata is not None:

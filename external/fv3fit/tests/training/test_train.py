@@ -35,7 +35,7 @@ def test_all_training_functions_are_tested_or_exempted():
     )
 
 
-SYSTEM_DEPENDENT_TYPES = ["DenseModel", "sklearn_random_forest"]
+SYSTEM_DEPENDENT_TYPES = ["DenseModel", "sklearn_random_forest", "precipitative"]
 """model types which produce different results on different systems"""
 
 

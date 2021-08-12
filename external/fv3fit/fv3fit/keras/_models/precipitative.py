@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Iterable, Hashable, Mapping, Optional, Sequence, Union
+from typing import Iterable, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 from fv3fit._shared.config import (
     OptimizerConfig,
     RegularizerConfig,
@@ -104,7 +104,7 @@ class PrecipitativeHyperparameters:
         optimizer_config: selection of algorithm to be used in gradient descent
         kernel_regularizer_config: selection of regularizer for hidden dense layer
             weights, by default no regularization is applied
-        dynamics_regularizer_config: selection of regularizer for unconstrainted
+        residual_regularizer_config: selection of regularizer for unconstrainted
             (non-flux based) tendency output, by default no regularization is applied
         depth: number of dense layers to use between the input and output layer.
             The number of hidden layers will be (depth - 1)
@@ -135,7 +135,7 @@ class PrecipitativeHyperparameters:
     kernel_regularizer_config: RegularizerConfig = dataclasses.field(
         default_factory=lambda: RegularizerConfig("none")
     )
-    dynamics_regularizer_config: RegularizerConfig = dataclasses.field(
+    residual_regularizer_config: RegularizerConfig = dataclasses.field(
         default_factory=lambda: RegularizerConfig("none")
     )
     depth: int = 3
@@ -173,7 +173,7 @@ def train_precipitative_model(
         train_batch_size=hyperparameters.keras_batch_size,
         optimizer=hyperparameters.optimizer_config.instance,
         kernel_regularizer=hyperparameters.kernel_regularizer_config.instance,
-        dynamics_regularizer=hyperparameters.dynamics_regularizer_config.instance,
+        residual_regularizer=hyperparameters.residual_regularizer_config.instance,
         save_model_checkpoints=hyperparameters.save_model_checkpoints,
     )
     training_obj.fit_statistics(stacked_train_batches[0])
@@ -206,7 +206,7 @@ class PrecipitativeModel:
         train_batch_size: Optional[int] = None,
         optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
         kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
-        dynamics_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
+        residual_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         save_model_checkpoints: bool = False,
     ):
         self._check_missing_names(input_variables, output_variables)
@@ -248,8 +248,7 @@ class PrecipitativeModel:
         else:
             self._checkpoint_path = None
         self._train_batch_size = train_batch_size
-        self.train_history = {"loss": [], "val_loss": []}
-        self._dynamics_regularizer = dynamics_regularizer
+        self._residual_regularizer = residual_regularizer
 
     def _check_missing_names(self, input_variables, output_variables):
         missing_names = set((self._T_NAME, self._Q_NAME, self._DELP_NAME)).difference(
@@ -269,17 +268,22 @@ class PrecipitativeModel:
                 f"the following missing variables: {missing_names}"
             )
 
-    def _order_outputs(self, output_variables: Sequence[str]):
+    def _order_outputs(
+        self, output_variables: Iterable[Hashable]
+    ) -> Tuple[Hashable, ...]:
         """
         To keep some of the implementation sane, we hard-code that the first
         outputs are temperature, humidity, and precipitation, and all others
         come after.
         """
-        return_list = [self._T_TENDENCY_NAME, self._Q_TENDENCY_NAME, self._PRECIP_NAME]
+        return_list: List[Hashable] = [
+            self._T_TENDENCY_NAME,
+            self._Q_TENDENCY_NAME,
+            self._PRECIP_NAME,
+        ]
         for name in output_variables:
             if name not in return_list:
                 return_list.append(name)
-        assert len(return_list) == len(output_variables)
         return tuple(return_list)
 
     def fit_statistics(self, X: xr.Dataset):
@@ -323,7 +327,7 @@ class PrecipitativeModel:
         output_vector = tf.keras.layers.Dense(
             output_features,
             activation="linear",
-            activity_regularizer=self._dynamics_regularizer,
+            activity_regularizer=self._residual_regularizer,
             name="dense_output",
         )(x)
         denormalized_output = self.output_without_precip_scaler.denormalize_layer(
@@ -375,13 +379,13 @@ class PrecipitativeModel:
         """
         if not self._statistics_are_fit:
             self.fit_statistics(batches[0])
-        if self._train_model is None:
-            self._train_model, self._predict_model = self._build_model()
         return self._fit_loop(batches, validation_batch)
 
     def _fit_loop(
         self, batches: Sequence[xr.Dataset], validation_batch: xr.Dataset
     ) -> None:
+        if self._train_model is None:
+            self._train_model, self._predict_model = self._build_model()
         if validation_batch is None:
             validation_data = None
         else:
@@ -411,10 +415,10 @@ class PrecipitativeModel:
                 )
                 loss_over_batches += history.history["loss"]
                 val_loss_over_batches += history.history.get("val_loss", [np.nan])
-            self.train_history["loss"].append(loss_over_batches)
-            self.train_history["val_loss"].append(val_loss_over_batches)
             if self._checkpoint_path:
-                self.dump(os.path.join(self._checkpoint_path, f"epoch_{i_epoch}"))
+                self.predictor.dump(
+                    os.path.join(str(self._checkpoint_path), f"epoch_{i_epoch}")
+                )
                 logger.info(
                     f"Saved model checkpoint after epoch {i_epoch} "
                     f"to {self._checkpoint_path}"
