@@ -514,6 +514,8 @@ class PureKerasModel(Predictor):
             sample_dim_name: name of sample dimension
             input_variables: names of input variables
             output_variables: names of output variables
+            output_metadata: attributes and stacked dimension order for each variable
+                in output_variables
         """
         super().__init__(sample_dim_name, input_variables, output_variables)
         self.sample_dim_name = sample_dim_name
@@ -541,38 +543,32 @@ class PureKerasModel(Predictor):
             )
             return obj
 
+    def _array_prediction_to_dataset(
+        self, names, outputs, stacked_output_metadata, stacked_coords
+    ) -> xr.Dataset:
+        ds = xr.Dataset()
+        for name, output, metadata in zip(names, outputs, stacked_output_metadata):
+            da = xr.DataArray(
+                data=output,
+                dims=[SAMPLE_DIM_NAME] + list(metadata["dims"][1:]),
+                coords={SAMPLE_DIM_NAME: stacked_coords},
+            ).unstack(SAMPLE_DIM_NAME)
+            dim_order = [dim for dim in metadata["dims"] if dim in da.dims]
+            ds[name] = da.transpose(*dim_order, ...)
+        return ds
+
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
-        X_tmp = _rename_sample_dim(X, self.sample_dim_name)
-        X_stacked = stack_non_vertical(X_tmp)
+        X_stacked = stack_non_vertical(X)
         inputs = [X_stacked[name].values for name in self.input_variables]
         outputs = self.model.predict(inputs)
         if self._output_metadata is not None:
-            # Special handling for the case where the sample dim is in the input
-            # data requires the unstacking to happen here, so that the original
-            # sample dim coords are available to restore
-            if self.sample_dim_name in X.dims:
-                X_stacked = X_stacked.unstack(SAMPLE_DIM_NAME).rename(
-                    {self.sample_dim_name + "_tmp": self.sample_dim_name}
-                )
-            ds = xr.Dataset(
-                data_vars={
-                    name: xr.DataArray(
-                        value,
-                        dims=metadata["dims"],
-                        # TODO: in addition to match_prediction_to_input_coords,
-                        # referencing X.coords[name] also assumes that model input
-                        # shares common dims with output
-                        coords={name: X.coords[name] for name in metadata["dims"]},
-                        attrs={"units": metadata["units"]},
-                    )
-                    for name, value, metadata in zip(
-                        self.output_variables, outputs, self._output_metadata
-                    )
-                }
+            ds = self._array_prediction_to_dataset(
+                self.output_variables,
+                outputs,
+                self._output_metadata,
+                X_stacked.coords[SAMPLE_DIM_NAME],
             )
-            if self.sample_dim_name not in X.dims:
-                ds = ds.unstack(SAMPLE_DIM_NAME)
             return ds
 
         else:
