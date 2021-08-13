@@ -5,6 +5,7 @@ import contextlib
 import tempfile
 import fsspec
 import os
+from pathlib import Path
 
 
 @contextlib.contextmanager
@@ -23,7 +24,8 @@ def get_dir(path: str):
         fs, _, _ = fsspec.get_fs_token_paths(path)
         # fsspec places the directory inside the tmpdir, as a subdirectory
         fs.get(path, tmpdir, recursive=True)
-        yield tmpdir
+        folder_name = Path(path).name
+        yield os.path.join(tmpdir, folder_name)
 
 
 def _put_directory(
