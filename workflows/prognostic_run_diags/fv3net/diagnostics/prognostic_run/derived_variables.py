@@ -43,12 +43,15 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
 
 
 def _column_pq1(ds: xr.Dataset) -> xr.DataArray:
+    DSWRFsfc_name = "DSWRFsfc_from_RRTMG" if "DSWRFsfc_from_RRTMG" in ds else "DSWRFsfc"
+    USWRFsfc_name = "USWRFsfc_from_RRTMG" if "USWRFsfc_from_RRTMG" in ds else "USWRFsfc"
+    DLWRFsfc_name = "DLWRFsfc_from_RRTMG" if "DLWRFsfc_from_RRTMG" in ds else "DLWRFsfc"
     net_heating_arg_labels = [
-        "DLWRFsfc",
-        "DSWRFsfc",
+        DLWRFsfc_name,
+        DSWRFsfc_name,
         "ULWRFsfc",
         "ULWRFtoa",
-        "USWRFsfc",
+        USWRFsfc_name,
         "USWRFtoa",
         "DSWRFtoa",
         "SHTFLsfc",
@@ -128,28 +131,44 @@ def _column_dq2(ds: xr.Dataset) -> xr.DataArray:
 
 def _column_dqu(ds: xr.Dataset) -> xr.DataArray:
     if "column_integrated_dQu" in ds:
-        column_dqu = SECONDS_PER_DAY * ds.column_integrated_dQu
+        warnings.warn(
+            "'column_integrated_dQu' is a deprecated variable name. "
+            "It will not be supported in future versions of fv3net. Use "
+            "'column_integrated_dQu_stress' (units of Pa) instead.",
+            DeprecationWarning,
+        )
+        # convert from m/s/s to Pa by multiplying by surface pressure divided by gravity
+        column_dqu = 100000 / 9.8065 * ds.column_integrated_dQu
+    elif "column_integrated_dQu_stress" in ds:
+        column_dqu = ds.column_integrated_dQu_stress
     else:
         # assume given dataset has no ML prediction of momentum tendencies
         column_dqu = xr.zeros_like(ds.PRATEsfc)
     column_dqu.attrs = {
-        "long_name": "<dQu> vertical mean eastward wind tendency from ML",
-        "units": "m/s/day",
+        "long_name": "<dQu> column integrated eastward wind tendency from ML",
+        "units": "Pa",
     }
-    return column_dqu.rename("vertical_mean_dQu")
+    return column_dqu.rename("column_int_dQu")
 
 
 def _column_dqv(ds: xr.Dataset) -> xr.DataArray:
     if "column_integrated_dQv" in ds:
-        column_dqv = SECONDS_PER_DAY * ds.column_integrated_dQv
+        warnings.warn(
+            "'column_integrated_dQv' is a deprecated variable name. "
+            "It will not be supported in future versions of fv3net. Use "
+            "'column_integrated_dQv_stress' (units of Pa) instead.",
+            DeprecationWarning,
+        )
+        # convert from m/s/s to Pa by multiplying by surface pressure divided by gravity
+        column_dqv = 100000 / 9.8065 * ds.column_integrated_dQv
     else:
         # assume given dataset has no ML prediction of momentum tendencies
         column_dqv = xr.zeros_like(ds.PRATEsfc)
     column_dqv.attrs = {
-        "long_name": "<dQv> vertical mean northward wind tendency from ML",
-        "units": "m/s/day",
+        "long_name": "<dQv> column integrated northward wind tendency from ML",
+        "units": "Pa",
     }
-    return column_dqv.rename("vertical_mean_dQv")
+    return column_dqv.rename("column_int_dQv")
 
 
 def _column_q1(ds: xr.Dataset) -> xr.DataArray:

@@ -14,12 +14,12 @@ import tempfile
 
 from .metrics import metrics_registry
 from .derived_diagnostics import derived_registry
+from .constants import MovieUrls
 
 
 __all__ = ["ComputedDiagnosticsList", "RunDiagnostics"]
 
 
-PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
 GRID_VARS = ["area", "lonb", "latb", "lon", "lat", "land_sea_mask"]
 
 Diagnostics = Iterable[xr.Dataset]
@@ -87,8 +87,8 @@ class ComputedDiagnosticsList:
         """Compute metrics on the fly from the pre-computed diagnostics."""
         return RunMetrics(load_metrics_from_diagnostics(self.folders))
 
-    def find_movie_links(self):
-        return find_movie_links(self.folders)
+    def find_movie_urls(self) -> MovieUrls:
+        return {name: folder.movie_urls for name, folder in self.folders.items()}
 
 
 @dataclass
@@ -258,25 +258,6 @@ def _add_derived_diagnostics(ds):
     return merged.assign_attrs(ds.attrs)
 
 
-def find_movie_links(rundirs, domain=PUBLIC_GCS_DOMAIN):
-    """Get the movie links from a bucket
-
-    Returns:
-        A dictionary of (public_url, run_name) tuples with movie names as keys
-    """
-
-    # TODO refactor to split out I/O from html generation
-    movie_links = {}
-    for name, folder in rundirs.items():
-        for movie_name, gcs_path in folder.movie_urls:
-            movie_name = os.path.basename(gcs_path)
-            if movie_name not in movie_links:
-                movie_links[movie_name] = []
-            public_url = os.path.join(domain, gcs_path)
-            movie_links[movie_name].append((public_url, name))
-    return movie_links
-
-
 def _longest_run(diagnostics: Iterable[xr.Dataset]) -> xr.Dataset:
     max_length = 0
     for ds in diagnostics:
@@ -306,11 +287,11 @@ class DiagnosticFolder:
             return xr.open_dataset(f.name, engine="h5netcdf").compute()
 
     @property
-    def movie_urls(self):
+    def movie_urls(self) -> Sequence[str]:
         movie_paths = self.fs.glob(os.path.join(self.path, "*.mp4"))
-        for path in movie_paths:
-            movie_name = os.path.basename(path)
-            yield movie_name, path
+        if "gs" in self.fs.protocol:
+            movie_paths = ["gs://" + path for path in movie_paths]
+        return movie_paths
 
 
 def detect_folders(

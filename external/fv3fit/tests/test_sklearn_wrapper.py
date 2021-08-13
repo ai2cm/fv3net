@@ -100,10 +100,9 @@ def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
 
 def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
     wrapper = _get_sklearn_wrapper(scale)
-    dims = ["sample", "z"]
+    dims = ["unstacked_dim", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit([data])
-
     output = wrapper.predict(data)
     assert pytest.approx(1 / scale) == output["y"].item()
 
@@ -126,7 +125,7 @@ def test_fitting_SklearnWrapper_does_not_fit_scaler():
     )
     wrapper.target_scaler = scaler
 
-    dims = ["sample", "z"]
+    dims = ["sample_", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit([data])
     scaler.fit.assert_not_called()
@@ -152,7 +151,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
     wrapper.target_scaler = scaler
 
     # setup input data
-    dims = ["sample", "z"]
+    dims = ["unstacked_dim", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit([data])
 
@@ -174,7 +173,7 @@ def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
     )
 
     # setup input data
-    dims = ["sample", "z"]
+    dims = ["unstacked_dim", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit([data])
 
@@ -189,11 +188,7 @@ def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
     assert len(loaded.model.regressors) == 2
 
 
-def test_predict_columnwise_is_deterministic(regtest):
-    """Tests that fitting/predicting with a model is deterministic
-
-    If this fails, look for non-deterministic logic (e.g. converting sets to lists)
-    """
+def fit_wrapper_with_columnar_data():
     nz = 2
     model = _RegressorEnsemble(
         base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
@@ -209,9 +204,24 @@ def test_predict_columnwise_is_deterministic(regtest):
     dims = ["x", "y", "z"]
     shape = (2, 2, nz)
     arr = np.arange(np.prod(shape)).reshape(shape)
-    data = xr.Dataset({"a": (dims, arr), "b": (dims, arr + 1)})
-    stacked = data.stack(sample=["x", "y"]).transpose("sample", "z")
-    wrapper.fit([stacked])
+    input_data = xr.Dataset({"a": (dims, arr), "b": (dims, arr + 1)})
+    wrapper.fit([input_data])
+    return input_data, wrapper
 
-    output = wrapper.predict_columnwise(data, feature_dim="z")
+
+def test_predict_is_deterministic(regtest):
+    """Tests that fitting/predicting with a model is deterministic
+
+    If this fails, look for non-deterministic logic (e.g. converting sets to lists)
+    """
+    input_data, wrapper = fit_wrapper_with_columnar_data()
+    output = wrapper.predict(input_data)
     print(joblib.hash(np.asarray(output["b"])), file=regtest)
+
+
+def test_predict_returns_unstacked_dims():
+    # 2D output dims same as input dims
+    input_data, wrapper = fit_wrapper_with_columnar_data()
+    assert len(input_data.dims) > 2
+    prediction = wrapper.predict(input_data)
+    assert prediction.dims == input_data.dims

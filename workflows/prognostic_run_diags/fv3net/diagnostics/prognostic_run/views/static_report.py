@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from typing import Iterable, Mapping, Sequence
+from typing import Iterable, Mapping, Sequence, Tuple
 import os
 import xarray as xr
 import fsspec
@@ -13,15 +13,15 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunMetrics,
 )
 
-from report import create_html, Link, OrderedList
+import vcm
+from report import create_html, Link, OrderedList, RawHTML
 from report.holoviews import HVPlot, get_html_header
 from .matplotlib import (
     plot_2d_matplotlib,
     plot_cubed_sphere_map,
-    raw_html,
     plot_histogram,
 )
-from ..constants import PERCENTILES, PRECIP_RATE
+from ..constants import PERCENTILES, PRECIP_RATE, TOP_LEVEL_METRICS, MovieUrls
 
 import logging
 
@@ -35,6 +35,9 @@ warnings.filterwarnings("ignore", message="All-NaN slice encountered")
 logging.basicConfig(level=logging.INFO)
 
 hv.extension("bokeh")
+PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
+MovieManifest = Sequence[Tuple[str, str]]
+PublicLinks = Mapping[str, Sequence[Tuple[str, str]]]
 
 
 def upload(html: str, url: str, content_type: str = "text/html"):
@@ -218,17 +221,13 @@ def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 
 @hovmoller_plot_manager.register
-def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
-    return plot_2d_matplotlib(
-        diagnostics, "zonal_mean_value", dims=["time", "latitude"], cmap="viridis"
-    )
+def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
+    return plot_2d_matplotlib(diagnostics, "zonal_mean_value", ["time", "latitude"])
 
 
 @hovmoller_plot_manager.register
-def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
-    return plot_2d_matplotlib(
-        diagnostics, "zonal_mean_bias", dims=["time", "latitude"], cmap="RdBu_r",
-    )
+def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
+    return plot_2d_matplotlib(diagnostics, "zonal_mean_bias", ["time", "latitude"])
 
 
 def time_mean_cubed_sphere_maps(
@@ -257,24 +256,23 @@ def time_mean_bias_cubed_sphere_maps(
 
 
 @zonal_pressure_plot_manager.register
-def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_time_mean",
-        dims=["latitude", "pressure"],
-        cmap="viridis",
+        ["latitude", "pressure"],
         yincrease=False,
         ylabel="Pressure [Pa]",
     )
 
 
 @zonal_pressure_plot_manager.register
-def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> raw_html:
+def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_bias",
+        ["latitude", "pressure"],
         contour=True,
-        dims=["latitude", "pressure"],
         cmap="RdBu_r",
         yincrease=False,
         ylabel="Pressure [Pa]",
@@ -299,51 +297,82 @@ def histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 # Routines for plotting the "metrics"
 # New plotting routines can be registered here.
 @metrics_plot_manager.register
-def time_mean_bias_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "time_and_global_mean_bias")
+def time_mean_bias_metrics(metrics: RunMetrics) -> RawHTML:
+    return metric_type_table(metrics, "time_and_global_mean_bias")
 
 
 @metrics_plot_manager.register
-def rmse_time_mean_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "rmse_of_time_mean")
+def rmse_time_mean_metrics(metrics: RunMetrics) -> RawHTML:
+    return metric_type_table(metrics, "rmse_of_time_mean")
 
 
 @metrics_plot_manager.register
-def rmse_3day_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "rmse_3day")
+def rmse_3day_metrics(metrics: RunMetrics) -> RawHTML:
+    return metric_type_table(metrics, "rmse_3day")
 
 
 @metrics_plot_manager.register
-def drift_metrics(metrics: RunMetrics) -> hv.HoloMap:
-    return generic_metric_plot(metrics, "drift")
+def drift_metrics(metrics: RunMetrics) -> RawHTML:
+    return metric_type_table(metrics, "drift_3day")
 
 
-def generic_metric_plot(metrics: RunMetrics, metric_type: str) -> hv.HoloMap:
-    hmap = hv.HoloMap(kdims=["metric"])
-    bar_opts = dict(norm=dict(framewise=True), plot=dict(width=600))
-    variables = metrics.get_metric_variables(metric_type)
-    for varname in variables:
-        s = metrics.get_metric_all_runs(metric_type, varname)
-        bars = hv.Bars((s.run, s.value), hv.Dimension("Run"), s.units.iloc[0])
-        hmap[metrics.metric_name(metric_type, varname)] = bars
-    if len(variables) > 0:
-        return HVPlot(hmap.opts(**bar_opts))
-
-
-def get_metrics_table(
-    metrics: RunMetrics, metric_types: Sequence[str], variable_names: Sequence[str]
-) -> Mapping[str, Mapping[str, float]]:
-    """Structure a set of metrics in format suitable for reports.create_html"""
+def _get_metric_type_df(metrics: RunMetrics, metric_type: str) -> pd.DataFrame:
+    variables = sorted(metrics.get_metric_variables(metric_type))
     table = {}
-    for metric_type in metric_types:
-        for name in variable_names:
-            units = metrics.get_metric_units(metric_type, name, metrics.runs[0])
-            type_label = f"{name} {metric_type} [{units}]"
-            table[type_label] = {
-                run: f"{metrics.get_metric_value(metric_type, name, run):.2f}"
+    for varname in variables:
+        units = metrics.get_metric_units(metric_type, varname, metrics.runs[0])
+        column_name = f"{varname} [{units}]"
+        table[column_name] = [
+            metrics.get_metric_value(metric_type, varname, run) for run in metrics.runs
+        ]
+    return pd.DataFrame(table, index=metrics.runs)
+
+
+def metric_type_table(metrics: RunMetrics, metric_type: str) -> RawHTML:
+    """Return HTML table of all metrics of type metric_type.
+        
+    Args:
+        metrics: Computed metrics.
+        metric_type: Label for type of metric, e.g. "rmse_5day".
+        
+    Returns:
+        HTML representation of table of metric values with rows of all variables
+        available for given metric_type and columns of runs.
+    """
+    df = _get_metric_type_df(metrics, metric_type).transpose()
+    header = f"<h3>{metric_type}</h3>"
+    return RawHTML(header + df.to_html(justify="center", float_format="{:.2f}".format))
+
+
+def _get_metric_df(metrics, metric_names):
+    table = {}
+    for metric_type, variables in metric_names.items():
+        for variable in variables:
+            units = metrics.get_metric_units(metric_type, variable, metrics.runs[0])
+            column_name = f"{variable} {metric_type} [{units}]"
+            table[column_name] = [
+                metrics.get_metric_value(metric_type, variable, run)
                 for run in metrics.runs
-            }
-    return table
+            ]
+    return pd.DataFrame(table, index=metrics.runs)
+
+
+def metric_table(
+    metrics: RunMetrics, metric_names: Mapping[str, Sequence[str]]
+) -> RawHTML:
+    """Return HTML table for all metrics specified in metric_names.
+    
+    Args:
+        metrics: Computed metrics.
+        metric_names: A mapping from metric_types to sequences of variable names.
+            For example, {"rmse_5day": ["h500", "tmp850"]}.
+
+    Returns:
+        HTML representation of table of metric values with rows of all metrics
+        specified in metric_names and columns of runs.
+    """
+    df = _get_metric_df(metrics, metric_names).transpose()
+    return RawHTML(df.to_html(justify="center", float_format="{:.2f}".format))
 
 
 navigation = OrderedList(
@@ -359,12 +388,11 @@ navigation = [navigation]  # must be iterable for create_html template
 def render_index(metadata, diagnostics, metrics, movie_links):
     sections_index = {
         "Links": navigation,
+        "Top-level metrics": [metric_table(metrics, TOP_LEVEL_METRICS)],
         "Timeseries": list(timeseries_plot_manager.make_plots(diagnostics)),
         "Zonal mean": list(zonal_mean_plot_manager.make_plots(diagnostics)),
+        "Complete metrics": list(metrics_plot_manager.make_plots(metrics)),
     }
-
-    if not metrics.empty:
-        sections_index["Metrics"] = list(metrics_plot_manager.make_plots(metrics))
     return create_html(
         title="Prognostic run report",
         metadata={**metadata, **render_links(movie_links)},
@@ -421,17 +449,16 @@ def render_zonal_pressures(metadata, diagnostics):
 
 
 def render_process_diagnostics(metadata, diagnostics, metrics):
+    percentile_names = {f"percentile_{p}": [PRECIP_RATE] for p in PERCENTILES}
     sections = {
         "Links": navigation,
+        "Precipitation percentiles": [metric_table(metrics, percentile_names)],
         "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
         "Precipitation histogram": list(histogram_plot_manager.make_plots(diagnostics)),
     }
-    metric_types = [f"percentile_{p}" for p in PERCENTILES]
-    metrics_table = get_metrics_table(metrics, metric_types, [PRECIP_RATE])
     return create_html(
         title="Process diagnostics",
         metadata=metadata,
-        metrics=metrics_table,
         sections=sections,
         html_header=get_html_header(),
     )
@@ -456,13 +483,57 @@ def render_links(link_dict):
     }
 
 
+def _movie_name(url: str) -> str:
+    return os.path.basename(url)
+
+
+def _movie_output_path(root: str, run_name: str, movie_name: str) -> str:
+    return os.path.join(root, "_movies", run_name, movie_name)
+
+
+def _get_movie_manifest(movie_urls: MovieUrls, output: str) -> MovieManifest:
+    """Return manifest of report output location for each movie in movie_urls.
+    
+    Args:
+        movie_urls: the URLs for the movies to be included in report.
+        output: the location where the report will be saved.
+        
+    Returns:
+        Tuples of source URL and output path for each movie."""
+    manifest = []
+    for run_name, urls in movie_urls.items():
+        for url in urls:
+            output_path = _movie_output_path(output, run_name, _movie_name(url))
+            manifest.append((url, output_path))
+    return manifest
+
+
+def _get_public_links(movie_urls: MovieUrls, output: str) -> PublicLinks:
+    """Get the public links at which each movie can be opened in a browser."""
+    public_links = {}
+    for run_name, urls in movie_urls.items():
+        for url in urls:
+            movie_name = _movie_name(url)
+            output_path = _movie_output_path(output, run_name, movie_name)
+            if output_path.startswith("gs://"):
+                public_link = output_path.replace("gs:/", PUBLIC_GCS_DOMAIN)
+            else:
+                public_link = output_path
+            public_links.setdefault(movie_name, []).append((public_link, run_name))
+    return public_links
+
+
 def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
     metrics = computed_diagnostics.load_metrics_from_diagnostics()
-    movie_links = computed_diagnostics.find_movie_links()
+    movie_urls = computed_diagnostics.find_movie_urls()
     metadata, diagnostics = computed_diagnostics.load_diagnostics()
+    manifest = _get_movie_manifest(movie_urls, output)
+    public_links = _get_public_links(movie_urls, output)
+    for source, target in manifest:
+        vcm.cloud.copy(source, target, content_type="video/mp4")
 
     pages = {
-        "index.html": render_index(metadata, diagnostics, metrics, movie_links),
+        "index.html": render_index(metadata, diagnostics, metrics, public_links),
         "hovmoller.html": render_hovmollers(metadata, diagnostics),
         "maps.html": render_maps(metadata, diagnostics, metrics),
         "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),

@@ -13,26 +13,26 @@ class Registry:
     def __init__(
         self, merge: Callable[[Mapping[str, Union[xr.DataArray, xr.Dataset]]], Any]
     ):
-        self._funcs = defaultdict()
+        self.funcs = defaultdict()
         self.merge = merge
 
     @curry
     def register(
         self, name: str, func: Callable[[Any], Union[xr.Dataset, xr.DataArray]]
     ):
-        if name in self._funcs:
+        if name in self.funcs:
             raise ValueError(f"Function {name} has already been added to registry.")
-        self._funcs[name] = func
+        self.funcs[name] = func
 
     def compute(self, *args, n_jobs=-1, **kwargs) -> Any:
         computed_outputs = Parallel(n_jobs=n_jobs, verbose=True)(
-            delayed(self._load)(name, func, *args, **kwargs)
-            for name, func in self._funcs.items()
+            delayed(self.load)(name, func, *args, **kwargs)
+            for name, func in self.funcs.items()
         )
         return self.merge(computed_outputs)
 
     @staticmethod
-    def _load(name, func, *args, **kwargs):
+    def load(name, func, *args, **kwargs):
         _start_logger_if_necessary()
         return name, func(*args, **kwargs).load()
 

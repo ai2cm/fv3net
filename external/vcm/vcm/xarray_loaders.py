@@ -18,7 +18,7 @@ logger = logging.getLogger("vcm.xarray_loaders")
 def _read_metadata_remote(fs, url):
     logging.info("Reading metadata")
     with fs.open(url, "rb") as f:
-        return xr.open_dataset(f)
+        return xr.open_dataset(f).load()
 
 
 def open_remote_nc(fs, url):

@@ -6,12 +6,22 @@ import xarray as xr
 import vcm.testing
 
 
-def test_random_state_uniform_reproducibility(regtest):
+def test_numpy_version(regtest):
+    print(np.version.full_version, file=regtest)
+
+
+def test_random_state_uniform_reproducibility():
+    seed = 10
+    fv3fit.set_random_seed(seed)
     random = np.random.RandomState(0)
     n_samples = 500
-    X = random.uniform(size=(n_samples, 5))
-    print(np.version.full_version, file=regtest)
-    print(joblib.hash(X), file=regtest)
+    X0 = random.uniform(size=(n_samples, 5))
+
+    fv3fit.set_random_seed(seed)
+    random = np.random.RandomState(0)
+    n_samples = 500
+    X1 = random.uniform(size=(n_samples, 5))
+    assert np.array_equal(X0, X1)
 
 
 def test_random_state_second_output_reproducibility(regtest):
@@ -43,7 +53,8 @@ def test_data_generation_reproducibility(regtest):
         print(result, file=regtest)
 
 
-def test_random_forest_reproducibility(regtest):
+def set_random_state_train_and_predict(seed):
+    fv3fit.set_random_seed(seed)
     regressor = RandomForestRegressor(random_state=0, n_jobs=None)
     random = np.random.RandomState(0)
     n_samples = 500
@@ -53,7 +64,14 @@ def test_random_forest_reproducibility(regtest):
         regressor.fit(X, y)
     X_test = random.uniform(size=(n_samples, 5))
     y_test = regressor.predict(X_test)
-    print(joblib.hash(y_test), file=regtest)
+    return y_test
+
+
+def test_random_forest_reproducibility():
+    seed = 10
+    prediction_0 = set_random_state_train_and_predict(seed)
+    prediction_1 = set_random_state_train_and_predict(seed)
+    assert np.array_equal(prediction_0, prediction_1)
 
 
 def test_random_forest_n_jobs_can_exceed_n_estimators():

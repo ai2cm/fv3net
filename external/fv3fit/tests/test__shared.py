@@ -10,8 +10,6 @@ from fv3fit._shared import get_scaler, StandardScaler, ManualScaler
 
 class IdentityPredictor2D(Predictor):
     def predict(self, X):
-        for variable in X:
-            assert X[variable].ndim <= 2
         return X[self.output_variables]
 
     def dump(self, *args, **kwargs):
@@ -31,7 +29,6 @@ class InOutPredictor(Predictor):
         return cls("sample", cls.input_variables, cls.output_variables)
 
     def predict(self, x):
-        assert x["in"].ndim == 2
         return x.rename({"in": "out"})
 
     def dump(self, *args, **kwargs):

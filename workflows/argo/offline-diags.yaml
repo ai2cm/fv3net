@@ -19,11 +19,12 @@ spec:
       inputs:
         parameters:
           - name: ml-model
-          # argo submit yaml is processed beforehand to have config and times fed in as string parameters
-          - name: times  
+          - name: training_config
+          - name: training_data_config
+          - name: validation_data_config
           - name: offline-diags-output
           - name: report-output
-          - {name: memory, value: 6Gi}
+          - {name: memory, value: 10Gi}
 
       container:
         image: us.gcr.io/vcm-ml/fv3net
@@ -40,20 +41,30 @@ spec:
           - |
 
             gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
-                    
-            cat << EOF > times.json
-            {{inputs.parameters.times}}
+
+            cat << EOF > validation_data.yaml
+            {{inputs.parameters.validation_data_config}}
             EOF
     
             python -m offline_ml_diags.compute_diags \
               {{inputs.parameters.ml-model}} \
-              {{inputs.parameters.offline-diags-output}} \
-              --timesteps-file times.json 
+              validation_data.yaml \
+              {{inputs.parameters.offline-diags-output}}
               
+            cat << EOF > training.yaml
+            {{inputs.parameters.training_config}}
+            EOF
+            cat << EOF > training_data.yaml
+            {{inputs.parameters.training_data_config}}
+            EOF
             python -m offline_ml_diags.create_report \
               {{inputs.parameters.offline-diags-output}} \
               {{inputs.parameters.report-output}} \
-              --commit-sha "$COMMIT_SHA"
+              --commit-sha "$COMMIT_SHA" \
+              --training-config \
+              training.yaml \
+              --training-data-config \
+              training_data.yaml
       podSpecPatch: |
         containers:
           - name: main

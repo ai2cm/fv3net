@@ -37,14 +37,11 @@ def compute_metrics(
     ds: xr.Dataset,
     lat: xr.DataArray,
     area: xr.DataArray,
-    delp: xr.DataArray,
     predicted_vars: Sequence[str],
     predict_coord: str = PREDICT_COORD,
     target_coord: str = TARGET_COORD,
     derivation_dim: str = DERIVATION_DIM,
     vertical_dim: str = VERTICAL_DIM,
-    area_var: str = AREA_VAR,
-    delp_var: str = DELP_VAR,
     vertical_profile_mean_dims: Sequence[str] = VERTICAL_PROFILE_MEAN_DIMS,
 ) -> xr.Dataset:
     """Routine for computing ML prediction metrics (_bias, _mse]) on a dataset of

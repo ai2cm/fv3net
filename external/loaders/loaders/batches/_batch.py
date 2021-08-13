@@ -18,13 +18,7 @@ from .._utils import (
     add_grid_info,
     add_derived_data,
     add_wind_rotation_info,
-    check_empty,
     nonderived_variables,
-    preserve_samples_per_batch,
-    shuffled,
-    stack_non_vertical,
-    subsample,
-    SAMPLE_DIM_NAME,
 )
 from ..constants import TIME_NAME
 from .._config import batches_functions, batches_from_mapper_functions
@@ -66,8 +60,6 @@ def batches_from_geodata(
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
         res: grid resolution, format as f'c{number cells in tile}'
-        subsample_size: draw a random subsample from the batch of the
-            specified size along the sampling dimension
         needs_grid: Add grid information into batched datasets. [Warning] requires
             remote GCS access
     Raises:
@@ -86,8 +78,6 @@ def batches_from_geodata(
         random_seed,
         timesteps,
         res,
-        training=True,
-        subsample_size=subsample_size,
         needs_grid=needs_grid,
     )
     return batches
@@ -109,8 +99,6 @@ def batches_from_mapper(
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
     needs_grid: bool = True,
-    training: bool = True,
-    subsample_size: int = None,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -124,11 +112,6 @@ def batches_from_mapper(
         timesteps: List of timesteps to use in training.
         needs_grid: Add grid information into batched datasets. [Warning] requires
             remote GCS access
-        training: apply stack_non_vertical, dropna, shuffle, and samples-per-batch
-            preseveration to the batch transforms. useful for ML model
-            training
-        subsample_size: draw a random subsample from the batch of the
-            specified size along the sampling dimension
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -162,19 +145,6 @@ def batches_from_mapper(
         ]
 
     transforms += [add_derived_data(variable_names)]
-
-    if training:
-        transforms += [
-            stack_non_vertical,
-            lambda ds: ds.load(),
-            lambda ds: ds.dropna(dim=SAMPLE_DIM_NAME),
-            check_empty,
-            preserve_samples_per_batch,
-            shuffled(random_state),
-        ]
-
-    if subsample_size is not None:
-        transforms.append(subsample(subsample_size, random_state))
 
     batch_func = compose_left(*transforms)
 
@@ -211,8 +181,6 @@ def diagnostic_batches_from_geodata(
         random_seed (int, optional): Defaults to 0.
         timesteps: List of timesteps to use in training.
         res: grid resolution, format as f'c{number cells in tile}'
-        subsample_size: draw a random subsample from the batch of the
-            specified size along the sampling dimension
         needs_grid: Add grid information into batched datasets. [Warning] requires
             remote GCS access
 
@@ -232,8 +200,6 @@ def diagnostic_batches_from_geodata(
         random_seed,
         timesteps,
         res,
-        training=False,
-        subsample_size=subsample_size,
         needs_grid=needs_grid,
     )
     return sequence

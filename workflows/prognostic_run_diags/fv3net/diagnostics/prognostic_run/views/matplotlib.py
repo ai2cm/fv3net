@@ -1,9 +1,8 @@
 import base64
-import dataclasses
 import io
 import logging
 from collections import defaultdict
-from typing import Sequence, Mapping
+from typing import Tuple, Mapping
 import xarray as xr
 
 import cartopy.crs as ccrs
@@ -16,6 +15,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunMetrics,
 )
 import fv3viz
+from report import RawHTML
 
 COORD_NAMES = {
     "coord_x_center": "x",
@@ -38,14 +38,6 @@ def fig_to_b64(fig, format="png", dpi=None):
     pic_IObytes.seek(0)
     pic_hash = base64.b64encode(pic_IObytes.read())
     return f"data:image/png;base64, " + pic_hash.decode()
-
-
-@dataclasses.dataclass
-class raw_html:
-    contents: str
-
-    def __repr__(self):
-        return self.contents
 
 
 template = jinja2.Template(
@@ -72,24 +64,23 @@ template = jinja2.Template(
 """
 )
 
-CBAR_RANGE = {
-    "eastward_wind_pressure_level_zonal_bias": 30,
-    "northward_wind_pressure_level_zonal_bias": 3,
-    "air_temperature_pressure_level_zonal_bias": 15,
-    "specific_humidity_pressure_level_zonal_bias": 1e-3,
-    "vertical_wind_pressure_level_zonal_bias": 0.02,
-    "mass_streamfunction_pressure_level_zonal_bias": 100,
+CONTOUR_LEVELS = {
+    "eastward_wind_pressure_level_zonal_bias": np.arange(-30, 31, 4),
+    "northward_wind_pressure_level_zonal_bias": np.arange(-3, 3.1, 0.4),
+    "air_temperature_pressure_level_zonal_bias": np.arange(-15, 16, 2),
+    "specific_humidity_pressure_level_zonal_bias": np.arange(-1.1e-3, 1.2e-3, 2e-4),
+    "vertical_wind_pressure_level_zonal_bias": np.arange(-2.1e-2, 2.2e-2, 2e-3),
+    "mass_streamfunction_pressure_level_zonal_bias": np.arange(-105, 106, 10),
 }
-CONTOUR_LEVELS = 20
 
 
 def plot_2d_matplotlib(
     run_diags: RunDiagnostics,
     varfilter: str,
-    dims: Sequence = None,
+    dims: Tuple[str, str],
     contour=False,
     **opts,
-) -> raw_html:
+) -> RawHTML:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 2D and have the same dimensions."""
 
@@ -100,34 +91,30 @@ def plot_2d_matplotlib(
     x, y = dims
 
     variables_to_plot = run_diags.matching_variables(varfilter)
-    for run in run_diags.runs:
-        for varname in variables_to_plot:
-            vmax = CBAR_RANGE.get(varname)
+    for varname in variables_to_plot:
+        if not contour:
+            opts["vmin"], opts["vmax"], opts["cmap"] = _get_cmap_kwargs(
+                run_diags, varname, robust=False
+            )
+        for run in run_diags.runs:
             logging.info(f"plotting {varname} in {run}")
             v = run_diags.get_variable(run, varname)
             long_name_and_units = f"{v.long_name} [{v.units}]"
             fig, ax = plt.subplots()
             if contour:
-                cbar_levels = np.arange(-vmax, vmax, step=2 * vmax / CONTOUR_LEVELS)
+                levels = CONTOUR_LEVELS.get(varname)
                 xr.plot.contourf(
-                    v,
-                    ax=ax,
-                    x=x,
-                    y=y,
-                    vmax=vmax,
-                    levels=cbar_levels,
-                    extend="both",
-                    **opts,
+                    v, ax=ax, x=x, y=y, levels=levels, extend="both", **opts
                 )
             else:
-                v.plot(ax=ax, x=x, y=y, vmax=vmax, **opts)
+                v.plot(ax=ax, x=x, y=y, **opts)
             if ylabel:
                 ax.set_ylabel(ylabel)
             ax.set_title(long_name_and_units)
             plt.tight_layout()
             data[varname][run] = fig_to_b64(fig)
             plt.close(fig)
-    return raw_html(
+    return RawHTML(
         template.render(
             image_data=data,
             runs=sorted(run_diags.runs),
@@ -142,7 +129,6 @@ def plot_cubed_sphere_map(
     run_metrics: RunMetrics,
     varfilter: str,
     metrics_for_title: Mapping[str, str] = None,
-    **opts,
 ) -> str:
     """Plot horizontal maps of cubed-sphere data for diagnostics which match varfilter.
     
@@ -152,7 +138,6 @@ def plot_cubed_sphere_map(
         varfilter: pattern to filter variable names
         metrics_for_title: metrics to put in plot title. Mapping from label to use in
             plot title to metric_type.
-        opts: additional kwargs to pass to fv3viz.plot_cube
 
     Note:
         All matching diagnostics must have tile, x and y dimensions and each dataset in
@@ -164,8 +149,9 @@ def plot_cubed_sphere_map(
         metrics_for_title = {}
 
     variables_to_plot = run_diags.matching_variables(varfilter)
-    for run in run_diags.runs:
-        for varname in variables_to_plot:
+    for varname in variables_to_plot:
+        vmin, vmax, cmap = _get_cmap_kwargs(run_diags, varname, robust=True)
+        for run in run_diags.runs:
             logging.info(f"plotting {varname} in {run}")
             shortname = varname.split(varfilter)[0][:-1]
             ds = run_diags.get_variables(run, list(_COORD_VARS) + [varname])
@@ -176,12 +162,12 @@ def plot_cubed_sphere_map(
                 figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()}
             )
             mv = fv3viz.mappable_var(ds, varname, coord_vars=_COORD_VARS, **COORD_NAMES)
-            fv3viz.plot_cube(mv, ax=ax, **opts)
+            fv3viz.plot_cube(mv, ax=ax, vmin=vmin, vmax=vmax, cmap=cmap)
             ax.set_title(plot_title)
             plt.subplots_adjust(left=0.01, right=0.75, bottom=0.02)
             data[varname][run] = fig_to_b64(fig)
             plt.close(fig)
-    return raw_html(
+    return RawHTML(
         template.render(
             image_data=data,
             runs=sorted(run_diags.runs),
@@ -191,7 +177,7 @@ def plot_cubed_sphere_map(
     )
 
 
-def plot_histogram(run_diags: RunDiagnostics, varname: str) -> raw_html:
+def plot_histogram(run_diags: RunDiagnostics, varname: str) -> RawHTML:
     """Plot 1D histogram of varname overlaid across runs."""
 
     logging.info(f"plotting {varname}")
@@ -209,7 +195,7 @@ def plot_histogram(run_diags: RunDiagnostics, varname: str) -> raw_html:
     fig.tight_layout()
     data = fig_to_b64(fig, dpi=150)
     plt.close(fig)
-    return raw_html(f'<img src="{data}" width="800px" />')
+    return RawHTML(f'<img src="{data}" width="800px" />')
 
 
 def _render_map_title(
@@ -221,3 +207,11 @@ def _render_map_title(
         metric_units = metrics.get_metric_units(metric_type, variable, run)
         title_parts.append(f"{name_in_figure_title}: {metric_value:.3f} {metric_units}")
     return ", ".join(title_parts)
+
+
+def _get_cmap_kwargs(run_diags, variable, **kwargs):
+    input_data = []
+    for run in run_diags.runs:
+        input_data.append(run_diags.get_variable(run, variable).assign_coords(run=run))
+    input_data = xr.concat(input_data, dim="run")
+    return fv3viz.infer_cmap_params(input_data.values, **kwargs)

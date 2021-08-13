@@ -1,6 +1,5 @@
 import logging
 import os
-import shutil
 
 import click
 import fv3config
@@ -10,13 +9,6 @@ import vcm
 from .validate import validate_chunks
 
 logger = logging.getLogger(__name__)
-
-
-def copy(source: str, destination: str):
-    """Copy between any two 'filesystems'. Do not use for large files."""
-    with fsspec.open(source) as f_source:
-        with fsspec.open(destination, "wb") as f_destination:
-            shutil.copyfileobj(f_source, f_destination)
 
 
 @click.command()
@@ -35,5 +27,4 @@ def create(url: str, fv3config_path: str):
     with fsspec.open(fv3config_path) as f:
         fv3config_dict = fv3config.load(f)
     validate_chunks(fv3config_dict)
-
-    copy(fv3config_path, os.path.join(url, "fv3config.yml"))
+    vcm.cloud.copy(fv3config_path, os.path.join(url, "fv3config.yml"))
