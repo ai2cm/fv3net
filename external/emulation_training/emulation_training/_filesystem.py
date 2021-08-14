@@ -22,10 +22,8 @@ def put_dir(path: str):
 def get_dir(path: str):
     with tempfile.TemporaryDirectory() as tmpdir:
         fs, _, _ = fsspec.get_fs_token_paths(path)
-        # fsspec places the directory inside the tmpdir, as a subdirectory
         fs.get(path, tmpdir, recursive=True)
-        folder_name = Path(path).name
-        yield os.path.join(tmpdir, folder_name)
+        yield tmpdir
 
 
 def _put_directory(

@@ -5,6 +5,7 @@ import logging
 import os
 import traceback
 import numpy as np
+from mpi4py import MPI
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -36,18 +37,14 @@ def print_location_ping(state):
 
 def dump_state(state):
 
-    DUMP_PATH = str(os.environ.get("STATE_DUMP_PATH"))
+    DUMP_PATH = os.path.join(os.getcwd(), "debug_dump")
+    os.makedirs(DUMP_PATH, exist_ok=True)
 
     logger = logging.getLogger(__name__)
-
-    try:
-        rank = state.get("rank")
-    except KeyError:
-        logger.info("Could not save state. No rank included in state.")
-        return
+    rank = MPI.COMM_WORLD.Get_rank()
 
     time_str = datetime.now().strftime("%Y%m%d.%H%M%S")
-    filename = f"state_dump.{time_str}.tile{int(rank.squeeze()[0])}.npz"
+    filename = f"state_dump.{time_str}.tile{rank}.npz"
     outfile = os.path.join(DUMP_PATH, filename)
     logger.info(f"Dumping state to {outfile}")
     np.savez(outfile, **state)
