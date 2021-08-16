@@ -92,15 +92,17 @@ def _get_state_variable_name(name: str) -> str:
     return state_name
 
 
-def _tendencies_to_state_update(inputs, tendency_outputs):
+def _tendencies_to_state_update(state, tendency_outputs):
 
+    levs = NML["fv_core_nml"]["npz"]
     state_updates = {}
     for tend_name, tendencies in tendency_outputs.items():
         state_name = _get_state_variable_name(tend_name)
         logger.debug(f"Updating state {state_name} with tendencies {tend_name}")
 
         in_name = state_name.replace("_output", "_input")
-        input_state_var = inputs[in_name]
+        input_state_var = state[in_name].T
+        tendencies = _maybe_expand_field(levs, tendencies)
         updated_state_var = input_state_var + tendencies * DT_SEC
         state_updates[state_name] = updated_state_var
 
@@ -122,25 +124,33 @@ def _combine_tend_state_updates(tend_state, direct_state):
     return combined
 
 
-def _expand_full_vertical(state_predictions):
-    """
-    Hard-coded expansion for now assumes levels
-    cut off from top and all predictions are 2D
-    """
-    levs = NML["fv_core_nml"]["npz"]
+def _maybe_expand_field(target_lev, field):
 
-    expanded = {}
-    for name, data in state_predictions.items():
-        if data.shape[-1] < levs:
-            expanded_data = np.zeros((data.shape[0], levs))
-            expanded_data[:, :data.shape[-1]] = data
-            expanded[name] = expanded_data
+    if field.shape[-1] < target_lev:
+        expanded_data = np.zeros((field.shape[0], target_lev))
+        expanded_data[:, :field.shape[-1]] = field
+        field = expanded_data
     
-    logger.debug(f"Expanding feature dims for: {expanded.keys()}")
-    new_state = dict(state_predictions)
-    new_state.update(expanded)
+    return field
+    
 
-    return new_state
+
+# def _expand_dataset_to_full_vertical(state_predictions):
+#     """
+#     Hard-coded expansion for now assumes levels
+#     cut off from top and all predictions are 2D
+#     """
+#     levs = NML["fv_core_nml"]["npz"]
+
+#     full_levels = {}
+#     for name, data in state_predictions.items():
+#         full_levels[name] = _maybe_expand_field(levs, data)
+    
+#     logger.debug(f"Expanding feature dims for: {full_levels.keys()}")
+#     new_state = dict(state_predictions)
+#     new_state.update(full_levels)
+
+#     return new_state
 
 
 def _adjusted_model_inputs(state):
@@ -163,8 +173,7 @@ def _get_state_updates(state, predictions):
     
     tend_states = _tendencies_to_state_update(state, tendencies)
     combined = _combine_tend_state_updates(tend_states, updated_state)
-    expanded = _expand_full_vertical(combined)
-    transposed = {name: data.T for name, data in expanded.items()}
+    transposed = {name: data.T for name, data in combined.items()}
     
     logger.info(f"Predicted states from model: {transposed.keys()}")
 
@@ -186,7 +195,7 @@ def microphysics(state):
         for name, output in zip(MODEL.output_names, outputs)
     }
 
-    new_state = _get_state_updates(adjusted_in_state, named_outputs)
+    new_state = _get_state_updates(state, named_outputs)
 
     overwrites = set(state).intersection(new_state)
     logger.info(f"Overwritting existing state fields: {overwrites}")
@@ -196,4 +205,4 @@ def microphysics(state):
     }
     state.update(new_state)
     state.update(diag_uphys)
-    dump_state(state)
+    # dump_state(state)
