@@ -11,7 +11,7 @@ jobs:
         type: enum
         enum: ["test_unit", "test_regression", "typecheck", "test_dataflow", "test_prognostic_run_report"]
     docker:
-      - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest
+      - image: us.gcr.io/vcm-ml/circleci-miniconda3-gfortran:latest
         auth:
           username: _json_key
           password: $DECODED_GOOGLE_CREDENTIALS
