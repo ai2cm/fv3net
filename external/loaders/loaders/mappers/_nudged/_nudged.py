@@ -119,7 +119,11 @@ def open_nudge_to_fine(
     nudging_variables: Sequence[str],
     physics_timestep_seconds: float = 900.0,
     consolidated: bool = True,
-    additional_datasets: Sequence[str] = (),
+    datasets: Sequence[str] = (
+        "physics_tendencies.zarr",
+        "nudging_tendencies.zarr",
+        "state_after_timestep.zarr",
+    ),
 ) -> XarrayMapper:
     """
     Load nudge-to-fine data mapper for use with training. Merges
@@ -136,10 +140,11 @@ def open_nudge_to_fine(
         physics_timestep_seconds (float): physics timestep, i.e., dt_atmos; defaults
             to 900.0
         consolidated (bool): whether zarrs to open have consolidated metadata
-        additional_datasets: names of zarrs at the given URL to include, in addition
-            to the defaults of physics_tendencies.zarr, nudging_tendencies.zarr,
-            and state_after_timestep.zarr. For example, you may want to include
-            "diags.zarr" to retrieve total_precipitation_rate.
+        datasets: names of zarrs at the given URL to include, defaults are
+            physics_tendencies.zarr, nudging_tendencies.zarr, and
+            state_after_timestep.zarr (which you should probably include).
+            For example, you may want to include also "diags.zarr" to retrieve
+            total_precipitation_rate.
         
     Returns:
         mapper to dataset containing nudging tendencies, physics tendencies,
@@ -147,16 +152,7 @@ def open_nudge_to_fine(
     """
 
     ds = xr.merge(
-        _get_datasets(
-            data_path,
-            [
-                "physics_tendencies.zarr",
-                "nudging_tendencies.zarr",
-                "state_after_timestep.zarr",
-            ]
-            + list(additional_datasets),
-            consolidated=consolidated,
-        ).values(),
+        _get_datasets(data_path, datasets, consolidated=consolidated,).values(),
         join="inner",
     )
 
