@@ -53,19 +53,15 @@ def _moisture_tendency_limiter(packer, state_update, state):
 
 
 def get_input_vector(
-    packer: ArrayPacker,
-    scaler: Optional[LayerStandardScaler],
-    n_window: Optional[int] = None,
-    series: bool = True,
+    packer: ArrayPacker, n_window: Optional[int] = None, series: bool = True,
 ):
     """
-    Given a packer and scaler, return a list of input layers with one layer
+    Given a packer, return a list of input layers with one layer
     for each input used by the packer, and a list of output tensors which are
-    the result of packing and (optionally) scaling those input layers.
+    the result of packing those input layers.
 
     Args:
         packer
-        scaler
         n_window: required if series is True, number of timesteps in a sample
         series: if True, returned inputs have shape [n_window, n_features], otherwise
             they are 1D [n_features] arrays
@@ -83,8 +79,6 @@ def get_input_vector(
             tf.keras.layers.Input(shape=[n_features]) for n_features in features
         ]
     packed = tf.keras.layers.Concatenate()(input_layers)
-    if scaler is not None:
-        packed = scaler.normalize_layer(packed)
     return input_layers, packed
 
 
@@ -299,13 +293,14 @@ class _BPTTTrainer:
         purposes.
         """
         input_series_layers, forcing_series_input = get_input_vector(
-            self.input_packer, self.input_scaler, n_window, series=True
+            self.input_packer, n_window, series=True
         )
+        forcing_series_input = self.input_scaler.normalize_layer(forcing_series_input)
         state_layers, state_input = get_input_vector(
-            self.prognostic_packer, None, n_window, series=False
+            self.prognostic_packer, n_window, series=False
         )
         given_tendency_series_layers, given_tendency_series_input = get_input_vector(
-            self.prognostic_packer, None, n_window, series=True
+            self.prognostic_packer, n_window, series=True
         )
 
         def prepend_forcings(state, i):
@@ -366,12 +361,12 @@ class _BPTTTrainer:
         Build a model which predicts the tendency for a single timestep, used for
         prediction.
         """
-        input_layers, forcing_input = get_input_vector(
-            self.input_packer, self.input_scaler, series=False
-        )
+        input_layers, forcing_input = get_input_vector(self.input_packer, series=False)
+        forcing_input = self.input_scaler.normalize_layer(forcing_input)
         state_layers, state_input = get_input_vector(
-            self.prognostic_packer, self.prognostic_scaler, series=False
+            self.prognostic_packer, series=False
         )
+        state_input = self.prognostic_scaler.normalize_layer(state_input)
         denormalized_state = tf.keras.layers.Concatenate()(state_layers)
         x = tf.keras.layers.concatenate([forcing_input, state_input])
         predicted_tendency = get_predicted_tendency(x, denormalized_state)

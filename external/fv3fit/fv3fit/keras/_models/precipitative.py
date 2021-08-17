@@ -19,24 +19,28 @@ from .recurrent import get_input_vector, PureKerasModel
 from loaders.batches import shuffle
 import logging
 
+
 logger = logging.getLogger(__file__)
 
 LV = 2.5e6  # Latent heat of evaporation [J/kg]
 WATER_DENSITY = 997  # kg/m^3
 CPD = 1004.6  # Specific heat capacity of dry air at constant pressure [J/kg/deg]
 GRAVITY = 9.80665  # m /s2
-KG_M2_TO_MM = 1000.0 / WATER_DENSITY  # mm/m / (kg/m^3) = mm / (kg/m^2)
 
 
 def integrate_precip(args):
     dQ2, delp = args  # layers seem to take in a single argument
+    # output should be kg/m^2/s
     return tf.math.scalar_mul(
-        KG_M2_TO_MM / GRAVITY, tf.math.reduce_sum(tf.math.multiply(dQ2, delp), axis=-1)
+        # dQ2 * delp = s-1 * Pa = s^-1 * kg m-1 s-2 = kg m-1 s-3
+        # dQ2 * delp / g = kg m-1 s-3 / (m s-2) = kg/m^2/s
+        1.0 / GRAVITY,
+        tf.math.reduce_sum(tf.math.multiply(dQ2, delp), axis=-1),
     )
 
 
 def evaporative_heating(dQ2):
-    return tf.math.scalar_mul(tf.constant(LV / CPD), dQ2)
+    return tf.math.scalar_mul(tf.constant(LV / CPD, dtype=dQ2.dtype), dQ2)
 
 
 def multiply_loss_by_factor(original_loss, factor):
@@ -125,6 +129,8 @@ class PrecipitativeHyperparameters:
         keras_batch_size: actual batch_size to apply in gradient descent updates,
             independent of number of samples in each batch in batches; optional,
             uses 32 if omitted
+        dense_behavior: if True, try to recover behavior of Dense model type
+            by not adding "precipitative" terms to dQ1 and dQ2
     """
 
     weights: Optional[Mapping[str, Union[int, float]]] = None
@@ -149,6 +155,7 @@ class PrecipitativeHyperparameters:
     workers: int = 1
     max_queue_size: int = 8
     keras_batch_size: int = 32
+    dense_behavior: bool = False
 
 
 @register_training_function("precipitative", PrecipitativeHyperparameters)
@@ -160,7 +167,11 @@ def train_precipitative_model(
     validation_batches: Sequence[xr.Dataset],
 ):
     random_state = np.random.RandomState(np.random.get_state()[1][0])
-    stacked_train_batches = StackedBatches(train_batches, random_state)
+    stacked_train_batches = tuple(StackedBatches(train_batches, random_state))
+    for batch in stacked_train_batches:
+        max_value = 1e-7
+        batch["dQ2"].values[batch["dQ2"].values < -max_value] = -max_value
+        batch["dQ2"].values[batch["dQ2"].values > max_value] = max_value
     stacked_validation_batches = StackedBatches(validation_batches, random_state)
     training_obj = PrecipitativeModel(
         input_variables=input_variables,
@@ -175,6 +186,7 @@ def train_precipitative_model(
         kernel_regularizer=hyperparameters.kernel_regularizer_config.instance,
         residual_regularizer=hyperparameters.residual_regularizer_config.instance,
         save_model_checkpoints=hyperparameters.save_model_checkpoints,
+        dense_behavior=hyperparameters.dense_behavior,
     )
     training_obj.fit_statistics(stacked_train_batches[0])
     if len(stacked_validation_batches) > 0:
@@ -191,6 +203,7 @@ class PrecipitativeModel:
     _T_NAME = "air_temperature"
     _Q_NAME = "specific_humidity"
     _PRECIP_NAME = "total_precipitation_rate"
+    _PHYS_PRECIP_NAME = "physics_precip"
     _T_TENDENCY_NAME = "dQ1"
     _Q_TENDENCY_NAME = "dQ2"
 
@@ -208,23 +221,28 @@ class PrecipitativeModel:
         kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         residual_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         save_model_checkpoints: bool = False,
+        dense_behavior: bool = False,
     ):
+        if output_variables != ["dQ1", "dQ2", "total_precipitation_rate"]:
+            raise ValueError(
+                "only supported value for output_variables is "
+                '["dQ1", "dQ2", "total_precipitation_rate"]'
+            )
         self._check_missing_names(input_variables, output_variables)
+        self._dense_behavior = dense_behavior
         self.sample_dim_name = SAMPLE_DIM_NAME
         self.output_variables = self._order_outputs(output_variables)
         self.input_variables = input_variables
         self.input_packer = ArrayPacker(self.sample_dim_name, input_variables)
-        self.prognostic_packer = ArrayPacker(
-            self.sample_dim_name, [self._T_NAME, self._Q_NAME]
+        self.humidity_packer = ArrayPacker(
+            self.sample_dim_name, [self._Q_TENDENCY_NAME]
         )
-        self.humidity_packer = ArrayPacker(self.sample_dim_name, [self._Q_NAME])
         output_without_precip = (n for n in output_variables if n != self._PRECIP_NAME)
         self.output_packer = ArrayPacker(self.sample_dim_name, self.output_variables)
         self.output_without_precip_packer = ArrayPacker(
             self.sample_dim_name, output_without_precip
         )
         self.input_scaler = LayerStandardScaler()
-        self.prognostic_scaler = LayerStandardScaler()
         self.output_scaler = LayerStandardScaler()
         self.output_without_precip_scaler = LayerStandardScaler()
         self.humidity_scaler = LayerStandardScaler()
@@ -293,8 +311,6 @@ class PrecipitativeModel:
         """
         inputs = self.input_packer.to_array(X)
         self.input_scaler.fit(inputs)
-        state = self.prognostic_packer.to_array(X)
-        self.prognostic_scaler.fit(state)
         outputs = self.output_packer.to_array(X)
         self.output_scaler.fit(outputs)
         outputs_without_precip = self.output_without_precip_packer.to_array(X)
@@ -309,12 +325,15 @@ class PrecipitativeModel:
 
     def _build_model(self):
         input_layers, input_vector = get_input_vector(
-            self.input_packer, scaler=self.input_scaler, n_window=None, series=False
+            self.input_packer, n_window=None, series=False
         )
-        # q = input_layers[self.input_variables.index(self._Q_NAME)]
+        norm_input_vector = self.input_scaler.normalize_layer(input_vector)
         delp = input_layers[self.input_variables.index(self._DELP_NAME)]
+        physics_precip = input_layers[
+            self.input_variables.index(self._PHYS_PRECIP_NAME)
+        ]
 
-        x = input_vector
+        norm_x = norm_input_vector
         for i in range(self._depth - 1):
             hidden_layer = tf.keras.layers.Dense(
                 self._width,
@@ -322,38 +341,52 @@ class PrecipitativeModel:
                 kernel_regularizer=self._kernel_regularizer,
                 name=f"hidden_layer_{i}",
             )
-            x = hidden_layer(x)
+            norm_x = hidden_layer(norm_x)
         output_features = sum(self.output_without_precip_packer.feature_counts.values())
-        output_vector = tf.keras.layers.Dense(
+        norm_output_vector = tf.keras.layers.Dense(
             output_features,
             activation="linear",
             activity_regularizer=self._residual_regularizer,
             name="dense_output",
-        )(x)
+        )(norm_x)
         denormalized_output = self.output_without_precip_scaler.denormalize_layer(
-            output_vector
+            norm_output_vector
         )
         unpacked_output = get_unpack_layer(
             self.output_without_precip_packer, feature_dim=1
         )(denormalized_output)
+        assert self.output_without_precip_packer.pack_names[0] == "dQ1"
         T_tendency = unpacked_output[0]
         q_tendency = unpacked_output[1]
 
-        column_precip_vector = tf.keras.layers.Dense(
-            self.humidity_packer.feature_counts[self._Q_NAME], activation="linear"
-        )(x)
-        column_precip = self.humidity_scaler.denormalize_layer(column_precip_vector)
-        column_precip = tf.keras.activations.relu(column_precip)
+        norm_column_precip_vector = tf.keras.layers.Dense(
+            self.humidity_packer.feature_counts[self._Q_TENDENCY_NAME],
+            activation="linear",
+        )(norm_x)
+        column_precip = self.humidity_scaler.denormalize_layer(
+            norm_column_precip_vector
+        )
         column_heating = tf.keras.layers.Lambda(evaporative_heating)(column_precip)
-        T_tendency = tf.keras.layers.Add(name="T_tendency")(
-            [T_tendency, column_heating]
+        if not self._dense_behavior:
+            T_tendency = tf.keras.layers.Add(name="T_tendency")(
+                [T_tendency, column_heating]
+            )
+            q_tendency = tf.keras.layers.Subtract(name="q_tendency")(
+                [q_tendency, column_precip]
+            )
+        surface_precip = tf.keras.layers.Add(name="add_physics_precip")(
+            [
+                physics_precip,
+                tf.keras.layers.Lambda(integrate_precip, name="surface_precip")(
+                    [column_precip, delp]
+                ),
+            ]
         )
-        q_tendency = tf.keras.layers.Subtract(name="q_tendency")(
-            [q_tendency, column_precip]
-        )
-        surface_precip = tf.keras.layers.Lambda(
-            integrate_precip, name="surface_precip"
-        )([column_precip, delp])
+        assert list(self.output_variables) == [
+            "dQ1",
+            "dQ2",
+            "total_precipitation_rate",
+        ], self.output_variables
         train_model = tf.keras.Model(
             inputs=input_layers,
             outputs=(T_tendency, q_tendency, surface_precip)
@@ -369,7 +402,7 @@ class PrecipitativeModel:
         # serialize the custom loss functions
         predict_model = tf.keras.Model(
             inputs=input_layers,
-            outputs=(T_tendency, q_tendency, surface_precip)
+            outputs=(T_tendency, q_tendency, surface_precip, column_precip)
             + tuple(unpacked_output[2:]),
         )
         return train_model, predict_model
@@ -429,7 +462,8 @@ class PrecipitativeModel:
         return PureKerasModel(
             self.sample_dim_name,
             self.input_variables,
-            self.output_variables,
+            # predictor has additional diagnostic outputs which were indirectly trained
+            list(self.output_variables) + ["dQ2_precip"],
             get_output_metadata(self.output_packer, self.sample_dim_name),
             self._predict_model,
         )

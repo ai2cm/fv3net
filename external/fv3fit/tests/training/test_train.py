@@ -7,7 +7,7 @@ import fv3fit
 from fv3fit._shared.config import TRAINING_FUNCTIONS, get_hyperparameter_class
 import vcm.testing
 import tempfile
-from fv3fit.keras._models.precipitative import LV, CPD, KG_M2_TO_MM, GRAVITY
+from fv3fit.keras._models.precipitative import LV, CPD, GRAVITY
 
 
 # training functions that work on arbitrary datasets, can be used in generic tests below
@@ -73,7 +73,7 @@ def get_dataset(model_type, sample_func):
         output_values = (
             input_values[0] + LV / CPD * input_values[1],  # latent heat of condensation
             input_values[1],
-            KG_M2_TO_MM
+            1.0
             / GRAVITY
             * np.sum(
                 input_values[2] * input_values[1], axis=1
@@ -227,7 +227,7 @@ def test_dump_and_load_default_maintains_prediction(model_type):
     original_result = model.predict(test_dataset)
     with tempfile.TemporaryDirectory() as tmpdir:
         model.dump(tmpdir)
-        loaded_model = model.__class__.load(tmpdir)
+        loaded_model = fv3fit.load(tmpdir)
     loaded_result = loaded_model.predict(test_dataset)
     xr.testing.assert_equal(loaded_result, original_result)
 
