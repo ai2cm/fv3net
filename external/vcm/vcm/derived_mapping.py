@@ -179,15 +179,21 @@ def is_sea_ice(self):
 
 @DerivedMapping.register("Q1", required_inputs=["dQ1", "pQ1"])
 def Q1(self):
-    if "dQ1" in self.keys:
-        return self["dQ1"] + self["pQ1"]
-    else:
-        return self["pQ1"]
+    try:
+        return self._mapper["Q1"]
+    except KeyError:
+        if "dQ1" in self.keys:
+            return self["dQ1"] + self["pQ1"]
+        else:
+            return self["pQ1"]
 
 
-@DerivedMapping.register("Q2", required_inputs=["dQ1", "pQ2"])
+@DerivedMapping.register("Q2", required_inputs=["dQ2", "pQ2"])
 def Q2(self):
-    if "dQ2" in self.keys:
-        return self["dQ2"] + self["pQ2"]
-    else:
-        return self["pQ2"]
+    try:
+        return self._mapper["Q2"]
+    except KeyError:
+        if "dQ2" in self.keys:
+            return self["dQ2"] + self["pQ2"]
+        else:
+            return self["pQ2"]
