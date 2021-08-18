@@ -2,7 +2,13 @@ from typing import Dict, Any, Iterable, Hashable, Optional, Sequence, Tuple, Lis
 import tensorflow as tf
 import xarray as xr
 import os
-from ..._shared import Predictor, io, ArrayPacker
+from ..._shared import (
+    Predictor,
+    io,
+    ArrayPacker,
+    SAMPLE_DIM_NAME,
+    match_prediction_to_input_coords,
+)
 from .packer import get_unpack_layer
 from ._filesystem import get_dir, put_dir
 from .normalizer import LayerStandardScaler
@@ -13,19 +19,18 @@ import vcm.safe
 Z_DIMS = ["z", "z_interface"]
 
 
-def stack_non_vertical(ds: xr.Dataset, sample_dim_name) -> xr.Dataset:
+def stack_non_vertical(ds: xr.Dataset) -> xr.Dataset:
     """
     Stack all dimensions except for the Z dimensions into a sample
 
     Args:
         ds: dataset with geospatial dimensions
-        sample_dim_name: name for new sampling dimension
     """
     stack_dims = [dim for dim in ds.dims if dim not in Z_DIMS]
     if len(set(ds.dims).intersection(Z_DIMS)) > 1:
         raise ValueError("Data cannot have >1 feature dimension in {Z_DIMS}.")
     ds_stacked = vcm.safe.stack_once(
-        ds, sample_dim_name, stack_dims, allowed_broadcast_dims=Z_DIMS,
+        ds, SAMPLE_DIM_NAME, stack_dims, allowed_broadcast_dims=Z_DIMS,
     )
     return ds_stacked.transpose()
 
@@ -129,8 +134,8 @@ class _BPTTTrainer:
         )
         self.output_variables = ["dQ1", "dQ2"]
         self.sample_dim_name = sample_dim_name
-        self.input_packer = ArrayPacker(sample_dim_name, input_variables)
-        self.prognostic_packer = ArrayPacker(sample_dim_name, prognostic_variables)
+        self.input_packer = ArrayPacker(SAMPLE_DIM_NAME, input_variables)
+        self.prognostic_packer = ArrayPacker(SAMPLE_DIM_NAME, prognostic_variables)
         self.train_timestep_seconds: Optional[float] = None
         self.input_scaler = LayerStandardScaler()
         self.prognostic_scaler = LayerStandardScaler()
@@ -164,7 +169,7 @@ class _BPTTTrainer:
             X_tmp = X.rename({self.sample_dim_name: temporary_sample_dim})
         else:
             X_tmp = X
-        dataset_2d = stack_non_vertical(X_tmp, self.sample_dim_name)
+        dataset_2d = stack_non_vertical(X_tmp)
         inputs = self.input_packer.to_array(dataset_2d)
         state = self.prognostic_packer.to_array(dataset_2d)
         self.input_scaler.fit(inputs)
@@ -508,6 +513,8 @@ class PureKerasModel(Predictor):
             sample_dim_name: name of sample dimension
             input_variables: names of input variables
             output_variables: names of output variables
+            output_metadata: attributes and stacked dimension order for each variable
+                in output_variables
         """
         super().__init__(sample_dim_name, input_variables, output_variables)
         self.sample_dim_name = sample_dim_name
@@ -535,51 +542,63 @@ class PureKerasModel(Predictor):
             )
             return obj
 
+    def _array_prediction_to_dataset(
+        self, names, outputs, stacked_output_metadata, stacked_coords
+    ) -> xr.Dataset:
+        ds = xr.Dataset()
+        for name, output, metadata in zip(names, outputs, stacked_output_metadata):
+            scalar_output_as_singleton_dim = (
+                len(metadata["dims"]) == 1
+                and len(output.shape) == 2
+                and output.shape[1] == 1
+            )
+            if scalar_output_as_singleton_dim:
+                output = output[:, 0]  # remove singleton dimension
+            da = xr.DataArray(
+                data=output,
+                dims=[SAMPLE_DIM_NAME] + list(metadata["dims"][1:]),
+                coords={SAMPLE_DIM_NAME: stacked_coords},
+            ).unstack(SAMPLE_DIM_NAME)
+            dim_order = [dim for dim in metadata["dims"] if dim in da.dims]
+            ds[name] = da.transpose(*dim_order, ...)
+        return ds
+
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
-        sample_dim_name = X[tuple(self.input_variables)[0]].dims[0]
-        sample_coord = X[tuple(self.input_variables)[0]].coords[sample_dim_name]
-        inputs = [X[name].values for name in self.input_variables]
+        X_stacked = stack_non_vertical(X)
+        inputs = [X_stacked[name].values for name in self.input_variables]
         outputs = self.model.predict(inputs)
         if self._output_metadata is not None:
-            data_vars = {}
-            for name, value, metadata in zip(
-                self.output_variables, outputs, self._output_metadata
-            ):
-                # ignore sample dim from saved metadata, use the sample dim we have now
-                coords = {sample_dim_name: sample_coord}
-                coords.update({name: X.coords[name] for name in metadata["dims"][1:]})
-                dims = [sample_dim_name] + list(metadata["dims"][1:])
-                scalar_output_as_singleton_dim = (
-                    len(dims) == 1 and len(value.shape) == 2 and value.shape[1] == 1
-                )
-                if scalar_output_as_singleton_dim:
-                    value = value[:, 0]  # remove singleton dimension
-                data_vars[name] = xr.DataArray(
-                    value, dims=dims, coords=coords, attrs={"units": metadata["units"]},
-                )
-            return xr.Dataset(data_vars=data_vars)
+            ds = self._array_prediction_to_dataset(
+                self.output_variables,
+                outputs,
+                self._output_metadata,
+                X_stacked.coords[SAMPLE_DIM_NAME],
+            )
+            return ds
+
         else:
             # workaround for saved datasets which do not have output metadata
             # from an initial version of the BPTT code. Can be removed
             # eventually
             dQ1, dQ2 = outputs
-            return xr.Dataset(
+            ds = xr.Dataset(
                 data_vars={
                     "dQ1": xr.DataArray(
                         dQ1,
-                        dims=X["air_temperature"].dims,
-                        coords=X["air_temperature"].coords,
-                        attrs={"units": X["air_temperature"].units + " / s"},
+                        dims=X_stacked["air_temperature"].dims,
+                        coords=X_stacked["air_temperature"].coords,
+                        attrs={"units": X_stacked["air_temperature"].units + " / s"},
                     ),
                     "dQ2": xr.DataArray(
                         dQ2,
-                        dims=X["specific_humidity"].dims,
-                        coords=X["specific_humidity"].coords,
-                        attrs={"units": X["specific_humidity"].units + " / s"},
+                        dims=X_stacked["specific_humidity"].dims,
+                        coords=X_stacked["specific_humidity"].coords,
+                        attrs={"units": X_stacked["specific_humidity"].units + " / s"},
                     ),
                 }
             )
+            return match_prediction_to_input_coords(X, ds.unstack(SAMPLE_DIM_NAME))
 
     def dump(self, path: str) -> None:
         with put_dir(path) as path:
