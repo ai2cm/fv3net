@@ -221,3 +221,23 @@ def Q2(self):
             return self["dQ2"] + self["pQ2"]
         else:
             return self["pQ2"]
+
+
+@DerivedMapping.register(
+    "pQ1", required_inputs=["pressure_thickness_of_atmospheric_layer"]
+)
+def pQ1(self):
+    try:
+        return self._mapper["pQ1"]
+    except KeyError:
+        return xr.zeros_like(self["pressure_thickness_of_atmospheric_layer"])
+
+
+@DerivedMapping.register(
+    "pQ2", required_inputs=["pressure_thickness_of_atmospheric_layer"]
+)
+def pQ2(self):
+    try:
+        return self._mapper["pQ2"]
+    except KeyError:
+        return xr.zeros_like(self["pressure_thickness_of_atmospheric_layer"])
