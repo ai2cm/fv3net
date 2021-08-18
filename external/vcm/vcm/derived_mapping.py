@@ -58,6 +58,27 @@ class DerivedMapping:
     def dataset(self, keys: Iterable[Hashable]) -> xr.Dataset:
         return xr.Dataset(self._data_arrays(keys))
 
+    @classmethod
+    def find_all_required_inputs(
+        cls, derived_variables: Iterable[str]
+    ) -> Iterable[str]:
+        # Helper function to find full list of required inputs for a given list
+        # of derived variables. Recurses because some required inputs have their
+        # own required inputs (e.g. pQ's)
+        def _recurse_find_deps(vars, deps):
+            vars_with_deps = [var for var in vars if var in cls.REQUIRED_INPUTS]
+            if len(vars_with_deps) == 0:
+                return
+            else:
+                for var in vars_with_deps:
+                    new_deps = cls.REQUIRED_INPUTS[var]
+                    deps += new_deps
+                _recurse_find_deps(new_deps, deps)
+
+        deps = []
+        _recurse_find_deps(derived_variables, deps)
+        return deps
+
 
 @DerivedMapping.register("cos_zenith_angle", required_inputs=["time", "lon", "lat"])
 def cos_zenith_angle(self):
