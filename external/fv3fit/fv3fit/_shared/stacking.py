@@ -38,7 +38,7 @@ class StackedBatches(Sequence[xr.Dataset]):
         return len(self._batches)
 
     def _stack_batch(self, ds_unstacked: xr.Dataset) -> xr.Dataset:
-        ds = stack_non_vertical(ds_unstacked).load().dropna(dim=SAMPLE_DIM_NAME)
+        ds = stack_non_vertical(ds_unstacked).dropna(dim=SAMPLE_DIM_NAME)
         ds = _check_empty(ds)
         ds = _preserve_samples_per_batch(ds)
         return _shuffled(self._random_state, ds)
