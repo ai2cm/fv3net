@@ -1,4 +1,4 @@
-from vcm.cloud.fsspec import get_protocol
+from vcm.cloud.fsspec import get_protocol, copy
 
 import pytest
 
@@ -13,3 +13,17 @@ import pytest
 )
 def test__get_protocol(path, expected_protocol):
     assert get_protocol(path) == expected_protocol
+
+
+@pytest.mark.parametrize(
+    ("content_type"), [None, "text/html"],
+)
+def test_copy(tmpdir, content_type):
+    expected_content = "foobar"
+    source = tmpdir.join("file1.txt")
+    destination = tmpdir.join("file2.txt")
+    source.write(expected_content)
+    copy(str(source), str(destination), content_type=content_type)
+    with open(destination) as f:
+        content = f.read()
+    assert content == expected_content
