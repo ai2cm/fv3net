@@ -181,8 +181,7 @@ def open_diagnostics_outputs(
         ds_diags = xr.open_dataset(f).load()
     with fsspec.open(os.path.join(data_dir, diurnal_nc_name), "rb") as f:
         ds_diurnal = xr.open_dataset(f).load()
-    fs_path_transect_nc = os.path.join(data_dir, transect_nc_name).replace("gs://", "")
-    if vcm.get_fs(data_dir).exists(fs_path_transect_nc):
+    if vcm.get_fs(data_dir).exists(os.path.join(data_dir, transect_nc_name)):
         with fsspec.open(os.path.join(data_dir, transect_nc_name), "rb") as f:
             ds_transect = xr.open_dataset(f).load()
     else:

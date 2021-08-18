@@ -185,7 +185,7 @@ def Q1(self):
     try:
         return self._mapper["Q1"]
     except KeyError:
-        if "dQ1" in self.keys:
+        if "dQ1" in self.keys():
             return self["dQ1"] + self["pQ1"]
         else:
             return self["pQ1"]
@@ -196,7 +196,7 @@ def Q2(self):
     try:
         return self._mapper["Q2"]
     except KeyError:
-        if "dQ2" in self.keys:
+        if "dQ2" in self.keys():
             return self["dQ2"] + self["pQ2"]
         else:
             return self["pQ2"]

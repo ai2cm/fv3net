@@ -35,6 +35,9 @@ handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
 
+# Additional derived outputs (values) that are added to report if their
+# corresponding base ML outputs (keys) are present in model
+DERIVED_OUTPUTS_FROM_BASE_OUTPUTS = {"dQ1": "Q1", "dQ2": "Q2"}
 
 # variables that are needed in addition to the model features
 DIAGS_NC_NAME = "offline_diagnostics.nc"
@@ -156,7 +159,6 @@ def _compute_diagnostics(
     for i, ds in enumerate(batches):
         logger.info(f"Processing batch {i+1}/{len(batches)}")
 
-        # ds = _fill_empty_dQ1_dQ2(ds)
         # ...insert additional variables
         diagnostic_vars_3d = [var for var in predicted_vars if is_3d(ds[var])]
 
@@ -260,15 +262,12 @@ def _get_predict_function(predictor, variables, grid):
     return transform
 
 
-def _derived_heating_moistening_model(model: fv3fit.Predictor) -> fv3fit.DerivedModel:
-    # if dQ1, dQ2 are predicted, add derived Q1, Q2 variables so that the
-    # apparent sources can be inserted
-    derived_Q_vars = []
-    if "dQ1" in model.input_variables:
-        derived_Q_vars.append("Q1")
-    if "dQ2" in model.input_variables:
-        derived_Q_vars.append("Q2")
-    return fv3fit.DerivedModel(model, derived_output_variables=derived_Q_vars)
+def _derived_outputs_from_base_predictions(base_outputs):
+    derived_outputs = []
+    for base_output in base_outputs:
+        if base_output in DERIVED_OUTPUTS_FROM_BASE_OUTPUTS:
+            derived_outputs.append(DERIVED_OUTPUTS_FROM_BASE_OUTPUTS[base_output])
+    return derived_outputs
 
 
 def main(args):
@@ -288,8 +287,15 @@ def main(args):
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
-    if "dQ1" in model.output_variables or "dQ2" in model.output_variables:
-        model = _derived_heating_moistening_model(model)
+
+    additional_derived_outputs = _derived_outputs_from_base_predictions(
+        model.output_variables
+    )
+    if len(additional_derived_outputs) > 0:
+        model = fv3fit.DerivedModel(
+            model, derived_output_variables=additional_derived_outputs
+        )
+
     model_variables = list(set(model.input_variables + model.output_variables + [DELP]))
 
     output_data_yaml = os.path.join(args.output_path, "data_config.yaml")
