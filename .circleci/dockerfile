@@ -1,15 +1,18 @@
-FROM continuumio/miniconda:latest
+FROM continuumio/miniconda3:latest
 
-# https://askubuntu.com/questions/51854/is-it-possible-to-install-a-deb-from-a-url
-# linux-libc-dev is a broken uri for the apt-get repository that's checked in miniconda
-RUN apt-get install -y curl && \
-    curl -L "http://security-cdn.debian.org/debian-security/pool/updates/main/l/linux/linux-libc-dev_4.19.67-2+deb10u2_amd64.deb" > linux-libc-dev.deb && \
-    dpkg -i linux-libc-dev.deb && \
-    rm -f linux-libc-dev.deb && \
-    apt-get install -y gfortran && \
-    apt-get install -y make && \
+RUN apt-get update && apt-get install -y \
+    curl \
+    gfortran \
+    make \
+    uuid \
+    gnupg && \
     apt-get clean && \
     conda update -n base conda && \
     conda clean -i
+
+RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
+    apt-get update && apt-get install -y google-cloud-sdk && \
+    gcloud config set project vcm-ml
 
 CMD [ "/bin/bash" ]

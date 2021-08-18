@@ -42,9 +42,6 @@ push_image_%: build_image_%
 pull_image_%:
 	docker pull $(REGISTRY)/$*:$(VERSION)
 
-build_image_ci:
-	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
-
 ############################################################
 # Documentation (rules match "deploy_docs_%")
 ############################################################
