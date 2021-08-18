@@ -25,11 +25,14 @@ class DerivedMapping:
 
         Args:
             name: the name the derived variable will be available under
-            required_inputs: Optional arg to list the
-                required inputs needed to derive said variable. Omit this if the
-                requirements are not well-defined, e.g. dQu only needs dQxwind,
-                dQywind if dQu is not already in the mapping, so do not list these
-                as requirements.
+            required_inputs: Optional arg to list the potential
+                required inputs needed to derive said variable. Even if the
+                requirements are not well-defined, they should still be listed.
+                (e.g. dQu only needs dQxwind, dQywind if dQu is not in the data)
+                This is because the usage of this registry is for when
+                an output is explicitly requested as a derived output variable and thus
+                it is assumed the variable does not already exist and needs to
+                be derived.
         """
 
         def decorator(func):
@@ -81,7 +84,7 @@ def _rotate(self: DerivedMapping, x, y):
     )
 
 
-@DerivedMapping.register("dQu")
+@DerivedMapping.register("dQu", required_inputs=["dQxwind", "dQywind"])
 def dQu(self):
     try:
         return self._mapper["dQu"]
@@ -89,7 +92,7 @@ def dQu(self):
         return _rotate(self, "dQxwind", "dQywind")[0]
 
 
-@DerivedMapping.register("dQv")
+@DerivedMapping.register("dQv", required_inputs=["dQxwind", "dQywind"])
 def dQv(self):
     try:
         return self._mapper["dQv"]
@@ -177,7 +180,7 @@ def is_sea_ice(self):
     return xr.where(vcm.xarray_utils.isclose(self["land_sea_mask"], 2), 1.0, 0.0)
 
 
-@DerivedMapping.register("Q1", required_inputs=["dQ1", "pQ1"])
+@DerivedMapping.register("Q1", required_inputs=["pQ1"])
 def Q1(self):
     try:
         return self._mapper["Q1"]
@@ -188,7 +191,7 @@ def Q1(self):
             return self["pQ1"]
 
 
-@DerivedMapping.register("Q2", required_inputs=["dQ2", "pQ2"])
+@DerivedMapping.register("Q2", required_inputs=["pQ2"])
 def Q2(self):
     try:
         return self._mapper["Q2"]
