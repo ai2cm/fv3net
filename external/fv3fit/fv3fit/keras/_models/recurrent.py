@@ -550,6 +550,11 @@ class PureKerasModel(Predictor):
                 coords = {sample_dim_name: sample_coord}
                 coords.update({name: X.coords[name] for name in metadata["dims"][1:]})
                 dims = [sample_dim_name] + list(metadata["dims"][1:])
+                scalar_output_as_singleton_dim = (
+                    len(dims) == 1 and len(value.shape) == 2 and value.shape[1] == 1
+                )
+                if scalar_output_as_singleton_dim:
+                    value = value[:, 0]  # remove singleton dimension
                 data_vars[name] = xr.DataArray(
                     value, dims=dims, coords=coords, attrs={"units": metadata["units"]},
                 )

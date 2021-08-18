@@ -34,13 +34,13 @@ def integrate_precip(args):
     return tf.math.scalar_mul(
         # dQ2 * delp = s-1 * Pa = s^-1 * kg m-1 s-2 = kg m-1 s-3
         # dQ2 * delp / g = kg m-1 s-3 / (m s-2) = kg/m^2/s
-        1.0 / GRAVITY,
+        tf.constant(-1.0 / GRAVITY, dtype=dQ2.dtype),
         tf.math.reduce_sum(tf.math.multiply(dQ2, delp), axis=-1),
     )
 
 
-def evaporative_heating(dQ2):
-    return tf.math.scalar_mul(tf.constant(LV / CPD, dtype=dQ2.dtype), dQ2)
+def condensational_heating(dQ2):
+    return tf.math.scalar_mul(tf.constant(-LV / CPD, dtype=dQ2.dtype), dQ2)
 
 
 def multiply_loss_by_factor(original_loss, factor):
@@ -168,10 +168,6 @@ def train_precipitative_model(
 ):
     random_state = np.random.RandomState(np.random.get_state()[1][0])
     stacked_train_batches = tuple(StackedBatches(train_batches, random_state))
-    for batch in stacked_train_batches:
-        max_value = 1e-7
-        batch["dQ2"].values[batch["dQ2"].values < -max_value] = -max_value
-        batch["dQ2"].values[batch["dQ2"].values > max_value] = max_value
     stacked_validation_batches = StackedBatches(validation_batches, random_state)
     training_obj = PrecipitativeModel(
         input_variables=input_variables,
@@ -366,12 +362,12 @@ class PrecipitativeModel:
         column_precip = self.humidity_scaler.denormalize_layer(
             norm_column_precip_vector
         )
-        column_heating = tf.keras.layers.Lambda(evaporative_heating)(column_precip)
+        column_heating = tf.keras.layers.Lambda(condensational_heating)(column_precip)
         if not self._dense_behavior:
             T_tendency = tf.keras.layers.Add(name="T_tendency")(
                 [T_tendency, column_heating]
             )
-            q_tendency = tf.keras.layers.Subtract(name="q_tendency")(
+            q_tendency = tf.keras.layers.Add(name="q_tendency")(
                 [q_tendency, column_precip]
             )
         surface_precip = tf.keras.layers.Add(name="add_physics_precip")(

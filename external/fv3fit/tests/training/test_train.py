@@ -1,4 +1,5 @@
-from typing import Callable, Optional, TextIO
+import dataclasses
+from typing import Callable, Optional, Sequence, TextIO
 from fv3fit.typing import Dataclass
 import pytest
 import xarray as xr
@@ -43,6 +44,13 @@ def test_training_functions_exist():
     assert len(TRAINING_FUNCTIONS.keys()) > 0
 
 
+@dataclasses.dataclass
+class TrainingResult:
+    model: fv3fit.Predictor
+    output_variables: Sequence[str]
+    test_dataset: xr.Dataset
+
+
 def train_identity_model(model_type, sample_func, hyperparameters):
     input_variables, output_variables, train_dataset = get_dataset(
         model_type, sample_func
@@ -54,7 +62,7 @@ def train_identity_model(model_type, sample_func, hyperparameters):
     model = train(
         input_variables, output_variables, hyperparameters, train_batches, val_batches,
     )
-    return model, test_dataset
+    return TrainingResult(model, output_variables, test_dataset)
 
 
 def get_dataset(model_type, sample_func):
@@ -63,15 +71,18 @@ def get_dataset(model_type, sample_func):
             "air_temperature",
             "specific_humidity",
             "pressure_thickness_of_atmospheric_layer",
+            "physics_precip",
         ]
         output_variables = ["dQ1", "dQ2", "total_precipitation_rate"]
     else:
         input_variables = ["var_in"]
         output_variables = ["var_out"]
-    input_values = tuple(sample_func() for _ in input_variables)
+    input_values = list(sample_func() for _ in input_variables)
     if model_type == "precipitative":
+        i_phys_prec = input_variables.index("physics_precip")
+        input_values[i_phys_prec] = input_values[i_phys_prec].isel(z=0) * 0.0
         output_values = (
-            input_values[0] + LV / CPD * input_values[1],  # latent heat of condensation
+            input_values[0] - LV / CPD * input_values[1],  # latent heat of condensation
             input_values[1],
             1.0
             / GRAVITY
@@ -106,15 +117,15 @@ def assert_can_learn_identity(
         regtest: if given, write hash of output dataset to this file object
     """
     hyperparameters = get_hyperparameter_class(model_type)()
-    model, test_dataset = train_identity_model(
+    result = train_identity_model(
         model_type, sample_func=sample_func, hyperparameters=hyperparameters
     )
-    out_dataset = model.predict(test_dataset)
+    out_dataset = result.model.predict(result.test_dataset)
     rmse = np.mean(
         [
-            np.mean((out_dataset[name] - test_dataset[name]) ** 2) ** 0.5
-            / np.std(test_dataset[name])
-            for name in model.output_variables
+            np.mean((out_dataset[name] - result.test_dataset[name]) ** 2) ** 0.5
+            / np.std(result.test_dataset[name])
+            for name in result.output_variables
         ]
     )
     assert rmse < max_rmse
@@ -122,7 +133,7 @@ def assert_can_learn_identity(
         print(f"{model_type} is system dependent, not checking against regtest output")
         regtest = None
     if regtest is not None:
-        for result in vcm.testing.checksum_dataarray_mapping(test_dataset):
+        for result in vcm.testing.checksum_dataarray_mapping(result.test_dataset):
             print(result, file=regtest)
         for result in vcm.testing.checksum_dataarray_mapping(out_dataset):
             print(result, file=regtest)
@@ -154,17 +165,13 @@ def test_train_with_same_seed_gives_same_result(model_type):
     fv3fit.set_random_seed(0)
 
     sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
-    first_model, test_dataset = train_identity_model(
-        model_type, sample_func, hyperparameters
-    )
+    first_result = train_identity_model(model_type, sample_func, hyperparameters)
     fv3fit.set_random_seed(0)
     sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
-    second_model, second_test_dataset = train_identity_model(
-        model_type, sample_func, hyperparameters
-    )
-    xr.testing.assert_equal(test_dataset, second_test_dataset)
-    first_output = first_model.predict(test_dataset)
-    second_output = second_model.predict(test_dataset)
+    second_result = train_identity_model(model_type, sample_func, hyperparameters)
+    xr.testing.assert_equal(first_result.test_dataset, second_result.test_dataset)
+    first_output = first_result.model.predict(first_result.test_dataset)
+    second_output = second_result.model.predict(first_result.test_dataset)
     xr.testing.assert_equal(first_output, second_output)
 
 
@@ -172,13 +179,14 @@ def test_predict_does_not_mutate_input(model_type):
     n_sample, n_feature = 100, 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
     hyperparameters = get_hyperparameter_class(model_type)()
-    model, test_dataset = train_identity_model(
+    result = train_identity_model(
         model_type, sample_func=sample_func, hyperparameters=hyperparameters
     )
-    hash_before_predict = vcm.testing.checksum_dataarray_mapping(test_dataset)
-    _ = model.predict(test_dataset)
+    hash_before_predict = vcm.testing.checksum_dataarray_mapping(result.test_dataset)
+    _ = result.model.predict(result.test_dataset)
     assert (
-        vcm.testing.checksum_dataarray_mapping(test_dataset) == hash_before_predict
+        vcm.testing.checksum_dataarray_mapping(result.test_dataset)
+        == hash_before_predict
     ), "predict should not mutate its input"
 
 
@@ -220,15 +228,15 @@ def test_dump_and_load_default_maintains_prediction(model_type):
     n_sample, n_feature = 500, 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
     hyperparameters = get_hyperparameter_class(model_type)()
-    model, test_dataset = train_identity_model(
+    result = train_identity_model(
         model_type, sample_func=sample_func, hyperparameters=hyperparameters
     )
 
-    original_result = model.predict(test_dataset)
+    original_result = result.model.predict(result.test_dataset)
     with tempfile.TemporaryDirectory() as tmpdir:
-        model.dump(tmpdir)
+        result.model.dump(tmpdir)
         loaded_model = fv3fit.load(tmpdir)
-    loaded_result = loaded_model.predict(test_dataset)
+    loaded_result = loaded_model.predict(result.test_dataset)
     xr.testing.assert_equal(loaded_result, original_result)
 
 
