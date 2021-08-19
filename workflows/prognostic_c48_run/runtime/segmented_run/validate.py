@@ -3,6 +3,8 @@ from typing import Any, Mapping, Union
 
 import dacite
 import fv3config
+import cftime
+
 from ..config import UserConfig, DiagnosticFileConfig
 from ..diagnostics.fortran import FortranFileConfig
 
@@ -16,7 +18,9 @@ def validate_chunks(config_dict: Mapping[str, Any]):
     output diagnostics. Raise ConfigValidationError if not."""
     user_config = dacite.from_dict(UserConfig, config_dict)
     run_duration = fv3config.get_run_duration(config_dict)
-    initial_time = datetime(*config_dict["namelist"]["coupler_nml"]["current_date"])
+    initial_time = cftime.DatetimeJulian(
+        *config_dict["namelist"]["coupler_nml"]["current_date"]
+    )
     timestep = timedelta(seconds=config_dict["namelist"]["coupler_nml"]["dt_atmos"])
 
     for diag_file_config in user_config.diagnostics:
