@@ -398,7 +398,7 @@ class PrecipitativeModel:
         # serialize the custom loss functions
         predict_model = tf.keras.Model(
             inputs=input_layers,
-            outputs=(T_tendency, q_tendency, surface_precip, column_precip)
+            outputs=(T_tendency, q_tendency, surface_precip)
             + tuple(unpacked_output[2:]),
         )
         return train_model, predict_model
@@ -459,7 +459,7 @@ class PrecipitativeModel:
             self.sample_dim_name,
             self.input_variables,
             # predictor has additional diagnostic outputs which were indirectly trained
-            list(self.output_variables) + ["dQ2_precip"],
+            list(self.output_variables),
             get_output_metadata(self.output_packer, self.sample_dim_name),
             self._predict_model,
         )
