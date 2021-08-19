@@ -60,8 +60,8 @@ class DerivedMapping:
 
     @classmethod
     def find_all_required_inputs(
-        cls, derived_variables: Iterable[str]
-    ) -> Iterable[str]:
+        cls, derived_variables: Iterable[Hashable]
+    ) -> Iterable[Hashable]:
         # Helper function to find full list of required inputs for a given list
         # of derived variables. Recurses because some required inputs have their
         # own required inputs (e.g. pQ's)
@@ -75,7 +75,7 @@ class DerivedMapping:
                     deps += new_deps
                 _recurse_find_deps(new_deps, deps)
 
-        deps = []
+        deps: Iterable[Hashable] = []
         _recurse_find_deps(derived_variables, deps)
         return deps
 
