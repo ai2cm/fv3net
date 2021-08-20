@@ -25,11 +25,14 @@ class DerivedMapping:
 
         Args:
             name: the name the derived variable will be available under
-            required_inputs: Optional arg to list the
-                required inputs needed to derive said variable. Omit this if the
-                requirements are not well-defined, e.g. dQu only needs dQxwind,
-                dQywind if dQu is not already in the mapping, so do not list these
-                as requirements.
+            required_inputs: Optional arg to list the potential
+                required inputs needed to derive said variable. Even if the
+                requirements are not well-defined, they should still be listed.
+                (e.g. dQu only needs dQxwind, dQywind if dQu is not in the data)
+                This is because the usage of this registry is for when
+                an output is explicitly requested as a derived output variable and thus
+                it is assumed the variable does not already exist and needs to
+                be derived.
         """
 
         def decorator(func):
@@ -54,6 +57,28 @@ class DerivedMapping:
 
     def dataset(self, keys: Iterable[Hashable]) -> xr.Dataset:
         return xr.Dataset(self._data_arrays(keys))
+
+    @classmethod
+    def find_all_required_inputs(
+        cls, derived_variables: Iterable[Hashable]
+    ) -> Iterable[Hashable]:
+        # Helper function to find full list of required inputs for a given list
+        # of derived variables. Recurses because some required inputs have their
+        # own required inputs (e.g. pQ's)
+        def _recurse_find_deps(vars, deps):
+            vars_with_deps = [var for var in vars if var in cls.REQUIRED_INPUTS]
+            if len(vars_with_deps) == 0:
+                return
+            else:
+                new_deps = []
+                for var in vars_with_deps:
+                    new_deps += cls.REQUIRED_INPUTS[var]
+                deps += new_deps
+                _recurse_find_deps(new_deps, deps)
+
+        deps: Iterable[Hashable] = []
+        _recurse_find_deps(derived_variables, deps)
+        return deps
 
 
 @DerivedMapping.register("cos_zenith_angle", required_inputs=["time", "lon", "lat"])
@@ -81,7 +106,7 @@ def _rotate(self: DerivedMapping, x, y):
     )
 
 
-@DerivedMapping.register("dQu")
+@DerivedMapping.register("dQu", required_inputs=["dQxwind", "dQywind"])
 def dQu(self):
     try:
         return self._mapper["dQu"]
@@ -89,7 +114,7 @@ def dQu(self):
         return _rotate(self, "dQxwind", "dQywind")[0]
 
 
-@DerivedMapping.register("dQv")
+@DerivedMapping.register("dQv", required_inputs=["dQxwind", "dQywind"])
 def dQv(self):
     try:
         return self._mapper["dQv"]
@@ -175,3 +200,45 @@ def is_sea(self):
 def is_sea_ice(self):
     # one hot encoding for sea ice surface
     return xr.where(vcm.xarray_utils.isclose(self["land_sea_mask"], 2), 1.0, 0.0)
+
+
+@DerivedMapping.register("Q1", required_inputs=["pQ1"])
+def Q1(self):
+    try:
+        return self._mapper["Q1"]
+    except KeyError:
+        if "dQ1" in self.keys():
+            return self["dQ1"] + self["pQ1"]
+        else:
+            return self["pQ1"]
+
+
+@DerivedMapping.register("Q2", required_inputs=["pQ2"])
+def Q2(self):
+    try:
+        return self._mapper["Q2"]
+    except KeyError:
+        if "dQ2" in self.keys():
+            return self["dQ2"] + self["pQ2"]
+        else:
+            return self["pQ2"]
+
+
+@DerivedMapping.register(
+    "pQ1", required_inputs=["pressure_thickness_of_atmospheric_layer"]
+)
+def pQ1(self):
+    try:
+        return self._mapper["pQ1"]
+    except KeyError:
+        return xr.zeros_like(self["pressure_thickness_of_atmospheric_layer"])
+
+
+@DerivedMapping.register(
+    "pQ2", required_inputs=["pressure_thickness_of_atmospheric_layer"]
+)
+def pQ2(self):
+    try:
+        return self._mapper["pQ2"]
+    except KeyError:
+        return xr.zeros_like(self["pressure_thickness_of_atmospheric_layer"])

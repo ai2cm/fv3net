@@ -87,6 +87,9 @@ class RandomForest(Predictor):
             scaler_type=hyperparameters.scaler_type,
             scaler_kwargs=hyperparameters.scaler_kwargs,
         )
+        self.sample_dim_name = sample_dim_name
+        self.input_variables = self._model_wrapper.input_variables
+        self.output_variables = self._model_wrapper.output_variables
 
     def fit(self, batches: Sequence[xr.Dataset]):
         return self._model_wrapper.fit(batches)

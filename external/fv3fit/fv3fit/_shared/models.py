@@ -32,7 +32,7 @@ class DerivedModel(Predictor):
         self._base_model = base_model
 
         self._derived_output_variables = derived_output_variables
-        self._additional_input_variables = self._get_additional_input_variables(
+        self._additional_input_variables = vcm.DerivedMapping.find_all_required_inputs(
             derived_output_variables
         )
 
@@ -60,7 +60,10 @@ class DerivedModel(Predictor):
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         self._check_additional_inputs_present(X)
         base_prediction = self._base_model.predict(X)
-        derived_mapping = vcm.DerivedMapping(xr.merge([X, base_prediction]))
+        required_inputs = vcm.safe.get_variables(X, self._additional_input_variables)
+        derived_mapping = vcm.DerivedMapping(
+            xr.merge([required_inputs, base_prediction])
+        )
         derived_prediction = derived_mapping.dataset(self._derived_output_variables)
         return xr.merge([base_prediction, derived_prediction])
 
@@ -82,15 +85,6 @@ class DerivedModel(Predictor):
         derived_output_variables = config["derived_output_variables"]
         derived_model = cls(base_model, derived_output_variables)
         return derived_model
-
-    def _get_additional_input_variables(self, derived_output_variables):
-        additional_input_variables = []
-        for derived_var in derived_output_variables:
-            if derived_var in vcm.DerivedMapping.REQUIRED_INPUTS:
-                additional_input_variables += vcm.DerivedMapping.REQUIRED_INPUTS[
-                    derived_var
-                ]
-        return additional_input_variables
 
     def _check_additional_inputs_present(self, X: xr.Dataset):
         missing_additional_inputs = np.setdiff1d(

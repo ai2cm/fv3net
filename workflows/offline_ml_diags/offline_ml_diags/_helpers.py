@@ -1,4 +1,3 @@
-import fsspec
 import json
 import numpy as np
 import os
@@ -177,18 +176,20 @@ def open_diagnostics_outputs(
     metrics_json_name: str,
     metadata_json_name: str,
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset, dict, dict]:
-    with fsspec.open(os.path.join(data_dir, diagnostics_nc_name), "rb") as f:
+    fs = vcm.get_fs(data_dir)
+    with fs.open(os.path.join(data_dir, diagnostics_nc_name), "rb") as f:
         ds_diags = xr.open_dataset(f).load()
-    with fsspec.open(os.path.join(data_dir, diurnal_nc_name), "rb") as f:
+    with fs.open(os.path.join(data_dir, diurnal_nc_name), "rb") as f:
         ds_diurnal = xr.open_dataset(f).load()
-    if vcm.get_fs(transect_nc_name).exists(transect_nc_name):
-        with fsspec.open(os.path.join(data_dir, transect_nc_name), "rb") as f:
+    transect_full_path = os.path.join(data_dir, transect_nc_name)
+    if fs.exists(transect_full_path):
+        with fs.open(transect_full_path, "rb") as f:
             ds_transect = xr.open_dataset(f).load()
     else:
         ds_transect = xr.Dataset()
-    with fsspec.open(os.path.join(data_dir, metrics_json_name), "r") as f:
+    with fs.open(os.path.join(data_dir, metrics_json_name), "r") as f:
         metrics = json.load(f)
-    with fsspec.open(os.path.join(data_dir, metadata_json_name), "r") as f:
+    with fs.open(os.path.join(data_dir, metadata_json_name), "r") as f:
         metadata = json.load(f)
     return ds_diags, ds_diurnal, ds_transect, metrics, metadata
 
