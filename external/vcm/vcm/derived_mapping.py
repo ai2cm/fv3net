@@ -70,9 +70,10 @@ class DerivedMapping:
             if len(vars_with_deps) == 0:
                 return
             else:
+                new_deps = []
                 for var in vars_with_deps:
-                    new_deps = cls.REQUIRED_INPUTS[var]
-                    deps += new_deps
+                    new_deps += cls.REQUIRED_INPUTS[var]
+                deps += new_deps
                 _recurse_find_deps(new_deps, deps)
 
         deps: Iterable[Hashable] = []

@@ -181,6 +181,7 @@ def test_is_sea_ice():
         ({"a": ["b"], "c": ["d"]}, ["a"], ["b"]),
         ({"a": ["b"], "c": ["d"]}, ["a", "c"], ["b", "d"]),
         ({"a": ["b"], "b": ["c"], "c": ["d"]}, ["a"], ["b", "c", "d"]),
+        ({"a": ["b"], "c": ["d"], "b": ["e"]}, ["a", "c"], ["b", "d", "e"]),
     ],
 )
 def test_find_all_required_inputs(dependency_map, derived_vars, reqs):
