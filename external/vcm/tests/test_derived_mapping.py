@@ -172,3 +172,25 @@ def test_is_land():
 def test_is_sea_ice():
     derived_state = DerivedMapping(ds_sfc)
     np.testing.assert_array_almost_equal(derived_state["is_sea_ice"], [0.0, 0.0, 1.0])
+
+
+@pytest.mark.parametrize(
+    "dependency_map, derived_vars, reqs",
+    [
+        ({"c": ["d"]}, ["a"], []),
+        ({"a": ["b"], "c": ["d"]}, ["a"], ["b"]),
+        ({"a": ["b"], "c": ["d"]}, ["a", "c"], ["b", "d"]),
+        ({"a": ["b"], "b": ["c"], "c": ["d"]}, ["a"], ["b", "c", "d"]),
+        ({"a": ["b"], "c": ["d"], "b": ["e"]}, ["a", "c"], ["b", "d", "e"]),
+    ],
+)
+def test_find_all_required_inputs(dependency_map, derived_vars, reqs):
+    for var, dependencies in dependency_map.items():
+
+        @DerivedMapping.register(var, required_inputs=dependencies)
+        def var(self):
+            return None
+
+    required_inputs = DerivedMapping.find_all_required_inputs(derived_vars)
+    assert set(required_inputs) == set(reqs)
+    assert len(required_inputs) == len(reqs)

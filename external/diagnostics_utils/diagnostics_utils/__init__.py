@@ -3,7 +3,6 @@ __version__ = "0.1.0"
 from .config import VARNAMES
 from .utils import (
     reduce_to_diagnostic,
-    insert_total_apparent_sources,
     conditional_average,
     weighted_average,
     snap_mask_to_type,
