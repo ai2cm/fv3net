@@ -90,8 +90,16 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
             grid=grid_dataset_path,
         )
         compute_diags.main(compute_diags_args)
+        if isinstance(data_config, loaders.BatchesFromMapperConfig):
+            assert "transect_lon0.nc" in os.listdir(
+                os.path.join(tmpdir, "offline_diags")
+            )
         create_report_args = CreateReportArgs(
             input_path=os.path.join(tmpdir, "offline_diags"),
             output_path=os.path.join(tmpdir, "report"),
         )
         create_report.main(create_report_args)
+        with open(os.path.join(tmpdir, "report/index.html")) as f:
+            report = f.read()
+        if isinstance(data_config, loaders.BatchesFromMapperConfig):
+            assert "Transect snapshot at" in report
