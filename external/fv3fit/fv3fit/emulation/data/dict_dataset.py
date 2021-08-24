@@ -1,6 +1,10 @@
+from typing import Sequence
 import tensorflow as tf
 import vcm
 import xarray as xr
+from fv3fit.emulation.data.io import get_nc_files
+
+__all__ = ["netcdf_url_to_dataset"]
 
 
 def get_data(ds, variables) -> tf.Tensor:
@@ -23,9 +27,24 @@ def open_url(fs, url, variables):
     return get_data(vcm.open_remote_nc(fs, url), variables)
 
 
-def netcdf_url_to_dataset(url, variables, shuffle=False):
+def netcdf_url_to_dataset(
+    url: str, variables: Sequence[str], shuffle: bool = False
+) -> tf.data.Dataset:
+    """Open a url of netcdfs as a tf.data.Dataset of dicts
+
+    Args:
+        url: points to a directory of netcdf files.
+        variables: a sequence of variable names to load from each netcdf file
+        shuffle: if True, shuffle order the netcdf files will be loaded in. Does
+            not shuffle BETWEEN files.
+    
+    Returns:
+        a  tensorflow dataset containing dictionaries of tensors. This
+        dictionary contains all the variables specified in ``variables``.
+    """
     fs = vcm.get_fs(url)
-    d = tf.data.Dataset.from_tensor_slices(sorted(fs.ls(url)))
+    files = get_nc_files(url, fs)
+    d = tf.data.Dataset.from_tensor_slices(sorted(files))
     if shuffle:
         d = d.shuffle(100_000)
     return d.map(lambda url: read_image_from_url(fs, url, variables))

@@ -5,7 +5,7 @@ import os
 
 from runtime.emulator.emulator import OnlineEmulatorConfig
 from runtime.emulator.batch import all_required_variables, compute_in_out, nz
-from runtime.emulator import data
+from fv3fit.emulation import data
 import runtime.emulator
 import tensorflow as tf
 import pathlib
