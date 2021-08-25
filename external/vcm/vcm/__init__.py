@@ -15,6 +15,7 @@ from .convenience import (
     cast_to_datetime,
     encode_time,
     shift_timestamp,
+    round_time,
 )
 from .calc import r2_score, local_time, thermo, cos_zenith_angle
 from .calc.thermo import (
