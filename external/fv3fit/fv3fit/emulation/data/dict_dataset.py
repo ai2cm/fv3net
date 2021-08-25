@@ -51,6 +51,5 @@ def netcdf_url_to_dataset(
 
 
 def load_samples(train_dataset, n_train):
-    n_train = 50_000
     train_data = train_dataset.take(n_train).shuffle(n_train).batch(n_train)
     return next(iter(train_data))
