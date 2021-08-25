@@ -155,19 +155,19 @@
                 273.0
             ]
         },
-        "column_integrated_dQu": {
-            "$id": "#/properties/column_integrated_dQu",
+        "column_integrated_dQu_stress": {
+            "$id": "#/properties/column_integrated_dQu_stress",
             "type": "number",
-            "units": "m/s/s",
+            "units": "Pa",
             "default": 0.0,
             "examples": [
                 0.0
             ]
         },
-        "column_integrated_dQv": {
-            "$id": "#/properties/column_integrated_dQu",
+        "column_integrated_dQv_stress": {
+            "$id": "#/properties/column_integrated_dQv_stress",
             "type": "number",
-            "units": "m/s/s",
+            "units": "Pa",
             "default": 0.0,
             "examples": [
                 0.0

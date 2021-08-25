@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from typing import Iterable, Mapping, Sequence
+from typing import Iterable, Mapping, Sequence, Tuple
 import os
 import xarray as xr
 import fsspec
@@ -13,6 +13,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunMetrics,
 )
 
+import vcm
 from report import create_html, Link, OrderedList, RawHTML
 from report.holoviews import HVPlot, get_html_header
 from .matplotlib import (
@@ -20,7 +21,7 @@ from .matplotlib import (
     plot_cubed_sphere_map,
     plot_histogram,
 )
-from ..constants import PERCENTILES, PRECIP_RATE, TOP_LEVEL_METRICS
+from ..constants import PERCENTILES, PRECIP_RATE, TOP_LEVEL_METRICS, MovieUrls
 
 import logging
 
@@ -34,6 +35,9 @@ warnings.filterwarnings("ignore", message="All-NaN slice encountered")
 logging.basicConfig(level=logging.INFO)
 
 hv.extension("bokeh")
+PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
+MovieManifest = Sequence[Tuple[str, str]]
+PublicLinks = Mapping[str, Sequence[Tuple[str, str]]]
 
 
 def upload(html: str, url: str, content_type: str = "text/html"):
@@ -218,16 +222,12 @@ def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 @hovmoller_plot_manager.register
 def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
-    return plot_2d_matplotlib(
-        diagnostics, "zonal_mean_value", dims=["time", "latitude"], cmap="viridis"
-    )
+    return plot_2d_matplotlib(diagnostics, "zonal_mean_value", ["time", "latitude"])
 
 
 @hovmoller_plot_manager.register
 def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
-    return plot_2d_matplotlib(
-        diagnostics, "zonal_mean_bias", dims=["time", "latitude"], cmap="RdBu_r",
-    )
+    return plot_2d_matplotlib(diagnostics, "zonal_mean_bias", ["time", "latitude"])
 
 
 def time_mean_cubed_sphere_maps(
@@ -260,8 +260,7 @@ def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_time_mean",
-        dims=["latitude", "pressure"],
-        cmap="viridis",
+        ["latitude", "pressure"],
         yincrease=False,
         ylabel="Pressure [Pa]",
     )
@@ -272,8 +271,8 @@ def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_bias",
+        ["latitude", "pressure"],
         contour=True,
-        dims=["latitude", "pressure"],
         cmap="RdBu_r",
         yincrease=False,
         ylabel="Pressure [Pa]",
@@ -484,13 +483,57 @@ def render_links(link_dict):
     }
 
 
+def _movie_name(url: str) -> str:
+    return os.path.basename(url)
+
+
+def _movie_output_path(root: str, run_name: str, movie_name: str) -> str:
+    return os.path.join(root, "_movies", run_name, movie_name)
+
+
+def _get_movie_manifest(movie_urls: MovieUrls, output: str) -> MovieManifest:
+    """Return manifest of report output location for each movie in movie_urls.
+    
+    Args:
+        movie_urls: the URLs for the movies to be included in report.
+        output: the location where the report will be saved.
+        
+    Returns:
+        Tuples of source URL and output path for each movie."""
+    manifest = []
+    for run_name, urls in movie_urls.items():
+        for url in urls:
+            output_path = _movie_output_path(output, run_name, _movie_name(url))
+            manifest.append((url, output_path))
+    return manifest
+
+
+def _get_public_links(movie_urls: MovieUrls, output: str) -> PublicLinks:
+    """Get the public links at which each movie can be opened in a browser."""
+    public_links = {}
+    for run_name, urls in movie_urls.items():
+        for url in urls:
+            movie_name = _movie_name(url)
+            output_path = _movie_output_path(output, run_name, movie_name)
+            if output_path.startswith("gs://"):
+                public_link = output_path.replace("gs:/", PUBLIC_GCS_DOMAIN)
+            else:
+                public_link = output_path
+            public_links.setdefault(movie_name, []).append((public_link, run_name))
+    return public_links
+
+
 def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
     metrics = computed_diagnostics.load_metrics_from_diagnostics()
-    movie_links = computed_diagnostics.find_movie_links()
+    movie_urls = computed_diagnostics.find_movie_urls()
     metadata, diagnostics = computed_diagnostics.load_diagnostics()
+    manifest = _get_movie_manifest(movie_urls, output)
+    public_links = _get_public_links(movie_urls, output)
+    for source, target in manifest:
+        vcm.cloud.copy(source, target, content_type="video/mp4")
 
     pages = {
-        "index.html": render_index(metadata, diagnostics, metrics, movie_links),
+        "index.html": render_index(metadata, diagnostics, metrics, public_links),
         "hovmoller.html": render_hovmollers(metadata, diagnostics),
         "maps.html": render_maps(metadata, diagnostics, metrics),
         "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),

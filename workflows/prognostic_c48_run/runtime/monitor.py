@@ -13,7 +13,7 @@ from runtime.names import DELP
 
 logger = logging.getLogger(__name__)
 
-ImmutableState = Mapping[str, xr.DataArray]
+Checkpoint = Mapping[str, xr.DataArray]
 
 
 @dataclass
@@ -81,7 +81,8 @@ class Monitor:
             timestep=timestep,
         )
 
-    def checkpoint(self) -> ImmutableState:
+    def checkpoint(self) -> Checkpoint:
+        """Copy the monitored variables into a new dictionary """
         vars_ = list(
             set(self.tendency_variables) | set(self.storage_variables) | {DELP}
         )
@@ -89,8 +90,25 @@ class Monitor:
         return before
 
     def compute_change(
-        self, name: str, before: ImmutableState, after: ImmutableState
+        self, name: str, before: Checkpoint, after: Checkpoint
     ) -> Diagnostics:
+        """Compute the change between two checkpoints
+
+        Args:
+            name: labels the output variable names. Same meaning as in __call__
+            before: the initial state
+            after: the final state
+
+        Returns:
+            storage and tendencies computed between before and after
+
+        Examples:
+            >>> before = monitor.checkpoint()
+            >>> # some changes
+            >>> after = monitor.checkpoint()
+            >>> storage_and_tendencies = monitor.compute_change("label", before, after)
+
+        """
         return compute_change(
             before,
             after,
@@ -119,8 +137,8 @@ def filter_tendency(variables: Iterable[str]) -> Set[str]:
 
 
 def compute_change(
-    before: ImmutableState,
-    after: ImmutableState,
+    before: Checkpoint,
+    after: Checkpoint,
     tendency_variables: Set[str],
     storage_variables: Set[str],
     name: str,

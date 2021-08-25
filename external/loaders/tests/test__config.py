@@ -292,3 +292,13 @@ def test_safe_dump_data_config():
             yaml.safe_dump(as_dict, f)
         from_dict = loaders.BatchesConfig(**as_dict)
         assert config == from_dict
+
+
+def test_duplicate_times_raise_error_in_batches_from_mapper():
+    data_config = {
+        "mapper_config": {"function": "open_zarr", "kwargs": {}},
+        "function": "batches_from_mapper",
+        "kwargs": {"timesteps": ["1", "2", "2"]},
+    }
+    with pytest.raises(ValueError):
+        loaders._config.BatchesFromMapperConfig.from_dict(data_config)

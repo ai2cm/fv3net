@@ -1,6 +1,3 @@
-from typing import Any
-
-
 import fsspec
 import xarray
 import numpy
@@ -100,7 +97,7 @@ def open_zarr_maybe_consolidated(url):
         return open_zarr(url, consolidated=False)
 
 
-def apparent_heating(data: FineResBudget):
+def apparent_heating(data: FineResBudget, include_temperature_nudging: bool = False):
     eddy_flux = eddy_flux_coarse(
         data.eddy_flux_vulcan_omega_temp,
         data.T_vulcan_omega_coarse,
@@ -108,19 +105,19 @@ def apparent_heating(data: FineResBudget):
         data.T,
     )
     eddy_flux_convergence = convergence(eddy_flux, data.delp, dim="pfull")
-    return (
-        (data.t_dt_fv_sat_adj_coarse + data.t_dt_phys_coarse + eddy_flux_convergence)
-        .assign_attrs(
-            units="K/s",
-            long_name="apparent heating from high resolution data",
-            description=(
-                "Apparent heating due to physics and sub-grid-scale advection. Given "
-                "by "
-                "sat adjustment (dycore) + physics tendency + eddy-flux-convergence"
-            ),
-        )
-        .rename("Q1")
+    result = data.t_dt_fv_sat_adj_coarse + data.t_dt_phys_coarse + eddy_flux_convergence
+    description = (
+        "Apparent heating due to physics and sub-grid-scale advection. Given "
+        "by sat adjustment (dycore) + physics tendency + eddy-flux-convergence"
     )
+    if include_temperature_nudging:
+        result = result + data.t_dt_nudge_coarse
+        description = description + " + temperature nudging"
+    return result.assign_attrs(
+        units="K/s",
+        long_name="apparent heating from high resolution data",
+        description=description,
+    ).rename("Q1")
 
 
 def apparent_moistening(data: FineResBudget):
@@ -154,11 +151,14 @@ def open_fine_resolution_nudging_hybrid_dataset(
     # created by this commit
     # https://github.com/VulcanClimateModeling/vcm-workflow-control/commit/dd4498bcf3143d05095bf9ff4ca3f1341ba25330
     nudge_url="gs://vcm-ml-experiments/2021-04-13-n2f-c3072/3-hrly-ave-rad-precip-setting-30-min-rad-timestep-shifted-start-tke-edmf",  # noqa: E501
+    include_temperature_nudging: bool = False,
 ) -> xarray.Dataset:
 
     fine = open_zarr_maybe_consolidated(fine_url)
     # compute apparent sources
-    fine["Q1"] = apparent_heating(fine)
+    fine["Q1"] = apparent_heating(
+        fine, include_temperature_nudging=include_temperature_nudging
+    )
     fine["Q2"] = apparent_moistening(fine)
     # shift the data to match the other time series
     fine_shifted = fine.assign(time=fine.time - timedelta(minutes=7, seconds=30))
@@ -195,22 +195,23 @@ def open_fine_resolution_nudging_hybrid_dataset(
 
 @mapper_functions.register
 def open_fine_resolution_nudging_hybrid(
-    _: Any, fine_url: str = "", nudge_url: str = ""
+    fine_url: str = "", nudge_url: str = "", include_temperature_nudging: bool = False,
 ) -> GeoMapper:
     """
     Open the fine resolution nudging_hybrid mapper
 
     Args:
-        _: the loading infrastructure expects this argument, but it is not used
-            by the hybrid sheme. Keep this in mind when configuring
         fine_url: url where coarsened fine resolution data is stored
         nudge_url: url to nudging data to be used as a residual
+        include_temperature_nudging: whether to include fine-res nudging in Q1
 
     Returns:
         a mapper
     """
     return XarrayMapper(
         open_fine_resolution_nudging_hybrid_dataset(
-            fine_url=fine_url, nudge_url=nudge_url
+            fine_url=fine_url,
+            nudge_url=nudge_url,
+            include_temperature_nudging=include_temperature_nudging,
         )
     )

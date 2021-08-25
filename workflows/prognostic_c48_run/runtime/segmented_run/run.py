@@ -33,17 +33,22 @@ def run_segment(config: dict, rundir: str):
         x, y = config["namelist"]["fv_core_nml"]["layout"]
         nprocs = x * y * 6
         with open("logs.txt", "w") as f:
-            subprocess.check_call(
+            process = subprocess.Popen(
                 [
                     "mpirun",
                     "-n",
                     str(nprocs),
                     sys.executable,
+                    "-m",
+                    "mpi4py",
                     runfile.absolute().as_posix(),
                 ],
-                # stdout=f,
-                # stderr=f,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
             )
+            for c in iter(lambda: process.stdout.read(32), b""):
+                sys.stdout.write(c.decode("utf-8"))
+                f.write(c.decode("utf-8"))
 
 
 def main():

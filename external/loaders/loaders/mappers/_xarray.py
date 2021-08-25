@@ -37,14 +37,15 @@ class XarrayMapper(GeoMapper):
 
         """
         self.data = data
+        self._time_name = time
 
-        times = self.data.time.values.tolist()
+        times = self.data[self._time_name].values.tolist()
         time_strings = [vcm.encode_time(time) for time in times]
         self.time_lookup = dict(zip(time_strings, times))
         self.time_string_lookup = dict(zip(times, time_strings))
 
     def __getitem__(self, time_string):
-        return self.data.sel(time=self.time_lookup[time_string])
+        return self.data.sel({self._time_name: self.time_lookup[time_string]})
 
     def keys(self):
         return self.time_lookup.keys()
@@ -55,4 +56,4 @@ def open_zarr(
     data_path: str, consolidated: bool = True, dim: str = "time"
 ) -> XarrayMapper:
     ds = xr.open_zarr(fsspec.get_mapper(data_path), consolidated=consolidated)
-    return XarrayMapper(ds, dim)
+    return XarrayMapper(ds, time=dim)

@@ -11,5 +11,10 @@ from .scaler import (
     NormalizeTransform,
 )
 from .predictor import Predictor
-from .stacking import StackedBatches, stack_non_vertical
+from .stacking import (
+    StackedBatches,
+    stack_non_vertical,
+    match_prediction_to_input_coords,
+    SAMPLE_DIM_NAME,
+)
 from .models import EnsembleModel, DerivedModel

@@ -24,7 +24,7 @@ spec:
           - name: validation_data_config
           - name: offline-diags-output
           - name: report-output
-          - {name: memory, value: 6Gi}
+          - {name: memory, value: 10Gi}
 
       container:
         image: us.gcr.io/vcm-ml/fv3net
