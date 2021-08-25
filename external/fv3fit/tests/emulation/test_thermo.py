@@ -3,9 +3,6 @@ from fv3fit.emulation.thermo import relative_humidity, specific_humidity_from_rh
 from vcm.calc.thermo import _RDGAS, _RVGAS
 import pytest
 
-from hypothesis import given
-from hypothesis.strategies import floats
-
 
 @pytest.mark.parametrize("celsius, rh", [(26, 0.5), (14.77, 1.0)])
 def test_relative_humidity(celsius, rh):
@@ -26,7 +23,9 @@ def test_relative_humidity(celsius, rh):
     assert pytest.approx(rh, rel=0.03) == ans.numpy()
 
 
-@given(floats(200, 400), floats(0, 1), floats(1, 100))
+@pytest.mark.parametrize("t", [200, 250, 300])
+@pytest.mark.parametrize("rh", [0, 0.5, 1.0])
+@pytest.mark.parametrize("rho", [1.2, 1e-4])
 def test_specific_humidity(t, rh, rho):
     """
     Compare withh https://www.omnicalculator.com/physics/air-density
