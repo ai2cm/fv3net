@@ -97,6 +97,7 @@ hdfs==2.5.8
 holoviews==1.14.1
 html5lib==1.1
 httplib2==0.17.4
+hypothesis==6.15.0
 identify==2.2.4
 idna==2.9
 imagesize==1.2.0
@@ -218,6 +219,7 @@ six==1.15.0
 smmap==4.0.0
 sniffio==1.2.0
 snowballstemmer==2.0.0
+sortedcontainers==2.4.0
 sphinx-argparse==0.2.5
 sphinx-gallery==0.8.2
 sphinx-rtd-theme==0.5.0

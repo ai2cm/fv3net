@@ -19,7 +19,7 @@ requirements = [
 
 setup_requirements = []
 
-test_requirements = ["pytest"]
+test_requirements = ["pytest", "hypothesis"]
 
 setup(
     author="Vulcan Technologies LLC",
