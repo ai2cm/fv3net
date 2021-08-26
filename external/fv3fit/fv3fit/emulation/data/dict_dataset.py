@@ -8,6 +8,8 @@ __all__ = ["netcdf_url_to_dataset"]
 
 def read_variables_as_dict(fs, url, variables):
     sig = (tf.float32,) * len(variables)
+    # tf.py_function can only wrap functions which output tuples of tensors, not
+    # dicts
     outputs = tf.py_function(
         lambda url: read_variables_greedily_as_tuple(fs, url, variables), [url], sig
     )
