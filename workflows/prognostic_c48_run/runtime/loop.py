@@ -10,7 +10,6 @@ from typing import (
     List,
     Optional,
     Sequence,
-    Set,
     Tuple,
 )
 import cftime
@@ -20,6 +19,7 @@ import numpy as np
 import vcm
 import xarray as xr
 from mpi4py import MPI
+import runtime.factories
 from runtime import DerivedFV3State
 from runtime.config import UserConfig, get_namelist
 from runtime.diagnostics.compute import (
@@ -40,7 +40,6 @@ from runtime.steppers.machine_learning import (
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig, get_timesteps
 from runtime.types import Diagnostics, State, Tendencies
-from runtime.emulator.emulator import get_emulator, update_state_with_emulator
 from toolz import dissoc
 from typing_extensions import Protocol
 
@@ -108,10 +107,6 @@ class LoggingMixin:
             print(message)
 
 
-def strip_prefix(prefix: str, variables: Iterable[str]) -> Set[str]:
-    return {k[len(prefix) :] for k in variables if k.startswith(prefix)}
-
-
 class TimeLoop(
     Iterable[Tuple[cftime.DatetimeJulian, Dict[str, xr.DataArray]]], LoggingMixin
 ):
@@ -134,8 +129,6 @@ class TimeLoop(
     updates in ``_step_prephysics`` and ``_compute_postphysics``. The
     ``TimeLoop`` controls when and how to apply these updates to the FV3 state.
     """
-
-    emulator_prefix: str = "emulator_"
 
     def __init__(
         self, config: UserConfig, comm: Any = None, wrapper: Any = fv3gfs.wrapper,
@@ -167,18 +160,12 @@ class TimeLoop(
         self._tendencies: Tendencies = {}
         self._state_updates: State = {}
 
-        self._online_emulator = get_emulator(config.online_emulator)
-        self._predict_with_emulator: bool = config.online_emulator.online
-        self._train_emulator: bool = config.online_emulator.train
-        self._ignore_humidity_below = config.online_emulator.ignore_humidity_below
-        self._emulator_inputs_to_save = strip_prefix(
-            self.emulator_prefix, config.diagnostic_variables
-        )
-
         self.monitor = Monitor.from_variables(
             config.diagnostic_variables, state=self._state, timestep=self._timestep,
         )
-
+        self.emulate = runtime.factories.get_emulator_adapter(
+            config, self._state, self._timestep
+        )
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
         self._log_debug(f"States to output: {self._states_to_output}")
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
@@ -285,60 +272,22 @@ class TimeLoop(
 
     def _apply_physics(self) -> Diagnostics:
         self._log_debug(f"Physics Step (apply)")
-        diags: Diagnostics = {}
-
-        before = self.monitor.checkpoint()
-        inputs = {
-            key: self._state[key] for key in self._online_emulator.input_variables
-        }
-        diags.update(
-            {
-                self.emulator_prefix + key: self._state[key]
-                for key in self._emulator_inputs_to_save
-            }
-        )
         self._fv3gfs.apply_physics()
-        diags.update(self.monitor.compute_change("fv3_physics", before, self._state))
-
-        if self._train_emulator:
-            self._online_emulator.partial_fit(inputs, self._state)
-        emulator_prediction = self._online_emulator.predict(inputs)
-
-        emulator_after = emulator_prediction.copy()
-        emulator_after[DELP] = before[DELP]
-
-        # insert state variables not predicted by the emulator
-        for v in before:
-            if v not in emulator_after:
-                emulator_after[v] = self._state[v]
-
-        diags.update(self.monitor.compute_change("emulator", before, emulator_after,))
-
-        if self._predict_with_emulator:
-            update_state_with_emulator(
-                self._state,
-                emulator_prediction,
-                ignore_humidity_below=self._ignore_humidity_below,
-            )
 
         micro = self._fv3gfs.get_diagnostic_by_name(
             "tendency_of_specific_humidity_due_to_microphysics"
         ).data_array
         delp = self._state[DELP]
-        diags.update(
-            {
-                "storage_of_specific_humidity_path_due_to_microphysics": vcm.mass_integrate(  # noqa
-                    micro, delp, "z"
-                ),
-                "evaporation": self._state["evaporation"],
-                "cnvprcp_after_physics": self._fv3gfs.get_diagnostic_by_name(
-                    "cnvprcp"
-                ).data_array,
-                "total_precip_after_physics": self._state[TOTAL_PRECIP],
-            }
-        )
-
-        return diags
+        return {
+            "storage_of_specific_humidity_path_due_to_microphysics": vcm.mass_integrate(
+                micro, delp, "z"
+            ),
+            "evaporation": self._state["evaporation"],
+            "cnvprcp_after_physics": self._fv3gfs.get_diagnostic_by_name(
+                "cnvprcp"
+            ).data_array,
+            "total_precip_after_physics": self._state[TOTAL_PRECIP],
+        }
 
     def _print_timing(self, name, min_val, max_val, mean_val):
         self._print(f"{name:<30}{min_val:15.4f}{max_val:15.4f}{mean_val:15.4f}")
@@ -464,6 +413,7 @@ class TimeLoop(
     def __iter__(
         self,
     ) -> Iterator[Tuple[cftime.DatetimeJulian, Dict[str, xr.DataArray]]]:
+
         for i in range(self._fv3gfs.get_step_count()):
             diagnostics: Diagnostics = {}
             for substep in [
@@ -471,7 +421,7 @@ class TimeLoop(
                 self._step_prephysics,
                 self._compute_physics,
                 self._apply_postphysics_to_physics_state,
-                self._apply_physics,
+                self.emulate("fv3_physics", self._apply_physics),
                 self._compute_postphysics,
                 self.monitor("python", self._apply_postphysics_to_dycore_state),
             ]:

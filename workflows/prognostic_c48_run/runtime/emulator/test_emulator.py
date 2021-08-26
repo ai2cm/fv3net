@@ -80,7 +80,7 @@ def test_OnlineEmulator_fit_predict(state, extra_inputs):
     emulator = get_emulator(config)
     emulator.partial_fit(state, state)
     stateout = emulator.predict(state)
-    assert isinstance(stateout, xr.Dataset)
+    assert isinstance(stateout, dict)
     assert list(stateout["eastward_wind"].dims) == ["z", "y", "x"]
 
 

@@ -11,7 +11,7 @@ from typing import (
     List,
 )
 import os
-from runtime.names import SPHUM
+from runtime.monitor import Monitor
 import xarray as xr
 import numpy
 import tensorflow as tf
@@ -26,11 +26,10 @@ from runtime.emulator.loggers import WandBLogger, ConsoleLogger, TBLogger, Logge
 from runtime.emulator.loss import RHLoss, QVLoss, MultiVariableLoss
 from runtime.emulator.models import UVTQSimple, UVTRHSimple, ScalarMLP, RHScalarMLP
 from runtime.emulator.models import V1QCModel
+from runtime.types import State, Diagnostics, Step
+from runtime.names import SPHUM, DELP
 import logging
 import json
-
-
-State = Mapping[str, xr.DataArray]
 
 
 def average(metrics):
@@ -334,10 +333,12 @@ class OnlineEmulator:
         dims = ["sample", "z"]
         attrs = {"units": "no one cares"}
 
-        return xr.Dataset(
-            {key: (dims, val, attrs) for key, val in tensors.items()},
-            coords=in_.coords,
-        ).unstack("sample")
+        return dict(
+            xr.Dataset(
+                {key: (dims, val, attrs) for key, val in tensors.items()},
+                coords=in_.coords,
+            ).unstack("sample")
+        )
 
     @property
     def _checkpoint(self) -> tf.train.Checkpoint:
@@ -360,6 +361,62 @@ class OnlineEmulator:
         model = cls(config)
         model._checkpoint.read(os.path.join(path, cls._model))
         return model
+
+
+@dataclasses.dataclass
+class PrognosticAdapter:
+    """A function wrapper that allows emulating a certain component
+    """
+
+    emulator: OnlineEmulator
+    state: State
+    monitor: Monitor
+    emulator_prefix: str = "emulator_"
+
+    @property
+    def config(self):
+        return self.emulator.config
+
+    def emulate(self, name: str, func: Step) -> Diagnostics:
+        inputs = {key: self.state[key] for key in self.emulator.input_variables}
+
+        inputs_to_save = {self.emulator_prefix + key: self.state[key] for key in inputs}
+        before = self.monitor.checkpoint()
+        diags = func()
+        change_in_func = self.monitor.compute_change(name, before, self.state)
+
+        if self.config.train:
+            self.emulator.partial_fit(inputs, self.state)
+        emulator_prediction = self.emulator.predict(inputs)
+
+        emulator_after: MutableMapping[Hashable, xr.DataArray] = {
+            DELP: before[DELP],
+            **emulator_prediction,
+        }
+
+        # insert state variables not predicted by the emulator
+        for v in before:
+            if v not in emulator_after:
+                emulator_after[v] = self.state[v]
+
+        changes = self.monitor.compute_change("emulator", before, emulator_after)
+
+        if self.config.online:
+            update_state_with_emulator(
+                self.state,
+                emulator_prediction,
+                ignore_humidity_below=self.config.ignore_humidity_below,
+            )
+        return {**diags, **inputs_to_save, **changes, **change_in_func}
+
+    def __call__(self, name: str, func: Step) -> Step:
+        def step() -> Diagnostics:
+            return self.emulate(name, func)
+
+        # functools.wraps modifies the type and breaks mypy type checking
+        step.__name__ = func.__name__
+
+        return step
 
 
 def _xarray_to_tensor(state, keys):

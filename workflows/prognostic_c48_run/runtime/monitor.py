@@ -4,6 +4,7 @@ from typing import (
     Callable,
     Iterable,
     Mapping,
+    Hashable,
     Set,
 )
 import xarray as xr
@@ -13,7 +14,7 @@ from runtime.names import DELP
 
 logger = logging.getLogger(__name__)
 
-Checkpoint = Mapping[str, xr.DataArray]
+Checkpoint = Mapping[Hashable, xr.DataArray]
 
 
 @dataclass
@@ -86,8 +87,7 @@ class Monitor:
         vars_ = list(
             set(self.tendency_variables) | set(self.storage_variables) | {DELP}
         )
-        before = {key: self._state[key] for key in vars_}
-        return before
+        return {key: self._state[key] for key in vars_}
 
     def compute_change(
         self, name: str, before: Checkpoint, after: Checkpoint
