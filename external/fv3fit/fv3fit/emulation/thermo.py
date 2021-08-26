@@ -13,24 +13,24 @@ def saturation_pressure(air_temperature_kelvin: tf.Tensor) -> tf.Tensor:
 
 
 def relative_humidity(
-    air_temperature_kelvin: tf.Tensor, specific_humidity: tf.Tensor, rho: tf.Tensor
+    air_temperature_kelvin: tf.Tensor, specific_humidity: tf.Tensor, density: tf.Tensor
 ):
-    partial_pressure = _RVGAS * specific_humidity * rho * air_temperature_kelvin
+    partial_pressure = _RVGAS * specific_humidity * density * air_temperature_kelvin
     return partial_pressure / saturation_pressure(air_temperature_kelvin)
 
 
 def specific_humidity_from_rh(
-    air_temperature_kelvin, relative_humidity, rho: tf.Tensor
+    air_temperature_kelvin, relative_humidity, density: tf.Tensor
 ):
     es = saturation_pressure(air_temperature_kelvin)
     partial_pressure = relative_humidity * es
 
-    return partial_pressure / _RVGAS / rho / air_temperature_kelvin
+    return partial_pressure / _RVGAS / density / air_temperature_kelvin
 
 
 def density(delp, delz):
     return tf.abs(delp / delz / _GRAVITY)
 
 
-def pressure_thickness(rho, delz):
-    return tf.abs(rho * delz * _GRAVITY)
+def pressure_thickness(density, delz):
+    return tf.abs(density * delz * _GRAVITY)

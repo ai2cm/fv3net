@@ -151,9 +151,17 @@ class MaxFeatureStdDenormLayer(MaxFeatureStdNormLayer):
         return tensor * self.sigma + self.mean
 
 
-class FeatureMeanDenormLayer(MaxFeatureStdDenormLayer, FeatureMeanStd):
+class MeanFeatureStdDenormLayer(MaxFeatureStdDenormLayer, FeatureMeanStd):
     """De-normalization layer that scales all outputs by the standard deviation
     computed from the per-feature mean.
+    """
+
+    pass
+
+
+class MeanFeatureStdNormLayer(MaxFeatureStdNormLayer, FeatureMeanStd):
+    """Layer tha normalizes all outputs by the standard deviation computed from
+    the per-feature mean.
     """
 
     pass
