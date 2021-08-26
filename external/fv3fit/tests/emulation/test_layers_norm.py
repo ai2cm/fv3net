@@ -9,6 +9,8 @@ _all_layers = [
     layers.StandardDenormLayer,
     layers.MaxFeatureStdNormLayer,
     layers.MaxFeatureStdNormLayer,
+    layers.MeanFeatureStdNormLayer,
+    layers.MeanFeatureStdDenormLayer,
 ]
 
 
