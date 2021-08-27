@@ -1,35 +1,25 @@
 from collections import defaultdict
 import dataclasses
+import json
+import logging
 from typing import (
-    Callable,
-    Hashable,
-    Mapping,
-    MutableMapping,
     Optional,
     Sequence,
     Union,
     List,
 )
 import os
-from runtime.monitor import Monitor
-import xarray as xr
 import numpy
 import tensorflow as tf
 import dacite
 from runtime.emulator.batch import (
     get_prognostic_variables,
     batch_to_specific_humidity_basis,
-    to_tensors,
-    to_dict_no_static_vars,
 )
 from runtime.emulator.loggers import WandBLogger, ConsoleLogger, TBLogger, LoggerList
 from runtime.emulator.loss import RHLoss, QVLoss, MultiVariableLoss
 from runtime.emulator.models import UVTQSimple, UVTRHSimple, ScalarMLP, RHScalarMLP
 from runtime.emulator.models import V1QCModel
-from runtime.types import State, Diagnostics, Step
-from runtime.names import SPHUM, DELP
-import logging
-import json
 
 
 def average(metrics):
@@ -199,6 +189,9 @@ class OnlineEmulatorConfig:
 
 
 class OnlineEmulator:
+    """An Emulator training loop that can be used either for batch or online machine
+    learning"""
+
     def __init__(
         self, config: OnlineEmulatorConfig,
     ):
@@ -207,7 +200,6 @@ class OnlineEmulator:
         self.optimizer = tf.optimizers.SGD(
             learning_rate=config.learning_rate, momentum=config.momentum
         )
-        self._statein: Optional[State] = None
         self.output_variables: Sequence[str] = get_prognostic_variables()
         self.extra_inputs = config.extra_input_variables
         self._step = 0
@@ -313,33 +305,6 @@ class OnlineEmulator:
     def log_dict(self, prefix, metrics, step):
         self.logger.log_dict(prefix, metrics, step)
 
-    def partial_fit(self, statein: State, stateout: State):
-
-        in_tensors = _xarray_to_tensor(statein, self.input_variables)
-        out_tensors = _xarray_to_tensor(stateout, self.output_variables)
-        d = tf.data.Dataset.from_tensor_slices((in_tensors, out_tensors)).shuffle(
-            1_000_000
-        )
-        self.batch_fit(d)
-
-    def predict(self, state: State) -> State:
-        in_ = stack(state, self.input_variables)
-        in_tensors = to_tensors(in_)
-        x = self.batch_to_specific_humidity_basis(in_tensors)
-        out = self.model(x)
-
-        tensors = to_dict_no_static_vars(out)
-
-        dims = ["sample", "z"]
-        attrs = {"units": "no one cares"}
-
-        return dict(
-            xr.Dataset(
-                {key: (dims, val, attrs) for key, val in tensors.items()},
-                coords=in_.coords,
-            ).unstack("sample")
-        )
-
     @property
     def _checkpoint(self) -> tf.train.Checkpoint:
         return tf.train.Checkpoint(optimizer=self.optimizer, model=self.model)
@@ -361,80 +326,6 @@ class OnlineEmulator:
         model = cls(config)
         model._checkpoint.read(os.path.join(path, cls._model))
         return model
-
-
-@dataclasses.dataclass
-class PrognosticAdapter:
-    """A function wrapper that allows emulating a certain component
-    """
-
-    emulator: OnlineEmulator
-    state: State
-    monitor: Monitor
-    emulator_prefix: str = "emulator_"
-
-    @property
-    def config(self):
-        return self.emulator.config
-
-    def emulate(self, name: str, func: Step) -> Diagnostics:
-        inputs = {key: self.state[key] for key in self.emulator.input_variables}
-
-        inputs_to_save = {self.emulator_prefix + key: self.state[key] for key in inputs}
-        before = self.monitor.checkpoint()
-        diags = func()
-        change_in_func = self.monitor.compute_change(name, before, self.state)
-
-        if self.config.train:
-            self.emulator.partial_fit(inputs, self.state)
-        emulator_prediction = self.emulator.predict(inputs)
-
-        emulator_after: MutableMapping[Hashable, xr.DataArray] = {
-            DELP: before[DELP],
-            **emulator_prediction,
-        }
-
-        # insert state variables not predicted by the emulator
-        for v in before:
-            if v not in emulator_after:
-                emulator_after[v] = self.state[v]
-
-        changes = self.monitor.compute_change("emulator", before, emulator_after)
-
-        if self.config.online:
-            update_state_with_emulator(
-                self.state,
-                emulator_prediction,
-                ignore_humidity_below=self.config.ignore_humidity_below,
-            )
-        return {**diags, **inputs_to_save, **changes, **change_in_func}
-
-    def __call__(self, name: str, func: Step) -> Step:
-        def step() -> Diagnostics:
-            return self.emulate(name, func)
-
-        # functools.wraps modifies the type and breaks mypy type checking
-        step.__name__ = func.__name__
-
-        return step
-
-
-def _xarray_to_tensor(state, keys):
-    in_ = stack(state, keys)
-    return to_tensors(in_)
-
-
-def stack(state: State, keys) -> xr.Dataset:
-    ds = xr.Dataset({key: state[key] for key in keys})
-    sample_dims = ["y", "x"]
-    return ds.stack(sample=sample_dims).transpose("sample", ...)
-
-
-def needs_restart(state) -> bool:
-    """Detect if error state is happening, in which case we should restart the
-    model from a clean state
-    """
-    return False
 
 
 def get_model(config: OnlineEmulatorConfig) -> tf.keras.Model:
@@ -473,44 +364,3 @@ def get_emulator(config: OnlineEmulatorConfig):
         return OnlineEmulator.load(config.checkpoint)
     else:
         return OnlineEmulator(config)
-
-
-def _update_state_with_emulator(
-    state: MutableMapping[Hashable, xr.DataArray],
-    src: Mapping[Hashable, xr.DataArray],
-    from_orig: Callable[[Hashable, xr.DataArray], xr.DataArray],
-) -> None:
-    """
-    Args:
-        state: the mutable state object
-        src: updates to put into state
-        from_orig: a function returning a mask. Where this mask is True, the
-            original state array will be used.
-
-    """
-    for key in src:
-        arr = state[key]
-        mask = from_orig(key, arr)
-        state[key] = arr.where(mask, src[key].variable)
-
-
-@dataclasses.dataclass
-class from_orig:
-    ignore_humidity_below: Optional[int] = None
-
-    def __call__(self, name: Hashable, arr: xr.DataArray) -> xr.DataArray:
-        if name == SPHUM:
-            if self.ignore_humidity_below is not None:
-                return arr.z > self.ignore_humidity_below
-            else:
-                return xr.DataArray(False)
-        else:
-            return xr.DataArray(True)
-
-
-def update_state_with_emulator(
-    state: MutableMapping[Hashable, xr.DataArray],
-    src: Mapping[Hashable, xr.DataArray],
-    ignore_humidity_below: Optional[int] = None,
-) -> None:
-    return _update_state_with_emulator(state, src, from_orig(ignore_humidity_below))

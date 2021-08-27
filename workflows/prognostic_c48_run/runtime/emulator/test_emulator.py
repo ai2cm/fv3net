@@ -1,19 +1,18 @@
 import argparse
 import os
 import datetime
-from workflows.prognostic_c48_run.runtime.emulator.emulator import (
-    _update_state_with_emulator,
-    update_state_with_emulator,
-)
 import numpy as np
 import tensorflow as tf
 import xarray as xr
 from runtime.emulator.batch import to_dict
-from runtime.emulator.emulator import (
-    OnlineEmulatorConfig,
-    OnlineEmulator,
-    get_emulator,
+from runtime.emulator.emulator import OnlineEmulatorConfig, OnlineEmulator, get_emulator
+from runtime.emulator.adapter import (
+    get_xarray_emulator,
+    update_state_with_emulator,
+    _update_state_with_emulator,
+    XarrayEmulator,
 )
+
 from runtime.emulator.loss import MultiVariableLoss, RHLoss, QVLoss
 from .utils import _get_argsin
 import pytest
@@ -34,7 +33,7 @@ def test_OnlineEmulator_partial_fit(state):
         batch_size=32, learning_rate=0.001, momentum=0.0, levels=63
     )
 
-    emulator = get_emulator(config)
+    emulator = get_xarray_emulator(config)
     emulator.partial_fit(state, state)
 
 
@@ -44,7 +43,7 @@ def test_OnlineEmulator_partial_fit_logged(state):
     )
     time = datetime.datetime.now().isoformat()
 
-    emulator = get_emulator(config)
+    emulator = get_xarray_emulator(config)
     writer = tf.summary.create_file_writer(f"logs_long/{time}")
     with writer.as_default():
         for i in range(10):
@@ -60,7 +59,7 @@ def test_OnlineEmulator_fails_when_accessing_nonexistant_var(state):
         levels=63,
     )
 
-    emulator = get_emulator(config)
+    emulator = get_xarray_emulator(config)
     with pytest.raises(KeyError):
         emulator.partial_fit(state, state)
 
@@ -77,7 +76,7 @@ def test_OnlineEmulator_fit_predict(state, extra_inputs):
         levels=63,
     )
 
-    emulator = get_emulator(config)
+    emulator = get_xarray_emulator(config)
     emulator.partial_fit(state, state)
     stateout = emulator.predict(state)
     assert isinstance(stateout, dict)
@@ -128,10 +127,10 @@ def test_dump_load_OnlineEmulator(state, tmpdir, output_exists):
 
     n = state["air_temperature"].sizes["z"]
     config = OnlineEmulatorConfig(levels=n)
-    emulator = get_emulator(config)
+    emulator = get_xarray_emulator(config)
     emulator.partial_fit(state, state)
     emulator.dump(path)
-    new_emulator = OnlineEmulator.load(path)
+    new_emulator = XarrayEmulator.load(path)
 
     # assert that the air_temperature output is unchanged
     field = "air_temperature"
