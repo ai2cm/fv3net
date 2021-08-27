@@ -3,7 +3,7 @@ from functools import partial
 import json
 import os
 
-from runtime.emulator.emulator import OnlineEmulatorConfig
+from runtime.emulator.emulator import Config as OnlineEmulatorConfig
 from runtime.emulator.batch import all_required_variables, compute_in_out, nz
 from fv3fit.emulation import data
 import runtime.emulator

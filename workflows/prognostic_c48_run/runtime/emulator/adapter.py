@@ -5,6 +5,7 @@ from typing import (
     Mapping,
     MutableMapping,
     Optional,
+    Union,
 )
 from runtime.monitor import Monitor
 import xarray as xr
@@ -13,9 +14,33 @@ from runtime.emulator.batch import (
     to_tensors,
     to_dict_no_static_vars,
 )
-from runtime.emulator.emulator import OnlineEmulator, OnlineEmulatorConfig, get_emulator
+from runtime.emulator.emulator import (
+    OnlineEmulator,
+    Config as EmulatorConfig,
+)
 from runtime.types import State, Diagnostics, Step
 from runtime.names import SPHUM, DELP
+import logging
+
+
+@dataclasses.dataclass
+class Config:
+    """
+    Attributes:
+        checkpoint: Either path to model artifact in Weights and biases
+            "<entity>/<project>/<name>:tag" to be loaded, or the configurations
+            for a new emulator object.
+    """
+
+    emulator: Union[str, EmulatorConfig] = dataclasses.field(
+        default_factory=EmulatorConfig
+    )
+    # online parameters
+    online: bool = False
+    train: bool = True
+    # will ignore the emulator for any z larger than this value
+    # remember higher z is lower in the atmosphere hence "below"
+    ignore_humidity_below: Optional[int] = None
 
 
 @dataclasses.dataclass
@@ -39,10 +64,6 @@ class XarrayEmulator:
     @classmethod
     def load(cls, path: str):
         return cls(OnlineEmulator.load(path))
-
-    @property
-    def config(self) -> OnlineEmulatorConfig:
-        return self.emulator.config
 
     def predict(self, state: State) -> State:
         in_ = stack(state, self.input_variables)
@@ -81,14 +102,13 @@ class PrognosticAdapter:
     depending on the user configuration.
     """
 
-    emulator: XarrayEmulator
+    config: Config
     state: State
     monitor: Monitor
     emulator_prefix: str = "emulator_"
 
-    @property
-    def config(self) -> OnlineEmulatorConfig:
-        return self.emulator.config
+    def __post_init__(self):
+        self.emulator = get_xarray_emulator(self.config.emulator)
 
     def emulate(self, name: str, func: Step) -> Diagnostics:
         inputs = {key: self.state[key] for key in self.emulator.input_variables}
@@ -143,8 +163,12 @@ def stack(state: State, keys) -> xr.Dataset:
     return ds.stack(sample=sample_dims).transpose("sample", ...)
 
 
-def get_xarray_emulator(config: OnlineEmulatorConfig):
-    return XarrayEmulator(get_emulator(config))
+def get_xarray_emulator(config: Union[EmulatorConfig, str]) -> XarrayEmulator:
+    if isinstance(config, str):
+        logging.info(f"Loading emulator from checkpoint {config}")
+        return XarrayEmulator(OnlineEmulator.load(config))
+    else:
+        return XarrayEmulator(OnlineEmulator(config))
 
 
 def _update_state_with_emulator(

@@ -33,7 +33,7 @@ class BatchDataConfig:
 
 
 @dataclasses.dataclass
-class OnlineEmulatorConfig:
+class Config:
     """
     Attrs:
         batch_size: the largest batch size to be used for a single gradient
@@ -45,8 +45,6 @@ class OnlineEmulatorConfig:
         num_hidden_layers: number of hidden layers used. Only implemented for
             QVLoss targets.
         wandb_logger: if True, then enable weights and biases saving
-        checkpoint: path to model artifact in Weights and biases
-            "<entity>/<project>/<name>:tag"
 
     """
 
@@ -55,13 +53,6 @@ class OnlineEmulatorConfig:
     num_hidden: int = 256
     num_hidden_layers: int = 1
     momentum: float = 0.5
-    # online parameters
-    online: bool = False
-    train: bool = True
-
-    # will ignore the emulator for any z larger than this value
-    # remember higher z is lower in the atmosphere hence "below"
-    ignore_humidity_below: Optional[int] = None
 
     # other parameters
     extra_input_variables: List[str] = dataclasses.field(default_factory=list)
@@ -75,7 +66,6 @@ class OnlineEmulatorConfig:
     wandb_logger: bool = False
 
     output_path: str = ""
-    checkpoint: Optional[str] = None
     weight_sharing: bool = False
     cloud_water: bool = False
 
@@ -84,7 +74,7 @@ class OnlineEmulatorConfig:
         return get_prognostic_variables() + list(self.extra_input_variables)
 
     @classmethod
-    def from_dict(cls, dict_) -> "OnlineEmulatorConfig":
+    def from_dict(cls, dict_) -> "Config":
         return dacite.from_dict(cls, dict_, dacite.Config(strict=True))
 
     @staticmethod
@@ -145,8 +135,8 @@ class OnlineEmulatorConfig:
         )
 
     @staticmethod
-    def from_args(args) -> "OnlineEmulatorConfig":
-        config = OnlineEmulatorConfig()
+    def from_args(args) -> "Config":
+        config = Config()
         config.batch_size = args.batch_size
         config.epochs = args.epochs
         config.learning_rate = args.lr
@@ -193,7 +183,7 @@ class OnlineEmulator:
     learning"""
 
     def __init__(
-        self, config: OnlineEmulatorConfig,
+        self, config: Config,
     ):
         self.config = config
         self.model = get_model(config)
@@ -322,13 +312,13 @@ class OnlineEmulator:
     @classmethod
     def load(cls, path: str):
         with open(os.path.join(path, cls._config), "r") as f:
-            config = OnlineEmulatorConfig.from_dict(json.load(f))
+            config = Config.from_dict(json.load(f))
         model = cls(config)
         model._checkpoint.read(os.path.join(path, cls._model))
         return model
 
 
-def get_model(config: OnlineEmulatorConfig) -> tf.keras.Model:
+def get_model(config: Config) -> tf.keras.Model:
     if config.cloud_water:
         logging.info("Using V1QCModel")
         return V1QCModel(config.levels)
@@ -356,11 +346,3 @@ def get_model(config: OnlineEmulatorConfig) -> tf.keras.Model:
     else:
         raise NotImplementedError(f"{config}")
     return model
-
-
-def get_emulator(config: OnlineEmulatorConfig):
-    if config.checkpoint:
-        logging.info(f"Loading emulator from checkpoint {config.checkpoint}")
-        return OnlineEmulator.load(config.checkpoint)
-    else:
-        return OnlineEmulator(config)

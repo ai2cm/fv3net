@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 import xarray as xr
 from runtime.emulator.batch import to_dict
-from runtime.emulator.emulator import OnlineEmulatorConfig, OnlineEmulator, get_emulator
+from runtime.emulator.emulator import Config as OnlineEmulatorConfig, OnlineEmulator
 from runtime.emulator.adapter import (
     get_xarray_emulator,
     update_state_with_emulator,
@@ -104,7 +104,7 @@ def test_OnlineEmulator_batch_fit(config, with_validation):
     x = to_dict(_get_argsin(config.levels))
     dataset = tf.data.Dataset.from_tensors((x, x)).unbatch()
 
-    emulator = get_emulator(config)
+    emulator = OnlineEmulator(config)
 
     if with_validation:
         emulator.batch_fit(dataset, validation_data=dataset)
@@ -180,12 +180,11 @@ def test_checkpointed_model(tmpdir):
 
     # dump a model
     config = OnlineEmulatorConfig()
-    emulator = get_emulator(config)
+    emulator = OnlineEmulator(config)
     emulator.dump(tmpdir)
 
     # load it
-    config = OnlineEmulatorConfig(checkpoint=str(tmpdir))
-    emulator = get_emulator(config)
+    emulator = OnlineEmulator.load(str(tmpdir))
     assert isinstance(emulator, OnlineEmulator)
 
 

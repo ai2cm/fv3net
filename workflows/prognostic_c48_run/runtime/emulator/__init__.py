@@ -1,5 +1,5 @@
 from runtime.emulator.emulator import (
-    OnlineEmulatorConfig,
+    Config as OnlineEmulatorConfig,
     OnlineEmulator,
     BatchDataConfig,
 )

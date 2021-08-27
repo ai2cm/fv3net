@@ -10,7 +10,7 @@ from runtime.emulator.models import (
     V1QCModel,
 )
 from runtime.emulator.thermo import RelativeHumidityBasis
-from runtime.emulator.emulator import get_model, OnlineEmulatorConfig
+from runtime.emulator.emulator import get_model, Config as OnlineEmulatorConfig
 
 from .utils import _get_argsin
 
