@@ -248,6 +248,12 @@ class MLStateStepper(PureMLStepper):
         diagnostics: Diagnostics = {}
         state_updates: State = predict(self.model, state)
 
+        if "shortwave_transmissivity" in state_updates:
+            print("Computing overrides based on shortwave transmissivity")
+            state_updates["override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface"] = state_updates["shortwave_transmissivity"] * state["total_sky_downward_shortwave_flux_at_top_of_atmosphere"]
+            albedo = state["surface_diffused_shortwave_albedo"]
+            state_updates["override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface"] = state_updates["override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface"] * (1 - albedo)
+
         for name in state_updates.keys():
             diagnostics[name] = state_updates[name]
 
