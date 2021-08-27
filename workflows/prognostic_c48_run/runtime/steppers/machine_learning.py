@@ -257,7 +257,8 @@ class MLStateStepper(PureMLStepper):
         for name in state_updates.keys():
             diagnostics[name] = state_updates[name]
 
-        del state_updates["shortwave_transmissivity"]
+        if "shortwave_transmissivity" in state_updates:
+            del state_updates["shortwave_transmissivity"]
 
         tendency = {}
         return (
