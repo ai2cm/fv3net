@@ -3,4 +3,6 @@ from .normalization import (
     StandardDenormLayer,
     MaxFeatureStdNormLayer,
     MaxFeatureStdDenormLayer,
+    MeanFeatureStdNormLayer,
+    MeanFeatureStdDenormLayer,
 )

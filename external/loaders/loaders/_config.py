@@ -4,6 +4,7 @@ from loaders.typing import (
     Mapper,
     Batches,
 )
+import collections
 import dataclasses
 import dacite
 
@@ -122,6 +123,17 @@ class BatchesFromMapperConfig(BatchesLoader):
                 f"Invalid batches function {self.function}, "
                 f"must be one of {list(batches_from_mapper_functions.keys())}"
             )
+        if "timesteps" in self.kwargs:
+            duplicate_times = [
+                t
+                for t, count in collections.Counter(self.kwargs["timesteps"]).items()
+                if count > 1
+            ]
+            if len(duplicate_times) > 0:
+                raise ValueError(
+                    "Timesteps provided for selection must be unique. "
+                    f"Duplicated times were found: {duplicate_times}"
+                )
 
 
 @dataclasses.dataclass

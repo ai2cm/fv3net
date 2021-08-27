@@ -4,7 +4,7 @@ import tensorflow as tf
 import numpy as np
 from datetime import timedelta
 from cftime import DatetimeProlepticGregorian as datetime
-from fv3fit.keras._models.recurrent import _BPTTTrainer as _BPTTTrainer
+from fv3fit.keras._models.recurrent import PureKerasModel, _BPTTTrainer as _BPTTTrainer
 import tempfile
 import fv3fit
 import os
@@ -364,3 +364,54 @@ def test_reloaded_model_gives_same_outputs(sample_dim_name, dt):
     # test that loaded model gives the same predictions
     loaded_output = loaded.predict(first_timestep)
     xr.testing.assert_equal(reference_output, loaded_output)
+
+
+class DummyPredictor:
+    def __init__(self, sample_dim, input_vars, output_vars):
+        self.sample_dim_name = sample_dim
+        self.input_variables = input_vars
+        self.output_variables = output_vars
+
+    def predict(self, X: np.ndarray):
+        return X
+
+
+zdim, ydim, xdim = 2, 3, 3
+da_3d = xr.DataArray(
+    [[[1.0 for x in range(xdim)] for y in range(ydim)] for z in range(zdim)],
+    dims=["z", "y", "x"],
+    coords={"y": range(ydim), "x": range(xdim)},
+)
+
+zdim, nsamples = 2, 9
+da_stacked = xr.DataArray(
+    [[1.0 for s in range(nsamples)] for z in range(zdim)],
+    dims=["z", "sample"],
+    coords={"sample": range(nsamples), "z": range(zdim)},
+)
+
+
+@pytest.mark.parametrize(
+    "da,",
+    [
+        pytest.param(da_3d, id="unstacked_input"),
+        pytest.param(da_stacked, id="stacked_input"),
+    ],
+)
+def test_pure_keras_predict_works_on_format(da):
+    input_vars, output_vars = ["input"], ["output"]
+    dummy_predictor = DummyPredictor("sample", input_vars, output_vars)
+    model = PureKerasModel(
+        "sample",
+        input_vars,
+        output_vars,
+        output_metadata=[
+            {"dims": ["sample", "z"], "units": ""},
+            {"dims": ["sample", "z"], "units": ""},
+        ],
+        model=dummy_predictor,
+    )
+    ds = xr.Dataset({"input": da, "output": da})
+    prediction = model.predict(ds)
+    for dim in prediction.dims:
+        assert len(prediction[dim]) == len(ds[dim])

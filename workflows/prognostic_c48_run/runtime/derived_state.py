@@ -5,7 +5,7 @@ from toolz import dissoc
 import xarray as xr
 
 import fv3gfs.util
-from vcm import DerivedMapping
+from vcm import DerivedMapping, round_time
 from runtime.names import DELP
 from runtime.types import State
 
@@ -81,7 +81,8 @@ class DerivedFV3State(MutableMapping):
 
     @property
     def time(self) -> cftime.DatetimeJulian:
-        return self._getter.get_state(["time"])["time"]
+        state_time = self._getter.get_state(["time"])["time"]
+        return round_time(cftime.DatetimeJulian(*state_time.timetuple()))
 
     def __getitem__(self, key: Hashable) -> xr.DataArray:
         return self._mapper[key]
