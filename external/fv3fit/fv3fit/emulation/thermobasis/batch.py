@@ -2,7 +2,7 @@ from typing import Dict, Mapping, Sequence
 
 import tensorflow as tf
 import xarray as xr
-from runtime.emulator.thermo import SpecificHumidityBasis
+from fv3fit.emulation.thermobasis.thermo import SpecificHumidityBasis
 
 State = Mapping[str, xr.DataArray]
 

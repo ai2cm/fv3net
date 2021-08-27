@@ -1,18 +1,21 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-from runtime.emulator.loss import QVLoss, RHLoss
-from runtime.emulator.models import (
+from fv3fit.emulation.thermobasis.loss import QVLoss, RHLoss
+from fv3fit.emulation.thermobasis.models import (
     RHScalarMLP,
     ScalarMLP,
     UVTQSimple,
     UVTRHSimple,
     V1QCModel,
 )
-from runtime.emulator.thermo import RelativeHumidityBasis
-from runtime.emulator.emulator import get_model, Config as OnlineEmulatorConfig
+from fv3fit.emulation.thermobasis.thermo import RelativeHumidityBasis
+from fv3fit.emulation.thermobasis.emulator import (
+    get_model,
+    Config as OnlineEmulatorConfig,
+)
 
-from .utils import _get_argsin
+from utils import _get_argsin
 
 
 @pytest.mark.parametrize("with_scalars", [True, False])

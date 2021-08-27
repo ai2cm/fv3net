@@ -1,7 +1,7 @@
 import numpy as np
-from runtime.emulator.loss import QVLoss, RHLoss, MultiVariableLoss
+from fv3fit.emulation.thermobasis.loss import QVLoss, RHLoss, MultiVariableLoss
 import tensorflow as tf
-from .utils import _get_argsin
+from utils import _get_argsin
 import pytest
 
 

@@ -1,5 +1,5 @@
 import tensorflow as tf
-from runtime.emulator.batch import batch_to_specific_humidity_basis
+from fv3fit.emulation.thermobasis.batch import batch_to_specific_humidity_basis
 
 
 def test_batch_to_specific_humidity_basis(state):

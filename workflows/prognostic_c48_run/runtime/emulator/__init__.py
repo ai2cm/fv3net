@@ -1,6 +1,6 @@
-from runtime.emulator.emulator import (
+from fv3fit.emulation.thermobasis.emulator import (
     Config as OnlineEmulatorConfig,
-    OnlineEmulator,
+    Emulator,
     BatchDataConfig,
 )
-from runtime.emulator.loss import QVLoss, MultiVariableLoss, RHLoss
+from fv3fit.emulation.thermobasis.loss import QVLoss, MultiVariableLoss, RHLoss

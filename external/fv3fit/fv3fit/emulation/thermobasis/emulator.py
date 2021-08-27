@@ -12,14 +12,24 @@ import os
 import numpy
 import tensorflow as tf
 import dacite
-from runtime.emulator.batch import (
+from fv3fit.emulation.thermobasis.batch import (
     get_prognostic_variables,
     batch_to_specific_humidity_basis,
 )
-from runtime.emulator.loggers import WandBLogger, ConsoleLogger, TBLogger, LoggerList
-from runtime.emulator.loss import RHLoss, QVLoss, MultiVariableLoss
-from runtime.emulator.models import UVTQSimple, UVTRHSimple, ScalarMLP, RHScalarMLP
-from runtime.emulator.models import V1QCModel
+from fv3fit.emulation.thermobasis.loggers import (
+    WandBLogger,
+    ConsoleLogger,
+    TBLogger,
+    LoggerList,
+)
+from fv3fit.emulation.thermobasis.loss import RHLoss, QVLoss, MultiVariableLoss
+from fv3fit.emulation.thermobasis.models import (
+    UVTQSimple,
+    UVTRHSimple,
+    ScalarMLP,
+    RHScalarMLP,
+)
+from fv3fit.emulation.thermobasis.models import V1QCModel
 
 
 def average(metrics):
@@ -178,7 +188,7 @@ class Config:
         return config
 
 
-class OnlineEmulator:
+class Emulator:
     """An Emulator training loop that can be used either for batch or online machine
     learning"""
 

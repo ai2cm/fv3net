@@ -1,7 +1,7 @@
 import dataclasses
 from typing import Any, List, Tuple
 import tensorflow as tf
-from runtime.emulator.thermo import ThermoBasis
+from fv3fit.emulation.thermobasis.thermo import ThermoBasis
 from fv3fit.emulation.thermo import relative_humidity, specific_humidity_from_rh
 
 

@@ -1,6 +1,6 @@
 from typing import Sequence
 import tensorflow as tf
-from runtime.emulator.thermo import (
+from fv3fit.emulation.thermobasis.thermo import (
     RelativeHumidityBasis,
     ThermoBasis,
     SpecificHumidityBasis,
@@ -10,7 +10,7 @@ from fv3fit.emulation.layers.normalization import (
     StandardDenormLayer,
 )
 
-from runtime.emulator.layers import ScalarNormLayer
+from fv3fit.emulation.thermobasis.layers import ScalarNormLayer
 
 
 def atleast_2d(x: tf.Variable) -> tf.Variable:

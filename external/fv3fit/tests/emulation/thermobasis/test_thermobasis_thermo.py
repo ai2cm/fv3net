@@ -1,5 +1,5 @@
 import tensorflow as tf
-from runtime.emulator.thermo import SpecificHumidityBasis
+from fv3fit.emulation.thermobasis.thermo import SpecificHumidityBasis
 import pytest
 
 from hypothesis import given

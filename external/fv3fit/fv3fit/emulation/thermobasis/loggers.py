@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import wandb
-from runtime.diagnostics.tensorboard import plot_to_image
+from fv3fit.tensorboard import plot_to_image
 
 
 class TBLogger:
