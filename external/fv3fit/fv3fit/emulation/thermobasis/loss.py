@@ -21,8 +21,9 @@ def q_loss_info(truth_q, pred_q, level):
 
 @dataclasses.dataclass
 class QVLoss:
-    """
-    Attrs:
+    """Loss function for predicting specific humidity at a single level
+    
+    Attributes:
         level: the level to predict
         scale: the typical order of the loss function
     """
@@ -50,8 +51,9 @@ class QVLoss:
 
 @dataclasses.dataclass
 class RHLoss:
-    """
-    Attrs:
+    """Loss function for predicting relative humidity at a single level
+
+    Attributes:
         variable: the variable to target, defaults to all levels of u,v,t,q
         level: the level to predict
         scale: the typical order of the loss function
@@ -87,11 +89,12 @@ def select_level(arr: tf.Tensor, level) -> tf.Tensor:
 
 @dataclasses.dataclass
 class MultiVariableLoss:
-    """
-        Attrs:
-            ?_weight: weight of the variable in the loss function.
-                Only used if name is None
-            levels: levels to save outputs at
+    """MSE loss function with manual weights for different variables
+
+    Attributes:
+        ?_weight: weight of the variable in the loss function.
+            Only used if name is None
+        levels: levels to save outputs at
     """
 
     q_weight: float = 1e6

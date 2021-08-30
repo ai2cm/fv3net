@@ -21,6 +21,12 @@ import argparse
 logging.basicConfig(level=logging.INFO)
 
 
+def get_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
+    Config.register_parser(parser)
+    return parser
+
+
 def main(config: Config):
 
     tf.random.set_seed(1)
@@ -81,8 +87,7 @@ def main(config: Config):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    Config.register_parser(parser)
+    parser = get_parser()
     args = parser.parse_args()
     config = Config.from_args(args)
     print(config)

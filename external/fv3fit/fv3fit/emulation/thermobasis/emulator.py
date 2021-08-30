@@ -89,8 +89,16 @@ class Config:
 
     @staticmethod
     def register_parser(parser):
-        parser.add_argument("--training-data", default="data/training")
-        parser.add_argument("--testing-data", default="data/validation")
+        parser.add_argument(
+            "--training-data",
+            default="data/training",
+            help="path to directory of netcdf files to train from.",
+        )
+        parser.add_argument(
+            "--testing-data",
+            default="data/validation",
+            help="same as --testing-data but used for validation.",
+        )
         parser.add_argument("--batch-size", default=32, type=int)
         parser.add_argument("--epochs", default=60, type=int)
         parser.add_argument("--lr", default=0.01, type=float)
