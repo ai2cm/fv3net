@@ -3,7 +3,7 @@ from functools import partial
 import json
 import os
 
-from fv3fit.emulation.thermobasis.emulator import Config, Emulator
+from fv3fit.emulation.thermobasis.emulator import Config, Trainer
 from fv3fit.emulation.thermobasis.batch import (
     all_required_variables,
     compute_in_out,
@@ -40,7 +40,7 @@ def main(config: Config):
             entity="ai2cm", project=f"emulator-noah", config=args,  # type: ignore
         )
 
-    emulator = Emulator(config)
+    emulator = Trainer(config)
 
     prep = partial(compute_in_out, timestep=args.timestep)
     variables = config.extra_input_variables + all_required_variables()

@@ -5,7 +5,7 @@ import tensorflow as tf
 from fv3fit.emulation.thermobasis.batch import to_dict
 from fv3fit.emulation.thermobasis.emulator import (
     Config as Config,
-    Emulator,
+    Trainer,
 )
 from fv3fit.emulation.thermobasis.xarray import get_xarray_emulator
 from fv3fit.emulation.thermobasis.xarray import XarrayEmulator
@@ -87,7 +87,7 @@ def test_OnlineEmulator_batch_fit(config, with_validation):
     x = to_dict(_get_argsin(config.levels))
     dataset = tf.data.Dataset.from_tensors((x, x)).unbatch()
 
-    emulator = Emulator(config)
+    emulator = Trainer(config)
 
     if with_validation:
         emulator.batch_fit(dataset, validation_data=dataset)
@@ -163,9 +163,9 @@ def test_checkpointed_model(tmpdir):
 
     # dump a model
     config = Config()
-    emulator = Emulator(config)
+    emulator = Trainer(config)
     emulator.dump(tmpdir)
 
     # load it
-    emulator = Emulator.load(str(tmpdir))
-    assert isinstance(emulator, Emulator)
+    emulator = Trainer.load(str(tmpdir))
+    assert isinstance(emulator, Trainer)

@@ -196,9 +196,14 @@ class Config:
         return config
 
 
-class Emulator:
-    """An Emulator training loop that can be used either for batch or online machine
-    learning"""
+class Trainer:
+    """A training loop that supports online and offline training of emulator
+    models.
+
+    To add a new emulation model (taking in and predicting ThermoBasis objects),
+    add a section to ``get_model`` that returns a model with the same interface
+    as e.g. :py:class:`V1QCModel`.
+    """
 
     def __init__(
         self, config: Config,
