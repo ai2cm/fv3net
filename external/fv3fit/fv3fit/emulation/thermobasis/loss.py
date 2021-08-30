@@ -38,9 +38,9 @@ class Loss(metaclass=abc.ABCMeta):
 
 
 @dataclasses.dataclass
-class QVLoss(Loss):
-    """Loss function for predicting specific humidity at a single level
-    
+class QVLossSingleLevel:
+    """Loss function for predicting specific humidity **at a single level**
+
     Attributes:
         level: the level to predict
         scale: the typical order of the loss function
@@ -68,8 +68,8 @@ class QVLoss(Loss):
 
 
 @dataclasses.dataclass
-class RHLoss(Loss):
-    """Loss function for predicting relative humidity at a single level
+class RHLossSingleLevel:
+    """Loss function for predicting relative humidity **at a single level**
 
     Attributes:
         variable: the variable to target, defaults to all levels of u,v,t,q

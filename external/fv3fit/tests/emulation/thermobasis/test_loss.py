@@ -1,5 +1,9 @@
 import numpy as np
-from fv3fit.emulation.thermobasis.loss import QVLoss, RHLoss, MultiVariableLoss
+from fv3fit.emulation.thermobasis.loss import (
+    QVLossSingleLevel,
+    RHLossSingleLevel,
+    MultiVariableLoss,
+)
 import tensorflow as tf
 from utils import _get_argsin
 import pytest
@@ -20,14 +24,14 @@ def test_MultiVariableLoss(regtest):
         print(key, value, file=regtest)
 
 
-@pytest.mark.parametrize("loss_fn", [QVLoss(5), RHLoss(5)])
+@pytest.mark.parametrize("loss_fn", [QVLossSingleLevel(5), RHLossSingleLevel(5)])
 def test_ScalarLoss(loss_fn):
     i = loss_fn.level
 
     def model(x):
-        if isinstance(loss_fn, QVLoss):
+        if isinstance(loss_fn, QVLossSingleLevel):
             return x.q[:, i : i + 1]
-        elif isinstance(loss_fn, RHLoss):
+        elif isinstance(loss_fn, RHLossSingleLevel):
             return x.rh[:, i : i + 1]
 
     in_ = _get_argsin(levels=i + 1)
