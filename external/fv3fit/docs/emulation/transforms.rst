@@ -1,7 +1,7 @@
 .. _emulation_transforms:
 
 Emulation transforms
-====================
+--------------------
 
 Transforms is a module for composable functions to form data processing pipelines.  These are useful, for instance, to perform necessary processing on batched data before use in ML training loops.
 
@@ -9,7 +9,7 @@ The functions take a single argument and return the processed output.  Therefore
 
 
 Transforms
-----------
+~~~~~~~~~~
 
 .. automodule:: fv3fit.emulation.data.transforms
     :members:
