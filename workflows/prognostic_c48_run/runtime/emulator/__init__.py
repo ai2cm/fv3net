@@ -3,4 +3,8 @@ from fv3fit.emulation.thermobasis.emulator import (
     Emulator,
     BatchDataConfig,
 )
-from fv3fit.emulation.thermobasis.loss import QVLoss, MultiVariableLoss, RHLoss
+from fv3fit.emulation.thermobasis.loss import (
+    QVLossSingleLevel,
+    MultiVariableLoss,
+    RHLossSingleLevel,
+)

@@ -22,7 +22,11 @@ from fv3fit.emulation.thermobasis.loggers import (
     TBLogger,
     LoggerList,
 )
-from fv3fit.emulation.thermobasis.loss import RHLoss, QVLoss, MultiVariableLoss
+from fv3fit.emulation.thermobasis.loss import (
+    RHLossSingleLevel,
+    QVLossSingleLevel,
+    MultiVariableLoss,
+)
 from fv3fit.emulation.thermobasis.models import (
     UVTQSimple,
     UVTRHSimple,
@@ -69,9 +73,9 @@ class Config:
     epochs: int = 1
     levels: int = 79
     batch: Optional[BatchDataConfig] = None
-    target: Union[MultiVariableLoss, QVLoss, RHLoss] = dataclasses.field(
-        default_factory=MultiVariableLoss
-    )
+    target: Union[
+        MultiVariableLoss, QVLossSingleLevel, RHLossSingleLevel
+    ] = dataclasses.field(default_factory=MultiVariableLoss)
     relative_humidity: bool = False
     wandb_logger: bool = False
 
@@ -169,9 +173,9 @@ class Config:
 
         if args.level:
             if args.relative_humidity:
-                config.target = RHLoss(level=args.level, scale=args.scale)
+                config.target = RHLossSingleLevel(level=args.level, scale=args.scale)
             else:
-                config.target = QVLoss(args.level, scale=args.scale)
+                config.target = QVLossSingleLevel(args.level, scale=args.scale)
         elif args.multi_output:
             levels = [int(s) for s in args.levels.split(",") if s]
             config.target = MultiVariableLoss(
@@ -347,14 +351,14 @@ def get_model(config: Config) -> tf.keras.Model:
             return UVTRHSimple(n, n, n, n)
         else:
             return UVTQSimple(n, n, n, n)
-    elif isinstance(config.target, QVLoss):
+    elif isinstance(config.target, QVLossSingleLevel):
         logging.info("Using ScalerMLP")
         model = ScalarMLP(
             var_level=config.target.level,
             num_hidden=config.num_hidden,
             num_hidden_layers=config.num_hidden_layers,
         )
-    elif isinstance(config.target, RHLoss):
+    elif isinstance(config.target, RHLossSingleLevel):
         logging.info("Using RHScaler")
         model = RHScalarMLP(
             var_level=config.target.level,

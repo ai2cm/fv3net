@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-from fv3fit.emulation.thermobasis.loss import QVLoss, RHLoss
+from fv3fit.emulation.thermobasis.loss import QVLossSingleLevel, RHLossSingleLevel
 from fv3fit.emulation.thermobasis.models import (
     RHScalarMLP,
     ScalarMLP,
@@ -67,7 +67,7 @@ def test_ScalarMLP(num_hidden_layers):
     assert out.shape == (1, 1)
 
     # computing loss should not fail
-    loss, _ = QVLoss(0).loss(model(ins), outs)
+    loss, _ = QVLossSingleLevel(0).loss(model(ins), outs)
     assert loss.shape == ()
 
 
@@ -95,7 +95,7 @@ def test_RHScalarMLP():
     assert np.all(out.numpy() < 1.2)
     assert np.all(out.numpy() > 0.0)
 
-    loss = RHLoss(mlp.var_level)
+    loss = RHLossSingleLevel(mlp.var_level)
     val, _ = loss.loss(mlp(argsin), argsin)
     assert val.numpy() >= 0.0
     assert val.numpy() < 10.0
@@ -116,7 +116,9 @@ def test_UVTRHSimple():
     [
         pytest.param(OnlineEmulatorConfig(), UVTQSimple, id="3d-out"),
         pytest.param(
-            OnlineEmulatorConfig(target=QVLoss(0)), ScalarMLP, id="scalar-mlp"
+            OnlineEmulatorConfig(target=QVLossSingleLevel(0)),
+            ScalarMLP,
+            id="scalar-mlp",
         ),
         pytest.param(
             OnlineEmulatorConfig(relative_humidity=True), UVTRHSimple, id="rh-mlp"

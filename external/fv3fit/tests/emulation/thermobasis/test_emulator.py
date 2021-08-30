@@ -10,7 +10,11 @@ from fv3fit.emulation.thermobasis.emulator import (
 from fv3fit.emulation.thermobasis.xarray import get_xarray_emulator
 from fv3fit.emulation.thermobasis.xarray import XarrayEmulator
 
-from fv3fit.emulation.thermobasis.loss import MultiVariableLoss, RHLoss, QVLoss
+from fv3fit.emulation.thermobasis.loss import (
+    MultiVariableLoss,
+    RHLossSingleLevel,
+    QVLossSingleLevel,
+)
 from utils import _get_argsin
 import pytest
 from hypothesis import given
@@ -77,10 +81,10 @@ def test_OnlineEmulator_fit_predict(state, extra_inputs):
             batch_size=32,
             learning_rate=0.001,
             momentum=0.0,
-            target=QVLoss(0),
+            target=QVLossSingleLevel(0),
             levels=79,
         ),
-        Config(target=RHLoss(50), levels=79,),
+        Config(target=RHLossSingleLevel(50), levels=79,),
     ],
 )
 def test_OnlineEmulator_batch_fit(config, with_validation):
@@ -98,7 +102,7 @@ def test_OnlineEmulator_batch_fit(config, with_validation):
 def test_top_level():
     dict_ = {"target": {"level": 10}}
     config = Config.from_dict(dict_)
-    assert QVLoss(10) == config.target
+    assert QVLossSingleLevel(10) == config.target
 
 
 @pytest.mark.parametrize("output_exists", [True, False])
@@ -125,8 +129,8 @@ def test_dump_load_OnlineEmulator(state, tmpdir, output_exists):
 @pytest.mark.parametrize(
     "args,loss_cls",
     [
-        (["--level", "50"], QVLoss),
-        (["--level", "50", "--relative-humidity"], RHLoss),
+        (["--level", "50"], QVLossSingleLevel),
+        (["--level", "50", "--relative-humidity"], RHLossSingleLevel),
         (["--multi-output"], MultiVariableLoss),
         (["--multi-output", "--relative-humidity"], MultiVariableLoss),
     ],
