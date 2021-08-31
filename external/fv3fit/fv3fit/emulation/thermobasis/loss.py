@@ -111,8 +111,8 @@ class MultiVariableLoss(Loss):
 
     Attributes:
         ?_weight: weight of the variable in the loss function.
-            Only used if name is None
-        levels: levels to save outputs at
+        levels: levels to include in per-variable loss information returned by
+            .loss. Often used for logging or evaluation.
     """
 
     q_weight: float = 1e6
