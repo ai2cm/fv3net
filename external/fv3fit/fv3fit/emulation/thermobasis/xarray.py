@@ -4,7 +4,7 @@ from typing import MutableMapping, Hashable, Union
 import xarray as xr
 import tensorflow as tf
 from fv3fit.emulation.thermobasis.batch import to_tensors, to_dict_no_static_vars
-from fv3fit.emulation.thermobasis.emulator import Emulator, Config
+from fv3fit.emulation.thermobasis.emulator import Trainer, Config
 
 State = MutableMapping[Hashable, xr.DataArray]
 
@@ -14,7 +14,7 @@ class XarrayEmulator:
     """Wrap an OnlineEmulator to allow for xarrray inputs and outputs
     """
 
-    emulator: Emulator
+    emulator: Trainer
 
     @property
     def input_variables(self):
@@ -29,7 +29,7 @@ class XarrayEmulator:
 
     @classmethod
     def load(cls, path: str):
-        return cls(Emulator.load(path))
+        return cls(Trainer.load(path))
 
     def predict(self, state: State) -> State:
         in_ = stack(state, self.input_variables)
@@ -73,6 +73,6 @@ def stack(state: State, keys) -> xr.Dataset:
 def get_xarray_emulator(config: Union[Config, str]) -> XarrayEmulator:
     if isinstance(config, str):
         logging.info(f"Loading emulator from checkpoint {config}")
-        return XarrayEmulator(Emulator.load(config))
+        return XarrayEmulator(Trainer.load(config))
     else:
-        return XarrayEmulator(Emulator(config))
+        return XarrayEmulator(Trainer(config))

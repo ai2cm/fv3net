@@ -3,7 +3,7 @@ from functools import partial
 import json
 import os
 
-from fv3fit.emulation.thermobasis.emulator import Config, Emulator
+from fv3fit.emulation.thermobasis.emulator import Config, Trainer as Emulator
 from fv3fit.emulation.thermobasis.batch import (
     all_required_variables,
     compute_in_out,
