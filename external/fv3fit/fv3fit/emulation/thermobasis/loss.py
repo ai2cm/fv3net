@@ -1,8 +1,12 @@
+import abc
 import dataclasses
-from typing import Any, List, Tuple
+from typing import List, Mapping, Tuple, Any
 import tensorflow as tf
 from fv3fit.emulation.thermobasis.thermo import ThermoBasis
 from fv3fit.emulation.thermo import relative_humidity, specific_humidity_from_rh
+
+
+Info = Mapping[str, float]
 
 
 def rh_loss_info(truth_rh, pred_rh, level):
@@ -19,8 +23,22 @@ def q_loss_info(truth_q, pred_q, level):
     }
 
 
+class Loss(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def loss(self, prediction: Any, out: ThermoBasis) -> Tuple[tf.Tensor, Info]:
+        """Compute a loss value and corresponding information
+
+        Returns:
+            loss, info: loss is a backwards differntiable scalar value used for
+                gradient descent, info is a dictionary of details about the loss
+                value calculation (e.g. the MSEs of relative humidity and specific
+                humidity).
+        """
+        pass
+
+
 @dataclasses.dataclass
-class QVLoss:
+class QVLoss(Loss):
     """Loss function for predicting specific humidity at a single level
     
     Attributes:
@@ -31,7 +49,7 @@ class QVLoss:
     level: int
     scale: float = 1.0
 
-    def loss(self, pred: tf.Tensor, out: ThermoBasis):
+    def loss(self, pred: tf.Tensor, out: ThermoBasis) -> Tuple[tf.Tensor, Info]:
         truth_q = select_level(out.q, self.level)
         loss = tf.reduce_mean(tf.losses.mean_squared_error(truth_q, pred))
 
@@ -50,7 +68,7 @@ class QVLoss:
 
 
 @dataclasses.dataclass
-class RHLoss:
+class RHLoss(Loss):
     """Loss function for predicting relative humidity at a single level
 
     Attributes:
@@ -62,7 +80,7 @@ class RHLoss:
     level: int
     scale: float = 1.0
 
-    def loss(self, pred_rh: tf.Tensor, out: ThermoBasis) -> Tuple[tf.Tensor, Any]:
+    def loss(self, pred_rh: tf.Tensor, out: ThermoBasis) -> Tuple[Loss, Info]:
 
         pred_q = specific_humidity_from_rh(
             select_level(out.T, self.level), pred_rh, select_level(out.rho, self.level),
@@ -88,7 +106,7 @@ def select_level(arr: tf.Tensor, level) -> tf.Tensor:
 
 
 @dataclasses.dataclass
-class MultiVariableLoss:
+class MultiVariableLoss(Loss):
     """MSE loss function with manual weights for different variables
 
     Attributes:
@@ -106,7 +124,7 @@ class MultiVariableLoss:
 
     levels: List[int] = dataclasses.field(default_factory=list)
 
-    def loss(self, pred: ThermoBasis, out: ThermoBasis) -> Tuple[tf.Tensor, Any]:
+    def loss(self, pred: ThermoBasis, out: ThermoBasis) -> Tuple[Loss, Info]:
         loss_u = tf.reduce_mean(tf.keras.losses.mean_squared_error(out.u, pred.u))
         loss_v = tf.reduce_mean(tf.keras.losses.mean_squared_error(out.v, pred.v))
         loss_t = tf.reduce_mean(tf.keras.losses.mean_squared_error(out.T, pred.T))
