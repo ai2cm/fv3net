@@ -6,6 +6,8 @@ from typing import (
     Mapping,
     MutableMapping,
     Optional,
+    Iterable,
+    Set,
     Union,
 )
 
@@ -14,6 +16,10 @@ from fv3fit.emulation.thermobasis.xarray import get_xarray_emulator
 from runtime.monitor import Monitor
 from runtime.names import SPHUM, DELP
 from runtime.types import State, Diagnostics, Step
+
+
+def strip_prefix(prefix: str, variables: Iterable[str]) -> Set[str]:
+    return {k[len(prefix) :] for k in variables if k.startswith(prefix)}
 
 
 @dataclasses.dataclass
@@ -43,20 +49,37 @@ class PrognosticAdapter:
     The wrapped function produces diagnostic outputs prefixed with
     ``self.emulator_prefix_`` and trains/applies the emulator to ``state``
     depending on the user configuration.
+
+    Attributes:
+        state: The mutable state being updated.
+        monitor: A Monitor object to use for saving outputs.
+        emulator_prefix: the prefix to use adjust the outputted variable names.
+        diagnostic_variables: the user-requested diagnostic variables, will be
+            searched for inputs starting with ``emulator_prefix``.
+        inputs_to_save: the set of diagnostics that will be produced by the
+            emulated step function.
+    
     """
 
     config: Config
     state: State
     monitor: Monitor
     emulator_prefix: str = "emulator_"
+    diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
 
     def __post_init__(self: "PrognosticAdapter"):
         self.emulator = get_xarray_emulator(self.config.emulator)
 
+    @property
+    def inputs_to_save(self) -> Set[str]:
+        return set(strip_prefix(self.emulator_prefix, self.diagnostic_variables))
+
     def emulate(self, name: str, func: Step) -> Diagnostics:
         inputs = {key: self.state[key] for key in self.emulator.input_variables}
 
-        inputs_to_save = {self.emulator_prefix + key: self.state[key] for key in inputs}
+        inputs_to_save: Diagnostics = {
+            self.emulator_prefix + key: self.state[key] for key in self.inputs_to_save
+        }
         before = self.monitor.checkpoint()
         diags = func()
         change_in_func = self.monitor.compute_change(name, before, self.state)
@@ -86,6 +109,24 @@ class PrognosticAdapter:
         return {**diags, **inputs_to_save, **changes, **change_in_func}
 
     def __call__(self, name: str, func: Step) -> Step:
+        """Emulate a function that updates the ``state``
+        
+        Similar to :py:class:`runtime.monitor.Monitor` but with prognostic emulation
+        capability.
+
+        Args:
+            # TODO combine this "name" with the name of the emulator
+            name: The name of the emulator
+            func: a function that updates the State and returns a dictionary of
+                diagnostics (usually a method of :py:class:`runtime.loop.TimeLoop`).
+        
+        Returns:
+            emulated_func: a function which observes the change to
+                ``self.state`` done by ``func`` and optionally applies/trains an ML
+                emulator.
+
+        """
+
         def step() -> Diagnostics:
             return self.emulate(name, func)
 

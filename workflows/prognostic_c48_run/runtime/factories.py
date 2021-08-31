@@ -16,4 +16,9 @@ def get_emulator_adapter(
     config: UserConfig, state: State, timestep: float
 ) -> PrognosticAdapter:
     monitor = Monitor.from_variables(config.diagnostic_variables, state, timestep)
-    return PrognosticAdapter(config.online_emulator, state, monitor)
+    return PrognosticAdapter(
+        config.online_emulator,
+        state,
+        monitor,
+        diagnostic_variables=set(config.diagnostic_variables),
+    )
