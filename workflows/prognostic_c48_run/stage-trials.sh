@@ -1,2 +1,0 @@
-# guild run train lr=loguniform[1e-4:1e-2] num_hidden=uniform[32:1028] batch_size=[1,32,256,1028] epochs=100 num_hidden_layers=[0,1,3] --max-trials 20 --save-trials hyperparmeter-search.csv
-guild run --stage-trials train @hyperparmeter-search.csv

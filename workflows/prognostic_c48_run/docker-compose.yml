@@ -2,31 +2,27 @@
 version: '3.4'
 volumes:
   runs: {}
-  guild: {}
   dvc: {}
 services:
   fv3:
     depends_on:
       - tensorboard
-    image: us.gcr.io/vcm-ml/emulator:55e360d0aa9322d7be5d299eee176d015c103569
+    image: us.gcr.io/vcm-ml/emulator:latest
     entrypoint: []
     command: [ls]
     volumes:
       - ../../:/fv3net
-      - guild:/mnt/guild
       - dvc:/mnt/dvc
       - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json
       - /scratch/runs:/data
     environment:
-      - GUILD_HOME=/mnt/guild
-      - REMOTE_GUILD_HOME=gs://vcm-ml-archive/emulator
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
       # need to override these constraints
       - PIP_CONSTRAINT=/fv3net/constraints.txt
     env_file:
       .env
   jupyter:
-    image: us.gcr.io/vcm-ml/emulator:55e360d0aa9322d7be5d299eee176d015c103569
+    image: us.gcr.io/vcm-ml/emulator:latest
     entrypoint: []
     command: [jupyter, lab, --port, "8888", --allow-root, --ip, "0.0.0.0", --no-browser, --ServerApp.token=""]
     working_dir: "/mnt/jupyter"
@@ -36,16 +32,6 @@ services:
       - ../../:/fv3net
     ports:
       - "8890:8888"
-  guild:
-    image: guildai/guildai
-    volumes:
-      - dvc:/mnt
-      - .:/fv3net
-    environment:
-      - GUILD_HOME=/mnt/guild
-    command: [guild, view, --port, "8080"]
-    ports:
-      - 8080:8080
   tensorboard:
     image: tensorflow/tensorflow
     volumes:
