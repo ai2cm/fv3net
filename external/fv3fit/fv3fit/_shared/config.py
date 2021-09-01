@@ -15,9 +15,11 @@ from typing import (
 from fv3fit.typing import Dataclass
 import xarray as xr
 from .predictor import Predictor
+from .hyperparameters import Hyperparameters
 import dacite
 import numpy as np
 import random
+import warnings
 
 # TODO: move all keras configs under fv3fit.keras
 import tensorflow as tf
@@ -60,8 +62,6 @@ class TrainingConfig:
         input_variables: variables used as features
         output_variables: variables to predict
         hyperparameters: model_type-specific training configuration
-        additional_variables: variables needed for training which aren't input
-            or output variables of the trained model
         sample_dim_name: deprecated, internal name used for sample dimension
             when training and predicting
         random_seed: value to use to initialize randomness
@@ -71,17 +71,34 @@ class TrainingConfig:
     """
 
     model_type: str
-    input_variables: List[str]
-    output_variables: List[str]
-    hyperparameters: Dataclass
-    additional_variables: List[str] = dataclasses.field(default_factory=list)
+    hyperparameters: Hyperparameters
     sample_dim_name: str = "sample"
     random_seed: Union[float, int] = 0
     derived_output_variables: List[str] = dataclasses.field(default_factory=list)
 
+    @property
+    def variables(self):
+        return self.hyperparameters.variables
+
     @classmethod
     def from_dict(cls, kwargs) -> "TrainingConfig":
         kwargs = {**kwargs}  # make a copy to avoid mutating the input
+        if "input_variables" in kwargs:
+            warnings.warn(
+                "input_variables is no longer a top-level TrainingConfig "
+                "parameter, pass it under hyperparameters instead",
+                DeprecationWarning,
+            )
+            kwargs["hyperparameters"]["input_variables"] = kwargs.pop("input_variables")
+        if "output_variables" in kwargs:
+            warnings.warn(
+                "output_variables is no longer a top-level TrainingConfig "
+                "parameter, pass it under hyperparameters instead",
+                DeprecationWarning,
+            )
+            kwargs["hyperparameters"]["output_variables"] = kwargs.pop(
+                "output_variables"
+            )
         hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
         kwargs["hyperparameters"] = dacite.from_dict(
             data_class=hyperparameter_class, data=kwargs.get("hyperparameters", {})
@@ -146,11 +163,13 @@ class RegularizerConfig:
 # TODO: move this class to where the Dense training is defined when config.py
 # no longer depends on it (i.e. when _ModelTrainingConfig is deleted)
 @dataclasses.dataclass
-class DenseHyperparameters:
+class DenseHyperparameters(Hyperparameters):
     """
     Configuration for training a dense neural network based model.
 
     Args:
+        input_variables: names of variables to use as inputs
+        output_variables: names of variables to use as outputs
         weights: loss function weights, defined as a dict whose keys are
             variable names and values are either a scalar referring to the total
             weight of the variable. Default is a total weight of 1
@@ -176,6 +195,8 @@ class DenseHyperparameters:
             tf.keras.Model.fit() method
     """
 
+    input_variables: List[str]
+    output_variables: List[str]
     weights: Optional[Mapping[str, Union[int, float]]] = None
     normalize_loss: bool = True
     optimizer_config: OptimizerConfig = dataclasses.field(
@@ -194,9 +215,13 @@ class DenseHyperparameters:
     # TODO: remove fit_kwargs by fixing how validation data is passed
     fit_kwargs: Optional[dict] = None
 
+    @property
+    def variables(self) -> Sequence[str]:
+        return list(set(self.input_variables).union(self.output_variables))
+
 
 @dataclasses.dataclass
-class RandomForestHyperparameters:
+class RandomForestHyperparameters(Hyperparameters):
     """
     Configuration for training a random forest based model.
 
@@ -206,6 +231,8 @@ class RandomForestHyperparameters:
     `sklearn.ensemble.RandomForestRegressor`.
 
     Args:
+        input_variables: names of variables to use as inputs
+        output_variables: names of variables to use as outputs
         scaler_type: scaler to use for training, must be "standard" or "mass".
             If set to "mass", then "pressure_thickness_of_atmospheric_layer" must
             be included in the TrainingConfig `additional_variables` field.
@@ -226,6 +253,9 @@ class RandomForestHyperparameters:
             If False, the whole dataset is used to build each tree.
     """
 
+    input_variables: List[str]
+    output_variables: List[str]
+
     scaler_type: str = "standard"
     scaler_kwargs: Optional[Mapping] = None
 
@@ -239,3 +269,7 @@ class RandomForestHyperparameters:
     max_features: Union[str, int, float] = "auto"
     max_samples: Optional[Union[int, float]] = None
     bootstrap: bool = True
+
+    @property
+    def variables(self) -> Sequence[str]:
+        return list(set(self.input_variables).union(self.output_variables))
