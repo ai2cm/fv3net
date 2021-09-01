@@ -19,7 +19,7 @@ def _get_config():
         "base_version": "v0.5",
         "forcing": "gs://vcm-fv3config/data/base_forcing/v1.1/",
         "online_emulator": {
-            "checkpoint": "dummy/path",
+            "emulator": "dummy/path",
             "train": False,
             "online": True,
             "ignore_humidity_below": None,
@@ -426,7 +426,7 @@ def main(cfg: DictConfig):
     artifact_path = os.path.abspath(artifact.download())
 
     config = cfg.fv3
-    config["online_emulator"]["checkpoint"] = artifact_path
+    config["online_emulator"]["emulator"] = artifact_path
     run(OmegaConf.to_container(config), path, ic_url=cfg.ic_url, ic=cfg.ic)
     evaluate(path)
 
