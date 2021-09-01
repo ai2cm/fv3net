@@ -13,6 +13,7 @@ import pytest
         ),
         pytest.param(["examples/nudge_to_fine_config.yml"], id="n2f"),
         pytest.param(["examples/nudge_to_obs_config.yml"], id="n2o"),
+        pytest.param(["examples/emulator.yml"], id="emulator"),
     ],
 )
 def test_prepare_ml_config_regression(regtest, argv):
