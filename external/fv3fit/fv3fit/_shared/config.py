@@ -60,8 +60,6 @@ class TrainingConfig:
 
     Attrs:
         model_type: sklearn model type or keras model class to initialize
-        input_variables: variables used as features
-        output_variables: variables to predict
         hyperparameters: model_type-specific training configuration
         sample_dim_name: deprecated, internal name used for sample dimension
             when training and predicting
@@ -275,4 +273,8 @@ class RandomForestHyperparameters(Hyperparameters):
             additional_variables = ["pressure_thickness_of_atmospheric_layer"]
         else:
             additional_variables = []
-        return set(self.input_variables).union(self.output_variables).union(additional_variables)
+        return (
+            set(self.input_variables)
+            .union(self.output_variables)
+            .union(additional_variables)
+        )
