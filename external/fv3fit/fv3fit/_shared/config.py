@@ -234,9 +234,7 @@ class RandomForestHyperparameters(Hyperparameters):
     Args:
         input_variables: names of variables to use as inputs
         output_variables: names of variables to use as outputs
-        scaler_type: scaler to use for training, must be "standard" or "mass".
-            If set to "mass", then "pressure_thickness_of_atmospheric_layer" must
-            be included in the TrainingConfig `additional_variables` field.
+        scaler_type: scaler to use for training, must be "standard" or "mass"
         scaler_kwargs: keyword arguments to pass to scaler initialization
         n_jobs: number of jobs to run in parallel when training a single random forest
         random_state: random seed to use when building trees, will be
@@ -273,4 +271,8 @@ class RandomForestHyperparameters(Hyperparameters):
 
     @property
     def variables(self) -> Set[str]:
-        return set(self.input_variables).union(self.output_variables)
+        if self.scaler_type == "mass":
+            additional_variables = ["pressure_thickness_of_atmospheric_layer"]
+        else:
+            additional_variables = []
+        return set(self.input_variables).union(self.output_variables).union(additional_variables)
