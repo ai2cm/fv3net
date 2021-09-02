@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Iterable, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Iterable, Hashable, Mapping, Optional, Sequence, Union
 from fv3fit._shared.config import (
     OptimizerConfig,
     RegularizerConfig,
@@ -99,6 +99,9 @@ class PrecipitativeHyperparameters:
     Uses only the first batch of any validation data it is given.
 
     Args:
+        additional_input_variables: if given, used as input variables in
+            addition to the default inputs (air_temperature, specific_humidity,
+            physics_precip, and pressure_thickness_of_atmospheric_layer)
         weights: loss function weights, defined as a dict whose keys are
             variable names and values are either a scalar referring to the total
             weight of the variable. Default is a total weight of 1
@@ -133,6 +136,7 @@ class PrecipitativeHyperparameters:
             by not adding "precipitative" terms to dQ1 and dQ2
     """
 
+    additional_input_variables: Iterable[str] = dataclasses.field(default_factory=tuple)
     weights: Optional[Mapping[str, Union[int, float]]] = None
     normalize_loss: bool = True
     optimizer_config: OptimizerConfig = dataclasses.field(
@@ -160,8 +164,6 @@ class PrecipitativeHyperparameters:
 
 @register_training_function("precipitative", PrecipitativeHyperparameters)
 def train_precipitative_model(
-    input_variables: Iterable[str],
-    output_variables: Iterable[str],
     hyperparameters: PrecipitativeHyperparameters,
     train_batches: Sequence[xr.Dataset],
     validation_batches: Sequence[xr.Dataset],
@@ -170,8 +172,7 @@ def train_precipitative_model(
     stacked_train_batches = tuple(StackedBatches(train_batches, random_state))
     stacked_validation_batches = StackedBatches(validation_batches, random_state)
     training_obj = PrecipitativeModel(
-        input_variables=input_variables,
-        output_variables=output_variables,
+        additional_input_variables=hyperparameters.additional_input_variables,
         epochs=hyperparameters.epochs,
         workers=hyperparameters.workers,
         max_queue_size=hyperparameters.max_queue_size,
@@ -205,8 +206,7 @@ class PrecipitativeModel:
 
     def __init__(
         self,
-        input_variables: Iterable[Hashable],
-        output_variables: Iterable[Hashable],
+        additional_input_variables: Iterable[Hashable],
         epochs: int = 1,
         workers: int = 1,
         max_queue_size: int = 8,
@@ -219,21 +219,21 @@ class PrecipitativeModel:
         save_model_checkpoints: bool = False,
         dense_behavior: bool = False,
     ):
-        if output_variables != ["dQ1", "dQ2", "total_precipitation_rate"]:
-            raise ValueError(
-                "only supported value for output_variables is "
-                '["dQ1", "dQ2", "total_precipitation_rate"]'
-            )
-        self._check_missing_names(input_variables, output_variables)
+        input_variables = tuple(
+            [self._T_NAME, self._Q_NAME, self._DELP_NAME, self._PHYS_PRECIP_NAME]
+            + list(additional_input_variables)
+        )
+        self.output_variables = ("dQ1", "dQ2", "total_precipitation_rate")
         self._dense_behavior = dense_behavior
         self.sample_dim_name = SAMPLE_DIM_NAME
-        self.output_variables = self._order_outputs(output_variables)
         self.input_variables = input_variables
         self.input_packer = ArrayPacker(self.sample_dim_name, input_variables)
         self.humidity_packer = ArrayPacker(
             self.sample_dim_name, [self._Q_TENDENCY_NAME]
         )
-        output_without_precip = (n for n in output_variables if n != self._PRECIP_NAME)
+        output_without_precip = (
+            n for n in self.output_variables if n != self._PRECIP_NAME
+        )
         self.output_packer = ArrayPacker(self.sample_dim_name, self.output_variables)
         self.output_without_precip_packer = ArrayPacker(
             self.sample_dim_name, output_without_precip
@@ -263,42 +263,6 @@ class PrecipitativeModel:
             self._checkpoint_path = None
         self._train_batch_size = train_batch_size
         self._residual_regularizer = residual_regularizer
-
-    def _check_missing_names(self, input_variables, output_variables):
-        missing_names = set((self._T_NAME, self._Q_NAME, self._DELP_NAME)).difference(
-            input_variables
-        )
-        if len(missing_names) > 0:
-            raise ValueError(
-                "input_variables for PrecipitativeModel requires "
-                f"the following missing variables: {missing_names}"
-            )
-        missing_names = set(
-            (self._T_TENDENCY_NAME, self._Q_TENDENCY_NAME, self._PRECIP_NAME)
-        ).difference(output_variables)
-        if len(missing_names) > 0:
-            raise ValueError(
-                "output_variables for PrecipitativeModel requires "
-                f"the following missing variables: {missing_names}"
-            )
-
-    def _order_outputs(
-        self, output_variables: Iterable[Hashable]
-    ) -> Tuple[Hashable, ...]:
-        """
-        To keep some of the implementation sane, we hard-code that the first
-        outputs are temperature, humidity, and precipitation, and all others
-        come after.
-        """
-        return_list: List[Hashable] = [
-            self._T_TENDENCY_NAME,
-            self._Q_TENDENCY_NAME,
-            self._PRECIP_NAME,
-        ]
-        for name in output_variables:
-            if name not in return_list:
-                return_list.append(name)
-        return tuple(return_list)
 
     def fit_statistics(self, X: xr.Dataset):
         """
@@ -378,6 +342,10 @@ class PrecipitativeModel:
                 ),
             ]
         )
+        # This assertion is here to remind you that if you change the output variables
+        # (including their order), you have to update this function. Look for places
+        # where physical quantities are grabbed as indexes of output lists
+        # (e.g. T_tendency = unpacked_output[0]).
         assert list(self.output_variables) == [
             "dQ1",
             "dQ2",
