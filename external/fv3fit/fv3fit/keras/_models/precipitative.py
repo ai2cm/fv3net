@@ -15,7 +15,7 @@ from ._sequences import _ThreadedSequencePreLoader
 from .packer import get_unpack_layer
 from .normalizer import LayerStandardScaler
 import numpy as np
-from .recurrent import get_input_vector, PureKerasModel
+from fv3fit.keras._models.shared import get_input_vector, PureKerasModel
 from loaders.batches import shuffle
 import logging
 
