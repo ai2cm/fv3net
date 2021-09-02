@@ -16,10 +16,16 @@ def rh_loss_info(truth_rh, pred_rh, level):
     }
 
 
-def q_loss_info(truth_q, pred_q, level):
+def q_loss_info(truth_q, pred_q, level, timestep_seconds=900):
+    """Return the specific humidity loss for ``level`` in g/kg/day"""
+    secs_per_day = 86400
+    g_per_kg = 1000
+    factor_to_g_per_kg_per_day = g_per_kg * secs_per_day / timestep_seconds
     loss_q = tf.reduce_mean(tf.losses.mean_squared_error(truth_q, pred_q))
+
     return {
-        f"loss/variable_3/level_{level}": loss_q.numpy() * (1000 * 86400 / 900) ** 2
+        f"loss/variable_3/level_{level}": loss_q.numpy()
+        * (factor_to_g_per_kg_per_day) ** 2
     }
 
 
