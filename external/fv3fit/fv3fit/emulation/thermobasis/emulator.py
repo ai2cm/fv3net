@@ -276,8 +276,6 @@ class Trainer:
 
         if not self.model.scalers_fitted:
             argsin, argsout = next(iter(d.batch(10_000)))
-            # calls .build on any layers
-            # self.model(argsin)
             in_ = self.batch_to_specific_humidity_basis(argsin)
             out = batch_to_specific_humidity_basis(argsout)
             self.model.fit_scalers(in_, out)
