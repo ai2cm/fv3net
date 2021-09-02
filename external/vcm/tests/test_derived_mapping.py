@@ -5,6 +5,7 @@ from typing import Mapping
 import xarray as xr
 
 from vcm import DerivedMapping
+from vcm.derived_mapping import _get_datetime_attr
 
 nt, nx, ny = 3, 2, 1
 ds = xr.Dataset(
@@ -194,3 +195,66 @@ def test_find_all_required_inputs(dependency_map, derived_vars, reqs):
     required_inputs = DerivedMapping.find_all_required_inputs(derived_vars)
     assert set(required_inputs) == set(reqs)
     assert len(required_inputs) == len(reqs)
+
+
+def test__get_datetime_attr():
+    ds = xr.Dataset(
+        {
+            "time": xr.DataArray(
+                data=[
+                    cftime.DatetimeJulian(2016, 7, 1),
+                    cftime.DatetimeJulian(2016, 12, 31),
+                ],
+                dims=["time"],
+            )
+        }
+    )
+
+    days = _get_datetime_attr(ds, "dayofyr")
+    np.testing.assert_equal(days.values, np.array([183, 366]))
+    months = _get_datetime_attr(ds, "month")
+    np.testing.assert_equal(months.values, np.array([7, 12]))
+
+
+def test_cos_sin_derived():
+    ds = xr.Dataset(
+        {
+            "time": xr.DataArray(
+                data=[
+                    cftime.DatetimeJulian(2016, 7, 1),
+                    cftime.DatetimeJulian(2016, 6, 1),
+                ],
+                dims=["time"],
+            ),
+            "longitude": xr.DataArray(data=[np.pi]),
+        }
+    )
+
+    derived_state = DerivedMapping(ds)
+    # almost equal because sin op gives order 1e-16 rather than 0
+    np.testing.assert_almost_equal(derived_state["cos_day"].values[0], -1)
+    np.testing.assert_almost_equal(derived_state["sin_day"].values[0], 0)
+    np.testing.assert_almost_equal(derived_state["cos_month"].values[1], -1)
+    np.testing.assert_almost_equal(derived_state["sin_month"].values[1], 0)
+    np.testing.assert_almost_equal(derived_state["cos_lon"].values[0], -1)
+    np.testing.assert_almost_equal(derived_state["sin_lon"].values[0], 0)
+
+
+def test_cos_single_time_DataArray():
+
+    ds = xr.Dataset(
+        {
+            "time": xr.DataArray(
+                data=[cftime.DatetimeJulian(2016, 7, 1)], dims=["time"],
+            ),
+            "longitude": xr.DataArray(data=[np.pi]),
+        }
+    )
+    derived_state = DerivedMapping(ds)
+    np.testing.assert_almost_equal(derived_state["cos_day"].values[0], -1)
+
+
+def test_cos_single_time_no_array():
+    datadict = {"time": cftime.DatetimeJulian(2016, 7, 1)}
+    derived_state_from_dict = DerivedMapping(datadict)
+    np.testing.assert_almost_equal(derived_state_from_dict["cos_day"].values[0], -1)

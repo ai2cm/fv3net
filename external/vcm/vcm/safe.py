@@ -20,10 +20,14 @@ def get_variables(ds: xr.Dataset, variables: Iterable[Hashable]) -> xr.Dataset:
     return cast(xr.Dataset, ds[variables])
 
 
-def _validate_stack_dims(ds, dims, allowed_broadcast_dims=()):
+def _validate_stack_dims(
+    ds, dims, allowed_broadcast_dims=(), allowed_broadcast_vars=()
+):
     """Don't broadcast arrays"""
     ds_ = ds.to_dataset() if isinstance(ds, xr.DataArray) else ds
     for variable in ds_:
+        if variable in allowed_broadcast_vars:
+            continue
         var_dims = ds_[variable].dims
         broadcast_dims = set(dims) - (set(var_dims) | set(allowed_broadcast_dims))
         if len(broadcast_dims) > 0:
@@ -38,9 +42,10 @@ def stack_once(
     dim,
     dims: Sequence[Hashable],
     allowed_broadcast_dims: Sequence[Hashable] = (),
-) -> T:
+    allowed_broadcast_vars: Sequence[Hashable] = (),
+):
     """Stack once raising ValueError if any unexpected broadcasting occurs"""
-    _validate_stack_dims(ds, dims, allowed_broadcast_dims)
+    _validate_stack_dims(ds, dims, allowed_broadcast_dims, allowed_broadcast_vars)
     return ds.stack({dim: dims})
 
 

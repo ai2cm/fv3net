@@ -4,6 +4,8 @@ import xarray as xr
 
 import vcm
 
+# TODO sort alphabetically to minimize future merge conflicts
+
 
 class DerivedMapping:
     """A uniform mapping-like interface for both existing and derived variables.
@@ -242,3 +244,40 @@ def pQ2(self):
         return self._mapper["pQ2"]
     except KeyError:
         return xr.zeros_like(self["pressure_thickness_of_atmospheric_layer"])
+
+
+def _get_datetime_attr(self, attr_name) -> xr.DataArray:
+
+    times = np.atleast_1d(np.array(self["time"]))
+    time_attr = [getattr(t, attr_name) for t in times]
+    return xr.DataArray(data=time_attr, dims=["time"])
+
+
+@DerivedMapping.register("cos_day")
+def cos_day(self):
+    return np.cos(2 * np.pi * _get_datetime_attr(self, "dayofyr") / 366)
+
+
+@DerivedMapping.register("sin_day")
+def sin_day(self):
+    return np.sin(2 * np.pi * _get_datetime_attr(self, "dayofyr") / 366)
+
+
+@DerivedMapping.register("cos_month")
+def cos_month(self):
+    return np.cos(2 * np.pi * _get_datetime_attr(self, "month") / 12)
+
+
+@DerivedMapping.register("sin_month")
+def sin_month(self):
+    return np.sin(2 * np.pi * _get_datetime_attr(self, "month") / 12)
+
+
+@DerivedMapping.register("cos_lon")
+def cos_lon(self):
+    return np.cos(self["longitude"])
+
+
+@DerivedMapping.register("sin_lon")
+def sin_lon(self):
+    return np.sin(self["longitude"])

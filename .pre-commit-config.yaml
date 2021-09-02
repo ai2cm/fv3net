@@ -7,7 +7,8 @@ repos:
       args: [--enforce-all, --maxkb=250]
       exclude: "\
       workflows/fine_res_budget/tests/diag.json|\
-      external/vcm/tests/test_data/test_data.tar"
+      external/vcm/tests/test_data/test_data.tar|\
+      workflows/prognostic_c48_run/tests/input_data/inputs_4x4.nc"
 -   repo: https://github.com/psf/black
     rev: 19.10b0
     hooks:

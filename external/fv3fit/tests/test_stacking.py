@@ -6,8 +6,11 @@ from fv3fit._shared.stacking import (
     _shuffled,
     _get_chunk_indices,
     _check_empty,
+    _get_z_dim,
+    _group_by_z_dim,
     stack_non_vertical,
     _preserve_samples_per_batch,
+    subsample,
     StackedBatches,
     SAMPLE_DIM_NAME,
 )
@@ -134,3 +137,55 @@ def test__shuffled():
 def test__shuffled_dask():
     dataset = _stacked_dataset(SAMPLE_DIM_NAME).chunk()
     _shuffled(np.random.RandomState(1), dataset)
+
+
+@pytest.mark.parametrize(
+    "gridded_dataset", [(0, 2, 10, 10)], indirect=True,
+)
+def test_subsample_dim(gridded_dataset):
+    s_dim = SAMPLE_DIM_NAME
+    ds_train = stack_non_vertical(gridded_dataset, sample_dim_name=s_dim)
+    n = 10
+    subsample_func = subsample(n, np.random.RandomState(0))
+    subsampled = subsample_func(ds_train, dim=s_dim)
+    assert subsampled.sizes[s_dim] == n
+    for dim in subsampled.sizes:
+        if dim != s_dim:
+            assert ds_train.sizes[dim] == subsampled.sizes[dim]
+
+    with pytest.raises(KeyError):
+        subsample_func(ds_train, dim="not_a_dim")
+
+
+def test__get_z_dim():
+    dims = ["x", "y", "z"]
+    vert_dim = "z"
+
+    result = _get_z_dim(dims, z_dim_names=[vert_dim])
+    assert result == vert_dim
+
+    result = _get_z_dim(dims[0:2], z_dim_names=[vert_dim])
+    assert result is None
+
+
+def test__get_z_dim_multiple_vert_dims():
+    with pytest.raises(ValueError):
+        _get_z_dim(["x", "z", "z_soil"], z_dim_names=["z", "z_soil"])
+
+
+def test__group_by_z_dim():
+    z_dims = ["z", "z_soil"]
+    ds = xr.Dataset(
+        data_vars={
+            "vert_var": xr.DataArray(np.ones((4, 6)), dims=["x", "z"]),
+            "2d_var": xr.DataArray(np.ones(4), dims=["x"]),
+            "alt_vert_var": xr.DataArray(np.ones((4, 2)), dims=["x", "z_soil"]),
+        }
+    )
+
+    groups = _group_by_z_dim(ds, z_dim_names=z_dims)
+    for group_ds in groups.values():
+        assert len(group_ds.data_vars) == 1
+    assert "vert_var" in groups["z"].data_vars
+    assert "alt_vert_var" in groups["z_soil"].data_vars
+    assert "2d_var" in groups["no_vertical"].data_vars

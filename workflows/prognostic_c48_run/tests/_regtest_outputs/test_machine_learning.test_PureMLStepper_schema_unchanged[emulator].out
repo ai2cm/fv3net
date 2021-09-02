@@ -1,0 +1,28 @@
+xarray.Dataset {
+dimensions:
+
+variables:
+
+// global attributes:
+}xarray.Dataset {
+dimensions:
+
+variables:
+
+// global attributes:
+}xarray.Dataset {
+dimensions:
+	x = 4 ;
+	y = 4 ;
+	z = 63 ;
+
+variables:
+	int64 x(x) ;
+	int64 y(y) ;
+	float64 air_temperature(z, y, x) ;
+		air_temperature:units = degK ;
+	float64 specific_humidity(z, y, x) ;
+		specific_humidity:units = kg/kg ;
+
+// global attributes:
+}
