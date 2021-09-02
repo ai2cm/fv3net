@@ -8,6 +8,7 @@ from typing import (
     Tuple,
     Union,
     Sequence,
+    Set,
     List,
     Type,
     Dict,
@@ -216,8 +217,8 @@ class DenseHyperparameters(Hyperparameters):
     fit_kwargs: Optional[dict] = None
 
     @property
-    def variables(self) -> Sequence[str]:
-        return list(set(self.input_variables).union(self.output_variables))
+    def variables(self) -> Set[str]:
+        return set(self.input_variables).union(self.output_variables)
 
 
 @dataclasses.dataclass
@@ -271,5 +272,5 @@ class RandomForestHyperparameters(Hyperparameters):
     bootstrap: bool = True
 
     @property
-    def variables(self) -> Sequence[str]:
-        return list(set(self.input_variables).union(self.output_variables))
+    def variables(self) -> Set[str]:
+        return set(self.input_variables).union(self.output_variables)

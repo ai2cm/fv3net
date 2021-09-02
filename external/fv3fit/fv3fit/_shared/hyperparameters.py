@@ -1,5 +1,5 @@
 import abc
-from typing import Sequence
+from typing import Set
 
 
 class Hyperparameters(abc.ABC):
@@ -10,5 +10,5 @@ class Hyperparameters(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def variables(self) -> Sequence[str]:
+    def variables(self) -> Set[str]:
         pass
