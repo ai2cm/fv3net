@@ -29,7 +29,7 @@ class Loss(metaclass=abc.ABCMeta):
         """Compute a loss value and corresponding information
 
         Returns:
-            loss, info: loss is a backwards differntiable scalar value used for
+            loss, info: loss is a backwards differentiable scalar value used for
                 gradient descent, info is a dictionary of details about the loss
                 value calculation (e.g. the MSEs of relative humidity and specific
                 humidity).
