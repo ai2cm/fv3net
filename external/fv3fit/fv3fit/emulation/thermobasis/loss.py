@@ -55,19 +55,19 @@ class QVLossSingleLevel:
     level: int
     scale: float = 1.0
 
-    def loss(self, pred: tf.Tensor, truth: ThermoBasis) -> Tuple[tf.Tensor, Info]:
+    def loss(self, pred_q: tf.Tensor, truth: ThermoBasis) -> Tuple[tf.Tensor, Info]:
         """
 
         Args:
-            pred: the predicted specific humidity at ``self.level``.
+            pred_q: the predicted specific humidity at ``self.level``.
             truth: the output state (for all levels and variables).
         """
         truth_q = select_level(truth.q, self.level)
-        loss = tf.reduce_mean(tf.losses.mean_squared_error(truth_q, pred))
+        loss = tf.reduce_mean(tf.losses.mean_squared_error(truth_q, pred_q))
 
         pred_rh = relative_humidity(
             select_level(truth.T, self.level),
-            pred,
+            pred_q,
             select_level(truth.rho, self.level),
         )
         truth_rh = select_level(truth.rh, self.level)
@@ -75,7 +75,7 @@ class QVLossSingleLevel:
         return (
             loss / self.scale,
             {
-                **q_loss_info(truth_q, pred, self.level),
+                **q_loss_info(truth_q, pred_q, self.level),
                 **rh_loss_info(truth_rh, pred_rh, self.level),
             },
         )
@@ -86,7 +86,6 @@ class RHLossSingleLevel:
     """Loss function for predicting relative humidity **at a single level**
 
     Attributes:
-        variable: the variable to target, defaults to all levels of u,v,t,q
         level: the level to predict
         scale: the typical order of the loss function
     """
