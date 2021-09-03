@@ -1,4 +1,4 @@
-from fv3fit._shared.config import DenseHyperparameters
+from fv3fit import DenseHyperparameters
 import xarray as xr
 import numpy as np
 
