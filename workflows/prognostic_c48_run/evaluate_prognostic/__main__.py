@@ -7,7 +7,7 @@ import subprocess
 import yaml
 import os
 
-from runtime.emulator.prognostic import compute_metrics, open_run
+from .prognostic import compute_metrics, open_run
 
 from omegaconf import DictConfig, OmegaConf
 import hydra
