@@ -2,8 +2,16 @@ import json
 import logging
 import os
 import tempfile
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
-
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+)
 import cftime
 import fv3gfs.util
 import fv3gfs.wrapper
@@ -11,6 +19,7 @@ import numpy as np
 import vcm
 import xarray as xr
 from mpi4py import MPI
+import runtime.factories
 from runtime import DerivedFV3State
 from runtime.config import UserConfig, get_namelist
 from runtime.diagnostics.compute import (
@@ -154,7 +163,9 @@ class TimeLoop(
         self.monitor = Monitor.from_variables(
             config.diagnostic_variables, state=self._state, timestep=self._timestep,
         )
-
+        self.emulate = runtime.factories.get_emulator_adapter(
+            config, self._state, self._timestep
+        )
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
         self._log_debug(f"States to output: {self._states_to_output}")
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
@@ -402,6 +413,7 @@ class TimeLoop(
     def __iter__(
         self,
     ) -> Iterator[Tuple[cftime.DatetimeJulian, Dict[str, xr.DataArray]]]:
+
         for i in range(self._fv3gfs.get_step_count()):
             diagnostics: Diagnostics = {}
             for substep in [
@@ -409,7 +421,7 @@ class TimeLoop(
                 self._step_prephysics,
                 self._compute_physics,
                 self._apply_postphysics_to_physics_state,
-                self.monitor("fv3_physics", self._apply_physics),
+                self.emulate("fv3_physics", self._apply_physics),
                 self._compute_postphysics,
                 self.monitor("python", self._apply_postphysics_to_dycore_state),
             ]:

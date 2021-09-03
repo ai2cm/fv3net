@@ -2,58 +2,26 @@ from runtime.segmented_run import prepare_config
 import dacite
 import dataclasses
 from runtime.config import UserConfig
-
-MODEL_URL = "gs://ml-model"
-IC_URL = "gs://ic-bucket"
-IC_TIMESTAMP = "20160805.000000"
-ML_CONFIG_UPDATE = "examples/prognostic_config.yml"
-NUDGE_TO_FINE_CONFIG_UPDATE = "examples/nudge_to_fine_config.yml"
-NUDGE_TO_OBS_CONFIG_UPDATE = "examples/nudge_to_obs_config.yml"
+import pytest
 
 
-def get_ml_args():
-    return [
-        ML_CONFIG_UPDATE,
-        IC_URL,
-        IC_TIMESTAMP,
-        "--model_url",
-        MODEL_URL,
-    ]
+@pytest.mark.parametrize(
+    "argv",
+    [
+        pytest.param(
+            ["examples/prognostic_config.yml", "--model_url", "gs://ml-model"], id="ml"
+        ),
+        pytest.param(["examples/nudge_to_fine_config.yml"], id="n2f"),
+        pytest.param(["examples/nudge_to_obs_config.yml"], id="n2o"),
+        pytest.param(["examples/emulator.yml"], id="emulator"),
+    ],
+)
+def test_prepare_ml_config_regression(regtest, argv):
+    IC_URL = "gs://ic-bucket"
+    IC_TIMESTAMP = "20160805.000000"
 
-
-def get_nudge_to_fine_args():
-    return [
-        NUDGE_TO_FINE_CONFIG_UPDATE,
-        IC_URL,
-        IC_TIMESTAMP,
-    ]
-
-
-def get_nudge_to_obs_args():
-    return [
-        NUDGE_TO_OBS_CONFIG_UPDATE,
-        IC_URL,
-        IC_TIMESTAMP,
-    ]
-
-
-def test_prepare_ml_config_regression(regtest):
     parser = prepare_config._create_arg_parser()
-    args = parser.parse_args(get_ml_args())
-    with regtest:
-        prepare_config.prepare_config(args)
-
-
-def test_prepare_nudging_config_regression(regtest):
-    parser = prepare_config._create_arg_parser()
-    args = parser.parse_args(get_nudge_to_fine_args())
-    with regtest:
-        prepare_config.prepare_config(args)
-
-
-def test_prepare_nudge_to_obs_config_regression(regtest):
-    parser = prepare_config._create_arg_parser()
-    args = parser.parse_args(get_nudge_to_obs_args())
+    args = parser.parse_args(argv + [IC_URL, IC_TIMESTAMP])
     with regtest:
         prepare_config.prepare_config(args)
 
