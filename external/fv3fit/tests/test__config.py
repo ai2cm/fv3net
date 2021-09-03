@@ -30,9 +30,9 @@ def test_safe_dump_training_config():
     # TODO: extend this test to run not just for Dense, but for all registered models
     config = TrainingConfig(
         model_type="DenseModel",  # an arbitrary model type
-        input_variables=["a"],
-        output_variables=["b"],
-        hyperparameters=DenseHyperparameters(),
+        hyperparameters=DenseHyperparameters(
+            input_variables=["a"], output_variables=["b"],
+        ),
     )
     with tempfile.TemporaryDirectory() as tmpdir:
         filename = os.path.join(tmpdir, "config.yaml")
