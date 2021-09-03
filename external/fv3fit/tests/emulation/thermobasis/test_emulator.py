@@ -28,12 +28,14 @@ def test_OnlineEmulator_partial_fit(state):
     emulator.partial_fit(state, state)
 
 
-def test_OnlineEmulator_partial_fit_logged(state):
+def test_OnlineEmulator_partial_fit_logged(state, tmpdir):
     config = Config(batch_size=8, learning_rate=0.0001, momentum=0.0, levels=63)
     time = datetime.datetime.now().isoformat()
 
+    tf_summary_dir = str(tmpdir.join(time))
+
     emulator = get_xarray_emulator(config)
-    writer = tf.summary.create_file_writer(f"logs_long/{time}")
+    writer = tf.summary.create_file_writer(tf_summary_dir)
     with writer.as_default():
         for i in range(10):
             emulator.partial_fit(state, state)

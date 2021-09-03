@@ -50,3 +50,5 @@ pre-commit
 # performance/reliablity related constraints
 # this version of jedi gives a traceback error when called in the prognostic run image
 jedi != 0.18.0
+# fv3fit testing tools
+hypothesis

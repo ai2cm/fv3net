@@ -2,6 +2,9 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import wandb
 from fv3fit.tensorboard import plot_to_image
+import logging
+
+logger = logging.getLogger("metrics")
 
 
 class TBLogger:
@@ -24,7 +27,7 @@ class ConsoleLogger:
         print(f"step: {step}")
         for key in metrics:
             name = prefix + "/" + key
-            print(f"{name}:", metrics[key])
+            logging.info(f"{name}:", metrics[key])
 
 
 class LoggerList:
