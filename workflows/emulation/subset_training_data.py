@@ -1,118 +1,105 @@
-import argparse
-from fv3fit._shared.stacking import subsample
-import numpy
-import yaml
 import logging
 import os
-import subprocess
 import tempfile
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, asdict, field
-from typing import List
-
-from loaders.mappers import open_phys_emu_training
+import fsspec
+import numpy
+import xarray
+from fv3fit._shared.stacking import subsample
 from loaders.batches import batches_from_mapper
+from loaders.mappers import XarrayMapper
 
-"""
-This script facilitates subsetting the training data batches into much
-smaller datasets for NN training.  Uses the mappers.open_phys_emu_training
-but probably could be expanded to use the general batch opening infrastructure
-and our ML configurations.
+from fv3net.artifacts.resolve_url import resolve_url
+from fv3net.artifacts.query import get_artifacts
 
-Batch is defined as what the mapper loads for a single item.
-"""
+import apache_beam as beam
+
+logging.basicConfig(level=logging.INFO)
 
 
 logger = logging.getLogger(__name__)
 
 
-def default_source_files():
-    sources = ["state_after_timestep.zarr", "physics_tendencies.zarr"]
-    return sources
+def open_zarr(fs, url):
+    return xarray.open_zarr(fs.get_mapper(url), consolidated=True)
 
 
-@dataclass
-class SubsetConfig:
-    """
-    Class for subsampling job configuration.
-    
-    source_path: Source all-physics emulation training openable by
-        mp.open_phys_emu_training
-    destination_path: Destination for subsetted netcdf files
-    init_times: Target initialization times to include in the dataset (used by
-        open_phys_emu_training)
-    variables: Variables to include in the subset dataset
-    subsample_size: Number of samples to draw from each batch
-    num_workers: Number of threads to use for subsampling
-    """
-
-    source_path: str
-    destination_path: str
-    init_times: List[str]
-    variables: List[str]
-    source_files: List[str] = field(default_factory=default_source_files)
-    subsample_size: int = 2560
-    num_workers: int = 10
-
-
-def subsample_batch(batches, item_idx):
-    data = batches[item_idx]
-    return item_idx, data
-
-
-def run_subsample_threaded(
-    num_workers, outdir, batches, template="window_{idx:04d}.nc"
-):
-
-    with ThreadPoolExecutor(max_workers=num_workers) as executor:
-        futures = [
-            executor.submit(subsample_batch, batches, i) for i in range(len(batches))
-        ]
-
-        for future in as_completed(futures):
-            item_idx, data = future.result()
-            out_path = os.path.join(outdir, template.format(idx=item_idx))
-            data.reset_index("sample").to_netcdf(out_path)
-            logger.info(f"Completed subsetting item #{item_idx}")
-
-    logger.info("Subsetting complete")
-
-
-def save_to_destination(source, destination):
-
-    command = ["gsutil", "-m", "cp", "-r", f"{source}", f"{destination}"]
-    subprocess.check_call(command)
+def open_run(artifact):
+    fs = fsspec.filesystem("gs")
+    # avg = open_zarr(fs, os.path.join(url, "average.zarr"))
+    return open_zarr(fs, os.path.join(artifact.path, "emulation.zarr"))
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     random_state = numpy.random.RandomState(seed=0)
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "config_file", type=str, help="Configuraiton description for the subsetting job"
+    subsample_size = 2560
+    num_workers = 6
+    variables = [
+        "air_temperature",
+        "canopy_water",
+        "cloud_water_mixing_ratio",
+        "eastward_wind",
+        "land_sea_mask",
+        "latent_heat_flux",
+        "liquid_soil_moisture",
+        "northward_wind",
+        "ozone_mixing_ratio",
+        "pressure_thickness_of_atmospheric_layer",
+        "sea_ice_thickness",
+        "sensible_heat_flux",
+        "snow_depth_water_equivalent",
+        "soil_temperature",
+        "specific_humidity",
+        "surface_pressure",
+        "surface_temperature",
+        "total_precipitation",
+        "total_soil_moisture",
+        "vertical_thickness_of_atmospheric_layer",
+        "vertical_wind",
+        "tendency_of_air_temperature_due_to_fv3_physics",
+        "tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics",
+        "tendency_of_eastward_wind_due_to_fv3_physics",
+        "tendency_of_northward_wind_due_to_fv3_physics",
+        "tendency_of_ozone_mixing_ratio_due_to_fv3_physics",
+        "tendency_of_specific_humidity_due_to_fv3_physics",
+    ]
+    destination = resolve_url(
+        "gs://vcm-ml-archive", "online-emulator", tag="subsampled-data-v1"
     )
 
-    args = parser.parse_args()
+    matching_artifacts = [
+        art
+        for art in get_artifacts("gs://vcm-ml-experiments", ["online-emulator"])
+        if art.tag.startswith("gfs-initialized-baseline")
+    ]
 
-    with open(args.config_file, "rb") as f:
-        config_yaml = yaml.safe_load(f)
-
-    config = SubsetConfig(**config_yaml)
-
-    data_mapping = open_phys_emu_training(
-        config.source_path, config.init_times, dataset_names=config.source_files
+    combined = xarray.concat([open_run(art) for art in matching_artifacts], dim="time")
+    prefix = "emulator_"
+    no_prefix = combined.rename(
+        {v: v[len(prefix) :] for v in combined if v.startswith(prefix)}
     )
-    batches = batches_from_mapper(data_mapping, config.variables).map(
-        subsample(
-            num_samples=config.subsample_size, random_state=random_state, dim="sample"
+    data_mapping = XarrayMapper(no_prefix)
+    batches = batches_from_mapper(data_mapping, variables)
+
+    def stack(ds):
+        return (
+            ds.squeeze("time").stack(sample=["x", "y", "tile"]).transpose("sample", ...)
         )
-    )
 
-    with tempfile.TemporaryDirectory() as tmpdir:
+    def _subsample(ds):
+        return subsample(subsample_size, random_state, ds, dim="sample")
 
-        with open(os.path.join(tmpdir, "subset_config.yaml"), "w") as f:
-            f.write(yaml.dump(asdict(config)))
+    def process(k, batches):
+        logger.info(f"Processing {k}")
+        ds = batches[k]
+        out = _subsample(stack(ds))
+        fs = fsspec.filesystem("gs")
 
-        run_subsample_threaded(config.num_workers, tmpdir, batches)
-        save_to_destination(tmpdir, config.destination_path)
+        with tempfile.NamedTemporaryFile() as f:
+            out.reset_index("sample").to_netcdf(f.name)
+            output_path = f"{destination}/window_{k:04d}.nc"
+            fs.put(f.name, output_path)
+            logger.info(f"{k}: done saving to {output_path}")
+
+    with beam.Pipeline() as p:
+        indices = p | beam.Create(range(len(data_mapping))) | beam.Reshuffle()
+        indices | "SaveData" >> beam.Map(process, batches=batches)
