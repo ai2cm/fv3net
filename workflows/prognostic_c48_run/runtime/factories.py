@@ -5,7 +5,7 @@ configuration as well as runtime-only data structures like the model state.
 """
 from runtime.types import State
 from runtime.config import UserConfig
-from runtime.emulator.adapter import PrognosticAdapter
+from runtime.emulator import PrognosticAdapter
 
 
 __all__ = ["get_emulator_adapter"]

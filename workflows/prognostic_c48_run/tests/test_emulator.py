@@ -1,7 +1,7 @@
 import xarray as xr
 import tensorflow as tf
 import joblib
-from runtime.emulator.adapter import (
+from runtime.emulator import (
     PrognosticAdapter,
     Config,
     EmulatorConfig,

@@ -13,7 +13,7 @@ from runtime.diagnostics.manager import (
 from runtime.steppers.nudging import NudgingConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
 from runtime.steppers.prescriber import PrescriberConfig
-from runtime.emulator.adapter import Config as OnlineEmulatorConfig
+from runtime.emulator import Config as OnlineEmulatorConfig
 
 FV3CONFIG_FILENAME = "fv3config.yml"
 
