@@ -1,14 +1,14 @@
 .. _emulation_data:
 
 Emulation Data Tools
-====================
+--------------------
 
 ``fv3fit.emulation.data`` contains a set of composable transforms useful for building training input pipelines, an input transform configuration, and convenience functions for creating tensorflow datasets from a sequence of data.
 
 .. _dict-outputs-data:
 
 Dict-output data loaders
-------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 When data transformations are contained in a custom training loop or the ML model
 code, it is convenient to load a directory of netcdfs as a tensorflow dataset of
@@ -16,7 +16,7 @@ dictionaries using :py:func:`fv3fit.emulation.data.netcdf_url_to_dataset`.
 This format is compatible ``keras`` models `.fit` method. 
 
 Tuple-output data loaders
--------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Sometimes it is more convenenient to move pre-processing logic like spatial
 subselection into the data loading pipeline. 
@@ -45,5 +45,5 @@ Here we show use of our standard input transformation configuration to go from a
     :maxdepth: 1
     :caption: Contents
 
-    emulation_transforms
-    emulation_data_api
+    transforms
+    data_api
