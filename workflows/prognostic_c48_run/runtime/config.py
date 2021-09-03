@@ -40,9 +40,7 @@ class UserConfig:
     prephysics: Optional[Union[PrescriberConfig, MachineLearningConfig]] = None
     scikit_learn: Optional[MachineLearningConfig] = None
     nudging: Optional[NudgingConfig] = None
-    online_emulator: OnlineEmulatorConfig = dataclasses.field(
-        default_factory=OnlineEmulatorConfig
-    )
+    online_emulator: Optional[OnlineEmulatorConfig] = None
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:
