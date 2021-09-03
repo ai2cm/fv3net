@@ -28,9 +28,12 @@ def strip_prefix(prefix: str, variables: Iterable[str]) -> Set[str]:
 class Config:
     """
     Attributes:
-        checkpoint: Either path to model artifact in Weights and biases
-            "<entity>/<project>/<name>:tag" to be loaded, or the configurations
-            for a new emulator object.
+        emulator: Either a path to a model to-be-loaded or an emulator
+            configuration specifying model parameters.
+        online: if True, the emulator will be replace fv3 physics for all
+            humidities above level ``ignore_humidity_below``.
+        train: if True, each timestep will be used to train the model.
+        ignore_humidity_below: see ``online``.
     """
 
     emulator: Union[str, EmulatorConfig] = dataclasses.field(
