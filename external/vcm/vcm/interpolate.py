@@ -8,6 +8,21 @@ import vcm.mappm
 
 import vcm.calc.thermo
 
+import warnings
+
+warnings.filterwarnings(
+    action="ignore",
+    category=UserWarning,
+    message="Interpolation point out of data bounds encountered",
+)
+# action=once does not work, so just ignoring the specific FutureWarning
+warnings.filterwarnings(
+    action="ignore",
+    category=FutureWarning,
+    message="``output_sizes`` should be given in the ``dask_gufunc_kwargs`` parameter. "
+    "It will be removed as direct parameter in a future version.",
+)
+
 # for use in regridding values to the same vertical grid [Pa]
 PRESSURE_GRID = xr.DataArray(
     [
@@ -209,8 +224,8 @@ def _interpolate_1d_variable_output_levels(
         y,
         input_core_dims=[[new_dim], [old_dim], [old_dim]],
         output_core_dims=[[new_dim]],
-        output_sizes={new_dim: len(xp[new_dim])},
         dask="parallelized",
+        output_sizes={new_dim: len(xp[new_dim])},
         output_dtypes=[y.dtype],
     )
 
