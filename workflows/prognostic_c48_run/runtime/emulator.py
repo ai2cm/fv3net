@@ -61,6 +61,7 @@ class PrognosticAdapter:
         emulator_prefix: the prefix to use adjust the outputted variable names.
         diagnostic_variables: the user-requested diagnostic variables, will be
             searched for inputs starting with ``emulator_prefix``.
+        timestep: the model timestep in seconds
         inputs_to_save: the set of diagnostics that will be produced by the
             emulated step function.
     
