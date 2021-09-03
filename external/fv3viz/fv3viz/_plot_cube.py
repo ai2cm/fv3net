@@ -22,10 +22,17 @@ from functools import partial
 
 try:
     from cartopy import crs as ccrs
+    import cartopy
 except ImportError:
     pass
 
-# global
+# workaround to host our own global-scale coastline shapefile instead
+# of unreliable cartopy source
+cartopy.config["downloaders"][("shapefiles", "natural_earth")].url_template = (
+    "https://github.com/VulcanClimateModeling/vcm-ml-example-data/blob/"
+    "fv3viz-coastline-data/fv3net/fv3viz/coastline_shapefiles/"
+    "{resolution}_{category}/ne_{resolution}_{name}.zip"
+)
 
 _COORD_VARS = {
     VAR_LON_OUTER: [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
