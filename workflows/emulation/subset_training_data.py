@@ -1,7 +1,10 @@
 import logging
 import os
+import subprocess
 import tempfile
+import sys
 import fsspec
+import json
 import numpy
 import xarray
 from fv3fit._shared.stacking import subsample
@@ -63,7 +66,7 @@ if __name__ == "__main__":
         "tendency_of_specific_humidity_due_to_fv3_physics",
     ]
     destination = resolve_url(
-        "gs://vcm-ml-archive", "online-emulator", tag="subsampled-data-v1"
+        "vcm-ml-archive", "online-emulator", tag="subsampled-data-v1"
     )
 
     matching_artifacts = [
@@ -92,6 +95,14 @@ if __name__ == "__main__":
         logger.info(f"Processing {k}")
         ds = batches[k]
         out = _subsample(stack(ds))
+
+        out.attrs["source_datasets"] = json.dump(
+            [str(art.path) for art in matching_artifacts]
+        )
+        out.attrs["git_version"] = subprocess.check_output(["git", "rev-parse", "HEAD"])
+        out.attrs["history"] = " ".join(sys.argv)
+        out.attrs["working_directory"] = os.getcwd()
+
         fs = fsspec.filesystem("gs")
 
         with tempfile.NamedTemporaryFile() as f:
