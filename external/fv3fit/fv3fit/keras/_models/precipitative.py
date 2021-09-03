@@ -1,10 +1,11 @@
 import dataclasses
-from typing import Iterable, Hashable, Mapping, Optional, Sequence, Union
+from typing import Iterable, Hashable, Optional, Sequence, Tuple
 from fv3fit._shared.config import (
     OptimizerConfig,
     RegularizerConfig,
     register_training_function,
 )
+from fv3fit._shared.scaler import StandardScaler
 from fv3fit._shared.stacking import SAMPLE_DIM_NAME, StackedBatches
 import tensorflow as tf
 import xarray as xr
@@ -40,23 +41,61 @@ def integrate_precip(args):
 
 
 def condensational_heating(dQ2):
+    """
+    Args:
+        dQ2: rate of change in moisture in kg/kg/s, negative corresponds
+            to condensation
+    
+    Returns:
+        heating rate in degK/s
+    """
     return tf.math.scalar_mul(tf.constant(-LV / CPD, dtype=dQ2.dtype), dQ2)
 
 
 def multiply_loss_by_factor(original_loss, factor):
     def loss(y_true, y_pred):
-        return tf.math.multiply(factor, original_loss(y_true, y_pred))
+        return tf.math.scalar_mul(factor, original_loss(y_true, y_pred))
 
     return loss
 
 
-def get_losses(output_variables: Sequence[str], output_packer, output_scaler):
+def get_losses(
+    output_variables: Sequence[str],
+    output_packer: ArrayPacker,
+    output_scaler: StandardScaler,
+    loss_type="mse",
+) -> Sequence[tf.keras.losses.Loss]:
+    """
+    Retrieve normalized losses for a sequence of output variables.
+
+    Returned losses are such that a predictor with no skill making random
+    predictions should return a loss of about 1. For MSE loss, each
+    column is normalized by the variance of the data after subtracting
+    the vertical mean profile (if relevant), while for MAE loss the
+    columns are normalized by the standard deviation of the data after
+    subtracting the vertical mean profile. This variance or standard
+    deviation is read from the given `output_scaler`.
+
+    After this scaling, each loss is also divided by the total number
+    of outputs, so that the total loss sums roughly to 1 for a model
+    with no skill.
+
+    Args:
+        output_variables: names of outputs in order
+        output_packer: packer which includes all of the output variables,
+            in any order (having more variables is fine)
+        output_scaler: scaler which has been fit to all output variables
+        loss_type: can be "mse" or "mae"
+    
+    Returns:
+        loss_list: loss functions for output variables in order
+    """
     std = output_packer.to_dataset(output_scaler.std[None, :])
 
     # we want each output to contribute equally, so for a
     # mean squared error loss we need to normalize by the variance of
     # each one
-    # we want layers to have importance which is proportional to how much
+    # here we want layers to have importance which is proportional to how much
     # variance there is in that layer, so the variance we use should be
     # constant across layers
     # we need to compute the variance independently for each layer and then
@@ -64,13 +103,20 @@ def get_losses(output_variables: Sequence[str], output_packer, output_scaler):
     # we use a 1/N scale for each one, so the total expected loss is 1.0 if
     # we have zero skill
 
-    n_outputs = len(output_packer.pack_names)
+    n_outputs = len(output_variables)
     loss_list = []
     for name in output_variables:
-        factor = tf.constant(
-            1.0 / n_outputs / np.mean(std[name].values ** 2), dtype=tf.float32
-        )
-        loss_list.append(multiply_loss_by_factor(tf.losses.mse, factor))
+        if loss_type == "mse":
+            factor = tf.constant(
+                1.0 / n_outputs / np.mean(std[name].values ** 2), dtype=tf.float32
+            )
+            loss_list.append(multiply_loss_by_factor(tf.losses.mse, factor))
+        elif loss_type == "mae":
+            factor = tf.constant(
+                1.0 / n_outputs / np.mean(std[name].values), dtype=tf.float32
+            )
+        else:
+            raise NotImplementedError(f"loss_type {loss_type} is not implemented")
 
     return loss_list
 
@@ -102,12 +148,6 @@ class PrecipitativeHyperparameters:
         additional_input_variables: if given, used as input variables in
             addition to the default inputs (air_temperature, specific_humidity,
             physics_precip, and pressure_thickness_of_atmospheric_layer)
-        weights: loss function weights, defined as a dict whose keys are
-            variable names and values are either a scalar referring to the total
-            weight of the variable. Default is a total weight of 1
-            for each variable.
-        normalize_loss: if True (default), normalize outputs by their standard
-            deviation before computing the loss function
         optimizer_config: selection of algorithm to be used in gradient descent
         kernel_regularizer_config: selection of regularizer for hidden dense layer
             weights, by default no regularization is applied
@@ -116,15 +156,9 @@ class PrecipitativeHyperparameters:
         depth: number of dense layers to use between the input and output layer.
             The number of hidden layers will be (depth - 1)
         width: number of neurons to use on layers between the input and output layer
-        gaussian_noise: how much gaussian noise to add before each Dense layer,
-            apart from the output layer
         loss: loss function to use, should be 'mse' or 'mae'
-        spectral_normalization: whether to apply spectral normalization to hidden layers
         save_model_checkpoints: if True, save one model per epoch when
             dumping, under a 'model_checkpoints' subdirectory
-        nonnegative_outputs: if True, add a ReLU activation layer as the last layer
-            after output denormalization layer to ensure outputs are always >=0
-            Defaults to False.
         workers: number of workers for parallelized loading of batches fed into
             training, defaults to serial loading (1 worker)
         max_queue_size: max number of batches to hold in the parallel loading queue.
@@ -132,13 +166,11 @@ class PrecipitativeHyperparameters:
         keras_batch_size: actual batch_size to apply in gradient descent updates,
             independent of number of samples in each batch in batches; optional,
             uses 32 if omitted
-        dense_behavior: if True, try to recover behavior of Dense model type
+        couple_precip_to_dQ1_dQ2: if True, try to recover behavior of Dense model type
             by not adding "precipitative" terms to dQ1 and dQ2
     """
 
     additional_input_variables: Iterable[str] = dataclasses.field(default_factory=tuple)
-    weights: Optional[Mapping[str, Union[int, float]]] = None
-    normalize_loss: bool = True
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")
     )
@@ -151,15 +183,12 @@ class PrecipitativeHyperparameters:
     depth: int = 3
     width: int = 16
     epochs: int = 3
-    gaussian_noise: float = 0.0
     loss: str = "mse"
-    spectral_normalization: bool = False
     save_model_checkpoints: bool = False
-    nonnegative_outputs: bool = False
     workers: int = 1
     max_queue_size: int = 8
     keras_batch_size: int = 32
-    dense_behavior: bool = False
+    couple_precip_to_dQ1_dQ2: bool = True
 
 
 @register_training_function("precipitative", PrecipitativeHyperparameters)
@@ -169,7 +198,7 @@ def train_precipitative_model(
     validation_batches: Sequence[xr.Dataset],
 ):
     random_state = np.random.RandomState(np.random.get_state()[1][0])
-    stacked_train_batches = tuple(StackedBatches(train_batches, random_state))
+    stacked_train_batches = StackedBatches(train_batches, random_state)
     stacked_validation_batches = StackedBatches(validation_batches, random_state)
     training_obj = PrecipitativeModel(
         additional_input_variables=hyperparameters.additional_input_variables,
@@ -183,7 +212,8 @@ def train_precipitative_model(
         kernel_regularizer=hyperparameters.kernel_regularizer_config.instance,
         residual_regularizer=hyperparameters.residual_regularizer_config.instance,
         save_model_checkpoints=hyperparameters.save_model_checkpoints,
-        dense_behavior=hyperparameters.dense_behavior,
+        couple_precip_to_dQ1_dQ2=hyperparameters.couple_precip_to_dQ1_dQ2,
+        loss_type=hyperparameters.loss,
     )
     training_obj.fit_statistics(stacked_train_batches[0])
     if len(stacked_validation_batches) > 0:
@@ -217,24 +247,24 @@ class PrecipitativeModel:
         kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         residual_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         save_model_checkpoints: bool = False,
-        dense_behavior: bool = False,
+        couple_precip_to_dQ1_dQ2: bool = False,
+        loss_type: str = "mse",
     ):
         input_variables = tuple(
             [self._T_NAME, self._Q_NAME, self._DELP_NAME, self._PHYS_PRECIP_NAME]
             + list(additional_input_variables)
         )
+        self._loss_type = loss_type
         self.output_variables = ("dQ1", "dQ2", "total_precipitation_rate")
-        self._dense_behavior = dense_behavior
+        self._couple_precip_to_dQ1_dQ2 = couple_precip_to_dQ1_dQ2
         self.sample_dim_name = SAMPLE_DIM_NAME
         self.input_variables = input_variables
         self.input_packer = ArrayPacker(self.sample_dim_name, input_variables)
         self.humidity_packer = ArrayPacker(
             self.sample_dim_name, [self._Q_TENDENCY_NAME]
         )
-        output_without_precip = (
-            n for n in self.output_variables if n != self._PRECIP_NAME
-        )
         self.output_packer = ArrayPacker(self.sample_dim_name, self.output_variables)
+        output_without_precip = ("dQ1", "dQ2")
         self.output_without_precip_packer = ArrayPacker(
             self.sample_dim_name, output_without_precip
         )
@@ -283,7 +313,13 @@ class PrecipitativeModel:
         )
         self._statistics_are_fit = True
 
-    def _build_model(self):
+    def _build_model(self) -> Tuple[tf.keras.Model, tf.keras.Model]:
+        """
+        Construct model for training and model for prediction which share weights.
+
+        When you train the training model, weights in the prediction model also
+        get updated.
+        """
         input_layers, input_vector = get_input_vector(
             self.input_packer, n_window=None, series=False
         )
@@ -315,7 +351,8 @@ class PrecipitativeModel:
         unpacked_output = get_unpack_layer(
             self.output_without_precip_packer, feature_dim=1
         )(denormalized_output)
-        assert self.output_without_precip_packer.pack_names[0] == "dQ1"
+        assert self.output_without_precip_packer.pack_names[0] == self._T_TENDENCY_NAME
+        assert self.output_without_precip_packer.pack_names[1] == self._Q_TENDENCY_NAME
         T_tendency = unpacked_output[0]
         q_tendency = unpacked_output[1]
 
@@ -327,7 +364,7 @@ class PrecipitativeModel:
             norm_column_precip_vector
         )
         column_heating = tf.keras.layers.Lambda(condensational_heating)(column_precip)
-        if not self._dense_behavior:
+        if self._couple_precip_to_dQ1_dQ2:
             T_tendency = tf.keras.layers.Add(name="T_tendency")(
                 [T_tendency, column_heating]
             )
@@ -352,22 +389,21 @@ class PrecipitativeModel:
             "total_precipitation_rate",
         ], self.output_variables
         train_model = tf.keras.Model(
-            inputs=input_layers,
-            outputs=(T_tendency, q_tendency, surface_precip)
-            + tuple(unpacked_output[2:]),
+            inputs=input_layers, outputs=(T_tendency, q_tendency, surface_precip)
         )
         train_model.compile(
             optimizer=self._optimizer,
             loss=get_losses(
-                self.output_variables, self.output_packer, self.output_scaler
+                self.output_variables,
+                self.output_packer,
+                self.output_scaler,
+                loss_type=self._loss_type,
             ),
         )
         # need a separate model for this so we don't have to
         # serialize the custom loss functions
         predict_model = tf.keras.Model(
-            inputs=input_layers,
-            outputs=(T_tendency, q_tendency, surface_precip)
-            + tuple(unpacked_output[2:]),
+            inputs=input_layers, outputs=(T_tendency, q_tendency, surface_precip)
         )
         return train_model, predict_model
 
@@ -375,7 +411,7 @@ class PrecipitativeModel:
         """Fits a model using data in the batches sequence.
         """
         if not self._statistics_are_fit:
-            self.fit_statistics(batches[0])
+            raise RuntimeError("fit_statistics must be called before fit")
         return self._fit_loop(batches, validation_batch)
 
     def _fit_loop(
