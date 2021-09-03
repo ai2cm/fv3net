@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Iterable, Hashable, Optional, Sequence, Tuple
+from typing import Iterable, Optional, Sequence, Tuple
 from fv3fit._shared.config import (
     OptimizerConfig,
     RegularizerConfig,
@@ -90,6 +90,8 @@ def get_losses(
     Returns:
         loss_list: loss functions for output variables in order
     """
+    if output_scaler.std is None:
+        raise ValueError("output_scaler must be fit before passing it to this function")
     std = output_packer.to_dataset(output_scaler.std[None, :])
 
     # we want each output to contribute equally, so for a
@@ -236,7 +238,7 @@ class PrecipitativeModel:
 
     def __init__(
         self,
-        additional_input_variables: Iterable[Hashable],
+        additional_input_variables: Iterable[str],
         epochs: int = 1,
         workers: int = 1,
         max_queue_size: int = 8,
