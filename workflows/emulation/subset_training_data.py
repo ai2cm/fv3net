@@ -96,10 +96,12 @@ if __name__ == "__main__":
         ds = batches[k]
         out = _subsample(stack(ds))
 
-        out.attrs["source_datasets"] = json.dump(
+        out.attrs["source_datasets"] = json.dumps(
             [str(art.path) for art in matching_artifacts]
         )
-        out.attrs["git_version"] = subprocess.check_output(["git", "rev-parse", "HEAD"])
+        out.attrs["git_version"] = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"]
+        ).decode()
         out.attrs["history"] = " ".join(sys.argv)
         out.attrs["working_directory"] = os.getcwd()
 
