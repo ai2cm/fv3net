@@ -29,7 +29,7 @@ except ImportError:
 # workaround to host our own global-scale coastline shapefile instead
 # of unreliable cartopy source
 cartopy.config["downloaders"][("shapefiles", "natural_earth")].url_template = (
-    "https://github.com/VulcanClimateModeling/vcm-ml-example-data/blob/"
+    "https://raw.githubusercontent.com/VulcanClimateModeling/vcm-ml-example-data/"
     "fv3viz-coastline-data/fv3net/fv3viz/coastline_shapefiles/"
     "{resolution}_{category}/ne_{resolution}_{name}.zip"
 )
