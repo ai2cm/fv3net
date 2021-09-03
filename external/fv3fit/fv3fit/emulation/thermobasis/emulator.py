@@ -89,7 +89,7 @@ class Config:
 
     @classmethod
     def from_dict(cls, dict_) -> "Config":
-        return dacite.from_dict(cls, dict_, dacite.Config(strict=True))
+        return dacite.from_dict(cls, dict_, dacite.Config(strict=False))
 
     @staticmethod
     def register_parser(parser):
