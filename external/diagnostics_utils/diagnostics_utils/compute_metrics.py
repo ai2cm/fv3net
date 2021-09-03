@@ -14,17 +14,6 @@ logger = logging.getLogger(__name__)
 HORIZONTAL_DIMS = ["x", "y", "tile"]
 
 
-def merge_scalar_metrics(
-    metrics: Sequence[Tuple[str, Mapping[str, float]]]
-) -> Mapping[str, float]:
-    merged = {}
-    for metric in metrics:
-        func = metric[0]
-        for var, value in metric[1].items():
-            merged[f"{func}_{var}"] = value
-    return merged
-
-
 def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
     """
     Take a diagnostic dataset and add a suffix to all variable names and return as dict.
