@@ -127,7 +127,6 @@ class PrognosticAdapter:
         capability.
 
         Args:
-            # TODO combine this "name" with the name of the emulator
             name: The name of the emulator
             func: a function that updates the State and returns a dictionary of
                 diagnostics (usually a method of :py:class:`runtime.loop.TimeLoop`).
