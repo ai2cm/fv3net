@@ -150,24 +150,24 @@ class PrognosticAdapter:
 def _update_state_with_emulator(
     state: MutableMapping[Hashable, xr.DataArray],
     src: Mapping[Hashable, xr.DataArray],
-    from_orig: Callable[[Hashable, xr.DataArray], xr.DataArray],
+    compute_mask: Callable[[Hashable, xr.DataArray], xr.DataArray],
 ) -> None:
     """
     Args:
         state: the mutable state object
         src: updates to put into state
-        from_orig: a function returning a mask. Where this mask is True, the
+        compute_mask: a function returning a mask. Where this mask is True, the
             original state array will be used.
 
     """
     for key in src:
         arr = state[key]
-        mask = from_orig(key, arr)
+        mask = compute_mask(key, arr)
         state[key] = arr.where(mask, src[key].variable)
 
 
 @dataclasses.dataclass
-class from_orig:
+class compute_mask:
     ignore_humidity_below: Optional[int] = None
 
     def __call__(self, name: Hashable, arr: xr.DataArray) -> xr.DataArray:
@@ -185,4 +185,4 @@ def update_state_with_emulator(
     src: Mapping[Hashable, xr.DataArray],
     ignore_humidity_below: Optional[int] = None,
 ) -> None:
-    return _update_state_with_emulator(state, src, from_orig(ignore_humidity_below))
+    return _update_state_with_emulator(state, src, compute_mask(ignore_humidity_below))
