@@ -17,6 +17,8 @@ from runtime.monitor import Monitor
 from runtime.names import SPHUM, DELP
 from runtime.types import State, Diagnostics, Step
 
+__all__ = ["PrognosticAdapter", "Config"]
+
 
 def strip_prefix(prefix: str, variables: Iterable[str]) -> Set[str]:
     return {k[len(prefix) :] for k in variables if k.startswith(prefix)}
@@ -63,12 +65,18 @@ class PrognosticAdapter:
 
     config: Config
     state: State
-    monitor: Monitor
     emulator_prefix: str = "emulator_"
     diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
+    timestep: float = 900
 
     def __post_init__(self: "PrognosticAdapter"):
         self.emulator = get_xarray_emulator(self.config.emulator)
+
+    @property
+    def monitor(self) -> Monitor:
+        return Monitor.from_variables(
+            self.diagnostic_variables, self.state, self.timestep
+        )
 
     @property
     def inputs_to_save(self) -> Set[str]:
