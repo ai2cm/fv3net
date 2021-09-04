@@ -11,7 +11,7 @@ from typing import (
     Union,
 )
 
-from fv3fit.emulation.thermobasis.emulator import Config as EmulatorConfig
+import fv3fit.emulation.thermobasis.emulator
 from fv3fit.emulation.thermobasis.xarray import get_xarray_emulator
 from runtime.monitor import Monitor
 from runtime.names import SPHUM, DELP
@@ -36,9 +36,9 @@ class Config:
         ignore_humidity_below: see ``online``.
     """
 
-    emulator: Union[str, EmulatorConfig] = dataclasses.field(
-        default_factory=EmulatorConfig
-    )
+    emulator: Union[
+        str, fv3fit.emulation.thermobasis.emulator.Config
+    ] = dataclasses.field(default_factory=fv3fit.emulation.thermobasis.emulator.Config)
     # online parameters
     online: bool = False
     train: bool = True
