@@ -1,7 +1,17 @@
-from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, List, Any, Set
+from typing import (
+    Callable,
+    Sequence,
+    Tuple,
+    Iterable,
+    Mapping,
+    Union,
+    Optional,
+    List,
+    Any,
+    Set,
+)
 import xarray as xr
 import logging
-import copy
 import json
 import tensorflow as tf
 import tempfile
@@ -47,6 +57,72 @@ History = Mapping[str, EpochLossHistory]
 
 
 @dataclasses.dataclass
+class EpochResult:
+    """
+    Attributes:
+        epoch: count of epoch (starts at zero)
+        history: return value of `model.fit` from each batch
+    """
+
+    epoch: int
+    history: Sequence[tf.keras.callbacks.History]
+
+
+@dataclasses.dataclass
+class TrainingLoopConfig:
+    """
+    epochs: number of times to run through the batches when training
+    workers: number of workers for parallelized loading of batches fed into
+        training, if 1 uses serial loading instead
+    max_queue_size: max number of batches to hold in the parallel loading queue
+    keras_batch_size: actual batch_size to pass to keras model.fit,
+        independent of number of samples in each data batch in batches
+    """
+
+    epochs: int = 3
+    workers: int = 1
+    max_queue_size: int = 8
+    keras_batch_size: int = 16
+
+    def fit_loop(
+        self,
+        model: tf.keras.Model,
+        Xy: Sequence[Tuple[np.ndarray, np.ndarray]],
+        validation_data: Optional[Tuple[np.ndarray, np.ndarray]] = None,
+        callbacks: Iterable[Callable[[EpochResult], None]] = (),
+    ) -> None:
+        """
+        Args:
+            model: keras model to train
+            Xy: sequence of data batches to be passed to `model.fit`
+            validation_data: passed as `validation_data` argument to `model.fit`
+            callbacks: if given, these will be called at the end of each epoch
+        """
+        for i_epoch in range(self.epochs):
+            Xy = shuffle(Xy)
+            if self.workers > 1:
+                Xy = _ThreadedSequencePreLoader(
+                    Xy, num_workers=self.workers, max_queue_size=self.max_queue_size
+                )
+            history = []
+            for i_batch, (X, y) in enumerate(Xy):
+                logger.info(
+                    f"Fitting on batch {i_batch + 1} of {len(Xy)}, "
+                    f"of epoch {i_epoch}..."
+                )
+                history.append(
+                    model.fit(
+                        X,
+                        y,
+                        validation_data=validation_data,
+                        batch_size=self.keras_batch_size,
+                    )
+                )
+            for callback in callbacks:
+                callback(EpochResult(epoch=i_epoch, history=tuple(history)))
+
+
+@dataclasses.dataclass
 class DenseHyperparameters(Hyperparameters):
     """
     Configuration for training a dense neural network based model.
@@ -81,13 +157,12 @@ class DenseHyperparameters(Hyperparameters):
     dense_network: DenseNetworkConfig = dataclasses.field(
         default_factory=DenseNetworkConfig
     )
-    epochs: int = 3
+    training_loop: TrainingLoopConfig = dataclasses.field(
+        default_factory=TrainingLoopConfig
+    )
     loss: str = "mse"
     save_model_checkpoints: bool = False
     nonnegative_outputs: bool = False
-
-    # TODO: remove fit_kwargs by fixing how validation data is passed
-    fit_kwargs: Optional[dict] = None
 
     @property
     def variables(self) -> Set[str]:
@@ -177,7 +252,6 @@ class DenseModel(Predictor):
         self._normalize_loss = hyperparameters.normalize_loss
         self._optimizer = hyperparameters.optimizer_config.instance
         self._loss = hyperparameters.loss
-        self._epochs = hyperparameters.epochs
         self._save_model_checkpoints = hyperparameters.save_model_checkpoints
         if hyperparameters.save_model_checkpoints:
             self._checkpoint_path: Optional[
@@ -185,7 +259,7 @@ class DenseModel(Predictor):
             ] = tempfile.TemporaryDirectory()
         else:
             self._checkpoint_path = None
-        self._fit_kwargs = hyperparameters.fit_kwargs or {}
+        self.training_loop = hyperparameters.training_loop
 
     @property
     def model(self) -> tf.keras.Model:
@@ -212,34 +286,16 @@ class DenseModel(Predictor):
         self,
         batches: Sequence[xr.Dataset],
         validation_dataset: Optional[xr.Dataset] = None,
-        epochs: Optional[int] = None,
-        batch_size: Optional[int] = None,
-        workers: Optional[int] = None,
-        max_queue_size: Optional[int] = None,
         validation_samples: Optional[int] = None,
         use_last_batch_to_validate: Optional[bool] = None,
     ) -> None:
         """Fits a model using data in the batches sequence
-        
-        If batch_size is provided as a kwarg, the list of values is for each batch fit.
-        e.g. {"loss":
-            [[epoch0_batch0_loss, epoch0_batch1_loss],
-            [epoch1_batch0_loss, epoch1_batch1_loss]]}
-        If not batch_size is not provided, a single loss per epoch is recorded.
-        e.g. {"loss": [[epoch0_loss], [epoch1_loss]]}
+
+        Makes use of configuration in DenseHyperparameters.training_loop
         
         Args:
             batches: sequence of unstacked datasets of predictor variables
             validation_dataset: optional validation dataset
-            epochs: optional number of times through the batches to run when training.
-                Defaults to 1.
-            batch_size: actual batch_size to apply in gradient descent updates,
-                independent of number of samples in each batch in batches; optional,
-                uses number of samples in each batch if omitted
-            workers: number of workers for parallelized loading of batches fed into
-                training, defaults to serial loading (1 worker)
-            max_queue_size: max number of batches to hold in the parallel loading queue.
-                Defaults to 8.
             validation_samples: Option to specify number of samples to randomly draw
                 from the validation dataset, so that we can use multiple timesteps for
                 validation without having to load all the times into memory.
@@ -249,17 +305,6 @@ class DenseModel(Predictor):
                 Defaults to False.
         """
 
-        fit_kwargs = copy.copy(self._fit_kwargs)
-        fit_kwargs = _fill_default(fit_kwargs, batch_size, "batch_size", None)
-        fit_kwargs = _fill_default(fit_kwargs, epochs, "epochs", self._epochs)
-        fit_kwargs = _fill_default(fit_kwargs, workers, "workers", 1)
-        fit_kwargs = _fill_default(fit_kwargs, max_queue_size, "max_queue_size", 8)
-        fit_kwargs = _fill_default(
-            fit_kwargs, validation_samples, "validation_samples", 13824
-        )
-        fit_kwargs = _fill_default(
-            fit_kwargs, use_last_batch_to_validate, "use_last_batch_to_validate", False
-        )
         random_state = np.random.RandomState(np.random.get_state()[1][0])
         stacked_batches = StackedBatches(batches, random_state)
         Xy = _XyArraySequence(self.X_packer, self.y_packer, stacked_batches)
@@ -268,18 +313,6 @@ class DenseModel(Predictor):
             n_features_in, n_features_out = X.shape[-1], y.shape[-1]
             self._fit_normalization(X, y)
             self._model = self.get_model(n_features_in, n_features_out)
-
-        validation_data: Optional[Tuple[np.ndarray, np.ndarray]]
-        validation_dataset = (
-            validation_dataset
-            if validation_dataset is not None
-            else fit_kwargs.pop("validation_dataset", None)
-        )
-        validation_samples = (
-            validation_samples
-            if validation_samples is not None
-            else fit_kwargs.pop("validation_samples", 13824)
-        )
 
         if use_last_batch_to_validate:
             if validation_dataset is not None:
@@ -305,51 +338,26 @@ class DenseModel(Predictor):
             validation_data = X_val[val_sample], y_val[val_sample]
         else:
             validation_data = None
+        self.training_loop.fit_loop(
+            self.model,
+            Xy=Xy,
+            validation_data=validation_data,
+            callbacks=[self._end_of_epoch_callback],
+        )
 
-        return self._fit_loop(Xy, validation_data, **fit_kwargs,)
-
-    def _fit_loop(
-        self,
-        Xy: Sequence[Tuple[np.ndarray, np.ndarray]],
-        validation_data: Optional[Tuple[np.ndarray, np.ndarray]],
-        epochs: int,
-        batch_size: Optional[int] = None,
-        workers: int = 1,
-        max_queue_size: int = 8,
-        use_last_batch_to_validate: bool = False,
-        last_batch_validation_fraction: float = 1.0,
-        **fit_kwargs,
-    ) -> None:
-
-        for i_epoch in range(epochs):
-            Xy = shuffle(Xy)
-            if workers > 1:
-                Xy = _ThreadedSequencePreLoader(
-                    Xy, num_workers=workers, max_queue_size=max_queue_size
-                )
-            loss_over_batches, val_loss_over_batches = [], []
-            for i_batch, (X, y) in enumerate(Xy):
-                logger.info(
-                    f"Fitting on batch {i_batch + 1} of {len(Xy)}, "
-                    f"of epoch {i_epoch}..."
-                )
-                history = self.model.fit(
-                    X,
-                    y,
-                    validation_data=validation_data,
-                    batch_size=batch_size,
-                    **fit_kwargs,
-                )
-                loss_over_batches += history.history["loss"]
-                val_loss_over_batches += history.history.get("val_loss", [np.nan])
-            self.train_history["loss"].append(loss_over_batches)
-            self.train_history["val_loss"].append(val_loss_over_batches)
-            if self._checkpoint_path:
-                self.dump(os.path.join(self._checkpoint_path.name, f"epoch_{i_epoch}"))
-                logger.info(
-                    f"Saved model checkpoint after epoch {i_epoch} "
-                    f"to {self._checkpoint_path}"
-                )
+    def _end_of_epoch_callback(self, result: EpochResult):
+        loss_over_batches, val_loss_over_batches = [], []
+        for history in result.history:
+            loss_over_batches += history.history["loss"]
+            val_loss_over_batches += history.history.get("val_loss", [np.nan])
+        self.train_history["loss"].append(loss_over_batches)
+        self.train_history["val_loss"].append(val_loss_over_batches)
+        if self._checkpoint_path:
+            self.dump(os.path.join(self._checkpoint_path.name, f"epoch_{result.epoch}"))
+            logger.info(
+                f"Saved model checkpoint after epoch {result.epoch} "
+                f"to {self._checkpoint_path}"
+            )
 
     def _predict_on_stacked_data(self, stacked_input: xr.Dataset) -> xr.Dataset:
         stacked_input_array = self.X_packer.to_array(stacked_input)

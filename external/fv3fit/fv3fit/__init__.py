@@ -10,7 +10,7 @@ from ._shared.config import (
     get_training_function,
     get_hyperparameter_class,
 )
-from .keras._models.models import DenseHyperparameters
+from .keras._models.models import DenseHyperparameters, TrainingLoopConfig, EpochResult
 from .keras._models.shared import DenseNetworkConfig, DenseNetwork
 from .keras._models.precipitative import PrecipitativeHyperparameters
 from . import keras, sklearn, testing
