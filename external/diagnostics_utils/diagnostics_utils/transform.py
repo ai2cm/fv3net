@@ -18,7 +18,7 @@ HORIZONTAL_DIMS = ["x", "y", "tile"]
 
 # argument typehint by multiple modules split out to group operations and simplify
 # the diagnostic script
-DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
+DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset, xr.DataArray]
 
 
 _TRANSFORM_FNS = {}
