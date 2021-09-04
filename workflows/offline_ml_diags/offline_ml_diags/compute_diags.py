@@ -23,6 +23,8 @@ from ._helpers import (
     load_grid_info,
     is_3d,
     get_variable_indices,
+    insert_r2,
+    insert_rmse,
 )
 from ._select import meridional_transect, nearest_time
 
@@ -150,6 +152,13 @@ def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
     return summary
 
 
+def _standardize_names(*args: Sequence[xr.Dataset]):
+    renamed = []
+    for ds in args:
+        renamed.append(ds.rename({var: var.lower() for var in ds}))
+    return renamed
+
+
 def _compute_diagnostics(
     batches: Sequence[xr.Dataset], grid: xr.Dataset, predicted_vars: List[str]
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
@@ -199,12 +208,20 @@ def _compute_diagnostics(
     ds_diagnostics, ds_scalar_metrics = _consolidate_dimensioned_data(
         ds_summary, ds_metrics
     )
+
+    ds_scalar_metrics = insert_r2(ds_scalar_metrics)
+    ds_diagnostics = ds_diagnostics.pipe(insert_r2).pipe(insert_rmse)
+    ds_diagnostics, ds_diurnal, ds_scalar_metrics = _standardize_names(
+        ds_diagnostics, ds_diurnal, ds_scalar_metrics
+    )
     return ds_diagnostics.mean("batch"), ds_diurnal, ds_scalar_metrics
 
 
 def _consolidate_dimensioned_data(ds_summary, ds_metrics):
     # moves dimensioned quantities into final diags dataset so they're saved as netcdf
-    scalar_metrics = [var for var in ds_metrics if ds_metrics[var].size == 1]
+    scalar_metrics = [
+        var for var in ds_metrics if ds_metrics[var].size == len(ds_metrics.batch)
+    ]
     ds_scalar_metrics = safe.get_variables(ds_metrics, scalar_metrics)
     ds_metrics_arrays = ds_metrics.drop(scalar_metrics)
     ds_diagnostics = ds_summary.merge(ds_metrics_arrays)
