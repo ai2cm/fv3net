@@ -36,4 +36,10 @@ def get_overrider_adapter(
     if config.overrider is None:
         return None
     else:
-        return OverriderAdapter(config.overrider, state, communicator, timestep)
+        return OverriderAdapter(
+            config.overrider,
+            state,
+            communicator,
+            timestep,
+            diagnostic_variables=set(config.diagnostic_variables),
+        )

@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Hashable, Mapping, MutableMapping, Optional, Tuple
+from typing import Hashable, Mapping, MutableMapping, Optional, Set, Tuple
 
 import fsspec
 import xarray as xr
@@ -33,6 +33,7 @@ class OverriderAdapter:
     state: State
     communicator: fv3gfs.util.CubedSphereCommunicator
     timestep: float
+    diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
 
     def __post_init__(self: "OverriderAdapter"):
         ds, time_coord = self._open_tendencies_dataset()
@@ -64,7 +65,9 @@ class OverriderAdapter:
 
     @property
     def monitor(self) -> Monitor:
-        return Monitor(set(self.config.variables), {}, self.state, self.timestep)
+        return Monitor.from_variables(
+            self.diagnostic_variables, self.state, self.timestep
+        )
 
     def override(self, name: str, func: Step) -> Diagnostics:
         tendencies = self.tendencies.sel(time=self.state.time).load()
