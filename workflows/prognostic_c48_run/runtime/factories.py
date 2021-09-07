@@ -7,6 +7,7 @@ from runtime.types import State
 from runtime.config import UserConfig
 from runtime.emulator import PrognosticAdapter
 from runtime.overrider import OverriderAdapter
+from runtime.derived_state import DerivedFV3State
 import fv3gfs.util
 
 
@@ -29,7 +30,7 @@ def get_emulator_adapter(
 
 def get_overrider_adapter(
     config: UserConfig,
-    state: State,
+    state: DerivedFV3State,
     communicator: fv3gfs.util.CubedSphereCommunicator,
     timestep: float,
 ) -> Optional[OverriderAdapter]:

@@ -7,6 +7,7 @@ import xarray as xr
 import fv3gfs.util
 from runtime.monitor import Monitor
 from runtime.types import State, Diagnostics, Step
+from runtime.derived_state import DerivedFV3State
 
 QuantityState = MutableMapping[Hashable, fv3gfs.util.Quantity]
 
@@ -30,7 +31,7 @@ class OverriderAdapter:
     """Wrap a Step function to override certain tendencies."""
 
     config: OverriderConfig
-    state: State
+    state: DerivedFV3State
     communicator: fv3gfs.util.CubedSphereCommunicator
     timestep: float
     diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
@@ -77,7 +78,7 @@ class OverriderAdapter:
         for variable_name, tendency_name in self.config.variables.items():
             with xr.set_options(keep_attrs=True):
                 self.state[variable_name] = (
-                    before[variable_name] + self.timestep * tendencies[tendency_name]
+                    before[variable_name] + tendencies[tendency_name] * self.timestep
                 )
         change_due_to_overriding = self.monitor.compute_change(
             "override", before, self.state
@@ -99,7 +100,7 @@ class OverriderAdapter:
         def step() -> Diagnostics:
             return self.override(name, func)
 
-        step.__name = func.__name__
+        step.__name__ = func.__name__
         return step
 
 
