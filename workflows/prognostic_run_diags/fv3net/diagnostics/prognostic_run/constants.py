@@ -1,13 +1,21 @@
 import numpy as np
 import xarray as xr
-from typing import Mapping, Sequence, Tuple
+from typing import Mapping, Sequence, Optional
+from dataclasses import dataclass
 
 HORIZONTAL_DIMS = ["x", "y", "tile"]
 
 # argument typehint for diags in save_prognostic_run_diags but used
 # by multiple modules split out to group operations and simplify
 # the diagnostic script
-DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
+@dataclass
+class DiagArg:
+    prediction: xr.Dataset
+    verification: xr.Dataset
+    grid: xr.Dataset
+    delp: Optional[xr.DataArray] = None
+
+
 MovieUrls = Mapping[str, Sequence[str]]
 
 RMSE_VARS = [
