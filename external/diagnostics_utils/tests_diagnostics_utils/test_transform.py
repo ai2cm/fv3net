@@ -1,5 +1,4 @@
 import pytest
-from datetime import timedelta
 import cftime
 import xarray as xr
 
@@ -8,12 +7,12 @@ from diagnostics_utils import transform
 # Transform params structure
 # key - transform name, value Tuple(transform_args, transform_kwargs)
 TRANSFORM_PARAMS = {
-    "resample_time": (["1H"], {"time_slice": slice(0, -2)}),
-    "daily_mean": ([timedelta(hours=2)], {}),
     "mask_to_sfc_type": (["sea"], {}),
     "subset_variables": ([("temperature")], {}),
     "mask_area": (["sea"], {}),
-    "insert_absent_3d_output_placeholder": ([], {}),
+    "regrid_zdim_to_pressure_levels": ([], {}),
+    "select_2d_variables": ([], {}),
+    "select_3d_variables": ([], {}),
 }
 
 
@@ -33,7 +32,7 @@ def input_args():
     mask = [[[0, 1], [0, 2]]]
     area = [[[1, 2], [3, 4]]]
     latitude = [[[0, 0], [15, 15]]]
-    delp = [[[[1, 1], [1, 1]]], [[[2, 2], [2, 2]]]]
+    delp = [[[[10000, 10000], [10000, 10000]]], [[[20000, 20000], [20000, 20000]]]]
 
     ntimes = 5
     temp = [[[[0.5, 1.5], [2.5, 3.5]]]] * ntimes
@@ -56,9 +55,10 @@ def input_args():
         }
     )
     delp = xr.DataArray(
-        data=delp,
-        dims=["z", "tile", "x", "y"],
+        data=[delp] * ntimes,
+        dims=["time", "z", "tile", "x", "y"],
         name="pressure_thickness_of_atmospheric_layer",
+        coords={"time": time_coord},
     )
 
     return (ds, ds.copy(), grid, delp)
@@ -73,7 +73,6 @@ def test_transform_no_input_side_effects(input_args):
 
         transform_func = transform._TRANSFORM_FNS[func_name]
         transform_func(*t_args, input_args, **t_kwargs)
-
         for i, ds in enumerate(input_args):
             xr.testing.assert_equal(ds, copied_args[i])
 
@@ -87,7 +86,7 @@ def test_subset_variables(input_args):
 
 @pytest.mark.parametrize("region", [("global"), ("land"), ("sea"), ("tropics")])
 def test__mask_array_global(input_args, region):
-    ds, _, grid = input_args
+    ds, _, grid, delp = input_args
     transform._mask_array(region, grid.area, grid.lat, grid.land_sea_mask)
 
 
