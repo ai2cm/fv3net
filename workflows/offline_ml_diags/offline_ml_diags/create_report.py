@@ -174,20 +174,17 @@ def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir)
             output_dir=output_dir,
         )
 
-    # Zonal average of vertical profiles for bias and R2
+    # Zonal average of vertical profiles for R2
     zonal_avg_pressure_level_metrics = [
         var
         for var in ds_diags.data_vars
-        if var.startswith("zonal_avg_pressure")
-        and var.endswith("predict_vs_target")
-        and ("r2" in var or "bias" in var)
+        if var.endswith("_pressure_level_zonal_avg_global") and ("r2" in var.lower())
     ]
     for var in sorted(zonal_avg_pressure_level_metrics):
-        vmin, vmax = (0, 1) if "r2" in var.lower() else (None, None)
         fig = diagplot.plot_zonal_average(
             data=ds_diags[var],
             title=tidy_title(var),
-            plot_kwargs={"vmin": vmin, "vmax": vmax},
+            plot_kwargs={"vmin": 0, "vmax": 1},
         )
         report.insert_report_figure(
             report_sections,
@@ -201,7 +198,7 @@ def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir)
     pressure_level_metrics = [
         var
         for var in ds_diags.data_vars
-        if var.startswith("pressure_level") and var.endswith("predict_vs_target")
+        if var.endswith("pressure_level_global") and ("r2" in var.lower())
     ]
     for var in sorted(pressure_level_metrics):
         ylim = (0, 1) if "r2" in var.lower() else None

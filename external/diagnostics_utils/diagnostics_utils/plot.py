@@ -145,7 +145,7 @@ def plot_zonal_average(
     title = f"{title or data.name} {units}"
     plot_kwargs = plot_kwargs or {}
     rename_axes = rename_axes or {
-        "lat_interp": "Latitude [deg]",
+        "latitude": "Latitude [deg]",
         "pressure": "Pressure [Pa]",
     }
     data = data.rename(rename_axes).rename(title)
