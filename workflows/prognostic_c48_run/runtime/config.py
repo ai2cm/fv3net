@@ -13,6 +13,7 @@ from runtime.diagnostics.manager import (
 from runtime.steppers.nudging import NudgingConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
 from runtime.steppers.prescriber import PrescriberConfig
+from runtime.overrider import OverriderConfig
 
 FV3CONFIG_FILENAME = "fv3config.yml"
 
@@ -30,6 +31,7 @@ class UserConfig:
         scikit_learn: a machine learning configuration
         nudging: nudge2fine configuration. Cannot be used if any scikit_learn model
             urls are specified.
+        overrider: configuration for overriding physics tendencies.
     """
 
     diagnostics: List[DiagnosticFileConfig] = dataclasses.field(default_factory=list)
@@ -39,6 +41,7 @@ class UserConfig:
     prephysics: Optional[Union[PrescriberConfig, MachineLearningConfig]] = None
     scikit_learn: Optional[MachineLearningConfig] = None
     nudging: Optional[NudgingConfig] = None
+    overrider: Optional[OverriderConfig] = None
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:

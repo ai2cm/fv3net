@@ -11,6 +11,7 @@ import numpy as np
 import vcm
 import xarray as xr
 from mpi4py import MPI
+import runtime.factories
 from runtime import DerivedFV3State
 from runtime.config import UserConfig, get_namelist
 from runtime.diagnostics.compute import (
@@ -30,7 +31,7 @@ from runtime.steppers.machine_learning import (
 )
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig, get_timesteps
-from runtime.types import Diagnostics, State, Tendencies
+from runtime.types import Diagnostics, State, Step, Tendencies
 from toolz import dissoc
 from typing_extensions import Protocol
 
@@ -154,6 +155,11 @@ class TimeLoop(
         self.monitor = Monitor.from_variables(
             config.diagnostic_variables, state=self._state, timestep=self._timestep,
         )
+        partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(get_namelist())
+        communicator = fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
+        self._override = runtime.factories.get_overrider_adapter(
+            config, self._state, communicator, self._timestep
+        )
 
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
         self._log_debug(f"States to output: {self._states_to_output}")
@@ -172,6 +178,12 @@ class TimeLoop(
                     # type error requires changing its usage by the steppers
                     states_to_output = diagnostic.variables  # type: ignore
         return states_to_output
+
+    def override(self, name: str, func: Step) -> Step:
+        if self._override is None:
+            return self.monitor(name, func)
+        else:
+            return self._override(name, func)
 
     def _get_prephysics_stepper(
         self, config: UserConfig, hydrostatic: bool
@@ -409,7 +421,7 @@ class TimeLoop(
                 self._step_prephysics,
                 self._compute_physics,
                 self._apply_postphysics_to_physics_state,
-                self.monitor("fv3_physics", self._apply_physics),
+                self.override("fv3_physics", self._apply_physics),
                 self._compute_postphysics,
                 self.monitor("python", self._apply_postphysics_to_dycore_state),
             ]:

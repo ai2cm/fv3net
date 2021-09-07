@@ -4,6 +4,8 @@ import fv3config
 import fv3fit
 import runtime.metrics
 import tempfile
+from datetime import timedelta
+import cftime
 import numpy as np
 import pytest
 import xarray as xr
@@ -398,8 +400,12 @@ def _get_nudging_config(config_yaml: str, timestamp_dir: str):
     return config
 
 
-def get_nudging_config():
+def get_nudging_config(tendencies_path: str):
     config = _get_nudging_config(default_fv3config, "gs://" + IC_PATH.as_posix())
+    config["overrider"] = {
+        "url": tendencies_path,
+        "variables": {"air_temperature": "Q1"},
+    }
     config["diagnostics"] = [
         {
             "name": "diags.zarr",
@@ -498,6 +504,21 @@ def get_ml_config(model_path):
     return config
 
 
+def _tendency_dataset():
+    temperature_tendency = np.full((6, 8, 63, 12, 12), 0.1 / 86400)
+    times = [
+        cftime.DatetimeJulian(2016, 8, 1) + timedelta(minutes=n)
+        for n in range(0, 120, 15)
+    ]
+    da = xr.DataArray(
+        data=temperature_tendency,
+        dims=["tile", "time", "z", "y", "x"],
+        coords=dict(time=times),
+        attrs={"units": "K/s"},
+    )
+    return xr.Dataset({"Q1": da})
+
+
 @pytest.fixture(scope="module", params=[ConfigEnum.predictor, ConfigEnum.nudging])
 def configuration(request):
     return request.param
@@ -507,13 +528,18 @@ def configuration(request):
 def completed_rundir(configuration, tmpdir_factory):
 
     model_path = str(tmpdir_factory.mktemp("model"))
+    tendency_dataset_path = tmpdir_factory.mktemp("tendencies")
 
     if configuration == ConfigEnum.predictor:
         model = get_mock_predictor()
         fv3fit.dump(model, str(model_path))
         config = get_ml_config(model_path)
     elif configuration == ConfigEnum.nudging:
-        config = get_nudging_config()
+        tendencies = _tendency_dataset()
+        tendencies.to_zarr(
+            str(tendency_dataset_path.join("ds.zarr")), consolidated=True
+        )
+        config = get_nudging_config(str(tendency_dataset_path.join("ds.zarr")))
     else:
         raise NotImplementedError()
 
