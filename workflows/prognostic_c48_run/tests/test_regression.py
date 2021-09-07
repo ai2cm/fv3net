@@ -34,9 +34,6 @@ class ConfigEnum:
 
 
 default_fv3config = rf"""
-online_emulator:
-  emulator:
-    levels: 63
 data_table: default
 diag_table: default
 experiment_name: default_experiment
@@ -435,6 +432,7 @@ def get_nudging_config(tendencies_path: str):
                 "surface_temperature_reference",
                 "tendency_of_air_temperature_due_to_fv3_physics",
                 "tendency_of_air_temperature_due_to_python",
+                "tendency_of_air_temperature_due_to_override",
                 "tendency_of_eastward_wind_due_to_fv3_physics",
                 "tendency_of_eastward_wind_due_to_python",
                 "tendency_of_northward_wind_due_to_fv3_physics",
@@ -453,6 +451,7 @@ def get_nudging_config(tendencies_path: str):
 
 def get_ml_config(model_path):
     config = yaml.safe_load(default_fv3config)
+    config["online_emulator"] = {"emulator": {"levels": 63}}
     config["diagnostics"] = [
         {
             "name": "diags.zarr",
