@@ -103,6 +103,12 @@ def _create_arg_parser() -> argparse.Namespace:
             '(e.g. "c48"), ignored if --grid is provided'
         ),
     )
+    parser.add_argument(
+        "--n-jobs",
+        type=int,
+        default=-1,
+        help=("Optional n_jobs parameter for joblib.parallel when computing metrics."),
+    )
     return parser.parse_args()
 
 
@@ -160,7 +166,10 @@ def _standardize_names(*args: Sequence[xr.Dataset]):
 
 
 def _compute_diagnostics(
-    batches: Sequence[xr.Dataset], grid: xr.Dataset, predicted_vars: List[str]
+    batches: Sequence[xr.Dataset],
+    grid: xr.Dataset,
+    predicted_vars: List[str],
+    n_jobs: int,
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
     batches_summary, batches_diurnal, batches_metrics = [], [], []
 
@@ -193,6 +202,7 @@ def _compute_diagnostics(
             ),
             grid=grid,
             delp=ds[DELP],
+            n_jobs=n_jobs,
         )
 
         batches_summary.append(ds_summary.load())
@@ -326,7 +336,7 @@ def main(args):
 
     # compute diags
     ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diagnostics(
-        batches, grid, predicted_vars=model.output_variables
+        batches, grid, predicted_vars=model.output_variables, n_jobs=args.n_jobs
     )
 
     # save model senstivity figures: jacobian (TODO: RF feature sensitivity)

@@ -39,9 +39,13 @@ metrics_registry = Registry(merge_metrics)
 
 
 def compute_metrics(
-    prediction: xr.Dataset, target: xr.Dataset, grid: xr.Dataset, delp: xr.DataArray,
+    prediction: xr.Dataset,
+    target: xr.Dataset,
+    grid: xr.Dataset,
+    delp: xr.DataArray,
+    n_jobs: int = -1,
 ):
-    return metrics_registry.compute(prediction, target, grid, delp)
+    return metrics_registry.compute(prediction, target, grid, delp, n_jobs=n_jobs)
 
 
 def mse(x, y, w, dims):
