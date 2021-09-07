@@ -10,11 +10,12 @@ import xarray
 from fv3fit._shared.stacking import subsample
 from loaders.batches import batches_from_mapper
 from loaders.mappers import XarrayMapper
+from joblib import Parallel, delayed
 
 from fv3net.artifacts.resolve_url import resolve_url
 from fv3net.artifacts.query import get_artifacts
 
-import apache_beam as beam
+# import apache_beam as beam
 
 logging.basicConfig(level=logging.INFO)
 
@@ -113,6 +114,10 @@ if __name__ == "__main__":
             fs.put(f.name, output_path)
             logger.info(f"{k}: done saving to {output_path}")
 
-    with beam.Pipeline() as p:
-        indices = p | beam.Create(range(len(data_mapping))) | beam.Reshuffle()
-        indices | "SaveData" >> beam.Map(process, batches=batches)
+    # with beam.Pipeline() as p:
+    #     indices = p | beam.Create(range(len(data_mapping))) | beam.Reshuffle()
+    #     indices | "SaveData" >> beam.Map(process, batches=batches)
+
+    Parallel(n_jobs=32, verbose=10)(
+        delayed(process)(k, batches) for k in range(len(data_mapping))
+    )
