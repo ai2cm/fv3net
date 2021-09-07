@@ -2,6 +2,15 @@ import abc
 import tensorflow as tf
 
 
+def standard_deviation_all_features(tensor):
+    """Commpute standard deviation across all features
+
+    A separate mean is computed for each output level
+    """
+    mean = tf.cast(tf.reduce_mean(tensor, axis=0), tf.float32)
+    return tf.cast(tf.sqrt(tf.reduce_mean((tensor - mean) ** 2)), tf.float32,)
+
+
 class NormLayer(tf.keras.layers.Layer, abc.ABC):
     def __init__(self, name=None, **kwargs):
         super(NormLayer, self).__init__(name=name)
@@ -86,6 +95,11 @@ class FeatureMaxStd(NormLayer):
         self.sigma.assign(max_std)
 
 
+class FeatureMeanStd(FeatureMaxStd):
+    def _fit_sigma(self, tensor: tf.Tensor) -> None:
+        self.sigma.assign(standard_deviation_all_features(tensor))
+
+
 class StandardNormLayer(PerFeatureMean, PerFeatureStd):
     """
     Normalization layer that removes mean and standard
@@ -135,3 +149,19 @@ class MaxFeatureStdDenormLayer(MaxFeatureStdNormLayer):
 
     def call(self, tensor):
         return tensor * self.sigma + self.mean
+
+
+class MeanFeatureStdDenormLayer(MaxFeatureStdDenormLayer, FeatureMeanStd):
+    """De-normalization layer that scales all outputs by the standard deviation
+    computed from the per-feature mean.
+    """
+
+    pass
+
+
+class MeanFeatureStdNormLayer(MaxFeatureStdNormLayer, FeatureMeanStd):
+    """Layer tha normalizes all outputs by the standard deviation computed from
+    the per-feature mean.
+    """
+
+    pass

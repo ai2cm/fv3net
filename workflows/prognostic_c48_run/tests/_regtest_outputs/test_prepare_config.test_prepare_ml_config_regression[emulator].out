@@ -189,11 +189,11 @@ namelist:
     current_date:
     - 2016
     - 8
-    - 1
+    - 5
     - 0
-    - 15
     - 0
-    days: 1
+    - 0
+    days: 10
     dt_atmos: 900
     dt_ocean: 900
     force_date_from_namelist: true
@@ -202,6 +202,7 @@ namelist:
     minutes: 0
     months: 0
     ncores_per_node: 32
+    restart_secs: 0
     seconds: 0
     use_hyper_thread: true
   diag_manager_nml:
@@ -235,7 +236,7 @@ namelist:
     dddmp: 0.2
     delt_max: 0.002
     dnats: 1
-    do_sat_adj: false
+    do_sat_adj: true
     do_vort_damp: true
     dwind_2d: false
     external_eta: true
@@ -307,7 +308,7 @@ namelist:
     do_sedi_heat: false
     dw_land: 0.16
     dw_ocean: 0.1
-    fast_sat_adj: false
+    fast_sat_adj: true
     fix_negative: true
     icloud_f: 1
     mono_prof: true
@@ -425,16 +426,12 @@ namelist:
     fvmnl: 99999
     fvmxl: 99999
     ldebug: false
-nudging:
-  reference_frequency_seconds: 900
-  reference_initial_time: null
-  restarts_path: gs://ic-bucket
-  timescale_hours:
-    air_temperature: 12
-    pressure_thickness_of_atmospheric_layer: 12
-    specific_humidity: 12
-    x_wind: 12
-    y_wind: 12
+nudging: null
+online_emulator:
+  emulator: some/path
+  ignore_humidity_below: null
+  online: false
+  train: true
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
 scikit_learn: null

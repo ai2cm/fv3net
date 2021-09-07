@@ -90,6 +90,7 @@ def capture_fv3gfs_funcs():
 def setup_file_logger(name: str):
     """Configure a logger which streams to name.txt as well as stderr."""
     logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
     fh = logging.FileHandler(f"{name}.txt")
     fh.setLevel(logging.INFO)
     ch = logging.StreamHandler()

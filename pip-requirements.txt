@@ -45,3 +45,6 @@ pip-tools
 poetry
 tox
 pre-commit
+
+# fv3fit testing tools
+hypothesis
