@@ -34,6 +34,9 @@ class ConfigEnum:
 
 
 default_fv3config = rf"""
+online_emulator:
+  emulator:
+    levels: 63
 data_table: default
 diag_table: default
 experiment_name: default_experiment

@@ -2,8 +2,16 @@ import json
 import logging
 import os
 import tempfile
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
-
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+)
 import cftime
 import fv3gfs.util
 import fv3gfs.wrapper
@@ -31,7 +39,7 @@ from runtime.steppers.machine_learning import (
 )
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig, get_timesteps
-from runtime.types import Diagnostics, State, Step, Tendencies
+from runtime.types import Diagnostics, State, Tendencies, Step
 from toolz import dissoc
 from typing_extensions import Protocol
 
@@ -161,6 +169,9 @@ class TimeLoop(
             config, self._state, communicator, self._timestep
         )
 
+        self._emulate = runtime.factories.get_emulator_adapter(
+            config, self._state, self._timestep
+        )
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
         self._log_debug(f"States to output: {self._states_to_output}")
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
@@ -179,11 +190,16 @@ class TimeLoop(
                     states_to_output = diagnostic.variables  # type: ignore
         return states_to_output
 
-    def override(self, name: str, func: Step) -> Step:
-        if self._override is None:
-            return self.monitor(name, func)
-        else:
+    def adapt(self, name: str, func: Step) -> Step:
+        if self._override and self._emulate:
+            raise NotImplementedError("Cannot both override and emulate FV3 physics.")
+
+        if self._override:
             return self._override(name, func)
+        elif self._emulate:
+            return self._emulate(name, func)
+        else:
+            return self.monitor(name, func)
 
     def _get_prephysics_stepper(
         self, config: UserConfig, hydrostatic: bool
@@ -414,6 +430,7 @@ class TimeLoop(
     def __iter__(
         self,
     ) -> Iterator[Tuple[cftime.DatetimeJulian, Dict[str, xr.DataArray]]]:
+
         for i in range(self._fv3gfs.get_step_count()):
             diagnostics: Diagnostics = {}
             for substep in [
@@ -421,7 +438,7 @@ class TimeLoop(
                 self._step_prephysics,
                 self._compute_physics,
                 self._apply_postphysics_to_physics_state,
-                self.override("fv3_physics", self._apply_physics),
+                self.adapt("fv3_physics", self._apply_physics),
                 self._compute_postphysics,
                 self.monitor("python", self._apply_postphysics_to_dycore_state),
             ]:

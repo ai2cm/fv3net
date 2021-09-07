@@ -42,13 +42,16 @@ def _tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
 
 @register_training_function("sklearn_random_forest", RandomForestHyperparameters)
 def train_random_forest(
-    input_variables: Iterable[str],
-    output_variables: Iterable[str],
     hyperparameters: RandomForestHyperparameters,
     train_batches: Sequence[xr.Dataset],
     validation_batches: Sequence[xr.Dataset],
 ):
-    model = RandomForest("sample", input_variables, output_variables, hyperparameters)
+    model = RandomForest(
+        "sample",
+        hyperparameters.input_variables,
+        hyperparameters.output_variables,
+        hyperparameters,
+    )
     # TODO: make use of validation_batches to report validation loss
     model.fit(train_batches)
     return model
