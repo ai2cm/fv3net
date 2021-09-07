@@ -4,10 +4,10 @@ import joblib
 from runtime.emulator import (
     PrognosticAdapter,
     Config,
-    EmulatorConfig,
     update_state_with_emulator,
     _update_state_with_emulator,
 )
+from fv3fit.emulation.thermobasis.emulator import Config as MLConfig
 import pytest
 
 
@@ -20,7 +20,9 @@ def test_update_state_with_emulator(state):
     new = {qv: state[qv] + 1.0}
 
     _update_state_with_emulator(
-        state, new, from_orig=lambda name, arr: xr.DataArray(name == qv) & (arr.z < 10)
+        state,
+        new,
+        compute_mask=lambda name, arr: xr.DataArray(name == qv) & (arr.z < 10),
     )
 
     xr.testing.assert_allclose(state[qv].sel(z=z_slice), old_state[qv].sel(z=z_slice))
@@ -41,7 +43,7 @@ def test_adapter_regression(state, regtest):
     name = "add_one"
 
     emulate = PrognosticAdapter(
-        Config(EmulatorConfig(levels=state["air_temperature"].z.size)),
+        Config(MLConfig(levels=state["air_temperature"].z.size)),
         state,
         diagnostic_variables={
             "emulator_latent_heat_flux",

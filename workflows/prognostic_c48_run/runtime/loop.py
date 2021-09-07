@@ -39,7 +39,7 @@ from runtime.steppers.machine_learning import (
 )
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig, get_timesteps
-from runtime.types import Diagnostics, State, Tendencies
+from runtime.types import Diagnostics, State, Tendencies, Step
 from toolz import dissoc
 from typing_extensions import Protocol
 
@@ -163,7 +163,8 @@ class TimeLoop(
         self.monitor = Monitor.from_variables(
             config.diagnostic_variables, state=self._state, timestep=self._timestep,
         )
-        self.emulate = runtime.factories.get_emulator_adapter(
+
+        self._emulate = runtime.factories.get_emulator_adapter(
             config, self._state, self._timestep
         )
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
@@ -183,6 +184,12 @@ class TimeLoop(
                     # type error requires changing its usage by the steppers
                     states_to_output = diagnostic.variables  # type: ignore
         return states_to_output
+
+    def emulate(self, name: str, func: Step) -> Step:
+        if self._emulate is None:
+            return self.monitor(name, func)
+        else:
+            return self._emulate(name, func)
 
     def _get_prephysics_stepper(
         self, config: UserConfig, hydrostatic: bool

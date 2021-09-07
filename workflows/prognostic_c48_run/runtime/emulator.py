@@ -11,7 +11,7 @@ from typing import (
     Union,
 )
 
-from fv3fit.emulation.thermobasis.emulator import Config as EmulatorConfig
+import fv3fit.emulation.thermobasis.emulator
 from fv3fit.emulation.thermobasis.xarray import get_xarray_emulator
 from runtime.monitor import Monitor
 from runtime.names import SPHUM, DELP
@@ -28,14 +28,17 @@ def strip_prefix(prefix: str, variables: Iterable[str]) -> Set[str]:
 class Config:
     """
     Attributes:
-        checkpoint: Either path to model artifact in Weights and biases
-            "<entity>/<project>/<name>:tag" to be loaded, or the configurations
-            for a new emulator object.
+        emulator: Either a path to a model to-be-loaded or an emulator
+            configuration specifying model parameters.
+        online: if True, the emulator will be replace fv3 physics for all
+            humidities above level ``ignore_humidity_below``.
+        train: if True, each timestep will be used to train the model.
+        ignore_humidity_below: see ``online``.
     """
 
-    emulator: Union[str, EmulatorConfig] = dataclasses.field(
-        default_factory=EmulatorConfig
-    )
+    emulator: Union[
+        str, fv3fit.emulation.thermobasis.emulator.Config
+    ] = dataclasses.field(default_factory=fv3fit.emulation.thermobasis.emulator.Config)
     # online parameters
     online: bool = False
     train: bool = True
@@ -58,6 +61,7 @@ class PrognosticAdapter:
         emulator_prefix: the prefix to use adjust the outputted variable names.
         diagnostic_variables: the user-requested diagnostic variables, will be
             searched for inputs starting with ``emulator_prefix``.
+        timestep: the model timestep in seconds
         inputs_to_save: the set of diagnostics that will be produced by the
             emulated step function.
     
@@ -123,7 +127,6 @@ class PrognosticAdapter:
         capability.
 
         Args:
-            # TODO combine this "name" with the name of the emulator
             name: The name of the emulator
             func: a function that updates the State and returns a dictionary of
                 diagnostics (usually a method of :py:class:`runtime.loop.TimeLoop`).
@@ -147,24 +150,24 @@ class PrognosticAdapter:
 def _update_state_with_emulator(
     state: MutableMapping[Hashable, xr.DataArray],
     src: Mapping[Hashable, xr.DataArray],
-    from_orig: Callable[[Hashable, xr.DataArray], xr.DataArray],
+    compute_mask: Callable[[Hashable, xr.DataArray], xr.DataArray],
 ) -> None:
     """
     Args:
         state: the mutable state object
         src: updates to put into state
-        from_orig: a function returning a mask. Where this mask is True, the
+        compute_mask: a function returning a mask. Where this mask is True, the
             original state array will be used.
 
     """
     for key in src:
         arr = state[key]
-        mask = from_orig(key, arr)
+        mask = compute_mask(key, arr)
         state[key] = arr.where(mask, src[key].variable)
 
 
 @dataclasses.dataclass
-class from_orig:
+class compute_mask:
     ignore_humidity_below: Optional[int] = None
 
     def __call__(self, name: Hashable, arr: xr.DataArray) -> xr.DataArray:
@@ -182,4 +185,4 @@ def update_state_with_emulator(
     src: Mapping[Hashable, xr.DataArray],
     ignore_humidity_below: Optional[int] = None,
 ) -> None:
-    return _update_state_with_emulator(state, src, from_orig(ignore_humidity_below))
+    return _update_state_with_emulator(state, src, compute_mask(ignore_humidity_below))

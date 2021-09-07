@@ -44,13 +44,16 @@ History = Mapping[str, EpochLossHistory]
 
 @register_training_function("DenseModel", DenseHyperparameters)
 def train_dense_model(
-    input_variables: Iterable[str],
-    output_variables: Iterable[str],
     hyperparameters: DenseHyperparameters,
     train_batches: Sequence[xr.Dataset],
     validation_batches: Sequence[xr.Dataset],
 ):
-    model = DenseModel("sample", input_variables, output_variables, hyperparameters)
+    model = DenseModel(
+        "sample",
+        hyperparameters.input_variables,
+        hyperparameters.output_variables,
+        hyperparameters,
+    )
     # TODO: make use of validation_batches, currently validation dataset is
     # passed through hyperparameters.fit_kwargs
     model.fit(train_batches)
