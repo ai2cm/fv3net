@@ -6,7 +6,7 @@ import xarray as xr
 
 import fv3gfs.util
 from runtime.monitor import Monitor
-from runtime.types import State, Diagnostics, Step
+from runtime.types import Diagnostics, Step
 from runtime.derived_state import DerivedFV3State
 
 QuantityState = MutableMapping[Hashable, fv3gfs.util.Quantity]
