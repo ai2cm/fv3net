@@ -14,8 +14,9 @@ import pandas as pd
 import xarray as xr
 from datetime import datetime, timedelta
 import cftime
+from vcm import interpolate_to_pressure_levels
 
-from .constants import HORIZONTAL_DIMS, DiagArg
+from .constants import HORIZONTAL_DIMS, VERTICAL_DIM, DiagArg
 
 _TRANSFORM_FNS = {}
 
@@ -297,3 +298,51 @@ def subset_variables(variables: Sequence, arg: DiagArg) -> DiagArg:
     prognostic_vars = [var for var in variables if var in prognostic]
     verification_vars = [var for var in variables if var in verification]
     return DiagArg(prognostic[prognostic_vars], verification[verification_vars], grid)
+
+
+def _is_3d(da: xr.DataArray):
+    return VERTICAL_DIM in da.dims
+
+
+@add_to_input_transform_fns
+def select_3d_variables(arg: DiagArg) -> DiagArg:
+    prediction, target, grid, delp = (
+        arg.prediction,
+        arg.verification,
+        arg.grid,
+        arg.delp,
+    )
+    prediction_vars = [var for var in prediction if _is_3d(prediction[var])]
+    return DiagArg(prediction[prediction_vars], target[prediction_vars], grid, delp)
+
+
+@add_to_input_transform_fns
+def select_2d_variables(arg: DiagArg) -> DiagArg:
+    prediction, target, grid, delp = (
+        arg.prediction,
+        arg.verification,
+        arg.grid,
+        arg.delp,
+    )
+    prediction_vars = [var for var in prediction if not _is_3d(prediction[var])]
+    return DiagArg(prediction[prediction_vars], target[prediction_vars], grid, delp)
+
+
+@add_to_input_transform_fns
+def regrid_zdim_to_pressure_levels(arg: DiagArg) -> DiagArg:
+    prediction, target, grid, delp = (
+        arg.prediction,
+        arg.verification,
+        arg.grid,
+        arg.delp,
+    )
+    prediction_regridded, target_regridded = xr.Dataset(), xr.Dataset()
+    vertical_prediction_fields = [var for var in prediction if _is_3d(prediction[var])]
+    for var in vertical_prediction_fields:
+        prediction_regridded[var] = interpolate_to_pressure_levels(
+            delp=delp, field=prediction[var], dim=VERTICAL_DIM,
+        )
+        target_regridded[var] = interpolate_to_pressure_levels(
+            delp=delp, field=target[var], dim=VERTICAL_DIM,
+        )
+    return DiagArg(prediction_regridded, target_regridded, grid, delp)

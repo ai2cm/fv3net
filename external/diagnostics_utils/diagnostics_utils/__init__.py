@@ -11,7 +11,6 @@ from .utils import (
     insert_net_terms_as_Qs,
 )
 from ._diurnal_cycle import bin_diurnal_cycle, create_diurnal_cycle_dataset
-from .compute_metrics import compute_metrics
 
 __all__ = [
     "VARNAMES",
@@ -25,5 +24,4 @@ __all__ = [
     "insert_net_terms_as_Qs",
     "bin_diurnal_cycle",
     "create_diurnal_cycle_dataset",
-    "compute_metrics",
 ]

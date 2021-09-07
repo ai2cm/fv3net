@@ -17,8 +17,8 @@ import loaders
 from vcm import safe, interpolate_to_pressure_levels
 import vcm
 import fv3fit
+from .compute_metrics import compute_metrics
 from ._plot_input_sensitivity import plot_jacobian, plot_rf_feature_importance
-from diagnostics_utils import compute_metrics
 from ._helpers import (
     load_grid_info,
     is_3d,

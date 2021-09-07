@@ -1,5 +1,8 @@
-from diagnostics_utils.registry import Registry
-import diagnostics_utils.transform as transform
+# TODO: combine offline diags and prognostic diags into same source tree
+# for now, this will import registry and transforms from prognostic diags
+from fv3net.diagnostics.prognostic_run.registry import Registry
+import fv3net.diagnostics.prognostic_run.transform as transform
+from fv3net.diagnostics.prognostic_run.constants import DiagArg
 
 import logging
 from typing import Mapping, Sequence, Tuple
@@ -45,7 +48,9 @@ def compute_metrics(
     delp: xr.DataArray,
     n_jobs: int = -1,
 ):
-    return metrics_registry.compute(prediction, target, grid, delp, n_jobs=n_jobs)
+    return metrics_registry.compute(
+        DiagArg(prediction, target, grid, delp), n_jobs=n_jobs
+    )
 
 
 def mse(x, y, w, dims):
@@ -79,10 +84,15 @@ def zonal_mean(
 for mask_type in ["global", "sea", "land"]:
 
     @metrics_registry.register(f"mse_2d_{mask_type}")
-    @transform.apply("select_2d_variables")
-    @transform.apply("mask_to_sfc_type", mask_type)
-    def mse_2d(predicted, target, grid, mask_type=mask_type):
+    @transform.apply(transform.select_2d_variables)
+    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    def mse_2d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing mean squared errors for 2D variables, {mask_type}")
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
         mse_area_weighted_avg = weighted_mean(
             (predicted - target) ** 2, weights=grid.area, dims=HORIZONTAL_DIMS
         )
@@ -92,10 +102,15 @@ for mask_type in ["global", "sea", "land"]:
 for mask_type in ["global", "sea", "land"]:
 
     @metrics_registry.register(f"mse_pressure_level_{mask_type}")
-    @transform.apply("select_3d_variables")
-    @transform.apply("regrid_zdim_to_pressure_levels")
-    @transform.apply("mask_to_sfc_type", mask_type)
-    def mse_3d(predicted, target, grid, mask_type=mask_type):
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.regrid_zdim_to_pressure_levels)
+    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    def mse_3d(diag_arg, mask_type=mask_type):
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
         logger.info(f"Preparing mean squared errors for 3D variables, {mask_type}")
         if len(predicted) == 0:
             return xr.Dataset()
@@ -108,10 +123,11 @@ for mask_type in ["global", "sea", "land"]:
 for mask_type in ["global", "sea", "land"]:
 
     @metrics_registry.register(f"variance_2d_{mask_type}")
-    @transform.apply("select_2d_variables")
-    @transform.apply("mask_to_sfc_type", mask_type)
-    def variance_2d(predicted, target, grid, mask_type=mask_type):
+    @transform.apply(transform.select_2d_variables)
+    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    def variance_2d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing variance for 2D variables, {mask_type}")
+        target, grid = diag_arg.verification, diag_arg.grid
         mean = weighted_mean(target, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
             "time"
         )
@@ -123,11 +139,16 @@ for mask_type in ["global", "sea", "land"]:
 for mask_type in ["global", "sea", "land"]:
 
     @metrics_registry.register(f"variance_pressure_level_{mask_type}")
-    @transform.apply("select_3d_variables")
-    @transform.apply("regrid_zdim_to_pressure_levels")
-    @transform.apply("mask_to_sfc_type", mask_type)
-    def variance_3d(predicted, target, grid, mask_type=mask_type):
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.regrid_zdim_to_pressure_levels)
+    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    def variance_3d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing variance for 3D variables, {mask_type}")
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
         if len(predicted) == 0:
             return xr.Dataset()
         mean = weighted_mean(target, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
@@ -141,10 +162,15 @@ for mask_type in ["global", "sea", "land"]:
 for mask_type in ["global", "sea", "land"]:
 
     @metrics_registry.register(f"bias_2d_{mask_type}")
-    @transform.apply("select_2d_variables")
-    @transform.apply("mask_to_sfc_type", mask_type)
-    def bias_2d(predicted, target, grid, mask_type=mask_type):
+    @transform.apply(transform.select_2d_variables)
+    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    def bias_2d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing biases for 2D variables, {mask_type}")
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
         biases_area_weighted_avg = weighted_mean(
             predicted - target, weights=grid.area, dims=HORIZONTAL_DIMS
         )
@@ -154,11 +180,16 @@ for mask_type in ["global", "sea", "land"]:
 for mask_type in ["global", "sea", "land"]:
 
     @metrics_registry.register(f"bias_pressure_level_{mask_type}")
-    @transform.apply("select_3d_variables")
-    @transform.apply("regrid_zdim_to_pressure_levels")
-    @transform.apply("mask_to_sfc_type", mask_type)
-    def bias_3d(predicted, target, grid, mask_type=mask_type):
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.regrid_zdim_to_pressure_levels)
+    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    def bias_3d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing biases for 3D variables, {mask_type}")
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
         if len(predicted) == 0:
             return xr.Dataset()
         biases_area_weighted_avg = weighted_mean(
@@ -170,10 +201,15 @@ for mask_type in ["global", "sea", "land"]:
 for mask_type in ["global", "sea", "land"]:
 
     @metrics_registry.register(f"bias_2d_zonal_avg_{mask_type}")
-    @transform.apply("select_2d_variables")
-    @transform.apply("mask_to_sfc_type", mask_type)
-    def bias_zonal_avg_2d(predicted, target, grid, mask_type=mask_type):
+    @transform.apply(transform.select_2d_variables)
+    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    def bias_zonal_avg_2d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing zonal avg biases for 2D variables, {mask_type}")
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
         zonal_avg_bias = zonal_mean(predicted - target, grid.lat)
         return zonal_avg_bias.mean("time")
 
@@ -181,11 +217,16 @@ for mask_type in ["global", "sea", "land"]:
 for mask_type in ["global", "sea", "land"]:
 
     @metrics_registry.register(f"bias_pressure_level_zonal_avg_{mask_type}")
-    @transform.apply("select_3d_variables")
-    @transform.apply("regrid_zdim_to_pressure_levels")
-    @transform.apply("mask_to_sfc_type", mask_type)
-    def bias_zonal_avg_3d(predicted, target, grid, mask_type=mask_type):
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.regrid_zdim_to_pressure_levels)
+    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    def bias_zonal_avg_3d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing zonal avg biases for 3D variables, {mask_type}")
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
         if len(predicted) == 0:
             return xr.Dataset()
         zonal_avg_bias = zonal_mean(predicted - target, grid.lat)
@@ -195,11 +236,16 @@ for mask_type in ["global", "sea", "land"]:
 for mask_type in ["global", "sea", "land"]:
 
     @metrics_registry.register(f"mse_pressure_level_zonal_avg_{mask_type}")
-    @transform.apply("select_3d_variables")
-    @transform.apply("regrid_zdim_to_pressure_levels")
-    @transform.apply("mask_to_sfc_type", mask_type)
-    def mse_zonal_avg_3d(predicted, target, grid, mask_type=mask_type):
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.regrid_zdim_to_pressure_levels)
+    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    def mse_zonal_avg_3d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing zonal avg MSEs for 3D variables, {mask_type}")
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
         if len(predicted) == 0:
             return xr.Dataset()
         zonal_avg_mse = zonal_mean((predicted - target) ** 2, grid.lat)
@@ -209,11 +255,16 @@ for mask_type in ["global", "sea", "land"]:
 for mask_type in ["global", "sea", "land"]:
 
     @metrics_registry.register(f"variance_pressure_level_zonal_avg_{mask_type}")
-    @transform.apply("select_3d_variables")
-    @transform.apply("regrid_zdim_to_pressure_levels")
-    @transform.apply("mask_to_sfc_type", mask_type)
-    def variance_zonal_avg_3d(predicted, target, grid, mask_type=mask_type):
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.regrid_zdim_to_pressure_levels)
+    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    def variance_zonal_avg_3d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing zonal avg variance for 3D variables, {mask_type}")
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
         if len(predicted) == 0:
             return xr.Dataset()
         mean = weighted_mean(target, weights=grid.area, dims=HORIZONTAL_DIMS).mean(

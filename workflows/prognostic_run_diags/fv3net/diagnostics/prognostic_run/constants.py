@@ -4,6 +4,7 @@ from typing import Mapping, Sequence, Optional
 from dataclasses import dataclass
 
 HORIZONTAL_DIMS = ["x", "y", "tile"]
+VERTICAL_DIM = "z"
 
 # argument typehint for diags in save_prognostic_run_diags but used
 # by multiple modules split out to group operations and simplify
