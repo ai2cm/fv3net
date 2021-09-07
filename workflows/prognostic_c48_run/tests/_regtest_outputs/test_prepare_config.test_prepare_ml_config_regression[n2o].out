@@ -458,33 +458,7 @@ namelist:
     fvmxl: 99999
     ldebug: false
 nudging: null
-online_emulator:
-  emulator:
-    batch: null
-    batch_size: 64
-    cloud_water: false
-    epochs: 1
-    extra_input_variables: []
-    learning_rate: 0.01
-    levels: 79
-    momentum: 0.5
-    num_hidden: 256
-    num_hidden_layers: 1
-    output_path: ''
-    relative_humidity: false
-    target:
-      levels: []
-      q_weight: 1000000.0
-      qc_weight: 0.0
-      rh_weight: 0.0
-      t_weight: 100
-      u_weight: 100
-      v_weight: 100
-    wandb_logger: false
-    weight_sharing: false
-  ignore_humidity_below: null
-  online: false
-  train: true
+online_emulator: null
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
 scikit_learn: null
