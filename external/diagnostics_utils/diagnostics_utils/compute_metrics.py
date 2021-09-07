@@ -186,3 +186,34 @@ for mask_type in ["global", "sea", "land"]:
             return xr.Dataset()
         zonal_avg_bias = zonal_mean(predicted - target, grid.lat)
         return zonal_avg_bias.mean("time")
+
+
+for mask_type in ["global", "sea", "land"]:
+
+    @metrics_registry.register(f"mse_pressure_level_zonal_avg_{mask_type}")
+    @transform.apply("select_3d_variables")
+    @transform.apply("regrid_zdim_to_pressure_levels")
+    @transform.apply("mask_to_sfc_type", mask_type)
+    def mse_zonal_avg_3d(predicted, target, grid, mask_type=mask_type):
+        logger.info(f"Preparing zonal avg MSEs for 3D variables, {mask_type}")
+        if len(predicted) == 0:
+            return xr.Dataset()
+        zonal_avg_mse = zonal_mean((predicted - target) ** 2, grid.lat)
+        return zonal_avg_mse.mean("time")
+
+
+for mask_type in ["global", "sea", "land"]:
+
+    @metrics_registry.register(f"variance_pressure_level_zonal_avg_{mask_type}")
+    @transform.apply("select_3d_variables")
+    @transform.apply("regrid_zdim_to_pressure_levels")
+    @transform.apply("mask_to_sfc_type", mask_type)
+    def variance_zonal_avg_3d(predicted, target, grid, mask_type=mask_type):
+        logger.info(f"Preparing zonal avg variance for 3D variables, {mask_type}")
+        if len(predicted) == 0:
+            return xr.Dataset()
+        mean = weighted_mean(target, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
+            "time"
+        )
+        zonal_avg_variance = zonal_mean((mean - target) ** 2, grid.lat)
+        return zonal_avg_variance.mean("time")
