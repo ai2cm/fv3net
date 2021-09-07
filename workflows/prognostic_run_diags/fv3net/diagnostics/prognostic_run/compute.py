@@ -82,7 +82,6 @@ def _merge_diag_computes(
     def _compute(func_name, func, key, diag_arg):
         return registries[key].load(func_name, func, diag_arg)
 
-    print(merged_input_data[0])
     computed_outputs = Parallel(n_jobs=n_jobs, verbose=True)(
         delayed(_compute)(*compute_args) for compute_args in merged_input_data
     )
@@ -169,9 +168,9 @@ def _assign_source_attrs(
 
 
 @registry_dycore.register("rms_global")
-@transform.apply("resample_time", "3H", inner_join=True)
-@transform.apply("daily_mean", datetime.timedelta(days=10))
-@transform.apply("subset_variables", RMSE_VARS)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+@transform.apply(transform.subset_variables, RMSE_VARS)
 def rms_errors(diag_arg: DiagArg):
     logger.info("Preparing rms errors")
     prognostic, verification, grid = (
@@ -185,8 +184,8 @@ def rms_errors(diag_arg: DiagArg):
 
 
 @registry_dycore.register("zonal_and_time_mean")
-@transform.apply("resample_time", "1H")
-@transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
+@transform.apply(transform.resample_time, "1H")
+@transform.apply(transform.subset_variables, GLOBAL_AVERAGE_DYCORE_VARS)
 def zonal_means_dycore(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (dycore)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
@@ -195,8 +194,8 @@ def zonal_means_dycore(diag_arg: DiagArg):
 
 
 @registry_physics.register("zonal_and_time_mean")
-@transform.apply("resample_time", "1H")
-@transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
+@transform.apply(transform.resample_time, "1H")
+@transform.apply(transform.subset_variables, GLOBAL_AVERAGE_PHYSICS_VARS)
 def zonal_means_physics(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (physics)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
@@ -205,9 +204,9 @@ def zonal_means_physics(diag_arg: DiagArg):
 
 
 @registry_3d.register("pressure_level_zonal_time_mean")
-@transform.apply("subset_variables", PRESSURE_INTERPOLATED_VARS)
-@transform.apply("insert_absent_3d_output_placeholder")
-@transform.apply("resample_time", "3H")
+@transform.apply(transform.subset_variables, PRESSURE_INTERPOLATED_VARS)
+@transform.apply(transform.insert_absent_3d_output_placeholder)
+@transform.apply(transform.resample_time, "3H")
 def zonal_means_3d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (3d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
@@ -217,9 +216,9 @@ def zonal_means_3d(diag_arg: DiagArg):
 
 
 @registry_3d.register("pressure_level_zonal_bias")
-@transform.apply("subset_variables", PRESSURE_INTERPOLATED_VARS)
-@transform.apply("insert_absent_3d_output_placeholder")
-@transform.apply("resample_time", "3H")
+@transform.apply(transform.subset_variables, PRESSURE_INTERPOLATED_VARS)
+@transform.apply(transform.insert_absent_3d_output_placeholder)
+@transform.apply(transform.resample_time, "3H")
 def zonal_bias_3d(diag_arg: DiagArg):
     logger.info("Preparing zonal mean bias (3d)")
     prognostic, verification, grid = (
@@ -233,8 +232,8 @@ def zonal_bias_3d(diag_arg: DiagArg):
 
 
 @registry_dycore.register("zonal_bias")
-@transform.apply("resample_time", "1H")
-@transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
+@transform.apply(transform.resample_time, "1H")
+@transform.apply(transform.subset_variables, GLOBAL_AVERAGE_DYCORE_VARS)
 def zonal_and_time_mean_biases_dycore(diag_arg: DiagArg):
     prognostic, verification, grid = (
         diag_arg.prediction,
@@ -247,8 +246,8 @@ def zonal_and_time_mean_biases_dycore(diag_arg: DiagArg):
 
 
 @registry_physics.register("zonal_bias")
-@transform.apply("resample_time", "1H")
-@transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
+@transform.apply(transform.resample_time, "1H")
+@transform.apply(transform.subset_variables, GLOBAL_BIAS_PHYSICS_VARS)
 def zonal_and_time_mean_biases_physics(diag_arg: DiagArg):
     logger.info("Preparing zonal+time mean biases (physics)")
     prognostic, verification, grid = (
@@ -269,18 +268,18 @@ for variable_set in ["dycore", "physics"]:
         registry = registry_physics
 
     @registry.register("zonal_mean_value")
-    @transform.apply("resample_time", "3H", inner_join=True)
-    @transform.apply("daily_mean", datetime.timedelta(days=10))
-    @transform.apply("subset_variables", subset_variables)
+    @transform.apply(transform.resample_time, "3H", inner_join=True)
+    @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+    @transform.apply(transform.subset_variables, subset_variables)
     def zonal_mean_hovmoller(diag_arg: DiagArg):
         logger.info(f"Preparing zonal mean values ({variable_set})")
         prognostic, grid = diag_arg.prediction, diag_arg.grid
         return zonal_mean(prognostic, grid.lat)
 
     @registry.register("zonal_mean_bias")
-    @transform.apply("resample_time", "3H", inner_join=True)
-    @transform.apply("daily_mean", datetime.timedelta(days=10))
-    @transform.apply("subset_variables", subset_variables)
+    @transform.apply(transform.resample_time, "3H", inner_join=True)
+    @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+    @transform.apply(transform.subset_variables, subset_variables)
     def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
         logger.info(f"Preparing zonal mean biases ({variable_set})")
         prognostic, verification, grid = (
@@ -293,10 +292,10 @@ for variable_set in ["dycore", "physics"]:
     for mask_type in ["global", "land", "sea", "tropics"]:
 
         @registry.register(f"spatial_min_{variable_set}_{mask_type}")
-        @transform.apply("mask_area", mask_type)
-        @transform.apply("resample_time", "3H")
-        @transform.apply("daily_mean", datetime.timedelta(days=10))
-        @transform.apply("subset_variables", subset_variables)
+        @transform.apply(transform.mask_area, mask_type)
+        @transform.apply(transform.resample_time, "3H")
+        @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+        @transform.apply(transform.subset_variables, subset_variables)
         def spatial_min(diag_arg: DiagArg, mask_type=mask_type):
             logger.info(f"Preparing minimum for variables ({mask_type})")
             prognostic, grid = diag_arg.prediction, diag_arg.grid
@@ -305,10 +304,10 @@ for variable_set in ["dycore", "physics"]:
                 return masked.min(dim=HORIZONTAL_DIMS)
 
         @registry.register(f"spatial_max_{variable_set}_{mask_type}")
-        @transform.apply("mask_area", mask_type)
-        @transform.apply("resample_time", "3H")
-        @transform.apply("daily_mean", datetime.timedelta(days=10))
-        @transform.apply("subset_variables", subset_variables)
+        @transform.apply(transform.mask_area, mask_type)
+        @transform.apply(transform.resample_time, "3H")
+        @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+        @transform.apply(transform.subset_variables, subset_variables)
         def spatial_max(diag_arg: DiagArg, mask_type=mask_type):
             logger.info(f"Preparing maximum for variables ({mask_type})")
             prognostic, grid = diag_arg.prediction, diag_arg.grid
@@ -320,10 +319,10 @@ for variable_set in ["dycore", "physics"]:
 for mask_type in ["global", "land", "sea", "tropics"]:
 
     @registry_dycore.register(f"spatial_mean_dycore_{mask_type}")
-    @transform.apply("mask_area", mask_type)
-    @transform.apply("resample_time", "3H")
-    @transform.apply("daily_mean", datetime.timedelta(days=10))
-    @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
+    @transform.apply(transform.mask_area, mask_type)
+    @transform.apply(transform.resample_time, "3H")
+    @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+    @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_DYCORE_VARS)
     def global_averages_dycore(diag_arg: DiagArg, mask_type=mask_type):
         logger.info(f"Preparing averages for dycore variables ({mask_type})")
         prognostic, grid = diag_arg.prediction, diag_arg.grid
@@ -333,10 +332,10 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 for mask_type in ["global", "land", "sea", "tropics"]:
 
     @registry_physics.register(f"spatial_mean_physics_{mask_type}")
-    @transform.apply("mask_area", mask_type)
-    @transform.apply("resample_time", "3H")
-    @transform.apply("daily_mean", datetime.timedelta(days=10))
-    @transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
+    @transform.apply(transform.mask_area, mask_type)
+    @transform.apply(transform.resample_time, "3H")
+    @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+    @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_PHYSICS_VARS)
     def global_averages_physics(diag_arg: DiagArg, mask_type=mask_type):
         logger.info(f"Preparing averages for physics variables ({mask_type})")
         prognostic, grid = diag_arg.prediction, diag_arg.grid
@@ -346,10 +345,10 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 for mask_type in ["global", "land", "sea", "tropics"]:
 
     @registry_physics.register(f"mean_bias_physics_{mask_type}")
-    @transform.apply("mask_area", mask_type)
-    @transform.apply("resample_time", "3H", inner_join=True)
-    @transform.apply("daily_mean", datetime.timedelta(days=10))
-    @transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
+    @transform.apply(transform.mask_area, mask_type)
+    @transform.apply(transform.resample_time, "3H", inner_join=True)
+    @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+    @transform.apply(transform.subset_variables, GLOBAL_BIAS_PHYSICS_VARS)
     def global_biases_physics(diag_arg: DiagArg, mask_type=mask_type):
         logger.info(f"Preparing average biases for physics variables ({mask_type})")
         prognostic, verification, grid = (
@@ -365,10 +364,10 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 for mask_type in ["global", "land", "sea", "tropics"]:
 
     @registry_dycore.register(f"mean_bias_dycore_{mask_type}")
-    @transform.apply("mask_area", mask_type)
-    @transform.apply("resample_time", "3H", inner_join=True)
-    @transform.apply("daily_mean", datetime.timedelta(days=10))
-    @transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
+    @transform.apply(transform.mask_area, mask_type)
+    @transform.apply(transform.resample_time, "3H", inner_join=True)
+    @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+    @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_DYCORE_VARS)
     def global_biases_dycore(diag_arg: DiagArg, mask_type=mask_type):
         logger.info(f"Preparing average biases for dycore variables ({mask_type})")
         prognostic, verification, grid = (
@@ -382,8 +381,8 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 
 
 @registry_physics.register("time_mean_value")
-@transform.apply("resample_time", "1H", inner_join=True)
-@transform.apply("subset_variables", TIME_MEAN_VARS)
+@transform.apply(transform.resample_time, "1H", inner_join=True)
+@transform.apply(transform.subset_variables, TIME_MEAN_VARS)
 def time_means_physics(diag_arg: DiagArg):
     logger.info("Preparing time means for physics variables")
     prognostic = diag_arg.prediction
@@ -391,8 +390,8 @@ def time_means_physics(diag_arg: DiagArg):
 
 
 @registry_physics.register("time_mean_bias")
-@transform.apply("resample_time", "1H", inner_join=True)
-@transform.apply("subset_variables", TIME_MEAN_VARS)
+@transform.apply(transform.resample_time, "1H", inner_join=True)
+@transform.apply(transform.subset_variables, TIME_MEAN_VARS)
 def time_mean_biases_physics(diag_arg: DiagArg):
     logger.info("Preparing time mean biases for physics variables")
     prognostic, verification = diag_arg.prediction, diag_arg.verification
@@ -400,8 +399,8 @@ def time_mean_biases_physics(diag_arg: DiagArg):
 
 
 @registry_dycore.register("time_mean_value")
-@transform.apply("resample_time", "1H", inner_join=True)
-@transform.apply("subset_variables", TIME_MEAN_VARS)
+@transform.apply(transform.resample_time, "1H", inner_join=True)
+@transform.apply(transform.subset_variables, TIME_MEAN_VARS)
 def time_means_dycore(diag_arg: DiagArg):
     logger.info("Preparing time means for physics variables")
     prognostic = diag_arg.prediction
@@ -409,8 +408,8 @@ def time_means_dycore(diag_arg: DiagArg):
 
 
 @registry_dycore.register("time_mean_bias")
-@transform.apply("resample_time", "1H", inner_join=True)
-@transform.apply("subset_variables", TIME_MEAN_VARS)
+@transform.apply(transform.resample_time, "1H", inner_join=True)
+@transform.apply(transform.subset_variables, TIME_MEAN_VARS)
 def time_mean_biases_dycore(diag_arg: DiagArg):
     logger.info("Preparing time mean biases for physics variables")
     prognostic, verification = diag_arg.prediction, diag_arg.verification
@@ -420,9 +419,9 @@ def time_mean_biases_dycore(diag_arg: DiagArg):
 for mask_type in ["global", "land", "sea"]:
 
     @registry_physics.register(f"diurnal_{mask_type}")
-    @transform.apply("mask_to_sfc_type", mask_type)
-    @transform.apply("resample_time", "1H", inner_join=True)
-    @transform.apply("subset_variables", DIURNAL_CYCLE_VARS)
+    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    @transform.apply(transform.resample_time, "1H", inner_join=True)
+    @transform.apply(transform.subset_variables, DIURNAL_CYCLE_VARS)
     def _diurnal_func(diag_arg: DiagArg, mask_type=mask_type) -> xr.Dataset:
         # mask_type is added as a kwarg solely to give the logging access to the info
         logger.info(
@@ -441,8 +440,8 @@ for mask_type in ["global", "land", "sea"]:
 
 
 @registry_physics.register("histogram")
-@transform.apply("resample_time", "3H", inner_join=True, method="mean")
-@transform.apply("subset_variables", list(HISTOGRAM_BINS.keys()))
+@transform.apply(transform.resample_time, "3H", inner_join=True, method="mean")
+@transform.apply(transform.subset_variables, list(HISTOGRAM_BINS.keys()))
 def compute_histogram(diag_arg: DiagArg):
     logger.info("Computing histograms for physics diagnostics")
     prognostic = diag_arg.prediction
@@ -459,8 +458,8 @@ def compute_histogram(diag_arg: DiagArg):
 
 
 @registry_physics.register("hist_bias")
-@transform.apply("resample_time", "3H", inner_join=True, method="mean")
-@transform.apply("subset_variables", list(HISTOGRAM_BINS.keys()))
+@transform.apply(transform.resample_time, "3H", inner_join=True, method="mean")
+@transform.apply(transform.subset_variables, list(HISTOGRAM_BINS.keys()))
 def compute_histogram_bias(diag_arg: DiagArg):
     logger.info("Computing histogram biases for physics diagnostics")
     prognostic, verification = diag_arg.prediction, diag_arg.verification

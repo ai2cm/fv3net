@@ -8,7 +8,7 @@ diagnostic function arguments.
 """
 
 import logging
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, Callable
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -31,7 +31,11 @@ def add_to_input_transform_fns(func):
     return func
 
 
-def apply(transform_key: str, *transform_args_partial, **transform_kwargs):
+def apply(
+    transform_func: Callable[[DiagArg], DiagArg],
+    *transform_args_partial,
+    **transform_kwargs,
+):
     """
     Wrapper to apply transform to input diagnostic arguments (tuple of three datasets).
     Transform arguments are specified per diagnostic function to enable a query-style
@@ -57,19 +61,10 @@ def apply(transform_key: str, *transform_args_partial, **transform_kwargs):
     """
 
     def _apply_to_diag_func(diag_func):
-
-        if transform_key not in _TRANSFORM_FNS:
-            raise KeyError(
-                f"Unrecognized transform, {transform_key} requested "
-                f"for {diag_func.__name__}"
-            )
-
-        transform_func = _TRANSFORM_FNS[transform_key]
-
         def transform(diag_args):
 
             logger.debug(
-                f"Adding transform, {transform_key}, "
+                f"Adding transform, {transform_func.__name__}, "
                 f"to diagnostic function: {diag_func.__name__}"
                 f"\n\targs: {transform_args_partial}"
                 f"\n\tkwargs: {transform_kwargs}"
