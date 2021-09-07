@@ -158,10 +158,10 @@ def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
     return summary
 
 
-def _standardize_names(*args: Sequence[xr.Dataset]):
+def _standardize_names(*args: xr.Dataset):
     renamed = []
     for ds in args:
-        renamed.append(ds.rename({var: var.lower() for var in ds}))
+        renamed.append(ds.rename({var: str(var).lower() for var in ds}))
     return renamed
 
 
