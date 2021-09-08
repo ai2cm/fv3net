@@ -15,6 +15,7 @@ from ..._shared import ArrayPacker
 from ._sequences import _ThreadedSequencePreLoader
 from .packer import get_unpack_layer
 from .normalizer import LayerStandardScaler
+from .shared import DenseNetworkConfig
 import numpy as np
 from fv3fit.keras._models.shared import get_input_vector, PureKerasModel
 from loaders.batches import shuffle
@@ -151,13 +152,9 @@ class PrecipitativeHyperparameters:
             addition to the default inputs (air_temperature, specific_humidity,
             physics_precip, and pressure_thickness_of_atmospheric_layer)
         optimizer_config: selection of algorithm to be used in gradient descent
-        kernel_regularizer_config: selection of regularizer for hidden dense layer
-            weights, by default no regularization is applied
+        dense_network: configuration for dense component of network
         residual_regularizer_config: selection of regularizer for unconstrainted
             (non-flux based) tendency output, by default no regularization is applied
-        depth: number of dense layers to use between the input and output layer.
-            The number of hidden layers will be (depth - 1)
-        width: number of neurons to use on layers between the input and output layer
         loss: loss function to use, should be 'mse' or 'mae'
         save_model_checkpoints: if True, save one model per epoch when
             dumping, under a 'model_checkpoints' subdirectory
@@ -176,14 +173,12 @@ class PrecipitativeHyperparameters:
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")
     )
-    kernel_regularizer_config: RegularizerConfig = dataclasses.field(
-        default_factory=lambda: RegularizerConfig("none")
+    dense_network: DenseNetworkConfig = dataclasses.field(
+        default_factory=lambda: DenseNetworkConfig(width=16)
     )
     residual_regularizer_config: RegularizerConfig = dataclasses.field(
         default_factory=lambda: RegularizerConfig("none")
     )
-    depth: int = 3
-    width: int = 16
     epochs: int = 3
     loss: str = "mse"
     save_model_checkpoints: bool = False
@@ -204,14 +199,12 @@ def train_precipitative_model(
     stacked_validation_batches = StackedBatches(validation_batches, random_state)
     training_obj = PrecipitativeModel(
         additional_input_variables=hyperparameters.additional_input_variables,
+        dense_network=hyperparameters.dense_network,
         epochs=hyperparameters.epochs,
         workers=hyperparameters.workers,
         max_queue_size=hyperparameters.max_queue_size,
-        depth=hyperparameters.depth,
-        width=hyperparameters.width,
         train_batch_size=hyperparameters.keras_batch_size,
         optimizer=hyperparameters.optimizer_config.instance,
-        kernel_regularizer=hyperparameters.kernel_regularizer_config.instance,
         residual_regularizer=hyperparameters.residual_regularizer_config.instance,
         save_model_checkpoints=hyperparameters.save_model_checkpoints,
         couple_precip_to_dQ1_dQ2=hyperparameters.couple_precip_to_dQ1_dQ2,
@@ -239,14 +232,12 @@ class PrecipitativeModel:
     def __init__(
         self,
         additional_input_variables: Iterable[str],
+        dense_network: DenseNetworkConfig,
         epochs: int = 1,
         workers: int = 1,
         max_queue_size: int = 8,
-        depth: int = 3,
-        width: int = 16,
         train_batch_size: Optional[int] = None,
         optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
-        kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         residual_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         save_model_checkpoints: bool = False,
         couple_precip_to_dQ1_dQ2: bool = False,
@@ -256,6 +247,7 @@ class PrecipitativeModel:
             [self._T_NAME, self._Q_NAME, self._DELP_NAME, self._PHYS_PRECIP_NAME]
             + list(additional_input_variables)
         )
+        self._dense_network = dense_network
         self._loss_type = loss_type
         self.output_variables = ("dQ1", "dQ2", "total_precipitation_rate")
         self._couple_precip_to_dQ1_dQ2 = couple_precip_to_dQ1_dQ2
@@ -280,12 +272,9 @@ class PrecipitativeModel:
         self._workers = workers
         self._max_queue_size = max_queue_size
         self._statistics_are_fit = False
-        self._depth = depth
-        self._width = width
         if optimizer is None:
             optimizer = tf.keras.optimizers.Adam()
         self._optimizer = optimizer
-        self._kernel_regularizer = kernel_regularizer
         self._save_model_checkpoints = save_model_checkpoints
         if save_model_checkpoints:
             self._checkpoint_path: Optional[
@@ -326,29 +315,16 @@ class PrecipitativeModel:
             self.input_packer, n_window=None, series=False
         )
         norm_input_vector = self.input_scaler.normalize_layer(input_vector)
-        delp = input_layers[self.input_variables.index(self._DELP_NAME)]
-        physics_precip = input_layers[
-            self.input_variables.index(self._PHYS_PRECIP_NAME)
-        ]
-
-        norm_x = norm_input_vector
-        for i in range(self._depth - 1):
-            hidden_layer = tf.keras.layers.Dense(
-                self._width,
-                activation=tf.keras.activations.relu,
-                kernel_regularizer=self._kernel_regularizer,
-                name=f"hidden_layer_{i}",
-            )
-            norm_x = hidden_layer(norm_x)
         output_features = sum(self.output_without_precip_packer.feature_counts.values())
-        norm_output_vector = tf.keras.layers.Dense(
+        dense_network = self._dense_network.build(norm_input_vector, output_features)
+        regularized_output = tf.keras.layers.Dense(
             output_features,
             activation="linear",
             activity_regularizer=self._residual_regularizer,
-            name="dense_output",
-        )(norm_x)
+            name=f"regularized_output",
+        )(dense_network.hidden_outputs[-1])
         denormalized_output = self.output_without_precip_scaler.denormalize_layer(
-            norm_output_vector
+            regularized_output
         )
         unpacked_output = get_unpack_layer(
             self.output_without_precip_packer, feature_dim=1
@@ -358,10 +334,12 @@ class PrecipitativeModel:
         T_tendency = unpacked_output[0]
         q_tendency = unpacked_output[1]
 
+        # share hidden layers with the dense network,
+        # but no activity regularization for column precipitation
         norm_column_precip_vector = tf.keras.layers.Dense(
             self.humidity_packer.feature_counts[self._Q_TENDENCY_NAME],
             activation="linear",
-        )(norm_x)
+        )(dense_network.hidden_outputs[-1])
         column_precip = self.humidity_scaler.denormalize_layer(
             norm_column_precip_vector
         )
@@ -373,6 +351,11 @@ class PrecipitativeModel:
             q_tendency = tf.keras.layers.Add(name="q_tendency")(
                 [q_tendency, column_precip]
             )
+
+        delp = input_layers[self.input_variables.index(self._DELP_NAME)]
+        physics_precip = input_layers[
+            self.input_variables.index(self._PHYS_PRECIP_NAME)
+        ]
         surface_precip = tf.keras.layers.Add(name="add_physics_precip")(
             [
                 physics_precip,

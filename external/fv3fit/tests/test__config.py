@@ -1,9 +1,7 @@
 import dataclasses
-from fv3fit._shared.config import DenseHyperparameters
-from fv3fit._shared.config import OptimizerConfig
+from fv3fit import DenseHyperparameters, OptimizerConfig, TrainingConfig
 import os
 import tempfile
-from fv3fit._shared.config import TrainingConfig
 import yaml
 
 import pytest

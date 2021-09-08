@@ -1,10 +1,9 @@
-from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, List, Any
+from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, List, Any, Set
 import xarray as xr
 import logging
 import copy
 import json
 import tensorflow as tf
-import tensorflow_addons as tfa
 import tempfile
 import dacite
 import shutil
@@ -19,13 +18,18 @@ from ..._shared import (
     match_prediction_to_input_coords,
     SAMPLE_DIM_NAME,
 )
-from ..._shared.config import DenseHyperparameters, register_training_function
+from ..._shared.config import (
+    Hyperparameters,
+    OptimizerConfig,
+    register_training_function,
+)
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
 from ._sequences import _XyArraySequence, _ThreadedSequencePreLoader
 from .normalizer import LayerStandardScaler
 from .loss import get_weighted_mse, get_weighted_mae
+from .shared import DenseNetworkConfig
 from loaders.batches import Take, shuffle
 import yaml
 from vcm import safe
@@ -40,6 +44,54 @@ KERAS_CHECKPOINT_PATH = "model_checkpoints"
 # Outer array indexes epoch, inner array indexes batch (if applicable)
 EpochLossHistory = Sequence[Sequence[Union[float, int]]]
 History = Mapping[str, EpochLossHistory]
+
+
+@dataclasses.dataclass
+class DenseHyperparameters(Hyperparameters):
+    """
+    Configuration for training a dense neural network based model.
+
+    Args:
+        input_variables: names of variables to use as inputs
+        output_variables: names of variables to use as outputs
+        weights: loss function weights, defined as a dict whose keys are
+            variable names and values are either a scalar referring to the total
+            weight of the variable. Default is a total weight of 1
+            for each variable.
+        normalize_loss: if True (default), normalize outputs by their standard
+            deviation before computing the loss function
+        optimizer_config: selection of algorithm to be used in gradient descent
+        loss: loss function to use, should be 'mse' or 'mae'
+        save_model_checkpoints: if True, save one model per epoch when
+            dumping, under a 'model_checkpoints' subdirectory
+        nonnegative_outputs: if True, add a ReLU activation layer as the last layer
+            after output denormalization layer to ensure outputs are always >=0
+            Defaults to False.
+        fit_kwargs: other keyword arguments to be passed to the underlying
+            tf.keras.Model.fit() method
+    """
+
+    input_variables: List[str]
+    output_variables: List[str]
+    weights: Optional[Mapping[str, Union[int, float]]] = None
+    normalize_loss: bool = True
+    optimizer_config: OptimizerConfig = dataclasses.field(
+        default_factory=lambda: OptimizerConfig("Adam")
+    )
+    dense_network: DenseNetworkConfig = dataclasses.field(
+        default_factory=DenseNetworkConfig
+    )
+    epochs: int = 3
+    loss: str = "mse"
+    save_model_checkpoints: bool = False
+    nonnegative_outputs: bool = False
+
+    # TODO: remove fit_kwargs by fixing how validation data is passed
+    fit_kwargs: Optional[dict] = None
+
+    @property
+    def variables(self) -> Set[str]:
+        return set(self.input_variables).union(self.output_variables)
 
 
 @register_training_function("DenseModel", DenseHyperparameters)
@@ -105,10 +157,6 @@ class DenseModel(Predictor):
         """
         # store (duplicate) hyperparameters like this for ease of serialization
         self._hyperparameters = hyperparameters
-        self._depth = hyperparameters.depth
-        self._width = hyperparameters.width
-        self._spectral_normalization = hyperparameters.spectral_normalization
-        self._gaussian_noise = hyperparameters.gaussian_noise
         self._nonnegative_outputs = hyperparameters.nonnegative_outputs
         # TODO: remove internal sample dim name once sample dim is hardcoded everywhere
         super().__init__(sample_dim_name, input_variables, output_variables)
@@ -130,11 +178,6 @@ class DenseModel(Predictor):
         self._optimizer = hyperparameters.optimizer_config.instance
         self._loss = hyperparameters.loss
         self._epochs = hyperparameters.epochs
-        if hyperparameters.kernel_regularizer_config is not None:
-            regularizer = hyperparameters.kernel_regularizer_config.instance
-        else:
-            regularizer = None
-        self._kernel_regularizer = regularizer
         self._save_model_checkpoints = hyperparameters.save_model_checkpoints
         if hyperparameters.save_model_checkpoints:
             self._checkpoint_path: Optional[
@@ -157,18 +200,7 @@ class DenseModel(Predictor):
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         inputs = tf.keras.Input(n_features_in)
         x = self.X_scaler.normalize_layer(inputs)
-        for i in range(self._depth - 1):
-            hidden_layer = tf.keras.layers.Dense(
-                self._width,
-                activation=tf.keras.activations.relu,
-                kernel_regularizer=self._kernel_regularizer,
-            )
-            if self._spectral_normalization:
-                hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
-            if self._gaussian_noise > 0.0:
-                x = tf.keras.layers.GaussianNoise(self._gaussian_noise)(x)
-            x = hidden_layer(x)
-        x = tf.keras.layers.Dense(n_features_out)(x)
+        x = self._hyperparameters.dense_network.build(x, n_features_out).output
         outputs = self.y_scaler.denormalize_layer(x)
         if self._nonnegative_outputs:
             outputs = tf.keras.layers.Activation(tf.keras.activations.relu)(outputs)
