@@ -110,13 +110,15 @@ def get_losses(
             factor = tf.constant(
                 1.0 / n_outputs / np.mean(std[name].values ** 2), dtype=tf.float32
             )
-            loss_list.append(multiply_loss_by_factor(tf.losses.mse, factor))
+            loss = multiply_loss_by_factor(tf.losses.mse, factor)
         elif loss_type == "mae":
             factor = tf.constant(
                 1.0 / n_outputs / np.mean(std[name].values), dtype=tf.float32
             )
+            loss = multiply_loss_by_factor(tf.losses.mae, factor)
         else:
             raise NotImplementedError(f"loss_type {loss_type} is not implemented")
+        loss_list.append(loss)
 
     return loss_list
 
@@ -154,7 +156,7 @@ class PrecipitativeHyperparameters:
             (non-flux based) tendency output, by default no regularization is applied
         training_loop: configuration of training loop
         loss: loss function to use, should be 'mse' or 'mae'
-        couple_precip_to_dQ1_dQ2: if True, try to recover behavior of Dense model type
+        couple_precip_to_dQ1_dQ2: if False, try to recover behavior of Dense model type
             by not adding "precipitative" terms to dQ1 and dQ2
     """
 
