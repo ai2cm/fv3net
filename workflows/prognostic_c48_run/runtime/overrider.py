@@ -1,4 +1,5 @@
 import dataclasses
+import logging
 from typing import Hashable, Mapping, MutableMapping, Optional, Set, Tuple
 
 import fsspec
@@ -10,6 +11,8 @@ from runtime.types import Diagnostics, Step
 from runtime.derived_state import DerivedFV3State
 
 QuantityState = MutableMapping[Hashable, fv3gfs.util.Quantity]
+
+logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
@@ -37,8 +40,12 @@ class OverriderAdapter:
     diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
 
     def __post_init__(self: "OverriderAdapter"):
+        if self.communicator.rank == 0:
+            logger.debug(f"Opening tendency overriding dataset from: {self.config.url}")
         ds, time_coord = self._open_tendencies_dataset()
         self.tendencies = self._scatter_dataset(ds, time_coord)
+        if self.communicator.rank == 0:
+            logger.debug(f"Finished opening tendency overriding dataset.")
 
     def _open_tendencies_dataset(
         self,
@@ -71,6 +78,8 @@ class OverriderAdapter:
         )
 
     def override(self, name: str, func: Step) -> Diagnostics:
+        if self.communicator.rank == 0:
+            logger.debug(f"Overriding tendencies for {name}.")
         tendencies = self.tendencies.sel(time=self.state.time).load()
         before = self.monitor.checkpoint()
         diags = func()
