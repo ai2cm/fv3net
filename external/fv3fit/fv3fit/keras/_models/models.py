@@ -2,6 +2,7 @@ from typing import (
     Sequence,
     Iterable,
     Mapping,
+    Tuple,
     Union,
     Optional,
     List,
@@ -253,7 +254,7 @@ class DenseModel(Predictor):
             )
             X_val = X_val[val_sample, :]
             y_val = y_val[val_sample, :]
-            validation_data = (X_val, y_val)
+            validation_data: Optional[Tuple[np.ndarray, np.ndarray]] = (X_val, y_val)
             Xy = Take(Xy, len(Xy) - 1)  # type: ignore
         elif validation_dataset is not None:
             stacked_validation_dataset = stack_non_vertical(validation_dataset)
@@ -262,7 +263,7 @@ class DenseModel(Predictor):
             val_sample = np.random.choice(
                 np.arange(len(y_val)), validation_samples, replace=False
             )
-            validation_data = X_val[val_sample], y_val[val_sample]
+            validation_data = (X_val[val_sample], y_val[val_sample])
         else:
             validation_data = None
         self.training_loop.fit_loop(
