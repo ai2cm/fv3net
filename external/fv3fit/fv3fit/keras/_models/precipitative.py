@@ -297,8 +297,10 @@ class PrecipitativeModel:
         column_precip = self.humidity_scaler.denormalize_layer(
             norm_column_precip_vector
         )
-        column_heating = tf.keras.layers.Lambda(condensational_heating)(column_precip)
         if self._couple_precip_to_dQ1_dQ2:
+            column_heating = tf.keras.layers.Lambda(condensational_heating)(
+                column_precip
+            )
             T_tendency = tf.keras.layers.Add(name="T_tendency")(
                 [T_tendency, column_heating]
             )

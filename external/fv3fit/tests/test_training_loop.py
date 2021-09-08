@@ -99,10 +99,7 @@ def test_fit_loop_calls_fit_with_data(n_batches, n_epochs):
         for X, y in mock_Xy:
             assert (
                 mock.call(
-                    X,
-                    y,
-                    batch_size=config.keras_batch_size,
-                    validation_data=validation_data,
+                    X, y, batch_size=config.batch_size, validation_data=validation_data,
                 )
                 in call_args_list
             )

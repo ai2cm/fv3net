@@ -65,14 +65,14 @@ class DenseHyperparameters(Hyperparameters):
         normalize_loss: if True (default), normalize outputs by their standard
             deviation before computing the loss function
         optimizer_config: selection of algorithm to be used in gradient descent
+        dense_network: configuration of dense network
+        training_loop: configuration of training loop
         loss: loss function to use, should be 'mse' or 'mae'
         save_model_checkpoints: if True, save one model per epoch when
             dumping, under a 'model_checkpoints' subdirectory
         nonnegative_outputs: if True, add a ReLU activation layer as the last layer
             after output denormalization layer to ensure outputs are always >=0
             Defaults to False.
-        fit_kwargs: other keyword arguments to be passed to the underlying
-            tf.keras.Model.fit() method
     """
 
     input_variables: List[str]

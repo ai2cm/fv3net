@@ -34,14 +34,14 @@ class TrainingLoopConfig:
     workers: number of workers for parallelized loading of batches fed into
         training, if 1 uses serial loading instead
     max_queue_size: max number of batches to hold in the parallel loading queue
-    keras_batch_size: actual batch_size to pass to keras model.fit,
+    batch_size: actual batch_size to pass to keras model.fit,
         independent of number of samples in each data batch in batches
     """
 
     epochs: int = 3
     workers: int = 1
     max_queue_size: int = 8
-    keras_batch_size: int = 16
+    batch_size: int = 16
 
     def fit_loop(
         self,
@@ -74,7 +74,7 @@ class TrainingLoopConfig:
                         X,
                         y,
                         validation_data=validation_data,
-                        batch_size=self.keras_batch_size,
+                        batch_size=self.batch_size,
                     )
                 )
             for callback in callbacks:

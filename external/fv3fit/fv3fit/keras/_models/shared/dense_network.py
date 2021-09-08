@@ -19,6 +19,15 @@ class DenseNetwork:
 
 @dataclasses.dataclass
 class DenseNetworkConfig:
+    """
+    Attributes:
+        width: number of neurons in each hidden layer
+        depth: number of hidden layers + 1 (the output layer is a layer)
+        kernel_regularizer: configuration of regularization for hidden layer weights
+        gaussian_noise: amount of gaussian noise to add to each hidden layer output
+        spectral_normalization: if True, apply spectral normalization to hidden layers
+    """
+
     width: int = 8
     depth: int = 3
     kernel_regularizer: RegularizerConfig = dataclasses.field(
@@ -26,9 +35,6 @@ class DenseNetworkConfig:
     )
     gaussian_noise: float = 0.0
     spectral_normalization: bool = False
-    output_activity_regularizer: RegularizerConfig = dataclasses.field(
-        default_factory=lambda: RegularizerConfig("none")
-    )
 
     def build(
         self, x_in: tf.Tensor, n_features_out: int, label: str = ""
@@ -70,9 +76,6 @@ class DenseNetworkConfig:
             x = hidden_layer(x)
             hidden_outputs.append(x)
         output = tf.keras.layers.Dense(
-            n_features_out,
-            activation="linear",
-            # activity_regularizer=self.output_activity_regularizer.instance,
-            name=f"dense_network_{label}_output",
+            n_features_out, activation="linear", name=f"dense_network_{label}_output",
         )(x)
         return DenseNetwork(hidden_outputs=hidden_outputs, output=output)
