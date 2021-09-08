@@ -9,16 +9,13 @@ from fv3fit._shared.scaler import StandardScaler
 from fv3fit._shared.stacking import SAMPLE_DIM_NAME, StackedBatches
 import tensorflow as tf
 import xarray as xr
-import os
-import tempfile
 from ..._shared import ArrayPacker
-from ._sequences import _ThreadedSequencePreLoader
+from ._sequences import _XyMultiArraySequence
 from .packer import get_unpack_layer
 from .normalizer import LayerStandardScaler
-from .shared import DenseNetworkConfig
+from .shared import DenseNetworkConfig, TrainingLoopConfig
 import numpy as np
 from fv3fit.keras._models.shared import get_input_vector, PureKerasModel
-from loaders.batches import shuffle
 import logging
 
 
@@ -157,16 +154,8 @@ class PrecipitativeHyperparameters:
         dense_network: configuration for dense component of network
         residual_regularizer_config: selection of regularizer for unconstrainted
             (non-flux based) tendency output, by default no regularization is applied
+        training_loop: configuration of training loop
         loss: loss function to use, should be 'mse' or 'mae'
-        save_model_checkpoints: if True, save one model per epoch when
-            dumping, under a 'model_checkpoints' subdirectory
-        workers: number of workers for parallelized loading of batches fed into
-            training, defaults to serial loading (1 worker)
-        max_queue_size: max number of batches to hold in the parallel loading queue.
-            Defaults to 8.
-        keras_batch_size: actual batch_size to apply in gradient descent updates,
-            independent of number of samples in each batch in batches; optional,
-            uses 32 if omitted
         couple_precip_to_dQ1_dQ2: if False, try to recover behavior of Dense model type
             by not adding "precipitative" terms to dQ1 and dQ2
     """
@@ -181,12 +170,10 @@ class PrecipitativeHyperparameters:
     residual_regularizer_config: RegularizerConfig = dataclasses.field(
         default_factory=lambda: RegularizerConfig("none")
     )
-    epochs: int = 3
+    training_loop: TrainingLoopConfig = dataclasses.field(
+        default_factory=TrainingLoopConfig
+    )
     loss: str = "mse"
-    save_model_checkpoints: bool = False
-    workers: int = 1
-    max_queue_size: int = 8
-    keras_batch_size: int = 32
     couple_precip_to_dQ1_dQ2: bool = True
 
 
@@ -199,19 +186,7 @@ def train_precipitative_model(
     random_state = np.random.RandomState(np.random.get_state()[1][0])
     stacked_train_batches = StackedBatches(train_batches, random_state)
     stacked_validation_batches = StackedBatches(validation_batches, random_state)
-    training_obj = PrecipitativeModel(
-        additional_input_variables=hyperparameters.additional_input_variables,
-        dense_network=hyperparameters.dense_network,
-        epochs=hyperparameters.epochs,
-        workers=hyperparameters.workers,
-        max_queue_size=hyperparameters.max_queue_size,
-        train_batch_size=hyperparameters.keras_batch_size,
-        optimizer=hyperparameters.optimizer_config.instance,
-        residual_regularizer=hyperparameters.residual_regularizer_config.instance,
-        save_model_checkpoints=hyperparameters.save_model_checkpoints,
-        couple_precip_to_dQ1_dQ2=hyperparameters.couple_precip_to_dQ1_dQ2,
-        loss_type=hyperparameters.loss,
-    )
+    training_obj = PrecipitativeModel(hyperparameters=hyperparameters)
     training_obj.fit_statistics(stacked_train_batches[0])
     if len(stacked_validation_batches) > 0:
         val_batch = stacked_validation_batches[0]
@@ -231,28 +206,15 @@ class PrecipitativeModel:
     _T_TENDENCY_NAME = "dQ1"
     _Q_TENDENCY_NAME = "dQ2"
 
-    def __init__(
-        self,
-        additional_input_variables: Iterable[str],
-        dense_network: DenseNetworkConfig,
-        epochs: int = 1,
-        workers: int = 1,
-        max_queue_size: int = 8,
-        train_batch_size: Optional[int] = None,
-        optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
-        residual_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
-        save_model_checkpoints: bool = False,
-        couple_precip_to_dQ1_dQ2: bool = True,
-        loss_type: str = "mse",
-    ):
+    def __init__(self, hyperparameters: PrecipitativeHyperparameters):
         input_variables = tuple(
             [self._T_NAME, self._Q_NAME, self._DELP_NAME, self._PHYS_PRECIP_NAME]
-            + list(additional_input_variables)
+            + list(hyperparameters.additional_input_variables)
         )
-        self._dense_network = dense_network
-        self._loss_type = loss_type
+        self._dense_network = hyperparameters.dense_network
+        self._loss_type = hyperparameters.loss
         self.output_variables = ("dQ1", "dQ2", "total_precipitation_rate")
-        self._couple_precip_to_dQ1_dQ2 = couple_precip_to_dQ1_dQ2
+        self._couple_precip_to_dQ1_dQ2 = hyperparameters.couple_precip_to_dQ1_dQ2
         self.sample_dim_name = SAMPLE_DIM_NAME
         self.input_variables = input_variables
         self.input_packer = ArrayPacker(self.sample_dim_name, input_variables)
@@ -270,22 +232,12 @@ class PrecipitativeModel:
         self.humidity_scaler = LayerStandardScaler()
         self._train_model: Optional[tf.keras.Model] = None
         self._predict_model: Optional[tf.keras.Model] = None
-        self._epochs = epochs
-        self._workers = workers
-        self._max_queue_size = max_queue_size
+        self._training_loop = hyperparameters.training_loop
         self._statistics_are_fit = False
-        if optimizer is None:
-            optimizer = tf.keras.optimizers.Adam()
-        self._optimizer = optimizer
-        self._save_model_checkpoints = save_model_checkpoints
-        if save_model_checkpoints:
-            self._checkpoint_path: Optional[
-                tempfile.TemporaryDirectory
-            ] = tempfile.TemporaryDirectory()
-        else:
-            self._checkpoint_path = None
-        self._train_batch_size = train_batch_size
-        self._residual_regularizer = residual_regularizer
+        self._optimizer = hyperparameters.optimizer_config.instance
+        self._residual_regularizer = (
+            hyperparameters.residual_regularizer_config.instance
+        )
 
     def fit_statistics(self, X: xr.Dataset):
         """
@@ -394,16 +346,13 @@ class PrecipitativeModel:
         )
         return train_model, predict_model
 
-    def fit(self, batches: Sequence[xr.Dataset], validation_batch: xr.Dataset) -> None:
+    def fit(
+        self, batches: Sequence[xr.Dataset], validation_batch: Optional[xr.Dataset]
+    ) -> None:
         """Fits a model using data in the batches sequence.
         """
         if not self._statistics_are_fit:
             raise RuntimeError("fit_statistics must be called before fit")
-        return self._fit_loop(batches, validation_batch)
-
-    def _fit_loop(
-        self, batches: Sequence[xr.Dataset], validation_batch: xr.Dataset
-    ) -> None:
         if self._train_model is None:
             self._train_model, self._predict_model = self._build_model()
         if validation_batch is None:
@@ -413,36 +362,8 @@ class PrecipitativeModel:
                 tuple(validation_batch[name].values for name in self.input_variables),
                 tuple(validation_batch[name].values for name in self.output_variables),
             )
-        for i_epoch in range(self._epochs):
-            epoch_batches = shuffle(batches)
-            if self._workers > 1:
-                epoch_batches = _ThreadedSequencePreLoader(
-                    epoch_batches,
-                    num_workers=self._workers,
-                    max_queue_size=self._max_queue_size,
-                )
-            loss_over_batches, val_loss_over_batches = [], []
-            for i_batch, batch in enumerate(epoch_batches):
-                logger.info(
-                    f"Fitting on batch {i_batch + 1} of {len(epoch_batches)}, "
-                    f"of epoch {i_epoch}..."
-                )
-                history = self._train_model.fit(
-                    x=tuple(batch[name].values for name in self.input_variables),
-                    y=tuple(batch[name].values for name in self.output_variables),
-                    batch_size=self._train_batch_size,
-                    validation_data=validation_data,
-                )
-                loss_over_batches += history.history["loss"]
-                val_loss_over_batches += history.history.get("val_loss", [np.nan])
-            if self._checkpoint_path:
-                self.predictor.dump(
-                    os.path.join(str(self._checkpoint_path), f"epoch_{i_epoch}")
-                )
-                logger.info(
-                    f"Saved model checkpoint after epoch {i_epoch} "
-                    f"to {self._checkpoint_path}"
-                )
+        Xy = _XyMultiArraySequence(self.input_variables, self.output_variables, batches)
+        return self._training_loop.fit_loop(self._train_model, Xy, validation_data)
 
     @property
     def predictor(self) -> PureKerasModel:

@@ -11,7 +11,15 @@ from ._shared.config import (
     get_hyperparameter_class,
 )
 from .keras._models.models import DenseHyperparameters
-from .keras._models.shared import DenseNetworkConfig, DenseNetwork
+from .keras._models.shared import (
+    DenseNetworkConfig,
+    DenseNetwork,
+    PureKerasModel,
+    TrainingLoopConfig,
+    EpochResult,
+    EpochLossHistory,
+    History,
+)
 from .keras._models.precipitative import PrecipitativeHyperparameters
 from . import keras, sklearn, testing
 
