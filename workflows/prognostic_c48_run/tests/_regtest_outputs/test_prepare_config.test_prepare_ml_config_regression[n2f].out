@@ -7,10 +7,6 @@ diagnostics: []
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 fortran_diagnostics: []
-gfs_analysis_data:
-  copy_method: copy
-  filename_pattern: '%Y%m%d_%HZ_T85LR.nc'
-  url: gs://vcm-ml-raw-flexible-retention/2019-12-02-year-2016-T85-nudging-data
 initial_conditions:
 - copy_method: copy
   source_location: gs://ic-bucket/20160805.000000
@@ -193,11 +189,11 @@ namelist:
     current_date:
     - 2016
     - 8
-    - 5
+    - 1
     - 0
+    - 15
     - 0
-    - 0
-    days: 10
+    days: 1
     dt_atmos: 900
     dt_ocean: 900
     force_date_from_namelist: true
@@ -279,7 +275,7 @@ namelist:
     npy: 49
     npz: 79
     ntiles: 6
-    nudge: true
+    nudge: false
     nudge_qv: true
     nwat: 6
     p_fac: 0.1
@@ -295,33 +291,6 @@ namelist:
     warm_start: true
     z_tracer: true
   fv_grid_nml: {}
-  fv_nwp_nudge_nml:
-    add_bg_wind: false
-    do_ps_bias: false
-    ibtrack: true
-    k_breed: 10
-    kbot_winds: 0
-    mask_fac: 0.2
-    nf_ps: 3
-    nf_t: 3
-    nudge_debug: true
-    nudge_hght: false
-    nudge_ps: true
-    nudge_q: true
-    nudge_virt: true
-    nudge_winds: true
-    r_hi: 5.0
-    r_lo: 3.0
-    r_min: 225000.0
-    t_is_tv: false
-    tau_ps: 21600.0
-    tau_q: 21600.0
-    tau_virt: 21600.0
-    tau_winds: 21600.0
-    tc_mask: true
-    time_varying: false
-    track_file_name: No_File_specified
-    use_high_top: true
   gfdl_cloud_microphysics_nml:
     c_cracw: 0.8
     c_paut: 0.5
@@ -338,7 +307,7 @@ namelist:
     do_sedi_heat: false
     dw_land: 0.16
     dw_ocean: 0.1
-    fast_sat_adj: true
+    fast_sat_adj: false
     fix_negative: true
     icloud_f: 1
     mono_prof: true
@@ -408,7 +377,6 @@ namelist:
     shal_cnv: true
     swhtr: true
     trans_trac: true
-    use_analysis_sst: true
     use_ufo: true
   interpolator_nml:
     interp_method: conserve_great_circle
@@ -457,7 +425,17 @@ namelist:
     fvmnl: 99999
     fvmxl: 99999
     ldebug: false
-nudging: null
+nudging:
+  reference_frequency_seconds: 900
+  reference_initial_time: null
+  restarts_path: gs://ic-bucket
+  timescale_hours:
+    air_temperature: 12
+    pressure_thickness_of_atmospheric_layer: 12
+    specific_humidity: 12
+    x_wind: 12
+    y_wind: 12
+online_emulator: null
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
 scikit_learn: null
