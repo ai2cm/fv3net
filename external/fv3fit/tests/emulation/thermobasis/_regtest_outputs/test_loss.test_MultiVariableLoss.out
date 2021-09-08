@@ -1,0 +1,12 @@
+{'loss_u': 0.0, 'loss_v': 0.0, 'loss_q': 0.0, 'loss_rh': 0.0, 'loss_t': 0.0, 'loss': 0.0, 'loss_qc': 0.0, 'relative_humidity_mse/level_5': 0.0, 'loss/variable_3/level_5': 0.0, 'relative_humidity_mse/level_9': 0.0, 'loss/variable_3/level_9': 0.0}
+loss 0.0
+loss/variable_3/level_5 0.0
+loss/variable_3/level_9 0.0
+loss_q 0.0
+loss_qc 0.0
+loss_rh 0.0
+loss_t 0.0
+loss_u 0.0
+loss_v 0.0
+relative_humidity_mse/level_5 0.0
+relative_humidity_mse/level_9 0.0

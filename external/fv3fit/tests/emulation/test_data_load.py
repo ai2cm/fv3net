@@ -5,11 +5,10 @@ import numpy as np
 import tensorflow as tf
 import xarray as xr
 
-from fv3fit.emulation.data import load, TransformConfig
+from fv3fit.emulation.data import load, TransformConfig, netcdf_url_to_dataset
 
 
-@pytest.fixture
-def xr_dataset():
+def _get_dataset() -> xr.Dataset:
     return xr.Dataset(
         {
             "air_temperature": xr.DataArray(
@@ -20,6 +19,11 @@ def xr_dataset():
             ),
         }
     )
+
+
+@pytest.fixture
+def xr_dataset():
+    return _get_dataset()
 
 
 @pytest.fixture
@@ -64,3 +68,17 @@ def test_batches_to_tf_dataset(xr_dataset, config):
     batches = [xr_dataset] * 3
     tf_ds = load.batches_to_tf_dataset(batches, config)
     assert isinstance(tf_ds, tf.data.Dataset)
+
+
+def test_netcdf_url_to_dataset(tmpdir):
+    nfiles = 3
+    ds = _get_dataset()
+    for f in [tmpdir.join(f"file{i}.nc") for i in range(nfiles)]:
+        ds.to_netcdf(str(f))
+
+    tf_ds = netcdf_url_to_dataset(str(tmpdir), variables=set(ds))
+
+    assert len(tf_ds) == nfiles
+    for item in tf_ds:
+        for variable in ds:
+            assert isinstance(item[variable], tf.Tensor)
