@@ -1,5 +1,5 @@
 import fv3fit
-import mock
+from unittest import mock
 import tensorflow as tf
 import numpy as np
 import pytest
