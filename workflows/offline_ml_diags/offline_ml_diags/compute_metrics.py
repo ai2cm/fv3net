@@ -5,7 +5,7 @@ import fv3net.diagnostics.prognostic_run.transform as transform
 from fv3net.diagnostics.prognostic_run.constants import DiagArg
 
 import logging
-from typing import Mapping, Sequence, Tuple
+from typing import Sequence, Tuple, Dict
 
 import xarray as xr
 
@@ -17,25 +17,26 @@ logger = logging.getLogger(__name__)
 HORIZONTAL_DIMS = ["x", "y", "tile"]
 
 
-def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
+def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Dict[str, xr.DataArray]:
     """
     Take a diagnostic dataset and add a suffix to all variable names and return as dict.
     """
 
     diags = {}
     for variable in ds:
-        lower = variable.lower()
+        lower = str(variable).lower()
         da = ds[variable]
         diags[f"{lower}_{suffix}"] = da
 
     return diags
 
 
-def merge_metrics(metrics: Sequence[Tuple[str, Mapping[str, xr.DataArray]]]):
-    out = {}
-    for name, ds in metrics:
+def merge_metrics(metrics: Sequence[Tuple[str, xr.Dataset]]):
+    out: Dict[str, xr.DataArray] = {}
+    for (name, ds) in metrics:
         out.update(_prepare_diag_dict(name, ds))
-    return xr.Dataset(out)
+    # ignoring type error that complains if Dataset created from dict
+    return xr.Dataset(out)  # type: ignore
 
 
 metrics_registry = Registry(merge_metrics)
