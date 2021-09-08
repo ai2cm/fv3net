@@ -1,3 +1,4 @@
+import dacite
 import dataclasses
 from fv3fit import DenseHyperparameters, OptimizerConfig, TrainingConfig
 import os
@@ -39,3 +40,34 @@ def test_safe_dump_training_config():
             yaml.safe_dump(as_dict, f)
         from_dict = TrainingConfig.from_dict(as_dict)
         assert config == from_dict
+
+
+@pytest.mark.parametrize(
+    "hyperparameters, passes",
+    [
+        pytest.param(
+            {"dense_network": {"width": 32}}, True, id="pass_has_DenseModelConfig"
+        ),
+        pytest.param(
+            {"training_loop": {"epochs": 2}}, True, id="pass_has_TrainingLoopConfig"
+        ),
+        pytest.param(
+            {"width": 32}, False, id="fail_has_DenseModelConfig_param_in_top_level"
+        ),
+        pytest.param(
+            {"epochs": 2}, False, id="fail_has_TrainingLoopConfig_param_in_top_level"
+        ),
+    ],
+)
+def test__load_config_catches_errors_with_strict_checking(hyperparameters, passes):
+    config_dict = {
+        "model_type": "DenseModel",
+        "input_variables": [],
+        "output_variables": [],
+        "hyperparameters": hyperparameters,
+    }
+    if passes:
+        TrainingConfig.from_dict(config_dict)
+    else:
+        with pytest.raises(dacite.exceptions.UnexpectedDataError):
+            TrainingConfig.from_dict(config_dict)

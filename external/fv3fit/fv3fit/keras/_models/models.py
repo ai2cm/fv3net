@@ -370,7 +370,9 @@ class DenseModel(Predictor):
             with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
                 options = yaml.safe_load(f)
             hyperparameters = dacite.from_dict(
-                data_class=DenseHyperparameters, data=options
+                data_class=DenseHyperparameters,
+                data=options,
+                config=dacite.Config(strict=True),
             )
 
             obj = cls(

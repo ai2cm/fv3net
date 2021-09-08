@@ -100,9 +100,13 @@ class TrainingConfig:
             )
         hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
         kwargs["hyperparameters"] = dacite.from_dict(
-            data_class=hyperparameter_class, data=kwargs.get("hyperparameters", {})
+            data_class=hyperparameter_class,
+            data=kwargs.get("hyperparameters", {}),
+            config=dacite.Config(strict=True),
         )
-        return dacite.from_dict(data_class=cls, data=kwargs)
+        return dacite.from_dict(
+            data_class=cls, data=kwargs, config=dacite.Config(strict=True)
+        )
 
 
 TRAINING_FUNCTIONS: Dict[str, Tuple[TrainingFunction, Type[Dataclass]]] = {}
