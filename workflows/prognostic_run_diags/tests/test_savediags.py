@@ -1,5 +1,5 @@
 from itertools import chain
-from diagnostics_utils.transform import DiagArg
+from fv3net.diagnostics.prognostic_run.constants import DiagArg
 
 import fv3net.diagnostics.prognostic_run.compute as savediags
 from fv3net.diagnostics.prognostic_run.load_run_data import (

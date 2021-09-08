@@ -1,5 +1,5 @@
 import xarray as xr
-from diagnostics_utils.compute_metrics import merge_metrics
+from offline_ml_diags.compute_metrics import merge_metrics
 
 
 def test_merge_metrics():
