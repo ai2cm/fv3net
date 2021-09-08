@@ -191,7 +191,7 @@ spec:
                     "batch_size": 512,
                     "epochs": 2
                   },
-                  "loss": "mae",
+                  "loss": "mae"
                 }
               }
             }
