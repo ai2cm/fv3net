@@ -113,13 +113,15 @@ def get_losses(
             factor = tf.constant(
                 1.0 / n_outputs / np.mean(std[name].values ** 2), dtype=tf.float32
             )
-            loss_list.append(multiply_loss_by_factor(tf.losses.mse, factor))
+            loss = multiply_loss_by_factor(tf.losses.mse, factor)
         elif loss_type == "mae":
             factor = tf.constant(
                 1.0 / n_outputs / np.mean(std[name].values), dtype=tf.float32
             )
+            loss = multiply_loss_by_factor(tf.losses.mae, factor)
         else:
             raise NotImplementedError(f"loss_type {loss_type} is not implemented")
+        loss_list.append(loss)
 
     return loss_list
 
@@ -165,7 +167,7 @@ class PrecipitativeHyperparameters:
         keras_batch_size: actual batch_size to apply in gradient descent updates,
             independent of number of samples in each batch in batches; optional,
             uses 32 if omitted
-        couple_precip_to_dQ1_dQ2: if True, try to recover behavior of Dense model type
+        couple_precip_to_dQ1_dQ2: if False, try to recover behavior of Dense model type
             by not adding "precipitative" terms to dQ1 and dQ2
     """
 
@@ -240,7 +242,7 @@ class PrecipitativeModel:
         optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
         residual_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         save_model_checkpoints: bool = False,
-        couple_precip_to_dQ1_dQ2: bool = False,
+        couple_precip_to_dQ1_dQ2: bool = True,
         loss_type: str = "mse",
     ):
         input_variables = tuple(
