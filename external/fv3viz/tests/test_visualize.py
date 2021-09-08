@@ -1,4 +1,5 @@
 import pytest
+import subprocess
 from datetime import datetime
 import numpy as np
 import xarray as xr
@@ -21,6 +22,24 @@ from fv3viz._timestep_histograms import (
 
 def test_version():
     assert __version__ == "0.1.0"
+
+
+IMPORT_SCRIPT = """
+import fv3viz
+import cartopy
+print(cartopy.config["downloaders"][("shapefiles", "natural_earth")].url_template)
+"""
+
+
+@pytest.mark.parametrize(
+    ["env_var", "vcm_in_url"], [("natural_earth", False), ("", True)]
+)
+def test_cartopy_downloader(monkeypatch, env_var, vcm_in_url):
+    monkeypatch.setenv("CARTOPY_EXTERNAL_DOWNLOADER", env_var)
+    downloader = subprocess.run(
+        ["python", "-c", IMPORT_SCRIPT], capture_output=True, encoding="utf8"
+    ).stdout
+    assert ("vcm-ml-example-data" in downloader) == vcm_in_url
 
 
 @pytest.mark.parametrize(

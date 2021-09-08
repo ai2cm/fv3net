@@ -27,7 +27,7 @@ class ConsoleLogger:
         print(f"step: {step}")
         for key in metrics:
             name = prefix + "/" + key
-            logging.info(f"{name}:", metrics[key])
+            logging.info(f"{name}: {metrics[key]}")
 
 
 class LoggerList:
