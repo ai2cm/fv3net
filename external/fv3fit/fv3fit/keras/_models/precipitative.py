@@ -233,6 +233,9 @@ class PrecipitativeModel:
         self._training_loop = hyperparameters.training_loop
         self._statistics_are_fit = False
         self._optimizer = hyperparameters.optimizer_config.instance
+        self._residual_regularizer = (
+            hyperparameters.residual_regularizer_config.instance
+        )
 
     def fit_statistics(self, X: xr.Dataset):
         """
@@ -266,8 +269,14 @@ class PrecipitativeModel:
         norm_input_vector = self.input_scaler.normalize_layer(input_vector)
         output_features = sum(self.output_without_precip_packer.feature_counts.values())
         dense_network = self._dense_network.build(norm_input_vector, output_features)
+        regularized_output = tf.keras.layers.Dense(
+            output_features,
+            activation="linear",
+            activity_regularizer=self._residual_regularizer,
+            name=f"regularized_output",
+        )(dense_network.hidden_outputs[-1])
         denormalized_output = self.output_without_precip_scaler.denormalize_layer(
-            dense_network.output
+            regularized_output
         )
         unpacked_output = get_unpack_layer(
             self.output_without_precip_packer, feature_dim=1
