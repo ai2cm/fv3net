@@ -15,7 +15,8 @@ import runtime
 STATISTICS_LOG_NAME = "statistics"
 PROFILES_LOG_NAME = "profiles"
 
-logging.getLogger("runtime").setLevel(logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
+
 logging.getLogger("fv3gfs.util").setLevel(logging.WARN)
 logging.getLogger("fsspec").setLevel(logging.WARN)
 logging.getLogger("urllib3").setLevel(logging.WARN)
