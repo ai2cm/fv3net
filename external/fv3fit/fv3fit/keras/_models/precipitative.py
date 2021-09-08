@@ -146,6 +146,28 @@ class PrecipitativeHyperparameters:
 
     Uses only the first batch of any validation data it is given.
 
+    The basic NN architecture is the same as in previous "Dense" NN models used in the
+    N2F experiments. The inputs are used to predict dQ1 and dQ2
+    (full nudging tendencies).
+
+    The differences are just that:
+        - The total precipitation rate is also an output
+        - Total precipitation rate is the sum of a column-integrated column
+          precipitation internal layer, and physics precipitation
+        - dQ2 is specified as the sum of the column precipitation internal layer
+          and a column moistening residual internal layer
+        - dQ1 is the sum of the column precipitation internal layer converted to
+          heating and a column heating residual internal layer
+    
+    So the behavior is such that precipitation is predicted and the ML portion of the
+    precipitation is also a portion of the dQ1 and dQ2 outputs.
+
+    There is also a flag couple_precip_to_dQ1_dQ2 to turn off the column linkage
+    (when turned off this is the “dense-like” version, i.e., just predict surface
+    precipitation, dQ1, and dQ2 separately without constraints on their relationship).
+    In this case the model behavior is just the same as previous N2F NNs, except that
+    there are more input features and output features).
+
     Args:
         additional_input_variables: if given, used as input variables in
             addition to the default inputs (air_temperature, specific_humidity,
