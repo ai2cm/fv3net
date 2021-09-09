@@ -195,6 +195,9 @@ class PureMLStepper:
             else:
                 state_updates[key] = value
 
+        for name in state_updates.keys():
+            diagnostics[name] = state_updates[name]
+
         dQ1_initial = tendency.get("dQ1", xr.zeros_like(state[SPHUM]))
         dQ2_initial = tendency.get("dQ2", xr.zeros_like(state[SPHUM]))
 
@@ -249,20 +252,3 @@ class PureMLStepper:
 
     def get_momentum_diagnostics(self, state, tendency):
         return compute_ml_momentum_diagnostics(state, tendency)
-
-
-class MLStateStepper(PureMLStepper):
-    def __call__(self, time, state):
-
-        diagnostics: Diagnostics = {}
-        state_updates: State = predict(self.model, state)
-
-        for name in state_updates.keys():
-            diagnostics[name] = state_updates[name]
-
-        tendency = {}
-        return (
-            tendency,
-            diagnostics,
-            state_updates,
-        )

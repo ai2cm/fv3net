@@ -1,4 +1,4 @@
-from runtime.steppers.machine_learning import PureMLStepper, MLStateStepper
+from runtime.steppers.machine_learning import PureMLStepper
 from machine_learning_mocks import get_mock_predictor
 import requests
 import xarray as xr
@@ -16,20 +16,16 @@ def state(tmp_path_factory):
     return xr.open_dataset(str(lpath))
 
 
-@pytest.fixture(params=["PureMLStepper", "MLStateStepper"])
-def ml_stepper_name(request):
+@pytest.fixture(params=["tendencies", "rad_fluxes"])
+def model_output_type(request):
     return request.param
 
 
 @pytest.fixture
-def ml_stepper(ml_stepper_name):
+def ml_stepper(model_output_type):
     timestep = 900
-    if ml_stepper_name == "PureMLStepper":
-        mock_model = get_mock_predictor("tendencies")
-        ml_stepper = PureMLStepper(mock_model, timestep, hydrostatic=False)
-    elif ml_stepper_name == "MLStateStepper":
-        mock_model = get_mock_predictor("rad_fluxes")
-        ml_stepper = MLStateStepper(mock_model, timestep, hydrostatic=False)
+    mock_model = get_mock_predictor(model_output_type)
+    ml_stepper = PureMLStepper(mock_model, timestep, hydrostatic=False)
     return ml_stepper
 
 

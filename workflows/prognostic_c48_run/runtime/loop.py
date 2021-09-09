@@ -32,7 +32,6 @@ from runtime.monitor import Monitor
 from runtime.names import TENDENCY_TO_STATE_NAME
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
-    MLStateStepper,
     PureMLStepper,
     download_model,
     open_model,
@@ -199,9 +198,9 @@ class TimeLoop(
             self._log_info("No prephysics computations")
             stepper = None
         elif isinstance(config.prephysics, MachineLearningConfig):
-            self._log_info("Using MLStateStepper for prephysics")
+            self._log_info("Using PureMLStepper for prephysics")
             model = self._open_model(config.prephysics, "_prephysics")
-            stepper = MLStateStepper(model, self._timestep, hydrostatic)
+            stepper = PureMLStepper(model, self._timestep, hydrostatic)
         elif isinstance(config.prephysics, PrescriberConfig):
             self._log_info("Using Prescriber for prephysics")
             partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
