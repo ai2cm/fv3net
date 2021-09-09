@@ -20,3 +20,4 @@ TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
     "dQu": EAST_WIND,
     "dQv": NORTH_WIND,
 }
+NUDGING_TENDENCY_SUFFIX = "tendency_due_to_nudging"

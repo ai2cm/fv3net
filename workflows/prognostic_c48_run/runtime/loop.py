@@ -29,7 +29,7 @@ from runtime.diagnostics.compute import (
     rename_diagnostics,
 )
 from runtime.monitor import Monitor
-from runtime.names import TENDENCY_TO_STATE_NAME
+from runtime.names import TENDENCY_TO_STATE_NAME, NUDGING_TENDENCY_SUFFIX
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
     PureMLStepper,
@@ -84,15 +84,18 @@ def add_tendency(state: Any, tendency: State, dt: float) -> State:
     with xr.set_options(keep_attrs=True):
         updated = {}
         for name in tendency:
-            try:
-                state_name = TENDENCY_TO_STATE_NAME[name]
-            except KeyError:
-                raise KeyError(
-                    "Tendency variable '{name}' does not have an entry mapping it "
-                    "to a corresponding state variable to add to. "
-                    "Existing tendencies with mappings to state are "
-                    f"{list(TENDENCY_TO_STATE_NAME.keys())}"
-                )
+            if name.endswith(NUDGING_TENDENCY_SUFFIX):
+                state_name = name.replace(NUDGING_TENDENCY_SUFFIX, "").strip("_")
+            else:
+                try:
+                    state_name = TENDENCY_TO_STATE_NAME[name]
+                except KeyError:
+                    raise KeyError(
+                        f"Tendency variable '{name}' does not have an entry mapping it "
+                        "to a corresponding state variable to add to. "
+                        "Existing tendencies with mappings to state are "
+                        f"{list(TENDENCY_TO_STATE_NAME.keys())}"
+                    )
             updated[state_name] = state[state_name] + tendency[name] * dt
     return updated  # type: ignore
 
@@ -392,7 +395,7 @@ class TimeLoop(
             )
             self._log_info(
                 "Postphysics stepper updates state directly for "
-                f"{self._state_updates.keys()}"
+                f"{state_updates.keys()}"
             )
             self._state_updates.update(state_updates)
             return diagnostics

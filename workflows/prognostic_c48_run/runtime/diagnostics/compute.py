@@ -2,7 +2,7 @@ import xarray as xr
 import logging
 import vcm
 from runtime.types import State, Diagnostics
-from runtime.names import TEMP, SPHUM, DELP, PRECIP_RATE
+from runtime.names import TEMP, SPHUM, DELP, PRECIP_RATE, NUDGING_TENDENCY_SUFFIX
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +58,8 @@ def compute_diagnostics(
         temperature_tendency_name = "dQ1"
         humidity_tendency_name = "dQ2"
     elif label == "nudging":
-        temperature_tendency_name = TEMP
-        humidity_tendency_name = SPHUM
+        temperature_tendency_name = f"{TEMP}_{NUDGING_TENDENCY_SUFFIX}"
+        humidity_tendency_name = f"{SPHUM}_{NUDGING_TENDENCY_SUFFIX}"
 
     temperature_tendency = tendency.get(temperature_tendency_name, xr.zeros_like(delp))
     humidity_tendency = tendency.get(humidity_tendency_name, xr.zeros_like(delp))
@@ -95,7 +95,7 @@ def compute_diagnostics(
 
     # add 3D tendencies to diagnostics
     if label == "nudging":
-        diags_3d = _append_key_label(tendency, "_tendency_due_to_nudging")
+        diags_3d = tendency
     elif label == "machine_learning":
         diags_3d = {
             "dQ1": temperature_tendency.assign_attrs(units="K/s").assign_attrs(
@@ -156,13 +156,6 @@ def rename_diagnostics(diags: Diagnostics):
             description=attrs.get("description", "") + " (diagnostic only)"
         )
         diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
-
-
-def _append_key_label(d: Diagnostics, suffix: str) -> Diagnostics:
-    return_dict: Diagnostics = {}
-    for key, value in d.items():
-        return_dict[str(key) + suffix] = value
-    return return_dict
 
 
 def compute_baseline_diagnostics(state: State) -> Diagnostics:

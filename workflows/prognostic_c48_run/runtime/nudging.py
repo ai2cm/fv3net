@@ -19,7 +19,7 @@ from typing import (
     Optional,
 )
 import logging
-from .names import SST, TSFC, MASK
+from .names import SST, TSFC, MASK, NUDGING_TENDENCY_SUFFIX
 
 logger = logging.getLogger(__name__)
 
@@ -219,6 +219,7 @@ def get_nudging_tendency(
             variable.
     Returns:
         nudging_tendencies (dict): A dictionary whose keys are standard names
+            appended with "_tendency_due_to_nudging"
             and values are xr.DataArray objects indicating the nudging tendency
             of that standard name.
     """
@@ -230,7 +231,7 @@ def get_nudging_tendency(
         return_data = return_data.assign_attrs(
             {"units": f'{var_state.attrs.get("units", "")} s^-1'}
         )
-        return_dict[name] = return_data
+        return_dict[f"{name}_{NUDGING_TENDENCY_SUFFIX}"] = return_data
     return return_dict
 
 
