@@ -63,3 +63,12 @@ def test_ml_steppers_regression_checksum(state, ml_stepper, regtest):
     )
 
     print(checksums, file=regtest)
+
+
+def test_ml_stepper_state_update(state):
+    ml_stepper = PureMLStepper(
+        get_mock_predictor("state_and_tendency"), timestep=900, hydrostatic=False
+    )
+    (tendencies, diagnostics, states) = ml_stepper(None, state)
+    assert set(states) == {"net_shortwave"}
+    assert set(tendencies) == {"dQ1"}
