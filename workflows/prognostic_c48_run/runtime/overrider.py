@@ -1,7 +1,8 @@
 import dataclasses
 import logging
-from typing import Hashable, Mapping, MutableMapping, Optional, Set, Tuple
+from typing import Hashable, Mapping, MutableMapping, Set
 
+import cftime
 import fsspec
 import xarray as xr
 
@@ -42,34 +43,19 @@ class OverriderAdapter:
     def __post_init__(self: "OverriderAdapter"):
         if self.communicator.rank == 0:
             logger.debug(f"Opening tendency overriding dataset from: {self.config.url}")
-        ds, time_coord = self._open_tendencies_dataset()
-        self.tendencies = self._scatter_dataset(ds, time_coord)
-        if self.communicator.rank == 0:
-            logger.debug(f"Finished opening tendency overriding dataset.")
+        mapper = fsspec.get_mapper(self.config.url)
+        self._tendency_ds = xr.open_zarr(mapper, consolidated=True)
 
-    def _open_tendencies_dataset(
-        self,
-    ) -> Tuple[Optional[xr.Dataset], Optional[xr.DataArray]]:
-        if self.communicator.rank == 0:
-            mapper = fsspec.get_mapper(self.config.url)
-            ds = xr.open_zarr(mapper, consolidated=True)
-            ds = ds[list(self.config.variables.values())]
-            time_coord = ds.coords["time"]
-            ds = ds.drop_vars("time")
-        else:
-            ds = None
-            time_coord = None
-        return ds, time_coord
-
-    def _scatter_dataset(
-        self, ds: Optional[xr.Dataset], time_coord: Optional[xr.DataArray]
-    ) -> xr.Dataset:
-        if ds is not None:
-            state = self.communicator.scatter_state(_ds_to_quantity_state(ds))
-        else:
-            state = self.communicator.scatter_state()
-        time_coord = self.communicator.comm.bcast(time_coord, root=0)
-        return _quantity_state_to_ds(state).assign_coords({"time": time_coord})
+    def _open_tendencies_dataset(self, time: cftime.DatetimeJulian) -> xr.Dataset:
+        rank = self.communicator.rank
+        tile = self.communicator.partitioner.tile_index(rank)
+        ds = xr.Dataset()
+        if self.communicator.tile.rank == 0:
+            logger.debug(f"Loading tile-{tile} override tendencies on rank {rank}")
+            ds = self._tendency_ds.isel(tile=tile).sel(time=time).drop_vars("time")
+            ds = ds[list(self.config.variables.values())].load()
+        tendencies = self.communicator.tile.scatter_state(_ds_to_quantity_state(ds))
+        return _quantity_state_to_ds(tendencies)
 
     @property
     def monitor(self) -> Monitor:
@@ -80,7 +66,7 @@ class OverriderAdapter:
     def override(self, name: str, func: Step) -> Diagnostics:
         if self.communicator.rank == 0:
             logger.debug(f"Overriding tendencies for {name}.")
-        tendencies = self.tendencies.sel(time=self.state.time).load()
+        tendencies = self._open_tendencies_dataset(self.state.time)
         before = self.monitor.checkpoint()
         diags = func()
         change_due_to_func = self.monitor.compute_change(name, before, self.state)
