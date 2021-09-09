@@ -379,6 +379,14 @@ class TimeLoop(
             (self._tendencies, diagnostics, state_updates,) = self._postphysics_stepper(
                 self._state.time, self._state
             )
+            self._log_info(
+                "Postphysics stepper adds tendency update to state for "
+                f"{self._tendencies.keys()}"
+            )
+            self._log_info(
+                "Postphysics stepper updates state directly for "
+                f"{self._state_updates.keys()}"
+            )
             self._state_updates.update(state_updates)
             return diagnostics
 
@@ -398,11 +406,14 @@ class TimeLoop(
                 updated_state_from_tendency = add_tendency(
                     self._state, tendency, dt=self._timestep
                 )
+                # if total precip is updated directly by stepper,
+                # it will overwrite this precipitation_sum
                 updated_state_from_tendency[TOTAL_PRECIP] = precipitation_sum(
                     self._state[TOTAL_PRECIP], net_moistening, self._timestep,
                 )
                 self._state.update_mass_conserving(updated_state_from_tendency)
                 self._state.update_mass_conserving(self._state_updates)
+
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
         diagnostics.update(
             {

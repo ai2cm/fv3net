@@ -13,6 +13,8 @@ from runtime.types import Diagnostics, State
 from vcm import thermo
 import vcm
 
+from .names import TENDENCY_TO_STATE_NAME
+
 __all__ = ["MachineLearningConfig", "PureMLStepper", "open_model"]
 
 
@@ -167,7 +169,7 @@ class PureMLStepper:
     label = "machine_learning"
 
     def __init__(self, model: MultiModelAdapter, timestep: float, hydrostatic: bool):
-        """A stepper for predicting machine learning tendencies.
+        """A stepper for predicting machine learning tendencies and state updates.
 
         Args:
             model: the machine learning model.
@@ -183,7 +185,15 @@ class PureMLStepper:
         diagnostics: Diagnostics = {}
         delp = state[DELP]
 
-        tendency: State = predict(self.model, state)
+        prediction: State = predict(self.model, state)
+
+        tendency, state_updates = {}, {}
+
+        for key, value in prediction.items():
+            if key in TENDENCY_TO_STATE_NAME:
+                tendency[key] = value
+            else:
+                state_updates[key] = value
 
         dQ1_initial = tendency.get("dQ1", xr.zeros_like(state[SPHUM]))
         dQ2_initial = tendency.get("dQ2", xr.zeros_like(state[SPHUM]))
@@ -227,7 +237,6 @@ class PureMLStepper:
             dQ2_initial != dQ2_updated, 1, 0
         )
 
-        state_updates = {}
         return (
             tendency,
             diagnostics,
