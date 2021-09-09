@@ -5,9 +5,8 @@ dimensions:
 	z = 63 ;
 
 variables:
-	float64 downward_shortwave(y, x) ;
-	float64 net_shortwave(y, x) ;
-	float64 downward_longwave(y, x) ;
+	float64 total_sky_downward_shortwave_flux_at_surface(y, x) ;
+	float64 total_sky_downward_longwave_flux_at_surface(y, x) ;
 	int64 specific_humidity_limiter_active(z, y, x) ;
 
 // global attributes:
@@ -23,9 +22,8 @@ dimensions:
 	y = 4 ;
 
 variables:
-	float64 downward_shortwave(y, x) ;
-	float64 net_shortwave(y, x) ;
-	float64 downward_longwave(y, x) ;
+	float64 total_sky_downward_shortwave_flux_at_surface(y, x) ;
+	float64 total_sky_downward_longwave_flux_at_surface(y, x) ;
 
 // global attributes:
 }

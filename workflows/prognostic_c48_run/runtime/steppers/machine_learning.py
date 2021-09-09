@@ -8,7 +8,7 @@ from typing import Hashable, Iterable, Mapping, Sequence, Set, Tuple, cast
 import fv3fit
 import xarray as xr
 from runtime.diagnostics import compute_diagnostics, compute_ml_momentum_diagnostics
-from runtime.names import DELP, SPHUM
+from runtime.names import DELP, SPHUM, TENDENCY_TO_STATE_NAME
 from runtime.types import Diagnostics, State
 from vcm import thermo
 import vcm
@@ -187,9 +187,10 @@ class PureMLStepper:
         prediction: State = predict(self.model, state)
 
         tendency, state_updates = {}, {}
-
         for key, value in prediction.items():
-            if key in state:
+            # Second check is needed to avoid derived tendency variables
+            # in FV3DerivedState
+            if key in state.keys() and key not in TENDENCY_TO_STATE_NAME:
                 state_updates[key] = value
             else:
                 tendency[key] = value
