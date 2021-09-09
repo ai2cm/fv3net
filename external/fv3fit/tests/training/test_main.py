@@ -109,7 +109,7 @@ def call_main(
     tmpdir, mock_load_batches, derived_output_variables, use_validation_data: bool,
 ):
     model_type = "DenseModel"
-    hyperparameters_dict = {"depth": 2, "width": 8}
+    hyperparameters_dict = {}
     config = get_config(
         tmpdir,
         derived_output_variables,
@@ -333,25 +333,9 @@ def cli_main(args: MainArgs):
             {"max_depth": 4, "n_estimators": 2},
             id="random_forest",
         ),
+        pytest.param("DenseModel", {"save_model_checkpoints": False}, id="dense"),
         pytest.param(
-            "DenseModel",
-            {
-                "width": 4,
-                "depth": 3,
-                "save_model_checkpoints": False,
-                "fit_kwargs": {"batch_size": 100, "validation_samples": 384},
-            },
-            id="dense",
-        ),
-        pytest.param(
-            "DenseModel",
-            {
-                "width": 4,
-                "depth": 3,
-                "save_model_checkpoints": True,
-                "fit_kwargs": {"batch_size": 100, "validation_samples": 384},
-            },
-            id="dense_with_checkpoints",
+            "DenseModel", {"save_model_checkpoints": True}, id="dense_with_checkpoints",
         ),
     ],
 )

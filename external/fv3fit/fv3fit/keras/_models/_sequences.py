@@ -37,6 +37,36 @@ class _XyArraySequence(tf.keras.utils.Sequence):
         return X, y
 
 
+class _XyMultiArraySequence(tf.keras.utils.Sequence):
+    """
+    Wrapper object converting a sequence of batch datasets
+    to a sequence of tuples of input/output numpy arrays.
+
+    These tuples contain one unpacked numpy array for each input/output,
+    in contrast to _XyArraySequence which is specialized to the case
+    of a single input/output of packed arrays.
+    """
+
+    def __init__(
+        self,
+        X_names: Sequence[str],
+        y_names: Sequence[str],
+        dataset_sequence: Sequence[xr.Dataset],
+    ):
+        self.X_names = X_names
+        self.y_names = y_names
+        self.dataset_sequence = dataset_sequence
+
+    def __len__(self) -> int:
+        return len(self.dataset_sequence)
+
+    def __getitem__(self, idx) -> Tuple[np.ndarray, np.ndarray]:
+        ds = self.dataset_sequence[idx]
+        X = tuple(ds[name].values for name in self.X_names)
+        y = tuple(ds[name].values for name in self.y_names)
+        return X, y
+
+
 class _ThreadedSequencePreLoader(tf.keras.utils.Sequence):
     """
     Wrapper object for using a threaded pre-load to provide

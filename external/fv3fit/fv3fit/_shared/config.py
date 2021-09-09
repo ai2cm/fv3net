@@ -100,9 +100,13 @@ class TrainingConfig:
             )
         hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
         kwargs["hyperparameters"] = dacite.from_dict(
-            data_class=hyperparameter_class, data=kwargs.get("hyperparameters", {})
+            data_class=hyperparameter_class,
+            data=kwargs.get("hyperparameters", {}),
+            config=dacite.Config(strict=True),
         )
-        return dacite.from_dict(data_class=cls, data=kwargs)
+        return dacite.from_dict(
+            data_class=cls, data=kwargs, config=dacite.Config(strict=True)
+        )
 
 
 TRAINING_FUNCTIONS: Dict[str, Tuple[TrainingFunction, Type[Dataclass]]] = {}
@@ -154,69 +158,13 @@ class RegularizerConfig:
     kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
 
     @property
-    def instance(self) -> tf.keras.regularizers.Regularizer:
-        cls = getattr(tf.keras.regularizers, self.name)
-        return cls(**self.kwargs)
-
-
-# TODO: move this class to where the Dense training is defined when config.py
-# no longer depends on it (i.e. when _ModelTrainingConfig is deleted)
-@dataclasses.dataclass
-class DenseHyperparameters(Hyperparameters):
-    """
-    Configuration for training a dense neural network based model.
-
-    Args:
-        input_variables: names of variables to use as inputs
-        output_variables: names of variables to use as outputs
-        weights: loss function weights, defined as a dict whose keys are
-            variable names and values are either a scalar referring to the total
-            weight of the variable. Default is a total weight of 1
-            for each variable.
-        normalize_loss: if True (default), normalize outputs by their standard
-            deviation before computing the loss function
-        optimizer_config: selection of algorithm to be used in gradient descent
-        kernel_regularizer_config: selection of regularizer for hidden dense layer
-            weights, by default no regularization is applied
-        depth: number of dense layers to use between the input and output layer.
-            The number of hidden layers will be (depth - 1)
-        width: number of neurons to use on layers between the input and output layer
-        gaussian_noise: how much gaussian noise to add before each Dense layer,
-            apart from the output layer
-        loss: loss function to use, should be 'mse' or 'mae'
-        spectral_normalization: whether to apply spectral normalization to hidden layers
-        save_model_checkpoints: if True, save one model per epoch when
-            dumping, under a 'model_checkpoints' subdirectory
-        nonnegative_outputs: if True, add a ReLU activation layer as the last layer
-            after output denormalization layer to ensure outputs are always >=0
-            Defaults to False.
-        fit_kwargs: other keyword arguments to be passed to the underlying
-            tf.keras.Model.fit() method
-    """
-
-    input_variables: List[str]
-    output_variables: List[str]
-    weights: Optional[Mapping[str, Union[int, float]]] = None
-    normalize_loss: bool = True
-    optimizer_config: OptimizerConfig = dataclasses.field(
-        default_factory=lambda: OptimizerConfig("Adam")
-    )
-    kernel_regularizer_config: Optional[RegularizerConfig] = None
-    depth: int = 3
-    width: int = 16
-    epochs: int = 3
-    gaussian_noise: float = 0.0
-    loss: str = "mse"
-    spectral_normalization: bool = False
-    save_model_checkpoints: bool = False
-    nonnegative_outputs: bool = False
-
-    # TODO: remove fit_kwargs by fixing how validation data is passed
-    fit_kwargs: Optional[dict] = None
-
-    @property
-    def variables(self) -> Set[str]:
-        return set(self.input_variables).union(self.output_variables)
+    def instance(self) -> Optional[tf.keras.regularizers.Regularizer]:
+        if self.name.lower() != "none":
+            cls = getattr(tf.keras.regularizers, self.name)
+            instance = cls(**self.kwargs)
+        else:
+            instance = None
+        return instance
 
 
 @dataclasses.dataclass
