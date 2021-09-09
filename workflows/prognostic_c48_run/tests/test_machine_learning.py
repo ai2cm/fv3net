@@ -66,5 +66,5 @@ def test_ml_stepper_state_update(state):
         get_mock_predictor("state_and_tendency"), timestep=900, hydrostatic=False
     )
     (tendencies, diagnostics, states) = ml_stepper(None, state)
-    assert set(states) == {"net_shortwave"}
+    assert set(states) == {"total_sky_downward_shortwave_flux_at_surface"}
     assert set(tendencies) == {"dQ1"}

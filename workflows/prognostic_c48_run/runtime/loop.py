@@ -84,7 +84,15 @@ def add_tendency(state: Any, tendency: State, dt: float) -> State:
     with xr.set_options(keep_attrs=True):
         updated = {}
         for name in tendency:
-            state_name = TENDENCY_TO_STATE_NAME.get(name, name)
+            try:
+                state_name = TENDENCY_TO_STATE_NAME[name]
+            except KeyError:
+                raise KeyError(
+                    "Tendency variable '{name}' does not have an entry mapping it "
+                    "to a corresponding state variable to add to. "
+                    "Existing tendencies with mappings to state are "
+                    f"{list(TENDENCY_TO_STATE_NAME.keys())}"
+                )
             updated[state_name] = state[state_name] + tendency[name] * dt
     return updated  # type: ignore
 

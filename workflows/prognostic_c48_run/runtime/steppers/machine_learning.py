@@ -13,7 +13,6 @@ from runtime.types import Diagnostics, State
 from vcm import thermo
 import vcm
 
-from ..names import TENDENCY_TO_STATE_NAME
 
 __all__ = ["MachineLearningConfig", "PureMLStepper", "open_model"]
 
@@ -190,10 +189,10 @@ class PureMLStepper:
         tendency, state_updates = {}, {}
 
         for key, value in prediction.items():
-            if key in TENDENCY_TO_STATE_NAME:
-                tendency[key] = value
-            else:
+            if key in state:
                 state_updates[key] = value
+            else:
+                tendency[key] = value
 
         for name in state_updates.keys():
             diagnostics[name] = state_updates[name]
