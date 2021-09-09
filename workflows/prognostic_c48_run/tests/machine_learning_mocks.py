@@ -37,6 +37,8 @@ def get_mock_predictor(model_predictands: str = "tendencies") -> fv3fit.Predicto
         output_variables = ["dQ1", "dQ2", "dQu", "dQv"]
     elif model_predictands == "rad_fluxes":
         output_variables = ["downward_shortwave", "net_shortwave", "downward_longwave"]
+    elif model_predictands == "state_and_tendency":
+        output_variables = ["dQ1", "net_shortwave"]
     outputs = {
         "dQ1": np.zeros(nz),
         # include nonzero moistening to test for mass conservation

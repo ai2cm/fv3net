@@ -13,7 +13,7 @@ from runtime.types import Diagnostics, State
 from vcm import thermo
 import vcm
 
-from .names import TENDENCY_TO_STATE_NAME
+from ..names import TENDENCY_TO_STATE_NAME
 
 __all__ = ["MachineLearningConfig", "PureMLStepper", "open_model"]
 
