@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Iterable, Optional, Sequence, Tuple
+from typing import Iterable, Optional, Sequence, Tuple, Set
 from fv3fit._shared.config import (
     OptimizerConfig,
     RegularizerConfig,
@@ -10,6 +10,7 @@ from fv3fit._shared.stacking import SAMPLE_DIM_NAME, StackedBatches
 import tensorflow as tf
 import xarray as xr
 from ..._shared import ArrayPacker
+from ..._shared.config import Hyperparameters
 from ._sequences import _XyMultiArraySequence
 from .packer import get_unpack_layer
 from .normalizer import LayerStandardScaler
@@ -25,6 +26,14 @@ LV = 2.5e6  # Latent heat of evaporation [J/kg]
 WATER_DENSITY = 997  # kg/m^3
 CPD = 1004.6  # Specific heat capacity of dry air at constant pressure [J/kg/deg]
 GRAVITY = 9.80665  # m /s2
+
+DELP_NAME = "pressure_thickness_of_atmospheric_layer"
+T_NAME = "air_temperature"
+Q_NAME = "specific_humidity"
+PRECIP_NAME = "total_precipitation_rate"
+PHYS_PRECIP_NAME = "physics_precip"
+T_TENDENCY_NAME = "dQ1"
+Q_TENDENCY_NAME = "dQ2"
 
 
 def integrate_precip(args):
@@ -139,7 +148,7 @@ def get_output_metadata(packer, sample_dim_name):
 
 
 @dataclasses.dataclass
-class PrecipitativeHyperparameters:
+class PrecipitativeHyperparameters(Hyperparameters):
     """
     Configuration for training a neural network with a closed,
     optimized precipitation budget.
@@ -198,6 +207,20 @@ class PrecipitativeHyperparameters:
     loss: str = "mse"
     couple_precip_to_dQ1_dQ2: bool = True
 
+    @property
+    def variables(self) -> Set[str]:
+        return set(
+            [
+                T_NAME,
+                Q_NAME,
+                DELP_NAME,
+                PHYS_PRECIP_NAME,
+                T_TENDENCY_NAME,
+                Q_TENDENCY_NAME,
+                PRECIP_NAME,
+            ]
+        ).union(self.additional_input_variables)
+
 
 @register_training_function("precipitative", PrecipitativeHyperparameters)
 def train_precipitative_model(
@@ -219,32 +242,21 @@ def train_precipitative_model(
 
 
 class PrecipitativeModel:
-
-    _DELP_NAME = "pressure_thickness_of_atmospheric_layer"
-    _T_NAME = "air_temperature"
-    _Q_NAME = "specific_humidity"
-    _PRECIP_NAME = "total_precipitation_rate"
-    _PHYS_PRECIP_NAME = "physics_precip"
-    _T_TENDENCY_NAME = "dQ1"
-    _Q_TENDENCY_NAME = "dQ2"
-
     def __init__(self, hyperparameters: PrecipitativeHyperparameters):
         input_variables = tuple(
-            [self._T_NAME, self._Q_NAME, self._DELP_NAME, self._PHYS_PRECIP_NAME]
+            [T_NAME, Q_NAME, DELP_NAME, PHYS_PRECIP_NAME]
             + list(hyperparameters.additional_input_variables)
         )
         self._dense_network = hyperparameters.dense_network
         self._loss_type = hyperparameters.loss
-        self.output_variables = ("dQ1", "dQ2", "total_precipitation_rate")
+        self.output_variables = (T_TENDENCY_NAME, Q_TENDENCY_NAME, PRECIP_NAME)
         self._couple_precip_to_dQ1_dQ2 = hyperparameters.couple_precip_to_dQ1_dQ2
         self.sample_dim_name = SAMPLE_DIM_NAME
         self.input_variables = input_variables
         self.input_packer = ArrayPacker(self.sample_dim_name, input_variables)
-        self.humidity_packer = ArrayPacker(
-            self.sample_dim_name, [self._Q_TENDENCY_NAME]
-        )
+        self.humidity_packer = ArrayPacker(self.sample_dim_name, [Q_TENDENCY_NAME])
         self.output_packer = ArrayPacker(self.sample_dim_name, self.output_variables)
-        output_without_precip = ("dQ1", "dQ2")
+        output_without_precip = (T_TENDENCY_NAME, Q_TENDENCY_NAME)
         self.output_without_precip_packer = ArrayPacker(
             self.sample_dim_name, output_without_precip
         )
@@ -305,16 +317,15 @@ class PrecipitativeModel:
         unpacked_output = get_unpack_layer(
             self.output_without_precip_packer, feature_dim=1
         )(denormalized_output)
-        assert self.output_without_precip_packer.pack_names[0] == self._T_TENDENCY_NAME
-        assert self.output_without_precip_packer.pack_names[1] == self._Q_TENDENCY_NAME
+        assert self.output_without_precip_packer.pack_names[0] == T_TENDENCY_NAME
+        assert self.output_without_precip_packer.pack_names[1] == Q_TENDENCY_NAME
         T_tendency = unpacked_output[0]
         q_tendency = unpacked_output[1]
 
         # share hidden layers with the dense network,
         # but no activity regularization for column precipitation
         norm_column_precip_vector = tf.keras.layers.Dense(
-            self.humidity_packer.feature_counts[self._Q_TENDENCY_NAME],
-            activation="linear",
+            self.humidity_packer.feature_counts[Q_TENDENCY_NAME], activation="linear",
         )(dense_network.hidden_outputs[-1])
         column_precip = self.humidity_scaler.denormalize_layer(
             norm_column_precip_vector
@@ -330,10 +341,8 @@ class PrecipitativeModel:
                 [q_tendency, column_precip]
             )
 
-        delp = input_layers[self.input_variables.index(self._DELP_NAME)]
-        physics_precip = input_layers[
-            self.input_variables.index(self._PHYS_PRECIP_NAME)
-        ]
+        delp = input_layers[self.input_variables.index(DELP_NAME)]
+        physics_precip = input_layers[self.input_variables.index(PHYS_PRECIP_NAME)]
         surface_precip = tf.keras.layers.Add(name="add_physics_precip")(
             [
                 physics_precip,
@@ -347,9 +356,9 @@ class PrecipitativeModel:
         # where physical quantities are grabbed as indexes of output lists
         # (e.g. T_tendency = unpacked_output[0]).
         assert list(self.output_variables) == [
-            "dQ1",
-            "dQ2",
-            "total_precipitation_rate",
+            T_TENDENCY_NAME,
+            Q_TENDENCY_NAME,
+            PRECIP_NAME,
         ], self.output_variables
         train_model = tf.keras.Model(
             inputs=input_layers, outputs=(T_tendency, q_tendency, surface_precip)
