@@ -1,3 +1,6 @@
+from workflows.prognostic_c48_run.runtime.segmented_run.prepare_config import (
+    to_fv3config,
+)
 from runtime.segmented_run import prepare_config
 import dacite
 import dataclasses
@@ -44,3 +47,16 @@ def test_get_user_config_is_valid():
     )
     # validate using dacite.from_dict
     dacite.from_dict(UserConfig, dataclasses.asdict(config))
+
+
+def test_to_fv3config_initial_conditions():
+    my_ic = "my_ic"
+    final = to_fv3config(
+        {"initial_conditions": my_ic, "base_version": "v0.5"},
+        initial_condition=None,
+        model_url=[],
+        diagnostic_ml=True,
+        nudging_url="gs://some-url",
+    )
+
+    final["initial_conditions"] = my_ic

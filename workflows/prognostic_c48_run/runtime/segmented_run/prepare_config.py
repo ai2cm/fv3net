@@ -4,7 +4,7 @@ import yaml
 import logging
 import sys
 from datetime import datetime, timedelta
-from typing import Mapping, Sequence
+from typing import Mapping, Sequence, Optional
 
 import dacite
 
@@ -155,9 +155,9 @@ def get_physics_timestep(dict_):
 
 def to_fv3config(
     dict_: dict,
-    initial_condition: InitialCondition,
     nudging_url: str,
     model_url: Sequence[str] = (),
+    initial_condition: Optional[InitialCondition] = None,
     diagnostic_ml: bool = False,
 ) -> FV3Config:
     """Convert a loaded prognostic run yaml ``dict_`` into an fv3config
@@ -183,7 +183,7 @@ def to_fv3config(
     # dictionary.
     return fv3kube.merge_fv3config_overlays(
         fv3kube.get_base_fv3config(dict_["base_version"]),
-        initial_condition.overlay,
+        {} if initial_condition is None else initial_condition.overlay,
         SUPPRESS_RANGE_WARNINGS,
         dataclasses.asdict(user_config),
         {key: dict_[key] for key in FV3CONFIG_KEYS if key in dict_},
@@ -201,7 +201,9 @@ def prepare_config(args):
 
     final = to_fv3config(
         dict_,
-        InitialCondition(args.initial_condition_url, args.ic_timestep),
+        initial_condition=InitialCondition(
+            args.initial_condition_url, args.ic_timestep
+        ),
         nudging_url=args.initial_condition_url,
         model_url=args.model_url,
         diagnostic_ml=args.diagnostic_ml,
