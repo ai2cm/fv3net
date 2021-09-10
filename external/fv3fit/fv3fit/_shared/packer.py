@@ -1,4 +1,5 @@
 from typing import (
+    Hashable,
     Iterable,
     TextIO,
     List,
@@ -61,14 +62,14 @@ class ArrayPacker:
     Used for ML training/prediction.
     """
 
-    def __init__(self, sample_dim_name, pack_names: Iterable[str]):
+    def __init__(self, sample_dim_name, pack_names: Iterable[Hashable]):
         """Initialize the ArrayPacker.
 
         Args:
             sample_dim_name: dimension name to treat as the sample dimension
             pack_names: variable pack_names to pack
         """
-        self._pack_names = list(pack_names)
+        self._pack_names: List[str] = list(str(s) for s in pack_names)
         self._n_features: Dict[str, int] = {}
         self._sample_dim_name = sample_dim_name
         self._dims: Dict[str, Sequence[str]] = {}
