@@ -328,7 +328,9 @@ def select_2d_variables(arg: DiagArg) -> DiagArg:
 
 
 @add_to_input_transform_fns
-def regrid_zdim_to_pressure_levels(arg: DiagArg) -> DiagArg:
+def regrid_zdim_to_pressure_levels(arg: DiagArg, vertical_dim=VERTICAL_DIM) -> DiagArg:
+    # Regrids to the default pressure grid used in vcm.interpolate_to_pressure_levels,
+    # which match those in the ERA-Interim reanalysis dataset
     prediction, target, grid, delp = (
         arg.prediction,
         arg.verification,
@@ -339,9 +341,9 @@ def regrid_zdim_to_pressure_levels(arg: DiagArg) -> DiagArg:
     vertical_prediction_fields = [var for var in prediction if _is_3d(prediction[var])]
     for var in vertical_prediction_fields:
         prediction_regridded[var] = interpolate_to_pressure_levels(
-            delp=delp, field=prediction[var], dim=VERTICAL_DIM,
+            delp=delp, field=prediction[var], dim=vertical_dim,
         )
         target_regridded[var] = interpolate_to_pressure_levels(
-            delp=delp, field=target[var], dim=VERTICAL_DIM,
+            delp=delp, field=target[var], dim=vertical_dim,
         )
     return DiagArg(prediction_regridded, target_regridded, grid, delp)

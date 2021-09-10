@@ -24,6 +24,8 @@ warnings.filterwarnings(
 )
 
 # for use in regridding values to the same vertical grid [Pa]
+# These are taken to match the levels of the ERA-Interim reanalysis dataset
+# https://psl.noaa.gov/data/gridded/data.erainterim.html
 PRESSURE_GRID = xr.DataArray(
     [
         300.0,
