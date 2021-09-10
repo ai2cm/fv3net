@@ -2,3 +2,4 @@ jsonschema
 dacite
 hypothesis
 wandb
+typer
