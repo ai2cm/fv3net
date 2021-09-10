@@ -83,12 +83,13 @@ def add_tendency(state: Any, tendency: State, dt: float) -> State:
 
     with xr.set_options(keep_attrs=True):
         updated = {}
-        for name in tendency:
+        for name_ in tendency:
+            name = str(name_)
             if name.endswith(NUDGING_TENDENCY_SUFFIX):
                 state_name = name.replace(NUDGING_TENDENCY_SUFFIX, "").strip("_")
             else:
                 try:
-                    state_name = TENDENCY_TO_STATE_NAME[name]
+                    state_name = str(TENDENCY_TO_STATE_NAME[name])
                 except KeyError:
                     raise KeyError(
                         f"Tendency variable '{name}' does not have an entry mapping it "
