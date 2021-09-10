@@ -17,6 +17,9 @@ from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
 
 
+__all__ = ["to_fv3config", "InitialCondition"]
+
+
 logger = logging.getLogger(__name__)
 
 PROGNOSTIC_DIAG_TABLE = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
@@ -167,9 +170,15 @@ def to_fv3config(
     configurations
 
     Args:
-        dict_:  a dictionary containing prognostic run configurations.  This
-            dictionary combines fv3config-related keys with :py:class:`UserConfig`
-            settings.
+        ``dict_``:  a dictionary containing prognostic run configurations.  This
+            dictionary combines fv3config-related keys with
+            :py:class:`runtime.config.UserConfig` settings.
+        initial_condition: modify the initial_conditions if provided, otherwise
+            leaves ``dict_`` unchanged.
+
+    Returns:
+        an fv3config configuration dictionary that can be operated on with
+        fv3config APIs.
     """
     user_config = user_config_from_dict_and_args(
         dict_,
