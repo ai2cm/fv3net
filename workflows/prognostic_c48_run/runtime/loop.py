@@ -26,10 +26,15 @@ from runtime.diagnostics.compute import (
     compute_baseline_diagnostics,
     precipitation_rate,
     precipitation_sum,
+    precipitation_accumulation,
     rename_diagnostics,
 )
 from runtime.monitor import Monitor
-from runtime.names import TENDENCY_TO_STATE_NAME, NUDGING_TENDENCY_SUFFIX
+from runtime.names import (
+    TENDENCY_TO_STATE_NAME,
+    NUDGING_TENDENCY_SUFFIX,
+    TOTAL_PRECIP_RATE,
+)
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
     PureMLStepper,
@@ -75,6 +80,17 @@ class Stepper(Protocol):
     def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
         """Return diagnostics of momentum tendencies."""
         return {}
+
+
+def _replace_precip_rate_with_accumlation(state_updates: State, dt: float) -> State:
+    # Precipitative ML models predict a rate, but the precipitation to update
+    # in the state is an accumulated total over the timestep
+    if TOTAL_PRECIP_RATE in state_updates:
+        state_updates[TOTAL_PRECIP] = precipitation_accumulation(
+            state_updates[TOTAL_PRECIP_RATE], dt
+        )
+        state_updates.pop(TOTAL_PRECIP_RATE)
+    return state_updates
 
 
 def add_tendency(state: Any, tendency: State, dt: float) -> State:
@@ -390,6 +406,10 @@ class TimeLoop(
             (self._tendencies, diagnostics, state_updates,) = self._postphysics_stepper(
                 self._state.time, self._state
             )
+            state_updates = _replace_precip_rate_with_accumlation(
+                state_updates, self._timestep
+            )
+
             self._log_info(
                 "Postphysics stepper adds tendency update to state for "
                 f"{self._tendencies.keys()}"
@@ -399,6 +419,7 @@ class TimeLoop(
                 f"{state_updates.keys()}"
             )
             self._state_updates.update(state_updates)
+
             return diagnostics
 
     def _apply_postphysics_to_dycore_state(self) -> Diagnostics:
@@ -417,6 +438,7 @@ class TimeLoop(
                 updated_state_from_tendency = add_tendency(
                     self._state, tendency, dt=self._timestep
                 )
+
                 # if total precip is updated directly by stepper,
                 # it will overwrite this precipitation_sum
                 updated_state_from_tendency[TOTAL_PRECIP] = precipitation_sum(
@@ -432,7 +454,7 @@ class TimeLoop(
                 "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
                     "cnvprcp"
                 ).data_array,
-                "total_precipitation_rate": precipitation_rate(
+                TOTAL_PRECIP_RATE: precipitation_rate(
                     self._state[TOTAL_PRECIP], self._timestep
                 ),
             }

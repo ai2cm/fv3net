@@ -6,7 +6,7 @@ import xarray as xr
 
 import fv3gfs.util
 from vcm import DerivedMapping, round_time
-from runtime.names import DELP, PRECIP_RATE
+from runtime.names import DELP, PHYSICS_PRECIP_RATE
 from runtime.types import State
 
 import fv3gfs.wrapper._properties
@@ -25,7 +25,7 @@ class FV3StateMapper(Mapping):
         self._alternate_keys = alternate_keys or {
             "lon": "longitude",
             "lat": "latitude",
-            "physics_precip": PRECIP_RATE,
+            "physics_precip": PHYSICS_PRECIP_RATE,
         }
 
     def __getitem__(self, key: str) -> xr.DataArray:

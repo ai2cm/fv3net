@@ -2,11 +2,18 @@ import xarray as xr
 import logging
 import vcm
 from runtime.types import State, Diagnostics
-from runtime.names import TEMP, SPHUM, DELP, PRECIP_RATE, NUDGING_TENDENCY_SUFFIX
+from runtime.names import (
+    TEMP,
+    SPHUM,
+    DELP,
+    PHYSICS_PRECIP_RATE,
+    NUDGING_TENDENCY_SUFFIX,
+)
 
 logger = logging.getLogger(__name__)
 
 cp = 1004
+KG_PER_M2_PER_M = 1000.0
 
 
 def precipitation_sum(
@@ -30,6 +37,22 @@ def precipitation_sum(
     return total_precip
 
 
+def precipitation_accumulation(
+    precipitation_rate: xr.DataArray, dt: float
+) -> xr.DataArray:
+    """Return precipitation accumulation from precipitation rate and timestep
+    
+    Args:
+        precipitation_rate: precipitation rate [kg/m^s/s]
+        dt: timestep over which accumulation occurred [s]
+
+    Returns:
+        precipitation accumulation [m]"""
+    precipitation_accumulation: xr.DataArray = precipitation_rate * dt / KG_PER_M2_PER_M
+    precipitation_accumulation.attrs["units"] = "m"
+    return precipitation_accumulation
+
+
 def precipitation_rate(
     precipitation_accumulation: xr.DataArray, dt: float
 ) -> xr.DataArray:
@@ -42,7 +65,6 @@ def precipitation_rate(
     Returns:
         precipitation rate [kg/m^s/s]"""
 
-    KG_PER_M2_PER_M = 1000.0
     precipitation_rate: xr.DataArray = (
         KG_PER_M2_PER_M * precipitation_accumulation / dt  # type: ignore
     )
@@ -164,7 +186,7 @@ def compute_baseline_diagnostics(state: State) -> Diagnostics:
         water_vapor_path=vcm.mass_integrate(state[SPHUM], state[DELP], dim="z")
         .assign_attrs(units="mm")
         .assign_attrs(description="column integrated water vapor"),
-        physics_precip=(state[PRECIP_RATE])
+        physics_precip=(state[PHYSICS_PRECIP_RATE])
         .assign_attrs(units="kg/m^2/s")
         .assign_attrs(
             description="surface precipitation rate due to parameterized physics"
