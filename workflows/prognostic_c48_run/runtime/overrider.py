@@ -1,4 +1,5 @@
 import dataclasses
+import functools
 import logging
 from typing import Hashable, Mapping, MutableMapping, Set
 
@@ -43,17 +44,16 @@ class OverriderAdapter:
     def __post_init__(self: "OverriderAdapter"):
         if self.communicator.rank == 0:
             logger.debug(f"Opening tendency overriding dataset from: {self.config.url}")
+        tile = self.communicator.partitioner.tile_index(self.communicator.rank)
         mapper = fsspec.get_mapper(self.config.url)
-        self._tendency_ds = xr.open_zarr(mapper, consolidated=True)
+        ds = xr.open_zarr(mapper, consolidated=True)
+        ds = ds[list(self.config.variables.values())].isel(tile=tile)
+        self._tendency_ds = DatasetCachedByChunk(ds, "time")
 
     def _open_tendencies_dataset(self, time: cftime.DatetimeJulian) -> xr.Dataset:
-        rank = self.communicator.rank
-        tile = self.communicator.partitioner.tile_index(rank)
         ds = xr.Dataset()
         if self.communicator.tile.rank == 0:
-            logger.debug(f"Loading tile-{tile} override tendencies on rank {rank}")
-            ds = self._tendency_ds.isel(tile=tile).sel(time=time).drop_vars("time")
-            ds = ds[list(self.config.variables.values())].load()
+            ds = self._tendency_ds.load(time).drop_vars("time")
         tendencies = self.communicator.tile.scatter_state(_ds_to_quantity_state(ds))
         return _quantity_state_to_ds(tendencies)
 
@@ -115,3 +115,21 @@ def _quantity_state_to_ds(quantity_state: QuantityState) -> xr.Dataset:
         }
     )
     return ds
+
+
+class DatasetCachedByChunk:
+    def __init__(self, ds: xr.Dataset, dim: str):
+        self._ds = ds
+        self._dim = dim
+        self._chunksize = ds.chunks[dim][0]
+        self._index = ds.get_index(dim)
+
+    def load(self, key):
+        idx = self._index.get_loc(key)
+        chunknum, chunk_idx = divmod(idx, self._chunksize)
+        return self._load_chunk(chunknum).isel({self._dim: chunk_idx})
+
+    @functools.lru_cache(3)
+    def _load_chunk(self, i):
+        chunk_slice = slice(i * self._chunksize, (i + 1) * self._chunksize)
+        return self._ds.isel({self._dim: chunk_slice}).load()
