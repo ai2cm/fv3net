@@ -20,10 +20,7 @@ from ._helpers import (
     copy_outputs,
     tidy_title,
     units_from_name,
-    column_integrated_metric_names,
-    insert_dataset_r2,
-    insert_scalar_metrics_r2,
-    mse_to_rmse,
+    vars_to_plot_maps,
     is_3d,
     drop_physics_vars,
     drop_temperature_humidity_tendencies_if_not_predicted,
@@ -176,22 +173,18 @@ def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir)
             section_name="Timesteps used for testing",
             output_dir=output_dir,
         )
-    column_integrated_variable_names = column_integrated_metric_names(metrics)
 
-    # Zonal average of vertical profiles for bias and R2
+    # Zonal average of vertical profiles for R2
     zonal_avg_pressure_level_metrics = [
         var
         for var in ds_diags.data_vars
-        if var.startswith("zonal_avg_pressure")
-        and var.endswith("predict_vs_target")
-        and ("r2" in var or "bias" in var)
+        if var.endswith("_pressure_level_zonal_avg_global") and ("r2" in var.lower())
     ]
     for var in sorted(zonal_avg_pressure_level_metrics):
-        vmin, vmax = (0, 1) if "r2" in var.lower() else (None, None)
         fig = diagplot.plot_zonal_average(
             data=ds_diags[var],
             title=tidy_title(var),
-            plot_kwargs={"vmin": vmin, "vmax": vmax},
+            plot_kwargs={"vmin": 0, "vmax": 1},
         )
         report.insert_report_figure(
             report_sections,
@@ -205,7 +198,7 @@ def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir)
     pressure_level_metrics = [
         var
         for var in ds_diags.data_vars
-        if var.startswith("pressure_level") and var.endswith("predict_vs_target")
+        if var.endswith("pressure_level_global") and ("r2" in var.lower())
     ]
     for var in sorted(pressure_level_metrics):
         ylim = (0, 1) if "r2" in var.lower() else None
@@ -224,7 +217,9 @@ def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir)
     profiles = [
         var
         for var in ds_diags.data_vars
-        if ("Q1" in var or "Q2" in var) and is_3d(ds_diags[var])
+        if ("q1" in var or "q2" in var)
+        and is_3d(ds_diags[var])
+        and (DERIVATION_DIM_NAME in ds_diags[var].dims)
     ]
     for var in sorted(profiles):
         fig = diagplot.plot_profile_var(
@@ -268,15 +263,17 @@ def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir)
 
     # scalar metrics for RMSE and bias
     metrics_formatted = []
-    metrics = insert_scalar_metrics_r2(metrics, column_integrated_variable_names)
-    for var in sorted(column_integrated_variable_names):
+    scalar_vars_r2 = sorted([var for var in metrics if "r2" in var])
+    scalar_vars_bias = [var.replace("_r2", "_bias") for var in scalar_vars_r2]
+
+    for var_r2, var_bias in zip(scalar_vars_r2, scalar_vars_bias):
         values = {
-            "r2": get_metric_string(metrics, "r2", var),
+            "r2": get_metric_string(metrics[var_r2]),
             "bias": " ".join(
-                [get_metric_string(metrics, "bias", var), units_from_name(var)]
+                [get_metric_string(metrics[var_bias]), units_from_name(var)]
             ),
         }
-        metrics_formatted.append((var.replace("_", " "), values))
+        metrics_formatted.append((var_r2.replace("_r2", ""), values))
 
     return report.create_html(
         sections=report_sections,
@@ -298,7 +295,6 @@ def main(args):
         metrics_json_name=METRICS_JSON_NAME,
         metadata_json_name=METADATA_JSON_NAME,
     )
-    ds_diags = ds_diags.pipe(insert_dataset_r2).pipe(mse_to_rmse)
 
     # omit physics tendencies from report plots
     ds_diags = drop_physics_vars(ds_diags)
@@ -339,7 +335,7 @@ def main(args):
     html_time_mean_maps = render_time_mean_maps(
         temp_output_dir.name,
         ds_diags,
-        column_integrated_vars=column_integrated_metric_names(metrics),
+        column_integrated_vars=vars_to_plot_maps(metrics),
     )
     with open(os.path.join(temp_output_dir.name, TIME_MEAN_MAPS_HTML), "w") as f:
         f.write(html_time_mean_maps)
