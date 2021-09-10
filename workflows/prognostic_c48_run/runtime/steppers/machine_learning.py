@@ -164,7 +164,8 @@ def predict(model: MultiModelAdapter, state: State) -> State:
 
 
 def _is_state_update_variable(key, state: State):
-    if key in state.keys():
+    if key in state.keys() and key not in TENDENCY_TO_STATE_NAME:
+        # the second check is to exclude derived variables such as dQu,v
         return True
     elif key == TOTAL_PRECIP_RATE:
         # Special case where models predict precip rate which is
