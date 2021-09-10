@@ -1,6 +1,4 @@
-from workflows.prognostic_c48_run.runtime.segmented_run.prepare_config import (
-    to_fv3config,
-)
+from runtime.segmented_run.prepare_config import to_fv3config
 from runtime.segmented_run import prepare_config
 import dacite
 import dataclasses
