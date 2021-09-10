@@ -1,3 +1,4 @@
+from runtime.segmented_run.prepare_config import to_fv3config
 from runtime.segmented_run import prepare_config
 import dacite
 import dataclasses
@@ -27,12 +28,6 @@ def test_prepare_ml_config_regression(regtest, argv):
 
 
 def test_get_user_config_is_valid():
-    class Args:
-        model_url = []
-        diagnostic_ml = True
-        initial_condition_url = "gs://some-url"
-        ic_timestep = "20160801.000000"
-        nudge_to_observations = False
 
     dict_ = {
         "base_version": "v0.5",
@@ -45,6 +40,21 @@ def test_get_user_config_is_valid():
         ],
     }
 
-    config = prepare_config.user_config_from_dict_and_args(dict_, Args)
+    config = prepare_config.user_config_from_dict_and_args(
+        dict_, model_url=[], diagnostic_ml=True, nudging_url="gs://some-url",
+    )
     # validate using dacite.from_dict
     dacite.from_dict(UserConfig, dataclasses.asdict(config))
+
+
+def test_to_fv3config_initial_conditions():
+    my_ic = "my_ic"
+    final = to_fv3config(
+        {"initial_conditions": my_ic, "base_version": "v0.5"},
+        initial_condition=None,
+        model_url=[],
+        diagnostic_ml=True,
+        nudging_url="gs://some-url",
+    )
+
+    assert final["initial_conditions"] == my_ic

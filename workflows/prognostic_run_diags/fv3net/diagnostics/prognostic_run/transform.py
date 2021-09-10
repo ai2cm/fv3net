@@ -8,14 +8,15 @@ diagnostic function arguments.
 """
 
 import logging
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, Callable
 import numpy as np
 import pandas as pd
 import xarray as xr
 from datetime import datetime, timedelta
 import cftime
+from vcm import interpolate_to_pressure_levels
 
-from .constants import HORIZONTAL_DIMS, DiagArg
+from .constants import HORIZONTAL_DIMS, VERTICAL_DIM, DiagArg
 
 _TRANSFORM_FNS = {}
 
@@ -31,7 +32,11 @@ def add_to_input_transform_fns(func):
     return func
 
 
-def apply(transform_key: str, *transform_args_partial, **transform_kwargs):
+def apply(
+    transform_func: Callable[[DiagArg], DiagArg],
+    *transform_args_partial,
+    **transform_kwargs,
+):
     """
     Wrapper to apply transform to input diagnostic arguments (tuple of three datasets).
     Transform arguments are specified per diagnostic function to enable a query-style
@@ -57,19 +62,10 @@ def apply(transform_key: str, *transform_args_partial, **transform_kwargs):
     """
 
     def _apply_to_diag_func(diag_func):
-
-        if transform_key not in _TRANSFORM_FNS:
-            raise KeyError(
-                f"Unrecognized transform, {transform_key} requested "
-                f"for {diag_func.__name__}"
-            )
-
-        transform_func = _TRANSFORM_FNS[transform_key]
-
-        def transform(*diag_args):
+        def transform(diag_args):
 
             logger.debug(
-                f"Adding transform, {transform_key}, "
+                f"Adding transform, {transform_func.__name__}, "
                 f"to diagnostic function: {diag_func.__name__}"
                 f"\n\targs: {transform_args_partial}"
                 f"\n\tkwargs: {transform_kwargs}"
@@ -80,7 +76,7 @@ def apply(transform_key: str, *transform_args_partial, **transform_kwargs):
 
             transformed_diag_args = transform_func(*transform_args, **transform_kwargs)
 
-            return diag_func(*transformed_diag_args)
+            return diag_func(transformed_diag_args)
 
         return transform
 
@@ -108,14 +104,14 @@ def resample_time(
             data. Defaults to False.
         method: how to do resampling. Can be "nearest" or "mean".
     """
-    prognostic, verification, grid = arg
+    prognostic, verification, grid = arg.prediction, arg.verification, arg.grid
     prognostic = _downsample_only(prognostic, freq_label, method)
     verification = _downsample_only(verification, freq_label, method)
 
     prognostic = prognostic.isel(time=time_slice)
     if inner_join:
         prognostic, verification = _inner_join_time(prognostic, verification)
-    return prognostic, verification, grid
+    return DiagArg(prognostic, verification, grid)
 
 
 def _downsample_only(ds: xr.Dataset, freq_label: str, method: str) -> xr.Dataset:
@@ -144,9 +140,10 @@ def insert_absent_3d_output_placeholder(arg: DiagArg) -> DiagArg:
     Args:
         arg: input arguments to transform prior to the diagnostic calculation
     """
-    prognostic, verification, grid = arg
+    prognostic, grid = arg.prediction, arg.grid
+
     if len(prognostic) > 0:
-        return prognostic, verification, grid
+        return arg
     else:
         dims = ["pressure", "x", "time"]
         coords = {
@@ -164,7 +161,7 @@ def insert_absent_3d_output_placeholder(arg: DiagArg) -> DiagArg:
         grid = xr.Dataset({"lat": xr.DataArray(1.0, dims=["x"], coords={"x": [1, 2]})})
         for var in placeholder:
             placeholder[var].attrs = {"long_name": "empty", "units": "na"}
-        return placeholder, placeholder, grid
+        return DiagArg(placeholder, placeholder, grid)
 
 
 @add_to_input_transform_fns
@@ -175,11 +172,11 @@ def daily_mean(split: timedelta, arg: DiagArg) -> DiagArg:
         split: time since start of prognostic run after which resampling occurs
         arg: input arguments to transform prior to the diagnostic calculation
     """
-    prognostic, verification, grid = arg
+    prognostic, verification, grid = arg.prediction, arg.verification, arg.grid
     split_time = prognostic.time.values[0] + split
     prognostic = _resample_end(prognostic, split_time, "1D")
     verification = _resample_end(verification, split_time, "1D")
-    return prognostic, verification, grid
+    return DiagArg(prognostic, verification, grid)
 
 
 def _resample_end(ds: xr.Dataset, split: datetime, freq_label: str) -> xr.Dataset:
@@ -242,7 +239,8 @@ def mask_to_sfc_type(surface_type: str, arg: DiagArg) -> DiagArg:
         arg: input arguments to transform prior to the diagnostic calculation
         surface_type:  Type of grid locations to leave unmasked
     """
-    prognostic, verification, grid = arg
+    prognostic, verification, grid = arg.prediction, arg.verification, arg.grid
+
     masked_prognostic = _mask_vars_with_horiz_dims(
         prognostic, surface_type, grid.lat, grid.land_sea_mask
     )
@@ -251,7 +249,7 @@ def mask_to_sfc_type(surface_type: str, arg: DiagArg) -> DiagArg:
         verification, surface_type, grid.lat, grid.land_sea_mask
     )
 
-    return masked_prognostic, masked_verification, grid
+    return DiagArg(masked_prognostic, masked_verification, grid)
 
 
 @add_to_input_transform_fns
@@ -264,12 +262,12 @@ def mask_area(region: str, arg: DiagArg) -> DiagArg:
             "land", "sea", and "tropics".
         arg: input arguments to transform prior to the diagnostic calculation
     """
-    prognostic, verification, grid = arg
+    prognostic, verification, grid = arg.prediction, arg.verification, arg.grid
 
     masked_area = _mask_array(region, grid.area, grid.lat, grid.land_sea_mask)
 
     grid_copy = grid.copy()
-    return prognostic, verification, grid_copy.update({"area": masked_area})
+    return DiagArg(prognostic, verification, grid_copy.update({"area": masked_area}))
 
 
 def _mask_array(
@@ -294,7 +292,58 @@ def _mask_array(
 @add_to_input_transform_fns
 def subset_variables(variables: Sequence, arg: DiagArg) -> DiagArg:
     """Subset the variables, without failing if a variable doesn't exist"""
-    prognostic, verification, grid = arg
+    prognostic, verification, grid = arg.prediction, arg.verification, arg.grid
+
     prognostic_vars = [var for var in variables if var in prognostic]
     verification_vars = [var for var in variables if var in verification]
-    return prognostic[prognostic_vars], verification[verification_vars], grid
+    return DiagArg(prognostic[prognostic_vars], verification[verification_vars], grid)
+
+
+def _is_3d(da: xr.DataArray):
+    return VERTICAL_DIM in da.dims
+
+
+@add_to_input_transform_fns
+def select_3d_variables(arg: DiagArg) -> DiagArg:
+    prediction, target, grid, delp = (
+        arg.prediction,
+        arg.verification,
+        arg.grid,
+        arg.delp,
+    )
+    prediction_vars = [var for var in prediction if _is_3d(prediction[var])]
+    return DiagArg(prediction[prediction_vars], target[prediction_vars], grid, delp)
+
+
+@add_to_input_transform_fns
+def select_2d_variables(arg: DiagArg) -> DiagArg:
+    prediction, target, grid, delp = (
+        arg.prediction,
+        arg.verification,
+        arg.grid,
+        arg.delp,
+    )
+    prediction_vars = [var for var in prediction if not _is_3d(prediction[var])]
+    return DiagArg(prediction[prediction_vars], target[prediction_vars], grid, delp)
+
+
+@add_to_input_transform_fns
+def regrid_zdim_to_pressure_levels(arg: DiagArg, vertical_dim=VERTICAL_DIM) -> DiagArg:
+    # Regrids to the default pressure grid used in vcm.interpolate_to_pressure_levels,
+    # which match those in the ERA-Interim reanalysis dataset
+    prediction, target, grid, delp = (
+        arg.prediction,
+        arg.verification,
+        arg.grid,
+        arg.delp,
+    )
+    prediction_regridded, target_regridded = xr.Dataset(), xr.Dataset()
+    vertical_prediction_fields = [var for var in prediction if _is_3d(prediction[var])]
+    for var in vertical_prediction_fields:
+        prediction_regridded[var] = interpolate_to_pressure_levels(
+            delp=delp, field=prediction[var], dim=vertical_dim,
+        )
+        target_regridded[var] = interpolate_to_pressure_levels(
+            delp=delp, field=target[var], dim=vertical_dim,
+        )
+    return DiagArg(prediction_regridded, target_regridded, grid, delp)

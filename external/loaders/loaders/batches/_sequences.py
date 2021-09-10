@@ -4,7 +4,7 @@ import joblib
 import collections
 from copy import deepcopy
 from functools import partial
-from numpy.random import RandomState
+import numpy as np
 from typing import (
     Callable,
     Sequence,
@@ -12,7 +12,6 @@ from typing import (
     TypeVar,
     Hashable,
     Any,
-    Optional,
     Union,
 )
 
@@ -145,18 +144,16 @@ class Map(BaseSequence[T]):
         return len(self._args)
 
 
-def shuffle(sequence: Sequence[T], seed: Optional[int] = None) -> Map[T]:
-    """Lazily shuffle a sequence
+def shuffle(sequence: Sequence[T]) -> Map[T]:
+    """Lazily shuffle a sequence. Uses numpy.random for randomness.
 
     Args:
         sequence:  Input sequence to have access indices shuffled
-        seed: Seed for random number generator used for shuffling
     Returns:
         A new shuffled sequence
     """
-    random = RandomState(seed)
     seq_len = len(sequence)
-    shuffled = random.choice(seq_len, size=seq_len, replace=False).tolist()
+    shuffled = np.random.choice(seq_len, size=seq_len, replace=False).tolist()
     func = partial(_simple_getitem, sequence)
     return Map(func, shuffled)
 
