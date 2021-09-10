@@ -59,4 +59,4 @@ def test_to_fv3config_initial_conditions():
         nudging_url="gs://some-url",
     )
 
-    final["initial_conditions"] = my_ic
+    assert final["initial_conditions"] == my_ic
