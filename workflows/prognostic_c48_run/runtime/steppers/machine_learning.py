@@ -8,7 +8,7 @@ from typing import Hashable, Iterable, Mapping, Sequence, Set, Tuple, cast
 import fv3fit
 import xarray as xr
 from runtime.diagnostics import compute_diagnostics, compute_ml_momentum_diagnostics
-from runtime.names import DELP, SPHUM, TENDENCY_TO_STATE_NAME, TOTAL_PRECIP_RATE
+from runtime.names import DELP, SPHUM, is_state_update_variable
 from runtime.types import Diagnostics, State
 from vcm import thermo
 import vcm
@@ -163,23 +163,6 @@ def predict(model: MultiModelAdapter, state: State) -> State:
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
-def _is_state_update_variable(key, state: State):
-    if key in state.keys() and key not in TENDENCY_TO_STATE_NAME:
-        # the second check is to exclude derived variables such as dQu,v
-        return True
-    elif key == TOTAL_PRECIP_RATE:
-        # Special case where models predict precip rate which is
-        # converted to state update on accumulated precip
-        return True
-    elif key in TENDENCY_TO_STATE_NAME:
-        return False
-    else:
-        raise ValueError(
-            f"ML model predicts '{key}' which neither a valid state update "
-            "nor a valid tendency to add to state."
-        )
-
-
 class PureMLStepper:
 
     label = "machine_learning"
@@ -205,7 +188,7 @@ class PureMLStepper:
 
         tendency, state_updates = {}, {}
         for key, value in prediction.items():
-            if _is_state_update_variable(key, state):
+            if is_state_update_variable(key, state):
                 state_updates[key] = value
             else:
                 tendency[key] = value

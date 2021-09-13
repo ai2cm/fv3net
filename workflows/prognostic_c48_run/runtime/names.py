@@ -1,4 +1,6 @@
 from typing import Mapping, Hashable
+from .types import State
+
 
 TEMP = "air_temperature"
 TOTAL_WATER = "total_water"
@@ -24,3 +26,15 @@ TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
     "dQv": NORTH_WIND,
 }
 NUDGING_TENDENCY_SUFFIX = "tendency_due_to_nudging"
+
+
+def is_state_update_variable(key, state: State):
+    if key in state.keys() and key not in TENDENCY_TO_STATE_NAME:
+        # the second check is to exclude derived variables such as dQu,v
+        return True
+    elif key == TOTAL_PRECIP_RATE:
+        # Special case where models predict precip rate which is
+        # converted to state update on accumulated precip
+        return True
+    else:
+        return False
