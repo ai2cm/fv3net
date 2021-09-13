@@ -12,7 +12,7 @@ requirements = [
     "gcsfs",
     "mpi4py",
     "numpy",
-    "pyyaml,
+    "pyyaml",
     "tensorflow",
     "xarray",
     "zarr",

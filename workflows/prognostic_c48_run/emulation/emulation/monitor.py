@@ -94,7 +94,8 @@ def _load_monitor(namelist):
         mpi_comm=MPI.COMM_WORLD
     )
     logger.info(f"Initialized zarr monitor at: {output_zarr}")
-    return output_monitor@print_errors
+    return output_monitor
+
 
 @print_errors
 def _get_timestep(namelist):

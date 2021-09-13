@@ -3,22 +3,22 @@ FROM us.gcr.io/vcm-ml/fms-build@sha256:6ac3fee7bbea8213804abd70c15d100b2b81c81c8
 
 ENV FMS_DIR=/FMS
 ENV ESMF_DIR=/usr/local/esmf
+ENV CALLPY_DIR=/usr/local
 ENV FV3GFS_FORTRAN_DIR=/external/fv3gfs-fortran
 ENV ESMF_INC="-I${ESMF_DIR}/include -I${ESMF_DIR}/mod/modO3/Linux.gfortran.64.mpiuni.default/"
 
 ENV FMS_LIB=${FMS_DIR}/libFMS/.libs/
 ENV ESMF_LIB=${ESMF_DIR}/lib
-ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}
+ENV CALLPYFORT_LIB=${CALLPY_DIR}/lib
+ENV CALLPYFORT_INCL=${CALLPY_DIR}/include
+ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}:${CALLPYFORT_LIB}
 
 COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4fd9efd898ad7b9fa3b391e5ede63cf5 /esmf ${ESMF_DIR}
 COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4fd9efd898ad7b9fa3b391e5ede63cf5 /esmf/lib/libO3/Linux.gfortran.64.mpiuni.default/*.so* ${ESMF_LIB}/
 
-# build/install the fortran model
-COPY external/fv3gfs-fortran/ /tmp/fortran-build
-RUN cd /tmp/fortran-build/FV3 && \
-    ./configure gnu_docker && \
-    make -j 8 && \
-    PREFIX=/usr/local make install
+# TODO: Link to master sha
+COPY --from=us.gcr.io/vcm-ml/emulation-build:gnu7-mpich314-nocuda /usr/local/lib/*  ${CALLPYFORT_LIB}/
+COPY --from=us.gcr.io/vcm-ml/emulation-build:gnu7-mpich314-nocuda /usr/local/include/callpy_mod.mod  ${CALLPYFORT_INCL}/
 
 #
 # Python Stuff Here
@@ -33,6 +33,19 @@ RUN apt-get update && \
     python3-setuptools \
     python3-pip \
     cython3
+
+# build/install the fortran model
+COPY external/fv3gfs-fortran/ /tmp/fortran-build
+RUN cd /tmp/fortran-build/FV3 && \
+    ./configure gnu_docker && \
+    sed -i "33i CALLPYFORT=Y" conf/configure.fv3 && \
+    make clean_no_dycore && make libs_no_dycore -j8
+
+RUN cd /tmp/fortran-build/FV3 && \
+    make -j8 && \
+    PREFIX=/usr/local make install
+
+
 
 # Python components here
 COPY docker/prognostic_run/requirements/base.txt /tmp/requirements.txt
@@ -104,6 +117,7 @@ ENV LANG=C.UTF-8
 
 COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
 RUN pip install /fv3net/workflows/prognostic_c48_run
+RUN pip install /fv3net/workflows/prognostic_c48_run/emulation
 
 ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:${PYTHONPATH}
 WORKDIR /fv3net/workflows/prognostic_c48_run

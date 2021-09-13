@@ -17,6 +17,7 @@ TF_MODEL_PATH = None  # local or remote path to tensorflow model
 NML_PATH = None
 DT_SEC = None
 ORIG_OUTPUTS = None
+MODEL = None
 
 @print_errors
 def _load_environment_vars_into_global():
@@ -25,7 +26,7 @@ def _load_environment_vars_into_global():
     global NML_PATH
 
     cwd = os.getcwd()
-    TF_MODEL_PATH = os.environ["TF_MODEL_PATH"]
+    TF_MODEL_PATH = os.environ.get("TF_MODEL_PATH", None)
     NML_PATH = os.path.join(cwd, "input.nml")
 
 
@@ -35,6 +36,7 @@ def _load_nml():
     logger.info(f"Loaded namelist for emulation from {NML_PATH}")
     
     return namelist
+
 
 @print_errors
 def _get_timestep(namelist):
@@ -53,7 +55,6 @@ def _load_tf_model() -> tf.keras.Model:
 _load_environment_vars_into_global()
 NML = _load_nml()
 DT_SEC = _get_timestep(NML)
-MODEL = _load_tf_model()
 
 
 def _unpack_predictions(predictions):
@@ -75,6 +76,15 @@ def _unpack_predictions(predictions):
 def microphysics(state):
 
     global ORIG_OUTPUTS
+    global MODEL
+
+    if MODEL is None:
+        if TF_MODEL_PATH is None:
+            raise ValueError(
+                "Emulation requires loadable model path set as env."
+                " variable TF_MODEL_PATH."
+            )
+        MODEL = _load_tf_model()
 
     inputs = [state[name].T for name in MODEL.input_names]
     predictions = MODEL.predict(inputs)
