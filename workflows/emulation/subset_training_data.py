@@ -11,8 +11,8 @@ from fv3fit._shared.stacking import subsample
 from loaders.batches import batches_from_mapper
 from loaders.mappers import XarrayMapper
 from joblib import Parallel, delayed
+import zarr.storage
 
-from fv3net.artifacts.resolve_url import resolve_url
 from fv3net.artifacts.query import get_artifacts
 
 # import apache_beam as beam
@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 def open_zarr(fs, url):
-    return xarray.open_zarr(fs.get_mapper(url), consolidated=True)
+    mapper = zarr.storage.LRUStoreCache(fs.get_mapper(url), max_size=int(1e9))
+    return xarray.open_zarr(mapper, consolidated=True)
 
 
 def open_run(artifact):
@@ -38,6 +39,9 @@ if __name__ == "__main__":
     subsample_size = 2560
     num_workers = 6
     variables = [
+        "cos_zenith_angle",
+        "lat",
+        "lon",
         "air_temperature",
         "canopy_water",
         "cloud_water_mixing_ratio",
@@ -66,9 +70,8 @@ if __name__ == "__main__":
         "tendency_of_ozone_mixing_ratio_due_to_fv3_physics",
         "tendency_of_specific_humidity_due_to_fv3_physics",
     ]
-    destination = resolve_url(
-        "vcm-ml-archive", "online-emulator", tag="subsampled-data-v1"
-    )
+    destination = "data/raw"
+    protocol = "file"
 
     matching_artifacts = [
         art
@@ -106,7 +109,7 @@ if __name__ == "__main__":
         out.attrs["history"] = " ".join(sys.argv)
         out.attrs["working_directory"] = os.getcwd()
 
-        fs = fsspec.filesystem("gs")
+        fs = fsspec.filesystem(protocol)
 
         with tempfile.NamedTemporaryFile() as f:
             out.reset_index("sample").to_netcdf(f.name)
@@ -117,7 +120,7 @@ if __name__ == "__main__":
     # with beam.Pipeline() as p:
     #     indices = p | beam.Create(range(len(data_mapping))) | beam.Reshuffle()
     #     indices | "SaveData" >> beam.Map(process, batches=batches)
-
-    Parallel(n_jobs=32, verbose=10)(
-        delayed(process)(k, batches) for k in range(len(data_mapping))
+    os.makedirs(destination, exist_ok=True)
+    Parallel(n_jobs=6, verbose=10)(
+        delayed(process)(k, batches) for k in range(len(batches))
     )

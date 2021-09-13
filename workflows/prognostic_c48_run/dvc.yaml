@@ -16,3 +16,9 @@ stages:
     - single-level.yaml
     metrics:
     - single-level/scores.json
+  subset:
+    cmd: python3 ../emulation/subset_training_data.py
+    deps:
+    - ../emulation/subset_training_data.py
+    outs:
+    - data/raw/

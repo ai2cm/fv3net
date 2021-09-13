@@ -39,3 +39,14 @@ stages:
     - path: single-level/scores.json
       md5: 17bd0ebbb5a8470cc02594b383a4e05d
       size: 125
+  subset:
+    cmd: python3 ../emulation/subset_training_data.py
+    deps:
+    - path: ../emulation/subset_training_data.py
+      md5: c586d7197abc8662cc33e47dfd876dbc
+      size: 3967
+    outs:
+    - path: data/raw/
+      md5: 4e86b0743b544f530e5fa0f20c7e648c.dir
+      size: 47685991680
+      nfiles: 1920

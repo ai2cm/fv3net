@@ -1,3 +1,44 @@
+# Training datasets
+
+
+## Data version control (dvc) instructions
+
+Install via pipx to avoid version conflicts with gcsfs version used by fv3net
+
+    pipx install dvc[gs]==2.4.1
+
+pipx is used to install python command line tools into isolated virtual
+environments. See https://github.com/iterative/dvc/issues/6170 for more
+background on why dvc pins its dependencies.
+
+## Full physics emulation training dataset
+
+Ran a simulation with latent heat fluxes added, and data generated using the
+online-emulator fv3net branch. 10 day simulations starting at the first of each
+month were launched from vcm-workflow control. Snapshots were saved every 3
+hours.
+
+The data was then subsetted on Noah’s VM with
+`:/workflows/emulation/subset_training_data.py`.  As with [2021-07-13 -
+Emulation
+Dataset.docx](https://docs.google.com/document/d/1JEkVRJswfWaKx6ArvLOObNzcnKRrpShg/edit?usp=sharing&ouid=116835339781818087650&rtpof=true&sd=true),
+2560 samples were randomly drawn from each timestep of the output. The
+subsetting takes about 130 minutes on noah's VM.
+
+The data were then added to data version control in fv3net and split into
+training/testing portions using python bin/raw_to_train.py. See the git log for
+more details.
+
+The dataset is managed using dvc in the directory
+“workflows/prognostic_c48_run/data”. 
+
+To download the data before training run
+```
+dvc pull data
+```
+
+# Training
+
 To run hyperparameter sweep:
 
     $ wandb sweep --entity ai2cm --project emulator-noah hyper-parameter-tune/sweep.yaml
