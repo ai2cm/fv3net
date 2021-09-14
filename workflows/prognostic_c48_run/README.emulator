@@ -67,3 +67,13 @@ To launch a single run, edit the parameters in `hyper-parameter-tune/train.yaml`
 
     kubectl apply -f hyper-parameter-tune/train.yaml
     
+
+# Prognostic run
+
+## Report
+
+    cd workflows/emulation
+    python3 prognostic_diagnostics.py <offline id> <online id>
+
+where offline is the unique string for a run in weights and biases (e.g.
+`ai2cm/emulator-noah/<id>`).
