@@ -1,3 +1,4 @@
+from runtime.names import STATE_NAME_TO_TENDENCY, TENDENCY_TO_STATE_NAME
 from runtime.nudging import (
     _sst_from_reference,
     _time_interpolate_func,
@@ -88,11 +89,19 @@ def state(request):
     if request.param == "empty":
         return {}
     elif request.param == "one_var":
-        return {"var1": xr.DataArray(np.ones([5]), dims=["dim1"], attrs={"units": "m"})}
+        return {
+            "air_temperature": xr.DataArray(
+                np.ones([5]), dims=["dim1"], attrs={"units": "K"}
+            )
+        }
     elif request.param == "two_vars":
         return {
-            "var1": xr.DataArray(np.ones([5]), dims=["dim1"], attrs={"units": "m"}),
-            "var2": xr.DataArray(np.ones([5]), dims=["dim_2"], attrs={"units": "m"}),
+            "air_temperature": xr.DataArray(
+                np.ones([5]), dims=["dim1"], attrs={"units": "K"}
+            ),
+            "specific_humidity": xr.DataArray(
+                np.ones([5]), dims=["dim_2"], attrs={"units": "kg/kg"}
+            ),
         }
     else:
         raise NotImplementedError()
@@ -139,16 +148,23 @@ def nudging_timescales(state, timestep, multiple_of_timestep):
 @pytest.fixture
 def nudging_tendencies(reference_difference, state, nudging_timescales):
     if reference_difference in ("equal", "extra_var"):
-        tendencies = copy.deepcopy(state)
+        tendencies = {
+            STATE_NAME_TO_TENDENCY[name]: field
+            for name, field in copy.deepcopy(state).items()
+        }
         for name, array in tendencies.items():
             array.values[:] = 0.0
             tendencies[name] = array.assign_attrs(
                 {"units": array.attrs["units"] + " s^-1"}
             )
     elif reference_difference == "plus_one":
-        tendencies = copy.deepcopy(state)
+        tendencies = {
+            STATE_NAME_TO_TENDENCY[name]: field
+            for name, field in copy.deepcopy(state).items()
+        }
         for name, array in tendencies.items():
-            array.data[:] = 1.0 / nudging_timescales[name].total_seconds()
+            state_name = TENDENCY_TO_STATE_NAME[name]
+            array.data[:] = 1.0 / nudging_timescales[state_name].total_seconds()
             tendencies[name] = array.assign_attrs(
                 {"units": array.attrs["units"] + " s^-1"}
             )
