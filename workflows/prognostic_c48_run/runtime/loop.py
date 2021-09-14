@@ -81,7 +81,7 @@ class Stepper(Protocol):
         return {}
 
 
-def _replace_precip_rate_with_accumlation(  # type: ignore
+def _replace_precip_rate_with_accumulation(  # type: ignore
     state_updates: State, dt: float
 ) -> State:
     # Precipitative ML models predict a rate, but the precipitation to update
@@ -403,7 +403,7 @@ class TimeLoop(
             (self._tendencies, diagnostics, state_updates,) = self._postphysics_stepper(
                 self._state.time, self._state
             )
-            _replace_precip_rate_with_accumlation(state_updates, self._timestep)
+            _replace_precip_rate_with_accumulation(state_updates, self._timestep)
 
             self._log_debug(
                 "Postphysics stepper adds tendency update to state for "

@@ -218,8 +218,8 @@ def get_nudging_tendency(
             values are timedelta objects indicating the relaxation timescale for that
             variable.
     Returns:
-        nudging_tendencies (dict): A dictionary whose keys are standard names
-            appended with "_tendency_due_to_nudging"
+        nudging_tendencies (dict): A dictionary whose keys are the tendency names
+            associated with the state variables in names.STATE_NAME_TO_TENDENCY
             and values are xr.DataArray objects indicating the nudging tendency
             of that standard name.
     """
