@@ -81,7 +81,9 @@ class Stepper(Protocol):
         return {}
 
 
-def _replace_precip_rate_with_accumlation(state_updates: State, dt: float) -> State:
+def _replace_precip_rate_with_accumlation(
+    state_updates: State, dt: float
+) -> State:  # type: ignore
     # Precipitative ML models predict a rate, but the precipitation to update
     # in the state is an accumulated total over the timestep
     if TOTAL_PRECIP_RATE in state_updates:
