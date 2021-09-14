@@ -18,14 +18,27 @@ SST = "ocean_surface_temperature"
 TSFC = "surface_temperature"
 MASK = "land_sea_mask"
 
+NUDGING_TENDENCY_SUFFIX = "tendency_due_to_nudging"
+
+NUDGING_TENDENCY_TO_STATE_NAME = {
+    f"{var}_{NUDGING_TENDENCY_SUFFIX}": var
+    for var in [
+        "air_temperature",
+        "specific_humidity",
+        "x_wind",
+        "y_wind",
+        "pressure_thickness_of_atmospheric_layer",
+    ]
+}
+
 # following variables are required no matter what feature set is being used
 TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
+    **NUDGING_TENDENCY_TO_STATE_NAME,
     "dQ1": TEMP,
     "dQ2": SPHUM,
     "dQu": EAST_WIND,
     "dQv": NORTH_WIND,
 }
-NUDGING_TENDENCY_SUFFIX = "tendency_due_to_nudging"
 
 
 def is_state_update_variable(key, state: State):

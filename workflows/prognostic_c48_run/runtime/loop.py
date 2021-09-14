@@ -32,7 +32,6 @@ from runtime.diagnostics.compute import (
 from runtime.monitor import Monitor
 from runtime.names import (
     TENDENCY_TO_STATE_NAME,
-    NUDGING_TENDENCY_SUFFIX,
     TOTAL_PRECIP_RATE,
 )
 from runtime.steppers.machine_learning import (
@@ -101,18 +100,15 @@ def add_tendency(state: Any, tendency: State, dt: float) -> State:
         updated = {}
         for name_ in tendency:
             name = str(name_)
-            if name.endswith(NUDGING_TENDENCY_SUFFIX):
-                state_name = name.replace(NUDGING_TENDENCY_SUFFIX, "").strip("_")
-            else:
-                try:
-                    state_name = str(TENDENCY_TO_STATE_NAME[name])
-                except KeyError:
-                    raise KeyError(
-                        f"Tendency variable '{name}' does not have an entry mapping it "
-                        "to a corresponding state variable to add to. "
-                        "Existing tendencies with mappings to state are "
-                        f"{list(TENDENCY_TO_STATE_NAME.keys())}"
-                    )
+            try:
+                state_name = str(TENDENCY_TO_STATE_NAME[name])
+            except KeyError:
+                raise KeyError(
+                    f"Tendency variable '{name}' does not have an entry mapping it "
+                    "to a corresponding state variable to add to. "
+                    "Existing tendencies with mappings to state are "
+                    f"{list(TENDENCY_TO_STATE_NAME.keys())}"
+                )
             updated[state_name] = state[state_name] + tendency[name] * dt
     return updated  # type: ignore
 

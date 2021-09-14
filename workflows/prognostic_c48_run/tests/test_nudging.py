@@ -137,26 +137,28 @@ def nudging_timescales(state, timestep, multiple_of_timestep):
     return return_dict
 
 
-def _append_key_label(d, suffix: str):
-    return_dict = {}
-    for key, value in d.items():
-        return_dict[str(key) + f"_{suffix}"] = value
-    return return_dict
-
-
 @pytest.fixture
 def nudging_tendencies(reference_difference, state, nudging_timescales):
+    state_to_tendency = {var: var + f"_{NUDGING_TENDENCY_SUFFIX}" for var in state}
+    tendency_to_state = {v: k for k, v in state_to_tendency.items()}
+
     if reference_difference in ("equal", "extra_var"):
-        tendencies = _append_key_label(copy.deepcopy(state), NUDGING_TENDENCY_SUFFIX)
+        tendencies = {
+            state_to_tendency[name]: field
+            for name, field in copy.deepcopy(state).items()
+        }
         for name, array in tendencies.items():
             array.values[:] = 0.0
             tendencies[name] = array.assign_attrs(
                 {"units": array.attrs["units"] + " s^-1"}
             )
     elif reference_difference == "plus_one":
-        tendencies = _append_key_label(copy.deepcopy(state), NUDGING_TENDENCY_SUFFIX)
+        tendencies = {
+            state_to_tendency[name]: field
+            for name, field in copy.deepcopy(state).items()
+        }
         for name, array in tendencies.items():
-            state_name = name.replace(NUDGING_TENDENCY_SUFFIX, "").strip("_")
+            state_name = tendency_to_state[name]
             array.data[:] = 1.0 / nudging_timescales[state_name].total_seconds()
             tendencies[name] = array.assign_attrs(
                 {"units": array.attrs["units"] + " s^-1"}
