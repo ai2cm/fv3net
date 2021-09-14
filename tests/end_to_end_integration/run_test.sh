@@ -68,6 +68,7 @@ EOF
         us.gcr.io/vcm-ml/prognostic_run="$registry/prognostic_run:$commit" \
         us.gcr.io/vcm-ml/fv3net="$registry/fv3net:$commit" \
         us.gcr.io/vcm-ml/post_process_run="$registry/post_process_run:$commit"
+        us.gcr.io/vcm-ml/artifacts="$registry/artifacts:$commit"
 
     kustomize build . | kubectl apply -f -
 }
