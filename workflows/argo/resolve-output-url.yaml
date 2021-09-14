@@ -12,7 +12,7 @@ spec:
           - name: project
           - name: tag
       container:
-        image: us.gcr.io/vcm-ml/fv3net
+        image: us.gcr.io/vcm-ml/artifacts
         command:
           - artifacts
           - resolve-url
