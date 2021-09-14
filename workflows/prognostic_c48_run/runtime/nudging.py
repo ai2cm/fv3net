@@ -19,7 +19,7 @@ from typing import (
     Optional,
 )
 import logging
-from .names import SST, TSFC, MASK, NUDGING_TENDENCY_SUFFIX
+from .names import SST, TSFC, MASK, STATE_NAME_TO_TENDENCY
 
 logger = logging.getLogger(__name__)
 
@@ -231,7 +231,7 @@ def get_nudging_tendency(
         return_data = return_data.assign_attrs(
             {"units": f'{var_state.attrs.get("units", "")} s^-1'}
         )
-        return_dict[f"{name}_{NUDGING_TENDENCY_SUFFIX}"] = return_data
+        return_dict[STATE_NAME_TO_TENDENCY[name]] = return_data
     return return_dict
 
 

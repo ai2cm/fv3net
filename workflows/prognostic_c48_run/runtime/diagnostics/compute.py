@@ -1,5 +1,6 @@
 import xarray as xr
 import logging
+from typing import Hashable, Mapping
 import vcm
 from runtime.types import State, Diagnostics
 from runtime.names import (
@@ -7,7 +8,7 @@ from runtime.names import (
     SPHUM,
     DELP,
     PHYSICS_PRECIP_RATE,
-    NUDGING_TENDENCY_SUFFIX,
+    TENDENCY_TO_STATE_NAME,
 )
 
 logger = logging.getLogger(__name__)
@@ -76,12 +77,8 @@ def compute_diagnostics(
     state: State, tendency: State, label: str, hydrostatic: bool
 ) -> Diagnostics:
     delp = state[DELP]
-    if label == "machine_learning":
-        temperature_tendency_name = "dQ1"
-        humidity_tendency_name = "dQ2"
-    elif label == "nudging":
-        temperature_tendency_name = f"{TEMP}_{NUDGING_TENDENCY_SUFFIX}"
-        humidity_tendency_name = f"{SPHUM}_{NUDGING_TENDENCY_SUFFIX}"
+    temperature_tendency_name = "dQ1"
+    humidity_tendency_name = "dQ2"
 
     temperature_tendency = tendency.get(temperature_tendency_name, xr.zeros_like(delp))
     humidity_tendency = tendency.get(humidity_tendency_name, xr.zeros_like(delp))
@@ -117,7 +114,10 @@ def compute_diagnostics(
 
     # add 3D tendencies to diagnostics
     if label == "nudging":
-        diags_3d = tendency
+        diags_3d: Mapping[Hashable, xr.DataArray] = {
+            f"{TENDENCY_TO_STATE_NAME[k]}_tendency_due_to_nudging": v
+            for k, v in tendency.items()
+        }
     elif label == "machine_learning":
         diags_3d = {
             "dQ1": temperature_tendency.assign_attrs(units="K/s").assign_attrs(
