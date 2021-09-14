@@ -184,6 +184,9 @@ class PureMLStepper:
         delp = state[DELP]
 
         tendency: State = predict(self.model, state)
+        nz = tendency.sizes["z"]
+        for key in tendency:
+            tendency[key] = tendency[key].where(tendency[key].z < nz - 5, 0.0)
 
         dQ1_initial = tendency.get("dQ1", xr.zeros_like(state[SPHUM]))
         dQ2_initial = tendency.get("dQ2", xr.zeros_like(state[SPHUM]))
