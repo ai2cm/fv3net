@@ -1,4 +1,3 @@
-workflows/prognostic_c48_run/**/*.nc
 **/*.zarr
 **/*.pdf
 **/*.png
