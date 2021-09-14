@@ -3,7 +3,7 @@ import dataclasses
 import json
 import itertools
 import os
-from typing import Mapping, Sequence, Set
+from typing import Mapping, Optional, Sequence, Set
 
 import gcsfs
 import fsspec
@@ -80,10 +80,9 @@ class ReportIndex:
                 pass
             else:
                 report_lines = report_head.decode("UTF-8").split("\n")
-                report_lines = [l.replace(" ", "") for l in report_lines]
                 for line in report_lines:
-                    if "<td>gs://" in line:
-                        run_url = line.split("<td>")[1].split("</td>")[0]
+                    run_url = _get_run_url(line)
+                    if run_url:
                         out.setdefault(run_url, []).append(report_url)
         return out
 
@@ -104,6 +103,18 @@ class ReportIndex:
             return url
         else:
             raise ValueError(f"Public domain unknown for url {url}.")
+
+
+def _get_run_url(line: str) -> Optional[str]:
+    if "<td> gs://" in line:
+        # handles older style reports
+        return line.split("<td>")[1].split("</td>")[0].strip()
+    elif '": "gs://' in line:
+        # handles newer style reports generated after
+        # https://github.com/VulcanClimateModeling/fv3net/pull/1304
+        return line.split(": ")[1].strip('",')
+    else:
+        return None
 
 
 def main(args):
