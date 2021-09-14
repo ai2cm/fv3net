@@ -20,7 +20,7 @@ MASK = "land_sea_mask"
 
 NUDGING_TENDENCY_SUFFIX = "tendency_due_to_nudging"
 
-NUDGING_TENDENCY_TO_STATE_NAME = {
+NUDGING_TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
     f"{var}_{NUDGING_TENDENCY_SUFFIX}": var
     for var in [
         "air_temperature",
