@@ -89,7 +89,6 @@ def _replace_precip_rate_with_accumlation(state_updates: State, dt: float) -> St
             state_updates[TOTAL_PRECIP_RATE], dt
         )
         state_updates.pop(TOTAL_PRECIP_RATE)
-    return state_updates
 
 
 def add_tendency(state: Any, tendency: State, dt: float) -> State:
@@ -402,15 +401,13 @@ class TimeLoop(
             (self._tendencies, diagnostics, state_updates,) = self._postphysics_stepper(
                 self._state.time, self._state
             )
-            state_updates = _replace_precip_rate_with_accumlation(
-                state_updates, self._timestep
-            )
+            _replace_precip_rate_with_accumlation(state_updates, self._timestep)
 
-            self._log_info(
+            self._log_debug(
                 "Postphysics stepper adds tendency update to state for "
                 f"{self._tendencies.keys()}"
             )
-            self._log_info(
+            self._log_debug(
                 "Postphysics stepper updates state directly for "
                 f"{state_updates.keys()}"
             )
