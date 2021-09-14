@@ -11,6 +11,7 @@ rm -rf external/vcm/build
 
 local_packages_to_install=( 
   external/vcm
+  external/artifacts
   external/loaders
   external/fv3fit
   external/fv3gfs-util
