@@ -1,4 +1,5 @@
 from itertools import chain
+from fv3net.diagnostics.prognostic_run.constants import DiagArg
 
 import fv3net.diagnostics.prognostic_run.compute as savediags
 from fv3net.diagnostics.prognostic_run.load_run_data import (
@@ -39,7 +40,8 @@ def grid():
     ),
 )
 def test_compute_diags_succeeds(func, resampled, verification, grid):
-    func(resampled, verification, grid)
+    diag_arg = DiagArg(resampled, verification, grid)
+    func(diag_arg)
 
 
 def test_time_mean():

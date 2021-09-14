@@ -112,52 +112,22 @@ def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
     return vertical_dim in da.dims
 
 
-def insert_scalar_metrics_r2(
-    metrics: ScalarMetrics, predicted: Sequence[str],
-):
-    for var in predicted:
-        r2_name = f"scalar/r2/{var}/predict_vs_target"
-        mse = metrics[f"scalar/mse/{var}/predict_vs_target"]["mean"]
-        variance = metrics[f"scalar/mse/{var}/mean_vs_target"]["mean"]
-        # std is across batches
-        mse_std = metrics[f"scalar/mse/{var}/predict_vs_target"]["std"]
-        variance_std = metrics[f"scalar/mse/{var}/mean_vs_target"]["std"]
-        r2 = 1.0 - (mse / variance)
-        r2_std = r2 * np.sqrt((mse_std / mse) ** 2 + (variance_std / variance) ** 2)
-        metrics[r2_name] = {"mean": r2, "std": r2_std}
-    return metrics
-
-
-def insert_dataset_r2(
-    ds: xr.Dataset,
-    mse_coord: str = "mse",
-    r2_coord: str = "r2",
-    predict_coord: str = "predict",
-    target_coord: str = "target",
-):
-    mse_vars = [
-        var
-        for var in ds.data_vars
-        if (
-            str(var).endswith(f"{predict_coord}_vs_{target_coord}")
-            and mse_coord in str(var)
+def insert_r2(ds_metrics):
+    mse_vars = [var for var in ds_metrics if "_mse" in var]
+    for mse_var in mse_vars:
+        variance = ds_metrics[mse_var.replace("_mse", "_variance")]
+        ds_metrics[mse_var.replace("_mse", "_r2")] = (
+            1.0 - ds_metrics[mse_var] / variance
         )
-    ]
-    for mse_var in mse_vars:
-        name_pieces = str(mse_var).split("-")
-        variance = "-".join(name_pieces[:-1] + [f"mean_vs_{target_coord}"])
-        r2_var = "-".join([s if s != mse_coord else r2_coord for s in name_pieces])
-        ds[r2_var] = 1.0 - ds[mse_var] / ds[variance]
-    return ds
+    return ds_metrics
 
 
-def mse_to_rmse(ds: xr.Dataset):
-    # replaces MSE variables with RMSE after the weighted avg is calculated
-    mse_vars = [var for var in ds.data_vars if "mse" in str(var)]
+def insert_rmse(ds: xr.Dataset):
+    mse_vars = [var for var in ds.data_vars if "_mse" in str(var)]
     for mse_var in mse_vars:
-        rmse_var = str(mse_var).replace("mse", "rmse")
+        rmse_var = str(mse_var).replace("_mse", "_rmse")
         ds[rmse_var] = np.sqrt(ds[mse_var])
-    return ds.drop(mse_vars)
+    return ds
 
 
 def load_grid_info(res: str = "c48"):
@@ -213,27 +183,18 @@ def tidy_title(var: str):
 
 
 def get_metric_string(
-    metrics: Mapping[str, Mapping[str, float]],
-    metric_name: str,
-    var: str,
-    predict_coord: str = "predict",
-    target_coord: str = "target",
-    precision=2,
+    metric_statistics: Mapping[str, float], precision=2,
 ):
-    value = metrics[f"scalar/{metric_name}/{var}/{predict_coord}_vs_{target_coord}"][
-        "mean"
-    ]
-    std = metrics[f"scalar/{metric_name}/{var}/{predict_coord}_vs_{target_coord}"][
-        "std"
-    ]
+    value = metric_statistics["mean"]
+    std = metric_statistics["std"]
     return f"{value:.{precision}f} +/- {std:.{precision}f}"
 
 
-def column_integrated_metric_names(metrics):
+def vars_to_plot_maps(metrics):
     names = []
     for key in metrics:
-        if key.split("/")[0] == "scalar":
-            names.append(key.split("/")[2])
+        if "_r2_2d_" in key and key.split("_r2_2d_")[-1] == "global":
+            names.append(key.split("_r2_2d_")[0])
     return list(set(names))
 
 

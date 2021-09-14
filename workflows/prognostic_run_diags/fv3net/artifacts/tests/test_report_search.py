@@ -1,5 +1,5 @@
 import os
-import fsspec
+import pytest
 from fv3net.artifacts.report_search import ReportIndex
 
 # flake8: noqa E501
@@ -92,8 +92,44 @@ REPORT_SAMPLE = """<html>
     <script type="application/javascript>
 """
 
+NEW_REPORT_SAMPLE = """<html>
+    <head>
+        <title>Prognostic run report</title>
+        <script crossorigin="anonymous" integrity="sha384-T2yuo9Oe71Cz/I4X9Ac5+gpEa5a8PpJCDlqKYO0CfAuEszu1JrXLl8YugMqYe3sM" src="https://cdn.bokeh.org/bokeh/release/bokeh-2.2.3.min.js" type="text/javascript"></script><script crossorigin="anonymous" integrity="sha384-98GDGJ0kOMCUMUePhksaQ/GYgB3+NH9h996V88sh3aOiUNX3N+fLXAtry6xctSZ6" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.2.3.min.js" type="text/javascript"></script><script crossorigin="anonymous" integrity="sha384-" src="https://unpkg.com/@holoviz/panel@^0.10.3/dist/panel.min.js" type="text/javascript"></script>
+    </head>
 
-def test_ReportIndex_compute(tmpdir):
+    <body>
+    <h1>Prognostic run report</h1>
+    Report created 2021-09-13 09:50:30 PDT
+    
+        <h2>Metadata</h2>
+<pre id="json">
+{
+    "verification dataset": "40day_may2020",
+    "all-climate-ml-seed-0": "gs://vcm-ml-experiments/spencerc/2021-05-28/n2f-25km-all-climate-tapered-fixed-ml-unperturbed-seed-0/fv3gfs_run",
+    "n2f-3hr-prescribe-Q1-Q2": "gs://vcm-ml-experiments/default/2021-09-10/n2f-3km-prescribe-q1-q2-3hr/fv3gfs_run",
+    "n2f-24hr-prescribe-Q1-Q2": "gs://vcm-ml-experiments/default/2021-09-10/n2f-3km-prescribe-q1-q2-24hr/fv3gfs_run",
+    "column_heating_moistening.mp4": "<a href='https://storage.googleapis.com/vcm-ml-public/argo/2021-09-13t094629-2733d02e6fb8/_movies/n2f-3hr-control/column_heating_moistening.mp4'>n2f-3hr-control</a> <a href='https://storage.googleapis.com/vcm-ml-public/argo/2021-09-13t094629-2733d02e6fb8/_movies/n2f-3hr-prescribe-Q1-Q2/column_heating_moistening.mp4'>n2f-3hr-prescribe-Q1-Q2</a> <a href='https://storage.googleapis.com/vcm-ml-public/argo/2021-09-13t094629-2733d02e6fb8/_movies/n2f-24hr-prescribe-Q1-Q2/column_heating_moistening.mp4'>n2f-24hr-prescribe-Q1-Q2</a>"
+}
+</pre>
+    
+        <h2>Links</h2>
+            
+                <ol>
+<li><a href="index.html">Home</a></li>
+<li><a href="process_diagnostics.html">Process diagnostics</a></li>
+<li><a href="hovmoller.html">Latitude versus time hovmoller</a></li>
+<li><a href="maps.html">Time-mean maps</a></li>
+<li><a href="zonal_pressure.html">Time-mean zonal-pressure profiles</a></li>
+</ol>
+            
+    
+        <h2>Top-level metrics</h2>
+"""
+
+
+@pytest.mark.parametrize("report_sample", (REPORT_SAMPLE, NEW_REPORT_SAMPLE))
+def test_ReportIndex_compute(report_sample, tmpdir):
     expected_run = (
         "gs://vcm-ml-experiments/spencerc/2021-05-28/"
         "n2f-25km-all-climate-tapered-fixed-ml-unperturbed-seed-0/fv3gfs_run"
@@ -101,9 +137,9 @@ def test_ReportIndex_compute(tmpdir):
     os.makedirs(tmpdir.join("report1"))
     os.makedirs(tmpdir.join("report2"))
     with open(tmpdir.join("report1/index.html"), "w") as f:
-        f.write(REPORT_SAMPLE)
+        f.write(report_sample)
     with open(tmpdir.join("report2/index.html"), "w") as f:
-        f.write(REPORT_SAMPLE)
+        f.write(report_sample)
 
     index = ReportIndex()
     index.compute(str(tmpdir))
