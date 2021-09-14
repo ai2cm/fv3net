@@ -1,7 +1,7 @@
 .. _config usage:
 
-Configuration Usage
--------------------
+CLI Configuration Preparation
+-----------------------------
 
 The prognostic run can can be configured to run with the following
 
@@ -13,6 +13,7 @@ The prognostic run can can be configured to run with the following
 The prognostic run provides a command line script ```prepare-config``  to
 minimize the boilerplate required to configure a run. This script allows
 specifying changes over the "default" configurations stored `here <https://github.com/VulcanClimateModeling/fv3net/tree/master/external/fv3kube/fv3kube/base_yamls>`_.
+
 
 .. _baseline:
 
@@ -166,3 +167,12 @@ The desired chunking can be specified for each diagnostic file to be output.
 
 .. _fv3config: https://fv3config.readthedocs.io/en/latest/
 .. _fv3fit: https://vulcanclimatemodeling.com/docs/fv3fit/
+
+
+Python Configuration Preparation
+--------------------------------
+
+A python API analog to ``prepare-config`` can also be used for configuring runs
+
+.. automodule:: runtime.segmented_run.prepare_config
+    :members:
