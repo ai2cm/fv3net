@@ -5,6 +5,7 @@ RUN apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
     apt-get install -y  --no-install-recommends \
     autoconf \
+    automake \
     bats \
     curl \
     cython3 \
@@ -32,55 +33,18 @@ RUN apt-get update && \
     rsync \
     wget
 
-RUN wget -q http://www.mpich.org/static/downloads/3.1.4/mpich-3.1.4.tar.gz && \
-    tar xzf mpich-3.1.4.tar.gz && \
-    cd mpich-3.1.4 && \
-    ./configure --enable-fortran --enable-cxx --prefix=/usr --enable-fast=all,O3 && \
-    make -j24
+COPY docker/prognostic_run/scripts/install_mpi.sh install_mpi.sh
+RUN bash install_mpi.sh
 
+COPY docker/prognostic_run/scripts/install_esmf.sh install_esmf.sh
+RUN bash install_esmf.sh /usr/local/esmf
 
-RUN cd /mpich-3.1.4 && make install && ldconfig
-
-# Install ESMF
-ENV ESMF_DIR=/esmf \
-    ESMF_INSTALL_PREFIX=/usr/local/esmf \
-    ESMF_INSTALL_MODDIR=/usr/local/esmf/include \
-    ESMF_INSTALL_HEADERDIR=/usr/local/esmf/include \
-    ESMF_INSTALL_LIBDIR=/usr/local/esmf/lib \
-    ESMF_INSTALL_BINDIR=/usr/local/esmf/bin \
-    ESMF_NETCDF_INCLUDE=/usr/include \
-    ESMF_NETCDF_LIBS="-lnetcdf -lnetcdff" \
-    ESMF_BOPT=O3
-
-RUN git clone -b ESMF_8_0_0 --depth 1 https://git.code.sf.net/p/esmf/esmf $ESMF_DIR && \
-    cd $ESMF_DIR && \
-    make lib -j24 && \
-    make install && \
-    make installcheck
-
-
-# INSTALL FMS
-ENV CC=/usr/bin/mpicc \
-    FC=/usr/bin/mpif90 \
-    LDFLAGS="-L/usr/lib" \
-    LOG_DRIVER_FLAGS="--comments" \
-    CPPFLAGS="-I/usr/include -Duse_LARGEFILE -DMAXFIELDMETHODS_=500 -DGFS_PHYS" \
-    FCFLAGS="-fcray-pointer -Waliasing -ffree-line-length-none -fno-range-check -fdefault-real-8 -fdefault-double-8 -fopenmp"
-
+COPY docker/prognostic_run/scripts/install_fms.sh install_fms.sh
 COPY external/fv3gfs-fortran/FMS /FMS
-RUN apt-get install -y automake
-RUN cd /FMS && autoreconf --install && ./configure && \
-    cd /FMS && make -j8 && \
-    mv /FMS/*/*.mod /FMS/*/*.o /FMS/*/*.h /FMS/
+RUN bash install_fms.sh /FMS
 
-
-# download and install NCEP libraries
-RUN git config --global http.sslverify false && \
-    git clone https://github.com/NCAR/NCEPlibs.git && \
-    mkdir /opt/NCEPlibs && \
-    cd NCEPlibs && \
-    git checkout 3da51e139d5cd731c9fc27f39d88cb4e1328212b && \
-    echo "y" | ./make_ncep_libs.sh -s linux -c gnu -d /opt/NCEPlibs -o 1
+COPY docker/prognostic_run/scripts/install_nceplibs.sh .
+RUN bash install_nceplibs.sh /opt/NCEPlibs
 
 
 ENV ESMF_DIR=/usr/local/esmf
