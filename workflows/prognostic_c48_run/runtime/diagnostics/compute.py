@@ -9,6 +9,7 @@ from runtime.names import (
     DELP,
     PHYSICS_PRECIP_RATE,
     TENDENCY_TO_STATE_NAME,
+    STATE_NAME_TO_TENDENCY,
 )
 
 logger = logging.getLogger(__name__)
@@ -103,9 +104,10 @@ def compute_diagnostics(
             units="W/m^2"
         ).assign_attrs(description=f"column integrated heating due to {label}"),
     }
-    if DELP in tendency:
+    delp_tendency = STATE_NAME_TO_TENDENCY[DELP]
+    if delp_tendency in tendency:
         net_mass_tendency = vcm.mass_integrate(
-            xr.ones_like(tendency[DELP]), tendency[DELP], dim="z"
+            xr.ones_like(tendency[delp_tendency]), tendency[delp_tendency], dim="z"
         ).assign_attrs(
             units="kg/m^2/s",
             description=f"column-integrated mass tendency due to {label}",
