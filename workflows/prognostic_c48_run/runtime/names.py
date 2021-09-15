@@ -24,6 +24,9 @@ TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
     "dQ2": SPHUM,
     "dQu": EAST_WIND,
     "dQv": NORTH_WIND,
+    "dQx_wind": "x_wind",
+    "dQy_wind": "y_wind",
+    "dQp": DELP,
 }
 STATE_NAME_TO_TENDENCY = {value: key for key, value in TENDENCY_TO_STATE_NAME.items()}
 
