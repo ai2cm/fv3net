@@ -19,7 +19,7 @@ def read_variables_as_dict(fs, url, variables):
 def read_variables_greedily_as_tuple(fs, url, variables):
     url = url.numpy().decode()
     print(f"opening {url}")
-    ds = vcm.open_remote_nc(fs, url)
+    ds = vcm.DerivedMapping(vcm.open_remote_nc(fs, url))
     return tuple([tf.convert_to_tensor(ds[v], dtype=tf.float32) for v in variables])
 
 
