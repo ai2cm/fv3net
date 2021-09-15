@@ -6,6 +6,7 @@
 from setuptools import setup, find_namespace_packages
 
 install_requirements = [
+    "scipy>=1.5.0",
     "xarray",
     "holoviews",
     "fsspec",
@@ -21,7 +22,7 @@ install_requirements = [
     "intake-xarray",
     # including these vulcan packages managed with poetry causes this error
     # pkg_resources.DistributionNotFound: The 'fv3viz' distribution was not
-    # found and is required by fv3net-diagnostics-prog-run
+    # found and is required by fv3net-diagnostics
     # "fv3viz",
     "vcm",
     "report",
@@ -51,7 +52,9 @@ setup(
     install_requires=install_requirements,
     license="BSD license",
     include_package_data=True,
-    name="fv3net-diagnostics-prog-run",
-    packages=find_namespace_packages(include=["fv3net.diagnostics.prognostic_run"]),
+    name="fv3net-diagnostics",
+    packages=find_namespace_packages(
+        include=["fv3net.diagnostics.prognostic_run", "fv3net.diagnostics.offline"]
+    ),
     version="0.1.0",
 )
