@@ -24,6 +24,7 @@ from functools import partial
 
 try:
     import cartopy
+    import cartopy.crs as ccrs
 except ImportError:
     pass
 
