@@ -189,6 +189,11 @@ class PrecipitativeHyperparameters(Hyperparameters):
         loss: loss function to use, should be 'mse' or 'mae'
         couple_precip_to_dQ1_dQ2: if False, try to recover behavior of Dense model type
             by not adding "precipitative" terms to dQ1 and dQ2
+        tendency_scale: scale factor by which training values of dQ1 and dQ2 differ from
+            precipitative values of dQ1 and dQ2. Should be equal to
+            timestep / nudging_timescale in the case of nudging targets for
+            dQ1 and dQ2. Final predictor will predict dQ1 and dQ2 upscaled by this
+            scaling factor.
     """
 
     additional_input_variables: Iterable[str] = dataclasses.field(default_factory=tuple)
@@ -206,6 +211,7 @@ class PrecipitativeHyperparameters(Hyperparameters):
     )
     loss: str = "mse"
     couple_precip_to_dQ1_dQ2: bool = True
+    tendency_scale: float = 1.0
 
     @property
     def variables(self) -> Set[str]:
@@ -228,9 +234,8 @@ def train_precipitative_model(
     train_batches: Sequence[xr.Dataset],
     validation_batches: Sequence[xr.Dataset],
 ):
-    random_state = np.random.RandomState(np.random.get_state()[1][0])
-    stacked_train_batches = StackedBatches(train_batches, random_state)
-    stacked_validation_batches = StackedBatches(validation_batches, random_state)
+    stacked_train_batches = StackedBatches(train_batches, np.random)
+    stacked_validation_batches = StackedBatches(validation_batches, np.random)
     training_obj = PrecipitativeModel(hyperparameters=hyperparameters)
     training_obj.fit_statistics(stacked_train_batches[0])
     if len(stacked_validation_batches) > 0:
@@ -247,6 +252,7 @@ class PrecipitativeModel:
             [T_NAME, Q_NAME, DELP_NAME, PHYS_PRECIP_NAME]
             + list(hyperparameters.additional_input_variables)
         )
+        self._tendency_scale = hyperparameters.tendency_scale
         self._dense_network = hyperparameters.dense_network
         self._loss_type = hyperparameters.loss
         self.output_variables = (T_TENDENCY_NAME, Q_TENDENCY_NAME, PRECIP_NAME)
@@ -360,8 +366,21 @@ class PrecipitativeModel:
             Q_TENDENCY_NAME,
             PRECIP_NAME,
         ], self.output_variables
+
+        # during training, we downscale T and q tendencies so they reflect the
+        # nudging timescale coefficient applied when generating the dQ1/dQ2 targets
+        def dQ_scaling(x):
+            return tf.math.scalar_mul(
+                tf.constant(self._tendency_scale, dtype=x.dtype), x
+            )
+
+        train_dQ_scaling_layer = tf.keras.layers.Lambda(dQ_scaling)
+        nudging_T_tendency = train_dQ_scaling_layer(T_tendency)
+        nudging_q_tendency = train_dQ_scaling_layer(q_tendency)
+
         train_model = tf.keras.Model(
-            inputs=input_layers, outputs=(T_tendency, q_tendency, surface_precip)
+            inputs=input_layers,
+            outputs=(nudging_T_tendency, nudging_q_tendency, surface_precip),
         )
         train_model.compile(
             optimizer=self._optimizer,
