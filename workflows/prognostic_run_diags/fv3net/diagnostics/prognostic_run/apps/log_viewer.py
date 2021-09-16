@@ -63,7 +63,11 @@ def view_logs(log: vcm.fv3.logs.FV3Log, url: str):
         "total graupel",
         "total rain water",
     ]
-    line_chart(df[tracers], url)
+
+    tracers = [tracer for tracer in tracers if tracer in df]
+    if tracers:
+        line_chart(df[tracers], url)
+
     line_chart(df["total water vapor"], url)
     line_chart(df[["total surface pressure", "mean dry surface pressure"]], url)
 
