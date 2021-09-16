@@ -2,7 +2,7 @@ import pytest
 import xarray as xr
 import numpy as np
 
-from offline_ml_diags._helpers import (
+from fv3net.diagnostics.offline_ml_diags._helpers import (
     sample_outside_train_range,
     get_variable_indices,
     _count_features_2d,

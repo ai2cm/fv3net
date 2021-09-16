@@ -1,5 +1,5 @@
 import pytest
-from offline_ml_diags._select import nearest_time
+from fv3net.diagnostics.offline_ml_diags._select import nearest_time
 
 
 @pytest.mark.parametrize(

@@ -13,7 +13,7 @@ from synth import (  # noqa: F401
 )
 
 import fv3fit
-from offline_ml_diags import compute_diags, create_report
+from fv3net.diagnostics.offline_ml_diags import compute_diags, create_report
 import pathlib
 import pytest
 import numpy as np
