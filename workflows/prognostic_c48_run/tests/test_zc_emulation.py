@@ -5,6 +5,8 @@ import tempfile
 import yaml
 from pathlib import Path
 
+pytestmark = pytest.mark.skip
+
 CONFIG_YAML = r"""
 data_table: default
 diag_table: default

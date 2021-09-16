@@ -7,6 +7,7 @@ RUN apt-get update && \
     autoconf \
     automake \
     bats \
+    cmake \
     curl \
     cython3 \
     g++ \
@@ -32,6 +33,7 @@ RUN apt-get update && \
     python3-dev \
     python3-pip \
     python3-setuptools \
+    python3-cffi \
     rsync \
     wget
 
@@ -58,7 +60,10 @@ ENV CALLPYFORT_LIB=${CALLPY_DIR}/lib
 ENV CALLPYFORT_INCL=${CALLPY_DIR}/include
 ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}:${CALLPYFORT_LIB}
 
-# TODO install call pyfort
+RUN cd /opt && git clone https://github.com/nbren12/call_py_fort.git --branch=v0.2.0
+ENV CALLPY=/opt/call_py_fort \
+    PYTHONPATH=${CALLPY}/src/:$PYTHONPATH
+RUN cd ${CALLPY} && make && make install && ldconfig
 
 # build/install the fortran model
 COPY external/fv3gfs-fortran/ /tmp/fortran-build
