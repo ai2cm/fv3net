@@ -202,7 +202,7 @@ class TimeLoop(
     def _get_states_to_output(config: UserConfig) -> Sequence[str]:
         states_to_output: List[str] = []
         for diagnostic in config.diagnostics:
-            if diagnostic.name == "state_after_timestep.zarr":
+            if "state_after_timestep" in diagnostic.name:
                 if diagnostic.variables:
                     # states_to_output should be a Container but fixing this
                     # type error requires changing its usage by the steppers
