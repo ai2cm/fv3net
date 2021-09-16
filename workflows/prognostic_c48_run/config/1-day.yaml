@@ -1,6 +1,6 @@
 namelist:
   coupler_nml:
-    days: 10
+    days: 1
     hours: 0
     minutes: 0
     seconds: 0
@@ -116,13 +116,9 @@ diagnostics:
     frequency: 900
     kind: interval
   variables:
-  - net_moistening_due_to_machine_learning
-  - column_heating_due_to_machine_learning
   - total_precipitation_rate
   - water_vapor_path
   - physics_precip
-  - column_integrated_dQu_stress
-  - column_integrated_dQv_stress
 - name: diags_3d.zarr
   times:
     kind: interval
@@ -194,7 +190,3 @@ diagnostics:
   - latitude
   - longitude
   - cloud_water_mixing_ratio
-  - cloud_ice_mixing_ratio 
-  - rain_mixing_ratio
-  - snow_mixing_ratio
-  - graupel_mixing_ratio

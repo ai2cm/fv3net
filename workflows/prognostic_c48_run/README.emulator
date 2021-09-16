@@ -86,4 +86,7 @@ where offline is the unique string for a run in weights and biases (e.g.
 
 ## 10 day run
 
-    cd workflows/emulation
+To run
+
+    cd workflows/prognostic_c48_run
+    python3 -m evaluate_prognostic ai2cm/emulator-noah/model:v91 --config-updates config/10-hour.yaml
