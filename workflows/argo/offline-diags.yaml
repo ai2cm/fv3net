@@ -46,7 +46,7 @@ spec:
             {{inputs.parameters.validation_data_config}}
             EOF
     
-            python -m offline_ml_diags.compute_diags \
+            python -m fv3net.diagnostics.offline_ml_diags.compute_diags \
               {{inputs.parameters.ml-model}} \
               validation_data.yaml \
               {{inputs.parameters.offline-diags-output}}
@@ -57,7 +57,7 @@ spec:
             cat << EOF > training_data.yaml
             {{inputs.parameters.training_data_config}}
             EOF
-            python -m offline_ml_diags.create_report \
+            python -m fv3net.diagnostics.offline_ml_diags.create_report \
               {{inputs.parameters.offline-diags-output}} \
               {{inputs.parameters.report-output}} \
               --commit-sha "$COMMIT_SHA" \

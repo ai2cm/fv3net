@@ -12,7 +12,7 @@ Generating the diagnostics can be done by providing a path to a model trained an
 `fv3fit`, an output path, and a flag specifiying how to select the test set of timesteps.
 e.g.,
 ```
-python -m offline_ml_diags.compute_diags \
+python -m fv3net.diagnostics.offline_ml_diags.compute_diags \
     $MODEL_PATH \
     $DIAGNOSTICS_OUTPUT_PATH \
     --timesteps-file $TIMESTEP_LIST_JSON
@@ -47,10 +47,10 @@ python -m offline_ml_diags.create_report \
 
 ## CLI and full list of arguments
 
-### `offline_ml_diags.compute_diags`
+### `fv3net.diagnostics.offline_ml_diags.compute_diags`
 
 ```bash
-$ python -m offline_ml_diags.compute_diags --help
+$ python -m fv3net.diagnostics.offline_ml_diags.compute_diags --help
 
 usage: compute_diags.py [-h] [--snapshot-time SNAPSHOT_TIME] [--grid GRID]
                         model_path output_path data_yaml
