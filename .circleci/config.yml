@@ -89,7 +89,11 @@ jobs:
       image:
         default: fv3net
         type: enum
-        enum: ["prognostic_run", "post_process_run", "fv3net"]
+        enum:
+          - prognostic_run
+          - post_process_run
+          - fv3net
+          - artifacts
     machine: 
       image: ubuntu-1604:202007-01
     environment:
@@ -212,7 +216,11 @@ workflows:
       - build_default:
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run"]
+              image: 
+                - prognostic_run
+                - post_process_run
+                - fv3net
+                - artifacts
       - integration_tests:
           requires:
             - build_default
@@ -233,7 +241,11 @@ workflows:
       - build_default:
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run"]
+              image:
+                - prognostic_run
+                - post_process_run
+                - fv3net
+                - artifacts
           filters:
             tags:
               only: /^v.*/

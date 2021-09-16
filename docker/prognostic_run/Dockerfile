@@ -1,9 +1,54 @@
 # syntax=docker/dockerfile:experimental
-FROM us.gcr.io/vcm-ml/fms-build@sha256:6ac3fee7bbea8213804abd70c15d100b2b81c81c8247990b368d1047aa40289b AS bld
+FROM ubuntu:20.04 as bld
 
-ENV FMS_DIR=/FMS
+RUN apt-get update && \
+    DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
+    apt-get install -y  --no-install-recommends \
+    autoconf \
+    automake \
+    bats \
+    curl \
+    cython3 \
+    g++ \
+    gcc \
+    gfortran \
+    git \
+    libblas-dev \
+    libffi-dev \
+    liblapack-dev \
+    libmpich-dev \
+    libnetcdf-dev \
+    libnetcdff-dev \
+    libpython3-dev \
+    libtool \
+    libtool-bin \
+    m4 \
+    make  \
+    mpich \
+    openssl \
+    perl \
+    pkg-config \
+    python3 \
+    python3-dev \
+    python3-pip \
+    python3-setuptools \
+    rsync \
+    wget
+
+COPY docker/prognostic_run/scripts/install_esmf.sh install_esmf.sh
+RUN bash install_esmf.sh /usr/local/esmf
+
+COPY docker/prognostic_run/scripts/install_fms.sh install_fms.sh
+COPY external/fv3gfs-fortran/FMS /FMS
+RUN bash install_fms.sh /FMS
+
+COPY docker/prognostic_run/scripts/install_nceplibs.sh .
+RUN bash install_nceplibs.sh /opt/NCEPlibs
+
+
 ENV ESMF_DIR=/usr/local/esmf
 ENV CALLPY_DIR=/usr/local
+ENV FMS_DIR=/FMS
 ENV FV3GFS_FORTRAN_DIR=/external/fv3gfs-fortran
 ENV ESMF_INC="-I${ESMF_DIR}/include -I${ESMF_DIR}/mod/modO3/Linux.gfortran.64.mpiuni.default/"
 
@@ -13,25 +58,19 @@ ENV CALLPYFORT_LIB=${CALLPY_DIR}/lib
 ENV CALLPYFORT_INCL=${CALLPY_DIR}/include
 ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}:${CALLPYFORT_LIB}
 
-COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4fd9efd898ad7b9fa3b391e5ede63cf5 /esmf ${ESMF_DIR}
-COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4fd9efd898ad7b9fa3b391e5ede63cf5 /esmf/lib/libO3/Linux.gfortran.64.mpiuni.default/*.so* ${ESMF_LIB}/
+# TODO install call pyfort
 
-COPY --from=us.gcr.io/vcm-ml/emulation-build@sha256:da8cb12448a07a63222f645bd89670e20a9df3d1eb7516f9e8ce995c541ee90d /usr/local/lib/*  ${CALLPYFORT_LIB}/
-COPY --from=us.gcr.io/vcm-ml/emulation-build@sha256:da8cb12448a07a63222f645bd89670e20a9df3d1eb7516f9e8ce995c541ee90d /usr/local/include/callpy_mod.mod  ${CALLPYFORT_INCL}/
+# build/install the fortran model
+COPY external/fv3gfs-fortran/ /tmp/fortran-build
+RUN cd /tmp/fortran-build/FV3 && \
+    ./configure gnu_docker && \
+    sed -i "33i CALLPYFORT=Y" conf/configure.fv3 && \
+    make -j 8 && \
+    PREFIX=/usr/local make install
 
 #
 # Python Stuff Here
 #
-
-RUN apt-get update && \
-    DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
-    apt-get install -y  --no-install-recommends \
-    python3 \
-    libpython3-dev \
-    python3-dev \
-    python3-setuptools \
-    python3-pip \
-    cython3
 
 # Python components here
 COPY docker/prognostic_run/requirements/base.txt /tmp/requirements.txt
@@ -42,31 +81,13 @@ ENV PIP_CONSTRAINT=/tmp/constraints.txt
 # Equivalent to passing --no-cache-dir to every pip install
 ENV PIP_NO_CACHE_DIR=off
 
-RUN pip3 install wheel && \
-    pip3 install --upgrade pip==20.2.4 setuptools==40.1.0 && \
-    ln -s /bin/python3 /bin/python && \
-    ln -s /bin/pip3 /bin/pip
-
-# build/install the fortran model
-COPY external/fv3gfs-fortran/ /tmp/fortran-build
-RUN cd /tmp/fortran-build/FV3 && \
-    ./configure gnu_docker && \
-    sed -i "33i CALLPYFORT=Y" conf/configure.fv3 && \
-    make clean_no_dycore && make libs_no_dycore -j16
-
-RUN cd /tmp/fortran-build/FV3 && \
-    make -j16 && \
-    PREFIX=/usr/local make install
-
-# Build the wrapper
-RUN apt-get install -y pkg-config
-COPY /external/fv3gfs-wrapper /fv3gfs-wrapper
-RUN pip3 install jinja2 && make -C /fv3gfs-wrapper/lib
-
 # copy dependency packages
+# fv3gfs-util
 COPY /external/fv3gfs-util /external/fv3gfs-util
 RUN pip3 install /external/fv3gfs-util 
 
+COPY /external/fv3gfs-wrapper /fv3gfs-wrapper
+RUN pip3 install jinja2 && make -C /fv3gfs-wrapper/lib
 
 # cache external package installation
 RUN mkdir -p /fv3net/external /fv3net/workflows && \
