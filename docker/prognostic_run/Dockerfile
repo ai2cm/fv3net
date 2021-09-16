@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:experimental
-FROM ubuntu:18.04 as bld
+FROM ubuntu:20.04 as bld
 
 RUN apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
@@ -74,11 +74,6 @@ COPY constraints.txt /tmp/constraints.txt
 ENV PIP_CONSTRAINT=/tmp/constraints.txt
 # Equivalent to passing --no-cache-dir to every pip install
 ENV PIP_NO_CACHE_DIR=off
-
-RUN pip3 install wheel && \
-    pip3 install --upgrade pip==20.2.4 setuptools==40.1.0 && \
-    ln -s /bin/python3 /bin/python && \
-    ln -s /bin/pip3 /bin/pip
 
 # fv3gfs-util
 COPY /external/fv3gfs-util /external/fv3gfs-util
