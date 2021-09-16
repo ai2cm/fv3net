@@ -11,6 +11,7 @@ import fv3gfs.util
 from runtime.monitor import Monitor
 from runtime.types import Diagnostics, Step
 from runtime.derived_state import DerivedFV3State
+from runtime.utils import quantity_state_to_ds, ds_to_quantity_state
 
 QuantityState = MutableMapping[Hashable, fv3gfs.util.Quantity]
 
@@ -54,8 +55,8 @@ class OverriderAdapter:
         ds = xr.Dataset()
         if self.communicator.tile.rank == 0:
             ds = self._tendency_ds.load(time).drop_vars("time")
-        tendencies = self.communicator.tile.scatter_state(_ds_to_quantity_state(ds))
-        return _quantity_state_to_ds(tendencies)
+        tendencies = self.communicator.tile.scatter_state(ds_to_quantity_state(ds))
+        return quantity_state_to_ds(tendencies)
 
     @property
     def monitor(self) -> Monitor:
@@ -97,24 +98,6 @@ class OverriderAdapter:
 
         step.__name__ = func.__name__
         return step
-
-
-def _ds_to_quantity_state(ds: xr.Dataset) -> QuantityState:
-    quantity_state: QuantityState = {
-        variable: fv3gfs.util.Quantity.from_data_array(ds[variable])
-        for variable in ds.data_vars
-    }
-    return quantity_state
-
-
-def _quantity_state_to_ds(quantity_state: QuantityState) -> xr.Dataset:
-    ds = xr.Dataset(
-        {
-            variable: quantity_state[variable].data_array
-            for variable in quantity_state.keys()
-        }
-    )
-    return ds
 
 
 class DatasetCachedByChunk:
