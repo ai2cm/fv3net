@@ -32,6 +32,7 @@ from runtime.diagnostics.compute import (
 from runtime.monitor import Monitor
 from runtime.names import (
     TENDENCY_TO_STATE_NAME,
+    PHYSICS_PRECIP_RATE,
     TOTAL_PRECIP_RATE,
 )
 from runtime.steppers.machine_learning import (
@@ -443,15 +444,18 @@ class TimeLoop(
                 self._state.update_mass_conserving(self._state_updates)
 
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
+        total_precip_rate = precipitation_rate(
+            self._state[TOTAL_PRECIP], self._timestep
+        )
         diagnostics.update(
             {
                 "area": self._state[AREA],
                 "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
                     "cnvprcp"
                 ).data_array,
-                TOTAL_PRECIP_RATE: precipitation_rate(
-                    self._state[TOTAL_PRECIP], self._timestep
-                ),
+                TOTAL_PRECIP_RATE: total_precip_rate,
+                "residual_precipitation_rate": total_precip_rate
+                - self._state[PHYSICS_PRECIP_RATE],
             }
         )
         return diagnostics
