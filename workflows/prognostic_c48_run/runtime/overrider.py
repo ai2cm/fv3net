@@ -102,17 +102,29 @@ class OverriderAdapter:
 
 class DatasetCachedByChunk:
     def __init__(self, ds: xr.Dataset, dim: str):
+        """Wrapper to cache the most recently loaded chunks of an xarray dataset.
+        
+        Args:
+            ds: A chunked xarray dataset.
+            dim: Aimension along which different chunks are being accessed.
+
+        Example:
+            >>> cached_ds = DatasetCachedByChunk(ds, "time")
+            >>> cached_ds.load("2016-08-01T00:00:00")  # slow
+            >>> cached_ds.load("2016-08-01T00:15:00")  # fast if on same chunk
+        """
         self._ds = ds
         self._dim = dim
         self._chunksize = ds.chunks[dim][0]
         self._index = ds.get_index(dim)
 
     def load(self, key):
+        """Load key from the given dimension of dataset."""
         idx = self._index.get_loc(key)
         chunknum, chunk_idx = divmod(idx, self._chunksize)
         return self._load_chunk(chunknum).isel({self._dim: chunk_idx})
 
-    @functools.lru_cache(3)
+    @functools.lru_cache(2)
     def _load_chunk(self, i):
         chunk_slice = slice(i * self._chunksize, (i + 1) * self._chunksize)
         return self._ds.isel({self._dim: chunk_slice}).load()
