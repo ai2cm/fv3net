@@ -19,6 +19,7 @@ DT_SEC = None
 ORIG_OUTPUTS = None
 MODEL = None
 
+
 @print_errors
 def _load_environment_vars_into_global():
 

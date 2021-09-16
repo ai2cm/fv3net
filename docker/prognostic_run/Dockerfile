@@ -16,9 +16,8 @@ ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}:${CALLPYFORT_LIB}
 COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4fd9efd898ad7b9fa3b391e5ede63cf5 /esmf ${ESMF_DIR}
 COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4fd9efd898ad7b9fa3b391e5ede63cf5 /esmf/lib/libO3/Linux.gfortran.64.mpiuni.default/*.so* ${ESMF_LIB}/
 
-# TODO: Link to master sha
-COPY --from=us.gcr.io/vcm-ml/emulation-build:gnu7-mpich314-nocuda /usr/local/lib/*  ${CALLPYFORT_LIB}/
-COPY --from=us.gcr.io/vcm-ml/emulation-build:gnu7-mpich314-nocuda /usr/local/include/callpy_mod.mod  ${CALLPYFORT_INCL}/
+COPY --from=us.gcr.io/vcm-ml/emulation-build@sha256:da8cb12448a07a63222f645bd89670e20a9df3d1eb7516f9e8ce995c541ee90d /usr/local/lib/*  ${CALLPYFORT_LIB}/
+COPY --from=us.gcr.io/vcm-ml/emulation-build@sha256:da8cb12448a07a63222f645bd89670e20a9df3d1eb7516f9e8ce995c541ee90d /usr/local/include/callpy_mod.mod  ${CALLPYFORT_INCL}/
 
 #
 # Python Stuff Here
@@ -34,19 +33,6 @@ RUN apt-get update && \
     python3-pip \
     cython3
 
-# build/install the fortran model
-COPY external/fv3gfs-fortran/ /tmp/fortran-build
-RUN cd /tmp/fortran-build/FV3 && \
-    ./configure gnu_docker && \
-    sed -i "33i CALLPYFORT=Y" conf/configure.fv3 && \
-    make clean_no_dycore && make libs_no_dycore -j8
-
-RUN cd /tmp/fortran-build/FV3 && \
-    make -j8 && \
-    PREFIX=/usr/local make install
-
-
-
 # Python components here
 COPY docker/prognostic_run/requirements/base.txt /tmp/requirements.txt
 COPY constraints.txt /tmp/constraints.txt
@@ -60,6 +46,17 @@ RUN pip3 install wheel && \
     pip3 install --upgrade pip==20.2.4 setuptools==40.1.0 && \
     ln -s /bin/python3 /bin/python && \
     ln -s /bin/pip3 /bin/pip
+
+# build/install the fortran model
+COPY external/fv3gfs-fortran/ /tmp/fortran-build
+RUN cd /tmp/fortran-build/FV3 && \
+    ./configure gnu_docker && \
+    sed -i "33i CALLPYFORT=Y" conf/configure.fv3 && \
+    make clean_no_dycore && make libs_no_dycore -j16
+
+RUN cd /tmp/fortran-build/FV3 && \
+    make -j16 && \
+    PREFIX=/usr/local make install
 
 # Build the wrapper
 RUN apt-get install -y pkg-config
@@ -117,7 +114,11 @@ ENV LANG=C.UTF-8
 
 COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
 RUN pip install /fv3net/workflows/prognostic_c48_run
+
+# Override microphysics emulation
 RUN pip install /fv3net/workflows/prognostic_c48_run/emulation
+ENV VAR_META_PATH = /fv3net/workflows/prognostic_c48_run/emulation/microphysics_parameter_metadata.yaml
+ENV OUTPUT_FREQ_SEC = 18000
 
 ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:${PYTHONPATH}
 WORKDIR /fv3net/workflows/prognostic_c48_run
