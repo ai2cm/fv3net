@@ -7,7 +7,7 @@ VERSION ?= $(shell git rev-parse HEAD)
 REGISTRY ?= us.gcr.io/vcm-ml
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_NAME = fv3net
-CACHE_TAG =latest
+CACHE_TAG ?=latest
 
 IMAGES = fv3net post_process_run prognostic_run
 
@@ -17,18 +17,18 @@ IMAGES = fv3net post_process_run prognostic_run
 ############################################################
 # pattern rule for building docker images
 build_image_%:
-	tools/docker_build_cached.sh us.gcr.io/vcm-ml/$*:$(CACHE_TAG) \
+	tools/docker_build_cached.py us.gcr.io/vcm-ml/$* \
 		-f docker/$*/Dockerfile -t $(REGISTRY)/$*:$(VERSION) .
 
 build_images: $(addprefix build_image_, $(IMAGES))
 push_images: $(addprefix push_image_, $(IMAGES))
 
 build_image_prognostic_run:
-	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
+	tools/docker_build_cached.py us.gcr.io/vcm-ml/prognostic_run \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
 		--target prognostic-run .
 
-	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
+	tools/docker_build_cached.py us.gcr.io/vcm-ml/prognostic_run \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/notebook:$(VERSION) \
 		--target notebook .
 
