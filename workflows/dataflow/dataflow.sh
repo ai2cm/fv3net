@@ -10,6 +10,7 @@ ROOT=$DATAFLOW_ROOT/../..
 
 vcmPackages=(
   "${ROOT}/workflows/dataflow"
+  "${ROOT}/external/mappm"
   "${ROOT}/external/vcm"
   "${ROOT}/workflows/fine_res_budget"
 )
@@ -39,6 +40,7 @@ function checkInstallation {
   source env/bin/activate
 
   pip install apache_beam
+  pip install dists/mappm*.tar.gz
   pip install dists/vcm*.tar.gz
   pip install dists/budget*.tar.gz
 }
@@ -47,6 +49,7 @@ function runRemote {
   cd "$(prepareWorkingDirectory)"
 
   packageArgs=" \
+  --extra_package dists/mappm*.tar.gz \
   --extra_package dists/vcm*.tar.gz \
   --extra_package dists/fv3net*.tar.gz \
   --extra_package dists/budget*.tar.gz \

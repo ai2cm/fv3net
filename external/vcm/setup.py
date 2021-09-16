@@ -4,8 +4,7 @@
 """The setup script."""
 
 from setuptools import find_packages
-from glob import glob
-from numpy.distutils.core import Extension, setup
+from setuptools import setup
 
 install_requirements = [
     "Click>=7.0",
@@ -57,5 +56,4 @@ setup(
     package_data={"vcm": ["catalog.yaml"]},
     version="0.1.0",
     zip_safe=False,
-    ext_modules=[Extension(name="vcm.mappm", sources=glob("vcm/*.f90"))],
 )
