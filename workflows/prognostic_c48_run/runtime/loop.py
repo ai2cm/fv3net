@@ -165,13 +165,10 @@ class TimeLoop(
         )
         partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(get_namelist())
         communicator = fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
-        self._override = runtime.factories.get_overrider_adapter(
-            config, self._state, communicator, self._timestep
+        self._adapt = runtime.factories.get_fv3_physics_adapter(
+            config, self._state, self._timestep, communicator,
         )
 
-        self._emulate = runtime.factories.get_emulator_adapter(
-            config, self._state, self._timestep
-        )
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
         self._log_debug(f"States to output: {self._states_to_output}")
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
@@ -191,15 +188,10 @@ class TimeLoop(
         return states_to_output
 
     def adapt(self, name: str, func: Step) -> Step:
-        if self._override and self._emulate:
-            raise NotImplementedError("Cannot both override and emulate FV3 physics.")
-
-        if self._override:
-            return self._override(name, func)
-        elif self._emulate:
-            return self._emulate(name, func)
-        else:
+        if self._adapt is None:
             return self.monitor(name, func)
+        else:
+            return self._adapt(name, func)
 
     def _get_prephysics_stepper(
         self, config: UserConfig, hydrostatic: bool
