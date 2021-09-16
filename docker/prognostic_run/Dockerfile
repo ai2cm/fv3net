@@ -16,6 +16,7 @@ RUN apt-get update && \
     libblas-dev \
     libffi-dev \
     liblapack-dev \
+    libmpich-dev \
     libnetcdf-dev \
     libnetcdff-dev \
     libpython3-dev \
@@ -23,6 +24,7 @@ RUN apt-get update && \
     libtool-bin \
     m4 \
     make  \
+    mpich \
     openssl \
     perl \
     pkg-config \
@@ -32,9 +34,6 @@ RUN apt-get update && \
     python3-setuptools \
     rsync \
     wget
-
-COPY docker/prognostic_run/scripts/install_mpi.sh install_mpi.sh
-RUN bash install_mpi.sh
 
 COPY docker/prognostic_run/scripts/install_esmf.sh install_esmf.sh
 RUN bash install_esmf.sh /usr/local/esmf
