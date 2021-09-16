@@ -1,17 +1,60 @@
 # syntax=docker/dockerfile:experimental
-FROM us.gcr.io/vcm-ml/fms-build@sha256:6ac3fee7bbea8213804abd70c15d100b2b81c81c8247990b368d1047aa40289b AS bld
+FROM ubuntu:18.04 as bld
 
-ENV FMS_DIR=/FMS
+RUN apt-get update && \
+    DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
+    apt-get install -y  --no-install-recommends \
+    autoconf \
+    automake \
+    bats \
+    curl \
+    cython3 \
+    g++ \
+    gcc \
+    gfortran \
+    git \
+    libblas-dev \
+    libffi-dev \
+    liblapack-dev \
+    libnetcdf-dev \
+    libnetcdff-dev \
+    libpython3-dev \
+    libtool \
+    libtool-bin \
+    m4 \
+    make  \
+    openssl \
+    perl \
+    pkg-config \
+    python3 \
+    python3-dev \
+    python3-pip \
+    python3-setuptools \
+    rsync \
+    wget
+
+COPY docker/prognostic_run/scripts/install_mpi.sh install_mpi.sh
+RUN bash install_mpi.sh
+
+COPY docker/prognostic_run/scripts/install_esmf.sh install_esmf.sh
+RUN bash install_esmf.sh /usr/local/esmf
+
+COPY docker/prognostic_run/scripts/install_fms.sh install_fms.sh
+COPY external/fv3gfs-fortran/FMS /FMS
+RUN bash install_fms.sh /FMS
+
+COPY docker/prognostic_run/scripts/install_nceplibs.sh .
+RUN bash install_nceplibs.sh /opt/NCEPlibs
+
+
 ENV ESMF_DIR=/usr/local/esmf
+ENV FMS_DIR=/FMS
 ENV FV3GFS_FORTRAN_DIR=/external/fv3gfs-fortran
 ENV ESMF_INC="-I${ESMF_DIR}/include -I${ESMF_DIR}/mod/modO3/Linux.gfortran.64.mpiuni.default/"
 
 ENV FMS_LIB=${FMS_DIR}/libFMS/.libs/
 ENV ESMF_LIB=${ESMF_DIR}/lib
 ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}
-
-COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4fd9efd898ad7b9fa3b391e5ede63cf5 /esmf ${ESMF_DIR}
-COPY --from=us.gcr.io/vcm-ml/esmf-build@sha256:981815d85ca19999a585fe3e6430c8cd4fd9efd898ad7b9fa3b391e5ede63cf5 /esmf/lib/libO3/Linux.gfortran.64.mpiuni.default/*.so* ${ESMF_LIB}/
 
 # build/install the fortran model
 COPY external/fv3gfs-fortran/ /tmp/fortran-build
@@ -23,16 +66,6 @@ RUN cd /tmp/fortran-build/FV3 && \
 #
 # Python Stuff Here
 #
-
-RUN apt-get update && \
-    DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
-    apt-get install -y  --no-install-recommends \
-    python3 \
-    libpython3-dev \
-    python3-dev \
-    python3-setuptools \
-    python3-pip \
-    cython3
 
 # Python components here
 COPY docker/prognostic_run/requirements/base.txt /tmp/requirements.txt
@@ -48,15 +81,12 @@ RUN pip3 install wheel && \
     ln -s /bin/python3 /bin/python && \
     ln -s /bin/pip3 /bin/pip
 
-# Build the wrapper
-RUN apt-get install -y pkg-config
-COPY /external/fv3gfs-wrapper /fv3gfs-wrapper
-RUN pip3 install jinja2 && make -C /fv3gfs-wrapper/lib
-
-# copy dependency packages
+# fv3gfs-util
 COPY /external/fv3gfs-util /external/fv3gfs-util
 RUN pip3 install /external/fv3gfs-util 
 
+COPY /external/fv3gfs-wrapper /fv3gfs-wrapper
+RUN pip3 install jinja2 && make -C /fv3gfs-wrapper/lib
 
 # cache external package installation
 RUN mkdir -p /fv3net/external /fv3net/workflows && \
