@@ -70,10 +70,20 @@ To launch a single run, edit the parameters in `hyper-parameter-tune/train.yaml`
 
 # Prognostic run
 
-## Report
+## Short runs (3 hours)
+
+To run 
+    cd workflows/prognostic_c48_run
+    python3 -m evaluate_prognostic ai2cm/emulator-noah/model:v91
+
+To generate the piggy-backed report
 
     cd workflows/emulation
     python3 prognostic_diagnostics.py <offline id> <online id>
 
 where offline is the unique string for a run in weights and biases (e.g.
 `ai2cm/emulator-noah/<id>`).
+
+## 10 day run
+
+    cd workflows/emulation

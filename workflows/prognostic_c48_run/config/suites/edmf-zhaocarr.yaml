@@ -1,0 +1,20 @@
+base_version: v0.5
+orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
+forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+namelist:
+  fv_core_nml:
+    do_sat_adj: false
+    warm_start: true
+    external_ic: false
+    external_eta: false
+    nggps_ic: false
+    make_nh: false
+    mountain: true
+    nwat: 2
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false
+  gfs_physics_nml:
+    satmedmf: false
+    hybedmf: true
+    ncld: 1
+    imp_physics: 99

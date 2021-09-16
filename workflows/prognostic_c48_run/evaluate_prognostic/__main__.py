@@ -1,5 +1,6 @@
 from pathlib import Path
 import tempfile
+from typing import Optional
 
 import wandb
 import xarray
@@ -11,6 +12,8 @@ from .prognostic import compute_metrics, open_run
 from .config import get_config
 
 import typer
+
+app = typer.Typer()
 
 
 def log_vertical_metrics(key, metrics: xarray.Dataset):
@@ -41,7 +44,11 @@ def evaluate(path):
     wandb.finish()
 
 
-def main(artifact_id: str, online: bool = True):
+def short(
+    artifact_id: str,
+    online: bool = True,
+    config_updates: Optional[Path] = Path("config/3-hour.yaml"),
+):
     job = wandb.init(entity="ai2cm", project="emulator-noah", job_type="prognostic-run")
     if job is None:
         raise RuntimeError("Weights and biases not initialized properly.")
@@ -50,9 +57,12 @@ def main(artifact_id: str, online: bool = True):
     artifact = wandb.use_artifact(artifact_id)
     artifact_path = os.path.abspath(artifact.download())
 
-    config = get_config()
-    config["online_emulator"]["emulator"] = artifact_path
-    config["online_emulator"]["online"] = online
+    config = get_config(suite=None, diagnostics=config_updates)
+    config["online_emulator"] = {
+        "emulator": artifact_path,
+        "online": online,
+        "train": False,
+    }
     wandb.config.update(config)
 
     run(config, path)
@@ -60,4 +70,4 @@ def main(artifact_id: str, online: bool = True):
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    typer.run(short)
