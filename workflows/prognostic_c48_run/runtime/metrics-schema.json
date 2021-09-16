@@ -201,6 +201,16 @@
                 1.3542121849959635e-05
             ]
         },
+        "residual_precipitation_rate": {
+            "$id": "#/properties/residual_precipitation_rate",
+            "type": "number",
+            "default": 0.0,
+            "description": "residual of total - physics precip rates",
+            "units": "kg/m^2/s",
+            "examples": [
+                1.3542121849959635e-05
+            ]
+        },
         "storage_of_mass_due_to_python": {
             "$id": "#/properties/storage_of_mass_due_to_python",
             "type": "number",
