@@ -44,6 +44,7 @@ class ComputeDiagsArgs:
     snapshot_time: Optional[str] = None
     grid: str = None
     grid_resolution: str = "c8_random_values"
+    n_jobs: int = 1
 
 
 @dataclass

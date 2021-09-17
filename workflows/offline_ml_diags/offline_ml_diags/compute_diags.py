@@ -17,12 +17,14 @@ import loaders
 from vcm import safe, interpolate_to_pressure_levels
 import vcm
 import fv3fit
+from .compute_metrics import compute_metrics
 from ._plot_input_sensitivity import plot_jacobian, plot_rf_feature_importance
-from ._metrics import compute_metrics
 from ._helpers import (
     load_grid_info,
     is_3d,
     get_variable_indices,
+    insert_r2,
+    insert_rmse,
 )
 from ._select import meridional_transect, nearest_time
 
@@ -101,6 +103,12 @@ def _create_arg_parser() -> argparse.Namespace:
             '(e.g. "c48"), ignored if --grid is provided'
         ),
     )
+    parser.add_argument(
+        "--n-jobs",
+        type=int,
+        default=-1,
+        help=("Optional n_jobs parameter for joblib.parallel when computing metrics."),
+    )
     return parser.parse_args()
 
 
@@ -150,8 +158,18 @@ def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
     return summary
 
 
+def _standardize_names(*args: xr.Dataset):
+    renamed = []
+    for ds in args:
+        renamed.append(ds.rename({var: str(var).lower() for var in ds}))
+    return renamed
+
+
 def _compute_diagnostics(
-    batches: Sequence[xr.Dataset], grid: xr.Dataset, predicted_vars: List[str]
+    batches: Sequence[xr.Dataset],
+    grid: xr.Dataset,
+    predicted_vars: List[str],
+    n_jobs: int,
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
     batches_summary, batches_diurnal, batches_metrics = [], [], []
 
@@ -161,13 +179,10 @@ def _compute_diagnostics(
 
         # ...insert additional variables
         diagnostic_vars_3d = [var for var in predicted_vars if is_3d(ds[var])]
-
-        ds = (
-            ds.pipe(utils.insert_column_integrated_vars, diagnostic_vars_3d)
-            .pipe(utils.insert_net_terms_as_Qs)
-            .load()
-        )
+        ds = ds.pipe(utils.insert_column_integrated_vars, diagnostic_vars_3d).load()
         ds.update(grid)
+        full_predicted_vars = [var for var in ds if DERIVATION_DIM_NAME in ds[var].dims]
+
         ds_summary = _compute_summary(ds, diagnostic_vars_3d)
         if DATASET_DIM_NAME in ds.dims:
             sample_dims = ("time", DATASET_DIM_NAME)
@@ -179,11 +194,17 @@ def _compute_diagnostics(
         ds_summary["time"] = ds["time"]
         ds_diurnal["time"] = ds["time"]
         ds_metrics = compute_metrics(
-            stacked,
-            lat=stacked["lat"],
-            area=stacked["area"],
-            predicted_vars=predicted_vars,
+            prediction=safe.get_variables(
+                ds.sel({DERIVATION_DIM_NAME: PREDICT_COORD}), full_predicted_vars
+            ),
+            target=safe.get_variables(
+                ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
+            ),
+            grid=grid,
+            delp=ds[DELP],
+            n_jobs=n_jobs,
         )
+
         batches_summary.append(ds_summary.load())
         batches_diurnal.append(ds_diurnal.load())
         batches_metrics.append(ds_metrics.load())
@@ -198,17 +219,23 @@ def _compute_diagnostics(
         ds_summary, ds_metrics
     )
 
+    ds_scalar_metrics = insert_r2(ds_scalar_metrics)
+    ds_diagnostics = ds_diagnostics.pipe(insert_r2).pipe(insert_rmse)
+    ds_diagnostics, ds_diurnal, ds_scalar_metrics = _standardize_names(
+        ds_diagnostics, ds_diurnal, ds_scalar_metrics
+    )
     return ds_diagnostics.mean("batch"), ds_diurnal, ds_scalar_metrics
 
 
 def _consolidate_dimensioned_data(ds_summary, ds_metrics):
     # moves dimensioned quantities into final diags dataset so they're saved as netcdf
-    metrics_arrays_vars = [var for var in ds_metrics.data_vars if "scalar" not in var]
-    ds_metrics_arrays = safe.get_variables(ds_metrics, metrics_arrays_vars)
-    ds_diagnostics = ds_summary.merge(ds_metrics_arrays).rename(
-        {var: var.replace("/", "-") for var in metrics_arrays_vars}
-    )
-    return ds_diagnostics, ds_metrics.drop(metrics_arrays_vars)
+    scalar_metrics = [
+        var for var in ds_metrics if ds_metrics[var].size == len(ds_metrics.batch)
+    ]
+    ds_scalar_metrics = safe.get_variables(ds_metrics, scalar_metrics)
+    ds_metrics_arrays = ds_metrics.drop(scalar_metrics)
+    ds_diagnostics = ds_summary.merge(ds_metrics_arrays)
+    return ds_diagnostics, ds_scalar_metrics
 
 
 def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence[str]):
@@ -303,14 +330,13 @@ def main(args):
         output_data_yaml, "w"
     ) as f_out:
         f_out.write(f_in.read())
-
     batches = config.load_batches(model_variables)
     predict_function = _get_predict_function(model, model_variables, grid)
     batches = loaders.Map(predict_function, batches)
 
     # compute diags
     ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diagnostics(
-        batches, grid, predicted_vars=model.output_variables
+        batches, grid, predicted_vars=model.output_variables, n_jobs=args.n_jobs
     )
 
     # save model senstivity figures: jacobian (TODO: RF feature sensitivity)

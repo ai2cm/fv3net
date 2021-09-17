@@ -1,0 +1,29 @@
+xarray.Dataset {
+dimensions:
+	x = 4 ;
+	y = 4 ;
+	z = 63 ;
+
+variables:
+	float64 total_sky_downward_shortwave_flux_at_surface(y, x) ;
+	float64 total_sky_downward_longwave_flux_at_surface(y, x) ;
+	int64 specific_humidity_limiter_active(z, y, x) ;
+
+// global attributes:
+}xarray.Dataset {
+dimensions:
+
+variables:
+
+// global attributes:
+}xarray.Dataset {
+dimensions:
+	x = 4 ;
+	y = 4 ;
+
+variables:
+	float64 total_sky_downward_shortwave_flux_at_surface(y, x) ;
+	float64 total_sky_downward_longwave_flux_at_surface(y, x) ;
+
+// global attributes:
+}

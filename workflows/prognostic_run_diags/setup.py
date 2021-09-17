@@ -46,15 +46,12 @@ setup(
     entry_points={
         "console_scripts": [
             "prognostic_run_diags=fv3net.diagnostics.prognostic_run.cli:main",
-            "artifacts=fv3net.artifacts.cli:main",
         ]
     },
     install_requires=install_requirements,
     license="BSD license",
     include_package_data=True,
     name="fv3net-diagnostics-prog-run",
-    packages=find_namespace_packages(
-        include=["fv3net.diagnostics.prognostic_run", "fv3net.artifacts"]
-    ),
+    packages=find_namespace_packages(include=["fv3net.diagnostics.prognostic_run"]),
     version="0.1.0",
 )
