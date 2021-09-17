@@ -1,4 +1,5 @@
 """Top level factory functions
+
 These construct objects like Emulators that require knowledge of static
 configuration as well as runtime-only data structures like the model state.
 """
