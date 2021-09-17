@@ -34,5 +34,5 @@ The workflows in this project are described by the following graph.
     readme_links/offline_ml_diags_readme
     readme_links/post_process_run_readme
     readme_links/prognostic_c48_run_readme
-    readme_links/prognostic_run_diags_readme
+    readme_links/diagnostics_readme
     readme_links/training_data_diags_readme

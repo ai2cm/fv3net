@@ -4,7 +4,7 @@ Compute summary diagnostics and metrics from the output of a prognostic run and
 visualize on report comparing multiple runs.
 
 See the [Sphinx
-Documentation](https://vulcanclimatemodeling.com/docs/prognostic_run_diags/)
+Documentation](https://vulcanclimatemodeling.com/docs/diagnostics/)
 for more details.
 
 An argo workflow to compute the diagnostics and make the report is available and

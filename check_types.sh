@@ -7,4 +7,4 @@ mypy --follow-imports silent \
     workflows/prognostic_c48_run/tests/ \
     external/fv3fit/fv3fit \
     external/loaders/loaders/ \
-    workflows/prognostic_run_diags/fv3net/diagnostics/offline_ml_diags
+    workflows/diagnostics/fv3net/diagnostics/offline_ml_diags
