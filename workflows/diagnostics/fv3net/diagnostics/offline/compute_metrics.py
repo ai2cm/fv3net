@@ -1,8 +1,8 @@
 # TODO: combine offline diags and prognostic diags into same source tree
 # for now, this will import registry and transforms from prognostic diags
-from fv3net.diagnostics.prognostic_run.registry import Registry
-import fv3net.diagnostics.prognostic_run.transform as transform
-from fv3net.diagnostics.prognostic_run.constants import DiagArg
+from fv3net.diagnostics._shared.registry import Registry
+import fv3net.diagnostics._shared.transform as transform
+from fv3net.diagnostics._shared.constants import DiagArg
 
 import logging
 from typing import Sequence, Tuple, Dict

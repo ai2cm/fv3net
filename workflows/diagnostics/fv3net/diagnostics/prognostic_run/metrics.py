@@ -12,8 +12,12 @@ Usage:
 from typing import Mapping, Sequence, Tuple
 import numpy as np
 import xarray as xr
-from .constants import HORIZONTAL_DIMS, PERCENTILES, MASS_STREAMFUNCTION_MID_TROPOSPHERE
-from .registry import Registry
+from fv3net.diagnostics._shared.constants import (
+    HORIZONTAL_DIMS,
+    PERCENTILES,
+    MASS_STREAMFUNCTION_MID_TROPOSPHERE,
+)
+from fv3net.diagnostics._shared.registry import Registry
 from .derived_diagnostics import derived_registry
 import json
 

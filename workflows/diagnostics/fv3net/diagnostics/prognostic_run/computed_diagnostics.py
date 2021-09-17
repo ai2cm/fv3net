@@ -14,7 +14,7 @@ import tempfile
 
 from .metrics import metrics_registry
 from .derived_diagnostics import derived_registry
-from .constants import MovieUrls
+from fv3net.diagnostics._shared.constants import MovieUrls
 
 
 __all__ = ["ComputedDiagnosticsList", "RunDiagnostics"]
