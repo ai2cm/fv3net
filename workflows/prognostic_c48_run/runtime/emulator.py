@@ -113,11 +113,8 @@ class PrognosticAdapter:
         changes = self.monitor.compute_change("emulator", before, emulator_after)
 
         if self.config.online:
-            update_state_with_emulator(
-                self.state,
-                emulator_prediction,
-                ignore_humidity_below=self.config.ignore_humidity_below,
-            )
+            mask = compute_mask(self.config.ignore_humidity_below)
+            update_state_with_emulator(self.state, emulator_prediction, mask)
         return {**diags, **inputs_to_save, **changes, **change_in_func}
 
     def __call__(self, name: str, func: Step) -> Step:
@@ -147,7 +144,7 @@ class PrognosticAdapter:
         return step
 
 
-def _update_state_with_emulator(
+def update_state_with_emulator(
     state: MutableMapping[Hashable, xr.DataArray],
     src: Mapping[Hashable, xr.DataArray],
     compute_mask: Callable[[Hashable, xr.DataArray], xr.DataArray],
@@ -178,11 +175,3 @@ class compute_mask:
                 return xr.DataArray(False)
         else:
             return xr.DataArray(True)
-
-
-def update_state_with_emulator(
-    state: MutableMapping[Hashable, xr.DataArray],
-    src: Mapping[Hashable, xr.DataArray],
-    ignore_humidity_below: Optional[int] = None,
-) -> None:
-    return _update_state_with_emulator(state, src, compute_mask(ignore_humidity_below))
