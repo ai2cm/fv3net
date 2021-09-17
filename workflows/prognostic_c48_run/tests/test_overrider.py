@@ -1,4 +1,5 @@
 from datetime import timedelta
+import joblib
 import cftime
 import numpy as np
 import xarray as xr
@@ -44,6 +45,18 @@ def _get_tendency_ds(time):
     return xr.Dataset({"Q1": tendency_da}).chunk({"time": 2})
 
 
+def _get_derived_state(ds, time):
+    tiled_state = xr.concat([ds.assign_coords(tile=t) for t in range(6)], dim="tile")
+    return MockDerivedState(tiled_state, time)
+
+
+def _get_dummy_comm():
+    return fv3gfs.util.CubedSphereCommunicator(
+        DummyComm(0, 6, {}),
+        fv3gfs.util.CubedSpherePartitioner(fv3gfs.util.TilePartitioner((1, 1))),
+    )
+
+
 def test_dataset_caching():
     cached = DatasetCachedByChunk(ds, "time")
     ds_year_2000 = cached.load(2000)
@@ -53,28 +66,15 @@ def test_dataset_caching():
     assert cached._load_chunk.cache_info().hits == 1
 
 
-def test_overrider(state, tmpdir):
+def test_overrider(state, tmpdir, regtest):
     name = "add_one"
     time = cftime.DatetimeJulian(2016, 8, 1)
     path = str(tmpdir.join("tendencies.zarr"))
-    ds = _get_tendency_ds(time)
-    ds.to_zarr(path, consolidated=True)
-    state, _ = xr.broadcast(
-        state[
-            [
-                "air_temperature",
-                "specific_humidity",
-                "pressure_thickness_of_atmospheric_layer",
-            ]
-        ],
-        ds.Q1.isel(time=0),
-    )
-    state = MockDerivedState(state, time)
-    state_copy = MockDerivedState(state._state.copy(deep=True), time)
-    communicator = fv3gfs.util.CubedSphereCommunicator(
-        DummyComm(0, 6, {}),
-        fv3gfs.util.CubedSpherePartitioner(fv3gfs.util.TilePartitioner((1, 1))),
-    )
+    tendencies = _get_tendency_ds(time)
+    tendencies.to_zarr(path, consolidated=True)
+    derived_state = _get_derived_state(state, time)
+    derived_state_copy = _get_derived_state(state, time)
+    communicator = _get_dummy_comm()
     diagnostic_variables = [
         f"tendency_of_air_temperature_due_to_{name}",
         "tendency_of_air_temperature_due_to_override",
@@ -82,22 +82,26 @@ def test_overrider(state, tmpdir):
     ]
     override = OverriderAdapter(
         OverriderConfig(path, {"air_temperature": "Q1"}),
-        state,
+        derived_state,
         communicator,
         timestep=2,
         diagnostic_variables=diagnostic_variables,
     )
 
-    def add_one_to_temperature():
-        state["air_temperature"] = state["air_temperature"] + 1
-        return {"some_diag": state["specific_humidity"]}
+    def add_one():
+        derived_state["air_temperature"] = derived_state["air_temperature"] + 1
+        derived_state["specific_humidity"] = derived_state["specific_humidity"] + 1
+        return {"some_diag": derived_state["specific_humidity"]}
 
-    _ = override("add_one", add_one_to_temperature)()
+    diags = override(name, add_one)()
 
     xr.testing.assert_identical(
-        state["specific_humidity"], state_copy["specific_humidity"]
+        derived_state["specific_humidity"], derived_state_copy["specific_humidity"] + 1,
     )
     xr.testing.assert_identical(
-        state["air_temperature"],
-        (state_copy["air_temperature"] + 2).assign_attrs(units="degK"),
+        derived_state["air_temperature"],
+        (derived_state_copy["air_temperature"] + 2).assign_attrs(units="degK"),
     )
+
+    for variable in sorted(diags):
+        print(variable, joblib.hash(diags[variable]), file=regtest)
