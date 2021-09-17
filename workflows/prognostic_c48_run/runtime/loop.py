@@ -187,10 +187,8 @@ class TimeLoop(
         self.monitor = Monitor.from_variables(
             config.diagnostic_variables, state=self._state, timestep=self._timestep,
         )
-        partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(get_namelist())
-        communicator = fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
         self._adapt = runtime.factories.get_fv3_physics_adapter(
-            config, self._state, self._timestep, communicator,
+            config, self._state, self._timestep, self._get_communicator(),
         )
 
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
@@ -211,6 +209,10 @@ class TimeLoop(
                     states_to_output = diagnostic.variables  # type: ignore
         return states_to_output
 
+    def _get_communicator(self):
+        partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(get_namelist())
+        return fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
+
     def adapt(self, name: str, func: Step) -> Step:
         if self._adapt is None:
             return self.monitor(name, func)
@@ -230,10 +232,7 @@ class TimeLoop(
             stepper = PureMLStepper(model, self._timestep, hydrostatic)
         elif isinstance(config.prephysics, PrescriberConfig):
             self._log_info("Using Prescriber for prephysics")
-            partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
-                get_namelist()
-            )
-            communicator = fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
+            communicator = self._get_communicator()
             timesteps = get_timesteps(
                 self.time, self._timestep, self._fv3gfs.get_step_count()
             )
@@ -251,11 +250,7 @@ class TimeLoop(
             )
         elif config.nudging:
             self._log_info("Using NudgingStepper for postphysics updates")
-            partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
-                get_namelist()
-            )
-            communicator = fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
-            stepper = PureNudger(config.nudging, communicator, hydrostatic)
+            stepper = PureNudger(config.nudging, self._get_communicator(), hydrostatic)
         else:
             self._log_info("Performing baseline simulation")
             stepper = None
