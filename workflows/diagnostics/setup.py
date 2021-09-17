@@ -43,7 +43,7 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
     ],
-    description="Prognostic run diagnostics",
+    description="Diagnostics for offline evaluation and prognostic runs",
     entry_points={
         "console_scripts": [
             "prognostic_run_diags=fv3net.diagnostics.prognostic_run.cli:main",
