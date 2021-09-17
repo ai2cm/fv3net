@@ -12,7 +12,9 @@ da = xr.DataArray(
     np.arange(11 * 4 * 6).reshape((11, 4, 6)),
     dims=["time", "x", "y"],
     coords={"time": np.arange(2000, 2011)},
-).chunk({"time": 5, "x": 4, "y": 4})
+).chunk(
+    {"time": 5, "x": 4, "y": 4}  # type: ignore
+)
 ds = xr.Dataset({"var": da})
 
 
