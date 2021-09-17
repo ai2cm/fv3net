@@ -220,12 +220,12 @@ This workflow computes offline ML diagnostics and generates an associated report
 #### Command line interfaces used by workflow
 This workflow calls
 ```
-python -m fv3net.diagnostics.offline_ml_diags.compute_diags \
+python -m fv3net.diagnostics.offline.compute_diags \
           {{inputs.parameters.ml-model}} \
           {{inputs.parameters.offline-diags-output}} \
           --timesteps-file {{inputs.parameters.times}} 
           
-python -m fv3net.diagnostics.offline_ml_diags.create_report \
+python -m fv3net.diagnostics.offline.create_report \
           {{inputs.parameters.offline-diags-output}} \
           {{inputs.parameters.report-output}} \
           --commit-sha "$COMMIT_SHA"
