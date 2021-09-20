@@ -63,7 +63,7 @@ class OverriderAdapter:
             self.diagnostic_variables, self.state, self.timestep
         )
 
-    def override(self, name: str, func: Step) -> Diagnostics:
+    def _override(self, name: str, func: Step) -> Diagnostics:
         if self.communicator.rank == 0:
             logger.debug(f"Overriding tendencies for {name}.")
         tendencies = self._open_tendencies_dataset(self.state.time)
