@@ -433,6 +433,6 @@ online_emulator:
   online: false
   train: true
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
-overrider: null
 prephysics: null
 scikit_learn: null
+tendency_prescriber: null

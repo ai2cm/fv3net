@@ -7,7 +7,10 @@ import xarray as xr
 import fv3gfs.util
 from fv3gfs.util.testing import DummyComm
 
-from runtime.overrider import OverriderAdapter, OverriderConfig
+from runtime.tendency_prescriber import (
+    TendencyPrescriberAdapter,
+    TendencyPrescriberConfig,
+)
 
 
 class MockDerivedState:
@@ -48,7 +51,7 @@ def _get_dummy_comm():
     )
 
 
-def test_overrider(state, tmpdir, regtest):
+def test_tendency_prescriber(state, tmpdir, regtest):
     name = "add_one"
     time = cftime.DatetimeJulian(2016, 8, 1)
     path = str(tmpdir.join("tendencies.zarr"))
@@ -62,8 +65,8 @@ def test_overrider(state, tmpdir, regtest):
         "tendency_of_air_temperature_due_to_override",
         "specific_humidity",
     ]
-    override = OverriderAdapter(
-        OverriderConfig(path, {"air_temperature": "Q1"}),
+    override = TendencyPrescriberAdapter(
+        TendencyPrescriberConfig(path, {"air_temperature": "Q1"}),
         derived_state,
         communicator,
         timestep=2,

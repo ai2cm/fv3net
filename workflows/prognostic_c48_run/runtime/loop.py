@@ -190,7 +190,7 @@ class TimeLoop(
         self._emulate = runtime.factories.get_emulator_adapter(
             config, self._state, self._timestep,
         )
-        self._override = runtime.factories.get_overrider_adapter(
+        self._prescribe_tendency = runtime.factories.get_tendency_prescriber_adapter(
             config, self._state, self._timestep, self._get_communicator(),
         )
 
@@ -216,12 +216,12 @@ class TimeLoop(
         partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(get_namelist())
         return fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
 
-    def emulate_or_override(self, name: str, func: Step) -> Step:
-        if self._emulate is not None and self._override is not None:
-            return self._override("emulator", self._emulate(name, func))
-        elif self._emulate is None and self._override is not None:
-            return self._override(name, func)
-        elif self._emulate is not None and self._override is None:
+    def emulate_or_prescribe_tendency(self, name: str, func: Step) -> Step:
+        if self._emulate is not None and self._prescribe_tendency is not None:
+            return self._prescribe_tendency("emulator", self._emulate(name, func))
+        elif self._emulate is None and self._prescribe_tendency is not None:
+            return self._prescribe_tendency(name, func)
+        elif self._emulate is not None and self._prescribe_tendency is None:
             return self._emulate(name, func)
         else:
             return self.monitor(name, func)
@@ -471,7 +471,7 @@ class TimeLoop(
                 self._step_prephysics,
                 self._compute_physics,
                 self._apply_postphysics_to_physics_state,
-                self.emulate_or_override("fv3_physics", self._apply_physics),
+                self.emulate_or_prescribe_tendency("fv3_physics", self._apply_physics),
                 self._compute_postphysics,
                 self.monitor("python", self._apply_postphysics_to_dycore_state),
             ]:

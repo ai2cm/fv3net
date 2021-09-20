@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
-class OverriderConfig:
+class TendencyPrescriberConfig:
     """Configuration for overriding tendencies from a step.
     
     Attributes:
@@ -33,16 +33,16 @@ class OverriderConfig:
 
 
 @dataclasses.dataclass
-class OverriderAdapter:
-    """Wrap a Step function to override certain tendencies."""
+class TendencyPrescriberAdapter:
+    """Wrap a Step function and prescribe certain tendencies."""
 
-    config: OverriderConfig
+    config: TendencyPrescriberConfig
     state: DerivedFV3State
     communicator: fv3gfs.util.CubedSphereCommunicator
     timestep: float
     diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
 
-    def __post_init__(self: "OverriderAdapter"):
+    def __post_init__(self: "TendencyPrescriberAdapter"):
         if self.communicator.rank == 0:
             logger.debug(f"Opening tendency overriding dataset from: {self.config.url}")
         tile = self.communicator.partitioner.tile_index(self.communicator.rank)
@@ -63,9 +63,9 @@ class OverriderAdapter:
             self.diagnostic_variables, self.state, self.timestep
         )
 
-    def _override(self, name: str, func: Step) -> Diagnostics:
+    def _prescribe_tendency(self, name: str, func: Step) -> Diagnostics:
         if self.communicator.rank == 0:
-            logger.debug(f"Overriding tendencies for {name}.")
+            logger.debug(f"Prescribing tendencies for {name}.")
         tendencies = self._open_tendencies_dataset(self.state.time)
         before = self.monitor.checkpoint()
         diags = func()
@@ -75,25 +75,25 @@ class OverriderAdapter:
                 self.state[variable_name] = (
                     before[variable_name] + tendencies[tendency_name] * self.timestep
                 )
-        change_due_to_overriding = self.monitor.compute_change(
-            "override", before, self.state
+        change_due_to_prescribing = self.monitor.compute_change(
+            "tendency_prescriber", before, self.state
         )
-        return {**diags, **change_due_to_func, **change_due_to_overriding}
+        return {**diags, **change_due_to_func, **change_due_to_prescribing}
 
     def __call__(self, name: str, func: Step) -> Step:
         """Override tendencies from a function that updates the State.
         
         Args:
-            name: a label for the step that is being overriden.
+            name: a label for the step that is being overidden.
             func: a function that updates the State and return Diagnostics.
             
         Returns:
             overridden_func: a function which observes the change to State
-            done by ``func`` and overrides the change for specified variables.
+            done by ``func`` and prescribes the change for specified variables.
         """
 
         def step() -> Diagnostics:
-            return self._override(name, func)
+            return self._prescribe_tendency(name, func)
 
         step.__name__ = func.__name__
         return step

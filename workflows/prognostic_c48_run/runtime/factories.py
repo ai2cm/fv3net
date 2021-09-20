@@ -7,12 +7,12 @@ from typing import Optional
 from runtime.types import State
 from runtime.config import UserConfig
 from runtime.emulator import PrognosticAdapter
-from runtime.overrider import OverriderAdapter
+from runtime.tendency_prescriber import TendencyPrescriberAdapter
 from runtime.derived_state import DerivedFV3State
 import fv3gfs.util
 
 
-__all__ = ["get_emulator_adapter", "get_overrider_adapter"]
+__all__ = ["get_emulator_adapter", "get_tendency_prescriber_adapter"]
 
 
 def get_emulator_adapter(
@@ -29,17 +29,17 @@ def get_emulator_adapter(
         )
 
 
-def get_overrider_adapter(
+def get_tendency_prescriber_adapter(
     config: UserConfig,
     state: DerivedFV3State,
     timestep: float,
     communicator: fv3gfs.util.CubedSphereCommunicator,
-) -> Optional[OverriderAdapter]:
-    if config.overrider is None:
+) -> Optional[TendencyPrescriberAdapter]:
+    if config.tendency_prescriber is None:
         return None
     else:
-        return OverriderAdapter(
-            config.overrider,
+        return TendencyPrescriberAdapter(
+            config.tendency_prescriber,
             state,
             communicator,
             timestep,
