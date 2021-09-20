@@ -10,12 +10,12 @@ class IncrementStateLayer(tf.keras.layers.Layer):
         dt_sec: timestep delta in seconds
     """
 
-    def __init__(self, dt_sec: int, *args, **kwargs):
+    def __init__(self, dt_sec: int, *args, dtype=tf.float32, **kwargs):
 
-        self.dt_sec = dt_sec
+        self.dt_sec = tf.constant(dt_sec, dtype=dtype)
         super().__init__(*args, **kwargs)
 
-    def call(self, tensors: Sequence[tf.Tensor, tf.Tensor]) -> tf.Tensor:
+    def call(self, tensors: Sequence[tf.Tensor]) -> tf.Tensor:
         """
         Increment state with tendency * timestep
 
@@ -29,7 +29,7 @@ class IncrementStateLayer(tf.keras.layers.Layer):
 
 class PassThruLayer(tf.keras.layers.Layer):
     """
-    Layer that passes a tensor unchanged.  Useful for naming/renaming outputs.
+    Layer that passes a tensor unchanged.  Useful for naming/renaming output layer.
     """
 
     def call(self, tensor):
