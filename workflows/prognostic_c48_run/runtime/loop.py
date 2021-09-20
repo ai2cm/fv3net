@@ -217,14 +217,14 @@ class TimeLoop(
         return fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
 
     def emulate_or_override(self, name: str, func: Step) -> Step:
-        if self._emulate is None and self._override is None:
-            return self.monitor(name, func)
+        if self._emulate is not None and self._override is not None:
+            return self._override("emulator", self._emulate(name, func))
         elif self._emulate is None and self._override is not None:
             return self._override(name, func)
         elif self._emulate is not None and self._override is None:
             return self._emulate(name, func)
         else:
-            return self._override("emulator", self._emulate(name, func))
+            return self.monitor(name, func)
 
     def _get_prephysics_stepper(
         self, config: UserConfig, hydrostatic: bool
