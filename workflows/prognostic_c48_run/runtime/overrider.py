@@ -93,7 +93,7 @@ class OverriderAdapter:
         """
 
         def step() -> Diagnostics:
-            return self.override(name, func)
+            return self._override(name, func)
 
         step.__name__ = func.__name__
         return step
