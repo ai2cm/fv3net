@@ -4,6 +4,7 @@ import logging
 from toolz.functoolz import compose_left
 from typing import Any, Dict, Mapping, Optional, Sequence, Union
 
+from vcm import DerivedMapping
 from . import transforms
 
 
@@ -83,14 +84,19 @@ class TransformConfig:
 
         transform_funcs = []
 
+        # xarray transforms
+        transform_funcs.append(DerivedMapping)
+
         if self.antarctic_only:
             transform_funcs.append(transforms.select_antarctic)
+
 
         if self.use_tensors:
             transform_funcs.append(transforms.to_tensors)
         else:
             transform_funcs.append(transforms.to_ndarrays)
 
+        # array-like dataset transforms
         transform_funcs.append(transforms.expand_single_dim_data)
 
         if self.vertical_subselections is not None:
@@ -98,6 +104,7 @@ class TransformConfig:
                 transforms.maybe_subselect_feature_dim(self.vertical_subselections)
             )
 
+        # final transform to grouped X, y tuples
         transform_funcs.append(
             transforms.group_inputs_outputs(self.input_variables, self.output_variables)
         )
