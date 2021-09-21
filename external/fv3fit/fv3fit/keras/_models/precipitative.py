@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Iterable, Optional, Sequence, Tuple, Set
+from typing import List, Optional, Sequence, Tuple, Set
 from fv3fit._shared.config import (
     OptimizerConfig,
     RegularizerConfig,
@@ -191,7 +191,7 @@ class PrecipitativeHyperparameters(Hyperparameters):
             by not adding "precipitative" terms to dQ1 and dQ2
     """
 
-    additional_input_variables: Iterable[str] = dataclasses.field(default_factory=tuple)
+    additional_input_variables: List[str] = dataclasses.field(default_factory=list)
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")
     )
