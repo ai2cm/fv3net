@@ -191,6 +191,9 @@ class TimeLoop(
         self._emulate = runtime.factories.get_emulator_adapter(
             config, self._state, self._timestep
         )
+        self._ml_prescribe = runtime.factories.get_ml_prescriber_adapter(
+            config, self._state, self._timestep
+        )
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
         self._log_debug(f"States to output: {self._states_to_output}")
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
@@ -210,10 +213,12 @@ class TimeLoop(
         return states_to_output
 
     def emulate(self, name: str, func: Step) -> Step:
-        if self._emulate is None:
-            return self.monitor(name, func)
-        else:
+        if self._emulate:
             return self._emulate(name, func)
+        elif self._ml_prescribe:
+            return self._ml_prescribe(name, func)
+        else:
+            return self.monitor(name, func)
 
     def _get_prephysics_stepper(
         self, config: UserConfig, hydrostatic: bool
