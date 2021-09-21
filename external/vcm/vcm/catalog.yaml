@@ -66,6 +66,36 @@ sources:
       urlpath: "gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_8xdaily_C3072_to_C384.zarr"
       consolidated: True
 
+  2020_1yr_pire_physics:
+    description: 2D physics diagnostics variables from 1 yr PIRE run post-spinup, starting on 1/18/20, coarsened to C48 resolution 
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 1yr_pire_postspinup
+      category: physics
+      variables:
+        - CPRATEsfc_coarse
+        - DLWRFsfc_coarse
+        - DSWRFsfc_coarse
+        - DSWRFtoa_coarse
+        - HPBLsfc_coarse
+        - LHTFLsfc_coarse
+        - PRATEsfc_coarse
+        - SHTFLsfc_coarse
+        - UGRD10m_coarse
+        - ULWRFsfc_coarse
+        - ULWRFtoa_coarse
+        - USWRFsfc_coarse
+        - USWRFtoa_coarse
+        - VGRD10m_coarse
+        - tsfc_coarse
+        - uflx_coarse
+        - vflx_coarse
+    args:
+      urlpath: "gs://vcm-ml-intermediate/2021-08-03-PIRE-c48-diags-post-spinup/pire_atmos_phys_3h_coarse.zarr"
+      consolidated: True
+
+
   40day_c48_gfsphysics_15min_may2020:
     description: 2D physics diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution and rechunked to 96 15-minute timesteps (1 day) per chunk
     driver: zarr
