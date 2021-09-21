@@ -90,7 +90,6 @@ class TransformConfig:
         if self.antarctic_only:
             transform_funcs.append(transforms.select_antarctic)
 
-
         if self.use_tensors:
             transform_funcs.append(transforms.to_tensors)
         else:

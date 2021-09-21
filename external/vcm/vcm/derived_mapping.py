@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Any, Mapping, Hashable, Callable, Iterable, MutableMapping
+from typing import Mapping, Hashable, Callable, Iterable, MutableMapping
 import xarray as xr
 
 import vcm
@@ -17,9 +17,7 @@ class DerivedMapping:
     REQUIRED_INPUTS: MutableMapping[Hashable, Iterable[Hashable]] = {}
 
     def __init__(
-        self,
-        mapper: Mapping[Hashable, xr.DataArray],
-        microphys_timestep_sec: int = 900
+        self, mapper: Mapping[Hashable, xr.DataArray], microphys_timestep_sec: int = 900
     ):
         self._mapper = mapper
         # used for derived tendency variables in the microphysics
@@ -27,11 +25,7 @@ class DerivedMapping:
         self._microphys_timestep_sec = microphys_timestep_sec
 
     @classmethod
-    def register(
-        cls, 
-        name: Hashable, 
-        required_inputs: Iterable[Hashable] = None
-        ):
+    def register(cls, name: Hashable, required_inputs: Iterable[Hashable] = None):
         """Register a function as a derived variable.
 
         Args:
@@ -257,7 +251,7 @@ def pQ2(self):
 
 @DerivedMapping.register(
     "tendency_of_air_temperature_due_to_microphysics",
-    required_inputs=["air_temperature_input", "air_temperature_output"]
+    required_inputs=["air_temperature_input", "air_temperature_output"],
 )
 def tendency_of_air_temperature_due_to_microphysics(self):
     end = self._mapper["air_temperature_output"]
@@ -267,7 +261,7 @@ def tendency_of_air_temperature_due_to_microphysics(self):
 
 @DerivedMapping.register(
     "tendency_of_specific_humidity_due_to_microphysics",
-    required_inputs=["specific_humidity_input", "specific_humidity_output"]
+    required_inputs=["specific_humidity_input", "specific_humidity_output"],
 )
 def tendency_of_specific_humidity_due_to_microphysics(self):
     end = self._mapper["specific_humidity_output"]
@@ -277,7 +271,10 @@ def tendency_of_specific_humidity_due_to_microphysics(self):
 
 @DerivedMapping.register(
     "tendency_of_cloud_water_mixing_ratio_due_to_microphysics",
-    required_inputs=["cloud_water_mixing_ratio_input", "cloud_water_mixing_ratio_output"]
+    required_inputs=[
+        "cloud_water_mixing_ratio_input",
+        "cloud_water_mixing_ratio_output",
+    ],
 )
 def tendency_of_cloud_water_mixing_ratio_due_to_microphysics(self):
     end = self._mapper["cloud_water_mixing_ratio_output"]

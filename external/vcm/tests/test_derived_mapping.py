@@ -200,12 +200,9 @@ def get_microphys_data(varname, diff):
 
     ds = xr.Dataset(
         {
-            f"{varname}_input": xr.DataArray(
-                np.ones((10, 79)), dims=["sample", "z"]
-            ),
-            f"{varname}_output": xr.DataArray(
-                np.ones((10, 79)), dims=["sample", "z"]
-            ) + diff,
+            f"{varname}_input": xr.DataArray(np.ones((10, 79)), dims=["sample", "z"]),
+            f"{varname}_output": xr.DataArray(np.ones((10, 79)), dims=["sample", "z"])
+            + diff,
         }
     )
 
@@ -213,8 +210,7 @@ def get_microphys_data(varname, diff):
 
 
 @pytest.mark.parametrize(
-    "varname",
-    ["air_temperature", "specific_humidity", "cloud_water_mixing_ratio"]
+    "varname", ["air_temperature", "specific_humidity", "cloud_water_mixing_ratio"]
 )
 def test_microphysics_tendencies(varname):
 
