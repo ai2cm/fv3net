@@ -31,7 +31,6 @@ The workflows in this project are described by the following graph.
     readme_links/coarsen_c384_diagnostics_readme
     readme_links/dataflow_readme
     readme_links/fine_res_budget_readme
-    readme_links/offline_readme
     readme_links/post_process_run_readme
     readme_links/prognostic_c48_run_readme
     readme_links/diagnostics_readme
