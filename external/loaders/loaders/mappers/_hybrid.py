@@ -152,6 +152,7 @@ def open_fine_resolution_nudging_hybrid_dataset(
     # https://github.com/VulcanClimateModeling/vcm-workflow-control/commit/dd4498bcf3143d05095bf9ff4ca3f1341ba25330
     nudge_url="gs://vcm-ml-experiments/2021-04-13-n2f-c3072/3-hrly-ave-rad-precip-setting-30-min-rad-timestep-shifted-start-tke-edmf",  # noqa: E501
     include_temperature_nudging: bool = False,
+    use_full_fine_res_tendency: bool = False,
 ) -> xarray.Dataset:
 
     fine = open_zarr_maybe_consolidated(fine_url)
@@ -174,16 +175,20 @@ def open_fine_resolution_nudging_hybrid_dataset(
         join="inner",
     )
 
-    # dQ1,2,u,v
-    # "hybrid" definitions for humidity and moisture
-    merged["dQ1"] = (
-        merged["Q1"] - merged["tendency_of_air_temperature_due_to_fv3_physics"]
-    )
-    merged["dQ2"] = (
-        merged["Q2"] - merged["tendency_of_specific_humidity_due_to_fv3_physics"]
-    )
-    merged["dQxwind"] = nudge_tends.x_wind_tendency_due_to_nudging
-    merged["dQywind"] = nudge_tends.y_wind_tendency_due_to_nudging
+    if use_full_fine_res_tendency:
+        merged["dQ1"] = merged["Q1"]
+        merged["dQ2"] = merged["Q2"]
+    else:
+        # dQ1,2,u,v
+        # "hybrid" definitions for humidity and moisture
+        merged["dQ1"] = (
+            merged["Q1"] - merged["tendency_of_air_temperature_due_to_fv3_physics"]
+        )
+        merged["dQ2"] = (
+            merged["Q2"] - merged["tendency_of_specific_humidity_due_to_fv3_physics"]
+        )
+        merged["dQxwind"] = nudge_tends.x_wind_tendency_due_to_nudging
+        merged["dQywind"] = nudge_tends.y_wind_tendency_due_to_nudging
 
     # drop time from lat and lon
     merged["latitude"] = merged.latitude.isel(time=0)
@@ -195,7 +200,10 @@ def open_fine_resolution_nudging_hybrid_dataset(
 
 @mapper_functions.register
 def open_fine_resolution_nudging_hybrid(
-    fine_url: str = "", nudge_url: str = "", include_temperature_nudging: bool = False,
+    fine_url: str = "",
+    nudge_url: str = "",
+    include_temperature_nudging: bool = False,
+    use_full_fine_res_tendency: bool = False,
 ) -> GeoMapper:
     """
     Open the fine resolution nudging_hybrid mapper
@@ -213,5 +221,6 @@ def open_fine_resolution_nudging_hybrid(
             fine_url=fine_url,
             nudge_url=nudge_url,
             include_temperature_nudging=include_temperature_nudging,
+            use_full_fine_res_tendency=use_full_fine_res_tendency,
         )
     )
