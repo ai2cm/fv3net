@@ -1,11 +1,29 @@
-# Offline ML Diagnostics workflow
+# Diagnostics
 
+Both offline and online (prognostic run) diagnostics can be computed in `fv3net.diagnostics`.
+
+## Prognostic run reports
+
+Compute summary diagnostics and metrics from the output of a prognostic run and
+visualize on report comparing multiple runs.
+
+See the [Sphinx
+Documentation](https://vulcanclimatemodeling.com/docs/diagnostics/)
+for more details.
+
+An argo workflow to compute the diagnostics and make the report is available and
+its usage is described at [`fv3net/workflow/argo/README.md`](https://github.com/VulcanClimateModeling/fv3net/blob/master/workflows/argo/README.md).
+
+
+## Offline ML Diagnostics workflow
+
+The basic usage of the offline diagnostics workflow is described below.
 This workflow generate offline diagnostics datasets, $R^2$, and bias metrics
 for a given ML model. It contains two steps: 1) `compute_diags`, which calculates the
 aforementioned data, and 2) `create_report`, which compiles an HTML report of tables and
 figures and uploads it to a destination. If that destination is a public bucket, the report
 can be viewed at its URL on a web browser.
-## Quickstart
+### Quickstart
 
 ### 1. Generating diagnostics and metrics
 Generating the diagnostics can be done by providing a path to a model trained and dumped by 
@@ -50,9 +68,9 @@ python -m offline_ml_diags.create_report \
 ### `offline_ml_diags.compute_diags`
 
 ```bash
-$ python -m offline_ml_diags.compute_diags --help
+$ python -m fv3net.diagnostics.offline.compute --help
 
-usage: compute_diags.py [-h] [--snapshot-time SNAPSHOT_TIME] [--grid GRID]
+usage: compute.py [-h] [--snapshot-time SNAPSHOT_TIME] [--grid GRID]
                         model_path output_path data_yaml
 
 positional arguments:
@@ -75,9 +93,9 @@ optional arguments:
                         GCS data in vcm.catalog.
 ```
 
-### `offline_ml_diags.create_report`
+### `fv3net.diagnostics.offline.create_report`
 ```bash
-usage: python -m offline_ml_diags.create_report [-h] [--commit-sha COMMIT_SHA] input_path output_path
+usage: python -m fv3net.diagnostics.offline.create_report [-h] [--commit-sha COMMIT_SHA] input_path output_path
 
 ```
 |arg|default|help|

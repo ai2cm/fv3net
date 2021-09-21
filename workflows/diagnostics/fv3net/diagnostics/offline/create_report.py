@@ -26,7 +26,7 @@ from ._helpers import (
     drop_temperature_humidity_tendencies_if_not_predicted,
 )
 from ._select import plot_transect
-from .compute_diags import (
+from .compute import (
     DIAGS_NC_NAME,
     DIURNAL_NC_NAME,
     TRANSECT_NC_NAME,
