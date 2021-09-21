@@ -2,7 +2,7 @@ import xarray as xr
 import numpy as np
 import pytest
 
-from fv3net.diagnostics.offline.compute_diags import (
+from fv3net.diagnostics.offline.compute import (
     PREDICT_COORD,
     TARGET_COORD,
     DERIVATION_DIM_NAME,

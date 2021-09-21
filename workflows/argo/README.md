@@ -220,7 +220,7 @@ This workflow computes offline ML diagnostics and generates an associated report
 #### Command line interfaces used by workflow
 This workflow calls
 ```
-python -m fv3net.diagnostics.offline.compute_diags \
+python -m fv3net.diagnostics.offline.compute \
           {{inputs.parameters.ml-model}} \
           {{inputs.parameters.offline-diags-output}} \
           --timesteps-file {{inputs.parameters.times}} 
