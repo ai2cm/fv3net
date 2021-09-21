@@ -30,9 +30,9 @@ import vcm
 
 from fv3net.diagnostics.prognostic_run import load_run_data as load_diags
 from fv3net.diagnostics.prognostic_run import diurnal_cycle
-from fv3net.diagnostics._shared.constants import (
+from fv3net.diagnostics._shared.constants import DiagArg, HORIZONTAL_DIMS
+from .constants import (
     HISTOGRAM_BINS,
-    HORIZONTAL_DIMS,
     GLOBAL_AVERAGE_DYCORE_VARS,
     GLOBAL_AVERAGE_PHYSICS_VARS,
     GLOBAL_BIAS_PHYSICS_VARS,
@@ -40,7 +40,6 @@ from fv3net.diagnostics._shared.constants import (
     TIME_MEAN_VARS,
     RMSE_VARS,
     PRESSURE_INTERPOLATED_VARS,
-    DiagArg,
 )
 from fv3net.diagnostics._shared.registry import Registry
 from fv3net.diagnostics._shared import transform

@@ -28,6 +28,8 @@ install_requirements = [
     "report",
     "streamlit",
     "plotly",
+    "fv3fit",
+    "loaders",
 ]
 
 setup(

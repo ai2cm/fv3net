@@ -21,7 +21,7 @@ from .matplotlib import (
     plot_cubed_sphere_map,
     plot_histogram,
 )
-from fv3net.diagnostics._shared.constants import (
+from fv3net.diagnostics.prognostic_run.constants import (
     PERCENTILES,
     PRECIP_RATE,
     TOP_LEVEL_METRICS,

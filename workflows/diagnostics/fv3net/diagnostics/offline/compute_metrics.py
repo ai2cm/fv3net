@@ -1,8 +1,6 @@
-# TODO: combine offline diags and prognostic diags into same source tree
-# for now, this will import registry and transforms from prognostic diags
 from fv3net.diagnostics._shared.registry import Registry
 import fv3net.diagnostics._shared.transform as transform
-from fv3net.diagnostics._shared.constants import DiagArg
+from fv3net.diagnostics._shared.constants import DiagArg, HORIZONTAL_DIMS
 
 import logging
 from typing import Sequence, Tuple, Dict
@@ -12,9 +10,6 @@ import xarray as xr
 import numpy as np
 
 logger = logging.getLogger(__name__)
-
-
-HORIZONTAL_DIMS = ["x", "y", "tile"]
 
 
 def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Dict[str, xr.DataArray]:
