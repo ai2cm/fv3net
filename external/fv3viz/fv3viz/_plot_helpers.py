@@ -4,12 +4,38 @@ import numpy as np
 import textwrap
 
 
-def _remove_redundant_dims(ds, required_dims):
-    if set(ds.dims) == set(required_dims):
-        return ds
-    redundant_dims_index = {dim: 0 for dim in ds.dims if dim not in required_dims}
-    ds = ds.isel(redundant_dims_index).squeeze(drop=True)
-    return ds
+def _align_grid_var_dims(da, required_dims):
+    missing_dims = set(required_dims).difference(da.dims)
+    if len(missing_dims) > 0:
+        raise ValueError(
+            f"Grid variable {da.name} missing dims {missing_dims}. "
+            "Incompatible grid metadata may have been passed."
+        )
+    redundant_dims = set(da.dims).difference(required_dims)
+    if len(redundant_dims) == 0:
+        da_out = da.transpose(*required_dims)
+    else:
+        redundant_dims_index = {dim: 0 for dim in redundant_dims}
+        da_out = (
+            da.isel(redundant_dims_index)
+            .drop_vars(redundant_dims, errors="ignore")
+            .transpose(*required_dims)
+        )
+    return da_out
+
+
+def _align_plot_var_dims(da, coord_y_center, coord_x_center):
+    first_dims = [coord_y_center, coord_x_center, "tile"]
+    missing_dims = set(first_dims).difference(set(da.dims))
+    if len(missing_dims) > 0:
+        raise ValueError(
+            f"Data array to be plotted {da.name} missing dims {missing_dims}. "
+            "Incompatible grid metadata may have been passed."
+        )
+    rest = set(da.dims).difference(set(first_dims))
+    xpose_dims = first_dims + list(rest)
+    da = da.transpose(*xpose_dims)
+    return da
 
 
 def _min_max_from_percentiles(x, min_percentile=2, max_percentile=98):

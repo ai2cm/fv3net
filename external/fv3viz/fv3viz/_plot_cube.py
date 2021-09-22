@@ -11,7 +11,8 @@ from ._constants import (
 from ._plot_helpers import (
     infer_cmap_params,
     _get_var_label,
-    _remove_redundant_dims,
+    _align_grid_var_dims,
+    _align_plot_var_dims,
 )
 from ._masking import _mask_antimeridian_quads
 import xarray as xr
@@ -284,23 +285,23 @@ def mappable_var(
 
         )
     """
-    for var, dims in coord_vars.items():
-        ds[var] = _remove_redundant_dims(ds[var], required_dims=dims)
-        ds[var] = ds[var].transpose(*dims)
+    mappable_ds = xr.Dataset()
 
-    first_dims = [coord_y_center, coord_x_center, "tile"]
-    rest = [dim for dim in ds[[var_name]].dims if dim not in first_dims]
-    xpose_dims = first_dims + rest
-    new_ds = ds[[var_name]].copy().transpose(*xpose_dims)
+    for var, dims in coord_vars.items():
+        mappable_ds[var] = _align_grid_var_dims(ds[var], required_dims=dims)
+    var_da = _align_plot_var_dims(ds[var_name], coord_y_center, coord_x_center)
+    mappable_ds = mappable_ds.merge(var_da)
 
     for grid_var in coord_vars:
-        new_ds = new_ds.assign_coords(coords={grid_var: ds[grid_var]})
+        mappable_ds = mappable_ds.assign_coords(
+            coords={grid_var: mappable_ds[grid_var]}
+        )
 
     for coord in [coord_y_center, coord_x_center, coord_y_outer, coord_x_outer]:
-        if coord in new_ds.coords:
-            new_ds = new_ds.drop(coord)
+        if coord in mappable_ds.coords:
+            mappable_ds = mappable_ds.drop(coord)
 
-    return new_ds
+    return mappable_ds
 
 
 def pcolormesh_cube(lat, lon, array, ax=None, **kwargs):
