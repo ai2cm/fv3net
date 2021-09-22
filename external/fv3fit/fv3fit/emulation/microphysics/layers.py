@@ -5,10 +5,10 @@ from ..layers import get_norm_class, get_denorm_class, IncrementStateLayer
 
 class FieldInput(tf.keras.layers.Layer):
     def __init__(self, *args, sample_in=None, normalize=None, selection=None, **kwargs):
-        super.__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if normalize is not None:
-            self.normalize = get_norm_class(normalize, name=f"normalized_{self.name}")
+            self.normalize = get_norm_class(normalize)(name=f"normalized_{self.name}")
             self.normalize.fit(sample_in)
         else:
             self.normalize = tf.keras.layers.Lambda(
@@ -35,7 +35,7 @@ class FieldOutput(tf.keras.layers.Layer):
         )
 
         if normalize is not None:
-            self.denorm = get_denorm_class(normalize, name=f"denormalized_{self.name}")
+            self.denorm = get_denorm_class(normalize)(name=f"denormalized_{self.name}")
             self.denorm.fit(sample_out)
         else:
             self.denorm = tf.keras.layers.Lambda(lambda x: x)
@@ -56,7 +56,7 @@ class ResidualOutput(FieldOutput):
     def call(self, tensors):
 
         field_input, network_output = tensors
-        tendency = super()(network_output)
+        tendency = super().call(network_output)
         return self.increment([field_input, tendency])
 
 
@@ -107,10 +107,7 @@ class RNNBlock(tf.keras.layers.Layer):
         combined = self.combine(inputs)
         rnn_out = self.rnn(combined)
 
-        output = rnn_out
-
-        for i in range(len(self.dense)):
-            output = self.dense[i](output)
+        output = self.dense(rnn_out)
 
         return output
 
@@ -125,7 +122,7 @@ class MLPBlock(tf.keras.layers.Layer):
                 lambda x: x, name=f"comb_passthru_{self.name}"
             )
 
-        self.dense = [tf.keras.layers.Dense(width=width) for i in range(depth)]
+        self.dense = [tf.keras.layers.Dense(width) for i in range(depth)]
 
     def call(self, inputs):
         combined = self.combine(inputs)

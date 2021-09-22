@@ -1,3 +1,4 @@
+import dacite
 import dataclasses
 from typing import Any, List, Mapping
 import tensorflow as tf
@@ -16,7 +17,7 @@ def get_architecture_cls(key):
 
 
 @dataclasses.dataclass
-class MicrophysicsModel:
+class MicrophysicsModelConfig:
 
     input_variables: List[str]
     output_variables: List[str]
@@ -27,6 +28,10 @@ class MicrophysicsModel:
     residual_to_state: Mapping[str, str] = dataclasses.field(default_factory=dict)
     timestep_increment_sec: int = 900
 
+    @classmethod
+    def from_dict(cls, dict_) -> "MicrophysicsModelConfig":
+        return dacite.from_dict(cls, dict_, dacite.Config(strict=True))
+
     def _get_processed_inputs(self, sample_in, inputs):
 
         inputs = [
@@ -34,7 +39,7 @@ class MicrophysicsModel:
                 sample_in=sample,
                 normalize=self.normalize_key,
                 selection=self.selection_map.get(name, None),
-                name=name,
+                name=f"processed_{name}",
             )(tensor)
             for name, sample, tensor in zip(self.input_variables, sample_in, inputs)
         ]
@@ -63,11 +68,15 @@ class MicrophysicsModel:
             tf.keras.layers.Input(sample.shape[-1], name=name)
             for name, sample in zip(self.input_variables, sample_in)
         ]
+        residual_map = {
+            tend_name: inputs[self.input_variables.index(input_name)]
+            for tend_name, input_name in self.residual_to_state.items()
+        }
         processed = self._get_processed_inputs(sample_in, inputs)
         arch_layer = get_architecture_cls(self.architecture)(**self.arch_params)(
             processed
         )
-        outputs = self._get_outputs(sample_out, arch_layer)
+        outputs = self._get_outputs(sample_out, arch_layer, residual_map)
 
         model = tf.keras.models.Model(inputs=inputs, outputs=outputs)
 

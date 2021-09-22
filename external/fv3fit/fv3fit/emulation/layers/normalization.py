@@ -15,7 +15,7 @@ def standard_deviation_all_features(tensor):
     return tf.cast(tf.sqrt(tf.reduce_mean((tensor - mean) ** 2)), tf.float32,)
 
 
-class NormLayer(tf.keras.Layer, abc.ABC):
+class NormLayer(tf.keras.layers.Layer, abc.ABC):
     def __init__(self, name=None, **kwargs):
         super(NormLayer, self).__init__(name=name)
         self.fitted = False
