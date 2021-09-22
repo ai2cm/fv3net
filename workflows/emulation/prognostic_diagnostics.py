@@ -10,6 +10,7 @@ import datapane
 import wandb
 import sys
 import subprocess
+import config
 
 import argparse
 import json
@@ -47,7 +48,6 @@ args = parser.parse_args()
 offline_id = args.offline_id
 online_id = args.online_id
 
-job = wandb.init(job_type="3hour-eval", project="emulator-noah", entity="ai2cm")
 
 offline_url = f"/scratch/runs/prognostic-runs/{offline_id}/"
 online_url = f"/scratch/runs/prognostic-runs/{online_id}/"
@@ -69,7 +69,7 @@ PAGES.append(
             )
         ),
         title="Metadata",
-    )
+    ),
 )
 
 
@@ -134,7 +134,13 @@ finish_page()
 
 
 def plot_field(path, label, field="PWAT"):
-    ds = open_run(path, data="sfc_dt_atmos.zarr")
+    ds = xr.merge(
+        [
+            open_run(path, data="atmos_dt_atmos.zarr"),
+            open_run(path, data="sfc_dt_atmos.zarr"),
+        ],
+        compat="override",
+    )
     masks = compute_masks(ds)
     weighted_average(ds, masks["tropical ocean"])[field].plot(label=label)
     plt.title(ds[field].long_name)
@@ -149,9 +155,9 @@ def plot_offline_online_comparison_tropical_ocean(field):
     return plt.gcf()
 
 
-start_page("Averages")
+start_page("Tropical ocean averages")
 
-for field in ["RH1000", "latent_heat_flux_diagnostic", "w850"]:
+for field in config.tropical_averages:
     add_plot(plot_offline_online_comparison_tropical_ocean(field), label=field)
 
 
@@ -199,13 +205,14 @@ def plot_all_piggies(field, region="tropical ocean"):
     return plt.gcf()
 
 
-start_page("Piggy backs")
+# start_page("Piggy backs")
 
-add_plot(plot_all_piggies(field="storage_of_eastward_wind_path"))
-add_plot(plot_all_piggies("storage_of_air_temperature_path"))
-add_plot(plot_all_piggies("storage_of_air_temperature_path", region="land"))
-add_plot(plot_all_piggies("storage_of_specific_humidity_path"))
-finish_page()
+# add_plot(plot_all_piggies(field="storage_of_eastward_wind_path"))
+# add_plot(plot_all_piggies("storage_of_air_temperature_path"))
+# add_plot(plot_all_piggies("storage_of_air_temperature_path", region="land"))
+# add_plot(plot_all_piggies("storage_of_specific_humidity_path"))
+# finish_page()
 
+job = wandb.init(job_type="3hour-eval", project="emulator-noah", entity="ai2cm")
 datapane.Report(blocks=PAGES).save("report.html")
 wandb.log({"3 hour report": wandb.Html(open("report.html"))})
