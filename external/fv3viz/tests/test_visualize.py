@@ -239,21 +239,21 @@ def t2m():
 def sample_dataset(latb, lonb, lat, lon, t2m):
     dataset = xr.Dataset(
         {
-            "t2m": (["time", "tile", "grid_yt", "grid_xt"], t2m),
-            "lat": (["tile", "grid_yt", "grid_xt"], lat),
-            "lon": (["tile", "grid_yt", "grid_xt"], lon),
-            "latb": (["tile", "grid_y", "grid_x"], latb),
-            "lonb": (["tile", "grid_y", "grid_x"], lonb),
+            "t2m": (["time", "tile", "y", "x"], t2m),
+            "lat": (["tile", "y", "x"], lat),
+            "lon": (["tile", "y", "x"], lon),
+            "latb": (["tile", "y_interface", "x_interface"], latb),
+            "lonb": (["tile", "y_interface", "x_interface"], lonb),
         }
     )
     dataset = dataset.assign_coords(
         {
             "time": np.arange(2),
             "tile": np.arange(6),
-            "grid_x": np.arange(3.0),
-            "grid_y": np.arange(3.0),
-            "grid_xt": np.arange(2.0),
-            "grid_yt": np.arange(2.0),
+            "x_interface": np.arange(3.0),
+            "y_interface": np.arange(3.0),
+            "x": np.arange(2.0),
+            "y": np.arange(2.0),
         }
     )
     return dataset
@@ -261,7 +261,7 @@ def sample_dataset(latb, lonb, lat, lon, t2m):
 
 def test_mappable_var_all_sizes(sample_dataset):
     mappable_ds = mappable_var(sample_dataset, "t2m").isel(time=0)
-    sizes_expected = {"grid_x": 3, "grid_yt": 2, "grid_y": 3, "grid_xt": 2, "tile": 6}
+    sizes_expected = {"x_interface": 3, "y": 2, "y_interface": 3, "x": 2, "tile": 6}
     assert mappable_ds.sizes == sizes_expected
 
 
@@ -273,7 +273,7 @@ def test_mappable_var_coords(sample_dataset):
 
 def test_mappable_var_sizes(sample_dataset):
     mappable_var_sizes = mappable_var(sample_dataset, "t2m").isel(time=0)["t2m"].sizes
-    sizes_expected = {"grid_yt": 2, "grid_xt": 2, "tile": 6}
+    sizes_expected = {"y": 2, "x": 2, "tile": 6}
     assert mappable_var_sizes == sizes_expected
 
 

@@ -15,6 +15,7 @@ from ._plot_helpers import (
     _align_plot_var_dims,
 )
 from ._masking import _mask_antimeridian_quads
+from vcm.cubedsphere import Grid
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
@@ -43,6 +44,7 @@ _COORD_VARS = {
     VAR_LON_CENTER: [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
     VAR_LAT_CENTER: [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
 }
+GRID = Grid(COORD_X_CENTER, COORD_Y_CENTER, COORD_X_OUTER, COORD_Y_OUTER)
 
 
 def plot_cube(

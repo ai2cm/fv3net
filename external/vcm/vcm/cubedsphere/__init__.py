@@ -16,5 +16,6 @@ from .xgcm import create_fv3_grid
 from .coarsen_restarts import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
 from .regridz import regrid_vertical
 from .cross import to_cross
+from .grid import Grid, GFDL_GRID, PYTHON_DIAGS_GRID
 
 __all__ = [item for item in dir() if not item.startswith("_")]
