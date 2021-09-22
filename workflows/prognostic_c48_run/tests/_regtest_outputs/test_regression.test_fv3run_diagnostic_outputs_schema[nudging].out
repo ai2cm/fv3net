@@ -49,6 +49,8 @@ variables:
 		tendency_of_air_temperature_due_to_fv3_physics:units = degK/s ;
 	float64 tendency_of_air_temperature_due_to_python(time, tile, z, y, x) ;
 		tendency_of_air_temperature_due_to_python:units = degK/s ;
+	float64 tendency_of_air_temperature_due_to_tendency_prescriber(time, tile, z, y, x) ;
+		tendency_of_air_temperature_due_to_tendency_prescriber:units = degK/s ;
 	float64 tendency_of_eastward_wind_due_to_fv3_physics(time, tile, z, y, x) ;
 		tendency_of_eastward_wind_due_to_fv3_physics:units = m/s/s ;
 	float64 tendency_of_eastward_wind_due_to_python(time, tile, z, y, x) ;
