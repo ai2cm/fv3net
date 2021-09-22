@@ -36,7 +36,7 @@ def _get_tendencies(time: cftime.DatetimeJulian) -> xr.Dataset:
         coords={"time": [time + timedelta(minutes=n) for n in range(0, 5 * 15, 15)]},
         attrs={"units": "K/s"},
     )
-    return xr.Dataset({"Q1": tendency_da}).chunk({"time": 2})
+    return xr.Dataset({"Q1": tendency_da}).chunk({"time": 2})  # type: ignore
 
 
 def _get_derived_state(ds, time):
