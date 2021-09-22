@@ -1,15 +1,15 @@
 """
-plot_cube_prognostic_ml
-=======================
+plot_cube with python wrapper variables
+=======================================
 
-Example of :py:func:`plot_cube` using prognostic run python diagnostic output data,
+Example of :py:func:`plot_cube` using python wrapper output data,
 with faceting over timesteps
 """
 
 import os
 import xarray as xr
 from xarray.tutorial import open_dataset
-from fv3viz import plot_cube, mappable_var
+from fv3viz import plot_cube
 import warnings
 
 warnings.filterwarnings(
@@ -31,18 +31,6 @@ OPEN_DATASET_KWARGS = {
     "branch": "main",
 }
 VAR = "net_heating"
-MAPPABLE_VAR_KWARGS = {
-    "coord_x_center": "x",
-    "coord_y_center": "y",
-    "coord_x_outer": "x_interface",
-    "coord_y_outer": "y_interface",
-    "coord_vars": {
-        "lonb": ["y_interface", "x_interface", "tile"],
-        "latb": ["y_interface", "x_interface", "tile"],
-        "lon": ["y", "x", "tile"],
-        "lat": ["y", "x", "tile"],
-    },
-}
 
 if not os.path.isdir(DATA_DIR):
     os.makedirs(DATA_DIR)
@@ -52,10 +40,5 @@ grid_ds = open_dataset(GRID_PATH, **OPEN_DATASET_KWARGS)
 
 merged_ds = xr.merge([prognostic_ds, grid_ds])
 _ = plot_cube(
-    mappable_var(merged_ds, VAR, **MAPPABLE_VAR_KWARGS),
-    vmin=-100,
-    vmax=100,
-    cmap="seismic_r",
-    col="time",
-    col_wrap=2,
+    merged_ds, VAR, vmin=-100, vmax=100, cmap="seismic_r", col="time", col_wrap=2,
 )

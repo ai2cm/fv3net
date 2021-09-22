@@ -68,7 +68,8 @@ def plot_cube(
     coastlines_kwargs: dict = None,
     **kwargs,
 ):
-    """ Plots tiled cubed sphere grids onto a global map projection
+    """ Plots an xr.DataArray containing tiled cubed sphere gridded data
+    onto a global map projection, with optional faceting of additional dims
 
     Args:
         ds (xr.Dataset):
@@ -226,14 +227,6 @@ def _mappable_var(
             Dataset containing the variable to be plotted, along with grid variables.
         var_name (str):
             Name of variable to be plotted.
-        coord_x_center (str):
-            name of the x-coordinate describing cell centers
-        coord_y_center (str):
-            name of the y-coordinate describing cell centers
-        coord_vars (Mapping[str, Sequence[str]]):
-            mapping of names of grid variables, which must include latitudes and
-            longitudes of both cell centers and bounds, to their sequence of
-            coordinate names
         grid_metadata: vcm.cubedsphere.GridMetadata object describing dim
             names and grid variable names
     Returns:
@@ -249,11 +242,12 @@ def _mappable_var(
 
 
 def pcolormesh_cube(lat, lon, array, ax=None, **kwargs):
-    """Plots tiled cubed sphere.
-
-    This function applies nan to gridcells which cross the antimeridian, and then
-    iteratively plots rectangles of array which avoid nan gridcells. This is done to
-    avoid artifacts when plotting gridlines with the `edgecolor` argument.
+    """Plots tiled cubed sphere. This function applies nan to gridcells which cross
+    the antimeridian, and then iteratively plots rectangles of array which avoid nan
+    gridcells. This is done to avoid artifacts when plotting gridlines with the
+    `edgecolor` argument. In comparison to :py:func:`plot_cube`, this function takes
+    np.ndarrays of the lat and lon cell corners and the variable to be plotted
+    at cell centers, and makes only one plot on an optionally specified axes object.
 
     Args:
         lat (np.ndarray):
