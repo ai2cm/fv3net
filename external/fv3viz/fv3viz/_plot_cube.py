@@ -38,7 +38,7 @@ if os.getenv("CARTOPY_EXTERNAL_DOWNLOADER") != "natural_earth":
         "{resolution}_{category}/ne_{resolution}_{name}.zip"
     )
 
-GRID_METADATA = GridMetadata(
+WRAPPER_GRID_METADATA = GridMetadata(
     COORD_X_CENTER,
     COORD_Y_CENTER,
     COORD_X_OUTER,
@@ -54,7 +54,7 @@ GRID_METADATA = GridMetadata(
 def plot_cube(
     ds: xr.Dataset,
     var_name: str,
-    grid: GridMetadata = GRID_METADATA,
+    grid_metadata: GridMetadata = WRAPPER_GRID_METADATA,
     plotting_function: str = "pcolormesh",
     ax: plt.axes = None,
     row: str = None,
@@ -77,7 +77,7 @@ def plot_cube(
             cell bounds latitudes and longitudes, which must share common
             dimension names
         var_name (str): name of the data variable in `ds` to be plotted
-        grid (GridMetadata): a vcm.cubedsphere.GridMetadata data structure that
+        grid_metadata (GridMetadata): a vcm.cubedsphere.GridMetadata data structure that
             defines the names of plot and grid variable dimensions and the names
             of the grid variables themselves; defaults to those used by the
             fv3gfs Python wrapper (i.e., 'x', 'y', 'x_interface', 'y_interface' and
@@ -145,14 +145,8 @@ def plot_cube(
             vmax = 20
         )
     """
-    _coord_vars = {
-        grid.lonb: [grid.y_interface, grid.x_interface, "tile"],
-        grid.latb: [grid.y_interface, grid.x_interface, "tile"],
-        grid.lon: [grid.y, grid.x, "tile"],
-        grid.lat: [grid.y, grid.x, "tile"],
-    }
-    mappable_ds = _mappable_var(ds, var_name, grid.x, grid.y, _coord_vars)
 
+    mappable_ds = _mappable_var(ds, var_name, grid_metadata)
     array = mappable_ds[var_name].values
 
     kwargs["vmin"], kwargs["vmax"], kwargs["cmap"] = infer_cmap_params(
@@ -164,7 +158,7 @@ def plot_cube(
     )
 
     _plot_func_short = partial(
-        plot_cube_axes,
+        _plot_cube_axes,
         lat=mappable_ds.lat.values,
         lon=mappable_ds.lon.values,
         latb=mappable_ds.latb.values,
@@ -222,13 +216,10 @@ def plot_cube(
 
 
 def _mappable_var(
-    ds: xr.Dataset,
-    var_name: str,
-    coord_x_center: str,
-    coord_y_center: str,
-    coord_vars: dict,
+    ds: xr.Dataset, var_name: str, grid_metadata: GridMetadata = WRAPPER_GRID_METADATA,
 ):
-    """ Converts a dataset into a format for plotting across cubed-sphere tiles
+    """ Converts a dataset into a format for plotting across cubed-sphere tiles by
+    checking and ordering its grid variable and plotting variable dimensions
     
     Args:
         ds (xr.Dataset):
@@ -243,15 +234,17 @@ def _mappable_var(
             mapping of names of grid variables, which must include latitudes and
             longitudes of both cell centers and bounds, to their sequence of
             coordinate names
+        grid_metadata: vcm.cubedsphere.GridMetadata object describing dim
+            names and grid variable names
     Returns:
         ds (xr.Dataset):
             Dataset containing variable to be plotted as well as grid
             variables, all of whose dimensions are ordered for plotting.
     """
     mappable_ds = xr.Dataset()
-    for var, dims in coord_vars.items():
+    for var, dims in grid_metadata.coord_vars.items():
         mappable_ds[var] = _align_grid_var_dims(ds[var], required_dims=dims)
-    var_da = _align_plot_var_dims(ds[var_name], coord_y_center, coord_x_center)
+    var_da = _align_plot_var_dims(ds[var_name], grid_metadata.y, grid_metadata.x)
     return mappable_ds.merge(var_da)
 
 
@@ -400,7 +393,7 @@ def _validate_cube_shape(lat_shape, lon_shape, latb_shape, lonb_shape, array_sha
         raise ValueError("Lon, lat, and data_var each must be 3-dimensional.")
 
 
-def plot_cube_axes(
+def _plot_cube_axes(
     array: np.ndarray,
     lat: np.ndarray,
     lon: np.ndarray,
@@ -439,18 +432,6 @@ def plot_cube_axes(
     Returns:
         p_handle (obj):
             matplotlib object handle associated with map subplot
-
-    Example:
-        _, ax = plt.subplots(1, 1, subplot_kw = {'projection': ccrs.Robinson()})
-        h = plot_cube_axes(
-            ds['T'].isel(time = 0, pfull = 40).values.transpose([1, 2, 0]),
-            ds['lat'].values,
-            ds['lon'].values,
-            ds['latb'].values,
-            ds['lonb'].values,
-            "contour",
-            ax
-        )
     """
     _validate_cube_shape(lon.shape, lat.shape, lonb.shape, latb.shape, array.shape)
 
