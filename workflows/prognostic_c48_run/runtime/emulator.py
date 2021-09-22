@@ -182,19 +182,19 @@ def compute_mask_default(
 ) -> xr.DataArray:
     if name == SPHUM:
         if ignore_humidity_below is not None:
-            return arr.z > ignore_humidity_below
+            return arr.z < ignore_humidity_below
         else:
             return xr.DataArray(False)
     else:
-        return xr.DataArray(True)
+        return xr.DataArray(False)
 
 
 def compute_mask_2021_09_16(name: Hashable, arr: xr.DataArray) -> xr.DataArray:
     """The mask proposed in the emulation track log on Sept 16.
     """
     if name == SPHUM:
-        return arr.z > 20
+        return arr.z < 20
     elif name == EAST_WIND:
-        return arr.z > 6
+        return arr.z < 6
     else:
-        return xr.DataArray(True)
+        return xr.DataArray(False)
