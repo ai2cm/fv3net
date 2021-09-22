@@ -11,7 +11,7 @@ import fv3gfs.util
 from runtime.monitor import Monitor
 from runtime.types import Diagnostics, Step
 from runtime.derived_state import DerivedFV3State
-from runtime.utils import quantity_state_to_ds, ds_to_quantity_state
+from runtime.conversions import quantity_state_to_dataset, dataset_to_quantity_state
 
 QuantityState = MutableMapping[Hashable, fv3gfs.util.Quantity]
 
@@ -33,7 +33,7 @@ class TendencyPrescriberConfig:
 
 
 @dataclasses.dataclass
-class TendencyPrescriberAdapter:
+class TendencyPrescriber:
     """Wrap a Step function and prescribe certain tendencies."""
 
     config: TendencyPrescriberConfig
@@ -42,7 +42,7 @@ class TendencyPrescriberAdapter:
     timestep: float
     diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
 
-    def __post_init__(self: "TendencyPrescriberAdapter"):
+    def __post_init__(self: "TendencyPrescriber"):
         if self.communicator.rank == 0:
             logger.debug(f"Opening tendency overriding dataset from: {self.config.url}")
         tile = self.communicator.partitioner.tile_index(self.communicator.rank)
@@ -54,8 +54,8 @@ class TendencyPrescriberAdapter:
         ds = xr.Dataset()
         if self.communicator.tile.rank == 0:
             ds = self._tendency_ds.sel(time=time).drop_vars("time").load()
-        tendencies = self.communicator.tile.scatter_state(ds_to_quantity_state(ds))
-        return quantity_state_to_ds(tendencies)
+        tendencies = self.communicator.tile.scatter_state(dataset_to_quantity_state(ds))
+        return quantity_state_to_dataset(tendencies)
 
     @property
     def monitor(self) -> Monitor:

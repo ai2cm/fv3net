@@ -6,7 +6,7 @@ import intake
 import cftime
 import xarray as xr
 from runtime.types import State, Diagnostics, Tendencies
-from runtime.utils import quantity_state_to_ds, ds_to_quantity_state
+from runtime.conversions import quantity_state_to_dataset, dataset_to_quantity_state
 import fv3gfs.util
 from vcm.catalog import catalog as CATALOG
 from vcm.safe import get_variables
@@ -113,11 +113,13 @@ class Prescriber:
         self, prescribed_ds: Optional[xr.Dataset], time_coord: Optional[xr.DataArray]
     ) -> xr.Dataset:
         if isinstance(prescribed_ds, xr.Dataset):
-            scattered_ds = quantity_state_to_ds(
-                self._communicator.scatter_state(ds_to_quantity_state(prescribed_ds))
+            scattered_ds = quantity_state_to_dataset(
+                self._communicator.scatter_state(
+                    dataset_to_quantity_state(prescribed_ds)
+                )
             )
         else:
-            scattered_ds = quantity_state_to_ds(self._communicator.scatter_state())
+            scattered_ds = quantity_state_to_dataset(self._communicator.scatter_state())
         time_coord = self._communicator.comm.bcast(time_coord, root=0)
         scattered_ds = scattered_ds.assign_coords({"time": time_coord})
         return scattered_ds

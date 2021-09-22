@@ -7,7 +7,7 @@ from typing import Optional
 from runtime.types import State
 from runtime.config import UserConfig
 from runtime.emulator import PrognosticAdapter
-from runtime.tendency_prescriber import TendencyPrescriberAdapter
+from runtime.tendency_prescriber import TendencyPrescriber
 from runtime.derived_state import DerivedFV3State
 import fv3gfs.util
 
@@ -34,11 +34,11 @@ def get_tendency_prescriber_adapter(
     state: DerivedFV3State,
     timestep: float,
     communicator: fv3gfs.util.CubedSphereCommunicator,
-) -> Optional[TendencyPrescriberAdapter]:
+) -> Optional[TendencyPrescriber]:
     if config.tendency_prescriber is None:
         return None
     else:
-        return TendencyPrescriberAdapter(
+        return TendencyPrescriber(
             config.tendency_prescriber,
             state,
             communicator,
