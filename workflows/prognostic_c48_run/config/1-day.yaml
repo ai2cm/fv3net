@@ -152,6 +152,14 @@ diagnostics:
   - tendency_of_specific_humidity_due_to_dynamics
   - tendency_of_specific_humidity_due_to_emulator
   - tendency_of_specific_humidity_due_to_fv3_physics
+  - storage_of_specific_humidity_path_due_to_fv3_physics
+  - storage_of_eastward_wind_path_due_to_fv3_physics
+  - storage_of_northward_wind_path_due_to_fv3_physics
+  - storage_of_air_temperature_path_due_to_fv3_physics
+  - storage_of_specific_humidity_path_due_to_emulator
+  - storage_of_eastward_wind_path_due_to_emulator
+  - storage_of_northward_wind_path_due_to_emulator
+  - storage_of_air_temperature_path_due_to_emulator
 - name: state_after_timestep.zarr
   times:
     kind: interval
