@@ -12,7 +12,7 @@ from runtime.derived_state import DerivedFV3State
 import fv3gfs.util
 
 
-__all__ = ["get_emulator_adapter", "get_tendency_prescriber_adapter"]
+__all__ = ["get_emulator_adapter", "get_tendency_prescriber"]
 
 
 def get_emulator_adapter(
@@ -29,7 +29,7 @@ def get_emulator_adapter(
         )
 
 
-def get_tendency_prescriber_adapter(
+def get_tendency_prescriber(
     config: UserConfig,
     state: DerivedFV3State,
     timestep: float,

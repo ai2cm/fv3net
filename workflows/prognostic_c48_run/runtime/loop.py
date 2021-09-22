@@ -190,7 +190,7 @@ class TimeLoop(
         self._emulate = runtime.factories.get_emulator_adapter(
             config, self._state, self._timestep,
         )
-        self._prescribe_tendency = runtime.factories.get_tendency_prescriber_adapter(
+        self._prescribe_tendency = runtime.factories.get_tendency_prescriber(
             config, self._state, self._timestep, self._get_communicator(),
         )
 
