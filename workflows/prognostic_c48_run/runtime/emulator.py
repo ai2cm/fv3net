@@ -1,5 +1,6 @@
 import dataclasses
 import xarray as xr
+from functools import partial
 from typing import (
     Callable,
     Hashable,
@@ -14,7 +15,7 @@ from typing import (
 import fv3fit.emulation.thermobasis.emulator
 from fv3fit.emulation.thermobasis.xarray import get_xarray_emulator
 from runtime.monitor import Monitor
-from runtime.names import SPHUM, DELP
+from runtime.names import EAST_WIND, SPHUM, DELP
 from runtime.types import State, Diagnostics, Step
 
 __all__ = ["PrognosticAdapter", "Config"]
@@ -45,6 +46,7 @@ class Config:
     # will ignore the emulator for any z larger than this value
     # remember higher z is lower in the atmosphere hence "below"
     ignore_humidity_below: Optional[int] = None
+    mask_kind: str = "default"
 
 
 @dataclasses.dataclass
@@ -113,8 +115,11 @@ class PrognosticAdapter:
         changes = self.monitor.compute_change("emulator", before, emulator_after)
 
         if self.config.online:
-            mask = compute_mask(self.config.ignore_humidity_below)
-            update_state_with_emulator(self.state, emulator_prediction, mask)
+            update_state_with_emulator(
+                self.state,
+                emulator_prediction,
+                compute_mask=_get_mask_func(self.config),
+            )
         return {**diags, **inputs_to_save, **changes, **change_in_func}
 
     def __call__(self, name: str, func: Step) -> Step:
@@ -163,15 +168,33 @@ def update_state_with_emulator(
         state[key] = arr.where(mask, src[key].variable)
 
 
-@dataclasses.dataclass
-class compute_mask:
-    ignore_humidity_below: Optional[int] = None
+def _get_mask_func(self: Config):
+    if self.mask_kind == "default":
+        return partial(
+            compute_mask_default, ignore_humidity_below=self.ignore_humidity_below
+        )
+    else:
+        return eval(f"compute_mask_{self.mask_kind}")
 
-    def __call__(self, name: Hashable, arr: xr.DataArray) -> xr.DataArray:
-        if name == SPHUM:
-            if self.ignore_humidity_below is not None:
-                return arr.z > self.ignore_humidity_below
-            else:
-                return xr.DataArray(False)
+
+def compute_mask_default(
+    name: Hashable, arr: xr.DataArray, ignore_humidity_below: Optional[int] = None
+) -> xr.DataArray:
+    if name == SPHUM:
+        if ignore_humidity_below is not None:
+            return arr.z > ignore_humidity_below
         else:
-            return xr.DataArray(True)
+            return xr.DataArray(False)
+    else:
+        return xr.DataArray(True)
+
+
+def compute_mask_2021_09_16(name: Hashable, arr: xr.DataArray) -> xr.DataArray:
+    """The mask proposed in the emulation track log on Sept 16.
+    """
+    if name == SPHUM:
+        return arr.z > 20
+    elif name == EAST_WIND:
+        return arr.z > 6
+    else:
+        return xr.DataArray(True)

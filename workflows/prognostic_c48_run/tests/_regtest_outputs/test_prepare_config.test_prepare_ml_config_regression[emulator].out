@@ -430,6 +430,7 @@ nudging: null
 online_emulator:
   emulator: some/path
   ignore_humidity_below: null
+  mask_kind: default
   online: false
   train: true
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0

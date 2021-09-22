@@ -4,7 +4,10 @@ import joblib
 from runtime.emulator import (
     PrognosticAdapter,
     Config,
+    compute_mask_default,
     update_state_with_emulator,
+    _get_mask_func,
+    compute_mask_2021_09_16,
 )
 from fv3fit.emulation.thermobasis.emulator import Config as MLConfig
 
@@ -53,3 +56,19 @@ def test_adapter_regression(state, regtest):
     # sort to make the check deterministic
     for v in sorted(out):
         print(v, joblib.hash(out[v].values), file=regtest)
+
+
+def test__get_mask_func_dynamics_lookup(state):
+    for name in state:
+        xr.testing.assert_equal(
+            _get_mask_func(Config(mask_kind="2021_09_16"))(name, state[name]),
+            compute_mask_2021_09_16(name, state[name]),
+        )
+
+
+def test__get_mask_func_default(state):
+    for name in state:
+        xr.testing.assert_equal(
+            _get_mask_func(Config())(name, state[name]),
+            compute_mask_default(name, state[name]),
+        )

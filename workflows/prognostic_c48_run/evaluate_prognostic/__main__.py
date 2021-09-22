@@ -1,6 +1,7 @@
 from pathlib import Path
 import tempfile
 from typing import Optional
+from enum import Enum
 
 import wandb
 import xarray
@@ -44,9 +45,15 @@ def evaluate(path):
     wandb.finish()
 
 
+class Mask(str, Enum):
+    default = "default"
+    model_2021_09_16 = "2021_09_16"
+
+
 def short(
     artifact_id: str,
     online: bool = True,
+    mask: Mask = Mask.default,
     config_updates: Optional[Path] = Path("config/3-hour.yaml"),
 ):
     job = wandb.init(entity="ai2cm", project="emulator-noah", job_type="prognostic-run")
@@ -62,6 +69,7 @@ def short(
         "emulator": artifact_path,
         "online": online,
         "train": False,
+        "mask_kind": mask.value,
     }
     wandb.config.update(config)
 
