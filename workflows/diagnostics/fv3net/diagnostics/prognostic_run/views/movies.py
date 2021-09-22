@@ -48,7 +48,7 @@ WIND_TENDENCY_PLOT_KWARGS = {
 def _plot_maps(ds, axes, plot_kwargs):
     for i, (variable, variable_plot_kwargs) in enumerate(plot_kwargs.items()):
         ax = axes.flatten()[i]
-        fv3viz.plot_cube(ds, variable, x=ax, **variable_plot_kwargs)
+        fv3viz.plot_cube(ds, variable, ax=ax, **variable_plot_kwargs)
         ax.set_title(variable.replace("_", " "))
 
 
