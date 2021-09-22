@@ -2,6 +2,10 @@ import abc
 import tensorflow as tf
 
 
+MAX_STD = "max_std"
+MEAN_STD = "mean_std"
+
+
 def standard_deviation_all_features(tensor):
     """Commpute standard deviation across all features
 
@@ -11,7 +15,7 @@ def standard_deviation_all_features(tensor):
     return tf.cast(tf.sqrt(tf.reduce_mean((tensor - mean) ** 2)), tf.float32,)
 
 
-class NormLayer(tf.keras.layers.Layer, abc.ABC):
+class NormLayer(tf.keras.Layer, abc.ABC):
     def __init__(self, name=None, **kwargs):
         super(NormLayer, self).__init__(name=name)
         self.fitted = False
@@ -165,3 +169,23 @@ class MeanFeatureStdNormLayer(MaxFeatureStdNormLayer, FeatureMeanStd):
     """
 
     pass
+
+
+def get_norm_class(key):
+
+    if key == MAX_STD:
+        return MaxFeatureStdNormLayer
+    elif key == MEAN_STD:
+        return MeanFeatureStdNormLayer
+    else:
+        raise KeyError(f"Unrecognized normalization layer key provided: {key}")
+
+
+def get_denorm_class(key):
+
+    if key == MAX_STD:
+        return MaxFeatureStdDenormLayer
+    elif key == MEAN_STD:
+        return MeanFeatureStdDenormLayer
+    else:
+        raise KeyError(f"Unrecognized de-normalization layer key provided: {key}")

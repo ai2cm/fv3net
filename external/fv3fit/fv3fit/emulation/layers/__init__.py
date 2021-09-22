@@ -5,5 +5,7 @@ from .normalization import (
     MaxFeatureStdDenormLayer,
     MeanFeatureStdNormLayer,
     MeanFeatureStdDenormLayer,
+    get_norm_class,
+    get_denorm_class,
 )
 from .util import IncrementStateLayer, PassThruLayer
