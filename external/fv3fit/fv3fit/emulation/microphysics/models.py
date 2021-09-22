@@ -1,6 +1,9 @@
+import dataclasses
 import tensorflow as tf
 
 import fv3fit.emulation.layers as layers
+from tensorflow.python.types.core import Value
+from .layers import ResidualOutput, FieldOutput
 
 
 def _dense_layers(inputs, width, depth):
@@ -72,3 +75,30 @@ def process_inputs(sample_in, names,  normalize=None, selection=None):
         inputs.append(in_)
 
     return inputs
+
+
+def process_outputs(network_out, sample_out, names, denormalize=None, residual_var_map=None, model_inputs=None):
+
+    if residual_var_map is None:
+        residual_vars = {}
+    elif model_inputs is None:
+        raise ValueError("Argument 'model_inputs' mapping must be provided if using residual_var_map")
+
+    outputs = []
+    for name, sample in zip(names, sample_out):
+
+        out_ = tf.keras.Dense(sample.shape[-1], name=f"unscaled_{name}")(network_out)
+
+        if denormalize is not None:
+            denorm_layer = get_denorm_class(normalize)(name=f"denormed_{name}")
+            denorm_layer.fit(sample)
+            out_ = denorm_layer(out_)
+
+        if name in residual_var_map:
+            
+
+
+@dataclasses.dataclass
+class MicrophysicsModel:
+
+
