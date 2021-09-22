@@ -233,7 +233,9 @@ def _mask_vars_with_horiz_dims(ds, surface_type, latitude, land_sea_mask):
 @add_to_input_transform_fns
 def mask_to_sfc_type(surface_type: str, arg: DiagArg) -> DiagArg:
     """
-    Mask prognostic run and verification data to the specified surface type
+    Mask prognostic run and verification data to the specified surface type.
+    This function does not mask the grid area- if you are taking an
+    area-weighted mean, use mask_area instead!
 
     Args:
         arg: input arguments to transform prior to the diagnostic calculation

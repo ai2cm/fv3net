@@ -4,8 +4,8 @@ import cftime
 import xarray as xr
 from dataclasses import asdict
 
-from fv3net.diagnostics.prognostic_run import transform
-from fv3net.diagnostics.prognostic_run.constants import DiagArg
+from fv3net.diagnostics._shared import transform
+from fv3net.diagnostics._shared.constants import DiagArg
 
 # Transform params structure
 # key - transform name, value Tuple(transform_args, transform_kwargs)

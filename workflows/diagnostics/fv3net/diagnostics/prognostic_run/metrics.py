@@ -12,9 +12,14 @@ Usage:
 from typing import Mapping, Sequence, Tuple
 import numpy as np
 import xarray as xr
-from .constants import HORIZONTAL_DIMS, PERCENTILES, MASS_STREAMFUNCTION_MID_TROPOSPHERE
-from .registry import Registry
+from fv3net.diagnostics._shared.constants import HORIZONTAL_DIMS
+
+from fv3net.diagnostics._shared.registry import Registry
 from .derived_diagnostics import derived_registry
+from .constants import (
+    PERCENTILES,
+    MASS_STREAMFUNCTION_MID_TROPOSPHERE,
+)
 import json
 
 GRID_VARS = ["lon", "lat", "lonb", "latb", "area"]
@@ -30,7 +35,6 @@ def grab_diag(ds, name):
 
     if len(replace_dict) == 0:
         return xr.Dataset()
-
     return ds[list(replace_dict.keys())].rename(replace_dict)
 
 

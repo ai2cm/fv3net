@@ -3,7 +3,7 @@ import xarray as xr
 import pytest
 from typing import Sequence, Tuple
 
-from fv3net.diagnostics.prognostic_run.registry import Registry
+from fv3net.diagnostics._shared.registry import Registry
 
 
 def _get_registry():

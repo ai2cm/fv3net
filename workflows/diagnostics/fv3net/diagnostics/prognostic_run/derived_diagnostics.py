@@ -4,7 +4,7 @@ import xarray as xr
 
 import vcm
 
-from .registry import Registry
+from fv3net.diagnostics._shared.registry import Registry
 
 
 def merge_derived(diags: Sequence[Tuple[str, xr.DataArray]]) -> xr.Dataset:

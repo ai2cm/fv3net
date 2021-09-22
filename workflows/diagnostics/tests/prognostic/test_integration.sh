@@ -9,7 +9,7 @@ RUN=gs://vcm-ml-code-testing-data/sample-prognostic-run-output
 random=$(openssl rand --hex 6)
 OUTPUT=gs://vcm-ml-scratch/test-prognostic-report/$random
 
-cd workflows/prognostic_run_diags
+cd workflows/diagnostics
 
 # compute diagnostics/mterics for a short sample prognostic run
 mkdir -p /tmp/$random

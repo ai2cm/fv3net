@@ -13,7 +13,7 @@ from synth import (  # noqa: F401
 )
 
 import fv3fit
-from offline_ml_diags import compute_diags, create_report
+from fv3net.diagnostics.offline import compute, create_report
 import pathlib
 import pytest
 import numpy as np
@@ -90,7 +90,7 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
             data_yaml=data_config_filename,
             grid=grid_dataset_path,
         )
-        compute_diags.main(compute_diags_args)
+        compute.main(compute_diags_args)
         if isinstance(data_config, loaders.BatchesFromMapperConfig):
             assert "transect_lon0.nc" in os.listdir(
                 os.path.join(tmpdir, "offline_diags")

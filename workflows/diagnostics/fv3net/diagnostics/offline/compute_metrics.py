@@ -1,20 +1,13 @@
-# TODO: combine offline diags and prognostic diags into same source tree
-# for now, this will import registry and transforms from prognostic diags
-from fv3net.diagnostics.prognostic_run.registry import Registry
-import fv3net.diagnostics.prognostic_run.transform as transform
-from fv3net.diagnostics.prognostic_run.constants import DiagArg
-
+from fv3net.diagnostics._shared.registry import Registry
+import fv3net.diagnostics._shared.transform as transform
+from fv3net.diagnostics._shared.constants import DiagArg, HORIZONTAL_DIMS
 import logging
 from typing import Sequence, Tuple, Dict
-
 import xarray as xr
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
-
-
-HORIZONTAL_DIMS = ["x", "y", "tile"]
 
 
 def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Dict[str, xr.DataArray]:
@@ -86,7 +79,7 @@ for mask_type in ["global", "sea", "land"]:
 
     @metrics_registry.register(f"mse_2d_{mask_type}")
     @transform.apply(transform.select_2d_variables)
-    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    @transform.apply(transform.mask_area, mask_type)
     def mse_2d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing mean squared errors for 2D variables, {mask_type}")
         predicted, target, grid = (
@@ -105,7 +98,7 @@ for mask_type in ["global", "sea", "land"]:
     @metrics_registry.register(f"mse_pressure_level_{mask_type}")
     @transform.apply(transform.select_3d_variables)
     @transform.apply(transform.regrid_zdim_to_pressure_levels)
-    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    @transform.apply(transform.mask_area, mask_type)
     def mse_3d(diag_arg, mask_type=mask_type):
         predicted, target, grid = (
             diag_arg.prediction,
@@ -125,7 +118,7 @@ for mask_type in ["global", "sea", "land"]:
 
     @metrics_registry.register(f"variance_2d_{mask_type}")
     @transform.apply(transform.select_2d_variables)
-    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    @transform.apply(transform.mask_area, mask_type)
     def variance_2d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing variance for 2D variables, {mask_type}")
         target, grid = diag_arg.verification, diag_arg.grid
@@ -142,7 +135,7 @@ for mask_type in ["global", "sea", "land"]:
     @metrics_registry.register(f"variance_pressure_level_{mask_type}")
     @transform.apply(transform.select_3d_variables)
     @transform.apply(transform.regrid_zdim_to_pressure_levels)
-    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    @transform.apply(transform.mask_area, mask_type)
     def variance_3d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing variance for 3D variables, {mask_type}")
         predicted, target, grid = (
@@ -164,7 +157,7 @@ for mask_type in ["global", "sea", "land"]:
 
     @metrics_registry.register(f"bias_2d_{mask_type}")
     @transform.apply(transform.select_2d_variables)
-    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    @transform.apply(transform.mask_area, mask_type)
     def bias_2d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing biases for 2D variables, {mask_type}")
         predicted, target, grid = (
@@ -183,7 +176,7 @@ for mask_type in ["global", "sea", "land"]:
     @metrics_registry.register(f"bias_pressure_level_{mask_type}")
     @transform.apply(transform.select_3d_variables)
     @transform.apply(transform.regrid_zdim_to_pressure_levels)
-    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    @transform.apply(transform.mask_area, mask_type)
     def bias_3d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing biases for 3D variables, {mask_type}")
         predicted, target, grid = (
@@ -259,6 +252,7 @@ for mask_type in ["global", "sea", "land"]:
     @transform.apply(transform.select_3d_variables)
     @transform.apply(transform.regrid_zdim_to_pressure_levels)
     @transform.apply(transform.mask_to_sfc_type, mask_type)
+    @transform.apply(transform.mask_area, mask_type)
     def variance_zonal_avg_3d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing zonal avg variance for 3D variables, {mask_type}")
         predicted, target, grid = (
