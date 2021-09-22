@@ -34,8 +34,7 @@ def _align_plot_var_dims(da, coord_y_center, coord_x_center):
         )
     rest = set(da.dims).difference(set(first_dims))
     xpose_dims = first_dims + list(rest)
-    da = da.transpose(*xpose_dims)
-    return da
+    return da.transpose(*xpose_dims)
 
 
 def _min_max_from_percentiles(x, min_percentile=2, max_percentile=98):

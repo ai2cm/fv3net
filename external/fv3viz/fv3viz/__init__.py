@@ -6,7 +6,6 @@ from ._timestep_histograms import (
 from ._plot_cube import plot_cube, mappable_var, plot_cube_axes, pcolormesh_cube
 from ._plot_diagnostics import (
     plot_diurnal_cycle,
-    plot_diag_var_single_map,
     plot_time_series,
 )
 from ._plot_helpers import infer_cmap_params

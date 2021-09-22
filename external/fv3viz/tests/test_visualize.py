@@ -12,7 +12,7 @@ from fv3viz._masking import (
     _periodic_greater_than,
     _periodic_difference,
 )
-from fv3viz._plot_cube import mappable_var, plot_cube_axes, plot_cube
+from fv3viz._plot_cube import plot_cube_axes, plot_cube, _mappable_var
 from fv3viz._timestep_histograms import (
     plot_daily_and_hourly_hist,
     plot_daily_hist,
@@ -259,20 +259,20 @@ def sample_dataset(latb, lonb, lat, lon, t2m):
     return dataset
 
 
-def test_mappable_var_all_sizes(sample_dataset):
-    mappable_ds = mappable_var(sample_dataset, "t2m").isel(time=0)
+def test__mappable_var_all_sizes(sample_dataset):
+    mappable_ds = _mappable_var(sample_dataset, "t2m").isel(time=0)
     sizes_expected = {"x_interface": 3, "y": 2, "y_interface": 3, "x": 2, "tile": 6}
     assert mappable_ds.sizes == sizes_expected
 
 
-def test_mappable_var_coords(sample_dataset):
-    mappable_ds_coords = set(mappable_var(sample_dataset, "t2m").coords)
+def test__mappable_var_coords(sample_dataset):
+    mappable_ds_coords = set(_mappable_var(sample_dataset, "t2m").coords)
     coords_expected = set(["lat", "latb", "lon", "lonb", "tile", "time"])
     assert mappable_ds_coords == coords_expected
 
 
-def test_mappable_var_sizes(sample_dataset):
-    mappable_var_sizes = mappable_var(sample_dataset, "t2m").isel(time=0)["t2m"].sizes
+def test__mappable_var_sizes(sample_dataset):
+    mappable_var_sizes = _mappable_var(sample_dataset, "t2m").isel(time=0)["t2m"].sizes
     sizes_expected = {"y": 2, "x": 2, "tile": 6}
     assert mappable_var_sizes == sizes_expected
 
@@ -281,7 +281,7 @@ def test_mappable_var_sizes(sample_dataset):
     "plotting_function", [("pcolormesh"), ("contour"), ("contourf")]
 )
 def test_plot_cube_axes(sample_dataset, plotting_function):
-    ds = mappable_var(sample_dataset, "t2m").isel(time=0)
+    ds = _mappable_var(sample_dataset, "t2m").isel(time=0)
     ax = plt.axes(projection=ccrs.Robinson())
     plot_cube_axes(
         ds.t2m.values,
@@ -299,7 +299,7 @@ def test_plot_cube_axes(sample_dataset, plotting_function):
 )
 def test_plot_cube_with_facets(sample_dataset, plotting_function):
     f, axes, hs, cbar, facet_grid = plot_cube(
-        mappable_var(sample_dataset, "t2m"),
+        _mappable_var(sample_dataset, "t2m"),
         col="time",
         plotting_function=plotting_function,
     )
@@ -311,7 +311,7 @@ def test_plot_cube_with_facets(sample_dataset, plotting_function):
 def test_plot_cube_on_axis(sample_dataset, plotting_function):
     ax = plt.axes(projection=ccrs.Robinson())
     f, axes, hs, cbar, facet_grid = plot_cube(
-        mappable_var(sample_dataset, "t2m").isel(time=0),
+        _mappable_var(sample_dataset, "t2m").isel(time=0),
         plotting_function=plotting_function,
         ax=ax,
     )
@@ -326,7 +326,7 @@ def test_plot_cube_with_all_nans(sample_dataset, plotting_function):
     dataset_copy["t2m"][:] = np.nan
     ax = plt.axes(projection=ccrs.Robinson())
     f, axes, hs, cbar, facet_grid = plot_cube(
-        mappable_var(dataset_copy, "t2m").isel(time=0),
+        _mappable_var(dataset_copy, "t2m").isel(time=0),
         plotting_function=plotting_function,
         ax=ax,
     )

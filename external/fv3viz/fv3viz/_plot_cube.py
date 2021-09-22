@@ -15,7 +15,7 @@ from ._plot_helpers import (
     _align_plot_var_dims,
 )
 from ._masking import _mask_antimeridian_quads
-from vcm.cubedsphere import Grid
+from vcm.cubedsphere import GridMetadata
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
@@ -38,17 +38,23 @@ if os.getenv("CARTOPY_EXTERNAL_DOWNLOADER") != "natural_earth":
         "{resolution}_{category}/ne_{resolution}_{name}.zip"
     )
 
-_COORD_VARS = {
-    VAR_LON_OUTER: [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
-    VAR_LAT_OUTER: [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
-    VAR_LON_CENTER: [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
-    VAR_LAT_CENTER: [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
-}
-GRID = Grid(COORD_X_CENTER, COORD_Y_CENTER, COORD_X_OUTER, COORD_Y_OUTER)
+GRID_METADATA = GridMetadata(
+    COORD_X_CENTER,
+    COORD_Y_CENTER,
+    COORD_X_OUTER,
+    COORD_Y_OUTER,
+    "tile",
+    VAR_LON_CENTER,
+    VAR_LON_OUTER,
+    VAR_LAT_CENTER,
+    VAR_LAT_OUTER,
+)
 
 
 def plot_cube(
-    plottable_variable: xr.Dataset,
+    ds: xr.Dataset,
+    var_name: str,
+    grid: GridMetadata = GRID_METADATA,
     plotting_function: str = "pcolormesh",
     ax: plt.axes = None,
     row: str = None,
@@ -65,12 +71,17 @@ def plot_cube(
     """ Plots tiled cubed sphere grids onto a global map projection
 
     Args:
-        plottable_variable (xr.Dataset):
-            Dataset containing variable to plotted via pcolormesh, along with
-            coordinate variables (lat, latb, lon, lonb). This dataset object
-            can be created from the helper function :py:func:`mappable_var`, which takes
-            in an fv3gfs restart or diagnostic dataset along with the name of
-            the variable to be plotted.
+        ds (xr.Dataset):
+            Dataset containing variable to plotted, along with the grid
+            variables defining cell center latitudes and longitudes and the
+            cell bounds latitudes and longitudes, which must share common
+            dimension names
+        var_name (str): name of the data variable in `ds` to be plotted
+        grid (GridMetadata): a vcm.cubedsphere.GridMetadata data structure that
+            defines the names of plot and grid variable dimensions and the names
+            of the grid variables themselves; defaults to those used by the
+            fv3gfs Python wrapper (i.e., 'x', 'y', 'x_interface', 'y_interface' and
+            'lat', 'lon', 'latb', 'lonb')
         plotting_function (str, optional):
             Name of matplotlib 2-d plotting function. Available options are
             "pcolormesh", "contour", and "contourf". Defaults to "pcolormesh".
@@ -124,7 +135,8 @@ def plot_cube(
     Example:
         # plot diag winds at two times
         fig, axes, hs, cbar, facet_grid = plot_cube(
-            mappable_var(diag_ds, 'VGRD850').isel(time = slice(2, 4)),
+            diag_ds.isel(time = slice(2, 4),
+            'VGRD850',
             plotting_function = "contourf",
             col = "time",
             coastlines = True,
@@ -133,8 +145,16 @@ def plot_cube(
             vmax = 20
         )
     """
-    var_name = list(plottable_variable.data_vars)[0]
-    array = plottable_variable[var_name].values
+    _coord_vars = {
+        grid.lonb: [grid.y_interface, grid.x_interface, "tile"],
+        grid.latb: [grid.y_interface, grid.x_interface, "tile"],
+        grid.lon: [grid.y, grid.x, "tile"],
+        grid.lat: [grid.y, grid.x, "tile"],
+    }
+    mappable_ds = _mappable_var(ds, var_name, grid.x, grid.y, _coord_vars)
+
+    array = mappable_ds[var_name].values
+
     kwargs["vmin"], kwargs["vmax"], kwargs["cmap"] = infer_cmap_params(
         array,
         vmin=kwargs.get("vmin"),
@@ -145,10 +165,10 @@ def plot_cube(
 
     _plot_func_short = partial(
         plot_cube_axes,
-        lat=plottable_variable.lat.values,
-        lon=plottable_variable.lon.values,
-        latb=plottable_variable.latb.values,
-        lonb=plottable_variable.lonb.values,
+        lat=mappable_ds.lat.values,
+        lon=mappable_ds.lon.values,
+        latb=mappable_ds.latb.values,
+        lonb=mappable_ds.lonb.values,
         plotting_function=plotting_function,
         **kwargs,
     )
@@ -158,7 +178,7 @@ def plot_cube(
     if ax is None and (row or col):
         # facets
         facet_grid = xr.plot.FacetGrid(
-            data=plottable_variable,
+            data=mappable_ds,
             row=row,
             col=col,
             col_wrap=col_wrap,
@@ -174,6 +194,7 @@ def plot_cube(
             fig, ax = plt.subplots(1, 1, subplot_kw={"projection": projection})
         else:
             fig = ax.figure
+        print(array.shape)
         handle = _plot_func_short(array, ax=ax)
         axes = np.array(ax)
         handles = [handle]
@@ -193,61 +214,22 @@ def plot_cube(
             fig.subplots_adjust(wspace=0.25)
             cb_ax = ax.inset_axes([1.05, 0, 0.02, 1])
         cbar = plt.colorbar(handles[0], cax=cb_ax, extend="both")
-        cbar.set_label(
-            cbar_label or _get_var_label(plottable_variable[var_name].attrs, var_name)
-        )
+        cbar.set_label(cbar_label or _get_var_label(ds[var_name].attrs, var_name))
     else:
         cbar = None
 
     return fig, axes, handles, cbar, facet_grid
 
 
-def mappable_var(
+def _mappable_var(
     ds: xr.Dataset,
     var_name: str,
-    coord_x_center: str = COORD_X_CENTER,
-    coord_y_center: str = COORD_Y_CENTER,
-    coord_x_outer: str = COORD_X_OUTER,
-    coord_y_outer: str = COORD_Y_OUTER,
-    coord_vars: dict = _COORD_VARS,
+    coord_x_center: str,
+    coord_y_center: str,
+    coord_vars: dict,
 ):
-    """ Converts a restart or diagnostic dataset into a format for plotting
-    across cubed-sphere tiles
+    """ Converts a dataset into a format for plotting across cubed-sphere tiles
     
-    Note that the default coordinate names and grid variable coordinates are for FV3
-    restart and diagnostic file formats. If plotting prognostic-run python diagnostic
-    zarrs, use the following kwargs:
-    ::
-    
-        MAPPABLE_VAR_KWARGS = {
-            "coord_x_center": "x",
-            "coord_y_center": "y",
-            "coord_x_outer": "x_interface",
-            "coord_y_outer": "y_interface",
-            "coord_vars": {
-                "lonb": ["y_interface", "x_interface", "tile"],
-                "latb": ["y_interface", "x_interface", "tile"],
-                "lon": ["y", "x", "tile"],
-                "lat": ["y", "x", "tile"],
-            },
-        }
-        
-    while if plotting prognostic run report diagnostics variables use the following:
-    ::
-    
-        MAPPABLE_VAR_KWARGS = {
-            "coord_x_center": "x",
-            "coord_y_center": "y",
-            "coord_x_outer": "xb",
-            "coord_y_outer": "yb",
-            "coord_vars": {
-                "lonb": ["yb", "xb", "tile"],
-                "latb": ["yb", "xb", "tile"],
-                "lon": ["y", "x", "tile"],
-                "lat": ["y", "x", "tile"],
-            },
-        }
-
     Args:
         ds (xr.Dataset):
             Dataset containing the variable to be plotted, along with grid variables.
@@ -257,53 +239,20 @@ def mappable_var(
             name of the x-coordinate describing cell centers
         coord_y_center (str):
             name of the y-coordinate describing cell centers
-        coord_x_outer (str):
-            name of the x-coordinate describing cell interfaces
-        coord_y_outer (str):
-            name of the y-coordinate describing cell interfaces
         coord_vars (Mapping[str, Sequence[str]]):
             mapping of names of grid variables, which must include latitudes and
             longitudes of both cell centers and bounds, to their sequence of
             coordinate names
-
     Returns:
         ds (xr.Dataset):
             Dataset containing variable to be plotted as well as grid
-            coordinates variables, which are renamed and ordered for
-            plotting. Intended as first argument to :py:func:`plot_cube`.
-
-    Example:
-    ::
-        
-        # plot diag winds at two times
-        axes, hs, cbar = plot_cube(
-            mappable_var(diag_ds, 'VGRD850').isel(time = slice(2, 4)),
-            plotting_function = "contourf",
-            col = "time",
-            coastlines = True,
-            colorbar = True,
-            vmin = -20,
-            vmax = 20
-
-        )
+            variables, all of whose dimensions are ordered for plotting.
     """
     mappable_ds = xr.Dataset()
-
     for var, dims in coord_vars.items():
         mappable_ds[var] = _align_grid_var_dims(ds[var], required_dims=dims)
     var_da = _align_plot_var_dims(ds[var_name], coord_y_center, coord_x_center)
-    mappable_ds = mappable_ds.merge(var_da)
-
-    for grid_var in coord_vars:
-        mappable_ds = mappable_ds.assign_coords(
-            coords={grid_var: mappable_ds[grid_var]}
-        )
-
-    for coord in [coord_y_center, coord_x_center, coord_y_outer, coord_x_outer]:
-        if coord in mappable_ds.coords:
-            mappable_ds = mappable_ds.drop(coord)
-
-    return mappable_ds
+    return mappable_ds.merge(var_da)
 
 
 def pcolormesh_cube(lat, lon, array, ax=None, **kwargs):
@@ -463,9 +412,6 @@ def plot_cube_axes(
 ):
     """ Plots tiled cubed sphere for a given subplot axis,
         using np.ndarrays for all data
-
-    The `edgecolor` argument produces artifacts with this approach for pcolormesh.
-    To plot pcolormesh, you should consider using :py:func:`pcolormesh_cube`.
 
     Args:
         array (np.ndarray):
