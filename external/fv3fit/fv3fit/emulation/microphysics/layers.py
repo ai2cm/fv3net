@@ -116,7 +116,7 @@ class MLPBlock(tf.keras.layers.Layer):
     def __init__(self, *args, width=256, depth=2, combine_inputs=True, **kwargs):
         super().__init__(*args, **kwargs)
         if combine_inputs:
-            self.combine = CombineInputs(-1, expand=True)
+            self.combine = CombineInputs(-1, expand=False)
         else:
             self.combine = tf.keras.layers.Lambda(
                 lambda x: x, name=f"comb_passthru_{self.name}"
