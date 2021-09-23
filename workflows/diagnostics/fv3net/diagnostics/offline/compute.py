@@ -309,7 +309,7 @@ def main(args):
         grid = load_grid_info(args.grid_resolution)
     else:
         with fsspec.open(args.grid, "rb") as f:
-            grid = xr.open_dataset(f).load()
+            grid = xr.open_dataset(f, engine="h5netcdf").load()
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
