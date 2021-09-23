@@ -6,11 +6,11 @@ Example of :py:func:`plot_cube` using python wrapper output data,
 with faceting over timesteps
 """
 
-import os
-import xarray as xr
-from xarray.tutorial import open_dataset
-from fv3viz import plot_cube
+import requests
+import io
 import warnings
+import xarray as xr
+from fv3viz import plot_cube
 
 warnings.filterwarnings(
     "ignore",
@@ -21,24 +21,27 @@ warnings.filterwarnings(
     ),
 )
 
-DATA_DIR = "./fv3net/fv3viz"
-DATA_PATH = os.path.join(DATA_DIR, "plot_0_plot_cube_prognostic_ml.nc")
-GRID_PATH = os.path.join(DATA_DIR, "grid.nc")
-OPEN_DATASET_KWARGS = {
-    "cache_dir": ".",
-    "cache": True,
-    "github_url": "https://github.com/VulcanClimateModeling/vcm-ml-example-data",
-    "branch": "main",
-}
+
+def get_web_dataset(url):
+    r = requests.get(url)
+    ds = xr.open_dataset(io.BytesIO(r.content))
+    return ds
+
+
+DATA_URL = (
+    "https://raw.githubusercontent.com/ai2cm/vcm-ml-example-data/"
+    "main/fv3net/fv3viz/plot_0_plot_cube_prognostic_ml.nc"
+)
+GRID_URL = (
+    "https://raw.githubusercontent.com/ai2cm/vcm-ml-example-data/"
+    "main/fv3net/fv3viz/grid.nc"
+)
 VAR = "net_heating"
 
-if not os.path.isdir(DATA_DIR):
-    os.makedirs(DATA_DIR)
-
-prognostic_ds = open_dataset(DATA_PATH, **OPEN_DATASET_KWARGS)
-grid_ds = open_dataset(GRID_PATH, **OPEN_DATASET_KWARGS)
-
+prognostic_ds = get_web_dataset(DATA_URL)
+grid_ds = get_web_dataset(GRID_URL)
 merged_ds = xr.merge([prognostic_ds, grid_ds])
+
 _ = plot_cube(
     merged_ds, VAR, vmin=-100, vmax=100, cmap="seismic_r", col="time", col_wrap=2,
 )

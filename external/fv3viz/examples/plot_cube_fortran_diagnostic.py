@@ -6,11 +6,12 @@ Example of :py:func:`plot_cube` using GFDL FV3 Fortran diagnostic data, with fac
 over timesteps
 """
 
-import os
-from xarray.tutorial import open_dataset
+import requests
+import io
+import warnings
+import xarray as xr
 from fv3viz import plot_cube
 from vcm.cubedsphere import GridMetadata
-import warnings
 
 warnings.filterwarnings(
     "ignore",
@@ -21,20 +22,22 @@ warnings.filterwarnings(
     ),
 )
 
-DATA_DIR = "./fv3net/fv3viz"
-DATA_PATH = os.path.join(DATA_DIR, "plot_1_plot_cube_fortran_diagnostic.nc")
-OPEN_DATASET_KWARGS = {
-    "cache_dir": ".",
-    "cache": True,
-    "github_url": "https://github.com/VulcanClimateModeling/vcm-ml-example-data",
-    "branch": "main",
-}
+
+def get_web_dataset(url):
+    r = requests.get(url)
+    ds = xr.open_dataset(io.BytesIO(r.content))
+    return ds
+
+
+DATA_URL = (
+    "https://raw.githubusercontent.com/ai2cm/vcm-ml-example-data/"
+    "main/fv3net/fv3viz/plot_1_plot_cube_fortran_diagnostic.nc"
+)
 VAR = "LHTFLsfc"
 
-if not os.path.isdir(DATA_DIR):
-    os.makedirs(DATA_DIR)
 
-fortran_diagnostic_ds = open_dataset(DATA_PATH, **OPEN_DATASET_KWARGS)
+fortran_diagnostic_ds = get_web_dataset(DATA_URL)
+
 gfdl_grid_metadata = GridMetadata("grid_xt", "grid_yt", "grid_x", "grid_y")
 
 # grid variables are already present in this Fortran diagnostic file
