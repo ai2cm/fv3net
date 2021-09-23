@@ -49,11 +49,11 @@ class MLPrescriberAdapter:
         )
 
     def _prescribe_tendency(self, name: str, func: Step) -> Diagnostics:
+        tendencies = predict(self._model, self.state)
         before = self.monitor.checkpoint()
         diags = func()
         change_due_to_func = self.monitor.compute_change(name, before, self.state)
         logger.debug(f"Overriding tendencies from {name} with ML predictions.")
-        tendencies = predict(self._model, self.state)
         for variable_name, tendency_name in self.config.variables.items():
             with xr.set_options(keep_attrs=True):
                 self.state[variable_name] = (
