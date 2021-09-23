@@ -15,7 +15,7 @@ from typing import (
 import fv3fit.emulation.thermobasis.emulator
 from fv3fit.emulation.thermobasis.xarray import get_xarray_emulator
 from runtime.monitor import Monitor
-from runtime.names import EAST_WIND, SPHUM, DELP
+from runtime.names import EAST_WIND, SPHUM, DELP, CLOUD
 from runtime.types import State, Diagnostics, Step
 
 __all__ = ["PrognosticAdapter", "Config"]
@@ -196,5 +196,14 @@ def compute_mask_2021_09_16(name: Hashable, arr: xr.DataArray) -> xr.DataArray:
         return arr.z < 20
     elif name == EAST_WIND:
         return arr.z < 6
+    else:
+        return xr.DataArray(False)
+
+
+def compute_mask_no_cloud(name: Hashable, arr: xr.DataArray) -> xr.DataArray:
+    """Ignore cloud water outputs from emulator
+    """
+    if name == CLOUD:
+        return xr.DataArray(True)
     else:
         return xr.DataArray(False)

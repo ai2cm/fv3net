@@ -2,6 +2,7 @@ from typing import Mapping, Hashable
 
 TEMP = "air_temperature"
 TOTAL_WATER = "total_water"
+CLOUD = "cloud_water_mixing_ratio"
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
 PRECIP_RATE = "surface_precipitation_rate"

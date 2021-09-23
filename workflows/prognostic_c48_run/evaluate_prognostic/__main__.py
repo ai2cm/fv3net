@@ -48,6 +48,7 @@ def evaluate(path):
 class Mask(str, Enum):
     default = "default"
     model_2021_09_16 = "2021_09_16"
+    no_cloud = "no_cloud"
 
 
 def short(
