@@ -38,41 +38,6 @@ def finish_page():
     PLOTS.clear()
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("offline_id")
-parser.add_argument("online_id")
-
-args = parser.parse_args()
-
-
-offline_id = args.offline_id
-online_id = args.online_id
-
-
-offline_url = f"/scratch/runs/prognostic-runs/{offline_id}/"
-online_url = f"/scratch/runs/prognostic-runs/{online_id}/"
-
-offline_link = (f"https://wandb.ai/ai2cm/emulator-noah/runs/{offline_id}",)
-online_link = (f"https://wandb.ai/ai2cm/emulator-noah/runs/{online_id}",)
-PAGES.append(
-    datapane.Page(
-        datapane.Text(
-            json.dumps(
-                {
-                    "offline run": offline_link,
-                    "online run": online_link,
-                    "args": " ".join(sys.argv),
-                    "git rev": subprocess.check_output(
-                        ["git", "rev-parse", "HEAD"]
-                    ).decode(),
-                }
-            )
-        ),
-        title="Metadata",
-    ),
-)
-
-
 def weighted_average(x, weight, dims=None):
     dims = dims or weight.dims
     out = (x * weight).sum(weight.dims) / weight.sum(dims)
@@ -112,6 +77,18 @@ def compute_masks(ds):
     }
 
 
+def regional_average(ds):
+    """Average a dataset over a given region"""
+    masks = compute_masks(ds)
+    averages = []
+
+    for (name, mask) in masks.items():
+        averages.append(
+            weighted_average(ds, ds.area.where(mask, 0)).assign_coords(region=name)
+        )
+    return xr.concat(averages, dim="region")
+
+
 def average_data(ds, field="specific_humidity"):
     masks = compute_masks(ds)
     fig, axs = plt.subplots(len(masks), 3, figsize=(14, 14), constrained_layout=True)
@@ -125,12 +102,6 @@ def average_data(ds, field="specific_humidity"):
             axs[i, j].set_title(f"{name} {tend}")
 
     return fig
-
-
-start_page("ROIs")
-add_plot(average_data(open_run(offline_url)), "offline ROIs")
-add_plot(average_data(open_run(online_url)), "online ROIs")
-finish_page()
 
 
 def plot_field(path, label, field="PWAT"):
@@ -157,62 +128,99 @@ def plot_offline_online_comparison_tropical_ocean(field):
 
 start_page("Tropical ocean averages")
 
-for field in config.tropical_averages:
-    add_plot(plot_offline_online_comparison_tropical_ocean(field), label=field)
+if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("offline_id")
+    parser.add_argument("online_id")
 
-# %%
-ds_online = open_run(online_url, "sfc_dt_atmos.zarr").merge(
-    open_run(online_url, "diags.zarr")
-)
+    args = parser.parse_args()
 
-url = offline_url
-ds_offline = open_run(url, "sfc_dt_atmos.zarr").merge(open_run(url, "diags.zarr"))
+    offline_id = args.offline_id
+    online_id = args.online_id
 
+    offline_url = f"/scratch/runs/prognostic-runs/{offline_id}/"
+    online_url = f"/scratch/runs/prognostic-runs/{online_id}/"
 
-region = "tropical ocean"
-avg_online = weighted_average(ds_online, compute_masks(ds_online)[region])
-avg_offline = weighted_average(ds_offline, compute_masks(ds_online)[region])
+    offline_link = (f"https://wandb.ai/ai2cm/emulator-noah/runs/{offline_id}",)
+    online_link = (f"https://wandb.ai/ai2cm/emulator-noah/runs/{online_id}",)
+    PAGES.append(
+        datapane.Page(
+            datapane.Text(
+                json.dumps(
+                    {
+                        "offline run": offline_link,
+                        "online run": online_link,
+                        "args": " ".join(sys.argv),
+                        "git rev": subprocess.check_output(
+                            ["git", "rev-parse", "HEAD"]
+                        ).decode(),
+                    }
+                )
+            ),
+            title="Metadata",
+        ),
+    )
 
-relative_change = (avg_online - avg_offline).isel(time=-1) / (avg_offline.isel(time=0))
+    start_page("ROIs")
+    add_plot(average_data(open_run(offline_url)), "offline ROIs")
+    add_plot(average_data(open_run(online_url)), "online ROIs")
+    finish_page()
 
-changes = (
-    relative_change.drop(["latb", "lonb", "x_interface", "y_interface"])
-    .to_array()
-    .to_series()
-)
-fig, ax = plt.subplots(figsize=(12, 3), constrained_layout=True)
-changes.sort_values().plot(kind="bar", ax=ax)
-add_plot(fig, label="Variables with biggest offline online difference")
-finish_page()
+    for field in config.tropical_averages:
+        add_plot(plot_offline_online_comparison_tropical_ocean(field), label=field)
 
+    # %%
+    ds_online = open_run(online_url, "sfc_dt_atmos.zarr").merge(
+        open_run(online_url, "diags.zarr")
+    )
 
-def plot_all_piggies(field, region="tropical ocean"):
+    url = offline_url
+    ds_offline = open_run(url, "sfc_dt_atmos.zarr").merge(open_run(url, "diags.zarr"))
+
+    region = "tropical ocean"
     avg_online = weighted_average(ds_online, compute_masks(ds_online)[region])
     avg_offline = weighted_average(ds_offline, compute_masks(ds_online)[region])
-    plt.figure()
-    avg_online[f"{field}_due_to_emulator"].plot(label="emulator online", c="b")
-    avg_online[f"{field}_due_to_fv3_physics"].plot(
-        label="fv3 physics online", ls="--", c="b"
+
+    relative_change = (avg_online - avg_offline).isel(time=-1) / (
+        avg_offline.isel(time=0)
     )
-    avg_offline[f"{field}_due_to_emulator"].plot(label="emulator offline", c="g")
-    avg_offline[f"{field}_due_to_fv3_physics"].plot(
-        label="fv3 physics offline", c="g", ls="--"
+
+    changes = (
+        relative_change.drop(["latb", "lonb", "x_interface", "y_interface"])
+        .to_array()
+        .to_series()
     )
-    plt.title(field + " " + region)
-    plt.legend()
+    fig, ax = plt.subplots(figsize=(12, 3), constrained_layout=True)
+    changes.sort_values().plot(kind="bar", ax=ax)
+    add_plot(fig, label="Variables with biggest offline online difference")
+    finish_page()
 
-    return plt.gcf()
+    def plot_all_piggies(field, region="tropical ocean"):
+        avg_online = weighted_average(ds_online, compute_masks(ds_online)[region])
+        avg_offline = weighted_average(ds_offline, compute_masks(ds_online)[region])
+        plt.figure()
+        avg_online[f"{field}_due_to_emulator"].plot(label="emulator online", c="b")
+        avg_online[f"{field}_due_to_fv3_physics"].plot(
+            label="fv3 physics online", ls="--", c="b"
+        )
+        avg_offline[f"{field}_due_to_emulator"].plot(label="emulator offline", c="g")
+        avg_offline[f"{field}_due_to_fv3_physics"].plot(
+            label="fv3 physics offline", c="g", ls="--"
+        )
+        plt.title(field + " " + region)
+        plt.legend()
 
+        return plt.gcf()
 
-# start_page("Piggy backs")
+    # start_page("Piggy backs")
 
-# add_plot(plot_all_piggies(field="storage_of_eastward_wind_path"))
-# add_plot(plot_all_piggies("storage_of_air_temperature_path"))
-# add_plot(plot_all_piggies("storage_of_air_temperature_path", region="land"))
-# add_plot(plot_all_piggies("storage_of_specific_humidity_path"))
-# finish_page()
+    # add_plot(plot_all_piggies(field="storage_of_eastward_wind_path"))
+    # add_plot(plot_all_piggies("storage_of_air_temperature_path"))
+    # add_plot(plot_all_piggies("storage_of_air_temperature_path", region="land"))
+    # add_plot(plot_all_piggies("storage_of_specific_humidity_path"))
+    # finish_page()
 
-job = wandb.init(job_type="3hour-eval", project="emulator-noah", entity="ai2cm")
-datapane.Report(blocks=PAGES).save("report.html")
-wandb.log({"3 hour report": wandb.Html(open("report.html"))})
+    job = wandb.init(job_type="3hour-eval", project="emulator-noah", entity="ai2cm")
+    datapane.Report(blocks=PAGES).save("report.html")
+    wandb.log({"3 hour report": wandb.Html(open("report.html"))})
