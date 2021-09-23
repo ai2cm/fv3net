@@ -21,10 +21,10 @@ variables:
 		column_integrated_dQ1_change_non_neg_sphum_constraint:units = W/m**2 ;
 	float64 column_integrated_dQ2_change_non_neg_sphum_constraint(time, tile, y, x) ;
 		column_integrated_dQ2_change_non_neg_sphum_constraint:units = kg/m^2/s ;
-	float64 column_integrated_dQu(time, tile, y, x) ;
-		column_integrated_dQu:units = m s^-2 ;
-	float64 column_integrated_dQv(time, tile, y, x) ;
-		column_integrated_dQv:units = m s^-2 ;
+	float64 column_integrated_dQu_stress(time, tile, y, x) ;
+		column_integrated_dQu_stress:units = Pa ;
+	float64 column_integrated_dQv_stress(time, tile, y, x) ;
+		column_integrated_dQv_stress:units = Pa ;
 	float64 dQ1(time, tile, z, y, x) ;
 		dQ1:units = K/s ;
 	float64 dQ2(time, tile, z, y, x) ;

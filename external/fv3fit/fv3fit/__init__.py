@@ -1,15 +1,26 @@
-from ._shared import ArrayPacker, StandardScaler
+from ._shared import ArrayPacker, StandardScaler, DerivedModel
 from ._shared.predictor import Predictor
 from ._shared.io import dump, load
 from ._shared.config import (
     TrainingConfig,
-    DenseHyperparameters,
     RandomForestHyperparameters,
-    load_training_config,
+    OptimizerConfig,
+    RegularizerConfig,
     set_random_seed,
     get_training_function,
     get_hyperparameter_class,
 )
+from .keras._models.models import DenseHyperparameters
+from .keras._models.shared import (
+    DenseNetworkConfig,
+    DenseNetwork,
+    PureKerasModel,
+    TrainingLoopConfig,
+    EpochResult,
+    EpochLossHistory,
+    History,
+)
+from .keras._models.precipitative import PrecipitativeHyperparameters
 from . import keras, sklearn, testing
 
 __version__ = "0.1.0"

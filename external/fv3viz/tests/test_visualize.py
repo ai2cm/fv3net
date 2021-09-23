@@ -1,4 +1,5 @@
 import pytest
+import subprocess
 from datetime import datetime
 import numpy as np
 import xarray as xr
@@ -12,7 +13,6 @@ from fv3viz._masking import (
     _periodic_difference,
 )
 from fv3viz._plot_cube import mappable_var, plot_cube_axes, plot_cube
-from fv3viz._plot_helpers import _get_var_label
 from fv3viz._timestep_histograms import (
     plot_daily_and_hourly_hist,
     plot_daily_hist,
@@ -22,6 +22,24 @@ from fv3viz._timestep_histograms import (
 
 def test_version():
     assert __version__ == "0.1.0"
+
+
+IMPORT_SCRIPT = """
+import fv3viz
+import cartopy
+print(cartopy.config["downloaders"][("shapefiles", "natural_earth")].url_template)
+"""
+
+
+@pytest.mark.parametrize(
+    ["env_var", "vcm_in_url"], [("natural_earth", False), ("", True)]
+)
+def test_cartopy_downloader(monkeypatch, env_var, vcm_in_url):
+    monkeypatch.setenv("CARTOPY_EXTERNAL_DOWNLOADER", env_var)
+    downloader = subprocess.run(
+        ["python", "-c", IMPORT_SCRIPT], capture_output=True, encoding="utf8"
+    ).stdout
+    assert ("vcm-ml-example-data" in downloader) == vcm_in_url
 
 
 @pytest.mark.parametrize(
@@ -312,23 +330,6 @@ def test_plot_cube_with_all_nans(sample_dataset, plotting_function):
         plotting_function=plotting_function,
         ax=ax,
     )
-
-
-@pytest.mark.parametrize(
-    "attrs,var_name,expected_label",
-    [
-        ({}, "temp", "temp"),
-        ({"long_name": "air_temperature"}, "temp", "air_temperature"),
-        ({"units": "degK"}, "temp", "temp [degK]"),
-        (
-            {"long_name": "air_temperature", "units": "degK"},
-            "temp",
-            "air_temperature [degK]",
-        ),
-    ],
-)
-def test__get_var_label(attrs, var_name, expected_label):
-    assert _get_var_label(attrs, var_name) == expected_label
 
 
 example_timesteps = [

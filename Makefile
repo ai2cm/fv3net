@@ -42,9 +42,6 @@ push_image_%: build_image_%
 pull_image_%:
 	docker pull $(REGISTRY)/$*:$(VERSION)
 
-build_image_ci:
-	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
-
 ############################################################
 # Documentation (rules match "deploy_docs_%")
 ############################################################
@@ -90,12 +87,12 @@ test_prognostic_run:
 	docker run prognostic_run pytest
 
 test_prognostic_run_report:
-	bash workflows/prognostic_run_diags/tests/test_integration.sh
+	bash workflows/diagnostics/tests/prognostic/test_integration.sh
 
 test_%:
 	cd external/$* && tox
 
-test_unit: test_fv3kube test_vcm test_fv3fit
+test_unit: test_fv3kube test_vcm test_fv3fit test_artifacts
 	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
 
 test_regression:

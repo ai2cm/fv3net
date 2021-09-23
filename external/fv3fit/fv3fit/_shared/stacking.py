@@ -6,9 +6,16 @@ import xarray as xr
 from vcm import safe
 
 
-SAMPLE_DIM_NAME = "sample"
+SAMPLE_DIM_NAME = "_fv3fit_sample"
 DATASET_DIM_NAME = "dataset"
 Z_DIM_NAMES = ["z", "pfull"]
+
+"""
+TODO: Remove the optional sample_dim_name arg from functions once the
+stacking sample dim is hard coded and removed as a training function arg.
+The presence in the functions below is temporary and done to allow use
+of an internal stacking dim (allows inputs to be prestacked in "sample" dim)
+"""
 
 
 class StackedBatches(Sequence[xr.Dataset]):
@@ -31,13 +38,13 @@ class StackedBatches(Sequence[xr.Dataset]):
         return len(self._batches)
 
     def _stack_batch(self, ds_unstacked: xr.Dataset) -> xr.Dataset:
-        ds = stack_non_vertical(ds_unstacked).load().dropna(dim=SAMPLE_DIM_NAME)
+        ds = stack_non_vertical(ds_unstacked).dropna(dim=SAMPLE_DIM_NAME)
         ds = _check_empty(ds)
         ds = _preserve_samples_per_batch(ds)
         return _shuffled(self._random_state, ds)
 
 
-def stack_non_vertical(ds: xr.Dataset,) -> xr.Dataset:
+def stack_non_vertical(ds: xr.Dataset) -> xr.Dataset:
     """
     Stack all dimensions except for the Z dimensions into a sample
 
@@ -115,7 +122,7 @@ def _get_chunk_indices(chunks):
     return indices
 
 
-def infer_dimension_order(ds: xr.Dataset) -> Tuple:
+def _infer_dimension_order(ds: xr.Dataset) -> Tuple:
     # add check here for cases when the dimension order is inconsistent between arrays?
     dim_order = []
     for variable in ds:
@@ -128,7 +135,7 @@ def infer_dimension_order(ds: xr.Dataset) -> Tuple:
 def match_prediction_to_input_coords(
     input: xr.Dataset, prediction: xr.Dataset
 ) -> xr.Dataset:
-    # ensure the output coords are the same
+    # ensure the output coords are the same and dims are same order
     # stack/unstack adds coordinates if none exist before
     input_coords = input.coords
     for key in prediction.coords:
@@ -136,4 +143,5 @@ def match_prediction_to_input_coords(
             prediction.coords[key] = input_coords[key]
         else:
             del prediction.coords[key]
-    return prediction
+    dim_order = [dim for dim in _infer_dimension_order(input) if dim in prediction.dims]
+    return prediction.transpose(*dim_order)

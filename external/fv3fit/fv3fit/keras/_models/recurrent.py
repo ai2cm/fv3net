@@ -1,31 +1,32 @@
-from typing import Dict, Any, Iterable, Hashable, Optional, Sequence, Tuple, List
+from typing import Dict, Any, Iterable, Optional, Sequence, Tuple, List
 import tensorflow as tf
 import xarray as xr
-import os
-from ..._shared import Predictor, io, ArrayPacker
+from ..._shared import (
+    io,
+    ArrayPacker,
+    SAMPLE_DIM_NAME,
+)
 from .packer import get_unpack_layer
-from ._filesystem import get_dir, put_dir
 from .normalizer import LayerStandardScaler
-import yaml
 import numpy as np
 import vcm.safe
+from fv3fit.keras._models.shared import get_input_vector, PureKerasModel
 
 Z_DIMS = ["z", "z_interface"]
 
 
-def stack_non_vertical(ds: xr.Dataset, sample_dim_name) -> xr.Dataset:
+def stack_non_vertical(ds: xr.Dataset) -> xr.Dataset:
     """
     Stack all dimensions except for the Z dimensions into a sample
 
     Args:
         ds: dataset with geospatial dimensions
-        sample_dim_name: name for new sampling dimension
     """
     stack_dims = [dim for dim in ds.dims if dim not in Z_DIMS]
     if len(set(ds.dims).intersection(Z_DIMS)) > 1:
         raise ValueError("Data cannot have >1 feature dimension in {Z_DIMS}.")
     ds_stacked = vcm.safe.stack_once(
-        ds, sample_dim_name, stack_dims, allowed_broadcast_dims=Z_DIMS,
+        ds, SAMPLE_DIM_NAME, stack_dims, allowed_broadcast_dims=Z_DIMS,
     )
     return ds_stacked.transpose()
 
@@ -50,42 +51,6 @@ def _moisture_tendency_limiter(packer, state_update, state):
 
     dQ2 = tf.keras.layers.Lambda(limit)([dQ2, Q2])
     return pack([dQ1, dQ2])
-
-
-def _get_input_vector(
-    packer: ArrayPacker,
-    scaler: Optional[LayerStandardScaler],
-    n_window: Optional[int] = None,
-    series: bool = True,
-):
-    """
-    Given a packer and scaler, return a list of input layers with one layer
-    for each input used by the packer, and a list of output tensors which are
-    the result of packing and (optionally) scaling those input layers.
-
-    Args:
-        packer
-        scaler
-        n_window: required if series is True, number of timesteps in a sample
-        series: if True, returned inputs have shape [n_window, n_features], otherwise
-            they are 1D [n_features] arrays
-    """
-    features = [packer.feature_counts[name] for name in packer.pack_names]
-    if series:
-        if n_window is None:
-            raise TypeError("n_window is required if series is True")
-        input_layers = [
-            tf.keras.layers.Input(shape=[n_window, n_features])
-            for n_features in features
-        ]
-    else:
-        input_layers = [
-            tf.keras.layers.Input(shape=[n_features]) for n_features in features
-        ]
-    packed = tf.keras.layers.Concatenate()(input_layers)
-    if scaler is not None:
-        packed = scaler.normalize_layer(packed)
-    return input_layers, packed
 
 
 class _BPTTTrainer:
@@ -135,8 +100,8 @@ class _BPTTTrainer:
         )
         self.output_variables = ["dQ1", "dQ2"]
         self.sample_dim_name = sample_dim_name
-        self.input_packer = ArrayPacker(sample_dim_name, input_variables)
-        self.prognostic_packer = ArrayPacker(sample_dim_name, prognostic_variables)
+        self.input_packer = ArrayPacker(SAMPLE_DIM_NAME, input_variables)
+        self.prognostic_packer = ArrayPacker(SAMPLE_DIM_NAME, prognostic_variables)
         self.train_timestep_seconds: Optional[float] = None
         self.input_scaler = LayerStandardScaler()
         self.prognostic_scaler = LayerStandardScaler()
@@ -170,7 +135,7 @@ class _BPTTTrainer:
             X_tmp = X.rename({self.sample_dim_name: temporary_sample_dim})
         else:
             X_tmp = X
-        dataset_2d = stack_non_vertical(X_tmp, self.sample_dim_name)
+        dataset_2d = stack_non_vertical(X_tmp)
         inputs = self.input_packer.to_array(dataset_2d)
         state = self.prognostic_packer.to_array(dataset_2d)
         self.input_scaler.fit(inputs)
@@ -298,14 +263,15 @@ class _BPTTTrainer:
         which predicts tendencies of that model used for debugging and testing
         purposes.
         """
-        input_series_layers, forcing_series_input = _get_input_vector(
-            self.input_packer, self.input_scaler, n_window, series=True
+        input_series_layers, forcing_series_input = get_input_vector(
+            self.input_packer, n_window, series=True
         )
-        state_layers, state_input = _get_input_vector(
-            self.prognostic_packer, None, n_window, series=False
+        forcing_series_input = self.input_scaler.normalize_layer(forcing_series_input)
+        state_layers, state_input = get_input_vector(
+            self.prognostic_packer, n_window, series=False
         )
-        given_tendency_series_layers, given_tendency_series_input = _get_input_vector(
-            self.prognostic_packer, None, n_window, series=True
+        given_tendency_series_layers, given_tendency_series_input = get_input_vector(
+            self.prognostic_packer, n_window, series=True
         )
 
         def prepend_forcings(state, i):
@@ -366,12 +332,12 @@ class _BPTTTrainer:
         Build a model which predicts the tendency for a single timestep, used for
         prediction.
         """
-        input_layers, forcing_input = _get_input_vector(
-            self.input_packer, self.input_scaler, series=False
+        input_layers, forcing_input = get_input_vector(self.input_packer, series=False)
+        forcing_input = self.input_scaler.normalize_layer(forcing_input)
+        state_layers, state_input = get_input_vector(
+            self.prognostic_packer, series=False
         )
-        state_layers, state_input = _get_input_vector(
-            self.prognostic_packer, self.prognostic_scaler, series=False
-        )
+        state_input = self.prognostic_scaler.normalize_layer(state_input)
         denormalized_state = tf.keras.layers.Concatenate()(state_layers)
         x = tf.keras.layers.concatenate([forcing_input, state_input])
         predicted_tendency = get_predicted_tendency(x, denormalized_state)
@@ -489,113 +455,6 @@ def get_keras_arrays(X, names, time_index):
         else:
             raise ValueError(X[name].shape)
     return return_list
-
-
-@io.register("all-keras")
-class PureKerasModel(Predictor):
-    """Model which uses Keras for packing and normalization"""
-
-    _MODEL_FILENAME = "model.tf"
-    _CONFIG_FILENAME = "config.yaml"
-    custom_objects: Dict[str, Any] = {}
-
-    def __init__(
-        self,
-        sample_dim_name: str,
-        input_variables: Iterable[Hashable],
-        output_variables: Iterable[Hashable],
-        output_metadata: Iterable[Dict[str, Any]],
-        model: tf.keras.Model,
-    ):
-        """Initialize the predictor
-        
-        Args:
-            sample_dim_name: name of sample dimension
-            input_variables: names of input variables
-            output_variables: names of output variables
-        """
-        super().__init__(sample_dim_name, input_variables, output_variables)
-        self.sample_dim_name = sample_dim_name
-        self.input_variables = input_variables
-        self.output_variables = output_variables
-        self._output_metadata = output_metadata
-        self.model = model
-
-    @classmethod
-    def load(cls, path: str) -> "PureKerasModel":
-        """Load a serialized model from a directory."""
-        with get_dir(path) as path:
-            model_filename = os.path.join(path, cls._MODEL_FILENAME)
-            model = tf.keras.models.load_model(
-                model_filename, custom_objects=cls.custom_objects
-            )
-            with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
-                config = yaml.load(f, Loader=yaml.Loader)
-            obj = cls(
-                config["sample_dim_name"],
-                config["input_variables"],
-                config["output_variables"],
-                config.get("output_metadata", None),
-                model,
-            )
-            return obj
-
-    def predict(self, X: xr.Dataset) -> xr.Dataset:
-        """Predict an output xarray dataset from an input xarray dataset."""
-        inputs = [X[name].values for name in self.input_variables]
-        outputs = self.model.predict(inputs)
-        if self._output_metadata is not None:
-            return xr.Dataset(
-                data_vars={
-                    name: xr.DataArray(
-                        value,
-                        dims=metadata["dims"],
-                        coords={name: X.coords[name] for name in metadata["dims"]},
-                        attrs={"units": metadata["units"]},
-                    )
-                    for name, value, metadata in zip(
-                        self.output_variables, outputs, self._output_metadata
-                    )
-                }
-            )
-        else:
-            # workaround for saved datasets which do not have output metadata
-            # from an initial version of the BPTT code. Can be removed
-            # eventually
-            dQ1, dQ2 = outputs
-            return xr.Dataset(
-                data_vars={
-                    "dQ1": xr.DataArray(
-                        dQ1,
-                        dims=X["air_temperature"].dims,
-                        coords=X["air_temperature"].coords,
-                        attrs={"units": X["air_temperature"].units + " / s"},
-                    ),
-                    "dQ2": xr.DataArray(
-                        dQ2,
-                        dims=X["specific_humidity"].dims,
-                        coords=X["specific_humidity"].coords,
-                        attrs={"units": X["specific_humidity"].units + " / s"},
-                    ),
-                }
-            )
-
-    def dump(self, path: str) -> None:
-        with put_dir(path) as path:
-            if self.model is not None:
-                model_filename = os.path.join(path, self._MODEL_FILENAME)
-                self.model.save(model_filename)
-            with open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
-                f.write(
-                    yaml.dump(
-                        {
-                            "sample_dim_name": self.sample_dim_name,
-                            "input_variables": self.input_variables,
-                            "output_variables": self.output_variables,
-                            "output_metadata": self._output_metadata,
-                        }
-                    )
-                )
 
 
 def _update_ds_with_state(ds, state, sample_dim_name):

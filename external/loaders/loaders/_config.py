@@ -4,6 +4,7 @@ from loaders.typing import (
     Mapper,
     Batches,
 )
+import collections
 import dataclasses
 import dacite
 
@@ -31,25 +32,36 @@ class MapperConfig:
 
     Attributes:
         data_path: location of training data to be loaded by mapper function
-        mapper_function: name of function to use for loading batched data,
+        function: name of function to use for loading batched data,
             can take any value in the keys of `loaders.mapper_functions`
-        mapper_kwargs: keyword arguments to pass to mapper function
+        kwargs: keyword arguments to pass to mapper function
     """
 
-    data_path: str
-    mapper_function: str
-    mapper_kwargs: dict
+    function: str
+    kwargs: dict
 
     def load_mapper(self) -> Mapper:
         """
         Returns:
             Sequence of mappers according to configuration
         """
-        mapping_func = mapper_functions[self.mapper_function]
-        return mapping_func(self.data_path, **self.mapper_kwargs)
+        mapping_func = mapper_functions[self.function]
+        return mapping_func(**self.kwargs)
+
+    def __post_init__(self):
+        if self.function not in mapper_functions:
+            raise ValueError(
+                f"Invalid mapper function {self.function}, "
+                f"must be one of {list(mapper_functions.keys())}"
+            )
 
 
 class BatchesLoader(abc.ABC):
+    """
+    Abstract base class for configuration classes that load batches. See
+    subclasses for concrete implementations you can use in configuration files.
+    """
+
     @abc.abstractmethod
     def load_batches(self, variables) -> Batches:
         """
@@ -87,8 +99,8 @@ class BatchesFromMapperConfig(BatchesLoader):
     """
 
     mapper_config: MapperConfig
-    batches_function: str
-    batches_kwargs: dict
+    function: str
+    kwargs: dict
 
     def load_mapper(self) -> Mapper:
         return self.mapper_config.load_mapper()
@@ -102,8 +114,26 @@ class BatchesFromMapperConfig(BatchesLoader):
             Sequence of datasets according to configuration
         """
         mapper = self.mapper_config.load_mapper()
-        batches_function = batches_from_mapper_functions[self.batches_function]
-        return batches_function(mapper, list(variables), **self.batches_kwargs,)
+        batches_function = batches_from_mapper_functions[self.function]
+        return batches_function(mapper, list(variables), **self.kwargs,)
+
+    def __post_init__(self):
+        if self.function not in batches_from_mapper_functions:
+            raise ValueError(
+                f"Invalid batches function {self.function}, "
+                f"must be one of {list(batches_from_mapper_functions.keys())}"
+            )
+        if "timesteps" in self.kwargs:
+            duplicate_times = [
+                t
+                for t, count in collections.Counter(self.kwargs["timesteps"]).items()
+                if count > 1
+            ]
+            if len(duplicate_times) > 0:
+                raise ValueError(
+                    "Timesteps provided for selection must be unique. "
+                    f"Duplicated times were found: {duplicate_times}"
+                )
 
 
 @dataclasses.dataclass
@@ -111,15 +141,13 @@ class BatchesConfig(BatchesLoader):
     """Configuration for the use of batch loading functions.
 
     Attributes:
-        data_path: location of training data to be loaded by batch function
-        batches_function: name of function to use for loading batched data,
+        function: name of function to use for loading batched data,
             can take any value in the keys of `loaders.batches_functions`
-        batches_kwargs: keyword arguments to pass to batches function
+        kwargs: keyword arguments to pass to batches function
     """
 
-    data_path: str
-    batches_function: str
-    batches_kwargs: dict
+    function: str
+    kwargs: dict
 
     def load_batches(self, variables) -> Batches:
         """
@@ -129,5 +157,12 @@ class BatchesConfig(BatchesLoader):
         Returns:
             Sequence of datasets according to configuration
         """
-        batches_function = batches_functions[self.batches_function]
-        return batches_function(self.data_path, list(variables), **self.batches_kwargs,)
+        batches_function = batches_functions[self.function]
+        return batches_function(variable_names=list(variables), **self.kwargs,)
+
+    def __post_init__(self):
+        if self.function not in batches_functions:
+            raise ValueError(
+                f"Invalid batches function {self.function}, "
+                f"must be one of {list(batches_functions.keys())}"
+            )

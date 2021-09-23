@@ -1,25 +1,11 @@
+import dacite
 import dataclasses
-from fv3fit._shared.config import DenseHyperparameters
-from fv3fit._shared.config import OptimizerConfig
+from fv3fit import DenseHyperparameters, OptimizerConfig, TrainingConfig
 import os
 import tempfile
-from fv3fit._shared.config import (
-    _ModelTrainingConfig as ModelTrainingConfig,
-    TrainingConfig,
-)
 import yaml
 
 import pytest
-
-
-legacy_config = ModelTrainingConfig(
-    model_type="great_model",
-    hyperparameters={"max_depth": 10},
-    input_variables=["in0", "in1"],
-    output_variables=["out0, out1"],
-    batch_function="batches_from_mapper",
-    batch_kwargs={"timesteps_per_batch": 1},
-)
 
 
 @pytest.mark.parametrize("hyperparameters", [{}])
@@ -34,13 +20,6 @@ def test_dense_training_config_uses_optimizer_config(hyperparameters):
     assert isinstance(training_config.hyperparameters.optimizer_config, OptimizerConfig)
 
 
-def test_dump_and_load_legacy_config():
-    with tempfile.TemporaryDirectory() as tmpdir:
-        legacy_config.dump(tmpdir)
-        loaded = ModelTrainingConfig.load(os.path.join(tmpdir, "training_config.yml"))
-        assert legacy_config.asdict() == loaded.asdict()
-
-
 def test_safe_dump_training_config():
     """
     Test that dataclass.asdict and pyyaml can be used to save the configuration class,
@@ -50,9 +29,9 @@ def test_safe_dump_training_config():
     # TODO: extend this test to run not just for Dense, but for all registered models
     config = TrainingConfig(
         model_type="DenseModel",  # an arbitrary model type
-        input_variables=["a"],
-        output_variables=["b"],
-        hyperparameters=DenseHyperparameters(),
+        hyperparameters=DenseHyperparameters(
+            input_variables=["a"], output_variables=["b"],
+        ),
     )
     with tempfile.TemporaryDirectory() as tmpdir:
         filename = os.path.join(tmpdir, "config.yaml")
@@ -64,17 +43,31 @@ def test_safe_dump_training_config():
 
 
 @pytest.mark.parametrize(
-    "scaler_type, expected",
-    [("mass", ["pressure_thickness_of_atmospheric_layer"]), (None, [])],
+    "hyperparameters, passes",
+    [
+        pytest.param(
+            {"dense_network": {"width": 32}}, True, id="pass_has_DenseModelConfig"
+        ),
+        pytest.param(
+            {"training_loop": {"epochs": 2}}, True, id="pass_has_TrainingLoopConfig"
+        ),
+        pytest.param(
+            {"width": 32}, False, id="fail_has_DenseModelConfig_param_in_top_level"
+        ),
+        pytest.param(
+            {"epochs": 2}, False, id="fail_has_TrainingLoopConfig_param_in_top_level"
+        ),
+    ],
 )
-def test_config_additional_variables(scaler_type, expected):
-    config = ModelTrainingConfig(
-        model_type="great_model",
-        hyperparameters={"max_depth": 10},
-        input_variables=["in0", "in1"],
-        output_variables=["out0, out1"],
-        batch_function="batches_from_mapper",
-        batch_kwargs={"timesteps_per_batch": 1},
-        scaler_type=scaler_type,
-    )
-    assert expected == config.additional_variables
+def test__load_config_catches_errors_with_strict_checking(hyperparameters, passes):
+    config_dict = {
+        "model_type": "DenseModel",
+        "input_variables": [],
+        "output_variables": [],
+        "hyperparameters": hyperparameters,
+    }
+    if passes:
+        TrainingConfig.from_dict(config_dict)
+    else:
+        with pytest.raises(dacite.exceptions.UnexpectedDataError):
+            TrainingConfig.from_dict(config_dict)

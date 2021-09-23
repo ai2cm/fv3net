@@ -5,7 +5,16 @@
 
 from setuptools import setup, find_packages
 
-requirements = ["fv3fit", "vcm", "jsonschema>=3.2", "dacite >= 1.6", "fv3config>=0.7.1"]
+requirements = [
+    "fv3fit",
+    "vcm",
+    "jsonschema>=3.2",
+    "dacite >= 1.6",
+    "fv3config>=0.7.1",
+    "wandb",
+    "pillow",
+    "hypothesis",
+]
 
 test_requirements = ["pytest"]
 

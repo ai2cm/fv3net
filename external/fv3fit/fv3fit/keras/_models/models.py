@@ -1,10 +1,18 @@
-from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, List, Any
+from typing import (
+    Sequence,
+    Iterable,
+    Mapping,
+    Tuple,
+    Union,
+    Optional,
+    List,
+    Any,
+    Set,
+)
 import xarray as xr
 import logging
-import copy
 import json
 import tensorflow as tf
-import tensorflow_addons as tfa
 import tempfile
 import dacite
 import shutil
@@ -16,17 +24,22 @@ from ..._shared import (
     io,
     StackedBatches,
     stack_non_vertical,
-    infer_dimension_order,
     match_prediction_to_input_coords,
+    SAMPLE_DIM_NAME,
 )
-from ..._shared.config import DenseHyperparameters, register_training_function
+from ..._shared.config import (
+    Hyperparameters,
+    OptimizerConfig,
+    register_training_function,
+)
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
-from ._sequences import _XyArraySequence, _ThreadedSequencePreLoader
+from ._sequences import _XyArraySequence
 from .normalizer import LayerStandardScaler
 from .loss import get_weighted_mse, get_weighted_mae
-from loaders.batches import Take, shuffle
+from .shared import DenseNetworkConfig, TrainingLoopConfig, EpochResult
+from loaders.batches import Take
 import yaml
 from vcm import safe
 
@@ -36,21 +49,66 @@ logger = logging.getLogger(__file__)
 MODEL_DIRECTORY = "model_data"
 KERAS_CHECKPOINT_PATH = "model_checkpoints"
 
-# Description of the training loss progression over epochs
-# Outer array indexes epoch, inner array indexes batch (if applicable)
-EpochLossHistory = Sequence[Sequence[Union[float, int]]]
-History = Mapping[str, EpochLossHistory]
+
+@dataclasses.dataclass
+class DenseHyperparameters(Hyperparameters):
+    """
+    Configuration for training a dense neural network based model.
+
+    Args:
+        input_variables: names of variables to use as inputs
+        output_variables: names of variables to use as outputs
+        weights: loss function weights, defined as a dict whose keys are
+            variable names and values are either a scalar referring to the total
+            weight of the variable. Default is a total weight of 1
+            for each variable.
+        normalize_loss: if True (default), normalize outputs by their standard
+            deviation before computing the loss function
+        optimizer_config: selection of algorithm to be used in gradient descent
+        dense_network: configuration of dense network
+        training_loop: configuration of training loop
+        loss: loss function to use, should be 'mse' or 'mae'
+        save_model_checkpoints: if True, save one model per epoch when
+            dumping, under a 'model_checkpoints' subdirectory
+        nonnegative_outputs: if True, add a ReLU activation layer as the last layer
+            after output denormalization layer to ensure outputs are always >=0
+            Defaults to False.
+    """
+
+    input_variables: List[str]
+    output_variables: List[str]
+    weights: Optional[Mapping[str, Union[int, float]]] = None
+    normalize_loss: bool = True
+    optimizer_config: OptimizerConfig = dataclasses.field(
+        default_factory=lambda: OptimizerConfig("Adam")
+    )
+    dense_network: DenseNetworkConfig = dataclasses.field(
+        default_factory=DenseNetworkConfig
+    )
+    training_loop: TrainingLoopConfig = dataclasses.field(
+        default_factory=TrainingLoopConfig
+    )
+    loss: str = "mse"
+    save_model_checkpoints: bool = False
+    nonnegative_outputs: bool = False
+
+    @property
+    def variables(self) -> Set[str]:
+        return set(self.input_variables).union(self.output_variables)
 
 
 @register_training_function("DenseModel", DenseHyperparameters)
 def train_dense_model(
-    input_variables: Iterable[str],
-    output_variables: Iterable[str],
     hyperparameters: DenseHyperparameters,
     train_batches: Sequence[xr.Dataset],
     validation_batches: Sequence[xr.Dataset],
 ):
-    model = DenseModel("sample", input_variables, output_variables, hyperparameters)
+    model = DenseModel(
+        "sample",
+        hyperparameters.input_variables,
+        hyperparameters.output_variables,
+        hyperparameters,
+    )
     # TODO: make use of validation_batches, currently validation dataset is
     # passed through hyperparameters.fit_kwargs
     model.fit(train_batches)
@@ -102,18 +160,15 @@ class DenseModel(Predictor):
         """
         # store (duplicate) hyperparameters like this for ease of serialization
         self._hyperparameters = hyperparameters
-        self._depth = hyperparameters.depth
-        self._width = hyperparameters.width
-        self._spectral_normalization = hyperparameters.spectral_normalization
-        self._gaussian_noise = hyperparameters.gaussian_noise
         self._nonnegative_outputs = hyperparameters.nonnegative_outputs
+        # TODO: remove internal sample dim name once sample dim is hardcoded everywhere
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
         self.X_packer = ArrayPacker(
-            sample_dim_name=sample_dim_name, pack_names=input_variables
+            sample_dim_name=SAMPLE_DIM_NAME, pack_names=input_variables
         )
         self.y_packer = ArrayPacker(
-            sample_dim_name=sample_dim_name, pack_names=output_variables
+            sample_dim_name=SAMPLE_DIM_NAME, pack_names=output_variables
         )
         self.X_scaler = LayerStandardScaler()
         self.y_scaler = LayerStandardScaler()
@@ -125,12 +180,6 @@ class DenseModel(Predictor):
         self._normalize_loss = hyperparameters.normalize_loss
         self._optimizer = hyperparameters.optimizer_config.instance
         self._loss = hyperparameters.loss
-        self._epochs = hyperparameters.epochs
-        if hyperparameters.kernel_regularizer_config is not None:
-            regularizer = hyperparameters.kernel_regularizer_config.instance
-        else:
-            regularizer = None
-        self._kernel_regularizer = regularizer
         self._save_model_checkpoints = hyperparameters.save_model_checkpoints
         if hyperparameters.save_model_checkpoints:
             self._checkpoint_path: Optional[
@@ -138,7 +187,7 @@ class DenseModel(Predictor):
             ] = tempfile.TemporaryDirectory()
         else:
             self._checkpoint_path = None
-        self._fit_kwargs = hyperparameters.fit_kwargs or {}
+        self.training_loop = hyperparameters.training_loop
 
     @property
     def model(self) -> tf.keras.Model:
@@ -153,18 +202,7 @@ class DenseModel(Predictor):
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         inputs = tf.keras.Input(n_features_in)
         x = self.X_scaler.normalize_layer(inputs)
-        for i in range(self._depth - 1):
-            hidden_layer = tf.keras.layers.Dense(
-                self._width,
-                activation=tf.keras.activations.relu,
-                kernel_regularizer=self._kernel_regularizer,
-            )
-            if self._spectral_normalization:
-                hidden_layer = tfa.layers.SpectralNormalization(hidden_layer)
-            if self._gaussian_noise > 0.0:
-                x = tf.keras.layers.GaussianNoise(self._gaussian_noise)(x)
-            x = hidden_layer(x)
-        x = tf.keras.layers.Dense(n_features_out)(x)
+        x = self._hyperparameters.dense_network.build(x, n_features_out).output
         outputs = self.y_scaler.denormalize_layer(x)
         if self._nonnegative_outputs:
             outputs = tf.keras.layers.Activation(tf.keras.activations.relu)(outputs)
@@ -176,34 +214,16 @@ class DenseModel(Predictor):
         self,
         batches: Sequence[xr.Dataset],
         validation_dataset: Optional[xr.Dataset] = None,
-        epochs: Optional[int] = None,
-        batch_size: Optional[int] = None,
-        workers: Optional[int] = None,
-        max_queue_size: Optional[int] = None,
         validation_samples: Optional[int] = None,
         use_last_batch_to_validate: Optional[bool] = None,
     ) -> None:
         """Fits a model using data in the batches sequence
-        
-        If batch_size is provided as a kwarg, the list of values is for each batch fit.
-        e.g. {"loss":
-            [[epoch0_batch0_loss, epoch0_batch1_loss],
-            [epoch1_batch0_loss, epoch1_batch1_loss]]}
-        If not batch_size is not provided, a single loss per epoch is recorded.
-        e.g. {"loss": [[epoch0_loss], [epoch1_loss]]}
+
+        Makes use of configuration in DenseHyperparameters.training_loop
         
         Args:
             batches: sequence of unstacked datasets of predictor variables
             validation_dataset: optional validation dataset
-            epochs: optional number of times through the batches to run when training.
-                Defaults to 1.
-            batch_size: actual batch_size to apply in gradient descent updates,
-                independent of number of samples in each batch in batches; optional,
-                uses number of samples in each batch if omitted
-            workers: number of workers for parallelized loading of batches fed into
-                training, defaults to serial loading (1 worker)
-            max_queue_size: max number of batches to hold in the parallel loading queue.
-                Defaults to 8.
             validation_samples: Option to specify number of samples to randomly draw
                 from the validation dataset, so that we can use multiple timesteps for
                 validation without having to load all the times into memory.
@@ -213,17 +233,6 @@ class DenseModel(Predictor):
                 Defaults to False.
         """
 
-        fit_kwargs = copy.copy(self._fit_kwargs)
-        fit_kwargs = _fill_default(fit_kwargs, batch_size, "batch_size", None)
-        fit_kwargs = _fill_default(fit_kwargs, epochs, "epochs", self._epochs)
-        fit_kwargs = _fill_default(fit_kwargs, workers, "workers", 1)
-        fit_kwargs = _fill_default(fit_kwargs, max_queue_size, "max_queue_size", 8)
-        fit_kwargs = _fill_default(
-            fit_kwargs, validation_samples, "validation_samples", 13824
-        )
-        fit_kwargs = _fill_default(
-            fit_kwargs, use_last_batch_to_validate, "use_last_batch_to_validate", False
-        )
         random_state = np.random.RandomState(np.random.get_state()[1][0])
         stacked_batches = StackedBatches(batches, random_state)
         Xy = _XyArraySequence(self.X_packer, self.y_packer, stacked_batches)
@@ -232,18 +241,6 @@ class DenseModel(Predictor):
             n_features_in, n_features_out = X.shape[-1], y.shape[-1]
             self._fit_normalization(X, y)
             self._model = self.get_model(n_features_in, n_features_out)
-
-        validation_data: Optional[Tuple[np.ndarray, np.ndarray]]
-        validation_dataset = (
-            validation_dataset
-            if validation_dataset is not None
-            else fit_kwargs.pop("validation_dataset", None)
-        )
-        validation_samples = (
-            validation_samples
-            if validation_samples is not None
-            else fit_kwargs.pop("validation_samples", 13824)
-        )
 
         if use_last_batch_to_validate:
             if validation_dataset is not None:
@@ -257,7 +254,7 @@ class DenseModel(Predictor):
             )
             X_val = X_val[val_sample, :]
             y_val = y_val[val_sample, :]
-            validation_data = (X_val, y_val)
+            validation_data: Optional[Tuple[np.ndarray, np.ndarray]] = (X_val, y_val)
             Xy = Take(Xy, len(Xy) - 1)  # type: ignore
         elif validation_dataset is not None:
             stacked_validation_dataset = stack_non_vertical(validation_dataset)
@@ -266,76 +263,44 @@ class DenseModel(Predictor):
             val_sample = np.random.choice(
                 np.arange(len(y_val)), validation_samples, replace=False
             )
-            validation_data = X_val[val_sample], y_val[val_sample]
+            validation_data = (X_val[val_sample], y_val[val_sample])
         else:
             validation_data = None
+        self.training_loop.fit_loop(
+            self.model,
+            Xy=Xy,
+            validation_data=validation_data,
+            callbacks=[self._end_of_epoch_callback],
+        )
 
-        return self._fit_loop(Xy, validation_data, **fit_kwargs,)
+    def _end_of_epoch_callback(self, result: EpochResult):
+        loss_over_batches, val_loss_over_batches = [], []
+        for history in result.history:
+            loss_over_batches += history.history["loss"]
+            val_loss_over_batches += history.history.get("val_loss", [np.nan])
+        self.train_history["loss"].append(loss_over_batches)
+        self.train_history["val_loss"].append(val_loss_over_batches)
+        if self._checkpoint_path:
+            self.dump(os.path.join(self._checkpoint_path.name, f"epoch_{result.epoch}"))
+            logger.info(
+                f"Saved model checkpoint after epoch {result.epoch} "
+                f"to {self._checkpoint_path}"
+            )
 
-    def _fit_loop(
-        self,
-        Xy: Sequence[Tuple[np.ndarray, np.ndarray]],
-        validation_data: Optional[Tuple[np.ndarray, np.ndarray]],
-        epochs: int,
-        batch_size: Optional[int] = None,
-        workers: int = 1,
-        max_queue_size: int = 8,
-        use_last_batch_to_validate: bool = False,
-        last_batch_validation_fraction: float = 1.0,
-        **fit_kwargs,
-    ) -> None:
-
-        for i_epoch in range(epochs):
-            Xy = shuffle(Xy)
-            if workers > 1:
-                Xy = _ThreadedSequencePreLoader(
-                    Xy, num_workers=workers, max_queue_size=max_queue_size
-                )
-            loss_over_batches, val_loss_over_batches = [], []
-            for i_batch, (X, y) in enumerate(Xy):
-                logger.info(
-                    f"Fitting on batch {i_batch + 1} of {len(Xy)}, "
-                    f"of epoch {i_epoch}..."
-                )
-                history = self.model.fit(
-                    X,
-                    y,
-                    validation_data=validation_data,
-                    batch_size=batch_size,
-                    **fit_kwargs,
-                )
-                loss_over_batches += history.history["loss"]
-                val_loss_over_batches += history.history.get("val_loss", [np.nan])
-            self.train_history["loss"].append(loss_over_batches)
-            self.train_history["val_loss"].append(val_loss_over_batches)
-            if self._checkpoint_path:
-                self.dump(os.path.join(self._checkpoint_path.name, f"epoch_{i_epoch}"))
-                logger.info(
-                    f"Saved model checkpoint after epoch {i_epoch} "
-                    f"to {self._checkpoint_path}"
-                )
+    def _predict_on_stacked_data(self, stacked_input: xr.Dataset) -> xr.Dataset:
+        stacked_input_array = self.X_packer.to_array(stacked_input)
+        stacked_output_array = self.model.predict(stacked_input_array)
+        return self.y_packer.to_dataset(stacked_output_array)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
-        # Takes unstacked data, stacks into sample dimension before
-        # keras model prediction, and returns unstacked prediction
-        # ensure dimension order is the same
-        inputs_ = safe.get_variables(X, self.input_variables)
-        inputs_stacked = stack_non_vertical(inputs_)
-        sample_coord = inputs_stacked[self.sample_dim_name]
-        ds_pred_stacked = self.y_packer.to_dataset(
-            self.predict_array(self.X_packer.to_array(inputs_stacked))
-        )
-        ds_pred = ds_pred_stacked.assign_coords(
-            {self.sample_dim_name: sample_coord}
-        ).unstack(self.sample_dim_name)
-        ds_pred = match_prediction_to_input_coords(X, ds_pred)
-        dim_order = [
-            dim for dim in infer_dimension_order(inputs_) if dim in ds_pred.dims
-        ]
-        return ds_pred.transpose(*dim_order)
+        stacked_data = stack_non_vertical(safe.get_variables(X, self.input_variables))
 
-    def predict_array(self, X: np.ndarray) -> np.ndarray:
-        return self.model.predict(X)
+        stacked_output = self._predict_on_stacked_data(stacked_data)
+        unstacked_output = stacked_output.assign_coords(
+            {SAMPLE_DIM_NAME: stacked_data[SAMPLE_DIM_NAME]}
+        ).unstack(SAMPLE_DIM_NAME)
+
+        return match_prediction_to_input_coords(X, unstacked_output)
 
     def dump(self, path: str) -> None:
         dir_ = os.path.join(path, MODEL_DIRECTORY)
@@ -405,7 +370,9 @@ class DenseModel(Predictor):
             with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
                 options = yaml.safe_load(f)
             hyperparameters = dacite.from_dict(
-                data_class=DenseHyperparameters, data=options
+                data_class=DenseHyperparameters,
+                data=options,
+                config=dacite.Config(strict=True),
             )
 
             obj = cls(
@@ -448,7 +415,7 @@ class DenseModel(Predictor):
             else:
                 raise ValueError("X_scaler needs to be fit first.")
         else:
-            mean_expanded = base_state.expand_dims(self.sample_dim_name)
+            mean_expanded = base_state.expand_dims(SAMPLE_DIM_NAME)
 
         mean_tf = tf.convert_to_tensor(self.X_packer.to_array(mean_expanded))
         with tf.GradientTape() as g:

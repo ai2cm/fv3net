@@ -11,7 +11,7 @@ jobs:
         type: enum
         enum: ["test_unit", "test_regression", "typecheck", "test_dataflow", "test_prognostic_run_report"]
     docker:
-      - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest
+      - image: us.gcr.io/vcm-ml/circleci-miniconda3-gfortran:latest
         auth:
           username: _json_key
           password: $DECODED_GOOGLE_CREDENTIALS
@@ -22,22 +22,12 @@ jobs:
       - add_ssh_keys:
           fingerprints:
             - "28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d" # github user key
-      - run: apt-get update && apt-get install -y uuid gnupg
       - run:
-          name: "Setup google-cloud-sdk"
+          name: "Setup google cloud credentials"
           command: |
-            # Install Google Cloud sdk
-            echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list &&\
-            curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
-
-            apt-get update && apt-get install -y google-cloud-sdk gfortran
-            gcloud config set project vcm-ml
-
             # Setup credentials
             echo $ENCODED_GOOGLE_CREDENTIALS | \
             base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
-
-
       - run: make update_submodules
       - run:
           name: "Concatenate package dependency files"
@@ -99,7 +89,11 @@ jobs:
       image:
         default: fv3net
         type: enum
-        enum: ["prognostic_run", "post_process_run", "fv3net"]
+        enum:
+          - prognostic_run
+          - post_process_run
+          - fv3net
+          - artifacts
     machine: 
       image: ubuntu-1604:202007-01
     environment:
@@ -147,8 +141,7 @@ jobs:
           name: Install dependencies
           command: |
             apt-get install -y wget jq make gettext gzip
-            wget -qO /bin/yq https://github.com/mikefarah/yq/releases/download/3.2.1/yq_linux_386
-            chmod +x /bin/yq
+            pip3 install yq==2.11.0
 
             # install kustomize
             wget "https://raw.githubusercontent.com/\
@@ -223,7 +216,11 @@ workflows:
       - build_default:
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run"]
+              image: 
+                - prognostic_run
+                - post_process_run
+                - fv3net
+                - artifacts
       - integration_tests:
           requires:
             - build_default
@@ -244,7 +241,11 @@ workflows:
       - build_default:
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run"]
+              image:
+                - prognostic_run
+                - post_process_run
+                - fv3net
+                - artifacts
           filters:
             tags:
               only: /^v.*/

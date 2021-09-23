@@ -9,10 +9,9 @@ from ._constants import (
     VAR_LAT_OUTER,
 )
 from ._plot_helpers import (
-    _infer_color_limits,
+    infer_cmap_params,
     _get_var_label,
     _remove_redundant_dims,
-    _min_max_from_percentiles,
 )
 from ._masking import _mask_antimeridian_quads
 import xarray as xr
@@ -20,13 +19,22 @@ import numpy as np
 from matplotlib import pyplot as plt
 import warnings
 from functools import partial
+import os
 
 try:
     from cartopy import crs as ccrs
+    import cartopy
 except ImportError:
     pass
 
-# global
+if os.getenv("CARTOPY_EXTERNAL_DOWNLOADER") != "natural_earth":
+    # workaround to host our own global-scale coastline shapefile instead
+    # of unreliable cartopy source
+    cartopy.config["downloaders"][("shapefiles", "natural_earth")].url_template = (
+        "https://raw.githubusercontent.com/VulcanClimateModeling/"
+        "vcm-ml-example-data/main/fv3net/fv3viz/coastline_shapefiles/"
+        "{resolution}_{category}/ne_{resolution}_{name}.zip"
+    )
 
 _COORD_VARS = {
     VAR_LON_OUTER: [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
@@ -124,15 +132,12 @@ def plot_cube(
     """
     var_name = list(plottable_variable.data_vars)[0]
     array = plottable_variable[var_name].values
-    if cmap_percentiles_lim:
-        xmin, xmax = _min_max_from_percentiles(array)
-    else:
-        xmin, xmax = np.nanmin(array), np.nanmax(array)
-    vmin = kwargs["vmin"] if "vmin" in kwargs else None
-    vmax = kwargs["vmax"] if "vmax" in kwargs else None
-    cmap = kwargs["cmap"] if "cmap" in kwargs else None
-    kwargs["vmin"], kwargs["vmax"], kwargs["cmap"] = _infer_color_limits(
-        xmin, xmax, vmin, vmax, cmap
+    kwargs["vmin"], kwargs["vmax"], kwargs["cmap"] = infer_cmap_params(
+        array,
+        vmin=kwargs.get("vmin"),
+        vmax=kwargs.get("vmax"),
+        cmap=kwargs.get("cmap"),
+        robust=cmap_percentiles_lim,
     )
 
     _plot_func_short = partial(

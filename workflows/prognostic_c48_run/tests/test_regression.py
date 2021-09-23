@@ -32,6 +32,9 @@ class ConfigEnum:
 
 
 default_fv3config = rf"""
+online_emulator:
+  emulator:
+    levels: 63
 data_table: default
 diag_table: default
 experiment_name: default_experiment
@@ -455,8 +458,8 @@ def get_ml_config(model_path):
                 "cnvprcp_after_python",
                 "column_integrated_dQ1_change_non_neg_sphum_constraint",
                 "column_integrated_dQ2_change_non_neg_sphum_constraint",
-                "column_integrated_dQu",
-                "column_integrated_dQv",
+                "column_integrated_dQu_stress",
+                "column_integrated_dQv_stress",
                 "dQ1",
                 "dQ2",
                 "dQu",

@@ -4,7 +4,7 @@ import joblib
 import collections
 from copy import deepcopy
 from functools import partial
-from numpy.random import RandomState
+import numpy as np
 from typing import (
     Callable,
     Sequence,
@@ -12,7 +12,6 @@ from typing import (
     TypeVar,
     Hashable,
     Any,
-    Optional,
     Union,
 )
 
@@ -27,11 +26,7 @@ class BaseSequence(Sequence[T]):
             path: local directory, will be created if not existing
             n_jobs: parallelism
         """
-        os.makedirs(path, exist_ok=True)
-        joblib.Parallel(n_jobs=n_jobs)(
-            joblib.delayed(self._save_item)(path, i) for i in range(len(self))
-        )
-        return Local(os.path.abspath(path))
+        return to_local(self, path=path, n_jobs=n_jobs)
 
     def _save_item(self, path: str, i: int):
         item = self[i]
@@ -83,6 +78,31 @@ class Local(BaseSequence[T]):
         return joblib.load(self.files[i])
 
 
+def to_local(sequence: Sequence[T], path: str, n_jobs: int = 4) -> Local[T]:
+    """
+    Download a sequence of pickleable objects to a local path.
+
+    Args:
+        sequence: pickleable objects to dump locally
+        path: local directory, will be created if not existing
+        n_jobs: how many threads to use when dumping objects to file
+    
+    Returns:
+        local_sequence
+    """
+    os.makedirs(path, exist_ok=True)
+
+    def save_item(path: str, i: int):
+        item = sequence[i]
+        path = os.path.join(path, "%05d.pkl" % i)
+        Local.dump(item, path)
+
+    joblib.Parallel(n_jobs=n_jobs)(
+        joblib.delayed(save_item)(path, i) for i in range(len(sequence))
+    )
+    return Local(os.path.abspath(path))
+
+
 class Map(BaseSequence[T]):
     """A wrapper over a sequence of function arguments passed into a function.
 
@@ -124,18 +144,16 @@ class Map(BaseSequence[T]):
         return len(self._args)
 
 
-def shuffle(sequence: Sequence[T], seed: Optional[int] = None) -> Map[T]:
-    """Lazily shuffle a sequence
+def shuffle(sequence: Sequence[T]) -> Map[T]:
+    """Lazily shuffle a sequence. Uses numpy.random for randomness.
 
     Args:
         sequence:  Input sequence to have access indices shuffled
-        seed: Seed for random number generator used for shuffling
     Returns:
         A new shuffled sequence
     """
-    random = RandomState(seed)
     seq_len = len(sequence)
-    shuffled = random.choice(seq_len, size=seq_len, replace=False).tolist()
+    shuffled = np.random.choice(seq_len, size=seq_len, replace=False).tolist()
     func = partial(_simple_getitem, sequence)
     return Map(func, shuffled)
 

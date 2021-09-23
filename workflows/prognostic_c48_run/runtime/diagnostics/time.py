@@ -10,6 +10,7 @@ from typing import (
 
 import cftime
 import datetime
+import vcm
 
 
 class All(Container):
@@ -47,7 +48,10 @@ class SelectedTimes(Container[cftime.DatetimeJulian]):
 
     @property
     def times(self) -> Sequence[cftime.DatetimeJulian]:
-        return [cftime.DatetimeJulian(*time.timetuple()) for time in self._times]
+        return [
+            vcm.round_time(cftime.DatetimeJulian(*time.timetuple()))
+            for time in self._times
+        ]
 
     def __contains__(self, time: cftime.DatetimeJulian) -> bool:
         return time in self.times

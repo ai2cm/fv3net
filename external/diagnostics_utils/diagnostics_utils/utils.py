@@ -8,7 +8,7 @@ from vcm import thermo, safe, mass_integrate
 import xarray as xr
 import numpy as np
 import logging
-from typing import Sequence, Mapping, Union, Tuple
+from typing import Sequence, Mapping, Union
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,6 @@ def reduce_to_diagnostic(
     primary_vars: Sequence[str] = PRIMARY_VARS,
     net_precipitation: xr.DataArray = None,
     time_dim: str = "time",
-    derivation_dim: str = "derivation",
     uninformative_coords: Sequence[str] = ["tile", "z", "y", "x"],
 ) -> xr.Dataset:
     """Reduce a sequence of batches to a diagnostic dataset
@@ -57,8 +56,6 @@ def reduce_to_diagnostic(
             composites, typically supplied by SHiELD net_precipitation; optional
         time_dim: name of the dataset time dimension to average over; optional,
             defaults to 'time'
-        derivation_dim: name of the dataset derivation dimension containing coords
-            such as 'target', 'predict', etc.; optional, defaults to 'derivation'
         uninformative_coords: sequence of names of uninformative (i.e.,
             range(len(dim))), coordinates to be dropped
             
@@ -71,6 +68,8 @@ def reduce_to_diagnostic(
 
     grid = grid.drop_vars(names=uninformative_coords, errors="ignore")
     surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type"]])
+    if net_precipitation is None:
+        domains = [domain for domain in domains if "net_precipitation" not in domain]
     if any(["net_precipitation" in category for category in domains]):
         net_precipitation_type_array = snap_net_precipitation_to_type(net_precipitation)
         net_precipitation_type_array = net_precipitation_type_array.drop_vars(
@@ -121,31 +120,6 @@ def insert_column_integrated_vars(
         ds = ds.assign({column_integrated_name: da})
 
     return ds
-
-
-def insert_total_apparent_sources(ds: xr.Dataset) -> xr.Dataset:
-    """Inserts apparent source (Q) terms as the sum of dQ and pQ, assumed to be present in
-    dataset ds
-    """
-    return ds.assign(
-        {
-            total_apparent_sources_name: da
-            for total_apparent_sources_name, da in zip(
-                ("Q1", "Q2"),
-                _total_apparent_sources(ds["dQ1"], ds["dQ2"], ds["pQ1"], ds["pQ2"]),
-            )
-        }
-    )
-
-
-def _total_apparent_sources(
-    dQ1: xr.DataArray, dQ2: xr.DataArray, pQ1: xr.DataArray, pQ2: xr.DataArray
-) -> Tuple[xr.DataArray, xr.DataArray]:
-
-    Q1 = pQ1 + dQ1
-    Q2 = pQ2 + dQ2
-
-    return Q1, Q2
 
 
 def insert_net_terms_as_Qs(

@@ -30,6 +30,19 @@ The second type can be initialized using the :py:class:`loaders.BatchesFromMappe
 
 The functions themselves take a ``data_path`` argument, followed by the keyword arguments in their API documentation below.
 
+Configuration files for batches data can be validated using a command-line tool ``validate_batches_config`` provided by this package. If the configuration is valid, it will exit without error. Note this only checks for type validation of the configuration entries, and does not test that the data referenced actually exists and is without errors.
+
+.. code-block:: bash
+
+   $ validate_batches_config --help
+   usage: validate_batches_config [-h] config
+
+   positional arguments:
+   config      path of BatchesLoader configuration yaml file
+
+   optional arguments:
+   -h, --help  show this help message and exit
+
 .. automodule:: loaders
    :imported-members:
    :members:

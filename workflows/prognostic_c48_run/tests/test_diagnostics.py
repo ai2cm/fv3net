@@ -90,7 +90,7 @@ def test_DiagnosticFile_time_selection():
     sink = Mock()
 
     # observe a few times
-    diag_file = DiagnosticFile(times=TimeContainer([t1]), variables=All(), sink=sink)
+    diag_file = DiagnosticFile(times=TimeContainer([t1]), variables=[], sink=sink)
     diag_file.observe(t1, {})
     diag_file.observe(t2, {})
 
@@ -120,6 +120,30 @@ def test_DiagnosticFile_variable_selection():
 
 
 @pytest.mark.parametrize(
+    "times",
+    [
+        pytest.param(lambda time: TimeContainer(All()), id="all"),
+        pytest.param(
+            lambda time: TimeContainer(IntervalTimes(900, time)), id="interval"
+        ),
+    ],
+)
+def test_DiagnosticFile_fails_with_non_existing_variable(times):
+    data_vars = {"a": (["x"], [1.0])}
+    dataset = xr.Dataset(data_vars)
+    diagnostics = {key: dataset[key] for key in dataset}
+
+    init_time = cftime.DatetimeJulian(2016, 8, 1)
+    time_container = times(init_time)
+    diag_file = DiagnosticFile(
+        ["not in diagnostics"], times=time_container, sink=Mock()
+    )
+
+    with pytest.raises(KeyError):
+        diag_file.observe(init_time, diagnostics)
+
+
+@pytest.mark.parametrize(
     "attrs, expected_units", [({}, "unknown"), ({"units": "zannyunits"}, "zannyunits")]
 )
 def test_DiagnosticFile_variable_units(attrs, expected_units):
@@ -134,7 +158,7 @@ def test_DiagnosticFile_variable_units(attrs, expected_units):
     sink = UnitCheckingMonitor()
 
     # observe a few times
-    diag_file = DiagnosticFile(times=TimeContainer(All()), variables=All(), sink=sink)
+    diag_file = DiagnosticFile(times=TimeContainer(All()), variables=["a"], sink=sink)
     diag_file.observe(datetime(2020, 1, 1), diagnostics)
     # force flush to disk
     diag_file.flush()

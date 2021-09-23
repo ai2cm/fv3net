@@ -1,48 +1,47 @@
 import argparse
 import logging
 import os
-from typing import Optional
+from typing import Sequence
 import yaml
 import dataclasses
 import fsspec
 
-from fv3fit._shared import parse_data_path, io, DerivedModel
-import fv3fit._shared.config
 import fv3fit.keras
 import fv3fit.sklearn
 import fv3fit
+import xarray as xr
 import loaders
 
 
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "data_path", nargs="*", type=str, help="Location of training data"
+        "training_config", type=str, help="path of fv3fit.TrainingConfig yaml file",
     )
     parser.add_argument(
-        "config_file", type=str, help="Local path for training configuration yaml file",
+        "training_data_config",
+        type=str,
+        help="path of loaders.BatchesLoader training data yaml file",
     )
     parser.add_argument(
-        "output_data_path", type=str, help="Location to save config and trained model."
+        "output_path", type=str, help="path to save config and trained model"
     )
     parser.add_argument(
-        "--timesteps-file",
+        "--validation-data-config",
         type=str,
         default=None,
-        help="json file containing a list of timesteps in YYYYMMDD.HHMMSS format",
-    )
-    parser.add_argument(
-        "--validation-timesteps-file",
-        type=str,
-        default=None,
-        help="Json file containing a list of validation timesteps in "
-        "YYYYMMDD.HHMMSS format. Only relevant for keras training",
+        help=(
+            "path of loaders.BatchesLoader validation data yaml file, "
+            "by default an empty sequence is used"
+        ),
     )
     parser.add_argument(
         "--local-download-path",
         type=str,
-        help="Optional path for downloading data before training. If not provided, "
-        "will read from remote every epoch. Local download greatly speeds training.",
+        help=(
+            "optional path for downloading data before training, "
+            "can greatly increase training speed"
+        ),
     )
     return parser
 
@@ -53,64 +52,51 @@ def dump_dataclass(obj, yaml_filename):
 
 
 def main(args):
-    data_path = parse_data_path(args.data_path)
-    (
-        train_config,
-        train_data_config,
-        val_data_config,
-    ) = fv3fit._shared.config.load_configs(
-        args.config_file,
-        data_path=data_path,
-        output_data_path=args.output_data_path,
-        timesteps_file=args.timesteps_file,
-        validation_timesteps_file=args.validation_timesteps_file,
-    )
-    fv3fit.set_random_seed(train_config.random_seed)
+    with open(args.training_config, "r") as f:
+        training_config = fv3fit.TrainingConfig.from_dict(yaml.load(f))
+    with open(args.training_data_config, "r") as f:
+        training_data_config = loaders.BatchesLoader.from_dict(yaml.load(f))
 
-    # TODO: uncomment this line when we aren't using fit_kwargs
-    # to contain validation data
-    # dump_dataclass(train_config, os.path.join(args.output_data_path, "train.yaml"))
+    fv3fit.set_random_seed(training_config.random_seed)
+
+    dump_dataclass(training_config, os.path.join(args.output_path, "train.yaml"))
     dump_dataclass(
-        train_data_config, os.path.join(args.output_data_path, "training_data.yaml")
+        training_data_config, os.path.join(args.output_path, "training_data.yaml")
     )
 
-    train_batches: loaders.typing.Batches = train_data_config.load_batches(
-        variables=train_config.input_variables
-        + train_config.output_variables
-        + train_config.additional_variables
+    train_batches: loaders.typing.Batches = training_data_config.load_batches(
+        variables=training_config.variables
     )
-    if val_data_config is not None:
+    if args.validation_data_config is not None:
+        with open(args.validation_data_config, "r") as f:
+            validation_data_config = loaders.BatchesLoader.from_dict(yaml.load(f))
         dump_dataclass(
-            val_data_config, os.path.join(args.output_data_path, "validation_data.yaml")
+            validation_data_config,
+            os.path.join(args.output_path, "validation_data.yaml"),
         )
-        val_batches: Optional[loaders.typing.Batches] = val_data_config.load_sequence()
+        val_batches = validation_data_config.load_batches(
+            variables=training_config.variables
+        )
     else:
-        val_batches = None
+        val_batches: Sequence[xr.Dataset] = []
 
     if args.local_download_path:
-        train_batches = train_batches.local(
-            os.path.join(args.local_download_path, "train")
+        train_batches = loaders.to_local(
+            train_batches, os.path.join(args.local_download_path, "train")
         )
-        # TODO: currently, validation data is actually ignored except for Keras
-        # where it is handled in an odd way during configuration setup. Refactor
-        # model fitting to take in validation data directly, so this val_batches
-        # (or val_dataset if you need to refactor it to one) is actually used
-        if val_batches is not None:
-            val_batches = val_batches.local(
-                os.path.join(args.local_download_path, "validation")
-            )
+        val_batches = loaders.to_local(
+            val_batches, os.path.join(args.local_download_path, "validation")
+        )
 
-    train = fv3fit.get_training_function(train_config.model_type)
+    train = fv3fit.get_training_function(training_config.model_type)
     model = train(
-        input_variables=train_config.input_variables,
-        output_variables=train_config.output_variables,
-        hyperparameters=train_config.hyperparameters,
+        hyperparameters=training_config.hyperparameters,
         train_batches=train_batches,
         validation_batches=val_batches,
     )
-    if len(train_config.derived_output_variables) > 0:
-        model = DerivedModel(model, train_config.derived_output_variables,)
-    io.dump(model, args.output_data_path)
+    if len(training_config.derived_output_variables) > 0:
+        model = fv3fit.DerivedModel(model, training_config.derived_output_variables)
+    fv3fit.dump(model, args.output_path)
 
 
 if __name__ == "__main__":

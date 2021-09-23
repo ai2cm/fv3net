@@ -3,7 +3,6 @@ __version__ = "0.1.0"
 from .config import VARNAMES
 from .utils import (
     reduce_to_diagnostic,
-    insert_total_apparent_sources,
     conditional_average,
     weighted_average,
     snap_mask_to_type,
@@ -12,7 +11,6 @@ from .utils import (
     insert_net_terms_as_Qs,
 )
 from ._diurnal_cycle import bin_diurnal_cycle, create_diurnal_cycle_dataset
-from . import plot
 
 __all__ = [
     "VARNAMES",
