@@ -4,11 +4,13 @@ from typing import Hashable, Mapping, MutableMapping, Set
 
 import xarray as xr
 
+import vcm
 import fv3fit
 import fv3gfs.util
 from runtime.monitor import Monitor
 from runtime.types import Diagnostics, Step, State
 from runtime.steppers.machine_learning import predict
+from runtime.names import DELP, TEMP, SPHUM
 
 QuantityState = MutableMapping[Hashable, fv3gfs.util.Quantity]
 
@@ -62,14 +64,18 @@ class MLPrescriberAdapter:
         change_due_to_ml = self.monitor.compute_change(
             "machine_learning", before, self.state
         )
-        states_as_diags = {
-            k: self.state[k]
-            for k in [
-                "air_temperature",
-                "specific_humidity",
-                "pressure_thickness_of_atmospheric_layer",
-            ]
-        }
+        states_as_diags = {k: self.state[k] for k in [TEMP, SPHUM, DELP]}
+        diags["net_moistening_due_to_machine_learning"] = vcm.mass_integrate(
+            change_due_to_ml["tendency_of_specific_humidity_due_to_machine_learning"],
+            self.state[DELP],
+            dim="z",
+        ).assign_attrs(units="kg/m^2/s")
+        heating = vcm.column_integrated_heating_from_isochoric_transition(
+            change_due_to_ml["tendency_of_air_temperature_due_to_machine_learning"],
+            self.state[DELP],
+            "z",
+        ).assign_attrs(units="W/m^2")
+        diags["column_heating_due_to_machine_learning"] = heating
         return {**diags, **change_due_to_func, **change_due_to_ml, **states_as_diags}
 
     def __call__(self, name: str, func: Step) -> Step:
