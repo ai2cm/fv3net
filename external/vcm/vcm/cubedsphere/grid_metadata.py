@@ -3,10 +3,10 @@ import dataclasses
 
 @dataclasses.dataclass
 class GridMetadata:
-    x: str
-    y: str
-    x_interface: str
-    y_interface: str
+    x: str = "x"
+    y: str = "y"
+    x_interface: str = "x_interface"
+    y_interface: str = "y_interface"
     tile: str = "tile"
     lon: str = "lon"
     lonb: str = "lonb"
