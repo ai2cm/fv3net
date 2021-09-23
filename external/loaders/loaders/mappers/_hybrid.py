@@ -153,6 +153,7 @@ def open_fine_resolution_nudging_hybrid_dataset(
     nudge_url="gs://vcm-ml-experiments/2021-04-13-n2f-c3072/3-hrly-ave-rad-precip-setting-30-min-rad-timestep-shifted-start-tke-edmf",  # noqa: E501
     include_temperature_nudging: bool = False,
     use_full_fine_res_tendency: bool = False,
+    timestep: float = 900.0,
 ) -> xarray.Dataset:
 
     fine = open_zarr_maybe_consolidated(fine_url)
@@ -178,6 +179,12 @@ def open_fine_resolution_nudging_hybrid_dataset(
     if use_full_fine_res_tendency:
         merged["dQ1"] = merged["Q1"]
         merged["dQ2"] = merged["Q2"]
+        for variable in ["air_temperature", "specific_humidity"]:
+            override_tendency = f"tendency_of_{variable}_due_to_override"
+            if override_tendency in merged:
+                merged[variable] = (
+                    merged[variable] - merged[override_tendency] * timestep
+                ).assign_attrs(merged[variable].attrs)
     else:
         # dQ1,2,u,v
         # "hybrid" definitions for humidity and moisture
