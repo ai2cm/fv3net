@@ -1,11 +1,11 @@
 xarray.Dataset {
 dimensions:
 	tile = 6 ;
-	x = 8 ;
-	x_interface = 9 ;
-	y = 8 ;
-	y_interface = 9 ;
 	z = 19 ;
+	y = 8 ;
+	x = 8 ;
+	y_interface = 9 ;
+	x_interface = 9 ;
 
 variables:
 	float32 T(tile, z, y, x) ;
