@@ -9,7 +9,7 @@ import fv3fit
 import fv3gfs.util
 from runtime.monitor import Monitor
 from runtime.types import Diagnostics, Step, State
-from runtime.steppers.machine_learning import predict
+from runtime.steppers.machine_learning import predict, non_negative_sphum
 from runtime.names import DELP, TEMP, SPHUM
 
 QuantityState = MutableMapping[Hashable, fv3gfs.util.Quantity]
@@ -52,6 +52,10 @@ class MLPrescriberAdapter:
 
     def _prescribe_tendency(self, name: str, func: Step) -> Diagnostics:
         tendencies = predict(self._model, self.state)
+        dQ1, dQ2 = non_negative_sphum(
+            self.state[SPHUM], tendencies["dQ1"], tendencies["dQ2"]
+        )
+        tendencies.update({"dQ1": dQ1, "dQ2": dQ2})
         before = self.monitor.checkpoint()
         diags = func()
         change_due_to_func = self.monitor.compute_change(name, before, self.state)
