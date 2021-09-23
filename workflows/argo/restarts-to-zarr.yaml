@@ -1,0 +1,59 @@
+# vim: set sts=2 ts=2 tw=2 sw=2 :
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: restarts-to-zarr
+spec:
+  entrypoint: restarts-to-zarr
+  volumes:
+    - name: workdir
+      emptyVol: {}
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+    - name: restarts-to-zarr
+      inputs:
+        parameters:
+        - name: args
+        - {name: memory, value: 6Gi}
+      container:
+        image: us.gcr.io/vcm-ml/fv3net:1700b38dc369adc0190ba68b7bd0e27d01db30e7
+        command: ["bash", "-c", "-x"]
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-key-secret
+        args:
+          - |
+            gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
+
+            echo "Submitting dataflow job"
+            
+            cd workflows/dataflow
+
+            
+
+            ./dataflow.sh submit -m fv3net.pipelines.restarts_to_zarr \
+              {{inputs.parameters.args}} \
+              
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "med-sim-pool"
+        effect: "NoSchedule"      
+      podSpecPatch: |
+        containers:
+          - name: main
+            resources:
+              limits:
+                cpu: "1000m"
+                memory: "{{inputs.parameters.memory}}"
+              requests:
+                cpu: "1000m"
+                memory: "2Gi"

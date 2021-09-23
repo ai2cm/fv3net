@@ -9,6 +9,7 @@ resources:
 - cubed-to-latlon.yaml
 - resolve-output-url.yaml
 - coarsen-c384-diags.yaml
+- restarts-to-zarr.yaml
 configurations:
 - image-transformerconfig.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
