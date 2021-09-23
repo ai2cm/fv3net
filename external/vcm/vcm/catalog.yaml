@@ -66,35 +66,6 @@ sources:
       urlpath: "gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_8xdaily_C3072_to_C384.zarr"
       consolidated: True
 
-  2020_1yr_pire_physics:
-    description: 2D physics diagnostics variables from 1 yr PIRE run post-spinup, starting on 1/18/20, coarsened to C48 resolution 
-    driver: zarr
-    metadata:
-      grid: c48
-      simulation: 1yr_pire_postspinup
-      category: physics
-      variables:
-        - CPRATEsfc_coarse
-        - DLWRFsfc_coarse
-        - DSWRFsfc_coarse
-        - DSWRFtoa_coarse
-        - HPBLsfc_coarse
-        - LHTFLsfc_coarse
-        - PRATEsfc_coarse
-        - SHTFLsfc_coarse
-        - UGRD10m_coarse
-        - ULWRFsfc_coarse
-        - ULWRFtoa_coarse
-        - USWRFsfc_coarse
-        - USWRFtoa_coarse
-        - VGRD10m_coarse
-        - tsfc_coarse
-        - uflx_coarse
-        - vflx_coarse
-    args:
-      urlpath: "gs://vcm-ml-intermediate/2021-08-03-PIRE-c48-diags-post-spinup/pire_atmos_phys_3h_coarse.zarr"
-      consolidated: True
-
 
   40day_c48_gfsphysics_15min_may2020:
     description: 2D physics diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution and rechunked to 96 15-minute timesteps (1 day) per chunk
@@ -634,6 +605,82 @@ sources:
         project: 'vcm-ml'
         access: read_only
       urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-4K/C384-to-C48-diagnostics/pressure-interpolated.zarr"
+      consolidated: True
+
+
+
+  2020_1yr_pire_physics:
+    description: 2D physics diagnostics variables from 1 yr PIRE run post-spinup, starting on 1/18/20, coarsened to C48 resolution 
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 1yr_pire_postspinup
+      category: physics
+      variables:
+        - CPRATEsfc_coarse
+        - DLWRFsfc_coarse
+        - DSWRFsfc_coarse
+        - DSWRFtoa_coarse
+        - HPBLsfc_coarse
+        - LHTFLsfc_coarse
+        - PRATEsfc_coarse
+        - SHTFLsfc_coarse
+        - UGRD10m_coarse
+        - ULWRFsfc_coarse
+        - ULWRFtoa_coarse
+        - USWRFsfc_coarse
+        - USWRFtoa_coarse
+        - VGRD10m_coarse
+        - tsfc_coarse
+        - uflx_coarse
+        - vflx_coarse
+    args:
+      urlpath: "gs://vcm-ml-intermediate/2021-08-03-PIRE-c48-diags-post-spinup/pire_atmos_phys_3h_coarse.zarr"
+      consolidated: True
+
+  2020_1yr_pire_dyn_plev:
+    description: 2D dycore variables interpolated to pressure levels from 1 year PIRE simulation post-spinup, coarsened to C48 resolution.
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 1yr_pire_postspinup
+      category: dycore
+      variables:
+        - TB
+        - UGRDlowest
+        - VGRDlowest
+        - VORT200
+        - VORT500
+        - VORT850
+        - h500
+        - UGRD200
+        - v200
+        - w500
+        - q1000
+        - q850
+        - q500
+        - TMP850
+        - TMP500
+        - TMP200
+        - UGRD850
+    args:
+      urlpath: "gs://vcm-ml-intermediate/2021-09-22-PIRE-c48-dycore-post-spinup/pire_atmos_dyn_plev_coarse_3h.zarr"
+      consolidated: True
+
+  2020_1yr_pire_dyn:
+    description: 2D dycore variables from 1 year PIRE simulation post-spinup, coarsened to C48 resolution.
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 1yr_pire_postspinup
+      category: dycore
+      variables:
+        - PRESsfc
+        - PWAT
+        - VIL
+        - iw    
+    args:
+      urlpath: "gs://vcm-ml-intermediate/2021-09-22-PIRE-c48-dycore-post-spinup/pire_atmos_dyn_3h_coarse_inst.zarr"
       consolidated: True
 
   # Regression testing data. Do not use for analysis, values are randomized.
