@@ -17,19 +17,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
 import fv3viz
 from report import RawHTML
 
-COORD_NAMES = {
-    "coord_x_center": "x",
-    "coord_y_center": "y",
-    "coord_x_outer": "x_interface",
-    "coord_y_outer": "y_interface",
-}
-
-_COORD_VARS = {
-    "lonb": ["y_interface", "x_interface", "tile"],
-    "latb": ["y_interface", "x_interface", "tile"],
-    "lon": ["y", "x", "tile"],
-    "lat": ["y", "x", "tile"],
-}
+COORD_VARS = ["lon", "lat", "lonb", "latb"]
 
 
 def fig_to_b64(fig, format="png", dpi=None):
@@ -154,15 +142,14 @@ def plot_cubed_sphere_map(
         for run in run_diags.runs:
             logging.info(f"plotting {varname} in {run}")
             shortname = varname.split(varfilter)[0][:-1]
-            ds = run_diags.get_variables(run, list(_COORD_VARS) + [varname])
+            ds = run_diags.get_variables(run, COORD_VARS + [varname])
             plot_title = _render_map_title(
                 run_metrics, shortname, run, metrics_for_title
             )
             fig, ax = plt.subplots(
                 figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()}
             )
-            mv = fv3viz.mappable_var(ds, varname, coord_vars=_COORD_VARS, **COORD_NAMES)
-            fv3viz.plot_cube(mv, ax=ax, vmin=vmin, vmax=vmax, cmap=cmap)
+            fv3viz.plot_cube(ds, varname, ax=ax, vmin=vmin, vmax=vmax, cmap=cmap)
             ax.set_title(plot_title)
             plt.subplots_adjust(left=0.01, right=0.75, bottom=0.02)
             data[varname][run] = fig_to_b64(fig)

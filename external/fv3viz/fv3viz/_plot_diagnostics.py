@@ -14,7 +14,6 @@ import os
 from scipy.stats import binned_statistic
 import xarray as xr
 
-from ._plot_cube import plot_cube, mappable_var
 from ._constants import INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER
 
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
@@ -74,29 +73,8 @@ def plot_diurnal_cycle(
     return fig
 
 
-# functions below here are from the previous design and probably outdated
-# leaving for now as they might be adapted to work with new design
-
-
-def plot_diag_var_single_map(da, grid, var_name, plot_cube_kwargs=None):
-    """ Uses fv3viz.plot_cube to plot
-
-    Args:
-        da (xr.dataarray):
-            data array of variable to plot
-        grid (xr dataset):
-            dataset with grid coordinate variables on the same dims as da
-        var_name (str):
-            name of variable
-    Returns:
-        matplotlib Figure object
-    """
-    da = da.rename(var_name)
-    ds_mappable = mappable_var(xr.merge([da, grid]), var_name)
-    fig, axes, handles, cbar, facet_grid = plot_cube(
-        ds_mappable, **(plot_cube_kwargs or {})
-    )
-    return fig
+# function below here are from the previous design and probably outdated
+# leaving for now as it might be adapted to work with new design
 
 
 def plot_time_series(
