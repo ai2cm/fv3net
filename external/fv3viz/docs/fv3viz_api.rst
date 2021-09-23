@@ -5,13 +5,13 @@ fv3viz API
 Cubed-sphere plotting functions
 -------------------------------
 .. automodule:: fv3viz
-   :members: plot_cube, mappable_var, pcolormesh_cube, plot_cube_axes
+   :members: plot_cube, pcolormesh_cube
    
    
 Typical diagnostics plotting functions
 --------------------------------------
 .. automodule:: fv3viz
-   :members: plot_diurnal_cycle, plot_diag_var_single_map, plot_time_series
+   :members: plot_diurnal_cycle, plot_time_series
    
 
 Timestep histogram plotting functions
