@@ -100,7 +100,7 @@ def open_run(local_path, data="diags_3d.zarr"):
         ds = vcm.fv3.metadata.gfdl_to_standard(ds)
     grid = vcm.catalog.catalog["grid/c48"].to_dask()
     lsm = vcm.catalog.catalog["landseamask/c48"].to_dask()
-    return ds.merge(grid).merge(lsm)
+    return grid.merge(ds, compat="override").merge(lsm)
 
 
 def compute_masks(ds):
