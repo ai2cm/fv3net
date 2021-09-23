@@ -517,7 +517,7 @@ def _get_output_timestep_ds(
             data_vars[name] = value
         else:
             # assume numpy array
-            data_vars[name] = ([sample_dim_name, "z"], value)
+            data_vars[name] = ([sample_dim_name, "z"], value)  # type: ignore
     for name in (
         "air_temperature_tendency_due_to_model",
         "specific_humidity_tendency_due_to_model",
