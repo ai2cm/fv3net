@@ -8,4 +8,4 @@ from .normalization import (
     get_norm_class,
     get_denorm_class,
 )
-from .util import IncrementStateLayer, PassThruLayer
+from .util import IncrementStateLayer

@@ -1,4 +1,3 @@
-from numpy.lib.arraysetops import isin
 import pytest
 import numpy as np
 import tensorflow as tf
@@ -9,16 +8,15 @@ from fv3fit.emulation.microphysics.layers import (
     FieldOutput,
     MLPBlock,
     RNNBlock,
-    ResidualOutput
+    ResidualOutput,
 )
-from tensorflow.python.ops.gen_math_ops import exp
 
 
 def _get_tensor(nsamples, nfeatures):
     return tf.convert_to_tensor(
-        np.arange(nsamples*nfeatures).reshape(nfeatures, nsamples).T,
-        dtype=tf.float32
+        np.arange(nsamples * nfeatures).reshape(nfeatures, nsamples).T, dtype=tf.float32
     )
+
 
 def test_FieldInput_no_args():
 
@@ -32,8 +30,7 @@ def test_FieldInput_no_args():
 def test_FieldInput():
 
     tensor = _get_tensor(10, 3)
-    field_in = FieldInput(
-        sample_in=tensor, normalize="mean_std", selection=slice(0, 2))
+    field_in = FieldInput(sample_in=tensor, normalize="mean_std", selection=slice(0, 2))
 
     result = field_in(tensor)
     assert result.shape == (10, 2)
@@ -42,7 +39,7 @@ def test_FieldInput():
 
 
 def test_FieldOutput():
-    
+
     net_tensor = _get_tensor(20, 64)
     sample = _get_tensor(20, 3)
 
@@ -54,7 +51,7 @@ def test_FieldOutput():
 
 
 def test_FieldOutput_no_norm():
-    
+
     net_tensor = _get_tensor(20, 64)
     sample = _get_tensor(20, 3)
 
@@ -65,7 +62,7 @@ def test_FieldOutput_no_norm():
 
 
 def test_ResidualOutput():
-    
+
     net_tensor = _get_tensor(20, 64)
     sample = _get_tensor(20, 3)
 
@@ -104,12 +101,9 @@ def test_CombineInputs_expand():
 @pytest.mark.parametrize("combine", [True, False])
 def test_combine_integration(layer_cls, combine):
 
-    tensor = _get_tensor(20, 3)
     if combine:
-        inputs = (tensor, tensor)
         expected = CombineInputs
     else:
-        inputs = tensor
         expected = tf.keras.layers.Lambda
 
     layer = layer_cls(combine_inputs=combine)
@@ -136,9 +130,7 @@ def test_MLPBlock_no_dense_layers():
     assert result.shape == (20, 10)
 
 
-@pytest.mark.parametrize("depth,expected_shp",
-    [(1, (20, 64)), (0, (20, 128))]
-)
+@pytest.mark.parametrize("depth,expected_shp", [(1, (20, 64)), (0, (20, 128))])
 def test_RNNBlock(depth, expected_shp):
 
     rnn = RNNBlock(channels=128, dense_width=64, dense_depth=depth, combine_inputs=True)

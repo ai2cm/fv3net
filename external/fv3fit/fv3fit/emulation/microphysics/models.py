@@ -55,7 +55,7 @@ class Config:
     timestep_increment_sec: int = 900
 
     @classmethod
-    def from_dict(cls, dict_) -> "MicrophysicsModelConfig":
+    def from_dict(cls, dict_) -> "Config":
         return dacite.from_dict(cls, dict_, dacite.Config(strict=True))
 
     def _get_processed_inputs(self, sample_in, inputs):
@@ -89,7 +89,9 @@ class Config:
 
                 if name in self.tendency_outputs:
                     tend_name = self.tendency_outputs[name]
-                    tendency = self._tend_out_from_residual(tend_name, res_out, net_output)
+                    tendency = self._tend_out_from_residual(
+                        tend_name, res_out, net_output
+                    )
                     tendencies.append(tendency)
             else:
                 out_ = FieldOutput(sample, name=name)
