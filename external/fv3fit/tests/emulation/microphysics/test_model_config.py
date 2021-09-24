@@ -6,6 +6,16 @@ from fv3fit.emulation.microphysics import Config
 from fv3fit.emulation.microphysics.models import get_architecture_cls
 
 
+def _get_data(shape):
+
+    num = int(np.prod(shape))
+    return np.arange(num).reshape(shape).astype(np.float32)
+
+
+def _get_tensor(shape):
+    return tf.convert_to_tensor(_get_data(shape))
+
+
 def test_get_architecture_unrecognized():
 
     with pytest.raises(KeyError):
@@ -35,19 +45,36 @@ def test_Config__processed_inputs():
         selection_map={"dummy_in1": slice(0, 3)},
     )
 
-    data = np.ones((20, 5))
-    tensor = tf.convert_to_tensor(data)
+    data = _get_data((20, 5))
+    tensor = _get_tensor((20, 5))
     processed = config._get_processed_inputs((data, data), (tensor, tensor))
 
     assert len(processed) == 2
     assert processed[0].shape == (20, 3)
-    assert processed[1].shape == (20, 5)
+    assert processed[1].shape == data.shape
+
+
+def test_Config__processed_inputs_normalized():
+
+    config = Config(
+        input_variables=["dummy_in1"],
+        output_variables=[],
+        normalize_key="mean_std"
+    )
+
+    data = _get_data((20, 5))
+    tensor = _get_tensor((20, 5))
+    processed = config._get_processed_inputs((data,), (tensor,))
+
+    # should be normalized
+    assert not np.any(processed[0] > 2)
 
 
 def test_Config__get_outputs():
 
-    net_out = tf.convert_to_tensor(np.ones((20, 64)))
-    data = np.ones((20, 5))
+    net_out = _get_tensor((20, 64))
+    data = _get_data((20, 5))
+    short_data = data[..., :3]
 
     config = Config(
         input_variables=["dummy_in"],
@@ -55,19 +82,39 @@ def test_Config__get_outputs():
         timestep_increment_sec=5,
     )
 
-    residual_map = {"dummy_out2": data[..., :3]}
+    residual_map = {"dummy_out2": short_data}
 
-    outputs = config._get_outputs((data, data[..., :3]), net_out, residual_map)
+    outputs = config._get_outputs((data, short_data), net_out, residual_map)
 
     assert len(outputs) == 2
     assert outputs[0].shape == (20, 5)
     assert outputs[1].shape == (20, 3)
 
 
+def test_Config__get_outputs_denorm():
+
+    net_out = _get_tensor((20, 64))
+    data = _get_data((20, 5))
+
+    config = Config(
+        input_variables=[],
+        output_variables=["dummy_out1", "dummy_out2"],
+        normalize_key="mean_std"
+    )
+
+    residual_map = {"dummy_out2": data}
+
+    outputs = config._get_outputs((data, data), net_out, residual_map)
+
+    for output in outputs:
+        assert np.any(output > 2)
+
+
 def test_Config__get_outputs_with_tendencies():
 
-    net_out = tf.convert_to_tensor(np.ones((20, 64)))
-    data = np.ones((20, 5))
+    net_out = _get_tensor((20, 64))
+    data = _get_data((20, 5))
+    short_data = data[..., :3]
 
     config = Config(
         input_variables=["dummy_in"],
@@ -76,9 +123,9 @@ def test_Config__get_outputs_with_tendencies():
         tendency_outputs={"dummy_out2": "tendency_of_dummy_due_to_X"},
     )
 
-    residual_map = {"dummy_out2": data[..., :3]}
+    residual_map = {"dummy_out2": short_data}
 
-    outputs = config._get_outputs((data, data[..., :3]), net_out, residual_map)
+    outputs = config._get_outputs((data, short_data), net_out, residual_map)
 
     assert len(outputs) == 3
     assert outputs[0].shape == (20, 5)
@@ -90,7 +137,7 @@ def test_Config_build():
 
     config = Config(input_variables=["dummy_in"], output_variables=["dummy_out"],)
 
-    data = np.random.randn(20, 5)
+    data = _get_data((20, 5))
     model = config.build([data], [data])
 
     assert len(model.inputs) == 1
@@ -109,7 +156,7 @@ def test_Config_build_residual_w_extra_tends_out():
         tendency_outputs={"dummy_out": "tendency_of_dummy_out"},
     )
 
-    data = np.random.randn(20, 5)
+    data = _get_data((20, 5))
     model = config.build([data], [data])
 
     assert len(model.inputs) == 1
