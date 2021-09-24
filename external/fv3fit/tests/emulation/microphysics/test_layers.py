@@ -44,7 +44,7 @@ def test_FieldOutput():
     net_tensor = _get_tensor(20, 64)
     sample = _get_tensor(20, 3)
 
-    field_out = FieldOutput(sample, normalize="mean_std")
+    field_out = FieldOutput(sample, denormalize="mean_std")
     result = field_out(net_tensor)
 
     assert result.shape == (20, 3)
@@ -56,7 +56,7 @@ def test_FieldOutput_no_norm():
     net_tensor = _get_tensor(20, 64)
     sample = _get_tensor(20, 3)
 
-    field_out = FieldOutput(sample, normalize=None)
+    field_out = FieldOutput(sample, denormalize=None)
     result = field_out(net_tensor)
 
     assert result.shape == (20, 3)
@@ -69,7 +69,7 @@ def test_ResidualOutput():
 
     dt_sec = 2
 
-    field_out = ResidualOutput(sample, dt_sec, normalize="mean_std")
+    field_out = ResidualOutput(sample, dt_sec, denormalize="mean_std")
     result = field_out([sample, net_tensor])
     tendency = field_out.get_tendency_output(net_tensor)
 
