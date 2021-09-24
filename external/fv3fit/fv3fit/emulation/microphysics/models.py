@@ -83,9 +83,30 @@ class Config:
         return inputs
 
     def _tend_out_from_residual(self, name, residual: ResidualOutput, net_output):
-
+        tend_name = self.tendency_outputs[name]
         tendency = residual.get_tendency_output(net_output)
-        return tf.keras.layers.Lambda(lambda x: x, name=name)(tendency)
+        return tf.keras.layers.Lambda(lambda x: x, name=tend_name)(tendency)
+
+    def _get_residual_output(self, name, sample, state_map, net_output):
+
+        # incremented state field output
+        res_out = ResidualOutput(
+            sample,
+            self.timestep_increment_sec,
+            denormalize=self.normalize_key,
+            name=name,
+        )
+        in_state = state_map[name]
+
+        # grab tendency output if desired
+        if name in self.tendency_outputs:
+            tendency = [self._tend_out_from_residual(
+                name, res_out, net_output
+            )]
+        else:
+            tendency = []
+
+        return res_out([in_state, net_output]), tendency
 
     def _get_outputs(self, sample_out, net_output, state_map_for_residuals):
 
@@ -93,21 +114,8 @@ class Config:
         tendencies = []
         for name, sample in zip(self.output_variables, sample_out):
             if name in state_map_for_residuals:
-                res_out = ResidualOutput(
-                    sample,
-                    self.timestep_increment_sec,
-                    denormalize=self.normalize_key,
-                    name=name,
-                )
-                in_state = state_map_for_residuals[name]
-                out_ = res_out([in_state, net_output])
-
-                if name in self.tendency_outputs:
-                    tend_name = self.tendency_outputs[name]
-                    tendency = self._tend_out_from_residual(
-                        tend_name, res_out, net_output
-                    )
-                    tendencies.append(tendency)
+                out_, tendency = self._get_residual_output(name, sample, state_map_for_residuals, net_output)
+                tendencies += tendency
             else:
                 out_ = FieldOutput(sample, denormalize=self.normalize_key, name=name)
                 out_ = out_(net_output)
