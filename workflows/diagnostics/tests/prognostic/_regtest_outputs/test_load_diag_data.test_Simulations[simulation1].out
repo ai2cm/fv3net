@@ -1,10 +1,10 @@
 xarray.Dataset {
 dimensions:
-	pressure = 35 ;
-	tile = 6 ;
 	time = 320 ;
-	x = 48 ;
+	tile = 6 ;
 	y = 48 ;
+	x = 48 ;
+	pressure = 35 ;
 
 variables:
 	float32 air_temperature(time, tile, y, x, pressure) ;
@@ -33,8 +33,8 @@ variables:
 dimensions:
 	tile = 6 ;
 	time = 3840 ;
-	x = 48 ;
 	y = 48 ;
+	x = 48 ;
 
 variables:
 	float32 CPRATEsfc(tile, time, y, x) ;
@@ -164,8 +164,8 @@ variables:
 dimensions:
 	tile = 6 ;
 	time = 320 ;
-	x = 48 ;
 	y = 48 ;
+	x = 48 ;
 
 variables:
 	float32 PRESctp(tile, time, y, x) ;

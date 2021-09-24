@@ -1,10 +1,10 @@
 xarray.Dataset {
 dimensions:
-	pressure = 35 ;
-	tile = 6 ;
 	time = 8 ;
 	x = 48 ;
 	y = 48 ;
+	pressure = 35 ;
+	tile = 6 ;
 
 variables:
 	object time(time) ;
@@ -43,16 +43,22 @@ variables:
 // global attributes:
 }xarray.Dataset {
 dimensions:
-	tile = 6 ;
-	time = 104 ;
+	y = 48 ;
 	x = 48 ;
 	x_interface = 49 ;
-	y = 48 ;
 	y_interface = 49 ;
+	time = 104 ;
+	tile = 6 ;
 
 variables:
-	float32 x(x) ;
 	float32 y(y) ;
+		y:cartesian_axis = Y ;
+		y:long_name = T-cell latitude ;
+		y:units = degrees_N ;
+	float32 x(x) ;
+		x:cartesian_axis = X ;
+		x:long_name = T-cell longitude ;
+		x:units = degrees_E ;
 	float64 x_interface(x_interface) ;
 		x_interface:cartesian_axis = X ;
 		x_interface:long_name = cell corner longitude ;
@@ -224,14 +230,19 @@ variables:
 		water_vapor_path:long_name = water_vapor_path ;
 
 // global attributes:
+	:filename = sfc_dt_atmos.tile1.nc ;
+	:grid_tile = N/A ;
+	:grid_type = regular ;
+	:path = /mnt/data/rundir/sfc_dt_atmos.zarr ;
+	:title = default_experiment ;
 }xarray.Dataset {
 dimensions:
-	tile = 6 ;
-	time = 104 ;
-	x = 48 ;
 	x_interface = 49 ;
-	y = 48 ;
+	x = 48 ;
 	y_interface = 49 ;
+	y = 48 ;
+	time = 104 ;
+	tile = 6 ;
 
 variables:
 	float64 x_interface(x_interface) ;
@@ -239,11 +250,17 @@ variables:
 		x_interface:long_name = cell corner longitude ;
 		x_interface:units = degrees_E ;
 	float32 x(x) ;
+		x:cartesian_axis = X ;
+		x:long_name = T-cell longitude ;
+		x:units = degrees_E ;
 	float64 y_interface(y_interface) ;
 		y_interface:cartesian_axis = Y ;
 		y_interface:long_name = cell corner latitude ;
 		y_interface:units = degrees_N ;
 	float32 y(y) ;
+		y:cartesian_axis = Y ;
+		y:long_name = T-cell latitude ;
+		y:units = degrees_N ;
 	object time(time) ;
 	float32 PRESsfc(tile, time, y, x) ;
 		PRESsfc:cell_methods = time: point ;

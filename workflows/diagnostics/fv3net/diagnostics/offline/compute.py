@@ -10,7 +10,7 @@ from tempfile import NamedTemporaryFile
 from vcm.derived_mapping import DerivedMapping
 import xarray as xr
 import yaml
-from typing import Mapping, Sequence, Tuple, List
+from typing import Mapping, Sequence, Tuple, List, Optional
 
 import diagnostics_utils as utils
 import loaders
@@ -146,12 +146,11 @@ def _compute_diurnal_cycle(ds: xr.Dataset) -> xr.Dataset:
 
 def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
     # ...reduce to diagnostic variables
+    net_precip: Optional[xr.DataArray] = None
     if "column_integrated_Q2" in ds:
         net_precip = -ds["column_integrated_Q2"].sel(  # type: ignore
             derivation="target"
         )
-    else:
-        net_precip = None
     summary = utils.reduce_to_diagnostic(
         ds, ds, net_precipitation=net_precip, primary_vars=variables,
     )
@@ -310,7 +309,7 @@ def main(args):
         grid = load_grid_info(args.grid_resolution)
     else:
         with fsspec.open(args.grid, "rb") as f:
-            grid = xr.open_dataset(f).load()
+            grid = xr.open_dataset(f, engine="h5netcdf").load()
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
