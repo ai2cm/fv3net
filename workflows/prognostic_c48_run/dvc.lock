@@ -1,44 +1,5 @@
 schema: '2.0'
 stages:
-  train:
-    cmd: docker-compose run fv3 python3 train.py params.yaml
-    deps:
-    - path: data/training
-      md5: a2c67379ed7a9a4fe5a75e28529980f2.dir
-      size: 9365227344
-      nfiles: 432
-    - path: data/validation
-      md5: 7d6a643bc6f4d3c2790b7318000580ba.dir
-      size: 3121742448
-      nfiles: 144
-    - path: params.yaml
-      md5: df02b8a5534e87fc6be113849c2451ed
-      size: 135
-    outs:
-    - path: scores.json
-      md5: 881117ba9cb9ef97a6dbb0abeb05ea9b
-      size: 337
-  single-level:
-    cmd: python3 train.py single-level.yaml
-    deps:
-    - path: data/training
-      md5: a2c67379ed7a9a4fe5a75e28529980f2.dir
-      size: 9365227344
-      nfiles: 432
-    - path: data/validation
-      md5: 7d6a643bc6f4d3c2790b7318000580ba.dir
-      size: 3121742448
-      nfiles: 144
-    - path: single-level.yaml
-      md5: d575cd40e9ebb044db72407de4666cb9
-      size: 178
-    - path: train.py
-      md5: a70d7df6f713fec8306666cb63fb58d7
-      size: 1231
-    outs:
-    - path: single-level/scores.json
-      md5: 17bd0ebbb5a8470cc02594b383a4e05d
-      size: 125
   subset:
     cmd: python3 ../emulation/subset_training_data.py
     deps:

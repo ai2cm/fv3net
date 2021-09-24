@@ -1,21 +1,4 @@
 stages:
-  train:
-    cmd: python3 train.py params.yaml
-    deps:
-    - data/training
-    - data/validation
-    - params.yaml
-    metrics:
-    - scores.json
-  single-level:
-    cmd: python3 train.py single-level.yaml
-    deps:
-    - data/training
-    - data/validation
-    - train.py
-    - single-level.yaml
-    metrics:
-    - single-level/scores.json
   subset:
     cmd: python3 ../emulation/subset_training_data.py
     deps:
