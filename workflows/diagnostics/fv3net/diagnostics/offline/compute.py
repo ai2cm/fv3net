@@ -318,10 +318,9 @@ def main(args):
     additional_derived_outputs = _derived_outputs_from_base_predictions(
         model.output_variables
     )
-    if len(additional_derived_outputs) > 0:
-        model = fv3fit.DerivedModel(
-            model, derived_output_variables=additional_derived_outputs
-        )
+    model = fv3fit.DerivedModel(
+        model, derived_output_variables=additional_derived_outputs
+    )
 
     model_variables = list(set(model.input_variables + model.output_variables + [DELP]))
 
@@ -339,20 +338,21 @@ def main(args):
         batches, grid, predicted_vars=model.output_variables, n_jobs=args.n_jobs
     )
 
-    # save model senstivity figures: jacobian (TODO: RF feature sensitivity)
+    # save model senstivity figures- these exclude derived variables
+    base_model = model.base_model
     try:
         plot_jacobian(
-            model,
+            base_model,
             os.path.join(args.output_path, "model_sensitivity_figures"),  # type: ignore
         )
     except AttributeError:
         try:
             input_feature_indices = get_variable_indices(
-                data=batches[0], variables=model.input_variables
+                data=batches[0], variables=base_model.input_variables
             )
             plot_rf_feature_importance(
                 input_feature_indices,
-                model,
+                base_model,
                 os.path.join(args.output_path, "model_sensitivity_figures"),
             )
         except AttributeError:
