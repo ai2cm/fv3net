@@ -85,10 +85,15 @@ class TransformConfig:
         transform_funcs = []
 
         # xarray transforms
-        transform_funcs.append(DerivedMapping)
 
         if self.antarctic_only:
             transform_funcs.append(transforms.select_antarctic)
+
+        transform_funcs.append(
+            transforms.derived_dataset(
+                list(self.input_variables) + list(self.output_variables)
+            )
+        )
 
         if self.use_tensors:
             transform_funcs.append(transforms.to_tensors)

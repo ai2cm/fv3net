@@ -6,6 +6,7 @@ Generally assumes data to be in Sample x Feature shape.
 import logging
 import numpy as np
 import tensorflow as tf
+from vcm.derived_mapping import DerivedMapping
 import xarray as xr
 from toolz.functoolz import curry
 from typing import Mapping, Sequence, Tuple, Union
@@ -28,6 +29,15 @@ def open_netcdf_dataset(path: str) -> xr.Dataset:
     data = open_remote_nc(fs, path)
 
     return data
+
+
+@curry
+def derived_dataset(all_variables: Sequence[str], dataset: AnyDataset, tendency_timestep_sec: int = 900):
+
+    derived = DerivedMapping(dataset, microphys_timestep_sec=tendency_timestep_sec)
+    dataset = {key: derived[key] for key in all_variables}
+
+    return dataset
 
 
 def to_ndarrays(dataset: AnyDataset) -> ArrayDataset:
