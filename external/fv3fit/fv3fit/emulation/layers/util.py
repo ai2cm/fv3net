@@ -25,12 +25,3 @@ class IncrementStateLayer(tf.keras.layers.Layer):
         """
         initial, tend = tensors
         return initial + tend * self.dt_sec
-
-
-class PassThruLayer(tf.keras.layers.Layer):
-    """
-    Layer that passes a tensor unchanged.  Useful for naming/renaming output layer.
-    """
-
-    def call(self, tensor):
-        return tensor
