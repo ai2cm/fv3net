@@ -53,7 +53,7 @@ class MLPrescriberAdapter:
     def _prescribe_tendency(self, name: str, func: Step) -> Diagnostics:
         tendencies = predict(self._model, self.state)
         dQ1, dQ2 = non_negative_sphum(
-            self.state[SPHUM], tendencies["dQ1"], tendencies["dQ2"]
+            self.state[SPHUM], tendencies["dQ1"], tendencies["dQ2"], self.timestep
         )
         tendencies.update({"dQ1": dQ1, "dQ2": dQ2})
         before = self.monitor.checkpoint()
