@@ -28,18 +28,19 @@ class Config:
             may have additional tendency output variables if specified.
         architecture: Underlying model architecture to use for the emulator.
             See `get_architecture_cls` for a list of supported layers.
-        arch_params: Any keyword arguments to pass to the initialization
+        arch_params: keyword arguments to pass to the initialization
             of the architecture layer
         normalize_key: Normalization style to use for inputs/outputs.  Pass None
             to disable normalization
-        selection_map: Subselection mapping for input/output variables to slices
-            along the feature dimension
-        residual_to_state: Mapping of output variable names to input variable
-            names to use for a ResidualOutput layer.  Analogous to learning
-            model tendencies instead of direct field prediction.
+        selection_map: Subselection mapping for feature dimension of input/output
+            variables to slices along the feature dimension
+        residual_to_state: Mapping of output variable names to use a 
+            ResidualOutput layer for.  The value for each key should link to
+            to input variable.  Analogous to learning model tendencies instead 
+            of direct field-to-field prediction.
         tendency_outputs: Additional outputs (tendencies) to get from the
             residual outputs.  The mapping key should match a variable in
-            residual_to_state and the value will be the output variable name
+            residual_to_state and the value is set as the output variable name
         timestep_increment_sec: Time increment multiplier for the state-tendency
             update
     """
@@ -83,7 +84,12 @@ class Config:
         tendencies = []
         for name, sample in zip(self.output_variables, sample_out):
             if name in state_map_for_residuals:
-                res_out = ResidualOutput(sample, self.timestep_increment_sec, name=name)
+                res_out = ResidualOutput(
+                    sample,
+                    self.timestep_increment_sec,
+                    denormalize=self.normalize_key,
+                    name=name
+                )
                 in_state = state_map_for_residuals[name]
                 out_ = res_out([in_state, net_output])
 
@@ -94,7 +100,11 @@ class Config:
                     )
                     tendencies.append(tendency)
             else:
-                out_ = FieldOutput(sample, name=name)
+                out_ = FieldOutput(
+                    sample,
+                    denormalize=self.normalize_key,
+                    name=name
+                )
                 out_ = out_(net_output)
 
             outputs.append(out_)
@@ -106,9 +116,9 @@ class Config:
         Build model described by the configuration
 
         Args:
-            sample_in: Sample input tensors used for determining layer shapes and
+            sample_in: Sample input tensors for determining layer shapes and
                 fitting normalization layers if specifies
-            sample_out: Sample out tensors used for determining layer shapes and
+            sample_out: Sample out tensors for determining layer shapes and
                 fitting denormalization layers if specifies
         """
 

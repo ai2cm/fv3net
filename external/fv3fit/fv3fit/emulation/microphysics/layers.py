@@ -27,15 +27,23 @@ class FieldInput(tf.keras.layers.Layer):
 
 
 class FieldOutput(tf.keras.layers.Layer):
-    def __init__(self, sample_out, *args, normalize=None, **kwargs):
+    """Connect linear dense output layer and denormalize"""
+    def __init__(self, sample_out, *args, denormalize=None, **kwargs):
+        """
+        Args:
+            sample_out: Output sample for variable to set shape
+                and fit denormalization layer.
+            denormalize (optional): denormalize layer key to use on
+                the dense layer output
+        """
         super().__init__(*args, **kwargs)
 
         self.unscaled = tf.keras.layers.Dense(
             sample_out.shape[-1], name=f"unscaled_{self.name}"
         )
 
-        if normalize is not None:
-            self.denorm = get_denorm_class(normalize)(name=f"denormalized_{self.name}")
+        if denormalize is not None:
+            self.denorm = get_denorm_class(denormalize)(name=f"denormalized_{self.name}")
             self.denorm.fit(sample_out)
         else:
             self.denorm = tf.keras.layers.Lambda(lambda x: x)
@@ -47,7 +55,18 @@ class FieldOutput(tf.keras.layers.Layer):
 
 
 class ResidualOutput(FieldOutput):
+    """
+    Add input tensor to an output tensor using timestep increment.
+    Gets net to learn tendency-based updates.
+    """
     def __init__(self, sample_out, dt_sec, *args, **kwargs):
+        """
+        Args:
+            sample_out: Output sample for variable to set shape
+                and fit denormalization layer.
+            dt_sec: Timestep length in seconds to use for incrementing
+                input state.
+        """
 
         super().__init__(sample_out, *args, **kwargs)
 
@@ -64,6 +83,7 @@ class ResidualOutput(FieldOutput):
 
 
 class CombineInputs(tf.keras.layers.Layer):
+    """Input tensor stacking with option to add a dimension for RNNs"""
     def __init__(self, combine_axis, *args, expand=False, **kwargs):
         super().__init__(*args, **kwargs)
 
