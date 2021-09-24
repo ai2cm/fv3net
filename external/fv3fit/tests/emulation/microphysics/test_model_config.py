@@ -57,9 +57,7 @@ def test_Config__processed_inputs():
 def test_Config__processed_inputs_normalized():
 
     config = Config(
-        input_variables=["dummy_in1"],
-        output_variables=[],
-        normalize_key="mean_std"
+        input_variables=["dummy_in1"], output_variables=[], normalize_key="mean_std"
     )
 
     data = _get_data((20, 5))
@@ -99,7 +97,7 @@ def test_Config__get_outputs_denorm():
     config = Config(
         input_variables=[],
         output_variables=["dummy_out1", "dummy_out2"],
-        normalize_key="mean_std"
+        normalize_key="mean_std",
     )
 
     residual_map = {"dummy_out2": data}

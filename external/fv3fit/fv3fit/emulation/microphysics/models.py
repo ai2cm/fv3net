@@ -34,9 +34,9 @@ class Config:
             to disable normalization
         selection_map: Subselection mapping for feature dimension of input/output
             variables to slices along the feature dimension
-        residual_to_state: Mapping of output variable names to use a 
+        residual_to_state: Mapping of output variable names to use a
             ResidualOutput layer for.  The value for each key should link to
-            to input variable.  Analogous to learning model tendencies instead 
+            to input variable.  Analogous to learning model tendencies instead
             of direct field-to-field prediction.
         tendency_outputs: Additional outputs (tendencies) to get from the
             residual outputs.  The mapping key should match a variable in
@@ -88,7 +88,7 @@ class Config:
                     sample,
                     self.timestep_increment_sec,
                     denormalize=self.normalize_key,
-                    name=name
+                    name=name,
                 )
                 in_state = state_map_for_residuals[name]
                 out_ = res_out([in_state, net_output])
@@ -100,11 +100,7 @@ class Config:
                     )
                     tendencies.append(tendency)
             else:
-                out_ = FieldOutput(
-                    sample,
-                    denormalize=self.normalize_key,
-                    name=name
-                )
+                out_ = FieldOutput(sample, denormalize=self.normalize_key, name=name)
                 out_ = out_(net_output)
 
             outputs.append(out_)

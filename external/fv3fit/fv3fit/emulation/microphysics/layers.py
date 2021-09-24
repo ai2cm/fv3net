@@ -1,10 +1,27 @@
 import tensorflow as tf
+from typing import Optional
 
 from ..layers import get_norm_class, get_denorm_class, IncrementStateLayer
 
 
 class FieldInput(tf.keras.layers.Layer):
-    def __init__(self, *args, sample_in=None, normalize=None, selection=None, **kwargs):
+    """Normalize input tensor and subselect along feature if specified"""
+
+    def __init__(
+        self,
+        *args,
+        sample_in: Optional[tf.Tensor] = None,
+        normalize: Optional[str] = None,
+        selection: Optional[slice] = None,
+        **kwargs,
+    ):
+        """
+        Args:
+            sample_in: sample for fitting normalization layer
+            normalize: normalize layer key to use for inputs
+            selection: slice selection taken along the feature dimension
+                of the input
+        """
         super().__init__(*args, **kwargs)
 
         if normalize is not None:
@@ -28,12 +45,15 @@ class FieldInput(tf.keras.layers.Layer):
 
 class FieldOutput(tf.keras.layers.Layer):
     """Connect linear dense output layer and denormalize"""
-    def __init__(self, sample_out, *args, denormalize=None, **kwargs):
+
+    def __init__(
+        self, sample_out: tf.Tensor, *args, denormalize: Optional[str] = None, **kwargs
+    ):
         """
         Args:
             sample_out: Output sample for variable to set shape
                 and fit denormalization layer.
-            denormalize (optional): denormalize layer key to use on
+            denormalize: denormalize layer key to use on
                 the dense layer output
         """
         super().__init__(*args, **kwargs)
@@ -43,7 +63,9 @@ class FieldOutput(tf.keras.layers.Layer):
         )
 
         if denormalize is not None:
-            self.denorm = get_denorm_class(denormalize)(name=f"denormalized_{self.name}")
+            self.denorm = get_denorm_class(denormalize)(
+                name=f"denormalized_{self.name}"
+            )
             self.denorm.fit(sample_out)
         else:
             self.denorm = tf.keras.layers.Lambda(lambda x: x)
@@ -59,16 +81,26 @@ class ResidualOutput(FieldOutput):
     Add input tensor to an output tensor using timestep increment.
     Gets net to learn tendency-based updates.
     """
-    def __init__(self, sample_out, dt_sec, *args, **kwargs):
+
+    def __init__(
+        self,
+        sample_out: tf.Tensor,
+        dt_sec: int,
+        *args,
+        denormalize: Optional[str] = None,
+        **kwargs,
+    ):
         """
         Args:
             sample_out: Output sample for variable to set shape
                 and fit denormalization layer.
             dt_sec: Timestep length in seconds to use for incrementing
                 input state.
+            denormalize: denormalize layer key to use on
+                the dense layer output
         """
 
-        super().__init__(sample_out, *args, **kwargs)
+        super().__init__(sample_out, *args, denormalize=denormalize, **kwargs)
 
         self.increment = IncrementStateLayer(dt_sec, name=f"increment_{self.name}")
 
@@ -84,7 +116,8 @@ class ResidualOutput(FieldOutput):
 
 class CombineInputs(tf.keras.layers.Layer):
     """Input tensor stacking with option to add a dimension for RNNs"""
-    def __init__(self, combine_axis, *args, expand=False, **kwargs):
+
+    def __init__(self, combine_axis: int, *args, expand: bool = False, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.combine_axis = combine_axis
@@ -101,15 +134,33 @@ class CombineInputs(tf.keras.layers.Layer):
 
 
 class RNNBlock(tf.keras.layers.Layer):
+    """
+    RNN connected to an optional MLP for prediction
+    
+    Combines multiple tensors along a new trailing dimension and
+    operates in the reverse on the feature dimension, i.e., from
+    the top of the atmosphere to the bottom for microphysics data.
+    """
+
     def __init__(
         self,
         *args,
-        channels=256,
-        dense_width=256,
-        dense_depth=1,
-        combine_inputs=True,
+        channels: int = 256,
+        dense_width: int = 256,
+        dense_depth: int = 1,
+        combine_inputs: bool = True,
+        activation: str = "relu",
         **kwargs,
     ):
+        """
+        Args:
+            channels: width of RNN layer
+            dense_width: width of MLP layer, only used if dense_depth > 0
+            dense_depth: number of MLPlayers connected to RNN output, set to
+                0 to disable
+            combine_inputs: whether to stack the inputs into a single block
+            activation: activation function to use for RNN and MLP
+        """
         super().__init__(*args, **kwargs)
 
         if combine_inputs:
@@ -120,7 +171,7 @@ class RNNBlock(tf.keras.layers.Layer):
             )
 
         self.rnn = tf.keras.layers.SimpleRNN(
-            channels, activation="relu", go_backwards=True
+            channels, activation=activation, go_backwards=True
         )
         self.dense = MLPBlock(
             width=dense_width, depth=dense_depth, combine_inputs=False
@@ -136,7 +187,24 @@ class RNNBlock(tf.keras.layers.Layer):
 
 
 class MLPBlock(tf.keras.layers.Layer):
-    def __init__(self, *args, width=256, depth=2, combine_inputs=True, **kwargs):
+    """MLP layer for basic NN predictions"""
+
+    def __init__(
+        self,
+        *args,
+        width: int = 256,
+        depth: int = 2,
+        combine_inputs: bool = True,
+        activation: str = "relu",
+        **kwargs,
+    ):
+        """
+        Args:
+            width: width of MLP layer, only used if dense_depth > 0
+            depth: number of MLPlayers, set to 0 to disable
+            combine_inputs: whether to stack the inputs into a single block
+            activation: activation function to use for RNN and MLP
+        """
         super().__init__(*args, **kwargs)
         if combine_inputs:
             self.combine = CombineInputs(-1, expand=False)
@@ -145,7 +213,9 @@ class MLPBlock(tf.keras.layers.Layer):
                 lambda x: x, name=f"comb_passthru_{self.name}"
             )
 
-        self.dense = [tf.keras.layers.Dense(width) for i in range(depth)]
+        self.dense = [
+            tf.keras.layers.Dense(width, activation=activation) for i in range(depth)
+        ]
 
     def call(self, inputs):
         combined = self.combine(inputs)
