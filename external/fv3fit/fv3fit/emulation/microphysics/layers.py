@@ -59,6 +59,9 @@ class ResidualOutput(FieldOutput):
         tendency = super().call(network_output)
         return self.increment([field_input, tendency])
 
+    def get_tendency_output(self, network_output):
+        return super().call(network_output)
+
 
 class CombineInputs(tf.keras.layers.Layer):
     def __init__(self, combine_axis, *args, expand=False, **kwargs):

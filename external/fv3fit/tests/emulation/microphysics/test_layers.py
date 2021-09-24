@@ -73,8 +73,10 @@ def test_ResidualOutput():
 
     field_out = ResidualOutput(sample, dt_sec, normalize="mean_std")
     result = field_out([sample, net_tensor])
+    tendency = field_out.get_tendency_output(net_tensor)
 
     assert result.shape == (20, 3)
+    assert tendency.shape == (20, 3)
     assert field_out.denorm.fitted
 
 

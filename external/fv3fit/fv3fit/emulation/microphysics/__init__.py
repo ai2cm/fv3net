@@ -1,1 +1,1 @@
-from .models import MicrophysicsModelConfig
+from .models import Config
