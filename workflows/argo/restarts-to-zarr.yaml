@@ -19,7 +19,7 @@ spec:
         - name: args
         - {name: memory, value: 6Gi}
       container:
-        image: us.gcr.io/vcm-ml/fv3net:1700b38dc369adc0190ba68b7bd0e27d01db30e7
+        image: us.gcr.io/vcm-ml/fv3net
         command: ["bash", "-c", "-x"]
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
