@@ -39,8 +39,9 @@ def get_timestep(
     with fs.open(location, "rb") as f:
         ds = xr.open_dataset(f).load()
     ds = vcm.standardize_metadata(ds)
-    if len(select_variables) > 0:
-        ds = ds[select_variables]
+    variables_in_category = [var for var in select_variables if var in ds]
+    if len(variables_in_category) > 0:
+        ds = ds[variables_in_category]
     for variable in ds:
         yield key, ds[variable]
 
@@ -112,6 +113,7 @@ def main(argv):
     if len(args.select_daily_times) > 0:
         times = [t for t in times if t[-6:] in args.select_daily_times]
     print("Saving times: ", times)
+    print("Selecting variables: ", args.select_variables)
 
     fs = fsspec.filesystem("gs")
     categories = (
@@ -132,6 +134,8 @@ def main(argv):
                 for category in categories
             ]
         ).drop_vars("tile", errors="ignore")
+        if len(args.select_variables):
+            schema = schema[args.select_variables]
         print("Schema:")
         print(schema)
 
