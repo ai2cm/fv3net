@@ -6,6 +6,7 @@ from fv3fit.emulation.microphysics.layers import (
     CombineInputs,
     FieldInput,
     FieldOutput,
+    LinearBlock,
     MLPBlock,
     RNNBlock,
     ResidualOutput,
@@ -140,3 +141,12 @@ def test_RNNBlock(depth, expected_shp):
 
     result = rnn((tensor, tensor))
     assert result.shape == expected_shp
+
+
+def test_LinearBlock():
+    linear = LinearBlock(combine_inputs=False)
+
+    tensor = _get_tensor(20, 10)
+    result = linear(tensor)
+
+    assert result.shape == (20, 10)

@@ -3,7 +3,14 @@ import dataclasses
 from typing import Any, List, Mapping, Sequence
 import tensorflow as tf
 
-from .layers import ResidualOutput, FieldOutput, FieldInput, RNNBlock, MLPBlock
+from .layers import (
+    LinearBlock,
+    ResidualOutput,
+    FieldOutput,
+    FieldInput,
+    RNNBlock,
+    MLPBlock,
+)
 
 
 def get_architecture_cls(key):
@@ -12,6 +19,8 @@ def get_architecture_cls(key):
         return RNNBlock
     elif key == "dense":
         return MLPBlock
+    elif key == "linear":
+        return LinearBlock
     else:
         raise KeyError(f"Unrecognized architecture provided: {key}")
 

@@ -133,6 +133,15 @@ class CombineInputs(tf.keras.layers.Layer):
         return tf.concat(inputs, axis=self.combine_axis)
 
 
+def _combine_initializer(do_combine, axis, expand, name):
+
+    if do_combine:
+        layer = CombineInputs(axis, expand=expand)
+    else:
+        layer = tf.keras.layers.Lambda(lambda x: x, name=f"comb_passthru_{name}")
+    return layer
+
+
 class RNNBlock(tf.keras.layers.Layer):
     """
     RNN connected to an optional MLP for prediction
@@ -163,13 +172,7 @@ class RNNBlock(tf.keras.layers.Layer):
         """
         super().__init__(*args, **kwargs)
 
-        if combine_inputs:
-            self.combine = CombineInputs(-1, expand=True)
-        else:
-            self.combine = tf.keras.layers.Lambda(
-                lambda x: x, name=f"comb_passthru_{self.name}"
-            )
-
+        self.combine = _combine_initializer(combine_inputs, -1, True, self.name)
         self.rnn = tf.keras.layers.SimpleRNN(
             channels, activation=activation, go_backwards=True
         )
@@ -206,12 +209,8 @@ class MLPBlock(tf.keras.layers.Layer):
             activation: activation function to use for RNN and MLP
         """
         super().__init__(*args, **kwargs)
-        if combine_inputs:
-            self.combine = CombineInputs(-1, expand=False)
-        else:
-            self.combine = tf.keras.layers.Lambda(
-                lambda x: x, name=f"comb_passthru_{self.name}"
-            )
+
+        self.combine = _combine_initializer(combine_inputs, -1, False, self.name)
 
         self.dense = [
             tf.keras.layers.Dense(width, activation=activation) for i in range(depth)
@@ -225,3 +224,17 @@ class MLPBlock(tf.keras.layers.Layer):
             outputs = self.dense[i](outputs)
 
         return outputs
+
+
+class LinearBlock(MLPBlock):
+    """
+    No special prediction architecture, just combine input features
+    for connection to outputs.
+    """
+
+    def __init__(self, *args, combine_inputs=True, **kwargs):
+        """
+        Args:
+            combine_inputs: whether to stack the inputs into a single block
+        """
+        super().__init__(*args, combine_inputs=combine_inputs, depth=0, **kwargs)
