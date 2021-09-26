@@ -33,8 +33,11 @@ class Config:
 
     Args:
         input_variables: names of all inputs to the model
-        output_variables: names of primary outputs of the model. Built model
-            may have additional tendency output variables if specified.
+        direct_out_variables: names of primary outputs of the model.
+        residual_out_variables: names of outputs using a residual output, 
+            analogous to learning model tendencies instead of direct 
+            field-to-field prediction. Residual output variable maps to 
+            an associated input name to increment.
         architecture: Underlying model architecture to use for the emulator.
             See `get_architecture_cls` for a list of supported layers.
         arch_params: keyword arguments to pass to the initialization
@@ -43,24 +46,21 @@ class Config:
             to disable normalization
         selection_map: Subselection mapping for feature dimension of input/output
             variables to slices along the feature dimension
-        residual_to_state: Mapping of output variable names to use a
-            ResidualOutput layer for.  The value for each key should link to
-            to input variable.  Analogous to learning model tendencies instead
-            of direct field-to-field prediction.
         tendency_outputs: Additional outputs (tendencies) to get from the
             residual outputs.  The mapping key should match a variable in
-            residual_to_state and the value is set as the output variable name
+            residual_outputs and the value will be the new output variable
+            name
         timestep_increment_sec: Time increment multiplier for the state-tendency
             update
     """
 
-    input_variables: List[str]
-    output_variables: List[str]
+    input_variables: List[str] = dataclasses.field(default_factory=list)
+    direct_out_variables: List[str] = dataclasses.field(default_factory=list)
+    residual_out_variables: Mapping[str, str] = dataclasses.field(default_factory=dict)
     architecture: str = "rnn"
     arch_params: Mapping[str, Any] = dataclasses.field(default_factory=dict)
     normalize_key: str = "mean_std"
     selection_map: Mapping[str, slice] = dataclasses.field(default_factory=dict)
-    residual_to_state: Mapping[str, str] = dataclasses.field(default_factory=dict)
     tendency_outputs: Mapping[str, str] = dataclasses.field(default_factory=dict)
     timestep_increment_sec: int = 900
 
@@ -87,44 +87,47 @@ class Config:
         tendency = residual.get_tendency_output(net_output)
         return tf.keras.layers.Lambda(lambda x: x, name=tend_name)(tendency)
 
-    def _get_residual_output(self, name, sample, state_map, net_output):
+    def _get_direct_outputs(self, sample_out):
 
-        # incremented state field output
-        res_out = ResidualOutput(
-            sample,
-            self.timestep_increment_sec,
-            denormalize=self.normalize_key,
-            name=name,
-        )
-        in_state = state_map[name]
+        outputs = []
 
-        # grab tendency output if desired
-        if name in self.tendency_outputs:
-            tendency = [self._tend_out_from_residual(
-                name, res_out, net_output
-            )]
-        else:
-            tendency = []
+        for name, sample in zip(self.direct_out_variables, sample_out):
+            out_ = FieldOutput(sample, denormalize=self.normalize_key, name=name)
+            outputs.append(out_)
 
-        return res_out([in_state, net_output]), tendency
+        return outputs
 
-    def _get_outputs(self, sample_out, net_output, state_map_for_residuals):
+    def _get_residual_outputs(self, sample_out, net_output, residual_to_input_map):
 
         outputs = []
         tendencies = []
-        for name, sample in zip(self.output_variables, sample_out):
-            if name in state_map_for_residuals:
-                out_, tendency = self._get_residual_output(name, sample, state_map_for_residuals, net_output)
-                tendencies += tendency
-            else:
-                out_ = FieldOutput(sample, denormalize=self.normalize_key, name=name)
-                out_ = out_(net_output)
 
+        for (name, in_state), sample in zip(residual_to_input_map.items(), sample_out):
+            # incremented state field output
+            res_out = ResidualOutput(
+                sample,
+                self.timestep_increment_sec,
+                denormalize=self.normalize_key,
+                name=name,
+            )
+
+            out_ = res_out([in_state, net_output])
             outputs.append(out_)
+
+            if name in self.tendency_outputs:
+                tend_name = self.tendency_outputs[name]
+                tendency = res_out.get_tendency_output(net_output)
+                renamed = tf.keras.layers.Lambda(lambda x: x, name=tend_name)(tendency)
+                tendencies.append(renamed)
 
         return outputs + tendencies
 
-    def build(self, sample_in: Sequence[tf.Tensor], sample_out: Sequence[tf.Tensor]):
+    def build(
+        self,
+        sample_in: Sequence[tf.Tensor],
+        sample_direct_out: Sequence[tf.Tensor] = None,
+        sample_residual_out: Sequence[tf.Tensor] = None,
+    ):
         """
         Build model described by the configuration
 
@@ -135,19 +138,26 @@ class Config:
                 fitting denormalization layers if specifies
         """
 
+        if sample_direct_out is None:
+            sample_direct_out = []
+
+        if sample_residual_out is None:
+            sample_residual_out = []
+
         inputs = [
             tf.keras.layers.Input(sample.shape[-1], name=name)
             for name, sample in zip(self.input_variables, sample_in)
         ]
         residual_map = {
-            tend_name: inputs[self.input_variables.index(input_name)]
-            for tend_name, input_name in self.residual_to_state.items()
+            resid_name: inputs[self.input_variables.index(input_name)]
+            for resid_name, input_name in self.residual_out_variables.items()
         }
         processed = self._get_processed_inputs(sample_in, inputs)
         arch_layer = get_architecture_cls(self.architecture)(**self.arch_params)(
             processed
         )
-        outputs = self._get_outputs(sample_out, arch_layer, residual_map)
+        outputs = self._get_direct_outputs(sample_direct_out)
+        outputs += self._get_residual_outputs(sample_residual_out, arch_layer, residual_map)
 
         model = tf.keras.models.Model(inputs=inputs, outputs=outputs)
 
