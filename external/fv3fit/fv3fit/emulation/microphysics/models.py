@@ -92,7 +92,10 @@ class Config:
         outputs = []
 
         for name, sample in zip(self.direct_out_variables, sample_out):
-            out_ = FieldOutput(sample, denormalize=self.normalize_key, name=name)
+            out_ = FieldOutput(
+                sample, denormalize=self.normalize_key, name=name,
+                enforce_positive=True,
+            )
             outputs.append(out_)
 
         return outputs
@@ -109,6 +112,7 @@ class Config:
                 self.timestep_increment_sec,
                 denormalize=self.normalize_key,
                 name=name,
+                enforce_positive=True,
             )
 
             out_ = res_out([in_state, net_output])

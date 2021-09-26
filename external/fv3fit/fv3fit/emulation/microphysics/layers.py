@@ -47,7 +47,8 @@ class FieldOutput(tf.keras.layers.Layer):
     """Connect linear dense output layer and denormalize"""
 
     def __init__(
-        self, sample_out: tf.Tensor, *args, denormalize: Optional[str] = None, alt_name=None, **kwargs
+        self, sample_out: tf.Tensor, *args, denormalize: Optional[str] = None, 
+        alt_name=None, enforce_positive=False, **kwargs
     ):
         """
         Args:
@@ -55,6 +56,7 @@ class FieldOutput(tf.keras.layers.Layer):
                 and fit denormalization layer.
             denormalize: denormalize layer key to use on
                 the dense layer output
+            alt_name: alternative name for unscaled and denorm layers
         """
         super().__init__(*args, **kwargs)
 
@@ -75,10 +77,18 @@ class FieldOutput(tf.keras.layers.Layer):
         else:
             self.denorm = tf.keras.layers.Lambda(lambda x: x)
 
+        self.relu = tf.keras.layers.ReLU()
+        self.use_relu = enforce_positive
+
     def call(self, tensor):
 
         tensor = self.unscaled(tensor)
-        return self.denorm(tensor)
+        tensor = self.denorm(tensor)
+
+        if self.use_relu:
+            tensor = self.relu(tensor)
+
+        return tensor
 
 
 class ResidualOutput(FieldOutput):
@@ -93,6 +103,7 @@ class ResidualOutput(FieldOutput):
         dt_sec: int,
         *args,
         denormalize: Optional[str] = None,
+        enforce_positive: bool = False,
         **kwargs,
     ):
         """
@@ -112,12 +123,20 @@ class ResidualOutput(FieldOutput):
         super().__init__(sample_out, *args, denormalize=denormalize, alt_name=alt_name, **kwargs)
 
         self.increment = IncrementStateLayer(dt_sec, name=f"increment_{self.name}")
+        self.use_relu = enforce_positive
+        self.relu = tf.keras.layers.ReLU()
+
 
     def call(self, tensors):
 
         field_input, network_output = tensors
         tendency = super().call(network_output)
-        return self.increment([field_input, tendency])
+        tensor = self.increment([field_input, tendency])
+
+        if self.use_relu:
+            tensor = self.relu(tensor)
+
+        return tensor
 
     def get_tendency_output(self, network_output):
         return super().call(network_output)
