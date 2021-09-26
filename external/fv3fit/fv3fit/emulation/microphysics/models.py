@@ -34,9 +34,9 @@ class Config:
     Args:
         input_variables: names of all inputs to the model
         direct_out_variables: names of primary outputs of the model.
-        residual_out_variables: names of outputs using a residual output, 
-            analogous to learning model tendencies instead of direct 
-            field-to-field prediction. Residual output variable maps to 
+        residual_out_variables: names of outputs using a residual output,
+            analogous to learning model tendencies instead of direct
+            field-to-field prediction. Residual output variable maps to
             an associated input name to increment.
         architecture: Underlying model architecture to use for the emulator.
             See `get_architecture_cls` for a list of supported layers.
@@ -93,7 +93,9 @@ class Config:
 
         for name, sample in zip(self.direct_out_variables, sample_out):
             out_ = FieldOutput(
-                sample, denormalize=self.normalize_key, name=name,
+                sample,
+                denormalize=self.normalize_key,
+                name=name,
                 enforce_positive=True,
             )
             outputs.append(out_)
@@ -161,7 +163,9 @@ class Config:
             processed
         )
         outputs = self._get_direct_outputs(sample_direct_out)
-        outputs += self._get_residual_outputs(sample_residual_out, arch_layer, residual_map)
+        outputs += self._get_residual_outputs(
+            sample_residual_out, arch_layer, residual_map
+        )
 
         model = tf.keras.models.Model(inputs=inputs, outputs=outputs)
 

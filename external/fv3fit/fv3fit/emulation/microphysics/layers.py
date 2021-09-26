@@ -47,8 +47,13 @@ class FieldOutput(tf.keras.layers.Layer):
     """Connect linear dense output layer and denormalize"""
 
     def __init__(
-        self, sample_out: tf.Tensor, *args, denormalize: Optional[str] = None, 
-        alt_name=None, enforce_positive=False, **kwargs
+        self,
+        sample_out: tf.Tensor,
+        *args,
+        denormalize: Optional[str] = None,
+        alt_name=None,
+        enforce_positive=False,
+        **kwargs,
     ):
         """
         Args:
@@ -70,9 +75,7 @@ class FieldOutput(tf.keras.layers.Layer):
         )
 
         if denormalize is not None:
-            self.denorm = get_denorm_class(denormalize)(
-                name=f"denormalized_{name}"
-            )
+            self.denorm = get_denorm_class(denormalize)(name=f"denormalized_{name}")
             self.denorm.fit(sample_out)
         else:
             self.denorm = tf.keras.layers.Lambda(lambda x: x)
@@ -120,12 +123,13 @@ class ResidualOutput(FieldOutput):
         else:
             alt_name = None
 
-        super().__init__(sample_out, *args, denormalize=denormalize, alt_name=alt_name, **kwargs)
+        super().__init__(
+            sample_out, *args, denormalize=denormalize, alt_name=alt_name, **kwargs
+        )
 
         self.increment = IncrementStateLayer(dt_sec, name=f"increment_{self.name}")
         self.use_relu = enforce_positive
         self.relu = tf.keras.layers.ReLU()
-
 
     def call(self, tensors):
 

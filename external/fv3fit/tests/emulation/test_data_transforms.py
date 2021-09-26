@@ -146,7 +146,7 @@ def test_derived():
 
     ds = {
         "air_temperature_input": np.ones((10, 4)),
-        "air_temperature_output": np.ones((10, 4))*3,
+        "air_temperature_output": np.ones((10, 4)) * 3,
     }
 
     dT_name = "tendency_of_air_temperature_due_to_microphysics"

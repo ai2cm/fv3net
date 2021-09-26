@@ -4,7 +4,6 @@ import logging
 from toolz.functoolz import compose_left
 from typing import Any, Dict, Mapping, Optional, Sequence, Union
 
-from vcm import DerivedMapping
 from . import transforms
 
 

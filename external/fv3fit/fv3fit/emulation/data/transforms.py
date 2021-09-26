@@ -32,7 +32,9 @@ def open_netcdf_dataset(path: str) -> xr.Dataset:
 
 
 @curry
-def derived_dataset(all_variables: Sequence[str], dataset: AnyDataset, tendency_timestep_sec: int = 900):
+def derived_dataset(
+    all_variables: Sequence[str], dataset: AnyDataset, tendency_timestep_sec: int = 900
+):
 
     derived = DerivedMapping(dataset, microphys_timestep_sec=tendency_timestep_sec)
     dataset = {key: derived[key] for key in all_variables}
