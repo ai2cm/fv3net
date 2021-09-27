@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, List, Mapping
+from typing import Any, List, Mapping, Optional
 import wandb
 import tensorflow as tf
 
@@ -33,6 +33,7 @@ class TrainConfig:
     use_wandb: bool = True
     epochs: int = 1
     batch_size: int = 128
+    nfiles: Optional[int] = None 
     optimizer: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")
     )
@@ -54,6 +55,11 @@ def _netcdf_url_to_dataset(url, transform, nfiles=None, do_shuffle=True):
 
 def get_out_samples(model_config: Config, samples, sample_names):
 
+    # requires tendency_of_xxx_ for each residual to properly scale
+    # the output denormalizer
+    # enforce this in the configuration
+    # right now the transform outputs matches model outputs
+
     direct_sample = []
     residual_sample = []
 
@@ -62,8 +68,10 @@ def get_out_samples(model_config: Config, samples, sample_names):
         direct_sample.append(sample)
 
     for name in model_config.residual_out_variables:
-        sample = samples[sample_names.index(name)]
-        residual_sample.append(sample)
+        if name in model_config.tendency_outputs:
+            tend_name = model_config.tendency_outputs[name]
+            sample = samples[sample_names.index(tend_name)]
+            residual_sample.append(sample)
 
     return direct_sample, residual_sample
 
@@ -90,8 +98,8 @@ def main(config: TrainConfig):
         # saves best model by validation every epoch
         callbacks.append(wandb.keras.WandbCallback())
 
-    train_ds = _netcdf_url_to_dataset(config.train_url, config.transform)
-    test_ds = _netcdf_url_to_dataset(config.test_url, config.transform)
+    train_ds = _netcdf_url_to_dataset(config.train_url, config.transform, nfiles=config.nfiles)
+    test_ds = _netcdf_url_to_dataset(config.test_url, config.transform, nfiles=config.nfiles)
 
     sample_in, sample_out = next(iter(train_ds.shuffle(100_000).batch(50_000)))
     direct_sample, resid_sample = get_out_samples(
@@ -110,14 +118,14 @@ def main(config: TrainConfig):
         elif out_varname in config.metric_variables:
             metrics[out_varname] = loss_func
 
-    optimizer = config.optimizer
+    optimizer = config.optimizer.instance
     model.compile(loss=losses, metrics=metrics, optimizer=optimizer)
 
     history = model.fit(
         train_ds.shuffle(100_000).batch(config.batch_size),
         epochs=config.epochs,
-        valid_freq=5,
-        valid_data=test_ds.batch(config.batch_size),
+        validation_freq=5,
+        validation_data=test_ds.batch(config.batch_size),
         verbose=2,
         callbacks=callbacks,
     )
@@ -152,7 +160,10 @@ def get_config():
         test_url="/mnt/disks/scratch/microphysics_emu_data/validation_netcdfs/",
         model=model_config,
         transform=transform,
-        optimizer=OptimizerConfig(name="Adam", kwargs=dict(leanring_rate=1e-4)),
+        optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
+        loss_variables=["air_temperature_output"],
+        epochs=2,
+        nfiles=10,
         use_wandb=False,
     )
     return config
