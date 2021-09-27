@@ -51,7 +51,6 @@ class FieldOutput(tf.keras.layers.Layer):
         sample_out: tf.Tensor,
         *args,
         denormalize: Optional[str] = None,
-        alt_name=None,
         enforce_positive=False,
         **kwargs,
     ):
@@ -65,17 +64,12 @@ class FieldOutput(tf.keras.layers.Layer):
         """
         super().__init__(*args, **kwargs)
 
-        if alt_name is not None:
-            name = alt_name
-        else:
-            name = self.name
-
         self.unscaled = tf.keras.layers.Dense(
-            sample_out.shape[-1], name=f"unscaled_{name}"
+            sample_out.shape[-1], name=f"unscaled_{self.name}"
         )
 
         if denormalize is not None:
-            self.denorm = get_denorm_class(denormalize)(name=f"denormalized_{name}")
+            self.denorm = get_denorm_class(denormalize)(name=f"denormalized_{self.name}")
             self.denorm.fit(sample_out)
         else:
             self.denorm = tf.keras.layers.Lambda(lambda x: x)
@@ -94,7 +88,7 @@ class FieldOutput(tf.keras.layers.Layer):
         return tensor
 
 
-class ResidualOutput(FieldOutput):
+class ResidualOutput(tf.keras.layers.Layer):
     """
     Add input tensor to an output tensor using timestep increment.
     Gets net to learn tendency-based updates.
@@ -118,23 +112,25 @@ class ResidualOutput(FieldOutput):
             denormalize: denormalize layer key to use on
                 the dense layer output
         """
-        if "name" in kwargs:
-            alt_name: Optional[str] = f"residual_{kwargs['name']}"
-        else:
-            alt_name = None
+        super().__init__(*args, **kwargs)
 
-        super().__init__(
-            sample_out, *args, denormalize=denormalize, alt_name=alt_name, **kwargs
+        self.tendency = FieldOutput(
+            sample_out,
+            denormalize=denormalize,
+            enforce_positive=False,
+            name=f"residual_{self.name}"
         )
-
-        self.increment = IncrementStateLayer(dt_sec, name=f"increment_{self.name}")
+        self.increment = IncrementStateLayer(
+            dt_sec,
+            name=f"increment_{self.name}"
+        )
         self.use_relu = enforce_positive
         self.relu = tf.keras.layers.ReLU()
 
     def call(self, tensors):
 
         field_input, network_output = tensors
-        tendency = super().call(network_output)
+        tendency = self.tendency(network_output)
         tensor = self.increment([field_input, tendency])
 
         if self.use_relu:
@@ -143,7 +139,7 @@ class ResidualOutput(FieldOutput):
         return tensor
 
     def get_tendency_output(self, network_output):
-        return super().call(network_output)
+        return self.tendency(network_output)
 
 
 class CombineInputs(tf.keras.layers.Layer):

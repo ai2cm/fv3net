@@ -85,6 +85,10 @@ class Config:
     def from_dict(cls, dict_) -> "Config":
         return dacite.from_dict(cls, dict_, dacite.Config(strict=True))
 
+    @property
+    def output_variables(self):
+        return self.direct_out_variables + list(self.residual_out_variables.keys()) + list(self.tendency_outputs.values())
+
     def _get_processed_inputs(self, sample_in, inputs):
 
         inputs = [

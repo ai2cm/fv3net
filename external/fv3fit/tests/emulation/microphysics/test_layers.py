@@ -75,7 +75,7 @@ def test_ResidualOutput():
 
     assert result.shape == (20, 3)
     assert tendency.shape == (20, 3)
-    assert field_out.denorm.fitted
+    assert field_out.tendency.denorm.fitted
 
 
 def test_CombineInputs_no_expand():
