@@ -95,11 +95,6 @@ class Config:
 
         return inputs
 
-    def _tend_out_from_residual(self, name, residual: ResidualOutput, net_output):
-        tend_name = self.tendency_outputs[name]
-        tendency = residual.get_tendency_output(net_output)
-        return tf.keras.layers.Lambda(lambda x: x, name=tend_name)(tendency)
-
     def _get_direct_outputs(self, sample_out):
 
         outputs = []
