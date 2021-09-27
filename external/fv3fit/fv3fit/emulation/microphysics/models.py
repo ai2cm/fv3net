@@ -1,6 +1,6 @@
 import dacite
 import dataclasses
-from typing import Any, List, Mapping, Sequence
+from typing import Any, List, Mapping, Sequence, Union, Type
 import tensorflow as tf
 
 from .layers import (
@@ -13,7 +13,7 @@ from .layers import (
 )
 
 
-def get_architecture_cls(key):
+def get_architecture_cls(key: str):
 
     if key == "rnn":
         return RNNBlock
@@ -33,13 +33,15 @@ class ArchitectureParams:
         kwargs: keyword arguments to pass to the initialization
             of the architecture layer
     """
+
     name: str
     kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
 
     @property
-    def instance(self) -> tf.keras.optimizers.Optimizer:
+    def instance(self):
         cls = get_architecture_cls(self.name)
         return cls(**self.kwargs)
+
 
 @dataclasses.dataclass
 class Config:
@@ -71,7 +73,9 @@ class Config:
     input_variables: List[str] = dataclasses.field(default_factory=list)
     direct_out_variables: List[str] = dataclasses.field(default_factory=list)
     residual_out_variables: Mapping[str, str] = dataclasses.field(default_factory=dict)
-    architecture: ArchitectureParams = dataclasses.field(default_factory=lambda: ArchitectureParams(name="linear"))
+    architecture: ArchitectureParams = dataclasses.field(
+        default_factory=lambda: ArchitectureParams(name="linear")
+    )
     normalize_key: str = "mean_std"
     selection_map: Mapping[str, slice] = dataclasses.field(default_factory=dict)
     tendency_outputs: Mapping[str, str] = dataclasses.field(default_factory=dict)
@@ -167,7 +171,7 @@ class Config:
             for resid_name, input_name in self.residual_out_variables.items()
         }
         processed = self._get_processed_inputs(sample_in, inputs)
-        arch_layer = self.architecture(processed)
+        arch_layer = self.architecture.instance(processed)
         outputs = self._get_direct_outputs(sample_direct_out)
         outputs += self._get_residual_outputs(
             sample_residual_out, arch_layer, residual_map

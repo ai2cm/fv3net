@@ -119,7 +119,7 @@ class ResidualOutput(FieldOutput):
                 the dense layer output
         """
         if "name" in kwargs:
-            alt_name = f"residual_{kwargs['name']}"
+            alt_name: Optional[str] = f"residual_{kwargs['name']}"
         else:
             alt_name = None
 
