@@ -92,7 +92,8 @@ def group_inputs_outputs(
 
 @curry
 def maybe_subselect_feature_dim(
-    subselection_map: Mapping[Hashable, slice], dataset: Union[ArrayDataset, TensorDataset]
+    subselection_map: Mapping[Hashable, slice],
+    dataset: Union[ArrayDataset, TensorDataset],
 ) -> Union[ArrayDataset, TensorDataset]:
     """
     Subselect from the feature dimension if specified in the map.

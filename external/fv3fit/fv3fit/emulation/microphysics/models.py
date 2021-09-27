@@ -1,6 +1,6 @@
 import dacite
 import dataclasses
-from typing import Any, List, Mapping, Sequence, Union, Type
+from typing import Any, List, Mapping, Sequence
 import tensorflow as tf
 
 from .layers import (
@@ -99,7 +99,7 @@ class Config:
 
         return inputs
 
-    def _get_direct_outputs(self, sample_out):
+    def _get_direct_outputs(self, sample_out, net_output):
 
         outputs = []
 
@@ -109,7 +109,7 @@ class Config:
                 denormalize=self.normalize_key,
                 name=name,
                 enforce_positive=True,
-            )
+            )(net_output)
             outputs.append(out_)
 
         return outputs
@@ -172,7 +172,7 @@ class Config:
         }
         processed = self._get_processed_inputs(sample_in, inputs)
         arch_layer = self.architecture.instance(processed)
-        outputs = self._get_direct_outputs(sample_direct_out)
+        outputs = self._get_direct_outputs(sample_direct_out, arch_layer)
         outputs += self._get_residual_outputs(
             sample_residual_out, arch_layer, residual_map
         )
