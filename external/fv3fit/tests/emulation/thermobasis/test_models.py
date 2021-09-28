@@ -2,6 +2,7 @@ from fv3fit.emulation.thermobasis.thermo import ThermoBasis
 import numpy as np
 import pytest
 import tensorflow as tf
+from fv3fit.emulation.layers import StableEncoder
 from fv3fit.emulation.thermobasis.loss import QVLossSingleLevel, RHLossSingleLevel
 from fv3fit.emulation.thermobasis.models import (
     RHScalarMLP,
@@ -175,3 +176,10 @@ def test_VectorModelAdapter_output_matches_expected():
     expected = expected_output(x)
     out = model(x)
     assert_relative_humidity_basis_almost_equal(out, expected, rtol=1e-7)
+
+
+def test_VectorModelAdapter_StableEncoder_integration():
+    x = _get_argsin(levels=10, n=3)
+    model = VectorModelAdapter(StableEncoder())
+    model.fit_scalers(x, x)
+    model(x)

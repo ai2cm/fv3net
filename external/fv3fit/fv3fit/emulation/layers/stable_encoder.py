@@ -1,5 +1,10 @@
 import tensorflow as tf
 from math import pi
+from fv3fit.emulation.layers import (
+    MeanFeatureStdNormLayer,
+    MeanFeatureStdDenormLayer,
+    StandardNormLayer,
+)
 
 
 def mlp(num_hidden, num_layers, num_output):
@@ -46,6 +51,10 @@ class StableEncoder(tf.keras.layers.Layer):
         self.num_hidden = 128
         self.num_layers = 2
 
+        self.prog_norm = MeanFeatureStdNormLayer()
+        self.prog_denorm = MeanFeatureStdDenormLayer()
+        self.aux_norm = StandardNormLayer()
+
     def build(self, input_shape):
         prog_shape, _ = input_shape
         num_prognostic = prog_shape[-1]
@@ -64,16 +73,27 @@ class StableEncoder(tf.keras.layers.Layer):
         stacked = tf.concat([tf.math.real(z), tf.math.imag(z), auxiliary], axis=-1)
         return self.decoder(stacked)
 
+    def fit_scalers(self, x_now, x_next, aux_now):
+        self.prog_denorm.fit(x_now)
+        self.prog_norm.fit(x_next)
+        self.aux_norm.fit(aux_now)
+        # TODO add some heuristic for estimating the time-scales
+        # to initialize the StableDynamics better
+
     def call(self, in_):
 
         prognostic, auxiliary = in_
-        stacked = tf.concat([prognostic, auxiliary], axis=-1)
+
+        prog_norm = self.prog_norm(prognostic)
+        aux_norm = self.aux_norm(auxiliary)
+
+        stacked = tf.concat([prog_norm, aux_norm], axis=-1)
         z = tf.complex(self.encoder_real(stacked), self.encoder_complex(stacked))
         z_next = self.dynamics(z)
-        prognostic_decoded = self._decode(z, auxiliary)
-        y_prediction = self._decode(z_next, auxiliary)
+        prognostic_decoded = self._decode(z, aux_norm)
+        y_prediction = self._decode(z_next, aux_norm)
 
         # add auto-encoding loss
         self.add_loss(tf.reduce_mean((prognostic_decoded - prognostic) ** 2))
 
-        return y_prediction
+        return self.prog_denorm(y_prediction)
