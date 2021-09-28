@@ -12,11 +12,13 @@ from typing import (
     List,
     Type,
     Dict,
+    Hashable,
 )
 from fv3fit.typing import Dataclass
 import xarray as xr
 from .predictor import Predictor
 from .hyperparameters import Hyperparameters
+from .packer import DimSlices
 import dacite
 import numpy as np
 import random
@@ -182,6 +184,7 @@ class RandomForestHyperparameters(Hyperparameters):
         output_variables: names of variables to use as outputs
         scaler_type: scaler to use for training, must be "standard" or "mass"
         scaler_kwargs: keyword arguments to pass to scaler initialization
+        clip_indices: per-variable and dimension specification of index range to keep
         n_jobs: number of jobs to run in parallel when training a single random forest
         random_state: random seed to use when building trees, will be
             deterministically perturbed for each training batch
@@ -203,6 +206,7 @@ class RandomForestHyperparameters(Hyperparameters):
 
     scaler_type: str = "standard"
     scaler_kwargs: Optional[Mapping] = None
+    clip_indices: Optional[Mapping[Hashable, DimSlices]] = None
 
     # don't set default to -1 because it causes non-reproducible training
     n_jobs: int = 8

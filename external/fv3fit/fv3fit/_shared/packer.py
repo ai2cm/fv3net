@@ -1,4 +1,5 @@
 from typing import (
+    Collection,
     Hashable,
     Iterable,
     TextIO,
@@ -8,11 +9,16 @@ from typing import (
     cast,
     Mapping,
     Sequence,
+    Optional,
+    Union,
 )
 import numpy as np
 import xarray as xr
 import pandas as pd
 import yaml
+
+
+DimSlices = Mapping[str, Tuple[Optional[int], Optional[int]]]
 
 
 def _feature_dims(data: xr.Dataset, sample_dim: str) -> Sequence[str]:
@@ -35,9 +41,15 @@ def _unique_dim_name(
     return feature_dim_name
 
 
-def pack(data: xr.Dataset, sample_dim: str) -> Tuple[np.ndarray, pd.MultiIndex]:
+def pack(
+    data: xr.Dataset,
+    sample_dim: str,
+    clip_indices: Optional[Mapping[Hashable, DimSlices]] = None,
+) -> Tuple[np.ndarray, pd.MultiIndex]:
+    clip_indices = {} if clip_indices is None else clip_indices
     feature_dim_name = _unique_dim_name(data, sample_dim)
-    stacked = data.to_stacked_array(feature_dim_name, sample_dims=[sample_dim])
+    data_clipped = clip(data, clip_indices)
+    stacked = to_stacked_array(data_clipped, feature_dim_name, sample_dims=[sample_dim])
     return (
         stacked.transpose(sample_dim, feature_dim_name).data,
         stacked.indexes[feature_dim_name],
@@ -53,6 +65,24 @@ def unpack(
         data, dims=[sample_dim, "feature"], coords={"feature": feature_index}
     )
     return da.to_unstacked_dataset("feature")
+
+
+def clip(
+    data: Union[xr.Dataset, Mapping[Hashable, xr.DataArray]],
+    indices: Mapping[Hashable, DimSlices],
+) -> Mapping[Hashable, xr.DataArray]:
+    clipped_data = {}
+    for variable in data:
+        da = data[variable]
+        if variable in indices:
+            for dim in indices[variable]:
+                if dim not in da.coords:
+                    da = da.assign_coords({dim: range(da.sizes[dim])})
+                start, end = indices[variable][dim]
+                clipped_data[variable] = da.isel({dim: slice(start, end)})
+        else:
+            clipped_data[variable] = da
+    return clipped_data
 
 
 class ArrayPacker:
@@ -295,3 +325,56 @@ def unpack_matrix(
         j += size_in
 
     return xr.Dataset(jacobian_dict)  # type: ignore
+
+
+def to_stacked_array(
+    dataset: Mapping[Hashable, xr.DataArray],
+    new_dim: Hashable,
+    sample_dims: Collection,
+    variable_dim: Hashable = "variable",
+    name: Hashable = None,
+) -> xr.DataArray:
+    """Like xr.Dataset.to_stacked_array but can operate on a mapping of arrays."""
+    stacking_dims = tuple(
+        {
+            dim
+            for array in dataset.values()
+            for dim in array.dims
+            if dim not in sample_dims
+        }
+    )
+
+    for variable in dataset:
+        dims = dataset[variable].dims
+        dims_include_sample_dims = set(sample_dims) <= set(dims)
+        if not dims_include_sample_dims:
+            raise ValueError(
+                "All variables in the dataset must contain the "
+                "dimensions {}.".format(dims)
+            )
+
+    def ensure_stackable(name, val):
+        assign_coords = {variable_dim: name}
+        for dim in stacking_dims:
+            if dim not in val.dims:
+                assign_coords[dim] = None
+
+        expand_dims = set(stacking_dims).difference(set(val.dims))
+        expand_dims.add(variable_dim)
+        # must be list for .expand_dims
+        expand_dims = list(expand_dims)
+
+        return (
+            val.assign_coords(**assign_coords)
+            .expand_dims(expand_dims)
+            .stack({new_dim: (variable_dim,) + stacking_dims})
+        )
+
+    # concatenate the arrays
+    stackable_vars = [ensure_stackable(key, dataset[key]) for key in dataset]
+    data_array = xr.concat(stackable_vars, dim=new_dim)
+
+    if name is not None:
+        data_array.name = name
+
+    return data_array
