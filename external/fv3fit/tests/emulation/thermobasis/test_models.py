@@ -1,3 +1,4 @@
+from fv3fit.emulation.thermobasis.thermo import ThermoBasis
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -8,6 +9,7 @@ from fv3fit.emulation.thermobasis.models import (
     UVTQSimple,
     UVTRHSimple,
     V1QCModel,
+    VectorModelAdapter,
 )
 from fv3fit.emulation.thermobasis.thermo import RelativeHumidityBasis
 from fv3fit.emulation.thermobasis.emulator import (
@@ -130,3 +132,46 @@ def test_UVTRHSimple_humidity_is_positive():
 def test_get_model(config, class_):
     model = get_model(config)
     assert isinstance(model, class_)
+
+
+def _get_vector_model_adapter():
+    class VectorModel(tf.keras.layers.Layer):
+        def call(self, in_):
+            prog, aux = in_
+            self.add_loss(1.0)
+            return prog
+
+        def fit_scalers(self, x_in, x_next, aux):
+            pass
+
+    def expected_output(x):
+        return x
+
+    return VectorModelAdapter(VectorModel()), expected_output
+
+
+def tensor_assert_almost_equal(x, y, rtol=None):
+    return np.testing.assert_allclose(x.numpy(), y.numpy(), rtol=rtol)
+
+
+def assert_relative_humidity_basis_almost_equal(
+    x: ThermoBasis, y: ThermoBasis, rtol=1e-5
+):
+    tensor_assert_almost_equal(x.u, y.u, rtol=rtol)
+    tensor_assert_almost_equal(x.rh, y.rh, rtol=rtol)
+    tensor_assert_almost_equal(x.v, y.v, rtol=rtol)
+    tensor_assert_almost_equal(x.T, y.T, rtol=rtol)
+    tensor_assert_almost_equal(x.qc, y.qc, rtol=rtol)
+    tensor_assert_almost_equal(x.dp, y.dp, rtol=rtol)
+    tensor_assert_almost_equal(x.rho, y.rho, rtol=rtol)
+    for x_scalar, y_scalar in zip(x.scalars, y.scalars):
+        tensor_assert_almost_equal(x_scalar, y_scalar, rtol=rtol)
+    assert len(x.scalars) == len(y.scalars)
+
+
+def test_VectorModelAdapter_output_matches_expected():
+    x = _get_argsin(levels=10, n=3)
+    model, expected_output = _get_vector_model_adapter()
+    expected = expected_output(x)
+    out = model(x)
+    assert_relative_humidity_basis_almost_equal(out, expected, rtol=1e-7)

@@ -193,3 +193,44 @@ class UVTRHSimple(UVTQSimple):
             in_.rho,
             in_.dz,
         )
+
+
+class VectorModelAdapter(tf.keras.layers.Layer):
+    """Wrap a Vector model so it has a ThermoBasis interface
+    
+    Handles the separation of a ThermoBasis into prognostic and auxiliary
+    variables.
+    """
+
+    def __init__(self, vector_layer):
+        super(VectorModelAdapter, self).__init__()
+        self.vector_layer = vector_layer
+        # input and output normalizations
+        self.prog_norm = StandardNormLayer(name="prognostic_norm")
+        self.prog_denorm = StandardDenormLayer(name="prognostic_denorm")
+        self.aux_norm = StandardNormLayer(name="auxiliary_norm")
+
+    def _prognostics(self, x: ThermoBasis) -> tf.Tensor:
+        return tf.concat([x.u, x.v, x.T, x.rh, x.qc], axis=-1)
+
+    def _assign_to_thermo_basis(
+        self, x: ThermoBasis, updates: tf.Tensor
+    ) -> ThermoBasis:
+        num_vars = 5
+        u, v, T, rh, qc = tf.split(updates, num_vars, axis=-1)
+        return RelativeHumidityBasis(
+            u=u, v=v, T=T, rh=rh, qc=qc, rho=x.rho, dz=x.dz, scalars=x.scalars
+        )
+
+    def _auxiliary(self, x: ThermoBasis) -> tf.Tensor:
+        args = [atleast_2d(arg) for arg in [x.dp, x.dz] + list(x.scalars)]
+        return tf.concat(args, axis=-1)
+
+    def fit_scalers(self, x: ThermoBasis, y: ThermoBasis):
+        self.vector_layer.fit_scalers(
+            self._prognostics(x), self._prognostics(y), self._auxiliary(x)
+        )
+
+    def call(self, x: ThermoBasis) -> ThermoBasis:
+        prediction = self.vector_layer([self._prognostics(x), self._auxiliary(x)])
+        return self._assign_to_thermo_basis(x, prediction)
