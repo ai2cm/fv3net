@@ -12,13 +12,14 @@ from typing import (
     Optional,
     Union,
 )
+from typing_extensions import Literal
 import numpy as np
 import xarray as xr
 import pandas as pd
 import yaml
 
 
-DimSlices = Mapping[str, Tuple[Optional[int], Optional[int]]]
+DimSlices = Mapping[Literal["z", "z_soil"], Tuple[Optional[int], Optional[int]]]
 
 
 def _feature_dims(data: xr.Dataset, sample_dim: str) -> Sequence[str]:
