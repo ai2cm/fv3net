@@ -7,6 +7,7 @@ from fv3fit._shared.packer import (
     clip,
     _unique_dim_name,
     _count_features_2d,
+    to_stacked_array,
 )
 from fv3fit.keras._models.packer import get_unpack_layer, Unpack
 import pytest
@@ -229,3 +230,11 @@ def test_count_features_2d():
     assert out["a"] == 1
     assert out["b"] == 1
     assert out["c"] == 5
+
+
+def test_to_stacked_array(dataset):
+    dataset_as_dict = {k: dataset[k] for k in dataset}
+    stacked_unstacked = to_stacked_array(
+        dataset_as_dict, "new_dim", [SAMPLE_DIM]
+    ).to_unstacked_dataset("new_dim")
+    xr.testing.assert_identical(stacked_unstacked, dataset)
