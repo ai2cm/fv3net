@@ -356,6 +356,11 @@ def main(args):
                 os.path.join(args.output_path, "model_sensitivity_figures"),
             )
         except AttributeError:
+            logger.info(
+                f"Base model is {type(base_model).__name__}, "
+                "which currently has no feature importance or Jacobian "
+                "calculation implemented."
+            )
             pass
 
     if isinstance(config, loaders.BatchesFromMapperConfig):
