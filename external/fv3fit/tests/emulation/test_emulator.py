@@ -4,7 +4,7 @@ import tensorflow as tf
 from fv3fit.emulation.thermobasis.batch import to_dict
 from fv3fit.emulation.thermobasis.emulator import (
     Config as Config,
-    Emulator,
+    Trainer as Emulator,
 )
 from fv3fit.emulation.thermobasis.xarray import get_xarray_emulator
 from fv3fit.emulation.thermobasis.xarray import XarrayEmulator
