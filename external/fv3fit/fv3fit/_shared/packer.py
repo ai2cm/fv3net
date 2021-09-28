@@ -1,3 +1,4 @@
+import dataclasses
 from typing import (
     Collection,
     Hashable,
@@ -12,15 +13,20 @@ from typing import (
     Optional,
     Union,
 )
+from typing_extensions import Literal
 import numpy as np
 import xarray as xr
 import pandas as pd
 import yaml
 
 
-# should be Tuple[Optional[int], Optional[int]] instead of List[Optional[int]] but this
-# leads to a WrongTypeError when loading config from yaml with dacite.from_dict
-DimSlices = Dict[Hashable, List[Optional[int]]]
+@dataclasses.dataclass
+class ContiguousSlice:
+    start: Optional[int]
+    stop: Optional[int]
+
+
+PackerConfig = Mapping[Hashable, Mapping[Literal["z", "z_soil"], ContiguousSlice]]
 
 
 def _feature_dims(data: xr.Dataset, sample_dim: str) -> Sequence[str]:
@@ -44,13 +50,12 @@ def _unique_dim_name(
 
 
 def pack(
-    data: xr.Dataset,
-    sample_dim: str,
-    clip_indices: Optional[Mapping[Hashable, DimSlices]] = None,
+    data: xr.Dataset, sample_dim: str, config: Optional[PackerConfig] = None,
 ) -> Tuple[np.ndarray, pd.MultiIndex]:
-    clip_indices = {} if clip_indices is None else clip_indices
+    if config is None:
+        config = {}
     feature_dim_name = _unique_dim_name(data, sample_dim)
-    data_clipped = clip(data, clip_indices)
+    data_clipped = clip(data, config or {})
     stacked = to_stacked_array(data_clipped, feature_dim_name, sample_dims=[sample_dim])
     return (
         stacked.transpose(sample_dim, feature_dim_name).data,
@@ -70,18 +75,17 @@ def unpack(
 
 
 def clip(
-    data: Union[xr.Dataset, Mapping[Hashable, xr.DataArray]],
-    indices: Mapping[Hashable, DimSlices],
+    data: Union[xr.Dataset, Mapping[Hashable, xr.DataArray]], config: PackerConfig,
 ) -> Mapping[Hashable, xr.DataArray]:
     clipped_data = {}
     for variable in data:
         da = data[variable]
-        if variable in indices:
-            for dim in indices[variable]:
+        if variable in config:
+            for dim in config[variable]:
                 if dim not in da.coords:
                     da = da.assign_coords({dim: range(da.sizes[dim])})
-                start, end = indices[variable][dim]
-                clipped_data[variable] = da.isel({dim: slice(start, end)})
+                start, stop = config[variable][dim].start, config[variable][dim].stop
+                clipped_data[variable] = da.isel({dim: slice(start, stop)})
         else:
             clipped_data[variable] = da
     return clipped_data
