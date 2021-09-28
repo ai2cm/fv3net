@@ -2,12 +2,12 @@ dycore
 Prognostic Run
 xarray.Dataset {
 dimensions:
-	tile = 6 ;
-	time = 104 ;
-	x = 48 ;
 	x_interface = 49 ;
-	y = 48 ;
+	x = 48 ;
 	y_interface = 49 ;
+	y = 48 ;
+	time = 104 ;
+	tile = 6 ;
 
 variables:
 	float64 x_interface(x_interface) ;
@@ -15,11 +15,17 @@ variables:
 		x_interface:long_name = cell corner longitude ;
 		x_interface:units = degrees_E ;
 	float32 x(x) ;
+		x:cartesian_axis = X ;
+		x:long_name = T-cell longitude ;
+		x:units = degrees_E ;
 	float64 y_interface(y_interface) ;
 		y_interface:cartesian_axis = Y ;
 		y_interface:long_name = cell corner latitude ;
 		y_interface:units = degrees_N ;
 	float32 y(y) ;
+		y:cartesian_axis = Y ;
+		y:long_name = T-cell latitude ;
+		y:units = degrees_N ;
 	object time(time) ;
 	float32 PRESsfc(tile, time, y, x) ;
 		PRESsfc:cell_methods = time: point ;
@@ -204,12 +210,12 @@ time 25583ad41801a6136d32add521969330
 Verification
 xarray.Dataset {
 dimensions:
-	tile = 6 ;
-	time = 104 ;
-	x = 48 ;
 	x_interface = 49 ;
-	y = 48 ;
+	x = 48 ;
 	y_interface = 49 ;
+	y = 48 ;
+	time = 104 ;
+	tile = 6 ;
 
 variables:
 	float64 x_interface(x_interface) ;
@@ -217,11 +223,17 @@ variables:
 		x_interface:long_name = cell corner longitude ;
 		x_interface:units = degrees_E ;
 	float32 x(x) ;
+		x:cartesian_axis = X ;
+		x:long_name = T-cell longitude ;
+		x:units = degrees_E ;
 	float64 y_interface(y_interface) ;
 		y_interface:cartesian_axis = Y ;
 		y_interface:long_name = cell corner latitude ;
 		y_interface:units = degrees_N ;
 	float32 y(y) ;
+		y:cartesian_axis = Y ;
+		y:long_name = T-cell latitude ;
+		y:units = degrees_N ;
 	object time(time) ;
 	float32 PRESsfc(tile, time, y, x) ;
 		PRESsfc:cell_methods = time: point ;
@@ -407,10 +419,10 @@ grid
 xarray.Dataset {
 dimensions:
 	tile = 6 ;
-	x = 48 ;
-	x_interface = 49 ;
 	y = 48 ;
+	x = 48 ;
 	y_interface = 49 ;
+	x_interface = 49 ;
 
 variables:
 	int64 tile(tile) ;
@@ -465,16 +477,22 @@ physics
 Prognostic Run
 xarray.Dataset {
 dimensions:
-	tile = 6 ;
-	time = 104 ;
+	y = 48 ;
 	x = 48 ;
 	x_interface = 49 ;
-	y = 48 ;
 	y_interface = 49 ;
+	time = 104 ;
+	tile = 6 ;
 
 variables:
-	float32 x(x) ;
 	float32 y(y) ;
+		y:cartesian_axis = Y ;
+		y:long_name = T-cell latitude ;
+		y:units = degrees_N ;
+	float32 x(x) ;
+		x:cartesian_axis = X ;
+		x:long_name = T-cell longitude ;
+		x:units = degrees_E ;
 	float64 x_interface(x_interface) ;
 		x_interface:cartesian_axis = X ;
 		x_interface:long_name = cell corner longitude ;
@@ -685,25 +703,36 @@ variables:
 		column_integrated_dQ2_or_nQ2:units = mm/day ;
 
 // global attributes:
+	:filename = sfc_dt_atmos.tile1.nc ;
+	:grid_tile = N/A ;
+	:grid_type = regular ;
+	:path = /mnt/data/rundir/sfc_dt_atmos.zarr ;
+	:title = default_experiment ;
 }
-x 87435a5529a9d300a5c1ab22f66729c6
 y 87435a5529a9d300a5c1ab22f66729c6
+x 87435a5529a9d300a5c1ab22f66729c6
 x_interface b06bfa6bfb7b1a1aae066572f8a6974c
 y_interface b06bfa6bfb7b1a1aae066572f8a6974c
 time 25583ad41801a6136d32add521969330
 Verification
 xarray.Dataset {
 dimensions:
-	tile = 6 ;
-	time = 104 ;
+	y = 48 ;
 	x = 48 ;
 	x_interface = 49 ;
-	y = 48 ;
 	y_interface = 49 ;
+	time = 104 ;
+	tile = 6 ;
 
 variables:
-	float32 x(x) ;
 	float32 y(y) ;
+		y:cartesian_axis = Y ;
+		y:long_name = T-cell latitude ;
+		y:units = degrees_N ;
+	float32 x(x) ;
+		x:cartesian_axis = X ;
+		x:long_name = T-cell longitude ;
+		x:units = degrees_E ;
 	float64 x_interface(x_interface) ;
 		x_interface:cartesian_axis = X ;
 		x_interface:long_name = cell corner longitude ;
@@ -914,9 +943,14 @@ variables:
 		column_integrated_dQ2_or_nQ2:units = mm/day ;
 
 // global attributes:
+	:filename = sfc_dt_atmos.tile1.nc ;
+	:grid_tile = N/A ;
+	:grid_type = regular ;
+	:path = /mnt/data/rundir/sfc_dt_atmos.zarr ;
+	:title = default_experiment ;
 }
-x 87435a5529a9d300a5c1ab22f66729c6
 y 87435a5529a9d300a5c1ab22f66729c6
+x 87435a5529a9d300a5c1ab22f66729c6
 x_interface b06bfa6bfb7b1a1aae066572f8a6974c
 y_interface b06bfa6bfb7b1a1aae066572f8a6974c
 time 25583ad41801a6136d32add521969330
@@ -924,10 +958,10 @@ grid
 xarray.Dataset {
 dimensions:
 	tile = 6 ;
-	x = 48 ;
-	x_interface = 49 ;
 	y = 48 ;
+	x = 48 ;
 	y_interface = 49 ;
+	x_interface = 49 ;
 
 variables:
 	int64 tile(tile) ;
@@ -982,11 +1016,11 @@ y_interface b06bfa6bfb7b1a1aae066572f8a6974c
 Prognostic Run
 xarray.Dataset {
 dimensions:
-	pressure = 35 ;
-	tile = 6 ;
 	time = 8 ;
 	x = 48 ;
 	y = 48 ;
+	pressure = 35 ;
+	tile = 6 ;
 
 variables:
 	object time(time) ;
@@ -1031,11 +1065,11 @@ pressure 7d360c07c293d39949ef3ee05d70c2dc
 Verification
 xarray.Dataset {
 dimensions:
-	pressure = 35 ;
-	tile = 6 ;
 	time = 8 ;
 	x = 48 ;
 	y = 48 ;
+	pressure = 35 ;
+	tile = 6 ;
 
 variables:
 	object time(time) ;
@@ -1081,10 +1115,10 @@ grid
 xarray.Dataset {
 dimensions:
 	tile = 6 ;
-	x = 48 ;
-	x_interface = 49 ;
 	y = 48 ;
+	x = 48 ;
 	y_interface = 49 ;
+	x_interface = 49 ;
 
 variables:
 	float32 area(tile, y, x) ;

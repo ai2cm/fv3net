@@ -8,7 +8,7 @@ from vcm import thermo, safe, mass_integrate
 import xarray as xr
 import numpy as np
 import logging
-from typing import Sequence, Mapping, Union
+from typing import Sequence, Mapping, Union, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def reduce_to_diagnostic(
     grid: xr.Dataset,
     domains: Sequence[str] = DOMAINS,
     primary_vars: Sequence[str] = PRIMARY_VARS,
-    net_precipitation: xr.DataArray = None,
+    net_precipitation: Optional[xr.DataArray] = None,
     time_dim: str = "time",
     uninformative_coords: Sequence[str] = ["tile", "z", "y", "x"],
 ) -> xr.Dataset:

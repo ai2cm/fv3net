@@ -5,12 +5,14 @@ plot_pcolormesh_cube
 Example of using :py:func:`plot_pcolormesh_cube` to plot a map with grid cell boundaries
 """
 
-import os
-from cartopy import crs as ccrs
-from matplotlib import pyplot as plt
-from xarray.tutorial import open_dataset
-from fv3viz import pcolormesh_cube
+
+import requests
+import io
 import warnings
+import xarray as xr
+from matplotlib import pyplot as plt
+from cartopy import crs as ccrs
+from fv3viz import pcolormesh_cube
 
 warnings.filterwarnings(
     "ignore",
@@ -21,22 +23,25 @@ warnings.filterwarnings(
     ),
 )
 
-DATA_DIR = "./fv3net/fv3viz"
-DATA_PATH = os.path.join(DATA_DIR, "plot_4_plot_pcolormesh_cube.nc")
-GRID_PATH = os.path.join(DATA_DIR, "grid.nc")
-OPEN_DATASET_KWARGS = {
-    "cache_dir": ".",
-    "cache": True,
-    "github_url": "https://github.com/VulcanClimateModeling/vcm-ml-example-data",
-    "branch": "main",
-}
+
+def get_web_dataset(url):
+    r = requests.get(url)
+    ds = xr.open_dataset(io.BytesIO(r.content))
+    return ds
+
+
+DATA_URL = (
+    "https://raw.githubusercontent.com/ai2cm/vcm-ml-example-data/"
+    "main/fv3net/fv3viz/plot_4_plot_pcolormesh_cube.nc"
+)
+GRID_URL = (
+    "https://raw.githubusercontent.com/ai2cm/vcm-ml-example-data"
+    "/main/fv3net/fv3viz/grid.nc"
+)
 VAR = "net_moistening"
 
-if not os.path.isdir(DATA_DIR):
-    os.makedirs(DATA_DIR)
-
-prognostic_ds = open_dataset(DATA_PATH, **OPEN_DATASET_KWARGS)
-grid_ds = open_dataset(GRID_PATH, **OPEN_DATASET_KWARGS)
+prognostic_ds = get_web_dataset(DATA_URL)
+grid_ds = get_web_dataset(GRID_URL)
 
 fig, ax = plt.subplots(1, 1, subplot_kw={"projection": ccrs.Robinson()})
 h = pcolormesh_cube(
