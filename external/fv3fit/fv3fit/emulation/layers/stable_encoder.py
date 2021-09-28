@@ -1,5 +1,4 @@
 import tensorflow as tf
-from math import pi
 from fv3fit.emulation.layers import (
     MeanFeatureStdNormLayer,
     MeanFeatureStdDenormLayer,
@@ -25,9 +24,8 @@ class StableDynamics(tf.keras.layers.Layer):
         )
 
     def call(self, z):
-        phase = tf.minimum(tf.maximum(self.phase, 0.0), 1.0) * 2 * pi
         scale = -tf.nn.relu(self.growth_rate)
-        exponent = tf.complex(scale, phase)
+        exponent = tf.complex(scale, self.phase)
         return tf.exp(exponent) * z
 
 
