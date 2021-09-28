@@ -2,7 +2,7 @@ from .config import (
     TrainingConfig,
     register_training_function,
 )
-from .packer import pack, unpack, ArrayPacker, unpack_matrix
+from .packer import pack, unpack, ArrayPacker, unpack_matrix, DimSlices
 from .scaler import (
     StandardScaler,
     ManualScaler,
