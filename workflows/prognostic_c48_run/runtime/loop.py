@@ -110,7 +110,7 @@ def add_tendency(state: Any, tendency: State, dt: float) -> State:
                     "Existing tendencies with mappings to state are "
                     f"{list(TENDENCY_TO_STATE_NAME.keys())}"
                 )
-            updated[state_name] = state[state_name] + tendency[name] * dt
+            updated[state_name] = state[state_name] + tendency[name].fillna(0) * dt
     return updated  # type: ignore
 
 
