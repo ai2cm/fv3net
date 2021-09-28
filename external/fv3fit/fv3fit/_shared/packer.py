@@ -12,14 +12,15 @@ from typing import (
     Optional,
     Union,
 )
-from typing_extensions import Literal
 import numpy as np
 import xarray as xr
 import pandas as pd
 import yaml
 
 
-DimSlices = Mapping[Literal["z", "z_soil"], Tuple[Optional[int], Optional[int]]]
+# should be Tuple[Optional[int], Optional[int]] instead of List[Optional[int]] but this
+# leads to a WrongTypeError when loading config from yaml with dacite.from_dict
+DimSlices = Dict[Hashable, List[Optional[int]]]
 
 
 def _feature_dims(data: xr.Dataset, sample_dim: str) -> Sequence[str]:
