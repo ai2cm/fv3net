@@ -5,6 +5,7 @@ from fv3fit._shared.packer import (
     pack,
     unpack,
     clip,
+    ContiguousSlice,
     _unique_dim_name,
     _count_features_2d,
     to_stacked_array,
@@ -194,7 +195,7 @@ def test_sklearn_unpack(dataset: xr.Dataset):
 def test_sklearn_pack_unpack_with_clipping(dataset: xr.Dataset):
     name = list(dataset.data_vars)[0]
     if FEATURE_DIM in dataset[name]:
-        indices = {name: {FEATURE_DIM: (3, None)}}
+        indices = {name: {FEATURE_DIM: ContiguousSlice(3, None)}}
         packed_array, feature_index = pack(dataset, SAMPLE_DIM, indices)
         unpacked_dataset = unpack(packed_array, SAMPLE_DIM, feature_index)
         expected_dataset = dataset.copy(deep=True)
@@ -205,7 +206,7 @@ def test_sklearn_pack_unpack_with_clipping(dataset: xr.Dataset):
 def test_clip(dataset: xr.Dataset):
     name = list(dataset.data_vars)[0]
     if FEATURE_DIM in dataset[name]:
-        indices = {name: {FEATURE_DIM: (4, 8)}}
+        indices = {name: {FEATURE_DIM: ContiguousSlice(4, 8)}}
         clipped_data = clip(dataset, indices)
         expected_da = dataset[name].isel(indices[name])
         assert not isinstance(clipped_data, xr.Dataset)

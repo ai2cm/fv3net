@@ -12,13 +12,12 @@ from typing import (
     List,
     Type,
     Dict,
-    Hashable,
 )
 from fv3fit.typing import Dataclass
 import xarray as xr
 from .predictor import Predictor
 from .hyperparameters import Hyperparameters
-from .packer import DimSlices
+from .packer import PackerConfig
 import dacite
 import numpy as np
 import random
@@ -206,7 +205,7 @@ class RandomForestHyperparameters(Hyperparameters):
 
     scaler_type: str = "standard"
     scaler_kwargs: Optional[Mapping] = None
-    clip_indices: Optional[Mapping[Hashable, DimSlices]] = None
+    packer_config: Optional[PackerConfig] = None
 
     # don't set default to -1 because it causes non-reproducible training
     n_jobs: int = 8

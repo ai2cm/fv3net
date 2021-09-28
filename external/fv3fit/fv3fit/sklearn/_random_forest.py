@@ -1,4 +1,4 @@
-from typing import Hashable, Mapping
+from typing import Mapping
 import logging
 import io
 import numpy as np
@@ -13,7 +13,7 @@ from .._shared import (
     Predictor,
     get_scaler,
     register_training_function,
-    DimSlices,
+    PackerConfig,
 )
 from .._shared.config import RandomForestHyperparameters
 from .. import _shared
@@ -90,7 +90,7 @@ class RandomForest(Predictor):
             model=batch_regressor,
             scaler_type=hyperparameters.scaler_type,
             scaler_kwargs=hyperparameters.scaler_kwargs,
-            clip_indices=hyperparameters.clip_indices,
+            packer_config=hyperparameters.packer_config,
         )
         self.sample_dim_name = sample_dim_name
         self.input_variables = self._model_wrapper.input_variables
@@ -211,7 +211,7 @@ class SklearnWrapper(Predictor):
         model: _RegressorEnsemble,
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
-        clip_indices: Optional[Mapping[Hashable, DimSlices]] = None,
+        packer_config: Optional[PackerConfig] = None,
     ) -> None:
         """
         Initialize the wrapper
@@ -229,16 +229,16 @@ class SklearnWrapper(Predictor):
         # TODO: remove internal sample dim name once sample dim is hardcoded everywhere
         self._input_variables = input_variables
         self._output_variables = output_variables
-        self.clip_indices = {} if clip_indices is None else clip_indices
+        self.packer_config = packer_config
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
     def _fit_batch(self, data: xr.Dataset):
         # TODO the sample_dim can change so best to use feature dim to flatten
-        x, _ = pack(data[self.input_variables], SAMPLE_DIM_NAME, self.clip_indices)
+        x, _ = pack(data[self.input_variables], SAMPLE_DIM_NAME, self.packer_config)
         y, self.output_features_ = pack(
-            data[self.output_variables], SAMPLE_DIM_NAME, self.clip_indices
+            data[self.output_variables], SAMPLE_DIM_NAME, self.packer_config
         )
 
         if self.target_scaler is None:
@@ -267,7 +267,7 @@ class SklearnWrapper(Predictor):
 
     def _predict_on_stacked_data(self, stacked_data):
         X, _ = pack(
-            stacked_data[self.input_variables], SAMPLE_DIM_NAME, self.clip_indices
+            stacked_data[self.input_variables], SAMPLE_DIM_NAME, self.packer_config
         )
         y = self.model.predict(X)
         if self.target_scaler is not None:
