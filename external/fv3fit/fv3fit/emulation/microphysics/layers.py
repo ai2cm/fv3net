@@ -69,7 +69,9 @@ class FieldOutput(tf.keras.layers.Layer):
         )
 
         if denormalize is not None:
-            self.denorm = get_denorm_class(denormalize)(name=f"denormalized_{self.name}")
+            self.denorm = get_denorm_class(denormalize)(
+                name=f"denormalized_{self.name}"
+            )
             self.denorm.fit(sample_out)
         else:
             self.denorm = tf.keras.layers.Lambda(lambda x: x)
@@ -118,12 +120,9 @@ class ResidualOutput(tf.keras.layers.Layer):
             sample_out,
             denormalize=denormalize,
             enforce_positive=False,
-            name=f"residual_{self.name}"
+            name=f"residual_{self.name}",
         )
-        self.increment = IncrementStateLayer(
-            dt_sec,
-            name=f"increment_{self.name}"
-        )
+        self.increment = IncrementStateLayer(dt_sec, name=f"increment_{self.name}")
         self.use_relu = enforce_positive
         self.relu = tf.keras.layers.ReLU()
 

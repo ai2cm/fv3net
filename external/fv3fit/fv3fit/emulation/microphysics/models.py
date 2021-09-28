@@ -87,7 +87,11 @@ class Config:
 
     @property
     def output_variables(self):
-        return self.direct_out_variables + list(self.residual_out_variables.keys()) + list(self.tendency_outputs.values())
+        return (
+            self.direct_out_variables
+            + list(self.residual_out_variables.keys())
+            + list(self.tendency_outputs.values())
+        )
 
     def _get_processed_inputs(self, sample_in, inputs):
 
