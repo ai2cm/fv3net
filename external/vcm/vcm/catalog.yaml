@@ -608,6 +608,28 @@ sources:
       consolidated: True
 
 
+  2020_1yr_pire_pressure_interpolated:
+    description: >-
+      3D dynamical core diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution and interpolated to pressure levels. 
+      Generated with https://github.com/VulcanClimateModeling/explore/blob/master/annak/2021-06-17-save-c3072-verification-correct-winds.ipynb 
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 1yr_pire_postspinup
+      category: 3d
+      variables:
+        - air_temperature
+        - specific_humidity
+        - eastward_wind
+        - northward_wind
+        - vertical_wind
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-intermediate/2021-09-22-PIRE-c48-dycore-post-spinup/pire-1yr-postspinup-restarts-pressure-interpolated.zarr"
+      consolidated: True
+      
 
   2020_1yr_pire_physics:
     description: 2D physics diagnostics variables from 1 yr PIRE run post-spinup, starting on 1/18/20, coarsened to C48 resolution 
