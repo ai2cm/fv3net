@@ -60,8 +60,8 @@ class MachineLearningConfig:
 def non_negative_sphum(
     sphum: xr.DataArray, dQ1: xr.DataArray, dQ2: xr.DataArray, dt: float
 ) -> Tuple[xr.DataArray, xr.DataArray]:
-    delta = dQ2 * dt
-    reduction_ratio = (-sphum) / (dt * dQ2)  # type: ignore
+    delta = dQ2.fillna(0) * dt
+    reduction_ratio = (-sphum) / (dt * dQ2.fillna(0))  # type: ignore
     dQ1_updated = xr.where(sphum + delta >= 0, dQ1, reduction_ratio * dQ1)
     dQ2_updated = xr.where(sphum + delta >= 0, dQ2, reduction_ratio * dQ2)
     return dQ1_updated, dQ2_updated
