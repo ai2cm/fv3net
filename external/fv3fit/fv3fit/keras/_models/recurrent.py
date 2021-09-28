@@ -513,7 +513,11 @@ def _get_output_timestep_ds(
     """
     data_vars = {}
     for name, value in state.items():
-        data_vars[name] = ([sample_dim_name, "z"], value)
+        if isinstance(value, xr.DataArray):
+            data_vars[name] = value
+        else:
+            # assume numpy array
+            data_vars[name] = ([sample_dim_name, "z"], value)  # type: ignore
     for name in (
         "air_temperature_tendency_due_to_model",
         "specific_humidity_tendency_due_to_model",

@@ -13,7 +13,7 @@ import fsspec
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 import xarray as xr
-import fv3viz as viz
+import fv3viz
 import vcm
 import vcm.catalog
 
@@ -26,20 +26,6 @@ logger = logging.getLogger(__name__)
 
 MovieArg = Tuple[xr.Dataset, str]
 FIG_SUFFIX = "_%05d.png"
-
-COORD_NAMES = {
-    "coord_x_center": "x",
-    "coord_y_center": "y",
-    "coord_x_outer": "x_interface",
-    "coord_y_outer": "y_interface",
-}
-
-_COORD_VARS = {
-    "lonb": ["y_interface", "x_interface", "tile"],
-    "latb": ["y_interface", "x_interface", "tile"],
-    "lon": ["y", "x", "tile"],
-    "lat": ["y", "x", "tile"],
-}
 
 GRID_VARS = ["area", "lonb", "latb", "lon", "lat"]
 INTERFACE_DIMS = ["x_interface", "y_interface"]
@@ -62,8 +48,7 @@ WIND_TENDENCY_PLOT_KWARGS = {
 def _plot_maps(ds, axes, plot_kwargs):
     for i, (variable, variable_plot_kwargs) in enumerate(plot_kwargs.items()):
         ax = axes.flatten()[i]
-        mv = viz.mappable_var(ds, variable, coord_vars=_COORD_VARS, **COORD_NAMES)
-        viz.plot_cube(mv, ax=ax, **variable_plot_kwargs)
+        fv3viz.plot_cube(ds, variable, ax=ax, **variable_plot_kwargs)
         ax.set_title(variable.replace("_", " "))
 
 
