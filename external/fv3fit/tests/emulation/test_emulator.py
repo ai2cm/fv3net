@@ -1,7 +1,12 @@
 import datetime
+from fv3fit.emulation.thermobasis.models import V1QCModel
 import numpy as np
 import tensorflow as tf
-from fv3fit.emulation.thermobasis.batch import to_dict
+from fv3fit.emulation.thermobasis.batch import (
+    batch_to_specific_humidity_basis,
+    to_dict,
+    to_tensors,
+)
 from fv3fit.emulation.thermobasis.emulator import (
     Config as Config,
     Trainer as Emulator,
@@ -12,7 +17,12 @@ from fv3fit.emulation.thermobasis.models import VectorModelAdapter
 from fv3fit.emulation.thermobasis.xarray import get_xarray_emulator
 from fv3fit.emulation.thermobasis.xarray import XarrayEmulator
 
-from fv3fit.emulation.thermobasis.loss import RHLossSingleLevel, QVLossSingleLevel
+from fv3fit.emulation.thermobasis.loss import (
+    MultiVariableLoss,
+    RHLossSingleLevel,
+    QVLossSingleLevel,
+)
+import xarray as xr
 from utils import _get_argsin
 import pytest
 
@@ -132,3 +142,25 @@ def test_dump_load_OnlineEmulator(state, tmpdir, output_exists):
     np.testing.assert_array_equal(
         new_emulator.predict(state)[field], emulator.predict(state)[field]
     )
+
+
+@pytest.mark.parametrize(
+    "get_model",
+    [
+        pytest.param(lambda nz: V1QCModel(nz=nz), id="v1qc"),
+        pytest.param(
+            lambda nz: VectorModelAdapter(StableEncoder()), id="stable_encoder"
+        ),
+    ],
+)
+def test_loss_stable_encoder_has_reasonable_magnitude_loss(state, get_model):
+    target = MultiVariableLoss()
+    state = xr.Dataset(state).stack(sample=["x", "y"]).transpose("sample", "z", ...)
+    tensors = to_tensors(state)
+    x = batch_to_specific_humidity_basis(tensors)
+    model = get_model(nz=x.q.shape[-1])
+    model.fit_scalers(x, x)
+    y = model(x)
+
+    loss, _ = target.loss(x, y)
+    assert loss.numpy().item() < 10

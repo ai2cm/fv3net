@@ -1,3 +1,4 @@
+from fv3fit.emulation.layers.stable_encoder import mlp
 import tensorflow as tf
 from math import pi
 from fv3fit.emulation.layers import StableDynamics, StableEncoder
@@ -44,3 +45,10 @@ def test_StableEncoder_prediction_has_same_size():
     encoder = StableEncoder()
     y = encoder([x, auxiliary])
     assert x.shape == y.shape
+
+
+def test_mlp_reasonable_output_magnitude():
+    x = tf.random.uniform((1, 10), -10, 10)
+    model = mlp(128, 2, 10)
+    out = model(x)
+    assert tf.reduce_mean(out ** 2) < 10.0
