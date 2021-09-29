@@ -5,7 +5,10 @@ from fv3fit.emulation.thermobasis.batch import to_dict
 from fv3fit.emulation.thermobasis.emulator import (
     Config as Config,
     Trainer as Emulator,
+    get_model,
 )
+from fv3fit.emulation.layers import StableEncoder
+from fv3fit.emulation.thermobasis.models import VectorModelAdapter
 from fv3fit.emulation.thermobasis.xarray import get_xarray_emulator
 from fv3fit.emulation.thermobasis.xarray import XarrayEmulator
 
@@ -90,6 +93,18 @@ def test_OnlineEmulator_batch_fit(config, with_validation):
         emulator.batch_fit(dataset, validation_data=dataset)
     else:
         emulator.batch_fit(dataset)
+
+
+def test_get_stable_encoder():
+    config = Config(stable_encoder=True)
+    model = get_model(config)
+    assert isinstance(model, VectorModelAdapter)
+    assert isinstance(model.vector_layer, StableEncoder)
+
+
+def test_args_stable_encoder():
+    config = Config.from_argv(["--stable-encoder", "--multi-output"])
+    assert config.stable_encoder
 
 
 def test_top_level():

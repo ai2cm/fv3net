@@ -1,3 +1,4 @@
+import argparse
 from collections import defaultdict
 import dataclasses
 import json
@@ -12,6 +13,7 @@ import os
 import numpy
 import tensorflow as tf
 import dacite
+from fv3fit.emulation.layers import StableEncoder
 from fv3fit.emulation.thermobasis.batch import (
     get_prognostic_variables,
     batch_to_specific_humidity_basis,
@@ -32,6 +34,7 @@ from fv3fit.emulation.thermobasis.models import (
     UVTRHSimple,
     ScalarMLP,
     RHScalarMLP,
+    VectorModelAdapter,
 )
 from fv3fit.emulation.thermobasis.models import V1QCModel
 
@@ -82,6 +85,8 @@ class Config:
     output_path: str = ""
     weight_sharing: bool = False
     cloud_water: bool = False
+
+    stable_encoder: bool = False
 
     @property
     def input_variables(self) -> List[str]:
@@ -134,6 +139,11 @@ class Config:
 
         group = parser.add_argument_group("single level output")
         group.add_argument(
+            "--stable-encoder",
+            help="Use stable autoencoder network structure.",
+            action="store_true",
+        )
+        group.add_argument(
             "--relative-humidity",
             action="store_true",
             help="if true use relative based prediction.",
@@ -156,6 +166,13 @@ class Config:
             help="comma separated list of variable names.",
         )
 
+    @classmethod
+    def from_argv(cls, argv: Sequence[str]) -> "Config":
+        parser = argparse.ArgumentParser()
+        cls.register_parser(parser)
+        args = parser.parse_args(argv)
+        return cls.from_args(args)
+
     @staticmethod
     def from_args(args) -> "Config":
         config = Config()
@@ -170,6 +187,7 @@ class Config:
         config.wandb_logger = args.wandb
         config.relative_humidity = args.relative_humidity
         config.cloud_water = args.cloud_water
+        config.stable_encoder = args.stable_encoder
 
         if args.level:
             if args.relative_humidity:
@@ -347,6 +365,9 @@ def get_model(config: Config) -> tf.keras.Model:
     if config.cloud_water:
         logging.info("Using V1QCModel")
         return V1QCModel(config.levels)
+    elif config.stable_encoder:
+        logging.info("Using StableEncoder Model")
+        return VectorModelAdapter(StableEncoder())
     elif isinstance(config.target, MultiVariableLoss):
         logging.info("Using ScalerMLP")
         n = config.levels
