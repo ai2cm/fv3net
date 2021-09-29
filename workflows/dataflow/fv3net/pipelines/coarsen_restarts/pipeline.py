@@ -26,10 +26,10 @@ def _open_restart_categories(
     source = {}
 
     OUTPUT_CATEGORY_NAMES = {
-        "fv_core.res": "fv_core_coarse.res",
-        "fv_srf_wnd.res": "fv_srf_wnd_coarse.res",
-        "fv_tracer.res": "fv_tracer_coarse.res",
-        "sfc_data": "sfc_data_coarse",
+        "fv_core.res": "fv_core.res",
+        "fv_srf_wnd.res": "fv_srf_wnd.res",
+        "fv_tracer.res": "fv_tracer.res",
+        "sfc_data": "sfc_data",
     }
 
     for output_category in OUTPUT_CATEGORY_NAMES:
@@ -55,6 +55,8 @@ def coarsen_timestep(
 
 def split_by_tiles(kv: Tuple[Tuple, xr.Dataset]) -> Iterable[Tuple[Tuple, xr.Dataset]]:
     key, ds = kv
+    if "tile" in ds.coords:
+        ds = ds.drop("tile")
     for tile in range(6):
         yield key + (tile + 1,), ds.isel(tile=tile)
 

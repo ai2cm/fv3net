@@ -5,6 +5,7 @@ import sys
 import tempfile
 import yaml
 import xarray as xr
+from dask.diagnostics import ProgressBar
 
 from vcm.cubedsphere import weighted_block_average
 from vcm.cloud import gsutil
@@ -44,7 +45,7 @@ def _get_complete_output_path(input_path, output_path):
 def coarsen_c384_diagnostics(args):
 
     coarsen_diags_config = _get_config(args.config_path)
-    output_path = _get_complete_output_path(args.input_path, args.output_path)
+    output_path = args.output_path
     hires_data_vars = coarsen_diags_config["hi-res-data-vars"]
     logging.info(f"Opening C384 diagnostics at: {args.input_path}.")
     diags = _get_remote_diags(args.input_path)
@@ -54,7 +55,13 @@ def coarsen_c384_diagnostics(args):
     # subset variables and rename the dimensions appropriately
     diags384 = diags[hires_data_vars]
     dims_to_rename = {k: v for k, v in DIM_RENAME.items() if k in diags384}
+    vars_to_rename = {
+        k: v
+        for k, v in coarsen_diags_config.get("rename_variables", {}).items()
+        if k in diags384
+    }
     diags384 = diags384.rename(dims_to_rename)
+    diags384 = diags384.rename(vars_to_rename)
     if "tile" in diags384.coords:
         # drop possibly 1-based tile coordinate
         diags384 = diags384.drop("tile")
@@ -81,7 +88,8 @@ def coarsen_c384_diagnostics(args):
         if not output_path.startswith("gs://"):
             # write directly to output_path if it is local
             tmpdirname = output_path
-        diags_coarsened.to_zarr(tmpdirname, mode="w", consolidated=True)
+        with ProgressBar():
+            diags_coarsened.to_zarr(tmpdirname, mode="w", consolidated=True)
         logging.info(f"Done writing coarsened diagnostics locally.")
         if output_path.startswith("gs://"):
             # upload with gsutil if output_path is remote
