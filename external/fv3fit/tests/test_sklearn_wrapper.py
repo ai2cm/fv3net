@@ -8,6 +8,7 @@ import joblib
 
 from fv3fit.sklearn._random_forest import _RegressorEnsemble, pack, SklearnWrapper
 from fv3fit._shared.scaler import ManualScaler
+from fv3fit._shared.packer import ContiguousSlice, PackerConfig
 
 
 def test_flatten():
@@ -225,3 +226,56 @@ def test_predict_returns_unstacked_dims():
     assert len(input_data.dims) > 2
     prediction = wrapper.predict(input_data)
     assert prediction.dims == input_data.dims
+
+
+def test_SklearnWrapper_fit_predict_with_clipped_input_data():
+    nz = 5
+    model = _RegressorEnsemble(
+        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
+        n_jobs=1,
+    )
+    wrapper = SklearnWrapper(
+        sample_dim_name="sample",
+        input_variables=["a", "b"],
+        output_variables=["c"],
+        model=model,
+        packer_config=PackerConfig({"a": {"z": ContiguousSlice(2, None)}}),
+    )
+
+    dims = ["x", "y", "z"]
+    shape = (2, 2, nz)
+    arr = np.arange(np.prod(shape)).reshape(shape)
+    input_data = xr.Dataset(
+        {"a": (dims, arr), "b": (dims[:-1], arr[:, :, 0]), "c": (dims, arr + 1)}
+    )
+    wrapper.fit([input_data])
+    wrapper.predict(input_data)
+
+
+@pytest.mark.xfail
+def test_SklearnWrapper_fit_with_clipped_output_data():
+    nz = 5
+    model = _RegressorEnsemble(
+        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
+        n_jobs=1,
+    )
+    wrapper = SklearnWrapper(
+        sample_dim_name="sample",
+        input_variables=["a", "b"],
+        output_variables=["c"],
+        model=model,
+        packer_config=PackerConfig({"c": {"z": ContiguousSlice(2, None)}}),
+    )
+
+    dims = ["x", "y", "z"]
+    shape = (2, 2, nz)
+    arr = np.arange(np.prod(shape)).reshape(shape)
+    input_data = xr.Dataset(
+        {"a": (dims, arr), "b": (dims[:-1], arr[:, :, 0]), "c": (dims, arr + 1)}
+    )
+    wrapper.fit([input_data])
+    prediction = wrapper.predict(input_data)
+    xr.testing.assert_identical(
+        xr.full_like(input_data[["c"]].isel(z=slice(2, None)), np.nan),
+        prediction.isel(z=slice(2, None)),
+    )
