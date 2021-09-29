@@ -1,8 +1,10 @@
 from typing import Mapping
+import dataclasses
 import logging
 import io
 import numpy as np
 from copy import copy
+import dacite
 import xarray as xr
 import pandas as pd
 import fsspec
@@ -229,7 +231,7 @@ class SklearnWrapper(Predictor):
         # TODO: remove internal sample dim name once sample dim is hardcoded everywhere
         self._input_variables = input_variables
         self._output_variables = output_variables
-        self.packer_config = packer_config
+        self.packer_config = packer_config or PackerConfig({})
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
@@ -309,6 +311,7 @@ class SklearnWrapper(Predictor):
             self.input_variables,
             self.output_variables,
             _multiindex_to_tuple(self.output_features_),
+            dataclasses.asdict(self.packer_config),
         ]
 
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
@@ -330,6 +333,7 @@ class SklearnWrapper(Predictor):
             input_variables,
             output_variables,
             output_features_dict_,
+            packer_config_dict,
         ) = yaml.safe_load(mapper[cls._METADATA_NAME])
 
         output_features_ = _tuple_to_multiindex(output_features_dict_)
@@ -337,6 +341,9 @@ class SklearnWrapper(Predictor):
         obj = cls(sample_dim_name, input_variables, output_variables, model)
         obj.target_scaler = scaler_obj
         obj.output_features_ = output_features_
+        # we should probably dump/load using the hyperparameters at the RandomForest
+        # level instead of at the SklearnWrapper level
+        obj.packer_config = dacite.from_dict(PackerConfig, packer_config_dict)
 
         return obj
 

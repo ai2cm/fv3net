@@ -26,7 +26,12 @@ class ContiguousSlice:
     stop: Optional[int]
 
 
-PackerConfig = Mapping[Hashable, Mapping[Literal["z", "z_soil"], ContiguousSlice]]
+ClipConfig = Mapping[Hashable, Mapping[Literal["z", "z_soil"], ContiguousSlice]]
+
+
+@dataclasses.dataclass
+class PackerConfig:
+    clip: ClipConfig
 
 
 def _feature_dims(data: xr.Dataset, sample_dim: str) -> Sequence[str]:
@@ -53,9 +58,9 @@ def pack(
     data: xr.Dataset, sample_dim: str, config: Optional[PackerConfig] = None,
 ) -> Tuple[np.ndarray, pd.MultiIndex]:
     if config is None:
-        config = {}
+        config = PackerConfig({})
     feature_dim_name = _unique_dim_name(data, sample_dim)
-    data_clipped = clip(data, config or {})
+    data_clipped = clip(data, config.clip)
     stacked = to_stacked_array(data_clipped, feature_dim_name, sample_dims=[sample_dim])
     return (
         stacked.transpose(sample_dim, feature_dim_name).data,
@@ -75,7 +80,7 @@ def unpack(
 
 
 def clip(
-    data: Union[xr.Dataset, Mapping[Hashable, xr.DataArray]], config: PackerConfig,
+    data: Union[xr.Dataset, Mapping[Hashable, xr.DataArray]], config: ClipConfig,
 ) -> Mapping[Hashable, xr.DataArray]:
     clipped_data = {}
     for variable in data:
