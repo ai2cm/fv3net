@@ -13,7 +13,6 @@ from typing import (
     Optional,
     Union,
 )
-from typing_extensions import Literal
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -26,7 +25,7 @@ class ContiguousSlice:
     stop: Optional[int]
 
 
-ClipConfig = Mapping[Hashable, Mapping[Literal["z", "z_soil"], ContiguousSlice]]
+ClipConfig = Mapping[Hashable, Mapping[str, ContiguousSlice]]
 
 
 @dataclasses.dataclass
