@@ -209,6 +209,7 @@ class VectorModelAdapter(tf.keras.layers.Layer):
         self.prog_norm = StandardNormLayer(name="prognostic_norm")
         self.prog_denorm = StandardDenormLayer(name="prognostic_denorm")
         self.aux_norm = StandardNormLayer(name="auxiliary_norm")
+        self.scalers_fitted = False
 
     def _prognostics(self, x: ThermoBasis) -> tf.Tensor:
         return tf.concat([x.u, x.v, x.T, x.rh, x.qc], axis=-1)
@@ -230,6 +231,7 @@ class VectorModelAdapter(tf.keras.layers.Layer):
         self.vector_layer.fit_scalers(
             self._prognostics(x), self._prognostics(y), self._auxiliary(x)
         )
+        self.scalers_fitted = True
 
     def call(self, x: ThermoBasis) -> ThermoBasis:
         prediction = self.vector_layer([self._prognostics(x), self._auxiliary(x)])
