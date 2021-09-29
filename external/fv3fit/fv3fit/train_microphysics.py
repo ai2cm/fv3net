@@ -1,15 +1,34 @@
 import dataclasses
-from typing import Any, List, Mapping, Optional
+import json
+import os
 import wandb
+import numpy as np
+import pandas as pd
 import tensorflow as tf
+from typing import Any, List, Mapping, Optional
 
 from fv3fit.emulation.microphysics import Config
 from fv3fit.emulation.microphysics.models import ArchitectureParams
 from fv3fit.emulation.data import TransformConfig
+from fv3fit.emulation.data import get_nc_files, nc_files_to_tf_dataset
 from fv3fit.emulation.layers import MeanFeatureStdNormLayer
 from fv3fit import set_random_seed
-from fv3fit.emulation.data import get_nc_files, nc_files_to_tf_dataset
+# TODO centralize this
+from fv3fit.keras._models._filesystem import put_dir
 from loaders.batches import shuffle
+
+
+
+SCALE_VALUES = {
+    "total_precip": 1000/(3600*24),  # mm / day
+    "specific_humidity_output": 1000,  # g / kg
+    "tendency_of_specific_humidity_due_to_microphysics": 1000*(3600*24),  # g / kg / day
+    "cloud_water_mixing_ratio_output": 1000,  # g / kg
+    "tendency_of_cloud_water_mixing_ratio_due_to_microphysics": 1000*(3600*24),  # g / kg / day
+    "air_temperature_output": 1,
+    "tendency_of_air_temperature_due_to_microphysics": 3600*24  # K / day
+}
+
 
 # TODO: need to assert that outputs from data are same
 #       order as all outputs from the model
@@ -22,23 +41,6 @@ class OptimizerConfig:
     def instance(self) -> tf.keras.optimizers.Optimizer:
         cls = getattr(tf.keras.optimizers, self.name)
         return cls(**self.kwargs)
-
-
-@dataclasses.dataclass
-class TrainConfig:
-    train_url: str
-    test_url: str
-    transform: TransformConfig
-    model: Config
-    use_wandb: bool = True
-    epochs: int = 1
-    batch_size: int = 128
-    nfiles: Optional[int] = None 
-    optimizer: OptimizerConfig = dataclasses.field(
-        default_factory=lambda: OptimizerConfig("Adam")
-    )
-    loss_variables: List[str] = dataclasses.field(default_factory=list)
-    metric_variables: List[str] = dataclasses.field(default_factory=list)
 
 
 # TODO: update netcdf-> ds function
@@ -86,14 +88,85 @@ class NormalizedMSE(tf.keras.losses.MeanSquaredError):
         return super().call(self._normalize(y_true), self._normalize(y_pred))
 
 
+def scale(names, values):
+
+    scaled = []
+    for name, value in zip(names, values):
+        value *= SCALE_VALUES[name]
+        scaled.append(value)
+
+    return scaled
+
+
+def score(target, prediction):
+
+    bias_all = target - prediction
+    se = bias_all**2
+
+    mse = np.mean(se)
+    bias = np.mean(bias_all)
+    mse_prof = np.mean(se, axis=0)
+    bias_prof = np.mean(bias_all, axis=0)
+    rmse_prof = np.sqrt(mse_prof)
+
+    metrics = {
+        "mse": mse,
+        "bias": bias,
+    }
+
+    profiles = {
+        "mse_profile": mse_prof,
+        "bias_profile": bias_prof,
+        "rmse_profile": rmse_prof,
+    }
+
+    return metrics, profiles
+
+
+def score_all(targets, predictions, names):
+
+    all_scores = {}
+    all_profiles = {}
+
+    for target, pred, name in zip(targets, predictions, names):
+
+        scores, profiles = score(target, pred)
+        flat_score = {f"{k}/{name}": v for k, v in scores.items()}
+        flat_profile = {f"{k}/{name}": v for k, v in profiles.items()}
+        all_scores.update(flat_score)
+        all_profiles.update(flat_profile)
+
+    return all_scores, all_profiles
+
+
+@dataclasses.dataclass
+class TrainConfig:
+    train_url: str
+    test_url: str
+    out_url: str
+    transform: TransformConfig
+    model: Config
+    use_wandb: bool = True
+    epochs: int = 1
+    batch_size: int = 128
+    nfiles: Optional[int] = None 
+    optimizer: OptimizerConfig = dataclasses.field(
+        default_factory=lambda: OptimizerConfig("Adam")
+    )
+    loss_variables: List[str] = dataclasses.field(default_factory=list)
+    metric_variables: List[str] = dataclasses.field(default_factory=list)
+
+
 def main(config: TrainConfig):
     set_random_seed(0)
 
     callbacks = []
     if config.use_wandb:
-        wandb.init(
+        job = wandb.init(
             entity="ai2cm", project="microphysics-emulation-test", job_type="training",
         )
+    else:
+        job = None
 
         # saves best model by validation every epoch
         callbacks.append(wandb.keras.WandbCallback())
@@ -124,27 +197,68 @@ def main(config: TrainConfig):
     history = model.fit(
         train_ds.shuffle(100_000).batch(config.batch_size),
         epochs=config.epochs,
-        validation_freq=5,
+        validation_freq=1,
         validation_data=test_ds.batch(config.batch_size),
         verbose=2,
         callbacks=callbacks,
     )
 
     # scoring
-    # un-normed MSE (avg, in adjusted units)
-    # percent improve over null, use artifact
-    # RMSE by level
-    # bias by level
+    X_test, target = next(iter(test_ds.shuffle(160_000).batch(80_000)))
+    target = scale(config.transform.output_variables, target)
+    out_names = model.output_names
+    test_pred = scale(out_names, model.predict(X_test))
+    train_pred = scale(out_names, model.predict(sample_in))
 
-    # save to GCS as backup (remove losses/optimizer)
+    train_scores, train_profiles = score_all(target, train_pred, out_names)
+    test_scores, test_profiles = score_all(target, train_pred, out_names)
+
+    if config.use_wandb:
+        # TODO: log scores func
+        train_df = pd.DataFrame(train_scores, index=[job.name])
+        train_table = wandb.Table(dataframe=train_df)
+        test_df = pd.DataFrame(test_scores, index=[job.name])
+        test_table = wandb.Table(dataframe=test_df)
+        test_prof_table = wandb.Table(dataframe=pd.DataFrame(test_profiles))
+        train_prof_table = wandb.Table(dataframe=pd.DataFrame(train_profiles))
+        job.log({
+            "score/train": train_table,
+            "score/test": test_table,
+            "profiles/test": test_prof_table,
+            "profiles/train": train_prof_table,
+        })
+    
+    if config.out_url:
+        with put_dir(config.out_url) as tmpdir:
+            # TODO: need to convert ot np.float to serialize
+            with open(os.path.join(tmpdir, "scores.json"), "w") as f:
+                json.dump({"train": train_scores, "test": test_scores}, f)
+
+            model.compiled_loss = None
+            model.compiled_metrics = None
+            model.optimizer = None
+            model_dir = os.path.join(tmpdir, "model.tf")
+            model.save(model_dir, save_format="tf")
+    
+            if config.use_wandb:
+                name = config.model.architecture.name
+                model = wandb.Artifact(
+                    f"microphysics-emulator-{name}",
+                    type="model"
+                )
+                model.add_dir(model_dir)
+                wandb.log_artifact(model)
 
 
 def get_config():
+
+    # TODO: load from config
+
     model_config = Config(
         input_variables=["air_temperature_input", "specific_humidity_input"],
         direct_out_variables=[],
         residual_out_variables=dict(air_temperature_output="air_temperature_input"),
-        architecture=ArchitectureParams("rnn"),
+        architecture=ArchitectureParams("dense"),
         selection_map=dict(
             air_temperature_input=slice(None, -10),
             specific_humidity_input=slice(None, -10),
@@ -158,13 +272,15 @@ def get_config():
     config = TrainConfig(
         train_url="/mnt/disks/scratch/microphysics_emu_data/training_netcdfs/",
         test_url="/mnt/disks/scratch/microphysics_emu_data/validation_netcdfs/",
+        out_url="/mnt/disks/scratch/test_train_out/",
         model=model_config,
         transform=transform,
         optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
         loss_variables=["air_temperature_output"],
-        epochs=2,
+        metric_variables=["tendency_of_air_temperature_due_to_microphysics"],
+        epochs=4,
         nfiles=10,
-        use_wandb=False,
+        use_wandb=True,
     )
     return config
 
