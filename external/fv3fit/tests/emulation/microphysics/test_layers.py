@@ -9,7 +9,7 @@ from fv3fit.emulation.microphysics.layers import (
     LinearBlock,
     MLPBlock,
     RNNBlock,
-    ResidualOutput,
+    IncrementedFieldOutput,
 )
 
 
@@ -69,7 +69,7 @@ def test_ResidualOutput():
 
     dt_sec = 2
 
-    field_out = ResidualOutput(sample, dt_sec, denormalize="mean_std")
+    field_out = IncrementedFieldOutput(sample, dt_sec, denormalize="mean_std")
     result = field_out([sample, net_tensor])
     tendency = field_out.get_tendency_output(net_tensor)
 

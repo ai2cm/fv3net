@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from .layers import (
     LinearBlock,
-    ResidualOutput,
+    IncrementedFieldOutput,
     FieldOutput,
     FieldInput,
     RNNBlock,
@@ -129,7 +129,7 @@ class Config:
 
         for (name, in_state), sample in zip(residual_to_input_map.items(), sample_out):
             # incremented state field output
-            res_out = ResidualOutput(
+            res_out = IncrementedFieldOutput(
                 sample,
                 self.timestep_increment_sec,
                 denormalize=self.normalize_key,

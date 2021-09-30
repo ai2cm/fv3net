@@ -90,10 +90,10 @@ class FieldOutput(tf.keras.layers.Layer):
         return tensor
 
 
-class ResidualOutput(tf.keras.layers.Layer):
+class IncrementedFieldOutput(tf.keras.layers.Layer):
     """
     Add input tensor to an output tensor using timestep increment.
-    Gets net to learn tendency-based updates.
+    This residual-style architecture is analogous to learning tendency-based updates.
     """
 
     def __init__(
@@ -126,9 +126,8 @@ class ResidualOutput(tf.keras.layers.Layer):
         self.use_relu = enforce_positive
         self.relu = tf.keras.layers.ReLU()
 
-    def call(self, tensors):
-
-        field_input, network_output = tensors
+    def call(self, field_input, network_output):
+        
         tendency = self.tendency(network_output)
         tensor = self.increment([field_input, tendency])
 
