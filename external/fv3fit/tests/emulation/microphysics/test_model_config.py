@@ -27,13 +27,13 @@ def test_get_architecture_unrecognized():
 
 def test_ArchParams():
     arch = ArchitectureParams(name="dense", kwargs=dict(width=128))
-    assert isinstance(arch.instance, tf.keras.layers.Layer)
+    assert isinstance(arch.build, tf.keras.layers.Layer)
 
 
 def test_ArchParams_bad_kwargs():
     arch = ArchitectureParams(name="linear", kwargs=dict(not_a_kwarg="hi"))
     with pytest.raises(TypeError):
-        arch.instance
+        arch.build
 
 
 def test_Config():

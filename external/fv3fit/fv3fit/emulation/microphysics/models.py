@@ -38,7 +38,7 @@ class ArchitectureParams:
     kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
 
     @property
-    def instance(self):
+    def build(self):
         cls = get_architecture_cls(self.name)
         return cls(**self.kwargs)
 
@@ -179,7 +179,7 @@ class Config:
             for resid_name, input_name in self.residual_out_variables.items()
         }
         processed = self._get_processed_inputs(sample_in, inputs)
-        arch_layer = self.architecture.instance(processed)
+        arch_layer = self.architecture.build(processed)
         outputs = self._get_direct_outputs(sample_direct_out, arch_layer)
         outputs += self._get_residual_outputs(
             sample_residual_out, arch_layer, residual_map
