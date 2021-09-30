@@ -129,7 +129,7 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
     def call(self, field_input, network_output):
 
         tendency = self.tendency(network_output)
-        tensor = self.increment([field_input, tendency])
+        tensor = self.increment(field_input, tendency)
 
         if self.use_relu:
             tensor = self.relu(tensor)

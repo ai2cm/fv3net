@@ -4,6 +4,7 @@ from typing import Any, List, Mapping, Sequence
 import tensorflow as tf
 
 from .layers import (
+    CombineInputs,
     IncrementedFieldOutput,
     FieldOutput,
     FieldInput,
@@ -12,29 +13,24 @@ from .layers import (
 )
 
 
-def get_architecture_cls(key: str):
+def get_architecture_cls(key: str, kwargs: Mapping[str, Any]):
 
     if key == "rnn":
-        return RNNBlock
+        return RNNBlock(**kwargs)
     elif key == "dense":
-        return MLPBlock
+        return MLPBlock(**kwargs)
     elif key == "linear":
-        pass
+        return MLPBlock(depth=0)
     else:
         raise KeyError(f"Unrecognized architecture provided: {key}")
 
 
-def get_combine_layer(key: str):
+def get_combine_from_arch_key(key: str):
 
-    pass
-
-def _combine_initializer(do_combine, axis, expand, name):
-
-    if do_combine:
-        layer = CombineInputs(axis, expand=expand)
+    if key == "rnn":
+        return CombineInputs(-1, expand_axis=-1)
     else:
-        layer = tf.keras.layers.Lambda(lambda x: x, name=f"comb_passthru_{name}")
-    return layer
+        return CombineInputs(-1, expand_axis=None)
 
 
 @dataclasses.dataclass
@@ -51,8 +47,7 @@ class ArchitectureConfig:
 
     @property
     def build(self):
-        cls = get_architecture_cls(self.name)
-        return cls(**self.kwargs)
+        return get_architecture_cls(self.name, kwargs=self.kwargs)
 
 
 @dataclasses.dataclass
@@ -152,7 +147,7 @@ class Config:
                 enforce_positive=True,
             )
 
-            out_ = res_out([in_state, net_output])
+            out_ = res_out(in_state, net_output)
             outputs.append(out_)
 
             if name in self.tendency_outputs:
@@ -197,10 +192,13 @@ class Config:
             for resid_name, input_name in self.residual_out_variables.items()
         }
         processed = self._get_processed_inputs(sample_in, inputs)
-        arch_layer = self.architecture.build(processed)
-        outputs = self._get_direct_outputs(sample_direct_out, arch_layer)
+        combine_layer = get_combine_from_arch_key(self.architecture.name)
+        combined = combine_layer(processed)
+        arch_layer = self.architecture.build
+        arch_out = arch_layer(combined)
+        outputs = self._get_direct_outputs(sample_direct_out, arch_out)
         outputs += self._get_residual_outputs(
-            sample_residual_out, arch_layer, residual_map
+            sample_residual_out, arch_out, residual_map
         )
 
         model = tf.keras.models.Model(inputs=inputs, outputs=outputs)
