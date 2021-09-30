@@ -2,6 +2,7 @@ import dataclasses
 import json
 import os
 import wandb
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -12,11 +13,11 @@ from fv3fit.emulation.microphysics.models import ArchitectureParams
 from fv3fit.emulation.data import TransformConfig
 from fv3fit.emulation.data import get_nc_files, nc_files_to_tf_dataset
 from fv3fit.emulation.layers import MeanFeatureStdNormLayer
+from fv3fit.tensorboard import plot_to_image
 from fv3fit import set_random_seed
 # TODO centralize this
 from fv3fit.keras._models._filesystem import put_dir
 from loaders.batches import shuffle
-
 
 
 SCALE_VALUES = {
@@ -103,24 +104,55 @@ def score(target, prediction):
     bias_all = target - prediction
     se = bias_all**2
 
-    mse = np.mean(se)
-    bias = np.mean(bias_all)
-    mse_prof = np.mean(se, axis=0)
-    bias_prof = np.mean(bias_all, axis=0)
-    rmse_prof = np.sqrt(mse_prof)
+    mse = np.mean(se).astype(np.float)
+    bias = np.mean(bias_all).astype(np.float)
 
     metrics = {
         "mse": mse,
         "bias": bias,
     }
 
-    profiles = {
-        "mse_profile": mse_prof,
-        "bias_profile": bias_prof,
-        "rmse_profile": rmse_prof,
-    }
+    if target.ndim == 2:
+        mse_prof = np.mean(se, axis=0)
+        bias_prof = np.mean(bias_all, axis=0)
+        rmse_prof = np.sqrt(mse_prof)
+
+        profiles = {
+            "mse_profile": mse_prof,
+            "bias_profile": bias_prof,
+            "rmse_profile": rmse_prof,
+        }
+    else:
+        profiles = {}
 
     return metrics, profiles
+
+
+def _log_profiles(targ, pred, name):
+
+    for i in range(targ.shape[0]):
+        levs = np.arange(targ.shape[1])
+        fig = plt.figure()
+        fig.set_size_inches(3, 5)
+        fig.set_dpi(80)
+        plt.plot(targ[i], levs, label="target")
+        plt.plot(pred[i], levs, label="prediction")
+        plt.title(f"Sample {i+1}: {name}")
+        plt.xlabel(f"UNITS[name]")
+        plt.ylabel("Level")
+        wandb.log({f"sample_{i}_{name}": wandb.Image(plot_to_image(fig))})
+        plt.close()
+
+
+def log_sample_profiles(targets, predictions, names, nsamples=4):
+
+    for targ, pred, name in zip(targets, predictions, names):
+
+        targ = targ[:nsamples]
+        pred = pred[:nsamples]
+
+        if targ.ndim == 2:
+            _log_profiles(targ, pred, name)
 
 
 def score_all(targets, predictions, names):
@@ -135,6 +167,10 @@ def score_all(targets, predictions, names):
         flat_profile = {f"{k}/{name}": v for k, v in profiles.items()}
         all_scores.update(flat_score)
         all_profiles.update(flat_profile)
+
+    # assumes all profiles are same size
+    profile = next(iter(all_profiles.values()))
+    all_profiles["level"] = np.arange(len(profile))
 
     return all_scores, all_profiles
 
@@ -211,7 +247,7 @@ def main(config: TrainConfig):
     train_pred = scale(out_names, model.predict(sample_in))
 
     train_scores, train_profiles = score_all(target, train_pred, out_names)
-    test_scores, test_profiles = score_all(target, train_pred, out_names)
+    test_scores, test_profiles = score_all(target, test_pred, out_names)
 
     if config.use_wandb:
         # TODO: log scores func
@@ -227,7 +263,9 @@ def main(config: TrainConfig):
             "profiles/test": test_prof_table,
             "profiles/train": train_prof_table,
         })
-    
+
+        log_sample_profiles(target, test_pred, out_names)
+
     if config.out_url:
         with put_dir(config.out_url) as tmpdir:
             # TODO: need to convert ot np.float to serialize
@@ -239,7 +277,7 @@ def main(config: TrainConfig):
             model.optimizer = None
             model_dir = os.path.join(tmpdir, "model.tf")
             model.save(model_dir, save_format="tf")
-    
+
             if config.use_wandb:
                 name = config.model.architecture.name
                 model = wandb.Artifact(
@@ -258,7 +296,7 @@ def get_config():
         input_variables=["air_temperature_input", "specific_humidity_input"],
         direct_out_variables=[],
         residual_out_variables=dict(air_temperature_output="air_temperature_input"),
-        architecture=ArchitectureParams("dense"),
+        architecture=ArchitectureParams("linear"),
         selection_map=dict(
             air_temperature_input=slice(None, -10),
             specific_humidity_input=slice(None, -10),
