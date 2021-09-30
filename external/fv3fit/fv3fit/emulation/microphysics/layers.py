@@ -127,7 +127,7 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
         self.relu = tf.keras.layers.ReLU()
 
     def call(self, field_input, network_output):
-        
+
         tendency = self.tendency(network_output)
         tensor = self.increment([field_input, tendency])
 
@@ -143,35 +143,33 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
 class CombineInputs(tf.keras.layers.Layer):
     """Input tensor stacking with option to add a dimension for RNNs"""
 
-    def __init__(self, combine_axis: int, *args, expand: bool = False, **kwargs):
+    def __init__(self, combine_axis: int, *args, expand_axis: Optional[int] = None, **kwargs):
+        """
+        Args:
+            combine_axis: Axis to concatenate tensors along.  Note that if expand_axis
+                is specified, it is applied before concatenation.  E.g., combine_axis=1
+                and expand_axis=1 will concatenate along the newly created dimension.
+            expand_axis: New axis to add to the input tensors
+        """
         super().__init__(*args, **kwargs)
 
         self.combine_axis = combine_axis
-        self.expand = expand
+        self.expand_axis = expand_axis
 
     def call(self, inputs):
 
-        if self.expand:
+        if self.expand_axis is not None:
             inputs = [
-                tf.expand_dims(tensor, axis=self.combine_axis) for tensor in inputs
+                tf.expand_dims(tensor, axis=self.expand_axis) for tensor in inputs
             ]
 
         return tf.concat(inputs, axis=self.combine_axis)
 
 
-def _combine_initializer(do_combine, axis, expand, name):
-
-    if do_combine:
-        layer = CombineInputs(axis, expand=expand)
-    else:
-        layer = tf.keras.layers.Lambda(lambda x: x, name=f"comb_passthru_{name}")
-    return layer
-
-
 class RNNBlock(tf.keras.layers.Layer):
     """
     RNN connected to an optional MLP for prediction
-    
+
     Combines multiple tensors along a new trailing dimension and
     operates in the reverse on the feature dimension, i.e., from
     the top of the atmosphere to the bottom for microphysics data.
@@ -183,7 +181,6 @@ class RNNBlock(tf.keras.layers.Layer):
         channels: int = 256,
         dense_width: int = 256,
         dense_depth: int = 1,
-        combine_inputs: bool = True,
         activation: str = "relu",
         **kwargs,
     ):
@@ -193,22 +190,20 @@ class RNNBlock(tf.keras.layers.Layer):
             dense_width: width of MLP layer, only used if dense_depth > 0
             dense_depth: number of MLPlayers connected to RNN output, set to
                 0 to disable
-            combine_inputs: whether to stack the inputs into a single block
             activation: activation function to use for RNN and MLP
         """
         super().__init__(*args, **kwargs)
 
-        self.combine = _combine_initializer(combine_inputs, -1, True, self.name)
         self.rnn = tf.keras.layers.SimpleRNN(
             channels, activation=activation, go_backwards=True
         )
         self.dense = MLPBlock(
-            width=dense_width, depth=dense_depth, combine_inputs=False
+            width=dense_width, depth=dense_depth
         )
 
-    def call(self, inputs):
-        combined = self.combine(inputs)
-        rnn_out = self.rnn(combined)
+    def call(self, input):
+
+        rnn_out = self.rnn(input)
 
         output = self.dense(rnn_out)
 
@@ -223,7 +218,6 @@ class MLPBlock(tf.keras.layers.Layer):
         *args,
         width: int = 256,
         depth: int = 2,
-        combine_inputs: bool = True,
         activation: str = "relu",
         **kwargs,
     ):
@@ -231,36 +225,19 @@ class MLPBlock(tf.keras.layers.Layer):
         Args:
             width: width of MLP layer, only used if dense_depth > 0
             depth: number of MLPlayers, set to 0 to disable
-            combine_inputs: whether to stack the inputs into a single block
             activation: activation function to use for RNN and MLP
         """
         super().__init__(*args, **kwargs)
-
-        self.combine = _combine_initializer(combine_inputs, -1, False, self.name)
 
         self.dense = [
             tf.keras.layers.Dense(width, activation=activation) for i in range(depth)
         ]
 
-    def call(self, inputs):
-        combined = self.combine(inputs)
-        outputs = combined
+    def call(self, input):
+
+        outputs = input
 
         for i in range(len(self.dense)):
             outputs = self.dense[i](outputs)
 
         return outputs
-
-
-class LinearBlock(MLPBlock):
-    """
-    No special prediction architecture, just combine input features
-    for connection to outputs.
-    """
-
-    def __init__(self, *args, combine_inputs=True, **kwargs):
-        """
-        Args:
-            combine_inputs: whether to stack the inputs into a single block
-        """
-        super().__init__(*args, combine_inputs=combine_inputs, depth=0, **kwargs)

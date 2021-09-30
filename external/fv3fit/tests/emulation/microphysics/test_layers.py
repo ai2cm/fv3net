@@ -6,7 +6,6 @@ from fv3fit.emulation.microphysics.layers import (
     CombineInputs,
     FieldInput,
     FieldOutput,
-    LinearBlock,
     MLPBlock,
     RNNBlock,
     IncrementedFieldOutput,
@@ -70,7 +69,7 @@ def test_ResidualOutput():
     dt_sec = 2
 
     field_out = IncrementedFieldOutput(sample, dt_sec, denormalize="mean_std")
-    result = field_out([sample, net_tensor])
+    result = field_out(sample, net_tensor)
     tendency = field_out.get_tendency_output(net_tensor)
 
     assert result.shape == (20, 3)
@@ -81,7 +80,7 @@ def test_ResidualOutput():
 def test_CombineInputs_no_expand():
 
     tensor = _get_tensor(20, 4)
-    combiner = CombineInputs(-1, expand=False)
+    combiner = CombineInputs(-1, expand_axis=None)
     result = combiner((tensor, tensor))
 
     assert result.shape == (20, 8)
@@ -91,39 +90,26 @@ def test_CombineInputs_no_expand():
 def test_CombineInputs_expand():
 
     tensor = _get_tensor(20, 4)
-    combiner = CombineInputs(2, expand=True)
+    combiner = CombineInputs(2, expand_axis=2)
     result = combiner((tensor, tensor, tensor))
 
     assert result.shape == (20, 4, 3)
     np.testing.assert_array_equal(result[..., 2], tensor)
 
 
-@pytest.mark.parametrize("layer_cls", [MLPBlock, RNNBlock])
-@pytest.mark.parametrize("combine", [True, False])
-def test_combine_integration(layer_cls, combine):
-
-    if combine:
-        expected = CombineInputs
-    else:
-        expected = tf.keras.layers.Lambda
-
-    layer = layer_cls(combine_inputs=combine)
-    assert isinstance(layer.combine, expected)
-
-
 def test_MLPBlock():
 
-    mlp = MLPBlock(width=256, depth=3, combine_inputs=True)
+    mlp = MLPBlock(width=256, depth=3)
     assert len(mlp.dense) == 3
 
     tensor = _get_tensor(20, 3)
-    result = mlp((tensor, tensor))
+    result = mlp(tensor)
 
     assert result.shape == (20, 256)
 
 
 def test_MLPBlock_no_dense_layers():
-    mlp = MLPBlock(width=256, depth=0, combine_inputs=False)
+    mlp = MLPBlock(width=256, depth=0)
 
     tensor = _get_tensor(20, 10)
     result = mlp(tensor)
@@ -134,19 +120,9 @@ def test_MLPBlock_no_dense_layers():
 @pytest.mark.parametrize("depth,expected_shp", [(1, (20, 64)), (0, (20, 128))])
 def test_RNNBlock(depth, expected_shp):
 
-    rnn = RNNBlock(channels=128, dense_width=64, dense_depth=depth, combine_inputs=True)
+    rnn = RNNBlock(channels=128, dense_width=64, dense_depth=depth)
 
     tensor = _get_tensor(20, 10)
-    assert rnn.combine((tensor, tensor, tensor)).shape == (20, 10, 3)
-
-    result = rnn((tensor, tensor))
+    combined = CombineInputs(-1, expand_axis=-1)((tensor, tensor))
+    result = rnn(combined)
     assert result.shape == expected_shp
-
-
-def test_LinearBlock():
-    linear = LinearBlock(combine_inputs=False)
-
-    tensor = _get_tensor(20, 10)
-    result = linear(tensor)
-
-    assert result.shape == (20, 10)

@@ -4,7 +4,6 @@ from typing import Any, List, Mapping, Sequence
 import tensorflow as tf
 
 from .layers import (
-    LinearBlock,
     IncrementedFieldOutput,
     FieldOutput,
     FieldInput,
@@ -20,9 +19,22 @@ def get_architecture_cls(key: str):
     elif key == "dense":
         return MLPBlock
     elif key == "linear":
-        return LinearBlock
+        pass
     else:
         raise KeyError(f"Unrecognized architecture provided: {key}")
+
+
+def get_combine_layer(key: str):
+
+    pass
+
+def _combine_initializer(do_combine, axis, expand, name):
+
+    if do_combine:
+        layer = CombineInputs(axis, expand=expand)
+    else:
+        layer = tf.keras.layers.Lambda(lambda x: x, name=f"comb_passthru_{name}")
+    return layer
 
 
 @dataclasses.dataclass
