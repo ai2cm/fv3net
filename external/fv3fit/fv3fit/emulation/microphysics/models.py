@@ -51,11 +51,13 @@ class Config:
 
     Args:
         input_variables: names of all inputs to the model
-        direct_out_variables: names of primary outputs of the model.
-        residual_out_variables: names of outputs using a residual output,
+        direct_out_variables: names of direct field prediction outputs of the model.
+        residual_out_variables: names of outputs using a residual-based output,
             analogous to learning model tendencies instead of direct
-            field-to-field prediction. Residual output variable maps to
-            an associated input name to increment.
+            field-to-field prediction. The mapping of residual output variable names
+            to an associated model input name to increment. E.g.,
+            {"air_temperature_output": "air_temperature_input"} produces the
+            output air_temperature_output = air_temperature_input + tendency * timestep
         architecture: `ArchitectureConfig` object initialized with keyword
             arguments "name" (key for architecture layer) and "kwargs" (mapping
             of any keyword arguments to initialize the layer)
@@ -63,10 +65,10 @@ class Config:
             to disable normalization
         selection_map: Subselection mapping for feature dimension of input/output
             variables to slices along the feature dimension
-        tendency_outputs: Additional outputs (tendencies) to get from the
-            residual outputs.  The mapping key should match a variable in
+        tendency_outputs: Additional output tendencies to get from the
+            residual-based output layers.  The mapping key should match a variable in
             residual_outputs and the value will be the new output variable
-            name
+            name.
         timestep_increment_sec: Time increment multiplier for the state-tendency
             update
     """
@@ -161,8 +163,11 @@ class Config:
         Args:
             sample_in: Sample input tensors for determining layer shapes and
                 fitting normalization layers if specifies
-            sample_out: Sample out tensors for determining layer shapes and
-                fitting denormalization layers if specifies
+            sample_direct_out: Sample of direct output field tensors used to
+                fit denormalization layers (if specified) and shape
+            sample_residual_out: Sample of residual output field tensors used to
+                fit denormalization layers (if specified) and shape.  Note: the
+                samples should be in tendency form to produce proper denormalization
         """
 
         if sample_direct_out is None:
