@@ -65,6 +65,7 @@ class TransformConfig:
     antarctic_only: bool = False
     use_tensors: bool = True
     vertical_subselections: Optional[Mapping[str, slice]] = None
+    derived_microphys_timestep: int = 900
 
     @classmethod
     def from_dict(cls, d: Dict):
@@ -90,7 +91,8 @@ class TransformConfig:
 
         transform_funcs.append(
             transforms.derived_dataset(
-                list(self.input_variables) + list(self.output_variables)
+                list(self.input_variables) + list(self.output_variables),
+                tendency_timestep_sec=self.derived_microphys_timestep
             )
         )
 
