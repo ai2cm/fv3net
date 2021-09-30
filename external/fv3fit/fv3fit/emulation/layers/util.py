@@ -15,7 +15,7 @@ class IncrementStateLayer(tf.keras.layers.Layer):
         self.dt_sec = tf.constant(dt_sec, dtype=dtype)
         super().__init__(*args, **kwargs)
 
-    def call(self, tensors: Sequence[tf.Tensor]) -> tf.Tensor:
+    def call(self, initial: tf.Tensor, tendency: tf.Tensor) -> tf.Tensor:
         """
         Increment state with tendency * timestep
 
@@ -23,5 +23,4 @@ class IncrementStateLayer(tf.keras.layers.Layer):
             tensors: Input state field and corresponding tendency tensor to
                 increment by.
         """
-        initial, tend = tensors
-        return initial + tend * self.dt_sec
+        return initial + tendency * self.dt_sec
