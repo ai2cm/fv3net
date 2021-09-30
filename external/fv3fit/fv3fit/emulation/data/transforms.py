@@ -37,7 +37,7 @@ def derived_dataset(
 ):
 
     derived = DerivedMapping(dataset, microphys_timestep_sec=tendency_timestep_sec)
-    dataset = {key: derived[key] for key in all_variables}
+    dataset = derived.dataset(all_variables)
 
     return dataset
 
