@@ -5,7 +5,7 @@ import tensorflow as tf
 from fv3fit.emulation.microphysics import Config
 from fv3fit.emulation.microphysics.models import (
     get_architecture_cls,
-    ArchitectureParams,
+    ArchitectureConfig,
 )
 
 
@@ -26,12 +26,12 @@ def test_get_architecture_unrecognized():
 
 
 def test_ArchParams():
-    arch = ArchitectureParams(name="dense", kwargs=dict(width=128))
+    arch = ArchitectureConfig(name="dense", kwargs=dict(width=128))
     assert isinstance(arch.build, tf.keras.layers.Layer)
 
 
 def test_ArchParams_bad_kwargs():
-    arch = ArchitectureParams(name="linear", kwargs=dict(not_a_kwarg="hi"))
+    arch = ArchitectureConfig(name="linear", kwargs=dict(not_a_kwarg="hi"))
     with pytest.raises(TypeError):
         arch.build
 
@@ -154,7 +154,7 @@ def test_Config_build_residual_w_extra_tends_out():
         input_variables=["dummy_in"],
         residual_out_variables={"dummy_out1": "dummy_in"},
         tendency_outputs={"dummy_out1": "dummy_out1_tendency"},
-        architecture=ArchitectureParams(name="dense"),
+        architecture=ArchitectureConfig(name="dense"),
     )
 
     data = _get_data((20, 5))

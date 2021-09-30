@@ -26,9 +26,9 @@ def get_architecture_cls(key: str):
 
 
 @dataclasses.dataclass
-class ArchitectureParams:
+class ArchitectureConfig:
     """
-        name: Underlying model architecture to use for the emulator.
+        name: Name of underlying model architecture to use for the emulator.
             See `get_architecture_cls` for a list of supported layers.
         kwargs: keyword arguments to pass to the initialization
             of the architecture layer
@@ -56,8 +56,9 @@ class Config:
             analogous to learning model tendencies instead of direct
             field-to-field prediction. Residual output variable maps to
             an associated input name to increment.
-        architecture: parameters to underlying model prediction architecture
-            to use for emulation.
+        architecture: `ArchitectureConfig` object initialized with keyword
+            arguments "name" (key for architecture layer) and "kwargs" (mapping
+            of any keyword arguments to initialize the layer)
         normalize_key: Normalization style to use for inputs/outputs.  Pass None
             to disable normalization
         selection_map: Subselection mapping for feature dimension of input/output
@@ -73,8 +74,8 @@ class Config:
     input_variables: List[str] = dataclasses.field(default_factory=list)
     direct_out_variables: List[str] = dataclasses.field(default_factory=list)
     residual_out_variables: Mapping[str, str] = dataclasses.field(default_factory=dict)
-    architecture: ArchitectureParams = dataclasses.field(
-        default_factory=lambda: ArchitectureParams(name="linear")
+    architecture: ArchitectureConfig = dataclasses.field(
+        default_factory=lambda: ArchitectureConfig(name="linear")
     )
     normalize_key: str = "mean_std"
     selection_map: Mapping[str, slice] = dataclasses.field(default_factory=dict)
