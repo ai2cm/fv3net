@@ -25,7 +25,7 @@ def _sequence_to_slice(seq: Sequence[Union[None, int]]):
     return slice_
 
 
-def _convert_map_sequences_to_slices(map_: Mapping[str, Sequence[int]]):
+def convert_map_sequences_to_slices(map_: Mapping[str, Sequence[int]]):
 
     return {key: _sequence_to_slice(seq) for key, seq in map_.items()}
 
@@ -72,7 +72,7 @@ class TransformConfig:
 
         subselect_key = "vertical_subselections"
         if subselect_key in d:
-            d[subselect_key] = _convert_map_sequences_to_slices(d[subselect_key])
+            d[subselect_key] = convert_map_sequences_to_slices(d[subselect_key])
 
         return dacite.from_dict(cls, d)
 
