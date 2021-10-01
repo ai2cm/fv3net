@@ -7,6 +7,7 @@ from fv3fit.emulation.layers.architecture import (
     RNNBlock,
 )
 
+
 def _get_data(shape):
 
     num = int(np.prod(shape))
