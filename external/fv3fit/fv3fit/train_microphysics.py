@@ -201,11 +201,11 @@ def main(config: TrainConfig):
         job = wandb.init(
             entity="ai2cm", project="microphysics-emulation-test", job_type="training",
         )
-    else:
-        job = None
 
         # saves best model by validation every epoch
         callbacks.append(wandb.keras.WandbCallback())
+    else:
+        job = None
 
     train_ds = _netcdf_url_to_dataset(config.train_url, config.transform, nfiles=config.nfiles)
     test_ds = _netcdf_url_to_dataset(config.test_url, config.transform, nfiles=config.nfiles)
