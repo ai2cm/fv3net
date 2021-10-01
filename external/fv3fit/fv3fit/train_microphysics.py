@@ -1,12 +1,15 @@
+import dacite
 import dataclasses
 import json
 import os
+from fv3fit.emulation.data.config import convert_map_sequences_to_slices
 import wandb
+import yaml
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from typing import Any, List, Mapping, Optional
+from typing import Any, List, Mapping, MutableMapping, Optional
 
 from fv3fit.emulation.microphysics import Config
 from fv3fit.emulation.microphysics.models import ArchitectureParams
@@ -185,12 +188,65 @@ class TrainConfig:
     use_wandb: bool = True
     epochs: int = 1
     batch_size: int = 128
-    nfiles: Optional[int] = None 
+    nfiles: Optional[int] = None
     optimizer: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")
     )
     loss_variables: List[str] = dataclasses.field(default_factory=list)
     metric_variables: List[str] = dataclasses.field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "TrainConfig":
+        return dacite.from_dict(cls, d, dacite.Config(strict=True))
+
+    @classmethod
+    def from_yaml_path(cls, path: str) -> "TrainConfig":
+        d = load_config_yaml(path)
+        return cls.from_dict(d)
+
+    def __post_init__(self):
+
+        if self.transform.input_variables != self.model.input_variables:
+            raise ValueError(
+                "Invalid training configuration state encountered. The"
+                " data transform input variables ("
+                f"{self.transform.input_variables}) are inconsistent with "
+                f"the model input variables ({self.model.input_variables})."
+            )
+        elif self.transform.output_variables != self.model.output_variables:
+            raise ValueError(
+                "Invalid training configuration state encountered. The"
+                " data transform output variables ("
+                f"{self.transform.output_variables}) are inconsistent with "
+                f"the model output variables ({self.model.output_variables})."
+            )
+
+
+def _update_TrainConfig_model_selection(d: MutableMapping):
+    """
+    The model subselection field in the yaml is specified as
+    a sequence of integers.  Need to convert those to slices
+    and insert them into the dict if they are specified
+    """
+
+    d = dict(**d)
+    if "model" in d:
+        model_dict = d["model"]
+        if "selection_map" in model_dict:
+            d["model"]["selection_map"] = \
+                 convert_map_sequences_to_slices(model_dict["selection_map"])
+
+    return d
+
+
+def load_config_yaml(path: str) -> Mapping[str, Any]:
+
+    with open(path, "r") as f:
+        d = yaml.safe_load(f)
+
+    d = _update_TrainConfig_model_selection(d)
+
+    return d
 
 
 def main(config: TrainConfig):
@@ -201,7 +257,6 @@ def main(config: TrainConfig):
         job = wandb.init(
             entity="ai2cm", project="microphysics-emulation-test", job_type="training",
         )
-
         # saves best model by validation every epoch
         callbacks.append(wandb.keras.WandbCallback())
     else:
@@ -288,25 +343,43 @@ def main(config: TrainConfig):
                 wandb.log_artifact(model)
 
 
-def get_config():
+def get_default_config():
 
-    # TODO: load from config
+    input_vars = [
+        "air_temperature_input",
+        "specific_humidity_input",
+        "cloud_water_mixing_ratio_input",
+        "pressure_thickness_of_atmospheric_layer",
+    ]
 
     model_config = Config(
-        input_variables=["air_temperature_input", "specific_humidity_input"],
-        direct_out_variables=[],
-        residual_out_variables=dict(air_temperature_output="air_temperature_input"),
+        input_variables=input_vars,
+        direct_out_variables=[
+            "cloud_water_mixing_ratio_output",
+            "total_precipitation",
+        ],
+        residual_out_variables=dict(
+            air_temperature_output="air_temperature_input",
+            specific_humidity_output="specific_humidity_input",
+        ),
         architecture=ArchitectureParams("linear"),
         selection_map=dict(
             air_temperature_input=slice(None, -10),
             specific_humidity_input=slice(None, -10),
+            cloud_water_mixing_ratio_input=slice(None, -10),
+            pressure_thickness_of_atmospheric_layer=slice(None, -10),
         ),
-        tendency_outputs=dict(air_temperature_output="tendency_of_air_temperature_due_to_microphysics")
+        tendency_outputs=dict(
+            air_temperature_output="tendency_of_air_temperature_due_to_microphysics",
+            specific_humidity_output="tendency_of_specific_humidity_due_to_microphysics",
+        )
     )
+
     transform = TransformConfig(
-        input_variables=["air_temperature_input", "specific_humidity_input"],
+        input_variables=input_vars,
         output_variables=model_config.output_variables,
     )
+
     config = TrainConfig(
         train_url="/mnt/disks/scratch/microphysics_emu_data/training_netcdfs/",
         test_url="/mnt/disks/scratch/microphysics_emu_data/validation_netcdfs/",
@@ -314,14 +387,24 @@ def get_config():
         model=model_config,
         transform=transform,
         optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
-        loss_variables=["air_temperature_output"],
-        metric_variables=["tendency_of_air_temperature_due_to_microphysics"],
+        loss_variables=[
+            "air_temperature_output",
+            "specific_humidity_output",
+            "cloud_water_mixing_ratio_output",
+            "total_precipitation"
+        ],
+        metric_variables=[
+            "tendency_of_air_temperature_due_to_microphysics",
+            "tendency_of_specific_humidity_due_to_microphysics",
+            "tendency_of_cloud_water_mixing_ratio_due_to_microphysics",
+        ],
         epochs=4,
         nfiles=10,
         use_wandb=True,
     )
+
     return config
 
 
 if __name__ == "__main__":
-    main(get_config())
+    main(get_default_config())
