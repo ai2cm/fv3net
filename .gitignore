@@ -126,3 +126,5 @@ external/vcm/external/mappm/MANIFEST
 external/vcm/vcm/interpolate_2dmodule.c
 
 .hypothesis
+.env
+.envrc
