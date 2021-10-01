@@ -143,7 +143,9 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
 class CombineInputs(tf.keras.layers.Layer):
     """Input tensor stacking with option to add a dimension for RNNs"""
 
-    def __init__(self, combine_axis: int, *args, expand_axis: Optional[int] = None, **kwargs):
+    def __init__(
+        self, combine_axis: int, *args, expand_axis: Optional[int] = None, **kwargs
+    ):
         """
         Args:
             combine_axis: Axis to concatenate tensors along.  Note that if expand_axis
@@ -197,9 +199,7 @@ class RNNBlock(tf.keras.layers.Layer):
         self.rnn = tf.keras.layers.SimpleRNN(
             channels, activation=activation, go_backwards=True
         )
-        self.dense = MLPBlock(
-            width=dense_width, depth=dense_depth
-        )
+        self.dense = MLPBlock(width=dense_width, depth=dense_depth)
 
     def call(self, input):
 

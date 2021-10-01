@@ -92,7 +92,7 @@ class TransformConfig:
         transform_funcs.append(
             transforms.derived_dataset(
                 list(self.input_variables) + list(self.output_variables),
-                tendency_timestep_sec=self.derived_microphys_timestep
+                tendency_timestep_sec=self.derived_microphys_timestep,
             )
         )
 
