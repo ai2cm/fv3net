@@ -5,9 +5,9 @@ class RNNBlock(tf.keras.layers.Layer):
     """
     RNN connected to an optional MLP for prediction
 
-    Combines multiple tensors along a new trailing dimension and
-    operates in the reverse on the feature dimension, i.e., from
-    the top of the atmosphere to the bottom for microphysics data.
+    Layer call expects a 3-D input tensor (sample, z, variable),
+    which recurses backwards (top-to-bottom for the physics-param data)
+    by default over the z dimension.
     """
 
     def __init__(
@@ -17,6 +17,7 @@ class RNNBlock(tf.keras.layers.Layer):
         dense_width: int = 256,
         dense_depth: int = 1,
         activation: str = "relu",
+        go_backwards: bool = True,
         **kwargs,
     ):
         """
@@ -26,15 +27,22 @@ class RNNBlock(tf.keras.layers.Layer):
             dense_depth: number of MLPlayers connected to RNN output, set to
                 0 to disable
             activation: activation function to use for RNN and MLP
+            go_backwards: whether to recurse in the reverse direction
+                over the dim 1.  If using wrapper outputs, TOA starts
+                at 0, should be false
         """
         super().__init__(*args, **kwargs)
 
         self.rnn = tf.keras.layers.SimpleRNN(
-            channels, activation=activation, go_backwards=True
+            channels, activation=activation, go_backwards=go_backwards
         )
         self.dense = MLPBlock(width=dense_width, depth=dense_depth)
 
     def call(self, input):
+        """
+        Args:
+            input: a 3-d tensor with dims (sample, per_var_features, variables)
+        """
 
         rnn_out = self.rnn(input)
 
