@@ -82,6 +82,7 @@ class Config:
     output_path: str = ""
     weight_sharing: bool = False
     cloud_water: bool = False
+    l2: Optional[float] = None
 
     @property
     def input_variables(self) -> List[str]:
@@ -156,6 +157,11 @@ class Config:
             help="comma separated list of variable names.",
         )
 
+        # other options
+        parser.add_argument(
+            "--l2", default=None, type=float, help="l2 penalty for the weight matrices"
+        )
+
     @staticmethod
     def from_args(args) -> "Config":
         config = Config()
@@ -170,6 +176,7 @@ class Config:
         config.wandb_logger = args.wandb
         config.relative_humidity = args.relative_humidity
         config.cloud_water = args.cloud_water
+        config.l2 = args.l2
 
         if args.level:
             if args.relative_humidity:
@@ -252,7 +259,9 @@ class Trainer:
         return info
 
     def get_loss(self, in_, out):
-        return self.config.target.loss(self.model(in_), out)
+        prediction = self.model(in_)
+        prediction_loss, info = self.config.target.loss(prediction, out)
+        return prediction_loss + sum(self.model.losses), info
 
     def score(self, d: tf.data.Dataset):
         losses = defaultdict(list)
@@ -343,17 +352,22 @@ class Trainer:
         return model
 
 
+def get_regularizer(config: Config) -> Optional[tf.keras.regularizers.Regularizer]:
+    return tf.keras.regularizers.L2(config.l2) if config.l2 else None
+
+
 def get_model(config: Config) -> tf.keras.Model:
+    regularizer = get_regularizer(config)
     if config.cloud_water:
         logging.info("Using V1QCModel")
-        return V1QCModel(config.levels)
+        return V1QCModel(config.levels, regularizer=regularizer)
     elif isinstance(config.target, MultiVariableLoss):
         logging.info("Using ScalerMLP")
         n = config.levels
         if config.relative_humidity:
-            return UVTRHSimple(n, n, n, n)
+            return UVTRHSimple(n, n, n, n, regularizer=regularizer)
         else:
-            return UVTQSimple(n, n, n, n)
+            return UVTQSimple(n, n, n, n, regularizer=regularizer)
     elif isinstance(config.target, QVLossSingleLevel):
         logging.info("Using ScalerMLP")
         model = ScalarMLP(
