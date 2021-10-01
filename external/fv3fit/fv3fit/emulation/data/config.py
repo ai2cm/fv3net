@@ -25,9 +25,18 @@ def _sequence_to_slice(seq: Sequence[Union[None, int]]):
     return slice_
 
 
-def convert_map_sequences_to_slices(map_: Mapping[str, Sequence[int]]):
+def convert_map_sequences_to_slices(map_: Mapping[str, Union[Sequence[int], slice]]):
 
-    return {key: _sequence_to_slice(seq) for key, seq in map_.items()}
+    new_map = {}
+    for key, maybe_seq in map_.items():
+        if isinstance(maybe_seq, slice):
+            slice_ = maybe_seq
+        else:
+            slice_ = _sequence_to_slice(maybe_seq)
+        
+        new_map[key] = slice_
+
+    return new_map
 
 
 @dataclasses.dataclass

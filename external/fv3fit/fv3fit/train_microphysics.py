@@ -12,7 +12,7 @@ import tensorflow as tf
 from typing import Any, List, Mapping, MutableMapping, Optional
 
 from fv3fit.emulation.microphysics import Config
-from fv3fit.emulation.microphysics.models import ArchitectureParams
+from fv3fit.emulation.microphysics.models import ArchitectureConfig
 from fv3fit.emulation.data import TransformConfig
 from fv3fit.emulation.data import get_nc_files, nc_files_to_tf_dataset
 from fv3fit.emulation.layers import MeanFeatureStdNormLayer
@@ -222,29 +222,10 @@ class TrainConfig:
             )
 
 
-def _update_TrainConfig_model_selection(d: MutableMapping):
-    """
-    The model subselection field in the yaml is specified as
-    a sequence of integers.  Need to convert those to slices
-    and insert them into the dict if they are specified
-    """
-
-    d = dict(**d)
-    if "model" in d:
-        model_dict = d["model"]
-        if "selection_map" in model_dict:
-            d["model"]["selection_map"] = \
-                 convert_map_sequences_to_slices(model_dict["selection_map"])
-
-    return d
-
-
 def load_config_yaml(path: str) -> Mapping[str, Any]:
 
     with open(path, "r") as f:
         d = yaml.safe_load(f)
-
-    d = _update_TrainConfig_model_selection(d)
 
     return d
 
@@ -362,7 +343,7 @@ def get_default_config():
             air_temperature_output="air_temperature_input",
             specific_humidity_output="specific_humidity_input",
         ),
-        architecture=ArchitectureParams("linear"),
+        architecture=ArchitectureConfig("linear"),
         selection_map=dict(
             air_temperature_input=slice(None, -10),
             specific_humidity_input=slice(None, -10),

@@ -49,8 +49,23 @@ class MicrophysicsConfig:
     timestep_increment_sec: int = 900
 
     @classmethod
-    def from_dict(cls, dict_) -> "MicrophysicsConfig":
-        return dacite.from_dict(cls, dict_, dacite.Config(strict=True))
+    def from_dict(cls, dict_) -> "Config":
+
+        d = dict(**dict_)
+        if "selection_map" in d:
+            d["selection_map"] = convert_map_sequences_to_slices(d["selection_map"])
+
+        return dacite.from_dict(cls, d, dacite.Config(strict=True))
+
+    def asdict(self):
+        d = dataclasses.asdict(self)
+
+        # convert slices back to serializable sequence
+        sel_map = d["selection_map"]
+        with_sequences = {k: [s.start, s.stop, s.step] for k, s in sel_map.items()}
+        d["selection_map"] = with_sequences
+
+        return d
 
     @property
     def output_variables(self):
