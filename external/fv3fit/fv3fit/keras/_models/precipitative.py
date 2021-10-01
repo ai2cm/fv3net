@@ -1,5 +1,5 @@
 import dataclasses
-from typing import List, Optional, Sequence, Tuple, Set
+from typing import List, Optional, Sequence, Tuple, Set, Mapping, Union
 from fv3fit._shared.config import (
     OptimizerConfig,
     RegularizerConfig,
@@ -71,6 +71,7 @@ def get_losses(
     output_packer: ArrayPacker,
     output_scaler: StandardScaler,
     loss_type="mse",
+    weights={},
 ) -> Sequence[tf.keras.losses.Loss]:
     """
     Retrieve normalized losses for a sequence of output variables.
@@ -115,14 +116,15 @@ def get_losses(
     n_outputs = len(output_variables)
     loss_list = []
     for name in output_variables:
+        weight = weights.get(name, 1.0)
         if loss_type == "mse":
             factor = tf.constant(
-                1.0 / n_outputs / np.mean(std[name].values ** 2), dtype=tf.float32
+                weight / n_outputs / np.mean(std[name].values ** 2), dtype=tf.float32
             )
             loss = multiply_loss_by_factor(tf.losses.mse, factor)
         elif loss_type == "mae":
             factor = tf.constant(
-                1.0 / n_outputs / np.mean(std[name].values), dtype=tf.float32
+                weight / n_outputs / np.mean(std[name].values), dtype=tf.float32
             )
             loss = multiply_loss_by_factor(tf.losses.mae, factor)
         else:
@@ -206,6 +208,7 @@ class PrecipitativeHyperparameters(Hyperparameters):
     )
     loss: str = "mse"
     couple_precip_to_dQ1_dQ2: bool = True
+    weights: Optional[Mapping[str, Union[int, float]]] = None
 
     @property
     def variables(self) -> Set[str]:
@@ -272,6 +275,8 @@ class PrecipitativeModel:
         self._residual_regularizer = (
             hyperparameters.residual_regularizer_config.instance
         )
+        if hyperparameters.weights is None:
+            self.weights: Mapping[str, Union[int, float, np.ndarray]] = {}
 
     def fit_statistics(self, X: xr.Dataset):
         """
@@ -370,6 +375,7 @@ class PrecipitativeModel:
                 self.output_packer,
                 self.output_scaler,
                 loss_type=self._loss_type,
+                weights=self.weights,
             ),
         )
         # need a separate model for this so we don't have to
