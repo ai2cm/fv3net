@@ -145,8 +145,12 @@ def test_expand_single_dim_data(dataset):
 def test_derived():
 
     ds = {
-        "air_temperature_input": np.ones((10, 4)),
-        "air_temperature_output": np.ones((10, 4)) * 3,
+        "air_temperature_input": xr.DataArray(
+            np.ones((10, 4)), dims=["sample", "feature"]
+        ),
+        "air_temperature_output": xr.DataArray(
+            np.ones((10, 4)) * 3, dims=["sample", "feature"]
+        ),
     }
 
     dT_name = "tendency_of_air_temperature_due_to_microphysics"
