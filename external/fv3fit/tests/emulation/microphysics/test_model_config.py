@@ -1,4 +1,4 @@
-from fv3fit.emulation.microphysics.layers import CombineInputs
+from fv3fit.emulation.layers.fields import CombineInputs
 import pytest
 import numpy as np
 import tensorflow as tf

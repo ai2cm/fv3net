@@ -5,7 +5,14 @@ from .normalization import (
     MaxFeatureStdDenormLayer,
     MeanFeatureStdNormLayer,
     MeanFeatureStdDenormLayer,
-    get_norm_class,
-    get_denorm_class,
 )
-from .util import IncrementStateLayer
+from .fields import (
+    IncrementStateLayer,
+    IncrementedFieldOutput,
+    FieldInput,
+    FieldOutput
+)
+from .architecture import (
+    MLPBlock,
+    RNNBlock
+)
