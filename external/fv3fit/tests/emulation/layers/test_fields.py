@@ -6,6 +6,7 @@ from fv3fit.emulation.layers.fields import (
     FieldInput,
     FieldOutput,
     IncrementedFieldOutput,
+    IncrementStateLayer,
 )
 
 
@@ -58,7 +59,20 @@ def test_FieldOutput_no_norm():
     assert result.shape == (20, 3)
 
 
-def test_ResidualOutput():
+def test_increment_layer():
+
+    in_ = tf.ones((2, 4), dtype=tf.float32)
+    incr = tf.ones((2, 4), dtype=tf.float32)
+    expected = tf.convert_to_tensor([[3] * 4, [3] * 4], dtype=tf.float32)
+
+    incr_layer = IncrementStateLayer(2)
+    incremented = incr_layer(in_, incr)
+
+    assert incr_layer.dt_sec == 2
+    np.testing.assert_array_equal(incremented, expected)
+
+
+def test_IncrementedFieldOutput():
 
     net_tensor = _get_tensor(20, 64)
     sample = _get_tensor(20, 3)
