@@ -10,9 +10,10 @@ from .fields import (
     IncrementStateLayer,
     IncrementedFieldOutput,
     FieldInput,
-    FieldOutput
+    FieldOutput,
+    CombineInputs,
 )
 from .architecture import (
     MLPBlock,
-    RNNBlock
+    RNNBlock,
 )

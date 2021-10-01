@@ -3,7 +3,7 @@ import dataclasses
 from typing import Any, List, Mapping, Sequence
 import tensorflow as tf
 
-from .layers import (
+from ..layers import (
     CombineInputs,
     IncrementedFieldOutput,
     FieldOutput,
