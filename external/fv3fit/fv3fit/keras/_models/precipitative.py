@@ -275,8 +275,7 @@ class PrecipitativeModel:
         self._residual_regularizer = (
             hyperparameters.residual_regularizer_config.instance
         )
-        if hyperparameters.weights is None:
-            self.weights: Mapping[str, Union[int, float, np.ndarray]] = {}
+        self.weights = hyperparameters.weights if hyperparameters.weights else {}
 
     def fit_statistics(self, X: xr.Dataset):
         """
