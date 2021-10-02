@@ -489,13 +489,6 @@ def get_default_config():
     return config
 
 if __name__ == "__main__":
-    # cfg = get_default_config()
-    path = "gs://vcm-ml-scratch/andrep/uphys_default_train.yaml"
-    config = TrainConfig.from_yaml_path(path)
+    
+    config = TrainConfig.from_parser()
     main(config)
-    # TODO
-    # run the training
-
-    # then make an argo workflow with keyword args as params?
-    # workflow targets the entry point
-    # make another entrypoint that triggers the train entrypoint? 
