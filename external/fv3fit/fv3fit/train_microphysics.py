@@ -117,7 +117,7 @@ def score(target, prediction):
         "bias": bias,
     }
 
-    if target.ndim == 2:
+    if target.ndim == 2 and target.shape[1] > 1:
         mse_prof = np.mean(se, axis=0)
         bias_prof = np.mean(bias_all, axis=0)
         rmse_prof = np.sqrt(mse_prof)
@@ -228,6 +228,7 @@ class TrainConfig:
     transform: TransformConfig
     model: Config
     use_wandb: bool = True
+    wandb_model_name: Optional[str] = None
     epochs: int = 1
     batch_size: int = 128
     nfiles: Optional[int] = None
@@ -411,9 +412,14 @@ def main(config: TrainConfig):
             model.save(model_dir, save_format="tf")
 
             if config.use_wandb:
-                name = config.model.architecture.name
+                if config.wandb_model_name is not None:
+                    name = config.wandb_model_name
+                else:
+                    suffix = config.model.architecture.name
+                    name = f"microphysics-emulator-{suffix}"
+
                 model = wandb.Artifact(
-                    f"microphysics-emulator-{name}",
+                    name,
                     type="model"
                 )
                 model.add_dir(model_dir)
