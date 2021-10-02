@@ -26,13 +26,13 @@ from loaders.batches import shuffle
 
 
 SCALE_VALUES = {
-    "total_precip": 1000/(3600*24),  # mm / day
+    "total_precipitation": 1000/(3600*24),  # mm / day
     "specific_humidity_output": 1000,  # g / kg
     "tendency_of_specific_humidity_due_to_microphysics": 1000*(3600*24),  # g / kg / day
     "cloud_water_mixing_ratio_output": 1000,  # g / kg
     "tendency_of_cloud_water_mixing_ratio_due_to_microphysics": 1000*(3600*24),  # g / kg / day
     "air_temperature_output": 1,
-    "tendency_of_air_temperature_due_to_microphysics": 3600*24  # K / day
+    "tendency_of_air_temperature_due_to_microphysics": 3600*24  # K / day,
 }
 
 
