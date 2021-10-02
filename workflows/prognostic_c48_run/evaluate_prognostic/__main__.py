@@ -60,6 +60,7 @@ class Mask(str, Enum):
     no_cloud = "no_cloud"
     no_water = "no_cloud_no_qv"
     no_sphum_bl = "no_sphum_bl"
+    no_sphum_bl_no_cloud = "no_sphum_bl_no_cloud"
 
 
 def short(
