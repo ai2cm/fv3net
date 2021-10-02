@@ -49,6 +49,7 @@ class Mask(str, Enum):
     default = "default"
     model_2021_09_16 = "2021_09_16"
     no_cloud = "no_cloud"
+    no_water = "no_cloud_no_qv"
 
 
 def short(

@@ -207,3 +207,12 @@ def compute_mask_no_cloud(name: Hashable, arr: xr.DataArray) -> xr.DataArray:
         return xr.DataArray(True)
     else:
         return xr.DataArray(False)
+
+
+def compute_mask_no_cloud_no_qv(name: Hashable, arr: xr.DataArray) -> xr.DataArray:
+    """Ignore cloud water outputs from emulator
+    """
+    if name in [CLOUD, SPHUM]:
+        return xr.DataArray(True)
+    else:
+        return xr.DataArray(False)

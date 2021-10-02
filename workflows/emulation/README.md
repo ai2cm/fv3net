@@ -81,6 +81,7 @@ Evaluate with a single column model
 
 To run 
     cd workflows/prognostic_c48_run
+    docker-compose run --rm fv3 bash
     python3 -m evaluate_prognostic ai2cm/emulator-noah/model:v91
 
 To generate the piggy-backed report
