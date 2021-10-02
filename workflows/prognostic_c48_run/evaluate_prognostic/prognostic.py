@@ -1,3 +1,4 @@
+from typing import Union
 import xarray
 from typing_extensions import Protocol
 from pathlib import Path
@@ -7,7 +8,7 @@ import vcm.cubedsphere
 import vcm.fv3.metadata
 
 
-def mse(truth, prediction, area):
+def mse(truth, prediction: Union[xarray.DataArray, float], area):
     units = "(" + truth.units + ")^2"
     error = ((truth - prediction) ** 2 * area).sum(area.dims) / area.sum(area.dims)
     return error.assign_attrs(units=units)
@@ -139,6 +140,7 @@ def open_run(path: Path) -> Data:
     fv_diags = vcm.fv3.metadata.gfdl_to_standard(
         xarray.open_zarr(path / "sfc_dt_atmos.zarr")
     )
+    grid = vcm.catalog.catalog["grid/c48"].to_dask()
     diags_2d = xarray.open_zarr(path / "diags.zarr")
     diags_3d = xarray.open_zarr(path / "diags_3d.zarr")
-    return xarray.merge([fv_diags, diags_2d, diags_3d])
+    return xarray.merge([grid, fv_diags, diags_2d, diags_3d], compat="override")

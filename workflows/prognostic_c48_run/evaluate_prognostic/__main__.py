@@ -16,6 +16,10 @@ import typer
 
 app = typer.Typer()
 
+ENTITY = "ai2cm"
+RUN_ROOT = Path("/data/prognostic-runs")
+PROJECT = "emulator-noah"
+
 
 def log_vertical_metrics(key, metrics: xarray.Dataset):
     df = metrics.to_dataframe().reset_index()
@@ -37,12 +41,17 @@ def run(config, path):
     subprocess.check_call(["runfv3", "append", path])
 
 
-def evaluate(path):
+def evaluate(path: Path):
     ds = open_run(path)
     metrics = compute_metrics(ds)
     log_vertical_metrics("vertical_metrics", metrics)
     log_summary_metrics("mean", metrics.mean())
     wandb.finish()
+
+
+def eval_from_id(id: str):
+    wandb.init(id=id, resume="allow", entity=ENTITY, project=PROJECT)
+    evaluate(RUN_ROOT / id)
 
 
 class Mask(str, Enum):
@@ -58,11 +67,11 @@ def short(
     mask: Mask = Mask.default,
     config_updates: Optional[Path] = Path("config/3-hour.yaml"),
 ):
-    job = wandb.init(entity="ai2cm", project="emulator-noah", job_type="prognostic-run")
+    job = wandb.init(entity=ENTITY, project=PROJECT, job_type="prognostic-run")
     if job is None:
         raise RuntimeError("Weights and biases not initialized properly.")
 
-    path = Path("/data/prognostic-runs") / str(job.id)
+    path = RUN_ROOT / str(job.id)
     artifact = wandb.use_artifact(artifact_id)
     artifact_path = os.path.abspath(artifact.download())
 
@@ -80,4 +89,8 @@ def short(
 
 
 if __name__ == "__main__":
-    typer.run(short)
+    app = typer.Typer()
+    app.command("recompute-metrics")(eval_from_id)
+    app.command("run")(short)
+    app()
+    # typer.run(short)
