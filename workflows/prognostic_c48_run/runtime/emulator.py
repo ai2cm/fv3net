@@ -216,3 +216,10 @@ def compute_mask_no_cloud_no_qv(name: Hashable, arr: xr.DataArray) -> xr.DataArr
         return xr.DataArray(True)
     else:
         return xr.DataArray(False)
+
+
+def compute_mask_no_sphum_bl(name: Hashable, arr: xr.DataArray) -> xr.DataArray:
+    if name == SPHUM:
+        return (arr.z > 68) & (arr.z < 20)
+    else:
+        return xr.DataArray(False)
