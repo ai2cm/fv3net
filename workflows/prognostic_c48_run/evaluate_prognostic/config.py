@@ -16,8 +16,11 @@ def get_config(suite: Optional[str], diagnostics: Optional[Path]):
     with open(suite_root / f"{suite}.yaml") as f:
         suite_config = yaml.safe_load(f)
 
-    with diagnostics.open() as f:
-        diag_updates = yaml.safe_load(f)
+    if diagnostics:
+        with diagnostics.open() as f:
+            diag_updates = yaml.safe_load(f)
+    else:
+        diag_updates = {}
 
     config = suite_config.copy()
     config["namelist"]["coupler_nml"] = diag_updates["namelist"]["coupler_nml"]
