@@ -1,5 +1,7 @@
+import argparse
 import dacite
 import dataclasses
+import fsspec
 import json
 import os
 from fv3fit.emulation.data.config import convert_map_sequences_to_slices
@@ -9,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from typing import Any, List, Mapping, MutableMapping, Optional
+from typing import Any, List, Mapping, MutableMapping, Optional, Sequence, Tuple
 
 from fv3fit.emulation.microphysics import Config
 from fv3fit.emulation.microphysics.models import ArchitectureConfig
@@ -178,6 +180,46 @@ def score_all(targets, predictions, names):
     return all_scores, all_profiles
 
 
+def load_config_yaml(path: str) -> Mapping[str, Any]:
+
+    with fsspec.open(path, "r") as f:
+        d = yaml.safe_load(f)
+
+    return d
+
+
+def config_dict_to_flat_args_dict(d: dict):
+
+    new_flat = {}
+    for k, v in d.items():
+        if isinstance(v, dict):
+            sub_d = config_dict_to_flat_args_dict(v)
+            for sk, sv in sub_d.items():
+                new_flat[".".join([k, sk])] = sv
+        else:
+            new_flat[k] = v
+
+    return new_flat
+
+
+def args_dict_to_config_dict(d: dict):
+
+    new_config = {}
+
+    for k, v in d.items():
+        if "." in k:
+            sub_keys = k.split(".")
+            sub_d = new_config
+            for sk in sub_keys[:-1]:
+                sub_d = sub_d.setdefault(sk, {})
+            sub_d[sub_keys[-1]] = v
+        else:
+            new_config[k] = v
+
+    return new_config
+
+
+
 @dataclasses.dataclass
 class TrainConfig:
     train_url: str
@@ -197,12 +239,73 @@ class TrainConfig:
 
     @classmethod
     def from_dict(cls, d: dict) -> "TrainConfig":
+        if "model" in d:
+            d["model"] = Config.from_dict(d["model"])
         return dacite.from_dict(cls, d, dacite.Config(strict=True))
+
+    @classmethod
+    def from_flat_dict(cls, d: dict) -> "TrainConfig":
+        d = args_dict_to_config_dict(d)
+        return cls.from_dict(d)
 
     @classmethod
     def from_yaml_path(cls, path: str) -> "TrainConfig":
         d = load_config_yaml(path)
         return cls.from_dict(d)
+
+    @classmethod
+    def from_parser(cls):
+        # TODO: I don't think this works when section names are changing
+        # e.g., switching from linear -> rnn keyword arguments
+        # should work for a standard config w/ hyperparameter search
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--config-path", type=str, default=None)
+        parser.add_argument("config_args", nargs=argparse.REMAINDER)
+
+        args = parser.parse_args()
+
+        if args.config_path is not None:
+            config = cls.from_yaml_path(args.config_path)
+        else:
+            config = get_default_config()
+
+        if args.config_args:
+            updated = cls._get_updated_config_dict(
+                args.config_args,
+                config.as_flat_dict()
+            )
+            config = cls.from_flat_dict(updated)
+        
+        return config
+
+    @staticmethod
+    def _get_updated_config_dict(args, flat_config_dict):
+        
+        parser = argparse.ArgumentParser()
+        
+        for k, v in flat_config_dict.items():
+            if isinstance(v, str) or not isinstance(v, Sequence):
+                parser.add_argument(f"--{k}", type=type(v), default=v)
+
+        updates = parser.parse_args(args.config_args)
+        updates = vars(updates)
+
+        flat_config_dict.update(updates)
+
+        return flat_config_dict
+
+    def asdict(self):
+        # need to explicitly grab model to us it's asdict
+        model_d = self.model.asdict()
+        d = dataclasses.asdict(self)
+        d["model"] = model_d
+
+        return d
+
+    def as_flat_dict(self):
+        d = self.asdict()
+        flat = config_dict_to_flat_args_dict(d)
+        return flat
 
     def __post_init__(self):
 
@@ -222,14 +325,6 @@ class TrainConfig:
             )
 
 
-def load_config_yaml(path: str) -> Mapping[str, Any]:
-
-    with open(path, "r") as f:
-        d = yaml.safe_load(f)
-
-    return d
-
-
 def main(config: TrainConfig):
     set_random_seed(0)
 
@@ -237,6 +332,7 @@ def main(config: TrainConfig):
     if config.use_wandb:
         job = wandb.init(
             entity="ai2cm", project="microphysics-emulation-test", job_type="training",
+            config=config.as_flat_dict()
         )
         # saves best model by validation every epoch
         callbacks.append(wandb.keras.WandbCallback())
@@ -386,6 +482,14 @@ def get_default_config():
 
     return config
 
-
 if __name__ == "__main__":
-    main(get_default_config())
+    # cfg = get_default_config()
+    path = "gs://vcm-ml-scratch/andrep/uphys_default_train.yaml"
+    config = TrainConfig.from_yaml_path(path)
+    main(config)
+    # TODO
+    # run the training
+
+    # then make an argo workflow with keyword args as params?
+    # workflow targets the entry point
+    # make another entrypoint that triggers the train entrypoint? 
