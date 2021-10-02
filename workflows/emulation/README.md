@@ -67,6 +67,13 @@ To launch a single run, edit the parameters in `hyper-parameter-tune/train.yaml`
 
     kubectl apply -f hyper-parameter-tune/train.yaml
     
+# Single Column Model
+
+Evaluate with a single column model
+
+    cd workflows/emulation
+    python single-column-model.py ai2cm/emulator-noah/model:v108 --no-evolve-winds --region ocean
+
 
 # Prognostic run
 
