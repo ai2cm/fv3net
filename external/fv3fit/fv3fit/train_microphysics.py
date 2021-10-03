@@ -232,6 +232,8 @@ class TrainConfig:
     epochs: int = 1
     batch_size: int = 128
     nfiles: Optional[int] = None
+    nfiles_valid: Optional[int] = None
+    valid_freq: int = 5
     optimizer: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")
     )
@@ -332,7 +334,7 @@ def main(config: TrainConfig):
     callbacks = []
     if config.use_wandb:
         job = wandb.init(
-            entity="ai2cm", project="microphysics-emulation-test", job_type="training",
+            entity="ai2cm", project="microphysics-emulation-k8s", job_type="training",
             config=config.as_flat_dict()
         )
         # saves best model by validation every epoch
@@ -341,7 +343,7 @@ def main(config: TrainConfig):
         job = None
 
     train_ds = _netcdf_url_to_dataset(config.train_url, config.transform, nfiles=config.nfiles)
-    test_ds = _netcdf_url_to_dataset(config.test_url, config.transform, nfiles=config.nfiles)
+    test_ds = _netcdf_url_to_dataset(config.test_url, config.transform, nfiles=config.nfiles_valid)
 
     sample_in, sample_out = next(iter(train_ds.shuffle(100_000).batch(50_000)))
     direct_sample, resid_sample = get_out_samples(
@@ -366,7 +368,7 @@ def main(config: TrainConfig):
     history = model.fit(
         train_ds.shuffle(100_000).batch(config.batch_size),
         epochs=config.epochs,
-        validation_freq=1,
+        validation_freq=config.valid_freq,
         validation_data=test_ds.batch(config.batch_size),
         verbose=2,
         callbacks=callbacks,
