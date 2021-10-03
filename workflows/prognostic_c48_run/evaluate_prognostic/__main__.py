@@ -12,6 +12,8 @@ import os
 from .prognostic import compute_metrics, open_run
 from .config import get_config
 
+from fv3net.diagnostics.prognostic_run.load_run_data import open_segmented_stats
+
 import typer
 
 app = typer.Typer()
@@ -32,6 +34,10 @@ def log_summary_metrics(label: str, mean: xarray.Dataset):
         wandb.summary[label + "/" + str(key)] = float(mean[key])
 
 
+def log_statistics(stats):
+    wandb.log({"statistics": wandb.Table(dataframe=stats)})
+
+
 def run(config, path):
     with tempfile.NamedTemporaryFile("w") as user_config:
         fv3config.dump(config, user_config)
@@ -46,6 +52,8 @@ def evaluate(path: Path):
     metrics = compute_metrics(ds)
     log_vertical_metrics("vertical_metrics", metrics)
     log_summary_metrics("mean", metrics.mean())
+    stats = open_segmented_stats(path.as_posix())
+    log_statistics(stats)
     wandb.finish()
 
 
