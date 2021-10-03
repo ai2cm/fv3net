@@ -33,11 +33,7 @@ def test_Config_from_dict():
 
 
 def test_Config_from_dict_selection_map_sequences():
-    config = Config.from_dict(
-        dict(selection_map={
-            "dummy": [0, 2, 1]
-        })
-    )
+    config = Config.from_dict(dict(selection_map={"dummy": [0, 2, 1]}))
     assert config.selection_map["dummy"] == slice(0, 2, 1)
 
 
@@ -46,10 +42,7 @@ def test_Config_asdict():
     original = Config(
         input_variables=["dummy_in"],
         direct_out_variables=["dummy_out"],
-        selection_map=dict(
-            dummy_in=slice(0, 10, 2),
-            dummy_out=slice(25)
-        )
+        selection_map=dict(dummy_in=slice(0, 10, 2), dummy_out=slice(25)),
     )
 
     config_d = original.asdict()

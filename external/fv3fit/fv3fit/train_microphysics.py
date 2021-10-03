@@ -20,19 +20,22 @@ from fv3fit.emulation.data import get_nc_files, nc_files_to_tf_dataset
 from fv3fit.emulation.layers import MeanFeatureStdNormLayer
 from fv3fit.tensorboard import plot_to_image
 from fv3fit import set_random_seed
+
 # TODO centralize this
 from fv3fit.keras._models._filesystem import put_dir
 from loaders.batches import shuffle
 
 
 SCALE_VALUES = {
-    "total_precipitation": 1000/(3600*24),  # mm / day
+    "total_precipitation": 1000 / (3600 * 24),  # mm / day
     "specific_humidity_output": 1000,  # g / kg
-    "tendency_of_specific_humidity_due_to_microphysics": 1000*(3600*24),  # g / kg / day
+    "tendency_of_specific_humidity_due_to_microphysics": 1000
+    * (3600 * 24),  # g / kg / day
     "cloud_water_mixing_ratio_output": 1000,  # g / kg
-    "tendency_of_cloud_water_mixing_ratio_due_to_microphysics": 1000*(3600*24),  # g / kg / day
+    "tendency_of_cloud_water_mixing_ratio_due_to_microphysics": 1000
+    * (3600 * 24),  # g / kg / day
     "air_temperature_output": 1,
-    "tendency_of_air_temperature_due_to_microphysics": 3600*24  # K / day,
+    "tendency_of_air_temperature_due_to_microphysics": 3600 * 24,  # K / day,
 }
 
 
@@ -107,7 +110,7 @@ def scale(names, values):
 def score(target, prediction):
 
     bias_all = target - prediction
-    se = bias_all**2
+    se = bias_all ** 2
 
     mse = np.mean(se).astype(np.float)
     bias = np.mean(bias_all).astype(np.float)
@@ -219,7 +222,6 @@ def args_dict_to_config_dict(d: dict):
     return new_config
 
 
-
 @dataclasses.dataclass
 class TrainConfig:
     train_url: str
@@ -228,6 +230,7 @@ class TrainConfig:
     transform: TransformConfig
     model: Config
     use_wandb: bool = True
+    wandb_project: str = "microphysics-emulation-test"
     wandb_model_name: Optional[str] = None
     epochs: int = 1
     batch_size: int = 128
@@ -274,18 +277,17 @@ class TrainConfig:
 
         if args.config_args:
             updated = cls._get_updated_config_dict(
-                args.config_args,
-                config.as_flat_dict()
+                args.config_args, config.as_flat_dict()
             )
             config = cls.from_flat_dict(updated)
-        
+
         return config
 
     @staticmethod
     def _get_updated_config_dict(args, flat_config_dict):
-        
+
         parser = argparse.ArgumentParser()
-        
+
         for k, v in flat_config_dict.items():
             if isinstance(v, str) or not isinstance(v, Sequence):
                 parser.add_argument(f"--{k}", type=type(v), default=v)
@@ -334,16 +336,22 @@ def main(config: TrainConfig):
     callbacks = []
     if config.use_wandb:
         job = wandb.init(
-            entity="ai2cm", project="microphysics-emulation-k8s", job_type="training",
-            config=config.as_flat_dict()
+            entity="ai2cm",
+            project=config.wandb_project,
+            job_type="training",
+            config=config.as_flat_dict(),
         )
         # saves best model by validation every epoch
         callbacks.append(wandb.keras.WandbCallback())
     else:
         job = None
 
-    train_ds = _netcdf_url_to_dataset(config.train_url, config.transform, nfiles=config.nfiles)
-    test_ds = _netcdf_url_to_dataset(config.test_url, config.transform, nfiles=config.nfiles_valid)
+    train_ds = _netcdf_url_to_dataset(
+        config.train_url, config.transform, nfiles=config.nfiles
+    )
+    test_ds = _netcdf_url_to_dataset(
+        config.test_url, config.transform, nfiles=config.nfiles_valid
+    )
 
     sample_in, sample_out = next(iter(train_ds.shuffle(100_000).batch(50_000)))
     direct_sample, resid_sample = get_out_samples(
@@ -392,12 +400,14 @@ def main(config: TrainConfig):
         test_table = wandb.Table(dataframe=test_df)
         test_prof_table = wandb.Table(dataframe=pd.DataFrame(test_profiles))
         train_prof_table = wandb.Table(dataframe=pd.DataFrame(train_profiles))
-        job.log({
-            "score/train": train_table,
-            "score/test": test_table,
-            "profiles/test": test_prof_table,
-            "profiles/train": train_prof_table,
-        })
+        job.log(
+            {
+                "score/train": train_table,
+                "score/test": test_table,
+                "profiles/test": test_prof_table,
+                "profiles/train": train_prof_table,
+            }
+        )
 
         log_sample_profiles(target, test_pred, out_names)
 
@@ -420,10 +430,7 @@ def main(config: TrainConfig):
                     suffix = config.model.architecture.name
                     name = f"microphysics-emulator-{suffix}"
 
-                model = wandb.Artifact(
-                    name,
-                    type="model"
-                )
+                model = wandb.Artifact(name, type="model")
                 model.add_dir(model_dir)
                 wandb.log_artifact(model)
 
@@ -457,12 +464,11 @@ def get_default_config():
         tendency_outputs=dict(
             air_temperature_output="tendency_of_air_temperature_due_to_microphysics",
             specific_humidity_output="tendency_of_specific_humidity_due_to_microphysics",
-        )
+        ),
     )
 
     transform = TransformConfig(
-        input_variables=input_vars,
-        output_variables=model_config.output_variables,
+        input_variables=input_vars, output_variables=model_config.output_variables,
     )
 
     config = TrainConfig(
@@ -476,7 +482,7 @@ def get_default_config():
             "air_temperature_output",
             "specific_humidity_output",
             "cloud_water_mixing_ratio_output",
-            "total_precipitation"
+            "total_precipitation",
         ],
         metric_variables=[
             "tendency_of_air_temperature_due_to_microphysics",
@@ -490,7 +496,8 @@ def get_default_config():
 
     return config
 
+
 if __name__ == "__main__":
-    
+
     config = TrainConfig.from_parser()
     main(config)

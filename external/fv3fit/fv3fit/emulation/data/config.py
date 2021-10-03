@@ -33,7 +33,7 @@ def convert_map_sequences_to_slices(map_: Mapping[str, Union[Sequence[int], slic
             slice_ = maybe_seq
         else:
             slice_ = _sequence_to_slice(maybe_seq)
-        
+
         new_map[key] = slice_
 
     return new_map

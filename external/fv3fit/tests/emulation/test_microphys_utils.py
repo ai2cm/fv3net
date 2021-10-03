@@ -11,14 +11,7 @@ def get_cfg_and_args_dicts():
 
     config_d = {
         "top": 1,
-        "nested": {
-            "k1": 2,
-            "k2": 3,
-            "double_nest": {
-                "k1": 4,
-                "k2": 5,
-            }
-        }
+        "nested": {"k1": 2, "k2": 3, "double_nest": {"k1": 4, "k2": 5,}},
     }
 
     flat_d = {
@@ -26,7 +19,7 @@ def get_cfg_and_args_dicts():
         "nested.k1": 2,
         "nested.k2": 3,
         "nested.double_nest.k1": 4,
-        "nested.double_nest.k2": 5
+        "nested.double_nest.k2": 5,
     }
 
     return config_d, flat_d
