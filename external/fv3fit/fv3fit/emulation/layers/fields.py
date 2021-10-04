@@ -75,7 +75,9 @@ class FieldOutput(tf.keras.layers.Layer):
             )
             self.denorm.fit(sample_out)
         else:
-            self.denorm = tf.keras.layers.Lambda(lambda x: x, name=f"passthru_{self.name}")
+            self.denorm = tf.keras.layers.Lambda(
+                lambda x: x, name=f"passthru_{self.name}"
+            )
 
         self.relu = tf.keras.layers.ReLU()
         self.use_relu = enforce_positive

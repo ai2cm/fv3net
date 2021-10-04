@@ -1,6 +1,6 @@
 import dacite
 import dataclasses
-from typing import Any, List, Mapping, Sequence
+from typing import List, Mapping, Sequence
 import tensorflow as tf
 
 from ._core import ArchitectureConfig, get_combine_from_arch_key

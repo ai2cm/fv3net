@@ -14,9 +14,12 @@ def _get_data(shape):
 def _get_tensor(shape):
     return tf.convert_to_tensor(_get_data(shape))
 
+
 def test_Config():
 
-    config = MicrophysicsConfig(input_variables=["dummy_in"], direct_out_variables=["dummy_out"])
+    config = MicrophysicsConfig(
+        input_variables=["dummy_in"], direct_out_variables=["dummy_out"]
+    )
     assert config.input_variables == ["dummy_in"]
     assert config.direct_out_variables == ["dummy_out"]
 
@@ -65,7 +68,9 @@ def test_Config__get_direct_outputs():
     net_out = _get_tensor((20, 64))
     data = _get_data((20, 5))
 
-    config = MicrophysicsConfig(input_variables=["dummy_in"], direct_out_variables=["dummy_out1"],)
+    config = MicrophysicsConfig(
+        input_variables=["dummy_in"], direct_out_variables=["dummy_out1"],
+    )
 
     outputs = config._get_direct_outputs((data,), net_out)
 
@@ -115,7 +120,9 @@ def test_Config__get_outputs_denorm():
 
 def test_Config_build():
 
-    config = MicrophysicsConfig(input_variables=["dummy_in"], direct_out_variables=["dummy_out"],)
+    config = MicrophysicsConfig(
+        input_variables=["dummy_in"], direct_out_variables=["dummy_out"],
+    )
 
     data = _get_data((20, 5))
     model = config.build([data], sample_direct_out=[data])
