@@ -3,54 +3,12 @@ import dataclasses
 from typing import Any, List, Mapping, Sequence
 import tensorflow as tf
 
-from ..layers import (
-    CombineInputs,
-    IncrementedFieldOutput,
-    FieldOutput,
-    FieldInput,
-    RNNBlock,
-    MLPBlock,
-)
-
-
-def get_architecture_cls(key: str, kwargs: Mapping[str, Any]):
-
-    if key == "rnn":
-        return RNNBlock(**kwargs)
-    elif key == "dense":
-        return MLPBlock(**kwargs)
-    elif key == "linear":
-        return MLPBlock(depth=0)
-    else:
-        raise KeyError(f"Unrecognized architecture provided: {key}")
-
-
-def get_combine_from_arch_key(key: str):
-
-    if key == "rnn":
-        return CombineInputs(-1, expand_axis=-1)
-    else:
-        return CombineInputs(-1, expand_axis=None)
+from ._core import ArchitectureConfig, get_combine_from_arch_key
+from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput
 
 
 @dataclasses.dataclass
-class ArchitectureConfig:
-    """
-        name: Name of underlying model architecture to use for the emulator.
-            See `get_architecture_cls` for a list of supported layers.
-        kwargs: keyword arguments to pass to the initialization
-            of the architecture layer
-    """
-
-    name: str
-    kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
-
-    def build(self):
-        return get_architecture_cls(self.name, kwargs=self.kwargs)
-
-
-@dataclasses.dataclass
-class Config:
+class MicrophysicsConfig:
 
     """
     Microphysics emulator model builder
@@ -91,7 +49,7 @@ class Config:
     timestep_increment_sec: int = 900
 
     @classmethod
-    def from_dict(cls, dict_) -> "Config":
+    def from_dict(cls, dict_) -> "MicrophysicsConfig":
         return dacite.from_dict(cls, dict_, dacite.Config(strict=True))
 
     @property

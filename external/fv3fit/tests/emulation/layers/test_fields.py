@@ -2,7 +2,6 @@ import numpy as np
 import tensorflow as tf
 
 from fv3fit.emulation.layers.fields import (
-    CombineInputs,
     FieldInput,
     FieldOutput,
     IncrementedFieldOutput,
@@ -86,23 +85,3 @@ def test_IncrementedFieldOutput():
     assert result.shape == (20, 3)
     assert tendency.shape == (20, 3)
     assert field_out.tendency.denorm.fitted
-
-
-def test_CombineInputs_no_expand():
-
-    tensor = _get_tensor(20, 4)
-    combiner = CombineInputs(-1, expand_axis=None)
-    result = combiner((tensor, tensor))
-
-    assert result.shape == (20, 8)
-    np.testing.assert_array_equal(result[..., 4:8], tensor)
-
-
-def test_CombineInputs_expand():
-
-    tensor = _get_tensor(20, 4)
-    combiner = CombineInputs(2, expand_axis=2)
-    result = combiner((tensor, tensor, tensor))
-
-    assert result.shape == (20, 4, 3)
-    np.testing.assert_array_equal(result[..., 2], tensor)

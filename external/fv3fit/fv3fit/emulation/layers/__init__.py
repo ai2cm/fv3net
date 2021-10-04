@@ -11,9 +11,9 @@ from .fields import (
     IncrementedFieldOutput,
     FieldInput,
     FieldOutput,
-    CombineInputs,
 )
 from .architecture import (
     MLPBlock,
     RNNBlock,
+    CombineInputs,
 )

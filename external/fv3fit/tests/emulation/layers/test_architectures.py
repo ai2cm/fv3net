@@ -5,6 +5,7 @@ import tensorflow as tf
 from fv3fit.emulation.layers.architecture import (
     MLPBlock,
     RNNBlock,
+    CombineInputs,
 )
 
 
@@ -46,3 +47,23 @@ def test_RNNBlock(depth, expected_shp):
     tensor = _get_tensor((20, 10, 2))
     result = rnn(tensor)
     assert result.shape == expected_shp
+
+
+def test_CombineInputs_no_expand():
+
+    tensor = _get_tensor((20, 4))
+    combiner = CombineInputs(-1, expand_axis=None)
+    result = combiner((tensor, tensor))
+
+    assert result.shape == (20, 8)
+    np.testing.assert_array_equal(result[..., 4:8], tensor)
+
+
+def test_CombineInputs_expand():
+
+    tensor = _get_tensor((20, 4))
+    combiner = CombineInputs(2, expand_axis=2)
+    result = combiner((tensor, tensor, tensor))
+
+    assert result.shape == (20, 4, 3)
+    np.testing.assert_array_equal(result[..., 2], tensor)

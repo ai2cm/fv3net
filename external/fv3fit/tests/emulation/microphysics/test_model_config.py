@@ -1,14 +1,8 @@
-from fv3fit.emulation.layers.fields import CombineInputs
-import pytest
 import numpy as np
 import tensorflow as tf
 
-from fv3fit.emulation.microphysics import Config
-from fv3fit.emulation.microphysics.models import (
-    get_architecture_cls,
-    get_combine_from_arch_key,
-    ArchitectureConfig,
-)
+from fv3fit.emulation.models import MicrophysicsConfig
+from fv3fit.emulation.models._core import ArchitectureConfig
 
 
 def _get_data(shape):
@@ -20,48 +14,15 @@ def _get_data(shape):
 def _get_tensor(shape):
     return tf.convert_to_tensor(_get_data(shape))
 
-
-def test_get_architecture_unrecognized():
-
-    with pytest.raises(KeyError):
-        get_architecture_cls("not_an_arch", {})
-
-
-@pytest.mark.parametrize(
-    "arch_key, expected",
-    [("rnn", (20, 4, 3)), ("dense", (20, 12)), ("linear", (20, 12))],
-)
-def test_get_combine_from_arch_key(arch_key, expected):
-
-    combiner = get_combine_from_arch_key(arch_key)
-    assert isinstance(combiner, CombineInputs)
-
-    tensor = _get_tensor((20, 4))
-    combined = combiner((tensor, tensor, tensor))
-
-    assert combined.shape == expected
-
-
-def test_ArchParams():
-    arch = ArchitectureConfig(name="dense", kwargs=dict(width=128))
-    assert isinstance(arch.build, tf.keras.layers.Layer)
-
-
-def test_ArchParams_bad_kwargs():
-    arch = ArchitectureConfig(name="dense", kwargs=dict(not_a_kwarg="hi"))
-    with pytest.raises(TypeError):
-        arch.build
-
-
 def test_Config():
 
-    config = Config(input_variables=["dummy_in"], direct_out_variables=["dummy_out"])
+    config = MicrophysicsConfig(input_variables=["dummy_in"], direct_out_variables=["dummy_out"])
     assert config.input_variables == ["dummy_in"]
     assert config.direct_out_variables == ["dummy_out"]
 
 
 def test_Config_from_dict():
-    config = Config.from_dict(
+    config = MicrophysicsConfig.from_dict(
         dict(input_variables=["dummy_in"], direct_out_variables=["dummy_out"],)
     )
     assert config.input_variables == ["dummy_in"]
@@ -70,7 +31,7 @@ def test_Config_from_dict():
 
 def test_Config__processed_inputs():
 
-    config = Config(
+    config = MicrophysicsConfig(
         input_variables=["dummy_in1", "dummy_in2"],
         direct_out_variables=["dummy_out"],
         selection_map={"dummy_in1": slice(0, 3)},
@@ -87,7 +48,7 @@ def test_Config__processed_inputs():
 
 def test_Config__processed_inputs_normalized():
 
-    config = Config(
+    config = MicrophysicsConfig(
         input_variables=["dummy_in1"], direct_out_variables=[], normalize_key="mean_std"
     )
 
@@ -104,7 +65,7 @@ def test_Config__get_direct_outputs():
     net_out = _get_tensor((20, 64))
     data = _get_data((20, 5))
 
-    config = Config(input_variables=["dummy_in"], direct_out_variables=["dummy_out1"],)
+    config = MicrophysicsConfig(input_variables=["dummy_in"], direct_out_variables=["dummy_out1"],)
 
     outputs = config._get_direct_outputs((data,), net_out)
 
@@ -117,7 +78,7 @@ def test_Config__get_residual_outputs():
     net_out = _get_tensor((20, 64))
     data = _get_data((20, 5))
 
-    config = Config(
+    config = MicrophysicsConfig(
         input_variables=["dummy_in"],
         residual_out_variables={"dummy_out1": "dummy_in"},
         tendency_outputs={"dummy_out1": "dummy_out1_tendency"},
@@ -136,7 +97,7 @@ def test_Config__get_outputs_denorm():
     net_out = _get_tensor((20, 64))
     data = _get_data((20, 5))
 
-    config = Config(
+    config = MicrophysicsConfig(
         input_variables=[],
         direct_out_variables=["dummy_out1"],
         residual_out_variables={"dummy_out2": "dummy_in"},
@@ -154,7 +115,7 @@ def test_Config__get_outputs_denorm():
 
 def test_Config_build():
 
-    config = Config(input_variables=["dummy_in"], direct_out_variables=["dummy_out"],)
+    config = MicrophysicsConfig(input_variables=["dummy_in"], direct_out_variables=["dummy_out"],)
 
     data = _get_data((20, 5))
     model = config.build([data], sample_direct_out=[data])
@@ -167,7 +128,7 @@ def test_Config_build():
 
 def test_Config_build_residual_w_extra_tends_out():
 
-    config = Config(
+    config = MicrophysicsConfig(
         input_variables=["dummy_in"],
         residual_out_variables={"dummy_out1": "dummy_in"},
         tendency_outputs={"dummy_out1": "dummy_out1_tendency"},
