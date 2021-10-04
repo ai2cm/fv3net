@@ -1,9 +1,37 @@
 import tensorflow as tf
 
 
+class CombineInputs(tf.keras.layers.Layer):
+    """Input tensor stacking with option to add a dimension for RNNs"""
+
+    def __init__(
+        self, combine_axis: int, *args, expand_axis: Optional[int] = None, **kwargs
+    ):
+        """
+        Args:
+            combine_axis: Axis to concatenate tensors along.  Note that if expand_axis
+                is specified, it is applied before concatenation.  E.g., combine_axis=1
+                and expand_axis=1 will concatenate along the newly created dimension.
+            expand_axis: New axis to add to the input tensors
+        """
+        super().__init__(*args, **kwargs)
+
+        self.combine_axis = combine_axis
+        self.expand_axis = expand_axis
+
+    def call(self, inputs):
+
+        if self.expand_axis is not None:
+            inputs = [
+                tf.expand_dims(tensor, axis=self.expand_axis) for tensor in inputs
+            ]
+
+        return tf.concat(inputs, axis=self.combine_axis)
+
+
 class RNNBlock(tf.keras.layers.Layer):
     """
-    RNN connected to an optional MLP for prediction
+    RNN connected to an MLP for prediction
 
     Layer call expects a 3-D input tensor (sample, z, variable),
     which recurses backwards (top-to-bottom for the physics-param data)

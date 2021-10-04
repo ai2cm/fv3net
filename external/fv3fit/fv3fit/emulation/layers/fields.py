@@ -60,7 +60,8 @@ class FieldOutput(tf.keras.layers.Layer):
                 and fit denormalization layer.
             denormalize: denormalize layer key to use on
                 the dense layer output
-            alt_name: alternative name for unscaled and denorm layers
+            enforce_positive: add a ReLU on the final layer output
+                call to enforce only positive values
         """
         super().__init__(*args, **kwargs)
 
@@ -74,7 +75,7 @@ class FieldOutput(tf.keras.layers.Layer):
             )
             self.denorm.fit(sample_out)
         else:
-            self.denorm = tf.keras.layers.Lambda(lambda x: x)
+            self.denorm = tf.keras.layers.Lambda(lambda x: x, name=f"passthru_{self.name}")
 
         self.relu = tf.keras.layers.ReLU()
         self.use_relu = enforce_positive
@@ -137,6 +138,8 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
                 input state.
             denormalize: denormalize layer key to use on
                 the dense layer output
+            enforce_positive: add a ReLU on the final layer output
+                call to enforce only positive values
         """
         super().__init__(*args, **kwargs)
 
@@ -144,7 +147,7 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
             sample_out,
             denormalize=denormalize,
             enforce_positive=False,
-            name=f"residual_{self.name}",
+            name=f"tendency_of_{self.name}",
         )
         self.increment = IncrementStateLayer(dt_sec, name=f"increment_{self.name}")
         self.use_relu = enforce_positive
@@ -162,31 +165,3 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
 
     def get_tendency_output(self, network_output):
         return self.tendency(network_output)
-
-
-class CombineInputs(tf.keras.layers.Layer):
-    """Input tensor stacking with option to add a dimension for RNNs"""
-
-    def __init__(
-        self, combine_axis: int, *args, expand_axis: Optional[int] = None, **kwargs
-    ):
-        """
-        Args:
-            combine_axis: Axis to concatenate tensors along.  Note that if expand_axis
-                is specified, it is applied before concatenation.  E.g., combine_axis=1
-                and expand_axis=1 will concatenate along the newly created dimension.
-            expand_axis: New axis to add to the input tensors
-        """
-        super().__init__(*args, **kwargs)
-
-        self.combine_axis = combine_axis
-        self.expand_axis = expand_axis
-
-    def call(self, inputs):
-
-        if self.expand_axis is not None:
-            inputs = [
-                tf.expand_dims(tensor, axis=self.expand_axis) for tensor in inputs
-            ]
-
-        return tf.concat(inputs, axis=self.combine_axis)

@@ -45,7 +45,6 @@ class ArchitectureConfig:
     name: str
     kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
 
-    @property
     def build(self):
         return get_architecture_cls(self.name, kwargs=self.kwargs)
 
@@ -194,7 +193,7 @@ class Config:
         processed = self._get_processed_inputs(sample_in, inputs)
         combine_layer = get_combine_from_arch_key(self.architecture.name)
         combined = combine_layer(processed)
-        arch_layer = self.architecture.build
+        arch_layer = self.architecture.build()
         arch_out = arch_layer(combined)
         outputs = self._get_direct_outputs(sample_direct_out, arch_out)
         outputs += self._get_residual_outputs(
