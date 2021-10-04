@@ -21,8 +21,11 @@ class FieldInput(tf.keras.layers.Layer):
             normalize: normalize layer key to use for inputs
             selection: slice selection taken along the feature dimension
                 of the input
+            norm_layer:
         """
         super().__init__(*args, **kwargs)
+
+        self._selection = selection
 
         if normalize is not None:
             self.normalize = get_norm_class(normalize)(name=f"normalized_{self.name}")
@@ -42,22 +45,54 @@ class FieldInput(tf.keras.layers.Layer):
 
         return tensor
 
+    def get_config(self):
+
+        config = super().get_config()
+
+        if self._selection is not None:
+            serializable_selection = [
+                self._selection.start,
+                self._selection.stop,
+                self._selection.step,
+            ]
+        else:
+            serializable_selection = None
+
+        config.update({
+            "norm_layer": self.normalize,
+            "selection": serializable_selection,
+        })
+
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        config = dict(config)
+        norm_layer = config.pop("norm_layer")
+        selection = slice(*config.pop("selection"))
+
+        obj = cls(selection=selection, **config)
+        obj.normalize = norm_layer
+
+        return obj
+
 
 class FieldOutput(tf.keras.layers.Layer):
     """Connect linear dense output layer and denormalize"""
 
     def __init__(
         self,
-        sample_out: tf.Tensor,
+        nfeatures: int,
         *args,
+        sample_out: Optional[tf.Tensor] = None,
         denormalize: Optional[str] = None,
         enforce_positive=False,
         **kwargs,
     ):
         """
         Args:
-            sample_out: Output sample for variable to set shape
-                and fit denormalization layer.
+            nfeatures: size of the output feature dimension 
+            sample_out: Output sample for variable to fit denormalization layer.
             denormalize: denormalize layer key to use on
                 the dense layer output
             enforce_positive: add a ReLU on the final layer output
@@ -65,8 +100,10 @@ class FieldOutput(tf.keras.layers.Layer):
         """
         super().__init__(*args, **kwargs)
 
+        self._enforce_positive = enforce_positive
+
         self.unscaled = tf.keras.layers.Dense(
-            sample_out.shape[-1], name=f"unscaled_{self.name}"
+            nfeatures, activation="linear", name=f"unscaled_{self.name}"
         )
 
         if denormalize is not None:
@@ -91,6 +128,27 @@ class FieldOutput(tf.keras.layers.Layer):
             tensor = self.relu(tensor)
 
         return tensor
+
+    def get_config(self):
+
+        config = super().get_config()
+
+        config.update({
+            "denorm_layer": self.denorm,
+            "enforce_positive": self._enforce_positive
+        })
+
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        config = dict(config)
+        denorm_layer = config.pop("denorm_layer")
+
+        obj = cls(**config)
+        obj.denorm = denorm_layer
+
+        return obj
 
 
 class IncrementStateLayer(tf.keras.layers.Layer):

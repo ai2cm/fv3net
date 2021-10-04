@@ -96,7 +96,8 @@ class MicrophysicsConfig:
 
         for name, sample in zip(self.direct_out_variables, sample_out):
             out_ = FieldOutput(
-                sample,
+                sample.shape[-1],
+                sample_out=sample,
                 denormalize=self.normalize_key,
                 name=name,
                 enforce_positive=True,
