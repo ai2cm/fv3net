@@ -345,7 +345,7 @@ def main(config: TrainConfig):
             config=config.as_flat_dict(),
         )
         # saves best model by validation every epoch
-        callbacks.append(wandb.keras.WandbCallback())
+        callbacks.append(wandb.keras.WandbCallback(save_weights_only=False))
     else:
         job = None
 
@@ -488,6 +488,7 @@ def get_default_config():
         transform=transform,
         nfiles=20,
         nfiles_valid=10,
+        valid_freq=1,
         optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
         loss_variables=[
             "air_temperature_output",
