@@ -380,7 +380,7 @@ def main(config: TrainConfig):
             metrics[out_varname] = loss_func
 
     optimizer = config.optimizer.instance
-    model.compile(loss=losses, metrics=metrics, optimizer=optimizer)
+    model.compile(loss=losses, metrics=metrics, optimizer=optimizer, loss_weights=weights)
 
     history = model.fit(
         train_ds.shuffle(100_000).batch(config.batch_size),
@@ -398,7 +398,7 @@ def main(config: TrainConfig):
     test_pred = scale(out_names, model.predict(X_test))
     train_pred = scale(out_names, model.predict(X_train))
 
-    train_scores, train_profiles = score_all(test_target, train_pred, out_names)
+    train_scores, train_profiles = score_all(train_target, train_pred, out_names)
     test_scores, test_profiles = score_all(test_target, test_pred, out_names)
 
     if config.use_wandb:
@@ -496,10 +496,10 @@ def get_default_config():
             "total_precipitation",
         ],
         weights=dict(
-            air_temperature_output=.5e-5,
-            specific_humidity_output=.5e-5,
+            air_temperature_output=.5e5,
+            specific_humidity_output=.5e5,
             cloud_water_mixing_ratio_output=1.0,
-            total_precipitation=1/25,
+            total_precipitation=.04,
         ),
         metric_variables=[
             "tendency_of_air_temperature_due_to_microphysics",
