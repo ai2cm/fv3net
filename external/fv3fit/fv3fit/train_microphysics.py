@@ -26,7 +26,7 @@ from loaders.batches import shuffle
 
 
 SCALE_VALUES = {
-    "total_precipitation": 1000 / (3600 * 24),  # mm / day
+    "total_precipitation": 1000 / (900/(3600 * 24)),  # mm / day
     "specific_humidity_output": 1000,  # g / kg
     "tendency_of_specific_humidity_due_to_microphysics": 1000
     * (3600 * 24),  # g / kg / day
@@ -35,6 +35,17 @@ SCALE_VALUES = {
     * (3600 * 24),  # g / kg / day
     "air_temperature_output": 1,
     "tendency_of_air_temperature_due_to_microphysics": 3600 * 24,  # K / day,
+}
+
+
+UNITS = {
+    "total_precipitation": "mm / day",
+    "specific_humidity_output": "g/kg",
+    "tendency_of_specific_humidity_due_to_microphysics": "g/kg/day",
+    "cloud_water_mixing_ratio_output": "g/kg",
+    "tendency_of_cloud_water_mixing_ratio_due_to_microphysics": "g/kg/day",
+    "air_temperature_output": "K",
+    "tendency_of_air_temperature_due_to_microphysics": "K/day",
 }
 
 
@@ -145,9 +156,9 @@ def _log_profiles(targ, pred, name):
         plt.plot(targ[i], levs, label="target")
         plt.plot(pred[i], levs, label="prediction")
         plt.title(f"Sample {i+1}: {name}")
-        plt.xlabel(f"UNITS[name]")
+        plt.xlabel(f"{UNITS[name]}")
         plt.ylabel("Level")
-        wandb.log({f"sample_{i}_{name}": wandb.Image(plot_to_image(fig))})
+        wandb.log({f"{name}_sample_{i}": wandb.Image(plot_to_image(fig))})
         plt.close()
 
 
