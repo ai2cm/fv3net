@@ -84,7 +84,7 @@ def test_IncrementedFieldOutput():
 
     dt_sec = 2
 
-    field_out = IncrementedFieldOutput(sample, dt_sec, denormalize="mean_std")
+    field_out = IncrementedFieldOutput(sample.shape[-1], dt_sec, sample_out=sample, denormalize="mean_std")
     result = field_out(sample, net_tensor)
     tendency = field_out.get_tendency_output(net_tensor)
 

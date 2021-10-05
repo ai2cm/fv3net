@@ -114,8 +114,9 @@ class MicrophysicsConfig:
         for (name, in_state), sample in zip(residual_to_input_map.items(), sample_out):
             # incremented state field output
             res_out = IncrementedFieldOutput(
-                sample,
+                sample.shape[-1],
                 self.timestep_increment_sec,
+                sample_out=sample,
                 denormalize=self.normalize_key,
                 name=name,
                 enforce_positive=True,
