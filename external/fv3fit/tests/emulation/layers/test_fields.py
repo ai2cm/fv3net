@@ -101,18 +101,65 @@ def get_FieldInput():
     return input_layer
 
 
+def get_FieldOutput():
+
+    tensor = _get_tensor((20, 10))
+    output_layer = FieldOutput(tensor.shape[-1], sample_out=tensor, denormalize="mean_std", enforce_positive=True)
+
+    return output_layer
+
+
+def get_IncrementedStateOutput():
+
+    tensor = _get_tensor((20, 10))
+    layer = IncrementedFieldOutput(
+        tensor.shape[-1],
+        900,
+        sample_out=tensor,
+        denormalize="mean_std",
+        enforce_positive=True,
+    )
+    return layer
+
+
 @pytest.mark.parametrize(
     "get_layer_func",
-    [get_FieldInput]
+    [
+        get_FieldInput,
+        get_FieldOutput,
+    ]
 )
 def test_config_instantiate(tmpdir, get_layer_func):
 
-    tensor = _get_tensor((30, 10))
+    tensor = _get_tensor((20, 10))
     layer = get_layer_func()
 
     model = tf.keras.models.Sequential(
         [layer, tf.keras.layers.Lambda(lambda x: x)]
     )
+
+    expected = model(tensor)
+    model.save(tmpdir.join("model.tf"), save_format="tf")
+    loaded = tf.keras.models.load_model(tmpdir.join("model.tf"))
+    result = loaded(tensor)
+
+    np.testing.assert_array_equal(result, expected)
+
+
+def test_config_instantiate_IncrementeStateOutput(tmpdir):
+
+    tensor = _get_tensor((20, 10))
+
+    in_ = tf.keras.layers.Input(tensor.shape[-1])
+    dense = tf.keras.layers.Dense(64)(in_)
+    out = IncrementedFieldOutput(
+        tensor.shape[-1],
+        900,
+        sample_out=tensor,
+        denormalize="mean_std",
+        enforce_positive=True,
+    )(in_, dense)
+    model = tf.keras.models.Model(inputs=in_, outputs=out)
 
     expected = model(tensor)
     model.save(tmpdir.join("model.tf"), save_format="tf")
