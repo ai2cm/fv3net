@@ -49,7 +49,7 @@ class MicrophysicsConfig:
     timestep_increment_sec: int = 900
 
     @classmethod
-    def from_dict(cls, dict_) -> "Config":
+    def from_dict(cls, dict_) -> "MicrophsyicsConfig":
 
         d = dict(**dict_)
         if "selection_map" in d:
