@@ -497,8 +497,8 @@ def get_default_config():
         out_url="/mnt/disks/scratch/test_train_out/",
         model=model_config,
         transform=transform,
-        nfiles=20,
-        nfiles_valid=10,
+        nfiles=80,
+        nfiles_valid=80,
         valid_freq=1,
         optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
         loss_variables=[
