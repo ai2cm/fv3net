@@ -435,3 +435,4 @@ online_emulator:
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
 scikit_learn: null
+tendency_prescriber: null

@@ -6,9 +6,10 @@ Generally assumes data to be in Sample x Feature shape.
 import logging
 import numpy as np
 import tensorflow as tf
+from vcm.derived_mapping import DerivedMapping
 import xarray as xr
 from toolz.functoolz import curry
-from typing import Mapping, Sequence, Tuple, Union
+from typing import Hashable, Mapping, Sequence, Tuple, Union
 
 from vcm import get_fs, open_remote_nc
 
@@ -16,9 +17,9 @@ from vcm import get_fs, open_remote_nc
 logger = logging.getLogger(__name__)
 
 NumericContainer = Union[np.ndarray, xr.DataArray, tf.Tensor]
-ArrayDataset = Mapping[str, np.ndarray]
-TensorDataset = Mapping[str, tf.Tensor]
-AnyDataset = Mapping[str, NumericContainer]
+ArrayDataset = Mapping[Hashable, np.ndarray]
+TensorDataset = Mapping[Hashable, tf.Tensor]
+AnyDataset = Mapping[Hashable, NumericContainer]
 
 
 def open_netcdf_dataset(path: str) -> xr.Dataset:
@@ -28,6 +29,17 @@ def open_netcdf_dataset(path: str) -> xr.Dataset:
     data = open_remote_nc(fs, path)
 
     return data
+
+
+@curry
+def derived_dataset(
+    all_variables: Sequence[str], dataset: AnyDataset, tendency_timestep_sec: int = 900
+):
+
+    derived = DerivedMapping(dataset, microphys_timestep_sec=tendency_timestep_sec)
+    dataset = derived.dataset(all_variables)
+
+    return dataset
 
 
 def to_ndarrays(dataset: AnyDataset) -> ArrayDataset:
@@ -80,7 +92,8 @@ def group_inputs_outputs(
 
 @curry
 def maybe_subselect_feature_dim(
-    subselection_map: Mapping[str, slice], dataset: Union[ArrayDataset, TensorDataset]
+    subselection_map: Mapping[Hashable, slice],
+    dataset: Union[ArrayDataset, TensorDataset],
 ) -> Union[ArrayDataset, TensorDataset]:
     """
     Subselect from the feature dimension if specified in the map.
