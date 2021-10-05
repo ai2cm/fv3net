@@ -352,17 +352,18 @@ def main(config: TrainConfig):
         config.test_url, config.transform, nfiles=config.nfiles_valid
     )
 
-    sample_in, sample_out = next(iter(train_ds.shuffle(100_000).batch(50_000)))
+    X_train, train_target = next(iter(train_ds.shuffle(100_000).batch(50_000)))
+    X_test, test_target = next(iter(test_ds.shuffle(160_000).batch(80_000)))
     direct_sample, resid_sample = get_out_samples(
-        config.model, sample_out, config.transform.output_variables
+        config.model, train_target, config.transform.output_variables
     )
     model = config.model.build(
-        sample_in, sample_direct_out=direct_sample, sample_residual_out=resid_sample
+        X_train, sample_direct_out=direct_sample, sample_residual_out=resid_sample
     )
 
     losses = {}
     metrics = {}
-    for out_varname, sample in zip(config.transform.output_variables, sample_out):
+    for out_varname, sample in zip(config.transform.output_variables, train_target):
         loss_func = NormalizedMSE(sample)
         if out_varname in config.loss_variables:
             losses[out_varname] = loss_func
@@ -382,14 +383,14 @@ def main(config: TrainConfig):
     )
 
     # scoring
-    X_test, target = next(iter(test_ds.shuffle(160_000).batch(80_000)))
-    target = scale(config.transform.output_variables, target)
+    test_target = scale(config.transform.output_variables, test_target)
+    train_target = scale(config.transform.output_variables, train_target)
     out_names = model.output_names
     test_pred = scale(out_names, model.predict(X_test))
-    train_pred = scale(out_names, model.predict(sample_in))
+    train_pred = scale(out_names, model.predict(X_train))
 
-    train_scores, train_profiles = score_all(target, train_pred, out_names)
-    test_scores, test_profiles = score_all(target, test_pred, out_names)
+    train_scores, train_profiles = score_all(test_target, train_pred, out_names)
+    test_scores, test_profiles = score_all(test_target, test_pred, out_names)
 
     if config.use_wandb:
         # TODO: log scores func
@@ -408,7 +409,7 @@ def main(config: TrainConfig):
             }
         )
 
-        log_sample_profiles(target, test_pred, out_names)
+        log_sample_profiles(test_target, test_pred, out_names)
 
     if config.out_url:
         with put_dir(config.out_url) as tmpdir:
