@@ -270,10 +270,10 @@ class TrainConfig:
         args = parser.parse_args()
 
         # TODO: unspecified configuration should probably error...
-        if args.config_path is not None:
-            config = cls.from_yaml_path(args.config_path)
-        elif args.config_path == "default":
+        if args.config_path == "default":
             config = get_default_config()
+        elif args.config_path is not None:
+            config = cls.from_yaml_path(args.config_path)
         else:
             raise ValueError("No training configuration specified. Use '--config-path default' if just trying to run.")
 
@@ -480,6 +480,8 @@ def get_default_config():
         out_url="/mnt/disks/scratch/test_train_out/",
         model=model_config,
         transform=transform,
+        nfiles=10,
+        nfiles_valid=10,
         optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
         loss_variables=[
             "air_temperature_output",
@@ -493,7 +495,6 @@ def get_default_config():
             "tendency_of_cloud_water_mixing_ratio_due_to_microphysics",
         ],
         epochs=4,
-        nfiles=10,
         use_wandb=True,
     )
 

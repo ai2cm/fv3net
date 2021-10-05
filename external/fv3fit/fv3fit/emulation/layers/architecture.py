@@ -102,6 +102,7 @@ class RNNBlock(tf.keras.layers.Layer):
             "activation": self._activation,
             "go_backwards": self._go_backwards,
         })
+        return config
 
 
 class MLPBlock(tf.keras.layers.Layer):
@@ -148,3 +149,4 @@ class MLPBlock(tf.keras.layers.Layer):
             "depth": self._depth,
             "activation": self._activation,
         })
+        return config
