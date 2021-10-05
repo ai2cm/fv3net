@@ -63,7 +63,7 @@ def _netcdf_url_to_dataset(url, transform, nfiles=None, do_shuffle=True):
     return nc_files_to_tf_dataset(files, transform)
 
 
-def get_out_samples(model_config: Config, samples, sample_names):
+def get_out_samples(model_config: MicrophysicsConfig, samples, sample_names):
 
     # requires tendency_of_xxx_ for each residual to properly scale
     # the output denormalizer
@@ -227,7 +227,7 @@ class TrainConfig:
     test_url: str
     out_url: str
     transform: TransformConfig
-    model: Config
+    model: MicrophysicsConfig
     use_wandb: bool = True
     wandb_project: str = "microphysics-emulation-test"
     wandb_model_name: Optional[str] = None
@@ -245,7 +245,7 @@ class TrainConfig:
     @classmethod
     def from_dict(cls, d: dict) -> "TrainConfig":
         if "model" in d:
-            d["model"] = Config.from_dict(d["model"])
+            d["model"] = MicrophysicsConfig.from_dict(d["model"])
         return dacite.from_dict(cls, d, dacite.Config(strict=True))
 
     @classmethod
@@ -443,7 +443,7 @@ def get_default_config():
         "pressure_thickness_of_atmospheric_layer",
     ]
 
-    model_config = Config(
+    model_config = MicrophysicsConfig(
         input_variables=input_vars,
         direct_out_variables=[
             "cloud_water_mixing_ratio_output",

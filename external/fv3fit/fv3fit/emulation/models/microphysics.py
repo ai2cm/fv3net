@@ -5,6 +5,7 @@ import tensorflow as tf
 
 from ._core import ArchitectureConfig, get_combine_from_arch_key
 from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput
+from ..data import convert_map_sequences_to_slices
 
 
 @dataclasses.dataclass
