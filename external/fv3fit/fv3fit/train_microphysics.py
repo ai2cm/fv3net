@@ -13,8 +13,7 @@ import pandas as pd
 import tensorflow as tf
 from typing import Any, List, Mapping, MutableMapping, Optional, Sequence, Tuple
 
-from fv3fit.emulation.microphysics import Config
-from fv3fit.emulation.microphysics.models import ArchitectureConfig
+from fv3fit.emulation.models import MicrophysicsConfig, ArchitectureConfig
 from fv3fit.emulation.data import TransformConfig
 from fv3fit.emulation.data import get_nc_files, nc_files_to_tf_dataset
 from fv3fit.emulation.layers import MeanFeatureStdNormLayer
