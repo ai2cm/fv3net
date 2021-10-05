@@ -269,10 +269,13 @@ class TrainConfig:
 
         args = parser.parse_args()
 
+        # TODO: unspecified configuration should probably error...
         if args.config_path is not None:
             config = cls.from_yaml_path(args.config_path)
-        else:
+        elif args.config_path == "default":
             config = get_default_config()
+        else:
+            raise ValueError("No training configuration specified. Use '--config-path default' if just trying to run.")
 
         if args.config_args:
             updated = cls._get_updated_config_dict(
