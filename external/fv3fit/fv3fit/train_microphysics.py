@@ -241,6 +241,7 @@ class TrainConfig:
     )
     loss_variables: List[str] = dataclasses.field(default_factory=list)
     metric_variables: List[str] = dataclasses.field(default_factory=list)
+    weights: Mapping[str, float] = dataclasses.field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, d: dict) -> "TrainConfig":
@@ -366,10 +367,15 @@ def main(config: TrainConfig):
 
     losses = {}
     metrics = {}
+    weights = {}
     for out_varname, sample in zip(config.transform.output_variables, train_target):
         loss_func = NormalizedMSE(sample)
         if out_varname in config.loss_variables:
             losses[out_varname] = loss_func
+            if out_varname in config.weights:
+                weights[out_varname] = config.weights[out_varname]
+            else:
+                weights[out_varname] = 1.
         elif out_varname in config.metric_variables:
             metrics[out_varname] = loss_func
 
@@ -480,7 +486,7 @@ def get_default_config():
         out_url="/mnt/disks/scratch/test_train_out/",
         model=model_config,
         transform=transform,
-        nfiles=10,
+        nfiles=20,
         nfiles_valid=10,
         optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
         loss_variables=[
@@ -489,6 +495,12 @@ def get_default_config():
             "cloud_water_mixing_ratio_output",
             "total_precipitation",
         ],
+        weights=dict(
+            air_temperature_output=.5e-5,
+            specific_humidity_output=.5e-5,
+            cloud_water_mixing_ratio_output=1.0,
+            total_precipitation=1/25,
+        ),
         metric_variables=[
             "tendency_of_air_temperature_due_to_microphysics",
             "tendency_of_specific_humidity_due_to_microphysics",
