@@ -51,13 +51,3 @@ def test_warn_if_intersecting_no_warning():
     # ignore deprecation warnings
     for warning in records:
         assert not isinstance(warning, UserWarning), warning
-
-
-def test__validate_stack_dims_ignore():
-    arr_1d = np.ones(10)
-    arr_3d = np.ones((10, 10, 2))
-    ds = xr.Dataset({"a": (["x"], arr_1d), "b": (["x", "y", "z"], arr_3d)})
-
-    _validate_stack_dims(
-        ds, ["x", "y", "z"], allowed_broadcast_dims=["z"], allowed_broadcast_vars=["a"]
-    )
