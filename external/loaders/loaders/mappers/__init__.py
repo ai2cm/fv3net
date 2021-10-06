@@ -11,7 +11,6 @@ from ._hybrid import open_fine_resolution_nudging_hybrid
 
 # additional open mapper functions
 from ._high_res_diags import open_high_res_diags
-from ._emulation import open_phys_emu_training
 
 # mapper classes used externally
 from ._base import GeoMapper, LongRunMapper, MultiDatasetMapper
