@@ -11,6 +11,11 @@ from fv3fit.emulation.thermobasis.emulator import Config as MLConfig
 import pytest
 
 
+def regression_state(state, regtest):
+    for v in sorted(state):
+        print(v, joblib.hash(state[v].values), file=regtest)
+
+
 def test_update_state_with_emulator(state):
     qv = "specific_humidity"
     old_state = state
@@ -37,6 +42,10 @@ def test_integration_with_from_orig(state, ignore_humidity_below):
     )
 
 
+def test_state_regression(state, regtest):
+    regression_state(state, regtest)
+
+
 def test_adapter_regression(state, regtest):
     tf.random.set_seed(0)
 
@@ -60,5 +69,4 @@ def test_adapter_regression(state, regtest):
     out = emulate(name, add_one_to_temperature)()
 
     # sort to make the check deterministic
-    for v in sorted(out):
-        print(v, joblib.hash(out[v]), file=regtest)
+    regression_state(out, regtest)
