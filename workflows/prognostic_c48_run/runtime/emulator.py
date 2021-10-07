@@ -1,21 +1,13 @@
 import dataclasses
-import xarray as xr
-from typing import (
-    Callable,
-    Hashable,
-    Mapping,
-    MutableMapping,
-    Optional,
-    Iterable,
-    Set,
-    Union,
-)
+from typing import Hashable, Iterable, MutableMapping, Optional, Set, Union
 
 import fv3fit.emulation.thermobasis.emulator
+import xarray as xr
 from fv3fit.emulation.thermobasis.xarray import get_xarray_emulator
+from runtime.masking import get_mask, where_masked
 from runtime.monitor import Monitor
-from runtime.names import SPHUM, DELP
-from runtime.types import State, Diagnostics, Step
+from runtime.names import DELP
+from runtime.types import Diagnostics, State, Step
 
 __all__ = ["PrognosticAdapter", "Config"]
 
@@ -33,7 +25,9 @@ class Config:
         online: if True, the emulator will be replace fv3 physics for all
             humidities above level ``ignore_humidity_below``.
         train: if True, each timestep will be used to train the model.
-        ignore_humidity_below: see ``online``.
+        output_mask: if provided, use the physics instead of the emulator here
+        ignore_humidity_below: if mask_kind ="default", then use the fv3 physics
+            instead of the emulator above this level.
     """
 
     emulator: Union[
@@ -45,6 +39,7 @@ class Config:
     # will ignore the emulator for any z larger than this value
     # remember higher z is lower in the atmosphere hence "below"
     ignore_humidity_below: Optional[int] = None
+    mask_kind: str = "default"
 
 
 @dataclasses.dataclass
@@ -113,11 +108,15 @@ class PrognosticAdapter:
         changes = self.monitor.compute_change("emulator", before, emulator_after)
 
         if self.config.online:
-            update_state_with_emulator(
+            updated_state = where_masked(
                 self.state,
                 emulator_prediction,
-                ignore_humidity_below=self.config.ignore_humidity_below,
+                compute_mask=get_mask(
+                    self.config.mask_kind, self.config.ignore_humidity_below
+                ),
             )
+            self.state.update(updated_state)
+
         return {**diags, **inputs_to_save, **changes, **change_in_func}
 
     def __call__(self, name: str, func: Step) -> Step:
@@ -145,44 +144,3 @@ class PrognosticAdapter:
         step.__name__ = func.__name__
 
         return step
-
-
-def _update_state_with_emulator(
-    state: MutableMapping[Hashable, xr.DataArray],
-    src: Mapping[Hashable, xr.DataArray],
-    compute_mask: Callable[[Hashable, xr.DataArray], xr.DataArray],
-) -> None:
-    """
-    Args:
-        state: the mutable state object
-        src: updates to put into state
-        compute_mask: a function returning a mask. Where this mask is True, the
-            original state array will be used.
-
-    """
-    for key in src:
-        arr = state[key]
-        mask = compute_mask(key, arr)
-        state[key] = arr.where(mask, src[key].variable)
-
-
-@dataclasses.dataclass
-class compute_mask:
-    ignore_humidity_below: Optional[int] = None
-
-    def __call__(self, name: Hashable, arr: xr.DataArray) -> xr.DataArray:
-        if name == SPHUM:
-            if self.ignore_humidity_below is not None:
-                return arr.z > self.ignore_humidity_below
-            else:
-                return xr.DataArray(False)
-        else:
-            return xr.DataArray(True)
-
-
-def update_state_with_emulator(
-    state: MutableMapping[Hashable, xr.DataArray],
-    src: Mapping[Hashable, xr.DataArray],
-    ignore_humidity_below: Optional[int] = None,
-) -> None:
-    return _update_state_with_emulator(state, src, compute_mask(ignore_humidity_below))
