@@ -151,12 +151,10 @@ variables:
 		dQ2:description = Apparent moistening due to physics and sub-grid-scale advection. Given by sat adjustment (dycore) + physics tendency + eddy-flux-convergence ;
 	float32 pQ1(tile, z, y, x) ;
 		pQ1:units = K/s ;
-		pQ1:long_name = apparent heating from high resolution data ;
-		pQ1:description = Apparent heating due to physics and sub-grid-scale advection. Given by sat adjustment (dycore) + physics tendency + eddy-flux-convergence + temperature nudging ;
+		pQ1:long_name = coarse-res physics heating ;
 	float32 pQ2(tile, z, y, x) ;
 		pQ2:units = kg/kg/s ;
-		pQ2:long_name = apparent moistening from high resolution data ;
-		pQ2:description = Apparent moistening due to physics and sub-grid-scale advection. Given by sat adjustment (dycore) + physics tendency + eddy-flux-convergence ;
+		pQ2:long_name = coarse-res physics moistening ;
 	object time() ;
 
 // global attributes:

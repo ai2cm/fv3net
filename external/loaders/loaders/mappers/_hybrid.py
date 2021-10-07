@@ -248,7 +248,12 @@ def open_fine_resolution_dataset(
     merged["dQ1"] = merged["Q1"]
     merged["dQ2"] = merged["Q2"]
     merged["pQ1"] = xarray.zeros_like(merged.Q1)
+    merged["pQ1"].attrs = {"units": "K/s", "long_name": "coarse-res physics heating"}
     merged["pQ2"] = xarray.zeros_like(merged.Q2)
+    merged["pQ2"].attrs = {
+        "units": "kg/kg/s",
+        "long_name": "coarse-res physics moistening",
+    }
 
     # drop time from lat and lon
     if "latitude" in merged:
