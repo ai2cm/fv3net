@@ -3,7 +3,7 @@ import os
 import xarray as xr
 import synth
 from loaders.mappers._nudged._nudged import open_nudge_to_fine, open_nudge_to_obs
-from loaders.mappers import open_fine_resolution_nudging_hybrid
+from loaders.mappers import open_fine_resolution_nudging_hybrid, open_fine_resolution
 
 
 def save_data_dir(datadir_module, outpath, nudge_schema_path):
@@ -236,5 +236,23 @@ def test_open_fine_resolution_nudging_hybrid(
 ):
     data = open_fine_resolution_nudging_hybrid(
         fine_url=fine_res_zarr, nudge_url=nudge_to_fine_data_dir,
+    )
+    data[timestep1_end].info(regtest)
+
+
+def test_open_fine_resolution(regtest, fine_res_zarr):
+    data = open_fine_resolution(
+        fine_url=fine_res_zarr, include_temperature_nudging=True
+    )
+    data[timestep1_end].info(regtest)
+
+
+def test_open_fine_resolution_with_nudged_state(
+    regtest, fine_res_zarr, nudge_to_fine_data_dir
+):
+    data = open_fine_resolution(
+        fine_url=fine_res_zarr,
+        state_url=nudge_to_fine_data_dir,
+        include_temperature_nudging=True,
     )
     data[timestep1_end].info(regtest)

@@ -4,6 +4,7 @@ import numpy
 import numpy as np
 from datetime import timedelta
 from typing_extensions import Protocol
+from typing import Optional
 
 from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
@@ -212,6 +213,74 @@ def open_fine_resolution_nudging_hybrid(
         open_fine_resolution_nudging_hybrid_dataset(
             fine_url=fine_url,
             nudge_url=nudge_url,
+            include_temperature_nudging=include_temperature_nudging,
+        )
+    )
+
+
+def open_fine_resolution_dataset(
+    fine_url: str = "gs://vcm-ml-experiments/default/2021-04-27/2020-05-27-40-day-X-SHiELD-simulation/fine-res-budget.zarr",  # noqa: E501
+    state_url: Optional[str] = None,
+    include_temperature_nudging: bool = False,
+) -> xarray.Dataset:
+
+    fine = open_zarr_maybe_consolidated(fine_url)
+    # compute apparent sources
+    fine["Q1"] = apparent_heating(
+        fine, include_temperature_nudging=include_temperature_nudging
+    )
+    fine["Q2"] = apparent_moistening(fine)
+    # shift the data to match the other time series
+    fine_shifted = fine.assign(time=fine.time - timedelta(minutes=7, seconds=30))
+
+    if state_url is None:
+        state = xarray.Dataset()
+        state["air_temperature"] = fine_shifted.T
+        state["specific_humidity"] = fine_shifted.sphum
+        state["pressure_thickness_of_atmospheric_layer"] = fine_shifted.delp
+        state = gfdl_to_standard(state)
+    else:
+        state = open_zarr_maybe_consolidated(state_url + "/state_after_timestep.zarr")
+
+    merged = xarray.merge([gfdl_to_standard(fine_shifted), state], join="inner",)
+
+    # since ML target is Q1/Q2, dQ1=Q1 and pQ1=0 and same for moistening
+    merged["dQ1"] = merged["Q1"]
+    merged["dQ2"] = merged["Q2"]
+    merged["pQ1"] = xarray.zeros_like(merged.Q1)
+    merged["pQ2"] = xarray.zeros_like(merged.Q2)
+
+    # drop time from lat and lon
+    if "latitude" in merged:
+        merged["latitude"] = merged.latitude.isel(time=0)
+    if "longitude" in merged:
+        merged["longitude"] = merged.longitude.isel(time=0)
+
+    return merged.astype(numpy.float32).drop("tile")
+
+
+@mapper_functions.register
+def open_fine_resolution(
+    fine_url: str = "",
+    state_url: Optional[str] = None,
+    include_temperature_nudging: bool = False,
+) -> GeoMapper:
+    """
+    Open the fine-res mapper optionally using state from another run.
+
+    Args:
+        fine_url: url where coarsened fine resolution data is stored
+        state_url: url to fv3gfs_run to use for state inputs. If not provided, the state
+            of the fine-res data will be used as input.
+        include_temperature_nudging: whether to include fine-res nudging in Q1
+
+    Returns:
+        a mapper
+    """
+    return XarrayMapper(
+        open_fine_resolution_dataset(
+            fine_url=fine_url,
+            state_url=state_url,
             include_temperature_nudging=include_temperature_nudging,
         )
     )
