@@ -1,11 +1,13 @@
 from typing import Optional, Sequence
 import tensorflow as tf
+from tensorflow.keras.activations import relu
 from fv3fit.emulation.thermobasis.thermo import (
     RelativeHumidityBasis,
     ThermoBasis,
     SpecificHumidityBasis,
 )
 from fv3fit.emulation.layers.normalization import (
+    MeanFeatureStdDenormLayer,
     StandardNormLayer,
     StandardDenormLayer,
 )
@@ -209,4 +211,93 @@ class UVTRHSimple(UVTQSimple):
             in_.rh + self.scalers[3](self.out_q(hidden)),
             in_.rho,
             in_.dz,
+        )
+
+
+class NoCloud(tf.keras.layers.Layer):
+    def __init__(
+        self,
+        u_size,
+        v_size,
+        t_size,
+        q_size,
+        rh_slice: slice = slice(None),
+        t_slice: slice = slice(None),
+        regularizer=None,
+    ):
+        super(NoCloud, self).__init__()
+        self.scalers_fitted = False
+        self.norm = StandardNormLayer(name="norm")
+
+        self.dense = tf.keras.layers.Dense(
+            256, name="lin", kernel_regularizer=regularizer, activation="tanh"
+        )
+        self.out_u = tf.keras.layers.Dense(
+            u_size, name="out_u", kernel_regularizer=regularizer
+        )
+        self.scaler_u = MeanFeatureStdDenormLayer()
+
+        self.out_v = tf.keras.layers.Dense(
+            v_size, name="out_v", kernel_regularizer=regularizer
+        )
+        self.scaler_v = MeanFeatureStdDenormLayer()
+        self.out_t = tf.keras.layers.Dense(
+            t_size, name="out_t", kernel_regularizer=regularizer
+        )
+        self.scaler_t = MeanFeatureStdDenormLayer()
+        self.out_rh = tf.keras.layers.Dense(
+            q_size, name="out_rh", kernel_regularizer=regularizer
+        )
+        self.scaler_rh = MeanFeatureStdDenormLayer()
+        self.out_qc = tf.keras.layers.Dense(
+            q_size, name="out_qc", kernel_regularizer=regularizer
+        )
+        self.scaler_qc = MeanFeatureStdDenormLayer()
+
+        self.rh_slice = rh_slice
+        self.t_slice = t_slice
+
+    def _fit_input_scaler(self, x: ThermoBasis):
+        stacked = self._embed(x)
+        self.norm.fit(stacked)
+
+    def _fit_output_scaler(self, x: ThermoBasis, y: ThermoBasis):
+        self.scaler_u.fit(y.u - x.u)
+        self.scaler_v.fit(y.v - x.v)
+        self.scaler_t.fit(y.T - x.T)
+        self.scaler_rh.fit(y.rh - x.rh)
+        self.scaler_qc.fit(y.qc - x.qc)
+
+    def fit_scalers(self, x: ThermoBasis, y: ThermoBasis):
+        self._fit_input_scaler(x)
+        self._fit_output_scaler(x, y)
+        self.scalers_fitted = True
+
+    def _embed(self, x: ThermoBasis):
+
+        prog_state = [
+            x.u,
+            x.v,
+            x.T[:, self.t_slice],
+            x.rh[:, self.rh_slice],
+            x.rho,
+            x.dz,
+        ]
+        all_args = prog_state + list(x.scalars)
+        args_2d = [atleast_2d(arg) for arg in all_args]
+        return tf.concat(args_2d, axis=-1)
+
+    def call(self, x: ThermoBasis) -> ThermoBasis:
+        # assume has dims: batch, z
+        stacked = self._embed(x)
+        hidden = self.dense(self.norm(stacked))
+
+        return RelativeHumidityBasis(
+            u=x.u + self.scaler_u(self.out_u(hidden)),
+            v=x.v + self.scaler_v(self.out_v(hidden)),
+            T=x.T + self.scaler_t(self.out_t(hidden)),
+            rh=relu(x.rh + self.scaler_rh(self.out_rh(hidden))),
+            qc=relu(x.qc + self.scaler_qc(self.out_qc(hidden))),
+            rho=x.rho,
+            dz=x.dz,
         )

@@ -28,6 +28,7 @@ from fv3fit.emulation.thermobasis.loss import (
     MultiVariableLoss,
 )
 from fv3fit.emulation.thermobasis.models import (
+    NoCloud,
     UVTQSimple,
     UVTRHSimple,
     ScalarMLP,
@@ -83,6 +84,7 @@ class Config:
     weight_sharing: bool = False
     cloud_water: bool = False
     l2: Optional[float] = None
+    no_cloud_model: bool = False
 
     @property
     def input_variables(self) -> List[str]:
@@ -161,6 +163,12 @@ class Config:
         parser.add_argument(
             "--l2", default=None, type=float, help="l2 penalty for the weight matrices"
         )
+        parser.add_argument(
+            "--no-cloud-model",
+            default=False,
+            action="store_true",
+            help="Train model without upper level inputs or cloud inputs.",
+        )
 
     @staticmethod
     def from_args(args) -> "Config":
@@ -177,6 +185,7 @@ class Config:
         config.relative_humidity = args.relative_humidity
         config.cloud_water = args.cloud_water
         config.l2 = args.l2
+        config.no_cloud_model = args.no_cloud_model
 
         if args.level:
             if args.relative_humidity:
@@ -358,7 +367,18 @@ def get_regularizer(config: Config) -> Optional[tf.keras.regularizers.Regularize
 
 def get_model(config: Config) -> tf.keras.Model:
     regularizer = get_regularizer(config)
-    if config.cloud_water:
+    if config.no_cloud_model:
+        n = config.levels
+        return NoCloud(
+            n,
+            n,
+            n,
+            n,
+            rh_slice=slice(0, -20),
+            t_slice=slice(0, -20),
+            regularizer=regularizer,
+        )
+    elif config.cloud_water:
         logging.info("Using V1QCModel")
         return V1QCModel(config.levels, regularizer=regularizer)
     elif isinstance(config.target, MultiVariableLoss):

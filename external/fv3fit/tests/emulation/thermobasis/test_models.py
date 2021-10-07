@@ -8,6 +8,7 @@ from fv3fit.emulation.thermobasis.models import (
     UVTQSimple,
     UVTRHSimple,
     V1QCModel,
+    NoCloud,
 )
 from fv3fit.emulation.thermobasis.thermo import RelativeHumidityBasis
 from fv3fit.emulation.thermobasis.emulator import (
@@ -103,14 +104,31 @@ def test_RHScalarMLP_integrations():
     assert val.numpy() < 10.0
 
 
-def test_UVTRHSimple_humidity_is_positive():
+@pytest.mark.parametrize("model_cls", [UVTRHSimple, NoCloud])
+def test_predicted_humidity_is_positive(model_cls):
     n = 2
     x = _get_argsin(n)
-    y = RelativeHumidityBasis(x.u + 1.0, x.v + 1.0, x.T + 1.0, x.rh + 0.01, x.dp, x.dz)
-    model = UVTRHSimple(n, n, n, n)
+    y = RelativeHumidityBasis(
+        x.u + 1.0, x.v + 1.0, x.T + 1.0, x.rh + 0.01, x.dp, x.dz, qc=x.qc + 0.0001
+    )
+    model = model_cls(n, n, n, n)
     model.fit_scalers(x, y)
     out = model(x)
     assert (out.q.numpy() > 0).all()
+
+
+def test_No_cloud__no_cloud_dependency():
+    n = 4
+    x = _get_argsin(n).to_rh()
+    model = NoCloud(n, n, n, n)
+    with tf.GradientTape() as tape:
+        tape.watch(x.qc)
+        y = model(x)
+        loss = tf.reduce_sum(y.rh)
+
+    rh_qc = tape.gradient(loss, x.qc)
+    # no gradient
+    assert rh_qc is None
 
 
 @pytest.mark.parametrize(
