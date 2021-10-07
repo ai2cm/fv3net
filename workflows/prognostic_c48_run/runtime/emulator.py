@@ -25,7 +25,9 @@ class Config:
         online: if True, the emulator will be replace fv3 physics for all
             humidities above level ``ignore_humidity_below``.
         train: if True, each timestep will be used to train the model.
-        output_mask: if provided, use the physics instead of the emulator here
+        mask_kind: the type of mask. Defers to the functions
+            ``runtime.masking.compute_{mask_kind}``. The default does not mask any
+            of the emulator predictions.
         ignore_humidity_below: if mask_kind ="default", then use the fv3 physics
             instead of the emulator above this level.
     """
