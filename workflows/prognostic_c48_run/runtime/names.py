@@ -4,6 +4,7 @@ from .types import State
 
 TEMP = "air_temperature"
 TOTAL_WATER = "total_water"
+CLOUD = "cloud_water_mixing_ratio"
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
 # [kg/m2/s], due to physics parmameterization
