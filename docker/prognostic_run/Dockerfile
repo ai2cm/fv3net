@@ -98,6 +98,10 @@ RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gn
 COPY workflows/post_process_run /fv3net/workflows/post_process_run
 RUN pip3 install -c /tmp/constraints.txt -e /fv3net/workflows/post_process_run
 
+COPY workflows/prognostic_run_diags /fv3net/workflows/prognostic_run_diags
+# cannot pip install since cartopy installation is broken
+ENV PYTHONPATH=/fv3net/workflows/prognostic_run_diags:${PYTHONPATH}
+
 # these are needed for "click" to work
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
