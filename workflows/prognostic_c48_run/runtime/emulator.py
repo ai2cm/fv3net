@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Hashable, Iterable, MutableMapping, Optional, Set, Union
+from typing import Hashable, Iterable, MutableMapping, Optional, Set, Union, Sequence
 
 import fv3fit.emulation.thermobasis.emulator
 import xarray as xr
@@ -45,6 +45,36 @@ class Config:
 
 
 @dataclasses.dataclass
+class EmulatorAdapter:
+    config: Config
+
+    def __post_init__(self: "EmulatorAdapter"):
+        self.emulator = get_xarray_emulator(self.config.emulator)
+        self.online = self.config.online
+
+    def predict(self, inputs: State) -> State:
+        return self.emulator.predict(inputs)
+
+    def apply(self, state: State, prediction: State):
+        if self.config.online:
+            updated_state = where_masked(
+                state,
+                prediction,
+                compute_mask=get_mask(
+                    self.config.mask_kind, self.config.ignore_humidity_below
+                ),
+            )
+            state.update(updated_state)
+
+    def partial_fit(self, inputs: State, state: State):
+        self.emulator.partial_fit(inputs, state)
+
+    @property
+    def input_variables(self) -> Sequence[str]:
+        return self.emulator.input_variables
+
+
+@dataclasses.dataclass
 class PrognosticStepTransformer:
     """Wrap a Step function with an ML prediction
 
@@ -64,14 +94,11 @@ class PrognosticStepTransformer:
     
     """
 
-    config: Config
+    model: EmulatorAdapter
     state: State
-    emulator_prefix: str = "emulator_"
+    label: str = "emulator"
     diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
     timestep: float = 900
-
-    def __post_init__(self: "PrognosticStepTransformer"):
-        self.emulator = get_xarray_emulator(self.config.emulator)
 
     @property
     def monitor(self) -> Monitor:
@@ -81,43 +108,35 @@ class PrognosticStepTransformer:
 
     @property
     def inputs_to_save(self) -> Set[str]:
-        return set(strip_prefix(self.emulator_prefix, self.diagnostic_variables))
+        return set(strip_prefix(self.label + "_", self.diagnostic_variables))
 
     def emulate(self, name: str, func: Step) -> Diagnostics:
-        inputs = {key: self.state[key] for key in self.emulator.input_variables}
+        inputs: State = {key: self.state[key] for key in self.model.input_variables}
 
         inputs_to_save: Diagnostics = {
-            self.emulator_prefix + key: self.state[key] for key in self.inputs_to_save
+            self.label + "_" + key: self.state[key] for key in self.inputs_to_save
         }
         before = self.monitor.checkpoint()
         diags = func()
         change_in_func = self.monitor.compute_change(name, before, self.state)
 
-        if self.config.train:
-            self.emulator.partial_fit(inputs, self.state)
-        emulator_prediction = self.emulator.predict(inputs)
+        if hasattr(self.model, "partial_fit") and self.model.config.train:
+            self.model.partial_fit(inputs, self.state)
+        prediction = self.model.predict(inputs)
 
-        emulator_after: MutableMapping[Hashable, xr.DataArray] = {
+        state_after: MutableMapping[Hashable, xr.DataArray] = {
             DELP: before[DELP],
-            **emulator_prediction,
+            **prediction,
         }
 
-        # insert state variables not predicted by the emulator
+        # insert state variables not predicted by the model
         for v in before:
-            if v not in emulator_after:
-                emulator_after[v] = self.state[v]
+            if v not in state_after:
+                state_after[v] = self.state[v]
 
-        changes = self.monitor.compute_change("emulator", before, emulator_after)
+        changes = self.monitor.compute_change(self.label, before, state_after)
 
-        if self.config.online:
-            updated_state = where_masked(
-                self.state,
-                emulator_prediction,
-                compute_mask=get_mask(
-                    self.config.mask_kind, self.config.ignore_humidity_below
-                ),
-            )
-            self.state.update(updated_state)
+        self.model.apply(self.state, prediction)
 
         return {**diags, **inputs_to_save, **changes, **change_in_func}
 

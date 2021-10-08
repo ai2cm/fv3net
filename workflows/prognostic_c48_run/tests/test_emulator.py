@@ -3,6 +3,7 @@ import joblib
 from runtime.emulator import (
     PrognosticStepTransformer,
     Config,
+    EmulatorAdapter,
 )
 from fv3fit.emulation.thermobasis.emulator import Config as MLConfig
 
@@ -21,8 +22,9 @@ def test_adapter_regression(state, regtest):
 
     name = "add_one"
 
+    emulator = EmulatorAdapter(Config(MLConfig(levels=state["air_temperature"].z.size)))
     emulate = PrognosticStepTransformer(
-        Config(MLConfig(levels=state["air_temperature"].z.size)),
+        emulator,
         state,
         diagnostic_variables={
             "emulator_latent_heat_flux",

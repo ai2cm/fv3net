@@ -6,7 +6,7 @@ configuration as well as runtime-only data structures like the model state.
 from typing import Optional
 from runtime.types import State
 from runtime.config import UserConfig
-from runtime.emulator import PrognosticStepTransformer
+from runtime.emulator import PrognosticStepTransformer, EmulatorAdapter
 from runtime.tendency_prescriber import TendencyPrescriber
 from runtime.derived_state import DerivedFV3State
 import fv3gfs.util
@@ -21,8 +21,9 @@ def get_emulator_adapter(
     if config.online_emulator is None:
         return None
     else:
+        emulator = EmulatorAdapter(config.online_emulator)
         return PrognosticStepTransformer(
-            config.online_emulator,
+            emulator,
             state,
             diagnostic_variables=set(config.diagnostic_variables),
             timestep=timestep,
