@@ -1,4 +1,4 @@
-from typing import Dict, Any, Iterable, Optional, Sequence, Tuple, List
+from typing import Dict, Any, Iterable, Optional, Sequence, Tuple, List, Hashable
 import tensorflow as tf
 import xarray as xr
 from ..._shared import (
@@ -10,7 +10,10 @@ from .packer import get_unpack_layer
 from .normalizer import LayerStandardScaler
 import numpy as np
 import vcm.safe
+import os
+import yaml
 from fv3fit.keras._models.shared import get_input_vector, PureKerasModel
+from ._filesystem import get_dir, put_dir
 
 Z_DIMS = ["z", "z_interface"]
 
@@ -430,12 +433,12 @@ class _BPTTTrainer:
     @property
     def predictor_model(self) -> "StepwiseModel":
         predictor_model = StepwiseModel(
-            self.sample_dim_name,
             tuple(self.input_packer.pack_names)
             + tuple(self.prognostic_packer.pack_names),
             self.output_variables,
             self._stepwise_output_metadata,
             self.predict_keras_model,
+            self.sample_dim_name,
         )
         return predictor_model
 
@@ -546,6 +549,17 @@ class StepwiseModel(PureKerasModel):
     include air_temperature and specific_humidity
     """
 
+    def __init__(
+        self,
+        input_variables: Iterable[Hashable],
+        output_variables: Iterable[Hashable],
+        output_metadata: Iterable[Dict[str, Any]],
+        model: tf.keras.Model,
+        sample_dim_name: str,
+    ):
+        super().__init__(input_variables, output_variables, output_metadata, model)
+        self.sample_dim_name = sample_dim_name
+
     def integrate_stepwise(self, ds: xr.Dataset) -> xr.Dataset:
         """Perform an identical integration to the one used to train the
         model.
@@ -588,3 +602,39 @@ class StepwiseModel(PureKerasModel):
         return xr.concat(state_out_list, dim="time").transpose(
             self.sample_dim_name, "time", "z"
         )
+
+    @classmethod
+    def load(cls, path: str) -> "StepwiseModel":
+        """Load a serialized model from a directory."""
+        with get_dir(path) as path:
+            model_filename = os.path.join(path, cls._MODEL_FILENAME)
+            model = tf.keras.models.load_model(
+                model_filename, custom_objects=cls.custom_objects
+            )
+            with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+                config = yaml.load(f, Loader=yaml.Loader)
+            obj = cls(
+                config["input_variables"],
+                config["output_variables"],
+                config.get("output_metadata", None),
+                model,
+                config["sample_dim_name"],
+            )
+            return obj
+
+    def dump(self, path: str) -> None:
+        with put_dir(path) as path:
+            if self.model is not None:
+                model_filename = os.path.join(path, self._MODEL_FILENAME)
+                self.model.save(model_filename)
+            with open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
+                f.write(
+                    yaml.dump(
+                        {
+                            "input_variables": self.input_variables,
+                            "output_variables": self.output_variables,
+                            "output_metadata": self._output_metadata,
+                            "sample_dim_name": self.sample_dim_name,
+                        }
+                    )
+                )
