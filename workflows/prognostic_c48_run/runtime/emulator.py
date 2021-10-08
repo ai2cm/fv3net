@@ -66,7 +66,8 @@ class EmulatorAdapter:
             state.update(updated_state)
 
     def partial_fit(self, inputs: State, state: State):
-        self.emulator.partial_fit(inputs, state)
+        if self.config.train:
+            self.emulator.partial_fit(inputs, state)
 
     @property
     def input_variables(self) -> Sequence[str]:
@@ -119,7 +120,7 @@ class PrognosticStepTransformer:
         diags = func()
         change_in_func = self.monitor.compute_change(name, before, self.state)
 
-        if hasattr(self.model, "partial_fit") and self.model.config.train:
+        if hasattr(self.model, "partial_fit"):
             self.model.partial_fit(inputs, self.state)
         prediction = self.model.predict(inputs)
 
