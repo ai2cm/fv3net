@@ -1,7 +1,7 @@
 xarray.Dataset {
 dimensions:
-	x = 4 ;
 	y = 4 ;
+	x = 4 ;
 	z = 63 ;
 
 variables:
@@ -16,9 +16,9 @@ variables:
 // global attributes:
 }xarray.Dataset {
 dimensions:
-	x = 4 ;
-	y = 4 ;
 	z = 63 ;
+	y = 4 ;
+	x = 4 ;
 
 variables:
 	float64 dQ1(z, y, x) ;

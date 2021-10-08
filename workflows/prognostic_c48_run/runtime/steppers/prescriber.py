@@ -1,4 +1,4 @@
-from typing import Sequence, MutableMapping, Hashable, Tuple, Optional
+from typing import Sequence, Tuple, Optional
 import dataclasses
 from datetime import timedelta
 import logging
@@ -6,14 +6,13 @@ import intake
 import cftime
 import xarray as xr
 from runtime.types import State, Diagnostics, Tendencies
+from runtime.conversions import quantity_state_to_dataset, dataset_to_quantity_state
 import fv3gfs.util
 from vcm.catalog import catalog as CATALOG
 from vcm.safe import get_variables
 
 
 logger = logging.getLogger(__name__)
-
-QuantityState = MutableMapping[Hashable, fv3gfs.util.Quantity]
 
 
 def get_timesteps(
@@ -114,11 +113,13 @@ class Prescriber:
         self, prescribed_ds: Optional[xr.Dataset], time_coord: Optional[xr.DataArray]
     ) -> xr.Dataset:
         if isinstance(prescribed_ds, xr.Dataset):
-            scattered_ds = _quantity_state_to_ds(
-                self._communicator.scatter_state(_ds_to_quantity_state(prescribed_ds))
+            scattered_ds = quantity_state_to_dataset(
+                self._communicator.scatter_state(
+                    dataset_to_quantity_state(prescribed_ds)
+                )
             )
         else:
-            scattered_ds = _quantity_state_to_ds(self._communicator.scatter_state())
+            scattered_ds = quantity_state_to_dataset(self._communicator.scatter_state())
         time_coord = self._communicator.comm.bcast(time_coord, root=0)
         scattered_ds = scattered_ds.assign_coords({"time": time_coord})
         return scattered_ds
@@ -161,22 +162,4 @@ def _open_ds(dataset_key: str, consolidated: bool) -> xr.Dataset:
         ds = CATALOG[dataset_key].to_dask()
     except KeyError:
         ds = intake.open_zarr(dataset_key, consolidated=consolidated).to_dask()
-    return ds
-
-
-def _ds_to_quantity_state(ds: xr.Dataset) -> QuantityState:
-    quantity_state: QuantityState = {
-        variable: fv3gfs.util.Quantity.from_data_array(ds[variable])
-        for variable in ds.data_vars
-    }
-    return quantity_state
-
-
-def _quantity_state_to_ds(quantity_state: QuantityState) -> xr.Dataset:
-    ds = xr.Dataset(
-        {
-            variable: quantity_state[variable].data_array
-            for variable in quantity_state.keys()
-        }
-    )
     return ds

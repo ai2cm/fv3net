@@ -1,9 +1,9 @@
 xarray.Dataset {
 dimensions:
-	tile = 6 ;
-	time = 10 ;
 	x = 1 ;
 	y = 2 ;
+	tile = 6 ;
+	time = 10 ;
 
 variables:
 	float64 a(x, y, tile, time) ;

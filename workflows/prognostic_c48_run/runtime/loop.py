@@ -187,10 +187,13 @@ class TimeLoop(
         self.monitor = Monitor.from_variables(
             config.diagnostic_variables, state=self._state, timestep=self._timestep,
         )
-
         self._emulate = runtime.factories.get_emulator_adapter(
-            config, self._state, self._timestep
+            config, self._state, self._timestep,
         )
+        self._prescribe_tendency = runtime.factories.get_tendency_prescriber(
+            config, self._state, self._timestep, self._get_communicator(),
+        )
+
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)
         self._log_debug(f"States to output: {self._states_to_output}")
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
@@ -209,11 +212,19 @@ class TimeLoop(
                     states_to_output = diagnostic.variables  # type: ignore
         return states_to_output
 
-    def emulate(self, name: str, func: Step) -> Step:
-        if self._emulate is None:
-            return self.monitor(name, func)
-        else:
+    def _get_communicator(self):
+        partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(get_namelist())
+        return fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
+
+    def emulate_or_prescribe_tendency(self, name: str, func: Step) -> Step:
+        if self._emulate is not None and self._prescribe_tendency is not None:
+            return self._prescribe_tendency("emulator", self._emulate(name, func))
+        elif self._emulate is None and self._prescribe_tendency is not None:
+            return self._prescribe_tendency(name, func)
+        elif self._emulate is not None and self._prescribe_tendency is None:
             return self._emulate(name, func)
+        else:
+            return self.monitor(name, func)
 
     def _get_prephysics_stepper(
         self, config: UserConfig, hydrostatic: bool
@@ -228,10 +239,7 @@ class TimeLoop(
             stepper = PureMLStepper(model, self._timestep, hydrostatic)
         elif isinstance(config.prephysics, PrescriberConfig):
             self._log_info("Using Prescriber for prephysics")
-            partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
-                get_namelist()
-            )
-            communicator = fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
+            communicator = self._get_communicator()
             timesteps = get_timesteps(
                 self.time, self._timestep, self._fv3gfs.get_step_count()
             )
@@ -249,11 +257,7 @@ class TimeLoop(
             )
         elif config.nudging:
             self._log_info("Using NudgingStepper for postphysics updates")
-            partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(
-                get_namelist()
-            )
-            communicator = fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
-            stepper = PureNudger(config.nudging, communicator, hydrostatic)
+            stepper = PureNudger(config.nudging, self._get_communicator(), hydrostatic)
         else:
             self._log_info("Performing baseline simulation")
             stepper = None
@@ -467,7 +471,7 @@ class TimeLoop(
                 self._step_prephysics,
                 self._compute_physics,
                 self._apply_postphysics_to_physics_state,
-                self.emulate("fv3_physics", self._apply_physics),
+                self.emulate_or_prescribe_tendency("fv3_physics", self._apply_physics),
                 self._compute_postphysics,
                 self.monitor("python", self._apply_postphysics_to_dycore_state),
             ]:

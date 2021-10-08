@@ -29,7 +29,7 @@ class DerivedModel(Predictor):
                 part of the set of base_model.output_variables. Should
                 correspond to variables available through vcm.DerivedMapping.
         """
-        self._base_model = base_model
+        self.base_model = base_model
 
         self._derived_output_variables = derived_output_variables
         self._additional_input_variables = vcm.DerivedMapping.find_all_required_inputs(
@@ -59,7 +59,7 @@ class DerivedModel(Predictor):
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         self._check_additional_inputs_present(X)
-        base_prediction = self._base_model.predict(X)
+        base_prediction = self.base_model.predict(X)
         required_inputs = vcm.safe.get_variables(X, self._additional_input_variables)
         derived_mapping = vcm.DerivedMapping(
             xr.merge([required_inputs, base_prediction])
@@ -73,7 +73,7 @@ class DerivedModel(Predictor):
             "derived_output_variables": self._derived_output_variables,
             "model": base_model_path,
         }
-        io.dump(self._base_model, base_model_path)
+        io.dump(self.base_model, base_model_path)
         with fsspec.open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
             yaml.safe_dump(options, f)
 
