@@ -9,6 +9,7 @@ from typing import (
     List,
 )
 import os
+from fv3fit.emulation.thermobasis.thermo import ThermoBasis
 import numpy
 import tensorflow as tf
 import dacite
@@ -258,7 +259,13 @@ class Trainer:
         self._step += 1
         return info
 
-    def get_loss(self, in_, out):
+    def get_loss(self, in_: ThermoBasis, out: ThermoBasis) -> tf.Tensor:
+        """Get total loss
+
+        The total loss includes:
+        1. the supervised mismatch between the prediction and ``out``
+        2. the losses from the model (e.g. regularizations)
+        """
         prediction = self.model(in_)
         prediction_loss, info = self.config.target.loss(prediction, out)
         return prediction_loss + sum(self.model.losses), info
