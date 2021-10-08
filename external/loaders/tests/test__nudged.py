@@ -252,7 +252,7 @@ def test_open_fine_resolution_with_nudged_state(
 ):
     data = open_fine_resolution(
         fine_url=fine_res_zarr,
-        state_url=nudge_to_fine_data_dir,
+        input_feature_url=nudge_to_fine_data_dir,
         include_temperature_nudging=True,
     )
     data[timestep1_end].info(regtest)
