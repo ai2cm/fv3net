@@ -303,7 +303,11 @@ class TrainConfig:
 
         for k, v in flat_config_dict.items():
             if isinstance(v, str) or not isinstance(v, Sequence):
-                parser.add_argument(f"--{k}", type=type(v), default=v)
+                if v is None:
+                    v_type = str
+                else:
+                    v_type = type(v)
+                parser.add_argument(f"--{k}", type=v_type, default=v)
 
         updates = parser.parse_args(args)
         updates = vars(updates)
