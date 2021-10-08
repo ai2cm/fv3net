@@ -3,6 +3,7 @@ import dataclasses
 import json
 import logging
 from typing import (
+    cast,
     Optional,
     Sequence,
     Union,
@@ -268,7 +269,7 @@ class Trainer:
         """
         prediction = self.model(in_)
         prediction_loss, info = self.config.target.loss(prediction, out)
-        return prediction_loss + sum(self.model.losses), info
+        return prediction_loss + cast(tf.Tensor, sum(self.model.losses)), info
 
     def score(self, d: tf.data.Dataset):
         losses = defaultdict(list)
