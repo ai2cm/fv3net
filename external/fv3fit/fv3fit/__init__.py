@@ -16,6 +16,7 @@ from .keras._models.shared import (
     DenseNetwork,
     ConvolutionalNetworkConfig,
     ConvolutionalNetwork,
+    LossConfig,
     PureKerasModel,
     TrainingLoopConfig,
     EpochResult,
