@@ -36,6 +36,7 @@ class MicrophysicsConfig:
             name.
         timestep_increment_sec: Time increment multiplier for the state-tendency
             update
+        enforce_positive: Enforce model outputs are zero or positive
     """
 
     input_variables: List[str] = dataclasses.field(default_factory=list)
@@ -48,6 +49,7 @@ class MicrophysicsConfig:
     selection_map: Mapping[str, slice] = dataclasses.field(default_factory=dict)
     tendency_outputs: Mapping[str, str] = dataclasses.field(default_factory=dict)
     timestep_increment_sec: int = 900
+    enforce_positive: bool = True
 
     @classmethod
     def from_dict(cls, dict_) -> "MicrophsyicsConfig":
@@ -100,7 +102,7 @@ class MicrophysicsConfig:
                 sample_out=sample,
                 denormalize=self.normalize_key,
                 name=name,
-                enforce_positive=True,
+                enforce_positive=self.enforce_positive,
             )(net_output)
             outputs.append(out_)
 
@@ -119,7 +121,7 @@ class MicrophysicsConfig:
                 sample_out=sample,
                 denormalize=self.normalize_key,
                 name=name,
-                enforce_positive=True,
+                enforce_positive=self.enforce_positive,
             )
 
             out_ = res_out(in_state, net_output)
