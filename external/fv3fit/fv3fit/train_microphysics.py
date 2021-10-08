@@ -277,9 +277,8 @@ class TrainConfig:
         # should work for a standard config w/ hyperparameter search
         parser = argparse.ArgumentParser()
         parser.add_argument("--config-path", type=str, default=None)
-        parser.add_argument("config_args", nargs=argparse.REMAINDER)
 
-        args = parser.parse_args()
+        args, unknown_args = parser.parse_known_args()
 
         # TODO: unspecified configuration should probably error...
         if args.config_path == "default":
@@ -289,9 +288,9 @@ class TrainConfig:
         else:
             raise ValueError("No training configuration specified. Use '--config-path default' if just trying to run.")
 
-        if args.config_args:
+        if unknown_args:
             updated = cls._get_updated_config_dict(
-                args.config_args, config.as_flat_dict()
+                unknown_args, config.as_flat_dict()
             )
             config = cls.from_flat_dict(updated)
 
@@ -306,7 +305,7 @@ class TrainConfig:
             if isinstance(v, str) or not isinstance(v, Sequence):
                 parser.add_argument(f"--{k}", type=type(v), default=v)
 
-        updates = parser.parse_args(args.config_args)
+        updates = parser.parse_args(args)
         updates = vars(updates)
 
         flat_config_dict.update(updates)
