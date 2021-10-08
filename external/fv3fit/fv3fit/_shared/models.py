@@ -36,8 +36,6 @@ class DerivedModel(Predictor):
             derived_output_variables
         )
 
-        sample_dim_name = base_model.sample_dim_name
-
         full_input_variables = sorted(
             list(
                 set(
@@ -55,7 +53,7 @@ class DerivedModel(Predictor):
         # DerivedModel.input_variables (what the prognostic run uses to grab
         # necessary state for input to .predict()) is the set of
         # base_model_input_variables arg and hyperparameters.additional_inputs.
-        super().__init__(sample_dim_name, full_input_variables, full_output_variables)
+        super().__init__(full_input_variables, full_output_variables)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         self._check_additional_inputs_present(X)
@@ -127,14 +125,8 @@ class EnsembleModel(Predictor):
         self._reduction = reduction
         input_variables: Set[Hashable] = set()
         output_variables: Set[Hashable] = set()
-        sample_dim_name = self._models[0].sample_dim_name
         outputs = set(self._models[0].output_variables)
         for model in self._models:
-            if model.sample_dim_name != sample_dim_name:
-                raise ValueError(
-                    "all models in ensemble must have same sample_dim_name, "
-                    f"got {sample_dim_name} and {model.sample_dim_name}"
-                )
             if set(model.output_variables) != outputs:
                 raise ValueError(
                     "all models in ensemble must have same outputs, "
@@ -143,7 +135,6 @@ class EnsembleModel(Predictor):
             input_variables.update(model.input_variables)
             output_variables.update(model.output_variables)
         super().__init__(
-            sample_dim_name,
             input_variables=tuple(sorted(input_variables)),
             output_variables=tuple(sorted(output_variables)),
         )
