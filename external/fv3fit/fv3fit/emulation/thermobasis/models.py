@@ -22,7 +22,13 @@ def atleast_2d(x: tf.Variable) -> tf.Variable:
 
 
 class ScalarMLP(tf.keras.layers.Layer):
-    def __init__(self, num_hidden=256, num_hidden_layers=1, var_level=0):
+    def __init__(
+        self,
+        num_hidden: int = 256,
+        num_hidden_layers: int = 1,
+        var_level: int = 0,
+        regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
+    ):
         super(ScalarMLP, self).__init__()
         self.scalers_fitted = False
         self.sequential = tf.keras.Sequential()
@@ -38,9 +44,15 @@ class ScalarMLP(tf.keras.layers.Layer):
         self.sequential.add(self.norm)
 
         for _ in range(num_hidden_layers):
-            self.sequential.add(tf.keras.layers.Dense(num_hidden, activation="relu"))
+            self.sequential.add(
+                tf.keras.layers.Dense(
+                    num_hidden, activation="relu", kernel_regularizer=regularizer
+                )
+            )
 
-        self.sequential.add(tf.keras.layers.Dense(1, name="out"))
+        self.sequential.add(
+            tf.keras.layers.Dense(1, name="out", kernel_regularizer=regularizer)
+        )
         self.sequential.add(self.output_scaler)
 
     def call(self, in_: ThermoBasis):

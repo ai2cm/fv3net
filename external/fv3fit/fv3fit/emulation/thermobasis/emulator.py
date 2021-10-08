@@ -382,6 +382,7 @@ def get_model(config: Config) -> tf.keras.Model:
             var_level=config.target.level,
             num_hidden=config.num_hidden,
             num_hidden_layers=config.num_hidden_layers,
+            regularizer=regularizer,
         )
     elif isinstance(config.target, RHLossSingleLevel):
         logging.info("Using RHScaler")
@@ -389,6 +390,7 @@ def get_model(config: Config) -> tf.keras.Model:
             var_level=config.target.level,
             num_hidden=config.num_hidden,
             num_hidden_layers=config.num_hidden_layers,
+            regularizer=regularizer,
         )
     else:
         raise NotImplementedError(f"{config}")
