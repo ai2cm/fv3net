@@ -10,7 +10,8 @@ from ._local import LocalMapper, mapper_to_local
 from ._hybrid import (
     open_fine_resolution_nudging_hybrid,
     open_3hrly_fine_resolution_nudging_hybrid,
-    open_fine_resolution
+    open_fine_resolution,
+    open_3hrly_fine_resolution,
 )
 
 # additional open mapper functions
