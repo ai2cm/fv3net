@@ -30,6 +30,7 @@ from loaders.mappers import (
     open_nudge_to_fine_multiple_datasets,
     open_fine_resolution_nudging_hybrid,
     open_3hrly_fine_resolution_nudging_hybrid,
+    open_fine_resolution,
     open_high_res_diags,
     open_zarr,
 )

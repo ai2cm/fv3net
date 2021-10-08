@@ -4,6 +4,7 @@ import numpy
 import numpy as np
 from datetime import timedelta
 from typing_extensions import Protocol
+from typing import Optional, Tuple
 
 from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
@@ -143,6 +144,21 @@ def apparent_moistening(data: FineResBudget):
     )
 
 
+def compute_fine_res_sources(
+    data: FineResBudget, include_temperature_nudging: bool = False
+) -> Tuple[xarray.DataArray, xarray.DataArray]:
+    heating = apparent_heating(data, include_temperature_nudging)
+    moistening = apparent_moistening(data)
+    return heating, moistening
+
+
+def _standardize_coords(
+    ds: xarray.Dataset, time_shift=-timedelta(minutes=7, seconds=30)
+) -> xarray.Dataset:
+    ds_shifted = ds.assign(time=ds.time + time_shift)
+    return gfdl_to_standard(ds_shifted).drop("tile")
+
+
 def open_fine_resolution_nudging_hybrid_dataset(
     # created by this commit:
     # https://github.com/VulcanClimateModeling/vcm-workflow-control/commit/3c852d0e4f8b86c4e88db9f29f0b8e484aeb77a1
@@ -155,13 +171,8 @@ def open_fine_resolution_nudging_hybrid_dataset(
 ) -> xarray.Dataset:
 
     fine = open_zarr_maybe_consolidated(fine_url)
-    # compute apparent sources
-    fine["Q1"] = apparent_heating(
-        fine, include_temperature_nudging=include_temperature_nudging
-    )
-    fine["Q2"] = apparent_moistening(fine)
-    # shift the data to match the other time series
-    fine_shifted = fine.assign(time=fine.time - timedelta(minutes=7, seconds=30))
+    fine["Q1"], fine["Q2"] = compute_fine_res_sources(fine, include_temperature_nudging)
+    fine_shifted = _standardize_coords(fine)
 
     nudge_physics_tendencies = open_zarr_maybe_consolidated(
         nudge_url + "/physics_tendencies.zarr",
@@ -170,8 +181,7 @@ def open_fine_resolution_nudging_hybrid_dataset(
     nudge_tends = open_zarr_maybe_consolidated(nudge_url + "/nudging_tendencies.zarr")
 
     merged = xarray.merge(
-        [gfdl_to_standard(fine_shifted), nudge_state, nudge_physics_tendencies],
-        join="inner",
+        [fine_shifted, nudge_state, nudge_physics_tendencies], join="inner",
     )
 
     # dQ1,2,u,v
@@ -189,8 +199,7 @@ def open_fine_resolution_nudging_hybrid_dataset(
     merged["latitude"] = merged.latitude.isel(time=0)
     merged["longitude"] = merged.longitude.isel(time=0)
 
-    # Select the data we want to return
-    return merged.astype(numpy.float32).drop("tile")
+    return merged.astype(numpy.float32)
 
 
 def open_3hrly_fine_resolution_nudging_hybrid_dataset(
@@ -267,13 +276,78 @@ def open_3hrly_fine_resolution_nudging_hybrid(
     Args:
         fine_url: url where coarsened fine resolution data is stored
         nudge_url: url to nudging data to be used as a residual
-        include_temperature_nudging: whether to include fine-res nudging in Q1
-
+                include_temperature_nudging: whether to include fine-res nudging in Q1
     Returns:
         a mapper
     """
     return XarrayMapper(
         open_3hrly_fine_resolution_nudging_hybrid_dataset(
             fine_url=fine_url, nudge_url=nudge_url
+
         )
+    )
+
+        
+        
+def open_fine_resolution_dataset(
+    fine_url: str = "gs://vcm-ml-experiments/default/2021-04-27/2020-05-27-40-day-X-SHiELD-simulation/fine-res-budget.zarr",  # noqa: E501
+    input_feature_url: Optional[str] = None,
+    include_temperature_nudging: bool = False,
+) -> xarray.Dataset:
+
+    fine = open_zarr_maybe_consolidated(fine_url)
+    fine["Q1"], fine["Q2"] = compute_fine_res_sources(fine, include_temperature_nudging)
+    fine_shifted = _standardize_coords(fine)
+
+    if input_feature_url is None:
+        input_features = xarray.Dataset()
+        input_features["air_temperature"] = fine_shifted.T
+        input_features["specific_humidity"] = fine_shifted.sphum
+        input_features["pressure_thickness_of_atmospheric_layer"] = fine_shifted.delp
+    else:
+        full_url = input_feature_url + "/state_after_timestep.zarr"
+        input_features = open_zarr_maybe_consolidated(full_url)
+        input_features["latitude"] = input_features.latitude.isel(time=0)
+        input_features["longitude"] = input_features.longitude.isel(time=0)
+
+    merged = xarray.merge([fine_shifted, input_features], join="inner",)
+
+    # since ML target is Q1/Q2, dQ1=Q1 and pQ1=0 and same for moistening
+    merged["dQ1"] = merged["Q1"]
+    merged["dQ2"] = merged["Q2"]
+    merged["pQ1"] = xarray.zeros_like(merged.Q1)
+    merged["pQ1"].attrs = {"units": "K/s", "long_name": "coarse-res physics heating"}
+    merged["pQ2"] = xarray.zeros_like(merged.Q2)
+    merged["pQ2"].attrs = {
+        "units": "kg/kg/s",
+        "long_name": "coarse-res physics moistening",
+    }
+
+    return merged.astype(numpy.float32)
+
+
+@mapper_functions.register
+def open_fine_resolution(
+    fine_url: str = "",
+    input_feature_url: Optional[str] = None,
+    include_temperature_nudging: bool = False,
+) -> GeoMapper:
+    """
+    Open the fine-res mapper optionally using state from another run.
+
+    Args:
+        fine_url: url where coarsened fine resolution data is stored
+        input_feature_url: url to fv3gfs_run to use for state inputs. If not provided,
+            the state of the fine-res data will be used as input.
+        include_temperature_nudging: whether to include fine-res nudging in Q1
+
+    Returns:
+        a mapper
+    """
+    return XarrayMapper(
+        open_fine_resolution_dataset(
+                fine_url=fine_url,
+                input_feature_url=input_feature_url,
+                include_temperature_nudging=include_temperature_nudging,
+                        )
     )
