@@ -1,10 +1,10 @@
 xarray.Dataset {
 dimensions:
-	time = 2 ;
 	tile = 6 ;
-	z = 63 ;
-	y = 12 ;
+	time = 2 ;
 	x = 12 ;
+	y = 12 ;
+	z = 63 ;
 
 variables:
 	float64 air_temperature_reference(time, tile, z, y, x) ;

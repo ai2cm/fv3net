@@ -1,7 +1,7 @@
 xarray.Dataset {
 dimensions:
-	y = 4 ;
 	x = 4 ;
+	y = 4 ;
 	z = 63 ;
 
 variables:
@@ -18,8 +18,8 @@ variables:
 // global attributes:
 }xarray.Dataset {
 dimensions:
-	y = 4 ;
 	x = 4 ;
+	y = 4 ;
 
 variables:
 	float64 total_sky_downward_shortwave_flux_at_surface(y, x) ;
