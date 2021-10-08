@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Optional, Sequence
 import tensorflow as tf
 from fv3fit.emulation.thermobasis.thermo import (
     RelativeHumidityBasis,
@@ -22,7 +22,13 @@ def atleast_2d(x: tf.Variable) -> tf.Variable:
 
 
 class ScalarMLP(tf.keras.layers.Layer):
-    def __init__(self, num_hidden=256, num_hidden_layers=1, var_level=0):
+    def __init__(
+        self,
+        num_hidden: int = 256,
+        num_hidden_layers: int = 1,
+        var_level: int = 0,
+        regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
+    ):
         super(ScalarMLP, self).__init__()
         self.scalers_fitted = False
         self.sequential = tf.keras.Sequential()
@@ -38,9 +44,15 @@ class ScalarMLP(tf.keras.layers.Layer):
         self.sequential.add(self.norm)
 
         for _ in range(num_hidden_layers):
-            self.sequential.add(tf.keras.layers.Dense(num_hidden, activation="relu"))
+            self.sequential.add(
+                tf.keras.layers.Dense(
+                    num_hidden, activation="relu", kernel_regularizer=regularizer
+                )
+            )
 
-        self.sequential.add(tf.keras.layers.Dense(1, name="out"))
+        self.sequential.add(
+            tf.keras.layers.Dense(1, name="out", kernel_regularizer=regularizer)
+        )
         self.sequential.add(self.output_scaler)
 
     def call(self, in_: ThermoBasis):
@@ -79,13 +91,17 @@ class RHScalarMLP(ScalarMLP):
 
 
 class SingleVarModel(tf.keras.layers.Layer):
-    def __init__(self, n):
+    def __init__(self, n, regularizer=None):
         super(SingleVarModel, self).__init__()
         self.scalers_fitted = False
         self.norm = StandardNormLayer(name="norm")
-        self.linear = tf.keras.layers.Dense(256, name="lin")
+        self.linear = tf.keras.layers.Dense(
+            256, name="lin", kernel_regularizer=regularizer
+        )
         self.relu = tf.keras.layers.ReLU()
-        self.out = tf.keras.layers.Dense(n, name="out", activation="relu")
+        self.out = tf.keras.layers.Dense(
+            n, name="out", activation="relu", kernel_regularizer=regularizer
+        )
 
         self.denorm = ScalarNormLayer()
 
@@ -108,10 +124,12 @@ class SingleVarModel(tf.keras.layers.Layer):
 
 
 class V1QCModel(tf.keras.layers.Layer):
-    def __init__(self, nz):
+    def __init__(
+        self, nz, regularizer: Optional[tf.keras.regularizers.Regularizer] = None
+    ):
         super(V1QCModel, self).__init__()
-        self.tend_model = UVTRHSimple(nz, nz, nz, nz)
-        self.qc_model = SingleVarModel(nz)
+        self.tend_model = UVTRHSimple(nz, nz, nz, nz, regularizer=regularizer)
+        self.qc_model = SingleVarModel(nz, regularizer=regularizer)
 
     @property
     def scalers_fitted(self):
@@ -128,16 +146,27 @@ class V1QCModel(tf.keras.layers.Layer):
 
 
 class UVTQSimple(tf.keras.layers.Layer):
-    def __init__(self, u_size, v_size, t_size, q_size):
+    def __init__(self, u_size, v_size, t_size, q_size, regularizer=None):
         super(UVTQSimple, self).__init__()
         self.scalers_fitted = False
         self.norm = StandardNormLayer(name="norm")
-        self.linear = tf.keras.layers.Dense(256, name="lin")
+
+        self.linear = tf.keras.layers.Dense(
+            256, name="lin", kernel_regularizer=regularizer
+        )
         self.relu = tf.keras.layers.ReLU()
-        self.out_u = tf.keras.layers.Dense(u_size, name="out_u")
-        self.out_v = tf.keras.layers.Dense(v_size, name="out_v")
-        self.out_t = tf.keras.layers.Dense(t_size, name="out_t")
-        self.out_q = tf.keras.layers.Dense(q_size, name="out_q")
+        self.out_u = tf.keras.layers.Dense(
+            u_size, name="out_u", kernel_regularizer=regularizer
+        )
+        self.out_v = tf.keras.layers.Dense(
+            v_size, name="out_v", kernel_regularizer=regularizer
+        )
+        self.out_t = tf.keras.layers.Dense(
+            t_size, name="out_t", kernel_regularizer=regularizer
+        )
+        self.out_q = tf.keras.layers.Dense(
+            q_size, name="out_q", kernel_regularizer=regularizer
+        )
 
         self.scalers = [ScalarNormLayer(name=f"out_{i}") for i in range(4)]
 
