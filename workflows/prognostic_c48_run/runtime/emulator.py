@@ -50,7 +50,6 @@ class EmulatorAdapter:
 
     def __post_init__(self: "EmulatorAdapter"):
         self.emulator = get_xarray_emulator(self.config.emulator)
-        self.online = self.config.online
 
     def predict(self, inputs: State) -> State:
         return self.emulator.predict(inputs)
