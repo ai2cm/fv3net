@@ -9,7 +9,7 @@ from runtime.monitor import Monitor
 from runtime.names import DELP
 from runtime.types import Diagnostics, State, Step
 
-__all__ = ["PrognosticAdapter", "Config"]
+__all__ = ["PrognosticStepTransformer", "Config"]
 
 
 def strip_prefix(prefix: str, variables: Iterable[str]) -> Set[str]:
@@ -45,8 +45,8 @@ class Config:
 
 
 @dataclasses.dataclass
-class PrognosticAdapter:
-    """Wrap a Step function with an emulator
+class PrognosticStepTransformer:
+    """Wrap a Step function with an ML prediction
 
     The wrapped function produces diagnostic outputs prefixed with
     ``self.emulator_prefix_`` and trains/applies the emulator to ``state``
@@ -70,7 +70,7 @@ class PrognosticAdapter:
     diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
     timestep: float = 900
 
-    def __post_init__(self: "PrognosticAdapter"):
+    def __post_init__(self: "PrognosticStepTransformer"):
         self.emulator = get_xarray_emulator(self.config.emulator)
 
     @property

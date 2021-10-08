@@ -1,7 +1,7 @@
 import tensorflow as tf
 import joblib
 from runtime.emulator import (
-    PrognosticAdapter,
+    PrognosticStepTransformer,
     Config,
 )
 from fv3fit.emulation.thermobasis.emulator import Config as MLConfig
@@ -21,7 +21,7 @@ def test_adapter_regression(state, regtest):
 
     name = "add_one"
 
-    emulate = PrognosticAdapter(
+    emulate = PrognosticStepTransformer(
         Config(MLConfig(levels=state["air_temperature"].z.size)),
         state,
         diagnostic_variables={
