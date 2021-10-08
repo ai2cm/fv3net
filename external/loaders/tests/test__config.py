@@ -105,6 +105,7 @@ def test_expected_mapper_functions_exist():
         "open_nudge_to_fine",
         "open_high_res_diags",
         "open_fine_resolution_nudging_hybrid",
+        "open_3hrly_fine_resolution_nudging_hybrid",
         "open_nudge_to_fine_multiple_datasets",
         "open_zarr",
     )
