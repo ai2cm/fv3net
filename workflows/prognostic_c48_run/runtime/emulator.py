@@ -1,19 +1,45 @@
 import dataclasses
-from typing import Hashable, Iterable, MutableMapping, Optional, Set, Union
+from typing import (
+    Iterable,
+    Optional,
+    Set,
+    Union,
+    Sequence,
+    Protocol,
+)
 
 import fv3fit.emulation.thermobasis.emulator
-import xarray as xr
 from fv3fit.emulation.thermobasis.xarray import get_xarray_emulator
 from runtime.masking import get_mask, where_masked
 from runtime.monitor import Monitor
-from runtime.names import DELP
 from runtime.types import Diagnostics, State, Step
 
-__all__ = ["PrognosticAdapter", "Config"]
+__all__ = ["StepTransformer", "Config"]
 
 
 def strip_prefix(prefix: str, variables: Iterable[str]) -> Set[str]:
     return {k[len(prefix) :] for k in variables if k.startswith(prefix)}
+
+
+class Predictor(Protocol):
+    """Predictor interface for step transformers."""
+
+    @property
+    def input_variables(self) -> Sequence[str]:
+        """Variables needed as inputs for prediction."""
+        pass
+
+    def predict(self, inputs: State) -> State:
+        """Given inputs return state predictions."""
+        pass
+
+    def apply(self, prediction: State, state: State):
+        """Apply predictions to given state."""
+        pass
+
+    def partial_fit(self, inputs: State, state: State):
+        """Do partial fit for online training."""
+        pass
 
 
 @dataclasses.dataclass
@@ -45,33 +71,56 @@ class Config:
 
 
 @dataclasses.dataclass
-class PrognosticAdapter:
-    """Wrap a Step function with an emulator
+class EmulatorAdapter:
+    config: Config
+
+    def __post_init__(self: "EmulatorAdapter"):
+        self.emulator = get_xarray_emulator(self.config.emulator)
+
+    def predict(self, inputs: State) -> State:
+        return self.emulator.predict(inputs)
+
+    def apply(self, prediction: State, state: State):
+        if self.config.online:
+            updated_state = where_masked(
+                state,
+                prediction,
+                compute_mask=get_mask(
+                    self.config.mask_kind, self.config.ignore_humidity_below
+                ),
+            )
+            state.update(updated_state)
+
+    def partial_fit(self, inputs: State, state: State):
+        if self.config.train:
+            self.emulator.partial_fit(inputs, state)
+
+    @property
+    def input_variables(self) -> Sequence[str]:
+        return self.emulator.input_variables
+
+
+@dataclasses.dataclass
+class StepTransformer:
+    """Wrap a Step function with an ML prediction
 
     The wrapped function produces diagnostic outputs prefixed with
-    ``self.emulator_prefix_`` and trains/applies the emulator to ``state``
+    ``self.label + "_"`` and trains/applies the ML model to ``state``
     depending on the user configuration.
 
     Attributes:
+        model: A machine learning model that knows how to apply its updates.
         state: The mutable state being updated.
-        monitor: A Monitor object to use for saving outputs.
-        emulator_prefix: the prefix to use adjust the outputted variable names.
-        diagnostic_variables: the user-requested diagnostic variables, will be
-            searched for inputs starting with ``emulator_prefix``.
-        timestep: the model timestep in seconds
-        inputs_to_save: the set of diagnostics that will be produced by the
-            emulated step function.
-    
+        label: Used for labeling diagnostic outputs and monitored tendencies.
+        diagnostic_variables: The user-requested diagnostic variables.
+        timestep: the model timestep in seconds.
     """
 
-    config: Config
+    model: Predictor
     state: State
-    emulator_prefix: str = "emulator_"
+    label: str
     diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
     timestep: float = 900
-
-    def __post_init__(self: "PrognosticAdapter"):
-        self.emulator = get_xarray_emulator(self.config.emulator)
 
     @property
     def monitor(self) -> Monitor:
@@ -80,67 +129,56 @@ class PrognosticAdapter:
         )
 
     @property
+    def prefix(self) -> str:
+        return self.label + "_"
+
+    @property
     def inputs_to_save(self) -> Set[str]:
-        return set(strip_prefix(self.emulator_prefix, self.diagnostic_variables))
+        return set(strip_prefix(self.prefix, self.diagnostic_variables))
 
-    def emulate(self, name: str, func: Step) -> Diagnostics:
-        inputs = {key: self.state[key] for key in self.emulator.input_variables}
-
+    def transform(self, func: Step) -> Diagnostics:
+        inputs: State = {key: self.state[key] for key in self.model.input_variables}
         inputs_to_save: Diagnostics = {
-            self.emulator_prefix + key: self.state[key] for key in self.inputs_to_save
+            self.prefix + key: self.state[key] for key in self.inputs_to_save
         }
+
         before = self.monitor.checkpoint()
         diags = func()
-        change_in_func = self.monitor.compute_change(name, before, self.state)
 
-        if self.config.train:
-            self.emulator.partial_fit(inputs, self.state)
-        emulator_prediction = self.emulator.predict(inputs)
+        self.model.partial_fit(inputs, self.state)
 
-        emulator_after: MutableMapping[Hashable, xr.DataArray] = {
-            DELP: before[DELP],
-            **emulator_prediction,
+        prediction = self.model.predict(inputs)
+        for v in before:
+            if v not in prediction:
+                prediction[v] = self.state[v]
+
+        change_due_to_prediction = self.monitor.compute_change(
+            self.label, before, prediction
+        )
+        self.model.apply(prediction, self.state)
+        return {
+            **diags,
+            **inputs_to_save,
+            **change_due_to_prediction,
         }
 
-        # insert state variables not predicted by the emulator
-        for v in before:
-            if v not in emulator_after:
-                emulator_after[v] = self.state[v]
-
-        changes = self.monitor.compute_change("emulator", before, emulator_after)
-
-        if self.config.online:
-            updated_state = where_masked(
-                self.state,
-                emulator_prediction,
-                compute_mask=get_mask(
-                    self.config.mask_kind, self.config.ignore_humidity_below
-                ),
-            )
-            self.state.update(updated_state)
-
-        return {**diags, **inputs_to_save, **changes, **change_in_func}
-
-    def __call__(self, name: str, func: Step) -> Step:
-        """Emulate a function that updates the ``state``
+    def __call__(self, func: Step) -> Step:
+        """Transform a function that updates the ``state``
         
-        Similar to :py:class:`runtime.monitor.Monitor` but with prognostic emulation
+        Similar to :py:class:`runtime.monitor.Monitor` but with ML prediction
         capability.
 
         Args:
-            name: The name of the emulator
             func: a function that updates the State and returns a dictionary of
                 diagnostics (usually a method of :py:class:`runtime.loop.TimeLoop`).
         
         Returns:
-            emulated_func: a function which observes the change to
-                ``self.state`` done by ``func`` and optionally applies/trains an ML
-                emulator.
-
+            A function which calls ``func`` and optionally applies/trains an ML model
+            in addition.
         """
 
         def step() -> Diagnostics:
-            return self.emulate(name, func)
+            return self.transform(func)
 
         # functools.wraps modifies the type and breaks mypy type checking
         step.__name__ = func.__name__
