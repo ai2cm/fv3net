@@ -63,13 +63,10 @@ class TendencyPrescriber:
             self.diagnostic_variables, self.state, self.timestep
         )
 
-    def _prescribe_tendency(self, name: str, func: Step) -> Diagnostics:
-        if self.communicator.rank == 0:
-            logger.debug(f"Prescribing tendencies for {name}.")
+    def _prescribe_tendency(self, func: Step) -> Diagnostics:
         tendencies = self._open_tendencies_dataset(self.state.time)
         before = self.monitor.checkpoint()
         diags = func()
-        change_due_to_func = self.monitor.compute_change(name, before, self.state)
         for variable_name, tendency_name in self.config.variables.items():
             with xr.set_options(keep_attrs=True):
                 self.state[variable_name] = (
@@ -78,22 +75,21 @@ class TendencyPrescriber:
         change_due_to_prescribing = self.monitor.compute_change(
             "tendency_prescriber", before, self.state
         )
-        return {**diags, **change_due_to_func, **change_due_to_prescribing}
+        return {**diags, **change_due_to_prescribing}
 
-    def __call__(self, name: str, func: Step) -> Step:
+    def __call__(self, func: Step) -> Step:
         """Override tendencies from a function that updates the State.
         
         Args:
-            name: a label for the step that is being overidden.
             func: a function that updates the State and return Diagnostics.
             
         Returns:
-            overridden_func: a function which observes the change to State
-            done by ``func`` and prescribes the change for specified variables.
+            A function which calls ``func`` and prescribes a given change
+            for specified variables.
         """
 
         def step() -> Diagnostics:
-            return self._prescribe_tendency(name, func)
+            return self._prescribe_tendency(func)
 
         step.__name__ = func.__name__
         return step

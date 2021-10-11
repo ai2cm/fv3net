@@ -52,7 +52,6 @@ def _get_dummy_comm():
 
 
 def test_tendency_prescriber(state, tmpdir, regtest):
-    name = "add_one"
     time = cftime.DatetimeJulian(2016, 8, 1)
     path = str(tmpdir.join("tendencies.zarr"))
     tendencies = _get_tendencies(time)
@@ -61,7 +60,6 @@ def test_tendency_prescriber(state, tmpdir, regtest):
     derived_state_copy = _get_derived_state(state, time)
     communicator = _get_dummy_comm()
     diagnostic_variables = [
-        f"tendency_of_air_temperature_due_to_{name}",
         "tendency_of_air_temperature_due_to_override",
         "specific_humidity",
     ]
@@ -78,7 +76,7 @@ def test_tendency_prescriber(state, tmpdir, regtest):
         derived_state["specific_humidity"] = derived_state["specific_humidity"] + 1
         return {"some_diag": derived_state["specific_humidity"]}
 
-    diags = override(name, add_one)()
+    diags = override(add_one)()
 
     xr.testing.assert_identical(
         derived_state["specific_humidity"], derived_state_copy["specific_humidity"] + 1,
@@ -87,6 +85,5 @@ def test_tendency_prescriber(state, tmpdir, regtest):
         derived_state["air_temperature"],
         (derived_state_copy["air_temperature"] + 2).assign_attrs(units="degK"),
     )
-
     for variable in sorted(diags):
         print(variable, joblib.hash(diags[variable]), file=regtest)

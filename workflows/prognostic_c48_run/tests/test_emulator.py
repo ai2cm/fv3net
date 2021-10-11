@@ -20,8 +20,6 @@ def test_state_regression(state, regtest):
 def test_adapter_regression(state, regtest):
     tf.random.set_seed(0)
 
-    name = "add_one"
-
     emulator = EmulatorAdapter(Config(MLConfig(levels=state["air_temperature"].z.size)))
     emulate = StepTransformer(
         emulator,
@@ -30,7 +28,6 @@ def test_adapter_regression(state, regtest):
         diagnostic_variables={
             "emulator_latent_heat_flux",
             "tendency_of_specific_humidity_due_to_emulator",
-            f"tendency_of_specific_humidity_due_to_{name}",
         },
         timestep=900,
     )
@@ -39,7 +36,7 @@ def test_adapter_regression(state, regtest):
         state["air_temperature"] += 1
         return {"some_diag": state["specific_humidity"]}
 
-    out = emulate(name, add_one_to_temperature)()
+    out = emulate(add_one_to_temperature)()
 
     # sort to make the check deterministic
     regression_state(out, regtest)

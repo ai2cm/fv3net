@@ -136,7 +136,7 @@ class StepTransformer:
     def inputs_to_save(self) -> Set[str]:
         return set(strip_prefix(self.prefix, self.diagnostic_variables))
 
-    def transform(self, name: str, func: Step) -> Diagnostics:
+    def transform(self, func: Step) -> Diagnostics:
         inputs: State = {key: self.state[key] for key in self.model.input_variables}
         inputs_to_save: Diagnostics = {
             self.prefix + key: self.state[key] for key in self.inputs_to_save
@@ -144,7 +144,6 @@ class StepTransformer:
 
         before = self.monitor.checkpoint()
         diags = func()
-        change_due_to_func = self.monitor.compute_change(name, before, self.state)
 
         self.model.partial_fit(inputs, self.state)
 
@@ -153,38 +152,33 @@ class StepTransformer:
             if v not in prediction:
                 prediction[v] = self.state[v]
 
-        change_due_to_ml = self.monitor.compute_change(self.label, before, prediction)
-        self.model.apply(prediction, self.state)
-        change_due_to_applied_ml = self.monitor.compute_change(
-            f"applied_{self.label}", before, self.state
+        change_due_to_prediction = self.monitor.compute_change(
+            self.label, before, prediction
         )
+        self.model.apply(prediction, self.state)
         return {
             **diags,
             **inputs_to_save,
-            **change_due_to_func,
-            **change_due_to_ml,
-            **change_due_to_applied_ml,
+            **change_due_to_prediction,
         }
 
-    def __call__(self, name: str, func: Step) -> Step:
+    def __call__(self, func: Step) -> Step:
         """Transform a function that updates the ``state``
         
         Similar to :py:class:`runtime.monitor.Monitor` but with ML prediction
         capability.
 
         Args:
-            name: The name of the step being transformed.
             func: a function that updates the State and returns a dictionary of
                 diagnostics (usually a method of :py:class:`runtime.loop.TimeLoop`).
         
         Returns:
-            a function which observes the change to ``self.state`` done by ``func``
-                and optionally applies/trains an ML model.
-
+            A function which calls ``func`` and optionally applies/trains an ML model
+            in addition.
         """
 
         def step() -> Diagnostics:
-            return self.transform(name, func)
+            return self.transform(func)
 
         # functools.wraps modifies the type and breaks mypy type checking
         step.__name__ = func.__name__
