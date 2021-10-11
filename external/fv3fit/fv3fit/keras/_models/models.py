@@ -104,7 +104,6 @@ def train_dense_model(
     validation_batches: Sequence[xr.Dataset],
 ):
     model = DenseModel(
-        "sample",
         hyperparameters.input_variables,
         hyperparameters.output_variables,
         hyperparameters,
@@ -138,7 +137,6 @@ class DenseModel(Predictor):
 
     def __init__(
         self,
-        sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
         hyperparameters: DenseHyperparameters,
@@ -152,8 +150,6 @@ class DenseModel(Predictor):
         of features that are orders of magnitude larger than other features.
 
         Args:
-            sample_dim_name: name of the sample dimension in datasets used as
-                inputs and outputs.
             input_variables: names of input variables
             output_variables: names of output variables
             hyperparameters: configuration of the dense model training
@@ -162,7 +158,7 @@ class DenseModel(Predictor):
         self._hyperparameters = hyperparameters
         self._nonnegative_outputs = hyperparameters.nonnegative_outputs
         # TODO: remove internal sample dim name once sample dim is hardcoded everywhere
-        super().__init__(sample_dim_name, input_variables, output_variables)
+        super().__init__(input_variables, output_variables)
         self._model = None
         self.X_packer = ArrayPacker(
             sample_dim_name=SAMPLE_DIM_NAME, pack_names=input_variables
@@ -375,12 +371,7 @@ class DenseModel(Predictor):
                 config=dacite.Config(strict=True),
             )
 
-            obj = cls(
-                X_packer.sample_dim_name,
-                X_packer.pack_names,
-                y_packer.pack_names,
-                hyperparameters,
-            )
+            obj = cls(X_packer.pack_names, y_packer.pack_names, hyperparameters,)
             obj.X_packer = X_packer
             obj.y_packer = y_packer
             obj.X_scaler = X_scaler

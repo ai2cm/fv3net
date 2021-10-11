@@ -89,10 +89,7 @@ def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
         scaler = None
 
     wrapper = SklearnWrapper(
-        sample_dim_name="sample",
-        input_variables=["x"],
-        output_variables=["y"],
-        model=model,
+        input_variables=["x"], output_variables=["y"], model=model,
     )
     wrapper.target_scaler = scaler
     return wrapper
@@ -118,10 +115,7 @@ def test_fitting_SklearnWrapper_does_not_fit_scaler():
     scaler = unittest.mock.Mock()
 
     wrapper = SklearnWrapper(
-        sample_dim_name="sample",
-        input_variables=["x"],
-        output_variables=["y"],
-        model=model,
+        input_variables=["x"], output_variables=["y"], model=model,
     )
     wrapper.target_scaler = scaler
 
@@ -143,10 +137,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
         scaler = None
     model = _RegressorEnsemble(base_regressor=LinearRegression(), n_jobs=1)
     wrapper = SklearnWrapper(
-        sample_dim_name="sample",
-        input_variables=["x"],
-        output_variables=["y"],
-        model=model,
+        input_variables=["x"], output_variables=["y"], model=model,
     )
     wrapper.target_scaler = scaler
 
@@ -166,10 +157,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
 def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
     model = _RegressorEnsemble(base_regressor=LinearRegression(), n_jobs=1)
     wrapper = SklearnWrapper(
-        sample_dim_name="sample",
-        input_variables=["x"],
-        output_variables=["y"],
-        model=model,
+        input_variables=["x"], output_variables=["y"], model=model,
     )
 
     # setup input data
@@ -195,10 +183,7 @@ def fit_wrapper_with_columnar_data():
         n_jobs=1,
     )
     wrapper = SklearnWrapper(
-        sample_dim_name="sample",
-        input_variables=["a"],
-        output_variables=["b"],
-        model=model,
+        input_variables=["a"], output_variables=["b"], model=model,
     )
 
     dims = ["x", "y", "z"]

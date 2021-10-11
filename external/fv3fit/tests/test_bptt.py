@@ -402,7 +402,6 @@ def test_pure_keras_predict_works_on_format(da):
     input_vars, output_vars = ["input"], ["output"]
     dummy_predictor = DummyPredictor("sample", input_vars, output_vars)
     model = PureKerasModel(
-        "sample",
         input_vars,
         output_vars,
         output_metadata=[
