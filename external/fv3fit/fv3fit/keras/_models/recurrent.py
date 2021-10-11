@@ -433,12 +433,12 @@ class _BPTTTrainer:
     @property
     def predictor_model(self) -> "StepwiseModel":
         predictor_model = StepwiseModel(
-            tuple(self.input_packer.pack_names)
+            input_variables=tuple(self.input_packer.pack_names)
             + tuple(self.prognostic_packer.pack_names),
-            self.output_variables,
-            self._stepwise_output_metadata,
-            self.predict_keras_model,
-            self.sample_dim_name,
+            output_variables=self.output_variables,
+            output_metadata=self._stepwise_output_metadata,
+            model=self.predict_keras_model,
+            sample_dim_name=self.sample_dim_name,
         )
         return predictor_model
 
