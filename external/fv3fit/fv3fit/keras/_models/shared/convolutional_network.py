@@ -54,6 +54,15 @@ class ConvolutionalNetworkConfig:
     gaussian_noise: float = 0.0
     spectral_normalization: bool = False
 
+    def __post_init__(self):
+        if self.depth < 1:
+            raise ValueError("depth must be at least 1, so we can have an output layer")
+        if self.filters == 0:
+            raise NotImplementedError(
+                "filters=0 causes a floating point exception, "
+                "and we haven't written a workaround"
+            )
+
     def build(
         self, x_in: tf.Tensor, n_features_out: int, label: str = ""
     ) -> ConvolutionalNetwork:
@@ -78,13 +87,6 @@ class ConvolutionalNetworkConfig:
             tensor has the same dimensionality as the input tensor but will have fewer
             points along the x- and y-dimensions, due to convolutions
         """
-        if self.depth < 1:
-            raise ValueError("depth must be at least 1, so we can have an output layer")
-        if self.filters == 0:
-            raise NotImplementedError(
-                "filters=0 causes a floating point exception, "
-                "and we haven't written a workaround"
-            )
         hidden_outputs = []
         x = x_in
         transpose_invariant = TransposeInvariant()

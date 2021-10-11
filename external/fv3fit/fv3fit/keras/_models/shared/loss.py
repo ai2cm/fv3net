@@ -67,6 +67,17 @@ class LossConfig:
     scaling: str = "standard_uniform"
     weight: float = 1.0
 
+    def __post_init__(self):
+        if self.loss_type not in ("mse", "mae"):
+            raise ValueError(
+                f"loss_type must be 'mse' or 'mae', got '{self.loss_type}'"
+            )
+        if self.scaling not in ("standard", "standard_uniform"):
+            raise ValueError(
+                "loss_type must be 'standard' or 'standard_uniform', "
+                f"got '{self.scaling}'"
+            )
+
     def loss(self, std: np.ndarray) -> tf.keras.losses.Loss:
         """
         Returns the loss function described by the configuration.
