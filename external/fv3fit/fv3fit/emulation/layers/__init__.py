@@ -12,8 +12,4 @@ from .fields import (
     FieldInput,
     FieldOutput,
 )
-from .architecture import (
-    MLPBlock,
-    RNNBlock,
-    CombineInputs,
-)
+from .architecture import MLPBlock, RNNBlock, CombineInputs, NoWeightSharingSLP
