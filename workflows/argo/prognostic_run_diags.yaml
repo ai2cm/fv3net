@@ -64,7 +64,7 @@ spec:
           --urls-are-rundirs \
           rundirs.json \
           gs://vcm-ml-public/argo/{{workflow.name}}
-      workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
+      workingDir: /home/jovyan/fv3net/workflows/diagnostics
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS 
         value: /secret/gcp-credentials/key.json
@@ -153,7 +153,7 @@ spec:
         prognostic_run_diags metrics diags.nc > metrics.json
         gsutil cp diags.nc "{{inputs.parameters.output}}/diags.nc"
         gsutil cp metrics.json "{{inputs.parameters.output}}/metrics.json"
-      workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
+      workingDir: /home/jovyan/fv3net/workflows/diagnostics
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json
@@ -185,7 +185,7 @@ spec:
       args:
       - |
         prognostic_run_diags movie --n_timesteps 960 {{inputs.parameters.run}} {{inputs.parameters.output}}
-      workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
+      workingDir: /home/jovyan/fv3net/workflows/diagnostics
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json

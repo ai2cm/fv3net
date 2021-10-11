@@ -66,7 +66,7 @@ def main(config: Config):
 
     id_ = pathlib.Path(os.getcwd()).name
 
-    with tf.summary.create_file_writer(f"/data/emulator/{id_}").as_default():
+    with tf.summary.create_file_writer(f"data/emulator/{id_}").as_default():
         emulator.batch_fit(train_dataset.shuffle(100_000), validation_data=test_dataset)
 
     train_scores = emulator.score(train_dataset)

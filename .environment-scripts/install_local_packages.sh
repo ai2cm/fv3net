@@ -34,7 +34,6 @@ poetry_packages=(
   external/diagnostics_utils
   external/report
   workflows/fine_res_budget
-  workflows/offline_ml_diags
   workflows/dataflow
 )
 
@@ -47,4 +46,4 @@ do
 done
 
 # needs to be installed after reports and fv3viz
-pip install -c constraints.txt --no-deps -e workflows/prognostic_run_diags
+pip install -c constraints.txt --no-deps -e workflows/diagnostics

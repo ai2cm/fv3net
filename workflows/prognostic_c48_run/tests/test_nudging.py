@@ -84,7 +84,7 @@ def test__label_to_time():
 # tests of nudging tendency below adapted from fv3gfs.util versions
 
 
-@pytest.fixture(params=["empty", "one_var", "two_vars"])
+@pytest.fixture(params=["empty", "one_var", "multiple_vars"])
 def state(request):
     if request.param == "empty":
         return {}
@@ -94,13 +94,22 @@ def state(request):
                 np.ones([5]), dims=["dim1"], attrs={"units": "K"}
             )
         }
-    elif request.param == "two_vars":
+    elif request.param == "multiple_vars":
         return {
             "air_temperature": xr.DataArray(
                 np.ones([5]), dims=["dim1"], attrs={"units": "K"}
             ),
             "specific_humidity": xr.DataArray(
                 np.ones([5]), dims=["dim_2"], attrs={"units": "kg/kg"}
+            ),
+            "pressure_thickness_of_atmospheric_layer": xr.DataArray(
+                np.ones([5]), dims=["dim_2"], attrs={"units": "Pa"}
+            ),
+            "x_wind": xr.DataArray(
+                np.ones([5]), dims=["dim_2"], attrs={"units": "m/s"}
+            ),
+            "y_wind": xr.DataArray(
+                np.ones([5]), dims=["dim_2"], attrs={"units": "m/s"}
             ),
         }
     else:

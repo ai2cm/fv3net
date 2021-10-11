@@ -12,12 +12,13 @@ from fv3viz._masking import (
     _periodic_greater_than,
     _periodic_difference,
 )
-from fv3viz._plot_cube import mappable_var, plot_cube_axes, plot_cube
+from fv3viz._plot_cube import plot_cube, _mappable_var, _plot_cube_axes
 from fv3viz._timestep_histograms import (
     plot_daily_and_hourly_hist,
     plot_daily_hist,
     plot_hourly_hist,
 )
+from vcm.cubedsphere import GridMetadata
 
 
 def test_version():
@@ -239,6 +240,106 @@ def t2m():
 def sample_dataset(latb, lonb, lat, lon, t2m):
     dataset = xr.Dataset(
         {
+            "t2m": (["time", "tile", "y", "x"], t2m),
+            "lat": (["tile", "y", "x"], lat),
+            "lon": (["tile", "y", "x"], lon),
+            "latb": (["tile", "y_interface", "x_interface"], latb),
+            "lonb": (["tile", "y_interface", "x_interface"], lonb),
+        }
+    )
+    dataset = dataset.assign_coords(
+        {
+            "time": np.arange(2),
+            "tile": np.arange(6),
+            "x_interface": np.arange(3.0),
+            "y_interface": np.arange(3.0),
+            "x": np.arange(2.0),
+            "y": np.arange(2.0),
+        }
+    )
+    grid_metadata = GridMetadata("x", "y", "x_interface", "y_interface")
+    return dataset, grid_metadata
+
+
+def test__mappable_var_all_sizes(sample_dataset):
+    dataset, grid_metadata = sample_dataset
+    mappable_ds = _mappable_var(dataset, "t2m", grid_metadata).isel(time=0)
+    sizes_expected = {"x_interface": 3, "y": 2, "y_interface": 3, "x": 2, "tile": 6}
+    assert mappable_ds.sizes == sizes_expected
+
+
+def test__mappable_var_coords(sample_dataset):
+    dataset, grid_metadata = sample_dataset
+    mappable_ds_coords = set(_mappable_var(dataset, "t2m", grid_metadata).coords)
+    coords_expected = set(["x", "y", "x_interface", "y_interface", "tile", "time"])
+    assert mappable_ds_coords == coords_expected
+
+
+def test__mappable_var_sizes(sample_dataset):
+    dataset, grid_metadata = sample_dataset
+    mappable_var_sizes = (
+        _mappable_var(dataset, "t2m", grid_metadata).isel(time=0)["t2m"].sizes
+    )
+    sizes_expected = {"y": 2, "x": 2, "tile": 6}
+    assert mappable_var_sizes == sizes_expected
+
+
+@pytest.mark.parametrize(
+    "plotting_function", [("pcolormesh"), ("contour"), ("contourf")]
+)
+def test__plot_cube_axes(sample_dataset, plotting_function):
+    dataset, grid_metadata = sample_dataset
+    ds = _mappable_var(dataset, "t2m", grid_metadata).isel(time=0)
+    ax = plt.axes(projection=ccrs.Robinson())
+    _plot_cube_axes(
+        ds.t2m.values,
+        ds.lat.values,
+        ds.lon.values,
+        ds.latb.values,
+        ds.lonb.values,
+        plotting_function,
+        ax=ax,
+    )
+
+
+@pytest.mark.parametrize(
+    "plotting_function", [("pcolormesh"), ("contour"), ("contourf")]
+)
+def test_plot_cube_with_facets(sample_dataset, plotting_function):
+    dataset, _ = sample_dataset
+    f, axes, hs, cbar, facet_grid = plot_cube(
+        dataset, "t2m", col="time", plotting_function=plotting_function,
+    )
+
+
+@pytest.mark.parametrize(
+    "plotting_function", [("pcolormesh"), ("contour"), ("contourf")]
+)
+def test_plot_cube_on_axis(sample_dataset, plotting_function):
+    dataset, _ = sample_dataset
+    ax = plt.axes(projection=ccrs.Robinson())
+    f, axes, hs, cbar, facet_grid = plot_cube(
+        dataset.isel(time=0), "t2m", plotting_function=plotting_function, ax=ax,
+    )
+
+
+@pytest.mark.parametrize(
+    "plotting_function",
+    [("pcolormesh"), ("contourf"), pytest.param("contour", marks=pytest.mark.xfail)],
+)
+def test_plot_cube_with_all_nans(sample_dataset, plotting_function):
+    dataset_copy = sample_dataset[0].copy(deep=True)
+    dataset_copy["t2m"][:] = np.nan
+    ax = plt.axes(projection=ccrs.Robinson())
+    f, axes, hs, cbar, facet_grid = plot_cube(
+        dataset_copy.isel(time=0), "t2m", plotting_function=plotting_function, ax=ax,
+    )
+
+
+@pytest.fixture
+def example_gfdl_dataset(latb, lonb, lat, lon, t2m):
+    dataset = xr.Dataset(
+        {
             "t2m": (["time", "tile", "grid_yt", "grid_xt"], t2m),
             "lat": (["tile", "grid_yt", "grid_xt"], lat),
             "lon": (["tile", "grid_yt", "grid_xt"], lon),
@@ -256,79 +357,14 @@ def sample_dataset(latb, lonb, lat, lon, t2m):
             "grid_yt": np.arange(2.0),
         }
     )
-    return dataset
+    grid_metadata = GridMetadata("grid_xt", "grid_yt", "grid_x", "grid_y")
+    return dataset, grid_metadata
 
 
-def test_mappable_var_all_sizes(sample_dataset):
-    mappable_ds = mappable_var(sample_dataset, "t2m").isel(time=0)
-    sizes_expected = {"grid_x": 3, "grid_yt": 2, "grid_y": 3, "grid_xt": 2, "tile": 6}
-    assert mappable_ds.sizes == sizes_expected
-
-
-def test_mappable_var_coords(sample_dataset):
-    mappable_ds_coords = set(mappable_var(sample_dataset, "t2m").coords)
-    coords_expected = set(["lat", "latb", "lon", "lonb", "tile", "time"])
-    assert mappable_ds_coords == coords_expected
-
-
-def test_mappable_var_sizes(sample_dataset):
-    mappable_var_sizes = mappable_var(sample_dataset, "t2m").isel(time=0)["t2m"].sizes
-    sizes_expected = {"grid_yt": 2, "grid_xt": 2, "tile": 6}
-    assert mappable_var_sizes == sizes_expected
-
-
-@pytest.mark.parametrize(
-    "plotting_function", [("pcolormesh"), ("contour"), ("contourf")]
-)
-def test_plot_cube_axes(sample_dataset, plotting_function):
-    ds = mappable_var(sample_dataset, "t2m").isel(time=0)
-    ax = plt.axes(projection=ccrs.Robinson())
-    plot_cube_axes(
-        ds.t2m.values,
-        ds.lat.values,
-        ds.lon.values,
-        ds.latb.values,
-        ds.lonb.values,
-        plotting_function,
-        ax=ax,
-    )
-
-
-@pytest.mark.parametrize(
-    "plotting_function", [("pcolormesh"), ("contour"), ("contourf")]
-)
-def test_plot_cube_with_facets(sample_dataset, plotting_function):
+def test_plot_cube_different_grid_metadata(example_gfdl_dataset):
+    dataset, grid_metadata = example_gfdl_dataset
     f, axes, hs, cbar, facet_grid = plot_cube(
-        mappable_var(sample_dataset, "t2m"),
-        col="time",
-        plotting_function=plotting_function,
-    )
-
-
-@pytest.mark.parametrize(
-    "plotting_function", [("pcolormesh"), ("contour"), ("contourf")]
-)
-def test_plot_cube_on_axis(sample_dataset, plotting_function):
-    ax = plt.axes(projection=ccrs.Robinson())
-    f, axes, hs, cbar, facet_grid = plot_cube(
-        mappable_var(sample_dataset, "t2m").isel(time=0),
-        plotting_function=plotting_function,
-        ax=ax,
-    )
-
-
-@pytest.mark.parametrize(
-    "plotting_function",
-    [("pcolormesh"), ("contourf"), pytest.param("contour", marks=pytest.mark.xfail)],
-)
-def test_plot_cube_with_all_nans(sample_dataset, plotting_function):
-    dataset_copy = sample_dataset.copy(deep=True)
-    dataset_copy["t2m"][:] = np.nan
-    ax = plt.axes(projection=ccrs.Robinson())
-    f, axes, hs, cbar, facet_grid = plot_cube(
-        mappable_var(dataset_copy, "t2m").isel(time=0),
-        plotting_function=plotting_function,
-        ax=ax,
+        dataset, "t2m", col="time", grid_metadata=grid_metadata
     )
 
 
