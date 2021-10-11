@@ -32,7 +32,7 @@ def test_output_type():
         pytest.param((3, 10, 10, 2), 3, 1, 5, (3, 10, 10), id="no_convolutions"),
         pytest.param((3, 10, 10, 2), 3, 2, 5, (3, 8, 8), id="one_convolution"),
         pytest.param(
-            (3, 10, 10, 2), 5, 2, 5, (3, 6, 6), id="one_convolution_larger_filter"
+            (3, 10, 10, 2), 5, 2, 5, (3, 6, 6), id="one_convolution_larger_kernel"
         ),
         pytest.param((3, 10, 10, 2), 3, 3, 5, (3, 6, 6), id="two_convolutions"),
         pytest.param(
@@ -44,7 +44,7 @@ def test_output_type():
             id="two_convolutions_different_input_shape",
         ),
         pytest.param(
-            (3, 10, 10, 2), 3, 2, 10, (3, 8, 8), id="one_convolution_more_kernel_size"
+            (3, 10, 10, 2), 3, 2, 10, (3, 8, 8), id="one_convolution_more_filters"
         ),
     ],
 )
