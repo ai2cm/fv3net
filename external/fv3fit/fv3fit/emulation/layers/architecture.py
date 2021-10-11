@@ -113,7 +113,9 @@ class MLPBlock(tf.keras.layers.Layer):
         return outputs
 
 
-def NoWeightSharingSLP(n: int = 1, width: int = 128, activation="relu"):
+def NoWeightSharingSLP(
+    n: int = 1, width: int = 128, activation="relu"
+) -> tf.keras.Model:
     """Multi-output model which doesn't share any weights between outputs
 
     Args:
