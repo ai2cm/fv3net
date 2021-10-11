@@ -25,21 +25,29 @@ def _standard_scaled_mae(std):
     return custom_loss
 
 
+def _uniform_scaled_mse(std):
+    factor = tf.constant(1.0 / np.mean(std ** 2), dtype=std.dtype)
+
+    def custom_loss(y_true, y_pred):
+        return tf.math.scalar_mul(factor, tf.losses.mse(y_true, y_pred))
+
+    return custom_loss
+
+
+def _uniform_scaled_mae(std):
+    factor = tf.constant(1.0 / np.mean(std), dtype=std.dtype)
+
+    def custom_loss(y_true, y_pred):
+        return tf.math.scalar_mul(factor, tf.losses.mae(y_true, y_pred))
+
+    return custom_loss
+
+
 def multiply_loss_by_factor(original_loss, factor):
     def loss(y_true, y_pred):
         return tf.math.scalar_mul(factor, original_loss(y_true, y_pred))
 
     return loss
-
-
-def _uniform_scaled_mse(std):
-    factor = tf.constant(1.0 / np.mean(std ** 2), dtype=std.dtype)
-    return multiply_loss_by_factor(tf.losses.mse, factor)
-
-
-def _uniform_scaled_mae(std):
-    factor = tf.constant(1.0 / np.mean(std), dtype=std.dtype)
-    return multiply_loss_by_factor(tf.losses.mae, factor)
 
 
 @dataclasses.dataclass
