@@ -1,7 +1,7 @@
 import tensorflow as tf
 import joblib
 from runtime.emulator import (
-    PrognosticStepTransformer,
+    StepTransformer,
     Config,
     EmulatorAdapter,
 )
@@ -23,9 +23,10 @@ def test_adapter_regression(state, regtest):
     name = "add_one"
 
     emulator = EmulatorAdapter(Config(MLConfig(levels=state["air_temperature"].z.size)))
-    emulate = PrognosticStepTransformer(
+    emulate = StepTransformer(
         emulator,
         state,
+        "emulator",
         diagnostic_variables={
             "emulator_latent_heat_flux",
             "tendency_of_specific_humidity_due_to_emulator",

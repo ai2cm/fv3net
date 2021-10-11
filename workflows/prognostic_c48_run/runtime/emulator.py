@@ -1,19 +1,45 @@
 import dataclasses
-from typing import Hashable, Iterable, MutableMapping, Optional, Set, Union, Sequence
+from typing import (
+    Iterable,
+    Optional,
+    Set,
+    Union,
+    Sequence,
+    Protocol,
+)
 
 import fv3fit.emulation.thermobasis.emulator
-import xarray as xr
 from fv3fit.emulation.thermobasis.xarray import get_xarray_emulator
 from runtime.masking import get_mask, where_masked
 from runtime.monitor import Monitor
-from runtime.names import DELP
 from runtime.types import Diagnostics, State, Step
 
-__all__ = ["PrognosticStepTransformer", "Config"]
+__all__ = ["StepTransformer", "Config"]
 
 
 def strip_prefix(prefix: str, variables: Iterable[str]) -> Set[str]:
     return {k[len(prefix) :] for k in variables if k.startswith(prefix)}
+
+
+class Predictor(Protocol):
+    """Predictor interface for step transformers."""
+
+    @property
+    def input_variables(self) -> Sequence[str]:
+        """Variables needed as inputs for prediction."""
+        pass
+
+    def predict(self, inputs: State) -> State:
+        """Given inputs return state predictions."""
+        pass
+
+    def apply(self, prediction: State, state: State):
+        """Apply predictions to given state."""
+        pass
+
+    def partial_fit(self, inputs: State, state: State):
+        """Do partial fit for online training."""
+        pass
 
 
 @dataclasses.dataclass
@@ -54,7 +80,7 @@ class EmulatorAdapter:
     def predict(self, inputs: State) -> State:
         return self.emulator.predict(inputs)
 
-    def apply(self, state: State, prediction: State):
+    def apply(self, prediction: State, state: State):
         if self.config.online:
             updated_state = where_masked(
                 state,
@@ -75,28 +101,24 @@ class EmulatorAdapter:
 
 
 @dataclasses.dataclass
-class PrognosticStepTransformer:
+class StepTransformer:
     """Wrap a Step function with an ML prediction
 
     The wrapped function produces diagnostic outputs prefixed with
-    ``self.emulator_prefix_`` and trains/applies the emulator to ``state``
+    ``self.label + "_"`` and trains/applies the ML model to ``state``
     depending on the user configuration.
 
     Attributes:
+        model: A machine learning model that knows how to apply its updates.
         state: The mutable state being updated.
-        monitor: A Monitor object to use for saving outputs.
-        emulator_prefix: the prefix to use adjust the outputted variable names.
-        diagnostic_variables: the user-requested diagnostic variables, will be
-            searched for inputs starting with ``emulator_prefix``.
-        timestep: the model timestep in seconds
-        inputs_to_save: the set of diagnostics that will be produced by the
-            emulated step function.
-    
+        label: Used for labeling diagnostic outputs and monitored tendencies.
+        diagnostic_variables: The user-requested diagnostic variables.
+        timestep: the model timestep in seconds.
     """
 
-    model: EmulatorAdapter
+    model: Predictor
     state: State
-    label: str = "emulator"
+    label: str
     diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
     timestep: float = 900
 
@@ -107,59 +129,62 @@ class PrognosticStepTransformer:
         )
 
     @property
+    def prefix(self) -> str:
+        return self.label + "_"
+
+    @property
     def inputs_to_save(self) -> Set[str]:
-        return set(strip_prefix(self.label + "_", self.diagnostic_variables))
+        return set(strip_prefix(self.prefix, self.diagnostic_variables))
 
-    def emulate(self, name: str, func: Step) -> Diagnostics:
+    def transform(self, name: str, func: Step) -> Diagnostics:
         inputs: State = {key: self.state[key] for key in self.model.input_variables}
-
         inputs_to_save: Diagnostics = {
-            self.label + "_" + key: self.state[key] for key in self.inputs_to_save
+            self.prefix + key: self.state[key] for key in self.inputs_to_save
         }
+
         before = self.monitor.checkpoint()
         diags = func()
-        change_in_func = self.monitor.compute_change(name, before, self.state)
+        change_due_to_func = self.monitor.compute_change(name, before, self.state)
 
-        if hasattr(self.model, "partial_fit"):
-            self.model.partial_fit(inputs, self.state)
+        self.model.partial_fit(inputs, self.state)
+
         prediction = self.model.predict(inputs)
+        for v in before:
+            if v not in prediction:
+                prediction[v] = self.state[v]
 
-        state_after: MutableMapping[Hashable, xr.DataArray] = {
-            DELP: before[DELP],
-            **prediction,
+        change_due_to_ml = self.monitor.compute_change(self.label, before, prediction)
+        self.model.apply(prediction, self.state)
+        change_due_to_applied_ml = self.monitor.compute_change(
+            f"applied_{self.label}", before, self.state
+        )
+        return {
+            **diags,
+            **inputs_to_save,
+            **change_due_to_func,
+            **change_due_to_ml,
+            **change_due_to_applied_ml,
         }
 
-        # insert state variables not predicted by the model
-        for v in before:
-            if v not in state_after:
-                state_after[v] = self.state[v]
-
-        changes = self.monitor.compute_change(self.label, before, state_after)
-
-        self.model.apply(self.state, prediction)
-
-        return {**diags, **inputs_to_save, **changes, **change_in_func}
-
     def __call__(self, name: str, func: Step) -> Step:
-        """Emulate a function that updates the ``state``
+        """Transform a function that updates the ``state``
         
-        Similar to :py:class:`runtime.monitor.Monitor` but with prognostic emulation
+        Similar to :py:class:`runtime.monitor.Monitor` but with ML prediction
         capability.
 
         Args:
-            name: The name of the emulator
+            name: The name of the step being transformed.
             func: a function that updates the State and returns a dictionary of
                 diagnostics (usually a method of :py:class:`runtime.loop.TimeLoop`).
         
         Returns:
-            emulated_func: a function which observes the change to
-                ``self.state`` done by ``func`` and optionally applies/trains an ML
-                emulator.
+            a function which observes the change to ``self.state`` done by ``func``
+                and optionally applies/trains an ML model.
 
         """
 
         def step() -> Diagnostics:
-            return self.emulate(name, func)
+            return self.transform(name, func)
 
         # functools.wraps modifies the type and breaks mypy type checking
         step.__name__ = func.__name__
