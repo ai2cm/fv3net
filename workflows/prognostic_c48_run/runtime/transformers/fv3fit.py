@@ -7,7 +7,7 @@ from runtime.steppers.machine_learning import non_negative_sphum
 from runtime.types import State
 from runtime.names import SPHUM
 
-__all__ = ["Config", "EmulatorAdapter"]
+__all__ = ["Config", "Adapter"]
 
 
 @dataclasses.dataclass
