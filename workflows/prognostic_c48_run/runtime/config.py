@@ -13,8 +13,8 @@ from runtime.diagnostics.manager import (
 from runtime.steppers.nudging import NudgingConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
 from runtime.steppers.prescriber import PrescriberConfig
-from runtime.tendency_prescriber import TendencyPrescriberConfig
-import runtime.emulator
+from runtime.transformers.tendency_prescriber import TendencyPrescriberConfig
+import runtime.transformers.emulator
 
 FV3CONFIG_FILENAME = "fv3config.yml"
 
@@ -43,7 +43,7 @@ class UserConfig:
     scikit_learn: Optional[MachineLearningConfig] = None
     nudging: Optional[NudgingConfig] = None
     tendency_prescriber: Optional[TendencyPrescriberConfig] = None
-    online_emulator: Optional[runtime.emulator.Config] = None
+    online_emulator: Optional[runtime.transformers.emulator.Config] = None
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:

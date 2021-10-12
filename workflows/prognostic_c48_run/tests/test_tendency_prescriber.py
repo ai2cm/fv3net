@@ -7,7 +7,7 @@ import xarray as xr
 import fv3gfs.util
 from fv3gfs.util.testing import DummyComm
 
-from runtime.tendency_prescriber import (
+from runtime.transformers.tendency_prescriber import (
     TendencyPrescriber,
     TendencyPrescriberConfig,
 )

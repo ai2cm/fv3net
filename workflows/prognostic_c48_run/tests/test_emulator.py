@@ -1,10 +1,7 @@
 import tensorflow as tf
 import joblib
-from runtime.emulator import (
-    StepTransformer,
-    Config,
-    EmulatorAdapter,
-)
+from runtime.transformers.emulator import Config, EmulatorAdapter
+from runtime.transformers.core import StepTransformer
 from fv3fit.emulation.thermobasis.emulator import Config as MLConfig
 
 

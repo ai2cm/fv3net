@@ -6,8 +6,9 @@ configuration as well as runtime-only data structures like the model state.
 from typing import Optional
 from runtime.types import State
 from runtime.config import UserConfig
-from runtime.emulator import StepTransformer, EmulatorAdapter
-from runtime.tendency_prescriber import TendencyPrescriber
+from runtime.transformers.emulator import EmulatorAdapter
+from runtime.transformers.core import StepTransformer
+from runtime.transformers.tendency_prescriber import TendencyPrescriber
 from runtime.derived_state import DerivedFV3State
 import fv3gfs.util
 
