@@ -429,11 +429,11 @@ namelist:
 nudging: null
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 physics_machine_learning:
-  emulator: some/path
-  ignore_humidity_below: null
-  mask_kind: default
-  online: false
-  train: true
+  limit_negative_humidity: true
+  online: true
+  url: some/path
+  variables:
+    air_temperature: dQ1
 prephysics: null
 scikit_learn: null
 tendency_prescriber: null
