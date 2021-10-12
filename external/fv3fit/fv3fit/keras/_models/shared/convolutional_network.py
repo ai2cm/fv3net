@@ -31,7 +31,7 @@ class ConvolutionalNetworkConfig:
     Describes how to build a convolutional network.
 
     The convolutional network consists of some number of convolutional layers applying
-    square filters along the x- and y- dimensions (second and third last dimensions),
+    square filters along the x- and y- dimensions (second- and third-last dimensions),
     followed by a final 1x1 convolutional layer producing the output tensor.
 
     Attributes:
@@ -75,10 +75,9 @@ class ConvolutionalNetworkConfig:
 
         Args:
             x_in: 4+ dimensional input tensor whose last dimension is the feature
-                dimension, and second and third last dimensions are horizontal
-                dimensions
+                dimension ("channel" in convolution terms), and second and third
+                last dimensions are horizontal dimensions
             n_features_out: dimensionality of last (feature) dimension of output
-            config: configuration for convolutional network
             label: inserted into layer names, if this function is used multiple times
                 to build one network you must provide a different label each time
         
