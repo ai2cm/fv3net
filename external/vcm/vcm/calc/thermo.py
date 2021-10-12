@@ -494,3 +494,19 @@ def mass_streamfunction(
     bottom_level_psi = psi.isel({plev: -1}).assign_coords({plev: bottom_level_pressure})
     psi = xr.concat([psi, bottom_level_psi], dim=plev)
     return (psi / 1e9).assign_attrs(long_name="mass streamfunction", units="Gkg/s")
+
+
+def internal_energy(temperature: xr.DataArray) -> xr.DataArray:
+    """Compute internal energy from temperature.
+    
+    Args:
+        temperature: in units of K.
+          
+    Returns:
+        c_v * temperature in units of J/kg.
+    """
+    internal_energy = (_SPECIFIC_HEAT_CONST_PRESSURE - _RDGAS) * temperature
+    internal_energy = internal_energy.assign_attrs(
+        {"long_name": "internal energy", "units": "J/kg"}
+    )
+    return internal_energy
