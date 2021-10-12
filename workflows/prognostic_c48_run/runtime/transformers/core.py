@@ -1,10 +1,5 @@
 import dataclasses
-from typing import (
-    Iterable,
-    Set,
-    Sequence,
-    Protocol,
-)
+from typing import Iterable, Set, Protocol, Hashable
 
 from runtime.monitor import Monitor
 from runtime.types import Diagnostics, State, Step
@@ -18,7 +13,7 @@ class Predictor(Protocol):
     """Predictor interface for step transformers."""
 
     @property
-    def input_variables(self) -> Sequence[str]:
+    def input_variables(self) -> Iterable[Hashable]:
         """Variables needed as inputs for prediction."""
         pass
 
@@ -83,12 +78,8 @@ class StepTransformer:
         self.model.partial_fit(inputs, self.state)
 
         prediction = self.model.predict(inputs)
-        for v in before:
-            if v not in prediction:
-                prediction[v] = self.state[v]
-
         change_due_to_prediction = self.monitor.compute_change(
-            self.label, before, prediction
+            self.label, before, {**before, **prediction}
         )
         self.model.apply(prediction, self.state)
         return {

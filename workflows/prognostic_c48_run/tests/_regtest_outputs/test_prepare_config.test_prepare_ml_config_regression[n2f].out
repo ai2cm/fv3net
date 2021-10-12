@@ -435,8 +435,8 @@ nudging:
     specific_humidity: 12
     x_wind: 12
     y_wind: 12
-online_emulator: null
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
+physics_machine_learning: null
 prephysics: null
 scikit_learn: null
 tendency_prescriber: null

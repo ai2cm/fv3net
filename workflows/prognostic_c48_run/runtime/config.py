@@ -15,6 +15,7 @@ from runtime.steppers.machine_learning import MachineLearningConfig
 from runtime.steppers.prescriber import PrescriberConfig
 from runtime.transformers.tendency_prescriber import TendencyPrescriberConfig
 import runtime.transformers.emulator
+import runtime.transformers.fv3fit
 
 FV3CONFIG_FILENAME = "fv3config.yml"
 FV3CONFIG_KEYS = {
@@ -55,7 +56,9 @@ class UserConfig:
     scikit_learn: Optional[MachineLearningConfig] = None
     nudging: Optional[NudgingConfig] = None
     tendency_prescriber: Optional[TendencyPrescriberConfig] = None
-    online_emulator: Optional[runtime.transformers.emulator.Config] = None
+    physics_machine_learning: Optional[
+        Union[runtime.transformers.emulator.Config, runtime.transformers.fv3fit.Config]
+    ] = None
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:

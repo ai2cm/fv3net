@@ -427,8 +427,8 @@ namelist:
     fvmxl: 99999
     ldebug: false
 nudging: null
-online_emulator: null
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
+physics_machine_learning: null
 prephysics: null
 scikit_learn:
   diagnostic_ml: false

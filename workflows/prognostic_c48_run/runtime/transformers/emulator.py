@@ -6,7 +6,7 @@ from fv3fit.emulation.thermobasis.xarray import get_xarray_emulator
 from runtime.masking import get_mask, where_masked
 from runtime.types import State
 
-__all__ = ["Config", "EmulatorAdapter"]
+__all__ = ["Config", "Adapter"]
 
 
 @dataclasses.dataclass
@@ -38,10 +38,10 @@ class Config:
 
 
 @dataclasses.dataclass
-class EmulatorAdapter:
+class Adapter:
     config: Config
 
-    def __post_init__(self: "EmulatorAdapter"):
+    def __post_init__(self: "Adapter"):
         self.emulator = get_xarray_emulator(self.config.emulator)
 
     def predict(self, inputs: State) -> State:
