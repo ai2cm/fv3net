@@ -10,13 +10,6 @@ SAMPLE_DIM_NAME = "_fv3fit_sample"
 DATASET_DIM_NAME = "dataset"
 Z_DIM_NAMES = ["z", "pfull"]
 
-"""
-TODO: Remove the optional sample_dim_name arg from functions once the
-stacking sample dim is hard coded and removed as a training function arg.
-The presence in the functions below is temporary and done to allow use
-of an internal stacking dim (allows inputs to be prestacked in "sample" dim)
-"""
-
 
 class StackedBatches(Sequence[xr.Dataset]):
     def __init__(self, batches: Sequence[xr.Dataset], random_state: RandomState):

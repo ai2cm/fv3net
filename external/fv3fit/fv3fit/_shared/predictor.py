@@ -12,8 +12,8 @@ class Predictor(abc.ABC):
     """
     Abstract base class for a predictor object, which has a `predict` method
     that takes in a stacked xarray dataset containing variables defined the class's
-    `input_variables` attribute with the first dimension being the `sample_dim_name`
-    attribute, and returns predictions for the class's `output_variables` attribute.
+    `input_variables` attribute with the first dimension being the sample
+    dimension, and returns predictions for the class's `output_variables` attribute.
     Also implements `load` method. Base class for model classes which implement a
     `fit` method as well, but allows creation of predictor classes to be used in
     (non-training) diagnostic and prognostic settings.
@@ -21,7 +21,6 @@ class Predictor(abc.ABC):
 
     def __init__(
         self,
-        sample_dim_name: str,
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
         **kwargs,
@@ -29,7 +28,6 @@ class Predictor(abc.ABC):
         """Initialize the predictor.
         
         Args:
-            sample_dim_name: name of sample dimension
             input_variables: names of input variables
             output_variables: names of output variables
         """
@@ -38,7 +36,6 @@ class Predictor(abc.ABC):
             raise TypeError(
                 f"received unexpected keyword arguments: {tuple(kwargs.keys())}"
             )
-        self.sample_dim_name = sample_dim_name
         self.input_variables = input_variables
         self.output_variables = output_variables
 

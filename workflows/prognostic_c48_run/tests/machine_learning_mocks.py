@@ -51,7 +51,6 @@ def get_mock_predictor(model_predictands: str = "tendencies") -> fv3fit.Predicto
         "total_sky_downward_longwave_flux_at_surface": 400.0,
     }
     predictor = fv3fit.testing.ConstantOutputPredictor(
-        sample_dim_name="sample",
         input_variables=["air_temperature", "specific_humidity"],
         output_variables=output_variables,
     )

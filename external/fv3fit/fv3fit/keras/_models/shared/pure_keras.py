@@ -23,7 +23,6 @@ class PureKerasModel(Predictor):
 
     def __init__(
         self,
-        sample_dim_name: str,
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
         output_metadata: Iterable[Dict[str, Any]],
@@ -32,14 +31,12 @@ class PureKerasModel(Predictor):
         """Initialize the predictor
         
         Args:
-            sample_dim_name: name of sample dimension
             input_variables: names of input variables
             output_variables: names of output variables
             output_metadata: attributes and stacked dimension order for each variable
                 in output_variables
         """
-        super().__init__(sample_dim_name, input_variables, output_variables)
-        self.sample_dim_name = sample_dim_name
+        super().__init__(input_variables, output_variables)
         self.input_variables = input_variables
         self.output_variables = output_variables
         self._output_metadata = output_metadata
@@ -56,7 +53,6 @@ class PureKerasModel(Predictor):
             with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
                 config = yaml.load(f, Loader=yaml.Loader)
             obj = cls(
-                config["sample_dim_name"],
                 config["input_variables"],
                 config["output_variables"],
                 config.get("output_metadata", None),
@@ -131,7 +127,6 @@ class PureKerasModel(Predictor):
                 f.write(
                     yaml.dump(
                         {
-                            "sample_dim_name": self.sample_dim_name,
                             "input_variables": self.input_variables,
                             "output_variables": self.output_variables,
                             "output_metadata": self._output_metadata,

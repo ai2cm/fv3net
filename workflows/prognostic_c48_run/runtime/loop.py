@@ -216,15 +216,15 @@ class TimeLoop(
         partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(get_namelist())
         return fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
 
-    def emulate_or_prescribe_tendency(self, name: str, func: Step) -> Step:
+    def emulate_or_prescribe_tendency(self, func: Step) -> Step:
         if self._emulate is not None and self._prescribe_tendency is not None:
-            return self._prescribe_tendency("emulator", self._emulate(name, func))
+            return self._prescribe_tendency(self._emulate(func))
         elif self._emulate is None and self._prescribe_tendency is not None:
-            return self._prescribe_tendency(name, func)
+            return self._prescribe_tendency(func)
         elif self._emulate is not None and self._prescribe_tendency is None:
-            return self._emulate(name, func)
+            return self._emulate(func)
         else:
-            return self.monitor(name, func)
+            return func
 
     def _get_prephysics_stepper(
         self, config: UserConfig, hydrostatic: bool
@@ -471,7 +471,12 @@ class TimeLoop(
                 self._step_prephysics,
                 self._compute_physics,
                 self._apply_postphysics_to_physics_state,
-                self.emulate_or_prescribe_tendency("fv3_physics", self._apply_physics),
+                self.monitor(
+                    "applied_physics",
+                    self.emulate_or_prescribe_tendency(
+                        self.monitor("fv3_physics", self._apply_physics)
+                    ),
+                ),
                 self._compute_postphysics,
                 self.monitor("python", self._apply_postphysics_to_dycore_state),
             ]:

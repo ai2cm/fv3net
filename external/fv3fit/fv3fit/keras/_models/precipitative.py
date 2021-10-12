@@ -251,14 +251,13 @@ class PrecipitativeModel:
         self._loss_type = hyperparameters.loss
         self.output_variables = (T_TENDENCY_NAME, Q_TENDENCY_NAME, PRECIP_NAME)
         self._couple_precip_to_dQ1_dQ2 = hyperparameters.couple_precip_to_dQ1_dQ2
-        self.sample_dim_name = SAMPLE_DIM_NAME
         self.input_variables = input_variables
-        self.input_packer = ArrayPacker(self.sample_dim_name, input_variables)
-        self.humidity_packer = ArrayPacker(self.sample_dim_name, [Q_TENDENCY_NAME])
-        self.output_packer = ArrayPacker(self.sample_dim_name, self.output_variables)
+        self.input_packer = ArrayPacker(SAMPLE_DIM_NAME, input_variables)
+        self.humidity_packer = ArrayPacker(SAMPLE_DIM_NAME, [Q_TENDENCY_NAME])
+        self.output_packer = ArrayPacker(SAMPLE_DIM_NAME, self.output_variables)
         output_without_precip = (T_TENDENCY_NAME, Q_TENDENCY_NAME)
         self.output_without_precip_packer = ArrayPacker(
-            self.sample_dim_name, output_without_precip
+            SAMPLE_DIM_NAME, output_without_precip
         )
         self.input_scaler = LayerStandardScaler()
         self.output_scaler = LayerStandardScaler()
@@ -401,10 +400,9 @@ class PrecipitativeModel:
     @property
     def predictor(self) -> PureKerasModel:
         return PureKerasModel(
-            self.sample_dim_name,
             self.input_variables,
             # predictor has additional diagnostic outputs which were indirectly trained
             list(self.output_variables),
-            get_output_metadata(self.output_packer, self.sample_dim_name),
+            get_output_metadata(self.output_packer, SAMPLE_DIM_NAME),
             self._predict_model,
         )
