@@ -25,6 +25,7 @@ def test_adapter_regression(state, regtest):
         emulator,
         state,
         "emulator",
+        False,
         diagnostic_variables={
             "emulator_latent_heat_flux",
             "tendency_of_specific_humidity_due_to_emulator",

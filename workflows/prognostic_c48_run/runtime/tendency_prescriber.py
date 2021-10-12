@@ -40,6 +40,7 @@ class TendencyPrescriber:
     state: DerivedFV3State
     communicator: fv3gfs.util.CubedSphereCommunicator
     timestep: float
+    hydrostatic: bool
     diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
 
     def __post_init__(self: "TendencyPrescriber"):
@@ -60,7 +61,7 @@ class TendencyPrescriber:
     @property
     def monitor(self) -> Monitor:
         return Monitor.from_variables(
-            self.diagnostic_variables, self.state, self.timestep
+            self.diagnostic_variables, self.state, self.timestep, self.hydrostatic
         )
 
     def _prescribe_tendency(self, func: Step) -> Diagnostics:

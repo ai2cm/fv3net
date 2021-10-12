@@ -68,6 +68,7 @@ def test_tendency_prescriber(state, tmpdir, regtest):
         derived_state,
         communicator,
         timestep=2,
+        hydrostatic=False,
         diagnostic_variables=diagnostic_variables,
     )
 

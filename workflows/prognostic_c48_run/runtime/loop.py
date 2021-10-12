@@ -185,13 +185,13 @@ class TimeLoop(
         self._state_updates: State = {}
 
         self.monitor = Monitor.from_variables(
-            config.diagnostic_variables, state=self._state, timestep=self._timestep,
+            config.diagnostic_variables, self._state, self._timestep, hydrostatic
         )
         self._emulate = runtime.factories.get_emulator_adapter(
-            config, self._state, self._timestep,
+            config, self._state, self._timestep, hydrostatic,
         )
         self._prescribe_tendency = runtime.factories.get_tendency_prescriber(
-            config, self._state, self._timestep, self._get_communicator(),
+            config, self._state, self._timestep, self._get_communicator(), hydrostatic,
         )
 
         self._states_to_output: Sequence[str] = self._get_states_to_output(config)

@@ -95,6 +95,15 @@
                 0.00015335531549915231
             ]
         },
+        "storage_of_internal_energy_due_to_fv3_physics": {
+            "$id": "#/properties/storage_of_internal_energy_due_to_fv3_physics",
+            "type": "number",
+            "default": 0.0,
+            "units": "W/m**2",
+            "examples": [
+                0.00015335531549915231
+            ]
+        },
         "area": {
             "$id": "#/properties/area",
             "type": "number",
@@ -219,6 +228,24 @@
                 -4.188213798282645e-15
             ]
         },
+        "storage_of_internal_energy_due_to_python": {
+            "$id": "#/properties/storage_of_internal_energy_due_to_python",
+            "type": "number",
+            "default": 0.0,
+            "units": "W/m**2",
+            "examples": [
+                -4.188213798282645e-15
+            ]
+        },
+        "storage_of_internal_energy_due_to_dynamics": {
+            "$id": "#/properties/storage_of_internal_energy_due_to_dynamics",
+            "type": "number",
+            "default": 0.0,
+            "units": "W/m**2",
+            "examples": [
+                -4.188213798282645e-15
+            ]
+        },
         "storage_of_total_water_path_due_to_python": {
             "type": "number",
             "default": 0.0,
@@ -270,6 +297,33 @@
             "type": "number",
             "default": 0.0,
             "units": "Pa/s",
+            "examples": [
+                -4.188213798282645e-15
+            ]
+        },
+        "storage_of_internal_energy_due_to_nudging": {
+            "$id": "#/properties/storage_of_internal_energy_due_to_nudging",
+            "type": "number",
+            "default": 0.0,
+            "units": "W/m**2",
+            "examples": [
+                -4.188213798282645e-15
+            ]
+        },
+        "storage_of_internal_energy_due_to_emulator": {
+            "$id": "#/properties/storage_of_internal_energy_due_to_emulator",
+            "type": "number",
+            "default": 0.0,
+            "units": "W/m**2",
+            "examples": [
+                -4.188213798282645e-15
+            ]
+        },
+        "storage_of_internal_energy_due_to_applied_physics": {
+            "$id": "#/properties/storage_of_internal_energy_due_to_applied_physics",
+            "type": "number",
+            "default": 0.0,
+            "units": "W/m**2",
             "examples": [
                 -4.188213798282645e-15
             ]

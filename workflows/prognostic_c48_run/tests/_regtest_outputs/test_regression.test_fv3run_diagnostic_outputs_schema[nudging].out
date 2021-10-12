@@ -29,6 +29,10 @@ variables:
 		specific_humidity_reference:units = kg/kg ;
 	float64 specific_humidity_tendency_due_to_nudging(time, tile, z, y, x) ;
 		specific_humidity_tendency_due_to_nudging:units = kg/kg s^-1 ;
+	float64 storage_of_internal_energy_due_to_fv3_physics(time, tile, y, x) ;
+		storage_of_internal_energy_due_to_fv3_physics:units = W/m**2 ;
+	float64 storage_of_internal_energy_due_to_python(time, tile, y, x) ;
+		storage_of_internal_energy_due_to_python:units = W/m**2 ;
 	float64 storage_of_mass_due_to_fv3_physics(time, tile, y, x) ;
 		storage_of_mass_due_to_fv3_physics:units = Pa/s ;
 	float64 storage_of_mass_due_to_python(time, tile, y, x) ;

@@ -16,7 +16,7 @@ __all__ = ["get_emulator_adapter", "get_tendency_prescriber"]
 
 
 def get_emulator_adapter(
-    config: UserConfig, state: State, timestep: float
+    config: UserConfig, state: State, timestep: float, hydrostatic: bool,
 ) -> Optional[StepTransformer]:
     if config.online_emulator is None:
         return None
@@ -26,6 +26,7 @@ def get_emulator_adapter(
             emulator,
             state,
             "emulator",
+            hydrostatic,
             diagnostic_variables=set(config.diagnostic_variables),
             timestep=timestep,
         )
@@ -36,6 +37,7 @@ def get_tendency_prescriber(
     state: DerivedFV3State,
     timestep: float,
     communicator: fv3gfs.util.CubedSphereCommunicator,
+    hydrostatic: bool,
 ) -> Optional[TendencyPrescriber]:
     if config.tendency_prescriber is None:
         return None
@@ -45,5 +47,6 @@ def get_tendency_prescriber(
             state,
             communicator,
             timestep,
+            hydrostatic,
             diagnostic_variables=set(config.diagnostic_variables),
         )

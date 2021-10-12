@@ -10,7 +10,7 @@ from typing import (
 import xarray as xr
 from runtime.types import Diagnostics, State
 import vcm
-from runtime.names import DELP
+from runtime.names import DELP, TEMP
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,7 @@ class Monitor:
     storage_variables: Set[str]
     _state: State
     timestep: float
+    hydrostatic: bool
 
     def __call__(
         self, name: str, func: Callable[[], Diagnostics],
@@ -62,7 +63,7 @@ class Monitor:
 
     @staticmethod
     def from_variables(
-        variables: Iterable[str], state: State, timestep: float
+        variables: Iterable[str], state: State, timestep: float, hydrostatic: bool
     ) -> "Monitor":
         """
 
@@ -80,12 +81,13 @@ class Monitor:
             storage_variables=filter_storage(var_set),
             _state=state,
             timestep=timestep,
+            hydrostatic=hydrostatic,
         )
 
     def checkpoint(self) -> Checkpoint:
         """Copy the monitored variables into a new dictionary """
         vars_ = list(
-            set(self.tendency_variables) | set(self.storage_variables) | {DELP}
+            set(self.tendency_variables) | set(self.storage_variables) | {DELP, TEMP}
         )
         return {key: self._state[key] for key in vars_}
 
@@ -116,6 +118,7 @@ class Monitor:
             self.storage_variables,
             name,
             self.timestep,
+            self.hydrostatic,
         )
 
 
@@ -143,6 +146,7 @@ def compute_change(
     storage_variables: Set[str],
     name: str,
     timestep: float,
+    hydrostatic: bool,
 ):
     diags = {}
     delp_before = before[DELP]
@@ -166,4 +170,22 @@ def compute_change(
     mass_change = (delp_after - delp_before).sum("z") / timestep
     mass_change.attrs["units"] = "Pa/s"
     diags[f"storage_of_mass_due_to_{name}"] = mass_change
+
+    internal_energy_change = _compute_internal_energy_change(
+        before[TEMP], after[TEMP], delp_before, delp_after, timestep, hydrostatic
+    )
+    diags[f"storage_of_internal_energy_due_to_{name}"] = internal_energy_change
     return diags
+
+
+def _compute_internal_energy_change(
+    temp_before, temp_after, delp_before, delp_after, timestep: float, hydrostatic: bool
+) -> xr.DataArray:
+    if hydrostatic:
+        column_heat = vcm.column_integrated_heating_from_isobaric_transition
+    else:
+        column_heat = vcm.column_integrated_heating_from_isochoric_transition
+    energy_before = column_heat(temp_before, delp_before)
+    energy_after = column_heat(temp_after, delp_after)
+    energy_change = (energy_after - energy_before) / timestep
+    return energy_change.assign_attrs(units="W/m**2")

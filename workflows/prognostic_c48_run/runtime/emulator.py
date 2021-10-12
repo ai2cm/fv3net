@@ -113,19 +113,21 @@ class StepTransformer:
         state: The mutable state being updated.
         label: Used for labeling diagnostic outputs and monitored tendencies.
         diagnostic_variables: The user-requested diagnostic variables.
+        hydrostatic: Used for computing internal energy changes.
         timestep: the model timestep in seconds.
     """
 
     model: Predictor
     state: State
     label: str
+    hydrostatic: bool
     diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
     timestep: float = 900
 
     @property
     def monitor(self) -> Monitor:
         return Monitor.from_variables(
-            self.diagnostic_variables, self.state, self.timestep
+            self.diagnostic_variables, self.state, self.timestep, self.hydrostatic
         )
 
     @property
