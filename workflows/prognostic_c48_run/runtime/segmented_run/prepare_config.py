@@ -78,8 +78,9 @@ def user_config_from_dict_and_args(
         config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
             "restarts_path", nudging_url
         )
-
-    user_config = dacite.from_dict(UserConfig, config_dict)
+    runtime_dict = {k: config_dict[k] for k in config_dict if k not in FV3CONFIG_KEYS}
+    runtime_dict.pop("base_version", None)
+    user_config = dacite.from_dict(UserConfig, runtime_dict, dacite.Config(strict=True))
 
     # insert command line option overrides
     if user_config.scikit_learn is None:
