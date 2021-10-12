@@ -13,7 +13,7 @@ import fv3kube
 
 from runtime.diagnostics.manager import FortranFileConfig
 from runtime.diagnostics.fortran import file_configs_to_namelist_settings
-from runtime.config import UserConfig
+from runtime.config import UserConfig, FV3CONFIG_KEYS
 from runtime.steppers.machine_learning import MachineLearningConfig
 
 
@@ -24,18 +24,6 @@ logger = logging.getLogger(__name__)
 
 PROGNOSTIC_DIAG_TABLE = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
 SUPPRESS_RANGE_WARNINGS = {"namelist": {"fv_core_nml": {"range_warn": False}}}
-FV3CONFIG_KEYS = {
-    "namelist",
-    "experiment_name",
-    "diag_table",
-    "data_table",
-    "field_table",
-    "initial_conditions",
-    "forcing",
-    "orographic_forcing",
-    "patch_files",
-    "gfs_analysis_data",
-}
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:

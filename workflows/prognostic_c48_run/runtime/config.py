@@ -17,6 +17,18 @@ from runtime.transformers.tendency_prescriber import TendencyPrescriberConfig
 import runtime.transformers.emulator
 
 FV3CONFIG_FILENAME = "fv3config.yml"
+FV3CONFIG_KEYS = {
+    "namelist",
+    "experiment_name",
+    "diag_table",
+    "data_table",
+    "field_table",
+    "initial_conditions",
+    "forcing",
+    "orographic_forcing",
+    "patch_files",
+    "gfs_analysis_data",
+}
 
 
 @dataclasses.dataclass
@@ -60,7 +72,8 @@ def get_config() -> UserConfig:
     """
     with open("fv3config.yml") as f:
         config = yaml.safe_load(f)
-    return dacite.from_dict(UserConfig, config)
+    runtime_config = {key: config[key] for key in config if key not in FV3CONFIG_KEYS}
+    return dacite.from_dict(UserConfig, runtime_config, dacite.Config(strict=True))
 
 
 def get_namelist() -> f90nml.Namelist:
