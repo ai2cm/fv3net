@@ -213,11 +213,11 @@ class SklearnWrapper(Predictor):
             output_variables: list of output variables
             model: a scikit learn regression model
         """
+        super().__init__(input_variables, output_variables)
         self.model = model
         self.scaler_type = scaler_type
         self.scaler_kwargs = scaler_kwargs or {}
         self.target_scaler: Optional[scaler.NormalizeTransform] = None
-        # TODO: remove internal sample dim name once sample dim is hardcoded everywhere
         self._input_variables = input_variables
         self._output_variables = output_variables
 
@@ -290,11 +290,11 @@ class SklearnWrapper(Predictor):
         if self.target_scaler is not None:
             mapper[self._SCALER_NAME] = scaler.dumps(self.target_scaler).encode("UTF-8")
 
-        metadata = [
-            self.input_variables,
-            self.output_variables,
-            _multiindex_to_tuple(self.output_features_),
-        ]
+        metadata = {
+            "input_variables": self.input_variables,
+            "output_variables": self.output_variables,
+            "output_features": _multiindex_to_tuple(self.output_features_),
+        }
 
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
 
@@ -310,10 +310,17 @@ class SklearnWrapper(Predictor):
             scaler_obj = scaler.loads(scaler_str)
         else:
             scaler_obj = None
-        (input_variables, output_variables, output_features_dict_,) = yaml.safe_load(
-            mapper[cls._METADATA_NAME]
-        )
 
+        metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
+        # first two cases here for backward compatibility (https://github.com/ai2cm/fv3net/issues/1403) # noqa: E501
+        if isinstance(metadata, list) and len(metadata) == 3:
+            (input_variables, output_variables, output_features_dict_,) = metadata
+        elif isinstance(metadata, list) and len(metadata) == 4:
+            (input_variables, output_variables, output_features_dict_,) = metadata[1:]
+        else:
+            input_variables = metadata["input_variables"]
+            output_variables = metadata["output_variables"]
+            output_features_dict_ = metadata["output_features"]
         output_features_ = _tuple_to_multiindex(output_features_dict_)
 
         obj = cls(input_variables, output_variables, model)
@@ -321,24 +328,3 @@ class SklearnWrapper(Predictor):
         obj.output_features_ = output_features_
 
         return obj
-
-    # these are here for backward compatibility with pre-unified API attribute names
-    @property
-    def input_variables(self):
-        if hasattr(self, "_input_variables"):
-            return self._input_variables
-        elif hasattr(self, "input_vars_"):
-            return self.input_vars_
-        else:
-            raise ValueError("Wrapped model version without input variables attribute.")
-
-    @property
-    def output_variables(self):
-        if hasattr(self, "_input_variables"):
-            return self._output_variables
-        elif hasattr(self, "input_vars_"):
-            return self.output_vars_
-        else:
-            raise ValueError(
-                "Wrapped model version without output variables attribute."
-            )
