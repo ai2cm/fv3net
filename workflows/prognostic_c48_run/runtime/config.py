@@ -56,7 +56,7 @@ class UserConfig:
     scikit_learn: Optional[MachineLearningConfig] = None
     nudging: Optional[NudgingConfig] = None
     tendency_prescriber: Optional[TendencyPrescriberConfig] = None
-    physics_machine_learning: Optional[
+    online_emulator: Optional[
         Union[runtime.transformers.emulator.Config, runtime.transformers.fv3fit.Config]
     ] = None
 

@@ -453,7 +453,7 @@ def get_nudging_config(tendencies_path: str):
 
 def get_ml_config(model_path):
     config = yaml.safe_load(default_fv3config)
-    config["physics_machine_learning"] = {"emulator": {"levels": 63}}
+    config["online_emulator"] = {"emulator": {"levels": 63}}
     config["diagnostics"] = [
         {
             "name": "diags.zarr",

@@ -20,11 +20,10 @@ __all__ = ["get_fv3_physics_transformer", "get_tendency_prescriber"]
 def get_fv3_physics_transformer(
     config: UserConfig, state: State, timestep: float
 ) -> Optional[StepTransformer]:
-    physics_ml_config = config.physics_machine_learning
-    if physics_ml_config is None:
+    if config.online_emulator is None:
         return None
-    elif isinstance(physics_ml_config, runtime.transformers.emulator.Config):
-        emulator = runtime.transformers.emulator.Adapter(physics_ml_config)
+    elif isinstance(config.online_emulator, runtime.transformers.emulator.Config):
+        emulator = runtime.transformers.emulator.Adapter(config.online_emulator)
         return StepTransformer(
             emulator,
             state,
@@ -32,8 +31,8 @@ def get_fv3_physics_transformer(
             diagnostic_variables=set(config.diagnostic_variables),
             timestep=timestep,
         )
-    elif isinstance(physics_ml_config, runtime.transformers.fv3fit.Config):
-        model = runtime.transformers.fv3fit.Adapter(physics_ml_config, timestep)
+    elif isinstance(config.online_emulator, runtime.transformers.fv3fit.Config):
+        model = runtime.transformers.fv3fit.Adapter(config.online_emulator, timestep)
         return StepTransformer(
             model,
             state,

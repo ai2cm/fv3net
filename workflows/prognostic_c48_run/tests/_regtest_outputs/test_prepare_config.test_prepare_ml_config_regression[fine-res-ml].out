@@ -427,13 +427,13 @@ namelist:
     fvmxl: 99999
     ldebug: false
 nudging: null
-orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
-physics_machine_learning:
+online_emulator:
   limit_negative_humidity: true
   online: true
   url: some/path
   variables:
     air_temperature: dQ1
+orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
 scikit_learn: null
 tendency_prescriber: null
