@@ -280,3 +280,8 @@ def tendency_of_cloud_water_mixing_ratio_due_to_microphysics(self):
     end = self._mapper["cloud_water_mixing_ratio_output"]
     begin = self._mapper["cloud_water_mixing_ratio_input"]
     return (end - begin) / self._microphys_timestep_sec
+
+
+@DerivedMapping.register("internal_energy", required_inputs=["air_temperature"])
+def internal_energy(self):
+    return vcm.internal_energy(self._mapper["air_temperature"])

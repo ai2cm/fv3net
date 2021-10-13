@@ -32,9 +32,7 @@ def get_gridded_dataset(nz):
 
 def get_predictor(input_variables, output_variables, outputs):
     predictor = fv3fit.testing.ConstantOutputPredictor(
-        sample_dim_name=SAMPLE_DIM_NAME,
-        input_variables=input_variables,
-        output_variables=output_variables,
+        input_variables=input_variables, output_variables=output_variables,
     )
     predictor.set_outputs(**outputs)
     return predictor

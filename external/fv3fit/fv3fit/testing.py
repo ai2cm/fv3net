@@ -21,23 +21,17 @@ class ConstantOutputPredictor(Predictor):
     """
 
     def __init__(
-        self,
-        sample_dim_name: str,
-        input_variables: Iterable[Hashable],
-        output_variables: Iterable[Hashable],
+        self, input_variables: Iterable[Hashable], output_variables: Iterable[Hashable],
     ):
         """Initialize the predictor
         
         Args:
-            sample_dim_name: name of sample dimension
             input_variables: names of input variables
             output_variables: names of output variables
         
         """
         super().__init__(
-            sample_dim_name=sample_dim_name,
-            input_variables=input_variables,
-            output_variables=output_variables,
+            input_variables=input_variables, output_variables=output_variables,
         )
         self._outputs: Dict[Hashable, Union[np.ndarray, float]] = {}
 
@@ -83,7 +77,6 @@ class ConstantOutputPredictor(Predictor):
         with open(os.path.join(path, "attrs.yaml"), "w") as f:
             yaml.safe_dump(
                 {
-                    "sample_dim_name": self.sample_dim_name,
                     "input_variables": self.input_variables,
                     "output_variables": self.output_variables,
                 },

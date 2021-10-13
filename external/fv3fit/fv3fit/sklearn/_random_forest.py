@@ -47,7 +47,6 @@ def train_random_forest(
     validation_batches: Sequence[xr.Dataset],
 ):
     model = RandomForest(
-        "sample",
         hyperparameters.input_variables,
         hyperparameters.output_variables,
         hyperparameters,
@@ -61,12 +60,11 @@ def train_random_forest(
 class RandomForest(Predictor):
     def __init__(
         self,
-        sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
         hyperparameters: RandomForestHyperparameters,
     ):
-        super().__init__(sample_dim_name, input_variables, output_variables)
+        super().__init__(input_variables, output_variables)
         batch_regressor = _RegressorEnsemble(
             sklearn.ensemble.RandomForestRegressor(
                 # n_jobs != 1 is non-reproducible,
@@ -83,14 +81,12 @@ class RandomForest(Predictor):
             n_jobs=hyperparameters.n_jobs,
         )
         self._model_wrapper = SklearnWrapper(
-            sample_dim_name,
             input_variables,
             output_variables,
             model=batch_regressor,
             scaler_type=hyperparameters.scaler_type,
             scaler_kwargs=hyperparameters.scaler_kwargs,
         )
-        self.sample_dim_name = sample_dim_name
         self.input_variables = self._model_wrapper.input_variables
         self.output_variables = self._model_wrapper.output_variables
 
@@ -203,7 +199,6 @@ class SklearnWrapper(Predictor):
 
     def __init__(
         self,
-        sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
         model: _RegressorEnsemble,
@@ -214,7 +209,6 @@ class SklearnWrapper(Predictor):
         Initialize the wrapper
 
         Args:
-            sample_dim_name: dimension over which samples are taken
             input_variables: list of input variables
             output_variables: list of output variables
             model: a scikit learn regression model
@@ -297,7 +291,6 @@ class SklearnWrapper(Predictor):
             mapper[self._SCALER_NAME] = scaler.dumps(self.target_scaler).encode("UTF-8")
 
         metadata = [
-            self.sample_dim_name,
             self.input_variables,
             self.output_variables,
             _multiindex_to_tuple(self.output_features_),
@@ -317,16 +310,13 @@ class SklearnWrapper(Predictor):
             scaler_obj = scaler.loads(scaler_str)
         else:
             scaler_obj = None
-        (
-            sample_dim_name,
-            input_variables,
-            output_variables,
-            output_features_dict_,
-        ) = yaml.safe_load(mapper[cls._METADATA_NAME])
+        (input_variables, output_variables, output_features_dict_,) = yaml.safe_load(
+            mapper[cls._METADATA_NAME]
+        )
 
         output_features_ = _tuple_to_multiindex(output_features_dict_)
 
-        obj = cls(sample_dim_name, input_variables, output_variables, model)
+        obj = cls(input_variables, output_variables, model)
         obj.target_scaler = scaler_obj
         obj.output_features_ = output_features_
 
@@ -352,7 +342,3 @@ class SklearnWrapper(Predictor):
             raise ValueError(
                 "Wrapped model version without output variables attribute."
             )
-
-    @property
-    def sample_dim_name(self):
-        return getattr(self, "_sample_dim_name", "sample")
