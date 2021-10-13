@@ -225,9 +225,13 @@ class SklearnWrapper(Predictor):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
     def _fit_batch(self, data: xr.Dataset):
-        # TODO the sample_dim can change so best to use feature dim to flatten
-        x, _ = pack(data[self.input_variables], SAMPLE_DIM_NAME)
-        y, self.output_features_ = pack(data[self.output_variables], SAMPLE_DIM_NAME)
+        x, _ = pack(
+            data[self.input_variables], SAMPLE_DIM_NAME
+        )  # type: ignore[arg-type]
+        y, self.output_features_ = pack(
+            data[self.output_variables], SAMPLE_DIM_NAME
+        )  # type: ignore[arg-type]
+        # https://github.com/pydata/xarray/pull/4144
 
         if self.target_scaler is None:
             self.target_scaler = self._init_target_scaler(data)
