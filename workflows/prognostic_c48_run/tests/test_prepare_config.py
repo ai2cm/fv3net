@@ -5,17 +5,20 @@ import dataclasses
 from runtime.config import UserConfig
 import pytest
 
+TEST_DATA_DIR = "tests/prepare_config_test_data"
+
 
 @pytest.mark.parametrize(
     "argv",
     [
         pytest.param(
-            ["examples/prognostic_config.yml", "--model_url", "gs://ml-model"], id="ml"
+            [f"{TEST_DATA_DIR}/prognostic_config.yml", "--model_url", "gs://ml-model"],
+            id="ml",
         ),
-        pytest.param(["examples/nudge_to_fine_config.yml"], id="n2f"),
-        pytest.param(["examples/nudge_to_obs_config.yml"], id="n2o"),
-        pytest.param(["examples/emulator.yml"], id="emulator"),
-        pytest.param(["examples/fine_res_ml.yml"], id="fine-res-ml"),
+        pytest.param([f"{TEST_DATA_DIR}/nudge_to_fine_config.yml"], id="n2f"),
+        pytest.param([f"{TEST_DATA_DIR}/nudge_to_obs_config.yml"], id="n2o"),
+        pytest.param([f"{TEST_DATA_DIR}/emulator.yml"], id="emulator"),
+        pytest.param([f"{TEST_DATA_DIR}/fine_res_ml.yml"], id="fine-res-ml"),
     ],
 )
 def test_prepare_ml_config_regression(regtest, argv):
