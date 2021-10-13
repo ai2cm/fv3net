@@ -1,5 +1,4 @@
 from datetime import timedelta
-import joblib
 import cftime
 import numpy as np
 import xarray as xr
@@ -51,7 +50,7 @@ def _get_dummy_comm():
     )
 
 
-def test_tendency_prescriber(state, tmpdir, regtest):
+def test_tendency_prescriber(state, tmpdir):
     time = cftime.DatetimeJulian(2016, 8, 1)
     path = str(tmpdir.join("tendencies.zarr"))
     tendencies = _get_tendencies(time)
@@ -85,5 +84,8 @@ def test_tendency_prescriber(state, tmpdir, regtest):
         derived_state["air_temperature"],
         (derived_state_copy["air_temperature"] + 2).assign_attrs(units="degK"),
     )
-    for variable in sorted(diags):
-        print(variable, joblib.hash(diags[variable].values), file=regtest)
+    np.testing.assert_allclose(
+        diags["tendency_of_air_temperature_due_to_tendency_prescriber"].values,
+        np.ones((6, 63, 4, 4)),
+    )
+    assert "some_diag" in diags
