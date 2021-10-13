@@ -657,7 +657,7 @@ sources:
         - uflx_coarse
         - vflx_coarse
     args:
-      urlpath: "gs://vcm-ml-intermediate/2021-08-03-PIRE-c48-diags-post-spinup/pire_atmos_phys_3h_coarse.zarr"
+      urlpath: "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/pire_atmos_phys_3h_coarse.zarr"
       consolidated: True
 
   2020_1yr_pire_dyn_plev:
