@@ -40,6 +40,19 @@ def _tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
     return pd.MultiIndex.from_tuples(list_, names=names)
 
 
+def _parse_metadata_backward_compatible(metadata: dict) -> tuple:
+    # first two cases here for backward compatibility (https://github.com/ai2cm/fv3net/issues/1403) # noqa: E501
+    if isinstance(metadata, list) and len(metadata) == 3:
+        (input_variables, output_variables, output_features_tuple,) = metadata
+    elif isinstance(metadata, list) and len(metadata) == 4:
+        (input_variables, output_variables, output_features_tuple,) = metadata[1:]
+    else:
+        input_variables = metadata["input_variables"]
+        output_variables = metadata["output_variables"]
+        output_features_tuple = metadata["output_features"]
+    return input_variables, output_variables, output_features_tuple
+
+
 @register_training_function("sklearn_random_forest", RandomForestHyperparameters)
 def train_random_forest(
     hyperparameters: RandomForestHyperparameters,
@@ -316,16 +329,12 @@ class SklearnWrapper(Predictor):
             scaler_obj = None
 
         metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
-        # first two cases here for backward compatibility (https://github.com/ai2cm/fv3net/issues/1403) # noqa: E501
-        if isinstance(metadata, list) and len(metadata) == 3:
-            (input_variables, output_variables, output_features_dict_,) = metadata
-        elif isinstance(metadata, list) and len(metadata) == 4:
-            (input_variables, output_variables, output_features_dict_,) = metadata[1:]
-        else:
-            input_variables = metadata["input_variables"]
-            output_variables = metadata["output_variables"]
-            output_features_dict_ = metadata["output_features"]
-        output_features_ = _tuple_to_multiindex(output_features_dict_)
+        (
+            input_variables,
+            output_variables,
+            output_features_tuple,
+        ) = _parse_metadata_backward_compatible(metadata)
+        output_features_ = _tuple_to_multiindex(output_features_tuple)
 
         obj = cls(input_variables, output_variables, model)
         obj.target_scaler = scaler_obj
