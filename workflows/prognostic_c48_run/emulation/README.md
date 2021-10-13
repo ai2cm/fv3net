@@ -21,6 +21,19 @@ The interaction points with python are located in `GFS_physics_driver.f90` as th
             call set_state("cloud_water_mixing_ratio_output", qc_post_precpd)
 ```
 
+# Configuration
+
+Emulator configuration, e.g., which model to load or the output formats to save, are controlled via environment variables.  It is convenient to usually set them in the runscript or create Argo parameters that map to these environment variables.
+
+The current set of configurable environment variables are described in more detail in subsequent sections, but here's a brief list:
+
+| Environment Variable     |    Description    |
+| -------------------------|-------------------|
+| OUTPUT_FREQ_SEC (int)| Frequency in seconds to save zarr files and/or netcdfs |
+| SAVE_NC (bool) | Save netcdf files of the state from each rank at the specified output frequency |
+| SAVE_ZARR (bool) | Save zarr files of the state at the specified output frequency |
+| TF_MODEL_PATH (str) | Local/remote path to a tensorflow keras model to load |
+
 ## Training Data
 
 **namelist parameter**
