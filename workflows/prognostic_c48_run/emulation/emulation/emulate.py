@@ -1,14 +1,18 @@
 import sys
+
+# Tensorflow looks at sys args which are not initialized
+# when this module is loaded under callpyfort, so ensure
+# it's available here
 if not hasattr(sys, "argv"):
     sys.argv = [""]
 
-import f90nml
-import logging
-import os
-import tensorflow as tf
+import f90nml  # noqa: E402
+import logging  # noqa: E402
+import os  # noqa: E402
+import tensorflow as tf  # noqa: E402
 
-from .debug import print_errors
-from ._filesystem import get_dir
+from .debug import print_errors  # noqa: E402
+from ._filesystem import get_dir  # noqa: E402
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -35,7 +39,7 @@ def _load_environment_vars_into_global():
 def _load_nml():
     namelist = f90nml.read(NML_PATH)
     logger.info(f"Loaded namelist for emulation from {NML_PATH}")
-    
+
     return namelist
 
 
@@ -66,7 +70,7 @@ def _unpack_predictions(predictions):
         model_outputs = {MODEL.output_names[0]: predictions.T}
     else:
         model_outputs = {
-            name: output.T # transposed adjust
+            name: output.T  # transposed adjust
             for name, output in zip(MODEL.output_names, predictions)
         }
 
@@ -96,9 +100,6 @@ def microphysics(state):
         ORIG_OUTPUTS = set(state).intersection(model_outputs)
 
     logger.info(f"Overwritting existing state fields: {ORIG_OUTPUTS}")
-    microphysics_diag = {
-        f"{name}_physics_diag": state[name]
-        for name in ORIG_OUTPUTS
-    }
+    microphysics_diag = {f"{name}_physics_diag": state[name] for name in ORIG_OUTPUTS}
     state.update(model_outputs)
     state.update(microphysics_diag)

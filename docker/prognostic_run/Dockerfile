@@ -143,8 +143,8 @@ RUN pip install /fv3net/workflows/prognostic_c48_run
 
 # Override microphysics emulation
 RUN pip install /fv3net/workflows/prognostic_c48_run/emulation
-ENV VAR_META_PATH = /fv3net/workflows/prognostic_c48_run/emulation/microphysics_parameter_metadata.yaml
-ENV OUTPUT_FREQ_SEC = 18000
+ENV VAR_META_PATH=/fv3net/workflows/prognostic_c48_run/emulation/microphysics_parameter_metadata.yaml
+ENV OUTPUT_FREQ_SEC=18000
 
 ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:${PYTHONPATH}
 WORKDIR /fv3net/workflows/prognostic_c48_run

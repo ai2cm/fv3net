@@ -8,7 +8,6 @@ import numpy as np
 import xarray as xr
 from datetime import timedelta
 from mpi4py import MPI
-from pathlib import Path
 
 from fv3gfs.util import ZarrMonitor, CubedSpherePartitioner, Quantity
 from .debug import print_errors
@@ -66,7 +65,7 @@ def _load_nml():
     path = os.path.join(os.getcwd(), "input.nml")
     namelist = f90nml.read(path)
     logger.info(f"Loaded namelist for ZarrMonitor from {path}")
-    
+
     return namelist
 
 
@@ -88,11 +87,7 @@ def _load_monitor(namelist):
     partitioner = CubedSpherePartitioner.from_namelist(namelist)
 
     output_zarr = os.path.join(os.getcwd(), "state_output.zarr")
-    output_monitor = ZarrMonitor(
-        output_zarr,
-        partitioner,
-        mpi_comm=MPI.COMM_WORLD
-    )
+    output_monitor = ZarrMonitor(output_zarr, partitioner, mpi_comm=MPI.COMM_WORLD)
     logger.info(f"Initialized zarr monitor at: {output_zarr}")
     return output_monitor
 
@@ -124,7 +119,7 @@ def _remove_io_suffix(key: str):
         logger.debug(f"Removed _output with result {var_key} for metadata mapping")
     else:
         var_key = key
-    
+
     return var_key
 
 
@@ -132,7 +127,7 @@ def _get_attrs(key: str):
     key = _remove_io_suffix(key)
     if key in VAR_METADATA:
         meta = dict(**VAR_METADATA[key])
-        meta = {k: json.dumps(v) for k,v in meta.items()}
+        meta = {k: json.dumps(v) for k, v in meta.items()}
     else:
         logger.debug(f"No metadata found for {key}... skipping")
         meta = {}
@@ -235,9 +230,13 @@ def store(state):
         if SAVE_ZARR:
             _store_zarr(state, time)
         else:
-            logger.debug(f"Zarr saving disabled by environment variable SAVE_ZARR={SAVE_ZARR}")
+            logger.debug(
+                f"Zarr saving disabled by environment variable SAVE_ZARR={SAVE_ZARR}"
+            )
 
         if SAVE_NC:
             _store_netcdf(state, time)
         else:
-            logger.debug(f"NetCDF saving disabled by environment variable SAVE_NC={SAVE_NC}")
+            logger.debug(
+                f"NetCDF saving disabled by environment variable SAVE_NC={SAVE_NC}"
+            )

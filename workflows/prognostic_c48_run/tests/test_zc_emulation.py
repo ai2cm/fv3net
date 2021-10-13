@@ -15,7 +15,7 @@ fortran_diagnostics: []
 experiment_name: microphysics_emulation
 forcing: "gs://vcm-fv3config/data/base_forcing/v1.1/"
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
-initial_conditions: gs://vcm-fv3config/data/initial_conditions/gfs_c12_example/v1.0 
+initial_conditions: gs://vcm-fv3config/data/initial_conditions/gfs_c12_example/v1.0
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
@@ -327,7 +327,9 @@ def completed_rundir(tmpdir_factory):
 
     config = yaml.safe_load(CONFIG_YAML)
     model_path = Path(__file__).parent.joinpath("test_model", "dummy_model.tf")
-    meta_path = Path(__file__).parent.parent.joinpath("emulation", "microphysics_parameter_metadata.yaml")
+    meta_path = Path(__file__).parent.parent.joinpath(
+        "emulation", "microphysics_parameter_metadata.yaml"
+    )
     os.environ["TF_MODEL_PATH"] = str(model_path)
     os.environ["OUTPUT_FREQ_SEC"] = str(1800)
     os.environ["VAR_META_PATH"] = str(meta_path)
