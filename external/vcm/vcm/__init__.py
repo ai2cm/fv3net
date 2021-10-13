@@ -17,7 +17,7 @@ from .convenience import (
     shift_timestamp,
     round_time,
 )
-from .calc import r2_score, local_time, thermo, cos_zenith_angle
+from .calc import r2_score, local_time, thermo, cos_zenith_angle, weighted_average
 from .calc.thermo import (
     mass_integrate,
     net_heating,
