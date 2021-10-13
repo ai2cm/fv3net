@@ -234,6 +234,31 @@
             "default": 0.0,
             "units": "kg/m^2/s"
         },
+        "storage_of_internal_energy_path_due_to_python": {
+            "type": "number",
+            "default": 0.0,
+            "units": "J/kg kg/m**2/s"
+        },
+        "storage_of_internal_energy_path_due_to_fv3_physics": {
+            "type": "number",
+            "default": 0.0,
+            "units": "J/kg kg/m**2/s"
+        },
+        "storage_of_internal_energy_path_due_to_dynamics": {
+            "type": "number",
+            "default": 0.0,
+            "units": "J/kg kg/m**2/s"
+        },
+        "storage_of_internal_energy_path_due_to_emulator": {
+            "type": "number",
+            "default": 0.0,
+            "units": "J/kg kg/m**2/s"
+        },
+        "storage_of_internal_energy_path_due_to_applied_physics": {
+            "type": "number",
+            "default": 0.0,
+            "units": "J/kg kg/m**2/s"
+        },
         "storage_of_specific_humidity_path_due_to_python": {
             "type": "number",
             "default": 0.0,
