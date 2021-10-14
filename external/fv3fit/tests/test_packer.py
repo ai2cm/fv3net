@@ -98,8 +98,7 @@ def test_to_dataset(names, dims_list, array: np.ndarray):
     packer = ArrayPacker(SAMPLE_DIM, names)
     packer.to_array(dataset)  # must pack first to know dimension lengths
     result = packer.to_dataset(array)
-    # to_dataset does not preserve coordinates
-    xr.testing.assert_equal(result, dataset.drop(dataset.coords.keys()))
+    xr.testing.assert_equal(result, dataset)
 
 
 @pytest.mark.parametrize(
