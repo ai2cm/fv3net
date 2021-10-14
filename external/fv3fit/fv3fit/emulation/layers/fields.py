@@ -45,36 +45,6 @@ class FieldInput(tf.keras.layers.Layer):
 
         return tensor
 
-    def get_config(self):
-
-        config = super().get_config()
-
-        if self._selection is not None:
-            serializable_selection = [
-                self._selection.start,
-                self._selection.stop,
-                self._selection.step,
-            ]
-        else:
-            serializable_selection = None
-
-        config.update(
-            {"norm_layer": self.normalize, "selection": serializable_selection}
-        )
-
-        return config
-
-    @classmethod
-    def from_config(cls, config):
-        config = dict(config)
-        norm_layer = config.pop("norm_layer")
-        selection = slice(*config.pop("selection"))
-
-        obj = cls(selection=selection, **config)
-        obj.normalize = norm_layer
-
-        return obj
-
 
 class FieldOutput(tf.keras.layers.Layer):
     """Connect linear dense output layer and denormalize"""
@@ -129,30 +99,6 @@ class FieldOutput(tf.keras.layers.Layer):
 
         return tensor
 
-    def get_config(self):
-
-        config = super().get_config()
-
-        config.update(
-            {
-                "nfeatures": self._nfeatures,
-                "denorm_layer": self.denorm,
-                "enforce_positive": self._enforce_positive,
-            }
-        )
-
-        return config
-
-    @classmethod
-    def from_config(cls, config):
-        config = dict(config)
-        denorm_layer = config.pop("denorm_layer")
-
-        obj = cls(**config)
-        obj.denorm = denorm_layer
-
-        return obj
-
 
 class IncrementStateLayer(tf.keras.layers.Layer):
     """
@@ -177,11 +123,6 @@ class IncrementStateLayer(tf.keras.layers.Layer):
                 increment by.
         """
         return initial + tendency * self.dt_sec
-
-    def get_config(self):
-        config = super().get_config()
-        config.update({"dt_sec": self._dt_sec_arg})
-        return config
 
 
 class IncrementedFieldOutput(tf.keras.layers.Layer):
@@ -240,29 +181,3 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
 
     def get_tendency_output(self, network_output):
         return self.tendency(network_output)
-
-    def get_config(self):
-        config = super().get_config()
-        config.update(
-            {
-                "enforce_positive": self._enforce_positive,
-                "dt_sec": self._dt_sec,
-                "nfeatures": self._nfeatures,
-            }
-        )
-
-        config["tendency_layer"] = self.tendency
-        config["increment_layer"] = self.increment
-
-        return config
-
-    @classmethod
-    def from_config(cls, config):
-        tendency = config.pop("tendency_layer")
-        increment = config.pop("increment_layer")
-
-        obj = cls(**config)
-        obj.tendency = tendency
-        obj.increment = increment
-
-        return obj

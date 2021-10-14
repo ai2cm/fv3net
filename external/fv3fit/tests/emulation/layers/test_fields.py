@@ -133,21 +133,6 @@ def get_IncrementedStateOutput():
     )
     return layer
 
-
-@pytest.mark.parametrize("get_layer_func",
-    [
-        get_FieldInput,
-        get_FieldOutput,
-        get_IncrementedStateOutput,
-    ]
-)
-def test_get_config_from_config(get_layer_func):
-
-    layer = get_layer_func()
-    config = layer.get_config()
-    rebuilt = layer.__class__.from_config(config)
-    assert rebuilt
-
 @pytest.mark.parametrize("get_layer_func", [get_FieldInput, get_FieldOutput])
 def test_layer_model_saving(tmpdir, get_layer_func):
 
@@ -164,13 +149,13 @@ def test_layer_model_saving(tmpdir, get_layer_func):
     np.testing.assert_array_equal(result, expected)
 
 
-def test_layer_IncrementeStateOutput_model_saving(tmpdir):
+def test_layer_IncrementedStateOutput_model_saving(tmpdir):
 
     tensor = get_test_tensor()
 
     in_ = tf.keras.layers.Input(tensor.shape[-1])
     dense = tf.keras.layers.Dense(64)(in_)
-    out = get_inc(in_, dense)
+    out = get_IncrementedStateOutput()(in_, dense)
     model = tf.keras.models.Model(inputs=in_, outputs=out)
 
     expected = model(tensor)
