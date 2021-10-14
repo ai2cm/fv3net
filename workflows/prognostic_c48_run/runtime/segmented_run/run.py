@@ -50,9 +50,11 @@ def run_segment(config: dict, rundir: str):
                 sys.stdout.write(c.decode("utf-8"))
                 f.write(c.decode("utf-8"))
 
+        return process.wait()
+
 
 def main():
     config_path, rundir = sys.argv[1:]
     with open(config_path) as f:
         config = fv3config.load(f)
-    run_segment(config, rundir)
+    sys.exit(run_segment(config, rundir))
