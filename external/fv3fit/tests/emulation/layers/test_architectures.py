@@ -6,6 +6,7 @@ from fv3fit.emulation.layers.architecture import (
     MLPBlock,
     RNNBlock,
     CombineInputs,
+    NoWeightSharingSLP,
 )
 
 
@@ -67,3 +68,24 @@ def test_CombineInputs_expand():
 
     assert result.shape == (20, 4, 3)
     np.testing.assert_array_equal(result[..., 2], tensor)
+
+
+def test_no_weight_sharing_shape():
+    tensor = tf.random.uniform([3, 4])
+    model = NoWeightSharingSLP(5, 6)
+    out = model(tensor)
+
+    assert [3, 5] == list(out.shape)
+
+
+def test_no_weight_sharing_num_weights():
+    tensor = tf.random.uniform([3, 4])
+    model = NoWeightSharingSLP(5, 6)
+    model(tensor)
+
+    num_weights_in_single_slp = 4 * 6 + 6 * 1 + 6 + 1
+    num_weights_expected = 5 * (num_weights_in_single_slp)
+
+    total = sum(np.prod(v.shape) for v in model.trainable_variables)
+
+    assert num_weights_expected == total

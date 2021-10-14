@@ -26,7 +26,7 @@ class InOutPredictor(Predictor):
 
     @classmethod
     def create(cls):
-        return cls("sample", cls.input_variables, cls.output_variables)
+        return cls(cls.input_variables, cls.output_variables)
 
     def predict(self, x):
         return x.rename({"in": "out"})
@@ -40,9 +40,8 @@ class InOutPredictor(Predictor):
 
 
 @pytest.mark.parametrize("sample_dims", [("x", "y"), ("y", "x")])
-@pytest.mark.parametrize("sample_dim_name", ["sample", "asdf"])
-def test__Predictor_predict_columnwise_dims_same_order(sample_dims, sample_dim_name):
-    model = IdentityPredictor2D(sample_dim_name, ["a"], ["a"])
+def test__Predictor_predict_columnwise_dims_same_order(sample_dims):
+    model = IdentityPredictor2D(["a"], ["a"])
     X = xr.Dataset({"a": (["x", "y", "z"], np.ones((3, 4, 5)))})
     ans = model.predict_columnwise(X, sample_dims=sample_dims)
     assert ans.a.dims == ("x", "y", "z")
@@ -58,7 +57,7 @@ def test__Predictor_predict_columnwise_dims_same_order_InOutPredictor(sample_dim
 
 
 def test__Predictor_predict_columnwise_dims_same_order_2d_output():
-    model = IdentityPredictor2D("sample", ["a", "b"], ["b"])
+    model = IdentityPredictor2D(["a", "b"], ["b"])
     X = xr.Dataset(
         {"a": (["x", "y", "z"], np.ones((3, 4, 5))), "b": (["x", "y"], np.ones((3, 4)))}
     )
@@ -67,7 +66,7 @@ def test__Predictor_predict_columnwise_dims_same_order_2d_output():
 
 
 def test__Predictor_predict_columnwise_dims_infers_feature_dim():
-    model = IdentityPredictor2D("sample", ["a"], ["a"])
+    model = IdentityPredictor2D(["a"], ["a"])
     X = xr.Dataset({"a": (["x", "y", "z"], np.ones((3, 4, 5)))})
     ans = model.predict_columnwise(X, feature_dim=["z"])
     assert ans.a.dims == X.a.dims
@@ -85,7 +84,7 @@ nx, ny, nz = 3, 4, 5
     ],
 )
 def test__Predictor_predict_columnwise_coordinates_same(coords,):
-    model = IdentityPredictor2D("sample", ["a"], ["a"])
+    model = IdentityPredictor2D(["a"], ["a"])
     X = xr.Dataset({"a": (["x", "y", "z"], np.ones((nx, ny, nz)))}, coords=coords)
     ans = model.predict_columnwise(X, sample_dims=["x", "y"])
     for coord in ans.coords:
@@ -93,7 +92,7 @@ def test__Predictor_predict_columnwise_coordinates_same(coords,):
 
 
 def test__Predictor_predict_columnwise_broadcast_dataset_dim_in_input():
-    model = IdentityPredictor2D("sample", ["a", "b"], ["a"])
+    model = IdentityPredictor2D(["a", "b"], ["a"])
     sample_dims = ("x", "y", DATASET_DIM_NAME)
     X = xr.Dataset(
         {

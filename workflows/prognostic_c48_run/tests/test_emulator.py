@@ -1,9 +1,7 @@
 import tensorflow as tf
 import joblib
-from runtime.emulator import (
-    PrognosticAdapter,
-    Config,
-)
+from runtime.transformers.emulator import Config, Adapter
+from runtime.transformers.core import StepTransformer
 from fv3fit.emulation.thermobasis.emulator import Config as MLConfig
 
 
@@ -19,15 +17,14 @@ def test_state_regression(state, regtest):
 def test_adapter_regression(state, regtest):
     tf.random.set_seed(0)
 
-    name = "add_one"
-
-    emulate = PrognosticAdapter(
-        Config(MLConfig(levels=state["air_temperature"].z.size)),
+    emulator = Adapter(Config(MLConfig(levels=state["air_temperature"].z.size)))
+    emulate = StepTransformer(
+        emulator,
         state,
+        "emulator",
         diagnostic_variables={
             "emulator_latent_heat_flux",
             "tendency_of_specific_humidity_due_to_emulator",
-            f"tendency_of_specific_humidity_due_to_{name}",
         },
         timestep=900,
     )
@@ -36,7 +33,7 @@ def test_adapter_regression(state, regtest):
         state["air_temperature"] += 1
         return {"some_diag": state["specific_humidity"]}
 
-    out = emulate(name, add_one_to_temperature)()
+    out = emulate(add_one_to_temperature)()
 
     # sort to make the check deterministic
     regression_state(out, regtest)

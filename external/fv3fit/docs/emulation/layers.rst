@@ -3,4 +3,6 @@
 Emulation layers
 ----------------
 
-WIP
+.. automodule:: fv3fit.emulation.layers
+    :members: MLPBlock, RNNBlock, CombineInputs, NoWeightSharingSLP
+

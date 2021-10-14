@@ -97,6 +97,8 @@ def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
         column_dq1 = 716.95 / 1004 * ds.net_heating
     elif "column_heating_due_to_machine_learning" in ds:
         column_dq1 = ds.column_heating_due_to_machine_learning
+    elif "storage_of_internal_energy_path_due_to_machine_learning" in ds:
+        column_dq1 = ds.storage_of_internal_energy_path_due_to_machine_learning
     else:
         # assume given dataset is for a baseline or verification run
         column_dq1 = xr.zeros_like(ds.PRATEsfc)
@@ -110,6 +112,11 @@ def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
 def _column_dq2(ds: xr.Dataset) -> xr.DataArray:
     if "net_moistening_due_to_machine_learning" in ds:
         column_dq2 = SECONDS_PER_DAY * ds.net_moistening_due_to_machine_learning
+    elif "storage_of_specific_humidity_path_due_to_machine_learning" in ds:
+        column_dq2 = (
+            SECONDS_PER_DAY
+            * ds.storage_of_specific_humidity_path_due_to_machine_learning
+        )
     elif "net_moistening" in ds:
         # for backwards compatibility
         warnings.warn(
