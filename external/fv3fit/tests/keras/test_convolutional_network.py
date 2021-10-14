@@ -3,6 +3,15 @@ import fv3fit
 import numpy as np
 import tensorflow as tf
 import pytest
+import sys
+from fv3fit.testing import numpy_print_precision
+
+
+def print_result(result: fv3fit.ConvolutionalNetwork, decimals: int, file=sys.stdout):
+    with numpy_print_precision(precision=decimals):
+        print(f"output: {result.output.numpy()}", file=file)
+        for i, hidden in enumerate(result.hidden_outputs):
+            print(f"hidden {i}: {hidden.numpy()}", file=file)
 
 
 def test_default_output(regtest):
@@ -11,7 +20,7 @@ def test_default_output(regtest):
     config = fv3fit.ConvolutionalNetworkConfig()
     array = np.random.randn(2, 10, 10, 3)
     out = config.build(array, n_features_out=3)
-    print(out, file=regtest)
+    print_result(out, decimals=5, file=regtest)
 
 
 def test_output_type():
