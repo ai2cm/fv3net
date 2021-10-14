@@ -14,6 +14,9 @@ from .keras._models.models import DenseHyperparameters
 from .keras._models.shared import (
     DenseNetworkConfig,
     DenseNetwork,
+    ConvolutionalNetworkConfig,
+    ConvolutionalNetwork,
+    LossConfig,
     PureKerasModel,
     TrainingLoopConfig,
     EpochResult,
