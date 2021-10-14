@@ -1,5 +1,5 @@
 from .append import append_zarr_along_time, append_segment
-from .post_process import post_process
+from .post_process import post_process, _post_process
 from .consolidate_metadata import consolidate_metadata
 from .fregrid import FregridLatLon
 

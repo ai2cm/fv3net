@@ -158,6 +158,10 @@ def post_process(rundir: str, destination: str, chunks: str, skip: str):
     This script rechunks the python zarr output and converts the netCDF
     outputs to zarr.
     """
+    _post_process(rundir, destination, chunks, skip)
+
+
+def _post_process(rundir: str, destination: str, chunks: str, skip: str):
     logger.info("Post-processing the run")
     authenticate()
 
