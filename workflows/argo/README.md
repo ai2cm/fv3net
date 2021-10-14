@@ -254,9 +254,9 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 | `train-times`           | `times` for `training` workflow                                       |
 | `test-times`            | `times` for `offline-diags` workflow                                  |
 | `public-report-output`  | `report-output` for `offline-diags` workflow                          |
-| `initial-condition`     | `initial-condition` for `prognostic-run` workflow                     |
-| `prognostic-run-config` | `config` for `prognostic-run` workflow                                |
-| `reference-restarts`    | `reference-restarts` for `prognostic-run` workflow                    |
+| `initial-condition`     | (optional) `initial-condition` for `prognostic-run` workflow          |
+| `prognostic-run-config` | (optional) `config` for `prognostic-run` workflow; if not provided, prognostic run is skipped |
+| `reference-restarts`    | (optional) `reference-restarts` for `prognostic-run` workflow         |
 | `bucket`                | (optional) Bucket to save output data; default 'vcm-ml-experiments'   |
 | `project`               | (optional) Project directory to save output data; default 'default'   |
 | `flags`                 | (optional) `flags` for `prognostic-run` workflow                      |

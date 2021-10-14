@@ -23,12 +23,11 @@ spec:
       - name: training-configs  # used in withParam
       - name: training-data-config
       - name: validation-data-config
-      - name: initial-condition
-      - name: reference-restarts
-      - name: flags
-        value: " "
       - name: public-report-output
       - {name: prognostic-run-config, value: "none"}  # if no custom config path provided, workflow skips prognostic run
+      - {name: initial-condition, value: "20160805.000000"}
+      - {name: reference-restarts, value: "gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts"}
+      - {name: flags, value: " "}
       - {name: bucket, value: "vcm-ml-experiments"}
       - {name: project, value: "default"}
       - {name: segment-count, value: "1"}
