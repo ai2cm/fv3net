@@ -30,6 +30,7 @@ from .calc.thermo import (
     column_integrated_heating_from_isobaric_transition,
     column_integrated_heating_from_isochoric_transition,
     mass_streamfunction,
+    internal_energy,
 )
 from .calc.histogram import histogram
 

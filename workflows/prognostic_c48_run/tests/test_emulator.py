@@ -1,10 +1,7 @@
 import tensorflow as tf
 import joblib
-from runtime.emulator import (
-    StepTransformer,
-    Config,
-    EmulatorAdapter,
-)
+from runtime.transformers.emulator import Config, Adapter
+from runtime.transformers.core import StepTransformer
 from fv3fit.emulation.thermobasis.emulator import Config as MLConfig
 
 
@@ -20,7 +17,7 @@ def test_state_regression(state, regtest):
 def test_adapter_regression(state, regtest):
     tf.random.set_seed(0)
 
-    emulator = EmulatorAdapter(Config(MLConfig(levels=state["air_temperature"].z.size)))
+    emulator = Adapter(Config(MLConfig(levels=state["air_temperature"].z.size)))
     emulate = StepTransformer(
         emulator,
         state,
