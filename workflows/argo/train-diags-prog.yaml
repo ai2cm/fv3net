@@ -24,11 +24,11 @@ spec:
       - name: training-data-config
       - name: validation-data-config
       - name: initial-condition
-      - name: prognostic-run-config
       - name: reference-restarts
       - name: flags
         value: " "
       - name: public-report-output
+      - {name: prognostic-run-config, value: "none"}  # if no custom config path provided, workflow skips prognostic run
       - {name: bucket, value: "vcm-ml-experiments"}
       - {name: project, value: "default"}
       - {name: segment-count, value: "1"}
@@ -106,6 +106,7 @@ spec:
               - name: flags
                 value: "{{inputs.parameters.flags}}"
       - name: prognostic-run
+        when: "{{inputs.parameters.prognostic-run-config}} != none"
         templateRef:
           name: prognostic-run
           template: prognostic-run
