@@ -13,7 +13,7 @@ import fv3kube
 
 from runtime.diagnostics.manager import FortranFileConfig
 from runtime.diagnostics.fortran import file_configs_to_namelist_settings
-from runtime.config import UserConfig
+from runtime.config import UserConfig, FV3CONFIG_KEYS
 from runtime.steppers.machine_learning import MachineLearningConfig
 
 
@@ -24,18 +24,6 @@ logger = logging.getLogger(__name__)
 
 PROGNOSTIC_DIAG_TABLE = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
 SUPPRESS_RANGE_WARNINGS = {"namelist": {"fv_core_nml": {"range_warn": False}}}
-FV3CONFIG_KEYS = {
-    "namelist",
-    "experiment_name",
-    "diag_table",
-    "data_table",
-    "field_table",
-    "initial_conditions",
-    "forcing",
-    "orographic_forcing",
-    "patch_files",
-    "gfs_analysis_data",
-}
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -90,8 +78,9 @@ def user_config_from_dict_and_args(
         config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
             "restarts_path", nudging_url
         )
-
-    user_config = dacite.from_dict(UserConfig, config_dict)
+    runtime_dict = {k: config_dict[k] for k in config_dict if k not in FV3CONFIG_KEYS}
+    runtime_dict.pop("base_version", None)
+    user_config = dacite.from_dict(UserConfig, runtime_dict, dacite.Config(strict=True))
 
     # insert command line option overrides
     if user_config.scikit_learn is None:
