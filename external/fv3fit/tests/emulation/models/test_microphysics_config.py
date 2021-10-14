@@ -32,6 +32,27 @@ def test_Config_from_dict():
     assert config.direct_out_variables == ["dummy_out"]
 
 
+def test_Config_from_dict_selection_map_sequences():
+    config = MicrophysicsConfig.from_dict(dict(selection_map={"dummy": [0, 2, 1]}))
+    assert config.selection_map["dummy"] == slice(0, 2, 1)
+
+
+def test_Config_asdict():
+
+    original = MicrophysicsConfig(
+        input_variables=["dummy_in"],
+        direct_out_variables=["dummy_out"],
+        selection_map=dict(dummy_in=slice(0, 10, 2), dummy_out=slice(25)),
+    )
+
+    config_d = original.asdict()
+    assert config_d["selection_map"]["dummy_in"] == [0, 10, 2]
+    assert config_d["selection_map"]["dummy_out"] == [None, 25, None]
+
+    result = MicrophysicsConfig.from_dict(config_d)
+    assert result == original
+
+
 def test_Config__processed_inputs():
 
     config = MicrophysicsConfig(

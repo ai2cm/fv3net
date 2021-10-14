@@ -17,17 +17,26 @@ class CombineInputs(tf.keras.layers.Layer):
         """
         super().__init__(*args, **kwargs)
 
-        self.combine_axis = combine_axis
-        self.expand_axis = expand_axis
+        self._combine_axis = combine_axis
+        self._expand_axis = expand_axis
 
     def call(self, inputs):
 
-        if self.expand_axis is not None:
+        if self._expand_axis is not None:
             inputs = [
-                tf.expand_dims(tensor, axis=self.expand_axis) for tensor in inputs
+                tf.expand_dims(tensor, axis=self._expand_axis) for tensor in inputs
             ]
 
-        return tf.concat(inputs, axis=self.combine_axis)
+        return tf.concat(inputs, axis=self._combine_axis)
+
+    def get_config(self):
+
+        config = super().get_config()
+        config.update({
+            "combine_axis": self._combine_axis,
+            "expand_axis": self._combine_axis,
+        })
+        return config
 
 
 class RNNBlock(tf.keras.layers.Layer):
@@ -61,6 +70,11 @@ class RNNBlock(tf.keras.layers.Layer):
                 at 0, should be false
         """
         super().__init__(*args, **kwargs)
+        self._channels = channels
+        self._dense_width = dense_width
+        self._dense_depth = dense_depth
+        self._activation = activation
+        self._go_backwards = go_backwards
 
         self.rnn = tf.keras.layers.SimpleRNN(
             channels, activation=activation, go_backwards=go_backwards
@@ -78,6 +92,17 @@ class RNNBlock(tf.keras.layers.Layer):
         output = self.dense(rnn_out)
 
         return output
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "channels": self._channels,
+            "dense_depth": self._dense_depth,
+            "dense_width": self._dense_width,
+            "activation": self._activation,
+            "go_backwards": self._go_backwards,
+        })
+        return config
 
 
 class MLPBlock(tf.keras.layers.Layer):
@@ -99,6 +124,10 @@ class MLPBlock(tf.keras.layers.Layer):
         """
         super().__init__(*args, **kwargs)
 
+        self._width = width
+        self._depth = depth
+        self._activation = activation
+
         self.dense = [
             tf.keras.layers.Dense(width, activation=activation) for i in range(depth)
         ]
@@ -111,6 +140,16 @@ class MLPBlock(tf.keras.layers.Layer):
             outputs = self.dense[i](outputs)
 
         return outputs
+
+    def get_config(self):
+
+        config = super().get_config()
+        config.update({
+            "width": self._width,
+            "depth": self._depth,
+            "activation": self._activation,
+        })
+        return config
 
 
 def NoWeightSharingSLP(

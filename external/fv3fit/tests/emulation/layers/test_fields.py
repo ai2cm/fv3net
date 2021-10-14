@@ -1,3 +1,5 @@
+import pytest
+import tempfile
 import numpy as np
 import tensorflow as tf
 
@@ -9,15 +11,19 @@ from fv3fit.emulation.layers.fields import (
 )
 
 
-def _get_tensor(nsamples, nfeatures):
-    return tf.convert_to_tensor(
-        np.arange(nsamples * nfeatures).reshape(nfeatures, nsamples).T, dtype=tf.float32
-    )
+def _get_data(shape):
+
+    num = int(np.prod(shape))
+    return np.arange(num).reshape(shape).astype(np.float32)
+
+
+def _get_tensor(shape):
+    return tf.convert_to_tensor(_get_data(shape))
 
 
 def test_FieldInput_no_args():
 
-    tensor = _get_tensor(10, 5)
+    tensor = _get_tensor((10, 5))
     field_in = FieldInput()
     result = field_in(tensor)
 
@@ -26,7 +32,7 @@ def test_FieldInput_no_args():
 
 def test_FieldInput():
 
-    tensor = _get_tensor(10, 3)
+    tensor = _get_tensor((10, 3))
     field_in = FieldInput(sample_in=tensor, normalize="mean_std", selection=slice(0, 2))
 
     result = field_in(tensor)
@@ -37,10 +43,10 @@ def test_FieldInput():
 
 def test_FieldOutput():
 
-    net_tensor = _get_tensor(20, 64)
-    sample = _get_tensor(20, 3)
+    net_tensor = _get_tensor((20, 64))
+    sample = _get_tensor((20, 3))
 
-    field_out = FieldOutput(sample, denormalize="mean_std")
+    field_out = FieldOutput(sample.shape[-1], sample_out=sample, denormalize="mean_std")
     result = field_out(net_tensor)
 
     assert result.shape == (20, 3)
@@ -49,10 +55,10 @@ def test_FieldOutput():
 
 def test_FieldOutput_no_norm():
 
-    net_tensor = _get_tensor(20, 64)
-    sample = _get_tensor(20, 3)
+    net_tensor = _get_tensor((20, 64))
+    sample = _get_tensor((20, 3))
 
-    field_out = FieldOutput(sample, denormalize=None)
+    field_out = FieldOutput(sample.shape[-1], sample_out=sample, denormalize=None)
     result = field_out(net_tensor)
 
     assert result.shape == (20, 3)
@@ -73,15 +79,91 @@ def test_increment_layer():
 
 def test_IncrementedFieldOutput():
 
-    net_tensor = _get_tensor(20, 64)
-    sample = _get_tensor(20, 3)
+    net_tensor = _get_tensor((20, 64))
+    sample = _get_tensor((20, 3))
 
     dt_sec = 2
 
-    field_out = IncrementedFieldOutput(sample, dt_sec, denormalize="mean_std")
+    field_out = IncrementedFieldOutput(sample.shape[-1], dt_sec, sample_out=sample, denormalize="mean_std")
     result = field_out(sample, net_tensor)
     tendency = field_out.get_tendency_output(net_tensor)
 
     assert result.shape == (20, 3)
     assert tendency.shape == (20, 3)
     assert field_out.tendency.denorm.fitted
+
+
+def get_FieldInput():
+
+    tensor = _get_tensor((20, 10))
+    input_layer = FieldInput(sample_in=tensor, normalize="mean_std", selection=slice(-3))
+
+    return input_layer
+
+
+def get_FieldOutput():
+
+    tensor = _get_tensor((20, 10))
+    output_layer = FieldOutput(tensor.shape[-1], sample_out=tensor, denormalize="mean_std", enforce_positive=True)
+
+    return output_layer
+
+
+def get_IncrementedStateOutput():
+
+    tensor = _get_tensor((20, 10))
+    layer = IncrementedFieldOutput(
+        tensor.shape[-1],
+        900,
+        sample_out=tensor,
+        denormalize="mean_std",
+        enforce_positive=True,
+    )
+    return layer
+
+
+@pytest.mark.parametrize(
+    "get_layer_func",
+    [
+        get_FieldInput,
+        get_FieldOutput,
+    ]
+)
+def test_config_instantiate(tmpdir, get_layer_func):
+
+    tensor = _get_tensor((20, 10))
+    layer = get_layer_func()
+
+    model = tf.keras.models.Sequential(
+        [layer, tf.keras.layers.Lambda(lambda x: x)]
+    )
+
+    expected = model(tensor)
+    model.save(tmpdir.join("model.tf"), save_format="tf")
+    loaded = tf.keras.models.load_model(tmpdir.join("model.tf"))
+    result = loaded(tensor)
+
+    np.testing.assert_array_equal(result, expected)
+
+
+def test_config_instantiate_IncrementeStateOutput(tmpdir):
+
+    tensor = _get_tensor((20, 10))
+
+    in_ = tf.keras.layers.Input(tensor.shape[-1])
+    dense = tf.keras.layers.Dense(64)(in_)
+    out = IncrementedFieldOutput(
+        tensor.shape[-1],
+        900,
+        sample_out=tensor,
+        denormalize="mean_std",
+        enforce_positive=True,
+    )(in_, dense)
+    model = tf.keras.models.Model(inputs=in_, outputs=out)
+
+    expected = model(tensor)
+    model.save(tmpdir.join("model.tf"), save_format="tf")
+    loaded = tf.keras.models.load_model(tmpdir.join("model.tf"))
+    result = loaded(tensor)
+
+    np.testing.assert_array_equal(result, expected)

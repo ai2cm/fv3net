@@ -23,7 +23,15 @@ def test__sequence_to_slice_too_long():
 
 def test__map_sequences_to_slices():
     d = {"a": [], "b": [1, 2, 2]}
-    result = config._convert_map_sequences_to_slices(d)
+    result = config.convert_map_sequences_to_slices(d)
+    for k in d:
+        assert k in result
+        assert isinstance(result[k], slice)
+
+
+def test__map_sequences_to_slices_multiple_types():
+    d = {"a": [], "b": [1, 2, 2], "c": slice(10)}
+    result = config.convert_map_sequences_to_slices(d)
     for k in d:
         assert k in result
         assert isinstance(result[k], slice)
