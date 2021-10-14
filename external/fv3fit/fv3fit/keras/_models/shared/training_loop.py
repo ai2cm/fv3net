@@ -30,12 +30,13 @@ class EpochResult:
 @dataclasses.dataclass
 class TrainingLoopConfig:
     """
-    epochs: number of times to run through the batches when training
-    workers: number of workers for parallelized loading of batches fed into
-        training, if 1 uses serial loading instead
-    max_queue_size: max number of batches to hold in the parallel loading queue
-    batch_size: actual batch_size to pass to keras model.fit,
-        independent of number of samples in each data batch in batches
+    Attributes:
+        epochs: number of times to run through the batches when training
+        workers: number of workers for parallelized loading of batches fed into
+            training, if 1 uses serial loading instead
+        max_queue_size: max number of batches to hold in the parallel loading queue
+        batch_size: actual batch_size to pass to keras model.fit,
+            independent of number of samples in each data batch in batches
     """
 
     epochs: int = 3
