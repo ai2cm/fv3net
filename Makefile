@@ -24,13 +24,13 @@ build_image_%:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/$*:$(CACHE_TAG) \
 		-f docker/$*/Dockerfile -t $(REGISTRY)/$*:$(VERSION) .
 
-push_image_%: test_image_%
+push_image_%: image_test_%
 	docker push $(REGISTRY)/$*:$(VERSION)
 
 pull_image_%:
 	docker pull $(REGISTRY)/$*:$(VERSION)
 
-test_image_%: build_image_%
+image_test_%: build_image_%
 	echo "No tests specified"
 
 build_images: $(addprefix build_image_, $(IMAGES))
@@ -47,7 +47,7 @@ build_image_prognostic_run:
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/notebook:$(VERSION) \
 		--target notebook .
 
-test_image_prognostic_run: build_image_prognostic_run
+image_test_prognostic_run: build_image_prognostic_run
 	docker run \
 		--rm \
 		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
