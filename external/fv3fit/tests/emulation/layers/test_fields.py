@@ -133,6 +133,7 @@ def get_IncrementedStateOutput():
     )
     return layer
 
+
 @pytest.mark.parametrize("get_layer_func", [get_FieldInput, get_FieldOutput])
 def test_layer_model_saving(tmpdir, get_layer_func):
 
