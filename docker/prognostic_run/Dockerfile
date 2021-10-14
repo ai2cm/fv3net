@@ -134,20 +134,10 @@ WORKDIR /fv3net/workflows/prognostic_c48_run
 CMD ["bash"]
 
 ###############################################################################
-#  prognostic-run tests
-###############################################################################
-FROM bld as test
-
-ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/key.json
-RUN --mount=type=secret,id=gcp,dst=/tmp/key.json \
-    ["bash", "-o", "pipefail", "-c", "pytest | tee /tmp/test-results.txt"]
-
-###############################################################################
 #  prognostic-run image
 ###############################################################################
 FROM bld AS prognostic-run
 # Copy results from test stage to ensure docker buildkit executes it
-COPY --from=test /tmp/test-results.txt .
 
 # build the docs
 RUN apt-get install -y graphviz && pip3 install sphinx sphinx_rtd_theme
