@@ -58,10 +58,9 @@ class FieldInput(tf.keras.layers.Layer):
         else:
             serializable_selection = None
 
-        config.update({
-            "norm_layer": self.normalize,
-            "selection": serializable_selection,
-        })
+        config.update(
+            {"norm_layer": self.normalize, "selection": serializable_selection}
+        )
 
         return config
 
@@ -91,7 +90,7 @@ class FieldOutput(tf.keras.layers.Layer):
     ):
         """
         Args:
-            nfeatures: size of the output feature dimension 
+            nfeatures: size of the output feature dimension
             sample_out: Output sample for variable to fit denormalization layer.
             denormalize: denormalize layer key to use on
                 the dense layer output
@@ -134,11 +133,13 @@ class FieldOutput(tf.keras.layers.Layer):
 
         config = super().get_config()
 
-        config.update({
-            "nfeatures": self._nfeatures,
-            "denorm_layer": self.denorm,
-            "enforce_positive": self._enforce_positive
-        })
+        config.update(
+            {
+                "nfeatures": self._nfeatures,
+                "denorm_layer": self.denorm,
+                "enforce_positive": self._enforce_positive,
+            }
+        )
 
         return config
 
@@ -179,9 +180,7 @@ class IncrementStateLayer(tf.keras.layers.Layer):
 
     def get_config(self):
         config = super().get_config()
-        config.update({
-            "dt_sec": self._dt_sec_arg
-        })
+        config.update({"dt_sec": self._dt_sec_arg})
         return config
 
 
@@ -244,11 +243,13 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
 
     def get_config(self):
         config = super().get_config()
-        config.update({
-            "enforce_positive": self._enforce_positive,
-            "dt_sec": self._dt_sec,
-            "nfeatures": self._nfeatures,
-        })
+        config.update(
+            {
+                "enforce_positive": self._enforce_positive,
+                "dt_sec": self._dt_sec,
+                "nfeatures": self._nfeatures,
+            }
+        )
 
         config["tendency_layer"] = self.tendency.get_config()
         config["increment_layer"] = self.increment.get_config()

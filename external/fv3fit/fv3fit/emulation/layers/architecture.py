@@ -32,10 +32,9 @@ class CombineInputs(tf.keras.layers.Layer):
     def get_config(self):
 
         config = super().get_config()
-        config.update({
-            "combine_axis": self._combine_axis,
-            "expand_axis": self._combine_axis,
-        })
+        config.update(
+            {"combine_axis": self._combine_axis, "expand_axis": self._combine_axis}
+        )
         return config
 
 
@@ -95,13 +94,15 @@ class RNNBlock(tf.keras.layers.Layer):
 
     def get_config(self):
         config = super().get_config()
-        config.update({
-            "channels": self._channels,
-            "dense_depth": self._dense_depth,
-            "dense_width": self._dense_width,
-            "activation": self._activation,
-            "go_backwards": self._go_backwards,
-        })
+        config.update(
+            {
+                "channels": self._channels,
+                "dense_depth": self._dense_depth,
+                "dense_width": self._dense_width,
+                "activation": self._activation,
+                "go_backwards": self._go_backwards,
+            }
+        )
         return config
 
 
@@ -144,11 +145,13 @@ class MLPBlock(tf.keras.layers.Layer):
     def get_config(self):
 
         config = super().get_config()
-        config.update({
-            "width": self._width,
-            "depth": self._depth,
-            "activation": self._activation,
-        })
+        config.update(
+            {
+                "width": self._width,
+                "depth": self._depth,
+                "activation": self._activation,
+            }
+        )
         return config
 
 

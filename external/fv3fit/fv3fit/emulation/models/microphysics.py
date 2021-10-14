@@ -52,7 +52,7 @@ class MicrophysicsConfig:
     enforce_positive: bool = True
 
     @classmethod
-    def from_dict(cls, dict_) -> "MicrophsyicsConfig":
+    def from_dict(cls, dict_) -> "MicrophysicsConfig":
 
         d = dict(**dict_)
         if "selection_map" in d:

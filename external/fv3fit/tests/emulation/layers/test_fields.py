@@ -1,5 +1,4 @@
 import pytest
-import tempfile
 import numpy as np
 import tensorflow as tf
 
@@ -84,7 +83,9 @@ def test_IncrementedFieldOutput():
 
     dt_sec = 2
 
-    field_out = IncrementedFieldOutput(sample.shape[-1], dt_sec, sample_out=sample, denormalize="mean_std")
+    field_out = IncrementedFieldOutput(
+        sample.shape[-1], dt_sec, sample_out=sample, denormalize="mean_std"
+    )
     result = field_out(sample, net_tensor)
     tendency = field_out.get_tendency_output(net_tensor)
 
@@ -96,7 +97,9 @@ def test_IncrementedFieldOutput():
 def get_FieldInput():
 
     tensor = _get_tensor((20, 10))
-    input_layer = FieldInput(sample_in=tensor, normalize="mean_std", selection=slice(-3))
+    input_layer = FieldInput(
+        sample_in=tensor, normalize="mean_std", selection=slice(-3)
+    )
 
     return input_layer
 
@@ -104,7 +107,12 @@ def get_FieldInput():
 def get_FieldOutput():
 
     tensor = _get_tensor((20, 10))
-    output_layer = FieldOutput(tensor.shape[-1], sample_out=tensor, denormalize="mean_std", enforce_positive=True)
+    output_layer = FieldOutput(
+        tensor.shape[-1],
+        sample_out=tensor,
+        denormalize="mean_std",
+        enforce_positive=True,
+    )
 
     return output_layer
 
@@ -122,21 +130,13 @@ def get_IncrementedStateOutput():
     return layer
 
 
-@pytest.mark.parametrize(
-    "get_layer_func",
-    [
-        get_FieldInput,
-        get_FieldOutput,
-    ]
-)
+@pytest.mark.parametrize("get_layer_func", [get_FieldInput, get_FieldOutput])
 def test_config_instantiate(tmpdir, get_layer_func):
 
     tensor = _get_tensor((20, 10))
     layer = get_layer_func()
 
-    model = tf.keras.models.Sequential(
-        [layer, tf.keras.layers.Lambda(lambda x: x)]
-    )
+    model = tf.keras.models.Sequential([layer, tf.keras.layers.Lambda(lambda x: x)])
 
     expected = model(tensor)
     model.save(tmpdir.join("model.tf"), save_format="tf")
