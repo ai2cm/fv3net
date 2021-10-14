@@ -1,0 +1,68 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: train-and-offline
+spec:
+  entrypoint: train-and-offline
+  volumes:
+    - name: workdir
+      emptyVol: {}
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+    - name: train-and-offline
+      inputs:
+        parameters:
+          - name: tag
+          - name: model-name
+          - name: training-config
+          - name: training-data-config
+          - name: validation-data-config
+          - name: public-report-output
+          - {name: bucket, value: "vcm-ml-experiments"}
+          - {name: project, value: "default"}
+          - {name: memory-training, value: 6Gi}
+          - {name: memory-offline-diags, value: 10Gi}
+          - {name: flags, value: " "}
+      steps:
+      - - name: resolve-output-url
+          templateRef:
+            name: resolve-output-url
+            template: resolve-output-url
+          arguments:
+            parameters:
+              - {name: bucket, value: "{{inputs.parameters.bucket}}"}
+              - {name: project, value: "{{inputs.parameters.project}}"}
+              - {name: tag, value: "{{inputs.parameters.tag}}"}
+      - - name: train
+          templateRef:
+            name: training
+            template: training
+          arguments:
+            parameters:
+              - {name: training_config, value: "{{inputs.parameters.training-config}}"}
+              - {name: training_data_config, value: "{{inputs.parameters.training-data-config}}"}
+              - {name: validation_data_config, value: "{{inputs.parameters.validation-data-config}}"}
+              - name: output
+                value: "{{steps.resolve-output-url.outputs.result}}/trained_models/{{inputs.parameters.model-name}}"
+              - {name: memory, value: "{{inputs.parameters.memory-training}}"}
+              - {name: flags, value: "{{inputs.parameters.flags}}"}
+      - - name: offline-diags
+          templateRef:
+            name: offline-diags
+            template: offline-diags
+          arguments:
+            parameters:
+              - name: ml-model
+                value: "{{steps.resolve-output-url.outputs.result}}/trained_models/{{inputs.parameters.model-name}}"
+              - {name: training_config, value: "{{inputs.parameters.training-config}}"}
+              - {name: training_data_config, value: "{{inputs.parameters.training-data-config}}"}
+              - {name: validation_data_config, value: "{{inputs.parameters.validation-data-config}}"}
+              - name: offline-diags-output
+                value: "{{steps.resolve-output-url.outputs.result}}/offline_diags/{{inputs.parameters.model-name}}"
+              - name: report-output
+                value: "{{inputs.parameters.public-report-output}}/{{inputs.parameters.model-name}}"
+              - name: memory
+                value: "{{inputs.parameters.memory-offline-diags}}"
