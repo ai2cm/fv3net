@@ -18,7 +18,7 @@ if [[ "$CIRCLE_BRANCH" == "master" ]]
 then
     echo "pushing untagged images as 'latest'"
     make push_image_$IMAGE VERSION=latest
-    make deploy_docs_$IMAGE
+    make deploy_docs_$IMAGE VERSION=latest
 fi
 
 if [[ -n "$CIRCLE_TAG" ]]
