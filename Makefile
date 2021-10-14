@@ -55,7 +55,7 @@ image_test_prognostic_run: build_image_prognostic_run
 		-w /fv3net/workflows/prognostic_c48_run \
 		$(REGISTRY)/prognostic_run:$(VERSION) pytest
 
-push_image_prognostic_run: build_image_prognostic_run
+push_image_prognostic_run: image_test_prognostic_run
 	docker push $(REGISTRY)/prognostic_run:$(VERSION)
 	docker push $(REGISTRY)/notebook:$(VERSION)
 
