@@ -12,7 +12,6 @@ then
 fi
 
 apt-get install -y make jq
-make build_image_$IMAGE
 
 
 if [[ "$CIRCLE_BRANCH" == "master" ]]
