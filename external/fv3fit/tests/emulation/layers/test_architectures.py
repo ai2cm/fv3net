@@ -89,3 +89,16 @@ def test_no_weight_sharing_num_weights():
     total = sum(np.prod(v.shape) for v in model.trainable_variables)
 
     assert num_weights_expected == total
+
+
+@pytest.mark.parametrize(
+    "layer_cls",
+    [CombineInputs, MLPBlock, RNNBlock]
+)
+def test_from_config(layer_cls):
+
+    layer = layer_cls()
+    config = layer.get_config()
+    rebuilt = layer_cls.from_config(config)
+
+    assert isinstance(rebuilt, layer_cls)

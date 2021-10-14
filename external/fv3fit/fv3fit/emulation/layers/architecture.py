@@ -6,7 +6,7 @@ class CombineInputs(tf.keras.layers.Layer):
     """Input tensor stacking with option to add a dimension for RNNs"""
 
     def __init__(
-        self, combine_axis: int, *args, expand_axis: Optional[int] = None, **kwargs
+        self, *args, combine_axis: int = -1, expand_axis: Optional[int] = None, **kwargs
     ):
         """
         Args:
