@@ -428,11 +428,11 @@ namelist:
     ldebug: false
 nudging: null
 online_emulator:
-  emulator: some/path
-  ignore_humidity_below: null
-  mask_kind: default
-  online: false
-  train: true
+  limit_negative_humidity: true
+  online: true
+  url: some/path
+  variables:
+    air_temperature: dQ1
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
 scikit_learn: null

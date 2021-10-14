@@ -187,7 +187,7 @@ class TimeLoop(
         self.monitor = Monitor.from_variables(
             config.diagnostic_variables, state=self._state, timestep=self._timestep,
         )
-        self._emulate = runtime.factories.get_emulator_adapter(
+        self._transform_physics = runtime.factories.get_fv3_physics_transformer(
             config, self._state, self._timestep,
         )
         self._prescribe_tendency = runtime.factories.get_tendency_prescriber(
@@ -216,15 +216,15 @@ class TimeLoop(
         partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(get_namelist())
         return fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
 
-    def emulate_or_prescribe_tendency(self, name: str, func: Step) -> Step:
-        if self._emulate is not None and self._prescribe_tendency is not None:
-            return self._prescribe_tendency("emulator", self._emulate(name, func))
-        elif self._emulate is None and self._prescribe_tendency is not None:
-            return self._prescribe_tendency(name, func)
-        elif self._emulate is not None and self._prescribe_tendency is None:
-            return self._emulate(name, func)
+    def emulate_or_prescribe_tendency(self, func: Step) -> Step:
+        if self._transform_physics is not None and self._prescribe_tendency is not None:
+            return self._prescribe_tendency(self._transform_physics(func))
+        elif self._transform_physics is None and self._prescribe_tendency is not None:
+            return self._prescribe_tendency(func)
+        elif self._transform_physics is not None and self._prescribe_tendency is None:
+            return self._transform_physics(func)
         else:
-            return self.monitor(name, func)
+            return func
 
     def _get_prephysics_stepper(
         self, config: UserConfig, hydrostatic: bool
@@ -471,7 +471,12 @@ class TimeLoop(
                 self._step_prephysics,
                 self._compute_physics,
                 self._apply_postphysics_to_physics_state,
-                self.emulate_or_prescribe_tendency("fv3_physics", self._apply_physics),
+                self.monitor(
+                    "applied_physics",
+                    self.emulate_or_prescribe_tendency(
+                        self.monitor("fv3_physics", self._apply_physics)
+                    ),
+                ),
                 self._compute_postphysics,
                 self.monitor("python", self._apply_postphysics_to_dycore_state),
             ]:

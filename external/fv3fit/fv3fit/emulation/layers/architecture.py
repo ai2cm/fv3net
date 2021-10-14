@@ -150,3 +150,22 @@ class MLPBlock(tf.keras.layers.Layer):
             "activation": self._activation,
         })
         return config
+
+
+def NoWeightSharingSLP(
+    n: int = 1, width: int = 128, activation="relu"
+) -> tf.keras.Model:
+    """Multi-output model which doesn't share any weights between outputs
+
+    Args:
+        n: number of outputs
+    """
+
+    return tf.keras.Sequential(
+        [
+            tf.keras.layers.Dense(n * width, activation=activation),
+            tf.keras.layers.Reshape([n, width]),
+            tf.keras.layers.LocallyConnected1D(1, 1),
+            tf.keras.layers.Flatten(),
+        ]
+    )

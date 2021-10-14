@@ -234,6 +234,31 @@
             "default": 0.0,
             "units": "kg/m^2/s"
         },
+        "storage_of_internal_energy_path_due_to_python": {
+            "type": "number",
+            "default": 0.0,
+            "units": "J/kg kg/m**2/s"
+        },
+        "storage_of_internal_energy_path_due_to_fv3_physics": {
+            "type": "number",
+            "default": 0.0,
+            "units": "J/kg kg/m**2/s"
+        },
+        "storage_of_internal_energy_path_due_to_dynamics": {
+            "type": "number",
+            "default": 0.0,
+            "units": "J/kg kg/m**2/s"
+        },
+        "storage_of_internal_energy_path_due_to_emulator": {
+            "type": "number",
+            "default": 0.0,
+            "units": "J/kg kg/m**2/s"
+        },
+        "storage_of_internal_energy_path_due_to_applied_physics": {
+            "type": "number",
+            "default": 0.0,
+            "units": "J/kg kg/m**2/s"
+        },
         "storage_of_specific_humidity_path_due_to_python": {
             "type": "number",
             "default": 0.0,
@@ -266,6 +291,14 @@
                 -4.188213798282645e-15
             ]
         },
+        "storage_of_mass_due_to_applied_physics": {
+            "type": "number",
+            "default": 0.0,
+            "units": "Pa/s",
+            "examples": [
+                -4.188213798282645e-15
+            ]
+        },
         "storage_of_total_water_path_due_to_nudging": {
             "type": "number",
             "default": 0.0,
@@ -276,7 +309,17 @@
             "default": 0.0,
             "units": "kg/m^2/s"
         },
+        "storage_of_specific_humidity_path_due_to_applied_physics": {
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s"
+        },
         "storage_of_total_water_path_due_to_emulator": {
+            "type": "number",
+            "default": 0.0,
+            "units": "kg/m^2/s"
+        },
+        "storage_of_total_water_path_due_to_applied_physics": {
             "type": "number",
             "default": 0.0,
             "units": "kg/m^2/s"
