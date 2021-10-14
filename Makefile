@@ -38,7 +38,7 @@ push_images: $(addprefix push_image_, $(IMAGES))
 
 
 # Prognostic run
-build_image_prognostic_run: image_test_prognostic_run
+build_image_prognostic_run:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
 		--target prognostic-run .
