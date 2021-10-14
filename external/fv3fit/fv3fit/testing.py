@@ -9,6 +9,17 @@ import xarray as xr
 import os
 import yaml
 from vcm import safe
+import contextlib
+
+
+@contextlib.contextmanager
+def numpy_print_precision(precision: int):
+    original_precision = np.get_printoptions()["precision"]
+    try:
+        np.set_printoptions(precision=precision)
+        yield
+    finally:
+        np.set_printoptions(precision=original_precision)
 
 
 @io.register("constant-output")

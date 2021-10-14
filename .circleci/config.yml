@@ -46,7 +46,9 @@ jobs:
             - /opt/conda/envs/fv3net
       - run:
           name: "Install fv3net packages"
-          command: make install_local_packages
+          command: |
+            make install_local_packages
+            source activate fv3net && pip freeze
       - run: 
           name: "Run test"
           no_output_timeout: 20m
