@@ -37,9 +37,6 @@ handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
 
-# Additional derived outputs (values) that are added to report if their
-# corresponding base ML outputs (keys) are present in model
-DERIVED_OUTPUTS_FROM_BASE_OUTPUTS = {"dQ1": "Q1", "dQ2": "Q2"}
 
 # variables that are needed in addition to the model features
 DIAGS_NC_NAME = "offline_diagnostics.nc"
@@ -288,14 +285,6 @@ def _get_predict_function(predictor, variables, grid):
     return transform
 
 
-def _derived_outputs_from_base_predictions(base_outputs):
-    derived_outputs = []
-    for base_output in base_outputs:
-        if base_output in DERIVED_OUTPUTS_FROM_BASE_OUTPUTS:
-            derived_outputs.append(DERIVED_OUTPUTS_FROM_BASE_OUTPUTS[base_output])
-    return derived_outputs
-
-
 def main(args):
     logger.info("Starting diagnostics routine.")
 
@@ -314,13 +303,6 @@ def main(args):
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
 
-    additional_derived_outputs = _derived_outputs_from_base_predictions(
-        model.output_variables
-    )
-    model = fv3fit.DerivedModel(
-        model, derived_output_variables=additional_derived_outputs
-    )
-
     model_variables = list(set(model.input_variables + model.output_variables + [DELP]))
 
     output_data_yaml = os.path.join(args.output_path, "data_config.yaml")
@@ -338,7 +320,7 @@ def main(args):
     )
 
     # save model senstivity figures- these exclude derived variables
-    base_model = model.base_model
+    base_model = model.base_model if isinstance(model, fv3fit.DerivedModel) else model
     try:
         plot_jacobian(
             base_model,
