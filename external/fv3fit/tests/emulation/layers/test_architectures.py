@@ -91,10 +91,7 @@ def test_no_weight_sharing_num_weights():
     assert num_weights_expected == total
 
 
-@pytest.mark.parametrize(
-    "layer_cls",
-    [CombineInputs, MLPBlock, RNNBlock]
-)
+@pytest.mark.parametrize("layer_cls", [CombineInputs, MLPBlock, RNNBlock])
 def test_from_config(layer_cls):
 
     layer = layer_cls()
