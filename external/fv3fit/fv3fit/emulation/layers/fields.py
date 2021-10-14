@@ -251,8 +251,8 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
             }
         )
 
-        config["tendency_layer"] = self.tendency.get_config()
-        config["increment_layer"] = self.increment.get_config()
+        config["tendency_layer"] = self.tendency
+        config["increment_layer"] = self.increment
 
         return config
 
@@ -264,3 +264,5 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
         obj = cls(**config)
         obj.tendency = tendency
         obj.increment = increment
+
+        return obj
