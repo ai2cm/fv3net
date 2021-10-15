@@ -5,7 +5,7 @@ from fv3fit._shared.packer import (
     pack,
     unpack,
     _unique_dim_name,
-    _count_features_2d,
+    _count_features,
 )
 from fv3fit.keras._models.packer import get_unpack_layer, Unpack
 import pytest
@@ -188,7 +188,7 @@ def test_sklearn_unpack(dataset: xr.Dataset):
     xr.testing.assert_allclose(unpacked_dataset, dataset)
 
 
-def test_count_features_2d():
+def test_count_features():
     SAMPLE_DIM_NAME = "axy"
     ds = xr.Dataset(
         data_vars={
@@ -199,7 +199,10 @@ def test_count_features_2d():
     )
     names = list(ds.data_vars.keys())
     assert len(names) == 3
-    out = _count_features_2d(names, ds, sample_dim_name=SAMPLE_DIM_NAME)
+    index = ds.to_stacked_array(
+        "feature", [SAMPLE_DIM_NAME], variable_dim="var"
+    ).indexes["feature"]
+    out = _count_features(index, variable_dim="var")
     assert len(out) == len(names)
     for name in names:
         assert name in out

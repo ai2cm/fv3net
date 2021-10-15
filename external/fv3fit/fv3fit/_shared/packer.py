@@ -5,7 +5,6 @@ from typing import (
     List,
     Dict,
     Tuple,
-    cast,
     Mapping,
     Sequence,
 )
@@ -102,11 +101,6 @@ class ArrayPacker:
 
         The first time this is called, the length of the feature dimension for each
         variable is stored, and can be retrieved on `packer.feature_counts`.
-
-        On subsequent calls, the feature dimensions are broadcast
-        to have this length. This ensures the returned array has the same shape on
-        subsequent calls, and allows packing a dataset of scalars against
-        [sample, feature] arrays.
         
         Args:
             dataset: dataset containing variables in self.pack_names to pack
@@ -114,12 +108,9 @@ class ArrayPacker:
         Returns:
             array: 2D [sample, feature] array with data from the dataset
         """
-        array, index = pack(dataset[self._pack_names], self._sample_dim_name)
-        # TODO: determine n_features from index instead of using _count_features_2d func
-        self._n_features = _count_features_2d(
-            self._pack_names, dataset, self._sample_dim_name
-        )
-        self._feature_index = index
+        array, feature_index = pack(dataset[self._pack_names], self._sample_dim_name)
+        self._n_features = _count_features(feature_index)
+        self._feature_index = feature_index
         return array
 
     def to_dataset(self, array: np.ndarray) -> xr.Dataset:
@@ -162,32 +153,13 @@ class ArrayPacker:
         return packer
 
 
-def _count_features_2d(
-    quantity_names: Iterable[str], dataset: xr.Dataset, sample_dim_name: str
-) -> Mapping[str, int]:
-    """
-    count features for (sample[, z]) arrays
-    """
-    for name in quantity_names:
-        if len(dataset[name].dims) > 2:
-            value = dataset[name]
-            raise ValueError(
-                "can only pack 1D/2D (sample[, z]) "
-                f"variables, recieved value for {name} with dimensions {value.dims}"
-            )
-    return_dict = {}
-    for name in quantity_names:
-        value = dataset[name]
-        if len(value.dims) == 1 and value.dims[0] == sample_dim_name:
-            return_dict[name] = 1
-        elif value.dims[0] != sample_dim_name:
-            raise ValueError(
-                f"cannot pack value for {name} whose first dimension is not the "
-                f"sample dimension ({sample_dim_name}), has dims {value.dims}"
-            )
-        else:
-            return_dict[name] = value.shape[1]
-    return return_dict
+def _count_features(index: pd.MultiIndex, variable_dim="variable") -> Mapping[str, int]:
+    variable_idx = index.names.index(variable_dim)
+    count = {}
+    for item in index:
+        variable = item[variable_idx]
+        count[variable] = count.setdefault(variable, 0) + 1
+    return count
 
 
 def unpack_matrix(
