@@ -41,8 +41,8 @@ diagnostics:
   - emulator_snow_depth_water_equivalent
 namelist:
   coupler_nml:
-    days: 0
-    hours: 3
+    days: 10
+    hours: 0
     minutes: 0
     seconds: 0
   diag_manager_nml:
