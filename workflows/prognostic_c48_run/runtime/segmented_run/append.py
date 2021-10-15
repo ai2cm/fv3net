@@ -1,6 +1,5 @@
 import sys
 import tempfile
-import warnings
 import vcm
 import os
 import fv3config
@@ -77,9 +76,4 @@ def append_segment_to_run_url(run_url):
 def main():
     run_url = sys.argv[1]
     exit_code = append_segment_to_run_url(run_url)
-
-    # We should fail if the exit code is nonzero, but the local tests return
-    # nonzero with the following complaint:
-    #
-    #  Attempting to use an MPI routine after finalizing MPICH
-    warnings.warn(UserWarning(f"FV3 exited with a nonzero exit-code: {exit_code}"))
+    sys.exit(exit_code)
