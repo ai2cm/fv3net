@@ -13,6 +13,8 @@ from .._shared import (
     Predictor,
     get_scaler,
     register_training_function,
+    multiindex_to_tuple,
+    tuple_to_multiindex,
 )
 from .._shared.config import RandomForestHyperparameters
 from .. import _shared
@@ -29,15 +31,6 @@ import sklearn.ensemble
 from typing import Optional, Iterable, Sequence
 import yaml
 from vcm import safe
-
-
-def _multiindex_to_tuple(index: pd.MultiIndex) -> tuple:
-    return list(index.names), list(index.to_list())
-
-
-def _tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
-    names, list_ = d
-    return pd.MultiIndex.from_tuples(list_, names=names)
 
 
 def _parse_metadata_backward_compatible(metadata: dict) -> tuple:
@@ -310,7 +303,7 @@ class SklearnWrapper(Predictor):
         metadata = {
             "input_variables": self.input_variables,
             "output_variables": self.output_variables,
-            "output_features": _multiindex_to_tuple(self.output_features_),
+            "output_features": multiindex_to_tuple(self.output_features_),
         }
 
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
@@ -334,7 +327,7 @@ class SklearnWrapper(Predictor):
             output_variables,
             output_features_tuple,
         ) = _parse_metadata_backward_compatible(metadata)
-        output_features_ = _tuple_to_multiindex(output_features_tuple)
+        output_features_ = tuple_to_multiindex(output_features_tuple)
 
         obj = cls(input_variables, output_variables, model)
         obj.target_scaler = scaler_obj

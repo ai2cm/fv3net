@@ -54,6 +54,15 @@ def unpack(
     return da.to_unstacked_dataset("feature")
 
 
+def multiindex_to_tuple(index: pd.MultiIndex) -> tuple:
+    return list(index.names), list(index.to_list())
+
+
+def tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
+    names, list_ = d
+    return pd.MultiIndex.from_tuples(list_, names=names)
+
+
 class ArrayPacker:
     """
     A class to handle converting xarray datasets to and from numpy arrays.
@@ -136,10 +145,9 @@ class ArrayPacker:
     def dump(self, f: TextIO):
         return yaml.safe_dump(
             {
-                "n_features": self._n_features,
                 "pack_names": self._pack_names,
                 "sample_dim_name": self._sample_dim_name,
-                "dims": self._dims,
+                "feature_index": multiindex_to_tuple(self._feature_index),
             },
             f,
         )
@@ -148,8 +156,8 @@ class ArrayPacker:
     def load(cls, f: TextIO):
         data = yaml.safe_load(f.read())
         packer = cls(data["sample_dim_name"], data["pack_names"])
-        packer._n_features = data["n_features"]
-        packer._dims = data["dims"]
+        packer._feature_index = tuple_to_multiindex(data["feature_index"])
+        packer._n_features = _count_features(packer._feature_index)
         return packer
 
 
