@@ -5,6 +5,13 @@
 
 # Training datasets
 
+## Run fv3 simulations
+
+To generate the 12 month initializations run
+
+    make create_data
+
+Requires nix to be installed.
 
 ## Data version control (dvc) instructions
 

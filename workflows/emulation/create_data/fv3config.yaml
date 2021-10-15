@@ -1,0 +1,67 @@
+base_version: v0.5
+forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+initial_conditions: $IC_URL
+diagnostics:
+- chunks:
+    time: 1
+  name: emulation.zarr
+  times:
+    frequency: 18000
+    kind: interval
+    times: null
+  variables:
+  - longitude
+  - latitude
+  - emulator_vertical_thickness_of_atmospheric_layer
+  - emulator_pressure_thickness_of_atmospheric_layer
+  - emulator_surface_pressure
+  - emulator_eastward_wind
+  - emulator_northward_wind
+  - emulator_vertical_wind
+  - emulator_air_temperature
+  - emulator_specific_humidity
+  - emulator_cloud_water_mixing_ratio
+  - emulator_ozone_mixing_ratio
+  - emulator_land_sea_mask
+  - emulator_total_soil_moisture
+  - emulator_liquid_soil_moisture
+  - emulator_soil_temperature
+  - emulator_surface_temperature
+  - emulator_canopy_water
+  - emulator_sea_ice_thickness
+  - emulator_latent_heat_flux
+  - emulator_sensible_heat_flux
+  - emulator_total_precipitation
+  - tendency_of_air_temperature_due_to_fv3_physics
+  - tendency_of_specific_humidity_due_to_fv3_physics
+  - tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics
+  - tendency_of_eastward_wind_due_to_fv3_physics
+  - tendency_of_northward_wind_due_to_fv3_physics
+  - tendency_of_ozone_mixing_ratio_due_to_fv3_physics
+  - emulator_snow_depth_water_equivalent
+namelist:
+  coupler_nml:
+    days: 0
+    hours: 3
+    minutes: 0
+    seconds: 0
+  diag_manager_nml:
+    flush_nc_files: true
+  fv_core_nml:
+    do_sat_adj: false
+    warm_start: false
+    external_ic: true
+    external_eta: false
+    nggps_ic: true
+    make_nh: true
+    mountain: false
+    na_init: 1
+    nwat: 2
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false
+  gfs_physics_nml:
+    satmedmf: false
+    hybedmf: true
+    imp_physics: 99
+    ncld: 1
+    ldiag3d: true
