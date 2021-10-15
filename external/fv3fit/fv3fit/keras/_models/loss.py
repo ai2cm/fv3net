@@ -56,7 +56,10 @@ def _pack_weights(y_packer: ArrayPacker, **weights):
             array = np.zeros([1, y_packer.feature_counts[name]]) + weight
             dims = [y_packer.sample_dim_name, f"{name}_feature"]
         data_vars[name] = (dims, array)
-    return y_packer.to_array(xr.Dataset(data_vars))  # type: ignore
+    # TODO: make ArrayPacker.to_array not have hidden side effects
+    # for now, we make a new packer to ensure the y_packer state is not modified
+    new_packer = ArrayPacker(y_packer.sample_dim_name, y_packer.pack_names)
+    return new_packer.to_array(xr.Dataset(data_vars))  # type: ignore
 
 
 def _divide_scalar_weights_by_feature_counts(
