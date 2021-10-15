@@ -11,7 +11,7 @@ from datetime import timedelta
 from mpi4py import MPI
 
 from fv3gfs.util import ZarrMonitor, CubedSpherePartitioner, Quantity
-from .debug import print_errors
+from ..debug import print_errors
 
 
 logger = logging.getLogger(__name__)
@@ -239,7 +239,3 @@ class Config:
 
             if self.save_nc:
                 _store_netcdf(state, time, self.nc_dump_path)
-
-
-config = Config.from_environ(os.environ)
-store = config.store

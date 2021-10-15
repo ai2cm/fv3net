@@ -1,5 +1,2 @@
-import os
-from .monitor import Config
+from ._monitor import store
 from .emulate import microphysics
-
-store = Config.from_environ(os.environ).store
