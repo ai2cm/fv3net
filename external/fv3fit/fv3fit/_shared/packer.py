@@ -161,9 +161,9 @@ class ArrayPacker:
         return packer
 
 
-def _count_features(index: pd.MultiIndex, variable_dim="variable") -> Mapping[str, int]:
+def _count_features(index: pd.MultiIndex, variable_dim="variable") -> Dict[str, int]:
     variable_idx = index.names.index(variable_dim)
-    count = {}
+    count: Dict[str, int] = {}
     for item in index:
         variable = item[variable_idx]
         count[variable] = count.setdefault(variable, 0) + 1
