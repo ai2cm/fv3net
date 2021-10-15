@@ -285,6 +285,16 @@ def _get_predict_function(predictor, variables, grid):
     return transform
 
 
+def _get_data_mapper_if_exists(config):
+    if isinstance(config, loaders.BatchesFromMapperConfig):
+        return config.load_mapper()
+    elif isinstance(config, loaders.BatchesConfig):
+        if config.kwargs.get("mapping_function") == "open_zarr":
+            return loaders.open_zarr(config.kwargs.get("data_path"))
+    else:
+        return None
+
+
 def main(args):
     logger.info("Starting diagnostics routine.")
 
@@ -346,15 +356,14 @@ def main(args):
             )
             pass
 
-    if isinstance(config, loaders.BatchesFromMapperConfig):
-        mapper = config.load_mapper()
-        # compute transected and zonal diags
+    mapper = _get_data_mapper_if_exists(config)
+    if mapper is not None:
         snapshot_time = args.snapshot_time or sorted(list(mapper.keys()))[0]
         snapshot_key = nearest_time(snapshot_time, list(mapper.keys()))
         ds_snapshot = predict_function(mapper[snapshot_key])
-
+        # add snapshotted prediction to saved diags.nc
         ds_diagnostics = ds_diagnostics.merge(
-            ds_snapshot[model.output_variables].rename(
+            safe.get_variables(ds_snapshot, model.output_variables).rename(
                 {v: f"{v}_snapshot" for v in model.output_variables}
             )
         )
@@ -362,8 +371,6 @@ def main(args):
             var for var in model.output_variables if is_3d(ds_snapshot[var])
         ]
         ds_transect = _get_transect(ds_snapshot, grid, transect_vertical_vars)
-
-        # write diags and diurnal datasets
         _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
 
     _write_nc(
