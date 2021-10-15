@@ -53,9 +53,9 @@ def dump_dataclass(obj, yaml_filename):
 
 def main(args):
     with open(args.training_config, "r") as f:
-        training_config = fv3fit.TrainingConfig.from_dict(yaml.load(f))
+        training_config = fv3fit.TrainingConfig.from_dict(yaml.safe_load(f))
     with open(args.training_data_config, "r") as f:
-        training_data_config = loaders.BatchesLoader.from_dict(yaml.load(f))
+        training_data_config = loaders.BatchesLoader.from_dict(yaml.safe_load(f))
 
     fv3fit.set_random_seed(training_config.random_seed)
 
@@ -69,7 +69,7 @@ def main(args):
     )
     if args.validation_data_config is not None:
         with open(args.validation_data_config, "r") as f:
-            validation_data_config = loaders.BatchesLoader.from_dict(yaml.load(f))
+            validation_data_config = loaders.BatchesLoader.from_dict(yaml.safe_load(f))
         dump_dataclass(
             validation_data_config,
             os.path.join(args.output_path, "validation_data.yaml"),
