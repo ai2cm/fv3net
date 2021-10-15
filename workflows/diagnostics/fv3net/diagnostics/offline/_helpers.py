@@ -191,14 +191,6 @@ def get_metric_string(
     return f"{value:.{precision}f} +/- {std:.{precision}f}"
 
 
-def vars_to_plot_maps(metrics):
-    names = []
-    for key in metrics:
-        if "_r2_2d_" in key and key.split("_r2_2d_")[-1] == "global":
-            names.append(key.split("_r2_2d_")[0])
-    return list(set(names))
-
-
 def units_from_name(var):
     return UNITS.get(var.lower(), "[units unavailable]")
 
