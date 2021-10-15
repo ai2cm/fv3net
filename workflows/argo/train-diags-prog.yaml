@@ -38,7 +38,7 @@ spec:
       - {name: memory-offline-diags, value: 10Gi}
       - {name: training-flags, value: " "}
       - {name: online-diags-flags, value: " "}
-      - {name: skip-prognostic-run, value: "false"}
+      - {name: do-prognostic-run, value: "true"}
     dag:
       tasks:
       - name: resolve-output-url
@@ -107,7 +107,7 @@ spec:
               - name: flags
                 value: "{{inputs.parameters.flags}}"
       - name: prognostic-run
-        when: "{{inputs.parameters.skip-prognostic-run}} == true"
+        when: "{{inputs.parameters.do-prognostic-run}} == true"
         templateRef:
           name: prognostic-run
           template: prognostic-run
