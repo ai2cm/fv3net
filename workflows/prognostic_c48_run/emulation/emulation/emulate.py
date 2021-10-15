@@ -50,7 +50,7 @@ def _get_timestep(namelist):
 
 @print_errors
 def _load_tf_model() -> tf.keras.Model:
-    logger.debug(f"Loading keras model: {TF_MODEL_PATH}")
+    logger.info(f"Loading keras model: {TF_MODEL_PATH}")
     with get_dir(TF_MODEL_PATH) as local_model_path:
         model = tf.keras.models.load_model(local_model_path)
 
