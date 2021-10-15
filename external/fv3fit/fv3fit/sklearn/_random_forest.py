@@ -4,7 +4,6 @@ import io
 import numpy as np
 from copy import copy
 import xarray as xr
-import pandas as pd
 import fsspec
 import joblib
 from .._shared import (
