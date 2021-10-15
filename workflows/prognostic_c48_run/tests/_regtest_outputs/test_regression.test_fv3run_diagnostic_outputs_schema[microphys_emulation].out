@@ -1,6 +1,6 @@
 xarray.Dataset {
 dimensions:
-	time = 2 ;
+	time = 3 ;
 	tile = 6 ;
 	y = 12 ;
 	x = 12 ;
