@@ -1,6 +1,7 @@
 import logging
 import os
 import json
+from typing import Mapping
 import cftime
 import f90nml
 import yaml
@@ -21,14 +22,6 @@ DIMS_MAP = {
     2: ["sample", "z"],
 }
 
-# Initialized later from within functions to print errors
-VAR_META_PATH = None
-SAVE_NC = None
-SAVE_ZARR = None
-OUTPUT_FREQ_SEC = None
-INITIAL_TIME = None
-MONITOR = None
-
 
 def _bool_from_str(value: str):
     affirmatives = ["y", "yes", "true"]
@@ -45,22 +38,6 @@ def _bool_from_str(value: str):
 
 
 @print_errors
-def _load_environment_vars_into_global():
-    global VAR_META_PATH
-    global SAVE_NC
-    global SAVE_ZARR
-    global OUTPUT_FREQ_SEC
-
-    cwd = os.getcwd()
-    logger.debug(f"Current working directory: {cwd}")
-
-    VAR_META_PATH = os.environ["VAR_META_PATH"]
-    SAVE_NC = _bool_from_str(os.environ.get("SAVE_NC", "True"))
-    SAVE_ZARR = _bool_from_str(os.environ.get("SAVE_ZARR", "True"))
-    OUTPUT_FREQ_SEC = int(os.environ["OUTPUT_FREQ_SEC"])
-
-
-@print_errors
 def _load_nml():
     path = os.path.join(os.getcwd(), "input.nml")
     namelist = f90nml.read(path)
@@ -70,14 +47,15 @@ def _load_nml():
 
 
 @print_errors
-def _load_metadata():
+def _load_metadata(path: str):
     try:
-        with open(str(VAR_META_PATH), "r") as f:
+        with open(str(path), "r") as f:
             variable_metadata = yaml.safe_load(f)
-            logger.info(f"Loaded variable metadata from: {VAR_META_PATH}")
+            logger.info(f"Loaded variable metadata from: {path}")
     except FileNotFoundError:
         variable_metadata = {}
-        logger.info(f"No metadata found at: {VAR_META_PATH}")
+        logger.info(f"No metadata found at: {path}")
+
     return variable_metadata
 
 
@@ -95,19 +73,6 @@ def _load_monitor(namelist):
 @print_errors
 def _get_timestep(namelist):
     return int(namelist["coupler_nml"]["dt_atmos"])
-
-
-_load_environment_vars_into_global()
-namelist = _load_nml()
-DT_SEC = _get_timestep(namelist)
-VAR_METADATA = _load_metadata()
-
-if SAVE_ZARR:
-    MONITOR = _load_monitor(namelist)
-
-
-def print_rank(state):
-    logger.info(MPI.COMM_WORLD.Get_rank())
 
 
 def _remove_io_suffix(key: str):
@@ -177,27 +142,16 @@ def _translate_time(time):
     return datetime
 
 
-def _store_interval_check(time):
+def _create_nc_path():
 
-    global INITIAL_TIME
-
-    if INITIAL_TIME is None:
-        INITIAL_TIME = time
-
-    # add increment since we are in the middle of timestep
-    increment = timedelta(seconds=DT_SEC)
-    elapsed = (time + increment) - INITIAL_TIME
-
-    logger.debug(f"Time elapsed after increment: {elapsed}")
-    logger.debug(f"Output frequency modulus: {elapsed.seconds % OUTPUT_FREQ_SEC}")
-
-    return elapsed.seconds % OUTPUT_FREQ_SEC == 0
-
-
-def _store_netcdf(state, time):
     nc_dump_path = os.path.join(os.getcwd(), "netcdf_output")
     if not os.path.exists(nc_dump_path):
         os.makedirs(nc_dump_path, exist_ok=True)
+
+    return nc_dump_path
+
+
+def _store_netcdf(state, time, nc_dump_path):
 
     logger.debug(f"Model fields: {list(state.keys())}")
     logger.info(f"Storing state to netcdf on rank {MPI.COMM_WORLD.Get_rank()}")
@@ -210,33 +164,82 @@ def _store_netcdf(state, time):
     ds.to_netcdf(out_path)
 
 
-def _store_zarr(state, time):
+def _store_zarr(state, time, monitor):
 
     logger.info(f"Storing zarr model state on rank {MPI.COMM_WORLD.Get_rank()}")
     logger.debug(f"Model fields: {list(state.keys())}")
     state = _convert_to_quantities(state)
     state["time"] = time
-    MONITOR.store(state)
+    monitor.store(state)
 
 
-@print_errors
-def store(state):
+class Config:
+    """
+    Singleton class for configuring and using storage
+    """
 
-    state = dict(**state)
-    time = _translate_time(state.pop("model_time"))
+    def __init__(self, var_meta_path: str, output_freq_sec: int, save_nc: bool = True, save_zarr: bool = True):
+        self.var_meta_path = var_meta_path
+        self.output_freq_sec = output_freq_sec
+        self.save_nc = save_nc
+        self.save_zarr = save_zarr
 
-    if _store_interval_check(time):
+        self.namelist = _load_nml()
 
-        if SAVE_ZARR:
-            _store_zarr(state, time)
+        self.initial_time = None
+        self.dt_sec = _get_timestep(self.namelist)
+        self.metadata = _load_metadata(self.var_meta_path)
+
+        if self.save_zarr:
+            self.monitor = _load_monitor(self.namelist)
         else:
-            logger.debug(
-                f"Zarr saving disabled by environment variable SAVE_ZARR={SAVE_ZARR}"
-            )
+            self.monitor = None
 
-        if SAVE_NC:
-            _store_netcdf(state, time)
-        else:
-            logger.debug(
-                f"NetCDF saving disabled by environment variable SAVE_NC={SAVE_NC}"
-            )
+        if self.save_nc:
+            self.nc_dump_path = _create_nc_path()
+
+    @classmethod
+    def from_environ(cls, d: Mapping):
+
+        cwd = os.getcwd()
+        logger.debug(f"Current working directory: {cwd}")
+
+        var_meta_path = str(d["VAR_META_PATH"])
+        output_freq_sec = int(d["OUTPUT_FREQ_SEC"])
+        save_nc = _bool_from_str(d.get("SAVE_NC", "True"))
+        save_zarr = _bool_from_str(d.get("SAVE_ZARR", "True"))
+
+        return cls(var_meta_path, output_freq_sec, save_nc=save_nc, save_zarr=save_zarr)
+
+    def _store_interval_check(self, time):
+
+        # add increment since we are in the middle of timestep
+        increment = timedelta(seconds=self.dt_sec)
+        elapsed = (time + increment) - self.initial_time
+
+        logger.debug(f"Time elapsed after increment: {elapsed}")
+        logger.debug(f"Output frequency modulus: {elapsed.seconds % self.output_freq_sec}")
+
+        return elapsed.seconds % self.output_freq_sec == 0
+
+    def store(self, state):
+
+        state = dict(**state)
+        time = _translate_time(state.pop("model_time"))
+
+        if self.initial_time is None:
+            self.initial_time = time
+
+        if self._store_interval_check(time):
+
+            logger.debug("Store flags: save_zarr={self.save_zarr}, save_nc={self.save_nc}")
+
+            if self.save_zarr:
+                _store_zarr(state, time, self.monitor)
+
+            if self.save_nc:
+                _store_netcdf(state, time, self.nc_dump_path)
+
+
+config = Config.from_environ(os.environ)
+store = config.store
