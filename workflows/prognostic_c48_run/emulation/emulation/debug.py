@@ -35,7 +35,7 @@ def print_location_ping(state):
 
 def dump_state(state):
 
-    DUMP_PATH = str(os.environ.get("STATE_DUMP_PATH"))
+    DUMP_PATH = str(os.environ.get("STATE_DUMP_PATH", "."))
 
     try:
         rank = state.get("rank")
