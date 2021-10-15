@@ -3,7 +3,6 @@ import xarray as xr
 import numpy as np
 
 from fv3net.diagnostics.offline._helpers import (
-    sample_outside_train_range,
     get_variable_indices,
     _count_features_2d,
 )
@@ -88,18 +87,6 @@ def test_get_variable_indices():
         ),
     ],
 )
-def test_sample_outside_train_range(
-    train, all, n, expected_length, allowed_test_samples
-):
-    if expected_length:
-        test = sample_outside_train_range(all, train, n)
-        assert len(test) == expected_length
-        assert set(test).issubset(allowed_test_samples)
-    else:
-        with pytest.raises(ValueError):
-            test = sample_outside_train_range(all, train, n)
-
-
 def test_count_features_2d():
     SAMPLE_DIM_NAME = "axy"
     ds = xr.Dataset(
