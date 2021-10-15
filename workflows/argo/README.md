@@ -267,6 +267,7 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 | `memory-offline-diags`  | (optional) `memory` for `offline-diags` workflow; default 6Gi         |
 | `training-flags`        | (optional) `flags` for `training` workflow                            |
 | `online-diags-flags`    | (optional) `flags` for `prognostic-run-diags` workflow                |
+| `skip-prognostic-run`   | (optional) skip prognostic run step; default "false"                  |
 
 Output for the various steps will be written to `gs://{bucket}/{project}/$(date +%F)/{tag}`.
 Slashes (`/`) are not permitted in `bucket`, `project` and `tag` to preserve the depth 
