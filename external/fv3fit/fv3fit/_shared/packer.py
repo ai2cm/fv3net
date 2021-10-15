@@ -38,7 +38,7 @@ def pack(data: xr.Dataset, sample_dim: str) -> Tuple[np.ndarray, pd.MultiIndex]:
     feature_dim_name = _unique_dim_name(data, sample_dim)
     stacked = data.to_stacked_array(feature_dim_name, sample_dims=[sample_dim])
     return (
-        stacked.transpose(sample_dim, feature_dim_name).data,
+        stacked.transpose(sample_dim, feature_dim_name).values,
         stacked.indexes[feature_dim_name],
     )
 
