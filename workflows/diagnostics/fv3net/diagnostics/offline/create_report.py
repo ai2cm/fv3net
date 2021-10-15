@@ -20,7 +20,6 @@ from ._helpers import (
     copy_outputs,
     tidy_title,
     units_from_name,
-    vars_to_plot_maps,
     is_3d,
     drop_physics_vars,
     drop_temperature_humidity_tendencies_if_not_predicted,
@@ -113,39 +112,48 @@ def render_model_sensitivity(figures_dir, output_dir) -> str:
     )
 
 
-def render_time_mean_maps(output_dir, ds_diags, column_integrated_vars) -> str:
+def render_time_mean_maps(output_dir, ds_diags) -> str:
     report_sections: MutableMapping[str, Sequence[str]] = {}
+    predictands_2d = [v for v in ds_diags if DERIVATION_DIM_NAME in ds_diags[v].dims]
 
-    # time averaged column integrated quantity maps
-    for var in column_integrated_vars:
-        ds_diags[f"error_in_{var}"] = (
-            ds_diags.sel(derivation="predict")[var]
-            - ds_diags.sel(derivation="target")[var]
-        )
-        fig = diagplot.plot_column_integrated_var(
-            ds_diags, var, derivation_plot_coords=ds_diags[DERIVATION_DIM_NAME].values,
-        )
-        report.insert_report_figure(
-            report_sections,
-            fig,
-            filename=f"{var}.png",
-            section_name="Time averaged maps",
-            output_dir=output_dir,
-        )
-        fig_error = diagplot.plot_column_integrated_var(
-            ds_diags,
-            f"error_in_{var}",
-            derivation_plot_coords=None,
-            derivation_dim=None,
-        )
-        report.insert_report_figure(
-            report_sections,
-            fig_error,
-            filename=f"error_in_{var}.png",
-            section_name="Time averaged maps",
-            output_dir=output_dir,
-        )
-    return report.create_html(sections=report_sections, title="Time mean maps",)
+    # snapshot maps
+    snapshot_vars = [v for v in predictands_2d if v.endswith("snapshot")]
+    time_mean_vars = [v for v in predictands_2d if not v.endswith("snapshot")]
+
+    for section, vars in zip(
+        ["Time averaged maps", "Snapshot maps"], [time_mean_vars, snapshot_vars]
+    ):
+        for var in vars:
+            ds_diags[f"error_in_{var}"] = (
+                ds_diags.sel(derivation="predict")[var]
+                - ds_diags.sel(derivation="target")[var]
+            )
+            fig = diagplot.plot_column_integrated_var(
+                ds_diags,
+                var,
+                derivation_plot_coords=ds_diags[DERIVATION_DIM_NAME].values,
+            )
+            report.insert_report_figure(
+                report_sections,
+                fig,
+                filename=f"{var}.png",
+                section_name=section,
+                output_dir=output_dir,
+            )
+            fig_error = diagplot.plot_column_integrated_var(
+                ds_diags,
+                f"error_in_{var}",
+                derivation_plot_coords=None,
+                derivation_dim=None,
+            )
+            report.insert_report_figure(
+                report_sections,
+                fig_error,
+                filename=f"error_in_{var}.png",
+                section_name=section,
+                output_dir=output_dir,
+            )
+    return report.create_html(sections=report_sections, title="Maps",)
 
 
 def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir) -> str:
@@ -154,7 +162,7 @@ def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir)
     # Links
     report_sections["Links"] = [
         report.Link("Model input sensitivity", MODEL_SENSITIVITY_HTML),
-        report.Link("Time mean maps", TIME_MEAN_MAPS_HTML),
+        report.Link("Maps", TIME_MEAN_MAPS_HTML),
     ]
 
     # histogram of timesteps used for testing
@@ -332,11 +340,7 @@ def main(args):
     with open(os.path.join(temp_output_dir.name, MODEL_SENSITIVITY_HTML), "w") as f:
         f.write(html_model_sensitivity)
 
-    html_time_mean_maps = render_time_mean_maps(
-        temp_output_dir.name,
-        ds_diags,
-        column_integrated_vars=vars_to_plot_maps(metrics),
-    )
+    html_time_mean_maps = render_time_mean_maps(temp_output_dir.name, ds_diags,)
     with open(os.path.join(temp_output_dir.name, TIME_MEAN_MAPS_HTML), "w") as f:
         f.write(html_time_mean_maps)
 
