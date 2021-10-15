@@ -1,4 +1,3 @@
-import gc
 import logging
 from mpi4py import MPI
 
@@ -27,8 +26,7 @@ runtime.capture_fv3gfs_funcs()
 
 logger = logging.getLogger(__name__)
 
-
-def main():
+if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
     config = runtime.get_config()
@@ -71,14 +69,4 @@ def main():
     for diag_file in diag_files:
         diag_file.flush()
 
-
-if __name__ == "__main__":
-
-    main()
-    # need to cleanup any python objects that may have MPI operations before
-    # calling wrapper.cleanup
-    # this avoids the following error message:
-    #
-    #    Attempting to use an MPI routine after finalizing MPICH
-    gc.collect()
-    wrapper.cleanup()
+    loop.cleanup()

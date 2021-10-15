@@ -1,5 +1,6 @@
 import sys
 import tempfile
+import warnings
 import vcm
 import os
 import fv3config
@@ -51,6 +52,10 @@ def append_segment_to_run_url(run_url):
         post_processed_out = os.path.join(dir_, "post_processed")
 
         exit_code = run_segment(config, rundir)
+        if exit_code != 0:
+            warnings.warn(
+                UserWarning(f"FV3 exited with a nonzero exit-code: {exit_code}")
+            )
         preexisting_files = os.path.join(rundir, "preexisting_files.txt")
         print("Skipping upload of the following files:")
         with open(preexisting_files) as f:
