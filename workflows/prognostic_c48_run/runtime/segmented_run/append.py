@@ -71,9 +71,3 @@ def append_segment_to_run_url(run_url):
         )
         print("Cleaning up working directory")
         return exit_code
-
-
-def main():
-    run_url = sys.argv[1]
-    exit_code = append_segment_to_run_url(run_url)
-    sys.exit(exit_code)

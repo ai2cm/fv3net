@@ -30,12 +30,5 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     extras_require={"docs": ["sphinx >=3.2", "sphinx-rtd-theme>=0.5.0"]},
-    entry_points={
-        "console_scripts": [
-            "segmented-run-create=runtime.segmented_run.cli:create",
-            "runSegment=runtime.segmented_run.run:main",
-            "appendSegment=runtime.segmented_run.append:main",
-            "prepare-config=runtime.segmented_run.prepare_config:main",
-        ]
-    },
+    entry_points={"console_scripts": ["runfv3=runtime.segmented_run.cli:cli"]},
 )
