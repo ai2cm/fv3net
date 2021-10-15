@@ -88,10 +88,10 @@ def _remove_io_suffix(key: str):
     return var_key
 
 
-def _get_attrs(key: str):
+def _get_attrs(key: str, metadata: Mapping):
     key = _remove_io_suffix(key)
-    if key in VAR_METADATA:
-        meta = dict(**VAR_METADATA[key])
+    if key in metadata:
+        meta = dict(**metadata[key])
         meta = {k: json.dumps(v) for k, v in meta.items()}
     else:
         logger.debug(f"No metadata found for {key}... skipping")
@@ -100,14 +100,14 @@ def _get_attrs(key: str):
     return meta
 
 
-def _convert_to_quantities(state):
+def _convert_to_quantities(state, metadata):
 
     quantities = {}
     for key, data in state.items():
         data = np.squeeze(data.astype(np.float32))
         data_t = data.T
         dims = DIMS_MAP[data.ndim]
-        attrs = _get_attrs(key)
+        attrs = _get_attrs(key, metadata)
         units = attrs.pop("units", "unknown")
         quantities[key] = Quantity(data_t, dims, units)
         # Access to private member could break TODO: Quantity kwarg for attrs?
@@ -116,14 +116,14 @@ def _convert_to_quantities(state):
     return quantities
 
 
-def _convert_to_xr_dataset(state):
+def _convert_to_xr_dataset(state, metadata):
 
     dataset = {}
     for key, data in state.items():
         data = np.squeeze(data.astype(np.float32))
         data_t = data.T
         dims = DIMS_MAP[data.ndim]
-        attrs = _get_attrs(key)
+        attrs = _get_attrs(key, metadata)
         attrs["units"] = attrs.pop("units", "unknown")
         dataset[key] = xr.DataArray(data_t, dims=dims, attrs=attrs)
 
@@ -131,6 +131,8 @@ def _convert_to_xr_dataset(state):
 
 
 def _translate_time(time):
+    
+    # list order is set by fortran from variable Model%jdat
     year = time[0]
     month = time[1]
     day = time[2]
@@ -151,11 +153,11 @@ def _create_nc_path():
     return nc_dump_path
 
 
-def _store_netcdf(state, time, nc_dump_path):
+def _store_netcdf(state, time, nc_dump_path, metadata):
 
     logger.debug(f"Model fields: {list(state.keys())}")
     logger.info(f"Storing state to netcdf on rank {MPI.COMM_WORLD.Get_rank()}")
-    ds = _convert_to_xr_dataset(state)
+    ds = _convert_to_xr_dataset(state, metadata)
     rank = MPI.COMM_WORLD.Get_rank()
     coords = {"time": time, "tile": rank}
     ds = ds.assign_coords(coords)
@@ -164,11 +166,11 @@ def _store_netcdf(state, time, nc_dump_path):
     ds.to_netcdf(out_path)
 
 
-def _store_zarr(state, time, monitor):
+def _store_zarr(state, time, monitor, metadata):
 
     logger.info(f"Storing zarr model state on rank {MPI.COMM_WORLD.Get_rank()}")
     logger.debug(f"Model fields: {list(state.keys())}")
-    state = _convert_to_quantities(state)
+    state = _convert_to_quantities(state, metadata)
     state["time"] = time
     monitor.store(state)
 
