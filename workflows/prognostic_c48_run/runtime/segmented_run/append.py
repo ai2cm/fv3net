@@ -7,7 +7,7 @@ import fv3config
 import io
 
 from .run import run_segment
-from fv3post.post_process import _post_process
+from fv3post.post_process import post_process
 from fv3post.append import append_segment
 
 
@@ -61,7 +61,7 @@ def append_segment_to_run_url(run_url):
         with open(preexisting_files) as f:
             print(f.read())
 
-        _post_process(
+        post_process(
             rundir=rundir,
             destination=post_processed_out,
             skip=preexisting_files,
