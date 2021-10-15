@@ -303,7 +303,9 @@ def main(args):
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
 
-    model_variables = list(set(model.input_variables + model.output_variables + [DELP]))
+    model_variables = list(
+        set(list(model.input_variables) + list(model.output_variables) + [DELP])
+    )
 
     output_data_yaml = os.path.join(args.output_path, "data_config.yaml")
     with fsspec.open(args.data_yaml, "r") as f_in, fsspec.open(
@@ -350,6 +352,12 @@ def main(args):
         snapshot_time = args.snapshot_time or sorted(list(mapper.keys()))[0]
         snapshot_key = nearest_time(snapshot_time, list(mapper.keys()))
         ds_snapshot = predict_function(mapper[snapshot_key])
+
+        ds_diagnostics = ds_diagnostics.merge(
+            ds_snapshot[model.output_variables].rename(
+                {v: f"{v}_snapshot" for v in model.output_variables}
+            )
+        )
         transect_vertical_vars = [
             var for var in model.output_variables if is_3d(ds_snapshot[var])
         ]
