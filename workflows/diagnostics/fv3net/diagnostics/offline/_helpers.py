@@ -29,6 +29,7 @@ UNITS = {
     "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface": "[W/m2]",
     "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": "[W/m2]",
     "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": "[W/m2]",
+    "net_shortwave_sfc_flux_derived": "[W/m2]",
 }
 
 GRID_INFO_VARS = [
