@@ -83,6 +83,8 @@ class Config:
 
     def microphysics(self, state):
 
+        # state dimensions from Fortran are [feature, sample]
+        # where sample is flattened x,y
         inputs = [state[name].T for name in self.model.input_names]
         predictions = self.model.predict(inputs)
         model_outputs = _unpack_predictions(predictions, self.model.output_names)
