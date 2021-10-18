@@ -13,7 +13,8 @@ def wrap_configurable_hook(config, error, func_name) -> Callable:
     def wrapped(state):
         if config is None:
             raise ImportError(
-                f"The {config.name} config could not be initialized due to error: {error}"
+                f"The {config.name} config could not be initialized"
+                f" due to error: {error}"
             )
 
         func = getattr(config, func_name)
