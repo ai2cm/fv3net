@@ -211,10 +211,26 @@ workflows:
             branches:
               ignore:
                 - master
+      # manually trigger on PRs
       - pytest:
+          name: "Test Dataflow (held)"
           kind: test_dataflow
           requires:
             - hold
+          filters:
+            tags:
+              ignore: /^v.*/
+            branches:
+              ignore: master
+      # automatically trigger on master
+      - pytest:
+          name: "Test Dataflow (not held)"
+          kind: test_dataflow
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: master
       - build_default:
           matrix:
             parameters:
@@ -223,36 +239,17 @@ workflows:
                 - post_process_run
                 - fv3net
                 - artifacts
+      # manually trigger on PRs
       - integration_tests:
           requires:
             - build_default
             - hold
-  master_tests:
-    jobs:
-      - lint
-      - mypy
-      - argo
-      - pytest:
-          kind: test_dataflow
-          name: "Test Dataflow"
           filters:
             tags:
-              only: /^v.*/
+              ignore: /^v.*/
             branches:
-              only: master
-      - build_default:
-          matrix:
-            parameters:
-              image:
-                - prognostic_run
-                - post_process_run
-                - fv3net
-                - artifacts
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              only: master
+              ignore: master
+      # automatically trigger on master
       - integration_tests:
           requires:
             - build_default
