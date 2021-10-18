@@ -40,6 +40,8 @@ def to_url(fs: fsspec.AbstractFileSystem, path: str):
     """
     if isinstance(fs.protocol, str):
         protocol = fs.protocol
+    elif "gs" in fs.protocol:
+        protocol = "gs"
     else:
         protocol = fs.protocol[0]
 
