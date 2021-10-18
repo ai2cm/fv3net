@@ -1,3 +1,4 @@
+import collections
 from typing import (
     Hashable,
     Iterable,
@@ -162,10 +163,10 @@ class ArrayPacker:
 
 def _count_features(index: pd.MultiIndex, variable_dim="variable") -> Dict[str, int]:
     variable_idx = index.names.index(variable_dim)
-    count: Dict[str, int] = {}
+    count: Dict[str, int] = collections.defaultdict(int)
     for item in index:
         variable = item[variable_idx]
-        count[variable] = count.setdefault(variable, 0) + 1
+        count[variable] += 1
     return count
 
 
