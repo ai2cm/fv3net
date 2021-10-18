@@ -7,7 +7,7 @@ from typing import Mapping
 from fv3gfs.util import Quantity
 
 from emulation._monitor.monitor import (
-    Config,
+    StorageHook,
     _bool_from_str,
     _load_nml,
     _get_timestep,
@@ -153,7 +153,7 @@ def test_Config_integration(dummy_rundir, save_nc, save_zarr):
 
     meta_path = dummy_rundir / "var_metadata.yaml"
     save_var_metadata(meta_path)
-    config = Config(meta_path, 900, save_nc=save_nc, save_zarr=save_zarr)
+    config = StorageHook(meta_path, 900, save_nc=save_nc, save_zarr=save_zarr)
 
     state = {
         "model_time": [2016, 10, 8, None, 0, 0],
@@ -166,3 +166,10 @@ def test_Config_integration(dummy_rundir, save_nc, save_zarr):
     assert (dummy_rundir / "state_output.zarr").exists() == save_zarr
     nc_files = list((dummy_rundir / "netcdf_output").glob("*.nc"))
     assert len(nc_files) == save_nc
+
+
+def test_error_on_call():
+
+    with pytest.raises(ImportError):
+        from emulation import store
+        store({})

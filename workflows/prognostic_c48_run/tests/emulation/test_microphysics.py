@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 
 from emulation._emulate.microphysics import _unpack_predictions, MicrophysicsHook
@@ -53,3 +54,10 @@ def test_Config_integration(saved_model_path, dummy_rundir):
         np.testing.assert_array_almost_equal(input + 1, updated)
 
         state["air_temperature_input"] = updated
+
+
+def test_error_on_call():
+
+    with pytest.raises(ImportError):
+        from emulation import microphysics
+        microphysics({})

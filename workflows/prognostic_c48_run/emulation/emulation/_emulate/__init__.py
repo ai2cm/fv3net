@@ -1,13 +1,16 @@
 import os
 
 from .microphysics import MicrophysicsHook
-from .._utils import wrap_configurable_hook
 
 try:
-    config = MicrophysicsHook.from_environ(os.environ)
-    error = None
-except Exception as e:
-    config = None
-    error = e
+    _config = MicrophysicsHook.from_environ(os.environ)
+    microphysics = _config.microphysics
+except (KeyError, FileNotFoundError) as e:
+    _config = None
 
-microphysics = wrap_configurable_hook(config, error, "microphysics")
+    error = (
+        f"The MicrophysicsHook config could not be initialized" f" due to error: {e}"
+    )
+
+    def microphysics(state):
+        raise ImportError(error)

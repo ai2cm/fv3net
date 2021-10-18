@@ -176,7 +176,7 @@ def _store_zarr(state, time, monitor, metadata):
     monitor.store(state)
 
 
-class Config:
+class StorageHook:
     """
     Singleton class for configuring from the environment for
     the store function used during fv3gfs-runtime by call-py-fort.
@@ -226,8 +226,8 @@ class Config:
                     and 'unknown' units saved with fields
                 SAVE_NC (optional) - save all state fields to netcdf, default
                     is true
-                SAVE_ZARR (optional) - save all statefields to zarr, defautl
-                    is true 
+                SAVE_ZARR (optional) - save all statefields to zarr, default
+                    is true
                 
         """
 
