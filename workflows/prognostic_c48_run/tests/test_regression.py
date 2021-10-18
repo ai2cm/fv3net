@@ -31,6 +31,7 @@ CHUNKS_PATH = "chunks.yaml"
 class ConfigEnum:
     nudging = "nudging"
     predictor = "predictor"
+    microphys_emulation = "microphys_emulation"
 
 
 default_fv3config = rf"""
@@ -510,6 +511,19 @@ def get_ml_config(model_path):
     return config
 
 
+def get_emulation_config():
+    config = yaml.safe_load(default_fv3config)
+    config["gfs_physics_nml"]["imp_physics"] = 99
+    config["gfs_physics_nml"]["ncld"] = 1
+    config["gfs_physics_nml"]["emulate_zc_microphysics"] = True
+    config["gfs_physics_nml"]["save_zc_microphysics"] = False
+    config["fv_core_nml"]["nwat"] = 1
+
+    config["fortran_diagnostics"] = []
+
+    return config
+
+
 def _tendency_dataset():
     temperature_tendency = np.full((6, 8, 63, 12, 12), 0.1 / 86400)
     times = [
@@ -525,13 +539,16 @@ def _tendency_dataset():
     return xr.Dataset({"Q1": da})
 
 
-@pytest.fixture(scope="module", params=[ConfigEnum.predictor, ConfigEnum.nudging])
+@pytest.fixture(
+    scope="module",
+    params=[ConfigEnum.predictor, ConfigEnum.nudging, ConfigEnum.microphys_emulation],
+)
 def configuration(request):
     return request.param
 
 
 @pytest.fixture(scope="module")
-def completed_rundir(configuration, tmpdir_factory):
+def completed_rundir(configuration, tmpdir_factory, saved_model_path, monkeypatch):
 
     model_path = str(tmpdir_factory.mktemp("model"))
     tendency_dataset_path = tmpdir_factory.mktemp("tendencies")
@@ -546,6 +563,16 @@ def completed_rundir(configuration, tmpdir_factory):
             str(tendency_dataset_path.join("ds.zarr")), consolidated=True
         )
         config = get_nudging_config(str(tendency_dataset_path.join("ds.zarr")))
+    elif configuration == ConfigEnum.microphys_emulation:
+        config = get_emulation_config()
+
+        meta_path = Path(__file__).parent.parent.joinpath(
+            "emulation", "microphysics_parameter_metadata.yaml"
+        )
+        monkeypatch.setenv("TF_MODEL_PATH", str(saved_model_path))
+        monkeypatch.setenv("OUTPUT_FREQ_SEC", str(1800))
+        monkeypatch.setenv("VAR_META_PATH", str(meta_path))
+
     else:
         raise NotImplementedError()
 
