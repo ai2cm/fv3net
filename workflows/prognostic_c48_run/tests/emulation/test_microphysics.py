@@ -1,25 +1,6 @@
-import pytest
 import numpy as np
-import tensorflow as tf
 
 from emulation._emulate.microphysics import _unpack_predictions, Config
-
-
-def create_model():
-    in_ = tf.keras.layers.Input(shape=(63,), name="air_temperature_input")
-    out_ = tf.keras.layers.Lambda(lambda x: x + 1, name="air_temperature_dummy")(in_)
-    model = tf.keras.Model(inputs=in_, outputs=out_)
-
-    return model
-
-
-@pytest.fixture()
-def saved_model_path(tmp_path):
-    model = create_model()
-    path = tmp_path / "dummy_model.tf"
-    model.save(path.as_posix(), save_format="tf")
-
-    return str(path)
 
 
 def test__unpack_predictions_single_out():
