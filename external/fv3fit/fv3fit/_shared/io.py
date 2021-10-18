@@ -9,7 +9,7 @@ from functools import partial
 _NAME_PATH = "name"
 _NAME_ENCODING = "UTF-8"
 
-DEPCRECATED_NAMES = {"packed-keras": "56af6819df3b0886cd685ccf0266091ffa72f7b5"}
+DEPCRECATED_NAMES = {"packed-keras": "007bc80046c29ae3e2a535689b5c68e46cf2c613"}
 
 
 class _Register:
