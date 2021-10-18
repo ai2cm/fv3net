@@ -12,6 +12,7 @@ from mpi4py import MPI
 
 from fv3gfs.util import ZarrMonitor, CubedSpherePartitioner, Quantity
 from ..debug import print_errors
+from .._typing import FortranState
 
 
 logger = logging.getLogger(__name__)
@@ -212,12 +213,29 @@ class Config:
 
     @classmethod
     def from_environ(cls, d: Mapping):
+        """
+        Initialize this hook by loading configuration from environment
+        variables
+
+        Args:
+            d: Mapping with the folowing keys
+                OUTPUT_FREQ_SEC - output frequency in seconds to save
+                    nc and/or zarr files at
+                VAR_META_PATH (optional) - path to variable metadata added to
+                    saved field attributes. If not specified no metadata
+                    and 'unknown' units saved with fields
+                SAVE_NC (optional) - save all state fields to netcdf, default
+                    is true
+                SAVE_ZARR (optional) - save all statefields to zarr, defautl
+                    is true 
+                
+        """
 
         cwd = os.getcwd()
         logger.debug(f"Current working directory: {cwd}")
 
-        var_meta_path = str(d["VAR_META_PATH"])
         output_freq_sec = int(d["OUTPUT_FREQ_SEC"])
+        var_meta_path = str(d.get("VAR_META_PATH", None))
         save_nc = _bool_from_str(d.get("SAVE_NC", "True"))
         save_zarr = _bool_from_str(d.get("SAVE_ZARR", "True"))
 
@@ -236,7 +254,18 @@ class Config:
 
         return elapsed.seconds % self.output_freq_sec == 0
 
-    def store(self, state):
+    def store(self, state: FortranState) -> None:
+        """
+        Hook function for storing the fortran state used by call_py_fort.
+        Stores everything that resides in the state at the time.
+
+        'model_time' is expected to be in the state and is removed
+        for each storage call.  All other variables are expected to
+        correspond to DIMS_MAP after a transpose.
+
+        Args:
+            state: Fortran state fields
+        """
 
         state = dict(**state)
         time = _translate_time(state.pop("model_time"))

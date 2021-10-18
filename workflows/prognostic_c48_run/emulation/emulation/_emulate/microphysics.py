@@ -93,14 +93,17 @@ class MicrophysicsHook:
     def microphysics(self, state: FortranState) -> None:
         """
         Hook function for running the tensorflow emulator of the
-        Zhao-Carr microphysics using call_py_fort
+        Zhao-Carr microphysics using call_py_fort.  Updates state
+        dictionary in place.
 
         Args:
             state: Fortran state pushed into python by call_py_fort
-                'set_state' calls
+                'set_state' calls.  Expected to be [feature, sample]
+                dimensions or [sample]
         """
 
-        # switch state from [feature, sample] to model-expected [sample, feature]
+        # grab model-required variables and
+        # switch state to model-expected [sample, feature]
         inputs = [state[name].T for name in self.model.input_names]
 
         predictions = self.model.predict(inputs)
