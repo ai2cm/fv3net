@@ -4,7 +4,7 @@ from .config import (
     DOMAINS,
     PRIMARY_VARS,
 )
-from vcm import thermo, safe, mass_integrate
+from vcm import thermo, safe, mass_integrate, weighted_average
 import xarray as xr
 import numpy as np
 import logging
@@ -212,40 +212,6 @@ def conditional_average(
         )
 
     return weighted_average(ds, area_masked, dims)
-
-
-def _weighted_average(array, weights, axis=None):
-
-    return np.nansum(array * weights, axis=axis) / np.nansum(weights, axis=axis)
-
-
-def weighted_average(
-    array: Union[xr.Dataset, xr.DataArray],
-    weights: xr.DataArray,
-    dims: Sequence[str] = ["tile", "y", "x"],
-) -> xr.Dataset:
-    """Compute a weighted average of an array or dataset
-    
-    Args:
-        array: xr dataarray or dataset of variables to averaged
-        weights: xr datarray of grid cell weights for averaging
-        dims: dimensions to average over
-            
-    Returns:
-        xr dataarray or dataset of weighted averaged variables
-    """
-    if dims is not None:
-        kwargs = {"axis": tuple(range(-len(dims), 0))}
-    else:
-        kwargs = {}
-    return xr.apply_ufunc(
-        _weighted_average,
-        array,
-        weights,
-        input_core_dims=[dims, dims],
-        kwargs=kwargs,
-        dask="allowed",
-    )
 
 
 def snap_mask_to_type(
