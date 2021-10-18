@@ -17,7 +17,7 @@ from .convenience import (
     shift_timestamp,
     round_time,
 )
-from .calc import r2_score, local_time, thermo, cos_zenith_angle
+from .calc import r2_score, local_time, thermo, cos_zenith_angle, weighted_average
 from .calc.thermo import (
     mass_integrate,
     net_heating,
@@ -41,7 +41,7 @@ from .interpolate import (
 )
 
 from ._zarr_mapping import ZarrMapping
-from .select import mask_to_surface_type, RegionOfInterest
+from .select import mask_to_surface_type, RegionOfInterest, zonal_average_approximate
 from .xarray_loaders import open_tiles, open_delayed, open_remote_nc, dump_nc
 from .sampling import train_test_split_sample
 from .derived_mapping import DerivedMapping
