@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import tensorflow as tf
 
-from emulation._emulate.microphysics import _unpack_predictions, MicrophysicsConfig
+from emulation._emulate.microphysics import _unpack_predictions, Config
 
 
 def create_model():
@@ -48,9 +48,9 @@ def test__unpack_predictions_multi_out():
         assert result[name].shape == (5, 4)
 
 
-def test_MicrophysicsConfig_integration(saved_model_path, dummy_rundir):
+def test_Config_integration(saved_model_path, dummy_rundir):
 
-    config = MicrophysicsConfig(saved_model_path)
+    config = Config(saved_model_path)
 
     state = {
         "air_temperature_input": np.ones((63, 100)),

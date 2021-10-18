@@ -58,6 +58,13 @@ def _unpack_predictions(predictions, output_names):
 
 
 class Config:
+    """
+    Singleton class for configuring from the environment for
+    the microphysics function used during fv3gfs-runtime by
+    call-py-fort
+
+    Instanced at the top level of `_emulate`
+    """
 
     def __init__(self, model_path: str) -> None:
 
