@@ -1,4 +1,5 @@
 import sys
+from typing import Mapping
 
 # Tensorflow looks at sys args which are not initialized
 # when this module is loaded under callpyfort, so ensure
@@ -11,34 +12,18 @@ import logging  # noqa: E402
 import os  # noqa: E402
 import tensorflow as tf  # noqa: E402
 
-from .debug import print_errors  # noqa: E402
-from ._filesystem import get_dir  # noqa: E402
+from ..debug import print_errors  # noqa: E402
+from .._filesystem import get_dir  # noqa: E402
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-TF_MODEL_PATH = None  # local or remote path to tensorflow model
-NML_PATH = None
-DT_SEC = None
-ORIG_OUTPUTS = None
-MODEL = None
-
-
-@print_errors
-def _load_environment_vars_into_global():
-
-    global TF_MODEL_PATH
-    global NML_PATH
-
-    cwd = os.getcwd()
-    TF_MODEL_PATH = os.environ.get("TF_MODEL_PATH", None)
-    NML_PATH = os.path.join(cwd, "input.nml")
-
 
 @print_errors
 def _load_nml():
-    namelist = f90nml.read(NML_PATH)
-    logger.info(f"Loaded namelist for emulation from {NML_PATH}")
+    path = os.path.join(os.getcwd(), "input.nml")
+    namelist = f90nml.read(path)
+    logger.info(f"Loaded namelist for ZarrMonitor from {path}")
 
     return namelist
 
@@ -49,57 +34,56 @@ def _get_timestep(namelist):
 
 
 @print_errors
-def _load_tf_model() -> tf.keras.Model:
-    logger.info(f"Loading keras model: {TF_MODEL_PATH}")
-    with get_dir(TF_MODEL_PATH) as local_model_path:
+def _load_tf_model(model_path: str) -> tf.keras.Model:
+    logger.info(f"Loading keras model: {model_path}")
+    with get_dir(model_path) as local_model_path:
         model = tf.keras.models.load_model(local_model_path)
 
     return model
 
 
-_load_environment_vars_into_global()
-NML = _load_nml()
-DT_SEC = _get_timestep(NML)
+def _unpack_predictions(predictions, output_names):
 
-
-def _unpack_predictions(predictions):
-
-    if len(MODEL.output_names) == 1:
+    if len(output_names) == 1:
         # single output model doesn't return a list
         # zip would start unpacking array rows
-        model_outputs = {MODEL.output_names[0]: predictions.T}
+        model_outputs = {output_names[0]: predictions.T}
     else:
         model_outputs = {
             name: output.T  # transposed adjust
-            for name, output in zip(MODEL.output_names, predictions)
+            for name, output in zip(output_names, predictions)
         }
 
     return model_outputs
 
 
-@print_errors
-def microphysics(state):
+class MicrophysicsConfig:
 
-    global ORIG_OUTPUTS
-    global MODEL
+    def __init__(self, model_path: str) -> None:
 
-    if MODEL is None:
-        if TF_MODEL_PATH is None:
-            raise ValueError(
-                "Emulation requires loadable model path set as env."
-                " variable TF_MODEL_PATH."
-            )
-        MODEL = _load_tf_model()
+        self.model = _load_tf_model(model_path)
+        self.namelist = _load_nml()
+        self.dt_sec = _get_timestep(self.namelist)
+        self.orig_outputs = None
 
-    inputs = [state[name].T for name in MODEL.input_names]
-    predictions = MODEL.predict(inputs)
-    model_outputs = _unpack_predictions(predictions)
+    @classmethod
+    def from_environ(cls, d: Mapping):
 
-    # fields stay in global state so check overwrites on first step
-    if ORIG_OUTPUTS is None:
-        ORIG_OUTPUTS = set(state).intersection(model_outputs)
+        model_path = d["TF_MODEL_PATH"]
 
-    logger.info(f"Overwritting existing state fields: {ORIG_OUTPUTS}")
-    microphysics_diag = {f"{name}_physics_diag": state[name] for name in ORIG_OUTPUTS}
-    state.update(model_outputs)
-    state.update(microphysics_diag)
+        return cls(model_path)
+
+    def microphysics(self, state):
+
+        inputs = [state[name].T for name in self.model.input_names]
+        predictions = self.model.predict(inputs)
+        model_outputs = _unpack_predictions(predictions, self.model.output_names)
+
+        # fields stay in global state so check overwrites on first step
+        if self.orig_outputs is None:
+            self.orig_outputs = set(state).intersection(model_outputs)
+
+        logger.info(f"Overwritting existing state fields: {self.orig_outputs}")
+        microphysics_diag = {f"{name}_physics_diag": state[name] for name in self.orig_outputs}
+        state.update(model_outputs)
+        state.update(microphysics_diag)
