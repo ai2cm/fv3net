@@ -36,6 +36,17 @@ push_image_prognostic_run: build_image_prognostic_run
 	docker push $(REGISTRY)/prognostic_run:$(VERSION)
 	docker push $(REGISTRY)/notebook:$(VERSION)
 
+image_test_prognostic_run:
+	docker run \
+		--rm \
+		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
+		-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
+		-w /fv3net/workflows/prognostic_c48_run \
+		$(REGISTRY)/prognostic_run:$(VERSION) pytest
+
+image_test_%:
+	echo "No tests specified"
+
 push_image_%: build_image_%
 	docker push $(REGISTRY)/$*:$(VERSION)
 
