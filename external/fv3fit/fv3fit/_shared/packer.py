@@ -7,6 +7,7 @@ from typing import (
     Dict,
     Tuple,
     Sequence,
+    Optional,
 )
 import numpy as np
 import xarray as xr
@@ -80,7 +81,7 @@ class ArrayPacker:
         self._pack_names: List[str] = list(str(s) for s in pack_names)
         self._n_features: Dict[str, int] = {}
         self._sample_dim_name = sample_dim_name
-        self._feature_index: pd.MultiIndex = pd.MultiIndex(levels=[[]], codes=[[]])
+        self._feature_index: Optional[pd.MultiIndex] = None
 
     @property
     def pack_names(self) -> List[str]:
@@ -135,7 +136,7 @@ class ArrayPacker:
         """
         if len(array.shape) > 2:
             raise NotImplementedError("can only restore 2D arrays to datasets")
-        if len(self._n_features) == 0:
+        if len(self._n_features) == 0 or self._feature_index is None:
             raise RuntimeError(
                 "must pack at least once before unpacking, "
                 "so dimension lengths are known"
