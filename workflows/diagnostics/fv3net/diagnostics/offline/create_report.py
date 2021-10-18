@@ -114,8 +114,11 @@ def render_model_sensitivity(figures_dir, output_dir) -> str:
 
 def render_time_mean_maps(output_dir, ds_diags) -> str:
     report_sections: MutableMapping[str, Sequence[str]] = {}
-    predictands_2d = [v for v in ds_diags if DERIVATION_DIM_NAME in ds_diags[v].dims]
-
+    predictands_2d = [
+        v
+        for v in ds_diags
+        if DERIVATION_DIM_NAME in ds_diags[v].dims and not is_3d(ds_diags[v])
+    ]
     # snapshot maps
     snapshot_vars = [v for v in predictands_2d if v.endswith("snapshot")]
     time_mean_vars = [v for v in predictands_2d if not v.endswith("snapshot")]
