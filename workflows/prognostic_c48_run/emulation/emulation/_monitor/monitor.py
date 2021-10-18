@@ -187,6 +187,7 @@ class Config:
         save_nc: bool = True,
         save_zarr: bool = True,
     ):
+        self.name = "emulation storage monitor"
         self.var_meta_path = var_meta_path
         self.output_freq_sec = output_freq_sec
         self.save_nc = save_nc

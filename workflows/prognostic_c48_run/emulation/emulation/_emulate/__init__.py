@@ -1,10 +1,10 @@
 import os
 
-from .microphysics import MicrophysicsConfig
+from .microphysics import Config
 from .._utils import wrap_configurable_hook
 
 try:
-    config = MicrophysicsConfig.from_environ(os.environ)
+    config = Config.from_environ(os.environ)
     error = None
 except Exception as e:
     config = None

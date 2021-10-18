@@ -57,9 +57,11 @@ def _unpack_predictions(predictions, output_names):
     return model_outputs
 
 
-class MicrophysicsConfig:
+class Config:
+
     def __init__(self, model_path: str) -> None:
 
+        self.name = "microphysics emulator"
         self.model = _load_tf_model(model_path)
         self.namelist = _load_nml()
         self.dt_sec = _get_timestep(self.namelist)
