@@ -7,7 +7,7 @@ import xarray as xr
 import fv3gfs.util
 from fv3gfs.util.testing import DummyComm
 
-from runtime.tendency_prescriber import (
+from runtime.transformers.tendency_prescriber import (
     TendencyPrescriber,
     TendencyPrescriberConfig,
 )
@@ -86,4 +86,4 @@ def test_tendency_prescriber(state, tmpdir, regtest):
         (derived_state_copy["air_temperature"] + 2).assign_attrs(units="degK"),
     )
     for variable in sorted(diags):
-        print(variable, joblib.hash(diags[variable]), file=regtest)
+        print(variable, joblib.hash(diags[variable].values), file=regtest)

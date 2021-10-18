@@ -15,7 +15,7 @@ services:
     command: [ls]
     volumes:
       - ../../external:/fv3net/external
-      - .:/fv3net/workflows/prognostic_c48_run
+      - ..:/fv3net/workflows
       - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
