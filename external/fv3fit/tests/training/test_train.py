@@ -104,7 +104,7 @@ def get_dataset(model_type, sample_func):
             1.0
             / GRAVITY
             * np.sum(
-                input_values[2] * input_values[1], axis=1
+                input_values[2] * input_values[1], axis=-1
             ),  # total_precipitation_rate is integration of dQ2
         )
     else:
@@ -159,8 +159,8 @@ def test_train_default_model_on_identity(model_type, regtest):
     """
     fv3fit.set_random_seed(1)
     # don't set n_feature too high for this, because of curse of dimensionality
-    n_sample, n_feature = int(5e3), 2
-    sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
+    n_sample, nx, ny, n_feature = 50, 12, 12, 2
+    sample_func = get_uniform_sample_func(size=(n_sample, nx, ny, n_feature))
 
     assert_can_learn_identity(
         model_type, sample_func=sample_func, max_rmse=0.05, regtest=regtest,
@@ -168,13 +168,13 @@ def test_train_default_model_on_identity(model_type, regtest):
 
 
 def test_train_with_same_seed_gives_same_result(model_type):
-    n_sample, n_feature = 500, 2
+    n_sample, nx, ny, n_feature = 5, 12, 12, 2
     fv3fit.set_random_seed(0)
 
-    sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
+    sample_func = get_uniform_sample_func(size=(n_sample, nx, ny, n_feature))
     first_result = train_identity_model(model_type, sample_func)
     fv3fit.set_random_seed(0)
-    sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
+    sample_func = get_uniform_sample_func(size=(n_sample, nx, ny, n_feature))
     second_result = train_identity_model(model_type, sample_func)
     xr.testing.assert_equal(first_result.test_dataset, second_result.test_dataset)
     first_output = first_result.model.predict(first_result.test_dataset)
@@ -183,8 +183,8 @@ def test_train_with_same_seed_gives_same_result(model_type):
 
 
 def test_predict_does_not_mutate_input(model_type):
-    n_sample, n_feature = 100, 2
-    sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
+    n_sample, nx, ny, n_feature = 1, 12, 12, 2
+    sample_func = get_uniform_sample_func(size=(n_sample, nx, ny, n_feature))
     result = train_identity_model(model_type, sample_func=sample_func)
     hash_before_predict = vcm.testing.checksum_dataarray_mapping(result.test_dataset)
     _ = result.model.predict(result.test_dataset)
@@ -200,8 +200,8 @@ def get_uniform_sample_func(size, low=0, high=1, seed=0):
     def sample_func():
         return xr.DataArray(
             random.uniform(low=low, high=high, size=size),
-            dims=["sample", "z"],
-            coords=[range(size[0]), range(size[1])],
+            dims=["sample", "x", "y", "z"],
+            coords=[range(size[i]) for i in range(len(size))],
         )
 
     return sample_func
@@ -214,9 +214,9 @@ def test_train_default_model_on_nonstandard_identity(model_type):
     """
     low, high = 100, 200
     # don't set n_feature too high for this, because of curse of dimensionality
-    n_sample, n_feature = int(5e3), 2
+    n_sample, nx, ny, n_feature = 50, 12, 12, 2
     sample_func = get_uniform_sample_func(
-        low=low, high=high, size=(n_sample, n_feature)
+        low=low, high=high, size=(n_sample, nx, ny, n_feature)
     )
 
     assert_can_learn_identity(
@@ -225,8 +225,8 @@ def test_train_default_model_on_nonstandard_identity(model_type):
 
 
 def test_dump_and_load_default_maintains_prediction(model_type):
-    n_sample, n_feature = 500, 2
-    sample_func = get_uniform_sample_func(size=(n_sample, n_feature))
+    n_sample, nx, ny, n_feature = 5, 12, 12, 2
+    sample_func = get_uniform_sample_func(size=(n_sample, nx, ny, n_feature))
     result = train_identity_model(model_type, sample_func=sample_func)
 
     original_result = result.model.predict(result.test_dataset)
