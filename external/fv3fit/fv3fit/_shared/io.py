@@ -9,6 +9,8 @@ from functools import partial
 _NAME_PATH = "name"
 _NAME_ENCODING = "UTF-8"
 
+DEPCRECATED_NAMES = {"packed-keras": "56af6819df3b0886cd685ccf0266091ffa72f7b5"}
+
 
 class _Register:
     """Class to register new I/O names
@@ -30,6 +32,12 @@ class _Register:
         return cls
 
     def _load_by_name(self, name: str, path: str) -> Predictor:
+        if name in DEPCRECATED_NAMES:
+            last_valid_commit = DEPCRECATED_NAMES[name]
+            raise ValueError(
+                f"fv3fit models of name '{name}' are deprecated and can no longer be "
+                f"loaded. '{name}' can be loaded by fv3net before {last_valid_commit}."
+            )
         return self._model_types[name].load(path)
 
     def get_name(self, obj: Predictor) -> str:

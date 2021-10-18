@@ -114,7 +114,7 @@ def train_dense_model(
     return model
 
 
-@io.register("packed-keras")
+@io.register("packed-keras-v2")
 class DenseModel(Predictor):
     """
     Abstract base class for a keras-based model which operates on xarray
