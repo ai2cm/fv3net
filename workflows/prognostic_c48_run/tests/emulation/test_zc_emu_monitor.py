@@ -172,4 +172,5 @@ def test_error_on_call():
 
     with pytest.raises(ImportError):
         from emulation import store
+
         store({})
