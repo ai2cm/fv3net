@@ -150,7 +150,7 @@ def process_item(
 @click.option(
     "--skip", type=click.Path(), help="path to text file listing files to skip."
 )
-def post_process(rundir: str, destination: str, chunks: str, skip: str):
+def post_process_entrypoint(rundir: str, destination: str, chunks: str, skip: str):
     """Post-process the fv3gfs output located RUNDIR and save to DESTINATION
 
     RUNDIR and DESTINATION may be local or GCS paths.
@@ -158,6 +158,10 @@ def post_process(rundir: str, destination: str, chunks: str, skip: str):
     This script rechunks the python zarr output and converts the netCDF
     outputs to zarr.
     """
+    post_process(rundir, destination, chunks, skip)
+
+
+def post_process(rundir: str, destination: str, chunks: str, skip: str):
     logger.info("Post-processing the run")
     authenticate()
 
