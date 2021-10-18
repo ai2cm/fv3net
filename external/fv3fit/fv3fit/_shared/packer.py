@@ -85,7 +85,7 @@ class Unpacker:
     """A class to handle converting from numpy arrays to xarray datasets."""
 
     def __init__(self, sample_dim_name: str, feature_index: pd.MultiIndex):
-        """Initialize the UnPacker.
+        """Initialize the Unpacker.
 
         Args:
             sample_dim_name: name of sample dimension.
@@ -99,6 +99,11 @@ class Unpacker:
     def pack_names(self) -> List[str]:
         """variable pack_names being packed"""
         return list(self._n_features.keys())
+
+    @property
+    def sample_dim_name(self) -> str:
+        """name of sample dimension"""
+        return self._sample_dim_name
 
     @property
     def feature_counts(self) -> dict:
