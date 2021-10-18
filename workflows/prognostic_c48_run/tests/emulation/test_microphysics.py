@@ -1,6 +1,6 @@
 import numpy as np
 
-from emulation._emulate.microphysics import _unpack_predictions, Config
+from emulation._emulate.microphysics import _unpack_predictions, MicrophysicsHook
 
 
 def test__unpack_predictions_single_out():
@@ -31,7 +31,7 @@ def test__unpack_predictions_multi_out():
 
 def test_Config_integration(saved_model_path, dummy_rundir):
 
-    config = Config(saved_model_path)
+    config = MicrophysicsHook(saved_model_path)
 
     state = {
         "air_temperature_input": np.ones((63, 100)),

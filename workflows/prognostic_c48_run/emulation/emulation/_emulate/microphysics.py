@@ -1,5 +1,6 @@
 import sys
 from typing import Mapping
+from .._typing import FortranState
 
 # Tensorflow looks at sys args which are not initialized
 # when this module is loaded under callpyfort, so ensure
@@ -57,7 +58,7 @@ def _unpack_predictions(predictions, output_names):
     return model_outputs
 
 
-class Config:
+class MicrophysicsHook:
     """
     Singleton class for configuring from the environment for
     the microphysics function used during fv3gfs-runtime by
@@ -76,16 +77,32 @@ class Config:
 
     @classmethod
     def from_environ(cls, d: Mapping):
+        """
+        Initialize this hook by loading configuration from environment
+        variables
+
+        Args:
+            d: Mapping with key "TF_MODEL_PATH" pointing to a loadable
+                keras model.  Can be local or remote.
+        """
 
         model_path = d["TF_MODEL_PATH"]
 
         return cls(model_path)
 
-    def microphysics(self, state):
+    def microphysics(self, state: FortranState) -> None:
+        """
+        Hook function for running the tensorflow emulator of the
+        Zhao-Carr microphysics using call_py_fort
 
-        # state dimensions from Fortran are [feature, sample]
-        # where sample is flattened x,y
+        Args:
+            state: Fortran state pushed into python by call_py_fort
+                'set_state' calls
+        """
+
+        # switch state from [feature, sample] to model-expected [sample, feature]
         inputs = [state[name].T for name in self.model.input_names]
+
         predictions = self.model.predict(inputs)
         model_outputs = _unpack_predictions(predictions, self.model.output_names)
 
