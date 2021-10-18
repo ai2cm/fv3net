@@ -2,10 +2,7 @@ import pytest
 import numpy as np
 import tensorflow as tf
 
-from emulation._emulate.microphysics import (
-    _unpack_predictions,
-    MicrophysicsConfig
-)
+from emulation._emulate.microphysics import _unpack_predictions, MicrophysicsConfig
 
 
 def create_model():
@@ -41,7 +38,7 @@ def test__unpack_predictions_multi_out():
 
     out_names = ["field1", "field2", "field3"]
 
-    result = _unpack_predictions([data]*3, out_names)
+    result = _unpack_predictions([data] * 3, out_names)
 
     assert len(result) == len(out_names)
     for name in out_names:

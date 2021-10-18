@@ -58,7 +58,6 @@ def _unpack_predictions(predictions, output_names):
 
 
 class MicrophysicsConfig:
-
     def __init__(self, model_path: str) -> None:
 
         self.model = _load_tf_model(model_path)
@@ -84,6 +83,8 @@ class MicrophysicsConfig:
             self.orig_outputs = set(state).intersection(model_outputs)
 
         logger.info(f"Overwritting existing state fields: {self.orig_outputs}")
-        microphysics_diag = {f"{name}_physics_diag": state[name] for name in self.orig_outputs}
+        microphysics_diag = {
+            f"{name}_physics_diag": state[name] for name in self.orig_outputs
+        }
         state.update(model_outputs)
         state.update(microphysics_diag)
