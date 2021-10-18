@@ -178,7 +178,9 @@ def _store_zarr(state, time, monitor, metadata):
 class Config:
     """
     Singleton class for configuring from the environment for
-    the store function used during fv3gfs-runtime by call-py-fort
+    the store function used during fv3gfs-runtime by call-py-fort.
+
+    Instanced at the top-level of `_monitor`
     """
 
     def __init__(
