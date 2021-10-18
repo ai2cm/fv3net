@@ -131,7 +131,7 @@ def _convert_to_xr_dataset(state, metadata):
 
 
 def _translate_time(time):
-    
+
     # list order is set by fortran from variable Model%jdat
     year = time[0]
     month = time[1]
@@ -180,7 +180,13 @@ class Config:
     Singleton class for configuring and using storage
     """
 
-    def __init__(self, var_meta_path: str, output_freq_sec: int, save_nc: bool = True, save_zarr: bool = True):
+    def __init__(
+        self,
+        var_meta_path: str,
+        output_freq_sec: int,
+        save_nc: bool = True,
+        save_zarr: bool = True,
+    ):
         self.var_meta_path = var_meta_path
         self.output_freq_sec = output_freq_sec
         self.save_nc = save_nc
@@ -220,7 +226,9 @@ class Config:
         elapsed = (time + increment) - self.initial_time
 
         logger.debug(f"Time elapsed after increment: {elapsed}")
-        logger.debug(f"Output frequency modulus: {elapsed.seconds % self.output_freq_sec}")
+        logger.debug(
+            f"Output frequency modulus: {elapsed.seconds % self.output_freq_sec}"
+        )
 
         return elapsed.seconds % self.output_freq_sec == 0
 
@@ -234,10 +242,12 @@ class Config:
 
         if self._store_interval_check(time):
 
-            logger.debug("Store flags: save_zarr={self.save_zarr}, save_nc={self.save_nc}")
+            logger.debug(
+                "Store flags: save_zarr={self.save_zarr}, save_nc={self.save_nc}"
+            )
 
             if self.save_zarr:
-                _store_zarr(state, time, self.monitor)
+                _store_zarr(state, time, self.monitor, self.metadata)
 
             if self.save_nc:
-                _store_netcdf(state, time, self.nc_dump_path)
+                _store_netcdf(state, time, self.nc_dump_path, self.metadata)

@@ -13,6 +13,8 @@ except KeyError as e:
 # for testing, this allows us to test and inject a config
 def store(state):
     if config is None:
-        raise ImportError(f"Monitor store could not be initialized due to error: {error}")
+        raise ImportError(
+            f"Monitor store could not be initialized due to error: {error}"
+        )
 
     return config.store(state)
