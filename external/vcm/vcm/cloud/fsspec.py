@@ -24,6 +24,28 @@ def get_fs(path: str) -> fsspec.AbstractFileSystem:
     return fsspec.filesystem(get_protocol(path))
 
 
+def to_url(fs: fsspec.AbstractFileSystem, path: str):
+    """Convert a filesystem and path into a URI
+
+    Args:
+        fs: a filesystem object
+        path: a path without a leading "protocol", as returned by ``fs.ls`` for example.
+    
+    Examples:
+        >>> import vcm.cloud.fsspec
+        >>> import fsspec
+        >>> fs = fsspec.filesystem('file')
+        >>> vcm.cloud.fsspec.to_url(fs, 'some-path')
+        'file://some-path'
+    """
+    if isinstance(fs.protocol, str):
+        protocol = fs.protocol
+    else:
+        protocol = fs.protocol[0]
+
+    return protocol + "://" + path.lstrip("/")
+
+
 def copy(source: str, destination: str, content_type: str = None):
     """Copy between any two 'filesystems'. Do not use for large files.
     
