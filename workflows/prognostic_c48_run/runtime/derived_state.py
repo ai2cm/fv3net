@@ -1,16 +1,15 @@
-import cftime
-import numpy as np
-from typing import Mapping, MutableMapping, Hashable
-from toolz import dissoc
-import xarray as xr
+from typing import Hashable, Mapping, MutableMapping, Set
 
+import cftime
 import fv3gfs.util
-from vcm import DerivedMapping, round_time
+import fv3gfs.wrapper
+import fv3gfs.wrapper._properties
+import numpy as np
+import xarray as xr
 from runtime.names import DELP, PHYSICS_PRECIP_RATE
 from runtime.types import State
-
-import fv3gfs.wrapper._properties
-import fv3gfs.wrapper
+from toolz import dissoc
+from vcm import DerivedMapping, round_time
 
 
 class FV3StateMapper(Mapping):
@@ -54,7 +53,7 @@ class FV3StateMapper(Mapping):
         physics_names = set(
             v["name"] for v in fv3gfs.wrapper._properties.PHYSICS_PROPERTIES
         )
-        tracer_names = set(v for v in fv3gfs.wrapper.get_tracer_metadata())
+        tracer_names = set(v for v in self._getter.get_tracer_metadata())
         # see __getitem__
         local_names = {"latent_heat_flux", "total_water"}
         return dynamics_names | physics_names | tracer_names | local_names
@@ -123,7 +122,7 @@ class DerivedFV3State(MutableMapping):
             updated[name] = dst[name].assign_attrs(self._mapper[name].attrs)
         return updated
 
-    def __delitem__(self):
+    def __delitem__(self, key: str):
         raise NotImplementedError()
 
     def __iter__(self):
@@ -131,6 +130,55 @@ class DerivedFV3State(MutableMapping):
 
     def __len__(self):
         return len(self.keys())
+
+
+class MergedState(DerivedFV3State):
+    """Merge a State object with another mutable mapping
+
+    Commonly used to e.g. blend python and fv3gfs-fortran state into a single
+    object.
+    
+    Attributes:
+        left: a derived fv3 state object represetning e.g. Fortran state.
+        right: a mutable mapping representing python based state.
+            Used for all keys not in ``left``.
+
+    """
+
+    def __init__(self, left: DerivedFV3State, right: State):
+        self.left = left
+        self.right = right
+
+    def update_mass_conserving(
+        self, items: State,
+    ):
+        self.left.update_mass_conserving(items)
+
+    @property
+    def time(self) -> cftime.DatetimeJulian:
+        return self.left.time
+
+    def __setitem__(self, key: str, value: xr.DataArray):
+        try:
+            self.left[key] = value
+        except KeyError:
+            self.right[key] = value
+
+    def __getitem__(self, key: Hashable) -> xr.DataArray:
+        try:
+            return self.left[key]
+        except KeyError:
+            return self.right[key]
+
+    def keys(self) -> Set[str]:
+        all_keys = set(self.left.keys()) | set(self.right.keys())
+        return set(map(str, all_keys))
+
+    def __delitem__(self, key: str):
+        try:
+            del self.left[key]
+        except (KeyError, NotImplementedError):
+            del self.right[key]
 
 
 def _cast_single_to_double(state: State) -> State:
