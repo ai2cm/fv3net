@@ -1,4 +1,5 @@
-from vcm.cloud.fsspec import get_protocol, copy
+import fsspec
+from vcm.cloud.fsspec import get_protocol, copy, to_url
 
 import pytest
 
@@ -27,3 +28,11 @@ def test_copy(tmpdir, content_type):
     with open(destination) as f:
         content = f.read()
     assert content == expected_content
+
+
+@pytest.mark.parametrize(
+    "protocol,path,expected",
+    [("gs", "some-path", "gcs://some-path"), ("file", "some-path", "file://some-path")],
+)
+def test_to_url(protocol, path, expected):
+    assert expected == to_url(fsspec.filesystem(protocol), path)
