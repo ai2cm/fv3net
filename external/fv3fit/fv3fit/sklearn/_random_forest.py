@@ -8,12 +8,10 @@ import fsspec
 import joblib
 from .._shared import (
     pack,
-    unpack,
     Predictor,
     get_scaler,
     register_training_function,
-    multiindex_to_tuple,
-    tuple_to_multiindex,
+    Unpacker,
 )
 from .._shared.config import RandomForestHyperparameters
 from .. import _shared
@@ -30,19 +28,6 @@ import sklearn.ensemble
 from typing import Optional, Iterable, Sequence
 import yaml
 from vcm import safe
-
-
-def _parse_metadata_backward_compatible(metadata: dict) -> tuple:
-    # first two cases here for backward compatibility (https://github.com/ai2cm/fv3net/issues/1403) # noqa: E501
-    if isinstance(metadata, list) and len(metadata) == 3:
-        (input_variables, output_variables, output_features_tuple,) = metadata
-    elif isinstance(metadata, list) and len(metadata) == 4:
-        (input_variables, output_variables, output_features_tuple,) = metadata[1:]
-    else:
-        input_variables = metadata["input_variables"]
-        output_variables = metadata["output_variables"]
-        output_features_tuple = metadata["output_features"]
-    return input_variables, output_variables, output_features_tuple
 
 
 @register_training_function("sklearn_random_forest", RandomForestHyperparameters)
@@ -201,6 +186,7 @@ class SklearnWrapper(Predictor):
     _PICKLE_NAME = "sklearn.pkl"
     _SCALER_NAME = "scaler.bin"
     _METADATA_NAME = "metadata.bin"
+    _OUTPUT_UNPACKER_NAME = "output_unpacker.bin"
 
     def __init__(
         self,
@@ -233,7 +219,7 @@ class SklearnWrapper(Predictor):
         x, _ = pack(
             data[self.input_variables], SAMPLE_DIM_NAME  # type: ignore
         )
-        y, self.output_features_ = pack(
+        y, self.output_unpacker = pack(
             data[self.output_variables], SAMPLE_DIM_NAME  # type: ignore
         )
         # https://github.com/pydata/xarray/pull/4144
@@ -269,7 +255,7 @@ class SklearnWrapper(Predictor):
             y = self.target_scaler.denormalize(y)
         else:
             raise ValueError("Target scaler not present.")
-        return unpack(y, SAMPLE_DIM_NAME, self.output_features_)
+        return self.output_unpacker.to_dataset(y)
 
     def predict(self, data):
         stacked_data = stack_non_vertical(
@@ -302,10 +288,11 @@ class SklearnWrapper(Predictor):
         metadata = {
             "input_variables": self.input_variables,
             "output_variables": self.output_variables,
-            "output_features": multiindex_to_tuple(self.output_features_),
         }
 
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
+        with fsspec.open(self._OUTPUT_UNPACKER_NAME, "w") as f:
+            self.output_unpacker.dump(f)
 
     @classmethod
     def load(cls, path: str) -> "SklearnWrapper":
@@ -321,15 +308,11 @@ class SklearnWrapper(Predictor):
             scaler_obj = None
 
         metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
-        (
-            input_variables,
-            output_variables,
-            output_features_tuple,
-        ) = _parse_metadata_backward_compatible(metadata)
-        output_features_ = tuple_to_multiindex(output_features_tuple)
+        with fsspec.open(mapper[cls._OUTPUT_UNPACKER_NAME]) as f:
+            unpacker = Unpacker.load(f)
 
-        obj = cls(input_variables, output_variables, model)
+        obj = cls(metadata["input_variables"], metadata["output_variables"], model)
         obj.target_scaler = scaler_obj
-        obj.output_features_ = output_features_
+        obj.output_unpacker = unpacker
 
         return obj

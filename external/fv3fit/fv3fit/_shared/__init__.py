@@ -4,11 +4,8 @@ from .config import (
 )
 from .packer import (
     pack,
-    unpack,
-    ArrayPacker,
+    Unpacker,
     unpack_matrix,
-    multiindex_to_tuple,
-    tuple_to_multiindex,
 )
 from .scaler import (
     StandardScaler,
