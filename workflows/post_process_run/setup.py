@@ -19,7 +19,7 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "post_process_run=fv3post.post_process:post_process",
+            "post_process_run=fv3post:post_process_entrypoint",
             "append_run=fv3post.append:main",
             "fregrid_single_input=fv3post.fregrid:fregrid_single_input",
         ]
