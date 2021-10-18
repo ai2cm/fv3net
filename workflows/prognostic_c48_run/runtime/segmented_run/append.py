@@ -6,6 +6,7 @@ import os
 import fv3config
 import io
 
+
 from .run import run_segment
 from fv3post.post_process import post_process
 from fv3post.append import append_segment
@@ -20,7 +21,7 @@ def read_last_segment(run_url):
         segments = []
 
     if len(segments) > 0:
-        return os.path.join(run_url, segments[-1])
+        return vcm.to_url(fs, segments[-1])
 
 
 def read_run_config(run_url):
