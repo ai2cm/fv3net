@@ -1,11 +1,11 @@
 import dacite
 import dataclasses
-from typing import List, Mapping, Sequence
+from typing import List, Mapping, Sequence, Optional
 import tensorflow as tf
 
 from ._core import ArchitectureConfig, get_combine_from_arch_key
 from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput
-from ..data import convert_map_sequences_to_slices
+from ..data import SliceConfig
 
 
 @dataclasses.dataclass
@@ -46,29 +46,23 @@ class MicrophysicsConfig:
         default_factory=lambda: ArchitectureConfig(name="linear")
     )
     normalize_key: str = "mean_std"
-    selection_map: Mapping[str, slice] = dataclasses.field(default_factory=dict)
+    selection_map: Mapping[str, SliceConfig] = dataclasses.field(default_factory=dict)
     tendency_outputs: Mapping[str, str] = dataclasses.field(default_factory=dict)
     timestep_increment_sec: int = 900
     enforce_positive: bool = True
 
+    # post-init from config
+    selection_map_slices: Mapping[str, slice] = dataclasses.field(init=False)
+
     @classmethod
-    def from_dict(cls, dict_) -> "MicrophysicsConfig":
-
-        d = dict(**dict_)
-        if "selection_map" in d:
-            d["selection_map"] = convert_map_sequences_to_slices(d["selection_map"])
-
+    def from_dict(cls, d) -> "MicrophysicsConfig":
         return dacite.from_dict(cls, d, dacite.Config(strict=True))
 
     def asdict(self):
-        d = dataclasses.asdict(self)
+        return dataclasses.asdict(self)
 
-        # convert slices back to serializable sequence
-        sel_map = d["selection_map"]
-        with_sequences = {k: [s.start, s.stop, s.step] for k, s in sel_map.items()}
-        d["selection_map"] = with_sequences
-
-        return d
+    def __post_init__(self):
+        self.selection_map_slices = {k: v.slice for k, v in self.selection_map.items()}
 
     @property
     def output_variables(self):
@@ -84,7 +78,7 @@ class MicrophysicsConfig:
             FieldInput(
                 sample_in=sample,
                 normalize=self.normalize_key,
-                selection=self.selection_map.get(name, None),
+                selection=self.selection_map_slices.get(name, None),
                 name=f"processed_{name}",
             )(tensor)
             for name, sample, tensor in zip(self.input_variables, sample_in, inputs)
