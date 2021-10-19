@@ -1,6 +1,6 @@
 from fv3fit._shared.config import RegularizerConfig
 import tensorflow as tf
-from typing import Sequence
+from typing import Optional, Sequence
 import dataclasses
 import tensorflow_addons as tfa
 
@@ -91,7 +91,7 @@ class ConvolutionalNetworkConfig:
         hidden_outputs = []
         x = x_in
         if self.transpose_invariant:
-            constraint = TransposeInvariant()
+            constraint: Optional[TransposeInvariant] = TransposeInvariant()
         else:
             constraint = None
         for i in range(self.depth - 1):

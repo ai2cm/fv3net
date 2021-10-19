@@ -6,7 +6,7 @@ from fv3fit._shared import (
     stack_non_vertical,
 )
 import tensorflow as tf
-from typing import Any, Dict, Hashable, Iterable
+from typing import Any, Dict, Hashable, Iterable, Sequence
 import xarray as xr
 import os
 from .._filesystem import get_dir, put_dir
@@ -145,8 +145,8 @@ class PureKerasNoStackModel(Predictor):
 
     def __init__(
         self,
-        input_variables: Iterable[Hashable],
-        output_variables: Iterable[Hashable],
+        input_variables: Sequence[Hashable],
+        output_variables: Sequence[Hashable],
         output_metadata: Iterable[Dict[str, Any]],
         model: tf.keras.Model,
         loss=None,
@@ -161,14 +161,14 @@ class PureKerasNoStackModel(Predictor):
             model: keras model to wrap
         """
         super().__init__(input_variables, output_variables)
-        self.input_variables = input_variables
-        self.output_variables = output_variables
+        self.input_variables: Sequence[Hashable] = input_variables
+        self.output_variables: Sequence[Hashable] = output_variables
         self._output_metadata = output_metadata
         self.model = model
         self.loss = loss
 
     @classmethod
-    def load(cls, path: str) -> "PureKerasModel":
+    def load(cls, path: str) -> "PureKerasNoStackModel":
         """Load a serialized model from a directory."""
         with get_dir(path) as path:
             model_filename = os.path.join(path, cls._MODEL_FILENAME)

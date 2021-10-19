@@ -25,7 +25,7 @@ def multiply_loss_by_factor(original_loss, factor):
     return loss
 
 
-def get_metadata(names, ds: xr.Dataset) -> Tuple[Dict[str, Any]]:
+def get_metadata(names, ds: xr.Dataset) -> Tuple[Dict[str, Any], ...]:
     """
     Retrieve xarray metadata.
 
