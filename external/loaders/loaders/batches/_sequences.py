@@ -1,7 +1,7 @@
 import os
 import glob
 import joblib
-import collections
+import collections.abc
 from copy import deepcopy
 from functools import partial
 import numpy as np
@@ -120,7 +120,7 @@ class Map(BaseSequence[T]):
         Returns:
             result_sequence: a sequence of function results
         """
-        if not isinstance(args_sequence, collections.Sequence):
+        if not isinstance(args_sequence, collections.abc.Sequence):
             raise TypeError(f"args_sequence must be a sequence, got {args_sequence}")
         self._func = func
         self._args = args_sequence
