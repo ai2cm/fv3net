@@ -38,7 +38,10 @@ class FV3StateMapper(Mapping):
         else:
             if key in self._alternate_keys:
                 key = self._alternate_keys[key]
-            return self._getter.get_state([key])[key].data_array
+            try:
+                return self._getter.get_state([key])[key].data_array
+            except fv3gfs.util.InvalidQuantityError as e:
+                raise KeyError(e)
 
     def __iter__(self):
         return iter(self.keys())
@@ -92,7 +95,12 @@ class DerivedFV3State(MutableMapping):
 
     def __setitem__(self, key: str, value: xr.DataArray):
         state_update = _cast_single_to_double({key: value})
-        self._getter.set_state_mass_conserving(_data_arrays_to_quantities(state_update))
+        try:
+            self._getter.set_state_mass_conserving(
+                _data_arrays_to_quantities(state_update)
+            )
+        except ValueError as e:
+            raise KeyError(e)
 
     def keys(self):
         return self._mapper.keys()
@@ -114,7 +122,12 @@ class DerivedFV3State(MutableMapping):
             )
 
         not_pressure = dissoc(items_with_attrs, DELP)
-        self._getter.set_state_mass_conserving(_data_arrays_to_quantities(not_pressure))
+        try:
+            self._getter.set_state_mass_conserving(
+                _data_arrays_to_quantities(not_pressure)
+            )
+        except ValueError as e:
+            raise KeyError(e)
 
     def _assign_attrs_from_mapper(self, dst: State) -> State:
         updated = {}

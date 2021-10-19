@@ -35,6 +35,8 @@ class MockFV3GFS:
 
     def get_state(self, names):
         # need this for the data to remain unchanged for equality tests
+        if any(name not in self.state for name in names):
+            raise fv3gfs.util.InvalidQuantityError("blah")
         return {name: self.state[name] for name in names}
 
     def set_state_mass_conserving(self, data):
@@ -43,7 +45,7 @@ class MockFV3GFS:
         for key, value in data.items():
             assert isinstance(value, fv3gfs.util.Quantity)
             if key not in self.state:
-                raise KeyError(f"{key} not in data.")
+                raise ValueError(f"{key} not in data.")
             self.state[key] = value
 
     def get_diagnostic_by_name(self, diagnostic):
@@ -113,6 +115,21 @@ def test_FV3StateMapper_alternate_keys():
     fv3gfs = MockFV3GFS()
     mapper = FV3StateMapper(fv3gfs, alternate_keys={"lon": "longitude"})
     np.testing.assert_array_almost_equal(mapper["lon"], mapper["longitude"])
+
+
+def test_FV3StateMapper_raises_key_error_on_get():
+    fv3gfs = MockFV3GFS()
+    mapper = FV3StateMapper(fv3gfs)
+    with pytest.raises(KeyError):
+        assert "not in fv3" not in mapper
+        mapper["not in fv3"]
+
+
+def test_DerivedFV3State_raises_key_error_on_set():
+    mapper = DerivedFV3State(MockFV3GFS())
+    assert "not in fv3" not in mapper
+    with pytest.raises(KeyError):
+        mapper["not in fv3"] = xr.DataArray(0, attrs=dict(units=""))
 
 
 def _get_merged_state():
