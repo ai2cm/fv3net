@@ -28,8 +28,10 @@ UNITS = {
     "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface": "[W/m2]",
     "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": "[W/m2]",
     "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": "[W/m2]",
+    "net_shortwave_sfc_flux_derived": "[W/m2]",
 }
 UNITS.update({f"error_in_{var}": UNITS[var] for var in UNITS})
+UNITS.update({f"{var}_snapshot": UNITS[var] for var in UNITS})
 
 
 def reduce_to_diagnostic(
