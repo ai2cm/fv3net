@@ -44,8 +44,7 @@ def test_Config_asdict():
     sl1_kwargs = dict(start=0, stop=10, step=2)
     sl2_kwargs = dict(start=None, stop=25, step=None)
     sel_map = dict(
-        dummy_in=SliceConfig(**sl1_kwargs),
-        dummy_out=SliceConfig(**sl2_kwargs)
+        dummy_in=SliceConfig(**sl1_kwargs), dummy_out=SliceConfig(**sl2_kwargs)
     )
 
     original = MicrophysicsConfig(

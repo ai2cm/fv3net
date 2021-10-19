@@ -2,7 +2,7 @@ import dacite
 import dataclasses
 import logging
 from toolz.functoolz import compose_left
-from typing import Any, Dict, Mapping, Optional, Sequence, Union
+from typing import Any, Dict, Mapping, Optional, Sequence
 
 from . import transforms
 
@@ -72,7 +72,9 @@ class TransformConfig:
 
     def __post_init__(self):
         if self.vertical_subselections is not None:
-            self.vert_sel_as_slices = {k: v.slice for k, v in self.vertical_subselections.items()}
+            self.vert_sel_as_slices = {
+                k: v.slice for k, v in self.vertical_subselections.items()
+            }
         else:
             self.vert_sel_as_slices = None
 

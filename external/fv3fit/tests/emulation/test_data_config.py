@@ -1,5 +1,4 @@
 import pytest
-from fv3fit.emulation.data import config
 from fv3fit.emulation.data.config import SliceConfig, TransformConfig
 
 
@@ -14,7 +13,7 @@ def test_SliceConfig(start, stop, step):
 
 def test_TransformConfig():
 
-    transform = config.TransformConfig(
+    transform = TransformConfig(
         input_variables=["a", "b"],
         output_variables=["c", "d"],
         antarctic_only=False,
@@ -27,7 +26,7 @@ def test_TransformConfig():
 
 def test_TransformConfig_from_dict():
 
-    transform = config.TransformConfig.from_dict(
+    transform = TransformConfig.from_dict(
         dict(
             input_variables=["a", "b"],
             output_variables=["c", "d"],
@@ -37,5 +36,5 @@ def test_TransformConfig_from_dict():
     )
 
     assert transform.vert_sel_as_slices["a"] == slice(5, None)
-    assert isinstance(transform, config.TransformConfig)
+    assert isinstance(transform, TransformConfig)
     assert callable(transform)
