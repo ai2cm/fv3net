@@ -45,21 +45,11 @@ class ConvolutionalHyperparameters(Hyperparameters):
     Args:
         input_variables: names of variables to use as inputs
         output_variables: names of variables to use as outputs
-        weights: loss function weights, defined as a dict whose keys are
-            variable names and values are either a scalar referring to the total
-            weight of the variable. Default is a total weight of 1
-            for each variable.
-        normalize_loss: if True (default), normalize outputs by their standard
-            deviation before computing the loss function
         optimizer_config: selection of algorithm to be used in gradient descent
-        dense_network: configuration of dense network
+        convolutional_network: configuration of convolutional network
         training_loop: configuration of training loop
-        loss: loss function to use, should be 'mse' or 'mae'
-        save_model_checkpoints: if True, save one model per epoch when
-            dumping, under a 'model_checkpoints' subdirectory
-        nonnegative_outputs: if True, add a ReLU activation layer as the last layer
-            after output denormalization layer to ensure outputs are always >=0
-            Defaults to False.
+        loss: configuration of loss functions, will be applied separately to
+            each output variable
     """
 
     input_variables: List[str]
@@ -74,7 +64,6 @@ class ConvolutionalHyperparameters(Hyperparameters):
         default_factory=lambda: TrainingLoopConfig(epochs=10)
     )
     loss: LossConfig = LossConfig(scaling="standard")
-    couple_precip_to_dQ1_dQ2: bool = True
 
     @property
     def variables(self) -> Set[str]:
