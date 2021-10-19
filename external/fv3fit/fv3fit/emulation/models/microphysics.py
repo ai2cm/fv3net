@@ -5,6 +5,7 @@ import tensorflow as tf
 
 from ._core import ArchitectureConfig, get_combine_from_arch_key
 from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput
+from ..data import SliceConfig
 
 
 @dataclasses.dataclass
@@ -35,6 +36,7 @@ class MicrophysicsConfig:
             name.
         timestep_increment_sec: Time increment multiplier for the state-tendency
             update
+        enforce_positive: Enforce model outputs are zero or positive
     """
 
     input_variables: List[str] = dataclasses.field(default_factory=list)
@@ -44,13 +46,23 @@ class MicrophysicsConfig:
         default_factory=lambda: ArchitectureConfig(name="linear")
     )
     normalize_key: str = "mean_std"
-    selection_map: Mapping[str, slice] = dataclasses.field(default_factory=dict)
+    selection_map: Mapping[str, SliceConfig] = dataclasses.field(default_factory=dict)
     tendency_outputs: Mapping[str, str] = dataclasses.field(default_factory=dict)
     timestep_increment_sec: int = 900
+    enforce_positive: bool = True
+
+    # post-init from config
+    selection_map_slices: Mapping[str, slice] = dataclasses.field(init=False)
 
     @classmethod
-    def from_dict(cls, dict_) -> "MicrophysicsConfig":
-        return dacite.from_dict(cls, dict_, dacite.Config(strict=True))
+    def from_dict(cls, d) -> "MicrophysicsConfig":
+        return dacite.from_dict(cls, d, dacite.Config(strict=True))
+
+    def asdict(self):
+        return dataclasses.asdict(self)
+
+    def __post_init__(self):
+        self.selection_map_slices = {k: v.slice for k, v in self.selection_map.items()}
 
     @property
     def output_variables(self):
@@ -66,7 +78,7 @@ class MicrophysicsConfig:
             FieldInput(
                 sample_in=sample,
                 normalize=self.normalize_key,
-                selection=self.selection_map.get(name, None),
+                selection=self.selection_map_slices.get(name, None),
                 name=f"processed_{name}",
             )(tensor)
             for name, sample, tensor in zip(self.input_variables, sample_in, inputs)
@@ -80,10 +92,11 @@ class MicrophysicsConfig:
 
         for name, sample in zip(self.direct_out_variables, sample_out):
             out_ = FieldOutput(
-                sample,
+                sample.shape[-1],
+                sample_out=sample,
                 denormalize=self.normalize_key,
                 name=name,
-                enforce_positive=True,
+                enforce_positive=self.enforce_positive,
             )(net_output)
             outputs.append(out_)
 
@@ -97,11 +110,12 @@ class MicrophysicsConfig:
         for (name, in_state), sample in zip(residual_to_input_map.items(), sample_out):
             # incremented state field output
             res_out = IncrementedFieldOutput(
-                sample,
+                sample.shape[-1],
                 self.timestep_increment_sec,
+                sample_out=sample,
                 denormalize=self.normalize_key,
                 name=name,
-                enforce_positive=True,
+                enforce_positive=self.enforce_positive,
             )
 
             out_ = res_out(in_state, net_output)
