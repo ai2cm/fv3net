@@ -598,14 +598,12 @@ def env_var_context(configuration, saved_model_path):
 
     if configuration == ConfigEnum.microphys_emulation:
 
-        meta_path = Path(__file__).parent.parent.joinpath(
-            "emulation", "microphysics_parameter_metadata.yaml"
-        )
+        # Note: VAR_META_PATH is set during docker image creation
+        #       since that is static
 
         env = {
             "TF_MODEL_PATH": saved_model_path,
             "OUTPUT_FREQ_SEC": str(900),
-            "VAR_META_PATH": str(meta_path),
         }
     else:
         env = {}
