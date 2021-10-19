@@ -1,4 +1,4 @@
-from ._shared import ArrayPacker, StandardScaler, DerivedModel
+from ._shared import Unpacker, StandardScaler, DerivedModel
 from ._shared.predictor import Predictor
 from ._shared.io import dump, load
 from ._shared.config import (

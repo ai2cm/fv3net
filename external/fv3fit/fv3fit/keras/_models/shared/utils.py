@@ -1,10 +1,10 @@
-from fv3fit._shared.packer import ArrayPacker
+from fv3fit._shared.packer import Unpacker
 import tensorflow as tf
 from typing import Optional
 
 
 def get_input_vector(
-    packer: ArrayPacker, n_window: Optional[int] = None, series: bool = True,
+    packer: Unpacker, n_window: Optional[int] = None, series: bool = True,
 ):
     """
     Given a packer, return a list of input layers with one layer

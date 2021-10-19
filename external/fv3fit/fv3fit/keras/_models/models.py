@@ -18,7 +18,7 @@ import dacite
 import shutil
 import dataclasses
 
-from ..._shared.packer import ArrayPacker, unpack_matrix
+from ..._shared.packer import Unpacker, unpack_matrix, pack
 from ..._shared.predictor import Predictor
 from ..._shared import (
     io,
@@ -160,12 +160,6 @@ class DenseModel(Predictor):
         # TODO: remove internal sample dim name once sample dim is hardcoded everywhere
         super().__init__(input_variables, output_variables)
         self._model = None
-        self.X_packer = ArrayPacker(
-            sample_dim_name=SAMPLE_DIM_NAME, pack_names=input_variables
-        )
-        self.y_packer = ArrayPacker(
-            sample_dim_name=SAMPLE_DIM_NAME, pack_names=output_variables
-        )
         self.X_scaler = LayerStandardScaler()
         self.y_scaler = LayerStandardScaler()
         self.train_history = {"loss": [], "val_loss": []}  # type: Mapping[str, List]
@@ -231,7 +225,10 @@ class DenseModel(Predictor):
 
         random_state = np.random.RandomState(np.random.get_state()[1][0])
         stacked_batches = StackedBatches(batches, random_state)
-        Xy = _XyArraySequence(self.X_packer, self.y_packer, stacked_batches)
+        Xy = _XyArraySequence(
+            self.input_variables, self.output_variables, stacked_batches
+        )
+        self.X_unpacker, self.y_unpacker = Xy.get_unpackers()
         if self._model is None:
             X, y = Xy[0]
             n_features_in, n_features_out = X.shape[-1], y.shape[-1]
@@ -254,8 +251,10 @@ class DenseModel(Predictor):
             Xy = Take(Xy, len(Xy) - 1)  # type: ignore
         elif validation_dataset is not None:
             stacked_validation_dataset = stack_non_vertical(validation_dataset)
-            X_val = self.X_packer.to_array(stacked_validation_dataset)
-            y_val = self.y_packer.to_array(stacked_validation_dataset)
+            input_dataset = stacked_validation_dataset[self.input_variables]
+            output_dataset = stacked_validation_dataset[self.output_variables]
+            X_val, _ = pack(input_dataset, SAMPLE_DIM_NAME)
+            y_val, _ = pack(output_dataset, SAMPLE_DIM_NAME)
             val_sample = np.random.choice(
                 np.arange(len(y_val)), validation_samples, replace=False
             )
@@ -284,9 +283,9 @@ class DenseModel(Predictor):
             )
 
     def _predict_on_stacked_data(self, stacked_input: xr.Dataset) -> xr.Dataset:
-        stacked_input_array = self.X_packer.to_array(stacked_input)
+        stacked_input_array, _ = pack(stacked_input, SAMPLE_DIM_NAME)
         stacked_output_array = self.model.predict(stacked_input_array)
-        return self.y_packer.to_dataset(stacked_output_array)
+        return self.y_unpacker.to_dataset(stacked_output_array)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         stacked_data = stack_non_vertical(safe.get_variables(X, self.input_variables))
@@ -310,9 +309,9 @@ class DenseModel(Predictor):
                     os.path.join(path, KERAS_CHECKPOINT_PATH),
                 )
             with open(os.path.join(path, self._X_PACKER_FILENAME), "w") as f:
-                self.X_packer.dump(f)
+                self.X_unpacker.dump(f)
             with open(os.path.join(path, self._Y_PACKER_FILENAME), "w") as f:
-                self.y_packer.dump(f)
+                self.y_unpacker.dump(f)
             with open(os.path.join(path, self._X_SCALER_FILENAME), "wb") as f_binary:
                 self.X_scaler.dump(f_binary)
             with open(os.path.join(path, self._Y_SCALER_FILENAME), "wb") as f_binary:
@@ -356,9 +355,9 @@ class DenseModel(Predictor):
         dir_ = os.path.join(path, MODEL_DIRECTORY)
         with get_dir(dir_) as path:
             with open(os.path.join(path, cls._X_PACKER_FILENAME), "r") as f:
-                X_packer = ArrayPacker.load(f)
+                X_unpacker = Unpacker.load(f)
             with open(os.path.join(path, cls._Y_PACKER_FILENAME), "r") as f:
-                y_packer = ArrayPacker.load(f)
+                y_unpacker = Unpacker.load(f)
             with open(os.path.join(path, cls._X_SCALER_FILENAME), "rb") as f_binary:
                 X_scaler = LayerStandardScaler.load(f_binary)
             with open(os.path.join(path, cls._Y_SCALER_FILENAME), "rb") as f_binary:
@@ -371,9 +370,9 @@ class DenseModel(Predictor):
                 config=dacite.Config(strict=True),
             )
 
-            obj = cls(X_packer.pack_names, y_packer.pack_names, hyperparameters,)
-            obj.X_packer = X_packer
-            obj.y_packer = y_packer
+            obj = cls(X_unpacker.pack_names, y_unpacker.pack_names, hyperparameters,)
+            obj.X_unpacker = X_unpacker
+            obj.y_unpacker = y_unpacker
             obj.X_scaler = X_scaler
             obj.y_scaler = y_scaler
             model_filename = os.path.join(path, cls._MODEL_FILENAME)
@@ -400,20 +399,20 @@ class DenseModel(Predictor):
         """
         if base_state is None:
             if self.X_scaler.mean is not None:
-                mean = self.X_packer.to_dataset(self.X_scaler.mean[np.newaxis, :])
+                mean = self.X_unpacker.to_dataset(self.X_scaler.mean[np.newaxis, :])
                 mean_expanded = mean.expand_dims(SAMPLE_DIM_NAME, 0)
             else:
                 raise ValueError("X_scaler needs to be fit first.")
         else:
             mean_expanded = base_state.expand_dims(SAMPLE_DIM_NAME)
 
-        mean_tf = tf.convert_to_tensor(self.X_packer.to_array(mean_expanded))
+        mean_tf = tf.convert_to_tensor(pack(mean_expanded, SAMPLE_DIM_NAME)[0])
         with tf.GradientTape() as g:
             g.watch(mean_tf)
             y = self.model(mean_tf)
 
         J = g.jacobian(y, mean_tf)[0, :, 0, :].numpy()
-        return unpack_matrix(self.X_packer, self.y_packer, J)
+        return unpack_matrix(self.X_unpacker, self.y_unpacker, J)
 
 
 def _fill_default(kwargs: dict, arg: Optional[Any], key: str, default: Any):

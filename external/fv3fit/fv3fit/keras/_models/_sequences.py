@@ -4,9 +4,10 @@ import queue
 import xarray as xr
 import numpy as np
 import tensorflow as tf
-from typing import Sequence, Tuple, List, Any
+from typing import Sequence, Tuple, List, Any, Iterable, Hashable
 
-from ..._shared.packer import ArrayPacker
+from ..._shared.packer import pack, Unpacker
+from ..._shared import SAMPLE_DIM_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +20,12 @@ class _XyArraySequence(tf.keras.utils.Sequence):
 
     def __init__(
         self,
-        X_packer: ArrayPacker,
-        y_packer: ArrayPacker,
+        input_variables: Iterable[Hashable],
+        output_variables: Iterable[Hashable],
         dataset_sequence: Sequence[xr.Dataset],
     ):
-        self.X_packer = X_packer
-        self.y_packer = y_packer
+        self.input_variables = list(input_variables)
+        self.output_variables = list(output_variables)
         self.dataset_sequence = dataset_sequence
 
     def __len__(self) -> int:
@@ -32,9 +33,15 @@ class _XyArraySequence(tf.keras.utils.Sequence):
 
     def __getitem__(self, idx) -> Tuple[np.ndarray, np.ndarray]:
         ds = self.dataset_sequence[idx]
-        X = self.X_packer.to_array(ds)
-        y = self.y_packer.to_array(ds)
+        X, _ = pack(ds[self.input_variables], SAMPLE_DIM_NAME)
+        y, _ = pack(ds[self.output_variables], SAMPLE_DIM_NAME)
         return X, y
+
+    def get_unpackers(self) -> Tuple[Unpacker, Unpacker]:
+        ds = self.dataset_sequence[0]
+        _, X_unpacker = pack(ds[self.input_variables], SAMPLE_DIM_NAME)
+        _, y_unpacker = pack(ds[self.output_variables], SAMPLE_DIM_NAME)
+        return X_unpacker, y_unpacker
 
 
 class _XyMultiArraySequence(tf.keras.utils.Sequence):

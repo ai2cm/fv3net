@@ -178,9 +178,7 @@ def unpack_matrix(
     return xr.Dataset(jacobian_dict)  # type: ignore
 
 
-def pack(
-    data: xr.Dataset, sample_dim: str, config: PackerConfig = PackerConfig()
-) -> Tuple[np.ndarray, Unpacker]:
+def pack(data: xr.Dataset, sample_dim: str) -> Tuple[np.ndarray, Unpacker]:
     """Pack an xarray dataset into a numpy array.
 
     Args:
@@ -192,7 +190,5 @@ def pack(
     Returns:
         tuple of packed array and Unpacker object.
     """
-    if config.pack_names is not None:
-        data_out = vcm.safe.get_variables(data, config.pack_names)
-    array, index = _pack(data_out, sample_dim)
+    array, index = _pack(data, sample_dim)
     return array, Unpacker(sample_dim, index)

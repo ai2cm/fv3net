@@ -1,5 +1,5 @@
 from typing import Callable, Union, Mapping, MutableMapping
-from ..._shared.packer import ArrayPacker
+from ..._shared.packer import Unpacker, pack
 import numpy as np
 import xarray as xr
 import tensorflow as tf
@@ -34,7 +34,7 @@ def _weighted_mae(weights, std, dtype=tf.float32):
     return custom_loss
 
 
-def _pack_weights(y_packer: ArrayPacker, **weights):
+def _pack_weights(y_packer: Unpacker, **weights):
     """Returns a size [1, n_features] array of stacked weights corresponding to a
     stacked array, based on values given in a weights dictionary. Default weight is
     1 split between all features of a quantity. Values can be scalar or an array giving
@@ -56,10 +56,7 @@ def _pack_weights(y_packer: ArrayPacker, **weights):
             array = np.zeros([1, y_packer.feature_counts[name]]) + weight
             dims = [y_packer.sample_dim_name, f"{name}_feature"]
         data_vars[name] = (dims, array)
-    # TODO: make ArrayPacker.to_array not have hidden side effects
-    # for now, we make a new packer to ensure the y_packer state is not modified
-    new_packer = ArrayPacker(y_packer.sample_dim_name, y_packer.pack_names)
-    return new_packer.to_array(xr.Dataset(data_vars))  # type: ignore
+    return pack(xr.Dataset(data_vars), y_packer.sample_dim_name)[0]  # type: ignore
 
 
 def _divide_scalar_weights_by_feature_counts(
@@ -79,7 +76,7 @@ def _divide_scalar_weights_by_feature_counts(
 
 
 def get_weighted_mse(
-    y_packer: ArrayPacker, y_std: np.ndarray, **weights: Weight,
+    y_packer: Unpacker, y_std: np.ndarray, **weights: Weight,
 ) -> Callable:
     """Retrieve a weighted mean squared error loss function for a given set of weights.
 
@@ -114,7 +111,7 @@ def get_weighted_mse(
 
 
 def get_weighted_mae(
-    y_packer: ArrayPacker, y_std: np.ndarray, **weights: Weight,
+    y_packer: Unpacker, y_std: np.ndarray, **weights: Weight,
 ) -> Callable:
     """Retrieve a weighted mean absolute error loss function for a given set of weights.
 

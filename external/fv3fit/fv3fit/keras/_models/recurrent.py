@@ -3,10 +3,10 @@ import tensorflow as tf
 import xarray as xr
 from ..._shared import (
     io,
-    ArrayPacker,
+    Unpacker,
     SAMPLE_DIM_NAME,
 )
-from .packer import get_unpack_layer
+from .packer import get_unpack_layer, pack
 from .normalizer import LayerStandardScaler
 import numpy as np
 import vcm.safe
@@ -93,7 +93,8 @@ class _BPTTTrainer:
             state_noise: amount of Gaussian noise to add to model prognostic state
                 before using it to predict tendencies
         """
-        prognostic_variables = (
+        self.input_variables = input_variables
+        self.prognostic_variables = (
             "air_temperature",
             "specific_humidity",
         )
@@ -103,8 +104,8 @@ class _BPTTTrainer:
         )
         self.output_variables = ["dQ1", "dQ2"]
         self.sample_dim_name = sample_dim_name
-        self.input_packer = ArrayPacker(SAMPLE_DIM_NAME, input_variables)
-        self.prognostic_packer = ArrayPacker(SAMPLE_DIM_NAME, prognostic_variables)
+        # self.input_packer = ArrayPacker(SAMPLE_DIM_NAME, input_variables)
+        # self.prognostic_packer = ArrayPacker(SAMPLE_DIM_NAME, prognostic_variables)
         self.train_timestep_seconds: Optional[float] = None
         self.input_scaler = LayerStandardScaler()
         self.prognostic_scaler = LayerStandardScaler()

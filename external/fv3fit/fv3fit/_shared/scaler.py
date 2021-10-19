@@ -6,7 +6,7 @@ import xarray as xr
 import io
 import yaml
 
-from .packer import ArrayPacker
+from .packer import Unpacker, pack
 
 
 class NormalizeTransform(abc.ABC):
@@ -113,7 +113,7 @@ class ManualScaler(NormalizeTransform):
 
 
 def get_mass_scaler(
-    packer: ArrayPacker,
+    packer: Unpacker,
     delp: np.ndarray,
     variable_scale_factors: Mapping[str, float] = None,
     sqrt_scales: bool = False,
@@ -126,7 +126,7 @@ def get_mass_scaler(
     variable scale factors default to 1.
 
         Args:
-            packer: ArrayPacker object that contains information a
+            packer: Unpacker object that contains information a
             delp: 1D array of pressure thickness used to mass weight model
                 levels.
             variable_scale_factors: Optional mapping of variable names to scale factors
@@ -146,7 +146,7 @@ def get_mass_scaler(
 
 
 def _create_scaling_array(
-    packer: ArrayPacker,
+    packer: Unpacker,
     vertical_scales: np.ndarray,
     variable_scale_factors: Mapping[str, float] = None,
     sqrt_scales: bool = True,
@@ -160,7 +160,7 @@ def _create_scaling_array(
     Unless specified otherwise, variable scale factors default to 1.
 
         Args:
-            packer: ArrayPacker object that contains information a
+            packer: Unpacker object that contains information a
             vertical_scale: 1D array of scales for each model level.
             variable_scale_factors: Optional mapping of variable names to scale factors
                 by which their loss scales will be multiplied. This allows
@@ -237,15 +237,17 @@ def get_scaler(
 ) -> NormalizeTransform:
     DELP = "pressure_thickness_of_atmospheric_layer"
     # Defaults to StandardScaler if none specified in config
-    packer = ArrayPacker(sample_dim, output_vars)
-    data_array = packer.to_array(norm_data)
+    data_array, unpacker = pack(norm_data[output_vars], sample_dim)
     if "standard" in scaler_type.lower():
         target_scaler = StandardScaler()
         target_scaler.fit(data_array)
     elif "mass" in scaler_type.lower():
         delp = norm_data[DELP].mean(dim=sample_dim).values
         target_scaler = get_mass_scaler(  # type: ignore
-            packer, delp, scaler_kwargs.get("variable_scale_factors"), sqrt_scales=True
+            unpacker,
+            delp,
+            scaler_kwargs.get("variable_scale_factors"),
+            sqrt_scales=True,
         )
     else:
         raise ValueError(
