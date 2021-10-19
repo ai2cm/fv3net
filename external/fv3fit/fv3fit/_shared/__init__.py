@@ -2,7 +2,14 @@ from .config import (
     TrainingConfig,
     register_training_function,
 )
-from .packer import pack, unpack, ArrayPacker, unpack_matrix
+from .packer import (
+    pack,
+    unpack,
+    ArrayPacker,
+    unpack_matrix,
+    multiindex_to_tuple,
+    tuple_to_multiindex,
+)
 from .scaler import (
     StandardScaler,
     ManualScaler,

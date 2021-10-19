@@ -51,7 +51,7 @@ def get_keras_model(name):
 class TrainingConfig:
     """Convenience wrapper for model training parameters and file info
 
-    Attrs:
+    Attributes:
         model_type: sklearn model type or keras model class to initialize
         hyperparameters: model_type-specific training configuration
         sample_dim_name: deprecated, internal name used for sample dimension
