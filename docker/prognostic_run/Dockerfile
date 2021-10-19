@@ -105,18 +105,11 @@ RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     mkdir /outdir && \
     chmod -R 777 /outdir
 
-# Install fv3gfs run script
-RUN apt-get install -y jq
-RUN pip3 install yq==2.11.1
-COPY workflows/prognostic_c48_run/runfv3 /usr/local/bin/
-RUN chmod 755 /usr/local/bin/runfv3
-
 #Install gcloud
 RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext && \
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list &&\
     curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
     apt-get update && apt-get install -y google-cloud-sdk jq python3-dev python3-pip kubectl gfortran
-
 
 # Install post_process
 COPY workflows/post_process_run /fv3net/workflows/post_process_run

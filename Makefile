@@ -14,30 +14,15 @@ IMAGES = fv3net post_process_run prognostic_run
 .PHONY: build_images push_image run_integration_tests image_name_explicit
 ############################################################
 # Docker Image Management
-# 
-# There are three phases
-# build -> image test -> push
-# 
 ############################################################
 # pattern rule for building docker images
 build_image_%:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/$*:$(CACHE_TAG) \
 		-f docker/$*/Dockerfile -t $(REGISTRY)/$*:$(VERSION) .
 
-push_image_%: image_test_%
-	docker push $(REGISTRY)/$*:$(VERSION)
-
-pull_image_%:
-	docker pull $(REGISTRY)/$*:$(VERSION)
-
-image_test_%: build_image_%
-	echo "No tests specified"
-
 build_images: $(addprefix build_image_, $(IMAGES))
 push_images: $(addprefix push_image_, $(IMAGES))
 
-
-# Prognostic run
 build_image_prognostic_run:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
@@ -47,7 +32,11 @@ build_image_prognostic_run:
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/notebook:$(VERSION) \
 		--target notebook .
 
-image_test_prognostic_run: build_image_prognostic_run
+push_image_prognostic_run: build_image_prognostic_run
+	docker push $(REGISTRY)/prognostic_run:$(VERSION)
+	docker push $(REGISTRY)/notebook:$(VERSION)
+
+image_test_prognostic_run:
 	docker run \
 		--rm \
 		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
@@ -55,10 +44,14 @@ image_test_prognostic_run: build_image_prognostic_run
 		-w /fv3net/workflows/prognostic_c48_run \
 		$(REGISTRY)/prognostic_run:$(VERSION) pytest
 
-push_image_prognostic_run: image_test_prognostic_run
-	docker push $(REGISTRY)/prognostic_run:$(VERSION)
-	docker push $(REGISTRY)/notebook:$(VERSION)
+image_test_%:
+	echo "No tests specified"
 
+push_image_%: build_image_%
+	docker push $(REGISTRY)/$*:$(VERSION)
+
+pull_image_%:
+	docker pull $(REGISTRY)/$*:$(VERSION)
 
 ############################################################
 # Documentation (rules match "deploy_docs_%")
@@ -100,6 +93,9 @@ deploy_local:
 ############################################################
 run_integration_tests:
 	./tests/end_to_end_integration/run_test.sh $(REGISTRY) $(VERSION)
+
+test_prognostic_run:
+	docker run prognostic_run pytest
 
 test_prognostic_run_report:
 	bash workflows/diagnostics/tests/prognostic/test_integration.sh
