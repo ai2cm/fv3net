@@ -30,8 +30,8 @@ def test_DenseModel_jacobian(base_state):
 
     batch = xr.Dataset(
         {
-            "a": (["x", "z"], np.arange(10).reshape(2, 5)),
-            "b": (["x", "z"], np.arange(10).reshape(2, 5)),
+            "a": (["x", "z"], np.arange(10, dtype=np.float).reshape(2, 5)),
+            "b": (["x", "z"], np.arange(10, dtype=np.float).reshape(2, 5)),
         }
     )
     model = IdentityModel(["a"], ["b"], DenseHyperparameters(["a"], ["b"]))

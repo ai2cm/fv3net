@@ -1,0 +1,320 @@
+air_pressure:
+  fortran_name: prsl
+  standard_name: air_pressure
+  long_name: layer mean air pressure
+  units: Pa
+  field_dims: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+pressure_thickness_of_atmospheric_layer:
+  standard_name: air_pressure_difference_between_midlayers
+  fortran_name: del
+  long_name: pressure level thickness
+  units: Pa
+  field_dims: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+specific_humidity:
+  fortran_name: q
+  standard_name: specific_humidity
+  long_name: water vapor specific humidity
+  units: kg kg-1
+  field_dims: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+cloud_water_mixing_ratio:
+  fortran_name: cwm
+  standard_name: cloud_water_mixing_ratio
+  long_name: moist cloud condensed water mixing ratio
+  units: kg kg-1
+  field_dims: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: out
+  optional: F
+air_temperature:
+  fortran_name: t
+  standard_name: air_temperature
+  long_name: layer mean air temperature
+  units: K
+  field_dims: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+latitude:
+  fortran_name: xlat
+  standard_name: latitude
+  long_name: grid latitude in radians
+  units: radians
+  field_dims: (horizontal_dimension)
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+longitude:
+  fortran_name: xlon
+  standard_name: longitude
+  long_name: grid longitude in radians
+  units: radians
+  field_dims: (horizontal_dimension)
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+
+
+# gscond specific
+
+time_step_for_dynamics:
+  fortran_name: dtf
+  standard_name: time_step_for_dynamics
+  long_name: dynamics time step
+  units: s
+  field_dims: []
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+
+
+surface_air_pressure:
+  fortran_name: ps
+  standard_name: surface_air_pressure
+  long_name: surface pressure
+  units: Pa
+  field_dims: [horizontal_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+ice_water_mixing_ratio_convective_transport_tracer:
+  fortran_name: clw1
+  standard_name: ice_water_mixing_ratio_convective_transport_tracer
+  long_name: moist [dry+vapor,  no]] mixing ratio of ice water in the convectively transported tracer array
+  units: kg kg-1
+  field_dims: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+cloud_condensed_water_mixing_ratio_convective_transport_tracer:
+  fortran_name: clw2
+  standard_name: cloud_condensed_water_mixing_ratio_convective_transport_tracer
+  long_name: moist [dry+vapor,  no]] mixing ratio of cloud water [condensate] in the convectively transported tracer array
+  units: kg kg-1
+  field_dims: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+air_temperature_two_time_steps_back:
+  fortran_name: tp
+  standard_name: air_temperature_two_time_steps_back
+  long_name: air temperature two time steps back
+  units: K
+  field_dims: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+specific_humidity_two_time_steps_back:
+  fortran_name: qp
+  standard_name: specific_humidity_two_time_steps_back
+  long_name: water vapor specific humidity two time steps back
+  units: kg kg-1
+  field_dims: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+surface_air_pressure_two_time_steps_back:
+  fortran_name: psp
+  standard_name: surface_air_pressure_two_time_steps_back
+  long_name: surface air pressure two time steps back
+  units: Pa
+  field_dims: [horizontal_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+air_temperature_at_previous_time_step:
+  fortran_name: tp1
+  standard_name: air_temperature_at_previous_time_step
+  long_name: air temperature at previous time step
+  units: K
+  field_dims: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+specific_humidity_at_previous_time_step:
+  fortran_name: qp1
+  standard_name: specific_humidity_at_previous_time_step
+  long_name: water vapor specific humidity at previous time step
+  units: kg kg-1
+  field_dims: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+surface_air_pressure_at_previous_time_step:
+  fortran_name: psp1
+  standard_name: surface_air_pressure_at_previous_time_step
+  long_name: surface air surface pressure at previous time step
+  units: Pa
+  field_dims: [horizontal_dimension]
+  type: real
+  kind: kind_phys
+  intent: inout
+  optional: F
+critical_relative_humidity:
+  fortran_name: u
+  standard_name: critical_relative_humidity
+  long_name: critical relative humidity
+  units: frac
+  field_dims: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+lprnt:
+  standard_name: flag_print
+  long_name: flag for printing diagnostics to output
+  units: flag
+  field_dims: []
+  type: logical
+  intent: in
+  optional: F
+ipr:
+  standard_name: horizontal_index_of_printed_column
+  long_name: horizontal index of printed column
+  units: index
+  field_dims: []
+  type: integer
+  intent: in
+  optional: F
+errmsg:
+  standard_name: ccpp_error_message
+  long_name: error message for error handling in CCPP
+  units: none
+  field_dims: []
+  type: character
+  kind:   le:*
+  intent: out
+  optional: F
+errflg:
+  standard_name: ccpp_error_flag
+  long_name: error flag for error handling in CCPP
+  units: flag
+  field_dims: []
+  type: integer
+  intent: out
+  optional: F
+
+# precpd specific
+total_precipitation:
+  fortran_name: rn
+  standard_name: total_precipitation
+  long_name: explicit precipitation amount on physics timestep
+  units: m
+  field_dims: [horizontal_dimension]
+  type: real
+  kind: kind_phys
+  intent: out
+  optional: F
+ratio_of_snowfall_to_rainfall:
+  fortran_name: sr
+  standard_name: ratio_of_snowfall_to_rainfall
+  long_name: ratio of snowfall to large-scale rainfall
+  units: frac
+  field_dims: [horizontal_dimension]
+  type: real
+  kind: kind_phys
+  intent: out
+  optional: F
+tendency_of_rain_water_mixing_ratio_due_to_microphysics:
+  fortran_name: rainp
+  standard_name: tendency_of_rain_water_mixing_ratio_due_to_microphysics
+  long_name: tendency of rain water mixing ratio due to microphysics
+  units: kg kg-1 s-1
+  field_dims: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: out
+  optional: F
+critical_relative_humidity:
+  fortran_name: u00k
+  standard_name: critical_relative_humidity
+  long_name: critical relative humidity
+  units: frac
+  field_dims: [horizontal_dimension, vertical_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+coefficient_from_cloud_ice_to_snow:
+  fortran_name: psautco
+  standard_name: coefficient_from_cloud_ice_to_snow
+  long_name: conversion coefficient from cloud ice to snow
+  units: none
+  field_dims: [2]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+coefficient_from_cloud_water_to_rain:
+  fortran_name: prautco
+  standard_name: coefficient_from_cloud_water_to_rain
+  long_name: conversion coefficient from cloud water to rain
+  units: none
+  field_dims: [2]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+coefficient_for_evaporation_of_rainfall:
+  fortran_name: evpco
+  standard_name: coefficient_for_evaporation_of_rainfall
+  long_name: coefficient for evaporation of rainfall
+  units: none
+  field_dims: []
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+cloud_condensed_water_conversion_threshold:
+  fortran_name: wminco
+  standard_name: cloud_condensed_water_conversion_threshold
+  long_name: conversion coefficient from cloud liquid and ice to precipitation
+  units: none
+  field_dims: [2]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+grid_size_related_coefficient_used_in_scale_sensitive_schemes:
+  fortran_name: wk1
+  standard_name: grid_size_related_coefficient_used_in_scale_sensitive_schemes
+  long_name: grid size related coefficient used in scale-sensitive schemes
+  units: none
+  field_dims: [horizontal_dimension]
+  type: real
+  kind: kind_phys
+  intent: in
+  optional: F
+jpr:
+  standard_name: horizontal_index_of_printed_column
+  long_name: horizontal index of printed column
+  units: index
+  field_dims: []
+  type: integer
+  intent: in
+  optional: F
+

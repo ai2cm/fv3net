@@ -1,10 +1,8 @@
 import json
 import numpy as np
 import os
-import random
 import shutil
 from typing import Mapping, Sequence, Dict, Tuple, Iterable
-import warnings
 import vcm
 import xarray as xr
 
@@ -29,6 +27,7 @@ UNITS = {
     "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface": "[W/m2]",
     "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": "[W/m2]",
     "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": "[W/m2]",
+    "net_shortwave_sfc_flux_derived": "[W/m2]",
 }
 
 GRID_INFO_VARS = [
@@ -190,14 +189,6 @@ def get_metric_string(
     return f"{value:.{precision}f} +/- {std:.{precision}f}"
 
 
-def vars_to_plot_maps(metrics):
-    names = []
-    for key in metrics:
-        if "_r2_2d_" in key and key.split("_r2_2d_")[-1] == "global":
-            names.append(key.split("_r2_2d_")[0])
-    return list(set(names))
-
-
 def units_from_name(var):
     return UNITS.get(var.lower(), "[units unavailable]")
 
@@ -212,20 +203,3 @@ def _shorten_coordinate_label(coord: str):
         .replace("positive", "> 0")
         .replace("negative", "< 0")
     )
-
-
-def sample_outside_train_range(all: Sequence, train: Sequence, n_sample: int,) -> list:
-    # Draws test samples from outside the training time range
-    if len(train) == 0:
-        warnings.warn(
-            "Training timestep list has zero length, test set will be drawn from "
-            "the full set of timesteps in mapper."
-        )
-        outside_train_range = all
-    else:
-        outside_train_range = [t for t in all if t < min(train) or t > max(train)]
-    if len(outside_train_range) == 0:
-        raise ValueError("There are no timesteps available outside the training range.")
-    num_test = min(len(outside_train_range), n_sample)
-    random.seed(0)
-    return random.sample(sorted(outside_train_range), max(1, num_test))

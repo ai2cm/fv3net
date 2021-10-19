@@ -7,6 +7,7 @@ RUN apt-get update && \
     autoconf \
     automake \
     bats \
+    cmake \
     curl \
     cython3 \
     g++ \
@@ -32,6 +33,7 @@ RUN apt-get update && \
     python3-dev \
     python3-pip \
     python3-setuptools \
+    python3-cffi \
     rsync \
     wget
 
@@ -47,18 +49,27 @@ RUN bash install_nceplibs.sh /opt/NCEPlibs
 
 
 ENV ESMF_DIR=/usr/local/esmf
+ENV CALLPY_DIR=/usr/local
 ENV FMS_DIR=/FMS
 ENV FV3GFS_FORTRAN_DIR=/external/fv3gfs-fortran
 ENV ESMF_INC="-I${ESMF_DIR}/include -I${ESMF_DIR}/mod/modO3/Linux.gfortran.64.mpiuni.default/"
 
 ENV FMS_LIB=${FMS_DIR}/libFMS/.libs/
 ENV ESMF_LIB=${ESMF_DIR}/lib
-ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}
+ENV CALLPYFORT_LIB=${CALLPY_DIR}/lib
+ENV CALLPYFORT_INCL=${CALLPY_DIR}/include
+ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}:${CALLPYFORT_LIB}
+
+RUN cd /opt && git clone https://github.com/nbren12/call_py_fort.git --branch=v0.2.0
+ENV CALLPY=/opt/call_py_fort \
+    PYTHONPATH=${CALLPY}/src/:$PYTHONPATH
+RUN cd ${CALLPY} && make && make install && ldconfig
 
 # build/install the fortran model
 COPY external/fv3gfs-fortran/ /tmp/fortran-build
 RUN cd /tmp/fortran-build/FV3 && \
     ./configure gnu_docker && \
+    sed -i "33i CALLPYFORT=Y" conf/configure.fv3 && \
     make -j 8 && \
     PREFIX=/usr/local make install
 
@@ -75,6 +86,7 @@ ENV PIP_CONSTRAINT=/tmp/constraints.txt
 # Equivalent to passing --no-cache-dir to every pip install
 ENV PIP_NO_CACHE_DIR=off
 
+# copy dependency packages
 # fv3gfs-util
 COPY /external/fv3gfs-util /external/fv3gfs-util
 RUN pip3 install /external/fv3gfs-util 
@@ -105,18 +117,11 @@ RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     mkdir /outdir && \
     chmod -R 777 /outdir
 
-# Install fv3gfs run script
-RUN apt-get install -y jq
-RUN pip3 install yq==2.11.1
-COPY workflows/prognostic_c48_run/runfv3 /usr/local/bin/
-RUN chmod 755 /usr/local/bin/runfv3
-
 #Install gcloud
 RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext && \
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list &&\
     curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
     apt-get update && apt-get install -y google-cloud-sdk jq python3-dev python3-pip kubectl gfortran
-
 
 # Install post_process
 COPY workflows/post_process_run /fv3net/workflows/post_process_run
@@ -128,6 +133,12 @@ ENV LANG=C.UTF-8
 
 COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
 RUN pip install /fv3net/workflows/prognostic_c48_run
+
+# Override microphysics emulation
+COPY external/emulation /fv3net/external/emulation
+RUN pip install /fv3net/external/emulation
+ENV VAR_META_PATH=/fv3net/external/emulation/microphysics_parameter_metadata.yaml
+ENV OUTPUT_FREQ_SEC=18000
 
 ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:${PYTHONPATH}
 WORKDIR /fv3net/workflows/prognostic_c48_run
