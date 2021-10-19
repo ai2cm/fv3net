@@ -1,3 +1,4 @@
+from fv3fit.emulation.data.config import SliceConfig
 import numpy as np
 import tensorflow as tf
 
@@ -32,12 +33,40 @@ def test_Config_from_dict():
     assert config.direct_out_variables == ["dummy_out"]
 
 
+def test_Config_from_dict_selection_map_sequences():
+    config = MicrophysicsConfig.from_dict(
+        dict(selection_map=dict(dummy=dict(start=0, stop=2, step=1)))
+    )
+    assert config.selection_map["dummy"].slice == slice(0, 2, 1)
+
+
+def test_Config_asdict():
+    sl1_kwargs = dict(start=0, stop=10, step=2)
+    sl2_kwargs = dict(start=None, stop=25, step=None)
+    sel_map = dict(
+        dummy_in=SliceConfig(**sl1_kwargs), dummy_out=SliceConfig(**sl2_kwargs)
+    )
+
+    original = MicrophysicsConfig(
+        input_variables=["dummy_in"],
+        direct_out_variables=["dummy_out"],
+        selection_map=sel_map,
+    )
+
+    config_d = original.asdict()
+    assert config_d["selection_map"]["dummy_in"] == sl1_kwargs
+    assert config_d["selection_map"]["dummy_out"] == sl2_kwargs
+
+    result = MicrophysicsConfig.from_dict(config_d)
+    assert result == original
+
+
 def test_Config__processed_inputs():
 
     config = MicrophysicsConfig(
         input_variables=["dummy_in1", "dummy_in2"],
         direct_out_variables=["dummy_out"],
-        selection_map={"dummy_in1": slice(0, 3)},
+        selection_map={"dummy_in1": SliceConfig(start=0, stop=3)},
     )
 
     data = _get_data((20, 5))

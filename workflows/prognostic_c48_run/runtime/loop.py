@@ -20,7 +20,7 @@ import vcm
 import xarray as xr
 from mpi4py import MPI
 import runtime.factories
-from runtime import DerivedFV3State
+from runtime.derived_state import DerivedFV3State, MergedState
 from runtime.config import UserConfig, get_namelist
 from runtime.diagnostics.compute import (
     compute_baseline_diagnostics,
@@ -162,7 +162,7 @@ class TimeLoop(
             comm = MPI.COMM_WORLD
 
         self._fv3gfs = wrapper
-        self._state: DerivedFV3State = DerivedFV3State(self._fv3gfs)
+        self._state: DerivedFV3State = MergedState(DerivedFV3State(self._fv3gfs), {})
         self.comm = comm
         self._timer = fv3gfs.util.Timer()
         self.rank: int = comm.rank
