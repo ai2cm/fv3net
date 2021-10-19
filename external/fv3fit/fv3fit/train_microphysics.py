@@ -26,7 +26,7 @@ from loaders.batches import shuffle
 
 
 SCALE_VALUES = {
-    "total_precipitation": 1000 / (900/(3600 * 24)),  # mm / day
+    "total_precipitation": 1000 / (900 / (3600 * 24)),  # mm / day
     "specific_humidity_output": 1000,  # g / kg
     "tendency_of_specific_humidity_due_to_microphysics": 1000
     * (3600 * 24),  # g / kg / day
@@ -286,12 +286,12 @@ class TrainConfig:
         elif args.config_path is not None:
             config = cls.from_yaml_path(args.config_path)
         else:
-            raise ValueError("No training configuration specified. Use '--config-path default' if just trying to run.")
+            raise ValueError(
+                "No training configuration specified. Use '--config-path default' if just trying to run."
+            )
 
         if unknown_args:
-            updated = cls._get_updated_config_dict(
-                unknown_args, config.as_flat_dict()
-            )
+            updated = cls._get_updated_config_dict(unknown_args, config.as_flat_dict())
             config = cls.from_flat_dict(updated)
 
         return config
@@ -389,12 +389,14 @@ def main(config: TrainConfig):
             if out_varname in config.weights:
                 weights[out_varname] = config.weights[out_varname]
             else:
-                weights[out_varname] = 1.
+                weights[out_varname] = 1.0
         elif out_varname in config.metric_variables:
             metrics[out_varname] = loss_func
 
     optimizer = config.optimizer.instance
-    model.compile(loss=losses, metrics=metrics, optimizer=optimizer, loss_weights=weights)
+    model.compile(
+        loss=losses, metrics=metrics, optimizer=optimizer, loss_weights=weights
+    )
 
     history = model.fit(
         train_ds.shuffle(100_000).batch(config.batch_size),
@@ -511,10 +513,10 @@ def get_default_config():
             "total_precipitation",
         ],
         weights=dict(
-            air_temperature_output=.5e5,
-            specific_humidity_output=.5e5,
+            air_temperature_output=0.5e5,
+            specific_humidity_output=0.5e5,
             cloud_water_mixing_ratio_output=1.0,
-            total_precipitation=.04,
+            total_precipitation=0.04,
         ),
         metric_variables=[
             "tendency_of_air_temperature_due_to_microphysics",
