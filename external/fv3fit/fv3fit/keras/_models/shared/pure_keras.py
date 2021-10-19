@@ -90,20 +90,18 @@ class PureKerasModel(Predictor):
         inputs = [X_stacked[name].values for name in self.input_variables]
         outputs = self.model.predict(inputs)
         if self._output_metadata is not None:
-            ds = self._array_prediction_to_dataset(
+            return_ds = self._array_prediction_to_dataset(
                 self.output_variables,
                 outputs,
                 self._output_metadata,
                 X_stacked.coords[SAMPLE_DIM_NAME],
             )
-            return ds
-
         else:
             # workaround for saved datasets which do not have output metadata
             # from an initial version of the BPTT code. Can be removed
             # eventually
             dQ1, dQ2 = outputs
-            ds = xr.Dataset(
+            return_ds = xr.Dataset(
                 data_vars={
                     "dQ1": xr.DataArray(
                         dQ1,
@@ -118,8 +116,8 @@ class PureKerasModel(Predictor):
                         attrs={"units": X_stacked["specific_humidity"].units + " / s"},
                     ),
                 }
-            )
-            return match_prediction_to_input_coords(X, ds.unstack(SAMPLE_DIM_NAME))
+            ).unstack(SAMPLE_DIM_NAME)
+        return match_prediction_to_input_coords(X, return_ds)
 
     def dump(self, path: str) -> None:
         with put_dir(path) as path:
@@ -206,6 +204,7 @@ class PureKerasNoStackModel(Predictor):
         ds = self._unstacked_array_prediction_to_dataset(
             self.output_variables, outputs, self._output_metadata, coords=X.coords
         )
+        ds = match_prediction_to_input_coords(X, ds)
         return ds
 
     def dump(self, path: str) -> None:
