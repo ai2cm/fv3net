@@ -32,7 +32,11 @@ def test_copy(tmpdir, content_type):
 
 @pytest.mark.parametrize(
     "protocol,path,expected",
-    [("gs", "some-path", "gcs://some-path"), ("file", "some-path", "file://some-path")],
+    [
+        ("gs", "some-path", "gs://some-path"),
+        ("file", "some-path", "file://some-path"),
+        ("http", "some-path", "http://some-path"),
+    ],
 )
 def test_to_url(protocol, path, expected):
     assert expected == to_url(fsspec.filesystem(protocol), path)
