@@ -2,7 +2,7 @@ import dacite
 import dataclasses
 import logging
 from toolz.functoolz import compose_left
-from typing import Any, Dict, Mapping, Optional, Sequence, Union
+from typing import Any, Dict, Mapping, Optional, Sequence
 
 from . import transforms
 
@@ -10,24 +10,15 @@ from . import transforms
 logger = logging.getLogger(__name__)
 
 
-def _sequence_to_slice(seq: Sequence[Union[None, int]]):
+@dataclasses.dataclass
+class SliceConfig:
+    start: Optional[int] = None
+    stop: Optional[int] = None
+    step: Optional[int] = None
 
-    if not seq:
-        slice_ = slice(None)
-    elif len(seq) > 3:
-        raise ValueError(
-            "Converting sequence to slice failed. Expected maximum of 3 values"
-            f" but received {seq}."
-        )
-    else:
-        slice_ = slice(*seq)
-
-    return slice_
-
-
-def _convert_map_sequences_to_slices(map_: Mapping[str, Sequence[int]]):
-
-    return {key: _sequence_to_slice(seq) for key, seq in map_.items()}
+    @property
+    def slice(self):
+        return slice(self.start, self.stop, self.step)
 
 
 @dataclasses.dataclass
@@ -55,26 +46,37 @@ class TransformConfig:
             antarctic_only: true
             use_tensors: true
             vertical_subselections:
-              a: [5]
-              b: [5, None]
-              c: [5, 20, 2]
+              a:
+                stop: 5
+              b:
+                start: 5
+              c:
+                start: 5
+                stop: 15
+                step: 2
     """
 
     input_variables: Sequence[str] = dataclasses.field(default_factory=list)
     output_variables: Sequence[str] = dataclasses.field(default_factory=list)
     antarctic_only: bool = False
     use_tensors: bool = True
-    vertical_subselections: Optional[Mapping[str, slice]] = None
+    vertical_subselections: Optional[Mapping[str, SliceConfig]] = None
     derived_microphys_timestep: int = 900
+
+    # post-init from config values
+    vert_sel_as_slice: Optional[Mapping[str, slice]] = dataclasses.field(init=False)
 
     @classmethod
     def from_dict(cls, d: Dict):
+        return dacite.from_dict(cls, d, config=dacite.Config(strict=True))
 
-        subselect_key = "vertical_subselections"
-        if subselect_key in d:
-            d[subselect_key] = _convert_map_sequences_to_slices(d[subselect_key])
-
-        return dacite.from_dict(cls, d)
+    def __post_init__(self):
+        if self.vertical_subselections is not None:
+            self.vert_sel_as_slices = {
+                k: v.slice for k, v in self.vertical_subselections.items()
+            }
+        else:
+            self.vert_sel_as_slices = None
 
     def __call__(self, item: Any) -> Any:
         transform_pipeline = self._get_pipeline_from_config()
@@ -106,7 +108,7 @@ class TransformConfig:
 
         if self.vertical_subselections is not None:
             transform_funcs.append(
-                transforms.maybe_subselect_feature_dim(self.vertical_subselections)
+                transforms.maybe_subselect_feature_dim(self.vert_sel_as_slices)
             )
 
         # final transform to grouped X, y tuples
