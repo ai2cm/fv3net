@@ -11,6 +11,7 @@ rm -rf external/vcm/build
 
 local_packages_to_install=( 
   external/vcm
+  external/artifacts
   external/loaders
   external/fv3fit
   external/fv3gfs-util
@@ -33,7 +34,6 @@ poetry_packages=(
   external/diagnostics_utils
   external/report
   workflows/fine_res_budget
-  workflows/offline_ml_diags
   workflows/dataflow
 )
 
@@ -46,4 +46,4 @@ do
 done
 
 # needs to be installed after reports and fv3viz
-pip install -c constraints.txt --no-deps -e workflows/prognostic_run_diags
+pip install -c constraints.txt --no-deps -e workflows/diagnostics

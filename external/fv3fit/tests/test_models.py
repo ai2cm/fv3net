@@ -1,4 +1,4 @@
-from fv3fit._shared.config import DenseHyperparameters
+from fv3fit import DenseHyperparameters
 import xarray as xr
 import numpy as np
 
@@ -30,11 +30,11 @@ def test_DenseModel_jacobian(base_state):
 
     batch = xr.Dataset(
         {
-            "a": (["x", "z"], np.arange(10).reshape(2, 5)),
-            "b": (["x", "z"], np.arange(10).reshape(2, 5)),
+            "a": (["x", "z"], np.arange(10, dtype=np.float).reshape(2, 5)),
+            "b": (["x", "z"], np.arange(10, dtype=np.float).reshape(2, 5)),
         }
     )
-    model = IdentityModel("sample", ["a"], ["b"], DenseHyperparameters())
+    model = IdentityModel(["a"], ["b"], DenseHyperparameters(["a"], ["b"]))
     model.fit([batch])
     if base_state == "manual":
         jacobian = model.jacobian(batch[["a"]].isel(x=0))
@@ -62,8 +62,10 @@ def test_fill_default(kwargs, arg, key, default, expected):
 
 
 def test_nonnegative_model_outputs():
-    hyperparameters = DenseHyperparameters(nonnegative_outputs=True)
-    model = DenseModel("sample", ["input"], ["output"], hyperparameters,)
+    hyperparameters = DenseHyperparameters(
+        ["input"], ["output"], nonnegative_outputs=True
+    )
+    model = DenseModel(["input"], ["output"], hyperparameters,)
     batch = xr.Dataset(
         {
             "input": (["x"], np.arange(100)),

@@ -65,6 +65,7 @@ class TransformConfig:
     antarctic_only: bool = False
     use_tensors: bool = True
     vertical_subselections: Optional[Mapping[str, slice]] = None
+    derived_microphys_timestep: int = 900
 
     @classmethod
     def from_dict(cls, d: Dict):
@@ -83,14 +84,24 @@ class TransformConfig:
 
         transform_funcs = []
 
+        # xarray transforms
+
         if self.antarctic_only:
             transform_funcs.append(transforms.select_antarctic)
+
+        transform_funcs.append(
+            transforms.derived_dataset(
+                list(self.input_variables) + list(self.output_variables),
+                tendency_timestep_sec=self.derived_microphys_timestep,
+            )
+        )
 
         if self.use_tensors:
             transform_funcs.append(transforms.to_tensors)
         else:
             transform_funcs.append(transforms.to_ndarrays)
 
+        # array-like dataset transforms
         transform_funcs.append(transforms.expand_single_dim_data)
 
         if self.vertical_subselections is not None:
@@ -98,6 +109,7 @@ class TransformConfig:
                 transforms.maybe_subselect_feature_dim(self.vertical_subselections)
             )
 
+        # final transform to grouped X, y tuples
         transform_funcs.append(
             transforms.group_inputs_outputs(self.input_variables, self.output_variables)
         )

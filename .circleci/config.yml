@@ -46,7 +46,9 @@ jobs:
             - /opt/conda/envs/fv3net
       - run:
           name: "Install fv3net packages"
-          command: make install_local_packages
+          command: |
+            make install_local_packages
+            source activate fv3net && pip freeze
       - run: 
           name: "Run test"
           no_output_timeout: 20m
@@ -89,7 +91,11 @@ jobs:
       image:
         default: fv3net
         type: enum
-        enum: ["prognostic_run", "post_process_run", "fv3net"]
+        enum:
+          - prognostic_run
+          - post_process_run
+          - fv3net
+          - artifacts
     machine: 
       image: ubuntu-1604:202007-01
     environment:
@@ -205,40 +211,45 @@ workflows:
             branches:
               ignore:
                 - master
+      # manually trigger on PRs
       - pytest:
+          name: "Test Dataflow (held)"
           kind: test_dataflow
           requires:
             - hold
+          filters:
+            tags:
+              ignore: /^v.*/
+            branches:
+              ignore: master
+      # automatically trigger on master
+      - pytest:
+          name: "Test Dataflow (not held)"
+          kind: test_dataflow
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: master
       - build_default:
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run"]
+              image: 
+                - prognostic_run
+                - post_process_run
+                - fv3net
+                - artifacts
+      # manually trigger on PRs
       - integration_tests:
           requires:
             - build_default
             - hold
-  master_tests:
-    jobs:
-      - lint
-      - mypy
-      - argo
-      - pytest:
-          kind: test_dataflow
-          name: "Test Dataflow"
           filters:
             tags:
-              only: /^v.*/
+              ignore: /^v.*/
             branches:
-              only: master
-      - build_default:
-          matrix:
-            parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run"]
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              only: master
+              ignore: master
+      # automatically trigger on master
       - integration_tests:
           requires:
             - build_default

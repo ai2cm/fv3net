@@ -1,12 +1,21 @@
 import xarray as xr
 import logging
+from typing import Hashable, Mapping
 import vcm
 from runtime.types import State, Diagnostics
-from runtime.names import TEMP, SPHUM, DELP, PRECIP_RATE
+from runtime.names import (
+    TEMP,
+    SPHUM,
+    DELP,
+    PHYSICS_PRECIP_RATE,
+    TENDENCY_TO_STATE_NAME,
+    STATE_NAME_TO_TENDENCY,
+)
 
 logger = logging.getLogger(__name__)
 
 cp = 1004
+KG_PER_M2_PER_M = 1000.0
 
 
 def precipitation_sum(
@@ -30,6 +39,22 @@ def precipitation_sum(
     return total_precip
 
 
+def precipitation_accumulation(
+    precipitation_rate: xr.DataArray, dt: float
+) -> xr.DataArray:
+    """Return precipitation accumulation from precipitation rate and timestep
+    
+    Args:
+        precipitation_rate: precipitation rate [kg/m^s/s]
+        dt: timestep over which accumulation occurred [s]
+
+    Returns:
+        precipitation accumulation [m]"""
+    precipitation_accumulation: xr.DataArray = precipitation_rate * dt / KG_PER_M2_PER_M
+    precipitation_accumulation.attrs["units"] = "m"
+    return precipitation_accumulation
+
+
 def precipitation_rate(
     precipitation_accumulation: xr.DataArray, dt: float
 ) -> xr.DataArray:
@@ -42,7 +67,6 @@ def precipitation_rate(
     Returns:
         precipitation rate [kg/m^s/s]"""
 
-    KG_PER_M2_PER_M = 1000.0
     precipitation_rate: xr.DataArray = (
         KG_PER_M2_PER_M * precipitation_accumulation / dt  # type: ignore
     )
@@ -54,12 +78,8 @@ def compute_diagnostics(
     state: State, tendency: State, label: str, hydrostatic: bool
 ) -> Diagnostics:
     delp = state[DELP]
-    if label == "machine_learning":
-        temperature_tendency_name = "dQ1"
-        humidity_tendency_name = "dQ2"
-    elif label == "nudging":
-        temperature_tendency_name = TEMP
-        humidity_tendency_name = SPHUM
+    temperature_tendency_name = "dQ1"
+    humidity_tendency_name = "dQ2"
 
     temperature_tendency = tendency.get(temperature_tendency_name, xr.zeros_like(delp))
     humidity_tendency = tendency.get(humidity_tendency_name, xr.zeros_like(delp))
@@ -84,9 +104,10 @@ def compute_diagnostics(
             units="W/m^2"
         ).assign_attrs(description=f"column integrated heating due to {label}"),
     }
-    if DELP in tendency:
+    delp_tendency = STATE_NAME_TO_TENDENCY[DELP]
+    if delp_tendency in tendency:
         net_mass_tendency = vcm.mass_integrate(
-            xr.ones_like(tendency[DELP]), tendency[DELP], dim="z"
+            xr.ones_like(tendency[delp_tendency]), tendency[delp_tendency], dim="z"
         ).assign_attrs(
             units="kg/m^2/s",
             description=f"column-integrated mass tendency due to {label}",
@@ -95,7 +116,10 @@ def compute_diagnostics(
 
     # add 3D tendencies to diagnostics
     if label == "nudging":
-        diags_3d = _append_key_label(tendency, "_tendency_due_to_nudging")
+        diags_3d: Mapping[Hashable, xr.DataArray] = {
+            f"{TENDENCY_TO_STATE_NAME[k]}_tendency_due_to_nudging": v
+            for k, v in tendency.items()
+        }
     elif label == "machine_learning":
         diags_3d = {
             "dQ1": temperature_tendency.assign_attrs(units="K/s").assign_attrs(
@@ -158,20 +182,13 @@ def rename_diagnostics(diags: Diagnostics):
         diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
 
 
-def _append_key_label(d: Diagnostics, suffix: str) -> Diagnostics:
-    return_dict: Diagnostics = {}
-    for key, value in d.items():
-        return_dict[str(key) + suffix] = value
-    return return_dict
-
-
 def compute_baseline_diagnostics(state: State) -> Diagnostics:
 
     return dict(
         water_vapor_path=vcm.mass_integrate(state[SPHUM], state[DELP], dim="z")
         .assign_attrs(units="mm")
         .assign_attrs(description="column integrated water vapor"),
-        physics_precip=(state[PRECIP_RATE])
+        physics_precip=(state[PHYSICS_PRECIP_RATE])
         .assign_attrs(units="kg/m^2/s")
         .assign_attrs(
             description="surface precipitation rate due to parameterized physics"

@@ -12,7 +12,11 @@ from runtime.loop import TimeLoop
 import fv3gfs.util as util
 import runtime
 
+STATISTICS_LOG_NAME = "statistics"
+PROFILES_LOG_NAME = "profiles"
+
 logging.basicConfig(level=logging.DEBUG)
+
 logging.getLogger("fv3gfs.util").setLevel(logging.WARN)
 logging.getLogger("fsspec").setLevel(logging.WARN)
 logging.getLogger("urllib3").setLevel(logging.WARN)
@@ -27,7 +31,7 @@ if __name__ == "__main__":
 
     config = runtime.get_config()
     partitioner = util.CubedSpherePartitioner.from_namelist(runtime.get_namelist())
-    for name in ["statistics", "profiles"]:
+    for name in [STATISTICS_LOG_NAME, PROFILES_LOG_NAME]:
         runtime.setup_file_logger(name)
 
     loop = TimeLoop(config, comm=comm)
@@ -53,8 +57,8 @@ if __name__ == "__main__":
                 comm, diagnostics, ["specific_humidity_limiter_active"]
             )
             if comm.rank == 0:
-                runtime.log_mapping(time, averages, "statistics")
-                runtime.log_mapping(time, profiles, "profiles")
+                runtime.log_mapping(time, averages, STATISTICS_LOG_NAME)
+                runtime.log_mapping(time, profiles, PROFILES_LOG_NAME)
 
             for diag_file in diag_files:
                 diag_file.observe(time, diagnostics)

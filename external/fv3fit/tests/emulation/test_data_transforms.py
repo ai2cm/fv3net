@@ -140,3 +140,24 @@ def test_expand_single_dim_data(dataset):
     result = transforms.expand_single_dim_data(dataset)
     assert result["X"].shape == (10, 4)
     assert result["y"].shape == (20, 1)
+
+
+def test_derived():
+
+    ds = {
+        "air_temperature_input": xr.DataArray(
+            np.ones((10, 4)), dims=["sample", "feature"]
+        ),
+        "air_temperature_output": xr.DataArray(
+            np.ones((10, 4)) * 3, dims=["sample", "feature"]
+        ),
+    }
+
+    dT_name = "tendency_of_air_temperature_due_to_microphysics"
+    all_vars = list(ds.keys()) + [dT_name]
+
+    derived = transforms.derived_dataset(all_vars, ds, tendency_timestep_sec=2)
+    assert "air_temperature_input" in derived
+    assert "air_temperature_output" in derived
+    assert dT_name in derived
+    np.testing.assert_array_equal(derived[dT_name], np.ones((10, 4)))

@@ -8,6 +8,7 @@ from typing import (
     Tuple,
     Union,
     Sequence,
+    Set,
     List,
     Type,
     Dict,
@@ -15,9 +16,11 @@ from typing import (
 from fv3fit.typing import Dataclass
 import xarray as xr
 from .predictor import Predictor
+from .hyperparameters import Hyperparameters
 import dacite
 import numpy as np
 import random
+import warnings
 
 # TODO: move all keras configs under fv3fit.keras
 import tensorflow as tf
@@ -57,11 +60,7 @@ class TrainingConfig:
 
     Attributes:
         model_type: sklearn model type or keras model class to initialize
-        input_variables: variables used as features
-        output_variables: variables to predict
         hyperparameters: model_type-specific training configuration
-        additional_variables: variables needed for training which aren't input
-            or output variables of the trained model
         sample_dim_name: deprecated, internal name used for sample dimension
             when training and predicting
         random_seed: value to use to initialize randomness
@@ -71,22 +70,43 @@ class TrainingConfig:
     """
 
     model_type: str
-    input_variables: List[str]
-    output_variables: List[str]
-    hyperparameters: Dataclass
-    additional_variables: List[str] = dataclasses.field(default_factory=list)
+    hyperparameters: Hyperparameters
     sample_dim_name: str = "sample"
     random_seed: Union[float, int] = 0
     derived_output_variables: List[str] = dataclasses.field(default_factory=list)
 
+    @property
+    def variables(self):
+        return self.hyperparameters.variables
+
     @classmethod
     def from_dict(cls, kwargs) -> "TrainingConfig":
         kwargs = {**kwargs}  # make a copy to avoid mutating the input
+        if "input_variables" in kwargs:
+            warnings.warn(
+                "input_variables is no longer a top-level TrainingConfig "
+                "parameter, pass it under hyperparameters instead",
+                DeprecationWarning,
+            )
+            kwargs["hyperparameters"]["input_variables"] = kwargs.pop("input_variables")
+        if "output_variables" in kwargs:
+            warnings.warn(
+                "output_variables is no longer a top-level TrainingConfig "
+                "parameter, pass it under hyperparameters instead",
+                DeprecationWarning,
+            )
+            kwargs["hyperparameters"]["output_variables"] = kwargs.pop(
+                "output_variables"
+            )
         hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
         kwargs["hyperparameters"] = dacite.from_dict(
-            data_class=hyperparameter_class, data=kwargs.get("hyperparameters", {})
+            data_class=hyperparameter_class,
+            data=kwargs.get("hyperparameters", {}),
+            config=dacite.Config(strict=True),
         )
-        return dacite.from_dict(data_class=cls, data=kwargs)
+        return dacite.from_dict(
+            data_class=cls, data=kwargs, config=dacite.Config(strict=True)
+        )
 
 
 TRAINING_FUNCTIONS: Dict[str, Tuple[TrainingFunction, Type[Dataclass]]] = {}
@@ -138,65 +158,17 @@ class RegularizerConfig:
     kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
 
     @property
-    def instance(self) -> tf.keras.regularizers.Regularizer:
-        cls = getattr(tf.keras.regularizers, self.name)
-        return cls(**self.kwargs)
-
-
-# TODO: move this class to where the Dense training is defined when config.py
-# no longer depends on it (i.e. when _ModelTrainingConfig is deleted)
-@dataclasses.dataclass
-class DenseHyperparameters:
-    """
-    Configuration for training a dense neural network based model.
-
-    Args:
-        weights: loss function weights, defined as a dict whose keys are
-            variable names and values are either a scalar referring to the total
-            weight of the variable. Default is a total weight of 1
-            for each variable.
-        normalize_loss: if True (default), normalize outputs by their standard
-            deviation before computing the loss function
-        optimizer_config: selection of algorithm to be used in gradient descent
-        kernel_regularizer_config: selection of regularizer for hidden dense layer
-            weights, by default no regularization is applied
-        depth: number of dense layers to use between the input and output layer.
-            The number of hidden layers will be (depth - 1)
-        width: number of neurons to use on layers between the input and output layer
-        gaussian_noise: how much gaussian noise to add before each Dense layer,
-            apart from the output layer
-        loss: loss function to use, should be 'mse' or 'mae'
-        spectral_normalization: whether to apply spectral normalization to hidden layers
-        save_model_checkpoints: if True, save one model per epoch when
-            dumping, under a 'model_checkpoints' subdirectory
-        nonnegative_outputs: if True, add a ReLU activation layer as the last layer
-            after output denormalization layer to ensure outputs are always >=0
-            Defaults to False.
-        fit_kwargs: other keyword arguments to be passed to the underlying
-            tf.keras.Model.fit() method
-    """
-
-    weights: Optional[Mapping[str, Union[int, float]]] = None
-    normalize_loss: bool = True
-    optimizer_config: OptimizerConfig = dataclasses.field(
-        default_factory=lambda: OptimizerConfig("Adam")
-    )
-    kernel_regularizer_config: Optional[RegularizerConfig] = None
-    depth: int = 3
-    width: int = 16
-    epochs: int = 3
-    gaussian_noise: float = 0.0
-    loss: str = "mse"
-    spectral_normalization: bool = False
-    save_model_checkpoints: bool = False
-    nonnegative_outputs: bool = False
-
-    # TODO: remove fit_kwargs by fixing how validation data is passed
-    fit_kwargs: Optional[dict] = None
+    def instance(self) -> Optional[tf.keras.regularizers.Regularizer]:
+        if self.name.lower() != "none":
+            cls = getattr(tf.keras.regularizers, self.name)
+            instance = cls(**self.kwargs)
+        else:
+            instance = None
+        return instance
 
 
 @dataclasses.dataclass
-class RandomForestHyperparameters:
+class RandomForestHyperparameters(Hyperparameters):
     """
     Configuration for training a random forest based model.
 
@@ -206,9 +178,9 @@ class RandomForestHyperparameters:
     `sklearn.ensemble.RandomForestRegressor`.
 
     Args:
-        scaler_type: scaler to use for training, must be "standard" or "mass".
-            If set to "mass", then "pressure_thickness_of_atmospheric_layer" must
-            be included in the TrainingConfig `additional_variables` field.
+        input_variables: names of variables to use as inputs
+        output_variables: names of variables to use as outputs
+        scaler_type: scaler to use for training, must be "standard" or "mass"
         scaler_kwargs: keyword arguments to pass to scaler initialization
         n_jobs: number of jobs to run in parallel when training a single random forest
         random_state: random seed to use when building trees, will be
@@ -226,6 +198,9 @@ class RandomForestHyperparameters:
             If False, the whole dataset is used to build each tree.
     """
 
+    input_variables: List[str]
+    output_variables: List[str]
+
     scaler_type: str = "standard"
     scaler_kwargs: Optional[Mapping] = None
 
@@ -239,3 +214,15 @@ class RandomForestHyperparameters:
     max_features: Union[str, int, float] = "auto"
     max_samples: Optional[Union[int, float]] = None
     bootstrap: bool = True
+
+    @property
+    def variables(self) -> Set[str]:
+        if self.scaler_type == "mass":
+            additional_variables = ["pressure_thickness_of_atmospheric_layer"]
+        else:
+            additional_variables = []
+        return (
+            set(self.input_variables)
+            .union(self.output_variables)
+            .union(additional_variables)
+        )

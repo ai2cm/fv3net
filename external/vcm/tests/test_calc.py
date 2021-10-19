@@ -10,6 +10,7 @@ from vcm.calc.thermo import (
     dz_and_top_to_phis,
     _add_coords_to_interface_variable,
     mass_streamfunction,
+    internal_energy,
 )
 from vcm.calc.calc import local_time, apparent_source
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
@@ -146,3 +147,11 @@ def test_mass_streamfunction():
     psi = mass_streamfunction(wind)
     assert dict(psi.sizes) == {"pressure": 5, "latitude": 4}
     np.testing.assert_equal(psi.pressure.values, pressure)
+
+
+def test_internal_energy():
+    temperature = xr.DataArray(
+        np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "y"],
+    )
+    energy = internal_energy(temperature)
+    assert energy.shape == temperature.shape

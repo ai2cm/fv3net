@@ -29,14 +29,12 @@ class DerivedModel(Predictor):
                 part of the set of base_model.output_variables. Should
                 correspond to variables available through vcm.DerivedMapping.
         """
-        self._base_model = base_model
+        self.base_model = base_model
 
         self._derived_output_variables = derived_output_variables
         self._additional_input_variables = vcm.DerivedMapping.find_all_required_inputs(
             derived_output_variables
         )
-
-        sample_dim_name = base_model.sample_dim_name
 
         full_input_variables = sorted(
             list(
@@ -55,11 +53,11 @@ class DerivedModel(Predictor):
         # DerivedModel.input_variables (what the prognostic run uses to grab
         # necessary state for input to .predict()) is the set of
         # base_model_input_variables arg and hyperparameters.additional_inputs.
-        super().__init__(sample_dim_name, full_input_variables, full_output_variables)
+        super().__init__(full_input_variables, full_output_variables)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         self._check_additional_inputs_present(X)
-        base_prediction = self._base_model.predict(X)
+        base_prediction = self.base_model.predict(X)
         required_inputs = vcm.safe.get_variables(X, self._additional_input_variables)
         derived_mapping = vcm.DerivedMapping(
             xr.merge([required_inputs, base_prediction])
@@ -73,7 +71,7 @@ class DerivedModel(Predictor):
             "derived_output_variables": self._derived_output_variables,
             "model": base_model_path,
         }
-        io.dump(self._base_model, base_model_path)
+        io.dump(self.base_model, base_model_path)
         with fsspec.open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
             yaml.safe_dump(options, f)
 
@@ -127,14 +125,8 @@ class EnsembleModel(Predictor):
         self._reduction = reduction
         input_variables: Set[Hashable] = set()
         output_variables: Set[Hashable] = set()
-        sample_dim_name = self._models[0].sample_dim_name
         outputs = set(self._models[0].output_variables)
         for model in self._models:
-            if model.sample_dim_name != sample_dim_name:
-                raise ValueError(
-                    "all models in ensemble must have same sample_dim_name, "
-                    f"got {sample_dim_name} and {model.sample_dim_name}"
-                )
             if set(model.output_variables) != outputs:
                 raise ValueError(
                     "all models in ensemble must have same outputs, "
@@ -143,7 +135,6 @@ class EnsembleModel(Predictor):
             input_variables.update(model.input_variables)
             output_variables.update(model.output_variables)
         super().__init__(
-            sample_dim_name,
             input_variables=tuple(sorted(input_variables)),
             output_variables=tuple(sorted(output_variables)),
         )

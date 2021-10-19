@@ -3,22 +3,8 @@ import numpy as np
 from typing import Sequence, Union, Mapping
 import xarray as xr
 
-import fv3viz as visualize
+import fv3viz
 from .utils import units_from_name
-
-# grid info for the plot_cube function
-MAPPABLE_VAR_KWARGS = {
-    "coord_x_center": "x",
-    "coord_y_center": "y",
-    "coord_x_outer": "x_interface",
-    "coord_y_outer": "y_interface",
-    "coord_vars": {
-        "lonb": ["y_interface", "x_interface", "tile"],
-        "latb": ["y_interface", "x_interface", "tile"],
-        "lon": ["y", "x", "tile"],
-        "lat": ["y", "x", "tile"],
-    },
-}
 
 
 def plot_profile_var(
@@ -68,8 +54,9 @@ def plot_column_integrated_var(
         if derivation_plot_coords is not None
         else ds
     )
-    f, _, _, _, facet_grid = visualize.plot_cube(
-        visualize.mappable_var(ds_columns, var, **MAPPABLE_VAR_KWARGS),
+    f, _, _, _, facet_grid = fv3viz.plot_cube(
+        ds_columns,
+        var,
         col=derivation_dim,
         row=dataset_dim if dataset_dim in ds.dims else None,
         vmax=vmax,
@@ -145,7 +132,7 @@ def plot_zonal_average(
     title = f"{title or data.name} {units}"
     plot_kwargs = plot_kwargs or {}
     rename_axes = rename_axes or {
-        "lat_interp": "Latitude [deg]",
+        "latitude": "Latitude [deg]",
         "pressure": "Pressure [Pa]",
     }
     data = data.rename(rename_axes).rename(title)

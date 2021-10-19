@@ -2,6 +2,8 @@ import dataclasses
 import subprocess
 from typing import Any, Optional, Sequence
 import fv3fit
+from fv3fit._shared.config import get_hyperparameter_class
+from fv3fit._shared.hyperparameters import Hyperparameters
 import fv3fit.train
 from fv3fit._shared.io import register
 import yaml
@@ -62,8 +64,8 @@ class MockHyperparameters:
 @dataclasses.dataclass
 class TestConfig:
     args: MainArgs
-    input_variables: Sequence[str]
-    output_variables: Sequence[str]
+    variables: Sequence[str]
+    hyperparameters: Hyperparameters
     output_path: str
     mock_dataset: xr.Dataset
 
@@ -71,10 +73,8 @@ class TestConfig:
 @dataclasses.dataclass
 class CallArtifacts:
     output_path: str
-    all_variables: Sequence[str]
+    variables: Sequence[str]
     MockDerivedModel: mock.Mock
-    input_variables: Sequence[str]
-    output_variables: Sequence[str]
     hyperparameters: Any
 
 
@@ -106,49 +106,34 @@ def mock_load_batches():
 
 
 def call_main(
-    tmpdir,
-    mock_load_batches,
-    additional_variables,
-    derived_output_variables,
-    use_validation_data: bool,
+    tmpdir, mock_load_batches, derived_output_variables, use_validation_data: bool,
 ):
     model_type = "DenseModel"
-    hyperparameters = fv3fit.DenseHyperparameters(depth=2, width=8)
+    hyperparameters_dict = {}
     config = get_config(
         tmpdir,
-        additional_variables,
         derived_output_variables,
         model_type,
-        hyperparameters,
+        hyperparameters_dict,
         use_validation_data,
     )
     mock_load_batches.return_value = [config.mock_dataset for _ in range(6)]
-    all_variables = (
-        config.input_variables + config.output_variables + additional_variables
-    )
     with mock.patch("fv3fit.DerivedModel") as MockDerivedModel:
         MockDerivedModel.return_value = mock.MagicMock(
             name="derived_model_return", spec=fv3fit.Predictor
         )
         fv3fit.train.main(config.args)
     return CallArtifacts(
-        config.output_path,
-        all_variables,
-        MockDerivedModel,
-        config.input_variables,
-        config.output_variables,
-        hyperparameters,
+        config.output_path, config.variables, MockDerivedModel, config.hyperparameters,
     )
 
 
-@pytest.mark.parametrize("additional_variables", [[], ["downward_shortwave"]])
 @pytest.mark.parametrize("derived_output_variables", [[], ["downwelling_shortwave"]])
 @pytest.mark.parametrize("use_validation_data", [True, False])
 def test_main_calls_load_batches_correctly(
     tmpdir,
     mock_load_batches: mock.MagicMock,
     mock_train_dense_model: mock.MagicMock,
-    additional_variables: Sequence[str],
     derived_output_variables: Sequence[str],
     use_validation_data: bool,
 ):
@@ -157,13 +142,9 @@ def test_main_calls_load_batches_correctly(
     and data loading.
     """
     artifacts = call_main(
-        tmpdir,
-        mock_load_batches,
-        additional_variables,
-        derived_output_variables,
-        use_validation_data,
+        tmpdir, mock_load_batches, derived_output_variables, use_validation_data,
     )
-    mock_load_batches.assert_called_with(variables=artifacts.all_variables)
+    mock_load_batches.assert_called_with(variables=artifacts.variables)
     if use_validation_data:
         assert (
             mock_load_batches.call_args_list[0] == mock_load_batches.call_args_list[1]
@@ -173,21 +154,15 @@ def test_main_calls_load_batches_correctly(
         assert mock_load_batches.call_count == 1
 
 
-@pytest.mark.parametrize("additional_variables", [[], ["downward_shortwave"]])
 @pytest.mark.parametrize("derived_output_variables", [[], ["downwelling_shortwave"]])
 def test_main_dumps_correct_predictor(
     tmpdir,
     mock_load_batches: mock.MagicMock,
     mock_train_dense_model: mock.MagicMock,
-    additional_variables: Sequence[str],
     derived_output_variables: Sequence[str],
 ):
     artifacts = call_main(
-        tmpdir,
-        mock_load_batches,
-        additional_variables,
-        derived_output_variables,
-        use_validation_data=True,
+        tmpdir, mock_load_batches, derived_output_variables, use_validation_data=True,
     )
     mock_predictor = mock_train_dense_model.return_value
     if len(derived_output_variables) > 0:
@@ -198,21 +173,15 @@ def test_main_dumps_correct_predictor(
     assert artifacts.output_path in dump_predictor.dump.call_args[0]
 
 
-@pytest.mark.parametrize("additional_variables", [[], ["downward_shortwave"]])
 @pytest.mark.parametrize("derived_output_variables", [[], ["downwelling_shortwave"]])
 def test_main_uses_derived_model_only_if_needed(
     tmpdir,
     mock_load_batches: mock.MagicMock,
     mock_train_dense_model: mock.MagicMock,
-    additional_variables: Sequence[str],
     derived_output_variables: Sequence[str],
 ):
     artifacts = call_main(
-        tmpdir,
-        mock_load_batches,
-        additional_variables,
-        derived_output_variables,
-        use_validation_data=True,
+        tmpdir, mock_load_batches, derived_output_variables, use_validation_data=True,
     )
     if len(derived_output_variables) > 0:
         artifacts.MockDerivedModel.assert_called_once_with(
@@ -222,54 +191,60 @@ def test_main_uses_derived_model_only_if_needed(
         artifacts.MockDerivedModel.assert_not_called()
 
 
-@pytest.mark.parametrize("additional_variables", [[], ["downward_shortwave"]])
 @pytest.mark.parametrize("derived_output_variables", [[], ["downwelling_shortwave"]])
 @pytest.mark.parametrize("use_validation_data", [True, False])
 def test_main_calls_train_with_correct_arguments(
     tmpdir,
     mock_load_batches: mock.MagicMock,
     mock_train_dense_model: mock.MagicMock,
-    additional_variables: Sequence[str],
     derived_output_variables: Sequence[str],
     use_validation_data: bool,
 ):
     artifacts = call_main(
-        tmpdir,
-        mock_load_batches,
-        additional_variables,
-        derived_output_variables,
-        use_validation_data,
+        tmpdir, mock_load_batches, derived_output_variables, use_validation_data,
     )
     if use_validation_data:
         validation_batches = mock_load_batches.return_value
     else:
         validation_batches = []
     mock_train_dense_model.assert_called_once_with(
-        input_variables=artifacts.input_variables,
-        output_variables=artifacts.output_variables,
         hyperparameters=artifacts.hyperparameters,
         train_batches=mock_load_batches.return_value,
         validation_batches=validation_batches,
     )
 
 
+def get_hyperparameters(
+    model_type, hyperparameter_dict, input_variables, output_variables
+):
+    cls = get_hyperparameter_class(model_type)
+    try:
+        hyperparameters = cls(**hyperparameter_dict)
+    except TypeError:
+        hyperparameters = cls(
+            input_variables=input_variables,
+            output_variables=output_variables,
+            **hyperparameter_dict
+        )
+    return hyperparameters
+
+
 def get_config(
     tmpdir,
-    additional_variables,
     derived_output_variables,
     model_type,
-    hyperparameters,
+    hyperparameter_dict,
     use_validation_data: bool,
 ):
     base_dir = str(tmpdir)
     input_variables = ["air_temperature", "specific_humidity"]
     output_variables = ["dQ1", "dQ2"]
+    hyperparameters = get_hyperparameters(
+        model_type, hyperparameter_dict, input_variables, output_variables
+    )
     training_config = fv3fit.TrainingConfig(
         model_type=model_type,
-        input_variables=input_variables,
-        output_variables=output_variables,
         hyperparameters=hyperparameters,
-        additional_variables=additional_variables,
         derived_output_variables=derived_output_variables,
     )
     mock_dataset = get_mock_dataset(n_time=9)
@@ -323,7 +298,7 @@ def get_config(
         output_path=output_path,
     )
     return TestConfig(
-        args, input_variables, output_variables, output_path, mock_dataset
+        args, training_config.variables, hyperparameters, output_path, mock_dataset
     )
 
 
@@ -351,32 +326,16 @@ def cli_main(args: MainArgs):
 
 
 @pytest.mark.parametrize(
-    "model_type, hyperparameters",
+    "model_type, hyperparameter_dict",
     [
         pytest.param(
             "sklearn_random_forest",
             {"max_depth": 4, "n_estimators": 2},
             id="random_forest",
         ),
+        pytest.param("DenseModel", {"save_model_checkpoints": False}, id="dense"),
         pytest.param(
-            "DenseModel",
-            {
-                "width": 4,
-                "depth": 3,
-                "save_model_checkpoints": False,
-                "fit_kwargs": {"batch_size": 100, "validation_samples": 384},
-            },
-            id="dense",
-        ),
-        pytest.param(
-            "DenseModel",
-            {
-                "width": 4,
-                "depth": 3,
-                "save_model_checkpoints": True,
-                "fit_kwargs": {"batch_size": 100, "validation_samples": 384},
-            },
-            id="dense_with_checkpoints",
+            "DenseModel", {"save_model_checkpoints": True}, id="dense_with_checkpoints",
         ),
     ],
 )
@@ -389,19 +348,13 @@ def test_cli(
     use_local_download_path: bool,
     use_validation_data: bool,
     model_type: str,
-    hyperparameters,
+    hyperparameter_dict,
 ):
     """
     Test of fv3fit.train command-line interface.
     """
-    additional_variables = []
     config = get_config(
-        tmpdir,
-        additional_variables,
-        [],
-        model_type,
-        hyperparameters,
-        use_validation_data,
+        tmpdir, [], model_type, hyperparameter_dict, use_validation_data,
     )
     mock_load_batches.return_value = [config.mock_dataset for _ in range(6)]
     if use_local_download_path:

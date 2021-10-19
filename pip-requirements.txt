@@ -37,7 +37,7 @@ xpartition>=0.2.0
 
 # xpartition needs >=0.16.2 for region feature of to_zarr
 # pip-compile doesn't work with setup.cfg
-xarray >= 0.16.2, <0.17.0 # 0.17 is python37 only, but we usually run pip-compile on 36 :(
+xarray >= 0.19.0
 
 # developer tools
 conda-lock
@@ -45,3 +45,6 @@ pip-tools
 poetry
 tox
 pre-commit
+
+# fv3fit testing tools
+hypothesis

@@ -13,8 +13,23 @@ from runtime.diagnostics.manager import (
 from runtime.steppers.nudging import NudgingConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
 from runtime.steppers.prescriber import PrescriberConfig
+from runtime.transformers.tendency_prescriber import TendencyPrescriberConfig
+import runtime.transformers.emulator
+import runtime.transformers.fv3fit
 
 FV3CONFIG_FILENAME = "fv3config.yml"
+FV3CONFIG_KEYS = {
+    "namelist",
+    "experiment_name",
+    "diag_table",
+    "data_table",
+    "field_table",
+    "initial_conditions",
+    "forcing",
+    "orographic_forcing",
+    "patch_files",
+    "gfs_analysis_data",
+}
 
 
 @dataclasses.dataclass
@@ -30,6 +45,7 @@ class UserConfig:
         scikit_learn: a machine learning configuration
         nudging: nudge2fine configuration. Cannot be used if any scikit_learn model
             urls are specified.
+        tendency_prescriber: configuration for overriding physics tendencies.
     """
 
     diagnostics: List[DiagnosticFileConfig] = dataclasses.field(default_factory=list)
@@ -39,6 +55,10 @@ class UserConfig:
     prephysics: Optional[Union[PrescriberConfig, MachineLearningConfig]] = None
     scikit_learn: Optional[MachineLearningConfig] = None
     nudging: Optional[NudgingConfig] = None
+    tendency_prescriber: Optional[TendencyPrescriberConfig] = None
+    online_emulator: Optional[
+        Union[runtime.transformers.emulator.Config, runtime.transformers.fv3fit.Config]
+    ] = None
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:
@@ -55,7 +75,8 @@ def get_config() -> UserConfig:
     """
     with open("fv3config.yml") as f:
         config = yaml.safe_load(f)
-    return dacite.from_dict(UserConfig, config)
+    runtime_config = {key: config[key] for key in config if key not in FV3CONFIG_KEYS}
+    return dacite.from_dict(UserConfig, runtime_config, dacite.Config(strict=True))
 
 
 def get_namelist() -> f90nml.Namelist:

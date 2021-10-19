@@ -1,10 +1,10 @@
 xarray.Dataset {
 dimensions:
-	tile = 6 ;
 	time = 2 ;
-	x = 12 ;
-	y = 12 ;
+	tile = 6 ;
 	z = 63 ;
+	y = 12 ;
+	x = 12 ;
 
 variables:
 	float64 air_temperature(time, tile, z, y, x) ;
@@ -45,6 +45,8 @@ variables:
 		specific_humidity:units = kg/kg ;
 	float64 specific_humidity_limiter_active(time, tile, z, y, x) ;
 		specific_humidity_limiter_active:units = unknown ;
+	float64 storage_of_internal_energy_path_due_to_fv3_physics(time, tile, y, x) ;
+		storage_of_internal_energy_path_due_to_fv3_physics:units = J/kg kg/m**2/s ;
 	float64 storage_of_mass_due_to_fv3_physics(time, tile, y, x) ;
 		storage_of_mass_due_to_fv3_physics:units = Pa/s ;
 	float64 storage_of_mass_due_to_python(time, tile, y, x) ;
@@ -67,6 +69,8 @@ variables:
 		tendency_of_eastward_wind_due_to_fv3_physics:units = m/s/s ;
 	float64 tendency_of_eastward_wind_due_to_python(time, tile, z, y, x) ;
 		tendency_of_eastward_wind_due_to_python:units = m/s/s ;
+	float64 tendency_of_internal_energy_due_to_fv3_physics(time, tile, z, y, x) ;
+		tendency_of_internal_energy_due_to_fv3_physics:units = J/kg/s ;
 	float64 tendency_of_northward_wind_due_to_fv3_physics(time, tile, z, y, x) ;
 		tendency_of_northward_wind_due_to_fv3_physics:units = m/s/s ;
 	float64 tendency_of_northward_wind_due_to_python(time, tile, z, y, x) ;

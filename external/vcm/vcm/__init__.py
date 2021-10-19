@@ -17,7 +17,7 @@ from .convenience import (
     shift_timestamp,
     round_time,
 )
-from .calc import r2_score, local_time, thermo, cos_zenith_angle
+from .calc import r2_score, local_time, thermo, cos_zenith_angle, weighted_average
 from .calc.thermo import (
     mass_integrate,
     net_heating,
@@ -30,6 +30,7 @@ from .calc.thermo import (
     column_integrated_heating_from_isobaric_transition,
     column_integrated_heating_from_isochoric_transition,
     mass_streamfunction,
+    internal_energy,
 )
 from .calc.histogram import histogram
 
@@ -40,11 +41,12 @@ from .interpolate import (
 )
 
 from ._zarr_mapping import ZarrMapping
-from .select import mask_to_surface_type, RegionOfInterest
+from .select import mask_to_surface_type, RegionOfInterest, zonal_average_approximate
 from .xarray_loaders import open_tiles, open_delayed, open_remote_nc, dump_nc
 from .sampling import train_test_split_sample
 from .derived_mapping import DerivedMapping
 from .cloud import get_fs
+from .cloud.fsspec import to_url
 
 
 __all__ = [item for item in dir() if not item.startswith("_")]

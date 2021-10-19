@@ -16,9 +16,8 @@ def _model_dataset() -> xr.Dataset:
         {
             "specific_humidity": (dims, arr),
             "air_temperature": (dims, arr),
-            "downward_shortwave": (dims_1d, arr_1d),
-            "net_shortwave": (dims_1d, arr_1d),
-            "downward_longwave": (dims_1d, arr_1d),
+            "total_sky_downward_shortwave_flux_at_surface": (dims_1d, arr_1d),
+            "total_sky_downward_longwave_flux_at_surface": (dims_1d, arr_1d),
             "dQ1": (dims, arr),
             "dQ2": (dims, arr),
             "dQu": (dims, arr),
@@ -36,19 +35,22 @@ def get_mock_predictor(model_predictands: str = "tendencies") -> fv3fit.Predicto
     if model_predictands == "tendencies":
         output_variables = ["dQ1", "dQ2", "dQu", "dQv"]
     elif model_predictands == "rad_fluxes":
-        output_variables = ["downward_shortwave", "net_shortwave", "downward_longwave"]
+        output_variables = [
+            "total_sky_downward_shortwave_flux_at_surface",
+            "total_sky_downward_longwave_flux_at_surface",
+        ]
+    elif model_predictands == "state_and_tendency":
+        output_variables = ["dQ1", "total_sky_downward_shortwave_flux_at_surface"]
     outputs = {
         "dQ1": np.zeros(nz),
         # include nonzero moistening to test for mass conservation
         "dQ2": np.full(nz, -1e-4 / 86400),
         "dQu": np.full(nz, 1 / 86400),
         "dQv": np.full(nz, 1 / 86400),
-        "downward_shortwave": 300.0,
-        "net_shortwave": 250.0,
-        "downward_longwave": 400.0,
+        "total_sky_downward_shortwave_flux_at_surface": 300.0,
+        "total_sky_downward_longwave_flux_at_surface": 400.0,
     }
     predictor = fv3fit.testing.ConstantOutputPredictor(
-        sample_dim_name="sample",
         input_variables=["air_temperature", "specific_humidity"],
         output_variables=output_variables,
     )

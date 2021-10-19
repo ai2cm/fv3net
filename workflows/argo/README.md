@@ -220,12 +220,12 @@ This workflow computes offline ML diagnostics and generates an associated report
 #### Command line interfaces used by workflow
 This workflow calls
 ```
-python -m offline_ml_diags.compute_diags \
+python -m fv3net.diagnostics.offline.compute \
           {{inputs.parameters.ml-model}} \
           {{inputs.parameters.offline-diags-output}} \
           --timesteps-file {{inputs.parameters.times}} 
           
-python -m offline_ml_diags.create_report \
+python -m fv3net.diagnostics.offline.create_report \
           {{inputs.parameters.offline-diags-output}} \
           {{inputs.parameters.report-output}} \
           --commit-sha "$COMMIT_SHA"
@@ -267,6 +267,7 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 | `memory-offline-diags`  | (optional) `memory` for `offline-diags` workflow; default 6Gi         |
 | `training-flags`        | (optional) `flags` for `training` workflow                            |
 | `online-diags-flags`    | (optional) `flags` for `prognostic-run-diags` workflow                |
+| `do-prognostic-run`     | (optional) do prognostic run step; default "true"                     |
 
 Output for the various steps will be written to `gs://{bucket}/{project}/$(date +%F)/{tag}`.
 Slashes (`/`) are not permitted in `bucket`, `project` and `tag` to preserve the depth 
