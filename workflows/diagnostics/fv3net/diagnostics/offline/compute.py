@@ -37,9 +37,6 @@ handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
 
-# Additional derived outputs (values) that are added to report if their
-# corresponding base ML outputs (keys) are present in model
-DERIVED_OUTPUTS_FROM_BASE_OUTPUTS = {"dQ1": "Q1", "dQ2": "Q2"}
 
 # variables that are needed in addition to the model features
 DIAGS_NC_NAME = "offline_diagnostics.nc"
@@ -288,12 +285,14 @@ def _get_predict_function(predictor, variables, grid):
     return transform
 
 
-def _derived_outputs_from_base_predictions(base_outputs):
-    derived_outputs = []
-    for base_output in base_outputs:
-        if base_output in DERIVED_OUTPUTS_FROM_BASE_OUTPUTS:
-            derived_outputs.append(DERIVED_OUTPUTS_FROM_BASE_OUTPUTS[base_output])
-    return derived_outputs
+def _get_data_mapper_if_exists(config):
+    if isinstance(config, loaders.BatchesFromMapperConfig):
+        return config.load_mapper()
+    elif isinstance(config, loaders.BatchesConfig):
+        if config.kwargs.get("mapping_function") == "open_zarr":
+            return loaders.open_zarr(config.kwargs.get("data_path"))
+    else:
+        return None
 
 
 def main(args):
@@ -314,14 +313,9 @@ def main(args):
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
 
-    additional_derived_outputs = _derived_outputs_from_base_predictions(
-        model.output_variables
+    model_variables = list(
+        set(list(model.input_variables) + list(model.output_variables) + [DELP])
     )
-    model = fv3fit.DerivedModel(
-        model, derived_output_variables=additional_derived_outputs
-    )
-
-    model_variables = list(set(model.input_variables + model.output_variables + [DELP]))
 
     output_data_yaml = os.path.join(args.output_path, "data_config.yaml")
     with fsspec.open(args.data_yaml, "r") as f_in, fsspec.open(
@@ -338,7 +332,7 @@ def main(args):
     )
 
     # save model senstivity figures- these exclude derived variables
-    base_model = model.base_model
+    base_model = model.base_model if isinstance(model, fv3fit.DerivedModel) else model
     try:
         plot_jacobian(
             base_model,
@@ -362,18 +356,21 @@ def main(args):
             )
             pass
 
-    if isinstance(config, loaders.BatchesFromMapperConfig):
-        mapper = config.load_mapper()
-        # compute transected and zonal diags
+    mapper = _get_data_mapper_if_exists(config)
+    if mapper is not None:
         snapshot_time = args.snapshot_time or sorted(list(mapper.keys()))[0]
         snapshot_key = nearest_time(snapshot_time, list(mapper.keys()))
         ds_snapshot = predict_function(mapper[snapshot_key])
+        # add snapshotted prediction to saved diags.nc
+        ds_diagnostics = ds_diagnostics.merge(
+            safe.get_variables(ds_snapshot, model.output_variables).rename(
+                {v: f"{v}_snapshot" for v in model.output_variables}
+            )
+        )
         transect_vertical_vars = [
             var for var in model.output_variables if is_3d(ds_snapshot[var])
         ]
         ds_transect = _get_transect(ds_snapshot, grid, transect_vertical_vars)
-
-        # write diags and diurnal datasets
         _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
 
     _write_nc(
