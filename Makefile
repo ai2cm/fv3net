@@ -185,8 +185,7 @@ setup-hooks:
 	pip install -c constraints.txt pre-commit
 	pre-commit install
 
-typecheck:
-	./check_types.sh
+typecheck: lint
 
 lint:
 	pre-commit run --all-files
