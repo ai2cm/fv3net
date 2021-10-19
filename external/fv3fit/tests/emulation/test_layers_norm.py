@@ -52,6 +52,29 @@ def test_normalize_layers(norm_cls, denorm_cls, expected):
     np.testing.assert_allclose(denorm, tensor, rtol=1e-6, atol=1e-6)
 
 
+@pytest.mark.parametrize(
+    "norm_cls, denorm_cls",
+    [
+        (layers.StandardNormLayer, layers.StandardDenormLayer,),
+        (layers.MeanFeatureStdNormLayer, layers.MeanFeatureStdDenormLayer,),
+        (layers.MaxFeatureStdNormLayer, layers.MaxFeatureStdDenormLayer,),
+    ],
+)
+@pytest.mark.parametrize("n", [3, 5])
+def test_normalize_nd_layers(norm_cls, denorm_cls, n: int):
+    array = np.random.randn(*[3 for _ in range(n - 1)], 1) * 2.0 + 5.0
+    tensor = tf.Variable(array, dtype=tf.float32)
+    norm_layer = norm_cls()
+    denorm_layer = denorm_cls()
+    norm_layer.fit(tensor)
+    denorm_layer.fit(tensor)
+
+    norm = norm_layer(tensor)
+    np.testing.assert_almost_equal(np.mean(norm), 0.0)
+    np.testing.assert_almost_equal(np.std(norm), 1.0)
+    np.testing.assert_allclose(denorm_layer(norm_layer(tensor)), tensor, rtol=1e-5)
+
+
 @pytest.mark.parametrize("layer_cls", _all_layers)
 def test_layers_no_trainable_variables(layer_cls):
     tensor = _get_tensor()

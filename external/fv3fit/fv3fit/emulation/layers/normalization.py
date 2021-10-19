@@ -11,7 +11,8 @@ def standard_deviation_all_features(tensor):
 
     A separate mean is computed for each output level
     """
-    mean = tf.cast(tf.reduce_mean(tensor, axis=0), tf.float32)
+    reduce_axes = tuple(range(len(tensor.shape) - 1))
+    mean = tf.cast(tf.reduce_mean(tensor, axis=reduce_axes), tf.float32)
     return tf.cast(tf.sqrt(tf.reduce_mean((tensor - mean) ** 2)), tf.float32,)
 
 
@@ -63,7 +64,8 @@ class PerFeatureMean(NormLayer):
         )
 
     def _fit_mean(self, tensor):
-        self.mean.assign(tf.cast(tf.reduce_mean(tensor, axis=0), tf.float32))
+        reduce_axes = tuple(range(len(tensor.shape) - 1))
+        self.mean.assign(tf.cast(tf.reduce_mean(tensor, axis=reduce_axes), tf.float32))
 
 
 class PerFeatureStd(NormLayer):
@@ -78,7 +80,10 @@ class PerFeatureStd(NormLayer):
         )
 
     def _fit_sigma(self, tensor):
-        self.sigma.assign(tf.cast(tf.math.reduce_std(tensor, axis=0), tf.float32))
+        reduce_axes = tuple(range(len(tensor.shape) - 1))
+        self.sigma.assign(
+            tf.cast(tf.math.reduce_std(tensor, axis=reduce_axes), tf.float32)
+        )
 
 
 class FeatureMaxStd(NormLayer):
@@ -94,7 +99,8 @@ class FeatureMaxStd(NormLayer):
         )
 
     def _fit_sigma(self, tensor):
-        stddev = tf.math.reduce_std(tensor, axis=0)
+        reduce_axes = tuple(range(len(tensor.shape) - 1))
+        stddev = tf.math.reduce_std(tensor, axis=reduce_axes)
         max_std = tf.cast(tf.reduce_max(stddev), tf.float32)
         self.sigma.assign(max_std)
 
