@@ -30,14 +30,7 @@ DELP = "pressure_thickness_of_atmospheric_layer"
 
 
 TrainingFunction = Callable[
-    [
-        Sequence[str],
-        Sequence[str],
-        Dataclass,
-        Sequence[xr.Dataset],
-        Sequence[xr.Dataset],
-    ],
-    Predictor,
+    [Dataclass, Sequence[xr.Dataset], Sequence[xr.Dataset]], Predictor
 ]
 
 
