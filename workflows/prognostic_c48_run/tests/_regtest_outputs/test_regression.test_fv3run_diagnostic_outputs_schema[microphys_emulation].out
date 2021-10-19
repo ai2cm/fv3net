@@ -1,0 +1,47 @@
+xarray.Dataset {
+dimensions:
+	time = 2 ;
+	tile = 6 ;
+	y = 12 ;
+	x = 12 ;
+	z = 63 ;
+
+variables:
+	float64 area(time, tile, y, x) ;
+		area:units = m^2 ;
+	float64 cnvprcp_after_physics(time, tile, y, x) ;
+		cnvprcp_after_physics:units = kg/m**2/s ;
+	float64 evaporation(time, tile, y, x) ;
+		evaporation:units = unknown ;
+	float64 physics_precip(time, tile, y, x) ;
+		physics_precip:units = kg/m^2/s ;
+	float64 storage_of_internal_energy_path_due_to_fv3_physics(time, tile, y, x) ;
+		storage_of_internal_energy_path_due_to_fv3_physics:units = J/kg kg/m**2/s ;
+	float64 storage_of_mass_due_to_fv3_physics(time, tile, y, x) ;
+		storage_of_mass_due_to_fv3_physics:units = Pa/s ;
+	float64 storage_of_specific_humidity_path_due_to_fv3_physics(time, tile, y, x) ;
+		storage_of_specific_humidity_path_due_to_fv3_physics:units = kg/kg kg/m**2/s ;
+	float64 storage_of_specific_humidity_path_due_to_microphysics(time, tile, y, x) ;
+		storage_of_specific_humidity_path_due_to_microphysics:units = unknown ;
+	float64 storage_of_total_water_path_due_to_fv3_physics(time, tile, y, x) ;
+		storage_of_total_water_path_due_to_fv3_physics:units = unknown ;
+	float64 tendency_of_air_temperature_due_to_fv3_physics(time, tile, z, y, x) ;
+		tendency_of_air_temperature_due_to_fv3_physics:units = degK/s ;
+	float64 tendency_of_eastward_wind_due_to_fv3_physics(time, tile, z, y, x) ;
+		tendency_of_eastward_wind_due_to_fv3_physics:units = m/s/s ;
+	float64 tendency_of_internal_energy_due_to_fv3_physics(time, tile, z, y, x) ;
+		tendency_of_internal_energy_due_to_fv3_physics:units = J/kg/s ;
+	float64 tendency_of_northward_wind_due_to_fv3_physics(time, tile, z, y, x) ;
+		tendency_of_northward_wind_due_to_fv3_physics:units = m/s/s ;
+	float64 tendency_of_specific_humidity_due_to_fv3_physics(time, tile, z, y, x) ;
+		tendency_of_specific_humidity_due_to_fv3_physics:units = kg/kg/s ;
+	object time(time) ;
+	float64 total_precip_after_physics(time, tile, y, x) ;
+		total_precip_after_physics:units = m ;
+	float64 total_precipitation_rate(time, tile, y, x) ;
+		total_precipitation_rate:units = kg/m^2/s ;
+	float64 water_vapor_path(time, tile, y, x) ;
+		water_vapor_path:units = mm ;
+
+// global attributes:
+}

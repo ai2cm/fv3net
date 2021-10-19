@@ -5,7 +5,7 @@ from fv3fit._shared.packer import (
     pack,
     unpack,
     _unique_dim_name,
-    _count_features_2d,
+    _count_features,
 )
 from fv3fit.keras._models.packer import get_unpack_layer, Unpack
 import pytest
@@ -98,8 +98,7 @@ def test_to_dataset(names, dims_list, array: np.ndarray):
     packer = ArrayPacker(SAMPLE_DIM, names)
     packer.to_array(dataset)  # must pack first to know dimension lengths
     result = packer.to_dataset(array)
-    # to_dataset does not preserve coordinates
-    xr.testing.assert_equal(result, dataset.drop(dataset.coords.keys()))
+    xr.testing.assert_equal(result, dataset)
 
 
 @pytest.mark.parametrize(
@@ -189,7 +188,7 @@ def test_sklearn_unpack(dataset: xr.Dataset):
     xr.testing.assert_allclose(unpacked_dataset, dataset)
 
 
-def test_count_features_2d():
+def test_count_features():
     SAMPLE_DIM_NAME = "axy"
     ds = xr.Dataset(
         data_vars={
@@ -200,10 +199,26 @@ def test_count_features_2d():
     )
     names = list(ds.data_vars.keys())
     assert len(names) == 3
-    out = _count_features_2d(names, ds, sample_dim_name=SAMPLE_DIM_NAME)
+    index = ds.to_stacked_array(
+        "feature", [SAMPLE_DIM_NAME], variable_dim="var"
+    ).indexes["feature"]
+    out = _count_features(index, variable_dim="var")
     assert len(out) == len(names)
     for name in names:
         assert name in out
     assert out["a"] == 1
     assert out["b"] == 1
     assert out["c"] == 5
+
+
+def test_array_packer_dump_and_load(tmpdir, dataset):
+    packer = ArrayPacker(SAMPLE_DIM, list(dataset.data_vars))
+    packer.to_array(dataset)
+    with open(str(tmpdir.join("packer.yaml")), "w") as f:
+        packer.dump(f)
+    with open(str(tmpdir.join("packer.yaml"))) as f:
+        loaded_packer = ArrayPacker.load(f)
+    packer._pack_names = loaded_packer._pack_names
+    packer._n_features = loaded_packer._n_features
+    packer._sample_dim_name = loaded_packer._sample_dim_name
+    packer._feature_index = loaded_packer._feature_index

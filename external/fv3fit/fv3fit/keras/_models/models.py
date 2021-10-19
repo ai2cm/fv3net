@@ -114,7 +114,7 @@ def train_dense_model(
     return model
 
 
-@io.register("packed-keras")
+@io.register("packed-keras-v2")
 class DenseModel(Predictor):
     """
     Abstract base class for a keras-based model which operates on xarray
@@ -400,9 +400,8 @@ class DenseModel(Predictor):
         """
         if base_state is None:
             if self.X_scaler.mean is not None:
-                mean_expanded = self.X_packer.to_dataset(
-                    self.X_scaler.mean[np.newaxis, :]
-                )
+                mean = self.X_packer.to_dataset(self.X_scaler.mean[np.newaxis, :])
+                mean_expanded = mean.expand_dims(SAMPLE_DIM_NAME, 0)
             else:
                 raise ValueError("X_scaler needs to be fit first.")
         else:
