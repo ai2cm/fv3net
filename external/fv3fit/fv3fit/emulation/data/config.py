@@ -10,35 +10,6 @@ from . import transforms
 logger = logging.getLogger(__name__)
 
 
-def _sequence_to_slice(seq: Sequence[Union[None, int]]) -> slice:
-
-    if not seq:
-        slice_ = slice(None)
-    elif len(seq) > 3:
-        raise ValueError(
-            "Converting sequence to slice failed. Expected maximum of 3 values"
-            f" but received {seq}."
-        )
-    else:
-        slice_ = slice(*seq)
-
-    return slice_
-
-
-def convert_map_sequences_to_slices(map_: Mapping[str, Union[Sequence[int], slice]]) -> Mapping[str, slice]:
-
-    new_map = {}
-    for key, maybe_seq in map_.items():
-        if isinstance(maybe_seq, slice):
-            slice_ = maybe_seq
-        else:
-            slice_ = _sequence_to_slice(maybe_seq)
-
-        new_map[key] = slice_
-
-    return new_map
-
-
 @dataclasses.dataclass
 class SliceConfig:
     start: Optional[int] = None
