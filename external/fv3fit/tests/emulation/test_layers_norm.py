@@ -70,8 +70,8 @@ def test_normalize_nd_layers(norm_cls, denorm_cls, n: int):
     denorm_layer.fit(tensor)
 
     norm = norm_layer(tensor)
-    np.testing.assert_almost_equal(np.mean(norm), 0.0)
-    np.testing.assert_almost_equal(np.std(norm), 1.0)
+    np.testing.assert_almost_equal(np.mean(norm), 0.0, decimal=6)
+    np.testing.assert_almost_equal(np.std(norm), 1.0, decimal=6)
     np.testing.assert_allclose(denorm_layer(norm_layer(tensor)), tensor, rtol=1e-5)
 
 

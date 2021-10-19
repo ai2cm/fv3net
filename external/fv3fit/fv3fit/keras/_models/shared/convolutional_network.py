@@ -21,8 +21,9 @@ class TransposeInvariant(tf.keras.constraints.Constraint):
     """Constrains `Conv2D` kernel weights to be unchanged when transposed."""
 
     def __call__(self, w: tf.Tensor):
-        # Conv2D kernels are of shape (kernel_column, kernel_row, channels)
-        return tf.scalar_mul(0.5, w + tf.transpose(w, perm=(1, 0, 2)))
+        # Conv2D kernels are of shape
+        # (kernel_column, kernel_row, input_channel, output_channel)
+        return tf.scalar_mul(0.5, w + tf.transpose(w, perm=(1, 0, 2, 3)))
 
 
 @dataclasses.dataclass
@@ -45,7 +46,7 @@ class ConvolutionalNetworkConfig:
         spectral_normalization: if True, apply spectral normalization to hidden layers
     """
 
-    filters: int = 8
+    filters: int = 32
     depth: int = 3
     kernel_size: int = 3
     kernel_regularizer: RegularizerConfig = dataclasses.field(
@@ -53,6 +54,7 @@ class ConvolutionalNetworkConfig:
     )
     gaussian_noise: float = 0.0
     spectral_normalization: bool = False
+    transpose_invariant: bool = True
 
     def __post_init__(self):
         if self.depth < 1:
@@ -88,7 +90,10 @@ class ConvolutionalNetworkConfig:
         """
         hidden_outputs = []
         x = x_in
-        transpose_invariant = TransposeInvariant()
+        if self.transpose_invariant:
+            constraint = TransposeInvariant()
+        else:
+            constraint = None
         for i in range(self.depth - 1):
             if self.gaussian_noise > 0.0:
                 x = tf.keras.layers.GaussianNoise(
@@ -97,11 +102,12 @@ class ConvolutionalNetworkConfig:
             hidden_layer = tf.keras.layers.Conv2D(
                 filters=self.filters,
                 kernel_size=self.kernel_size,
+                padding="same",
                 activation=tf.keras.activations.relu,
                 data_format="channels_last",
                 kernel_regularizer=self.kernel_regularizer.instance,
                 name=f"convolutional_{label}_{i}",
-                kernel_constraint=transpose_invariant,
+                kernel_constraint=constraint,
             )
             if self.spectral_normalization:
                 hidden_layer = tfa.layers.SpectralNormalization(
@@ -112,6 +118,7 @@ class ConvolutionalNetworkConfig:
         output = tf.keras.layers.Conv2D(
             filters=n_features_out,
             kernel_size=(1, 1),
+            padding="same",
             activation="linear",
             data_format="channels_last",
             name=f"convolutional_network_{label}_output",

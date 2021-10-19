@@ -11,7 +11,12 @@ from fv3fit.keras._models.precipitative import LV, CPD, GRAVITY
 
 
 # training functions that work on arbitrary datasets, can be used in generic tests below
-GENERAL_TRAINING_TYPES = ["DenseModel", "sklearn_random_forest", "precipitative"]
+GENERAL_TRAINING_TYPES = [
+    "convolutional",
+    "DenseModel",
+    "sklearn_random_forest",
+    "precipitative",
+]
 # training functions that have restrictions on the datasets they support,
 # cannot be used in generic tests below
 # you must write a separate file that specializes each of the tests
@@ -78,7 +83,7 @@ def train_identity_model(model_type, sample_func):
     )
     val_batches = [test_dataset]
     train = fv3fit.get_training_function(model_type)
-    model = train(hyperparameters, train_batches, val_batches,)
+    model = train(hyperparameters, train_batches, val_batches)
     return TrainingResult(model, output_variables, test_dataset)
 
 
@@ -134,18 +139,19 @@ def assert_can_learn_identity(
     """
     result = train_identity_model(model_type, sample_func=sample_func)
     out_dataset = result.model.predict(result.test_dataset)
+    for name in result.output_variables:
+        assert out_dataset[name].dims == result.test_dataset[name].dims
     rmse = np.mean(
         [
-            np.mean((out_dataset[name] - result.test_dataset[name]) ** 2) ** 0.5
-            / np.std(result.test_dataset[name])
+            np.mean((out_dataset[name] - result.test_dataset[name]) ** 2)
+            / np.std(result.test_dataset[name]) ** 2
             for name in result.output_variables
         ]
     )
     assert rmse < max_rmse
     if model_type in SYSTEM_DEPENDENT_TYPES:
         print(f"{model_type} is system dependent, not checking against regtest output")
-        regtest = None
-    if regtest is not None:
+    else:
         for result in vcm.testing.checksum_dataarray_mapping(result.test_dataset):
             print(result, file=regtest)
         for result in vcm.testing.checksum_dataarray_mapping(out_dataset):
@@ -231,7 +237,7 @@ def test_dump_and_load_default_maintains_prediction(model_type):
 
     original_result = result.model.predict(result.test_dataset)
     with tempfile.TemporaryDirectory() as tmpdir:
-        result.model.dump(tmpdir)
+        fv3fit.dump(result.model, tmpdir)
         loaded_model = fv3fit.load(tmpdir)
     loaded_result = loaded_model.predict(result.test_dataset)
     xr.testing.assert_equal(loaded_result, original_result)
