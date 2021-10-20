@@ -1,0 +1,15 @@
+# this is only for development purposes and integration with visual studio code
+version: '3.4'
+services:
+  fv3:
+    image: us.gcr.io/vcm-ml/prognostic_run:latest
+    entrypoint: []
+    command: [bash]
+    working_dir: /fv3net/projects/microphysics
+    volumes:
+      - ../../external:/fv3net/external
+      - ../../workflows:/fv3net/workflows
+      - ../../projects:/fv3net/projects
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
