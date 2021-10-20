@@ -1,6 +1,6 @@
 from collections import defaultdict
 import logging
-from typing import Any, Callable, Mapping, Union
+from typing import Any, Callable, Mapping, Union, Dict
 
 from joblib import Parallel, delayed
 import xarray as xr
@@ -50,3 +50,18 @@ def _start_logger_if_necessary():
         logger.addHandler(sh)
         logger.addHandler(fh)
     return logger
+
+
+def prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Dict[str, xr.DataArray]:
+    """
+    Take a diagnostic dataset and add a suffix to all variable names and return as dict.
+    Useful in multiple merge functions passed to registries.
+    """
+
+    diags = {}
+    for variable in ds:
+        lower = str(variable).lower()
+        da = ds[variable]
+        diags[f"{lower}_{suffix}"] = da
+
+    return diags

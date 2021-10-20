@@ -41,26 +41,12 @@ from .constants import (
     RMSE_VARS,
     PRESSURE_INTERPOLATED_VARS,
 )
-from fv3net.diagnostics._shared.registry import Registry
+from fv3net.diagnostics._shared.registry import Registry, prepare_diag_dict
 from fv3net.diagnostics._shared import transform
 
 import logging
 
 logger = logging.getLogger("SaveDiags")
-
-
-def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
-    """
-    Take a diagnostic dataset and add a suffix to all variable names and return as dict.
-    """
-
-    diags = {}
-    for variable in ds:
-        lower = variable.lower()
-        da = ds[variable]
-        diags[f"{lower}_{suffix}"] = da
-
-    return diags
 
 
 def _merge_diag_computes(
@@ -90,7 +76,7 @@ def _merge_diag_computes(
 def merge_diags(diags: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, xr.DataArray]:
     out = {}
     for name, ds in diags:
-        out.update(_prepare_diag_dict(name, ds))
+        out.update(prepare_diag_dict(name, ds))
     return out
 
 
