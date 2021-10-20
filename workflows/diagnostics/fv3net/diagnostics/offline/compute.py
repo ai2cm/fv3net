@@ -359,7 +359,8 @@ def main(args):
     mapper = _get_data_mapper_if_exists(config)
     if mapper is not None:
         snapshot_time = (
-            args.snapshot_time or config.kwargs.get("timesteps", list(mapper.keys()))[0]
+            args.snapshot_time
+            or sorted(config.kwargs.get("timesteps", list(mapper.keys())))[0]
         )
         snapshot_key = nearest_time(snapshot_time, list(mapper.keys()))
         ds_snapshot = predict_function(mapper[snapshot_key])
