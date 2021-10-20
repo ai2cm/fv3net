@@ -8,12 +8,11 @@ from typing import Any
 
 import fv3config
 import pandas as pd
+import wandb
 import yaml
 from runtime.segmented_run import api
 from runtime.segmented_run.prepare_config import to_fv3config
-import wandb
 
-# TODO install artifacts in prognostic run image
 from fv3net.artifacts.resolve_url import resolve_url
 
 logging.basicConfig(level=logging.INFO)
