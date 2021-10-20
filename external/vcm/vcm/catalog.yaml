@@ -615,7 +615,7 @@ sources:
     driver: zarr
     metadata:
       grid: c48
-      simulation: 1yr_pire_postspinup
+      simulation: disable # 1yr_pire_postspinup
       category: 3d
       variables:
         - air_temperature
