@@ -5,18 +5,18 @@ import fsspec
 import json
 import os
 from fv3fit.emulation.data.config import SliceConfig
+from fv3fit.emulation.keras import CustomKerasLossConfig, KerasLossConfig, KerasTrainer
 from fv3fit.wandb import WandBConfig, log_to_table, log_profile_plots, store_model_artifact
-import wandb
 import yaml
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from typing import Any, List, Mapping, Optional, Sequence
+from typing import Any, List, Mapping, Optional, Sequence, Union
 
 from fv3fit.emulation.models import MicrophysicsConfig, ArchitectureConfig
 from fv3fit.emulation.data import TransformConfig
 from fv3fit.emulation.data import get_nc_files, nc_files_to_tf_dataset
-from fv3fit.emulation.layers import MeanFeatureStdNormLayer≈
+from fv3fit.emulation.layers import NormalizeConfig
 from fv3fit import set_random_seed
 
 # TODO centralize this
@@ -83,27 +83,6 @@ def get_out_samples(model_config: MicrophysicsConfig, samples, sample_names):
             residual_sample.append(sample)
 
     return direct_sample, residual_sample
-
-
-def save_model(model: tf.keras.Model, destination: str):
-
-    model.compiled_loss = None
-    model.compiled_metrics = None
-    model.optimizer = None
-    model_path = os.path.join(destination, "model.tf")
-    model.save(model_path, save_format="tf")
-
-    return model_path
-
-
-class NormalizedMSE(tf.keras.losses.MeanSquaredError):
-    def __init__(self, sample_data, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._normalize = MeanFeatureStdNormLayer()
-        self._normalize.fit(sample_data)
-
-    def call(self, y_true, y_pred):
-        return super().call(self._normalize(y_true), self._normalize(y_pred))
 
 
 def scale(names, values):
@@ -224,19 +203,11 @@ class TrainConfig:
     out_url: str
     transform: TransformConfig
     model: MicrophysicsConfig
-    wandb: Optional[WandBConfig] = None
-    model_name: str = "microphysics-emulator"
-    epochs: int = 1
-    batch_size: int = 128
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
-    valid_freq: int = 5
-    optimizer: OptimizerConfig = dataclasses.field(
-        default_factory=lambda: OptimizerConfig("Adam")
-    )
-    loss_variables: List[str] = dataclasses.field(default_factory=list)
-    metric_variables: List[str] = dataclasses.field(default_factory=list)
-    weights: Mapping[str, float] = dataclasses.field(default_factory=dict)
+    wandb: Optional[WandBConfig] = None
+    trainer: KerasTrainer = dataclasses.field(default_factory=KerasTrainer)
+    loss: Union[KerasLossConfig, CustomKerasLossConfig] = dataclasses.field(default_factory=KerasLossConfig)
 
     def asdict(self):
         return dataclasses.asdict(self)
@@ -353,8 +324,10 @@ class TrainConfig:
 def main(config: TrainConfig, seed: int = 0):
     set_random_seed(seed)
 
-    if config.wandb is not None:
+    callbacks = []
+    if config.wandb:
         config.wandb.init(config=config.asdict())
+        callbacks.append(config.wandb.get_callback())
 
     train_ds = _netcdf_url_to_dataset(
         config.train_url, config.transform, nfiles=config.nfiles
@@ -373,33 +346,10 @@ def main(config: TrainConfig, seed: int = 0):
         X_train, sample_direct_out=direct_sample, sample_residual_out=resid_sample
     )
 
-    losses = {}
-    metrics = {}
-    weights = {}
-    for out_varname, sample in zip(config.transform.output_variables, train_target):
-        loss_func = NormalizedMSE(sample)
-        if out_varname in config.loss_variables:
-            losses[out_varname] = loss_func
-            if out_varname in config.weights:
-                weights[out_varname] = config.weights[out_varname]
-            else:
-                weights[out_varname] = 1.0
-        elif out_varname in config.metric_variables:
-            metrics[out_varname] = loss_func
+    config.loss.fit(model.output_names, train_target)
+    config.loss.compile(model)
 
-    optimizer = config.optimizer.instance
-    model.compile(
-        loss=losses, metrics=metrics, optimizer=optimizer, loss_weights=weights
-    )
-
-    history = model.fit(
-        train_ds.shuffle(100_000).batch(config.batch_size),
-        epochs=config.epochs,
-        validation_freq=config.valid_freq,
-        validation_data=test_ds.batch(config.batch_size),
-        verbose=2,
-        callbacks=callbacks,
-    )
+    config.trainer.batch_fit(model, train_ds, valid_data=test_ds, callbacks=callbacks)
 
     # scoring
     test_target = scale(config.transform.output_variables, test_target)
@@ -411,7 +361,7 @@ def main(config: TrainConfig, seed: int = 0):
     train_scores, train_profiles = score_all(train_target, train_pred, out_names)
     test_scores, test_profiles = score_all(test_target, test_pred, out_names)
 
-    if config.wandb is not None:
+    if config.wandb:
         log_to_table("score/train", train_scores, index=[config.wandb.job.name])
         log_to_table("score/test", test_scores, index=[config.wandb.job.name])
         log_to_table("profiles/train", train_profiles)
@@ -424,7 +374,7 @@ def main(config: TrainConfig, seed: int = 0):
 
         local_model_path = save_model(model, tmpdir)
 
-        if config.wandb is not None:
+        if config.wandb:
             store_model_artifact(local_model_path, name=config.model.name)
 
 
