@@ -12,9 +12,15 @@ Z_DIM_NAMES = ["z", "pfull"]
 
 
 class StackedBatches(Sequence[xr.Dataset]):
-    def __init__(self, batches: Sequence[xr.Dataset], random_state: RandomState):
+    def __init__(
+        self,
+        batches: Sequence[xr.Dataset],
+        random_state: RandomState = np.random,
+        unstacked_dims: Optional[Sequence[str]] = Z_DIM_NAMES,
+    ):
         self._batches = batches
         self._random_state = random_state
+        self._unstacked_dims = unstacked_dims
 
     def __getitem__(self, idx: Union[int, slice]):
         if isinstance(idx, int):
@@ -31,10 +37,23 @@ class StackedBatches(Sequence[xr.Dataset]):
         return len(self._batches)
 
     def _stack_batch(self, ds_unstacked: xr.Dataset) -> xr.Dataset:
-        ds = stack_non_vertical(ds_unstacked).dropna(dim=SAMPLE_DIM_NAME)
+        ds = stack(ds_unstacked, unstacked_dims=self._unstacked_dims).dropna(
+            dim=SAMPLE_DIM_NAME
+        )
         ds = _check_empty(ds)
         ds = _preserve_samples_per_batch(ds)
         return _shuffled(self._random_state, ds)
+
+
+def stack(ds: xr.Dataset, unstacked_dims: Sequence[str]):
+    stack_dims = [dim for dim in ds.dims if dim not in unstacked_dims]
+    ds_stacked = safe.stack_once(
+        ds,
+        SAMPLE_DIM_NAME,
+        stack_dims,
+        allowed_broadcast_dims=list(unstacked_dims) + ["time", "dataset"],
+    )
+    return ds_stacked.transpose(SAMPLE_DIM_NAME, ...)
 
 
 def stack_non_vertical(ds: xr.Dataset) -> xr.Dataset:
@@ -44,16 +63,9 @@ def stack_non_vertical(ds: xr.Dataset) -> xr.Dataset:
     Args:
         ds: dataset with geospatial dimensions
     """
-    stack_dims = [dim for dim in ds.dims if dim not in Z_DIM_NAMES]
     if len(set(ds.dims).intersection(Z_DIM_NAMES)) > 1:
         raise ValueError("Data cannot have >1 feature dimension in {Z_DIM_NAMES}.")
-    ds_stacked = safe.stack_once(
-        ds,
-        SAMPLE_DIM_NAME,
-        stack_dims,
-        allowed_broadcast_dims=Z_DIM_NAMES + ["time", "dataset"],
-    )
-    return ds_stacked.transpose(SAMPLE_DIM_NAME, ...)
+    return stack(ds=ds, unstacked_dims=Z_DIM_NAMES)
 
 
 def _check_empty(ds: xr.Dataset) -> xr.Dataset:

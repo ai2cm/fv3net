@@ -22,6 +22,7 @@ from .predictor import Predictor
 from .stacking import (
     StackedBatches,
     stack_non_vertical,
+    stack,
     match_prediction_to_input_coords,
     SAMPLE_DIM_NAME,
 )

@@ -4,8 +4,9 @@ from fv3fit._shared.config import (
     OptimizerConfig,
     register_training_function,
 )
-from fv3fit._shared.stacking import SAMPLE_DIM_NAME
+from fv3fit._shared.stacking import SAMPLE_DIM_NAME, StackedBatches, stack
 from fv3fit.keras._models.shared.loss import LossConfig
+from fv3fit.keras._models.shared.pure_keras import PureKerasModel
 import tensorflow as tf
 import xarray as xr
 from ..._shared.config import Hyperparameters
@@ -13,7 +14,6 @@ from ._sequences import _XyMultiArraySequence
 from .shared import ConvolutionalNetworkConfig, TrainingLoopConfig
 import numpy as np
 from fv3fit.keras._models.shared import (
-    PureKerasNoStackModel,
     standard_normalize,
     standard_denormalize,
 )
@@ -21,6 +21,8 @@ import fv3fit._shared
 import logging
 
 logger = logging.getLogger(__file__)
+
+UNSTACKED_DIMS = ("x", "y", "z", "z_interface")
 
 
 def multiply_loss_by_factor(original_loss, factor):
@@ -83,29 +85,33 @@ def train_convolutional_model(
 ):
     if validation_batches is not None:
         validation_data = batch_to_array_tuple(
-            validation_batches[0],
+            stack(validation_batches[0], unstacked_dims=UNSTACKED_DIMS),
             input_variables=hyperparameters.input_variables,
             output_variables=hyperparameters.output_variables,
         )
     else:
         validation_data = None
+    stacked_train_batches = StackedBatches(train_batches, unstacked_dims=UNSTACKED_DIMS)
     train_data = _XyMultiArraySequence(
         X_names=hyperparameters.input_variables,
         y_names=hyperparameters.output_variables,
-        dataset_sequence=train_batches,
+        dataset_sequence=stacked_train_batches,
     )
-    train_model, predict_model = build_model(hyperparameters, batch=train_batches[0])
+    train_model, predict_model = build_model(
+        hyperparameters, batch=stacked_train_batches[0]
+    )
     hyperparameters.training_loop.fit_loop(
         model=train_model, Xy=train_data, validation_data=validation_data
     )
     output_metadata = get_metadata(
         names=hyperparameters.output_variables, ds=train_batches[0]
     )
-    predictor = PureKerasNoStackModel(
+    predictor = PureKerasModel(
         input_variables=hyperparameters.input_variables,
         output_variables=hyperparameters.output_variables,
         output_metadata=output_metadata,
         model=predict_model,
+        unstacked_dims=("x", "y", "z", "z_interface"),
     )
     return predictor
 
@@ -156,14 +162,14 @@ def build_model(
     output_features = count_features(config.output_variables, batch)
     norm_output_layers = (
         tf.keras.layers.Conv2D(
-            filters=n_features,
+            filters=output_features[name],
             kernel_size=(1, 1),
             padding="same",
             activation="linear",
             data_format="channels_last",
             name=f"convolutional_network_{i}_output",
         )(convolution.hidden_outputs[-1])
-        for i, n_features in enumerate(output_features)
+        for i, name in enumerate(config.output_variables)
     )
     denorm_output_layers = standard_denormalize(
         names=config.output_variables, layers=norm_output_layers, batch=batch

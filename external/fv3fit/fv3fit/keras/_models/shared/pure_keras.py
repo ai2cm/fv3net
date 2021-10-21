@@ -3,14 +3,16 @@ from fv3fit._shared import (
     io,
     match_prediction_to_input_coords,
     SAMPLE_DIM_NAME,
-    stack_non_vertical,
+    stack,
 )
+from fv3fit._shared.stacking import Z_DIM_NAMES
 import tensorflow as tf
-from typing import Any, Dict, Hashable, Iterable, Sequence
+from typing import Any, Dict, Hashable, Iterable, Optional, Sequence
 import xarray as xr
 import os
 from .._filesystem import get_dir, put_dir
 import yaml
+import numpy as np
 
 
 @io.register("all-keras")
@@ -30,6 +32,7 @@ class PureKerasModel(Predictor):
         output_variables: Iterable[Hashable],
         output_metadata: Iterable[Dict[str, Any]],
         model: tf.keras.Model,
+        unstacked_dims: Optional[Sequence[str]] = None,
     ):
         """Initialize the predictor
         
@@ -38,12 +41,19 @@ class PureKerasModel(Predictor):
             output_variables: names of output variables
             output_metadata: attributes and stacked dimension order for each variable
                 in output_variables
+            model: keras model to wrap
+            unstacked_dims: if given, stacking should leave these dimensions in place.
+                by default uses z-dimension names from fv3gfs.util
         """
         super().__init__(input_variables, output_variables)
         self.input_variables = input_variables
         self.output_variables = output_variables
         self._output_metadata = output_metadata
         self.model = model
+        if unstacked_dims is None:
+            self._unstacked_dims = Z_DIM_NAMES
+        else:
+            self._unstacked_dims = unstacked_dims
 
     @classmethod
     def load(cls, path: str) -> "PureKerasModel":
@@ -86,9 +96,11 @@ class PureKerasModel(Predictor):
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
-        X_stacked = stack_non_vertical(X)
+        X_stacked = stack(X, unstacked_dims=self._unstacked_dims)
         inputs = [X_stacked[name].values for name in self.input_variables]
         outputs = self.model.predict(inputs)
+        if isinstance(outputs, np.ndarray):
+            outputs = [outputs]
         if self._output_metadata is not None:
             return_ds = self._array_prediction_to_dataset(
                 self.output_variables,
@@ -118,94 +130,6 @@ class PureKerasModel(Predictor):
                 }
             ).unstack(SAMPLE_DIM_NAME)
         return match_prediction_to_input_coords(X, return_ds)
-
-    def dump(self, path: str) -> None:
-        with put_dir(path) as path:
-            if self.model is not None:
-                model_filename = os.path.join(path, self._MODEL_FILENAME)
-                self.model.save(model_filename)
-            with open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
-                f.write(
-                    yaml.dump(
-                        {
-                            "input_variables": self.input_variables,
-                            "output_variables": self.output_variables,
-                            "output_metadata": self._output_metadata,
-                        }
-                    )
-                )
-
-
-@io.register("all-keras-no-stack")
-class PureKerasNoStackModel(Predictor):
-    """Model which uses Keras for packing and normalization"""
-
-    _MODEL_FILENAME = "model.tf"
-    _CONFIG_FILENAME = "config.yaml"
-
-    def __init__(
-        self,
-        input_variables: Sequence[Hashable],
-        output_variables: Sequence[Hashable],
-        output_metadata: Iterable[Dict[str, Any]],
-        model: tf.keras.Model,
-        loss=None,
-    ):
-        """Initialize the predictor
-        
-        Args:
-            input_variables: names of input variables
-            output_variables: names of output variables
-            output_metadata: attributes and stacked dimension order for each variable
-                in output_variables
-            model: keras model to wrap
-        """
-        super().__init__(input_variables, output_variables)
-        self.input_variables: Sequence[Hashable] = input_variables
-        self.output_variables: Sequence[Hashable] = output_variables
-        self._output_metadata = output_metadata
-        self.model = model
-        self.loss = loss
-
-    @classmethod
-    def load(cls, path: str) -> "PureKerasNoStackModel":
-        """Load a serialized model from a directory."""
-        with get_dir(path) as path:
-            model_filename = os.path.join(path, cls._MODEL_FILENAME)
-            model = tf.keras.models.load_model(model_filename)
-            with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
-                config = yaml.load(f, Loader=yaml.Loader)
-            obj = cls(
-                config["input_variables"],
-                config["output_variables"],
-                config.get("output_metadata", None),
-                model,
-            )
-            return obj
-
-    def _unstacked_array_prediction_to_dataset(
-        self, names, outputs, output_metadata, coords
-    ) -> xr.Dataset:
-        data_vars = {}
-        for name, output, metadata in zip(names, outputs, output_metadata):
-            data_vars[name] = xr.DataArray(
-                output, dims=metadata["dims"], attrs={"units": metadata["units"]}
-            )
-        return xr.Dataset(data_vars=data_vars, coords=coords)
-
-    def predict(self, X: xr.Dataset) -> xr.Dataset:
-        """Predict an output xarray dataset from an input xarray dataset."""
-        inputs = [X[name].values for name in self.input_variables]
-        if len(inputs) == 1:
-            inputs = inputs[0]
-        outputs = self.model.predict(inputs)
-        if len(self.output_variables) == 1:
-            outputs = [outputs]
-        ds = self._unstacked_array_prediction_to_dataset(
-            self.output_variables, outputs, self._output_metadata, coords=X.coords
-        )
-        ds = match_prediction_to_input_coords(X, ds)
-        return ds
 
     def dump(self, path: str) -> None:
         with put_dir(path) as path:
