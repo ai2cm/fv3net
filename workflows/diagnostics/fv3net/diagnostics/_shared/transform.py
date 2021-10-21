@@ -278,6 +278,8 @@ def _mask_array(
     """Mask given DataArray to a specific region."""
     if region == "tropics":
         masked_arr = arr.where(abs(latitude) <= 10.0)
+    elif region == "tropics20":
+        masked_arr = arr.where(abs(latitude) <= 20.0)
     elif region == "global":
         masked_arr = arr.copy()
     elif region in SURFACE_TYPE_CODES:
