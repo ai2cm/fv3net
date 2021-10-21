@@ -70,6 +70,7 @@ class PureKerasModel(Predictor):
                 config["output_variables"],
                 config.get("output_metadata", None),
                 model,
+                unstacked_dims=config.get("unstacked_dims", None),
             )
             return obj
 
@@ -143,6 +144,7 @@ class PureKerasModel(Predictor):
                             "input_variables": self.input_variables,
                             "output_variables": self.output_variables,
                             "output_metadata": self._output_metadata,
+                            "unstacked_dims": self._unstacked_dims,
                         }
                     )
                 )
