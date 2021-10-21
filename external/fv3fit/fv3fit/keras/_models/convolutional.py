@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Dict, List, Sequence, Tuple, Set
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Set
 from fv3fit._shared.config import (
     OptimizerConfig,
     register_training_function,
@@ -63,7 +63,7 @@ class ConvolutionalHyperparameters(Hyperparameters):
     training_loop: TrainingLoopConfig = dataclasses.field(
         default_factory=lambda: TrainingLoopConfig(epochs=10)
     )
-    loss: LossConfig = LossConfig(scaling="standard")
+    loss: LossConfig = LossConfig(scaling="standard", loss_type="mse")
 
     @property
     def variables(self) -> Set[str]:
@@ -74,13 +74,16 @@ class ConvolutionalHyperparameters(Hyperparameters):
 def train_convolutional_model(
     hyperparameters: ConvolutionalHyperparameters,
     train_batches: Sequence[xr.Dataset],
-    validation_batches: Sequence[xr.Dataset],
+    validation_batches: Optional[Sequence[xr.Dataset]] = None,
 ):
-    validation_data = batch_to_array_tuple(
-        validation_batches[0],
-        input_variables=hyperparameters.input_variables,
-        output_variables=hyperparameters.output_variables,
-    )
+    if validation_batches is not None:
+        validation_data = batch_to_array_tuple(
+            validation_batches[0],
+            input_variables=hyperparameters.input_variables,
+            output_variables=hyperparameters.output_variables,
+        )
+    else:
+        validation_data = None
     train_data = _XyMultiArraySequence(
         X_names=hyperparameters.input_variables,
         y_names=hyperparameters.output_variables,
@@ -91,7 +94,7 @@ def train_convolutional_model(
         model=train_model, Xy=train_data, validation_data=validation_data
     )
     output_metadata = get_metadata(
-        names=hyperparameters.output_variables, ds=validation_batches[0]
+        names=hyperparameters.output_variables, ds=train_batches[0]
     )
     predictor = PureKerasNoStackModel(
         input_variables=hyperparameters.input_variables,
