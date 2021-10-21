@@ -130,7 +130,21 @@ def count_features(names, batch: xr.Dataset):
     return feature_counts
 
 
-def standard_normalize(names, layers, batch: xr.Dataset):
+def standard_normalize(
+    names: Sequence[str], layers: Sequence[tf.Tensor], batch: xr.Dataset
+) -> Sequence[tf.Tensor]:
+    """
+    Apply standard scaling to a series of layers based on mean and standard
+    deviation from a batch of data.
+
+    Args:
+        names: variable name in batch of each layer in layers
+        layers: input tensors to be scaled by scaling layers
+        batch: reference data for mean and standard deviation
+    
+    Returns:
+        normalized_layers: standard-scaled tensors
+    """
     out = []
     for name, layer in zip(names, layers):
         norm = StandardNormLayer(name=f"standard_normalize_{name}")
@@ -139,7 +153,21 @@ def standard_normalize(names, layers, batch: xr.Dataset):
     return out
 
 
-def standard_denormalize(names, layers, batch: xr.Dataset):
+def standard_denormalize(
+    names: Sequence[str], layers: Sequence[tf.Tensor], batch: xr.Dataset
+) -> Sequence[tf.Tensor]:
+    """
+    Apply standard descaling to a series of standard-scaled
+    layers based on mean and standard deviation from a batch of data.
+
+    Args:
+        names: variable name in batch of each layer in layers
+        layers: input tensors to be scaled by de-scaling layers
+        batch: reference data for mean and standard deviation
+    
+    Returns:
+        denormalized_layers: de-scaled tensors
+    """
     out = []
     for name, layer in zip(names, layers):
         norm = StandardDenormLayer(name=f"standard_denormalize_{name}")
