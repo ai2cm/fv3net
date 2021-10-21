@@ -7,9 +7,11 @@ MEAN_STD = "mean_std"
 
 
 def standard_deviation_all_features(tensor):
-    """Commpute standard deviation across all features
+    """Commpute standard deviation across all features.
 
-    A separate mean is computed for each output level
+    A separate mean is computed for each output level.
+
+    Assumes last dimension is feature.
     """
     reduce_axes = tuple(range(len(tensor.shape) - 1))
     mean = tf.cast(tf.reduce_mean(tensor, axis=reduce_axes), tf.float32)
@@ -55,7 +57,7 @@ class NormLayer(tf.keras.layers.Layer, abc.ABC):
 class PerFeatureMean(NormLayer):
     """
     Build layer weights and fit a mean value for each
-    feature in a tensor (assumed first dimension is samples).
+    feature in a tensor (assumed last dimension is feature).
     """
 
     def _build_mean(self, in_shape):
@@ -71,7 +73,7 @@ class PerFeatureMean(NormLayer):
 class PerFeatureStd(NormLayer):
     """
     Build layer weights and fit a standard deviation value [sigma]
-    for each feature in a tensor (assumed first dimension is samples).
+    for each feature in a tensor (assumed last dimension is feature).
     """
 
     def _build_sigma(self, in_shape):
@@ -89,8 +91,8 @@ class PerFeatureStd(NormLayer):
 class FeatureMaxStd(NormLayer):
     """
     Build layer weights and fit a standard deviation value based
-    on the maximum of all features in a tensor (assumed first
-    dimension is samples).
+    on the maximum of all features in a tensor (assumed last
+    dimension is feature).
     """
 
     def _build_sigma(self, in_shape):
