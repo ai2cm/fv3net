@@ -183,7 +183,7 @@ def main(args):
     catalog = intake.open_catalog(args.catalog)
     grid = load_diags.load_grid(catalog)
     prognostic = derived_variables.physics_variables(
-        load_diags.SegmentedRun(args.url, catalog).2d
+        load_diags.SegmentedRun(args.url, catalog).data_2d
     )
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead
     prognostic = (
