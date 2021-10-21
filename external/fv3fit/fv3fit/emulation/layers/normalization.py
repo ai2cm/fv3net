@@ -1,4 +1,5 @@
 import abc
+import dataclasses
 import tensorflow as tf
 
 
@@ -169,6 +170,37 @@ class MeanFeatureStdNormLayer(MaxFeatureStdNormLayer, FeatureMeanStd):
     """
 
     pass
+
+
+
+@dataclasses.dataclass
+class NormalizeConfig:
+
+    class_name: str
+    layer_name: str
+    sample_data: tf.Tensor
+
+    def initialize_layer(self):
+        cls = get_norm_class(self.class_name)
+        layer = cls(self.layer_name)
+        layer.fit(self.sample_data)
+
+        return layer
+
+
+@dataclasses.dataclass
+class DenormalizeConfig:
+
+    class_name: str
+    layer_name: str
+    sample_data: tf.Tensor
+
+    def initialize_layer(self):
+        cls = get_denorm_class(self.class_name)
+        layer = cls(self.layer_name)
+        layer.fit(self.sample_data)
+
+        return layer
 
 
 def get_norm_class(key):
