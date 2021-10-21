@@ -38,7 +38,7 @@ sources:
     metadata:
       grid: c384
       simulation: 40day_may2020
-      category: dycore
+      category: 2d
       variables:
         - PRESctp
         - PRESsfc
@@ -72,7 +72,7 @@ sources:
     metadata:
       grid: c48
       simulation: 40day_may2020
-      category: physics
+      category: 2d
       variables:
         - CPRATEsfc_coarse
         - DCLWRFsfc_coarse
@@ -118,7 +118,7 @@ sources:
     metadata:
       grid: c48
       simulation: 40day_may2020
-      category: physics
+      category: 2d
       variables:
         - int_t_dt_nudge_coarse
         - int_u_dt_nudge_coarse
@@ -223,7 +223,7 @@ sources:
     metadata:
       grid: c48
       simulation: 40day_may2020
-      category: dycore
+      category: 2d
       variables:
         - PRESctp
         - PRESsfc
@@ -256,7 +256,7 @@ sources:
     metadata:
       grid: c48
       simulation: 40day_may2020
-      category: dycore
+      category: 2d
       variables:
         - q1000
         - q850
@@ -428,7 +428,7 @@ sources:
       metadata:
         grid: c48
         simulation: nudged_c48_fv3gfs_2016
-        category: physics
+        category: 2d
       storage_options:
         project: 'vcm-ml'
         access: read_only
@@ -442,7 +442,7 @@ sources:
       metadata:
         grid: c48
         simulation: nudged_c48_fv3gfs_2016
-        category: dycore
+        category: 2d
       storage_options:
         project: 'vcm-ml'
         access: read_only
@@ -456,7 +456,7 @@ sources:
       metadata:
         grid: c48
         simulation: nudged_c48_fv3gfs_2015_2016
-        category: physics
+        category: 2d
       storage_options:
         project: 'vcm-ml'
         access: read_only
@@ -470,7 +470,7 @@ sources:
       metadata:
         grid: c48
         simulation: nudged_c48_fv3gfs_2015_2016
-        category: dycore
+        category: 2d
       storage_options:
         project: 'vcm-ml'
         access: read_only
@@ -496,7 +496,7 @@ sources:
       metadata:
         grid: c48
         simulation: free_minus_4K_ssts_c384_fv3gfs_20170801_20190801
-        category: physics
+        category: 2d
       storage_options:
         project: 'vcm-ml'
         access: read_only
@@ -510,7 +510,7 @@ sources:
       metadata:
         grid: c48
         simulation: free_minus_4K_ssts_c384_fv3gfs_20170801_20190801
-        category: dycore
+        category: 2d
       storage_options:
         project: 'vcm-ml'
         access: read_only
@@ -524,7 +524,7 @@ sources:
       metadata:
         grid: c48
         simulation: free_unperturbed_ssts_c384_fv3gfs_20170801_20190801
-        category: physics
+        category: 2d
       storage_options:
         project: 'vcm-ml'
         access: read_only
@@ -538,7 +538,7 @@ sources:
       metadata:
         grid: c48
         simulation: free_unperturbed_ssts_c384_fv3gfs_20170801_20190801
-        category: dycore
+        category: 2d
       storage_options:
         project: 'vcm-ml'
         access: read_only
@@ -569,7 +569,7 @@ sources:
       metadata:
         grid: c48
         simulation: free_plus_4K_ssts_c384_fv3gfs_20170801_20190801
-        category: physics
+        category: 2d
       storage_options:
         project: 'vcm-ml'
         access: read_only
@@ -583,7 +583,7 @@ sources:
       metadata:
         grid: c48
         simulation: free_plus_4K_ssts_c384_fv3gfs_20170801_20190801
-        category: dycore
+        category: 2d
       storage_options:
         project: 'vcm-ml'
         access: read_only
