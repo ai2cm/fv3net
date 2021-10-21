@@ -65,6 +65,10 @@ class MicrophysicsConfig:
         self.selection_map_slices = {k: v.slice for k, v in self.selection_map.items()}
 
     @property
+    def name(self):
+        return f"microphysics-emulator-{self.architecture.name}"
+
+    @property
     def output_variables(self):
         return (
             self.direct_out_variables

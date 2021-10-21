@@ -5,6 +5,7 @@ import fsspec
 import json
 import os
 from fv3fit.emulation.data.config import SliceConfig
+from fv3fit.wandb import WandBConfig, log_to_table, log_profile_plots, store_model_artifact
 import wandb
 import yaml
 import numpy as np
@@ -82,6 +83,17 @@ def get_out_samples(model_config: MicrophysicsConfig, samples, sample_names):
             residual_sample.append(sample)
 
     return direct_sample, residual_sample
+
+
+def save_model(model: tf.keras.Model, destination: str):
+
+    model.compiled_loss = None
+    model.compiled_metrics = None
+    model.optimizer = None
+    model_path = os.path.join(destination, "model.tf")
+    model.save(model_path, save_format="tf")
+
+    return model_path
 
 
 class NormalizedMSE(tf.keras.losses.MeanSquaredError):
@@ -212,9 +224,8 @@ class TrainConfig:
     out_url: str
     transform: TransformConfig
     model: MicrophysicsConfig
-    use_wandb: bool = True
-    wandb_project: str = "microphysics-emulation-test"
-    wandb_model_name: Optional[str] = None
+    wandb: Optional[WandBConfig] = None
+    model_name: str = "microphysics-emulator"
     epochs: int = 1
     batch_size: int = 128
     nfiles: Optional[int] = None
@@ -234,7 +245,7 @@ class TrainConfig:
         return 
 
     @classmethod
-    def from_dict(cls, d: dict) -> "TrainConfig":
+    def from_dict(cls, d: Mapping[str, Any]) -> "TrainConfig":
         """Standard init from nested dictionary"""
         # casting necessary for 'from_args' which all come in as string
         # TODO: should this be just a json parsed??
@@ -242,7 +253,7 @@ class TrainConfig:
         return dacite.from_dict(cls, d, config=config)
 
     @classmethod
-    def from_flat_dict(cls, d: dict) -> "TrainConfig":
+    def from_flat_dict(cls, d: Mapping[str, Any]) -> "TrainConfig":
         """
         Init from a dictionary flattened in the style of wandb configs
         where all nested mapping keys are flattened to the top level
@@ -256,7 +267,7 @@ class TrainConfig:
             ...
         }
         """
-        d = args_dict_to_config_dict(d)
+        d = to_nested_dict(d)
         return cls.from_dict(d)
 
     @classmethod
@@ -339,21 +350,11 @@ class TrainConfig:
             )
 
 
-def main(config: TrainConfig):
-    set_random_seed(0)
+def main(config: TrainConfig, seed: int = 0):
+    set_random_seed(seed)
 
-    callbacks = []
-    if config.use_wandb:
-        job = wandb.init(
-            entity="ai2cm",
-            project=config.wandb_project,
-            job_type="training",
-            config=config.as_flat_dict(),
-        )
-        # saves best model by validation every epoch
-        callbacks.append(wandb.keras.WandbCallback(save_weights_only=False))
-    else:
-        job = None
+    if config.wandb is not None:
+        config.wandb.init(config=config.asdict())
 
     train_ds = _netcdf_url_to_dataset(
         config.train_url, config.transform, nfiles=config.nfiles
@@ -367,6 +368,7 @@ def main(config: TrainConfig):
     direct_sample, resid_sample = get_out_samples(
         config.model, train_target, config.transform.output_variables
     )
+
     model = config.model.build(
         X_train, sample_direct_out=direct_sample, sample_residual_out=resid_sample
     )
@@ -409,47 +411,21 @@ def main(config: TrainConfig):
     train_scores, train_profiles = score_all(train_target, train_pred, out_names)
     test_scores, test_profiles = score_all(test_target, test_pred, out_names)
 
-    if config.use_wandb:
-        # TODO: log scores func
-        train_df = pd.DataFrame(train_scores, index=[job.name])
-        train_table = wandb.Table(dataframe=train_df)
-        test_df = pd.DataFrame(test_scores, index=[job.name])
-        test_table = wandb.Table(dataframe=test_df)
-        test_prof_table = wandb.Table(dataframe=pd.DataFrame(test_profiles))
-        train_prof_table = wandb.Table(dataframe=pd.DataFrame(train_profiles))
-        job.log(
-            {
-                "score/train": train_table,
-                "score/test": test_table,
-                "profiles/test": test_prof_table,
-                "profiles/train": train_prof_table,
-            }
-        )
+    if config.wandb is not None:
+        log_to_table("score/train", train_scores, index=[config.wandb.job.name])
+        log_to_table("score/test", test_scores, index=[config.wandb.job.name])
+        log_to_table("profiles/train", train_profiles)
+        log_to_table("profiles/test", test_profiles)
 
-        log_sample_profiles(test_target, test_pred, out_names)
+    with put_dir(config.out_url) as tmpdir:
+        # TODO: need to convert ot np.float to serialize
+        with open(os.path.join(tmpdir, "scores.json"), "w") as f:
+            json.dump({"train": train_scores, "test": test_scores}, f)
 
-    if config.out_url:
-        with put_dir(config.out_url) as tmpdir:
-            # TODO: need to convert ot np.float to serialize
-            with open(os.path.join(tmpdir, "scores.json"), "w") as f:
-                json.dump({"train": train_scores, "test": test_scores}, f)
+        local_model_path = save_model(model, tmpdir)
 
-            model.compiled_loss = None
-            model.compiled_metrics = None
-            model.optimizer = None
-            model_dir = os.path.join(tmpdir, "model.tf")
-            model.save(model_dir, save_format="tf")
-
-            if config.use_wandb:
-                if config.wandb_model_name is not None:
-                    name = config.wandb_model_name
-                else:
-                    suffix = config.model.architecture.name
-                    name = f"microphysics-emulator-{suffix}"
-
-                model = wandb.Artifact(name, type="model")
-                model.add_dir(model_dir)
-                wandb.log_artifact(model)
+        if config.wandb is not None:
+            store_model_artifact(local_model_path, name=config.model.name)
 
 
 def get_default_config():
@@ -516,7 +492,7 @@ def get_default_config():
             "tendency_of_cloud_water_mixing_ratio_due_to_microphysics",
         ],
         epochs=4,
-        use_wandb=True,
+        wandb=WandBConfig(job_type="training")
     )
 
     return config
@@ -524,5 +500,5 @@ def get_default_config():
 
 if __name__ == "__main__":
 
-    config = TrainConfig.from_parser()
+    config = TrainConfig.from_args()
     main(config)

@@ -1,6 +1,9 @@
+import dataclasses
+from typing import Any, Mapping, Optional
 import wandb
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 from .tensorboard import plot_to_image
 
@@ -18,9 +21,38 @@ UNITS = {
 }
 
 
-def _log_profiles(targ, pred, name):
+@dataclasses.dataclass
+class WandBConfig:
 
-    for i in range(targ.shape[0]):
+    entity: str = "ai2cm"
+    job_type: str = "test"
+    wandb_project: str = "scratch-project"
+    job = dataclasses.field(init=False)
+
+    @staticmethod
+    def get_callback():
+        return wandb.keras.WandbCallback(save_weights_only=False)
+
+    def init(self, config: Optional[Mapping[str, Any]] = None):
+        self.job = wandb.init(
+            entity=self.entity,
+            project=self.wandb_project,
+            job_type=self,
+            config=config,
+        )
+
+
+def log_to_table(log_key, data, index=None):
+
+    df = pd.DataFrame(data, index=index)
+    table = wandb.Table(dataframe=df)
+
+    wandb.log({log_key: table})
+
+
+def log_profile_plots(targ, pred, name, nsamples=4):
+
+    for i in range(nsamples):
         levs = np.arange(targ.shape[1])
         fig = plt.figure()
         fig.set_size_inches(3, 5)
@@ -34,12 +66,8 @@ def _log_profiles(targ, pred, name):
         plt.close()
 
 
-def log_sample_profiles(targets, predictions, names, nsamples=4):
+def store_model_artifact(dir: str, name: str):
 
-    for targ, pred, name in zip(targets, predictions, names):
-
-        targ = targ[:nsamples]
-        pred = pred[:nsamples]
-
-        if targ.ndim == 2:
-            _log_profiles(targ, pred, name)
+    model_artifact = wandb.Artifact(name, type="model")
+    model_artifact.add_dir(dir)
+    wandb.log_artifact(model_artifact)
