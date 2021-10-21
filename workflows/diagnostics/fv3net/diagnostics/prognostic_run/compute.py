@@ -190,19 +190,22 @@ def zonal_means_physics(diag_arg: DiagArg):
 
 @registry_3d.register("pressure_level_zonal_time_mean")
 @transform.apply(transform.subset_variables, PRESSURE_INTERPOLATED_VARS)
-@transform.apply(transform.insert_absent_3d_output_placeholder)
+@transform.apply(transform.skip_if_3d_output_absent)
 @transform.apply(transform.resample_time, "9H")
 def zonal_means_3d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (3d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
-    with xr.set_options(keep_attrs=True):
-        zonal_means = zonal_mean(prognostic, grid.lat)
-        return time_mean(zonal_means)
+    if len(prognostic) > 0:
+        with xr.set_options(keep_attrs=True):
+            zonal_means = zonal_mean(prognostic, grid.lat)
+            return time_mean(zonal_means)
+    else:
+        return xr.Dataset()
 
 
 @registry_3d.register("pressure_level_zonal_bias")
 @transform.apply(transform.subset_variables, PRESSURE_INTERPOLATED_VARS)
-@transform.apply(transform.insert_absent_3d_output_placeholder)
+@transform.apply(transform.skip_if_3d_output_absent)
 @transform.apply(transform.resample_time, "9H", inner_join=True)
 def zonal_bias_3d(diag_arg: DiagArg):
     logger.info("Preparing zonal mean bias (3d)")
@@ -211,9 +214,12 @@ def zonal_bias_3d(diag_arg: DiagArg):
         diag_arg.verification,
         diag_arg.grid,
     )
-    with xr.set_options(keep_attrs=True):
-        zonal_mean_bias = zonal_mean(bias(verification, prognostic), grid.lat)
-        return time_mean(zonal_mean_bias)
+    if len(prognostic) > 0:
+        with xr.set_options(keep_attrs=True):
+            zonal_mean_bias = zonal_mean(bias(verification, prognostic), grid.lat)
+            return time_mean(zonal_mean_bias)
+    else:
+        return xr.Dataset()
 
 
 @registry_dycore.register("zonal_bias")

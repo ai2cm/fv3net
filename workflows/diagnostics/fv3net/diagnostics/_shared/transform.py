@@ -132,36 +132,20 @@ def _downsample_only(ds: xr.Dataset, freq_label: str, method: str) -> xr.Dataset
 
 
 @add_to_input_transform_fns
-def insert_absent_3d_output_placeholder(arg: DiagArg) -> DiagArg:
-    """If 3D outputs may not be present in prognostic data,
-    create placeholder filled with NaN values that can be passed through
-    3d diagnostic functions.
-
-    Args:
-        arg: input arguments to transform prior to the diagnostic calculation
-    """
+def skip_if_3d_output_absent(arg: DiagArg) -> DiagArg:
     prognostic, grid = arg.prediction, arg.grid
-
     if len(prognostic) > 0:
         return arg
     else:
-        dims = ["pressure", "x", "time"]
-        coords = {
-            "pressure": [1, 2],
-            "x": [1, 2],
-            "time": [
-                cftime.DatetimeJulian(2020, 1, 1, 12),
-                cftime.DatetimeJulian(2020, 1, 1, 15, 30),
-            ],
-        }
-
-        placeholder = xr.Dataset(
-            {"placeholder": xr.DataArray(np.NaN, dims=dims, coords=coords)}
+        dummy_ds = xr.Dataset().assign_coords(
+            {
+                "time": [
+                    cftime.DatetimeJulian(2020, 1, 1, 12),
+                    cftime.DatetimeJulian(2020, 1, 1, 15, 30),
+                ]
+            }
         )
-        grid = xr.Dataset({"lat": xr.DataArray(1.0, dims=["x"], coords={"x": [1, 2]})})
-        for var in placeholder:
-            placeholder[var].attrs = {"long_name": "empty", "units": "na"}
-        return DiagArg(placeholder, placeholder, grid)
+        return DiagArg(dummy_ds, dummy_ds, grid)
 
 
 @add_to_input_transform_fns
@@ -295,8 +279,10 @@ def _mask_array(
 def subset_variables(variables: Sequence, arg: DiagArg) -> DiagArg:
     """Subset the variables, without failing if a variable doesn't exist"""
     prognostic, verification, grid = arg.prediction, arg.verification, arg.grid
-
+    print("subsetting : ", variables)
     prognostic_vars = [var for var in variables if var in prognostic]
+    print(prognostic_vars)
+
     verification_vars = [var for var in variables if var in verification]
     return DiagArg(prognostic[prognostic_vars], verification[verification_vars], grid)
 
