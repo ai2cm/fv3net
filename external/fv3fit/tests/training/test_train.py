@@ -146,12 +146,15 @@ def assert_can_learn_identity(
     out_dataset = result.model.predict(result.test_dataset)
     for name in result.output_variables:
         assert out_dataset[name].dims == result.test_dataset[name].dims
-    rmse = np.mean(
-        [
-            np.mean((out_dataset[name] - result.test_dataset[name]) ** 2)
-            / np.std(result.test_dataset[name]) ** 2
-            for name in result.output_variables
-        ]
+    rmse = (
+        np.mean(
+            [
+                np.mean((out_dataset[name] - result.test_dataset[name]) ** 2)
+                / np.std(result.test_dataset[name]) ** 2
+                for name in result.output_variables
+            ]
+        )
+        ** 0.5
     )
     assert rmse < max_rmse
     if model_type in SYSTEM_DEPENDENT_TYPES:
@@ -174,7 +177,7 @@ def test_train_default_model_on_identity(model_type, regtest):
     sample_func = get_uniform_sample_func(size=(n_sample, nx, ny, n_feature))
 
     assert_can_learn_identity(
-        model_type, sample_func=sample_func, max_rmse=0.05, regtest=regtest,
+        model_type, sample_func=sample_func, max_rmse=0.2, regtest=regtest,
     )
 
 
@@ -231,7 +234,7 @@ def test_train_default_model_on_nonstandard_identity(model_type):
     )
 
     assert_can_learn_identity(
-        model_type, sample_func=sample_func, max_rmse=0.05 * (high - low),
+        model_type, sample_func=sample_func, max_rmse=0.2 * (high - low),
     )
 
 
