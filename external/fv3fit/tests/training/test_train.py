@@ -181,6 +181,28 @@ def test_train_default_model_on_identity(model_type, regtest):
     )
 
 
+def test_default_convolutional_model_is_transpose_invariant(regtest):
+    """
+    The model with default configuration options can learn the identity function,
+    using gaussian-sampled data around 0 with unit variance.
+    """
+    fv3fit.set_random_seed(1)
+    # don't set n_feature too high for this, because of curse of dimensionality
+    n_sample, nx, ny, n_feature = 50, 12, 12, 2
+    sample_func = get_uniform_sample_func(size=(n_sample, nx, ny, n_feature))
+    result = train_identity_model("convolutional", sample_func=sample_func)
+    transpose_input = result.test_dataset.copy(deep=True)
+    transpose_input["var_in"].values[:] = np.transpose(
+        transpose_input["var_in"].values, axes=(0, 2, 1, 3)
+    )
+    transpose_output = result.model.predict(result.test_dataset)
+    transpose_output["var_out"].values[:] = np.transpose(
+        transpose_output["var_out"].values, axes=(0, 2, 1, 3)
+    )
+    output_from_transpose = result.model.predict(transpose_input)
+    xr.testing.assert_allclose(output_from_transpose, transpose_output, atol=1e-5)
+
+
 def test_train_with_same_seed_gives_same_result(model_type):
     n_sample, nx, ny, n_feature = 5, 12, 12, 2
     fv3fit.set_random_seed(0)
