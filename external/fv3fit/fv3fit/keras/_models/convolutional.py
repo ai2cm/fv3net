@@ -4,6 +4,7 @@ from fv3fit._shared.config import (
     OptimizerConfig,
     register_training_function,
 )
+from fv3fit._shared.stacking import SAMPLE_DIM_NAME
 from fv3fit.keras._models.shared.loss import LossConfig
 import tensorflow as tf
 import xarray as xr
@@ -11,9 +12,13 @@ from ..._shared.config import Hyperparameters
 from ._sequences import _XyMultiArraySequence
 from .shared import ConvolutionalNetworkConfig, TrainingLoopConfig
 import numpy as np
-from fv3fit.keras._models.shared import PureKerasNoStackModel
+from fv3fit.keras._models.shared import (
+    PureKerasNoStackModel,
+    standard_normalize,
+    standard_denormalize,
+)
+import fv3fit._shared
 import logging
-from fv3fit.emulation.layers import StandardNormLayer, StandardDenormLayer
 
 logger = logging.getLogger(__file__)
 
@@ -114,66 +119,20 @@ def batch_to_array_tuple(
     )
 
 
-def count_features(names, batch: xr.Dataset):
+def count_features(names, batch: xr.Dataset) -> Dict[str, int]:
     """
-    Retrieves a function that takes in a packed tensor and returns a sequence of
-    unpacked tensors, having been split by keras Layers.
+    Returns counts of the number of features for each variable name.
 
     Args:
         names: dataset keys to be unpacked
         batch: dataset containing representatively-shaped data for the given names,
             last dimension should be the feature dimension.
     """
-    feature_counts = []
-    for name in names:
-        feature_counts.append(batch[name].shape[-1])
-    return feature_counts
 
-
-def standard_normalize(
-    names: Sequence[str], layers: Sequence[tf.Tensor], batch: xr.Dataset
-) -> Sequence[tf.Tensor]:
-    """
-    Apply standard scaling to a series of layers based on mean and standard
-    deviation from a batch of data.
-
-    Args:
-        names: variable name in batch of each layer in layers
-        layers: input tensors to be scaled by scaling layers
-        batch: reference data for mean and standard deviation
-    
-    Returns:
-        normalized_layers: standard-scaled tensors
-    """
-    out = []
-    for name, layer in zip(names, layers):
-        norm = StandardNormLayer(name=f"standard_normalize_{name}")
-        norm.fit(batch[name].values)
-        out.append(norm(layer))
-    return out
-
-
-def standard_denormalize(
-    names: Sequence[str], layers: Sequence[tf.Tensor], batch: xr.Dataset
-) -> Sequence[tf.Tensor]:
-    """
-    Apply standard descaling to a series of standard-scaled
-    layers based on mean and standard deviation from a batch of data.
-
-    Args:
-        names: variable name in batch of each layer in layers
-        layers: input tensors to be scaled by de-scaling layers
-        batch: reference data for mean and standard deviation
-    
-    Returns:
-        denormalized_layers: de-scaled tensors
-    """
-    out = []
-    for name, layer in zip(names, layers):
-        norm = StandardDenormLayer(name=f"standard_denormalize_{name}")
-        norm.fit(batch[name].values)
-        out.append(norm(layer))
-    return out
+    _, feature_index = fv3fit._shared.pack(
+        batch[names], sample_dims=[SAMPLE_DIM_NAME, "x", "y"]
+    )
+    return fv3fit._shared.count_features(feature_index)
 
 
 def build_model(
@@ -183,7 +142,8 @@ def build_model(
     ny = batch.dims["y"]
     input_features = count_features(config.input_variables, batch)
     input_layers = [
-        tf.keras.layers.Input(shape=(nx, ny, n_feature)) for n_feature in input_features
+        tf.keras.layers.Input(shape=(nx, ny, input_features[name]))
+        for name in config.input_variables
     ]
     norm_input_layers = standard_normalize(
         names=config.input_variables, layers=input_layers, batch=batch

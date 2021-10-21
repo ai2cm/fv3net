@@ -15,42 +15,55 @@ import pandas as pd
 import yaml
 
 
-def _feature_dims(data: xr.Dataset, sample_dim: str) -> Sequence[str]:
-    return [str(dim) for dim in data.dims.keys() if dim != sample_dim]
+def _feature_dims(data: xr.Dataset, sample_dims: Sequence[str]) -> Sequence[str]:
+    return [str(dim) for dim in data.dims.keys() if dim not in sample_dims]
 
 
 def _unique_dim_name(
-    data: xr.Dataset, sample_dim: str, feature_dim_name_2d_var: str = "feature"
+    data: xr.Dataset,
+    sample_dims: Sequence[str],
+    feature_dim_name_2d_var: str = "feature",
 ) -> str:
-    feature_dims = _feature_dims(data, sample_dim)
+    feature_dims = _feature_dims(data, sample_dims=sample_dims)
     if len(feature_dims) > 0:
         feature_dim_name = "_".join(["feature"] + list(feature_dims))
     else:
         feature_dim_name = feature_dim_name_2d_var
-    if sample_dim == feature_dim_name:
+    if feature_dim_name in sample_dims:
         raise ValueError(
-            f"The sample dim name ({sample_dim}) cannot be the same "
-            f"as the feature dim name ({feature_dim_name})"
+            f"The feature dim name ({feature_dim_name}) cannot be one of the "
+            f"non-feature dims ({sample_dims})"
         )
     return feature_dim_name
 
 
-def pack(data: xr.Dataset, sample_dim: str) -> Tuple[np.ndarray, pd.MultiIndex]:
-    feature_dim_name = _unique_dim_name(data, sample_dim)
-    stacked = data.to_stacked_array(feature_dim_name, sample_dims=[sample_dim])
+def pack(
+    data: xr.Dataset, sample_dims: Sequence[str]
+) -> Tuple[np.ndarray, pd.MultiIndex]:
+    """
+    Pack a dataset into a numpy array.
+
+    Args:
+        data: dataset to pack
+        sample_dims: names of non-feature dimensions, must be present
+            in every variable in `data`
+    """
+    feature_dim_name = _unique_dim_name(data, sample_dims=sample_dims)
+    stacked = data.to_stacked_array(feature_dim_name, sample_dims=sample_dims)
     return (
-        stacked.transpose(sample_dim, feature_dim_name).values,
+        stacked.transpose(*sample_dims, feature_dim_name).values,
         stacked.indexes[feature_dim_name],
     )
 
 
 def unpack(
-    data: np.ndarray, sample_dim: str, feature_index: pd.MultiIndex
+    data: np.ndarray, sample_dims: Sequence[str], feature_index: pd.MultiIndex
 ) -> xr.Dataset:
-    if len(data.shape) == 1:
-        data = data[:, None]
+    if len(data.shape) == len(sample_dims):
+        selection = [slice() for _ in sample_dims] + [None]
+        data = data[selection]
     da = xr.DataArray(
-        data, dims=[sample_dim, "feature"], coords={"feature": feature_index}
+        data, dims=list(sample_dims) + ["feature"], coords={"feature": feature_index}
     )
     return da.to_unstacked_dataset("feature")
 
@@ -118,8 +131,8 @@ class ArrayPacker:
         Returns:
             array: 2D [sample, feature] array with data from the dataset
         """
-        array, feature_index = pack(dataset[self._pack_names], self._sample_dim_name)
-        self._n_features = _count_features(feature_index)
+        array, feature_index = pack(dataset[self._pack_names], [self._sample_dim_name])
+        self._n_features = count_features(feature_index)
         self._feature_index = feature_index
         return array
 
@@ -141,7 +154,7 @@ class ArrayPacker:
                 "must pack at least once before unpacking, "
                 "so dimension lengths are known"
             )
-        return unpack(array, self._sample_dim_name, self._feature_index)
+        return unpack(array, [self._sample_dim_name], self._feature_index)
 
     def dump(self, f: TextIO):
         return yaml.safe_dump(
@@ -158,11 +171,11 @@ class ArrayPacker:
         data = yaml.safe_load(f.read())
         packer = cls(data["sample_dim_name"], data["pack_names"])
         packer._feature_index = tuple_to_multiindex(data["feature_index"])
-        packer._n_features = _count_features(packer._feature_index)
+        packer._n_features = count_features(packer._feature_index)
         return packer
 
 
-def _count_features(index: pd.MultiIndex, variable_dim="variable") -> Dict[str, int]:
+def count_features(index: pd.MultiIndex, variable_dim="variable") -> Dict[str, int]:
     variable_idx = index.names.index(variable_dim)
     count: Dict[str, int] = collections.defaultdict(int)
     for item in index:

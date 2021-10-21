@@ -5,6 +5,7 @@ from .config import (
 from .packer import (
     pack,
     unpack,
+    count_features,
     ArrayPacker,
     unpack_matrix,
     multiindex_to_tuple,
