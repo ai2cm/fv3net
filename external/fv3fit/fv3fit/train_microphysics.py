@@ -4,20 +4,18 @@ import dataclasses
 import fsspec
 import json
 import os
-from fv3fit.emulation.data.config import convert_map_sequences_to_slices
+from fv3fit.emulation.data.config import SliceConfig
 import wandb
 import yaml
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from typing import Any, List, Mapping, MutableMapping, Optional, Sequence, Tuple
+from typing import Any, List, Mapping, Optional, Sequence
 
 from fv3fit.emulation.models import MicrophysicsConfig, ArchitectureConfig
 from fv3fit.emulation.data import TransformConfig
 from fv3fit.emulation.data import get_nc_files, nc_files_to_tf_dataset
-from fv3fit.emulation.layers import MeanFeatureStdNormLayer
-from fv3fit.tensorboard import plot_to_image
+from fv3fit.emulation.layers import MeanFeatureStdNormLayer≈
 from fv3fit import set_random_seed
 
 # TODO centralize this
@@ -35,17 +33,6 @@ SCALE_VALUES = {
     * (3600 * 24),  # g / kg / day
     "air_temperature_output": 1,
     "tendency_of_air_temperature_due_to_microphysics": 3600 * 24,  # K / day,
-}
-
-
-UNITS = {
-    "total_precipitation": "mm / day",
-    "specific_humidity_output": "g/kg",
-    "tendency_of_specific_humidity_due_to_microphysics": "g/kg/day",
-    "cloud_water_mixing_ratio_output": "g/kg",
-    "tendency_of_cloud_water_mixing_ratio_due_to_microphysics": "g/kg/day",
-    "air_temperature_output": "K",
-    "tendency_of_air_temperature_due_to_microphysics": "K/day",
 }
 
 
@@ -146,33 +133,6 @@ def score(target, prediction):
     return metrics, profiles
 
 
-def _log_profiles(targ, pred, name):
-
-    for i in range(targ.shape[0]):
-        levs = np.arange(targ.shape[1])
-        fig = plt.figure()
-        fig.set_size_inches(3, 5)
-        fig.set_dpi(80)
-        plt.plot(targ[i], levs, label="target")
-        plt.plot(pred[i], levs, label="prediction")
-        plt.title(f"Sample {i+1}: {name}")
-        plt.xlabel(f"{UNITS[name]}")
-        plt.ylabel("Level")
-        wandb.log({f"{name}_sample_{i}": wandb.Image(plot_to_image(fig))})
-        plt.close()
-
-
-def log_sample_profiles(targets, predictions, names, nsamples=4):
-
-    for targ, pred, name in zip(targets, predictions, names):
-
-        targ = targ[:nsamples]
-        pred = pred[:nsamples]
-
-        if targ.ndim == 2:
-            _log_profiles(targ, pred, name)
-
-
 def score_all(targets, predictions, names):
 
     all_scores = {}
@@ -201,12 +161,12 @@ def load_config_yaml(path: str) -> Mapping[str, Any]:
     return d
 
 
-def config_dict_to_flat_args_dict(d: dict):
+def to_flat_dict(d: dict):
 
     new_flat = {}
     for k, v in d.items():
         if isinstance(v, dict):
-            sub_d = config_dict_to_flat_args_dict(v)
+            sub_d = to_flat_dict(v)
             for sk, sv in sub_d.items():
                 new_flat[".".join([k, sk])] = sv
         else:
@@ -215,7 +175,7 @@ def config_dict_to_flat_args_dict(d: dict):
     return new_flat
 
 
-def args_dict_to_config_dict(d: dict):
+def to_nested_dict(d: dict):
 
     new_config = {}
 
@@ -230,6 +190,19 @@ def args_dict_to_config_dict(d: dict):
             new_config[k] = v
 
     return new_config
+
+
+def _add_items_to_parser_arguments(d: Mapping[str, Any], parser: argparse.ArgumentParser):
+
+    for key, value in d.items():
+        # TODO: should I do casting here, or let the dataclass do it?
+        if not isinstance(value, str) and isinstance(value, Sequence):
+            nargs = "*"
+            default = tuple(value)
+        else:
+            nargs = None
+            default = value
+        parser.add_argument(f"--{key}", nargs=nargs, default=default)
 
 
 @dataclasses.dataclass
@@ -254,33 +227,72 @@ class TrainConfig:
     metric_variables: List[str] = dataclasses.field(default_factory=list)
     weights: Mapping[str, float] = dataclasses.field(default_factory=dict)
 
+    def asdict(self):
+        return dataclasses.asdict(self)
+
+    def as_flat_dict(self):
+        return 
+
     @classmethod
     def from_dict(cls, d: dict) -> "TrainConfig":
-        if "model" in d:
-            d["model"] = MicrophysicsConfig.from_dict(d["model"])
-        return dacite.from_dict(cls, d, dacite.Config(strict=True))
+        """Standard init from nested dictionary"""
+        # casting necessary for 'from_args' which all come in as string
+        # TODO: should this be just a json parsed??
+        config = dacite.Config(strict=True, cast=[bool, str, int, float])
+        return dacite.from_dict(cls, d, config=config)
 
     @classmethod
     def from_flat_dict(cls, d: dict) -> "TrainConfig":
+        """
+        Init from a dictionary flattened in the style of wandb configs
+        where all nested mapping keys are flattened to the top level
+        by joining with a '.'
+
+        E.g.:
+        {
+            "test_url": "gs://bucket/path/to/blobs",
+            "model.input_variables": ["var1", "var2"],
+            "model.architecture.name": "rnn",
+            ...
+        }
+        """
         d = args_dict_to_config_dict(d)
         return cls.from_dict(d)
 
     @classmethod
     def from_yaml_path(cls, path: str) -> "TrainConfig":
+        """Init from path to yaml file"""
         d = load_config_yaml(path)
         return cls.from_dict(d)
 
     @classmethod
-    def from_parser(cls):
-        # TODO: I don't think this works when section names are changing
-        # e.g., switching from linear -> rnn keyword arguments
-        # should work for a standard config w/ hyperparameter search
+    def from_args(cls, args: Sequence[Any] = None):
+        """
+        Init from commandline arguments (or provided arguments).  If no args
+        are provided, uses sys.argv to parse.
+
+        Note: A current limitation of this init style is that we cannot provide
+        arbitrary arguments to the parser.  Therefore, value being updated should
+        either be a member of the default config or the file specified by
+        --config-path
+
+        Args:
+            args: A list of arguments to be parsed.  If not provided, uses
+                sys.argv
+
+                Requires "--config-path", use "--config-path default" to use
+                default configuration
+
+                Note: arguments should be in the flat style used by wandb where all
+                nested mappings are at the top level with '.' joined keys. E.g.,
+                "--model.architecure.name rnn"
+        """
+
         parser = argparse.ArgumentParser()
         parser.add_argument("--config-path", type=str, default=None)
 
-        args, unknown_args = parser.parse_known_args()
+        args, unknown_args = parser.parse_known_args(args=args)
 
-        # TODO: unspecified configuration should probably error...
         if args.config_path == "default":
             config = get_default_config()
         elif args.config_path is not None:
@@ -299,35 +311,15 @@ class TrainConfig:
     @staticmethod
     def _get_updated_config_dict(args, flat_config_dict):
 
+        config = dict(**flat_config_dict)
         parser = argparse.ArgumentParser()
-
-        for k, v in flat_config_dict.items():
-            if isinstance(v, str) or not isinstance(v, Sequence):
-                if v is None:
-                    v_type = str
-                else:
-                    v_type = type(v)
-                parser.add_argument(f"--{k}", type=v_type, default=v)
-
+        _add_items_to_parser_arguments(config, parser)
         updates = parser.parse_args(args)
         updates = vars(updates)
 
-        flat_config_dict.update(updates)
+        config.update(updates)
 
-        return flat_config_dict
-
-    def asdict(self):
-        # need to explicitly grab model to us it's asdict
-        model_d = self.model.asdict()
-        d = dataclasses.asdict(self)
-        d["model"] = model_d
-
-        return d
-
-    def as_flat_dict(self):
-        d = self.asdict()
-        flat = config_dict_to_flat_args_dict(d)
-        return flat
+        return config
 
     def __post_init__(self):
 
@@ -481,10 +473,10 @@ def get_default_config():
         ),
         architecture=ArchitectureConfig("linear"),
         selection_map=dict(
-            air_temperature_input=slice(None, -10),
-            specific_humidity_input=slice(None, -10),
-            cloud_water_mixing_ratio_input=slice(None, -10),
-            pressure_thickness_of_atmospheric_layer=slice(None, -10),
+            air_temperature_input=SliceConfig(stop=-10),
+            specific_humidity_input=SliceConfig(stop=-10),
+            cloud_water_mixing_ratio_input=SliceConfig(stop=-10),
+            pressure_thickness_of_atmospheric_layer=SliceConfig(stop=-10),
         ),
         tendency_outputs=dict(
             air_temperature_output="tendency_of_air_temperature_due_to_microphysics",
@@ -497,9 +489,9 @@ def get_default_config():
     )
 
     config = TrainConfig(
-        train_url="/mnt/disks/scratch/microphysics_emu_data/training_netcdfs/",
-        test_url="/mnt/disks/scratch/microphysics_emu_data/validation_netcdfs/",
-        out_url="/mnt/disks/scratch/test_train_out/",
+        train_url="gs://vcm-ml-experiments/microphysics-emu-data/2021-07-29/training_netcdfs",  # noqa E501
+        test_url="gs://vcm-ml-experiments/microphysics-emu-data/2021-07-29/validation_netcdfs",  # noqa E501
+        out_url="gs://vcm-ml-scratch/andrep/test-train-emulation",
         model=model_config,
         transform=transform,
         nfiles=80,
