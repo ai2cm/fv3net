@@ -278,11 +278,11 @@ def evaluation_pair_to_input_data(
     _insert_nan_from_other(verif_3d, data_3d)
 
     return {
+        "3d": (data_3d, verif_3d, grid.drop(["tile", "land_sea_mask"]),),
         "dycore": (prognostic.dycore, verification.dycore, grid),
         "physics": (
             derived_variables.physics_variables(prognostic.physics),
             derived_variables.physics_variables(verification.physics),
             grid,
         ),
-        "3d": (data_3d, verif_3d, grid.drop(["tile", "land_sea_mask"]),),
     }
