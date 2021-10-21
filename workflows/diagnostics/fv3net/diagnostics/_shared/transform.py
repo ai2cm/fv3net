@@ -279,10 +279,7 @@ def _mask_array(
 def subset_variables(variables: Sequence, arg: DiagArg) -> DiagArg:
     """Subset the variables, without failing if a variable doesn't exist"""
     prognostic, verification, grid = arg.prediction, arg.verification, arg.grid
-    print("subsetting : ", variables)
     prognostic_vars = [var for var in variables if var in prognostic]
-    print(prognostic_vars)
-
     verification_vars = [var for var in variables if var in verification]
     return DiagArg(prognostic[prognostic_vars], verification[verification_vars], grid)
 
