@@ -197,11 +197,11 @@ def zonal_means_3d(diag_arg: DiagArg):
     prognostic, grid = diag_arg.prediction, diag_arg.grid
     if len(prognostic) > 0:
         zonal_means = xr.Dataset()
-        for var in prognostic:
-            logger.info("Preparing zonal+time means (3d) for ", str(var))
+        for var in prognostic.data_vars:
+            logger.info(f"Preparing zonal+time means (3d) for {var}")
             with xr.set_options(keep_attrs=True):
                 zm = zonal_mean(prognostic[[var]], grid.lat)
-                zonal_means[var] = time_mean(zm).load()
+                zonal_means[var] = time_mean(zm)[var].load()
         return zonal_means
     else:
         return xr.Dataset()
@@ -218,15 +218,15 @@ def zonal_bias_3d(diag_arg: DiagArg):
         diag_arg.verification,
         diag_arg.grid,
     )
-    if len(prognostic) > 0:
+    if len(prognostic) > 0 and len(verification) > 0:
         zonal_means = xr.Dataset()
-        for var in prognostic:
-            logger.info("Preparing zonal+time mean biases (3d) for ", str(var))
+        for var in prognostic.data_vars:
+            logger.info(f"Preparing zonal+time mean biases (3d) for {var}")
             with xr.set_options(keep_attrs=True):
                 zm_bias = zonal_mean(
-                    bias(verification[[var]], prognostic[var]), grid.lat
+                    bias(verification[[var]], prognostic[[var]]), grid.lat
                 )
-                zonal_means[var] = time_mean(zm_bias).load()
+                zonal_means[var] = time_mean(zm_bias)[var].load()
         return zonal_means
     else:
         return xr.Dataset()
