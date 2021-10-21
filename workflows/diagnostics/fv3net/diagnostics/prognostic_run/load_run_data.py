@@ -184,7 +184,7 @@ def load_2d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     """
     physics = load_physics(url, catalog)
     dycore = load_dycore(url, catalog)
-    return xr.merge([physics, dycore], join="inner")
+    return xr.merge([physics, dycore], join="outer")
 
 
 def loads_stats(b: bytes):
