@@ -110,12 +110,27 @@ def weighted_mean(ds, weights, dims):
 
 
 def zonal_mean(
-    ds: xr.Dataset, latitude: xr.DataArray, bins=np.arange(-90, 91, 2)
+    ds: xr.Dataset,
+    latitude: xr.DataArray,
+    bins=np.arange(-90, 91, 2),
+    seperate_calculation=False,
 ) -> xr.Dataset:
-    with xr.set_options(keep_attrs=True):
-        zm = ds.groupby_bins(latitude, bins=bins).mean().rename(lat_bins="latitude")
-    latitude_midpoints = [x.item().mid for x in zm["latitude"]]
-    return zm.assign_coords(latitude=latitude_midpoints)
+    def _calc(ds_):
+        with xr.set_options(keep_attrs=True):
+            zm = (
+                ds_.groupby_bins(latitude, bins=bins).mean().rename(lat_bins="latitude")
+            )
+        latitude_midpoints = [x.item().mid for x in zm["latitude"]]
+        return zm.assign_coords(latitude=latitude_midpoints)
+
+    if seperate_calculation is True:
+        zonal_means = []
+        for var in ds:
+            logger.info("Calculating zonal mean for 3d var ", var)
+            zonal_means.append(_calc(ds[var]).load())
+            return xr.merge(zonal_means)
+    else:
+        return _calc(ds)
 
 
 def time_mean(ds: xr.Dataset, dim: str = "time") -> xr.Dataset:
@@ -191,13 +206,13 @@ def zonal_means_physics(diag_arg: DiagArg):
 @registry_3d.register("pressure_level_zonal_time_mean")
 @transform.apply(transform.subset_variables, PRESSURE_INTERPOLATED_VARS)
 @transform.apply(transform.skip_if_3d_output_absent)
-@transform.apply(transform.resample_time, "9H")
+@transform.apply(transform.resample_time, "3H")
 def zonal_means_3d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (3d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
     if len(prognostic) > 0:
         with xr.set_options(keep_attrs=True):
-            zonal_means = zonal_mean(prognostic, grid.lat)
+            zonal_means = zonal_mean(prognostic, grid.lat, seperate_calculation=True)
             return time_mean(zonal_means)
     else:
         return xr.Dataset()
@@ -206,7 +221,7 @@ def zonal_means_3d(diag_arg: DiagArg):
 @registry_3d.register("pressure_level_zonal_bias")
 @transform.apply(transform.subset_variables, PRESSURE_INTERPOLATED_VARS)
 @transform.apply(transform.skip_if_3d_output_absent)
-@transform.apply(transform.resample_time, "9H", inner_join=True)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
 def zonal_bias_3d(diag_arg: DiagArg):
     logger.info("Preparing zonal mean bias (3d)")
     prognostic, verification, grid = (
@@ -216,7 +231,9 @@ def zonal_bias_3d(diag_arg: DiagArg):
     )
     if len(prognostic) > 0:
         with xr.set_options(keep_attrs=True):
-            zonal_mean_bias = zonal_mean(bias(verification, prognostic), grid.lat)
+            zonal_mean_bias = zonal_mean(
+                bias(verification, prognostic), grid.lat, separate_calculation=True
+            )
             return time_mean(zonal_mean_bias)
     else:
         return xr.Dataset()
