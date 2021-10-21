@@ -34,6 +34,7 @@ from fv3net.diagnostics._shared.constants import DiagArg, HORIZONTAL_DIMS
 from .constants import (
     HISTOGRAM_BINS,
     GLOBAL_AVERAGE_VARS,
+    GLOBAL_BIAS_VARS,
     DIURNAL_CYCLE_VARS,
     TIME_MEAN_VARS,
     RMSE_VARS,
@@ -297,7 +298,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply(transform.mask_area, mask_type)
     @transform.apply(transform.resample_time, "3H", inner_join=True)
     @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
-    @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_VARS)
+    @transform.apply(transform.subset_variables, GLOBAL_BIAS_VARS)
     def global_biases_2d(diag_arg: DiagArg, mask_type=mask_type):
         logger.info(f"Preparing average biases for 2d variables ({mask_type})")
         prognostic, verification, grid = (

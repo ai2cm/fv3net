@@ -87,6 +87,8 @@ GLOBAL_BIAS_PHYSICS_VARS = [
     "SOILM",
 ]
 
+GLOBAL_BIAS_VARS = GLOBAL_AVERAGE_DYCORE_VARS + GLOBAL_BIAS_PHYSICS_VARS
+
 DIURNAL_CYCLE_VARS = [
     "column_integrated_dQ1",
     "column_integrated_nQ1",
