@@ -5,7 +5,7 @@ import fsspec
 import json
 import os
 from fv3fit.emulation.data.config import SliceConfig
-from fv3fit.emulation.keras import CustomKerasLossConfig, KerasLossConfig, KerasTrainer
+from fv3fit.emulation.keras import CustomKerasCompileArgs, KerasCompileArgs, KerasTrainer, StandardKerasCompileArgs
 from fv3fit.wandb import WandBConfig, log_to_table, log_profile_plots, store_model_artifact
 import yaml
 import numpy as np
@@ -206,14 +206,18 @@ class TrainConfig:
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
     wandb: Optional[WandBConfig] = None
-    trainer: KerasTrainer = dataclasses.field(default_factory=KerasTrainer)
-    loss: Union[KerasLossConfig, CustomKerasLossConfig] = dataclasses.field(default_factory=KerasLossConfig)
+    compile_args: KerasCompileArgs = dataclasses.field(default_factory=StandardKerasCompileArgs)
+    epochs: int = 1
+    batch_size: int = 128
+    valid_freq: int = 5
+    verbose: int = 2
+    shuffle_buffer_size: Optional[int] = 100_000
 
     def asdict(self):
         return dataclasses.asdict(self)
 
     def as_flat_dict(self):
-        return 
+        return to_flat_dict(self.asdict())
 
     @classmethod
     def from_dict(cls, d: Mapping[str, Any]) -> "TrainConfig":
@@ -346,10 +350,23 @@ def main(config: TrainConfig, seed: int = 0):
         X_train, sample_direct_out=direct_sample, sample_residual_out=resid_sample
     )
 
-    config.loss.fit(model.output_names, train_target)
-    config.loss.compile(model)
+    config.compile_args.prepare(
+        output_names=model.output_names,
+        output_samples=train_target
+    )
+    model.compile(**config.compile_args.get())
 
-    config.trainer.batch_fit(model, train_ds, valid_data=test_ds, callbacks=callbacks)
+    if config.shuffle_buffer_size is not None:
+        train_ds = train_ds.shuffle(config.shuffle_buffer_size)
+
+    history = model.fit(
+        train_ds.batch(config.batch_size),
+        epochs=config.epochs,
+        validation_data=test_ds.batch(config.batch_size),
+        validation_freq=config.valid_freq,
+        verbose=config.verbose,
+        callbacks=callbacks,
+    )
 
     # scoring
     test_target = scale(config.transform.output_variables, test_target)
