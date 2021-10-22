@@ -1,15 +1,15 @@
+import io
+import os
 import sys
 import tempfile
 import warnings
-import vcm
-import os
-import fv3config
-import io
 
+import fv3config
+import vcm
+from fv3post.append import append_segment
+from fv3post.post_process import post_process
 
 from .run import run_segment
-from fv3post.post_process import post_process
-from fv3post.append import append_segment
 
 
 def read_last_segment(run_url):

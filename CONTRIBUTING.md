@@ -42,11 +42,11 @@ integration test will succeed.
 By default, mypy will only analyze code that has type hints which allows a
 gradual migration. Unfortunately, many of functions use type-hints
 incorrectly and mypy will catch those errors. For this reason, type-checking
-is only enabled for a subset of modules, see `./check_types.sh` for an
+is only enabled for a subset of modules, see `.pre-commit-config.yaml` for an
 up-to-date list.
 
 Contributers are encouraged to add type-hints in their code and add the
-modules they are updating to `./check_types.sh`.
+modules they are updating to `.pre-commit-config.yaml`.
 
 ### Common mypy errors
 
