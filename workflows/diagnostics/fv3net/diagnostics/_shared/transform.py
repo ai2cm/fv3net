@@ -133,19 +133,19 @@ def _downsample_only(ds: xr.Dataset, freq_label: str, method: str) -> xr.Dataset
 
 @add_to_input_transform_fns
 def skip_if_3d_output_absent(arg: DiagArg) -> DiagArg:
-    prognostic, grid = arg.prediction, arg.grid
-    if len(prognostic) > 0:
-        return arg
-    else:
-        dummy_ds = xr.Dataset().assign_coords(
-            {
-                "time": [
-                    cftime.DatetimeJulian(2020, 1, 1, 12),
-                    cftime.DatetimeJulian(2020, 1, 1, 15, 30),
-                ]
-            }
-        )
-        return DiagArg(dummy_ds, dummy_ds, grid)
+    prognostic, verification, grid = arg.prediction, arg.verification, arg.grid
+    dummy_ds = xr.Dataset().assign_coords(
+        {
+            "time": [
+                cftime.DatetimeJulian(2020, 1, 1, 12),
+                cftime.DatetimeJulian(2020, 1, 1, 15, 30),
+            ]
+        }
+    )
+    prog = prognostic if len(prognostic) > 0 else dummy_ds
+    verif = verification if len(verification) > 0 else dummy_ds
+
+    return DiagArg(prog, verif, grid)
 
 
 @add_to_input_transform_fns
