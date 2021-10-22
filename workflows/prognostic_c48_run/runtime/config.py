@@ -7,7 +7,6 @@ import dacite
 
 from runtime.diagnostics.manager import (
     DiagnosticFileConfig,
-    FortranFileConfig,
     get_chunks,
 )
 from runtime.steppers.nudging import NudgingConfig
@@ -18,6 +17,7 @@ import runtime.transformers.emulator
 import runtime.transformers.fv3fit
 
 FV3CONFIG_FILENAME = "fv3config.yml"
+
 FV3CONFIG_KEYS = {
     "namelist",
     "experiment_name",
@@ -38,7 +38,6 @@ class UserConfig:
 
     Attributes:
         diagnostics: list of diagnostic file configurations
-        fortran_diagnostics: list of Fortran diagnostic file configurations
         prephysics: optional configuration of computations prior to physics,
             specified by either a machine learning configuation or a prescriber
             configuration
@@ -49,9 +48,6 @@ class UserConfig:
     """
 
     diagnostics: List[DiagnosticFileConfig] = dataclasses.field(default_factory=list)
-    fortran_diagnostics: List[FortranFileConfig] = dataclasses.field(
-        default_factory=list
-    )
     prephysics: Optional[Union[PrescriberConfig, MachineLearningConfig]] = None
     scikit_learn: Optional[MachineLearningConfig] = None
     nudging: Optional[NudgingConfig] = None

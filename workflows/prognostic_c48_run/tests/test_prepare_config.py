@@ -1,9 +1,11 @@
-from runtime.segmented_run.prepare_config import to_fv3config
+from runtime.segmented_run.prepare_config import to_fv3config, HighLevelConfig
 from runtime.segmented_run import prepare_config
 import dacite
 import dataclasses
 from runtime.config import UserConfig
 import pytest
+
+from runtime.diagnostics.fortran import FortranFileConfig
 
 TEST_DATA_DIR = "tests/prepare_config_test_data"
 
@@ -62,3 +64,13 @@ def test_to_fv3config_initial_conditions():
     )
 
     assert final["initial_conditions"] == my_ic
+
+
+def test_high_level_config_fortran_diagnostics():
+    """Ensure that fortran diagnostics are translated to the Fv3config diag table"""
+    config = HighLevelConfig(
+        fortran_diagnostics=[FortranFileConfig(name="a", chunks={})]
+    )
+    dict_ = config.to_fv3config()
+    "fortran_diagnostics" not in dict_
+    assert len(dict_["diag_table"].file_configs) == 1
