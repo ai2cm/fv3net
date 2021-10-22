@@ -5,9 +5,13 @@
 
 Setup environment file to authenticate against external services
 ```
-# .env
+cat << EOF> .env
 GOOGLE_CLOUD_PROJECT=vcm-ml
 WANDB_API_KEY=<wandb api key>
+EOF
+
+# login to google cloud
+gcloud auth login application-default login
 ```
 
 Pull docker image
@@ -19,7 +23,7 @@ Pull docker image
 
 Enter the docker image
 
-    docker-compose run -ti fv3
+    docker-compose run --rm fv3
 
 Run the prognostic run
 

@@ -60,14 +60,11 @@ parser.add_argument(
 )
 parser.add_argument("--tag", type=str, default=uuid.uuid4().hex)
 parser.add_argument("--segments", "-n", type=int, default=1, help="number of segments")
-parser.add_argument("--no-wandb", action="store_false", dest="wandb")
 
 args = parser.parse_args()
 
-do_wandb: bool = args.wandb
 
-if do_wandb:
-    job = wandb.init(job_type="prognostic_run", project="crapcrap", entity="ai2cm")
+job = wandb.init(job_type="prognostic_run", project="crapcrap", entity="ai2cm")
 
 with CONFIG_PATH.open() as f:
     config = yaml.safe_load(f)
@@ -90,7 +87,6 @@ for i in range(args.segments):
     logging.info(f"Running segment {i+1} of {args.segments}")
     api.append(url)
 
-if do_wandb:
-    artifact = wandb.Artifact("prognostic-run", type="prognostic-run")
-    artifact.add_reference(url)
-    wandb.log_artifact(artifact)
+artifact = wandb.Artifact("prognostic-run", type="prognostic-run")
+artifact.add_reference(url)
+wandb.log_artifact(artifact)

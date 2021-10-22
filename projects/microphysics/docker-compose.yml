@@ -10,6 +10,11 @@ services:
       - ../../external:/fv3net/external
       - ../../workflows:/fv3net/workflows
       - ../../projects:/fv3net/projects
-      - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json
+      - bash_history:/root/.bash_history
+      - $HOME/.config/gcloud:/root/.config/gcloud
     environment:
-      - GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json
+      - HISTFILE=/root/.bash_history/history
+    env_file:
+      - .env
+volumes:
+  bash_history: {}
