@@ -1,8 +1,9 @@
 import abc
 import dataclasses
 import logging
+import os
 import tensorflow as tf
-from typing import Any, Optional, Mapping, List, Sequence, Tuple, Union
+from typing import Optional, Mapping, List, Sequence, Tuple, Union
 
 from fv3fit.emulation.layers.normalization import NormalizeConfig
 from .scoring import score_multi_output, score_single_output
@@ -31,9 +32,7 @@ def score_model(
     prediction = model.predict(inputs)
 
     if len(model.output_names) > 1:
-        scores, profiles = score_multi_output(
-            targets, prediction, model.output_names
-        )
+        scores, profiles = score_multi_output(targets, prediction, model.output_names)
     elif len(model.output_names) == 1:
         scores, profiles = score_single_output(
             targets, prediction, model.output_names[0]
@@ -105,8 +104,10 @@ class CustomLoss(LossConfig):
 
     def compile(self, model: tf.keras.Model):
         if not self._fitted:
-            raise ValueError("Cannot compile custom loss without first calling prepare().")
-        
+            raise ValueError(
+                "Cannot compile custom loss without first calling prepare()."
+            )
+
         model.compile(
             loss=self._loss,
             metrics=self._metrics,

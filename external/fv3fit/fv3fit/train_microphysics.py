@@ -4,9 +4,14 @@ import dataclasses
 import fsspec
 import json
 import os
-from fv3fit.wandb import WandBConfig, log_to_table, log_profile_plots, store_model_artifact
+from fv3fit.wandb import (
+    WandBConfig,
+    log_to_table,
+    log_profile_plots,
+    store_model_artifact,
+)
 import yaml
-from typing import Any, List, Mapping, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 
 from fv3fit.emulation.data.config import SliceConfig
@@ -22,7 +27,6 @@ from fv3fit.emulation.data import nc_dir_to_tf_dataset, TransformConfig
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
 from fv3fit._shared.config import OptimizerConfig
-from loaders.batches import shuffle
 
 
 def get_out_samples(model_config: MicrophysicsConfig, samples, sample_names):
@@ -82,7 +86,9 @@ def to_nested_dict(d: dict):
     return new_config
 
 
-def _add_items_to_parser_arguments(d: Mapping[str, Any], parser: argparse.ArgumentParser):
+def _add_items_to_parser_arguments(
+    d: Mapping[str, Any], parser: argparse.ArgumentParser
+):
 
     for key, value in d.items():
         # TODO: should I do casting here, or let the dataclass do it?
@@ -184,7 +190,8 @@ class TrainConfig:
             config = cls.from_yaml_path(args.config_path)
         else:
             raise ValueError(
-                "No training configuration specified. Use '--config-path default' if just trying to run."
+                "No training configuration specified. Use '--config-path default'"
+                " if just trying to run."
             )
 
         if unknown_args:
@@ -249,10 +256,7 @@ def main(config: TrainConfig, seed: int = 0):
         X_train, sample_direct_out=direct_sample, sample_residual_out=resid_sample
     )
 
-    config.loss.prepare(
-        output_names=model.output_names,
-        output_samples=train_target
-    )
+    config.loss.prepare(output_names=model.output_names, output_samples=train_target)
     config.loss.compile(model)
 
     if config.shuffle_buffer_size is not None:
@@ -267,12 +271,8 @@ def main(config: TrainConfig, seed: int = 0):
         callbacks=callbacks,
     )
 
-    train_scores, train_profiles = score_model(
-        model, X_train, train_target,
-    )
-    test_scores, test_profiles = score_model(
-        model, X_test, test_target
-    )
+    train_scores, train_profiles = score_model(model, X_train, train_target,)
+    test_scores, test_profiles = score_model(model, X_test, test_target)
 
     if config.wandb:
         pred_sample = model.predict(X_test[:4])
@@ -324,8 +324,8 @@ def get_default_config():
             pressure_thickness_of_atmospheric_layer=SliceConfig(stop=-10),
         ),
         tendency_outputs=dict(
-            air_temperature_output="tendency_of_air_temperature_due_to_microphysics",
-            specific_humidity_output="tendency_of_specific_humidity_due_to_microphysics",
+            air_temperature_output="tendency_of_air_temperature_due_to_microphysics",  # noqa E501
+            specific_humidity_output="tendency_of_specific_humidity_due_to_microphysics",  # noqa E501
         ),
     )
 
@@ -365,7 +365,7 @@ def get_default_config():
         nfiles_valid=80,
         valid_freq=1,
         epochs=4,
-        wandb=WandBConfig(job_type="training")
+        wandb=WandBConfig(job_type="training"),
     )
 
     return config

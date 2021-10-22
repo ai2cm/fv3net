@@ -61,7 +61,7 @@ def nc_dir_to_tf_dataset(
     nc_dir: str,
     config: TransformConfig,
     shuffle: bool = False,
-    nfiles: Optional[int] = None
+    nfiles: Optional[int] = None,
 ) -> tf.data.Dataset:
     """
     Convert a directory of netCDF files into a tensorflow dataset.

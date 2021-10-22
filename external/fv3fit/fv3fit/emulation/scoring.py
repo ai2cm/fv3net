@@ -1,7 +1,5 @@
 import logging
 import numpy as np
-import tensorflow as tf
-from typing import Sequence, Tuple, Union
 
 logger = logging.getLogger(__name__)
 

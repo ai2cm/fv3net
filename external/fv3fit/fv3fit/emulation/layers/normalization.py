@@ -173,7 +173,6 @@ class MeanFeatureStdNormLayer(MaxFeatureStdNormLayer, FeatureMeanStd):
     pass
 
 
-
 @dataclasses.dataclass
 class NormalizeConfig:
 
