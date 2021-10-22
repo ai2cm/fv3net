@@ -4,50 +4,29 @@ import dataclasses
 import fsspec
 import json
 import os
-from fv3fit.emulation.data.config import SliceConfig
-from fv3fit.emulation.keras import CustomKerasCompileArgs, KerasCompileArgs, KerasTrainer, StandardKerasCompileArgs
 from fv3fit.wandb import WandBConfig, log_to_table, log_profile_plots, store_model_artifact
 import yaml
-import numpy as np
-import pandas as pd
-import tensorflow as tf
-from typing import Any, List, Mapping, Optional, Sequence, Union
+from typing import Any, List, Mapping, Optional, Sequence
 
+
+from fv3fit.emulation.data.config import SliceConfig
+from fv3fit.emulation.keras import (
+    CustomKerasCompileArgs,
+    KerasCompileArgs,
+    StandardKerasCompileArgs,
+    save_model,
+    score_model,
+)
 from fv3fit.emulation.models import MicrophysicsConfig, ArchitectureConfig
 from fv3fit.emulation.data import TransformConfig
 from fv3fit.emulation.data import get_nc_files, nc_files_to_tf_dataset
-from fv3fit.emulation.layers import NormalizeConfig
+from fv3fit.emulation.scoring import score_multi_output
 from fv3fit import set_random_seed
+from fv3fit._shared.config import OptimizerConfig
 
 # TODO centralize this
 from fv3fit.keras._models._filesystem import put_dir
 from loaders.batches import shuffle
-
-
-SCALE_VALUES = {
-    "total_precipitation": 1000 / (900 / (3600 * 24)),  # mm / day
-    "specific_humidity_output": 1000,  # g / kg
-    "tendency_of_specific_humidity_due_to_microphysics": 1000
-    * (3600 * 24),  # g / kg / day
-    "cloud_water_mixing_ratio_output": 1000,  # g / kg
-    "tendency_of_cloud_water_mixing_ratio_due_to_microphysics": 1000
-    * (3600 * 24),  # g / kg / day
-    "air_temperature_output": 1,
-    "tendency_of_air_temperature_due_to_microphysics": 3600 * 24,  # K / day,
-}
-
-
-# TODO: need to assert that outputs from data are same
-#       order as all outputs from the model
-@dataclasses.dataclass
-class OptimizerConfig:
-    name: str
-    kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
-
-    @property
-    def instance(self) -> tf.keras.optimizers.Optimizer:
-        cls = getattr(tf.keras.optimizers, self.name)
-        return cls(**self.kwargs)
 
 
 # TODO: update netcdf-> ds function
@@ -83,65 +62,6 @@ def get_out_samples(model_config: MicrophysicsConfig, samples, sample_names):
             residual_sample.append(sample)
 
     return direct_sample, residual_sample
-
-
-def scale(names, values):
-
-    scaled = []
-    for name, value in zip(names, values):
-        value *= SCALE_VALUES[name]
-        scaled.append(value)
-
-    return scaled
-
-
-def score(target, prediction):
-
-    bias_all = target - prediction
-    se = bias_all ** 2
-
-    mse = np.mean(se).astype(np.float)
-    bias = np.mean(bias_all).astype(np.float)
-
-    metrics = {
-        "mse": mse,
-        "bias": bias,
-    }
-
-    if target.ndim == 2 and target.shape[1] > 1:
-        mse_prof = np.mean(se, axis=0)
-        bias_prof = np.mean(bias_all, axis=0)
-        rmse_prof = np.sqrt(mse_prof)
-
-        profiles = {
-            "mse_profile": mse_prof,
-            "bias_profile": bias_prof,
-            "rmse_profile": rmse_prof,
-        }
-    else:
-        profiles = {}
-
-    return metrics, profiles
-
-
-def score_all(targets, predictions, names):
-
-    all_scores = {}
-    all_profiles = {}
-
-    for target, pred, name in zip(targets, predictions, names):
-
-        scores, profiles = score(target, pred)
-        flat_score = {f"{k}/{name}": v for k, v in scores.items()}
-        flat_profile = {f"{k}/{name}": v for k, v in profiles.items()}
-        all_scores.update(flat_score)
-        all_profiles.update(flat_profile)
-
-    # assumes all profiles are same size
-    profile = next(iter(all_profiles.values()))
-    all_profiles["level"] = np.arange(len(profile))
-
-    return all_scores, all_profiles
 
 
 def load_config_yaml(path: str) -> Mapping[str, Any]:
@@ -368,15 +288,12 @@ def main(config: TrainConfig, seed: int = 0):
         callbacks=callbacks,
     )
 
-    # scoring
-    test_target = scale(config.transform.output_variables, test_target)
-    train_target = scale(config.transform.output_variables, train_target)
-    out_names = model.output_names
-    test_pred = scale(out_names, model.predict(X_test))
-    train_pred = scale(out_names, model.predict(X_train))
-
-    train_scores, train_profiles = score_all(train_target, train_pred, out_names)
-    test_scores, test_profiles = score_all(test_target, test_pred, out_names)
+    train_scores, train_profiles = score_model(
+        model, X_train, train_target,
+    )
+    test_scores, test_profiles = score_model(
+        model, X_test, test_target
+    )
 
     if config.wandb:
         log_to_table("score/train", train_scores, index=[config.wandb.job.name])
@@ -388,6 +305,9 @@ def main(config: TrainConfig, seed: int = 0):
         # TODO: need to convert ot np.float to serialize
         with open(os.path.join(tmpdir, "scores.json"), "w") as f:
             json.dump({"train": train_scores, "test": test_scores}, f)
+
+        with open(os.path.join(tmpdir, "history.json"), "w") as f:
+            json.dump(history, f)
 
         local_model_path = save_model(model, tmpdir)
 
@@ -431,15 +351,7 @@ def get_default_config():
         input_variables=input_vars, output_variables=model_config.output_variables,
     )
 
-    config = TrainConfig(
-        train_url="gs://vcm-ml-experiments/microphysics-emu-data/2021-07-29/training_netcdfs",  # noqa E501
-        test_url="gs://vcm-ml-experiments/microphysics-emu-data/2021-07-29/validation_netcdfs",  # noqa E501
-        out_url="gs://vcm-ml-scratch/andrep/test-train-emulation",
-        model=model_config,
-        transform=transform,
-        nfiles=80,
-        nfiles_valid=80,
-        valid_freq=1,
+    compile_args = CustomKerasCompileArgs(
         optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
         loss_variables=[
             "air_temperature_output",
@@ -458,6 +370,18 @@ def get_default_config():
             "tendency_of_specific_humidity_due_to_microphysics",
             "tendency_of_cloud_water_mixing_ratio_due_to_microphysics",
         ],
+    )
+
+    config = TrainConfig(
+        train_url="gs://vcm-ml-experiments/microphysics-emu-data/2021-07-29/training_netcdfs",  # noqa E501
+        test_url="gs://vcm-ml-experiments/microphysics-emu-data/2021-07-29/validation_netcdfs",  # noqa E501
+        out_url="gs://vcm-ml-scratch/andrep/test-train-emulation",
+        model=model_config,
+        transform=transform,
+        compile_args=compile_args,
+        nfiles=80,
+        nfiles_valid=80,
+        valid_freq=1,
         epochs=4,
         wandb=WandBConfig(job_type="training")
     )

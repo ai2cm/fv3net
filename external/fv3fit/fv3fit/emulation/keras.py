@@ -1,13 +1,14 @@
 import abc
 import dataclasses
-from fv3fit.emulation.layers.normalization import NormalizeConfig
+import logging
 import tensorflow as tf
-from typing import Any, Optional, Mapping, List, Union
+from typing import Any, Optional, Mapping, List, Sequence, Tuple, Union
 
-from tensorflow.keras import optimizers
-
+from fv3fit.emulation.layers.normalization import NormalizeConfig
+from .scoring import score_multi_output, score_single_output
 from .._shared.config import OptimizerConfig
 
+logger = logging.getLogger(__name__)
 
 def save_model(model: tf.keras.Model, destination: str):
 
@@ -27,6 +28,7 @@ class NormalizedMSE(tf.keras.losses.MeanSquaredError):
 
     def call(self, y_true, y_pred):
         return super().call(self._normalize(y_true), self._normalize(y_pred))
+
 
 @dataclasses.dataclass
 class KerasCompileArgs(abc.ABC):
@@ -107,3 +109,26 @@ class StandardKerasCompileArgs(KerasCompileArgs):
             "weights": self.weights,
             "optimizer": self.optimizer.instance,
         }
+
+
+def score_model(
+    model: tf.keras.Model,
+    inputs: Union[tf.Tensor, Tuple[tf.Tensor]],
+    targets: Union[tf.Tensor, Sequence[tf.Tensor]],
+):
+
+    prediction = model.predict(inputs)
+
+    if len(model.output_names) > 1:
+        scores, profiles = score_multi_output(
+            targets, prediction, model.output_names
+        )
+    elif len(model.output_names) == 1:
+        scores, profiles = score_single_output(
+            targets, prediction, model.output_names[0]
+        )
+    else:
+        logger.error("Tried to call score on a model with no outputs.")
+        raise ValueError("Cannot score model with no outputs.")
+
+    return scores, profiles
