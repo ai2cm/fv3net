@@ -55,7 +55,7 @@ class NormalizedMSE(tf.keras.losses.MeanSquaredError):
 
 
 @dataclasses.dataclass
-class KerasCompileArgs(abc.ABC):
+class LossConfig(abc.ABC):
 
     optimizer: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")
@@ -73,7 +73,7 @@ class KerasCompileArgs(abc.ABC):
 
 
 @dataclasses.dataclass
-class CustomKerasCompileArgs(KerasCompileArgs):
+class CustomLoss(LossConfig):
     normalization = "mean_std"
     loss_variables: List[str] = dataclasses.field(default_factory=list)
     metric_variables: List[str] = dataclasses.field(default_factory=list)
@@ -117,7 +117,7 @@ KerasWeights = Union[Mapping[str, float], List[float]]
 
 
 @dataclasses.dataclass
-class StandardKerasCompileArgs(KerasCompileArgs):
+class StandardLoss(LossConfig):
     loss: Optional[str] = None
     metrics: Optional[KerasMetrics] = None
     weights: Optional[KerasWeights] = None

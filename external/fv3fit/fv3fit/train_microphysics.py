@@ -11,9 +11,9 @@ from typing import Any, List, Mapping, Optional, Sequence
 
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.keras import (
-    CustomKerasCompileArgs,
-    KerasCompileArgs,
-    StandardKerasCompileArgs,
+    CustomLoss,
+    LossConfig,
+    StandardLoss,
     save_model,
     score_model,
 )
@@ -126,7 +126,7 @@ class TrainConfig:
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
     wandb: Optional[WandBConfig] = None
-    compile_args: KerasCompileArgs = dataclasses.field(default_factory=StandardKerasCompileArgs)
+    compile_args: LossConfig = dataclasses.field(default_factory=StandardLoss)
     epochs: int = 1
     batch_size: int = 128
     valid_freq: int = 5
@@ -351,7 +351,7 @@ def get_default_config():
         input_variables=input_vars, output_variables=model_config.output_variables,
     )
 
-    compile_args = CustomKerasCompileArgs(
+    compile_args = CustomLoss(
         optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
         loss_variables=[
             "air_temperature_output",
