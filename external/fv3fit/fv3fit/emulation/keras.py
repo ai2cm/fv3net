@@ -67,8 +67,8 @@ class LossConfig(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get(self) -> Mapping[str, Any]:
-        """Provide a keyword dictionary with arguments for keras model compilation"""
+    def compile(self, model: tf.keras.Model) -> None:
+        """Compile a keras model with the loss configuration"""
         pass
 
 
@@ -103,13 +103,16 @@ class CustomLoss(LossConfig):
         self._weights = weights
         self._fitted = True
 
-    def get(self) -> Mapping[str, Any]:
-        return {
-            "loss": self._loss,
-            "metrics": self._metrics,
-            "weights": self._weights,
-            "optimizer": self.optimizer.instance,
-        }
+    def compile(self, model: tf.keras.Model):
+        if not self._fitted:
+            raise ValueError("Cannot compile custom loss without first calling prepare().")
+        
+        model.compile(
+            loss=self._loss,
+            metrics=self._metrics,
+            weights=self._weights,
+            optimizer=self.optimizer.instance,
+        )
 
 
 KerasMetrics = List[str]
@@ -126,10 +129,11 @@ class StandardLoss(LossConfig):
         """Nothing to do here"""
         pass
 
-    def get(self) -> Mapping[str, Any]:
-        return {
-            "loss": self.loss,
-            "metrics": self.metrics,
-            "weights": self.weights,
-            "optimizer": self.optimizer.instance,
-        }
+    def compile(self, model: tf.keras.Model):
+        
+        model.compile(
+            loss=self.loss,
+            metrics=self.metrics,
+            weights=self.weights,
+            optimizer=self.optimizer.instance,
+        )

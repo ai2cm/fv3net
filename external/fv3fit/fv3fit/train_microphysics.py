@@ -126,7 +126,7 @@ class TrainConfig:
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
     wandb: Optional[WandBConfig] = None
-    compile_args: LossConfig = dataclasses.field(default_factory=StandardLoss)
+    loss: LossConfig = dataclasses.field(default_factory=StandardLoss)
     epochs: int = 1
     batch_size: int = 128
     valid_freq: int = 5
@@ -270,11 +270,11 @@ def main(config: TrainConfig, seed: int = 0):
         X_train, sample_direct_out=direct_sample, sample_residual_out=resid_sample
     )
 
-    config.compile_args.prepare(
+    config.loss.prepare(
         output_names=model.output_names,
         output_samples=train_target
     )
-    model.compile(**config.compile_args.get())
+    config.loss.compile(model)
 
     if config.shuffle_buffer_size is not None:
         train_ds = train_ds.shuffle(config.shuffle_buffer_size)
@@ -351,7 +351,7 @@ def get_default_config():
         input_variables=input_vars, output_variables=model_config.output_variables,
     )
 
-    compile_args = CustomLoss(
+    loss = CustomLoss(
         optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
         loss_variables=[
             "air_temperature_output",
@@ -378,7 +378,7 @@ def get_default_config():
         out_url="gs://vcm-ml-scratch/andrep/test-train-emulation",
         model=model_config,
         transform=transform,
-        compile_args=compile_args,
+        loss=loss,
         nfiles=80,
         nfiles_valid=80,
         valid_freq=1,
