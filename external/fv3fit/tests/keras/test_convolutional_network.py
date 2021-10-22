@@ -20,7 +20,7 @@ def test_default_output(regtest):
     config = fv3fit.ConvolutionalNetworkConfig()
     array = np.random.randn(2, 10, 10, 3)
     out = config.build(array, n_features_out=3)
-    print_result(out, decimals=5, file=regtest)
+    print_result(out, decimals=4, file=regtest)
 
 
 def test_output_type():
