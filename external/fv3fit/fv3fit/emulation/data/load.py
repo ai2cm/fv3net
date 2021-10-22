@@ -1,8 +1,9 @@
 import logging
+import numpy as np
 import tensorflow as tf
 import xarray as xr
 from toolz.functoolz import compose_left
-from typing import Callable, Sequence
+from typing import Callable, Optional, Sequence
 
 from .config import TransformConfig
 from .transforms import open_netcdf_dataset
@@ -56,8 +57,12 @@ def nc_files_to_tf_dataset(files: Sequence[str], config: TransformConfig):
     return _seq_to_tf_dataset(files, transform)
 
 
-def nc_dir_to_tf_dataset(nc_dir: str, config: TransformConfig):
-
+def nc_dir_to_tf_dataset(
+    nc_dir: str,
+    config: TransformConfig,
+    shuffle: bool = False,
+    nfiles: Optional[int] = None
+) -> tf.data.Dataset:
     """
     Convert a directory of netCDF files into a tensorflow dataset.
 
@@ -66,9 +71,18 @@ def nc_dir_to_tf_dataset(nc_dir: str, config: TransformConfig):
             Expected to be 2D ([sample, feature]) or 1D ([sample]) dimensions.
         config: Data preprocessing options for going from xr.Dataset to
             X, y tensor tuples grouped by variable.
+        shuffle: Randomly order the file ingestion into the dataset
+        nfiles: Limit to number of files
     """
 
     files = get_nc_files(nc_dir)
+
+    if shuffle:
+        files = np.random.choice(files, size=len(files), replace=False)
+
+    if nfiles is not None:
+        files = files[:nfiles]
+
     return nc_files_to_tf_dataset(files, config)
 
 

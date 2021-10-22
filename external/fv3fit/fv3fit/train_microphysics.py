@@ -18,27 +18,11 @@ from fv3fit.emulation.keras import (
     score_model,
 )
 from fv3fit.emulation.models import MicrophysicsConfig, ArchitectureConfig
-from fv3fit.emulation.data import TransformConfig
-from fv3fit.emulation.data import get_nc_files, nc_files_to_tf_dataset
-from fv3fit.emulation.scoring import score_multi_output
+from fv3fit.emulation.data import nc_dir_to_tf_dataset, TransformConfig
 from fv3fit import set_random_seed
-from fv3fit._shared.config import OptimizerConfig
-
-# TODO centralize this
 from fv3fit._shared import put_dir
+from fv3fit._shared.config import OptimizerConfig
 from loaders.batches import shuffle
-
-
-# TODO: update netcdf-> ds function
-def _netcdf_url_to_dataset(url, transform, nfiles=None, do_shuffle=True):
-
-    files = get_nc_files(url)
-    if do_shuffle:
-        files = shuffle(files)
-    if nfiles is not None:
-        files = files[:nfiles]
-
-    return nc_files_to_tf_dataset(files, transform)
 
 
 def get_out_samples(model_config: MicrophysicsConfig, samples, sample_names):
@@ -253,10 +237,10 @@ def main(config: TrainConfig, seed: int = 0):
         config.wandb.init(config=config.asdict())
         callbacks.append(config.wandb.get_callback())
 
-    train_ds = _netcdf_url_to_dataset(
+    train_ds = nc_dir_to_tf_dataset(
         config.train_url, config.transform, nfiles=config.nfiles
     )
-    test_ds = _netcdf_url_to_dataset(
+    test_ds = nc_dir_to_tf_dataset(
         config.test_url, config.transform, nfiles=config.nfiles_valid
     )
 
