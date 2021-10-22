@@ -238,7 +238,7 @@ def zonal_bias_3d(diag_arg: DiagArg):
             set(prognostic.data_vars).intersection(verification.data_vars)
         )
         for var in common_vars:
-            logger.info(f"Preparing zonal+time mean biases (3d) for {var}")
+            logger.info(f"Computing zonal+time mean biases (3d) for {var}")
             with xr.set_options(keep_attrs=True):
                 zm_bias = zonal_mean(
                     bias(verification[[var]], prognostic[[var]]), grid.lat
