@@ -10,6 +10,7 @@ from .._shared.config import OptimizerConfig
 
 logger = logging.getLogger(__name__)
 
+
 def save_model(model: tf.keras.Model, destination: str):
 
     model.compiled_loss = None
@@ -19,6 +20,29 @@ def save_model(model: tf.keras.Model, destination: str):
     model.save(model_path, save_format="tf")
 
     return model_path
+
+
+def score_model(
+    model: tf.keras.Model,
+    inputs: Union[tf.Tensor, Tuple[tf.Tensor]],
+    targets: Union[tf.Tensor, Sequence[tf.Tensor]],
+):
+
+    prediction = model.predict(inputs)
+
+    if len(model.output_names) > 1:
+        scores, profiles = score_multi_output(
+            targets, prediction, model.output_names
+        )
+    elif len(model.output_names) == 1:
+        scores, profiles = score_single_output(
+            targets, prediction, model.output_names[0]
+        )
+    else:
+        logger.error("Tried to call score on a model with no outputs.")
+        raise ValueError("Cannot score model with no outputs.")
+
+    return scores, profiles
 
 
 class NormalizedMSE(tf.keras.losses.MeanSquaredError):
@@ -109,26 +133,3 @@ class StandardKerasCompileArgs(KerasCompileArgs):
             "weights": self.weights,
             "optimizer": self.optimizer.instance,
         }
-
-
-def score_model(
-    model: tf.keras.Model,
-    inputs: Union[tf.Tensor, Tuple[tf.Tensor]],
-    targets: Union[tf.Tensor, Sequence[tf.Tensor]],
-):
-
-    prediction = model.predict(inputs)
-
-    if len(model.output_names) > 1:
-        scores, profiles = score_multi_output(
-            targets, prediction, model.output_names
-        )
-    elif len(model.output_names) == 1:
-        scores, profiles = score_single_output(
-            targets, prediction, model.output_names[0]
-        )
-    else:
-        logger.error("Tried to call score on a model with no outputs.")
-        raise ValueError("Cannot score model with no outputs.")
-
-    return scores, profiles
