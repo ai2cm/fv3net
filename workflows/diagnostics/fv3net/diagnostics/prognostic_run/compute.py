@@ -209,16 +209,13 @@ def zonal_means_physics(diag_arg: DiagArg):
 def zonal_means_3d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (3d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
-    if len(prognostic) > 0:
-        zonal_means = xr.Dataset()
-        for var in prognostic.data_vars:
-            logger.info(f"Preparing zonal+time means (3d) for {var}")
-            with xr.set_options(keep_attrs=True):
-                zm = zonal_mean(prognostic[[var]], grid.lat)
-                zonal_means[var] = time_mean(zm)[var].load()
-        return zonal_means
-    else:
-        return xr.Dataset()
+    zonal_means = xr.Dataset()
+    for var in prognostic.data_vars:
+        logger.info(f"Preparing zonal+time means (3d) for {var}")
+        with xr.set_options(keep_attrs=True):
+            zm = zonal_mean(prognostic[[var]], grid.lat)
+            zonal_means[var] = time_mean(zm)[var].load()
+    return zonal_means
 
 
 @registry_3d.register("pressure_level_zonal_bias")
@@ -232,21 +229,14 @@ def zonal_bias_3d(diag_arg: DiagArg):
         diag_arg.verification,
         diag_arg.grid,
     )
-    if len(prognostic) > 0 and len(verification) > 0:
-        zonal_means = xr.Dataset()
-        common_vars = list(
-            set(prognostic.data_vars).intersection(verification.data_vars)
-        )
-        for var in common_vars:
-            logger.info(f"Preparing zonal+time mean biases (3d) for {var}")
-            with xr.set_options(keep_attrs=True):
-                zm_bias = zonal_mean(
-                    bias(verification[[var]], prognostic[[var]]), grid.lat
-                )
-                zonal_means[var] = time_mean(zm_bias)[var].load()
-        return zonal_means
-    else:
-        return xr.Dataset()
+    zonal_means = xr.Dataset()
+    common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
+    for var in common_vars:
+        logger.info(f"Preparing zonal+time mean biases (3d) for {var}")
+        with xr.set_options(keep_attrs=True):
+            zm_bias = zonal_mean(bias(verification[[var]], prognostic[[var]]), grid.lat)
+            zonal_means[var] = time_mean(zm_bias)[var].load()
+    return zonal_means
 
 
 @registry_dycore.register("zonal_bias")
