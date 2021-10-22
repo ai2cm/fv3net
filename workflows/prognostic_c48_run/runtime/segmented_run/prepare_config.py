@@ -185,18 +185,17 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
 
 def user_config_from_dict_and_args(
-    config_dict: dict, nudging_url, model_url, diagnostic_ml
+    config_dict: dict, nudging_url: str, model_url, diagnostic_ml
 ) -> HighLevelConfig:
     """Ideally this function could be replaced by dacite.from_dict
     without needing any information from args.
     """
-    if "nudging" in config_dict:
-        config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
-            "restarts_path", nudging_url
-        )
     user_config = dacite.from_dict(
         HighLevelConfig, config_dict, dacite.Config(strict=True)
     )
+
+    if user_config.nudging and not user_config.nudging.restarts_path:
+        user_config.nudging.restarts_path = nudging_url
 
     # insert command line option overrides
     if user_config.scikit_learn is None:

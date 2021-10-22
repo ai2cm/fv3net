@@ -57,7 +57,7 @@ class NudgingConfig:
     """
 
     timescale_hours: Dict[str, float]
-    restarts_path: str
+    restarts_path: Optional[str] = None
     # optional arguments needed for time interpolation
     reference_initial_time: Optional[str] = None
     reference_frequency_seconds: float = 900
