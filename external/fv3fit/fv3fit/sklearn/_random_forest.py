@@ -231,10 +231,10 @@ class SklearnWrapper(Predictor):
 
     def _fit_batch(self, data: xr.Dataset):
         x, _ = pack(
-            data[self.input_variables], SAMPLE_DIM_NAME  # type: ignore
+            data[self.input_variables], [SAMPLE_DIM_NAME]  # type: ignore
         )
         y, self.output_features_ = pack(
-            data[self.output_variables], SAMPLE_DIM_NAME  # type: ignore
+            data[self.output_variables], [SAMPLE_DIM_NAME]  # type: ignore
         )
         # https://github.com/pydata/xarray/pull/4144
 
@@ -263,13 +263,13 @@ class SklearnWrapper(Predictor):
             logger.info(f"Batch {i+1} done fitting.")
 
     def _predict_on_stacked_data(self, stacked_data):
-        X, _ = pack(stacked_data[self.input_variables], SAMPLE_DIM_NAME)
+        X, _ = pack(stacked_data[self.input_variables], [SAMPLE_DIM_NAME])
         y = self.model.predict(X)
         if self.target_scaler is not None:
             y = self.target_scaler.denormalize(y)
         else:
             raise ValueError("Target scaler not present.")
-        return unpack(y, SAMPLE_DIM_NAME, self.output_features_)
+        return unpack(y, [SAMPLE_DIM_NAME], self.output_features_)
 
     def predict(self, data):
         stacked_data = stack_non_vertical(
