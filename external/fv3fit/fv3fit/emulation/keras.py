@@ -130,7 +130,7 @@ class StandardLoss(LossConfig):
         pass
 
     def compile(self, model: tf.keras.Model):
-        
+
         model.compile(
             loss=self.loss,
             metrics=self.metrics,

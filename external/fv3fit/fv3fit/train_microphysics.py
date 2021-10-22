@@ -25,7 +25,7 @@ from fv3fit import set_random_seed
 from fv3fit._shared.config import OptimizerConfig
 
 # TODO centralize this
-from fv3fit.keras._models._filesystem import put_dir
+from fv3fit._shared import put_dir
 from loaders.batches import shuffle
 
 
