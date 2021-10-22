@@ -50,20 +50,31 @@ def log_to_table(log_key, data, index=None):
     wandb.log({log_key: table})
 
 
-def log_profile_plots(targ, pred, name, nsamples=4):
+def _plot_profiles(target, prediction, name):
+
+    nsamples = target.shape[0]
 
     for i in range(nsamples):
-        levs = np.arange(targ.shape[1])
+        levs = np.arange(target.shape[1])
         fig = plt.figure()
         fig.set_size_inches(3, 5)
         fig.set_dpi(80)
-        plt.plot(targ[i], levs, label="target")
-        plt.plot(pred[i], levs, label="prediction")
+        plt.plot(target[i], levs, label="target")
+        plt.plot(prediction[i], levs, label="prediction")
         plt.title(f"Sample {i+1}: {name}")
         plt.xlabel(f"{UNITS[name]}")
         plt.ylabel("Level")
         wandb.log({f"{name}_sample_{i}": wandb.Image(plot_to_image(fig))})
         plt.close()
+
+
+def log_profile_plots(targets, predictions, names):
+
+    if len(names) == 1:
+        _plot_profiles(targets, predictions, names[0])
+    else:
+        for t, p, name in zip(targets, predictions, names):
+            _plot_profiles(t, p, name)
 
 
 def store_model_artifact(dir: str, name: str):

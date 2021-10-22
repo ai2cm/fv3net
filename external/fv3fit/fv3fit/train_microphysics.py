@@ -27,11 +27,6 @@ from loaders.batches import shuffle
 
 def get_out_samples(model_config: MicrophysicsConfig, samples, sample_names):
 
-    # requires tendency_of_xxx_ for each residual to properly scale
-    # the output denormalizer
-    # enforce this in the configuration
-    # right now the transform outputs matches model outputs
-
     direct_sample = []
     residual_sample = []
 
@@ -280,6 +275,9 @@ def main(config: TrainConfig, seed: int = 0):
     )
 
     if config.wandb:
+        pred_sample = model.predict(X_test[:4])
+        targ_sample = test_target[:4]
+        log_profile_plots(targ_sample, pred_sample, model.output_names)
         log_to_table("score/train", train_scores, index=[config.wandb.job.name])
         log_to_table("score/test", test_scores, index=[config.wandb.job.name])
         log_to_table("profiles/train", train_profiles)
