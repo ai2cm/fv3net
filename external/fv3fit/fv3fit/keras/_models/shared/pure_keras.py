@@ -51,7 +51,7 @@ class PureKerasModel(Predictor):
         self._output_metadata = output_metadata
         self.model = model
         if unstacked_dims is None:
-            self._unstacked_dims = Z_DIM_NAMES
+            self._unstacked_dims: Sequence[str] = Z_DIM_NAMES
         else:
             self._unstacked_dims = unstacked_dims
 

@@ -84,7 +84,9 @@ def train_convolutional_model(
     validation_batches: Optional[Sequence[xr.Dataset]] = None,
 ):
     if validation_batches is not None:
-        validation_data = batch_to_array_tuple(
+        validation_data: Optional[
+            Tuple[Tuple[Any, ...], Tuple[Any, ...]]
+        ] = batch_to_array_tuple(
             stack(validation_batches[0], unstacked_dims=UNSTACKED_DIMS),
             input_variables=hyperparameters.input_variables,
             output_variables=hyperparameters.output_variables,
@@ -160,7 +162,7 @@ def build_model(
         full_input = norm_input_layers[0]
     convolution = config.convolutional_network.build(x_in=full_input, n_features_out=0)
     output_features = count_features(config.output_variables, batch)
-    norm_output_layers = (
+    norm_output_layers = [
         tf.keras.layers.Conv2D(
             filters=output_features[name],
             kernel_size=(1, 1),
@@ -170,7 +172,7 @@ def build_model(
             name=f"convolutional_network_{i}_output",
         )(convolution.hidden_outputs[-1])
         for i, name in enumerate(config.output_variables)
-    )
+    ]
     denorm_output_layers = standard_denormalize(
         names=config.output_variables, layers=norm_output_layers, batch=batch
     )

@@ -8,6 +8,7 @@ from typing import (
     Tuple,
     Sequence,
     Optional,
+    Union,
 )
 import numpy as np
 import xarray as xr
@@ -60,7 +61,8 @@ def unpack(
     data: np.ndarray, sample_dims: Sequence[str], feature_index: pd.MultiIndex
 ) -> xr.Dataset:
     if len(data.shape) == len(sample_dims):
-        selection = [slice() for _ in sample_dims] + [None]
+        selection: List[Union[slice, None]] = [slice(None, None) for _ in sample_dims]
+        selection = selection + [None]
         data = data[selection]
     da = xr.DataArray(
         data, dims=list(sample_dims) + ["feature"], coords={"feature": feature_index}

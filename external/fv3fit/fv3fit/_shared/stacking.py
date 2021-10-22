@@ -16,7 +16,7 @@ class StackedBatches(Sequence[xr.Dataset]):
         self,
         batches: Sequence[xr.Dataset],
         random_state: RandomState = np.random,
-        unstacked_dims: Optional[Sequence[str]] = Z_DIM_NAMES,
+        unstacked_dims: Sequence[str] = Z_DIM_NAMES,
     ):
         self._batches = batches
         self._random_state = random_state
