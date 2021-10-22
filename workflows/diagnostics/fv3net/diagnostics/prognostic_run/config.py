@@ -15,7 +15,7 @@ def get_verification_entries(
         Mapping from category name ('physics', 'dycore', or '3d') to sequence
         of catalog keys representing given diagnostics for specified simulation.
     """
-    entries = {"physics": [], "dycore": [], "3d": []}
+    entries = {"2d": [], "3d": []}
     for item in catalog:
         metadata = catalog[item].metadata
         item_simulation = metadata.get("simulation", None)
@@ -26,9 +26,9 @@ def get_verification_entries(
             if item_category is not None:
                 entries[item_category].append(item)
 
-    if len(entries["physics"]) == 0:
-        raise ValueError(f"No c48 physics data found in catalog for simulation {name}.")
-    if len(entries["dycore"]) == 0:
-        raise ValueError(f"No c48 dycore data found in catalog for simulation {name}.")
+    if len(entries["2d"]) == 0:
+        raise ValueError(
+            f"No c48 2d diagnostics found in catalog for simulation {name}."
+        )
 
     return entries
