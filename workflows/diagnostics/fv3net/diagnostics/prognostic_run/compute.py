@@ -211,7 +211,7 @@ def zonal_means_3d(diag_arg: DiagArg):
     prognostic, grid = diag_arg.prediction, diag_arg.grid
     zonal_means = xr.Dataset()
     for var in prognostic.data_vars:
-        logger.info(f"Preparing zonal+time means (3d) for {var}")
+        logger.info(f"Computing zonal+time means (3d) for {var}")
         with xr.set_options(keep_attrs=True):
             zm = zonal_mean(prognostic[[var]], grid.lat)
             zm_time_mean = time_mean(zm)[var].load()
@@ -234,7 +234,7 @@ def zonal_bias_3d(diag_arg: DiagArg):
     zonal_means = xr.Dataset()
     common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
     for var in common_vars:
-        logger.info(f"Preparing zonal+time mean biases (3d) for {var}")
+        logger.info(f"Computing zonal+time mean biases (3d) for {var}")
         with xr.set_options(keep_attrs=True):
             zm_bias = zonal_mean(bias(verification[[var]], prognostic[[var]]), grid.lat)
             zm_bias_time_mean = time_mean(zm_bias)[var].load()
