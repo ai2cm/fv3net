@@ -36,30 +36,20 @@ def test_output_type():
 
 
 @pytest.mark.parametrize(
-    "input_shape, kernel_size, depth, features_out, base_output_shape",
+    "input_shape, kernel_size, depth, features_out",
     [
-        pytest.param((3, 10, 10, 2), 3, 1, 5, (3, 10, 10), id="no_convolutions"),
-        pytest.param((3, 10, 10, 2), 3, 2, 5, (3, 8, 8), id="one_convolution"),
+        pytest.param((3, 10, 10, 2), 3, 1, 5, id="no_convolutions"),
+        pytest.param((3, 10, 10, 2), 3, 2, 5, id="one_convolution"),
+        pytest.param((3, 10, 10, 2), 5, 2, 5, id="one_convolution_larger_kernel"),
+        pytest.param((3, 10, 10, 2), 3, 3, 5, id="two_convolutions"),
         pytest.param(
-            (3, 10, 10, 2), 5, 2, 5, (3, 6, 6), id="one_convolution_larger_kernel"
+            (3, 11, 15, 2), 3, 3, 5, id="two_convolutions_different_input_shape",
         ),
-        pytest.param((3, 10, 10, 2), 3, 3, 5, (3, 6, 6), id="two_convolutions"),
-        pytest.param(
-            (3, 11, 15, 2),
-            3,
-            3,
-            5,
-            (3, 7, 11),
-            id="two_convolutions_different_input_shape",
-        ),
-        pytest.param(
-            (3, 10, 10, 2), 3, 2, 10, (3, 8, 8), id="one_convolution_more_filters"
-        ),
+        pytest.param((3, 10, 10, 2), 3, 2, 10, id="one_convolution_more_filters"),
     ],
 )
-def test_output_is_correct_shape(
-    input_shape, kernel_size, depth, features_out, base_output_shape
-):
+def test_output_is_correct_shape(input_shape, kernel_size, depth, features_out):
+    base_output_shape = input_shape[:3]
     config = fv3fit.ConvolutionalNetworkConfig(kernel_size=kernel_size, depth=depth)
     array = np.random.randn(*input_shape)
     convolutional_network = config.build(array, n_features_out=features_out)
