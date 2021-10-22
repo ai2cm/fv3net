@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 from typing import Sequence, Tuple, Union
 
+logger = logging.getLogger(__name__)
 
 SCALE_VALUES = {
     "air_temperature_output": 1,
@@ -59,10 +60,11 @@ def score(target, prediction):
 def score_single_output(target, prediction, name, rescale=True):
 
     if rescale:
-        if name not in SCALE_VALUES:
-            pass
-        target *= SCALE_VALUES[name]
-        prediction *= SCALE_VALUES[name]
+        try:
+            target *= SCALE_VALUES[name]
+            prediction *= SCALE_VALUES[name]
+        except KeyError:
+            logger.error(f"No scaling value found for {name}. Leaving unscaled...")
 
     scores, profiles = score(target, prediction)
     # Keys use directory style for wandb chart grouping
@@ -79,25 +81,12 @@ def score_multi_output(targets, predictions, names, rescale=True):
 
     for target, pred, name in zip(targets, predictions, names):
 
-        scores, profiles = score(target, pred)
-        flat_score = {f"{k}/{name}": v for k, v in scores.items()}
-        flat_profile = {f"{k}/{name}": v for k, v in profiles.items()}
-        all_scores.update(flat_score)
-        all_profiles.update(flat_profile)
+        scores, profiles = score_single_output(target, pred, name)
+        all_scores.update(scores)
+        all_profiles.update(profiles)
 
-    # assumes all profiles are same size
+    # assumes all profiles are same size, added for dataframe index
     profile = next(iter(all_profiles.values()))
     all_profiles["level"] = np.arange(len(profile))
 
     return all_scores, all_profiles
-
-
-def score_model(
-    model: tf.keras.Model,
-    inputs: Union[tf.Tensor, Tuple[tf.Tensor]],
-    targets: Union[tf.Tensor, Sequence[tf.Tensor]],
-):
-
-
-
-
