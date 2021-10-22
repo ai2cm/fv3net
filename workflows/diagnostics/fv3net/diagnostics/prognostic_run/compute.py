@@ -212,7 +212,7 @@ def zonal_means_3d(diag_arg: DiagArg):
     if len(prognostic) > 0:
         zonal_means = xr.Dataset()
         for var in prognostic.data_vars:
-            logger.info(f"Preparing zonal+time means (3d) for {var}")
+            logger.info(f"Computing zonal+time means (3d) for {var}")
             with xr.set_options(keep_attrs=True):
                 zm = zonal_mean(prognostic[[var]], grid.lat)
                 zonal_means[var] = time_mean(zm)[var].load()
