@@ -14,6 +14,19 @@ logger = logging.getLogger(__name__)
 
 def save_model(model: tf.keras.Model, destination: str):
 
+    """
+    Remove any compiled options and save model under "model.tf"
+    to a destination for standardization.  Custom losses/metricss
+    require custom object resolution during load, so it's better
+    to remove.
+
+    https://github.com/tensorflow/tensorflow/issues/43478
+
+    Args:
+        model: tensorflow model
+        destination: path to store "model.tf" under
+    """
+
     model.compiled_loss = None
     model.compiled_metrics = None
     model.optimizer = None
