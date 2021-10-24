@@ -247,7 +247,7 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
         zonal_mean_bias = zonal_mean(
             bias(verification[[var]], prognostic[[var]]), grid.lat
         )
-        zonal_means[var] = time_mean(zonal_mean_bias).load()
+        zonal_means[var] = time_mean(zonal_mean_bias)[var].load()
     return zonal_means
 
 
@@ -262,7 +262,7 @@ def zonal_mean_hovmoller(diag_arg: DiagArg):
     for var in prognostic.data_vars:
         logger.info(f"Computing zonal mean (2d) over time for {var}")
         with xr.set_options(keep_attrs=True):
-            zonal_means[var] = zonal_mean(prognostic[[var]], grid.lat).load()
+            zonal_means[var] = zonal_mean(prognostic[[var]], grid.lat)[var].load()
     return zonal_means
 
 
@@ -285,7 +285,7 @@ def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
         with xr.set_options(keep_attrs=True):
             zonal_means[var] = zonal_mean(
                 bias(verification[[var]], prognostic[[var]]), grid.lat
-            ).load()
+            )[var].load()
     return zonal_means
 
 
