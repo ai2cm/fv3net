@@ -60,8 +60,9 @@ def nc_files_to_tf_dataset(files: Sequence[str], config: TransformConfig):
 def nc_dir_to_tf_dataset(
     nc_dir: str,
     config: TransformConfig,
-    shuffle: bool = False,
     nfiles: Optional[int] = None,
+    shuffle: bool = False,
+    random_state: Optional[np.random.RandomState] = None,
 ) -> tf.data.Dataset:
     """
     Convert a directory of netCDF files into a tensorflow dataset.
@@ -71,14 +72,18 @@ def nc_dir_to_tf_dataset(
             Expected to be 2D ([sample, feature]) or 1D ([sample]) dimensions.
         config: Data preprocessing options for going from xr.Dataset to
             X, y tensor tuples grouped by variable.
-        shuffle: Randomly order the file ingestion into the dataset
         nfiles: Limit to number of files
+        shuffle: Randomly order the file ingestion into the dataset
+        random_state: numpy random number generator for seeded shuffle
     """
 
     files = get_nc_files(nc_dir)
 
     if shuffle:
-        files = np.random.choice(files, size=len(files), replace=False)
+        if random_state is None:
+            random_state = np.random.RandomState(np.random.get_state()[1][0])
+
+        files = random_state.choice(files, size=len(files), replace=False)
 
     if nfiles is not None:
         files = files[:nfiles]
