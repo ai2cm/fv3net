@@ -8,7 +8,10 @@ import yaml
 import numpy as np
 from typing import Any, Mapping, Optional, Sequence
 
-
+from fv3fit import set_random_seed
+from fv3fit._shared import put_dir
+from fv3fit._shared.config import OptimizerConfig
+from fv3fit.emulation.data import nc_dir_to_tf_dataset, TransformConfig
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.keras import (
     CustomLoss,
@@ -17,20 +20,22 @@ from fv3fit.emulation.keras import (
     save_model,
     score_model,
 )
+from fv3fit.emulation.models import MicrophysicsConfig, ArchitectureConfig
 from fv3fit.wandb import (
     WandBConfig,
     log_to_table,
     log_profile_plots,
     store_model_artifact,
 )
-from fv3fit.emulation.models import MicrophysicsConfig, ArchitectureConfig
-from fv3fit.emulation.data import nc_dir_to_tf_dataset, TransformConfig
-from fv3fit import set_random_seed
-from fv3fit._shared import put_dir
-from fv3fit._shared.config import OptimizerConfig
 
 
-def get_out_samples(model_config: MicrophysicsConfig, samples, sample_names):
+def _get_out_samples(model_config: MicrophysicsConfig, samples, sample_names):
+    """
+    Grab samples from a list separated into the direct output
+    variables and residual output variables.  Used because the
+    output normalization samples might need to be the field
+    or the field tendencies
+    """
 
     direct_sample = []
     residual_sample = []
@@ -57,6 +62,10 @@ def load_config_yaml(path: str) -> Mapping[str, Any]:
 
 
 def to_flat_dict(d: dict):
+    """
+    Converts any nested dictionaries to a flat version with
+    the nested keys joined with a '.'
+    """
 
     new_flat = {}
     for k, v in d.items():
@@ -71,6 +80,10 @@ def to_flat_dict(d: dict):
 
 
 def to_nested_dict(d: dict):
+    """
+    Converts a flat dictionary with '.' joined keys (e.g.,
+    key.nested_key) back into a nested dictionary.
+    """
 
     new_config = {}
 
@@ -90,16 +103,28 @@ def to_nested_dict(d: dict):
 def _add_items_to_parser_arguments(
     d: Mapping[str, Any], parser: argparse.ArgumentParser
 ):
+    """
+    Take a dictionary and add all the keys as an ArgumentParser
+    argument with the value as a default.
+    """
 
     for key, value in d.items():
         # TODO: should I do casting here, or let the dataclass do it?
-        if not isinstance(value, str) and isinstance(value, Sequence):
-            nargs = "*"
-            default = tuple(value)
+        if isinstance(value, Mapping):
+            raise ValueError(
+                "Adding a mapping as an argument to the parse is not"
+                " currently supported.  Make sure you are passing a"
+                " 'flattened' dictionary to this function."
+            )
+        elif not isinstance(value, str) and isinstance(value, Sequence):
+            kwargs = dict(
+                nargs="*",
+                default="",
+            )
         else:
-            nargs = None
-            default = value
-        parser.add_argument(f"--{key}", nargs=nargs, default=default)
+            kwargs = dict(default=value)
+
+        parser.add_argument(f"--{key}", **kwargs)
 
 
 @dataclasses.dataclass
@@ -249,7 +274,7 @@ def main(config: TrainConfig, seed: int = 0):
 
     X_train, train_target = next(iter(train_ds.shuffle(100_000).batch(50_000)))
     X_test, test_target = next(iter(test_ds.shuffle(160_000).batch(80_000)))
-    direct_sample, resid_sample = get_out_samples(
+    direct_sample, resid_sample = _get_out_samples(
         config.model, train_target, config.transform.output_variables
     )
 
@@ -284,7 +309,7 @@ def main(config: TrainConfig, seed: int = 0):
         sample_profile = next(iter(train_profiles.values()))
         train_profiles["level"] = np.arange(len(sample_profile))
         test_profiles["level"] = np.arange(len(sample_profile))
-        
+
         log_to_table("score/train", train_scores, index=[config.wandb.job.name])
         log_to_table("score/test", test_scores, index=[config.wandb.job.name])
         log_to_table("profiles/train", train_profiles)

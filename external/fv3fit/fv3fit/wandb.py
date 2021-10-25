@@ -33,7 +33,6 @@ class WandBConfig:
     entity: str = "ai2cm"
     job_type: str = "test"
     wandb_project: str = "scratch-project"
-    job = dataclasses.field(init=False)
 
     @staticmethod
     def get_callback():
