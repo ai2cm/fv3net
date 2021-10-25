@@ -1,12 +1,12 @@
 import argparse
 import dacite
-import dataclasses
 import fsspec
 import json
 import os
 import yaml
 import numpy as np
-from typing import Any, Mapping, Optional, Sequence
+from dataclasses import dataclass, field, asdict
+from typing import Any, Mapping, Optional, Sequence, Union
 
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
@@ -54,6 +54,9 @@ def _get_out_samples(model_config: MicrophysicsConfig, samples, sample_names):
 
 
 def load_config_yaml(path: str) -> Mapping[str, Any]:
+    """
+    Load yaml from local/remote location
+    """
 
     with fsspec.open(path, "r") as f:
         d = yaml.safe_load(f)
@@ -64,7 +67,8 @@ def load_config_yaml(path: str) -> Mapping[str, Any]:
 def to_flat_dict(d: dict):
     """
     Converts any nested dictionaries to a flat version with
-    the nested keys joined with a '.'
+    the nested keys joined with a '.', e.g., {a: {b: 1}} ->
+    {a.b: 1}
     """
 
     new_flat = {}
@@ -81,8 +85,8 @@ def to_flat_dict(d: dict):
 
 def to_nested_dict(d: dict):
     """
-    Converts a flat dictionary with '.' joined keys (e.g.,
-    key.nested_key) back into a nested dictionary.
+    Converts a flat dictionary with '.' joined keys back into
+    a nested dictionary, e.g., {a.b: 1} -> {a: {b: 1}}
     """
 
     new_config = {}
@@ -105,7 +109,9 @@ def _add_items_to_parser_arguments(
 ):
     """
     Take a dictionary and add all the keys as an ArgumentParser
-    argument with the value as a default.
+    argument with the value as a default.  Does no casting so
+    any non-defaults will likely be strings.  Instead relies on the
+    dataclasses to do the validation and type casting.
     """
 
     for key, value in d.items():
@@ -117,24 +123,28 @@ def _add_items_to_parser_arguments(
                 " 'flattened' dictionary to this function."
             )
         elif not isinstance(value, str) and isinstance(value, Sequence):
-            kwargs = dict(nargs="*", default="",)
+            vtype = type(value)
+            kwargs = dict(
+                nargs="*",
+                default=vtype(value),
+            )
         else:
             kwargs = dict(default=value)
 
         parser.add_argument(f"--{key}", **kwargs)
 
 
-@dataclasses.dataclass
+@dataclass
 class TrainConfig:
     train_url: str
     test_url: str
     out_url: str
-    transform: TransformConfig
-    model: MicrophysicsConfig
+    transform: TransformConfig = field(default_factory=TransformConfig)
+    model: MicrophysicsConfig = field(default_factory=MicrophysicsConfig)
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
     wandb: Optional[WandBConfig] = None
-    loss: LossConfig = dataclasses.field(default_factory=StandardLoss)
+    loss: Union[StandardLoss, CustomLoss] = field(default_factory=StandardLoss)
     epochs: int = 1
     batch_size: int = 128
     valid_freq: int = 5
@@ -142,7 +152,7 @@ class TrainConfig:
     shuffle_buffer_size: Optional[int] = 100_000
 
     def asdict(self):
-        return dataclasses.asdict(self)
+        return asdict(self)
 
     def as_flat_dict(self):
         return to_flat_dict(self.asdict())
@@ -180,7 +190,7 @@ class TrainConfig:
         return cls.from_dict(d)
 
     @classmethod
-    def from_args(cls, args: Sequence[Any] = None):
+    def from_args(cls, args: Optional[Sequence[str]] = None):
         """
         Init from commandline arguments (or provided arguments).  If no args
         are provided, uses sys.argv to parse.
@@ -203,19 +213,19 @@ class TrainConfig:
         """
 
         parser = argparse.ArgumentParser()
-        parser.add_argument("--config-path", type=str, default=None)
+        parser.add_argument(
+            "--config-path",
+            required=True,
+            help="Path to training config yaml. Use '--config-path default'"
+                " to run with a default configuration."
+        )
 
-        args, unknown_args = parser.parse_known_args(args=args)
+        path_arg, unknown_args = parser.parse_known_args(args=args)
 
-        if args.config_path == "default":
+        if path_arg.config_path == "default":
             config = get_default_config()
-        elif args.config_path is not None:
-            config = cls.from_yaml_path(args.config_path)
         else:
-            raise ValueError(
-                "No training configuration specified. Use '--config-path default'"
-                " if just trying to run."
-            )
+            config = cls.from_yaml_path(path_arg.config_path)
 
         if unknown_args:
             updated = cls._get_updated_config_dict(unknown_args, config.as_flat_dict())
@@ -318,7 +328,7 @@ def main(config: TrainConfig, seed: int = 0):
             json.dump({"train": train_scores, "test": test_scores}, f)
 
         with open(os.path.join(tmpdir, "history.json"), "w") as f:
-            json.dump(history, f)
+            json.dump(history.params, f)
 
         local_model_path = save_model(model, tmpdir)
 

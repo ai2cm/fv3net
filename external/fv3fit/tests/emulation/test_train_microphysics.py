@@ -1,5 +1,9 @@
 import argparse
 import pytest
+import sys
+import yaml
+
+from fv3fit.emulation.data.config import TransformConfig
 
 from fv3fit.train_microphysics import (
     TrainConfig,
@@ -9,6 +13,7 @@ from fv3fit.train_microphysics import (
     _get_out_samples,
     _add_items_to_parser_arguments,
     get_default_config,
+    main
 )
 
 
@@ -97,8 +102,8 @@ def test__add_items_to_parser_args_no_seq():
 
 @pytest.mark.parametrize(
     "args, expected_seq",
-    [(["--seq"], []), (["--seq", "1"], ["1"]), (["--seq", "1", "2"], ["1", "2"])],
-    ids=["empty", "single", "multiple"],
+    [([], [1, 2, 3]), (["--seq"], []), (["--seq", "1"], ["1"]), (["--seq", "1", "2"], ["1", "2"])],
+    ids=["default", "empty", "single", "multiple"],
 )
 def test__add_items_to_parser_args_seq(args, expected_seq):
 
@@ -120,7 +125,164 @@ def test__add_items_to_parser_args_mapping_error():
         _add_items_to_parser_arguments(d, parser)
 
 
+def test_TrainConfig_defaults():
+
+    config = TrainConfig(
+        train_url="train_path",
+        test_url="test_path",
+        out_url="save_path",
+        transform=TransformConfig(),
+        model=MicrophysicsConfig(),
+    )
+
+
 def test_get_default_config():
 
     config = get_default_config()
     assert isinstance(config, TrainConfig)
+
+
+def test_TrainConfig_asdict():
+
+    config = TrainConfig(
+        train_url="train_path",
+        test_url="test_path",
+        out_url="save_path",
+    )
+
+    d = config.asdict()
+    assert d["train_url"] == "train_path"
+    assert d["model"]["architecture"]["name"] == "linear"
+
+
+def test_TrainConfig_from_dict():
+    
+    d = dict(
+        train_url="train_path",
+        test_url="test_path",
+        out_url="save_path",
+        model=dict(architecture={"name": "rnn"}),
+    )
+
+    config = TrainConfig.from_dict(d)
+    assert config.train_url == "train_path"
+    assert config.model.architecture.name == "rnn"
+
+
+def test_TrainConfig_from_dict_full():
+
+    expected = get_default_config()
+    result = TrainConfig.from_dict(expected.asdict())
+
+    assert result == expected
+
+
+def test_TrainConfig_from_flat_dict():
+
+    d = {
+        "train_url": "train_path",
+        "test_url": "test_path",
+        "out_url": "out_path",
+        "model.architecture.name": "rnn",
+    }
+        
+    config = TrainConfig.from_flat_dict(d)
+    
+    assert config.train_url == "train_path"
+    assert config.model.architecture.name == "rnn"
+
+    expected = get_default_config()
+    result = TrainConfig.from_flat_dict(expected.as_flat_dict())
+    assert result == expected
+
+
+def test_TrainConfig_from_yaml(tmp_path):
+
+    default = get_default_config()
+    
+    yaml_path = str(tmp_path / "train_config.yaml")
+    with open(yaml_path, "w") as f:
+        yaml.safe_dump(default.asdict(), f)
+
+        loaded = TrainConfig.from_yaml_path(yaml_path)
+
+        assert loaded == default
+
+
+def test_TrainConfig_from_args_default():
+
+    default = get_default_config()
+
+    args = ["--config-path", "default"]
+    config = TrainConfig.from_args(args=args)
+
+    assert config == default
+
+
+def test_TrainConfig_get_updated_config_dict():
+
+    defaults = get_default_config().as_flat_dict()
+
+    arg_updates = [
+        "--epochs", "4",
+        "--model.architecture.name", "rnn",
+        "--transform.input_variables", "A", "B", "C",
+    ]
+
+    updated = TrainConfig._get_updated_config_dict(arg_updates, defaults)
+
+    assert updated["epochs"] == "4"
+    assert updated["model.architecture.name"] == "rnn"
+    assert updated["transform.input_variables"] == ["A", "B", "C"]
+
+
+def test_TrainConfig_from_args_sysargv(monkeypatch):
+
+    args = [
+        "unused_sysv_arg",
+        "--config-path", "default",
+        "--epochs", "4",
+        "--model.architecture.name", "rnn",
+    ]
+    monkeypatch.setattr(sys, "argv", args)
+
+    config = TrainConfig.from_args()
+
+    assert config.epochs == 4
+    assert config.model.architecture.name == "rnn"
+
+
+def test_TrainConfig_invalid_input_vars():
+
+    args = [
+        "--config-path", "default",
+        "--model.input_variables", "A", "B",
+        "--transform.input_variables", "A", "C"
+    ]
+
+    with pytest.raises(ValueError):
+        TrainConfig.from_args(args)
+
+    args = [
+        "--config-path", "default",
+        "--model.direct_out_variables", "A", "B",
+        "--transform.output_variables", "A", "C"
+    ]
+
+    with pytest.raises(ValueError):
+        TrainConfig.from_args(args)
+
+
+@pytest.mark.regression
+def test_training_entry_integration(tmp_path):
+
+    config_dict = get_default_config().asdict()
+    config_dict["out_url"] = str(tmp_path)
+    config_dict["wandb"] = None
+    config_dict["nfiles"] = 4
+    config_dict["nfiles_valid"] = 4
+    config_dict["epochs"] = 1
+
+    config = TrainConfig.from_dict(config_dict)
+
+    main(config)

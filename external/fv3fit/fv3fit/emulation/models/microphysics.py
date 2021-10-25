@@ -51,9 +51,6 @@ class MicrophysicsConfig:
     timestep_increment_sec: int = 900
     enforce_positive: bool = True
 
-    # post-init from config
-    selection_map_slices: Mapping[str, slice] = dataclasses.field(init=False)
-
     @classmethod
     def from_dict(cls, d) -> "MicrophysicsConfig":
         return dacite.from_dict(cls, d, dacite.Config(strict=True))
