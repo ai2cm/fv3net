@@ -1,3 +1,155 @@
+3d
+Prognostic Run
+xarray.Dataset {
+dimensions:
+	time = 8 ;
+	x = 48 ;
+	y = 48 ;
+	pressure = 35 ;
+	tile = 6 ;
+
+variables:
+	object time(time) ;
+	float32 x(x) ;
+	float32 y(y) ;
+	float64 pressure(pressure) ;
+	float32 air_temperature(tile, time, y, x, pressure) ;
+		air_temperature:cell_methods = time: point ;
+		air_temperature:long_name = temperature ;
+		air_temperature:units = K ;
+		air_temperature:valid_range = [100.0, 350.0] ;
+	float32 eastward_wind(tile, time, y, x, pressure) ;
+		eastward_wind:cell_methods = time: point ;
+		eastward_wind:long_name = zonal wind ;
+		eastward_wind:units = m/sec ;
+		eastward_wind:valid_range = [-330.0, 330.0] ;
+	float32 northward_wind(tile, time, y, x, pressure) ;
+		northward_wind:cell_methods = time: point ;
+		northward_wind:long_name = meridional wind ;
+		northward_wind:units = m/sec ;
+		northward_wind:valid_range = [-330.0, 330.0] ;
+	float32 pressure_thickness_of_atmospheric_layer(tile, time, y, x, pressure) ;
+		pressure_thickness_of_atmospheric_layer:cell_methods = time: point ;
+		pressure_thickness_of_atmospheric_layer:long_name = pressure thickness ;
+		pressure_thickness_of_atmospheric_layer:units = pa ;
+	float32 specific_humidity(tile, time, y, x, pressure) ;
+		specific_humidity:cell_methods = time: point ;
+		specific_humidity:long_name = specific humidity ;
+		specific_humidity:units = kg/kg ;
+	float32 vertical_wind(tile, time, y, x, pressure) ;
+		vertical_wind:cell_methods = time: point ;
+		vertical_wind:long_name = vertical wind ;
+		vertical_wind:units = m/sec ;
+		vertical_wind:valid_range = [-100.0, 100.0] ;
+
+// global attributes:
+}
+time 44d78cb4434b78372bc6a086c7996da9
+x 87435a5529a9d300a5c1ab22f66729c6
+y 87435a5529a9d300a5c1ab22f66729c6
+pressure 7d360c07c293d39949ef3ee05d70c2dc
+Verification
+xarray.Dataset {
+dimensions:
+	time = 8 ;
+	x = 48 ;
+	y = 48 ;
+	pressure = 35 ;
+	tile = 6 ;
+
+variables:
+	object time(time) ;
+	float32 x(x) ;
+	float32 y(y) ;
+	float64 pressure(pressure) ;
+	float32 air_temperature(tile, time, y, x, pressure) ;
+		air_temperature:cell_methods = time: point ;
+		air_temperature:long_name = temperature ;
+		air_temperature:units = K ;
+		air_temperature:valid_range = [100.0, 350.0] ;
+	float32 eastward_wind(tile, time, y, x, pressure) ;
+		eastward_wind:cell_methods = time: point ;
+		eastward_wind:long_name = zonal wind ;
+		eastward_wind:units = m/sec ;
+		eastward_wind:valid_range = [-330.0, 330.0] ;
+	float32 northward_wind(tile, time, y, x, pressure) ;
+		northward_wind:cell_methods = time: point ;
+		northward_wind:long_name = meridional wind ;
+		northward_wind:units = m/sec ;
+		northward_wind:valid_range = [-330.0, 330.0] ;
+	float32 pressure_thickness_of_atmospheric_layer(tile, time, y, x, pressure) ;
+		pressure_thickness_of_atmospheric_layer:cell_methods = time: point ;
+		pressure_thickness_of_atmospheric_layer:long_name = pressure thickness ;
+		pressure_thickness_of_atmospheric_layer:units = pa ;
+	float32 specific_humidity(tile, time, y, x, pressure) ;
+		specific_humidity:cell_methods = time: point ;
+		specific_humidity:long_name = specific humidity ;
+		specific_humidity:units = kg/kg ;
+	float32 vertical_wind(tile, time, y, x, pressure) ;
+		vertical_wind:cell_methods = time: point ;
+		vertical_wind:long_name = vertical wind ;
+		vertical_wind:units = m/sec ;
+		vertical_wind:valid_range = [-100.0, 100.0] ;
+
+// global attributes:
+}
+time 44d78cb4434b78372bc6a086c7996da9
+x 87435a5529a9d300a5c1ab22f66729c6
+y 87435a5529a9d300a5c1ab22f66729c6
+pressure 7d360c07c293d39949ef3ee05d70c2dc
+grid
+xarray.Dataset {
+dimensions:
+	tile = 6 ;
+	y = 48 ;
+	x = 48 ;
+	y_interface = 49 ;
+	x_interface = 49 ;
+
+variables:
+	float32 area(tile, y, x) ;
+		area:cell_methods = time: point ;
+		area:long_name = cell area ;
+		area:units = m**2 ;
+	float32 lat(tile, y, x) ;
+		lat:cell_methods = time: point ;
+		lat:long_name = latitude ;
+		lat:units = degrees_N ;
+	float32 latb(tile, y_interface, x_interface) ;
+		latb:cell_methods = time: point ;
+		latb:long_name = latitude ;
+		latb:units = degrees_N ;
+	float32 lon(tile, y, x) ;
+		lon:cell_methods = time: point ;
+		lon:long_name = longitude ;
+		lon:units = degrees_E ;
+	float32 lonb(tile, y_interface, x_interface) ;
+		lonb:cell_methods = time: point ;
+		lonb:long_name = longitude ;
+		lonb:units = degrees_E ;
+	float64 x(x) ;
+		x:cartesian_axis = X ;
+		x:long_name = T-cell longitude ;
+		x:units = degrees_E ;
+	float64 x_interface(x_interface) ;
+		x_interface:cartesian_axis = X ;
+		x_interface:long_name = cell corner longitude ;
+		x_interface:units = degrees_E ;
+	float64 y(y) ;
+		y:cartesian_axis = Y ;
+		y:long_name = T-cell latitude ;
+		y:units = degrees_N ;
+	float64 y_interface(y_interface) ;
+		y_interface:cartesian_axis = Y ;
+		y_interface:long_name = cell corner latitude ;
+		y_interface:units = degrees_N ;
+
+// global attributes:
+}
+x 5169d1a379cbbdb4f5804c2304f1799a
+x_interface b06bfa6bfb7b1a1aae066572f8a6974c
+y 5169d1a379cbbdb4f5804c2304f1799a
+y_interface b06bfa6bfb7b1a1aae066572f8a6974c
 2d
 Prognostic Run
 xarray.Dataset {
@@ -827,158 +979,6 @@ variables:
 // global attributes:
 }
 tile d13eec5e981e3753340a95bfb0f23b80
-x 5169d1a379cbbdb4f5804c2304f1799a
-x_interface b06bfa6bfb7b1a1aae066572f8a6974c
-y 5169d1a379cbbdb4f5804c2304f1799a
-y_interface b06bfa6bfb7b1a1aae066572f8a6974c
-3d
-Prognostic Run
-xarray.Dataset {
-dimensions:
-	time = 8 ;
-	x = 48 ;
-	y = 48 ;
-	pressure = 35 ;
-	tile = 6 ;
-
-variables:
-	object time(time) ;
-	float32 x(x) ;
-	float32 y(y) ;
-	float64 pressure(pressure) ;
-	float32 air_temperature(tile, time, y, x, pressure) ;
-		air_temperature:cell_methods = time: point ;
-		air_temperature:long_name = temperature ;
-		air_temperature:units = K ;
-		air_temperature:valid_range = [100.0, 350.0] ;
-	float32 eastward_wind(tile, time, y, x, pressure) ;
-		eastward_wind:cell_methods = time: point ;
-		eastward_wind:long_name = zonal wind ;
-		eastward_wind:units = m/sec ;
-		eastward_wind:valid_range = [-330.0, 330.0] ;
-	float32 northward_wind(tile, time, y, x, pressure) ;
-		northward_wind:cell_methods = time: point ;
-		northward_wind:long_name = meridional wind ;
-		northward_wind:units = m/sec ;
-		northward_wind:valid_range = [-330.0, 330.0] ;
-	float32 pressure_thickness_of_atmospheric_layer(tile, time, y, x, pressure) ;
-		pressure_thickness_of_atmospheric_layer:cell_methods = time: point ;
-		pressure_thickness_of_atmospheric_layer:long_name = pressure thickness ;
-		pressure_thickness_of_atmospheric_layer:units = pa ;
-	float32 specific_humidity(tile, time, y, x, pressure) ;
-		specific_humidity:cell_methods = time: point ;
-		specific_humidity:long_name = specific humidity ;
-		specific_humidity:units = kg/kg ;
-	float32 vertical_wind(tile, time, y, x, pressure) ;
-		vertical_wind:cell_methods = time: point ;
-		vertical_wind:long_name = vertical wind ;
-		vertical_wind:units = m/sec ;
-		vertical_wind:valid_range = [-100.0, 100.0] ;
-
-// global attributes:
-}
-time 44d78cb4434b78372bc6a086c7996da9
-x 87435a5529a9d300a5c1ab22f66729c6
-y 87435a5529a9d300a5c1ab22f66729c6
-pressure 7d360c07c293d39949ef3ee05d70c2dc
-Verification
-xarray.Dataset {
-dimensions:
-	time = 8 ;
-	x = 48 ;
-	y = 48 ;
-	pressure = 35 ;
-	tile = 6 ;
-
-variables:
-	object time(time) ;
-	float32 x(x) ;
-	float32 y(y) ;
-	float64 pressure(pressure) ;
-	float32 air_temperature(tile, time, y, x, pressure) ;
-		air_temperature:cell_methods = time: point ;
-		air_temperature:long_name = temperature ;
-		air_temperature:units = K ;
-		air_temperature:valid_range = [100.0, 350.0] ;
-	float32 eastward_wind(tile, time, y, x, pressure) ;
-		eastward_wind:cell_methods = time: point ;
-		eastward_wind:long_name = zonal wind ;
-		eastward_wind:units = m/sec ;
-		eastward_wind:valid_range = [-330.0, 330.0] ;
-	float32 northward_wind(tile, time, y, x, pressure) ;
-		northward_wind:cell_methods = time: point ;
-		northward_wind:long_name = meridional wind ;
-		northward_wind:units = m/sec ;
-		northward_wind:valid_range = [-330.0, 330.0] ;
-	float32 pressure_thickness_of_atmospheric_layer(tile, time, y, x, pressure) ;
-		pressure_thickness_of_atmospheric_layer:cell_methods = time: point ;
-		pressure_thickness_of_atmospheric_layer:long_name = pressure thickness ;
-		pressure_thickness_of_atmospheric_layer:units = pa ;
-	float32 specific_humidity(tile, time, y, x, pressure) ;
-		specific_humidity:cell_methods = time: point ;
-		specific_humidity:long_name = specific humidity ;
-		specific_humidity:units = kg/kg ;
-	float32 vertical_wind(tile, time, y, x, pressure) ;
-		vertical_wind:cell_methods = time: point ;
-		vertical_wind:long_name = vertical wind ;
-		vertical_wind:units = m/sec ;
-		vertical_wind:valid_range = [-100.0, 100.0] ;
-
-// global attributes:
-}
-time 44d78cb4434b78372bc6a086c7996da9
-x 87435a5529a9d300a5c1ab22f66729c6
-y 87435a5529a9d300a5c1ab22f66729c6
-pressure 7d360c07c293d39949ef3ee05d70c2dc
-grid
-xarray.Dataset {
-dimensions:
-	tile = 6 ;
-	y = 48 ;
-	x = 48 ;
-	y_interface = 49 ;
-	x_interface = 49 ;
-
-variables:
-	float32 area(tile, y, x) ;
-		area:cell_methods = time: point ;
-		area:long_name = cell area ;
-		area:units = m**2 ;
-	float32 lat(tile, y, x) ;
-		lat:cell_methods = time: point ;
-		lat:long_name = latitude ;
-		lat:units = degrees_N ;
-	float32 latb(tile, y_interface, x_interface) ;
-		latb:cell_methods = time: point ;
-		latb:long_name = latitude ;
-		latb:units = degrees_N ;
-	float32 lon(tile, y, x) ;
-		lon:cell_methods = time: point ;
-		lon:long_name = longitude ;
-		lon:units = degrees_E ;
-	float32 lonb(tile, y_interface, x_interface) ;
-		lonb:cell_methods = time: point ;
-		lonb:long_name = longitude ;
-		lonb:units = degrees_E ;
-	float64 x(x) ;
-		x:cartesian_axis = X ;
-		x:long_name = T-cell longitude ;
-		x:units = degrees_E ;
-	float64 x_interface(x_interface) ;
-		x_interface:cartesian_axis = X ;
-		x_interface:long_name = cell corner longitude ;
-		x_interface:units = degrees_E ;
-	float64 y(y) ;
-		y:cartesian_axis = Y ;
-		y:long_name = T-cell latitude ;
-		y:units = degrees_N ;
-	float64 y_interface(y_interface) ;
-		y_interface:cartesian_axis = Y ;
-		y_interface:long_name = cell corner latitude ;
-		y_interface:units = degrees_N ;
-
-// global attributes:
-}
 x 5169d1a379cbbdb4f5804c2304f1799a
 x_interface b06bfa6bfb7b1a1aae066572f8a6974c
 y 5169d1a379cbbdb4f5804c2304f1799a

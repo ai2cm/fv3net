@@ -694,7 +694,7 @@ sources:
     metadata:
       grid: c48
       simulation: 1yr_pire_postspinup
-      category: dycore
+      category: 2d
       variables:
         - PRESsfc
         - PWAT

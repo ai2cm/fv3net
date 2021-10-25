@@ -7,7 +7,6 @@ from typing import List, Mapping, Tuple
 
 import fsspec
 import intake
-import numpy as np
 import pandas as pd
 import vcm
 import xarray as xr
@@ -206,15 +205,6 @@ def open_segmented_logs(url: str) -> vcm.fv3.logs.FV3Log:
     return vcm.fv3.logs.concatenate(logs)
 
 
-def _insert_nan_from_other(self: xr.Dataset, other: xr.Dataset):
-    # Not all verification datasets have 3D variables saved,
-    # if not available fill with NaNs
-    if len(self.data_vars) == 0:
-        for var in other:
-            self[var] = xr.full_like(other[var], np.nan)
-            self[var].attrs = other[var].attrs
-
-
 class Simulation(Protocol):
     @property
     def data_2d(self) -> xr.Dataset:
@@ -276,13 +266,12 @@ def evaluation_pair_to_input_data(
     # 3d data special handling
     data_3d = prognostic.data_3d
     verif_3d = verification.data_3d
-    _insert_nan_from_other(verif_3d, data_3d)
 
     return {
+        "3d": (data_3d, verif_3d, grid.drop(["tile", "land_sea_mask"]),),
         "2d": (
             derived_variables.physics_variables(prognostic.data_2d),
             derived_variables.physics_variables(verification.data_2d),
             grid,
         ),
-        "3d": (data_3d, verif_3d, grid.drop(["tile", "land_sea_mask"]),),
     }
