@@ -117,10 +117,7 @@ def _add_items_to_parser_arguments(
                 " 'flattened' dictionary to this function."
             )
         elif not isinstance(value, str) and isinstance(value, Sequence):
-            kwargs = dict(
-                nargs="*",
-                default="",
-            )
+            kwargs = dict(nargs="*", default="",)
         else:
             kwargs = dict(default=value)
 

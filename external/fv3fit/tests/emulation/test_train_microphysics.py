@@ -97,18 +97,12 @@ def test__add_items_to_parser_args_no_seq():
 
 @pytest.mark.parametrize(
     "args, expected_seq",
-    [
-        (["--seq"], []),
-        (["--seq", "1"], ["1"]),
-        (["--seq", "1", "2"], ["1", "2"]),
-    ],
-    ids=["empty", "single", "multiple"]
+    [(["--seq"], []), (["--seq", "1"], ["1"]), (["--seq", "1", "2"], ["1", "2"])],
+    ids=["empty", "single", "multiple"],
 )
 def test__add_items_to_parser_args_seq(args, expected_seq):
 
-    d = {
-        "seq": [1, 2, 3]
-    }
+    d = {"seq": [1, 2, 3]}
 
     parser = argparse.ArgumentParser()
     _add_items_to_parser_arguments(d, parser)

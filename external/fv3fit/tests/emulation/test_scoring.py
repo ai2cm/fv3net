@@ -92,7 +92,9 @@ def test_multi_out_score_rescale(target, prediction, monkeypatch):
     target *= 10
     prediction *= 10
 
-    scores, profiles = score_multi_output([target], [prediction], [fieldname], rescale=True)
+    scores, profiles = score_multi_output(
+        [target], [prediction], [fieldname], rescale=True
+    )
 
     for v in scores.values():
         assert v == 1.0

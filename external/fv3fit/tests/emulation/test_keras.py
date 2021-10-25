@@ -1,9 +1,14 @@
-
 import pytest
 import numpy as np
 import tensorflow as tf
 
-from fv3fit.emulation.keras import CustomLoss, NormalizedMSE, StandardLoss, save_model, score_model
+from fv3fit.emulation.keras import (
+    CustomLoss,
+    NormalizedMSE,
+    StandardLoss,
+    save_model,
+    score_model,
+)
 
 
 def _get_model(feature_dim, num_outputs):
@@ -72,8 +77,8 @@ def test_model_score_no_outputs():
 
 
 def test_NormalizeMSE():
-    sample = np.array([[25.], [75.]])
-    target = np.array([[50.], [50.]])
+    sample = np.array([[25.0], [75.0]])
+    target = np.array([[50.0], [50.0]])
 
     mse_func = NormalizedMSE("mean_std", sample)
     mse = mse_func(target, sample)
@@ -115,11 +120,8 @@ def test_CustomLoss():
 
 @pytest.mark.parametrize(
     "kwargs",
-    [
-        {},
-        dict(loss="mse", metrics=["mae"], weights=[2.0, 1.0])
-    ],
-    ids=["defaults", "specified"]
+    [{}, dict(loss="mse", metrics=["mae"], weights=[2.0, 1.0])],
+    ids=["defaults", "specified"],
 )
 def test_StandardLoss(kwargs):
 

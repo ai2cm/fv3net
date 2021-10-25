@@ -52,7 +52,9 @@ def score(target, prediction) -> ScoringOutput:
     return metrics, profiles
 
 
-def score_single_output(target: np.ndarray, prediction: np.ndarray, name: str, rescale: bool = True) -> ScoringOutput:
+def score_single_output(
+    target: np.ndarray, prediction: np.ndarray, name: str, rescale: bool = True
+) -> ScoringOutput:
     """
     Score a single named output from an emulation model. Returns
     a flat dictionary with score/profile keys preceding variable
@@ -82,7 +84,12 @@ def score_single_output(target: np.ndarray, prediction: np.ndarray, name: str, r
     return flat_score, flat_profile
 
 
-def score_multi_output(targets: Sequence[np.ndarray], predictions: Sequence[np.ndarray], names: Sequence[str], rescale: bool = True) -> ScoringOutput:
+def score_multi_output(
+    targets: Sequence[np.ndarray],
+    predictions: Sequence[np.ndarray],
+    names: Sequence[str],
+    rescale: bool = True,
+) -> ScoringOutput:
 
     """
     Score a multi-output model while retaining a flat dictionary

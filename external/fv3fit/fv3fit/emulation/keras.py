@@ -50,7 +50,7 @@ def score_model(
     Args:
         model: tensorflow emulation model
         inputs: model inputs
-        targets: corresponding target tensor(s) for inputs 
+        targets: corresponding target tensor(s) for inputs
     """
 
     prediction = model.predict(inputs)
@@ -73,6 +73,7 @@ class NormalizedMSE(tf.keras.losses.MeanSquaredError):
     Keras MSE that uses an emulation normalization class before
     scoring
     """
+
     def __init__(self, norm_cls_name, sample_data, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._normalize = NormalizeConfig(norm_cls_name, sample_data).initialize_layer()
@@ -123,6 +124,7 @@ class CustomLoss(LossConfig):
         weights: custom scaling for the loss variables applied in the
             overall keras "loss" term
     """
+
     normalization: str = "mean_std"
     loss_variables: List[str] = dataclasses.field(default_factory=list)
     metric_variables: List[str] = dataclasses.field(default_factory=list)

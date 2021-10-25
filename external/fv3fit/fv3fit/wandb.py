@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Union
+from typing import Any, Dict, Hashable, Mapping, Optional, Sequence
 import wandb
 import matplotlib.pyplot as plt
 import numpy as np
@@ -86,7 +86,11 @@ def _plot_profiles(target, prediction, name):
         plt.close()
 
 
-def log_profile_plots(targets: Sequence[np.ndarray], predictions: Sequence[np.ndarray], names: Sequence[str]):
+def log_profile_plots(
+    targets: Sequence[np.ndarray],
+    predictions: Sequence[np.ndarray],
+    names: Sequence[str],
+):
     """
     Handle profile plots for single- or multi-output models.
     """
