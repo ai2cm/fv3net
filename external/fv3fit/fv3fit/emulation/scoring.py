@@ -1,4 +1,5 @@
 import logging
+from typing import Mapping, Sequence, Tuple
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -15,20 +16,16 @@ SCALE_VALUES = {
     * (3600 * 24),  # g / kg / day
 }
 
-
-def scale(names, values):
-
-    scaled = []
-    for name, value in zip(names, values):
-        value *= SCALE_VALUES[name]
-        scaled.append(value)
-
-    return scaled
+ScoringOutput = Tuple[Mapping[str, float], Mapping[str, np.ndarray]]
 
 
-def score(target, prediction):
-
-    bias_all = target - prediction
+def score(target, prediction) -> ScoringOutput:
+    """
+    Calculate overall bias and MSE metrics as well as per-feature
+    (e.g., vertical profiles) of bias, MSE, and RMSE for the
+    prediction. Return each as a dict of scores.
+    """
+    bias_all = prediction - target
     se = bias_all ** 2
 
     mse = np.mean(se).astype(np.float)
@@ -55,7 +52,20 @@ def score(target, prediction):
     return metrics, profiles
 
 
-def score_single_output(target, prediction, name, rescale=True):
+def score_single_output(target: np.ndarray, prediction: np.ndarray, name: str, rescale: bool = True) -> ScoringOutput:
+    """
+    Score a single named output from an emulation model. Returns
+    a flat dictionary with score/profile keys preceding variable
+    name for Weights & Biases chart grouping.
+
+    Args:
+        target: truth values
+        prediction: emulated values
+        name: name of field being emulated to be added to the key
+            of each score
+        rescale: rescale outputs using factor in top-level
+            SCALE_VALUES mapping if available
+    """
 
     if rescale:
         try:
@@ -72,19 +82,28 @@ def score_single_output(target, prediction, name, rescale=True):
     return flat_score, flat_profile
 
 
-def score_multi_output(targets, predictions, names, rescale=True):
+def score_multi_output(targets: Sequence[np.ndarray], predictions: Sequence[np.ndarray], names: Sequence[str], rescale: bool = True) -> ScoringOutput:
+
+    """
+    Score a multi-output model while retaining a flat dictionary
+    structure of the output scores.
+
+    Args:
+        target: truth values for each model output
+        prediction: emulated values for each model output
+        names: names of fields being emulated, used for score key
+            uniqueness
+        rescale: rescale outputs using factor in top-level
+            SCALE_VALUES mapping if available
+    """
 
     all_scores = {}
     all_profiles = {}
 
     for target, pred, name in zip(targets, predictions, names):
 
-        scores, profiles = score_single_output(target, pred, name)
+        scores, profiles = score_single_output(target, pred, name, rescale=rescale)
         all_scores.update(scores)
         all_profiles.update(profiles)
-
-    # assumes all profiles are same size, added for dataframe index
-    profile = next(iter(all_profiles.values()))
-    all_profiles["level"] = np.arange(len(profile))
 
     return all_scores, all_profiles

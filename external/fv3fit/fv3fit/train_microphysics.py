@@ -4,13 +4,8 @@ import dataclasses
 import fsspec
 import json
 import os
-from fv3fit.wandb import (
-    WandBConfig,
-    log_to_table,
-    log_profile_plots,
-    store_model_artifact,
-)
 import yaml
+import numpy as np
 from typing import Any, Mapping, Optional, Sequence
 
 
@@ -21,6 +16,12 @@ from fv3fit.emulation.keras import (
     StandardLoss,
     save_model,
     score_model,
+)
+from fv3fit.wandb import (
+    WandBConfig,
+    log_to_table,
+    log_profile_plots,
+    store_model_artifact,
 )
 from fv3fit.emulation.models import MicrophysicsConfig, ArchitectureConfig
 from fv3fit.emulation.data import nc_dir_to_tf_dataset, TransformConfig
@@ -278,6 +279,12 @@ def main(config: TrainConfig, seed: int = 0):
         pred_sample = model.predict(X_test[:4])
         targ_sample = test_target[:4]
         log_profile_plots(targ_sample, pred_sample, model.output_names)
+
+        # add level for dataframe index, assumes equivalent feature dims
+        sample_profile = next(iter(train_profiles.values()))
+        train_profiles["level"] = np.arange(len(sample_profile))
+        test_profiles["level"] = np.arange(len(sample_profile))
+        
         log_to_table("score/train", train_scores, index=[config.wandb.job.name])
         log_to_table("score/test", test_scores, index=[config.wandb.job.name])
         log_to_table("profiles/train", train_profiles)
