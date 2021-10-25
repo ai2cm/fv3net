@@ -31,12 +31,13 @@ variables:
 // global attributes:
 }xarray.Dataset {
 dimensions:
-	tile = 6 ;
 	time = 3840 ;
+	tile = 6 ;
 	y = 48 ;
 	x = 48 ;
 
 variables:
+	object time(time) ;
 	float32 CPRATEsfc(tile, time, y, x) ;
 		CPRATEsfc:long_name = CPRATEsfc ;
 		CPRATEsfc:units = unspecified ;
@@ -133,7 +134,6 @@ variables:
 		int_dt3dt_sw:long_name = int_dt3dt_sw ;
 		int_dt3dt_sw:units = unspecified ;
 	int64 tile(tile) ;
-	object time(time) ;
 	float32 tsfc(tile, time, y, x) ;
 		tsfc:long_name = tsfc ;
 		tsfc:units = unspecified ;
@@ -158,16 +158,6 @@ variables:
 		int_v_dt_nudge:long_name = vertically integrated meridional wind tendency from nudging ;
 		int_v_dt_nudge:time_avg_info = average_T1,average_T2,average_DT ;
 		int_v_dt_nudge:units = kg/m/s**2 ;
-
-// global attributes:
-}xarray.Dataset {
-dimensions:
-	tile = 6 ;
-	time = 320 ;
-	y = 48 ;
-	x = 48 ;
-
-variables:
 	float32 PRESctp(tile, time, y, x) ;
 		PRESctp:long_name = PRESctp ;
 		PRESctp:units = unspecified ;
@@ -210,16 +200,12 @@ variables:
 	float32 VVEL5km(tile, time, y, x) ;
 		VVEL5km:long_name = VVEL5km ;
 		VVEL5km:units = unspecified ;
-	float32 x(x) ;
-	float32 y(y) ;
 	float32 h500(tile, time, y, x) ;
 		h500:long_name = h500 ;
 		h500:units = unspecified ;
 	float32 iw(tile, time, y, x) ;
 		iw:long_name = iw ;
 		iw:units = unspecified ;
-	int64 tile(tile) ;
-	object time(time) ;
 	float32 u200(tile, time, y, x) ;
 		u200:long_name = u200 ;
 		u200:units = unspecified ;

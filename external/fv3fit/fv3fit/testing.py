@@ -15,11 +15,12 @@ import contextlib
 @contextlib.contextmanager
 def numpy_print_precision(precision: int):
     original_precision = np.get_printoptions()["precision"]
+    original_suppress = np.get_printoptions()["suppress"]
     try:
-        np.set_printoptions(precision=precision)
+        np.set_printoptions(precision=precision, suppress=True)
         yield
     finally:
-        np.set_printoptions(precision=original_precision)
+        np.set_printoptions(precision=original_precision, suppress=original_suppress)
 
 
 @io.register("constant-output")

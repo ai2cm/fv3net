@@ -46,7 +46,7 @@ def run_segment(config: dict, rundir: str):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
             )
-            for c in iter(lambda: process.stdout.read(32), b""):
+            for c in iter(lambda: process.stdout.read(32), b""):  # type: ignore
                 sys.stdout.write(c.decode("utf-8"))
                 f.write(c.decode("utf-8"))
 
