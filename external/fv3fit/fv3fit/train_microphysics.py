@@ -6,7 +6,7 @@ import os
 import yaml
 import numpy as np
 from dataclasses import dataclass, field, asdict
-from typing import Any, Mapping, Optional, Sequence, Union
+from typing import Any, Dict, Mapping, MutableMapping, Optional, Sequence, Union
 
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
@@ -52,7 +52,7 @@ def _get_out_samples(model_config: MicrophysicsConfig, samples, sample_names):
     return direct_sample, residual_sample
 
 
-def load_config_yaml(path: str) -> Mapping[str, Any]:
+def load_config_yaml(path: str) -> Dict[str, Any]:
     """
     Load yaml from local/remote location
     """
@@ -88,7 +88,7 @@ def to_nested_dict(d: dict):
     a nested dictionary, e.g., {a.b: 1} -> {a: {b: 1}}
     """
 
-    new_config = {}
+    new_config: MutableMapping[str, Any] = {}
 
     for k, v in d.items():
         if "." in k:
@@ -154,7 +154,7 @@ class TrainConfig:
         return to_flat_dict(self.asdict())
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any]) -> "TrainConfig":
+    def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
         """Standard init from nested dictionary"""
         # casting necessary for 'from_args' which all come in as string
         # TODO: should this be just a json parsed??
@@ -162,7 +162,7 @@ class TrainConfig:
         return dacite.from_dict(cls, d, config=config)
 
     @classmethod
-    def from_flat_dict(cls, d: Mapping[str, Any]) -> "TrainConfig":
+    def from_flat_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
         """
         Init from a dictionary flattened in the style of wandb configs
         where all nested mapping keys are flattened to the top level
@@ -313,8 +313,8 @@ def main(config: TrainConfig, seed: int = 0):
         train_profiles["level"] = np.arange(len(sample_profile))
         test_profiles["level"] = np.arange(len(sample_profile))
 
-        log_to_table("score/train", train_scores, index=[config.wandb.job.name])
-        log_to_table("score/test", test_scores, index=[config.wandb.job.name])
+        log_to_table("score/train", train_scores, index=[config.wandb.jobname])
+        log_to_table("score/test", test_scores, index=[config.wandb.jobname])
         log_to_table("profiles/train", train_profiles)
         log_to_table("profiles/test", test_profiles)
 

@@ -1,9 +1,10 @@
 import dataclasses
-from typing import Any, Dict, Hashable, Mapping, Optional, Sequence
 import wandb
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence
+from wandb.apis.public import Run
 
 from .tensorboard import plot_to_image
 
@@ -39,17 +40,20 @@ class WandBConfig:
         """Grab a callback for logging during keras training"""
         return wandb.keras.WandbCallback(save_weights_only=False)
 
-    def init(self, config: Optional[Mapping[str, Any]] = None):
+    def init(self, config: Optional[Dict[str, Any]] = None):
         """Start logging specified by this config"""
         self.job = wandb.init(
             entity=self.entity,
             project=self.wandb_project,
-            job_type=self,
+            job_type=self.job_type,
             config=config,
         )
 
+        if isinstance(self.job, Run):
+            self.jobname: str = str(self.job.name)
 
-def log_to_table(log_key: str, data: Dict[str, Any], index: Optional[Hashable] = None):
+
+def log_to_table(log_key: str, data: Dict[str, Any], index: Optional[List[Any]] = None):
     """
     Log data to wandb table using a pandas dataframe
     

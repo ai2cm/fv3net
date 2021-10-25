@@ -1,5 +1,5 @@
 import logging
-from typing import Mapping, Sequence, Tuple
+from typing import MutableMapping, Sequence, Tuple, Dict
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ SCALE_VALUES = {
     * (3600 * 24),  # g / kg / day
 }
 
-ScoringOutput = Tuple[Mapping[str, float], Mapping[str, np.ndarray]]
+ScoringOutput = Tuple[Dict[str, float], Dict[str, np.ndarray]]
 
 
 def score(target, prediction) -> ScoringOutput:
@@ -104,8 +104,8 @@ def score_multi_output(
             SCALE_VALUES mapping if available
     """
 
-    all_scores = {}
-    all_profiles = {}
+    all_scores: MutableMapping[str, float] = {}
+    all_profiles: MutableMapping[str, np.ndarray] = {}
 
     for target, pred, name in zip(targets, predictions, names):
 

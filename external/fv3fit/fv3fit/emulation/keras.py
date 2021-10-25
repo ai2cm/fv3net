@@ -83,7 +83,7 @@ class NormalizedMSE(tf.keras.losses.MeanSquaredError):
 
 
 @dataclasses.dataclass
-class LossConfig(abc.ABC):
+class LossConfig(meta=abc.ABC):
 
     """
     Loss configuration base class for keras training
