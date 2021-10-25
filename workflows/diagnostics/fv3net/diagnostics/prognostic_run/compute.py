@@ -121,7 +121,7 @@ def weighted_mean(ds, weights, dims):
 
 
 def zonal_mean(
-    ds: xr.Dataset, latitude: xr.DataArray, bins=np.arange(-90, 91, 2)
+    ds: xr.Dataset, latitude: xr.DataArray, bins=np.arange(-90, 91, 2),
 ) -> xr.Dataset:
     with xr.set_options(keep_attrs=True):
         zm = ds.groupby_bins(latitude, bins=bins).mean().rename(lat_bins="latitude")
@@ -191,20 +191,25 @@ def zonal_means_2d(diag_arg: DiagArg):
 
 @registry_3d.register("pressure_level_zonal_time_mean")
 @transform.apply(transform.subset_variables, PRESSURE_INTERPOLATED_VARS)
-@transform.apply(transform.insert_absent_3d_output_placeholder)
+@transform.apply(transform.skip_if_3d_output_absent)
 @transform.apply(transform.resample_time, "3H")
 def zonal_means_3d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (3d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
-    with xr.set_options(keep_attrs=True):
-        zonal_means = zonal_mean(prognostic, grid.lat)
-        return time_mean(zonal_means)
+    zonal_means = xr.Dataset()
+    for var in prognostic.data_vars:
+        logger.info(f"Computing zonal+time means (3d) for {var}")
+        with xr.set_options(keep_attrs=True):
+            zm = zonal_mean(prognostic[[var]], grid.lat)
+            zm_time_mean = time_mean(zm)[var].load()
+            zonal_means[var] = zm_time_mean
+    return zonal_means
 
 
 @registry_3d.register("pressure_level_zonal_bias")
 @transform.apply(transform.subset_variables, PRESSURE_INTERPOLATED_VARS)
-@transform.apply(transform.insert_absent_3d_output_placeholder)
-@transform.apply(transform.resample_time, "3H")
+@transform.apply(transform.skip_if_3d_output_absent)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
 def zonal_bias_3d(diag_arg: DiagArg):
     logger.info("Preparing zonal mean bias (3d)")
     prognostic, verification, grid = (
@@ -212,9 +217,15 @@ def zonal_bias_3d(diag_arg: DiagArg):
         diag_arg.verification,
         diag_arg.grid,
     )
-    with xr.set_options(keep_attrs=True):
-        zonal_mean_bias = zonal_mean(bias(verification, prognostic), grid.lat)
-        return time_mean(zonal_mean_bias)
+    zonal_means = xr.Dataset()
+    common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
+    for var in common_vars:
+        logger.info(f"Computing zonal+time mean biases (3d) for {var}")
+        with xr.set_options(keep_attrs=True):
+            zm_bias = zonal_mean(bias(verification[[var]], prognostic[[var]]), grid.lat)
+            zm_bias_time_mean = time_mean(zm_bias)[var].load()
+            zonal_means[var] = zm_bias_time_mean
+    return zonal_means
 
 
 @registry_2d.register("zonal_bias")
@@ -227,8 +238,15 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
         diag_arg.grid,
     )
     logger.info("Preparing zonal+time mean biases (2d)")
-    zonal_mean_bias = zonal_mean(bias(verification, prognostic), grid.lat)
-    return time_mean(zonal_mean_bias)
+    common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
+    zonal_means = xr.Dataset()
+    for var in common_vars:
+        logger.info("Computing zonal+time mean biases (2d)")
+        zonal_mean_bias = zonal_mean(
+            bias(verification[[var]], prognostic[[var]]), grid.lat
+        )
+        zonal_means[var] = time_mean(zonal_mean_bias)[var].load()
+    return zonal_means
 
 
 @registry_2d.register("zonal_mean_value")
@@ -238,7 +256,12 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
 def zonal_mean_hovmoller(diag_arg: DiagArg):
     logger.info(f"Preparing zonal mean values (2d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
-    return zonal_mean(prognostic, grid.lat)
+    zonal_means = xr.Dataset()
+    for var in prognostic.data_vars:
+        logger.info(f"Computing zonal mean (2d) over time for {var}")
+        with xr.set_options(keep_attrs=True):
+            zonal_means[var] = zonal_mean(prognostic[[var]], grid.lat)[var].load()
+    return zonal_means
 
 
 @registry_2d.register("zonal_mean_bias")
@@ -246,13 +269,22 @@ def zonal_mean_hovmoller(diag_arg: DiagArg):
 @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
 @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_VARS)
 def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
+
     logger.info(f"Preparing zonal mean biases (2d)")
     prognostic, verification, grid = (
         diag_arg.prediction,
         diag_arg.verification,
         diag_arg.grid,
     )
-    return zonal_mean(bias(verification, prognostic), grid.lat)
+    common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
+    zonal_means = xr.Dataset()
+    for var in common_vars:
+        logger.info(f"Computing zonal mean biases (2d) over time for {var}")
+        with xr.set_options(keep_attrs=True):
+            zonal_means[var] = zonal_mean(
+                bias(verification[[var]], prognostic[[var]]), grid.lat
+            )[var].load()
+    return zonal_means
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:

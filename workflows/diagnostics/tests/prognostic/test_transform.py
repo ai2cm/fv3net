@@ -15,10 +15,10 @@ TRANSFORM_PARAMS = {
     "mask_to_sfc_type": (["sea"], {}),
     "subset_variables": ([("temperature")], {}),
     "mask_area": (["sea"], {}),
-    "insert_absent_3d_output_placeholder": ([], {}),
     "select_2d_variables": ([], {}),
     "select_3d_variables": ([], {}),
     "regrid_zdim_to_pressure_levels": ([], {}),
+    "skip_if_3d_output_absent": ([], {}),
 }
 
 
