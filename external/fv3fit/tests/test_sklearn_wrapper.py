@@ -21,7 +21,7 @@ def test_flatten():
     a = xr.DataArray(x, dims=dims)
     ds = xr.Dataset({"a": a, "b": a})
 
-    ans = pack(ds, sample_dim)[0]
+    ans = pack(ds, [sample_dim])[0]
     assert ans.shape == (nz, 2 * nx * ny)
 
 
@@ -36,7 +36,7 @@ def test_flatten_1d_input():
     a = xr.DataArray(x, dims=dims)
     ds = xr.Dataset({"a": a, "b": a.isel(x=0, y=0)})
 
-    ans = pack(ds, sample_dim)[0]
+    ans = pack(ds, [sample_dim])[0]
     assert ans.shape == (nz, nx * ny + 1)
 
 
@@ -46,8 +46,8 @@ def test_flatten_same_order():
 
     ds = xr.Dataset({"a": x, "b": x.T})
     sample_dim = "sample"
-    a = pack(ds[["a"]], sample_dim)[0]
-    b = pack(ds[["b"]], sample_dim)[0]
+    a = pack(ds[["a"]], [sample_dim])[0]
+    b = pack(ds[["b"]], [sample_dim])[0]
 
     np.testing.assert_allclose(a, b)
 
