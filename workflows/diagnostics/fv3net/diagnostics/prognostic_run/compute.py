@@ -203,7 +203,6 @@ def zonal_means_3d(diag_arg: DiagArg):
             zm = zonal_mean(prognostic[[var]], grid.lat)
             zm_time_mean = time_mean(zm)[var].load()
             zonal_means[var] = zm_time_mean
-            del zm_time_mean, zm
     return zonal_means
 
 
@@ -226,7 +225,6 @@ def zonal_bias_3d(diag_arg: DiagArg):
             zm_bias = zonal_mean(bias(verification[[var]], prognostic[[var]]), grid.lat)
             zm_bias_time_mean = time_mean(zm_bias)[var].load()
             zonal_means[var] = zm_bias_time_mean
-            del zm_bias_time_mean, zm_bias
     return zonal_means
 
 
