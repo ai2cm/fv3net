@@ -41,6 +41,17 @@ def score_model(
     inputs: Union[tf.Tensor, Tuple[tf.Tensor]],
     targets: Union[tf.Tensor, Sequence[tf.Tensor]],
 ):
+    """
+    Score an emulation model with single or multiple
+    output tensors.  Created to handle difference between
+    single-out and multiple-out models producing a tensor
+    vs. a list
+
+    Args:
+        model: tensorflow emulation model
+        inputs: model inputs
+        targets: corresponding target tensor(s) for inputs 
+    """
 
     prediction = model.predict(inputs)
 
@@ -58,6 +69,10 @@ def score_model(
 
 
 class NormalizedMSE(tf.keras.losses.MeanSquaredError):
+    """
+    Keras MSE that uses an emulation normalization class before
+    scoring
+    """
     def __init__(self, norm_cls_name, sample_data, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._normalize = NormalizeConfig(norm_cls_name, sample_data).initialize_layer()
@@ -68,6 +83,14 @@ class NormalizedMSE(tf.keras.losses.MeanSquaredError):
 
 @dataclasses.dataclass
 class LossConfig(abc.ABC):
+
+    """
+    Loss configuration base class for keras training
+
+    Args:
+        optimizer: configuration for the optimizer to
+            compile with the model
+    """
 
     optimizer: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")
@@ -86,13 +109,38 @@ class LossConfig(abc.ABC):
 
 @dataclasses.dataclass
 class CustomLoss(LossConfig):
-    normalization = "mean_std"
+    """
+    Use custom custom normalized MSE-based losses for specified
+    variables
+
+    Args:
+        optimizer: configuration for the optimizer to
+            compile with the model
+        normalization: the normalization type (see normalization.py) to
+            use for the MSE
+        loss_variables: variable names to include in the MSE loss dict
+        metric_variables: variable names to include in the metrics dict
+        weights: custom scaling for the loss variables applied in the
+            overall keras "loss" term
+    """
+    normalization: str = "mean_std"
     loss_variables: List[str] = dataclasses.field(default_factory=list)
     metric_variables: List[str] = dataclasses.field(default_factory=list)
     weights: Mapping[str, float] = dataclasses.field(default_factory=dict)
     _fitted: bool = dataclasses.field(init=False, default=False)
 
     def prepare(self, output_names: List[str], output_samples: List[tf.Tensor]):
+        """
+        Prepare the normalized losses for each variable by creating a
+        fitted NormalizedMSE object and place them into the respective
+        loss (+ weights) or metrics group
+
+        Args:
+            output_names: names of each output the model produces
+            output_samples: sample tensors for each output to fit
+                the normalizing layer
+             
+        """
         losses = {}
         metrics = {}
         weights = {}
@@ -124,7 +172,7 @@ class CustomLoss(LossConfig):
         model.compile(
             loss=self._loss,
             metrics=self._metrics,
-            weights=self._weights,
+            loss_weights=self._weights,
             optimizer=self.optimizer.instance,
         )
 
@@ -148,6 +196,6 @@ class StandardLoss(LossConfig):
         model.compile(
             loss=self.loss,
             metrics=self.metrics,
-            weights=self.weights,
+            loss_weights=self.weights,
             optimizer=self.optimizer.instance,
         )
