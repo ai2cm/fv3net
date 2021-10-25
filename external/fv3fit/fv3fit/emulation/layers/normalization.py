@@ -4,10 +4,6 @@ from typing import Optional
 import tensorflow as tf
 
 
-MAX_STD = "max_std"
-MEAN_STD = "mean_std"
-
-
 def standard_deviation_all_features(tensor):
     """Commpute standard deviation across all features
 
@@ -175,12 +171,22 @@ class MeanFeatureStdNormLayer(MaxFeatureStdNormLayer, FeatureMeanStd):
 
 @dataclasses.dataclass
 class NormalizeConfig:
+    """
+    Initialize a normalizing layer
+
+    Args:
+        class_name: key for layer class passed to `get_norm_class`
+        sample_data: sample tensor used to fit the normalizing layer
+        layer_name: name for instantiated layer. must be unique if combining
+            with other layers into a model
+    """
 
     class_name: str
     sample_data: tf.Tensor
     layer_name: Optional[str] = None
 
     def initialize_layer(self):
+        """Get initialized NormLayer"""
         cls = get_norm_class(self.class_name)
         layer = cls(name=self.layer_name)
         layer.fit(self.sample_data)
@@ -190,17 +196,31 @@ class NormalizeConfig:
 
 @dataclasses.dataclass
 class DenormalizeConfig:
+    """
+    Initialize a denormalizing layer
+
+    Args:
+        class_name: key for layer class passed to `get_denorm_class`
+        sample_data: sample tensor used to fit the denormalizing layer
+        layer_name: name for instantiated layer. must be unique if combining
+            with other layers into a model
+    """
 
     class_name: str
-    layer_name: str
     sample_data: tf.Tensor
+    layer_name: Optional[str] = None
 
     def initialize_layer(self):
+        """Get initialized NormLayer"""
         cls = get_denorm_class(self.class_name)
-        layer = cls(self.layer_name)
+        layer = cls(name=self.layer_name)
         layer.fit(self.sample_data)
 
         return layer
+
+
+MAX_STD = "max_std"
+MEAN_STD = "mean_std"
 
 
 def get_norm_class(key):
