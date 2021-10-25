@@ -15,7 +15,6 @@ from fv3fit.emulation.data import nc_dir_to_tf_dataset, TransformConfig
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.keras import (
     CustomLoss,
-    LossConfig,
     StandardLoss,
     save_model,
     score_model,
@@ -124,10 +123,7 @@ def _add_items_to_parser_arguments(
             )
         elif not isinstance(value, str) and isinstance(value, Sequence):
             vtype = type(value)
-            kwargs = dict(
-                nargs="*",
-                default=vtype(value),
-            )
+            kwargs = dict(nargs="*", default=vtype(value),)
         else:
             kwargs = dict(default=value)
 
@@ -217,7 +213,7 @@ class TrainConfig:
             "--config-path",
             required=True,
             help="Path to training config yaml. Use '--config-path default'"
-                " to run with a default configuration."
+            " to run with a default configuration.",
         )
 
         path_arg, unknown_args = parser.parse_known_args(args=args)
