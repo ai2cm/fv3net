@@ -326,6 +326,9 @@ def main(config: TrainConfig, seed: int = 0):
         with open(os.path.join(tmpdir, "history.json"), "w") as f:
             json.dump(history.params, f)
 
+        with open(os.path.join(tmpdir, "config.yaml"), "w") as f:
+            f.write(yaml.safe_dump(config.asdict()))
+
         local_model_path = save_model(model, tmpdir)
 
         if config.wandb:
