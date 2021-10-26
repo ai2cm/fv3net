@@ -4,7 +4,7 @@ import yaml
 import logging
 import sys
 from datetime import datetime, timedelta
-from typing import Any, Mapping, Sequence, Optional, Union, List
+from typing import Any, Mapping, Sequence, Optional, Union
 
 import dacite
 
@@ -74,7 +74,6 @@ class HighLevelConfig(UserConfig, FV3Config):
     Attributes:
         base_version: the default physics config
         initial_conditions: Specification for the initial conditions
-        fortran_diagnostics: list of Fortran diagnostic file configurations
 
     See :py:class:`runtime.config.UserConfig` and :py:class:`FV3Config` for
     documentation on other allowed attributes
@@ -83,9 +82,6 @@ class HighLevelConfig(UserConfig, FV3Config):
 
     base_version: str = "v0.5"
     initial_conditions: Union[InitialCondition, Any] = ""
-    fortran_diagnostics: List[FortranFileConfig] = dataclasses.field(
-        default_factory=list
-    )
 
     def _initial_condition_overlay(self):
         return (

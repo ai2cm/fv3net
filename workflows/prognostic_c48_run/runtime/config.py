@@ -7,6 +7,7 @@ import dacite
 
 from runtime.diagnostics.manager import (
     DiagnosticFileConfig,
+    FortranFileConfig,
     get_chunks,
 )
 from runtime.steppers.nudging import NudgingConfig
@@ -45,6 +46,9 @@ class UserConfig:
         nudging: nudge2fine configuration. Cannot be used if any scikit_learn model
             urls are specified.
         tendency_prescriber: configuration for overriding physics tendencies.
+        fortran_diagnostics: List[FortranFileConfig] = dataclasses.field(
+            default_factory=list
+    )
     """
 
     diagnostics: List[DiagnosticFileConfig] = dataclasses.field(default_factory=list)
@@ -55,6 +59,9 @@ class UserConfig:
     online_emulator: Optional[
         Union[runtime.transformers.emulator.Config, runtime.transformers.fv3fit.Config]
     ] = None
+    fortran_diagnostics: List[FortranFileConfig] = dataclasses.field(
+        default_factory=list
+    )
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:
