@@ -1,5 +1,5 @@
 import logging
-from typing import MutableMapping, Sequence, Tuple, Dict
+from typing import Sequence, Tuple, Dict
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -104,8 +104,8 @@ def score_multi_output(
             SCALE_VALUES mapping if available
     """
 
-    all_scores: MutableMapping[str, float] = {}
-    all_profiles: MutableMapping[str, np.ndarray] = {}
+    all_scores: Dict[str, float] = {}
+    all_profiles: Dict[str, np.ndarray] = {}
 
     for target, pred, name in zip(targets, predictions, names):
 

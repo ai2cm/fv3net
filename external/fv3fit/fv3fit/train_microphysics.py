@@ -1,4 +1,5 @@
 import argparse
+import copy
 import dacite
 import fsspec
 import json
@@ -122,8 +123,7 @@ def _add_items_to_parser_arguments(
                 " 'flattened' dictionary to this function."
             )
         elif not isinstance(value, str) and isinstance(value, Sequence):
-            vtype = type(value)
-            kwargs = dict(nargs="*", default=vtype(value),)
+            kwargs = dict(nargs="*", default=copy.copy(value),)
         else:
             kwargs = dict(default=value)
 
@@ -139,7 +139,8 @@ class TrainConfig:
     model: MicrophysicsConfig = field(default_factory=MicrophysicsConfig)
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
-    wandb: Optional[WandBConfig] = None
+    use_wandb: bool = True
+    wandb: WandBConfig = field(default_factory=WandBConfig)
     loss: Union[StandardLoss, CustomLoss] = field(default_factory=StandardLoss)
     epochs: int = 1
     batch_size: int = 128
@@ -264,7 +265,7 @@ def main(config: TrainConfig, seed: int = 0):
     set_random_seed(seed)
 
     callbacks = []
-    if config.wandb:
+    if config.use_wandb:
         config.wandb.init(config=config.asdict())
         callbacks.append(config.wandb.get_callback())
 
@@ -303,18 +304,17 @@ def main(config: TrainConfig, seed: int = 0):
     train_scores, train_profiles = score_model(model, X_train, train_target,)
     test_scores, test_profiles = score_model(model, X_test, test_target)
 
-    if config.wandb:
-        pred_sample = model.predict(X_test[:4])
-        targ_sample = test_target[:4]
-        log_profile_plots(targ_sample, pred_sample, model.output_names)
+    if config.use_wandb:
+        pred_sample = model.predict(X_test)
+        log_profile_plots(test_target, pred_sample, model.output_names)
 
         # add level for dataframe index, assumes equivalent feature dims
         sample_profile = next(iter(train_profiles.values()))
         train_profiles["level"] = np.arange(len(sample_profile))
         test_profiles["level"] = np.arange(len(sample_profile))
 
-        log_to_table("score/train", train_scores, index=[config.wandb.jobname])
-        log_to_table("score/test", test_scores, index=[config.wandb.jobname])
+        log_to_table("score/train", train_scores, index=[config.wandb.job.name])
+        log_to_table("score/test", test_scores, index=[config.wandb.job.name])
         log_to_table("profiles/train", train_profiles)
         log_to_table("profiles/test", test_profiles)
 

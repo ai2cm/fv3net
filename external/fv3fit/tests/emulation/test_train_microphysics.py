@@ -301,7 +301,7 @@ def test_training_entry_integration(tmp_path):
 
     config_dict = get_default_config().asdict()
     config_dict["out_url"] = str(tmp_path)
-    config_dict["wandb"] = None
+    config_dict["use_wandb"] = False
     config_dict["nfiles"] = 4
     config_dict["nfiles_valid"] = 4
     config_dict["epochs"] = 1

@@ -49,9 +49,6 @@ class WandBConfig:
             config=config,
         )
 
-        if isinstance(self.job, Run):
-            self.jobname: str = str(self.job.name)
-
 
 def log_to_table(log_key: str, data: Dict[str, Any], index: Optional[List[Any]] = None):
     """
@@ -94,16 +91,17 @@ def log_profile_plots(
     targets: Sequence[np.ndarray],
     predictions: Sequence[np.ndarray],
     names: Sequence[str],
+    nsamples: int = 4,
 ):
     """
     Handle profile plots for single- or multi-output models.
     """
 
     if len(names) == 1:
-        _plot_profiles(targets, predictions, names[0])
+        _plot_profiles(targets[:nsamples], predictions[:nsamples], names[0])
     else:
         for t, p, name in zip(targets, predictions, names):
-            _plot_profiles(t, p, name)
+            _plot_profiles(t[:nsamples], p[:nsamples], name)
 
 
 def store_model_artifact(path: str, name: str):
