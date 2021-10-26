@@ -5,7 +5,7 @@ from fv3fit._shared.packer import (
     pack,
     unpack,
     _unique_dim_name,
-    _count_features,
+    count_features,
 )
 from fv3fit.keras._models.packer import get_unpack_layer, Unpack
 import pytest
@@ -178,13 +178,13 @@ def test__unique_dim_name():
 
 
 def test_sklearn_pack(dataset: xr.Dataset, array: np.ndarray):
-    packed_array, _ = pack(dataset, "sample")
+    packed_array, _ = pack(dataset, ["sample"])
     np.testing.assert_almost_equal(packed_array, array)
 
 
 def test_sklearn_unpack(dataset: xr.Dataset):
-    packed_array, feature_index = pack(dataset, "sample")
-    unpacked_dataset = unpack(packed_array, "sample", feature_index)
+    packed_array, feature_index = pack(dataset, ["sample"])
+    unpacked_dataset = unpack(packed_array, ["sample"], feature_index)
     xr.testing.assert_allclose(unpacked_dataset, dataset)
 
 
@@ -202,7 +202,7 @@ def test_count_features():
     index = ds.to_stacked_array(
         "feature", [SAMPLE_DIM_NAME], variable_dim="var"
     ).indexes["feature"]
-    out = _count_features(index, variable_dim="var")
+    out = count_features(index, variable_dim="var")
     assert len(out) == len(names)
     for name in names:
         assert name in out

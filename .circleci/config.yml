@@ -116,19 +116,12 @@ jobs:
             echo "export GCLOUD_SERVICE_KEY=\$(echo \$ENCODED_GOOGLE_CREDENTIALS | base64 --decode)" >> $BASH_ENV
       - gcp-gcr/gcr-auth
       - run: sudo -E .circleci/build_and_push_image.sh
-  mypy:
-    docker:
-      - image: circleci/python:3.7
-    steps:
-      - checkout
-      - run: sudo pip install -c constraints.txt mypy==0.770 xarray
-      - run: make typecheck
   lint:
     docker:
       - image: circleci/python:3.7
     steps:
       - checkout
-      - run: sudo pip install -c constraints.txt pre-commit
+      - run: sudo pip install -c constraints.txt pre-commit xarray
       - run: make lint
 
   integration_tests:
@@ -198,7 +191,6 @@ workflows:
   test_and_lint:
     jobs:
       - lint
-      - mypy
       - argo
       - pytest:
           name: pytest-<<matrix.kind>>

@@ -133,6 +133,7 @@ class DiagnosticFile:
         self._n = 0
         self._units: Dict[str, str] = {}
         self._sink = sink
+        self._last_time_flushed: cftime.DatetimeJulian = None
 
     def observe(
         self, time: cftime.DatetimeJulian, diagnostics: Mapping[str, xr.DataArray]
@@ -160,7 +161,10 @@ class DiagnosticFile:
                 self._running_total[key] += diagnostics[key]
 
     def flush(self):
-        if self._current_label is not None:
+        if (
+            self._current_label is not None
+            and self._last_time_flushed != self._current_label
+        ):
             average = {key: val / self._n for key, val in self._running_total.items()}
             for key in average:
                 average[key].attrs["units"] = self._units[key]
@@ -168,6 +172,7 @@ class DiagnosticFile:
                 key: average[key] for key in average if key in self.variables
             }
             self._sink.sink(self._current_label, data_to_sink)
+            self._last_time_flushed = self._current_label
 
     def __del__(self):
         self.flush()

@@ -64,7 +64,7 @@ def create(url: str, fv3config_path: str):
 @click.argument("url")
 def append(url: str):
     """Append a segment to a segmented run"""
-    append_segment_to_run_url(url)
+    sys.exit(append_segment_to_run_url(url))
 
 
 @cli.command("run-native")

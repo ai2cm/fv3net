@@ -186,7 +186,7 @@ setup-hooks:
 	pre-commit install
 
 typecheck:
-	./check_types.sh
+	pre-commit run --all-files mypy
 
 lint:
 	pre-commit run --all-files
