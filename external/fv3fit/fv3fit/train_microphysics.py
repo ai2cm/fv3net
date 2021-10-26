@@ -347,7 +347,7 @@ def main(config: TrainConfig, seed: int = 0):
 
         local_model_path = save_model(model, tmpdir)
 
-        if config.wandb:
+        if config.use_wandb:
             store_model_artifact(local_model_path, name=config.model.name)
 
 
