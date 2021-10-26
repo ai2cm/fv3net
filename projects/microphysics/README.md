@@ -11,7 +11,7 @@ WANDB_API_KEY=<wandb api key>
 EOF
 
 # login to google cloud
-gcloud auth login application-default login
+gcloud auth application-default login
 ```
 
 Pull docker image
