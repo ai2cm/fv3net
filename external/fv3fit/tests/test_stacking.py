@@ -7,6 +7,7 @@ from fv3fit._shared.stacking import (
     _get_chunk_indices,
     _check_empty,
     stack_non_vertical,
+    stack,
     _preserve_samples_per_batch,
     StackedBatches,
     SAMPLE_DIM_NAME,
@@ -134,3 +135,26 @@ def test__shuffled():
 def test__shuffled_dask():
     dataset = _stacked_dataset(SAMPLE_DIM_NAME).chunk()
     _shuffled(np.random.RandomState(1), dataset)
+
+
+def test_multiple_unstacked_dims():
+    na, nb, nc, nd = 2, 3, 4, 5
+    ds = xr.Dataset(
+        data_vars={
+            "var1": xr.DataArray(
+                np.zeros([na, nb, nc, nd]), dims=["a", "b", "c", "d"],
+            ),
+            "var2": xr.DataArray(np.zeros([na, nb, nc]), dims=["a", "b", "c"],),
+        }
+    )
+    unstacked_dims = ["c", "d"]
+    expected = xr.Dataset(
+        data_vars={
+            "var1": xr.DataArray(
+                np.zeros([na * nb, nc, nd]), dims=[SAMPLE_DIM_NAME, "c", "d"],
+            ),
+            "var2": xr.DataArray(np.zeros([na * nb, nc]), dims=[SAMPLE_DIM_NAME, "c"],),
+        }
+    )
+    result = stack(ds=ds, unstacked_dims=unstacked_dims)
+    xr.testing.assert_identical(result.drop(result.coords.keys()), expected)
