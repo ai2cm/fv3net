@@ -104,6 +104,20 @@ def to_nested_dict(d: dict):
     return new_config
 
 
+def _bool_from_str(value: str):
+    affirmatives = ["y", "yes", "true", "t"]
+    negatives = ["n", "no", "false", "f"]
+
+    if value.lower() in affirmatives:
+        return True
+    elif value.lower() in negatives:
+        return False
+    else:
+        raise ValueError(
+            f"Unrecognized value encountered in boolean conversion: {value}"
+        )
+
+
 def _add_items_to_parser_arguments(
     d: Mapping[str, Any], parser: argparse.ArgumentParser
 ):
@@ -124,6 +138,8 @@ def _add_items_to_parser_arguments(
             )
         elif not isinstance(value, str) and isinstance(value, Sequence):
             kwargs = dict(nargs="*", default=copy.copy(value),)
+        elif isinstance(value, bool):
+            kwargs = dict(type=_bool_from_str, default=value)
         else:
             kwargs = dict(default=value)
 

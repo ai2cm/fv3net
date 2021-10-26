@@ -100,6 +100,38 @@ def test__add_items_to_parser_args_no_seq():
     assert specified["string.nested"] == "there"
 
 
+def test__add_items_to_parser_args_mapping_fail():
+
+    d = {
+        "mapping": {}
+    }
+
+    parser = argparse.ArgumentParser()
+    with pytest.raises(ValueError):
+        _add_items_to_parser_arguments(d, parser)
+
+
+@pytest.mark.parametrize(
+    "args, expected",
+    [
+        (["--boolean", "True"], True),
+        (["--boolean", "true"], True),
+        (["--boolean", "false"], False),
+        ([], False),
+    ]
+)
+def test__add_items_to_parser_args_mapping_bools(args, expected):
+
+    d = {
+        "boolean": False
+    }
+
+    parser = argparse.ArgumentParser()
+    _add_items_to_parser_arguments(d, parser)
+
+    assert parser.parse_args(args).boolean == expected
+
+
 @pytest.mark.parametrize(
     "args, expected_seq",
     [
