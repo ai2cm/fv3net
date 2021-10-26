@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from typing import Any, Dict, List, Optional, Sequence
-from wandb.apis.public import Run
 
 from .tensorboard import plot_to_image
 
