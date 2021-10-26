@@ -18,7 +18,6 @@ import runtime.transformers.emulator
 import runtime.transformers.fv3fit
 
 FV3CONFIG_FILENAME = "fv3config.yml"
-
 FV3CONFIG_KEYS = {
     "namelist",
     "experiment_name",
@@ -39,6 +38,7 @@ class UserConfig:
 
     Attributes:
         diagnostics: list of diagnostic file configurations
+        fortran_diagnostics: list of Fortran diagnostic file configurations
         prephysics: optional configuration of computations prior to physics,
             specified by either a machine learning configuation or a prescriber
             configuration
@@ -46,12 +46,12 @@ class UserConfig:
         nudging: nudge2fine configuration. Cannot be used if any scikit_learn model
             urls are specified.
         tendency_prescriber: configuration for overriding physics tendencies.
-        fortran_diagnostics: List[FortranFileConfig] = dataclasses.field(
-            default_factory=list
-    )
     """
 
     diagnostics: List[DiagnosticFileConfig] = dataclasses.field(default_factory=list)
+    fortran_diagnostics: List[FortranFileConfig] = dataclasses.field(
+        default_factory=list
+    )
     prephysics: Optional[Union[PrescriberConfig, MachineLearningConfig]] = None
     scikit_learn: Optional[MachineLearningConfig] = None
     nudging: Optional[NudgingConfig] = None
@@ -59,9 +59,6 @@ class UserConfig:
     online_emulator: Optional[
         Union[runtime.transformers.emulator.Config, runtime.transformers.fv3fit.Config]
     ] = None
-    fortran_diagnostics: List[FortranFileConfig] = dataclasses.field(
-        default_factory=list
-    )
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:
