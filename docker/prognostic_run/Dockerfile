@@ -104,6 +104,9 @@ RUN pip3 install /fv3net/external/fv3gfs-wrapper
 COPY external/vcm /fv3net/external/vcm
 RUN pip3 install /fv3net/external/vcm
 
+COPY external/artifacts /fv3net/external/artifacts
+RUN pip3 install /fv3net/external/artifacts
+
 COPY external/loaders /fv3net/external/loaders
 RUN pip3 install /fv3net/external/loaders
 

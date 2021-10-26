@@ -14,18 +14,14 @@ For a segmented run "Runs" and "Segments" are the main entities. Runs have
 many segments and some global data stores.
 """
 import logging
-import os
 import sys
 
 import click
 import fv3config
 import fsspec
 
-import vcm
-
 from .run import run_segment
-from .append import append_segment_to_run_url
-from .validate import validate_chunks
+from . import api
 
 logger = logging.getLogger(__name__)
 
@@ -46,25 +42,16 @@ def cli():
 @click.argument("fv3config_path")
 def create(url: str, fv3config_path: str):
     """Initialize segmented run at URL given FV3CONFIG_PATH."""
-    logger.info(f"Setting up segmented run at {url}")
-    fs = vcm.cloud.get_fs(url)
-    if fs.exists(url):
-        raise FileExistsError(
-            f"The given url '{url}' contains an object. Delete "
-            "everything under output url and resubmit."
-        )
-
     with fsspec.open(fv3config_path) as f:
         fv3config_dict = fv3config.load(f)
-    validate_chunks(fv3config_dict)
-    vcm.cloud.copy(fv3config_path, os.path.join(url, "fv3config.yml"))
+    api.create(url, fv3config_dict)
 
 
 @cli.command()
 @click.argument("url")
 def append(url: str):
     """Append a segment to a segmented run"""
-    sys.exit(append_segment_to_run_url(url))
+    sys.exit(api.append(url))
 
 
 @cli.command("run-native")
