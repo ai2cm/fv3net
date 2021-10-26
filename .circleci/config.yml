@@ -186,12 +186,46 @@ jobs:
       - slack/status:
           fail_only: true
           mentions: "channel"
+
+  test_firewall:
+    docker:
+      - image: google/cloud-sdk
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+      CLUSTER_NAME: ml-cluster-dev
+    steps:
+      - checkout
+      - run:
+          name: Setup firewall rule
+          command: |
+            ci_public_ip=$(wget -qO- http://ipecho.net/plain | xargs echo)
+            echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
+            gcloud config set project $K8S_PROXY_PROJECT
+            gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+            proxy_ip=$(gcloud compute instances list --filter="labels.role=$K8S_PROXY_TARGET_TAG" \
+                --filter="labels.cluster=$CLUSTER_NAME" \
+                --format="value(networkInterfaces.accessConfigs[0].natIP)")
+            firewall_name="ci-to-gke-proxy-"$(openssl rand -hex 5)
+            echo 'export firewall_name='$firewall_name >> $BASH_ENV
+            echo 'export proxy_ip='$proxy_ip >> $BASH_ENV
+            gcloud compute firewall-rules create $firewall_name \
+                --allow tcp:$K8S_PROXY_PORT \
+                --network $K8S_PROXY_NETWORK --direction IN \
+                --source-ranges $ci_public_ip
+      - run:
+          name: Firewall rule deletion
+          when: always
+          command: |
+            echo HELLO_THERE_FRODRE
+            echo $firewall_name
+            gcloud compute firewall-rules delete $firewall_name
 workflows:
   version: 2
   test_and_lint:
     jobs:
       - lint
       - argo
+      - test_firewall
       - pytest:
           name: pytest-<<matrix.kind>>
           matrix:
