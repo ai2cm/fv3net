@@ -6,6 +6,7 @@ diag_table:
 diagnostics: []
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+fortran_diagnostics: []
 gfs_analysis_data:
   copy_method: copy
   filename_pattern: '%Y%m%d_%HZ_T85LR.nc'

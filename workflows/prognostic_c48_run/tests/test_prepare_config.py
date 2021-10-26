@@ -72,5 +72,8 @@ def test_high_level_config_fortran_diagnostics():
         fortran_diagnostics=[FortranFileConfig(name="a", chunks={})]
     )
     dict_ = config.to_fv3config()
-    "fortran_diagnostics" not in dict_
+    # the chunk reading requires this to exist
+    assert dict_["fortran_diagnostics"][0] == dataclasses.asdict(
+        config.fortran_diagnostics[0]
+    )
     assert len(dict_["diag_table"].file_configs) == 1

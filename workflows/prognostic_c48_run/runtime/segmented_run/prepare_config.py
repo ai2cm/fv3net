@@ -110,6 +110,7 @@ class HighLevelConfig(UserConfig, FV3Config):
             nudging=self.nudging,
             tendency_prescriber=self.tendency_prescriber,
             online_emulator=self.online_emulator,
+            fortran_diagnostics=self.fortran_diagnostics,
         )
 
     def _physics_timestep(self) -> timedelta:

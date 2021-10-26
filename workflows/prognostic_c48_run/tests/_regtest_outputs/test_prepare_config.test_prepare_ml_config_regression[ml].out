@@ -6,6 +6,7 @@ diag_table:
 diagnostics: []
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+fortran_diagnostics: []
 initial_conditions:
 - copy_method: copy
   source_location: gs://ic-bucket/20160805.000000
