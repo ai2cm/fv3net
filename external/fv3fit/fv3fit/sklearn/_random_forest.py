@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Mapping
+from typing import Hashable, Mapping
 import logging
 import io
 import dacite
@@ -209,8 +209,8 @@ class SklearnWrapper(Predictor):
 
     def __init__(
         self,
-        input_variables: Iterable[str],
-        output_variables: Iterable[str],
+        input_variables: Iterable[Hashable],
+        output_variables: Iterable[Hashable],
         model: _RegressorEnsemble,
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
@@ -232,15 +232,16 @@ class SklearnWrapper(Predictor):
         self._input_variables = input_variables
         self._output_variables = output_variables
         self.packer_config = packer_config or PackerConfig({})
+        for name in self.packer_config.clip:
+            if name in self._output_variables:
+                raise NotImplementedError("Clipping for ML outputs is not implemented.")
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
     def _fit_batch(self, data: xr.Dataset):
         x, _ = pack(data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config)
-        y, self.output_features_ = pack(
-            data[self.output_variables], [SAMPLE_DIM_NAME], self.packer_config
-        )
+        y, self.output_features_ = pack(data[self.output_variables], [SAMPLE_DIM_NAME])
 
         if self.target_scaler is None:
             self.target_scaler = self._init_target_scaler(data)

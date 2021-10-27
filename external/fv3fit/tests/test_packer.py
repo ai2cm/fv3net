@@ -1,4 +1,4 @@
-from fv3fit._shared import ArrayPacker
+from fv3fit._shared import ArrayPacker, SliceConfig, PackerConfig
 from typing import Iterable
 from fv3fit._shared.packer import (
     unpack_matrix,
@@ -6,6 +6,7 @@ from fv3fit._shared.packer import (
     unpack,
     _unique_dim_name,
     count_features,
+    clip,
 )
 from fv3fit.keras._models.packer import get_unpack_layer, Unpack
 import pytest
@@ -186,6 +187,27 @@ def test_sklearn_unpack(dataset: xr.Dataset):
     packed_array, feature_index = pack(dataset, ["sample"])
     unpacked_dataset = unpack(packed_array, ["sample"], feature_index)
     xr.testing.assert_allclose(unpacked_dataset, dataset)
+
+
+def test_sklearn_pack_unpack_with_clipping(dataset: xr.Dataset):
+    name = list(dataset.data_vars)[0]
+    if FEATURE_DIM in dataset[name]:
+        pack_config = PackerConfig({name: {FEATURE_DIM: SliceConfig(3, None)}})
+        packed_array, feature_index = pack(dataset, SAMPLE_DIM, pack_config)
+        unpacked_dataset = unpack(packed_array, SAMPLE_DIM, feature_index)
+        expected_dataset = dataset.copy(deep=True)
+        expected_dataset[name] = expected_dataset[name].where(FEATURE_DIM >= 3, np.nan)
+        xr.testing.assert_allclose(unpacked_dataset, expected_dataset)
+
+
+def test_clip(dataset: xr.Dataset):
+    name = list(dataset.data_vars)[0]
+    if FEATURE_DIM in dataset[name]:
+        indices = {name: {FEATURE_DIM: SliceConfig(4, 8)}}
+        clipped_data = clip(dataset, indices)
+        expected_da = dataset[name].isel(indices[name])
+        assert not isinstance(clipped_data, xr.Dataset)
+        xr.test.assert_identical(clipped_data[name], expected_da)
 
 
 def test_count_features():
