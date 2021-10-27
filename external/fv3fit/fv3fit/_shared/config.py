@@ -177,20 +177,7 @@ def _add_items_to_parser_arguments(
             parser.add_argument(f"--{key}", default=value)
 
 
-def get_arg_updated_config_dict(args, flat_config_dict):
-
-    config = dict(**flat_config_dict)
-    parser = argparse.ArgumentParser()
-    _add_items_to_parser_arguments(config, parser)
-    updates = parser.parse_args(args)
-    updates = vars(updates)
-
-    config.update(updates)
-
-    return config
-
-
-def to_flat_dict(d: dict):
+def _to_flat_dict(d: dict):
     """
     Converts any nested dictionaries to a flat version with
     the nested keys joined with a '.', e.g., {a: {b: 1}} ->
@@ -200,7 +187,7 @@ def to_flat_dict(d: dict):
     new_flat = {}
     for k, v in d.items():
         if isinstance(v, dict):
-            sub_d = to_flat_dict(v)
+            sub_d = _to_flat_dict(v)
             for sk, sv in sub_d.items():
                 new_flat[".".join([k, sk])] = sv
         else:
@@ -228,6 +215,30 @@ def to_nested_dict(d: dict):
             new_config[k] = v
 
     return new_config
+
+
+def get_arg_updated_config_dict(args: Sequence[str], config_dict: Mapping[str, Any]):
+    """
+    Update a configuration dictionary with keyword arguments through an ArgParser.
+
+    Note: A current limitation of this update style is that we cannot provide
+        arbitrary arguments to the parser.  Therefore, value being updated should
+        either be a member of passed in configuration
+
+    Args:
+        args: a list of argument strings to parse
+        config_dict: the configuration to update
+    """
+
+    config = _to_flat_dict(config_dict)
+    parser = argparse.ArgumentParser()
+    _add_items_to_parser_arguments(config, parser)
+    updates = parser.parse_args(args)
+    updates = vars(updates)
+
+    config.update(updates)
+
+    return to_nested_dict(config)
 
 
 @dataclasses.dataclass

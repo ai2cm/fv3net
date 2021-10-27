@@ -7,7 +7,7 @@ import tempfile
 import yaml
 from fv3fit._shared.config import (
     to_nested_dict,
-    to_flat_dict,
+    _to_flat_dict,
     get_arg_updated_config_dict,
     _add_items_to_parser_arguments,
 )
@@ -103,7 +103,7 @@ def get_cfg_and_args_dicts():
 def test_to_flat_dict():
 
     config_d, expected = get_cfg_and_args_dicts()
-    result = to_flat_dict(config_d)
+    result = _to_flat_dict(config_d)
     assert result == expected
 
 
@@ -118,7 +118,7 @@ def test_flat_dict_round_trip():
 
     config_d, _ = get_cfg_and_args_dicts()
 
-    args_d = to_flat_dict(config_d)
+    args_d = _to_flat_dict(config_d)
     result = to_nested_dict(args_d)
 
     assert result == config_d
@@ -208,8 +208,8 @@ def test_get_updated_config_dict():
 
     defaults = {
         "epochs": 1,
-        "model.architecture.name": "linear",
-        "transform.input_variables": ["field"],
+        "model": {"architecture": {"name": "linear"}},
+        "transform": {"input_variables": ["field"]},
         "unchanged": "same",
     }
 
@@ -227,6 +227,6 @@ def test_get_updated_config_dict():
     updated = get_arg_updated_config_dict(arg_updates, defaults)
 
     assert updated["epochs"] == "4"
-    assert updated["model.architecture.name"] == "rnn"
-    assert updated["transform.input_variables"] == ["A", "B", "C"]
+    assert updated["model"]["architecture"]["name"] == "rnn"
+    assert updated["transform"]["input_variables"] == ["A", "B", "C"]
     assert updated["unchanged"] == "same"

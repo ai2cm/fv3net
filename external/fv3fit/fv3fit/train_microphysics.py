@@ -12,7 +12,6 @@ from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
 from fv3fit._shared.config import (
     OptimizerConfig,
-    to_flat_dict,
     to_nested_dict,
     get_arg_updated_config_dict,
 )
@@ -86,12 +85,6 @@ class TrainConfig:
     verbose: int = 2
     shuffle_buffer_size: Optional[int] = 100_000
 
-    def _asdict(self):
-        return asdict(self)
-
-    def _as_flat_dict(self):
-        return to_flat_dict(self._asdict())
-
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
         """Standard init from nested dictionary"""
@@ -144,7 +137,7 @@ class TrainConfig:
 
                 Note: arguments should be in the flat style used by wandb where all
                 nested mappings are at the top level with '.' joined keys. E.g.,
-                "--model.architecure.name rnn"
+                "--model.architecture.name rnn"
         """
 
         parser = argparse.ArgumentParser()
@@ -163,8 +156,8 @@ class TrainConfig:
             config = cls.from_yaml_path(path_arg.config_path)
 
         if unknown_args:
-            updated = get_arg_updated_config_dict(unknown_args, config._as_flat_dict())
-            config = cls.from_flat_dict(updated)
+            updated = get_arg_updated_config_dict(unknown_args, asdict(config))
+            config = cls.from_dict(updated)
 
         return config
 
