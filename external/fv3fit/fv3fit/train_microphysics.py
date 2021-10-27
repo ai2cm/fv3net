@@ -1,5 +1,4 @@
 import argparse
-import copy
 import dacite
 import fsspec
 import json
@@ -7,11 +6,16 @@ import os
 import yaml
 import numpy as np
 from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, Mapping, MutableMapping, Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
-from fv3fit._shared.config import OptimizerConfig, to_flat_dict, to_nested_dict, get_arg_updated_config_dict
+from fv3fit._shared.config import (
+    OptimizerConfig,
+    to_flat_dict,
+    to_nested_dict,
+    get_arg_updated_config_dict,
+)
 from fv3fit.emulation.data import nc_dir_to_tf_dataset, TransformConfig
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.keras import (
@@ -62,7 +66,6 @@ def load_config_yaml(path: str) -> Dict[str, Any]:
         d = yaml.safe_load(f)
 
     return d
-
 
 
 @dataclass

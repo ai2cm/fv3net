@@ -176,8 +176,6 @@ def _add_items_to_parser_arguments(
         else:
             parser.add_argument(f"--{key}", default=value)
 
-        
-
 
 def get_arg_updated_config_dict(args, flat_config_dict):
 

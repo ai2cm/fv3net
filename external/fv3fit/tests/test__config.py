@@ -5,7 +5,12 @@ from fv3fit import DenseHyperparameters, OptimizerConfig, TrainingConfig
 import os
 import tempfile
 import yaml
-from fv3fit._shared.config import (to_nested_dict, to_flat_dict, get_arg_updated_config_dict, _add_items_to_parser_arguments)
+from fv3fit._shared.config import (
+    to_nested_dict,
+    to_flat_dict,
+    get_arg_updated_config_dict,
+    _add_items_to_parser_arguments,
+)
 
 import pytest
 
@@ -199,14 +204,13 @@ def test__add_items_to_parser_args_mapping_error():
         _add_items_to_parser_arguments(d, parser)
 
 
-
 def test_get_updated_config_dict():
 
     defaults = {
         "epochs": 1,
         "model.architecture.name": "linear",
         "transform.input_variables": ["field"],
-        "unchanged": "same"
+        "unchanged": "same",
     }
 
     arg_updates = [
