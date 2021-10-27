@@ -161,6 +161,17 @@ class RegularizerConfig:
 
 
 @dataclasses.dataclass
+class SliceConfig:
+    start: Optional[int] = None
+    stop: Optional[int] = None
+    step: Optional[int] = None
+
+    @property
+    def slice(self):
+        return slice(self.start, self.stop, self.step)
+
+
+@dataclasses.dataclass
 class RandomForestHyperparameters(Hyperparameters):
     """
     Configuration for training a random forest based model.

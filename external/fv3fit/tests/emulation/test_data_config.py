@@ -1,5 +1,6 @@
 import pytest
-from fv3fit.emulation.data.config import SliceConfig, TransformConfig
+from fv3fit._shared import SliceConfig
+from fv3fit.emulation.data.config import TransformConfig
 
 
 @pytest.mark.parametrize("start", [None, 1])

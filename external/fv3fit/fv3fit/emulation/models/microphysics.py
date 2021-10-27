@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from ._core import ArchitectureConfig, get_combine_from_arch_key
 from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput
-from ..data import SliceConfig
+from fv3fit._shared import SliceConfig
 
 
 @dataclasses.dataclass
