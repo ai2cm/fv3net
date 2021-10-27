@@ -124,54 +124,6 @@ def insert_column_integrated_vars(
     return ds
 
 
-def insert_net_terms_as_Qs(
-    ds: xr.Dataset,
-    var_mapping: Mapping = None,
-    derivation_dim: str = "derivation",
-    shield_coord: str = "coarsened_SHiELD",
-    derivations_keep: Sequence[str] = ("target", "predict"),
-) -> xr.Dataset:
-    """Insert the SHiELD net_* variables as the column_integrated_Q* variables
-        for coordinate 'coarsened_SHiELD', also drop the net_* variables and the
-        'coarse_FV3GFS' coordinate; this is useful in the offline_ML_diags routine
-        because eliminates an unnecessary coordinate and includes SHiELD variables
-        in the calculated diagnostics and metrics
-        
-    Args:
-        ds: xr dataset to from which to compute diagnostics
-        var_mapping: dict which maps SHiELD net_* var names to
-            column_integrated_Q* var names; optional
-        derivation_dim: name of derivation dim; optional, defaults to 'derivation'
-        shield_coord: name of SHiELD coordinate in derivation dim; optional
-        derivations_keep: sequence of derivation coords to keep in output dataset
-            
-    Returns:
-        xr dataset of renamed and rearranged variables
-    """
-    var_mapping = var_mapping or {
-        "net_heating": "column_integrated_Q1",
-        "net_precipitation": "column_integrated_Q2",
-    }
-
-    ds_new = ds.sel({derivation_dim: list(derivations_keep)}).drop_vars(
-        names=var_mapping.keys(), errors="ignore"
-    )
-
-    shield_data = {}
-    for var_source_name, var_target_name in var_mapping.items():
-        if var_source_name in ds.data_vars:
-            if "Q1" in var_target_name:
-                shield_data[var_target_name] = ds[var_source_name].sel(
-                    {derivation_dim: [shield_coord]}
-                )
-            elif "Q2" in var_target_name:
-                shield_data[var_target_name] = -ds[var_source_name].sel(
-                    {derivation_dim: [shield_coord]}
-                )
-
-    return ds_new.merge(shield_data)
-
-
 def _rechunk_time_z(
     ds: xr.Dataset, dim_nchunks: Mapping[str, tuple] = None
 ) -> xr.Dataset:
