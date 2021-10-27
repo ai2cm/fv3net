@@ -64,22 +64,9 @@ def test__seq_to_tf_dataset():
     np.testing.assert_equal(result, batches[0] * 2)
 
 
-@pytest.fixture
-def test_nc_to_dataset(request, nc_dir, nc_dir_files):
+def test_netcdf_directory_to_tf_dataset(config, nc_dir):
 
-    if request.param == "from_files":
-        return load.nc_files_to_tf_dataset, nc_dir_files
-    elif request.param == "from_dir":
-        return load.nc_dir_to_tf_dataset, str(nc_dir)
-
-
-@pytest.mark.parametrize(
-    "test_nc_to_dataset", ["from_files", "from_dir"], indirect=True
-)
-def test_nc_files_to_tf_dataset(config, test_nc_to_dataset):
-
-    to_ds_func, from_source = test_nc_to_dataset
-    tf_ds = to_ds_func(from_source, config)
+    tf_ds = load.nc_dir_to_tf_dataset(str(nc_dir), config)
 
     assert isinstance(tf_ds, tf.data.Dataset)
     tensor_ins, tensor_outs = next(iter(tf_ds.batch(150)))  # larger than total samples
@@ -89,14 +76,26 @@ def test_nc_files_to_tf_dataset(config, test_nc_to_dataset):
     assert isinstance(tensor_outs[0], tf.Tensor)
 
 
-def test_nc_dir_to_tf_ds_nfiles(config, nc_dir):
+def test_netcdf_files_to_tf_dataset(config, nc_dir_files):
+
+    tf_ds = load.nc_files_to_tf_dataset(nc_dir_files, config)
+
+    assert isinstance(tf_ds, tf.data.Dataset)
+    tensor_ins, tensor_outs = next(iter(tf_ds.batch(150)))  # larger than total samples
+    assert len(tensor_ins[0]) == 100  # nfiles * sample size
+    assert len(tensor_outs[0]) == 100
+    assert isinstance(tensor_ins[0], tf.Tensor)
+    assert isinstance(tensor_outs[0], tf.Tensor)
+
+
+def test_netcdf_dir_to_tf_dataset_with_nfiles(config, nc_dir):
     ds = load.nc_dir_to_tf_dataset(str(nc_dir), config, nfiles=1)
     (tensor_in,), _ = next(iter(ds.batch(30)))
 
     assert len(tensor_in) == 10  # only a single file
 
 
-def test_nc_dir_to_tf_ds_shuffle(config, nc_dir):
+def test_netcdf_dir_to_tf_dataset_with_shuffle(config, nc_dir):
 
     # seeds that won't have same first batch
     random1 = np.random.RandomState(10)
