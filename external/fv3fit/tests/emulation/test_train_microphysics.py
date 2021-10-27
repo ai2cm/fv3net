@@ -1,7 +1,9 @@
 import pytest
 import sys
 import yaml
+from dataclasses import asdict
 
+from fv3fit._shared.config import _to_flat_dict
 from fv3fit.emulation.data.config import TransformConfig
 
 from fv3fit.train_microphysics import (
@@ -55,7 +57,7 @@ def test_TrainConfig_asdict():
         train_url="train_path", test_url="test_path", out_url="save_path",
     )
 
-    d = config._asdict()
+    d = asdict(config)
     assert d["train_url"] == "train_path"
     assert d["model"]["architecture"]["name"] == "linear"
 
@@ -77,7 +79,7 @@ def test_TrainConfig_from_dict():
 def test_TrainConfig_from_dict_full():
 
     expected = get_default_config()
-    result = TrainConfig.from_dict(expected._asdict())
+    result = TrainConfig.from_dict(asdict(expected))
 
     assert result == expected
 
@@ -97,7 +99,8 @@ def test_TrainConfig_from_flat_dict():
     assert config.model.architecture.name == "rnn"
 
     expected = get_default_config()
-    result = TrainConfig.from_flat_dict(expected._as_flat_dict())
+    flat_dict = _to_flat_dict(asdict(expected))
+    result = TrainConfig.from_flat_dict(flat_dict)
     assert result == expected
 
 
@@ -107,7 +110,7 @@ def test_TrainConfig_from_yaml(tmp_path):
 
     yaml_path = str(tmp_path / "train_config.yaml")
     with open(yaml_path, "w") as f:
-        yaml.safe_dump(default._asdict(), f)
+        yaml.safe_dump(asdict(default), f)
 
         loaded = TrainConfig.from_yaml_path(yaml_path)
 
@@ -177,7 +180,7 @@ def test_TrainConfig_invalid_input_vars():
 @pytest.mark.regression
 def test_training_entry_integration(tmp_path):
 
-    config_dict = get_default_config()._asdict()
+    config_dict = asdict(get_default_config())
     config_dict["out_url"] = str(tmp_path)
     config_dict["use_wandb"] = False
     config_dict["nfiles"] = 4
