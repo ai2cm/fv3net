@@ -93,22 +93,6 @@ def get_variable_indices(
     return variable_indices
 
 
-def drop_physics_vars(ds: xr.Dataset):
-    physics_vars = [var for var in ds if "pQ" in str(var)]
-    for var in physics_vars:
-        ds = ds.drop(var)
-    return ds
-
-
-def drop_temperature_humidity_tendencies_if_not_predicted(ds: xr.Dataset):
-    tendencies = ["Q1", "Q2"]
-    for name in tendencies:
-        # if variable is not predicted, it will be all NaN
-        if name in ds and np.all(np.isnan(ds[name].sel(derivation="predict").values)):
-            ds = ds.drop(name)
-    return ds
-
-
 def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
     return vertical_dim in da.dims
 

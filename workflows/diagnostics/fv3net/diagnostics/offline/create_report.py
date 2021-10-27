@@ -21,13 +21,10 @@ from ._helpers import (
     tidy_title,
     units_from_name,
     is_3d,
-    drop_physics_vars,
-    drop_temperature_humidity_tendencies_if_not_predicted,
 )
 from ._select import plot_transect
 from .compute import (
     DIAGS_NC_NAME,
-    DIURNAL_NC_NAME,
     TRANSECT_NC_NAME,
     METRICS_JSON_NAME,
     METADATA_JSON_NAME,
@@ -301,20 +298,10 @@ def main(args):
     ds_diags, ds_diurnal, ds_transect, metrics, metadata = open_diagnostics_outputs(
         args.input_path,
         diagnostics_nc_name=DIAGS_NC_NAME,
-        diurnal_nc_name=DIURNAL_NC_NAME,
         transect_nc_name=TRANSECT_NC_NAME,
         metrics_json_name=METRICS_JSON_NAME,
         metadata_json_name=METADATA_JSON_NAME,
     )
-
-    # omit physics tendencies from report plots
-    ds_diags = drop_physics_vars(ds_diags)
-    ds_diurnal = drop_physics_vars(ds_diurnal)
-
-    # diagnostics_utils currently fill dQ1/2 with zeros if not predicted
-    # exclude these from the report if they are not model outputs.
-    ds_diags = drop_temperature_humidity_tendencies_if_not_predicted(ds_diags)
-    ds_diurnal = drop_temperature_humidity_tendencies_if_not_predicted(ds_diurnal)
 
     if args.commit_sha:
         metadata["commit"] = args.commit_sha
