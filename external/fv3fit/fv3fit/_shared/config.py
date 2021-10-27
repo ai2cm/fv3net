@@ -170,13 +170,13 @@ def _add_items_to_parser_arguments(
                 " 'flattened' dictionary to this function."
             )
         elif not isinstance(value, str) and isinstance(value, Sequence):
-            kwargs = dict(nargs="*", default=copy.copy(value),)
+            parser.add_argument(f"--{key}", nargs="*", default=copy.copy(value))
         elif isinstance(value, bool):
-            kwargs = dict(type=_bool_from_str, default=value)
+            parser.add_argument(f"--{key}", type=_bool_from_str, default=value)
         else:
-            kwargs = dict(default=value)
+            parser.add_argument(f"--{key}", default=value)
 
-        parser.add_argument(f"--{key}", **kwargs)
+        
 
 
 def get_arg_updated_config_dict(args, flat_config_dict):
