@@ -83,33 +83,7 @@ class NormalizedMSE(tf.keras.losses.MeanSquaredError):
 
 
 @dataclasses.dataclass
-class LossConfig(abc.ABC):
-
-    """
-    Loss configuration base class for keras training
-
-    Args:
-        optimizer: configuration for the optimizer to
-            compile with the model
-    """
-
-    optimizer: OptimizerConfig = dataclasses.field(
-        default_factory=lambda: OptimizerConfig("Adam")
-    )
-
-    @abc.abstractmethod
-    def prepare(self, **kwargs):
-        """Do any initializing necessary for generating arguments"""
-        pass
-
-    @abc.abstractmethod
-    def compile(self, model: tf.keras.Model) -> None:
-        """Compile a keras model with the loss configuration"""
-        pass
-
-
-@dataclasses.dataclass
-class CustomLoss(LossConfig):
+class CustomLoss:
     """
     Use custom custom normalized MSE-based losses for specified
     variables
@@ -125,6 +99,9 @@ class CustomLoss(LossConfig):
             overall keras "loss" term
     """
 
+    optimizer: OptimizerConfig = dataclasses.field(
+        default_factory=lambda: OptimizerConfig("Adam")
+    )
     normalization: str = "mean_std"
     loss_variables: List[str] = dataclasses.field(default_factory=list)
     metric_variables: List[str] = dataclasses.field(default_factory=list)
@@ -184,7 +161,11 @@ KerasWeights = Union[Mapping[str, float], List[float]]
 
 
 @dataclasses.dataclass
-class StandardLoss(LossConfig):
+class StandardLoss:
+
+    optimizer: OptimizerConfig = dataclasses.field(
+        default_factory=lambda: OptimizerConfig("Adam")
+    )
     loss: Optional[str] = None
     metrics: Optional[KerasMetrics] = None
     weights: Optional[KerasWeights] = None
