@@ -34,6 +34,8 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _column_nq2,
         _column_dq1_or_nq1,
         _column_dq2_or_nq2,
+        _water_vapor_path,
+        _minus_column_q2,
     ]:
         try:
             arrays.append(func(ds))
@@ -294,3 +296,19 @@ def _column_dq2_or_nq2(ds: xr.Dataset, tol=1.0e-12) -> xr.DataArray:
         long_name = "<dQ2> + <nQ2> column integrated moistening from ML + nudging"
     column_dq2_or_nq2.attrs = {"long_name": long_name, "units": "mm/day"}
     return column_dq2_or_nq2.rename("column_integrated_dQ2_or_nQ2")
+
+
+def _water_vapor_path(ds: xr.Dataset) -> xr.DataArray:
+    if "water_vapor_path" in ds:
+        result = ds.water_vapor_path
+    else:
+        # if necessary, back out from total water path and condensate paths
+        result = ds.PWAT - ds.iw - ds.VIL
+    result.attrs = {"long_name": "water vapor path", "units": "mm"}
+    return result.rename("water_vapor_path")
+
+
+def _minus_column_q2(ds: xr.Dataset) -> xr.DataArray:
+    result = -_column_q2(ds)
+    result.attrs = {"long_name": "-<Q2> column integrated drying", "units": "mm/day"}
+    return result.rename("minus_column_integrated_q2")

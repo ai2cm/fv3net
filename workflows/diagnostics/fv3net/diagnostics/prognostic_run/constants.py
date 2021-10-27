@@ -140,6 +140,8 @@ PRESSURE_INTERPOLATED_VARS = [
 
 PRECIP_RATE = "total_precip_to_surface"
 MASS_STREAMFUNCTION_MID_TROPOSPHERE = "mass_streamfunction_300_700_zonal_and_time_mean"
+WVP = "water_vapor_path"
+COL_DRYING = "minus_column_integrated_q2"
 HISTOGRAM_BINS = {PRECIP_RATE: np.logspace(-1, np.log10(500), 101)}
 PERCENTILES = [25, 50, 75, 90, 99, 99.9]
 TOP_LEVEL_METRICS = {

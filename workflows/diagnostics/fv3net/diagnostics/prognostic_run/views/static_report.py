@@ -20,12 +20,15 @@ from .matplotlib import (
     plot_2d_matplotlib,
     plot_cubed_sphere_map,
     plot_histogram,
+    plot_histogram2d,
 )
 from fv3net.diagnostics.prognostic_run.constants import (
     PERCENTILES,
     PRECIP_RATE,
     TOP_LEVEL_METRICS,
     MovieUrls,
+    WVP,
+    COL_DRYING,
 )
 
 import logging
@@ -297,6 +300,11 @@ def diurnal_cycle_component_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 @histogram_plot_manager.register
 def histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     return plot_histogram(diagnostics, f"{PRECIP_RATE}_histogram")
+
+
+@histogram_plot_manager.register
+def histogram2d_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_histogram2d(diagnostics, WVP, COL_DRYING)
 
 
 # Routines for plotting the "metrics"
