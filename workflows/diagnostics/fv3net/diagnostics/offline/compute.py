@@ -10,14 +10,14 @@ from tempfile import NamedTemporaryFile
 from vcm.derived_mapping import DerivedMapping
 import xarray as xr
 import yaml
-from typing import Mapping, Sequence, Tuple, List, Optional
+from typing import Mapping, Sequence, Tuple, List
 
-import diagnostics_utils as utils
 import loaders
 from vcm import safe, interpolate_to_pressure_levels
 import vcm
 import fv3fit
 from .compute_metrics import compute_metrics
+from .compute_diagnostics import compute_diagnostics
 from ._plot_input_sensitivity import plot_jacobian, plot_rf_feature_importance
 from ._helpers import (
     load_grid_info,
@@ -25,6 +25,7 @@ from ._helpers import (
     get_variable_indices,
     insert_r2,
     insert_rmse,
+    insert_column_integrated_vars,
 )
 from ._select import meridional_transect, nearest_time
 
@@ -130,30 +131,6 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
     return metrics
 
 
-def _compute_diurnal_cycle(ds: xr.Dataset) -> xr.Dataset:
-    diurnal_vars = [
-        var
-        for var in ds
-        if {"tile", "x", "y", "sample", "derivation"} == set(ds[var].dims)
-    ]
-    return utils.create_diurnal_cycle_dataset(
-        ds, ds["lon"], ds["land_sea_mask"], diurnal_vars,
-    )
-
-
-def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
-    # ...reduce to diagnostic variables
-    net_precip: Optional[xr.DataArray] = None
-    if "column_integrated_Q2" in ds:
-        net_precip = -ds["column_integrated_Q2"].sel(  # type: ignore
-            derivation="target"
-        )
-    summary = utils.reduce_to_diagnostic(
-        ds, ds, net_precipitation=net_precip, primary_vars=variables,
-    )
-    return summary
-
-
 def _standardize_names(*args: xr.Dataset):
     renamed = []
     for ds in args:
@@ -166,8 +143,8 @@ def _compute_diagnostics(
     grid: xr.Dataset,
     predicted_vars: List[str],
     n_jobs: int,
-) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
-    batches_summary, batches_diurnal, batches_metrics = [], [], []
+) -> Tuple[xr.Dataset, xr.Dataset]:
+    batches_summary, batches_metrics = [], []
 
     # for each batch...
     for i, ds in enumerate(batches):
@@ -175,40 +152,26 @@ def _compute_diagnostics(
 
         # ...insert additional variables
         diagnostic_vars_3d = [var for var in predicted_vars if is_3d(ds[var])]
-        ds = ds.pipe(utils.insert_column_integrated_vars, diagnostic_vars_3d).load()
+        ds = ds.pipe(insert_column_integrated_vars, diagnostic_vars_3d).load()
         ds.update(grid)
         full_predicted_vars = [var for var in ds if DERIVATION_DIM_NAME in ds[var].dims]
-
-        ds_summary = _compute_summary(ds, diagnostic_vars_3d)
-        if DATASET_DIM_NAME in ds.dims:
-            sample_dims = ("time", DATASET_DIM_NAME)
-        else:
-            sample_dims = ("time",)  # type: ignore
-        stacked = ds.stack(sample=sample_dims)
-
-        ds_diurnal = _compute_diurnal_cycle(stacked)
-        ds_summary["time"] = ds["time"]
-        ds_diurnal["time"] = ds["time"]
+        prediction = safe.get_variables(
+            ds.sel({DERIVATION_DIM_NAME: PREDICT_COORD}), full_predicted_vars
+        )
+        target = safe.get_variables(
+            ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
+        )
+        ds_summary = compute_diagnostics(prediction, target, grid, ds[DELP])
         ds_metrics = compute_metrics(
-            prediction=safe.get_variables(
-                ds.sel({DERIVATION_DIM_NAME: PREDICT_COORD}), full_predicted_vars
-            ),
-            target=safe.get_variables(
-                ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
-            ),
-            grid=grid,
-            delp=ds[DELP],
-            n_jobs=n_jobs,
+            prediction, target, grid=grid, delp=ds[DELP], n_jobs=n_jobs,
         )
 
         batches_summary.append(ds_summary.load())
-        batches_diurnal.append(ds_diurnal.load())
         batches_metrics.append(ds_metrics.load())
         del ds
 
     # then average over the batches for each output
     ds_summary = xr.concat(batches_summary, dim="batch")
-    ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
     ds_metrics = xr.concat(batches_metrics, dim="batch")
 
     ds_diagnostics, ds_scalar_metrics = _consolidate_dimensioned_data(
@@ -217,10 +180,10 @@ def _compute_diagnostics(
 
     ds_scalar_metrics = insert_r2(ds_scalar_metrics)
     ds_diagnostics = ds_diagnostics.pipe(insert_r2).pipe(insert_rmse)
-    ds_diagnostics, ds_diurnal, ds_scalar_metrics = _standardize_names(
-        ds_diagnostics, ds_diurnal, ds_scalar_metrics
+    ds_diagnostics, ds_scalar_metrics = _standardize_names(
+        ds_diagnostics, ds_scalar_metrics
     )
-    return ds_diagnostics.mean("batch"), ds_diurnal, ds_scalar_metrics
+    return ds_diagnostics.mean("batch"), ds_scalar_metrics
 
 
 def _consolidate_dimensioned_data(ds_summary, ds_metrics):
@@ -336,7 +299,7 @@ def main(args):
     batches = loaders.Map(predict_function, batches)
 
     # compute diags
-    ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diagnostics(
+    ds_diagnostics, ds_scalar_metrics = _compute_diagnostics(
         batches, grid, predicted_vars=model.output_variables, n_jobs=args.n_jobs
     )
 
@@ -385,7 +348,6 @@ def main(args):
     _write_nc(
         ds_diagnostics, args.output_path, DIAGS_NC_NAME,
     )
-    _write_nc(ds_diurnal, args.output_path, DIURNAL_NC_NAME)
 
     # convert and output metrics json
     metrics = _average_metrics_dict(ds_scalar_metrics)
