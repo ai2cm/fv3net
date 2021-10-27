@@ -11,7 +11,7 @@ from typing import Any, Dict, Mapping, MutableMapping, Optional, Sequence, Union
 
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
-from fv3fit._shared.config import OptimizerConfig
+from fv3fit._shared.config import OptimizerConfig, to_flat_dict, to_nested_dict, get_arg_updated_config_dict
 from fv3fit.emulation.data import nc_dir_to_tf_dataset, TransformConfig
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.keras import (
@@ -64,100 +64,6 @@ def load_config_yaml(path: str) -> Dict[str, Any]:
     return d
 
 
-def to_flat_dict(d: dict):
-    """
-    Converts any nested dictionaries to a flat version with
-    the nested keys joined with a '.', e.g., {a: {b: 1}} ->
-    {a.b: 1}
-    """
-
-    new_flat = {}
-    for k, v in d.items():
-        if isinstance(v, dict):
-            sub_d = to_flat_dict(v)
-            for sk, sv in sub_d.items():
-                new_flat[".".join([k, sk])] = sv
-        else:
-            new_flat[k] = v
-
-    return new_flat
-
-
-def to_nested_dict(d: dict):
-    """
-    Converts a flat dictionary with '.' joined keys back into
-    a nested dictionary, e.g., {a.b: 1} -> {a: {b: 1}}
-    """
-
-    new_config: MutableMapping[str, Any] = {}
-
-    for k, v in d.items():
-        if "." in k:
-            sub_keys = k.split(".")
-            sub_d = new_config
-            for sk in sub_keys[:-1]:
-                sub_d = sub_d.setdefault(sk, {})
-            sub_d[sub_keys[-1]] = v
-        else:
-            new_config[k] = v
-
-    return new_config
-
-
-def _bool_from_str(value: str):
-    affirmatives = ["y", "yes", "true", "t"]
-    negatives = ["n", "no", "false", "f"]
-
-    if value.lower() in affirmatives:
-        return True
-    elif value.lower() in negatives:
-        return False
-    else:
-        raise ValueError(
-            f"Unrecognized value encountered in boolean conversion: {value}"
-        )
-
-
-def _add_items_to_parser_arguments(
-    d: Mapping[str, Any], parser: argparse.ArgumentParser
-):
-    """
-    Take a dictionary and add all the keys as an ArgumentParser
-    argument with the value as a default.  Does no casting so
-    any non-defaults will likely be strings.  Instead relies on the
-    dataclasses to do the validation and type casting.
-    """
-
-    for key, value in d.items():
-        # TODO: should I do casting here, or let the dataclass do it?
-        if isinstance(value, Mapping):
-            raise ValueError(
-                "Adding a mapping as an argument to the parse is not"
-                " currently supported.  Make sure you are passing a"
-                " 'flattened' dictionary to this function."
-            )
-        elif not isinstance(value, str) and isinstance(value, Sequence):
-            kwargs = dict(nargs="*", default=copy.copy(value),)
-        elif isinstance(value, bool):
-            kwargs = dict(type=_bool_from_str, default=value)
-        else:
-            kwargs = dict(default=value)
-
-        parser.add_argument(f"--{key}", **kwargs)
-
-
-def get_arg_updated_config_dict(args, flat_config_dict):
-
-    config = dict(**flat_config_dict)
-    parser = argparse.ArgumentParser()
-    _add_items_to_parser_arguments(config, parser)
-    updates = parser.parse_args(args)
-    updates = vars(updates)
-
-    config.update(updates)
-
-    return config
-
 
 @dataclass
 class TrainConfig:
@@ -177,11 +83,11 @@ class TrainConfig:
     verbose: int = 2
     shuffle_buffer_size: Optional[int] = 100_000
 
-    def asdict(self):
+    def _asdict(self):
         return asdict(self)
 
-    def as_flat_dict(self):
-        return to_flat_dict(self.asdict())
+    def _as_flat_dict(self):
+        return to_flat_dict(self._asdict())
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -254,7 +160,7 @@ class TrainConfig:
             config = cls.from_yaml_path(path_arg.config_path)
 
         if unknown_args:
-            updated = get_arg_updated_config_dict(unknown_args, config.as_flat_dict())
+            updated = get_arg_updated_config_dict(unknown_args, config._as_flat_dict())
             config = cls.from_flat_dict(updated)
 
         return config
@@ -282,7 +188,7 @@ def main(config: TrainConfig, seed: int = 0):
 
     callbacks = []
     if config.use_wandb:
-        config.wandb.init(config=config.asdict())
+        config.wandb.init(config=config._asdict())
         callbacks.append(config.wandb.get_callback())
 
     train_ds = nc_dir_to_tf_dataset(
@@ -343,7 +249,7 @@ def main(config: TrainConfig, seed: int = 0):
             json.dump(history.params, f)
 
         with open(os.path.join(tmpdir, "config.yaml"), "w") as f:
-            f.write(yaml.safe_dump(config.asdict()))
+            f.write(yaml.safe_dump(config._asdict()))
 
         local_model_path = save_model(model, tmpdir)
 
