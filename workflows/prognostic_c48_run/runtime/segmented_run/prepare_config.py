@@ -4,7 +4,7 @@ import yaml
 import logging
 import sys
 from datetime import datetime, timedelta
-from typing import Any, Mapping, Sequence, Optional, Union
+from typing import Any, Callable, Mapping, Sequence, Optional, Type, TypeVar, Union
 
 import dacite
 
@@ -28,6 +28,17 @@ SUPPRESS_RANGE_WARNINGS = {"namelist": {"fv_core_nml": {"range_warn": False}}}
 
 def default_coupler_nml():
     return {"coupler_nml": {"dt_atmos": 900}}
+
+
+T = TypeVar('T')
+def instantiate_dataclass_from(cls: Callable[..., T], instance: Any) -> T:
+    """Create an instance of ``cls`` with the same attributes as ``instance``
+
+    This is useful for instantiating parent class from child classes. ``cls``
+    must be a ``dataclass``.
+    """
+    fields = dataclasses.fields(cls)
+    return cls(**{field.name: getattr(instance, field.name) for field in fields})
 
 
 @dataclasses.dataclass
@@ -103,15 +114,7 @@ class HighLevelConfig(UserConfig, FV3Config):
 
     def to_runtime_config(self) -> UserConfig:
         """Extract just the python runtime configurations"""
-        return UserConfig(
-            diagnostics=self.diagnostics,
-            prephysics=self.prephysics,
-            scikit_learn=self.scikit_learn,
-            nudging=self.nudging,
-            tendency_prescriber=self.tendency_prescriber,
-            online_emulator=self.online_emulator,
-            fortran_diagnostics=self.fortran_diagnostics,
-        )
+        return instantiate_dataclass_from(UserConfig, self)
 
     def _physics_timestep(self) -> timedelta:
         dict_ = dataclasses.asdict(self._to_fv3config_specific())

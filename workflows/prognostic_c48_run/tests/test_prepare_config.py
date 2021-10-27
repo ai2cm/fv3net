@@ -1,4 +1,4 @@
-from runtime.segmented_run.prepare_config import to_fv3config, HighLevelConfig
+from runtime.segmented_run.prepare_config import to_fv3config, HighLevelConfig, instantiate_dataclass_from
 from runtime.segmented_run import prepare_config
 import dacite
 import dataclasses
@@ -77,3 +77,20 @@ def test_high_level_config_fortran_diagnostics():
         config.fortran_diagnostics[0]
     )
     assert len(dict_["diag_table"].file_configs) == 1
+
+
+def test_instantiate_dataclass_from():
+
+    @dataclasses.dataclass
+    class A:
+        a: int = 0
+
+
+    @dataclasses.dataclass
+    class B(A):
+        b: int = 1
+
+    b = B()
+    a = instantiate_dataclass_from(A, b)
+    assert a.a == b.a
+    assert isinstance(a, A)
