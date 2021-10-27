@@ -217,7 +217,7 @@ def to_nested_dict(d: dict):
     return new_config
 
 
-def get_arg_updated_config_dict(args: Sequence[str], config_dict: Mapping[str, Any]):
+def get_arg_updated_config_dict(args: Sequence[str], config_dict: Dict[str, Any]):
     """
     Update a configuration dictionary with keyword arguments through an ArgParser.
 
@@ -234,9 +234,9 @@ def get_arg_updated_config_dict(args: Sequence[str], config_dict: Mapping[str, A
     parser = argparse.ArgumentParser()
     _add_items_to_parser_arguments(config, parser)
     updates = parser.parse_args(args)
-    updates = vars(updates)
+    update_dict = vars(updates)
 
-    config.update(updates)
+    config.update(update_dict)
 
     return to_nested_dict(config)
 

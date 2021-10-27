@@ -91,6 +91,7 @@ class TrainConfig:
         shuffle_buffer_size: How many samples to keep in the keras shuffle buffer
             during training
     """
+
     train_url: str
     test_url: str
     out_url: str
@@ -206,7 +207,7 @@ def main(config: TrainConfig, seed: int = 0):
 
     callbacks = []
     if config.use_wandb:
-        config.wandb.init(config=config._asdict())
+        config.wandb.init(config=asdict(config))
         callbacks.append(config.wandb.get_callback())
 
     train_ds = nc_dir_to_tf_dataset(
@@ -267,7 +268,7 @@ def main(config: TrainConfig, seed: int = 0):
             json.dump(history.params, f)
 
         with open(os.path.join(tmpdir, "config.yaml"), "w") as f:
-            f.write(yaml.safe_dump(config._asdict()))
+            f.write(yaml.safe_dump(asdict(config)))
 
         local_model_path = save_model(model, tmpdir)
 
