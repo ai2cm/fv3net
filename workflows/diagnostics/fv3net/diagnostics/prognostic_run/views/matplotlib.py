@@ -191,6 +191,7 @@ def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHT
 
     data = defaultdict(dict)
     count_name = f"{xname.lower()}_versus_{yname.lower()}_hist_2d"
+    conditional_average_name = f"conditional_average_of_{yname}_on_{xname}"
     x_bin_name = f"{xname}_bins"
     y_bin_name = f"{yname}_bins"
     x_bin_widths_name = f"{xname.lower()}_bin_width_hist_2d"
@@ -200,15 +201,18 @@ def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHT
         logging.info(f"plotting {xname} versus {yname} 2D histogram for {run}.")
 
         count = run_diags.get_variable(run, count_name)
+        conditional_average = run_diags.get_variable(run, conditional_average_name)
         x_bin_widths = run_diags.get_variable(run, x_bin_widths_name)
         y_bin_widths = run_diags.get_variable(run, y_bin_widths_name)
         x = x_bin_widths[x_bin_name]
         y = y_bin_widths[y_bin_name]
         xedges = np.append(x.values, x.values[-1] + x_bin_widths.values[-1])
         yedges = np.append(y.values, y.values[-1] + y_bin_widths.values[-1])
+        xcenters = x.values + 0.5 * x_bin_widths.values
         fig, ax = plt.subplots()
         xx, yy = np.meshgrid(xedges, yedges)
         ax.pcolormesh(xx, yy, count.T, norm=matplotlib.colors.LogNorm())
+        ax.plot(xcenters, conditional_average, color="r", linewidth=2)
         ax.set_xlabel(f"{xname} [{x_bin_widths.units}]")
         ax.set_ylabel(f"{yname} [{y_bin_widths.units}]")
         plt.tight_layout()

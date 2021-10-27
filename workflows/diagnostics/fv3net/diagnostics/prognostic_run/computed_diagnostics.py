@@ -360,6 +360,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
         "histogram": "hist_bias",
         "hist_2d": "hist2d_bias",
         "pressure_level_zonal_time_mean": "pressure_level_zonal_bias",
+        "conditional_average": "cond_average_bias",
     }
     for mean_filter, bias_filter in mean_bias_pairs.items():
         mean_vars = [var for var in ds if mean_filter in var]
@@ -371,6 +372,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
                 verif_diagnostics[var].attrs = ds[var].attrs
     # special handling for histogram bin widths
     bin_width_vars = [var for var in ds if "bin_width_histogram" in var]
+    bin_width_vars += [var for var in ds if "bin_width_hist_2d" in var]
     for var in bin_width_vars:
         verif_diagnostics[var] = ds[var]
     verif_dataset = xr.Dataset(verif_diagnostics)
