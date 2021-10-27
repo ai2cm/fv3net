@@ -13,6 +13,7 @@ from fv3fit.train_microphysics import (
     _get_out_samples,
     _add_items_to_parser_arguments,
     get_default_config,
+    get_arg_updated_config_dict,
     main,
 )
 
@@ -252,7 +253,7 @@ def test_TrainConfig_from_args_default():
     assert config == default
 
 
-def test_TrainConfig_get_updated_config_dict():
+def test_get_updated_config_dict():
 
     defaults = get_default_config().as_flat_dict()
 
@@ -267,7 +268,7 @@ def test_TrainConfig_get_updated_config_dict():
         "C",
     ]
 
-    updated = TrainConfig._get_updated_config_dict(arg_updates, defaults)
+    updated = get_arg_updated_config_dict(arg_updates, defaults)
 
     assert updated["epochs"] == "4"
     assert updated["model.architecture.name"] == "rnn"

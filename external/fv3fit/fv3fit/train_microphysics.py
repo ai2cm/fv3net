@@ -146,6 +146,19 @@ def _add_items_to_parser_arguments(
         parser.add_argument(f"--{key}", **kwargs)
 
 
+def get_arg_updated_config_dict(args, flat_config_dict):
+
+    config = dict(**flat_config_dict)
+    parser = argparse.ArgumentParser()
+    _add_items_to_parser_arguments(config, parser)
+    updates = parser.parse_args(args)
+    updates = vars(updates)
+
+    config.update(updates)
+
+    return config
+
+
 @dataclass
 class TrainConfig:
     train_url: str
@@ -241,21 +254,8 @@ class TrainConfig:
             config = cls.from_yaml_path(path_arg.config_path)
 
         if unknown_args:
-            updated = cls._get_updated_config_dict(unknown_args, config.as_flat_dict())
+            updated = get_arg_updated_config_dict(unknown_args, config.as_flat_dict())
             config = cls.from_flat_dict(updated)
-
-        return config
-
-    @staticmethod
-    def _get_updated_config_dict(args, flat_config_dict):
-
-        config = dict(**flat_config_dict)
-        parser = argparse.ArgumentParser()
-        _add_items_to_parser_arguments(config, parser)
-        updates = parser.parse_args(args)
-        updates = vars(updates)
-
-        config.update(updates)
 
         return config
 
