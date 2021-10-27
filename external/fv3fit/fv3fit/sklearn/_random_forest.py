@@ -45,7 +45,7 @@ def _parse_metadata_backward_compatible(metadata: dict) -> tuple:
         input_variables = metadata["input_variables"]
         output_variables = metadata["output_variables"]
         output_features_tuple = metadata["output_features"]
-        packer_config = metadata["packer_config"]
+        packer_config = metadata.get("packer_config", {})
     return input_variables, output_variables, output_features_tuple, packer_config
 
 
