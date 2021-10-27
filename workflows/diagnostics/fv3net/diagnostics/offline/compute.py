@@ -153,7 +153,7 @@ def _compute_diagnostics(
         # ...insert additional variables
         diagnostic_vars_3d = [var for var in predicted_vars if is_3d(ds[var])]
         ds = ds.pipe(insert_column_integrated_vars, diagnostic_vars_3d).load()
-        ds.update(grid)
+
         full_predicted_vars = [var for var in ds if DERIVATION_DIM_NAME in ds[var].dims]
         prediction = safe.get_variables(
             ds.sel({DERIVATION_DIM_NAME: PREDICT_COORD}), full_predicted_vars
@@ -162,6 +162,8 @@ def _compute_diagnostics(
             ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
         )
         ds_summary = compute_diagnostics(prediction, target, grid, ds[DELP])
+        ds_summary["time"] = ds["time"]
+
         ds_metrics = compute_metrics(
             prediction, target, grid=grid, delp=ds[DELP], n_jobs=n_jobs,
         )
@@ -183,6 +185,7 @@ def _compute_diagnostics(
     ds_diagnostics, ds_scalar_metrics = _standardize_names(
         ds_diagnostics, ds_scalar_metrics
     )
+    # this is kept as a coord to use in plotting a histogram of test timesteps
     return ds_diagnostics.mean("batch"), ds_scalar_metrics
 
 

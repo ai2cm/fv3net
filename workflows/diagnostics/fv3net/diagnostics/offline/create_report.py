@@ -170,7 +170,7 @@ def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir)
 
     # histogram of timesteps used for testing
     try:
-        timesteps = ds_diurnal["time"]
+        timesteps = ds_diags["time"]
     except KeyError:
         pass
     else:
