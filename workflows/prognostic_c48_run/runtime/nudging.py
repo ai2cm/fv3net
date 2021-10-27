@@ -57,6 +57,9 @@ class NudgingConfig:
     """
 
     timescale_hours: Dict[str, float]
+    # This should be required, but needs to be typed this way to preserve
+    # backwards compatibility with existing yamls that don't specify it.
+    # See https://github.com/ai2cm/fv3net/issues/1449
     restarts_path: Optional[str] = None
     # optional arguments needed for time interpolation
     reference_initial_time: Optional[str] = None
