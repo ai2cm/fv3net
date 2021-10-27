@@ -2,6 +2,7 @@ from .config import (
     TrainingConfig,
     register_training_function,
     SliceConfig,
+    PackerConfig,
 )
 from .packer import (
     pack,

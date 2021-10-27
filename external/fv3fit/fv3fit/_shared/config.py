@@ -12,6 +12,7 @@ from typing import (
     List,
     Type,
     Dict,
+    Hashable,
 )
 from fv3fit.typing import Dataclass
 import xarray as xr
@@ -171,6 +172,14 @@ class SliceConfig:
         return slice(self.start, self.stop, self.step)
 
 
+ClipConfig = Mapping[Hashable, Mapping[str, SliceConfig]]
+
+
+@dataclasses.dataclass
+class PackerConfig:
+    clip: ClipConfig
+
+
 @dataclasses.dataclass
 class RandomForestHyperparameters(Hyperparameters):
     """
@@ -218,6 +227,7 @@ class RandomForestHyperparameters(Hyperparameters):
     max_features: Union[str, int, float] = "auto"
     max_samples: Optional[Union[int, float]] = None
     bootstrap: bool = True
+    packer_config: Optional[PackerConfig] = None
 
     @property
     def variables(self) -> Set[str]:
