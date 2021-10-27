@@ -10,6 +10,8 @@ from vcm import safe
 from vcm.cloud import gsutil
 from vcm.catalog import catalog
 
+from .._shared.constants import DELP
+
 
 UNITS = {
     "column_integrated_dq1": "[W/m2]",
@@ -203,3 +205,27 @@ def _shorten_coordinate_label(coord: str):
         .replace("positive", "> 0")
         .replace("negative", "< 0")
     )
+
+
+def insert_column_integrated_vars(
+    ds: xr.Dataset, column_integrated_vars: Sequence[str]
+) -> xr.Dataset:
+    """Insert column integrated (<*>) terms,
+    really a wrapper around vcm.thermo funcs"""
+
+    for var in column_integrated_vars:
+        column_integrated_name = f"column_integrated_{var}"
+        if "Q1" in var:
+            da = vcm.thermo.column_integrated_heating_from_isochoric_transition(
+                ds[var], ds[DELP]
+            )
+        elif "Q2" in var:
+            da = -vcm.thermo.minus_column_integrated_moistening(ds[var], ds[DELP])
+            da = da.assign_attrs(
+                {"long_name": "column integrated moistening", "units": "mm/day"}
+            )
+        else:
+            da = vcm.mass_integrate(ds[var], ds[DELP], dim="z")
+        ds = ds.assign({column_integrated_name: da})
+
+    return ds
