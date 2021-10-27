@@ -161,6 +161,7 @@ KerasWeights = Union[Mapping[str, float], List[float]]
 
 @dataclasses.dataclass
 class StandardLoss:
+    """Standard loss configuration provided to a tf.keras.Model.compile"""
 
     optimizer: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")

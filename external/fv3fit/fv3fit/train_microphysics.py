@@ -69,6 +69,28 @@ def load_config_yaml(path: str) -> Dict[str, Any]:
 
 @dataclass
 class TrainConfig:
+    """
+    Configuration for training a microphysics emulator
+
+    Args:
+        train_url: Path to training netcdfs (already in [sample x feature] format)
+        test_url: Path to validation netcdfs (already in [sample x feature] format)
+        out_url:  Where to store the trained model, history, and configuration
+        transform: Data preprocessing TransformConfig
+        model: MicrophysicsConfig used to build the keras model
+        nfiles: Number of files to use from train_url
+        nfiles_valid: Number of files to use from test_url
+        use_wandb: Enable wandb logging of training, requires that wandb is installed
+            and initialized
+        wandb: WandBConfig to set up the wandb logged run
+        loss:  Configuration of the keras loss to prepare and use for training
+        epochs: Number of training epochs
+        batch_size: batch size applied to tf datasets during training
+        valid_freq: How often to score validation data (in epochs)
+        verbose: Verbosity of keras fit output
+        shuffle_buffer_size: How many samples to keep in the keras shuffle buffer
+            during training
+    """
     train_url: str
     test_url: str
     out_url: str
