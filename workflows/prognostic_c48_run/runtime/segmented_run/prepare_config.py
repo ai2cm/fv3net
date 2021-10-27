@@ -43,7 +43,9 @@ def instantiate_dataclass_from(cls: Callable[..., T], instance: Any) -> T:
 
 @dataclasses.dataclass
 class FV3Config:
-    """Dataclass representation of an fv3config object"""
+    """Dataclass representation of all fv3config fields **not** overriden by
+    ``HighLevelConfig``
+    """
 
     namelist: Any = dataclasses.field(default_factory=default_coupler_nml)
     experiment_name: Any = None
