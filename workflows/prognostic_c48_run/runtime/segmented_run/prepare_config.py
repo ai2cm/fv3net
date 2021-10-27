@@ -4,7 +4,7 @@ import yaml
 import logging
 import sys
 from datetime import datetime, timedelta
-from typing import Any, Callable, Mapping, Sequence, Optional, Type, TypeVar, Union
+from typing import Any, Callable, Mapping, Sequence, Optional, TypeVar, Union
 
 import dacite
 
@@ -30,7 +30,9 @@ def default_coupler_nml():
     return {"coupler_nml": {"dt_atmos": 900}}
 
 
-T = TypeVar('T')
+T = TypeVar("T")
+
+
 def instantiate_dataclass_from(cls: Callable[..., T], instance: Any) -> T:
     """Create an instance of ``cls`` with the same attributes as ``instance``
 
