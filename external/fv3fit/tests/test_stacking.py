@@ -158,3 +158,17 @@ def test_multiple_unstacked_dims():
     )
     result = stack(ds=ds, unstacked_dims=unstacked_dims)
     xr.testing.assert_identical(result.drop(result.coords.keys()), expected)
+
+
+def test_multiple_unstacked_dims_retain_order():
+    nt, nx, ny, nz = 2, 12, 12, 15
+    ds = xr.Dataset(
+        data_vars={
+            "var1": xr.DataArray(
+                np.zeros([nt, nx, ny, nz]), dims=["time", "x", "y", "z"],
+            ),
+        }
+    )
+    unstacked_dims = ["x", "y", "z"]
+    result = stack(ds=ds, unstacked_dims=unstacked_dims)
+    assert list(result["var1"].dims) == [SAMPLE_DIM_NAME, "x", "y", "z"]

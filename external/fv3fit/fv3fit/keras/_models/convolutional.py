@@ -17,8 +17,8 @@ from fv3fit.keras._models.shared import (
     Diffusive,
     standard_normalize,
     standard_denormalize,
+    count_features,
 )
-import fv3fit._shared
 import logging
 
 logger = logging.getLogger(__file__)
@@ -128,34 +128,24 @@ def batch_to_array_tuple(
     )
 
 
-def count_features(names, batch: xr.Dataset) -> Dict[str, int]:
-    """
-    Returns counts of the number of features for each variable name.
-
-    Args:
-        names: dataset keys to be unpacked
-        batch: dataset containing representatively-shaped data for the given names,
-            last dimension should be the feature dimension.
-    """
-
-    _, feature_index = fv3fit._shared.pack(
-        batch[names], sample_dims=[SAMPLE_DIM_NAME, "x", "y"]
-    )
-    return fv3fit._shared.count_features(feature_index)
-
-
 def build_model(
     config: ConvolutionalHyperparameters, batch: xr.Dataset
 ) -> Tuple[tf.keras.Model, tf.keras.Model]:
     nx = batch.dims["x"]
     ny = batch.dims["y"]
-    input_features = count_features(config.input_variables, batch)
+    sample_dims = [SAMPLE_DIM_NAME, "x", "y"]
+    input_features = count_features(
+        config.input_variables, batch, sample_dims=sample_dims
+    )
     input_layers = [
         tf.keras.layers.Input(shape=(nx, ny, input_features[name]))
         for name in config.input_variables
     ]
     norm_input_layers = standard_normalize(
-        names=config.input_variables, layers=input_layers, batch=batch
+        names=config.input_variables,
+        layers=input_layers,
+        batch=batch,
+        sample_dims=sample_dims,
     )
     if len(norm_input_layers) > 1:
         full_input = tf.keras.layers.Concatenate()(norm_input_layers)
@@ -166,7 +156,9 @@ def build_model(
         constraint: Optional[tf.keras.constraints.Constraint] = Diffusive()
     else:
         constraint = None
-    output_features = count_features(config.output_variables, batch)
+    output_features = count_features(
+        config.output_variables, batch, sample_dims=sample_dims
+    )
     norm_output_layers = [
         tf.keras.layers.Conv2D(
             filters=output_features[name],
@@ -180,7 +172,10 @@ def build_model(
         for i, name in enumerate(config.output_variables)
     ]
     denorm_output_layers = standard_denormalize(
-        names=config.output_variables, layers=norm_output_layers, batch=batch
+        names=config.output_variables,
+        layers=norm_output_layers,
+        batch=batch,
+        sample_dims=sample_dims,
     )
     train_model = tf.keras.Model(inputs=input_layers, outputs=denorm_output_layers)
     output_stds = (
