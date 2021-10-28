@@ -2,23 +2,8 @@ import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
 from scipy.spatial import KDTree
-from fv3viz._plot_cube import plot_cube, _mappable_var
-from vcm.catalog import catalog
-
-GRID = catalog["grid/c48"].to_dask()
-
-MAPPABLE_VAR_KWARGS = {
-    "coord_x_center": "x",
-    "coord_y_center": "y",
-    "coord_x_outer": "x_interface",
-    "coord_y_outer": "y_interface",
-    "coord_vars": {
-        "lonb": ["y_interface", "x_interface", "tile"],
-        "latb": ["y_interface", "x_interface", "tile"],
-        "lon": ["y", "x", "tile"],
-        "lat": ["y", "x", "tile"],
-    },
-}
+from fv3viz import plot_cube, infer_cmap_params
+from fv3viz._plot_cube import _mappable_var
 
 
 def meridional_ring(lon=0, n=180):
@@ -88,19 +73,13 @@ def meridional_transect(ds: xr.Dataset):
     return interpolate_unstructured(ds, transect_coords)
 
 
-def to_mappable(da, name):
-    merged_w_grid = da.to_dataset(name=name).merge(GRID, join="outer")
-    return _mappable_var(merged_w_grid, name)
-
-
 def plot_var(ds, name, isel_kwargs=None, plot_kwargs=None, avg_dims=None):
     if isel_kwargs is None:
         isel_kwargs = {}
     if plot_kwargs is None:
         plot_kwargs = {}
     
-    mappable = to_mappable(ds[name].transpose(..., "tile"), name)
-    selected = mappable.isel(**isel_kwargs).squeeze()
+    selected = ds.isel(**isel_kwargs).squeeze()
     if avg_dims is not None:
         reduced = selected.mean(dim=avg_dims)
     else:
@@ -108,19 +87,21 @@ def plot_var(ds, name, isel_kwargs=None, plot_kwargs=None, avg_dims=None):
     plot_cube(reduced, name, **plot_kwargs)
 
 
-def plot_meridional(da, vkey, title="", ax=None, vmin=None, vmax=None, yincrease=False):
-    merged = da.to_dataset(name=vkey).merge(GRID)
-    meridional = meridional_transect(_mappable_var(merged, vkey))
+def plot_meridional(ds, vkey, title="", ax=None, yincrease=False):
+    ds = _mappable_var(ds, vkey)
+    meridional = meridional_transect(ds)
     if ax is None:
         fig, ax = plt.subplots()
         fig.set_dpi(120)
-    if "z_soil" in meridional.dims:
+
+    if "z_soil" in meridional[vkey].dims:
         y = "z_soil"
     else:
         y = "z"
+
+    vmin, vmax, cmap = infer_cmap_params(ds[vkey])
     meridional[vkey].plot.pcolormesh(
-        x="lat", y=y, ax=ax, cmap="RdBu_r", vmin=vmin, vmax=vmax, yincrease=yincrease,
-#         cbar_kwargs={"label": meta[vkey]["units"]},
+        x="lat", y=y, ax=ax, cmap=cmap, vmin=vmin, vmax=vmax, yincrease=yincrease,
     )
     ax.set_title(title, size=14)
     ax.set_ylabel("vertical level", size=12)
