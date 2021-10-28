@@ -1,9 +1,16 @@
+import argparse
 import dacite
 import dataclasses
 from fv3fit import DenseHyperparameters, OptimizerConfig, TrainingConfig
 import os
 import tempfile
 import yaml
+from fv3fit._shared.config import (
+    to_nested_dict,
+    _to_flat_dict,
+    get_arg_updated_config_dict,
+    _add_items_to_parser_arguments,
+)
 
 import pytest
 
@@ -71,3 +78,155 @@ def test__load_config_catches_errors_with_strict_checking(hyperparameters, passe
     else:
         with pytest.raises(dacite.exceptions.UnexpectedDataError):
             TrainingConfig.from_dict(config_dict)
+
+
+def get_cfg_and_args_dicts():
+
+    config_d = {
+        "top": 1,
+        "seq": [dict(a=1), dict(a=2)],
+        "nested": {"k1": 2, "k2": 3, "double_nest": {"k1": 4, "k2": 5}},
+    }
+
+    flat_d = {
+        "top": 1,
+        "seq": [dict(a=1), dict(a=2)],
+        "nested.k1": 2,
+        "nested.k2": 3,
+        "nested.double_nest.k1": 4,
+        "nested.double_nest.k2": 5,
+    }
+
+    return config_d, flat_d
+
+
+def test_to_flat_dict():
+
+    config_d, expected = get_cfg_and_args_dicts()
+    result = _to_flat_dict(config_d)
+    assert result == expected
+
+
+def test_to_nested_dict():
+
+    expected, args_d = get_cfg_and_args_dicts()
+    result = to_nested_dict(args_d)
+    assert result == expected
+
+
+def test_flat_dict_round_trip():
+
+    config_d, _ = get_cfg_and_args_dicts()
+
+    args_d = _to_flat_dict(config_d)
+    result = to_nested_dict(args_d)
+
+    assert result == config_d
+
+
+def test__add_items_to_parser_args_no_seq():
+
+    d = {
+        "number": 1.0,
+        "string.nested": "hi",
+        "boolean": False,
+    }
+
+    parser = argparse.ArgumentParser()
+    _add_items_to_parser_arguments(d, parser)
+
+    default = parser.parse_args([])
+    for k, v in d.items():
+        parsed = vars(default)
+        assert parsed[k] == v
+
+    args = ["--number", "2.0", "--string.nested", "there"]
+    specified = vars(parser.parse_args(args))
+    assert specified["number"] == "2.0"
+    assert specified["string.nested"] == "there"
+
+
+def test__add_items_to_parser_args_mapping_fail():
+
+    d = {"mapping": {}}
+
+    parser = argparse.ArgumentParser()
+    with pytest.raises(ValueError):
+        _add_items_to_parser_arguments(d, parser)
+
+
+@pytest.mark.parametrize(
+    "args, expected",
+    [
+        (["--boolean", "True"], True),
+        (["--boolean", "true"], True),
+        (["--boolean", "false"], False),
+        ([], False),
+    ],
+)
+def test__add_items_to_parser_args_mapping_bools(args, expected):
+
+    d = {"boolean": False}
+
+    parser = argparse.ArgumentParser()
+    _add_items_to_parser_arguments(d, parser)
+
+    assert parser.parse_args(args).boolean == expected
+
+
+@pytest.mark.parametrize(
+    "args, expected_seq",
+    [
+        ([], [1, 2, 3]),
+        (["--seq"], []),
+        (["--seq", "1"], ["1"]),
+        (["--seq", "1", "2"], ["1", "2"]),
+    ],
+    ids=["default", "empty", "single", "multiple"],
+)
+def test__add_items_to_parser_args_seq(args, expected_seq):
+
+    d = {"seq": [1, 2, 3]}
+
+    parser = argparse.ArgumentParser()
+    _add_items_to_parser_arguments(d, parser)
+
+    parsed = parser.parse_args(args)
+    assert parsed.seq == expected_seq
+
+
+def test__add_items_to_parser_args_mapping_error():
+
+    d = {"mapping": dict(a=1)}
+    parser = argparse.ArgumentParser()
+
+    with pytest.raises(ValueError):
+        _add_items_to_parser_arguments(d, parser)
+
+
+def test_get_updated_config_dict():
+
+    defaults = {
+        "epochs": 1,
+        "model": {"architecture": {"name": "linear"}},
+        "transform": {"input_variables": ["field"]},
+        "unchanged": "same",
+    }
+
+    arg_updates = [
+        "--epochs",
+        "4",
+        "--model.architecture.name",
+        "rnn",
+        "--transform.input_variables",
+        "A",
+        "B",
+        "C",
+    ]
+
+    updated = get_arg_updated_config_dict(arg_updates, defaults)
+
+    assert updated["epochs"] == "4"
+    assert updated["model"]["architecture"]["name"] == "rnn"
+    assert updated["transform"]["input_variables"] == ["A", "B", "C"]
+    assert updated["unchanged"] == "same"

@@ -14,10 +14,10 @@ class ConfigValidationError(ValueError):
     pass
 
 
-def validate_chunks(config_dict: Mapping[str, Any]):
+def validate_chunks(config_dict: Mapping[str, Any]) -> None:
     """Ensure that the time chunk size evenly divides the time dimension size for all
     output diagnostics. Raise ConfigValidationError if not."""
-    user_config = dacite.from_dict(UserConfig, config_dict)
+    user_config: UserConfig = dacite.from_dict(UserConfig, config_dict)
     run_duration = fv3config.get_run_duration(config_dict)
     initial_time = vcm.round_time(
         cftime.DatetimeJulian(*config_dict["namelist"]["coupler_nml"]["current_date"])
@@ -36,7 +36,7 @@ def _validate_time_chunks(
     initial_time: datetime,
     timestep: timedelta,
     run_duration: timedelta,
-):
+) -> None:
     num_total_timesteps = int(run_duration / timestep)
     all_times = [initial_time + n * timestep for n in range(1, num_total_timesteps + 1)]
     if "time" in diag_file_config.chunks:

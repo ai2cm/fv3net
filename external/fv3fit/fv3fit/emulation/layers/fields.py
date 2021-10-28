@@ -1,7 +1,7 @@
 import tensorflow as tf
 from typing import Optional
 
-from .normalization import get_norm_class, get_denorm_class
+from .normalization import NormalizeConfig, DenormalizeConfig
 
 
 class FieldInput(tf.keras.layers.Layer):
@@ -28,8 +28,11 @@ class FieldInput(tf.keras.layers.Layer):
         self._selection = selection
 
         if normalize is not None:
-            self.normalize = get_norm_class(normalize)(name=f"normalized_{self.name}")
-            self.normalize.fit(sample_in)
+            self.normalize = NormalizeConfig(
+                class_name=normalize,
+                layer_name=f"normalized_{self.name}",
+                sample_data=sample_in,
+            ).initialize_layer()
         else:
             self.normalize = tf.keras.layers.Lambda(
                 lambda x: x, name=f"passthru_{self.name}"
@@ -77,10 +80,11 @@ class FieldOutput(tf.keras.layers.Layer):
         )
 
         if denormalize is not None:
-            self.denorm = get_denorm_class(denormalize)(
-                name=f"denormalized_{self.name}"
-            )
-            self.denorm.fit(sample_out)
+            self.denorm = DenormalizeConfig(
+                class_name=denormalize,
+                layer_name=f"denormalized_{self.name}",
+                sample_data=sample_out,
+            ).initialize_layer()
         else:
             self.denorm = tf.keras.layers.Lambda(
                 lambda x: x, name=f"passthru_{self.name}"

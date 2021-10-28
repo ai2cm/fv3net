@@ -53,9 +53,6 @@ class TransformConfig:
     vertical_subselections: Optional[Mapping[str, SliceConfig]] = None
     derived_microphys_timestep: int = 900
 
-    # post-init from config values
-    vert_sel_as_slice: Optional[Mapping[str, slice]] = dataclasses.field(init=False)
-
     @classmethod
     def from_dict(cls, d: Dict):
         return dacite.from_dict(cls, d, config=dacite.Config(strict=True))

@@ -4,7 +4,7 @@ import yaml
 import logging
 import sys
 from datetime import datetime, timedelta
-from typing import Mapping, Sequence, Optional
+from typing import Any, Callable, Mapping, Sequence, Optional, TypeVar, Union
 
 import dacite
 
@@ -13,17 +13,137 @@ import fv3kube
 
 from runtime.diagnostics.manager import FortranFileConfig
 from runtime.diagnostics.fortran import file_configs_to_namelist_settings
-from runtime.config import UserConfig, FV3CONFIG_KEYS
+from runtime.config import UserConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
 
 
-__all__ = ["to_fv3config", "InitialCondition"]
+__all__ = ["to_fv3config", "InitialCondition", "FV3Config", "HighLevelConfig"]
 
 
 logger = logging.getLogger(__name__)
 
 PROGNOSTIC_DIAG_TABLE = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
 SUPPRESS_RANGE_WARNINGS = {"namelist": {"fv_core_nml": {"range_warn": False}}}
+
+
+def default_coupler_nml():
+    return {"coupler_nml": {"dt_atmos": 900}}
+
+
+T = TypeVar("T")
+
+
+def instantiate_dataclass_from(cls: Callable[..., T], instance: Any) -> T:
+    """Create an instance of ``cls`` with the same attributes as ``instance``
+
+    This is useful for instantiating parent class from child classes. ``cls``
+    must be a ``dataclass``.
+    """
+    fields = dataclasses.fields(cls)
+    return cls(**{field.name: getattr(instance, field.name) for field in fields})
+
+
+@dataclasses.dataclass
+class FV3Config:
+    """Dataclass representation of all fv3config fields **not** overriden by
+    ``HighLevelConfig``
+    """
+
+    namelist: Any = dataclasses.field(default_factory=default_coupler_nml)
+    experiment_name: Any = None
+    data_table: Any = None
+    field_table: Optional[str] = None
+    forcing: Any = None
+    orographic_forcing: Any = None
+    gfs_analysis_data: Any = None
+
+    def asdict(self):
+        dict_ = dataclasses.asdict(self)
+        return {k: v for k, v in dict_.items() if v is not None}
+
+
+@dataclasses.dataclass
+class InitialCondition:
+    """An initial condition with the format ``{base_url}/{timestep}``
+
+    Attributes:
+        base_url: a location in GCS or local
+        timestep: a YYYYMMDD.HHMMSS timestamp
+    """
+
+    base_url: str
+    timestep: str
+
+    @property
+    def overlay(self):
+        return fv3kube.c48_initial_conditions_overlay(self.base_url, self.timestep)
+
+
+@dataclasses.dataclass
+class HighLevelConfig(UserConfig, FV3Config):
+    """A high level configuration object for prognostic runs
+
+    Combines fv3config and runtime configurations with conveniences for commonly
+    used initial conditions and configurations
+
+    Attributes:
+        base_version: the default physics config
+        initial_conditions: Specification for the initial conditions
+
+    See :py:class:`runtime.config.UserConfig` and :py:class:`FV3Config` for
+    documentation on other allowed attributes
+
+    """
+
+    base_version: str = "v0.5"
+    initial_conditions: Union[InitialCondition, Any] = ""
+
+    def _initial_condition_overlay(self):
+        return (
+            self.initial_conditions.overlay
+            if isinstance(self.initial_conditions, InitialCondition)
+            else {"initial_conditions": self.initial_conditions}
+        )
+
+    def _to_fv3config_specific(self) -> FV3Config:
+        return FV3Config(
+            namelist=self.namelist,
+            experiment_name=self.experiment_name,
+            data_table=self.data_table,
+            field_table=self.field_table,
+            forcing=self.forcing,
+            orographic_forcing=self.orographic_forcing,
+            gfs_analysis_data=self.gfs_analysis_data,
+        )
+
+    def to_runtime_config(self) -> UserConfig:
+        """Extract just the python runtime configurations"""
+        return instantiate_dataclass_from(UserConfig, self)
+
+    def _physics_timestep(self) -> timedelta:
+        dict_ = dataclasses.asdict(self._to_fv3config_specific())
+        return timedelta(
+            seconds=fv3kube.merge_fv3config_overlays(
+                fv3kube.get_base_fv3config(self.base_version), dict_
+            )["namelist"]["coupler_nml"]["dt_atmos"]
+        )
+
+    def to_fv3config(self) -> Any:
+        """Translate into a fv3config dictionary"""
+        # overlays (i.e. diffs) requiring only a small number of inputs. In
+        # particular, overlays should not require access to the full configuration
+        # dictionary.
+        return fv3kube.merge_fv3config_overlays(
+            fv3kube.get_base_fv3config(self.base_version),
+            self._initial_condition_overlay(),
+            SUPPRESS_RANGE_WARNINGS,
+            dataclasses.asdict(self.to_runtime_config()),
+            self._to_fv3config_specific().asdict(),
+            _diag_table_overlay(self.fortran_diagnostics),
+            file_configs_to_namelist_settings(
+                self.fortran_diagnostics, self._physics_timestep()
+            ),
+        )
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -69,18 +189,17 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
 
 def user_config_from_dict_and_args(
-    config_dict: dict, nudging_url, model_url, diagnostic_ml
-) -> UserConfig:
+    config_dict: dict, nudging_url: str, model_url, diagnostic_ml
+) -> HighLevelConfig:
     """Ideally this function could be replaced by dacite.from_dict
     without needing any information from args.
     """
-    if "nudging" in config_dict:
-        config_dict["nudging"]["restarts_path"] = config_dict["nudging"].get(
-            "restarts_path", nudging_url
-        )
-    runtime_dict = {k: config_dict[k] for k in config_dict if k not in FV3CONFIG_KEYS}
-    runtime_dict.pop("base_version", None)
-    user_config = dacite.from_dict(UserConfig, runtime_dict, dacite.Config(strict=True))
+    user_config = dacite.from_dict(
+        HighLevelConfig, config_dict, dacite.Config(strict=True)
+    )
+
+    if user_config.nudging and not user_config.nudging.restarts_path:
+        user_config.nudging.restarts_path = nudging_url
 
     # insert command line option overrides
     if user_config.scikit_learn is None:
@@ -115,43 +234,13 @@ def _diag_table_overlay(
     return {"diag_table": diag_table}
 
 
-FV3Config = dict
-
-
-@dataclasses.dataclass
-class InitialCondition:
-    """An initial condition with the format ``{base_url}/{timestep}``
-
-    Attributes:
-        base_url: a location in GCS or local
-        timestep: a YYYYMMDD.HHMMSS timestamp
-    """
-
-    base_url: str
-    timestep: str
-
-    @property
-    def overlay(self):
-        return fv3kube.c48_initial_conditions_overlay(self.base_url, self.timestep)
-
-
-def get_physics_timestep(dict_):
-    base_version = dict_["base_version"]
-    fv3_config = {key: dict_[key] for key in FV3CONFIG_KEYS if key in dict_}
-    return timedelta(
-        seconds=fv3kube.merge_fv3config_overlays(
-            fv3kube.get_base_fv3config(base_version), fv3_config
-        )["namelist"]["coupler_nml"]["dt_atmos"]
-    )
-
-
 def to_fv3config(
     dict_: dict,
     nudging_url: str,
     model_url: Sequence[str] = (),
     initial_condition: Optional[InitialCondition] = None,
     diagnostic_ml: bool = False,
-) -> FV3Config:
+) -> dict:
     """Convert a loaded prognostic run yaml ``dict_`` into an fv3config
     dictionary depending on some options
 
@@ -169,27 +258,17 @@ def to_fv3config(
         an fv3config configuration dictionary that can be operated on with
         fv3config APIs.
     """
-    user_config = user_config_from_dict_and_args(
+    full_config = user_config_from_dict_and_args(
         dict_,
         nudging_url=nudging_url,
         model_url=model_url,
         diagnostic_ml=diagnostic_ml,
     )
 
-    # overlays (i.e. diffs) requiring only a small number of inputs. In
-    # particular, overlays should not require access to the full configuration
-    # dictionary.
-    return fv3kube.merge_fv3config_overlays(
-        fv3kube.get_base_fv3config(dict_["base_version"]),
-        {} if initial_condition is None else initial_condition.overlay,
-        SUPPRESS_RANGE_WARNINGS,
-        dataclasses.asdict(user_config),
-        {key: dict_[key] for key in FV3CONFIG_KEYS if key in dict_},
-        _diag_table_overlay(user_config.fortran_diagnostics),
-        file_configs_to_namelist_settings(
-            user_config.fortran_diagnostics, get_physics_timestep(dict_)
-        ),
-    )
+    if initial_condition:
+        full_config.initial_conditions = initial_condition
+
+    return full_config.to_fv3config()
 
 
 def prepare_config(args):

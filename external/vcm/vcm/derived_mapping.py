@@ -5,7 +5,7 @@ import xarray as xr
 import vcm
 
 
-class DerivedMapping:
+class DerivedMapping(Mapping):
     """A uniform mapping-like interface for both existing and derived variables.
     
     Allows register and computing derived variables transparently in either
@@ -56,6 +56,12 @@ class DerivedMapping:
 
     def keys(self):
         return set(self._mapper) | set(self.VARIABLES)
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __len__(self):
+        return len(self.keys())
 
     def _data_arrays(self, keys: Iterable[Hashable]):
         return {key: self[key] for key in keys}
