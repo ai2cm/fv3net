@@ -10,7 +10,7 @@ def state(tmp_path_factory):
     r = requests.get(url)
     lpath = tmp_path_factory.getbasetemp() / "input_data.nc"
     lpath.write_bytes(r.content)
-    return xr.open_dataset(str(lpath))
+    return xr.open_dataset(str(lpath)).copy(deep=True)
 
 
 def create_model():
