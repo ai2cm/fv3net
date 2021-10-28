@@ -1,8 +1,10 @@
+from fv3fit.emulation.layers.normalization import NormLayer
 import pytest
 import numpy as np
 import tensorflow as tf
 
 from fv3fit.emulation import layers
+from fv3fit.emulation.layers import DenormalizeConfig, NormalizeConfig
 
 _all_layers = [
     layers.StandardNormLayer,
@@ -81,3 +83,14 @@ def test_fit_layers_are_fitted(layer_cls):
     assert not layer.fitted
     layer.fit(tensor)
     assert layer.fitted
+
+
+@pytest.mark.parametrize("config_cls", [NormalizeConfig, DenormalizeConfig])
+def test_NormLayer_Configs(config_cls):
+
+    tensor = _get_tensor()
+    config = config_cls("mean_std", tensor, "lol")
+    layer = config.initialize_layer()
+
+    assert isinstance(layer, NormLayer)
+    assert layer.name == "lol"

@@ -10,7 +10,7 @@ import tensorflow as tf
 from typing import Any, Dict, Hashable, Iterable, Optional, Sequence
 import xarray as xr
 import os
-from .._filesystem import get_dir, put_dir
+from ...._shared import get_dir, put_dir
 import yaml
 import numpy as np
 
