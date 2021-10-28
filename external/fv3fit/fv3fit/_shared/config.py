@@ -1,3 +1,5 @@
+import argparse
+import copy
 import dataclasses
 import os
 from typing import (
@@ -12,6 +14,7 @@ from typing import (
     List,
     Type,
     Dict,
+    MutableMapping,
 )
 from fv3fit.typing import Dataclass
 import xarray as xr
@@ -132,6 +135,110 @@ def register_training_function(name: str, hyperparameter_class: type):
         return func
 
     return decorator
+
+
+def _bool_from_str(value: str):
+    affirmatives = ["y", "yes", "true", "t"]
+    negatives = ["n", "no", "false", "f"]
+
+    if value.lower() in affirmatives:
+        return True
+    elif value.lower() in negatives:
+        return False
+    else:
+        raise ValueError(
+            f"Unrecognized value encountered in boolean conversion: {value}"
+        )
+
+
+def _add_items_to_parser_arguments(
+    d: Mapping[str, Any], parser: argparse.ArgumentParser
+):
+    """
+    Take a dictionary and add all the keys as an ArgumentParser
+    argument with the value as a default.  Does no casting so
+    any non-defaults will likely be strings.  Instead relies on the
+    dataclasses to do the validation and type casting.
+    """
+
+    for key, value in d.items():
+        # TODO: should I do casting here, or let the dataclass do it?
+        if isinstance(value, Mapping):
+            raise ValueError(
+                "Adding a mapping as an argument to the parse is not"
+                " currently supported.  Make sure you are passing a"
+                " 'flattened' dictionary to this function."
+            )
+        elif not isinstance(value, str) and isinstance(value, Sequence):
+            parser.add_argument(f"--{key}", nargs="*", default=copy.copy(value))
+        elif isinstance(value, bool):
+            parser.add_argument(f"--{key}", type=_bool_from_str, default=value)
+        else:
+            parser.add_argument(f"--{key}", default=value)
+
+
+def _to_flat_dict(d: dict):
+    """
+    Converts any nested dictionaries to a flat version with
+    the nested keys joined with a '.', e.g., {a: {b: 1}} ->
+    {a.b: 1}
+    """
+
+    new_flat = {}
+    for k, v in d.items():
+        if isinstance(v, dict):
+            sub_d = _to_flat_dict(v)
+            for sk, sv in sub_d.items():
+                new_flat[".".join([k, sk])] = sv
+        else:
+            new_flat[k] = v
+
+    return new_flat
+
+
+def to_nested_dict(d: dict):
+    """
+    Converts a flat dictionary with '.' joined keys back into
+    a nested dictionary, e.g., {a.b: 1} -> {a: {b: 1}}
+    """
+
+    new_config: MutableMapping[str, Any] = {}
+
+    for k, v in d.items():
+        if "." in k:
+            sub_keys = k.split(".")
+            sub_d = new_config
+            for sk in sub_keys[:-1]:
+                sub_d = sub_d.setdefault(sk, {})
+            sub_d[sub_keys[-1]] = v
+        else:
+            new_config[k] = v
+
+    return new_config
+
+
+def get_arg_updated_config_dict(args: Sequence[str], config_dict: Dict[str, Any]):
+    """
+    Update a configuration dictionary with keyword arguments through an ArgParser.
+
+    Note: A current limitation of this update style is that we cannot provide
+        arbitrary arguments to the parser.  Therefore, value being updated should
+        either be a member of passed in configuration
+
+    Args:
+        args: a list of argument strings to parse
+        config_dict: the configuration to update
+    """
+
+    config = _to_flat_dict(config_dict)
+    parser = argparse.ArgumentParser()
+    _add_items_to_parser_arguments(config, parser)
+    updates = parser.parse_args(args)
+    update_dict = vars(updates)
+
+    config.update(update_dict)
+
+    return to_nested_dict(config)
 
 
 @dataclasses.dataclass
