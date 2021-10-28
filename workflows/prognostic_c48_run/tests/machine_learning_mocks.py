@@ -28,7 +28,9 @@ def _model_dataset() -> xr.Dataset:
     return data
 
 
-def get_mock_predictor(model_predictands: str = "tendencies") -> fv3fit.Predictor:
+def get_mock_predictor(
+    model_predictands: str = "tendencies", dQ1_tendency=0.0
+) -> fv3fit.Predictor:
 
     data = _model_dataset()
     nz = data.sizes["z"]
@@ -42,7 +44,7 @@ def get_mock_predictor(model_predictands: str = "tendencies") -> fv3fit.Predicto
     elif model_predictands == "state_and_tendency":
         output_variables = ["dQ1", "total_sky_downward_shortwave_flux_at_surface"]
     outputs = {
-        "dQ1": np.zeros(nz),
+        "dQ1": np.full(nz, dQ1_tendency),
         # include nonzero moistening to test for mass conservation
         "dQ2": np.full(nz, -1e-4 / 86400),
         "dQu": np.full(nz, 1 / 86400),
