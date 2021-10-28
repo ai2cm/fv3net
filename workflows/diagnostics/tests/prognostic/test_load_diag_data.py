@@ -103,5 +103,4 @@ def test_evaluation_pair_to_input_data(regtest):
 def test_Simulations(regtest, simulation):
     with regtest:
         simulation.data_3d.info()
-        simulation.physics.info()
-        simulation.dycore.info()
+        simulation.data_2d.info()

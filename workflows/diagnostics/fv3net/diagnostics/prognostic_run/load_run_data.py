@@ -3,11 +3,10 @@ import json
 import logging
 import os
 from typing_extensions import Protocol
-from typing import List, Mapping
+from typing import List, Mapping, Tuple
 
 import fsspec
 import intake
-import numpy as np
 import pandas as pd
 import vcm
 import xarray as xr
@@ -77,7 +76,7 @@ def _coarsen(ds: xr.Dataset, area: xr.DataArray, coarsening_factor: int) -> xr.D
 
 def _get_coarsening_args(
     ds: xr.Dataset, target_res: int, grid_entries: Mapping[int, str] = GRID_ENTRIES
-) -> (str, int):
+) -> Tuple[str, int]:
     """Given input dataset and target resolution, return catalog entry for input grid
     and coarsening factor"""
     input_res = ds.sizes["x"]
@@ -166,12 +165,25 @@ def load_physics(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
         catalog: Intake catalog of available data sources
     """
     logger.info(f"Processing physics data from run directory at {url}")
-    # open prognostic run data
-    logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
     input_grid, coarsening_factor = _get_coarsening_args(prognostic_output, 48)
     area = catalog[input_grid].to_dask()["area"]
     return _coarsen(prognostic_output, area, coarsening_factor)
+
+
+def load_2d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
+    """Open 2D diagnostic data.
+    
+    Args:
+        url: path to prognostic run directory.
+        catalog: Intake catalog of available data.
+    
+    Returns:
+        dataset of all 2D diagnostics at C48 resolution.
+    """
+    physics = load_physics(url, catalog)
+    dycore = load_dycore(url, catalog)
+    return xr.merge([physics, dycore], join="outer")
 
 
 def loads_stats(b: bytes):
@@ -193,22 +205,9 @@ def open_segmented_logs(url: str) -> vcm.fv3.logs.FV3Log:
     return vcm.fv3.logs.concatenate(logs)
 
 
-def _insert_nan_from_other(self: xr.Dataset, other: xr.Dataset):
-    # Not all verification datasets have 3D variables saved,
-    # if not available fill with NaNs
-    if len(self.data_vars) == 0:
-        for var in other:
-            self[var] = xr.full_like(other[var], np.nan)
-            self[var].attrs = other[var].attrs
-
-
 class Simulation(Protocol):
     @property
-    def physics(self) -> xr.Dataset:
-        pass
-
-    @property
-    def dycore(self) -> xr.Dataset:
+    def data_2d(self) -> xr.Dataset:
         pass
 
     @property
@@ -233,12 +232,8 @@ class CatalogSimulation:
         return config.get_verification_entries(self.tag, self.catalog)
 
     @property
-    def physics(self) -> xr.Dataset:
-        return load_verification(self._verif_entries["physics"], self.catalog)
-
-    @property
-    def dycore(self) -> xr.Dataset:
-        return load_verification(self._verif_entries["dycore"], self.catalog)
+    def data_2d(self) -> xr.Dataset:
+        return load_verification(self._verif_entries["2d"], self.catalog)
 
     @property
     def data_3d(self) -> xr.Dataset:
@@ -254,12 +249,8 @@ class SegmentedRun:
     catalog: intake.catalog.base.Catalog
 
     @property
-    def physics(self) -> xr.Dataset:
-        return load_physics(self.url, self.catalog)
-
-    @property
-    def dycore(self) -> xr.Dataset:
-        return load_dycore(self.url, self.catalog)
+    def data_2d(self) -> xr.Dataset:
+        return load_2d(self.url, self.catalog)
 
     @property
     def data_3d(self) -> xr.Dataset:
@@ -275,14 +266,12 @@ def evaluation_pair_to_input_data(
     # 3d data special handling
     data_3d = prognostic.data_3d
     verif_3d = verification.data_3d
-    _insert_nan_from_other(verif_3d, data_3d)
 
     return {
-        "dycore": (prognostic.dycore, verification.dycore, grid),
-        "physics": (
-            derived_variables.physics_variables(prognostic.physics),
-            derived_variables.physics_variables(verification.physics),
+        "3d": (data_3d, verif_3d, grid.drop(["tile", "land_sea_mask"]),),
+        "2d": (
+            derived_variables.physics_variables(prognostic.data_2d),
+            derived_variables.physics_variables(verification.data_2d),
             grid,
         ),
-        "3d": (data_3d, verif_3d, grid.drop(["tile", "land_sea_mask"]),),
     }
