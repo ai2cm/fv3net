@@ -86,13 +86,13 @@ def conditional_average_over_domain(
         )
     else:
         cell_type = surface_type_array
-    domain_average = conditional_average(
+    domain_average = _conditional_average(
         safe.get_variables(ds, primary_vars), cell_type, domain, grid["area"],
     )
     return domain_average.mean("time")
 
 
-def conditional_average(
+def _conditional_average(
     ds: Union[xr.Dataset, xr.DataArray],
     cell_type_array: xr.DataArray,
     category: str,
