@@ -97,9 +97,8 @@ def clip(
                     # need coord to allow proper unpacking if dim is clipped to
                     # different length for different variables
                     da = da.assign_coords({dim: range(da.sizes[dim])})
-                clipped_data[variable] = da.isel({dim: config[variable][dim].slice})
-        else:
-            clipped_data[variable] = da
+                da = da.isel({dim: config[variable][dim].slice})
+        clipped_data[variable] = da
     return clipped_data
 
 
