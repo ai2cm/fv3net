@@ -69,7 +69,7 @@ def _fit_norm_layer(
         ]
         if input_features[name] == 1:
             selection = selection + [None]
-        norm.fit(batch[name].values[selection])
+        norm.fit(batch[name].values[tuple(selection)])
         out.append(norm(layer))
     return out
 

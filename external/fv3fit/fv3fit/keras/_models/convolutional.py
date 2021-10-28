@@ -7,6 +7,7 @@ from fv3fit._shared.config import (
 from fv3fit._shared.stacking import SAMPLE_DIM_NAME, StackedBatches, stack
 from fv3fit.keras._models.shared.loss import LossConfig
 from fv3fit.keras._models.shared.pure_keras import PureKerasModel
+from loaders.typing import Batches
 import tensorflow as tf
 import xarray as xr
 from ..._shared.config import Hyperparameters
@@ -94,7 +95,11 @@ def train_convolutional_model(
         )
     else:
         validation_data = None
-    stacked_train_batches = StackedBatches(train_batches, unstacked_dims=UNSTACKED_DIMS)
+    stacked_train_batches: Batches = StackedBatches(
+        train_batches, unstacked_dims=UNSTACKED_DIMS
+    )
+    if isinstance(train_batches, tuple):
+        stacked_train_batches = tuple(stacked_train_batches)
     train_data = _XyMultiArraySequence(
         X_names=hyperparameters.input_variables,
         y_names=hyperparameters.output_variables,
