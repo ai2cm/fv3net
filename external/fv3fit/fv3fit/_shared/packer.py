@@ -10,7 +10,6 @@ from typing import (
     Optional,
     Union,
     Mapping,
-    Collection,
 )
 from .config import PackerConfig, ClipConfig
 import numpy as np
@@ -55,8 +54,9 @@ def pack(
     if config is None:
         config = PackerConfig({})
     feature_dim_name = _unique_dim_name(data, sample_dims=sample_dims)
-    data_clipped = clip(data, config.clip)
-    stacked = to_stacked_array(data_clipped, feature_dim_name, sample_dims=sample_dims)
+    data_clipped = xr.Dataset(clip(data, config.clip))
+    stacked = data_clipped.to_stacked_array(feature_dim_name, sample_dims=sample_dims)
+    stacked = stacked.dropna(feature_dim_name)
     return (
         stacked.transpose(*sample_dims, feature_dim_name).values,
         stacked.indexes[feature_dim_name],
@@ -238,59 +238,3 @@ def unpack_matrix(
         j += size_in
 
     return xr.Dataset(jacobian_dict)  # type: ignore
-
-
-def to_stacked_array(
-    dataset: Mapping[Hashable, xr.DataArray],
-    new_dim: Hashable,
-    sample_dims: Collection,
-    variable_dim: Hashable = "variable",
-    name: Hashable = None,
-) -> xr.DataArray:
-    """Like xr.Dataset.to_stacked_array but can operate on a mapping of arrays.
-    
-    Useful for cases where different variables have different dimension lengths.
-    """
-    stacking_dims = tuple(
-        {
-            dim
-            for array in dataset.values()
-            for dim in array.dims
-            if dim not in sample_dims
-        }
-    )
-
-    for variable in dataset:
-        dims = dataset[variable].dims
-        dims_include_sample_dims = set(sample_dims) <= set(dims)
-        if not dims_include_sample_dims:
-            raise ValueError(
-                "All variables in the dataset must contain the "
-                "dimensions {}.".format(dims)
-            )
-
-    def ensure_stackable(name, val):
-        assign_coords = {variable_dim: name}
-        for dim in stacking_dims:
-            if dim not in val.dims:
-                assign_coords[dim] = None
-
-        expand_dims = set(stacking_dims).difference(set(val.dims))
-        expand_dims.add(variable_dim)
-        # must be list for .expand_dims
-        expand_dims = list(expand_dims)
-
-        return (
-            val.assign_coords(**assign_coords)
-            .expand_dims(expand_dims)
-            .stack({new_dim: (variable_dim,) + stacking_dims})
-        )
-
-    # concatenate the arrays
-    stackable_vars = [ensure_stackable(key, dataset[key]) for key in dataset]
-    data_array = xr.concat(stackable_vars, dim=new_dim)
-
-    if name is not None:
-        data_array.name = name
-
-    return data_array

@@ -191,23 +191,29 @@ def test_sklearn_unpack(dataset: xr.Dataset):
 
 def test_sklearn_pack_unpack_with_clipping(dataset: xr.Dataset):
     name = list(dataset.data_vars)[0]
-    if FEATURE_DIM in dataset[name]:
+    if FEATURE_DIM in dataset[name].dims:
         pack_config = PackerConfig({name: {FEATURE_DIM: SliceConfig(3, None)}})
-        packed_array, feature_index = pack(dataset, SAMPLE_DIM, pack_config)
-        unpacked_dataset = unpack(packed_array, SAMPLE_DIM, feature_index)
-        expected_dataset = dataset.copy(deep=True)
-        expected_dataset[name] = expected_dataset[name].where(FEATURE_DIM >= 3, np.nan)
-        xr.testing.assert_allclose(unpacked_dataset, expected_dataset)
+        packed_array, feature_index = pack(dataset, [SAMPLE_DIM], pack_config)
+        unpacked_dataset = unpack(packed_array, [SAMPLE_DIM], feature_index)
+        expected = {}
+        for k in dataset:
+            da = dataset[k].copy(deep=True)
+            indices = pack_config.clip.get(k, {})
+            for dim, slice_config in indices.items():
+                da = da.isel({dim: slice_config.slice})
+            expected[k] = da
+        xr.testing.assert_allclose(unpacked_dataset, xr.Dataset(expected))
 
 
 def test_clip(dataset: xr.Dataset):
     name = list(dataset.data_vars)[0]
-    if FEATURE_DIM in dataset[name]:
+    if FEATURE_DIM in dataset[name].dims:
         indices = {name: {FEATURE_DIM: SliceConfig(4, 8)}}
         clipped_data = clip(dataset, indices)
-        expected_da = dataset[name].isel(indices[name])
-        assert not isinstance(clipped_data, xr.Dataset)
-        xr.test.assert_identical(clipped_data[name], expected_da)
+        expected_da = dataset[name]
+        for dim, slice_config in indices[name].items():
+            expected_da = expected_da.isel({dim: slice_config.slice})
+        xr.testing.assert_identical(clipped_data[name], expected_da)
 
 
 def test_count_features():
@@ -244,3 +250,51 @@ def test_array_packer_dump_and_load(tmpdir, dataset):
     packer._n_features = loaded_packer._n_features
     packer._sample_dim_name = loaded_packer._sample_dim_name
     packer._feature_index = loaded_packer._feature_index
+
+
+@pytest.mark.skip
+@pytest.mark.parametrize(
+    "feature_dims",
+    [
+        pytest.param([("var1", {"z": 8})], id="one_var_one_feature_dim",),
+        pytest.param([("var1", {"z": 8, "y": 5})], id="one_var_two_feature_dims",),
+        pytest.param(
+            [("var1", {"z": 8, "y": 5}), ("var2", {"y": 5})],
+            id="two_vars_two_feature_dims",
+        ),
+        pytest.param(
+            [("var1", {"z": 8}), ("var2", {"z": 8})], id="two_vars_one_feature_dim",
+        ),
+        pytest.param(
+            [("var1", {"z": 8}), ("var2", {"z": 5})],
+            id="two_vars_diff_sized_feature_dim",
+        ),
+        pytest.param(
+            [("var1", {"z1": 8}), ("var2", {"z2": 5})],
+            id="two_vars_diff_two_feature_dims",
+        ),
+    ],
+)
+def test_to_stacked_array(feature_dims):
+    dataset_as_dict = {}
+    for name, dims in feature_dims:
+        full_dims = [SAMPLE_DIM] + list(dims)
+        full_dim_sizes = [10] + list(dims.values())
+        dataset_as_dict[name] = xr.DataArray(np.zeros(full_dim_sizes), dims=full_dims)
+    dataarray = to_stacked_array(dataset_as_dict, "NEW_DIM", [SAMPLE_DIM])
+    # dataarray = xr.Dataset(dataset_as_dict).to_stacked_array("NEW_DIM", [SAMPLE_DIM])
+    # to form xarray dataset, need coords for dims of different sizes
+    dataset = {}
+    for name, da in dataset_as_dict.items():
+        for dim in da.dims:
+            if dim not in da.coords:
+                dataset[name] = da.assign_coords({dim: list(range(da.sizes[dim]))})
+            else:
+                dataset[name] = da
+    dataset = xr.Dataset(dataset)
+    # assert dataarray.shape == expected_array_shape
+    print(dataarray)
+    print(dataarray.sel({"variable": "var1"}))
+    # assert 0 == 1
+
+    xr.testing.assert_identical(dataset, dataarray.to_unstacked_dataset("NEW_DIM"))
