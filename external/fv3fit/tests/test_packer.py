@@ -216,6 +216,22 @@ def test_clip(dataset: xr.Dataset):
         xr.testing.assert_identical(clipped_data[name], expected_da)
 
 
+def test_clip_differing_slices():
+    ds = get_dataset(
+        ["var1", "var2"], [[SAMPLE_DIM, FEATURE_DIM], [SAMPLE_DIM, FEATURE_DIM]]
+    )
+    clip_config = {
+        "var1": {FEATURE_DIM: SliceConfig(4, 8)},
+        "var2": {FEATURE_DIM: SliceConfig(None, 6, 2)},
+    }
+    clipped_data = clip(ds, clip_config)
+    for name in ds:
+        expected_da = ds[name]
+        for dim, slice_config in clip_config[name].items():
+            expected_da = expected_da.isel({dim: slice_config.slice})
+        xr.testing.assert_identical(clipped_data[name], expected_da)
+
+
 def test_count_features():
     SAMPLE_DIM_NAME = "axy"
     ds = xr.Dataset(
@@ -250,4 +266,3 @@ def test_array_packer_dump_and_load(tmpdir, dataset):
     packer._n_features = loaded_packer._n_features
     packer._sample_dim_name = loaded_packer._sample_dim_name
     packer._feature_index = loaded_packer._feature_index
-
