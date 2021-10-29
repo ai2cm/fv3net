@@ -1,6 +1,6 @@
 from fv3net.diagnostics._shared.registry import Registry
 import fv3net.diagnostics._shared.transform as transform
-from fv3net.diagnostics._shared.constants import DiagArg, HORIZONTAL_DIMS, SURFACE_TYPE
+from fv3net.diagnostics._shared.constants import DiagArg, HORIZONTAL_DIMS
 import logging
 import numpy as np
 import pandas as pd
@@ -18,6 +18,7 @@ DOMAINS = (
     "positive_net_precipitation",
     "negative_net_precipitation",
 )
+SURFACE_TYPE = "land_sea_mask"
 SURFACE_TYPE_ENUMERATION = {0.0: "sea", 1.0: "land", 2.0: "sea"}
 DERIVATION_DIM = "derivation"
 

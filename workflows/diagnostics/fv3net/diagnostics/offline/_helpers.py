@@ -10,7 +10,7 @@ from vcm import safe
 from vcm.cloud import gsutil
 from vcm.catalog import catalog
 
-from .._shared.constants import DELP
+DELP = "pressure_thickness_of_atmospheric_layer"
 
 
 UNITS = {
