@@ -75,7 +75,8 @@ class ConvolutionalNetworkConfig:
         activation_function: name of keras activation function to use on hidden layers
         transpose_invariant: if True, all layer kernels will be transpose invariant
         diffusive: if True, all layer kernels will have non-negative weights
-            which sum to 1, and bias will be removed from all layers
+            which sum to 1 and are equal at equal distances from the center,
+            and bias will be removed from all layers
     """
 
     filters: int = 32
