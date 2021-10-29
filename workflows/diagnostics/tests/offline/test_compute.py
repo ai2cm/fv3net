@@ -98,7 +98,7 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
             input_path=os.path.join(tmpdir, "offline_diags"),
             output_path=os.path.join(tmpdir, "report"),
         )
-        create_report.main(create_report_args)
+        create_report(create_report_args)
         with open(os.path.join(tmpdir, "report/index.html")) as f:
             report = f.read()
         if isinstance(data_config, loaders.BatchesFromMapperConfig):

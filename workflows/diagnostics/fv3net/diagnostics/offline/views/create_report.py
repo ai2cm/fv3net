@@ -30,7 +30,7 @@ from fv3net.diagnostics.offline.compute import (
     METADATA_JSON_NAME,
     DERIVATION_DIM_NAME,
 )
-from plot import (
+from .plot import (
     get_plot_dataset,
     plot_profile_var,
     plot_diurnal_cycles,

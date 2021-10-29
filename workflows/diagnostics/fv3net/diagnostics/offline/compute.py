@@ -160,7 +160,9 @@ def _compute_diagnostics(
         target = safe.get_variables(
             ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
         )
-        ds_summary = compute_diagnostics(prediction, target, grid, ds[DELP])
+        ds_summary = compute_diagnostics(
+            prediction, target, grid, ds[DELP], n_jobs=n_jobs
+        )
         ds_summary["time"] = ds["time"]
 
         ds_metrics = compute_metrics(

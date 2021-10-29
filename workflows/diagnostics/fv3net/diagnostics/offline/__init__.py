@@ -1,1 +1,1 @@
-from view.create_report import create_report
+from .views.create_report import create_report
