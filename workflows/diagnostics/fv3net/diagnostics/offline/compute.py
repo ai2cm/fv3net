@@ -275,7 +275,7 @@ def main(args):
     model = fv3fit.load(args.model_path)
 
     # add Q2 and total water path for PW-Q2 scatterplots and net precip domain averages
-    if "dQ2" in model.output_variables:
+    if any(["Q2" in v for v in model.output_variables]):
         model = fv3fit.DerivedModel(model, derived_output_variables=["Q2"])
         model_variables = _variables_to_load(model) + ["water_vapor_path"]
     else:
