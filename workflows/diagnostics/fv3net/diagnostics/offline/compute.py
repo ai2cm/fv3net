@@ -336,16 +336,23 @@ def main(args):
         snapshot_time = args.snapshot_time or sorted(list(mapper.keys()))[0]
         snapshot_key = nearest_time(snapshot_time, list(mapper.keys()))
         ds_snapshot = predict_function(mapper[snapshot_key])
-        # add snapshotted prediction to saved diags.nc
-        ds_diagnostics = ds_diagnostics.merge(
-            safe.get_variables(ds_snapshot, model.output_variables).rename(
-                {v: f"{v}_snapshot" for v in model.output_variables}
-            )
-        )
-        transect_vertical_vars = [
+
+        vertical_vars = [
             var for var in model.output_variables if is_3d(ds_snapshot[var])
         ]
-        ds_transect = _get_transect(ds_snapshot, grid, transect_vertical_vars)
+        ds_snapshot = insert_column_integrated_vars(ds_snapshot, vertical_vars)
+        predicted_vars = [
+            var for var in ds_snapshot if "derivation" in ds_snapshot[var].dims
+        ]
+
+        # add snapshotted prediction to saved diags.nc
+        ds_diagnostics = ds_diagnostics.merge(
+            safe.get_variables(ds_snapshot, predicted_vars).rename(
+                {v: f"{v}_snapshot" for v in predicted_vars}
+            )
+        )
+
+        ds_transect = _get_transect(ds_snapshot, grid, vertical_vars)
         _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
 
     _write_nc(
