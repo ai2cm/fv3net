@@ -7,7 +7,9 @@ from fv3net.diagnostics.offline.compute_diagnostics import (
     _snap_mask_to_type,
     _snap_net_precipitation_to_type,
     _conditional_average,
+    merge_diagnostics,
 )
+
 
 da = xr.DataArray(np.arange(1.0, 5.0), dims=["z"])
 da_nans = xr.DataArray(np.full((4,), np.nan), dims=["z"])
@@ -136,3 +138,24 @@ def test__conditional_average(ds, surface_type_da, surface_type, area, expected)
 
     average = _conditional_average(ds, surface_type_da, surface_type, area)
     xr.testing.assert_allclose(average, expected)
+
+
+def test_merge_diagnostics():
+    diagnostics = [
+        (
+            "mse",
+            {
+                "a": xr.DataArray([1.0], dims=["x"]),
+                "B": xr.DataArray([1.0], dims=["x"]),
+            },
+        ),
+        (
+            "variance",
+            {
+                "a": xr.DataArray([1.0], dims=["x"]),
+                "B": xr.DataArray([1.0], dims=["x"]),
+            },
+        ),
+    ]
+    output = merge_diagnostics(diagnostics)
+    assert set(output.data_vars) == {"a_mse", "b_mse", "a_variance", "b_variance"}

@@ -13,7 +13,9 @@ from synth import (  # noqa: F401
 )
 
 import fv3fit
-from fv3net.diagnostics.offline import compute, create_report
+from fv3net.diagnostics.offline import compute
+from fv3net.diagnostics.offline.views import create_report
+
 import pathlib
 import pytest
 import numpy as np
