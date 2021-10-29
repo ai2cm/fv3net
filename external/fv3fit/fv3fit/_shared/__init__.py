@@ -1,6 +1,8 @@
 from .config import (
     TrainingConfig,
     register_training_function,
+    SliceConfig,
+    PackerConfig,
 )
 from .packer import (
     pack,
@@ -27,3 +29,4 @@ from .stacking import (
     SAMPLE_DIM_NAME,
 )
 from .models import EnsembleModel, DerivedModel
+from .filesystem import get_dir, put_dir

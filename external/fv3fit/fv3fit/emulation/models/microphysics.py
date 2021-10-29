@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from ._core import ArchitectureConfig, get_combine_from_arch_key
 from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput
-from ..data import SliceConfig
+from fv3fit._shared import SliceConfig
 
 
 @dataclasses.dataclass
@@ -51,9 +51,6 @@ class MicrophysicsConfig:
     timestep_increment_sec: int = 900
     enforce_positive: bool = True
 
-    # post-init from config
-    selection_map_slices: Mapping[str, slice] = dataclasses.field(init=False)
-
     @classmethod
     def from_dict(cls, d) -> "MicrophysicsConfig":
         return dacite.from_dict(cls, d, dacite.Config(strict=True))
@@ -63,6 +60,10 @@ class MicrophysicsConfig:
 
     def __post_init__(self):
         self.selection_map_slices = {k: v.slice for k, v in self.selection_map.items()}
+
+    @property
+    def name(self):
+        return f"microphysics-emulator-{self.architecture.name}"
 
     @property
     def output_variables(self):

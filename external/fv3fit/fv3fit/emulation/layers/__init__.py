@@ -5,6 +5,8 @@ from .normalization import (
     MaxFeatureStdDenormLayer,
     MeanFeatureStdNormLayer,
     MeanFeatureStdDenormLayer,
+    NormalizeConfig,
+    DenormalizeConfig,
 )
 from .fields import (
     IncrementStateLayer,
