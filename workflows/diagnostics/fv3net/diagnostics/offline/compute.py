@@ -41,7 +41,6 @@ logger = logging.getLogger("offline_diags")
 
 # variables that are needed in addition to the model features
 DIAGS_NC_NAME = "offline_diagnostics.nc"
-DIURNAL_NC_NAME = "diurnal_cycle.nc"
 TRANSECT_NC_NAME = "transect_lon0.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
 METADATA_JSON_NAME = "metadata.json"
