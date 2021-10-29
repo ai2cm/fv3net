@@ -33,6 +33,7 @@ UNITS = {
     "total_precipitation_rate": "[kg/m2/s]",
 }
 UNITS = {**UNITS, **{f"error_in_{k}": v for k, v in UNITS.items()}}
+UNITS = {**UNITS, **{f"{k}_snapshot": v for k, v in UNITS.items()}}
 
 GRID_INFO_VARS = [
     "eastward_wind_u_coeff",
@@ -157,10 +158,8 @@ def copy_outputs(temp_dir, output_dir):
 
 def tidy_title(var: str):
     title = (
-        var.strip("pressure_level")
-        .strip("zonal_avg_pressure_level")
-        .strip("predict_vs_target")
-        .strip("-")
+        var.replace("pressure_level", "")
+        .replace("zonal_avg_pressure_level", "")
         .replace("-", " ")
     )
     return title[0].upper() + title[1:]
@@ -175,6 +174,7 @@ def get_metric_string(
 
 
 def units_from_name(var):
+    print(var, UNITS.get(var.lower(), "[units unavailable]"))
     return UNITS.get(var.lower(), "[units unavailable]")
 
 

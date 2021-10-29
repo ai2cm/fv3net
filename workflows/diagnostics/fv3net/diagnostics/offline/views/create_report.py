@@ -119,29 +119,26 @@ def render_model_sensitivity(figures_dir, output_dir) -> str:
 def render_time_mean_maps(output_dir, ds_diags) -> str:
     report_sections: MutableMapping[str, Sequence[str]] = {}
 
-    ds_time_mean_maps = get_plot_dataset(
+    ds_time_mean = get_plot_dataset(
         ds_diags, var_filter="time_mean", column_filters=["global"]
-    ).update(ds_diags[["lat", "lon", "latb", "lonb"]])
-    predictands_2d = [
-        v
-        for v in ds_time_mean_maps
-        if DERIVATION_DIM_NAME in ds_time_mean_maps[v].dims
-        and not is_3d(ds_time_mean_maps[v])
-    ]
-    # snapshot maps
-    snapshot_vars = [v for v in predictands_2d if v.endswith("snapshot")]
-    time_mean_vars = [v for v in predictands_2d if not v.endswith("snapshot")]
+    )
 
-    for section, vars in zip(
-        ["Time averaged maps", "Snapshot maps"], [time_mean_vars, snapshot_vars]
+    # snapshot maps
+    snapshot_vars = [
+        v
+        for v in ds_diags
+        if v.endswith("snapshot") and DERIVATION_DIM_NAME in ds_diags[v].dims
+    ]
+    for section, ds in zip(
+        ["Time averaged maps", "Snapshot maps"], [ds_time_mean, ds_diags[snapshot_vars]]
     ):
-        for var in vars:
-            ds_time_mean_maps[f"error_in_{var}"] = (
-                ds_time_mean_maps.sel(derivation="predict")[var]
-                - ds_time_mean_maps.sel(derivation="target")[var]
+        map_vars = [v for v in ds if not is_3d(ds[v])]
+        for var in ds[map_vars]:
+            ds[f"error_in_{var}"] = (
+                ds.sel(derivation="predict")[var] - ds.sel(derivation="target")[var]
             )
             fig = plot_column_integrated_var(
-                ds_time_mean_maps,
+                ds.update(ds_diags[["lat", "lon", "latb", "lonb"]]),
                 var,
                 derivation_plot_coords=ds_diags[DERIVATION_DIM_NAME].values,
             )
@@ -153,7 +150,7 @@ def render_time_mean_maps(output_dir, ds_diags) -> str:
                 output_dir=output_dir,
             )
             fig_error = plot_column_integrated_var(
-                ds_time_mean_maps,
+                ds.update(ds_diags[["lat", "lon", "latb", "lonb"]]),
                 f"error_in_{var}",
                 derivation_plot_coords=None,
                 derivation_dim=None,
