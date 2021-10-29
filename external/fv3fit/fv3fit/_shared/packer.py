@@ -11,6 +11,7 @@ from typing import (
     Union,
     Mapping,
 )
+
 from .config import PackerConfig, ClipConfig
 import numpy as np
 import xarray as xr
@@ -109,7 +110,12 @@ class ArrayPacker:
     Used for ML training/prediction.
     """
 
-    def __init__(self, sample_dim_name, pack_names: Iterable[Hashable]):
+    def __init__(
+        self,
+        sample_dim_name,
+        pack_names: Iterable[Hashable],
+        config: Optional[PackerConfig] = None,
+    ):
         """Initialize the ArrayPacker.
 
         Args:
@@ -120,6 +126,7 @@ class ArrayPacker:
         self._n_features: Dict[str, int] = {}
         self._sample_dim_name = sample_dim_name
         self._feature_index: Optional[pd.MultiIndex] = None
+        self._config = config
 
     @property
     def pack_names(self) -> List[str]:
@@ -156,7 +163,9 @@ class ArrayPacker:
         Returns:
             array: 2D [sample, feature] array with data from the dataset
         """
-        array, feature_index = pack(dataset[self._pack_names], [self._sample_dim_name])
+        array, feature_index = pack(
+            dataset[self._pack_names], [self._sample_dim_name], config=self._config
+        )
         self._n_features = count_features(feature_index)
         self._feature_index = feature_index
         return array
