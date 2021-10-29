@@ -30,7 +30,10 @@ UNITS = {
     "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": "[W/m2]",
     "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": "[W/m2]",
     "net_shortwave_sfc_flux_derived": "[W/m2]",
+    "total_precipitation_rate": "[kg/m2/s]",
 }
+UNITS = {**UNITS, **{f"error_in_{k}": v for k, v in UNITS.items()}}
+UNITS = {**UNITS, **{f"{k}_snapshot": v for k, v in UNITS.items()}}
 
 GRID_INFO_VARS = [
     "eastward_wind_u_coeff",
@@ -93,22 +96,6 @@ def get_variable_indices(
     return variable_indices
 
 
-def drop_physics_vars(ds: xr.Dataset):
-    physics_vars = [var for var in ds if "pQ" in str(var)]
-    for var in physics_vars:
-        ds = ds.drop(var)
-    return ds
-
-
-def drop_temperature_humidity_tendencies_if_not_predicted(ds: xr.Dataset):
-    tendencies = ["Q1", "Q2"]
-    for name in tendencies:
-        # if variable is not predicted, it will be all NaN
-        if name in ds and np.all(np.isnan(ds[name].sel(derivation="predict").values)):
-            ds = ds.drop(name)
-    return ds
-
-
 def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
     return vertical_dim in da.dims
 
@@ -142,16 +129,13 @@ def load_grid_info(res: str = "c48"):
 def open_diagnostics_outputs(
     data_dir,
     diagnostics_nc_name: str,
-    diurnal_nc_name: str,
     transect_nc_name: str,
     metrics_json_name: str,
     metadata_json_name: str,
-) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset, dict, dict]:
+) -> Tuple[xr.Dataset, xr.Dataset, dict, dict]:
     fs = vcm.get_fs(data_dir)
     with fs.open(os.path.join(data_dir, diagnostics_nc_name), "rb") as f:
         ds_diags = xr.open_dataset(f).load()
-    with fs.open(os.path.join(data_dir, diurnal_nc_name), "rb") as f:
-        ds_diurnal = xr.open_dataset(f).load()
     transect_full_path = os.path.join(data_dir, transect_nc_name)
     if fs.exists(transect_full_path):
         with fs.open(transect_full_path, "rb") as f:
@@ -162,7 +146,7 @@ def open_diagnostics_outputs(
         metrics = json.load(f)
     with fs.open(os.path.join(data_dir, metadata_json_name), "r") as f:
         metadata = json.load(f)
-    return ds_diags, ds_diurnal, ds_transect, metrics, metadata
+    return ds_diags, ds_transect, metrics, metadata
 
 
 def copy_outputs(temp_dir, output_dir):
@@ -174,10 +158,8 @@ def copy_outputs(temp_dir, output_dir):
 
 def tidy_title(var: str):
     title = (
-        var.strip("pressure_level")
-        .strip("zonal_avg_pressure_level")
-        .strip("predict_vs_target")
-        .strip("-")
+        var.replace("pressure_level", "")
+        .replace("zonal_avg_pressure_level", "")
         .replace("-", " ")
     )
     return title[0].upper() + title[1:]
