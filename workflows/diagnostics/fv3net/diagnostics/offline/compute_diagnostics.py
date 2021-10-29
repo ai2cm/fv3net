@@ -205,9 +205,11 @@ def _predicts_sphum_tendency(ds):
 
 for mask_type in ["global", "land", "sea"]:
 
-    @diagnostics_registry.register(f"{mask_type}_diurnal_cycle")
+    @diagnostics_registry.register(f"diurnal_cycle_{mask_type}")
+    @transform.apply(transform.mask_to_sfc_type, mask_type)
     @transform.apply(transform.select_2d_variables)
     def diurnal_cycle(diag_arg, mask_type=mask_type):
+        logger.info(f"Preparing diurnal cycle over sfc type {mask_type}")
         predicted, target, grid = (
             diag_arg.prediction,
             diag_arg.verification,
@@ -223,7 +225,7 @@ for mask_type in ["global", "land", "sea"]:
 
 for domain in ["positive_net_precipitation", "negative_net_precipitation"]:
 
-    @diagnostics_registry.register(f"{domain}_time_mean")
+    @diagnostics_registry.register(f"time_domain_mean_{domain}")
     @transform.apply(transform.subset_variables, ["dQ1", "dQ2", "Q2"])
     def precip_domain_time_mean(diag_arg, domain=domain):
         logger.info(f"Preparing conditional averages over domain {domain}")
@@ -251,10 +253,11 @@ for domain in ["positive_net_precipitation", "negative_net_precipitation"]:
             return xr.Dataset()
 
 
-for mask_type in ["global", "land", "sea"]:
+for domain in ["global", "land", "sea"]:
 
-    @diagnostics_registry.register(f"{mask_type}_time_mean")
-    def sfc_type_domain_mean(diag_arg, domain=mask_type):
+    @diagnostics_registry.register(f"time_domain_mean_{domain}")
+    @transform.apply(transform.select_3d_variables)
+    def surface_type_domain_time_mean(diag_arg, domain=domain):
         logger.info(f"Preparing conditional averages over domain {domain}")
         predicted, target, grid = (
             diag_arg.prediction,
@@ -267,16 +270,23 @@ for mask_type in ["global", "land", "sea"]:
                 dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
             )
             domain_avg = conditional_average_over_domain(
-                ds, grid, predicted.data_vars, domain=domain
+                ds, grid, predicted.data_vars, domain=domain,
             )
             return domain_avg
+        else:
+            return xr.Dataset()
 
 
-@diagnostics_registry.register("time_mean")
+@diagnostics_registry.register(f"time_mean_global")
 def time_mean(diag_arg):
-    logger.info(f"Preparing time means")
-    predicted, target = diag_arg.prediction, diag_arg.verification
-    ds = xr.concat(
-        [predicted, target], dim=pd.Index(["predict", "target"], name=DERIVATION_DIM)
+    logger.info(f"Preparing global time means")
+    predicted, target = (
+        diag_arg.prediction,
+        diag_arg.verification,
     )
-    return ds.mean("time")
+    if len(predicted) > 0:
+        ds = xr.concat(
+            [predicted, target],
+            dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
+        )
+        return ds.mean("time")
