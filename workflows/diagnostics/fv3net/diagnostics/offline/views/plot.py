@@ -158,3 +158,28 @@ def plot_column_integrated_var(
     f.set_dpi(dpi)
     f.suptitle(f'{var.replace("_", " ")} {units_from_name(var)}')
     return f
+
+
+def plot_generic_data_array(
+    da: xr.DataArray,
+    title: str = None,
+    xlabel: str = None,
+    ylabel: str = None,
+    xlim: Sequence[float] = None,
+    ylim: Sequence[float] = None,
+):
+    fig = plt.figure()
+    da.plot()
+    if xlabel:
+        plt.xlabel(xlabel)
+    if xlim:
+        plt.xlim(xlim)
+    if ylim:
+        plt.ylim(ylim)
+    units = units_from_name(da.name) or ""
+    ylabel = ylabel or units
+    title = title or " ".join([da.name.replace("_", " ").replace("-", ",")])
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.tight_layout()
+    return fig

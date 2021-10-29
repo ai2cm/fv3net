@@ -12,7 +12,6 @@ import numpy as np
 import report
 import vcm
 from vcm.cloud import get_fs
-import diagnostics_utils.plot as diagplot
 import yaml
 from fv3net.diagnostics.offline._helpers import (
     get_metric_string,
@@ -36,6 +35,7 @@ from .plot import (
     plot_diurnal_cycles,
     plot_zonal_average,
     plot_column_integrated_var,
+    plot_generic_data_array,
 )
 
 
@@ -219,7 +219,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
     ]
     for var in sorted(pressure_level_metrics):
         ylim = (0, 1) if "r2" in var.lower() else None
-        fig = diagplot._plot_generic_data_array(
+        fig = plot_generic_data_array(
             ds_diags[var], xlabel="pressure [Pa]", ylim=ylim, title=tidy_title(var)
         )
         report.insert_report_figure(
