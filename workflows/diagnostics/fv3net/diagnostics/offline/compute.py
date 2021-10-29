@@ -305,6 +305,7 @@ def main(args):
     ds_diagnostics, ds_scalar_metrics = _compute_diagnostics(
         batches, grid, predicted_vars=model.output_variables, n_jobs=args.n_jobs
     )
+    ds_diagnostics = ds_diagnostics.update(grid)
 
     # save model senstivity figures- these exclude derived variables
     base_model = model.base_model if isinstance(model, fv3fit.DerivedModel) else model
