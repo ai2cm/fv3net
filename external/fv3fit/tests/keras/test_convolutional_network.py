@@ -42,8 +42,10 @@ def test_diffusive_constraint():
     constraint = Diffusive()
     result = constraint(array_in[:, :, None, None])[:, :, 0, 0]
     print(result)
-    assert result[0, 0] == result[2, 0] == result[0, 2] == result[2, 2]
-    assert result[1, 0] == result[0, 1] == result[1, 2] == result[2, 1]
+    for edge in ((2, 0), (0, 2), (2, 2)):
+        np.testing.assert_almost_equal(result[edge], result[0, 0])
+    for edge in ((0, 1), (1, 2), (2, 1)):
+        np.testing.assert_almost_equal(result[edge], result[1, 0])
     np.testing.assert_almost_equal(np.sum(result), 1.0)
 
 
