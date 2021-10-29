@@ -1,10 +1,34 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from typing import Sequence, Mapping, Union, Optional
 import xarray as xr
 
 import fv3viz
 from fv3net.diagnostics.offline._helpers import units_from_name
+
+
+def get_plot_dataset(ds, var_filter: str, column_filters: Sequence[str]):
+    # rearranges variables into dataset with domain as a dimension
+    vars = [v.replace(var_filter, "").strip("_") for v in ds if var_filter in v]
+    for col_tag in column_filters:
+        vars = [v.replace(col_tag, "").strip("_") for v in vars]
+
+    row_vars = set(vars)
+
+    grouped_ds = xr.Dataset()
+    for var in row_vars:
+        existing_cols, grouped = [], []
+        for col_tag in column_filters:
+            if f"{var}_{var_filter}_{col_tag}" in ds:
+                grouped.append(ds[f"{var}_{var_filter}_{col_tag}".strip("_")])
+                existing_cols.append(col_tag)
+
+        if len(grouped) > 0:
+            grouped_ds[var] = xr.concat(
+                grouped, dim=pd.Index(existing_cols, name="domain")
+            ).squeeze()
+    return grouped_ds
 
 
 def plot_transect(
