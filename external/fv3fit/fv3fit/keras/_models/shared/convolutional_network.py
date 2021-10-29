@@ -29,6 +29,34 @@ class TransposeInvariant(tf.keras.constraints.Constraint):
 class Diffusive(tf.keras.constraints.Constraint):
     def __call__(self, w: tf.Tensor):
         w = tf.maximum(w, 0.0)
+        """
+        a b c
+        d e f
+        g h i
+        """
+        w = tf.scalar_mul(0.5, w + tf.transpose(w, perm=(1, 0, 2, 3)))
+        """
+        ->
+        a b c
+        d e b
+        g d a
+        """
+        w = tf.scalar_mul(
+            0.5, w + tf.experimental.numpy.fliplr(tf.experimental.numpy.flipud(w))
+        )
+        """
+        ->
+        a b c
+        d e b
+        g d a
+        """
+        w = tf.scalar_mul(0.5, w + tf.experimental.numpy.fliplr(w))
+        """
+        ->
+        a b a
+        b c b
+        a d a
+        """
         total = tf.reduce_sum(w)
         return tf.scalar_mul(1.0 / total, w)
 
@@ -70,9 +98,9 @@ class ConvolutionalNetworkConfig:
         gaussian_noise: amount of gaussian noise to add to each hidden layer output
         spectral_normalization: if True, apply spectral normalization to hidden layers
         activation_function: name of keras activation function to use on hidden layers
-        transpose_invariant: if True, hidden layer kernels will be transpose invariant
-        diffusive: if True, hidden layer kernels will have non-negative weights
-            which sum to 1
+        transpose_invariant: if True, all layer kernels will be transpose invariant
+        diffusive: if True, all layer kernels will have non-negative weights
+            which sum to 1, and bias will be removed from all layers
     """
 
     filters: int = 32
@@ -103,6 +131,7 @@ class ConvolutionalNetworkConfig:
             constraints.append(TransposeInvariant())
         if self.diffusive:
             constraints.append(Diffusive())
+            constraints.append(tf.keras.constraints.RadialConstraint())
 
         if len(constraints) == 0:
             constraint = None
@@ -137,6 +166,7 @@ class ConvolutionalNetworkConfig:
         """
         hidden_outputs = []
         x = x_in
+        use_bias = not self.diffusive
 
         for i in range(self.depth - 1):
             if self.gaussian_noise > 0.0:
@@ -152,6 +182,7 @@ class ConvolutionalNetworkConfig:
                 kernel_regularizer=self.kernel_regularizer.instance,
                 name=f"convolutional_{label}_{i}",
                 kernel_constraint=self._kernel_constraint,
+                use_bias=use_bias,
             )
             if self.spectral_normalization:
                 hidden_layer = tfa.layers.SpectralNormalization(
@@ -167,5 +198,6 @@ class ConvolutionalNetworkConfig:
             data_format="channels_last",
             name=f"convolutional_network_{label}_output",
             kernel_constraint=self._kernel_constraint,
+            use_bias=use_bias,
         )(x)
         return ConvolutionalNetwork(hidden_outputs=hidden_outputs, output=output)
