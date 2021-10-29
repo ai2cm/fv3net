@@ -331,3 +331,23 @@ def column_integrated_Q2(self):
     return da.assign_attrs(
         {"long_name": "column integrated moistening", "units": "mm/day"}
     )
+
+
+@DerivedMapping.register(
+    "water_vapor_path",
+    required_inputs=["specific_humidity", "pressure_thickness_of_atmospheric_layer"],
+)
+def water_vapor_path(self):
+    try:
+        return self._mapper["water_vapor_path"]
+    except KeyError:
+        kg_m2_to_mm = 1000.0 / 997
+        da = (
+            vcm.mass_integrate(
+                self._mapper["specific_humidity"],
+                self._mapper["pressure_thickness_of_atmospheric_layer"],
+                dim="z",
+            )
+            * kg_m2_to_mm
+        )
+        return da.assign_attrs({"long_name": "water vapor path", "units": "mm"})
