@@ -295,6 +295,12 @@ def _get_data_mapper_if_exists(config):
         return None
 
 
+def _variables_to_load(model):
+    return list(
+        set(list(model.input_variables) + list(model.output_variables) + [DELP])
+    )
+
+
 def main(args):
     logger.info("Starting diagnostics routine.")
 
@@ -313,9 +319,12 @@ def main(args):
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
 
-    model_variables = list(
-        set(list(model.input_variables) + list(model.output_variables) + [DELP])
-    )
+    # add Q2 and total water path for PW-Q2 scatterplots and net precip domain averages
+    if any(["Q2" in v for v in model.output_variables]):
+        model = fv3fit.DerivedModel(model, derived_output_variables=["Q2"])
+        model_variables = _variables_to_load(model) + ["water_vapor_path"]
+    else:
+        model_variables = _variables_to_load(model)
 
     output_data_yaml = os.path.join(args.output_path, "data_config.yaml")
     with fsspec.open(args.data_yaml, "r") as f_in, fsspec.open(
