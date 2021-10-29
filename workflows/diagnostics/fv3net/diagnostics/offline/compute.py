@@ -16,7 +16,6 @@ import loaders
 from vcm import safe, interpolate_to_pressure_levels
 import vcm
 import fv3fit
-from .compute_metrics import compute_metrics
 from .compute_diagnostics import compute_diagnostics
 from ._plot_input_sensitivity import plot_jacobian, plot_rf_feature_importance
 from ._helpers import (
@@ -143,7 +142,7 @@ def _compute_diagnostics(
     predicted_vars: List[str],
     n_jobs: int,
 ) -> Tuple[xr.Dataset, xr.Dataset]:
-    batches_summary, batches_metrics = [], []
+    batches_summary = []
 
     # for each batch...
     for i, ds in enumerate(batches):
@@ -165,21 +164,12 @@ def _compute_diagnostics(
         )
         ds_summary["time"] = ds["time"]
 
-        ds_metrics = compute_metrics(
-            prediction, target, grid=grid, delp=ds[DELP], n_jobs=n_jobs,
-        )
-
         batches_summary.append(ds_summary.load())
-        batches_metrics.append(ds_metrics.load())
         del ds
 
     # then average over the batches for each output
     ds_summary = xr.concat(batches_summary, dim="batch")
-    ds_metrics = xr.concat(batches_metrics, dim="batch")
-
-    ds_diagnostics, ds_scalar_metrics = _consolidate_dimensioned_data(
-        ds_summary, ds_metrics
-    )
+    ds_diagnostics, ds_scalar_metrics = _consolidate_dimensioned_data(ds_summary)
 
     ds_scalar_metrics = insert_r2(ds_scalar_metrics)
     ds_diagnostics = ds_diagnostics.pipe(insert_r2).pipe(insert_rmse)
@@ -190,14 +180,12 @@ def _compute_diagnostics(
     return ds_diagnostics.mean("batch"), ds_scalar_metrics
 
 
-def _consolidate_dimensioned_data(ds_summary, ds_metrics):
+def _consolidate_dimensioned_data(ds):
     # moves dimensioned quantities into final diags dataset so they're saved as netcdf
-    scalar_metrics = [
-        var for var in ds_metrics if ds_metrics[var].size == len(ds_metrics.batch)
-    ]
-    ds_scalar_metrics = safe.get_variables(ds_metrics, scalar_metrics)
-    ds_metrics_arrays = ds_metrics.drop(scalar_metrics)
-    ds_diagnostics = ds_summary.merge(ds_metrics_arrays)
+    scalar_metrics = [var for var in ds if ds[var].size == len(ds.batch)]
+    ds_scalar_metrics = safe.get_variables(ds, scalar_metrics)
+    ds_metrics_arrays = ds.drop(scalar_metrics)
+    ds_diagnostics = ds.merge(ds_metrics_arrays)
     return ds_diagnostics, ds_scalar_metrics
 
 
