@@ -236,30 +236,16 @@ def test_SklearnWrapper_fit_predict_with_clipped_input_data():
     wrapper.predict(input_data)
 
 
-# clipping for ML outputs is not yet implemented
-def test_SklearnWrapper_fit_with_clipped_output_data():
+def test_SklearnWrapper_raises_not_implemented_error_with_clipped_output_data():
     nz = 5
     model = _RegressorEnsemble(
         base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
         n_jobs=1,
     )
     with pytest.raises(NotImplementedError):
-        wrapper = SklearnWrapper(
+        SklearnWrapper(
             input_variables=["a", "b"],
             output_variables=["c"],
             model=model,
             packer_config=PackerConfig({"c": {"z": SliceConfig(2, None)}}),
-        )
-
-        dims = ["x", "y", "z"]
-        shape = (2, 2, nz)
-        arr = np.arange(np.prod(shape)).reshape(shape)
-        input_data = xr.Dataset(
-            {"a": (dims, arr), "b": (dims[:-1], arr[:, :, 0]), "c": (dims, arr + 1)}
-        )
-        wrapper.fit([input_data])
-        prediction = wrapper.predict(input_data)
-        xr.testing.assert_identical(
-            xr.full_like(input_data[["c"]].isel(z=slice(2, None)), np.nan),
-            prediction.isel(z=slice(2, None)),
         )
