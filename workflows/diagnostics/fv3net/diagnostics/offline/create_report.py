@@ -14,24 +14,28 @@ import vcm
 from vcm.cloud import get_fs
 import diagnostics_utils.plot as diagplot
 import yaml
-from ._helpers import (
+from fv3net.diagnostics.offline._helpers import (
     get_metric_string,
     open_diagnostics_outputs,
     copy_outputs,
     tidy_title,
     units_from_name,
     is_3d,
-    drop_physics_vars,
-    drop_temperature_humidity_tendencies_if_not_predicted,
 )
-from ._select import plot_transect
-from .compute import (
+from fv3net.diagnostics.offline._select import plot_transect
+from fv3net.diagnostics.offline.compute import (
     DIAGS_NC_NAME,
-    DIURNAL_NC_NAME,
     TRANSECT_NC_NAME,
     METRICS_JSON_NAME,
     METADATA_JSON_NAME,
     DERIVATION_DIM_NAME,
+)
+from .plot import (
+    get_plot_dataset,
+    plot_profile_var,
+    plot_diurnal_cycles,
+    plot_zonal_average,
+    plot_column_integrated_var,
 )
 
 
@@ -114,25 +118,27 @@ def render_model_sensitivity(figures_dir, output_dir) -> str:
 
 def render_time_mean_maps(output_dir, ds_diags) -> str:
     report_sections: MutableMapping[str, Sequence[str]] = {}
-    predictands_2d = [
+
+    ds_time_mean = get_plot_dataset(
+        ds_diags, var_filter="time_mean", column_filters=["global"]
+    )
+
+    # snapshot maps
+    snapshot_vars = [
         v
         for v in ds_diags
-        if DERIVATION_DIM_NAME in ds_diags[v].dims and not is_3d(ds_diags[v])
+        if v.endswith("snapshot") and DERIVATION_DIM_NAME in ds_diags[v].dims
     ]
-    # snapshot maps
-    snapshot_vars = [v for v in predictands_2d if v.endswith("snapshot")]
-    time_mean_vars = [v for v in predictands_2d if not v.endswith("snapshot")]
-
-    for section, vars in zip(
-        ["Time averaged maps", "Snapshot maps"], [time_mean_vars, snapshot_vars]
+    for section, ds in zip(
+        ["Time averaged maps", "Snapshot maps"], [ds_time_mean, ds_diags[snapshot_vars]]
     ):
-        for var in vars:
-            ds_diags[f"error_in_{var}"] = (
-                ds_diags.sel(derivation="predict")[var]
-                - ds_diags.sel(derivation="target")[var]
+        map_vars = [v for v in ds if not is_3d(ds[v])]
+        for var in ds[map_vars]:
+            ds[f"error_in_{var}"] = (
+                ds.sel(derivation="predict")[var] - ds.sel(derivation="target")[var]
             )
-            fig = diagplot.plot_column_integrated_var(
-                ds_diags,
+            fig = plot_column_integrated_var(
+                ds.update(ds_diags[["lat", "lon", "latb", "lonb"]]),
                 var,
                 derivation_plot_coords=ds_diags[DERIVATION_DIM_NAME].values,
             )
@@ -143,8 +149,8 @@ def render_time_mean_maps(output_dir, ds_diags) -> str:
                 section_name=section,
                 output_dir=output_dir,
             )
-            fig_error = diagplot.plot_column_integrated_var(
-                ds_diags,
+            fig_error = plot_column_integrated_var(
+                ds.update(ds_diags[["lat", "lon", "latb", "lonb"]]),
                 f"error_in_{var}",
                 derivation_plot_coords=None,
                 derivation_dim=None,
@@ -159,7 +165,7 @@ def render_time_mean_maps(output_dir, ds_diags) -> str:
     return report.create_html(sections=report_sections, title="Maps",)
 
 
-def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir) -> str:
+def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
     report_sections: MutableMapping[str, Sequence[str]] = {}
 
     # Links
@@ -170,7 +176,7 @@ def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir)
 
     # histogram of timesteps used for testing
     try:
-        timesteps = ds_diurnal["time"]
+        timesteps = ds_diags["time"]
     except KeyError:
         pass
     else:
@@ -192,7 +198,7 @@ def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir)
         if var.endswith("_pressure_level_zonal_avg_global") and ("r2" in var.lower())
     ]
     for var in sorted(zonal_avg_pressure_level_metrics):
-        fig = diagplot.plot_zonal_average(
+        fig = plot_zonal_average(
             data=ds_diags[var],
             title=tidy_title(var),
             plot_kwargs={"vmin": 0, "vmax": 1},
@@ -225,16 +231,21 @@ def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir)
         )
 
     # time averaged quantity vertical profiles over land/sea, pos/neg net precip
-    profiles = [
-        var
-        for var in ds_diags.data_vars
-        if ("q1" in var or "q2" in var)
-        and is_3d(ds_diags[var])
-        and (DERIVATION_DIM_NAME in ds_diags[var].dims)
-    ]
-    for var in sorted(profiles):
-        fig = diagplot.plot_profile_var(
-            ds_diags, var, derivation_dim=DERIVATION_DIM_NAME, domain_dim=DOMAIN_DIM,
+    vars_3d = [v for v in ds_diags if is_3d(ds_diags[v])]
+    ds_profiles = get_plot_dataset(
+        ds_diags[vars_3d],
+        var_filter="time_domain_mean",
+        column_filters=[
+            "global",
+            "land",
+            "sea",
+            "positive_net_precipitation",
+            "negative_net_precipitation",
+        ],
+    )
+    for var in sorted(ds_profiles):
+        fig = plot_profile_var(
+            ds_profiles, var, derivation_dim=DERIVATION_DIM_NAME, domain_dim="domain",
         )
         report.insert_report_figure(
             report_sections,
@@ -245,12 +256,11 @@ def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir)
         )
 
     # 2d quantity diurnal cycles
+    ds_diurnal = get_plot_dataset(
+        ds_diags, var_filter="diurnal_cycle", column_filters=["global", "land", "sea"]
+    )
     for var in ds_diurnal:
-        fig = diagplot.plot_diurnal_cycles(
-            ds_diurnal,
-            var=var,
-            derivation_plot_coords=ds_diurnal[DERIVATION_DIM_NAME].values,
-        )
+        fig = plot_diurnal_cycles(ds_diurnal, var=var,)
         report.insert_report_figure(
             report_sections,
             fig,
@@ -294,27 +304,17 @@ def render_index(config, metrics, ds_diags, ds_diurnal, ds_transect, output_dir)
     )
 
 
-def main(args):
+def create_report(args):
     temp_output_dir = tempfile.TemporaryDirectory()
     atexit.register(_cleanup_temp_dir, temp_output_dir)
 
-    ds_diags, ds_diurnal, ds_transect, metrics, metadata = open_diagnostics_outputs(
+    ds_diags, ds_transect, metrics, metadata = open_diagnostics_outputs(
         args.input_path,
         diagnostics_nc_name=DIAGS_NC_NAME,
-        diurnal_nc_name=DIURNAL_NC_NAME,
         transect_nc_name=TRANSECT_NC_NAME,
         metrics_json_name=METRICS_JSON_NAME,
         metadata_json_name=METADATA_JSON_NAME,
     )
-
-    # omit physics tendencies from report plots
-    ds_diags = drop_physics_vars(ds_diags)
-    ds_diurnal = drop_physics_vars(ds_diurnal)
-
-    # diagnostics_utils currently fill dQ1/2 with zeros if not predicted
-    # exclude these from the report if they are not model outputs.
-    ds_diags = drop_temperature_humidity_tendencies_if_not_predicted(ds_diags)
-    ds_diurnal = drop_temperature_humidity_tendencies_if_not_predicted(ds_diurnal)
 
     if args.commit_sha:
         metadata["commit"] = args.commit_sha
@@ -326,12 +326,7 @@ def main(args):
             metadata["training_data_config"] = yaml.safe_load(f)
 
     html_index = render_index(
-        metadata,
-        metrics,
-        ds_diags,
-        ds_diurnal,
-        ds_transect,
-        output_dir=temp_output_dir.name,
+        metadata, metrics, ds_diags, ds_transect, output_dir=temp_output_dir.name,
     )
     with open(os.path.join(temp_output_dir.name, "index.html"), "w") as f:
         f.write(html_index)
@@ -353,11 +348,10 @@ def main(args):
     # Explicitly call .close() or xarray raises errors atexit
     # described in https://github.com/shoyer/h5netcdf/issues/50
     ds_diags.close()
-    ds_diurnal.close()
     ds_transect.close()
 
 
 if __name__ == "__main__":
     logger.info("Starting create report routine.")
     args = _create_arg_parser()
-    main(args)
+    create_report(args)
