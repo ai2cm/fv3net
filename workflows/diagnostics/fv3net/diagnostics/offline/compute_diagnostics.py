@@ -1,4 +1,4 @@
-from fv3net.diagnostics._shared.registry import Registry, prepare_diag_dict
+from fv3net.diagnostics._shared.registry import Registry
 import fv3net.diagnostics._shared.transform as transform
 from fv3net.diagnostics._shared.constants import DiagArg, HORIZONTAL_DIMS, SURFACE_TYPE
 import logging
@@ -22,10 +22,25 @@ SURFACE_TYPE_ENUMERATION = {0.0: "sea", 1.0: "land", 2.0: "sea"}
 DERIVATION_DIM = "derivation"
 
 
+def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Dict[str, xr.DataArray]:
+    """
+    Take a diagnostic dataset and add a suffix to all variable names and return as dict.
+    Useful in multiple merge functions passed to registries.
+    """
+
+    diags = {}
+    for variable in ds:
+        lower = str(variable).lower()
+        da = ds[variable]
+        diags[f"{lower}_{suffix}"] = da
+
+    return diags
+
+
 def merge_diagnostics(metrics: Sequence[Tuple[str, xr.Dataset]]):
     out: Dict[str, xr.DataArray] = {}
     for (name, ds) in metrics:
-        out.update(prepare_diag_dict(name, ds))
+        out.update(_prepare_diag_dict(name, ds))
     # ignoring type error that complains if Dataset created from dict
     return xr.Dataset(out)  # type: ignore
 
