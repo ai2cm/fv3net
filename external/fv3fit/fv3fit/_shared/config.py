@@ -14,6 +14,7 @@ from typing import (
     List,
     Type,
     Dict,
+    Hashable,
     MutableMapping,
 )
 from fv3fit.typing import Dataclass
@@ -268,6 +269,25 @@ class RegularizerConfig:
 
 
 @dataclasses.dataclass
+class SliceConfig:
+    start: Optional[int] = None
+    stop: Optional[int] = None
+    step: Optional[int] = None
+
+    @property
+    def slice(self):
+        return slice(self.start, self.stop, self.step)
+
+
+ClipConfig = Mapping[Hashable, Mapping[str, SliceConfig]]
+
+
+@dataclasses.dataclass(frozen=True)
+class PackerConfig:
+    clip: ClipConfig
+
+
+@dataclasses.dataclass
 class RandomForestHyperparameters(Hyperparameters):
     """
     Configuration for training a random forest based model.
@@ -296,6 +316,7 @@ class RandomForestHyperparameters(Hyperparameters):
             for each base estimator
         bootstrap: whether bootstrap samples are used when building trees.
             If False, the whole dataset is used to build each tree.
+        packer_config: configuration of dataset packing.
     """
 
     input_variables: List[str]
@@ -314,6 +335,9 @@ class RandomForestHyperparameters(Hyperparameters):
     max_features: Union[str, int, float] = "auto"
     max_samples: Optional[Union[int, float]] = None
     bootstrap: bool = True
+    packer_config: PackerConfig = dataclasses.field(
+        default_factory=lambda: PackerConfig({})
+    )
 
     @property
     def variables(self) -> Set[str]:
