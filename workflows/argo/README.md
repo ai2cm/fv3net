@@ -225,7 +225,7 @@ python -m fv3net.diagnostics.offline.compute \
           {{inputs.parameters.offline-diags-output}} \
           --timesteps-file {{inputs.parameters.times}} 
           
-python -m fv3net.diagnostics.offline.create_report \
+python -m fv3net.diagnostics.offline.views.create_report \
           {{inputs.parameters.offline-diags-output}} \
           {{inputs.parameters.report-output}} \
           --commit-sha "$COMMIT_SHA"
