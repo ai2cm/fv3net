@@ -14,6 +14,7 @@ from ._sequences import _XyMultiArraySequence
 from .shared import ConvolutionalNetworkConfig, TrainingLoopConfig
 import numpy as np
 from fv3fit.keras._models.shared import (
+    Diffusive,
     standard_normalize,
     standard_denormalize,
 )
@@ -161,6 +162,10 @@ def build_model(
     else:
         full_input = norm_input_layers[0]
     convolution = config.convolutional_network.build(x_in=full_input, n_features_out=0)
+    if config.convolutional_network.diffusive:
+        constraint: Optional[tf.keras.constraints.Constraint] = Diffusive()
+    else:
+        constraint = None
     output_features = count_features(config.output_variables, batch)
     norm_output_layers = [
         tf.keras.layers.Conv2D(
@@ -170,6 +175,7 @@ def build_model(
             activation="linear",
             data_format="channels_last",
             name=f"convolutional_network_{i}_output",
+            kernel_constraint=constraint,
         )(convolution.hidden_outputs[-1])
         for i, name in enumerate(config.output_variables)
     ]

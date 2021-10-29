@@ -1,5 +1,7 @@
 import dataclasses
 from typing import Callable, Optional, Sequence, TextIO
+from fv3fit.keras._models.convolutional import ConvolutionalHyperparameters
+from fv3fit.keras._models.shared.convolutional_network import ConvolutionalNetworkConfig
 import pytest
 import xarray as xr
 import numpy as np
@@ -75,13 +77,14 @@ def get_default_hyperparameters(model_type, input_variables, output_variables):
     return hyperparameters
 
 
-def train_identity_model(model_type, sample_func):
+def train_identity_model(model_type, sample_func, hyperparameters=None):
     input_variables, output_variables, train_dataset = get_dataset(
         model_type, sample_func
     )
-    hyperparameters = get_default_hyperparameters(
-        model_type, input_variables, output_variables
-    )
+    if hyperparameters is None:
+        hyperparameters = get_default_hyperparameters(
+            model_type, input_variables, output_variables
+        )
     train_batches = [train_dataset for _ in range(10)]
     input_variables, output_variables, test_dataset = get_dataset(
         model_type, sample_func
@@ -201,6 +204,37 @@ def test_default_convolutional_model_is_transpose_invariant(regtest):
     )
     output_from_transpose = result.model.predict(transpose_input)
     xr.testing.assert_allclose(output_from_transpose, transpose_output, atol=1e-5)
+
+
+def test_diffusive_convolutional_model_gives_bounded_output():
+    """
+    The model with diffusive enabled should give outputs in the range of the inputs.
+    """
+    fv3fit.set_random_seed(1)
+    # don't set n_feature too high for this, because of curse of dimensionality
+    n_sample, nx, ny, n_feature = 50, 12, 12, 2
+    low, high = 0.0, 1.0
+    train_sample_func = get_uniform_sample_func(
+        size=(n_sample, nx, ny, n_feature), low=low - 1.0, high=high + 1.0
+    )
+    test_sample_func = get_uniform_sample_func(
+        size=(n_sample, nx, ny, n_feature), low=low, high=high
+    )
+    input_variables, output_variables, test_dataset = get_dataset(
+        model_type="convolutional", sample_func=test_sample_func
+    )
+    hyperparameters = ConvolutionalHyperparameters(
+        input_variables=input_variables,
+        output_variables=output_variables,
+        convolutional_network=ConvolutionalNetworkConfig(diffusive=True),
+    )
+    result = train_identity_model(
+        "convolutional", sample_func=train_sample_func, hyperparameters=hyperparameters
+    )
+    output = result.model.predict(test_dataset)
+    for name, data_array in output.data_vars.items():
+        assert np.all(data_array.values >= low), name
+        assert np.all(data_array.values <= high), name
 
 
 def test_train_with_same_seed_gives_same_result(model_type):
