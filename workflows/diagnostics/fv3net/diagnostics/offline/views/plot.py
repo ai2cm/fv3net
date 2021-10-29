@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from typing import Sequence, Mapping, Union
+from typing import Sequence, Mapping, Union, Optional
 import xarray as xr
 
 import fv3viz
@@ -133,8 +133,8 @@ def plot_profile_var(
 def plot_column_integrated_var(
     ds: xr.Dataset,
     var: str,
-    derivation_plot_coords: Sequence[str],
-    derivation_dim: str = "derivation",
+    derivation_plot_coords: Optional[Sequence[str]] = None,
+    derivation_dim: Optional[str] = "derivation",
     dataset_dim: str = "dataset",
     dpi: int = 100,
     vmax: Union[int, float] = None,

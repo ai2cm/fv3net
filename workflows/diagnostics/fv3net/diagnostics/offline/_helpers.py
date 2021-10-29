@@ -30,7 +30,9 @@ UNITS = {
     "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": "[W/m2]",
     "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": "[W/m2]",
     "net_shortwave_sfc_flux_derived": "[W/m2]",
+    "total_precipitation_rate": "[kg/m2/s]",
 }
+UNITS = {**UNITS, **{f"error_in_{k}": v for k, v in UNITS.items()}}
 
 GRID_INFO_VARS = [
     "eastward_wind_u_coeff",
@@ -126,16 +128,13 @@ def load_grid_info(res: str = "c48"):
 def open_diagnostics_outputs(
     data_dir,
     diagnostics_nc_name: str,
-    diurnal_nc_name: str,
     transect_nc_name: str,
     metrics_json_name: str,
     metadata_json_name: str,
-) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset, dict, dict]:
+) -> Tuple[xr.Dataset, xr.Dataset, dict, dict]:
     fs = vcm.get_fs(data_dir)
     with fs.open(os.path.join(data_dir, diagnostics_nc_name), "rb") as f:
         ds_diags = xr.open_dataset(f).load()
-    with fs.open(os.path.join(data_dir, diurnal_nc_name), "rb") as f:
-        ds_diurnal = xr.open_dataset(f).load()
     transect_full_path = os.path.join(data_dir, transect_nc_name)
     if fs.exists(transect_full_path):
         with fs.open(transect_full_path, "rb") as f:
@@ -146,7 +145,7 @@ def open_diagnostics_outputs(
         metrics = json.load(f)
     with fs.open(os.path.join(data_dir, metadata_json_name), "r") as f:
         metadata = json.load(f)
-    return ds_diags, ds_diurnal, ds_transect, metrics, metadata
+    return ds_diags, ds_transect, metrics, metadata
 
 
 def copy_outputs(temp_dir, output_dir):
