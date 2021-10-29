@@ -214,7 +214,7 @@ class SklearnWrapper(Predictor):
         model: _RegressorEnsemble,
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
-        packer_config: Optional[PackerConfig] = None,
+        packer_config: PackerConfig = PackerConfig({}),
     ) -> None:
         """
         Initialize the wrapper
@@ -231,7 +231,7 @@ class SklearnWrapper(Predictor):
         self.target_scaler: Optional[scaler.NormalizeTransform] = None
         self._input_variables = input_variables
         self._output_variables = output_variables
-        self.packer_config = packer_config or PackerConfig({})
+        self.packer_config = packer_config
         for name in self.packer_config.clip:
             if name in self._output_variables:
                 raise NotImplementedError("Clipping for ML outputs is not implemented.")

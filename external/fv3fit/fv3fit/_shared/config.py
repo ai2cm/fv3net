@@ -282,7 +282,7 @@ class SliceConfig:
 ClipConfig = Mapping[Hashable, Mapping[str, SliceConfig]]
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class PackerConfig:
     clip: ClipConfig
 
@@ -316,6 +316,7 @@ class RandomForestHyperparameters(Hyperparameters):
             for each base estimator
         bootstrap: whether bootstrap samples are used when building trees.
             If False, the whole dataset is used to build each tree.
+        packer_config: configuration of dataset packing.
     """
 
     input_variables: List[str]
@@ -334,7 +335,9 @@ class RandomForestHyperparameters(Hyperparameters):
     max_features: Union[str, int, float] = "auto"
     max_samples: Optional[Union[int, float]] = None
     bootstrap: bool = True
-    packer_config: Optional[PackerConfig] = None
+    packer_config: PackerConfig = dataclasses.field(
+        default_factory=lambda: PackerConfig({})
+    )
 
     @property
     def variables(self) -> Set[str]:
