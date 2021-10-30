@@ -5,14 +5,13 @@ metadata:
 spec:
   arguments:
     parameters:
-      - name: initial-condition
-        value: "20160801.001500"
-      - name: reference-restarts
-        value: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
       - name: nudge-to-fine-config
         value: | 
           base_version: v0.6
           forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+          initial_conditions:
+            base_url: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
+            timestep: "20160801.001500"
           nudging:
             timescale_hours:
               air_temperature: 3
@@ -199,6 +198,9 @@ spec:
       - name: prognostic-run-config
         value: |
           base_version: v0.6
+          initial_conditions:
+            base_url: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
+            timestep: "20160801.001500"
           namelist:
             coupler_nml:
               hours: 8
@@ -337,10 +339,6 @@ spec:
           template: prognostic-run
         arguments:
           parameters:
-          - name: reference-restarts
-            value: "{{workflow.parameters.reference-restarts}}"
-          - name: initial-condition
-            value: "{{workflow.parameters.initial-condition}}"
           - name: bucket
             value: "{{workflow.parameters.bucket}}"
           - name: project
@@ -376,12 +374,8 @@ spec:
             value: "{{workflow.parameters.training-data-config}}"
           - name: validation-data-config
             value: "{{workflow.parameters.validation-data-config}}"
-          - name: initial-condition
-            value: "{{workflow.parameters.initial-condition}}"
           - name: prognostic-run-config
             value: "{{workflow.parameters.prognostic-run-config}}"
-          - name: reference-restarts
-            value: "{{workflow.parameters.reference-restarts}}"
           - name: public-report-output
             value: "{{tasks.resolve-output-url.outputs.result}}/offline-report"
           - name: cpu-prog

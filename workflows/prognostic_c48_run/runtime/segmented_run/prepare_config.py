@@ -156,16 +156,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
     )
     parser.add_argument(
-        "initial_condition_url",
-        type=str,
-        help="Remote url to directory holding timesteps with model initial conditions.",
-    )
-    parser.add_argument(
-        "ic_timestep",
-        type=str,
-        help="YYYYMMDD.HHMMSS timestamp to grab from the initial conditions url.",
-    )
-    parser.add_argument(
         "--model_url",
         type=str,
         default=None,
@@ -202,11 +192,7 @@ def _diag_table_overlay(
 
 
 def to_fv3config(
-    dict_: dict,
-    nudging_url: str,
-    model_url: Sequence[str] = (),
-    initial_condition: Optional[InitialCondition] = None,
-    diagnostic_ml: bool = False,
+    dict_: dict, model_url: Sequence[str] = (), diagnostic_ml: bool = False,
 ) -> dict:
     """Convert a loaded prognostic run yaml ``dict_`` into an fv3config
     dictionary depending on some options
@@ -218,16 +204,12 @@ def to_fv3config(
         ``dict_``:  a dictionary containing prognostic run configurations.  This
             dictionary combines fv3config-related keys with
             :py:class:`runtime.config.UserConfig` settings.
-        initial_condition: modify the initial_conditions if provided, otherwise
-            leaves ``dict_`` unchanged.
 
     Returns:
         an fv3config configuration dictionary that can be operated on with
         fv3config APIs.
     """
     user_config = dacite.from_dict(HighLevelConfig, dict_, dacite.Config(strict=True))
-    if user_config.nudging and not user_config.nudging.restarts_path:
-        user_config.nudging.restarts_path = nudging_url
 
     # insert command line option overrides
     if user_config.scikit_learn is None:
@@ -246,9 +228,6 @@ def to_fv3config(
             "Nudging and machine learning cannot currently be run at the same time."
         )
 
-    if initial_condition:
-        user_config.initial_conditions = initial_condition
-
     return user_config.to_fv3config()
 
 
@@ -258,13 +237,7 @@ def prepare_config(args):
         dict_ = yaml.safe_load(f)
 
     final = to_fv3config(
-        dict_,
-        initial_condition=InitialCondition(
-            args.initial_condition_url, args.ic_timestep
-        ),
-        nudging_url=args.initial_condition_url,
-        model_url=args.model_url,
-        diagnostic_ml=args.diagnostic_ml,
+        dict_, model_url=args.model_url, diagnostic_ml=args.diagnostic_ml,
     )
     fv3config.dump(final, sys.stdout)
 

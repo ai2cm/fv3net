@@ -5,13 +5,14 @@ import uuid
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
+import dacite
 
 import fv3config
 import pandas as pd
 import wandb
 import yaml
 from runtime.segmented_run import api
-from runtime.segmented_run.prepare_config import to_fv3config
+from runtime.segmented_run.prepare_config import HighLevelConfig
 
 from fv3net.artifacts.resolve_url import resolve_url
 
@@ -29,9 +30,10 @@ def prepare_config(user_config: Any, duration: timedelta, initial_condition: str
         duration: the length of the run
         initial_condition: the path to the initial condition
     """
-    config = to_fv3config(user_config, nudging_url="")
-    config = fv3config.set_run_duration(config, duration)
-    return fv3config.enable_restart(config, initial_condition)
+    user_config = dacite.from_dict(HighLevelConfig, user_config)
+    user_config.initial_conditions = initial_condition
+    config = user_config.to_fv3config()
+    return fv3config.set_run_duration(config, duration)
 
 
 def get_env(args):

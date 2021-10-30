@@ -2,6 +2,9 @@ base_version: v0.6
 gfs_analysis_data:
   url: gs://vcm-ml-raw-flexible-retention/2019-12-02-year-2016-T85-nudging-data
   filename_pattern: "%Y%m%d_%HZ_T85LR.nc"
+initial_conditions:
+  base_url: gs://ic-bucket
+  timestep: "20160805.000000"
 namelist:
   coupler_nml:
     days: 10 
