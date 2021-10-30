@@ -79,7 +79,9 @@ parser.set_defaults(online=True)
 args = parser.parse_args()
 
 
-job = wandb.init(job_type="prognostic_run", project="crapcrap", entity="ai2cm")
+job = wandb.init(
+    job_type="prognostic_run", project="microphysics-emulation", entity="ai2cm"
+)
 tag = args.tag or job.id
 
 with CONFIG_PATH.open() as f:
