@@ -89,6 +89,9 @@ This example submits a "baseline" run of our fv3gfs model run to the Kubernetes 
 
   cat <<"EOF" > test_fv3config.yaml
   base_version: v0.5
+  initial_conditions:
+    base_url: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
+    timestep: "20160805.000000"
   namelist:
     coupler_nml:
       days: 0
@@ -108,8 +111,6 @@ This example submits a "baseline" run of our fv3gfs model run to the Kubernetes 
   argo submit \
       --from workflowtemplate/prognostic-run \
       -p output=gs://vcm-ml-scratch/test-prognostic-run-example \
-      -p reference-restarts=gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts \
-      -p initial-condition="20160805.000000" \
       -p config="$(cat ./test_fv3config.yaml)"
 
 After the job submits, there will be a read out of the job::
@@ -121,8 +122,6 @@ After the job submits, there will be a read out of the job::
     Created:             Tue Feb 23 00:12:20 +0000 (now)
     Parameters:          
       output:            gs://vcm-ml-scratch/test-prognostic-run-example
-      reference-restarts: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
-      initial-condition: 20160805.000000
       config:            base_version: v0.5
     namelist:
       coupler_nml:
