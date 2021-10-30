@@ -50,11 +50,11 @@ def test_get_user_config_is_valid():
         ],
     }
 
-    config = prepare_config.user_config_from_dict_and_args(
+    config = prepare_config.to_fv3config(
         dict_, model_url=[], diagnostic_ml=True, nudging_url="gs://some-url",
     )
     # validate using dacite.from_dict
-    dacite.from_dict(UserConfig, dataclasses.asdict(config))
+    dacite.from_dict(UserConfig, config)
 
 
 def test_to_fv3config_initial_conditions():
