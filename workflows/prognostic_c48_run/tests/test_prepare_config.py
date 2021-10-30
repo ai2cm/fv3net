@@ -77,3 +77,18 @@ def test_instantiate_dataclass_from():
     a = instantiate_dataclass_from(A, b)
     assert a.a == b.a
     assert isinstance(a, A)
+
+
+@pytest.mark.parametrize("duration, expected", [("3h", 10800), ("60s", 60)])
+def test_config_high_level_duration(duration, expected):
+    config = HighLevelConfig(duration=duration)
+    out = config.to_fv3config()
+    assert out["namelist"]["coupler_nml"]["seconds"] == expected
+
+
+def test_config_high_level_duration_respects_namelist():
+    """The high level config should use the namelist options if the duration is
+    not given"""
+    config = HighLevelConfig(namelist={"coupler_nml": {"seconds": 7}})
+    out = config.to_fv3config()
+    assert out["namelist"]["coupler_nml"]["seconds"] == 7

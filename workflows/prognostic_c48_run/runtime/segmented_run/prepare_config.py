@@ -11,6 +11,8 @@ import dacite
 import fv3config
 import fv3kube
 
+import pandas as pd
+
 from runtime.diagnostics.manager import FortranFileConfig
 from runtime.diagnostics.fortran import file_configs_to_namelist_settings
 from runtime.config import UserConfig
@@ -89,7 +91,10 @@ class HighLevelConfig(UserConfig, FV3Config):
     Attributes:
         base_version: the default physics config
         initial_conditions: Specification for the initial conditions
-
+        duration: the duration of each segment. If provided, overrides any
+            settings in ``namelist.coupler_nml``. Must be a valid input to
+            ``pandas.TimeDelta``.  Examples: ``3h``.
+        
     See :py:class:`runtime.config.UserConfig` and :py:class:`FV3Config` for
     documentation on other allowed attributes
 
@@ -97,6 +102,7 @@ class HighLevelConfig(UserConfig, FV3Config):
 
     base_version: str = "v0.5"
     initial_conditions: Union[InitialCondition, Any] = ""
+    duration: str = ""
 
     def _initial_condition_overlay(self):
         return (
@@ -128,12 +134,18 @@ class HighLevelConfig(UserConfig, FV3Config):
             )["namelist"]["coupler_nml"]["dt_atmos"]
         )
 
+    @property
+    def _duration(self) -> Optional[timedelta]:
+        return (
+            pd.to_timedelta(self.duration).to_pytimedelta() if self.duration else None
+        )
+
     def to_fv3config(self) -> Any:
         """Translate into a fv3config dictionary"""
         # overlays (i.e. diffs) requiring only a small number of inputs. In
         # particular, overlays should not require access to the full configuration
         # dictionary.
-        return fv3kube.merge_fv3config_overlays(
+        config = fv3kube.merge_fv3config_overlays(
             fv3kube.get_base_fv3config(self.base_version),
             self._initial_condition_overlay(),
             SUPPRESS_RANGE_WARNINGS,
@@ -143,6 +155,11 @@ class HighLevelConfig(UserConfig, FV3Config):
             file_configs_to_namelist_settings(
                 self.fortran_diagnostics, self._physics_timestep()
             ),
+        )
+        return (
+            fv3config.set_run_duration(config, self._duration)
+            if self._duration
+            else config
         )
 
 
