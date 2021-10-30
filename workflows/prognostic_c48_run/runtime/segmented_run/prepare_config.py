@@ -188,39 +188,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def user_config_from_dict_and_args(
-    config_dict: dict, nudging_url: str, model_url, diagnostic_ml
-) -> HighLevelConfig:
-    """Ideally this function could be replaced by dacite.from_dict
-    without needing any information from args.
-    """
-    user_config = dacite.from_dict(
-        HighLevelConfig, config_dict, dacite.Config(strict=True)
-    )
-
-    if user_config.nudging and not user_config.nudging.restarts_path:
-        user_config.nudging.restarts_path = nudging_url
-
-    # insert command line option overrides
-    if user_config.scikit_learn is None:
-        if model_url:
-            user_config.scikit_learn = MachineLearningConfig(
-                model=list(model_url), diagnostic_ml=diagnostic_ml
-            )
-    else:
-        if model_url:
-            user_config.scikit_learn.model = list(model_url)
-        if diagnostic_ml:
-            user_config.scikit_learn.diagnostic_ml = diagnostic_ml
-
-    if user_config.nudging and user_config.scikit_learn:
-        raise NotImplementedError(
-            "Nudging and machine learning cannot currently be run at the same time."
-        )
-
-    return user_config
-
-
 def _diag_table_overlay(
     fortran_diagnostics: Sequence[FortranFileConfig],
     name: str = "prognostic_run",
@@ -258,17 +225,31 @@ def to_fv3config(
         an fv3config configuration dictionary that can be operated on with
         fv3config APIs.
     """
-    full_config = user_config_from_dict_and_args(
-        dict_,
-        nudging_url=nudging_url,
-        model_url=model_url,
-        diagnostic_ml=diagnostic_ml,
-    )
+    user_config = dacite.from_dict(HighLevelConfig, dict_, dacite.Config(strict=True))
+    if user_config.nudging and not user_config.nudging.restarts_path:
+        user_config.nudging.restarts_path = nudging_url
+
+    # insert command line option overrides
+    if user_config.scikit_learn is None:
+        if model_url:
+            user_config.scikit_learn = MachineLearningConfig(
+                model=list(model_url), diagnostic_ml=diagnostic_ml
+            )
+    else:
+        if model_url:
+            user_config.scikit_learn.model = list(model_url)
+        if diagnostic_ml:
+            user_config.scikit_learn.diagnostic_ml = diagnostic_ml
+
+    if user_config.nudging and user_config.scikit_learn:
+        raise NotImplementedError(
+            "Nudging and machine learning cannot currently be run at the same time."
+        )
 
     if initial_condition:
-        full_config.initial_conditions = initial_condition
+        user_config.initial_conditions = initial_condition
 
-    return full_config.to_fv3config()
+    return user_config.to_fv3config()
 
 
 def prepare_config(args):
