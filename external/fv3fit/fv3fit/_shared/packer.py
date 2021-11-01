@@ -55,6 +55,7 @@ def pack(
     if config is None:
         config = PackerConfig({})
     feature_dim_name = _unique_dim_name(data, sample_dims=sample_dims)
+
     data_clipped = xr.Dataset(clip(data, config.clip))
     stacked = data_clipped.to_stacked_array(feature_dim_name, sample_dims=sample_dims)
     stacked = stacked.dropna(feature_dim_name)
@@ -92,15 +93,22 @@ def clip(
     clipped_data = {}
     for variable in data:
         da = data[variable]
+        da = _fill_empty_coords(da)
         if variable in config:
             for dim in config[variable]:
-                if dim not in da.coords:
-                    # need coord to allow proper unpacking if dim is clipped to
-                    # different length for different variables
-                    da = da.assign_coords({dim: range(da.sizes[dim])})
                 da = da.isel({dim: config[variable][dim].slice})
         clipped_data[variable] = da
     return clipped_data
+
+
+def _fill_empty_coords(da):
+    # need coord to allow proper unpacking if dim is clipped to
+    # different length for different variables. Also needs to be filled
+    # for non-clipped variables that have that dim.
+    for dim in da.dims:
+        if dim not in da.coords:
+            da = da.assign_coords({dim: range(da.sizes[dim])})
+    return da
 
 
 class ArrayPacker:
