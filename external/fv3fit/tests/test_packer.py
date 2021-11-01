@@ -1,4 +1,4 @@
-from fv3fit._shared import ArrayPacker
+from fv3fit._shared import ArrayPacker, SliceConfig, PackerConfig
 from typing import Iterable
 from fv3fit._shared.packer import (
     unpack_matrix,
@@ -6,6 +6,7 @@ from fv3fit._shared.packer import (
     unpack,
     _unique_dim_name,
     count_features,
+    clip,
 )
 from fv3fit.keras._models.packer import get_unpack_layer, Unpack
 import pytest
@@ -186,6 +187,49 @@ def test_sklearn_unpack(dataset: xr.Dataset):
     packed_array, feature_index = pack(dataset, ["sample"])
     unpacked_dataset = unpack(packed_array, ["sample"], feature_index)
     xr.testing.assert_allclose(unpacked_dataset, dataset)
+
+
+def test_sklearn_pack_unpack_with_clipping(dataset: xr.Dataset):
+    name = list(dataset.data_vars)[0]
+    if FEATURE_DIM in dataset[name].dims:
+        pack_config = PackerConfig({name: {FEATURE_DIM: SliceConfig(3, None)}})
+        packed_array, feature_index = pack(dataset, [SAMPLE_DIM], pack_config)
+        unpacked_dataset = unpack(packed_array, [SAMPLE_DIM], feature_index)
+        expected = {}
+        for k in dataset:
+            da = dataset[k].copy(deep=True)
+            indices = pack_config.clip.get(k, {})
+            for dim, slice_config in indices.items():
+                da = da.isel({dim: slice_config.slice})
+            expected[k] = da
+        xr.testing.assert_allclose(unpacked_dataset, xr.Dataset(expected))
+
+
+def test_clip(dataset: xr.Dataset):
+    name = list(dataset.data_vars)[0]
+    if FEATURE_DIM in dataset[name].dims:
+        indices = {name: {FEATURE_DIM: SliceConfig(4, 8)}}
+        clipped_data = clip(dataset, indices)
+        expected_da = dataset[name]
+        for dim, slice_config in indices[name].items():
+            expected_da = expected_da.isel({dim: slice_config.slice})
+        xr.testing.assert_identical(clipped_data[name], expected_da)
+
+
+def test_clip_differing_slices():
+    ds = get_dataset(
+        ["var1", "var2"], [[SAMPLE_DIM, FEATURE_DIM], [SAMPLE_DIM, FEATURE_DIM]]
+    )
+    clip_config = {
+        "var1": {FEATURE_DIM: SliceConfig(4, 8)},
+        "var2": {FEATURE_DIM: SliceConfig(None, 6, 2)},
+    }
+    clipped_data = clip(ds, clip_config)
+    for name in ds:
+        expected_da = ds[name]
+        for dim, slice_config in clip_config[name].items():
+            expected_da = expected_da.isel({dim: slice_config.slice})
+        xr.testing.assert_identical(clipped_data[name], expected_da)
 
 
 def test_count_features():

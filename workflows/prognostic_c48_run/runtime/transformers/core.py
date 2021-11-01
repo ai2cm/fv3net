@@ -1,6 +1,7 @@
 import dataclasses
 from typing import Iterable, Set, Protocol, Hashable
 
+import vcm
 from runtime.monitor import Monitor
 from runtime.types import Diagnostics, State, Step
 
@@ -79,7 +80,7 @@ class StepTransformer:
 
         prediction = self.model.predict(inputs)
         change_due_to_prediction = self.monitor.compute_change(
-            self.label, before, {**before, **prediction}
+            self.label, before, vcm.DerivedMapping({**before, **prediction})
         )
         self.model.apply(prediction, self.state)
         return {

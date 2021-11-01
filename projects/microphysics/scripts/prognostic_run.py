@@ -1,16 +1,13 @@
 import argparse
 import logging
 import os
-from datetime import timedelta
 from pathlib import Path
-from typing import Any
+import dacite
 
-import fv3config
-import pandas as pd
 import wandb
 import yaml
 from runtime.segmented_run import api
-from runtime.segmented_run.prepare_config import to_fv3config
+from runtime.segmented_run.prepare_config import HighLevelConfig
 
 from fv3net.artifacts.resolve_url import resolve_url
 
@@ -18,22 +15,6 @@ logging.basicConfig(level=logging.INFO)
 
 PROJECT = "2021-10-14-microphsyics-emulation-paper"
 BUCKET = "vcm-ml-scratch"
-
-
-def prepare_config(
-    user_config: Any, duration: timedelta, initial_condition: str, online: bool
-):
-    """Create an fv3config object from a ``user_config``
-    
-    Args:
-        user_config: the input to ``to_fv3config``
-        duration: the length of the run
-        initial_condition: the path to the initial condition
-    """
-    config = to_fv3config(user_config, nudging_url="")
-    config = fv3config.set_run_duration(config, duration)
-    config["namelist"]["gfs_physics_nml"]["emulate_zc_microphysics"] = online
-    return fv3config.enable_restart(config, initial_condition)
 
 
 def get_env(args):
@@ -87,13 +68,10 @@ tag = args.tag or job.id
 with CONFIG_PATH.open() as f:
     config = yaml.safe_load(f)
 
-config = prepare_config(
-    config,
-    duration=pd.to_timedelta(args.duration).to_pytimedelta(),
-    initial_condition=args.initial_condition,
-    online=args.online,
-)
-
+config = dacite.from_dict(HighLevelConfig, config)
+config.initial_conditions = args.initial_condition
+config.duration = args.duration
+config.namelist["gfs_physics_nml"]["emulate_zc_microphysics"] = args.online
 
 url = resolve_url(BUCKET, PROJECT, tag)
 env = get_env(args)

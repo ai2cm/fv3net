@@ -8,6 +8,7 @@ import joblib
 
 from fv3fit.sklearn._random_forest import _RegressorEnsemble, pack, SklearnWrapper
 from fv3fit._shared.scaler import ManualScaler
+from fv3fit._shared import PackerConfig, SliceConfig
 
 
 def test_flatten():
@@ -210,3 +211,41 @@ def test_predict_returns_unstacked_dims():
     assert len(input_data.dims) > 2
     prediction = wrapper.predict(input_data)
     assert prediction.dims == input_data.dims
+
+
+def test_SklearnWrapper_fit_predict_with_clipped_input_data():
+    nz = 5
+    model = _RegressorEnsemble(
+        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
+        n_jobs=1,
+    )
+    wrapper = SklearnWrapper(
+        input_variables=["a", "b"],
+        output_variables=["c"],
+        model=model,
+        packer_config=PackerConfig({"a": {"z": SliceConfig(2, None)}}),
+    )
+
+    dims = ["x", "y", "z"]
+    shape = (2, 2, nz)
+    arr = np.arange(np.prod(shape)).reshape(shape)
+    input_data = xr.Dataset(
+        {"a": (dims, arr), "b": (dims[:-1], arr[:, :, 0]), "c": (dims, arr + 1)}
+    )
+    wrapper.fit([input_data])
+    wrapper.predict(input_data)
+
+
+def test_SklearnWrapper_raises_not_implemented_error_with_clipped_output_data():
+    nz = 5
+    model = _RegressorEnsemble(
+        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
+        n_jobs=1,
+    )
+    with pytest.raises(NotImplementedError):
+        SklearnWrapper(
+            input_variables=["a", "b"],
+            output_variables=["c"],
+            model=model,
+            packer_config=PackerConfig({"c": {"z": SliceConfig(2, None)}}),
+        )

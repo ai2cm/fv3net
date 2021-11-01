@@ -19,6 +19,7 @@ spec:
               x_wind: 3
               y_wind: 3
               pressure_thickness_of_atmospheric_layer: 3
+            restarts_path: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
           namelist:
             coupler_nml:
               current_date:
