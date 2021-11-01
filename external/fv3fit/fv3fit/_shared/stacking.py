@@ -47,13 +47,15 @@ class StackedBatches(Sequence[xr.Dataset]):
 
 def stack(ds: xr.Dataset, unstacked_dims: Sequence[str]):
     stack_dims = [dim for dim in ds.dims if dim not in unstacked_dims]
+    unstacked_dims = [dim for dim in ds.dims if dim in unstacked_dims]
+    unstacked_dims.sort()  # needed to always get [x, y, z] dimensions
     ds_stacked = safe.stack_once(
         ds,
         SAMPLE_DIM_NAME,
         stack_dims,
         allowed_broadcast_dims=list(unstacked_dims) + ["time", "dataset"],
     )
-    return ds_stacked.transpose(SAMPLE_DIM_NAME, ...)
+    return ds_stacked.transpose(SAMPLE_DIM_NAME, *unstacked_dims)
 
 
 def stack_non_vertical(ds: xr.Dataset) -> xr.Dataset:
