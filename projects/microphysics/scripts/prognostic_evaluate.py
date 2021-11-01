@@ -335,42 +335,33 @@ def _selection(
 def log_all_drifts(
     prog_global_avg: xr.Dataset, base_global_avg: xr.Dataset, do_variables=COMPARE_VARS
 ):
+    """
+    Stores drift from baseline at different run lengths.  All values stored in <units> / day
+    """
 
     times = prog_global_avg.time
     for name in do_variables:
         # assumes time delta
+        drift_sel = [
+            (3, )
+        ]
         drift_sel = {
-            "3hr": _selection(times, timedelta(hours=3)),
-            "1day": _selection(times, timedelta(days=1), window=timedelta(hours=12)),
-            "5day": _selection(times, timedelta(days=5), window=timedelta(hours=12)),
-            "10day": _selection(times, timedelta(days=10), window=timedelta(days=1)),
+            "3hr": (timedelta(hours=3), None),
+            "1day": (timedelta(days=1), timedelta(hours=12)),
+            "5day": (timedelta(days=5), timedelta(hours=12)),
+            "10day": (timedelta(days=10), timedelta(days=1)),
         }
 
-        # not quite drift from init but an estimate
-        prog_init = prog_global_avg[name].isel(time=0)
-        base_init = base_global_avg[name].isel(time=0)
+        for key, (duration, window) in drift_sel.items():
 
-        columns = {}
-        columns["drift_def"] = [
-            "baseline_from_init",
-            "prognostic_from_init",
-            "prognostic_from_baseline",
-        ]
-
-        for key, selection in drift_sel.items():
-
+            selection = _selection(times, duration, window=window)
             prog_sel = prog_global_avg[name].isel(time=selection).mean(dim="time")
             base_sel = base_global_avg[name].isel(time=selection).mean(dim="time")
 
-            columns[key] = [
-                (base_sel - base_init).values.item(),
-                (prog_sel - prog_init).values.item(),
-                (prog_sel - base_sel).values.item(),
-            ]
-
-        df = pd.DataFrame.from_dict(columns)
-        table = wandb.Table(dataframe=df)
-        wandb.log({f"drifts/{name}": table})
+            duration_in_days = duration.total_seconds() / timedelta(days=1).total_seconds()
+            value = (prog_sel - base_sel).values.item() / duration_in_days
+            
+            wandb.log({f"drifts/{name}/{key}": value})
 
 
 def main():
