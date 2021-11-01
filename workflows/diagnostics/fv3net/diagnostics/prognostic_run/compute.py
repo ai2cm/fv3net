@@ -435,7 +435,7 @@ def compute_hist_2d(diag_arg: DiagArg):
 
 
 @registry_2d.register("hist2d_bias")
-@transform.apply(transform.resample_time, "3H", inner_join=True, method="mean")
+@transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.mask_to_sfc_type, "sea")
 @transform.apply(transform.mask_to_sfc_type, "tropics20")
 def compute_hist_2d_bias(diag_arg: DiagArg):
