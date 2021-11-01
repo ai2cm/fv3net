@@ -5,6 +5,7 @@ import tensorflow as tf
 import pytest
 import sys
 from fv3fit.testing import numpy_print_precision
+from fv3fit.keras._models.shared.convolutional_network import Diffusive
 
 
 def print_result(result: fv3fit.ConvolutionalNetwork, decimals: int, file=sys.stdout):
@@ -33,6 +34,19 @@ def test_output_type():
     assert all(
         isinstance(item, tf.Tensor) for item in convolutional_network.hidden_outputs
     )
+
+
+def test_diffusive_constraint():
+    random = np.random.RandomState(0)
+    array_in = random.randn(3, 3)
+    constraint = Diffusive()
+    result = constraint(array_in[:, :, None, None])[:, :, 0, 0]
+    print(result)
+    for edge in ((2, 0), (0, 2), (2, 2)):
+        np.testing.assert_almost_equal(result[edge], result[0, 0])
+    for edge in ((0, 1), (1, 2), (2, 1)):
+        np.testing.assert_almost_equal(result[edge], result[1, 0])
+    np.testing.assert_almost_equal(np.sum(result), 1.0)
 
 
 @pytest.mark.parametrize(

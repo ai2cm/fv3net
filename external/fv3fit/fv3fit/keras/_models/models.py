@@ -34,7 +34,7 @@ from ..._shared.config import (
 )
 import numpy as np
 import os
-from ._filesystem import get_dir, put_dir
+from ..._shared import get_dir, put_dir
 from ._sequences import _XyArraySequence
 from .normalizer import LayerStandardScaler
 from .loss import get_weighted_mse, get_weighted_mae

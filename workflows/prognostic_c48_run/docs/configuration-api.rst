@@ -22,8 +22,14 @@ configuration objects it links to for detailed documentation on the available
 configuration options.
 
 
-Top-level
-~~~~~~~~~
+Top-level Configuration
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: runtime.segmented_run.prepare_config
+    :members:
+
+Python run-time configurations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: runtime.config
     :members: get_config, get_namelist
@@ -31,7 +37,7 @@ Top-level
 .. autoclass:: UserConfig
 
 Python "prephysics and postphysics"
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 .. py:module:: runtime.steppers.machine_learning
