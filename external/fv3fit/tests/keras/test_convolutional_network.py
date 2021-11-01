@@ -5,6 +5,8 @@ import tensorflow as tf
 import pytest
 import sys
 from fv3fit.testing import numpy_print_precision
+from fv3fit.keras._models.convolutional import build_model, ConvolutionalHyperparameters
+import xarray as xr
 from fv3fit.keras._models.shared.convolutional_network import Diffusive
 
 
@@ -34,6 +36,72 @@ def test_output_type():
     assert all(
         isinstance(item, tf.Tensor) for item in convolutional_network.hidden_outputs
     )
+
+
+def test_standard_input_gives_standard_output():
+    fv3fit.set_random_seed(0)
+    config = fv3fit.ConvolutionalNetworkConfig()
+    array = np.random.randn(2, 10, 10, 20)
+    np.testing.assert_almost_equal(np.mean(array), 0.0, decimal=1)
+    np.testing.assert_almost_equal(np.std(array), 1.0, decimal=1)
+    convolutional_network = config.build(array, n_features_out=3)
+    np.testing.assert_almost_equal(
+        np.mean(convolutional_network.output), 0.0, decimal=1
+    )
+    out_std = np.std(convolutional_network.output)
+    # std isn't going to be 1 because of relu activation function, should be less
+    assert out_std < 1.0
+    assert out_std > 0.1
+
+
+def test_convolutional_network_build_standard_input_gives_standard_output():
+    fv3fit.set_random_seed(0)
+    nt, nx, ny, nz = 5, 12, 12, 15
+    ds = xr.Dataset(
+        data_vars={
+            "var_in": xr.DataArray(
+                np.random.randn(nt, nx, ny, nz), dims=["_fv3fit_sample", "x", "y", "z"],
+            ),
+            "var_out": xr.DataArray(
+                np.random.randn(nt, nx, ny, nz), dims=["_fv3fit_sample", "x", "y", "z"],
+            ),
+        }
+    )
+    config = ConvolutionalHyperparameters(
+        input_variables=["var_in"], output_variables=["var_out"]
+    )
+    _, predict_model = build_model(config=config, batch=ds)
+    var_in = ds["var_in"]
+    out = predict_model.predict([var_in.values])
+    np.testing.assert_almost_equal(np.mean(out), 0.0, decimal=1)
+    out_std = np.std(out)
+    # std isn't going to be 1 because of relu activation function, should be less
+    assert out_std < 1.0
+    assert out_std > 0.1
+
+
+def test_convolutional_network_build_initial_loss_near_one():
+    fv3fit.set_random_seed(0)
+    nt, nx, ny, nz = 5, 12, 12, 15
+    ds = xr.Dataset(
+        data_vars={
+            "var_in": xr.DataArray(
+                np.random.randn(nt, nx, ny, nz), dims=["_fv3fit_sample", "x", "y", "z"],
+            ),
+            "var_out": xr.DataArray(
+                np.random.randn(nt, nx, ny, nz), dims=["_fv3fit_sample", "x", "y", "z"],
+            ),
+        }
+    )
+    config = ConvolutionalHyperparameters(
+        input_variables=["var_in"], output_variables=["var_out"]
+    )
+    _, predict_model = build_model(config=config, batch=ds)
+    var_in = ds["var_in"]
+    out = predict_model.predict([var_in.values])
+    np.testing.assert_allclose(np.std(ds["var_out"].values - out), 1.0, atol=0.3)
+    loss = ConvolutionalHyperparameters.loss.loss(std=np.std(var_in, axis=(0, 1, 2)))
+    np.testing.assert_allclose(loss(ds["var_out"].values, out), 1.0, atol=0.3)
 
 
 def test_diffusive_constraint():
