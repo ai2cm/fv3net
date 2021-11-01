@@ -1,11 +1,12 @@
 base_version: v0.5
 data_table: default
+duration: "3hr"
 fortran_diagnostics:
 - name: piggy.zarr
   chunks:
     time: 2
   times:
-    frequency: 10800
+    frequency: 900
     kind: interval
   variables:
     - field_name: tendency_of_air_temperature_due_to_emulator
@@ -133,7 +134,7 @@ diagnostics:
   name: state_after_timestep.zarr
   tensorboard: false
   times:
-    frequency: 5400
+    frequency: 900
     includes_lower: false
     kind: interval
     times: null
@@ -155,7 +156,7 @@ diagnostics:
   name: physics_tendencies.zarr
   tensorboard: false
   times:
-    frequency: 5400
+    frequency: 900
     includes_lower: false
     kind: interval
     times: null

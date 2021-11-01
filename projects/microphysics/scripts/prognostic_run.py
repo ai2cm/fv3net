@@ -28,7 +28,6 @@ def get_env(args):
 CONFIG_PATH = Path(__file__).parent / "fv3config.yml"
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--duration", type=str, default="1d")
 parser.add_argument(
     "--model",
     type=str,
@@ -70,8 +69,8 @@ with CONFIG_PATH.open() as f:
 
 config = dacite.from_dict(HighLevelConfig, config)
 config.initial_conditions = args.initial_condition
-config.duration = args.duration
 config.namelist["gfs_physics_nml"]["emulate_zc_microphysics"] = args.online
+config = config.to_fv3config()
 
 url = resolve_url(BUCKET, PROJECT, tag)
 env = get_env(args)
