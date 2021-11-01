@@ -91,7 +91,6 @@ spec:
     - name: prepare-config
       inputs:
         parameters:
-          - name: initial-condition
           - name: config
           - name: flags
       outputs:
