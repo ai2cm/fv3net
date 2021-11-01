@@ -29,6 +29,9 @@ class TransposeInvariant(tf.keras.constraints.Constraint):
 class Diffusive(tf.keras.constraints.Constraint):
     def __call__(self, w: tf.Tensor):
         w = tf.maximum(w, 0.0)
+        w = tf.scalar_mul(0.5, w + tf.transpose(w, perm=(1, 0, 2, 3)))
+        w = tf.scalar_mul(0.5, w + tf.experimental.numpy.fliplr(w))
+        w = tf.scalar_mul(0.5, w + tf.experimental.numpy.flipud(w))
         total = tf.reduce_sum(w)
         return tf.scalar_mul(1.0 / total, w)
 
@@ -79,9 +82,10 @@ class ConvolutionalNetworkConfig:
         gaussian_noise: amount of gaussian noise to add to each hidden layer output
         spectral_normalization: if True, apply spectral normalization to hidden layers
         activation_function: name of keras activation function to use on hidden layers
-        transpose_invariant: if True, hidden layer kernels will be transpose invariant
-        diffusive: if True, hidden layer kernels will have non-negative weights
-            which sum to 1
+        transpose_invariant: if True, all layer kernels will be transpose invariant
+        diffusive: if True, all layer kernels will have non-negative weights
+            which sum to 1 and are equal at equal distances from the center,
+            and bias will be removed from all layers
     """
 
     filters: int = 32
@@ -146,6 +150,7 @@ class ConvolutionalNetworkConfig:
         """
         hidden_outputs = []
         x = x_in
+        use_bias = not self.diffusive
 
         for i in range(self.depth - 1):
             if self.gaussian_noise > 0.0:
@@ -161,6 +166,7 @@ class ConvolutionalNetworkConfig:
                 kernel_regularizer=self.kernel_regularizer.instance,
                 name=f"convolutional_{label}_{i}",
                 kernel_constraint=self._kernel_constraint,
+                use_bias=use_bias,
             )
             if self.spectral_normalization:
                 hidden_layer = tfa.layers.SpectralNormalization(
@@ -176,5 +182,6 @@ class ConvolutionalNetworkConfig:
             data_format="channels_last",
             name=f"convolutional_network_{label}_output",
             kernel_constraint=self._kernel_constraint,
+            use_bias=use_bias,
         )(x)
         return ConvolutionalNetwork(hidden_outputs=hidden_outputs, output=output)
