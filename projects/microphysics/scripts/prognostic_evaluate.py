@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
+from datetime import timedelta
 from dask.diagnostics import ProgressBar
 from wandb.errors import CommError
 
@@ -18,7 +19,7 @@ from wandb.errors import CommError
 from fv3viz import infer_cmap_params, plot_cube
 from fv3fit.tensorboard import plot_to_image
 from vcm import interpolate_unstructured
-from vcm.select import meridional_ring
+from vcm.select import meridional_ring, zonal_average_approximate
 from vcm.catalog import catalog
 
 
@@ -100,17 +101,16 @@ def get_avg_data(
     return prog_avg
 
 
-def plot_global_avg_time_height_panel(da1, da2, dpi=80):
+def plot_global_avg_by_height_panel(da1, da2, x="time", dpi=80):
     fig, ax = plt.subplots(1, 3)
     fig.set_size_inches(12, 4)
     fig.set_dpi(dpi)
 
-    da1, da2 = consistent_time_len(da1, da2)
     vmin, vmax, cmap = infer_cmap_params(da2, robust=True)
     vkw = dict(vmin=vmin, vmax=vmax, cmap=cmap)
-    da1.plot.pcolormesh(x="time", y="z", ax=ax[0], yincrease=False, **vkw)
-    da2.plot.pcolormesh(x="time", y="z", ax=ax[1], yincrease=False, **vkw)
-    (da1 - da2).plot.pcolormesh(x="time", y="z", ax=ax[2], yincrease=False)
+    da1.plot.pcolormesh(x=x, y="z", ax=ax[0], yincrease=False, **vkw)
+    da2.plot.pcolormesh(x=x, y="z", ax=ax[1], yincrease=False, **vkw)
+    (da1 - da2).plot.pcolormesh(x=x, y="z", ax=ax[2], yincrease=False)
     ax[0].set_title("Emulation")
     ax[1].set_title("Baseline")
     ax[2].set_title("Diff")
@@ -125,9 +125,30 @@ def plot_global_avg_time_height_panel(da1, da2, dpi=80):
 
 def plot_time_heights(prognostic, baseline, do_variables=COMPARE_VARS):
 
+    prognostic, baseline = consistent_time_len(prognostic, baseline)
+
     for name in do_variables:
-        fig = plot_global_avg_time_height_panel(prognostic[name], baseline[name])
+        fig = plot_global_avg_by_height_panel(prognostic[name], baseline[name])
         wandb.log({f"avg_time_height/{name}": wandb.Image(plot_to_image(fig))})
+        plt.close(fig)
+
+
+def plot_lat_heights(prognostic, baseline, do_variables=COMPARE_VARS):
+
+    prognostic, baseline = consistent_time_len(prognostic, baseline)
+    ntimes = len(prognostic.time)
+    start = max(ntimes - 8, 0)
+    selection = slice(start, ntimes)
+    prog_near_end = prognostic.isel(time=selection).mean(dim="time")
+    base_near_end = baseline.isel(time=selection).mean(dim="time")
+    lat = base_near_end["lat"]
+
+    for name in do_variables:
+        prog_zonal = zonal_average_approximate(lat, prog_near_end[name])
+        base_zonal = zonal_average_approximate(lat, base_near_end[name])
+
+        fig = plot_global_avg_by_height_panel(prog_zonal, base_zonal, x="lat")
+        wandb.log({f"zonal_avg/{name}": wandb.Image(plot_to_image(fig))})
         plt.close(fig)
 
 
@@ -201,7 +222,7 @@ def plot_transects(prognostic, baseline, do_variables=TRANSECT_VARS):
             plt.close(fig)
 
 
-def plot_spatial_2panel_with_diff(emu: xr.Dataset, base, name, lev, time):
+def plot_spatial_2panel_with_diff(emu: xr.Dataset, base, name):
 
     fig = plt.figure()
     ax = fig.add_subplot(131, projection=ccrs.Robinson())
@@ -226,9 +247,7 @@ def plot_spatial_2panel_with_diff(emu: xr.Dataset, base, name, lev, time):
     ax2.set_title("Baseline")
     ax3.set_title("Diff: Emu - Baseline")
 
-    log_name = f"spatial_comparison/{time}/{lev}/{name}"
-    wandb.log({log_name: wandb.Image(plot_to_image(fig))})
-    plt.close(fig)
+    return fig
 
 
 def plot_spatial_comparisons(
@@ -250,22 +269,46 @@ def plot_spatial_comparisons(
             for time, tidx in time_idxs.items():
                 prog = prognostic.isel(time=tidx, z=lev_idx)
                 base = baseline.isel(time=tidx, z=lev_idx)
-                plot_spatial_2panel_with_diff(prog, base, name, level, time)
+                fig = plot_spatial_2panel_with_diff(prog, base, name)
+
+                log_name = f"spatial_comparison/{time}/{level}/{name}"
+                wandb.log({log_name: wandb.Image(plot_to_image(fig))})
+                plt.close(fig)
+
+
+def _selection(times, duration, window=None):
+
+    """"""
+
+    delta = pd.Timedelta((times[1] - times[0]).values)
+    center = duration // delta
+
+    if window is None:
+        increment = 1
+    else:
+        increment = window // delta
+
+    start = max(center - increment, 0)
+    end = center + increment
+
+    return slice(start, end)
 
 
 def log_all_drifts(prog_global_avg, base_global_avg, do_variables=COMPARE_VARS):
 
+    times = prog_global_avg.time
     for name in do_variables:
         # assumes time delta
         drift_sel = {
-            "3hr": slice(1, 2),
-            "1day": slice(12, 16),  # 12-hr avg
-            "5day": slice(76, 80),  # 12-hr avg
+            "3hr": _selection(times, timedelta(hours=3)),
+            "1day": _selection(times, timedelta(days=1), window=timedelta(hours=12)),
+            "5day": _selection(times, timedelta(days=5), window=timedelta(hours=12)),
+            "10day": _selection(times, timedelta(days=10), window=timedelta(days=1)),
         }
 
         # not quite drift from init but an estimate
-        prog_init = prog_global_avg.isel(time=0)
-        base_init = base_global_avg.isel(time=0)
+        prog_init = prog_global_avg[name].isel(time=0)
+        base_init = base_global_avg[name].isel(time=0)
 
         columns = {}
         columns["drift_def"] = [
@@ -276,8 +319,8 @@ def log_all_drifts(prog_global_avg, base_global_avg, do_variables=COMPARE_VARS):
 
         for key, selection in drift_sel.items():
 
-            prog_sel = prog_global_avg.isel(time=selection).mean(dim="time")
-            base_sel = base_global_avg.isel(time=selection).mean(dim="time")
+            prog_sel = prog_global_avg[name].isel(time=selection).mean(dim="time")
+            base_sel = base_global_avg[name].isel(time=selection).mean(dim="time")
 
             columns[key] = [
                 (base_sel - base_init).values.item(),
@@ -335,8 +378,8 @@ def main():
     )
 
     grid = catalog[f"grid/{args.grid_key}"].to_dask()
-    prog = prog.merge(grid).isel(time=slice(0, 8))
-    baseline = baseline.merge(grid).isel(time=slice(0, 8))
+    prog = prog.merge(grid)
+    baseline = baseline.merge(grid) 
 
     prog_mean_by_height = get_avg_data(
         path, prog, run, override_artifact=args.override_artifacts
@@ -359,6 +402,9 @@ def main():
 
     # spatial plots
     plot_spatial_comparisons(prog, baseline)
+
+    # zonal averages near the end (mean over 8 saved times)
+    plot_lat_heights(prog, baseline)
 
 
 if __name__ == "__main__":
