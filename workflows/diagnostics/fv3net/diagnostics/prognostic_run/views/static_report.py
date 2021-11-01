@@ -298,8 +298,15 @@ def diurnal_cycle_component_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 
 @histogram_plot_manager.register
-def histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_histogram(diagnostics, f"{PRECIP_RATE}_histogram")
+def precip_histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_histogram(
+        diagnostics, f"{PRECIP_RATE}_histogram", xscale="log", yscale="log"
+    )
+
+
+@histogram_plot_manager.register
+def water_vapor_path_histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_histogram(diagnostics, f"{WVP}_histogram")
 
 
 @histogram_plot_manager.register

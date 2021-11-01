@@ -165,7 +165,9 @@ def plot_cubed_sphere_map(
     )
 
 
-def plot_histogram(run_diags: RunDiagnostics, varname: str) -> RawHTML:
+def plot_histogram(
+    run_diags: RunDiagnostics, varname: str, xscale="linear", yscale="linear"
+) -> RawHTML:
     """Plot 1D histogram of varname overlaid across runs."""
 
     logging.info(f"plotting {varname}")
@@ -176,8 +178,8 @@ def plot_histogram(run_diags: RunDiagnostics, varname: str) -> RawHTML:
         ax.step(v[bin_name], v, label=run, where="post", linewidth=1)
     ax.set_xlabel(f"{v.long_name} [{v.units}]")
     ax.set_ylabel(f"Frequency [({v.units})^-1]")
-    ax.set_xscale("log")
-    ax.set_yscale("log")
+    ax.set_xscale(xscale)
+    ax.set_yscale(yscale)
     ax.set_xlim([v[bin_name].values[0], v[bin_name].values[-1]])
     ax.legend()
     fig.tight_layout()
