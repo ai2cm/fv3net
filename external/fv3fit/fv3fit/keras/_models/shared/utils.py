@@ -1,8 +1,10 @@
 from fv3fit._shared.packer import ArrayPacker
+from fv3fit._shared.stacking import SAMPLE_DIM_NAME
 import tensorflow as tf
-from typing import Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Type
 import xarray as xr
-from fv3fit.emulation.layers import StandardNormLayer, StandardDenormLayer
+from fv3fit.emulation.layers import StandardNormLayer, StandardDenormLayer, NormLayer
+import fv3fit._shared
 
 
 def get_input_vector(
@@ -35,8 +37,48 @@ def get_input_vector(
     return input_layers, packed
 
 
+def count_features(
+    names, batch: xr.Dataset, sample_dims=(SAMPLE_DIM_NAME,)
+) -> Dict[str, int]:
+    """
+    Returns counts of the number of features for each variable name.
+
+    Args:
+        names: dataset keys to be unpacked
+        batch: dataset containing representatively-shaped data for the given names,
+            last dimension should be the feature dimension.
+        sample_dims: names of non-feature dimensions
+    """
+    _, feature_index = fv3fit._shared.pack(batch[names], sample_dims=sample_dims)
+    return fv3fit._shared.count_features(feature_index)
+
+
+def _fit_norm_layer(
+    cls: Type[NormLayer],
+    names: Sequence[str],
+    layers: Sequence[tf.Tensor],
+    batch: xr.Dataset,
+    sample_dims: Sequence[str] = (SAMPLE_DIM_NAME,),
+) -> Sequence[NormLayer]:
+    out: List[NormLayer] = []
+    input_features = count_features(names=names, batch=batch, sample_dims=sample_dims)
+    for name, layer in zip(names, layers):
+        norm = cls(name=f"standard_normalize_{name}")
+        selection: List[Optional[slice]] = [
+            slice(None, None) for _ in batch[name].shape
+        ]
+        if input_features[name] == 1:
+            selection = selection + [None]
+        norm.fit(batch[name].values[tuple(selection)])
+        out.append(norm(layer))
+    return out
+
+
 def standard_normalize(
-    names: Sequence[str], layers: Sequence[tf.Tensor], batch: xr.Dataset
+    names: Sequence[str],
+    layers: Sequence[tf.Tensor],
+    batch: xr.Dataset,
+    sample_dims: Sequence[str] = (SAMPLE_DIM_NAME,),
 ) -> Sequence[tf.Tensor]:
     """
     Apply standard scaling to a series of layers based on mean and standard
@@ -46,20 +88,25 @@ def standard_normalize(
         names: variable name in batch of each layer in layers
         layers: input tensors to be scaled by scaling layers
         batch: reference data for mean and standard deviation
+        sample_dims: names of non-feature dimensions
     
     Returns:
         normalized_layers: standard-scaled tensors
     """
-    out = []
-    for name, layer in zip(names, layers):
-        norm = StandardNormLayer(name=f"standard_normalize_{name}")
-        norm.fit(batch[name].values)
-        out.append(norm(layer))
-    return out
+    return _fit_norm_layer(
+        StandardNormLayer,
+        names=names,
+        layers=layers,
+        batch=batch,
+        sample_dims=sample_dims,
+    )
 
 
 def standard_denormalize(
-    names: Sequence[str], layers: Sequence[tf.Tensor], batch: xr.Dataset
+    names: Sequence[str],
+    layers: Sequence[tf.Tensor],
+    batch: xr.Dataset,
+    sample_dims: Sequence[str] = (SAMPLE_DIM_NAME,),
 ) -> Sequence[tf.Tensor]:
     """
     Apply standard descaling to a series of standard-scaled
@@ -69,13 +116,15 @@ def standard_denormalize(
         names: variable name in batch of each layer in layers
         layers: input tensors to be scaled by de-scaling layers
         batch: reference data for mean and standard deviation
+        sample_dims: names of non-feature dimensions
     
     Returns:
         denormalized_layers: de-scaled tensors
     """
-    out = []
-    for name, layer in zip(names, layers):
-        norm = StandardDenormLayer(name=f"standard_denormalize_{name}")
-        norm.fit(batch[name].values)
-        out.append(norm(layer))
-    return out
+    return _fit_norm_layer(
+        StandardDenormLayer,  # type: ignore
+        names=names,
+        layers=layers,
+        batch=batch,
+        sample_dims=sample_dims,
+    )
