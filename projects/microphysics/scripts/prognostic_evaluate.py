@@ -63,7 +63,7 @@ def new_weighted_avg(ds: xr.Dataset, dim=["tile", "y", "x"]):
 
 def get_avg_data(
     source_path: str,
-    ds: xr.Dataset,
+    grid_data: xr.Dataset,
     run,
     filename="state_mean_by_height.nc",
     override_artifact=False,
@@ -73,6 +73,13 @@ def get_avg_data(
     a saved artifact based on the source_path, creates an artifact
     if it doesn't exist, or updates the artifact if an override is
     specified.
+
+    Args:
+        source_path: path to the zarr dataset we want to average
+        grid_data: loaded grid information for simulation
+        run: current wandb.init run
+        filename: filename to store the averaged data at in the artifact
+        override_artifact: ignore saved artifact and re-average data from source
     """
 
     source_hash = hashlib.md5(source_path.encode("utf-8")).hexdigest()
@@ -84,6 +91,11 @@ def get_avg_data(
         artifact = None
 
     if override_artifact or artifact is None:
+        # open zarr and do the average
+        ds = xr.open_zarr(
+            source_path,
+            consolidated=True,
+        ).merge(grid_data)
         prog_avg = new_weighted_avg(ds)
         with ProgressBar():
             prog_avg.load()
@@ -394,14 +406,14 @@ def main():
 
     wandb.config.update(args)
 
-    path = args.prognostic_path
-    baseline_path = args.baseline_path
+    path = os.path.join(args.prognostic_path, "state_after_timestep.zarr")
+    baseline_path = os.path.join(args.baseline_path, "state_after_timestep.zarr")
     prog = xr.open_zarr(
-        fsspec.get_mapper(os.path.join(path, "state_after_timestep.zarr")),
+        path,
         consolidated=True,
     )
     baseline = xr.open_zarr(
-        fsspec.get_mapper(os.path.join(baseline_path, "state_after_timestep.zarr")),
+        baseline_path,
         consolidated=True,
     )
 
@@ -410,10 +422,10 @@ def main():
     baseline = baseline.merge(grid)
 
     prog_mean_by_height = get_avg_data(
-        path, prog, run, override_artifact=args.override_artifacts
+        path, grid, run, override_artifact=args.override_artifacts
     )
     base_mean_by_height = get_avg_data(
-        baseline_path, baseline, run, override_artifact=args.override_artifacts
+        baseline_path, grid, run, override_artifact=args.override_artifacts
     )
 
     plot_time_heights(prog_mean_by_height, base_mean_by_height)
