@@ -1,5 +1,6 @@
 import argparse
 import os
+from typing import Mapping
 import fsspec
 import logging
 import hashlib
@@ -11,47 +12,38 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from dask.diagnostics import ProgressBar
-from itertools import product
 from wandb.errors import CommError
 
-from plot_utils import plot_var, plot_meridional
-from fv3viz import infer_cmap_params
+
+from fv3viz import infer_cmap_params, plot_cube
 from fv3fit.tensorboard import plot_to_image
+from vcm import interpolate_unstructured
+from vcm.select import meridional_ring
 from vcm.catalog import catalog
 
 
 logger = logging.getLogger(__name__)
 
 
-# ## Global average time x height of SPHUM and T
+COMPARE_VARS = [
+    "cloud_water_mixing_ratio",
+    "specific_humidity",
+    "air_temperature",
+    "eastward_wind",
+    "northward_wind",
+]
+TRANSECT_VARS = [
+    "cloud_water_mixing_ratio",
+    "specific_humidity",
+]
+
+
 def consistent_time_len(*da_args):
+
     # assumes same start time and time delta
     times = [len(da.time) for da in da_args]
     min_len = np.min(times)
     return [da.isel(time=slice(0, min_len)) for da in da_args]
-    
-
-def plot_time_vert_panels(da1, da2, dpi=80):
-    fig, ax = plt.subplots(1, 3)
-    fig.set_size_inches(12, 4)
-    fig.set_dpi(dpi)
-    
-    da1, da2 = consistent_time_len(da1, da2)
-    vmin, vmax, cmap = infer_cmap_params(da2)
-    vkw = dict(vmin=vmin, vmax=vmax, cmap=cmap)
-    da1.plot.pcolormesh(x="time", y="z", ax=ax[0], yincrease=False, **vkw)
-    da2.plot.pcolormesh(x="time", y="z", ax=ax[1], yincrease=False, **vkw)
-    (da1 - da2).plot.pcolormesh(x="time", y="z", ax=ax[2], yincrease=False)
-    ax[0].set_title("Emulation")
-    ax[1].set_title("Baseline")
-    ax[2].set_title("Diff")
-    
-    for sub_ax in ax:
-        sub_ax.tick_params(axis="x", labelrotation=15)
-
-    plt.tight_layout()
-
-    return fig
 
 
 # TODO: test this and maybe port back to diagnostics?
@@ -68,8 +60,19 @@ def new_weighted_avg(ds, dim=["tile", "y", "x"]):
     return weighted_mean
 
 
-# TODO: use wandb to save preprocessed artifact for run that way it can be loaded if available
-def get_avg_data(source_path: str, ds: xr.Dataset, run, filename="state_mean_by_height.nc", override_artifact=False):
+def get_avg_data(
+    source_path: str,
+    ds: xr.Dataset,
+    run,
+    filename="state_mean_by_height.nc",
+    override_artifact=False,
+):
+    """
+    Open a dataset and get the tile, x, y averaged data. Loads from
+    a saved artifact based on the source_path, creates an artifact
+    if it doesn't exist, or updates the artifact if an override is
+    specified.
+    """
 
     source_hash = hashlib.md5(source_path.encode("utf-8")).hexdigest()
     try:
@@ -97,208 +100,91 @@ def get_avg_data(source_path: str, ds: xr.Dataset, run, filename="state_mean_by_
     return prog_avg
 
 
+def plot_global_avg_time_height_panel(da1, da2, dpi=80):
+    fig, ax = plt.subplots(1, 3)
+    fig.set_size_inches(12, 4)
+    fig.set_dpi(dpi)
+
+    da1, da2 = consistent_time_len(da1, da2)
+    vmin, vmax, cmap = infer_cmap_params(da2, robust=True)
+    vkw = dict(vmin=vmin, vmax=vmax, cmap=cmap)
+    da1.plot.pcolormesh(x="time", y="z", ax=ax[0], yincrease=False, **vkw)
+    da2.plot.pcolormesh(x="time", y="z", ax=ax[1], yincrease=False, **vkw)
+    (da1 - da2).plot.pcolormesh(x="time", y="z", ax=ax[2], yincrease=False)
+    ax[0].set_title("Emulation")
+    ax[1].set_title("Baseline")
+    ax[2].set_title("Diff")
+
+    for sub_ax in ax:
+        sub_ax.tick_params(axis="x", labelrotation=15)
+
+    plt.tight_layout()
+
+    return fig
 
 
+def plot_time_heights(prognostic, baseline, do_variables=COMPARE_VARS):
 
-# pvars = ["cloud_water_mixing_ratio", "specific_humidity"]
-# target_prediction_2panel_meridional(prog, phys_baseline, pvars, time_idx=0)
-# target_prediction_2panel_meridional(prog, phys_baseline, pvars, time_idx=163)
-
-
-# # ## State Field Comparison
-# def select_time_vert(da, tidx, z=78, z_soil=0):
-#     da = da.isel(time=tidx)
-#     if "z" in da.dims:
-#         sfc_emu = da.isel(z=z)
-#     elif "z_soil" in da.dims:
-#         sfc_emu = da.isel(z_soil=z_soil)
-#     else:
-#         sfc_emu = da
-        
-#     return sfc_emu
-
-
-# def get_vmin_vmax(var, da):
-    
-#     if "mixing_ratio" in var:
-#         threshold = 98
-#     else:
-#         threshold = 99.5
-#     vmax = np.percentile(da, threshold)
-#     if np.any(da.values < 0):
-#         vmin = -vmax
-#     else:
-#         vmin = np.percentile(da, 100-threshold)
-        
-#     return vmin, vmax
-
-
-# def plot_spatial_2panel_with_diff(emu, base, time_idx=0, level=75):
-#     skip_vars = [
-#         "latitude", "longitude", "x_wind", "y_wind", "land_sea_mask",
-#         "vertical_thickness_of_atmospheric_layer", "surface_geopotential"
-#     ]
-#     for var, da in emu.items():
-#         if var in skip_vars:
-#             continue
-#         base_var = var
-#         if base_var not in base:
-#             print(f"{base_var} missing from baseline inputs")
-#             continue
-
-#         fig = plt.figure()
-#         ax = fig.add_subplot(131, projection=ccrs.Robinson())
-#         ax2 = fig.add_subplot(132, projection=ccrs.Robinson())
-#         ax3 = fig.add_subplot(133, projection=ccrs.Robinson())
-#         fig.set_size_inches(15, 4)
-#         fig.set_dpi(80)
-
-#         emu_layer = select_time_vert(da, time_idx, z=level)
-#         vmin, vmax = get_vmin_vmax(var, emu_layer)
-#         if vmin > vmax:
-#             vmin, vmax = vmax, vmin
-        
-#         plot_kw = dict(ax=ax, vmin=vmin, vmax=vmax)
-#         plot_var(emu_layer.to_dataset(name=var), var, plot_kwargs=dict(ax=ax, vmin=vmin, vmax=vmax))
-        
-#         phy_layer = select_time_vert(base[base_var], time_idx, z=level)
-#         plot_kw["ax"] = ax2
-#         plot_var(phy_layer.to_dataset(name=var), var, plot_kwargs=dict(ax=ax2, vmin=vmin, vmax=vmax))
-
-#         diff = emu_layer - phy_layer
-#         vmin, vmax = get_vmin_vmax(var, diff)
-#         if vmin > vmax:
-#             vmin, vmax = vmax, vmin
-#         plot_var(diff.to_dataset(name=var), var, plot_kwargs=dict(ax=ax3, vmin=vmin, vmax=vmax))
-
-#         ax.set_title(f"Emulation: {var}")
-#         ax2.set_title("Baseline")
-#         ax3.set_title("Diff: Emu - Baseline")
-#         plt.show()
-
-
-# ### Final output time (surface)
-# tidx = 160
-# prog.time.isel(time=tidx)
-# plot_spatial_2panel_with_diff(prog, phys_baseline, time_idx=tidx, level=78)
-
-
-# # ## Final output time (upper boundary layer)
-# plot_spatial_2panel_with_diff(prog, phys_baseline, time_idx=tidx, level=62)
-
-
-# # ## Final output time (upper atmosphere)
-# plot_spatial_2panel_with_diff(prog, phys_baseline, time_idx=tidx, level=34)
-
- 
-# # ## Final output time (upper upper atmosphere)
-# plot_spatial_2panel_with_diff(prog, phys_baseline, time_idx=tidx, level=19)
-
-
-# ## Drifts
-# drift_sel = {"3hr": slice(1, 2), "1day": slice(12, 16), "5day": slice(64, 80)}
-# drift_vars = ["cloud_water_mixing_ratio", "specific_humidity", "air_temperature"]
-# for drift, sel in drift_sel.items():
-#     if sel.stop >= len(prog.time):
-#         break
-    
-#     p = prog_mean.isel(time=sel).mean(dim="time")
-#     b = base_mean.isel(time=sel).mean(dim="time")
-#     print((p - b)[drift_vars])
-
-
-# ## Check spatial precip 
-# prog_w_diag["total_precipitation"]
-
-# # create a multi index coordinate to use xarray unstack
-# xy_points = list(product(np.arange(1, 49), repeat=2))
-# sample_coord = {"sample": pd.MultiIndex.from_tuples(xy_points, names=["y", "x"])}
-# diags = prog_w_diag.assign_coords(sample_coord).unstack("sample")
-
-# # precip start
-# plot_var(diags, "total_precipitation", isel_kwargs=dict(time=0))
-# plot_var(diags, "total_precipitation_physics_diag", isel_kwargs=dict(time=0))
-
-# # precip end
-# plot_var(diags, "total_precipitation", isel_kwargs=dict(time=-1))
-# plot_var(diags, "total_precipitation_physics_diag", isel_kwargs=dict(time=-1))
-
-
-# def split_emu_piggy_back(ds):
-    
-#     diag_suffix = "_physics_diag"
-#     rain_wat = "tendency_of_rain_water_mixing_ratio"
-#     emu_keys = [k[:-len(diag_suffix)] for k in ds if diag_suffix in k]
-#     print(emu_keys)
-#     emu = ds[emu_keys]
-    
-#     diags = {}
-#     for k, v in ds.items():
-#         if "_input" in k or "_output" in k:
-#             diags[k] = v
-#         elif diag_suffix in k:
-#             new_k = k[:-len(diag_suffix)]
-#             diags[new_k] = v
-#     diags = xr.Dataset(diags)
-#     diags = DerivedMapping(diags)
-#     as_ds = xr.Dataset({k: diags[k] for k in emu})
-    
-#     return emu, as_ds
-
-
-# emu_del, diags_del = split_emu_piggy_back(diags)
-# plot_spatial_2panel_with_diff(emu_del, diags_del, time_idx=4)
-
-
-def plot_time_by_heights(prognostic, baseline):
-    
-    plot_time_height_vars = [
-        "cloud_water_mixing_ratio",
-        "specific_humidity",
-        "air_temperature",
-        "eastward_wind",
-        "northward_wind",
-    ]
-
-    for name in plot_time_height_vars:
-        fig = plot_time_vert_panels(
-            prognostic[name],
-            baseline[name]
-        )
+    for name in do_variables:
+        fig = plot_global_avg_time_height_panel(prognostic[name], baseline[name])
         wandb.log({f"avg_time_height/{name}": wandb.Image(plot_to_image(fig))})
         plt.close(fig)
 
 
-def plot_global_means(prognostic, baseline):
+def plot_global_means(prognostic, baseline, do_variables=COMPARE_VARS):
 
     prognostic, baseline = consistent_time_len(prognostic, baseline)
 
-    for varname, da in prognostic.items():
-        if varname in ["land_sea_mask", "latitude", "longitude", "area"]:
-            continue
-        if varname not in baseline:
-            logger.info(f"Skipping global mean due to missing basline variable: {varname}")
+    for name in do_variables:
+        if name not in baseline or name not in prognostic:
+            logger.info(f"Skipping global mean due to missing variable: {name}")
             continue
 
         fig, ax = plt.subplots()
         fig.set_dpi(80)
 
+        da = prognostic[name]
         da.plot(ax=ax, label="Emulation")
-        baseline[varname].plot(ax=ax, label="Baseline", alpha=0.6)
+        baseline[name].plot(ax=ax, label="Baseline", alpha=0.6)
         plt.legend()
 
-        wandb.log({f"global_avg/{varname}": wandb.Image(plot_to_image(fig))})
+        wandb.log({f"global_avg/{name}": wandb.Image(plot_to_image(fig))})
         plt.close(fig)
 
 
-def plot_transects(prognostic, baseline):
+def meridional_transect(ds: xr.Dataset):
+    transect_coords = meridional_ring()
+    return interpolate_unstructured(ds, transect_coords)
 
-    varnames = ["cloud_water_mixing_ratio", "specific_humidity", "air_temperature"]
+
+def plot_meridional(ds, vkey, title="", ax=None, yincrease=False):
+    meridional = meridional_transect(ds)
+    if ax is None:
+        fig, ax = plt.subplots()
+        fig.set_dpi(120)
+
+    if "z_soil" in meridional[vkey].dims:
+        y = "z_soil"
+    else:
+        y = "z"
+
+    vmin, vmax, cmap = infer_cmap_params(ds[vkey], robust=True)
+    if cmap == "viridis":
+        cmap = "Blues"
+    meridional[vkey].plot.pcolormesh(
+        x="lat", y=y, ax=ax, cmap=cmap, vmin=vmin, vmax=vmax, yincrease=yincrease,
+    )
+    ax.set_title(title, size=14)
+    ax.set_ylabel("vertical level", size=12)
+    ax.set_xlabel("latitude", size=12)
+
+
+def plot_transects(prognostic, baseline, do_variables=TRANSECT_VARS):
 
     tidx_map = {"start": 0, "near_end": len(prognostic.time) - 2}
 
     for time_name, tidx in tidx_map.items():
-        for name in varnames:
+        for name in do_variables:
             fig, ax = plt.subplots(1, 2)
             fig.set_size_inches(8, 4)
             fig.set_dpi(80)
@@ -315,6 +201,95 @@ def plot_transects(prognostic, baseline):
             plt.close(fig)
 
 
+def plot_spatial_2panel_with_diff(emu: xr.Dataset, base, name, lev, time):
+
+    fig = plt.figure()
+    ax = fig.add_subplot(131, projection=ccrs.Robinson())
+    ax2 = fig.add_subplot(132, projection=ccrs.Robinson())
+    ax3 = fig.add_subplot(133, projection=ccrs.Robinson())
+    fig.set_size_inches(15, 4)
+    fig.set_dpi(80)
+
+    vmin, vmax, cmap = infer_cmap_params(emu[name], robust=True)
+    plot_kwargs = dict(vmin=vmin, vmax=vmax, cmap=cmap)
+
+    # TODO: can't pass explicit vmin, vmax so cbars arent equivalent
+    plot_cube(emu, name, ax=ax, cmap_percentiles_lim=False, **plot_kwargs)
+    plot_cube(base, name, ax=ax2, cmap_percentiles_lim=False, **plot_kwargs)
+
+    diff = emu.copy()
+    # Insert diff to keep undiffed grid coordinates
+    diff[name] = emu[name] - base[name]
+    plot_cube(diff, name, ax=ax3)
+
+    ax.set_title(f"Emulation: {name}")
+    ax2.set_title("Baseline")
+    ax3.set_title("Diff: Emu - Baseline")
+
+    log_name = f"spatial_comparison/{time}/{lev}/{name}"
+    wandb.log({log_name: wandb.Image(plot_to_image(fig))})
+    plt.close(fig)
+
+
+def plot_spatial_comparisons(
+    prognostic,
+    baseline,
+    do_variables=COMPARE_VARS,
+    time_idxs: Mapping[str, int] = None,
+    level_map: Mapping[str, int] = None,
+):
+
+    if time_idxs is None:
+        time_idxs = {"start": 0, "near_end": len(prognostic.time) - 2}
+
+    if level_map is None:
+        level_map = {"lower": 75, "upper_BL": 60, "upper_atm": 20}
+
+    for name in do_variables:
+        for level, lev_idx in level_map.items():
+            for time, tidx in time_idxs.items():
+                prog = prognostic.isel(time=tidx, z=lev_idx)
+                base = baseline.isel(time=tidx, z=lev_idx)
+                plot_spatial_2panel_with_diff(prog, base, name, level, time)
+
+
+def log_all_drifts(prog_global_avg, base_global_avg, do_variables=COMPARE_VARS):
+
+    for name in do_variables:
+        # assumes time delta
+        drift_sel = {
+            "3hr": slice(1, 2),
+            "1day": slice(12, 16),  # 12-hr avg
+            "5day": slice(76, 80),  # 12-hr avg
+        }
+
+        # not quite drift from init but an estimate
+        prog_init = prog_global_avg.isel(time=0)
+        base_init = base_global_avg.isel(time=0)
+
+        columns = {}
+        columns["drift_def"] = [
+            "baseline_from_init",
+            "prognostic_from_init",
+            "prognostic_from_baseline",
+        ]
+
+        for key, selection in drift_sel.items():
+
+            prog_sel = prog_global_avg.isel(time=selection).mean(dim="time")
+            base_sel = base_global_avg.isel(time=selection).mean(dim="time")
+
+            columns[key] = [
+                (base_sel - base_init).values.item(),
+                (prog_sel - prog_init).values.item(),
+                (prog_sel - base_sel).values.item(),
+            ]
+
+        df = pd.DataFrame.from_dict(columns)
+        table = wandb.Table(dataframe=df)
+        wandb.log({f"drifts/{name}": table})
+
+
 def main():
 
     parser = argparse.ArgumentParser()
@@ -325,62 +300,67 @@ def main():
         default=(
             "gs://vcm-ml-experiments/andrep/2021-05-28/"
             "spunup-baseline-simple-phys-hybrid-edmf-extended/fv3gfs_run"
-        )
+        ),
     )
     parser.add_argument(
         "--grid-key",
         default="c48",
-        help="Grid to load from catalog for area-weighted averages"
+        help="Grid to load from catalog for area-weighted averages",
     )
     parser.add_argument(
         "--override-artifacts",
         action="store_true",
-        help="Force upload of the averaging artifacts"
+        help="Force upload of the averaging artifacts",
     )
     parser.add_argument(
-        "--wandb-project",
-        default="scratch-project",
+        "--wandb-project", default="scratch-project",
     )
-    
-    args = parser.parse_args()
-    run = wandb.init(job_type="prognostic_evaluation", entity="ai2cm", project=args.wandb_project)
 
-    # TODO: Prognostic runs should produce a useable artifact directing to output?
+    args = parser.parse_args()
+    run = wandb.init(
+        job_type="prognostic_evaluation", entity="ai2cm", project=args.wandb_project
+    )
 
     wandb.config.update(args)
 
     path = args.prognostic_path
     baseline_path = args.baseline_path
-    prog = xr.open_zarr(fsspec.get_mapper(os.path.join(path, "state_after_timestep.zarr")), consolidated=True)
-    baseline = xr.open_zarr(fsspec.get_mapper(os.path.join(baseline_path, "state_after_timestep.zarr")), consolidated=True)
+    prog = xr.open_zarr(
+        fsspec.get_mapper(os.path.join(path, "state_after_timestep.zarr")),
+        consolidated=True,
+    )
+    baseline = xr.open_zarr(
+        fsspec.get_mapper(os.path.join(baseline_path, "state_after_timestep.zarr")),
+        consolidated=True,
+    )
 
     grid = catalog[f"grid/{args.grid_key}"].to_dask()
     prog = prog.merge(grid).isel(time=slice(0, 8))
     baseline = baseline.merge(grid).isel(time=slice(0, 8))
 
-    prog_mean_by_height = get_avg_data(path, prog, run, override_artifact=args.override_artifacts)
-    base_mean_by_height = get_avg_data(baseline_path, baseline, run, override_artifact=args.override_artifacts)
+    prog_mean_by_height = get_avg_data(
+        path, prog, run, override_artifact=args.override_artifacts
+    )
+    base_mean_by_height = get_avg_data(
+        baseline_path, baseline, run, override_artifact=args.override_artifacts
+    )
 
-    plot_time_by_heights(prog_mean_by_height, base_mean_by_height)
+    plot_time_heights(prog_mean_by_height, base_mean_by_height)
 
-    ## Global average comparison after timestep
+    # Global average comparison after timestep
     prog_mean = prog_mean_by_height.mean(dim=["z"]).compute()
     base_mean = base_mean_by_height.mean(dim=["z", "z_soil"]).compute()
 
     plot_global_means(prog_mean, base_mean)
+    log_all_drifts(prog_mean, base_mean)
 
     # Some meridional transects
     plot_transects(prog, baseline)
 
-
-
-    # TODO: Maybe remove?
-    # prog_w_diag = xr.open_zarr(fsspec.get_mapper(os.path.join(path, "state_output.zarr")))
-    # prog_sfc_diag = xr.open_zarr(fsspec.get_mapper(os.path.join(path, "sfc_dt_atmos.zarr")), consolidated=True)
-    # base_diag = xr.open_zarr(fsspec.get_mapper(os.path.join(baseline_path, "sfc_dt_atmos.zarr")), consolidated=True)
+    # spatial plots
+    plot_spatial_comparisons(prog, baseline)
 
 
 if __name__ == "__main__":
-    
-    # path = f"gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/prognostic-runs/all-tends-limited-dense"
+
     main()
