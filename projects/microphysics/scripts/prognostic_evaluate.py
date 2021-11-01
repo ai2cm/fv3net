@@ -1,6 +1,6 @@
 import argparse
 import os
-from typing import Mapping
+from typing import Mapping, Optional
 import fsspec
 import logging
 import hashlib
@@ -276,9 +276,19 @@ def plot_spatial_comparisons(
                 plt.close(fig)
 
 
-def _selection(times, duration, window=None):
+def _selection(
+    times: xr.DataArray, duration: timedelta, window: Optional[timedelta] = None
+):
 
-    """"""
+    """
+    Generate a slice window at the specified duration inferred
+    from the save timestep frequency
+
+    Args:
+        times: Datarray of datetime objects marking the savepoints
+        duration: time elapsed to center the selection window at
+        window: width of the selection window, defaults to +/- one timestep
+    """
 
     delta = pd.Timedelta((times[1] - times[0]).values)
     center = duration // delta
