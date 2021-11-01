@@ -1,7 +1,6 @@
 import argparse
 import os
 from typing import Mapping, Optional
-import fsspec
 import logging
 import hashlib
 import tempfile
@@ -92,10 +91,7 @@ def get_avg_data(
 
     if override_artifact or artifact is None:
         # open zarr and do the average
-        ds = xr.open_zarr(
-            source_path,
-            consolidated=True,
-        ).merge(grid_data)
+        ds = xr.open_zarr(source_path, consolidated=True,).merge(grid_data)
         prog_avg = new_weighted_avg(ds)
         with ProgressBar():
             prog_avg.load()
@@ -336,15 +332,14 @@ def log_all_drifts(
     prog_global_avg: xr.Dataset, base_global_avg: xr.Dataset, do_variables=COMPARE_VARS
 ):
     """
-    Stores drift from baseline at different run lengths.  All values stored in <units> / day
+    Stores drift from baseline at different run lengths.
+    All values stored in <units> / day
     """
 
     times = prog_global_avg.time
     for name in do_variables:
         # assumes time delta
-        drift_sel = [
-            (3, )
-        ]
+        drift_sel = [(3,)]
         drift_sel = {
             "3hr": (timedelta(hours=3), None),
             "1day": (timedelta(days=1), timedelta(hours=12)),
@@ -358,9 +353,11 @@ def log_all_drifts(
             prog_sel = prog_global_avg[name].isel(time=selection).mean(dim="time")
             base_sel = base_global_avg[name].isel(time=selection).mean(dim="time")
 
-            duration_in_days = duration.total_seconds() / timedelta(days=1).total_seconds()
+            duration_in_days = (
+                duration.total_seconds() / timedelta(days=1).total_seconds()
+            )
             value = (prog_sel - base_sel).values.item() / duration_in_days
-            
+
             wandb.log({f"drifts/{name}/{key}": value})
 
 
@@ -399,14 +396,8 @@ def main():
 
     path = os.path.join(args.prognostic_path, "state_after_timestep.zarr")
     baseline_path = os.path.join(args.baseline_path, "state_after_timestep.zarr")
-    prog = xr.open_zarr(
-        path,
-        consolidated=True,
-    )
-    baseline = xr.open_zarr(
-        baseline_path,
-        consolidated=True,
-    )
+    prog = xr.open_zarr(path, consolidated=True,)
+    baseline = xr.open_zarr(baseline_path, consolidated=True,)
 
     grid = catalog[f"grid/{args.grid_key}"].to_dask()
     prog = prog.merge(grid)
