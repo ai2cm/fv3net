@@ -311,7 +311,7 @@ def water_vapor_path_histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlo
 
 @histogram_plot_manager.register
 def histogram2d_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_histogram2d(diagnostics, WVP, COL_DRYING)
+    return plot_histogram2d(diagnostics, WVP, COL_DRYING, conditional=True)
 
 
 # Routines for plotting the "metrics"
@@ -474,7 +474,9 @@ def render_process_diagnostics(metadata, diagnostics, metrics):
         "Links": navigation,
         "Precipitation percentiles": [metric_table(metrics, percentile_names)],
         "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
-        "Precipitation histogram": list(histogram_plot_manager.make_plots(diagnostics)),
+        "Precipitation and water vapor path": list(
+            histogram_plot_manager.make_plots(diagnostics)
+        ),
     }
     return create_html(
         title="Process diagnostics",
