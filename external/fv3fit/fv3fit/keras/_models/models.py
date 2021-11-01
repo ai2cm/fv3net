@@ -192,6 +192,9 @@ class DenseModel(Predictor):
         else:
             self._checkpoint_path = None
         self.training_loop = hyperparameters.training_loop
+        for name in self._hyperparameters.packer_config.clip:
+            if str(name) in output_variables:
+                raise NotImplementedError("Clipping for ML outputs is not implemented.")
 
     @property
     def model(self) -> tf.keras.Model:
