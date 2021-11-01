@@ -19,9 +19,7 @@ spec:
     - name: prognostic-run
       inputs:
         parameters:
-          - {name: initial-condition}
           - {name: config}
-          - {name: reference-restarts}
           - {name: tag}
           - {name: flags, value: ""}
           - {name: bucket, value: "vcm-ml-experiments"}
@@ -45,9 +43,7 @@ spec:
           template: prepare-config
           arguments:
             parameters:
-              - {name: initial-condition, value: "{{inputs.parameters.initial-condition}}"}
               - {name: config, value: "{{inputs.parameters.config}}"}
-              - {name: reference-restarts, value: "{{inputs.parameters.reference-restarts}}"}
               - {name: flags, value: "{{inputs.parameters.flags}}"}
       - - name: run-model
           continueOn:
@@ -95,9 +91,7 @@ spec:
     - name: prepare-config
       inputs:
         parameters:
-          - name: initial-condition
           - name: config
-          - name: reference-restarts
           - name: flags
       outputs:
         artifacts:
@@ -118,6 +112,4 @@ spec:
             prepare-config \
               {{inputs.parameters.flags}} \
               config.yaml \
-              {{inputs.parameters.reference-restarts}} \
-              {{inputs.parameters.initial-condition}} \
               > /tmp/fv3config.yaml
