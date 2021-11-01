@@ -6,6 +6,10 @@ nudging:
     x_wind: 12
     y_wind: 12
     pressure_thickness_of_atmospheric_layer: 12
+  restarts_path: gs://ic-bucket
+initial_conditions:
+  base_url: gs://ic-bucket
+  timestep: "20160805.000000"
 namelist:
   coupler_nml:
     current_date:

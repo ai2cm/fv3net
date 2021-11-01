@@ -11,6 +11,8 @@ import dacite
 import fv3config
 import fv3kube
 
+import pandas as pd
+
 from runtime.diagnostics.manager import FortranFileConfig
 from runtime.diagnostics.fortran import file_configs_to_namelist_settings
 from runtime.config import UserConfig
@@ -89,7 +91,10 @@ class HighLevelConfig(UserConfig, FV3Config):
     Attributes:
         base_version: the default physics config
         initial_conditions: Specification for the initial conditions
-
+        duration: the duration of each segment. If provided, overrides any
+            settings in ``namelist.coupler_nml``. Must be a valid input to
+            ``pandas.TimeDelta``.  Examples: ``3h``.
+        
     See :py:class:`runtime.config.UserConfig` and :py:class:`FV3Config` for
     documentation on other allowed attributes
 
@@ -97,6 +102,7 @@ class HighLevelConfig(UserConfig, FV3Config):
 
     base_version: str = "v0.5"
     initial_conditions: Union[InitialCondition, Any] = ""
+    duration: str = ""
 
     def _initial_condition_overlay(self):
         return (
@@ -128,12 +134,18 @@ class HighLevelConfig(UserConfig, FV3Config):
             )["namelist"]["coupler_nml"]["dt_atmos"]
         )
 
+    @property
+    def _duration(self) -> Optional[timedelta]:
+        return (
+            pd.to_timedelta(self.duration).to_pytimedelta() if self.duration else None
+        )
+
     def to_fv3config(self) -> Any:
         """Translate into a fv3config dictionary"""
         # overlays (i.e. diffs) requiring only a small number of inputs. In
         # particular, overlays should not require access to the full configuration
         # dictionary.
-        return fv3kube.merge_fv3config_overlays(
+        config = fv3kube.merge_fv3config_overlays(
             fv3kube.get_base_fv3config(self.base_version),
             self._initial_condition_overlay(),
             SUPPRESS_RANGE_WARNINGS,
@@ -143,6 +155,11 @@ class HighLevelConfig(UserConfig, FV3Config):
             file_configs_to_namelist_settings(
                 self.fortran_diagnostics, self._physics_timestep()
             ),
+        )
+        return (
+            fv3config.set_run_duration(config, self._duration)
+            if self._duration
+            else config
         )
 
 
@@ -154,16 +171,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         type=str,
         help="Path to a config update YAML file specifying the changes from the base"
         "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
-    )
-    parser.add_argument(
-        "initial_condition_url",
-        type=str,
-        help="Remote url to directory holding timesteps with model initial conditions.",
-    )
-    parser.add_argument(
-        "ic_timestep",
-        type=str,
-        help="YYYYMMDD.HHMMSS timestamp to grab from the initial conditions url.",
     )
     parser.add_argument(
         "--model_url",
@@ -188,18 +195,38 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def user_config_from_dict_and_args(
-    config_dict: dict, nudging_url: str, model_url, diagnostic_ml
-) -> HighLevelConfig:
-    """Ideally this function could be replaced by dacite.from_dict
-    without needing any information from args.
-    """
-    user_config = dacite.from_dict(
-        HighLevelConfig, config_dict, dacite.Config(strict=True)
-    )
+def _diag_table_overlay(
+    fortran_diagnostics: Sequence[FortranFileConfig],
+    name: str = "prognostic_run",
+    base_time: datetime = datetime(2000, 1, 1),
+) -> Mapping[str, fv3config.DiagTable]:
+    file_configs = [
+        fortran_diagnostic.to_fv3config_diag_file_config()
+        for fortran_diagnostic in fortran_diagnostics
+    ]
+    diag_table = fv3config.DiagTable(name, base_time, file_configs)
+    return {"diag_table": diag_table}
 
-    if user_config.nudging and not user_config.nudging.restarts_path:
-        user_config.nudging.restarts_path = nudging_url
+
+def to_fv3config(
+    dict_: dict, model_url: Sequence[str] = (), diagnostic_ml: bool = False,
+) -> dict:
+    """Convert a loaded prognostic run yaml ``dict_`` into an fv3config
+    dictionary depending on some options
+
+    See the arguments for setting initial conditions and other runtime model
+    configurations
+
+    Args:
+        ``dict_``:  a dictionary containing prognostic run configurations.  This
+            dictionary combines fv3config-related keys with
+            :py:class:`runtime.config.UserConfig` settings.
+
+    Returns:
+        an fv3config configuration dictionary that can be operated on with
+        fv3config APIs.
+    """
+    user_config = dacite.from_dict(HighLevelConfig, dict_, dacite.Config(strict=True))
 
     # insert command line option overrides
     if user_config.scikit_learn is None:
@@ -218,57 +245,7 @@ def user_config_from_dict_and_args(
             "Nudging and machine learning cannot currently be run at the same time."
         )
 
-    return user_config
-
-
-def _diag_table_overlay(
-    fortran_diagnostics: Sequence[FortranFileConfig],
-    name: str = "prognostic_run",
-    base_time: datetime = datetime(2000, 1, 1),
-) -> Mapping[str, fv3config.DiagTable]:
-    file_configs = [
-        fortran_diagnostic.to_fv3config_diag_file_config()
-        for fortran_diagnostic in fortran_diagnostics
-    ]
-    diag_table = fv3config.DiagTable(name, base_time, file_configs)
-    return {"diag_table": diag_table}
-
-
-def to_fv3config(
-    dict_: dict,
-    nudging_url: str,
-    model_url: Sequence[str] = (),
-    initial_condition: Optional[InitialCondition] = None,
-    diagnostic_ml: bool = False,
-) -> dict:
-    """Convert a loaded prognostic run yaml ``dict_`` into an fv3config
-    dictionary depending on some options
-
-    See the arguments for setting initial conditions and other runtime model
-    configurations
-
-    Args:
-        ``dict_``:  a dictionary containing prognostic run configurations.  This
-            dictionary combines fv3config-related keys with
-            :py:class:`runtime.config.UserConfig` settings.
-        initial_condition: modify the initial_conditions if provided, otherwise
-            leaves ``dict_`` unchanged.
-
-    Returns:
-        an fv3config configuration dictionary that can be operated on with
-        fv3config APIs.
-    """
-    full_config = user_config_from_dict_and_args(
-        dict_,
-        nudging_url=nudging_url,
-        model_url=model_url,
-        diagnostic_ml=diagnostic_ml,
-    )
-
-    if initial_condition:
-        full_config.initial_conditions = initial_condition
-
-    return full_config.to_fv3config()
+    return user_config.to_fv3config()
 
 
 def prepare_config(args):
@@ -277,13 +254,7 @@ def prepare_config(args):
         dict_ = yaml.safe_load(f)
 
     final = to_fv3config(
-        dict_,
-        initial_condition=InitialCondition(
-            args.initial_condition_url, args.ic_timestep
-        ),
-        nudging_url=args.initial_condition_url,
-        model_url=args.model_url,
-        diagnostic_ml=args.diagnostic_ml,
+        dict_, model_url=args.model_url, diagnostic_ml=args.diagnostic_ml,
     )
     fv3config.dump(final, sys.stdout)
 
