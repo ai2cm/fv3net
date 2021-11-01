@@ -47,8 +47,8 @@ def count_features(
         names: dataset keys to be unpacked
         batch: dataset containing representatively-shaped data for the given names,
             last dimension should be the feature dimension.
+        sample_dims: names of non-feature dimensions
     """
-
     _, feature_index = fv3fit._shared.pack(batch[names], sample_dims=sample_dims)
     return fv3fit._shared.count_features(feature_index)
 
@@ -88,6 +88,7 @@ def standard_normalize(
         names: variable name in batch of each layer in layers
         layers: input tensors to be scaled by scaling layers
         batch: reference data for mean and standard deviation
+        sample_dims: names of non-feature dimensions
     
     Returns:
         normalized_layers: standard-scaled tensors
@@ -115,6 +116,7 @@ def standard_denormalize(
         names: variable name in batch of each layer in layers
         layers: input tensors to be scaled by de-scaling layers
         batch: reference data for mean and standard deviation
+        sample_dims: names of non-feature dimensions
     
     Returns:
         denormalized_layers: de-scaled tensors

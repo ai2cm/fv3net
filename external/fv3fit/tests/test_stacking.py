@@ -160,14 +160,11 @@ def test_multiple_unstacked_dims():
     xr.testing.assert_identical(result.drop(result.coords.keys()), expected)
 
 
-def test_multiple_unstacked_dims_retain_order():
+@pytest.mark.parametrize("dims", [("time", "x", "y", "z"), ("time", "z", "y", "x")])
+def test_multiple_unstacked_dims_are_alphabetically_ordered(dims):
     nt, nx, ny, nz = 2, 12, 12, 15
     ds = xr.Dataset(
-        data_vars={
-            "var1": xr.DataArray(
-                np.zeros([nt, nx, ny, nz]), dims=["time", "x", "y", "z"],
-            ),
-        }
+        data_vars={"var1": xr.DataArray(np.zeros([nt, nx, ny, nz]), dims=dims,)}
     )
     unstacked_dims = ["x", "y", "z"]
     result = stack(ds=ds, unstacked_dims=unstacked_dims)

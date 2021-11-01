@@ -34,6 +34,15 @@ class Diffusive(tf.keras.constraints.Constraint):
 
 
 class ConstraintCollection(tf.keras.constraints.Constraint):
+    """
+    Applies given constraints sequentially.
+
+    Note that if you give incompatible constraints, later constraints will
+    take precedence and it is not guaranteed that all constraints will be
+    satisfied. To know whether all constraints will be satisfied, you must
+    reason about what happens when the constraints are applied sequentially.
+    """
+
     def __init__(self, constraints: Sequence[tf.keras.constraints.Constraint]):
         super().__init__()
         self._constraints = constraints
