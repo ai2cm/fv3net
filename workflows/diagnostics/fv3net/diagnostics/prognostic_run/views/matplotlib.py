@@ -188,7 +188,9 @@ def plot_histogram(
     return RawHTML(f'<img src="{data}" width="800px" />')
 
 
-def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHTML:
+def plot_histogram2d(
+    run_diags: RunDiagnostics, xname: str, yname: str, conditional: bool = False
+) -> RawHTML:
     """Plot 2D histogram of xname versus yname overlaid across runs."""
 
     data = defaultdict(dict)
@@ -203,6 +205,9 @@ def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHT
         logging.info(f"plotting {xname} versus {yname} 2D histogram for {run}.")
 
         count = run_diags.get_variable(run, count_name)
+        if conditional:
+            count = count / count.sum(y_bin_name)
+            count = count / count.max(y_bin_name)
         conditional_average = run_diags.get_variable(run, conditional_average_name)
         x_bin_widths = run_diags.get_variable(run, x_bin_widths_name)
         y_bin_widths = run_diags.get_variable(run, y_bin_widths_name)
@@ -217,6 +222,8 @@ def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHT
         ax.plot(xcenters, conditional_average, color="r", linewidth=2)
         ax.set_xlabel(f"{xname} [{x_bin_widths.units}]")
         ax.set_ylabel(f"{yname} [{y_bin_widths.units}]")
+        ax.set_xlim([xedges[0], xedges[-1]])
+        ax.set_ylim([yedges[0], yedges[-1]])
         plt.tight_layout()
         data[count_name][run] = fig_to_b64(fig)
         plt.close(fig)
