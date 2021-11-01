@@ -16,7 +16,7 @@ class DerivedModel(Predictor):
     _BASE_MODEL_SUBDIR = "base_model_data"
 
     def __init__(
-        self, base_model: Predictor, derived_output_variables: Iterable[Hashable],
+        self, model: Predictor, derived_output_variables: Iterable[Hashable],
     ):
         """
 
@@ -29,7 +29,11 @@ class DerivedModel(Predictor):
                 part of the set of base_model.output_variables. Should
                 correspond to variables available through vcm.DerivedMapping.
         """
-        self.base_model = base_model
+        # if base_model is itself a DerivedModel, combine the underlying base model
+        # and combine derived attributes instead of wrapping twice with DerivedModel
+        self.base_model: Predictor = model.base_model if isinstance(
+            model, DerivedModel
+        ) else model
 
         self._derived_output_variables = derived_output_variables
         self._additional_input_variables = vcm.DerivedMapping.find_all_required_inputs(
@@ -39,15 +43,12 @@ class DerivedModel(Predictor):
         full_input_variables = sorted(
             list(
                 set(
-                    list(base_model.input_variables)
-                    + list(self._additional_input_variables)
+                    list(model.input_variables) + list(self._additional_input_variables)
                 )
             )
         )
         full_output_variables = sorted(
-            list(
-                set(list(base_model.output_variables) + list(derived_output_variables))
-            )
+            list(set(list(model.output_variables) + list(derived_output_variables)))
         )
         self._check_derived_predictions_supported()
         # DerivedModel.input_variables (what the prognostic run uses to grab
