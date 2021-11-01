@@ -347,13 +347,11 @@ def water_vapor_path(self):
     try:
         return self._mapper["water_vapor_path"]
     except KeyError:
-        kg_m2_to_mm = 1000.0 / 997
-        da = (
-            vcm.mass_integrate(
-                self._mapper["specific_humidity"],
-                self._mapper["pressure_thickness_of_atmospheric_layer"],
-                dim="z",
-            )
-            * kg_m2_to_mm
+        da = vcm.mass_integrate(
+            self._mapper["specific_humidity"],
+            self._mapper["pressure_thickness_of_atmospheric_layer"],
+            dim="z",
         )
-        return da.assign_attrs({"long_name": "water vapor path", "units": "mm"})
+        return da.assign_attrs(
+            {"long_name": "column integrated water vapor", "units": "mm"}
+        )
