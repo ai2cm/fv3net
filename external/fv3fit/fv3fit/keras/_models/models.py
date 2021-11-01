@@ -246,7 +246,6 @@ class DenseModel(Predictor):
         if self._model is None:
             X, y = Xy[0]
             n_features_in, n_features_out = X.shape[-1], y.shape[-1]
-            print("num features in: ", n_features_in)
             self._fit_normalization(X, y)
             self._model = self.get_model(n_features_in, n_features_out)
 
