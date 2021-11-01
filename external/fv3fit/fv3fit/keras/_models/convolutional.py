@@ -7,6 +7,7 @@ from fv3fit._shared.config import (
 from fv3fit._shared.stacking import SAMPLE_DIM_NAME, StackedBatches, stack
 from fv3fit.keras._models.shared.loss import LossConfig
 from fv3fit.keras._models.shared.pure_keras import PureKerasModel
+from loaders.typing import Batches
 import tensorflow as tf
 import xarray as xr
 from ..._shared.config import Hyperparameters
@@ -14,10 +15,11 @@ from ._sequences import _XyMultiArraySequence
 from .shared import ConvolutionalNetworkConfig, TrainingLoopConfig
 import numpy as np
 from fv3fit.keras._models.shared import (
+    Diffusive,
     standard_normalize,
     standard_denormalize,
+    count_features,
 )
-import fv3fit._shared
 import logging
 
 logger = logging.getLogger(__file__)
@@ -93,7 +95,11 @@ def train_convolutional_model(
         )
     else:
         validation_data = None
-    stacked_train_batches = StackedBatches(train_batches, unstacked_dims=UNSTACKED_DIMS)
+    stacked_train_batches: Batches = StackedBatches(
+        train_batches, unstacked_dims=UNSTACKED_DIMS
+    )
+    if isinstance(train_batches, tuple):
+        stacked_train_batches = tuple(stacked_train_batches)
     train_data = _XyMultiArraySequence(
         X_names=hyperparameters.input_variables,
         y_names=hyperparameters.output_variables,
@@ -127,41 +133,37 @@ def batch_to_array_tuple(
     )
 
 
-def count_features(names, batch: xr.Dataset) -> Dict[str, int]:
-    """
-    Returns counts of the number of features for each variable name.
-
-    Args:
-        names: dataset keys to be unpacked
-        batch: dataset containing representatively-shaped data for the given names,
-            last dimension should be the feature dimension.
-    """
-
-    _, feature_index = fv3fit._shared.pack(
-        batch[names], sample_dims=[SAMPLE_DIM_NAME, "x", "y"]
-    )
-    return fv3fit._shared.count_features(feature_index)
-
-
 def build_model(
     config: ConvolutionalHyperparameters, batch: xr.Dataset
 ) -> Tuple[tf.keras.Model, tf.keras.Model]:
     nx = batch.dims["x"]
     ny = batch.dims["y"]
-    input_features = count_features(config.input_variables, batch)
+    sample_dims = [SAMPLE_DIM_NAME, "x", "y"]
+    input_features = count_features(
+        config.input_variables, batch, sample_dims=sample_dims
+    )
     input_layers = [
         tf.keras.layers.Input(shape=(nx, ny, input_features[name]))
         for name in config.input_variables
     ]
     norm_input_layers = standard_normalize(
-        names=config.input_variables, layers=input_layers, batch=batch
+        names=config.input_variables,
+        layers=input_layers,
+        batch=batch,
+        sample_dims=sample_dims,
     )
     if len(norm_input_layers) > 1:
         full_input = tf.keras.layers.Concatenate()(norm_input_layers)
     else:
         full_input = norm_input_layers[0]
     convolution = config.convolutional_network.build(x_in=full_input, n_features_out=0)
-    output_features = count_features(config.output_variables, batch)
+    if config.convolutional_network.diffusive:
+        constraint: Optional[tf.keras.constraints.Constraint] = Diffusive()
+    else:
+        constraint = None
+    output_features = count_features(
+        config.output_variables, batch, sample_dims=sample_dims
+    )
     norm_output_layers = [
         tf.keras.layers.Conv2D(
             filters=output_features[name],
@@ -170,11 +172,15 @@ def build_model(
             activation="linear",
             data_format="channels_last",
             name=f"convolutional_network_{i}_output",
+            kernel_constraint=constraint,
         )(convolution.hidden_outputs[-1])
         for i, name in enumerate(config.output_variables)
     ]
     denorm_output_layers = standard_denormalize(
-        names=config.output_variables, layers=norm_output_layers, batch=batch
+        names=config.output_variables,
+        layers=norm_output_layers,
+        batch=batch,
+        sample_dims=sample_dims,
     )
     train_model = tf.keras.Model(inputs=input_layers, outputs=denorm_output_layers)
     output_stds = (

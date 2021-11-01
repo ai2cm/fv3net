@@ -9,7 +9,9 @@ from typing import (
     Sequence,
     Optional,
     Union,
+    Mapping,
 )
+from .config import PackerConfig, ClipConfig
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -39,7 +41,7 @@ def _unique_dim_name(
 
 
 def pack(
-    data: xr.Dataset, sample_dims: Sequence[str]
+    data: xr.Dataset, sample_dims: Sequence[str], config: Optional[PackerConfig] = None,
 ) -> Tuple[np.ndarray, pd.MultiIndex]:
     """
     Pack a dataset into a numpy array.
@@ -49,8 +51,12 @@ def pack(
         sample_dims: names of non-feature dimensions, must be present
             in every variable in `data`
     """
+    if config is None:
+        config = PackerConfig({})
     feature_dim_name = _unique_dim_name(data, sample_dims=sample_dims)
-    stacked = data.to_stacked_array(feature_dim_name, sample_dims=sample_dims)
+    data_clipped = xr.Dataset(clip(data, config.clip))
+    stacked = data_clipped.to_stacked_array(feature_dim_name, sample_dims=sample_dims)
+    stacked = stacked.dropna(feature_dim_name)
     return (
         stacked.transpose(*sample_dims, feature_dim_name).values,
         stacked.indexes[feature_dim_name],
@@ -77,6 +83,23 @@ def multiindex_to_tuple(index: pd.MultiIndex) -> tuple:
 def tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
     names, list_ = d
     return pd.MultiIndex.from_tuples(list_, names=names)
+
+
+def clip(
+    data: Union[xr.Dataset, Mapping[Hashable, xr.DataArray]], config: ClipConfig,
+) -> Mapping[Hashable, xr.DataArray]:
+    clipped_data = {}
+    for variable in data:
+        da = data[variable]
+        if variable in config:
+            for dim in config[variable]:
+                if dim not in da.coords:
+                    # need coord to allow proper unpacking if dim is clipped to
+                    # different length for different variables
+                    da = da.assign_coords({dim: range(da.sizes[dim])})
+                da = da.isel({dim: config[variable][dim].slice})
+        clipped_data[variable] = da
+    return clipped_data
 
 
 class ArrayPacker:

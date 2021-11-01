@@ -5,20 +5,10 @@ from toolz.functoolz import compose_left
 from typing import Any, Dict, Mapping, Optional, Sequence
 
 from . import transforms
+from fv3fit._shared import SliceConfig
 
 
 logger = logging.getLogger(__name__)
-
-
-@dataclasses.dataclass
-class SliceConfig:
-    start: Optional[int] = None
-    stop: Optional[int] = None
-    step: Optional[int] = None
-
-    @property
-    def slice(self):
-        return slice(self.start, self.stop, self.step)
 
 
 @dataclasses.dataclass
