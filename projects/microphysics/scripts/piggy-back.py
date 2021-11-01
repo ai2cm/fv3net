@@ -5,7 +5,7 @@
 
 
 import numpy as np
-
+import sys
 import xarray as xr
 import vcm
 import vcm.catalog
@@ -16,6 +16,9 @@ import fv3viz
 import matplotlib.pyplot as plt
 
 from fv3fit.tensorboard import plot_to_image
+
+
+run_artifact_path = sys.argv[1]
 
 job = wandb.init(
     job_type="piggy-back", project="microphysics-emulation", entity="ai2cm"
@@ -29,7 +32,7 @@ def get_url_wandb(artifact: str):
     return url[: -len("/" + path)]
 
 
-url = get_url_wandb("ai2cm/crapcrap/prognostic-run:v8")
+url = get_url_wandb(run_artifact_path)
 wandb.config["run"] = url
 grid = vcm.catalog.catalog["grid/c48"].to_dask()
 piggy = xr.open_zarr(url + "/piggy.zarr")
