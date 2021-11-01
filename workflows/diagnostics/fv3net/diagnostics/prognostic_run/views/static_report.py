@@ -311,7 +311,12 @@ def water_vapor_path_histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlo
 
 @histogram_plot_manager.register
 def histogram2d_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_histogram2d(diagnostics, WVP, COL_DRYING, conditional=True)
+    return plot_histogram2d(diagnostics, WVP, COL_DRYING)
+
+
+@histogram_plot_manager.register
+def conditional_average_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_1d(diagnostics, varfilter="conditional_average")
 
 
 # Routines for plotting the "metrics"
