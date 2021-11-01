@@ -379,7 +379,7 @@ def main():
 
     grid = catalog[f"grid/{args.grid_key}"].to_dask()
     prog = prog.merge(grid)
-    baseline = baseline.merge(grid) 
+    baseline = baseline.merge(grid)
 
     prog_mean_by_height = get_avg_data(
         path, prog, run, override_artifact=args.override_artifacts
