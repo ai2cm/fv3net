@@ -107,7 +107,9 @@ def avg_vertical(ds: xr.Dataset, z_dim_names=["z", "z_soil"]):
     return ds.mean(dim=dims_to_avg).compute()
 
 
-def plot_global_avg_by_height_panel(da1: xr.DataArray, da2: xr.DataArray, x="time", dpi=80):
+def plot_global_avg_by_height_panel(
+    da1: xr.DataArray, da2: xr.DataArray, x="time", dpi=80
+):
     fig, ax = plt.subplots(1, 3)
     fig.set_size_inches(12, 4)
     fig.set_dpi(dpi)
@@ -129,7 +131,9 @@ def plot_global_avg_by_height_panel(da1: xr.DataArray, da2: xr.DataArray, x="tim
     return fig
 
 
-def plot_time_heights(prognostic: xr.Dataset, baseline: xr.Dataset, do_variables=COMPARE_VARS):
+def plot_time_heights(
+    prognostic: xr.Dataset, baseline: xr.Dataset, do_variables=COMPARE_VARS
+):
 
     prognostic, baseline = consistent_time_len(prognostic, baseline)
 
@@ -139,7 +143,9 @@ def plot_time_heights(prognostic: xr.Dataset, baseline: xr.Dataset, do_variables
         plt.close(fig)
 
 
-def plot_lat_heights(prognostic: xr.Dataset, baseline: xr.Dataset, do_variables=COMPARE_VARS):
+def plot_lat_heights(
+    prognostic: xr.Dataset, baseline: xr.Dataset, do_variables=COMPARE_VARS
+):
 
     prognostic, baseline = consistent_time_len(prognostic, baseline)
     ntimes = len(prognostic.time)
@@ -158,7 +164,9 @@ def plot_lat_heights(prognostic: xr.Dataset, baseline: xr.Dataset, do_variables=
         plt.close(fig)
 
 
-def plot_global_means(prognostic: xr.Dataset, baseline: xr.Dataset, do_variables=COMPARE_VARS):
+def plot_global_means(
+    prognostic: xr.Dataset, baseline: xr.Dataset, do_variables=COMPARE_VARS
+):
 
     prognostic, baseline = consistent_time_len(prognostic, baseline)
 
@@ -206,7 +214,9 @@ def plot_meridional(ds: xr.Dataset, varname: str, title="", ax=None, yincrease=F
     ax.set_xlabel("latitude", size=12)
 
 
-def plot_transects(prognostic: xr.Dataset, baseline: xr.Dataset, do_variables=TRANSECT_VARS):
+def plot_transects(
+    prognostic: xr.Dataset, baseline: xr.Dataset, do_variables=TRANSECT_VARS
+):
 
     tidx_map = {"start": 0, "near_end": len(prognostic.time) - 2}
 
@@ -310,7 +320,9 @@ def _selection(
     return slice(start, end)
 
 
-def log_all_drifts(prog_global_avg: xr.Dataset, base_global_avg: xr.Dataset, do_variables=COMPARE_VARS):
+def log_all_drifts(
+    prog_global_avg: xr.Dataset, base_global_avg: xr.Dataset, do_variables=COMPARE_VARS
+):
 
     times = prog_global_avg.time
     for name in do_variables:
