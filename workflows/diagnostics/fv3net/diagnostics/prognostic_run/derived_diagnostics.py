@@ -11,7 +11,9 @@ from .constants import WVP, COL_DRYING
 def merge_derived(diags: Sequence[Tuple[str, xr.DataArray]]) -> xr.Dataset:
     out = xr.Dataset()
     for name, da in diags:
-        out[name] = da
+        if len(da.dims) != 0:
+            # don't add empty DataArrays, which are returned in case of missing inputs
+            out[name] = da
     return out
 
 
