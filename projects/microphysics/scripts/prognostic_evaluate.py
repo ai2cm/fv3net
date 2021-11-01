@@ -366,7 +366,7 @@ def main():
         help="Force upload of the averaging artifacts",
     )
     parser.add_argument(
-        "--wandb-project", default="scratch-project",
+        "--wandb-project", default="microphysics-emulation",
     )
 
     args = parser.parse_args()
