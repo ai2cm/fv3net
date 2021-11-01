@@ -85,17 +85,26 @@ def test_DenseModel_clipped_inputs():
         ["c"],
         packer_config=PackerConfig({"a": {"z": SliceConfig(None, 3)}}),
     )
-    model = DenseModel(["a", "b"], ["c"], hyperparameters,)
+    model = DenseModel(["a", "b"], ["c"], hyperparameters)
 
     nz = 5
     dims = ["x", "y", "z"]
     shape = (2, 2, nz)
     arr = np.arange(np.prod(shape)).reshape(shape).astype(float)
     input_data = xr.Dataset({"a": (dims, arr), "b": (dims, arr), "c": (dims, arr + 1)})
+
+    slice_filled_input = xr.Dataset(
+        {"a": input_data["a"].where(input_data.z < 3).fillna(1.0), "b": input_data["b"]}
+    )
+
     model.fit([input_data])
-    model.predict(input_data)
+    prediction_clipped = model.predict(input_data)
     assert model.X_packer._n_features["a"] == 3
     assert model.X_packer._n_features["b"] == 5
+
+    prediction_nan_filled = model.predict(slice_filled_input)
+
+    xr.testing.assert_allclose(prediction_nan_filled, prediction_clipped, rtol=1e-3)
 
 
 def test_DenseModel_raises_not_implemented_error_with_clipped_output_data():

@@ -129,6 +129,7 @@ class ArrayPacker:
         Args:
             sample_dim_name: dimension name to treat as the sample dimension
             pack_names: variable pack_names to pack
+            config: optional PackerConfig for configuration of dataset packing
         """
         self._pack_names: List[str] = list(str(s) for s in pack_names)
         self._n_features: Dict[str, int] = {}
