@@ -1,4 +1,5 @@
 import logging
+from loaders.typing import Batches
 from numpy.random import RandomState
 import pandas as pd
 from typing import (
@@ -99,6 +100,7 @@ def batches_from_mapper(
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
     needs_grid: bool = True,
+    in_memory: bool = False,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -112,6 +114,7 @@ def batches_from_mapper(
         timesteps: List of timesteps to use in training.
         needs_grid: Add grid information into batched datasets. [Warning] requires
             remote GCS access
+        in_memory: if True, load data eagerly and keep it in memory
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -151,7 +154,11 @@ def batches_from_mapper(
     seq = Map(batch_func, batched_timesteps)
     seq.attrs["times"] = times
 
-    return seq
+    if in_memory:
+        out_seq: Batches = tuple(ds.load() for ds in seq)
+    else:
+        out_seq = seq
+    return out_seq
 
 
 @batches_functions.register

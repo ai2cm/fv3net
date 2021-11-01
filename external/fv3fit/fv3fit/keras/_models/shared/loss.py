@@ -7,7 +7,7 @@ def _standard_scaled_mse(std):
     std = tf.constant(std, dtype=std.dtype)
 
     def custom_loss(y_true, y_pred):
-        return tf.math.reduce_sum(
+        return tf.math.reduce_mean(
             tf.math.reduce_mean(tf.math.square((y_pred - y_true) / std), axis=0)
         )
 
@@ -18,7 +18,7 @@ def _standard_scaled_mae(std):
     std = tf.constant(std, dtype=std.dtype)
 
     def custom_loss(y_true, y_pred):
-        return tf.math.reduce_sum(
+        return tf.math.reduce_mean(
             tf.math.reduce_mean(tf.math.abs((y_pred - y_true) / std), axis=0)
         )
 
