@@ -101,6 +101,12 @@ def get_avg_data(
     return prog_avg
 
 
+def avg_vertical(ds: xr.Dataset, z_dim_names=["z", "z_soil"]):
+
+    dims_to_avg = [dim for dim in z_dim_names if dim in ds.dims]
+    return ds.mean(dim=dims_to_avg).compute()
+
+
 def plot_global_avg_by_height_panel(da1: xr.DataArray, da2: xr.DataArray, x="time", dpi=80):
     fig, ax = plt.subplots(1, 3)
     fig.set_size_inches(12, 4)
@@ -401,8 +407,8 @@ def main():
     plot_time_heights(prog_mean_by_height, base_mean_by_height)
 
     # Global average comparison after timestep
-    prog_mean = prog_mean_by_height.mean(dim=["z"]).compute()
-    base_mean = base_mean_by_height.mean(dim=["z", "z_soil"]).compute()
+    prog_mean = avg_vertical(prog_mean_by_height)
+    base_mean = avg_vertical(base_mean_by_height)
 
     plot_global_means(prog_mean, base_mean)
     log_all_drifts(prog_mean, base_mean)
