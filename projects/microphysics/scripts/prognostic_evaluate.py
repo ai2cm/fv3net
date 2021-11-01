@@ -48,11 +48,11 @@ def consistent_time_len(*da_args):
 
 
 # TODO: test this and maybe port back to diagnostics?
-def _to_weighted_mean(da: xr.DataArray, area, dim):
+def _to_weighted_mean(da: xr.DataArray, area: xr.DataArray, dim: str):
     return da.weighted(area).mean(dim=dim)
 
 
-def new_weighted_avg(ds, dim=["tile", "y", "x"]):
+def new_weighted_avg(ds: xr.Dataset, dim=["tile", "y", "x"]):
 
     area = ds["area"]
     area = area.fillna(0)
@@ -101,7 +101,7 @@ def get_avg_data(
     return prog_avg
 
 
-def plot_global_avg_by_height_panel(da1, da2, x="time", dpi=80):
+def plot_global_avg_by_height_panel(da1: xr.DataArray, da2: xr.DataArray, x="time", dpi=80):
     fig, ax = plt.subplots(1, 3)
     fig.set_size_inches(12, 4)
     fig.set_dpi(dpi)
@@ -123,7 +123,7 @@ def plot_global_avg_by_height_panel(da1, da2, x="time", dpi=80):
     return fig
 
 
-def plot_time_heights(prognostic, baseline, do_variables=COMPARE_VARS):
+def plot_time_heights(prognostic: xr.Dataset, baseline: xr.Dataset, do_variables=COMPARE_VARS):
 
     prognostic, baseline = consistent_time_len(prognostic, baseline)
 
@@ -133,7 +133,7 @@ def plot_time_heights(prognostic, baseline, do_variables=COMPARE_VARS):
         plt.close(fig)
 
 
-def plot_lat_heights(prognostic, baseline, do_variables=COMPARE_VARS):
+def plot_lat_heights(prognostic: xr.Dataset, baseline: xr.Dataset, do_variables=COMPARE_VARS):
 
     prognostic, baseline = consistent_time_len(prognostic, baseline)
     ntimes = len(prognostic.time)
@@ -152,7 +152,7 @@ def plot_lat_heights(prognostic, baseline, do_variables=COMPARE_VARS):
         plt.close(fig)
 
 
-def plot_global_means(prognostic, baseline, do_variables=COMPARE_VARS):
+def plot_global_means(prognostic: xr.Dataset, baseline: xr.Dataset, do_variables=COMPARE_VARS):
 
     prognostic, baseline = consistent_time_len(prognostic, baseline)
 
@@ -178,21 +178,21 @@ def meridional_transect(ds: xr.Dataset):
     return interpolate_unstructured(ds, transect_coords)
 
 
-def plot_meridional(ds, vkey, title="", ax=None, yincrease=False):
+def plot_meridional(ds: xr.Dataset, varname: str, title="", ax=None, yincrease=False):
     meridional = meridional_transect(ds)
     if ax is None:
         fig, ax = plt.subplots()
         fig.set_dpi(120)
 
-    if "z_soil" in meridional[vkey].dims:
+    if "z_soil" in meridional[varname].dims:
         y = "z_soil"
     else:
         y = "z"
 
-    vmin, vmax, cmap = infer_cmap_params(ds[vkey], robust=True)
+    vmin, vmax, cmap = infer_cmap_params(ds[varname], robust=True)
     if cmap == "viridis":
         cmap = "Blues"
-    meridional[vkey].plot.pcolormesh(
+    meridional[varname].plot.pcolormesh(
         x="lat", y=y, ax=ax, cmap=cmap, vmin=vmin, vmax=vmax, yincrease=yincrease,
     )
     ax.set_title(title, size=14)
@@ -200,7 +200,7 @@ def plot_meridional(ds, vkey, title="", ax=None, yincrease=False):
     ax.set_xlabel("latitude", size=12)
 
 
-def plot_transects(prognostic, baseline, do_variables=TRANSECT_VARS):
+def plot_transects(prognostic: xr.Dataset, baseline: xr.Dataset, do_variables=TRANSECT_VARS):
 
     tidx_map = {"start": 0, "near_end": len(prognostic.time) - 2}
 
@@ -222,7 +222,7 @@ def plot_transects(prognostic, baseline, do_variables=TRANSECT_VARS):
             plt.close(fig)
 
 
-def plot_spatial_2panel_with_diff(emu: xr.Dataset, base, name):
+def plot_spatial_2panel_with_diff(emu: xr.Dataset, base: xr.Dataset, varname: str):
 
     fig = plt.figure()
     ax = fig.add_subplot(131, projection=ccrs.Robinson())
@@ -231,19 +231,19 @@ def plot_spatial_2panel_with_diff(emu: xr.Dataset, base, name):
     fig.set_size_inches(15, 4)
     fig.set_dpi(80)
 
-    vmin, vmax, cmap = infer_cmap_params(emu[name], robust=True)
+    vmin, vmax, cmap = infer_cmap_params(emu[varname], robust=True)
     plot_kwargs = dict(vmin=vmin, vmax=vmax, cmap=cmap)
 
     # TODO: can't pass explicit vmin, vmax so cbars arent equivalent
-    plot_cube(emu, name, ax=ax, cmap_percentiles_lim=False, **plot_kwargs)
-    plot_cube(base, name, ax=ax2, cmap_percentiles_lim=False, **plot_kwargs)
+    plot_cube(emu, varname, ax=ax, cmap_percentiles_lim=False, **plot_kwargs)
+    plot_cube(base, varname, ax=ax2, cmap_percentiles_lim=False, **plot_kwargs)
 
     diff = emu.copy()
     # Insert diff to keep undiffed grid coordinates
-    diff[name] = emu[name] - base[name]
-    plot_cube(diff, name, ax=ax3)
+    diff[varname] = emu[varname] - base[varname]
+    plot_cube(diff, varname, ax=ax3)
 
-    ax.set_title(f"Emulation: {name}")
+    ax.set_title(f"Emulation: {varname}")
     ax2.set_title("Baseline")
     ax3.set_title("Diff: Emu - Baseline")
 
@@ -251,8 +251,8 @@ def plot_spatial_2panel_with_diff(emu: xr.Dataset, base, name):
 
 
 def plot_spatial_comparisons(
-    prognostic,
-    baseline,
+    prognostic: xr.Dataset,
+    baseline: xr.Dataset,
     do_variables=COMPARE_VARS,
     time_idxs: Mapping[str, int] = None,
     level_map: Mapping[str, int] = None,
@@ -304,7 +304,7 @@ def _selection(
     return slice(start, end)
 
 
-def log_all_drifts(prog_global_avg, base_global_avg, do_variables=COMPARE_VARS):
+def log_all_drifts(prog_global_avg: xr.Dataset, base_global_avg: xr.Dataset, do_variables=COMPARE_VARS):
 
     times = prog_global_avg.time
     for name in do_variables:
