@@ -278,16 +278,15 @@ def _mask_array(
 @add_to_input_transform_fns
 def subset_variables(variables: Sequence, arg: DiagArg) -> DiagArg:
     """Subset the variables, without failing if a variable doesn't exist"""
-    prognostic, verification, grid, delp = (
+    prognostic, verification, grid = (
         arg.prediction,
         arg.verification,
         arg.grid,
-        arg.delp,
     )
     prognostic_vars = [var for var in variables if var in prognostic]
     verification_vars = [var for var in variables if var in verification]
     return DiagArg(
-        prognostic[prognostic_vars], verification[verification_vars], grid, delp
+        prognostic[prognostic_vars], verification[verification_vars], grid, arg.delp,
     )
 
 
