@@ -122,10 +122,12 @@ def test_loaded_DenseModel_predicts_with_clipped_inputs(tmpdir):
     arr = np.arange(np.prod(shape)).reshape(shape).astype(float)
     input_data = xr.Dataset({"a": (dims, arr), "b": (dims, arr), "c": (dims, arr + 1)})
     model.fit([input_data])
+    prediction = model.predict(input_data)
     output_path = str(tmpdir.join("trained_model"))
     fv3fit.dump(model, output_path)
     model_loaded = fv3fit.load(output_path)
-    model_loaded.predict(input_data)
+    loaded_prediction = model_loaded.predict(input_data)
+    xr.testing.assert_allclose(prediction, loaded_prediction)
 
 
 def test_DenseModel_raises_not_implemented_error_with_clipped_output_data():
