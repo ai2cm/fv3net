@@ -8,6 +8,7 @@ import xarray as xr
 import cartopy.crs as ccrs
 import jinja2
 import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
 
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
@@ -164,7 +165,9 @@ def plot_cubed_sphere_map(
     )
 
 
-def plot_histogram(run_diags: RunDiagnostics, varname: str) -> RawHTML:
+def plot_histogram(
+    run_diags: RunDiagnostics, varname: str, xscale="linear", yscale="linear"
+) -> RawHTML:
     """Plot 1D histogram of varname overlaid across runs."""
 
     logging.info(f"plotting {varname}")
@@ -175,14 +178,58 @@ def plot_histogram(run_diags: RunDiagnostics, varname: str) -> RawHTML:
         ax.step(v[bin_name], v, label=run, where="post", linewidth=1)
     ax.set_xlabel(f"{v.long_name} [{v.units}]")
     ax.set_ylabel(f"Frequency [({v.units})^-1]")
-    ax.set_xscale("log")
-    ax.set_yscale("log")
+    ax.set_xscale(xscale)
+    ax.set_yscale(yscale)
     ax.set_xlim([v[bin_name].values[0], v[bin_name].values[-1]])
     ax.legend()
     fig.tight_layout()
     data = fig_to_b64(fig, dpi=150)
     plt.close(fig)
     return RawHTML(f'<img src="{data}" width="800px" />')
+
+
+def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHTML:
+    """Plot 2D histogram of xname versus yname overlaid across runs."""
+
+    data = defaultdict(dict)
+    count_name = f"{xname.lower()}_versus_{yname.lower()}_hist_2d"
+    conditional_average_name = f"conditional_average_of_{yname}_on_{xname}"
+    x_bin_name = f"{xname}_bins"
+    y_bin_name = f"{yname}_bins"
+    x_bin_widths_name = f"{xname.lower()}_bin_width_hist_2d"
+    y_bin_widths_name = f"{yname.lower()}_bin_width_hist_2d"
+
+    for run in run_diags.runs:
+        logging.info(f"plotting {xname} versus {yname} 2D histogram for {run}.")
+
+        count = run_diags.get_variable(run, count_name)
+        conditional_average = run_diags.get_variable(run, conditional_average_name)
+        x_bin_widths = run_diags.get_variable(run, x_bin_widths_name)
+        y_bin_widths = run_diags.get_variable(run, y_bin_widths_name)
+        x = x_bin_widths[x_bin_name]
+        y = y_bin_widths[y_bin_name]
+        xedges = np.append(x.values, x.values[-1] + x_bin_widths.values[-1])
+        yedges = np.append(y.values, y.values[-1] + y_bin_widths.values[-1])
+        xcenters = x.values + 0.5 * x_bin_widths.values
+        fig, ax = plt.subplots()
+        xx, yy = np.meshgrid(xedges, yedges)
+        ax.pcolormesh(xx, yy, count.T, norm=matplotlib.colors.LogNorm(), cmap="Blues")
+        ax.plot(xcenters, conditional_average, color="r", linewidth=2)
+        ax.set_xlabel(f"{xname} [{x_bin_widths.units}]")
+        ax.set_ylabel(f"{yname} [{y_bin_widths.units}]")
+        ax.set_xlim([xedges[0], xedges[-1]])
+        ax.set_ylim([yedges[0], yedges[-1]])
+        plt.tight_layout()
+        data[count_name][run] = fig_to_b64(fig)
+        plt.close(fig)
+    return RawHTML(
+        template.render(
+            image_data=data,
+            runs=sorted(run_diags.runs),
+            variables_to_plot=[count_name],
+            varfilter="2D Histogram",
+        )
+    )
 
 
 def _render_map_title(
