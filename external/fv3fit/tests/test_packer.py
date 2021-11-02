@@ -259,14 +259,18 @@ def test_count_features():
     assert out["c"] == 5
 
 
-def test_array_packer_dump_and_load(tmpdir, dataset):
-    packer = ArrayPacker(SAMPLE_DIM, list(dataset.data_vars))
+def test_array_packer_dump_and_load(tmpdir):
+    dataset = get_dataset(["var1"], [[SAMPLE_DIM, FEATURE_DIM]])
+    packer_config = PackerConfig({"var1": {"z": SliceConfig(None, 2)}})
+    packer = ArrayPacker(SAMPLE_DIM, list(dataset.data_vars), packer_config)
     packer.to_array(dataset)
     with open(str(tmpdir.join("packer.yaml")), "w") as f:
         packer.dump(f)
     with open(str(tmpdir.join("packer.yaml"))) as f:
         loaded_packer = ArrayPacker.load(f)
-    packer._pack_names = loaded_packer._pack_names
-    packer._n_features = loaded_packer._n_features
-    packer._sample_dim_name = loaded_packer._sample_dim_name
-    packer._feature_index = loaded_packer._feature_index
+    assert packer._pack_names == loaded_packer._pack_names
+    assert packer._n_features == loaded_packer._n_features
+    assert packer._sample_dim_name == loaded_packer._sample_dim_name
+    assert packer._config == packer_config
+    for orig, loaded in zip(packer._feature_index, loaded_packer._feature_index):
+        assert orig == loaded
