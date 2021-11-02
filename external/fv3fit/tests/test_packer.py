@@ -210,7 +210,9 @@ def test_clip(dataset: xr.Dataset):
     if FEATURE_DIM in dataset[name].dims:
         indices = {name: {FEATURE_DIM: SliceConfig(4, 8)}}
         clipped_data = clip(dataset, indices)
-        expected_da = dataset[name]
+        expected_da = dataset[name].assign_coords(
+            {dim: range(dataset.sizes[dim]) for dim in dataset[name].dims}
+        )
         for dim, slice_config in indices[name].items():
             expected_da = expected_da.isel({dim: slice_config.slice})
         xr.testing.assert_identical(clipped_data[name], expected_da)
@@ -226,7 +228,9 @@ def test_clip_differing_slices():
     }
     clipped_data = clip(ds, clip_config)
     for name in ds:
-        expected_da = ds[name]
+        expected_da = ds[name].assign_coords(
+            {dim: range(ds.sizes[dim]) for dim in ds[name].dims}
+        )
         for dim, slice_config in clip_config[name].items():
             expected_da = expected_da.isel({dim: slice_config.slice})
         xr.testing.assert_identical(clipped_data[name], expected_da)
