@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Set
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Set
 from fv3fit._shared.config import (
     OptimizerConfig,
     register_training_function,
@@ -12,7 +12,11 @@ import tensorflow as tf
 import xarray as xr
 from ..._shared.config import Hyperparameters
 from ._sequences import _XyMultiArraySequence
-from .shared import ConvolutionalNetworkConfig, TrainingLoopConfig
+from .shared import (
+    ConvolutionalNetworkConfig,
+    TrainingLoopConfig,
+    LocallyConnectedNetworkConfig,
+)
 import numpy as np
 from fv3fit.keras._models.shared import (
     Diffusive,
@@ -55,7 +59,10 @@ class ConvolutionalHyperparameters(Hyperparameters):
         input_variables: names of variables to use as inputs
         output_variables: names of variables to use as outputs
         optimizer_config: selection of algorithm to be used in gradient descent
-        convolutional_network: configuration of convolutional network
+        convolutional_network: configuration of convolutional network, if None
+            does not apply a convolutional network
+        locally_connected_network: configuration of locally-connected network after
+            convolution, if None does not apply a locally-connected network
         training_loop: configuration of training loop
         loss: configuration of loss functions, will be applied separately to
             each output variable
@@ -66,9 +73,10 @@ class ConvolutionalHyperparameters(Hyperparameters):
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")
     )
-    convolutional_network: ConvolutionalNetworkConfig = dataclasses.field(
+    convolutional_network: Optional[ConvolutionalNetworkConfig] = dataclasses.field(
         default_factory=lambda: ConvolutionalNetworkConfig()
     )
+    locally_connected_network: Optional[LocallyConnectedNetworkConfig] = None
     training_loop: TrainingLoopConfig = dataclasses.field(
         default_factory=lambda: TrainingLoopConfig(epochs=10)
     )
@@ -77,6 +85,15 @@ class ConvolutionalHyperparameters(Hyperparameters):
     @property
     def variables(self) -> Set[str]:
         return set(self.input_variables).union(self.output_variables)
+
+    def __post_init__(self):
+        if (
+            self.convolutional_network is None
+            and self.locally_connected_network is None
+        ):
+            raise ValueError(
+                "must configure either convolutional or locally-connected network"
+            )
 
 
 @register_training_function("convolutional", ConvolutionalHyperparameters)
@@ -95,6 +112,9 @@ def train_convolutional_model(
         )
     else:
         validation_data = None
+    # train_batches = [
+    #     batch.isel(tile=range(0, 5)) for batch in train_batches
+    # ]
     stacked_train_batches: Batches = StackedBatches(
         train_batches, unstacked_dims=UNSTACKED_DIMS
     )
@@ -133,6 +153,87 @@ def batch_to_array_tuple(
     )
 
 
+def apply_convolution(
+    x_input: tf.Tensor,
+    config: ConvolutionalHyperparameters,
+    output_features: Mapping[str, int],
+) -> Tuple[tf.Tensor, Sequence[tf.Tensor]]:
+    """
+    Args:
+        x_input: single 4D tensor with feature dimension as its last dimension
+        config: configuration of convolutional model
+        output_features: information about the number of features for each output
+    
+    Returns:
+        last_hidden_layer: hidden layer before outputs
+        norm_output_layers: sequence of output tensors for each output variable
+    """
+    if config.convolutional_network is None:
+        raise ValueError("cannot apply convolutional network with no config")
+    convolution = config.convolutional_network.build(x_in=x_input, n_features_out=0)
+    if config.convolutional_network.diffusive:
+        constraint: Optional[tf.keras.constraints.Constraint] = Diffusive()
+    else:
+        constraint = None
+    norm_output_layers = [
+        tf.keras.layers.Conv2D(
+            filters=output_features[name],
+            kernel_size=(1, 1),
+            padding="same",
+            activation="linear",
+            data_format="channels_last",
+            name=f"convolutional_network_{i}_output",
+            kernel_constraint=constraint,
+        )(convolution.hidden_outputs[-1])
+        for i, name in enumerate(config.output_variables)
+    ]
+    last_hidden_layer = convolution.hidden_outputs[-1]
+    return last_hidden_layer, norm_output_layers
+
+
+def apply_locally_connected(
+    x_input: tf.Tensor,
+    config: ConvolutionalHyperparameters,
+    output_features: Mapping[str, int],
+):
+    """
+    Args:
+        x_input: single 4D tensor with feature dimension as its last dimension
+        config: configuration of convolutional model
+        output_features: information about the number of features for each output
+    
+    Returns:
+        last_hidden_layer: hidden layer before outputs
+        norm_output_layers: sequence of output tensors for each output variable
+    """
+    if config.locally_connected_network is None:
+        raise ValueError("cannot apply locally-connected network with no config")
+    locally_connected = config.locally_connected_network.build(
+        x_in=x_input, n_features_out=max(output_features.values())
+    )
+    norm_output_layers = []
+    for name in config.output_variables:
+        if output_features[name] == 1:
+            norm_output_layers.append(
+                tf.keras.layers.Conv2D(
+                    filters=output_features[name],
+                    kernel_size=(1, 1),
+                    padding="same",
+                    activation="linear",
+                    data_format="channels_last",
+                    name=f"locally_connected_{name}_output",
+                )(locally_connected.hidden_outputs[-1])
+            )
+        else:
+            norm_output_layers.append(
+                locally_connected.output_function(
+                    locally_connected.hidden_outputs[-1], name
+                )
+            )
+    last_hidden_layer = locally_connected.hidden_outputs[-1]
+    return last_hidden_layer, norm_output_layers
+
+
 def build_model(
     config: ConvolutionalHyperparameters, batch: xr.Dataset
 ) -> Tuple[tf.keras.Model, tf.keras.Model]:
@@ -152,30 +253,21 @@ def build_model(
         batch=batch,
         sample_dims=sample_dims,
     )
+    output_features = count_features(
+        config.output_variables, batch, sample_dims=sample_dims
+    )
     if len(norm_input_layers) > 1:
         full_input = tf.keras.layers.Concatenate()(norm_input_layers)
     else:
         full_input = norm_input_layers[0]
-    convolution = config.convolutional_network.build(x_in=full_input, n_features_out=0)
-    if config.convolutional_network.diffusive:
-        constraint: Optional[tf.keras.constraints.Constraint] = Diffusive()
-    else:
-        constraint = None
-    output_features = count_features(
-        config.output_variables, batch, sample_dims=sample_dims
-    )
-    norm_output_layers = [
-        tf.keras.layers.Conv2D(
-            filters=output_features[name],
-            kernel_size=(1, 1),
-            padding="same",
-            activation="linear",
-            data_format="channels_last",
-            name=f"convolutional_network_{i}_output",
-            kernel_constraint=constraint,
-        )(convolution.hidden_outputs[-1])
-        for i, name in enumerate(config.output_variables)
-    ]
+    if config.convolutional_network is not None:
+        full_input, norm_output_layers = apply_convolution(
+            x_input=full_input, config=config, output_features=output_features
+        )
+    if config.locally_connected_network is not None:
+        _, norm_output_layers = apply_locally_connected(
+            x_input=full_input, config=config, output_features=output_features
+        )
     denorm_output_layers = standard_denormalize(
         names=config.output_variables,
         layers=norm_output_layers,

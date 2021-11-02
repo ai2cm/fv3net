@@ -144,9 +144,7 @@ class ConvolutionalNetworkConfig:
                 to build one network you must provide a different label each time
         
         Returns:
-            tensors resulting from the requested convolutional network, each
-            tensor has the same dimensionality as the input tensor but will have fewer
-            points along the x- and y-dimensions, due to convolutions
+            tensors resulting from the requested convolutional network
         """
         hidden_outputs = []
         x = x_in

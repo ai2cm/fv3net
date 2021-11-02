@@ -15,3 +15,4 @@ from .utils import (
     standard_normalize,
     count_features,
 )
+from .locally_connected import LocallyConnectedNetwork, LocallyConnectedNetworkConfig

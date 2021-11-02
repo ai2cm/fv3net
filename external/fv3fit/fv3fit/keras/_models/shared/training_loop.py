@@ -58,8 +58,10 @@ class TrainingLoopConfig:
             validation_data: passed as `validation_data` argument to `model.fit`
             callbacks: if given, these will be called at the end of each epoch
         """
+        Xy_original = Xy
         for i_epoch in range(self.epochs):
-            Xy = shuffle(Xy)
+            # we shuffle the original to avoid adding indefinitely-nested objects
+            Xy = shuffle(Xy_original)
             if self.workers > 1:
                 Xy = _ThreadedSequencePreLoader(
                     Xy, num_workers=self.workers, max_queue_size=self.max_queue_size
