@@ -1,6 +1,6 @@
 from fv3fit._shared.config import RegularizerConfig
 import tensorflow as tf
-from typing import Callable, Sequence
+from typing import Sequence
 import dataclasses
 
 
@@ -8,13 +8,9 @@ import dataclasses
 class LocallyConnectedNetwork:
     """
     Attributes:
-        output_function: function which gets an output tensor from the last hidden
-            output, can only be used to get outputs with a full feature
-            (e.g. vertical) dimension
         hidden_outputs: consecutive outputs of hidden layers in convolutional network
     """
 
-    output_function: Callable[..., tf.Tensor]
     hidden_outputs: Sequence[tf.Tensor]
 
 
@@ -89,13 +85,6 @@ class LocallyConnectedNetworkConfig:
         hidden_outputs = []
         if self.implementation == 1 and self.kernel_size > 1:
             raise ValueError("for implementation=1, must have kernel_size of 1")
-        if self.implementation == 1:
-            padding = "valid"  # valid is identical to same if kernel_size is 1
-        else:
-            padding = "same"
-        # it would be great to not depend on a private attribute here,
-        # but didn't find another way to get the true shape
-        shape_in = tf.shape(x_in)._inferred_value
         x = x_in
         if self.gaussian_noise > 0.0:
             x = tf.keras.layers.GaussianNoise(
@@ -114,7 +103,8 @@ class LocallyConnectedNetworkConfig:
         # shape is now [batch, x, y, self.filters * vertical]
         # needs to be [batch-like, vertical, filters]
         x = tf.keras.layers.Lambda(
-            lambda x: tf.reshape(x, (-1, n_features_out, self.filters))
+            lambda x: tf.reshape(x, (-1, n_features_out, self.filters)),
+            output_shape=(n_features_out, self.filters),
         )(x)
         hidden_outputs.append(x)
 
@@ -126,7 +116,7 @@ class LocallyConnectedNetworkConfig:
             hidden_layer = tf.keras.layers.LocallyConnected1D(
                 filters=self.filters,
                 kernel_size=self.kernel_size,
-                padding=padding,
+                padding=self._padding,
                 activation=self.activation_function,
                 data_format="channels_last",
                 kernel_regularizer=self.kernel_regularizer.instance,
@@ -136,21 +126,38 @@ class LocallyConnectedNetworkConfig:
             x = hidden_layer(x)
             hidden_outputs.append(x)
 
-        def get_output(x: tf.Tensor, name: str) -> tf.Tensor:
-            x = tf.keras.layers.LocallyConnected1D(
-                filters=1,
-                kernel_size=self.kernel_size,
-                padding=padding,
-                activation="linear",
-                data_format="channels_last",
-                name=f"locally_connected_{label}_{name}_output",
-                implementation=self.implementation,
-            )(x)
-            x = tf.keras.layers.Lambda(
-                lambda x: tf.reshape(x, (-1, shape_in[1], shape_in[2], n_features_out))
-            )(x)
-            return x
+        return LocallyConnectedNetwork(hidden_outputs=hidden_outputs)
 
-        return LocallyConnectedNetwork(
-            hidden_outputs=hidden_outputs, output_function=get_output
-        )
+    @property
+    def _padding(self):
+        if self.implementation == 1:
+            padding = "valid"  # valid is identical to same if kernel_size is 1
+        else:
+            padding = "same"
+        return padding
+
+    def get_output(
+        self,
+        x_in: tf.Tensor,
+        x_hidden: tf.Tensor,
+        name: str,
+        n_features_out: int,
+        label: str = "",
+    ) -> tf.Tensor:
+        # it would be great to not depend on a private attribute here,
+        # but didn't find another way to get the true shape
+        shape_in = tf.shape(x_in)._inferred_value
+        x = tf.keras.layers.FixedLocallyConnected1D(
+            filters=1,
+            kernel_size=self.kernel_size,
+            padding=self._padding,
+            activation="linear",
+            data_format="channels_last",
+            name=f"locally_connected_{label}_{name}_output",
+            implementation=self.implementation,
+        )(x_hidden)
+        x = tf.keras.layers.Lambda(
+            lambda x: tf.reshape(x, (-1, shape_in[1], shape_in[2], n_features_out)),
+            output_shape=(shape_in[1], shape_in[2], n_features_out),
+        )(x)
+        return x

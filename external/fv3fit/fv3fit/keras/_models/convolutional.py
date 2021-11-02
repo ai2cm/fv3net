@@ -226,8 +226,11 @@ def apply_locally_connected(
             )
         else:
             norm_output_layers.append(
-                locally_connected.output_function(
-                    locally_connected.hidden_outputs[-1], name
+                config.locally_connected_network.get_output(
+                    x_in=x_input,
+                    x_hidden=locally_connected.hidden_outputs[-1],
+                    name=name,
+                    n_features_out=output_features[name],
                 )
             )
     last_hidden_layer = locally_connected.hidden_outputs[-1]
