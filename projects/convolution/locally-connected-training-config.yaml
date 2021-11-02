@@ -1,0 +1,41 @@
+model_type: convolutional
+hyperparameters:
+  input_variables:
+    - cos_zenith_angle
+    - surface_geopotential
+    - air_temperature
+    - specific_humidity
+  output_variables:
+    - dQ1
+    - dQ2
+  optimizer_config:
+    name: Adam
+    kwargs:
+      learning_rate: 0.002
+  convolutional_network:
+    filters: 64
+    depth: 4
+    activation_function: relu
+    kernel_size: 1
+    transpose_invariant: true
+    kernel_regularizer:
+      name: l2
+      kwargs:
+        l: 0.0001
+  locally_connected_network:
+    filters: 32
+    depth: 2
+    activation_function: relu
+    kernel_size: 1
+    # kernel_regularizer:
+    #   name: l2
+    #   kwargs:
+    #     l: 0.0001
+    implementation: 2
+  training_loop:
+    batch_size: 1  # 1 sample represents a single tile of data
+    epochs: 1000
+  loss:
+     loss_type: mse
+     scaling: standard
+     weight: 0.5
