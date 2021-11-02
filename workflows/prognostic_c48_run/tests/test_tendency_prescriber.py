@@ -85,5 +85,12 @@ def test_tendency_prescriber(state, tmpdir, regtest):
         derived_state["air_temperature"],
         (derived_state_copy["air_temperature"] + 2).assign_attrs(units="degK"),
     )
+    expected_monitored_tendency = (
+        tendencies.isel(time=0).drop("time").Q1.assign_coords(tile=range(6))
+    )
+    xr.testing.assert_allclose(
+        diags["tendency_of_air_temperature_due_to_tendency_prescriber"],
+        expected_monitored_tendency,
+    )
     for variable in sorted(diags):
         print(variable, joblib.hash(diags[variable].values), file=regtest)

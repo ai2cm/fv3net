@@ -1,4 +1,4 @@
-from fv3fit.emulation.data.config import SliceConfig
+from fv3fit._shared import SliceConfig
 import numpy as np
 import tensorflow as tf
 

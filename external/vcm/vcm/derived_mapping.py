@@ -5,7 +5,7 @@ import xarray as xr
 import vcm
 
 
-class DerivedMapping:
+class DerivedMapping(Mapping):
     """A uniform mapping-like interface for both existing and derived variables.
     
     Allows register and computing derived variables transparently in either
@@ -56,6 +56,12 @@ class DerivedMapping:
 
     def keys(self):
         return set(self._mapper) | set(self.VARIABLES)
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __len__(self):
+        return len(self.keys())
 
     def _data_arrays(self, keys: Iterable[Hashable]):
         return {key: self[key] for key in keys}
@@ -285,3 +291,67 @@ def tendency_of_cloud_water_mixing_ratio_due_to_microphysics(self):
 @DerivedMapping.register("internal_energy", required_inputs=["air_temperature"])
 def internal_energy(self):
     return vcm.internal_energy(self._mapper["air_temperature"])
+
+
+@DerivedMapping.register(
+    "column_integrated_dQ1",
+    required_inputs=["dQ1", "pressure_thickness_of_atmospheric_layer"],
+)
+def column_integrated_dQ1(self):
+    return vcm.thermo.column_integrated_heating_from_isochoric_transition(
+        self._mapper["dQ1"], self._mapper["pressure_thickness_of_atmospheric_layer"]
+    )
+
+
+@DerivedMapping.register(
+    "column_integrated_dQ2",
+    required_inputs=["dQ2", "pressure_thickness_of_atmospheric_layer"],
+)
+def column_integrated_dQ2(self):
+    da = -vcm.thermo.minus_column_integrated_moistening(
+        self._mapper["dQ2"], self._mapper["pressure_thickness_of_atmospheric_layer"]
+    )
+    return da.assign_attrs(
+        {"long_name": "column integrated moistening", "units": "mm/day"}
+    )
+
+
+@DerivedMapping.register(
+    "column_integrated_Q1",
+    required_inputs=["Q1", "pressure_thickness_of_atmospheric_layer"],
+)
+def column_integrated_Q1(self):
+    return vcm.thermo.column_integrated_heating_from_isochoric_transition(
+        self._mapper["Q1"], self._mapper["pressure_thickness_of_atmospheric_layer"]
+    )
+
+
+@DerivedMapping.register(
+    "column_integrated_Q2",
+    required_inputs=["Q2", "pressure_thickness_of_atmospheric_layer"],
+)
+def column_integrated_Q2(self):
+    da = -vcm.thermo.minus_column_integrated_moistening(
+        self._mapper["Q2"], self._mapper["pressure_thickness_of_atmospheric_layer"]
+    )
+    return da.assign_attrs(
+        {"long_name": "column integrated moistening", "units": "mm/day"}
+    )
+
+
+@DerivedMapping.register(
+    "water_vapor_path",
+    required_inputs=["specific_humidity", "pressure_thickness_of_atmospheric_layer"],
+)
+def water_vapor_path(self):
+    try:
+        return self._mapper["water_vapor_path"]
+    except KeyError:
+        da = vcm.mass_integrate(
+            self._mapper["specific_humidity"],
+            self._mapper["pressure_thickness_of_atmospheric_layer"],
+            dim="z",
+        )
+        return da.assign_attrs(
+            {"long_name": "column integrated water vapor", "units": "mm"}
+        )

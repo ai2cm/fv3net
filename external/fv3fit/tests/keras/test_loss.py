@@ -64,3 +64,23 @@ def test_standard_loss_uses_nonuniform_scaling(loss_type):
         loss_list.append(loss(y1, y2).numpy())
     losses_are_different = len(set(loss_list)) == len(loss_list)
     assert losses_are_different
+
+
+def test_mse_loss_on_standard_scaled_data():
+    config = fv3fit.LossConfig(loss_type="mse", scaling="standard")
+    x1 = np.random.randn(1000, 1)
+    x2 = np.random.randn(1000, 1)
+    loss = config.loss(std=np.std(x1, axis=0))
+    # variance = var1 + var2, so expected MSE is 2.0
+    np.testing.assert_allclose(loss(x1, x2), 2.0, atol=0.3)
+
+
+@pytest.mark.parametrize("scale", [1.0, 25.0])
+def test_mse_loss_on_nonstandard_scaled_data(scale: float):
+    config = fv3fit.LossConfig(loss_type="mse", scaling="standard")
+    x1 = np.random.randn(1000, 1) * scale
+    x2 = np.random.randn(1000, 1) * scale
+    loss = config.loss(std=np.std(x1, axis=0))
+    # variance = var1 + var2, so expected MSE is 2.0
+    # since variance after normalization should always be 1
+    np.testing.assert_allclose(loss(x1, x2), 2.0, atol=0.3)

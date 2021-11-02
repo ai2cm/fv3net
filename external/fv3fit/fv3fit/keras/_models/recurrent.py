@@ -13,7 +13,7 @@ import vcm.safe
 import os
 import yaml
 from fv3fit.keras._models.shared import get_input_vector, PureKerasModel
-from ._filesystem import get_dir, put_dir
+from ..._shared import get_dir, put_dir
 
 Z_DIMS = ["z", "z_interface"]
 
