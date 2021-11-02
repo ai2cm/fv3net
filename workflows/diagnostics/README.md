@@ -93,9 +93,9 @@ optional arguments:
                         GCS data in vcm.catalog.
 ```
 
-### `fv3net.diagnostics.offline.create_report`
+### `fv3net.diagnostics.offline.views.create_report`
 ```bash
-usage: python -m fv3net.diagnostics.offline.create_report [-h] [--commit-sha COMMIT_SHA] input_path output_path
+usage: python -m fv3net.diagnostics.offline.views.create_report [-h] [--commit-sha COMMIT_SHA] input_path output_path
 
 ```
 |arg|default|help|
