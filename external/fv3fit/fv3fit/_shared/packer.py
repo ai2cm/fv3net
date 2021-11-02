@@ -217,7 +217,7 @@ class ArrayPacker:
     @classmethod
     def load(cls, f: TextIO):
         data = yaml.safe_load(f.read())
-        packer_config = dacite.from_dict(PackerConfig, data["packer_config"])
+        packer_config = dacite.from_dict(PackerConfig, data.get("packer_config", {}))
         packer = cls(data["sample_dim_name"], data["pack_names"], packer_config)
         packer._feature_index = tuple_to_multiindex(data["feature_index"])
         packer._n_features = count_features(packer._feature_index)
