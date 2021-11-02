@@ -282,9 +282,13 @@ class SliceConfig:
 ClipConfig = Mapping[Hashable, Mapping[str, SliceConfig]]
 
 
+def _clip_config_factory() -> ClipConfig:
+    return {}
+
+
 @dataclasses.dataclass(frozen=True)
 class PackerConfig:
-    clip: ClipConfig = dataclasses.field(default_factory=dict)
+    clip: ClipConfig = dataclasses.field(default_factory=_clip_config_factory)
 
 
 @dataclasses.dataclass
