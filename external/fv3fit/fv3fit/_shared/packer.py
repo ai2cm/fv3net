@@ -12,7 +12,9 @@ from typing import (
     Mapping,
 )
 
-from .config import PackerConfig, ClipConfig
+from .config import PackerConfig, ClipDims
+import dacite
+import dataclasses
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -88,7 +90,7 @@ def tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
 
 
 def clip(
-    data: Union[xr.Dataset, Mapping[Hashable, xr.DataArray]], config: ClipConfig,
+    data: Union[xr.Dataset, Mapping[Hashable, xr.DataArray]], config: ClipDims,
 ) -> Mapping[Hashable, xr.DataArray]:
     clipped_data = {}
     for variable in data:
@@ -205,6 +207,9 @@ class ArrayPacker:
                 "pack_names": self._pack_names,
                 "sample_dim_name": self._sample_dim_name,
                 "feature_index": multiindex_to_tuple(self._feature_index),
+                "packer_config": dataclasses.asdict(self._config)
+                if self._config is not None
+                else {},
             },
             f,
         )
@@ -212,7 +217,8 @@ class ArrayPacker:
     @classmethod
     def load(cls, f: TextIO):
         data = yaml.safe_load(f.read())
-        packer = cls(data["sample_dim_name"], data["pack_names"])
+        packer_config = dacite.from_dict(PackerConfig, data.get("packer_config", {}))
+        packer = cls(data["sample_dim_name"], data["pack_names"], packer_config)
         packer._feature_index = tuple_to_multiindex(data["feature_index"])
         packer._n_features = count_features(packer._feature_index)
         return packer
