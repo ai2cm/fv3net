@@ -284,7 +284,7 @@ ClipConfig = Mapping[Hashable, Mapping[str, SliceConfig]]
 
 @dataclasses.dataclass(frozen=True)
 class PackerConfig:
-    clip: ClipConfig
+    clip: ClipConfig = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass
