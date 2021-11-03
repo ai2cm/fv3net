@@ -47,6 +47,8 @@ parser.add_argument(
     help="A unique tag. Can be used to look-up these outputs in subsequent timesteps.",
 )
 parser.add_argument("--segments", "-n", type=int, default=1, help="number of segments")
+parser.add_argument("--wandb-project", default="scratch-project")
+parser.add_argument("--config-path", type=Path, default=CONFIG_PATH)
 
 # online/offine flag
 group = parser.add_mutually_exclusive_group()
@@ -69,7 +71,7 @@ job = wandb.init(
 )
 tag = args.tag or job.id
 
-with CONFIG_PATH.open() as f:
+with args.config_path.open() as f:
     config = yaml.safe_load(f)
 
 config = dacite.from_dict(HighLevelConfig, config)
