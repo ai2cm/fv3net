@@ -337,8 +337,8 @@ variables:
 		physics_precip:units = kg/m^2/s ;
 		physics_precip:long_name = physics_precip ;
 	float64 water_vapor_path(time, tile, y, x) ;
+		water_vapor_path:long_name = water vapor path ;
 		water_vapor_path:units = mm ;
-		water_vapor_path:long_name = water_vapor_path ;
 	float32 PRESsfc(tile, time, y, x) ;
 		PRESsfc:cell_methods = time: point ;
 		PRESsfc:long_name = surface pressure ;
@@ -525,6 +525,9 @@ variables:
 	float64 column_integrated_dQ2_or_nQ2(time, tile, y, x) ;
 		column_integrated_dQ2_or_nQ2:long_name = <dQ2> column integrated moistening from ML ;
 		column_integrated_dQ2_or_nQ2:units = mm/day ;
+	float64 minus_column_integrated_q2(tile, time, y, x) ;
+		minus_column_integrated_q2:long_name = -<Q2> column integrated drying ;
+		minus_column_integrated_q2:units = mm/day ;
 
 // global attributes:
 	:filename = sfc_dt_atmos.tile1.nc ;
@@ -724,8 +727,8 @@ variables:
 		physics_precip:units = kg/m^2/s ;
 		physics_precip:long_name = physics_precip ;
 	float64 water_vapor_path(time, tile, y, x) ;
+		water_vapor_path:long_name = water vapor path ;
 		water_vapor_path:units = mm ;
-		water_vapor_path:long_name = water_vapor_path ;
 	float32 PRESsfc(tile, time, y, x) ;
 		PRESsfc:cell_methods = time: point ;
 		PRESsfc:long_name = surface pressure ;
@@ -912,6 +915,9 @@ variables:
 	float64 column_integrated_dQ2_or_nQ2(time, tile, y, x) ;
 		column_integrated_dQ2_or_nQ2:long_name = <dQ2> column integrated moistening from ML ;
 		column_integrated_dQ2_or_nQ2:units = mm/day ;
+	float64 minus_column_integrated_q2(tile, time, y, x) ;
+		minus_column_integrated_q2:long_name = -<Q2> column integrated drying ;
+		minus_column_integrated_q2:units = mm/day ;
 
 // global attributes:
 	:filename = sfc_dt_atmos.tile1.nc ;
