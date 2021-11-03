@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations: {}
+  name: argo-server
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: argo-server
+  template:
+    metadata:
+      labels:
+        app: argo-server
+    spec:
+      containers:
+        - args:
+            - server
+            - --configmap
+            - workflow-controller-configmap
+          image: argoproj/argocli:v2.11.8
+          name: argo-server
+          ports:
+            - containerPort: 2746
+              name: web
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 2746
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp
+          resources: {}
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: argo-server
+      volumes:
+        - emptyDir: {}
+          name: tmp
