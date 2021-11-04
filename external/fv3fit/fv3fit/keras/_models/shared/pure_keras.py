@@ -13,7 +13,7 @@ import os
 from ...._shared import get_dir, put_dir
 import yaml
 import numpy as np
-from .halos import append_halos
+from .halos import append_halos, append_halos_using_mpi
 
 
 @io.register("all-keras")
@@ -103,7 +103,15 @@ class PureKerasModel(Predictor):
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
         if self._n_halo > 0:
-            X = append_halos(ds=X, n_halo=self._n_halo)
+            if "tile" not in X.dims:
+                try:
+                    X = append_halos_using_mpi(ds=X, n_halo=self._n_halo)
+                except RuntimeError as err:
+                    raise ValueError(
+                        "either dataset must have tile dimension or MPI must be present"
+                    ) from err
+            else:
+                X = append_halos(ds=X, n_halo=self._n_halo)
         X_stacked = stack(X, unstacked_dims=self._unstacked_dims)
         inputs = [X_stacked[name].values for name in self.input_variables]
         outputs = self.model.predict(inputs)

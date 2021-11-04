@@ -1,7 +1,10 @@
+from typing import Any, Dict, List
 from fv3fit.keras._models.shared import append_halos
+from fv3fit.keras._models.shared.halos import _append_halos_using_mpi
 import xarray as xr
 import numpy as np
 import pytest
+import fv3gfs.util
 
 
 def get_dataset(nx: int, ny: int, nz: int, n_tile: int) -> xr.Dataset:
@@ -43,6 +46,11 @@ def test_append_halos_extends_dims(nx: int, ny: int, nz: int, n_tile: int, n_hal
         assert da.sizes["y"] == ny, name
         assert da.sizes.get("z", nz) == nz, name
     result: xr.Dataset = append_halos(ds, n_halo=n_halo)
+    check_result(result=result, n_halo=n_halo, nx=nx, ny=ny, nz=nz)
+    assert result.dims.keys() == ds.dims.keys()
+
+
+def check_result(result: xr.Dataset, n_halo: int, nx: int, ny: int, nz: int):
     for name, da in result.data_vars.items():
         assert da.sizes["x"] == nx + 2 * n_halo
         assert da.sizes["y"] == ny + 2 * n_halo, name
@@ -62,7 +70,6 @@ def test_append_halos_extends_dims(nx: int, ny: int, nz: int, n_tile: int, n_hal
             x=range(n_halo, n_halo + nx), y=range(0, ny + 2 * n_halo)
         )
         assert np.sum(data_with_y_halos == 0) == 0
-    assert result.dims.keys() == ds.dims.keys()
 
 
 @pytest.mark.parametrize(
@@ -83,3 +90,70 @@ def test_append_halos_no_halos_is_unchanged(nx: int, ny: int, nz: int, n_tile: i
     ds = get_dataset(nx=nx, ny=ny, nz=nz, n_tile=n_tile)
     result: xr.Dataset = append_halos(ds, n_halo=0)
     xr.testing.assert_identical(result, ds)
+
+
+class ChainedDummyComm(fv3gfs.util.testing.DummyComm):
+    """
+    Dummy comm that calls a callback just before recv, allowing us to call all sends
+    before recvs.
+
+    Can be used to mock MPI behavior in a function that has a single send-recv pair.
+    """
+
+    def __init__(self, rank, total_ranks, buffer_dict):
+        super().__init__(rank=rank, total_ranks=total_ranks, buffer_dict=buffer_dict)
+        self._callback = lambda: None
+
+    def set_callback(self, callback):
+        self._callback = callback
+
+    def Recv(self, *args, **kwargs):
+        self._callback()
+        self._callback = lambda: None
+        super().Recv(*args, **kwargs)
+
+
+def _get_callback(output_datasets, i: int, rank_dataset, n_halo, comm):
+    def callback():
+        output_datasets[i] = _append_halos_using_mpi(
+            ds=rank_dataset, n_halo=n_halo, comm=comm
+        )
+
+    return callback
+
+
+@pytest.mark.parametrize(
+    "nx, ny, nz, n_halo",
+    [pytest.param(8, 8, 12, 3, id="typical"), pytest.param(8, 8, 12, 1, id="one_halo")],
+)
+def test_with_and_without_mpi_give_same_result(nx: int, ny: int, nz: int, n_halo: int):
+    n_tile = 6
+    buffer_dict: Dict[Any, Any] = {}
+    comms: List[ChainedDummyComm] = []
+    for rank in range(n_tile):
+        comms.append(
+            ChainedDummyComm(rank=rank, total_ranks=n_tile, buffer_dict=buffer_dict)
+        )
+    full_ds = get_dataset(nx=nx, ny=ny, nz=nz, n_tile=n_tile).drop(
+        ["scalar", "scalar_single_precision"]
+    )
+    non_mpi_result: xr.Dataset = append_halos(full_ds, n_halo=n_halo)
+    rank_datasets = [full_ds.isel(tile=i) for i in range(n_tile)]
+
+    output_datasets = [None for _ in range(n_tile)]
+    for i in range(1, n_tile):
+        comms[i - 1].set_callback(
+            _get_callback(
+                output_datasets,
+                i=i,
+                rank_dataset=rank_datasets[i],
+                n_halo=n_halo,
+                comm=comms[i],
+            )
+        )
+    output_datasets[0] = _append_halos_using_mpi(
+        ds=rank_datasets[0], n_halo=n_halo, comm=comms[0]
+    )
+    for i in range(n_tile):
+        check_result(result=output_datasets[i], n_halo=n_halo, nx=nx, ny=ny, nz=nz)
+        xr.testing.assert_identical(non_mpi_result.isel(tile=i), output_datasets[i])

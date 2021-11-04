@@ -102,6 +102,53 @@ def _halo_update(
         req.wait()
 
 
+def _get_comm():
+    try:
+        from mpi4py import MPI
+
+        comm = MPI.COMM_WORLD
+    except ModuleNotFoundError:
+        raise RuntimeError("mpi4py is not installed")
+    return comm
+
+
+def _get_cubed_sphere_communicator(comm):
+    # it would be ideal to take this in externally, so configuration can occur
+    # at the top level instead of hard-coding a square layout on a cube,
+    # but we create the communicator internally here to avoid refactoring
+    # configuration of the prognostic run
+    #
+    # This could possibly be changed if/when we integrate with the DSL model
+    layout_1d = int((comm.total_ranks / 6.0) ** 0.5)
+    return fv3gfs.util.CubedSphereCommunicator(
+        comm=comm,
+        partitioner=fv3gfs.util.CubedSpherePartitioner(
+            tile=fv3gfs.util.TilePartitioner(layout=(layout_1d, layout_1d))
+        ),
+    )
+
+
+def append_halos_using_mpi(ds: xr.Dataset, n_halo: int) -> xr.Dataset:
+    comm = _get_comm()
+    if comm.Get_size() < 6:
+        raise RuntimeError("to halo update over MPI we need at least 6 ranks")
+    _append_halos_using_mpi(ds=ds, n_halo=n_halo, comm=comm)
+
+
+def _append_halos_using_mpi(ds: xr.Dataset, n_halo: int, comm):
+    communicator = _get_cubed_sphere_communicator(comm=comm)
+    quantity_dict = _quantities_from_dataset(ds, n_halo=n_halo)
+    req_list = []
+    for name in sorted(ds.data_vars.keys()):
+        quantity = quantity_dict[name]
+        req_list.append(communicator.start_halo_update(quantity, n_points=n_halo))
+    for req in req_list:
+        req.wait()
+    ds_out = _dataset_from_quantities(quantity_dict)
+    ds_out = match_prediction_to_input_coords(input=ds, prediction=ds_out)
+    return ds_out.drop(ds_out.coords.keys())
+
+
 def append_halos(ds: xr.Dataset, n_halo: int) -> xr.Dataset:
     """
     Given a dataset with "tile", "x", and "y" dimensions with no halo data,
@@ -116,15 +163,7 @@ def append_halos(ds: xr.Dataset, n_halo: int) -> xr.Dataset:
     if n_tiles != 6:
         raise ValueError(f"dataset must have 6 tiles to halo update, got {n_tiles}")
     comms = _create_comms(total_ranks=6)
-    communicators = [
-        fv3gfs.util.CubedSphereCommunicator(
-            comm=comm,
-            partitioner=fv3gfs.util.CubedSpherePartitioner(
-                tile=fv3gfs.util.TilePartitioner(layout=(1, 1))
-            ),
-        )
-        for comm in comms
-    ]
+    communicators = [_get_cubed_sphere_communicator(comm) for comm in comms]
     datasets_in = [ds.isel(tile=i) for i in range(0, 6)]
     quantity_dicts = [_quantities_from_dataset(ds, n_halo=n_halo) for ds in datasets_in]
     for name in ds.data_vars.keys():
