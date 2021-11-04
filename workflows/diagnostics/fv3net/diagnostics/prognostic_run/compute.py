@@ -39,6 +39,8 @@ from .constants import (
     TIME_MEAN_VARS,
     RMSE_VARS,
     PRESSURE_INTERPOLATED_VARS,
+    COL_DRYING,
+    WVP,
 )
 from fv3net.diagnostics._shared.registry import Registry
 from fv3net.diagnostics._shared import transform
@@ -419,6 +421,43 @@ def compute_histogram_bias(diag_arg: DiagArg):
         counts[varname] = bias(verification_count, prognostic_count)
     return _assign_source_attrs(
         _assign_diagnostic_time_attrs(counts, prognostic), prognostic
+    )
+
+
+@registry_2d.register("hist_2d")
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.mask_to_sfc_type, "sea")
+@transform.apply(transform.mask_to_sfc_type, "tropics20")
+def compute_hist_2d(diag_arg: DiagArg):
+    logger.info("Computing joint histogram of water vapor path versus Q2")
+    hist2d = _compute_wvp_vs_q2_histogram(diag_arg.prediction)
+    return _assign_diagnostic_time_attrs(hist2d, diag_arg.prediction)
+
+
+@registry_2d.register("hist2d_bias")
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.mask_to_sfc_type, "sea")
+@transform.apply(transform.mask_to_sfc_type, "tropics20")
+def compute_hist_2d_bias(diag_arg: DiagArg):
+    logger.info("Computing bias of joint histogram of water vapor path versus Q2")
+    hist2d_prog = _compute_wvp_vs_q2_histogram(diag_arg.prediction)
+    hist2d_verif = _compute_wvp_vs_q2_histogram(diag_arg.verification)
+    name = f"{WVP}_versus_{COL_DRYING}"
+    error = bias(hist2d_verif[name], hist2d_prog[name])
+    hist2d_prog.update({name: error})
+    return _assign_diagnostic_time_attrs(hist2d_prog, diag_arg.prediction)
+
+
+def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:
+    counts = xr.Dataset()
+    bins = [HISTOGRAM_BINS[WVP], np.linspace(-50, 150, 101)]
+    counts, wvp_bins, q2_bins = vcm.histogram2d(ds[WVP], ds[COL_DRYING], bins=bins)
+    return xr.Dataset(
+        {
+            f"{WVP}_versus_{COL_DRYING}": counts,
+            f"{WVP}_bin_width": wvp_bins,
+            f"{COL_DRYING}_bin_width": q2_bins,
+        }
     )
 
 

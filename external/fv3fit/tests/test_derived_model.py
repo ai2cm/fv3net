@@ -17,6 +17,33 @@ base_model.set_outputs(
 )
 
 
+def test_wrap_another_derived_model():
+    base_outputs = [
+        "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
+        "dQ2",
+    ]
+    base_model = fv3fit.testing.ConstantOutputPredictor(["input"], base_outputs)
+    base_model.set_outputs(
+        override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface=1.0,
+        dQ2=1.0,
+    )
+    derived_model_0 = DerivedModel(
+        base_model, derived_output_variables=["net_shortwave_sfc_flux_derived"],
+    )
+    derived_model_1 = DerivedModel(derived_model_0, derived_output_variables=["Q2"])
+
+    assert not isinstance(derived_model_1.base_model, DerivedModel)
+    assert set(derived_model_1.input_variables) == {
+        "input",
+        "surface_diffused_shortwave_albedo",
+        "pressure_thickness_of_atmospheric_layer",
+        "pQ2",
+    }
+    assert set(derived_model_1.output_variables) == set(base_outputs).union(
+        {"Q2", "net_shortwave_sfc_flux_derived"}
+    )
+
+
 def test_get_additional_inputs():
     derived_model = DerivedModel(
         base_model, derived_output_variables=["net_shortwave_sfc_flux_derived"],
