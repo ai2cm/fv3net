@@ -12,6 +12,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunDiagnostics,
     RunMetrics,
 )
+
 import vcm
 from report import create_html, Link, OrderedList, RawHTML
 from report.holoviews import HVPlot, get_html_header
@@ -64,11 +65,15 @@ def upload(html: str, url: str, content_type: str = "text/html"):
 
 class PlotManager:
     """An object for managing lists of plots in an extensible way
+
     New plotting functions can be registered using the ``register`` method.
+
     All plotting functions registered by the object will be called in sequence on
     the data passed to `make_plots``.
+
     We could extend this class in the future to have even more features
     (e.g. parallel plot generation, exception handling, etc)
+
     """
 
     def __init__(self):
@@ -76,6 +81,7 @@ class PlotManager:
 
     def register(self, func):
         """Register a given function as a diagnostic
+
         This can be used to generate a new set of plots to appear the html reports
         """
         self._diags.append(func)
