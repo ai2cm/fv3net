@@ -112,7 +112,7 @@ def train_convolutional_model(
         ds=train_batches[0],
         unstacked_dims=UNSTACKED_DIMS,
     )
-    # del train_batches
+    del train_batches
     hyperparameters.training_loop.fit_loop(
         model=train_model, Xy=train_data, validation_data=validation_data
     )

@@ -108,7 +108,6 @@ def append_halos(ds: xr.Dataset, n_halo: int) -> xr.Dataset:
     return a dataset which has n_halo halo points appended to the start and
     end of the x and y dimensions.
     """
-    # import pdb;pdb.set_trace()
     if any(name not in ds.dims for name in ("tile", "x", "y")):
         raise ValueError(
             f"dataset must have 'tile', 'x', and 'y' dimensions, got {ds.dims}"
