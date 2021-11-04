@@ -594,7 +594,6 @@ def compute_hist_2d_bias(diag_arg: DiagArg):
 
 
 @diagnostics_registry.register("histogram")
-@transform.apply(transform.resample_time, "3H", inner_join=True, method="mean")
 @transform.apply(transform.subset_variables, [WVP, COL_MOISTENING])
 def compute_histogram(diag_arg: DiagArg):
     logger.info("Computing histograms for physics diagnostics")
