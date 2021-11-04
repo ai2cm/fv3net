@@ -31,7 +31,6 @@ poetry_packages=(
   external/fv3viz
   external/synth
   external/fv3kube
-  external/diagnostics_utils
   external/report
   workflows/fine_res_budget
   workflows/dataflow

@@ -26,6 +26,7 @@ from ..._shared import (
     stack_non_vertical,
     match_prediction_to_input_coords,
     SAMPLE_DIM_NAME,
+    PackerConfig,
 )
 from ..._shared.config import (
     Hyperparameters,
@@ -72,6 +73,8 @@ class DenseHyperparameters(Hyperparameters):
         nonnegative_outputs: if True, add a ReLU activation layer as the last layer
             after output denormalization layer to ensure outputs are always >=0
             Defaults to False.
+        packer_config: configuration of dataset packing.
+
     """
 
     input_variables: List[str]
@@ -90,6 +93,9 @@ class DenseHyperparameters(Hyperparameters):
     loss: str = "mse"
     save_model_checkpoints: bool = False
     nonnegative_outputs: bool = False
+    packer_config: PackerConfig = dataclasses.field(
+        default_factory=lambda: PackerConfig({})
+    )
 
     @property
     def variables(self) -> Set[str]:
@@ -160,7 +166,9 @@ class DenseModel(Predictor):
         super().__init__(input_variables, output_variables)
         self._model = None
         self.X_packer = ArrayPacker(
-            sample_dim_name=SAMPLE_DIM_NAME, pack_names=input_variables
+            sample_dim_name=SAMPLE_DIM_NAME,
+            pack_names=input_variables,
+            config=hyperparameters.packer_config,
         )
         self.y_packer = ArrayPacker(
             sample_dim_name=SAMPLE_DIM_NAME, pack_names=output_variables
@@ -183,6 +191,9 @@ class DenseModel(Predictor):
         else:
             self._checkpoint_path = None
         self.training_loop = hyperparameters.training_loop
+        for name in self._hyperparameters.packer_config.clip:
+            if str(name) in output_variables:
+                raise NotImplementedError("Clipping for ML outputs is not implemented.")
 
     @property
     def model(self) -> tf.keras.Model:

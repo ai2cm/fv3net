@@ -262,6 +262,8 @@ def _mask_array(
     """Mask given DataArray to a specific region."""
     if region == "tropics":
         masked_arr = arr.where(abs(latitude) <= 10.0)
+    elif region == "tropics20":
+        masked_arr = arr.where(abs(latitude) <= 20.0)
     elif region == "global":
         masked_arr = arr.copy()
     elif region in SURFACE_TYPE_CODES:
@@ -278,10 +280,16 @@ def _mask_array(
 @add_to_input_transform_fns
 def subset_variables(variables: Sequence, arg: DiagArg) -> DiagArg:
     """Subset the variables, without failing if a variable doesn't exist"""
-    prognostic, verification, grid = arg.prediction, arg.verification, arg.grid
+    prognostic, verification, grid = (
+        arg.prediction,
+        arg.verification,
+        arg.grid,
+    )
     prognostic_vars = [var for var in variables if var in prognostic]
     verification_vars = [var for var in variables if var in verification]
-    return DiagArg(prognostic[prognostic_vars], verification[verification_vars], grid)
+    return DiagArg(
+        prognostic[prognostic_vars], verification[verification_vars], grid, arg.delp,
+    )
 
 
 def _is_3d(da: xr.DataArray):

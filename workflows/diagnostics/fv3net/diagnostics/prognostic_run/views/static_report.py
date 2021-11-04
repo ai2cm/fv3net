@@ -20,12 +20,15 @@ from .matplotlib import (
     plot_2d_matplotlib,
     plot_cubed_sphere_map,
     plot_histogram,
+    plot_histogram2d,
 )
 from fv3net.diagnostics.prognostic_run.constants import (
     PERCENTILES,
     PRECIP_RATE,
     TOP_LEVEL_METRICS,
     MovieUrls,
+    WVP,
+    COL_DRYING,
 )
 
 import logging
@@ -295,8 +298,25 @@ def diurnal_cycle_component_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 
 @histogram_plot_manager.register
-def histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
-    return plot_histogram(diagnostics, f"{PRECIP_RATE}_histogram")
+def precip_histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_histogram(
+        diagnostics, f"{PRECIP_RATE}_histogram", xscale="log", yscale="log"
+    )
+
+
+@histogram_plot_manager.register
+def water_vapor_path_histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_histogram(diagnostics, f"{WVP}_histogram")
+
+
+@histogram_plot_manager.register
+def histogram2d_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_histogram2d(diagnostics, WVP, COL_DRYING)
+
+
+@histogram_plot_manager.register
+def conditional_average_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_1d(diagnostics, varfilter="conditional_average")
 
 
 # Routines for plotting the "metrics"
@@ -459,7 +479,9 @@ def render_process_diagnostics(metadata, diagnostics, metrics):
         "Links": navigation,
         "Precipitation percentiles": [metric_table(metrics, percentile_names)],
         "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
-        "Precipitation histogram": list(histogram_plot_manager.make_plots(diagnostics)),
+        "Precipitation and water vapor path": list(
+            histogram_plot_manager.make_plots(diagnostics)
+        ),
     }
     return create_html(
         title="Process diagnostics",

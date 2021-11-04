@@ -32,7 +32,7 @@ from .calc.thermo import (
     mass_streamfunction,
     internal_energy,
 )
-from .calc.histogram import histogram
+from .calc.histogram import histogram, histogram2d
 
 from .interpolate import (
     interpolate_to_pressure_levels,

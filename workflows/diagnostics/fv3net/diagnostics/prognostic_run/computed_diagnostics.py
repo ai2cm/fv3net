@@ -247,9 +247,9 @@ def load_diagnostics(rundirs) -> Tuple[Metadata, Diagnostics]:
         for key, ds in diags.items()
     ]
     diagnostics = [convert_index_to_datetime(ds, "time") for ds in diagnostics]
-    diagnostics = [_add_derived_diagnostics(ds) for ds in diagnostics]
     longest_run_ds = _longest_run(diagnostics)
     diagnostics.append(_get_verification_diagnostics(longest_run_ds))
+    diagnostics = [_add_derived_diagnostics(ds) for ds in diagnostics]
     return get_metadata(diags), diagnostics
 
 
@@ -358,6 +358,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
         "zonal_mean_value": "zonal_mean_bias",
         "time_mean_value": "time_mean_bias",
         "histogram": "hist_bias",
+        "hist_2d": "hist2d_bias",
         "pressure_level_zonal_time_mean": "pressure_level_zonal_bias",
     }
     for mean_filter, bias_filter in mean_bias_pairs.items():
@@ -370,6 +371,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
                 verif_diagnostics[var].attrs = ds[var].attrs
     # special handling for histogram bin widths
     bin_width_vars = [var for var in ds if "bin_width_histogram" in var]
+    bin_width_vars += [var for var in ds if "bin_width_hist_2d" in var]
     for var in bin_width_vars:
         verif_diagnostics[var] = ds[var]
     verif_dataset = xr.Dataset(verif_diagnostics)

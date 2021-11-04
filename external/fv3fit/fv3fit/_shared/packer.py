@@ -11,7 +11,10 @@ from typing import (
     Union,
     Mapping,
 )
-from .config import PackerConfig, ClipConfig
+
+from .config import PackerConfig, ClipDims
+import dacite
+import dataclasses
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -54,6 +57,7 @@ def pack(
     if config is None:
         config = PackerConfig({})
     feature_dim_name = _unique_dim_name(data, sample_dims=sample_dims)
+
     data_clipped = xr.Dataset(clip(data, config.clip))
     stacked = data_clipped.to_stacked_array(feature_dim_name, sample_dims=sample_dims)
     stacked = stacked.dropna(feature_dim_name)
@@ -86,20 +90,27 @@ def tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
 
 
 def clip(
-    data: Union[xr.Dataset, Mapping[Hashable, xr.DataArray]], config: ClipConfig,
+    data: Union[xr.Dataset, Mapping[Hashable, xr.DataArray]], config: ClipDims,
 ) -> Mapping[Hashable, xr.DataArray]:
     clipped_data = {}
     for variable in data:
         da = data[variable]
+        da = _fill_empty_coords(da)
         if variable in config:
             for dim in config[variable]:
-                if dim not in da.coords:
-                    # need coord to allow proper unpacking if dim is clipped to
-                    # different length for different variables
-                    da = da.assign_coords({dim: range(da.sizes[dim])})
                 da = da.isel({dim: config[variable][dim].slice})
         clipped_data[variable] = da
     return clipped_data
+
+
+def _fill_empty_coords(da):
+    # need coord to allow proper unpacking if dim is clipped to
+    # different length for different variables. Also needs to be filled
+    # for non-clipped variables that have that dim.
+    for dim in da.dims:
+        if dim not in da.coords:
+            da = da.assign_coords({dim: range(da.sizes[dim])})
+    return da
 
 
 class ArrayPacker:
@@ -109,17 +120,24 @@ class ArrayPacker:
     Used for ML training/prediction.
     """
 
-    def __init__(self, sample_dim_name, pack_names: Iterable[Hashable]):
+    def __init__(
+        self,
+        sample_dim_name,
+        pack_names: Iterable[Hashable],
+        config: Optional[PackerConfig] = None,
+    ):
         """Initialize the ArrayPacker.
 
         Args:
             sample_dim_name: dimension name to treat as the sample dimension
             pack_names: variable pack_names to pack
+            config: optional PackerConfig for configuration of dataset packing
         """
         self._pack_names: List[str] = list(str(s) for s in pack_names)
         self._n_features: Dict[str, int] = {}
         self._sample_dim_name = sample_dim_name
         self._feature_index: Optional[pd.MultiIndex] = None
+        self._config = config
 
     @property
     def pack_names(self) -> List[str]:
@@ -156,7 +174,9 @@ class ArrayPacker:
         Returns:
             array: 2D [sample, feature] array with data from the dataset
         """
-        array, feature_index = pack(dataset[self._pack_names], [self._sample_dim_name])
+        array, feature_index = pack(
+            dataset[self._pack_names], [self._sample_dim_name], config=self._config
+        )
         self._n_features = count_features(feature_index)
         self._feature_index = feature_index
         return array
@@ -187,6 +207,9 @@ class ArrayPacker:
                 "pack_names": self._pack_names,
                 "sample_dim_name": self._sample_dim_name,
                 "feature_index": multiindex_to_tuple(self._feature_index),
+                "packer_config": dataclasses.asdict(self._config)
+                if self._config is not None
+                else {},
             },
             f,
         )
@@ -194,7 +217,8 @@ class ArrayPacker:
     @classmethod
     def load(cls, f: TextIO):
         data = yaml.safe_load(f.read())
-        packer = cls(data["sample_dim_name"], data["pack_names"])
+        packer_config = dacite.from_dict(PackerConfig, data.get("packer_config", {}))
+        packer = cls(data["sample_dim_name"], data["pack_names"], packer_config)
         packer._feature_index = tuple_to_multiindex(data["feature_index"])
         packer._n_features = count_features(packer._feature_index)
         return packer
