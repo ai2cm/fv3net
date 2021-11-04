@@ -1,3 +1,4 @@
+from fv3net.diagnostics.offline.compute import DERIVATION_DIM_NAME
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
@@ -191,15 +192,19 @@ def plot_histogram(ds, varname: str, xscale="linear", yscale="linear"):
 
     fig, ax = plt.subplots()
     bin_name = varname.replace("histogram", "bins")
-    v = ds[varname]
+
     units = units_from_name(varname.replace("_histogram", ""))
-    ax.step(v[bin_name], v, where="post", linewidth=1)
+
+    for source in ["target", "predict"]:
+        v = ds[varname].sel({DERIVATION_DIM_NAME: source})
+        ax.step(v[bin_name], v, where="post", linewidth=1, label=source)
     ax.set_xlabel(f"{getattr(v, 'long_name', v.name)} {units}")
     ax.set_ylabel(f"Frequency {units}^-1")
     ax.set_xscale(xscale)
     ax.set_yscale(yscale)
     ax.set_ylim([0, None])
     ax.legend()
+    ax.set_title(source)
     fig.tight_layout()
     return fig
 
@@ -213,28 +218,33 @@ def plot_histogram2d(ds, xname: str, yname: str):
     y_bin_name = f"{yname}_bins"
     x_bin_widths_name = f"{xname.lower()}_bin_width_hist_2d"
     y_bin_widths_name = f"{yname.lower()}_bin_width_hist_2d"
+    fig = plt.figure(figsize=(8, 4))
 
-    count = ds[count_name]
-    conditional_average = ds[conditional_average_name]
-    x_bin_widths = ds[x_bin_widths_name]
-    y_bin_widths = ds[y_bin_widths_name]
-    x = x_bin_widths[x_bin_name]
-    y = y_bin_widths[y_bin_name]
-    xedges = np.append(x.values, x.values[-1] + x_bin_widths.values[-1])
-    yedges = np.append(y.values, y.values[-1] + y_bin_widths.values[-1])
-    xcenters = x.values + 0.5 * x_bin_widths.values
-    fig, ax = plt.subplots()
-    xx, yy = np.meshgrid(xedges, yedges)
-    ax.pcolormesh(
-        xx, yy, count.T, norm=mpl.colors.LogNorm(), cmap="Blues", rasterized=True
-    )
-    ax.plot(xcenters, conditional_average, color="r", linewidth=2)
+    for i, source in enumerate(["target", "predict"]):
+        ds_ = ds.sel({DERIVATION_DIM_NAME: source})
 
-    x_units = units_from_name(x_bin_widths.name.replace("_bin_width_hist_2d", ""))
-    y_units = units_from_name(y_bin_widths.name.replace("_bin_width_hist_2d", ""))
-    ax.set_xlabel(f"{xname} {x_units}")
-    ax.set_ylabel(f"{yname} {y_units}")
-    ax.set_xlim([xedges[0], xedges[-1]])
-    ax.set_ylim([yedges[0], yedges[-1]])
+        count = ds_[count_name]
+        conditional_average = ds_[conditional_average_name]
+        x_bin_widths = ds_[x_bin_widths_name]
+        y_bin_widths = ds_[y_bin_widths_name]
+        x = x_bin_widths[x_bin_name]
+        y = y_bin_widths[y_bin_name]
+        xedges = np.append(x.values, x.values[-1] + x_bin_widths.values[-1])
+        yedges = np.append(y.values, y.values[-1] + y_bin_widths.values[-1])
+        xcenters = x.values + 0.5 * x_bin_widths.values
+        ax = fig.add_subplot(1, 2, i + 1)
+        xx, yy = np.meshgrid(xedges, yedges)
+        ax.pcolormesh(
+            xx, yy, count.T, norm=mpl.colors.LogNorm(), cmap="Blues", rasterized=True
+        )
+        ax.plot(xcenters, conditional_average, color="r", linewidth=2)
+
+        x_units = units_from_name(x_bin_widths.name.replace("_bin_width_hist_2d", ""))
+        y_units = units_from_name(y_bin_widths.name.replace("_bin_width_hist_2d", ""))
+        ax.set_xlabel(f"{xname} {x_units}")
+        ax.set_ylabel(f"{yname} {y_units}")
+        ax.set_xlim([xedges[0], xedges[-1]])
+        ax.set_ylim([yedges[0], yedges[-1]])
+        ax.set_title(source)
     plt.tight_layout()
     return fig

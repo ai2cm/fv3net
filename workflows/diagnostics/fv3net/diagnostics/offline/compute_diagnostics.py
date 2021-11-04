@@ -568,27 +568,15 @@ def time_mean(diag_arg):
 @transform.apply(transform.mask_to_sfc_type, "sea")
 @transform.apply(transform.mask_to_sfc_type, "tropics20")
 def compute_hist_2d(diag_arg: DiagArg):
+    histograms = []
     if COL_MOISTENING in diag_arg.prediction and WVP in diag_arg.prediction:
-        logger.info("Computing joint histogram of water vapor path versus Q2")
-        hist = _compute_wvp_vs_q2_histogram(diag_arg.prediction).squeeze()
-        return _assign_source_attrs(hist, diag_arg.prediction)
-    else:
-        return xr.Dataset()
-
-
-@diagnostics_registry.register("hist2d_bias")
-@transform.apply(transform.mask_to_sfc_type, "sea")
-@transform.apply(transform.mask_to_sfc_type, "tropics20")
-def compute_hist_2d_bias(diag_arg: DiagArg):
-    if COL_MOISTENING in diag_arg.prediction and WVP in diag_arg.prediction:
-        logger.info("Computing bias of joint histogram of water vapor path versus Q2")
-        hist2d_prog = _compute_wvp_vs_q2_histogram(diag_arg.prediction)
-        hist2d_verif = _compute_wvp_vs_q2_histogram(diag_arg.verification)
-        name = f"{WVP}_versus_{COL_DRYING}"
-        error = hist2d_prog[name] - hist2d_verif[name]
-        hist2d_prog.update({name: error})
-        hist = _compute_wvp_vs_q2_histogram(diag_arg.prediction).squeeze()
-        return _assign_source_attrs(hist, diag_arg.prediction)
+        for ds in [diag_arg.prediction, diag_arg.verification]:
+            logger.info("Computing joint histogram of water vapor path versus Q2")
+            hist = _compute_wvp_vs_q2_histogram(ds).squeeze()
+            histograms.append(_assign_source_attrs(hist, ds))
+        return xr.concat(
+            histograms, dim=pd.Index(["predict", "target"], name=DERIVATION_DIM)
+        )
     else:
         return xr.Dataset()
 
@@ -597,16 +585,23 @@ def compute_hist_2d_bias(diag_arg: DiagArg):
 @transform.apply(transform.subset_variables, [WVP, COL_MOISTENING])
 def compute_histogram(diag_arg: DiagArg):
     logger.info("Computing histograms for physics diagnostics")
-    prediction = diag_arg.prediction
-    prediction[COL_DRYING] = -diag_arg.prediction[COL_MOISTENING]
-    prediction[COL_DRYING].attrs["units"] = getattr(
-        diag_arg.prediction[COL_MOISTENING], "units", "mm/day"
-    )
-    counts = xr.Dataset()
-    for varname in prediction.data_vars:
-        count, width = histogram(
-            prediction[varname], bins=HISTOGRAM_BINS[varname.lower()], density=True
+    histograms = []
+    if COL_MOISTENING in diag_arg.prediction and WVP in diag_arg.prediction:
+        for ds in [diag_arg.prediction, diag_arg.verification]:
+            ds[COL_DRYING] = -ds[COL_MOISTENING]
+            ds[COL_DRYING].attrs["units"] = getattr(
+                ds[COL_MOISTENING], "units", "mm/day"
+            )
+            counts = xr.Dataset()
+            for varname in ds.data_vars:
+                count, width = histogram(
+                    ds[varname], bins=HISTOGRAM_BINS[varname.lower()], density=True
+                )
+                counts[varname] = count
+                counts[f"{varname}_bin_width"] = width
+            histograms.append(_assign_source_attrs(counts, ds))
+        return xr.concat(
+            histograms, dim=pd.Index(["predict", "target"], name=DERIVATION_DIM)
         )
-        counts[varname] = count
-        counts[f"{varname}_bin_width"] = width
-    return _assign_source_attrs(counts, prediction)
+    else:
+        return xr.Dataset()
