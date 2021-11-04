@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import pandas as pd
 from typing import Sequence, Mapping, Union, Optional
@@ -181,5 +182,66 @@ def plot_generic_data_array(
     title = title or " ".join([da.name.replace("_", " ").replace("-", ",")])
     plt.ylabel(ylabel)
     plt.title(title)
+    plt.tight_layout()
+    return fig
+
+
+def plot_histogram(ds, varname: str, xscale="linear", yscale="linear"):
+    """Plot 1D histogram of varname."""
+
+    fig, ax = plt.subplots()
+    bin_name = varname.replace("histogram", "bins")
+    v = ds[varname]
+    units = units_from_name(varname.replace("_histogram", ""))
+    print(units, varname.replace("_histogram", ""))
+    ax.step(v[bin_name], v, where="post", linewidth=1)
+    ax.set_xlabel(f"{getattr(v, 'long_name', v.name)} {units}")
+    ax.set_ylabel(f"Frequency {units}^-1")
+    ax.set_xscale(xscale)
+    ax.set_yscale(yscale)
+    ax.set_ylim([0, None])
+    ax.legend()
+    fig.tight_layout()
+    return fig
+
+
+def plot_histogram2d(ds, xname: str, yname: str):
+    """Plot 2D histogram of xname versus yname."""
+
+    count_name = f"{xname.lower()}_versus_{yname.lower()}_hist_2d"
+    conditional_average_name = f"conditional_average_of_{yname}_on_{xname}"
+    x_bin_name = f"{xname}_bins"
+    y_bin_name = f"{yname}_bins"
+    x_bin_widths_name = f"{xname.lower()}_bin_width_hist_2d"
+    y_bin_widths_name = f"{yname.lower()}_bin_width_hist_2d"
+
+    count = ds[count_name]
+    conditional_average = ds[conditional_average_name]
+    x_bin_widths = ds[x_bin_widths_name]
+    y_bin_widths = ds[y_bin_widths_name]
+    x = x_bin_widths[x_bin_name]
+    y = y_bin_widths[y_bin_name]
+    xedges = np.append(x.values, x.values[-1] + x_bin_widths.values[-1])
+    yedges = np.append(y.values, y.values[-1] + y_bin_widths.values[-1])
+    xcenters = x.values + 0.5 * x_bin_widths.values
+    fig, ax = plt.subplots()
+    xx, yy = np.meshgrid(xedges, yedges)
+    ax.pcolormesh(
+        xx, yy, count.T, norm=mpl.colors.LogNorm(), cmap="Blues", rasterized=True
+    )
+    ax.plot(xcenters, conditional_average, color="r", linewidth=2)
+
+    x_units = units_from_name(x_bin_widths.name.replace("_bin_width_hist_2d", ""))
+    y_units = units_from_name(y_bin_widths.name.replace("_bin_width_hist_2d", ""))
+    print(
+        x_units,
+        y_units,
+        x_bin_widths.name.replace("_bin_width_hist_2d", ""),
+        y_bin_widths.name.replace("_bin_width_hist_2d", ""),
+    )
+    ax.set_xlabel(f"{xname} {x_units}")
+    ax.set_ylabel(f"{yname} {y_units}")
+    ax.set_xlim([xedges[0], xedges[-1]])
+    ax.set_ylim([yedges[0], yedges[-1]])
     plt.tight_layout()
     return fig
