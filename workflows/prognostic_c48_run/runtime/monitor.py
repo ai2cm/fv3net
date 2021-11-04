@@ -33,7 +33,7 @@ class Monitor:
     ) -> Callable[[], Diagnostics]:
         """Decorator to add tendency monitoring to an update function
 
-        This will add the following diagnostics:
+        This will add the following diagnostics and state variables:
         - `tendency_of_{variable}_due_to_{name}`
         - `storage_of_{variable}_path_due_to_{name}`. A mass-integrated version
         of the above
@@ -53,7 +53,10 @@ class Monitor:
             before = self.checkpoint()
             diags = func()
             after = self.checkpoint()
-            diags.update(self.compute_change(name, before, after))
+            changes = self.compute_change(name, before, after)
+            for key in changes:
+                self._state[key] = changes[key]
+            diags.update(changes)
             return diags
 
         # ensure monitored function has same name as original

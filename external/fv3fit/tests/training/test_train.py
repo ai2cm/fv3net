@@ -1,5 +1,7 @@
 import dataclasses
 from typing import Callable, Optional, Sequence, TextIO
+from fv3fit.keras._models.convolutional import ConvolutionalHyperparameters
+from fv3fit.keras._models.shared.convolutional_network import ConvolutionalNetworkConfig
 import pytest
 import xarray as xr
 import numpy as np
@@ -11,7 +13,12 @@ from fv3fit.keras._models.precipitative import LV, CPD, GRAVITY
 
 
 # training functions that work on arbitrary datasets, can be used in generic tests below
-GENERAL_TRAINING_TYPES = ["DenseModel", "sklearn_random_forest", "precipitative"]
+GENERAL_TRAINING_TYPES = [
+    "convolutional",
+    "DenseModel",
+    "sklearn_random_forest",
+    "precipitative",
+]
 # training functions that have restrictions on the datasets they support,
 # cannot be used in generic tests below
 # you must write a separate file that specializes each of the tests
@@ -35,7 +42,12 @@ def test_all_training_functions_are_tested_or_exempted():
     )
 
 
-SYSTEM_DEPENDENT_TYPES = ["DenseModel", "sklearn_random_forest", "precipitative"]
+SYSTEM_DEPENDENT_TYPES = [
+    "convolutional",
+    "DenseModel",
+    "sklearn_random_forest",
+    "precipitative",
+]
 """model types which produce different results on different systems"""
 
 
@@ -65,20 +77,21 @@ def get_default_hyperparameters(model_type, input_variables, output_variables):
     return hyperparameters
 
 
-def train_identity_model(model_type, sample_func):
+def train_identity_model(model_type, sample_func, hyperparameters=None):
     input_variables, output_variables, train_dataset = get_dataset(
         model_type, sample_func
     )
-    hyperparameters = get_default_hyperparameters(
-        model_type, input_variables, output_variables
-    )
+    if hyperparameters is None:
+        hyperparameters = get_default_hyperparameters(
+            model_type, input_variables, output_variables
+        )
     train_batches = [train_dataset for _ in range(10)]
     input_variables, output_variables, test_dataset = get_dataset(
         model_type, sample_func
     )
     val_batches = [test_dataset]
     train = fv3fit.get_training_function(model_type)
-    model = train(hyperparameters, train_batches, val_batches,)
+    model = train(hyperparameters, train_batches, val_batches)
     return TrainingResult(model, output_variables, test_dataset)
 
 
@@ -134,18 +147,22 @@ def assert_can_learn_identity(
     """
     result = train_identity_model(model_type, sample_func=sample_func)
     out_dataset = result.model.predict(result.test_dataset)
-    rmse = np.mean(
-        [
-            np.mean((out_dataset[name] - result.test_dataset[name]) ** 2) ** 0.5
-            / np.std(result.test_dataset[name])
-            for name in result.output_variables
-        ]
+    for name in result.output_variables:
+        assert out_dataset[name].dims == result.test_dataset[name].dims
+    rmse = (
+        np.mean(
+            [
+                np.mean((out_dataset[name] - result.test_dataset[name]) ** 2)
+                / np.std(result.test_dataset[name]) ** 2
+                for name in result.output_variables
+            ]
+        )
+        ** 0.5
     )
     assert rmse < max_rmse
     if model_type in SYSTEM_DEPENDENT_TYPES:
         print(f"{model_type} is system dependent, not checking against regtest output")
-        regtest = None
-    if regtest is not None:
+    else:
         for result in vcm.testing.checksum_dataarray_mapping(result.test_dataset):
             print(result, file=regtest)
         for result in vcm.testing.checksum_dataarray_mapping(out_dataset):
@@ -163,8 +180,61 @@ def test_train_default_model_on_identity(model_type, regtest):
     sample_func = get_uniform_sample_func(size=(n_sample, nx, ny, n_feature))
 
     assert_can_learn_identity(
-        model_type, sample_func=sample_func, max_rmse=0.05, regtest=regtest,
+        model_type, sample_func=sample_func, max_rmse=0.2, regtest=regtest,
     )
+
+
+def test_default_convolutional_model_is_transpose_invariant(regtest):
+    """
+    The model with default configuration options can learn the identity function,
+    using gaussian-sampled data around 0 with unit variance.
+    """
+    fv3fit.set_random_seed(1)
+    # don't set n_feature too high for this, because of curse of dimensionality
+    n_sample, nx, ny, n_feature = 50, 12, 12, 2
+    sample_func = get_uniform_sample_func(size=(n_sample, nx, ny, n_feature))
+    result = train_identity_model("convolutional", sample_func=sample_func)
+    transpose_input = result.test_dataset.copy(deep=True)
+    transpose_input["var_in"].values[:] = np.transpose(
+        transpose_input["var_in"].values, axes=(0, 2, 1, 3)
+    )
+    transpose_output = result.model.predict(result.test_dataset)
+    transpose_output["var_out"].values[:] = np.transpose(
+        transpose_output["var_out"].values, axes=(0, 2, 1, 3)
+    )
+    output_from_transpose = result.model.predict(transpose_input)
+    xr.testing.assert_allclose(output_from_transpose, transpose_output, atol=1e-5)
+
+
+def test_diffusive_convolutional_model_gives_bounded_output():
+    """
+    The model with diffusive enabled should give outputs in the range of the inputs.
+    """
+    fv3fit.set_random_seed(1)
+    # don't set n_feature too high for this, because of curse of dimensionality
+    n_sample, nx, ny, n_feature = 50, 12, 12, 2
+    low, high = 0.0, 1.0
+    train_sample_func = get_uniform_sample_func(
+        size=(n_sample, nx, ny, n_feature), low=low - 1.0, high=high + 1.0
+    )
+    test_sample_func = get_uniform_sample_func(
+        size=(n_sample, nx, ny, n_feature), low=low, high=high
+    )
+    input_variables, output_variables, test_dataset = get_dataset(
+        model_type="convolutional", sample_func=test_sample_func
+    )
+    hyperparameters = ConvolutionalHyperparameters(
+        input_variables=input_variables,
+        output_variables=output_variables,
+        convolutional_network=ConvolutionalNetworkConfig(diffusive=True),
+    )
+    result = train_identity_model(
+        "convolutional", sample_func=train_sample_func, hyperparameters=hyperparameters
+    )
+    output = result.model.predict(test_dataset)
+    for name, data_array in output.data_vars.items():
+        assert np.all(data_array.values >= low), name
+        assert np.all(data_array.values <= high), name
 
 
 def test_train_with_same_seed_gives_same_result(model_type):
@@ -220,7 +290,7 @@ def test_train_default_model_on_nonstandard_identity(model_type):
     )
 
     assert_can_learn_identity(
-        model_type, sample_func=sample_func, max_rmse=0.05 * (high - low),
+        model_type, sample_func=sample_func, max_rmse=0.2 * (high - low),
     )
 
 
@@ -231,7 +301,7 @@ def test_dump_and_load_default_maintains_prediction(model_type):
 
     original_result = result.model.predict(result.test_dataset)
     with tempfile.TemporaryDirectory() as tmpdir:
-        result.model.dump(tmpdir)
+        fv3fit.dump(result.model, tmpdir)
         loaded_model = fv3fit.load(tmpdir)
     loaded_result = loaded_model.predict(result.test_dataset)
     xr.testing.assert_equal(loaded_result, original_result)

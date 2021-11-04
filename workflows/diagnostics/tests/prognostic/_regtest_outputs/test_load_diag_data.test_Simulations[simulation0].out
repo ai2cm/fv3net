@@ -228,40 +228,6 @@ variables:
 	float64 water_vapor_path(time, tile, y, x) ;
 		water_vapor_path:units = mm ;
 		water_vapor_path:long_name = water_vapor_path ;
-
-// global attributes:
-	:filename = sfc_dt_atmos.tile1.nc ;
-	:grid_tile = N/A ;
-	:grid_type = regular ;
-	:path = /mnt/data/rundir/sfc_dt_atmos.zarr ;
-	:title = default_experiment ;
-}xarray.Dataset {
-dimensions:
-	x_interface = 49 ;
-	x = 48 ;
-	y_interface = 49 ;
-	y = 48 ;
-	time = 104 ;
-	tile = 6 ;
-
-variables:
-	float64 x_interface(x_interface) ;
-		x_interface:cartesian_axis = X ;
-		x_interface:long_name = cell corner longitude ;
-		x_interface:units = degrees_E ;
-	float32 x(x) ;
-		x:cartesian_axis = X ;
-		x:long_name = T-cell longitude ;
-		x:units = degrees_E ;
-	float64 y_interface(y_interface) ;
-		y_interface:cartesian_axis = Y ;
-		y_interface:long_name = cell corner latitude ;
-		y_interface:units = degrees_N ;
-	float32 y(y) ;
-		y:cartesian_axis = Y ;
-		y:long_name = T-cell latitude ;
-		y:units = degrees_N ;
-	object time(time) ;
 	float32 PRESsfc(tile, time, y, x) ;
 		PRESsfc:cell_methods = time: point ;
 		PRESsfc:long_name = surface pressure ;
@@ -373,10 +339,6 @@ variables:
 		VORT850:cell_methods = time: point ;
 		VORT850:long_name = 850-mb vorticity ;
 		VORT850:units = 1/s ;
-	float32 area(tile, y, x) ;
-		area:cell_methods = time: point ;
-		area:long_name = cell area ;
-		area:units = m**2 ;
 	float32 h200(tile, time, y, x) ;
 		h200:cell_methods = time: point ;
 		h200:long_name = 200-mb height ;
@@ -397,22 +359,6 @@ variables:
 		kinetic_energy:cell_methods = time: point ;
 		kinetic_energy:long_name = Total KE ;
 		kinetic_energy:units = m^2/s^2 ;
-	float32 lat(tile, y, x) ;
-		lat:cell_methods = time: point ;
-		lat:long_name = latitude ;
-		lat:units = degrees_N ;
-	float32 latb(tile, y_interface, x_interface, y, x) ;
-		latb:cell_methods = time: point ;
-		latb:long_name = latitude ;
-		latb:units = degrees_N ;
-	float32 lon(tile, y, x) ;
-		lon:cell_methods = time: point ;
-		lon:long_name = longitude ;
-		lon:units = degrees_E ;
-	float32 lonb(tile, y_interface, x_interface, y, x) ;
-		lonb:cell_methods = time: point ;
-		lonb:long_name = longitude ;
-		lonb:units = degrees_E ;
 	float32 total_energy(tile, time, y, x) ;
 		total_energy:cell_methods = time: point ;
 		total_energy:long_name = Total Energy ;
@@ -431,9 +377,9 @@ variables:
 		w850:units = m/s ;
 
 // global attributes:
-	:filename = atmos_dt_atmos.tile1.nc ;
+	:filename = sfc_dt_atmos.tile1.nc ;
 	:grid_tile = N/A ;
 	:grid_type = regular ;
-	:path = /mnt/data/rundir/atmos_dt_atmos.zarr ;
+	:path = /mnt/data/rundir/sfc_dt_atmos.zarr ;
 	:title = default_experiment ;
 }

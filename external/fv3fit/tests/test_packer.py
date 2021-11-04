@@ -1,11 +1,12 @@
-from fv3fit._shared import ArrayPacker
+from fv3fit._shared import ArrayPacker, SliceConfig, PackerConfig
 from typing import Iterable
 from fv3fit._shared.packer import (
     unpack_matrix,
     pack,
     unpack,
     _unique_dim_name,
-    _count_features_2d,
+    count_features,
+    clip,
 )
 from fv3fit.keras._models.packer import get_unpack_layer, Unpack
 import pytest
@@ -98,8 +99,7 @@ def test_to_dataset(names, dims_list, array: np.ndarray):
     packer = ArrayPacker(SAMPLE_DIM, names)
     packer.to_array(dataset)  # must pack first to know dimension lengths
     result = packer.to_dataset(array)
-    # to_dataset does not preserve coordinates
-    xr.testing.assert_equal(result, dataset.drop(dataset.coords.keys()))
+    xr.testing.assert_equal(result, dataset)
 
 
 @pytest.mark.parametrize(
@@ -179,17 +179,64 @@ def test__unique_dim_name():
 
 
 def test_sklearn_pack(dataset: xr.Dataset, array: np.ndarray):
-    packed_array, _ = pack(dataset, "sample")
+    packed_array, _ = pack(dataset, ["sample"])
     np.testing.assert_almost_equal(packed_array, array)
 
 
 def test_sklearn_unpack(dataset: xr.Dataset):
-    packed_array, feature_index = pack(dataset, "sample")
-    unpacked_dataset = unpack(packed_array, "sample", feature_index)
+    packed_array, feature_index = pack(dataset, ["sample"])
+    unpacked_dataset = unpack(packed_array, ["sample"], feature_index)
     xr.testing.assert_allclose(unpacked_dataset, dataset)
 
 
-def test_count_features_2d():
+def test_sklearn_pack_unpack_with_clipping(dataset: xr.Dataset):
+    name = list(dataset.data_vars)[0]
+    if FEATURE_DIM in dataset[name].dims:
+        pack_config = PackerConfig({name: {FEATURE_DIM: SliceConfig(3, None)}})
+        packed_array, feature_index = pack(dataset, [SAMPLE_DIM], pack_config)
+        unpacked_dataset = unpack(packed_array, [SAMPLE_DIM], feature_index)
+        expected = {}
+        for k in dataset:
+            da = dataset[k].copy(deep=True)
+            indices = pack_config.clip.get(k, {})
+            for dim, slice_config in indices.items():
+                da = da.isel({dim: slice_config.slice})
+            expected[k] = da
+        xr.testing.assert_allclose(unpacked_dataset, xr.Dataset(expected))
+
+
+def test_clip(dataset: xr.Dataset):
+    name = list(dataset.data_vars)[0]
+    if FEATURE_DIM in dataset[name].dims:
+        indices = {name: {FEATURE_DIM: SliceConfig(4, 8)}}
+        clipped_data = clip(dataset, indices)
+        expected_da = dataset[name].assign_coords(
+            {dim: range(dataset.sizes[dim]) for dim in dataset[name].dims}
+        )
+        for dim, slice_config in indices[name].items():
+            expected_da = expected_da.isel({dim: slice_config.slice})
+        xr.testing.assert_identical(clipped_data[name], expected_da)
+
+
+def test_clip_differing_slices():
+    ds = get_dataset(
+        ["var1", "var2"], [[SAMPLE_DIM, FEATURE_DIM], [SAMPLE_DIM, FEATURE_DIM]]
+    )
+    clip_config = {
+        "var1": {FEATURE_DIM: SliceConfig(4, 8)},
+        "var2": {FEATURE_DIM: SliceConfig(None, 6, 2)},
+    }
+    clipped_data = clip(ds, clip_config)
+    for name in ds:
+        expected_da = ds[name].assign_coords(
+            {dim: range(ds.sizes[dim]) for dim in ds[name].dims}
+        )
+        for dim, slice_config in clip_config[name].items():
+            expected_da = expected_da.isel({dim: slice_config.slice})
+        xr.testing.assert_identical(clipped_data[name], expected_da)
+
+
+def test_count_features():
     SAMPLE_DIM_NAME = "axy"
     ds = xr.Dataset(
         data_vars={
@@ -200,10 +247,30 @@ def test_count_features_2d():
     )
     names = list(ds.data_vars.keys())
     assert len(names) == 3
-    out = _count_features_2d(names, ds, sample_dim_name=SAMPLE_DIM_NAME)
+    index = ds.to_stacked_array(
+        "feature", [SAMPLE_DIM_NAME], variable_dim="var"
+    ).indexes["feature"]
+    out = count_features(index, variable_dim="var")
     assert len(out) == len(names)
     for name in names:
         assert name in out
     assert out["a"] == 1
     assert out["b"] == 1
     assert out["c"] == 5
+
+
+def test_array_packer_dump_and_load(tmpdir):
+    dataset = get_dataset(["var1"], [[SAMPLE_DIM, FEATURE_DIM]])
+    packer_config = PackerConfig({"var1": {"z": SliceConfig(None, 2)}})
+    packer = ArrayPacker(SAMPLE_DIM, list(dataset.data_vars), packer_config)
+    packer.to_array(dataset)
+    with open(str(tmpdir.join("packer.yaml")), "w") as f:
+        packer.dump(f)
+    with open(str(tmpdir.join("packer.yaml"))) as f:
+        loaded_packer = ArrayPacker.load(f)
+    assert packer._pack_names == loaded_packer._pack_names
+    assert packer._n_features == loaded_packer._n_features
+    assert packer._sample_dim_name == loaded_packer._sample_dim_name
+    assert packer._config == packer_config
+    for orig, loaded in zip(packer._feature_index, loaded_packer._feature_index):
+        assert orig == loaded

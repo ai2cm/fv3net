@@ -172,7 +172,27 @@ The desired chunking can be specified for each diagnostic file to be output.
 Python Configuration Preparation
 --------------------------------
 
-A python API analog to ``prepare-config`` can also be used for configuring runs
+.. currentmodule:: runtime.segmented_run.prepare_config
 
-.. automodule:: runtime.segmented_run.prepare_config
-    :members:
+We also offer a python API equivalent to the prepare config script. The input to
+``prepare-config`` is represented by :py:class:`HighLevelConfig`. For example, here
+is how you initialize a run from a directory of timesteps.
+
+.. doctest::
+
+    >>> from runtime.segmented_run.prepare_config import HighLevelConfig, InitialCondition
+    >>> config = HighLevelConfig(
+    ...     base_version="v0.5",
+    ...     initial_conditions=InitialCondition(
+    ...         base_url="gs://base", timestep="20160101.000000")
+    ... )
+    >>> fv3config_dict_ = config.to_fv3config()
+    >>> fv3config_dict_["initial_conditions"][0]
+    {'source_location': 'gs://base/20160101.000000', 'source_name': '20160101.000000.fv_core.res.tile1.nc', 'target_location': 'INPUT', 'target_name': 'fv_core.res.tile1.nc', 'copy_method': 'copy'}
+
+At this point, you can use ``fv3config_dict_`` with any fv3config utilities. For instance::
+
+    import fv3config
+    fv3config.write_run_directory(fv3config_dict_, "rundir")
+
+

@@ -17,7 +17,6 @@ Packages
 
 :doc:`fv3kube <readme_links/fv3kube_readme>` contains utilities to handle submitting and monitoring fv3gfs-python jobs on kubernetes.
 
-:doc:`diagnostics_utils <readme_links/diagnostics_utils_readme>` processes training data from multiple sources into a diagnostic dataset.
 
 .. rubric:: VCM packages in other repositories:
 
@@ -46,4 +45,3 @@ fv3config_ (`docs <https://fv3config.readthedocs.io/en/latest/>`_) provides rout
     readme_links/synth_readme
     readme_links/report_readme
     readme_links/fv3kube_readme
-    readme_links/diagnostics_utils_readme

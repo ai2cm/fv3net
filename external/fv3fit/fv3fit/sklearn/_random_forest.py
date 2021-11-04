@@ -1,10 +1,11 @@
-from typing import Mapping
+import dataclasses
+from typing import Hashable, Mapping
 import logging
 import io
+import dacite
 import numpy as np
 from copy import copy
 import xarray as xr
-import pandas as pd
 import fsspec
 import joblib
 from .._shared import (
@@ -13,6 +14,9 @@ from .._shared import (
     Predictor,
     get_scaler,
     register_training_function,
+    multiindex_to_tuple,
+    tuple_to_multiindex,
+    PackerConfig,
 )
 from .._shared.config import RandomForestHyperparameters
 from .. import _shared
@@ -31,15 +35,6 @@ import yaml
 from vcm import safe
 
 
-def _multiindex_to_tuple(index: pd.MultiIndex) -> tuple:
-    return list(index.names), list(index.to_list())
-
-
-def _tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
-    names, list_ = d
-    return pd.MultiIndex.from_tuples(list_, names=names)
-
-
 def _parse_metadata_backward_compatible(metadata: dict) -> tuple:
     # first two cases here for backward compatibility (https://github.com/ai2cm/fv3net/issues/1403) # noqa: E501
     if isinstance(metadata, list) and len(metadata) == 3:
@@ -50,7 +45,8 @@ def _parse_metadata_backward_compatible(metadata: dict) -> tuple:
         input_variables = metadata["input_variables"]
         output_variables = metadata["output_variables"]
         output_features_tuple = metadata["output_features"]
-    return input_variables, output_variables, output_features_tuple
+        packer_config = metadata.get("packer_config", {})
+    return input_variables, output_variables, output_features_tuple, packer_config
 
 
 @register_training_function("sklearn_random_forest", RandomForestHyperparameters)
@@ -99,6 +95,7 @@ class RandomForest(Predictor):
             model=batch_regressor,
             scaler_type=hyperparameters.scaler_type,
             scaler_kwargs=hyperparameters.scaler_kwargs,
+            packer_config=hyperparameters.packer_config,
         )
         self.input_variables = self._model_wrapper.input_variables
         self.output_variables = self._model_wrapper.output_variables
@@ -212,11 +209,12 @@ class SklearnWrapper(Predictor):
 
     def __init__(
         self,
-        input_variables: Iterable[str],
-        output_variables: Iterable[str],
+        input_variables: Iterable[Hashable],
+        output_variables: Iterable[Hashable],
         model: _RegressorEnsemble,
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
+        packer_config: PackerConfig = PackerConfig({}),
     ) -> None:
         """
         Initialize the wrapper
@@ -233,18 +231,17 @@ class SklearnWrapper(Predictor):
         self.target_scaler: Optional[scaler.NormalizeTransform] = None
         self._input_variables = input_variables
         self._output_variables = output_variables
+        self.packer_config = packer_config
+        for name in self.packer_config.clip:
+            if name in self._output_variables:
+                raise NotImplementedError("Clipping for ML outputs is not implemented.")
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
     def _fit_batch(self, data: xr.Dataset):
-        x, _ = pack(
-            data[self.input_variables], SAMPLE_DIM_NAME  # type: ignore
-        )
-        y, self.output_features_ = pack(
-            data[self.output_variables], SAMPLE_DIM_NAME  # type: ignore
-        )
-        # https://github.com/pydata/xarray/pull/4144
+        x, _ = pack(data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config)
+        y, self.output_features_ = pack(data[self.output_variables], [SAMPLE_DIM_NAME])
 
         if self.target_scaler is None:
             self.target_scaler = self._init_target_scaler(data)
@@ -271,13 +268,15 @@ class SklearnWrapper(Predictor):
             logger.info(f"Batch {i+1} done fitting.")
 
     def _predict_on_stacked_data(self, stacked_data):
-        X, _ = pack(stacked_data[self.input_variables], SAMPLE_DIM_NAME)
+        X, _ = pack(
+            stacked_data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config
+        )
         y = self.model.predict(X)
         if self.target_scaler is not None:
             y = self.target_scaler.denormalize(y)
         else:
             raise ValueError("Target scaler not present.")
-        return unpack(y, SAMPLE_DIM_NAME, self.output_features_)
+        return unpack(y, [SAMPLE_DIM_NAME], self.output_features_)
 
     def predict(self, data):
         stacked_data = stack_non_vertical(
@@ -310,7 +309,8 @@ class SklearnWrapper(Predictor):
         metadata = {
             "input_variables": self.input_variables,
             "output_variables": self.output_variables,
-            "output_features": _multiindex_to_tuple(self.output_features_),
+            "output_features": multiindex_to_tuple(self.output_features_),
+            "packer_config": dataclasses.asdict(self.packer_config),
         }
 
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
@@ -333,10 +333,12 @@ class SklearnWrapper(Predictor):
             input_variables,
             output_variables,
             output_features_tuple,
+            packer_config_dict,
         ) = _parse_metadata_backward_compatible(metadata)
-        output_features_ = _tuple_to_multiindex(output_features_tuple)
+        output_features_ = tuple_to_multiindex(output_features_tuple)
+        packer_config = dacite.from_dict(PackerConfig, packer_config_dict)
 
-        obj = cls(input_variables, output_variables, model)
+        obj = cls(input_variables, output_variables, model, packer_config=packer_config)
         obj.target_scaler = scaler_obj
         obj.output_features_ = output_features_
 

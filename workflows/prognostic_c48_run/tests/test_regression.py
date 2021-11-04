@@ -1,12 +1,15 @@
 from pathlib import Path
 import json
+from typing import Mapping
 import fv3config
 import fv3fit
 import runtime.metrics
 import tempfile
 from datetime import timedelta
 import cftime
+import contextlib
 import numpy as np
+import os
 import pytest
 import xarray as xr
 import datetime
@@ -31,6 +34,7 @@ CHUNKS_PATH = "chunks.yaml"
 class ConfigEnum:
     nudging = "nudging"
     predictor = "predictor"
+    microphys_emulation = "microphys_emulation"
 
 
 default_fv3config = rf"""
@@ -346,7 +350,7 @@ RUNTIME = {"days": 0, "months": 0, "hours": 0, "minutes": RUNTIME_MINUTES, "seco
 def run_native(config, rundir):
     with tempfile.NamedTemporaryFile("w") as f:
         yaml.safe_dump(config, f)
-        fv3_script = Path(__file__).parent.parent.joinpath("runfv3").as_posix()
+        fv3_script = "runfv3"
         subprocess.check_call([fv3_script, "create", rundir, f.name])
         subprocess.check_call([fv3_script, "append", rundir])
 
@@ -510,6 +514,50 @@ def get_ml_config(model_path):
     return config
 
 
+def get_emulation_config():
+    config = yaml.safe_load(default_fv3config)
+
+    physics = config["namelist"]["gfs_physics_nml"]
+    physics["imp_physics"] = 99
+    physics["ncld"] = 1
+    physics["emulate_zc_microphysics"] = True
+    physics["save_zc_microphysics"] = True
+    physics["satmedmf"] = False
+    physics["hybedmf"] = True
+
+    fv_core = config["namelist"]["fv_core_nml"]
+    fv_core["nwat"] = 2
+    fv_core["do_sat_adj"] = False
+
+    config["diagnostics"] = [
+        {
+            "name": "diags.zarr",
+            "times": {"kind": "interval", "frequency": 900, "times": None},
+            "variables": [
+                "area",
+                "cnvprcp_after_physics",
+                "evaporation",
+                "physics_precip",
+                "storage_of_mass_due_to_fv3_physics",
+                "storage_of_specific_humidity_path_due_to_fv3_physics",
+                "storage_of_specific_humidity_path_due_to_microphysics",
+                "storage_of_total_water_path_due_to_fv3_physics",
+                "storage_of_internal_energy_path_due_to_fv3_physics",
+                "tendency_of_air_temperature_due_to_fv3_physics",
+                "tendency_of_eastward_wind_due_to_fv3_physics",
+                "tendency_of_northward_wind_due_to_fv3_physics",
+                "tendency_of_specific_humidity_due_to_fv3_physics",
+                "tendency_of_internal_energy_due_to_fv3_physics",
+                "total_precip_after_physics",
+                "total_precipitation_rate",
+                "water_vapor_path",
+            ],
+        }
+    ]
+
+    return config
+
+
 def _tendency_dataset():
     temperature_tendency = np.full((6, 8, 63, 12, 12), 0.1 / 86400)
     times = [
@@ -525,13 +573,47 @@ def _tendency_dataset():
     return xr.Dataset({"Q1": da})
 
 
-@pytest.fixture(scope="module", params=[ConfigEnum.predictor, ConfigEnum.nudging])
+@pytest.fixture(
+    scope="module",
+    params=[ConfigEnum.predictor, ConfigEnum.nudging, ConfigEnum.microphys_emulation],
+)
 def configuration(request):
     return request.param
 
 
+@contextlib.contextmanager
+def env_context(env_vars: Mapping):
+    orig = {k: os.environ[k] for k in env_vars if k in os.environ}
+    os.environ.update(env_vars)
+
+    yield
+
+    for k in env_vars:
+        del os.environ[k]
+    os.environ.update(orig)
+
+
 @pytest.fixture(scope="module")
-def completed_rundir(configuration, tmpdir_factory):
+def env_var_context(configuration, saved_model_path):
+
+    if configuration == ConfigEnum.microphys_emulation:
+
+        # Note: VAR_META_PATH is set during docker image creation
+        #       since that is static
+
+        env = {
+            "TF_MODEL_PATH": saved_model_path,
+            "OUTPUT_FREQ_SEC": str(900),
+        }
+    else:
+        env = {}
+
+    with env_context(env):
+        yield
+
+
+@pytest.fixture(scope="module")
+def completed_rundir(configuration, tmpdir_factory, env_var_context):
 
     model_path = str(tmpdir_factory.mktemp("model"))
     tendency_dataset_path = tmpdir_factory.mktemp("tendencies")
@@ -546,6 +628,9 @@ def completed_rundir(configuration, tmpdir_factory):
             str(tendency_dataset_path.join("ds.zarr")), consolidated=True
         )
         config = get_nudging_config(str(tendency_dataset_path.join("ds.zarr")))
+    elif configuration == ConfigEnum.microphys_emulation:
+        config = get_emulation_config()
+
     else:
         raise NotImplementedError()
 
@@ -633,7 +718,10 @@ def test_fv3run_python_mass_conserving(completed_segment, configuration):
 
 
 def test_fv3run_vertical_profile_statistics(completed_segment, configuration):
-    if configuration == ConfigEnum.nudging:
+    if (
+        configuration == ConfigEnum.nudging
+        or configuration == ConfigEnum.microphys_emulation
+    ):
         # no specific humidity limiter for nudging run
         pytest.skip()
     path = str(completed_segment.join(PROFILES_PATH))
@@ -645,3 +733,24 @@ def test_fv3run_vertical_profile_statistics(completed_segment, configuration):
         profiles = json.loads(line)
         assert "time" in profiles
         assert len(profiles["specific_humidity_limiter_active_global_sum"]) == npz
+
+
+def test_fv3run_emulation_zarr_out(completed_rundir, configuration, regtest):
+
+    if configuration != ConfigEnum.microphys_emulation:
+        pytest.skip()
+
+    emu_state_zarr = xr.open_zarr(str(completed_rundir.join("state_output.zarr")))
+    emu_state_zarr.info(regtest)
+
+
+def test_fv3run_emulation_nc_out(completed_segment, configuration, regtest):
+
+    if configuration != ConfigEnum.microphys_emulation:
+        pytest.skip()
+
+    emu_state_nc_path = completed_segment.join("netcdf_output").join(
+        "state_20160801.000000_1.nc"
+    )
+    emu_state_nc = xr.open_dataset(str(emu_state_nc_path))
+    emu_state_nc.info(regtest)

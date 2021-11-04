@@ -1,6 +1,6 @@
 from fv3fit._shared.config import RegularizerConfig
 import tensorflow as tf
-from typing import Sequence
+from typing import Optional, Sequence
 import dataclasses
 import tensorflow_addons as tfa
 
@@ -21,8 +21,39 @@ class TransposeInvariant(tf.keras.constraints.Constraint):
     """Constrains `Conv2D` kernel weights to be unchanged when transposed."""
 
     def __call__(self, w: tf.Tensor):
-        # Conv2D kernels are of shape (kernel_column, kernel_row, channels)
-        return tf.scalar_mul(0.5, w + tf.transpose(w, perm=(1, 0, 2)))
+        # Conv2D kernels are of shape
+        # (kernel_column, kernel_row, input_channel, output_channel)
+        return tf.scalar_mul(0.5, w + tf.transpose(w, perm=(1, 0, 2, 3)))
+
+
+class Diffusive(tf.keras.constraints.Constraint):
+    def __call__(self, w: tf.Tensor):
+        w = tf.maximum(w, 0.0)
+        w = tf.scalar_mul(0.5, w + tf.transpose(w, perm=(1, 0, 2, 3)))
+        w = tf.scalar_mul(0.5, w + tf.experimental.numpy.fliplr(w))
+        w = tf.scalar_mul(0.5, w + tf.experimental.numpy.flipud(w))
+        total = tf.reduce_sum(w)
+        return tf.scalar_mul(1.0 / total, w)
+
+
+class ConstraintCollection(tf.keras.constraints.Constraint):
+    """
+    Applies given constraints sequentially.
+
+    Note that if you give incompatible constraints, later constraints will
+    take precedence and it is not guaranteed that all constraints will be
+    satisfied. To know whether all constraints will be satisfied, you must
+    reason about what happens when the constraints are applied sequentially.
+    """
+
+    def __init__(self, constraints: Sequence[tf.keras.constraints.Constraint]):
+        super().__init__()
+        self._constraints = constraints
+
+    def __call__(self, w: tf.Tensor):
+        for constraint in self._constraints:
+            w = constraint(w)
+        return w
 
 
 @dataclasses.dataclass
@@ -34,6 +65,13 @@ class ConvolutionalNetworkConfig:
     square filters along the x- and y- dimensions (second- and third-last dimensions),
     followed by a final 1x1 convolutional layer producing the output tensor.
 
+    In "diffusive" mode, the convolutional kernels will take a weighted mean of input
+    features at nearby points to compute outputs at each step. If the number of filters
+    and number of input features is 1 and 'linear' activation function is used,
+    this will conserve the total amount of the input feature. Note that non-conservation
+    can still occur in this mode if the output is de-scaled using different mean and
+    standard deviation than the inputs.
+
     Attributes:
         filters: number of filters per convolutional layer, equal to
             number of neurons in each hidden layer
@@ -43,9 +81,14 @@ class ConvolutionalNetworkConfig:
         kernel_regularizer: configuration of regularization for hidden layer weights
         gaussian_noise: amount of gaussian noise to add to each hidden layer output
         spectral_normalization: if True, apply spectral normalization to hidden layers
+        activation_function: name of keras activation function to use on hidden layers
+        transpose_invariant: if True, all layer kernels will be transpose invariant
+        diffusive: if True, all layer kernels will have non-negative weights
+            which sum to 1 and are equal at equal distances from the center,
+            and bias will be removed from all layers
     """
 
-    filters: int = 8
+    filters: int = 32
     depth: int = 3
     kernel_size: int = 3
     kernel_regularizer: RegularizerConfig = dataclasses.field(
@@ -53,6 +96,9 @@ class ConvolutionalNetworkConfig:
     )
     gaussian_noise: float = 0.0
     spectral_normalization: bool = False
+    transpose_invariant: bool = True
+    diffusive: bool = False
+    activation_function: str = "relu"
 
     def __post_init__(self):
         if self.depth < 1:
@@ -62,6 +108,22 @@ class ConvolutionalNetworkConfig:
                 "filters=0 causes a floating point exception, "
                 "and we haven't written a workaround"
             )
+
+    @property
+    def _kernel_constraint(self) -> Optional[tf.keras.constraints.Constraint]:
+        constraints = []
+        if self.transpose_invariant:
+            constraints.append(TransposeInvariant())
+        if self.diffusive:
+            constraints.append(Diffusive())
+
+        if len(constraints) == 0:
+            constraint = None
+        elif len(constraints) == 1:
+            constraint = constraints[0]
+        else:
+            constraint = ConstraintCollection(constraints=constraints)
+        return constraint
 
     def build(
         self, x_in: tf.Tensor, n_features_out: int, label: str = ""
@@ -88,7 +150,8 @@ class ConvolutionalNetworkConfig:
         """
         hidden_outputs = []
         x = x_in
-        transpose_invariant = TransposeInvariant()
+        use_bias = not self.diffusive
+
         for i in range(self.depth - 1):
             if self.gaussian_noise > 0.0:
                 x = tf.keras.layers.GaussianNoise(
@@ -97,11 +160,13 @@ class ConvolutionalNetworkConfig:
             hidden_layer = tf.keras.layers.Conv2D(
                 filters=self.filters,
                 kernel_size=self.kernel_size,
-                activation=tf.keras.activations.relu,
+                padding="same",
+                activation=self.activation_function,
                 data_format="channels_last",
                 kernel_regularizer=self.kernel_regularizer.instance,
                 name=f"convolutional_{label}_{i}",
-                kernel_constraint=transpose_invariant,
+                kernel_constraint=self._kernel_constraint,
+                use_bias=use_bias,
             )
             if self.spectral_normalization:
                 hidden_layer = tfa.layers.SpectralNormalization(
@@ -112,8 +177,11 @@ class ConvolutionalNetworkConfig:
         output = tf.keras.layers.Conv2D(
             filters=n_features_out,
             kernel_size=(1, 1),
+            padding="same",
             activation="linear",
             data_format="channels_last",
             name=f"convolutional_network_{label}_output",
+            kernel_constraint=self._kernel_constraint,
+            use_bias=use_bias,
         )(x)
         return ConvolutionalNetwork(hidden_outputs=hidden_outputs, output=output)

@@ -71,6 +71,8 @@ GLOBAL_AVERAGE_PHYSICS_VARS = [
     "SOILM",
 ]
 
+GLOBAL_AVERAGE_VARS = GLOBAL_AVERAGE_DYCORE_VARS + GLOBAL_AVERAGE_PHYSICS_VARS
+
 GLOBAL_BIAS_PHYSICS_VARS = [
     "column_integrated_Q1",
     "column_integrated_Q2",
@@ -84,6 +86,8 @@ GLOBAL_BIAS_PHYSICS_VARS = [
     "MAXWIND10m",
     "SOILM",
 ]
+
+GLOBAL_BIAS_VARS = GLOBAL_AVERAGE_DYCORE_VARS + GLOBAL_BIAS_PHYSICS_VARS
 
 DIURNAL_CYCLE_VARS = [
     "column_integrated_dQ1",
@@ -136,7 +140,12 @@ PRESSURE_INTERPOLATED_VARS = [
 
 PRECIP_RATE = "total_precip_to_surface"
 MASS_STREAMFUNCTION_MID_TROPOSPHERE = "mass_streamfunction_300_700_zonal_and_time_mean"
-HISTOGRAM_BINS = {PRECIP_RATE: np.logspace(-1, np.log10(500), 101)}
+WVP = "water_vapor_path"
+COL_DRYING = "minus_column_integrated_q2"
+HISTOGRAM_BINS = {
+    PRECIP_RATE: np.logspace(-1, np.log10(500), 101),
+    WVP: np.linspace(-10, 90, 101),
+}
 PERCENTILES = [25, 50, 75, 90, 99, 99.9]
 TOP_LEVEL_METRICS = {
     "rmse_5day": ["h500", "tmp850"],

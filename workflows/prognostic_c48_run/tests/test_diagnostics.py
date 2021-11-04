@@ -99,6 +99,24 @@ def test_DiagnosticFile_time_selection():
     sink.sink.assert_called_once()
 
 
+def test_DiagnosticFile_does_not_write_twice():
+    # mock the input data
+    t1 = datetime(year=2016, month=8, day=1, hour=0, minute=15)
+
+    sink = Mock()
+    diag_file = DiagnosticFile(times=TimeContainer([t1]), variables=[], sink=sink)
+    diag_file.observe(t1, {})
+
+    # force flush to disk
+    diag_file.flush()
+    diag_file.flush()
+    sink.sink.assert_called_once()
+
+    # check that garbage collection does not write last time again
+    del diag_file
+    sink.sink.assert_called_once()
+
+
 def test_DiagnosticFile_variable_selection():
 
     data_vars = {"a": (["x"], [1.0]), "b": (["x"], [2.0])}
