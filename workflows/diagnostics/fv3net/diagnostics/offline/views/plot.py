@@ -193,7 +193,6 @@ def plot_histogram(ds, varname: str, xscale="linear", yscale="linear"):
     bin_name = varname.replace("histogram", "bins")
     v = ds[varname]
     units = units_from_name(varname.replace("_histogram", ""))
-    print(units, varname.replace("_histogram", ""))
     ax.step(v[bin_name], v, where="post", linewidth=1)
     ax.set_xlabel(f"{getattr(v, 'long_name', v.name)} {units}")
     ax.set_ylabel(f"Frequency {units}^-1")
@@ -233,12 +232,6 @@ def plot_histogram2d(ds, xname: str, yname: str):
 
     x_units = units_from_name(x_bin_widths.name.replace("_bin_width_hist_2d", ""))
     y_units = units_from_name(y_bin_widths.name.replace("_bin_width_hist_2d", ""))
-    print(
-        x_units,
-        y_units,
-        x_bin_widths.name.replace("_bin_width_hist_2d", ""),
-        y_bin_widths.name.replace("_bin_width_hist_2d", ""),
-    )
     ax.set_xlabel(f"{xname} {x_units}")
     ax.set_ylabel(f"{yname} {y_units}")
     ax.set_xlim([xedges[0], xedges[-1]])
