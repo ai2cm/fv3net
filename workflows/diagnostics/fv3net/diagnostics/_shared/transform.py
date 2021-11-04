@@ -178,13 +178,13 @@ def _inner_join_time(
     """ Subset times within the prognostic data to be within the verification data,
     as necessary and vice versa, and return the subset datasets
     """
+
     inner_join_time = xr.merge(
         [
             prognostic.time.rename("prognostic_time"),
             verification.time.rename("verification_time"),
         ],
         join="inner",
-        compat="override",
     )
 
     return (
