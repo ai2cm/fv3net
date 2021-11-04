@@ -25,6 +25,8 @@ def histogram(da: xr.DataArray, **kwargs) -> Tuple[xr.DataArray, xr.DataArray]:
         count_da[coord_name].attrs["units"] = da.units
         width_da[coord_name].attrs["units"] = da.units
         width_da.attrs["units"] = da.units
+    if "long_name" in da.attrs:
+        count_da[coord_name].attrs["long_name"] = da.long_name
     return count_da, width_da
 
 
@@ -60,4 +62,5 @@ def histogram2d(
     if "units" in y.attrs:
         ywidth_da[ycoord_name].attrs["units"] = y.units
         ywidth_da.attrs["units"] = y.units
+
     return count_da, xwidth_da, ywidth_da
