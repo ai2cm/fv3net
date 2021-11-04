@@ -1,5 +1,6 @@
 from typing import Sequence
 import fv3fit
+from fv3fit.keras._models.shared.sequences import XyMultiArraySequence
 import numpy as np
 import tensorflow as tf
 import pytest
@@ -54,25 +55,37 @@ def test_standard_input_gives_standard_output():
     assert out_std > 0.1
 
 
+def get_X_y(ds, X_names, y_names):
+    return tuple(ds[n].values for n in X_names), tuple(ds[n].values for n in y_names)
+
+
 def test_convolutional_network_build_standard_input_gives_standard_output():
     fv3fit.set_random_seed(0)
     nt, nx, ny, nz = 5, 12, 12, 15
     ds = xr.Dataset(
         data_vars={
             "var_in": xr.DataArray(
-                np.random.randn(nt, nx, ny, nz), dims=["_fv3fit_sample", "x", "y", "z"],
+                np.random.randn(nt, 6, nx, ny, nz),
+                dims=["sample", "tile", "x", "y", "z"],
             ),
             "var_out": xr.DataArray(
-                np.random.randn(nt, nx, ny, nz), dims=["_fv3fit_sample", "x", "y", "z"],
+                np.random.randn(nt, 6, nx, ny, nz),
+                dims=["sample", "tile", "x", "y", "z"],
             ),
         }
     )
     config = ConvolutionalHyperparameters(
         input_variables=["var_in"], output_variables=["var_out"]
     )
-    _, predict_model = build_model(config=config, batch=ds)
-    var_in = ds["var_in"]
-    out = predict_model.predict([var_in.values])
+    X, y = XyMultiArraySequence(
+        X_names=["var_in"],
+        y_names=["var_out"],
+        dataset_sequence=[ds],
+        unstacked_dims=["x", "y", "z"],
+        n_halo=config.convolutional_network.halos_required,
+    )[0]
+    _, predict_model = build_model(config=config, batch=ds, X=X, y=y)
+    out = predict_model.predict(X)
     np.testing.assert_almost_equal(np.mean(out), 0.0, decimal=1)
     out_std = np.std(out)
     # std isn't going to be 1 because of relu activation function, should be less
@@ -86,22 +99,32 @@ def test_convolutional_network_build_initial_loss_near_one():
     ds = xr.Dataset(
         data_vars={
             "var_in": xr.DataArray(
-                np.random.randn(nt, nx, ny, nz), dims=["_fv3fit_sample", "x", "y", "z"],
+                np.random.randn(nt, 6, nx, ny, nz),
+                dims=["sample", "tile", "x", "y", "z"],
             ),
             "var_out": xr.DataArray(
-                np.random.randn(nt, nx, ny, nz), dims=["_fv3fit_sample", "x", "y", "z"],
+                np.random.randn(nt, 6, nx, ny, nz),
+                dims=["sample", "tile", "x", "y", "z"],
             ),
         }
     )
     config = ConvolutionalHyperparameters(
         input_variables=["var_in"], output_variables=["var_out"]
     )
-    _, predict_model = build_model(config=config, batch=ds)
-    var_in = ds["var_in"]
-    out = predict_model.predict([var_in.values])
-    np.testing.assert_allclose(np.std(ds["var_out"].values - out), 1.0, atol=0.3)
-    loss = ConvolutionalHyperparameters.loss.loss(std=np.std(var_in, axis=(0, 1, 2)))
-    np.testing.assert_allclose(loss(ds["var_out"].values, out), 1.0, atol=0.3)
+    X, y = XyMultiArraySequence(
+        X_names=["var_in"],
+        y_names=["var_out"],
+        dataset_sequence=[ds],
+        unstacked_dims=["x", "y", "z"],
+        n_halo=config.convolutional_network.halos_required,
+    )[0]
+    _, predict_model = build_model(config=config, batch=ds, X=X, y=y)
+    out = predict_model.predict(X)
+    np.testing.assert_allclose(np.std(y - out), 1.0, atol=0.3)
+    loss = ConvolutionalHyperparameters.loss.loss(
+        std=np.std(ds["var_out"], axis=(0, 1, 2, 3))
+    )
+    np.testing.assert_allclose(loss(y, out), 1.0, atol=0.3)
 
 
 def test_diffusive_constraint():
@@ -118,20 +141,30 @@ def test_diffusive_constraint():
 
 
 @pytest.mark.parametrize(
-    "input_shape, kernel_size, depth, features_out",
+    "input_shape, kernel_size, depth, features_out, base_output_shape",
     [
-        pytest.param((3, 10, 10, 2), 3, 1, 5, id="no_convolutions"),
-        pytest.param((3, 10, 10, 2), 3, 2, 5, id="one_convolution"),
-        pytest.param((3, 10, 10, 2), 5, 2, 5, id="one_convolution_larger_kernel"),
-        pytest.param((3, 10, 10, 2), 3, 3, 5, id="two_convolutions"),
+        pytest.param((3, 10, 10, 2), 3, 1, 5, (3, 10, 10), id="no_convolutions"),
+        pytest.param((3, 10, 10, 2), 3, 2, 5, (3, 8, 8), id="one_convolution"),
         pytest.param(
-            (3, 11, 15, 2), 3, 3, 5, id="two_convolutions_different_input_shape",
+            (3, 10, 10, 2), 5, 2, 5, (3, 6, 6), id="one_convolution_larger_kernel"
         ),
-        pytest.param((3, 10, 10, 2), 3, 2, 10, id="one_convolution_more_filters"),
+        pytest.param((3, 10, 10, 2), 3, 3, 5, (3, 6, 6), id="two_convolutions"),
+        pytest.param(
+            (3, 11, 15, 2),
+            3,
+            3,
+            5,
+            (3, 7, 11),
+            id="two_convolutions_different_input_shape",
+        ),
+        pytest.param(
+            (3, 10, 10, 2), 3, 2, 10, (3, 8, 8), id="one_convolution_more_filters"
+        ),
     ],
 )
-def test_output_is_correct_shape(input_shape, kernel_size, depth, features_out):
-    base_output_shape = input_shape[:3]
+def test_output_is_correct_shape(
+    input_shape, kernel_size, depth, features_out, base_output_shape
+):
     config = fv3fit.ConvolutionalNetworkConfig(kernel_size=kernel_size, depth=depth)
     array = np.random.randn(*input_shape)
     convolutional_network = config.build(array, n_features_out=features_out)

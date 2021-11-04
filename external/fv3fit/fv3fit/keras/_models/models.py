@@ -35,10 +35,9 @@ from ..._shared.config import (
 import numpy as np
 import os
 from ..._shared import get_dir, put_dir
-from ._sequences import _XyArraySequence
 from .normalizer import LayerStandardScaler
 from .loss import get_weighted_mse, get_weighted_mae
-from .shared import DenseNetworkConfig, TrainingLoopConfig, EpochResult
+from .shared import DenseNetworkConfig, TrainingLoopConfig, EpochResult, XyArraySequence
 from loaders.batches import Take
 import yaml
 from vcm import safe
@@ -231,7 +230,7 @@ class DenseModel(Predictor):
 
         random_state = np.random.RandomState(np.random.get_state()[1][0])
         stacked_batches = StackedBatches(batches, random_state)
-        Xy = _XyArraySequence(self.X_packer, self.y_packer, stacked_batches)
+        Xy = XyArraySequence(self.X_packer, self.y_packer, stacked_batches)
         if self._model is None:
             X, y = Xy[0]
             n_features_in, n_features_out = X.shape[-1], y.shape[-1]

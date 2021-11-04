@@ -3,12 +3,12 @@ import pytest
 import xarray as xr
 from typing import Sequence
 from fv3fit._shared.stacking import (
-    _shuffled,
+    shuffled,
     _get_chunk_indices,
-    _check_empty,
+    check_empty,
     stack_non_vertical,
     stack,
-    _preserve_samples_per_batch,
+    preserve_samples_per_batch,
     StackedBatches,
     SAMPLE_DIM_NAME,
 )
@@ -75,9 +75,9 @@ def test__check_empty(gridded_dataset, expected_error):
     no_nan = ds_grid.dropna(s_dim)
     if expected_error is not None:
         with pytest.raises(expected_error):
-            _check_empty(no_nan)
+            check_empty(no_nan)
     else:
-        _check_empty(no_nan)
+        check_empty(no_nan)
 
 
 @pytest.mark.parametrize(
@@ -90,7 +90,7 @@ def test__preserve_samples_per_batch(gridded_dataset):
 
     multi_ds = xr.concat([gridded_dataset] * num_multiple, dim=d_dim)
     stacked = stack_non_vertical(multi_ds)
-    thinned = _preserve_samples_per_batch(stacked)
+    thinned = preserve_samples_per_batch(stacked)
     orig_stacked = stack_non_vertical(gridded_dataset)
 
     samples_per_batch_diff = thinned.sizes[s_dim] - orig_stacked.sizes[s_dim]
@@ -105,7 +105,7 @@ def test__preserve_samples_per_batch(gridded_dataset):
 def test__preserve_samples_per_batch_not_multi(gridded_dataset):
     s_dim = SAMPLE_DIM_NAME
     stacked = stack_non_vertical(gridded_dataset)
-    result = _preserve_samples_per_batch(stacked)
+    result = preserve_samples_per_batch(stacked)
     assert result.sizes[s_dim] == stacked.sizes[s_dim]
 
 
@@ -129,12 +129,12 @@ def _stacked_dataset(sample_dim):
 def test__shuffled():
     dataset = _stacked_dataset(SAMPLE_DIM_NAME)
     dataset.isel({SAMPLE_DIM_NAME: 1})
-    _shuffled(np.random.RandomState(1), dataset)
+    shuffled(np.random.RandomState(1), [dataset])
 
 
 def test__shuffled_dask():
     dataset = _stacked_dataset(SAMPLE_DIM_NAME).chunk()
-    _shuffled(np.random.RandomState(1), dataset)
+    shuffled(np.random.RandomState(1), [dataset])
 
 
 def test_multiple_unstacked_dims():

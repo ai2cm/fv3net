@@ -13,6 +13,7 @@ import os
 from ...._shared import get_dir, put_dir
 import yaml
 import numpy as np
+from .halos import append_halos
 
 
 @io.register("all-keras")
@@ -33,6 +34,7 @@ class PureKerasModel(Predictor):
         output_metadata: Iterable[Dict[str, Any]],
         model: tf.keras.Model,
         unstacked_dims: Optional[Sequence[str]] = None,
+        n_halo: int = 0,
     ):
         """Initialize the predictor
         
@@ -44,12 +46,14 @@ class PureKerasModel(Predictor):
             model: keras model to wrap
             unstacked_dims: if given, stacking should leave these dimensions in place.
                 by default uses z-dimension names from fv3gfs.util
+            n_halo: if given, number of halo points required in input data
         """
         super().__init__(input_variables, output_variables)
         self.input_variables = input_variables
         self.output_variables = output_variables
         self._output_metadata = output_metadata
         self.model = model
+        self._n_halo = n_halo
         if unstacked_dims is None:
             self._unstacked_dims: Sequence[str] = Z_DIM_NAMES
         else:
@@ -71,6 +75,7 @@ class PureKerasModel(Predictor):
                 config.get("output_metadata", None),
                 model,
                 unstacked_dims=config.get("unstacked_dims", None),
+                n_halo=config.get("n_halo", 0),
             )
             return obj
 
@@ -97,6 +102,8 @@ class PureKerasModel(Predictor):
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
+        if self._n_halo > 0:
+            X = append_halos(ds=X, n_halo=self._n_halo)
         X_stacked = stack(X, unstacked_dims=self._unstacked_dims)
         inputs = [X_stacked[name].values for name in self.input_variables]
         outputs = self.model.predict(inputs)
@@ -145,6 +152,7 @@ class PureKerasModel(Predictor):
                             "output_variables": self.output_variables,
                             "output_metadata": self._output_metadata,
                             "unstacked_dims": self._unstacked_dims,
+                            "n_halo": self._n_halo,
                         }
                     )
                 )

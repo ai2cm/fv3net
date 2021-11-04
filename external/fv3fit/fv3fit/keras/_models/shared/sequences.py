@@ -5,13 +5,22 @@ import xarray as xr
 import numpy as np
 import tensorflow as tf
 from typing import Sequence, Tuple, List, Any
+from .halos import append_halos
+import fv3gfs.util
 
-from ..._shared.packer import ArrayPacker
+from fv3fit._shared.packer import ArrayPacker
+from fv3fit._shared.stacking import (
+    stack,
+    check_empty,
+    preserve_samples_per_batch,
+    shuffled,
+    SAMPLE_DIM_NAME,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class _XyArraySequence(tf.keras.utils.Sequence):
+class XyArraySequence(tf.keras.utils.Sequence):
     """
     Wrapper object converting a sequence of batch datasets
     to a sequence of input/output numpy arrays.
@@ -37,14 +46,15 @@ class _XyArraySequence(tf.keras.utils.Sequence):
         return X, y
 
 
-class _XyMultiArraySequence(tf.keras.utils.Sequence):
+class XyMultiArraySequence(tf.keras.utils.Sequence):
     """
-    Wrapper object converting a sequence of batch datasets
-    to a sequence of tuples of input/output numpy arrays.
+    Wrapper object converting a sequence of unstacked batch datasets
+    to a stacked, shuffled sequence of tuples of input/output numpy arrays.
 
     These tuples contain one unpacked numpy array for each input/output,
-    in contrast to _XyArraySequence which is specialized to the case
-    of a single input/output of packed arrays.
+    in contrast to XyArraySequence which is specialized to the case
+    of a single input/output of packed arrays. This class also performs
+    the responsibilities of StackedBatches, unlike XyArraySequence
     """
 
     def __init__(
@@ -52,22 +62,36 @@ class _XyMultiArraySequence(tf.keras.utils.Sequence):
         X_names: Sequence[str],
         y_names: Sequence[str],
         dataset_sequence: Sequence[xr.Dataset],
+        unstacked_dims=fv3gfs.util.Z_DIMS,
+        n_halo: int = 0,
     ):
         self.X_names = X_names
         self.y_names = y_names
         self.dataset_sequence = dataset_sequence
+        self.n_halo = n_halo
+        self.unstacked_dims = unstacked_dims
 
     def __len__(self) -> int:
         return len(self.dataset_sequence)
 
     def __getitem__(self, idx) -> Tuple[np.ndarray, np.ndarray]:
         ds = self.dataset_sequence[idx]
-        X = tuple(ds[name].values for name in self.X_names)
-        y = tuple(ds[name].values for name in self.y_names)
+        X_y_datasets = [ds[self.X_names], ds[self.y_names]]
+        X_y_datasets[0] = append_halos(X_y_datasets[0], n_halo=self.n_halo)
+        for i in range(2):
+            X_y_datasets[i] = stack(
+                X_y_datasets[i], unstacked_dims=self.unstacked_dims
+            ).dropna(dim=SAMPLE_DIM_NAME)
+            X_y_datasets[i] = check_empty(X_y_datasets[i])
+            X_y_datasets[i] = preserve_samples_per_batch(X_y_datasets[i])
+        X_y_datasets = shuffled(np.random, X_y_datasets)
+        X_ds, y_ds = X_y_datasets
+        X = tuple(X_ds[name].values for name in self.X_names)
+        y = tuple(y_ds[name].values for name in self.y_names)
         return X, y
 
 
-class _ThreadedSequencePreLoader(tf.keras.utils.Sequence):
+class ThreadedSequencePreLoader(tf.keras.utils.Sequence):
     """
     Wrapper object for using a threaded pre-load to provide
     items for a generator.
