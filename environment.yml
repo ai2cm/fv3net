@@ -21,3 +21,6 @@ dependencies:
   - coverage>=5
   # newer pip version 20.3 does not work when constraints have extras
   - pip==20.2.4
+  # setuptools master broken 2021-11-03 https://github.com/pypa/setuptools/issues/2849
+  # remove this once resolved
+  - setuptools<=58.4
