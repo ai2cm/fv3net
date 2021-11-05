@@ -1,13 +1,19 @@
 from fv3net.diagnostics._shared.registry import Registry
 import fv3net.diagnostics._shared.transform as transform
-from fv3net.diagnostics._shared.constants import DiagArg, HORIZONTAL_DIMS
+from fv3net.diagnostics._shared.constants import (
+    DiagArg,
+    HORIZONTAL_DIMS,
+    COL_DRYING,
+    WVP,
+    HISTOGRAM_BINS,
+)
 import logging
 import numpy as np
 import pandas as pd
 from typing import Sequence, Tuple, Dict, Union, Mapping, Optional
 import xarray as xr
 
-from vcm import thermo, safe, weighted_average, local_time
+from vcm import thermo, safe, weighted_average, local_time, histogram, histogram2d
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +27,7 @@ DOMAINS = (
 SURFACE_TYPE = "land_sea_mask"
 SURFACE_TYPE_ENUMERATION = {0.0: "sea", 1.0: "land", 2.0: "sea"}
 DERIVATION_DIM = "derivation"
+COL_MOISTENING = "column_integrated_Q2"
 
 
 def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Dict[str, xr.DataArray]:
@@ -245,6 +252,33 @@ def zonal_mean(
         )
     latitude_midpoints = [x.item().mid for x in zm["latitude"]]
     return zm.assign_coords(latitude=latitude_midpoints)
+
+
+def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:
+    counts = xr.Dataset()
+    col_drying = -ds[COL_MOISTENING].rename(COL_DRYING)
+    col_drying.attrs["units"] = ds[COL_MOISTENING].attrs.get("units")
+    bins = [HISTOGRAM_BINS[WVP], np.linspace(-50, 150, 101)]
+
+    counts, wvp_bins, q2_bins = histogram2d(ds[WVP], col_drying, bins=bins)
+    return xr.Dataset(
+        {
+            f"{WVP}_versus_{COL_DRYING}": counts,
+            f"{WVP}_bin_width": wvp_bins,
+            f"{COL_DRYING}_bin_width": q2_bins,
+        }
+    )
+
+
+def _assign_source_attrs(
+    diagnostics_ds: xr.Dataset, source_ds: xr.Dataset
+) -> xr.Dataset:
+    """Get attrs for each variable in diagnostics_ds from corresponding in source_ds."""
+    for variable in diagnostics_ds:
+        if variable in source_ds:
+            attrs = source_ds[variable].attrs
+            diagnostics_ds[variable] = diagnostics_ds[variable].assign_attrs(attrs)
+    return diagnostics_ds
 
 
 for mask_type in ["global", "sea", "land"]:
@@ -528,3 +562,46 @@ def time_mean(diag_arg):
             dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
         )
         return ds.mean("time")
+
+
+@diagnostics_registry.register("hist_2d")
+@transform.apply(transform.mask_to_sfc_type, "sea")
+@transform.apply(transform.mask_to_sfc_type, "tropics20")
+def compute_hist_2d(diag_arg: DiagArg):
+    histograms = []
+    if COL_MOISTENING in diag_arg.prediction and WVP in diag_arg.prediction:
+        for ds in [diag_arg.prediction, diag_arg.verification]:
+            logger.info("Computing joint histogram of water vapor path versus Q2")
+            hist = _compute_wvp_vs_q2_histogram(ds).squeeze()
+            histograms.append(_assign_source_attrs(hist, ds))
+        return xr.concat(
+            histograms, dim=pd.Index(["predict", "target"], name=DERIVATION_DIM)
+        )
+    else:
+        return xr.Dataset()
+
+
+@diagnostics_registry.register("histogram")
+@transform.apply(transform.subset_variables, [WVP, COL_MOISTENING])
+def compute_histogram(diag_arg: DiagArg):
+    logger.info("Computing histograms for physics diagnostics")
+    histograms = []
+    if COL_MOISTENING in diag_arg.prediction and WVP in diag_arg.prediction:
+        for ds in [diag_arg.prediction, diag_arg.verification]:
+            ds[COL_DRYING] = -ds[COL_MOISTENING]
+            ds[COL_DRYING].attrs["units"] = getattr(
+                ds[COL_MOISTENING], "units", "mm/day"
+            )
+            counts = xr.Dataset()
+            for varname in ds.data_vars:
+                count, width = histogram(
+                    ds[varname], bins=HISTOGRAM_BINS[varname.lower()], density=True
+                )
+                counts[varname] = count
+                counts[f"{varname}_bin_width"] = width
+            histograms.append(_assign_source_attrs(counts, ds))
+        return xr.concat(
+            histograms, dim=pd.Index(["predict", "target"], name=DERIVATION_DIM)
+        )
+    else:
+        return xr.Dataset()
