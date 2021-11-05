@@ -204,7 +204,6 @@ def plot_histogram(ds, varname: str, xscale="linear", yscale="linear"):
     ax.set_yscale(yscale)
     ax.set_ylim([0, None])
     ax.legend()
-    ax.set_title(source)
     fig.tight_layout()
     return fig
 
