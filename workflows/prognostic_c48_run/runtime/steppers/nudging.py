@@ -10,7 +10,7 @@ from runtime.nudging import (
 )
 from runtime.diagnostics import compute_diagnostics
 from runtime.names import SST, TSFC
-from .prescriber import get_reference_surface_temperatures
+from .prescriber import sst_update_from_reference
 
 
 class PureNudger:
@@ -47,13 +47,13 @@ class PureNudger:
     def __call__(self, time, state):
         reference = self._get_reference_state(time)
         tendencies = get_nudging_tendency(state, reference, self._nudging_timescales)
-        ssts = get_reference_surface_temperatures(state, reference)
+        state_updates = sst_update_from_reference(state, reference)
 
         reference = {
             f"{key}_reference": reference_state
             for key, reference_state in reference.items()
         }
-        return tendencies, reference, ssts
+        return tendencies, reference, state_updates
 
     def get_diagnostics(self, state, tendency):
         diags = compute_diagnostics(state, tendency, self.label, self.hydrostatic)

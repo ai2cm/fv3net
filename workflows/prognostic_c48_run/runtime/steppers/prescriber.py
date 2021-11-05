@@ -128,9 +128,18 @@ class Prescriber:
     def __call__(self, time, state):
         diagnostics: Diagnostics = {}
         prescribed_timestep: xr.Dataset = self._prescribed_ds.sel(time=time)
-        state_updates: State = {
-            name: prescribed_timestep[name] for name in prescribed_timestep.data_vars
-        }
+        state_updates: State = {}
+        for name in prescribed_timestep.data_vars:
+            if name == SST:
+                # this assumes that if only the sea surface temperature is to
+                # be updated and not land as well, the prescribed dataarray should be
+                # "ocean_surface_temperature". If "surface_temperature" is
+                # the prescribed variable, all points will be updated.
+                state_updates.update(
+                    sst_update_from_reference(prescribed_timestep, state, SST)
+                )
+            else:
+                state_updates[name] = prescribed_timestep[name]
         for name in state_updates.keys():
             diagnostics[name] = state_updates[name]
         tendency: Tendencies = {}
@@ -166,26 +175,33 @@ def _open_ds(dataset_key: str, consolidated: bool) -> xr.Dataset:
     return ds
 
 
-def get_reference_surface_temperatures(state: State, reference: State) -> State:
-    """
-    Set the sea surface and surface temperatures in a model state to values in
-    a reference state. Useful for maintaining consistency between a nudged run
-    and reference state.
-    """
-    state = {
-        SST: _sst_from_reference(reference[TSFC], state[SST], state[MASK]),
-        TSFC: _sst_from_reference(reference[TSFC], state[TSFC], state[MASK]),
-    }
-    return state
-
-
 def _sst_from_reference(
     reference_surface_temperature: xr.DataArray,
     surface_temperature: xr.DataArray,
     land_sea_mask: xr.DataArray,
 ) -> xr.DataArray:
+    # prescribes SST but does not update state surface temperature over land
     return xr.where(
         land_sea_mask.values.round().astype("int") == 0,
         reference_surface_temperature,
         surface_temperature,
     ).assign_attrs(units=surface_temperature.units)
+
+
+def sst_update_from_reference(
+    state: State, reference: State, reference_sst_name=TSFC
+) -> State:
+    """
+    Set the sea surface and surface temperatures in a model state to values in
+    a reference state. Useful for maintaining consistency between a nudged run
+    and reference state.
+    """
+    state_updates: State = {
+        SST: _sst_from_reference(
+            reference[reference_sst_name], state[SST], state[MASK]
+        ),
+        TSFC: _sst_from_reference(
+            reference[reference_sst_name], state[TSFC], state[MASK]
+        ),
+    }
+    return state_updates

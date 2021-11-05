@@ -1,4 +1,9 @@
-from runtime.steppers.prescriber import PrescriberConfig, Prescriber, get_timesteps
+from runtime.steppers.prescriber import (
+    PrescriberConfig,
+    Prescriber,
+    get_timesteps,
+    _sst_from_reference,
+)
 from fv3gfs.util.testing import DummyComm
 import fv3gfs.util
 import numpy as np
@@ -154,3 +159,19 @@ def test_no_tendencies(prescriber_output):
     tendencies_list = prescriber_output[1]
     for tendencies in tendencies_list:
         assert not tendencies
+
+
+def test__sst_from_reference():
+    land_sea_mask = xr.DataArray(
+        np.array([0.0, 1.0, 2.0]), dims=["x"], attrs={"units": None}
+    )
+    reference_sfc_temp = xr.DataArray(
+        np.array([1.0, 1.0, 1.0]), dims=["x"], attrs={"units": "degK"}
+    )
+    model_sfc_temp = xr.DataArray(
+        np.array([-1.0, -1.0, -1.0]), dims=["x"], attrs={"units": "degK"}
+    )
+    assert np.allclose(
+        _sst_from_reference(reference_sfc_temp, model_sfc_temp, land_sea_mask),
+        [1.0, -1.0, -1.0],
+    )
