@@ -31,13 +31,15 @@ from fv3net.diagnostics.offline.compute import (
 )
 from .plot import (
     get_plot_dataset,
+    plot_histogram,
     plot_profile_var,
     plot_diurnal_cycles,
     plot_zonal_average,
     plot_column_integrated_var,
     plot_generic_data_array,
+    plot_histogram2d,
 )
-
+from fv3net.diagnostics._shared.constants import WVP, COL_DRYING
 
 DOMAIN_DIM = "domain"
 
@@ -296,6 +298,33 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
         }
         metrics_formatted.append((var_r2.replace("_r2", ""), values))
 
+    if "water_vapor_path_versus_minus_column_integrated_q2_hist_2d" in ds_diags:
+        hist2d_wvp_vs_q2 = plot_histogram2d(
+            ds_diags, "water_vapor_path", "minus_column_integrated_q2"
+        )
+        report.insert_report_figure(
+            report_sections,
+            hist2d_wvp_vs_q2,
+            filename=f"hist2d_wvp_vs_q2.png",
+            section_name=f"Water vapor path versus column integrated drying",
+            output_dir=output_dir,
+        )
+        hist_wvp = plot_histogram(ds_diags, f"{WVP}_histogram")
+        report.insert_report_figure(
+            report_sections,
+            hist_wvp,
+            filename=f"hist_wvp.png",
+            section_name=f"Water vapor path versus column integrated drying",
+            output_dir=output_dir,
+        )
+        hist_col_drying = plot_histogram(ds_diags, f"{COL_DRYING}_histogram")
+        report.insert_report_figure(
+            report_sections,
+            hist_col_drying,
+            filename=f"hist_col_drying.png",
+            section_name=f"Water vapor path versus column integrated drying",
+            output_dir=output_dir,
+        )
     return report.create_html(
         sections=report_sections,
         title="ML offline diagnostics",
