@@ -3,7 +3,6 @@ kind: Workflow
 metadata:
   generateName: k8s-jobs-
 spec:
-  serviceAccountName: integration-tests
   tolerations:
     - effect: NoSchedule
       key: dedicated
