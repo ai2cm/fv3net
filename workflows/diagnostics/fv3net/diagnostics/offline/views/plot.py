@@ -218,7 +218,7 @@ def plot_histogram2d(ds, xname: str, yname: str):
     y_bin_name = f"{yname}_bins"
     x_bin_widths_name = f"{xname.lower()}_bin_width_hist_2d"
     y_bin_widths_name = f"{yname.lower()}_bin_width_hist_2d"
-    fig = plt.figure(figsize=(8, 4))
+    fig = plt.figure(figsize=(12, 6))
 
     for i, source in enumerate(["target", "predict"]):
         ds_ = ds.sel({DERIVATION_DIM_NAME: source})
