@@ -151,16 +151,13 @@ def test_Config_register_parser(args, loss_cls):
         assert not config.relative_humidity
 
 
-@given(lists(integers(min_value=0)))
+@given(lists(integers(min_value=0, max_value=100)))
 def test_Config_multi_output_levels(levels):
-
     str_levels = ",".join(str(s) for s in levels)
-
     parser = argparse.ArgumentParser()
     Config.register_parser(parser)
     args = parser.parse_args(["--multi-output", "--levels", str_levels])
     config = Config.from_args(args)
-
     assert config.target.levels == levels
 
 
