@@ -3,7 +3,6 @@ kind: ConfigMap
 metadata:
   name: workflow-controller-configmap
 data:
-  # needed for microk8s
   containerRuntimeExecutor: pns
   artifactRepository: |
     gcs:
