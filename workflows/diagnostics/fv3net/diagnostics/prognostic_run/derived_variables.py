@@ -181,7 +181,11 @@ def _column_dqv(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_q1(ds: xr.Dataset) -> xr.DataArray:
-    column_q1 = _column_pq1(ds) + _column_dq1(ds) + _column_nq1(ds)
+    applied_physics_name = "storage_of_internal_energy_path_due_to_applied_physics"
+    if applied_physics_name in ds:
+        column_q1 = ds[applied_physics_name] + _column_nq1(ds)
+    else:
+        column_q1 = _column_pq1(ds) + _column_dq1(ds) + _column_nq1(ds)
     column_q1.attrs = {
         "long_name": "<Q1> column integrated heating from physics + ML + nudging",
         "units": "W/m^2",
@@ -190,7 +194,11 @@ def _column_q1(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_q2(ds: xr.Dataset) -> xr.DataArray:
-    column_q2 = _column_pq2(ds) + _column_dq2(ds) + _column_nq2(ds)
+    applied_physics_name = "storage_of_specific_humidity_path_due_to_applied_physics"
+    if applied_physics_name in ds:
+        column_q2 = SECONDS_PER_DAY * ds[applied_physics_name] + _column_nq2(ds)
+    else:
+        column_q2 = _column_pq2(ds) + _column_dq2(ds) + _column_nq2(ds)
     column_q2.attrs = {
         "long_name": "<Q2> column integrated moistening from physics + ML + nudging",
         "units": "mm/day",
