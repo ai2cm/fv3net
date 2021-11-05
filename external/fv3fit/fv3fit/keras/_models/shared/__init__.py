@@ -16,4 +16,4 @@ from .utils import (
     count_features,
 )
 from .sequences import XyArraySequence, XyMultiArraySequence, ThreadedSequencePreLoader
-from .halos import append_halos, HalosBatches
+from .halos import append_halos

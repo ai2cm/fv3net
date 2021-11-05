@@ -1,30 +1,8 @@
-from typing import Any, Dict, Hashable, Iterable, List, Mapping, Sequence, Tuple, Union
+from typing import Any, Dict, Hashable, Iterable, List, Mapping, Sequence, Tuple
 from fv3fit._shared.stacking import match_prediction_to_input_coords
 import xarray as xr
 import numpy as np
 import fv3gfs.util
-
-
-class HalosBatches(Sequence[xr.Dataset]):
-    def __init__(
-        self, batches: Sequence[xr.Dataset], n_halo: int,
-    ):
-        self._batches = batches
-        self._n_halo = n_halo
-
-    def __getitem__(self, idx: Union[int, slice]):
-        if isinstance(idx, int):
-            return append_halos(self._batches[idx], n_halo=self._n_halo)
-        elif isinstance(idx, slice):
-            return [append_halos(ds, n_halo=self._n_halo) for ds in self._batches[idx]]
-        else:
-            raise TypeError(
-                f"Invalid argument type of {type(idx)} passed into "
-                "StackedBatches.__getitem__."
-            )
-
-    def __len__(self) -> int:
-        return len(self._batches)
 
 
 def _create_comms(total_ranks: int) -> Sequence[fv3gfs.util.testing.DummyComm]:

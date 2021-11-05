@@ -55,7 +55,8 @@ class XyMultiArraySequence(tf.keras.utils.Sequence):
     These tuples contain one unpacked numpy array for each input/output,
     in contrast to XyArraySequence which is specialized to the case
     of a single input/output of packed arrays. This class also performs
-    the responsibilities of StackedBatches, unlike XyArraySequence
+    the responsibilities of StackedBatches, unlike XyArraySequence,
+    and will append halos to X inputs as requested.
     """
 
     def __init__(
@@ -66,6 +67,25 @@ class XyMultiArraySequence(tf.keras.utils.Sequence):
         unstacked_dims=fv3gfs.util.Z_DIMS,
         n_halo: int = 0,
     ):
+        """
+        Args:
+            X_names: names of input variables
+            y_names: names of output variables
+            dataset_sequence: sequence of datasets containing
+                nput and output variables
+            unstacked_dims: dimensions which should be present in the X and y
+                arrays apart from the "sample" (stacked) dimension
+            n_halo: number of halo points to append to input variables, if given
+                then the data must contain "x" and "y" dimensions
+        """
+        horizontal_unstacked_dims = set(fv3gfs.util.HORIZONTAL_DIMS).intersection(
+            unstacked_dims
+        )
+        if n_halo > 1 and len(horizontal_unstacked_dims) == 0:
+            raise ValueError(
+                "when appending halo data (halo > 0), must have "
+                "horizontal dimensions in unstacked_dims"
+            )
         self.X_names = X_names
         self.y_names = y_names
         self.dataset_sequence = dataset_sequence

@@ -52,7 +52,7 @@ def test_append_halos_extends_dims(nx: int, ny: int, nz: int, n_tile: int, n_hal
 
 def check_result(result: xr.Dataset, n_halo: int, nx: int, ny: int, nz: int):
     for name, da in result.data_vars.items():
-        assert da.sizes["x"] == nx + 2 * n_halo
+        assert da.sizes["x"] == nx + 2 * n_halo, name
         assert da.sizes["y"] == ny + 2 * n_halo, name
         assert da.sizes.get("z", nz) == nz, name
         # only corners should still be zero
@@ -60,16 +60,16 @@ def check_result(result: xr.Dataset, n_halo: int, nx: int, ny: int, nz: int):
             x=range(n_halo, n_halo + nx), y=range(n_halo, n_halo + ny)
         )
         # compute data was never zero, shouldn't be now
-        assert np.sum(compute_data == 0) == 0
+        assert np.sum(compute_data == 0) == 0, name
         # x and y edge halos should be 1 now, but corners are still zero
         data_with_x_halos = da.isel(
             x=range(0, nx + 2 * n_halo), y=range(n_halo, n_halo + ny)
         )
-        assert np.sum(data_with_x_halos == 0) == 0
+        assert np.sum(data_with_x_halos == 0) == 0, name
         data_with_y_halos = da.isel(
             x=range(n_halo, n_halo + nx), y=range(0, ny + 2 * n_halo)
         )
-        assert np.sum(data_with_y_halos == 0) == 0
+        assert np.sum(data_with_y_halos == 0) == 0, name
 
 
 @pytest.mark.parametrize(

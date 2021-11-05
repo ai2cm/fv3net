@@ -55,10 +55,6 @@ def test_standard_input_gives_standard_output():
     assert out_std > 0.1
 
 
-def get_X_y(ds, X_names, y_names):
-    return tuple(ds[n].values for n in X_names), tuple(ds[n].values for n in y_names)
-
-
 def test_convolutional_network_build_standard_input_gives_standard_output():
     fv3fit.set_random_seed(0)
     nt, nx, ny, nz = 5, 12, 12, 15

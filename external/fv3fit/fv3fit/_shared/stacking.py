@@ -102,7 +102,9 @@ def preserve_samples_per_batch(ds: xr.Dataset) -> xr.Dataset:
 
 def shuffled(random: RandomState, datasets: Sequence[xr.Dataset]) -> xr.Dataset:
     """
-    Shuffles dataset along a dimension within chunks if chunking is present
+    Shuffles dataset along the sample dimension within chunks if chunking is present.
+
+    Datasets passed will be shuffled identically.
 
     Args:
         dim: dimension to shuffle indices along
