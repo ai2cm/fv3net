@@ -19,7 +19,7 @@ from typing import (
     Optional,
 )
 import logging
-from .names import SST, TSFC, MASK, STATE_NAME_TO_TENDENCY
+from .names import STATE_NAME_TO_TENDENCY
 
 logger = logging.getLogger(__name__)
 
@@ -236,28 +236,3 @@ def get_nudging_tendency(
         )
         return_dict[STATE_NAME_TO_TENDENCY[name]] = return_data
     return return_dict
-
-
-def get_reference_surface_temperatures(state: State, reference: State) -> State:
-    """
-    Set the sea surface and surface temperatures in a model state to values in
-    a reference state. Useful for maintaining consistency between a nudged run
-    and reference state.
-    """
-    state = {
-        SST: _sst_from_reference(reference[TSFC], state[SST], state[MASK]),
-        TSFC: _sst_from_reference(reference[TSFC], state[TSFC], state[MASK]),
-    }
-    return state
-
-
-def _sst_from_reference(
-    reference_surface_temperature: xr.DataArray,
-    surface_temperature: xr.DataArray,
-    land_sea_mask: xr.DataArray,
-) -> xr.DataArray:
-    return xr.where(
-        land_sea_mask.values.round().astype("int") == 0,
-        reference_surface_temperature,
-        surface_temperature,
-    ).assign_attrs(units=surface_temperature.units)

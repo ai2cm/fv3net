@@ -5,12 +5,12 @@ import fv3gfs.wrapper
 from runtime.nudging import (
     NudgingConfig,
     get_nudging_tendency,
-    get_reference_surface_temperatures,
     nudging_timescales_from_dict,
     setup_get_reference_state,
 )
 from runtime.diagnostics import compute_diagnostics
 from runtime.names import SST, TSFC
+from .prescriber import get_reference_surface_temperatures
 
 
 class PureNudger:

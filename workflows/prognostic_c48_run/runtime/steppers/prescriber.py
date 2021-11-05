@@ -7,10 +7,11 @@ import cftime
 import xarray as xr
 from runtime.types import State, Diagnostics, Tendencies
 from runtime.conversions import quantity_state_to_dataset, dataset_to_quantity_state
+from runtime.names import SST, TSFC, MASK
+
 import fv3gfs.util
 from vcm.catalog import catalog as CATALOG
 from vcm.safe import get_variables
-
 
 logger = logging.getLogger(__name__)
 
@@ -163,3 +164,28 @@ def _open_ds(dataset_key: str, consolidated: bool) -> xr.Dataset:
     except KeyError:
         ds = intake.open_zarr(dataset_key, consolidated=consolidated).to_dask()
     return ds
+
+
+def get_reference_surface_temperatures(state: State, reference: State) -> State:
+    """
+    Set the sea surface and surface temperatures in a model state to values in
+    a reference state. Useful for maintaining consistency between a nudged run
+    and reference state.
+    """
+    state = {
+        SST: _sst_from_reference(reference[TSFC], state[SST], state[MASK]),
+        TSFC: _sst_from_reference(reference[TSFC], state[TSFC], state[MASK]),
+    }
+    return state
+
+
+def _sst_from_reference(
+    reference_surface_temperature: xr.DataArray,
+    surface_temperature: xr.DataArray,
+    land_sea_mask: xr.DataArray,
+) -> xr.DataArray:
+    return xr.where(
+        land_sea_mask.values.round().astype("int") == 0,
+        reference_surface_temperature,
+        surface_temperature,
+    ).assign_attrs(units=surface_temperature.units)
