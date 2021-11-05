@@ -35,20 +35,6 @@ import yaml
 from vcm import safe
 
 
-def _parse_metadata_backward_compatible(metadata: dict) -> tuple:
-    # first two cases here for backward compatibility (https://github.com/ai2cm/fv3net/issues/1403) # noqa: E501
-    if isinstance(metadata, list) and len(metadata) == 3:
-        (input_variables, output_variables, output_features_tuple,) = metadata
-    elif isinstance(metadata, list) and len(metadata) == 4:
-        (input_variables, output_variables, output_features_tuple,) = metadata[1:]
-    else:
-        input_variables = metadata["input_variables"]
-        output_variables = metadata["output_variables"]
-        output_features_tuple = metadata["output_features"]
-        packer_config = metadata.get("packer_config", {})
-    return input_variables, output_variables, output_features_tuple, packer_config
-
-
 @register_training_function("sklearn_random_forest", RandomForestHyperparameters)
 def train_random_forest(
     hyperparameters: RandomForestHyperparameters,
@@ -329,12 +315,10 @@ class SklearnWrapper(Predictor):
             scaler_obj = None
 
         metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
-        (
-            input_variables,
-            output_variables,
-            output_features_tuple,
-            packer_config_dict,
-        ) = _parse_metadata_backward_compatible(metadata)
+        input_variables = metadata["input_variables"]
+        output_variables = metadata["output_variables"]
+        output_features_tuple = metadata["output_features"]
+        packer_config_dict = metadata.get("packer_config", {})
         output_features_ = tuple_to_multiindex(output_features_tuple)
         packer_config = dacite.from_dict(PackerConfig, packer_config_dict)
 
