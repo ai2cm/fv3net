@@ -5,7 +5,7 @@ import xarray as xr
 import vcm
 
 from fv3net.diagnostics._shared.registry import Registry
-from .constants import WVP, COL_DRYING
+from fv3net.diagnostics._shared.constants import WVP, COL_DRYING
 
 
 def merge_derived(diags: Sequence[Tuple[str, xr.DataArray]]) -> xr.Dataset:
