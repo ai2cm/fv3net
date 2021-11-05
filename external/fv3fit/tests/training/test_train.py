@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Callable, Optional, Sequence, TextIO
+from typing import Any, Callable, Optional, Sequence, TextIO
 from fv3fit.keras._models.convolutional import ConvolutionalHyperparameters
 from fv3fit.keras._models.shared.convolutional_network import ConvolutionalNetworkConfig
 import pytest
@@ -60,6 +60,7 @@ class TrainingResult:
     model: fv3fit.Predictor
     output_variables: Sequence[str]
     test_dataset: xr.Dataset
+    hyperparameters: Any
 
 
 def get_default_hyperparameters(model_type, input_variables, output_variables):
@@ -92,7 +93,7 @@ def train_identity_model(model_type, sample_func, hyperparameters=None):
     val_batches = [test_dataset]
     train = fv3fit.get_training_function(model_type)
     model = train(hyperparameters, train_batches, val_batches)
-    return TrainingResult(model, output_variables, test_dataset)
+    return TrainingResult(model, output_variables, test_dataset, hyperparameters)
 
 
 def get_dataset(model_type, sample_func):
@@ -176,7 +177,7 @@ def test_train_default_model_on_identity(model_type, regtest):
     """
     fv3fit.set_random_seed(1)
     # don't set n_feature too high for this, because of curse of dimensionality
-    n_sample, n_tile, nx, ny, n_feature = 20, 6, 12, 12, 2
+    n_sample, n_tile, nx, ny, n_feature = 5, 6, 12, 12, 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
 
     assert_can_learn_identity(
@@ -196,14 +197,23 @@ def test_default_convolutional_model_is_transpose_invariant():
     result = train_identity_model("convolutional", sample_func=sample_func)
     transpose_input = result.test_dataset.copy(deep=True)
     transpose_input["var_in"].values[:] = np.transpose(
-        transpose_input["var_in"].values, axes=(0, 2, 1, 3)
+        transpose_input["var_in"].values, axes=(0, 1, 3, 2, 4)
     )
     transpose_output = result.model.predict(result.test_dataset)
     transpose_output["var_out"].values[:] = np.transpose(
-        transpose_output["var_out"].values, axes=(0, 2, 1, 3)
+        transpose_output["var_out"].values, axes=(0, 1, 3, 2, 4)
     )
     output_from_transpose = result.model.predict(transpose_input)
-    xr.testing.assert_allclose(output_from_transpose, transpose_output, atol=1e-5)
+    n_halo = result.hyperparameters.convolutional_network.halos_required
+    # transposing tile data messes up neighbors, so we have to assess only on
+    # data that has no halo dependence
+    assert n_halo * 2 < nx
+    assert n_halo * 2 < ny
+    xr.testing.assert_allclose(
+        output_from_transpose.isel(x=slice(n_halo, -n_halo), y=slice(n_halo, -n_halo)),
+        transpose_output.isel(x=slice(n_halo, -n_halo), y=slice(n_halo, -n_halo)),
+        atol=1e-5,
+    )
 
 
 def test_diffusive_convolutional_model_gives_bounded_output():
@@ -218,7 +228,7 @@ def test_diffusive_convolutional_model_gives_bounded_output():
         size=(n_sample, n_tile, nx, ny, n_feature), low=low - 1.0, high=high + 1.0
     )
     test_sample_func = get_uniform_sample_func(
-        size=(n_sample, nx, ny, n_feature), low=low, high=high
+        size=(n_sample, n_tile, nx, ny, n_feature), low=low, high=high
     )
     input_variables, output_variables, test_dataset = get_dataset(
         model_type="convolutional", sample_func=test_sample_func
@@ -244,7 +254,7 @@ def test_train_with_same_seed_gives_same_result(model_type):
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
     first_result = train_identity_model(model_type, sample_func)
     fv3fit.set_random_seed(0)
-    sample_func = get_uniform_sample_func(size=(n_sample, nx, ny, n_feature))
+    sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
     second_result = train_identity_model(model_type, sample_func)
     xr.testing.assert_equal(first_result.test_dataset, second_result.test_dataset)
     first_output = first_result.model.predict(first_result.test_dataset)
@@ -284,7 +294,7 @@ def test_train_default_model_on_nonstandard_identity(model_type):
     """
     low, high = 100, 200
     # don't set n_feature too high for this, because of curse of dimensionality
-    n_sample, n_tile, nx, ny, n_feature = 50, 6, 12, 12, 2
+    n_sample, n_tile, nx, ny, n_feature = 5, 6, 12, 12, 2
     sample_func = get_uniform_sample_func(
         low=low, high=high, size=(n_sample, n_tile, nx, ny, n_feature)
     )
@@ -295,7 +305,7 @@ def test_train_default_model_on_nonstandard_identity(model_type):
 
 
 def test_dump_and_load_default_maintains_prediction(model_type):
-    n_sample, n_tile, nx, ny, n_feature = 10, 6, 12, 12, 2
+    n_sample, n_tile, nx, ny, n_feature = 1, 6, 12, 12, 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
     result = train_identity_model(model_type, sample_func=sample_func)
 

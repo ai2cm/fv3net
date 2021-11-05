@@ -7,6 +7,7 @@ import tensorflow as tf
 from typing import Sequence, Tuple, List, Any
 from .halos import append_halos
 import fv3gfs.util
+import vcm.safe
 
 from fv3fit._shared.packer import ArrayPacker
 from fv3fit._shared.stacking import (
@@ -76,7 +77,10 @@ class XyMultiArraySequence(tf.keras.utils.Sequence):
 
     def __getitem__(self, idx) -> Tuple[np.ndarray, np.ndarray]:
         ds = self.dataset_sequence[idx]
-        X_y_datasets = [ds[self.X_names], ds[self.y_names]]
+        X_y_datasets = [
+            vcm.safe.get_variables(ds=ds, variables=self.X_names),
+            vcm.safe.get_variables(ds=ds, variables=self.y_names),
+        ]
         X_y_datasets[0] = append_halos(X_y_datasets[0], n_halo=self.n_halo)
         for i in range(2):
             X_y_datasets[i] = stack(
