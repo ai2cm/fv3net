@@ -302,7 +302,6 @@ spec:
                 - land_sea_mask
                 - surface_temperature
                 - surface_geopotential
-  serviceAccountName: integration-tests
   tolerations:
     - effect: NoSchedule
       key: dedicated

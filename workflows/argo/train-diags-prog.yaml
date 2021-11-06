@@ -3,7 +3,6 @@ kind: WorkflowTemplate
 metadata:
   name: train-diags-prog
 spec:
-  serviceAccountName: integration-tests
   entrypoint: train-diags-prog
   volumes:
     - name: workdir
