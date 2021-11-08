@@ -167,12 +167,18 @@ def open_fine_resolution_nudging_hybrid_dataset(
     # created by this commit
     # https://github.com/VulcanClimateModeling/vcm-workflow-control/commit/dd4498bcf3143d05095bf9ff4ca3f1341ba25330
     nudge_url="gs://vcm-ml-experiments/2021-04-13-n2f-c3072/3-hrly-ave-rad-precip-setting-30-min-rad-timestep-shifted-start-tke-edmf",  # noqa: E501
+    compute_and_standardize_Qs: bool = True,
     include_temperature_nudging: bool = False,
 ) -> xarray.Dataset:
 
     fine = open_zarr_maybe_consolidated(fine_url)
-    fine["Q1"], fine["Q2"] = compute_fine_res_sources(fine, include_temperature_nudging)
-    fine_shifted = _standardize_coords(fine)
+    if compute_and_standardize_Qs:
+        fine["Q1"], fine["Q2"] = compute_fine_res_sources(
+            fine, include_temperature_nudging
+        )
+        fine_shifted = _standardize_coords(fine)
+    else:
+        fine_shifted = fine
 
     nudge_physics_tendencies = open_zarr_maybe_consolidated(
         nudge_url + "/physics_tendencies.zarr",
@@ -204,7 +210,10 @@ def open_fine_resolution_nudging_hybrid_dataset(
 
 @mapper_functions.register
 def open_fine_resolution_nudging_hybrid(
-    fine_url: str = "", nudge_url: str = "", include_temperature_nudging: bool = False,
+    fine_url: str = "",
+    nudge_url: str = "",
+    compute_and_standardize_Qs: bool = True,
+    include_temperature_nudging: bool = False,
 ) -> GeoMapper:
     """
     Open the fine resolution nudging_hybrid mapper
@@ -212,6 +221,9 @@ def open_fine_resolution_nudging_hybrid(
     Args:
         fine_url: url where coarsened fine resolution data is stored
         nudge_url: url to nudging data to be used as a residual
+        compute_and_standardize_Qs: whether to compute fine-res Qs and standardize
+            their coordinates; if false it is assumed they are already available in
+            the fine_url source
         include_temperature_nudging: whether to include fine-res nudging in Q1
 
     Returns:
@@ -221,6 +233,7 @@ def open_fine_resolution_nudging_hybrid(
         open_fine_resolution_nudging_hybrid_dataset(
             fine_url=fine_url,
             nudge_url=nudge_url,
+            compute_and_standardize_Qs=compute_and_standardize_Qs,
             include_temperature_nudging=include_temperature_nudging,
         )
     )
@@ -229,12 +242,18 @@ def open_fine_resolution_nudging_hybrid(
 def open_fine_resolution_dataset(
     fine_url: str = "gs://vcm-ml-experiments/default/2021-04-27/2020-05-27-40-day-X-SHiELD-simulation/fine-res-budget.zarr",  # noqa: E501
     input_feature_url: Optional[str] = None,
+    compute_and_standardize_Qs: bool = True,
     include_temperature_nudging: bool = False,
 ) -> xarray.Dataset:
 
     fine = open_zarr_maybe_consolidated(fine_url)
-    fine["Q1"], fine["Q2"] = compute_fine_res_sources(fine, include_temperature_nudging)
-    fine_shifted = _standardize_coords(fine)
+    if compute_and_standardize_Qs:
+        fine["Q1"], fine["Q2"] = compute_fine_res_sources(
+            fine, include_temperature_nudging
+        )
+        fine_shifted = _standardize_coords(fine)
+    else:
+        fine_shifted = fine
 
     if input_feature_url is None:
         input_features = xarray.Dataset()
@@ -267,6 +286,7 @@ def open_fine_resolution_dataset(
 def open_fine_resolution(
     fine_url: str = "",
     input_feature_url: Optional[str] = None,
+    compute_and_standardize_Qs: bool = True,
     include_temperature_nudging: bool = False,
 ) -> GeoMapper:
     """
@@ -276,6 +296,9 @@ def open_fine_resolution(
         fine_url: url where coarsened fine resolution data is stored
         input_feature_url: url to fv3gfs_run to use for state inputs. If not provided,
             the state of the fine-res data will be used as input.
+        compute_and_standardize_Qs: whether to compute fine-res Qs and standardize
+            their coordinates; if false it is assumed they are already available in
+            the fine_url source
         include_temperature_nudging: whether to include fine-res nudging in Q1
 
     Returns:
@@ -285,6 +308,7 @@ def open_fine_resolution(
         open_fine_resolution_dataset(
             fine_url=fine_url,
             input_feature_url=input_feature_url,
+            compute_and_standardize_Qs=compute_and_standardize_Qs,
             include_temperature_nudging=include_temperature_nudging,
         )
     )
