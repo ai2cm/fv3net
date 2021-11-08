@@ -40,7 +40,12 @@ parser.add_argument(
     default="gs://vcm-ml-experiments/online-emulator/2021-08-09/gfs-initialized-baseline-06/fv3gfs_run/artifacts/20160601.000000/RESTART",  # noqa
     help="URL to initial conditions (e.g. a restart directory)",
 )
-parser.add_argument("--tag", type=str, default="")
+parser.add_argument(
+    "--tag",
+    type=str,
+    default="",
+    help="A unique tag. Can be used to look-up these outputs in subsequent timesteps.",
+)
 parser.add_argument("--segments", "-n", type=int, default=1, help="number of segments")
 
 # online/offine flag
@@ -60,7 +65,7 @@ args = parser.parse_args()
 
 
 job = wandb.init(
-    job_type="prognostic_run", project="microphysics-emulation", entity="ai2cm"
+    job_type="prognostic_run", project="microphysics-emulation", entity="ai2cm",
 )
 tag = args.tag or job.id
 
@@ -83,6 +88,6 @@ for i in range(args.segments):
     logging.info(f"Running segment {i+1} of {args.segments}")
     api.append(url)
 
-artifact = wandb.Artifact("prognostic-run", type="prognostic-run")
+artifact = wandb.Artifact(tag, type="prognostic-run")
 artifact.add_reference(url)
 wandb.log_artifact(artifact)

@@ -1,11 +1,5 @@
 #!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
-
 import numpy as np
-import sys
 import xarray as xr
 import vcm
 import vcm.catalog
@@ -18,15 +12,26 @@ import matplotlib.pyplot as plt
 from fv3fit.tensorboard import plot_to_image
 
 
-run_artifact_path = sys.argv[1]
+import argparse
+
+
+parser = argparse.ArgumentParser(
+    "Piggy Backed metrics",
+    description="Log piggy backed metrics for prognostic run named TAG",
+)
+parser.add_argument("tag", help="The unique tag used for the prognostic run.")
+
+args = parser.parse_args()
+
+run_artifact_path = args.tag
 
 job = wandb.init(
-    job_type="piggy-back", project="microphysics-emulation", entity="ai2cm"
+    job_type="piggy-back", project="microphysics-emulation", entity="ai2cm",
 )
 
 
 def get_url_wandb(artifact: str):
-    art = job.use_artifact(artifact)
+    art = job.use_artifact(artifact + ":latest", type="prognostic-run")
     path = "fv3config.yml"
     url = art.get_path(path).ref
     return url[: -len("/" + path)]
