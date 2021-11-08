@@ -11,6 +11,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Union,
 )
 import cftime
 import fv3gfs.util
@@ -42,6 +43,7 @@ from runtime.steppers.machine_learning import (
 )
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig, get_timesteps
+from runtime.steppers.combine import CombinedStepper
 from runtime.types import Diagnostics, State, Tendencies, Step
 from toolz import dissoc
 from typing_extensions import Protocol
@@ -233,17 +235,26 @@ class TimeLoop(
         if config.prephysics is None:
             self._log_info("No prephysics computations")
             stepper = None
-        elif isinstance(config.prephysics, MachineLearningConfig):
-            self._log_info("Using PureMLStepper for prephysics")
-            model = self._open_model(config.prephysics, "_prephysics")
-            stepper = PureMLStepper(model, self._timestep, hydrostatic)
-        elif isinstance(config.prephysics, PrescriberConfig):
-            self._log_info("Using Prescriber for prephysics")
-            communicator = self._get_communicator()
-            timesteps = get_timesteps(
-                self.time, self._timestep, self._fv3gfs.get_step_count()
-            )
-            stepper = Prescriber(config.prephysics, communicator, timesteps=timesteps)
+
+        else:
+            prephysics_steppers: List[Union[Prescriber, PureMLStepper]] = []
+            for prephysics_config in config.prephysics:
+                if isinstance(prephysics_config, MachineLearningConfig):
+                    self._log_info("Using PureMLStepper for prephysics")
+                    model = self._open_model(prephysics_config, "_prephysics")
+                    prephysics_steppers.append(
+                        PureMLStepper(model, self._timestep, hydrostatic)
+                    )
+                elif isinstance(prephysics_config, PrescriberConfig):
+                    self._log_info("Using Prescriber for prephysics")
+                    communicator = self._get_communicator()
+                    timesteps = get_timesteps(
+                        self.time, self._timestep, self._fv3gfs.get_step_count()
+                    )
+                    prephysics_steppers.append(
+                        Prescriber(prephysics_config, communicator, timesteps=timesteps)
+                    )
+            stepper = CombinedStepper(prephysics_steppers)
         return stepper
 
     def _get_postphysics_stepper(

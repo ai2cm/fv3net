@@ -26,6 +26,8 @@ def _check_for_collisions(outputs: List[MutableMapping[Hashable, xr.DataArray]])
 
 
 class CombinedStepper:
+    label = "combined"
+
     def __init__(self, steppers: List[Union[Prescriber, PureMLStepper]]):
         if len(steppers) == 0:
             raise ValueError("No steppers provided to combine.")
