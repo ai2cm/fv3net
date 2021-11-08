@@ -10,14 +10,14 @@ from tempfile import NamedTemporaryFile
 from vcm.derived_mapping import DerivedMapping
 import xarray as xr
 import yaml
-from typing import Mapping, Sequence, Tuple, List, Optional
+from typing import Mapping, Sequence, Tuple, List
 
-import diagnostics_utils as utils
 import loaders
 from vcm import safe, interpolate_to_pressure_levels
 import vcm
 import fv3fit
-from .compute_metrics import compute_metrics
+from .compute_diagnostics import compute_diagnostics
+from .derived_diagnostics import derived_registry
 from ._plot_input_sensitivity import plot_jacobian, plot_rf_feature_importance
 from ._helpers import (
     load_grid_info,
@@ -25,6 +25,7 @@ from ._helpers import (
     get_variable_indices,
     insert_r2,
     insert_rmse,
+    insert_column_integrated_vars,
 )
 from ._select import meridional_transect, nearest_time
 
@@ -37,13 +38,9 @@ handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
 
-# Additional derived outputs (values) that are added to report if their
-# corresponding base ML outputs (keys) are present in model
-DERIVED_OUTPUTS_FROM_BASE_OUTPUTS = {"dQ1": "Q1", "dQ2": "Q2"}
 
 # variables that are needed in addition to the model features
 DIAGS_NC_NAME = "offline_diagnostics.nc"
-DIURNAL_NC_NAME = "diurnal_cycle.nc"
 TRANSECT_NC_NAME = "transect_lon0.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
 METADATA_JSON_NAME = "metadata.json"
@@ -133,30 +130,6 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
     return metrics
 
 
-def _compute_diurnal_cycle(ds: xr.Dataset) -> xr.Dataset:
-    diurnal_vars = [
-        var
-        for var in ds
-        if {"tile", "x", "y", "sample", "derivation"} == set(ds[var].dims)
-    ]
-    return utils.create_diurnal_cycle_dataset(
-        ds, ds["lon"], ds["land_sea_mask"], diurnal_vars,
-    )
-
-
-def _compute_summary(ds: xr.Dataset, variables) -> xr.Dataset:
-    # ...reduce to diagnostic variables
-    net_precip: Optional[xr.DataArray] = None
-    if "column_integrated_Q2" in ds:
-        net_precip = -ds["column_integrated_Q2"].sel(  # type: ignore
-            derivation="target"
-        )
-    summary = utils.reduce_to_diagnostic(
-        ds, ds, net_precipitation=net_precip, primary_vars=variables,
-    )
-    return summary
-
-
 def _standardize_names(*args: xr.Dataset):
     renamed = []
     for ds in args:
@@ -169,8 +142,8 @@ def _compute_diagnostics(
     grid: xr.Dataset,
     predicted_vars: List[str],
     n_jobs: int,
-) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
-    batches_summary, batches_diurnal, batches_metrics = [], [], []
+) -> Tuple[xr.Dataset, xr.Dataset]:
+    batches_summary = []
 
     # for each batch...
     for i, ds in enumerate(batches):
@@ -178,62 +151,44 @@ def _compute_diagnostics(
 
         # ...insert additional variables
         diagnostic_vars_3d = [var for var in predicted_vars if is_3d(ds[var])]
-        ds = ds.pipe(utils.insert_column_integrated_vars, diagnostic_vars_3d).load()
-        ds.update(grid)
+        ds = ds.pipe(insert_column_integrated_vars, diagnostic_vars_3d).load()
+
         full_predicted_vars = [var for var in ds if DERIVATION_DIM_NAME in ds[var].dims]
-
-        ds_summary = _compute_summary(ds, diagnostic_vars_3d)
-        if DATASET_DIM_NAME in ds.dims:
-            sample_dims = ("time", DATASET_DIM_NAME)
-        else:
-            sample_dims = ("time",)  # type: ignore
-        stacked = ds.stack(sample=sample_dims)
-
-        ds_diurnal = _compute_diurnal_cycle(stacked)
-        ds_summary["time"] = ds["time"]
-        ds_diurnal["time"] = ds["time"]
-        ds_metrics = compute_metrics(
-            prediction=safe.get_variables(
-                ds.sel({DERIVATION_DIM_NAME: PREDICT_COORD}), full_predicted_vars
-            ),
-            target=safe.get_variables(
-                ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
-            ),
-            grid=grid,
-            delp=ds[DELP],
-            n_jobs=n_jobs,
+        if "dQ2" in full_predicted_vars:
+            full_predicted_vars.append("water_vapor_path")
+        prediction = safe.get_variables(
+            ds.sel({DERIVATION_DIM_NAME: PREDICT_COORD}), full_predicted_vars
         )
+        target = safe.get_variables(
+            ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
+        )
+        ds_summary = compute_diagnostics(
+            prediction, target, grid, ds[DELP], n_jobs=n_jobs
+        )
+        ds_summary["time"] = ds["time"]
 
         batches_summary.append(ds_summary.load())
-        batches_diurnal.append(ds_diurnal.load())
-        batches_metrics.append(ds_metrics.load())
         del ds
 
     # then average over the batches for each output
     ds_summary = xr.concat(batches_summary, dim="batch")
-    ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
-    ds_metrics = xr.concat(batches_metrics, dim="batch")
-
-    ds_diagnostics, ds_scalar_metrics = _consolidate_dimensioned_data(
-        ds_summary, ds_metrics
-    )
+    ds_diagnostics, ds_scalar_metrics = _consolidate_dimensioned_data(ds_summary)
 
     ds_scalar_metrics = insert_r2(ds_scalar_metrics)
     ds_diagnostics = ds_diagnostics.pipe(insert_r2).pipe(insert_rmse)
-    ds_diagnostics, ds_diurnal, ds_scalar_metrics = _standardize_names(
-        ds_diagnostics, ds_diurnal, ds_scalar_metrics
+    ds_diagnostics, ds_scalar_metrics = _standardize_names(
+        ds_diagnostics, ds_scalar_metrics
     )
-    return ds_diagnostics.mean("batch"), ds_diurnal, ds_scalar_metrics
+    # this is kept as a coord to use in plotting a histogram of test timesteps
+    return ds_diagnostics.mean("batch"), ds_scalar_metrics
 
 
-def _consolidate_dimensioned_data(ds_summary, ds_metrics):
+def _consolidate_dimensioned_data(ds):
     # moves dimensioned quantities into final diags dataset so they're saved as netcdf
-    scalar_metrics = [
-        var for var in ds_metrics if ds_metrics[var].size == len(ds_metrics.batch)
-    ]
-    ds_scalar_metrics = safe.get_variables(ds_metrics, scalar_metrics)
-    ds_metrics_arrays = ds_metrics.drop(scalar_metrics)
-    ds_diagnostics = ds_summary.merge(ds_metrics_arrays)
+    scalar_metrics = [var for var in ds if ds[var].size == len(ds.batch)]
+    ds_scalar_metrics = safe.get_variables(ds, scalar_metrics)
+    ds_metrics_arrays = ds.drop(scalar_metrics)
+    ds_diagnostics = ds.merge(ds_metrics_arrays)
     return ds_diagnostics, ds_scalar_metrics
 
 
@@ -288,12 +243,25 @@ def _get_predict_function(predictor, variables, grid):
     return transform
 
 
-def _derived_outputs_from_base_predictions(base_outputs):
-    derived_outputs = []
-    for base_output in base_outputs:
-        if base_output in DERIVED_OUTPUTS_FROM_BASE_OUTPUTS:
-            derived_outputs.append(DERIVED_OUTPUTS_FROM_BASE_OUTPUTS[base_output])
-    return derived_outputs
+def _get_data_mapper_if_exists(config):
+    if isinstance(config, loaders.BatchesFromMapperConfig):
+        return config.load_mapper()
+    elif isinstance(config, loaders.BatchesConfig):
+        if config.kwargs.get("mapping_function") == "open_zarr":
+            return loaders.open_zarr(config.kwargs.get("data_path"))
+    else:
+        return None
+
+
+def _variables_to_load(model):
+    return list(
+        set(list(model.input_variables) + list(model.output_variables) + [DELP])
+    )
+
+
+def _add_derived_diagnostics(ds):
+    merged = xr.merge([ds, derived_registry.compute(ds, n_jobs=1)])
+    return merged.assign_attrs(ds.attrs)
 
 
 def main(args):
@@ -314,14 +282,12 @@ def main(args):
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
 
-    additional_derived_outputs = _derived_outputs_from_base_predictions(
-        model.output_variables
-    )
-    model = fv3fit.DerivedModel(
-        model, derived_output_variables=additional_derived_outputs
-    )
-
-    model_variables = list(set(model.input_variables + model.output_variables + [DELP]))
+    # add Q2 and total water path for PW-Q2 scatterplots and net precip domain averages
+    if any(["Q2" in v for v in model.output_variables]):
+        model = fv3fit.DerivedModel(model, derived_output_variables=["Q2"])
+        model_variables = _variables_to_load(model) + ["water_vapor_path"]
+    else:
+        model_variables = _variables_to_load(model)
 
     output_data_yaml = os.path.join(args.output_path, "data_config.yaml")
     with fsspec.open(args.data_yaml, "r") as f_in, fsspec.open(
@@ -333,12 +299,13 @@ def main(args):
     batches = loaders.Map(predict_function, batches)
 
     # compute diags
-    ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diagnostics(
+    ds_diagnostics, ds_scalar_metrics = _compute_diagnostics(
         batches, grid, predicted_vars=model.output_variables, n_jobs=args.n_jobs
     )
+    ds_diagnostics = ds_diagnostics.update(grid)
 
     # save model senstivity figures- these exclude derived variables
-    base_model = model.base_model
+    base_model = model.base_model if isinstance(model, fv3fit.DerivedModel) else model
     try:
         plot_jacobian(
             base_model,
@@ -362,24 +329,38 @@ def main(args):
             )
             pass
 
-    if isinstance(config, loaders.BatchesFromMapperConfig):
-        mapper = config.load_mapper()
-        # compute transected and zonal diags
-        snapshot_time = args.snapshot_time or sorted(list(mapper.keys()))[0]
+    mapper = _get_data_mapper_if_exists(config)
+    if mapper is not None:
+        snapshot_time = (
+            args.snapshot_time
+            or sorted(config.kwargs.get("timesteps", list(mapper.keys())))[0]
+        )
         snapshot_key = nearest_time(snapshot_time, list(mapper.keys()))
         ds_snapshot = predict_function(mapper[snapshot_key])
-        transect_vertical_vars = [
+
+        vertical_vars = [
             var for var in model.output_variables if is_3d(ds_snapshot[var])
         ]
-        ds_transect = _get_transect(ds_snapshot, grid, transect_vertical_vars)
+        ds_snapshot = insert_column_integrated_vars(ds_snapshot, vertical_vars)
+        predicted_vars = [
+            var for var in ds_snapshot if "derivation" in ds_snapshot[var].dims
+        ]
 
-        # write diags and diurnal datasets
+        # add snapshotted prediction to saved diags.nc
+        ds_diagnostics = ds_diagnostics.merge(
+            safe.get_variables(ds_snapshot, predicted_vars).rename(
+                {v: f"{v}_snapshot" for v in predicted_vars}
+            )
+        )
+
+        ds_transect = _get_transect(ds_snapshot, grid, vertical_vars)
         _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
+
+    ds_diagnostics = _add_derived_diagnostics(ds_diagnostics)
 
     _write_nc(
         ds_diagnostics, args.output_path, DIAGS_NC_NAME,
     )
-    _write_nc(ds_diurnal, args.output_path, DIURNAL_NC_NAME)
 
     # convert and output metrics json
     metrics = _average_metrics_dict(ds_scalar_metrics)

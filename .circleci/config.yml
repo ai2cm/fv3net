@@ -46,7 +46,9 @@ jobs:
             - /opt/conda/envs/fv3net
       - run:
           name: "Install fv3net packages"
-          command: make install_local_packages
+          command: |
+            make install_local_packages
+            source activate fv3net && pip freeze
       - run: 
           name: "Run test"
           no_output_timeout: 20m
@@ -114,19 +116,12 @@ jobs:
             echo "export GCLOUD_SERVICE_KEY=\$(echo \$ENCODED_GOOGLE_CREDENTIALS | base64 --decode)" >> $BASH_ENV
       - gcp-gcr/gcr-auth
       - run: sudo -E .circleci/build_and_push_image.sh
-  mypy:
-    docker:
-      - image: circleci/python:3.7
-    steps:
-      - checkout
-      - run: sudo pip install -c constraints.txt mypy==0.770 xarray
-      - run: make typecheck
   lint:
     docker:
       - image: circleci/python:3.7
     steps:
       - checkout
-      - run: sudo pip install -c constraints.txt pre-commit
+      - run: sudo pip install -c constraints.txt pre-commit xarray
       - run: make lint
 
   integration_tests:
@@ -196,7 +191,6 @@ workflows:
   test_and_lint:
     jobs:
       - lint
-      - mypy
       - argo
       - pytest:
           name: pytest-<<matrix.kind>>
@@ -209,10 +203,26 @@ workflows:
             branches:
               ignore:
                 - master
+      # manually trigger on PRs
       - pytest:
+          name: "Test Dataflow (held)"
           kind: test_dataflow
           requires:
             - hold
+          filters:
+            tags:
+              ignore: /^v.*/
+            branches:
+              ignore: master
+      # automatically trigger on master
+      - pytest:
+          name: "Test Dataflow (not held)"
+          kind: test_dataflow
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: master
       - build_default:
           matrix:
             parameters:
@@ -221,36 +231,17 @@ workflows:
                 - post_process_run
                 - fv3net
                 - artifacts
+      # manually trigger on PRs
       - integration_tests:
           requires:
             - build_default
             - hold
-  master_tests:
-    jobs:
-      - lint
-      - mypy
-      - argo
-      - pytest:
-          kind: test_dataflow
-          name: "Test Dataflow"
           filters:
             tags:
-              only: /^v.*/
+              ignore: /^v.*/
             branches:
-              only: master
-      - build_default:
-          matrix:
-            parameters:
-              image:
-                - prognostic_run
-                - post_process_run
-                - fv3net
-                - artifacts
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              only: master
+              ignore: master
+      # automatically trigger on master
       - integration_tests:
           requires:
             - build_default

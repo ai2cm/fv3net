@@ -6,7 +6,7 @@
 VERSION ?= $(shell git rev-parse HEAD)
 REGISTRY ?= us.gcr.io/vcm-ml
 ENVIRONMENT_SCRIPTS = .environment-scripts
-PROJECT_NAME = fv3net
+PROJECT_NAME ?= fv3net
 CACHE_TAG =latest
 
 IMAGES = fv3net post_process_run prognostic_run
@@ -35,6 +35,17 @@ build_image_prognostic_run:
 push_image_prognostic_run: build_image_prognostic_run
 	docker push $(REGISTRY)/prognostic_run:$(VERSION)
 	docker push $(REGISTRY)/notebook:$(VERSION)
+
+image_test_prognostic_run:
+	docker run \
+		--rm \
+		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
+		-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
+		-w /fv3net/workflows/prognostic_c48_run \
+		$(REGISTRY)/prognostic_run:$(VERSION) pytest
+
+image_test_%:
+	echo "No tests specified"
 
 push_image_%: build_image_%
 	docker push $(REGISTRY)/$*:$(VERSION)
@@ -65,17 +76,6 @@ deploy_docs_prognostic_run:
 	docker run us.gcr.io/vcm-ml/prognostic_run tar -C docs/_build/html  -c . | tar -C html -x
 	gsutil -m rsync -R html gs://vulcanclimatemodeling-com-static/docs/prognostic_c48_run
 	rm -rf html
-
-############################################################
-# Local Kubernetes
-############################################################
-
-## Install K8s and cluster manifests for local development
-## Do not run for the GKE cluster
-deploy_local:
-	kubectl apply -f https://raw.githubusercontent.com/argoproj/argo/v2.11.6/manifests/install.yaml
-	kubectl create secret generic gcp-key --from-file="${GOOGLE_APPLICATION_CREDENTIALS}"
-	kubectl apply -f workflows/argo/cluster
 
 ############################################################
 # Testing
@@ -175,7 +175,7 @@ setup-hooks:
 	pre-commit install
 
 typecheck:
-	./check_types.sh
+	pre-commit run --all-files mypy
 
 lint:
 	pre-commit run --all-files

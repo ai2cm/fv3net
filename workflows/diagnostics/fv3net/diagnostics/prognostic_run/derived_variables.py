@@ -34,6 +34,8 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _column_nq2,
         _column_dq1_or_nq1,
         _column_dq2_or_nq2,
+        _water_vapor_path,
+        _minus_column_q2,
     ]:
         try:
             arrays.append(func(ds))
@@ -97,6 +99,8 @@ def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
         column_dq1 = 716.95 / 1004 * ds.net_heating
     elif "column_heating_due_to_machine_learning" in ds:
         column_dq1 = ds.column_heating_due_to_machine_learning
+    elif "storage_of_internal_energy_path_due_to_machine_learning" in ds:
+        column_dq1 = ds.storage_of_internal_energy_path_due_to_machine_learning
     else:
         # assume given dataset is for a baseline or verification run
         column_dq1 = xr.zeros_like(ds.PRATEsfc)
@@ -110,6 +114,11 @@ def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
 def _column_dq2(ds: xr.Dataset) -> xr.DataArray:
     if "net_moistening_due_to_machine_learning" in ds:
         column_dq2 = SECONDS_PER_DAY * ds.net_moistening_due_to_machine_learning
+    elif "storage_of_specific_humidity_path_due_to_machine_learning" in ds:
+        column_dq2 = (
+            SECONDS_PER_DAY
+            * ds.storage_of_specific_humidity_path_due_to_machine_learning
+        )
     elif "net_moistening" in ds:
         # for backwards compatibility
         warnings.warn(
@@ -172,7 +181,11 @@ def _column_dqv(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_q1(ds: xr.Dataset) -> xr.DataArray:
-    column_q1 = _column_pq1(ds) + _column_dq1(ds) + _column_nq1(ds)
+    applied_physics_name = "storage_of_internal_energy_path_due_to_applied_physics"
+    if applied_physics_name in ds:
+        column_q1 = ds[applied_physics_name] + _column_nq1(ds)
+    else:
+        column_q1 = _column_pq1(ds) + _column_dq1(ds) + _column_nq1(ds)
     column_q1.attrs = {
         "long_name": "<Q1> column integrated heating from physics + ML + nudging",
         "units": "W/m^2",
@@ -181,7 +194,11 @@ def _column_q1(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_q2(ds: xr.Dataset) -> xr.DataArray:
-    column_q2 = _column_pq2(ds) + _column_dq2(ds) + _column_nq2(ds)
+    applied_physics_name = "storage_of_specific_humidity_path_due_to_applied_physics"
+    if applied_physics_name in ds:
+        column_q2 = SECONDS_PER_DAY * ds[applied_physics_name] + _column_nq2(ds)
+    else:
+        column_q2 = _column_pq2(ds) + _column_dq2(ds) + _column_nq2(ds)
     column_q2.attrs = {
         "long_name": "<Q2> column integrated moistening from physics + ML + nudging",
         "units": "mm/day",
@@ -287,3 +304,19 @@ def _column_dq2_or_nq2(ds: xr.Dataset, tol=1.0e-12) -> xr.DataArray:
         long_name = "<dQ2> + <nQ2> column integrated moistening from ML + nudging"
     column_dq2_or_nq2.attrs = {"long_name": long_name, "units": "mm/day"}
     return column_dq2_or_nq2.rename("column_integrated_dQ2_or_nQ2")
+
+
+def _water_vapor_path(ds: xr.Dataset) -> xr.DataArray:
+    if "water_vapor_path" in ds:
+        result = ds.water_vapor_path
+    else:
+        # if necessary, back out from total water path and condensate paths
+        result = ds.PWAT - ds.iw - ds.VIL
+    result.attrs = {"long_name": "water vapor path", "units": "mm"}
+    return result.rename("water_vapor_path")
+
+
+def _minus_column_q2(ds: xr.Dataset) -> xr.DataArray:
+    result = -_column_q2(ds)
+    result.attrs = {"long_name": "-<Q2> column integrated drying", "units": "mm/day"}
+    return result.rename("minus_column_integrated_q2")

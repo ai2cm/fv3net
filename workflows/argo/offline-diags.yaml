@@ -9,7 +9,6 @@ spec:
       secret:
         defaultMode: 420
         secretName: gcp-key
-  serviceAccountName: integration-tests
   templates:
     - name: offline-diags
       tolerations:
@@ -57,7 +56,7 @@ spec:
             cat << EOF > training_data.yaml
             {{inputs.parameters.training_data_config}}
             EOF
-            python -m fv3net.diagnostics.offline.create_report \
+            python -m fv3net.diagnostics.offline.views.create_report \
               {{inputs.parameters.offline-diags-output}} \
               {{inputs.parameters.report-output}} \
               --commit-sha "$COMMIT_SHA" \

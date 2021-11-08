@@ -14,6 +14,9 @@ from .keras._models.models import DenseHyperparameters
 from .keras._models.shared import (
     DenseNetworkConfig,
     DenseNetwork,
+    ConvolutionalNetworkConfig,
+    ConvolutionalNetwork,
+    LossConfig,
     PureKerasModel,
     TrainingLoopConfig,
     EpochResult,
@@ -21,6 +24,7 @@ from .keras._models.shared import (
     History,
 )
 from .keras._models.precipitative import PrecipitativeHyperparameters
+from .keras._models.convolutional import ConvolutionalHyperparameters
 from . import keras, sklearn, testing
 
 __version__ = "0.1.0"

@@ -26,6 +26,7 @@ from ..._shared import (
     stack_non_vertical,
     match_prediction_to_input_coords,
     SAMPLE_DIM_NAME,
+    PackerConfig,
 )
 from ..._shared.config import (
     Hyperparameters,
@@ -34,7 +35,7 @@ from ..._shared.config import (
 )
 import numpy as np
 import os
-from ._filesystem import get_dir, put_dir
+from ..._shared import get_dir, put_dir
 from ._sequences import _XyArraySequence
 from .normalizer import LayerStandardScaler
 from .loss import get_weighted_mse, get_weighted_mae
@@ -73,6 +74,8 @@ class DenseHyperparameters(Hyperparameters):
         nonnegative_outputs: if True, add a ReLU activation layer as the last layer
             after output denormalization layer to ensure outputs are always >=0
             Defaults to False.
+        packer_config: configuration of dataset packing.
+
     """
 
     input_variables: List[str]
@@ -91,6 +94,9 @@ class DenseHyperparameters(Hyperparameters):
     loss: str = "mse"
     save_model_checkpoints: bool = False
     nonnegative_outputs: bool = False
+    packer_config: PackerConfig = dataclasses.field(
+        default_factory=lambda: PackerConfig({})
+    )
 
     @property
     def variables(self) -> Set[str]:
@@ -114,7 +120,7 @@ def train_dense_model(
     return model
 
 
-@io.register("packed-keras")
+@io.register("packed-keras-v2")
 class DenseModel(Predictor):
     """
     Abstract base class for a keras-based model which operates on xarray
@@ -161,7 +167,9 @@ class DenseModel(Predictor):
         super().__init__(input_variables, output_variables)
         self._model = None
         self.X_packer = ArrayPacker(
-            sample_dim_name=SAMPLE_DIM_NAME, pack_names=input_variables
+            sample_dim_name=SAMPLE_DIM_NAME,
+            pack_names=input_variables,
+            config=hyperparameters.packer_config,
         )
         self.y_packer = ArrayPacker(
             sample_dim_name=SAMPLE_DIM_NAME, pack_names=output_variables
@@ -184,6 +192,9 @@ class DenseModel(Predictor):
         else:
             self._checkpoint_path = None
         self.training_loop = hyperparameters.training_loop
+        for name in self._hyperparameters.packer_config.clip:
+            if str(name) in output_variables:
+                raise NotImplementedError("Clipping for ML outputs is not implemented.")
 
     @property
     def model(self) -> tf.keras.Model:
@@ -400,9 +411,8 @@ class DenseModel(Predictor):
         """
         if base_state is None:
             if self.X_scaler.mean is not None:
-                mean_expanded = self.X_packer.to_dataset(
-                    self.X_scaler.mean[np.newaxis, :]
-                )
+                mean = self.X_packer.to_dataset(self.X_scaler.mean[np.newaxis, :])
+                mean_expanded = mean.expand_dims(SAMPLE_DIM_NAME, 0)
             else:
                 raise ValueError("X_scaler needs to be fit first.")
         else:

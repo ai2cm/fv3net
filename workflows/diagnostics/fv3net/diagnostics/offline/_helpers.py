@@ -1,16 +1,16 @@
 import json
 import numpy as np
 import os
-import random
 import shutil
 from typing import Mapping, Sequence, Dict, Tuple, Iterable
-import warnings
 import vcm
 import xarray as xr
 
 from vcm import safe
 from vcm.cloud import gsutil
 from vcm.catalog import catalog
+
+DELP = "pressure_thickness_of_atmospheric_layer"
 
 
 UNITS = {
@@ -29,7 +29,13 @@ UNITS = {
     "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface": "[W/m2]",
     "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": "[W/m2]",
     "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": "[W/m2]",
+    "net_shortwave_sfc_flux_derived": "[W/m2]",
+    "total_precipitation_rate": "[kg/m2/s]",
+    "water_vapor_path": "[mm]",
+    "minus_column_integrated_q2": "[mm/day]",
 }
+UNITS = {**UNITS, **{f"error_in_{k}": v for k, v in UNITS.items()}}
+UNITS = {**UNITS, **{f"{k}_snapshot": v for k, v in UNITS.items()}}
 
 GRID_INFO_VARS = [
     "eastward_wind_u_coeff",
@@ -92,22 +98,6 @@ def get_variable_indices(
     return variable_indices
 
 
-def drop_physics_vars(ds: xr.Dataset):
-    physics_vars = [var for var in ds if "pQ" in str(var)]
-    for var in physics_vars:
-        ds = ds.drop(var)
-    return ds
-
-
-def drop_temperature_humidity_tendencies_if_not_predicted(ds: xr.Dataset):
-    tendencies = ["Q1", "Q2"]
-    for name in tendencies:
-        # if variable is not predicted, it will be all NaN
-        if name in ds and np.all(np.isnan(ds[name].sel(derivation="predict").values)):
-            ds = ds.drop(name)
-    return ds
-
-
 def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
     return vertical_dim in da.dims
 
@@ -141,16 +131,13 @@ def load_grid_info(res: str = "c48"):
 def open_diagnostics_outputs(
     data_dir,
     diagnostics_nc_name: str,
-    diurnal_nc_name: str,
     transect_nc_name: str,
     metrics_json_name: str,
     metadata_json_name: str,
-) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset, dict, dict]:
+) -> Tuple[xr.Dataset, xr.Dataset, dict, dict]:
     fs = vcm.get_fs(data_dir)
     with fs.open(os.path.join(data_dir, diagnostics_nc_name), "rb") as f:
         ds_diags = xr.open_dataset(f).load()
-    with fs.open(os.path.join(data_dir, diurnal_nc_name), "rb") as f:
-        ds_diurnal = xr.open_dataset(f).load()
     transect_full_path = os.path.join(data_dir, transect_nc_name)
     if fs.exists(transect_full_path):
         with fs.open(transect_full_path, "rb") as f:
@@ -161,7 +148,7 @@ def open_diagnostics_outputs(
         metrics = json.load(f)
     with fs.open(os.path.join(data_dir, metadata_json_name), "r") as f:
         metadata = json.load(f)
-    return ds_diags, ds_diurnal, ds_transect, metrics, metadata
+    return ds_diags, ds_transect, metrics, metadata
 
 
 def copy_outputs(temp_dir, output_dir):
@@ -173,10 +160,8 @@ def copy_outputs(temp_dir, output_dir):
 
 def tidy_title(var: str):
     title = (
-        var.strip("pressure_level")
-        .strip("zonal_avg_pressure_level")
-        .strip("predict_vs_target")
-        .strip("-")
+        var.replace("pressure_level", "")
+        .replace("zonal_avg_pressure_level", "")
         .replace("-", " ")
     )
     return title[0].upper() + title[1:]
@@ -188,14 +173,6 @@ def get_metric_string(
     value = metric_statistics["mean"]
     std = metric_statistics["std"]
     return f"{value:.{precision}f} +/- {std:.{precision}f}"
-
-
-def vars_to_plot_maps(metrics):
-    names = []
-    for key in metrics:
-        if "_r2_2d_" in key and key.split("_r2_2d_")[-1] == "global":
-            names.append(key.split("_r2_2d_")[0])
-    return list(set(names))
 
 
 def units_from_name(var):
@@ -214,18 +191,25 @@ def _shorten_coordinate_label(coord: str):
     )
 
 
-def sample_outside_train_range(all: Sequence, train: Sequence, n_sample: int,) -> list:
-    # Draws test samples from outside the training time range
-    if len(train) == 0:
-        warnings.warn(
-            "Training timestep list has zero length, test set will be drawn from "
-            "the full set of timesteps in mapper."
-        )
-        outside_train_range = all
-    else:
-        outside_train_range = [t for t in all if t < min(train) or t > max(train)]
-    if len(outside_train_range) == 0:
-        raise ValueError("There are no timesteps available outside the training range.")
-    num_test = min(len(outside_train_range), n_sample)
-    random.seed(0)
-    return random.sample(sorted(outside_train_range), max(1, num_test))
+def insert_column_integrated_vars(
+    ds: xr.Dataset, column_integrated_vars: Sequence[str]
+) -> xr.Dataset:
+    """Insert column integrated (<*>) terms,
+    really a wrapper around vcm.thermo funcs"""
+
+    for var in column_integrated_vars:
+        column_integrated_name = f"column_integrated_{var}"
+        if "Q1" in var:
+            da = vcm.thermo.column_integrated_heating_from_isochoric_transition(
+                ds[var], ds[DELP]
+            )
+        elif "Q2" in var:
+            da = -vcm.thermo.minus_column_integrated_moistening(ds[var], ds[DELP])
+            da = da.assign_attrs(
+                {"long_name": "column integrated moistening", "units": "mm/day"}
+            )
+        else:
+            da = vcm.mass_integrate(ds[var], ds[DELP], dim="z")
+        ds = ds.assign({column_integrated_name: da})
+
+    return ds

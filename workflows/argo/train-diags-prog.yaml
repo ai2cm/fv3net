@@ -3,7 +3,6 @@ kind: WorkflowTemplate
 metadata:
   name: train-diags-prog
 spec:
-  serviceAccountName: integration-tests
   entrypoint: train-diags-prog
   volumes:
     - name: workdir
@@ -23,9 +22,7 @@ spec:
       - name: training-configs  # used in withParam
       - name: training-data-config
       - name: validation-data-config
-      - name: initial-condition
       - name: prognostic-run-config
-      - name: reference-restarts
       - name: flags
         value: " "
       - name: public-report-output
@@ -38,6 +35,7 @@ spec:
       - {name: memory-offline-diags, value: 10Gi}
       - {name: training-flags, value: " "}
       - {name: online-diags-flags, value: " "}
+      - {name: do-prognostic-run, value: "true"}
     dag:
       tasks:
       - name: resolve-output-url
@@ -106,18 +104,15 @@ spec:
               - name: flags
                 value: "{{inputs.parameters.flags}}"
       - name: prognostic-run
+        when: "{{inputs.parameters.do-prognostic-run}} == true"
         templateRef:
           name: prognostic-run
           template: prognostic-run
         dependencies: [train-model, construct-full-flags]
         arguments:
           parameters:
-              - name: initial-condition
-                value: "{{inputs.parameters.initial-condition}}"
               - name: config
                 value: "{{inputs.parameters.prognostic-run-config}}"
-              - name: reference-restarts
-                value: "{{inputs.parameters.reference-restarts}}"
               - name: bucket
                 value: "{{inputs.parameters.bucket}}"
               - name: project

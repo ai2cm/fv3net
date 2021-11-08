@@ -1,0 +1,30 @@
+base_version: v0.5
+nudging:
+  timescale_hours:
+    air_temperature: 12
+    specific_humidity: 12
+    x_wind: 12
+    y_wind: 12
+    pressure_thickness_of_atmospheric_layer: 12
+  restarts_path: gs://ic-bucket
+initial_conditions:
+  base_url: gs://ic-bucket
+  timestep: "20160805.000000"
+namelist:
+  coupler_nml:
+    current_date:
+    - 2016
+    - 8
+    - 1
+    - 0
+    - 15
+    - 0
+    days: 1
+    hours: 0
+    minutes: 0
+    months: 0
+    seconds: 0
+  fv_core_nml:
+    do_sat_adj: false
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false

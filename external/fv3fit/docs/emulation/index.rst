@@ -14,3 +14,4 @@ Emulation Tools
    layers
    transforms
    thermobasis
+   microphysics

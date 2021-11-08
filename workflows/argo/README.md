@@ -61,9 +61,7 @@ sequential segments.
 
 | Parameter            | Description                                                                   |
 |----------------------|-------------------------------------------------------------------------------|
-| `initial-condition`  | Timestamp string for time at which to begin the prognostic run                |
 | `config`             | String representation of base config YAML file; supplied to prepare-config |
-| `reference-restarts` | Location of restart data for initializing the prognostic run                  |
 | `tag`                | Tag which describes the run and is used in its storage location               | 
 | `flags`              | (optional) Extra command line flags for prepare-config                    |
 | `bucket`             | (optional) Bucket to save run output data; default 'vcm-ml-experiments'       |
@@ -87,8 +85,6 @@ And then calls:
 prepare-config \
         {{inputs.parameters.flags}} \
         {{inputs.parameters.config}} \
-        {{inputs.parameters.reference-restarts}} \
-        {{inputs.parameters.initial-condition}} \
         > /tmp/fv3config.yaml
 ```
 And then
@@ -225,7 +221,7 @@ python -m fv3net.diagnostics.offline.compute \
           {{inputs.parameters.offline-diags-output}} \
           --timesteps-file {{inputs.parameters.times}} 
           
-python -m fv3net.diagnostics.offline.create_report \
+python -m fv3net.diagnostics.offline.views.create_report \
           {{inputs.parameters.offline-diags-output}} \
           {{inputs.parameters.report-output}} \
           --commit-sha "$COMMIT_SHA"
@@ -254,9 +250,7 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 | `train-times`           | `times` for `training` workflow                                       |
 | `test-times`            | `times` for `offline-diags` workflow                                  |
 | `public-report-output`  | `report-output` for `offline-diags` workflow                          |
-| `initial-condition`     | `initial-condition` for `prognostic-run` workflow                     |
 | `prognostic-run-config` | `config` for `prognostic-run` workflow                                |
-| `reference-restarts`    | `reference-restarts` for `prognostic-run` workflow                    |
 | `bucket`                | (optional) Bucket to save output data; default 'vcm-ml-experiments'   |
 | `project`               | (optional) Project directory to save output data; default 'default'   |
 | `flags`                 | (optional) `flags` for `prognostic-run` workflow                      |
@@ -267,6 +261,7 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 | `memory-offline-diags`  | (optional) `memory` for `offline-diags` workflow; default 6Gi         |
 | `training-flags`        | (optional) `flags` for `training` workflow                            |
 | `online-diags-flags`    | (optional) `flags` for `prognostic-run-diags` workflow                |
+| `do-prognostic-run`     | (optional) do prognostic run step; default "true"                     |
 
 Output for the various steps will be written to `gs://{bucket}/{project}/$(date +%F)/{tag}`.
 Slashes (`/`) are not permitted in `bucket`, `project` and `tag` to preserve the depth 

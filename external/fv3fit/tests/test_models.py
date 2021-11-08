@@ -6,6 +6,8 @@ import pytest
 
 from fv3fit.keras._models._sequences import _ThreadedSequencePreLoader
 from fv3fit.keras._models.models import DenseModel, _fill_default
+from fv3fit._shared import PackerConfig, SliceConfig
+import fv3fit
 import tensorflow.keras
 
 
@@ -30,8 +32,8 @@ def test_DenseModel_jacobian(base_state):
 
     batch = xr.Dataset(
         {
-            "a": (["x", "z"], np.arange(10).reshape(2, 5)),
-            "b": (["x", "z"], np.arange(10).reshape(2, 5)),
+            "a": (["x", "z"], np.arange(10, dtype=np.float).reshape(2, 5)),
+            "b": (["x", "z"], np.arange(10, dtype=np.float).reshape(2, 5)),
         }
     )
     model = IdentityModel(["a"], ["b"], DenseHyperparameters(["a"], ["b"]))
@@ -76,3 +78,66 @@ def test_nonnegative_model_outputs():
     model.fit([batch])
     prediction = model.predict(batch)
     assert prediction.min() >= 0.0
+
+
+def test_DenseModel_clipped_inputs():
+    hyperparameters = DenseHyperparameters(
+        ["a", "b"],
+        ["c"],
+        packer_config=PackerConfig({"a": {"z": SliceConfig(None, 3)}}),
+    )
+    model = DenseModel(["a", "b"], ["c"], hyperparameters)
+
+    nz = 5
+    dims = ["x", "y", "z"]
+    shape = (2, 2, nz)
+    arr = np.arange(np.prod(shape)).reshape(shape).astype(float)
+    input_data = xr.Dataset({"a": (dims, arr), "b": (dims, arr), "c": (dims, arr + 1)})
+
+    slice_filled_input = xr.Dataset(
+        {"a": input_data["a"].where(input_data.z < 3).fillna(1.0), "b": input_data["b"]}
+    )
+
+    model.fit([input_data])
+    prediction_clipped = model.predict(input_data)
+    assert model.X_packer._n_features["a"] == 3
+    assert model.X_packer._n_features["b"] == 5
+
+    prediction_nan_filled = model.predict(slice_filled_input)
+
+    xr.testing.assert_allclose(prediction_nan_filled, prediction_clipped, rtol=1e-3)
+
+
+def test_loaded_DenseModel_predicts_with_clipped_inputs(tmpdir):
+    hyperparameters = DenseHyperparameters(
+        ["a", "b"],
+        ["c"],
+        packer_config=PackerConfig({"a": {"z": SliceConfig(None, 3)}}),
+    )
+    model = DenseModel(["a", "b"], ["c"], hyperparameters)
+
+    nz = 5
+    dims = ["x", "y", "z"]
+    shape = (2, 2, nz)
+    arr = np.arange(np.prod(shape)).reshape(shape).astype(float)
+    input_data = xr.Dataset({"a": (dims, arr), "b": (dims, arr), "c": (dims, arr + 1)})
+    model.fit([input_data])
+    prediction = model.predict(input_data)
+    output_path = str(tmpdir.join("trained_model"))
+    fv3fit.dump(model, output_path)
+    model_loaded = fv3fit.load(output_path)
+    loaded_prediction = model_loaded.predict(input_data)
+    xr.testing.assert_allclose(prediction, loaded_prediction)
+
+
+def test_DenseModel_raises_not_implemented_error_with_clipped_output_data():
+    hyperparameters = DenseHyperparameters(
+        ["a", "b"],
+        ["c"],
+        packer_config=PackerConfig({"c": {"z": SliceConfig(None, 3)}}),
+    )
+
+    with pytest.raises(NotImplementedError):
+        DenseModel(
+            ["a", "b"], ["c"], hyperparameters,
+        )

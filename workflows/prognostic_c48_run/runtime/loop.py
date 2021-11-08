@@ -20,7 +20,7 @@ import vcm
 import xarray as xr
 from mpi4py import MPI
 import runtime.factories
-from runtime import DerivedFV3State
+from runtime.derived_state import DerivedFV3State, MergedState
 from runtime.config import UserConfig, get_namelist
 from runtime.diagnostics.compute import (
     compute_baseline_diagnostics,
@@ -162,7 +162,7 @@ class TimeLoop(
             comm = MPI.COMM_WORLD
 
         self._fv3gfs = wrapper
-        self._state: DerivedFV3State = DerivedFV3State(self._fv3gfs)
+        self._state: DerivedFV3State = MergedState(DerivedFV3State(self._fv3gfs), {})
         self.comm = comm
         self._timer = fv3gfs.util.Timer()
         self.rank: int = comm.rank
@@ -187,7 +187,7 @@ class TimeLoop(
         self.monitor = Monitor.from_variables(
             config.diagnostic_variables, state=self._state, timestep=self._timestep,
         )
-        self._emulate = runtime.factories.get_emulator_adapter(
+        self._transform_physics = runtime.factories.get_fv3_physics_transformer(
             config, self._state, self._timestep,
         )
         self._prescribe_tendency = runtime.factories.get_tendency_prescriber(
@@ -217,12 +217,12 @@ class TimeLoop(
         return fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
 
     def emulate_or_prescribe_tendency(self, func: Step) -> Step:
-        if self._emulate is not None and self._prescribe_tendency is not None:
-            return self._prescribe_tendency(self._emulate(func))
-        elif self._emulate is None and self._prescribe_tendency is not None:
+        if self._transform_physics is not None and self._prescribe_tendency is not None:
+            return self._prescribe_tendency(self._transform_physics(func))
+        elif self._transform_physics is None and self._prescribe_tendency is not None:
             return self._prescribe_tendency(func)
-        elif self._emulate is not None and self._prescribe_tendency is None:
-            return self._emulate(func)
+        elif self._transform_physics is not None and self._prescribe_tendency is None:
+            return self._transform_physics(func)
         else:
             return func
 

@@ -1,7 +1,7 @@
 import tensorflow as tf
 from typing import Optional
 
-from .normalization import get_norm_class, get_denorm_class
+from .normalization import NormalizeConfig, DenormalizeConfig
 
 
 class FieldInput(tf.keras.layers.Layer):
@@ -21,12 +21,18 @@ class FieldInput(tf.keras.layers.Layer):
             normalize: normalize layer key to use for inputs
             selection: slice selection taken along the feature dimension
                 of the input
+            norm_layer:
         """
         super().__init__(*args, **kwargs)
 
+        self._selection = selection
+
         if normalize is not None:
-            self.normalize = get_norm_class(normalize)(name=f"normalized_{self.name}")
-            self.normalize.fit(sample_in)
+            self.normalize = NormalizeConfig(
+                class_name=normalize,
+                layer_name=f"normalized_{self.name}",
+                sample_data=sample_in,
+            ).initialize_layer()
         else:
             self.normalize = tf.keras.layers.Lambda(
                 lambda x: x, name=f"passthru_{self.name}"
@@ -48,16 +54,17 @@ class FieldOutput(tf.keras.layers.Layer):
 
     def __init__(
         self,
-        sample_out: tf.Tensor,
+        nfeatures: int,
         *args,
+        sample_out: Optional[tf.Tensor] = None,
         denormalize: Optional[str] = None,
         enforce_positive=False,
         **kwargs,
     ):
         """
         Args:
-            sample_out: Output sample for variable to set shape
-                and fit denormalization layer.
+            nfeatures: size of the output feature dimension
+            sample_out: Output sample for variable to fit denormalization layer.
             denormalize: denormalize layer key to use on
                 the dense layer output
             enforce_positive: add a ReLU on the final layer output
@@ -65,15 +72,19 @@ class FieldOutput(tf.keras.layers.Layer):
         """
         super().__init__(*args, **kwargs)
 
+        self._enforce_positive = enforce_positive
+        self._nfeatures = nfeatures
+
         self.unscaled = tf.keras.layers.Dense(
-            sample_out.shape[-1], name=f"unscaled_{self.name}"
+            nfeatures, activation="linear", name=f"unscaled_{self.name}"
         )
 
         if denormalize is not None:
-            self.denorm = get_denorm_class(denormalize)(
-                name=f"denormalized_{self.name}"
-            )
-            self.denorm.fit(sample_out)
+            self.denorm = DenormalizeConfig(
+                class_name=denormalize,
+                layer_name=f"denormalized_{self.name}",
+                sample_data=sample_out,
+            ).initialize_layer()
         else:
             self.denorm = tf.keras.layers.Lambda(
                 lambda x: x, name=f"passthru_{self.name}"
@@ -103,6 +114,7 @@ class IncrementStateLayer(tf.keras.layers.Layer):
 
     def __init__(self, dt_sec: int, *args, dtype=tf.float32, **kwargs):
 
+        self._dt_sec_arg = dt_sec
         self.dt_sec = tf.constant(dt_sec, dtype=dtype)
         super().__init__(*args, **kwargs)
 
@@ -125,9 +137,10 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
 
     def __init__(
         self,
-        sample_out: tf.Tensor,
+        nfeatures: int,
         dt_sec: int,
         *args,
+        sample_out: Optional[tf.Tensor] = None,
         denormalize: Optional[str] = None,
         enforce_positive: bool = False,
         **kwargs,
@@ -145,9 +158,14 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
         """
         super().__init__(*args, **kwargs)
 
+        self._enforce_positive = enforce_positive
+        self._dt_sec = dt_sec
+        self._nfeatures = nfeatures
+
         self.tendency = FieldOutput(
-            sample_out,
+            nfeatures,
             denormalize=denormalize,
+            sample_out=sample_out,
             enforce_positive=False,
             name=f"tendency_of_{self.name}",
         )
