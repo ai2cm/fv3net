@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Sequence, Type
 import xarray as xr
 from fv3fit.emulation.layers import StandardNormLayer, StandardDenormLayer, NormLayer
 import fv3fit._shared
+import numpy as np
 
 
 def get_input_vector(
@@ -57,66 +58,47 @@ def _fit_norm_layer(
     cls: Type[NormLayer],
     names: Sequence[str],
     layers: Sequence[tf.Tensor],
-    batch: xr.Dataset,
-    sample_dims: Sequence[str] = (SAMPLE_DIM_NAME,),
+    arrays: Sequence[np.ndarray],
 ) -> Sequence[NormLayer]:
     out: List[NormLayer] = []
-    input_features = count_features(names=names, batch=batch, sample_dims=sample_dims)
-    for name, layer in zip(names, layers):
+    for name, layer, array in zip(names, layers, arrays):
         norm = cls(name=f"standard_normalize_{name}")
-        selection: List[Optional[slice]] = [
-            slice(None, None) for _ in batch[name].shape
-        ]
-        if input_features[name] == 1:
-            selection = selection + [None]
-        norm.fit(batch[name].values[tuple(selection)])
+        norm.fit(array)
         out.append(norm(layer))
     return out
 
 
 def standard_normalize(
-    names: Sequence[str],
-    layers: Sequence[tf.Tensor],
-    batch: xr.Dataset,
-    sample_dims: Sequence[str] = (SAMPLE_DIM_NAME,),
+    names: Sequence[str], layers: Sequence[tf.Tensor], arrays: Sequence[np.ndarray],
 ) -> Sequence[tf.Tensor]:
     """
     Apply standard scaling to a series of layers based on mean and standard
-    deviation from a batch of data.
+    deviation from input arrays.
 
     Args:
         names: variable name in batch of each layer in layers
         layers: input tensors to be scaled by scaling layers
-        batch: reference data for mean and standard deviation
-        sample_dims: names of non-feature dimensions
+        arrays: arrays whose last dimension is feature dimension
+            (possibly of length 1) on which to fit statistics
     
     Returns:
         normalized_layers: standard-scaled tensors
     """
-    return _fit_norm_layer(
-        StandardNormLayer,
-        names=names,
-        layers=layers,
-        batch=batch,
-        sample_dims=sample_dims,
-    )
+    return _fit_norm_layer(StandardNormLayer, names=names, layers=layers, arrays=arrays)
 
 
 def standard_denormalize(
-    names: Sequence[str],
-    layers: Sequence[tf.Tensor],
-    batch: xr.Dataset,
-    sample_dims: Sequence[str] = (SAMPLE_DIM_NAME,),
+    names: Sequence[str], layers: Sequence[tf.Tensor], arrays: Sequence[np.ndarray],
 ) -> Sequence[tf.Tensor]:
     """
     Apply standard descaling to a series of standard-scaled
-    layers based on mean and standard deviation from a batch of data.
+    layers based on mean and standard deviation from input arrays.
 
     Args:
         names: variable name in batch of each layer in layers
         layers: input tensors to be scaled by de-scaling layers
-        batch: reference data for mean and standard deviation
-        sample_dims: names of non-feature dimensions
+        arrays: arrays whose last dimension is feature dimension
+            (possibly of length 1) on which to fit statistics
     
     Returns:
         denormalized_layers: de-scaled tensors
@@ -125,6 +107,5 @@ def standard_denormalize(
         StandardDenormLayer,  # type: ignore
         names=names,
         layers=layers,
-        batch=batch,
-        sample_dims=sample_dims,
+        arrays=arrays,
     )

@@ -80,7 +80,7 @@ def test_convolutional_network_build_standard_input_gives_standard_output():
         unstacked_dims=["x", "y", "z"],
         n_halo=config.convolutional_network.halos_required,
     )[0]
-    _, predict_model = build_model(config=config, batch=ds, X=X, y=y)
+    _, predict_model = build_model(config=config, X=X, y=y)
     out = predict_model.predict(X)
     np.testing.assert_almost_equal(np.mean(out), 0.0, decimal=1)
     out_std = np.std(out)
@@ -114,7 +114,7 @@ def test_convolutional_network_build_initial_loss_near_one():
         unstacked_dims=["x", "y", "z"],
         n_halo=config.convolutional_network.halos_required,
     )[0]
-    _, predict_model = build_model(config=config, batch=ds, X=X, y=y)
+    _, predict_model = build_model(config=config, X=X, y=y)
     out = predict_model.predict(X)
     np.testing.assert_allclose(np.std(y - out), 1.0, atol=0.3)
     loss = ConvolutionalHyperparameters.loss.loss(

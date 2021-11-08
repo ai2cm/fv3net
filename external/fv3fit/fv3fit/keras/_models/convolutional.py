@@ -104,9 +104,7 @@ def train_convolutional_model(
     if isinstance(train_batches, tuple):
         train_data = tuple(train_data)
     X, y = train_data[0]
-    train_model, predict_model = build_model(
-        hyperparameters, X=X, y=y, batch=train_batches[0]
-    )
+    train_model, predict_model = build_model(hyperparameters, X=X, y=y)
     output_metadata = get_stacked_metadata(
         names=hyperparameters.output_variables,
         ds=train_batches[0],
@@ -138,15 +136,19 @@ def _count_array_features(arr: np.ndarray) -> int:
         return arr.shape[3]
 
 
-def _non_vertical_dims(dims: Sequence[str]):
-    return [entry for entry in dims if entry not in ("z", "z_interface")]
+def _ensure_5d(array: np.ndarray) -> np.ndarray:
+    if len(array.shape) == 5:
+        return array
+    elif len(array.shape) == 4:
+        return array[:, :, :, :, None]
+    else:
+        raise ValueError(f"expected 4d or 5d array, got shape {array.shape}")
 
 
 def build_model(
     config: ConvolutionalHyperparameters,
     X: Sequence[np.ndarray],
     y: Sequence[np.ndarray],
-    batch: xr.Dataset,
 ) -> Tuple[tf.keras.Model, tf.keras.Model]:
     """
     Args:
@@ -159,8 +161,7 @@ def build_model(
     norm_input_layers = standard_normalize(
         names=config.input_variables,
         layers=input_layers,
-        batch=batch,
-        sample_dims=_non_vertical_dims(batch.dims.keys()),
+        arrays=[_ensure_5d(array) for array in X],
     )
     if len(norm_input_layers) > 1:
         full_input = tf.keras.layers.Concatenate()(norm_input_layers)
@@ -183,18 +184,14 @@ def build_model(
         )(convolution.hidden_outputs[-1])
         for i, array in enumerate(y)
     ]
+    y_5d = [_ensure_5d(array) for array in y]
     denorm_output_layers = standard_denormalize(
-        names=config.output_variables,
-        layers=norm_output_layers,
-        batch=batch,
-        sample_dims=_non_vertical_dims(batch.dims.keys()),
+        names=config.output_variables, layers=norm_output_layers, arrays=y_5d,
     )
     train_model = tf.keras.Model(inputs=input_layers, outputs=denorm_output_layers)
     output_stds = (
-        np.std(
-            batch[name], axis=tuple(range(len(batch[name].shape) - 1)), dtype=np.float32
-        )
-        for name in config.output_variables
+        np.std(array, axis=tuple(range(len(array.shape) - 1)), dtype=np.float32)
+        for array in y_5d
     )
     train_model.compile(
         optimizer=config.optimizer_config.instance,
