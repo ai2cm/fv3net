@@ -31,6 +31,8 @@ UNITS = {
     "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": "[W/m2]",
     "net_shortwave_sfc_flux_derived": "[W/m2]",
     "total_precipitation_rate": "[kg/m2/s]",
+    "water_vapor_path": "[mm]",
+    "minus_column_integrated_q2": "[mm/day]",
 }
 UNITS = {**UNITS, **{f"error_in_{k}": v for k, v in UNITS.items()}}
 UNITS = {**UNITS, **{f"{k}_snapshot": v for k, v in UNITS.items()}}

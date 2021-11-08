@@ -279,12 +279,12 @@ class SliceConfig:
         return slice(self.start, self.stop, self.step)
 
 
-ClipConfig = Mapping[Hashable, Mapping[str, SliceConfig]]
+ClipDims = Mapping[Hashable, Mapping[str, SliceConfig]]
 
 
 @dataclasses.dataclass(frozen=True)
 class PackerConfig:
-    clip: ClipConfig
+    clip: ClipDims = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass
