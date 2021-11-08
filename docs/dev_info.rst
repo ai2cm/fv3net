@@ -9,11 +9,9 @@ Links and extended explanations of tools for development
     :maxdepth: 1
     :hidden:
 
-    local_k8s
     dependency_management
 
 
-* :ref:`local_k8s`: Use a local k8s cluster for development
 * :ref:`dependency_management`: Adding or updating requirements? Look
   here to help keep our builds deterministic!
 
