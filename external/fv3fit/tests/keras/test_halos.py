@@ -70,6 +70,11 @@ def check_result(result: xr.Dataset, n_halo: int, nx: int, ny: int, nz: int):
             x=range(n_halo, n_halo + nx), y=range(0, ny + 2 * n_halo)
         )
         assert np.sum(data_with_y_halos == 0) == 0, name
+        # corner data should still be zeros
+        for x_range in (range(0, n_halo), range(n_halo + nx, n_halo * 2 + nx)):
+            for y_range in (range(0, n_halo), range(n_halo + ny, n_halo * 2 + ny)):
+                corner_data = da.isel(x=x_range, y=y_range)
+                assert np.all(corner_data.values == 0)
 
 
 @pytest.mark.parametrize(
@@ -137,8 +142,8 @@ def test_with_and_without_mpi_give_same_result(nx: int, ny: int, nz: int, n_halo
     full_ds = get_dataset(nx=nx, ny=ny, nz=nz, n_tile=n_tile).drop(
         ["scalar", "scalar_single_precision"]
     )
-    non_mpi_result: xr.Dataset = append_halos(full_ds, n_halo=n_halo)
     rank_datasets = [full_ds.isel(tile=i) for i in range(n_tile)]
+    non_mpi_result: xr.Dataset = append_halos(full_ds, n_halo=n_halo)
 
     output_datasets = [None for _ in range(n_tile)]
     for i in range(1, n_tile):

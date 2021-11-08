@@ -127,15 +127,6 @@ def train_convolutional_model(
     return predictor
 
 
-def batch_to_array_tuple(
-    batch: xr.Dataset, input_variables: Sequence[str], output_variables: Sequence[str]
-) -> Tuple[Tuple[np.ndarray, ...], Tuple[np.ndarray, ...]]:
-    return (
-        tuple(batch[name].values for name in input_variables),
-        tuple(batch[name].values for name in output_variables),
-    )
-
-
 def _count_array_features(arr: np.ndarray) -> int:
     """
     Given a 3/4-d [sample, x, y(, z)] array, return its number of

@@ -97,11 +97,10 @@ class XyMultiArraySequence(tf.keras.utils.Sequence):
 
     def __getitem__(self, idx) -> Tuple[np.ndarray, np.ndarray]:
         ds = self.dataset_sequence[idx]
-        X_y_datasets = [
-            vcm.safe.get_variables(ds=ds, variables=self.X_names),
-            vcm.safe.get_variables(ds=ds, variables=self.y_names),
-        ]
-        X_y_datasets[0] = append_halos(X_y_datasets[0], n_halo=self.n_halo)
+        X_ds = vcm.safe.get_variables(ds=ds, variables=self.X_names)
+        X_ds = append_halos(X_ds, n_halo=self.n_halo)
+        y_ds = vcm.safe.get_variables(ds=ds, variables=self.y_names)
+        X_y_datasets = [X_ds, y_ds]
         for i in range(2):
             X_y_datasets[i] = stack(
                 X_y_datasets[i], unstacked_dims=self.unstacked_dims

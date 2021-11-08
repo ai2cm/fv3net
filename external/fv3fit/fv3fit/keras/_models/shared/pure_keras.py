@@ -46,7 +46,7 @@ class PureKerasModel(Predictor):
             model: keras model to wrap
             unstacked_dims: if given, stacking should leave these dimensions in place.
                 by default uses z-dimension names from fv3gfs.util
-            n_halo: if given, number of halo points required in input data
+            n_halo: number of halo points required in input data
         """
         super().__init__(input_variables, output_variables)
         self.input_variables = input_variables
