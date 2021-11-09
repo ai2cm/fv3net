@@ -140,3 +140,6 @@ wandb.log(metrics)
 
 for v in skills_all:
     wandb.summary["column_skill/" + v] = float(skills_all[v])
+
+for k in skills_time:
+    wandb.summary["skill/v"] = float(skills_time[k])
