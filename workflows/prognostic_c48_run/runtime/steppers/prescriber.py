@@ -136,7 +136,7 @@ class Prescriber:
                 # "ocean_surface_temperature". If "surface_temperature" is
                 # the prescribed variable, all points will be updated.
                 state_updates.update(
-                    sst_update_from_reference(prescribed_timestep, state, SST)
+                    sst_update_from_reference(state, prescribed_timestep, SST)
                 )
             else:
                 state_updates[name] = prescribed_timestep[name]
