@@ -80,12 +80,12 @@ class CallArtifacts:
 
 @pytest.fixture
 def mock_train_dense_model():
-    train_mock = mock.MagicMock(name="train_dense_model")
+    original_func = fv3fit.get_training_function("DenseModel")
+    train_mock = mock.MagicMock(name="train_dense_model", spec=original_func)
     train_mock.return_value = mock.MagicMock(
         name="train_dense_model_return", spec=fv3fit.Predictor
     )
     register("mock")(train_mock.return_value.__class__)
-    original_func = fv3fit.get_training_function("DenseModel")
     try:
         fv3fit._shared.config.register_training_function(
             "DenseModel", fv3fit.DenseHyperparameters
@@ -300,6 +300,25 @@ def get_config(
     return TestConfig(
         args, training_config.variables, hyperparameters, output_path, mock_dataset
     )
+
+
+def test_train_config_override_args(tmpdir, mock_load_batches, mock_train_dense_model):
+    model_type = "DenseModel"
+    hyperparameter_dict = {"dense_network": {"width": 6}}
+    config = get_config(
+        tmpdir,
+        derived_output_variables=[],
+        model_type=model_type,
+        hyperparameter_dict=hyperparameter_dict,
+        use_validation_data=True,
+    )
+    mock_load_batches.return_value = [config.mock_dataset for _ in range(6)]
+    assert config.hyperparameters.dense_network["width"] == 6
+    patch_args = ["--hyperparameters.dense_network.width", "12"]
+    fv3fit.train.main(config.args, unknown_args=patch_args)
+    mock_train_dense_model.assert_called_once()
+    hyperparameters = mock_train_dense_model.call_args[1]["hyperparameters"]
+    assert hyperparameters.dense_network.width == 12
 
 
 def cli_main(args: MainArgs):

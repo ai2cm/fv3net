@@ -174,6 +174,8 @@ def _add_items_to_parser_arguments(
             parser.add_argument(f"--{key}", nargs="*", default=copy.copy(value))
         elif isinstance(value, bool):
             parser.add_argument(f"--{key}", type=_bool_from_str, default=value)
+        elif isinstance(value, int):
+            parser.add_argument(f"--{key}", type=int, default=value)
         else:
             parser.add_argument(f"--{key}", default=value)
 
