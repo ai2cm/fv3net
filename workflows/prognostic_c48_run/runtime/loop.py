@@ -375,6 +375,7 @@ class TimeLoop(
             "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
             "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface",
             "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface",
+            "ocean_surface_temperature",
         ]
         state_updates = {
             k: v for k, v in self._state_updates.items() if k in prephysics_overrides
