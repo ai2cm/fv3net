@@ -304,7 +304,10 @@ def get_config(
 
 def test_train_config_override_args(tmpdir, mock_load_batches, mock_train_dense_model):
     model_type = "DenseModel"
-    hyperparameter_dict = {"dense_network": {"width": 6}}
+    hyperparameter_dict = {
+        "dense_network": {"width": 6},
+        "optimizer_config": {"name": "MyOpt", "kwargs": {"lr": 0.01}},
+    }
     config = get_config(
         tmpdir,
         derived_output_variables=[],
@@ -314,11 +317,19 @@ def test_train_config_override_args(tmpdir, mock_load_batches, mock_train_dense_
     )
     mock_load_batches.return_value = [config.mock_dataset for _ in range(6)]
     assert config.hyperparameters.dense_network["width"] == 6
-    patch_args = ["--hyperparameters.dense_network.width", "12"]
+    assert config.hyperparameters.optimizer_config["kwargs"]["lr"] == 0.01
+    patch_args = [
+        "--hyperparameters.dense_network.width",
+        "12",
+        "--hyperparameters.optimizer_config.kwargs.lr",
+        "0.02",
+    ]
     fv3fit.train.main(config.args, unknown_args=patch_args)
     mock_train_dense_model.assert_called_once()
     hyperparameters = mock_train_dense_model.call_args[1]["hyperparameters"]
     assert hyperparameters.dense_network.width == 12
+    assert hyperparameters.optimizer_config.kwargs["lr"] == 0.02
+    assert hyperparameters.optimizer_config.name == "MyOpt"
 
 
 def cli_main(args: MainArgs):
