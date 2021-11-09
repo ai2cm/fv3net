@@ -1,10 +1,7 @@
 from fv3fit._shared.packer import ArrayPacker
-from fv3fit._shared.stacking import SAMPLE_DIM_NAME
 import tensorflow as tf
-from typing import Dict, List, Optional, Sequence, Type
-import xarray as xr
+from typing import List, Optional, Sequence, Type
 from fv3fit.emulation.layers import StandardNormLayer, StandardDenormLayer, NormLayer
-import fv3fit._shared
 import numpy as np
 
 
@@ -36,22 +33,6 @@ def get_input_vector(
         ]
     packed = tf.keras.layers.Concatenate()(input_layers)
     return input_layers, packed
-
-
-def count_features(
-    names, batch: xr.Dataset, sample_dims=(SAMPLE_DIM_NAME,)
-) -> Dict[str, int]:
-    """
-    Returns counts of the number of features for each variable name.
-
-    Args:
-        names: dataset keys to be unpacked
-        batch: dataset containing representatively-shaped data for the given names,
-            last dimension should be the feature dimension.
-        sample_dims: names of non-feature dimensions
-    """
-    _, feature_index = fv3fit._shared.pack(batch[names], sample_dims=sample_dims)
-    return fv3fit._shared.count_features(feature_index)
 
 
 def _fit_norm_layer(

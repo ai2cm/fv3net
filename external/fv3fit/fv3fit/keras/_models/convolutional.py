@@ -155,7 +155,6 @@ def build_model(
         config: configuration of convolutional training
         X: example input for keras fitting, used to determine shape and normalization
         y: example output for keras fitting, used to determine shape and normalization
-        batch: data from X and y in the form of an xarray dataset
     """
     input_layers = [tf.keras.layers.Input(shape=array.shape[1:]) for array in X]
     norm_input_layers = standard_normalize(

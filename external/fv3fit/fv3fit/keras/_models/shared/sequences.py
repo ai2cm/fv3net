@@ -15,7 +15,6 @@ from fv3fit._shared.stacking import (
     check_empty,
     preserve_samples_per_batch,
     shuffled,
-    SAMPLE_DIM_NAME,
 )
 
 logger = logging.getLogger(__name__)
@@ -102,15 +101,17 @@ class XyMultiArraySequence(tf.keras.utils.Sequence):
         y_ds = vcm.safe.get_variables(ds=ds, variables=self.y_names)
         X_y_datasets = [X_ds, y_ds]
         for i in range(2):
-            X_y_datasets[i] = stack(
-                X_y_datasets[i], unstacked_dims=self.unstacked_dims
-            ).dropna(dim=SAMPLE_DIM_NAME)
+            X_y_datasets[i] = stack(X_y_datasets[i], unstacked_dims=self.unstacked_dims)
             X_y_datasets[i] = check_empty(X_y_datasets[i])
             X_y_datasets[i] = preserve_samples_per_batch(X_y_datasets[i])
         X_y_datasets = shuffled(np.random, X_y_datasets)
         X_ds, y_ds = X_y_datasets
         X = tuple(X_ds[name].values for name in self.X_names)
         y = tuple(y_ds[name].values for name in self.y_names)
+        if np.any([np.any(np.isnan(data)) for data in X]):
+            raise ValueError("found NaN in X data")
+        if np.any([np.any(np.isnan(data)) for data in y]):
+            raise ValueError("found NaN in y data")
         return X, y
 
 

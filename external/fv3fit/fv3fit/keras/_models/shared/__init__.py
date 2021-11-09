@@ -9,11 +9,6 @@ from .convolutional_network import (
 from .pure_keras import PureKerasModel
 from .training_loop import TrainingLoopConfig, EpochResult, EpochLossHistory, History
 from .loss import LossConfig
-from .utils import (
-    get_input_vector,
-    standard_denormalize,
-    standard_normalize,
-    count_features,
-)
+from .utils import get_input_vector, standard_denormalize, standard_normalize
 from .sequences import XyArraySequence, XyMultiArraySequence, ThreadedSequencePreLoader
 from .halos import append_halos
