@@ -2,7 +2,7 @@ import tensorflow as tf
 from typing import Iterable, Optional, Sequence, Union, Mapping, Tuple, Callable
 import dataclasses
 import numpy as np
-from fv3fit.keras._models._sequences import _ThreadedSequencePreLoader
+from .sequences import ThreadedSequencePreLoader
 from loaders.batches import shuffle
 import logging
 
@@ -61,7 +61,7 @@ class TrainingLoopConfig:
         for i_epoch in range(self.epochs):
             Xy = shuffle(Xy)
             if self.workers > 1:
-                Xy = _ThreadedSequencePreLoader(
+                Xy = ThreadedSequencePreLoader(
                     Xy, num_workers=self.workers, max_queue_size=self.max_queue_size
                 )
             history = []
