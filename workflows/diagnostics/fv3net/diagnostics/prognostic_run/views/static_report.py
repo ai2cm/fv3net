@@ -27,9 +27,8 @@ from fv3net.diagnostics.prognostic_run.constants import (
     PRECIP_RATE,
     TOP_LEVEL_METRICS,
     MovieUrls,
-    WVP,
-    COL_DRYING,
 )
+from fv3net.diagnostics._shared.constants import WVP, COL_DRYING
 
 import logging
 

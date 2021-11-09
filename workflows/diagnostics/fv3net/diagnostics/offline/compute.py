@@ -17,6 +17,7 @@ from vcm import safe, interpolate_to_pressure_levels
 import vcm
 import fv3fit
 from .compute_diagnostics import compute_diagnostics
+from .derived_diagnostics import derived_registry
 from ._plot_input_sensitivity import plot_jacobian, plot_rf_feature_importance
 from ._helpers import (
     load_grid_info,
@@ -153,6 +154,8 @@ def _compute_diagnostics(
         ds = ds.pipe(insert_column_integrated_vars, diagnostic_vars_3d).load()
 
         full_predicted_vars = [var for var in ds if DERIVATION_DIM_NAME in ds[var].dims]
+        if "dQ2" in full_predicted_vars:
+            full_predicted_vars.append("water_vapor_path")
         prediction = safe.get_variables(
             ds.sel({DERIVATION_DIM_NAME: PREDICT_COORD}), full_predicted_vars
         )
@@ -256,6 +259,11 @@ def _variables_to_load(model):
     )
 
 
+def _add_derived_diagnostics(ds):
+    merged = xr.merge([ds, derived_registry.compute(ds, n_jobs=1)])
+    return merged.assign_attrs(ds.attrs)
+
+
 def main(args):
     logger.info("Starting diagnostics routine.")
 
@@ -347,6 +355,8 @@ def main(args):
 
         ds_transect = _get_transect(ds_snapshot, grid, vertical_vars)
         _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
+
+    ds_diagnostics = _add_derived_diagnostics(ds_diagnostics)
 
     _write_nc(
         ds_diagnostics, args.output_path, DIAGS_NC_NAME,

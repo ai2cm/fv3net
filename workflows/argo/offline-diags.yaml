@@ -9,7 +9,6 @@ spec:
       secret:
         defaultMode: 420
         secretName: gcp-key
-  serviceAccountName: integration-tests
   templates:
     - name: offline-diags
       tolerations:
