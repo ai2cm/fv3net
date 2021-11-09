@@ -4,12 +4,13 @@ import numpy
 import numpy as np
 from datetime import timedelta
 from typing_extensions import Protocol
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Sequence
 
 from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
 from loaders._config import mapper_functions
 from vcm.fv3.metadata import gfdl_to_standard
+from vcm.safe import get_variables
 
 
 def eddy_flux_coarse(unresolved_flux, total_resolved_flux, omega, field):
@@ -266,25 +267,32 @@ def open_fine_resolution_dataset(
     fine_url: str = "gs://vcm-ml-experiments/default/2021-04-27/2020-05-27-40-day-X-SHiELD-simulation/fine-res-budget.zarr",  # noqa: E501
     input_feature_url: Optional[str] = None,
     include_temperature_nudging: bool = False,
+    fine_res_input: Optional[Tuple[str, Sequence[str]]] = None,
 ) -> xarray.Dataset:
 
     fine = open_zarr_maybe_consolidated(fine_url)
     fine["Q1"], fine["Q2"] = compute_fine_res_sources(fine, include_temperature_nudging)
     fine_shifted = _standardize_coords(fine)
 
-    return _add_fine_res_inputs(fine_shifted, input_feature_url)
+    return _add_fine_res_inputs(fine_shifted, input_feature_url, fine_res_input)
 
 
 def open_precomputed_fine_resolution_dataset(
-    fine_url: str, input_feature_url: Optional[str] = None
+    fine_url: str,
+    input_feature_url: Optional[str] = None,
+    fine_res_input: Optional[Tuple[str, Sequence[str]]] = None,
 ) -> xarray.Dataset:
 
     fine = open_zarr_maybe_consolidated(fine_url)
 
-    return _add_fine_res_inputs(fine, input_feature_url)
+    return _add_fine_res_inputs(fine, input_feature_url, fine_res_input)
 
 
-def _add_fine_res_inputs(fine: xarray.Dataset, input_feature_url: Optional[str] = None):
+def _add_fine_res_inputs(
+    fine: xarray.Dataset,
+    input_feature_url: Optional[str] = None,
+    fine_res_input: Optional[Tuple[str, Sequence[str]]] = None,
+):
 
     if input_feature_url is None:
         input_features = xarray.Dataset()
@@ -298,6 +306,11 @@ def _add_fine_res_inputs(fine: xarray.Dataset, input_feature_url: Optional[str] 
         input_features["longitude"] = input_features.longitude.isel(time=0)
 
     merged = xarray.merge([fine, input_features], join="inner",)
+
+    if fine_res_input is not None:
+        url, variables = fine_res_input[0], fine_res_input[1]
+        fine_res_input = get_variables(open_zarr_maybe_consolidated(url), variables)
+        merged = xarray.merge([fine_res_input, merged], compat="override")
 
     # since ML target is Q1/Q2, dQ1=Q1 and pQ1=0 and same for moistening
     merged["dQ1"] = merged["Q1"]
@@ -317,7 +330,9 @@ def _add_fine_res_inputs(fine: xarray.Dataset, input_feature_url: Optional[str] 
 def open_fine_resolution(
     fine_url: str = "",
     input_feature_url: Optional[str] = None,
+    additional_input_url: Optional[str] = None,
     include_temperature_nudging: bool = False,
+    fine_res_input: Optional[Tuple[str, Sequence[str]]] = None,
 ) -> GeoMapper:
     """
     Open the fine-res mapper optionally using state from another run.
@@ -327,6 +342,9 @@ def open_fine_resolution(
         input_feature_url: url to fv3gfs_run to use for state inputs. If not provided,
             the state of the fine-res data will be used as input.
         include_temperature_nudging: whether to include fine-res nudging in Q1
+        fine_res_input: optional tuple of (url, sequence of variables) to add additional
+            features from a fine-res dataset; features specified here will overwrite
+            those from the input feature set
 
     Returns:
         a mapper
@@ -336,13 +354,16 @@ def open_fine_resolution(
             fine_url=fine_url,
             input_feature_url=input_feature_url,
             include_temperature_nudging=include_temperature_nudging,
+            fine_res_input=fine_res_input,
         )
     )
 
 
 @mapper_functions.register
 def open_precomputed_fine_resolution(
-    fine_url: str, input_feature_url: Optional[str] = None
+    fine_url: str,
+    input_feature_url: Optional[str] = None,
+    fine_res_input: Optional[Tuple[str, Sequence[str]]] = None,
 ) -> GeoMapper:
     """
     Open the fine-res mapper from precomputed data, optionally using state
@@ -353,12 +374,17 @@ def open_precomputed_fine_resolution(
             precomputed Q1 and Q2
         input_feature_url: url to fv3gfs_run to use for state inputs. If not provided,
             the state of the fine-res data will be used as input.
+        fine_res_input: optional tuple of (url, sequence of variables) to add additional
+            features from a fine-res dataset; features specified here will overwrite
+            those from the input feature set
 
     Returns:
         a mapper
     """
     return XarrayMapper(
         open_precomputed_fine_resolution_dataset(
-            fine_url=fine_url, input_feature_url=input_feature_url
+            fine_url=fine_url,
+            input_feature_url=input_feature_url,
+            fine_res_input=fine_res_input,
         )
     )
