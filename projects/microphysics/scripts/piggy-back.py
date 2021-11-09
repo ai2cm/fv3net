@@ -97,6 +97,16 @@ skills = xr.Dataset(
     )
 )
 
+skills_time = xr.Dataset(
+    dict(
+        surface_precipitation=skill_improvement(
+            ds.surface_precipitation_due_to_zhao_carr_physics,
+            ds.surface_precipitation_due_to_zhao_carr_emulator,
+            ds.area,
+        )
+    )
+)
+
 skills_all = xr.Dataset(
     dict(
         cloud_water=skill_improvement_column(
@@ -117,9 +127,15 @@ skills_all = xr.Dataset(
     )
 )
 
-df = skills.to_dataframe().reset_index()
-df["time"] = df.time.apply(lambda x: x.isoformat())
-metrics["skill"] = wandb.Table(dataframe=df)
+
+def time_dependent_dataset(skills):
+    df = skills.to_dataframe().reset_index()
+    df["time"] = df.time.apply(lambda x: x.isoformat())
+    return wandb.Table(dataframe=df)
+
+
+metrics["skill"] = time_dependent_dataset(skills)
+metrics["skill_time"] = time_dependent_dataset(skills_time)
 wandb.log(metrics)
 
 for v in skills_all:
