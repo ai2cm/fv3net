@@ -11,10 +11,9 @@ import tensorflow as tf
 import xarray as xr
 from ..._shared import ArrayPacker
 from ..._shared.config import Hyperparameters
-from ._sequences import _XyMultiArraySequence
 from .packer import get_unpack_layer
 from .normalizer import LayerStandardScaler
-from .shared import DenseNetworkConfig, TrainingLoopConfig
+from .shared import DenseNetworkConfig, TrainingLoopConfig, XyMultiArraySequence
 import numpy as np
 from fv3fit.keras._models.shared import get_input_vector, PureKerasModel
 import logging
@@ -230,14 +229,13 @@ def train_precipitative_model(
 ):
     random_state = np.random.RandomState(np.random.get_state()[1][0])
     stacked_train_batches = StackedBatches(train_batches, random_state)
-    stacked_validation_batches = StackedBatches(validation_batches, random_state)
     training_obj = PrecipitativeModel(hyperparameters=hyperparameters)
     training_obj.fit_statistics(stacked_train_batches[0])
-    if len(stacked_validation_batches) > 0:
-        val_batch = stacked_validation_batches[0]
+    if len(validation_batches) > 0:
+        val_batch = validation_batches[0]
     else:
         val_batch = None
-    training_obj.fit(stacked_train_batches, validation_batch=val_batch)
+    training_obj.fit(train_batches, validation_batch=val_batch)
     return training_obj.predictor
 
 
@@ -390,11 +388,10 @@ class PrecipitativeModel:
         if validation_batch is None:
             validation_data = None
         else:
-            validation_data = (
-                tuple(validation_batch[name].values for name in self.input_variables),
-                tuple(validation_batch[name].values for name in self.output_variables),
-            )
-        Xy = _XyMultiArraySequence(self.input_variables, self.output_variables, batches)
+            validation_data = XyMultiArraySequence(
+                self.input_variables, self.output_variables, [validation_batch]
+            )[0]
+        Xy = XyMultiArraySequence(self.input_variables, self.output_variables, batches)
         return self._training_loop.fit_loop(self._train_model, Xy, validation_data)
 
     @property

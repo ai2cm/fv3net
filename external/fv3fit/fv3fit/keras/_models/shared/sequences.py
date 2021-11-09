@@ -5,13 +5,22 @@ import xarray as xr
 import numpy as np
 import tensorflow as tf
 from typing import Sequence, Tuple, List, Any
+from .halos import append_halos
+import fv3gfs.util
+import vcm.safe
 
-from ..._shared.packer import ArrayPacker
+from fv3fit._shared.packer import ArrayPacker
+from fv3fit._shared.stacking import (
+    stack,
+    check_empty,
+    preserve_samples_per_batch,
+    shuffled,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class _XyArraySequence(tf.keras.utils.Sequence):
+class XyArraySequence(tf.keras.utils.Sequence):
     """
     Wrapper object converting a sequence of batch datasets
     to a sequence of input/output numpy arrays.
@@ -37,14 +46,16 @@ class _XyArraySequence(tf.keras.utils.Sequence):
         return X, y
 
 
-class _XyMultiArraySequence(tf.keras.utils.Sequence):
+class XyMultiArraySequence(tf.keras.utils.Sequence):
     """
-    Wrapper object converting a sequence of batch datasets
-    to a sequence of tuples of input/output numpy arrays.
+    Wrapper object converting a sequence of unstacked batch datasets
+    to a stacked, shuffled sequence of tuples of input/output numpy arrays.
 
     These tuples contain one unpacked numpy array for each input/output,
-    in contrast to _XyArraySequence which is specialized to the case
-    of a single input/output of packed arrays.
+    in contrast to XyArraySequence which is specialized to the case
+    of a single input/output of packed arrays. This class also performs
+    the responsibilities of StackedBatches, unlike XyArraySequence,
+    and will append halos to X inputs as requested.
     """
 
     def __init__(
@@ -52,22 +63,59 @@ class _XyMultiArraySequence(tf.keras.utils.Sequence):
         X_names: Sequence[str],
         y_names: Sequence[str],
         dataset_sequence: Sequence[xr.Dataset],
+        unstacked_dims=fv3gfs.util.Z_DIMS,
+        n_halo: int = 0,
     ):
+        """
+        Args:
+            X_names: names of input variables
+            y_names: names of output variables
+            dataset_sequence: sequence of datasets containing
+                nput and output variables
+            unstacked_dims: dimensions which should be present in the X and y
+                arrays apart from the "sample" (stacked) dimension
+            n_halo: number of halo points to append to input variables, if given
+                then the data must contain "x" and "y" dimensions
+        """
+        horizontal_unstacked_dims = set(fv3gfs.util.HORIZONTAL_DIMS).intersection(
+            unstacked_dims
+        )
+        if n_halo > 1 and len(horizontal_unstacked_dims) == 0:
+            raise ValueError(
+                "when appending halo data (halo > 0), must have "
+                "horizontal dimensions in unstacked_dims"
+            )
         self.X_names = X_names
         self.y_names = y_names
         self.dataset_sequence = dataset_sequence
+        self.n_halo = n_halo
+        self.unstacked_dims = unstacked_dims
 
     def __len__(self) -> int:
         return len(self.dataset_sequence)
 
     def __getitem__(self, idx) -> Tuple[np.ndarray, np.ndarray]:
         ds = self.dataset_sequence[idx]
-        X = tuple(ds[name].values for name in self.X_names)
-        y = tuple(ds[name].values for name in self.y_names)
+        X_ds = vcm.safe.get_variables(ds=ds, variables=self.X_names)
+        X_ds = append_halos(X_ds, n_halo=self.n_halo)
+        y_ds = vcm.safe.get_variables(ds=ds, variables=self.y_names)
+        X_y_datasets = [X_ds, y_ds]
+        for i in range(2):
+            X_y_datasets[i] = stack(X_y_datasets[i], unstacked_dims=self.unstacked_dims)
+            X_y_datasets[i] = check_empty(X_y_datasets[i])
+            X_y_datasets[i] = preserve_samples_per_batch(X_y_datasets[i])
+        X_y_datasets = shuffled(np.random, X_y_datasets)
+        X_ds, y_ds = X_y_datasets
+        X = tuple(X_ds[name].values for name in self.X_names)
+        y = tuple(y_ds[name].values for name in self.y_names)
+        if np.any([np.any(np.isnan(data)) for data in X]):
+            raise ValueError("found NaN in X data")
+        if np.any([np.any(np.isnan(data)) for data in y]):
+            raise ValueError("found NaN in y data")
         return X, y
 
 
-class _ThreadedSequencePreLoader(tf.keras.utils.Sequence):
+class ThreadedSequencePreLoader(tf.keras.utils.Sequence):
     """
     Wrapper object for using a threaded pre-load to provide
     items for a generator.

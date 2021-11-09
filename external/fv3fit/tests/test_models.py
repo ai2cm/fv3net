@@ -4,7 +4,7 @@ import numpy as np
 
 import pytest
 
-from fv3fit.keras._models._sequences import _ThreadedSequencePreLoader
+from fv3fit.keras._models.shared.sequences import ThreadedSequencePreLoader
 from fv3fit.keras._models.models import DenseModel, _fill_default
 from fv3fit._shared import PackerConfig, SliceConfig
 import fv3fit
@@ -14,7 +14,7 @@ import tensorflow.keras
 def test__ThreadedSequencePreLoader():
     """ Check correctness of the pre-loaded sequence"""
     sequence = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    loader = _ThreadedSequencePreLoader(sequence, num_workers=4)
+    loader = ThreadedSequencePreLoader(sequence, num_workers=4)
     result = [item for item in loader]
     assert len(result) == len(sequence)
     for item in result:
