@@ -178,7 +178,7 @@ def _add_items_to_parser_arguments(
         elif isinstance(value, int):
             parser.add_argument(f"--{key}", type=int, default=value)
         elif isinstance(value, float):
-            parser.add_argument(f"--{key}", type=int, default=value)
+            parser.add_argument(f"--{key}", type=float, default=value)
         else:
             parser.add_argument(f"--{key}", default=value)
 
