@@ -33,6 +33,9 @@ fortran_diagnostics:
     - field_name: surface_precipitation_due_to_physics
       module_name: zhao_carr_microphysics
       output_name: surface_precipitation_due_to_zhao_carr_physics
+    - field_name: delp
+      module_name: dynamics
+      output_name: delp
 namelist:
 - name: sfc_dt_atmos.zarr
   chunks:
