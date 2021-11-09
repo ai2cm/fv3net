@@ -32,3 +32,9 @@ Run the prognostic run
 Pass `--help` to this script for more information
 
 
+## All in one prognostic run script
+
+
+See [this script](scripts/run_all_prognostic.sh) for an example of how to run a
+prognostic run and the diagnostics at the same time.
+
