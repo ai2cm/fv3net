@@ -174,6 +174,20 @@ def open_fine_resolution_nudging_hybrid_dataset(
     fine["Q1"], fine["Q2"] = compute_fine_res_sources(fine, include_temperature_nudging)
     fine_shifted = _standardize_coords(fine)
 
+    return _open_nudged_hybrid_portion(fine_shifted, nudge_url)
+
+
+def open_precomputed_fine_resolution_nudging_hybrid_dataset(
+    fine_url: str, nudge_url: str,
+) -> xarray.Dataset:
+
+    fine = open_zarr_maybe_consolidated(fine_url)
+
+    return _open_nudged_hybrid_portion(fine, nudge_url)
+
+
+def _open_nudged_hybrid_portion(fine_shifted: xarray.Dataset, nudge_url: str):
+
     nudge_physics_tendencies = open_zarr_maybe_consolidated(
         nudge_url + "/physics_tendencies.zarr",
     )
@@ -226,6 +240,28 @@ def open_fine_resolution_nudging_hybrid(
     )
 
 
+@mapper_functions.register
+def open_precomputed_fine_resolution_nudging_hybrid(
+    fine_url: str, nudge_url: str,
+) -> GeoMapper:
+    """
+    Open the fine resolution nudging hybrid mapper with precomputed fine-res data
+
+    Args:
+        fine_url: url where coarsened fine resolution data is stored, must include
+            precomputed Q1 and Q2
+        nudge_url: url to nudging data to be used as a residual
+
+    Returns:
+        a mapper
+    """
+    return XarrayMapper(
+        open_precomputed_fine_resolution_nudging_hybrid_dataset(
+            fine_url=fine_url, nudge_url=nudge_url
+        )
+    )
+
+
 def open_fine_resolution_dataset(
     fine_url: str = "gs://vcm-ml-experiments/default/2021-04-27/2020-05-27-40-day-X-SHiELD-simulation/fine-res-budget.zarr",  # noqa: E501
     input_feature_url: Optional[str] = None,
@@ -236,18 +272,32 @@ def open_fine_resolution_dataset(
     fine["Q1"], fine["Q2"] = compute_fine_res_sources(fine, include_temperature_nudging)
     fine_shifted = _standardize_coords(fine)
 
+    return _add_fine_res_inputs(fine_shifted, input_feature_url)
+
+
+def open_precomputed_fine_resolution_dataset(
+    fine_url: str, input_feature_url: Optional[str] = None
+) -> xarray.Dataset:
+
+    fine = open_zarr_maybe_consolidated(fine_url)
+
+    return _add_fine_res_inputs(fine, input_feature_url)
+
+
+def _add_fine_res_inputs(fine: xarray.Dataset, input_feature_url: Optional[str] = None):
+
     if input_feature_url is None:
         input_features = xarray.Dataset()
-        input_features["air_temperature"] = fine_shifted.T
-        input_features["specific_humidity"] = fine_shifted.sphum
-        input_features["pressure_thickness_of_atmospheric_layer"] = fine_shifted.delp
+        input_features["air_temperature"] = fine.T
+        input_features["specific_humidity"] = fine.sphum
+        input_features["pressure_thickness_of_atmospheric_layer"] = fine.delp
     else:
         full_url = input_feature_url + "/state_after_timestep.zarr"
         input_features = open_zarr_maybe_consolidated(full_url)
         input_features["latitude"] = input_features.latitude.isel(time=0)
         input_features["longitude"] = input_features.longitude.isel(time=0)
 
-    merged = xarray.merge([fine_shifted, input_features], join="inner",)
+    merged = xarray.merge([fine, input_features], join="inner",)
 
     # since ML target is Q1/Q2, dQ1=Q1 and pQ1=0 and same for moistening
     merged["dQ1"] = merged["Q1"]
@@ -286,5 +336,29 @@ def open_fine_resolution(
             fine_url=fine_url,
             input_feature_url=input_feature_url,
             include_temperature_nudging=include_temperature_nudging,
+        )
+    )
+
+
+@mapper_functions.register
+def open_precomputed_fine_resolution(
+    fine_url: str, input_feature_url: Optional[str] = None
+) -> GeoMapper:
+    """
+    Open the fine-res mapper from precomputed data, optionally using state
+        from another run.
+
+    Args:
+        fine_url: url where coarsened fine resolution data is stored, must include
+            precomputed Q1 and Q2
+        input_feature_url: url to fv3gfs_run to use for state inputs. If not provided,
+            the state of the fine-res data will be used as input.
+
+    Returns:
+        a mapper
+    """
+    return XarrayMapper(
+        open_precomputed_fine_resolution_dataset(
+            fine_url=fine_url, input_feature_url=input_feature_url
         )
     )
