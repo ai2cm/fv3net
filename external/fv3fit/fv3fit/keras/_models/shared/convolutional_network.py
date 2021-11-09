@@ -108,6 +108,10 @@ class ConvolutionalNetworkConfig:
                 "filters=0 causes a floating point exception, "
                 "and we haven't written a workaround"
             )
+        if self.kernel_size % 2 != 1:
+            raise ValueError(
+                f"kernel_size must be an odd number, got {self.kernel_size}"
+            )
 
     @property
     def _kernel_constraint(self) -> Optional[tf.keras.constraints.Constraint]:
@@ -124,6 +128,10 @@ class ConvolutionalNetworkConfig:
         else:
             constraint = ConstraintCollection(constraints=constraints)
         return constraint
+
+    @property
+    def halos_required(self) -> int:
+        return (self.kernel_size - 1) // 2 * (self.depth - 1)
 
     def build(
         self, x_in: tf.Tensor, n_features_out: int, label: str = ""
@@ -160,7 +168,7 @@ class ConvolutionalNetworkConfig:
             hidden_layer = tf.keras.layers.Conv2D(
                 filters=self.filters,
                 kernel_size=self.kernel_size,
-                padding="same",
+                padding="valid",
                 activation=self.activation_function,
                 data_format="channels_last",
                 kernel_regularizer=self.kernel_regularizer.instance,
@@ -177,7 +185,7 @@ class ConvolutionalNetworkConfig:
         output = tf.keras.layers.Conv2D(
             filters=n_features_out,
             kernel_size=(1, 1),
-            padding="same",
+            padding="valid",
             activation="linear",
             data_format="channels_last",
             name=f"convolutional_network_{label}_output",

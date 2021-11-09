@@ -4,23 +4,17 @@ from fv3fit._shared.config import (
     OptimizerConfig,
     register_training_function,
 )
-from fv3fit._shared.stacking import SAMPLE_DIM_NAME, StackedBatches, stack
+from fv3fit._shared.stacking import stack
 from fv3fit.keras._models.shared.loss import LossConfig
 from fv3fit.keras._models.shared.pure_keras import PureKerasModel
-from loaders.typing import Batches
 import tensorflow as tf
 import xarray as xr
 from ..._shared.config import Hyperparameters
-from ._sequences import _XyMultiArraySequence
-from .shared import ConvolutionalNetworkConfig, TrainingLoopConfig
+from .shared import ConvolutionalNetworkConfig, TrainingLoopConfig, XyMultiArraySequence
 import numpy as np
-from fv3fit.keras._models.shared import (
-    Diffusive,
-    standard_normalize,
-    standard_denormalize,
-    count_features,
-)
+from fv3fit.keras._models.shared import Diffusive
 import logging
+from fv3fit.keras._models.shared.utils import standard_denormalize, standard_normalize
 
 logger = logging.getLogger(__file__)
 
@@ -34,12 +28,15 @@ def multiply_loss_by_factor(original_loss, factor):
     return loss
 
 
-def get_metadata(names, ds: xr.Dataset) -> Tuple[Dict[str, Any], ...]:
+def get_stacked_metadata(
+    names, ds: xr.Dataset, unstacked_dims: Sequence[str]
+) -> Tuple[Dict[str, Any], ...]:
     """
-    Retrieve xarray metadata.
+    Retrieve xarray metadata for dataset after stacking.
 
     Returns a dict containing "dims" and "units" for each name.
     """
+    ds = stack(ds, unstacked_dims=unstacked_dims)
     metadata = []
     for name in names:
         metadata.append(
@@ -85,34 +82,37 @@ def train_convolutional_model(
     train_batches: Sequence[xr.Dataset],
     validation_batches: Optional[Sequence[xr.Dataset]] = None,
 ):
+    n_halo = hyperparameters.convolutional_network.halos_required
     if validation_batches is not None:
-        validation_data: Optional[
-            Tuple[Tuple[Any, ...], Tuple[Any, ...]]
-        ] = batch_to_array_tuple(
-            stack(validation_batches[0], unstacked_dims=UNSTACKED_DIMS),
-            input_variables=hyperparameters.input_variables,
-            output_variables=hyperparameters.output_variables,
-        )
+        validation_data: Optional[Tuple[np.ndarray, np.ndarray]] = XyMultiArraySequence(
+            X_names=hyperparameters.input_variables,
+            y_names=hyperparameters.output_variables,
+            dataset_sequence=[validation_batches[0]],
+            unstacked_dims=UNSTACKED_DIMS,
+            n_halo=n_halo,
+        )[0]
+        del validation_batches
     else:
         validation_data = None
-    stacked_train_batches: Batches = StackedBatches(
-        train_batches, unstacked_dims=UNSTACKED_DIMS
-    )
-    if isinstance(train_batches, tuple):
-        stacked_train_batches = tuple(stacked_train_batches)
-    train_data = _XyMultiArraySequence(
+    train_data: Sequence[Tuple[np.ndarray, np.ndarray]] = XyMultiArraySequence(
         X_names=hyperparameters.input_variables,
         y_names=hyperparameters.output_variables,
-        dataset_sequence=stacked_train_batches,
+        dataset_sequence=train_batches,
+        unstacked_dims=UNSTACKED_DIMS,
+        n_halo=n_halo,
     )
-    train_model, predict_model = build_model(
-        hyperparameters, batch=stacked_train_batches[0]
+    if isinstance(train_batches, tuple):
+        train_data = tuple(train_data)
+    X, y = train_data[0]
+    train_model, predict_model = build_model(hyperparameters, X=X, y=y)
+    output_metadata = get_stacked_metadata(
+        names=hyperparameters.output_variables,
+        ds=train_batches[0],
+        unstacked_dims=UNSTACKED_DIMS,
     )
+    del train_batches
     hyperparameters.training_loop.fit_loop(
         model=train_model, Xy=train_data, validation_data=validation_data
-    )
-    output_metadata = get_metadata(
-        names=hyperparameters.output_variables, ds=train_batches[0]
     )
     predictor = PureKerasModel(
         input_variables=hyperparameters.input_variables,
@@ -120,37 +120,47 @@ def train_convolutional_model(
         output_metadata=output_metadata,
         model=predict_model,
         unstacked_dims=("x", "y", "z", "z_interface"),
+        n_halo=n_halo,
     )
     return predictor
 
 
-def batch_to_array_tuple(
-    batch: xr.Dataset, input_variables: Sequence[str], output_variables: Sequence[str]
-) -> Tuple[Tuple[np.ndarray, ...], Tuple[np.ndarray, ...]]:
-    return (
-        tuple(batch[name].values for name in input_variables),
-        tuple(batch[name].values for name in output_variables),
-    )
+def _count_array_features(arr: np.ndarray) -> int:
+    """
+    Given a 3/4-d [sample, x, y(, z)] array, return its number of
+    vertical levels.
+    """
+    if len(arr.shape) == 3:
+        return 1
+    else:
+        return arr.shape[3]
+
+
+def _ensure_5d(array: np.ndarray) -> np.ndarray:
+    if len(array.shape) == 5:
+        return array
+    elif len(array.shape) == 4:
+        return array[:, :, :, :, None]
+    else:
+        raise ValueError(f"expected 4d or 5d array, got shape {array.shape}")
 
 
 def build_model(
-    config: ConvolutionalHyperparameters, batch: xr.Dataset
+    config: ConvolutionalHyperparameters,
+    X: Sequence[np.ndarray],
+    y: Sequence[np.ndarray],
 ) -> Tuple[tf.keras.Model, tf.keras.Model]:
-    nx = batch.dims["x"]
-    ny = batch.dims["y"]
-    sample_dims = [SAMPLE_DIM_NAME, "x", "y"]
-    input_features = count_features(
-        config.input_variables, batch, sample_dims=sample_dims
-    )
-    input_layers = [
-        tf.keras.layers.Input(shape=(nx, ny, input_features[name]))
-        for name in config.input_variables
-    ]
+    """
+    Args:
+        config: configuration of convolutional training
+        X: example input for keras fitting, used to determine shape and normalization
+        y: example output for keras fitting, used to determine shape and normalization
+    """
+    input_layers = [tf.keras.layers.Input(shape=array.shape[1:]) for array in X]
     norm_input_layers = standard_normalize(
         names=config.input_variables,
         layers=input_layers,
-        batch=batch,
-        sample_dims=sample_dims,
+        arrays=[_ensure_5d(array) for array in X],
     )
     if len(norm_input_layers) > 1:
         full_input = tf.keras.layers.Concatenate()(norm_input_layers)
@@ -161,12 +171,9 @@ def build_model(
         constraint: Optional[tf.keras.constraints.Constraint] = Diffusive()
     else:
         constraint = None
-    output_features = count_features(
-        config.output_variables, batch, sample_dims=sample_dims
-    )
     norm_output_layers = [
         tf.keras.layers.Conv2D(
-            filters=output_features[name],
+            filters=_count_array_features(array),
             kernel_size=(1, 1),
             padding="same",
             activation="linear",
@@ -174,20 +181,16 @@ def build_model(
             name=f"convolutional_network_{i}_output",
             kernel_constraint=constraint,
         )(convolution.hidden_outputs[-1])
-        for i, name in enumerate(config.output_variables)
+        for i, array in enumerate(y)
     ]
+    y_5d = [_ensure_5d(array) for array in y]
     denorm_output_layers = standard_denormalize(
-        names=config.output_variables,
-        layers=norm_output_layers,
-        batch=batch,
-        sample_dims=sample_dims,
+        names=config.output_variables, layers=norm_output_layers, arrays=y_5d,
     )
     train_model = tf.keras.Model(inputs=input_layers, outputs=denorm_output_layers)
     output_stds = (
-        np.std(
-            batch[name], axis=tuple(range(len(batch[name].shape) - 1)), dtype=np.float32
-        )
-        for name in config.output_variables
+        np.std(array, axis=tuple(range(len(array.shape) - 1)), dtype=np.float32)
+        for array in y_5d
     )
     train_model.compile(
         optimizer=config.optimizer_config.instance,
