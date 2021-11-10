@@ -41,7 +41,10 @@ class UserConfig:
         fortran_diagnostics: list of Fortran diagnostic file configurations
         prephysics: optional configuration of computations prior to physics,
             specified by either a machine learning configuation or a prescriber
-            configuration
+            configuration. If quantity is in runtime.names.PREPHYSICS_OVERRIDES,
+            it will be applied during prephysics step, all others will be updated
+            postphysics (yes, this contradicts the name of the config class,
+            there is a github issue open to address this).
         scikit_learn: a machine learning configuration
         nudging: nudge2fine configuration. Cannot be used if any scikit_learn model
             urls are specified.
