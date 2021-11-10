@@ -31,8 +31,6 @@ FV3CONFIG_KEYS = {
     "gfs_analysis_data",
 }
 
-PrephysicsConfig = List[Union[PrescriberConfig, MachineLearningConfig]]
-
 
 @dataclasses.dataclass
 class UserConfig:
@@ -77,7 +75,6 @@ def get_config() -> UserConfig:
     """
     with open("fv3config.yml") as f:
         config = yaml.safe_load(f)
-    config = _standardize_prephysics_config(config)
 
     runtime_config = {key: config[key] for key in config if key not in FV3CONFIG_KEYS}
     return dacite.from_dict(UserConfig, runtime_config, dacite.Config(strict=True))
@@ -100,16 +97,3 @@ def write_chunks(config: UserConfig):
     chunks = get_chunks(diagnostic_file_configs)
     with open("chunks.yaml", "w") as f:
         yaml.safe_dump(chunks, f)
-
-
-def _standardize_prephysics_config(config) -> PrephysicsConfig:
-    # allows for backwards compatibility for old config format where
-    # only a single entry for prephysics was allowed
-    if "prephysics" not in config:
-        return config
-    elif isinstance(config["prephysics"], List):
-        return config
-    else:
-        raw_prephysics_config = config["prephysics"]
-        config["prephysics"] = [raw_prephysics_config]
-        return config
