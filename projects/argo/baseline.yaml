@@ -1,0 +1,63 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: baseline-run-
+spec:
+  entrypoint: baseline-run
+  arguments:
+    parameters:
+      - name: tag
+      - name: config
+      - name: tf_model
+      - name: output_frequency
+        value: "10800"
+  templates:
+  - name: baseline-run
+    steps:
+    - - name: run
+        template: prognostic-run
+        arguments:
+          parameters:
+          - name: tag
+            value: "{{workflow.parameters.tag}}"
+          - name: config
+            value:  "{{workflow.parameters.config}}"
+          - name: tf_model
+            value: "{{workflow.parameters.tf_model}}"
+          - name: output_frequency
+            value: "{{workflow.parameters.output_frequency}}"
+    - - name: piggyback-diags
+        template: whalesay
+        arguments:
+          parameters: [{name: message, value: "hello2a"}]
+      - name: hello2b
+        template: whalesay
+        arguments:
+          parameters: [{name: message, value: "hello2b"}]
+
+  - name: prognostic-run
+    inputs:
+      parameters:
+      - name: tag
+      - name: config
+      - name: tf_model
+      - name: output_frequency
+    container:
+      image: "us.gcr.io/vcm-ml/prognostic-run:34c047477d091f4acda56fb89066c10151e3b65e"
+      command: [bash, -c]
+      args: |
+        WANDB_RUN_GROUP="{{inputs.parameters.tag}}"
+        echo "{{inputs.parameters.config}}" > fv3config.yaml
+        python3 scripts/prognostic_run.py \
+          --tag "{{inputs.parameters.tag}}" \
+          --config-path fv3config.yaml \
+          --model "{{inputs.parameters.tf_model}}"
+  - name: piggyback-diags
+    inputs:
+      parameters:
+      - name: tag
+    container:
+      image: "us.gcr.io/vcm-ml/fv3net:34c047477d091f4acda56fb89066c10151e3b65e"
+      command: [bash, -c]
+      args: |
+        python3 scripts/piggy-back.py {{inputs.parameters.tag}}
