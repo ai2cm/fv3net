@@ -143,6 +143,9 @@ RUN pip install /fv3net/external/emulation
 ENV VAR_META_PATH=/fv3net/external/emulation/microphysics_parameter_metadata.yaml
 ENV OUTPUT_FREQ_SEC=18000
 
+# Add emulation project scripts
+COPY projects/microphysics /fv3net/projects/microphysics
+
 ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:${PYTHONPATH}
 WORKDIR /fv3net/workflows/prognostic_c48_run
 CMD ["bash"]
