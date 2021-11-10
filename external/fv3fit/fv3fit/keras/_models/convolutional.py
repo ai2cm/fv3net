@@ -83,7 +83,7 @@ def train_convolutional_model(
     validation_batches: Optional[Sequence[xr.Dataset]] = None,
 ):
     n_halo = hyperparameters.convolutional_network.halos_required
-    if validation_batches is not None:
+    if validation_batches is not None and len(validation_batches) > 0:
         validation_data: Optional[Tuple[np.ndarray, np.ndarray]] = XyMultiArraySequence(
             X_names=hyperparameters.input_variables,
             y_names=hyperparameters.output_variables,
