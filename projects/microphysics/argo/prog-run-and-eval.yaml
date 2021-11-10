@@ -1,9 +1,9 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  generateName: baseline-run-
+  generateName: prognostic-microphysics-
 spec:
-  entrypoint: baseline-run
+  entrypoint: prognostic-run
   arguments:
     parameters:
       - name: tag
@@ -11,11 +11,13 @@ spec:
       - name: tf_model
       - name: output_frequency
         value: "10800"
+      - name: do_prog_eval
+        value: "false"
   templates:
-  - name: baseline-run
+  - name: prognostic-run
     steps:
-    - - name: run
-        template: prognostic-run
+    - - name: run-model
+        template: run-model
         arguments:
           parameters:
           - name: tag
@@ -26,16 +28,22 @@ spec:
             value: "{{workflow.parameters.tf_model}}"
           - name: output_frequency
             value: "{{workflow.parameters.output_frequency}}"
+          - name: do_prog_eval
+            value: "{{workflow.parameters.do_prog_eval}}"
     - - name: piggyback-diags
-        template: whalesay
+        template: piggyback-diags
         arguments:
-          parameters: [{name: message, value: "hello2a"}]
-      - name: hello2b
-        template: whalesay
+          parameters:
+          - name: tag
+            value: "{{workflow.parameters.tag}}"
+      - name: prognostic-diags
+        template: prognostic-diags
+        when: "{{workflow.parameters.do_prog_eval}} == true"
         arguments:
-          parameters: [{name: message, value: "hello2b"}]
-
-  - name: prognostic-run
+          parameters:
+          - name: tag
+            value: "{{workflow.parameters.tag}}"
+  - name: run-model
     inputs:
       parameters:
       - name: tag
@@ -43,7 +51,8 @@ spec:
       - name: tf_model
       - name: output_frequency
     container:
-      image: "us.gcr.io/vcm-ml/prognostic-run:34c047477d091f4acda56fb89066c10151e3b65e"
+      image: "us.gcr.io/vcm-ml/prognostic-run:test-micro-proj"
+      workingDir: "/fv3net/projects/microphysics"
       command: [bash, -c]
       args: |
         WANDB_RUN_GROUP="{{inputs.parameters.tag}}"
@@ -57,7 +66,18 @@ spec:
       parameters:
       - name: tag
     container:
-      image: "us.gcr.io/vcm-ml/fv3net:34c047477d091f4acda56fb89066c10151e3b65e"
+      image: "us.gcr.io/vcm-ml/fv3net:test-micro-proj"
+      workingDir: "/fv3net/projects/microphysics"
       command: [bash, -c]
       args: |
         python3 scripts/piggy-back.py {{inputs.parameters.tag}}
+  - name: prognostic-diags
+    inputs:
+      parameters:
+      - name: tag
+    container:
+      image: "us.gcr.io/vcm-ml/fv3net:test-micro-proj"
+      workingDir: "/fv3net/projects/microphysics"
+      command: [bash, -c]
+      args: |
+        python3 scripts/prognostic_evaluate.py {{inputs.parameters.tag}}
