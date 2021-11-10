@@ -136,15 +136,14 @@ def _count_array_features(arr: np.ndarray) -> int:
         return arr.shape[3]
 
 
-def _ensure_5d(array: np.ndarray) -> np.ndarray:
-    if len(array.shape) == 5:
+def _ensure_4d(array: np.ndarray) -> np.ndarray:
+    # ensures [sample, x, y, z] dimensionality
+    if len(array.shape) == 4:
         return array
-    elif len(array.shape) == 4:
-        return array[:, :, :, :, None]
     elif len(array.shape) == 3:
-        return array[:, :, :, None, None]
+        return array[:, :, :, None]
     else:
-        raise ValueError(f"expected 3d, 4d or 5d array, got shape {array.shape}")
+        raise ValueError(f"expected 3d or 4d array, got shape {array.shape}")
 
 
 def _get_input_layer_shapes(X: Sequence[np.ndarray]) -> List[Tuple[int]]:
@@ -180,7 +179,7 @@ def build_model(
     norm_input_layers = standard_normalize(
         names=config.input_variables,
         layers=input_layers,
-        arrays=[_ensure_5d(array) for array in X],
+        arrays=[_ensure_4d(array) for array in X],
     )
     if len(norm_input_layers) > 1:
         full_input = tf.keras.layers.Concatenate()(norm_input_layers)
@@ -203,14 +202,14 @@ def build_model(
         )(convolution.hidden_outputs[-1])
         for i, array in enumerate(y)
     ]
-    y_5d = [_ensure_5d(array) for array in y]
+    y_4d = [_ensure_4d(array) for array in y]
     denorm_output_layers = standard_denormalize(
-        names=config.output_variables, layers=norm_output_layers, arrays=y_5d,
+        names=config.output_variables, layers=norm_output_layers, arrays=y_4d,
     )
     train_model = tf.keras.Model(inputs=input_layers, outputs=denorm_output_layers)
     output_stds = (
         np.std(array, axis=tuple(range(len(array.shape) - 1)), dtype=np.float32)
-        for array in y_5d
+        for array in y_4d
     )
     train_model.compile(
         optimizer=config.optimizer_config.instance,
