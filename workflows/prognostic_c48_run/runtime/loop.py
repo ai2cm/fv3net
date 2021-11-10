@@ -177,8 +177,8 @@ class TimeLoop(
         self._log_info(f"Timestep: {timestep}")
         hydrostatic = namelist["fv_core_nml"]["hydrostatic"]
 
-        self._prephysics_only_diagnostic_ml: bool = getattr(
-            getattr(config, "prephysics"), "diagnostic_ml", False
+        self._prephysics_only_diagnostic_ml: bool = self._use_diagnostic_ml_prephysics(
+            getattr(config, "prephysics", {})
         )
         self._postphysics_only_diagnostic_ml: bool = getattr(
             getattr(config, "scikit_learn"), "diagnostic_ml", False
@@ -202,6 +202,20 @@ class TimeLoop(
         self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
+
+    def _use_diagnostic_ml_prephysics(self, prephysics_config):
+        diag_ml_usages = sum(
+            [getattr(c, "diagnostic_ml", False) for c in prephysics_config]
+        )
+        if diag_ml_usages == 0:
+            return False
+        elif diag_ml_usages == 1:
+            return True
+        else:
+            raise ValueError(
+                "If multiple ML models are provided in config.prephysics, "
+                "all must have same values for diagnostic_ml."
+            )
 
     @staticmethod
     def _get_states_to_output(config: UserConfig) -> Sequence[str]:
@@ -246,7 +260,10 @@ class TimeLoop(
                         PureMLStepper(model, self._timestep, hydrostatic)
                     )
                 elif isinstance(prephysics_config, PrescriberConfig):
-                    self._log_info("Using Prescriber for prephysics")
+                    self._log_info(
+                        "Using Prescriber for prephysics for variables "
+                        f"{prephysics_config.variables}"
+                    )
                     communicator = self._get_communicator()
                     timesteps = get_timesteps(
                         self.time, self._timestep, self._fv3gfs.get_step_count()
