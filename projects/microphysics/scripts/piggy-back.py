@@ -14,6 +14,14 @@ from fv3fit.tensorboard import plot_to_image
 
 import argparse
 
+metrics = {}
+
+
+def log_map(ds, key):
+    fv3viz.plot_cube(ds, key)
+    metrics[key] = wandb.Image(plot_to_image(plt.gcf()))
+    plt.close("all")
+
 
 parser = argparse.ArgumentParser(
     "Piggy Backed metrics",
@@ -45,18 +53,15 @@ piggy = xr.open_zarr(url + "/piggy.zarr")
 ds = vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid)
 ds["time"] = np.vectorize(vcm.cast_to_datetime)(ds.time)
 
-metrics = {}
 
 for field in ["cloud_water", "specific_humidity", "air_temperature"]:
     emulator_var = f"tendency_of_{field}_due_to_zhao_carr_emulator"
     physics_var = f"tendency_of_{field}_due_to_zhao_carr_physics"
+    log_map(ds.isel(time=0, z=50), emulator_var)
+    log_map(ds.isel(time=0, z=50), physics_var)
 
-    fv3viz.plot_cube(ds.isel(time=0, z=50), emulator_var)
-    metrics[emulator_var] = wandb.Image(plot_to_image(plt.gcf()))
-
-    fv3viz.plot_cube(ds.isel(time=0, z=50), physics_var)
-    metrics[physics_var] = wandb.Image(plot_to_image(plt.gcf()))
-    plt.close("all")
+log_map(ds.isel(time=0), "surface_precipitation_due_to_zhao_carr_physics")
+log_map(ds.isel(time=0), "surface_precipitation_due_to_zhao_carr_emulator")
 
 
 def mse(x: xr.DataArray, y, area, dims=None):
