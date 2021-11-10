@@ -34,6 +34,7 @@ from runtime.monitor import Monitor
 from runtime.names import (
     TENDENCY_TO_STATE_NAME,
     TOTAL_PRECIP_RATE,
+    PREPHYSICS_OVERRIDES,
 )
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
@@ -178,7 +179,7 @@ class TimeLoop(
         hydrostatic = namelist["fv_core_nml"]["hydrostatic"]
 
         self._prephysics_only_diagnostic_ml: bool = self._use_diagnostic_ml_prephysics(
-            getattr(config, "prephysics", {})
+            getattr(config, "prephysics")
         )
         self._postphysics_only_diagnostic_ml: bool = getattr(
             getattr(config, "scikit_learn"), "diagnostic_ml", False
@@ -204,6 +205,8 @@ class TimeLoop(
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
     def _use_diagnostic_ml_prephysics(self, prephysics_config):
+        if prephysics_config is None:
+            return False
         diag_ml_usages = sum(
             [getattr(c, "diagnostic_ml", False) for c in prephysics_config]
         )
@@ -388,16 +391,10 @@ class TimeLoop(
                 rename_diagnostics(diagnostics)
             else:
                 self._state_updates.update(state_updates)
-        prephysics_overrides = [
-            "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
-            "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface",
-            "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface",
-            "ocean_surface_temperature",
-        ]
         state_updates = {
-            k: v for k, v in self._state_updates.items() if k in prephysics_overrides
+            k: v for k, v in self._state_updates.items() if k in PREPHYSICS_OVERRIDES
         }
-        self._state_updates = dissoc(self._state_updates, *prephysics_overrides)
+        self._state_updates = dissoc(self._state_updates, *PREPHYSICS_OVERRIDES)
         self._log_debug(
             f"Applying prephysics state updates for: {list(state_updates.keys())}"
         )
