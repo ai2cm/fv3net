@@ -12,6 +12,7 @@ services:
       - ../../projects:/fv3net/projects
       - bash_history:/root/.bash_history
       - $HOME/.config/gcloud:/root/.config/gcloud
+      - $HOME/.boto:/root/.boto
     environment:
       - HISTFILE=/root/.bash_history/history
     env_file:
