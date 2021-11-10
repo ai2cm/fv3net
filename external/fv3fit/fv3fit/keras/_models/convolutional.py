@@ -141,8 +141,24 @@ def _ensure_5d(array: np.ndarray) -> np.ndarray:
         return array
     elif len(array.shape) == 4:
         return array[:, :, :, :, None]
+    elif len(array.shape) == 3:
+        return array[:, :, :, None, None]
     else:
         raise ValueError(f"expected 4d or 5d array, got shape {array.shape}")
+
+
+def _get_input_layer_shapes(X: Sequence[np.ndarray]) -> List[Tuple[int]]:
+    # adds a z dim of length 1 for 2D arrays, so that they can be concantenated
+    # with 3D arrays
+    shapes: List[Tuple[int]] = []
+    for array in X:
+        array_features = _count_array_features(array)
+        sample_shape: Tuple[int] = array.shape[1:]
+        if array_features == 1:
+            shapes.append((*sample_shape, 1))  # type: ignore
+        else:
+            shapes.append(sample_shape)
+    return shapes
 
 
 def build_model(
@@ -156,7 +172,11 @@ def build_model(
         X: example input for keras fitting, used to determine shape and normalization
         y: example output for keras fitting, used to determine shape and normalization
     """
-    input_layers = [tf.keras.layers.Input(shape=array.shape[1:]) for array in X]
+    input_layer_shapes = _get_input_layer_shapes(X)
+    input_layers = [
+        tf.keras.layers.Input(shape=input_shape) for input_shape in input_layer_shapes
+    ]
+
     norm_input_layers = standard_normalize(
         names=config.input_variables,
         layers=input_layers,
