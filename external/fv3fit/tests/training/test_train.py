@@ -106,7 +106,7 @@ def get_dataset(model_type, sample_func):
         ]
         output_variables = ["dQ1", "dQ2", "total_precipitation_rate"]
     else:
-        input_variables = ["var_in"]
+        input_variables = ["var_in_2d", "var_in_3d"]  # 2d var will be clipped below
         output_variables = ["var_out"]
     input_values = list(sample_func() for _ in input_variables)
     if model_type == "precipitative":
@@ -122,10 +122,10 @@ def get_dataset(model_type, sample_func):
             ),  # total_precipitation_rate is integration of dQ2
         )
     else:
-        output_values = input_values
-        # add an input with feature dim size 1
-        input_variables.append("var_in_2d")
-        input_values.append(input_values[0].isel(z=0) * 0.0)
+        i_2d_input = input_variables.index("var_in_2d")
+        input_values[i_2d_input] = input_values[i_2d_input].isel(z=0) * 0.0
+        i_3d_input = input_variables.index("var_in_3d")
+        output_values = [input_values[i_3d_input]]
 
     data_vars = {name: value for name, value in zip(input_variables, input_values)}
     data_vars.update(
