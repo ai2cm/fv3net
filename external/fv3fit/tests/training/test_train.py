@@ -123,6 +123,10 @@ def get_dataset(model_type, sample_func):
         )
     else:
         output_values = input_values
+        # add an input with feature dim size 1
+        input_variables.append("var_in_2d")
+        input_values.append(input_values[0].isel(z=0) * 0.0)
+
     data_vars = {name: value for name, value in zip(input_variables, input_values)}
     data_vars.update(
         {name: value for name, value in zip(output_variables, output_values)}
