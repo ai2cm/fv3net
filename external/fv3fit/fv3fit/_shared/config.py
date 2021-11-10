@@ -163,17 +163,22 @@ def _add_items_to_parser_arguments(
     """
 
     for key, value in d.items():
-        # TODO: should I do casting here, or let the dataclass do it?
         if isinstance(value, Mapping):
             raise ValueError(
-                "Adding a mapping as an argument to the parse is not"
-                " currently supported.  Make sure you are passing a"
-                " 'flattened' dictionary to this function."
+                "Adding a mapping as an argument to the parse is not "
+                "currently supported.  Make sure you are passing a "
+                "'flattened' dictionary to this function. If you are trying "
+                "to override a value in a 'kwargs' setting, make sure a value "
+                "is given in the configuration yaml."
             )
         elif not isinstance(value, str) and isinstance(value, Sequence):
             parser.add_argument(f"--{key}", nargs="*", default=copy.copy(value))
         elif isinstance(value, bool):
             parser.add_argument(f"--{key}", type=_bool_from_str, default=value)
+        elif isinstance(value, int):
+            parser.add_argument(f"--{key}", type=int, default=value)
+        elif isinstance(value, float):
+            parser.add_argument(f"--{key}", type=float, default=value)
         else:
             parser.add_argument(f"--{key}", default=value)
 

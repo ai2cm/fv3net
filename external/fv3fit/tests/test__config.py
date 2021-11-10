@@ -142,7 +142,7 @@ def test__add_items_to_parser_args_no_seq():
 
     args = ["--number", "2.0", "--string.nested", "there"]
     specified = vars(parser.parse_args(args))
-    assert specified["number"] == "2.0"
+    assert specified["number"] == 2.0
     assert specified["string.nested"] == "there"
 
 
@@ -226,7 +226,7 @@ def test_get_updated_config_dict():
 
     updated = get_arg_updated_config_dict(arg_updates, defaults)
 
-    assert updated["epochs"] == "4"
+    assert updated["epochs"] == 4
     assert updated["model"]["architecture"]["name"] == "rnn"
     assert updated["transform"]["input_variables"] == ["A", "B", "C"]
     assert updated["unchanged"] == "same"

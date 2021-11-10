@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 from typing import Sequence
+from fv3fit._shared.config import get_arg_updated_config_dict
 import yaml
 import dataclasses
 import fsspec
@@ -51,9 +52,15 @@ def dump_dataclass(obj, yaml_filename):
         yaml.safe_dump(dataclasses.asdict(obj), f)
 
 
-def main(args):
+def main(args, unknown_args=None):
     with open(args.training_config, "r") as f:
-        training_config = fv3fit.TrainingConfig.from_dict(yaml.safe_load(f))
+        config_dict = yaml.safe_load(f)
+        if unknown_args is not None:
+            config_dict = get_arg_updated_config_dict(
+                args=unknown_args, config_dict=config_dict
+            )
+        training_config = fv3fit.TrainingConfig.from_dict(config_dict)
+
     with open(args.training_data_config, "r") as f:
         training_data_config = loaders.BatchesLoader.from_dict(yaml.safe_load(f))
 
@@ -102,5 +109,5 @@ def main(args):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     parser = get_parser()
-    args = parser.parse_args()
-    main(args)
+    args, unknown_args = parser.parse_known_args()
+    main(args, unknown_args)
