@@ -144,7 +144,7 @@ def _ensure_5d(array: np.ndarray) -> np.ndarray:
     elif len(array.shape) == 3:
         return array[:, :, :, None, None]
     else:
-        raise ValueError(f"expected 4d or 5d array, got shape {array.shape}")
+        raise ValueError(f"expected 3d, 4d or 5d array, got shape {array.shape}")
 
 
 def _get_input_layer_shapes(X: Sequence[np.ndarray]) -> List[Tuple[int]]:
