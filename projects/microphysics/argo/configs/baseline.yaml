@@ -8,7 +8,7 @@ diagnostics:
   name: state_after_timestep.zarr
   tensorboard: false
   times:
-    frequency: 900
+    frequency: 10800
     includes_lower: false
     kind: interval
     times: null
@@ -30,7 +30,7 @@ diagnostics:
   name: physics_tendencies.zarr
   tensorboard: false
   times:
-    frequency: 900
+    frequency: 10800
     includes_lower: false
     kind: interval
     times: null
@@ -106,10 +106,10 @@ namelist:
     - 0
     - 0
     - 0
-    days: 0
+    days: 10
     dt_atmos: 900
     dt_ocean: 900
-    hours: 1
+    hours: 0
     memuse_verbose: true
     minutes: 0
     months: 0
