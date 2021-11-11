@@ -15,6 +15,8 @@ spec:
         value: "10800"
       - name: on_off_flag
         value: "--online"
+      - name: do_piggy
+        value: "true"
   volumes:
   - name: gcp-key-secret
     secret:
@@ -38,6 +40,7 @@ spec:
             value: "{{workflow.parameters.on_off_flag}}"
     - - name: piggyback-diags
         template: piggyback-diags
+        when: "{{workflow.parameters.do_piggy}} == true"
         arguments:
           parameters:
           - name: tag

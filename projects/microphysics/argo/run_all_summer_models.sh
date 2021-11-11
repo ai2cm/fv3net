@@ -18,7 +18,7 @@ for flag in ${run_style[@]}; do
             MODEL=${MODEL_BASE}/${tend}/${tend}-${arch}/model.tf
             argo submit prog-run-and-eval.yaml \
                 -p tag=$TAG \
-                -p config=$(< offline.yaml) \
+                -p config=$(< default.yaml) \
                 -p tf_model=$MODEL \
                 -p on_off_flag="--${flag}"
         done
