@@ -45,7 +45,7 @@ def train(cycle: int, data: Dataset) -> str:
     config.wandb.wandb_project = "microphysics-emulation"
     config.wandb.job_type = "train"
     train_microphysics(config, seed=0)
-    return config.out_url
+    return os.path.join(config.out_url, "model.tf")
 
 
 def generate(cycle: int, models: List[int], duration: int) -> str:
