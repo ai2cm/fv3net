@@ -133,8 +133,7 @@ class Prescriber:
             if name == SST:
                 # If just the sea surface temperature is to be updated
                 # (and not land as well), the prescribed dataarray should be
-                # "ocean_surface_temperature". If "surface_temperature" is
-                # the prescribed variable, all points will be updated.
+                # "ocean_surface_temperature".
                 state_updates.update(
                     sst_update_from_reference(state, prescribed_timestep, SST)
                 )
