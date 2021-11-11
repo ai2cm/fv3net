@@ -14,6 +14,14 @@ from fv3fit.tensorboard import plot_to_image
 
 import argparse
 
+metrics = {}
+
+
+def log_map(ds, key):
+    fv3viz.plot_cube(ds, key)
+    metrics[key] = wandb.Image(plot_to_image(plt.gcf()))
+    plt.close("all")
+
 
 parser = argparse.ArgumentParser(
     "Piggy Backed metrics",
@@ -45,18 +53,15 @@ piggy = xr.open_zarr(url + "/piggy.zarr")
 ds = vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid)
 ds["time"] = np.vectorize(vcm.cast_to_datetime)(ds.time)
 
-metrics = {}
 
 for field in ["cloud_water", "specific_humidity", "air_temperature"]:
     emulator_var = f"tendency_of_{field}_due_to_zhao_carr_emulator"
     physics_var = f"tendency_of_{field}_due_to_zhao_carr_physics"
+    log_map(ds.isel(time=0, z=50), emulator_var)
+    log_map(ds.isel(time=0, z=50), physics_var)
 
-    fv3viz.plot_cube(ds.isel(time=0, z=50), emulator_var)
-    metrics[emulator_var] = wandb.Image(plot_to_image(plt.gcf()))
-
-    fv3viz.plot_cube(ds.isel(time=0, z=50), physics_var)
-    metrics[physics_var] = wandb.Image(plot_to_image(plt.gcf()))
-    plt.close("all")
+log_map(ds.isel(time=0), "surface_precipitation_due_to_zhao_carr_physics")
+log_map(ds.isel(time=0), "surface_precipitation_due_to_zhao_carr_emulator")
 
 
 def mse(x: xr.DataArray, y, area, dims=None):
@@ -97,6 +102,16 @@ skills = xr.Dataset(
     )
 )
 
+skills_time = xr.Dataset(
+    dict(
+        surface_precipitation=skill_improvement(
+            ds.surface_precipitation_due_to_zhao_carr_physics,
+            ds.surface_precipitation_due_to_zhao_carr_emulator,
+            ds.area,
+        )
+    )
+)
+
 skills_all = xr.Dataset(
     dict(
         cloud_water=skill_improvement_column(
@@ -114,12 +129,23 @@ skills_all = xr.Dataset(
             ds.tendency_of_air_temperature_due_to_zhao_carr_emulator,
             ds.area,
         ),
+        surface_precipitation=skill_improvement_column(
+            ds.surface_precipitation_due_to_zhao_carr_physics,
+            ds.surface_precipitation_due_to_zhao_carr_emulator,
+            ds.area,
+        ),
     )
 )
 
-df = skills.to_dataframe().reset_index()
-df["time"] = df.time.apply(lambda x: x.isoformat())
-metrics["skill"] = wandb.Table(dataframe=df)
+
+def time_dependent_dataset(skills):
+    df = skills.to_dataframe().reset_index()
+    df["time"] = df.time.apply(lambda x: x.isoformat())
+    return wandb.Table(dataframe=df)
+
+
+metrics["skill"] = time_dependent_dataset(skills)
+metrics["skill_time"] = time_dependent_dataset(skills_time)
 wandb.log(metrics)
 
 for v in skills_all:

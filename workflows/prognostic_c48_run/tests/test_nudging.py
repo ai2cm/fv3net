@@ -1,6 +1,5 @@
 from runtime.names import STATE_NAME_TO_TENDENCY, TENDENCY_TO_STATE_NAME
 from runtime.nudging import (
-    _sst_from_reference,
     _time_interpolate_func,
     _time_to_label,
     _label_to_time,
@@ -12,22 +11,6 @@ import pytest
 import numpy as np
 import cftime
 import copy
-
-
-def test__sst_from_reference():
-    land_sea_mask = xr.DataArray(
-        np.array([0.0, 1.0, 2.0]), dims=["x"], attrs={"units": None}
-    )
-    reference_sfc_temp = xr.DataArray(
-        np.array([1.0, 1.0, 1.0]), dims=["x"], attrs={"units": "degK"}
-    )
-    model_sfc_temp = xr.DataArray(
-        np.array([-1.0, -1.0, -1.0]), dims=["x"], attrs={"units": "degK"}
-    )
-    assert np.allclose(
-        _sst_from_reference(reference_sfc_temp, model_sfc_temp, land_sea_mask),
-        [1.0, -1.0, -1.0],
-    )
 
 
 @pytest.mark.parametrize("fraction", [0, 0.25, 0.5, 0.75, 1])

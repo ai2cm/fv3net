@@ -27,6 +27,15 @@ fortran_diagnostics:
     - field_name: tendency_of_specific_humidity_due_to_physics
       module_name: zhao_carr_microphysics
       output_name: tendency_of_specific_humidity_due_to_zhao_carr_physics
+    - field_name: surface_precipitation_due_to_emulator
+      module_name: zhao_carr_microphysics
+      output_name: surface_precipitation_due_to_zhao_carr_emulator
+    - field_name: surface_precipitation_due_to_physics
+      module_name: zhao_carr_microphysics
+      output_name: surface_precipitation_due_to_zhao_carr_physics
+    - field_name: delp
+      module_name: dynamics
+      output_name: delp
 - name: sfc_dt_atmos.zarr
   chunks:
     time: 1
