@@ -33,7 +33,7 @@ def get_url(job_type: str, cycle: int):
     return os.path.join(base_url, job_type, str(cycle))
 
 
-def train(cycle: int, data: Dataset):
+def train(cycle: int, data: Dataset) -> str:
     path = "artifacts/20160611.000000/netcdf_output"
     data = os.path.join(data, path)
     config = get_default_config()
@@ -41,7 +41,11 @@ def train(cycle: int, data: Dataset):
     config.test_url = data
     config.out_url = get_url(JobTypes.train.value, cycle)
     config.model.architecture = ArchitectureConfig("dense")
+    # TODO rename this redundant wandb
+    config.wandb.wandb_project = "microphysics-emulation"
+    config.wandb.job_type = "train"
     train_microphysics(config, seed=0)
+    return config.out_url
 
 
 def generate(cycle: int, models: List[int], duration: int) -> str:
