@@ -26,7 +26,7 @@ args = parser.parse_args()
 run_artifact_path = args.tag
 
 job = wandb.init(
-    job_type="piggy-back", project="scratch-project", entity="ai2cm",
+    job_type="piggy-back", project="microphysics-emulation", entity="ai2cm",
 )
 
 
