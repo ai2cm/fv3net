@@ -83,7 +83,7 @@ def train_convolutional_model(
     validation_batches: Optional[Sequence[xr.Dataset]] = None,
 ):
     n_halo = hyperparameters.convolutional_network.halos_required
-    if validation_batches is not None:
+    if validation_batches is not None and len(validation_batches) > 0:
         validation_data: Optional[Tuple[np.ndarray, np.ndarray]] = XyMultiArraySequence(
             X_names=hyperparameters.input_variables,
             y_names=hyperparameters.output_variables,
@@ -136,13 +136,28 @@ def _count_array_features(arr: np.ndarray) -> int:
         return arr.shape[3]
 
 
-def _ensure_5d(array: np.ndarray) -> np.ndarray:
-    if len(array.shape) == 5:
+def _ensure_4d(array: np.ndarray) -> np.ndarray:
+    # ensures [sample, x, y, z] dimensionality
+    if len(array.shape) == 4:
         return array
-    elif len(array.shape) == 4:
-        return array[:, :, :, :, None]
+    elif len(array.shape) == 3:
+        return array[:, :, :, None]
     else:
-        raise ValueError(f"expected 4d or 5d array, got shape {array.shape}")
+        raise ValueError(f"expected 3d or 4d array, got shape {array.shape}")
+
+
+def _get_input_layer_shapes(X: Sequence[np.ndarray]) -> List[Tuple[int]]:
+    # adds a z dim of length 1 for 2D arrays, so that they can be concantenated
+    # with 3D arrays
+    shapes: List[Tuple[int]] = []
+    for array in X:
+        array_features = _count_array_features(array)
+        sample_shape: Tuple[int] = array.shape[1:]
+        if array_features == 1:
+            shapes.append((*sample_shape, 1))  # type: ignore
+        else:
+            shapes.append(sample_shape)
+    return shapes
 
 
 def build_model(
@@ -156,11 +171,15 @@ def build_model(
         X: example input for keras fitting, used to determine shape and normalization
         y: example output for keras fitting, used to determine shape and normalization
     """
-    input_layers = [tf.keras.layers.Input(shape=array.shape[1:]) for array in X]
+    input_layer_shapes = _get_input_layer_shapes(X)
+    input_layers = [
+        tf.keras.layers.Input(shape=input_shape) for input_shape in input_layer_shapes
+    ]
+
     norm_input_layers = standard_normalize(
         names=config.input_variables,
         layers=input_layers,
-        arrays=[_ensure_5d(array) for array in X],
+        arrays=[_ensure_4d(array) for array in X],
     )
     if len(norm_input_layers) > 1:
         full_input = tf.keras.layers.Concatenate()(norm_input_layers)
@@ -183,14 +202,14 @@ def build_model(
         )(convolution.hidden_outputs[-1])
         for i, array in enumerate(y)
     ]
-    y_5d = [_ensure_5d(array) for array in y]
+    y_4d = [_ensure_4d(array) for array in y]
     denorm_output_layers = standard_denormalize(
-        names=config.output_variables, layers=norm_output_layers, arrays=y_5d,
+        names=config.output_variables, layers=norm_output_layers, arrays=y_4d,
     )
     train_model = tf.keras.Model(inputs=input_layers, outputs=denorm_output_layers)
     output_stds = (
         np.std(array, axis=tuple(range(len(array.shape) - 1)), dtype=np.float32)
-        for array in y_5d
+        for array in y_4d
     )
     train_model.compile(
         optimizer=config.optimizer_config.instance,

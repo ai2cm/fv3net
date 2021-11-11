@@ -233,3 +233,35 @@ def test_network_has_correct_number_of_hidden_layers(depth):
     convolutional_network = config.build(input, n_features_out=n_features_out)
     # one layer of depth is the output
     assert len(convolutional_network.hidden_outputs) == depth - 1
+
+
+def test_convolutional_network_concat_2d_and_3d_inputs():
+    fv3fit.set_random_seed(0)
+    nt, nx, ny, nz = 5, 12, 12, 15
+    ds = xr.Dataset(
+        data_vars={
+            "var_in_2d": xr.DataArray(
+                np.random.randn(nt, 6, nx, ny), dims=["sample", "tile", "x", "y"],
+            ),
+            "var_in_3d": xr.DataArray(
+                np.random.randn(nt, 6, nx, ny, nz),
+                dims=["sample", "tile", "x", "y", "z"],
+            ),
+            "var_out": xr.DataArray(
+                np.random.randn(nt, 6, nx, ny, nz),
+                dims=["sample", "tile", "x", "y", "z"],
+            ),
+        }
+    )
+    config = ConvolutionalHyperparameters(
+        input_variables=["var_in_2d", "var_in_3d"], output_variables=["var_out"]
+    )
+    X, y = XyMultiArraySequence(
+        X_names=["var_in_2d", "var_in_3d"],
+        y_names=["var_out"],
+        dataset_sequence=[ds],
+        unstacked_dims=["x", "y", "z"],
+        n_halo=config.convolutional_network.halos_required,
+    )[0]
+    _, predict_model = build_model(config=config, X=X, y=y)
+    predict_model.predict(X)
