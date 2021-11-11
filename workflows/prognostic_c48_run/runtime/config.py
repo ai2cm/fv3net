@@ -41,7 +41,10 @@ class UserConfig:
         fortran_diagnostics: list of Fortran diagnostic file configurations
         prephysics: optional configuration of computations prior to physics,
             specified by either a machine learning configuation or a prescriber
-            configuration
+            configuration. If quantity is in runtime.names.PREPHYSICS_OVERRIDES,
+            it will be applied during prephysics step, all others will be updated
+            postphysics (yes, this contradicts the name of the config class,
+            there is a github issue open to address this).
         scikit_learn: a machine learning configuration
         nudging: nudge2fine configuration. Cannot be used if any scikit_learn model
             urls are specified.
@@ -52,7 +55,7 @@ class UserConfig:
     fortran_diagnostics: List[FortranFileConfig] = dataclasses.field(
         default_factory=list
     )
-    prephysics: Optional[Union[PrescriberConfig, MachineLearningConfig]] = None
+    prephysics: Optional[List[Union[PrescriberConfig, MachineLearningConfig]]] = None
     scikit_learn: Optional[MachineLearningConfig] = None
     nudging: Optional[NudgingConfig] = None
     tendency_prescriber: Optional[TendencyPrescriberConfig] = None
@@ -75,6 +78,7 @@ def get_config() -> UserConfig:
     """
     with open("fv3config.yml") as f:
         config = yaml.safe_load(f)
+
     runtime_config = {key: config[key] for key in config if key not in FV3CONFIG_KEYS}
     return dacite.from_dict(UserConfig, runtime_config, dacite.Config(strict=True))
 

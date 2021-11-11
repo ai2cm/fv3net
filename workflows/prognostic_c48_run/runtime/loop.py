@@ -11,6 +11,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Union,
 )
 import cftime
 import fv3gfs.util
@@ -33,6 +34,7 @@ from runtime.monitor import Monitor
 from runtime.names import (
     TENDENCY_TO_STATE_NAME,
     TOTAL_PRECIP_RATE,
+    PREPHYSICS_OVERRIDES,
 )
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
@@ -42,6 +44,7 @@ from runtime.steppers.machine_learning import (
 )
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig, get_timesteps
+from runtime.steppers.combine import CombinedStepper
 from runtime.types import Diagnostics, State, Tendencies, Step
 from toolz import dissoc
 from typing_extensions import Protocol
@@ -175,8 +178,8 @@ class TimeLoop(
         self._log_info(f"Timestep: {timestep}")
         hydrostatic = namelist["fv_core_nml"]["hydrostatic"]
 
-        self._prephysics_only_diagnostic_ml: bool = getattr(
-            getattr(config, "prephysics"), "diagnostic_ml", False
+        self._prephysics_only_diagnostic_ml: bool = self._use_diagnostic_ml_prephysics(
+            getattr(config, "prephysics")
         )
         self._postphysics_only_diagnostic_ml: bool = getattr(
             getattr(config, "scikit_learn"), "diagnostic_ml", False
@@ -200,6 +203,22 @@ class TimeLoop(
         self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
+
+    def _use_diagnostic_ml_prephysics(self, prephysics_config):
+        if prephysics_config is None:
+            return False
+        diag_ml_usages = sum(
+            [getattr(c, "diagnostic_ml", False) for c in prephysics_config]
+        )
+        if diag_ml_usages == 0:
+            return False
+        elif diag_ml_usages == 1:
+            return True
+        else:
+            raise ValueError(
+                "If multiple ML models are provided in config.prephysics, "
+                "all must have same values for diagnostic_ml."
+            )
 
     @staticmethod
     def _get_states_to_output(config: UserConfig) -> Sequence[str]:
@@ -233,17 +252,29 @@ class TimeLoop(
         if config.prephysics is None:
             self._log_info("No prephysics computations")
             stepper = None
-        elif isinstance(config.prephysics, MachineLearningConfig):
-            self._log_info("Using PureMLStepper for prephysics")
-            model = self._open_model(config.prephysics, "_prephysics")
-            stepper = PureMLStepper(model, self._timestep, hydrostatic)
-        elif isinstance(config.prephysics, PrescriberConfig):
-            self._log_info("Using Prescriber for prephysics")
-            communicator = self._get_communicator()
-            timesteps = get_timesteps(
-                self.time, self._timestep, self._fv3gfs.get_step_count()
-            )
-            stepper = Prescriber(config.prephysics, communicator, timesteps=timesteps)
+
+        else:
+            prephysics_steppers: List[Union[Prescriber, PureMLStepper]] = []
+            for prephysics_config in config.prephysics:
+                if isinstance(prephysics_config, MachineLearningConfig):
+                    self._log_info("Using PureMLStepper for prephysics")
+                    model = self._open_model(prephysics_config, "_prephysics")
+                    prephysics_steppers.append(
+                        PureMLStepper(model, self._timestep, hydrostatic)
+                    )
+                elif isinstance(prephysics_config, PrescriberConfig):
+                    self._log_info(
+                        "Using Prescriber for prephysics for variables "
+                        f"{prephysics_config.variables}"
+                    )
+                    communicator = self._get_communicator()
+                    timesteps = get_timesteps(
+                        self.time, self._timestep, self._fv3gfs.get_step_count()
+                    )
+                    prephysics_steppers.append(
+                        Prescriber(prephysics_config, communicator, timesteps=timesteps)
+                    )
+            stepper = CombinedStepper(prephysics_steppers)
         return stepper
 
     def _get_postphysics_stepper(
@@ -360,15 +391,10 @@ class TimeLoop(
                 rename_diagnostics(diagnostics)
             else:
                 self._state_updates.update(state_updates)
-        prephysics_overrides = [
-            "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
-            "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface",
-            "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface",
-        ]
         state_updates = {
-            k: v for k, v in self._state_updates.items() if k in prephysics_overrides
+            k: v for k, v in self._state_updates.items() if k in PREPHYSICS_OVERRIDES
         }
-        self._state_updates = dissoc(self._state_updates, *prephysics_overrides)
+        self._state_updates = dissoc(self._state_updates, *PREPHYSICS_OVERRIDES)
         self._log_debug(
             f"Applying prephysics state updates for: {list(state_updates.keys())}"
         )
@@ -444,7 +470,7 @@ class TimeLoop(
                     self._state[TOTAL_PRECIP], net_moistening, self._timestep,
                 )
                 self._state.update_mass_conserving(updated_state_from_tendency)
-                self._state.update_mass_conserving(self._state_updates)
+        self._state.update_mass_conserving(self._state_updates)
 
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
         diagnostics.update(
