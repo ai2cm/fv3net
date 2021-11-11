@@ -200,8 +200,8 @@ def test_default_convolutional_model_is_transpose_invariant():
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
     result = train_identity_model("convolutional", sample_func=sample_func)
     transpose_input = result.test_dataset.copy(deep=True)
-    transpose_input["var_in"].values[:] = np.transpose(
-        transpose_input["var_in"].values, axes=(0, 1, 3, 2, 4)
+    transpose_input["var_in_3d"].values[:] = np.transpose(
+        transpose_input["var_in_3d"].values, axes=(0, 1, 3, 2, 4)
     )
     transpose_output = result.model.predict(result.test_dataset)
     transpose_output["var_out"].values[:] = np.transpose(
