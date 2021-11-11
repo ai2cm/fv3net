@@ -11,8 +11,6 @@ spec:
       - name: tf_model
       - name: baseline_tag
         value: "baseline"
-      - name: output_frequency
-        value: "10800"
       - name: on_off_flag
         value: "--online"
       - name: do_piggy
@@ -67,7 +65,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/prognostic_run:test-micro-proj"
+      image: "us.gcr.io/vcm-ml/fv3net:bc376bf8c611871a63eb20a10597b74abbfdae60"
       imagePullPolicy: Always
       workingDir: "/fv3net/projects/microphysics"
       resources:
@@ -105,7 +103,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: us.gcr.io/vcm-ml/fv3net:c0ba225ba59862dc142561034b0741dc0767814e
+      image: us.gcr.io/vcm-ml/fv3net:bc376bf8c611871a63eb20a10597b74abbfdae60
       imagePullPolicy: Always
       resources:
         requests:
@@ -140,7 +138,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: us.gcr.io/vcm-ml/fv3net:c0ba225ba59862dc142561034b0741dc0767814e
+      image: us.gcr.io/vcm-ml/fv3net:bc376bf8c611871a63eb20a10597b74abbfdae60
       imagePullPolicy: Always
       resources:
         requests:
