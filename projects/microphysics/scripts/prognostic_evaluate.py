@@ -392,7 +392,7 @@ def main():
     wandb.config.update(args)
 
     def get_url_wandb(artifact: str):
-        art = job.use_artifact(artifact + ":latest", type="prognostic-run")
+        art = run.use_artifact(artifact + ":latest", type="prognostic-run")
         path = "fv3config.yml"
         url = art.get_path(path).ref
         return url[: -len("/" + path)]
@@ -409,10 +409,10 @@ def main():
     baseline = baseline.merge(grid)
 
     prog_mean_by_height = get_avg_data(
-        path, grid, run, override_artifact=args.override_artifacts
+        prog_url, grid, run, override_artifact=args.override_artifacts
     )
     base_mean_by_height = get_avg_data(
-        baseline_path, grid, run, override_artifact=args.override_artifacts
+        baseline_url, grid, run, override_artifact=args.override_artifacts
     )
 
     plot_time_heights(prog_mean_by_height, base_mean_by_height)

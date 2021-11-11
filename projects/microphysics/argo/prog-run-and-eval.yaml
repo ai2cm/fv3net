@@ -68,6 +68,7 @@ spec:
       effect: "NoSchedule"
     container:
       image: "us.gcr.io/vcm-ml/prognostic_run:test-micro-proj"
+      imagePullPolicy: Always
       workingDir: "/fv3net/projects/microphysics"
       resources:
         requests:
@@ -104,7 +105,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/fv3net:test-micro-proj"
+      image: us.gcr.io/vcm-ml/fv3net:c0ba225ba59862dc142561034b0741dc0767814e
       imagePullPolicy: Always
       resources:
         requests:
@@ -139,7 +140,8 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/fv3net:test-micro-proj"
+      image: us.gcr.io/vcm-ml/fv3net:c0ba225ba59862dc142561034b0741dc0767814e
+      imagePullPolicy: Always
       resources:
         requests:
           memory: "6Gi"
@@ -161,4 +163,4 @@ spec:
       - |
         cd projects/microphysics
         python3 scripts/prognostic_evaluate.py {{inputs.parameters.tag}} \
-          --baseline_tag {{input.parameters.baseline_tag}}
+          --baseline-tag {{inputs.parameters.baseline_tag}}

@@ -3,7 +3,7 @@ UNIQUE = $(shell openssl rand --hex 4)
 CONFIG ?= configs/default.yaml
 TAG ?= prognostic-experiment-$(UNIQUE)
 # BASELINE_TAG only used in online experiment for diag comparison
-BASELINE_TAG ?= baseline
+BASELINE_TAG ?= baseline-test-2
 TF_MODEL ?= gs://vcm-ml-experiments/2021-10-14-microphsyics-emulation-paper/models/all-tends-limited/all-tends-limited-dense/model.tf
 ON_OFF_FLAG ?= --offline
 PIGGY_DIAG ?= true
@@ -31,5 +31,9 @@ offline: submit
 online: ON_OFF_FLAG=--online
 online: TAG:=online-$(TAG)
 online: submit
+
+
+all_summer_models:
+	run_all_summer_models.sh
 
 
