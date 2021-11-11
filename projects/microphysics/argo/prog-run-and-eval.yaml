@@ -9,10 +9,16 @@ spec:
       - name: tag
       - name: config
       - name: tf_model
+      - name: baseline_tag
+        value: "baseline"
       - name: output_frequency
         value: "10800"
-      - name: do_prog_eval
-        value: "false"
+      - name: on_off_flag
+        value: "--online"
+  volumes:
+  - name: gcp-key-secret
+    secret:
+      secretName: gcp-key
   templates:
   - name: prognostic-run
     steps:
@@ -28,8 +34,8 @@ spec:
             value: "{{workflow.parameters.tf_model}}"
           - name: output_frequency
             value: "{{workflow.parameters.output_frequency}}"
-          - name: do_prog_eval
-            value: "{{workflow.parameters.do_prog_eval}}"
+          - name: on_off_flag
+            value: "{{workflow.parameters.on_off_flag}}"
     - - name: piggyback-diags
         template: piggyback-diags
         arguments:
@@ -38,11 +44,13 @@ spec:
             value: "{{workflow.parameters.tag}}"
       - name: prognostic-diags
         template: prognostic-diags
-        when: "{{workflow.parameters.do_prog_eval}} == true"
+        when: "'{{workflow.parameters.on_off_flag}}' == '--online'"
         arguments:
           parameters:
           - name: tag
             value: "{{workflow.parameters.tag}}"
+          - name: baseline_tag
+            value: "{{workflow.parameters.baseline_tag}}"
   - name: run-model
     inputs:
       parameters:
@@ -50,34 +58,104 @@ spec:
       - name: config
       - name: tf_model
       - name: output_frequency
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "med-sim-pool"
+      effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/prognostic-run:test-micro-proj"
+      image: "us.gcr.io/vcm-ml/prognostic_run:test-micro-proj"
       workingDir: "/fv3net/projects/microphysics"
-      command: [bash, -c]
-      args: |
+      resources:
+        requests:
+          memory: "6Gi"
+          cpu: "7500m"
+        limits:
+          memory: "8Gi"
+          cpu: "7500m"
+      envFrom:
+      - secretRef:
+          name: wandb-andrep
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS 
+        value: /secret/gcp-credentials/key.json
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-key-secret
+      command: ["bash", "-c", "-x", "-e"]
+      args: 
+      - |
         WANDB_RUN_GROUP="{{inputs.parameters.tag}}"
         echo "{{inputs.parameters.config}}" > fv3config.yaml
         python3 scripts/prognostic_run.py \
           --tag "{{inputs.parameters.tag}}" \
           --config-path fv3config.yaml \
-          --model "{{inputs.parameters.tf_model}}"
+          --model "{{inputs.parameters.tf_model}}" 
   - name: piggyback-diags
     inputs:
       parameters:
       - name: tag
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "med-sim-pool"
+      effect: "NoSchedule"
     container:
       image: "us.gcr.io/vcm-ml/fv3net:test-micro-proj"
-      workingDir: "/fv3net/projects/microphysics"
-      command: [bash, -c]
-      args: |
+      imagePullPolicy: Always
+      resources:
+        requests:
+          memory: "6Gi"
+          cpu: "3000m"
+        limits:
+          memory: "15Gi"
+          cpu: "3000m"
+      envFrom:
+      - secretRef:
+          name: wandb-andrep
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS 
+        value: /secret/gcp-credentials/key.json
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-key-secret
+      command: ["bash", "-c", "-x", "-e"]
+      args: 
+      - |
+        cd projects/microphysics
+        LS=$(ls ./)
         python3 scripts/piggy-back.py {{inputs.parameters.tag}}
   - name: prognostic-diags
     inputs:
       parameters:
       - name: tag
+      - name: baseline_tag
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "med-sim-pool"
+      effect: "NoSchedule"
     container:
       image: "us.gcr.io/vcm-ml/fv3net:test-micro-proj"
-      workingDir: "/fv3net/projects/microphysics"
-      command: [bash, -c]
-      args: |
-        python3 scripts/prognostic_evaluate.py {{inputs.parameters.tag}}
+      resources:
+        requests:
+          memory: "6Gi"
+          cpu: "3000m"
+        limits:
+          memory: "15Gi"
+          cpu: "3000m"
+      envFrom:
+      - secretRef:
+          name: wandb-andrep
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS 
+        value: /secret/gcp-credentials/key.json
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-key-secret
+      command: ["bash", "-c", "-x", "-e"]
+      args: 
+      - |
+        cd projects/microphysics
+        python3 scripts/prognostic_evaluate.py {{inputs.parameters.tag}} \
+          --baseline_tag {{input.parameters.baseline_tag}}
