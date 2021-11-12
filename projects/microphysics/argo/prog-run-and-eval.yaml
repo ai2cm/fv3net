@@ -125,7 +125,7 @@ spec:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
       workingDir: "/fv3net/projects/microphysics"
-      command: ["bash", "-x", "-e"]
+      command: ["bash"]
       args: 
       - python3
       - scripts/piggy-back.py
@@ -162,7 +162,7 @@ spec:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
       workingDir: "/fv3net/projects/microphysics"
-      command: ["bash", "-x", "-e"]
+      command: ["bash"]
       args:
       - python3
       - scripts/prognostic_evaluate.py
