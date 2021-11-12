@@ -80,7 +80,7 @@ spec:
       - name: GOOGLE_APPLICATION_CREDENTIALS 
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
-        value: "{{inputs.parameter.tag}}"
+        value: "{{inputs.parameters.tag}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
@@ -119,15 +119,17 @@ spec:
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS 
         value: /secret/gcp-credentials/key.json
+      - name: WANDB_RUN_GROUP
+        value: "{{inputs.parameters.tag}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
-      command: ["bash", "-c", "-x", "-e"]
+      workingDir: "/fv3net/projects/microphysics"
+      command: ["bash", "-x", "-e"]
       args: 
-      - |
-        cd projects/microphysics
-        LS=$(ls ./)
-        python3 scripts/piggy-back.py {{inputs.parameters.tag}}
+      - python3
+      - scripts/piggy-back.py
+      - "{{inputs.parameters.tag}}"
   - name: prognostic-diags
     inputs:
       parameters:
@@ -154,12 +156,16 @@ spec:
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS 
         value: /secret/gcp-credentials/key.json
+      - name: WANDB_RUN_GROUP
+        value: "{{inputs.parameters.tag}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
-      command: ["bash", "-c", "-x", "-e"]
-      args: 
-      - |
-        cd projects/microphysics
-        python3 scripts/prognostic_evaluate.py {{inputs.parameters.tag}} \
-          --baseline-tag {{inputs.parameters.baseline_tag}}
+      workingDir: "/fv3net/projects/microphysics"
+      command: ["bash", "-x", "-e"]
+      args:
+      - python3
+      - scripts/prognostic_evaluate.py
+      - "{{inputs.parameters.tag}}"
+      - --baseline-tag
+      - "{{inputs.parameters.baseline_tag}}"
