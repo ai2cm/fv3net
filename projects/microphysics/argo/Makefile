@@ -18,6 +18,10 @@ submit:
 		-p on_off_flag="$(ON_OFF_FLAG)" \
 		-p do_piggy="$(PIGGY_DIAG)" 
 
+baseline-short: TAG=baseline-short
+baseline-short: CONFIG=configs/baseline_short.yaml
+baseline-short: PIGGY_DIAG=false
+baseline-short: submit
 
 baseline: TAG=baseline
 baseline: CONFIG=configs/baseline.yaml
