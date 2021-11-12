@@ -62,7 +62,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/prognostic_run:80635bf99aa55b31da922a483f81cc13257388b9"
+      image: "us.gcr.io/vcm-ml/prognostic_run:811d4a88b8b8f29d727f2d61f46f96b770c8ab47"
       imagePullPolicy: Always
       workingDir: "/fv3net/projects/microphysics"
       resources:
@@ -100,7 +100,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: us.gcr.io/vcm-ml/fv3net:80635bf99aa55b31da922a483f81cc13257388b9
+      image: us.gcr.io/vcm-ml/fv3net:811d4a88b8b8f29d727f2d61f46f96b770c8ab47
       imagePullPolicy: Always
       resources:
         requests:
@@ -135,7 +135,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: us.gcr.io/vcm-ml/fv3net:80635bf99aa55b31da922a483f81cc13257388b9
+      image: us.gcr.io/vcm-ml/fv3net:811d4a88b8b8f29d727f2d61f46f96b770c8ab47
       imagePullPolicy: Always
       resources:
         requests:
