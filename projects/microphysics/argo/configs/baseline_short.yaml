@@ -1,85 +1,14 @@
 data_table: default
 diag_table:
   base_time: 2000-01-01 00:00:00
-  file_configs:
-  - field_configs:
-    - field_name: tendency_of_air_temperature_due_to_emulator
-      module_name: zhao_carr_microphysics
-      output_name: tendency_of_air_temperature_due_to_zhao_carr_emulator
-      packing: 2
-      reduction_method: none
-      regional_section: none
-      time_sampling: all
-    - field_name: tendency_of_cloud_water_due_to_emulator
-      module_name: zhao_carr_microphysics
-      output_name: tendency_of_cloud_water_due_to_zhao_carr_emulator
-      packing: 2
-      reduction_method: none
-      regional_section: none
-      time_sampling: all
-    - field_name: tendency_of_specific_humidity_due_to_emulator
-      module_name: zhao_carr_microphysics
-      output_name: tendency_of_specific_humidity_due_to_zhao_carr_emulator
-      packing: 2
-      reduction_method: none
-      regional_section: none
-      time_sampling: all
-    - field_name: tendency_of_air_temperature_due_to_physics
-      module_name: zhao_carr_microphysics
-      output_name: tendency_of_air_temperature_due_to_zhao_carr_physics
-      packing: 2
-      reduction_method: none
-      regional_section: none
-      time_sampling: all
-    - field_name: tendency_of_cloud_water_due_to_physics
-      module_name: zhao_carr_microphysics
-      output_name: tendency_of_cloud_water_due_to_zhao_carr_physics
-      packing: 2
-      reduction_method: none
-      regional_section: none
-      time_sampling: all
-    - field_name: tendency_of_specific_humidity_due_to_physics
-      module_name: zhao_carr_microphysics
-      output_name: tendency_of_specific_humidity_due_to_zhao_carr_physics
-      packing: 2
-      reduction_method: none
-      regional_section: none
-      time_sampling: all
-    - field_name: surface_precipitation_due_to_emulator
-      module_name: zhao_carr_microphysics
-      output_name: surface_precipitation_due_to_zhao_carr_emulator
-      packing: 2
-      reduction_method: none
-      regional_section: none
-      time_sampling: all
-    - field_name: surface_precipitation_due_to_physics
-      module_name: zhao_carr_microphysics
-      output_name: surface_precipitation_due_to_zhao_carr_physics
-      packing: 2
-      reduction_method: none
-      regional_section: none
-      time_sampling: all
-    - field_name: delp
-      module_name: dynamics
-      output_name: delp
-      packing: 2
-      reduction_method: none
-      regional_section: none
-      time_sampling: all
-    file_format: 1
-    frequency: 10800
-    frequency_units: seconds
-    name: piggy
-    time_axis_name: time
-    time_axis_units: hours
-  name: prognostic_run
+  file_configs: []
 diagnostics:
 - chunks:
     time: 1
   name: state_after_timestep.zarr
   tensorboard: false
   times:
-    frequency: 10800
+    frequency: 900
     includes_lower: false
     kind: interval
     times: null
@@ -101,7 +30,7 @@ diagnostics:
   name: physics_tendencies.zarr
   tensorboard: false
   times:
-    frequency: 10800
+    frequency: 900
     includes_lower: false
     kind: interval
     times: null
@@ -115,41 +44,7 @@ diagnostics:
   - tendency_of_pressure_thickness_of_atmospheric_layer_due_to_fv3_physics
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
-fortran_diagnostics:
-- chunks:
-    time: 2
-  name: piggy.zarr
-  times:
-    frequency: 10800
-    kind: interval
-  variables:
-  - field_name: tendency_of_air_temperature_due_to_emulator
-    module_name: zhao_carr_microphysics
-    output_name: tendency_of_air_temperature_due_to_zhao_carr_emulator
-  - field_name: tendency_of_cloud_water_due_to_emulator
-    module_name: zhao_carr_microphysics
-    output_name: tendency_of_cloud_water_due_to_zhao_carr_emulator
-  - field_name: tendency_of_specific_humidity_due_to_emulator
-    module_name: zhao_carr_microphysics
-    output_name: tendency_of_specific_humidity_due_to_zhao_carr_emulator
-  - field_name: tendency_of_air_temperature_due_to_physics
-    module_name: zhao_carr_microphysics
-    output_name: tendency_of_air_temperature_due_to_zhao_carr_physics
-  - field_name: tendency_of_cloud_water_due_to_physics
-    module_name: zhao_carr_microphysics
-    output_name: tendency_of_cloud_water_due_to_zhao_carr_physics
-  - field_name: tendency_of_specific_humidity_due_to_physics
-    module_name: zhao_carr_microphysics
-    output_name: tendency_of_specific_humidity_due_to_zhao_carr_physics
-  - field_name: surface_precipitation_due_to_emulator
-    module_name: zhao_carr_microphysics
-    output_name: surface_precipitation_due_to_zhao_carr_emulator
-  - field_name: surface_precipitation_due_to_physics
-    module_name: zhao_carr_microphysics
-    output_name: surface_precipitation_due_to_zhao_carr_physics
-  - field_name: delp
-    module_name: dynamics
-    output_name: delp
+fortran_diagnostics: []
 initial_conditions: gs://vcm-ml-experiments/online-emulator/2021-08-09/gfs-initialized-baseline-06/fv3gfs_run/artifacts/20160601.000000/RESTART
 namelist:
   amip_interp_nml:
@@ -211,10 +106,10 @@ namelist:
     - 0
     - 0
     - 0
-    days: 10
+    days: 0
     dt_atmos: 900
     dt_ocean: 900
-    hours: 0
+    hours: 6
     memuse_verbose: true
     minutes: 0
     months: 0

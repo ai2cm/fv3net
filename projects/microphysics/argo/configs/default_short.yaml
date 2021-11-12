@@ -67,7 +67,7 @@ diag_table:
       regional_section: none
       time_sampling: all
     file_format: 1
-    frequency: 10800
+    frequency: 900
     frequency_units: seconds
     name: piggy
     time_axis_name: time
@@ -79,7 +79,7 @@ diagnostics:
   name: state_after_timestep.zarr
   tensorboard: false
   times:
-    frequency: 10800
+    frequency: 900
     includes_lower: false
     kind: interval
     times: null
@@ -101,7 +101,7 @@ diagnostics:
   name: physics_tendencies.zarr
   tensorboard: false
   times:
-    frequency: 10800
+    frequency: 900
     includes_lower: false
     kind: interval
     times: null
@@ -120,7 +120,7 @@ fortran_diagnostics:
     time: 2
   name: piggy.zarr
   times:
-    frequency: 10800
+    frequency: 900
     kind: interval
   variables:
   - field_name: tendency_of_air_temperature_due_to_emulator
@@ -211,10 +211,10 @@ namelist:
     - 0
     - 0
     - 0
-    days: 10
+    days: 0
     dt_atmos: 900
     dt_ocean: 900
-    hours: 0
+    hours: 6
     memuse_verbose: true
     minutes: 0
     months: 0

@@ -32,8 +32,6 @@ spec:
             value:  "{{workflow.parameters.config}}"
           - name: tf_model
             value: "{{workflow.parameters.tf_model}}"
-          - name: output_frequency
-            value: "{{workflow.parameters.output_frequency}}"
           - name: on_off_flag
             value: "{{workflow.parameters.on_off_flag}}"
     - - name: piggyback-diags
@@ -58,14 +56,13 @@ spec:
       - name: tag
       - name: config
       - name: tf_model
-      - name: output_frequency
     tolerations:
     - key: "dedicated"
       operator: "Equal"
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/fv3net:bc376bf8c611871a63eb20a10597b74abbfdae60"
+      image: "us.gcr.io/vcm-ml/prognostic_run:80635bf99aa55b31da922a483f81cc13257388b9"
       imagePullPolicy: Always
       workingDir: "/fv3net/projects/microphysics"
       resources:
@@ -103,7 +100,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: us.gcr.io/vcm-ml/fv3net:bc376bf8c611871a63eb20a10597b74abbfdae60
+      image: us.gcr.io/vcm-ml/fv3net:80635bf99aa55b31da922a483f81cc13257388b9
       imagePullPolicy: Always
       resources:
         requests:
@@ -138,7 +135,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: us.gcr.io/vcm-ml/fv3net:bc376bf8c611871a63eb20a10597b74abbfdae60
+      image: us.gcr.io/vcm-ml/fv3net:80635bf99aa55b31da922a483f81cc13257388b9
       imagePullPolicy: Always
       resources:
         requests:
