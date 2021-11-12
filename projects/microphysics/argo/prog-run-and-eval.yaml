@@ -79,6 +79,8 @@ spec:
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS 
         value: /secret/gcp-credentials/key.json
+      - name: WANDB_RUN_GROUP
+        value: "{{inputs.parameter.tag}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
