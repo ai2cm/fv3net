@@ -89,7 +89,6 @@ spec:
       command: ["bash", "-c", "-x", "-e"]
       args: 
       - |
-        WANDB_RUN_GROUP="{{inputs.parameters.tag}}"
         echo "{{inputs.parameters.config}}" > fv3config.yaml
         python3 scripts/prognostic_run.py \
           --tag "{{inputs.parameters.tag}}" \
