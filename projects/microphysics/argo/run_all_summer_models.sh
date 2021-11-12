@@ -4,7 +4,7 @@ set -e
 set -x
 
 BASE_TAG="prognostic"
-RANDOM=$(openssl rand --hex 4)
+RANDOM="$(openssl rand --hex 4)"
 MODEL_BASE="gs://vcm-ml-experiments/2021-10-14-microphsyics-emulation-paper/models"
 
 run_style=("offline", "online")
