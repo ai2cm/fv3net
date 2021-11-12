@@ -14,8 +14,8 @@ archictectures=("dense", "rnn")
 for flag in ${run_style[@]}; do
     for tend in ${qc_tends[@]}; do
         for arch in ${archictectures[@]}; do
-            TAG=${BASE_TAG}-${flag}-${tend}-${arch}-${RANDOM}
-            MODEL=${MODEL_BASE}/${tend}/${tend}-${arch}/model.tf
+            TAG="${BASE_TAG}-${flag}-${tend}-${arch}-${RANDOM}"
+            MODEL="${MODEL_BASE}/${tend}/${tend}-${arch}/model.tf"
             argo submit prog-run-and-eval.yaml \
                 -p tag=$TAG \
                 -p baseline_tag="baseline" \
