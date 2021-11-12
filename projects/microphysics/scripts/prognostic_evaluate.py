@@ -368,7 +368,11 @@ def main():
         description="Log evaluation metrics for prognostic run named TAG",
     )
     parser.add_argument("tag", help="The unique tag used for the prognostic run.")
-    parser.add_argument("--baseline-tag", default="baseline", help="The unique tag used for the baseline comparison run.")
+    parser.add_argument(
+        "--baseline-tag",
+        default="baseline",
+        help="The unique tag used for the baseline comparison run.",
+    )
 
     parser.add_argument(
         "--grid-key",
@@ -398,10 +402,11 @@ def main():
         return url[: -len("/" + path)]
 
     prog_url = os.path.join(get_url_wandb(args.tag), "state_after_timestep.zarr")
-    baseline_url = os.path.join(get_url_wandb(args.baseline_tag), "state_after_timestep.zarr")
+    baseline_url = os.path.join(
+        get_url_wandb(args.baseline_tag), "state_after_timestep.zarr"
+    )
     wandb.config["run"] = prog_url
     wandb.config["baseline_run"] = baseline_url
-
 
     prog = xr.open_zarr(prog_url, consolidated=True)
     baseline = xr.open_zarr(baseline_url, consolidated=True)
