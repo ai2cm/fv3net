@@ -56,6 +56,7 @@ spec:
       - name: tag
       - name: config
       - name: tf_model
+      - name: on_off_flag
     tolerations:
     - key: "dedicated"
       operator: "Equal"
@@ -89,7 +90,8 @@ spec:
         python3 scripts/prognostic_run.py \
           --tag "{{inputs.parameters.tag}}" \
           --config-path fv3config.yaml \
-          --model "{{inputs.parameters.tf_model}}" 
+          --model "{{inputs.parameters.tf_model}}" \
+          "{{inputs.parameters.on_off_flag}}"
   - name: piggyback-diags
     inputs:
       parameters:
