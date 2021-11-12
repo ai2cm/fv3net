@@ -9,6 +9,8 @@ spec:
       - name: tag
       - name: config
       - name: tf_model
+      - name: image_tag
+        value: 811d4a88b8b8f29d727f2d61f46f96b770c8ab47
       - name: baseline_tag
         value: "baseline"
       - name: on_off_flag
@@ -63,7 +65,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/prognostic_run:811d4a88b8b8f29d727f2d61f46f96b770c8ab47"
+      image: "us.gcr.io/vcm-ml/prognostic_run:{{workflow.parameters.image_tag}}"
       imagePullPolicy: Always
       workingDir: "/fv3net/projects/microphysics"
       resources:
@@ -87,6 +89,7 @@ spec:
       command: ["bash", "-c", "-x", "-e"]
       args: 
       - |
+        WANDB_RUN_GROUP="{{inputs.parameters.tag}}"
         echo "{{inputs.parameters.config}}" > fv3config.yaml
         python3 scripts/prognostic_run.py \
           --tag "{{inputs.parameters.tag}}" \
@@ -103,7 +106,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: us.gcr.io/vcm-ml/fv3net:811d4a88b8b8f29d727f2d61f46f96b770c8ab47
+      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image_tag}}"
       imagePullPolicy: Always
       resources:
         requests:
@@ -139,7 +142,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: us.gcr.io/vcm-ml/fv3net:811d4a88b8b8f29d727f2d61f46f96b770c8ab47
+      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image_tag}}"
       imagePullPolicy: Always
       resources:
         requests:

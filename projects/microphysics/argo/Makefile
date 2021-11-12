@@ -1,6 +1,7 @@
 UNIQUE = $(shell openssl rand --hex 4)
 
 CONFIG ?= ../configs/default.yaml
+IMAGE ?= 811d4a88b8b8f29d727f2d61f46f96b770c8ab47
 TAG ?= prognostic-experiment-$(UNIQUE)
 # BASELINE_TAG only used in online experiment for diag comparison
 BASELINE_TAG ?= baseline
@@ -12,6 +13,7 @@ submit:
 	config_content=$$(cat $(CONFIG)) && \
 	argo submit prog-run-and-eval.yaml \
 		-p tag=$(TAG) \
+		-p image_tag=$(IMAGE) \
 		-p baseline_tag=$(BASELINE_TAG) \
 		-p config="$$config_content"\
 		-p tf_model=$(TF_MODEL) \
