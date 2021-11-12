@@ -25,7 +25,7 @@ def get_env(args):
     return env
 
 
-CONFIG_PATH = Path(__file__).parent / "fv3config.yml"
+CONFIG_PATH = Path(__file__).parent.parent / "configs" / "fv3config.yml"
 
 parser = argparse.ArgumentParser()
 parser.add_argument(

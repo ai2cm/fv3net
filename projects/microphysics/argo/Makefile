@@ -1,6 +1,6 @@
 UNIQUE = $(shell openssl rand --hex 4)
 
-CONFIG ?= configs/default.yaml
+CONFIG ?= ../configs/default.yaml
 TAG ?= prognostic-experiment-$(UNIQUE)
 # BASELINE_TAG only used in online experiment for diag comparison
 BASELINE_TAG ?= baseline
@@ -19,12 +19,11 @@ submit:
 		-p do_piggy="$(PIGGY_DIAG)" 
 
 baseline-short: TAG=baseline-short
-baseline-short: CONFIG=configs/baseline_short.yaml
+baseline-short: CONFIG=../configs/default_short.yaml
 baseline-short: PIGGY_DIAG=false
 baseline-short: submit
 
 baseline: TAG=baseline
-baseline: CONFIG=configs/baseline.yaml
 baseline: PIGGY_DIAG=false
 baseline: submit
 

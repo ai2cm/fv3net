@@ -13,3 +13,20 @@ For examples of usage or to run a quick experiment, check out the `Makefile`
 * `baseline_tag` - baseline run tag to compare against in the prognostic evaluation. only used if `on_off_flag=--online`
 * `on_off_flag` - flag passed to the prognostic run indicating offline (emulator piggybacked) or online operations (physics piggybacked).  Expects `--offline` or `--online`
 * `do_piggy` - enable piggy-backed diagnostic portion of workflow (disable for baseline run)
+
+## WandB Secret
+
+This is the resource manifest to create the API key used by `wandb` in the microphysics workflow.
+
+```
+apiVersion: v1
+stringData:
+  WANDB_API_KEY: <COPY API KEY HERE>
+kind: Secret
+metadata:
+  name: wandb-andrep
+  namespace: default
+type: Opaque
+```
+
+Copy to a file (e.g., `wandb-secret.yaml`) and apply using `kubectl apply -f <filename>`
