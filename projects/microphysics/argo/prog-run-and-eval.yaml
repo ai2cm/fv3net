@@ -124,10 +124,9 @@ spec:
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
-      workingDir: "/fv3net/projects/microphysics"
-      command: ["bash"]
+      workingDir: "/home/jovyan/fv3net/projects/microphysics"
+      command: ["python3"]
       args: 
-      - python3
       - scripts/piggy-back.py
       - "{{inputs.parameters.tag}}"
   - name: prognostic-diags
@@ -161,10 +160,9 @@ spec:
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
-      workingDir: "/fv3net/projects/microphysics"
-      command: ["bash"]
+      workingDir: "/home/jovyan/fv3net/projects/microphysics"
+      command: ["python3"]
       args:
-      - python3
       - scripts/prognostic_evaluate.py
       - "{{inputs.parameters.tag}}"
       - --baseline-tag
