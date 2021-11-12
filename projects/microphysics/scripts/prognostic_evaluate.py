@@ -397,13 +397,14 @@ def main():
         url = art.get_path(path).ref
         return url[: -len("/" + path)]
 
-    prog_url = get_url_wandb(args.tag)
-    baseline_url = get_url_wandb(args.baseline_tag)
+    prog_url = os.path.join(get_url_wandb(args.tag), "state_after_timestep.zarr")
+    baseline_url = os.path.join(get_url_wandb(args.baseline_tag), "state_after_timestep.zarr")
     wandb.config["run"] = prog_url
     wandb.config["baseline_run"] = baseline_url
 
-    prog = xr.open_zarr(os.path.join(prog_url, "state_after_timestep.zarr"), consolidated=True)
-    baseline = xr.open_zarr(os.path.join(baseline_url, "state_after_timestep.zarr"), consolidated=True)
+
+    prog = xr.open_zarr(prog_url, consolidated=True)
+    baseline = xr.open_zarr(baseline_url, consolidated=True)
     grid = catalog[f"grid/{args.grid_key}"].to_dask()
     prog = prog.merge(grid)
     baseline = baseline.merge(grid)
