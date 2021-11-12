@@ -363,16 +363,17 @@ def log_all_drifts(
 
 def main():
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("prognostic_path", help="Path or url to a prognostic run")
-    parser.add_argument(
-        "--baseline-path",
-        help="Path or url to a baseline run for comparison",
-        default=(
-            "gs://vcm-ml-experiments/andrep/2021-05-28/"
-            "spunup-baseline-simple-phys-hybrid-edmf-extended/fv3gfs_run"
-        ),
+    parser = argparse.ArgumentParser(
+        "Prognostic evaluation metrics",
+        description="Log evaluation metrics for prognostic run named TAG",
     )
+    parser.add_argument("tag", help="The unique tag used for the prognostic run.")
+    parser.add_argument(
+        "--baseline-tag",
+        default="baseline",
+        help="The unique tag used for the baseline comparison run.",
+    )
+
     parser.add_argument(
         "--grid-key",
         default="c48",
@@ -394,20 +395,30 @@ def main():
 
     wandb.config.update(args)
 
-    path = os.path.join(args.prognostic_path, "state_after_timestep.zarr")
-    baseline_path = os.path.join(args.baseline_path, "state_after_timestep.zarr")
-    prog = xr.open_zarr(path, consolidated=True,)
-    baseline = xr.open_zarr(baseline_path, consolidated=True,)
+    def get_url_wandb(artifact: str):
+        art = run.use_artifact(artifact + ":latest", type="prognostic-run")
+        path = "fv3config.yml"
+        url = art.get_path(path).ref
+        return url[: -len("/" + path)]
 
+    prog_url = os.path.join(get_url_wandb(args.tag), "state_after_timestep.zarr")
+    baseline_url = os.path.join(
+        get_url_wandb(args.baseline_tag), "state_after_timestep.zarr"
+    )
+    wandb.config["run"] = prog_url
+    wandb.config["baseline_run"] = baseline_url
+
+    prog = xr.open_zarr(prog_url, consolidated=True)
+    baseline = xr.open_zarr(baseline_url, consolidated=True)
     grid = catalog[f"grid/{args.grid_key}"].to_dask()
     prog = prog.merge(grid)
     baseline = baseline.merge(grid)
 
     prog_mean_by_height = get_avg_data(
-        path, grid, run, override_artifact=args.override_artifacts
+        prog_url, grid, run, override_artifact=args.override_artifacts
     )
     base_mean_by_height = get_avg_data(
-        baseline_path, grid, run, override_artifact=args.override_artifacts
+        baseline_url, grid, run, override_artifact=args.override_artifacts
     )
 
     plot_time_heights(prog_mean_by_height, base_mean_by_height)

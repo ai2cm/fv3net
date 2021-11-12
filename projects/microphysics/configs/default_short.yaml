@@ -1,6 +1,6 @@
 base_version: v0.5
 data_table: default
-duration: "3hr"
+duration: "6hr"
 fortran_diagnostics:
 - name: piggy.zarr
   chunks:
@@ -143,7 +143,7 @@ diagnostics:
   name: state_after_timestep.zarr
   tensorboard: false
   times:
-    frequency: 900
+    frequency: 10800
     includes_lower: false
     kind: interval
     times: null
@@ -158,14 +158,14 @@ diagnostics:
   - air_temperature
   - specific_humidity
   - cloud_water_mixing_ratio
-  - ozone_mixing_ratio
+  - total_precipitation
   - land_sea_mask
 - chunks:
     time: 1
   name: physics_tendencies.zarr
   tensorboard: false
   times:
-    frequency: 900
+    frequency: 10800
     includes_lower: false
     kind: interval
     times: null

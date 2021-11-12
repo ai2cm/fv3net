@@ -20,12 +20,12 @@ BUCKET = "vcm-ml-scratch"
 def get_env(args):
     env = {}
     env["TF_MODEL_PATH"] = args.model
-    env["OUTPUT_FREQ_SEC"] = str(10800)
+    env["OUTPUT_FREQ_SEC"] = args.output_frequency
     env["SAVE_ZARR"] = "True"
     return env
 
 
-CONFIG_PATH = Path(__file__).parent / "fv3config.yml"
+CONFIG_PATH = Path(__file__).parent.parent / "configs" / "default.yaml"
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -47,6 +47,9 @@ parser.add_argument(
     help="A unique tag. Can be used to look-up these outputs in subsequent timesteps.",
 )
 parser.add_argument("--segments", "-n", type=int, default=1, help="number of segments")
+parser.add_argument("--wandb-project", default="microphysics-emulation")
+parser.add_argument("--config-path", type=Path, default=CONFIG_PATH)
+parser.add_argument("--output-frequency", type=str, default="10800")
 
 # online/offine flag
 group = parser.add_mutually_exclusive_group()
@@ -69,7 +72,7 @@ job = wandb.init(
 )
 tag = args.tag or job.id
 
-with CONFIG_PATH.open() as f:
+with args.config_path.open() as f:
     config = yaml.safe_load(f)
 
 config = dacite.from_dict(HighLevelConfig, config)
