@@ -38,6 +38,6 @@ online: submit
 
 
 all_summer_models:
-	run_all_summer_models.sh
+	./run_all_summer_models.sh
 
 
