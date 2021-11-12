@@ -7,9 +7,9 @@ BASE_TAG="prognostic"
 RANDOM="$(openssl rand --hex 4)"
 MODEL_BASE="gs://vcm-ml-experiments/2021-10-14-microphsyics-emulation-paper/models"
 
-run_style=("offline", "online")
-qc_tends=("all-tends-limted", "direct-qc-limited")
-archictectures=("dense", "rnn")
+run_style=("offline" "online")
+qc_tends=("all-tends-limted" "direct-qc-limited")
+archictectures=("dense" "rnn")
 
 for flag in ${run_style[@]}; do
     for tend in ${qc_tends[@]}; do
