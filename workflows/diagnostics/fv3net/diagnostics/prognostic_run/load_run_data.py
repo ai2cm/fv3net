@@ -54,18 +54,6 @@ def _load_standardized(path):
 
 def _load_prognostic_run_physics_output(url):
     """Load, standardize and merge prognostic run physics outputs"""
-    diags_url = os.path.join(url, "diags.zarr")
-    sfc_dt_atmos_url = os.path.join(url, "sfc_dt_atmos.zarr")
-    diagnostic_data = [_load_standardized(sfc_dt_atmos_url)]
-    try:
-        diags_ds = _load_standardized(diags_url)
-    except (FileNotFoundError, KeyError):
-        # don't fail if diags.zarr doesn't exist (fsspec raises KeyError)
-        pass
-    else:
-        # values equal to zero in diags.zarr may get interpreted as nans by xarray
-        diagnostic_data.append(diags_ds.fillna(0.0))
-    return xr.merge(diagnostic_data, join="inner")
 
 
 def _coarsen(ds: xr.Dataset, area: xr.DataArray, coarsening_factor: int) -> xr.Dataset:
@@ -138,52 +126,20 @@ def load_grid(catalog):
     return xr.merge([grid_c48, ls_mask])
 
 
-def load_dycore(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
-    """Open data required for dycore plots.
-
-    Args:
-        url: path to prognostic run directory
-        catalog: Intake catalog of available data sources
-
-    """
-    logger.info(f"Processing dycore data from run directory at {url}")
-    # open prognostic run data
-    path = os.path.join(url, "atmos_dt_atmos.zarr")
+def load_coarse_data(path, catalog) -> xr.Dataset:
     logger.info(f"Opening prognostic run data at {path}")
-    ds = _load_standardized(path)
-    input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
-    area = catalog[input_grid].to_dask()["area"]
-    ds = _coarsen(ds, area, coarsening_factor)
+
+    try:
+        ds = _load_standardized(path)
+    except (FileNotFoundError, KeyError):
+        ds = xr.Dataset()
+
+    if len(ds) > 0:
+        input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
+        area = catalog[input_grid].to_dask()["area"]
+        ds = _coarsen(ds, area, coarsening_factor)
+
     return ds
-
-
-def load_physics(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
-    """Open data required for physics plots.
-
-    Args:
-        url: path to prognostic run directory
-        catalog: Intake catalog of available data sources
-    """
-    logger.info(f"Processing physics data from run directory at {url}")
-    prognostic_output = _load_prognostic_run_physics_output(url)
-    input_grid, coarsening_factor = _get_coarsening_args(prognostic_output, 48)
-    area = catalog[input_grid].to_dask()["area"]
-    return _coarsen(prognostic_output, area, coarsening_factor)
-
-
-def load_2d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
-    """Open 2D diagnostic data.
-    
-    Args:
-        url: path to prognostic run directory.
-        catalog: Intake catalog of available data.
-    
-    Returns:
-        dataset of all 2D diagnostics at C48 resolution.
-    """
-    physics = load_physics(url, catalog)
-    dycore = load_dycore(url, catalog)
-    return xr.merge([physics, dycore], join="outer")
 
 
 def loads_stats(b: bytes):
@@ -250,7 +206,22 @@ class SegmentedRun:
 
     @property
     def data_2d(self) -> xr.Dataset:
-        return load_2d(self.url, self.catalog)
+        url = self.url
+        catalog = self.catalog
+        path = os.path.join(url, "atmos_dt_atmos.zarr")
+        diags_url = os.path.join(url, "diags.zarr")
+        sfc_dt_atmos_url = os.path.join(url, "sfc_dt_atmos.zarr")
+
+        return xr.merge(
+            [
+                load_coarse_data(path, catalog),
+                # TODO fillna required because diags.zarr may be saved with an
+                # incorrect fill_value. not sure if this is fixed or not.
+                load_coarse_data(diags_url, catalog).fillna(0.0),
+                load_coarse_data(sfc_dt_atmos_url, catalog),
+            ],
+            join="outer",
+        )
 
     @property
     def data_3d(self) -> xr.Dataset:
