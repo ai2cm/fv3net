@@ -52,10 +52,6 @@ def _load_standardized(path):
     return standardize_fv3_diagnostics(ds)
 
 
-def _load_prognostic_run_physics_output(url):
-    """Load, standardize and merge prognostic run physics outputs"""
-
-
 def _coarsen(ds: xr.Dataset, area: xr.DataArray, coarsening_factor: int) -> xr.Dataset:
     return vcm.cubedsphere.weighted_block_average(
         ds, area, coarsening_factor, x_dim="x", y_dim="y"
