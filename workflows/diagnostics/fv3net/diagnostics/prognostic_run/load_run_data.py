@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from typing_extensions import Protocol
-from typing import List, Mapping, Tuple
+from typing import List
 
 import fsspec
 import intake
@@ -17,9 +17,6 @@ from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import derived_variables
 
 logger = logging.getLogger(__name__)
-
-
-GRID_ENTRIES = {48: "grid/c48", 96: "grid/c96", 384: "grid/c384"}
 
 
 def load_verification(
@@ -52,24 +49,31 @@ def _load_standardized(path):
     return standardize_fv3_diagnostics(ds)
 
 
-def _coarsen(ds: xr.Dataset, area: xr.DataArray, coarsening_factor: int) -> xr.Dataset:
-    return vcm.cubedsphere.weighted_block_average(
-        ds, area, coarsening_factor, x_dim="x", y_dim="y"
-    )
-
-
-def _get_coarsening_args(
-    ds: xr.Dataset, target_res: int, grid_entries: Mapping[int, str] = GRID_ENTRIES
-) -> Tuple[str, int]:
-    """Given input dataset and target resolution, return catalog entry for input grid
-    and coarsening factor"""
+def _get_area(ds: xr.Dataset, catalog: intake.catalog.Catalog) -> xr.DataArray:
+    grid_entries = {48: "grid/c48", 96: "grid/c96", 384: "grid/c384"}
     input_res = ds.sizes["x"]
-    if input_res % target_res != 0:
-        raise ValueError("Target resolution must evenly divide input resolution")
-    coarsening_factor = int(input_res / target_res)
     if input_res not in grid_entries:
         raise KeyError(f"No grid defined in catalog for c{input_res} resolution")
-    return grid_entries[input_res], coarsening_factor
+    return catalog[grid_entries[input_res]].to_dask().area
+
+
+def _get_factor(ds: xr.Dataset, target_resolution: int) -> int:
+    input_res = ds.sizes["x"]
+    if input_res % target_resolution != 0:
+        raise ValueError("Target resolution must evenly divide input resolution")
+    return int(input_res / target_resolution)
+
+
+def _coarsen_to_target_resolution(
+    ds: xr.Dataset, target_resolution: int, catalog: intake.catalog.Catalog,
+) -> xr.Dataset:
+    return vcm.cubedsphere.weighted_block_average(
+        ds,
+        weights=_get_area(ds, catalog),
+        coarsening_factor=_get_factor(ds, target_resolution),
+        x_dim="x",
+        y_dim="y",
+    )
 
 
 def _load_3d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
@@ -109,9 +113,7 @@ def load_coarse_data(path, catalog) -> xr.Dataset:
         ds = xr.Dataset()
 
     if len(ds) > 0:
-        input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
-        area = catalog[input_grid].to_dask()["area"]
-        ds = _coarsen(ds, area, coarsening_factor)
+        ds = _coarsen_to_target_resolution(ds, target_resolution=48, catalog=catalog)
 
     return ds
 

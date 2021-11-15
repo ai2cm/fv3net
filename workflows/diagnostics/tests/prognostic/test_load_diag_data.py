@@ -6,6 +6,7 @@ import vcm.catalog
 import joblib
 
 import fv3net.diagnostics.prognostic_run.load_run_data as load_diags
+from vcm.cubedsphere import weighted_block_average
 
 
 @pytest.fixture
@@ -23,20 +24,10 @@ def test__coarsen_keeps_attrs(xr_darray):
     ds = xr.Dataset({"var1": xr_darray, "var2": xr_darray})
     ds.attrs = {"global_attr": "value"}
     ds.var1.attrs = {"units": "value"}
-    output = load_diags._coarsen(ds, xr_darray, 2)
+    output = weighted_block_average(ds, xr_darray, 2, x_dim="x", y_dim="y")
     assert ds.attrs == output.attrs
     assert ds.var1.attrs == output.var1.attrs
     assert ds.var2.attrs == output.var2.attrs
-
-
-def test__get_coarsening_args(xr_darray):
-    target_res = 2
-    grid_entries = {4: "c4_grid_entry"}
-    grid, coarsening_factor = load_diags._get_coarsening_args(
-        xr_darray, target_res, grid_entries=grid_entries
-    )
-    assert grid == "c4_grid_entry"
-    assert coarsening_factor == 2
 
 
 def test_load_coarse_data(tmpdir):
