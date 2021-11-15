@@ -72,47 +72,25 @@ def _get_coarsening_args(
     return grid_entries[input_res], coarsening_factor
 
 
-def _load_prognostic_run_3d_output(url: str):
-    fs = get_fs(url)
-    prognostic_3d_output = [
-        item
-        for item in fs.ls(url)
-        if item.endswith("diags_3d.zarr") or item.endswith("state_after_timestep.zarr")
-    ]
-    if len(prognostic_3d_output) > 0:
-        outputs = []
-        for item in prognostic_3d_output:
-            zarr_name = os.path.basename(item)
-            path = os.path.join(url, zarr_name)
-            outputs.append(_load_standardized(path))
-        return xr.merge(outputs)
-    else:
-        return None
-
-
-def load_3d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
+def _load_3d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     logger.info(f"Processing 3d data from run directory at {url}")
+    files_3d = ["diags_3d.zarr", "state_after_timestep.zarr"]
+    ds = xr.merge(
+        [
+            load_coarse_data(os.path.join(url, filename), catalog)
+            for filename in files_3d
+        ]
+    )
 
-    # open prognostic run data. If 3d data not saved, return empty datasets.
-    ds = _load_prognostic_run_3d_output(url)
-    if ds is None:
-        return xr.Dataset()
+    # interpolate 3d prognostic fields to pressure levels
+    ds_interp = xr.Dataset()
+    pressure_vars = [var for var in ds.data_vars if "z" in ds[var].dims]
+    for var in pressure_vars:
+        ds_interp[var] = vcm.interpolate_to_pressure_levels(
+            field=ds[var], delp=ds["pressure_thickness_of_atmospheric_layer"], dim="z",
+        )
 
-    else:
-        input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
-        area = catalog[input_grid].to_dask()["area"]
-        ds = _coarsen(ds, area, coarsening_factor)
-
-        # interpolate 3d prognostic fields to pressure levels
-        ds_interp = xr.Dataset()
-        pressure_vars = [var for var in ds.data_vars if "z" in ds[var].dims]
-        for var in pressure_vars:
-            ds_interp[var] = vcm.interpolate_to_pressure_levels(
-                field=ds[var],
-                delp=ds["pressure_thickness_of_atmospheric_layer"],
-                dim="z",
-            )
-        return ds_interp
+    return ds_interp
 
 
 def load_grid(catalog):
@@ -221,7 +199,7 @@ class SegmentedRun:
 
     @property
     def data_3d(self) -> xr.Dataset:
-        return load_3d(self.url, self.catalog)
+        return _load_3d(self.url, self.catalog)
 
     def __str__(self) -> str:
         return self.url
