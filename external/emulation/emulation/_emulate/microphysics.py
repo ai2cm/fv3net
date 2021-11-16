@@ -63,7 +63,9 @@ def _load_tf_model(model_path: str) -> tf.keras.Model:
             # for backwards compatibility
             translation={
                 "air_temperature_output": "air_temperature_after_precpd",
-                "specific_humidity_output": "specific_humidity_after_precpd",
+                # TODO fix the typo in "humdity" below after merging in latest
+                # fv3gfs-fortran master. I fixed this upstream.
+                "specific_humdity_output": "specific_humidity_after_precpd",
                 "cloud_water_mixing_ratio_output": "cloud_water_mixinig_ratio_after_precpd",  # noqa: E501
             },
         )
