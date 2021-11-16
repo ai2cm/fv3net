@@ -64,7 +64,7 @@ def _load_tf_model(model_path: str) -> tf.keras.Model:
             translation={
                 "air_temperature_output": "air_temperature_after_precpd",
                 "specific_humidity_output": "specific_humidity_after_precpd",
-                "cloud_water_mixing_ratio_output": "cloud_water_mixinig_ratio_after_precpd",  # noqa: E501
+                "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
             },
         )
 
