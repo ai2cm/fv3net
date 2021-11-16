@@ -1,6 +1,7 @@
 import dataclasses
 import numpy as np
 import tensorflow as tf
+import tensorflow_addons as tfa
 from typing import List, Optional, Sequence, Tuple, Set, Mapping, Union
 import xarray as xr
 
@@ -66,7 +67,7 @@ class DenseHyperparameters(Hyperparameters):
         return set(self.input_variables).union(self.output_variables)
 
 
-@register_training_function("DenseModel", DenseHyperparameters)
+@register_training_function("dense", DenseHyperparameters)
 def train_dense_model(
     hyperparameters: DenseHyperparameters,
     train_batches: Sequence[xr.Dataset],
