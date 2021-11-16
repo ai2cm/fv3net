@@ -4,7 +4,6 @@ from fv3fit._shared.config import (
     OptimizerConfig,
     register_training_function,
 )
-from fv3fit._shared.stacking import stack
 from fv3fit.keras._models.shared.loss import LossConfig
 from fv3fit.keras._models.shared.pure_keras import PureKerasModel
 import tensorflow as tf
@@ -14,7 +13,7 @@ from .shared import ConvolutionalNetworkConfig, TrainingLoopConfig, XyMultiArray
 import numpy as np
 from fv3fit.keras._models.shared import Diffusive
 import logging
-from fv3fit.keras._models.shared.utils import standard_denormalize, standard_normalize
+from fv3fit.keras._models.shared.utils import standard_denormalize, standard_normalize, get_stacked_metadata
 
 logger = logging.getLogger(__file__)
 
@@ -26,23 +25,6 @@ def multiply_loss_by_factor(original_loss, factor):
         return tf.math.scalar_mul(factor, original_loss(y_true, y_pred))
 
     return loss
-
-
-def get_stacked_metadata(
-    names, ds: xr.Dataset, unstacked_dims: Sequence[str]
-) -> Tuple[Dict[str, Any], ...]:
-    """
-    Retrieve xarray metadata for dataset after stacking.
-
-    Returns a dict containing "dims" and "units" for each name.
-    """
-    ds = stack(ds, unstacked_dims=unstacked_dims)
-    metadata = []
-    for name in names:
-        metadata.append(
-            {"dims": ds[name].dims, "units": ds[name].attrs.get("units", "unknown")}
-        )
-    return tuple(metadata)
 
 
 @dataclasses.dataclass
