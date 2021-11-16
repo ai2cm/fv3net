@@ -28,14 +28,6 @@ build_image_prognostic_run:
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
 		--target prognostic-run .
 
-	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
-		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/notebook:$(VERSION) \
-		--target notebook .
-
-push_image_prognostic_run: build_image_prognostic_run
-	docker push $(REGISTRY)/prognostic_run:$(VERSION)
-	docker push $(REGISTRY)/notebook:$(VERSION)
-
 image_test_prognostic_run:
 	docker run \
 		--rm \
@@ -123,7 +115,10 @@ clean:
 ## Set up python interpreter environment
 update_submodules:
 	git submodule sync --recursive
-	git submodule update --recursive --init
+	git submodule update --init \
+		external/fv3gfs-fortran \
+		external/fv3gfs-wrapper \
+		external/fv3gfs-util
 
 
 overwrite_baseline_images:
@@ -162,7 +157,7 @@ install_deps:
 install_local_packages:
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
 
-create_environment:
+create_environment: update_submodules
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
 
