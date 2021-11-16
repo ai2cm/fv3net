@@ -157,7 +157,7 @@ install_deps:
 install_local_packages:
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
 
-create_environment:
+create_environment: update_submodules
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
 
