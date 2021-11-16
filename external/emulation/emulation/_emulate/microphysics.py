@@ -1,5 +1,5 @@
 import sys
-from typing import Mapping
+from typing import List, Mapping
 from .._typing import FortranState
 
 # Tensorflow looks at sys args which are not initialized
@@ -35,14 +35,12 @@ def _get_timestep(namelist):
 
 
 class RenamedOutputModel:
-    # outputs should be unchanged
     def __init__(self, model: tf.keras.Model, translation: Mapping[str, str]):
         self.translation = translation
         self.model = model
 
     @property
-    def output_names(self):
-        # TODO add type hints
+    def output_names(self) -> List[str]:
         return [self.translation.get(key, key) for key in self.model.output_names]
 
     @property
