@@ -157,26 +157,8 @@ FROM bld AS prognostic-run
 # Copy results from test stage to ensure docker buildkit executes it
 
 # build the docs
-RUN apt-get install -y graphviz && pip3 install sphinx sphinx_rtd_theme
+RUN apt-get update && apt-get install -y graphviz && pip3 install sphinx sphinx_rtd_theme
 RUN make -C docs html
 
 ARG COMMIT_SHA_ARG
 ENV COMMIT_SHA=$COMMIT_SHA_ARG
-
-###############################################################################
-#  notebook image
-###############################################################################
-FROM bld AS notebook
-
-COPY docker/prognostic_run/requirements/notebook.txt requirements.txt
-RUN pip install -r requirements.txt
-RUN apt-get install -y bash-completion vim netcdf-bin
-
-RUN useradd --create-home --shell /bin/bash jovyan
-
-USER jovyan
-WORKDIR /home/jovyan
-VOLUME /home/jovyan
-
-ENTRYPOINT ["jupyter", "lab"]
-CMD ["--ip", "0.0.0.0", "--port", "8888", "--no-browser"]
