@@ -28,14 +28,6 @@ build_image_prognostic_run:
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
 		--target prognostic-run .
 
-	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
-		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/notebook:$(VERSION) \
-		--target notebook .
-
-push_image_prognostic_run: build_image_prognostic_run
-	docker push $(REGISTRY)/prognostic_run:$(VERSION)
-	docker push $(REGISTRY)/notebook:$(VERSION)
-
 image_test_prognostic_run:
 	docker run \
 		--rm \
