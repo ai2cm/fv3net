@@ -4,6 +4,7 @@ import logging
 import os
 from typing_extensions import Protocol
 from typing import List
+import warnings
 
 import fsspec
 import intake
@@ -110,6 +111,7 @@ def load_coarse_data(path, catalog) -> xr.Dataset:
     try:
         ds = _load_standardized(path)
     except (FileNotFoundError, KeyError):
+        warnings.warn(UserWarning(f"{path} not found. Returning empty dataset."))
         ds = xr.Dataset()
 
     if len(ds) > 0:
