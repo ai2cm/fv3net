@@ -542,10 +542,10 @@ def main(args):
         input_data["2d"][0].PWAT.isel(time=0).rename({"time": "initial_time"})
     )
     diags["pwat_run_final"] = (
-        input_data["2d"][0].PWAT.isel(time=-2).rename({"time": "final_time"})
+        input_data["2d"][0].PWAT.isel(time=-1).rename({"time": "final_time"})
     )
     diags["pwat_verification_final"] = (
-        input_data["2d"][0].PWAT.isel(time=-2).rename({"time": "final_time"})
+        input_data["2d"][0].PWAT.isel(time=-1).rename({"time": "final_time"})
     )
 
     computed_diags = _merge_diag_computes(input_data, registries, args.n_jobs)
