@@ -115,7 +115,10 @@ clean:
 ## Set up python interpreter environment
 update_submodules:
 	git submodule sync --recursive
-	git submodule update --recursive --init
+	git submodule update --init \
+		external/fv3gfs-fortran \
+		external/fv3gfs-wrapper \
+		external/fv3gfs-util
 
 
 overwrite_baseline_images:
