@@ -1,7 +1,12 @@
 import pytest
 import numpy as np
+import tensorflow as tf
 
-from emulation._emulate.microphysics import _unpack_predictions, MicrophysicsHook
+from emulation._emulate.microphysics import (
+    MicrophysicsHook,
+    RenamedOutputModel,
+    _unpack_predictions,
+)
 
 
 def test__unpack_predictions_single_out():
@@ -62,3 +67,14 @@ def test_error_on_call():
         from emulation import microphysics
 
         microphysics({})
+
+
+def test_RenamedOutputModel():
+    in_ = tf.keras.layers.Input(shape=(63,), name="air_temperature_input")
+    old_names = ["a", "b"]
+    new_names = ["c", "d"]
+    out_ = [tf.keras.layers.Lambda(lambda x: x, name=name)(in_) for name in old_names]
+    model = tf.keras.Model(inputs=in_, outputs=out_)
+    renamed_model = RenamedOutputModel(model, dict(zip(old_names, new_names)))
+
+    assert renamed_model.output_names == new_names

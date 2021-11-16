@@ -114,60 +114,30 @@ cloud_condensed_water_mixing_ratio_convective_transport_tracer:
   kind: kind_phys
   intent: in
   optional: F
-air_temperature_two_time_steps_back:
+air_temperature_after_last_gscond:
   fortran_name: tp
-  standard_name: air_temperature_two_time_steps_back
-  long_name: air temperature two time steps back
+  standard_name: air_temperature_after_last_gscond
+  long_name: air temperature after gscond was last called
   units: K
   field_dims: [horizontal_dimension, vertical_dimension]
   type: real
   kind: kind_phys
   intent: inout
   optional: F
-specific_humidity_two_time_steps_back:
-  fortran_name: qp
-  standard_name: specific_humidity_two_time_steps_back
-  long_name: water vapor specific humidity two time steps back
-  units: kg kg-1
-  field_dims: [horizontal_dimension, vertical_dimension]
-  type: real
-  kind: kind_phys
-  intent: inout
-  optional: F
-surface_air_pressure_two_time_steps_back:
-  fortran_name: psp
-  standard_name: surface_air_pressure_two_time_steps_back
-  long_name: surface air pressure two time steps back
-  units: Pa
-  field_dims: [horizontal_dimension]
-  type: real
-  kind: kind_phys
-  intent: inout
-  optional: F
-air_temperature_at_previous_time_step:
-  fortran_name: tp1
-  standard_name: air_temperature_at_previous_time_step
-  long_name: air temperature at previous time step
-  units: K
-  field_dims: [horizontal_dimension, vertical_dimension]
-  type: real
-  kind: kind_phys
-  intent: inout
-  optional: F
-specific_humidity_at_previous_time_step:
+specific_humidity_after_last_gscond:
   fortran_name: qp1
-  standard_name: specific_humidity_at_previous_time_step
-  long_name: water vapor specific humidity at previous time step
+  standard_name: specific_humidity_after_last_gscond
+  long_name: water vapor specific humidity after gscond was last called
   units: kg kg-1
   field_dims: [horizontal_dimension, vertical_dimension]
   type: real
   kind: kind_phys
   intent: inout
   optional: F
-surface_air_pressure_at_previous_time_step:
+surface_air_pressure_after_last_gscond:
   fortran_name: psp1
-  standard_name: surface_air_pressure_at_previous_time_step
-  long_name: surface air surface pressure at previous time step
+  standard_name: surface_air_pressure_after_last_gscond
+  long_name: surface air surface pressure after gscond was last called
   units: Pa
   field_dims: [horizontal_dimension]
   type: real

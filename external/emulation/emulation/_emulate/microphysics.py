@@ -1,5 +1,5 @@
 import sys
-from typing import Mapping
+from typing import List, Mapping
 from .._typing import FortranState
 
 # Tensorflow looks at sys args which are not initialized
@@ -34,11 +34,37 @@ def _get_timestep(namelist):
     return int(namelist["coupler_nml"]["dt_atmos"])
 
 
+class RenamedOutputModel:
+    def __init__(self, model: tf.keras.Model, translation: Mapping[str, str]):
+        self.translation = translation
+        self.model = model
+
+    @property
+    def output_names(self) -> List[str]:
+        return [self.translation.get(key, key) for key in self.model.output_names]
+
+    @property
+    def input_names(self):
+        return self.model.input_names
+
+    def predict(self, x):
+        return self.model.predict(x)
+
+
 @print_errors
 def _load_tf_model(model_path: str) -> tf.keras.Model:
     logger.info(f"Loading keras model: {model_path}")
     with get_dir(model_path) as local_model_path:
         model = tf.keras.models.load_model(local_model_path)
+        model = RenamedOutputModel(
+            model,
+            # for backwards compatibility
+            translation={
+                "air_temperature_output": "air_temperature_after_precpd",
+                "specific_humidity_output": "specific_humidity_after_precpd",
+                "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
+            },
+        )
 
     return model
 
@@ -104,7 +130,7 @@ class MicrophysicsHook:
 
         # grab model-required variables and
         # switch state to model-expected [sample, feature]
-        inputs = [state[name].T for name in self.model.input_names]
+        inputs = {name: state[name].T for name in self.model.input_names}
 
         predictions = self.model.predict(inputs)
         model_outputs = _unpack_predictions(predictions, self.model.output_names)

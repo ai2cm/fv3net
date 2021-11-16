@@ -276,7 +276,7 @@ class StorageHook:
         if self._store_interval_check(time):
 
             logger.debug(
-                "Store flags: save_zarr={self.save_zarr}, save_nc={self.save_nc}"
+                f"Store flags: save_zarr={self.save_zarr}, save_nc={self.save_nc}"
             )
 
             if self.save_zarr:
