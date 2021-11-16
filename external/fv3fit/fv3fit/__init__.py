@@ -25,6 +25,7 @@ from .keras._models.shared import (
 )
 from .keras._models.precipitative import PrecipitativeHyperparameters
 from .keras._models.convolutional import ConvolutionalHyperparameters
+from .keras._models.dense import DenseHyperparameters
 from . import keras, sklearn, testing
 
 __version__ = "0.1.0"

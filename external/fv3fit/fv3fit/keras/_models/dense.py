@@ -5,18 +5,18 @@ import tensorflow_addons as tfa
 from typing import List, Optional, Sequence, Tuple, Set, Mapping, Union
 import xarray as xr
 
+from ..._shared.config import (
+    Hyperparameters,
+    OptimizerConfig,
+    register_training_function,
+    PackerConfig
+)
 from .shared import DenseNetworkConfig, TrainingLoopConfig
 from .shared import TrainingLoopConfig, XyMultiArraySequence
 from fv3fit.keras._models.shared.loss import LossConfig
 from fv3fit.keras._models.shared.pure_keras import PureKerasModel
 from fv3fit.keras._models.shared.utils import standard_denormalize, standard_normalize, get_stacked_metadata
 
-
-from ..._shared.config import (
-    Hyperparameters,
-    OptimizerConfig,
-    register_training_function,
-)
 
 @dataclasses.dataclass
 class DenseHyperparameters(Hyperparameters):
@@ -36,12 +36,13 @@ class DenseHyperparameters(Hyperparameters):
         dense_network: configuration of dense network
         training_loop: configuration of training loop
         loss: configuration of loss functions, will be applied separately to
-            each output variable
+            each output variable. 
         save_model_checkpoints: if True, save one model per epoch when
             dumping, under a 'model_checkpoints' subdirectory
         nonnegative_outputs: if True, add a ReLU activation layer as the last layer
             after output denormalization layer to ensure outputs are always >=0
             Defaults to False.
+        packer_config: configuration of dataset packing.
     """
 
     input_variables: List[str]
@@ -60,7 +61,9 @@ class DenseHyperparameters(Hyperparameters):
     loss: LossConfig = LossConfig(scaling="standard", loss_type="mse")
     save_model_checkpoints: bool = False
     nonnegative_outputs: bool = False
-    
+    packer_config: PackerConfig = dataclasses.field(
+        default_factory=lambda: PackerConfig({})
+    )
 
     @property
     def variables(self) -> Set[str]:

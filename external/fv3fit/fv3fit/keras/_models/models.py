@@ -33,6 +33,7 @@ from ..._shared.config import (
     OptimizerConfig,
     register_training_function,
 )
+from .dense import DenseHyperparameters
 import numpy as np
 import os
 from ..._shared import get_dir, put_dir
@@ -182,7 +183,14 @@ class DenseModel(Predictor):
             self.weights = hyperparameters.weights
         self._normalize_loss = hyperparameters.normalize_loss
         self._optimizer = hyperparameters.optimizer_config.instance
-        self._loss = hyperparameters.loss
+
+        if hyperparameters.loss.scaling != "standard": 
+            raise ValueError(
+                "Only 'standard' loss scaling is supported for DenseModel."
+            )
+        self._loss = hyperparameters.loss.loss_type
+        
+
         self._save_model_checkpoints = hyperparameters.save_model_checkpoints
         if hyperparameters.save_model_checkpoints:
             self._checkpoint_path: Optional[
@@ -375,6 +383,10 @@ class DenseModel(Predictor):
                 y_scaler = LayerStandardScaler.load(f_binary)
             with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
                 options = yaml.safe_load(f)
+
+            # maintain backwards compatibility with older versions that do not use LossConfig
+            options = _backwards_compatible_loss_config(options)
+
             hyperparameters = dacite.from_dict(
                 data_class=DenseHyperparameters,
                 data=options,
@@ -426,16 +438,9 @@ class DenseModel(Predictor):
         return unpack_matrix(self.X_packer, self.y_packer, J)
 
 
-def _fill_default(kwargs: dict, arg: Optional[Any], key: str, default: Any):
-    if key not in kwargs:
-        if arg is None:
-            kwargs[key] = default
-        else:
-            kwargs[key] = arg
-    else:
-        if arg is not None and arg != kwargs[key]:
-            raise ValueError(
-                f"Different values for fit kwarg {key} were provided in both "
-                "fit args and fit_kwargs dict."
-            )
-    return kwargs
+def _backwards_compatible_loss_config(hyperparameters: dict) -> dict:
+    loss = hyperparameters.get("loss")
+    # old config only took a string "mse" or "mae"
+    if isinstance(loss, str):
+        hyperparameters["loss"] = {"loss_type": loss, "scaling": "standard"}
+    return hyperparameters
