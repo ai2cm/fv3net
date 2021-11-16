@@ -3,7 +3,8 @@ import json
 import logging
 import os
 from typing_extensions import Protocol
-from typing import List, Mapping, Tuple
+from typing import List
+import warnings
 
 import fsspec
 import intake
@@ -17,9 +18,6 @@ from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import derived_variables
 
 logger = logging.getLogger(__name__)
-
-
-GRID_ENTRIES = {48: "grid/c48", 96: "grid/c96", 384: "grid/c384"}
 
 
 def load_verification(
@@ -52,83 +50,52 @@ def _load_standardized(path):
     return standardize_fv3_diagnostics(ds)
 
 
-def _load_prognostic_run_physics_output(url):
-    """Load, standardize and merge prognostic run physics outputs"""
-    diags_url = os.path.join(url, "diags.zarr")
-    sfc_dt_atmos_url = os.path.join(url, "sfc_dt_atmos.zarr")
-    diagnostic_data = [_load_standardized(sfc_dt_atmos_url)]
-    try:
-        diags_ds = _load_standardized(diags_url)
-    except (FileNotFoundError, KeyError):
-        # don't fail if diags.zarr doesn't exist (fsspec raises KeyError)
-        pass
-    else:
-        # values equal to zero in diags.zarr may get interpreted as nans by xarray
-        diagnostic_data.append(diags_ds.fillna(0.0))
-    return xr.merge(diagnostic_data, join="inner")
+def _get_area(ds: xr.Dataset, catalog: intake.catalog.Catalog) -> xr.DataArray:
+    grid_entries = {48: "grid/c48", 96: "grid/c96", 384: "grid/c384"}
+    input_res = ds.sizes["x"]
+    if input_res not in grid_entries:
+        raise KeyError(f"No grid defined in catalog for c{input_res} resolution")
+    return catalog[grid_entries[input_res]].to_dask().area
 
 
-def _coarsen(ds: xr.Dataset, area: xr.DataArray, coarsening_factor: int) -> xr.Dataset:
+def _get_factor(ds: xr.Dataset, target_resolution: int) -> int:
+    input_res = ds.sizes["x"]
+    if input_res % target_resolution != 0:
+        raise ValueError("Target resolution must evenly divide input resolution")
+    return int(input_res / target_resolution)
+
+
+def _coarsen_to_target_resolution(
+    ds: xr.Dataset, target_resolution: int, catalog: intake.catalog.Catalog,
+) -> xr.Dataset:
     return vcm.cubedsphere.weighted_block_average(
-        ds, area, coarsening_factor, x_dim="x", y_dim="y"
+        ds,
+        weights=_get_area(ds, catalog),
+        coarsening_factor=_get_factor(ds, target_resolution),
+        x_dim="x",
+        y_dim="y",
     )
 
 
-def _get_coarsening_args(
-    ds: xr.Dataset, target_res: int, grid_entries: Mapping[int, str] = GRID_ENTRIES
-) -> Tuple[str, int]:
-    """Given input dataset and target resolution, return catalog entry for input grid
-    and coarsening factor"""
-    input_res = ds.sizes["x"]
-    if input_res % target_res != 0:
-        raise ValueError("Target resolution must evenly divide input resolution")
-    coarsening_factor = int(input_res / target_res)
-    if input_res not in grid_entries:
-        raise KeyError(f"No grid defined in catalog for c{input_res} resolution")
-    return grid_entries[input_res], coarsening_factor
-
-
-def _load_prognostic_run_3d_output(url: str):
-    fs = get_fs(url)
-    prognostic_3d_output = [
-        item
-        for item in fs.ls(url)
-        if item.endswith("diags_3d.zarr") or item.endswith("state_after_timestep.zarr")
-    ]
-    if len(prognostic_3d_output) > 0:
-        outputs = []
-        for item in prognostic_3d_output:
-            zarr_name = os.path.basename(item)
-            path = os.path.join(url, zarr_name)
-            outputs.append(_load_standardized(path))
-        return xr.merge(outputs)
-    else:
-        return None
-
-
-def load_3d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
+def _load_3d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     logger.info(f"Processing 3d data from run directory at {url}")
+    files_3d = ["diags_3d.zarr", "state_after_timestep.zarr"]
+    ds = xr.merge(
+        [
+            load_coarse_data(os.path.join(url, filename), catalog)
+            for filename in files_3d
+        ]
+    )
 
-    # open prognostic run data. If 3d data not saved, return empty datasets.
-    ds = _load_prognostic_run_3d_output(url)
-    if ds is None:
-        return xr.Dataset()
+    # interpolate 3d prognostic fields to pressure levels
+    ds_interp = xr.Dataset()
+    pressure_vars = [var for var in ds.data_vars if "z" in ds[var].dims]
+    for var in pressure_vars:
+        ds_interp[var] = vcm.interpolate_to_pressure_levels(
+            field=ds[var], delp=ds["pressure_thickness_of_atmospheric_layer"], dim="z",
+        )
 
-    else:
-        input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
-        area = catalog[input_grid].to_dask()["area"]
-        ds = _coarsen(ds, area, coarsening_factor)
-
-        # interpolate 3d prognostic fields to pressure levels
-        ds_interp = xr.Dataset()
-        pressure_vars = [var for var in ds.data_vars if "z" in ds[var].dims]
-        for var in pressure_vars:
-            ds_interp[var] = vcm.interpolate_to_pressure_levels(
-                field=ds[var],
-                delp=ds["pressure_thickness_of_atmospheric_layer"],
-                dim="z",
-            )
-        return ds_interp
+    return ds_interp
 
 
 def load_grid(catalog):
@@ -138,52 +105,19 @@ def load_grid(catalog):
     return xr.merge([grid_c48, ls_mask])
 
 
-def load_dycore(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
-    """Open data required for dycore plots.
-
-    Args:
-        url: path to prognostic run directory
-        catalog: Intake catalog of available data sources
-
-    """
-    logger.info(f"Processing dycore data from run directory at {url}")
-    # open prognostic run data
-    path = os.path.join(url, "atmos_dt_atmos.zarr")
+def load_coarse_data(path, catalog) -> xr.Dataset:
     logger.info(f"Opening prognostic run data at {path}")
-    ds = _load_standardized(path)
-    input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
-    area = catalog[input_grid].to_dask()["area"]
-    ds = _coarsen(ds, area, coarsening_factor)
+
+    try:
+        ds = _load_standardized(path)
+    except (FileNotFoundError, KeyError):
+        warnings.warn(UserWarning(f"{path} not found. Returning empty dataset."))
+        ds = xr.Dataset()
+
+    if len(ds) > 0:
+        ds = _coarsen_to_target_resolution(ds, target_resolution=48, catalog=catalog)
+
     return ds
-
-
-def load_physics(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
-    """Open data required for physics plots.
-
-    Args:
-        url: path to prognostic run directory
-        catalog: Intake catalog of available data sources
-    """
-    logger.info(f"Processing physics data from run directory at {url}")
-    prognostic_output = _load_prognostic_run_physics_output(url)
-    input_grid, coarsening_factor = _get_coarsening_args(prognostic_output, 48)
-    area = catalog[input_grid].to_dask()["area"]
-    return _coarsen(prognostic_output, area, coarsening_factor)
-
-
-def load_2d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
-    """Open 2D diagnostic data.
-    
-    Args:
-        url: path to prognostic run directory.
-        catalog: Intake catalog of available data.
-    
-    Returns:
-        dataset of all 2D diagnostics at C48 resolution.
-    """
-    physics = load_physics(url, catalog)
-    dycore = load_dycore(url, catalog)
-    return xr.merge([physics, dycore], join="outer")
 
 
 def loads_stats(b: bytes):
@@ -250,11 +184,26 @@ class SegmentedRun:
 
     @property
     def data_2d(self) -> xr.Dataset:
-        return load_2d(self.url, self.catalog)
+        url = self.url
+        catalog = self.catalog
+        path = os.path.join(url, "atmos_dt_atmos.zarr")
+        diags_url = os.path.join(url, "diags.zarr")
+        sfc_dt_atmos_url = os.path.join(url, "sfc_dt_atmos.zarr")
+
+        return xr.merge(
+            [
+                load_coarse_data(path, catalog),
+                # TODO fillna required because diags.zarr may be saved with an
+                # incorrect fill_value. not sure if this is fixed or not.
+                load_coarse_data(diags_url, catalog).fillna(0.0),
+                load_coarse_data(sfc_dt_atmos_url, catalog),
+            ],
+            join="outer",
+        )
 
     @property
     def data_3d(self) -> xr.Dataset:
-        return load_3d(self.url, self.catalog)
+        return _load_3d(self.url, self.catalog)
 
     def __str__(self) -> str:
         return self.url
