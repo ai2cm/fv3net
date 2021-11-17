@@ -59,6 +59,6 @@ spec:
         python3 scripts/prognostic_run.py \
           --tag "{{inputs.parameters.tag}}" \
           --config-path fv3config.yaml \
-          --initial-condition "{{inputs.parameters.initial_condition}}" \
+          --model NO_MODEL \
           --output-frequency "{{inputs.parameters.output_frequency}}" \
           --offline
