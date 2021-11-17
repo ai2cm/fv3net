@@ -194,7 +194,7 @@ spec:
                   "loss": {
                     "loss_type": "mae",
                     "scaling": "standard"
-                  },
+                  }
                 }
               }
             }
