@@ -38,7 +38,7 @@ class DenseHyperparameters(Hyperparameters):
         dense_network: configuration of dense network
         training_loop: configuration of training loop
         loss: configuration of loss functions, will be applied separately to
-            each output variable. 
+            each output variable.
         save_model_checkpoints: if True, save one model per epoch when
             dumping, under a 'model_checkpoints' subdirectory
         nonnegative_outputs: if True, add a ReLU activation layer as the last layer
@@ -83,7 +83,7 @@ def train_dense_model(
             X_names=hyperparameters.input_variables,
             y_names=hyperparameters.output_variables,
             dataset_sequence=[validation_batches[0]],
-            unstacked_dims=["z",],
+            unstacked_dims=["z"],
             n_halo=0,
         )[0]
         del validation_batches
@@ -93,7 +93,7 @@ def train_dense_model(
         X_names=hyperparameters.input_variables,
         y_names=hyperparameters.output_variables,
         dataset_sequence=train_batches,
-        unstacked_dims=["z",],
+        unstacked_dims=["z"],
         n_halo=0,
     )
     if isinstance(train_batches, tuple):
@@ -144,8 +144,8 @@ def _ensure_2d(array: np.ndarray) -> np.ndarray:
 
 
 def _get_input_layer_shapes(X: Sequence[np.ndarray]) -> List[Tuple[int]]:
-    # adds a z dim of length 1 for non vertical features, so that they can be concantenated
-    # with inputs that have a z dimension
+    # adds a z dim of length 1 for non vertical features, so that they can
+    # be concantenated with inputs that have a z dimension
     shapes: List[Tuple[int]] = []
     for array in X:
         array_features = _count_array_features(array)

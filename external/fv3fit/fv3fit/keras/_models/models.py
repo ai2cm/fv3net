@@ -6,8 +6,6 @@ from typing import (
     Union,
     Optional,
     List,
-    Any,
-    Set,
 )
 import xarray as xr
 import logging
@@ -26,20 +24,15 @@ from ..._shared import (
     stack_non_vertical,
     match_prediction_to_input_coords,
     SAMPLE_DIM_NAME,
-    PackerConfig,
 )
-from ..._shared.config import (
-    Hyperparameters,
-    OptimizerConfig,
-    register_training_function,
-)
+from ..._shared.config import register_training_function
 from .dense import DenseHyperparameters
 import numpy as np
 import os
 from ..._shared import get_dir, put_dir
 from .normalizer import LayerStandardScaler
 from .loss import get_weighted_mse, get_weighted_mae
-from .shared import DenseNetworkConfig, TrainingLoopConfig, EpochResult, XyArraySequence
+from .shared import EpochResult, XyArraySequence
 from loaders.batches import Take
 import yaml
 from vcm import safe
@@ -331,7 +324,8 @@ class DenseModel(Predictor):
             with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
                 options = yaml.safe_load(f)
 
-            # maintain backwards compatibility with older versions that do not use LossConfig
+            # maintain backwards compatibility with older versions
+            # that do not use LossConfig
             options = _backwards_compatible_loss_config(options)
 
             hyperparameters = dacite.from_dict(

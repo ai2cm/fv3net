@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Set
+from typing import List, Optional, Sequence, Tuple, Set
 from fv3fit._shared.config import (
     OptimizerConfig,
     register_training_function,

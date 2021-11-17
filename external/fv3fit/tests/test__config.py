@@ -1,7 +1,7 @@
 import argparse
 import dacite
 import dataclasses
-from fv3fit import DenseHyperparameters, OptimizerConfig, TrainingConfig
+from fv3fit import OptimizerConfig, TrainingConfig, DenseHyperparameters
 import os
 import tempfile
 import yaml
