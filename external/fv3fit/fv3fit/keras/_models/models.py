@@ -51,58 +51,6 @@ MODEL_DIRECTORY = "model_data"
 KERAS_CHECKPOINT_PATH = "model_checkpoints"
 
 
-@dataclasses.dataclass
-class DenseHyperparameters(Hyperparameters):
-    """
-    Configuration for training a dense neural network based model.
-
-    Args:
-        input_variables: names of variables to use as inputs
-        output_variables: names of variables to use as outputs
-        weights: loss function weights, defined as a dict whose keys are
-            variable names and values are either a scalar referring to the total
-            weight of the variable. Default is a total weight of 1
-            for each variable.
-        normalize_loss: if True (default), normalize outputs by their standard
-            deviation before computing the loss function
-        optimizer_config: selection of algorithm to be used in gradient descent
-        dense_network: configuration of dense network
-        training_loop: configuration of training loop
-        loss: loss function to use, should be 'mse' or 'mae'
-        save_model_checkpoints: if True, save one model per epoch when
-            dumping, under a 'model_checkpoints' subdirectory
-        nonnegative_outputs: if True, add a ReLU activation layer as the last layer
-            after output denormalization layer to ensure outputs are always >=0
-            Defaults to False.
-        packer_config: configuration of dataset packing.
-
-    """
-
-    input_variables: List[str]
-    output_variables: List[str]
-    weights: Optional[Mapping[str, Union[int, float]]] = None
-    normalize_loss: bool = True
-    optimizer_config: OptimizerConfig = dataclasses.field(
-        default_factory=lambda: OptimizerConfig("Adam")
-    )
-    dense_network: DenseNetworkConfig = dataclasses.field(
-        default_factory=DenseNetworkConfig
-    )
-    training_loop: TrainingLoopConfig = dataclasses.field(
-        default_factory=TrainingLoopConfig
-    )
-    loss: str = "mse"
-    save_model_checkpoints: bool = False
-    nonnegative_outputs: bool = False
-    packer_config: PackerConfig = dataclasses.field(
-        default_factory=lambda: PackerConfig({})
-    )
-
-    @property
-    def variables(self) -> Set[str]:
-        return set(self.input_variables).union(self.output_variables)
-
-
 @register_training_function("DenseModel", DenseHyperparameters)
 def train_dense_model(
     hyperparameters: DenseHyperparameters,

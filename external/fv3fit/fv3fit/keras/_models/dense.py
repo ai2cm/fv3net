@@ -11,11 +11,10 @@ from ..._shared.config import (
     register_training_function,
     PackerConfig
 )
-from .shared import DenseNetworkConfig, TrainingLoopConfig
-from .shared import TrainingLoopConfig, XyMultiArraySequence
-from fv3fit.keras._models.shared.loss import LossConfig
-from fv3fit.keras._models.shared.pure_keras import PureKerasModel
+from .shared import TrainingLoopConfig, XyMultiArraySequence, DenseNetworkConfig
+from fv3fit.keras._models.shared import PureKerasModel, LossConfig
 from fv3fit.keras._models.shared.utils import standard_denormalize, standard_normalize, get_stacked_metadata
+
 
 
 @dataclasses.dataclass
