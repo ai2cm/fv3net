@@ -2,6 +2,8 @@ import fsspec
 import xarray
 import numpy
 import numpy as np
+import dacite
+from dataclasses import dataclass
 from datetime import timedelta
 from typing_extensions import Protocol
 from typing import Optional, Tuple
@@ -10,6 +12,7 @@ from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
 from loaders._config import mapper_functions
 from vcm.fv3.metadata import gfdl_to_standard
+from vcm.safe import get_variables
 
 
 def eddy_flux_coarse(unresolved_flux, total_resolved_flux, omega, field):
@@ -159,6 +162,15 @@ def _standardize_coords(
     return gfdl_to_standard(ds_shifted).drop("tile")
 
 
+def _compute_fine_res_portion(
+    fine_url: str, include_temperature_nudging: bool
+) -> xarray.Dataset:
+    fine = open_zarr_maybe_consolidated(fine_url)
+    fine["Q1"], fine["Q2"] = compute_fine_res_sources(fine, include_temperature_nudging)
+    fine_shifted = _standardize_coords(fine)
+    return fine_shifted
+
+
 def open_fine_resolution_nudging_hybrid_dataset(
     # created by this commit:
     # https://github.com/VulcanClimateModeling/vcm-workflow-control/commit/3c852d0e4f8b86c4e88db9f29f0b8e484aeb77a1
@@ -170,9 +182,7 @@ def open_fine_resolution_nudging_hybrid_dataset(
     include_temperature_nudging: bool = False,
 ) -> xarray.Dataset:
 
-    fine = open_zarr_maybe_consolidated(fine_url)
-    fine["Q1"], fine["Q2"] = compute_fine_res_sources(fine, include_temperature_nudging)
-    fine_shifted = _standardize_coords(fine)
+    fine_shifted = _compute_fine_res_portion(fine_url, include_temperature_nudging)
 
     return _open_nudged_hybrid_portion(fine_shifted, nudge_url)
 
@@ -268,9 +278,7 @@ def open_fine_resolution_dataset(
     include_temperature_nudging: bool = False,
 ) -> xarray.Dataset:
 
-    fine = open_zarr_maybe_consolidated(fine_url)
-    fine["Q1"], fine["Q2"] = compute_fine_res_sources(fine, include_temperature_nudging)
-    fine_shifted = _standardize_coords(fine)
+    fine_shifted = _compute_fine_res_portion(fine_url, include_temperature_nudging)
 
     return _add_fine_res_inputs(fine_shifted, input_feature_url)
 
@@ -313,52 +321,120 @@ def _add_fine_res_inputs(fine: xarray.Dataset, input_feature_url: Optional[str] 
     return merged.astype(numpy.float32)
 
 
-@mapper_functions.register
-def open_fine_resolution(
-    fine_url: str = "",
-    input_feature_url: Optional[str] = None,
-    include_temperature_nudging: bool = False,
-) -> GeoMapper:
-    """
-    Open the fine-res mapper optionally using state from another run.
+def open_fine_resolution_additional_source(
+    fine_url: str,
+    input_feature_url: str,
+    additional_source_url: str,
+    include_temperature_nudging: bool,
+) -> xarray.Dataset:
 
+    fine = _compute_fine_res_portion(fine_url, include_temperature_nudging)
+    additional_source = open_zarr_maybe_consolidated(additional_source_url)
+
+    fine["Q1"] = fine.Q1 + additional_source.Q1
+    fine["Q2"] = fine.Q2 + additional_source.Q2
+
+    return _add_fine_res_inputs(fine, input_feature_url)
+
+
+def _extend_lower(fine: xarray.Dataset, vertical_dim: str = "z") -> xarray.Dataset:
+    fine_sources = get_variables(fine, ["Q1", "Q2"])
+    fine_sources_new_bottom = fine_sources.isel({vertical_dim: -2})
+    fine_sources_without_bottom = fine_sources.isel({vertical_dim: slice(None, -2)})
+    fine_sources_extended_lower = xarray.concat(
+        [fine_sources_without_bottom, fine_sources_new_bottom], dim=vertical_dim
+    )
+    return fine_sources_extended_lower.Q1, fine_sources_extended_lower.Q2
+
+
+def open_fine_resolution_extend_lower(
+    fine_url: str, input_feature_url: str, include_temperature_nudging: bool
+) -> xarray.Dataset:
+
+    fine = _compute_fine_res_portion(fine_url, include_temperature_nudging)
+    fine["Q1"], fine["Q2"] = _extend_lower(fine)
+
+    return _add_fine_res_inputs(fine, input_feature_url)
+
+
+FINE_RESOLUTION_APPROACHES = [
+    "apparent_sources_only",
+    "precomputed_apparent_sources",
+    "apparent_sources_plus_nudging",
+    "apparent_sources_plus_dynamics_differences",
+    "apparent_sources_extend_lower",
+]
+
+
+@dataclass
+class FineResolutionOpenerConfig:
+    approach: str
+    fine_url: str
+    input_feature_url: Optional[str] = None
+    additional_source_url: Optional[str] = None
+    include_temperature_nudging: bool = False
+
+
+@mapper_functions.register
+def open_fine_resolution(approach: Optional[str] = None, **kwargs: dict):
+    f"""
+    Open the fine-res mapper using several configuration options
+    
     Args:
+        approach: one of a set of available approaches, including
+            {FINE_RESOLUTION_APPROACHES}; if not specified will use
+            'apparent_sources_only'; usage of the kwargs below will depend on
+            `approach`
         fine_url: url where coarsened fine resolution data is stored
         input_feature_url: url to fv3gfs_run to use for state inputs. If not provided,
             the state of the fine-res data will be used as input.
+        additional_source_url: url of additional temperature and moisture tendencies
+            (e.g., nudging or dynamics differences) to be added to the fine resolution
+            data
         include_temperature_nudging: whether to include fine-res nudging in Q1
-
+        
     Returns:
         a mapper
     """
-    return XarrayMapper(
-        open_fine_resolution_dataset(
-            fine_url=fine_url,
-            input_feature_url=input_feature_url,
-            include_temperature_nudging=include_temperature_nudging,
-        )
+    if approach is None:
+        approach = "apparent_sources_only"
+
+    fine_res_config = dacite.from_dict(
+        FineResolutionOpenerConfig, dict(approach=approach, **kwargs)
     )
-
-
-@mapper_functions.register
-def open_precomputed_fine_resolution(
-    fine_url: str, input_feature_url: Optional[str] = None
-) -> GeoMapper:
-    """
-    Open the fine-res mapper from precomputed data, optionally using state
-        from another run.
-
-    Args:
-        fine_url: url where coarsened fine resolution data is stored, must include
-            precomputed Q1 and Q2
-        input_feature_url: url to fv3gfs_run to use for state inputs. If not provided,
-            the state of the fine-res data will be used as input.
-
-    Returns:
-        a mapper
-    """
-    return XarrayMapper(
-        open_precomputed_fine_resolution_dataset(
-            fine_url=fine_url, input_feature_url=input_feature_url
+    if fine_res_config.approach == "apparent_sources_only":
+        ds = open_fine_resolution_dataset(
+            fine_url=fine_res_config.fine_url,
+            input_feature_url=fine_res_config.input_feature_url,
+            include_temperature_nudging=fine_res_config.include_temperature_nudging,
         )
-    )
+    elif fine_res_config.approach == "precomputed_apparent_sources":
+        ds = open_precomputed_fine_resolution_dataset(
+            fine_url=fine_res_config.fine_url,
+            input_feature_url=fine_res_config.input_feature_url,
+        )
+    elif fine_res_config.approach in [
+        "apparent_sources_plus_nudging",
+        "apparent_sources_plus_dynamics_differences",
+    ]:
+        ds = open_fine_resolution_additional_source(
+            fine_url=fine_res_config.fine_url,
+            input_feature_url=fine_res_config.input_feature_url,
+            additional_source_url=fine_res_config.additional_source_url,
+            include_temperature_nudging=fine_res_config.include_temperature_nudging,
+        )
+    elif fine_res_config.approach == "apparent_sources_extend_lower":
+        ds = open_fine_resolution_extend_lower(
+            fine_url=fine_res_config.fine_url,
+            input_feature_url=fine_res_config.input_feature_url,
+            include_temperature_nudging=fine_res_config.include_temperature_nudging,
+        )
+    else:
+        raise ValueError(
+            (
+                f"Fine resolution opener approaches must be in"
+                f"{FINE_RESOLUTION_APPROACHES}, received {approach}."
+            )
+        )
+
+    return XarrayMapper(ds)
