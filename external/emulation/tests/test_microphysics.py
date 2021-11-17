@@ -1,7 +1,8 @@
 import pytest
 import numpy as np
+from typing import Iterable
 
-from emulation._emulate.microphysics import _unpack_predictions, MicrophysicsHook
+from emulation._emulate.microphysics import _unpack_predictions, MicrophysicsHook, NoModel, _load_tf_model
 
 
 def test__unpack_predictions_single_out():
@@ -62,3 +63,29 @@ def test_error_on_call():
         from emulation import microphysics
 
         microphysics({})
+
+
+def test_NoModel():
+    model = NoModel()
+
+    in_ = model.input_names
+    out_ = model.output_names
+    pred = model.predict(1)
+
+    for value in [in_, out_, pred]:
+        assert not value
+        assert isinstance(value, Iterable)
+
+
+def test_load_tf_model_NoModel():
+    model = _load_tf_model("NO_MODEL")
+    assert isinstance(model, NoModel)
+
+
+def test_microphysics_NoModel(dummy_rundir):
+
+    state = {"empty_state": 1}
+    hook = MicrophysicsHook("NO_MODEL")
+    hook.microphysics(state)
+
+    assert state == {"empty_state": 1}

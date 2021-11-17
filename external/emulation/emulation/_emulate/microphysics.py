@@ -20,6 +20,28 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
+class NoModel:
+    """
+    Dummy model to make no prediction
+
+    Currently fv3gfs-fortran microphysics emulations
+    of Zhao-Carr physics requires a model loadable to run.
+    Change was introduced with piggy-backed diagnostics.
+    """
+
+    @property
+    def output_names(self):
+        return []
+    
+    @property
+    def input_names(self):
+        return []
+
+    @staticmethod
+    def predict(x):
+        return []
+
+
 @print_errors
 def _load_nml():
     path = os.path.join(os.getcwd(), "input.nml")
@@ -37,8 +59,12 @@ def _get_timestep(namelist):
 @print_errors
 def _load_tf_model(model_path: str) -> tf.keras.Model:
     logger.info(f"Loading keras model: {model_path}")
-    with get_dir(model_path) as local_model_path:
-        model = tf.keras.models.load_model(local_model_path)
+
+    if model_path == "NO_MODEL":
+        model = NoModel()
+    else:
+        with get_dir(model_path) as local_model_path:
+            model = tf.keras.models.load_model(local_model_path)
 
     return model
 
