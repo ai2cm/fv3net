@@ -88,7 +88,7 @@ class FineResBudget(Protocol):
 
 
 def open_zarr(url, consolidated=False):
-    mapper = zarr.LRUStoreCache(fsspec.get_mapper(data_path), 128 * 2 ** 20)
+    mapper = zarr.LRUStoreCache(fsspec.get_mapper(url), 128 * 2 ** 20)
     return xarray.open_zarr(mapper, consolidated=consolidated)
 
 
