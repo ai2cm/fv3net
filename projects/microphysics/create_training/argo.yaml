@@ -1,0 +1,146 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: prognostic-microphysics-
+spec:
+  entrypoint: prognostic-run
+  arguments:
+    parameters:
+      - name: tag
+      - name: config
+      - name: initial_conditions
+      - name: image_tag
+        value: 811d4a88b8b8f29d727f2d61f46f96b770c8ab47
+  volumes:
+  - name: gcp-key-secret
+    secret:
+      secretName: gcp-key
+  templates:
+  - name: prognostic-run
+    steps:
+    - - name: run-model
+        template: run-model
+        arguments:
+          parameters:
+          - name: tag
+            value: "{{workflow.parameters.tag}}"
+          - name: config
+            value:  "{{workflow.parameters.config}}"
+          - name: initial_conditions
+            value: "{{workflow.parameters.initial_conditions}}"
+  - name: run-model
+    inputs:
+      parameters:
+      - name: tag
+      - name: config
+      - name: initial_conditions
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "med-sim-pool"
+      effect: "NoSchedule"
+    container:
+      image: "us.gcr.io/vcm-ml/prognostic_run:{{workflow.parameters.image_tag}}"
+      imagePullPolicy: Always
+      workingDir: "/fv3net/projects/microphysics"
+      resources:
+        requests:
+          memory: "6Gi"
+          cpu: "7500m"
+        limits:
+          memory: "8Gi"
+          cpu: "7500m"
+      envFrom:
+      - secretRef:
+          name: wandb-andrep
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS 
+        value: /secret/gcp-credentials/key.json
+      - name: WANDB_RUN_GROUP
+        value: "{{inputs.parameters.tag}}"
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-key-secret
+      command: ["bash", "-c", "-x", "-e"]
+      args: 
+      - |
+        echo "{{inputs.parameters.config}}" > fv3config.yaml
+        python3 scripts/prognostic_run.py \
+          --tag "{{inputs.parameters.tag}}" \
+          --config-path fv3config.yaml \
+          --initial_conditions "{{inputs.parameters.initial_conditions}}" \
+          --model "{{inputs.parameters.tf_model}}" \
+          --offline
+  - name: piggyback-diags
+    inputs:
+      parameters:
+      - name: tag
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "med-sim-pool"
+      effect: "NoSchedule"
+    container:
+      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image_tag}}"
+      imagePullPolicy: Always
+      resources:
+        requests:
+          memory: "6Gi"
+          cpu: "3000m"
+        limits:
+          memory: "15Gi"
+          cpu: "3000m"
+      envFrom:
+      - secretRef:
+          name: wandb-andrep
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS 
+        value: /secret/gcp-credentials/key.json
+      - name: WANDB_RUN_GROUP
+        value: "{{inputs.parameters.tag}}"
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-key-secret
+      workingDir: "/home/jovyan/fv3net/projects/microphysics"
+      command: ["python3"]
+      args: 
+      - scripts/piggy-back.py
+      - "{{inputs.parameters.tag}}"
+  - name: prognostic-diags
+    inputs:
+      parameters:
+      - name: tag
+      - name: baseline_tag
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "med-sim-pool"
+      effect: "NoSchedule"
+    container:
+      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image_tag}}"
+      imagePullPolicy: Always
+      resources:
+        requests:
+          memory: "6Gi"
+          cpu: "3000m"
+        limits:
+          memory: "15Gi"
+          cpu: "3000m"
+      envFrom:
+      - secretRef:
+          name: wandb-andrep
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS 
+        value: /secret/gcp-credentials/key.json
+      - name: WANDB_RUN_GROUP
+        value: "{{inputs.parameters.tag}}"
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-key-secret
+      workingDir: "/home/jovyan/fv3net/projects/microphysics"
+      command: ["python3"]
+      args:
+      - scripts/prognostic_evaluate.py
+      - "{{inputs.parameters.tag}}"
+      - --baseline-tag
+      - "{{inputs.parameters.baseline_tag}}"
