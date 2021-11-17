@@ -35,12 +35,6 @@ parser.add_argument(
     help="path to microphysics emulation model...should probably end with .tf",
 )
 parser.add_argument(
-    "--initial-condition",
-    type=str,
-    default="gs://vcm-ml-experiments/online-emulator/2021-08-09/gfs-initialized-baseline-06/fv3gfs_run/artifacts/20160601.000000/RESTART",  # noqa
-    help="URL to initial conditions (e.g. a restart directory)",
-)
-parser.add_argument(
     "--tag",
     type=str,
     default="",
@@ -72,7 +66,7 @@ job = wandb.init(
 )
 
 if args.tag:
-    job.tags = job.tags + [args.tag]
+    job.tags = job.tags + (args.tag,)
 
 tag = args.tag or job.id
 
@@ -80,7 +74,6 @@ with args.config_path.open() as f:
     config = yaml.safe_load(f)
 
 config = dacite.from_dict(HighLevelConfig, config)
-config.initial_conditions = args.initial_condition
 config.namelist["gfs_physics_nml"]["emulate_zc_microphysics"] = args.online
 config = config.to_fv3config()
 
