@@ -13,7 +13,11 @@ from .shared import ConvolutionalNetworkConfig, TrainingLoopConfig, XyMultiArray
 import numpy as np
 from fv3fit.keras._models.shared import Diffusive
 import logging
-from fv3fit.keras._models.shared.utils import standard_denormalize, standard_normalize, get_stacked_metadata
+from fv3fit.keras._models.shared.utils import (
+    standard_denormalize,
+    standard_normalize,
+    get_stacked_metadata,
+)
 
 logger = logging.getLogger(__file__)
 

@@ -18,7 +18,7 @@ GENERAL_TRAINING_TYPES = [
     "DenseModel",
     "sklearn_random_forest",
     "precipitative",
-    "dense"
+    "dense",
 ]
 # training functions that have restrictions on the datasets they support,
 # cannot be used in generic tests below

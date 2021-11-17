@@ -9,12 +9,15 @@ from ..._shared.config import (
     Hyperparameters,
     OptimizerConfig,
     register_training_function,
-    PackerConfig
+    PackerConfig,
 )
 from .shared import TrainingLoopConfig, XyMultiArraySequence, DenseNetworkConfig
 from fv3fit.keras._models.shared import PureKerasModel, LossConfig
-from fv3fit.keras._models.shared.utils import standard_denormalize, standard_normalize, get_stacked_metadata
-
+from fv3fit.keras._models.shared.utils import (
+    standard_denormalize,
+    standard_normalize,
+    get_stacked_metadata,
+)
 
 
 @dataclasses.dataclass
@@ -100,9 +103,7 @@ def train_dense_model(
     train_model, predict_model = build_model(hyperparameters, X=X, y=y)
 
     output_metadata = get_stacked_metadata(
-        names=hyperparameters.output_variables,
-        ds=train_batches[0],
-        unstacked_dims="z",
+        names=hyperparameters.output_variables, ds=train_batches[0], unstacked_dims="z",
     )
     del train_batches
     hyperparameters.training_loop.fit_loop(
@@ -117,8 +118,6 @@ def train_dense_model(
         n_halo=0,
     )
     return predictor
-
-
 
 
 def _count_array_features(arr: np.ndarray) -> int:
@@ -158,7 +157,9 @@ def _get_input_layer_shapes(X: Sequence[np.ndarray]) -> List[Tuple[int]]:
     return shapes
 
 
-def build_model(config: DenseHyperparameters, X, y) ->  Tuple[tf.keras.Model, tf.keras.Model]:
+def build_model(
+    config: DenseHyperparameters, X, y
+) -> Tuple[tf.keras.Model, tf.keras.Model]:
     """
     Args:
         config: configuration of convolutional training
@@ -202,7 +203,9 @@ def build_model(config: DenseHyperparameters, X, y) ->  Tuple[tf.keras.Model, tf
 
     norm_output_layers = [
         tf.keras.layers.Dense(
-            _count_array_features(array), activation="linear", name=f"dense_network_output_{i}",
+            _count_array_features(array),
+            activation="linear",
+            name=f"dense_network_output_{i}",
         )(hidden_outputs[-1])
         for i, array in enumerate(y)
     ]

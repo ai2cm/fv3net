@@ -132,12 +132,11 @@ class DenseModel(Predictor):
         self._normalize_loss = hyperparameters.normalize_loss
         self._optimizer = hyperparameters.optimizer_config.instance
 
-        if hyperparameters.loss.scaling != "standard": 
+        if hyperparameters.loss.scaling != "standard":
             raise ValueError(
                 "Only 'standard' loss scaling is supported for DenseModel."
             )
         self._loss = hyperparameters.loss.loss_type
-        
 
         self._save_model_checkpoints = hyperparameters.save_model_checkpoints
         if hyperparameters.save_model_checkpoints:
