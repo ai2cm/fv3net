@@ -13,7 +13,7 @@ from fv3net.artifacts.resolve_url import resolve_url
 
 logging.basicConfig(level=logging.INFO)
 
-PROJECT = "2021-10-14-microphsyics-emulation-paper"
+PROJECT = "2021-10-14-microphysics-emulation-paper"
 BUCKET = "vcm-ml-scratch"
 
 
@@ -70,6 +70,10 @@ args = parser.parse_args()
 job = wandb.init(
     job_type="prognostic_run", project="microphysics-emulation", entity="ai2cm",
 )
+
+if args.tag:
+    job.tags = job.tags + [args.tag]
+
 tag = args.tag or job.id
 
 with args.config_path.open() as f:
