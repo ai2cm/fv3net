@@ -1,13 +1,14 @@
 #!/bin/bash
 
 set -e
+set -o pipefail
 
 config_file=$1
 model_type=$2
 model_prefix=$3
 
 model_name=${model_prefix}-${model_type}
-out_url=gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/${model_prefix}/${model_name}
+out_url=$(artifacts resolve-url vcm-ml-experiments microphysics-emulation ${model_name})
 
 argo submit argo.yaml \
     -p training-config="$(< $config_file)" \

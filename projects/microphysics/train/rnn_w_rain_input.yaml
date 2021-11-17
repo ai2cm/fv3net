@@ -1,5 +1,5 @@
 use_wandb: true
-wandb_project: microphysics-emulation-k8s
+wandb_project: microphysics-emulation
 batch_size: 128
 epochs: 50
 nfiles_valid: 100

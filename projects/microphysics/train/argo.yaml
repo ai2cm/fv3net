@@ -9,10 +9,6 @@ spec:
       secret:
         defaultMode: 420
         secretName: gcp-key
-    - name: wandb-key
-      secret:
-        defaultMode: 420
-        secretName: wandb-andrep
   templates:
     - name: training
       inputs:
@@ -23,18 +19,17 @@ spec:
       container:
         image: us.gcr.io/vcm-ml/prognostic_run:94fe4d44f231d0a91e90008a4916cfa342d50339
         command: ["bash", "-c", "-x"]
+        envFrom:
+        - secretRef:
+            name: wandb-andrep
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
             value: /secret/gcp-credentials/key.json
           - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
             value: /secret/gcp-credentials/key.json
-          - name: WANDB_KEYFILE
-            value: /secret/wandb-api/apikey
         volumeMounts:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret
-          - mountPath: /secret/wandb-api
-            name: wandb-key
         resources:
           limits:
             cpu: "7"
@@ -46,8 +41,6 @@ spec:
           # The use of the API key here is a security problem
           # It's logged by argo...
           - |
-            export WANDB_API_KEY=$(cat $WANDB_KEYFILE)
-
             cat <<EOF >training_config.yaml
             {{inputs.parameters.training-config}}
             EOF
