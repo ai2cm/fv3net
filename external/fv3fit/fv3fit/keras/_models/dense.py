@@ -209,17 +209,17 @@ def build_model(
         )(hidden_outputs[-1])
         for i, array in enumerate(y)
     ]
-    if config.nonnegative_outputs is True:
-        norm_output_layers = [
-            tf.keras.layers.Activation(tf.keras.activations.relu)(output_layer)
-            for output_layer in norm_output_layers
-        ]
+
 
     y_2d = [_ensure_2d(array) for array in y]
     denorm_output_layers = standard_denormalize(
         names=config.output_variables, layers=norm_output_layers, arrays=y_2d,
     )
-
+    if config.nonnegative_outputs is True:
+        denorm_output_layers = [
+            tf.keras.layers.Activation(tf.keras.activations.relu)(output_layer)
+            for output_layer in denorm_output_layers
+        ]
     train_model = tf.keras.Model(inputs=input_layers, outputs=denorm_output_layers)
     output_stds = (
         np.std(array, axis=tuple(range(len(array.shape) - 1)), dtype=np.float32)
