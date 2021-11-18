@@ -278,7 +278,7 @@ xpartition==0.2.0
 yarl==1.6.3
 yq==2.11.0
 zarr==2.7.0
-zipp==3.1.0
+zipp==3.6.0
 
 # The following packages are considered to be unsafe in a requirements file:
 # pip
