@@ -2,8 +2,6 @@ import argparse
 import subprocess
 import wandb
 
-from fv3net.artifacts.resolve_url import resolve_url
-
 
 train_timestamps = [
     "20160101.000000",
