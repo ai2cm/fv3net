@@ -32,7 +32,7 @@ class NoModel:
     @property
     def output_names(self):
         return []
- 
+
     @property
     def input_names(self):
         return []
