@@ -15,7 +15,7 @@ from fv3fit.keras._models.shared import Diffusive
 import logging
 from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
-    standard_normalize,
+    full_standard_normalized_input,
     get_stacked_metadata,
 )
 
@@ -111,39 +111,14 @@ def train_convolutional_model(
     return predictor
 
 
-def _count_array_features(arr: np.ndarray) -> int:
-    """
-    Given a 3/4-d [sample, x, y(, z)] array, return its number of
-    vertical levels.
-    """
-    if len(arr.shape) == 3:
-        return 1
-    else:
-        return arr.shape[3]
-
-
 def _ensure_4d(array: np.ndarray) -> np.ndarray:
-    # ensures [sample, x, y, z] dimensionality
+    # Ensures [sample, x, y, z] dimensionality. 
     if len(array.shape) == 4:
         return array
     elif len(array.shape) == 3:
         return array[:, :, :, None]
     else:
         raise ValueError(f"expected 3d or 4d array, got shape {array.shape}")
-
-
-def _get_input_layer_shapes(X: Sequence[np.ndarray]) -> List[Tuple[int]]:
-    # adds a z dim of length 1 for 2D arrays, so that they can be concantenated
-    # with 3D arrays
-    shapes: List[Tuple[int]] = []
-    for array in X:
-        array_features = _count_array_features(array)
-        sample_shape: Tuple[int] = array.shape[1:]
-        if array_features == 1:
-            shapes.append((*sample_shape, 1))  # type: ignore
-        else:
-            shapes.append(sample_shape)
-    return shapes
 
 
 def build_model(
@@ -157,20 +132,12 @@ def build_model(
         X: example input for keras fitting, used to determine shape and normalization
         y: example output for keras fitting, used to determine shape and normalization
     """
-    input_layer_shapes = _get_input_layer_shapes(X)
-    input_layers = [
-        tf.keras.layers.Input(shape=input_shape) for input_shape in input_layer_shapes
-    ]
+    X_4d = [_ensure_4d(arr) for arr in X]
+    y_4d = [_ensure_4d(arr) for arr in y]
 
-    norm_input_layers = standard_normalize(
-        names=config.input_variables,
-        layers=input_layers,
-        arrays=[_ensure_4d(array) for array in X],
-    )
-    if len(norm_input_layers) > 1:
-        full_input = tf.keras.layers.Concatenate()(norm_input_layers)
-    else:
-        full_input = norm_input_layers[0]
+    input_layers = [tf.keras.layers.Input(shape=arr.shape[1:]) for arr in X_4d]
+    full_input = full_standard_normalized_input(input_layers, X_4d, config.input_variables)
+   
     convolution = config.convolutional_network.build(x_in=full_input, n_features_out=0)
     if config.convolutional_network.diffusive:
         constraint: Optional[tf.keras.constraints.Constraint] = Diffusive()
@@ -178,7 +145,7 @@ def build_model(
         constraint = None
     norm_output_layers = [
         tf.keras.layers.Conv2D(
-            filters=_count_array_features(array),
+            filters=array.shape[-1],
             kernel_size=(1, 1),
             padding="same",
             activation="linear",
@@ -186,9 +153,8 @@ def build_model(
             name=f"convolutional_network_{i}_output",
             kernel_constraint=constraint,
         )(convolution.hidden_outputs[-1])
-        for i, array in enumerate(y)
+        for i, array in enumerate(y_4d)
     ]
-    y_4d = [_ensure_4d(array) for array in y]
     denorm_output_layers = standard_denormalize(
         names=config.output_variables, layers=norm_output_layers, arrays=y_4d,
     )
