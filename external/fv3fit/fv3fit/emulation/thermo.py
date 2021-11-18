@@ -34,3 +34,7 @@ def density(delp, delz):
 
 def pressure_thickness(density, delz):
     return tf.abs(density * delz * _GRAVITY)
+
+
+def mass_integrate(x, delp, axis=0):
+    return tf.reduce_sum(x * delp, axis) / _GRAVITY
