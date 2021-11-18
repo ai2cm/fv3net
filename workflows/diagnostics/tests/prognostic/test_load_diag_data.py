@@ -6,6 +6,7 @@ import vcm.catalog
 import joblib
 
 import fv3net.diagnostics.prognostic_run.load_run_data as load_diags
+from vcm.cubedsphere import weighted_block_average
 
 
 @pytest.fixture
@@ -23,39 +24,28 @@ def test__coarsen_keeps_attrs(xr_darray):
     ds = xr.Dataset({"var1": xr_darray, "var2": xr_darray})
     ds.attrs = {"global_attr": "value"}
     ds.var1.attrs = {"units": "value"}
-    output = load_diags._coarsen(ds, xr_darray, 2)
+    output = weighted_block_average(ds, xr_darray, 2, x_dim="x", y_dim="y")
     assert ds.attrs == output.attrs
     assert ds.var1.attrs == output.var1.attrs
     assert ds.var2.attrs == output.var2.attrs
 
 
-def test__get_coarsening_args(xr_darray):
-    target_res = 2
-    grid_entries = {4: "c4_grid_entry"}
-    grid, coarsening_factor = load_diags._get_coarsening_args(
-        xr_darray, target_res, grid_entries=grid_entries
+def test_load_coarse_data(tmpdir):
+    num_time = 2
+    arr = np.arange((num_time * 6 * 48 * 48)).reshape((num_time, 6, 48, 48))
+    dims = ("time", "tile", "grid_xt", "grid_yt")
+
+    ds = xr.Dataset(
+        {"a": (dims, arr)},
+        coords={
+            "time": [cftime.DatetimeJulian(2016, 1, n + 1) for n in range(num_time)]
+        },
     )
-    assert grid == "c4_grid_entry"
-    assert coarsening_factor == 2
 
-
-def _create_dataset(*dims, with_coords=True):
-    if with_coords:
-        coords = {dim: np.arange(i + 1) for i, dim in enumerate(dims)}
-        ds = xr.Dataset(coords=coords)
-    else:
-        arr = np.zeros([i + 1 for i in range(len(dims))])
-        da = xr.DataArray(arr, dims=dims)
-        ds = xr.Dataset({"varname": da})
-    return ds
-
-
-def test__load_prognostic_run_physics_output_no_diags(tmpdir):
-    ds1 = _create_dataset("grid_xt", "grid_yt", "tile", "time")
-    time = [cftime.DatetimeJulian(2016, 1, n + 1) for n in range(ds1.sizes["time"])]
-    ds1["time"] = time
-    ds1.to_zarr(str(tmpdir.join("sfc_dt_atmos.zarr")), consolidated=True)
-    load_diags._load_prognostic_run_physics_output(str(tmpdir))
+    path = str(tmpdir.join("sfc_dt_atmos.zarr"))
+    ds.to_zarr(path, consolidated=True)
+    loaded = load_diags.load_coarse_data(path, vcm.catalog.catalog)
+    np.testing.assert_equal(loaded["a"].values, ds.a.values)
 
 
 def print_coord_hashes(ds):

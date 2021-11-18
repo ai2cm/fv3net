@@ -45,6 +45,7 @@ pip-tools
 poetry
 tox
 pre-commit
+ipython>=7.29.0
 
 # fv3fit testing tools
 hypothesis

@@ -1,0 +1,53 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: train-microphysics-
+spec:
+  entrypoint: training
+  volumes:
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+    - name: training
+      inputs:
+        parameters:
+          - name: training-config
+          - {name: flags, value: " "}
+          # - {name: memory, value: "8Gi"}
+      container:
+        image: us.gcr.io/vcm-ml/prognostic_run:94fe4d44f231d0a91e90008a4916cfa342d50339
+        command: ["bash", "-c", "-x"]
+        envFrom:
+        - secretRef:
+            name: wandb-andrep
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-key-secret
+        resources:
+          limits:
+            cpu: "7"
+            memory: "8Gi"
+          requests:
+            cpu: "4"
+            memory: "8Gi"
+        args:
+          - |
+            cat <<EOF >training_config.yaml
+            {{inputs.parameters.training-config}}
+            EOF
+
+            python3 -m fv3fit.train_microphysics \
+              --config-path training_config.yaml \
+              {{inputs.parameters.flags}}
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "med-sim-pool"
+        effect: "NoSchedule"  
