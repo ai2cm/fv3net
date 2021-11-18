@@ -15,8 +15,8 @@ from .shared import TrainingLoopConfig, XyMultiArraySequence, DenseNetworkConfig
 from fv3fit.keras._models.shared import PureKerasModel, LossConfig
 from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
-    standard_normalize,
     get_stacked_metadata,
+    full_standard_normalized_input
 )
 
 
@@ -120,19 +120,6 @@ def train_dense_model(
     return predictor
 
 
-def _count_array_features(arr: np.ndarray) -> int:
-    """
-    Given a 1/2-d [sample, (, z)] array, return its number of
-    vertical levels.
-    """
-    if len(arr.shape) == 1:
-        return 1
-    elif len(arr.shape) == 2:
-        return arr.shape[-1]
-    else:
-        raise ValueError(f"expected 1d or 4d array, got shape {arr.shape}")
-
-
 def _ensure_2d(array: np.ndarray) -> np.ndarray:
     # ensures [sample, z] dimensionality
     if len(array.shape) == 2:
@@ -141,20 +128,6 @@ def _ensure_2d(array: np.ndarray) -> np.ndarray:
         return array[:, None]
     else:
         raise ValueError(f"expected 1d or 2d array, got shape {array.shape}")
-
-
-def _get_input_layer_shapes(X: Sequence[np.ndarray]) -> List[Tuple[int]]:
-    # adds a z dim of length 1 for non vertical features, so that they can
-    # be concantenated with inputs that have a z dimension
-    shapes: List[Tuple[int]] = []
-    for array in X:
-        array_features = _count_array_features(array)
-        sample_shape: Tuple[int] = array.shape[1:]
-        if array_features == 1:
-            shapes.append((*sample_shape, 1))  # type: ignore
-        else:
-            shapes.append(sample_shape)
-    return shapes
 
 
 def build_model(
@@ -166,60 +139,35 @@ def build_model(
         X: example input for keras fitting, used to determine shape and normalization
         y: example output for keras fitting, used to determine shape and normalization
     """
-    input_layer_shapes = _get_input_layer_shapes(X)
-    input_layers = [
-        tf.keras.layers.Input(shape=input_shape) for input_shape in input_layer_shapes
-    ]
-    norm_input_layers = standard_normalize(
-        names=config.input_variables,
-        layers=input_layers,
-        arrays=[_ensure_2d(array) for array in X],
-    )
-    if len(norm_input_layers) > 1:
-        full_input = tf.keras.layers.Concatenate()(norm_input_layers)
-    else:
-        full_input = norm_input_layers[0]
 
-    hidden_outputs = []
+    X_2d = [_ensure_2d(array) for array in X]
+    y_2d = [_ensure_2d(array) for array in y]
 
-    x = full_input
-    for i in range(config.dense_network.depth - 1):
-        if config.dense_network.gaussian_noise > 0.0:
-            x = tf.keras.layers.GaussianNoise(
-                config.dense_network.gaussian_noise, name=f"gaussian_noise_{i}"
-            )(x)
-        hidden_layer = tf.keras.layers.Dense(
-            config.dense_network.width,
-            activation=tf.keras.activations.relu,
-            kernel_regularizer=config.dense_network.kernel_regularizer.instance,
-            name=f"hidden_{i}",
-        )
-        if config.dense_network.spectral_normalization:
-            hidden_layer = tfa.layers.SpectralNormalization(
-                hidden_layer, name=f"spectral_norm_{i}"
-            )
-        x = hidden_layer(x)
-        hidden_outputs.append(x)
+    input_layers = [tf.keras.layers.Input(shape=arr.shape[1:]) for arr in X_2d]
+    full_input = full_standard_normalized_input(input_layers, X_2d, config.input_variables)
+
+    hidden_outputs = config.dense_network.build(full_input, n_features_out=1).hidden_outputs
+
 
     norm_output_layers = [
         tf.keras.layers.Dense(
-            _count_array_features(array),
+            array.shape[-1],
             activation="linear",
             name=f"dense_network_output_{i}",
         )(hidden_outputs[-1])
-        for i, array in enumerate(y)
+        for i, array in enumerate(y_2d)
     ]
-    if config.nonnegative_outputs is True:
-        norm_output_layers = [
-            tf.keras.layers.Activation(tf.keras.activations.relu)(output_layer)
-            for output_layer in norm_output_layers
-        ]
 
-    y_2d = [_ensure_2d(array) for array in y]
     denorm_output_layers = standard_denormalize(
         names=config.output_variables, layers=norm_output_layers, arrays=y_2d,
     )
 
+
+    if config.nonnegative_outputs is True:
+        denorm_output_layers = [
+            tf.keras.layers.Activation(tf.keras.activations.relu)(output_layer)
+            for output_layer in denorm_output_layers
+        ]
     train_model = tf.keras.Model(inputs=input_layers, outputs=denorm_output_layers)
     output_stds = (
         np.std(array, axis=tuple(range(len(array.shape) - 1)), dtype=np.float32)

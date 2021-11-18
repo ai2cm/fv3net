@@ -36,7 +36,6 @@ def test_all_training_functions_are_tested_or_exempted():
     missing_types = set(TRAINING_FUNCTIONS.keys()).difference(
         GENERAL_TRAINING_TYPES + SPECIAL_TRAINING_TYPES
     )
-    print(missing_types)
     assert len(missing_types) == 0, (
         "training type must be added to GENERAL_TRAINING_TYPES or "
         "SPECIAL_TRAINING_TYPES in test script"
