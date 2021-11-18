@@ -16,7 +16,8 @@ requirements = [
     "typing_extensions>=3.7.4.3",
     "dacite>=1.6.0",
     "wandb>=0.12.1",
-    "fv3gfs-util>=0.6.0",
+    # fv3fit also depends on fv3gfs-util>=0.6.0, but pip-compile does not work
+    # for packages not hosted on pypi.
 ]
 
 setup_requirements = []
