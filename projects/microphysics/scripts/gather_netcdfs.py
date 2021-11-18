@@ -42,6 +42,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    run = wandb.init(
+        job_type="netcdf-gather", project="microphysics-emulation", entity="ai2cm"
+    )
+    wandb.config.update(args)
+
     base_url = f"gs://{BUCKET}/{PROJECT}/{args.run_date}"
     train_out = f"{base_url}/training_netcdfs/train"
     valid_out = f"{base_url}/training_netcdfs/test"
@@ -59,3 +64,7 @@ if __name__ == "__main__":
         nc_src = f"{base_url}/{tag}/artifacts/{timestamp}/netcdf_output/*"
         dir_args = [nc_src, valid_out]
         subprocess.check_call(command + dir_args)
+
+    artifact = wandb.Artifact("microphysics-training-data", type="training_netcdfs")
+    artifact.add_reference(f"{base_url}/training_netcdfs")
+    wandb.log_artifact(artifact)
