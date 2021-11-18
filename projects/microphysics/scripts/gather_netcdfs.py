@@ -32,13 +32,9 @@ DATE = "2021-11-18"
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "run_date",
-        help="date string when training was run, e.g., 2021-11-18"
+        "run_date", help="date string when training was run, e.g., 2021-11-18"
     )
-    parser.add_argument(
-        "tag_prefix",
-        help="Common tag prefix for training data runs"
-    )
+    parser.add_argument("tag_prefix", help="Common tag prefix for training data runs")
 
     args = parser.parse_args()
 
