@@ -21,4 +21,4 @@ create:
 	./run_single.sh 12 $(CONFIG) $(OUTPUT_FREQUENCY) $(TAG_PREFIX)
 
 gather:
-	../scripts/gather_netcdfs.py $(RUN_DATE) $(TAG_PREFIX)
+	python ../scripts/gather_netcdfs.py $(RUN_DATE) $(TAG_PREFIX)
