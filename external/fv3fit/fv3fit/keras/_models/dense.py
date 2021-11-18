@@ -180,26 +180,8 @@ def build_model(
     else:
         full_input = norm_input_layers[0]
 
-    hidden_outputs = []
+    hidden_outputs = config.dense_network.build(full_input, n_features_out=1).hidden_outputs
 
-    x = full_input
-    for i in range(config.dense_network.depth - 1):
-        if config.dense_network.gaussian_noise > 0.0:
-            x = tf.keras.layers.GaussianNoise(
-                config.dense_network.gaussian_noise, name=f"gaussian_noise_{i}"
-            )(x)
-        hidden_layer = tf.keras.layers.Dense(
-            config.dense_network.width,
-            activation=tf.keras.activations.relu,
-            kernel_regularizer=config.dense_network.kernel_regularizer.instance,
-            name=f"hidden_{i}",
-        )
-        if config.dense_network.spectral_normalization:
-            hidden_layer = tfa.layers.SpectralNormalization(
-                hidden_layer, name=f"spectral_norm_{i}"
-            )
-        x = hidden_layer(x)
-        hidden_outputs.append(x)
 
     norm_output_layers = [
         tf.keras.layers.Dense(
