@@ -4,7 +4,7 @@ set -e
 
 # to replace current_date in template
 MONTH=$1
-PROG_YAML=$1
+PROG_YAML=$2
 OUTPUT_FREQUENCY=$3
 TAG_PREFIX=$4
 
