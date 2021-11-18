@@ -2,10 +2,11 @@
 
 set -e
 
-PROG_YAML=$1
 # to replace current_date in template
-MONTH=$2
+MONTH=$1
+PROG_YAML=$1
 OUTPUT_FREQUENCY=$3
+TAG_PREFIX=$4
 
 # YAML interprets single leading 0 as an octal, 08 09 get read as string
 # so remove leading zeros
@@ -21,7 +22,7 @@ envsubst < $PROG_YAML > "prognostic-run-with-IC.yaml"
 # submit prognostic run forecasts
 argo submit argo.yaml \
     -p config="$(< prognostic-run-with-IC.yaml)" \
-    -p tag="test-create-training-${IC_TIMESTAMP}" \
+    -p tag="${TAG_PREFIX}-${IC_TIMESTAMP}" \
     -p output_frequency=${OUTPUT_FREQUENCY}
 
 rm prognostic-run-with-IC.yaml
