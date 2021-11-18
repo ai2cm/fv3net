@@ -2,11 +2,10 @@ import fsspec
 import xarray
 import numpy
 import numpy as np
-import dacite
-from dataclasses import dataclass
 from datetime import timedelta
 from typing_extensions import Protocol
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Sequence
+from enum import Enum
 
 from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
@@ -108,7 +107,7 @@ def apparent_heating(data: FineResBudget, include_temperature_nudging: bool = Fa
         data.vulcan_omega_coarse,
         data.T,
     )
-    eddy_flux_convergence = convergence(eddy_flux, data.delp, dim="pfull")
+    eddy_flux_convergence = convergence(eddy_flux, data.delp, dim="z")
     result = data.t_dt_fv_sat_adj_coarse + data.t_dt_phys_coarse + eddy_flux_convergence
     description = (
         "Apparent heating due to physics and sub-grid-scale advection. Given "
@@ -131,7 +130,7 @@ def apparent_moistening(data: FineResBudget):
         data.vulcan_omega_coarse,
         data.sphum,
     )
-    eddy_flux_convergence = convergence(eddy_flux, data.delp, dim="pfull")
+    eddy_flux_convergence = convergence(eddy_flux, data.delp, dim="z")
     return (
         (data.qv_dt_fv_sat_adj_coarse + data.qv_dt_phys_coarse + eddy_flux_convergence)
         .assign_attrs(
@@ -162,16 +161,7 @@ def _standardize_coords(
     return gfdl_to_standard(ds_shifted).drop("tile")
 
 
-def _compute_fine_res_portion(
-    fine_url: str, include_temperature_nudging: bool
-) -> xarray.Dataset:
-    fine = open_zarr_maybe_consolidated(fine_url)
-    fine["Q1"], fine["Q2"] = compute_fine_res_sources(fine, include_temperature_nudging)
-    fine_shifted = _standardize_coords(fine)
-    return fine_shifted
-
-
-def open_fine_resolution_nudging_hybrid_dataset(
+def _open_fine_resolution_nudging_hybrid_dataset(
     # created by this commit:
     # https://github.com/VulcanClimateModeling/vcm-workflow-control/commit/3c852d0e4f8b86c4e88db9f29f0b8e484aeb77a1
     # I manually consolidated the metadata with zarr.consolidate_metadata
@@ -182,12 +172,16 @@ def open_fine_resolution_nudging_hybrid_dataset(
     include_temperature_nudging: bool = False,
 ) -> xarray.Dataset:
 
-    fine_shifted = _compute_fine_res_portion(fine_url, include_temperature_nudging)
+    fine = open_zarr_maybe_consolidated(fine_url)
+    fine_shifted = _standardize_coords(fine)
+    fine_shifted["Q1"], fine_shifted["Q2"] = compute_fine_res_sources(
+        fine_shifted, include_temperature_nudging
+    )
 
     return _open_nudged_hybrid_portion(fine_shifted, nudge_url)
 
 
-def open_precomputed_fine_resolution_nudging_hybrid_dataset(
+def _open_precomputed_fine_resolution_nudging_hybrid_dataset(
     fine_url: str, nudge_url: str,
 ) -> xarray.Dataset:
 
@@ -196,7 +190,14 @@ def open_precomputed_fine_resolution_nudging_hybrid_dataset(
     return _open_nudged_hybrid_portion(fine, nudge_url)
 
 
-def _open_nudged_hybrid_portion(fine_shifted: xarray.Dataset, nudge_url: str):
+class MLApparentSources(Protocol):
+    dQ1: xarray.DataArray
+    dQ2: xarray.DataArray
+
+
+def _open_nudged_hybrid_portion(
+    fine_shifted: xarray.Dataset, nudge_url: str
+) -> MLApparentSources:
 
     nudge_physics_tendencies = open_zarr_maybe_consolidated(
         nudge_url + "/physics_tendencies.zarr",
@@ -242,7 +243,7 @@ def open_fine_resolution_nudging_hybrid(
         a mapper
     """
     return XarrayMapper(
-        open_fine_resolution_nudging_hybrid_dataset(
+        _open_fine_resolution_nudging_hybrid_dataset(
             fine_url=fine_url,
             nudge_url=nudge_url,
             include_temperature_nudging=include_temperature_nudging,
@@ -266,46 +267,66 @@ def open_precomputed_fine_resolution_nudging_hybrid(
         a mapper
     """
     return XarrayMapper(
-        open_precomputed_fine_resolution_nudging_hybrid_dataset(
+        _open_precomputed_fine_resolution_nudging_hybrid_dataset(
             fine_url=fine_url, nudge_url=nudge_url
         )
     )
 
 
-def open_fine_resolution_dataset(
-    fine_url: str = "gs://vcm-ml-experiments/default/2021-04-27/2020-05-27-40-day-X-SHiELD-simulation/fine-res-budget.zarr",  # noqa: E501
-    input_feature_url: Optional[str] = None,
-    include_temperature_nudging: bool = False,
-) -> xarray.Dataset:
-
-    fine_shifted = _compute_fine_res_portion(fine_url, include_temperature_nudging)
-
-    return _add_fine_res_inputs(fine_shifted, input_feature_url)
-
-
-def open_precomputed_fine_resolution_dataset(
-    fine_url: str, input_feature_url: Optional[str] = None
-) -> xarray.Dataset:
+def _open_fine_resolution_dataset(
+    fine_url: str, additional_dataset_urls: Optional[Sequence[str]]
+) -> FineResBudget:
 
     fine = open_zarr_maybe_consolidated(fine_url)
+    fine_shifted = _standardize_coords(fine)
 
-    return _add_fine_res_inputs(fine, input_feature_url)
-
-
-def _add_fine_res_inputs(fine: xarray.Dataset, input_feature_url: Optional[str] = None):
-
-    if input_feature_url is None:
-        input_features = xarray.Dataset()
-        input_features["air_temperature"] = fine.T
-        input_features["specific_humidity"] = fine.sphum
-        input_features["pressure_thickness_of_atmospheric_layer"] = fine.delp
+    if additional_dataset_urls is not None:
+        additional_datasets = []
+        for url in additional_dataset_urls:
+            additional_datasets.append(open_zarr_maybe_consolidated(url))
+        merged = xarray.merge([fine_shifted, *additional_datasets], join="inner")
+        if "latitude" in merged:
+            merged["latitude"] = merged.latitude.isel(time=0)
+        if "longitude" in merged:
+            merged["longitude"] = merged.longitude.isel(time=0)
     else:
-        full_url = input_feature_url + "/state_after_timestep.zarr"
-        input_features = open_zarr_maybe_consolidated(full_url)
-        input_features["latitude"] = input_features.latitude.isel(time=0)
-        input_features["longitude"] = input_features.longitude.isel(time=0)
+        merged = fine_shifted
 
-    merged = xarray.merge([fine, input_features], join="inner",)
+    return merged
+
+
+class Approach(Enum):
+    apparent_sources_only = 1
+    apparent_sources_plus_nudging_tendencies = 2
+    apparent_sources_plus_dynamics_differences = 3
+    apparent_sources_extend_lower = 4
+
+
+def _compute_budget(
+    merged: xarray.Dataset, approach: Approach, include_temperature_nudging: bool
+) -> MLApparentSources:
+
+    merged["Q1"], merged["Q2"] = compute_fine_res_sources(
+        merged, include_temperature_nudging
+    )
+
+    if approach == Approach.apparent_sources_plus_nudging_tendencies:
+        merged["Q1"] = merged.Q1 + merged.tendency_of_air_temperature_due_to_nudging
+        merged["Q2"] = merged.Q2 + merged.tendency_of_specific_humidity_due_to_nudging
+    elif approach == Approach.apparent_sources_plus_dynamics_differences:
+        merged["Q1"] = (
+            merged.Q1 + merged.tendency_of_air_temperature_due_to_dynamics_differences
+        )
+        merged["Q2"] = (
+            merged.Q2 + merged.tendency_of_specific_humidity_due_to_dynamics_differences
+        )
+    elif approach == Approach.apparent_sources_extend_lower:
+        merged["Q1"], merged["Q2"] = _extend_lower(merged)
+
+    return _ml_standard_names(merged)
+
+
+def _ml_standard_names(merged: xarray.Dataset):
 
     # since ML target is Q1/Q2, dQ1=Q1 and pQ1=0 and same for moistening
     merged["dQ1"] = merged["Q1"]
@@ -321,22 +342,6 @@ def _add_fine_res_inputs(fine: xarray.Dataset, input_feature_url: Optional[str] 
     return merged.astype(numpy.float32)
 
 
-def open_fine_resolution_additional_source(
-    fine_url: str,
-    input_feature_url: str,
-    additional_source_url: str,
-    include_temperature_nudging: bool,
-) -> xarray.Dataset:
-
-    fine = _compute_fine_res_portion(fine_url, include_temperature_nudging)
-    additional_source = open_zarr_maybe_consolidated(additional_source_url)
-
-    fine["Q1"] = fine.Q1 + additional_source.Q1
-    fine["Q2"] = fine.Q2 + additional_source.Q2
-
-    return _add_fine_res_inputs(fine, input_feature_url)
-
-
 def _extend_lower(fine: xarray.Dataset, vertical_dim: str = "z") -> xarray.Dataset:
     fine_sources = get_variables(fine, ["Q1", "Q2"])
     fine_sources_new_bottom = fine_sources.isel({vertical_dim: -2})
@@ -347,94 +352,71 @@ def _extend_lower(fine: xarray.Dataset, vertical_dim: str = "z") -> xarray.Datas
     return fine_sources_extended_lower.Q1, fine_sources_extended_lower.Q2
 
 
-def open_fine_resolution_extend_lower(
-    fine_url: str, input_feature_url: str, include_temperature_nudging: bool
-) -> xarray.Dataset:
-
-    fine = _compute_fine_res_portion(fine_url, include_temperature_nudging)
-    fine["Q1"], fine["Q2"] = _extend_lower(fine)
-
-    return _add_fine_res_inputs(fine, input_feature_url)
-
-
-FINE_RESOLUTION_APPROACHES = [
-    "apparent_sources_only",
-    "precomputed_apparent_sources",
-    "apparent_sources_plus_nudging",
-    "apparent_sources_plus_dynamics_differences",
-    "apparent_sources_extend_lower",
-]
-
-
-@dataclass
-class FineResolutionOpenerConfig:
-    approach: str
-    fine_url: str
-    input_feature_url: Optional[str] = None
-    additional_source_url: Optional[str] = None
-    include_temperature_nudging: bool = False
-
-
 @mapper_functions.register
-def open_fine_resolution(approach: Optional[str] = None, **kwargs: dict):
-    f"""
+def open_fine_resolution(
+    fine_url: str,
+    approach: str = None,
+    include_temperature_nudging: bool = False,
+    additional_dataset_urls: Sequence[str] = None,
+) -> GeoMapper:
+    """
     Open the fine-res mapper using several configuration options
     
     Args:
-        approach: one of a set of available approaches, including
-            {FINE_RESOLUTION_APPROACHES}; if not specified will use
-            'apparent_sources_only'; usage of the kwargs below will depend on
-            `approach`
         fine_url: url where coarsened fine resolution data is stored
-        input_feature_url: url to fv3gfs_run to use for state inputs. If not provided,
-            the state of the fine-res data will be used as input.
-        additional_source_url: url of additional temperature and moisture tendencies
-            (e.g., nudging or dynamics differences) to be added to the fine resolution
-            data
+        approach: one of a set of available approaches: 'apparent_sources_only',
+            'apparent_sources_plus_nudging_tendencies',
+            'apparent_sources_plus_dynamics_differences', or
+            'apparent_sources_extend_lower'. If not supplied, assumed to be
+            'apparent_sources_only'.
         include_temperature_nudging: whether to include fine-res nudging in Q1
+        additional_dataset_urls: sequence of urls which to zarrs containing additional
+            data to be merged into the resulting mapper dataset
         
     Returns:
         a mapper
     """
+
     if approach is None:
         approach = "apparent_sources_only"
+    approach_enum = Approach[approach]
 
-    fine_res_config = dacite.from_dict(
-        FineResolutionOpenerConfig, dict(approach=approach, **kwargs)
+    merged: FineResBudget = _open_fine_resolution_dataset(
+        fine_url=fine_url, additional_dataset_urls=additional_dataset_urls,
     )
-    if fine_res_config.approach == "apparent_sources_only":
-        ds = open_fine_resolution_dataset(
-            fine_url=fine_res_config.fine_url,
-            input_feature_url=fine_res_config.input_feature_url,
-            include_temperature_nudging=fine_res_config.include_temperature_nudging,
-        )
-    elif fine_res_config.approach == "precomputed_apparent_sources":
-        ds = open_precomputed_fine_resolution_dataset(
-            fine_url=fine_res_config.fine_url,
-            input_feature_url=fine_res_config.input_feature_url,
-        )
-    elif fine_res_config.approach in [
-        "apparent_sources_plus_nudging",
-        "apparent_sources_plus_dynamics_differences",
-    ]:
-        ds = open_fine_resolution_additional_source(
-            fine_url=fine_res_config.fine_url,
-            input_feature_url=fine_res_config.input_feature_url,
-            additional_source_url=fine_res_config.additional_source_url,
-            include_temperature_nudging=fine_res_config.include_temperature_nudging,
-        )
-    elif fine_res_config.approach == "apparent_sources_extend_lower":
-        ds = open_fine_resolution_extend_lower(
-            fine_url=fine_res_config.fine_url,
-            input_feature_url=fine_res_config.input_feature_url,
-            include_temperature_nudging=fine_res_config.include_temperature_nudging,
-        )
-    else:
-        raise ValueError(
-            (
-                f"Fine resolution opener approaches must be in"
-                f"{FINE_RESOLUTION_APPROACHES}, received {approach}."
-            )
-        )
+    budget: MLApparentSources = _compute_budget(
+        merged, approach_enum, include_temperature_nudging=include_temperature_nudging
+    )
 
-    return XarrayMapper(ds)
+    return XarrayMapper(budget)
+
+
+def _open_precomputed_fine_resolution_dataset(
+    fine_url: str, additional_dataset_urls: Optional[Sequence[str]] = None
+) -> MLApparentSources:
+
+    merged = _open_fine_resolution_dataset(fine_url, additional_dataset_urls)
+    return _ml_standard_names(merged)
+
+
+@mapper_functions.register
+def open_precomputed_fine_resolution(
+    fine_url: str, additional_dataset_urls: str = None
+) -> GeoMapper:
+    """
+    Open a fine-res mapper from precomputed data, optionally using state
+        from another run.
+        
+    Args:
+        fine_url: url where coarsened fine resolution data is stored, must include
+            precomputed Q1 and Q2
+        additional_dataset_urls: sequence of urls which to zarrs containing additional
+            data to be merged into the resulting mapper dataset
+    Returns:
+        a mapper
+    """
+    return XarrayMapper(
+        _open_precomputed_fine_resolution_dataset(
+            fine_url=fine_url, additional_dataset_urls=additional_dataset_urls
+        )
+    )

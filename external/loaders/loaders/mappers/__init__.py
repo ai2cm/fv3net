@@ -11,6 +11,7 @@ from ._hybrid import (
     open_fine_resolution_nudging_hybrid,
     open_precomputed_fine_resolution_nudging_hybrid,
     open_fine_resolution,
+    open_precomputed_fine_resolution,
 )
 
 # additional open mapper functions

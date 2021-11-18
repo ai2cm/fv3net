@@ -129,18 +129,6 @@ variables:
 		Q2:units = kg/kg/s ;
 		Q2:long_name = apparent moistening from high resolution data ;
 		Q2:description = Apparent moistening due to physics and sub-grid-scale advection. Given by sat adjustment (dycore) + physics tendency + eddy-flux-convergence ;
-	float32 air_temperature(tile, z, y, x) ;
-		air_temperature:checksum = 84E9D5116058750E ;
-		air_temperature:long_name = temperature ;
-		air_temperature:units = K ;
-	float32 specific_humidity(tile, z, y, x) ;
-		specific_humidity:checksum = CEC95437F1418F74 ;
-		specific_humidity:long_name = specific humidity ;
-		specific_humidity:units = kg / kg ;
-	float32 pressure_thickness_of_atmospheric_layer(tile, z, y, x) ;
-		pressure_thickness_of_atmospheric_layer:checksum = F4877F0507E61627 ;
-		pressure_thickness_of_atmospheric_layer:long_name = pressure thickness ;
-		pressure_thickness_of_atmospheric_layer:units = Pa ;
 	float32 dQ1(tile, z, y, x) ;
 		dQ1:units = K/s ;
 		dQ1:long_name = apparent heating from high resolution data ;
