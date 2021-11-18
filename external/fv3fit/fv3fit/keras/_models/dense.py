@@ -1,7 +1,6 @@
 import dataclasses
 import numpy as np
 import tensorflow as tf
-import tensorflow_addons as tfa
 from typing import List, Optional, Sequence, Tuple, Set, Mapping, Union
 import xarray as xr
 
@@ -16,7 +15,7 @@ from fv3fit.keras._models.shared import PureKerasModel, LossConfig
 from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
     get_stacked_metadata,
-    full_standard_normalized_input
+    full_standard_normalized_input,
 )
 
 
@@ -144,16 +143,17 @@ def build_model(
     y_2d = [_ensure_2d(array) for array in y]
 
     input_layers = [tf.keras.layers.Input(shape=arr.shape[1:]) for arr in X_2d]
-    full_input = full_standard_normalized_input(input_layers, X_2d, config.input_variables)
+    full_input = full_standard_normalized_input(
+        input_layers, X_2d, config.input_variables
+    )
 
-    hidden_outputs = config.dense_network.build(full_input, n_features_out=1).hidden_outputs
-
+    hidden_outputs = config.dense_network.build(
+        full_input, n_features_out=1
+    ).hidden_outputs
 
     norm_output_layers = [
         tf.keras.layers.Dense(
-            array.shape[-1],
-            activation="linear",
-            name=f"dense_network_output_{i}",
+            array.shape[-1], activation="linear", name=f"dense_network_output_{i}",
         )(hidden_outputs[-1])
         for i, array in enumerate(y_2d)
     ]
@@ -161,7 +161,6 @@ def build_model(
     denorm_output_layers = standard_denormalize(
         names=config.output_variables, layers=norm_output_layers, arrays=y_2d,
     )
-
 
     if config.nonnegative_outputs is True:
         denorm_output_layers = [

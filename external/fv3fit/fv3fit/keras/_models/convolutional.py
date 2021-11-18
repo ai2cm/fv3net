@@ -112,7 +112,7 @@ def train_convolutional_model(
 
 
 def _ensure_4d(array: np.ndarray) -> np.ndarray:
-    # Ensures [sample, x, y, z] dimensionality. 
+    # Ensures [sample, x, y, z] dimensionality.
     if len(array.shape) == 4:
         return array
     elif len(array.shape) == 3:
@@ -136,8 +136,10 @@ def build_model(
     y_4d = [_ensure_4d(arr) for arr in y]
 
     input_layers = [tf.keras.layers.Input(shape=arr.shape[1:]) for arr in X_4d]
-    full_input = full_standard_normalized_input(input_layers, X_4d, config.input_variables)
-   
+    full_input = full_standard_normalized_input(
+        input_layers, X_4d, config.input_variables
+    )
+
     convolution = config.convolutional_network.build(x_in=full_input, n_features_out=0)
     if config.convolutional_network.diffusive:
         constraint: Optional[tf.keras.constraints.Constraint] = Diffusive()
