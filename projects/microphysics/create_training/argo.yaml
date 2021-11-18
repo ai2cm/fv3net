@@ -8,11 +8,10 @@ spec:
     parameters:
       - name: tag
       - name: config
-      - name: initial_condition
       - name: output_frequency
         value: "18000"
       - name: image_tag
-        value: 811d4a88b8b8f29d727f2d61f46f96b770c8ab47
+        value: 66a97197224d1cb62570713c07d72e71d97f39bb
   volumes:
   - name: gcp-key-secret
     secret:
@@ -23,7 +22,6 @@ spec:
       parameters:
       - name: tag
       - name: config
-      - name: initial_condition
       - name: output_frequency
     tolerations:
     - key: "dedicated"
@@ -60,5 +58,6 @@ spec:
           --tag "{{inputs.parameters.tag}}" \
           --config-path fv3config.yaml \
           --model NO_MODEL \
+          --job-type training-run \
           --output-frequency "{{inputs.parameters.output_frequency}}" \
           --offline

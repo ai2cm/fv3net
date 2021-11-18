@@ -67,7 +67,7 @@ namelist:
   coupler_nml:
     current_date:
     - 2016
-    - $MONTH
+    - $MONTH_INT
     - 1
     - 0
     - 0
