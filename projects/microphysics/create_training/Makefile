@@ -1,7 +1,7 @@
 
 CONFIG ?= ./training_fv3config_template.yaml
 OUTPUT_FREQUENCY ?= 18000
-TAG_PREFIX ?= create-training-
+TAG_PREFIX ?= create-training
 RUN_DATE ?= 2021-11-18
 
 GCS_BASE = gs://vcm-ml-scratch/2021-10-14-microphysics-emulation-paper
@@ -22,6 +22,3 @@ create:
 
 gather:
 	../scripts/gather_netcdfs.py $(RUN_DATE) $(TAG_PREFIX)
-
-delete:
-	-gsutil ls $(GCS_BASE)/$(RUN_DATE)/$(TAG_PREFIX) | xargs gsutil -m rm -r
