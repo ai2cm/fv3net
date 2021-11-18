@@ -25,7 +25,6 @@ from ..._shared import (
     match_prediction_to_input_coords,
     SAMPLE_DIM_NAME,
 )
-from ..._shared.config import register_training_function
 from .dense import DenseHyperparameters
 import numpy as np
 import os
@@ -42,23 +41,6 @@ logger = logging.getLogger(__file__)
 
 MODEL_DIRECTORY = "model_data"
 KERAS_CHECKPOINT_PATH = "model_checkpoints"
-
-
-@register_training_function("DenseModel", DenseHyperparameters)
-def train_dense_model(
-    hyperparameters: DenseHyperparameters,
-    train_batches: Sequence[xr.Dataset],
-    validation_batches: Sequence[xr.Dataset],
-):
-    model = DenseModel(
-        hyperparameters.input_variables,
-        hyperparameters.output_variables,
-        hyperparameters,
-    )
-    # TODO: make use of validation_batches, currently validation dataset is
-    # passed through hyperparameters.fit_kwargs
-    model.fit(train_batches)
-    return model
 
 
 @io.register("packed-keras-v2")
