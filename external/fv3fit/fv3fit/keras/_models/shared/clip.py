@@ -57,19 +57,26 @@ class ClipConfig:
 def zero_pad_output_feature_dim(layer: tf.Tensor, n_removed_from_start, n_removed_from_end) -> tf.Tensor:
     # Restores a clipped output dim to its original feature dimension size by replacing
     # clipped slices with zeros
-    non_feature_dim_shape = layer.shape[1:-1].as_list()
-    start_pad_shape = non_feature_dim_shape + [n_removed_from_start]
-    end_pad_shape = non_feature_dim_shape + [n_removed_from_end]
 
     concat_layers = []
     if n_removed_from_start > 0:
-        pad_start = tf.constant([np.zeros(start_pad_shape)], dtype=layer.dtype)
+        pad_start = _zero_slice_with_placeholder_dim(layer, n_removed_from_start)
         concat_layers.append(pad_start)
 
     concat_layers.append(layer)
 
     if n_removed_from_end > 0:
-        pad_end = tf.constant([np.zeros(end_pad_shape)], dtype=layer.dtype)
+        pad_end = _zero_slice_with_placeholder_dim(layer, n_removed_from_end)
         concat_layers.append(pad_end)
     
     return tf.concat(concat_layers, axis=-1)
+
+
+def _zero_slice_with_placeholder_dim(layer: tf.Tensor, n_zero_levels: int) -> tf.Tensor:
+    # hacky way of getting zero padding tensor with same first placeholder dim as input
+    # but different feature dim size
+    layer_copy = tf.zeros_like(layer)
+    slice_start = [0 for l in layer.shape]
+    slice_size = [-1 for l in layer.shape[:-1]] + [n_zero_levels]
+    return tf.slice(layer_copy, slice_start, slice_size)
+
