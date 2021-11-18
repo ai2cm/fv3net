@@ -1,0 +1,72 @@
+use_wandb: true
+wandb_project: microphysics-emulation
+batch_size: 128
+epochs: 50
+nfiles_valid: 100
+valid_freq: 2
+out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
+test_url: gs://vcm-ml-experiments/microphysics-emu-data/2021-07-29/validation_netcdfs/
+train_url: gs://vcm-ml-experiments/microphysics-emu-data/2021-07-29/training_netcdfs/
+optimizer:
+  kwargs:
+    learning_rate: 0.0001
+  name: Adam
+loss_variables:
+- air_temperature_output
+- specific_humidity_output
+- cloud_water_mixing_ratio_output
+- total_precipitation
+weights:
+  air_temperature_output: 500000.0
+  specific_humidity_output: 500000.0
+  cloud_water_mixing_ratio_output: 1.0
+  total_precipitation: .04
+metric_variables:
+- tendency_of_air_temperature_due_to_microphysics
+- tendency_of_specific_humidity_due_to_microphysics
+- tendency_of_cloud_water_mixing_ratio_due_to_microphysics
+model:
+  architecture:
+    kwargs: {}
+    name: dense
+  input_variables:
+  - air_temperature_input
+  - specific_humidity_input
+  - cloud_water_mixing_ratio_input
+  - pressure_thickness_of_atmospheric_layer
+  direct_out_variables:
+  - total_precipitation
+  residual_out_variables:
+    air_temperature_output: air_temperature_input
+    specific_humidity_output: specific_humidity_input
+    cloud_water_mixing_ratio_output: cloud_water_mixing_ratio_input
+  tendency_outputs:
+    air_temperature_output: tendency_of_air_temperature_due_to_microphysics
+    specific_humidity_output: tendency_of_specific_humidity_due_to_microphysics
+    cloud_water_mixing_ratio_output: tendency_of_cloud_water_mixing_ratio_due_to_microphysics
+  normalize_key: mean_std
+  enforce_positive: false
+  selection_map:
+    air_temperature_input: [null, -10]
+    cloud_water_mixing_ratio_input: [null, -10]
+    pressure_thickness_of_atmospheric_layer: [null, -10]
+    specific_humidity_input: [null, -10]
+  timestep_increment_sec: 900
+transform:
+  antarctic_only: false
+  derived_microphys_timestep: 900
+  input_variables:
+  - air_temperature_input
+  - specific_humidity_input
+  - cloud_water_mixing_ratio_input
+  - pressure_thickness_of_atmospheric_layer
+  output_variables:
+  - total_precipitation
+  - air_temperature_output
+  - specific_humidity_output
+  - cloud_water_mixing_ratio_output
+  - tendency_of_air_temperature_due_to_microphysics
+  - tendency_of_specific_humidity_due_to_microphysics
+  - tendency_of_cloud_water_mixing_ratio_due_to_microphysics
+  use_tensors: true
+  vertical_subselections: null
