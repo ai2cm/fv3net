@@ -15,6 +15,8 @@ def rechunk(url_in, url_out, chunk):
     chunks_dict = {k: v for k, v in chunk}
     ds = xr.open_zarr(fsspec.get_mapper(url_in))
     ds_rechunked = ds.chunk(chunks_dict)
+    for variable in ds_rechunked:
+        del ds_rechunked[variable].encoding["chunks"]
     history = (
         f"Rechunked from {url_in} and saved to {url_out} using fv3net/projects"
         "/fine-res/scripts/rechunk_fine_res.py"
