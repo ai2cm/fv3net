@@ -46,6 +46,11 @@ KERAS_CHECKPOINT_PATH = "model_checkpoints"
 @io.register("packed-keras-v2")
 class DenseModel(Predictor):
     """
+    DEPRECATED: the training function that uses this model class has been
+    removed. Saved models will still load and predict, but no new DenseModel
+    objects will be saved. Use the `dense` training function instead for training
+    dense models.
+    
     Abstract base class for a keras-based model which operates on xarray
     datasets containing a "sample" dimension (as defined by loaders.SAMPLE_DIM_NAME),
     where each variable has at most one non-sample dimension.
