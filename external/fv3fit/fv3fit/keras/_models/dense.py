@@ -8,10 +8,9 @@ from ..._shared.config import (
     Hyperparameters,
     OptimizerConfig,
     register_training_function,
-    PackerConfig,
 )
 from .shared import TrainingLoopConfig, XyMultiArraySequence, DenseNetworkConfig
-from fv3fit.keras._models.shared import PureKerasModel, LossConfig
+from fv3fit.keras._models.shared import PureKerasModel, LossConfig, ClipConfig
 from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
     get_stacked_metadata,
@@ -43,7 +42,7 @@ class DenseHyperparameters(Hyperparameters):
         nonnegative_outputs: if True, add a ReLU activation layer as the last layer
             after output denormalization layer to ensure outputs are always >=0
             Defaults to False.
-        packer_config: configuration of dataset packing.
+        clip_config: configuration of dataset packing.
     """
 
     input_variables: List[str]
@@ -62,8 +61,8 @@ class DenseHyperparameters(Hyperparameters):
     loss: LossConfig = LossConfig(scaling="standard", loss_type="mse")
     save_model_checkpoints: bool = False
     nonnegative_outputs: bool = False
-    packer_config: PackerConfig = dataclasses.field(
-        default_factory=lambda: PackerConfig({})
+    clip_config: ClipConfig = dataclasses.field(
+        default_factory=lambda: ClipConfig({})
     )
 
     @property
