@@ -82,3 +82,15 @@ def test_keras_functional_dict_outputs_singleton():
     a = tf.ones((1, 5))
     out = model(a)
     assert set(out) == {"b"}
+
+
+def test_train_keras_with_dict_output():
+    a = tf.keras.Input(name="a", shape=[5])
+    # make sure that `name`` is ignored
+    b = tf.keras.layers.Dense(5, name="b")(a)
+    model = tf.keras.models.Model(inputs={"a": a}, outputs={"b": b})
+    model.compile(loss={"b": tf.keras.losses.MSE})
+
+    one = tf.ones((1, 5))
+    # need to split input variables and outputs into separate dicts
+    model.fit({"a": one}, {"b": one}, epochs=1)

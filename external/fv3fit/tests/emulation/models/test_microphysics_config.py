@@ -71,7 +71,9 @@ def test_Config__processed_inputs():
 
     data = _get_data((20, 5))
     tensor = _get_tensor((20, 5))
-    processed = config._get_processed_inputs((data, data), (tensor, tensor))
+    m = {"dummy_in1": data, "dummy_in2": data, "dummy_out": data}
+    processed = config._get_processed_inputs(m, (tensor, tensor))
+    processed = list(processed.values())
 
     assert len(processed) == 2
     assert processed[0].shape == (20, 3)
@@ -86,7 +88,9 @@ def test_Config__processed_inputs_normalized():
 
     data = _get_data((20, 5))
     tensor = _get_tensor((20, 5))
-    processed = config._get_processed_inputs((data,), (tensor,))
+    m = {"dummy_in1": data}
+    processed = config._get_processed_inputs(m, (tensor,))
+    processed = list(processed.values())
 
     # should be normalized
     assert not np.any(processed[0] > 2)
@@ -101,7 +105,10 @@ def test_Config__get_direct_outputs():
         input_variables=["dummy_in"], direct_out_variables=["dummy_out1"],
     )
 
-    outputs = config._get_direct_outputs((data,), net_out)
+    outputs = config._get_direct_outputs(
+        {"dummy_in": data, "dummy_out1": data}, net_out
+    )
+    outputs = list(outputs.values())
 
     assert len(outputs) == 1
     assert outputs[0].shape == (20, 5)
@@ -118,15 +125,19 @@ def test_Config__get_residual_outputs():
         tendency_outputs={"dummy_out1": "dummy_out1_tendency"},
     )
 
-    res_map = {"dummy_out1": data}
+    sample = {"dummy_out1": data, "dummy_in": data}
 
-    outputs = config._get_residual_outputs([data], net_out, res_map)
+    outputs = config._get_residual_outputs(sample, net_out)
+    outputs = list(outputs.values())
     assert len(outputs) == 2
     assert outputs[0].shape == (20, 5)
     assert outputs[1].shape == (20, 5)
 
 
 def test_Config__get_outputs_denorm():
+    # make this test deterministic, the assertions below fail for some random
+    # seeds
+    tf.random.set_seed(0)
 
     net_out = _get_tensor((20, 64))
     data = _get_data((20, 5))
@@ -138,12 +149,11 @@ def test_Config__get_outputs_denorm():
         normalize_key="mean_std",
     )
 
-    res_map = {"dummy_out2": data}
-
-    (output,) = config._get_direct_outputs((data,), net_out)
+    sample = {"dummy_out2": data, "dummy_in": data, "dummy_out1": data}
+    output = config._get_direct_outputs(sample, net_out)["dummy_out1"]
     assert np.any(output > 2)
 
-    (output,) = config._get_residual_outputs((data,), net_out, res_map)
+    output = config._get_residual_outputs(sample, net_out)["dummy_out2"]
     assert np.any(output > 2)
 
 
@@ -154,12 +164,10 @@ def test_Config_build():
     )
 
     data = _get_data((20, 5))
-    model = config.build([data], sample_direct_out=[data])
-
-    assert len(model.inputs) == 1
-    assert len(model.outputs) == 1
-    assert model.input_names[0] == "dummy_in"
-    assert model.output_names[0] == "dummy_out"
+    m = {"dummy_in": data, "dummy_out": data}
+    model = config.build(m)
+    output = model(m)
+    assert set(output) == {"dummy_out"}
 
 
 def test_Config_build_residual_w_extra_tends_out():
@@ -172,10 +180,7 @@ def test_Config_build_residual_w_extra_tends_out():
     )
 
     data = _get_data((20, 5))
-    model = config.build([data], sample_residual_out=[data])
-
-    assert len(model.inputs) == 1
-    assert len(model.outputs) == 2
-    assert model.input_names[0] == "dummy_in"
-    assert model.output_names[0] == "dummy_out1"
-    assert model.output_names[1] == "dummy_out1_tendency"
+    m = {"dummy_out1": data, "dummy_in": data}
+    model = config.build(m)
+    output = model(data)
+    assert set(output) == {"dummy_out1", "dummy_out1_tendency"}

@@ -9,27 +9,9 @@ from fv3fit.emulation.data.config import TransformConfig
 from fv3fit.train_microphysics import (
     TrainConfig,
     MicrophysicsConfig,
-    _get_out_samples,
     get_default_config,
     main,
 )
-
-
-def test__get_out_samples():
-
-    samples = [1, 2, 3, 4]
-    names = ["B", "dC", "dD", "A"]
-
-    config = MicrophysicsConfig(
-        direct_out_variables=["A", "B"],
-        residual_out_variables={"C": "C_in", "D": "D_in"},
-        tendency_outputs={"C": "dC", "D": "dD"},
-    )
-
-    direct, residual = _get_out_samples(config, samples, names)
-
-    assert direct == [4, 1]
-    assert residual == [2, 3]
 
 
 def test_TrainConfig_defaults():

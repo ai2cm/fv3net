@@ -98,8 +98,9 @@ def test_CustomLoss():
 
     names = ["fieldA", "fieldB", "fieldC", "fieldD"]
     samples = [tensor] * 4
+    m = dict(zip(names, samples))
 
-    config.prepare(names, samples)
+    config.prepare(names, m)
 
     model = _get_model(2, 4)
 
