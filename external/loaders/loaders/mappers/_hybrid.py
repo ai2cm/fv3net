@@ -11,7 +11,6 @@ from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
 from loaders._config import mapper_functions
 from vcm.fv3.metadata import gfdl_to_standard
-from vcm.safe import get_variables
 
 
 def eddy_flux_coarse(unresolved_flux, total_resolved_flux, omega, field):
@@ -311,19 +310,81 @@ def _compute_budget(
     )
 
     if approach == Approach.apparent_sources_plus_nudging_tendencies:
-        merged["Q1"] = merged.Q1 + merged.tendency_of_air_temperature_due_to_nudging
-        merged["Q2"] = merged.Q2 + merged.tendency_of_specific_humidity_due_to_nudging
+        merged["Q1"], merged["Q2"] = _add_nudging_tendencies(merged)
     elif approach == Approach.apparent_sources_plus_dynamics_differences:
-        merged["Q1"] = (
-            merged.Q1 + merged.tendency_of_air_temperature_due_to_dynamics_differences
-        )
-        merged["Q2"] = (
-            merged.Q2 + merged.tendency_of_specific_humidity_due_to_dynamics_differences
-        )
+        merged["Q1"], merged["Q2"] = _add_dynamics_differences(merged)
     elif approach == Approach.apparent_sources_extend_lower:
-        merged["Q1"], merged["Q2"] = _extend_lower(merged)
+        merged["Q1"] = _extend_lower(merged["Q1"])
+        merged["Q2"] = _extend_lower(merged["Q2"])
 
     return _ml_standard_names(merged)
+
+
+def _add_nudging_tendencies(merged: xarray.Dataset):
+    with xarray.set_options(keep_attrs=True):
+        Q1 = merged.Q1 + merged.air_temperature_tendency_due_to_nudging
+        Q2 = merged.Q2 + merged.specific_humidity_tendency_due_to_nudging
+    Q1.attrs.update(
+        {
+            "long_name": merged.Q1.attrs.get("long_name")
+            + " plus dynamics nudging tendencies",
+            "description": merged.Q1.attrs.get("description")
+            + " + dynamics nudging tendencies",
+        }
+    )
+    Q2.attrs.update(
+        {
+            "long_name": merged.Q2.attrs.get("long_name")
+            + " plus dynamics nudging tendencies",
+            "description": merged.Q2.attrs.get("description")
+            + " + dynamics nudging tendencies",
+        }
+    )
+    return Q1, Q2
+
+
+def _add_dynamics_differences(merged: xarray.Dataset):
+    with xarray.set_options(keep_attrs=True):
+        Q1 = merged.Q1 + merged.air_temperature_tendency_due_to_dynamics
+        Q2 = merged.Q2 + merged.specific_humidity_tendency_due_to_dynamics
+    Q1.attrs.update(
+        {
+            "long_name": merged.Q1.attrs.get("long_name")
+            + " plus dynamics differences",
+            "description": merged.Q1.attrs.get("description")
+            + " + dynamics differences",
+        }
+    )
+    Q2.attrs.update(
+        {
+            "long_name": merged.Q2.attrs.get("long_name")
+            + " plus dynamics differences",
+            "description": merged.Q2.attrs.get("description")
+            + " + dynamics differences",
+        }
+    )
+    return Q1, Q2
+
+
+def _extend_lower(
+    fine_source: xarray.DataArray, vertical_dim: str = "z"
+) -> xarray.Dataset:
+    if fine_source.sizes[vertical_dim] < 2:
+        raise ValueError("vertical_dim must be greater than 1.")
+    fine_source_new_bottom = fine_source.isel({vertical_dim: -2})
+    fine_source_without_bottom = fine_source.isel({vertical_dim: slice(None, -1)})
+    fine_source_extended_lower = xarray.concat(
+        [fine_source_without_bottom, fine_source_new_bottom], dim=vertical_dim
+    )
+    fine_source_extended_lower.attrs.update(
+        {
+            "long_name": fine_source.attrs.get("long_name")
+            + " with lowest layer overriden",
+            "description": fine_source.attrs.get("description")
+            + ", with lowest layer overriden",
+        }
+    )
+    return fine_source_extended_lower
 
 
 def _ml_standard_names(merged: xarray.Dataset):
@@ -342,20 +403,10 @@ def _ml_standard_names(merged: xarray.Dataset):
     return merged.astype(numpy.float32)
 
 
-def _extend_lower(fine: xarray.Dataset, vertical_dim: str = "z") -> xarray.Dataset:
-    fine_sources = get_variables(fine, ["Q1", "Q2"])
-    fine_sources_new_bottom = fine_sources.isel({vertical_dim: -2})
-    fine_sources_without_bottom = fine_sources.isel({vertical_dim: slice(None, -2)})
-    fine_sources_extended_lower = xarray.concat(
-        [fine_sources_without_bottom, fine_sources_new_bottom], dim=vertical_dim
-    )
-    return fine_sources_extended_lower.Q1, fine_sources_extended_lower.Q2
-
-
 @mapper_functions.register
 def open_fine_resolution(
+    approach: str,
     fine_url: str,
-    approach: str = None,
     include_temperature_nudging: bool = False,
     additional_dataset_urls: Sequence[str] = None,
 ) -> GeoMapper:
@@ -363,22 +414,21 @@ def open_fine_resolution(
     Open the fine-res mapper using several configuration options
     
     Args:
-        fine_url: url where coarsened fine resolution data is stored
         approach: one of a set of available approaches: 'apparent_sources_only',
             'apparent_sources_plus_nudging_tendencies',
             'apparent_sources_plus_dynamics_differences', or
-            'apparent_sources_extend_lower'. If not supplied, assumed to be
-            'apparent_sources_only'.
+            'apparent_sources_extend_lower'.
+        fine_url: url where coarsened fine resolution data is stored
         include_temperature_nudging: whether to include fine-res nudging in Q1
-        additional_dataset_urls: sequence of urls which to zarrs containing additional
-            data to be merged into the resulting mapper dataset
+        additional_dataset_urls: sequence of urls to zarrs containing additional
+            data to be merged into the resulting mapper dataset, e.g., ML input
+            features, the dynamics nudging tendencies, and the dynamics differences
+            as required by the above approaches
         
     Returns:
         a mapper
     """
 
-    if approach is None:
-        approach = "apparent_sources_only"
     approach_enum = Approach[approach]
 
     merged: FineResBudget = _open_fine_resolution_dataset(

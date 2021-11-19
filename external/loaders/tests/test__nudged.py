@@ -242,7 +242,9 @@ def test_open_fine_resolution_nudging_hybrid(
 
 def test_open_fine_resolution(regtest, fine_res_zarr):
     data = open_fine_resolution(
-        fine_url=fine_res_zarr, include_temperature_nudging=True
+        approach="apparent_sources_only",
+        fine_url=fine_res_zarr,
+        include_temperature_nudging=True,
     )
     data[timestep1_end].info(regtest)
 
@@ -252,6 +254,7 @@ def test_open_fine_resolution_with_nudged_state(
 ):
     state_dir = os.path.join(nudge_to_fine_data_dir, "state_after_timestep.zarr")
     data = open_fine_resolution(
+        approach="apparent_sources_only",
         fine_url=fine_res_zarr,
         additional_dataset_urls=[state_dir],
         include_temperature_nudging=True,
