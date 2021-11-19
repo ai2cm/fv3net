@@ -80,7 +80,7 @@ class CallArtifacts:
 
 @pytest.fixture
 def mock_train_dense_model():
-    original_func = fv3fit.get_training_function("DenseModel")
+    original_func = fv3fit.get_training_function("dense")
     train_mock = mock.MagicMock(name="train_dense_model", spec=original_func)
     train_mock.return_value = mock.MagicMock(
         name="train_dense_model_return", spec=fv3fit.Predictor
@@ -88,12 +88,12 @@ def mock_train_dense_model():
     register("mock")(train_mock.return_value.__class__)
     try:
         fv3fit._shared.config.register_training_function(
-            "DenseModel", fv3fit.DenseHyperparameters
+            "dense", fv3fit.DenseHyperparameters
         )(train_mock)
         yield train_mock
     finally:
         fv3fit._shared.config.register_training_function(
-            "DenseModel", fv3fit.DenseHyperparameters
+            "dense", fv3fit.DenseHyperparameters
         )(original_func)
         register._model_types.pop("mock")
 
@@ -108,7 +108,7 @@ def mock_load_batches():
 def call_main(
     tmpdir, mock_load_batches, derived_output_variables, use_validation_data: bool,
 ):
-    model_type = "DenseModel"
+    model_type = "dense"
     hyperparameters_dict = {}
     config = get_config(
         tmpdir,
@@ -303,7 +303,7 @@ def get_config(
 
 
 def test_train_config_override_args(tmpdir, mock_load_batches, mock_train_dense_model):
-    model_type = "DenseModel"
+    model_type = "dense"
     hyperparameter_dict = {
         "dense_network": {"width": 6},
         "optimizer_config": {"name": "MyOpt", "kwargs": {"lr": 0.01}},
@@ -363,9 +363,9 @@ def cli_main(args: MainArgs):
             {"max_depth": 4, "n_estimators": 2},
             id="random_forest",
         ),
-        pytest.param("DenseModel", {"save_model_checkpoints": False}, id="dense"),
+        pytest.param("dense", {"save_model_checkpoints": False}, id="dense"),
         pytest.param(
-            "DenseModel", {"save_model_checkpoints": True}, id="dense_with_checkpoints",
+            "dense", {"save_model_checkpoints": True}, id="dense_with_checkpoints",
         ),
     ],
 )
