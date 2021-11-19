@@ -160,7 +160,7 @@ spec:
             {
               "name": "keras_dQ2_model",
               "config": {
-                "model_type": "DenseModel",
+                "model_type": "dense",
                 "hyperparameters": {
                   "input_variables": [
                     "air_temperature",
@@ -191,7 +191,10 @@ spec:
                     "batch_size": 512,
                     "epochs": 2
                   },
-                  "loss": "mae"
+                  "loss": {
+                    "loss_type": "mae",
+                    "scaling": "standard"
+                  }
                 }
               }
             }
