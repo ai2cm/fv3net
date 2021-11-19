@@ -1,5 +1,6 @@
 import fsspec
 import xarray
+import zarr
 import numpy
 import numpy as np
 from datetime import timedelta
@@ -87,7 +88,7 @@ class FineResBudget(Protocol):
 
 
 def open_zarr(url, consolidated=False):
-    mapper = fsspec.get_mapper(url)
+    mapper = zarr.LRUStoreCache(fsspec.get_mapper(url), 128 * 2 ** 20)
     return xarray.open_zarr(mapper, consolidated=consolidated)
 
 
