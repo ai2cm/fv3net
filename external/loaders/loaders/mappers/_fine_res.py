@@ -2,6 +2,7 @@ from datetime import timedelta
 from enum import Enum
 from typing_extensions import Protocol
 from typing import Optional, Sequence
+import zarr
 import xarray as xr
 import numpy as np
 import fsspec
@@ -19,7 +20,7 @@ class MLTendencies(Protocol):
 
 
 def open_zarr(url, consolidated=False):
-    mapper = fsspec.get_mapper(url)
+    mapper = zarr.LRUStoreCache(fsspec.get_mapper(url), 128 * 2 ** 20)
     return xr.open_zarr(mapper, consolidated=consolidated)
 
 
