@@ -12,6 +12,7 @@ from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
 from loaders.mappers._fine_res_budget import compute_fine_res_sources, FineResBudget
 
+
 class MLTendencies(Protocol):
     dQ1: xr.DataArray
     dQ2: xr.DataArray
@@ -109,8 +110,14 @@ def _add_nudging_tendencies(merged: xr.Dataset):
 
 def _add_dynamics_differences(merged: xr.Dataset):
     with xr.set_options(keep_attrs=True):
-        Q1 = merged.Q1 + merged.fine_minus_coarse_tendency_of_air_temperature_due_to_dynamics
-        Q2 = merged.Q2 + merged.fine_minus_coarse_tendency_of_specific_humidity_due_to_dynamics
+        Q1 = (
+            merged.Q1
+            + merged.fine_minus_coarse_tendency_of_air_temperature_due_to_dynamics
+        )
+        Q2 = (
+            merged.Q2
+            + merged.fine_minus_coarse_tendency_of_specific_humidity_due_to_dynamics
+        )
     Q1.attrs.update(
         {
             "long_name": merged.Q1.attrs.get("long_name")
@@ -130,9 +137,7 @@ def _add_dynamics_differences(merged: xr.Dataset):
     return Q1, Q2
 
 
-def _extend_lower(
-    fine_source: xr.DataArray, vertical_dim: str = "z"
-) -> xr.Dataset:
+def _extend_lower(fine_source: xr.DataArray, vertical_dim: str = "z") -> xr.Dataset:
     if fine_source.sizes[vertical_dim] < 2:
         raise ValueError("vertical_dim must be greater than 1.")
     fine_source_new_bottom = fine_source.isel({vertical_dim: -2})
