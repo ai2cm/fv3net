@@ -1,11 +1,13 @@
 import dataclasses
 import numpy as np
 import tensorflow as tf
-from typing import Mapping, Hashable, Sequence
+from typing import Mapping, Hashable, Sequence, Optional, Tuple
 from fv3fit._shared.config import SliceConfig, PackerConfig
-
+from .sequences import XyMultiArraySequence
 
 ClipDims = Mapping[Hashable, Mapping[str, SliceConfig]]
+
+
 
 
 @dataclasses.dataclass(frozen=True)
@@ -136,9 +138,11 @@ def clip_arrays(
     for array, name in zip(arrays, variable_names):
         if name in config.clip:
             slice = config.single_feature_slice(name)
+            start = slice.start or 0
+            stop = slice.stop or array.shape[-1]
             outputs.append(
                 array.take(
-                    indices=range(slice.start, slice.stop), axis=-1  # type: ignore
+                    indices=range(start, stop), axis=-1  # type: ignore
                 )
             )
         else:
@@ -161,3 +165,24 @@ def _zero_slice_with_placeholder_dim(layer: tf.Tensor, n_zero_levels: int) -> tf
     slice_start = [0 for l in layer.shape]
     slice_size = [-1 for l in layer.shape[:-1]] + [n_zero_levels]
     return tf.slice(layer_copy, slice_start, slice_size)
+
+
+class ClippedXyMultiArraySequence(tf.keras.utils.Sequence):
+    def __init__(
+            self,
+            array_sequence: XyMultiArraySequence,
+            clip_config: Optional[ClipConfig]=None,
+    ):
+        self.clip_config = clip_config
+        self.array_sequence = array_sequence
+
+    def __len__(self) -> int:
+        return len(self.array_sequence)
+
+    def __getitem__(self, idx) -> Tuple[np.ndarray, np.ndarray]:
+        X, y = self.array_sequence[idx]
+        clipped_X = clip_arrays(self.clip_config, X, self.array_sequence.X_names)
+        clipped_y = clip_arrays(self.clip_config, y, self.array_sequence.y_names)
+        return clipped_X, clipped_y
+
+
