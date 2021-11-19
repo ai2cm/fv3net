@@ -128,37 +128,6 @@ def test_TrainConfig_from_args_sysargv(monkeypatch):
     assert config.model.architecture.name == "rnn"
 
 
-def test_TrainConfig_invalid_input_vars():
-
-    args = [
-        "--config-path",
-        "default",
-        "--model.input_variables",
-        "A",
-        "B",
-        "--transform.input_variables",
-        "A",
-        "C",
-    ]
-
-    with pytest.raises(ValueError):
-        TrainConfig.from_args(args)
-
-    args = [
-        "--config-path",
-        "default",
-        "--model.direct_out_variables",
-        "A",
-        "B",
-        "--transform.output_variables",
-        "A",
-        "C",
-    ]
-
-    with pytest.raises(ValueError):
-        TrainConfig.from_args(args)
-
-
 @pytest.mark.regression
 def test_training_entry_integration(tmp_path):
 
