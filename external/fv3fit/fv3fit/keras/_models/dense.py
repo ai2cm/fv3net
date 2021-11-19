@@ -1,5 +1,4 @@
 import dataclasses
-from external.fv3fit.fv3fit._shared import hyperparameters
 import numpy as np
 import tensorflow as tf
 from typing import List, Optional, Sequence, Tuple, Set, Mapping, Union
@@ -17,7 +16,12 @@ from fv3fit.keras._models.shared.utils import (
     get_stacked_metadata,
     full_standard_normalized_input,
 )
-from fv3fit.keras._models.shared.clip import clip_layers, clip_arrays, zero_fill_clipped_layers
+from fv3fit.keras._models.shared.clip import (
+    clip_layers,
+    clip_arrays,
+    zero_fill_clipped_layers,
+)
+
 
 @dataclasses.dataclass
 class DenseHyperparameters(Hyperparameters):
@@ -28,8 +32,8 @@ class DenseHyperparameters(Hyperparameters):
         input_variables: names of variables to use as inputs
         output_variables: names of variables to use as outputs
         weights: loss function weights, defined as a dict whose keys are
-            variable names and values are either a scalar referring to the total
-            weight of the variable. Default is a total weight of 1
+            variable names and values are either a scalar referring to the
+            total weight of the variable. Default is a total weight of 1
             for each variable.
         normalize_loss: if True (default), normalize outputs by their standard
             deviation before computing the loss function
@@ -62,9 +66,7 @@ class DenseHyperparameters(Hyperparameters):
     loss: LossConfig = LossConfig(scaling="standard", loss_type="mse")
     save_model_checkpoints: bool = False
     nonnegative_outputs: bool = False
-    clip_config: ClipConfig = dataclasses.field(
-        default_factory=lambda: ClipConfig({})
-    )
+    clip_config: ClipConfig = dataclasses.field(default_factory=lambda: ClipConfig({}))
 
     @property
     def variables(self) -> Set[str]:
@@ -174,12 +176,16 @@ def build_model(
         config.clip_config, denorm_output_layers, config.output_variables
     )
 
-    train_model = tf.keras.Model(inputs=input_layers, outputs=clipped_denorm_output_layers)
+    train_model = tf.keras.Model(
+        inputs=input_layers, outputs=clipped_denorm_output_layers
+    )
     output_stds = (
         np.std(array, axis=tuple(range(len(array.shape) - 1)), dtype=np.float32)
         for array in y_2d
     )
-    clipped_output_stds = clip_arrays(config.clip_config, output_stds, config.output_variables)
+    clipped_output_stds = clip_arrays(
+        config.clip_config, list(output_stds), config.output_variables
+    )
     train_model.compile(
         optimizer=config.optimizer_config.instance,
         loss=[config.loss.loss(std) for std in clipped_output_stds],
@@ -188,14 +194,16 @@ def build_model(
     # need a separate model for this so i) we don't have to
     # serialize the custom loss functions and ii) clipped outputs can be
     # restored to original size with zero padding
-    
+
     # replace levels with zero that were clipped out in train_model
     original_output_feature_sizes = [array.shape[-1] for array in y_2d]
     zero_filled_denorm_output_layers = zero_fill_clipped_layers(
-        config.clip_config, 
-        clipped_denorm_output_layers, 
-        config.output_variables, 
-        original_output_feature_sizes
+        config.clip_config,
+        clipped_denorm_output_layers,
+        config.output_variables,
+        original_output_feature_sizes,
     )
-    predict_model = tf.keras.Model(inputs=input_layers, outputs=zero_filled_denorm_output_layers)
+    predict_model = tf.keras.Model(
+        inputs=input_layers, outputs=zero_filled_denorm_output_layers
+    )
     return train_model, predict_model

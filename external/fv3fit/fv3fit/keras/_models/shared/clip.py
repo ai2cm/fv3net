@@ -2,14 +2,14 @@ import dataclasses
 import numpy as np
 import tensorflow as tf
 from typing import Mapping, Hashable, Sequence
-from fv3fit._shared.config import SliceConfig
+from fv3fit._shared.config import SliceConfig, PackerConfig
 
 
 ClipDims = Mapping[Hashable, Mapping[str, SliceConfig]]
 
 
 @dataclasses.dataclass(frozen=True)
-class ClipConfig:
+class ClipConfig(PackerConfig):
     clip: ClipDims = dataclasses.field(default_factory=dict)
 
     def single_feature_slice(self, name: str) -> SliceConfig:
@@ -148,10 +148,10 @@ def clip_arrays(
 
 def _zero_slice_with_placeholder_dim(layer: tf.Tensor, n_zero_levels: int) -> tf.Tensor:
     # Hacky way of getting zero padding tensor with same first placeholder dim as input
-    # but different feature dim size. 
-    # The slice size cannot be larger than the original layer size, 
+    # but different feature dim size.
+    # The slice size cannot be larger than the original layer size,
     layer_copy = tf.zeros_like(layer)
-    
+
     # if padding needed is longer than clipped feature dim size, need to
     # expand the copy layer to allow for this when slicing
     n_template_levels = layer_copy.shape[-1]
@@ -161,4 +161,3 @@ def _zero_slice_with_placeholder_dim(layer: tf.Tensor, n_zero_levels: int) -> tf
     slice_start = [0 for l in layer.shape]
     slice_size = [-1 for l in layer.shape[:-1]] + [n_zero_levels]
     return tf.slice(layer_copy, slice_start, slice_size)
-
