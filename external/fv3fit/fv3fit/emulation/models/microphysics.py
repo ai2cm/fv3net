@@ -125,6 +125,19 @@ class MicrophysicsConfig:
 
         return outputs
 
+    def _compute_hidden(self, inputs, data):
+        processed = self._get_processed_inputs(data, inputs)
+        combine_layer = get_combine_from_arch_key(self.architecture.name)
+        combined = combine_layer(processed)
+        arch_layer = self.architecture.build()
+        return arch_layer(combined)
+
+    def _get_inputs(self, data):
+        return {
+            name: tf.keras.layers.Input(data[name].shape[-1], name=name)
+            for name in self.input_variables
+        }
+
     def build(self, data: Mapping[str, tf.Tensor],) -> tf.keras.Model:
         """
         Build model described by the configuration
@@ -133,19 +146,12 @@ class MicrophysicsConfig:
             data: Sample input tensors for determining layer shapes and
                 fitting normalization layers if specifies
         """
-
-        inputs = {
-            name: tf.keras.layers.Input(data[name].shape[-1], name=name)
-            for name in self.input_variables
-        }
-        processed = self._get_processed_inputs(data, inputs)
-        combine_layer = get_combine_from_arch_key(self.architecture.name)
-        combined = combine_layer(processed)
-        arch_layer = self.architecture.build()
-        arch_out = arch_layer(combined)
-        outputs = self._get_direct_outputs(data, arch_out)
-        outputs.update(self._get_residual_outputs(inputs, data, arch_out))
-
-        model = tf.keras.models.Model(inputs=inputs, outputs=outputs)
-
-        return model
+        inputs = self._get_inputs(data)
+        hidden = self._compute_hidden(inputs, data)
+        return tf.keras.models.Model(
+            inputs=inputs,
+            outputs={
+                **self._get_direct_outputs(data, hidden),
+                **self._get_residual_outputs(inputs, data, hidden),
+            },
+        )
