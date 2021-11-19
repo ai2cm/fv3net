@@ -20,7 +20,9 @@ from fv3fit.keras._models.shared.clip import (
     clip_layers,
     clip_arrays,
     zero_fill_clipped_layers,
+    ClippedXyMultiArraySequence,
 )
+
 
 
 @dataclasses.dataclass
@@ -73,6 +75,30 @@ class DenseHyperparameters(Hyperparameters):
         return set(self.input_variables).union(self.output_variables)
 
 
+def _clip_config_outputs_only(clip_config: ClipConfig, output_variables: Sequence[str]):
+    output_only_config = {}
+    for var, var_clipping in clip_config.clip.items():
+        if var in output_variables:
+            output_only_config[var] = var_clipping
+    return ClipConfig(output_only_config)
+
+
+def _clip_data_outputs(
+        hyperparameters: DenseHyperparameters, 
+        train_data: XyMultiArraySequence, 
+        validation_data: Optional[XyMultiArraySequence]=None
+):
+    # fit loop needs to clip the y target feature dim if train_model outputs are clipped
+    y_only_clip_config = _clip_config_outputs_only(hyperparameters.clip_config, hyperparameters.output_variables)
+    y_clipped_train_data = ClippedXyMultiArraySequence(train_data, y_only_clip_config)
+    y_clipped_validation_data = (
+        ClippedXyMultiArraySequence(validation_data, y_only_clip_config)[0]
+        if validation_data is not None
+        else validation_data
+    )
+    return y_clipped_train_data, y_clipped_validation_data
+
+
 @register_training_function("dense", DenseHyperparameters)
 def train_dense_model(
     hyperparameters: DenseHyperparameters,
@@ -86,7 +112,8 @@ def train_dense_model(
             dataset_sequence=[validation_batches[0]],
             unstacked_dims=["z"],
             n_halo=0,
-        )[0]
+        )
+        
         del validation_batches
     else:
         validation_data = None
@@ -97,9 +124,14 @@ def train_dense_model(
         unstacked_dims=["z"],
         n_halo=0,
     )
+    # X, y used for building the model should be the full inputs and outputs before clipping
+    X, y = train_data[0]
+
+    # y data should be clipped when used as reference to fit train_model
+    train_data, validation_data = _clip_data_outputs(hyperparameters, train_data, validation_data)
+
     if isinstance(train_batches, tuple):
         train_data = tuple(train_data)
-    X, y = train_data[0]
 
     train_model, predict_model = build_model(hyperparameters, X=X, y=y)
 
@@ -107,6 +139,9 @@ def train_dense_model(
         names=hyperparameters.output_variables, ds=train_batches[0], unstacked_dims="z",
     )
     del train_batches
+
+
+
     hyperparameters.training_loop.fit_loop(
         model=train_model, Xy=train_data, validation_data=validation_data
     )
@@ -149,7 +184,9 @@ def build_model(
         config.clip_config, input_layers, config.input_variables
     )
     full_input = full_standard_normalized_input(
-        clipped_input_layers, X_2d, config.input_variables
+        clipped_input_layers, 
+        clip_arrays(config.clip_config, X_2d, config.input_variables), 
+        config.input_variables
     )
 
     hidden_outputs = config.dense_network.build(
