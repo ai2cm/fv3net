@@ -8,8 +8,6 @@ from .sequences import XyMultiArraySequence
 ClipDims = Mapping[Hashable, Mapping[str, SliceConfig]]
 
 
-
-
 @dataclasses.dataclass(frozen=True)
 class ClipConfig(PackerConfig):
     clip: ClipDims = dataclasses.field(default_factory=dict)
@@ -169,9 +167,7 @@ def _zero_slice_with_placeholder_dim(layer: tf.Tensor, n_zero_levels: int) -> tf
 
 class ClippedXyMultiArraySequence(tf.keras.utils.Sequence):
     def __init__(
-            self,
-            array_sequence: XyMultiArraySequence,
-            clip_config: Optional[ClipConfig]=None,
+        self, array_sequence: XyMultiArraySequence, clip_config: Optional[ClipConfig],
     ):
         self.clip_config = clip_config
         self.array_sequence = array_sequence
@@ -181,8 +177,9 @@ class ClippedXyMultiArraySequence(tf.keras.utils.Sequence):
 
     def __getitem__(self, idx) -> Tuple[np.ndarray, np.ndarray]:
         X, y = self.array_sequence[idx]
-        clipped_X = clip_arrays(self.clip_config, X, self.array_sequence.X_names)
-        clipped_y = clip_arrays(self.clip_config, y, self.array_sequence.y_names)
-        return clipped_X, clipped_y
-
-
+        if self.clip_config is None:
+            return X, y
+        else:
+            clipped_X = clip_arrays(self.clip_config, X, self.array_sequence.X_names)
+            clipped_y = clip_arrays(self.clip_config, y, self.array_sequence.y_names)
+            return clipped_X, clipped_y
