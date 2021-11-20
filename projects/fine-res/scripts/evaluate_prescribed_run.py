@@ -24,6 +24,7 @@ NUDGING_TENDENCIES_NAME = "nudging_tendencies.zarr"
 STATE_NAME = "state_after_timestep.zarr"
 VARIABLES = ["air_temperature", "specific_humidity"]
 Z_INDICES = [25, 78]
+TIME_INDEX = 95
 COLORS = [
     "#000000",
     "#E69F00",
@@ -121,9 +122,23 @@ def plot_profile(ds, variable, output):
 
 
 def plot_map(ds, name, output):
-    fg = fv3viz.plot_cube(ds, name, col="process", col_wrap=3)[-1]
+    fg = fv3viz.plot_cube(ds, name, col="process", col_wrap=2)[-1]
+    fg.fig.set_size_inches((7, 3.8))
+    if "snapshot" in name:
+        time = ds[name].time.values.item()
+    elif "time_mean" in name:
+        time = "time-mean"
+    else:
+        time = ""
+    fg.fig.suptitle(time)
     fg.fig.savefig(output, dpi=200)
     plt.close(fg.fig)
+
+
+def time_mean(ds):
+    start = ds.time.values[0]
+    end = ds.time.values[-1]
+    return ds.mean("time").assign_coords(time=f"{start} to {end} mean")
 
 
 def compute(run_url, output):
@@ -138,8 +153,7 @@ def compute(run_url, output):
         data.append(xr.open_zarr(fsspec.get_mapper(os.path.join(run_url, name))))
     grid = catalog["grid/c48"].to_dask().load()
     data.append(grid)
-    data = xr.merge(data)
-    data = data.assign_coords(z=range(data.sizes["z"]))
+    data = xr.merge(data).assign_coords(z=range(data.sizes["z"]))
 
     # create 'process' dimension in data
     data_by_process = organize_by_process(data)
@@ -176,8 +190,8 @@ def compute(run_url, output):
         data_2d = xr.merge([data_2d, data_level])
 
     # compute time mean and select a snapshot from 2D data
-    data_snapshot = add_suffix(data_2d.isel(time=5), "_snapshot")
-    data_time_mean = add_suffix(data_2d.mean("time"), "_time_mean")
+    data_snapshot = add_suffix(data_2d.isel(time=TIME_INDEX), "_snapshot")
+    data_time_mean = add_suffix(time_mean(data_2d), "_time_mean")
 
     # merge and compute
     diagnostics = xr.merge([region_mean_time_mean, data_snapshot, data_time_mean, grid])
