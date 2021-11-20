@@ -2,8 +2,14 @@ import xarray as xr
 import fsspec
 import click
 
-URL_IN = "gs://vcm-ml-experiments/default/2021-04-27/2020-05-27-40-day-X-SHiELD-simulation/fine-res-budget.zarr"
-URL_OUT = "gs://vcm-ml-intermediate/2021-11-18-fine-res-budget-rechunked-from-2020-05-27-40-day-X-SHiELD-simulation.zarr"
+URL_IN = (
+    "gs://vcm-ml-experiments/default/2021-04-27/"
+    "2020-05-27-40-day-X-SHiELD-simulation/fine-res-budget.zarr"
+)
+URL_OUT = (
+    "gs://vcm-ml-intermediate/2021-11-18-fine-res-budget-"
+    "rechunked-from-2020-05-27-40-day-X-SHiELD-simulation.zarr"
+)
 TARGET_CHUNKS = [("time", 24), ("tile", 1)]
 
 
